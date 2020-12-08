@@ -189,7 +189,7 @@ func (tc *VaultSecretsTest) TestVaultSecrets(f *framework.F) {
 		fmt.Sprintf("%s/myapp", tc.secretsPath), "key=UPDATED")
 	f.NoError(err, out)
 
-	elapsed := time.Now().Sub(ttlStart)
+	elapsed := time.Since(ttlStart)
 	time.Sleep((time.Second * 60) - elapsed)
 
 	// tokens will not be updated

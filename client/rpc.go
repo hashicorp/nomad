@@ -114,7 +114,7 @@ TRY:
 	case <-time.After(lib.RandomStagger(c.config.RPCHoldTimeout / structs.JitterFraction)):
 		// If we are going to retry a blocking query we need to update the time to block so it finishes by our deadline.
 		if info, ok := args.(structs.RPCInfo); ok && info.TimeToBlock() > 0 {
-			newBlockTime := deadline.Sub(time.Now())
+			newBlockTime := time.Until(deadline)
 			// We can get below 0 here on slow computers because we slept for jitter so at least try to get an immediate response
 			if newBlockTime < 0 {
 				newBlockTime = 0

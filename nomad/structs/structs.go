@@ -3527,11 +3527,7 @@ func (a *AllocatedTaskResources) Comparable() *ComparableResources {
 			},
 		},
 	}
-	if len(a.Networks) > 0 {
-		for _, net := range a.Networks {
-			ret.Flattened.Networks = append(ret.Flattened.Networks, net)
-		}
-	}
+	ret.Flattened.Networks = append(ret.Flattened.Networks, a.Networks...)
 	return ret
 }
 
@@ -4722,9 +4718,7 @@ func (m *Multiregion) Copy() *Multiregion {
 			Datacenters: []string{},
 			Meta:        map[string]string{},
 		}
-		for _, dc := range region.Datacenters {
-			copyRegion.Datacenters = append(copyRegion.Datacenters, dc)
-		}
+		copyRegion.Datacenters = append(copyRegion.Datacenters, region.Datacenters...)
 		for k, v := range region.Meta {
 			copyRegion.Meta[k] = v
 		}
@@ -8367,15 +8361,15 @@ func (s *Spread) Validate() error {
 		if !ok {
 			seen[target.Value] = struct{}{}
 		} else {
-			mErr.Errors = append(mErr.Errors, errors.New(fmt.Sprintf("Spread target value %q already defined", target.Value)))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Spread target value %q already defined", target.Value))
 		}
 		if target.Percent < 0 || target.Percent > 100 {
-			mErr.Errors = append(mErr.Errors, errors.New(fmt.Sprintf("Spread target percentage for value %q must be between 0 and 100", target.Value)))
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Spread target percentage for value %q must be between 0 and 100", target.Value))
 		}
 		sumPercent += uint32(target.Percent)
 	}
 	if sumPercent > 100 {
-		mErr.Errors = append(mErr.Errors, errors.New(fmt.Sprintf("Sum of spread target percentages must not be greater than 100%%; got %d%%", sumPercent)))
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Sum of spread target percentages must not be greater than 100%%; got %d%%", sumPercent))
 	}
 	return mErr.ErrorOrNil()
 }
@@ -9608,11 +9602,9 @@ func (a *AllocListStub) SetEventDisplayMessages() {
 }
 
 func setDisplayMsg(taskStates map[string]*TaskState) {
-	if taskStates != nil {
-		for _, taskState := range taskStates {
-			for _, event := range taskState.Events {
-				event.PopulateEventDisplayMessage()
-			}
+	for _, taskState := range taskStates {
+		for _, event := range taskState.Events {
+			event.PopulateEventDisplayMessage()
 		}
 	}
 }
@@ -10504,7 +10496,7 @@ func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
 	expected := 0
 	actual := 0
 	for name, allocList := range plan.NodeAllocation {
-		didAlloc, _ := p.NodeAllocation[name]
+		didAlloc := p.NodeAllocation[name]
 		expected += len(allocList)
 		actual += len(didAlloc)
 	}

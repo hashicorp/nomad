@@ -111,7 +111,7 @@ func formatPolicies(policies []*api.ACLPolicyListStub) string {
 	}
 
 	output := make([]string, 0, len(policies)+1)
-	output = append(output, fmt.Sprintf("Name|Description"))
+	output = append(output, "Name|Description")
 	for _, p := range policies {
 		output = append(output, fmt.Sprintf("%s|%s", p.Name, p.Description))
 	}

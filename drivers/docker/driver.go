@@ -1657,7 +1657,7 @@ func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
 			return []docker.ULimit{}, fmt.Errorf("Malformed ulimit specification %v: %q, cannot be empty", name, ulimitRaw)
 		}
 		// hard limit is optional
-		if strings.Contains(ulimitRaw, ":") == false {
+		if !strings.Contains(ulimitRaw, ":") {
 			ulimitRaw = ulimitRaw + ":" + ulimitRaw
 		}
 

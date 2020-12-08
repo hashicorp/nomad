@@ -479,7 +479,7 @@ func (c *vaultClient) run() {
 				// Compute the duration after which the item
 				// needs renewal and set the renewalCh to fire
 				// at that time.
-				renewalDuration := renewalTime.Sub(time.Now())
+				renewalDuration := time.Until(renewalTime)
 				renewalCh = time.After(renewalDuration)
 			} else {
 				// If the renewals of multiple items are too

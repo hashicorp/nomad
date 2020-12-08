@@ -50,7 +50,7 @@ func GetVersion() *VersionInfo {
 }
 
 func (c *VersionInfo) VersionNumber() string {
-	version := fmt.Sprintf("%s", c.Version)
+	version := c.Version
 
 	if c.VersionPrerelease != "" {
 		version = fmt.Sprintf("%s-%s", version, c.VersionPrerelease)

@@ -400,7 +400,6 @@ func (s *HTTPServer) handleUI(h http.Handler) http.Handler {
 		header := w.Header()
 		header.Add("Content-Security-Policy", "default-src 'none'; connect-src *; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'")
 		h.ServeHTTP(w, req)
-		return
 	})
 }
 
@@ -448,7 +447,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		reqURL := req.URL.String()
 		start := time.Now()
 		defer func() {
-			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Now().Sub(start))
+			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Since(start))
 		}()
 		obj, err := s.auditHandler(handler)(resp, req)
 
@@ -524,7 +523,7 @@ func (s *HTTPServer) wrapNonJSON(handler func(resp http.ResponseWriter, req *htt
 		reqURL := req.URL.String()
 		start := time.Now()
 		defer func() {
-			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Now().Sub(start))
+			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Since(start))
 		}()
 		obj, err := s.auditNonJSONHandler(handler)(resp, req)
 
@@ -595,7 +594,7 @@ func setMeta(resp http.ResponseWriter, m *structs.QueryMeta) {
 // setHeaders is used to set canonical response header fields
 func setHeaders(resp http.ResponseWriter, headers map[string]string) {
 	for field, value := range headers {
-		resp.Header().Set(http.CanonicalHeaderKey(field), value)
+		resp.Header().Set(field, value)
 	}
 }
 

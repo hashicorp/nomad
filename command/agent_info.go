@@ -79,7 +79,7 @@ func (c *AgentInfoCommand) Run(args []string) int {
 
 	for _, key := range statsKeys {
 		c.Ui.Output(key)
-		statsData, _ := info.Stats[key]
+		statsData := info.Stats[key]
 		statsDataKeys := make([]string, len(statsData))
 		i := 0
 		for key := range statsData {

@@ -332,7 +332,7 @@ func parseSpread(result *[]*api.Spread, list *ast.ObjectList) error {
 		// Parse spread target
 		if o := listVal.Filter("target"); len(o.Items) > 0 {
 			if err := parseSpreadTarget(&s.SpreadTarget, o); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("target ->"))
+				return multierror.Prefix(err, "target ->")
 			}
 		}
 

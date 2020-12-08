@@ -149,7 +149,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 
 	// Query the allocation info
 	if len(allocID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
+		c.Ui.Error("Identifier must contain at least two characters.")
 		return 1
 	}
 

@@ -330,8 +330,6 @@ func (v *vaultClient) SetActive(active bool) {
 	v.revLock.Lock()
 	v.revoking = make(map[*structs.VaultAccessor]time.Time)
 	v.revLock.Unlock()
-
-	return
 }
 
 // flush is used to reset the state of the vault client
@@ -557,7 +555,7 @@ func (v *vaultClient) renewalLoop() {
 			// Successfully renewed
 			if err == nil {
 				// Attempt to renew the token at half the expiration time
-				durationUntilRenew := currentExpiration.Sub(time.Now()) / 2
+				durationUntilRenew := time.Until(currentExpiration) / 2
 
 				v.logger.Info("successfully renewed token", "next_renewal", durationUntilRenew)
 				authRenewTimer.Reset(durationUntilRenew)

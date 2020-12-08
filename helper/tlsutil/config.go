@@ -309,18 +309,15 @@ func (c *Config) OutgoingTLSWrapper() (RegionWrapper, error) {
 // no longer supports this mode of operation, we have to do it
 // manually.
 func WrapTLSClient(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
-	var err error
-	var tlsConn *tls.Conn
-
-	tlsConn = tls.Client(conn, tlsConfig)
+	tlsConn := tls.Client(conn, tlsConfig)
 
 	// If crypto/tls is doing verification, there's no need to do
 	// our own.
-	if tlsConfig.InsecureSkipVerify == false {
+	if !tlsConfig.InsecureSkipVerify {
 		return tlsConn, nil
 	}
 
-	if err = tlsConn.Handshake(); err != nil {
+	if err := tlsConn.Handshake(); err != nil {
 		tlsConn.Close()
 		return nil, err
 	}
@@ -342,13 +339,13 @@ func WrapTLSClient(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
 		opts.Intermediates.AddCert(cert)
 	}
 
-	_, err = certs[0].Verify(opts)
+	_, err := certs[0].Verify(opts)
 	if err != nil {
 		tlsConn.Close()
 		return nil, err
 	}
 
-	return tlsConn, err
+	return tlsConn, nil
 }
 
 // IncomingTLSConfig generates a TLS configuration for incoming requests

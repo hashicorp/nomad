@@ -103,7 +103,7 @@ func (p *imageProgress) get() (string, time.Time) {
 		}
 	}
 
-	elapsed := time.Now().Sub(p.pullStart)
+	elapsed := time.Since(p.pullStart)
 	cur := p.currentBytes()
 	total := p.totalBytes()
 	var est int64

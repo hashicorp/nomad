@@ -239,7 +239,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 	}
 	if len(nodeID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
+		c.Ui.Error("Identifier must contain at least two characters.")
 		return 1
 	}
 

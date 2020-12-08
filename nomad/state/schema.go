@@ -287,7 +287,7 @@ func jobIsPeriodic(obj interface{}) (bool, error) {
 		return false, fmt.Errorf("Unexpected type: %v", obj)
 	}
 
-	if j.Periodic != nil && j.Periodic.Enabled == true {
+	if j.Periodic != nil && j.Periodic.Enabled {
 		return true, nil
 	}
 

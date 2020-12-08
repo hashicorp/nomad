@@ -373,9 +373,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 			c.serverIDs = append(c.serverIDs, member.Name)
 		}
 	} else {
-		for _, id := range argNodes(serverIDs) {
-			c.serverIDs = append(c.serverIDs, id)
-		}
+		c.serverIDs = append(c.serverIDs, argNodes(serverIDs)...)
 	}
 
 	serversFound := 0
@@ -590,7 +588,7 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 
 		if strings.Contains(err.Error(), structs.ErrPermissionDenied.Error()) {
 			// Drop a hint to help the operator resolve the error
-			c.Ui.Warn(fmt.Sprintf("Agent host retrieval requires agent:read ACL or enable_debug=true.  See https://www.nomadproject.io/api-docs/agent#host for more information."))
+			c.Ui.Warn("Agent host retrieval requires agent:read ACL or enable_debug=true.  See https://www.nomadproject.io/api-docs/agent#host for more information.")
 		}
 		return // exit on any error
 	}
@@ -630,7 +628,7 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 			// one permission failure before we bail.
 			// But lets first drop a hint to help the operator resolve the error
 
-			c.Ui.Warn(fmt.Sprintf("Pprof retrieval requires agent:write ACL or enable_debug=true.  See https://www.nomadproject.io/api-docs/agent#agent-runtime-profiles for more information."))
+			c.Ui.Warn("Pprof retrieval requires agent:write ACL or enable_debug=true.  See https://www.nomadproject.io/api-docs/agent#agent-runtime-profiles for more information.")
 			return // only exit on 403
 		}
 	} else {

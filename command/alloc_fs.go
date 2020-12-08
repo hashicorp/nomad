@@ -178,7 +178,7 @@ func (f *AllocFSCommand) Run(args []string) int {
 	}
 	// Query the allocation info
 	if len(allocID) == 1 {
-		f.Ui.Error(fmt.Sprintf("Alloc ID must contain at least two characters."))
+		f.Ui.Error("Alloc ID must contain at least two characters.")
 		return 1
 	}
 
