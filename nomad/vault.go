@@ -621,11 +621,11 @@ func nextBackoff(backoff float64, expiry time.Time) float64 {
 	case backoff >= 24:
 		backoff = 30
 	default:
-		backoff *= 1.25
+		backoff = backoff * 1.25
 	}
 
 	// Add randomness
-	backoff *= (1.0 + rand.Float64())
+	backoff = backoff * (1.0 + rand.Float64())
 
 	if backoff > maxBackoff.Seconds() {
 		backoff = maxBackoff.Seconds()

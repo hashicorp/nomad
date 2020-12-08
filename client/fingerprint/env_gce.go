@@ -85,7 +85,7 @@ func NewEnvGCEFingerprint(logger log.Logger) Fingerprint {
 func (f *EnvGCEFingerprint) Get(attribute string, recursive bool) (string, error) {
 	reqUrl := f.metadataURL + attribute
 	if recursive {
-		reqUrl += "?recursive=true"
+		reqUrl = reqUrl + "?recursive=true"
 	}
 
 	parsedUrl, err := url.Parse(reqUrl)

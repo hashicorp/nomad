@@ -366,7 +366,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 
 	// Correct the run_for time based on how long it has already been running
 	now := time.Now()
-	driverCfg.runForDuration -= now.Sub(taskState.StartedAt)
+	driverCfg.runForDuration = driverCfg.runForDuration - now.Sub(taskState.StartedAt)
 
 	h := newTaskHandle(handle.Config, driverCfg, d.logger)
 	h.Recovered = true

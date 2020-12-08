@@ -53,8 +53,8 @@ func diskUsage(path string) (du DiskUsage, err error) {
 	used := disk - free
 	mb := float64(1048576)
 
-	disk /= mb
-	used /= mb
+	disk = disk / mb
+	used = used / mb
 
 	du.DiskMB = int64(disk)
 	du.UsedMB = int64(used)

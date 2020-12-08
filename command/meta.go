@@ -235,10 +235,10 @@ func generalOptionsUsage(usageOpts usageOptsFlags) string {
 `
 
 	if usageOpts&usageOptsNoNamespace == 0 {
-		helpText += namespaceText
+		helpText = helpText + namespaceText
 	}
 
-	helpText += remainingText
+	helpText = helpText + remainingText
 	return strings.TrimSpace(helpText)
 }
 
