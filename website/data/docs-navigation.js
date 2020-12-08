@@ -29,7 +29,7 @@ export default [
       'windows-service',
     ],
   },
-  {category: 'upgrade', content: ['upgrade-specific']},
+  { category: 'upgrade', content: ['upgrade-specific'] },
   {
     category: 'integrations',
     content: ['consul-integration', 'consul-connect', 'vault-integration'],
@@ -50,7 +50,7 @@ export default [
       'consensus',
       'filesystem',
       'gossip',
-      'security'
+      'security',
     ],
   },
   {
@@ -159,17 +159,20 @@ export default [
           'snapshot-save',
         ],
       },
-      {category: 'plugin', content: ['status']},
+      { category: 'plugin', content: ['status'] },
       {
         category: 'quota',
         content: ['apply', 'delete', 'init', 'inspect', 'list', 'status'],
       },
-      {category: 'recommendation', content: ['apply', 'dismiss', 'info', 'list']},
-      {category: 'scaling', content: ['policy-info', 'policy-list']},
-      {category: 'sentinel', content: ['apply', 'delete', 'list', 'read']},
-      {category: 'server', content: ['force-leave', 'join', 'members']},
+      {
+        category: 'recommendation',
+        content: ['apply', 'dismiss', 'info', 'list'],
+      },
+      { category: 'scaling', content: ['policy-info', 'policy-list'] },
+      { category: 'sentinel', content: ['apply', 'delete', 'list', 'read'] },
+      { category: 'server', content: ['force-leave', 'join', 'members'] },
       'status',
-      {category: 'system', content: ['gc', 'reconcile-summaries']},
+      { category: 'system', content: ['gc', 'reconcile-summaries'] },
       'ui',
       'version',
       {
@@ -270,7 +273,12 @@ export default [
               {
                 category: 'ipnet',
                 name: 'IP Network Functions',
-                content: ['cidrhost', 'cidrnetmask', 'cidrsubnet', 'cidrsubnets'],
+                content: [
+                  'cidrhost',
+                  'cidrnetmask',
+                  'cidrsubnet',
+                  'cidrsubnets',
+                ],
               },
               {
                 category: 'numeric',
@@ -392,7 +400,7 @@ export default [
     content: ['nvidia', 'community'],
   },
   'schedulers',
-  {category: 'runtime', content: ['environment', 'interpolation']},
+  { category: 'runtime', content: ['environment', 'interpolation'] },
   {
     category: 'autoscaling',
     content: [
@@ -419,19 +427,26 @@ export default [
       'metrics',
       {
         title: 'Cluster Management',
-        href: 'https://learn.hashicorp.com/collections/nomad/manage-clusters'
+        href: 'https://learn.hashicorp.com/collections/nomad/manage-clusters',
       },
       {
         title: 'Transport Security',
-        href: 'https://learn.hashicorp.com/collections/nomad/transport-security'
+        href:
+          'https://learn.hashicorp.com/collections/nomad/transport-security',
       },
       {
         title: 'Access Control',
-        href: 'https://learn.hashicorp.com/collections/nomad/access-control'
-      }
-    ]
+        href: 'https://learn.hashicorp.com/collections/nomad/access-control',
+      },
+    ],
   },
   '------------',
+  {
+    category: 'nomad-vs-kubernetes',
+    content: ['alternative', 'supplement'],
+  },
+  'ecosystem',
+  'who-uses-nomad',
   'enterprise',
   'faq',
 ]

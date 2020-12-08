@@ -7,7 +7,6 @@
 
 export default [
   'use-cases',
-  'who-uses-nomad',
   { category: 'vs', content: ['kubernetes', 'ecs', 'mesos', 'terraform'] },
   {
     category: 'getting-started',
