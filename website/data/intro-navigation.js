@@ -7,7 +7,7 @@
 
 export default [
   'use-cases',
-  { category: 'vs', content: ['kubernetes', 'ecs', 'mesos', 'terraform'] },
+  { category: 'vs', content: ['ecs', 'mesos', 'terraform'] },
   {
     category: 'getting-started',
     content: ['running', 'jobs', 'cluster', 'ui', 'next-steps'],
