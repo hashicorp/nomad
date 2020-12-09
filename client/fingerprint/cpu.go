@@ -8,6 +8,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	// defaultCPUTicks is the default amount of CPU resources assumed to be
+	// available if the CPU performance data is unable to be detected. This is
+	// common on EC2 instances, where the env_aws fingerprinter will follow up,
+	// setting an accurate value.
+	defaultCPUTicks = 1000 // 1 core * 1 GHz
+)
+
 // CPUFingerprint is used to fingerprint the CPU
 type CPUFingerprint struct {
 	StaticFingerprinter
@@ -64,12 +72,13 @@ func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 		tt = cfg.CpuCompute
 	}
 
-	// Return an error if no cpu was detected or explicitly set as this
-	// node would be unable to receive any allocations.
+	// If we cannot detect the cpu total compute, fallback to a very low default
+	// value and log a message about configuring cpu_total_compute. This happens
+	// on Graviton instances where CPU information is unavailable. In that case,
+	// the env_aws fingerprinter updates the value with correct information.
 	if tt == 0 {
-		return fmt.Errorf("cannot detect cpu total compute. "+
-			"CPU compute must be set manually using the client config option %q",
-			"cpu_total_compute")
+		f.logger.Info("fallback to default cpu total compute, set client config option cpu_total_compute to override")
+		tt = defaultCPUTicks
 	}
 
 	resp.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", tt))
