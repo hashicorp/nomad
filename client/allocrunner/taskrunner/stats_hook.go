@@ -44,7 +44,7 @@ func (*statsHook) Name() string {
 	return "stats_hook"
 }
 
-func (h *statsHook) Poststart(ctx context.Context, req *interfaces.TaskPoststartRequest, _ *interfaces.TaskPoststartResponse) error {
+func (h *statsHook) Poststart(_ context.Context, req *interfaces.TaskPoststartRequest, _ *interfaces.TaskPoststartResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
