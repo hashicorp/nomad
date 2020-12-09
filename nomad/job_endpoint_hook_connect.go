@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -173,11 +174,25 @@ func getNamedTaskForNativeService(tg *structs.TaskGroup, serviceName, taskName s
 // probably need to hack this up to look for checks on the service, and if they
 // qualify, configure a port for envoy to use to expose their paths.
 func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
+
+	// Create an environment interpolator with what we have at submission time.
+	// This should only be used to interpolate connect service names which are
+	// used in sidecar or gateway task names. Note that the service name might
+	// also be interpolated with job specifics during service canonicalization.
+	env := taskenv.NewEmptyBuilder().UpdateTask(&structs.Allocation{
+		Job:       job,
+		TaskGroup: g.Name,
+	}, nil).Build()
+
 	for _, service := range g.Services {
 		switch {
 		// mutate depending on what the connect block is being used for
 
 		case service.Connect.HasSidecar():
+			// interpolate the connect service name, which is used to create
+			// a name of an injected sidecar task
+			service.Name = env.ReplaceEnv(service.Name)
+
 			// Check to see if the sidecar task already exists
 			task := getSidecarTaskForService(g, service.Name)
 
@@ -233,6 +248,10 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 			}
 
 		case service.Connect.IsGateway():
+			// interpolate the connect service name, which is used to create
+			// a name of an injected gateway task
+			service.Name = env.ReplaceEnv(service.Name)
+
 			netHost := g.Networks[0].Mode == "host"
 			if !netHost && service.Connect.Gateway.Ingress != nil {
 				// Modify the gateway proxy service configuration to automatically
