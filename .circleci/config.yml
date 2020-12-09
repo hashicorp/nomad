@@ -388,9 +388,6 @@ jobs:
           destination: /builds/nomad_darwin_amd64.zip
   build-binaries:
     executor: go
-    environment:
-      # TODO: add ui tag here
-      GO_TAGS: "codegen_generated"
     steps:
       - checkout
       - run: apt-get update; apt-get install -y sudo unzip zip
