@@ -105,11 +105,9 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
       type: 'service',
       status: 'running',
       namespaceId: server.db.namespaces[1].name,
-      createRecommendations: true,
     });
     server.createList('job', 3, {
       namespaceId: server.db.namespaces[0].name,
-      createRecommendations: true,
     });
 
     managementToken = server.create('token');
@@ -213,6 +211,14 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
 
   test('resource recommendations show when they exist and can be expanded, collapsed, and processed', async function(assert) {
     server.create('feature', { name: 'Dynamic Application Sizing' });
+
+    job = server.create('job', {
+      type: 'service',
+      status: 'running',
+      namespaceId: server.db.namespaces[1].name,
+      groupsCount: 3,
+      createRecommendations: true,
+    });
 
     window.localStorage.nomadTokenSecret = managementToken.secretId;
     await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
