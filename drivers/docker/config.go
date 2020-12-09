@@ -662,6 +662,11 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	}
 
 	d.config = &config
+	// Remove any http
+	if strings.HasPrefix(d.config.InfraImage, "https://") {
+		d.config.InfraImage = strings.Replace(d.config.InfraImage, "https://", "", 1)
+	}
+
 	if len(d.config.GC.ImageDelay) > 0 {
 		dur, err := time.ParseDuration(d.config.GC.ImageDelay)
 		if err != nil {
