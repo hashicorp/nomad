@@ -158,7 +158,7 @@ func (tc *EventsTest) TestBlockedEvalEvents(f *framework.F) {
 		for _, e := range evalEvents {
 			eval, err := e.Evaluation()
 			if err != nil {
-				return false, fmt.Errorf("event was not an evaluation")
+				return false, fmt.Errorf("event was not an evaluation %w", err)
 			}
 
 			ftg := eval.FailedTGAllocs
