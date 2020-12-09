@@ -307,7 +307,7 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 		},
 	}
 
-	result := interpolateConnect(env, connect)
+	interpolateConnect(env, connect)
 
 	require.Equal(t, &structs.ConsulConnect{
 		Native: false,
@@ -412,5 +412,5 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 				}},
 			},
 		},
-	}, result)
+	}, connect)
 }

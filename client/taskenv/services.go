@@ -40,7 +40,7 @@ func InterpolateServices(taskEnv *TaskEnv, services []*structs.Service) []*struc
 		service.CanaryTags = taskEnv.ParseAndReplace(service.CanaryTags)
 		service.Meta = interpolateMapStringString(taskEnv, service.Meta)
 		service.CanaryMeta = interpolateMapStringString(taskEnv, service.CanaryMeta)
-		service.Connect = interpolateConnect(taskEnv, service.Connect)
+		interpolateConnect(taskEnv, service.Connect)
 
 		interpolated[i] = service
 	}
@@ -84,20 +84,17 @@ func interpolateMapStringInterface(taskEnv *TaskEnv, orig map[string]interface{}
 	return m
 }
 
-func interpolateConnect(taskEnv *TaskEnv, orig *structs.ConsulConnect) *structs.ConsulConnect {
-	if orig == nil {
-		return nil
+func interpolateConnect(taskEnv *TaskEnv, connect *structs.ConsulConnect) {
+	if connect == nil {
+		return
 	}
 
-	// make one copy and interpolate in-place on that
-	modified := orig.Copy()
-	interpolateConnectSidecarService(taskEnv, modified.SidecarService)
-	interpolateConnectSidecarTask(taskEnv, modified.SidecarTask)
-	if modified.Gateway != nil {
-		interpolateConnectGatewayProxy(taskEnv, modified.Gateway.Proxy)
-		interpolateConnectGatewayIngress(taskEnv, modified.Gateway.Ingress)
+	interpolateConnectSidecarService(taskEnv, connect.SidecarService)
+	interpolateConnectSidecarTask(taskEnv, connect.SidecarTask)
+	if connect.Gateway != nil {
+		interpolateConnectGatewayProxy(taskEnv, connect.Gateway.Proxy)
+		interpolateConnectGatewayIngress(taskEnv, connect.Gateway.Ingress)
 	}
-	return modified
 }
 
 func interpolateConnectGatewayProxy(taskEnv *TaskEnv, proxy *structs.ConsulGatewayProxy) {
