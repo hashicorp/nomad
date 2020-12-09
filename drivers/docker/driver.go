@@ -27,7 +27,6 @@ import (
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared/structs"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
@@ -128,7 +127,7 @@ func NewDockerDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlu
 	}
 }
 
-func (d *Driver) reattachToDockerLogger(reattachConfig *structs.ReattachConfig) (docklog.DockerLogger, *plugin.Client, error) {
+func (d *Driver) reattachToDockerLogger(reattachConfig *pstructs.ReattachConfig) (docklog.DockerLogger, *plugin.Client, error) {
 	reattach, err := pstructs.ReattachConfigToGoPlugin(reattachConfig)
 	if err != nil {
 		return nil, nil, err
