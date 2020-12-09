@@ -575,6 +575,8 @@ workflows:
           goarch: "386"
           filters: *backend_test_branches_filter
   website:
+    when:
+      equal: [ "https://github.com/hashicorp/nomad", << pipeline.project.git_url >> ]
     jobs:
       - website-docker-image:
           context: static-sites
