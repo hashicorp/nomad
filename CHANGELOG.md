@@ -1,7 +1,7 @@
 ## 1.0.1 (Unreleased)
 
 IMPROVEMENTS:
- * consul/connect: interpolate connect block [[GH-9586](https://github.com/hashicorp/nomad/pull/9586)]
+ * consul/connect: interpolate the connect, service meta, and service canary meta blocks with the task environment [[GH-9586](https://github.com/hashicorp/nomad/pull/9586)]
 
 ## 1.0.0 (December 8, 2020)
 
