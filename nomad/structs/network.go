@@ -250,7 +250,7 @@ func (idx *NetworkIndex) AddReservedPortRange(ports string) (collide bool) {
 	for _, used := range idx.UsedPorts {
 		for _, port := range resPorts {
 			// Guard against invalid port
-			if port < 0 || port >= maxValidPort {
+			if port >= maxValidPort {
 				return true
 			}
 			if used.Check(uint(port)) {
@@ -275,7 +275,7 @@ func (idx *NetworkIndex) AddReservedPortsForIP(ports string, ip string) (collide
 	used := idx.getUsedPortsFor(ip)
 	for _, port := range resPorts {
 		// Guard against invalid port
-		if port < 0 || port >= maxValidPort {
+		if port >= maxValidPort {
 			return true
 		}
 		if used.Check(uint(port)) {
