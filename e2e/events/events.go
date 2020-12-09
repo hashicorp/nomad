@@ -156,24 +156,21 @@ func (tc *EventsTest) TestBlockedEvalEvents(f *framework.F) {
 	// ensure there is a deployment promotion event
 	testutil.WaitForResult(func() (bool, error) {
 		for _, e := range evalEvents {
-			evalRaw, ok := e.Payload["Eval"].(map[string]interface{})
-			if !ok {
-				return false, fmt.Errorf("type assertion on eval")
+			eval, err := e.Evaluation()
+			if err != nil {
+				return false, fmt.Errorf("event was not an evaluation %w", err)
 			}
 
-			ftg, ok := evalRaw["FailedTGAllocs"].(map[string]interface{})
+			ftg := eval.FailedTGAllocs
+
+			tg, ok := ftg["one"]
 			if !ok {
 				continue
 			}
 
-			tg, ok := ftg["one"].(map[string]interface{})
-			if !ok {
-				continue
-			}
-			mem := tg["DimensionExhausted"].(map[string]interface{})["memory"]
+			mem := tg.DimensionExhausted["memory"]
 			require.NotNil(t, mem, "memory dimension was nil")
-			memInt := int(mem.(float64))
-			require.Greater(t, memInt, 0, "memory dimension was zero")
+			require.Greater(t, mem, 0, "memory dimension was zero")
 			return true, nil
 
 		}
