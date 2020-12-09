@@ -97,7 +97,7 @@ func (c *MonitorCommand) Run(args []string) int {
 
 	// Query the node info and lookup prefix
 	if len(nodeID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Node identifier must contain at least two characters."))
+		c.Ui.Error("Node identifier must contain at least two characters.")
 		return 1
 	}
 

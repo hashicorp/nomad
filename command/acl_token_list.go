@@ -108,7 +108,7 @@ func formatTokens(tokens []*api.ACLTokenListStub) string {
 	}
 
 	output := make([]string, 0, len(tokens)+1)
-	output = append(output, fmt.Sprintf("Name|Type|Global|Accessor ID"))
+	output = append(output, "Name|Type|Global|Accessor ID")
 	for _, p := range tokens {
 		output = append(output, fmt.Sprintf("%s|%s|%t|%s", p.Name, p.Type, p.Global, p.AccessorID))
 	}

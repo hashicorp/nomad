@@ -95,7 +95,7 @@ func (d *deadlineHeap) watch() {
 		// deadline is in the future, see if we already have a timer setup to
 		// handle it. If we don't create the timer.
 		if deadline.IsZero() || !deadline.Equal(nextDeadline) {
-			timer.Reset(deadline.Sub(time.Now()))
+			timer.Reset(time.Until(deadline))
 			nextDeadline = deadline
 		}
 	}

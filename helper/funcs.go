@@ -366,9 +366,7 @@ func CopySliceString(s []string) []string {
 	}
 
 	c := make([]string, l)
-	for i, v := range s {
-		c[i] = v
-	}
+	copy(c, s)
 	return c
 }
 
@@ -379,9 +377,7 @@ func CopySliceInt(s []int) []int {
 	}
 
 	c := make([]int, l)
-	for i, v := range s {
-		c[i] = v
-	}
+	copy(c, s)
 	return c
 }
 

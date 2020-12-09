@@ -168,8 +168,5 @@ func (s scalingPolicyStubList) Less(i, j int) bool {
 	stringList := []string{iTarget, jTarget}
 	sort.Strings(stringList)
 
-	if stringList[0] == iTarget {
-		return true
-	}
-	return false
+	return stringList[0] == iTarget
 }

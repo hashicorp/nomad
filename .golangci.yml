@@ -73,6 +73,7 @@ linters:
     - structcheck
     - unconvert
     - gofmt
+    - gosimple
     # Stretch Goal
     #- maligned
   fast: false

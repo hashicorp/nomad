@@ -348,12 +348,8 @@ func (c *NetworkChecker) SetNetwork(network *structs.NetworkResource) {
 	}
 
 	c.ports = make([]structs.Port, len(network.DynamicPorts)+len(network.ReservedPorts))
-	for _, port := range network.DynamicPorts {
-		c.ports = append(c.ports, port)
-	}
-	for _, port := range network.ReservedPorts {
-		c.ports = append(c.ports, port)
-	}
+	c.ports = append(c.ports, network.DynamicPorts...)
+	c.ports = append(c.ports, network.ReservedPorts...)
 }
 
 func (c *NetworkChecker) Feasible(option *structs.Node) bool {

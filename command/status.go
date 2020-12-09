@@ -184,6 +184,6 @@ func (c *StatusCommand) logMultiMatchError(id string, matches map[contexts.Conte
 		}
 
 		c.Ui.Error(fmt.Sprintf("\n%s:", strings.Title(string(ctx))))
-		c.Ui.Error(fmt.Sprintf("%s", strings.Join(vers, ", ")))
+		c.Ui.Error(strings.Join(vers, ", "))
 	}
 }

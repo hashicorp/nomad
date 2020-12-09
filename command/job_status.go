@@ -188,7 +188,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 
 	if periodic && !parameterized {
 		if *job.Stop {
-			basic = append(basic, fmt.Sprintf("Next Periodic Launch|none (job stopped)"))
+			basic = append(basic, "Next Periodic Launch|none (job stopped)")
 		} else {
 			location, err := job.Periodic.GetLocation()
 			if err == nil {

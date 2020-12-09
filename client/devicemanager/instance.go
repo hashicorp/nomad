@@ -406,8 +406,6 @@ func (i *instanceManager) handleFingerprintError() {
 
 	// Cancel the context so we cleanup all goroutines
 	i.cancel()
-
-	return
 }
 
 // handleFingerprint stores the new devices and triggers the fingerprint output

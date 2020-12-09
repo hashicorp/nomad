@@ -680,7 +680,7 @@ func (d *Driver) getMonitorPath(dir string, fingerPrint *drivers.Fingerprint) (s
 		d.logger.Debug("long socket paths available in this version of QEMU", "version", currentQemuVer)
 	}
 	fullSocketPath := fmt.Sprintf("%s/%s", dir, qemuMonitorSocketName)
-	if len(fullSocketPath) > qemuLegacyMaxMonitorPathLen && longPathSupport == false {
+	if len(fullSocketPath) > qemuLegacyMaxMonitorPathLen && !longPathSupport {
 		return "", fmt.Errorf("monitor path is too long for this version of qemu")
 	}
 	return fullSocketPath, nil

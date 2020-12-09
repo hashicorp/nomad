@@ -65,14 +65,12 @@ func (m *PluginGroup) WaitForFirstFingerprint(ctx context.Context) (<-chan struc
 		go func() {
 			defer wg.Done()
 			logger.Debug("waiting on plugin manager initial fingerprint")
+			<-manager.WaitForFirstFingerprint(ctx)
 			select {
-			case <-manager.WaitForFirstFingerprint(ctx):
-				select {
-				case <-ctx.Done():
-					logger.Warn("timeout waiting for plugin manager to be ready")
-				default:
-					logger.Debug("finished plugin manager initial fingerprint")
-				}
+			case <-ctx.Done():
+				logger.Warn("timeout waiting for plugin manager to be ready")
+			default:
+				logger.Debug("finished plugin manager initial fingerprint")
 			}
 		}()
 	}

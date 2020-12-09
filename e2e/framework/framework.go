@@ -259,10 +259,5 @@ func (f *Framework) runCase(t *testing.T, s *TestSuite, c TestCase) {
 }
 
 func isTestMethod(m string) bool {
-	if !strings.HasPrefix(m, "Test") {
-		return false
-	}
-
-	// THINKING: adding flag to target a specific test or test regex?
-	return true
+	return strings.HasPrefix(m, "Test")
 }

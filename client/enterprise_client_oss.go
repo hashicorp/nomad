@@ -12,6 +12,4 @@ func newEnterpriseClient(logger hclog.Logger) *EnterpriseClient {
 }
 
 // SetFeatures is used for enterprise builds to configure enterprise features
-func (ec *EnterpriseClient) SetFeatures(features uint64) {
-	return
-}
+func (ec *EnterpriseClient) SetFeatures(features uint64) {}

@@ -96,9 +96,7 @@ func (r *RecommendationApplyCommand) Run(args []string) int {
 
 	// Create a list of recommendations to apply.
 	ids := make([]string, len(args))
-	for i, id := range args {
-		ids[i] = id
-	}
+	copy(ids, args)
 
 	resp, _, err := client.Recommendations().Apply(ids, override)
 	if err != nil {

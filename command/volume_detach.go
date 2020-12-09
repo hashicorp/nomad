@@ -52,9 +52,7 @@ func (c *VolumeDetachCommand) AutocompleteArgs() complete.Predictor {
 		if err != nil {
 			return []string{}
 		}
-		for _, match := range resp.Matches[contexts.Nodes] {
-			matches = append(matches, match)
-		}
+		matches = append(matches, resp.Matches[contexts.Nodes]...)
 		return matches
 	})
 }

@@ -1060,12 +1060,12 @@ func connectGatewayProxyDiff(prev, next *ConsulGatewayProxy, contextual bool) *O
 		if prev.ConnectTimeout == nil {
 			oldPrimitiveFlat["ConnectTimeout"] = ""
 		} else {
-			oldPrimitiveFlat["ConnectTimeout"] = fmt.Sprintf("%s", *prev.ConnectTimeout)
+			oldPrimitiveFlat["ConnectTimeout"] = prev.ConnectTimeout.String()
 		}
 		if next.ConnectTimeout == nil {
 			newPrimitiveFlat["ConnectTimeout"] = ""
 		} else {
-			newPrimitiveFlat["ConnectTimeout"] = fmt.Sprintf("%s", *next.ConnectTimeout)
+			newPrimitiveFlat["ConnectTimeout"] = next.ConnectTimeout.String()
 		}
 	}
 
