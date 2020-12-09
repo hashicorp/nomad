@@ -1,10 +1,10 @@
 package vault
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/zclconf/go-cty/cty"
@@ -32,6 +32,23 @@ var GenVaultFunc = function.New(&function.Spec{
 	},
 })
 
+func strOrJSON(data map[string]interface{}, key string) (value cty.Value, err error) {
+	v, ok := data[key]
+	if !ok {
+		return cty.StringVal(""), fmt.Errorf("Vault path does not contain the requested key")
+	}
+	switch v.(type) {
+	case string:
+		return cty.StringVal(v.(string)), nil
+	default:
+		s, err := json.Marshal(v)
+		if err != nil {
+			return cty.StringVal(""), fmt.Errorf("error marshalling secret into json %s", err)
+		}
+		return cty.StringVal(string(s)), nil
+	}
+}
+
 func vault(path string, key string) (cty.Value, error) {
 
 	if token := os.Getenv("VAULT_TOKEN"); token == "" {
@@ -48,23 +65,14 @@ func vault(path string, key string) (cty.Value, error) {
 		return cty.StringVal(""), fmt.Errorf("Error reading vault secret: %s", err)
 	}
 	if secret == nil {
-		return cty.StringVal(""), errors.New("Vault Secret does not exist at the given path")
+		return cty.StringVal(""), fmt.Errorf("Vault Secret does not exist at %s", path)
 	}
 
 	data, ok := secret.Data["data"]
 	if !ok {
 		// maybe this is v1, not v2 kv store
-		value, ok := secret.Data[key]
-		if ok {
-			return cty.StringVal(value.(string)), nil
-		}
-
-		// neither v1 nor v2 produced a valid value
-		return cty.StringVal(""), fmt.Errorf("Vault data was empty at the given path. Warnings: %s", strings.Join(secret.Warnings, "; "))
+		return strOrJSON(secret.Data, key)
 	}
 
-	if val, ok := data.(map[string]interface{})[key]; ok {
-		return cty.StringVal(val.(string)), nil
-	}
-	return cty.StringVal(""), errors.New("Vault path does not contain the requested key")
+	return strOrJSON(data.(map[string]interface{}), key)
 }
