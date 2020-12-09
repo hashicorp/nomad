@@ -328,6 +328,50 @@ func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
 	}
 }
 
+// TestJobGetter_HCL2_Variables asserts variable arguments from CLI
+// and varfiles are both honored
+func TestJobGetter_HCL2_Variables(t *testing.T) {
+	t.Parallel()
+
+	hcl := `
+variables {
+  var1 = "default-val"
+  var2 = "default-val"
+  var3 = "default-val"
+}
+
+job "example" {
+  datacenters = ["${var.var1}", "${var.var2}", "${var.var3}"]
+}
+`
+
+	cliArgs := []string{`var2=from-cli`}
+	fileVars := `var3 = "from-varfile"`
+	expected := []string{"default-val", "from-cli", "from-varfile"}
+
+	hclf, err := ioutil.TempFile("", "hcl")
+	require.NoError(t, err)
+	defer os.Remove(hclf.Name())
+	defer hclf.Close()
+
+	_, err = hclf.WriteString(hcl)
+	require.NoError(t, err)
+
+	vf, err := ioutil.TempFile("", "var.hcl")
+	require.NoError(t, err)
+	defer os.Remove(vf.Name())
+	defer vf.Close()
+
+	_, err = vf.WriteString(fileVars + "\n")
+	require.NoError(t, err)
+
+	j, err := (&JobGetter{}).ApiJobWithArgs(hclf.Name(), cliArgs, []string{vf.Name()})
+	require.NoError(t, err)
+
+	require.NotNil(t, j)
+	require.Equal(t, expected, j.Datacenters)
+}
+
 // Test StructJob with jobfile from HTTP Server
 func TestJobGetter_HTTPServer(t *testing.T) {
 	t.Parallel()
