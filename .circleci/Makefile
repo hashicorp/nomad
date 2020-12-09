@@ -33,5 +33,5 @@ CURRENT_DIR := $(dir $(realpath $(MKFILE_PATH)))
 CURRENT_DIR := $(CURRENT_DIR:/=)
 
 ifneq ($(wildcard $(CURRENT_DIR)/*.mk),)
-	include $(CURRENT_DIR)/*.mk
+include $(CURRENT_DIR)/*.mk
 endif
