@@ -116,7 +116,7 @@ func getSubPrefix(curPrefix, subField string) string {
 	if curPrefix != "" {
 		return fmt.Sprintf("%s.%s", curPrefix, subField)
 	}
-	return fmt.Sprintf("%s", subField)
+	return subField
 }
 
 // getSubKeyPrefix takes the current prefix and the next subfield and returns an
@@ -125,5 +125,5 @@ func getSubKeyPrefix(curPrefix, subField string) string {
 	if curPrefix != "" {
 		return fmt.Sprintf("%s[%s]", curPrefix, subField)
 	}
-	return fmt.Sprintf("%s", subField)
+	return subField
 }
