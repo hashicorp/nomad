@@ -239,10 +239,15 @@ func (e *EventBroker) checkSubscriptionsAgainstPolicyChange() {
 
 	aclSnapshot := e.aclDelegate.TokenProvider()
 	for tokenSecretID := range e.subscriptions.byToken {
+		// if tokenSecretID is empty ACLs were disabled at time of subscribing
+		if tokenSecretID == "" {
+			continue
+		}
+
 		aclObj, err := aclObjFromSnapshotForTokenSecretID(aclSnapshot, e.aclCache, tokenSecretID)
 		if err != nil || aclObj == nil {
 			e.logger.Error("failed resolving ACL for secretID, closing subscriptions", "error", err)
-			e.subscriptions.closeSubscriptionsForTokens([]string{tokenSecretID})
+			// e.subscriptions.closeSubscriptionsForTokens([]string{tokenSecretID})
 			continue
 		}
 

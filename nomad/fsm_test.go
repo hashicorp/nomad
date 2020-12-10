@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -3404,30 +3403,21 @@ func TestFSM_ACLEvents_ACLToken(t *testing.T) {
 			require.NoError(t, err)
 
 			var events []structs.Event
-			for {
-				deadline := time.Duration(testutil.TestMultiplier()*200) * time.Millisecond
-				ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(deadline))
-				defer cancel()
 
-				out, err := sub.Next(ctx)
-				if len(out.Events) == 0 {
-					break
-				}
-
-				// consume the queue until the deadline has exceeded or until we've
-				// received more events than  expected
-				if err == context.DeadlineExceeded {
-					break
-				}
+			testutil.WaitForResult(func() (bool, error) {
+				out, err := sub.NextNoBlock()
 				require.NoError(t, err)
 
-				events = append(events, out.Events...)
-
-				if len(events) >= 1 {
-					break
+				if out == nil {
+					return false, fmt.Errorf("expected events got nil")
 				}
 
-			}
+				events = out
+				return true, nil
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+
 			tc.eventfn(t, events)
 		})
 	}
