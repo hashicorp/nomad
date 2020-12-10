@@ -14,6 +14,16 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.0.1
+
+#### Envoy worker threads
+
+Nomad v1.0.0 changed the default behavior around the number of worker threads
+created by the Envoy when being used as a sidecar for Consul Connect. In Nomad
+v1.0.1, the same default setting of [`--concurrency=1`][envoy_concurrency] is set for Envoy when used
+as a Connect gateway. As before, the [`meta.connect.proxy_concurrency`][proxy_concurrency]
+property can be set in client configuration to override the default value.
+
 ## Nomad 1.0.0
 
 ### HCL2 for Job specification
