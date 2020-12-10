@@ -1055,7 +1055,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		}
 	}
 
-	dial := func(addr string, useTLS bool) net.Conn {
+	dial := func(t *testing.T, addr string, useTLS bool) net.Conn {
 		if useTLS {
 			cert, err := tls.LoadX509KeyPair(foocert, fookey)
 			require.NoError(t, err)
@@ -1079,7 +1079,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		conns := make([]net.Conn, limit)
 		errCh := make(chan error, limit)
 		for i := range conns {
-			conns[i] = dial(addr, useTLS)
+			conns[i] = dial(t, addr, useTLS)
 
 			go func(i int) {
 				buf := []byte{0}
@@ -1099,7 +1099,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		}
 
 		// Assert a new connection is dropped
-		conn := dial(addr, useTLS)
+		conn := dial(t, addr, useTLS)
 
 		defer func() {
 			require.NoError(t, conn.Close())
