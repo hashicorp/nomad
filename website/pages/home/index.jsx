@@ -29,8 +29,7 @@ export default function Homepage() {
 
       <FeaturesList
         title="Why Nomad?"
-        intro="Nomad is widely adopted and used in production by organizations in traditional on-premises datacenters, at the edge, and on the cloud. Learn why users choose Nomad as an <a href='/docs/nomad-vs-kubernetes'>alternative to Kubernetes.</a>
-        "
+        intro="<p>Nomad is widely adopted and used in production by organizations in traditional on-premises datacenters, at the edge, and on the cloud.</p><p>Learn why users choose Nomad as an <a href='/docs/nomad-vs-kubernetes'>alternative to Kubernetes.</a></p>"
         items={[
           {
             title: 'Simple and Lightweight',
