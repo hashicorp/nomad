@@ -93,6 +93,7 @@ func decode(c *jobConfig) error {
 	}
 
 	diags = append(diags, c.decodeBody(file.Body)...)
+
 	if diags.HasErrors() {
 		var str strings.Builder
 		for i, diag := range diags {
