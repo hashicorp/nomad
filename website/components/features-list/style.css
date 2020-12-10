@@ -42,6 +42,10 @@
         margin: 0;
       }
 
+      & a {
+        color: var(--nomad);
+      }
+
       & .item-icon img {
         width: 72px;
         height: 72px;
