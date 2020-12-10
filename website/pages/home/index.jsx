@@ -57,9 +57,9 @@ export default function Homepage() {
             icon: require('./img/why-nomad/federation.svg'),
           },
           {
-            title: 'Multi-Cloud with Ease',
+            title: 'Deploy and Scale with Ease',
             content:
-              'One single unified workflow for deploying to bare metal or cloud environments. Enable multi-cloud applications with ease.',
+              'Deploy to bare metal with the same ease as in cloud environments. Scale globally without complexity. Read <a href='https://www.hashicorp.com/c2m'>the 2 Million Container Challenge</a>.',
             icon: require('./img/why-nomad/servers.svg'),
           },
           {
