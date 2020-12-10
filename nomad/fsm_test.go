@@ -3405,9 +3405,10 @@ func TestFSM_ACLEvents_ACLToken(t *testing.T) {
 
 			var events []structs.Event
 			for {
-				deadline := time.Duration(testutil.TestMultiplier()*100) * time.Millisecond
+				deadline := time.Duration(testutil.TestMultiplier()*200) * time.Millisecond
 				ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(deadline))
 				defer cancel()
+
 				out, err := sub.Next(ctx)
 				if len(out.Events) == 0 {
 					break
