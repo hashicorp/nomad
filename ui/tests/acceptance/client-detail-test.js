@@ -9,6 +9,7 @@ import moment from 'moment';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Clients from 'nomad-ui/tests/pages/clients/list';
 import Jobs from 'nomad-ui/tests/pages/jobs/list';
+import Layout from 'nomad-ui/tests/pages/layout';
 
 let node;
 let managementToken;
@@ -53,16 +54,16 @@ module('Acceptance | client detail', function(hooks) {
     assert.equal(document.title, `Client ${node.name} - Nomad`);
 
     assert.equal(
-      ClientDetail.breadcrumbFor('clients.index').text,
+      Layout.breadcrumbFor('clients.index').text,
       'Clients',
       'First breadcrumb says clients'
     );
     assert.equal(
-      ClientDetail.breadcrumbFor('clients.client').text,
+      Layout.breadcrumbFor('clients.client').text,
       node.id.split('-')[0],
       'Second breadcrumb says the node short id'
     );
-    await ClientDetail.breadcrumbFor('clients.index').visit();
+    await Layout.breadcrumbFor('clients.index').visit();
     assert.equal(currentURL(), '/clients', 'First breadcrumb links back to clients');
   });
 

@@ -7,7 +7,7 @@ import Response from 'ember-cli-mirage/response';
 import moment from 'moment';
 
 import Optimize from 'nomad-ui/tests/pages/optimize';
-import PageLayout from 'nomad-ui/tests/pages/layout';
+import Layout from 'nomad-ui/tests/pages/layout';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 
 let managementToken, clientToken;
@@ -68,7 +68,7 @@ module('Acceptance | optimize', function(hooks) {
     const currentTaskGroup = this.job1.taskGroups.models[0];
     const nextTaskGroup = this.job2.taskGroups.models[0];
 
-    assert.equal(Optimize.breadcrumbFor('optimize').text, 'Recommendations');
+    assert.equal(Layout.breadcrumbFor('optimize').text, 'Recommendations');
 
     assert.equal(
       Optimize.recommendationSummaries[0].slug,
@@ -76,7 +76,7 @@ module('Acceptance | optimize', function(hooks) {
     );
 
     assert.equal(
-      Optimize.breadcrumbFor('optimize.summary').text,
+      Layout.breadcrumbFor('optimize.summary').text,
       `${this.job1.name} / ${currentTaskGroup.name}`
     );
 
@@ -342,7 +342,7 @@ module('Acceptance | optimize', function(hooks) {
     await Optimize.visit();
 
     assert.equal(currentURL(), '/jobs');
-    assert.ok(PageLayout.gutter.optimize.isHidden);
+    assert.ok(Layout.gutter.optimize.isHidden);
   });
 
   test('it reloads partially-loaded jobs', async function(assert) {
