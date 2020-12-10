@@ -105,11 +105,9 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
       type: 'service',
       status: 'running',
       namespaceId: server.db.namespaces[1].name,
-      createRecommendations: true,
     });
     server.createList('job', 3, {
       namespaceId: server.db.namespaces[0].name,
-      createRecommendations: true,
     });
 
     managementToken = server.create('token');
@@ -214,14 +212,29 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
   test('resource recommendations show when they exist and can be expanded, collapsed, and processed', async function(assert) {
     server.create('feature', { name: 'Dynamic Application Sizing' });
 
+    job = server.create('job', {
+      type: 'service',
+      status: 'running',
+      namespaceId: server.db.namespaces[1].name,
+      groupsCount: 3,
+      createRecommendations: true,
+    });
+
     window.localStorage.nomadTokenSecret = managementToken.secretId;
     await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
 
-    assert.equal(JobDetail.recommendations.length, job.taskGroups.length);
+    const groupsWithRecommendations = job.taskGroups.filter(group =>
+      group.tasks.models.any(task => task.recommendations.models.length)
+    );
+    const jobRecommendationCount = groupsWithRecommendations.length;
+
+    const firstRecommendationGroup = groupsWithRecommendations.models[0];
+
+    assert.equal(JobDetail.recommendations.length, jobRecommendationCount);
 
     const recommendation = JobDetail.recommendations[0];
 
-    assert.equal(recommendation.group, job.taskGroups.models[0].name);
+    assert.equal(recommendation.group, firstRecommendationGroup.name);
     assert.ok(recommendation.card.isHidden);
 
     const toggle = recommendation.toggleButton;
@@ -239,16 +252,16 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
 
     await toggle.click();
 
-    assert.equal(recommendation.card.slug.groupName, job.taskGroups.models[0].name);
+    assert.equal(recommendation.card.slug.groupName, firstRecommendationGroup.name);
 
     await recommendation.card.acceptButton.click();
 
-    assert.equal(JobDetail.recommendations.length, job.taskGroups.length - 1);
+    assert.equal(JobDetail.recommendations.length, jobRecommendationCount - 1);
 
     await JobDetail.tabFor('definition').visit();
     await JobDetail.tabFor('overview').visit();
 
-    assert.equal(JobDetail.recommendations.length, job.taskGroups.length - 1);
+    assert.equal(JobDetail.recommendations.length, jobRecommendationCount - 1);
   });
 
   test('resource recommendations are not fetched when the feature doesn’t exist', async function(assert) {
@@ -258,8 +271,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     assert.equal(JobDetail.recommendations.length, 0);
 
     assert.equal(
-      server.pretender.handledRequests
-        .filter(request => request.url.includes('recommendations'))
+      server.pretender.handledRequests.filter(request => request.url.includes('recommendations'))
         .length,
       0
     );
