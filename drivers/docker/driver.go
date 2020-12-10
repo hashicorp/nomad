@@ -27,7 +27,6 @@ import (
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared/structs"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
@@ -128,7 +127,7 @@ func NewDockerDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlu
 	}
 }
 
-func (d *Driver) reattachToDockerLogger(reattachConfig *structs.ReattachConfig) (docklog.DockerLogger, *plugin.Client, error) {
+func (d *Driver) reattachToDockerLogger(reattachConfig *pstructs.ReattachConfig) (docklog.DockerLogger, *plugin.Client, error) {
 	reattach, err := pstructs.ReattachConfigToGoPlugin(reattachConfig)
 	if err != nil {
 		return nil, nil, err
@@ -189,7 +188,9 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to get docker client: %v", err)
 	}
 
-	container, err := client.InspectContainer(handleState.ContainerID)
+	container, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: handleState.ContainerID,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to inspect container for id %q: %v", handleState.ContainerID, err)
 	}
@@ -317,10 +318,11 @@ CREATE:
 			return nil, nil, nstructs.WrapRecoverable(fmt.Sprintf("Failed to start container %s: %s", container.ID, err), err)
 		}
 
-		// InspectContainer to get all of the container metadata as
-		// much of the metadata (eg networking) isn't populated until
-		// the container is started
-		runningContainer, err := client.InspectContainer(container.ID)
+		// Inspect container to get all of the container metadata as much of the
+		// metadata (eg networking) isn't populated until the container is started
+		runningContainer, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+			ID: container.ID,
+		})
 		if err != nil {
 			client.RemoveContainer(docker.RemoveContainerOptions{
 				ID:    container.ID,
@@ -1261,7 +1263,9 @@ OUTER:
 		return nil, nil
 	}
 
-	container, err := client.InspectContainer(shimContainer.ID)
+	container, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: shimContainer.ID,
+	})
 	if err != nil {
 		err = fmt.Errorf("Failed to inspect container %s: %s", shimContainer.ID, err)
 
@@ -1354,7 +1358,9 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 		return drivers.ErrTaskNotFound
 	}
 
-	c, err := h.client.InspectContainer(h.containerID)
+	c, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: h.containerID,
+	})
 	if err != nil {
 		switch err.(type) {
 		case *docker.NoSuchContainer:
@@ -1410,7 +1416,9 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	container, err := client.InspectContainer(h.containerID)
+	container, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: h.containerID,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect container %q: %v", h.containerID, err)
 	}

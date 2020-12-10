@@ -8363,7 +8363,7 @@ func (s *Spread) Validate() error {
 		} else {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Spread target value %q already defined", target.Value))
 		}
-		if target.Percent < 0 || target.Percent > 100 {
+		if target.Percent > 100 {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Spread target percentage for value %q must be between 0 and 100", target.Value))
 		}
 		sumPercent += uint32(target.Percent)

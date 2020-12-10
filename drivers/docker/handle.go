@@ -201,7 +201,9 @@ func (h *taskHandle) run() {
 		werr = fmt.Errorf("Docker container exited with non-zero exit code: %d", exitCode)
 	}
 
-	container, ierr := h.waitClient.InspectContainer(h.containerID)
+	container, ierr := h.waitClient.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: h.containerID,
+	})
 	oom := false
 	if ierr != nil {
 		h.logger.Error("failed to inspect container", "error", ierr)

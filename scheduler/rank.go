@@ -562,21 +562,20 @@ func (iter *NodeReschedulingPenaltyIterator) SetPenaltyNodes(penaltyNodes map[st
 }
 
 func (iter *NodeReschedulingPenaltyIterator) Next() *RankedNode {
-	for {
-		option := iter.source.Next()
-		if option == nil {
-			return nil
-		}
-
-		_, ok := iter.penaltyNodes[option.Node.ID]
-		if ok {
-			option.Scores = append(option.Scores, -1)
-			iter.ctx.Metrics().ScoreNode(option.Node, "node-reschedule-penalty", -1)
-		} else {
-			iter.ctx.Metrics().ScoreNode(option.Node, "node-reschedule-penalty", 0)
-		}
-		return option
+	option := iter.source.Next()
+	if option == nil {
+		return nil
 	}
+
+	_, ok := iter.penaltyNodes[option.Node.ID]
+	if ok {
+		option.Scores = append(option.Scores, -1)
+		iter.ctx.Metrics().ScoreNode(option.Node, "node-reschedule-penalty", -1)
+	} else {
+		iter.ctx.Metrics().ScoreNode(option.Node, "node-reschedule-penalty", 0)
+	}
+
+	return option
 }
 
 func (iter *NodeReschedulingPenaltyIterator) Reset() {

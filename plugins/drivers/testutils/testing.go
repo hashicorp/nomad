@@ -232,13 +232,13 @@ func (d *MockDriver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	return d.InspectTaskF(taskID)
 }
 func (d *MockDriver) TaskStats(ctx context.Context, taskID string, i time.Duration) (<-chan *drivers.TaskResourceUsage, error) {
-	return d.TaskStats(ctx, taskID, i)
+	return d.TaskStatsF(ctx, taskID, i)
 }
 func (d *MockDriver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
 	return d.TaskEventsF(ctx)
 }
 func (d *MockDriver) SignalTask(taskID string, signal string) error {
-	return d.SignalTask(taskID, signal)
+	return d.SignalTaskF(taskID, signal)
 }
 func (d *MockDriver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
 	return d.ExecTaskF(taskID, cmd, timeout)
