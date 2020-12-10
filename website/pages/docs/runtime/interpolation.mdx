@@ -47,8 +47,8 @@ task "docs" {
   # Environment variables are interpreted and can contain both runtime and
   # node attributes. These environment variables are passed into the task.
   env {
-    "DC"      = "Running on datacenter ${node.datacenter}"
-    "VERSION" = "Version ${NOMAD_META_VERSION}"
+    DC      = "Running on datacenter ${node.datacenter}"
+    VERSION = "Version ${NOMAD_META_VERSION}"
   }
 
   # Meta keys are also interpretable.

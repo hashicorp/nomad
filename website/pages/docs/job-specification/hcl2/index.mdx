@@ -108,6 +108,13 @@ meta {
 }
 ```
 
+Additionally, block attributes must be [HCL2 valid identifiers](https://github.com/hashicorp/hcl/blob/v2.8.0/hclsyntax/spec.md#identifiers).
+Generally, identifiers may only contain letters, numbers, underscore `_`,
+or a dash `-`, and start with a letter. Notable,
+[`meta`](https://www.nomadproject.io/docs/job-specification/meta), and
+[`env`](https://www.nomadproject.io/docs/job-specification/env) keys may not
+contain other symbols (e.g. `.`, `#`).
+
 ### Multiline "here doc" strings
 
 Nomad supports multi-line string literals in the so-called "heredoc" style, inspired by Unix shell languages:

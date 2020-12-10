@@ -158,7 +158,6 @@ maintainers, use comments.
 Once a variable is declared in your configuration, you can set it:
 
 - Individually, with the `-var foo=bar` command line option.
-- In variable definitions files specified on the command line (with `-var-file=input.vars`).
 - As environment variables, for example: `NOMAD_VAR_foo=bar`
 
 The following sections describe these options in more detail.
@@ -178,6 +177,9 @@ If you plan to assign variables via the command line, we strongly recommend that
 you at least set a default type instead of using empty blocks; this helps the
 HCL parser understand what is being set. Otherwise, the interpreter will assume
 that any variable set on the command line is a string.
+
+<!---
+# TODO (hcl2): Renable for 1.0.1 by reverting the comment out commit
 
 ### Variable Definitions Files
 
@@ -209,6 +211,7 @@ corresponding to variable names:
   "labels": ["testing", "internal"],
 }
 ```
+--->
 
 ### Environment Variables
 
@@ -268,7 +271,7 @@ Nomad loads variables in the following order, with later sources taking
 precedence over earlier ones:
 
 - Environment variables (lowest priority)
-- Any `-var` and `-var-file` options on the command line, in the order they are
+- Any `-var` options on the command line, in the order they are
   provided. (highest priority)
 
 If the same variable is assigned multiple values using different mechanisms,
@@ -297,4 +300,3 @@ this behavior optional :
 |            var.foo              | error, "foo needs to be set" |      null        |        xy        |
 | `NOMAD_VAR_foo=yz`<br />var.foo |              yz              |        yz        |        yz        |
 |  `-var foo=yz`<br />var.foo     |              yz              |        yz        |        yz        |
-
