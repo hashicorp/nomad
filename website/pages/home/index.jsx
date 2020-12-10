@@ -59,7 +59,7 @@ export default function Homepage() {
           {
             title: 'Deploy and Scale with Ease',
             content:
-              'Deploy to bare metal with the same ease as in cloud environments. Scale globally without complexity. Read <a href='https://www.hashicorp.com/c2m'>the 2 Million Container Challenge</a>.',
+              'Deploy to bare metal with the same ease as in cloud environments. Scale globally without complexity. Read <a href="https://www.hashicorp.com/c2m">the 2 Million Container Challenge</a>.',
             icon: require('./img/why-nomad/servers.svg'),
           },
           {
