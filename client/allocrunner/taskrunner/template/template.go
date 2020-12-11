@@ -273,11 +273,22 @@ WAIT:
 				continue
 			}
 
+			dirty := false
 			for _, event := range events {
 				// This template hasn't been rendered
 				if event.LastWouldRender.IsZero() {
 					continue WAIT
 				}
+				if event.WouldRender && event.DidRender {
+					dirty = true
+				}
+			}
+
+			// if there's a driver handle then the task is already running and
+			// that changes how we want to behave on first render
+			if dirty && tm.config.Lifecycle.HasHandle() {
+				handledRenders := make(map[string]time.Time, len(tm.config.Templates))
+				tm.onTemplateRendered(handledRenders, time.Time{})
 			}
 
 			break WAIT
