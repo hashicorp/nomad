@@ -153,15 +153,6 @@ documentation about the job, and so it should be written from the perspective
 of the user of the job rather than its maintainer. For commentary for job
 maintainers, use comments.
 
-## Assigning Values to job Variables
-
-Once a variable is declared in your configuration, you can set it:
-
-- Individually, with the `-var foo=bar` command line option.
-- As environment variables, for example: `NOMAD_VAR_foo=bar`
-
-The following sections describe these options in more detail.
-
 ### Variables on the Command Line
 
 To specify individual variables on the command line, use the `-var` option when
@@ -211,7 +202,6 @@ corresponding to variable names:
   "labels": ["testing", "internal"],
 }
 ```
---->
 
 ### Environment Variables
 
@@ -233,6 +223,8 @@ On operating systems where environment variable names are case-sensitive,
 Nomad matches the variable name exactly as given in configuration, and so the
 required environment variable name will usually have a mix of upper and lower
 case letters as in the above example.
+
+--->
 
 ### Complex-typed Values
 
@@ -262,6 +254,7 @@ For readability, and to avoid the need to worry about shell escaping, we
 recommend always setting complex variable values via variable definitions
 files.
 
+<!---
 ### Variable Definition Precedence
 
 The above mechanisms for setting variables can be used together in any
@@ -280,6 +273,8 @@ that the same variable cannot be assigned multiple values within a single source
 
 ~> **Important:** Variables with map and object values behave the same way as
 other variables: the last value found overrides the previous values.
+
+--->
 
 ## A variable value must be known:
 
