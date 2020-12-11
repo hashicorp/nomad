@@ -16,4 +16,10 @@ type TaskLifecycle interface {
 
 	// Kill a task permanently.
 	Kill(ctx context.Context, event *structs.TaskEvent) error
+
+	// HasHandle returns true if the task runner has a handle to the task
+	// driver, which is useful for distinguishing restored tasks during
+	// prestart hooks. Note: prestart should be idempotent whenever possible
+	// to handle restored tasks safely; use this as an escape hatch.
+	HasHandle() bool
 }

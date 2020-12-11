@@ -98,6 +98,10 @@ func (m *MockTaskHooks) Kill(ctx context.Context, event *structs.TaskEvent) erro
 	return nil
 }
 
+func (m *MockTaskHooks) HasHandle() bool {
+	return false // TODO
+}
+
 func (m *MockTaskHooks) EmitEvent(event *structs.TaskEvent) {
 	m.Events = append(m.Events, event)
 	select {
