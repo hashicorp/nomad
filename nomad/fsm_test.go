@@ -3278,7 +3278,7 @@ func TestFSM_SnapshotRestore_Namespaces(t *testing.T) {
 	}
 }
 
-func TestFSM_ACLEvents_ACLToken(t *testing.T) {
+func TestFSM_ACLEvents(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {

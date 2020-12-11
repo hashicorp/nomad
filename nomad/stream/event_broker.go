@@ -246,8 +246,8 @@ func (e *EventBroker) checkSubscriptionsAgainstPolicyChange() {
 
 		aclObj, err := aclObjFromSnapshotForTokenSecretID(aclSnapshot, e.aclCache, tokenSecretID)
 		if err != nil || aclObj == nil {
-			e.logger.Error("failed resolving ACL for secretID, closing subscriptions", "error", err)
-			// e.subscriptions.closeSubscriptionsForTokens([]string{tokenSecretID})
+			e.logger.Debug("failed resolving ACL for secretID, closing subscriptions", "error", err)
+			e.subscriptions.closeSubscriptionsForTokens([]string{tokenSecretID})
 			continue
 		}
 
