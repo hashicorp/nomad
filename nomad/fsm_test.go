@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
@@ -3274,5 +3275,150 @@ func TestFSM_SnapshotRestore_Namespaces(t *testing.T) {
 	}
 	if !reflect.DeepEqual(ns2, out2) {
 		t.Fatalf("bad: \n%#v\n%#v", out2, ns2)
+	}
+}
+
+func TestFSM_ACLEvents(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		desc     string
+		setupfn  func(t *testing.T, fsm *nomadFSM)
+		raftReq  func(t *testing.T) []byte
+		reqTopic structs.Topic
+		eventfn  func(t *testing.T, e []structs.Event)
+	}{
+		{
+			desc: "ACLToken upserted",
+			raftReq: func(t *testing.T) []byte {
+				req := structs.ACLTokenUpsertRequest{
+					Tokens: []*structs.ACLToken{mock.ACLToken()},
+				}
+				buf, err := structs.Encode(structs.ACLTokenUpsertRequestType, req)
+				require.NoError(t, err)
+				return buf
+			},
+			reqTopic: structs.TopicACLToken,
+			eventfn: func(t *testing.T, e []structs.Event) {
+				require.Len(t, e, 1)
+				require.Equal(t, e[0].Topic, structs.TopicACLToken)
+				require.Empty(t, e[0].Payload.(*structs.ACLTokenEvent).ACLToken.SecretID)
+				require.Equal(t, e[0].Type, structs.TypeACLTokenUpserted)
+			},
+		},
+		{
+			desc: "ACLToken deleted",
+			setupfn: func(t *testing.T, fsm *nomadFSM) {
+				token := mock.ACLToken()
+				token.SecretID = "26be01d3-df3a-45e9-9f49-4487a3dc3496"
+				token.AccessorID = "b971acba-bbe5-4274-bdfa-8bb1f542a8c1"
+
+				require.NoError(t,
+					fsm.State().UpsertACLTokens(
+						structs.MsgTypeTestSetup, 10, []*structs.ACLToken{token}))
+			},
+			raftReq: func(t *testing.T) []byte {
+				req := structs.ACLTokenDeleteRequest{
+					AccessorIDs: []string{"b971acba-bbe5-4274-bdfa-8bb1f542a8c1"},
+				}
+				buf, err := structs.Encode(structs.ACLTokenDeleteRequestType, req)
+				require.NoError(t, err)
+				return buf
+			},
+			reqTopic: structs.TopicACLToken,
+			eventfn: func(t *testing.T, e []structs.Event) {
+				require.Len(t, e, 1)
+				require.Equal(t, e[0].Topic, structs.TopicACLToken)
+				require.Empty(t, e[0].Payload.(*structs.ACLTokenEvent).ACLToken.SecretID)
+				require.Equal(t, e[0].Type, structs.TypeACLTokenDeleted)
+			},
+		},
+		{
+			desc: "ACLPolicy upserted",
+			raftReq: func(t *testing.T) []byte {
+				req := structs.ACLPolicyUpsertRequest{
+					Policies: []*structs.ACLPolicy{mock.ACLPolicy()},
+				}
+				buf, err := structs.Encode(structs.ACLPolicyUpsertRequestType, req)
+				require.NoError(t, err)
+				return buf
+			},
+			reqTopic: structs.TopicACLPolicy,
+			eventfn: func(t *testing.T, e []structs.Event) {
+				require.Len(t, e, 1)
+				require.Equal(t, e[0].Topic, structs.TopicACLPolicy)
+				require.Equal(t, e[0].Type, structs.TypeACLPolicyUpserted)
+			},
+		},
+		{
+			desc: "ACLPolicy deleted",
+			setupfn: func(t *testing.T, fsm *nomadFSM) {
+				policy := mock.ACLPolicy()
+				policy.Name = "some-policy"
+
+				require.NoError(t,
+					fsm.State().UpsertACLPolicies(
+						structs.MsgTypeTestSetup, 10, []*structs.ACLPolicy{policy}))
+			},
+			raftReq: func(t *testing.T) []byte {
+				req := structs.ACLPolicyDeleteRequest{
+					Names: []string{"some-policy"},
+				}
+				buf, err := structs.Encode(structs.ACLPolicyDeleteRequestType, req)
+				require.NoError(t, err)
+				return buf
+			},
+			reqTopic: structs.TopicACLPolicy,
+			eventfn: func(t *testing.T, e []structs.Event) {
+				require.Len(t, e, 1)
+				require.Equal(t, e[0].Topic, structs.TopicACLPolicy)
+				require.Equal(t, e[0].Type, structs.TypeACLPolicyDeleted)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			fsm := testFSM(t)
+
+			// Setup any state necessary
+			if tc.setupfn != nil {
+				tc.setupfn(t, fsm)
+			}
+
+			// Apply the log
+			resp := fsm.Apply(makeLog(tc.raftReq(t)))
+			require.Nil(t, resp)
+
+			broker, err := fsm.State().EventBroker()
+			require.NoError(t, err)
+
+			subReq := &stream.SubscribeRequest{
+				Topics: map[structs.Topic][]string{
+					tc.reqTopic: {"*"},
+				},
+			}
+
+			sub, err := broker.Subscribe(subReq)
+			require.NoError(t, err)
+
+			var events []structs.Event
+
+			testutil.WaitForResult(func() (bool, error) {
+				out, err := sub.NextNoBlock()
+				require.NoError(t, err)
+
+				if out == nil {
+					return false, fmt.Errorf("expected events got nil")
+				}
+
+				events = out
+				return true, nil
+			}, func(err error) {
+				require.Fail(t, err.Error())
+			})
+
+			tc.eventfn(t, events)
+		})
 	}
 }

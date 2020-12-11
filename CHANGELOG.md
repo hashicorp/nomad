@@ -3,6 +3,9 @@
 IMPROVEMENTS:
  * consul/connect: interpolate the connect, service meta, and service canary meta blocks with the task environment [[GH-9586](https://github.com/hashicorp/nomad/pull/9586)]
 
+BUG FIXES:
+ * core: Fixed a bug where ACLToken and ACLPolicy changes were ignored by the event stream [[GH-9595](https://github.com/hashicorp/nomad/issues/9595)]
+
 ## 1.0.0 (December 8, 2020)
 
 FEATURES:
