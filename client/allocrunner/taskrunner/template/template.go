@@ -368,112 +368,117 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 					SetFailsTask().
 					SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
 		case <-tm.runner.TemplateRenderedCh():
-			// A template has been rendered, figure out what to do
-			var handling []string
-			signals := make(map[string]struct{})
-			restart := false
-			var splay time.Duration
+			tm.onTemplateRendered(handledRenders, allRenderedTime)
+		}
+	}
+}
 
-			events := tm.runner.RenderEvents()
-			for id, event := range events {
+func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time.Time, allRenderedTime time.Time) {
+	// A template has been rendered, figure out what to do
+	var handling []string
+	signals := make(map[string]struct{})
+	restart := false
+	var splay time.Duration
 
-				// First time through
-				if allRenderedTime.After(event.LastDidRender) || allRenderedTime.Equal(event.LastDidRender) {
-					handledRenders[id] = allRenderedTime
-					continue
-				}
+	events := tm.runner.RenderEvents()
+	for id, event := range events {
 
-				// We have already handled this one
-				if htime := handledRenders[id]; htime.After(event.LastDidRender) || htime.Equal(event.LastDidRender) {
-					continue
-				}
+		// First time through
+		if allRenderedTime.After(event.LastDidRender) || allRenderedTime.Equal(event.LastDidRender) {
+			handledRenders[id] = allRenderedTime
+			continue
+		}
 
-				// Lookup the template and determine what to do
-				tmpls, ok := tm.lookup[id]
-				if !ok {
-					tm.config.Lifecycle.Kill(context.Background(),
-						structs.NewTaskEvent(structs.TaskKilling).
-							SetFailsTask().
-							SetDisplayMessage(fmt.Sprintf("Template runner returned unknown template id %q", id)))
-					return
-				}
+		// We have already handled this one
+		if htime := handledRenders[id]; htime.After(event.LastDidRender) || htime.Equal(event.LastDidRender) {
+			continue
+		}
 
-				// Read environment variables from templates
-				envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.TaskDir, tm.config.EnvBuilder.Build())
-				if err != nil {
-					tm.config.Lifecycle.Kill(context.Background(),
-						structs.NewTaskEvent(structs.TaskKilling).
-							SetFailsTask().
-							SetDisplayMessage(fmt.Sprintf("Template failed to read environment variables: %v", err)))
-					return
-				}
-				tm.config.EnvBuilder.SetTemplateEnv(envMap)
+		// Lookup the template and determine what to do
+		tmpls, ok := tm.lookup[id]
+		if !ok {
+			tm.config.Lifecycle.Kill(context.Background(),
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Template runner returned unknown template id %q", id)))
+			return
+		}
 
-				for _, tmpl := range tmpls {
-					switch tmpl.ChangeMode {
-					case structs.TemplateChangeModeSignal:
-						signals[tmpl.ChangeSignal] = struct{}{}
-					case structs.TemplateChangeModeRestart:
-						restart = true
-					case structs.TemplateChangeModeNoop:
-						continue
-					}
+		// Read environment variables from templates
+		envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.TaskDir, tm.config.EnvBuilder.Build())
+		if err != nil {
+			tm.config.Lifecycle.Kill(context.Background(),
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Template failed to read environment variables: %v", err)))
+			return
+		}
+		tm.config.EnvBuilder.SetTemplateEnv(envMap)
 
-					if tmpl.Splay > splay {
-						splay = tmpl.Splay
-					}
-				}
-
-				handling = append(handling, id)
+		for _, tmpl := range tmpls {
+			switch tmpl.ChangeMode {
+			case structs.TemplateChangeModeSignal:
+				signals[tmpl.ChangeSignal] = struct{}{}
+			case structs.TemplateChangeModeRestart:
+				restart = true
+			case structs.TemplateChangeModeNoop:
+				continue
 			}
 
-			if restart || len(signals) != 0 {
-				if splay != 0 {
-					ns := splay.Nanoseconds()
-					offset := rand.Int63n(ns)
-					t := time.Duration(offset)
+			if tmpl.Splay > splay {
+				splay = tmpl.Splay
+			}
+		}
 
-					select {
-					case <-time.After(t):
-					case <-tm.shutdownCh:
-						return
-					}
+		handling = append(handling, id)
+	}
+
+	if restart || len(signals) != 0 {
+		if splay != 0 {
+			ns := splay.Nanoseconds()
+			offset := rand.Int63n(ns)
+			t := time.Duration(offset)
+
+			select {
+			case <-time.After(t):
+			case <-tm.shutdownCh:
+				return
+			}
+		}
+
+		// Update handle time
+		for _, id := range handling {
+			handledRenders[id] = events[id].LastDidRender
+		}
+
+		if restart {
+			tm.config.Lifecycle.Restart(context.Background(),
+				structs.NewTaskEvent(structs.TaskRestartSignal).
+					SetDisplayMessage("Template with change_mode restart re-rendered"), false)
+		} else if len(signals) != 0 {
+			var mErr multierror.Error
+			for signal := range signals {
+				s := tm.signals[signal]
+				event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Template re-rendered")
+				if err := tm.config.Lifecycle.Signal(event, signal); err != nil {
+					multierror.Append(&mErr, err)
+				}
+			}
+
+			if err := mErr.ErrorOrNil(); err != nil {
+				flat := make([]os.Signal, 0, len(signals))
+				for signal := range signals {
+					flat = append(flat, tm.signals[signal])
 				}
 
-				// Update handle time
-				for _, id := range handling {
-					handledRenders[id] = events[id].LastDidRender
-				}
-
-				if restart {
-					tm.config.Lifecycle.Restart(context.Background(),
-						structs.NewTaskEvent(structs.TaskRestartSignal).
-							SetDisplayMessage("Template with change_mode restart re-rendered"), false)
-				} else if len(signals) != 0 {
-					var mErr multierror.Error
-					for signal := range signals {
-						s := tm.signals[signal]
-						event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Template re-rendered")
-						if err := tm.config.Lifecycle.Signal(event, signal); err != nil {
-							multierror.Append(&mErr, err)
-						}
-					}
-
-					if err := mErr.ErrorOrNil(); err != nil {
-						flat := make([]os.Signal, 0, len(signals))
-						for signal := range signals {
-							flat = append(flat, tm.signals[signal])
-						}
-
-						tm.config.Lifecycle.Kill(context.Background(),
-							structs.NewTaskEvent(structs.TaskKilling).
-								SetFailsTask().
-								SetDisplayMessage(fmt.Sprintf("Template failed to send signals %v: %v", flat, err)))
-					}
-				}
+				tm.config.Lifecycle.Kill(context.Background(),
+					structs.NewTaskEvent(structs.TaskKilling).
+						SetFailsTask().
+						SetDisplayMessage(fmt.Sprintf("Template failed to send signals %v: %v", flat, err)))
 			}
 		}
 	}
+
 }
 
 // allTemplatesNoop returns whether all the managed templates have change mode noop.
