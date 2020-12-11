@@ -120,6 +120,23 @@ type NodeStreamEvent struct {
 
 type ACLTokenEvent struct {
 	ACLToken *ACLToken
+	secretID string
+}
+
+// NewACLTokenEvent takes a token and creates a new ACLTokenEvent.  It creates
+// a copy of the passed in ACLToken and empties out the copied tokens SecretID
+func NewACLTokenEvent(token *ACLToken) *ACLTokenEvent {
+	c := token.Copy()
+	c.SecretID = ""
+
+	return &ACLTokenEvent{
+		ACLToken: c,
+		secretID: token.SecretID,
+	}
+}
+
+func (a *ACLTokenEvent) SecretID() string {
+	return a.secretID
 }
 
 type ACLPolicyEvent struct {

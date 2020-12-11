@@ -10823,6 +10823,18 @@ type ACLToken struct {
 	ModifyIndex uint64
 }
 
+func (a *ACLToken) Copy() *ACLToken {
+	c := new(ACLToken)
+	*c = *a
+
+	c.Policies = make([]string, len(a.Policies))
+	copy(c.Policies, a.Policies)
+	c.Hash = make([]byte, len(a.Hash))
+	copy(c.Hash, a.Hash)
+
+	return c
+}
+
 var (
 	// AnonymousACLToken is used no SecretID is provided, and the
 	// request is made anonymously.

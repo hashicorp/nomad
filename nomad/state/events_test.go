@@ -41,6 +41,59 @@ func TestEventFromChange_SingleEventPerTable(t *testing.T) {
 	require.Equal(t, out.Events[0].Type, structs.TypeJobRegistered)
 }
 
+func TestEventFromChange_ACLTokenSecretID(t *testing.T) {
+	t.Parallel()
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	token := mock.ACLToken()
+	require.NotEmpty(t, token.SecretID)
+
+	// Create
+	changes := Changes{
+		Index:   100,
+		MsgType: structs.NodeRegisterRequestType,
+		Changes: memdb.Changes{
+			{
+				Table:  "acl_token",
+				Before: nil,
+				After:  token,
+			},
+		},
+	}
+
+	out := eventsFromChanges(s.db.ReadTxn(), changes)
+	require.Len(t, out.Events, 1)
+	// Ensure original value not altered
+	require.NotEmpty(t, token.SecretID)
+
+	aclTokenEvent, ok := out.Events[0].Payload.(*structs.ACLTokenEvent)
+	require.True(t, ok)
+	require.Empty(t, aclTokenEvent.ACLToken.SecretID)
+
+	require.Equal(t, token.SecretID, aclTokenEvent.SecretID())
+
+	// Delete
+	changes = Changes{
+		Index:   100,
+		MsgType: structs.NodeDeregisterRequestType,
+		Changes: memdb.Changes{
+			{
+				Table:  "acl_token",
+				Before: token,
+				After:  nil,
+			},
+		},
+	}
+
+	out2 := eventsFromChanges(s.db.ReadTxn(), changes)
+	require.Len(t, out2.Events, 1)
+
+	tokenEvent2, ok := out2.Events[0].Payload.(*structs.ACLTokenEvent)
+	require.True(t, ok)
+	require.Empty(t, tokenEvent2.ACLToken.SecretID)
+}
+
 // TestEventFromChange_NodeSecretID ensures that a node's secret ID is not
 // included in a node event
 func TestEventFromChange_NodeSecretID(t *testing.T) {

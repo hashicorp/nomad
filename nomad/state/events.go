@@ -56,12 +56,11 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			if !ok {
 				return structs.Event{}, false
 			}
+
 			return structs.Event{
-				Topic: structs.TopicACLToken,
-				Key:   before.AccessorID,
-				Payload: structs.ACLTokenEvent{
-					ACLToken: before,
-				},
+				Topic:   structs.TopicACLToken,
+				Key:     before.AccessorID,
+				Payload: structs.NewACLTokenEvent(before),
 			}, true
 		case "acl_policy":
 			before, ok := change.Before.(*structs.ACLPolicy)
@@ -71,7 +70,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			return structs.Event{
 				Topic: structs.TopicACLPolicy,
 				Key:   before.Name,
-				Payload: structs.ACLPolicyEvent{
+				Payload: &structs.ACLPolicyEvent{
 					ACLPolicy: before,
 				},
 			}, true
@@ -102,12 +101,11 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		if !ok {
 			return structs.Event{}, false
 		}
+
 		return structs.Event{
-			Topic: structs.TopicACLToken,
-			Key:   after.AccessorID,
-			Payload: structs.ACLTokenEvent{
-				ACLToken: after,
-			},
+			Topic:   structs.TopicACLToken,
+			Key:     after.AccessorID,
+			Payload: structs.NewACLTokenEvent(after),
 		}, true
 	case "acl_policy":
 		after, ok := change.After.(*structs.ACLPolicy)
@@ -117,7 +115,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		return structs.Event{
 			Topic: structs.TopicACLPolicy,
 			Key:   after.Name,
-			Payload: structs.ACLPolicyEvent{
+			Payload: &structs.ACLPolicyEvent{
 				ACLPolicy: after,
 			},
 		}, true

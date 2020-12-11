@@ -29,8 +29,7 @@ type EventBrokerCfg struct {
 
 type EventBroker struct {
 	// mu protects subscriptions
-	mu sync.Mutex
-
+	mu            sync.Mutex
 	subscriptions *subscriptions
 
 	// eventBuf stores a configurable amount of events in memory
@@ -189,8 +188,8 @@ func (e *EventBroker) handleACLUpdates(ctx context.Context) {
 			return
 		case update := <-e.aclCh:
 			switch payload := update.Payload.(type) {
-			case structs.ACLTokenEvent:
-				tokenSecretID := payload.ACLToken.SecretID
+			case *structs.ACLTokenEvent:
+				tokenSecretID := payload.SecretID()
 
 				// Token was deleted
 				if update.Type == structs.TypeACLTokenDeleted {
@@ -214,7 +213,7 @@ func (e *EventBroker) handleACLUpdates(ctx context.Context) {
 					return !aclAllowsSubscription(aclObj, sub.req)
 				})
 
-			case structs.ACLPolicyEvent:
+			case *structs.ACLPolicyEvent:
 				// Re-evaluate each subscriptions permissions since a policy
 				// change may or may not affect the subscription
 				e.checkSubscriptionsAgainstPolicyChange()
@@ -240,9 +239,14 @@ func (e *EventBroker) checkSubscriptionsAgainstPolicyChange() {
 
 	aclSnapshot := e.aclDelegate.TokenProvider()
 	for tokenSecretID := range e.subscriptions.byToken {
+		// if tokenSecretID is empty ACLs were disabled at time of subscribing
+		if tokenSecretID == "" {
+			continue
+		}
+
 		aclObj, err := aclObjFromSnapshotForTokenSecretID(aclSnapshot, e.aclCache, tokenSecretID)
 		if err != nil || aclObj == nil {
-			e.logger.Error("failed resolving ACL for secretID, closing subscriptions", "error", err)
+			e.logger.Debug("failed resolving ACL for secretID, closing subscriptions", "error", err)
 			e.subscriptions.closeSubscriptionsForTokens([]string{tokenSecretID})
 			continue
 		}
