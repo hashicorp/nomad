@@ -338,16 +338,20 @@ variables {
   var1 = "default-val"
   var2 = "default-val"
   var3 = "default-val"
+  var4 = "default-val"
 }
 
 job "example" {
-  datacenters = ["${var.var1}", "${var.var2}", "${var.var3}"]
+  datacenters = ["${var.var1}", "${var.var2}", "${var.var3}", "${var.var4}"]
 }
 `
 
+	os.Setenv("NOMAD_VAR_var4", "from-envvar")
+	defer os.Unsetenv("NOMAD_VAR_var4")
+
 	cliArgs := []string{`var2=from-cli`}
 	fileVars := `var3 = "from-varfile"`
-	expected := []string{"default-val", "from-cli", "from-varfile"}
+	expected := []string{"default-val", "from-cli", "from-varfile", "from-envvar"}
 
 	hclf, err := ioutil.TempFile("", "hcl")
 	require.NoError(t, err)
