@@ -1,26 +1,102 @@
 import VERSION from 'data/version.js'
-import ProductDownloader from '@hashicorp/react-product-downloader'
 import Head from 'next/head'
 import HashiHead from '@hashicorp/react-head'
+import ProductDownloader from '@hashicorp/react-product-downloader'
+import styles from './style.module.css'
+import logo from '@hashicorp/mktg-assets/dist/product/nomad-logo/color.svg'
 
-export default function DownloadsPage({ releaseData }) {
+export default function DownloadsPage({ releases }) {
   return (
-    <div id="p-downloads" className="g-container">
-      <HashiHead is={Head} title="Downloads | Nomad by HashiCorp" />
+    <>
+      <HashiHead is={Head} title={`Downloads | Nomad by HashiCorp`} />
+
       <ProductDownloader
-        product="Nomad"
-        version={VERSION}
-        releaseData={releaseData}
-        community="/resources"
+        releases={releases}
+        packageManagers={[
+          {
+            label: 'Homebrew',
+            commands: [
+              'brew tap hashicorp/tap',
+              'brew install hashicorp/tap/nomad',
+            ],
+            os: 'darwin',
+          },
+          {
+            label: 'Ubuntu/Debian',
+            commands: [
+              'curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -',
+              'sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"',
+              'sudo apt-get update && sudo apt-get install nomad',
+            ],
+            os: 'linux',
+          },
+          {
+            label: 'CentOS/RHEL',
+            commands: [
+              'sudo yum install -y yum-utils',
+              'sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo',
+              'sudo yum -y install nomad',
+            ],
+            os: 'linux',
+          },
+          {
+            label: 'Fedora',
+            commands: [
+              'sudo dnf install -y dnf-plugins-core',
+              'sudo dnf config-manager --add-repo https://rpm.releases.hashicorp.com/fedora/hashicorp.repo',
+              'sudo dnf -y install nomad',
+            ],
+            os: 'linux',
+          },
+          {
+            label: 'Amazon Linux',
+            commands: [
+              'sudo yum install -y yum-utils',
+              'sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo',
+              'sudo yum -y install nomad',
+            ],
+            os: 'linux',
+          },
+        ]}
+        productName="Nomad"
+        productId="nomad"
+        latestVersion={VERSION}
+        getStartedDescription="Follow step-by-step tutorials on AWS, Azure, GCP, and localhost."
+        getStartedLinks={[
+          {
+            label: 'Placeholder',
+            href: '#',
+          },
+          {
+            label: 'Placeholder',
+            href: '#',
+          },
+        ]}
+        logo={<img className={styles.logo} alt="Nomad" src={logo} />}
+        brand="nomad"
+        tutorialLink={{
+          href: 'https://learn.hashicorp.com/nomad',
+          label: 'View Tutorials at HashiCorp Learn',
+        }}
       />
-    </div>
+    </>
   )
 }
 
 export async function getStaticProps() {
-  return fetch(`https://releases.hashicorp.com/nomad/${VERSION}/index.json`)
+  return fetch(`https://releases.hashicorp.com/nomad/index.json`, {
+    headers: {
+      'Cache-Control': 'no-cache',
+    },
+  })
     .then((res) => res.json())
-    .then((releaseData) => ({ props: { releaseData } }))
+    .then((result) => {
+      return {
+        props: {
+          releases: result,
+        },
+      }
+    })
     .catch(() => {
       throw new Error(
         `--------------------------------------------------------

@@ -23,7 +23,6 @@
 @import '~@hashicorp/react-enterprise-alert/style.css';
 @import '~@hashicorp/react-hero/dist/style.css';
 @import '~@hashicorp/react-logo-grid/dist/style.css';
-@import '~@hashicorp/react-product-downloader/dist/style.css';
 @import '~@hashicorp/react-search/style.css';
 @import '~@hashicorp/react-section-header/style.css';
 @import '~@hashicorp/react-subnav/style.css';
@@ -52,7 +51,6 @@
 
 /* Local Pages */
 @import './home/style.css';
-@import './downloads/style.css';
 @import './security/style.css';
 @import './community/style.css';
 @import '../layouts/use-cases/style.css';
