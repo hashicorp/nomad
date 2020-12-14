@@ -199,12 +199,30 @@ make use of the envoy version interpolation, e.g.
 meta.connect.gateway_image = custom/envoy-${NOMAD_envoy_version}:latest
 ```
 
+### Custom gateway task
+
+The task created for the gateway can be configured manually using the
+[`sidecar_task`][sidecar_task] stanza.
+
+```
+connect {
+  gateway {
+    # ...
+  }
+
+  sidecar_task {
+    # ...
+  }
+}
+```
+
 [proxy]: /docs/job-specification/gateway#proxy-parameters
 [ingress]: /docs/job-specification/gateway#ingress-parameters
 [tls]: /docs/job-specification/gateway#tls-parameters
 [listener]: /docs/job-specification/gateway#listener-parameters
 [service]: /docs/job-specification/gateway#service-parameters
 [service-default]: https://www.consul.io/docs/agent/config-entries/service-defaults
+[sidecar_task]: /docs/job-specification/sidecar_task
 [connect_timeout_ms]: https://www.consul.io/docs/agent/config-entries/service-resolver#connecttimeout
 [address]: /docs/job-specification/gateway#address-parameters
 [Advanced Configuration]: https://www.consul.io/docs/connect/proxies/envoy#advanced-configuration

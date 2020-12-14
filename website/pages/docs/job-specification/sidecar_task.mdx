@@ -12,7 +12,7 @@ description: |-
 <Placement groups={['job', 'group', 'service', 'connect', 'sidecar_task']} />
 
 The `sidecar_task` stanza allows configuring various options for the proxy
-sidecar managed by Nomad for [Consul
+sidecar or connect gateway managed by Nomad for the [Consul
 Connect](/docs/integrations/consul-connect) integration such as
 resource requirements, kill timeouts and more as defined below. It is valid
 only within the context of a [`connect`][connect] stanza.
@@ -53,25 +53,30 @@ job "countdash" {
 }
 ```
 
-## Default Envoy proxy sidecar
+## Default Envoy configuration
 
-Nomad automatically includes a default Envoy proxy sidecar task whenever a
-group service has a [`sidecar_service`][sidecar_service] stanza.
+Nomad automatically launches and manages an Envoy task for use as a proxy sidecar
+or connect gateway, when [`sidecar_service`][sidecar_service] or [`gateway`][gateway]
+are configured.
 
-The default sidecar task is equivalent to:
+The default envoy task is equivalent to:
 
 ```hcl
 sidecar_task {
   name = "connect-proxy-<service>"
+  #      "connect-gateway-<service>" when used as a gateway
 
-  lifecycle {
+  lifecycle { # absent when used as a gateway
     hook    = "prestart"
     sidecar = true
   }
 
   driver = "docker"
+
   config {
     image = "${meta.connect.sidecar_image}"
+    #       "${meta.connect.gateway_image}" when used as a gateway
+
     args = [
       "-c",
       "${NOMAD_SECRETS_DIR}/envoy_bootstrap.json",
@@ -97,11 +102,14 @@ sidecar_task {
 }
 ```
 
-The `meta.connect.sidecar_image`, `meta.connect.log_level`, and
-`meta.connect.proxy_concurrency` variables are [_client_
-configurable][nodemeta] variables with the following defaults:
+The `meta.connect.sidecar_image`, `meta.connect.gateway_image`, `meta.connect.log_level`,
+and `meta.connect.proxy_concurrency` variables are [client configurable][nodemeta]
+variables with the following defaults:
 
 - `sidecar_image` - `(string: "envoyproxy/envoy:v${NOMAD_envoy_version}")` - The official
+   upstream Envoy Docker image, where `${NOMAD_envoy_version}` is resolved automatically
+   by a query to Consul.
+- `gateway_image` - `(string: "envoyproxy/envoy:v${NOMAD_envoy_version}")` - The official
    upstream Envoy Docker image, where `${NOMAD_envoy_version}` is resolved automatically
    by a query to Consul.
 - `log_level` - `(string: "info")` - Envoy sidecar log level. "`debug`" is useful for
@@ -118,8 +126,8 @@ meta.connect.sidecar_image = custom/envoy-${NOMAD_envoy_version}:latest
 
 ## `sidecar_task` Parameters
 
-- `name` `(string: "connect-proxy-<service>")` - Name of the task. Defaults to
-  including the name of the service it is a proxy for.
+- `name` `(string: "connect-[proxy|gateway]-<service>")` - Name of the task. Defaults to
+  including the name of the service the proxy or gateway is providing.
 
 - `driver` `(string: "docker")` - Driver used for the sidecar task.
 
@@ -166,12 +174,13 @@ The following example configures resources for the sidecar task and other config
 ```
 
 [connect]: /docs/job-specification/connect 'Nomad connect Job Specification'
-[job]: /docs/job-specification/job 'Nomad job Job Specification'
+[gateway]: /docs/job-specification/gateway
 [group]: /docs/job-specification/group 'Nomad group Job Specification'
-[task]: /docs/job-specification/task 'Nomad task Job Specification'
 [interpolation]: /docs/runtime/interpolation 'Nomad interpolation'
-[sidecar_service]: /docs/job-specification/sidecar_service 'Nomad sidecar service Specification'
-[resources]: /docs/job-specification/resources 'Nomad resources Job Specification'
+[job]: /docs/job-specification/job 'Nomad job Job Specification'
 [logs]: /docs/job-specification/logs 'Nomad logs Job Specification'
+[resources]: /docs/job-specification/resources 'Nomad resources Job Specification'
+[sidecar_service]: /docs/job-specification/sidecar_service 'Nomad sidecar service Specification'
+[task]: /docs/job-specification/task 'Nomad task Job Specification'
 [nodemeta]: /docs/configuration/client#meta
 [worker_threads]: https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
