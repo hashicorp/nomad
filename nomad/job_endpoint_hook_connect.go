@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/pkg/errors"
@@ -25,7 +26,7 @@ var (
 	// connect proxy sidecar task.
 	connectSidecarDriverConfig = func() map[string]interface{} {
 		return map[string]interface{}{
-			"image": structs.EnvoyImageFormat,
+			"image": envoy.SidecarConfigVar,
 			"args": []interface{}{
 				"-c", structs.EnvoyBootstrapPath,
 				"-l", "${meta.connect.log_level}",
@@ -42,7 +43,7 @@ var (
 	// networking is being used the network_mode driver configuration is set here.
 	connectGatewayDriverConfig = func(hostNetwork bool) map[string]interface{} {
 		m := map[string]interface{}{
-			"image": structs.EnvoyImageFormat,
+			"image": envoy.GatewayConfigVar,
 			"args": []interface{}{
 				"-c", structs.EnvoyBootstrapPath,
 				"-l", "${meta.connect.log_level}",
@@ -175,7 +176,6 @@ func getNamedTaskForNativeService(tg *structs.TaskGroup, serviceName, taskName s
 // probably need to hack this up to look for checks on the service, and if they
 // qualify, configure a port for envoy to use to expose their paths.
 func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
-
 	// Create an environment interpolator with what we have at submission time.
 	// This should only be used to interpolate connect service names which are
 	// used in sidecar or gateway task names. Note that the service name might
@@ -265,7 +265,9 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 			if !hasGatewayTaskForService(g, service.Name) {
 				// use the default envoy image, for now there is no support for a custom task
 				task := newConnectGatewayTask(service.Name, netHost)
+
 				g.Tasks = append(g.Tasks, task)
+
 				task.Canonicalize(job, g)
 			}
 		}

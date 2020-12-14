@@ -8,11 +8,19 @@ import (
 	ifs "github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	taskEnvDefault = taskenv.NewTaskEnv(nil, nil, map[string]string{
+		"meta.connect.sidecar_image": envoy.ImageFormat,
+		"meta.connect.gateway_image": envoy.ImageFormat,
+	})
 )
 
 func TestEnvoyVersionHook_semver(t *testing.T) {
@@ -43,14 +51,14 @@ func TestEnvoyVersionHook_taskImage(t *testing.T) {
 		result := (*envoyVersionHook)(nil).taskImage(map[string]interface{}{
 			// empty
 		})
-		require.Equal(t, structs.EnvoyImageFormat, result)
+		require.Equal(t, envoy.ImageFormat, result)
 	})
 
 	t.Run("not a string", func(t *testing.T) {
 		result := (*envoyVersionHook)(nil).taskImage(map[string]interface{}{
 			"image": 7, // not a string
 		})
-		require.Equal(t, structs.EnvoyImageFormat, result)
+		require.Equal(t, envoy.ImageFormat, result)
 	})
 
 	t.Run("normal", func(t *testing.T) {
@@ -63,12 +71,13 @@ func TestEnvoyVersionHook_taskImage(t *testing.T) {
 
 func TestEnvoyVersionHook_tweakImage(t *testing.T) {
 	t.Parallel()
-	image := structs.EnvoyImageFormat
+
+	image := envoy.ImageFormat
 
 	t.Run("legacy", func(t *testing.T) {
 		result, err := (*envoyVersionHook)(nil).tweakImage(image, nil)
 		require.NoError(t, err)
-		require.Equal(t, envoyLegacyImage, result)
+		require.Equal(t, envoy.FallbackImage, result)
 	})
 
 	t.Run("unexpected", func(t *testing.T) {
@@ -93,6 +102,54 @@ func TestEnvoyVersionHook_tweakImage(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Equal(t, "custom-1.15.0/envoy:1.15.0", result)
+	})
+}
+
+func TestEnvoyVersionHook_interpolateImage(t *testing.T) {
+	t.Parallel()
+
+	hook := (*envoyVersionHook)(nil)
+
+	t.Run("default sidecar", func(t *testing.T) {
+		task := &structs.Task{
+			Config: map[string]interface{}{"image": envoy.SidecarConfigVar},
+		}
+		hook.interpolateImage(task, taskEnvDefault)
+		require.Equal(t, envoy.ImageFormat, task.Config["image"])
+	})
+
+	t.Run("default gateway", func(t *testing.T) {
+		task := &structs.Task{
+			Config: map[string]interface{}{"image": envoy.GatewayConfigVar},
+		}
+		hook.interpolateImage(task, taskEnvDefault)
+		require.Equal(t, envoy.ImageFormat, task.Config["image"])
+	})
+
+	t.Run("custom static", func(t *testing.T) {
+		task := &structs.Task{
+			Config: map[string]interface{}{"image": "custom/envoy"},
+		}
+		hook.interpolateImage(task, taskEnvDefault)
+		require.Equal(t, "custom/envoy", task.Config["image"])
+	})
+
+	t.Run("custom interpolated", func(t *testing.T) {
+		task := &structs.Task{
+			Config: map[string]interface{}{"image": "${MY_ENVOY}"},
+		}
+		hook.interpolateImage(task, taskenv.NewTaskEnv(map[string]string{
+			"MY_ENVOY": "my/envoy",
+		}, nil, nil))
+		require.Equal(t, "my/envoy", task.Config["image"])
+	})
+
+	t.Run("no image", func(t *testing.T) {
+		task := &structs.Task{
+			Config: map[string]interface{}{},
+		}
+		hook.interpolateImage(task, taskEnvDefault)
+		require.Empty(t, task.Config)
 	})
 }
 
@@ -153,7 +210,7 @@ func TestEnvoyVersionHook_skip(t *testing.T) {
 				Driver: "docker",
 				Kind:   structs.NewTaskKind(structs.ConnectProxyPrefix, "task"),
 				Config: map[string]interface{}{
-					"image": structs.EnvoyImageFormat,
+					"image": envoy.ImageFormat,
 				},
 			},
 		})
@@ -187,7 +244,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_standard(t *testing.T) {
 	request := &ifs.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
 		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0].Name),
-		TaskEnv: taskenv.NewEmptyTaskEnv(),
+		TaskEnv: taskEnvDefault,
 	}
 	require.NoError(t, request.TaskDir.Build(false, nil))
 
@@ -231,7 +288,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_custom(t *testing.T) {
 	request := &ifs.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
 		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0].Name),
-		TaskEnv: taskenv.NewEmptyTaskEnv(),
+		TaskEnv: taskEnvDefault,
 	}
 	require.NoError(t, request.TaskDir.Build(false, nil))
 
@@ -278,7 +335,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_skip(t *testing.T) {
 	request := &ifs.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
 		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0].Name),
-		TaskEnv: taskenv.NewEmptyTaskEnv(),
+		TaskEnv: taskEnvDefault,
 	}
 	require.NoError(t, request.TaskDir.Build(false, nil))
 
@@ -319,7 +376,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_fallback(t *testing.T) {
 	request := &ifs.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
 		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0].Name),
-		TaskEnv: taskenv.NewEmptyTaskEnv(),
+		TaskEnv: taskEnvDefault,
 	}
 	require.NoError(t, request.TaskDir.Build(false, nil))
 
@@ -360,7 +417,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_error(t *testing.T) {
 	request := &ifs.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
 		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0].Name),
-		TaskEnv: taskenv.NewEmptyTaskEnv(),
+		TaskEnv: taskEnvDefault,
 	}
 	require.NoError(t, request.TaskDir.Build(false, nil))
 
