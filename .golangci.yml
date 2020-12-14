@@ -52,6 +52,11 @@ linters-settings:
   gofmt:
     # simplify code: gofmt with `-s` option, true by default
     simplify: true
+  depguard:
+    # disallow packages from being used
+    list-type: blacklist
+    packages:
+      - github.com/hashicorp/consul/command/flags
 
 issues:
   exclude:
@@ -74,6 +79,7 @@ linters:
     - unconvert
     - gofmt
     - gosimple
+    - depguard
     # Stretch Goal
     #- maligned
   fast: false
