@@ -111,11 +111,50 @@ meta {
 Additionally, block attributes must be [HCL2 valid identifiers](https://github.com/hashicorp/hcl/blob/v2.8.0/hclsyntax/spec.md#identifiers).
 Generally, identifiers may only contain letters, numbers, underscore `_`,
 or a dash `-`, and start with a letter. Notable,
-[`meta`](https://www.nomadproject.io/docs/job-specification/meta), and
-[`env`](https://www.nomadproject.io/docs/job-specification/env) keys may not
+[`meta`](/docs/job-specification/meta), and
+[`env`](/docs/job-specification/env) keys may not
 contain other symbols (e.g. `.`, `#`).
 
-### Multiline "here doc" strings
+Task driver config fields may require extra attention if they contain invalid
+identifiers. For example, docker [`sysctl`](/docs/drivers/docker#sysctl) must
+use the map assignment syntax if the keys aren't valid:
+
+```hcl
+sysctl = {
+  "net.core.somaxconn/docs/drivers/docker#sysctl" = "16384"
+}
+```
+
+Additionally, task driver config fields may not nest block syntax within an
+assignment syntax. The following [`mounts`](/docs/drivers/docker#mounts) syntax is no longer valid:
+
+```hcl
+# INVALID in Nomad 1.0
+mounts = [
+  {
+    type = "tmpfs"
+    tmpfs_options {  # <- block syntax is not valid here
+      size = 10000
+    }
+  }
+]
+```
+
+Here, the `tmpfs_options` block declaration is invalid HCL2 syntax, and must be an assignment instead:
+
+```hcl
+# VALID in Nomad 1.0
+mounts = [
+  {
+    type = "tmpfs"
+    tmpfs_options = {
+      size = 10000
+    }
+  }
+]
+```
+
+### Multiline "here doc" string
 
 Nomad supports multi-line string literals in the so-called "heredoc" style, inspired by Unix shell languages:
 

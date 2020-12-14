@@ -128,8 +128,8 @@ config {
 
   ```hcl
   config {
-    sysctl {
-      net.core.somaxconn = "16384"
+    sysctl = {
+      "net.core.somaxconn" = "16384"
     }
   }
   ```
@@ -340,12 +340,12 @@ config {
         target = "/path/in/container"
         source = "name-of-volume"
         readonly = false
-        volume_options {
+        volume_options = {
           no_copy = false
-          labels {
+          labels = {
             foo = "bar"
           }
-          driver_config {
+          driver_config = {
             name = "pxd"
             options = {
               foo = "bar"
@@ -359,7 +359,7 @@ config {
         target = "/path/in/container"
         source = "/path/in/host"
         readonly = false
-        bind_options {
+        bind_options = {
           propagation = "rshared"
         }
       },
@@ -368,7 +368,7 @@ config {
         type = "tmpfs"
         target = "/path/in/container"
         readonly = false
-        tmpfs_options {
+        tmpfs_options = {
           size = 100000 # size in bytes
         }
       }
