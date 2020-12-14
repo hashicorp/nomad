@@ -1,4 +1,4 @@
-package flaghelper
+package flags
 
 import (
 	"strconv"

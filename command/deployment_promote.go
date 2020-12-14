@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
 )
 

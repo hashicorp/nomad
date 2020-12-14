@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/consul/command/flags"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
 )
 
@@ -32,28 +32,34 @@ func (c *OperatorAutopilotSetCommand) AutocompleteArgs() complete.Predictor {
 func (c *OperatorAutopilotSetCommand) Name() string { return "operator autopilot set-config" }
 
 func (c *OperatorAutopilotSetCommand) Run(args []string) int {
-	var cleanupDeadServers flags.BoolValue
-	var maxTrailingLogs flags.UintValue
-	var minQuorum flags.UintValue
-	var lastContactThreshold flags.DurationValue
-	var serverStabilizationTime flags.DurationValue
-	var enableRedundancyZones flags.BoolValue
-	var disableUpgradeMigration flags.BoolValue
-	var enableCustomUpgrades flags.BoolValue
+	// Autopilot command line flags behave differently from other commands
+	// in Nomad. Here, flags assume no default value. The value of the flag
+	// is taken into consideration if the flag is set, whether or not it contains
+	// the zero value when being applied to inherited configuration.
+	//
+	// This behavior was inherited from Consul.
+	var cleanupDeadServers flaghelper.BoolValue
+	var maxTrailingLogs flaghelper.UintValue
+	var minQuorum flaghelper.UintValue
+	var lastContactThreshold flaghelper.DurationValue
+	var serverStabilizationTime flaghelper.DurationValue
+	var enableRedundancyZones flaghelper.BoolValue
+	var disableUpgradeMigration flaghelper.BoolValue
+	var enableCustomUpgrades flaghelper.BoolValue
 
-	f := c.Meta.FlagSet("autopilot", FlagSetClient)
-	f.Usage = func() { c.Ui.Output(c.Help()) }
+	flagSet := c.Meta.FlagSet("autopilot", FlagSetClient)
+	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
 
-	f.Var(&cleanupDeadServers, "cleanup-dead-servers", "")
-	f.Var(&maxTrailingLogs, "max-trailing-logs", "")
-	f.Var(&lastContactThreshold, "last-contact-threshold", "")
-	f.Var(&serverStabilizationTime, "server-stabilization-time", "")
-	f.Var(&enableRedundancyZones, "enable-redundancy-zones", "")
-	f.Var(&disableUpgradeMigration, "disable-upgrade-migration", "")
-	f.Var(&enableCustomUpgrades, "enable-custom-upgrades", "")
-	f.Var(&minQuorum, "min-quorum", "")
+	flagSet.Var(&cleanupDeadServers, "cleanup-dead-servers", "")
+	flagSet.Var(&maxTrailingLogs, "max-trailing-logs", "")
+	flagSet.Var(&lastContactThreshold, "last-contact-threshold", "")
+	flagSet.Var(&serverStabilizationTime, "server-stabilization-time", "")
+	flagSet.Var(&enableRedundancyZones, "enable-redundancy-zones", "")
+	flagSet.Var(&disableUpgradeMigration, "disable-upgrade-migration", "")
+	flagSet.Var(&enableCustomUpgrades, "enable-custom-upgrades", "")
+	flagSet.Var(&minQuorum, "min-quorum", "")
 
-	if err := f.Parse(args); err != nil {
+	if err := flagSet.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse args: %v", err))
 		return 1
 	}
@@ -82,8 +88,11 @@ func (c *OperatorAutopilotSetCommand) Run(args []string) int {
 	trailing := uint(conf.MaxTrailingLogs)
 	maxTrailingLogs.Merge(&trailing)
 	conf.MaxTrailingLogs = uint64(trailing)
+
 	minQuorum.Merge(&conf.MinQuorum)
+
 	lastContactThreshold.Merge(&conf.LastContactThreshold)
+
 	serverStabilizationTime.Merge(&conf.ServerStabilizationTime)
 
 	// Check-and-set the new configuration.

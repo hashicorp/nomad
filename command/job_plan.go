@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	cflags "github.com/hashicorp/consul/command/flags"
 	"github.com/hashicorp/nomad/api"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/posener/complete"
 )
@@ -117,23 +117,23 @@ func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
 	var diff, policyOverride, verbose bool
-	var varArgs, varFiles cflags.AppendSliceValue
+	var varArgs, varFiles flaghelper.StringFlag
 
-	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
-	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&diff, "diff", true, "")
-	flags.BoolVar(&policyOverride, "policy-override", false, "")
-	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
-	flags.Var(&varArgs, "var", "")
-	flags.Var(&varFiles, "var-file", "")
+	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
+	flagSet.BoolVar(&diff, "diff", true, "")
+	flagSet.BoolVar(&policyOverride, "policy-override", false, "")
+	flagSet.BoolVar(&verbose, "verbose", false, "")
+	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
+	flagSet.Var(&varArgs, "var", "")
+	flagSet.Var(&varFiles, "var-file", "")
 
-	if err := flags.Parse(args); err != nil {
+	if err := flagSet.Parse(args); err != nil {
 		return 255
 	}
 
 	// Check that we got exactly one job
-	args = flags.Args()
+	args = flagSet.Args()
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <path>")
 		c.Ui.Error(commandErrorText(c))

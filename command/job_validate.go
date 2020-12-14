@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	cflags "github.com/hashicorp/consul/command/flags"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
@@ -66,20 +66,20 @@ func (c *JobValidateCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobValidateCommand) Name() string { return "job validate" }
 
 func (c *JobValidateCommand) Run(args []string) int {
-	var varArgs, varFiles cflags.AppendSliceValue
+	var varArgs, varFiles flaghelper.StringFlag
 
-	flags := c.Meta.FlagSet(c.Name(), FlagSetNone)
-	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
-	flags.Var(&varArgs, "var", "")
-	flags.Var(&varFiles, "var-file", "")
+	flagSet := c.Meta.FlagSet(c.Name(), FlagSetNone)
+	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
+	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
+	flagSet.Var(&varArgs, "var", "")
+	flagSet.Var(&varFiles, "var-file", "")
 
-	if err := flags.Parse(args); err != nil {
+	if err := flagSet.Parse(args); err != nil {
 		return 1
 	}
 
 	// Check that we got exactly one node
-	args = flags.Args()
+	args = flagSet.Args()
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <path>")
 		c.Ui.Error(commandErrorText(c))
