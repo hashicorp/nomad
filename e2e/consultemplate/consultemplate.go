@@ -244,6 +244,16 @@ func (tc *ConsulTemplateTest) TestTemplatePathInterpolation_Ok(f *framework.F) {
 		func(out string) bool {
 			return len(out) > 0
 		}, nil), "expected file to have contents")
+
+	f.NoError(waitForTemplateRender(allocID, "task/alloc/shared.txt",
+		func(out string) bool {
+			return len(out) > 0
+		}, nil), "expected task-alloc-dir file to have contents")
+
+	f.NoError(waitForTemplateRender(allocID, "shared.txt",
+		func(out string) bool {
+			return len(out) > 0
+		}, nil), "expected shared-alloc-dir file to have contents")
 }
 
 // TestTemplatePathInterpolation_Bad asserts that template.source paths are not

@@ -28,6 +28,13 @@ job "template-paths" {
         destination = "${NOMAD_SECRETS_DIR}/foo/dst"
       }
 
+      template {
+        destination = "${NOMAD_ALLOC_DIR}/shared.txt"
+        data        = <<EOH
+Data shared between all task in alloc dir.
+EOH
+      }
+
       resources {
         cpu    = 128
         memory = 64
