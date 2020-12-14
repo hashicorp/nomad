@@ -244,6 +244,11 @@ func (tc *ConsulTemplateTest) TestTemplatePathInterpolation_Ok(f *framework.F) {
 		func(out string) bool {
 			return len(out) > 0
 		}, nil), "expected file to have contents")
+
+	f.NoError(waitForTemplateRender(allocID, "alloc/shared.txt",
+		func(out string) bool {
+			return len(out) > 0
+		}, nil), "expected shared-alloc-dir file to have contents")
 }
 
 // TestTemplatePathInterpolation_Bad asserts that template.source paths are not
@@ -285,6 +290,73 @@ func (tc *ConsulTemplateTest) TestTemplatePathInterpolation_Bad(f *framework.F) 
 		}
 	}
 	f.True(found, "alloc failed but NOT due to expected source path escape error")
+}
+
+// TestTemplatePathInterpolation_SharedAlloc asserts that NOMAD_ALLOC_DIR
+// is supported as a destination for artifact and template blocks, and
+// that it is properly interpolated for task drivers with varying
+// filesystem isolation
+func (tc *ConsulTemplateTest) TestTemplatePathInterpolation_SharedAllocDir(f *framework.F) {
+	jobID := "template-shared-alloc-" + uuid.Generate()[:8]
+	tc.jobIDs = append(tc.jobIDs, jobID)
+
+	allocStubs := e2eutil.RegisterAndWaitForAllocs(
+		f.T(), tc.Nomad(), "consultemplate/input/template_shared_alloc.nomad", jobID, "")
+	f.Len(allocStubs, 1)
+	allocID := allocStubs[0].ID
+
+	e2eutil.WaitForAllocRunning(f.T(), tc.Nomad(), allocID)
+
+	for _, task := range []string{"docker", "exec", "raw_exec"} {
+
+		// tests that we can render templates into the shared alloc directory
+		f.NoError(waitForTaskFile(allocID, task, "${NOMAD_ALLOC_DIR}/raw_exec.env",
+			func(out string) bool {
+				return len(out) > 0 && strings.TrimSpace(out) != "/alloc"
+			}, nil), "expected raw_exec.env to not be '/alloc'")
+
+		f.NoError(waitForTaskFile(allocID, task, "${NOMAD_ALLOC_DIR}/exec.env",
+			func(out string) bool {
+				return strings.TrimSpace(out) == "/alloc"
+			}, nil), "expected shared exec.env to contain '/alloc'")
+
+		f.NoError(waitForTaskFile(allocID, task, "${NOMAD_ALLOC_DIR}/docker.env",
+			func(out string) bool {
+				return strings.TrimSpace(out) == "/alloc"
+			}, nil), "expected shared docker.env to contain '/alloc'")
+
+		// test that we can fetch artifacts into the shared alloc directory
+		for _, a := range []string{"google1.html", "google2.html", "google3.html"} {
+			f.NoError(waitForTaskFile(allocID, task, "${NOMAD_ALLOC_DIR}/"+a,
+				func(out string) bool {
+					return len(out) > 0
+				}, nil), "expected artifact in alloc dir")
+		}
+
+		// test that we can load environment variables rendered with templates using interpolated paths
+		out, err := e2e.Command("nomad", "alloc", "exec", "-task", task, allocID, "sh", "-c", "env")
+		f.NoError(err)
+		f.Contains(out, "HELLO_FROM=raw_exec")
+	}
+}
+
+func waitForTaskFile(allocID, task, path string, test func(out string) bool, wc *e2e.WaitConfig) error {
+	var err error
+	var out string
+	interval, retries := wc.OrDefault()
+
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		time.Sleep(interval)
+		out, err = e2e.Command("nomad", "alloc", "exec", "-task", task, allocID, "sh", "-c", "cat "+path)
+		if err != nil {
+			return false, fmt.Errorf("could not cat file %q from task %q in allocation %q: %v",
+				path, task, allocID, err)
+		}
+		return test(out), nil
+	}, func(e error) {
+		err = fmt.Errorf("test for file content failed: got %#v\nerror: %v", out, e)
+	})
+	return err
 }
 
 // waitForTemplateRender is a helper that grabs a file via alloc fs
