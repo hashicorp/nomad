@@ -494,6 +494,10 @@ type ServerConfig struct {
 	// for the EventBufferSize is 1.
 	EventBufferSize *int `hcl:"event_buffer_size"`
 
+	// DurableEventCount specifies the amount of events to persist during snapshot generation.
+	// A count of 0 signals that no events should be persisted.
+	DurableEventCount *int `hcl:"durable_event_count"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -887,6 +891,7 @@ func DefaultConfig() *Config {
 			Enabled:           false,
 			EnableEventBroker: helper.BoolToPtr(true),
 			EventBufferSize:   helper.IntToPtr(100),
+			DurableEventCount: helper.IntToPtr(100),
 			StartJoin:         []string{},
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
@@ -1417,6 +1422,10 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 
 	if b.EventBufferSize != nil {
 		result.EventBufferSize = b.EventBufferSize
+	}
+
+	if b.DurableEventCount != nil {
+		result.DurableEventCount = b.DurableEventCount
 	}
 
 	if b.DefaultSchedulerConfig != nil {

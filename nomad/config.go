@@ -85,6 +85,10 @@ type Config struct {
 	// EventBufferSize is the amount of events to hold in memory.
 	EventBufferSize int64
 
+	// DurableEventCount is the amount of events to save to disk when
+	// snapshotting
+	DurableEventCount int64
+
 	// LogOutput is the location to write logs to. If this is not set,
 	// logs will go to stderr.
 	LogOutput io.Writer
@@ -422,6 +426,7 @@ func DefaultConfig() *Config {
 		LicenseConfig:                    &LicenseConfig{},
 		EnableEventBroker:                true,
 		EventBufferSize:                  100,
+		DurableEventCount:                100,
 		AutopilotConfig: &structs.AutopilotConfig{
 			CleanupDeadServers:      true,
 			LastContactThreshold:    200 * time.Millisecond,
