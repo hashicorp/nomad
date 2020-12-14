@@ -284,6 +284,32 @@ var (
 		"disable_log_collection": hclspec.NewAttr("disable_log_collection", "bool", false),
 	})
 
+	// mountBodySpec is the hcl specification for the `mount` block
+	mountBodySpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"type": hclspec.NewDefault(
+			hclspec.NewAttr("type", "string", false),
+			hclspec.NewLiteral("\"volume\""),
+		),
+		"target":   hclspec.NewAttr("target", "string", false),
+		"source":   hclspec.NewAttr("source", "string", false),
+		"readonly": hclspec.NewAttr("readonly", "bool", false),
+		"bind_options": hclspec.NewBlock("bind_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"propagation": hclspec.NewAttr("propagation", "string", false),
+		})),
+		"tmpfs_options": hclspec.NewBlock("tmpfs_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"size": hclspec.NewAttr("size", "number", false),
+			"mode": hclspec.NewAttr("mode", "number", false),
+		})),
+		"volume_options": hclspec.NewBlock("volume_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"no_copy": hclspec.NewAttr("no_copy", "bool", false),
+			"labels":  hclspec.NewAttr("labels", "list(map(string))", false),
+			"driver_config": hclspec.NewBlock("driver_config", false, hclspec.NewObject(map[string]*hclspec.Spec{
+				"name":    hclspec.NewAttr("name", "string", false),
+				"options": hclspec.NewAttr("options", "list(map(string))", false),
+			})),
+		})),
+	})
+
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a task within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
@@ -331,30 +357,11 @@ var (
 		})),
 		"mac_address":       hclspec.NewAttr("mac_address", "string", false),
 		"memory_hard_limit": hclspec.NewAttr("memory_hard_limit", "number", false),
-		"mounts": hclspec.NewBlockList("mounts", hclspec.NewObject(map[string]*hclspec.Spec{
-			"type": hclspec.NewDefault(
-				hclspec.NewAttr("type", "string", false),
-				hclspec.NewLiteral("\"volume\""),
-			),
-			"target":   hclspec.NewAttr("target", "string", false),
-			"source":   hclspec.NewAttr("source", "string", false),
-			"readonly": hclspec.NewAttr("readonly", "bool", false),
-			"bind_options": hclspec.NewBlock("bind_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
-				"propagation": hclspec.NewAttr("propagation", "string", false),
-			})),
-			"tmpfs_options": hclspec.NewBlock("tmpfs_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
-				"size": hclspec.NewAttr("size", "number", false),
-				"mode": hclspec.NewAttr("mode", "number", false),
-			})),
-			"volume_options": hclspec.NewBlock("volume_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
-				"no_copy": hclspec.NewAttr("no_copy", "bool", false),
-				"labels":  hclspec.NewAttr("labels", "list(map(string))", false),
-				"driver_config": hclspec.NewBlock("driver_config", false, hclspec.NewObject(map[string]*hclspec.Spec{
-					"name":    hclspec.NewAttr("name", "string", false),
-					"options": hclspec.NewAttr("options", "list(map(string))", false),
-				})),
-			})),
-		})),
+		// mount and mounts are effectively aliases, but `mounts` is meant for pre-1.0
+		// assignment syntax `mounts = [{type="..." ..."}]` while
+		// `mount` is 1.0 repeated block syntax `mount { type = "..." }`
+		"mount":           hclspec.NewBlockList("mount", mountBodySpec),
+		"mounts":          hclspec.NewBlockList("mounts", mountBodySpec),
 		"network_aliases": hclspec.NewAttr("network_aliases", "list(string)", false),
 		"network_mode":    hclspec.NewAttr("network_mode", "string", false),
 		"runtime":         hclspec.NewAttr("runtime", "string", false),
@@ -426,7 +433,7 @@ type TaskConfig struct {
 	Logging           DockerLogging      `codec:"logging"`
 	MacAddress        string             `codec:"mac_address"`
 	MemoryHardLimit   int64              `codec:"memory_hard_limit"`
-	Mounts            []DockerMount      `codec:"mounts"`
+	Mounts            []DockerMount      `codec:"mount"`
 	NetworkAliases    []string           `codec:"network_aliases"`
 	NetworkMode       string             `codec:"network_mode"`
 	Runtime           string             `codec:"runtime"`
@@ -448,6 +455,9 @@ type TaskConfig struct {
 	Volumes           []string           `codec:"volumes"`
 	VolumeDriver      string             `codec:"volume_driver"`
 	WorkDir           string             `codec:"work_dir"`
+
+	// MountsList supports the pre-1.0 mounts array syntax
+	MountsList []DockerMount `codec:"mounts"`
 }
 
 type DockerAuth struct {

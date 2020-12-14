@@ -24,6 +24,7 @@ func TestConfig_ParseHCL(t *testing.T) {
 				Image:            "redis:3.2",
 				Devices:          []DockerDevice{},
 				Mounts:           []DockerMount{},
+				MountsList:       []DockerMount{},
 				CPUCFSPeriod:     100000,
 				ImagePullTimeout: "5m",
 			},
@@ -56,6 +57,7 @@ func TestConfig_ParseJSON(t *testing.T) {
 			expected: TaskConfig{
 				Image:            "bash:3",
 				Mounts:           []DockerMount{},
+				MountsList:       []DockerMount{},
 				Devices:          []DockerDevice{},
 				CPUCFSPeriod:     100000,
 				ImagePullTimeout: "5m",
@@ -67,6 +69,7 @@ func TestConfig_ParseJSON(t *testing.T) {
 			expected: TaskConfig{
 				Image:            "bash:3",
 				Mounts:           []DockerMount{},
+				MountsList:       []DockerMount{},
 				Devices:          []DockerDevice{},
 				CPUCFSPeriod:     100000,
 				ImagePullTimeout: "5m",
@@ -78,6 +81,7 @@ func TestConfig_ParseJSON(t *testing.T) {
 			expected: TaskConfig{
 				Image:            "bash:3",
 				Mounts:           []DockerMount{},
+				MountsList:       []DockerMount{},
 				Devices:          []DockerDevice{},
 				CPUCFSPeriod:     100000,
 				ImagePullTimeout: "5m",
@@ -89,6 +93,7 @@ func TestConfig_ParseJSON(t *testing.T) {
 			expected: TaskConfig{
 				Image:            "bash:3",
 				Mounts:           []DockerMount{},
+				MountsList:       []DockerMount{},
 				Devices:          []DockerDevice{},
 				CPUCFSPeriod:     100000,
 				ImagePullTimeout: "5m",
@@ -229,6 +234,27 @@ config {
   }
   mac_address = "02:42:ac:11:00:02"
   memory_hard_limit = 512
+
+  mount {
+    type = "bind"
+    target ="/mount-bind-target"
+    source = "/bind-source-mount"
+    readonly = true
+    bind_options {
+      propagation = "rshared"
+    }
+  }
+
+  mount {
+    type = "tmpfs"
+    target ="/mount-tmpfs-target"
+    readonly = true
+    tmpfs_options {
+      size = 30000
+      mode = 0777
+    }
+  }
+
   mounts = [
     {
       type = "bind"
@@ -361,6 +387,27 @@ config {
 		MacAddress:      "02:42:ac:11:00:02",
 		MemoryHardLimit: 512,
 		Mounts: []DockerMount{
+			{
+				Type:     "bind",
+				Target:   "/mount-bind-target",
+				Source:   "/bind-source-mount",
+				ReadOnly: true,
+				BindOptions: DockerBindOptions{
+					Propagation: "rshared",
+				},
+			},
+			{
+				Type:     "tmpfs",
+				Target:   "/mount-tmpfs-target",
+				Source:   "",
+				ReadOnly: true,
+				TmpfsOptions: DockerTmpfsOptions{
+					SizeBytes: 30000,
+					Mode:      511,
+				},
+			},
+		},
+		MountsList: []DockerMount{
 			{
 				Type:     "bind",
 				Target:   "/bind-target",
