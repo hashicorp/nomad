@@ -147,10 +147,6 @@ func TestDebug_NodeClass(t *testing.T) {
 	testutil.WaitForClient(t, srv.Agent.RPC, client3NodeID)
 	t.Logf("[TEST] Client3 ready, id: %s", client3NodeID)
 
-	// Setup mock UI
-	ui := cli.NewMockUi()
-	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
-
 	// Setup test cases struct
 	cases := []struct {
 		name            string
@@ -164,10 +160,11 @@ func TestDebug_NodeClass(t *testing.T) {
 			args:         []string{"-address", url, "-duration", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clienta", "-max-nodes", "2"},
 			expectedCode: 0,
 			expectedOutputs: []string{
-				"Starting debugger",
-				"Created debug archive",
+				"Servers: (1/1)",
+				"Clients: (2/3)",
 				"Max node count reached (2)",
 				"Node Class: clienta",
+				"Created debug archive",
 			},
 			expectedError: "",
 		},
@@ -176,9 +173,10 @@ func TestDebug_NodeClass(t *testing.T) {
 			args:         []string{"-address", url, "-duration", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clientb", "-max-nodes", "2"},
 			expectedCode: 0,
 			expectedOutputs: []string{
-				"Starting debugger",
-				"Created debug archive",
+				"Servers: (1/1)",
+				"Clients: (1/3)",
 				"Node Class: clientb",
+				"Created debug archive",
 			},
 			expectedError: "",
 		},
@@ -186,6 +184,10 @@ func TestDebug_NodeClass(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			// Setup mock UI
+			ui := cli.NewMockUi()
+			cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
 			// Run test case
 			code := cmd.Run(c.args)
 			out := ui.OutputWriter.String()
@@ -273,10 +275,6 @@ func TestDebug_ClientToServer(t *testing.T) {
 	t.Logf("[TEST] Server    api address: %s", addrServer)
 	t.Logf("[TEST] Client1   api address: %s", addrClient1)
 
-	// Setup mock UI
-	ui := cli.NewMockUi()
-	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
-
 	// Setup test cases struct
 	cases := []struct {
 		name string
@@ -298,6 +296,10 @@ func TestDebug_ClientToServer(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			// Setup mock UI
+			ui := cli.NewMockUi()
+			cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
 			// Run test case
 			code := cmd.Run([]string{"-address", c.url, "-duration", "250ms", "-server-id", "all", "-node-id", "all"})
 			out := ui.OutputWriter.String()
