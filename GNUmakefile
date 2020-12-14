@@ -1,7 +1,7 @@
 SHELL = bash
 PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 THIS_OS := $(shell uname | cut -d- -f1)
-THIS_ARCH := $(shell uname -a | cut -d" " -f9)
+THIS_ARCH := $(shell uname -m)
 
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
