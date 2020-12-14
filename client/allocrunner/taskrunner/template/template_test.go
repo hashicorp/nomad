@@ -57,6 +57,9 @@ type MockTaskHooks struct {
 
 	Events      []*structs.TaskEvent
 	EmitEventCh chan *structs.TaskEvent
+
+	// hasHandle can be set to simulate restoring a task after client restart
+	hasHandle bool
 }
 
 func NewMockTaskHooks() *MockTaskHooks {
@@ -99,7 +102,7 @@ func (m *MockTaskHooks) Kill(ctx context.Context, event *structs.TaskEvent) erro
 }
 
 func (m *MockTaskHooks) HasHandle() bool {
-	return false // TODO
+	return m.hasHandle
 }
 
 func (m *MockTaskHooks) EmitEvent(event *structs.TaskEvent) {
@@ -761,6 +764,110 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 
 	if s := string(raw); s != consulContent {
 		t.Fatalf("Unexpected template data; got %q, want %q", s, consulContent)
+	}
+}
+
+// TestTaskTemplateManager_FirstRender_Restored tests that a task that's been
+// restored renders and triggers its change mode if the template has changed
+func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	// Make a template that will render based on a key in Vault
+	vaultPath := "secret/data/password"
+	key := "password"
+	content := "barbaz"
+	embedded := fmt.Sprintf(`{{with secret "%s"}}{{.Data.data.%s}}{{end}}`, vaultPath, key)
+	file := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: embedded,
+		DestPath:     file,
+		ChangeMode:   structs.TemplateChangeModeRestart,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, false, true)
+	harness.start(t)
+	defer harness.stop()
+
+	// Ensure no unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		t.Fatalf("Task unblock should not have been called")
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+	}
+
+	// Write the secret to Vault
+	logical := harness.vault.Client.Logical()
+	_, err := logical.Write(vaultPath, map[string]interface{}{"data": map[string]interface{}{key: content}})
+	require.NoError(err)
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Task unblock should have been called")
+	}
+
+	// Check the file is there
+	path := filepath.Join(harness.taskDir, file)
+	raw, err := ioutil.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
+	}
+
+	if s := string(raw); s != content {
+		t.Fatalf("Unexpected template data; got %q, want %q", s, content)
+	}
+
+	// task is now running
+	harness.mockHooks.hasHandle = true
+
+	// simulate a client restart
+	harness.manager.Stop()
+	harness.mockHooks.UnblockCh = make(chan struct{}, 1)
+	harness.start(t)
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Task unblock should have been called")
+	}
+
+	select {
+	case <-harness.mockHooks.RestartCh:
+		t.Fatalf("should not have restarted: %+v", harness.mockHooks)
+	case <-harness.mockHooks.SignalCh:
+		t.Fatalf("should not have restarted: %+v", harness.mockHooks)
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+	}
+
+	// simulate a client restart and TTL expiry
+	harness.manager.Stop()
+	content = "bazbar"
+	_, err = logical.Write(vaultPath, map[string]interface{}{"data": map[string]interface{}{key: content}})
+	require.NoError(err)
+	harness.mockHooks.UnblockCh = make(chan struct{}, 1)
+	harness.start(t)
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("Task unblock should have been called")
+	}
+
+	// Wait for restart
+	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
+OUTER:
+	for {
+		select {
+		case <-harness.mockHooks.RestartCh:
+			break OUTER
+		case <-harness.mockHooks.SignalCh:
+			t.Fatalf("Signal with restart policy: %+v", harness.mockHooks)
+		case <-timeout:
+			t.Fatalf("Should have received a restart: %+v", harness.mockHooks)
+		}
 	}
 }
 
