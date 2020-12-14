@@ -1,3 +1,7 @@
+// For now CNI is supported only on Linux.
+//
+//+build linux
+
 package allocrunner
 
 import (
