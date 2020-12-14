@@ -886,8 +886,8 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		cafile   = "../../helper/tlsutil/testdata/ca.pem"
 		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
-		maxConns = 10       // limit must be < this for testing
-		bufSize  = 1 * 1024 // enough for 429 error message
+		maxConns = 10 // limit must be < this for testing
+		bufSize  = 1  // enough to know if something was written
 	)
 
 	cases := []struct {
@@ -1055,20 +1055,16 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		}
 	}
 
-	dial := func(t *testing.T, addr string, useTLS bool) net.Conn {
+	dial := func(t *testing.T, addr string, useTLS bool) (net.Conn, error) {
 		if useTLS {
 			cert, err := tls.LoadX509KeyPair(foocert, fookey)
 			require.NoError(t, err)
-			conn, err := tls.Dial("tcp", addr, &tls.Config{
+			return tls.Dial("tcp", addr, &tls.Config{
 				Certificates:       []tls.Certificate{cert},
 				InsecureSkipVerify: true, // good enough
 			})
-			require.NoError(t, err)
-			return conn
 		} else {
-			conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
-			require.NoError(t, err)
-			return conn
+			return net.DialTimeout("tcp", addr, 1*time.Second)
 		}
 	}
 
@@ -1079,7 +1075,9 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		conns := make([]net.Conn, limit)
 		errCh := make(chan error, limit)
 		for i := range conns {
-			conns[i] = dial(t, addr, useTLS)
+			conn, err := dial(t, addr, useTLS)
+			require.NoError(t, err)
+			conns[i] = conn
 
 			go func(i int) {
 				buf := []byte{0}
@@ -1098,22 +1096,44 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		case <-time.After(500 * time.Millisecond):
 		}
 
-		// Assert a new connection is dropped
-		conn := dial(t, addr, useTLS)
+		// Create a new connection that will go over the connection limit.
+		limitConn, err := dial(t, addr, useTLS)
 
-		defer func() {
-			require.NoError(t, conn.Close())
-		}()
+		// At this point, the state of the connection + handshake are up in the
+		// air.
+		//
+		// 1) dial failed, handshake never started
+		//     => Conn is nil + io.EOF
+		// 2) dial completed, handshake failed
+		//     => Conn is malformed + (net.OpError OR io.EOF)
+		// 3) dial completed, handshake succeeded
+		//     => Conn is not nil + no error, however using the Conn should
+		//        result in io.EOF
+		//
+		// At no point should Nomad actually write through the limited Conn.
 
-		deadline := time.Now().Add(10 * time.Second)
-		require.NoError(t, conn.SetReadDeadline(deadline))
-
-		buf := make([]byte, bufSize)
-		n, err := conn.Read(buf)
-
-		require.NoError(t, err)
-		require.NotZero(t, n)
-		require.True(t, strings.HasPrefix(string(buf), "HTTP/1.1 429 Too Many Requests"))
+		if limitConn == nil || err != nil {
+			// Case 1 or Case 2 - returned Conn is useless and the error should
+			// be one of:
+			//   "EOF"
+			//   "closed network connection"
+			//   "connection reset by peer"
+			msg := err.Error()
+			acceptable := strings.Contains(msg, "EOF") ||
+				strings.Contains(msg, "closed network connection") ||
+				strings.Contains(msg, "connection reset by peer")
+			require.True(t, acceptable)
+		} else {
+			// Case 3 - returned Conn is usable, but Nomad should not write
+			// anything before closing it.
+			buf := make([]byte, bufSize)
+			deadline := time.Now().Add(10 * time.Second)
+			require.NoError(t, limitConn.SetReadDeadline(deadline))
+			n, err := limitConn.Read(buf)
+			require.Equal(t, io.EOF, err)
+			require.Zero(t, n)
+			require.NoError(t, limitConn.Close())
+		}
 
 		// Assert existing connections are ok
 		require.Len(t, errCh, 0)
@@ -1161,7 +1181,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 			if tc.assertLimit {
 				// There's a race between assertTimeout(false) closing
 				// its connection and the HTTP server noticing and
-				// untracking it. Since there's no way to coordinate
+				// un-tracking it. Since there's no way to coordinate
 				// when this occurs, sleeping is the only way to avoid
 				// asserting limits before the timed out connection is
 				// untracked.
