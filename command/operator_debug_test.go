@@ -45,10 +45,6 @@ func runTestCases(t *testing.T, cases testCases) {
 				require.Contains(t, out, expectedOutput, "expected output \"%s\", got \"%s\"", expectedOutput, out)
 			}
 			require.Containsf(t, outerr, c.expectedError, "expected error \"%s\", got \"%s\"", c.expectedError, outerr)
-
-			// Reset buffers before next test
-			ui.OutputWriter.Reset()
-			ui.ErrorWriter.Reset()
 		})
 	}
 }
@@ -330,9 +326,6 @@ func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
 	}
 
 	testutil.WaitForFiles(t, pluginFiles)
-
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
 }
 
 func TestDebug_CapturedFiles(t *testing.T) {
@@ -403,8 +396,6 @@ func TestDebug_ExistingOutput(t *testing.T) {
 
 	code := cmd.Run([]string{"-output", os.TempDir(), "-duration", "50ms"})
 	require.Equal(t, 2, code)
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
 }
 
 func TestDebug_Fail_Pprof(t *testing.T) {
@@ -428,13 +419,10 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "all"})
 
 	assert.Equal(t, 0, code) // Pprof failure isn't fatal
-	require.Contains(t, ui.ErrorWriter.String(), "Failed to retrieve pprof")
-	require.Contains(t, ui.ErrorWriter.String(), "Permission denied")
 	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
-	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")
-
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
+	require.Contains(t, ui.ErrorWriter.String(), "Failed to retrieve pprof") // Should report pprof failure
+	require.Contains(t, ui.ErrorWriter.String(), "Permission denied")        // Specifically permission denied
+	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")   // Archive should be generated anyway
 }
 
 func TestDebug_Utils(t *testing.T) {
@@ -474,7 +462,7 @@ func TestDebug_WriteBytes_Nil(t *testing.T) {
 	testPath = filepath.Join(testDir, testFile)
 	defer os.Remove(testPath)
 
-	// Write file at top level of collect directory
+	// Write nil file at top level of collect directory
 	err := cmd.writeBytes("", testFile, testBytes)
 	require.NoError(t, err)
 	require.FileExists(t, testPath)
