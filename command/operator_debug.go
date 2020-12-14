@@ -328,12 +328,13 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		}
 
 		// Increment fail count if no nodes are found
-		nodesFound = len(nodes)
-		if nodesFound == 0 {
+		if len(nodes) == 0 {
 			c.Ui.Error(fmt.Sprintf("No node(s) with prefix %q found", id))
 			nodeLookupFailCount++
 			continue
 		}
+
+		nodesFound += len(nodes)
 
 		// Apply constraints to nodes found
 		for _, n := range nodes {
