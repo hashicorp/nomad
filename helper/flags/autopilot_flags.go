@@ -1,4 +1,4 @@
-package flaghelper
+package flags
 
 // These flag type implementations are provided to maintain autopilot command
 // backwards compatibility.

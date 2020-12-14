@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/posener/complete"
 )
