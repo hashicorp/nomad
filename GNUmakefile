@@ -18,8 +18,7 @@ GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | eg
 endif
 
 # tag corresponding to latest release we maintain backward compatibility with
-# NOTE: using a pre-release, as buf fails to build the latest official release now
-PROTO_COMPARE_TAG ?= v1.0.0-beta3$(if $(findstring ent,$(GO_TAGS)),+ent,)
+PROTO_COMPARE_TAG ?= v1.0.0$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 default: help
 
