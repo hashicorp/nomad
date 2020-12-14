@@ -115,7 +115,7 @@ or a dash `-`, and start with a letter. Notable,
 [`env`](/docs/job-specification/env) keys may not
 contain other symbols (e.g. `.`, `#`).
 
-Task Driver config fields may require extra attention: If they contain invalid
+Task driver config fields may require extra attention if they contain invalid
 identifiers. For example, docker [`sysctl`](/docs/drivers/docker#sysctl) must
 use the map assignment syntax if the keys aren't valid:
 
@@ -125,7 +125,7 @@ sysctl = {
 }
 ```
 
-Additionally, Task Driver config fields may not nest block syntax within an
+Additionally, task driver config fields may not nest block syntax within an
 assignment syntax. The following [`mounts`](/docs/drivers/docker#mounts) syntax is no longer valid:
 
 ```hcl
@@ -140,7 +140,7 @@ mounts = [
 ]
 ```
 
-Here, the `tmpfs_options` blocks declaration is invalid HCL2 syntax, and must be an assignment instead:
+Here, the `tmpfs_options` block declaration is invalid HCL2 syntax, and must be an assignment instead:
 
 ```hcl
 # VALID in Nomad 1.0
