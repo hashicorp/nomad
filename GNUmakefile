@@ -1,6 +1,7 @@
 SHELL = bash
 PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 THIS_OS := $(shell uname | cut -d- -f1)
+THIS_ARCH := $(shell uname -m)
 
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
@@ -43,6 +44,11 @@ ALL_TARGETS += linux_386 \
 	windows_386 \
 	windows_amd64
 
+endif
+
+# On s390x architecture, we only build for s390x
+ifeq (s390x,$(THIS_ARCH))
+ALL_TARGETS = linux_s390x
 endif
 
 # On MacOS, we only build for MacOS
