@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -734,7 +735,7 @@ func ConnectSidecarTask() *structs.Task {
 		Driver: "docker",
 		User:   "nobody",
 		Config: map[string]interface{}{
-			"image": structs.EnvoyImageFormat,
+			"image": envoy.SidecarConfigVar,
 		},
 		Env: nil,
 		Resources: &structs.Resources{

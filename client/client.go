@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/consul/lib"
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/helper/envoy"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/host"
@@ -96,18 +97,6 @@ const (
 	// allocSyncRetryIntv is the interval on which we retry updating
 	// the status of the allocation
 	allocSyncRetryIntv = 5 * time.Second
-
-	// defaultConnectSidecarImage is the image set in the node meta by default
-	// to be used by Consul Connect sidecar tasks. As of Nomad 1.0, this value
-	// is only used as a fallback when the version of Consul does not yet support
-	// dynamic envoy versions.
-	defaultConnectSidecarImage = "envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09"
-
-	// defaultConnectGatewayImage is the image set in the node meta by default
-	// to be used by Consul Connect Gateway tasks. As of Nomad 1.0, this value
-	// is only used as a fallback when the version of Consul does not yet support
-	// dynamic envoy versions.
-	defaultConnectGatewayImage = defaultConnectSidecarImage
 
 	// defaultConnectLogLevel is the log level set in the node meta by default
 	// to be used by Consul Connect sidecar tasks.
@@ -1403,11 +1392,11 @@ func (c *Client) setupNode() error {
 	node.Status = structs.NodeStatusInit
 
 	// Setup default meta
-	if _, ok := node.Meta["connect.sidecar_image"]; !ok {
-		node.Meta["connect.sidecar_image"] = defaultConnectSidecarImage
+	if _, ok := node.Meta[envoy.SidecarMetaParam]; !ok {
+		node.Meta[envoy.SidecarMetaParam] = envoy.ImageFormat
 	}
-	if _, ok := node.Meta["connect.gateway_image"]; !ok {
-		node.Meta["connect.gateway_image"] = defaultConnectGatewayImage
+	if _, ok := node.Meta[envoy.GatewayMetaParam]; !ok {
+		node.Meta[envoy.GatewayMetaParam] = envoy.ImageFormat
 	}
 	if _, ok := node.Meta["connect.log_level"]; !ok {
 		node.Meta["connect.log_level"] = defaultConnectLogLevel
