@@ -16,6 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// NOTE: most of these tests cannot be run in parallel
+
 type testCase struct {
 	name            string
 	args            []string
@@ -326,8 +328,6 @@ func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
 }
 
 func TestDebug_CapturedFiles(t *testing.T) {
-	// NOTE: pprof tracing/profiling cannot be run in parallel
-
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -423,6 +423,8 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 }
 
 func TestDebug_Utils(t *testing.T) {
+	t.Parallel()
+
 	xs := argNodes("foo, bar")
 	require.Equal(t, []string{"foo", "bar"}, xs)
 
@@ -445,6 +447,8 @@ func TestDebug_Utils(t *testing.T) {
 }
 
 func TestDebug_WriteBytes_Nil(t *testing.T) {
+	t.Parallel()
+
 	var testDir, testFile, testPath string
 	var testBytes []byte
 
@@ -466,6 +470,8 @@ func TestDebug_WriteBytes_Nil(t *testing.T) {
 }
 
 func TestDebug_WriteBytes_PathEscapesSandbox(t *testing.T) {
+	t.Parallel()
+
 	var testDir, testFile string
 	var testBytes []byte
 
