@@ -18,7 +18,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   // Set via the stats computed property macro
   allocation = null;
 
-  @computed('allocation')
+  @computed('allocation.id')
   get url() {
     return `/v1/client/allocation/${this.get('allocation.id')}/stats`;
   }
@@ -82,17 +82,17 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
 
   // Dynamic figures, collected over time
   // []{ timestamp: Date, used: Number, percent: Number }
-  @computed('allocation')
+  @computed('allocation', 'bufferSize')
   get cpu() {
     return RollingArray(this.bufferSize);
   }
 
-  @computed('allocation')
+  @computed('allocation', 'bufferSize')
   get memory() {
     return RollingArray(this.bufferSize);
   }
 
-  @computed('allocation')
+  @computed('allocation.taskGroup.tasks', 'bufferSize')
   get tasks() {
     const bufferSize = this.bufferSize;
     const tasks = this.get('allocation.taskGroup.tasks') || [];

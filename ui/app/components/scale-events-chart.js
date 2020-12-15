@@ -11,7 +11,7 @@ export default class ScaleEventsChart extends Component {
 
   activeEvent = null;
 
-  @computed('events.[]')
+  @computed('annotations', 'events.[]')
   get data() {
     const data = this.events.filterBy('hasCount').sortBy('time');
 

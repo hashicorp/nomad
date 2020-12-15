@@ -12,7 +12,7 @@ export default class GlobalSearchMatch extends Component {
     return get(this, 'match.name') || '';
   }
 
-  @computed('label', 'firstMatch.indices.[]')
+  @computed('firstMatch.indices.[]', 'label.length')
   get substrings() {
     const indices = get(this, 'firstMatch.indices');
     const labelLength = this.label.length;

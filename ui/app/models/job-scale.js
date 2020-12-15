@@ -1,4 +1,4 @@
-import Model from 'ember-data/model';
+import Model from '@ember-data/model';
 import { belongsTo } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import classic from 'ember-classic-decorator';

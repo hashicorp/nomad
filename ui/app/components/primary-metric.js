@@ -33,7 +33,7 @@ export default class PrimaryMetric extends Component {
     return resource && resource.constructor.modelName;
   }
 
-  @computed('resource', 'type')
+  @computed('resource.allocation', 'type')
   get trackedResource() {
     // TaskStates use the allocation stats tracker
     return this.type === 'task-state' ? this.get('resource.allocation') : this.resource;
@@ -49,7 +49,7 @@ export default class PrimaryMetric extends Component {
     return mappings[metric] || metric;
   }
 
-  @computed('resource', 'metric', 'type')
+  @computed('metric', 'resource.name', 'tracker.tasks', 'type')
   get data() {
     if (!this.tracker) return [];
 
@@ -63,7 +63,7 @@ export default class PrimaryMetric extends Component {
     return this.get(`tracker.${metric}`);
   }
 
-  @computed('resource', 'metric', 'type')
+  @computed('metric', 'resource.name', 'tracker.tasks', 'type')
   get reservedAmount() {
     const metricProperty = this.metric === 'cpu' ? 'reservedCPU' : 'reservedMemory';
 

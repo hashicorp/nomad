@@ -17,7 +17,7 @@ export default class JobEditor extends Component {
   job = null;
   onSubmit() {}
 
-  @computed
+  @computed('_context')
   get context() {
     return this._context;
   }

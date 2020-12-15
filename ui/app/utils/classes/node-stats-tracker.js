@@ -18,7 +18,7 @@ class NodeStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   // Set via the stats computed property macro
   node = null;
 
-  @computed('node')
+  @computed('node.id')
   get url() {
     return `/v1/client/stats?node_id=${this.get('node.id')}`;
   }
@@ -53,12 +53,12 @@ class NodeStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
 
   // Dynamic figures, collected over time
   // []{ timestamp: Date, used: Number, percent: Number }
-  @computed('node')
+  @computed('bufferSize', 'node')
   get cpu() {
     return RollingArray(this.bufferSize);
   }
 
-  @computed('node')
+  @computed('bufferSize', 'node')
   get memory() {
     return RollingArray(this.bufferSize);
   }

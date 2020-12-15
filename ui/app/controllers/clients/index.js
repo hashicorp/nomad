@@ -69,7 +69,7 @@ export default class IndexController extends Controller.extend(
   @selection('qpDatacenter') selectionDatacenter;
   @selection('qpVolume') selectionVolume;
 
-  @computed('nodes.[]')
+  @computed('nodes.[]', 'selectionClass')
   get optionsClass() {
     const classes = Array.from(new Set(this.nodes.mapBy('nodeClass')))
       .compact()
@@ -95,7 +95,7 @@ export default class IndexController extends Controller.extend(
     ];
   }
 
-  @computed('nodes.[]')
+  @computed('nodes.[]', 'selectionDatacenter')
   get optionsDatacenter() {
     const datacenters = Array.from(new Set(this.nodes.mapBy('datacenter'))).compact();
 
@@ -108,7 +108,7 @@ export default class IndexController extends Controller.extend(
     return datacenters.sort().map(dc => ({ key: dc, label: dc }));
   }
 
-  @computed('nodes.[]')
+  @computed('nodes.[]', 'selectionVolume')
   get optionsVolume() {
     const flatten = (acc, val) => acc.concat(val.toArray());
 
