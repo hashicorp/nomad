@@ -16,71 +16,39 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_BadCSIPluginNames(t *testing.T) {
-	// Start test server and API client
-	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
+// NOTE: most of these tests cannot be run in parallel
 
-	// Wait for leadership to establish
-	testutil.WaitForLeader(t, srv.Agent.RPC)
-
-	cases := []string{
-		"aws/ebs",
-		"gcp-*-1",
-	}
-	for _, pluginName := range cases {
-		cleanup := state.CreateTestCSIPlugin(srv.Agent.Server().State(), pluginName)
-		defer cleanup()
-	}
-
-	// Setup mock UI
-	ui := cli.NewMockUi()
-	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
-
-	// Debug on the leader and all client nodes
-	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "leader", "-node-id", "all", "-output", os.TempDir()})
-	assert.Equal(t, 0, code)
-
-	// Bad plugin name should be escaped before it reaches the sandbox test
-	require.NotContains(t, ui.ErrorWriter.String(), "file path escapes capture directory")
-	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
-
-	path := cmd.collectDir
-	defer os.Remove(path)
-
-	var pluginFiles []string
-	for _, pluginName := range cases {
-		pluginFile := fmt.Sprintf("csi-plugin-id-%s.json", helper.CleanFilename(pluginName, "_"))
-		pluginFile = filepath.Join(path, "nomad", "0000", pluginFile)
-		pluginFiles = append(pluginFiles, pluginFile)
-	}
-
-	testutil.WaitForFiles(t, pluginFiles)
-
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
+type testCase struct {
+	name            string
+	args            []string
+	expectedCode    int
+	expectedOutputs []string
+	expectedError   string
 }
 
-func TestDebugUtils(t *testing.T) {
-	xs := argNodes("foo, bar")
-	require.Equal(t, []string{"foo", "bar"}, xs)
+type testCases []testCase
 
-	xs = argNodes("")
-	require.Len(t, xs, 0)
-	require.Empty(t, xs)
+func runTestCases(t *testing.T, cases testCases) {
+	t.Helper()
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// Setup mock UI
+			ui := cli.NewMockUi()
+			cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
-	// address calculation honors CONSUL_HTTP_SSL
-	e := &external{addrVal: "http://127.0.0.1:8500", ssl: true}
-	require.Equal(t, "https://127.0.0.1:8500", e.addr("foo"))
+			// Run test case
+			code := cmd.Run(c.args)
+			out := ui.OutputWriter.String()
+			outerr := ui.ErrorWriter.String()
 
-	e = &external{addrVal: "http://127.0.0.1:8500", ssl: false}
-	require.Equal(t, "http://127.0.0.1:8500", e.addr("foo"))
-
-	e = &external{addrVal: "127.0.0.1:8500", ssl: false}
-	require.Equal(t, "http://127.0.0.1:8500", e.addr("foo"))
-
-	e = &external{addrVal: "127.0.0.1:8500", ssl: true}
-	require.Equal(t, "https://127.0.0.1:8500", e.addr("foo"))
+			// Verify case expectations
+			require.Equalf(t, code, c.expectedCode, "expected exit code %d, got: %d: %s", c.expectedCode, code, outerr)
+			for _, expectedOutput := range c.expectedOutputs {
+				require.Contains(t, out, expectedOutput, "expected output %q, got %q", expectedOutput, out)
+			}
+			require.Containsf(t, outerr, c.expectedError, "expected error %q, got %q", c.expectedError, outerr)
+		})
+	}
 }
 
 func TestDebug_NodeClass(t *testing.T) {
@@ -147,14 +115,8 @@ func TestDebug_NodeClass(t *testing.T) {
 	testutil.WaitForClient(t, srv.Agent.RPC, client3NodeID)
 	t.Logf("[TEST] Client3 ready, id: %s", client3NodeID)
 
-	// Setup test cases struct
-	cases := []struct {
-		name            string
-		args            []string
-		expectedCode    int
-		expectedOutputs []string
-		expectedError   string
-	}{
+	// Setup test cases
+	cases := testCases{
 		{
 			name:         "address=api, node-class=clienta, max-nodes=2",
 			args:         []string{"-address", url, "-duration", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clienta", "-max-nodes", "2"},
@@ -182,59 +144,7 @@ func TestDebug_NodeClass(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			// Setup mock UI
-			ui := cli.NewMockUi()
-			cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
-
-			// Run test case
-			code := cmd.Run(c.args)
-			out := ui.OutputWriter.String()
-			outerr := ui.ErrorWriter.String()
-
-			// Verify case expectations
-			require.Equalf(t, code, c.expectedCode, "expected exit code %d, got: %d: %s", c.expectedCode, code, outerr)
-			for _, expectedOutput := range c.expectedOutputs {
-				require.Contains(t, out, expectedOutput, "expected output \"%s\", got \"%s\"", expectedOutput, out)
-			}
-			require.Containsf(t, outerr, c.expectedError, "expected error \"%s\", got \"%s\"", c.expectedError, outerr)
-
-			// Reset buffers before next test
-			ui.OutputWriter.Reset()
-			ui.ErrorWriter.Reset()
-		})
-	}
-}
-
-func TestDebugFail_Pprof(t *testing.T) {
-	// Setup agent config with debug endpoints disabled
-	agentConfFunc := func(c *agent.Config) {
-		c.EnableDebug = false
-	}
-
-	// Start test server and API client
-	srv, _, url := testServer(t, false, agentConfFunc)
-	defer srv.Shutdown()
-
-	// Wait for leadership to establish
-	testutil.WaitForLeader(t, srv.Agent.RPC)
-
-	// Setup mock UI
-	ui := cli.NewMockUi()
-	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
-
-	// Debug on client - node class = "clienta"
-	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "all"})
-
-	assert.Equal(t, 0, code) // Pprof failure isn't fatal
-	require.Contains(t, ui.ErrorWriter.String(), "Failed to retrieve pprof")
-	require.Contains(t, ui.ErrorWriter.String(), "Permission denied")
-	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
-	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")
-
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
+	runTestCases(t, cases)
 }
 
 func TestDebug_ClientToServer(t *testing.T) {
@@ -275,138 +185,149 @@ func TestDebug_ClientToServer(t *testing.T) {
 	t.Logf("[TEST] Server    api address: %s", addrServer)
 	t.Logf("[TEST] Client1   api address: %s", addrClient1)
 
-	// Setup test cases struct
-	cases := []struct {
-		name string
-		url  string
-	}{
+	// Setup test cases
+	var cases = testCases{
 		{
-			"testAgent api server",
-			url,
+			name:            "testAgent api server",
+			args:            []string{"-address", url, "-duration", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode:    0,
+			expectedOutputs: []string{"Created debug archive"},
 		},
 		{
-			"server address",
-			addrServer,
+			name:            "server address",
+			args:            []string{"-address", addrServer, "-duration", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode:    0,
+			expectedOutputs: []string{"Created debug archive"},
 		},
 		{
-			"client1 address - verify no SIGSEGV panic",
-			addrClient1,
+			name:            "client1 address - verify no SIGSEGV panic",
+			args:            []string{"-address", addrClient1, "-duration", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode:    0,
+			expectedOutputs: []string{"Created debug archive"},
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			// Setup mock UI
-			ui := cli.NewMockUi()
-			cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
-
-			// Run test case
-			code := cmd.Run([]string{"-address", c.url, "-duration", "250ms", "-server-id", "all", "-node-id", "all"})
-			out := ui.OutputWriter.String()
-			outerr := ui.ErrorWriter.String()
-
-			// Verify case expectations
-			assert.Equal(t, 0, code)
-			require.Empty(t, outerr, "errorwriter should be empty")
-			require.Contains(t, out, "Starting debugger")
-			require.Contains(t, out, "Created debug archive")
-
-			// Reset buffers before next test
-			ui.OutputWriter.Reset()
-			ui.ErrorWriter.Reset()
-		})
-	}
+	runTestCases(t, cases)
 }
 
-func TestDebugSuccesses(t *testing.T) {
+func TestDebug_SingleServer(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
+	var cases = testCases{
+		{
+			name:         "address=api, server-id=leader",
+			args:         []string{"-address", url, "-duration", "250ms", "-server-id", "leader"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Servers: (1/1)",
+				"Clients: (0/0)",
+				"Created debug archive",
+			},
+			expectedError: "",
+		},
+		{
+			name:         "address=api, server-id=all",
+			args:         []string{"-address", url, "-duration", "250ms", "-server-id", "all"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Servers: (1/1)",
+				"Clients: (0/0)",
+				"Created debug archive",
+			},
+			expectedError: "",
+		},
+	}
+
+	runTestCases(t, cases)
+}
+
+func TestDebug_Failures(t *testing.T) {
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	var cases = testCases{
+		{
+			name:         "fails incorrect args",
+			args:         []string{"some", "bad", "args"},
+			expectedCode: 1,
+		},
+		{
+			name:         "Fails illegal node ids",
+			args:         []string{"-node-id", "foo:bar"},
+			expectedCode: 1,
+		},
+		{
+			name:         "Fails missing node ids",
+			args:         []string{"-node-id", "abc,def", "-duration", "250ms"},
+			expectedCode: 1,
+		},
+		{
+			name:         "Fails bad durations",
+			args:         []string{"-duration", "foo"},
+			expectedCode: 1,
+		},
+		{
+			name:         "Fails bad intervals",
+			args:         []string{"-interval", "bar"},
+			expectedCode: 1,
+		},
+		{
+			name:          "Fails bad address",
+			args:          []string{"-address", url + "bogus"},
+			expectedCode:  1,
+			expectedError: "invalid address",
+		},
+	}
+
+	runTestCases(t, cases)
+}
+
+func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
+	// Start test server and API client
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	// Wait for leadership to establish
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	cases := []string{
+		"aws/ebs",
+		"gcp-*-1",
+	}
+	for _, pluginName := range cases {
+		cleanup := state.CreateTestCSIPlugin(srv.Agent.Server().State(), pluginName)
+		defer cleanup()
+	}
+
+	// Setup mock UI
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
-	// NOTE -- duration must be shorter than default 2m to prevent testify from timing out
-
-	// Debug on the leader
-	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "leader"})
-	assert.Equal(t, 0, code) // take note of failed return code, but continue to see why
-	assert.Empty(t, ui.ErrorWriter.String(), "errorwriter should be empty")
-	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
-
-	// Debug on all servers
-	code = cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "all"})
+	// Debug on the leader and all client nodes
+	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "leader", "-node-id", "all", "-output", os.TempDir()})
 	assert.Equal(t, 0, code)
-	require.Empty(t, ui.ErrorWriter.String(), "errorwriter should be empty")
+
+	// Bad plugin name should be escaped before it reaches the sandbox test
+	require.NotContains(t, ui.ErrorWriter.String(), "file path escapes capture directory")
 	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
-}
 
-func TestDebugFails(t *testing.T) {
-	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
-	testutil.WaitForLeader(t, srv.Agent.RPC)
-
-	ui := cli.NewMockUi()
-	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
-
-	// Fails incorrect args
-	code := cmd.Run([]string{"some", "bad", "args"})
-	require.Equal(t, 1, code)
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
-
-	// Fails illegal node ids
-	code = cmd.Run([]string{"-node-id", "foo:bar"})
-	require.Equal(t, 1, code)
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
-
-	// Fails missing node ids
-	code = cmd.Run([]string{"-node-id", "abc,def", "-duration", "250ms"})
-	require.Equal(t, 1, code)
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
-
-	// Fails bad durations
-	code = cmd.Run([]string{"-duration", "foo"})
-	require.Equal(t, 1, code)
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
-
-	// Fails bad durations
-	code = cmd.Run([]string{"-interval", "bar"})
-	require.Equal(t, 1, code)
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
-
-	// Fails existing output
-	format := "2006-01-02-150405Z"
-	stamped := "nomad-debug-" + time.Now().UTC().Format(format)
-	path := filepath.Join(os.TempDir(), stamped)
-	os.MkdirAll(path, 0755)
+	path := cmd.collectDir
 	defer os.Remove(path)
-	// short duration to prevent timeout
-	code = cmd.Run([]string{"-output", os.TempDir(), "-duration", "50ms"})
-	require.Equal(t, 2, code)
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
 
-	// Fails bad address
-	code = cmd.Run([]string{"-address", url + "bogus"})
-	assert.Equal(t, 1, code) // take note of failed return code, but continue to see why in the OutputWriter
-	require.NotContains(t, ui.OutputWriter.String(), "Starting debugger")
-	require.Contains(t, ui.ErrorWriter.String(), "invalid address")
-	ui.OutputWriter.Reset()
-	ui.ErrorWriter.Reset()
+	var pluginFiles []string
+	for _, pluginName := range cases {
+		pluginFile := fmt.Sprintf("csi-plugin-id-%s.json", helper.CleanFilename(pluginName, "_"))
+		pluginFile = filepath.Join(path, "nomad", "0000", pluginFile)
+		pluginFiles = append(pluginFiles, pluginFile)
+	}
+
+	testutil.WaitForFiles(t, pluginFiles)
 }
 
-func TestDebugCapturedFiles(t *testing.T) {
-	// NOTE: pprof tracing/profiling cannot be run in parallel
-
+func TestDebug_CapturedFiles(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -457,4 +378,116 @@ func TestDebugCapturedFiles(t *testing.T) {
 	}
 
 	testutil.WaitForFiles(t, serverFiles)
+}
+
+func TestDebug_ExistingOutput(t *testing.T) {
+	ui := cli.NewMockUi()
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// Fails existing output
+	format := "2006-01-02-150405Z"
+	stamped := "nomad-debug-" + time.Now().UTC().Format(format)
+	path := filepath.Join(os.TempDir(), stamped)
+	os.MkdirAll(path, 0755)
+	defer os.Remove(path)
+
+	code := cmd.Run([]string{"-output", os.TempDir(), "-duration", "50ms"})
+	require.Equal(t, 2, code)
+}
+
+func TestDebug_Fail_Pprof(t *testing.T) {
+	// Setup agent config with debug endpoints disabled
+	agentConfFunc := func(c *agent.Config) {
+		c.EnableDebug = false
+	}
+
+	// Start test server and API client
+	srv, _, url := testServer(t, false, agentConfFunc)
+	defer srv.Shutdown()
+
+	// Wait for leadership to establish
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	// Setup mock UI
+	ui := cli.NewMockUi()
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// Debug on client - node class = "clienta"
+	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "all"})
+
+	assert.Equal(t, 0, code) // Pprof failure isn't fatal
+	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
+	require.Contains(t, ui.ErrorWriter.String(), "Failed to retrieve pprof") // Should report pprof failure
+	require.Contains(t, ui.ErrorWriter.String(), "Permission denied")        // Specifically permission denied
+	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")   // Archive should be generated anyway
+}
+
+func TestDebug_Utils(t *testing.T) {
+	t.Parallel()
+
+	xs := argNodes("foo, bar")
+	require.Equal(t, []string{"foo", "bar"}, xs)
+
+	xs = argNodes("")
+	require.Len(t, xs, 0)
+	require.Empty(t, xs)
+
+	// address calculation honors CONSUL_HTTP_SSL
+	e := &external{addrVal: "http://127.0.0.1:8500", ssl: true}
+	require.Equal(t, "https://127.0.0.1:8500", e.addr("foo"))
+
+	e = &external{addrVal: "http://127.0.0.1:8500", ssl: false}
+	require.Equal(t, "http://127.0.0.1:8500", e.addr("foo"))
+
+	e = &external{addrVal: "127.0.0.1:8500", ssl: false}
+	require.Equal(t, "http://127.0.0.1:8500", e.addr("foo"))
+
+	e = &external{addrVal: "127.0.0.1:8500", ssl: true}
+	require.Equal(t, "https://127.0.0.1:8500", e.addr("foo"))
+}
+
+func TestDebug_WriteBytes_Nil(t *testing.T) {
+	t.Parallel()
+
+	var testDir, testFile, testPath string
+	var testBytes []byte
+
+	// Setup mock UI
+	ui := cli.NewMockUi()
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	testDir = os.TempDir()
+	cmd.collectDir = testDir
+
+	testFile = "test_nil.json"
+	testPath = filepath.Join(testDir, testFile)
+	defer os.Remove(testPath)
+
+	// Write nil file at top level of collect directory
+	err := cmd.writeBytes("", testFile, testBytes)
+	require.NoError(t, err)
+	require.FileExists(t, testPath)
+}
+
+func TestDebug_WriteBytes_PathEscapesSandbox(t *testing.T) {
+	t.Parallel()
+
+	var testDir, testFile string
+	var testBytes []byte
+
+	testDir = os.TempDir()
+	defer os.Remove(testDir)
+
+	testFile = "testing.json"
+	testPath := filepath.Join(testDir, testFile)
+	defer os.Remove(testPath)
+
+	// Setup mock UI
+	ui := cli.NewMockUi()
+	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// Empty collectDir will always appear to be escaped
+	cmd.collectDir = ""
+	err := cmd.writeBytes(testDir, testFile, testBytes)
+	require.Error(t, err)
 }
