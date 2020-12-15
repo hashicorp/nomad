@@ -131,7 +131,7 @@
               @currentValue={{recommendation.currentValue}}
               @recommendedValue={{recommendation.value}}
               @stats={{recommendation.stats}}
-              @disabled={{contains recommendation @summary.excludedRecommendations}}
+              @disabled={{includes recommendation @summary.excludedRecommendations}}
             />
           </li>
         {{/each}}
