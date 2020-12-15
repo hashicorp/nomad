@@ -66,8 +66,8 @@ type Tracker struct {
 	// not needed
 	allocStopped chan struct{}
 
-	// lifecycleTasks is a set of tasks with lifecycle hook set and may
-	// terminate without affecting alloc health
+	// lifecycleTasks is a map of ephemeral tasks and their lifecycle hooks.
+	// These tasks may terminate without affecting alloc health
 	lifecycleTasks map[string]string
 
 	// l is used to lock shared fields listed below
@@ -290,7 +290,6 @@ func (t *Tracker) watchTaskEvents() {
 				return
 			}
 
-			// Ignore poststop since it will be pending until the main job exists
 			if state.State == structs.TaskStatePending {
 				latestStartTime = time.Time{}
 				break
