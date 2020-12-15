@@ -42,9 +42,9 @@ func runTestCases(t *testing.T, cases testCases) {
 			// Verify case expectations
 			require.Equalf(t, code, c.expectedCode, "expected exit code %d, got: %d: %s", c.expectedCode, code, outerr)
 			for _, expectedOutput := range c.expectedOutputs {
-				require.Contains(t, out, expectedOutput, "expected output \"%s\", got \"%s\"", expectedOutput, out)
+				require.Contains(t, out, expectedOutput, "expected output %q, got %q", expectedOutput, out)
 			}
-			require.Containsf(t, outerr, c.expectedError, "expected error \"%s\", got \"%s\"", c.expectedError, outerr)
+			require.Containsf(t, outerr, c.expectedError, "expected error %q, got %q", c.expectedError, outerr)
 		})
 	}
 }
@@ -282,9 +282,6 @@ func TestDebug_Failures(t *testing.T) {
 
 	runTestCases(t, cases)
 }
-
-//////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
 
 func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
 	// Start test server and API client
