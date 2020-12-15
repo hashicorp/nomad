@@ -92,7 +92,7 @@ func TestTracker_Checks_Healthy(t *testing.T) {
 func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
 	t.Parallel()
 
-	alloc := mock.LifecycleAlloc()
+	alloc := mock.LifecycleAllocWithPoststopDeploy()
 	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
 
 	// Synthesize running alloc and tasks
