@@ -12,7 +12,7 @@ export default class TaskGroupParent extends Component {
 
   @or('clickedOpen', 'currentRouteIsThisTaskGroup') isOpen;
 
-  @computed('router.currentRoute', 'taskGroup.job.name', 'taskGroup.name')
+  @computed('router.currentRoute', 'taskGroup.{job.name,name}')
   get currentRouteIsThisTaskGroup() {
     const route = this.router.currentRoute;
 
