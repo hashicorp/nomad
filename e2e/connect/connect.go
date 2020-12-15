@@ -23,6 +23,9 @@ const (
 
 	// demoConnectMultiIngressGateway is the example multi ingress gateway job useful for testing
 	demoConnectMultiIngressGateway = "connect/input/multi-ingress.nomad"
+
+	// demoConnectTerminatingGateway is the example terminating gateway job useful for testing
+	demoConnectTerminatingGateway = "connect/input/terminating-gateway.nomad"
 )
 
 type ConnectE2ETest struct {
@@ -117,6 +120,20 @@ func (tc *ConnectE2ETest) TestConnectMultiIngressGatewayDemo(f *framework.F) {
 	tc.jobIds = append(tc.jobIds, jobID)
 
 	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), demoConnectMultiIngressGateway, jobID, "")
+
+	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
+	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
+}
+
+func (tc *ConnectE2ETest) TestConnectTerminatingGatewayDemo(f *framework.F) {
+
+	t := f.T()
+
+	jobID := connectJobID()
+	tc.jobIds = append(tc.jobIds, jobID)
+
+	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), demoConnectTerminatingGateway, jobID, "")
+
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
 	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
 }

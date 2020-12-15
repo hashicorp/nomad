@@ -110,13 +110,16 @@ func (envoyBootstrapHook) Name() string {
 	return envoyBootstrapHookName
 }
 
-func (_ *envoyBootstrapHook) extractNameAndKind(kind structs.TaskKind) (string, string, error) {
-	serviceKind := kind.Name()
-	serviceName := kind.Value()
+func isConnectKind(kind string) bool {
+	kinds := []string{structs.ConnectProxyPrefix, structs.ConnectIngressPrefix, structs.ConnectTerminatingPrefix}
+	return helper.SliceStringContains(kinds, kind)
+}
 
-	switch serviceKind {
-	case structs.ConnectProxyPrefix, structs.ConnectIngressPrefix:
-	default:
+func (_ *envoyBootstrapHook) extractNameAndKind(kind structs.TaskKind) (string, string, error) {
+	serviceName := kind.Value()
+	serviceKind := kind.Name()
+
+	if !isConnectKind(serviceKind) {
 		return "", "", errors.New("envoy must be used as connect sidecar or gateway")
 	}
 
@@ -350,13 +353,15 @@ func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
 		proxyID      string // gateway only
 	)
 
-	if service.Connect.HasSidecar() {
+	switch {
+	case service.Connect.HasSidecar():
 		sidecarForID = h.proxyServiceID(group, service)
-	}
-
-	if service.Connect.IsGateway() {
-		gateway = "ingress" // more types in the future
+	case service.Connect.IsIngress():
 		proxyID = h.proxyServiceID(group, service)
+		gateway = "ingress"
+	case service.Connect.IsTerminating():
+		proxyID = h.proxyServiceID(group, service)
+		gateway = "terminating"
 	}
 
 	h.logger.Debug("bootstrapping envoy",

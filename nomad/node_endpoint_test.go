@@ -3178,7 +3178,7 @@ func TestClientEndpoint_taskUsesConnect(t *testing.T) {
 
 	t.Run("task uses connect", func(t *testing.T) {
 		try(t, &structs.Task{
-			// see nomad.newConnectTask for how this works
+			// see nomad.newConnectSidecarTask for how this works
 			Name: "connect-proxy-myservice",
 			Kind: "connect-proxy:myservice",
 		}, true)

@@ -1335,8 +1335,9 @@ func apiConnectGatewayToStructs(in *api.ConsulGateway) *structs.ConsulGateway {
 	}
 
 	return &structs.ConsulGateway{
-		Proxy:   apiConnectGatewayProxyToStructs(in.Proxy),
-		Ingress: apiConnectIngressGatewayToStructs(in.Ingress),
+		Proxy:       apiConnectGatewayProxyToStructs(in.Proxy),
+		Ingress:     apiConnectIngressGatewayToStructs(in.Ingress),
+		Terminating: apiConnectTerminatingGatewayToStructs(in.Terminating),
 	}
 }
 
@@ -1360,6 +1361,7 @@ func apiConnectGatewayProxyToStructs(in *api.ConsulGatewayProxy) *structs.Consul
 		EnvoyGatewayBindTaggedAddresses: in.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       bindAddresses,
 		EnvoyGatewayNoDefaultBind:       in.EnvoyGatewayNoDefaultBind,
+		EnvoyDNSDiscoveryType:           in.EnvoyDNSDiscoveryType,
 		Config:                          helper.CopyMapStringInterface(in.Config),
 	}
 }
@@ -1429,6 +1431,42 @@ func apiConnectIngressServiceToStructs(in *api.ConsulIngressService) *structs.Co
 	return &structs.ConsulIngressService{
 		Name:  in.Name,
 		Hosts: helper.CopySliceString(in.Hosts),
+	}
+}
+
+func apiConnectTerminatingGatewayToStructs(in *api.ConsulTerminatingConfigEntry) *structs.ConsulTerminatingConfigEntry {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulTerminatingConfigEntry{
+		Services: apiConnectTerminatingServicesToStructs(in.Services),
+	}
+}
+
+func apiConnectTerminatingServicesToStructs(in []*api.ConsulLinkedService) []*structs.ConsulLinkedService {
+	if len(in) == 0 {
+		return nil
+	}
+
+	services := make([]*structs.ConsulLinkedService, len(in))
+	for i, service := range in {
+		services[i] = apiConnectTerminatingServiceToStructs(service)
+	}
+	return services
+}
+
+func apiConnectTerminatingServiceToStructs(in *api.ConsulLinkedService) *structs.ConsulLinkedService {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulLinkedService{
+		Name:     in.Name,
+		CAFile:   in.CAFile,
+		CertFile: in.CertFile,
+		KeyFile:  in.KeyFile,
+		SNI:      in.SNI,
 	}
 }
 

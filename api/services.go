@@ -302,8 +302,8 @@ type ConsulGateway struct {
 	// Ingress represents the Consul Configuration Entry for an Ingress Gateway.
 	Ingress *ConsulIngressConfigEntry `hcl:"ingress,block"`
 
-	// Terminating is not yet supported.
-	// Terminating *ConsulTerminatingConfigEntry
+	// Terminating represents the Consul Configuration Entry for a Terminating Gateway.
+	Terminating *ConsulTerminatingConfigEntry `hcl:"terminating,block"`
 
 	// Mesh is not yet supported.
 	// Mesh *ConsulMeshConfigEntry
@@ -315,6 +315,7 @@ func (g *ConsulGateway) Canonicalize() {
 	}
 	g.Proxy.Canonicalize()
 	g.Ingress.Canonicalize()
+	g.Terminating.Canonicalize()
 }
 
 func (g *ConsulGateway) Copy() *ConsulGateway {
@@ -323,8 +324,9 @@ func (g *ConsulGateway) Copy() *ConsulGateway {
 	}
 
 	return &ConsulGateway{
-		Proxy:   g.Proxy.Copy(),
-		Ingress: g.Ingress.Copy(),
+		Proxy:       g.Proxy.Copy(),
+		Ingress:     g.Ingress.Copy(),
+		Terminating: g.Terminating.Copy(),
 	}
 }
 
@@ -335,8 +337,8 @@ type ConsulGatewayBindAddress struct {
 }
 
 var (
-	// defaultConnectTimeout is the default amount of time a connect gateway will
-	// wait for a response from an upstream service (same as consul)
+	// defaultGatewayConnectTimeout is the default amount of time connections to
+	// upstreams are allowed before timing out.
 	defaultGatewayConnectTimeout = 5 * time.Second
 )
 
@@ -349,6 +351,7 @@ type ConsulGatewayProxy struct {
 	EnvoyGatewayBindTaggedAddresses bool                                 `mapstructure:"envoy_gateway_bind_tagged_addresses" hcl:"envoy_gateway_bind_tagged_addresses,optional"`
 	EnvoyGatewayBindAddresses       map[string]*ConsulGatewayBindAddress `mapstructure:"envoy_gateway_bind_addresses" hcl:"envoy_gateway_bind_addresses,block"`
 	EnvoyGatewayNoDefaultBind       bool                                 `mapstructure:"envoy_gateway_no_default_bind" hcl:"envoy_gateway_no_default_bind,optional"`
+	EnvoyDNSDiscoveryType           string                               `mapstructure:"envoy_dns_discovery_type" hcl:"envoy_dns_discovery_type,optional"`
 	Config                          map[string]interface{}               `hcl:"config,block"` // escape hatch envoy config
 }
 
@@ -397,6 +400,7 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       binds,
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,
+		EnvoyDNSDiscoveryType:           p.EnvoyDNSDiscoveryType,
 		Config:                          config,
 	}
 }
@@ -549,9 +553,74 @@ func (e *ConsulIngressConfigEntry) Copy() *ConsulIngressConfigEntry {
 	}
 }
 
-// ConsulTerminatingConfigEntry is not yet supported.
-// type ConsulTerminatingConfigEntry struct {
-// }
+type ConsulLinkedService struct {
+	Name     string `hcl:"name,optional"`
+	CAFile   string `hcl:"ca_file,optional"`
+	CertFile string `hcl:"cert_file,optional"`
+	KeyFile  string `hcl:"key_file,optional"`
+	SNI      string `hcl:"sni,optional"`
+}
+
+func (s *ConsulLinkedService) Canonicalize() {
+	// nothing to do for now
+}
+
+func (s *ConsulLinkedService) Copy() *ConsulLinkedService {
+	if s == nil {
+		return nil
+	}
+
+	return &ConsulLinkedService{
+		Name:     s.Name,
+		CAFile:   s.CAFile,
+		CertFile: s.CertFile,
+		KeyFile:  s.KeyFile,
+		SNI:      s.SNI,
+	}
+}
+
+// ConsulTerminatingConfigEntry represents the Consul Configuration Entry type
+// for a Terminating Gateway.
+//
+// https://www.consul.io/docs/agent/config-entries/terminating-gateway#available-fields
+type ConsulTerminatingConfigEntry struct {
+	// Namespace is not yet supported.
+	// Namespace string
+
+	Services []*ConsulLinkedService `hcl:"service,block"`
+}
+
+func (e *ConsulTerminatingConfigEntry) Canonicalize() {
+	if e == nil {
+		return
+	}
+
+	if len(e.Services) == 0 {
+		e.Services = nil
+	}
+
+	for _, service := range e.Services {
+		service.Canonicalize()
+	}
+}
+
+func (e *ConsulTerminatingConfigEntry) Copy() *ConsulTerminatingConfigEntry {
+	if e == nil {
+		return nil
+	}
+
+	var services []*ConsulLinkedService = nil
+	if n := len(e.Services); n > 0 {
+		services = make([]*ConsulLinkedService, n)
+		for i := 0; i < n; i++ {
+			services[i] = e.Services[i].Copy()
+		}
+	}
+
+	return &ConsulTerminatingConfigEntry{
+		Services: services,
+	}
+}
 
 // ConsulMeshConfigEntry is not yet supported.
 // type ConsulMeshConfigEntry struct {
