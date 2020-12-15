@@ -791,7 +791,7 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 	// Ensure no unblock
 	select {
 	case <-harness.mockHooks.UnblockCh:
-		t.Fatalf("Task unblock should not have been called")
+		require.Fail("Task unblock should not have been called")
 	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
@@ -804,19 +804,14 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		t.Fatalf("Task unblock should have been called")
+		require.Fail("Task unblock should have been called")
 	}
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
 	raw, err := ioutil.ReadFile(path)
-	if err != nil {
-		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
-	}
-
-	if s := string(raw); s != content {
-		t.Fatalf("Unexpected template data; got %q, want %q", s, content)
-	}
+	require.NoError(err, "Failed to read rendered template from %q", path)
+	require.Equal(content, string(raw), "Unexpected template data; got %s, want %q", raw, content)
 
 	// task is now running
 	harness.mockHooks.hasHandle = true
@@ -830,14 +825,14 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		t.Fatalf("Task unblock should have been called")
+		require.Fail("Task unblock should have been called")
 	}
 
 	select {
 	case <-harness.mockHooks.RestartCh:
-		t.Fatalf("should not have restarted: %+v", harness.mockHooks)
+		require.Fail("should not have restarted", harness.mockHooks)
 	case <-harness.mockHooks.SignalCh:
-		t.Fatalf("should not have restarted: %+v", harness.mockHooks)
+		require.Fail("should not have restarted", harness.mockHooks)
 	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
@@ -853,7 +848,7 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		t.Fatalf("Task unblock should have been called")
+		require.Fail("Task unblock should have been called")
 	}
 
 	// Wait for restart
@@ -864,9 +859,9 @@ OUTER:
 		case <-harness.mockHooks.RestartCh:
 			break OUTER
 		case <-harness.mockHooks.SignalCh:
-			t.Fatalf("Signal with restart policy: %+v", harness.mockHooks)
+			require.Fail("Signal with restart policy", harness.mockHooks)
 		case <-timeout:
-			t.Fatalf("Should have received a restart: %+v", harness.mockHooks)
+			require.Fail("Should have received a restart", harness.mockHooks)
 		}
 	}
 }
