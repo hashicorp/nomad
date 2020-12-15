@@ -27,12 +27,14 @@ type Changes struct {
 // all write transactions. When the transaction is committed the changes are
 // sent to the EventBroker which will create and emit change events.
 type changeTrackerDB struct {
-	memdb          *memdb.MemDB
-	publisher      *stream.EventBroker
-	processChanges changeProcessor
+	memdb           *memdb.MemDB
+	publisher       *stream.EventBroker
+	durableCount    int64
+	eventTableCount int64
+	processChanges  changeProcessor
 }
 
-func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventBroker, changesFn changeProcessor) *changeTrackerDB {
+func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventBroker, changesFn changeProcessor, durableCount int64) *changeTrackerDB {
 	return &changeTrackerDB{
 		memdb:          db,
 		publisher:      publisher,
@@ -76,10 +78,11 @@ func (c *changeTrackerDB) WriteTxn(idx uint64) *txn {
 
 func (c *changeTrackerDB) WriteTxnMsgT(msgType structs.MessageType, idx uint64) *txn {
 	t := &txn{
-		msgType: msgType,
-		Txn:     c.memdb.Txn(true),
-		Index:   idx,
-		publish: c.publish,
+		msgType:        msgType,
+		persistChanges: c.durableCount > 0,
+		Txn:            c.memdb.Txn(true),
+		Index:          idx,
+		publish:        c.publish,
 	}
 	t.Txn.TrackChanges()
 	return t
@@ -120,6 +123,8 @@ type txn struct {
 	// msgType is used to inform event sourcing which type of event to create
 	msgType structs.MessageType
 
+	persistChanges bool
+
 	*memdb.Txn
 	// Index in raft where the write is occurring. The value is zero for a
 	// read-only, or WriteTxnRestore transaction.
@@ -145,9 +150,16 @@ func (tx *txn) Commit() error {
 			Changes: tx.Txn.Changes(),
 			MsgType: tx.MsgType(),
 		}
-		_, err := tx.publish(changes)
+		events, err := tx.publish(changes)
 		if err != nil {
 			return err
+		}
+
+		if tx.persistChanges && events != nil {
+			err := tx.Txn.Insert("events", events)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

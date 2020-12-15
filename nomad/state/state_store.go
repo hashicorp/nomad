@@ -52,6 +52,10 @@ type StateStoreConfig struct {
 
 	// EventBufferSize configures the amount of events to hold in memory
 	EventBufferSize int64
+
+	// DurableEventCount is used to determine if events from transaction changes
+	// should be saved in go-memdb
+	DurableEventCount int64
 }
 
 // The StateStore is responsible for maintaining all the Nomad
@@ -112,9 +116,9 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 		if err != nil {
 			return nil, fmt.Errorf("creating state store event broker %w", err)
 		}
-		s.db = NewChangeTrackerDB(db, broker, eventsFromChanges)
+		s.db = NewChangeTrackerDB(db, broker, eventsFromChanges, config.DurableEventCount)
 	} else {
-		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges)
+		s.db = NewChangeTrackerDB(db, nil, noOpProcessChanges, 0)
 	}
 
 	// Initialize the state store with the default namespace.
@@ -177,7 +181,7 @@ func (s *StateStore) Snapshot() (*StateSnapshot, error) {
 	}
 
 	// Create a new change tracker DB that does not publish or track changes
-	store.db = NewChangeTrackerDB(memDBSnap, nil, noOpProcessChanges)
+	store.db = NewChangeTrackerDB(memDBSnap, nil, noOpProcessChanges, 0)
 
 	snap := &StateSnapshot{
 		StateStore: store,

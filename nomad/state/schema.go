@@ -57,6 +57,7 @@ func init() {
 		scalingPolicyTableSchema,
 		scalingEventTableSchema,
 		namespaceTableSchema,
+		eventTableSchema,
 	}...)
 }
 
@@ -925,6 +926,22 @@ func namespaceTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "Quota",
+				},
+			},
+		},
+	}
+}
+
+func eventTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "events",
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: true,
+				Unique:       true,
+				Indexer: &memdb.UintFieldIndex{
+					Field: "Index",
 				},
 			},
 		},
