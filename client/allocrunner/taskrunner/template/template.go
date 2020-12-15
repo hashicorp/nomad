@@ -286,7 +286,7 @@ WAIT:
 
 			// if there's a driver handle then the task is already running and
 			// that changes how we want to behave on first render
-			if dirty && tm.config.Lifecycle.HasHandle() {
+			if dirty && tm.config.Lifecycle.IsRunning() {
 				handledRenders := make(map[string]time.Time, len(tm.config.Templates))
 				tm.onTemplateRendered(handledRenders, time.Time{})
 			}

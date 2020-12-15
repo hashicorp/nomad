@@ -87,6 +87,6 @@ func (tr *TaskRunner) Kill(ctx context.Context, event *structs.TaskEvent) error 
 	return tr.getKillErr()
 }
 
-func (tr *TaskRunner) HasHandle() bool {
+func (tr *TaskRunner) IsRunning() bool {
 	return tr.getDriverHandle() != nil
 }

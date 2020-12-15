@@ -101,7 +101,7 @@ func (m *MockTaskHooks) Kill(ctx context.Context, event *structs.TaskEvent) erro
 	return nil
 }
 
-func (m *MockTaskHooks) HasHandle() bool {
+func (m *MockTaskHooks) IsRunning() bool {
 	return m.hasHandle
 }
 
