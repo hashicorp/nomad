@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"runtime"
 	"runtime/debug"
+	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -1148,6 +1149,84 @@ func TestDockerDriver_CreateContainerConfig_Logging(t *testing.T) {
 			require.Equal(t, c.expectedConfig.Config["max-size"], cc.HostConfig.LogConfig.Config["max-size"])
 		})
 	}
+}
+
+func TestDockerDriver_CreateContainerConfig_Mounts(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+
+	cfg.Mounts = []DockerMount{
+		DockerMount{
+			Type:   "bind",
+			Target: "/map-bind-target",
+			Source: "/map-source",
+		},
+		DockerMount{
+			Type:   "tmpfs",
+			Target: "/map-tmpfs-target",
+		},
+	}
+	cfg.MountsList = []DockerMount{
+		{
+			Type:   "bind",
+			Target: "/list-bind-target",
+			Source: "/list-source",
+		},
+		{
+			Type:   "tmpfs",
+			Target: "/list-tmpfs-target",
+		},
+	}
+
+	expectedSrcPrefix := "/"
+	if runtime.GOOS == "windows" {
+		expectedSrcPrefix = "redis-demo\\"
+	}
+	expected := []docker.HostMount{
+		// from mount map
+		{
+			Type:        "bind",
+			Target:      "/map-bind-target",
+			Source:      expectedSrcPrefix + "map-source",
+			BindOptions: &docker.BindOptions{},
+		},
+		{
+			Type:          "tmpfs",
+			Target:        "/map-tmpfs-target",
+			TempfsOptions: &docker.TempfsOptions{},
+		},
+		// from mount list
+		{
+			Type:        "bind",
+			Target:      "/list-bind-target",
+			Source:      expectedSrcPrefix + "list-source",
+			BindOptions: &docker.BindOptions{},
+		},
+		{
+			Type:          "tmpfs",
+			Target:        "/list-tmpfs-target",
+			TempfsOptions: &docker.TempfsOptions{},
+		},
+	}
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+	driver.config.Volumes.Enabled = true
+
+	cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	found := cc.HostConfig.Mounts
+	sort.Slice(found, func(i, j int) bool { return strings.Compare(found[i].Target, found[j].Target) < 0 })
+	sort.Slice(expected, func(i, j int) bool {
+		return strings.Compare(expected[i].Target, expected[j].Target) < 0
+	})
+
+	require.Equal(t, expected, found)
 }
 
 func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {

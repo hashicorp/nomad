@@ -945,32 +945,18 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	// Setup mounts
 	for _, m := range driverConfig.Mounts {
-		hm, err := m.toDockerHostMount()
+		hm, err := d.toDockerMount(&m, task)
 		if err != nil {
 			return c, err
 		}
-
-		switch hm.Type {
-		case "bind":
-			hm.Source = expandPath(task.TaskDir().Dir, hm.Source)
-
-			// paths inside alloc dir are always allowed as they mount within
-			// a container, and treated as relative to task dir
-			if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, hm.Source) {
-				return c, fmt.Errorf(
-					"volumes are not enabled; cannot mount host path: %q %q",
-					hm.Source, task.AllocDir)
-			}
-		case "tmpfs":
-			// no source, so no sandbox check required
-		default: // "volume", but also any new thing that comes along
-			if !d.config.Volumes.Enabled {
-				return c, fmt.Errorf(
-					"volumes are not enabled; cannot mount volume: %q", hm.Source)
-			}
+		hostConfig.Mounts = append(hostConfig.Mounts, *hm)
+	}
+	for _, m := range driverConfig.MountsList {
+		hm, err := d.toDockerMount(&m, task)
+		if err != nil {
+			return c, err
 		}
-
-		hostConfig.Mounts = append(hostConfig.Mounts, hm)
+		hostConfig.Mounts = append(hostConfig.Mounts, *hm)
 	}
 
 	// Setup DNS
@@ -1173,6 +1159,35 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		HostConfig:       hostConfig,
 		NetworkingConfig: networkingConfig,
 	}, nil
+}
+
+func (d *Driver) toDockerMount(m *DockerMount, task *drivers.TaskConfig) (*docker.HostMount, error) {
+	hm, err := m.toDockerHostMount()
+	if err != nil {
+		return nil, err
+	}
+
+	switch hm.Type {
+	case "bind":
+		hm.Source = expandPath(task.TaskDir().Dir, hm.Source)
+
+		// paths inside alloc dir are always allowed as they mount within
+		// a container, and treated as relative to task dir
+		if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, hm.Source) {
+			return nil, fmt.Errorf(
+				"volumes are not enabled; cannot mount host path: %q %q",
+				hm.Source, task.AllocDir)
+		}
+	case "tmpfs":
+		// no source, so no sandbox check required
+	default: // "volume", but also any new thing that comes along
+		if !d.config.Volumes.Enabled {
+			return nil, fmt.Errorf(
+				"volumes are not enabled; cannot mount volume: %q", hm.Source)
+		}
+	}
+
+	return &hm, nil
 }
 
 // detectIP of Docker container. Returns the first IP found as well as true if
