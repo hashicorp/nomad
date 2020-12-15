@@ -40,10 +40,6 @@ const (
 	// MissingRequestID is a placeholder if we cannot retrieve a request
 	// UUID from context
 	MissingRequestID = "<missing request id>"
-
-	// HTTPConnStateFuncWriteTimeout is how long to try to write conn state errors
-	// before closing the connection
-	HTTPConnStateFuncWriteTimeout = 10 * time.Millisecond
 )
 
 var (
@@ -175,19 +171,17 @@ func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int) fu
 			// Still return the connection limiter
 			return connlimit.NewLimiter(connlimit.Config{
 				MaxConnsPerClientIP: connLimit,
-			}).HTTPConnStateFuncWithDefault429Handler(HTTPConnStateFuncWriteTimeout)
+			}).HTTPConnStateFunc()
 		}
-
 		return nil
 	}
 
 	if connLimit > 0 {
 		// Return conn state callback with connection limiting and a
 		// handshake timeout.
-
 		connLimiter := connlimit.NewLimiter(connlimit.Config{
 			MaxConnsPerClientIP: connLimit,
-		}).HTTPConnStateFuncWithDefault429Handler(HTTPConnStateFuncWriteTimeout)
+		}).HTTPConnStateFunc()
 
 		return func(conn net.Conn, state http.ConnState) {
 			switch state {
