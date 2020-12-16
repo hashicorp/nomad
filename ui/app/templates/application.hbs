@@ -1,5 +1,4 @@
-<HeadLayout />
-{{title (if this.system.shouldShowRegions (concat this.system.activeRegion " - ")) "Nomad" separator=" - "}}
+{{page-title (if this.system.shouldShowRegions (concat this.system.activeRegion " - ")) "Nomad" separator=" - "}}
 <SvgPatterns />
 {{#unless this.error}}
   {{outlet}}
