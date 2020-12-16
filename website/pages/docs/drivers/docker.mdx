@@ -327,7 +327,56 @@ config {
 
 - `work_dir` - (Optional) The working directory inside the container.
 
-- `mounts` - (Optional) A list of
+- `mount` - *Since 1.0.1* (Optional) Specify a
+  [mount](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-volumes-or-memory-filesystems)
+  to be mounted into the container. Volume, bind, and tmpfs type mounts are supported. May be specified multiple times.
+
+  ```hcl
+  config {
+    # sample volume mount
+    mount {
+      type = "volume"
+      target = "/path/in/container"
+      source = "name-of-volume"
+      readonly = false
+      volume_options {
+        no_copy = false
+        labels {
+          foo = "bar"
+        }
+        driver_config {
+          name = "pxd"
+          options {
+            foo = "bar"
+          }
+        }
+      }
+    }
+
+    # sample bind mount
+    mount {
+      type = "bind"
+      target = "/path/in/container"
+      source = "/path/in/host"
+      readonly = false
+      bind_options {
+        propagation = "rshared"
+      }
+    }
+
+    # sample tmpfs mount
+    mount {
+      type = "tmpfs"
+      target = "/path/in/container"
+      readonly = false
+      tmpfs_options {
+        size = 100000 # size in bytes
+      }
+    }
+  }
+  ```
+
+- `mounts` - (*deprecated*: Replaced by `mount` in 1.0.1) (Optional) A list of
   [mounts](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-volumes-or-memory-filesystems)
   to be mounted into the container. Volume, bind, and tmpfs type mounts are supported.
 
