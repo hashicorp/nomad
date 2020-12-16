@@ -14,6 +14,27 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.0.2
+
+#### Dynamic secrets trigger template changes on client restart
+
+Nomad 1.0.2 changed the behavior of template `change_mode` triggers when a
+client node restarts. In Nomad 1.0.1 and earlier, the first rendering of a
+template after a client restart would not trigger the `change_mode`. For
+dynamic secrets such as the Vault PKI secrets engine, this resulted in the
+secret being updated but not restarting or signalling the task. When the
+secret's lease expired at some later time, the task workload might fail
+because of the stale secret. For example, a web server's SSL certificate would
+be expired and browsers would be unable to connect.
+
+In Nomad 1.0.2, when a client node is restarted any task with Vault secrets
+that are generated or have expired will have its `change_mode` triggered. If
+`change_mode = "restart"` this will result in the task being restarted, to
+avoid the task failing unexpectedly at some point in the future. This change
+only impacts tasks using dynamic Vault secrets engines such as [PKI][pki], or
+when secrets are rotated. Secrets that don't change in Vault will not trigger
+a `change_mode` on client restart.
+
 ## Nomad 1.0.1
 
 #### Envoy worker threads
@@ -963,3 +984,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [vault_grace]: /docs/job-specification/template
 [node drain]: https://www.nomadproject.io/docs/upgrade#5-upgrade-clients
 [`template.disable_file_sandbox`]: /docs/configuration/client#template-parameters
+[pki]: https://www.vaultproject.io/docs/secrets/pki

@@ -1,3 +1,8 @@
+## 1.0.2 (Unreleased)
+
+BUG FIXES:
+ * template: Fixed a bug where dynamic secrets did not trigger the template `change_mode` after a client restart. [[GH-9636](https://github.com/hashicorp/nomad/issues/9636)]
+
 ## 1.0.1 (Unreleased)
 
 IMPROVEMENTS:
