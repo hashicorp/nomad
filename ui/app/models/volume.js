@@ -1,8 +1,6 @@
 import { computed } from '@ember/object';
 import Model from '@ember-data/model';
-import { attr } from '@ember-data/model';
-import { belongsTo } from 'ember-data/relationships';
-import { hasMany } from '@ember-data/model';
+import { attr, belongsTo, hasMany } from '@ember-data/model';
 
 export default class Volume extends Model {
   @attr('string') plainId;

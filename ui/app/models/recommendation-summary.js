@@ -1,7 +1,5 @@
 import Model from '@ember-data/model';
-import { attr } from '@ember-data/model';
-import { belongsTo } from 'ember-data/relationships';
-import { hasMany } from '@ember-data/model';
+import { attr, belongsTo, hasMany } from '@ember-data/model';
 import { get } from '@ember/object';
 import { action } from '@ember/object';
 

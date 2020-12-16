@@ -1,7 +1,6 @@
 import { bool, equal } from '@ember/object/computed';
 import Model from '@ember-data/model';
-import { attr } from '@ember-data/model';
-import { belongsTo } from 'ember-data/relationships';
+import { attr, belongsTo } from '@ember-data/model';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 

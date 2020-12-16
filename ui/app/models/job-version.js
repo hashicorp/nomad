@@ -1,6 +1,5 @@
 import Model from '@ember-data/model';
-import { attr } from '@ember-data/model';
-import { belongsTo } from 'ember-data/relationships';
+import { attr, belongsTo } from '@ember-data/model';
 
 export default class JobVersion extends Model {
   @belongsTo('job') job;
