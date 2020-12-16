@@ -1,12 +1,14 @@
 ## 1.0.2 (Unreleased)
 
+IMPROVEMENTS:
+ * consul/connect: interpolate the connect, service meta, and service canary meta blocks with the task environment [[GH-9586](https://github.com/hashicorp/nomad/pull/9586)]
+
 BUG FIXES:
  * template: Fixed a bug where dynamic secrets did not trigger the template `change_mode` after a client restart. [[GH-9636](https://github.com/hashicorp/nomad/issues/9636)]
 
 ## 1.0.1 (December 16, 2020)
 
 IMPROVEMENTS:
- * consul/connect: interpolate the connect, service meta, and service canary meta blocks with the task environment [[GH-9586](https://github.com/hashicorp/nomad/pull/9586)]
  * drivers/docker: Added a new syntax for specifying `mount` [[GH-9635](https://github.com/hashicorp/nomad/issues/9635)]
 
 BUG FIXES:
