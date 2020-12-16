@@ -74,11 +74,7 @@ pkg/%/nomad: ## Build Nomad for GOOS_GOARCH, e.g. pkg/linux_amd64/nomad
 
 pkg/linux_arm/nomad: CC = arm-linux-gnueabihf-gcc-5
 pkg/linux_arm64/nomad: CC = aarch64-linux-gnu-gcc-5
-
 pkg/windows_%/nomad: GO_OUT = $@.exe
-# If CGO support for Windows is ever required, uncomment the following
-# pkg/windows_%/nomad: CC = i686-w64-mingw32-gcc
-# pkg/windows_%/nomad: CXX = i686-w64-mingw32-g++
 
 # Define package targets for each of the build targets we actually have on this system
 define makePackageTarget
