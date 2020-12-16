@@ -64,109 +64,17 @@ endif
 # include per-user customization after all variables are defined
 -include GNUMakefile.local
 
-pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
+pkg/%/nomad: GO_OUT ?= $@
+pkg/%/nomad: ## Build Nomad for GOOS_GOARCH, e.g. pkg/linux_amd64/nomad
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
+	@CGO_ENABLED=1 \
+		GOOS=$(firstword $(subst _, ,$*)) \
+		GOARCH=$(lastword $(subst _, ,$*)) \
+		go build -trimpath -ldflags $(GO_LDFLAGS) -tags "$(GO_TAGS)" -o $(GO_OUT)
 
-pkg/darwin_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/arm64
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
-
-pkg/freebsd_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for freebsd/amd64
-	@echo "==> Building $@..."
-	@CGO_ENABLED=1 GOOS=freebsd GOARCH=amd64 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
-
-pkg/linux_386/nomad: $(SOURCE_FILES) ## Build Nomad for linux/386
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=386 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
-
-pkg/linux_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/amd64
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
-
-pkg/linux_arm/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=arm CC=arm-linux-gnueabihf-gcc-5 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
-
-pkg/linux_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-5 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
-
-# If CGO support for Windows is ever required, set the following variables
-# in the environment for `go build` for both the windows/amd64 and the
-# windows/386 targets:
-#	CC=i686-w64-mingw32-gcc
-#	CXX=i686-w64-mingw32-g++
-pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=windows GOARCH=386 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@.exe"
-
-pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@.exe"
-
-pkg/linux_ppc64le/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=ppc64le \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
-
-pkg/linux_s390x/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=s390x \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
+pkg/linux_arm/nomad: CC = arm-linux-gnueabihf-gcc-5
+pkg/linux_arm64/nomad: CC = aarch64-linux-gnu-gcc-5
+pkg/windows_%/nomad: GO_OUT = $@.exe
 
 # Define package targets for each of the build targets we actually have on this system
 define makePackageTarget
