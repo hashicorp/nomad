@@ -114,14 +114,20 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	netStatus := new(structs.AllocNetworkStatus)
 
 	if len(res.Interfaces) > 0 {
-		iface, name := func(r *cni.CNIResult) (*cni.Config, string) {
-			for i := range r.Interfaces {
-				if r.Interfaces[i].Sandbox != "" {
-					return r.Interfaces[i], i
-				}
+		// find an interface with Sandbox set, or any one of them if no
+		// interface has it set
+		var iface *cni.Config
+		var name string
+		for name, iface = range res.Interfaces {
+			if iface != nil && iface.Sandbox != "" {
+				break
 			}
-			return nil, ""
-		}(res)
+		}
+		if iface == nil {
+			// this should never happen but this value is coming from external
+			// plugins so we should guard against it
+			return nil, fmt.Errorf("failed to configure network: no valid interface")
+		}
 
 		netStatus.InterfaceName = name
 		if len(iface.IPConfigs) > 0 {
