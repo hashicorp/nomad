@@ -385,7 +385,7 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 }
 
 func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time.Time, allRenderedTime time.Time) {
-	// A template has been rendered, figure out what to do
+
 	var handling []string
 	signals := make(map[string]struct{})
 	restart := false

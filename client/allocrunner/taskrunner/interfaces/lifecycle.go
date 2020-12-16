@@ -21,7 +21,7 @@ type TaskLifecycle interface {
 	// driver, which is useful for distinguishing restored tasks during
 	// prestart hooks. But note that the driver handle could go away after you
 	// check this, so callers should make sure they're handling that case
-	// safely. Ideally prestart hooks should be idempotnent whenever possible
+	// safely. Ideally prestart hooks should be idempotent whenever possible
 	// to handle restored tasks; use this as an escape hatch.
 	IsRunning() bool
 }
