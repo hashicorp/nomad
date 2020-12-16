@@ -154,6 +154,17 @@ mounts = [
 ]
 ```
 
+Or better yet, the new [`mount`](/docs/driver/docker#mount) syntax, introduced in Nomad 1.0.1, is more appropriate here:
+
+````hcl
+mount {
+  type = "tmpfs"
+  tmpf_options {
+    size = 10000
+  }
+}
+```
+
 ### Multiline "here doc" string
 
 Nomad supports multi-line string literals in the so-called "heredoc" style, inspired by Unix shell languages:
