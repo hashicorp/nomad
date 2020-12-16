@@ -114,13 +114,15 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	netStatus := new(structs.AllocNetworkStatus)
 
 	if len(res.Interfaces) > 0 {
-		iface, name := func(r *cni.CNIResult) (*cni.Config, string) {
-			for i := range r.Interfaces {
-				if r.Interfaces[i].Sandbox != "" {
-					return r.Interfaces[i], i
+		// find an interface with Sandbox set, or any one of them if no
+		// interface has it set
+		iface, name := func(r *cni.CNIResult) (iface *cni.Config, name string) {
+			for name, iface = range r.Interfaces {
+				if iface.Sandbox != "" {
+					return
 				}
 			}
-			return nil, ""
+			return
 		}(res)
 
 		netStatus.InterfaceName = name
