@@ -61,15 +61,19 @@ export default function DownloadsPage({ releases }) {
         productName="Nomad"
         productId="nomad"
         latestVersion={VERSION}
-        getStartedDescription="Follow step-by-step tutorials on AWS, Azure, GCP, and localhost."
+        getStartedDescription="Learn to use Nomad with hands-on tutorials in your browser or on your own infrastructure."
         getStartedLinks={[
           {
-            label: 'Placeholder',
-            href: '#',
+            label: 'Get Started',
+            href: 'https://learn.hashicorp.com/collections/nomad/get-started',
           },
           {
-            label: 'Placeholder',
-            href: '#',
+            label: 'Explore the Web UI',
+            href: 'https://learn.hashicorp.com/collections/nomad/web-ui',
+          },
+          {
+            label: 'Learn by doing with hands on labs',
+            href: 'https://learn.hashicorp.com/collections/nomad/interactive',
           },
         ]}
         logo={<img className={styles.logo} alt="Nomad" src={logo} />}
