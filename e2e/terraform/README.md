@@ -143,3 +143,34 @@ The terraform state file stores all the info.
 cd e2e/terraform/
 terraform destroy
 ```
+
+## FAQ
+
+#### E2E Provisioning Goals
+
+1. The provisioning process should be able to run a nightly build against a
+  variety of OS targets.
+2. The provisioning process should be able to support update-in-place
+  tests. (See [#7063](https://github.com/hashicorp/nomad/issues/7063))
+3. A developer should be able to quickly stand up a small E2E cluster and
+  provision it with a version of Nomad they've built on their laptop. The
+  developer should be able to send updated builds to that cluster with a short
+  iteration time, rather than having to rebuild the cluster.
+
+#### Why not just drop all the provisioning into the AMI?
+
+While that's the "correct" production approach for cloud infrastructure, it
+creates a few pain points for testing:
+
+* Creating a Linux AMI takes >10min, and creating a Windows AMI can take
+  15-20min. This interferes with goal (3) above.
+* We won't be able to do in-place upgrade testing without having an in-place
+  provisioning process anyways. This interferes with goals (2) above.
+
+#### Why not just drop all the provisioning into the user data?
+
+* Userdata is executed on boot, which prevents using them for in-place upgrade
+  testing.
+* Userdata scripts are not very observable and it's painful to determine
+  whether they've failed or simply haven't finished yet before trying to run
+  tests.
