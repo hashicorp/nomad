@@ -382,6 +382,10 @@ message DriverCapabilities {
     }
     // MountConfigs indicates whether the driver supports mount configurations.
     MountConfigs mount_configs = 6;
+
+    // remote_tasks indicates whether the driver executes tasks remotely such
+    // on cloud runtimes like AWS ECS.
+    bool remote_tasks = 7;
 }
 
 message NetworkIsolationSpec {

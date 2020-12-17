@@ -131,6 +131,13 @@ sudo chmod +x "${NOMAD_PLUGIN_DIR}/nomad-driver-podman"
 sudo mv /tmp/linux/io.podman.service /etc/systemd/system/io.podman.service
 sudo mv /tmp/linux/io.podman.socket /etc/systemd/system/io.podman.socket
 
+if [ -a "/tmp/linux/nomad-driver-ecs" ]; then
+    echo "Installing nomad-driver-ecs"
+    sudo install --mode=0755 --owner=ubuntu /tmp/linux/nomad-driver-ecs "$NOMAD_PLUGIN_DIR"
+else
+    echo "nomad-driver-ecs not found: skipping install"
+fi
+
 echo "Configuring dnsmasq"
 
 # disable systemd-resolved and configure dnsmasq to forward local requests to

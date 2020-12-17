@@ -2239,7 +2239,6 @@ func (c *Client) runAllocs(update *allocUpdates) {
 
 	// Update the existing allocations
 	for _, update := range diff.updated {
-		c.logger.Trace("updating alloc", "alloc_id", update.ID, "index", update.AllocModifyIndex)
 		c.updateAlloc(update)
 	}
 

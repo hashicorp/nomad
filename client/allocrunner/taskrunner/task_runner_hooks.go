@@ -152,6 +152,12 @@ func (tr *TaskRunner) initHooks() {
 		consul: tr.consulServiceClient,
 		logger: hookLogger,
 	}))
+
+	// If this task driver has remote capabilities, add the remote task
+	// hook.
+	if tr.driverCapabilities.RemoteTasks {
+		tr.runnerHooks = append(tr.runnerHooks, newRemoteTaskHook(tr, hookLogger))
+	}
 }
 
 func (tr *TaskRunner) emitHookError(err error, hookName string) {

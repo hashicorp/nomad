@@ -31,6 +31,13 @@ const (
 	// handle is from a driver that existed before driver plugins (v0.9). The
 	// driver should take appropriate action to handle the old driver state.
 	Pre09TaskHandleVersion = 0
+
+	// DetachSignal is a special signal sent to remote task drivers when a
+	// task should be detached instead of killed. This allows a remote task
+	// to be left running and transferred to a replacement allocation in
+	// cases like down or drained nodes causing the original allocation to
+	// be terminal.
+	DetachSignal = "DETACH"
 )
 
 // DriverPlugin is the interface with drivers will implement. It is also
@@ -158,6 +165,12 @@ type Capabilities struct {
 
 	// MountConfigs tells Nomad which mounting config options the driver supports.
 	MountConfigs MountConfigSupport
+
+	// RemoteTasks indicates this driver runs tasks on remote systems
+	// instead of locally. The Nomad client can use this information to
+	// adjust behavior such as propogating task handles between allocations
+	// to avoid downtime when a client is lost.
+	RemoteTasks bool
 }
 
 func (c *Capabilities) HasNetIsolationMode(m NetIsolationMode) bool {

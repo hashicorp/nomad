@@ -35,6 +35,9 @@ type placementResult interface {
 	// stopped and if so the status description.
 	StopPreviousAlloc() (bool, string)
 
+	// PreviousLost is true if the previous allocation was lost.
+	PreviousLost() bool
+
 	// DowngradeNonCanary indicates that placement should use the latest stable job
 	// with the MinJobVersion, rather than the current deployment version
 	DowngradeNonCanary() bool
@@ -58,6 +61,7 @@ type allocPlaceResult struct {
 	taskGroup     *structs.TaskGroup
 	previousAlloc *structs.Allocation
 	reschedule    bool
+	lost          bool
 
 	downgradeNonCanary bool
 	minJobVersion      uint64
@@ -71,6 +75,7 @@ func (a allocPlaceResult) IsRescheduling() bool                    { return a.re
 func (a allocPlaceResult) StopPreviousAlloc() (bool, string)       { return false, "" }
 func (a allocPlaceResult) DowngradeNonCanary() bool                { return a.downgradeNonCanary }
 func (a allocPlaceResult) MinJobVersion() uint64                   { return a.minJobVersion }
+func (a allocPlaceResult) PreviousLost() bool                      { return a.lost }
 
 // allocDestructiveResult contains the information required to do a destructive
 // update. Destructive changes should be applied atomically, as in the old alloc
@@ -92,6 +97,7 @@ func (a allocDestructiveResult) StopPreviousAlloc() (bool, string) {
 }
 func (a allocDestructiveResult) DowngradeNonCanary() bool { return false }
 func (a allocDestructiveResult) MinJobVersion() uint64    { return 0 }
+func (a allocDestructiveResult) PreviousLost() bool       { return false }
 
 // allocMatrix is a mapping of task groups to their allocation set.
 type allocMatrix map[string]allocSet

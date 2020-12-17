@@ -7406,6 +7406,34 @@ type AllocState struct {
 	Time  time.Time
 }
 
+// TaskHandle is  optional handle to a task propogated to the servers for use
+// by remote tasks. Since remote tasks are not implicitly lost when the node
+// they are assigned to is down, their state is migrated to the replacement
+// allocation.
+//
+//  Minimal set of fields from plugins/drivers/task_handle.go:TaskHandle
+type TaskHandle struct {
+	// Version of driver state. Used by the driver to gracefully handle
+	// plugin upgrades.
+	Version int
+
+	// Driver-specific state containing a handle to the remote task.
+	DriverState []byte
+}
+
+func (h *TaskHandle) Copy() *TaskHandle {
+	if h == nil {
+		return nil
+	}
+
+	newTH := TaskHandle{
+		Version:     h.Version,
+		DriverState: make([]byte, len(h.DriverState)),
+	}
+	copy(newTH.DriverState, h.DriverState)
+	return &newTH
+}
+
 // Set of possible states for a task.
 const (
 	TaskStatePending = "pending" // The task is waiting to be run.
@@ -7439,6 +7467,10 @@ type TaskState struct {
 
 	// Series of task events that transition the state of the task.
 	Events []*TaskEvent
+
+	// Experimental -  TaskHandle is based on drivers.TaskHandle and used
+	// by remote task drivers to migrate task handles between allocations.
+	TaskHandle *TaskHandle
 }
 
 // NewTaskState returns a TaskState initialized in the Pending state.
@@ -7460,16 +7492,18 @@ func (ts *TaskState) Copy() *TaskState {
 	if ts == nil {
 		return nil
 	}
-	copy := new(TaskState)
-	*copy = *ts
+	newTS := new(TaskState)
+	*newTS = *ts
 
 	if ts.Events != nil {
-		copy.Events = make([]*TaskEvent, len(ts.Events))
+		newTS.Events = make([]*TaskEvent, len(ts.Events))
 		for i, e := range ts.Events {
-			copy.Events[i] = e.Copy()
+			newTS.Events[i] = e.Copy()
 		}
 	}
-	return copy
+
+	newTS.TaskHandle = ts.TaskHandle.Copy()
+	return newTS
 }
 
 // Successful returns whether a task finished successfully. This doesn't really
