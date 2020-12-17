@@ -7,8 +7,6 @@ resource "aws_instance" "server" {
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
-  user_data = file("${path.root}/userdata/ubuntu-bionic.sh")
-
   # Instance tags
   tags = {
     Name           = "${local.random_name}-server-${count.index}"
@@ -26,8 +24,6 @@ resource "aws_instance" "client_ubuntu_bionic_amd64" {
   count                  = var.client_count_ubuntu_bionic_amd64
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
-
-  user_data = file("${path.root}/userdata/ubuntu-bionic.sh")
 
   # Instance tags
   tags = {

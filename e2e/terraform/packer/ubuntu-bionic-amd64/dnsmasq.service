@@ -1,0 +1,37 @@
+[Unit]
+Description=dnsmasq - A lightweight DHCP and caching DNS server
+Requires=network.target
+Wants=nss-lookup.target
+Before=nss-lookup.target
+After=network.target
+After=docker.service
+
+[Service]
+Type=forking
+PIDFile=/run/dnsmasq/dnsmasq.pid
+
+# Configure our hosts and resolver file with info from the host,
+# then test the resulting config file before starting
+ExecStartPre=/usr/local/bin/dnsconfig.sh
+
+# (from upstream)
+# We run dnsmasq via the /etc/init.d/dnsmasq script which acts as a
+# wrapper picking up extra configuration files and then execs dnsmasq
+# itself, when called with the "systemd-exec" function.
+ExecStart=/etc/init.d/dnsmasq systemd-exec
+
+# (from upstream)
+# The systemd-*-resolvconf functions configure (and deconfigure)
+# resolvconf to work with the dnsmasq DNS server. They're called like
+# this to get correct error handling (ie don't start-resolvconf if the
+# dnsmasq daemon fails to start.
+ExecStartPost=/etc/init.d/dnsmasq systemd-start-resolvconf
+
+# We need to tell docker to pick up the changes
+ExecStartPost=systemctl restart docker
+
+ExecStop=/etc/init.d/dnsmasq systemd-stop-resolvconf
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target
