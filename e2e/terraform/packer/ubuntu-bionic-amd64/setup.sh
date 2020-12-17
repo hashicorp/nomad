@@ -146,7 +146,10 @@ sudo chown root:root /etc/dnsmasq.d/default
 echo 'nameserver 8.8.8.8' > /tmp/resolv.conf
 sudo mv /tmp/resolv.conf /etc/resolv.conf
 
-sudo systemctl restart dnsmasq
+sudo mv /tmp/linux/dnsmasq.service /etc/systemd/system/dnsmasq.service
+sudo mv /tmp/linux/dnsconfig.sh /usr/local/bin/dnsconfig.sh
+sudo chmod +x /usr/local/bin/dnsconfig.sh
+sudo systemctl daemon-reload
 
 echo "Updating boot parameters"
 
