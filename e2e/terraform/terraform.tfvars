@@ -9,7 +9,7 @@ nomad_enterprise                 = false
 vault                            = true
 volumes                          = false
 
-nomad_version      = "0.12.7" # default version for deployment
+nomad_version      = "1.0.1"  # default version for deployment
 nomad_sha          = ""       # overrides nomad_version if set
 nomad_local_binary = ""       # overrides nomad_sha and nomad_version if set
 
