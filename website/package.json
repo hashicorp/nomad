@@ -22,7 +22,7 @@
     "@hashicorp/react-hero": "3.1.9",
     "@hashicorp/react-image": "3.0.1",
     "@hashicorp/react-inline-svg": "1.0.2",
-    "@hashicorp/react-product-downloader": "^7.0.0",
+    "@hashicorp/react-product-downloader": "^7.0.1",
     "@hashicorp/react-search": "^2.1.2",
     "@hashicorp/react-section-header": "3.0.0",
     "@hashicorp/react-subnav": "6.0.0",
