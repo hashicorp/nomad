@@ -30,7 +30,8 @@ export default class TokenService extends Service {
     return value;
   }
 
-  @task(function*() {
+  @task
+  *fetchSelfToken() {
     const TokenAdapter = getOwner(this).lookup('adapter:token');
     try {
       return yield TokenAdapter.findSelf();
@@ -41,8 +42,7 @@ export default class TokenService extends Service {
       }
       return null;
     }
-  })
-  fetchSelfToken;
+  }
 
   @computed('secret', 'fetchSelfToken.lastSuccessful.value')
   get selfToken() {
@@ -50,7 +50,8 @@ export default class TokenService extends Service {
     return undefined;
   }
 
-  @task(function*() {
+  @task
+  *fetchSelfTokenPolicies() {
     try {
       if (this.selfToken) {
         return yield this.selfToken.get('policies');
@@ -61,18 +62,17 @@ export default class TokenService extends Service {
     } catch (e) {
       return [];
     }
-  })
-  fetchSelfTokenPolicies;
+  }
 
   @alias('fetchSelfTokenPolicies.lastSuccessful.value') selfTokenPolicies;
 
-  @task(function*() {
+  @task
+  *fetchSelfTokenAndPolicies() {
     yield this.fetchSelfToken.perform();
     if (this.aclEnabled) {
       yield this.fetchSelfTokenPolicies.perform();
     }
-  })
-  fetchSelfTokenAndPolicies;
+  }
 
   // All non Ember Data requests should go through authorizedRequest.
   // However, the request that gets regions falls into that category.

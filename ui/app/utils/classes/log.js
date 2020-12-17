@@ -82,7 +82,8 @@ class Log extends EmberObject.extend(Evented) {
     super.destroy();
   }
 
-  @task(function*() {
+  @task
+  *gotoHead() {
     const logFetch = this.logFetch;
     const queryParams = queryString.stringify(
       assign(
@@ -105,10 +106,10 @@ class Log extends EmberObject.extend(Evented) {
     }
     this.set('head', text);
     this.set('logPointer', 'head');
-  })
-  gotoHead;
+  }
 
-  @task(function*() {
+  @task
+  *gotoTail() {
     const logFetch = this.logFetch;
     const queryParams = queryString.stringify(
       assign(
@@ -127,8 +128,7 @@ class Log extends EmberObject.extend(Evented) {
 
     this.set('tail', text);
     this.set('logPointer', 'tail');
-  })
-  gotoTail;
+  }
 
   startStreaming() {
     this.set('logPointer', 'tail');

@@ -54,7 +54,8 @@ export default class DrainPopover extends Component {
     return this.selectedDurationQuickOption.value;
   }
 
-  @task(function*(close) {
+  @task
+  *drain() {
     if (!this.client) return;
     const isUpdating = this.client.isDraining;
 
@@ -83,8 +84,7 @@ export default class DrainPopover extends Component {
     } catch (err) {
       this.onError(err);
     }
-  })
-  drain;
+  }
 
   preventDefault(e) {
     e.preventDefault();

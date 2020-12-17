@@ -15,7 +15,8 @@ export default class IndexController extends Controller {
     this.set('error', null);
   }
 
-  @task(function*() {
+  @task
+  *restartTask() {
     try {
       yield this.model.restart();
     } catch (err) {
@@ -24,6 +25,5 @@ export default class IndexController extends Controller {
         description: 'Your ACL token does not grant allocation lifecycle permissions.',
       });
     }
-  })
-  restartTask;
+  }
 }

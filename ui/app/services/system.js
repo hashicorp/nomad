@@ -147,7 +147,8 @@ export default class SystemService extends Service {
     this.notifyPropertyChange('namespaces');
   }
 
-  @task(function*() {
+  @task
+  *fetchLicense() {
     const emptyLicense = { License: { Features: [] } };
 
     try {
@@ -157,8 +158,7 @@ export default class SystemService extends Service {
     } catch (e) {
       return emptyLicense;
     }
-  })
-  fetchLicense;
+  }
 
   @alias('fetchLicense.lastSuccessful.value') license;
 

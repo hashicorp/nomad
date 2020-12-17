@@ -3,7 +3,7 @@ import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { observes } from '@ember-decorators/object';
-import { task } from 'ember-concurrency';
+import { droppableTask } from 'ember-concurrency';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
@@ -83,17 +83,18 @@ export default class ClientController extends Controller.extend(Sortable, Search
     return this.model.hostVolumes.sortBy('name');
   }
 
-  @(task(function*(value) {
+  @droppableTask
+  *setEligibility(value) {
     try {
       yield value ? this.model.setEligible() : this.model.setIneligible();
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not set eligibility';
       this.set('eligibilityError', error);
     }
-  }).drop())
-  setEligibility;
+  }
 
-  @(task(function*() {
+  @droppableTask
+  *stopDrain() {
     try {
       this.set('flagAsDraining', false);
       yield this.model.cancelDrain();
@@ -103,10 +104,10 @@ export default class ClientController extends Controller.extend(Sortable, Search
       const error = messageFromAdapterError(err) || 'Could not stop drain';
       this.set('stopDrainError', error);
     }
-  }).drop())
-  stopDrain;
+  }
 
-  @(task(function*() {
+  @droppableTask
+  *forceDrain() {
     try {
       yield this.model.forceDrain({
         IgnoreSystemJobs: this.model.drainStrategy.ignoreSystemJobs,
@@ -115,8 +116,7 @@ export default class ClientController extends Controller.extend(Sortable, Search
       const error = messageFromAdapterError(err) || 'Could not force drain';
       this.set('drainError', error);
     }
-  }).drop())
-  forceDrain;
+  }
 
   @observes('model.isDraining')
   triggerDrainNotification() {

@@ -5,7 +5,7 @@ import { tracked } from '@glimmer/tracking';
 import { inject as controller } from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { scheduleOnce } from '@ember/runloop';
-import { task } from 'ember-concurrency';
+import { droppableTask } from 'ember-concurrency';
 import intersection from 'lodash.intersection';
 import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
 
@@ -176,8 +176,9 @@ export default class OptimizeController extends Controller {
   }
 
   // This is a task because the accordion uses timeouts for animation
+  @droppableTask
   // eslint-disable-next-line require-yield
-  @(task(function*() {
+  *proceed() {
     const currentSummaryIndex = this.filteredSummaries.indexOf(this.activeRecommendationSummary);
     const nextSummary = this.filteredSummaries.objectAt(currentSummaryIndex + 1);
 
@@ -186,8 +187,7 @@ export default class OptimizeController extends Controller {
     } else {
       this.send('reachedEnd');
     }
-  }).drop())
-  proceed;
+  }
 
   @action
   transitionToSummary(summary) {

@@ -25,15 +25,15 @@ export default class TwoStepButton extends Component {
   @equal('state', 'idle') isIdle;
   @equal('state', 'prompt') isPendingConfirmation;
 
-  @task(function*() {
+  @task
+  *cancelOnClickOutside() {
     while (true) {
       let ev = yield waitForEvent(document.body, 'click');
       if (!this.element.contains(ev.target) && !this.awaitingConfirmation) {
         this.send('setToIdle');
       }
     }
-  })
-  cancelOnClickOutside;
+  }
 
   @action
   setToIdle() {

@@ -65,7 +65,8 @@ export default class IndexController extends Controller.extend(Sortable) {
     }
   }
 
-  @task(function*() {
+  @task
+  *stopAllocation() {
     try {
       yield this.model.stop();
       // Eagerly update the allocation clientStatus to avoid flickering
@@ -76,10 +77,10 @@ export default class IndexController extends Controller.extend(Sortable) {
         description: 'Your ACL token does not grant allocation lifecycle permissions.',
       });
     }
-  })
-  stopAllocation;
+  }
 
-  @task(function*() {
+  @task
+  *restartAllocation()  {
     try {
       yield this.model.restart();
     } catch (err) {
@@ -88,8 +89,7 @@ export default class IndexController extends Controller.extend(Sortable) {
         description: 'Your ACL token does not grant allocation lifecycle permissions.',
       });
     }
-  })
-  restartAllocation;
+  }
 
   @action
   gotoTask(allocation, task) {

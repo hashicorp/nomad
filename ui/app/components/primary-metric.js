@@ -86,13 +86,13 @@ export default class PrimaryMetric extends Component {
     return mappings[metric] || 'is-primary';
   }
 
-  @task(function*() {
+  @task
+  *poller() {
     do {
       this.get('tracker.poll').perform();
       yield timeout(100);
     } while (!Ember.testing);
-  })
-  poller;
+  }
 
   didReceiveAttrs() {
     if (this.tracker) {

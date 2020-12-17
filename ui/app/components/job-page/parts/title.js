@@ -13,7 +13,8 @@ export default class Title extends Component {
 
   handleError() {}
 
-  @task(function*() {
+  @task
+  *stopJob() {
     try {
       const job = this.job;
       yield job.stop();
@@ -25,10 +26,10 @@ export default class Title extends Component {
         description: 'Your ACL token does not grant permission to stop jobs.',
       });
     }
-  })
-  stopJob;
+  }
 
-  @task(function*() {
+  @task
+  *startJob() {
     const job = this.job;
     const definition = yield job.fetchRawDefinition();
 
@@ -52,6 +53,5 @@ export default class Title extends Component {
         description: message,
       });
     }
-  })
-  startJob;
+  }
 }

@@ -2,7 +2,7 @@ import Component from '@ember/component';
 import { assert } from '@ember/debug';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import { task } from 'ember-concurrency';
+import { droppableTask, task } from 'ember-concurrency';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 import classic from 'ember-classic-decorator';
@@ -46,7 +46,8 @@ export default class JobEditor extends Component {
     return this.planOutput ? 'plan' : 'editor';
   }
 
-  @(task(function*() {
+  @droppableTask
+  *plan() {
     this.reset();
 
     try {
@@ -66,10 +67,10 @@ export default class JobEditor extends Component {
       this.set('planError', error);
       this.scrollToError();
     }
-  }).drop())
-  plan;
+  }
 
-  @task(function*() {
+  @task
+  *submit() {
     try {
       if (this.context === 'new') {
         yield this.job.run();
@@ -90,8 +91,7 @@ export default class JobEditor extends Component {
       this.set('planOutput', null);
       this.scrollToError();
     }
-  })
-  submit;
+  }
 
   reset() {
     this.set('planOutput', null);

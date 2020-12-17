@@ -1,7 +1,7 @@
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
-import { task, timeout } from 'ember-concurrency';
+import { droppableTask, timeout } from 'ember-concurrency';
 import { htmlSafe } from '@ember/template';
 import Ember from 'ember';
 import ResourcesDiffs from 'nomad-ui/utils/resources-diffs';
@@ -11,7 +11,8 @@ export default class DasRecommendationAccordionComponent extends Component {
   @tracked closing = false;
   @tracked animationContainerStyle = htmlSafe('');
 
-  @(task(function*() {
+  @droppableTask
+  *proceed() {
     this.closing = true;
     this.animationContainerStyle = htmlSafe(`height: ${this.accordionElement.clientHeight}px`);
 
@@ -23,8 +24,7 @@ export default class DasRecommendationAccordionComponent extends Component {
     yield timeout(Ember.testing ? 0 : 450);
 
     this.waitingToProceed = false;
-  }).drop())
-  proceed;
+  }
 
   @action
   inserted(element) {

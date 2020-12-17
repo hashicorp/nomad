@@ -17,7 +17,8 @@ export default class PollLogger extends EmberObject.extend(AbstractLogger) {
     return this.poll.cancelAll();
   }
 
-  @task(function*() {
+  @task
+  *poll() {
     const { interval, logFetch } = this;
     while (true) {
       const url = this.fullUrl;
@@ -39,6 +40,5 @@ export default class PollLogger extends EmberObject.extend(AbstractLogger) {
 
       yield timeout(interval);
     }
-  })
-  poll;
+  }
 }

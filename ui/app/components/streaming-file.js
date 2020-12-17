@@ -105,20 +105,20 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     cliWindow.style.height = `${window.innerHeight - cliWindow.offsetTop - margins}px`;
   }
 
-  @task(function*() {
+  @task
+  *head() {
     yield this.get('logger.gotoHead').perform();
     run.scheduleOnce('afterRender', this, this.scrollToTop);
-  })
-  head;
+  }
 
   scrollToTop() {
     this.element.scrollTop = 0;
   }
 
-  @task(function*() {
+  @task
+  *tail() {
     yield this.get('logger.gotoTail').perform();
-  })
-  tail;
+  }
 
   synchronizeScrollPosition() {
     if (this.follow) {
@@ -126,14 +126,14 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
     }
   }
 
-  @task(function*() {
+  @task
+  *stream() {
     // Follow the log if the scroll position is near the bottom of the cli window
     this.logger.on('tick', this, 'scheduleScrollSynchronization');
 
     yield this.logger.startStreaming();
     this.logger.off('tick', this, 'scheduleScrollSynchronization');
-  })
-  stream;
+  }
 
   scheduleScrollSynchronization() {
     run.scheduleOnce('afterRender', this, this.synchronizeScrollPosition);

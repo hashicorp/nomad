@@ -5,7 +5,7 @@ import { computed } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
 import { alias } from '@ember/object/computed';
 import { run } from '@ember/runloop';
-import { task, timeout } from 'ember-concurrency';
+import { dropTask, timeout } from 'ember-concurrency';
 import { lazyClick } from '../helpers/lazy-click';
 import AllocationStatsTracker from 'nomad-ui/utils/classes/allocation-stats-tracker';
 import classic from 'ember-classic-decorator';
@@ -61,7 +61,8 @@ export default class AllocationRow extends Component {
     }
   }
 
-  @(task(function*() {
+  @dropTask
+  *fetchStats() {
     do {
       if (this.stats) {
         try {
@@ -74,8 +75,7 @@ export default class AllocationRow extends Component {
 
       yield timeout(500);
     } while (this.enablePolling);
-  }).drop())
-  fetchStats;
+  }
 }
 
 async function qualifyAllocation() {

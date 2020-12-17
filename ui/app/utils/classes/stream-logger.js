@@ -29,7 +29,8 @@ export default class StreamLogger extends EmberObject.extend(AbstractLogger) {
     return this.poll.cancelAll();
   }
 
-  @task(function*() {
+  @task
+  *poll() {
     const url = this.fullUrl;
     const logFetch = this.logFetch;
 
@@ -84,8 +85,7 @@ export default class StreamLogger extends EmberObject.extend(AbstractLogger) {
         }
       });
     }
-  })
-  poll;
+  }
 }
 
 StreamLogger.reopenClass({

@@ -3,7 +3,7 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
-import { task, timeout } from 'ember-concurrency';
+import { droppableTask, timeout } from 'ember-concurrency';
 import { lazyClick } from '../helpers/lazy-click';
 import { classNames, tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
@@ -50,7 +50,8 @@ export default class TaskRow extends Component {
     lazyClick([this.onClick, event]);
   }
 
-  @(task(function*() {
+  @droppableTask
+  *fetchStats() {
     do {
       if (this.stats) {
         try {
@@ -63,8 +64,7 @@ export default class TaskRow extends Component {
 
       yield timeout(500);
     } while (this.enablePolling);
-  }).drop())
-  fetchStats;
+  }
 
   didReceiveAttrs() {
     const allocation = this.get('task.allocation');

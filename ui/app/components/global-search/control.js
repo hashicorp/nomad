@@ -55,7 +55,8 @@ export default class GlobalSearchControl extends Component {
     document.removeEventListener('keydown', this._keyDownHandler);
   }
 
-  @task(function*(string) {
+  @task
+  *search() {
     try {
       set(this, 'searchString', string);
 
@@ -84,8 +85,7 @@ export default class GlobalSearchControl extends Component {
       // eslint-disable-next-line
       console.log('exception searching', e);
     }
-  })
-  search;
+  }
 
   @action
   open() {

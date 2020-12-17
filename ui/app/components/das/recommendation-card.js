@@ -4,7 +4,7 @@ import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
 import ResourcesDiffs from 'nomad-ui/utils/resources-diffs';
 import { htmlSafe } from '@ember/template';
-import { didCancel, task, timeout } from 'ember-concurrency';
+import { didCancel, droppableTask, timeout } from 'ember-concurrency';
 import Ember from 'ember';
 
 export default class DasRecommendationCardComponent extends Component {
@@ -189,16 +189,17 @@ export default class DasRecommendationCardComponent extends Component {
       });
   }
 
-  @(task(function*() {
+  @droppableTask()
+  *onApplied() {
     this.interstitialComponent = 'accepted';
     yield timeout(Ember.testing ? 0 : 2000);
 
     this.args.proceed.perform();
     this.resetInterstitial();
-  }).drop())
-  onApplied;
+  }
 
-  @(task(function*() {
+  @droppableTask
+  *onDismissed() {
     const { manuallyDismissed } = yield new Promise(resolve => {
       this.proceedPromiseResolve = resolve;
       this.interstitialComponent = 'dismissed';
@@ -210,10 +211,10 @@ export default class DasRecommendationCardComponent extends Component {
 
     this.args.proceed.perform();
     this.resetInterstitial();
-  }).drop())
-  onDismissed;
+  }
 
-  @(task(function*(error) {
+  @droppableTask
+  *onError(error) {
     yield new Promise(resolve => {
       this.proceedPromiseResolve = resolve;
       this.interstitialComponent = 'error';
@@ -222,8 +223,7 @@ export default class DasRecommendationCardComponent extends Component {
 
     this.args.proceed.perform();
     this.resetInterstitial();
-  }).drop())
-  onError;
+  }
 
   get interstitialStyle() {
     return htmlSafe(`height: ${this.cardHeight}px`);
