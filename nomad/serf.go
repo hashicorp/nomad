@@ -83,7 +83,7 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 		s.peerLock.Unlock()
 
 		// If we still expecting to bootstrap, may need to handle this
-		if atomic.LoadInt32(&s.config.Bootstrapped) == 0 {
+		if s.config.BootstrapExpect != 0 && atomic.LoadInt32(&s.config.Bootstrapped) == 0 {
 			s.maybeBootstrap()
 		}
 	}
