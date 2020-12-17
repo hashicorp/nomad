@@ -25,56 +25,99 @@ same network. For public ingress products like [NGINX](https://learn.hashicorp.c
 provide more suitable features.
 
 ```hcl
-job "ingress-example" {
+job "ingress-demo" {
 
   datacenters = ["dc1"]
 
+  # This group will have a task providing the ingress gateway automatically
+  # created by Nomad. The ingress gateway is based on the Envoy proxy being
+  # managed by the docker driver.
   group "ingress-group" {
 
     network {
       mode = "bridge"
 
+      # This example will enable plain HTTP traffic to access the uuid-api connect
+      # native example service on port 8080.
       port "inbound" {
         static = 8080
+        to     = 8080
       }
     }
 
     service {
-      name = "ingress-service"
+      name = "my-ingress-service"
       port = "8080"
 
       connect {
         gateway {
+
+          # Consul gateway [envoy] proxy options.
           proxy {
-            // Consul Gateway Proxy configuration options
-            connect_timeout = "500ms"
+            # The following options are automatically set by Nomad if not
+            # explicitly configured when using bridge networking.
+            #
+            # envoy_gateway_no_default_bind = true
+            # envoy_gateway_bind_addresses "uuid-api" {
+            #   address = "0.0.0.0"
+            #   port    = <associated listener.port>
+            # }
+            #
+            # Additional options are documented at
+            # https://www.nomadproject.io/docs/job-specification/gateway#proxy-parameters
           }
 
+          # Consul Ingress Gateway Configuration Entry.
           ingress {
-            // Consul Ingress Gateway Configuration Entry
-
-            tls {
-              enabled = false
-            }
-
+            # Nomad will automatically manage the Configuration Entry in Consul
+            # given the parameters in the ingress block.
+            #
+            # Additional options are documented at
+            # https://www.nomadproject.io/docs/job-specification/gateway#ingress-parameters
             listener {
               port     = 8080
-              protocol = "http"
-              service {
-                name  = "web"
-                hosts = ["example.com", "example.com:8080"]
-              }
-            }
-
-            listener {
-              port = 3306
               protocol = "tcp"
               service {
-                name = "database"
+                name = "uuid-api"
               }
             }
           }
         }
+      }
+    }
+  }
+
+  # The UUID generator from the connect-native demo is used as an example service.
+  # The ingress gateway above makes access to the service possible over normal HTTP.
+  # For example,
+  #
+  # $ curl $(dig +short @127.0.0.1 -p 8600 uuid-api.ingress.dc1.consul. ANY):8080
+  group "generator" {
+    network {
+      mode = "host"
+      port "api" {}
+    }
+
+    service {
+      name = "uuid-api"
+      port = "${NOMAD_PORT_api}"
+
+      connect {
+        native = true
+      }
+    }
+
+    task "generate" {
+      driver = "docker"
+
+      config {
+        image        = "hashicorpnomad/uuid-api:v3"
+        network_mode = "host"
+      }
+
+      env {
+        BIND = "0.0.0.0"
+        PORT = "${NOMAD_PORT_api}"
       }
     }
   }
@@ -199,14 +242,31 @@ make use of the envoy version interpolation, e.g.
 meta.connect.gateway_image = custom/envoy-${NOMAD_envoy_version}:latest
 ```
 
+### Custom gateway task
+
+The task created for the gateway can be configured manually using the
+[`sidecar_task`][sidecar_task] stanza.
+
+```
+connect {
+  gateway {
+    # ...
+  }
+
+  sidecar_task {
+    # see /docs/job-specification/sidecar_task for more details
+  }
+}
+```
+
 [proxy]: /docs/job-specification/gateway#proxy-parameters
 [ingress]: /docs/job-specification/gateway#ingress-parameters
 [tls]: /docs/job-specification/gateway#tls-parameters
 [listener]: /docs/job-specification/gateway#listener-parameters
 [service]: /docs/job-specification/gateway#service-parameters
 [service-default]: https://www.consul.io/docs/agent/config-entries/service-defaults
+[sidecar_task]: /docs/job-specification/sidecar_task
 [connect_timeout_ms]: https://www.consul.io/docs/agent/config-entries/service-resolver#connecttimeout
 [address]: /docs/job-specification/gateway#address-parameters
 [Advanced Configuration]: https://www.consul.io/docs/connect/proxies/envoy#advanced-configuration
 [Envoy Docker]: https://hub.docker.com/r/envoyproxy/envoy/tags
-

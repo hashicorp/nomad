@@ -47,19 +47,40 @@ job "countdash" {
 
 ## `connect` Parameters
 
+Used to configure a connect service. Only one of `native`, `sidecar_service`,
+or `gateway` may be realized per `connect` block.
+
 - `native` - `(bool: false)` - This is used to configure the service as supporting
-  [Connect Native](https://www.consul.io/docs/connect/native) applications. If set,
-  the service definition must provide the name of the implementing task in the
-  [task][service_task] field.
-  Incompatible with `sidecar_service` and `sidecar_task`.
+  [Connect Native](https://www.consul.io/docs/connect/native) applications.
 
-- `sidecar_service` - <code>([sidecar_service][]: nil)</code> - This is used to configure the sidecar
-  service injected by Nomad for Consul Connect. Incompatible with `native`.
+- `sidecar_service` - <code>([sidecar_service][]: nil)</code> - This is used to
+  configure the sidecar service created by Nomad for Consul Connect.
 
-- `sidecar_task` - <code>([sidecar_task][]:nil)</code> - This modifies the configuration of the Envoy
-  proxy task. Incompatible with `native`.
+- `sidecar_task` - <code>([sidecar_task][]:nil)</code> - This modifies the
+  task configuration of the Envoy proxy created as a sidecar or gateway.
+
+- `gateway` - <code>([gateway][]:nil)</code> - This is used to configure the
+  gateway service created by Nomad for Consul Connect.
 
 ## `connect` Examples
+
+### Using Connect Native
+
+The following example is a minimal service stanza for a
+[Consul Connect Native](https://www.consul.io/docs/connect/native)
+application implemented by a task named `generate`.
+
+```hcl
+service {
+  name = "uuid-api"
+  port = "${NOMAD_PORT_api}"
+  task = "generate"
+
+  connect {
+    native = true
+  }
+}
+```
 
 ### Using Sidecar Service
 
@@ -169,35 +190,64 @@ job "countdash" {
 }
 ```
 
-### Using Connect Native
+### Using a Gateway
 
-The following example is a minimal service stanza for a
-[Consul Connect Native](https://www.consul.io/docs/connect/native)
-application implemented by a task named `generate`.
+The following is an example service stanza for creating and using a connect ingress
+gateway. It includes a gateway service definition and an api service fronted by
+the gateway. Once running, the gateway can be used to reach the api service by first
+looking up the gateway Consul DNS address, e.g.
+
+```
+curl $(dig +short @127.0.0.1 -p 8600 uuid-api.ingress.dc1.consul. ANY):8080
+```
 
 ```hcl
-service {
-  name = "uuid-api"
-  port = "${NOMAD_PORT_api}"
-  task = "generate"
+job "ingress-demo" {
 
-  connect {
-    native = true
+  datacenters = ["dc1"]
+
+  group "ingress-group" {
+
+    network {
+      mode = "bridge"
+      port "inbound" {
+        static = 8080
+        to     = 8080
+      }
+    }
+
+    service {
+      name = "my-ingress-service"
+      port = "8080"
+
+      connect {
+        gateway {
+          ingress {
+            listener {
+              port     = 8080
+              protocol = "tcp"
+              service {
+                name = "uuid-api"
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }
 ```
 
 ### Limitations
 
-[Nomad variable interpolation][interpolation] is _not_ yet supported ([gh-7221]).
-
+[gateway]: /docs/job-specification/gateway
 [gh-7221]: https://github.com/hashicorp/nomad/issues/7221
-[job]: /docs/job-specification/job 'Nomad job Job Specification'
 [group]: /docs/job-specification/group 'Nomad group Job Specification'
-[task]: /docs/job-specification/task 'Nomad task Job Specification'
 [interpolation]: /docs/runtime/interpolation 'Nomad interpolation'
-[sidecar_service]: /docs/job-specification/sidecar_service 'Nomad sidecar service Specification'
-[sidecar_task]: /docs/job-specification/sidecar_task 'Nomad sidecar task config Specification'
-[upstreams]: /docs/job-specification/upstreams 'Nomad sidecar service upstreams Specification'
+[job]: /docs/job-specification/job 'Nomad job Job Specification'
 [native]: https://www.consul.io/docs/connect/native
 [service_task]: /docs/job-specification/service#task-1 'Nomad service task'
+[sidecar_service]: /docs/job-specification/sidecar_service 'Nomad sidecar service Specification'
+[sidecar_task]: /docs/job-specification/sidecar_task 'Nomad sidecar task config Specification'
+[task]: /docs/job-specification/task 'Nomad task Job Specification'
+[upstreams]: /docs/job-specification/upstreams 'Nomad sidecar service upstreams Specification'

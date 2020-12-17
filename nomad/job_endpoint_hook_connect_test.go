@@ -92,7 +92,7 @@ func TestJobEndpointConnect_groupConnectHook(t *testing.T) {
 	tgExp.Services[0].Name = "backend"
 	tgExp.Services[1].Name = "admin"
 
-	// Expect sidecar tasks to be properly canonicalized
+	// Expect sidecar tasks to be in canonical form.
 	tgExp.Tasks[0].Canonicalize(job, tgExp)
 	tgExp.Tasks[1].Canonicalize(job, tgExp)
 	tgExp.Networks[0].DynamicPorts = []structs.Port{{
@@ -130,6 +130,75 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway(t *testing.T) {
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
 		newConnectGatewayTask("my-gateway", false),
+	}
+	expTG.Services[0].Name = "my-gateway"
+	expTG.Tasks[0].Canonicalize(job, expTG)
+	expTG.Networks[0].Canonicalize()
+
+	// rewrite the service gateway proxy configuration
+	expTG.Services[0].Connect.Gateway.Proxy = gatewayProxyForBridge(expTG.Services[0].Connect.Gateway)
+
+	require.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
+	require.Exactly(t, expTG, job.TaskGroups[0])
+
+	// Test that the hook is idempotent
+	require.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
+	require.Exactly(t, expTG, job.TaskGroups[0])
+}
+
+func TestJobEndpointConnect_groupConnectHook_IngressGateway_CustomTask(t *testing.T) {
+	t.Parallel()
+
+	// Test that the connect gateway task is inserted if a gateway service exists
+	// and since this is a bridge network, will rewrite the default gateway proxy
+	// block with correct configuration.
+	job := mock.ConnectIngressGatewayJob("bridge", false)
+
+	job.Meta = map[string]string{
+		"gateway_name": "my-gateway",
+	}
+
+	job.TaskGroups[0].Services[0].Name = "${NOMAD_META_gateway_name}"
+	job.TaskGroups[0].Services[0].Connect.SidecarTask = &structs.SidecarTask{
+		Driver: "raw_exec",
+		User:   "sidecars",
+		Config: map[string]interface{}{
+			"command": "/bin/sidecar",
+			"args":    []string{"a", "b"},
+		},
+		Resources: &structs.Resources{
+			CPU: 400,
+			// Memory: inherit 128
+		},
+		KillSignal: "SIGHUP",
+	}
+
+	expTG := job.TaskGroups[0].Copy()
+	expTG.Tasks = []*structs.Task{
+		// inject merged gateway task
+		{
+			Name:   "connect-ingress-my-gateway",
+			Kind:   structs.NewTaskKind(structs.ConnectIngressPrefix, "my-gateway"),
+			Driver: "raw_exec",
+			User:   "sidecars",
+			Config: map[string]interface{}{
+				"command": "/bin/sidecar",
+				"args":    []string{"a", "b"},
+			},
+			Resources: &structs.Resources{
+				CPU:      400,
+				MemoryMB: 128,
+			},
+			LogConfig: &structs.LogConfig{
+				MaxFiles:      2,
+				MaxFileSizeMB: 2,
+			},
+			ShutdownDelay: 5 * time.Second,
+			KillSignal:    "SIGHUP",
+			Constraints: structs.Constraints{
+				connectGatewayVersionConstraint(),
+			},
+		},
 	}
 	expTG.Services[0].Name = "my-gateway"
 	expTG.Tasks[0].Canonicalize(job, expTG)
@@ -330,7 +399,7 @@ func TestJobEndpointConnect_gatewayProxyIsDefault(t *testing.T) {
 	t.Run("bind-addresses set", func(t *testing.T) {
 		result := gatewayProxyIsDefault(&structs.ConsulGatewayProxy{
 			EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
-				"listener1": &structs.ConsulGatewayBindAddress{
+				"listener1": {
 					Address: "1.1.1.1",
 					Port:    9000,
 				},
@@ -362,7 +431,7 @@ func TestJobEndpointConnect_gatewayBindAddresses(t *testing.T) {
 			}},
 		})
 		require.Equal(t, map[string]*structs.ConsulGatewayBindAddress{
-			"service1": &structs.ConsulGatewayBindAddress{
+			"service1": {
 				Address: "0.0.0.0",
 				Port:    3000,
 			},
@@ -388,15 +457,15 @@ func TestJobEndpointConnect_gatewayBindAddresses(t *testing.T) {
 			}},
 		})
 		require.Equal(t, map[string]*structs.ConsulGatewayBindAddress{
-			"service1": &structs.ConsulGatewayBindAddress{
+			"service1": {
 				Address: "0.0.0.0",
 				Port:    3000,
 			},
-			"service2": &structs.ConsulGatewayBindAddress{
+			"service2": {
 				Address: "0.0.0.0",
 				Port:    3000,
 			},
-			"service3": &structs.ConsulGatewayBindAddress{
+			"service3": {
 				Address: "0.0.0.0",
 				Port:    3001,
 			},
