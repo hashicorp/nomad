@@ -9,9 +9,8 @@ echo "127.0.0.1 $(hostname)" | tee --append /etc/hosts
 
 # this script should run after docker.service but we can't guarantee
 # it's created docker0 yet, so wait to make sure
-while :
+while ! (ip link | grep -q docker0)
 do
-    ip link | grep -q docker0 && break
     sleep 1
 done
 
