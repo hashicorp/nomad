@@ -95,7 +95,7 @@ func TestGetArtifact_Headers(t *testing.T) {
 
 	// Download the artifact.
 	taskEnv := new(upperReplacer)
-	err = GetArtifact(taskEnv, artifact, taskDir)
+	err = GetArtifact(taskEnv, taskEnv, artifact, taskDir, "")
 	require.NoError(t, err)
 
 	// Verify artifact exists.
@@ -129,7 +129,7 @@ func TestGetArtifact_FileAndChecksum(t *testing.T) {
 	}
 
 	// Download the artifact
-	if err := GetArtifact(noopTaskEnv, artifact, taskDir); err != nil {
+	if err := GetArtifact(noopTaskEnv, noopTaskEnv, artifact, taskDir, ""); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -163,7 +163,7 @@ func TestGetArtifact_File_RelativeDest(t *testing.T) {
 	}
 
 	// Download the artifact
-	if err := GetArtifact(noopTaskEnv, artifact, taskDir); err != nil {
+	if err := GetArtifact(noopTaskEnv, noopTaskEnv, artifact, taskDir, ""); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -197,7 +197,7 @@ func TestGetArtifact_File_EscapeDest(t *testing.T) {
 	}
 
 	// attempt to download the artifact
-	err = GetArtifact(noopTaskEnv, artifact, taskDir)
+	err = GetArtifact(noopTaskEnv, noopTaskEnv, artifact, taskDir, "")
 	if err == nil || !strings.Contains(err.Error(), "escapes") {
 		t.Fatalf("expected GetArtifact to disallow sandbox escape: %v", err)
 	}
@@ -247,7 +247,7 @@ func TestGetArtifact_InvalidChecksum(t *testing.T) {
 	}
 
 	// Download the artifact and expect an error
-	if err := GetArtifact(noopTaskEnv, artifact, taskDir); err == nil {
+	if err := GetArtifact(noopTaskEnv, noopTaskEnv, artifact, taskDir, ""); err == nil {
 		t.Fatalf("GetArtifact should have failed")
 	}
 }
@@ -312,7 +312,7 @@ func TestGetArtifact_Archive(t *testing.T) {
 		},
 	}
 
-	if err := GetArtifact(noopTaskEnv, artifact, taskDir); err != nil {
+	if err := GetArtifact(noopTaskEnv, noopTaskEnv, artifact, taskDir, ""); err != nil {
 		t.Fatalf("GetArtifact failed: %v", err)
 	}
 
@@ -345,7 +345,7 @@ func TestGetArtifact_Setuid(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, GetArtifact(noopTaskEnv, artifact, taskDir))
+	require.NoError(t, GetArtifact(noopTaskEnv, noopTaskEnv, artifact, taskDir, ""))
 
 	var expected map[string]int
 

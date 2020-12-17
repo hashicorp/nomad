@@ -250,6 +250,11 @@ func (d *MockDriver) ExecTaskStreaming(ctx context.Context, taskID string, execO
 
 // SetEnvvars sets path and host env vars depending on the FS isolation used.
 func SetEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *allocdir.TaskDir, conf *config.Config) {
+
+	envBuilder.SetClientAllocDir(taskDir.SharedAllocDir)
+	envBuilder.SetClientTaskLocalDir(taskDir.LocalDir)
+	envBuilder.SetClientSecretDir(taskDir.SecretsDir)
+
 	// Set driver-specific environment variables
 	switch fsi {
 	case drivers.FSIsolationNone:

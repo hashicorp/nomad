@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	gg "github.com/hashicorp/go-getter"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -129,19 +130,36 @@ func getHeaders(env EnvReplacer, m map[string]string) http.Header {
 	return headers
 }
 
+// checkEscape returns true if the absolute path testPath escapes all of the
+// absolute paths in sandboxPaths.
+// otherwise, it returns false, indicating that testPath is part of one of the
+// acceptable sandbox paths.
+func checkEscape(testPath string, sandboxPaths []string) bool {
+	for _, p := range sandboxPaths {
+		if !helper.PathEscapesSandbox(p, testPath) {
+			return false
+		}
+	}
+	return true
+}
+
 // GetArtifact downloads an artifact into the specified task directory.
-func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir string) error {
-	ggURL, err := getGetterUrl(taskEnv, artifact)
+// clientTaskEnv is used for interpolating the destination directory of the artifact in the client
+// workloadTaskEnv is used for other interpolation operations
+func GetArtifact(workloadTaskEnv, clientTaskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir, sharedAllocDir string) error {
+	ggURL, err := getGetterUrl(workloadTaskEnv, artifact)
 	if err != nil {
 		return newGetError(artifact.GetterSource, err, false)
 	}
 
 	// Verify the destination is still in the task sandbox after interpolation
-	// Note: we *always* join here even if we get passed an absolute path so
-	// that $NOMAD_SECRETS_DIR and friends can be used and always fall inside
-	// the task working directory
-	dest := filepath.Join(taskDir, artifact.RelativeDest)
-	escapes := helper.PathEscapesSandbox(taskDir, dest)
+	dest := clientTaskEnv.ReplaceEnv(artifact.RelativeDest)
+	// if it was a relative path (like 'local' or '../alloc', join it with the task working directory)
+	if !filepath.IsAbs(dest) {
+		dest = filepath.Join(taskDir, dest)
+	}
+	dest = filepath.Clean(dest)
+	escapes := checkEscape(dest, []string{taskDir, sharedAllocDir})
 	if escapes {
 		return newGetError(artifact.RelativeDest,
 			errors.New("artifact destination path escapes the alloc directory"), false)
@@ -156,7 +174,7 @@ func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir st
 		mode = gg.ClientModeDir
 	}
 
-	headers := getHeaders(taskEnv, artifact.GetterHeaders)
+	headers := getHeaders(workloadTaskEnv, artifact.GetterHeaders)
 	if err := getClient(ggURL, headers, mode, dest).Get(); err != nil {
 		return newGetError(ggURL, err, true)
 	}

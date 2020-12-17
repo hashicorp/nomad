@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -52,7 +53,20 @@ func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 
 		h.logger.Debug("downloading artifact", "artifact", artifact.GetterSource)
 		//XXX add ctx to GetArtifact to allow cancelling long downloads
-		if err := getter.GetArtifact(req.TaskEnv, artifact, req.TaskDir.Dir); err != nil {
+		clientEnv := make(map[string]string, len(req.TaskEnv.EnvMap))
+		for k, v := range req.TaskEnv.EnvMap {
+			clientEnv[k] = v
+		}
+		clientEnv[taskenv.AllocDir] = req.TaskDir.SharedAllocDir
+		clientEnv[taskenv.TaskLocalDir] = req.TaskDir.Dir
+		clientTaskEnv := taskenv.NewTaskEnv(
+			clientEnv,
+			req.TaskEnv.DeviceEnv(),
+			req.TaskEnv.NodeAttrs,
+		)
+		if err := getter.GetArtifact(req.TaskEnv, clientTaskEnv, artifact,
+			req.TaskDir.Dir, req.TaskDir.SharedAllocDir); err != nil {
+
 			wrapped := structs.NewRecoverableError(
 				fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err),
 				true,

@@ -316,6 +316,15 @@ type Builder struct {
 	// secretsDir from task's perspective; eg /secrets
 	secretsDir string
 
+	// clientAllocDir is the alloc dir from the client's perspective; eg, <data-dir>/allocs/<allod-ic>/alloc
+	clientAllocDir string
+
+	// clientLocalDir is the local dir from the client's perspective; eg <data-dir>/allocs/<task>/local
+	clientLocalDir string
+
+	// clientSecrets is the secrets dir from the client's perspective; eg <data-dir>/allocs/<task>/secrets
+	clientSecretsDir string
+
 	cpuLimit         int64
 	memLimit         int64
 	taskName         string
@@ -525,6 +534,23 @@ func (b *Builder) Build() *TaskEnv {
 	return NewTaskEnv(cleanedEnv, deviceEnvs, nodeAttrs)
 }
 
+// BuildClient builds environment variables for interpolation, but with client-relative
+// paths for NOMAD_*_DIR.
+// BuildClient must be called after all the tasks environment values have been set.
+func (b *Builder) BuildClient() *TaskEnv {
+	env := b.Build()
+	if b.clientAllocDir != "" {
+		env.EnvMap[AllocDir] = b.clientAllocDir
+	}
+	if b.clientLocalDir != "" {
+		env.EnvMap[TaskLocalDir] = b.clientLocalDir
+	}
+	if b.clientSecretsDir != "" {
+		env.EnvMap[SecretsDir] = b.clientSecretsDir
+	}
+	return env
+}
+
 // Update task updates the environment based on a new alloc and task.
 func (b *Builder) UpdateTask(alloc *structs.Allocation, task *structs.Task) *Builder {
 	b.mu.Lock()
@@ -722,6 +748,27 @@ func (b *Builder) SetAllocDir(dir string) *Builder {
 func (b *Builder) SetTaskLocalDir(dir string) *Builder {
 	b.mu.Lock()
 	b.localDir = dir
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetClientAllocDir(dir string) *Builder {
+	b.mu.Lock()
+	b.clientAllocDir = dir
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetClientTaskLocalDir(dir string) *Builder {
+	b.mu.Lock()
+	b.clientLocalDir = dir
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetClientSecretDir(dir string) *Builder {
+	b.mu.Lock()
+	b.clientSecretsDir = dir
 	b.mu.Unlock()
 	return b
 }
