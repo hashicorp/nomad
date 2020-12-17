@@ -98,8 +98,9 @@ export default class TopoViz extends Component {
     allocations.forEach(allocation => {
       const nodeId = allocation.belongsTo('node').id();
       const nodeContainer = nodeIndex[nodeId];
-      if (!nodeContainer)
-        throw new Error(`Node ${nodeId} for alloc ${allocation.id} not in index.`);
+
+      // Ignore orphaned allocations
+      if (!nodeContainer) return;
 
       const allocationContainer = this.dataForAllocation(allocation, nodeContainer);
       nodeContainer.allocations.push(allocationContainer);
