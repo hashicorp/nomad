@@ -1,6 +1,6 @@
 /* eslint-disable ember-a11y-testing/a11y-audit-called */ // Covered in behaviours/fs
 import { module } from 'qunit';
-import { setupApplicationTest } from 'ember-qunit';
+import { setupApplicationTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 
 import setupMirage from 'ember-cli-mirage/test-support/setup-mirage';
 

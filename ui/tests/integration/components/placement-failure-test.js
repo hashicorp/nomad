@@ -1,6 +1,6 @@
 import { find, findAll, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
-import { setupRenderingTest } from 'ember-qunit';
+import { setupRenderingTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 import { assign } from '@ember/polyfills';
 import hbs from 'htmlbars-inline-precompile';
 import cleanWhitespace from '../../utils/clean-whitespace';

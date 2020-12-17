@@ -1,7 +1,7 @@
 import Service from '@ember/service';
 import RSVP from 'rsvp';
 import { module, test } from 'qunit';
-import { setupRenderingTest } from 'ember-qunit';
+import { setupRenderingTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 import { findAll, render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import PromiseObject from 'nomad-ui/utils/classes/promise-object';

@@ -4,7 +4,7 @@ import { click, findAll, find } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import sinon from 'sinon';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
-import { setupRenderingTest } from 'ember-qunit';
+import { setupRenderingTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import percySnapshot from '@percy/ember';
 

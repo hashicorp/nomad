@@ -1,7 +1,7 @@
 import EmberObject, { computed } from '@ember/object';
 import Service from '@ember/service';
 import { module, test } from 'qunit';
-import { setupRenderingTest } from 'ember-qunit';
+import { setupRenderingTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 import hbs from 'htmlbars-inline-precompile';
 import { find, render } from '@ember/test-helpers';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';

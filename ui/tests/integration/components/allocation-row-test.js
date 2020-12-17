@@ -1,5 +1,5 @@
 import { module, test } from 'qunit';
-import { setupRenderingTest } from 'ember-qunit';
+import { setupRenderingTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 import hbs from 'htmlbars-inline-precompile';
 import generateResources from '../../../mirage/data/generate-resources';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';

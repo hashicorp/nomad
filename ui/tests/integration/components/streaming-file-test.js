@@ -1,7 +1,7 @@
 import { run } from '@ember/runloop';
 import { find, settled, triggerKeyEvent } from '@ember/test-helpers';
 import { module, test } from 'qunit';
-import { setupRenderingTest } from 'ember-qunit';
+import { setupRenderingTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import percySnapshot from '@percy/ember';

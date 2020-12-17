@@ -3,7 +3,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { findAll, find, click, render } from '@ember/test-helpers';
 import sinon from 'sinon';
 import { module, test } from 'qunit';
-import { setupRenderingTest } from 'ember-qunit';
+import { setupRenderingTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import percySnapshot from '@percy/ember';
