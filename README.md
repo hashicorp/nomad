@@ -32,12 +32,12 @@ Nomad provides several key features:
 Quick Start
 ---
 
-### Testing Cluster
+#### Testing
 See [Learn: Getting Started](https://learn.hashicorp.com/collections/nomad/get-started) for instructions on setting up a local Nomad cluster for non-production use.
 
 Optionally, find Terraform manifests for bringing up a development Nomad cluster on a public cloud in the [`terraform`](terraform/) directory.
 
-### Production Cluster
+#### Production
 See [Nomad Reference Architecture](https://learn.hashicorp.com/tutorials/nomad/production-reference-architecture-vm-with-consul?in=nomad/production) for recommended practices and a reference architecture for production deployments.
 
 Documentation
