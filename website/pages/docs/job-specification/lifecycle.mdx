@@ -11,58 +11,130 @@ description: |-
 
 <Placement groups={['job', 'group', 'task', 'lifecycle']} />
 
-The `lifecycle` stanza is used to express task dependencies in Nomad and
-configures when a task is run within the lifecycle of a task group.
+The `lifecycle` stanza is used to express task dependencies in Nomad by
+configuring when a task is run within the lifecycle of a task group.
 
 Main tasks are tasks that do not have a `lifecycle` stanza. Lifecycle task hooks
-are run in relation to the main tasks. Tasks can be run as Prestart Hooks, which
-ensures the prestart task is run before the main tasks are run.
+specify when other tasks are run in relation to the main tasks.
+There are three different lifecycle hooks, indicating when a task is started:
+* prestart tasks are started immediately
+* poststart tasks are started after the main tasks are running
+* poststop tasks are started after the main tasks are dead
 
-Tasks can be run with an additional parameter to indicate that they are
-sidecars, which ensures that they are running over the duration of the whole
-task group. This will allow you to run a long-lived task in a task group for a
-batch job. The absence of the sidecar flag indicates that the task is ephemeral
-and the task will not be restarted if it completes successfully. This allows you
-to run an ephemeral prestart task in a task group for a service job, which can
-serve as initialization that occurs before the main services are started.
+Tasks can be run with an additional parameter indicating whether they are ephemeral
+tasks or "sidecar" tasks that are expected to run for the duration of the main tasks.
+The absence of the sidecar flag indicates that the task is ephemeral
+and should not be restarted if it completes successfully.
 
 Learn more about Nomad's task dependencies on the [HashiCorp Learn website][learn-taskdeps].
 
-```hcl
-job "docs" {
-  group "example" {
-
-    task "init" {
-      lifecycle {
-        hook    = "prestart"
-      }
-      ...
-    }
-
-    task "logging" {
-      lifecycle {
-        hook    = "prestart"
-        sidecar = true
-      }
-      ...
-    }
-
-    task "main" {
-      ...
-    }
-
-  }
-}
-```
-
 ## `lifecycle` Parameters
 
-- `hook` `(string: "prestart")` - Specifies when a task should be run within
-  the lifecycle of a group. Currently only Prestart Hooks are supported.
+- `hook` `(string: <required>)` - Specifies when a task should be run within
+  the lifecycle of a group. The following hooks are available:
+  - `prestart` - Will be started immediately. The main tasks will not start until
+    all `prestart` tasks with `sidecar = false` have completed successfully.
+  - `poststart` - Will be started once all main tasks are running.
+  - `poststop` - Will be started once all main tasks have stopped successfully
+    or exhausted their failure [retries](/docs/job-specification/restart).
 
-- `sidecar` `(bool: false)` - Controls whether or not a task is ephemeral or
-  long-lived within the task group. If a lifecycle task is ephemeral (`sidecar = false`), the task will not be restarted after it completes successfully. If a
-  lifecycle task is long-lived (`sidecar = true`) and it terminates, it will be
-  restarted as long as the task group is running in its allocation.
+- `sidecar` `(bool: false)` - Controls whether a task is ephemeral or
+  long-lived within the task group. If a lifecycle task is ephemeral
+  (`sidecar = false`), the task will not be restarted after it completes successfully. If a
+  lifecycle task is long-lived (`sidecar = true`) and terminates, it will be
+  restarted as long as the allocation is running.
 
 [learn-taskdeps]: https://learn.hashicorp.com/collections/nomad/task-deps
+
+## Lifecycle Examples
+
+The following include examples of archetypal lifecycle patterns.
+
+### Init Task Pattern
+
+Init tasks are useful for performing initialization steps that can't be more easily
+accomplished using [`template`](/docs/job-specification/template) or
+[`artifact`](/docs/job-specification/artifact), like waiting on other services
+or performing complex initialization.
+
+In the following example, the init task will block the main task from starting
+until the upstream database service is listening on the expected port:
+```hcl
+  task "wait-for-db" {
+    lifecycle {
+      hook = "prestart"
+      sidecar = false
+    }
+
+    driver = "exec"
+    config {
+      command = "sh"
+      args = ["-c", "while ! nc -z db.service.local.consul 8080; do sleep 1; done"]
+    }
+  }
+
+  task "main-app" {
+    ...
+  }
+```
+
+### Companion Sidecar Pattern
+
+Companion or sidecar tasks run alongside the main task to perform an auxiliary
+task. Common examples include proxies and log shippers. These tasks benefit from
+running in the same task group because of tighter filesystem and networking
+coupling.
+
+```hcl
+  task "fluentd" {
+    lifecycle {
+      hook = "poststart"
+      sidecar = true
+    }
+
+    driver = "docker"
+    config {
+      image = "fluentd/fluentd"
+    }
+
+    template {
+      destination = "local/fluentd.conf"
+      data = ...
+    }
+  }
+
+  task "main-app" {
+    ...
+  }
+```
+
+### Cleanup Task Pattern
+
+Poststop tasks run after the main tasks have stopped. They are useful for performing
+post-processing that isn't available in the main tasks or for recovering from
+failures in the main tasks.
+
+The example below shows a chatbot which posts a notification when the main tasks
+have stopped:
+```hcl
+  task "main-app" {
+    ...
+  }
+
+  task "announce" {
+    lifecycle {
+      hook = "poststop"
+    }
+
+    driver = "docker"
+    config {
+      image = "alpine/httpie"
+      command = "http"
+      args = [
+        "POST",
+        "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
+        "text='All done!'"
+      ]
+    }
+  }
+```
