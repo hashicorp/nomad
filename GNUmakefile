@@ -35,8 +35,7 @@ else
 	VERBOSE="true"
 endif
 
-
-ALL_TARGETS += linux_386 \
+ALL_TARGETS = linux_386 \
 	linux_amd64 \
 	linux_arm \
 	linux_arm64 \
@@ -45,20 +44,16 @@ ALL_TARGETS += linux_386 \
 
 endif
 
-# On s390x architecture, we only build for s390x
 ifeq (s390x,$(THIS_ARCH))
 ALL_TARGETS = linux_s390x
 endif
 
-# On MacOS, we only build for MacOS
 ifeq (Darwin,$(THIS_OS))
-ALL_TARGETS += darwin_amd64
-ALL_TARGETS += darwin_arm64
+ALL_TARGETS = darwin_amd64 darwin_arm64
 endif
 
-# On FreeBSD, we only build for FreeBSD
 ifeq (FreeBSD,$(THIS_OS))
-ALL_TARGETS += freebsd_amd64
+ALL_TARGETS = freebsd_amd64
 endif
 
 # include per-user customization after all variables are defined
