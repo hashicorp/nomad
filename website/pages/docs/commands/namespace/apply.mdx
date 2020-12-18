@@ -36,9 +36,15 @@ If ACLs are enabled, this command requires a management ACL token.
 
 ## Examples
 
-Create a namespace with a quota
+Create a namespace with a quota:
 
 ```shell-session
 $ nomad namespace apply -description "Prod API servers" -quota prod api-prod
 Successfully applied namespace "api-prod"!
+```
+
+Remove a quota from a namespace:
+
+```shell-session
+$ nomad namespace apply -quota= api-prod
 ```
