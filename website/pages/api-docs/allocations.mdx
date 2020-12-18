@@ -715,7 +715,8 @@ $ curl -X POST -d '{"Task": "redis" }' \
 
 ## Exec Allocation
 
-This endpoint enables executing a command inside the isolation container where an allocation is running.
+This endpoint executes a command inside the isolation container where an allocation is running.
+It opens a WebSocket to transmit input to and output from the command.
 
 | Method | Path                       | Produces                   |
 | ------ | -------------------------- | -------------------------- |
@@ -745,7 +746,7 @@ The table below shows this endpoint's support for
 
 ### Request Frames
 
-Request frames represent process `stdin` stream as well as TTY resize events.
+Request frames represent the `stdin` stream from the command as well as TTY resize events.
 When `?ws_handshake=true`, the first request frame must contain the authentication token.
 
 The following are valid formats:
@@ -769,7 +770,7 @@ The following are valid formats:
 
 ### Response Frames
 
-Response frames represent process `stdout`, `stderr` output, as well as exit code:
+Response frames represent `stdout` and `stderr` output from the command as well as exit codes:
 
 ```
 # transferring stdout data
