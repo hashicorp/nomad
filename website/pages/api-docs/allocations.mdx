@@ -743,9 +743,15 @@ The table below shows this endpoint's support for
 
 ### Request Frames
 
-Request frames represent process `stdin` stream as well as TTY resize events.  The following are valid format
+Request frames represent process `stdin` stream as well as TTY resize events.
+When ACLs are enabled, the first request frame must contain the authentication token.
+
+The following are valid format
 
 ```
+# sending authentication token
+{"version":1,"auth_token":"fc3c1968-8d31-5c50-9617-3db2e19ef32e"}
+
 # sending stdin data
 {"stdin": {"data": "...base64 encoded string of bytes ..."}}
 
