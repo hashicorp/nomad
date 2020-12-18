@@ -719,7 +719,7 @@ This endpoint enables executing a command inside the isolation container where a
 
 | Method | Path                       | Produces                   |
 | ------ | -------------------------- | -------------------------- |
-| `WebSocket` | `/v1/client/allocation/:alloc_id/exec` | websocket json streams |
+| `WebSocket` | `/v1/client/allocation/:alloc_id/exec` | WebSocket JSON streams |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
@@ -735,7 +735,7 @@ The table below shows this endpoint's support for
   must be the full UUID, not the short 8-character one. This is specified as
   part of the path.
 - `command` `(string: <required>)` - Specifies the command to be executed.  This
-  must be a json-encoded array of command to be executed, e.g. `["echo", "hi""]`
+  must be a JSON-encoded array of command to be executed, e.g. `["echo", "hi""]`
   or `["/bin/bash"]`. This is specified as url query parameter.
 - `task` `(string: <required>)` - Specifies the task name, as a url query parameter.
 - `tty` `(bool: false)` - Specifies whether a TTY is allocated for this task, as
