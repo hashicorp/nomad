@@ -35,6 +35,9 @@ means `""` for strings, `0` for integer or float values, and `false` for
 booleans. Since empty values are ignored you cannot disable a parameter like
 `server` mode once you've enabled it.
 
+Please note that `plugin` blocks for a given plugin always replace and
+override each other, rather than being merged.
+
 Here is an example Nomad agent configuration that runs in both client and server
 mode.
 
