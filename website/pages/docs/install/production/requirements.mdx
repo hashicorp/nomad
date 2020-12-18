@@ -1,13 +1,13 @@
 ---
 layout: docs
-page_title: Hardware Requirements
-sidebar_title: Hardware Requirements
+page_title: Requirements
+sidebar_title: Requirements
 description: |-
   Learn about Nomad client and server requirements such as memory and CPU
   recommendations, network topologies, and more.
 ---
 
-# Hardware Requirements
+# Requirements
 
 ## Resources (RAM, CPU, etc.)
 
@@ -107,3 +107,15 @@ net.bridge.bridge-nf-call-arptables = 1
 net.bridge.bridge-nf-call-ip6tables = 1
 net.bridge.bridge-nf-call-iptables = 1
 ```
+
+## User Permissions
+
+Nomad servers and Nomad clients have different requirements for permissions.
+
+Nomad servers should be run with the lowest possible permissions. They need
+access to their own data directory and the ability to bind to their ports. You
+should create a `nomad` user with the minimal set of required privileges.
+
+Nomad clients must be run as `root` due to the OS isolation mechanisms that
+require root privileges. The Nomad client's data directory should be owned by
+`root` with filesystem permissions set to `0700`.

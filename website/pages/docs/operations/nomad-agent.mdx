@@ -136,7 +136,12 @@ will attempt to make progress to recover from a software or network failure.
 
 ## Permissions
 
-Nomad servers should be run with the lowest possible permissions. Nomad clients
-must be run as root due to the OS isolation mechanisms that require root
-privileges. In all cases, it is recommended you create a `nomad` user with the
-minimal set of required privileges.
+Nomad servers and Nomad clients have different requirements for permissions.
+
+Nomad servers should be run with the lowest possible permissions. They need
+access to their own data directory and the ability to bind to their ports. You
+should create a `nomad` user with the minimal set of required privileges.
+
+Nomad clients must be run as `root` due to the OS isolation mechanisms that
+require root privileges. The Nomad client's data directory should be owned by
+`root` with filesystem permissions set to `0700`.
