@@ -740,11 +740,13 @@ The table below shows this endpoint's support for
 - `task` `(string: <required>)` - Specifies the task name, as a url query parameter.
 - `tty` `(bool: false)` - Specifies whether a TTY is allocated for this task, as
   a url query parameter.
+- `ws_handshake` `(bool: false)` - Specifies whether to expect the authentication
+  in the first frame.
 
 ### Request Frames
 
 Request frames represent process `stdin` stream as well as TTY resize events.
-When ACLs are enabled, the first request frame must contain the authentication token.
+When `?ws_handshake=true`, the first request frame must contain the authentication token.
 
 The following are valid formats:
 
