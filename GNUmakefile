@@ -26,22 +26,19 @@ ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD Windows MSYS_NT))
 $(error Building Nomad is currently only supported on Darwin and Linux; not $(THIS_OS))
 endif
 
-# On Linux we build for Linux and Windows
-ifeq (Linux,$(THIS_OS))
-
 ifeq ($(CI),true)
 	$(info Running in a CI environment, verbose mode is disabled)
 else
 	VERBOSE="true"
 endif
 
+ifeq (Linux,$(THIS_OS))
 ALL_TARGETS = linux_386 \
 	linux_amd64 \
 	linux_arm \
 	linux_arm64 \
 	windows_386 \
 	windows_amd64
-
 endif
 
 ifeq (s390x,$(THIS_ARCH))
