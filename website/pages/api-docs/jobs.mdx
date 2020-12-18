@@ -115,6 +115,9 @@ The table below shows this endpoint's support for
 - `JobModifyIndex` `(int: 0)` - Specifies the `JobModifyIndex` to enforce the
   current job is at.
 
+- `PreserveCounts` `(bool: false)` - If set, existing task group counts are
+  preserved, over those specified in the new job spec.
+
 - `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
   will be overridden. This allows a job to be registered when it would be denied
   by policy.
@@ -123,6 +126,10 @@ The table below shows this endpoint's support for
 
 ```json
 {
+  "EnforceIndex": false,
+  "PreserveCounts": true,
+  "PolicyOverride": false,
+  "JobModifyIndex": 0,
   "Job": {
     "ID": "example",
     "Name": "example",
@@ -558,6 +565,9 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
+- `diffs` `(bool: false)` - Specifies if the Diffs field should be populated,
+  containing the structured diff between the current and last job version.
+
 - `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified in
   the job file during submission). This is specified as part of the path.
 
@@ -571,151 +581,562 @@ $ curl \
 ### Sample Response
 
 ```json
-[
-  {
-    "Stop": false,
-    "Region": "global",
-    "ID": "example",
-    "ParentID": "",
-    "Name": "example",
-    "Type": "service",
-    "Priority": 50,
-    "AllAtOnce": false,
-    "Datacenters": ["dc1"],
-    "Constraints": null,
-    "Affinities": null,
-    "TaskGroups": [
-      {
-        "Name": "cache",
-        "Count": 1,
-        "Update": {
-          "Stagger": 0,
-          "MaxParallel": 1,
-          "HealthCheck": "checks",
-          "MinHealthyTime": 10000000000,
-          "HealthyDeadline": 300000000000,
-          "AutoRevert": false,
-          "Canary": 0
-        },
-        "Constraints": null,
-        "Affinities": null,
-        "RestartPolicy": {
-          "Attempts": 10,
-          "Interval": 300000000000,
-          "Delay": 25000000000,
-          "Mode": "delay"
-        },
-        "Spreads": [
-          {
-            "Attribute": "${node.datacenter}",
-            "SpreadTarget": null,
-            "Weight": 100
-          }
-        ],
-        "Tasks": [
-          {
-            "Name": "redis",
-            "Driver": "docker",
-            "User": "",
-            "Config": {
-              "image": "redis:3.2",
-              "port_map": [
+{
+  "Diffs": null,
+  "Index": 51,
+  "KnownLeader": true,
+  "LastContact": 0,
+  "Versions": [
+    {
+      "Affinities": null,
+      "AllAtOnce": false,
+      "Constraints": null,
+      "ConsulToken": "",
+      "CreateIndex": 44,
+      "Datacenters": [
+        "dc1"
+      ],
+      "Dispatched": false,
+      "ID": "example",
+      "JobModifyIndex": 44,
+      "Meta": null,
+      "ModifyIndex": 51,
+      "Multiregion": null,
+      "Name": "example",
+      "Namespace": "default",
+      "NomadTokenID": "",
+      "ParameterizedJob": null,
+      "ParentID": "",
+      "Payload": null,
+      "Periodic": null,
+      "Priority": 50,
+      "Region": "global",
+      "Spreads": null,
+      "Stable": true,
+      "Status": "running",
+      "StatusDescription": "",
+      "Stop": false,
+      "SubmitTime": 1608304897537638400,
+      "TaskGroups": [
+        {
+          "Affinities": null,
+          "Constraints": null,
+          "Count": 1,
+          "EphemeralDisk": {
+            "Migrate": false,
+            "SizeMB": 300,
+            "Sticky": false
+          },
+          "Meta": null,
+          "Migrate": {
+            "HealthCheck": "checks",
+            "HealthyDeadline": 300000000000,
+            "MaxParallel": 1,
+            "MinHealthyTime": 10000000000
+          },
+          "Name": "cache",
+          "Networks": [
+            {
+              "CIDR": "",
+              "DNS": null,
+              "Device": "",
+              "DynamicPorts": [
                 {
-                  "db": 6379
+                  "HostNetwork": "default",
+                  "Label": "db",
+                  "To": 6379,
+                  "Value": 0
                 }
-              ]
-            },
-            "Env": null,
-            "Services": [
-              {
-                "Name": "redis-cache",
-                "PortLabel": "db",
-                "Tags": ["global", "cache"],
-                "Checks": [
-                  {
-                    "Name": "alive",
-                    "Type": "tcp",
-                    "Command": "",
-                    "Args": null,
-                    "Path": "",
-                    "Protocol": "",
-                    "PortLabel": "",
-                    "Interval": 10000000000,
-                    "Timeout": 2000000000,
-                    "InitialStatus": "",
-                    "TLSSkipVerify": false
-                  }
+              ],
+              "IP": "",
+              "MBits": 0,
+              "Mode": "",
+              "ReservedPorts": null
+            }
+          ],
+          "ReschedulePolicy": {
+            "Attempts": 0,
+            "Delay": 30000000000,
+            "DelayFunction": "exponential",
+            "Interval": 0,
+            "MaxDelay": 3600000000000,
+            "Unlimited": true
+          },
+          "RestartPolicy": {
+            "Attempts": 2,
+            "Delay": 15000000000,
+            "Interval": 1800000000000,
+            "Mode": "fail"
+          },
+          "Scaling": null,
+          "Services": null,
+          "ShutdownDelay": null,
+          "Spreads": null,
+          "StopAfterClientDisconnect": null,
+          "Tasks": [
+            {
+              "Affinities": null,
+              "Artifacts": null,
+              "CSIPluginConfig": null,
+              "Config": {
+                "image": "redis:3.2",
+                "ports": [
+                  "db"
                 ]
-              }
-            ],
-            "Vault": null,
-            "Templates": null,
-            "Constraints": null,
-            "Affinities": null,
-            "Spreads": null,
-            "Resources": {
-              "CPU": 500,
-              "MemoryMB": 256,
-              "DiskMB": 0,
-              "Networks": [
+              },
+              "Constraints": null,
+              "DispatchPayload": null,
+              "Driver": "docker",
+              "Env": null,
+              "KillSignal": "",
+              "KillTimeout": 5000000000,
+              "Kind": "",
+              "Leader": false,
+              "Lifecycle": null,
+              "LogConfig": {
+                "MaxFileSizeMB": 10,
+                "MaxFiles": 10
+              },
+              "Meta": null,
+              "Name": "redis",
+              "Resources": {
+                "CPU": 500,
+                "Devices": null,
+                "DiskMB": 0,
+                "IOPS": 0,
+                "MemoryMB": 256,
+                "Networks": null
+              },
+              "RestartPolicy": {
+                "Attempts": 2,
+                "Delay": 15000000000,
+                "Interval": 1800000000000,
+                "Mode": "fail"
+              },
+              "ScalingPolicies": null,
+              "Services": null,
+              "ShutdownDelay": 0,
+              "Templates": null,
+              "User": "",
+              "Vault": null,
+              "VolumeMounts": null
+            }
+          ],
+          "Update": {
+            "AutoPromote": false,
+            "AutoRevert": false,
+            "Canary": 0,
+            "HealthCheck": "checks",
+            "HealthyDeadline": 300000000000,
+            "MaxParallel": 1,
+            "MinHealthyTime": 10000000000,
+            "ProgressDeadline": 600000000000,
+            "Stagger": 30000000000
+          },
+          "Volumes": null
+        }
+      ],
+      "Type": "service",
+      "Update": {
+        "AutoPromote": false,
+        "AutoRevert": false,
+        "Canary": 0,
+        "HealthCheck": "",
+        "HealthyDeadline": 0,
+        "MaxParallel": 1,
+        "MinHealthyTime": 0,
+        "ProgressDeadline": 0,
+        "Stagger": 30000000000
+      },
+      "VaultNamespace": "",
+      "VaultToken": "",
+      "Version": 0
+    }
+  ]
+}
+```
+
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/job/my-job/versions?diffs=true
+```
+
+```
+
+{
+  "Diffs": [
+    {
+      "Fields": null,
+      "ID": "example",
+      "Objects": null,
+      "TaskGroups": [
+        {
+          "Fields": null,
+          "Name": "cache",
+          "Objects": null,
+          "Tasks": [
+            {
+              "Annotations": null,
+              "Fields": [
                 {
-                  "Device": "",
-                  "CIDR": "",
-                  "IP": "",
-                  "MBits": 10,
-                  "ReservedPorts": null,
-                  "DynamicPorts": [
-                    {
-                      "Label": "db",
-                      "Value": 0
-                    }
-                  ]
+                  "Annotations": null,
+                  "Name": "Env[foo]",
+                  "New": "bar",
+                  "Old": "",
+                  "Type": "Added"
                 }
-              ]
-            },
-            "DispatchPayload": null,
-            "Meta": null,
-            "KillTimeout": 5000000000,
-            "LogConfig": {
-              "MaxFiles": 10,
-              "MaxFileSizeMB": 10
-            },
-            "Artifacts": null,
-            "Leader": false
-          }
-        ],
-        "EphemeralDisk": {
-          "Sticky": false,
-          "SizeMB": 300,
-          "Migrate": false
-        },
-        "Meta": null
-      }
-    ],
-    "Update": {
-      "Stagger": 10000000000,
-      "MaxParallel": 1,
-      "HealthCheck": "",
-      "MinHealthyTime": 0,
-      "HealthyDeadline": 0,
-      "AutoRevert": false,
-      "Canary": 0
+              ],
+              "Name": "redis",
+              "Objects": null,
+              "Type": "Edited"
+            }
+          ],
+          "Type": "Edited",
+          "Updates": null
+        }
+      ],
+      "Type": "Edited"
+    }
+  ],
+  "Index": 26,
+  "KnownLeader": true,
+  "LastContact": 0,
+  "Versions": [
+    {
+      "Affinities": null,
+      "AllAtOnce": false,
+      "Constraints": null,
+      "ConsulToken": "",
+      "CreateIndex": 10,
+      "Datacenters": [
+        "dc1"
+      ],
+      "Dispatched": false,
+      "ID": "example",
+      "JobModifyIndex": 16,
+      "Meta": null,
+      "ModifyIndex": 26,
+      "Multiregion": null,
+      "Name": "example",
+      "Namespace": "default",
+      "NomadTokenID": "",
+      "ParameterizedJob": null,
+      "ParentID": "",
+      "Payload": null,
+      "Periodic": null,
+      "Priority": 50,
+      "Region": "global",
+      "Spreads": null,
+      "Stable": true,
+      "Status": "running",
+      "StatusDescription": "",
+      "Stop": false,
+      "SubmitTime": 1608316675000588800,
+      "TaskGroups": [
+        {
+          "Affinities": null,
+          "Constraints": null,
+          "Count": 1,
+          "EphemeralDisk": {
+            "Migrate": false,
+            "SizeMB": 300,
+            "Sticky": false
+          },
+          "Meta": null,
+          "Migrate": {
+            "HealthCheck": "checks",
+            "HealthyDeadline": 300000000000,
+            "MaxParallel": 1,
+            "MinHealthyTime": 10000000000
+          },
+          "Name": "cache",
+          "Networks": [
+            {
+              "CIDR": "",
+              "DNS": null,
+              "Device": "",
+              "DynamicPorts": [
+                {
+                  "HostNetwork": "default",
+                  "Label": "db",
+                  "To": 6379,
+                  "Value": 0
+                }
+              ],
+              "IP": "",
+              "MBits": 0,
+              "Mode": "",
+              "ReservedPorts": null
+            }
+          ],
+          "ReschedulePolicy": {
+            "Attempts": 0,
+            "Delay": 30000000000,
+            "DelayFunction": "exponential",
+            "Interval": 0,
+            "MaxDelay": 3600000000000,
+            "Unlimited": true
+          },
+          "RestartPolicy": {
+            "Attempts": 2,
+            "Delay": 15000000000,
+            "Interval": 1800000000000,
+            "Mode": "fail"
+          },
+          "Scaling": null,
+          "Services": null,
+          "ShutdownDelay": null,
+          "Spreads": null,
+          "StopAfterClientDisconnect": null,
+          "Tasks": [
+            {
+              "Affinities": null,
+              "Artifacts": null,
+              "CSIPluginConfig": null,
+              "Config": {
+                "image": "redis:3.2",
+                "ports": [
+                  "db"
+                ]
+              },
+              "Constraints": null,
+              "DispatchPayload": null,
+              "Driver": "docker",
+              "Env": {
+                "foo": "bar"
+              },
+              "KillSignal": "",
+              "KillTimeout": 5000000000,
+              "Kind": "",
+              "Leader": false,
+              "Lifecycle": null,
+              "LogConfig": {
+                "MaxFileSizeMB": 10,
+                "MaxFiles": 10
+              },
+              "Meta": null,
+              "Name": "redis",
+              "Resources": {
+                "CPU": 500,
+                "Devices": null,
+                "DiskMB": 0,
+                "IOPS": 0,
+                "MemoryMB": 256,
+                "Networks": null
+              },
+              "RestartPolicy": {
+                "Attempts": 2,
+                "Delay": 15000000000,
+                "Interval": 1800000000000,
+                "Mode": "fail"
+              },
+              "ScalingPolicies": null,
+              "Services": null,
+              "ShutdownDelay": 0,
+              "Templates": null,
+              "User": "",
+              "Vault": null,
+              "VolumeMounts": null
+            }
+          ],
+          "Update": {
+            "AutoPromote": false,
+            "AutoRevert": false,
+            "Canary": 0,
+            "HealthCheck": "checks",
+            "HealthyDeadline": 300000000000,
+            "MaxParallel": 1,
+            "MinHealthyTime": 10000000000,
+            "ProgressDeadline": 600000000000,
+            "Stagger": 30000000000
+          },
+          "Volumes": null
+        }
+      ],
+      "Type": "service",
+      "Update": {
+        "AutoPromote": false,
+        "AutoRevert": false,
+        "Canary": 0,
+        "HealthCheck": "",
+        "HealthyDeadline": 0,
+        "MaxParallel": 1,
+        "MinHealthyTime": 0,
+        "ProgressDeadline": 0,
+        "Stagger": 30000000000
+      },
+      "VaultNamespace": "",
+      "VaultToken": "",
+      "Version": 1
     },
-    "Periodic": null,
-    "ParameterizedJob": null,
-    "Payload": null,
-    "Meta": null,
-    "VaultToken": "",
-    "Spreads": null,
-    "Status": "pending",
-    "StatusDescription": "",
-    "Stable": false,
-    "Version": 0,
-    "CreateIndex": 7,
-    "ModifyIndex": 7,
-    "JobModifyIndex": 7
-  }
-]
+    {
+      "Affinities": null,
+      "AllAtOnce": false,
+      "Constraints": null,
+      "ConsulToken": "",
+      "CreateIndex": 10,
+      "Datacenters": [
+        "dc1"
+      ],
+      "Dispatched": false,
+      "ID": "example",
+      "JobModifyIndex": 10,
+      "Meta": null,
+      "ModifyIndex": 10,
+      "Multiregion": null,
+      "Name": "example",
+      "Namespace": "default",
+      "NomadTokenID": "",
+      "ParameterizedJob": null,
+      "ParentID": "",
+      "Payload": null,
+      "Periodic": null,
+      "Priority": 50,
+      "Region": "global",
+      "Spreads": null,
+      "Stable": false,
+      "Status": "pending",
+      "StatusDescription": "",
+      "Stop": false,
+      "SubmitTime": 1608316662268190500,
+      "TaskGroups": [
+        {
+          "Affinities": null,
+          "Constraints": null,
+          "Count": 1,
+          "EphemeralDisk": {
+            "Migrate": false,
+            "SizeMB": 300,
+            "Sticky": false
+          },
+          "Meta": null,
+          "Migrate": {
+            "HealthCheck": "checks",
+            "HealthyDeadline": 300000000000,
+            "MaxParallel": 1,
+            "MinHealthyTime": 10000000000
+          },
+          "Name": "cache",
+          "Networks": [
+            {
+              "CIDR": "",
+              "DNS": null,
+              "Device": "",
+              "DynamicPorts": [
+                {
+                  "HostNetwork": "default",
+                  "Label": "db",
+                  "To": 6379,
+                  "Value": 0
+                }
+              ],
+              "IP": "",
+              "MBits": 0,
+              "Mode": "",
+              "ReservedPorts": null
+            }
+          ],
+          "ReschedulePolicy": {
+            "Attempts": 0,
+            "Delay": 30000000000,
+            "DelayFunction": "exponential",
+            "Interval": 0,
+            "MaxDelay": 3600000000000,
+            "Unlimited": true
+          },
+          "RestartPolicy": {
+            "Attempts": 2,
+            "Delay": 15000000000,
+            "Interval": 1800000000000,
+            "Mode": "fail"
+          },
+          "Scaling": null,
+          "Services": null,
+          "ShutdownDelay": null,
+          "Spreads": null,
+          "StopAfterClientDisconnect": null,
+          "Tasks": [
+            {
+              "Affinities": null,
+              "Artifacts": null,
+              "CSIPluginConfig": null,
+              "Config": {
+                "image": "redis:3.2",
+                "ports": [
+                  "db"
+                ]
+              },
+              "Constraints": null,
+              "DispatchPayload": null,
+              "Driver": "docker",
+              "Env": null,
+              "KillSignal": "",
+              "KillTimeout": 5000000000,
+              "Kind": "",
+              "Leader": false,
+              "Lifecycle": null,
+              "LogConfig": {
+                "MaxFileSizeMB": 10,
+                "MaxFiles": 10
+              },
+              "Meta": null,
+              "Name": "redis",
+              "Resources": {
+                "CPU": 500,
+                "Devices": null,
+                "DiskMB": 0,
+                "IOPS": 0,
+                "MemoryMB": 256,
+                "Networks": null
+              },
+              "RestartPolicy": {
+                "Attempts": 2,
+                "Delay": 15000000000,
+                "Interval": 1800000000000,
+                "Mode": "fail"
+              },
+              "ScalingPolicies": null,
+              "Services": null,
+              "ShutdownDelay": 0,
+              "Templates": null,
+              "User": "",
+              "Vault": null,
+              "VolumeMounts": null
+            }
+          ],
+          "Update": {
+            "AutoPromote": false,
+            "AutoRevert": false,
+            "Canary": 0,
+            "HealthCheck": "checks",
+            "HealthyDeadline": 300000000000,
+            "MaxParallel": 1,
+            "MinHealthyTime": 10000000000,
+            "ProgressDeadline": 600000000000,
+            "Stagger": 30000000000
+          },
+          "Volumes": null
+        }
+      ],
+      "Type": "service",
+      "Update": {
+        "AutoPromote": false,
+        "AutoRevert": false,
+        "Canary": 0,
+        "HealthCheck": "",
+        "HealthyDeadline": 0,
+        "MaxParallel": 1,
+        "MinHealthyTime": 0,
+        "ProgressDeadline": 0,
+        "Stagger": 30000000000
+      },
+      "VaultNamespace": "",
+      "VaultToken": "",
+      "Version": 0
+    }
+  ]
+}
 ```
 
 ## List Job Allocations
