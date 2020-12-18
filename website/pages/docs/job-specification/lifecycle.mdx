@@ -33,14 +33,14 @@ Learn more about Nomad's task dependencies on the [HashiCorp Learn website][lear
 - `hook` `(string: <required>)` - Specifies when a task should be run within
   the lifecycle of a group. The following hooks are available:
   - `prestart` - Will be started immediately. The main tasks will not start until
-    all `prestart` tasks with `sidecar = true` have completed successfully.
+    all `prestart` tasks with `sidecar = false` have completed successfully.
   - `poststart` - Will be started once all main tasks are running.
   - `poststop` - Will be started once all main tasks have stopped successfully
-    or exhausted their retries.
+    or exhausted their failure [retries](/docs/job-specification/restart).
 
 - `sidecar` `(bool: false)` - Controls whether a task is ephemeral or
-  long-lived within the task group. If a lifecycle task is ephemeral (`sidecar = false`),
-  the task will not be restarted after it completes successfully. If a
+  long-lived within the task group. If a lifecycle task is ephemeral
+  (`sidecar = false`), the task will not be restarted after it completes successfully. If a
   lifecycle task is long-lived (`sidecar = true`) and terminates, it will be
   restarted as long as the allocation is running.
 
