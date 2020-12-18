@@ -100,4 +100,18 @@ tls {
 }
 ```
 
+### `tls` Configuration Reloads
+
+Nomad supports dynamically reloading both client and server TLS
+configuration. To reload an agent's TLS configuration, first update the TLS
+block in the agent's configuration file and then send the Nomad agent a
+`SIGHUP` signal. Note that this will only reload a subset of the configuration
+file, including the TLS configuration.
+
+The agent reloads all its network connections when there are changes to its
+TLS configuration during a config reload via `SIGHUP`. Any new connections
+established will use the updated configuration, and any outstanding old
+connections will be closed. This process works when upgrading to TLS,
+downgrading from it, as well as rolling certificates.
+
 [raft]: https://github.com/hashicorp/serf 'Serf by HashiCorp'
