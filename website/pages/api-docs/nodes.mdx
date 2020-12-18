@@ -297,7 +297,58 @@ $ curl \
     "Cpu": {
       "CpuShares": 32000
     },
-    "Devices": null,
+    "Devices": [
+      {
+        "Attributes": {
+          "attrB": {
+            "Float": 10.5,
+            "Unit": "MW"
+          },
+          "attrA": {
+            "Int": 1024,
+            "Unit": "MB"
+          }
+        },
+        "Instances": [
+          {
+            "HealthDescription": "",
+            "Healthy": true,
+            "ID": "6a61929e-d572-092d-5921-156a913f8e56",
+            "Locality": {
+              "PciBusID": "77cda534-0660-2688-6c2e-ad6c62fc5ff3"
+            }
+          }
+        ],
+        "Name": "modelA",
+        "Type": "skeleton",
+        "Vendor": "hashicorp"
+      },
+      {
+        "Attributes": {
+          "attrB": {
+            "Float": 10.5,
+            "Unit": "MW"
+          },
+          "attrA": {
+            "Int": 1024,
+            "Unit": "MB"
+          }
+        },
+        "Instances": [
+          {
+            "HealthDescription": "",
+            "Healthy": true,
+            "ID": "73af5d3e-00f9-0786-9bc1-8f5ffa953f15",
+            "Locality": {
+              "PciBusID": "dbda64d1-ad25-6c7c-d3fb-798bae0581bf"
+            }
+          }
+        ],
+        "Name": "modelB",
+        "Type": "skeleton",
+        "Vendor": "hashicorp"
+      }
+    ],
     "Disk": {
       "DiskMB": 7890
     },
