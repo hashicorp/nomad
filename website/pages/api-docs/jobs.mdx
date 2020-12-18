@@ -408,6 +408,22 @@ $ curl \
       },
       "Tasks": [
         {
+          "Config": {
+            "command": "env",
+            "image": "alpine"
+          },
+          "Driver": "docker",
+          "Lifecycle": {
+            "Hook": "prestart",
+            "Sidecar": false
+          },
+          "Name": "init",
+          "Resources": {
+            "CPU": 100,
+            "MemoryMB": 300,
+          },
+        },
+        {
           "Name": "redis",
           "Driver": "docker",
           "User": "foo-user",
