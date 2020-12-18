@@ -293,10 +293,4 @@ If the request returns an error the audit log will reflect the error message.
 }
 ```
 
-### `audit` Configuration Reloads
-
-Nomad supports dynamically reloading the audit configuration. To reload an
-agent's audit configuration, first update the `audit` block in the agent's
-configuration file and then send the Nomad agent a `SIGHUP` signal.
-
 [glob]: https://github.com/ryanuber/go-glob/blob/master/README.md#example

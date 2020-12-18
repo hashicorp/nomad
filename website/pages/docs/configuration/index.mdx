@@ -323,7 +323,6 @@ its configuration. The fields that currently support reloading are:
   communication with Consul or Vault.
 - [`vault`][vault-reload]: note this only reloads the TLS configuration
   between Nomad and Vault, but not other configuration values.
-- [`audit`][audit-reload]: available in Nomad Enterprise only.
 
 In order to reload any other configuration values, you must restart the Nomad
 agent.
@@ -368,5 +367,4 @@ http_api_response_headers {
 [hcl]: https://github.com/hashicorp/hcl 'HashiCorp Configuration Language'
 [tls-reload]: /docs/configuration/tls#tls-configuration-reloads
 [vault-reload]: /docs/configuration/vault#vault-configuration-reloads
-[audit-reload]: /docs/configuration/audit#audit-configuration-reloads
 [GH-3885]: https://github.com/hashicorp/nomad/issues/3885
