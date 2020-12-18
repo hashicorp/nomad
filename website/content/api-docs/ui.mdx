@@ -34,6 +34,14 @@ This page lists all known jobs in a paginated, searchable, and sortable table.
 - `page` `(int: 0)` - Specifies the page in the jobs list that should be visible. This
   is specified as a query string parameter.
 
+- `type` `(string: "")` - Filters the list of jobs to those with a matching type.
+
+- `status` `(string: "")` - Filters the list of jobs to those with a matching status.
+
+- `dc` `(string: "")` - Filters the list of jobs to those allowed in a matching datacenter value.
+
+- `prefix` `(string: "")` - Filters the list of jobs to those with names that start with a matching prefix.
+
 ## Job Detail
 
 This page shows an overview of a specific job. Details include name, status, type,
@@ -314,6 +322,14 @@ table.
 - `page` `(int: 0)` - Specifies the page in the client nodes list that should be visible. This
   is specified as a query string parameter.
 
+- `class` `(string: "")` - Filters the list of clients to those with a matching node class.
+
+- `state` `(string: "")` - Filters the list of clients to those with a matching state. Options include `initializing`, `ready`, `down`, `ineligible`, and `draining`.
+
+- `dc` `(string: "")` - Filters the list of clients to those in the specified datacenter.
+
+- `volume` `(string: "")` - Filters the list of clients to those with a matching host volume (by name).
+
 ## Node Detail
 
 This page shows the details of a node, including the node name, status, full ID,
@@ -503,7 +519,7 @@ Each recommendation in the list will contain information including the job and t
 
 - `status` `(string: "")` - Filters the list of recommendations to only those for jobs with a matching status.
 
-- `datacenter` `(string: "")` - Filters the list of recommendations to only those for jobs allowed in a matching datacenter value.
+- `dc` `(string: "")` - Filters the list of recommendations to only those for jobs allowed in a matching datacenter value.
 
 - `prefix` `(string: "")` - Filters the list of recommendations to only those for jobs with names that start with a matching prefix.
 
