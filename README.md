@@ -2,7 +2,9 @@ Nomad [![Build Status](https://circleci.com/gh/hashicorp/nomad.svg?style=svg)](h
 ===
 
 <p align="center" style="text-align:center;">
-  <img alt="HashiCorp Nomad logo" src="website/public/img/logo-hashicorp.svg" width="500" />
+  <a href="https://nomadproject.io">
+    <img alt="HashiCorp Nomad logo" src="website/public/img/logo-hashicorp.svg" width="500" />
+  </a>
 </p>
 
 Nomad is a simple and flexible workload orchestrator to deploy and manage containers ([docker](https://www.nomadproject.io/docs/drivers/docker.html), [podman](https://www.nomadproject.io/docs/drivers/podman)), non-containerized applications ([executable](https://www.nomadproject.io/docs/drivers/exec.html), [Java](https://www.nomadproject.io/docs/drivers/java)), and virtual machines ([qemu](https://www.nomadproject.io/docs/drivers/qemu.html)) across on-prem and clouds at scale.
