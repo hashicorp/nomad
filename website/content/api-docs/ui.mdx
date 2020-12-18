@@ -31,7 +31,7 @@ This page lists all known jobs in a paginated, searchable, and sortable table.
 - `search` `(string: "")` - Specifies a regular expression used to filter the list of
   visible jobs. This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the jobs list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the jobs list that should be visible. This
   is specified as a query string parameter.
 
 - `type` `(string: "")` - Filters the list of jobs to those with a matching type.
@@ -83,7 +83,7 @@ based on the type of job.
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
   or ascending. This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the task groups list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the task groups list that should be visible. This
   is specified as a query string parameter.
 
 ### Job Definition
@@ -138,7 +138,7 @@ This page lists all allocations for a job in a table view. Each allocation inclu
 - `search` `(string: "")` - Specifies a regular expression used to filter the list of
   visible allocations. This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the allocations list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the allocations list that should be visible. This
   is specified as a query string parameter.
 
 ### Job Evaluations
@@ -179,7 +179,7 @@ allocations.
 - `search` `(string: "")` - Specifies a regular expression used to filter the list of
   visible allocations. This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the allocations list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the allocations list that should be visible. This
   is specified as a query string parameter.
 
 ## Allocation Detail
@@ -319,7 +319,7 @@ table.
 - `search` `(string: "")` - Specifies a regular expression used to filter the list of
   visible clients . This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the clients list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the clients list that should be visible. This
   is specified as a query string parameter.
 
 - `class` `(string: "")` - Filters the list of clients to those with a matching node class.
@@ -350,7 +350,7 @@ address, port, datacenter, allocations, and attributes.
 - `search` `(string: "")` - Specifies a regular expression used to filter the list of
   visible allocations. This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the allocations list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the allocations list that should be visible. This
   is specified as a query string parameter.
 
 ## Client Monitor
@@ -383,7 +383,7 @@ the leader.
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
   or ascending. This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the server agents list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the server agents list that should be visible. This
   is specified as a query string parameter.
 
 ## Server Detail
@@ -428,7 +428,7 @@ This page lists all CSI volumes registered with the Nomad cluster by namespace. 
 - `search` `(string: "")` - Specifies a regular expression used to filter the list of
   visible volumes. This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the volumes list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the volumes list that should be visible. This
   is specified as a query string parameter.
 
 ## CSI Volume
@@ -458,7 +458,7 @@ This page lists all CSI plugins registered with the Nomad cluster. Each plugin i
 - `search` `(string: "")` - Specifies a regular expression used to filter the list of
   visible plugins. This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the plugins list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the plugins list that should be visible. This
   is specified as a query string parameter.
 
 ## CSI Plugin
@@ -488,7 +488,7 @@ This page lists all allocations for a CSI plugin. Each allocation includes the s
 - `search` `(string: "")` - Specifies a regular expression used to filter the list of
   visible allocations. This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the allocations list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the allocations list that should be visible. This
   is specified as a query string parameter.
 
 - `healthy` `(boolean: unset)` - Filters the list of allocations to only those with a matching health value. Value must be `true`, `false`, or unset.
