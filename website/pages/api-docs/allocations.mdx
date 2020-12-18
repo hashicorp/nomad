@@ -771,16 +771,16 @@ Response frames represent process `stdout`, `stderr` output, as well as exit cod
 
 ```
 # transferring stdout data
-{"stdout" {"data": "...base64 encoded string of bytes ..."}}
+{"stdout": {"data": "...base64 encoded string of bytes ..."}}
 
 # signaling that host closed stdout
-{"stdout" {"close": true}}
+{"stdout": {"close": true}}
 
 # transferring stderr data
-{"stderr" {"data": "...base64 encoded string of bytes ..."}}
+{"stderr": {"data": "...base64 encoded string of bytes ..."}}
 
 # signaling that host closed stderr
-{"stderr" {"close": true}}
+{"stderr": {"close": true}}
 
 # signaling process exited
 {"exited": true, "result": {"exit_code": <exit_code_int>}}
