@@ -233,8 +233,8 @@ scripts.
 
 - `expose` `(bool: false)` - Specifies whether an [Expose Path](/docs/job-specification/expose#path-parameters)
   should be automatically generated for this check. Only compatible with
-  Connect-enabled task-group services using the default Connect proxy. Check
-  must be of [`type`][type] `http` or `grpc`.
+  Connect-enabled task-group services using the default Connect proxy. If set, check
+  [`type`][type] must be `http` or `grpc`, and check `name` must be set.
 
 - `port` `(string: <varies>)` - Specifies the label of the port on which the
   check will be performed. Note this is the _label_ of the port and not the port
