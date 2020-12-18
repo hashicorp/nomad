@@ -22,10 +22,6 @@ PROTO_COMPARE_TAG ?= v1.0.0$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 default: help
 
-ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD Windows MSYS_NT))
-$(error Building Nomad is currently only supported on Darwin and Linux; not $(THIS_OS))
-endif
-
 ifeq ($(CI),true)
 	$(info Running in a CI environment, verbose mode is disabled)
 else
@@ -53,11 +49,16 @@ ifeq (FreeBSD,$(THIS_OS))
 ALL_TARGETS = freebsd_amd64
 endif
 
+SUPPORTED_OSES = Darwin Linux FreeBSD Windows MSYS_NT
+
 # include per-user customization after all variables are defined
 -include GNUMakefile.local
 
 pkg/%/nomad: GO_OUT ?= $@
 pkg/%/nomad: ## Build Nomad for GOOS_GOARCH, e.g. pkg/linux_amd64/nomad
+ifeq (,$(findstring $(THIS_OS),$(SUPPORTED_OSES)))
+	$(warning WARNING: Building Nomad is only supported on $(SUPPORTED_OSES); not $(THIS_OS))
+endif
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=1 \
 		GOOS=$(firstword $(subst _, ,$*)) \
