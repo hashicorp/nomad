@@ -106,30 +106,22 @@ func (c *QuotaInitCommand) Run(args []string) int {
 
 var defaultHclQuotaSpec = strings.TrimSpace(`
 name = "default-quota"
-description = "Limit the shared default namespace"
+description = "Unlimited default"
 
-# Create a limit for the global region. Additional limits may
-# be specified in-order to limit other regions.
 limit {
     region = "global"
-    region_limit {
-        cpu = 2500
-        memory = 1000
-    }
+    region_limit {}
 }
 `)
 
 var defaultJsonQuotaSpec = strings.TrimSpace(`
 {
 	"Name": "default-quota",
-	"Description": "Limit the shared default namespace",
+	"Description": "Unlimited quota",
 	"Limits": [
 		{
 			"Region": "global",
-			"RegionLimit": {
-				"CPU": 2500,
-				"MemoryMB": 1000
-			}
+			"RegionLimit": {}
 		}
 	]
 }
