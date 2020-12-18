@@ -82,8 +82,10 @@ testing.
 
 - `addresses` `(Addresses: see below)` - Specifies the bind address for
   individual network services. Any values configured in this stanza take
-  precedence over the default [bind_addr](#bind_addr).
-  The values support [go-sockaddr/template format][go-sockaddr/template].
+  precedence over the default [bind_addr](#bind_addr). These values should be
+  specified in IP format without a port (ex. `"0.0.0.0"`). To set the port,
+  see the [`ports`](#ports) field. The values support [go-sockaddr/template
+  format][go-sockaddr/template].
 
   - `http` - The address the HTTP server is bound to. This is the most common
     bind address to change.
@@ -103,8 +105,9 @@ testing.
   values configured in this stanza take precedence over the default
   [bind_addr](#bind_addr).
 
-  If the bind address is `0.0.0.0` then the address
-  private IP found is advertised. You may advertise an alternate port as well.
+  If the bind address is `0.0.0.0` then the IP address of the default private
+  network interface advertised. The `advertise` values may include an
+  alternate port, but otherwise default to the port used by the bind address.
   The values support [go-sockaddr/template format][go-sockaddr/template].
 
   - `http` - The address to advertise for the HTTP interface. This should be
