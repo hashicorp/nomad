@@ -161,7 +161,7 @@ This page lists all evaluations for a job in a table view. Each evaluation inclu
 
 This page shows an overview of a specific task group. Details include the number of tasks, the aggregated amount of reserved CPU, memory, and disk, all associated allocations broken
 down by status, and a list of allocations. The list of allocations include details such as
-status, the node the allocation was placed on, and the current CPU and Memory usage of the
+status, the client the allocation was placed on, and the current CPU and Memory usage of the
 allocations.
 
 | Path                                | Produces    |
@@ -185,7 +185,7 @@ allocations.
 ## Allocation Detail
 
 This page shows details and events for an allocation. Details include the job the allocation
-belongs to, the node the allocation is placed on, a list of all tasks, and lists of task
+belongs to, the client the allocation is placed on, a list of all tasks, and lists of task
 events per task. Each task in the task list includes the task name, state, last event, time,
 and addresses. Each task event in a task history list includes the time, type, and
 description of the event.
@@ -299,27 +299,27 @@ This page is meant to be rendered in a popup window.
 
 - `allocation` `(string: "")` - An allocation ID that specifies which allocation to exec into. When not specified, an allocation for the specified task group is chosen at random.
 
-## Nodes List
+## Clients List
 
-This page lists all nodes in the Nomad cluster in a sortable, searchable, paginated
+This page lists all clients in the Nomad cluster in a sortable, searchable, paginated
 table.
 
-| Path        | Produces    |
-| ----------- | ----------- |
-| `/ui/nodes` | `text/html` |
+| Path          | Produces    |
+| ------------- | ----------- |
+| `/ui/clients` | `text/html` |
 
 ### Parameters
 
-- `sort` `(string: "")` - Specifies the property the list of client nodes should be sorted by.
+- `sort` `(string: "")` - Specifies the property the list of clients should be sorted by.
   This is specified as a query string parameter.
 
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
   or ascending. This is specified as a query string parameter.
 
 - `search` `(string: "")` - Specifies a regular expression used to filter the list of
-  visible client nodes. This is specified as a query string parameter.
+  visible clients . This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the client nodes list that should be visible. This
+- `page` `(int: 0)` - Specifies the page in the clients list that should be visible. This
   is specified as a query string parameter.
 
 - `class` `(string: "")` - Filters the list of clients to those with a matching node class.
@@ -330,14 +330,14 @@ table.
 
 - `volume` `(string: "")` - Filters the list of clients to those with a matching host volume (by name).
 
-## Node Detail
+## Client Detail
 
-This page shows the details of a node, including the node name, status, full ID,
+This page shows the details of a client, including the client name, status, full ID,
 address, port, datacenter, allocations, and attributes.
 
-| Path                 | Produces    |
-| -------------------- | ----------- |
-| `/ui/nodes/:node_id` | `text/html` |
+| Path                     | Produces    |
+| ------------------------ | ----------- |
+| `/ui/clients/:client_id` | `text/html` |
 
 ### Parameters
 
@@ -353,13 +353,13 @@ address, port, datacenter, allocations, and attributes.
 - `page` `(int: 0)` - Specifies the page in the allocations list that should be visible. This
   is specified as a query string parameter.
 
-## Node Monitor
+## Client Monitor
 
-This page streams log messages from a node's agent. It is the equivalent to the `nomad monitor` command with `-node-id` set to the node specified in the URL.
+This page streams log messages from a client's agent. It is the equivalent to the `nomad monitor` command with `-node-id` set to the client specified in the URL.
 
-| Path                         | Produces    |
-| ---------------------------- | ----------- |
-| `/ui/nodes/:node_id/monitor` | `text/html` |
+| Path                             | Produces    |
+| -------------------------------- | ----------- |
+| `/ui/clients/:client_id/monitor` | `text/html` |
 
 ### Parameters
 
