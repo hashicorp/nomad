@@ -1616,9 +1616,6 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 		Name   string
 		Config func() *TaskTemplateManagerConfig
 
-		// Set to skip a test; remove once bugs are fixed
-		Skip bool
-
 		// Expected paths to be returned if Err is nil
 		SourcePath string
 		DestPath   string
@@ -1740,7 +1737,6 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 		//      joining of the task dir onto the destination seems like
 		//      a bug. https://github.com/hashicorp/nomad/issues/9389
 		{
-			Skip: true,
 			Name: "RawExecOk",
 			Config: func() *TaskTemplateManagerConfig {
 				return &TaskTemplateManagerConfig{
@@ -1798,9 +1794,6 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 	for i := range cases {
 		tc := cases[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			if tc.Skip {
-				t.Skip("FIXME: Skipping broken test")
-			}
 			config := tc.Config()
 			mapping, err := parseTemplateConfigs(config)
 			if tc.Err == nil {
