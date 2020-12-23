@@ -47,8 +47,10 @@ check {
 
 ## Dynamic Application Sizing Average Strategy Plugin
 
-~> **Enterprise Only!** This functionality only exists in Nomad Autoscaler
+<EnterpriseAlert>
+This functionality only exists in Nomad Autoscaler
 Enterprise. This is not present in the open source version of Nomad Autoscaler.
+</EnterpriseAlert>
 
 The `app-sizing-avg` plugin calculates the average value seen across the dataset.
 The plugin applies an exponential weight decay to data, in order to give
@@ -78,8 +80,10 @@ check "avg" {
 
 ## Dynamic Application Sizing Max Strategy Plugin
 
-~> **Enterprise Only!** This functionality only exists in Nomad Autoscaler
+<EnterpriseAlert>
+This functionality only exists in Nomad Autoscaler
 Enterprise. This is not present in the open source version of Nomad Autoscaler.
+</EnterpriseAlert>
 
 The `app-sizing-max` plugin calculates the maximum value seen for the target
 resource within the available dataset. This plugin is ideally suited for memory
@@ -107,8 +111,10 @@ check "max" {
 
 ## Dynamic Application Sizing Percentile Strategy Plugin
 
-~> **Enterprise Only!** This functionality only exists in Nomad Autoscaler
+<EnterpriseAlert>
+This functionality only exists in Nomad Autoscaler
 Enterprise. This is not present in the open source version of Nomad Autoscaler.
+</EnterpriseAlert>
 
 The `app-sizing-percentile` plugin calculates its result based on a desired
 percentile value from the dataset.
