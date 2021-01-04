@@ -1,14 +1,14 @@
 package uuid
 
 import (
-	crand "crypto/rand"
+	"crypto/rand"
 	"fmt"
 )
 
-// Generate is used to generate a random UUID
+// Generate is used to generate a random UUID.
 func Generate() string {
 	buf := make([]byte, 16)
-	if _, err := crand.Read(buf); err != nil {
+	if _, err := rand.Read(buf); err != nil {
 		panic(fmt.Errorf("failed to read random bytes: %v", err))
 	}
 
@@ -18,4 +18,9 @@ func Generate() string {
 		buf[6:8],
 		buf[8:10],
 		buf[10:16])
+}
+
+// Short is used to generate the first 8 characters of a UUID.
+func Short() string {
+	return Generate()[0:8]
 }
