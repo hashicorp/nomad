@@ -1,3 +1,8 @@
+## 0.12.11 (March 18, 2021)
+
+BUG FIXES:
+ * server: _Backport from v1.0.2 - Fixed a bug where new servers may bootstrap prematurely when configured with `bootstrap_expect = 0` [[GH-9672](https://github.com/hashicorp/nomad/issues/9672)]
+
 ## 0.12.10 (January 28, 2021)
 
 SECURITY:
