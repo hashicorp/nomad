@@ -99,15 +99,14 @@ func (l *AllocExecCommand) AutocompleteArgs() complete.Predictor {
 func (l *AllocExecCommand) Name() string { return "alloc exec" }
 
 func (l *AllocExecCommand) Run(args []string) int {
+	var job, stdinOpt, ttyOpt bool
+	var task, escapeChar string
+
 	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
-
-	var job, stdinOpt, ttyOpt bool
 	flags.BoolVar(&job, "job", false, "")
 	flags.BoolVar(&stdinOpt, "i", true, "")
 	flags.BoolVar(&ttyOpt, "t", isTty(), "")
-
-	var escapeChar, task string
 	flags.StringVar(&escapeChar, "e", "~", "")
 	flags.StringVar(&task, "task", "", "")
 
@@ -115,9 +114,9 @@ func (l *AllocExecCommand) Run(args []string) int {
 		return 1
 	}
 
-	positionalArgs := flags.Args()
+	args := flags.Args()
 
-	if len(positionalArgs) < 1 {
+	if len(args) < 1 {
 		if job {
 			l.Ui.Error("A job ID is required")
 		} else {
@@ -127,7 +126,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 		return 1
 	}
 
-	jobOrAllocID := positionalArgs[0]
+	jobOrAllocID := args[0]
 	if len(jobOrAllocID) == 1 {
 		if job {
 			l.Ui.Error("Job ID must contain at least two characters")
@@ -137,7 +136,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 		return 1
 	}
 
-	if len(positionalArgs) < 2 {
+	if len(args) < 2 {
 		l.Ui.Error("A command is required")
 		l.Ui.Error(commandErrorText(l))
 		return 1
@@ -221,7 +220,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 		l.Stderr = os.Stderr
 	}
 
-	code, err := l.execImpl(client, alloc, task, ttyOpt, positionalArgs[1:], escapeChar, l.Stdin, l.Stdout, l.Stderr)
+	code, err := l.execImpl(client, alloc, task, ttyOpt, args[1:], escapeChar, l.Stdin, l.Stdout, l.Stderr)
 	if err != nil {
 		l.Ui.Error(fmt.Sprintf("failed to exec into task: %v", err))
 		return 1
