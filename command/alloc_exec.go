@@ -114,7 +114,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 		return 1
 	}
 
-	args := flags.Args()
+	args = flags.Args()
 
 	if len(args) < 1 {
 		if job {
