@@ -5,6 +5,7 @@ IMPROVEMENTS:
 
 BUG FIXES:
  * template: Fixed a bug where dynamic secrets did not trigger the template `change_mode` after a client restart. [[GH-9636](https://github.com/hashicorp/nomad/issues/9636)]
+ * server: Fixed a bug where new servers may bootstrap prematurely when configured with `bootstrap_expect = 0`.
 
 ## 1.0.1 (December 16, 2020)
 
