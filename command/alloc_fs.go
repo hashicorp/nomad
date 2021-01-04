@@ -409,5 +409,5 @@ func getRandomJobAllocID(client *api.Client, jobID string) (string, error) {
 		return "", err
 	}
 
-	return alloc.ID, err
+	return alloc.ID, nil
 }
