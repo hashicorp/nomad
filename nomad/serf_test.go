@@ -473,7 +473,10 @@ func TestNomad_NonBootstraping_ShouldntBootstap(t *testing.T) {
 		t.Fatalf("expected 1 local peer: %v", err)
 	})
 
-	time.Sleep(500 * time.Millisecond)
+	// as non-bootstrap mode is the initial state, we must wait long enough to assert that
+	// we don't bootstrap even if enough time has elapsed.  Also, explicitly attempt bootstrap.
+	s1.maybeBootstrap()
+	time.Sleep(100 * time.Millisecond)
 
 	bootstrapped := atomic.LoadInt32(&s1.config.Bootstrapped)
 	require.Zero(t, bootstrapped, "expecting non-bootstrapped servers")

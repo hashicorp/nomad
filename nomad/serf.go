@@ -91,6 +91,12 @@ func (s *Server) nodeJoin(me serf.MemberEvent) {
 
 // maybeBootstrap is used to handle bootstrapping when a new server joins
 func (s *Server) maybeBootstrap() {
+
+	// redundant check to ease testing
+	if s.config.BootstrapExpect == 0 {
+		return
+	}
+
 	// Bootstrap can only be done if there are no committed logs, remove our
 	// expectations of bootstrapping. This is slightly cheaper than the full
 	// check that BootstrapCluster will do, so this is a good pre-filter.
