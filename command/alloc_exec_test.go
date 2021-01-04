@@ -55,11 +55,6 @@ func TestAllocExecCommand_Fails(t *testing.T) {
 			`A job ID is required`,
 		},
 		{
-			"job id too short",
-			[]string{"-address=" + url, "-job", "2", "/bin/bash"},
-			`Job ID must contain at least two characters`,
-		},
-		{
 			"job not found",
 			[]string{"-address=" + url, "-job", "example", "/bin/bash"},
 			`job "example" doesn't exist`,

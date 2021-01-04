@@ -126,13 +126,8 @@ func (l *AllocExecCommand) Run(args []string) int {
 		return 1
 	}
 
-	jobOrAllocID := args[0]
-	if len(jobOrAllocID) == 1 {
-		if job {
-			l.Ui.Error("Job ID must contain at least two characters")
-		} else {
-			l.Ui.Error("Alloc ID must contain at least two characters")
-		}
+	if !job && len(args[0]) == 1 {
+		l.Ui.Error("Alloc ID must contain at least two characters")
 		return 1
 	}
 
@@ -164,29 +159,32 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 	var allocStub *api.AllocationListStub
 	if job {
-		allocStub, err = getRandomJobAlloc(client, jobOrAllocID)
+		jobID := args[0]
+		allocStub, err = getRandomJobAlloc(client, jobID)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
 		}
 	} else {
-		allocs, _, err := client.Allocations().PrefixList(sanitizeUUIDPrefix(jobOrAllocID))
+		allocID := args[0]
+		allocs, _, err := client.Allocations().PrefixList(sanitizeUUIDPrefix(allocID))
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
 			return 1
 		}
 
-		switch len(allocs) {
-		case 1:
-			allocStub = allocs[0]
-		case 0:
-			l.Ui.Error(fmt.Sprintf("No allocation(s) with prefix or id %q found", jobOrAllocID))
+		if len(allocs) == 0 {
+			l.Ui.Error(fmt.Sprintf("No allocation(s) with prefix or id %q found", allocID))
 			return 1
-		default:
+		}
+
+		if len(allocs) > 1 {
 			out := formatAllocListStubs(allocs, false, shortId)
 			l.Ui.Error(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", out))
 			return 1
 		}
+
+		allocStub = allocs[0]
 	}
 
 	q := &api.QueryOptions{Namespace: allocStub.Namespace}
