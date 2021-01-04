@@ -4,6 +4,9 @@ set -e
 # These tasks can't be executed during AMI builds because they rely on
 # instance-specific data.
 
+mkdir -p /var/run/dnsmasq
+mkdir -p /etc/dnsmasq.d
+
 # Add hostname to /etc/hosts
 echo "127.0.0.1 $(hostname)" | tee --append /etc/hosts
 
