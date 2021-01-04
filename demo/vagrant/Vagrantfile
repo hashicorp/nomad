@@ -69,7 +69,7 @@ nomad -autocomplete-install
 SCRIPT
 
 Vagrant.configure(2) do |config|
-  config.vm.box = "bento/ubuntu-20.04" # 18.04 LTS
+  config.vm.box = "bento/ubuntu-18.04" # 18.04 LTS
   config.vm.hostname = "nomad"
   config.vm.provision "shell", inline: $script, privileged: false
 
