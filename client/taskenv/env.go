@@ -339,7 +339,6 @@ func (t *TaskEnv) checkEscape(testPath string) bool {
 // result is an absolute path on the client filesystem.
 //
 // If the interpolated result is a relative path, it is made absolute
-// wrt to the task working directory.
 // If joinEscape, an interpolated path that escapes will be joined with the
 // task dir.
 // The result is checked to see whether it (still) escapes both the task working
