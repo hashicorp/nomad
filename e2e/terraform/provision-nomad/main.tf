@@ -34,6 +34,7 @@ resource "null_resource" "provision_nomad" {
   # Run the provisioner as a local-exec'd ssh command as a workaround for
   # Windows remote-exec zero-byte scripts bug:
   # https://github.com/hashicorp/terraform/issues/25634
+  # https://github.com/hashicorp/terraform/blob/master/CHANGELOG.md#0150-unreleased
   #
   # The retry behavior and explicit PasswordAuthenticaiton flag here are to
   # workaround a race with the Windows userdata script that installs the
