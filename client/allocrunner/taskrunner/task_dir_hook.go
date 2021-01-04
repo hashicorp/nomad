@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	log "github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cconfig "github.com/hashicorp/nomad/client/config"
@@ -76,6 +77,12 @@ func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 
 // setEnvvars sets path and host env vars depending on the FS isolation used.
 func setEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *allocdir.TaskDir, conf *cconfig.Config) {
+
+	envBuilder.SetClientTaskRoot(taskDir.Dir)
+	envBuilder.SetClientSharedAllocDir(taskDir.SharedAllocDir)
+	envBuilder.SetClientTaskLocalDir(taskDir.LocalDir)
+	envBuilder.SetClientTaskSecretsDir(taskDir.SecretsDir)
+
 	// Set driver-specific environment variables
 	switch fsi {
 	case drivers.FSIsolationNone:
@@ -93,11 +100,10 @@ func setEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *a
 	// Set the host environment variables for non-image based drivers
 	if fsi != drivers.FSIsolationImage {
 		// COMPAT(1.0) using inclusive language, blacklist is kept for backward compatibility.
-		denylist := conf.ReadAlternativeDefault(
+		filter := strings.Split(conf.ReadAlternativeDefault(
 			[]string{"env.denylist", "env.blacklist"},
 			cconfig.DefaultEnvDenylist,
-		)
-		filter := strings.Split(denylist, ",")
+		), ",")
 		envBuilder.SetHostEnvvars(filter)
 	}
 }

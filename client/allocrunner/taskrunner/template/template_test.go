@@ -161,6 +161,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 		t.Fatalf("Failed to make tmpdir: %v", err)
 	}
 	harness.taskDir = d
+	harness.envBuilder.SetClientTaskRoot(harness.taskDir)
 
 	if consul {
 		harness.consul, err = ctestutil.NewTestServerConfigT(t, func(c *ctestutil.TestServerConfig) {
@@ -1300,7 +1301,8 @@ func TestTaskTemplateManager_Env_Missing(t *testing.T) {
 		},
 	}
 
-	if vars, err := loadTemplateEnv(templates, d, taskenv.NewEmptyTaskEnv()); err == nil {
+	taskEnv := taskenv.NewEmptyBuilder().SetClientTaskRoot(d).Build()
+	if vars, err := loadTemplateEnv(templates, taskEnv); err == nil {
 		t.Fatalf("expected an error but instead got env vars: %#v", vars)
 	}
 }
@@ -1334,9 +1336,12 @@ func TestTaskTemplateManager_Env_InterpolatedDest(t *testing.T) {
 	// Build the env
 	taskEnv := taskenv.NewTaskEnv(
 		map[string]string{"NOMAD_META_path": "exists"},
-		map[string]string{}, map[string]string{})
+		map[string]string{"NOMAD_META_path": "exists"},
+		map[string]string{},
+		map[string]string{},
+		d, "")
 
-	vars, err := loadTemplateEnv(templates, d, taskEnv)
+	vars, err := loadTemplateEnv(templates, taskEnv)
 	require.NoError(err)
 	require.Contains(vars, "FOO")
 	require.Equal(vars["FOO"], "bar")
@@ -1375,7 +1380,8 @@ func TestTaskTemplateManager_Env_Multi(t *testing.T) {
 		},
 	}
 
-	vars, err := loadTemplateEnv(templates, d, taskenv.NewEmptyTaskEnv())
+	taskEnv := taskenv.NewEmptyBuilder().SetClientTaskRoot(d).Build()
+	vars, err := loadTemplateEnv(templates, taskEnv)
 	if err != nil {
 		t.Fatalf("expected no error: %v", err)
 	}
@@ -1585,6 +1591,10 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 		b.SetAllocDir(allocdir.SharedAllocContainerPath)
 		b.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
 		b.SetSecretsDir(allocdir.TaskSecretsContainerPath)
+		b.SetClientTaskRoot(taskDir.Dir)
+		b.SetClientSharedAllocDir(taskDir.SharedAllocDir)
+		b.SetClientTaskLocalDir(taskDir.LocalDir)
+		b.SetClientTaskSecretsDir(taskDir.SecretsDir)
 		return b
 	}
 
@@ -1595,15 +1605,16 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 		b.SetAllocDir(taskDir.SharedAllocDir)
 		b.SetTaskLocalDir(taskDir.LocalDir)
 		b.SetSecretsDir(taskDir.SecretsDir)
+		b.SetClientTaskRoot(taskDir.Dir)
+		b.SetClientSharedAllocDir(taskDir.SharedAllocDir)
+		b.SetClientTaskLocalDir(taskDir.LocalDir)
+		b.SetClientTaskSecretsDir(taskDir.SecretsDir)
 		return b
 	}
 
 	cases := []struct {
 		Name   string
 		Config func() *TaskTemplateManagerConfig
-
-		// Set to skip a test; remove once bugs are fixed
-		Skip bool
 
 		// Expected paths to be returned if Err is nil
 		SourcePath string
@@ -1726,7 +1737,6 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 		//      joining of the task dir onto the destination seems like
 		//      a bug. https://github.com/hashicorp/nomad/issues/9389
 		{
-			Skip: true,
 			Name: "RawExecOk",
 			Config: func() *TaskTemplateManagerConfig {
 				return &TaskTemplateManagerConfig{
@@ -1784,9 +1794,6 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 	for i := range cases {
 		tc := cases[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			if tc.Skip {
-				t.Skip("FIXME: Skipping broken test")
-			}
 			config := tc.Config()
 			mapping, err := parseTemplateConfigs(config)
 			if tc.Err == nil {

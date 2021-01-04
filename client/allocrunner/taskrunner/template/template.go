@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,7 +17,6 @@ import (
 	"github.com/hashicorp/consul-template/signals"
 	envparse "github.com/hashicorp/go-envparse"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -211,7 +209,7 @@ func (tm *TaskTemplateManager) run() {
 	}
 
 	// Read environment variables from env templates before we unblock
-	envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.TaskDir, tm.config.EnvBuilder.Build())
+	envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.EnvBuilder.Build())
 	if err != nil {
 		tm.config.Lifecycle.Kill(context.Background(),
 			structs.NewTaskEvent(structs.TaskKilling).
@@ -416,7 +414,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 		}
 
 		// Read environment variables from templates
-		envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.TaskDir, tm.config.EnvBuilder.Build())
+		envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.EnvBuilder.Build())
 		if err != nil {
 			tm.config.Lifecycle.Kill(context.Background(),
 				structs.NewTaskEvent(structs.TaskKilling).
@@ -571,41 +569,20 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 	sandboxEnabled := !config.ClientConfig.TemplateConfig.DisableSandbox
 	taskEnv := config.EnvBuilder.Build()
 
-	// Make NOMAD_{ALLOC,TASK,SECRETS}_DIR relative paths to avoid treating
-	// them as sandbox escapes when using containers.
-	if taskEnv.EnvMap[taskenv.AllocDir] == allocdir.SharedAllocContainerPath {
-		taskEnv.EnvMap[taskenv.AllocDir] = allocdir.SharedAllocName
-	}
-	if taskEnv.EnvMap[taskenv.TaskLocalDir] == allocdir.TaskLocalContainerPath {
-		taskEnv.EnvMap[taskenv.TaskLocalDir] = allocdir.TaskLocal
-	}
-	if taskEnv.EnvMap[taskenv.SecretsDir] == allocdir.TaskSecretsContainerPath {
-		taskEnv.EnvMap[taskenv.SecretsDir] = allocdir.TaskSecrets
-	}
-
 	ctmpls := make(map[*ctconf.TemplateConfig]*structs.Template, len(config.Templates))
 	for _, tmpl := range config.Templates {
 		var src, dest string
 		if tmpl.SourcePath != "" {
-			src = taskEnv.ReplaceEnv(tmpl.SourcePath)
-			if !filepath.IsAbs(src) {
-				src = filepath.Join(config.TaskDir, src)
-			} else {
-				src = filepath.Clean(src)
-			}
-			escapes := helper.PathEscapesSandbox(config.TaskDir, src)
+			var escapes bool
+			src, escapes = taskEnv.ClientPath(tmpl.SourcePath, false)
 			if escapes && sandboxEnabled {
 				return nil, sourceEscapesErr
 			}
 		}
 
 		if tmpl.DestPath != "" {
-			dest = taskEnv.ReplaceEnv(tmpl.DestPath)
-			// Note: we *always* join here even if we get passed an absolute
-			// path so that $NOMAD_SECRETS_DIR and friends can be used and
-			// always fall inside the task working directory
-			dest = filepath.Join(config.TaskDir, dest)
-			escapes := helper.PathEscapesSandbox(config.TaskDir, dest)
+			var escapes bool
+			dest, escapes = taskEnv.ClientPath(tmpl.DestPath, true)
 			if escapes && sandboxEnabled {
 				return nil, destEscapesErr
 			}
@@ -740,14 +717,15 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 }
 
 // loadTemplateEnv loads task environment variables from all templates.
-func loadTemplateEnv(tmpls []*structs.Template, taskDir string, taskEnv *taskenv.TaskEnv) (map[string]string, error) {
+func loadTemplateEnv(tmpls []*structs.Template, taskEnv *taskenv.TaskEnv) (map[string]string, error) {
 	all := make(map[string]string, 50)
 	for _, t := range tmpls {
 		if !t.Envvars {
 			continue
 		}
 
-		dest := filepath.Join(taskDir, taskEnv.ReplaceEnv(t.DestPath))
+		// we checked escape before we rendered the file
+		dest, _ := taskEnv.ClientPath(t.DestPath, true)
 		f, err := os.Open(dest)
 		if err != nil {
 			return nil, fmt.Errorf("error opening env template: %v", err)
