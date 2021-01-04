@@ -1,6 +1,10 @@
 job "template-paths" {
   datacenters = ["dc1", "dc2"]
 
+  meta {
+    ARTIFACT_DEST_DIR = "local/foo/src"
+  }
+
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
@@ -20,7 +24,7 @@ job "template-paths" {
 
       artifact {
         source      = "https://google.com"
-        destination = "local/foo/src"
+        destination = "${NOMAD_META_ARTIFACT_DEST_DIR}"
       }
 
       template {
