@@ -1127,8 +1127,7 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
-	for _, service := range newIDs {
-		serviceID := MakeAllocServiceID(newWorkload.AllocID, newWorkload.Name(), service)
+	for serviceID, service := range newIDs {
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := MakeCheckID(serviceID, check)
