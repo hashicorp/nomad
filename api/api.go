@@ -155,6 +155,8 @@ type Config struct {
 	//
 	// TLSConfig is ignored if HttpClient is set.
 	TLSConfig *TLSConfig
+
+	Headers map[string]string
 }
 
 // ClientConfig copies the configuration with a new client address, region, and
@@ -527,6 +529,7 @@ type request struct {
 	body   io.Reader
 	obj    interface{}
 	ctx    context.Context
+	header http.Header
 }
 
 // setQueryOptions is used to annotate the request with
@@ -621,6 +624,7 @@ func (r *request) toHTTP() (*http.Request, error) {
 		req.SetBasicAuth(r.config.HttpAuth.Username, r.config.HttpAuth.Password)
 	}
 
+	req.Header = r.header
 	req.Header.Add("Accept-Encoding", "gzip")
 	if r.token != "" {
 		req.Header.Set("X-Nomad-Token", r.token)
@@ -649,6 +653,7 @@ func (c *Client) newRequest(method, path string) (*request, error) {
 			Path:    u.Path,
 			RawPath: u.RawPath,
 		},
+		header: make(http.Header),
 		params: make(map[string][]string),
 	}
 	if c.config.Region != "" {
@@ -669,6 +674,10 @@ func (c *Client) newRequest(method, path string) (*request, error) {
 		for _, value := range values {
 			r.params.Add(key, value)
 		}
+	}
+
+	for key, value := range c.config.Headers {
+		r.header.Set(key, value)
 	}
 
 	return r, nil
