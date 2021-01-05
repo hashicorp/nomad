@@ -156,7 +156,7 @@ type Config struct {
 	// TLSConfig is ignored if HttpClient is set.
 	TLSConfig *TLSConfig
 
-	Headers http.Header
+	Header http.Header
 }
 
 // ClientConfig copies the configuration with a new client address, region, and
@@ -676,7 +676,7 @@ func (c *Client) newRequest(method, path string) (*request, error) {
 		}
 	}
 
-	r.header = c.config.Headers
+	r.header = c.config.Header
 
 	return r, nil
 }
