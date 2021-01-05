@@ -677,7 +677,9 @@ func (c *Client) newRequest(method, path string) (*request, error) {
 		}
 	}
 
-	r.header = c.config.Header
+	if c.config.Header != nil {
+		r.header = c.config.Header
+	}
 
 	return r, nil
 }
