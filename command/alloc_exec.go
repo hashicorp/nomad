@@ -206,7 +206,9 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 	if !stdinOpt {
 		l.Stdin = bytes.NewReader(nil)
-	} else if l.Stdin == nil {
+	}
+
+	if l.Stdin == nil {
 		l.Stdin = os.Stdin
 	}
 
