@@ -115,15 +115,12 @@ The table below shows this endpoint's support for
 - `JobModifyIndex` `(int: 0)` - Specifies the `JobModifyIndex` to enforce the
   current job is at.
 
+- `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel
+  policies will be overridden. This allows a job to be registered when it would
+  be denied by policy.
+
 - `PreserveCounts` `(bool: false)` - If set, existing task group counts are
   preserved, over those specified in the new job spec.
-
-- `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel policies
-  will be overridden. This allows a job to be registered when it would be denied
-  by policy.
-
-- `PreserveCounts` `(bool: false)` - If set, the existing task group counts will
-  be preserved when updating a job.
 
 ### Sample Payload
 
