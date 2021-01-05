@@ -566,6 +566,17 @@ $ curl \
 }
 ```
 
+#### Field Reference
+
+- `Status`: The job's current state. It can have one of the following values:
+  - `pending`: The job is currently waiting on scheduling.
+  - `running`: The job has non-terminal allocations.
+  - `dead`: All of the job's allocations and evaluations are terminal.
+- `Type`: The type of job in terms of scheduling. It can have one of the following values:
+  - `service`: Allocations are intended to remain alive.
+  - `batch`: Allocations are intended to exit.
+  - `system`: Each client gets an allocation.
+
 ## List Job Versions
 
 This endpoint reads information about all versions of a job.
@@ -612,9 +623,7 @@ $ curl \
       "Constraints": null,
       "ConsulToken": "",
       "CreateIndex": 44,
-      "Datacenters": [
-        "dc1"
-      ],
+      "Datacenters": ["dc1"],
       "Dispatched": false,
       "ID": "example",
       "JobModifyIndex": 44,
@@ -699,9 +708,7 @@ $ curl \
               "CSIPluginConfig": null,
               "Config": {
                 "image": "redis:3.2",
-                "ports": [
-                  "db"
-                ]
+                "ports": ["db"]
               },
               "Constraints": null,
               "DispatchPayload": null,
@@ -774,7 +781,6 @@ $ curl \
   ]
 }
 ```
-
 
 ```shell-session
 $ curl \
