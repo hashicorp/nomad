@@ -5,6 +5,7 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/acl"
@@ -13,6 +14,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
+
+func TestScalingEndpoint_StaleReadSupport(t *testing.T) {
+	assert := assert.New(t)
+	list := &structs.ScalingPolicyListRequest{}
+	assert.True(list.IsRead())
+	get := &structs.ScalingPolicySpecificRequest{}
+	assert.True(get.IsRead())
+}
 
 func TestScalingEndpoint_GetPolicy(t *testing.T) {
 	t.Parallel()
