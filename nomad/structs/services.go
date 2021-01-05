@@ -733,6 +733,7 @@ func (c *ConsulConnect) IsNative() bool {
 	return c != nil && c.Native
 }
 
+// IsGateway checks if the service is a Connect gateway.
 func (c *ConsulConnect) IsGateway() bool {
 	return c != nil && c.Gateway != nil
 }
