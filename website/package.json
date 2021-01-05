@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@hashicorp/mktg-global-styles": "2.1.0",
-    "@hashicorp/nextjs-scripts": "13.0.0-canary.1",
+    "@hashicorp/nextjs-scripts": "14.0.1",
     "@hashicorp/react-alert-banner": "5.0.0",
     "@hashicorp/react-button": "4.0.0",
     "@hashicorp/react-call-to-action": "1.0.3",
@@ -28,11 +28,11 @@
     "@hashicorp/react-vertical-text-block-list": "3.0.1",
     "marked": "0.7.0",
     "next": "9.5.5",
-    "next-mdx-remote": "^1.0.1",
+    "next-mdx-remote": "^2.0.1",
     "next-remote-watch": "^0.3.0",
-    "nuka-carousel": "4.7.4",
+    "nuka-carousel": "4.7.5",
     "react": "16.14.0",
-    "react-device-detect": "1.14.0",
+    "react-device-detect": "1.15.0",
     "react-dom": "16.14.0"
   },
   "devDependencies": {
