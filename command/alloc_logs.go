@@ -144,7 +144,7 @@ func (l *AllocLogsCommand) Run(args []string) int {
 	// If -job is specified, use random allocation, otherwise use provided allocation
 	allocID := args[0]
 	if job {
-		allocID, err = getRandomJobAlloc(client, args[0])
+		allocID, err = getRandomJobAllocID(client, args[0])
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1

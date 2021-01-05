@@ -100,24 +100,42 @@ func (l *AllocExecCommand) Name() string { return "alloc exec" }
 
 func (l *AllocExecCommand) Run(args []string) int {
 	var job, stdinOpt, ttyOpt bool
-	var task string
-	var escapeChar string
+	var task, escapeChar string
 
 	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 	flags.BoolVar(&job, "job", false, "")
-	flags.StringVar(&task, "task", "", "")
-	flags.StringVar(&escapeChar, "e", "~", "")
-
 	flags.BoolVar(&stdinOpt, "i", true, "")
-
-	inferredTty := isTty()
-	flags.BoolVar(&ttyOpt, "t", inferredTty, "")
+	flags.BoolVar(&ttyOpt, "t", isTty(), "")
+	flags.StringVar(&escapeChar, "e", "~", "")
+	flags.StringVar(&task, "task", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
+
 	args = flags.Args()
+
+	if len(args) < 1 {
+		if job {
+			l.Ui.Error("A job ID is required")
+		} else {
+			l.Ui.Error("An allocation ID is required")
+		}
+		l.Ui.Error(commandErrorText(l))
+		return 1
+	}
+
+	if !job && len(args[0]) == 1 {
+		l.Ui.Error("Alloc ID must contain at least two characters")
+		return 1
+	}
+
+	if len(args) < 2 {
+		l.Ui.Error("A command is required")
+		l.Ui.Error(commandErrorText(l))
+		return 1
+	}
 
 	if ttyOpt && !stdinOpt {
 		l.Ui.Error("-i must be enabled if running with tty")
@@ -126,27 +144,12 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 	if escapeChar == "none" {
 		escapeChar = ""
-	} else if len(escapeChar) > 1 {
+	}
+
+	if len(escapeChar) > 1 {
 		l.Ui.Error("-e requires 'none' or a single character")
 		return 1
 	}
-
-	if numArgs := len(args); numArgs < 1 {
-		if job {
-			l.Ui.Error("A job ID is required")
-		} else {
-			l.Ui.Error("An allocation ID is required")
-		}
-
-		l.Ui.Error(commandErrorText(l))
-		return 1
-	} else if numArgs < 2 {
-		l.Ui.Error("A command is required")
-		l.Ui.Error(commandErrorText(l))
-		return 1
-	}
-
-	command := args[1:]
 
 	client, err := l.Meta.Client()
 	if err != nil {
@@ -154,78 +157,70 @@ func (l *AllocExecCommand) Run(args []string) int {
 		return 1
 	}
 
-	// If -job is specified, use random allocation, otherwise use provided allocation
-	allocID := args[0]
+	var allocStub *api.AllocationListStub
 	if job {
-		allocID, err = getRandomJobAlloc(client, args[0])
+		jobID := args[0]
+		allocStub, err = getRandomJobAlloc(client, jobID)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
 		}
+	} else {
+		allocID := args[0]
+		allocs, _, err := client.Allocations().PrefixList(sanitizeUUIDPrefix(allocID))
+		if err != nil {
+			l.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
+			return 1
+		}
+
+		if len(allocs) == 0 {
+			l.Ui.Error(fmt.Sprintf("No allocation(s) with prefix or id %q found", allocID))
+			return 1
+		}
+
+		if len(allocs) > 1 {
+			out := formatAllocListStubs(allocs, false, shortId)
+			l.Ui.Error(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", out))
+			return 1
+		}
+
+		allocStub = allocs[0]
 	}
 
-	length := shortId
-
-	// Query the allocation info
-	if len(allocID) == 1 {
-		l.Ui.Error("Alloc ID must contain at least two characters.")
-		return 1
-	}
-
-	allocID = sanitizeUUIDPrefix(allocID)
-	allocs, _, err := client.Allocations().PrefixList(allocID)
-	if err != nil {
-		l.Ui.Error(fmt.Sprintf("Error querying allocation: %v", err))
-		return 1
-	}
-	if len(allocs) == 0 {
-		l.Ui.Error(fmt.Sprintf("No allocation(s) with prefix or id %q found", allocID))
-		return 1
-	}
-	if len(allocs) > 1 {
-		// Format the allocs
-		out := formatAllocListStubs(allocs, false, length)
-		l.Ui.Error(fmt.Sprintf("Prefix matched multiple allocations\n\n%s", out))
-		return 1
-	}
-	// Prefix lookup matched a single allocation
-	q := &api.QueryOptions{Namespace: allocs[0].Namespace}
-	alloc, _, err := client.Allocations().Info(allocs[0].ID, q)
+	q := &api.QueryOptions{Namespace: allocStub.Namespace}
+	alloc, _, err := client.Allocations().Info(allocStub.ID, q)
 	if err != nil {
 		l.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
 		return 1
 	}
 
-	if task == "" {
+	if task != "" {
+		err = validateTaskExistsInAllocation(task, alloc)
+	} else {
 		task, err = lookupAllocTask(alloc)
-
-		if err != nil {
-			l.Ui.Error(err.Error())
-			return 1
-		}
 	}
-
-	if err := validateTaskExistsInAllocation(task, alloc); err != nil {
+	if err != nil {
 		l.Ui.Error(err.Error())
 		return 1
+	}
+
+	if !stdinOpt {
+		l.Stdin = bytes.NewReader(nil)
 	}
 
 	if l.Stdin == nil {
 		l.Stdin = os.Stdin
 	}
+
 	if l.Stdout == nil {
 		l.Stdout = os.Stdout
 	}
+
 	if l.Stderr == nil {
 		l.Stderr = os.Stderr
 	}
 
-	var stdin io.Reader = l.Stdin
-	if !stdinOpt {
-		stdin = bytes.NewReader(nil)
-	}
-
-	code, err := l.execImpl(client, alloc, task, ttyOpt, command, escapeChar, stdin, l.Stdout, l.Stderr)
+	code, err := l.execImpl(client, alloc, task, ttyOpt, args[1:], escapeChar, l.Stdin, l.Stdout, l.Stderr)
 	if err != nil {
 		l.Ui.Error(fmt.Sprintf("failed to exec into task: %v", err))
 		return 1
