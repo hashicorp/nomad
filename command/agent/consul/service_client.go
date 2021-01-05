@@ -1028,17 +1028,14 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 	regs := new(ServiceRegistrations)
 	regs.Services = make(map[string]*ServiceRegistration, len(newWorkload.Services))
 
-	existingIDs := make(map[string]*structs.Service, len(old.Services))
-	for _, s := range old.Services {
-		existingIDs[MakeAllocServiceID(old.AllocID, old.Name(), s)] = s
-	}
 	newIDs := make(map[string]*structs.Service, len(newWorkload.Services))
 	for _, s := range newWorkload.Services {
 		newIDs[MakeAllocServiceID(newWorkload.AllocID, newWorkload.Name(), s)] = s
 	}
 
-	// Loop over existing Service IDs to see if they have been removed
-	for existingID, existingSvc := range existingIDs {
+	// Loop over existing Services to see if they have been removed
+	for _, existingSvc := range old.Services {
+		existingID := MakeAllocServiceID(old.AllocID, old.Name(), existingSvc)
 		newSvc, ok := newIDs[existingID]
 
 		if !ok {
