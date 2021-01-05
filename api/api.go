@@ -615,6 +615,8 @@ func (r *request) toHTTP() (*http.Request, error) {
 		return nil, err
 	}
 
+	req.Header = r.header
+
 	// Optionally configure HTTP basic authentication
 	if r.url.User != nil {
 		username := r.url.User.Username()
@@ -624,7 +626,6 @@ func (r *request) toHTTP() (*http.Request, error) {
 		req.SetBasicAuth(r.config.HttpAuth.Username, r.config.HttpAuth.Password)
 	}
 
-	req.Header = r.header
 	req.Header.Add("Accept-Encoding", "gzip")
 	if r.token != "" {
 		req.Header.Set("X-Nomad-Token", r.token)
