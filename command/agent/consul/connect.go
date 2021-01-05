@@ -45,29 +45,33 @@ func newConnectGateway(serviceName string, connect *structs.ConsulConnect) *api.
 		return nil
 	}
 
-	proxy := connect.Gateway.Proxy
+	var envoyConfig map[string]interface{}
 
-	envoyConfig := make(map[string]interface{})
+	// Populate the envoy configuration from the gateway.proxy stanza, if
+	// such configuration is provided.
+	if proxy := connect.Gateway.Proxy; proxy != nil {
+		envoyConfig = make(map[string]interface{})
 
-	if len(proxy.EnvoyGatewayBindAddresses) > 0 {
-		envoyConfig["envoy_gateway_bind_addresses"] = proxy.EnvoyGatewayBindAddresses
-	}
+		if len(proxy.EnvoyGatewayBindAddresses) > 0 {
+			envoyConfig["envoy_gateway_bind_addresses"] = proxy.EnvoyGatewayBindAddresses
+		}
 
-	if proxy.EnvoyGatewayNoDefaultBind {
-		envoyConfig["envoy_gateway_no_default_bind"] = true
-	}
+		if proxy.EnvoyGatewayNoDefaultBind {
+			envoyConfig["envoy_gateway_no_default_bind"] = true
+		}
 
-	if proxy.EnvoyGatewayBindTaggedAddresses {
-		envoyConfig["envoy_gateway_bind_tagged_addresses"] = true
-	}
+		if proxy.EnvoyGatewayBindTaggedAddresses {
+			envoyConfig["envoy_gateway_bind_tagged_addresses"] = true
+		}
 
-	if proxy.ConnectTimeout != nil {
-		envoyConfig["connect_timeout_ms"] = proxy.ConnectTimeout.Milliseconds()
-	}
+		if proxy.ConnectTimeout != nil {
+			envoyConfig["connect_timeout_ms"] = proxy.ConnectTimeout.Milliseconds()
+		}
 
-	if len(proxy.Config) > 0 {
-		for k, v := range proxy.Config {
-			envoyConfig[k] = v
+		if len(proxy.Config) > 0 {
+			for k, v := range proxy.Config {
+				envoyConfig[k] = v
+			}
 		}
 	}
 
