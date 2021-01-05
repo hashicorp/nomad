@@ -62,8 +62,10 @@ check "example-check" {
 
 ## Dynamic Application Sizing Nomad Task Target
 
-~> **Enterprise Only!** This functionality only exists in Nomad Autoscaler
+<EnterpriseAlert>
+This functionality only exists in Nomad Autoscaler
 Enterprise. This is not present in the open source version of Nomad Autoscaler.
+</EnterpriseAlert>
 
 The `app-sizing-nomad` target plugin reports on the current task resource value
 as well as submits recommendations to Nomad via the [recommendations API endpoint][nomad_recommendations_api]
