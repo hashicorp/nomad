@@ -928,13 +928,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 func (c *ServiceClient) checkRegs(ops *operations, serviceID string, service *structs.Service,
 	workload *WorkloadServices) ([]string, error) {
 
-	// Fast path
-	numChecks := len(service.Checks)
-	if numChecks == 0 {
-		return nil, nil
-	}
-
-	checkIDs := make([]string, 0, numChecks)
+	checkIDs := make([]string, 0, len(service.Checks))
 	for _, check := range service.Checks {
 		checkID := MakeCheckID(serviceID, check)
 		checkIDs = append(checkIDs, checkID)
