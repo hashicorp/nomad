@@ -159,10 +159,19 @@ func TestTaskRunner_StatsHook_Periodic(t *testing.T) {
 	require.NoError(h.Exited(context.Background(), nil, nil))
 
 	// Should *not* get another update in ~500ms (see interval above)
+	// we may get a single update due to race with exit
+	timeout := time.After(2 * interval)
+	firstUpdate := true
+
+WAITING:
 	select {
 	case ru := <-su.Ch:
+		if firstUpdate {
+			firstUpdate = false
+			goto WAITING
+		}
 		t.Fatalf("unexpected update after exit (firstrun=%v; update=%v", firstrun, ru.Timestamp)
-	case <-time.After(2 * interval):
+	case <-timeout:
 		// Ok! No update after exit as expected.
 	}
 }
