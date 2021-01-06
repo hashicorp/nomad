@@ -99,7 +99,15 @@ MAIN:
 		case ru, ok := <-ch:
 			// if channel closes, re-establish a new one
 			if !ok {
-				goto MAIN
+				// backoff if driver closes channel, potentially
+				// because task shutdown or because driver
+				// doesn't implement channel interval checking
+				select {
+				case <-time.After(h.interval):
+					goto MAIN
+				case <-ctx.Done():
+					return
+				}
 			}
 
 			// Update stats on TaskRunner and emit them
