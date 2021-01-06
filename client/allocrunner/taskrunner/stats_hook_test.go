@@ -222,7 +222,6 @@ func TestTaskRunner_StatsHook_Backoff(t *testing.T) {
 	// Run prestart
 	require.NoError(t, h.Poststart(context.Background(), poststartReq, nil))
 
-	// An initial stats collection should run and *not* call the updater
 	timeout := time.After(500 * time.Millisecond)
 
 DRAIN:
