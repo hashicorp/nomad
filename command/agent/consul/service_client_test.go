@@ -4,6 +4,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
+
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
 )
@@ -299,4 +302,78 @@ func TestSyncLogic_maybeTweakTags_emptySC(t *testing.T) {
 			SidecarService: nil, // ooh danger!
 		},
 	})
+}
+
+func TestServiceClient_getAddress(t *testing.T) {
+	cases := []struct {
+		name         string
+		addrMode     string
+		portLabel    string
+		networks     structs.Networks
+		driverNet    *drivers.DriverNetwork
+		ports        structs.AllocatedPorts
+		netStatus    *structs.AllocNetworkStatus
+		resultAddr   string
+		resultPort   int
+		resultHasErr bool
+	}{
+		{
+			name:         "nil case",
+			resultHasErr: true,
+		},
+		{
+			name:      "auto happy path",
+			addrMode:  "auto",
+			portLabel: "www",
+			ports: []structs.AllocatedPortMapping{
+				{
+					"www",
+					80,
+					80,
+					"10.0.0.1",
+				},
+			},
+			resultAddr: "10.0.0.1",
+			resultPort: 80,
+		},
+		{
+			name:      "alloc mode with to value",
+			addrMode:  "alloc",
+			portLabel: "www",
+			ports:     []structs.AllocatedPortMapping{{"www", 22222, 80, "10.0.0.1"}},
+			netStatus: &structs.AllocNetworkStatus{
+
+				Address: "172.16.0.1",
+			},
+			resultAddr: "172.16.0.1",
+			resultPort: 80,
+		},
+		{
+			name:      "alloc mode without to value",
+			addrMode:  "alloc",
+			portLabel: "www",
+			ports:     []structs.AllocatedPortMapping{{"www", 22222, 0, "10.0.0.1"}},
+			netStatus: &structs.AllocNetworkStatus{
+
+				Address: "172.16.0.1",
+			},
+			resultAddr: "172.16.0.1",
+			resultPort: 22222,
+		},
+	}
+	require := require.New(t)
+	for _, c := range cases {
+		tc := c
+		t.Run(c.name, func(t *testing.T) {
+
+			addr, port, err := getAddress(tc.addrMode, tc.portLabel, tc.networks, tc.driverNet, tc.ports, tc.netStatus)
+			if tc.resultHasErr {
+				require.Error(err)
+				return
+			}
+			require.Equal(addr, tc.resultAddr)
+			require.Equal(port, tc.resultPort)
+			require.NoError(err)
+		})
+	}
 }
