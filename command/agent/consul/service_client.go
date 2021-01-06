@@ -913,22 +913,23 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	ops.regServices = append(ops.regServices, serviceReg)
 
 	// Build the check registrations
-	checkIDs, err := c.checkRegs(ops, id, service, workload)
+	checkRegs, err := c.checkRegs(id, service, workload)
 	if err != nil {
 		return nil, err
 	}
-	for _, cid := range checkIDs {
-		sreg.checkIDs[cid] = struct{}{}
+	for id, registration := range checkRegs {
+		sreg.checkIDs[id] = struct{}{}
+		ops.regChecks = append(ops.regChecks, registration)
 	}
+
 	return sreg, nil
 }
 
-// checkRegs registers the checks for the given service and returns the
-// registered check ids.
-func (c *ServiceClient) checkRegs(ops *operations, serviceID string, service *structs.Service,
-	workload *WorkloadServices) ([]string, error) {
+// checkRegs creates check registrations for the given service
+func (c *ServiceClient) checkRegs(serviceID string, service *structs.Service,
+	workload *WorkloadServices) (map[string]*api.AgentCheckRegistration, error) {
 
-	checkIDs := make([]string, 0, len(service.Checks))
+	registrations := make(map[string]*api.AgentCheckRegistration, len(service.Checks))
 	for _, check := range service.Checks {
 		ip := ""
 		port := 0
@@ -953,16 +954,15 @@ func (c *ServiceClient) checkRegs(ops *operations, serviceID string, service *st
 		}
 
 		checkID := MakeCheckID(serviceID, check)
-		checkReg, err := createCheckReg(serviceID, checkID, check, ip, port)
+		registration, err := createCheckReg(serviceID, checkID, check, ip, port)
 		if err != nil {
 			return nil, fmt.Errorf("failed to add check %q: %v", check.Name, err)
 		}
 
-		ops.regChecks = append(ops.regChecks, checkReg)
-		checkIDs = append(checkIDs, checkID)
+		registrations[checkID] = registration
 	}
 
-	return checkIDs, nil
+	return registrations, nil
 }
 
 // RegisterWorkload with Consul. Adds all service entries and checks to Consul.
@@ -1074,13 +1074,14 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 			}
 
 			// New check on an unchanged service; add them now
-			newCheckIDs, err := c.checkRegs(ops, existingID, newSvc, newWorkload)
+			checkRegs, err := c.checkRegs(existingID, newSvc, newWorkload)
 			if err != nil {
 				return err
 			}
 
-			for _, checkID := range newCheckIDs {
-				sreg.checkIDs[checkID] = struct{}{}
+			for id, registration := range checkRegs {
+				sreg.checkIDs[id] = struct{}{}
+				ops.regChecks = append(ops.regChecks, registration)
 			}
 
 			// Update all watched checks as CheckRestart fields aren't part of ID
