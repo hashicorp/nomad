@@ -4,6 +4,19 @@
     {{#if this.isForbidden}}
       <ForbiddenMessage />
     {{else}}
+      {{#if this.filteredNodes}}
+        <div class="notification is-warning">
+          <div data-test-filtered-nodes-warning class="columns">
+            <div class="column">
+              <h3 data-test-title class="title is-4">Some Clients Were Filtered</h3>
+              <p data-test-message>{{this.filteredNodes.length}} {{if (eq this.filteredNodes.length 1) "client was" "clients were"}} filtered from the topology visualization. This is most likely due to the {{pluralize "client" this.filteredNodes.length}} running a version of Nomad &lt;0.9.0.</p>
+            </div>
+            <div class="column is-centered is-minimum">
+              <button data-test-dismiss class="button is-warning" onclick={{action (mut this.filteredNodes) null}} type="button">Okay</button>
+            </div>
+          </div>
+        </div>
+      {{/if}}
       <div class="columns">
         <div class="column is-narrow is-400">
           {{#if this.showPollingNotice}}
@@ -217,7 +230,8 @@
             @nodes={{this.model.nodes}}
             @allocations={{this.model.allocations}}
             @onAllocationSelect={{action this.setAllocation}}
-            @onNodeSelect={{action this.setNode}} />
+            @onNodeSelect={{action this.setNode}}
+            @onDataError={{action this.handleTopoVizDataError}}/>
         </div>
       </div>
     {{/if}}

@@ -29,6 +29,7 @@ module('Acceptance | topology', function(hooks) {
 
     await Topology.visit();
     assert.equal(Topology.infoPanelTitle, 'Cluster Details');
+    assert.notOk(Topology.filteredNodesWarning.isPresent);
   });
 
   test('all allocations for all namespaces and all clients are queried on load', async function(assert) {
@@ -73,5 +74,16 @@ module('Acceptance | topology', function(hooks) {
 
     await Topology.viz.datacenters[0].nodes[0].selectNode();
     assert.equal(Topology.infoPanelTitle, 'Client Details');
+  });
+
+  test('when one or more nodes lack the NodeResources property, a warning message is shown', async function(assert) {
+    server.createList('node', 3);
+    server.createList('allocation', 5);
+
+    server.schema.nodes.all().models[0].update({ nodeResources: null });
+
+    await Topology.visit();
+    assert.ok(Topology.filteredNodesWarning.isPresent);
+    assert.ok(Topology.filteredNodesWarning.message.startsWith('1'));
   });
 });
