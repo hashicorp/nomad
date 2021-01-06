@@ -1,0 +1,264 @@
+<table>
+  <thead>
+    <tr>
+      <th>Variable</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>NOMAD_ALLOC_DIR</code>
+      </td>
+      <td>
+        The path to the shared <code>alloc/</code> directory. See
+        <a href="/docs/runtime/environment#task-directories">
+          here for more
+        </a> information.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_TASK_DIR</code>
+      </td>
+      <td>
+        The path to the task <code>local/</code> directory. See
+        <a href="/docs/runtime/environment#task-directories">here</a> for more information.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_SECRETS_DIR</code>
+      </td>
+      <td>
+        Path to the task&lsquo;s secrets directory. See
+        <a href="/docs/runtime/environment#task-directories">here</a> for more information.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_MEMORY_LIMIT</code>
+      </td>
+      <td>Memory limit in MB for the task</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_CPU_LIMIT</code>
+      </td>
+      <td>CPU limit in MHz for the task</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_ALLOC_ID</code>
+      </td>
+      <td>Allocation ID of the task</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_ALLOC_NAME</code>
+      </td>
+      <td>Allocation name of the task</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_ALLOC_INDEX</code>
+      </td>
+      <td>
+        Allocation index; useful to distinguish instances of task groups. From 0
+        to (count - 1). The index is unique within a given version of a job, but
+        canaries or failed tasks in a deployment may reuse the index.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_TASK_NAME</code>
+      </td>
+      <td>Task&lsquo;s name</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_GROUP_NAME</code>
+      </td>
+      <td>Group&lsquo;s name</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_JOB_ID</code>
+      </td>
+      <td>
+        Job&lsquo;s ID, which is equal to the Job name when submitted through
+        CLI but can be different when using the API
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_JOB_NAME</code>
+      </td>
+      <td>Job&lsquo;s name</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_JOB_PARENT_ID</code>
+      </td>
+      <td>ID of the Job&lsquo;s parent if it has one</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_DC</code>
+      </td>
+      <td>Datacenter in which the allocation is running</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_NAMESPACE</code>
+      </td>
+      <td>Namespace in which the allocation is running</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_REGION</code>
+      </td>
+      <td>Region in which the allocation is running</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_META_&lt;key&gt;</code>
+      </td>
+      <td>
+        The metadata value given by <code>key</code> on the task&lsquo;s
+        metadata. Note that this is different from
+        <a href="/docs/runtime/interpolation#node-variables-">
+          <code>$&#123;meta.&lt;key&gt;&#125;</code>
+        </a>
+        which are keys in the node&lsquo;s metadata.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>VAULT_TOKEN</code>
+      </td>
+      <td>
+        The task&lsquo;s Vault token. See
+        <a href="/docs/vault-integration">Vault Integration</a>
+        for more details
+      </td>
+    </tr>
+    <tr>
+      <th colspan="2">Network-related Variables</th>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_IP_&lt;label&gt;</code>
+      </td>
+      <td>
+        Host IP for the given port <code>label</code>. See
+        <a href="/docs/job-specification/network">here for more</a> information.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_PORT_&lt;label&gt;</code>
+      </td>
+      <td>
+        Port for the given port <code>label</code>. Driver-specified port when a
+        port map is used, otherwise the host&lsquo;s static or dynamic port
+        allocation. Services should bind to this port. See
+        <a href="/docs/job-specification/network">here for more</a> information.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_ADDR_&lt;label&gt;</code>
+      </td>
+      <td>
+        Host <code>IP:Port</code> pair for the given port <code>label</code>.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_HOST_PORT_&lt;label&gt;</code>
+      </td>
+      <td>
+        Port on the host for the port <code>label</code>. See
+        <a href="/docs/job-specification/network#mapped-ports">here</a> for more
+        information.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_IP_&lt;task&gt;_&lt;label&gt;</code>
+      </td>
+      <td>
+        Host IP for the given port <code>label</code> and <code>task</code> for
+        tasks in the same task group.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_PORT_&lt;task&gt;_&lt;label&gt;</code>
+      </td>
+      <td>
+        Port for the given port <code>label</code> and <code>task</code> for
+        tasks in the same task group. Driver-specified port when a port map is
+        used, otherwise the host&lsquo;s static or dynamic port allocation.
+        Services should bind to this port.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_ADDR_&lt;task&gt;_&lt;label&gt;</code>
+      </td>
+      <td>
+        Host <code>IP:Port</code> pair for the given port <code>label</code> and
+        <code>task</code> for tasks in the same task group.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_HOST_PORT_&lt;task&gt;_&lt;label&gt;</code>
+      </td>
+      <td>
+        Port on the host for the port <code>label</code> and <code>task</code>
+        for tasks in the same task group.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_UPSTREAM_IP_&lt;service&gt;</code>
+      </td>
+      <td>
+        IP for the given <code>service</code> when defined as a Consul Connect
+        <a href="/docs/job-specification/upstreams">upstream</a>.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_UPSTREAM_PORT_&lt;service&gt;</code>
+      </td>
+      <td>
+        Port for the given <code>service</code> when defined as a Consul Connect
+        <a href="/docs/job-specification/upstreams">upstream</a>.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_UPSTREAM_ADDR_&lt;service&gt;</code>
+      </td>
+      <td>
+        Host <code>IP:Port</code> for the given <code>service</code> when
+        defined as a Consul Connect
+        <a href="/docs/job-specification/upstreams">upstream</a>.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_ENVOY_ADMIN_ADDR_&lt;service&gt;</code>
+      </td>
+      <td>
+        Local address <code>localhost:Port</code> for the admin port of the
+        envoy sidecar for the given <code>service</code> when defined as a
+        Consul Connect enabled service.
+      </td>
+    </tr>
+  </tbody>
+</table>
