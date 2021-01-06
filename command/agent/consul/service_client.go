@@ -931,8 +931,8 @@ func (c *ServiceClient) checkRegs(serviceID string, service *structs.Service,
 
 	registrations := make([]*api.AgentCheckRegistration, 0, len(service.Checks))
 	for _, check := range service.Checks {
-		ip := ""
-		port := 0
+		var ip string
+		var port int
 
 		if check.Type != structs.ServiceCheckScript {
 			portLabel := check.PortLabel
