@@ -917,8 +917,8 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	if err != nil {
 		return nil, err
 	}
-	for id, registration := range checkRegs {
-		sreg.checkIDs[id] = struct{}{}
+	for _, registration := range checkRegs {
+		sreg.checkIDs[registration.ID] = struct{}{}
 		ops.regChecks = append(ops.regChecks, registration)
 	}
 
@@ -927,9 +927,9 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 
 // checkRegs creates check registrations for the given service
 func (c *ServiceClient) checkRegs(serviceID string, service *structs.Service,
-	workload *WorkloadServices) (map[string]*api.AgentCheckRegistration, error) {
+	workload *WorkloadServices) ([]*api.AgentCheckRegistration, error) {
 
-	registrations := make(map[string]*api.AgentCheckRegistration, len(service.Checks))
+	registrations := make([]*api.AgentCheckRegistration, 0, len(service.Checks))
 	for _, check := range service.Checks {
 		ip := ""
 		port := 0
@@ -959,7 +959,7 @@ func (c *ServiceClient) checkRegs(serviceID string, service *structs.Service,
 			return nil, fmt.Errorf("failed to add check %q: %v", check.Name, err)
 		}
 
-		registrations[checkID] = registration
+		registrations = append(registrations, registration)
 	}
 
 	return registrations, nil
@@ -1079,8 +1079,8 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 				return err
 			}
 
-			for id, registration := range checkRegs {
-				sreg.checkIDs[id] = struct{}{}
+			for _, registration := range checkRegs {
+				sreg.checkIDs[registration.ID] = struct{}{}
 				ops.regChecks = append(ops.regChecks, registration)
 			}
 
