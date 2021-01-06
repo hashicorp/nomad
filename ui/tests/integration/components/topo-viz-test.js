@@ -39,7 +39,8 @@ module('Integration | Component | TopoViz', function(hooks) {
       @nodes={{this.nodes}}
       @allocations={{this.allocations}}
       @onAllocationSelect={{this.onAllocationSelect}}
-      @onNodeSelect={{this.onNodeSelect}} />
+      @onNodeSelect={{this.onNodeSelect}}
+      @onDataError={{this.onDataError}} />
   `;
 
   test('presents as a FlexMasonry of datacenters', async function(assert) {
@@ -166,5 +167,36 @@ module('Integration | Component | TopoViz', function(hooks) {
 
     await TopoViz.datacenters[0].nodes[0].memoryRects[0].select();
     assert.equal(TopoViz.allocationAssociations.length, 0);
+  });
+
+  test('when one or more nodes are missing the resources property, those nodes are filtered out of the topology view and onDataError is called', async function(assert) {
+    const badNode = node('dc1', 'node0', 1000, 500);
+    delete badNode.resources;
+
+    this.setProperties({
+      nodes: [badNode, node('dc1', 'node1', 1000, 500)],
+      allocations: [
+        alloc('node0', 'job1', 'group', 100, 100),
+        alloc('node0', 'job1', 'group', 100, 100),
+        alloc('node1', 'job1', 'group', 100, 100),
+        alloc('node1', 'job1', 'group', 100, 100),
+        alloc('node0', 'job1', 'groupTwo', 100, 100),
+      ],
+      onNodeSelect: sinon.spy(),
+      onAllocationSelect: sinon.spy(),
+      onDataError: sinon.spy(),
+    });
+
+    await this.render(commonTemplate);
+
+    assert.ok(this.onDataError.calledOnce);
+    assert.deepEqual(this.onDataError.getCall(0).args[0], [
+      {
+        type: 'filtered-nodes',
+        context: [this.nodes[0]],
+      },
+    ]);
+
+    assert.equal(TopoViz.datacenters[0].nodes.length, 1);
   });
 });
