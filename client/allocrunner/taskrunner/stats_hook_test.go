@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -36,11 +37,15 @@ func (m *mockStatsUpdater) UpdateStats(ru *cstructs.TaskResourceUsage) {
 }
 
 type mockDriverStats struct {
+	called uint32
+
 	// err is returned by Stats if it is non-nil
 	err error
 }
 
 func (m *mockDriverStats) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
+	atomic.AddUint32(&m.called, 1)
+
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -68,6 +73,10 @@ func (m *mockDriverStats) Stats(ctx context.Context, interval time.Duration) (<-
 		}
 	}()
 	return ch, nil
+}
+
+func (m *mockDriverStats) Called() int {
+	return int(atomic.LoadUint32(&m.called))
 }
 
 // TestTaskRunner_StatsHook_PoststartExited asserts the stats hook starts and
@@ -185,4 +194,36 @@ func TestTaskRunner_StatsHook_NotImplemented(t *testing.T) {
 	case <-time.After(500 * time.Millisecond):
 		// Ok! No update received because error was returned
 	}
+}
+
+// TestTaskRunner_StatsHook_Backoff asserts that stats hook does some backoff
+// even if the driver doesn't support intervals well
+func TestTaskRunner_StatsHook_Backoff(t *testing.T) {
+	t.Parallel()
+
+	logger := testlog.HCLogger(t)
+	su := newMockStatsUpdater()
+	ds := &mockDriverStats{}
+
+	poststartReq := &interfaces.TaskPoststartRequest{DriverStats: ds}
+
+	h := newStatsHook(su, time.Minute, logger)
+	defer h.Exited(context.Background(), nil, nil)
+
+	// Run prestart
+	require.NoError(t, h.Poststart(context.Background(), poststartReq, nil))
+
+	// An initial stats collection should run and *not* call the updater
+	timeout := time.After(500 * time.Millisecond)
+
+DRAIN:
+	for {
+		select {
+		case <-su.Ch:
+		case <-timeout:
+			break DRAIN
+		}
+	}
+
+	require.Equal(t, ds.Called(), 1)
 }
