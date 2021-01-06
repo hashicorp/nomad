@@ -316,6 +316,7 @@ func (s *TestServer) waitForLeader() {
 
 		return true, nil
 	}, func(err error) {
+		s.emitPortProcess()
 		defer s.Stop()
 		s.t.Fatalf("err: %s", err)
 	})
@@ -412,4 +413,16 @@ func (s *TestServer) encodePayload(payload interface{}) io.Reader {
 		s.t.Fatalf("err: %s", err)
 	}
 	return &encoded
+}
+
+func (s *TestServer) emitPortProcess() {
+	vcmd := exec.Command("netstat", "-plnt")
+	vcmd.Stdout = os.Stdout
+	vcmd.Stderr = os.Stderr
+	vcmd.Run()
+
+	vcmd = exec.Command("lsof", "-Pan", "+c", "15", "-i")
+	vcmd.Stdout = os.Stdout
+	vcmd.Stderr = os.Stderr
+	vcmd.Run()
 }
