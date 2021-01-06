@@ -344,7 +344,7 @@ func TestParseWriteMeta(t *testing.T) {
 func TestClientHeader(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, func(c *Config) {
-		c.Header = http.Header{
+		c.Headers = http.Header{
 			"Hello": []string{"World"},
 		}
 	}, nil)
