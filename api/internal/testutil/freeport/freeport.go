@@ -4,6 +4,7 @@ package freeport
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"net"
 	"sync"
@@ -51,7 +52,7 @@ var (
 // initialize is used to initialize freeport.
 func initialize() {
 	if lowPort+maxBlocks*blockSize > 65535 {
-		panic("freeport: block size too big or too many blocks requested")
+		panic("internal/freeport: block size too big or too many blocks requested")
 	}
 
 	rand.Seed(time.Now().UnixNano())
@@ -70,10 +71,10 @@ func alloc() (int, net.Listener) {
 		if err != nil {
 			continue
 		}
-		// log.Printf("[DEBUG] freeport: allocated port block %d (%d-%d)", block, firstPort, firstPort+blockSize-1)
+		log.Printf("[DEBUG] internal/freeport: allocated port block %d (%d-%d)", block, firstPort, firstPort+blockSize-1)
 		return firstPort, ln
 	}
-	panic("freeport: cannot allocate port block")
+	panic("internal/freeport: cannot allocate port block")
 }
 
 func tcpAddr(ip string, port int) *net.TCPAddr {
@@ -110,7 +111,7 @@ func Free(n int) (ports []int, err error) {
 	defer mu.Unlock()
 
 	if n > blockSize-1 {
-		return nil, fmt.Errorf("freeport: block size too small")
+		return nil, fmt.Errorf("internal/freeport: block size too small")
 	}
 
 	// Reserve a port block
@@ -127,13 +128,13 @@ func Free(n int) (ports []int, err error) {
 		// if the port is in use then skip it
 		ln, err := net.ListenTCP("tcp", tcpAddr("127.0.0.1", port))
 		if err != nil {
-			// log.Println("[DEBUG] freeport: port already in use: ", port)
+			log.Println("[DEBUG] internal/freeport: port already in use: ", port)
 			continue
 		}
 		ln.Close()
 
 		ports = append(ports, port)
 	}
-	// log.Println("[DEBUG] freeport: free ports:", ports)
+	log.Println("[DEBUG] internal/freeport: free ports:", ports)
 	return ports, nil
 }

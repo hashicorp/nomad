@@ -301,7 +301,7 @@ func Take(n int) (ports []int, err error) {
 		ports = append(ports, port)
 	}
 
-	// logf("DEBUG", "free ports: %v", ports)
+	logf("DEBUG", "free ports: %v", ports)
 	return ports, nil
 }
 
@@ -336,6 +336,7 @@ func stats() (numTotal, numPending, numFree int) {
 // Return returns a block of ports back to the general pool. These ports should
 // have been returned from a call to Take().
 func Return(ports []int) {
+	logf("DEBUG", "reutnring ports: %v", ports)
 	if len(ports) == 0 {
 		return // convenience short circuit for test ergonomics
 	}
@@ -378,7 +379,7 @@ func intervalOverlap(min1, max1, min2, max2 int) bool {
 }
 
 func logf(severity string, format string, a ...interface{}) {
-	fmt.Fprintf(os.Stderr, "["+severity+"] freeport: "+format+"\n", a...)
+	fmt.Fprintf(os.Stderr, "["+severity+"] consul/freeport: "+format+"\n", a...)
 }
 
 // Deprecated: Please use Take/Return calls instead.
