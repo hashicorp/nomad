@@ -1632,6 +1632,24 @@ func TestGetAddress(t *testing.T) {
 				Address:       "172.26.0.1",
 			},
 			ExpectedIP:   "172.26.0.1",
+			ExpectedPort: 6379,
+		},
+		{
+			Name:      "Alloc no to value",
+			Mode:      structs.AddressModeAlloc,
+			PortLabel: "db",
+			Ports: []structs.AllocatedPortMapping{
+				{
+					Label:  "db",
+					Value:  12345,
+					HostIP: HostIP,
+				},
+			},
+			Status: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.0.1",
+			},
+			ExpectedIP:   "172.26.0.1",
 			ExpectedPort: 12345,
 		},
 		{
