@@ -913,66 +913,56 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	ops.regServices = append(ops.regServices, serviceReg)
 
 	// Build the check registrations
-	checkIDs, err := c.checkRegs(ops, id, service, workload)
+	checkRegs, err := c.checkRegs(id, service, workload)
 	if err != nil {
 		return nil, err
 	}
-	for _, cid := range checkIDs {
-		sreg.checkIDs[cid] = struct{}{}
+	for _, registration := range checkRegs {
+		sreg.checkIDs[registration.ID] = struct{}{}
+		ops.regChecks = append(ops.regChecks, registration)
 	}
+
 	return sreg, nil
 }
 
-// checkRegs registers the checks for the given service and returns the
-// registered check ids.
-func (c *ServiceClient) checkRegs(ops *operations, serviceID string, service *structs.Service,
-	workload *WorkloadServices) ([]string, error) {
+// checkRegs creates check registrations for the given service
+func (c *ServiceClient) checkRegs(serviceID string, service *structs.Service,
+	workload *WorkloadServices) ([]*api.AgentCheckRegistration, error) {
 
-	// Fast path
-	numChecks := len(service.Checks)
-	if numChecks == 0 {
-		return nil, nil
-	}
-
-	checkIDs := make([]string, 0, numChecks)
+	registrations := make([]*api.AgentCheckRegistration, 0, len(service.Checks))
 	for _, check := range service.Checks {
-		checkID := MakeCheckID(serviceID, check)
-		checkIDs = append(checkIDs, checkID)
-		if check.Type == structs.ServiceCheckScript {
-			// Skip getAddress for script checks
-			checkReg, err := createCheckReg(serviceID, checkID, check, "", 0)
-			if err != nil {
-				return nil, fmt.Errorf("failed to add script check %q: %v", check.Name, err)
+		var ip string
+		var port int
+
+		if check.Type != structs.ServiceCheckScript {
+			portLabel := check.PortLabel
+			if portLabel == "" {
+				portLabel = service.PortLabel
 			}
-			ops.regChecks = append(ops.regChecks, checkReg)
-			continue
+
+			addrMode := check.AddressMode
+			if addrMode == "" {
+				// pre-#3380 compat
+				addrMode = structs.AddressModeHost
+			}
+
+			var err error
+			ip, port, err = getAddress(addrMode, portLabel, workload.Networks, workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
+			if err != nil {
+				return nil, fmt.Errorf("error getting address for check %q: %v", check.Name, err)
+			}
 		}
 
-		// Default to the service's port but allow check to override
-		portLabel := check.PortLabel
-		if portLabel == "" {
-			// Default to the service's port label
-			portLabel = service.PortLabel
-		}
-
-		// Checks address mode defaults to host for pre-#3380 backward compat
-		addrMode := check.AddressMode
-		if addrMode == "" {
-			addrMode = structs.AddressModeHost
-		}
-
-		ip, port, err := getAddress(addrMode, portLabel, workload.Networks, workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
-		if err != nil {
-			return nil, fmt.Errorf("error getting address for check %q: %v", check.Name, err)
-		}
-
-		checkReg, err := createCheckReg(serviceID, checkID, check, ip, port)
+		checkID := MakeCheckID(serviceID, check)
+		registration, err := createCheckReg(serviceID, checkID, check, ip, port)
 		if err != nil {
 			return nil, fmt.Errorf("failed to add check %q: %v", check.Name, err)
 		}
-		ops.regChecks = append(ops.regChecks, checkReg)
+
+		registrations = append(registrations, registration)
 	}
-	return checkIDs, nil
+
+	return registrations, nil
 }
 
 // RegisterWorkload with Consul. Adds all service entries and checks to Consul.
@@ -1028,17 +1018,14 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 	regs := new(ServiceRegistrations)
 	regs.Services = make(map[string]*ServiceRegistration, len(newWorkload.Services))
 
-	existingIDs := make(map[string]*structs.Service, len(old.Services))
-	for _, s := range old.Services {
-		existingIDs[MakeAllocServiceID(old.AllocID, old.Name(), s)] = s
-	}
 	newIDs := make(map[string]*structs.Service, len(newWorkload.Services))
 	for _, s := range newWorkload.Services {
 		newIDs[MakeAllocServiceID(newWorkload.AllocID, newWorkload.Name(), s)] = s
 	}
 
-	// Loop over existing Service IDs to see if they have been removed
-	for existingID, existingSvc := range existingIDs {
+	// Loop over existing Services to see if they have been removed
+	for _, existingSvc := range old.Services {
+		existingID := MakeAllocServiceID(old.AllocID, old.Name(), existingSvc)
 		newSvc, ok := newIDs[existingID]
 
 		if !ok {
@@ -1087,13 +1074,14 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 			}
 
 			// New check on an unchanged service; add them now
-			newCheckIDs, err := c.checkRegs(ops, existingID, newSvc, newWorkload)
+			checkRegs, err := c.checkRegs(existingID, newSvc, newWorkload)
 			if err != nil {
 				return err
 			}
 
-			for _, checkID := range newCheckIDs {
-				sreg.checkIDs[checkID] = struct{}{}
+			for _, registration := range checkRegs {
+				sreg.checkIDs[registration.ID] = struct{}{}
+				ops.regChecks = append(ops.regChecks, registration)
 			}
 
 			// Update all watched checks as CheckRestart fields aren't part of ID
@@ -1130,8 +1118,7 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
-	for _, service := range newIDs {
-		serviceID := MakeAllocServiceID(newWorkload.AllocID, newWorkload.Name(), service)
+	for serviceID, service := range newIDs {
 		for _, check := range service.Checks {
 			if check.TriggersRestarts() {
 				checkID := MakeCheckID(serviceID, check)
