@@ -930,42 +930,38 @@ func (c *ServiceClient) checkRegs(ops *operations, serviceID string, service *st
 
 	checkIDs := make([]string, 0, len(service.Checks))
 	for _, check := range service.Checks {
-		checkID := MakeCheckID(serviceID, check)
-		checkIDs = append(checkIDs, checkID)
-		if check.Type == structs.ServiceCheckScript {
-			// Skip getAddress for script checks
-			checkReg, err := createCheckReg(serviceID, checkID, check, "", 0)
-			if err != nil {
-				return nil, fmt.Errorf("failed to add script check %q: %v", check.Name, err)
+		ip := ""
+		port := 0
+
+		if check.Type != structs.ServiceCheckScript {
+			portLabel := check.PortLabel
+			if portLabel == "" {
+				portLabel = service.PortLabel
 			}
-			ops.regChecks = append(ops.regChecks, checkReg)
-			continue
+
+			addrMode := check.AddressMode
+			if addrMode == "" {
+				// pre-#3380 compat
+				addrMode = structs.AddressModeHost
+			}
+
+			var err error
+			ip, port, err = getAddress(addrMode, portLabel, workload.Networks, workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
+			if err != nil {
+				return nil, fmt.Errorf("error getting address for check %q: %v", check.Name, err)
+			}
 		}
 
-		// Default to the service's port but allow check to override
-		portLabel := check.PortLabel
-		if portLabel == "" {
-			// Default to the service's port label
-			portLabel = service.PortLabel
-		}
-
-		// Checks address mode defaults to host for pre-#3380 backward compat
-		addrMode := check.AddressMode
-		if addrMode == "" {
-			addrMode = structs.AddressModeHost
-		}
-
-		ip, port, err := getAddress(addrMode, portLabel, workload.Networks, workload.DriverNetwork, workload.Ports, workload.NetworkStatus)
-		if err != nil {
-			return nil, fmt.Errorf("error getting address for check %q: %v", check.Name, err)
-		}
-
+		checkID := MakeCheckID(serviceID, check)
 		checkReg, err := createCheckReg(serviceID, checkID, check, ip, port)
 		if err != nil {
 			return nil, fmt.Errorf("failed to add check %q: %v", check.Name, err)
 		}
+
 		ops.regChecks = append(ops.regChecks, checkReg)
+		checkIDs = append(checkIDs, checkID)
 	}
+
 	return checkIDs, nil
 }
 
