@@ -2,8 +2,29 @@ import UseCasesLayout from 'components/use-case-page'
 import TextSplitWithCode from '@hashicorp/react-text-split-with-code'
 import TextSplitWithImage from '@hashicorp/react-text-split-with-image'
 import FeaturedSliderSection from 'components/featured-slider-section'
+// Imports below are used in getStaticProps only
+import highlightData from '@hashicorp/nextjs-scripts/prism/highlight-data'
 
-export default function SimpleContainerOrchestrationPage() {
+export async function getStaticProps() {
+  const codeBlocksRaw = {
+    containerOrchestration: {
+      code:
+        'task "webservice" {\n  driver = "docker"\n\n  config {\n    image = "redis:3.2"\n    labels {\n      group = "webservice-cache"\n    }\n  }\n}',
+      language: 'hcl',
+    },
+    windowsSupport: {
+      code:
+        'sc.exe start "Nomad"\n\nSERVICE_NAME: Nomad\n      TYPE               : 10  WIN32_OWN_PROCESS\n      STATE              : 4  RUNNING\n                              (STOPPABLE, NOT_PAUSABLE, ACCEPTS_SHUTDOWN)\n      WIN32_EXIT_CODE    : 0  (0x0)\n      SERVICE_EXIT_CODE  : 0  (0x0)\n      CHECKPOINT         : 0x0\n      WAIT_HINT          : 0x0\n      PID                : 8008\n      FLAGS              :',
+    },
+    multiRegionFederation: {
+      code: 'nomad server join 1.2.3.4:4648',
+    },
+  }
+  const codeBlocks = await highlightData(codeBlocksRaw)
+  return { props: { codeBlocks } }
+}
+
+export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
   return (
     <UseCasesLayout
       title="Simple Container Orchestration"
@@ -23,19 +44,7 @@ export default function SimpleContainerOrchestrationPage() {
             },
           ],
         }}
-        codeBlock={{
-          code: `task "webservice" {
-  driver = "docker"
-
-  config {
-    image = "redis:3.2"
-    labels {
-      group = "webservice-cache"
-    }
-  }
-}`,
-          language: 'hcl',
-        }}
+        codeBlock={codeBlocks.containerOrchestration}
       />
 
       <TextSplitWithImage
@@ -66,20 +75,7 @@ export default function SimpleContainerOrchestrationPage() {
             },
           ],
         }}
-        codeBlock={{
-          code: `sc.exe start "Nomad"
-
-SERVICE_NAME: Nomad
-      TYPE               : 10  WIN32_OWN_PROCESS
-      STATE              : 4  RUNNING
-                              (STOPPABLE, NOT_PAUSABLE, ACCEPTS_SHUTDOWN)
-      WIN32_EXIT_CODE    : 0  (0x0)
-      SERVICE_EXIT_CODE  : 0  (0x0)
-      CHECKPOINT         : 0x0
-      WAIT_HINT          : 0x0
-      PID                : 8008
-      FLAGS              :`,
-        }}
+        codeBlock={codeBlocks.windowsSupport}
       />
 
       <TextSplitWithCode
@@ -96,10 +92,7 @@ SERVICE_NAME: Nomad
             },
           ],
         }}
-        codeBlock={{
-          code: 'nomad server join 1.2.3.4:4648',
-          prefix: 'dollar',
-        }}
+        codeBlock={codeBlocks.multiRegionFederation}
       />
 
       <div className="with-border">
