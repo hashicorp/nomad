@@ -1547,7 +1547,7 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 
 		return driverNet.IP, port, nil
 
-	case "alloc":
+	case structs.AddressModeAlloc:
 		if netStatus == nil {
 			return "", 0, fmt.Errorf(`cannot use address_mode="alloc": no allocation network status reported`)
 		}
@@ -1559,6 +1559,10 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 
 		// If port is a label and is found then return it
 		if port, ok := ports.Get(portLabel); ok {
+			// Use port.To value unless not set
+			if port.To > 0 {
+				return netStatus.Address, port.To, nil
+			}
 			return netStatus.Address, port.Value, nil
 		}
 

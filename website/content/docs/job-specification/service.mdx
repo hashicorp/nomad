@@ -106,9 +106,13 @@ Connect][connect] integration.
   service. The value of `port` depends on which [`address_mode`](#address_mode)
   is being used:
 
+  - `alloc` - Advertise the mapped `to` value of the labeled port and the allocation address.
+    If a `to` value is not set, the port falls back to using the allocated host port. The `port`
+    field may be a numeric port or a port label specified in the same group's network stanza.
+
   - `driver` - Advertise the port determined by the driver (e.g. Docker or rkt).
     The `port` may be a numeric port or a port label specified in the driver's
-    `port_map`.
+    `ports` field.
 
   - `host` - Advertise the host port for this service. `port` must match a port
     _label_ specified in the [`network`][network] stanza.
