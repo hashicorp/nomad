@@ -1,3 +1,0 @@
-// +build !ent
-
-package namespaces
