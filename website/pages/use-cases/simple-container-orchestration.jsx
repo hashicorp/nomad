@@ -17,8 +17,7 @@ export async function getStaticProps() {
         'sc.exe start "Nomad"\n\nSERVICE_NAME: Nomad\n      TYPE               : 10  WIN32_OWN_PROCESS\n      STATE              : 4  RUNNING\n                              (STOPPABLE, NOT_PAUSABLE, ACCEPTS_SHUTDOWN)\n      WIN32_EXIT_CODE    : 0  (0x0)\n      SERVICE_EXIT_CODE  : 0  (0x0)\n      CHECKPOINT         : 0x0\n      WAIT_HINT          : 0x0\n      PID                : 8008\n      FLAGS              :',
     },
     multiRegionFederation: {
-      code: '$ nomad server join 1.2.3.4:4648',
-      language: 'shell-session',
+      code: 'nomad server join 1.2.3.4:4648',
     },
   }
   const codeBlocks = await highlightData(codeBlocksRaw)
