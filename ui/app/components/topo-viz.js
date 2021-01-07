@@ -83,10 +83,18 @@ export default class TopoViz extends Component {
     const nodes = this.args.nodes;
     const allocations = this.args.allocations;
 
+    // Nodes may not have a resources property due to having an old Nomad agent version.
+    const badNodes = [];
+
     // Wrap nodes in a topo viz specific data structure and build an index to speed up allocation assignment
     const nodeContainers = [];
     const nodeIndex = {};
     nodes.forEach(node => {
+      if (!node.resources) {
+        badNodes.push(node);
+        return;
+      }
+
       const container = this.dataForNode(node);
       nodeContainers.push(container);
       nodeIndex[node.id] = container;
@@ -99,7 +107,7 @@ export default class TopoViz extends Component {
       const nodeId = allocation.belongsTo('node').id();
       const nodeContainer = nodeIndex[nodeId];
 
-      // Ignore orphaned allocations
+      // Ignore orphaned allocations and allocations on nodes with an old Nomad agent version.
       if (!nodeContainer) return;
 
       const allocationContainer = this.dataForAllocation(allocation, nodeContainer);
@@ -131,6 +139,15 @@ export default class TopoViz extends Component {
         .domain(extent(nodeContainers.mapBy('memory'))),
     };
     this.topology = topology;
+
+    if (badNodes.length && this.args.onDataError) {
+      this.args.onDataError([
+        {
+          type: 'filtered-nodes',
+          context: badNodes,
+        },
+      ]);
+    }
   }
 
   @action

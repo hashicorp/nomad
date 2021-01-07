@@ -2,6 +2,7 @@ import Controller from '@ember/controller';
 import { computed, action } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import { inject as service } from '@ember/service';
+import { tracked } from '@glimmer/tracking';
 import classic from 'ember-classic-decorator';
 import { reduceToLargestUnit } from 'nomad-ui/helpers/format-bytes';
 
@@ -12,6 +13,8 @@ export default class TopologyControllers extends Controller {
   @service userSettings;
 
   @alias('userSettings.showTopoVizPollingNotice') showPollingNotice;
+
+  @tracked filteredNodes = null;
 
   @computed('model.nodes.@each.datacenter')
   get datacenters() {
@@ -116,5 +119,13 @@ export default class TopologyControllers extends Controller {
   @action
   setNode(node) {
     this.set('activeNode', node);
+  }
+
+  @action
+  handleTopoVizDataError(errors) {
+    const filteredNodesError = errors.findBy('type', 'filtered-nodes');
+    if (filteredNodesError) {
+      this.filteredNodes = filteredNodesError.context;
+    }
   }
 }
