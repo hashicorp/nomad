@@ -791,3 +791,14 @@ Response frames represent `stdout` and `stderr` output from the command as well 
 # basic application-level heartbeat
 {}
 ```
+
+### Sample Request and Response
+
+Request and response frames encompass the full range of terminal emulator inputs and outputs, including the control characters necessary to render interactive applications. The example response includes instances of the ANSI “control sequence introducer” (CSI), which is ASCII code 27 followed by `[`.
+
+```
+# \x12: form feed, to clear terminal
+{"stdin":{"data":"DA=="}}
+
+# "\x1b[H\x1b[2J$ ": CSI-H (move cursor to top left corner), CSI-2J (clear entire screen), print "$ "
+{"stdout":{"data":"G1tIG1sySiQg"}}
