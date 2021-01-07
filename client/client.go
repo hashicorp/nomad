@@ -1105,6 +1105,7 @@ func (c *Client) restoreState() error {
 			DeviceStatsReporter: c,
 			Consul:              c.consulService,
 			ConsulSI:            c.tokensClient,
+			ConsulProxies:       c.consulProxies,
 			Vault:               c.vaultClient,
 			PrevAllocWatcher:    prevAllocWatcher,
 			PrevAllocMigrator:   prevAllocMigrator,
