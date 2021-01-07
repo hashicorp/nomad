@@ -23,7 +23,7 @@ job "consul-example" {
     healthy_deadline = "5m"
   }
 
-  group "cache" {
+  group "group" {
     count = 3
 
     network {
@@ -41,7 +41,7 @@ job "consul-example" {
       size = 300
     }
 
-    task "redis" {
+    task "example" {
       driver = "docker"
 
       config {

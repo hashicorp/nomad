@@ -1,0 +1,50 @@
+---
+layout: docs
+page_title: 'Commands: namespace apply'
+sidebar_title: apply
+description: |
+  The namespace apply command is used create or update a namespace.
+---
+
+# Command: namespace apply
+
+The `namespace apply` command is used create or update a namespace.
+
+~> Namespaces are open source in Nomad 1.0. Namespaces were Enterprise-only
+when introduced in Nomad 0.7.
+
+## Usage
+
+```plaintext
+nomad namespace apply [options] <namespace>
+```
+
+The `namespace apply` command requires the name of the namespace to be created
+or updated.
+
+If ACLs are enabled, this command requires a management ACL token.
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Apply Options
+
+- `-quota` : An optional quota to apply to the namespace.
+
+- `-description` : An optional human readable description for the namespace.
+
+## Examples
+
+Create a namespace with a quota:
+
+```shell-session
+$ nomad namespace apply -description "Prod API servers" -quota prod api-prod
+Successfully applied namespace "api-prod"!
+```
+
+Remove a quota from a namespace:
+
+```shell-session
+$ nomad namespace apply -quota= api-prod
+```

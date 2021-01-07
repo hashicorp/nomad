@@ -103,9 +103,8 @@ func TestInterpolateServices(t *testing.T) {
 
 var testEnv = NewTaskEnv(
 	map[string]string{"foo": "bar", "baz": "blah"},
-	nil,
-	nil,
-)
+	map[string]string{"foo": "bar", "baz": "blah"},
+	nil, nil, "", "")
 
 func TestInterpolate_interpolateMapStringSliceString(t *testing.T) {
 	t.Parallel()
@@ -164,7 +163,7 @@ func TestInterpolate_interpolateMapStringInterface(t *testing.T) {
 func TestInterpolate_interpolateConnect(t *testing.T) {
 	t.Parallel()
 
-	env := NewTaskEnv(map[string]string{
+	e := map[string]string{
 		"tag1":         "_tag1",
 		"port1":        "12345",
 		"address1":     "1.2.3.4",
@@ -200,7 +199,8 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 		"protocol2":    "_protocol2",
 		"service1":     "_service1",
 		"host1":        "_host1",
-	}, nil, nil)
+	}
+	env := NewTaskEnv(e, e, nil, nil, "", "")
 
 	connect := &structs.ConsulConnect{
 		Native: false,

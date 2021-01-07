@@ -10,6 +10,33 @@ export default [
   { category: 'vs', content: ['ecs', 'mesos', 'terraform'] },
   {
     category: 'getting-started',
-    content: ['running', 'jobs', 'cluster', 'ui', 'next-steps'],
+    name: 'Getting Started',
+    content: [
+      {
+        title: 'Overview',
+        href: 'https://learn.hashicorp.com/collections/nomad/get-started',
+      },
+      {
+        title: 'Running Nomad',
+        href: 'https://learn.hashicorp.com/tutorials/nomad/get-started-run',
+      },
+      {
+        title: 'Jobs',
+        href: 'https://learn.hashicorp.com/tutorials/nomad/get-started-jobs',
+      },
+      {
+        title: 'Clustering',
+        href: 'https://learn.hashicorp.com/tutorials/nomad/get-started-cluster',
+      },
+      {
+        title: 'Web UI',
+        href: 'https://learn.hashicorp.com/tutorials/nomad/get-started-ui',
+      },
+      {
+        title: 'Next Steps',
+        href:
+          'https://learn.hashicorp.com/tutorials/nomad/get-started-learn-more',
+      },
+    ],
   },
 ]

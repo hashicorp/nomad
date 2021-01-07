@@ -429,6 +429,17 @@ func TestConnect_newConnectGateway(t *testing.T) {
 		}, result)
 	})
 
+	t.Run("proxy undefined", func(t *testing.T) {
+		result := newConnectGateway("s1", &structs.ConsulConnect{
+			Gateway: &structs.ConsulGateway{
+				Proxy: nil,
+			},
+		})
+		require.Equal(t, &api.AgentServiceConnectProxyConfig{
+			Config: nil,
+		}, result)
+	})
+
 	t.Run("full", func(t *testing.T) {
 		result := newConnectGateway("s1", &structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{

@@ -1,0 +1,187 @@
+---
+layout: docs
+page_title: Configuration Language
+sidebar_title: HCL2
+description: |-
+  Noamd uses text files to describe infrastructure and to set variables.
+  These text files are called Nomad job specifications and are
+  written in the HCL language.
+---
+
+# HCL2
+
+Nomad uses the Hashicorp Configuration Language - HCL - designed to allow
+concise descriptions of the required steps to get to a job file.
+Nomad 1.0 adopts
+[HCL2](https://github.com/hashicorp/hcl2/blob/master/README.md), the second
+generation of HashiCorp Configuration Language. HCL2 extends the HCL language by
+adding expressions and input variables support to improve job spec
+reusability and readability. Also, the new HCL2 parser improves the error
+messages for invalid jobs.
+
+<!---
+TODO: Re-Add after guide
+This page describes the features of HCL2 exhaustively, if you would like to give
+a quick try to HCL2, you can also read the quicker [HCL2 getting started
+guide](/guides/hcl).
+--->
+
+## HCL Parsing Context
+
+The [Nomad API uses JSON][jobs-api], not HCL, to represent Nomad jobs.
+When running commands like `nomad job run` and `nomad job plan`, the Nomad CLI
+parses HCL and ultimately converts it to JSON. Because this parsing happens locally
+(i.e., where the operator is running the CLI) before job submission, there are some
+limits to the capabilities that can be accessed by HCL job specifications. For
+example, scheduling information is not yet available, including information about
+the client. Similarly, HCL features that depend on external context will take that
+context from the local environment of the CLI (e.g., files, environment variables).
+
+[jobs-api]: /api-docs/jobs
+
+## Syntax
+
+The main purpose of the HCL language in Nomad is defining jobs. All other
+language features exist only to make the definition of builds more flexible and
+convenient.
+
+## Arguments, Blocks, and Expressions
+
+The syntax of the HCL language consists of only a few basic elements:
+
+```hcl
+task "example" {
+  driver = "docker"
+}
+
+<BLOCK TYPE> "<BLOCK LABEL>" {
+  # Block body
+  <IDENTIFIER> = <EXPRESSION> # Argument
+}
+```
+
+- _Blocks_ are containers for other content and usually represent the
+  configuration of some kind of object, like a task. Blocks have a
+  _block type,_ can have zero or more _labels,_ and have a _body_ that contains
+  any number of arguments and nested blocks. Block labels must be string literals.
+- _Arguments_ assign a value to a name. They appear within blocks.
+- _Expressions_ represent a value, either literally or by referencing and
+  combining other values. They appear as values for arguments, or within other
+  expressions.
+
+For full details about Nomad's syntax, see:
+
+- [Configuration Syntax](/docs/job-specification/hcl2/syntax)
+- [Expressions](/docs/job-specification/hcl2/expressions)
+
+## Backward Compatibilities
+
+HCL2 syntax closely mirrors HCL1, but has some minor changes. Most existing
+Nomad job specifications will not require any changes.
+
+When you run `nomad job run` or `nomad job plan`, the CLI will report any
+required changes. Also, you can activate a backwards compatibility mode by
+passing `-hcl1` to use Nomad's HCL1 parser instead.
+
+### Blocks
+
+Nomad 0.12 and earlier allowed a few variations for defining blocks. For example, the following variations of `meta` were accepted:
+
+```hcl
+meta {
+  # meta attributes can be quoted or not
+  "team"       = "..."
+  organization = "..."
+}
+
+# meta can be an assignment to a map
+meta = { "team" = "...", organization = "..." }
+```
+
+Starting with Nomad 1.0 and the HCL2 parser, only the block syntax with unquoted attributes is accepted:
+
+```hcl
+meta {
+  team         = "..."
+  organization = "..."
+}
+```
+
+Additionally, block attributes must be [HCL2 valid identifiers](https://github.com/hashicorp/hcl/blob/v2.8.0/hclsyntax/spec.md#identifiers).
+Generally, identifiers may only contain letters, numbers, underscore `_`,
+or a dash `-`, and start with a letter. Notable,
+[`meta`](/docs/job-specification/meta), and
+[`env`](/docs/job-specification/env) keys may not
+contain other symbols (e.g. `.`, `#`).
+
+Task driver config fields may require extra attention if they contain invalid
+identifiers. For example, docker [`sysctl`](/docs/drivers/docker#sysctl) must
+use the map assignment syntax if the keys aren't valid:
+
+```hcl
+sysctl = {
+  "net.core.somaxconn/docs/drivers/docker#sysctl" = "16384"
+}
+```
+
+Additionally, task driver config fields may not nest block syntax within an
+assignment syntax. The following [`mounts`](/docs/drivers/docker#mounts) syntax is no longer valid:
+
+```hcl
+# INVALID in Nomad 1.0
+mounts = [
+  {
+    type = "tmpfs"
+    tmpfs_options {  # <- block syntax is not valid here
+      size = 10000
+    }
+  }
+]
+```
+
+Here, the `tmpfs_options` block declaration is invalid HCL2 syntax, and must be an assignment instead:
+
+```hcl
+# VALID in Nomad 1.0
+mounts = [
+  {
+    type = "tmpfs"
+    tmpfs_options = {
+      size = 10000
+    }
+  }
+]
+```
+
+Or better yet, the new [`mount`](/docs/driver/docker#mount) syntax, introduced in Nomad 1.0.1, is more appropriate here:
+
+````hcl
+mount {
+  type = "tmpfs"
+  tmpf_options {
+    size = 10000
+  }
+}
+```
+
+### Multiline "here doc" string
+
+Nomad supports multi-line string literals in the so-called "heredoc" style, inspired by Unix shell languages:
+
+```hcl
+template {
+  data = <<EOF
+hello
+  world
+  EOF
+}
+```
+
+HCL2 trims the whitespace preceding the delimiter in the last line. So in the
+above example, `data` is read as `"hello\n world\n "` in HCL1, but `"hello\n world\n"` (note lack of trailing whitespace) in HCL2.
+
+### Decimals
+
+Nomad 0.12 and earlier accepted small decimal values without a leading zero
+(e.g. `.3`, `.59`, `.9`). In such case, Nomad 1.0 requires a leading zero (e.g.
+`0.3`, `0.59`, `0.9`).

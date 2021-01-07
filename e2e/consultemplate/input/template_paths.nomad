@@ -1,6 +1,10 @@
 job "template-paths" {
   datacenters = ["dc1", "dc2"]
 
+  meta {
+    ARTIFACT_DEST_DIR = "local/foo/src"
+  }
+
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
@@ -20,12 +24,19 @@ job "template-paths" {
 
       artifact {
         source      = "https://google.com"
-        destination = "local/foo/src"
+        destination = "${NOMAD_META_ARTIFACT_DEST_DIR}"
       }
 
       template {
         source      = "${NOMAD_TASK_DIR}/foo/src"
         destination = "${NOMAD_SECRETS_DIR}/foo/dst"
+      }
+
+      template {
+        destination = "${NOMAD_ALLOC_DIR}/shared.txt"
+        data        = <<EOH
+Data shared between all task in alloc dir.
+EOH
       }
 
       resources {

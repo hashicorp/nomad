@@ -164,7 +164,7 @@ func (f *AllocFSCommand) Run(args []string) int {
 	// If -job is specified, use random allocation, otherwise use provided allocation
 	allocID := args[0]
 	if job {
-		allocID, err = getRandomJobAlloc(client, args[0])
+		allocID, err = getRandomJobAllocID(client, args[0])
 		if err != nil {
 			f.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
@@ -376,15 +376,15 @@ func (f *AllocFSCommand) followFile(client *api.Client, alloc *api.Allocation,
 	return r, nil
 }
 
-// Get Random Allocation ID from a known jobID. Prefer to use a running allocation,
+// Get Random Allocation from a known jobID. Prefer to use a running allocation,
 // but use a dead allocation if no running allocations are found
-func getRandomJobAlloc(client *api.Client, jobID string) (string, error) {
+func getRandomJobAlloc(client *api.Client, jobID string) (*api.AllocationListStub, error) {
 	var runningAllocs []*api.AllocationListStub
 	allocs, _, err := client.Jobs().Allocations(jobID, false, nil)
 
 	// Check that the job actually has allocations
 	if len(allocs) == 0 {
-		return "", fmt.Errorf("job %q doesn't exist or it has no allocations", jobID)
+		return nil, fmt.Errorf("job %q doesn't exist or it has no allocations", jobID)
 	}
 
 	for _, v := range allocs {
@@ -398,6 +398,16 @@ func getRandomJobAlloc(client *api.Client, jobID string) (string, error) {
 	}
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	allocID := runningAllocs[r.Intn(len(runningAllocs))].ID
-	return allocID, err
+	alloc := runningAllocs[r.Intn(len(runningAllocs))]
+
+	return alloc, err
+}
+
+func getRandomJobAllocID(client *api.Client, jobID string) (string, error) {
+	alloc, err := getRandomJobAlloc(client, jobID)
+	if err != nil {
+		return "", err
+	}
+
+	return alloc.ID, nil
 }

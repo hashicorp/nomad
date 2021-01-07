@@ -1,0 +1,44 @@
+---
+layout: docs
+page_title: 'Commands: namespace status'
+sidebar_title: status
+description: >
+  The namespace status command is used to view the status of a particular
+  namespace.
+---
+
+# Command: namespace status
+
+The `namespace status` command is used to view the status of a particular
+namespace.
+
+~> Namespaces are open source in Nomad 1.0. Namespaces were Enterprise-only
+when introduced in Nomad 0.7.
+
+## Usage
+
+```plaintext
+nomad namespace status [options] <namespace_name>
+```
+
+If ACLs are enabled, this command requires a management ACL token or a token
+that has a capability associated with the namespace.
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Examples
+
+View the status of a namespace:
+
+```shell-session
+$ nomad namespace status default
+Name        = default
+Description = Default shared namespace
+Quota       = shared-default-quota
+
+Quota Limits
+Region  CPU Usage   Memory Usage
+global  500 / 2500  256 / 2000
+```

@@ -373,7 +373,7 @@ START:
 				goto START
 			}
 
-			i.logger.Error("fingerprinting returned an error", "error", err)
+			i.logger.Error("fingerprinting returned an error", "error", fresp.Error)
 			i.handleFingerprintError()
 			return
 		}

@@ -28,7 +28,7 @@ ExecStart=/etc/init.d/dnsmasq systemd-exec
 ExecStartPost=/etc/init.d/dnsmasq systemd-start-resolvconf
 
 # We need to tell docker to pick up the changes
-ExecStartPost=systemctl restart docker
+ExecStartPost=/bin/systemctl restart docker
 
 ExecStop=/etc/init.d/dnsmasq systemd-stop-resolvconf
 ExecReload=/bin/kill -HUP $MAINPID
