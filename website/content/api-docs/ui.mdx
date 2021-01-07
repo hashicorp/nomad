@@ -7,8 +7,7 @@ description: The /ui namespace is used to access the Nomad web user interface.
 
 # Nomad Web UI
 
-Starting in v0.7, the Nomad UI is accessible at `/ui`. It is not namespaced by version. A request to `/`
-will also redirect to `/ui`.
+The Nomad UI is accessible at `/ui`. It is not namespaced by version. A request to `/` will also redirect to `/ui`.
 
 ## List Jobs
 
@@ -21,7 +20,7 @@ This page lists all known jobs in a paginated, searchable, and sortable table.
 ### Parameters
 
 - `namespace` `(string: "")` - Specifies the namespace all jobs should be a member
-  of. This is specified as a query string parameter. Namespaces are an enterprise feature.
+  of. This is specified as a query string parameter.
 
 - `sort` `(string: "")` - Specifies the property the list of jobs should be sorted by.
   This is specified as a query string parameter.
@@ -29,11 +28,19 @@ This page lists all known jobs in a paginated, searchable, and sortable table.
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
   or ascending. This is specified as a query string parameter.
 
-- `search` `(string: "")` - Specifies a regular expression uses to filter the list of
+- `search` `(string: "")` - Specifies a regular expression used to filter the list of
   visible jobs. This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the jobs list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the jobs list that should be visible. This
   is specified as a query string parameter.
+
+- `type` `(string: "")` - Filters the list of jobs to those with a matching type.
+
+- `status` `(string: "")` - Filters the list of jobs to those with a matching status.
+
+- `dc` `(string: "")` - Filters the list of jobs to those allowed in a matching datacenter value.
+
+- `prefix` `(string: "")` - Filters the list of jobs to those with names that start with a matching prefix.
 
 ## Job Detail
 
@@ -76,7 +83,7 @@ based on the type of job.
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
   or ascending. This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the task groups list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the task groups list that should be visible. This
   is specified as a query string parameter.
 
 ### Job Definition
@@ -112,11 +119,49 @@ in a table to drill into for task events.
 | ------------------------------ | ----------- |
 | `/ui/jobs/:job_id/deployments` | `text/html` |
 
+### Job Allocations
+
+This page lists all allocations for a job in a table view. Each allocation includes status indicators (e.g., rescheduled, preempted, unhealthy driver), ID, a link to the task group detail page, the created timestamp, time since last modified, current status, version, a link to the client the allocation is running on, whether or not it has a volume requirement, the current CPU utilization, and the current memory utilization.
+
+| Path                           | Produces    |
+| ------------------------------ | ----------- |
+| `/ui/jobs/:job_id/allocations` | `text/html` |
+
+### Parameters
+
+- `sort` `(string: "")` - Specifies the property the list of allocations should be sorted by.
+  This is specified as a query string parameter.
+
+- `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
+  or ascending. This is specified as a query string parameter.
+
+- `search` `(string: "")` - Specifies a regular expression used to filter the list of
+  visible allocations. This is specified as a query string parameter.
+
+- `page` `(int: 1)` - Specifies the page in the allocations list that should be visible. This
+  is specified as a query string parameter.
+
+### Job Evaluations
+
+This page lists all evaluations for a job in a table view. Each evaluation includes the evaluation ID, priority, created timestamp, the event that triggered the evaluation, status, and whether or not there are placement failures.
+
+| Path                           | Produces    |
+| ------------------------------ | ----------- |
+| `/ui/jobs/:job_id/evaluations` | `text/html` |
+
+### Parameters
+
+- `sort` `(string: "")` - Specifies the property the list of evaluations should be sorted by.
+  This is specified as a query string parameter.
+
+- `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
+  or ascending. This is specified as a query string parameter.
+
 ## Task Group Detail
 
 This page shows an overview of a specific task group. Details include the number of tasks, the aggregated amount of reserved CPU, memory, and disk, all associated allocations broken
 down by status, and a list of allocations. The list of allocations include details such as
-status, the node the allocation was placed on, and the current CPU and Memory usage of the
+status, the client the allocation was placed on, and the current CPU and Memory usage of the
 allocations.
 
 | Path                                | Produces    |
@@ -131,16 +176,16 @@ allocations.
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
   or ascending. This is specified as a query string parameter.
 
-- `search` `(string: "")` - Specifies a regular expression uses to filter the list of
+- `search` `(string: "")` - Specifies a regular expression used to filter the list of
   visible allocations. This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the allocations list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the allocations list that should be visible. This
   is specified as a query string parameter.
 
 ## Allocation Detail
 
 This page shows details and events for an allocation. Details include the job the allocation
-belongs to, the node the allocation is placed on, a list of all tasks, and lists of task
+belongs to, the client the allocation is placed on, a list of all tasks, and lists of task
 events per task. Each task in the task list includes the task name, state, last event, time,
 and addresses. Each task event in a task history list includes the time, type, and
 description of the event.
@@ -156,6 +201,24 @@ description of the event.
 
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
   or ascending. This is specified as a query string parameter.
+
+## Allocation File System
+
+This page will show either a directory listing of a path or the file at a path, depending on whether or not the path is a directory. Specifying no file path will show the root of the allocation file system. The file system is also navigible from the UI. Each entry in the directory listing will include the file size (assuming a file) and the last modified time.
+
+If the file is text based, the UI will render the text inline and the stream the file contents as it updates. If the file is a well-known image format, the image will be rendered inline. In all other cases, the UI will prompt a download link.
+
+| Path                                      | Produces    |
+| ----------------------------------------- | ----------- |
+| `/ui/allocations/:alloc_id/fs/:file_path` | `text/html` |
+
+### Parameters
+
+- `sort` `(string: "")` - Specifies the property the list of files should be sorted by.
+  This is specified as a query string parameter. Only applies to directories.
+
+- `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
+  or ascending. This is specified as a query string parameter. Only applies to directories.
 
 ## Task Detail
 
@@ -176,37 +239,105 @@ to `stderr`.
 | ------------------------------------------- | ----------- |
 | `/ui/allocations/:alloc_id/:task_name/logs` | `text/html` |
 
-## Nodes List
+## Task File System
 
-This page lists all nodes in the Nomad cluster in a sortable, searchable, paginated
-table.
+This page will show either a directory listing of a path or the file at a path, depending on whether or not the path is a directory. Specifying no file path will show the root of the task file system (which is within the allocation file system). The file system is also navigible from the UI. Each entry in the directory listing will include the file size (assuming a file) and the last modified time.
 
-| Path        | Produces    |
-| ----------- | ----------- |
-| `/ui/nodes` | `text/html` |
+If the file is text based, the UI will render the text inline and the stream the file contents as it updates. If the file is a well-known image format, the image will be rendered inline. In all other cases, the UI will prompt a download link.
+
+| Path                                      | Produces    |
+| ----------------------------------------- | ----------- |
+| `/ui/allocations/:alloc_id/fs/:file_path` | `text/html` |
 
 ### Parameters
 
-- `sort` `(string: "")` - Specifies the property the list of client nodes should be sorted by.
+- `sort` `(string: "")` - Specifies the property the list of files should be sorted by.
+  This is specified as a query string parameter. Only applies to directories.
+
+- `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
+  or ascending. This is specified as a query string parameter. Only applies to directories.
+
+## Exec Job
+
+This page will show a side bar navigation to traverse the job's task groups and tasks. The majority of this page is a latent terminal window. Using the side bar navigation will transition to the exec task page which establishes a `nomad exec` connection.
+
+This page is meant to be rendered in a popup window.
+
+| Path               | Produces    |
+| ------------------ | ----------- |
+| `/ui/exec/:job_id` | `text/html` |
+
+### Parameters
+
+- `allocation` `(string: "")` - An allocation ID that specifies which allocation to exec into.
+
+## Exec Task Group
+
+This page will show a side bar navigation to traverse the job's task groups and tasks with the selected task group already open. The majority of this page is a latent terminal window. Using the side bar navigation will transition to the exec task page which establishes a `nomad exec` connection.
+
+This page is meant to be rendered in a popup window.
+
+| Path                           | Produces    |
+| ------------------------------ | ----------- |
+| `/ui/exec/:job_id/:task_group` | `text/html` |
+
+### Parameters
+
+- `allocation` `(string: "")` - An allocation ID that specifies which allocation to exec into.
+
+## Exec Task
+
+This page will show a side bar navigation to traverse the job's task group's tasks. The majority of this page is a terminal window. The terminal window will be prepopulated with a `nomad exec` command. The specific command used to establish an interactive connection can be modified (e.g., changing `/bin/bash` to `/bin/sh`). Upon submitting the command, a websocket connection is opened to facilitate bidirectional communication between this terminal window and the task running on a Nomad client.
+
+This page is meant to be rendered in a popup window.
+
+| Path                           | Produces    |
+| ------------------------------ | ----------- |
+| `/ui/exec/:job_id/:task_group` | `text/html` |
+
+### Parameters
+
+- `allocation` `(string: "")` - An allocation ID that specifies which allocation to exec into. When not specified, an allocation for the specified task group is chosen at random.
+
+## Clients List
+
+This page lists all clients in the Nomad cluster in a sortable, searchable, paginated
+table.
+
+| Path          | Produces    |
+| ------------- | ----------- |
+| `/ui/clients` | `text/html` |
+
+### Parameters
+
+- `sort` `(string: "")` - Specifies the property the list of clients should be sorted by.
   This is specified as a query string parameter.
 
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
   or ascending. This is specified as a query string parameter.
 
-- `search` `(string: "")` - Specifies a regular expression uses to filter the list of
-  visible client nodes. This is specified as a query string parameter.
+- `search` `(string: "")` - Specifies a regular expression used to filter the list of
+  visible clients . This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the client nodes list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the clients list that should be visible. This
   is specified as a query string parameter.
 
-## Node Detail
+- `class` `(string: "")` - Filters the list of clients to those with a matching node class.
 
-This page shows the details of a node, including the node name, status, full ID,
+- `state` `(string: "")` - Filters the list of clients to those with a matching state. Options include `initializing`, `ready`, `down`, `ineligible`, and `draining`.
+
+- `dc` `(string: "")` - Filters the list of clients to those in the specified datacenter.
+
+- `volume` `(string: "")` - Filters the list of clients to those with a matching host volume (by name).
+
+## Client Detail
+
+This page shows the details of a client, including the client name, status, full ID,
 address, port, datacenter, allocations, and attributes.
 
-| Path                 | Produces    |
-| -------------------- | ----------- |
-| `/ui/nodes/:node_id` | `text/html` |
+| Path                     | Produces    |
+| ------------------------ | ----------- |
+| `/ui/clients/:client_id` | `text/html` |
 
 ### Parameters
 
@@ -216,11 +347,23 @@ address, port, datacenter, allocations, and attributes.
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
   or ascending. This is specified as a query string parameter.
 
-- `search` `(string: "")` - Specifies a regular expression uses to filter the list of
+- `search` `(string: "")` - Specifies a regular expression used to filter the list of
   visible allocations. This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the allocations list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the allocations list that should be visible. This
   is specified as a query string parameter.
+
+## Client Monitor
+
+This page streams log messages from a client's agent. It is the equivalent to the `nomad monitor` command with `-node-id` set to the client specified in the URL.
+
+| Path                             | Produces    |
+| -------------------------------- | ----------- |
+| `/ui/clients/:client_id/monitor` | `text/html` |
+
+### Parameters
+
+- `level` `(string: "info")` - Specifies the log level to monitor at. Possible values, in order of verbosity, include `trace`, `debug`, `info`, `warn`, and `error`.
 
 ## Servers List
 
@@ -240,7 +383,7 @@ the leader.
 - `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
   or ascending. This is specified as a query string parameter.
 
-- `page` `(int: 0)` - Specifies the page in the server agents list that should be visible. This
+- `page` `(int: 1)` - Specifies the page in the server agents list that should be visible. This
   is specified as a query string parameter.
 
 ## Server Detail
@@ -250,6 +393,155 @@ This page lists all tags associated with a server.
 | Path                     | Produces    |
 | ------------------------ | ----------- |
 | `/ui/servers/:server_id` | `text/html` |
+
+## Server Monitor
+
+This page streams log messages from a server's agent. It is the equivalent to the `nomad monitor` command with `-server-id` set to the server specified in the URL.
+
+| Path                             | Produces    |
+| -------------------------------- | ----------- |
+| `/ui/servers/:server_id/monitor` | `text/html` |
+
+### Parameters
+
+- `level` `(string: "info")` - Specifies the log level to monitor at. Possible values, in order of verbosity, include `trace`, `debug`, `info`, `warn`, and `error`.
+
+## CSI Volumes
+
+This page lists all CSI volumes registered with the Nomad cluster by namespace. Each volume includes the volume name, health, controller plugin health, node plugin health, provider, and number of attached allocations.
+
+| Path              | Produces    |
+| ----------------- | ----------- |
+| `/ui/csi/volumes` | `text/html` |
+
+### Parameters
+
+- `namespace` `(string: "")` - Specifies the namespace all volumes should be a member
+  of. This is specified as a query string parameter.
+
+- `sort` `(string: "")` - Specifies the property the list of volumes should be sorted by.
+  This is specified as a query string parameter.
+
+- `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
+  or ascending. This is specified as a query string parameter.
+
+- `search` `(string: "")` - Specifies a regular expression used to filter the list of
+  visible volumes. This is specified as a query string parameter.
+
+- `page` `(int: 1)` - Specifies the page in the volumes list that should be visible. This
+  is specified as a query string parameter.
+
+## CSI Volume
+
+This page shows information for a CSI volume. This includes whether or not the volume is available for scheduling, the CSI provider, the external ID, and the namespace. This page also includes a table of constraints (access mode and attachment mode), and tables for all attached allocations in `read` mode and `read/write` mode.
+
+| Path                         | Produces    |
+| ---------------------------- | ----------- |
+| `/ui/csi/volumes/:volume_id` | `text/html` |
+
+## CSI Plugins
+
+This page lists all CSI plugins registered with the Nomad cluster. Each plugin includes the plugin ID, controller plugin health, node plugin health, and CSI provider.
+
+| Path              | Produces    |
+| ----------------- | ----------- |
+| `/ui/csi/plugins` | `text/html` |
+
+### Parameters
+
+- `sort` `(string: "")` - Specifies the property the list of plugins should be sorted by.
+  This is specified as a query string parameter.
+
+- `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
+  or ascending. This is specified as a query string parameter.
+
+- `search` `(string: "")` - Specifies a regular expression used to filter the list of
+  visible plugins. This is specified as a query string parameter.
+
+- `page` `(int: 1)` - Specifies the page in the plugins list that should be visible. This
+  is specified as a query string parameter.
+
+## CSI Plugin
+
+This page shows information for a CSI plugin. This includes the proportion of healthy controller allocations, the proportion of healthy node allocations, a table of some controller allocations, and a table of some node allocations. Some of this information may be intentionally omitted based on the type of CSI plugin.
+
+| Path                         | Produces    |
+| ---------------------------- | ----------- |
+| `/ui/csi/plugins/:plugin_id` | `text/html` |
+
+## CSI Plugin Allocations
+
+This page lists all allocations for a CSI plugin. Each allocation includes the standard allocation information (including status indicators, ID, created timestamp, time since last modified, a link to the client the allocation is running on, a link to the job the allocation is for, the job version, volume requirements, current CPU utilization, and current memory utilization) as well as whether or not the allocation is healthy as defined by CSI.
+
+| Path              | Produces    |
+| ----------------- | ----------- |
+| `/ui/csi/plugins` | `text/html` |
+
+### Parameters
+
+- `sort` `(string: "")` - Specifies the property the list of allocations should be sorted by.
+  This is specified as a query string parameter.
+
+- `desc` `(boolean: false)` - Specifies whether or not the sort direction is descending
+  or ascending. This is specified as a query string parameter.
+
+- `search` `(string: "")` - Specifies a regular expression used to filter the list of
+  visible allocations. This is specified as a query string parameter.
+
+- `page` `(int: 1)` - Specifies the page in the allocations list that should be visible. This
+  is specified as a query string parameter.
+
+- `healthy` `(boolean: unset)` - Filters the list of allocations to only those with a matching health value. Value must be `true`, `false`, or unset.
+
+- `type` `(string: "")` - Filters the list of allocations to only those with a matching plugin type. Value must be `controller`, `node`, or unset.
+
+## Optimize
+
+~> **Enterprise Only!** This feature depends on functionality only present in Nomad Autoscaler Enterprise.
+
+This page lists all recommendations surfaced by [dynamic application sizing](/docs/autoscaling#dynamic-application-sizing). This page will automatically redirect to the recommendation summary route for the first recommendation sorted by relevance.
+
+Each recommendation in the list will contain information including the job and task group the recommendation is for, the time the recommendation was surfaced, the number of allocations impacted, the difference in CPU the recommendation suggests, the difference in memory the recommendation suggests, and the aggregate change in CPU and memory given the number of allocations impacted.
+
+| Path           | Produces    |
+| -------------- | ----------- |
+| `/ui/optimize` | `text/html` |
+
+### Parameters
+
+- `namespace` `(string: "")` - Specifies the namespace all recommendations should be a member of. This is specified as a query string parameter.
+
+- `all-namespaces` `(boolean: false)` - Overrides the namespace parameter and returns all recommendations for all namespaces the active ACL token is authorized for.
+
+- `search` `(string: "")` - Specifies a regular expression used to filter the list of visible recommendations. This is specified as a query string parameter.
+
+- `type` `(string: "")` - Filters the list of recommendations to only those for jobs with a matching type.
+
+- `status` `(string: "")` - Filters the list of recommendations to only those for jobs with a matching status.
+
+- `dc` `(string: "")` - Filters the list of recommendations to only those for jobs allowed in a matching datacenter value.
+
+- `prefix` `(string: "")` - Filters the list of recommendations to only those for jobs with names that start with a matching prefix.
+
+## Recommendation Summary
+
+This page includes the same list of recommendations as the optimize route as well as the recommendation card for the job and task group specified in the URL. The recommendation card includes a list of all tasks for the task group as well as toggles for each recommendation available (potentially CPU and memory for each task). The card also shows before, after, and delta values for each recommendation. The before and after values are also presented in a chart that overlays the mean, p99, and max utilization values of the task a recommendation is for.
+
+| Path                                    | Produces    |
+| --------------------------------------- | ----------- |
+| `/ui/optimize/:job_id/:task_group_name` | `text/html` |
+
+### Parameters
+
+- `namespace` `(string: "")` - Specifies the namespace of the job the recommendation is for.
+
+## Topology Visualization
+
+This page includes a visualization of all starting and running allocations grouped by client and by datacenter.
+
+| Path           | Produces    |
+| -------------- | ----------- |
+| `/ui/topology` | `text/html` |
 
 ## ACL Tokens
 
