@@ -6,6 +6,7 @@ IMPROVEMENTS:
  * consul/connect: interpolate the connect, service meta, and service canary meta blocks with the task environment [[GH-9586](https://github.com/hashicorp/nomad/pull/9586)]
 
 BUG FIXES:
+ * client: Fixed a bug where clients configured with `cpu_total_compute` did not update the `cpu.totalcompute` node attribute. [[GH-9532](https://github.com/hashicorp/nomad/issues/9532)]
  * consul: Fixed a bug where updating a task to include services would not work [[GH-9707](https://github.com/hashicorp/nomad/issues/9707)]
  * consul: Fixed alloc address mode port advertisement to use the mapped `to` port value [[GH-9730](https://github.com/hashicorp/nomad/issues/9730)]
  * consul/connect: Fixed a bug where absent ingress envoy proxy configuration could panic client [[GH-9669](https://github.com/hashicorp/nomad/issues/9669)]
