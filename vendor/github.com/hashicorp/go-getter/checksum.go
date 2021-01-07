@@ -259,7 +259,10 @@ func (c *Client) ChecksumFromFile(checksumFile string, src *url.URL) (*FileCheck
 				return nil, fmt.Errorf(
 					"Error reading checksum file: %s", err)
 			}
-			break
+			if line == "" {
+				break
+			}
+			// parse the line, if we hit EOF, but the line is not empty
 		}
 		checksum, err := parseChecksumLine(line)
 		if err != nil || checksum == nil {

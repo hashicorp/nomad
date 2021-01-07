@@ -213,28 +213,49 @@ func (g *S3Getter) parseUrl(u *url.URL) (region, bucket, path, version string, c
 	// any other S3 compliant service. S3 has a predictable
 	// url as others do not
 	if strings.Contains(u.Host, "amazonaws.com") {
-		// Expected host style: s3.amazonaws.com. They always have 3 parts,
-		// although the first may differ if we're accessing a specific region.
+		// Amazon S3 supports both virtual-hosted–style and path-style URLs to access a bucket, although path-style is deprecated
+		// In both cases few older regions supports dash-style region indication (s3-Region) even if AWS discourages their use.
+		// The same bucket could be reached with:
+		// bucket.s3.region.amazonaws.com/path
+		// bucket.s3-region.amazonaws.com/path
+		// s3.amazonaws.com/bucket/path
+		// s3-region.amazonaws.com/bucket/path
+
 		hostParts := strings.Split(u.Host, ".")
-		if len(hostParts) != 3 {
+		switch len(hostParts) {
+		// path-style
+		case 3:
+			// Parse the region out of the first part of the host
+			region = strings.TrimPrefix(strings.TrimPrefix(hostParts[0], "s3-"), "s3")
+			if region == "" {
+				region = "us-east-1"
+			}
+			pathParts := strings.SplitN(u.Path, "/", 3)
+			bucket = pathParts[1]
+			path = pathParts[2]
+		// vhost-style, dash region indication
+		case 4:
+			// Parse the region out of the first part of the host
+			region = strings.TrimPrefix(strings.TrimPrefix(hostParts[1], "s3-"), "s3")
+			if region == "" {
+				err = fmt.Errorf("URL is not a valid S3 URL")
+				return
+			}
+			pathParts := strings.SplitN(u.Path, "/", 2)
+			bucket = hostParts[0]
+			path = pathParts[1]
+		//vhost-style, dot region indication
+		case 5:
+			region = hostParts[2]
+			pathParts := strings.SplitN(u.Path, "/", 2)
+			bucket = hostParts[0]
+			path = pathParts[1]
+
+		}
+		if len(hostParts) < 3 && len(hostParts) > 5 {
 			err = fmt.Errorf("URL is not a valid S3 URL")
 			return
 		}
-
-		// Parse the region out of the first part of the host
-		region = strings.TrimPrefix(strings.TrimPrefix(hostParts[0], "s3-"), "s3")
-		if region == "" {
-			region = "us-east-1"
-		}
-
-		pathParts := strings.SplitN(u.Path, "/", 3)
-		if len(pathParts) != 3 {
-			err = fmt.Errorf("URL is not a valid S3 URL")
-			return
-		}
-
-		bucket = pathParts[1]
-		path = pathParts[2]
 		version = u.Query().Get("version")
 
 	} else {

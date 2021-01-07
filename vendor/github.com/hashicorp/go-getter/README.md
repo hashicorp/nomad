@@ -1,9 +1,9 @@
 # go-getter
 
-[![CircleCI](https://circleci.com/gh/hashicorp/go-getter/tree/master.svg?style=svg)][circleci]
+[![CircleCI](https://circleci.com/gh/hashicorp/go-getter/tree/main.svg?style=svg)][circleci]
 [![Go Documentation](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)][godocs]
 
-[circleci]: https://circleci.com/gh/hashicorp/go-getter/tree/master
+[circleci]: https://circleci.com/gh/hashicorp/go-getter/tree/main
 [godocs]: http://godoc.org/github.com/hashicorp/go-getter
 
 go-getter is a library for Go (golang) for downloading files or directories

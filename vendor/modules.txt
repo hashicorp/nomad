@@ -413,7 +413,7 @@ github.com/hashicorp/go-discover/provider/vsphere
 # github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
 ## explicit
 github.com/hashicorp/go-envparse
-# github.com/hashicorp/go-getter v1.5.0
+# github.com/hashicorp/go-getter v1.5.2
 ## explicit
 github.com/hashicorp/go-getter
 github.com/hashicorp/go-getter/helper/url
@@ -543,6 +543,12 @@ github.com/joyent/triton-go/errors
 github.com/jstemmer/go-junit-report
 github.com/jstemmer/go-junit-report/formatter
 github.com/jstemmer/go-junit-report/parser
+# github.com/klauspost/compress v1.11.2
+github.com/klauspost/compress/fse
+github.com/klauspost/compress/huff0
+github.com/klauspost/compress/snappy
+github.com/klauspost/compress/zstd
+github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/konsorten/go-windows-terminal-sequences v1.0.3
 github.com/konsorten/go-windows-terminal-sequences
 # github.com/kr/pretty v0.2.0
