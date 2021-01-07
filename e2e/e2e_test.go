@@ -29,6 +29,7 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/rescheduling"
 	_ "github.com/hashicorp/nomad/e2e/spread"
 	_ "github.com/hashicorp/nomad/e2e/systemsched"
+	_ "github.com/hashicorp/nomad/e2e/scalingpolicies"
 	_ "github.com/hashicorp/nomad/e2e/taskevents"
 	_ "github.com/hashicorp/nomad/e2e/vaultsecrets"
 	_ "github.com/hashicorp/nomad/e2e/volumes"
