@@ -283,8 +283,9 @@ config {
   to be configured to allow privileged containers.
 
 - `userns_mode` - (Optional) `host` or not set (default). Set to `host` to use
-  the host's user namespace when user namespace remapping is enabled on the
-  docker daemon.
+  the host's user namespace (effectively disabling user namespacing) when user
+  namespace remapping is enabled on the docker daemon. This field has no
+  effect if the docker daemon does not have user namespace remapping enabled.
 
 - `volumes` - (Optional) A list of `host_path:container_path` strings to bind
   host paths to container paths. Mounting host paths outside of the [allocation
