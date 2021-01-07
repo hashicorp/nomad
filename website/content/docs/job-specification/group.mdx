@@ -65,7 +65,8 @@ job "docs" {
   type, which can be found in the [restart stanza documentation][restart].
 
 - `service` <code>([Service][]: nil)</code> - Specifies integrations with
-  [Consul][] for service discovery. Nomad automatically registers each service when an allocation
+  [Consul](/docs/configuration/consul) for service discovery. 
+  Nomad automatically registers each service when an allocation
   is started and de-registers them when the allocation is destroyed.
 
 - `shutdown_delay` `(string: "0s")` - Specifies the duration to wait when
