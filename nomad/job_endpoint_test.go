@@ -6731,7 +6731,7 @@ func TestJobEndpoint_Scale_OutOfBounds(t *testing.T) {
 			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
 		},
 		Count:          helper.Int64ToPtr(pol.Max + 1),
-		Message:        "too high",
+		Message:        "out of bounds",
 		PolicyOverride: false,
 		WriteRequest: structs.WriteRequest{
 			Region:    "global",
@@ -6740,13 +6740,12 @@ func TestJobEndpoint_Scale_OutOfBounds(t *testing.T) {
 	}
 	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
 	require.Error(err)
-	require.Contains(err.Error(), "cannot be greater than")
+	require.Contains(err.Error(), "group count was greater than scaling policy maximum: 11 > 10")
 
-	scale.Count = helper.Int64ToPtr(pol.Min - 1)
-	scale.Message = "too low"
+	scale.Count = helper.Int64ToPtr(2)
 	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
 	require.Error(err)
-	require.Contains(err.Error(), "cannot be less than")
+	require.Contains(err.Error(), "group count was less than scaling policy minimum: 2 < 3")
 }
 
 func TestJobEndpoint_Scale_NoEval(t *testing.T) {
