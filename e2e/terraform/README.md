@@ -9,7 +9,7 @@ cluster along with configuration files for Nomad, Consul, and Vault.
 
 ## Setup
 
-You'll need Terraform 0.13+, as well as AWS credentials to create the Nomad
+You'll need Terraform 0.14.7+, as well as AWS credentials to create the Nomad
 cluster. This Terraform stack assumes that an appropriate instance role has
 been configured elsewhere and that you have the ability to `AssumeRole` into
 the AWS account.
@@ -111,9 +111,9 @@ so that's safely skipped.
 After deploying the infrastructure, you can get connection information
 about the cluster:
 
-- `$(terraform output environment)` will set your current shell's
-  `NOMAD_ADDR` and `CONSUL_HTTP_ADDR` to point to one of the cluster's
-  server nodes, and set the `NOMAD_E2E` variable.
+- `$(terraform output --raw environment)` will set your current shell's
+  `NOMAD_ADDR` and `CONSUL_HTTP_ADDR` to point to one of the cluster's server
+  nodes, and set the `NOMAD_E2E` variable.
 - `terraform output servers` will output the list of server node IPs.
 - `terraform output linux_clients` will output the list of Linux
   client node IPs.
