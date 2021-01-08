@@ -1039,6 +1039,20 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	prevCount := found.Count
 	if args.Count != nil {
 
+		// if there is a scaling policy, check that the new count is within bounds
+		if found.Scaling != nil {
+			if *args.Count < found.Scaling.Min {
+				return structs.NewErrRPCCoded(400,
+					fmt.Sprintf("group count was less than scaling policy minimum: %d < %d",
+						*args.Count, found.Scaling.Min))
+			}
+			if found.Scaling.Max < *args.Count {
+				return structs.NewErrRPCCoded(400,
+					fmt.Sprintf("group count was greater than scaling policy maximum: %d > %d",
+						*args.Count, found.Scaling.Max))
+			}
+		}
+
 		// Lookup the latest deployment, to see whether this scaling event should be blocked
 		d, err := snap.LatestDeploymentByJobID(ws, namespace, args.JobID)
 		if err != nil {
