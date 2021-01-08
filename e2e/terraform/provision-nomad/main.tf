@@ -1,5 +1,5 @@
 locals {
-  provision_script = var.platform == "windows_amd64" ? "C:/opt/provision.ps1" : "/opt/provision.sh"
+  provision_script = var.platform == "windows_amd64" ? "powershell C:/opt/provision.ps1" : "/opt/provision.sh"
 
   config_path = dirname("${path.root}/config/")
 
@@ -7,7 +7,7 @@ locals {
     fileset(local.config_path, "**"),
   ))
 
-  update_config_command = var.platform == "windows_amd64" ? "if (test-path /opt/config) { Remove-Item -Path /opt/config -Force -Recurse }; cp -r /tmp/config /opt/config" : "sudo rm -rf /opt/config; sudo mv /tmp/config /opt/config"
+  update_config_command = var.platform == "windows_amd64" ? "powershell -Command \"& { if (test-path /opt/config) { Remove-Item -Path /opt/config -Force -Recurse }; cp -r C:/tmp/config /opt/config }\"" : "sudo rm -rf /opt/config; sudo mv /tmp/config /opt/config"
 
   # abstract-away platform-specific parameter expectations
   _arg = var.platform == "windows_amd64" ? "-" : "--"
@@ -25,17 +25,19 @@ resource "null_resource" "provision_nomad" {
     script = data.template_file.provision_script.rendered
   }
 
-  # Run the provisioner as a local-exec'd ssh command as a workaround for
-  # Windows remote-exec zero-byte scripts bug:
-  # https://github.com/hashicorp/terraform/issues/25634
-  # https://github.com/hashicorp/terraform/blob/master/CHANGELOG.md#0150-unreleased
-  #
-  # The retry behavior and explicit PasswordAuthenticaiton flag here are to
-  # workaround a race with the Windows userdata script that installs the
-  # authorized_key. Unfortunately this still results in a bunch of "permission
-  # denied" errors while waiting for those keys to be configured.
-  provisioner "local-exec" {
-    command = "until ssh -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ${var.connection.private_key} -p ${var.connection.port} ${var.connection.user}@${var.connection.host} ${data.template_file.provision_script.rendered}; do sleep 5; done"
+
+  connection {
+    type            = "ssh"
+    user            = var.connection.user
+    host            = var.connection.host
+    port            = var.connection.port
+    private_key     = file(var.connection.private_key)
+    target_platform = var.platform == "windows_amd64" ? "windows" : "unix"
+    timeout         = "15m"
+  }
+
+  provisioner "remote-exec" {
+    inline = [data.template_file.provision_script.rendered]
   }
 
 }
@@ -93,12 +95,13 @@ resource "null_resource" "upload_nomad_binary" {
   }
 
   connection {
-    type        = "ssh"
-    user        = var.connection.user
-    host        = var.connection.host
-    port        = var.connection.port
-    private_key = file(var.connection.private_key)
-    timeout     = "15m"
+    type            = "ssh"
+    user            = var.connection.user
+    host            = var.connection.host
+    port            = var.connection.port
+    private_key     = file(var.connection.private_key)
+    target_platform = var.platform == "windows_amd64" ? "windows" : "unix"
+    timeout         = "15m"
   }
 
   provisioner "file" {
@@ -114,12 +117,13 @@ resource "null_resource" "upload_configs" {
   }
 
   connection {
-    type        = "ssh"
-    user        = var.connection.user
-    host        = var.connection.host
-    port        = var.connection.port
-    private_key = file(var.connection.private_key)
-    timeout     = "15m"
+    type            = "ssh"
+    user            = var.connection.user
+    host            = var.connection.host
+    port            = var.connection.port
+    private_key     = file(var.connection.private_key)
+    target_platform = var.platform == "windows_amd64" ? "windows" : "unix"
+    timeout         = "15m"
   }
 
   provisioner "file" {
@@ -127,8 +131,8 @@ resource "null_resource" "upload_configs" {
     destination = "/tmp/"
   }
 
-  provisioner "local-exec" {
-    command = "until ssh -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ${var.connection.private_key} -p ${var.connection.port} ${var.connection.user}@${var.connection.host} '${local.update_config_command}'; do sleep 5; done"
+  provisioner "remote-exec" {
+    inline = [local.update_config_command]
   }
 
 }
