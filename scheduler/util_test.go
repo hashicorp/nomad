@@ -909,6 +909,63 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	require.Empty(t, ctx.plan.NodeAllocation, "inplaceUpdate incorrectly did an inplace update")
 }
 
+func TestInplaceUpdate_AllocatedResources(t *testing.T) {
+	state, ctx := testContext(t)
+	eval := mock.Eval()
+	job := mock.Job()
+
+	node := mock.Node()
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 900, node))
+
+	// Register an alloc
+	alloc := &structs.Allocation{
+		Namespace: structs.DefaultNamespace,
+		ID:        uuid.Generate(),
+		EvalID:    eval.ID,
+		NodeID:    node.ID,
+		JobID:     job.ID,
+		Job:       job,
+		AllocatedResources: &structs.AllocatedResources{
+			Shared: structs.AllocatedSharedResources{
+				Ports: structs.AllocatedPorts{
+					{
+						Label: "api-port",
+						Value: 19910,
+						To:    8080,
+					},
+				},
+			},
+		},
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		TaskGroup:     "web",
+	}
+	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+
+	// Update TG to add a new service (inplace)
+	tg := job.TaskGroups[0]
+	tg.Services = []*structs.Service{
+		{
+			Name: "tg-service",
+		},
+	}
+
+	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
+	stack := NewGenericStack(false, ctx)
+
+	// Do the inplace update.
+	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
+
+	require.True(t, len(unplaced) == 0 && len(inplace) == 1, "inplaceUpdate incorrectly did not perform an inplace update")
+	require.NotEmpty(t, ctx.plan.NodeAllocation, "inplaceUpdate incorrectly did an inplace update")
+	require.NotEmpty(t, ctx.plan.NodeAllocation[node.ID][0].AllocatedResources.Shared.Ports)
+
+	port, ok := ctx.plan.NodeAllocation[node.ID][0].AllocatedResources.Shared.Ports.Get("api-port")
+	require.True(t, ok)
+	require.Equal(t, 19910, port.Value)
+}
+
 func TestInplaceUpdate_NoMatch(t *testing.T) {
 	state, ctx := testContext(t)
 	eval := mock.Eval()
