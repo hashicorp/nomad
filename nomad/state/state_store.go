@@ -4427,9 +4427,6 @@ func (s *StateStore) setJobStatus(index uint64, txn *txn,
 
 	// Capture the current status so we can check if there is a change
 	oldStatus := job.Status
-	if index == job.CreateIndex {
-		oldStatus = ""
-	}
 	newStatus := forceStatus
 
 	// If forceStatus is not set, compute the jobs status.
