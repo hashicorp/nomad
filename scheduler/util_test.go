@@ -679,8 +679,15 @@ func TestTasksUpdated(t *testing.T) {
 
 	require.False(t, tasksUpdated(j19, j20, name))
 
+	// Change group port
 	j20.TaskGroups[0].Networks[0].Mode = "bridge"
 	require.True(t, tasksUpdated(j19, j20, name))
+
+	j21 := mock.Job()
+	require.False(t, tasksUpdated(j1, j21, name))
+
+	j21.TaskGroups[0].Networks[0].DynamicPorts[0].HostNetwork = "public"
+	require.True(t, tasksUpdated(j1, j21, name))
 }
 
 func TestTasksUpdated_connectServiceUpdated(t *testing.T) {
