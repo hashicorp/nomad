@@ -1043,11 +1043,11 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		if found.Scaling != nil {
 			if *args.Count < found.Scaling.Min {
 				return structs.NewErrRPCCoded(400,
-					fmt.Sprintf("new scaling count cannot be less than the scaling policy minimum"))
+					"new scaling count cannot be less than the scaling policy minimum")
 			}
 			if found.Scaling.Max < *args.Count {
 				return structs.NewErrRPCCoded(400,
-					fmt.Sprintf("new scaling count cannot be greater than the scaling policy maximum"))
+					"new scaling count cannot be greater than the scaling policy maximum")
 			}
 		}
 
