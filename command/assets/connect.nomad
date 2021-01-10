@@ -313,7 +313,7 @@ job "countdash" {
       # are specific to each driver, so please see specific driver
       # documentation for more information.
       config {
-        image = "hashicorpnomad/counter-api:v1"
+        image = "hashicorpnomad/counter-api:v3"
       }
 
       # The "artifact" stanza instructs Nomad to download an artifact from a
@@ -457,7 +457,7 @@ job "countdash" {
       }
 
       config {
-        image = "hashicorpnomad/counter-dashboard:v1"
+        image = "hashicorpnomad/counter-dashboard:v3"
       }
     }
   }
