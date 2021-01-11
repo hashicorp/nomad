@@ -1039,10 +1039,8 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	}
 
 	now := time.Now().UnixNano()
-
-	// If the count is present, commit the job update via Raft
-	// for now, we'll do this even if count didn't change
 	prevCount := group.Count
+
 	if args.Count != nil {
 		// Look up the latest deployment, to see whether this scaling event should be blocked
 		d, err := snap.LatestDeploymentByJobID(ws, namespace, args.JobID)
@@ -1076,7 +1074,11 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			}
 			return structs.NewErrRPCCoded(400, JobScalingBlockedByActiveDeployment)
 		}
+	}
 
+	// If the count is present, commit the job update via Raft
+	// for now, we'll do this even if count didn't change
+	if args.Count != nil {
 		_, jobModifyIndex, err := j.srv.raftApply(
 			structs.JobRegisterRequestType,
 			structs.JobRegisterRequest{
