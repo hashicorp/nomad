@@ -1010,14 +1010,14 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	}
 
 	groupName := args.Target[structs.ScalingTargetGroup]
-	var found *structs.TaskGroup
+	var group *structs.TaskGroup
 	for _, tg := range job.TaskGroups {
 		if groupName == tg.Name {
-			found = tg
+			group = tg
 			break
 		}
 	}
-	if found == nil {
+	if group == nil {
 		return structs.NewErrRPCCoded(400,
 			fmt.Sprintf("task group %q specified for scaling does not exist in job", groupName))
 	}
@@ -1026,20 +1026,20 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 
 	// If the count is present, commit the job update via Raft
 	// for now, we'll do this even if count didn't change
-	prevCount := found.Count
+	prevCount := group.Count
 	if args.Count != nil {
 
 		// if there is a scaling policy, check that the new count is within bounds
-		if found.Scaling != nil {
-			if *args.Count < found.Scaling.Min {
+		if group.Scaling != nil {
+			if *args.Count < group.Scaling.Min {
 				return structs.NewErrRPCCoded(400,
 					fmt.Sprintf("group count was less than scaling policy minimum: %d < %d",
-						*args.Count, found.Scaling.Min))
+						*args.Count, group.Scaling.Min))
 			}
-			if found.Scaling.Max < *args.Count {
+			if group.Scaling.Max < *args.Count {
 				return structs.NewErrRPCCoded(400,
 					fmt.Sprintf("group count was greater than scaling policy maximum: %d > %d",
-						*args.Count, found.Scaling.Max))
+						*args.Count, group.Scaling.Max))
 			}
 		}
 
@@ -1082,7 +1082,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 				fmt.Sprintf("new scaling count is too large for TaskGroup.Count (int): %v", args.Count))
 		}
 		// update the task group count
-		found.Count = truncCount
+		group.Count = truncCount
 
 		registerReq := structs.JobRegisterRequest{
 			Job:            job,
