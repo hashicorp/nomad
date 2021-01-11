@@ -1044,7 +1044,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	// for now, we'll do this even if count didn't change
 	prevCount := group.Count
 	if args.Count != nil {
-		// Lookup the latest deployment, to see whether this scaling event should be blocked
+		// Look up the latest deployment, to see whether this scaling event should be blocked
 		d, err := snap.LatestDeploymentByJobID(ws, namespace, args.JobID)
 		if err != nil {
 			j.logger.Error("unable to lookup latest deployment", "error", err)
