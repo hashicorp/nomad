@@ -1077,9 +1077,6 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			return structs.NewErrRPCCoded(400, JobScalingBlockedByActiveDeployment)
 		}
 
-		// update the task group count
-		group.Count = int(*args.Count)
-
 		_, jobModifyIndex, err := j.srv.raftApply(
 			structs.JobRegisterRequestType,
 			structs.JobRegisterRequest{
