@@ -1082,7 +1082,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	// LatestDeploymentByJobID doesn't
 	if deployment != nil && deployment.Active() && deployment.JobCreateIndex == job.CreateIndex {
 		// attempt to register the scaling event
-		JobScalingBlockedByActiveDeployment := "job scaling blocked due to active deployment"
+		msg := "job scaling blocked due to active deployment"
 		event := &structs.ScalingEventRequest{
 			Namespace: job.Namespace,
 			JobID:     job.ID,
@@ -1090,7 +1090,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			ScalingEvent: &structs.ScalingEvent{
 				Time:          now,
 				PreviousCount: prevCount,
-				Message:       JobScalingBlockedByActiveDeployment,
+				Message:       msg,
 				Error:         true,
 				Meta: map[string]interface{}{
 					"OriginalMessage": args.Message,
@@ -1103,7 +1103,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			// just log the error, this was a best-effort attempt
 			j.logger.Error("scaling event create failed during block scaling action", "error", err)
 		}
-		return structs.NewErrRPCCoded(400, JobScalingBlockedByActiveDeployment)
+		return structs.NewErrRPCCoded(400, msg)
 	}
 
 	// Commit the job update via Raft, for now we'll do this even if count didn't
