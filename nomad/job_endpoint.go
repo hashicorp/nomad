@@ -1154,7 +1154,9 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	}
 
 	reply.Index = eventIndex
+
 	j.srv.setQueryMeta(&reply.QueryMeta)
+
 	return nil
 }
 
