@@ -1109,6 +1109,9 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return structs.NewErrRPCCoded(400, msg)
 	}
 
+	// Update the job's TaskGroup count
+	group.Count = int(*args.Count)
+
 	// Commit the job update
 	_, jobModifyIndex, err := j.srv.raftApply(
 		structs.JobRegisterRequestType,
