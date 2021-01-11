@@ -1083,23 +1083,26 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	if deployment != nil && deployment.Active() && deployment.JobCreateIndex == job.CreateIndex {
 		// attempt to register the scaling event
 		msg := "job scaling blocked due to active deployment"
-		event := &structs.ScalingEventRequest{
-			Namespace: job.Namespace,
-			JobID:     job.ID,
-			TaskGroup: groupName,
-			ScalingEvent: &structs.ScalingEvent{
-				Time:          now,
-				PreviousCount: prevCount,
-				Message:       msg,
-				Error:         true,
-				Meta: map[string]interface{}{
-					"OriginalMessage": args.Message,
-					"OriginalCount":   *args.Count,
-					"OriginalMeta":    args.Meta,
+		_, _, err := j.srv.raftApply(
+			structs.ScalingEventRegisterRequestType,
+			&structs.ScalingEventRequest{
+				Namespace: job.Namespace,
+				JobID:     job.ID,
+				TaskGroup: groupName,
+				ScalingEvent: &structs.ScalingEvent{
+					Time:          now,
+					PreviousCount: prevCount,
+					Message:       msg,
+					Error:         true,
+					Meta: map[string]interface{}{
+						"OriginalMessage": args.Message,
+						"OriginalCount":   *args.Count,
+						"OriginalMeta":    args.Meta,
+					},
 				},
 			},
-		}
-		if _, _, err := j.srv.raftApply(structs.ScalingEventRegisterRequestType, event); err != nil {
+		)
+		if err != nil {
 			// just log the error, this was a best-effort attempt
 			j.logger.Error("scaling event create failed during block scaling action", "error", err)
 		}
