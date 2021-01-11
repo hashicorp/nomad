@@ -1080,14 +1080,16 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		// update the task group count
 		group.Count = int(*args.Count)
 
-		registerReq := structs.JobRegisterRequest{
-			Job:            job,
-			EnforceIndex:   true,
-			JobModifyIndex: job.ModifyIndex,
-			PolicyOverride: args.PolicyOverride,
-			WriteRequest:   args.WriteRequest,
-		}
-		_, jobModifyIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, registerReq)
+		_, jobModifyIndex, err := j.srv.raftApply(
+			structs.JobRegisterRequestType,
+			structs.JobRegisterRequest{
+				Job:            job,
+				EnforceIndex:   true,
+				JobModifyIndex: job.ModifyIndex,
+				PolicyOverride: args.PolicyOverride,
+				WriteRequest:   args.WriteRequest,
+			},
+		)
 		if err != nil {
 			j.logger.Error("job register for scale failed", "error", err)
 			return err
