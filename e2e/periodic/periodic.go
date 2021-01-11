@@ -6,6 +6,8 @@ import (
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 type PeriodicTest struct {
@@ -41,12 +43,40 @@ func (tc *PeriodicTest) AfterEach(f *framework.F) {
 func (tc *PeriodicTest) TestPeriodicDispatch_Basic(f *framework.F) {
 	t := f.T()
 
-	nomadClient := tc.Nomad()
-
 	uuid := uuid.Generate()
-	jobID := fmt.Sprintf("deployment-%s", uuid[0:8])
+	jobID := fmt.Sprintf("periodicjob-%s", uuid[0:8])
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	// register job
-	e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "periodic/input/simple.nomad", jobID, "")
+	e2eutil.Register(jobID, "periodic/input/simple.nomad")
+
+	// force dispatch
+	require.NoError(t, e2eutil.PeriodicForce(jobID))
+
+	// Get the child job ID
+	childID, err := e2eutil.JobInspectTemplate(jobID, `{{with index . 1}}{{printf "%s" .ID}}{{end}}`)
+	require.NoError(t, err)
+	require.NotEmpty(t, childID)
+
+	testutil.WaitForResult(func() (bool, error) {
+		status, err := e2eutil.JobInspectTemplate(jobID, `{{with index . 1}}{{printf "%s" .Status}}{{end}}`)
+		require.NoError(t, err)
+		require.NotEmpty(t, status)
+		if status == "dead" {
+			return true, nil
+		}
+		return false, fmt.Errorf("expected periodic job to be dead, got %s", status)
+	}, func(err error) {
+		require.NoError(t, err)
+	})
+
+	// Assert there are no pending children
+	pending, err := e2eutil.JobInspectTemplate(jobID, `{{with index . 0}}{{printf "%d" .JobSummary.Children.Pending}}{{end}}`)
+	require.NoError(t, err)
+	require.Equal(t, "0", pending)
+
+	// Assert there are no pending children
+	dead, err := e2eutil.JobInspectTemplate(jobID, `{{with index . 0}}{{printf "%d" .JobSummary.Children.Dead}}{{end}}`)
+	require.NoError(t, err)
+	require.Equal(t, "1", dead)
 }

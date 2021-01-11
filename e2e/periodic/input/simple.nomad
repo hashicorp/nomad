@@ -1,6 +1,12 @@
-job "test" {
+job "periodic" {
   datacenters = ["dc1"]
   type        = "batch"
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
 
   periodic {
     cron             = "* * * * *"
@@ -12,8 +18,9 @@ job "test" {
       driver = "docker"
 
       config {
-        image   = "alpine:latest"
-        command = "ls"
+        image   = "busybox:1"
+        command = "/bin/sh"
+        args    = ["-c", "sleep 5"]
       }
     }
   }

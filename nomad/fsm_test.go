@@ -3439,9 +3439,7 @@ func TestFSM_EventBroker_JobRegisterFSMEvents(t *testing.T) {
 		Eval: eval,
 	}
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	resp := fsm.Apply(makeLog(buf))
 	require.Nil(t, resp)
@@ -3479,5 +3477,5 @@ func TestFSM_EventBroker_JobRegisterFSMEvents(t *testing.T) {
 	}
 
 	require.Len(t, events, 1)
-	require.Equal(t, events[0].Type, structs.TypeJobRegistered)
+	require.Equal(t, structs.TypeJobRegistered, events[0].Type)
 }
