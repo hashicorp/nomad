@@ -972,22 +972,26 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "scale"}, time.Now())
 
-	err := args.Validate()
+	namespace := args.RequestNamespace()
+
+	// Authorize request
+	aclObj, err := j.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	}
 
-	namespace := args.RequestNamespace()
-
-	// Check for submit-job permissions
-	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil {
+	if aclObj != nil {
 		hasScaleJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityScaleJob)
 		hasSubmitJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilitySubmitJob)
 		if !(hasScaleJob || hasSubmitJob) {
 			return structs.ErrPermissionDenied
 		}
+	}
+
+	// Validate args
+	err = args.Validate()
+	if err != nil {
+		return err
 	}
 
 	// Lookup the job
