@@ -1070,14 +1070,17 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	now := time.Now().UnixNano()
 	prevCount := int64(group.Count)
 
-	// Look up the latest deployment, to see whether this scaling event should be blocked
+	// Look up the latest deployment, to see whether this scaling event should be
+	// blocked
 	deployment, err := snap.LatestDeploymentByJobID(ws, namespace, args.JobID)
 	if err != nil {
 		j.logger.Error("unable to lookup latest deployment", "error", err)
 		return err
 	}
-	// explicitly filter deployment by JobCreateIndex to be safe, because LatestDeploymentByJobID doesn't
-	if deployment != nil && deployment.JobCreateIndex == job.CreateIndex && deployment.Active() {
+
+	// Explicitly filter deployment by JobCreateIndex to be safe, because
+	// LatestDeploymentByJobID doesn't
+	if deployment != nil && deployment.Active() && deployment.JobCreateIndex == job.CreateIndex {
 		// attempt to register the scaling event
 		JobScalingBlockedByActiveDeployment := "job scaling blocked due to active deployment"
 		event := &structs.ScalingEventRequest{
