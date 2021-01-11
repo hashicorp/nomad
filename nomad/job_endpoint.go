@@ -977,12 +977,14 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return err
 	}
 
+	namespace := args.RequestNamespace()
+
 	// Check for submit-job permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil {
-		hasScaleJob := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityScaleJob)
-		hasSubmitJob := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob)
+		hasScaleJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityScaleJob)
+		hasSubmitJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilitySubmitJob)
 		if !(hasScaleJob || hasSubmitJob) {
 			return structs.ErrPermissionDenied
 		}
@@ -994,7 +996,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return err
 	}
 	ws := memdb.NewWatchSet()
-	job, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
+	job, err := snap.JobByID(ws, namespace, args.JobID)
 	if err != nil {
 		j.logger.Error("unable to lookup job", "error", err)
 		return err
@@ -1038,7 +1040,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		}
 
 		// Lookup the latest deployment, to see whether this scaling event should be blocked
-		d, err := snap.LatestDeploymentByJobID(ws, args.RequestNamespace(), args.JobID)
+		d, err := snap.LatestDeploymentByJobID(ws, namespace, args.JobID)
 		if err != nil {
 			j.logger.Error("unable to lookup latest deployment", "error", err)
 			return err
@@ -1100,7 +1102,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	if !job.IsPeriodic() && !job.IsParameterized() && args.Count != nil {
 		eval := &structs.Evaluation{
 			ID:             uuid.Generate(),
-			Namespace:      args.RequestNamespace(),
+			Namespace:      namespace,
 			Priority:       structs.JobDefaultPriority,
 			Type:           structs.JobTypeService,
 			TriggeredBy:    structs.EvalTriggerScaling,
