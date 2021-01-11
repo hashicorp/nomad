@@ -108,7 +108,7 @@ sudo apt-get install -y openjdk-8-jdk
 echo "Installing CNI plugins"
 sudo mkdir -p /opt/cni/bin
 wget -q -O - \
-     https://github.com/containernetworking/plugins/releases/download/v0.8.6/cni-plugins-linux-amd64-v0.8.6.tgz \
+     https://github.com/containernetworking/plugins/releases/download/v0.9.0/cni-plugins-linux-amd64-v0.9.0.tgz \
     | sudo tar -C /opt/cni/bin -xz
 
 echo "Installing Podman"
