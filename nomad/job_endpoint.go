@@ -994,7 +994,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return err
 	}
 
-	// Lookup the job
+	// Look up the job
 	snap, err := j.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
