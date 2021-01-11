@@ -1128,13 +1128,15 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			CreateTime:     now,
 			ModifyTime:     now,
 		}
-		update := &structs.EvalUpdateRequest{
-			Evals:        []*structs.Evaluation{eval},
-			WriteRequest: structs.WriteRequest{Region: args.Region},
-		}
 
 		// Commit this evaluation via Raft
-		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+		_, evalIndex, err := j.srv.raftApply(
+			structs.EvalUpdateRequestType,
+			&structs.EvalUpdateRequest{
+				Evals:        []*structs.Evaluation{eval},
+				WriteRequest: structs.WriteRequest{Region: args.Region},
+			},
+		)
 		if err != nil {
 			j.logger.Error("eval create failed", "error", err, "method", "scale")
 			return err
