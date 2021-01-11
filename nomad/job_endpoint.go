@@ -972,26 +972,9 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "scale"}, time.Now())
 
-	// Validate the arguments
-	namespace := args.Target[structs.ScalingTargetNamespace]
-	jobID := args.Target[structs.ScalingTargetJob]
-	groupName := args.Target[structs.ScalingTargetGroup]
-	if namespace != "" && namespace != args.RequestNamespace() {
-		return structs.NewErrRPCCoded(400, "namespace in payload did not match header")
-	} else if namespace == "" {
-		namespace = args.RequestNamespace()
-	}
-	if jobID != "" && jobID != args.JobID {
-		return fmt.Errorf("job ID in payload did not match URL")
-	}
-	if groupName == "" {
-		return structs.NewErrRPCCoded(400, "missing task group name for scaling action")
-	}
-	if args.Error && args.Count != nil {
-		return structs.NewErrRPCCoded(400, "scaling action should not contain count if error is true")
-	}
-	if args.Count != nil && *args.Count < 0 {
-		return structs.NewErrRPCCoded(400, "scaling action count can't be negative")
+	err := args.Validate()
+	if err != nil {
+		return err
 	}
 
 	// Check for submit-job permissions
@@ -1011,7 +994,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return err
 	}
 	ws := memdb.NewWatchSet()
-	job, err := snap.JobByID(ws, namespace, args.JobID)
+	job, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
 	if err != nil {
 		j.logger.Error("unable to lookup job", "error", err)
 		return err
@@ -1020,6 +1003,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
 	}
 
+	groupName := args.Target[structs.ScalingTargetGroup]
 	var found *structs.TaskGroup
 	for _, tg := range job.TaskGroups {
 		if groupName == tg.Name {
@@ -1054,7 +1038,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		}
 
 		// Lookup the latest deployment, to see whether this scaling event should be blocked
-		d, err := snap.LatestDeploymentByJobID(ws, namespace, args.JobID)
+		d, err := snap.LatestDeploymentByJobID(ws, args.RequestNamespace(), args.JobID)
 		if err != nil {
 			j.logger.Error("unable to lookup latest deployment", "error", err)
 			return err
