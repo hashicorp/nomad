@@ -999,12 +999,14 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	if err != nil {
 		return err
 	}
+
 	ws := memdb.NewWatchSet()
 	job, err := snap.JobByID(ws, namespace, args.JobID)
 	if err != nil {
 		j.logger.Error("unable to lookup job", "error", err)
 		return err
 	}
+
 	if job == nil {
 		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
 	}
@@ -1017,6 +1019,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			break
 		}
 	}
+
 	if group == nil {
 		return structs.NewErrRPCCoded(400,
 			fmt.Sprintf("task group %q specified for scaling does not exist in job", groupName))
