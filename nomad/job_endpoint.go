@@ -1128,9 +1128,6 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 
 		reply.EvalID = eval.ID
 		reply.EvalCreateIndex = evalIndex
-	} else {
-		reply.EvalID = ""
-		reply.EvalCreateIndex = 0
 	}
 
 	event := &structs.ScalingEventRequest{
