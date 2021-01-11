@@ -967,6 +967,7 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 
 // Scale is used to modify one of the scaling targets in the job
 func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterResponse) error {
+	// Return early if request is successfully forwarded
 	if forwarded, err := j.srv.forward("Job.Scale", args, args, reply); forwarded {
 		return err
 	}
@@ -994,7 +995,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return err
 	}
 
-	// Look up the job
+	// Find job
 	snap, err := j.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
@@ -1011,6 +1012,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
 	}
 
+	// Find target group in job TaskGroups
 	groupName := args.Target[structs.ScalingTargetGroup]
 	var group *structs.TaskGroup
 	for _, tg := range job.TaskGroups {
@@ -1025,6 +1027,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			fmt.Sprintf("task group %q specified for scaling does not exist in job", groupName))
 	}
 
+	// Handle non- count-based scaling event
 	if args.Count == nil {
 		_, eventIndex, err := j.srv.raftApply(
 			structs.ScalingEventRegisterRequestType,
@@ -1054,6 +1057,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return nil
 	}
 
+	// Further validation for count-based scaling event
 	if group.Scaling != nil {
 		if *args.Count < group.Scaling.Min {
 			return structs.NewErrRPCCoded(400,
@@ -1070,18 +1074,14 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	now := time.Now().UnixNano()
 	prevCount := int64(group.Count)
 
-	// Look up the latest deployment, to see whether this scaling event should be
-	// blocked
+	// Block scaling event if there's an active deployment
 	deployment, err := snap.LatestDeploymentByJobID(ws, namespace, args.JobID)
 	if err != nil {
 		j.logger.Error("unable to lookup latest deployment", "error", err)
 		return err
 	}
 
-	// Explicitly filter deployment by JobCreateIndex to be safe, because
-	// LatestDeploymentByJobID doesn't
 	if deployment != nil && deployment.Active() && deployment.JobCreateIndex == job.CreateIndex {
-		// attempt to register the scaling event
 		msg := "job scaling blocked due to active deployment"
 		_, _, err := j.srv.raftApply(
 			structs.ScalingEventRegisterRequestType,
@@ -1109,8 +1109,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		return structs.NewErrRPCCoded(400, msg)
 	}
 
-	// Commit the job update via Raft, for now we'll do this even if count didn't
-	// change
+	// Commit the job update
 	_, jobModifyIndex, err := j.srv.raftApply(
 		structs.JobRegisterRequestType,
 		structs.JobRegisterRequest{
@@ -1141,8 +1140,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		},
 	}
 
-	// Only create an eval for non-dispatch jobs and if the count was provided
-	// for now, we'll do this even if count didn't change
+	// Create an eval for non-dispatch jobs
 	if !(job.IsPeriodic() || job.IsParameterized()) {
 		eval := &structs.Evaluation{
 			ID:             uuid.Generate(),
@@ -1157,7 +1155,6 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			ModifyTime:     now,
 		}
 
-		// Commit this evaluation via Raft
 		_, evalIndex, err := j.srv.raftApply(
 			structs.EvalUpdateRequestType,
 			&structs.EvalUpdateRequest{
