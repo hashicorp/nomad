@@ -1027,6 +1027,8 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			fmt.Sprintf("task group %q specified for scaling does not exist in job", groupName))
 	}
 
+	prevCount := int64(group.Count)
+
 	// Handle non- count-based scaling event
 	if args.Count == nil {
 		_, eventIndex, err := j.srv.raftApply(
@@ -1037,7 +1039,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 				TaskGroup: groupName,
 				ScalingEvent: &structs.ScalingEvent{
 					Time:          time.Now().UnixNano(),
-					PreviousCount: int64(group.Count),
+					PreviousCount: prevCount,
 					Message:       args.Message,
 					Error:         args.Error,
 					Meta:          args.Meta,
@@ -1072,7 +1074,6 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	}
 
 	now := time.Now().UnixNano()
-	prevCount := int64(group.Count)
 
 	// Block scaling event if there's an active deployment
 	deployment, err := snap.LatestDeploymentByJobID(ws, namespace, args.JobID)
