@@ -1014,7 +1014,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	groupName := args.Target[structs.ScalingTargetGroup]
 	var group *structs.TaskGroup
 	for _, tg := range job.TaskGroups {
-		if groupName == tg.Name {
+		if tg.Name == groupName {
 			group = tg
 			break
 		}
