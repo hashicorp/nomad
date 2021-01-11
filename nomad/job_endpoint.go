@@ -1099,6 +1099,20 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		reply.JobModifyIndex = job.ModifyIndex
 	}
 
+	event := &structs.ScalingEventRequest{
+		Namespace: job.Namespace,
+		JobID:     job.ID,
+		TaskGroup: groupName,
+		ScalingEvent: &structs.ScalingEvent{
+			Time:          now,
+			PreviousCount: int64(prevCount),
+			Count:         args.Count,
+			Message:       args.Message,
+			Error:         args.Error,
+			Meta:          args.Meta,
+		},
+	}
+
 	// Only create an eval for non-dispatch jobs and if the count was provided
 	// for now, we'll do this even if count didn't change
 	if !(job.IsPeriodic() || job.IsParameterized()) && args.Count != nil {
@@ -1128,24 +1142,9 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 
 		reply.EvalID = eval.ID
 		reply.EvalCreateIndex = evalIndex
-	}
-
-	event := &structs.ScalingEventRequest{
-		Namespace: job.Namespace,
-		JobID:     job.ID,
-		TaskGroup: groupName,
-		ScalingEvent: &structs.ScalingEvent{
-			Time:          now,
-			PreviousCount: int64(prevCount),
-			Count:         args.Count,
-			Message:       args.Message,
-			Error:         args.Error,
-			Meta:          args.Meta,
-		},
-	}
-	if reply.EvalID != "" {
 		event.ScalingEvent.EvalID = &reply.EvalID
 	}
+
 	_, eventIndex, err := j.srv.raftApply(structs.ScalingEventRegisterRequestType, event)
 	if err != nil {
 		j.logger.Error("scaling event create failed", "error", err)
