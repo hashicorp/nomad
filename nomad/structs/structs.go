@@ -736,8 +736,16 @@ func (r *JobScaleRequest) Validate() error {
 		return NewErrRPCCoded(400, "scaling action should not contain count if error is true")
 	}
 
-	if r.Count != nil && *r.Count < 0 {
-		return NewErrRPCCoded(400, "scaling action count can't be negative")
+	if r.Count != nil {
+		if *r.Count < 0 {
+			return NewErrRPCCoded(400, "scaling action count can't be negative")
+		}
+
+		truncCount := int(*r.Count)
+		if int64(truncCount) != *r.Count {
+			return NewErrRPCCoded(400,
+				fmt.Sprintf("new scaling count is too large for TaskGroup.Count (int): %v", r.Count))
+		}
 	}
 
 	return nil

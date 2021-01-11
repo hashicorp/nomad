@@ -1077,13 +1077,8 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			return structs.NewErrRPCCoded(400, JobScalingBlockedByActiveDeployment)
 		}
 
-		truncCount := int(*args.Count)
-		if int64(truncCount) != *args.Count {
-			return structs.NewErrRPCCoded(400,
-				fmt.Sprintf("new scaling count is too large for TaskGroup.Count (int): %v", args.Count))
-		}
 		// update the task group count
-		group.Count = truncCount
+		group.Count = int(*args.Count)
 
 		registerReq := structs.JobRegisterRequest{
 			Job:            job,
