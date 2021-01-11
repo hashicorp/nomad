@@ -732,13 +732,13 @@ func (r *JobScaleRequest) Validate() error {
 		return NewErrRPCCoded(400, "missing task group name for scaling action")
 	}
 
-	if r.Error && r.Count != nil {
-		return NewErrRPCCoded(400, "scaling action should not contain count if error is true")
-	}
-
 	if r.Count != nil {
 		if *r.Count < 0 {
 			return NewErrRPCCoded(400, "scaling action count can't be negative")
+		}
+
+		if r.Error {
+			return NewErrRPCCoded(400, "scaling action should not contain count if error is true")
 		}
 
 		truncCount := int(*r.Count)
