@@ -38,11 +38,6 @@ build {
   }
 
   provisioner "file" {
-    destination = "/opt"
-    source      = "../config"
-  }
-
-  provisioner "file" {
     destination = "/opt/provision.ps1"
     source      = "./windows-2016-amd64/provision.ps1"
   }
