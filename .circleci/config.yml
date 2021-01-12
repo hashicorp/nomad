@@ -391,7 +391,21 @@ jobs:
       - run: source ${BASH_ENV} && make deps
       - run: brew install protobuf
       - run: PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-structs
-      - run: source ${BASH_ENV} && make pkg/darwin_amd64.zip
+      - run: ./scripts/vagrant-linux-unpriv-ui.sh
+      - run:
+          name: prepare ui
+          command: |
+            export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
+            source ${BASH_ENV}
+            . ~/.nvm/nvm.sh
+            cd ui && yarn install --frozen-lockfile && cd ..
+            JOBS=2 make ember-dist static-assets
+      - run:
+          name: build binaries
+          command: |
+            source ${BASH_ENV}
+            export GO_TAGS="ui $(grep 'GO_TAGS ?=' ./GNUmakefile | cut -d= -f2)"
+            make pkg/darwin_amd64.zip
       - store_artifacts:
           path: pkg/darwin_amd64.zip
           destination: /builds/nomad_darwin_amd64.zip
@@ -403,7 +417,20 @@ jobs:
       - run: make deps
       - install-buf
       - run: sudo -E PATH="$GOPATH/bin:/usr/local/go/bin:$PATH" make generate-structs
-      - run: make pkg/windows_amd64.zip pkg/linux_amd64.zip
+      - run: ./scripts/vagrant-linux-unpriv-ui.sh
+      - run:
+          name: prepare ui
+          command: |
+            export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
+            export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
+            . ~/.nvm/nvm.sh
+            cd ui && yarn install --frozen-lockfile && cd ..
+            JOBS=2 make ember-dist static-assets
+      - run:
+          name: build binaries
+          command: |
+            export GO_TAGS="ui $(grep 'GO_TAGS ?=' ./GNUmakefile | cut -d= -f2)"
+            make pkg/windows_amd64.zip pkg/linux_amd64.zip
       - store_artifacts:
           path: pkg/windows_amd64.zip
           destination: /builds/nomad_windows_amd64.zip
