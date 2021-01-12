@@ -58,6 +58,15 @@ resource "aws_instance" "client_windows_2016_amd64" {
   }
 }
 
+data "external" "packer_sha" {
+  program = ["/bin/sh", "-c", <<EOT
+sha=$(git log -n 1 --pretty=format:%H packer)
+echo "{\"sha\":\"$${sha}\"}"
+EOT
+]
+
+}
+
 data "aws_ami" "ubuntu_bionic_amd64" {
   most_recent = true
   owners      = ["self"]
@@ -70,6 +79,11 @@ data "aws_ami" "ubuntu_bionic_amd64" {
   filter {
     name   = "tag:OS"
     values = ["Ubuntu"]
+  }
+
+  filter {
+    name   = "tag:BuilderSha"
+    values = [data.external.packer_sha.result["sha"]]
   }
 }
 
@@ -85,5 +99,10 @@ data "aws_ami" "windows_2016_amd64" {
   filter {
     name   = "tag:OS"
     values = ["Windows2016"]
+  }
+
+  filter {
+    name   = "tag:BuilderSha"
+    values = [data.external.packer_sha.result["sha"]]
   }
 }

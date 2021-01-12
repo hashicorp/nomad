@@ -1,3 +1,8 @@
+variable "build_sha" {
+  type        = string
+  description = "the revision of the packer scripts building this image"
+}
+
 locals {
   timestamp = regex_replace(timestamp(), "[- TZ:]", "")
   version   = "v2"
@@ -23,7 +28,8 @@ source "amazon-ebs" "latest_windows_2016" {
   }
 
   tags = {
-    OS = "Windows2016"
+    OS         = "Windows2016"
+    BuilderSha = var.build_sha
   }
 }
 
