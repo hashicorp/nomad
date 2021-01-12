@@ -306,41 +306,92 @@ func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	// Create a temp dir
-	tmpDir, err := ioutil.TempDir("", "")
-	require.Nil(err)
-	defer os.Remove(tmpDir)
+	cases := []struct {
+		name             string
+		cmd              string
+		env              string
+		shouldErr        bool
+		writeTaskDirPath string
+	}{
+		{
+			name:             "reference to a binary that exists in taskdir root",
+			cmd:              "some-root-bin",
+			writeTaskDirPath: "/some-root-bin",
+		},
+		{
+			name:      "reference to a binary that doesn't exist in taskdir root",
+			cmd:       "some-root-bin",
+			shouldErr: true,
+		},
+		{
+			name:             "absolute reference to a binary that exists in taskdir",
+			cmd:              "/abs/some-bin",
+			writeTaskDirPath: "/abs/some-bin",
+		},
+		{
+			name:      "absolute reference to a binary that doesn't exist in taskdir",
+			cmd:       "/abs/some-bin",
+			shouldErr: true,
+		},
+		{
+			name:             "relative reference to a binary that exists in taskdir/bin",
+			cmd:              "some-bin",
+			writeTaskDirPath: "/bin/some-bin",
+		},
+		{
+			name:             "relative reference to a binary that exists in taskdir/usr/bin",
+			cmd:              "some-bin",
+			writeTaskDirPath: "/usr/bin/some-bin",
+		},
+		{
+			name:             "relative reference to a binary that exists in taskdir/usr/local/bin",
+			cmd:              "some-bin",
+			writeTaskDirPath: "/usr/local/bin/some-bin",
+		},
+		{
+			name:             "relative reference to a binary that exists in PATH-defined dir",
+			cmd:              "some-bin",
+			env:              "PATH=/usr/local/bin:/bar",
+			writeTaskDirPath: "/bar/some-bin",
+		},
+		{
+			name:      "relative reference to a binary that doesn't exist",
+			cmd:       "some-bin",
+			shouldErr: true,
+		},
+	}
 
-	// Create the command
-	cmd := &ExecCommand{Env: []string{"PATH=/bin"}, TaskDir: tmpDir}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			taskDir, err := ioutil.TempDir("", "taskdir")
+			require.Nil(err)
+			defer os.Remove(taskDir)
 
-	// Make a foo subdir
-	os.MkdirAll(filepath.Join(tmpDir, "foo"), 0700)
+			cmd := &ExecCommand{
+				Cmd:     c.cmd,
+				Env:     []string{c.env},
+				TaskDir: taskDir,
+			}
 
-	// Write a file under foo
-	filePath := filepath.Join(tmpDir, "foo", "tmp.txt")
-	err = ioutil.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
-	require.NoError(err)
+			if c.shouldErr {
+				_, err := lookupTaskBin(cmd)
+				require.Error(err)
+				return
+			}
 
-	// Lookout with an absolute path to the binary
-	cmd.Cmd = "/foo/tmp.txt"
-	_, err = lookupTaskBin(cmd)
-	require.NoError(err)
+			dir := filepath.Dir(c.writeTaskDirPath)
+			err = os.MkdirAll(filepath.Join(taskDir, dir), 0700)
+			require.Nil(err)
 
-	// Write a file under local subdir
-	os.MkdirAll(filepath.Join(tmpDir, "local"), 0700)
-	filePath2 := filepath.Join(tmpDir, "local", "tmp.txt")
-	ioutil.WriteFile(filePath2, []byte{1, 2}, os.ModeAppend)
+			binPath := filepath.Join(taskDir, c.writeTaskDirPath)
+			err = ioutil.WriteFile(binPath, []byte{1, 2}, os.ModeAppend)
+			require.NoError(err)
 
-	// Lookup with file name, should find the one we wrote above
-	cmd.Cmd = "tmp.txt"
-	_, err = lookupTaskBin(cmd)
-	require.NoError(err)
-
-	// Lookup a host absolute path
-	cmd.Cmd = "/bin/sh"
-	_, err = lookupTaskBin(cmd)
-	require.Error(err)
+			actual, err := lookupTaskBin(cmd)
+			require.NoError(err)
+			require.Equal(filepath.Join(taskDir, c.writeTaskDirPath), actual)
+		})
+	}
 }
 
 // Exec Launch looks for the binary only inside the chroot
