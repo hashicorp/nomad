@@ -967,8 +967,7 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 
 // Scale is used to modify one of the scaling targets in the job
 func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterResponse) error {
-	// Return early if request is successfully forwarded
-	if forwarded, err := j.srv.forward("Job.Scale", args, args, reply); forwarded {
+	if done, err := j.srv.forward("Job.Scale", args, args, reply); done {
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "job", "scale"}, time.Now())
