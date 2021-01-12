@@ -1,10 +1,11 @@
 locals {
   timestamp = regex_replace(timestamp(), "[- TZ:]", "")
   distro    = "ubuntu-bionic-18.04-amd64-server-*"
+  version   = "v2"
 }
 
 source "amazon-ebs" "latest_ubuntu_bionic" {
-  ami_name             = "nomad-e2e-ubuntu-bionic-amd64-${local.timestamp}"
+  ami_name             = "nomad-e2e-${local.version}-ubuntu-bionic-amd64-${local.timestamp}"
   iam_instance_profile = "packer_build" // defined in nomad-e2e repo
   instance_type        = "t2.medium"
   region               = "us-east-1"

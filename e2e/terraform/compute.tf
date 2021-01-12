@@ -1,3 +1,7 @@
+locals {
+  ami_prefix = "nomad-e2e-v2"
+}
+
 resource "aws_instance" "server" {
   ami                    = data.aws_ami.ubuntu_bionic_amd64.image_id
   instance_type          = var.instance_type
@@ -60,7 +64,7 @@ data "aws_ami" "ubuntu_bionic_amd64" {
 
   filter {
     name   = "name"
-    values = ["nomad-e2e-ubuntu-bionic-amd64-*"]
+    values = ["${local.ami_prefix}-ubuntu-bionic-amd64-*"]
   }
 
   filter {
@@ -75,7 +79,7 @@ data "aws_ami" "windows_2016_amd64" {
 
   filter {
     name   = "name"
-    values = ["nomad-e2e-windows-2016-amd64-*"]
+    values = ["${local.ami_prefix}-windows-2016-amd64-*"]
   }
 
   filter {
