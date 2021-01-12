@@ -1,13 +1,14 @@
 region                           = "us-east-1"
 instance_type                    = "t3.medium"
-server_count                     = "3"
-client_count_ubuntu_bionic_amd64 = "2"
-client_count_windows_2016_amd64  = "0"
+server_count                     = "1"
+client_count_ubuntu_bionic_amd64 = "1"
+client_count_windows_2016_amd64  = "1"
 profile                          = "dev-cluster"
 nomad_acls                       = false
 nomad_enterprise                 = false
 vault                            = true
-volumes                          = false
+volumes                          = true
+tls = true
 
 nomad_version      = "1.0.1"  # default version for deployment
 nomad_sha          = ""       # overrides nomad_version if set

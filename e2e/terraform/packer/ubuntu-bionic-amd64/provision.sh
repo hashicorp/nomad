@@ -2,7 +2,7 @@
 
 set -o errexit
 set -o nounset
-set +x
+set -x
 
 usage() {
     cat <<EOF
@@ -19,6 +19,9 @@ Options for configuration:
  --nostart                  do not start or restart Nomad
  --enterprise               if nomad_sha is passed, use the ENT version
  --nomad_acls               write Nomad ACL configuration
+ --tls
+ --cert FILEPATH
+ --key FILEPATH
 
 EOF
 
@@ -37,6 +40,7 @@ NOMAD_ROLE=
 NOMAD_INDEX=
 BUILD_FOLDER="builds-oss"
 ACLS=0
+TLS=0
 
 install_from_s3() {
     # check that we don't already have this version
@@ -116,6 +120,16 @@ install_config_profile() {
     if [ $ACLS == "1" ]; then
         sudo ln -fs /opt/config/shared/nomad-acl.hcl /etc/nomad.d/acl.hcl
     fi
+
+    if [ $TLS == "1" ]; then
+        sudo ln -fs /opt/config/shared/nomad-tls.hcl /etc/nomad.d/tls.hcl
+        sudo ln -fs /opt/config/shared/consul-tls.json /etc/consul.d/tls.json
+        sudo cp /opt/config/shared/vault-tls.hcl /etc/vault.d/vault.hcl
+
+        sudo cp -r /tmp/nomad-tls /etc/nomad.d/tls
+        sudo cp -r /tmp/nomad-tls /etc/consul.d/tls
+        sudo cp -r /tmp/nomad-tls /etc/vault.d/tls
+    fi
 }
 
 
@@ -167,6 +181,10 @@ opt="$1"
             ;;
         --nomad_acls)
             ACLS=1
+            shift
+            ;;
+        --tls)
+            TLS=1
             shift
             ;;
         *) usage ;;
