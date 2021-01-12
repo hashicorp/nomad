@@ -1,4 +1,4 @@
-## 1.0.2 (Unreleased)
+## 1.0.2 (January 14, 2020)
 
 IMPROVEMENTS:
  * artifact: Added support for virtual host style AWS S3 paths. [[GH-9050](https://github.com/hashicorp/nomad/issues/9050)]
