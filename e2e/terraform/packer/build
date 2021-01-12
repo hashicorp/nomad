@@ -1,0 +1,35 @@
+#!/bin/sh
+
+set -e
+
+usage() {
+    cat <<EOF
+Usage: build <target>
+
+Build an AMI for the target configuration
+
+Examples
+  build ubuntu-bionic-amd64
+
+EOF
+
+    exit 2
+}
+
+if [[ $# -ne 1 ]]; then
+     usage
+fi
+
+target=${1/%.pkr.hcl/}
+
+directory=$(dirname "$0")
+cd ${directory}
+
+if ! test -f "${target}.pkr.hcl"; then
+    echo "${target}.pkr.hcl is not present" >&2
+    exit 1
+fi
+
+sha=$(git log -n 1 --pretty=format:%H ${dirname})
+echo packer build --var "build_sha=${sha}" ${target}.pkr.hcl
+packer build --var "build_sha=${sha}" ${target}.pkr.hcl
