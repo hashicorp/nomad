@@ -36,11 +36,6 @@ build {
     source      = "./ubuntu-bionic-amd64"
   }
 
-  provisioner "file" {
-    destination = "/tmp/config"
-    source      = "../config"
-  }
-
   // cloud-init modifies the apt sources, so we need to wait
   // before running our setup
   provisioner "shell-local" {

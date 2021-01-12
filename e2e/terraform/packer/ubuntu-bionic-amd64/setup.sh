@@ -77,7 +77,6 @@ mkdir_for_root $NOMAD_PLUGIN_DIR
 sudo mv /tmp/linux/nomad.service /etc/systemd/system/nomad.service
 
 echo "Install Nomad"
-sudo mv /tmp/config /opt/
 sudo mv /tmp/linux/provision.sh /opt/provision.sh
 sudo chmod +x /opt/provision.sh
 /opt/provision.sh --nomad_version $NOMADVERSION --nostart
