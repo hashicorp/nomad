@@ -55,6 +55,7 @@ SUPPORTED_OSES = Darwin Linux FreeBSD Windows MSYS_NT
 -include GNUMakefile.local
 
 pkg/%/nomad: GO_OUT ?= $@
+pkg/%/nomad: CC ?= $(shell go env CC)
 pkg/%/nomad: ## Build Nomad for GOOS_GOARCH, e.g. pkg/linux_amd64/nomad
 ifeq (,$(findstring $(THIS_OS),$(SUPPORTED_OSES)))
 	$(warning WARNING: Building Nomad is only supported on $(SUPPORTED_OSES); not $(THIS_OS))
@@ -63,6 +64,7 @@ endif
 	@CGO_ENABLED=1 \
 		GOOS=$(firstword $(subst _, ,$*)) \
 		GOARCH=$(lastword $(subst _, ,$*)) \
+		CC=$(CC) \
 		go build -trimpath -ldflags $(GO_LDFLAGS) -tags "$(GO_TAGS)" -o $(GO_OUT)
 
 pkg/linux_arm/nomad: CC = arm-linux-gnueabihf-gcc-5
