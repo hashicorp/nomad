@@ -1,3 +1,8 @@
+variable "build_sha" {
+  type        = string
+  description = "the revision of the packer scripts building this image"
+}
+
 locals {
   timestamp = regex_replace(timestamp(), "[- TZ:]", "")
   distro    = "ubuntu-bionic-18.04-amd64-server-*"
@@ -24,8 +29,9 @@ source "amazon-ebs" "latest_ubuntu_bionic" {
   }
 
   tags = {
-    OS      = "Ubuntu"
-    Version = "Bionic"
+    OS         = "Ubuntu"
+    Version    = "Bionic"
+    BuilderSha = var.build_sha
   }
 }
 
