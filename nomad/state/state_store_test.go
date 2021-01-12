@@ -6855,16 +6855,10 @@ func TestStateStore_UpdateJobStability(t *testing.T) {
 
 	// Check that the job was updated properly
 	ws := memdb.NewWatchSet()
-	jout, _ := state.JobByIDAndVersion(ws, job.Namespace, job.ID, 0)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-	if jout == nil {
-		t.Fatalf("bad: %#v", jout)
-	}
-	if !jout.Stable {
-		t.Fatalf("job not marked stable %#v", jout)
-	}
+	jout, err := state.JobByIDAndVersion(ws, job.Namespace, job.ID, 0)
+	require.NoError(t, err)
+	require.NotNil(t, jout)
+	require.True(t, jout.Stable, "job not marked as stable")
 
 	// Update the stability to false
 	err = state.UpdateJobStability(3, job.Namespace, job.ID, 0, false)
@@ -6873,16 +6867,10 @@ func TestStateStore_UpdateJobStability(t *testing.T) {
 	}
 
 	// Check that the job was updated properly
-	jout, _ = state.JobByIDAndVersion(ws, job.Namespace, job.ID, 0)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-	if jout == nil {
-		t.Fatalf("bad: %#v", jout)
-	}
-	if jout.Stable {
-		t.Fatalf("job marked stable %#v", jout)
-	}
+	jout, err = state.JobByIDAndVersion(ws, job.Namespace, job.ID, 0)
+	require.NoError(t, err)
+	require.NotNil(t, jout)
+	require.False(t, jout.Stable)
 }
 
 // Test that nonexistent deployment can't be promoted
