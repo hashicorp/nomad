@@ -1,7 +1,10 @@
-locals { timestamp = regex_replace(timestamp(), "[- TZ:]", "") }
+locals {
+  timestamp = regex_replace(timestamp(), "[- TZ:]", "")
+  version   = "v2"
+}
 
 source "amazon-ebs" "latest_windows_2016" {
-  ami_name       = "nomad-e2e-windows-2016-amd64-${local.timestamp}"
+  ami_name       = "nomad-e2e-${local.version}-windows-2016-amd64-${local.timestamp}"
   communicator   = "ssh"
   instance_type  = "t2.medium"
   region         = "us-east-1"
