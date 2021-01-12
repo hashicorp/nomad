@@ -1026,108 +1026,8 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			fmt.Sprintf("task group %q specified for scaling does not exist in job", groupName))
 	}
 
-	prevCount := int64(group.Count)
-
-	// Handle non- count-based scaling event
-	if args.Count == nil {
-		_, eventIndex, err := j.srv.raftApply(
-			structs.ScalingEventRegisterRequestType,
-			&structs.ScalingEventRequest{
-				Namespace: job.Namespace,
-				JobID:     job.ID,
-				TaskGroup: groupName,
-				ScalingEvent: &structs.ScalingEvent{
-					Time:          time.Now().UnixNano(),
-					PreviousCount: prevCount,
-					Message:       args.Message,
-					Error:         args.Error,
-					Meta:          args.Meta,
-				},
-			},
-		)
-		if err != nil {
-			j.logger.Error("scaling event create failed", "error", err)
-			return err
-		}
-
-		reply.JobModifyIndex = job.ModifyIndex
-		reply.Index = eventIndex
-
-		j.srv.setQueryMeta(&reply.QueryMeta)
-
-		return nil
-	}
-
-	// Further validation for count-based scaling event
-	if group.Scaling != nil {
-		if *args.Count < group.Scaling.Min {
-			return structs.NewErrRPCCoded(400,
-				fmt.Sprintf("group count was less than scaling policy minimum: %d < %d",
-					*args.Count, group.Scaling.Min))
-		}
-		if group.Scaling.Max < *args.Count {
-			return structs.NewErrRPCCoded(400,
-				fmt.Sprintf("group count was greater than scaling policy maximum: %d > %d",
-					*args.Count, group.Scaling.Max))
-		}
-	}
-
-	// Update group count
-	group.Count = int(*args.Count)
-
 	now := time.Now().UnixNano()
-
-	// Block scaling event if there's an active deployment
-	deployment, err := snap.LatestDeploymentByJobID(ws, namespace, args.JobID)
-	if err != nil {
-		j.logger.Error("unable to lookup latest deployment", "error", err)
-		return err
-	}
-
-	if deployment != nil && deployment.Active() && deployment.JobCreateIndex == job.CreateIndex {
-		msg := "job scaling blocked due to active deployment"
-		_, _, err := j.srv.raftApply(
-			structs.ScalingEventRegisterRequestType,
-			&structs.ScalingEventRequest{
-				Namespace: job.Namespace,
-				JobID:     job.ID,
-				TaskGroup: groupName,
-				ScalingEvent: &structs.ScalingEvent{
-					Time:          now,
-					PreviousCount: prevCount,
-					Message:       msg,
-					Error:         true,
-					Meta: map[string]interface{}{
-						"OriginalMessage": args.Message,
-						"OriginalCount":   *args.Count,
-						"OriginalMeta":    args.Meta,
-					},
-				},
-			},
-		)
-		if err != nil {
-			// just log the error, this was a best-effort attempt
-			j.logger.Error("scaling event create failed during block scaling action", "error", err)
-		}
-		return structs.NewErrRPCCoded(400, msg)
-	}
-
-	// Commit the job update
-	_, jobModifyIndex, err := j.srv.raftApply(
-		structs.JobRegisterRequestType,
-		structs.JobRegisterRequest{
-			Job:            job,
-			EnforceIndex:   true,
-			JobModifyIndex: job.ModifyIndex,
-			PolicyOverride: args.PolicyOverride,
-			WriteRequest:   args.WriteRequest,
-		},
-	)
-	if err != nil {
-		j.logger.Error("job register for scale failed", "error", err)
-		return err
-	}
-	reply.JobModifyIndex = jobModifyIndex
+	prevCount := int64(group.Count)
 
 	event := &structs.ScalingEventRequest{
 		Namespace: job.Namespace,
@@ -1143,36 +1043,109 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		},
 	}
 
-	// Create an eval for non-dispatch jobs
-	if !(job.IsPeriodic() || job.IsParameterized()) {
-		eval := &structs.Evaluation{
-			ID:             uuid.Generate(),
-			Namespace:      namespace,
-			Priority:       structs.JobDefaultPriority,
-			Type:           structs.JobTypeService,
-			TriggeredBy:    structs.EvalTriggerScaling,
-			JobID:          args.JobID,
-			JobModifyIndex: reply.JobModifyIndex,
-			Status:         structs.EvalStatusPending,
-			CreateTime:     now,
-			ModifyTime:     now,
+	if args.Count != nil {
+		// Further validation for count-based scaling event
+		if group.Scaling != nil {
+			if *args.Count < group.Scaling.Min {
+				return structs.NewErrRPCCoded(400,
+					fmt.Sprintf("group count was less than scaling policy minimum: %d < %d",
+						*args.Count, group.Scaling.Min))
+			}
+			if group.Scaling.Max < *args.Count {
+				return structs.NewErrRPCCoded(400,
+					fmt.Sprintf("group count was greater than scaling policy maximum: %d > %d",
+						*args.Count, group.Scaling.Max))
+			}
 		}
 
-		_, evalIndex, err := j.srv.raftApply(
-			structs.EvalUpdateRequestType,
-			&structs.EvalUpdateRequest{
-				Evals:        []*structs.Evaluation{eval},
-				WriteRequest: structs.WriteRequest{Region: args.Region},
-			},
-		)
+		// Update group count
+		group.Count = int(*args.Count)
+
+		// Block scaling event if there's an active deployment
+		deployment, err := snap.LatestDeploymentByJobID(ws, namespace, args.JobID)
 		if err != nil {
-			j.logger.Error("eval create failed", "error", err, "method", "scale")
+			j.logger.Error("unable to lookup latest deployment", "error", err)
 			return err
 		}
 
-		reply.EvalID = eval.ID
-		reply.EvalCreateIndex = evalIndex
-		event.ScalingEvent.EvalID = &reply.EvalID
+		if deployment != nil && deployment.Active() && deployment.JobCreateIndex == job.CreateIndex {
+			msg := "job scaling blocked due to active deployment"
+			_, _, err := j.srv.raftApply(
+				structs.ScalingEventRegisterRequestType,
+				&structs.ScalingEventRequest{
+					Namespace: job.Namespace,
+					JobID:     job.ID,
+					TaskGroup: groupName,
+					ScalingEvent: &structs.ScalingEvent{
+						Time:          now,
+						PreviousCount: prevCount,
+						Message:       msg,
+						Error:         true,
+						Meta: map[string]interface{}{
+							"OriginalMessage": args.Message,
+							"OriginalCount":   *args.Count,
+							"OriginalMeta":    args.Meta,
+						},
+					},
+				},
+			)
+			if err != nil {
+				// just log the error, this was a best-effort attempt
+				j.logger.Error("scaling event create failed during block scaling action", "error", err)
+			}
+			return structs.NewErrRPCCoded(400, msg)
+		}
+
+		// Commit the job update
+		_, jobModifyIndex, err := j.srv.raftApply(
+			structs.JobRegisterRequestType,
+			structs.JobRegisterRequest{
+				Job:            job,
+				EnforceIndex:   true,
+				JobModifyIndex: job.ModifyIndex,
+				PolicyOverride: args.PolicyOverride,
+				WriteRequest:   args.WriteRequest,
+			},
+		)
+		if err != nil {
+			j.logger.Error("job register for scale failed", "error", err)
+			return err
+		}
+		reply.JobModifyIndex = jobModifyIndex
+
+		// Create an eval for non-dispatch jobs
+		if !(job.IsPeriodic() || job.IsParameterized()) {
+			eval := &structs.Evaluation{
+				ID:             uuid.Generate(),
+				Namespace:      namespace,
+				Priority:       structs.JobDefaultPriority,
+				Type:           structs.JobTypeService,
+				TriggeredBy:    structs.EvalTriggerScaling,
+				JobID:          args.JobID,
+				JobModifyIndex: reply.JobModifyIndex,
+				Status:         structs.EvalStatusPending,
+				CreateTime:     now,
+				ModifyTime:     now,
+			}
+
+			_, evalIndex, err := j.srv.raftApply(
+				structs.EvalUpdateRequestType,
+				&structs.EvalUpdateRequest{
+					Evals:        []*structs.Evaluation{eval},
+					WriteRequest: structs.WriteRequest{Region: args.Region},
+				},
+			)
+			if err != nil {
+				j.logger.Error("eval create failed", "error", err, "method", "scale")
+				return err
+			}
+
+			reply.EvalID = eval.ID
+			reply.EvalCreateIndex = evalIndex
+			event.ScalingEvent.EvalID = &reply.EvalID
+		}
+	} else {
+		reply.JobModifyIndex = job.ModifyIndex
 	}
 
 	_, eventIndex, err := j.srv.raftApply(structs.ScalingEventRegisterRequestType, event)
