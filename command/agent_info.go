@@ -23,7 +23,16 @@ Usage: nomad agent-info [options]
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
+
+Agent Info Options:
+
+  -json
+    Output the node in its JSON format.
+
+-t
+    Format and display node using a Go template.
+`
 	return strings.TrimSpace(helpText)
 }
 
@@ -32,7 +41,11 @@ func (c *AgentInfoCommand) Synopsis() string {
 }
 
 func (c *AgentInfoCommand) AutocompleteFlags() complete.Flags {
-	return c.Meta.AutocompleteFlags(FlagSetClient)
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-json": complete.PredictNothing,
+			"-t":    complete.PredictAnything,
+		})
 }
 
 func (c *AgentInfoCommand) AutocompleteArgs() complete.Predictor {
@@ -42,9 +55,16 @@ func (c *AgentInfoCommand) AutocompleteArgs() complete.Predictor {
 func (c *AgentInfoCommand) Name() string { return "agent-info" }
 
 func (c *AgentInfoCommand) Run(args []string) int {
+	var json bool
+	var tmpl string
+
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
+
 	if err := flags.Parse(args); err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing flags: %s", err))
 		return 1
 	}
 
@@ -68,6 +88,18 @@ func (c *AgentInfoCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying agent info: %s", err))
 		return 1
+	}
+
+	// If output format is specified, format and output the agent info
+	if json || len(tmpl) > 0 {
+		out, err := Format(json, tmpl, info)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error formatting output: %s", err))
+			return 1
+		}
+
+		c.Ui.Output(out)
+		return 0
 	}
 
 	// Sort and output agent info
