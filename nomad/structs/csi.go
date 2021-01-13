@@ -854,31 +854,38 @@ func (p *CSIPlugin) DeleteNodeForType(nodeID string, pluginType CSIPluginType) e
 	switch pluginType {
 	case CSIPluginTypeController:
 		prev, ok := p.Controllers[nodeID]
-		if ok {
-			if prev == nil {
-				return fmt.Errorf("plugin missing controller: %s", nodeID)
-			}
-			if prev.Healthy {
-				p.ControllersHealthy -= 1
-			}
+		if !ok {
+			return fmt.Errorf("plugin missing controller: %s", nodeID)
 		}
+
+		if prev.Healthy {
+			p.ControllersHealthy--
+		}
+
 		delete(p.Controllers, nodeID)
 
 	case CSIPluginTypeNode:
 		prev, ok := p.Nodes[nodeID]
-		if ok {
-			if prev == nil {
-				return fmt.Errorf("plugin missing node: %s", nodeID)
-			}
-			if prev.Healthy {
-				p.NodesHealthy -= 1
-			}
+		if !ok {
+			return fmt.Errorf("plugin missing node: %s", nodeID)
 		}
+
+		if prev.Healthy {
+			p.NodesHealthy--
+		}
+
 		delete(p.Nodes, nodeID)
 
 	case CSIPluginTypeMonolith:
-		p.DeleteNodeForType(nodeID, CSIPluginTypeController)
-		p.DeleteNodeForType(nodeID, CSIPluginTypeNode)
+		err := p.DeleteNodeForType(nodeID, CSIPluginTypeController)
+		if err != nil {
+			return err
+		}
+
+		err = p.DeleteNodeForType(nodeID, CSIPluginTypeNode)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

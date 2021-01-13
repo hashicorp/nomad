@@ -204,7 +204,9 @@ func TestCSIPluginCleanup(t *testing.T) {
 	require.Equal(t, 1, plug.ControllersHealthy)
 	require.Equal(t, 1, plug.NodesHealthy)
 
-	plug.DeleteNode("n0")
+	err := plug.DeleteNode("n0")
+	require.NoError(t, err)
+
 	require.Equal(t, 0, plug.ControllersHealthy)
 	require.Equal(t, 0, plug.NodesHealthy)
 
