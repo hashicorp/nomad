@@ -20,7 +20,7 @@ BUG FIXES:
  * template: Fixed multiple issues in template src/dest and artifact dest interpolation [[GH-9671](https://github.com/hashicorp/nomad/issues/9671)]
  * template: Fixed a bug where dynamic secrets did not trigger the template `change_mode` after a client restart. [[GH-9636](https://github.com/hashicorp/nomad/issues/9636)]
  * scaling: Fixed a bug where job scaling endpoint did not enforce scaling policy min/max [[GH-9761](https://github.com/hashicorp/nomad/issues/9761)]
- * server: Fixed a bug where new servers may bootstrap prematurely when configured with `bootstrap_expect = 0`.
+ * server: Fixed a bug where new servers may bootstrap prematurely when configured with `bootstrap_expect = 0` [[GH-9672](https://github.com/hashicorp/nomad/issues/9672)]
  * ui: The topology visualization will now render a subset of nodes instead of nothing when some nodes are running nomad <0.9.0 [[GH-9733](https://github.com/hashicorp/nomad/issues/9733)]
 
 ## 1.0.1 (December 16, 2020)
