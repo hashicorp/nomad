@@ -94,7 +94,7 @@ func (c *AgentInfoCommand) Run(args []string) int {
 	if json || len(tmpl) > 0 {
 		out, err := Format(json, tmpl, info)
 		if err != nil {
-			c.Ui.Error(err.Error())
+			c.Ui.Error(fmt.Sprintf("Error formatting output: %s", err))
 			return 1
 		}
 
