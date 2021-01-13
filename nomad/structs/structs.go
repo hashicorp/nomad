@@ -3964,15 +3964,13 @@ func (j *Job) NamespacedID() *NamespacedID {
 	}
 }
 
-// Canonicalize is used to canonicalize fields in the Job. This should be called
-// when registering a Job. A set of warnings are returned if the job was changed
-// in anyway that the user should be made aware of.
-func (j *Job) Canonicalize() (warnings error) {
+// Canonicalize is used to canonicalize fields in the Job. This should be
+// called when registering a Job.
+func (j *Job) Canonicalize() {
 	if j == nil {
-		return nil
+		return
 	}
 
-	var mErr multierror.Error
 	// Ensure that an empty and nil map are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(j.Meta) == 0 {
@@ -3999,8 +3997,6 @@ func (j *Job) Canonicalize() (warnings error) {
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()
 	}
-
-	return mErr.ErrorOrNil()
 }
 
 // Copy returns a deep copy of the Job. It is expected that callers use recover.
