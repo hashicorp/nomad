@@ -18,33 +18,28 @@ import (
 
 // MergeMultierrorWarnings takes job warnings and canonicalize warnings and
 // merges them into a returnable string. Both the errors may be nil.
-func MergeMultierrorWarnings(warnings ...error) string {
-	var warningMsg multierror.Error
-	for _, warn := range warnings {
-		if warn != nil {
-			_ = multierror.Append(&warningMsg, warn)
-		}
-	}
-
-	if len(warningMsg.Errors) == 0 {
+func MergeMultierrorWarnings(errs ...error) string {
+	if len(errs) == 0 {
 		return ""
 	}
 
-	// Set the formatter
-	warningMsg.ErrorFormat = warningsFormatter
-	return warningMsg.Error()
+	var mErr multierror.Error
+	_ = multierror.Append(&mErr, errs...)
+	mErr.ErrorFormat = warningsFormatter
+
+	return mErr.Error()
 }
 
 // warningsFormatter is used to format job warnings
 func warningsFormatter(es []error) string {
-	points := make([]string, len(es))
-	for i, err := range es {
-		points[i] = fmt.Sprintf("* %s", err)
+	sb := strings.Builder{}
+	sb.WriteString(fmt.Sprintf("%d warning(s):\n", len(es)))
+
+	for i := range es {
+		sb.WriteString(fmt.Sprintf("\n* %s", es[i]))
 	}
 
-	return fmt.Sprintf(
-		"%d warning(s):\n\n%s",
-		len(es), strings.Join(points, "\n"))
+	return sb.String()
 }
 
 // RemoveAllocs is used to remove any allocs with the given IDs
