@@ -427,7 +427,7 @@ jobs:
           name: build binaries
           command: |
             source ${BASH_ENV}
-            export GO_TAGS="ui $(grep 'GO_TAGS ?=' ./GNUmakefile | cut -d= -f2)"
+            export GO_TAGS="ui $(grep -e '^GO_TAGS ?=' ./GNUmakefile | cut -d= -f2)"
             make pkg/darwin_amd64.zip
       - store_artifacts:
           path: pkg/darwin_amd64.zip
@@ -476,7 +476,7 @@ jobs:
       - run:
           name: build binaries
           command: |
-            export GO_TAGS="ui $(grep 'GO_TAGS ?=' ./GNUmakefile | cut -d= -f2)"
+            export GO_TAGS="ui $(grep -e '^GO_TAGS ?=' ./GNUmakefile | cut -d= -f2)"
             make pkg/windows_amd64.zip pkg/linux_amd64.zip
       - store_artifacts:
           path: pkg
