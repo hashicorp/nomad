@@ -4785,9 +4785,9 @@ func (n *Namespace) SetHash() []byte {
 	}
 
 	// Write all the user set fields
-	hash.Write([]byte(n.Name))
-	hash.Write([]byte(n.Description))
-	hash.Write([]byte(n.Quota))
+	_, _ = hash.Write([]byte(n.Name))
+	_, _ = hash.Write([]byte(n.Description))
+	_, _ = hash.Write([]byte(n.Quota))
 
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
@@ -7930,8 +7930,8 @@ func hashStringMap(h hash.Hash, m map[string]string) {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		h.Write([]byte(k))
-		h.Write([]byte(m[k]))
+		_, _ = h.Write([]byte(k))
+		_, _ = h.Write([]byte(m[k]))
 	}
 }
 
@@ -7943,13 +7943,13 @@ func (ta *TaskArtifact) Hash() string {
 		panic(err)
 	}
 
-	h.Write([]byte(ta.GetterSource))
+	_, _ = h.Write([]byte(ta.GetterSource))
 
 	hashStringMap(h, ta.GetterOptions)
 	hashStringMap(h, ta.GetterHeaders)
 
-	h.Write([]byte(ta.GetterMode))
-	h.Write([]byte(ta.RelativeDest))
+	_, _ = h.Write([]byte(ta.GetterMode))
+	_, _ = h.Write([]byte(ta.RelativeDest))
 	return base64.RawStdEncoding.EncodeToString(h.Sum(nil))
 }
 
@@ -10704,9 +10704,9 @@ func (c *ACLPolicy) SetHash() []byte {
 	}
 
 	// Write all the user set fields
-	hash.Write([]byte(c.Name))
-	hash.Write([]byte(c.Description))
-	hash.Write([]byte(c.Rules))
+	_, _ = hash.Write([]byte(c.Name))
+	_, _ = hash.Write([]byte(c.Description))
+	_, _ = hash.Write([]byte(c.Rules))
 
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
@@ -10858,15 +10858,15 @@ func (a *ACLToken) SetHash() []byte {
 	}
 
 	// Write all the user set fields
-	hash.Write([]byte(a.Name))
-	hash.Write([]byte(a.Type))
+	_, _ = hash.Write([]byte(a.Name))
+	_, _ = hash.Write([]byte(a.Type))
 	for _, policyName := range a.Policies {
-		hash.Write([]byte(policyName))
+		_, _ = hash.Write([]byte(policyName))
 	}
 	if a.Global {
-		hash.Write([]byte("global"))
+		_, _ = hash.Write([]byte("global"))
 	} else {
-		hash.Write([]byte("local"))
+		_, _ = hash.Write([]byte("local"))
 	}
 
 	// Finalize the hash

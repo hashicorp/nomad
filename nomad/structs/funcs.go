@@ -336,8 +336,8 @@ func ACLPolicyListHash(policies []*ACLPolicy) string {
 		panic(err)
 	}
 	for _, policy := range policies {
-		cacheKeyHash.Write([]byte(policy.Name))
-		binary.Write(cacheKeyHash, binary.BigEndian, policy.ModifyIndex)
+		_, _ = cacheKeyHash.Write([]byte(policy.Name))
+		_ = binary.Write(cacheKeyHash, binary.BigEndian, policy.ModifyIndex)
 	}
 	cacheKey := string(cacheKeyHash.Sum(nil))
 	return cacheKey
@@ -385,7 +385,9 @@ func GenerateMigrateToken(allocID, nodeSecretID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	h.Write([]byte(allocID))
+
+	_, _ = h.Write([]byte(allocID))
+
 	return base64.URLEncoding.EncodeToString(h.Sum(nil)), nil
 }
 
@@ -396,7 +398,8 @@ func CompareMigrateToken(allocID, nodeSecretID, otherMigrateToken string) bool {
 	if err != nil {
 		return false
 	}
-	h.Write([]byte(allocID))
+
+	_, _ = h.Write([]byte(allocID))
 
 	otherBytes, err := base64.URLEncoding.DecodeString(otherMigrateToken)
 	if err != nil {
