@@ -1256,9 +1256,7 @@ func BatchConnectJob() *structs.Job {
 		ModifyIndex:    99,
 		JobModifyIndex: 99,
 	}
-	if err := job.Canonicalize(); err != nil {
-		panic(err)
-	}
+	job.Canonicalize()
 	return job
 }
 

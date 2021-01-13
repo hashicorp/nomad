@@ -99,14 +99,8 @@ func (jobCanonicalizer) Name() string {
 }
 
 func (jobCanonicalizer) Mutate(job *structs.Job) (*structs.Job, []error, error) {
-	err := job.Canonicalize()
-	if err == nil {
-		return job, nil, nil
-	}
-	if me, ok := err.(*multierror.Error); ok {
-		return job, me.Errors, nil
-	}
-	return job, []error{err}, nil
+	job.Canonicalize()
+	return job, nil, nil
 }
 
 // jobImpliedConstraints adds constraints to a job implied by other job fields
