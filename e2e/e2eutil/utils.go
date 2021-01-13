@@ -2,6 +2,7 @@ package e2eutil
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -9,7 +10,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
@@ -63,10 +64,16 @@ func stringToPtrOrNil(s string) *string {
 	return helper.StringToPtr(s)
 }
 
+func Parse2(t *testing.T, jobFile string) (*api.Job, error) {
+	f, err := os.Open(jobFile)
+	require.NoError(t, err)
+	return jobspec2.Parse(jobFile, f)
+}
+
 func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToken string) []*api.AllocationListStub {
 
 	// Parse job
-	job, err := jobspec.ParseFile(jobFile)
+	job, err := Parse2(t, jobFile)
 	require.NoError(t, err)
 
 	// Set custom job ID (distinguish among tests)
