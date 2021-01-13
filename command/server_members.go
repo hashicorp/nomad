@@ -197,7 +197,7 @@ func regionLeaders(client *api.Client, mem []*api.AgentMember) (map[string]strin
 	for reg := range regions {
 		l, err := status.RegionLeader(reg)
 		if err != nil {
-			multierror.Append(&mErr, fmt.Errorf("Region %q: %v", reg, err))
+			_ = multierror.Append(&mErr, fmt.Errorf("Region %q: %v", reg, err))
 			continue
 		}
 

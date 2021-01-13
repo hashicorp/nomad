@@ -22,7 +22,7 @@ func MergeMultierrorWarnings(warnings ...error) string {
 	var warningMsg multierror.Error
 	for _, warn := range warnings {
 		if warn != nil {
-			multierror.Append(&warningMsg, warn)
+			_ = multierror.Append(&warningMsg, warn)
 		}
 	}
 
