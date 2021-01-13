@@ -285,7 +285,7 @@ func (t *Tracker) watchTaskEvents() {
 			}
 
 			// One of the tasks has failed so we can exit watching
-			if state.Failed || !state.FinishedAt.IsZero() {
+			if state.Failed || (!state.FinishedAt.IsZero() && t.lifecycleTasks[taskName] != structs.TaskLifecycleHookPrestart) {
 				t.setTaskHealth(false, true)
 				return
 			}
