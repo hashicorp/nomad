@@ -28,7 +28,6 @@ export default class JobEditor extends Component {
     assert(`context must be one of: ${allowedValues.join(', ')}`, allowedValues.includes(value));
 
     this.set('_context', value);
-    return value;
   }
 
   _context = null;

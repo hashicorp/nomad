@@ -26,8 +26,6 @@ export default class TokenService extends Service {
     } else {
       window.localStorage.nomadTokenSecret = value;
     }
-
-    return value;
   }
 
   @task(function*() {

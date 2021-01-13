@@ -87,7 +87,6 @@ export default class SystemService extends Service {
       // the return value is consistent with what is persisted.
       const strValue = value + '';
       window.localStorage.nomadActiveRegion = strValue;
-      return strValue;
     }
   }
 
@@ -135,10 +134,8 @@ export default class SystemService extends Service {
       return;
     } else if (typeof value === 'string') {
       window.localStorage.nomadActiveNamespace = value;
-      return this.namespaces.findBy('id', value);
     } else {
       window.localStorage.nomadActiveNamespace = value.get('name');
-      return value;
     }
   }
 
