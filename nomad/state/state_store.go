@@ -348,8 +348,10 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 	}
 
 	// Update the status of deployments effected by the plan.
-	if len(results.DeploymentUpdates) != 0 {
-		s.upsertDeploymentUpdates(index, results.DeploymentUpdates, txn)
+	for _, u := range results.DeploymentUpdates {
+		if err := s.updateDeploymentStatusImpl(index, u, txn); err != nil {
+			return err
+		}
 	}
 
 	if results.EvalID != "" {
@@ -426,18 +428,6 @@ func addComputedAllocAttrs(allocs []*structs.Allocation, job *structs.Job) {
 		// Add the shared resources
 		alloc.Resources.Add(alloc.SharedResources)
 	}
-}
-
-// upsertDeploymentUpdates updates the deployments given the passed status
-// updates.
-func (s *StateStore) upsertDeploymentUpdates(index uint64, updates []*structs.DeploymentStatusUpdate, txn *txn) error {
-	for _, u := range updates {
-		if err := s.updateDeploymentStatusImpl(index, u, txn); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // UpsertJobSummary upserts a job summary into the state store.
