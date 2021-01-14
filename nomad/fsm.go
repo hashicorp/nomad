@@ -677,9 +677,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		// We always delete from the periodic launch table because it is possible that
 		// the job was updated to be non-periodic, thus checking if it is periodic
 		// doesn't ensure we clean it up properly.
-		if err := n.state.DeletePeriodicLaunchTxn(index, namespace, jobID, tx); err != nil {
-			return fmt.Errorf("DeletePeriodicLaunch failed: %w", err)
-		}
+		_ = n.state.DeletePeriodicLaunchTxn(index, namespace, jobID, tx)
 	} else {
 		// Get the current job and mark it as stopped and re-insert it.
 		ws := memdb.NewWatchSet()
