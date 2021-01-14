@@ -5337,7 +5337,10 @@ func (s *StateStore) SchedulerSetConfig(index uint64, config *structs.SchedulerC
 	tx := s.db.WriteTxn(index)
 	defer tx.Abort()
 
-	s.schedulerSetConfigTxn(index, tx, config)
+	err := s.schedulerSetConfigTxn(index, tx, config)
+	if err != nil {
+		return err
+	}
 
 	return tx.Commit()
 }
@@ -5406,7 +5409,10 @@ func (s *StateStore) SchedulerCASConfig(index, cidx uint64, config *structs.Sche
 		return false, nil
 	}
 
-	s.schedulerSetConfigTxn(index, tx, config)
+	err = s.schedulerSetConfigTxn(index, tx, config)
+	if err != nil {
+		return false, err
+	}
 
 	if err := tx.Commit(); err != nil {
 		return false, err
