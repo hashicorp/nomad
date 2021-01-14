@@ -83,7 +83,11 @@ func (s *StateStore) AutopilotCASConfig(index, cidx uint64, config *structs.Auto
 		return false, err
 	}
 
-	tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		return false, err
+	}
+
 	return true, nil
 }
 
