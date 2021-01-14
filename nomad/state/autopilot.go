@@ -54,8 +54,7 @@ func (s *StateStore) AutopilotSetConfig(index uint64, config *structs.AutopilotC
 		return err
 	}
 
-	tx.Commit()
-	return nil
+	return tx.Commit()
 }
 
 // AutopilotCASConfig is used to try updating the Autopilot configuration with a
