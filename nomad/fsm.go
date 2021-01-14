@@ -1818,7 +1818,12 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 	}
 
 	// Write the time table
-	sink.Write([]byte{byte(TimeTableSnapshot)})
+	bs := []byte{byte(TimeTableSnapshot)}
+	_, err := sink.Write(bs)
+	if err != nil {
+		return err
+	}
+
 	if err := s.timetable.Serialize(encoder); err != nil {
 		_ = sink.Cancel()
 		return err
@@ -1879,8 +1884,12 @@ func (s *nomadSnapshot) persistIndexes(sink raft.SnapshotSink,
 		idx := raw.(*state.IndexEntry)
 
 		// Write out a node registration
-		sink.Write([]byte{byte(IndexSnapshot)})
-		if err := encoder.Encode(idx); err != nil {
+		_, err := sink.Write([]byte{byte(IndexSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(idx)
+		if err != nil {
 			return err
 		}
 	}
@@ -1907,8 +1916,12 @@ func (s *nomadSnapshot) persistNodes(sink raft.SnapshotSink,
 		node := raw.(*structs.Node)
 
 		// Write out a node registration
-		sink.Write([]byte{byte(NodeSnapshot)})
-		if err := encoder.Encode(node); err != nil {
+		_, err := sink.Write([]byte{byte(NodeSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(node)
+		if err != nil {
 			return err
 		}
 	}
@@ -1935,8 +1948,12 @@ func (s *nomadSnapshot) persistJobs(sink raft.SnapshotSink,
 		job := raw.(*structs.Job)
 
 		// Write out a job registration
-		sink.Write([]byte{byte(JobSnapshot)})
-		if err := encoder.Encode(job); err != nil {
+		_, err := sink.Write([]byte{byte(JobSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(job)
+		if err != nil {
 			return err
 		}
 	}
@@ -1963,8 +1980,12 @@ func (s *nomadSnapshot) persistEvals(sink raft.SnapshotSink,
 		eval := raw.(*structs.Evaluation)
 
 		// Write out the evaluation
-		sink.Write([]byte{byte(EvalSnapshot)})
-		if err := encoder.Encode(eval); err != nil {
+		_, err := sink.Write([]byte{byte(EvalSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(eval)
+		if err != nil {
 			return err
 		}
 	}
@@ -1991,8 +2012,12 @@ func (s *nomadSnapshot) persistAllocs(sink raft.SnapshotSink,
 		alloc := raw.(*structs.Allocation)
 
 		// Write out the evaluation
-		sink.Write([]byte{byte(AllocSnapshot)})
-		if err := encoder.Encode(alloc); err != nil {
+		_, err := sink.Write([]byte{byte(AllocSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(alloc)
+		if err != nil {
 			return err
 		}
 	}
@@ -2019,8 +2044,12 @@ func (s *nomadSnapshot) persistPeriodicLaunches(sink raft.SnapshotSink,
 		launch := raw.(*structs.PeriodicLaunch)
 
 		// Write out a job registration
-		sink.Write([]byte{byte(PeriodicLaunchSnapshot)})
-		if err := encoder.Encode(launch); err != nil {
+		_, err := sink.Write([]byte{byte(PeriodicLaunchSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(launch)
+		if err != nil {
 			return err
 		}
 	}
@@ -2044,8 +2073,12 @@ func (s *nomadSnapshot) persistJobSummaries(sink raft.SnapshotSink,
 
 		jobSummary := raw.(*structs.JobSummary)
 
-		sink.Write([]byte{byte(JobSummarySnapshot)})
-		if err := encoder.Encode(jobSummary); err != nil {
+		_, err := sink.Write([]byte{byte(JobSummarySnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(jobSummary)
+		if err != nil {
 			return err
 		}
 	}
@@ -2069,8 +2102,12 @@ func (s *nomadSnapshot) persistVaultAccessors(sink raft.SnapshotSink,
 
 		accessor := raw.(*structs.VaultAccessor)
 
-		sink.Write([]byte{byte(VaultAccessorSnapshot)})
-		if err := encoder.Encode(accessor); err != nil {
+		_, err := sink.Write([]byte{byte(VaultAccessorSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(accessor)
+		if err != nil {
 			return err
 		}
 	}
@@ -2086,8 +2123,12 @@ func (s *nomadSnapshot) persistSITokenAccessors(sink raft.SnapshotSink, encoder 
 
 	for raw := accessors.Next(); raw != nil; raw = accessors.Next() {
 		accessor := raw.(*structs.SITokenAccessor)
-		sink.Write([]byte{byte(ServiceIdentityTokenAccessorSnapshot)})
-		if err := encoder.Encode(accessor); err != nil {
+		_, err := sink.Write([]byte{byte(ServiceIdentityTokenAccessorSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(accessor)
+		if err != nil {
 			return err
 		}
 	}
@@ -2114,8 +2155,12 @@ func (s *nomadSnapshot) persistJobVersions(sink raft.SnapshotSink,
 		job := raw.(*structs.Job)
 
 		// Write out a job registration
-		sink.Write([]byte{byte(JobVersionSnapshot)})
-		if err := encoder.Encode(job); err != nil {
+		_, err := sink.Write([]byte{byte(JobVersionSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(job)
+		if err != nil {
 			return err
 		}
 	}
@@ -2142,8 +2187,12 @@ func (s *nomadSnapshot) persistDeployments(sink raft.SnapshotSink,
 		deployment := raw.(*structs.Deployment)
 
 		// Write out a job registration
-		sink.Write([]byte{byte(DeploymentSnapshot)})
-		if err := encoder.Encode(deployment); err != nil {
+		_, err := sink.Write([]byte{byte(DeploymentSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(deployment)
+		if err != nil {
 			return err
 		}
 	}
@@ -2170,8 +2219,12 @@ func (s *nomadSnapshot) persistACLPolicies(sink raft.SnapshotSink,
 		policy := raw.(*structs.ACLPolicy)
 
 		// Write out a policy registration
-		sink.Write([]byte{byte(ACLPolicySnapshot)})
-		if err := encoder.Encode(policy); err != nil {
+		_, err := sink.Write([]byte{byte(ACLPolicySnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(policy)
+		if err != nil {
 			return err
 		}
 	}
@@ -2198,8 +2251,12 @@ func (s *nomadSnapshot) persistACLTokens(sink raft.SnapshotSink,
 		token := raw.(*structs.ACLToken)
 
 		// Write out a token registration
-		sink.Write([]byte{byte(ACLTokenSnapshot)})
-		if err := encoder.Encode(token); err != nil {
+		_, err := sink.Write([]byte{byte(ACLTokenSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(token)
+		if err != nil {
 			return err
 		}
 	}
@@ -2226,8 +2283,12 @@ func (s *nomadSnapshot) persistNamespaces(sink raft.SnapshotSink, encoder *codec
 		namespace := raw.(*structs.Namespace)
 
 		// Write out a namespace registration
-		sink.Write([]byte{byte(NamespaceSnapshot)})
-		if err := encoder.Encode(namespace); err != nil {
+		_, err := sink.Write([]byte{byte(NamespaceSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(namespace)
+		if err != nil {
 			return err
 		}
 	}
@@ -2244,11 +2305,17 @@ func (s *nomadSnapshot) persistSchedulerConfig(sink raft.SnapshotSink,
 	if schedConfig == nil {
 		return nil
 	}
+
 	// Write out scheduler config
-	sink.Write([]byte{byte(SchedulerConfigSnapshot)})
-	if err := encoder.Encode(schedConfig); err != nil {
+	_, err = sink.Write([]byte{byte(SchedulerConfigSnapshot)})
+	if err != nil {
 		return err
 	}
+	err = encoder.Encode(schedConfig)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -2266,8 +2333,12 @@ func (s *nomadSnapshot) persistClusterMetadata(sink raft.SnapshotSink,
 	}
 
 	// Write out the cluster metadata
-	sink.Write([]byte{byte(ClusterMetadataSnapshot)})
-	if err := encoder.Encode(clusterMetadata); err != nil {
+	_, err = sink.Write([]byte{byte(ClusterMetadataSnapshot)})
+	if err != nil {
+		return err
+	}
+	err = encoder.Encode(clusterMetadata)
+	if err != nil {
 		return err
 	}
 
@@ -2295,8 +2366,12 @@ func (s *nomadSnapshot) persistScalingPolicies(sink raft.SnapshotSink,
 		scalingPolicy := raw.(*structs.ScalingPolicy)
 
 		// Write out a scaling policy snapshot
-		sink.Write([]byte{byte(ScalingPolicySnapshot)})
-		if err := encoder.Encode(scalingPolicy); err != nil {
+		_, err := sink.Write([]byte{byte(ScalingPolicySnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(scalingPolicy)
+		if err != nil {
 			return err
 		}
 	}
@@ -2322,8 +2397,12 @@ func (s *nomadSnapshot) persistScalingEvents(sink raft.SnapshotSink, encoder *co
 		events := raw.(*structs.JobScalingEvents)
 
 		// Write out a scaling events snapshot
-		sink.Write([]byte{byte(ScalingEventsSnapshot)})
-		if err := encoder.Encode(events); err != nil {
+		_, err := sink.Write([]byte{byte(ScalingEventsSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(events)
+		if err != nil {
 			return err
 		}
 	}
@@ -2351,8 +2430,12 @@ func (s *nomadSnapshot) persistCSIPlugins(sink raft.SnapshotSink,
 		plugin := raw.(*structs.CSIPlugin)
 
 		// Write out a plugin snapshot
-		sink.Write([]byte{byte(CSIPluginSnapshot)})
-		if err := encoder.Encode(plugin); err != nil {
+		_, err := sink.Write([]byte{byte(CSIPluginSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(plugin)
+		if err != nil {
 			return err
 		}
 	}
@@ -2380,8 +2463,12 @@ func (s *nomadSnapshot) persistCSIVolumes(sink raft.SnapshotSink,
 		volume := raw.(*structs.CSIVolume)
 
 		// Write out a volume snapshot
-		sink.Write([]byte{byte(CSIVolumeSnapshot)})
-		if err := encoder.Encode(volume); err != nil {
+		_, err := sink.Write([]byte{byte(CSIVolumeSnapshot)})
+		if err != nil {
+			return err
+		}
+		err = encoder.Encode(volume)
+		if err != nil {
 			return err
 		}
 	}
