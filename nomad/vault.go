@@ -735,43 +735,43 @@ func (v *vaultClient) parseSelfToken() error {
 	if !data.Root {
 		// All non-root tokens must be renewable
 		if !data.Renewable {
-			multierror.Append(&mErr, fmt.Errorf("Vault token is not renewable or root"))
+			_ = multierror.Append(&mErr, fmt.Errorf("Vault token is not renewable or root"))
 		}
 
 		// All non-root tokens must have a lease duration
 		if data.CreationTTL == 0 {
-			multierror.Append(&mErr, fmt.Errorf("invalid lease duration of zero"))
+			_ = multierror.Append(&mErr, fmt.Errorf("invalid lease duration of zero"))
 		}
 
 		// The lease duration can not be expired
 		if data.TTL == 0 {
-			multierror.Append(&mErr, fmt.Errorf("token TTL is zero"))
+			_ = multierror.Append(&mErr, fmt.Errorf("token TTL is zero"))
 		}
 
 		// There must be a valid role since we aren't root
 		if role == "" {
-			multierror.Append(&mErr, fmt.Errorf("token role name must be set when not using a root token"))
+			_ = multierror.Append(&mErr, fmt.Errorf("token role name must be set when not using a root token"))
 		}
 
 	} else if data.CreationTTL != 0 {
 		// If the root token has a TTL it must be renewable
 		if !data.Renewable {
-			multierror.Append(&mErr, fmt.Errorf("Vault token has a TTL but is not renewable"))
+			_ = multierror.Append(&mErr, fmt.Errorf("Vault token has a TTL but is not renewable"))
 		} else if data.TTL == 0 {
 			// If the token has a TTL make sure it has not expired
-			multierror.Append(&mErr, fmt.Errorf("token TTL is zero"))
+			_ = multierror.Append(&mErr, fmt.Errorf("token TTL is zero"))
 		}
 	}
 
 	// Check we have the correct capabilities
 	if err := v.validateCapabilities(role, data.Root); err != nil {
-		multierror.Append(&mErr, err)
+		_ = multierror.Append(&mErr, err)
 	}
 
 	// If given a role validate it
 	if role != "" {
 		if err := v.validateRole(role); err != nil {
-			multierror.Append(&mErr, err)
+			_ = multierror.Append(&mErr, err)
 		}
 	}
 
@@ -829,7 +829,7 @@ func (v *vaultClient) validateCapabilities(role string, root bool) error {
 			v.logger.Warn(msg)
 			return nil
 		} else {
-			multierror.Append(&mErr, err)
+			_ = multierror.Append(&mErr, err)
 		}
 	}
 
@@ -838,9 +838,9 @@ func (v *vaultClient) validateCapabilities(role string, root bool) error {
 	verify := func(path string, requiredCaps []string) {
 		ok, caps, err := v.hasCapability(path, requiredCaps)
 		if err != nil {
-			multierror.Append(&mErr, err)
+			_ = multierror.Append(&mErr, err)
 		} else if !ok {
-			multierror.Append(&mErr,
+			_ = multierror.Append(&mErr,
 				fmt.Errorf("token must have one of the following capabilities %q on %q; has %v", requiredCaps, path, caps))
 		}
 	}
@@ -918,15 +918,15 @@ func (v *vaultClient) validateRole(role string) error {
 	// Validate the role is acceptable
 	var mErr multierror.Error
 	if !data.Renewable {
-		multierror.Append(&mErr, fmt.Errorf("Role must allow tokens to be renewed"))
+		_ = multierror.Append(&mErr, fmt.Errorf("Role must allow tokens to be renewed"))
 	}
 
 	if data.ExplicitMaxTtl != 0 || data.TokenExplicitMaxTtl != 0 {
-		multierror.Append(&mErr, fmt.Errorf("Role can not use an explicit max ttl. Token must be periodic."))
+		_ = multierror.Append(&mErr, fmt.Errorf("Role can not use an explicit max ttl. Token must be periodic."))
 	}
 
 	if data.Period == 0 && data.TokenPeriod == 0 {
-		multierror.Append(&mErr, fmt.Errorf("Role must have a non-zero period to make tokens periodic."))
+		_ = multierror.Append(&mErr, fmt.Errorf("Role must have a non-zero period to make tokens periodic."))
 	}
 
 	return mErr.ErrorOrNil()

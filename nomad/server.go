@@ -789,7 +789,7 @@ func (s *Server) Reload(newConfig *Config) error {
 	// Handle the Vault reload. Vault should never be nil but just guard.
 	if s.vault != nil {
 		if err := s.vault.SetConfig(newConfig.VaultConfig); err != nil {
-			multierror.Append(&mErr, err)
+			_ = multierror.Append(&mErr, err)
 		}
 	}
 
@@ -801,7 +801,7 @@ func (s *Server) Reload(newConfig *Config) error {
 	if shouldReloadTLS {
 		if err := s.reloadTLSConnections(newConfig.TLSConfig); err != nil {
 			s.logger.Error("error reloading server TLS configuration", "error", err)
-			multierror.Append(&mErr, err)
+			_ = multierror.Append(&mErr, err)
 		}
 	}
 

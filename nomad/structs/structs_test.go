@@ -2645,10 +2645,7 @@ func TestResource_Add(t *testing.T) {
 		},
 	}
 
-	err := r1.Add(r2)
-	if err != nil {
-		t.Fatalf("Err: %v", err)
-	}
+	r1.Add(r2)
 
 	expect := &Resources{
 		CPU:      3000,
@@ -2687,14 +2684,8 @@ func TestResource_Add_Network(t *testing.T) {
 		},
 	}
 
-	err := r1.Add(r2)
-	if err != nil {
-		t.Fatalf("Err: %v", err)
-	}
-	err = r1.Add(r3)
-	if err != nil {
-		t.Fatalf("Err: %v", err)
-	}
+	r1.Add(r2)
+	r1.Add(r3)
 
 	expect := &Resources{
 		Networks: []*NetworkResource{

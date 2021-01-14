@@ -2379,10 +2379,11 @@ func (r *Resources) Superset(other *Resources) (bool, string) {
 // Add adds the resources of the delta to this, potentially
 // returning an error if not possible.
 // COMPAT(0.10): Remove in 0.10
-func (r *Resources) Add(delta *Resources) error {
+func (r *Resources) Add(delta *Resources) {
 	if delta == nil {
-		return nil
+		return
 	}
+
 	r.CPU += delta.CPU
 	r.MemoryMB += delta.MemoryMB
 	r.DiskMB += delta.DiskMB
@@ -2396,7 +2397,6 @@ func (r *Resources) Add(delta *Resources) error {
 			r.Networks[idx].Add(n)
 		}
 	}
-	return nil
 }
 
 // COMPAT(0.10): Remove in 0.10
@@ -2742,7 +2742,7 @@ func (r *RequestedDevice) Validate() error {
 
 	var mErr multierror.Error
 	if r.Name == "" {
-		multierror.Append(&mErr, errors.New("device name must be given as one of the following: type, vendor/type, or vendor/type/name"))
+		_ = multierror.Append(&mErr, errors.New("device name must be given as one of the following: type, vendor/type, or vendor/type/name"))
 	}
 
 	for idx, constr := range r.Constraints {
@@ -2750,18 +2750,18 @@ func (r *RequestedDevice) Validate() error {
 		switch constr.Operand {
 		case ConstraintDistinctHosts, ConstraintDistinctProperty:
 			outer := fmt.Errorf("Constraint %d validation failed: using unsupported operand %q", idx+1, constr.Operand)
-			multierror.Append(&mErr, outer)
+			_ = multierror.Append(&mErr, outer)
 		default:
 			if err := constr.Validate(); err != nil {
 				outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
-				multierror.Append(&mErr, outer)
+				_ = multierror.Append(&mErr, outer)
 			}
 		}
 	}
 	for idx, affinity := range r.Affinities {
 		if err := affinity.Validate(); err != nil {
 			outer := fmt.Errorf("Affinity %d validation failed: %s", idx+1, err)
-			multierror.Append(&mErr, outer)
+			_ = multierror.Append(&mErr, outer)
 		}
 	}
 
@@ -4000,15 +4000,13 @@ func (j *Job) NamespacedID() *NamespacedID {
 	}
 }
 
-// Canonicalize is used to canonicalize fields in the Job. This should be called
-// when registering a Job. A set of warnings are returned if the job was changed
-// in anyway that the user should be made aware of.
-func (j *Job) Canonicalize() (warnings error) {
+// Canonicalize is used to canonicalize fields in the Job. This should be
+// called when registering a Job.
+func (j *Job) Canonicalize() {
 	if j == nil {
-		return nil
+		return
 	}
 
-	var mErr multierror.Error
 	// Ensure that an empty and nil map are treated the same to avoid scheduling
 	// problems since we use reflect DeepEquals.
 	if len(j.Meta) == 0 {
@@ -4035,8 +4033,6 @@ func (j *Job) Canonicalize() (warnings error) {
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()
 	}
-
-	return mErr.ErrorOrNil()
 }
 
 // Copy returns a deep copy of the Job. It is expected that callers use recover.
@@ -4669,35 +4665,35 @@ func (u *UpdateStrategy) Validate() error {
 	switch u.HealthCheck {
 	case UpdateStrategyHealthCheck_Checks, UpdateStrategyHealthCheck_TaskStates, UpdateStrategyHealthCheck_Manual:
 	default:
-		multierror.Append(&mErr, fmt.Errorf("Invalid health check given: %q", u.HealthCheck))
+		_ = multierror.Append(&mErr, fmt.Errorf("Invalid health check given: %q", u.HealthCheck))
 	}
 
 	if u.MaxParallel < 0 {
-		multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than zero: %d < 0", u.MaxParallel))
+		_ = multierror.Append(&mErr, fmt.Errorf("Max parallel can not be less than zero: %d < 0", u.MaxParallel))
 	}
 	if u.Canary < 0 {
-		multierror.Append(&mErr, fmt.Errorf("Canary count can not be less than zero: %d < 0", u.Canary))
+		_ = multierror.Append(&mErr, fmt.Errorf("Canary count can not be less than zero: %d < 0", u.Canary))
 	}
 	if u.Canary == 0 && u.AutoPromote {
-		multierror.Append(&mErr, fmt.Errorf("Auto Promote requires a Canary count greater than zero"))
+		_ = multierror.Append(&mErr, fmt.Errorf("Auto Promote requires a Canary count greater than zero"))
 	}
 	if u.MinHealthyTime < 0 {
-		multierror.Append(&mErr, fmt.Errorf("Minimum healthy time may not be less than zero: %v", u.MinHealthyTime))
+		_ = multierror.Append(&mErr, fmt.Errorf("Minimum healthy time may not be less than zero: %v", u.MinHealthyTime))
 	}
 	if u.HealthyDeadline <= 0 {
-		multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be greater than zero: %v", u.HealthyDeadline))
+		_ = multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be greater than zero: %v", u.HealthyDeadline))
 	}
 	if u.ProgressDeadline < 0 {
-		multierror.Append(&mErr, fmt.Errorf("Progress deadline must be zero or greater: %v", u.ProgressDeadline))
+		_ = multierror.Append(&mErr, fmt.Errorf("Progress deadline must be zero or greater: %v", u.ProgressDeadline))
 	}
 	if u.MinHealthyTime >= u.HealthyDeadline {
-		multierror.Append(&mErr, fmt.Errorf("Minimum healthy time must be less than healthy deadline: %v > %v", u.MinHealthyTime, u.HealthyDeadline))
+		_ = multierror.Append(&mErr, fmt.Errorf("Minimum healthy time must be less than healthy deadline: %v > %v", u.MinHealthyTime, u.HealthyDeadline))
 	}
 	if u.ProgressDeadline != 0 && u.HealthyDeadline >= u.ProgressDeadline {
-		multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be less than progress deadline: %v > %v", u.HealthyDeadline, u.ProgressDeadline))
+		_ = multierror.Append(&mErr, fmt.Errorf("Healthy deadline must be less than progress deadline: %v > %v", u.HealthyDeadline, u.ProgressDeadline))
 	}
 	if u.Stagger <= 0 {
-		multierror.Append(&mErr, fmt.Errorf("Stagger must be greater than zero: %v", u.Stagger))
+		_ = multierror.Append(&mErr, fmt.Errorf("Stagger must be greater than zero: %v", u.Stagger))
 	}
 
 	return mErr.ErrorOrNil()
@@ -4821,9 +4817,9 @@ func (n *Namespace) SetHash() []byte {
 	}
 
 	// Write all the user set fields
-	hash.Write([]byte(n.Name))
-	hash.Write([]byte(n.Description))
-	hash.Write([]byte(n.Quota))
+	_, _ = hash.Write([]byte(n.Name))
+	_, _ = hash.Write([]byte(n.Description))
+	_, _ = hash.Write([]byte(n.Quota))
 
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
@@ -4939,13 +4935,13 @@ func (p *PeriodicConfig) Validate() error {
 
 	var mErr multierror.Error
 	if p.Spec == "" {
-		multierror.Append(&mErr, fmt.Errorf("Must specify a spec"))
+		_ = multierror.Append(&mErr, fmt.Errorf("Must specify a spec"))
 	}
 
 	// Check if we got a valid time zone
 	if p.TimeZone != "" {
 		if _, err := time.LoadLocation(p.TimeZone); err != nil {
-			multierror.Append(&mErr, fmt.Errorf("Invalid time zone %q: %v", p.TimeZone, err))
+			_ = multierror.Append(&mErr, fmt.Errorf("Invalid time zone %q: %v", p.TimeZone, err))
 		}
 	}
 
@@ -4953,12 +4949,12 @@ func (p *PeriodicConfig) Validate() error {
 	case PeriodicSpecCron:
 		// Validate the cron spec
 		if _, err := cronexpr.Parse(p.Spec); err != nil {
-			multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", p.Spec, err))
+			_ = multierror.Append(&mErr, fmt.Errorf("Invalid cron spec %q: %v", p.Spec, err))
 		}
 	case PeriodicSpecTest:
 		// No-op
 	default:
-		multierror.Append(&mErr, fmt.Errorf("Unknown periodic specification type %q", p.SpecType))
+		_ = multierror.Append(&mErr, fmt.Errorf("Unknown periodic specification type %q", p.SpecType))
 	}
 
 	return mErr.ErrorOrNil()
@@ -5082,13 +5078,13 @@ func (d *ParameterizedJobConfig) Validate() error {
 	switch d.Payload {
 	case DispatchPayloadOptional, DispatchPayloadRequired, DispatchPayloadForbidden:
 	default:
-		multierror.Append(&mErr, fmt.Errorf("Unknown payload requirement: %q", d.Payload))
+		_ = multierror.Append(&mErr, fmt.Errorf("Unknown payload requirement: %q", d.Payload))
 	}
 
 	// Check that the meta configurations are disjoint sets
 	disjoint, offending := helper.SliceSetDisjoint(d.MetaRequired, d.MetaOptional)
 	if !disjoint {
-		multierror.Append(&mErr, fmt.Errorf("Required and optional meta keys should be disjoint. Following keys exist in both: %v", offending))
+		_ = multierror.Append(&mErr, fmt.Errorf("Required and optional meta keys should be disjoint. Following keys exist in both: %v", offending))
 	}
 
 	return mErr.ErrorOrNil()
@@ -5535,19 +5531,19 @@ func (r *RestartPolicy) Validate() error {
 	switch r.Mode {
 	case RestartPolicyModeDelay, RestartPolicyModeFail:
 	default:
-		multierror.Append(&mErr, fmt.Errorf("Unsupported restart mode: %q", r.Mode))
+		_ = multierror.Append(&mErr, fmt.Errorf("Unsupported restart mode: %q", r.Mode))
 	}
 
 	// Check for ambiguous/confusing settings
 	if r.Attempts == 0 && r.Mode != RestartPolicyModeFail {
-		multierror.Append(&mErr, fmt.Errorf("Restart policy %q with %d attempts is ambiguous", r.Mode, r.Attempts))
+		_ = multierror.Append(&mErr, fmt.Errorf("Restart policy %q with %d attempts is ambiguous", r.Mode, r.Attempts))
 	}
 
 	if r.Interval.Nanoseconds() < RestartPolicyMinInterval.Nanoseconds() {
-		multierror.Append(&mErr, fmt.Errorf("Interval can not be less than %v (got %v)", RestartPolicyMinInterval, r.Interval))
+		_ = multierror.Append(&mErr, fmt.Errorf("Interval can not be less than %v (got %v)", RestartPolicyMinInterval, r.Interval))
 	}
 	if time.Duration(r.Attempts)*r.Delay > r.Interval {
-		multierror.Append(&mErr,
+		_ = multierror.Append(&mErr,
 			fmt.Errorf("Nomad can't restart the TaskGroup %v times in an interval of %v with a delay of %v", r.Attempts, r.Interval, r.Delay))
 	}
 	return mErr.ErrorOrNil()
@@ -5620,36 +5616,36 @@ func (r *ReschedulePolicy) Validate() error {
 	// Check for ambiguous/confusing settings
 	if r.Attempts > 0 {
 		if r.Interval <= 0 {
-			multierror.Append(&mErr, fmt.Errorf("Interval must be a non zero value if Attempts > 0"))
+			_ = multierror.Append(&mErr, fmt.Errorf("Interval must be a non zero value if Attempts > 0"))
 		}
 		if r.Unlimited {
-			multierror.Append(&mErr, fmt.Errorf("Reschedule Policy with Attempts = %v, Interval = %v, "+
+			_ = multierror.Append(&mErr, fmt.Errorf("Reschedule Policy with Attempts = %v, Interval = %v, "+
 				"and Unlimited = %v is ambiguous", r.Attempts, r.Interval, r.Unlimited))
-			multierror.Append(&mErr, errors.New("If Attempts >0, Unlimited cannot also be set to true"))
+			_ = multierror.Append(&mErr, errors.New("If Attempts >0, Unlimited cannot also be set to true"))
 		}
 	}
 
 	delayPreCheck := true
 	// Delay should be bigger than the default
 	if r.Delay.Nanoseconds() < ReschedulePolicyMinDelay.Nanoseconds() {
-		multierror.Append(&mErr, fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, r.Delay))
+		_ = multierror.Append(&mErr, fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, r.Delay))
 		delayPreCheck = false
 	}
 
 	// Must use a valid delay function
 	if !isValidDelayFunction(r.DelayFunction) {
-		multierror.Append(&mErr, fmt.Errorf("Invalid delay function %q, must be one of %q", r.DelayFunction, RescheduleDelayFunctions))
+		_ = multierror.Append(&mErr, fmt.Errorf("Invalid delay function %q, must be one of %q", r.DelayFunction, RescheduleDelayFunctions))
 		delayPreCheck = false
 	}
 
 	// Validate MaxDelay if not using linear delay progression
 	if r.DelayFunction != "constant" {
 		if r.MaxDelay.Nanoseconds() < ReschedulePolicyMinDelay.Nanoseconds() {
-			multierror.Append(&mErr, fmt.Errorf("Max Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, r.Delay))
+			_ = multierror.Append(&mErr, fmt.Errorf("Max Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, r.Delay))
 			delayPreCheck = false
 		}
 		if r.MaxDelay < r.Delay {
-			multierror.Append(&mErr, fmt.Errorf("Max Delay cannot be less than Delay %v (got %v)", r.Delay, r.MaxDelay))
+			_ = multierror.Append(&mErr, fmt.Errorf("Max Delay cannot be less than Delay %v (got %v)", r.Delay, r.MaxDelay))
 			delayPreCheck = false
 		}
 
@@ -5658,7 +5654,7 @@ func (r *ReschedulePolicy) Validate() error {
 	// Validate Interval and other delay parameters if attempts are limited
 	if !r.Unlimited {
 		if r.Interval.Nanoseconds() < ReschedulePolicyMinInterval.Nanoseconds() {
-			multierror.Append(&mErr, fmt.Errorf("Interval cannot be less than %v (got %v)", ReschedulePolicyMinInterval, r.Interval))
+			_ = multierror.Append(&mErr, fmt.Errorf("Interval cannot be less than %v (got %v)", ReschedulePolicyMinInterval, r.Interval))
 		}
 		if !delayPreCheck {
 			// We can't cross validate the rest of the delay params if delayPreCheck fails, so return early
@@ -5666,7 +5662,7 @@ func (r *ReschedulePolicy) Validate() error {
 		}
 		crossValidationErr := r.validateDelayParams()
 		if crossValidationErr != nil {
-			multierror.Append(&mErr, crossValidationErr)
+			_ = multierror.Append(&mErr, crossValidationErr)
 		}
 	}
 	return mErr.ErrorOrNil()
@@ -5688,13 +5684,13 @@ func (r *ReschedulePolicy) validateDelayParams() error {
 	}
 	var mErr multierror.Error
 	if r.DelayFunction == "constant" {
-		multierror.Append(&mErr, fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v and "+
+		_ = multierror.Append(&mErr, fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v and "+
 			"delay function %q", possibleAttempts, r.Interval, r.Delay, r.DelayFunction))
 	} else {
-		multierror.Append(&mErr, fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v, "+
+		_ = multierror.Append(&mErr, fmt.Errorf("Nomad can only make %v attempts in %v with initial delay %v, "+
 			"delay function %q, and delay ceiling %v", possibleAttempts, r.Interval, r.Delay, r.DelayFunction, r.MaxDelay))
 	}
-	multierror.Append(&mErr, fmt.Errorf("Set the interval to at least %v to accommodate %v attempts", recommendedInterval.Round(time.Second), r.Attempts))
+	_ = multierror.Append(&mErr, fmt.Errorf("Set the interval to at least %v to accommodate %v attempts", recommendedInterval.Round(time.Second), r.Attempts))
 	return mErr.ErrorOrNil()
 }
 
@@ -5805,7 +5801,7 @@ func (m *MigrateStrategy) Validate() error {
 	var mErr multierror.Error
 
 	if m.MaxParallel < 0 {
-		multierror.Append(&mErr, fmt.Errorf("MaxParallel must be >= 0 but found %d", m.MaxParallel))
+		_ = multierror.Append(&mErr, fmt.Errorf("MaxParallel must be >= 0 but found %d", m.MaxParallel))
 	}
 
 	switch m.HealthCheck {
@@ -5813,22 +5809,22 @@ func (m *MigrateStrategy) Validate() error {
 		// ok
 	case "":
 		if m.MaxParallel > 0 {
-			multierror.Append(&mErr, fmt.Errorf("Missing HealthCheck"))
+			_ = multierror.Append(&mErr, fmt.Errorf("Missing HealthCheck"))
 		}
 	default:
-		multierror.Append(&mErr, fmt.Errorf("Invalid HealthCheck: %q", m.HealthCheck))
+		_ = multierror.Append(&mErr, fmt.Errorf("Invalid HealthCheck: %q", m.HealthCheck))
 	}
 
 	if m.MinHealthyTime < 0 {
-		multierror.Append(&mErr, fmt.Errorf("MinHealthyTime is %s and must be >= 0", m.MinHealthyTime))
+		_ = multierror.Append(&mErr, fmt.Errorf("MinHealthyTime is %s and must be >= 0", m.MinHealthyTime))
 	}
 
 	if m.HealthyDeadline < 0 {
-		multierror.Append(&mErr, fmt.Errorf("HealthyDeadline is %s and must be >= 0", m.HealthyDeadline))
+		_ = multierror.Append(&mErr, fmt.Errorf("HealthyDeadline is %s and must be >= 0", m.HealthyDeadline))
 	}
 
 	if m.MinHealthyTime > m.HealthyDeadline {
-		multierror.Append(&mErr, fmt.Errorf("MinHealthyTime must be less than HealthyDeadline"))
+		_ = multierror.Append(&mErr, fmt.Errorf("MinHealthyTime must be less than HealthyDeadline"))
 	}
 
 	return mErr.ErrorOrNil()
@@ -7295,12 +7291,12 @@ func (t *Template) Validate() error {
 
 	// Verify we have something to render
 	if t.SourcePath == "" && t.EmbeddedTmpl == "" {
-		multierror.Append(&mErr, fmt.Errorf("Must specify a source path or have an embedded template"))
+		_ = multierror.Append(&mErr, fmt.Errorf("Must specify a source path or have an embedded template"))
 	}
 
 	// Verify we can render somewhere
 	if t.DestPath == "" {
-		multierror.Append(&mErr, fmt.Errorf("Must specify a destination for the template"))
+		_ = multierror.Append(&mErr, fmt.Errorf("Must specify a destination for the template"))
 	}
 
 	// Verify the destination doesn't escape
@@ -7316,24 +7312,24 @@ func (t *Template) Validate() error {
 	case TemplateChangeModeNoop, TemplateChangeModeRestart:
 	case TemplateChangeModeSignal:
 		if t.ChangeSignal == "" {
-			multierror.Append(&mErr, fmt.Errorf("Must specify signal value when change mode is signal"))
+			_ = multierror.Append(&mErr, fmt.Errorf("Must specify signal value when change mode is signal"))
 		}
 		if t.Envvars {
-			multierror.Append(&mErr, fmt.Errorf("cannot use signals with env var templates"))
+			_ = multierror.Append(&mErr, fmt.Errorf("cannot use signals with env var templates"))
 		}
 	default:
-		multierror.Append(&mErr, TemplateChangeModeInvalidError)
+		_ = multierror.Append(&mErr, TemplateChangeModeInvalidError)
 	}
 
 	// Verify the splay is positive
 	if t.Splay < 0 {
-		multierror.Append(&mErr, fmt.Errorf("Must specify positive splay value"))
+		_ = multierror.Append(&mErr, fmt.Errorf("Must specify positive splay value"))
 	}
 
 	// Verify the permissions
 	if t.Perms != "" {
 		if _, err := strconv.ParseUint(t.Perms, 8, 12); err != nil {
-			multierror.Append(&mErr, fmt.Errorf("Failed to parse %q as octal: %v", t.Perms, err))
+			_ = multierror.Append(&mErr, fmt.Errorf("Failed to parse %q as octal: %v", t.Perms, err))
 		}
 	}
 
@@ -7966,8 +7962,8 @@ func hashStringMap(h hash.Hash, m map[string]string) {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		h.Write([]byte(k))
-		h.Write([]byte(m[k]))
+		_, _ = h.Write([]byte(k))
+		_, _ = h.Write([]byte(m[k]))
 	}
 }
 
@@ -7979,13 +7975,13 @@ func (ta *TaskArtifact) Hash() string {
 		panic(err)
 	}
 
-	h.Write([]byte(ta.GetterSource))
+	_, _ = h.Write([]byte(ta.GetterSource))
 
 	hashStringMap(h, ta.GetterOptions)
 	hashStringMap(h, ta.GetterHeaders)
 
-	h.Write([]byte(ta.GetterMode))
-	h.Write([]byte(ta.RelativeDest))
+	_, _ = h.Write([]byte(ta.GetterMode))
+	_, _ = h.Write([]byte(ta.RelativeDest))
 	return base64.RawStdEncoding.EncodeToString(h.Sum(nil))
 }
 
@@ -8545,23 +8541,23 @@ func (v *Vault) Validate() error {
 
 	var mErr multierror.Error
 	if len(v.Policies) == 0 {
-		multierror.Append(&mErr, fmt.Errorf("Policy list cannot be empty"))
+		_ = multierror.Append(&mErr, fmt.Errorf("Policy list cannot be empty"))
 	}
 
 	for _, p := range v.Policies {
 		if p == "root" {
-			multierror.Append(&mErr, fmt.Errorf("Can not specify \"root\" policy"))
+			_ = multierror.Append(&mErr, fmt.Errorf("Can not specify \"root\" policy"))
 		}
 	}
 
 	switch v.ChangeMode {
 	case VaultChangeModeSignal:
 		if v.ChangeSignal == "" {
-			multierror.Append(&mErr, fmt.Errorf("Signal must be specified when using change mode %q", VaultChangeModeSignal))
+			_ = multierror.Append(&mErr, fmt.Errorf("Signal must be specified when using change mode %q", VaultChangeModeSignal))
 		}
 	case VaultChangeModeNoop, VaultChangeModeRestart:
 	default:
-		multierror.Append(&mErr, fmt.Errorf("Unknown change mode %q", v.ChangeMode))
+		_ = multierror.Append(&mErr, fmt.Errorf("Unknown change mode %q", v.ChangeMode))
 	}
 
 	return mErr.ErrorOrNil()
@@ -10740,9 +10736,9 @@ func (c *ACLPolicy) SetHash() []byte {
 	}
 
 	// Write all the user set fields
-	hash.Write([]byte(c.Name))
-	hash.Write([]byte(c.Description))
-	hash.Write([]byte(c.Rules))
+	_, _ = hash.Write([]byte(c.Name))
+	_, _ = hash.Write([]byte(c.Description))
+	_, _ = hash.Write([]byte(c.Rules))
 
 	// Finalize the hash
 	hashVal := hash.Sum(nil)
@@ -10894,15 +10890,15 @@ func (a *ACLToken) SetHash() []byte {
 	}
 
 	// Write all the user set fields
-	hash.Write([]byte(a.Name))
-	hash.Write([]byte(a.Type))
+	_, _ = hash.Write([]byte(a.Name))
+	_, _ = hash.Write([]byte(a.Type))
 	for _, policyName := range a.Policies {
-		hash.Write([]byte(policyName))
+		_, _ = hash.Write([]byte(policyName))
 	}
 	if a.Global {
-		hash.Write([]byte("global"))
+		_, _ = hash.Write([]byte("global"))
 	} else {
-		hash.Write([]byte("local"))
+		_, _ = hash.Write([]byte("local"))
 	}
 
 	// Finalize the hash

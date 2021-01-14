@@ -1224,7 +1224,7 @@ func (c *Client) saveState() error {
 			if err != nil {
 				c.logger.Error("error saving alloc state", "error", err, "alloc_id", id)
 				l.Lock()
-				multierror.Append(&mErr, err)
+				_ = multierror.Append(&mErr, err)
 				l.Unlock()
 			}
 			wg.Done()

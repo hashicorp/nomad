@@ -144,7 +144,7 @@ func (c *JobValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateRespons
 	var out api.JobValidateResponse
 
 	job := agent.ApiJobToStructJob(aj)
-	canonicalizeWarnings := job.Canonicalize()
+	job.Canonicalize()
 
 	if vErr := job.Validate(); vErr != nil {
 		if merr, ok := vErr.(*multierror.Error); ok {
@@ -158,7 +158,6 @@ func (c *JobValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateRespons
 		}
 	}
 
-	warnings := job.Warnings()
-	out.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
+	out.Warnings = structs.MergeMultierrorWarnings(job.Warnings())
 	return &out, nil
 }
