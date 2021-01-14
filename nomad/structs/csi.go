@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 )
 
@@ -853,32 +854,41 @@ func (p *CSIPlugin) DeleteNode(nodeID string) error {
 func (p *CSIPlugin) DeleteNodeForType(nodeID string, pluginType CSIPluginType) error {
 	switch pluginType {
 	case CSIPluginTypeController:
-		prev, ok := p.Controllers[nodeID]
-		if ok {
+		if prev, ok := p.Controllers[nodeID]; ok {
 			if prev == nil {
 				return fmt.Errorf("plugin missing controller: %s", nodeID)
 			}
 			if prev.Healthy {
-				p.ControllersHealthy -= 1
+				p.ControllersHealthy--
 			}
+			delete(p.Controllers, nodeID)
 		}
-		delete(p.Controllers, nodeID)
 
 	case CSIPluginTypeNode:
-		prev, ok := p.Nodes[nodeID]
-		if ok {
+		if prev, ok := p.Nodes[nodeID]; ok {
 			if prev == nil {
 				return fmt.Errorf("plugin missing node: %s", nodeID)
 			}
 			if prev.Healthy {
-				p.NodesHealthy -= 1
+				p.NodesHealthy--
 			}
+			delete(p.Nodes, nodeID)
 		}
-		delete(p.Nodes, nodeID)
 
 	case CSIPluginTypeMonolith:
-		p.DeleteNodeForType(nodeID, CSIPluginTypeController)
-		p.DeleteNodeForType(nodeID, CSIPluginTypeNode)
+		var result error
+
+		err := p.DeleteNodeForType(nodeID, CSIPluginTypeController)
+		if err != nil {
+			result = multierror.Append(result, err)
+		}
+
+		err = p.DeleteNodeForType(nodeID, CSIPluginTypeNode)
+		if err != nil {
+			result = multierror.Append(result, err)
+		}
+
+		return result
 	}
 
 	return nil

@@ -204,10 +204,192 @@ func TestCSIPluginCleanup(t *testing.T) {
 	require.Equal(t, 1, plug.ControllersHealthy)
 	require.Equal(t, 1, plug.NodesHealthy)
 
-	plug.DeleteNode("n0")
+	err := plug.DeleteNode("n0")
+	require.NoError(t, err)
+
 	require.Equal(t, 0, plug.ControllersHealthy)
 	require.Equal(t, 0, plug.NodesHealthy)
 
 	require.Equal(t, 0, len(plug.Controllers))
 	require.Equal(t, 0, len(plug.Nodes))
+}
+
+func TestDeleteNodeForType_Controller(t *testing.T) {
+	info := &CSIInfo{
+		PluginID:                 "foo",
+		AllocID:                  "a0",
+		Healthy:                  true,
+		Provider:                 "foo-provider",
+		RequiresControllerPlugin: true,
+		RequiresTopologies:       false,
+		ControllerInfo:           &CSIControllerInfo{},
+	}
+
+	plug := NewCSIPlugin("foo", 1000)
+
+	plug.Controllers["n0"] = info
+	plug.ControllersHealthy = 1
+
+	err := plug.DeleteNodeForType("n0", CSIPluginTypeController)
+	require.NoError(t, err)
+
+	require.Equal(t, 0, plug.ControllersHealthy)
+	require.Equal(t, 0, len(plug.Controllers))
+}
+
+func TestDeleteNodeForType_NilController(t *testing.T) {
+	plug := NewCSIPlugin("foo", 1000)
+
+	plug.Controllers["n0"] = nil
+	plug.ControllersHealthy = 1
+
+	err := plug.DeleteNodeForType("n0", CSIPluginTypeController)
+	require.Error(t, err)
+	require.Equal(t, 1, len(plug.Controllers))
+
+	_, ok := plug.Controllers["foo"]
+	require.False(t, ok)
+}
+
+func TestDeleteNodeForType_Node(t *testing.T) {
+	info := &CSIInfo{
+		PluginID:                 "foo",
+		AllocID:                  "a0",
+		Healthy:                  true,
+		Provider:                 "foo-provider",
+		RequiresControllerPlugin: true,
+		RequiresTopologies:       false,
+		NodeInfo:                 &CSINodeInfo{},
+	}
+
+	plug := NewCSIPlugin("foo", 1000)
+
+	plug.Nodes["n0"] = info
+	plug.NodesHealthy = 1
+
+	err := plug.DeleteNodeForType("n0", CSIPluginTypeNode)
+	require.NoError(t, err)
+
+	require.Equal(t, 0, plug.NodesHealthy)
+	require.Equal(t, 0, len(plug.Nodes))
+}
+
+func TestDeleteNodeForType_NilNode(t *testing.T) {
+	plug := NewCSIPlugin("foo", 1000)
+
+	plug.Nodes["n0"] = nil
+	plug.NodesHealthy = 1
+
+	err := plug.DeleteNodeForType("n0", CSIPluginTypeNode)
+	require.Error(t, err)
+	require.Equal(t, 1, len(plug.Nodes))
+
+	_, ok := plug.Nodes["foo"]
+	require.False(t, ok)
+}
+
+func TestDeleteNodeForType_Monolith(t *testing.T) {
+	controllerInfo := &CSIInfo{
+		PluginID:                 "foo",
+		AllocID:                  "a0",
+		Healthy:                  true,
+		Provider:                 "foo-provider",
+		RequiresControllerPlugin: true,
+		RequiresTopologies:       false,
+		ControllerInfo:           &CSIControllerInfo{},
+	}
+
+	nodeInfo := &CSIInfo{
+		PluginID:                 "foo",
+		AllocID:                  "a0",
+		Healthy:                  true,
+		Provider:                 "foo-provider",
+		RequiresControllerPlugin: true,
+		RequiresTopologies:       false,
+		NodeInfo:                 &CSINodeInfo{},
+	}
+
+	plug := NewCSIPlugin("foo", 1000)
+
+	plug.Controllers["n0"] = controllerInfo
+	plug.ControllersHealthy = 1
+
+	plug.Nodes["n0"] = nodeInfo
+	plug.NodesHealthy = 1
+
+	err := plug.DeleteNodeForType("n0", CSIPluginTypeMonolith)
+	require.NoError(t, err)
+
+	require.Equal(t, 0, len(plug.Controllers))
+	require.Equal(t, 0, len(plug.Nodes))
+
+	_, ok := plug.Nodes["foo"]
+	require.False(t, ok)
+
+	_, ok = plug.Controllers["foo"]
+	require.False(t, ok)
+}
+
+func TestDeleteNodeForType_Monolith_NilController(t *testing.T) {
+	plug := NewCSIPlugin("foo", 1000)
+
+	plug.Controllers["n0"] = nil
+	plug.ControllersHealthy = 1
+
+	nodeInfo := &CSIInfo{
+		PluginID:                 "foo",
+		AllocID:                  "a0",
+		Healthy:                  true,
+		Provider:                 "foo-provider",
+		RequiresControllerPlugin: true,
+		RequiresTopologies:       false,
+		NodeInfo:                 &CSINodeInfo{},
+	}
+
+	plug.Nodes["n0"] = nodeInfo
+	plug.NodesHealthy = 1
+
+	err := plug.DeleteNodeForType("n0", CSIPluginTypeMonolith)
+	require.Error(t, err)
+
+	require.Equal(t, 1, len(plug.Controllers))
+	require.Equal(t, 0, len(plug.Nodes))
+
+	_, ok := plug.Nodes["foo"]
+	require.False(t, ok)
+
+	_, ok = plug.Controllers["foo"]
+	require.False(t, ok)
+}
+
+func TestDeleteNodeForType_Monolith_NilNode(t *testing.T) {
+	plug := NewCSIPlugin("foo", 1000)
+
+	plug.Nodes["n0"] = nil
+	plug.NodesHealthy = 1
+
+	controllerInfo := &CSIInfo{
+		PluginID:                 "foo",
+		AllocID:                  "a0",
+		Healthy:                  true,
+		Provider:                 "foo-provider",
+		RequiresControllerPlugin: true,
+		RequiresTopologies:       false,
+		ControllerInfo:           &CSIControllerInfo{},
+	}
+
+	plug.Controllers["n0"] = controllerInfo
+	plug.ControllersHealthy = 1
+
+	err := plug.DeleteNodeForType("n0", CSIPluginTypeMonolith)
+	require.Error(t, err)
+
+	require.Equal(t, 0, len(plug.Controllers))
+	require.Equal(t, 1, len(plug.Nodes))
+
+	_, ok := plug.Nodes["foo"]
+	require.False(t, ok)
+
+	_, ok = plug.Controllers["foo"]
+	require.False(t, ok)
 }
