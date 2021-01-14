@@ -715,6 +715,42 @@ type JobScaleRequest struct {
 	WriteRequest
 }
 
+// Validate is used to validate the arguments in the request
+func (r *JobScaleRequest) Validate() error {
+	namespace := r.Target[ScalingTargetNamespace]
+	if namespace != "" && namespace != r.RequestNamespace() {
+		return NewErrRPCCoded(400, "namespace in payload did not match header")
+	}
+
+	jobID := r.Target[ScalingTargetJob]
+	if jobID != "" && jobID != r.JobID {
+		return fmt.Errorf("job ID in payload did not match URL")
+	}
+
+	groupName := r.Target[ScalingTargetGroup]
+	if groupName == "" {
+		return NewErrRPCCoded(400, "missing task group name for scaling action")
+	}
+
+	if r.Count != nil {
+		if *r.Count < 0 {
+			return NewErrRPCCoded(400, "scaling action count can't be negative")
+		}
+
+		if r.Error {
+			return NewErrRPCCoded(400, "scaling action should not contain count if error is true")
+		}
+
+		truncCount := int(*r.Count)
+		if int64(truncCount) != *r.Count {
+			return NewErrRPCCoded(400,
+				fmt.Sprintf("new scaling count is too large for TaskGroup.Count (int): %v", r.Count))
+		}
+	}
+
+	return nil
+}
+
 // JobSummaryRequest is used when we just need to get a specific job summary
 type JobSummaryRequest struct {
 	JobID string
