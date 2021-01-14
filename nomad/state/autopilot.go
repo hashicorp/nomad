@@ -49,7 +49,10 @@ func (s *StateStore) AutopilotSetConfig(index uint64, config *structs.AutopilotC
 	tx := s.db.WriteTxn(index)
 	defer tx.Abort()
 
-	s.autopilotSetConfigTxn(index, tx, config)
+	err := s.autopilotSetConfigTxn(index, tx, config)
+	if err != nil {
+		return err
+	}
 
 	tx.Commit()
 	return nil
@@ -76,7 +79,10 @@ func (s *StateStore) AutopilotCASConfig(index, cidx uint64, config *structs.Auto
 		return false, nil
 	}
 
-	s.autopilotSetConfigTxn(index, tx, config)
+	err = s.autopilotSetConfigTxn(index, tx, config)
+	if err != nil {
+		return false, err
+	}
 
 	tx.Commit()
 	return true, nil
