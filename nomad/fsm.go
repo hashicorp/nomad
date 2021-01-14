@@ -1813,102 +1813,50 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 	// Write the header
 	header := snapshotHeader{}
 	if err := encoder.Encode(&header); err != nil {
-		sink.Cancel()
+		_ = sink.Cancel()
 		return err
 	}
 
 	// Write the time table
 	sink.Write([]byte{byte(TimeTableSnapshot)})
 	if err := s.timetable.Serialize(encoder); err != nil {
-		sink.Cancel()
+		_ = sink.Cancel()
 		return err
 	}
 
 	// Write all the data out
-	if err := s.persistIndexes(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
+	fns := []func(raft.SnapshotSink, *codec.Encoder) error{
+		s.persistIndexes,
+		s.persistNodes,
+		s.persistJobs,
+		s.persistEvals,
+		s.persistAllocs,
+		s.persistPeriodicLaunches,
+		s.persistJobSummaries,
+		s.persistVaultAccessors,
+		s.persistSITokenAccessors,
+		s.persistJobVersions,
+		s.persistDeployments,
+		s.persistScalingPolicies,
+		s.persistScalingEvents,
+		s.persistCSIPlugins,
+		s.persistCSIVolumes,
+		s.persistACLPolicies,
+		s.persistACLTokens,
+		s.persistNamespaces,
+		s.persistEnterpriseTables,
+		s.persistSchedulerConfig,
+		s.persistClusterMetadata,
 	}
-	if err := s.persistNodes(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
+
+	for _, fn := range fns {
+		err := fn(sink, encoder)
+		if err != nil {
+			_ = sink.Cancel()
+			return err
+		}
 	}
-	if err := s.persistJobs(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistEvals(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistAllocs(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistPeriodicLaunches(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistJobSummaries(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistVaultAccessors(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistSITokenAccessors(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistJobVersions(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistDeployments(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistScalingPolicies(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistScalingEvents(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistCSIPlugins(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistCSIVolumes(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistACLPolicies(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistACLTokens(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistNamespaces(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistEnterpriseTables(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistSchedulerConfig(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistClusterMetadata(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
+
 	return nil
 }
 
