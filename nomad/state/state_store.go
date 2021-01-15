@@ -4440,27 +4440,14 @@ func (s *StateStore) setJobStatus(index uint64, txn *txn,
 		}
 	}
 
-	// Fast-path if nothing has changed.
+	// Fast-path if the job has changed.
+	// Still update the job summary if necessary.
 	if oldStatus == newStatus {
-		updated := job.Copy()
-		updated.ModifyIndex = index
-		if err := txn.Insert("jobs", updated); err != nil {
-			return fmt.Errorf("job insert failed: %v", err)
-		}
-		if err := txn.Insert("index", &IndexEntry{"jobs", index}); err != nil {
-			return fmt.Errorf("index update failed: %v", err)
-		}
 		if err := s.setJobSummary(txn, job, index, oldStatus, newStatus, firstPass); err != nil {
 			return err
 		}
-		// initialize job summary
-		// initialize / update job summary
 		return nil
 	}
-
-	// TODO (drew)
-	// not inserting the job again with modify index/status
-	// prevents job stability test pass
 
 	// Copy and update the existing job
 	updated := job.Copy()

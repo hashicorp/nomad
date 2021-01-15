@@ -6839,19 +6839,13 @@ func TestStateStore_UpdateJobStability(t *testing.T) {
 
 	// Insert a job twice to get two versions
 	job := mock.Job()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1, job))
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 2, job); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 2, job.Copy()))
 
 	// Update the stability to true
 	err := state.UpdateJobStability(3, job.Namespace, job.ID, 0, true)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Check that the job was updated properly
 	ws := memdb.NewWatchSet()
