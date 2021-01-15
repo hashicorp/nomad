@@ -1,5 +1,9 @@
 ## 1.0.3 (Unreleased)
 
+BUG FIXES:
+
+ * scheduler: Fixed a bug where shared ports were not persisted during inplace updates for service jobs. [[GH-9830](https://github.com/hashicorp/nomad/issues/9830)]
+
 ## 1.0.2 (January 14, 2020)
 
 IMPROVEMENTS:
