@@ -810,36 +810,50 @@ func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
 	return r
 }
 
-// lookupTaskBin finds the command.Cmd in taskDir/local, taskDir in that order,
-// then performs a PATH search inside taskDir. It returns an absolute path.
+// lookupTaskBin finds the file `bin` in taskDir/local, taskDir in that order, then performs
+// a PATH search inside taskDir. It returns an absolute path. See also executor.lookupBin
 func lookupTaskBin(command *ExecCommand) (string, error) {
-	dirs := []string{
-		filepath.Join(command.TaskDir, allocdir.TaskLocal),
-		command.TaskDir,
+	taskDir := command.TaskDir
+	bin := command.Cmd
+
+	// Check in the local directory
+	localDir := filepath.Join(taskDir, allocdir.TaskLocal)
+	local := filepath.Join(localDir, bin)
+	if _, err := os.Stat(local); err == nil {
+		return local, nil
 	}
 
-	envPath := "/usr/local/bin:/usr/bin:/bin"
-	for _, e := range command.Env {
-		if strings.HasPrefix(e, "PATH=") {
-			envPath = e[5:]
+	// Check at the root of the task's directory
+	root := filepath.Join(taskDir, bin)
+	if _, err := os.Stat(root); err == nil {
+		return root, nil
+	}
+
+	if strings.Contains(bin, "/") {
+		return "", fmt.Errorf("file %s not found under path %s", bin, taskDir)
+	}
+
+	path := "/usr/local/bin:/usr/bin:/bin"
+
+	return lookPathIn(path, taskDir, bin)
+}
+
+// lookPathIn looks for a file with PATH inside the directory root. Like exec.LookPath
+func lookPathIn(path string, root string, bin string) (string, error) {
+	// exec.LookPath(file string)
+	for _, dir := range filepath.SplitList(path) {
+		if dir == "" {
+			// match unix shell behavior, empty path element == .
+			dir = "."
 		}
-	}
-
-	for _, dir := range filepath.SplitList(envPath) {
-		dirs = append(dirs, filepath.Join(command.TaskDir, dir))
-	}
-
-	for _, dir := range dirs {
-		path := filepath.Join(dir, command.Cmd)
+		path := filepath.Join(root, dir, bin)
 		f, err := os.Stat(path)
 		if err != nil {
 			continue
 		}
-
 		if m := f.Mode(); !m.IsDir() {
 			return path, nil
 		}
 	}
-
-	return "", fmt.Errorf("file %s not found under path %s", command.Cmd, command.TaskDir)
+	return "", fmt.Errorf("file %s not found under path %s", bin, root)
 }
