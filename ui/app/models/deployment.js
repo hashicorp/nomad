@@ -69,4 +69,9 @@ export default class Deployment extends Model {
     assert('A deployment needs to requirePromotion to be promoted', this.requiresPromotion);
     return this.store.adapterFor('deployment').promote(this);
   }
+
+  fail() {
+    assert('A deployment must be running to be failed', this.isRunning);
+    return this.store.adapterFor('deployment').fail(this);
+  }
 }

@@ -71,6 +71,12 @@ module('Acceptance | job deployments', function(hooks) {
       deploymentRow.submitTime.includes(moment(version.submitTime / 1000000).fromNow()),
       'Submit time ago'
     );
+
+    if (deployment.status === 'running') {
+      assert.ok(deploymentRow.failButton.isPresent, 'a runnning deployment can be failed');
+    } else {
+      assert.ok(deploymentRow.failButton.isHidden, 'a deploymentn that is not running cannot be failed');
+    }
   });
 
   test('when the deployment is running and needs promotion, the deployment item says so', async function(assert) {
@@ -95,6 +101,26 @@ module('Acceptance | job deployments', function(hooks) {
 
     const deploymentRow = Deployments.deployments.objectAt(0);
     assert.ok(deploymentRow.promotionIsRequired, 'Requires Promotion badge found');
+  });
+
+  test('when the deployment is running, it can be caused to fail', async function(assert) {
+    // Ensure the deployment needs deployment
+    const deployment = sortedDeployments.models[0];
+
+    deployment.update('status', 'running');
+    deployment.save();
+
+    await Deployments.visit({ id: job.id });
+
+    const deploymentRow = Deployments.deployments[0];
+
+    await deploymentRow.failButton.click();
+
+    assert.equal(
+      server.pretender.handledRequests.findBy('method', 'POST').url,
+      `/v1/deployment/fail/${deployment.id}`,
+      'Stop request is made for the allocation'
+    );
   });
 
   test('each deployment item can be opened to show details', async function(assert) {

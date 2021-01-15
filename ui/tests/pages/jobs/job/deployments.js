@@ -24,6 +24,10 @@ export default create({
 
     toggle: clickable('[data-test-deployment-toggle-details]'),
 
+    failButton: {
+      scope: '[data-test-fail-deployment]',
+    },
+
     hasDetails: isPresent('[data-test-deployment-details]'),
 
     metrics: collection('[data-test-deployment-metric]', {

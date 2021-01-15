@@ -4,6 +4,14 @@
   {{#if this.deployment.requiresPromotion}}
     <span data-test-promotion-required class="bumper-left badge is-warning is-hollow">Requires Promotion</span>
   {{/if}}
+  {{#if this.deployment.isRunning}}
+    <button
+      data-test-fail-deployment
+      type="button"
+      class="button is-warning is-small pull-right {{if this.fail.isRunning "is-loading"}}"
+      disabled={{this.fail.isRunning}}
+      onclick={{perform this.fail}}>Fail Deployment</button>
+  {{/if}}
   <span class="pull-right">
     <span class="pair is-faded">
       <span class="term">Version</span>
