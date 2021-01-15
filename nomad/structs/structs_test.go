@@ -5931,7 +5931,7 @@ func requireMultierrorNotContaining(t *testing.T, err error, unexpected ...strin
 		}
 	}
 
-	require.Empty(t, found, "found unexpected error(s): %v", found)
+	require.Empty(t, found, "found unexpected error(s)")
 }
 
 func requireMultierrorContaining(t *testing.T, err error, expected ...string) {
