@@ -2080,6 +2080,11 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		DeviceIDs: []string{uuid.Generate()},
 	}
 
+	asr := structs.AllocatedSharedResources{
+		Ports:    structs.AllocatedPorts{{Label: "http"}},
+		Networks: structs.Networks{{Mode: "bridge"}},
+	}
+
 	// Create allocs that are part of the old deployment
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -2091,6 +2096,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		alloc.DeploymentID = d.ID
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: helper.BoolToPtr(true)}
 		alloc.AllocatedResources.Tasks[taskName].Devices = []*structs.AllocatedDeviceResource{&adr}
+		alloc.AllocatedResources.Shared = asr
 		allocs = append(allocs, alloc)
 	}
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
@@ -2167,6 +2173,10 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	// Verify the allocated networks and devices did not change
 	rp := structs.Port{Label: "admin", Value: 5000}
 	for _, alloc := range out {
+		// Verify Shared Allocared Resources Persisted
+		require.Equal(t, alloc.AllocatedResources.Shared.Ports, asr.Ports)
+		require.Equal(t, alloc.AllocatedResources.Shared.Networks, asr.Networks)
+
 		for _, resources := range alloc.AllocatedResources.Tasks {
 			if resources.Networks[0].ReservedPorts[0] != rp {
 				t.Fatalf("bad: %#v", alloc)
