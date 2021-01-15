@@ -5925,9 +5925,9 @@ func requireMultierrorNotContaining(t *testing.T, err error, unexpected ...strin
 	require.True(t, ok)
 
 	var found []string
-	for _, unex := range unexpected {
-		if strings.Contains(mErr.Error(), unex) {
-			found = append(found, unex)
+	for _, e := range unexpected {
+		if strings.Contains(mErr.Error(), e) {
+			found = append(found, e)
 		}
 	}
 
@@ -5941,10 +5941,10 @@ func requireMultierrorContaining(t *testing.T, err error, expected ...string) {
 	require.True(t, ok)
 
 	var found []string
-	for _, ex := range expected {
+	for _, e := range expected {
 		for _, actual := range mErr.Errors {
-			if strings.Contains(actual.Error(), ex) {
-				found = append(found, ex)
+			if strings.Contains(actual.Error(), e) {
+				found = append(found, e)
 				break
 			}
 		}
