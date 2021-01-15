@@ -2121,18 +2121,18 @@ func TestTask_Validate_CSIPluginConfig(t *testing.T) {
 
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
-			task := &Task{
-				CSIPluginConfig: tt.pc,
-			}
+			task := testJob().TaskGroups[0].Tasks[0]
+			task.CSIPluginConfig = tt.pc
 			ephemeralDisk := &EphemeralDisk{
-				SizeMB: 1,
+				SizeMB: 100,
 			}
 
 			err := task.Validate(ephemeralDisk, JobTypeService, nil, nil)
 			if tt.expectedErr != "" {
-				requireMultierrorContaining(t, err, tt.expectedErr)
-			} else if tt.unexpectedErr != "" {
-				requireMultierrorNotContaining(t, err, tt.unexpectedErr)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -5916,22 +5916,6 @@ func TestTaskGroup_validateScriptChecksInGroupServices(t *testing.T) {
 		mErrOK := tgOK.validateScriptChecksInGroupServices()
 		require.Nil(t, mErrOK)
 	})
-}
-
-func requireMultierrorNotContaining(t *testing.T, err error, unexpected ...string) {
-	t.Helper()
-	require.Error(t, err)
-	mErr, ok := err.(*multierror.Error)
-	require.True(t, ok)
-
-	var found []string
-	for _, e := range unexpected {
-		if strings.Contains(mErr.Error(), e) {
-			found = append(found, e)
-		}
-	}
-
-	require.Empty(t, found, "found unexpected error(s)")
 }
 
 func requireMultierrorContaining(t *testing.T, err error, expected ...string) {
