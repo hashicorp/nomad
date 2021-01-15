@@ -77,6 +77,6 @@ module('Unit | Adapter | Deployment', function(hooks) {
       assert.deepEqual(JSON.parse(request.requestBody), {
         DeploymentId: deployment.id,
       });
-    })
+    });
   });
 });
