@@ -1014,7 +1014,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 			},
 		}
 
-		// Since this is an inplace update, we should copy network
+		// Since this is an inplace update, we should copy network and port
 		// information from the original alloc. This is similar to how
 		// we copy network info for task level networks above.
 		//
@@ -1022,6 +1022,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		// Nomad v0.8 or earlier.
 		if existing.AllocatedResources != nil {
 			newAlloc.AllocatedResources.Shared.Networks = existing.AllocatedResources.Shared.Networks
+			newAlloc.AllocatedResources.Shared.Ports = existing.AllocatedResources.Shared.Ports
 		}
 
 		// Use metrics from existing alloc for in place upgrade
