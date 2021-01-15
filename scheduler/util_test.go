@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/helper"
@@ -943,8 +942,6 @@ func TestInplaceUpdate_AllocatedResources(t *testing.T) {
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
 	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
-
-	spew.Dump(job)
 
 	// Update TG to add a new service (inplace)
 	tg := job.TaskGroups[0]
