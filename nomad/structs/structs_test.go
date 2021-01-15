@@ -5940,7 +5940,15 @@ func requireMultierrorContaining(t *testing.T, err error, expected ...string) {
 	mErr, ok := err.(*multierror.Error)
 	require.True(t, ok)
 
+	var found []string
 	for _, ex := range expected {
-		require.Contains(t, mErr.Error(), ex)
+		for _, actual := range mErr.Errors {
+			if strings.Contains(actual.Error(), ex) {
+				found = append(found, ex)
+				break
+			}
+		}
 	}
+
+	require.Equal(t, expected, found)
 }
