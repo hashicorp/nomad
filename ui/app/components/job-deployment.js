@@ -17,7 +17,7 @@ export default class JobDeployment extends Component {
     try {
       yield this.deployment.fail();
     } catch (err) {
-      console.log('err?', err);
+      // FIXME nothing actually handles errors at the moment
       let message = messageFromAdapterError(err);
 
       if (err instanceof ForbiddenError) {
