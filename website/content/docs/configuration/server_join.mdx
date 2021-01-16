@@ -201,13 +201,11 @@ Use these configuration parameters when using Virtual Machine Scale Sets (Consul
 This returns the first private IP address of all servers in the given
 project which have the given `tag_value`.
 
-````
-
 ```json
 {
 "retry_join": ["provider=gce project_name=... tag_value=..."]
 }
-````
+```
 
 - `provider` (required) - the name of the provider ("gce" in this case).
 - `tag_value` (required) - the value of the tag to auto-join on.
