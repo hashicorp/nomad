@@ -19,6 +19,27 @@ export let Standard = () => {
   };
 };
 
+export let Styled = () => {
+  return {
+    template: hbs`
+      <h5 class="title is-5">Two-Step Button with class overrides</h5>
+      <br><br>
+      <TwoStepButton
+        @idleText="Scary Action"
+        @cancelText="Nvm"
+        @confirmText="Yep"
+        @confirmationMessage="Wait, really? Like...seriously?"
+        @classes={{hash
+          idleButton="is-danger is-large"
+          confirmationMessage="badge is-warning"
+          confirmButton="is-large"
+          cancelButton="is-hollow"
+        }}
+      />
+      `,
+  };
+};
+
 export let InTitle = () => {
   return {
     template: hbs`
