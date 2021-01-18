@@ -20,6 +20,23 @@
       right: 0;
     }
 
+    &.has-text-inline {
+      top: unset;
+      bottom: 0;
+      padding-bottom: 6.462px;
+
+      left: 100%;
+      right: unset;
+      padding-left: 0.5rem;
+
+      &.is-right-aligned {
+        padding-left: 0;
+        padding-right: 0.5rem;
+        left: unset;
+        right: 100%;
+      }
+    }
+
     &.inherit-color {
       color: currentColor;
     }

@@ -10,7 +10,7 @@
 {{else if this.isPendingConfirmation}}
   <span
     data-test-confirmation-message
-    class="confirmation-text {{this.classes.confirmationMessage}} {{if this.alignRight "is-right-aligned"}}">
+    class="confirmation-text {{this.classes.confirmationMessage}} {{if this.alignRight "is-right-aligned"}} {{if this.inlineText "has-text-inline"}}">
     {{this.confirmationMessage}}
   </span>
   <button

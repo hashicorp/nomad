@@ -34,6 +34,8 @@
               @cancelText="Cancel"
               @confirmText="Yes, Fail"
               @confirmationMessage="Are you sure?"
+              @alignRight={{true}}
+              @inlineText={{true}}
               @awaitingConfirmation={{this.fail.isRunning}}
               @disabled={{this.fail.isRunning}}
               @onConfirm={{perform this.fail}} />

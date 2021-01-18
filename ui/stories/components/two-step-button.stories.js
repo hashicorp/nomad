@@ -58,6 +58,32 @@ export let InTitle = () => {
   };
 };
 
+export let InlineText = () => {
+  return {
+    template: hbs`
+      <h5 class="title is-5">Two-Step Button with inline confirmation message</h5>
+      <br><br>
+      <TwoStepButton
+        @idleText="Scary Action"
+        @cancelText="Nvm"
+        @confirmText="Yep"
+        @confirmationMessage="Really?"
+        @inlineText={{true}}
+      />
+      <br><br>
+      <span style="padding-left: 4rem"></span>
+      <TwoStepButton
+        @idleText="Scary Action"
+        @cancelText="Nvm"
+        @confirmText="Yep"
+        @confirmationMessage="Really?"
+        @alignRight={{true}}
+        @inlineText={{true}}
+      />
+      `,
+  };
+};
+
 export let LoadingState = () => {
   return {
     template: hbs`

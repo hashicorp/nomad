@@ -17,6 +17,7 @@ export default class TwoStepButton extends Component {
   awaitingConfirmation = false;
   disabled = false;
   alignRight = false;
+  inlineText = false;
   onConfirm() {}
   onCancel() {}
 
