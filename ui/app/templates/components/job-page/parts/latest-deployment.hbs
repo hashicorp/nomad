@@ -22,6 +22,14 @@
             disabled={{this.promote.isRunning}}
             onclick={{perform this.promote}}>Promote Canary</button>
         {{/if}}
+        {{#if this.job.latestDeployment.isRunning}}
+          <button
+            data-test-fail
+            type="button"
+            class="button is-warning is-small pull-right {{if this.fail.isRunning "is-loading"}}"
+            disabled={{this.fail.isRunning}}
+            onclick={{perform this.fail}}>Fail Deployment</button>
+        {{/if}}
       </div>
     </div>
     <div class="boxed-section-body with-foot">
