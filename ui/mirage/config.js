@@ -193,7 +193,7 @@ export default function() {
   this.get('/deployment/:id');
 
   this.post('/deployment/fail/:id', function() {
-    return new Response(200, {}, '');
+    return new Response(204, {}, '');
   });
 
   this.post('/deployment/promote/:id', function() {
