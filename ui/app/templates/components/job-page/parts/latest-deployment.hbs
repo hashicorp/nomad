@@ -15,14 +15,6 @@
           {{this.job.latestDeployment.status}}
         </span>
         <div class="pull-right">
-          {{#if this.job.latestDeployment.requiresPromotion}}
-            <button
-              data-test-promote-canary
-              type="button"
-              class="button is-warning is-small {{if this.promote.isRunning "is-loading"}}"
-              disabled={{this.promote.isRunning}}
-              onclick={{perform this.promote}}>Promote Canary</button>
-          {{/if}}
           {{#if this.job.latestDeployment.isRunning}}
             <TwoStepButton
               data-test-fail
@@ -39,6 +31,14 @@
               @awaitingConfirmation={{this.fail.isRunning}}
               @disabled={{this.fail.isRunning}}
               @onConfirm={{perform this.fail}} />
+          {{/if}}
+          {{#if this.job.latestDeployment.requiresPromotion}}
+            <button
+              data-test-promote-canary
+              type="button"
+              class="button is-warning is-small {{if this.promote.isRunning "is-loading"}}"
+              disabled={{this.promote.isRunning}}
+              onclick={{perform this.promote}}>Promote Canary</button>
           {{/if}}
         </div>
       </div>
