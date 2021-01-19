@@ -1352,12 +1352,9 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 		return nil
 	}
 
-	var bindAddresses map[string]*ConsulGatewayBindAddress
-	if p.EnvoyGatewayBindAddresses != nil {
-		bindAddresses = make(map[string]*ConsulGatewayBindAddress, len(p.EnvoyGatewayBindAddresses))
-		for k, v := range p.EnvoyGatewayBindAddresses {
-			bindAddresses[k] = v.Copy()
-		}
+	bindAddresses := make(map[string]*ConsulGatewayBindAddress, len(p.EnvoyGatewayBindAddresses))
+	for k, v := range p.EnvoyGatewayBindAddresses {
+		bindAddresses[k] = v.Copy()
 	}
 
 	return &ConsulGatewayProxy{

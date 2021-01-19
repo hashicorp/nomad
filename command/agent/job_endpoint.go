@@ -1345,9 +1345,8 @@ func apiConnectGatewayProxyToStructs(in *api.ConsulGatewayProxy) *structs.Consul
 		return nil
 	}
 
-	var bindAddresses map[string]*structs.ConsulGatewayBindAddress
+	bindAddresses := make(map[string]*structs.ConsulGatewayBindAddress)
 	if in.EnvoyGatewayBindAddresses != nil {
-		bindAddresses = make(map[string]*structs.ConsulGatewayBindAddress)
 		for k, v := range in.EnvoyGatewayBindAddresses {
 			bindAddresses[k] = &structs.ConsulGatewayBindAddress{
 				Address: v.Address,

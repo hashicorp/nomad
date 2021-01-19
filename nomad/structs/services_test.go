@@ -299,7 +299,7 @@ func TestConsulConnect_GatewayProxy_CopyEquals(t *testing.T) {
 	c := &ConsulGatewayProxy{
 		ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
 		EnvoyGatewayBindTaggedAddresses: false,
-		EnvoyGatewayBindAddresses:       nil,
+		EnvoyGatewayBindAddresses:       make(map[string]*ConsulGatewayBindAddress),
 	}
 
 	require.NoError(t, c.Validate())
