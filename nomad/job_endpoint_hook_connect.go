@@ -12,6 +12,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	// defaultConnectTimeout is the default amount of time a connect gateway will
+	// wait for a response from an upstream service (same as consul)
+	defaultConnectTimeout = 5 * time.Second
+)
+
 var (
 	// connectSidecarResources returns the set of resources used by default for
 	// the Consul Connect sidecar task
@@ -322,6 +328,11 @@ func gatewayProxyForBridge(gateway *structs.ConsulGateway) *structs.ConsulGatewa
 	if gateway.Proxy != nil {
 		proxy.ConnectTimeout = gateway.Proxy.ConnectTimeout
 		proxy.Config = gateway.Proxy.Config
+	}
+
+	// set default connect timeout if not set
+	if proxy.ConnectTimeout == nil {
+		proxy.ConnectTimeout = helper.TimeToPtr(defaultConnectTimeout)
 	}
 
 	// magically set the fields where Nomad knows what to do

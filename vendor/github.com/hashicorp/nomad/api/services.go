@@ -335,6 +335,8 @@ type ConsulGatewayBindAddress struct {
 }
 
 var (
+	// defaultConnectTimeout is the default amount of time a connect gateway will
+	// wait for a response from an upstream service (same as consul)
 	defaultGatewayConnectTimeout = 5 * time.Second
 )
 
