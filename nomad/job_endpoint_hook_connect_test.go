@@ -492,6 +492,7 @@ func TestJobEndpointConnect_gatewayProxyForBridge(t *testing.T) {
 			},
 		})
 		require.Equal(t, &structs.ConsulGatewayProxy{
+			ConnectTimeout:                  helper.TimeToPtr(defaultConnectTimeout),
 			EnvoyGatewayNoDefaultBind:       true,
 			EnvoyGatewayBindTaggedAddresses: false,
 			EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
