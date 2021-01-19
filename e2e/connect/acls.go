@@ -16,20 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	// envConsulToken is the consul http token environment variable
-	envConsulToken = "CONSUL_HTTP_TOKEN"
-
-	// demoConnectJob is the example connect enabled job useful for testing
-	demoConnectJob = "connect/input/demo.nomad"
-
-	// demoConnectNativeJob is the example connect native enabled job useful for testing
-	demoConnectNativeJob = "connect/input/native-demo.nomad"
-
-	// demoConnectIngressGateway is the example ingress gateway job useful for testing
-	demoConnectIngressGateway = "connect/input/ingress-gateway.nomad"
-)
-
 type ConnectACLsE2ETest struct {
 	framework.TC
 

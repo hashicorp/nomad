@@ -173,6 +173,7 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			grpcAddr:       "1.1.1.1",
 			envoyAdminBind: "localhost:3333",
 			gateway:        "my-ingress-gateway",
+			proxyID:        "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-ig-ig-8080",
 		}
 		result := ebArgs.args()
 		require.Equal(t, []string{"connect", "envoy",
@@ -181,6 +182,7 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-admin-bind", "localhost:3333",
 			"-bootstrap",
 			"-gateway", "my-ingress-gateway",
+			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-ig-ig-8080",
 		}, result)
 	})
 }
@@ -516,7 +518,7 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 
 	// the only interesting thing on bootstrap is the presence of the cluster,
 	// everything is configured at runtime through xDS
-	require.Equal(t, "my-ingress-service", out.Node.Cluster)
+	require.Equal(t, "ingress-gateway", out.Node.Cluster)
 }
 
 // TestTaskRunner_EnvoyBootstrapHook_Noop asserts that the Envoy bootstrap hook
