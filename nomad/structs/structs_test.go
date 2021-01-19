@@ -20,7 +20,7 @@ import (
 func TestJob_Validate(t *testing.T) {
 	j := &Job{}
 	err := j.Validate()
-	requireMultierrorContaining(t, err,
+	requireErrors(t, err,
 		"datacenters",
 		"job ID",
 		"job name",
@@ -83,7 +83,7 @@ func TestJob_Validate(t *testing.T) {
 		},
 	}
 	err = j.Validate()
-	requireMultierrorContaining(t, err,
+	requireErrors(t, err,
 		"2 redefines 'web' from group 1",
 		"group 3 missing name",
 		"Task group web validation failed",
@@ -116,7 +116,7 @@ func TestJob_ValidateScaling(t *testing.T) {
 	p.Max = 0
 	p.Min = 10
 	err := job.Validate()
-	requireMultierrorContaining(t, err,
+	requireErrors(t, err,
 		"task group count must not be less than minimum count in scaling policy",
 		"task group count must not be greater than maximum count in scaling policy",
 	)
@@ -914,7 +914,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 		},
 	}
 	err := tg.Validate(j)
-	requireMultierrorContaining(t, err,
+	requireErrors(t, err,
 		"group name",
 		"count can't be negative",
 		"Missing tasks",
@@ -996,7 +996,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 	}
 
 	err = tg.Validate(j)
-	requireMultierrorContaining(t, err,
+	requireErrors(t, err,
 		"should have an ephemeral disk object",
 		"2 redefines 'web' from task 1",
 		"Task 3 missing name",
@@ -1304,7 +1304,7 @@ func TestTask_Validate(t *testing.T) {
 	task := &Task{}
 	ephemeralDisk := DefaultEphemeralDisk()
 	err := task.Validate(ephemeralDisk, JobTypeBatch, nil, nil)
-	requireMultierrorContaining(t, err,
+	requireErrors(t, err,
 		"task name",
 		"task driver",
 		"task resources",
@@ -1339,7 +1339,7 @@ func TestTask_Validate(t *testing.T) {
 		})
 
 	err = task.Validate(ephemeralDisk, JobTypeBatch, nil, nil)
-	requireMultierrorContaining(t, err,
+	requireErrors(t, err,
 		"task level: distinct_hosts",
 		"task level: distinct_property",
 	)
@@ -2458,7 +2458,7 @@ func TestUpdateStrategy_Validate(t *testing.T) {
 	}
 
 	err := u.Validate()
-	requireMultierrorContaining(t, err,
+	requireErrors(t, err,
 		"Invalid health check given",
 		"Max parallel can not be less than zero",
 		"Canary count can not be less than zero",
@@ -5918,7 +5918,7 @@ func TestTaskGroup_validateScriptChecksInGroupServices(t *testing.T) {
 	})
 }
 
-func requireMultierrorContaining(t *testing.T, err error, expected ...string) {
+func requireErrors(t *testing.T, err error, expected ...string) {
 	t.Helper()
 	require.Error(t, err)
 	mErr, ok := err.(*multierror.Error)
