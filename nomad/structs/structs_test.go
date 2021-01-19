@@ -46,7 +46,7 @@ func TestJob_Validate(t *testing.T) {
 		},
 	}
 	err = j.Validate()
-	requireMultierrorContaining(t, err, "Periodic")
+	require.Error(t, err, "Periodic")
 
 	j = &Job{
 		Region:      "global",
@@ -93,7 +93,7 @@ func TestJob_Validate(t *testing.T) {
 		Datacenters: []string{""},
 	}
 	err = j.Validate()
-	requireMultierrorContaining(t, err, "datacenter must be non-empty string")
+	require.Error(t, err, "datacenter must be non-empty string")
 }
 
 func TestJob_ValidateScaling(t *testing.T) {
@@ -126,7 +126,7 @@ func TestJob_ValidateScaling(t *testing.T) {
 	p.Min = 5
 	job.TaskGroups[0].Count = 5
 	err = job.Validate()
-	requireMultierrorContaining(t, err,
+	require.Error(err,
 		"task group count must not be greater than maximum count in scaling policy",
 	)
 
@@ -135,7 +135,7 @@ func TestJob_ValidateScaling(t *testing.T) {
 	p.Min = 5
 	p.Max = 5
 	err = job.Validate()
-	requireMultierrorContaining(t, err,
+	require.Error(err,
 		"task group count must not be less than minimum count in scaling policy",
 	)
 }
@@ -1014,7 +1014,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 	}
 	j.Type = JobTypeBatch
 	err = tg.Validate(j)
-	requireMultierrorContaining(t, err, "does not allow update block")
+	require.Error(t, err, "does not allow update block")
 
 	tg = &TaskGroup{
 		Count: -1,
@@ -1312,7 +1312,7 @@ func TestTask_Validate(t *testing.T) {
 
 	task = &Task{Name: "web/foo"}
 	err = task.Validate(ephemeralDisk, JobTypeBatch, nil, nil)
-	requireMultierrorContaining(t, err, "slashes")
+	require.Error(t, err, "slashes")
 
 	task = &Task{
 		Name:   "web",
@@ -2057,7 +2057,7 @@ func TestTask_Validate_LogConfig(t *testing.T) {
 	}
 
 	err := task.Validate(ephemeralDisk, JobTypeService, nil, nil)
-	requireMultierrorContaining(t, err, "log storage")
+	require.Error(t, err, "log storage")
 }
 
 func TestLogConfig_Equals(t *testing.T) {
@@ -2289,7 +2289,7 @@ func TestTemplate_Validate(t *testing.T) {
 func TestConstraint_Validate(t *testing.T) {
 	c := &Constraint{}
 	err := c.Validate()
-	requireMultierrorContaining(t, err, "Missing constraint operand")
+	require.Error(t, err, "Missing constraint operand")
 
 	c = &Constraint{
 		LTarget: "$attr.kernel.name",
@@ -2303,18 +2303,18 @@ func TestConstraint_Validate(t *testing.T) {
 	c.Operand = ConstraintRegex
 	c.RTarget = "(foo"
 	err = c.Validate()
-	requireMultierrorContaining(t, err, "missing closing")
+	require.Error(t, err, "missing closing")
 
 	// Perform version validation
 	c.Operand = ConstraintVersion
 	c.RTarget = "~> foo"
 	err = c.Validate()
-	requireMultierrorContaining(t, err, "Malformed constraint")
+	require.Error(t, err, "Malformed constraint")
 
 	// Perform semver validation
 	c.Operand = ConstraintSemver
 	err = c.Validate()
-	requireMultierrorContaining(t, err, "Malformed constraint")
+	require.Error(t, err, "Malformed constraint")
 
 	c.RTarget = ">= 0.6.1"
 	require.NoError(t, c.Validate())
@@ -2323,11 +2323,11 @@ func TestConstraint_Validate(t *testing.T) {
 	c.Operand = ConstraintDistinctProperty
 	c.RTarget = "0"
 	err = c.Validate()
-	requireMultierrorContaining(t, err, "count of 1 or greater")
+	require.Error(t, err, "count of 1 or greater")
 
 	c.RTarget = "-1"
 	err = c.Validate()
-	requireMultierrorContaining(t, err, "to uint64")
+	require.Error(t, err, "to uint64")
 
 	// Perform distinct_hosts validation
 	c.Operand = ConstraintDistinctHosts
@@ -2342,7 +2342,7 @@ func TestConstraint_Validate(t *testing.T) {
 	for _, o := range []string{ConstraintSetContains, ConstraintSetContainsAll, ConstraintSetContainsAny} {
 		c.Operand = o
 		err = c.Validate()
-		requireMultierrorContaining(t, err, "requires an RTarget")
+		require.Error(t, err, "requires an RTarget")
 	}
 
 	// Perform LTarget validation
@@ -2350,12 +2350,12 @@ func TestConstraint_Validate(t *testing.T) {
 	c.RTarget = "foo"
 	c.LTarget = ""
 	err = c.Validate()
-	requireMultierrorContaining(t, err, "No LTarget")
+	require.Error(t, err, "No LTarget")
 
 	// Perform constraint type validation
 	c.Operand = "foo"
 	err = c.Validate()
-	requireMultierrorContaining(t, err, "Unknown constraint type")
+	require.Error(t, err, "Unknown constraint type")
 }
 
 func TestAffinity_Validate(t *testing.T) {
@@ -4995,7 +4995,7 @@ func TestScalingPolicy_Validate(t *testing.T) {
 			err := c.input.Validate()
 
 			if len(c.expectedErr) > 0 {
-				requireMultierrorContaining(t, err, c.expectedErr)
+				require.Error(err, c.expectedErr)
 			} else {
 				require.NoError(err)
 			}
