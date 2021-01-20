@@ -1088,6 +1088,12 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 					}
 				}
 			}
+
+			// Task services can't have a connect block. We still convert it so that
+			// we can later return a validation error.
+			if service.Connect != nil {
+				structsTask.Services[i].Connect = ApiConsulConnectToStructs(service.Connect)
+			}
 		}
 	}
 

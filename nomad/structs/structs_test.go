@@ -1933,6 +1933,13 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 			},
 			ErrContains: `invalid: check requires a port but neither check nor service`,
 		},
+		{
+			Service: &Service{
+				Name:    "conect-block-on-task-level",
+				Connect: &ConsulConnect{SidecarService: &ConsulSidecarService{}},
+			},
+			ErrContains: `cannot have "connect" block`,
+		},
 	}
 
 	for _, tc := range cases {
