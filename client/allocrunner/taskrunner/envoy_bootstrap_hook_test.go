@@ -7,6 +7,7 @@ package taskrunner
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -173,6 +174,7 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			grpcAddr:       "1.1.1.1",
 			envoyAdminBind: "localhost:3333",
 			gateway:        "my-ingress-gateway",
+			proxyID:        "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-ig-ig-8080",
 		}
 		result := ebArgs.args()
 		require.Equal(t, []string{"connect", "envoy",
@@ -181,6 +183,7 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-admin-bind", "localhost:3333",
 			"-bootstrap",
 			"-gateway", "my-ingress-gateway",
+			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-ig-ig-8080",
 		}, result)
 	})
 }
@@ -229,6 +232,7 @@ type envoyConfig struct {
 	} `json:"admin"`
 	Node struct {
 		Cluster  string `json:"cluster"`
+		ID       string `json:"id"`
 		Metadata struct {
 			Namespace string `json:"namespace"`
 			Version   string `json:"envoy_version"`
@@ -514,9 +518,12 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	var out envoyConfig
 	require.NoError(t, json.NewDecoder(f).Decode(&out))
 
-	// the only interesting thing on bootstrap is the presence of the cluster,
-	// everything is configured at runtime through xDS
-	require.Equal(t, "my-ingress-service", out.Node.Cluster)
+	// The only interesting thing on bootstrap is the presence of the cluster,
+	// and its associated ID that Nomad sets. Everything is configured at runtime
+	// through xDS.
+	expID := fmt.Sprintf("_nomad-task-%s-group-web-my-ingress-service-9999", alloc.ID)
+	require.Equal(t, expID, out.Node.ID)
+	require.Equal(t, "ingress-gateway", out.Node.Cluster)
 }
 
 // TestTaskRunner_EnvoyBootstrapHook_Noop asserts that the Envoy bootstrap hook

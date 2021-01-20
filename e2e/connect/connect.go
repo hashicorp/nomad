@@ -8,6 +8,23 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 )
 
+const (
+	// envConsulToken is the consul http token environment variable
+	envConsulToken = "CONSUL_HTTP_TOKEN"
+
+	// demoConnectJob is the example connect enabled job useful for testing
+	demoConnectJob = "connect/input/demo.nomad"
+
+	// demoConnectNativeJob is the example connect native enabled job useful for testing
+	demoConnectNativeJob = "connect/input/native-demo.nomad"
+
+	// demoConnectIngressGateway is the example ingress gateway job useful for testing
+	demoConnectIngressGateway = "connect/input/ingress-gateway.nomad"
+
+	// demoConnectMultiIngressGateway is the example multi ingress gateway job useful for testing
+	demoConnectMultiIngressGateway = "connect/input/multi-ingress.nomad"
+)
+
 type ConnectE2ETest struct {
 	framework.TC
 	jobIds []string
@@ -89,6 +106,17 @@ func (tc *ConnectE2ETest) TestConnectIngressGatewayDemo(f *framework.F) {
 	tc.jobIds = append(tc.jobIds, jobID)
 
 	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), demoConnectIngressGateway, jobID, "")
+	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
+	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
+}
+
+func (tc *ConnectE2ETest) TestConnectMultiIngressGatewayDemo(f *framework.F) {
+	t := f.T()
+
+	jobID := connectJobID()
+	tc.jobIds = append(tc.jobIds, jobID)
+
+	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), demoConnectMultiIngressGateway, jobID, "")
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
 	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
 }

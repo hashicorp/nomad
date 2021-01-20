@@ -336,28 +336,34 @@ func (h *envoyBootstrapHook) grpcAddress(env map[string]string) string {
 	}
 }
 
+func (h *envoyBootstrapHook) proxyServiceID(group string, service *structs.Service) string {
+	return agentconsul.MakeAllocServiceID(h.alloc.ID, "group-"+group, service)
+}
+
 func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
-	tgName string,
-	service *structs.Service,
+	group string, service *structs.Service,
 	grpcAddr, envoyAdminBind, siToken, filepath string,
 ) envoyBootstrapArgs {
 	var (
 		sidecarForID string // sidecar only
 		gateway      string // gateway only
+		proxyID      string // gateway only
 	)
 
 	if service.Connect.HasSidecar() {
-		sidecarForID = agentconsul.MakeAllocServiceID(h.alloc.ID, "group-"+tgName, service)
+		sidecarForID = h.proxyServiceID(group, service)
 	}
 
 	if service.Connect.IsGateway() {
 		gateway = "ingress" // more types in the future
+		proxyID = h.proxyServiceID(group, service)
 	}
 
 	h.logger.Debug("bootstrapping envoy",
 		"sidecar_for", service.Name, "bootstrap_file", filepath,
 		"sidecar_for_id", sidecarForID, "grpc_addr", grpcAddr,
 		"admin_bind", envoyAdminBind, "gateway", gateway,
+		"proxy_id", proxyID,
 	)
 
 	return envoyBootstrapArgs{
@@ -367,6 +373,7 @@ func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
 		envoyAdminBind: envoyAdminBind,
 		siToken:        siToken,
 		gateway:        gateway,
+		proxyID:        proxyID,
 	}
 }
 
@@ -380,6 +387,7 @@ type envoyBootstrapArgs struct {
 	envoyAdminBind string
 	siToken        string
 	gateway        string // gateways only
+	proxyID        string // gateways only
 }
 
 // args returns the CLI arguments consul needs in the correct order, with the
@@ -395,11 +403,15 @@ func (e envoyBootstrapArgs) args() []string {
 	}
 
 	if v := e.sidecarFor; v != "" {
-		arguments = append(arguments, "-sidecar-for", e.sidecarFor)
+		arguments = append(arguments, "-sidecar-for", v)
 	}
 
 	if v := e.gateway; v != "" {
-		arguments = append(arguments, "-gateway", e.gateway)
+		arguments = append(arguments, "-gateway", v)
+	}
+
+	if v := e.proxyID; v != "" {
+		arguments = append(arguments, "-proxy-id", v)
 	}
 
 	if v := e.siToken; v != "" {

@@ -618,6 +618,15 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
+	// reset UI to prevent prefixed json output
+	if config.LogJson {
+		c.Ui = &cli.BasicUi{
+			Reader:      os.Stdin,
+			Writer:      os.Stdout,
+			ErrorWriter: os.Stderr,
+		}
+	}
+
 	// Setup the log outputs
 	logFilter, logGate, logOutput := SetupLoggers(c.Ui, config)
 	c.logFilter = logFilter
