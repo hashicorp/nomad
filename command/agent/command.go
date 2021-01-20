@@ -618,7 +618,7 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
-	// GH-9489: Reset UI to prevent prefixed json output
+	// reset UI to prevent prefixed json output
 	if config.LogJson {
 		c.Ui = &cli.BasicUi{
 			Reader:      os.Stdin,
