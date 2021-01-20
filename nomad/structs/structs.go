@@ -6922,7 +6922,7 @@ func validateServices(t *Task, tgNetworks Networks) error {
 			}
 		}
 
-		// GH-9450: connect block is only allowed on group level
+		// connect block is only allowed on group level
 		if service.Connect != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q cannot have \"connect\" block, only services defined in a \"group\" block can", service.Name))
 		}
