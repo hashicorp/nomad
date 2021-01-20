@@ -403,15 +403,15 @@ func (e envoyBootstrapArgs) args() []string {
 	}
 
 	if v := e.sidecarFor; v != "" {
-		arguments = append(arguments, "-sidecar-for", e.sidecarFor)
+		arguments = append(arguments, "-sidecar-for", v)
 	}
 
 	if v := e.gateway; v != "" {
-		arguments = append(arguments, "-gateway", e.gateway)
+		arguments = append(arguments, "-gateway", v)
 	}
 
 	if v := e.proxyID; v != "" {
-		arguments = append(arguments, "-proxy-id", e.proxyID)
+		arguments = append(arguments, "-proxy-id", v)
 	}
 
 	if v := e.siToken; v != "" {
