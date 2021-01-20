@@ -95,7 +95,11 @@ func (tc *NamespacesE2ETest) TestNamespacesFiltering(f *framework.F) {
 
 		result := make([]map[string]string, 0, len(rows))
 		for _, row := range rows {
-			if strings.HasPrefix(row["Job ID"], "test-namespace-") {
+			jobID := row["Job ID"]
+			if jobID == "" {
+				jobID = row["ID"]
+			}
+			if strings.HasPrefix(jobID, "test-namespace-") {
 				result = append(result, row)
 			}
 		}
