@@ -62,7 +62,7 @@ func (m *tfManager) Enable(t *testing.T) string {
 
 	response, err := exec.CommandContext(ctx,
 		"consulacls/consul-acls-manage.sh", "enable").CombinedOutput()
-	require.NoError(t, err)
+	require.NoError(t, err, "consul-acls-manage.sh failed: %v", string(response))
 	fmt.Println(string(response))
 
 	// Read the Consul ACL master token that was generated (or if the token
