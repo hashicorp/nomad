@@ -28,7 +28,7 @@ func WaitForLeader(t *testing.T, nomadClient *api.Client) {
 		leader, err := statusAPI.Leader()
 		return leader != "", err
 	}, func(err error) {
-		t.Fatalf("failed to find leader: %v", err)
+		require.NoError(t, err, "failed to find leader")
 	})
 }
 
@@ -53,7 +53,7 @@ func WaitForNodesReady(t *testing.T, nomadClient *api.Client, nodes int) {
 
 		return eligibleNodes >= nodes, fmt.Errorf("only %d nodes ready (wanted at least %d)", eligibleNodes, nodes)
 	}, func(err error) {
-		t.Fatalf("failed to get enough ready nodes: %v", err)
+		require.NoError(t, err, "failed to get enough ready nodes")
 	})
 }
 
@@ -145,7 +145,7 @@ func WaitForAllocRunning(t *testing.T, nomadClient *api.Client, allocID string) 
 
 		return alloc.ClientStatus == structs.AllocClientStatusRunning, fmt.Errorf("expected status running, but was: %s\n%#+v", alloc.ClientStatus, pretty.Sprint(alloc))
 	}, func(err error) {
-		t.Fatalf("failed to wait on alloc: %v", err)
+		require.NoError(t, err, "failed to wait on alloc")
 	})
 }
 
@@ -171,7 +171,7 @@ func WaitForAllocNotPending(t *testing.T, nomadClient *api.Client, allocID strin
 
 		return alloc.ClientStatus != structs.AllocClientStatusPending, fmt.Errorf("expected status not pending, but was: %s", alloc.ClientStatus)
 	}, func(err error) {
-		t.Fatalf("failed to wait on alloc: %v", err)
+		require.NoError(t, err, "failed to wait on alloc")
 	})
 }
 
@@ -206,7 +206,7 @@ func WaitForAllocStopped(t *testing.T, nomadClient *api.Client, allocID string) 
 				alloc.ClientStatus)
 		}
 	}, func(err error) {
-		t.Fatalf("failed to wait on alloc: %v", err)
+		require.NoError(t, err, "failed to wait on alloc")
 	})
 }
 
@@ -251,7 +251,7 @@ func WaitForDeployment(t *testing.T, nomadClient *api.Client, deployID string, s
 		)
 
 	}, func(err error) {
-		t.Fatalf("failed to wait on deployment: %v", err)
+		require.NoError(t, err, "failed to wait on deployment")
 	})
 }
 

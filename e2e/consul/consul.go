@@ -175,7 +175,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("error while waiting for deploys: %v", err)
+		require.NoError(t, err, "error while waiting for deploys")
 	})
 
 	allocID := activeDeploy.TaskGroups["consul_canary_test"].PlacedCanaries[0]
@@ -195,7 +195,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 		return *alloc.DeploymentStatus.Healthy, fmt.Errorf("expected healthy canary but found: %#v",
 			alloc.DeploymentStatus)
 	}, func(err error) {
-		t.Fatalf("error waiting for canary to be healthy: %v", err)
+		require.NoError(t, err, "error waiting for canary to be healthy")
 	})
 
 	// Check Consul for canary tags
@@ -211,7 +211,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 		}
 		return false, fmt.Errorf(`could not find service tags {"canary", "foo"}: %#v`, consulServices)
 	}, func(err error) {
-		t.Fatalf("error waiting for canary tags: %v", err)
+		require.NoError(t, err, "error waiting for canary tags")
 	})
 
 	// Promote canary
@@ -229,7 +229,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 		}
 		return !alloc.DeploymentStatus.Canary, fmt.Errorf("still a canary")
 	}, func(err error) {
-		t.Fatalf("error waiting for canary to be promoted: %v", err)
+		require.NoError(t, err, "error waiting for canary to be promoted")
 	})
 
 	// Verify that no instances have canary tags
@@ -247,7 +247,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 		}
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("error waiting for non-canary tags: %v", err)
+		require.NoError(t, err, "error waiting for non-canary tags")
 	})
 
 }

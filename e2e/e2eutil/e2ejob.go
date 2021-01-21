@@ -116,7 +116,7 @@ func (j *e2eServiceJob) Run(f *framework.F) {
 
 		return alloc.ClientStatus == structs.AllocClientStatusRunning, fmt.Errorf("expected status running, but was: %s", alloc.ClientStatus)
 	}, func(err error) {
-		t.Fatalf("failed to keep alloc running: %v", err)
+		require.NoError(t, err, "failed to keep alloc running")
 	})
 
 	scriptPath := filepath.Join(filepath.Dir(j.jobfile), j.script)
