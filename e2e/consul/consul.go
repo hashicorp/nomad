@@ -35,6 +35,7 @@ func init() {
 		Cases: []framework.TestCase{
 			new(ConsulE2ETest),
 			new(ScriptChecksE2ETest),
+			new(CheckRestartE2ETest),
 		},
 	})
 }
