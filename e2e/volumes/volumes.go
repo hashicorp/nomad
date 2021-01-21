@@ -3,12 +3,14 @@ package volumes
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	e2e "github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 const ns = ""
@@ -94,8 +96,22 @@ func (tc *VolumesTest) TestVolumeMounts(f *framework.F) {
 	_, _, err = tc.Nomad().Jobs().Register(job, nil)
 	f.NoError(err, "could not register updated job")
 
-	allocs, err = e2e.AllocsForJob(jobID, ns)
-	f.NoError(err, "could not get allocs for job")
+	testutil.WaitForResultRetries(5000, func() (bool, error) {
+		time.Sleep(time.Millisecond * 100)
+		allocs, err = e2e.AllocsForJob(jobID, ns)
+		if err != nil {
+			return false, err
+		}
+		if len(allocs) < 2 {
+			return false, fmt.Errorf("no new allocation for %v: %v", jobID, allocs)
+		}
+
+		return true, nil
+	}, func(e error) {
+		f.NoError(e, "failed to get new alloc")
+
+	})
+
 	newAllocID := allocs[0]["ID"]
 
 	newCmdToExec := fmt.Sprintf("cat /tmp/foo/%s", newAllocID)

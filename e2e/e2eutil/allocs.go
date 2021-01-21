@@ -208,7 +208,7 @@ func AllocExec(allocID, taskID, execCmd, ns string, wc *WaitConfig) (string, err
 		got, err = Command(cmd[0], cmd[1:]...)
 		return err == nil, err
 	}, func(e error) {
-		err = fmt.Errorf("exec failed: '%s'", strings.Join(cmd, " "))
+		err = fmt.Errorf("exec failed: '%s': %v", strings.Join(cmd, " "), e)
 	})
 	return got, err
 }
