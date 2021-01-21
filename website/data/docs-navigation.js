@@ -241,7 +241,7 @@ export default [
               {
                 category: 'datetime',
                 name: 'Date and Time Functions',
-                content: ['formatdate', 'timeadd', 'timestamp'],
+                content: ['formatdate', 'timeadd'],
               },
               {
                 category: 'encoding',
