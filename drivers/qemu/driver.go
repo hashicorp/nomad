@@ -100,9 +100,13 @@ var (
 	// capabilities is returned by the Capabilities RPC and indicates what
 	// optional features this driver supports
 	capabilities = &drivers.Capabilities{
-		SendSignals:  false,
-		Exec:         false,
-		FSIsolation:  drivers.FSIsolationImage,
+		SendSignals: false,
+		Exec:        false,
+		FSIsolation: drivers.FSIsolationImage,
+		NetIsolationModes: []drivers.NetIsolationMode{
+			drivers.NetIsolationModeHost,
+			drivers.NetIsolationModeGroup,
+		},
 		MountConfigs: drivers.MountConfigSupportNone,
 	}
 
@@ -487,13 +491,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:        args[0],
-		Args:       args[1:],
-		Env:        cfg.EnvList(),
-		User:       cfg.User,
-		TaskDir:    cfg.TaskDir().Dir,
-		StdoutPath: cfg.StdoutPath,
-		StderrPath: cfg.StderrPath,
+		Cmd:              args[0],
+		Args:             args[1:],
+		Env:              cfg.EnvList(),
+		User:             cfg.User,
+		TaskDir:          cfg.TaskDir().Dir,
+		StdoutPath:       cfg.StdoutPath,
+		StderrPath:       cfg.StderrPath,
+		NetworkIsolation: cfg.NetworkIsolation,
 	}
 	ps, err := execImpl.Launch(execCmd)
 	if err != nil {
