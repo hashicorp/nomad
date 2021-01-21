@@ -25,6 +25,7 @@
     "@hashicorp/react-text-split-with-code": "2.0.5",
     "@hashicorp/react-text-split-with-image": "3.0.0",
     "@hashicorp/react-use-cases": "2.0.1",
+    "@hashicorp/react-vertical-text-block-list": "^4.0.1",
     "marked": "0.7.0",
     "next": "9.5.5",
     "next-mdx-remote": "^2.1.3",
