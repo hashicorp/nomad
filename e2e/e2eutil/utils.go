@@ -143,7 +143,7 @@ func WaitForAllocRunning(t *testing.T, nomadClient *api.Client, allocID string) 
 			return false, err
 		}
 
-		return alloc.ClientStatus == structs.AllocClientStatusRunning, fmt.Errorf("expected status running, but was: %s\n%#+v", alloc.ClientStatus, pretty.Sprint(alloc))
+		return alloc.ClientStatus == structs.AllocClientStatusRunning, fmt.Errorf("expected status running, but was: %s\n%v", alloc.ClientStatus, pretty.Sprint(alloc))
 	}, func(err error) {
 		require.NoError(t, err, "failed to wait on alloc")
 	})
