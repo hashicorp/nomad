@@ -218,7 +218,10 @@ func (tc *EventsTest) TestStartIndex(f *framework.F) {
 			select {
 			case <-ctx.Done():
 				return
-			case event := <-streamCh:
+			case event, ok := <-streamCh:
+				if !ok {
+					return
+				}
 				if event.IsHeartbeat() {
 					continue
 				}

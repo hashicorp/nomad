@@ -6954,6 +6954,11 @@ func validateServices(t *Task, tgNetworks Networks) error {
 			}
 		}
 
+		// connect block is only allowed on group level
+		if service.Connect != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q cannot have \"connect\" block, only services defined in a \"group\" block can", service.Name))
+		}
+
 		// Ensure that check names are unique and have valid ports
 		knownChecks := make(map[string]struct{})
 		for _, check := range service.Checks {

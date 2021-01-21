@@ -3,6 +3,7 @@ package namespaces
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	e2e "github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
@@ -88,61 +89,69 @@ func (tc *NamespacesE2ETest) TestNamespacesFiltering(f *framework.F) {
 	jobDefault := run("namespaces/input/namespace_default.nomad", "")
 
 	// exercise 'nomad job status' filtering
+	parse := func(out string) []map[string]string {
+		rows, err := e2e.ParseColumns(out)
+		f.NoError(err, "failed to parse job status output: %v", out)
+
+		result := make([]map[string]string, 0, len(rows))
+		for _, row := range rows {
+			jobID := row["Job ID"]
+			if jobID == "" {
+				jobID = row["ID"]
+			}
+			if strings.HasPrefix(jobID, "test-namespace-") {
+				result = append(result, row)
+			}
+		}
+		return result
+	}
 
 	out, err := e2e.Command("nomad", "job", "status", "-namespace", "NamespaceA")
 	f.NoError(err, "'nomad job status -namespace NamespaceA' failed")
-	rows, err := e2e.ParseColumns(out)
-	f.NoError(err, "could not parse job status output")
-	f.Equal(1, len(rows))
+	rows := parse(out)
+	f.Len(rows, 1)
 	f.Equal(jobA, rows[0]["ID"])
 
 	out, err = e2e.Command("nomad", "job", "status", "-namespace", "NamespaceB")
 	f.NoError(err, "'nomad job status -namespace NamespaceB' failed")
-	rows, err = e2e.ParseColumns(out)
-	f.NoError(err, "could not parse job status output")
-	f.Equal(1, len(rows))
+	rows = parse(out)
+	f.Len(rows, 1)
 	f.Equal(jobB, rows[0]["ID"])
 
 	out, err = e2e.Command("nomad", "job", "status", "-namespace", "*")
 	f.NoError(err, "'nomad job status -namespace *' failed")
-	rows, err = e2e.ParseColumns(out)
-	f.NoError(err, "could not parse job status output")
+	rows = parse(out)
 	f.Equal(3, len(rows))
 
 	out, err = e2e.Command("nomad", "job", "status")
 	f.NoError(err, "'nomad job status' failed")
-	rows, err = e2e.ParseColumns(out)
-	f.NoError(err, "could not parse job status output")
-	f.Equal(1, len(rows))
+	rows = parse(out)
+	f.Len(rows, 1)
 	f.Equal(jobDefault, rows[0]["ID"])
 
 	// exercise 'nomad status' filtering
 
 	out, err = e2e.Command("nomad", "status", "-namespace", "NamespaceA")
 	f.NoError(err, "'nomad job status -namespace NamespaceA' failed")
-	rows, err = e2e.ParseColumns(out)
-	f.NoError(err, "could not parse status output")
-	f.Equal(1, len(rows))
+	rows = parse(out)
+	f.Len(rows, 1)
 	f.Equal(jobA, rows[0]["ID"])
 
 	out, err = e2e.Command("nomad", "status", "-namespace", "NamespaceB")
 	f.NoError(err, "'nomad job status -namespace NamespaceB' failed")
-	rows, err = e2e.ParseColumns(out)
-	f.NoError(err, "could not parse status output")
-	f.Equal(1, len(rows))
+	rows = parse(out)
+	f.Len(rows, 1)
 	f.Equal(jobB, rows[0]["ID"])
 
 	out, err = e2e.Command("nomad", "status", "-namespace", "*")
 	f.NoError(err, "'nomad job status -namespace *' failed")
-	rows, err = e2e.ParseColumns(out)
-	f.NoError(err, "could not parse status output")
+	rows = parse(out)
 	f.Equal(3, len(rows))
 
 	out, err = e2e.Command("nomad", "status")
 	f.NoError(err, "'nomad status' failed")
-	rows, err = e2e.ParseColumns(out)
-	f.NoError(err, "could not parse status output")
-	f.Equal(1, len(rows))
+	rows = parse(out)
+	f.Len(rows, 1)
 	f.Equal(jobDefault, rows[0]["ID"])
 
 	// exercise 'nomad deployment list' filtering
@@ -150,23 +159,20 @@ func (tc *NamespacesE2ETest) TestNamespacesFiltering(f *framework.F) {
 
 	out, err = e2e.Command("nomad", "deployment", "list", "-namespace", "NamespaceA")
 	f.NoError(err, "'nomad job status -namespace NamespaceA' failed")
-	rows, err = e2e.ParseColumns(out)
-	f.NoError(err, "could not parse deployment list output")
-	f.Equal(1, len(rows))
+	rows = parse(out)
+	f.Len(rows, 1)
 	f.Equal(jobA, rows[0]["Job ID"])
 
 	out, err = e2e.Command("nomad", "deployment", "list", "-namespace", "NamespaceB")
 	f.NoError(err, "'nomad job status -namespace NamespaceB' failed")
-	rows, err = e2e.ParseColumns(out)
-	f.NoError(err, "could not parse deployment list output")
+	rows = parse(out)
 	f.Equal(len(rows), 1)
 	f.Equal(jobB, rows[0]["Job ID"])
 
 	out, err = e2e.Command("nomad", "deployment", "list")
 	f.NoError(err, "'nomad deployment list' failed")
-	rows, err = e2e.ParseColumns(out)
-	f.NoError(err, "could not parse deployment list output")
-	f.Equal(1, len(rows))
+	rows = parse(out)
+	f.Len(rows, 1)
 	f.Equal(jobDefault, rows[0]["Job ID"])
 
 	out, err = e2e.Command("nomad", "job", "stop", jobA)
