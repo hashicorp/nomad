@@ -107,7 +107,7 @@ func (tc *TaskEventsTest) waitUntilEvents(f *framework.F, jobName string, numEve
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("task events error: %v", err)
+		require.NoError(t, err, "task events error")
 	})
 
 	return alloc, taskState

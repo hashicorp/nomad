@@ -45,9 +45,9 @@ EVAL:
 	case "complete":
 		// Ok!
 	case "failed", "canceled", "blocked":
-		t.Fatalf("eval %s\n%s\n", eval.Status, pretty.Sprint(eval))
+		require.Failf(t, "expected complete status", "eval %s\n%s", eval.Status, pretty.Sprint(eval))
 	default:
-		t.Fatalf("unknown eval status: %s\n%s\n", eval.Status, pretty.Sprint(eval))
+		require.Failf(t, "expected complete status", "unknown eval status: %s\n%s", eval.Status, pretty.Sprint(eval))
 	}
 
 	// Assert there were 0 placement failures
@@ -85,7 +85,7 @@ EVAL:
 	allocIDs := make(map[string]bool, 1)
 	for _, a := range allocs {
 		if a.ClientStatus != "running" || a.DesiredStatus != "run" {
-			t.Fatalf("alloc %s (%s) terminal; client=%s desired=%s", a.TaskGroup, a.ID, a.ClientStatus, a.DesiredStatus)
+			require.Failf(t, "expected running status", "alloc %s (%s) terminal; client=%s desired=%s", a.TaskGroup, a.ID, a.ClientStatus, a.DesiredStatus)
 		}
 		allocIDs[a.ID] = true
 	}
