@@ -42,7 +42,7 @@ func TestDockerDriver_authFromHelper(t *testing.T) {
 	}
 	content, err := ioutil.ReadFile(filepath.Join(dir, "helper-get.out"))
 	require.NoError(t, err)
-	require.Equal(t, []byte("https://registry.local:5000"), content)
+	require.Equal(t, "registry.local:5000", string(content))
 }
 
 func TestDockerDriver_PidsLimit(t *testing.T) {
