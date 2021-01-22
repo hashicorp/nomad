@@ -113,6 +113,7 @@ type Service struct {
 	Meta              map[string]string `hcl:"meta,block"`
 	CanaryMeta        map[string]string `hcl:"canary_meta,block"`
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
+	OnUpdate          string            `hcl:"on_update"`
 }
 
 // Canonicalize the Service by ensuring its name and address mode are set. Task

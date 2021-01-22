@@ -420,6 +420,10 @@ OUTER:
 		for _, treg := range allocReg.Tasks {
 			for _, sreg := range treg.Services {
 				for _, check := range sreg.Checks {
+					// TODO:(drew) check here if service check allows for ignore
+					if check.Status == api.HealthWarning {
+						continue
+					}
 					if check.Status == api.HealthPassing {
 						continue
 					}

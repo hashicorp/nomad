@@ -417,6 +417,9 @@ type Service struct {
 	Connect    *ConsulConnect    // Consul Connect configuration
 	Meta       map[string]string // Consul service meta
 	CanaryMeta map[string]string // Consul service meta when it is a canary
+
+	// TODO(drew) : make it work
+	OnUpdate string
 }
 
 // Copy the stanza recursively. Returns nil if nil.

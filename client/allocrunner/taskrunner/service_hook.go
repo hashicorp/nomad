@@ -138,6 +138,8 @@ func (h *serviceHook) updateHookFields(req *interfaces.TaskUpdateRequest) error 
 		return fmt.Errorf("task %q not found in updated alloc", h.taskName)
 	}
 
+	// if task.Services
+
 	// Update service hook fields
 	h.taskEnv = req.TaskEnv
 	h.services = task.Services
@@ -187,6 +189,31 @@ func (h *serviceHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest,
 func (h *serviceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, h.services)
+
+	// var servicesToReg []*structs.Service
+	// for _, s := range interpolatedServices {
+	// 	spew.Dump("YOOOOOOOOOOOOOOOOO", s.Name)
+	// 	if s.Name == "drew-update-test" && h.deploy {
+	// 		servicesToReg = append(servicesToReg, s)
+	// 	} else if !h.deploy && s.Name != "drew-update-test" {
+	// 		servicesToReg = append(servicesToReg, s)
+	// 	}
+	// }
+	// var servicesToReg []*structs.Service
+	// if dereg {
+	// 	servicesToReg = interpolatedServices
+	// } else {
+	// 	for _, s := range interpolatedServices {
+	// 		spew.Dump("YO!!!!!!!!!!!!!!!!!!!!!!!!!!!!1", s.OnUpdate)
+	// 		if s.Name == "drew_update_test" && isDeploy {
+	// 			spew.Dump("UPDATE ONLY")
+	// 			servicesToReg = append(servicesToReg, s)
+	// 		} else if s.Name != "drew_update_test" && !isDeploy {
+	// 			servicesToReg = append(servicesToReg, s)
+	// 		}
+	// 	}
+
+	// }
 
 	// Create task services struct with request's driver metadata
 	return &agentconsul.WorkloadServices{
