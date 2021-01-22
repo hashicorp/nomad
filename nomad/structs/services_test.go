@@ -293,6 +293,23 @@ func TestConsulConnect_CopyEquals(t *testing.T) {
 	require.False(t, c.Equals(o))
 }
 
+func TestConsulConnect_GatewayProxy_CopyEquals(t *testing.T) {
+	t.Parallel()
+
+	c := &ConsulGatewayProxy{
+		ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
+		EnvoyGatewayBindTaggedAddresses: false,
+		EnvoyGatewayBindAddresses:       make(map[string]*ConsulGatewayBindAddress),
+	}
+
+	require.NoError(t, c.Validate())
+
+	// Copies should be equivalent
+	o := c.Copy()
+	require.Equal(t, c, o)
+	require.True(t, c.Equals(o))
+}
+
 func TestSidecarTask_MergeIntoTask(t *testing.T) {
 	t.Parallel()
 

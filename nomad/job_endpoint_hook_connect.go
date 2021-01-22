@@ -345,7 +345,7 @@ func gatewayProxyForBridge(gateway *structs.ConsulGateway) *structs.ConsulGatewa
 
 func gatewayBindAddresses(ingress *structs.ConsulIngressConfigEntry) map[string]*structs.ConsulGatewayBindAddress {
 	if ingress == nil || len(ingress.Listeners) == 0 {
-		return nil
+		return make(map[string]*structs.ConsulGatewayBindAddress)
 	}
 
 	addresses := make(map[string]*structs.ConsulGatewayBindAddress)

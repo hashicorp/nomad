@@ -4412,6 +4412,7 @@ func (s *StateStore) setJobStatuses(index uint64, txn *txn,
 		if err := s.setJobStatus(index, txn, existing.(*structs.Job), evalDelete, forceStatus); err != nil {
 			return err
 		}
+
 	}
 
 	return nil
@@ -4427,9 +4428,7 @@ func (s *StateStore) setJobStatus(index uint64, txn *txn,
 
 	// Capture the current status so we can check if there is a change
 	oldStatus := job.Status
-	if index == job.CreateIndex {
-		oldStatus = ""
-	}
+	firstPass := index == job.CreateIndex
 	newStatus := forceStatus
 
 	// If forceStatus is not set, compute the jobs status.
@@ -4441,8 +4440,12 @@ func (s *StateStore) setJobStatus(index uint64, txn *txn,
 		}
 	}
 
-	// Fast-path if nothing has changed.
+	// Fast-path if the job has changed.
+	// Still update the job summary if necessary.
 	if oldStatus == newStatus {
+		if err := s.setJobSummary(txn, job, index, oldStatus, newStatus, firstPass); err != nil {
+			return err
+		}
 		return nil
 	}
 
@@ -4460,64 +4463,72 @@ func (s *StateStore) setJobStatus(index uint64, txn *txn,
 	}
 
 	// Update the children summary
-	if updated.ParentID != "" {
-		// Try to update the summary of the parent job summary
-		summaryRaw, err := txn.First("job_summary", "id", updated.Namespace, updated.ParentID)
-		if err != nil {
-			return fmt.Errorf("unable to retrieve summary for parent job: %v", err)
-		}
+	if err := s.setJobSummary(txn, updated, index, oldStatus, newStatus, firstPass); err != nil {
+		return fmt.Errorf("job summary update failed %w", err)
+	}
+	return nil
+}
 
-		// Only continue if the summary exists. It could not exist if the parent
-		// job was removed
-		if summaryRaw != nil {
-			existing := summaryRaw.(*structs.JobSummary)
-			pSummary := existing.Copy()
-			if pSummary.Children == nil {
-				pSummary.Children = new(structs.JobChildrenSummary)
-			}
-
-			// Determine the transition and update the correct fields
-			children := pSummary.Children
-
-			// Decrement old status
-			if oldStatus != "" {
-				switch oldStatus {
-				case structs.JobStatusPending:
-					children.Pending--
-				case structs.JobStatusRunning:
-					children.Running--
-				case structs.JobStatusDead:
-					children.Dead--
-				default:
-					return fmt.Errorf("unknown old job status %q", oldStatus)
-				}
-			}
-
-			// Increment new status
-			switch newStatus {
-			case structs.JobStatusPending:
-				children.Pending++
-			case structs.JobStatusRunning:
-				children.Running++
-			case structs.JobStatusDead:
-				children.Dead++
-			default:
-				return fmt.Errorf("unknown new job status %q", newStatus)
-			}
-
-			// Update the index
-			pSummary.ModifyIndex = index
-
-			// Insert the summary
-			if err := txn.Insert("job_summary", pSummary); err != nil {
-				return fmt.Errorf("job summary insert failed: %v", err)
-			}
-			if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
-				return fmt.Errorf("index update failed: %v", err)
-			}
-		}
+func (s *StateStore) setJobSummary(txn *txn, updated *structs.Job, index uint64, oldStatus, newStatus string, firstPass bool) error {
+	if updated.ParentID == "" {
+		return nil
 	}
 
+	// Try to update the summary of the parent job summary
+	summaryRaw, err := txn.First("job_summary", "id", updated.Namespace, updated.ParentID)
+	if err != nil {
+		return fmt.Errorf("unable to retrieve summary for parent job: %v", err)
+	}
+
+	// Only continue if the summary exists. It could not exist if the parent
+	// job was removed
+	if summaryRaw != nil {
+		existing := summaryRaw.(*structs.JobSummary)
+		pSummary := existing.Copy()
+		if pSummary.Children == nil {
+			pSummary.Children = new(structs.JobChildrenSummary)
+		}
+
+		// Determine the transition and update the correct fields
+		children := pSummary.Children
+
+		// Decrement old status
+		if !firstPass {
+			switch oldStatus {
+			case structs.JobStatusPending:
+				children.Pending--
+			case structs.JobStatusRunning:
+				children.Running--
+			case structs.JobStatusDead:
+				children.Dead--
+			default:
+				return fmt.Errorf("unknown old job status %q", oldStatus)
+			}
+		}
+
+		// Increment new status
+		switch newStatus {
+		case structs.JobStatusPending:
+			children.Pending++
+		case structs.JobStatusRunning:
+			children.Running++
+		case structs.JobStatusDead:
+			children.Dead++
+		default:
+			return fmt.Errorf("unknown new job status %q", newStatus)
+		}
+
+		// Update the index
+		pSummary.ModifyIndex = index
+
+		// Insert the summary
+		if err := txn.Insert("job_summary", pSummary); err != nil {
+			return fmt.Errorf("job summary insert failed: %v", err)
+		}
+		if err := txn.Insert("index", &IndexEntry{"job_summary", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
 	return nil
 }
 

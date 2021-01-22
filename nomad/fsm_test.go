@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -3421,4 +3422,60 @@ func TestFSM_ACLEvents(t *testing.T) {
 			tc.eventfn(t, events)
 		})
 	}
+}
+
+// TestFSM_EventBroker_JobRegisterFSMEvents asserts that only a single job
+// register event is emitted when registering a job
+func TestFSM_EventBroker_JobRegisterFSMEvents(t *testing.T) {
+	t.Parallel()
+	fsm := testFSM(t)
+
+	job := mock.Job()
+	eval := mock.Eval()
+	eval.JobID = job.ID
+
+	req := structs.JobRegisterRequest{
+		Job:  job,
+		Eval: eval,
+	}
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
+	require.NoError(t, err)
+
+	resp := fsm.Apply(makeLog(buf))
+	require.Nil(t, resp)
+
+	broker, err := fsm.State().EventBroker()
+	require.NoError(t, err)
+
+	subReq := &stream.SubscribeRequest{
+		Topics: map[structs.Topic][]string{
+			structs.TopicJob: {"*"},
+		},
+	}
+
+	sub, err := broker.Subscribe(subReq)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(500*time.Millisecond))
+	defer cancel()
+
+	// consume the queue
+	var events []structs.Event
+	for {
+		out, err := sub.Next(ctx)
+		if len(out.Events) == 0 {
+			break
+		}
+
+		// consume the queue until the deadline has exceeded or until we've
+		// received more events than  expected
+		if err == context.DeadlineExceeded || len(events) > 1 {
+			break
+		}
+
+		events = append(events, out.Events...)
+	}
+
+	require.Len(t, events, 1)
+	require.Equal(t, structs.TypeJobRegistered, events[0].Type)
 }
