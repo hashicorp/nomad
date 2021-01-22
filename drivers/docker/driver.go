@@ -251,10 +251,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("image name required for docker driver")
 	}
 
-	// Remove any http
-	if strings.HasPrefix(driverConfig.Image, "https://") {
-		driverConfig.Image = strings.Replace(driverConfig.Image, "https://", "", 1)
-	}
+	driverConfig.Image = strings.TrimPrefix(driverConfig.Image, "https://")
 
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
