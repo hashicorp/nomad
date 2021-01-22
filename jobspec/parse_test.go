@@ -262,6 +262,7 @@ func TestParse(t *testing.T) {
 											"canary": "boom",
 										},
 										PortLabel: "http",
+										OnUpdate:  "require_healthy",
 										Checks: []api.ServiceCheck{
 											{
 												Name:        "check-name",
@@ -276,6 +277,7 @@ func TestParse(t *testing.T) {
 													Grace:          timeToPtr(10 * time.Second),
 													IgnoreWarnings: true,
 												},
+												OnUpdate: "require_healthy",
 											},
 										},
 									},

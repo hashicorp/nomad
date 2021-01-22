@@ -671,6 +671,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										CanaryTags:  []string{"canary", "global", "cache"},
 										PortLabel:   "db",
 										AddressMode: "auto",
+										OnUpdate:    "require_healthy",
 										Checks: []ServiceCheck{
 											{
 												Name:     "alive",

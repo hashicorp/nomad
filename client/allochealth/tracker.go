@@ -420,8 +420,19 @@ OUTER:
 		for _, treg := range allocReg.Tasks {
 			for _, sreg := range treg.Services {
 				for _, check := range sreg.Checks {
-					if check.Status == api.HealthPassing {
+					onupdate := sreg.CheckOnUpdate[check.CheckID]
+					switch check.Status {
+					case api.HealthPassing:
 						continue
+					case api.HealthWarning:
+						if onupdate == structs.OnUpdateIgnoreWarn || onupdate == structs.OnUpdateIgnore {
+							continue
+						}
+					case api.HealthCritical:
+						if onupdate == structs.OnUpdateIgnore {
+							continue
+						}
+					default:
 					}
 
 					passed = false

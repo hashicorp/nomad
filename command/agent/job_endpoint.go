@@ -1054,11 +1054,16 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 				AddressMode:       service.AddressMode,
 				Meta:              helper.CopyMapStringString(service.Meta),
 				CanaryMeta:        helper.CopyMapStringString(service.CanaryMeta),
+				OnUpdate:          service.OnUpdate,
 			}
 
 			if l := len(service.Checks); l != 0 {
 				structsTask.Services[i].Checks = make([]*structs.ServiceCheck, l)
 				for j, check := range service.Checks {
+					onUpdate := service.OnUpdate // Inherit from service as default
+					if check.OnUpdate != "" {
+						onUpdate = check.OnUpdate
+					}
 					structsTask.Services[i].Checks[j] = &structs.ServiceCheck{
 						Name:                   check.Name,
 						Type:                   check.Type,
@@ -1078,6 +1083,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 						GRPCUseTLS:             check.GRPCUseTLS,
 						SuccessBeforePassing:   check.SuccessBeforePassing,
 						FailuresBeforeCritical: check.FailuresBeforeCritical,
+						OnUpdate:               onUpdate,
 					}
 					if check.CheckRestart != nil {
 						structsTask.Services[i].Checks[j].CheckRestart = &structs.CheckRestart{
@@ -1273,11 +1279,16 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 			AddressMode:       s.AddressMode,
 			Meta:              helper.CopyMapStringString(s.Meta),
 			CanaryMeta:        helper.CopyMapStringString(s.CanaryMeta),
+			OnUpdate:          s.OnUpdate,
 		}
 
 		if l := len(s.Checks); l != 0 {
 			out[i].Checks = make([]*structs.ServiceCheck, l)
 			for j, check := range s.Checks {
+				onUpdate := s.OnUpdate // Inherit from service as default
+				if check.OnUpdate != "" {
+					onUpdate = check.OnUpdate
+				}
 				out[i].Checks[j] = &structs.ServiceCheck{
 					Name:          check.Name,
 					Type:          check.Type,
@@ -1297,6 +1308,7 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 					GRPCService:   check.GRPCService,
 					GRPCUseTLS:    check.GRPCUseTLS,
 					TaskName:      check.TaskName,
+					OnUpdate:      onUpdate,
 				}
 				if check.CheckRestart != nil {
 					out[i].Checks[j].CheckRestart = &structs.CheckRestart{

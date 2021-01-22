@@ -61,6 +61,7 @@ type ServiceCheck struct {
 	TaskName               string              // What task to execute this check in
 	SuccessBeforePassing   int                 // Number of consecutive successes required before considered healthy
 	FailuresBeforeCritical int                 // Number of consecutive failures required before considered unhealthy
+	OnUpdate               string
 }
 
 // Copy the stanza recursively. Returns nil if nil.
@@ -167,6 +168,10 @@ func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
 		return false
 	}
 
+	if sc.OnUpdate != o.OnUpdate {
+		return false
+	}
+
 	return true
 }
 
@@ -189,6 +194,10 @@ func (sc *ServiceCheck) Canonicalize(serviceName string) {
 
 	if sc.Name == "" {
 		sc.Name = fmt.Sprintf("service: %q check", serviceName)
+	}
+
+	if sc.OnUpdate == "" {
+		sc.OnUpdate = OnUpdateRequireHealthy
 	}
 }
 
@@ -254,6 +263,14 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf("invalid address_mode %q", sc.AddressMode)
 	}
 
+	// Validate OnUpdate
+	switch sc.OnUpdate {
+	case "", OnUpdateIgnore, OnUpdateRequireHealthy, OnUpdateIgnoreWarn:
+		// OK
+	default:
+		return fmt.Errorf("invalid on_update - must be %q, %q, or %q; not %q", OnUpdateRequireHealthy, OnUpdateIgnoreWarn, OnUpdateIgnore, sc.OnUpdate)
+	}
+
 	// Note that we cannot completely validate the Expose field yet - we do not
 	// know whether this ServiceCheck belongs to a connect-enabled group-service.
 	// Instead, such validation will happen in a job admission controller.
@@ -281,6 +298,14 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf("failures_before_critical must be non-negative")
 	} else if sc.FailuresBeforeCritical > 0 && !helper.SliceStringContains(passFailCheckTypes, sc.Type) {
 		return fmt.Errorf("failures_before_critical not supported for check of type %q", sc.Type)
+	}
+
+	// CheckRestart IgnoreWarnings must be true if a check has defined OnUpdate
+	// ignore_warnings
+	if sc.CheckRestart != nil && !sc.CheckRestart.IgnoreWarnings {
+		if sc.OnUpdate == OnUpdateIgnoreWarn || sc.OnUpdate == OnUpdateIgnore {
+			return fmt.Errorf("on_update value %q not supported with check_restart ignore_warnings value %q", sc.OnUpdate, strconv.FormatBool(sc.CheckRestart.IgnoreWarnings))
+		}
 	}
 
 	return sc.CheckRestart.Validate()
@@ -319,6 +344,7 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	hashString(h, sc.Interval.String())
 	hashString(h, sc.Timeout.String())
 	hashString(h, sc.Method)
+	hashString(h, sc.OnUpdate)
 
 	// use name "true" to maintain ID stability
 	hashBool(h, sc.TLSSkipVerify, "true")
@@ -417,7 +443,17 @@ type Service struct {
 	Connect    *ConsulConnect    // Consul Connect configuration
 	Meta       map[string]string // Consul service meta
 	CanaryMeta map[string]string // Consul service meta when it is a canary
+
+	// OnUpdate Specifies how the service and its checks should be evaluated
+	// during an update
+	OnUpdate string
 }
+
+const (
+	OnUpdateRequireHealthy = "require_healthy"
+	OnUpdateIgnoreWarn     = "ignore_warnings"
+	OnUpdateIgnore         = "ignore"
+)
 
 // Copy the stanza recursively. Returns nil if nil.
 func (s *Service) Copy() *Service {
@@ -492,6 +528,13 @@ func (s *Service) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))
 	}
 
+	switch s.OnUpdate {
+	case "", OnUpdateIgnore, OnUpdateRequireHealthy, OnUpdateIgnoreWarn:
+		// OK
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service on_update must be %q, %q, or %q; not %q", OnUpdateRequireHealthy, OnUpdateIgnoreWarn, OnUpdateIgnore, s.OnUpdate))
+	}
+
 	// check checks
 	for _, c := range s.Checks {
 		if s.PortLabel == "" && c.PortLabel == "" && c.RequiresPort() {
@@ -558,6 +601,7 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	hashMeta(h, s.Meta)
 	hashMeta(h, s.CanaryMeta)
 	hashConnect(h, s.Connect)
+	hashString(h, s.OnUpdate)
 
 	// Base32 is used for encoding the hash as sha1 hashes can always be
 	// encoded without padding, only 4 bytes larger than base64, and saves
@@ -614,6 +658,10 @@ func (s *Service) Equals(o *Service) bool {
 	}
 
 	if s.AddressMode != o.AddressMode {
+		return false
+	}
+
+	if s.OnUpdate != o.OnUpdate {
 		return false
 	}
 
