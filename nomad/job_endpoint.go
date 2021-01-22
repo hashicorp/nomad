@@ -296,7 +296,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		}
 	}
 	for service, entry := range entries.Terminating {
-		fmt.Println("SH JE set terminating CE", service)
 		if err := j.srv.consulConfigEntries.SetTerminatingCE(ctx, service, entry); err != nil {
 			return err
 		}
