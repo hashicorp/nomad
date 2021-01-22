@@ -361,7 +361,7 @@ func testVaultCompatibility(t *testing.T, vault string, version string) {
 		case 1:
 		default:
 			// exit early
-			require.Fail(t, "too many allocations; something failed")
+			require.Fail("too many allocations; something failed")
 		}
 		alloc := allocs[0]
 		//allocID = alloc.ID
@@ -371,7 +371,7 @@ func testVaultCompatibility(t *testing.T, vault string, version string) {
 
 		return false, fmt.Errorf("client status %q", alloc.ClientStatus)
 	}, func(err error) {
-		require.NoError(t, err, "allocation did not finish")
+		require.NoError(err, "allocation did not finish")
 	})
 
 }

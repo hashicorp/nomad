@@ -1,6 +1,7 @@
 package connect
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
@@ -94,7 +96,9 @@ EVAL:
 	agentapi := tc.Consul().Agent()
 
 	failing := map[string]*consulapi.AgentCheck{}
-	require.Eventually(t, func() bool {
+	testutil.WaitForResultRetries(60, func() (bool, error) {
+		defer time.Sleep(time.Second)
+
 		checks, err := agentapi.Checks()
 		require.NoError(t, err)
 
@@ -123,12 +127,14 @@ EVAL:
 		}
 
 		if len(failing) == 0 {
-			return true
+			return true, nil
 		}
 
 		t.Logf("still %d checks not passing", len(failing))
-		return false
-	}, time.Minute, time.Second)
+		return false, fmt.Errorf("checks are not passing %v %v", len(failing), pretty.Sprint(failing))
+	}, func(e error) {
+		require.NoError(t, err)
+	})
 
 	require.Len(t, failing, 0, pretty.Sprint(failing))
 }
