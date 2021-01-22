@@ -37,11 +37,7 @@
                 @tagName="div"
                 @class="namespace-switcher"
                 as |namespace|>
-                {{#if (eq namespace.name "default")}}
-                  Default Namespace
-                {{else}}
-                  {{namespace.name}}
-                {{/if}}
+                <span class="ember-power-select-prefix">Namespace: </span>{{namespace.name}}
               </PowerSelect>
             </div>
           </li>
