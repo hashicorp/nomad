@@ -66,7 +66,7 @@ jobs:
           comparison-identifier: ${{ github.event.pull_request.head.sha }}
           timing-output-path: audit-diff.md
           flakiness-output-path: flakiness-report.md
-      - uses: marocchino/sticky-pull-request-comment@33a6cfb
+      - uses: marocchino/sticky-pull-request-comment@v2.0.0
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           path: audit-diff.md
