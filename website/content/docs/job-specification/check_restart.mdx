@@ -16,10 +16,6 @@ description: |-
   ]}
 />
 
-~> The `check_restart` stanza in Nomad is only supported for task networks,
-_not_ group networks. Please follow [#9176][gh-9176] to be notified when
-this is fixed.
-
 As of Nomad 0.7 the `check_restart` stanza instructs Nomad when to restart
 tasks with unhealthy service checks. When a health check in Consul has been
 unhealthy for the `limit` specified in a `check_restart` stanza, it is
