@@ -397,7 +397,15 @@ export default [
   },
   {
     category: 'devices',
-    content: ['nvidia', 'community'],
+    content: [
+      'nvidia',
+      {
+        category: 'external',
+        content: [
+          'usb'
+        ]
+      }
+    ],
   },
   'schedulers',
   { category: 'runtime', content: ['environment', 'interpolation'] },
