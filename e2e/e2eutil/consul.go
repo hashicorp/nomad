@@ -6,6 +6,7 @@ import (
 
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
 
@@ -39,7 +40,7 @@ func RequireConsulDeregistered(require *require.Assertions, client *capi.Client,
 		services, _, err := client.Health().Service(service, "", false, nil)
 		require.NoError(err)
 		if len(services) != 0 {
-			return false, fmt.Errorf("service %v: expected empty services but found %v %v", service, len(services), services)
+			return false, fmt.Errorf("service %v: expected empty services but found %v %v", service, len(services), pretty.Sprint(services))
 		}
 		return true, nil
 	}, func(err error) {
@@ -55,7 +56,7 @@ func RequireConsulRegistered(require *require.Assertions, client *capi.Client, s
 		services, _, err := client.Catalog().Service(service, "", nil)
 		require.NoError(err)
 		if len(services) != 0 {
-			return false, fmt.Errorf("service %v: expected empty services but found %v %v", service, len(services), services)
+			return false, fmt.Errorf("service %v: expected empty services but found %v %v", service, len(services), pretty.Sprint(services))
 		}
 		return true, nil
 	}, func(err error) {
