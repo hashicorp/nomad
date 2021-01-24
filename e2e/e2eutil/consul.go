@@ -55,8 +55,8 @@ func RequireConsulRegistered(require *require.Assertions, client *capi.Client, s
 
 		services, _, err := client.Catalog().Service(service, "", nil)
 		require.NoError(err)
-		if len(services) != 0 {
-			return false, fmt.Errorf("service %v: expected empty services but found %v %v", service, len(services), pretty.Sprint(services))
+		if len(services) != count {
+			return false, fmt.Errorf("service %v: expected %v services but found %v %v", service, count, len(services), pretty.Sprint(services))
 		}
 		return true, nil
 	}, func(err error) {
