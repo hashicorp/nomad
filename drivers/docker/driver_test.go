@@ -799,8 +799,8 @@ func TestDockerDriver_Labels(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// expect to see 1 additional standard labels
-	require.Equal(t, len(cfg.Labels)+1, len(container.Config.Labels))
+	// expect to see 4 additional standard labels (allocID, jobName, TaskGroupName and TaskName)
+	require.Equal(t, len(cfg.Labels)+4, len(container.Config.Labels))
 	for k, v := range cfg.Labels {
 		require.Equal(t, v, container.Config.Labels[k])
 	}
@@ -1066,7 +1066,10 @@ func TestDockerDriver_CreateContainerConfig_Labels(t *testing.T) {
 		// user provided labels
 		"user_label": "user_value",
 		// default labels
-		"com.hashicorp.nomad.alloc_id": task.AllocID,
+		"com.hashicorp.nomad.alloc_id":        task.AllocID,
+		"com.hashicorp.nomad.job_name":        task.JobName,
+		"com.hashicorp.nomad.task_group_name": task.TaskGroupName,
+		"com.hashicorp.nomad.task_name":       task.Name,
 	}
 
 	require.Equal(t, expectedLabels, c.Config.Labels)
