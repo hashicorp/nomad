@@ -352,11 +352,13 @@ func readFile(client *api.Client, allocID string, path string) (bytes.Buffer, er
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
 
-	_, err = client.Allocations().Exec(ctx,
+	exitCode, err := client.Allocations().Exec(ctx,
 		alloc, "task", false,
 		[]string{"cat", path},
 		os.Stdin, &stdout, &stderr,
 		make(chan api.TerminalSize), nil)
+	fmt.Println("### RECEIVED EXIT_CODE=", exitCode, " err=", err)
+
 	return stdout, err
 }
 
