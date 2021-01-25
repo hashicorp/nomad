@@ -254,6 +254,8 @@ func (a *Allocations) execFrames(ctx context.Context, alloc *Allocation, task st
 			// Decode the next frame
 			var frame ExecStreamingOutput
 			err := conn.ReadJSON(&frame)
+			fmt.Printf("### EXEC RECEIVED err=%v frame=%#+v\n", frame)
+
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 				close(frames)
 				return
