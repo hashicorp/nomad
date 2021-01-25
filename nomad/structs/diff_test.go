@@ -2630,6 +2630,7 @@ func TestTaskGroupDiff(t *testing.T) {
 											Port:    2001,
 										},
 									},
+									EnvoyDNSDiscoveryType:     "STRICT_DNS",
 									EnvoyGatewayNoDefaultBind: false,
 									Config: map[string]interface{}{
 										"foo": 1,
@@ -2645,6 +2646,15 @@ func TestTaskGroupDiff(t *testing.T) {
 										Services: []*ConsulIngressService{{
 											Name: "listener1",
 										}},
+									}},
+								},
+								Terminating: &ConsulTerminatingConfigEntry{
+									Services: []*ConsulLinkedService{{
+										Name:     "linked1",
+										CAFile:   "ca1.pem",
+										CertFile: "cert1.pem",
+										KeyFile:  "key1.pem",
+										SNI:      "linked1.consul",
 									}},
 								},
 							},
@@ -2705,6 +2715,7 @@ func TestTaskGroupDiff(t *testing.T) {
 											Port:    2002,
 										},
 									},
+									EnvoyDNSDiscoveryType:     "LOGICAL_DNS",
 									EnvoyGatewayNoDefaultBind: true,
 									Config: map[string]interface{}{
 										"foo": 2,
@@ -2721,6 +2732,15 @@ func TestTaskGroupDiff(t *testing.T) {
 											Name:  "listener2",
 											Hosts: []string{"127.0.0.1", "127.0.0.1:3002"},
 										}},
+									}},
+								},
+								Terminating: &ConsulTerminatingConfigEntry{
+									Services: []*ConsulLinkedService{{
+										Name:     "linked2",
+										CAFile:   "ca2.pem",
+										CertFile: "cert2.pem",
+										KeyFile:  "key2.pem",
+										SNI:      "linked2.consul",
 									}},
 								},
 							},
@@ -3033,6 +3053,12 @@ func TestTaskGroupDiff(t *testing.T) {
 													},
 													{
 														Type: DiffTypeEdited,
+														Name: "EnvoyDNSDiscoveryType",
+														Old:  "STRICT_DNS",
+														New:  "LOGICAL_DNS",
+													},
+													{
+														Type: DiffTypeEdited,
 														Name: "EnvoyGatewayBindTaggedAddresses",
 														Old:  "false",
 														New:  "true",
@@ -3168,6 +3194,84 @@ func TestTaskGroupDiff(t *testing.T) {
 																		New:  "",
 																	},
 																},
+															},
+														},
+													},
+												},
+											},
+											{
+												Type: DiffTypeEdited,
+												Name: "Terminating",
+												Objects: []*ObjectDiff{
+													{
+														Type: DiffTypeAdded,
+														Name: "Service",
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "CAFile",
+																Old:  "",
+																New:  "ca2.pem",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "CertFile",
+																Old:  "",
+																New:  "cert2.pem",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "KeyFile",
+																Old:  "",
+																New:  "key2.pem",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "Name",
+																Old:  "",
+																New:  "linked2",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "SNI",
+																Old:  "",
+																New:  "linked2.consul",
+															},
+														},
+													},
+													{
+														Type: DiffTypeDeleted,
+														Name: "Service",
+														Fields: []*FieldDiff{
+															{
+																Type: DiffTypeDeleted,
+																Name: "CAFile",
+																Old:  "ca1.pem",
+																New:  "",
+															},
+															{
+																Type: DiffTypeDeleted,
+																Name: "CertFile",
+																Old:  "cert1.pem",
+																New:  "",
+															},
+															{
+																Type: DiffTypeDeleted,
+																Name: "KeyFile",
+																Old:  "key1.pem",
+																New:  "",
+															},
+															{
+																Type: DiffTypeDeleted,
+																Name: "Name",
+																Old:  "linked1",
+																New:  "",
+															},
+															{
+																Type: DiffTypeDeleted,
+																Name: "SNI",
+																Old:  "linked1.consul",
+																New:  "",
 															},
 														},
 													},

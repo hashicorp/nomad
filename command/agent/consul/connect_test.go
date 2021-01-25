@@ -119,7 +119,7 @@ func TestConnect_connectProxy(t *testing.T) {
 	// If the input proxy is nil, we expect the output to be a proxy with its
 	// config set to default values.
 	t.Run("nil proxy", func(t *testing.T) {
-		proxy, err := connectProxy(nil, 2000, testConnectNetwork)
+		proxy, err := connectSidecarProxy(nil, 2000, testConnectNetwork)
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceConnectProxyConfig{
 			LocalServiceAddress: "",
@@ -134,7 +134,7 @@ func TestConnect_connectProxy(t *testing.T) {
 	})
 
 	t.Run("bad proxy", func(t *testing.T) {
-		_, err := connectProxy(&structs.ConsulProxy{
+		_, err := connectSidecarProxy(&structs.ConsulProxy{
 			LocalServiceAddress: "0.0.0.0",
 			LocalServicePort:    2000,
 			Upstreams:           nil,
@@ -149,7 +149,7 @@ func TestConnect_connectProxy(t *testing.T) {
 	})
 
 	t.Run("normal", func(t *testing.T) {
-		proxy, err := connectProxy(&structs.ConsulProxy{
+		proxy, err := connectSidecarProxy(&structs.ConsulProxy{
 			LocalServiceAddress: "0.0.0.0",
 			LocalServicePort:    2000,
 			Upstreams:           nil,
@@ -453,6 +453,7 @@ func TestConnect_newConnectGateway(t *testing.T) {
 						},
 					},
 					EnvoyGatewayNoDefaultBind: true,
+					EnvoyDNSDiscoveryType:     "STRICT_DNS",
 					Config: map[string]interface{}{
 						"foo": 1,
 					},
@@ -470,6 +471,7 @@ func TestConnect_newConnectGateway(t *testing.T) {
 					},
 				},
 				"envoy_gateway_no_default_bind": true,
+				"envoy_dns_discovery_type":      "STRICT_DNS",
 				"foo":                           1,
 			},
 		}, result)

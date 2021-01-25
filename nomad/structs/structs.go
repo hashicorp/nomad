@@ -4385,25 +4385,6 @@ func (j *Job) ConnectTasks() []TaskKind {
 	return kinds
 }
 
-// ConfigEntries accumulates the Consul Configuration Entries defined in task groups
-// of j.
-//
-// Currently Nomad only supports entries for connect ingress gateways.
-func (j *Job) ConfigEntries() map[string]*ConsulIngressConfigEntry {
-	igEntries := make(map[string]*ConsulIngressConfigEntry)
-	for _, tg := range j.TaskGroups {
-		for _, service := range tg.Services {
-			if service.Connect.IsGateway() {
-				if ig := service.Connect.Gateway.Ingress; ig != nil {
-					igEntries[service.Name] = ig
-				}
-				// imagine also accumulating other entry types in the future
-			}
-		}
-	}
-	return igEntries
-}
-
 // RequiredSignals returns a mapping of task groups to tasks to their required
 // set of signals
 func (j *Job) RequiredSignals() map[string]map[string][]string {
@@ -7129,9 +7110,15 @@ func (k TaskKind) IsConnectIngress() bool {
 	return k.hasPrefix(ConnectIngressPrefix)
 }
 
+func (k TaskKind) IsConnectTerminating() bool {
+	return k.hasPrefix(ConnectTerminatingPrefix)
+}
+
 func (k TaskKind) IsAnyConnectGateway() bool {
 	switch {
 	case k.IsConnectIngress():
+		return true
+	case k.IsConnectTerminating():
 		return true
 	default:
 		return false
@@ -7154,8 +7141,7 @@ const (
 	// ConnectTerminatingPrefix is the prefix used for fields referencing a Consul
 	// Connect Terminating Gateway Proxy.
 	//
-	// Not yet supported.
-	// ConnectTerminatingPrefix = "connect-terminating"
+	ConnectTerminatingPrefix = "connect-terminating"
 
 	// ConnectMeshPrefix is the prefix used for fields referencing a Consul Connect
 	// Mesh Gateway Proxy.

@@ -86,8 +86,8 @@ func TestJobEndpointConnect_groupConnectHook(t *testing.T) {
 	// Expected tasks
 	tgExp := job.TaskGroups[0].Copy()
 	tgExp.Tasks = []*structs.Task{
-		newConnectTask("backend"),
-		newConnectTask("admin"),
+		newConnectSidecarTask("backend"),
+		newConnectSidecarTask("admin"),
 	}
 	tgExp.Services[0].Name = "backend"
 	tgExp.Services[1].Name = "admin"
@@ -129,7 +129,7 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway(t *testing.T) {
 	expTG := job.TaskGroups[0].Copy()
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
-		newConnectGatewayTask("my-gateway", false),
+		newConnectGatewayTask(structs.ConnectIngressPrefix, "my-gateway", false),
 	}
 	expTG.Services[0].Name = "my-gateway"
 	expTG.Tasks[0].Canonicalize(job, expTG)
@@ -328,16 +328,27 @@ func TestJobEndpointConnect_groupConnectGatewayValidate(t *testing.T) {
 }
 
 func TestJobEndpointConnect_newConnectGatewayTask_host(t *testing.T) {
-	task := newConnectGatewayTask("service1", true)
-	require.Equal(t, "connect-ingress-service1", task.Name)
-	require.Equal(t, "connect-ingress:service1", string(task.Kind))
-	require.Equal(t, ">= 1.8.0", task.Constraints[0].RTarget)
-	require.Equal(t, "host", task.Config["network_mode"])
-	require.Nil(t, task.Lifecycle)
+	t.Run("ingress", func(t *testing.T) {
+		task := newConnectGatewayTask(structs.ConnectIngressPrefix, "foo", true)
+		require.Equal(t, "connect-ingress-foo", task.Name)
+		require.Equal(t, "connect-ingress:foo", string(task.Kind))
+		require.Equal(t, ">= 1.8.0", task.Constraints[0].RTarget)
+		require.Equal(t, "host", task.Config["network_mode"])
+		require.Nil(t, task.Lifecycle)
+	})
+
+	t.Run("terminating", func(t *testing.T) {
+		task := newConnectGatewayTask(structs.ConnectTerminatingPrefix, "bar", true)
+		require.Equal(t, "connect-terminating-bar", task.Name)
+		require.Equal(t, "connect-terminating:bar", string(task.Kind))
+		require.Equal(t, ">= 1.8.0", task.Constraints[0].RTarget)
+		require.Equal(t, "host", task.Config["network_mode"])
+		require.Nil(t, task.Lifecycle)
+	})
 }
 
 func TestJobEndpointConnect_newConnectGatewayTask_bridge(t *testing.T) {
-	task := newConnectGatewayTask("service1", false)
+	task := newConnectGatewayTask(structs.ConnectIngressPrefix, "service1", false)
 	require.NotContains(t, task.Config, "network_mode")
 }
 
@@ -353,15 +364,23 @@ func TestJobEndpointConnect_hasGatewayTaskForService(t *testing.T) {
 		require.False(t, result)
 	})
 
-	t.Run("has gateway task", func(t *testing.T) {
+	t.Run("has ingress task", func(t *testing.T) {
 		result := hasGatewayTaskForService(&structs.TaskGroup{
 			Name: "group",
 			Tasks: []*structs.Task{{
-				Name: "task1",
-				Kind: "",
-			}, {
 				Name: "ingress-gateway-my-service",
 				Kind: structs.NewTaskKind(structs.ConnectIngressPrefix, "my-service"),
+			}},
+		}, "my-service")
+		require.True(t, result)
+	})
+
+	t.Run("has terminating task", func(t *testing.T) {
+		result := hasGatewayTaskForService(&structs.TaskGroup{
+			Name: "group",
+			Tasks: []*structs.Task{{
+				Name: "terminating-gateway-my-service",
+				Kind: structs.NewTaskKind(structs.ConnectTerminatingPrefix, "my-service"),
 			}},
 		}, "my-service")
 		require.True(t, result)
@@ -411,17 +430,18 @@ func TestJobEndpointConnect_gatewayProxyIsDefault(t *testing.T) {
 
 func TestJobEndpointConnect_gatewayBindAddresses(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
-		result := gatewayBindAddresses(nil)
+
+		result := gatewayBindAddressesIngress(nil)
 		require.Empty(t, result)
 	})
 
 	t.Run("no listeners", func(t *testing.T) {
-		result := gatewayBindAddresses(&structs.ConsulIngressConfigEntry{Listeners: nil})
+		result := gatewayBindAddressesIngress(&structs.ConsulIngressConfigEntry{Listeners: nil})
 		require.Empty(t, result)
 	})
 
 	t.Run("simple", func(t *testing.T) {
-		result := gatewayBindAddresses(&structs.ConsulIngressConfigEntry{
+		result := gatewayBindAddressesIngress(&structs.ConsulIngressConfigEntry{
 			Listeners: []*structs.ConsulIngressListener{{
 				Port:     3000,
 				Protocol: "tcp",
@@ -439,7 +459,7 @@ func TestJobEndpointConnect_gatewayBindAddresses(t *testing.T) {
 	})
 
 	t.Run("complex", func(t *testing.T) {
-		result := gatewayBindAddresses(&structs.ConsulIngressConfigEntry{
+		result := gatewayBindAddressesIngress(&structs.ConsulIngressConfigEntry{
 			Listeners: []*structs.ConsulIngressListener{{
 				Port:     3000,
 				Protocol: "tcp",
@@ -503,7 +523,7 @@ func TestJobEndpointConnect_gatewayProxyForBridge(t *testing.T) {
 		}, result)
 	})
 
-	t.Run("fill in defaults", func(t *testing.T) {
+	t.Run("ingress set defaults", func(t *testing.T) {
 		result := gatewayProxyForBridge(&structs.ConsulGateway{
 			Proxy: &structs.ConsulGatewayProxy{
 				ConnectTimeout: helper.TimeToPtr(2 * time.Second),
@@ -532,7 +552,7 @@ func TestJobEndpointConnect_gatewayProxyForBridge(t *testing.T) {
 		}, result)
 	})
 
-	t.Run("leave as-is", func(t *testing.T) {
+	t.Run("ingress leave as-is", func(t *testing.T) {
 		result := gatewayProxyForBridge(&structs.ConsulGateway{
 			Proxy: &structs.ConsulGatewayProxy{
 				Config:                          map[string]interface{}{"foo": 1},
@@ -554,5 +574,39 @@ func TestJobEndpointConnect_gatewayProxyForBridge(t *testing.T) {
 			EnvoyGatewayBindTaggedAddresses: true,
 			EnvoyGatewayBindAddresses:       nil,
 		}, result)
+	})
+
+	t.Run("terminating set defaults", func(t *testing.T) {
+		result := gatewayProxyForBridge(&structs.ConsulGateway{
+			Proxy: &structs.ConsulGatewayProxy{
+				ConnectTimeout:        helper.TimeToPtr(2 * time.Second),
+				EnvoyDNSDiscoveryType: "STRICT_DNS",
+			},
+			Terminating: &structs.ConsulTerminatingConfigEntry{
+				Services: []*structs.ConsulLinkedService{{
+					Name:     "service1",
+					CAFile:   "/cafile.pem",
+					CertFile: "/certfile.pem",
+					KeyFile:  "/keyfile.pem",
+					SNI:      "",
+				}},
+			},
+		})
+		require.Equal(t, &structs.ConsulGatewayProxy{
+			ConnectTimeout:                  helper.TimeToPtr(2 * time.Second),
+			EnvoyGatewayNoDefaultBind:       true,
+			EnvoyGatewayBindTaggedAddresses: false,
+			EnvoyDNSDiscoveryType:           "STRICT_DNS",
+			EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
+				"default": {
+					Address: "0.0.0.0",
+					Port:    -1,
+				},
+			},
+		}, result)
+	})
+
+	t.Run("terminating leave as-is", func(t *testing.T) {
+		//
 	})
 }

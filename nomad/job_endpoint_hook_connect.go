@@ -18,77 +18,75 @@ const (
 	defaultConnectTimeout = 5 * time.Second
 )
 
-var (
-	// connectSidecarResources returns the set of resources used by default for
-	// the Consul Connect sidecar task
-	connectSidecarResources = func() *structs.Resources {
-		return &structs.Resources{
-			CPU:      250,
-			MemoryMB: 128,
-		}
+// connectSidecarResources returns the set of resources used by default for
+// the Consul Connect sidecar task
+func connectSidecarResources() *structs.Resources {
+	return &structs.Resources{
+		CPU:      250,
+		MemoryMB: 128,
+	}
+}
+
+// connectSidecarDriverConfig is the driver configuration used by the injected
+// connect proxy sidecar task.
+func connectSidecarDriverConfig() map[string]interface{} {
+	return map[string]interface{}{
+		"image": envoy.SidecarConfigVar,
+		"args": []interface{}{
+			"-c", structs.EnvoyBootstrapPath,
+			"-l", "${meta.connect.log_level}",
+			"--concurrency", "${meta.connect.proxy_concurrency}",
+			"--disable-hot-restart",
+		},
+	}
+}
+
+// connectGatewayDriverConfig is the Docker driver configuration used by the
+// injected connect proxy sidecar task.
+//
+// A gateway may run in a group with bridge or host networking, and if host
+// networking is being used the network_mode driver configuration is set here.
+func connectGatewayDriverConfig(hostNetwork bool) map[string]interface{} {
+	m := map[string]interface{}{
+		"image": envoy.GatewayConfigVar,
+		"args": []interface{}{
+			"-c", structs.EnvoyBootstrapPath,
+			"-l", "${meta.connect.log_level}",
+			"--concurrency", "${meta.connect.proxy_concurrency}",
+			"--disable-hot-restart",
+		},
 	}
 
-	// connectSidecarDriverConfig is the driver configuration used by the injected
-	// connect proxy sidecar task.
-	connectSidecarDriverConfig = func() map[string]interface{} {
-		return map[string]interface{}{
-			"image": envoy.SidecarConfigVar,
-			"args": []interface{}{
-				"-c", structs.EnvoyBootstrapPath,
-				"-l", "${meta.connect.log_level}",
-				"--concurrency", "${meta.connect.proxy_concurrency}",
-				"--disable-hot-restart",
-			},
-		}
+	if hostNetwork {
+		m["network_mode"] = "host"
 	}
 
-	// connectGatewayDriverConfig is the Docker driver configuration used by the
-	// injected connect proxy sidecar task.
-	//
-	// A gateway may run in a group with bridge or host networking, and if host
-	// networking is being used the network_mode driver configuration is set here.
-	connectGatewayDriverConfig = func(hostNetwork bool) map[string]interface{} {
-		m := map[string]interface{}{
-			"image": envoy.GatewayConfigVar,
-			"args": []interface{}{
-				"-c", structs.EnvoyBootstrapPath,
-				"-l", "${meta.connect.log_level}",
-				"--concurrency", "${meta.connect.proxy_concurrency}",
-				"--disable-hot-restart",
-			},
-		}
+	return m
+}
 
-		if hostNetwork {
-			m["network_mode"] = "host"
-		}
-
-		return m
+// connectSidecarVersionConstraint is used when building the sidecar task to ensure
+// the proper Consul version is used that supports the necessary Connect
+// features. This includes bootstrapping envoy with a unix socket for Consul's
+// gRPC xDS API.
+func connectSidecarVersionConstraint() *structs.Constraint {
+	return &structs.Constraint{
+		LTarget: "${attr.consul.version}",
+		RTarget: ">= 1.6.0-beta1",
+		Operand: structs.ConstraintSemver,
 	}
+}
 
-	// connectMinimalVersionConstraint is used when building the sidecar task to ensure
-	// the proper Consul version is used that supports the necessary Connect
-	// features. This includes bootstrapping envoy with a unix socket for Consul's
-	// gRPC xDS API.
-	connectMinimalVersionConstraint = func() *structs.Constraint {
-		return &structs.Constraint{
-			LTarget: "${attr.consul.version}",
-			RTarget: ">= 1.6.0-beta1",
-			Operand: structs.ConstraintSemver,
-		}
+// connectGatewayVersionConstraint is used when building a connect gateway
+// task to ensure proper Consul version is used that supports Connect Gateway
+// features. This includes making use of Consul Configuration Entries of type
+// {ingress,terminating,mesh}-gateway.
+func connectGatewayVersionConstraint() *structs.Constraint {
+	return &structs.Constraint{
+		LTarget: "${attr.consul.version}",
+		RTarget: ">= 1.8.0",
+		Operand: structs.ConstraintSemver,
 	}
-
-	// connectGatewayVersionConstraint is used when building a connect gateway
-	// task to ensure proper Consul version is used that supports Connect Gateway
-	// features. This includes making use of Consul Configuration Entries of type
-	// {ingress,terminating,mesh}-gateway.
-	connectGatewayVersionConstraint = func() *structs.Constraint {
-		return &structs.Constraint{
-			LTarget: "${attr.consul.version}",
-			RTarget: ">= 1.8.0",
-			Operand: structs.ConstraintSemver,
-		}
-	}
-)
+}
 
 // jobConnectHook implements a job Mutating and Validating admission controller
 type jobConnectHook struct{}
@@ -97,7 +95,7 @@ func (jobConnectHook) Name() string {
 	return "connect"
 }
 
-func (jobConnectHook) Mutate(job *structs.Job) (_ *structs.Job, warnings []error, err error) {
+func (jobConnectHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
 	for _, g := range job.TaskGroups {
 		// TG isn't validated yet, but validation
 		// may depend on mutation results.
@@ -116,13 +114,13 @@ func (jobConnectHook) Mutate(job *structs.Job) (_ *structs.Job, warnings []error
 	return job, nil, nil
 }
 
-func (jobConnectHook) Validate(job *structs.Job) (warnings []error, err error) {
+func (jobConnectHook) Validate(job *structs.Job) ([]error, error) {
+	var warnings []error
+
 	for _, g := range job.TaskGroups {
-		w, err := groupConnectValidate(g)
-		if err != nil {
+		if w, err := groupConnectValidate(g); err != nil {
 			return nil, err
-		}
-		if w != nil {
+		} else if w != nil {
 			warnings = append(warnings, w...)
 		}
 	}
@@ -149,15 +147,21 @@ func hasGatewayTaskForService(tg *structs.TaskGroup, svc string) bool {
 	for _, t := range tg.Tasks {
 		switch {
 		case isIngressGatewayForService(t, svc):
-			// also terminating and mesh in the future
+			return true
+		case isTerminatingGatewayForService(t, svc):
 			return true
 		}
+		// mesh later
 	}
 	return false
 }
 
 func isIngressGatewayForService(t *structs.Task, svc string) bool {
 	return t.Kind == structs.NewTaskKind(structs.ConnectIngressPrefix, svc)
+}
+
+func isTerminatingGatewayForService(t *structs.Task, svc string) bool {
+	return t.Kind == structs.NewTaskKind(structs.ConnectTerminatingPrefix, svc)
 }
 
 // getNamedTaskForNativeService retrieves the Task with the name specified in the
@@ -177,6 +181,24 @@ func getNamedTaskForNativeService(tg *structs.TaskGroup, serviceName, taskName s
 		}
 	}
 	return nil, errors.Errorf("task %s named by Consul Connect Native service %s->%s does not exist", taskName, tg.Name, serviceName)
+}
+
+func injectPort(group *structs.TaskGroup, label string) {
+	// check that port hasn't already been defined before adding it to tg
+	for _, p := range group.Networks[0].DynamicPorts {
+		if p.Label == label {
+			return
+		}
+	}
+
+	// inject a port of label that maps inside the bridge namespace
+	group.Networks[0].DynamicPorts = append(group.Networks[0].DynamicPorts, structs.Port{
+		Label: label,
+		// -1 is a sentinel value to instruct the
+		// scheduler to map the host's dynamic port to
+		// the same port in the netns.
+		To: -1,
+	})
 }
 
 // probably need to hack this up to look for checks on the service, and if they
@@ -205,7 +227,7 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 
 			// If the task doesn't already exist, create a new one and add it to the job
 			if task == nil {
-				task = newConnectTask(service.Name)
+				task = newConnectSidecarTask(service.Name)
 
 				// If there happens to be a task defined with the same name
 				// append an UUID fragment to the task name
@@ -225,24 +247,8 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 			// Canonicalize task since this mutator runs after job canonicalization
 			task.Canonicalize(job, g)
 
-			makePort := func(label string) {
-				// check that port hasn't already been defined before adding it to tg
-				for _, p := range g.Networks[0].DynamicPorts {
-					if p.Label == label {
-						return
-					}
-				}
-				g.Networks[0].DynamicPorts = append(g.Networks[0].DynamicPorts, structs.Port{
-					Label: label,
-					// -1 is a sentinel value to instruct the
-					// scheduler to map the host's dynamic port to
-					// the same port in the netns.
-					To: -1,
-				})
-			}
-
 			// create a port for the sidecar task's proxy port
-			makePort(fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name))
+			injectPort(g, fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name))
 
 		case service.Connect.IsNative():
 			// find the task backing this connect native service and set the kind
@@ -259,18 +265,31 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 			// a name of an injected gateway task
 			service.Name = env.ReplaceEnv(service.Name)
 
+			// detect whether the group is in host networking mode, which will
+			// require tweaking the default gateway task config
 			netHost := g.Networks[0].Mode == "host"
-			if !netHost && service.Connect.Gateway.Ingress != nil {
+
+			if !netHost && service.Connect.IsGateway() {
 				// Modify the gateway proxy service configuration to automatically
 				// do the correct envoy bind address plumbing when inside a net
 				// namespace, but only if things are not explicitly configured.
 				service.Connect.Gateway.Proxy = gatewayProxyForBridge(service.Connect.Gateway)
 			}
 
+			// Inject a port whether bridge or host network (if not already set).
+			// This port is accessed by the magic of Connect plumbing so it seems
+			// reasonable to keep the magic alive here.
+			if service.Connect.IsTerminating() && service.PortLabel == "" {
+				// Inject a dynamic port for the terminating gateway.
+				portLabel := fmt.Sprintf("%s-%s", structs.ConnectTerminatingPrefix, service.Name)
+				service.PortLabel = portLabel
+				injectPort(g, portLabel)
+			}
+
 			// inject the gateway task only if it does not yet already exist
 			if !hasGatewayTaskForService(g, service.Name) {
-				task := newConnectGatewayTask(service.Name, netHost)
-
+				prefix := service.Connect.Gateway.Prefix()
+				task := newConnectGatewayTask(prefix, service.Name, netHost)
 				g.Tasks = append(g.Tasks, task)
 
 				// the connect.sidecar_task stanza can also be used to configure
@@ -327,6 +346,7 @@ func gatewayProxyForBridge(gateway *structs.ConsulGateway) *structs.ConsulGatewa
 	proxy := new(structs.ConsulGatewayProxy)
 	if gateway.Proxy != nil {
 		proxy.ConnectTimeout = gateway.Proxy.ConnectTimeout
+		proxy.EnvoyDNSDiscoveryType = gateway.Proxy.EnvoyDNSDiscoveryType
 		proxy.Config = gateway.Proxy.Config
 	}
 
@@ -335,15 +355,28 @@ func gatewayProxyForBridge(gateway *structs.ConsulGateway) *structs.ConsulGatewa
 		proxy.ConnectTimeout = helper.TimeToPtr(defaultConnectTimeout)
 	}
 
-	// magically set the fields where Nomad knows what to do
-	proxy.EnvoyGatewayNoDefaultBind = true
-	proxy.EnvoyGatewayBindTaggedAddresses = false
-	proxy.EnvoyGatewayBindAddresses = gatewayBindAddresses(gateway.Ingress)
+	// magically configure bind address(es) for bridge networking, per gateway type
+	// non-default configuration is gated above
+	switch {
+	case gateway.Ingress != nil:
+		proxy.EnvoyGatewayNoDefaultBind = true
+		proxy.EnvoyGatewayBindTaggedAddresses = false
+		proxy.EnvoyGatewayBindAddresses = gatewayBindAddressesIngress(gateway.Ingress)
+	case gateway.Terminating != nil:
+		proxy.EnvoyGatewayNoDefaultBind = true
+		proxy.EnvoyGatewayBindTaggedAddresses = false
+		proxy.EnvoyGatewayBindAddresses = map[string]*structs.ConsulGatewayBindAddress{
+			"default": {
+				Address: "0.0.0.0",
+				Port:    -1, // filled in later with dynamic port
+			}}
+	}
+	// later: mesh
 
 	return proxy
 }
 
-func gatewayBindAddresses(ingress *structs.ConsulIngressConfigEntry) map[string]*structs.ConsulGatewayBindAddress {
+func gatewayBindAddressesIngress(ingress *structs.ConsulIngressConfigEntry) map[string]*structs.ConsulGatewayBindAddress {
 	if ingress == nil || len(ingress.Listeners) == 0 {
 		return make(map[string]*structs.ConsulGatewayBindAddress)
 	}
@@ -361,11 +394,11 @@ func gatewayBindAddresses(ingress *structs.ConsulIngressConfigEntry) map[string]
 	return addresses
 }
 
-func newConnectGatewayTask(serviceName string, netHost bool) *structs.Task {
+func newConnectGatewayTask(prefix, service string, netHost bool) *structs.Task {
 	return &structs.Task{
 		// Name is used in container name so must start with '[A-Za-z0-9]'
-		Name:          fmt.Sprintf("%s-%s", structs.ConnectIngressPrefix, serviceName),
-		Kind:          structs.NewTaskKind(structs.ConnectIngressPrefix, serviceName),
+		Name:          fmt.Sprintf("%s-%s", prefix, service),
+		Kind:          structs.NewTaskKind(prefix, service),
 		Driver:        "docker",
 		Config:        connectGatewayDriverConfig(netHost),
 		ShutdownDelay: 5 * time.Second,
@@ -380,11 +413,11 @@ func newConnectGatewayTask(serviceName string, netHost bool) *structs.Task {
 	}
 }
 
-func newConnectTask(serviceName string) *structs.Task {
+func newConnectSidecarTask(service string) *structs.Task {
 	return &structs.Task{
 		// Name is used in container name so must start with '[A-Za-z0-9]'
-		Name:          fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, serviceName),
-		Kind:          structs.NewTaskKind(structs.ConnectProxyPrefix, serviceName),
+		Name:          fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service),
+		Kind:          structs.NewTaskKind(structs.ConnectProxyPrefix, service),
 		Driver:        "docker",
 		Config:        connectSidecarDriverConfig(),
 		ShutdownDelay: 5 * time.Second,
@@ -398,7 +431,7 @@ func newConnectTask(serviceName string) *structs.Task {
 			Sidecar: true,
 		},
 		Constraints: structs.Constraints{
-			connectMinimalVersionConstraint(),
+			connectSidecarVersionConstraint(),
 		},
 	}
 }

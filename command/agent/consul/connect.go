@@ -26,6 +26,7 @@ func newConnect(serviceName string, nc *structs.ConsulConnect, networks structs.
 		return &api.AgentServiceConnect{Native: true}, nil
 
 	case nc.HasSidecar():
+		// must register the sidecar for this service
 		sidecarReg, err := connectSidecarRegistration(serviceName, nc.SidecarService, networks)
 		if err != nil {
 			return nil, err
@@ -33,6 +34,7 @@ func newConnect(serviceName string, nc *structs.ConsulConnect, networks structs.
 		return &api.AgentServiceConnect{SidecarService: sidecarReg}, nil
 
 	default:
+		// a non-nil but empty connect block makes no sense
 		return nil, fmt.Errorf("Connect configuration empty for service %s", serviceName)
 	}
 }
@@ -64,6 +66,10 @@ func newConnectGateway(serviceName string, connect *structs.ConsulConnect) *api.
 			envoyConfig["envoy_gateway_bind_tagged_addresses"] = true
 		}
 
+		if proxy.EnvoyDNSDiscoveryType != "" {
+			envoyConfig["envoy_dns_discovery_type"] = proxy.EnvoyDNSDiscoveryType
+		}
+
 		if proxy.ConnectTimeout != nil {
 			envoyConfig["connect_timeout_ms"] = proxy.ConnectTimeout.Milliseconds()
 		}
@@ -89,7 +95,7 @@ func connectSidecarRegistration(serviceName string, css *structs.ConsulSidecarSe
 		return nil, err
 	}
 
-	proxy, err := connectProxy(css.Proxy, cPort.To, networks)
+	proxy, err := connectSidecarProxy(css.Proxy, cPort.To, networks)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +108,7 @@ func connectSidecarRegistration(serviceName string, css *structs.ConsulSidecarSe
 	}, nil
 }
 
-func connectProxy(proxy *structs.ConsulProxy, cPort int, networks structs.Networks) (*api.AgentServiceConnectProxyConfig, error) {
+func connectSidecarProxy(proxy *structs.ConsulProxy, cPort int, networks structs.Networks) (*api.AgentServiceConnectProxyConfig, error) {
 	if proxy == nil {
 		proxy = new(structs.ConsulProxy)
 	}

@@ -20,36 +20,54 @@ var _ ConsulACLsAPI = (*consulACLsAPI)(nil)
 var _ ConsulACLsAPI = (*mockConsulACLsAPI)(nil)
 var _ ConsulConfigsAPI = (*consulConfigsAPI)(nil)
 
-func TestConsulConfigsAPI_SetIngressGatewayConfigEntry(t *testing.T) {
+func TestConsulConfigsAPI_SetCE(t *testing.T) {
 	t.Parallel()
 
-	try := func(t *testing.T, expErr error) {
+	try := func(t *testing.T, expect error, f func(ConsulConfigsAPI) error) {
 		logger := testlog.HCLogger(t)
-		configsAPI := consul.NewMockConfigsAPI(logger) // agent
-		configsAPI.SetError(expErr)
+		configsAPI := consul.NewMockConfigsAPI(logger)
+		configsAPI.SetError(expect)
 
 		c := NewConsulConfigsAPI(configsAPI, logger)
+		err := f(c) // set the config entry
 
-		ctx := context.Background()
-		err := c.SetIngressGatewayConfigEntry(ctx, "service1", &structs.ConsulIngressConfigEntry{
-			TLS:       nil,
-			Listeners: nil,
-		})
-
-		if expErr != nil {
-			require.Equal(t, expErr, err)
-		} else {
+		switch expect {
+		case nil:
 			require.NoError(t, err)
+		default:
+			require.Equal(t, expect, err)
 		}
 	}
 
-	t.Run("set ingress CE success", func(t *testing.T) {
-		try(t, nil)
+	ctx := context.Background()
+
+	ingressCE := new(structs.ConsulIngressConfigEntry)
+	t.Run("ingress ok", func(t *testing.T) {
+		try(t, nil, func(c ConsulConfigsAPI) error {
+			return c.SetIngressCE(ctx, "ig", ingressCE)
+		})
 	})
 
-	t.Run("set ingress CE failure", func(t *testing.T) {
-		try(t, errors.New("consul broke"))
+	t.Run("ingress fail", func(t *testing.T) {
+		try(t, errors.New("consul broke"), func(c ConsulConfigsAPI) error {
+			return c.SetIngressCE(ctx, "ig", ingressCE)
+		})
 	})
+
+	terminatingCE := new(structs.ConsulTerminatingConfigEntry)
+	t.Run("terminating ok", func(t *testing.T) {
+		try(t, nil, func(c ConsulConfigsAPI) error {
+			return c.SetTerminatingCE(ctx, "tg", terminatingCE)
+		})
+	})
+
+	t.Run("terminating fail", func(t *testing.T) {
+		try(t, errors.New("consul broke"), func(c ConsulConfigsAPI) error {
+			return c.SetTerminatingCE(ctx, "tg", terminatingCE)
+		})
+	})
+
+	// also mesh
 }
 
 type revokeRequest struct {

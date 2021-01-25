@@ -289,11 +289,18 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Every job update will re-write the Configuration Entry into Consul.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	for service, entry := range args.Job.ConfigEntries() {
-		if err := j.srv.consulConfigEntries.SetIngressGatewayConfigEntry(ctx, service, entry); err != nil {
+	entries := args.Job.ConfigEntries()
+	for service, entry := range entries.Ingress {
+		if err := j.srv.consulConfigEntries.SetIngressCE(ctx, service, entry); err != nil {
 			return err
 		}
 	}
+	for service, entry := range entries.Terminating {
+		if err := j.srv.consulConfigEntries.SetTerminatingCE(ctx, service, entry); err != nil {
+			return err
+		}
+	}
+	// also mesh
 
 	// Enforce Sentinel policies. Pass a copy of the job to prevent
 	// sentinel from altering it.

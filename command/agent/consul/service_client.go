@@ -891,10 +891,21 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	// This enables the consul UI to show that Nomad registered this service
 	meta["external-source"] = "nomad"
 
-	// Explicitly set the service kind in case this service represents a Connect gateway.
+	// Explicitly set the Consul service Kind in case this service represents
+	// one of the Connect gateway types.
 	kind := api.ServiceKindTypical
-	if service.Connect.IsGateway() {
+	switch {
+	case service.Connect.IsIngress():
 		kind = api.ServiceKindIngressGateway
+	case service.Connect.IsTerminating():
+		kind = api.ServiceKindTerminatingGateway
+		// set the default port if bridge / default listener set
+		if defaultBind, exists := service.Connect.Gateway.Proxy.EnvoyGatewayBindAddresses["default"]; exists {
+			portLabel := fmt.Sprintf("%s-%s", structs.ConnectTerminatingPrefix, service.Name)
+			if dynPort, ok := workload.Ports.Get(portLabel); ok {
+				defaultBind.Port = dynPort.Value
+			}
+		}
 	}
 
 	// Build the Consul Service registration request
