@@ -51,7 +51,7 @@ export default class TopoVizNode extends Component {
   }
 
   get count() {
-    return this.args.node.allocations.length;
+    return this.allocations.length;
   }
 
   get allocations() {
