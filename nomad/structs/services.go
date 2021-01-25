@@ -1403,7 +1403,7 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 }
 
 func (p *ConsulGatewayProxy) copyBindAddresses() map[string]*ConsulGatewayBindAddress {
-	if len(p.EnvoyGatewayBindAddresses) == 0 {
+	if p.EnvoyGatewayBindAddresses == nil {
 		return nil
 	}
 
