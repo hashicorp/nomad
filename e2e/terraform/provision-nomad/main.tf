@@ -1,19 +1,13 @@
 locals {
   provision_script = var.platform == "windows_amd64" ? "C:/opt/provision.ps1" : "/opt/provision.sh"
 
-  custom_path = dirname("${path.root}/config/custom/")
+  config_path = dirname("${path.root}/config/")
 
-  custom_config_files = compact(setunion(
-    fileset(local.custom_path, "nomad/*.hcl"),
-    fileset(local.custom_path, "nomad/${var.role}/*.hcl"),
-    fileset(local.custom_path, "nomad/${var.role}/indexed/*${var.index}.hcl"),
-    fileset(local.custom_path, "consul/*.json"),
-    fileset(local.custom_path, "consul/${var.role}/*.json"),
-    fileset(local.custom_path, "consul${var.role}indexed/*${var.index}*.json"),
-    fileset(local.custom_path, "vault/*.hcl"),
-    fileset(local.custom_path, "vault${var.role}*.hcl"),
-    fileset(local.custom_path, "vault${var.role}indexed/*${var.index}.hcl"),
+  config_files = compact(setunion(
+    fileset(local.config_path, "**"),
   ))
+
+  update_config_command = var.platform == "windows_amd64" ? "if (test-path /opt/config) { Remove-Item -Path /opt/config -Force -Recurse }; cp -r /tmp/config /opt/config" : "sudo rm -rf /opt/config; sudo mv /tmp/config /opt/config"
 
   # abstract-away platform-specific parameter expectations
   _arg = var.platform == "windows_amd64" ? "-" : "--"
@@ -22,7 +16,7 @@ locals {
 resource "null_resource" "provision_nomad" {
 
   depends_on = [
-    null_resource.upload_custom_configs,
+    null_resource.upload_configs,
     null_resource.upload_nomad_binary
   ]
 
@@ -85,7 +79,7 @@ data "template_file" "arg_index" {
 resource "null_resource" "upload_nomad_binary" {
 
   count      = var.nomad_local_binary != "" ? 1 : 0
-  depends_on = [null_resource.upload_custom_configs]
+  depends_on = [null_resource.upload_configs]
   triggers = {
     nomad_binary_sha = filemd5(var.nomad_local_binary)
   }
@@ -105,11 +99,10 @@ resource "null_resource" "upload_nomad_binary" {
   }
 }
 
-resource "null_resource" "upload_custom_configs" {
+resource "null_resource" "upload_configs" {
 
-  count = var.profile == "custom" ? 1 : 0
   triggers = {
-    hashes = join(",", [for file in local.custom_config_files : filemd5("${local.custom_path}/${file}")])
+    hashes = join(",", [for file in local.config_files : filemd5("${local.config_path}/${file}")])
   }
 
   connection {
@@ -122,7 +115,12 @@ resource "null_resource" "upload_custom_configs" {
   }
 
   provisioner "file" {
-    source      = local.custom_path
+    source      = local.config_path
     destination = "/tmp/"
   }
+
+  provisioner "local-exec" {
+    command = "until ssh -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ${var.connection.private_key} -p ${var.connection.port} ${var.connection.user}@${var.connection.host} '${local.update_config_command}'; do sleep 5; done"
+  }
+
 }
