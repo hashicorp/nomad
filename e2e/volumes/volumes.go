@@ -71,7 +71,7 @@ func (tc *VolumesTest) TestVolumeMounts(f *framework.F) {
 
 	out, err := e2e.AllocExec(allocID, "docker_task", cmdToExec, ns, nil)
 	f.NoError(err, "could not exec into task: docker_task")
-	f.Equal(out, allocID+"\n", "alloc data is missing from docker_task")
+	f.Equal(allocID+"\n", out, "alloc data is missing from docker_task")
 
 	out, err = e2e.AllocExec(allocID, "exec_task", cmdToExec, ns, nil)
 	f.NoError(err, "could not exec into task: exec_task")
