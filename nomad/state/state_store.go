@@ -4428,7 +4428,6 @@ func (s *StateStore) setJobStatus(index uint64, txn *txn,
 
 	// Capture the current status so we can check if there is a change
 	oldStatus := job.Status
-	firstPass := index == job.CreateIndex
 	newStatus := forceStatus
 
 	// If forceStatus is not set, compute the jobs status.
@@ -4440,12 +4439,8 @@ func (s *StateStore) setJobStatus(index uint64, txn *txn,
 		}
 	}
 
-	// Fast-path if the job has changed.
-	// Still update the job summary if necessary.
+	// Fast-path if the job has not changed.
 	if oldStatus == newStatus {
-		if err := s.setJobSummary(txn, job, index, oldStatus, newStatus, firstPass); err != nil {
-			return err
-		}
 		return nil
 	}
 
@@ -4463,13 +4458,13 @@ func (s *StateStore) setJobStatus(index uint64, txn *txn,
 	}
 
 	// Update the children summary
-	if err := s.setJobSummary(txn, updated, index, oldStatus, newStatus, firstPass); err != nil {
+	if err := s.setJobSummary(txn, updated, index, oldStatus, newStatus); err != nil {
 		return fmt.Errorf("job summary update failed %w", err)
 	}
 	return nil
 }
 
-func (s *StateStore) setJobSummary(txn *txn, updated *structs.Job, index uint64, oldStatus, newStatus string, firstPass bool) error {
+func (s *StateStore) setJobSummary(txn *txn, updated *structs.Job, index uint64, oldStatus, newStatus string) error {
 	if updated.ParentID == "" {
 		return nil
 	}
@@ -4493,7 +4488,7 @@ func (s *StateStore) setJobSummary(txn *txn, updated *structs.Job, index uint64,
 		children := pSummary.Children
 
 		// Decrement old status
-		if !firstPass {
+		if oldStatus != "" {
 			switch oldStatus {
 			case structs.JobStatusPending:
 				children.Pending--
