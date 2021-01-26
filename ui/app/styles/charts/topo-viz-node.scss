@@ -55,7 +55,7 @@
 
     .label {
       text-anchor: middle;
-      alignment-baseline: central;
+      dominant-baseline: central;
       font-weight: $weight-normal;
       fill: $grey;
       pointer-events: none;
@@ -68,7 +68,7 @@
 
     text {
       text-anchor: middle;
-      alignment-baseline: central;
+      dominant-baseline: central;
     }
   }
 
