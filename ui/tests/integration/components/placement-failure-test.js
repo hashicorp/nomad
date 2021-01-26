@@ -1,10 +1,11 @@
 import { find, findAll, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
-import { setupRenderingTest } from 'ember-qunit';
+import { setupRenderingTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 import { assign } from '@ember/polyfills';
 import hbs from 'htmlbars-inline-precompile';
 import cleanWhitespace from '../../utils/clean-whitespace';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 module('Integration | Component | placement failures', function(hooks) {
   setupRenderingTest(hooks);
@@ -81,6 +82,7 @@ module('Integration | Component | placement failures', function(hooks) {
     assert.equal(findAll('[data-test-placement-failure-scores]').length, 1, 'Scores message shown');
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('should render correctly when a node is not evaluated', async function(assert) {
@@ -106,6 +108,7 @@ module('Integration | Component | placement failures', function(hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   function createFixture(obj = {}, name = 'Placement Failure') {

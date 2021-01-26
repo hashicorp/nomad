@@ -1,7 +1,7 @@
 /* eslint-disable ember-a11y-testing/a11y-audit-called */ // TODO
 import { module, test } from 'qunit';
 import { currentURL, triggerEvent, visit } from '@ember/test-helpers';
-import { setupApplicationTest } from 'ember-qunit';
+import { setupApplicationTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Layout from 'nomad-ui/tests/pages/layout';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';

@@ -1,5 +1,5 @@
 import ExecCommandEditorXtermAdapter from 'nomad-ui/utils/classes/exec-command-editor-xterm-adapter';
-import { setupRenderingTest } from 'ember-qunit';
+import { setupRenderingTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 import { module, test } from 'qunit';
 import { render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';

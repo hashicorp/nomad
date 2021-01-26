@@ -1,9 +1,10 @@
 import { currentURL } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
-import { setupApplicationTest } from 'ember-qunit';
+import { setupApplicationTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import JobRun from 'nomad-ui/tests/pages/jobs/run';
 
@@ -58,6 +59,7 @@ module('Acceptance | job run', function(hooks) {
   test('it passes an accessibility audit', async function(assert) {
     await JobRun.visit();
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('visiting /jobs/run', async function(assert) {

@@ -1,8 +1,9 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
-import { setupApplicationTest } from 'ember-qunit';
+import { setupApplicationTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import { selectChoose } from 'ember-power-select/test-support';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
@@ -51,6 +52,7 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
   test('it passes an accessibility audit', async function(assert) {
     await JobsList.visit();
     await a11yAudit(assert);
+    await percySnapshot(assert);
   });
 
   test('the namespace switcher lists all namespaces', async function(assert) {

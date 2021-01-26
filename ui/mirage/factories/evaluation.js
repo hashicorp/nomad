@@ -17,7 +17,6 @@ const EVAL_TRIGGERED_BY = [
   'failed-follow-up',
   'max-plan-attempts',
 ];
-const REF_TIME = new Date();
 
 const generateCountMap = (keysCount, list) => () => {
   const sample = Array(keysCount)
@@ -55,7 +54,7 @@ export default Factory.extend({
   failedTGAllocs: null,
 
   modifyIndex: () => faker.random.number({ min: 10, max: 2000 }),
-  modifyTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
+  modifyTime: () => faker.date.past(2 / 365, new Date()) * 1000000,
 
   createIndex: () => faker.random.number({ min: 10, max: 2000 }),
   createTime() {

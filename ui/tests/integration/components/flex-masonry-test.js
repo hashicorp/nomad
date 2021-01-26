@@ -1,9 +1,10 @@
 import { htmlSafe } from '@ember/template';
 import { click, find, findAll, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
-import { setupRenderingTest } from 'ember-qunit';
+import { setupRenderingTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 
 // Used to prevent XSS warnings in console
 const h = height => htmlSafe(`height:${height}px`);
@@ -29,6 +30,7 @@ module('Integration | Component | FlexMasonry', function(hooks) {
     assert.equal(div.children.length, 0);
 
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('each item in @items gets wrapped in a flex-masonry-item wrapper', async function(assert) {

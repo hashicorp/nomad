@@ -1,10 +1,8 @@
 import { Factory, trait } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 
-const REF_TIME = new Date();
-
 export default Factory.extend({
-  time: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
+  time: () => faker.date.past(2 / 365, new Date()) * 1000000,
   count: () => faker.random.number(10),
   previousCount: () => faker.random.number(10),
   error: () => faker.random.number(10) > 8,

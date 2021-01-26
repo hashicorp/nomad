@@ -1,9 +1,10 @@
 import { run } from '@ember/runloop';
 import { find, settled, triggerKeyEvent } from '@ember/test-helpers';
 import { module, test } from 'qunit';
-import { setupRenderingTest } from 'ember-qunit';
+import { setupRenderingTest } from 'nomad-ui/tests/helpers/setup-wrappers';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import percySnapshot from '@percy/ember';
 import Pretender from 'pretender';
 import { logEncode } from '../../../mirage/data/logs';
 import fetch from 'nomad-ui/utils/fetch';
@@ -66,6 +67,7 @@ module('Integration | Component | streaming file', function(hooks) {
     );
     assert.equal(find('[data-test-output]').textContent, 'Hello World');
     await componentA11yAudit(this.element, assert);
+    await percySnapshot(assert);
   });
 
   test('when mode is `tail`, the logger signals tail', async function(assert) {

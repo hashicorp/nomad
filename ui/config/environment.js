@@ -6,6 +6,12 @@ if (process.env.USE_MIRAGE) {
   USE_MIRAGE = process.env.USE_MIRAGE == 'true';
 }
 
+let USE_PERCY = false;
+
+if (process.env.USE_PERCY) {
+  USE_PERCY = process.env.USE_PERCY == 'true';
+}
+
 module.exports = function(environment) {
   var ENV = {
     modulePrefix: 'nomad-ui',
@@ -31,6 +37,10 @@ module.exports = function(environment) {
       mirageWithRegions: true,
       showStorybookLink: process.env.STORYBOOK_LINK === 'true',
     },
+  };
+
+  ENV.percy = {
+    enabled: USE_PERCY,
   };
 
   if (environment === 'development') {

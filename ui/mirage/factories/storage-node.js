@@ -1,8 +1,6 @@
 import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { STORAGE_PROVIDERS } from '../common';
-const REF_TIME = new Date();
-
 export default Factory.extend({
   provider: faker.helpers.randomize(STORAGE_PROVIDERS),
   providerVersion: '1.0.1',
@@ -12,7 +10,7 @@ export default Factory.extend({
     this.healthy ? 'healthy' : 'unhealthy';
   },
 
-  updateTime: () => faker.date.past(2 / 365, REF_TIME),
+  updateTime: () => faker.date.past(2 / 365, new Date()),
 
   requiresControllerPlugin: true,
   requiresTopologies: true,
