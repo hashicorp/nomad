@@ -96,7 +96,7 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     assert.ok(TopoVizNode.label.includes(node.node.name));
     assert.ok(TopoVizNode.label.includes(`${this.node.allocations.length} Allocs`));
     assert.ok(TopoVizNode.label.includes(`${this.node.memory} MiB`));
-    assert.ok(TopoVizNode.label.includes(`${this.node.cpu} Mhz`));
+    assert.ok(TopoVizNode.label.includes(`${this.node.cpu} MHz`));
   });
 
   test('the status icon indicates when the node is draining', async function(assert) {

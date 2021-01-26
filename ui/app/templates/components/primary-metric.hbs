@@ -19,7 +19,7 @@
 </div>
 <div class="annotation" data-test-absolute-value>
   {{#if (eq this.metric "cpu")}}
-    <strong>{{this.data.lastObject.used}} Mhz</strong> / {{this.reservedAmount}} Mhz reserved
+    <strong>{{this.data.lastObject.used}} MHz</strong> / {{this.reservedAmount}} MHz reserved
   {{else if (eq this.metric "memory")}}
     <strong>{{format-bytes this.data.lastObject.used}}</strong> / {{this.reservedAmount}} MiB reserved
   {{else}}
