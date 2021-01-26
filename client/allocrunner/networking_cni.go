@@ -6,6 +6,7 @@ package allocrunner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -111,6 +112,11 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 		break
 	}
 
+	if c.logger.IsDebug() {
+		resultJSON, _ := json.Marshal(res)
+		c.logger.Debug("received result from CNI", "result", resultJSON)
+	}
+
 	netStatus := new(structs.AllocNetworkStatus)
 
 	if len(res.Interfaces) > 0 {
@@ -134,6 +140,18 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 			netStatus.Address = iface.IPConfigs[0].IP.String()
 		}
 	}
+
+	if netStatus.Address == "" {
+		c.logger.Debug("no address found for sandboxed interface from CNI result, using first available")
+		for _, iface := range res.Interfaces {
+			if len(iface.IPConfigs) > 0 {
+				netStatus.Address = iface.IPConfigs[0].IP.String()
+				break
+			}
+		}
+		c.logger.Warn("no address could be found from CNI result", "allocID", alloc.ID)
+	}
+
 	if len(res.DNS) > 0 {
 		netStatus.DNS = &structs.DNSConfig{
 			Servers:  res.DNS[0].Nameservers,
