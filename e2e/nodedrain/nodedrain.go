@@ -258,16 +258,18 @@ func (tc *NodeDrainE2ETest) TestNodeDrainDeadline(f *framework.F) {
 	f.Len(nodes, 1, "could not get nodes for job")
 	nodeID := nodes[0]
 
+	f.T().Logf("draining node %v", nodeID)
 	out, err := e2e.Command(
 		"nomad", "node", "drain",
 		"-deadline", "5s",
 		"-enable", "-yes", "-detach", nodeID)
-	f.NoError(err, fmt.Sprintf("'nomad node drain' failed: %v\n%v", err, out))
+	f.NoError(err, fmt.Sprintf("'nomad node drain %v' failed: %v\n%v", nodeID, err, out))
 	tc.nodeIDs = append(tc.nodeIDs, nodeID)
 
-	// the deadline is 5s but we can't guarantee its instantly terminated at
-	// that point, so we give it 10s which is well under the 30s kill_timeout in
-	// the job
+	// the deadline is 40s but we can't guarantee its instantly terminated at
+	// that point, so we give it 30s which is well under the 2m kill_timeout in
+	// the job.
+	// deadline here needs to account for scheduling and propagation delays.
 	f.NoError(waitForNodeDrain(nodeID,
 		func(got []map[string]string) bool {
 			for _, alloc := range got {
@@ -276,7 +278,7 @@ func (tc *NodeDrainE2ETest) TestNodeDrainDeadline(f *framework.F) {
 				}
 			}
 			return false
-		}, &e2e.WaitConfig{Interval: time.Millisecond * 100, Retries: 100},
+		}, &e2e.WaitConfig{Interval: time.Second, Retries: 40},
 	), "node did not drain immediately following deadline")
 }
 
@@ -304,7 +306,7 @@ func (tc *NodeDrainE2ETest) TestNodeDrainForce(f *framework.F) {
 	tc.nodeIDs = append(tc.nodeIDs, nodeID)
 
 	// we've passed -force but we can't guarantee its instantly terminated at
-	// that point, so we give it 20s which is under the 30s kill_timeout in
+	// that point, so we give it 30s which is under the 2m kill_timeout in
 	// the job
 	f.NoError(waitForNodeDrain(nodeID,
 		func(got []map[string]string) bool {
@@ -314,7 +316,7 @@ func (tc *NodeDrainE2ETest) TestNodeDrainForce(f *framework.F) {
 				}
 			}
 			return false
-		}, &e2e.WaitConfig{Interval: time.Millisecond * 100, Retries: 200},
+		}, &e2e.WaitConfig{Interval: time.Second, Retries: 40},
 	), "node did not drain immediately when forced")
 
 }

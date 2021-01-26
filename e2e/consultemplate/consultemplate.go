@@ -277,7 +277,7 @@ func (tc *ConsulTemplateTest) TestTemplatePathInterpolation_Bad(f *framework.F) 
 
 		return alloc.ClientStatus == structs.AllocClientStatusFailed, fmt.Errorf("expected status failed, but was: %s", alloc.ClientStatus)
 	}, func(err error) {
-		f.T().Fatalf("failed to wait on alloc: %v", err)
+		f.NoError(err, "failed to wait on alloc")
 	})
 
 	// Assert the "source escapes" error occurred to prevent false

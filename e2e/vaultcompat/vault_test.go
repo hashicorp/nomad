@@ -62,7 +62,7 @@ func syncVault(t *testing.T) ([]*version.Version, map[string]string) {
 		case err := <-errCh:
 			require.NoError(t, err)
 		case <-time.After(5 * time.Minute):
-			t.Fatalf("timed out downloading Vault binaries")
+			require.Fail(t, "timed out downloading Vault binaries")
 		}
 	}
 	if n := len(missing); n > 0 {
@@ -361,7 +361,7 @@ func testVaultCompatibility(t *testing.T, vault string, version string) {
 		case 1:
 		default:
 			// exit early
-			t.Fatalf("too many allocations; something failed")
+			require.Fail("too many allocations; something failed")
 		}
 		alloc := allocs[0]
 		//allocID = alloc.ID
@@ -371,7 +371,7 @@ func testVaultCompatibility(t *testing.T, vault string, version string) {
 
 		return false, fmt.Errorf("client status %q", alloc.ClientStatus)
 	}, func(err error) {
-		t.Fatalf("allocation did not finish: %v", err)
+		require.NoError(err, "allocation did not finish")
 	})
 
 }
@@ -392,14 +392,14 @@ func setupVault(t *testing.T, client *vapi.Client, vaultVersion string) string {
 		}
 		request := client.NewRequest("PUT", "/v1/sys/policy/nomad-server")
 		if err := request.SetJSONBody(body); err != nil {
-			t.Fatalf("failed to set JSON body on legacy policy creation: %v", err)
+			require.NoError(t, err, "failed to set JSON body on legacy policy creation")
 		}
 		if _, err := client.RawRequest(request); err != nil {
-			t.Fatalf("failed to create legacy policy: %v", err)
+			require.NoError(t, err, "failed to create legacy policy")
 		}
 	} else {
 		if err := sys.PutPolicy("nomad-server", policy); err != nil {
-			t.Fatalf("failed to create policy: %v", err)
+			require.NoError(t, err, "failed to create policy")
 		}
 	}
 
@@ -416,12 +416,12 @@ func setupVault(t *testing.T, client *vapi.Client, vaultVersion string) string {
 	}
 	s, err := a.Create(&req)
 	if err != nil {
-		t.Fatalf("failed to create child token: %v", err)
+		require.NoError(t, err, "failed to create child token")
 	}
 
 	// Get the client token
 	if s == nil || s.Auth == nil {
-		t.Fatalf("bad secret response: %+v", s)
+		require.NoError(t, err, "bad secret response")
 	}
 
 	return s.Auth.ClientToken

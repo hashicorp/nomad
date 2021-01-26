@@ -1,6 +1,7 @@
 package connect
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
@@ -45,9 +47,9 @@ EVAL:
 	case "complete":
 		// Ok!
 	case "failed", "canceled", "blocked":
-		t.Fatalf("eval %s\n%s\n", eval.Status, pretty.Sprint(eval))
+		require.Failf(t, "expected complete status", "eval %s\n%s", eval.Status, pretty.Sprint(eval))
 	default:
-		t.Fatalf("unknown eval status: %s\n%s\n", eval.Status, pretty.Sprint(eval))
+		require.Failf(t, "expected complete status", "unknown eval status: %s\n%s", eval.Status, pretty.Sprint(eval))
 	}
 
 	// Assert there were 0 placement failures
@@ -85,7 +87,7 @@ EVAL:
 	allocIDs := make(map[string]bool, 1)
 	for _, a := range allocs {
 		if a.ClientStatus != "running" || a.DesiredStatus != "run" {
-			t.Fatalf("alloc %s (%s) terminal; client=%s desired=%s", a.TaskGroup, a.ID, a.ClientStatus, a.DesiredStatus)
+			require.Failf(t, "expected running status", "alloc %s (%s) terminal; client=%s desired=%s", a.TaskGroup, a.ID, a.ClientStatus, a.DesiredStatus)
 		}
 		allocIDs[a.ID] = true
 	}
@@ -94,7 +96,9 @@ EVAL:
 	agentapi := tc.Consul().Agent()
 
 	failing := map[string]*consulapi.AgentCheck{}
-	require.Eventually(t, func() bool {
+	testutil.WaitForResultRetries(60, func() (bool, error) {
+		defer time.Sleep(time.Second)
+
 		checks, err := agentapi.Checks()
 		require.NoError(t, err)
 
@@ -123,12 +127,14 @@ EVAL:
 		}
 
 		if len(failing) == 0 {
-			return true
+			return true, nil
 		}
 
 		t.Logf("still %d checks not passing", len(failing))
-		return false
-	}, time.Minute, time.Second)
+		return false, fmt.Errorf("checks are not passing %v %v", len(failing), pretty.Sprint(failing))
+	}, func(e error) {
+		require.NoError(t, err)
+	})
 
 	require.Len(t, failing, 0, pretty.Sprint(failing))
 }

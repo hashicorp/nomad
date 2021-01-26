@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 const frameworkHelp = `
@@ -119,7 +121,7 @@ func AddSuites(s ...*TestSuite) {
 func (f *Framework) Run(t *testing.T) {
 	info, err := f.provisioner.SetupTestRun(t, SetupOptions{})
 	if err != nil {
-		t.Fatalf("could not provision cluster: %v", err)
+		require.NoError(t, err, "could not provision cluster")
 	}
 	defer f.provisioner.TearDownTestRun(t, info.ID)
 
@@ -178,9 +180,7 @@ func (f *Framework) runSuite(t *testing.T, s *TestSuite) (skip bool, err error) 
 		ExpectConsul: s.Consul,
 		ExpectVault:  s.Vault,
 	})
-	if err != nil {
-		t.Fatalf("could not provision cluster: %v", err)
-	}
+	require.NoError(t, err, "could not provision cluster")
 	defer f.provisioner.TearDownTestSuite(t, info.ID)
 
 	for _, c := range s.Cases {

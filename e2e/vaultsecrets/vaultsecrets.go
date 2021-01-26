@@ -83,7 +83,7 @@ func (tc *VaultSecretsTest) TestVaultSecrets(f *framework.F) {
 	pkiCertIssue := tc.pkiPath + "/issue/nomad"
 	policyID := "access-secrets-" + testID
 	index := 0
-	wc := &e2e.WaitConfig{Retries: 10}
+	wc := &e2e.WaitConfig{Retries: 500}
 	interval, retries := wc.OrDefault()
 
 	setupCmds := []string{
