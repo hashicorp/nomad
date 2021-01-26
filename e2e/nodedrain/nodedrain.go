@@ -306,7 +306,7 @@ func (tc *NodeDrainE2ETest) TestNodeDrainForce(f *framework.F) {
 	tc.nodeIDs = append(tc.nodeIDs, nodeID)
 
 	// we've passed -force but we can't guarantee its instantly terminated at
-	// that point, so we give it 20s which is under the 30s kill_timeout in
+	// that point, so we give it 30s which is under the 2m kill_timeout in
 	// the job
 	f.NoError(waitForNodeDrain(nodeID,
 		func(got []map[string]string) bool {
@@ -316,7 +316,7 @@ func (tc *NodeDrainE2ETest) TestNodeDrainForce(f *framework.F) {
 				}
 			}
 			return false
-		}, &e2e.WaitConfig{Interval: time.Millisecond * 100, Retries: 200},
+		}, &e2e.WaitConfig{Interval: time.Second, Retries: 40},
 	), "node did not drain immediately when forced")
 
 }
