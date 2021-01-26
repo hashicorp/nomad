@@ -66,7 +66,7 @@ jobs:
           comparison-identifier: ${{ github.event.pull_request.head.sha }}
           timing-output-path: audit-diff.md
           flakiness-output-path: flakiness-report.md
-      - uses: marocchino/sticky-pull-request-comment@33a6cfb
+      - uses: marocchino/sticky-pull-request-comment@v2.0.0
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           path: audit-diff.md
@@ -77,7 +77,7 @@ jobs:
           files: "flakiness-report.md"
       - name: comment PR
         if: steps.check_file.outputs.files_exists == 'true'
-        uses: machine-learning-apps/pr-comment@v1
+        uses: machine-learning-apps/pr-comment@1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
