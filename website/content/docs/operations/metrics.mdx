@@ -428,6 +428,11 @@ those listed in [Key Metrics](#key-metrics) above.
 | `nomad.raft.leader.dispatchLog`                      | Time elapsed to write log, mark in flight, and start replication  | Nanoseconds          | Summary | host   |
 | `nomad.raft.leader.dispatchNumLogs`                  | Count of logs dispatched                                          | Integer              | Gauge   | host   |
 | `nomad.raft.replication.appendEntries`               | Raft transaction commit time                                      | ms / Raft Log Append | Timer   |        |
+| `nomad.raft.state.candidate`                         | Count of entering candidate state                                 | Integer              | Gauge   | host   |
+| `nomad.raft.state.follower`                          | Count of entering follower state                                  | Integer              | Gauge   | host   |
+| `nomad.raft.state.leader`                            | Count of entering leader state                                    | Integer              | Gauge   | host   |
+| `nomad.raft.transition.heartbeat_timeout`            | Count of failing to heartbeat and starting election               | Integer              | Gauge   | host   |
+| `nomad.raft.transition.leader_lease_timeout`         | Count of stepping down as leader after losing quorum              | Integer              | Gauge   | host   |
 | `nomad.runtime.free_count`                           | Count of objects freed from heap by go runtime GC                 | Integer              | Gauge   | host   |
 | `nomad.runtime.gc_pause_ns`                          | Go runtime GC pause times                                         | Nanoseconds          | Summary | host   |
 | `nomad.runtime.sys_bytes`                            | Go runtime GC metadata size                                       | # of bytes           | Gauge   | host   |
