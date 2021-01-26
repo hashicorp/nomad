@@ -117,6 +117,7 @@ func (tc *IsolationTest) TestIsolation_ExecDriver_PIDNamespacing_AllocExec(f *fr
 	require.Equal(t, 0, exitCode)
 
 	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	// header, sleep process, ps ax process are the only output lines expected
 	require.Len(t, lines, 3)
 }
 
