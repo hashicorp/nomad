@@ -125,6 +125,15 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	expectedMemLim := strconv.Itoa(int(execCmd.Resources.NomadResources.Memory.MemoryMB * 1024 * 1024))
 	actualMemLim := strings.TrimSpace(string(data))
 	require.Equal(actualMemLim, expectedMemLim)
+
+	// Check that namespaces were applied to the container config
+	config := lexec.container.Config()
+	require.NoError(err)
+
+	require.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWNS})
+	require.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWPID})
+
+	// Shut down executor
 	require.NoError(executor.Shutdown("", 0))
 	executor.Wait(context.Background())
 
