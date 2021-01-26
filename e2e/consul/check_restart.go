@@ -58,7 +58,7 @@ func (tc *CheckRestartE2ETest) TestGroupCheckRestart(f *framework.F) {
 	f.NoError(err)
 	f.Len(allocs, 1)
 
-	allocID := allocs[0]
+	allocID := allocs[0]["ID"]
 	expected := "Exceeded allowed attempts 2 in interval 5m0s and mode is \"fail\""
 
 	out, err := e2e.Command("nomad", "alloc", "status", allocID)
