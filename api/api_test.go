@@ -341,6 +341,22 @@ func TestParseWriteMeta(t *testing.T) {
 	}
 }
 
+func TestClientHeader(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, func(c *Config) {
+		c.Headers = http.Header{
+			"Hello": []string{"World"},
+		}
+	}, nil)
+	defer s.Stop()
+
+	r, _ := c.newRequest("GET", "/v1/jobs")
+
+	if r.header.Get("Hello") != "World" {
+		t.Fatalf("bad: %v", r.header)
+	}
+}
+
 func TestQueryString(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, nil)
