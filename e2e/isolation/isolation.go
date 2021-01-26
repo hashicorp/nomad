@@ -1,8 +1,13 @@
 package isolation
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"strings"
+	"time"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -31,14 +36,6 @@ func (tc *IsolationTest) BeforeAll(f *framework.F) {
 	e2eutil.WaitForNodesReady(t, tc.Nomad(), 1)
 }
 
-func (tc *IsolationTest) AfterEach(f *framework.F) {
-	for _, jobID := range tc.jobIDs {
-		tc.Nomad().Jobs().Deregister(jobID, true, nil)
-	}
-	tc.jobIDs = []string{}
-	tc.Nomad().System().GarbageCollect()
-}
-
 func (tc *IsolationTest) TestIsolation_ExecDriver_PIDNamespacing(f *framework.F) {
 	t := f.T()
 
@@ -51,11 +48,14 @@ func (tc *IsolationTest) TestIsolation_ExecDriver_PIDNamespacing(f *framework.F)
 
 	uuid := uuid.Generate()
 	jobID := "isolation-pid-namespace-" + uuid[0:8]
-	file := "isolation/input/echo_pid.nomad"
+	file := "isolation/input/exec.nomad"
 	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), file, jobID, "")
 	require.Equal(t, len(allocs), 1, fmt.Sprintf("failed to register %s", jobID))
 
 	tc.jobIDs = append(tc.jobIDs, jobID)
+	defer func() {
+		tc.Nomad().Jobs().Deregister(jobID, true, nil)
+	}()
 
 	allocID := allocs[0].ID
 	e2eutil.WaitForAllocStopped(t, tc.Nomad(), allocID)
@@ -64,6 +64,60 @@ func (tc *IsolationTest) TestIsolation_ExecDriver_PIDNamespacing(f *framework.F)
 	require.NoError(t, err, fmt.Sprintf("could not get logs for alloc %s", allocID))
 
 	require.Contains(t, out, "my pid is 1\n")
+}
+
+func (tc *IsolationTest) TestIsolation_ExecDriver_PIDNamespacing_AllocExec(f *framework.F) {
+	t := f.T()
+
+	clientNodes, err := e2eutil.ListLinuxClientNodes(tc.Nomad())
+	require.Nil(t, err)
+
+	if len(clientNodes) == 0 {
+		t.Skip("no Linux clients")
+	}
+
+	uuid := uuid.Generate()
+	jobID := "isolation-pid-namespace-" + uuid[0:8]
+	file := "isolation/input/alloc_exec.nomad"
+	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), file, jobID, "")
+	require.Equal(t, len(allocs), 1, fmt.Sprintf("failed to register %s", jobID))
+
+	defer func() {
+		tc.Nomad().Jobs().Deregister(jobID, true, nil)
+	}()
+
+	allocID := allocs[0].ID
+	e2eutil.WaitForAllocRunning(t, tc.Nomad(), allocID)
+
+	alloc, _, err := tc.Nomad().Allocations().Info(allocID, nil)
+	require.NoError(t, err)
+	require.NotNil(t, alloc)
+
+	resizeCh := make(chan api.TerminalSize)
+	var tty bool
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancelFn()
+
+	var stdout, stderr bytes.Buffer
+
+	exitCode, err := tc.Nomad().Allocations().Exec(
+		ctx,
+		alloc,
+		"main",
+		tty,
+		[]string{"ps", "ax"},
+		bytes.NewReader([]byte("")),
+		&stdout,
+		&stderr,
+		resizeCh,
+		nil,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 0, exitCode)
+
+	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	require.Len(t, lines, 3)
 }
 
 func (tc *IsolationTest) TestIsolation_RawExecDriver_NoPIDNamespacing(f *framework.F) {
@@ -78,12 +132,14 @@ func (tc *IsolationTest) TestIsolation_RawExecDriver_NoPIDNamespacing(f *framewo
 
 	uuid := uuid.Generate()
 	jobID := "isolation-pid-namespace-" + uuid[0:8]
-	file := "isolation/input/echo_pid_raw_exec.nomad"
+	file := "isolation/input/raw_exec.nomad"
 
 	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), file, jobID, "")
 	require.Equal(t, len(allocs), 1, fmt.Sprintf("failed to register %s", jobID))
 
-	tc.jobIDs = append(tc.jobIDs, jobID)
+	defer func() {
+		tc.Nomad().Jobs().Deregister(jobID, true, nil)
+	}()
 
 	allocID := allocs[0].ID
 	e2eutil.WaitForAllocStopped(t, tc.Nomad(), allocID)

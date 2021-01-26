@@ -1,4 +1,4 @@
-job "echo_pid" {
+job "exec" {
   datacenters = ["dc1"]
   type        = "batch"
 
@@ -7,8 +7,8 @@ job "echo_pid" {
     value     = "linux"
   }
 
-  group "echo_pid" {
-    task "echo_pid" {
+  group "exec" {
+    task "exec" {
       driver = "exec"
 
       config {
