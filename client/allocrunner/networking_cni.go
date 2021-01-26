@@ -143,13 +143,17 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 
 	if netStatus.Address == "" {
 		c.logger.Debug("no address found for sandboxed interface from CNI result, using first available")
+		var found bool
 		for _, iface := range res.Interfaces {
 			if len(iface.IPConfigs) > 0 {
 				netStatus.Address = iface.IPConfigs[0].IP.String()
+				found = true
 				break
 			}
 		}
-		c.logger.Warn("no address could be found from CNI result", "allocID", alloc.ID)
+		if !found {
+			c.logger.Warn("no address could be found from CNI result", "allocID", alloc.ID)
+		}
 	}
 
 	if len(res.DNS) > 0 {
