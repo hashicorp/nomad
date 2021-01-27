@@ -1,24 +1,24 @@
 job "java_pid" {
   datacenters = ["dc1"]
-  type = "batch"
+  type        = "batch"
 
   group "java" {
 
     task "build" {
       lifecycle {
-        hook = "prestart"
+        hook    = "prestart"
         sidecar = false
       }
 
       driver = "exec"
       config {
         command = "javac"
-        args = ["-d", "${NOMAD_ALLOC_DIR}", "local/Pid.java"]
+        args    = ["-d", "${NOMAD_ALLOC_DIR}", "local/Pid.java"]
       }
 
       template {
         destination = "local/Pid.java"
-        data = <<EOH
+        data        = <<EOH
 public class Pid {
     public static void main(String... s) throws Exception {
         System.out.println("my pid is " + ProcessHandle.current().pid());
@@ -32,7 +32,7 @@ EOH
       driver = "java"
       config {
         class_path = "${NOMAD_ALLOC_DIR}"
-        class = "Pid"
+        class      = "Pid"
       }
     }
   }
