@@ -13,7 +13,7 @@ job "alloc_exec" {
 
       config {
         command = "/bin/sleep"
-        args = ["30s"]
+        args    = ["30s"]
       }
 
       resources {
