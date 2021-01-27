@@ -140,6 +140,24 @@ func WaitForAllocRunning(t *testing.T, nomadClient *api.Client, allocID string) 
 	})
 }
 
+func WaitForAllocTaskRunning(t *testing.T, nomadClient *api.Client, allocID, task string) {
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		time.Sleep(time.Millisecond * 100)
+		alloc, _, err := nomadClient.Allocations().Info(allocID, nil)
+		if err != nil {
+			return false, err
+		}
+
+		state := "n/a"
+		if task := alloc.TaskStates[task]; task != nil {
+			state = task.State
+		}
+		return state == structs.AllocClientStatusRunning, fmt.Errorf("expected status running, but was: %s", state)
+	}, func(err error) {
+		t.Fatalf("failed to wait on alloc: %v", err)
+	})
+}
+
 func WaitForAllocsRunning(t *testing.T, nomadClient *api.Client, allocIDs []string) {
 	for _, allocID := range allocIDs {
 		WaitForAllocRunning(t, nomadClient, allocID)
