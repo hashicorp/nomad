@@ -57,7 +57,7 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 
 	select {
 	case result := <-ch:
-		require.Equal(int(unix.SIGINT), result.Signal)
+		require.Equal(int(unix.SIGKILL), result.Signal)
 	case <-time.After(10 * time.Second):
 		require.Fail("timeout waiting for task to shutdown")
 	}
