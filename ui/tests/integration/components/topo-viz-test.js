@@ -157,8 +157,17 @@ module('Integration | Component | TopoViz', function(hooks) {
     this.setProperties({
       nodes: [node('dc1', 'node0', 1000, 500), node('dc1', 'node1', 1000, 500)],
       allocations: [
+        // There need to be at least 10 sibling allocations to trigger this behavior
         alloc('node0', 'job1', 'group', 100, 100),
         alloc('node0', 'job1', 'group', 100, 100),
+        alloc('node0', 'job1', 'group', 100, 100),
+        alloc('node0', 'job1', 'group', 100, 100),
+        alloc('node0', 'job1', 'group', 100, 100),
+        alloc('node0', 'job1', 'group', 100, 100),
+        alloc('node1', 'job1', 'group', 100, 100),
+        alloc('node1', 'job1', 'group', 100, 100),
+        alloc('node1', 'job1', 'group', 100, 100),
+        alloc('node1', 'job1', 'group', 100, 100),
         alloc('node1', 'job1', 'group', 100, 100),
         alloc('node1', 'job1', 'group', 100, 100),
         alloc('node0', 'job1', 'groupTwo', 100, 100),
