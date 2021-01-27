@@ -132,6 +132,7 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 
 	require.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWNS})
 	require.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWPID})
+	require.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWIPC})
 
 	// Shut down executor
 	require.NoError(executor.Shutdown("", 0))
