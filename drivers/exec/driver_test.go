@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -295,16 +294,20 @@ func TestExecDriver_NoOrphans(t *testing.T) {
 	taskConfig := map[string]interface{}{}
 	taskConfig["command"] = "/bin/sh"
 	// print the child PID in the task PID namespace, then sleep for 5 seconds to give us a chance to examine processes
-	taskConfig["args"] = []string{"-c", fmt.Sprintf(`sleep 3600 & echo "SLEEP_PID=$!" && sleep 10`)}
-
+	taskConfig["args"] = []string{"-c", fmt.Sprintf(`sleep 3600 & sleep 20`)}
 	require.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
 
 	handle, _, err := harness.StartTask(task)
 	require.NoError(err)
 	defer harness.DestroyTask(task.ID, true)
-	taskState := TaskState{}
+
+	waitCh, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	require.NoError(err)
+
+	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 
 	var childPids []int
+	taskState := TaskState{}
 	testutil.WaitForResult(func() (bool, error) {
 		require.NoError(handle.GetDriverState(&taskState))
 		if taskState.Pid == 0 {
@@ -315,11 +318,11 @@ func TestExecDriver_NoOrphans(t *testing.T) {
 		if err != nil {
 			return false, fmt.Errorf("error reading /proc for children: %v", err)
 		}
-		childPidsS := strings.Fields(string(children))
-		if len(childPids) < 2 {
-			return false, nil
+		pids := strings.Fields(string(children))
+		if len(pids) < 2 {
+			return false, fmt.Errorf("error waiting for two children, currently %d", len(pids))
 		}
-		for _, cpid := range childPidsS {
+		for _, cpid := range pids {
 			p, err := strconv.Atoi(cpid)
 			if err != nil {
 				return false, fmt.Errorf("error parsing child pids from /proc: %s", cpid)
@@ -331,38 +334,12 @@ func TestExecDriver_NoOrphans(t *testing.T) {
 		require.NoError(err)
 	})
 
-	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
-	require.NoError(err)
-
 	select {
-	case result := <-ch:
+	case result := <-waitCh:
 		require.True(result.Successful(), "command failed: %#v", result)
-	case <-time.After(10 * time.Second):
+	case <-time.After(30 * time.Second):
 		require.Fail("timeout waiting for task to shutdown")
 	}
-
-	// Ensure that the task is marked as dead, but account
-	// for WaitTask() closing channel before internal state is updated
-	testutil.WaitForResult(func() (bool, error) {
-		stdout, err := ioutil.ReadFile(filepath.Join(task.TaskDir().LogDir, "test.stdout.0"))
-		if err != nil {
-			return false, fmt.Errorf("failed to output pid file: %v", err)
-		}
-
-		pidMatch := regexp.MustCompile(`SLEEP_PID=(\d+)`).FindStringSubmatch(string(stdout))
-		if len(pidMatch) != 2 {
-			return false, fmt.Errorf("failed to find pid in %s", string(stdout))
-		}
-
-		_, err = strconv.Atoi(pidMatch[1])
-		if err != nil {
-			return false, fmt.Errorf("pid parts aren't int: %s", pidMatch[1])
-		}
-
-		return true, nil
-	}, func(err error) {
-		require.NoError(err)
-	})
 
 	// isProcessRunning returns an error if process is not running
 	isProcessRunning := func(pid int) error {
