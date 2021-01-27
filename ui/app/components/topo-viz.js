@@ -238,6 +238,13 @@ export default class TopoViz extends Component {
   }
 
   @action
+  resizeEdges() {
+    if (this.activeEdges.length > 0) {
+      this.computedActiveEdges();
+    }
+  }
+
+  @action
   computedActiveEdges() {
     // Wait a render cycle
     run.next(() => {
