@@ -262,6 +262,7 @@ func TestParse(t *testing.T) {
 											"canary": "boom",
 										},
 										PortLabel: "http",
+										OnUpdate:  "default",
 										Checks: []api.ServiceCheck{
 											{
 												Name:        "check-name",

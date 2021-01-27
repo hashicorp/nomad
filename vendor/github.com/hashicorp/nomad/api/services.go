@@ -113,7 +113,15 @@ type Service struct {
 	Meta              map[string]string `hcl:"meta,block"`
 	CanaryMeta        map[string]string `hcl:"canary_meta,block"`
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
+	OnUpdate          string            `mapstructure:"on_update" hcl:"on_update,optional"`
 }
+
+const (
+	OnUpdateDefault    = "default"
+	OnUpdateOnly       = "update_only"
+	OnUpdateIgnoreWarn = "ignore_warnings"
+	OnUpdateIgnore     = "ignore"
+)
 
 // Canonicalize the Service by ensuring its name and address mode are set. Task
 // will be nil for group services.
@@ -129,6 +137,11 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	// Default to AddressModeAuto
 	if s.AddressMode == "" {
 		s.AddressMode = "auto"
+	}
+
+	// Default OnUpdate to `default`
+	if s.OnUpdate == "" {
+		s.OnUpdate = "default"
 	}
 
 	s.Connect.Canonicalize()

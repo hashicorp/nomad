@@ -1054,6 +1054,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 				AddressMode:       service.AddressMode,
 				Meta:              helper.CopyMapStringString(service.Meta),
 				CanaryMeta:        helper.CopyMapStringString(service.CanaryMeta),
+				OnUpdate:          service.OnUpdate,
 			}
 
 			if l := len(service.Checks); l != 0 {
@@ -1273,6 +1274,7 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 			AddressMode:       s.AddressMode,
 			Meta:              helper.CopyMapStringString(s.Meta),
 			CanaryMeta:        helper.CopyMapStringString(s.CanaryMeta),
+			OnUpdate:          s.OnUpdate,
 		}
 
 		if l := len(s.Checks); l != 0 {

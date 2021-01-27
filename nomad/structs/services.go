@@ -418,9 +418,17 @@ type Service struct {
 	Meta       map[string]string // Consul service meta
 	CanaryMeta map[string]string // Consul service meta when it is a canary
 
-	// TODO(drew) : make it work
+	// OnUpdate Specifies how the service and it's checks should be evaluated
+	// during an update
 	OnUpdate string
 }
+
+const (
+	OnUpdateDefault    = "default"
+	OnUpdateOnly       = "update_only"
+	OnUpdateIgnoreWarn = "ignore_warnings"
+	OnUpdateIgnore     = "ignore"
+)
 
 // Copy the stanza recursively. Returns nil if nil.
 func (s *Service) Copy() *Service {
@@ -495,6 +503,13 @@ func (s *Service) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q, %q, or %q; not %q", AddressModeAuto, AddressModeHost, AddressModeDriver, s.AddressMode))
 	}
 
+	switch s.OnUpdate {
+	case "", OnUpdateOnly, OnUpdateIgnore, OnUpdateDefault, OnUpdateIgnoreWarn:
+		// OK
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service on_update must be %q, %q, %q, or %q; not %q", OnUpdateDefault, OnUpdateOnly, OnUpdateIgnoreWarn, OnUpdateIgnore, s.OnUpdate))
+	}
+
 	// check checks
 	for _, c := range s.Checks {
 		if s.PortLabel == "" && c.PortLabel == "" && c.RequiresPort() {
@@ -561,6 +576,7 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	hashMeta(h, s.Meta)
 	hashMeta(h, s.CanaryMeta)
 	hashConnect(h, s.Connect)
+	hashString(h, s.OnUpdate)
 
 	// Base32 is used for encoding the hash as sha1 hashes can always be
 	// encoded without padding, only 4 bytes larger than base64, and saves
@@ -617,6 +633,10 @@ func (s *Service) Equals(o *Service) bool {
 	}
 
 	if s.AddressMode != o.AddressMode {
+		return false
+	}
+
+	if s.OnUpdate != o.OnUpdate {
 		return false
 	}
 

@@ -334,6 +334,8 @@ type ServiceRegistration struct {
 	serviceID string
 	checkIDs  map[string]struct{}
 
+	OnUpdate string
+
 	// Service is the AgentService registered in Consul.
 	Service *api.AgentService
 
@@ -346,6 +348,7 @@ func (s *ServiceRegistration) copy() *ServiceRegistration {
 	// is so that the caller of AllocRegistrations can not access the internal
 	// fields and that method uses these fields to populate the external fields.
 	return &ServiceRegistration{
+		OnUpdate:  s.OnUpdate,
 		serviceID: s.serviceID,
 		checkIDs:  helper.CopyMapStringStruct(s.checkIDs),
 	}
@@ -840,6 +843,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	id := MakeAllocServiceID(workload.AllocID, workload.Name(), service)
 	sreg := &ServiceRegistration{
 		serviceID: id,
+		OnUpdate:  service.OnUpdate,
 		checkIDs:  make(map[string]struct{}, len(service.Checks)),
 	}
 
