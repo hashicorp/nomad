@@ -245,6 +245,7 @@ func (tc *NodeDrainE2ETest) TestNodeDrainIgnoreSystem(f *framework.F) {
 // TestNodeDrainDeadline tests the enforcement of the node drain deadline so
 // that allocations are terminated even if they haven't gracefully exited.
 func (tc *NodeDrainE2ETest) TestNodeDrainDeadline(f *framework.F) {
+	f.T().Skip("The behavior is unclear and test assertions don't capture intent.  Issue 9902")
 
 	jobID := "test-node-drain-" + uuid.Generate()[0:8]
 	f.NoError(e2e.Register(jobID, "nodedrain/input/drain_deadline.nomad"))
@@ -272,6 +273,8 @@ func (tc *NodeDrainE2ETest) TestNodeDrainDeadline(f *framework.F) {
 	// deadline here needs to account for scheduling and propagation delays.
 	f.NoError(waitForNodeDrain(nodeID,
 		func(got []map[string]string) bool {
+			// FIXME: check the drain job alloc specifically. test
+			// may pass if client had another completed alloc
 			for _, alloc := range got {
 				if alloc["Status"] == "complete" {
 					return true
@@ -285,6 +288,7 @@ func (tc *NodeDrainE2ETest) TestNodeDrainDeadline(f *framework.F) {
 // TestNodeDrainDeadline tests the enforcement of the node drain -force flag
 // so that allocations are terminated immediately.
 func (tc *NodeDrainE2ETest) TestNodeDrainForce(f *framework.F) {
+	f.T().Skip("The behavior is unclear and test assertions don't capture intent.  Issue 9902")
 
 	jobID := "test-node-drain-" + uuid.Generate()[0:8]
 	f.NoError(e2e.Register(jobID, "nodedrain/input/drain_deadline.nomad"))
@@ -310,6 +314,8 @@ func (tc *NodeDrainE2ETest) TestNodeDrainForce(f *framework.F) {
 	// the job
 	f.NoError(waitForNodeDrain(nodeID,
 		func(got []map[string]string) bool {
+			// FIXME: check the drain job alloc specifically. test
+			// may pass if client had another completed alloc
 			for _, alloc := range got {
 				if alloc["Status"] == "complete" {
 					return true
