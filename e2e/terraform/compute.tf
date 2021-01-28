@@ -1,3 +1,7 @@
+locals {
+  ami_prefix = "nomad-e2e-v2"
+}
+
 resource "aws_instance" "server" {
   ami                    = data.aws_ami.ubuntu_bionic_amd64.image_id
   instance_type          = var.instance_type
@@ -54,18 +58,32 @@ resource "aws_instance" "client_windows_2016_amd64" {
   }
 }
 
+data "external" "packer_sha" {
+  program = ["/bin/sh", "-c", <<EOT
+sha=$(git log -n 1 --pretty=format:%H packer)
+echo "{\"sha\":\"$${sha}\"}"
+EOT
+]
+
+}
+
 data "aws_ami" "ubuntu_bionic_amd64" {
   most_recent = true
   owners      = ["self"]
 
   filter {
     name   = "name"
-    values = ["nomad-e2e-ubuntu-bionic-amd64-*"]
+    values = ["${local.ami_prefix}-ubuntu-bionic-amd64-*"]
   }
 
   filter {
     name   = "tag:OS"
     values = ["Ubuntu"]
+  }
+
+  filter {
+    name   = "tag:BuilderSha"
+    values = [data.external.packer_sha.result["sha"]]
   }
 }
 
@@ -75,11 +93,16 @@ data "aws_ami" "windows_2016_amd64" {
 
   filter {
     name   = "name"
-    values = ["nomad-e2e-windows-2016-amd64-*"]
+    values = ["${local.ami_prefix}-windows-2016-amd64-*"]
   }
 
   filter {
     name   = "tag:OS"
     values = ["Windows2016"]
+  }
+
+  filter {
+    name   = "tag:BuilderSha"
+    values = [data.external.packer_sha.result["sha"]]
   }
 }

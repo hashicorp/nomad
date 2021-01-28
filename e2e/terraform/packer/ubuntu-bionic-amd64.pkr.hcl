@@ -1,10 +1,16 @@
+variable "build_sha" {
+  type        = string
+  description = "the revision of the packer scripts building this image"
+}
+
 locals {
   timestamp = regex_replace(timestamp(), "[- TZ:]", "")
   distro    = "ubuntu-bionic-18.04-amd64-server-*"
+  version   = "v2"
 }
 
 source "amazon-ebs" "latest_ubuntu_bionic" {
-  ami_name             = "nomad-e2e-ubuntu-bionic-amd64-${local.timestamp}"
+  ami_name             = "nomad-e2e-${local.version}-ubuntu-bionic-amd64-${local.timestamp}"
   iam_instance_profile = "packer_build" // defined in nomad-e2e repo
   instance_type        = "t2.medium"
   region               = "us-east-1"
@@ -23,8 +29,9 @@ source "amazon-ebs" "latest_ubuntu_bionic" {
   }
 
   tags = {
-    OS      = "Ubuntu"
-    Version = "Bionic"
+    OS         = "Ubuntu"
+    Version    = "Bionic"
+    BuilderSha = var.build_sha
   }
 }
 
@@ -34,11 +41,6 @@ build {
   provisioner "file" {
     destination = "/tmp/linux"
     source      = "./ubuntu-bionic-amd64"
-  }
-
-  provisioner "file" {
-    destination = "/tmp/config"
-    source      = "../config"
   }
 
   // cloud-init modifies the apt sources, so we need to wait

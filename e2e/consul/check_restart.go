@@ -47,8 +47,6 @@ func (tc *CheckRestartE2ETest) TestGroupCheckRestart(f *framework.F) {
 	f.NoError(e2e.Register(jobID, "consul/input/checks_group_restart.nomad"))
 	tc.jobIds = append(tc.jobIds, jobID)
 
-	var allocID string
-
 	f.NoError(
 		e2e.WaitForAllocStatusComparison(
 			func() ([]string, error) { return e2e.AllocStatuses(jobID, ns) },
@@ -56,6 +54,11 @@ func (tc *CheckRestartE2ETest) TestGroupCheckRestart(f *framework.F) {
 			&e2e.WaitConfig{Interval: time.Second * 10, Retries: 30},
 		))
 
+	allocs, err := e2e.AllocsForJob(jobID, ns)
+	f.NoError(err)
+	f.Len(allocs, 1)
+
+	allocID := allocs[0]["ID"]
 	expected := "Exceeded allowed attempts 2 in interval 5m0s and mode is \"fail\""
 
 	out, err := e2e.Command("nomad", "alloc", "status", allocID)

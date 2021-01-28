@@ -108,7 +108,7 @@ module('Integration | Component | TopoViz::Datacenter', function(hooks) {
     assert.ok(TopoVizDatacenter.label.includes(`${this.datacenter.nodes.length} Nodes`));
     assert.ok(TopoVizDatacenter.label.includes(`${allocs.length} Allocs`));
     assert.ok(TopoVizDatacenter.label.includes(`${memoryReserved}/${memoryTotal} MiB`));
-    assert.ok(TopoVizDatacenter.label.includes(`${cpuReserved}/${cpuTotal} Mhz`));
+    assert.ok(TopoVizDatacenter.label.includes(`${cpuReserved}/${cpuTotal} MHz`));
   });
 
   test('when @isSingleColumn is true, the FlexMasonry layout gets one column, otherwise it gets two', async function(assert) {

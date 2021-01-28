@@ -733,10 +733,22 @@ func (c *ConsulConnect) IsNative() bool {
 	return c != nil && c.Native
 }
 
-// IsGateway checks if the service is a Connect gateway.
+// IsGateway checks if the service is any type of connect gateway.
 func (c *ConsulConnect) IsGateway() bool {
 	return c != nil && c.Gateway != nil
 }
+
+// IsIngress checks if the service is an ingress gateway.
+func (c *ConsulConnect) IsIngress() bool {
+	return c.IsGateway() && c.Gateway.Ingress != nil
+}
+
+// IsTerminating checks if the service is a terminating gateway.
+func (c *ConsulConnect) IsTerminating() bool {
+	return c.IsGateway() && c.Gateway.Terminating != nil
+}
+
+// also mesh
 
 // Validate that the Connect block represents exactly one of:
 // - Connect non-native service sidecar proxy
@@ -1231,11 +1243,21 @@ type ConsulGateway struct {
 	// Ingress represents the Consul Configuration Entry for an Ingress Gateway.
 	Ingress *ConsulIngressConfigEntry
 
-	// Terminating is not yet supported.
-	// Terminating *ConsulTerminatingConfigEntry
+	// Terminating represents the Consul Configuration Entry for a Terminating Gateway.
+	Terminating *ConsulTerminatingConfigEntry
 
 	// Mesh is not yet supported.
 	// Mesh *ConsulMeshConfigEntry
+}
+
+func (g *ConsulGateway) Prefix() string {
+	switch {
+	case g.Ingress != nil:
+		return ConnectIngressPrefix
+	default:
+		return ConnectTerminatingPrefix
+	}
+	// also mesh
 }
 
 func (g *ConsulGateway) Copy() *ConsulGateway {
@@ -1244,8 +1266,9 @@ func (g *ConsulGateway) Copy() *ConsulGateway {
 	}
 
 	return &ConsulGateway{
-		Proxy:   g.Proxy.Copy(),
-		Ingress: g.Ingress.Copy(),
+		Proxy:       g.Proxy.Copy(),
+		Ingress:     g.Ingress.Copy(),
+		Terminating: g.Terminating.Copy(),
 	}
 }
 
@@ -1262,6 +1285,10 @@ func (g *ConsulGateway) Equals(o *ConsulGateway) bool {
 		return false
 	}
 
+	if !g.Terminating.Equals(o.Terminating) {
+		return false
+	}
+
 	return true
 }
 
@@ -1270,18 +1297,30 @@ func (g *ConsulGateway) Validate() error {
 		return nil
 	}
 
-	if g.Proxy != nil {
-		if err := g.Proxy.Validate(); err != nil {
-			return err
-		}
+	if err := g.Proxy.Validate(); err != nil {
+		return err
 	}
 
-	// eventually one of: ingress, terminating, mesh
+	if err := g.Ingress.Validate(); err != nil {
+		return err
+	}
+
+	if err := g.Terminating.Validate(); err != nil {
+		return err
+	}
+
+	// Exactly 1 of ingress/terminating/mesh(soon) must be set.
+	count := 0
 	if g.Ingress != nil {
-		return g.Ingress.Validate()
+		count++
 	}
-
-	return fmt.Errorf("Consul Gateway ingress Configuration Entry must be set")
+	if g.Terminating != nil {
+		count++
+	}
+	if count != 1 {
+		return fmt.Errorf("One Consul Gateway Configuration Entry must be set")
+	}
+	return nil
 }
 
 // ConsulGatewayBindAddress is equivalent to Consul's api/catalog.go ServiceAddress
@@ -1328,7 +1367,7 @@ func (a *ConsulGatewayBindAddress) Validate() error {
 		return fmt.Errorf("Consul Gateway Bind Address must be set")
 	}
 
-	if a.Port <= 0 {
+	if a.Port <= 0 && a.Port != -1 { // port -1 => nomad autofill
 		return fmt.Errorf("Consul Gateway Bind Address must set valid Port")
 	}
 
@@ -1344,6 +1383,7 @@ type ConsulGatewayProxy struct {
 	EnvoyGatewayBindTaggedAddresses bool
 	EnvoyGatewayBindAddresses       map[string]*ConsulGatewayBindAddress
 	EnvoyGatewayNoDefaultBind       bool
+	EnvoyDNSDiscoveryType           string
 	Config                          map[string]interface{}
 }
 
@@ -1352,18 +1392,27 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 		return nil
 	}
 
+	return &ConsulGatewayProxy{
+		ConnectTimeout:                  helper.TimeToPtr(*p.ConnectTimeout),
+		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
+		EnvoyGatewayBindAddresses:       p.copyBindAddresses(),
+		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,
+		EnvoyDNSDiscoveryType:           p.EnvoyDNSDiscoveryType,
+		Config:                          helper.CopyMapStringInterface(p.Config),
+	}
+}
+
+func (p *ConsulGatewayProxy) copyBindAddresses() map[string]*ConsulGatewayBindAddress {
+	if p.EnvoyGatewayBindAddresses == nil {
+		return nil
+	}
+
 	bindAddresses := make(map[string]*ConsulGatewayBindAddress, len(p.EnvoyGatewayBindAddresses))
 	for k, v := range p.EnvoyGatewayBindAddresses {
 		bindAddresses[k] = v.Copy()
 	}
 
-	return &ConsulGatewayProxy{
-		ConnectTimeout:                  helper.TimeToPtr(*p.ConnectTimeout),
-		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
-		EnvoyGatewayBindAddresses:       bindAddresses,
-		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,
-		Config:                          helper.CopyMapStringInterface(p.Config),
-	}
+	return bindAddresses
 }
 
 func (p *ConsulGatewayProxy) equalBindAddresses(o map[string]*ConsulGatewayBindAddress) bool {
@@ -1401,12 +1450,21 @@ func (p *ConsulGatewayProxy) Equals(o *ConsulGatewayProxy) bool {
 		return false
 	}
 
+	if p.EnvoyDNSDiscoveryType != o.EnvoyDNSDiscoveryType {
+		return false
+	}
+
 	if !opaqueMapsEqual(p.Config, o.Config) {
 		return false
 	}
 
 	return true
 }
+
+const (
+	strictDNS  = "STRICT_DNS"
+	logicalDNS = "LOGICAL_DNS"
+)
 
 func (p *ConsulGatewayProxy) Validate() error {
 	if p == nil {
@@ -1415,6 +1473,14 @@ func (p *ConsulGatewayProxy) Validate() error {
 
 	if p.ConnectTimeout == nil {
 		return fmt.Errorf("Consul Gateway Proxy connection_timeout must be set")
+	}
+
+	switch p.EnvoyDNSDiscoveryType {
+	case "", strictDNS, logicalDNS:
+		// Consul defaults to logical DNS, suitable for large scale workloads.
+		// https://www.envoyproxy.io/docs/envoy/v1.16.1/intro/arch_overview/upstream/service_discovery
+	default:
+		return fmt.Errorf("Consul Gateway Proxy Envoy DNS Discovery type must be %s or %s", strictDNS, logicalDNS)
 	}
 
 	for _, bindAddr := range p.EnvoyGatewayBindAddresses {
@@ -1670,4 +1736,144 @@ COMPARE: // order does not matter
 		return false
 	}
 	return true
+}
+
+type ConsulLinkedService struct {
+	Name     string
+	CAFile   string
+	CertFile string
+	KeyFile  string
+	SNI      string
+}
+
+func (s *ConsulLinkedService) Copy() *ConsulLinkedService {
+	if s == nil {
+		return nil
+	}
+
+	return &ConsulLinkedService{
+		Name:     s.Name,
+		CAFile:   s.CAFile,
+		CertFile: s.CertFile,
+		KeyFile:  s.KeyFile,
+		SNI:      s.SNI,
+	}
+}
+
+func (s *ConsulLinkedService) Equals(o *ConsulLinkedService) bool {
+	if s == nil || o == nil {
+		return s == o
+	}
+
+	switch {
+	case s.Name != o.Name:
+		return false
+	case s.CAFile != o.CAFile:
+		return false
+	case s.CertFile != o.CertFile:
+		return false
+	case s.KeyFile != o.KeyFile:
+		return false
+	case s.SNI != o.SNI:
+		return false
+	}
+
+	return true
+}
+
+func (s *ConsulLinkedService) Validate() error {
+	if s == nil {
+		return nil
+	}
+
+	if s.Name == "" {
+		return fmt.Errorf("Consul Linked Service requires Name")
+	}
+
+	caSet := s.CAFile != ""
+	certSet := s.CertFile != ""
+	keySet := s.KeyFile != ""
+	sniSet := s.SNI != ""
+
+	if (certSet || keySet) && !caSet {
+		return fmt.Errorf("Consul Linked Service TLS requires CAFile")
+	}
+
+	if certSet != keySet {
+		return fmt.Errorf("Consul Linked Service TLS Cert and Key must both be set")
+	}
+
+	if sniSet && !caSet {
+		return fmt.Errorf("Consul Linked Service TLS SNI requires CAFile")
+	}
+
+	return nil
+}
+
+func linkedServicesEqual(servicesA, servicesB []*ConsulLinkedService) bool {
+	if len(servicesA) != len(servicesB) {
+		return false
+	}
+
+COMPARE: // order does not matter
+	for _, serviceA := range servicesA {
+		for _, serviceB := range servicesB {
+			if serviceA.Equals(serviceB) {
+				continue COMPARE
+			}
+		}
+		return false
+	}
+	return true
+}
+
+type ConsulTerminatingConfigEntry struct {
+	// Namespace is not yet supported.
+	// Namespace string
+
+	Services []*ConsulLinkedService
+}
+
+func (e *ConsulTerminatingConfigEntry) Copy() *ConsulTerminatingConfigEntry {
+	if e == nil {
+		return nil
+	}
+
+	var services []*ConsulLinkedService = nil
+	if n := len(e.Services); n > 0 {
+		services = make([]*ConsulLinkedService, n)
+		for i := 0; i < n; i++ {
+			services[i] = e.Services[i].Copy()
+		}
+	}
+
+	return &ConsulTerminatingConfigEntry{
+		Services: services,
+	}
+}
+
+func (e *ConsulTerminatingConfigEntry) Equals(o *ConsulTerminatingConfigEntry) bool {
+	if e == nil || o == nil {
+		return e == o
+	}
+
+	return linkedServicesEqual(e.Services, o.Services)
+}
+
+func (e *ConsulTerminatingConfigEntry) Validate() error {
+	if e == nil {
+		return nil
+	}
+
+	if len(e.Services) == 0 {
+		return fmt.Errorf("Consul Terminating Gateway requires at least one service")
+	}
+
+	for _, service := range e.Services {
+		if err := service.Validate(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

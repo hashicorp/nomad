@@ -638,6 +638,12 @@ func TestJob_ConnectTasks(t *testing.T) {
 				Name: "generator",
 				Kind: "connect-native:uuid-api",
 			}},
+		}, {
+			Name: "tg5",
+			Tasks: []*Task{{
+				Name: "t1000",
+				Kind: "connect-terminating:t1000",
+			}},
 		}},
 	}
 
@@ -650,6 +656,7 @@ func TestJob_ConnectTasks(t *testing.T) {
 		NewTaskKind(ConnectIngressPrefix, "ingress"),
 		NewTaskKind(ConnectNativePrefix, "uuid-fe"),
 		NewTaskKind(ConnectNativePrefix, "uuid-api"),
+		NewTaskKind(ConnectTerminatingPrefix, "t1000"),
 	}
 
 	r.Equal(exp, connectTasks)
@@ -843,6 +850,15 @@ func TestTask_UsesConnect(t *testing.T) {
 		task := &Task{
 			Name: "task1",
 			Kind: NewTaskKind(ConnectIngressPrefix, "task1"),
+		}
+		usesConnect := task.UsesConnect()
+		require.True(t, usesConnect)
+	})
+
+	t.Run("terminating gateway", func(t *testing.T) {
+		task := &Task{
+			Name: "task1",
+			Kind: NewTaskKind(ConnectTerminatingPrefix, "task1"),
 		}
 		usesConnect := task.UsesConnect()
 		require.True(t, usesConnect)

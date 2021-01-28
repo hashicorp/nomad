@@ -827,10 +827,16 @@ func connectGatewayDiff(prev, next *ConsulGateway, contextual bool) *ObjectDiff 
 		diff.Objects = append(diff.Objects, gatewayProxyDiff)
 	}
 
-	// Diff the ConsulGatewayIngress fields.
+	// Diff the ingress gateway fields.
 	gatewayIngressDiff := connectGatewayIngressDiff(prev.Ingress, next.Ingress, contextual)
 	if gatewayIngressDiff != nil {
 		diff.Objects = append(diff.Objects, gatewayIngressDiff)
+	}
+
+	//  Diff the terminating gateway fields.
+	gatewayTerminatingDiff := connectGatewayTerminatingDiff(prev.Terminating, next.Terminating, contextual)
+	if gatewayTerminatingDiff != nil {
+		diff.Objects = append(diff.Objects, gatewayTerminatingDiff)
 	}
 
 	return diff
@@ -874,6 +880,99 @@ func connectGatewayIngressDiff(prev, next *ConsulIngressConfigEntry, contextual 
 	return diff
 }
 
+func connectGatewayTerminatingDiff(prev, next *ConsulTerminatingConfigEntry, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Terminating"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if prev == nil {
+		prev = new(ConsulTerminatingConfigEntry)
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	} else if next == nil {
+		next = new(ConsulTerminatingConfigEntry)
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// Diff the Services lists.
+	gatewayLinkedServicesDiff := connectGatewayTerminatingLinkedServicesDiff(prev.Services, next.Services, contextual)
+	if gatewayLinkedServicesDiff != nil {
+		diff.Objects = append(diff.Objects, gatewayLinkedServicesDiff...)
+	}
+
+	return diff
+}
+
+// connectGatewayTerminatingLinkedServicesDiff diffs are a set of services keyed
+// by service name. These objects contain only fields.
+func connectGatewayTerminatingLinkedServicesDiff(prev, next []*ConsulLinkedService, contextual bool) []*ObjectDiff {
+	// create maps, diff the maps, key by linked service name
+
+	prevMap := make(map[string]*ConsulLinkedService, len(prev))
+	nextMap := make(map[string]*ConsulLinkedService, len(next))
+
+	for _, s := range prev {
+		prevMap[s.Name] = s
+	}
+	for _, s := range next {
+		nextMap[s.Name] = s
+	}
+
+	var diffs []*ObjectDiff
+	for k, prevS := range prevMap {
+		// Diff the same, deleted, and edited
+		if diff := connectGatewayTerminatingLinkedServiceDiff(prevS, nextMap[k], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+	for k, nextS := range nextMap {
+		// Diff the added
+		if old, ok := prevMap[k]; !ok {
+			if diff := connectGatewayTerminatingLinkedServiceDiff(old, nextS, contextual); diff != nil {
+				diffs = append(diffs, diff)
+			}
+		}
+	}
+
+	sort.Sort(ObjectDiffs(diffs))
+	return diffs
+}
+
+func connectGatewayTerminatingLinkedServiceDiff(prev, next *ConsulLinkedService, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Service"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if prev == nil {
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	} else if next == nil {
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(prev, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(next, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	// No objects today.
+
+	return diff
+}
+
 func connectGatewayTLSConfigDiff(prev, next *ConsulGatewayTLSConfig, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "TLS"}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
@@ -900,7 +999,7 @@ func connectGatewayTLSConfigDiff(prev, next *ConsulGatewayTLSConfig, contextual 
 
 // connectGatewayIngressListenersDiff diffs are a set of listeners keyed by "protocol/port", which is
 // a nifty workaround having slices instead of maps. Presumably such a key will be unique, because if
-// it is not the config entry is not going to work anyway.
+// if is not the config entry is not going to work anyway.
 func connectGatewayIngressListenersDiff(prev, next []*ConsulIngressListener, contextual bool) []*ObjectDiff {
 	//  create maps, diff the maps, keys are fields, keys are (port+protocol)
 

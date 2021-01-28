@@ -73,7 +73,7 @@ If you want to bootstrap Nomad ACLs, include `-var 'nomad_acls=true'`.
 
 The `profile` field selects from a set of configuration files for Nomad,
 Consul, and Vault by uploading the files found in `./config/<profile>`. The
-profiles are as follows:
+standard profiles are as follows:
 
 * `full-cluster`: This profile is used for nightly E2E testing. It assumes at
   least 3 servers and includes a unique config for each Nomad client.
@@ -81,10 +81,10 @@ profiles are as follows:
   set of clients. It assumes at least 3 servers but uses the one config for
   all the Linux Nomad clients and one config for all the Windows Nomad
   clients.
-* `custom`: This profile is used for one-off developer testing of more complex
-  interactions between features. You can build your own custom profile by
-  writing config files to the `./config/custom` directory, which are protected
-  by `.gitignore`
+
+You may create additional profiles for testing more complex interactions between features.
+You can build your own custom profile by writing config files to the
+`./config/<custom name>` directory.
 
 For each profile, application (Nomad, Consul, Vault), and agent type
 (`server`, `client_linux`, or `client_windows`), the agent gets the following

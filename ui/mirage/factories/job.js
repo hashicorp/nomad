@@ -25,7 +25,7 @@ export default Factory.extend({
   // When provided, the resourceSpec will inform how many task groups to create
   // and how much of each resource that task group reserves.
   //
-  // One task group, 256 MiB memory and 500 Mhz cpu
+  // One task group, 256 MiB memory and 500 MHz cpu
   // resourceSpec: ['M: 256, C: 500']
   //
   // Two task groups

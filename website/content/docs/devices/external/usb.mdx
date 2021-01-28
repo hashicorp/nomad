@@ -1,0 +1,131 @@
+---
+layout: docs
+page_title: 'Devices: USB'
+sidebar_title: USB <sup>Beta</sup>
+description: The USB Device Plugin detects and makes USB devices available to tasks
+---
+
+# USB Device Plugin
+
+Name: `usb`
+
+The `usb` device plugin is used to expose USB devices to Nomad. The USB plugin
+is not included within Nomad and requires downloading and providing on each
+node.
+
+## Fingerprinted Attributes
+
+| Attribute        | Unit   | Description                                     |
+|------------------|--------|-------------------------------------------------|
+| `vendor_id`      | int    | USB VID in decimal format                       |
+| `product_id`     | int    | USB PID in decimal format                       |
+| `class_id`       | int    | USB Class code in decimal format                |
+| `sub_class_id`   | int    | USB SubClass code in decimal format             |
+| `protocol_id`    | int    | USB Protocol code in decimal format             |
+| `vendor`         | string | Human readable vendor                           |
+| `product`        | string | Human readable product                          |
+| `description`    | string | Human readable description of the USB device    |
+| `classification` | string | Human readable classification of the USB device |
+
+## Runtime Environment
+
+The `usb` device plugin exposes the following environment variables:
+
+- `USB_VISIBLE_DEVICES` - List of USB IDs (from the plugin) available to the task.
+
+## Installation Requirements
+
+In order to use the `usb` device plugin the following prerequisites must be
+met:
+
+1. GNU/Linux i368/amd64/armv7/arm64 (Other Architectures and OS may work but
+   have not been tested)
+2. [libusb-1.0](https://github.com/libusb/libusb/wiki) installed
+
+## Installation
+
+To install the `usb` device plugin you will first need to download the binary
+for your Nomad client. You can find the latest release of these binaries on
+the [release
+page](https://gitlab.com/CarbonCollins/nomad-usb-device-plugin/-/releases).
+
+This binary needs to be downloaded into the plugins directory of the Nomad
+node and the plugin stanza then needs to be added. A full example of the
+plugin stanza needed for the `usb` driver can be found under the plugin
+configuration section.
+
+## Plugin Configuration
+
+```hcl
+plugin "usb" {
+  config {
+    enabled = true
+
+    included_vendor_ids = [0x1CF1, 0x067b]
+    excluded_vendor_ids = []
+
+    included_product_ids = [0x0030, 0x2303]
+    excluded_product_ids = []
+
+    fingerprint_period = "1m"
+  }
+}
+```
+
+The `usb` device plugin supports the following configuration in the agent config:
+
+- `enabled` `(bool: true)` - the `usb` driver may be disabled on clients by
+  setting this option to `false` (defaults to `true`).
+
+- `included_vendor_ids` (`array<uint16>: []`): An array of VIDs to pass to
+  nomad if found
+
+- `excluded_vendor_ids` (`array<uint16>: []`): An array of VIDs to not pass to
+  nomad if found (this takes priority over the include list)
+
+- `included_product_ids` (`array<uint16>: []`): An array of PIDs to pass to
+  nomad if found
+
+- `excluded_product_ids` (`array<uint16>: []`): An array of PIDs to not pass
+  to nomad if found (this takes priority over the include list)
+
+- `fingerprint_period` `(string: "1m")` - The period in which to fingerprint
+  for device changes.
+
+## Limitations
+
+Currently the `usb` driver does not automatically provide dev paths for the
+USB devices into the task, this means in containerized applications you will
+still have to supply the dev path manually e.g. `/dev/ttyUSB0` however this
+plugin does allow containerized tasks to only be deployed on nodes which have
+specified USB devices connected.
+
+## Other Information
+
+The `usb` device plugin is currently in beta and thus is not recommended for
+production use. This will remain the case until the current limitations have
+been solved with the plugin. If you find any issues with the `usb` plugin
+please raise an issue on the plugins [issues
+page](https://gitlab.com/CarbonCollins/nomad-usb-device-plugin/-/issues/new?issue)
+
+### USB Codes
+
+For a full list of available class, subclass, and protocol codes you can see
+the [usb-if-defined-class-codes](https://www.usb.org/defined-class-codes) page
+on the usb
+
+### USB Vendors & Products
+
+There are several sources where you can find known vendor and product ids for
+USB devices. These are independently maintained lists from third parties but
+can be useful as a reference.
+
+- [linux-usb.org](http://www.linux-usb.org/)
+- [devicehunt.com](https://devicehunt.com/all-usb-vendors)
+
+### Source Code & Compiled Binaries
+
+The source code for this plugin can be found at
+[CarbonCollins/nomad-usb-device-plugin](https://gitlab.com/CarbonCollins/nomad-usb-device-plugin). You
+will also find pre built binaries on the [releases
+page](https://gitlab.com/CarbonCollins/nomad-usb-device-plugin/-/releases).

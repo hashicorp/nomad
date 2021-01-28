@@ -45,7 +45,7 @@
   </div>
 
   {{#if this.activeAllocation}}
-    <svg data-test-allocation-associations class="chart topo-viz-edges" {{window-resize this.computedActiveEdges}}>
+    <svg data-test-allocation-associations class="chart topo-viz-edges" {{window-resize this.resizeEdges}}>
       <g transform="translate({{this.edgeOffset.x}},{{this.edgeOffset.y}})">
         {{#each this.activeEdges as |edge|}}
           <path data-test-allocation-association class="edge" d={{edge}} />

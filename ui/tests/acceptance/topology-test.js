@@ -70,7 +70,7 @@ module('Acceptance | topology', function(hooks) {
 
     assert.equal(
       Topology.clusterInfoPanel.cpuAbsoluteValue,
-      `${reservedCPU} Mhz / ${totalCPU} Mhz reserved`
+      `${reservedCPU} MHz / ${totalCPU} MHz reserved`
     );
   });
 
@@ -209,7 +209,7 @@ module('Acceptance | topology', function(hooks) {
 
     assert.equal(
       Topology.nodeInfoPanel.cpuAbsoluteValue,
-      `${reservedCPU} Mhz / ${totalCPU} Mhz reserved`
+      `${reservedCPU} MHz / ${totalCPU} MHz reserved`
     );
 
     await Topology.nodeInfoPanel.visitNode();

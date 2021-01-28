@@ -451,9 +451,13 @@ func (s *Server) purgeSITokenAccessors(accessors []*structs.SITokenAccessor) err
 // Removing the entries is not particularly safe, given that multiple Nomad clusters
 // may be writing to the same config entries, which are global in the Consul scope.
 type ConsulConfigsAPI interface {
-	// SetIngressGatewayConfigEntry adds the given ConfigEntry to Consul, overwriting
+	// SetIngressCE adds the given ConfigEntry to Consul, overwriting
 	// the previous entry if set.
-	SetIngressGatewayConfigEntry(ctx context.Context, service string, entry *structs.ConsulIngressConfigEntry) error
+	SetIngressCE(ctx context.Context, service string, entry *structs.ConsulIngressConfigEntry) error
+
+	// SetTerminatingCE adds the given ConfigEntry to Consul, overwriting
+	// the previous entry if set.
+	SetTerminatingCE(ctx context.Context, service string, entry *structs.ConsulTerminatingConfigEntry) error
 
 	// Stop is used to stop additional creations of Configuration Entries. Intended to
 	// be used on Nomad Server shutdown.
@@ -491,13 +495,18 @@ func (c *consulConfigsAPI) Stop() {
 	c.stopped = true
 }
 
-func (c *consulConfigsAPI) SetIngressGatewayConfigEntry(ctx context.Context, service string, entry *structs.ConsulIngressConfigEntry) error {
-	configEntry := convertIngressGatewayConfig(service, entry)
-	return c.setConfigEntry(ctx, configEntry)
+func (c *consulConfigsAPI) SetIngressCE(ctx context.Context, service string, entry *structs.ConsulIngressConfigEntry) error {
+	return c.setCE(ctx, convertIngressCE(service, entry))
 }
 
-// setConfigEntry will set the Configuration Entry of any type Consul supports.
-func (c *consulConfigsAPI) setConfigEntry(ctx context.Context, entry api.ConfigEntry) error {
+func (c *consulConfigsAPI) SetTerminatingCE(ctx context.Context, service string, entry *structs.ConsulTerminatingConfigEntry) error {
+	return c.setCE(ctx, convertTerminatingCE(service, entry))
+}
+
+// also mesh
+
+// setCE will set the Configuration Entry of any type Consul supports.
+func (c *consulConfigsAPI) setCE(ctx context.Context, entry api.ConfigEntry) error {
 	defer metrics.MeasureSince([]string{"nomad", "consul", "create_config_entry"}, time.Now())
 
 	// make sure the background deletion goroutine has not been stopped
@@ -518,14 +527,14 @@ func (c *consulConfigsAPI) setConfigEntry(ctx context.Context, entry api.ConfigE
 	return err
 }
 
-func convertIngressGatewayConfig(service string, entry *structs.ConsulIngressConfigEntry) api.ConfigEntry {
+func convertIngressCE(service string, entry *structs.ConsulIngressConfigEntry) api.ConfigEntry {
 	var listeners []api.IngressListener = nil
 	for _, listener := range entry.Listeners {
 		var services []api.IngressService = nil
-		for _, service := range listener.Services {
+		for _, s := range listener.Services {
 			services = append(services, api.IngressService{
-				Name:  service.Name,
-				Hosts: helper.CopySliceString(service.Hosts),
+				Name:  s.Name,
+				Hosts: helper.CopySliceString(s.Hosts),
 			})
 		}
 		listeners = append(listeners, api.IngressListener{
@@ -545,5 +554,23 @@ func convertIngressGatewayConfig(service string, entry *structs.ConsulIngressCon
 		Name:      service,
 		TLS:       api.GatewayTLSConfig{Enabled: tlsEnabled},
 		Listeners: listeners,
+	}
+}
+
+func convertTerminatingCE(service string, entry *structs.ConsulTerminatingConfigEntry) api.ConfigEntry {
+	var linked []api.LinkedService = nil
+	for _, s := range entry.Services {
+		linked = append(linked, api.LinkedService{
+			Name:     s.Name,
+			CAFile:   s.CAFile,
+			CertFile: s.CertFile,
+			KeyFile:  s.KeyFile,
+			SNI:      s.SNI,
+		})
+	}
+	return &api.TerminatingGatewayConfigEntry{
+		Kind:     api.TerminatingGateway,
+		Name:     service,
+		Services: linked,
 	}
 }
