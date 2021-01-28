@@ -60,7 +60,7 @@ export default class Watchable extends ApplicationAdapter {
       signal,
       data: params,
     }).catch(error => {
-      if (error instanceof AbortError) {
+      if (error instanceof AbortError || error.name == 'AbortError') {
         return;
       }
       throw error;
@@ -149,7 +149,7 @@ export default class Watchable extends ApplicationAdapter {
           store.push(normalizedData);
         },
         error => {
-          if (error instanceof AbortError) {
+          if (error instanceof AbortError || error.name === 'AbortError') {
             return relationship.kind === 'belongsTo' ? {} : [];
           }
           throw error;
