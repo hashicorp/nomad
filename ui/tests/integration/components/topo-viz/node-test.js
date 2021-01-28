@@ -23,15 +23,15 @@ const nodeGen = (name, datacenter, memory, cpu, flags = {}) => ({
   },
 });
 
-const allocGen = (node, memory, cpu, isSelected) => ({
+const allocGen = (node, memory, cpu, isScheduled = true) => ({
   memory,
   cpu,
-  isSelected,
+  isSelected: false,
   memoryPercent: memory / node.memory,
   cpuPercent: cpu / node.cpu,
   allocation: {
     id: faker.random.uuid(),
-    isScheduled: true,
+    isScheduled,
   },
 });
 
@@ -66,7 +66,11 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
       props({
         node: {
           ...node,
-          allocations: [allocGen(node, 100, 100), allocGen(node, 250, 250)],
+          allocations: [
+            allocGen(node, 100, 100),
+            allocGen(node, 250, 250),
+            allocGen(node, 300, 300, false),
+          ],
         },
       })
     );
@@ -74,7 +78,10 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     await this.render(commonTemplate);
 
     assert.ok(TopoVizNode.isPresent);
-    assert.ok(TopoVizNode.memoryRects.length);
+    assert.equal(
+      TopoVizNode.memoryRects.length,
+      this.node.allocations.filterBy('allocation.isScheduled').length
+    );
     assert.ok(TopoVizNode.cpuRects.length);
 
     await componentA11yAudit(this.element, assert);
@@ -86,7 +93,11 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
       props({
         node: {
           ...node,
-          allocations: [allocGen(node, 100, 100), allocGen(node, 250, 250)],
+          allocations: [
+            allocGen(node, 100, 100),
+            allocGen(node, 250, 250),
+            allocGen(node, 300, 300, false),
+          ],
         },
       })
     );
@@ -94,7 +105,11 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
     await this.render(commonTemplate);
 
     assert.ok(TopoVizNode.label.includes(node.node.name));
-    assert.ok(TopoVizNode.label.includes(`${this.node.allocations.length} Allocs`));
+    assert.ok(
+      TopoVizNode.label.includes(
+        `${this.node.allocations.filterBy('allocation.isScheduled').length} Allocs`
+      )
+    );
     assert.ok(TopoVizNode.label.includes(`${this.node.memory} MiB`));
     assert.ok(TopoVizNode.label.includes(`${this.node.cpu} MHz`));
   });

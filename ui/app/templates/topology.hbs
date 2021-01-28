@@ -60,29 +60,29 @@
             <div data-test-info-panel-title class="boxed-section-head">
               {{#if this.activeNode}}Client{{else if this.activeAllocation}}Allocation{{else}}Cluster{{/if}} Details
             </div>
-            <div class="boxed-section-body">
+            <div data-test-info-panel class="boxed-section-body">
               {{#if this.activeNode}}
                 {{#let this.activeNode.node as |node|}}
                 <div class="dashboard-metric">
-                  <p class="metric">{{this.activeNode.allocations.length}} <span class="metric-label">Allocations</span></p>
+                  <p data-test-allocations class="metric">{{this.activeNode.allocations.length}} <span class="metric-label">Allocations</span></p>
                 </div>
                 <div class="dashboard-metric">
                   <h3 class="pair">
                     <strong>Client:</strong>
-                    <LinkTo @route="clients.client" @model={{node}}>
+                    <LinkTo data-test-client-link @route="clients.client" @model={{node}}>
                       {{node.shortId}}
                     </LinkTo>
                   </h3>
-                  <p class="minor-pair"><strong>Name:</strong> {{node.name}}</p>
-                  <p class="minor-pair"><strong>Address:</strong> {{node.httpAddr}}</p>
-                  <p class="minor-pair"><strong>Status:</strong> {{node.status}}</p>
+                  <p data-test-name class="minor-pair"><strong>Name:</strong> {{node.name}}</p>
+                  <p data-test-address class="minor-pair"><strong>Address:</strong> {{node.httpAddr}}</p>
+                  <p data-test-status class="minor-pair"><strong>Status:</strong> {{node.status}}</p>
                 </div>
                 <div class="dashboard-metric">
                   <h3 class="pair">
-                    <strong>Draining?</strong> <span class="{{if node.isDraining "status-text is-info"}}">{{if node.isDraining "Yes" "No"}}</span>
+                    <strong>Draining?</strong> <span data-test-draining class="{{if node.isDraining "status-text is-info"}}">{{if node.isDraining "Yes" "No"}}</span>
                   </h3>
                   <h3 class="pair">
-                    <strong>Eligible?</strong> <span class="{{unless node.isEligible "status-text is-warning"}}">{{if node.isEligible "Yes" "No"}}</span>
+                    <strong>Eligible?</strong> <span data-test-eligible class="{{unless node.isEligible "status-text is-warning"}}">{{if node.isEligible "Yes" "No"}}</span>
                   </h3>
                 </div>
                 <div class="dashboard-metric with-divider">
@@ -93,8 +93,9 @@
                   </p>
                   <div class="columns graphic">
                     <div class="column">
-                      <div class="inline-chart" data-test-percentage-bar>
+                      <div class="inline-chart">
                         <progress
+                          data-test-memory-progress-bar
                           class="progress is-danger is-small"
                           value="{{this.nodeUtilization.reservedMemoryPercent}}"
                           max="1">
@@ -106,7 +107,7 @@
                       <span class="nowrap" data-test-percentage>{{format-percentage this.nodeUtilization.reservedMemoryPercent total=1}}</span>
                     </div>
                   </div>
-                  <div class="annotation" data-test-absolute-value>
+                  <div class="annotation" data-test-memory-absolute-value>
                     <strong>{{format-bytes this.nodeUtilization.totalReservedMemory}}</strong> / {{format-bytes this.nodeUtilization.totalMemory}} reserved
                   </div>
                 </div>
@@ -116,6 +117,7 @@
                     <div class="column">
                       <div class="inline-chart" data-test-percentage-bar>
                         <progress
+                          data-test-cpu-progress-bar
                           class="progress is-info is-small"
                           value="{{this.nodeUtilization.reservedCPUPercent}}"
                           max="1">
@@ -127,7 +129,7 @@
                       <span class="nowrap" data-test-percentage>{{format-percentage this.nodeUtilization.reservedCPUPercent total=1}}</span>
                     </div>
                   </div>
-                  <div class="annotation" data-test-absolute-value>
+                  <div class="annotation" data-test-cpu-absolute-value>
                     <strong>{{this.nodeUtilization.totalReservedCPU}} MHz</strong> / {{this.nodeUtilization.totalCPU}} MHz reserved
                   </div>
                 </div>
@@ -136,18 +138,19 @@
                 <div class="dashboard-metric">
                   <h3 class="pair">
                     <strong>Allocation:</strong>
-                    <LinkTo @route="allocations.allocation" @model={{this.activeAllocation}} class="is-primary">{{this.activeAllocation.shortId}}</LinkTo>
+                    <LinkTo data-test-id @route="allocations.allocation" @model={{this.activeAllocation}} class="is-primary">{{this.activeAllocation.shortId}}</LinkTo>
                   </h3>
-                  <p class="minor-pair"><strong>Sibling Allocations:</strong> {{this.siblingAllocations.length}}</p>
-                  <p class="minor-pair"><strong>Unique Client Placements:</strong> {{this.uniqueActiveAllocationNodes.length}}</p>
+                  <p data-test-sibling-allocs class="minor-pair"><strong>Sibling Allocations:</strong> {{this.siblingAllocations.length}}</p>
+                  <p data-test-unique-placements class="minor-pair"><strong>Unique Client Placements:</strong> {{this.uniqueActiveAllocationNodes.length}}</p>
                 </div>
                 <div class="dashboard-metric with-divider">
                   <h3 class="pair">
                     <strong>Job:</strong>
                     <LinkTo
+                      data-test-job
                       @route="jobs.job"
                       @model={{this.activeAllocation.job}}
-                      @query={{hash jobNamespace=this.activeAllocation.job.namespace.id}} data-test-job>
+                      @query={{hash jobNamespace=this.activeAllocation.job.namespace.id}}>
                       {{this.activeAllocation.job.name}}</LinkTo>
                     <span class="is-faded" data-test-task-group> / {{this.activeAllocation.taskGroupName}}</span>
                   </h3>
@@ -157,7 +160,7 @@
                 <div class="dashboard-metric with-divider">
                   <h3 class="pair">
                     <strong>Client:</strong>
-                    <LinkTo @route="clients.client" @model={{this.activeAllocation.node}}>
+                    <LinkTo data-test-client @route="clients.client" @model={{this.activeAllocation.node}}>
                       {{this.activeAllocation.node.shortId}}
                     </LinkTo>
                   </h3>
@@ -173,10 +176,10 @@
               {{else}}
                 <div class="columns is-flush">
                   <div class="dashboard-metric column">
-                    <p class="metric">{{this.model.nodes.length}} <span class="metric-label">Clients</span></p>
+                    <p data-test-node-count class="metric">{{this.model.nodes.length}} <span class="metric-label">Clients</span></p>
                   </div>
                   <div class="dashboard-metric column">
-                    <p class="metric">{{this.scheduledAllocations.length}} <span class="metric-label">Allocations</span></p>
+                    <p data-test-alloc-count class="metric">{{this.scheduledAllocations.length}} <span class="metric-label">Allocations</span></p>
                   </div>
                 </div>
                 <div class="dashboard-metric with-divider">
@@ -185,6 +188,7 @@
                     <div class="column">
                       <div class="inline-chart" data-test-percentage-bar>
                         <progress
+                          data-test-memory-progress-bar
                           class="progress is-danger is-small"
                           value="{{this.reservedMemoryPercent}}"
                           max="1">
@@ -193,10 +197,10 @@
                       </div>
                     </div>
                     <div class="column is-minimum">
-                      <span class="nowrap" data-test-percentage>{{format-percentage this.reservedMemoryPercent total=1}}</span>
+                      <span class="nowrap" data-test-memory-percentage>{{format-percentage this.reservedMemoryPercent total=1}}</span>
                     </div>
                   </div>
-                  <div class="annotation" data-test-absolute-value>
+                  <div class="annotation" data-test-memory-absolute-value>
                     <strong>{{format-bytes this.totalReservedMemory}}</strong> / {{format-bytes this.totalMemory}} reserved
                   </div>
                 </div>
@@ -206,6 +210,7 @@
                     <div class="column">
                       <div class="inline-chart" data-test-percentage-bar>
                         <progress
+                          data-test-cpu-progress-bar
                           class="progress is-info is-small"
                           value="{{this.reservedCPUPercent}}"
                           max="1">
@@ -214,10 +219,10 @@
                       </div>
                     </div>
                     <div class="column is-minimum">
-                      <span class="nowrap" data-test-percentage>{{format-percentage this.reservedCPUPercent total=1}}</span>
+                      <span class="nowrap" data-test-cpu-percentage>{{format-percentage this.reservedCPUPercent total=1}}</span>
                     </div>
                   </div>
-                  <div class="annotation" data-test-absolute-value>
+                  <div class="annotation" data-test-cpu-absolute-value>
                     <strong>{{this.totalReservedCPU}} MHz</strong> / {{this.totalCPU}} MHz reserved
                   </div>
                 </div>
