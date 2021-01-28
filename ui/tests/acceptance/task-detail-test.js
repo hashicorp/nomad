@@ -223,7 +223,7 @@ module('Acceptance | task detail', function(hooks) {
     );
   });
 
-  test('when task restart fails, an error message is shown', async function(assert) {
+  test('when task restart fails (403), an ACL permissions error message is shown', async function(assert) {
     server.pretender.put('/v1/client/allocation/:id/restart', () => [403, {}, '']);
 
     await Task.restart.idle();
@@ -239,6 +239,22 @@ module('Acceptance | task detail', function(hooks) {
     await Task.inlineError.dismiss();
 
     assert.notOk(Task.inlineError.isShown, 'Inline error is no longer shown');
+  });
+
+  test('when task restart fails (500), the error message from the API is piped through to the alert', async function(assert) {
+    const message = 'A plaintext error message';
+    server.pretender.put('/v1/client/allocation/:id/restart', () => [500, {}, message]);
+
+    await Task.restart.idle();
+    await Task.restart.confirm();
+
+    assert.ok(Task.inlineError.isShown);
+    assert.ok(Task.inlineError.title.includes('Could Not Restart Task'));
+    assert.equal(Task.inlineError.message, message);
+
+    await Task.inlineError.dismiss();
+
+    assert.notOk(Task.inlineError.isShown);
   });
 
   test('exec button is present', async function(assert) {

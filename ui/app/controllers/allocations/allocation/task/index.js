@@ -2,6 +2,7 @@ import Controller from '@ember/controller';
 import { computed as overridable } from 'ember-overridable-computed';
 import { task } from 'ember-concurrency';
 import classic from 'ember-classic-decorator';
+import messageForError from 'nomad-ui/utils/message-from-adapter-error';
 
 @classic
 export default class IndexController extends Controller {
@@ -21,7 +22,7 @@ export default class IndexController extends Controller {
     } catch (err) {
       this.set('error', {
         title: 'Could Not Restart Task',
-        description: 'Your ACL token does not grant allocation lifecycle permissions.',
+        description: messageForError(err, 'manage allocation lifecycle'),
       });
     }
   })

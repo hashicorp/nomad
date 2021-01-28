@@ -9,6 +9,7 @@ import { task } from 'ember-concurrency';
 import Sortable from 'nomad-ui/mixins/sortable';
 import { lazyClick } from 'nomad-ui/helpers/lazy-click';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';
+import messageForError from 'nomad-ui/utils/message-from-adapter-error';
 import classic from 'ember-classic-decorator';
 
 @classic
@@ -73,7 +74,7 @@ export default class IndexController extends Controller.extend(Sortable) {
     } catch (err) {
       this.set('error', {
         title: 'Could Not Stop Allocation',
-        description: 'Your ACL token does not grant allocation lifecycle permissions.',
+        description: messageForError(err, 'manage allocation lifecycle'),
       });
     }
   })
@@ -85,7 +86,7 @@ export default class IndexController extends Controller.extend(Sortable) {
     } catch (err) {
       this.set('error', {
         title: 'Could Not Restart Allocation',
-        description: 'Your ACL token does not grant allocation lifecycle permissions.',
+        description: messageForError(err, 'manage allocation lifecycle'),
       });
     }
   })
