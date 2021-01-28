@@ -133,7 +133,7 @@ module('Unit | Adapter | Job', function(hooks) {
     );
   });
 
-  test('When there is no token set in the token service, no x-nomad-token header is set', async function(assert) {
+  test('When there is no token set in the token service, no X-Nomad-Token header is set', async function(assert) {
     await this.initializeUI();
 
     const { pretender } = this.server;
@@ -143,12 +143,12 @@ module('Unit | Adapter | Job', function(hooks) {
     await settled();
 
     assert.notOk(
-      pretender.handledRequests.mapBy('requestHeaders').some(headers => headers['x-nomad-token']),
+      pretender.handledRequests.mapBy('requestHeaders').some(headers => headers['X-Nomad-Token']),
       'No token header present on either job request'
     );
   });
 
-  test('When a token is set in the token service, then x-nomad-token header is set', async function(assert) {
+  test('When a token is set in the token service, then X-Nomad-Token header is set', async function(assert) {
     await this.initializeUI();
 
     const { pretender } = this.server;
@@ -162,7 +162,7 @@ module('Unit | Adapter | Job', function(hooks) {
     assert.ok(
       pretender.handledRequests
         .mapBy('requestHeaders')
-        .every(headers => headers['x-nomad-token'] === secret),
+        .every(headers => headers['X-Nomad-Token'] === secret),
       'The token header is present on both job requests'
     );
   });
