@@ -1,3 +1,8 @@
+## 1.0.3 (January 28, 2021)
+
+SECURITY:
+ * drivers/exec+java: Modified exec-based drivers to run tasks in private PID/IPC namespaces. CVE-2021-3283 [[GH-9911](https://github.com/hashicorp/nomad/issues/9911)]
+
 ## 1.0.2 (January 14, 2020)
 
 IMPROVEMENTS:
