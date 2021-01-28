@@ -1,4 +1,5 @@
 import { module, test } from 'qunit';
+import { triggerEvent } from '@ember/test-helpers';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
@@ -144,6 +145,10 @@ module('Integration | Component | TopoViz', function(hooks) {
     assert.ok(TopoViz.allocationAssociationsArePresent);
     assert.equal(TopoViz.allocationAssociations.length, selectedAllocations.length * 2);
 
+    // Lines get redrawn when the window resizes; make sure the lines persist.
+    await triggerEvent(window, 'resize');
+    assert.equal(TopoViz.allocationAssociations.length, selectedAllocations.length * 2);
+
     await TopoViz.datacenters[0].nodes[0].memoryRects[0].select();
     assert.notOk(TopoViz.allocationAssociationsArePresent);
   });
@@ -152,8 +157,17 @@ module('Integration | Component | TopoViz', function(hooks) {
     this.setProperties({
       nodes: [node('dc1', 'node0', 1000, 500), node('dc1', 'node1', 1000, 500)],
       allocations: [
+        // There need to be at least 10 sibling allocations to trigger this behavior
         alloc('node0', 'job1', 'group', 100, 100),
         alloc('node0', 'job1', 'group', 100, 100),
+        alloc('node0', 'job1', 'group', 100, 100),
+        alloc('node0', 'job1', 'group', 100, 100),
+        alloc('node0', 'job1', 'group', 100, 100),
+        alloc('node0', 'job1', 'group', 100, 100),
+        alloc('node1', 'job1', 'group', 100, 100),
+        alloc('node1', 'job1', 'group', 100, 100),
+        alloc('node1', 'job1', 'group', 100, 100),
+        alloc('node1', 'job1', 'group', 100, 100),
         alloc('node1', 'job1', 'group', 100, 100),
         alloc('node1', 'job1', 'group', 100, 100),
         alloc('node0', 'job1', 'groupTwo', 100, 100),
@@ -166,6 +180,10 @@ module('Integration | Component | TopoViz', function(hooks) {
     assert.notOk(TopoViz.allocationAssociationsArePresent);
 
     await TopoViz.datacenters[0].nodes[0].memoryRects[0].select();
+    assert.equal(TopoViz.allocationAssociations.length, 0);
+
+    // Lines get redrawn when the window resizes; make sure that doesn't make the lines show up again
+    await triggerEvent(window, 'resize');
     assert.equal(TopoViz.allocationAssociations.length, 0);
   });
 
