@@ -3904,6 +3904,20 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 		if err := s.updateJobStabilityImpl(index, copy.Namespace, copy.JobID, copy.JobVersion, true, txn); err != nil {
 			return fmt.Errorf("failed to update job stability: %v", err)
 		}
+
+		// TODO(drew) is this the best place
+		allocs, err := s.AllocsByDeployment(nil, deployment.ID)
+		if err != nil {
+			return fmt.Errorf("failed to query allocs for deployment: %w", err)
+		}
+		for _, a := range allocs {
+			a.DeploymentStatus.Active = false
+			a.ModifyIndex = index
+			a.AllocModifyIndex = index
+			if err := txn.Insert("allocs", a); err != nil {
+				return fmt.Errorf("alloc insert failed: %w", err)
+			}
+		}
 	}
 
 	return nil
@@ -4070,6 +4084,7 @@ func (s *StateStore) UpdateDeploymentPromotion(msgType structs.MessageType, inde
 	for _, alloc := range promotable {
 		promoted := alloc.Copy()
 		promoted.DeploymentStatus.Canary = false
+		promoted.DeploymentStatus.Active = false
 		promoted.DeploymentStatus.ModifyIndex = index
 		promoted.ModifyIndex = index
 		promoted.AllocModifyIndex = index

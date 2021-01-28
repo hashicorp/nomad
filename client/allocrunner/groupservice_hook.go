@@ -32,6 +32,7 @@ type groupServiceHook struct {
 
 	// The following fields may be updated
 	canary         bool
+	deploy         bool
 	services       []*structs.Service
 	networks       structs.Networks
 	ports          structs.AllocatedPorts
@@ -78,7 +79,9 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 
 	if cfg.alloc.DeploymentStatus != nil {
 		h.canary = cfg.alloc.DeploymentStatus.Canary
+		h.deploy = cfg.alloc.DeploymentStatus.Active
 	}
+
 	return h
 }
 
@@ -113,8 +116,10 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 
 	// Store new updated values out of request
 	canary := false
+	var deploy bool
 	if req.Alloc.DeploymentStatus != nil {
 		canary = req.Alloc.DeploymentStatus.Canary
+		deploy = req.Alloc.DeploymentStatus.Active
 	}
 
 	var networks structs.Networks
@@ -133,6 +138,7 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	h.networks = networks
 	h.services = tg.Services
 	h.canary = canary
+	h.deploy = deploy
 	h.delay = shutdown
 	h.taskEnvBuilder.UpdateTask(req.Alloc, nil)
 
@@ -211,6 +217,24 @@ func (h *groupServiceHook) deregister() {
 func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnvBuilder.Build(), h.services)
+
+	var onUpdate []*structs.Service
+	var rest []*structs.Service
+	for _, s := range interpolatedServices {
+		if s.OnUpdate == "update_only" {
+			onUpdate = append(onUpdate, s)
+		} else {
+			rest = append(rest, s)
+		}
+	}
+
+	if len(onUpdate) > 0 && h.deploy {
+		interpolatedServices = onUpdate
+	}
+
+	if len(onUpdate) > 0 && !h.deploy {
+		interpolatedServices = rest
+	}
 
 	var netStatus *structs.AllocNetworkStatus
 	if h.networkStatusGetter != nil {

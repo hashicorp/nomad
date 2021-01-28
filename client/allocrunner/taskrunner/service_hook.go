@@ -190,31 +190,6 @@ func (h *serviceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, h.services)
 
-	// var servicesToReg []*structs.Service
-	// for _, s := range interpolatedServices {
-	// 	spew.Dump("YOOOOOOOOOOOOOOOOO", s.Name)
-	// 	if s.Name == "drew-update-test" && h.deploy {
-	// 		servicesToReg = append(servicesToReg, s)
-	// 	} else if !h.deploy && s.Name != "drew-update-test" {
-	// 		servicesToReg = append(servicesToReg, s)
-	// 	}
-	// }
-	// var servicesToReg []*structs.Service
-	// if dereg {
-	// 	servicesToReg = interpolatedServices
-	// } else {
-	// 	for _, s := range interpolatedServices {
-	// 		spew.Dump("YO!!!!!!!!!!!!!!!!!!!!!!!!!!!!1", s.OnUpdate)
-	// 		if s.Name == "drew_update_test" && isDeploy {
-	// 			spew.Dump("UPDATE ONLY")
-	// 			servicesToReg = append(servicesToReg, s)
-	// 		} else if s.Name != "drew_update_test" && !isDeploy {
-	// 			servicesToReg = append(servicesToReg, s)
-	// 		}
-	// 	}
-
-	// }
-
 	// Create task services struct with request's driver metadata
 	return &agentconsul.WorkloadServices{
 		AllocID:       h.allocID,

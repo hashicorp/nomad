@@ -588,6 +588,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					DeploymentID:       deploymentID,
 					TaskResources:      resources.OldTaskResources(),
 					AllocatedResources: resources,
+					DeploymentStatus:   &structs.AllocDeploymentStatus{Active: true},
 					DesiredStatus:      structs.AllocDesiredStatusRun,
 					ClientStatus:       structs.AllocClientStatusPending,
 					// SharedResources is considered deprecated, will be removed in 0.11.
@@ -610,8 +611,12 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// If we are placing a canary and we found a match, add the canary
 				// to the deployment state object and mark it as a canary.
 				if missing.Canary() && s.deployment != nil {
-					alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-						Canary: true,
+					if alloc.DeploymentStatus == nil {
+						alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+							Canary: true,
+						}
+					} else {
+						alloc.DeploymentStatus.Canary = true
 					}
 				}
 

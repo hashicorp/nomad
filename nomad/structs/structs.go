@@ -9882,6 +9882,8 @@ type AllocDeploymentStatus struct {
 	// ModifyIndex is the raft index in which the deployment status was last
 	// changed.
 	ModifyIndex uint64
+
+	Active bool
 }
 
 // HasHealth returns true if the allocation has its health set.
