@@ -470,7 +470,7 @@ github.com/hashicorp/hcl/hcl/token
 github.com/hashicorp/hcl/json/parser
 github.com/hashicorp/hcl/json/scanner
 github.com/hashicorp/hcl/json/token
-# github.com/hashicorp/hcl/v2 v2.7.1-0.20201020204811-68a97f93bb48
+# github.com/hashicorp/hcl/v2 v2.7.1-0.20210129140708-3000d85e32a9
 ## explicit
 github.com/hashicorp/hcl/v2
 github.com/hashicorp/hcl/v2/ext/customdecode
