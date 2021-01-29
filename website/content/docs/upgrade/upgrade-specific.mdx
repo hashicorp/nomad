@@ -14,6 +14,31 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.0.3, 0.12.10
+
+Nomad versions 1.0.3 and 0.12.10 change the behavior of the `exec` and `java` drivers so that
+tasks are isolated in their own PID and IPC namespaces. As a result, the
+process launched by these drivers will be PID 1 in the namespace. This has
+[significant impact](https://man7.org/linux/man-pages/man7/pid_namespaces.7.html)
+on the treatment of a process by the Linux kernel. Furthermore, tasks in the
+same allocation will no longer be able to coordinate using signals, SystemV IPC
+objects, or POSIX message queues. Operators should weigh potential impact of an
+upgrade on their applications against the security consequences inherent in using
+the host namespaces.
+
+This is the sole change for Nomad 1.0.3, intended to provide better process
+isolation by default. An upcoming version of Nomad will include options for
+configuring this behavior.
+
+This change is limited to the `exec` and `java` driver plugins. It does not affect
+the Nomad server. This only affect Nomad clients running on Linux, using the
+`exec` or `java` drivers or third-party driver plugins which relied on the shared
+Nomad executor library.
+
+Upgrading a Nomad client to 1.0.3 or 0.12.10 will not restart existing tasks.
+As such, processes from existing `exec`/`java` tasks will need to be manually restarted
+(using `alloc stop` or another mechanism) in order to be fully isolated.
+
 ## Nomad 1.0.2
 
 #### Dynamic secrets trigger template changes on client restart
