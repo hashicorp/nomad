@@ -192,6 +192,15 @@ func AllocLogs(allocID string, logStream LogStream) (string, error) {
 	return Command(cmd[0], cmd[1:]...)
 }
 
+func AllocTaskLogs(allocID, task string, logStream LogStream) (string, error) {
+	cmd := []string{"nomad", "alloc", "logs"}
+	if logStream == LogsStdErr {
+		cmd = append(cmd, "-stderr")
+	}
+	cmd = append(cmd, allocID, task)
+	return Command(cmd[0], cmd[1:]...)
+}
+
 // AllocExec is a convenience wrapper that runs 'nomad alloc exec' with the
 // passed execCmd via '/bin/sh -c', retrying if the task isn't ready
 func AllocExec(allocID, taskID, execCmd, ns string, wc *WaitConfig) (string, error) {
