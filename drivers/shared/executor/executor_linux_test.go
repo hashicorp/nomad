@@ -107,35 +107,46 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	require.NoError(err)
 	require.NotZero(ps.Pid)
 
-	state, err := executor.Wait(context.Background())
+	estate, err := executor.Wait(context.Background())
 	require.NoError(err)
-	require.Zero(state.ExitCode)
+	require.Zero(estate.ExitCode)
+
+	lexec, ok := executor.(*LibcontainerExecutor)
+	require.True(ok)
 
 	// Check if the resource constraints were applied
-	if lexec, ok := executor.(*LibcontainerExecutor); ok {
-		state, err := lexec.container.State()
-		require.NoError(err)
+	state, err := lexec.container.State()
+	require.NoError(err)
 
-		memLimits := filepath.Join(state.CgroupPaths["memory"], "memory.limit_in_bytes")
-		data, err := ioutil.ReadFile(memLimits)
-		require.NoError(err)
+	memLimits := filepath.Join(state.CgroupPaths["memory"], "memory.limit_in_bytes")
+	data, err := ioutil.ReadFile(memLimits)
+	require.NoError(err)
 
-		expectedMemLim := strconv.Itoa(int(execCmd.Resources.NomadResources.Memory.MemoryMB * 1024 * 1024))
-		actualMemLim := strings.TrimSpace(string(data))
-		require.Equal(actualMemLim, expectedMemLim)
-		require.NoError(executor.Shutdown("", 0))
-		executor.Wait(context.Background())
+	expectedMemLim := strconv.Itoa(int(execCmd.Resources.NomadResources.Memory.MemoryMB * 1024 * 1024))
+	actualMemLim := strings.TrimSpace(string(data))
+	require.Equal(actualMemLim, expectedMemLim)
 
-		// Check if Nomad has actually removed the cgroups
-		tu.WaitForResult(func() (bool, error) {
-			_, err = os.Stat(memLimits)
-			if err == nil {
-				return false, fmt.Errorf("expected an error from os.Stat %s", memLimits)
-			}
-			return true, nil
-		}, func(err error) { t.Error(err) })
+	// Check that namespaces were applied to the container config
+	config := lexec.container.Config()
+	require.NoError(err)
 
-	}
+	require.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWNS})
+	require.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWPID})
+	require.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWIPC})
+
+	// Shut down executor
+	require.NoError(executor.Shutdown("", 0))
+	executor.Wait(context.Background())
+
+	// Check if Nomad has actually removed the cgroups
+	tu.WaitForResult(func() (bool, error) {
+		_, err = os.Stat(memLimits)
+		if err == nil {
+			return false, fmt.Errorf("expected an error from os.Stat %s", memLimits)
+		}
+		return true, nil
+	}, func(err error) { t.Error(err) })
+
 	expected := `/:
 alloc/
 bin/
