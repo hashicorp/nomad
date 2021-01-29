@@ -74,7 +74,7 @@ require (
 	github.com/hashicorp/go-version v1.2.1-0.20191009193637-2046c9d0f0b0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
-	github.com/hashicorp/hcl/v2 v2.7.1-0.20201020204811-68a97f93bb48
+	github.com/hashicorp/hcl/v2 v2.7.1-0.20210129140708-3000d85e32a9
 	github.com/hashicorp/logutils v1.0.0
 	github.com/hashicorp/memberlist v0.2.2
 	github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
