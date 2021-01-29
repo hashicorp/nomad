@@ -333,6 +333,8 @@ job "example" {
 	require.Equal(t, "groupA", out.TaskGroups[0].Tasks[0].Config["command"])
 	require.Equal(t, "1", out.TaskGroups[0].Tasks[0].Meta["VERSION"])
 	require.Equal(t, "id:1", out.TaskGroups[0].Tasks[0].Env["ID"])
+	require.Equal(t, "id:2", out.TaskGroups[1].Tasks[0].Env["ID"])
+	require.Equal(t, "3", out.TaskGroups[2].Tasks[0].Meta["VERSION"])
 }
 
 func TestParse_InvalidScalingSyntax(t *testing.T) {
