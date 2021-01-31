@@ -35,6 +35,7 @@ func (d *AutopilotDelegate) AutopilotConfig() *autopilot.Config {
 		CleanupDeadServers:      c.CleanupDeadServers,
 		LastContactThreshold:    c.LastContactThreshold,
 		MaxTrailingLogs:         c.MaxTrailingLogs,
+		MinQuorum:               c.MinQuorum,
 		ServerStabilizationTime: c.ServerStabilizationTime,
 		DisableUpgradeMigration: c.DisableUpgradeMigration,
 		ModifyIndex:             c.ModifyIndex,
@@ -96,6 +97,11 @@ func (d *AutopilotDelegate) Raft() *raft.Raft {
 	return d.server.raft
 }
 
-func (d *AutopilotDelegate) Serf() *serf.Serf {
+func (d *AutopilotDelegate) SerfLAN() *serf.Serf {
 	return d.server.serf
+}
+
+func (d *AutopilotDelegate) SerfWAN() *serf.Serf {
+	// serf WAN isn't supported in nomad yet
+	return nil
 }

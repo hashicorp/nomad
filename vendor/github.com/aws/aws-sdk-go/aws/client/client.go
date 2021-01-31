@@ -2,8 +2,6 @@ package client
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net/http/httputil"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/client/metadata"
@@ -12,15 +10,31 @@ import (
 
 // A Config provides configuration to a service client instance.
 type Config struct {
-	Config                  *aws.Config
-	Handlers                request.Handlers
-	Endpoint, SigningRegion string
+	Config        *aws.Config
+	Handlers      request.Handlers
+	PartitionID   string
+	Endpoint      string
+	SigningRegion string
+	SigningName   string
+
+	// States that the signing name did not come from a modeled source but
+	// was derived based on other data. Used by service client constructors
+	// to determine if the signin name can be overridden based on metadata the
+	// service has.
+	SigningNameDerived bool
 }
 
 // ConfigProvider provides a generic way for a service client to receive
 // the ClientConfig without circular dependencies.
 type ConfigProvider interface {
 	ClientConfig(serviceName string, cfgs ...*aws.Config) Config
+}
+
+// ConfigNoResolveEndpointProvider same as ConfigProvider except it will not
+// resolve the endpoint automatically. The service client's endpoint must be
+// provided via the aws.Config.Endpoint field.
+type ConfigNoResolveEndpointProvider interface {
+	ClientConfigNoResolveEndpoint(cfgs ...*aws.Config) Config
 }
 
 // A Client implements the base client request and response handling
@@ -38,7 +52,7 @@ func New(cfg aws.Config, info metadata.ClientInfo, handlers request.Handlers, op
 	svc := &Client{
 		Config:     cfg,
 		ClientInfo: info,
-		Handlers:   handlers,
+		Handlers:   handlers.Copy(),
 	}
 
 	switch retryer, ok := cfg.Retryer.(request.Retryer); {
@@ -51,7 +65,7 @@ func New(cfg aws.Config, info metadata.ClientInfo, handlers request.Handlers, op
 	default:
 		maxRetries := aws.IntValue(cfg.MaxRetries)
 		if cfg.MaxRetries == nil || maxRetries == aws.UseServiceDefaultRetries {
-			maxRetries = 3
+			maxRetries = DefaultRetryerMaxNumRetries
 		}
 		svc.Retryer = DefaultRetryer{NumMaxRetries: maxRetries}
 	}
@@ -78,43 +92,6 @@ func (c *Client) AddDebugHandlers() {
 		return
 	}
 
-	c.Handlers.Send.PushFront(logRequest)
-	c.Handlers.Send.PushBack(logResponse)
-}
-
-const logReqMsg = `DEBUG: Request %s/%s Details:
----[ REQUEST POST-SIGN ]-----------------------------
-%s
------------------------------------------------------`
-
-func logRequest(r *request.Request) {
-	logBody := r.Config.LogLevel.Matches(aws.LogDebugWithHTTPBody)
-	dumpedBody, _ := httputil.DumpRequestOut(r.HTTPRequest, logBody)
-
-	if logBody {
-		// Reset the request body because dumpRequest will re-wrap the r.HTTPRequest's
-		// Body as a NoOpCloser and will not be reset after read by the HTTP
-		// client reader.
-		r.Body.Seek(r.BodyStart, 0)
-		r.HTTPRequest.Body = ioutil.NopCloser(r.Body)
-	}
-
-	r.Config.Logger.Log(fmt.Sprintf(logReqMsg, r.ClientInfo.ServiceName, r.Operation.Name, string(dumpedBody)))
-}
-
-const logRespMsg = `DEBUG: Response %s/%s Details:
----[ RESPONSE ]--------------------------------------
-%s
------------------------------------------------------`
-
-func logResponse(r *request.Request) {
-	var msg = "no reponse data"
-	if r.HTTPResponse != nil {
-		logBody := r.Config.LogLevel.Matches(aws.LogDebugWithHTTPBody)
-		dumpedBody, _ := httputil.DumpResponse(r.HTTPResponse, logBody)
-		msg = string(dumpedBody)
-	} else if r.Error != nil {
-		msg = r.Error.Error()
-	}
-	r.Config.Logger.Log(fmt.Sprintf(logRespMsg, r.ClientInfo.ServiceName, r.Operation.Name, msg))
+	c.Handlers.Send.PushFrontNamed(LogHTTPRequestHandler)
+	c.Handlers.Send.PushBackNamed(LogHTTPResponseHandler)
 }

@@ -1,0 +1,72 @@
+---
+layout: docs
+page_title: resources Stanza - Job Specification
+sidebar_title: resources
+description: |-
+  The "resources" stanza describes the requirements a task needs to execute.
+  Resource requirements include memory, cpu, and more.
+---
+
+# `resources` Stanza
+
+<Placement groups={['job', 'group', 'task', 'resources']} />
+
+The `resources` stanza describes the requirements a task needs to execute.
+Resource requirements include memory, CPU, and more.
+
+```hcl
+job "docs" {
+  group "example" {
+    task "server" {
+      resources {
+        cpu    = 100
+        memory = 256
+
+        device "nvidia/gpu" {
+          count = 2
+        }
+      }
+    }
+  }
+}
+```
+
+## `resources` Parameters
+
+- `cpu` `(int: 100)` - Specifies the CPU required to run this task in MHz.
+
+- `memory` `(int: 300)` - Specifies the memory required in MB
+
+- `device` <code>([Device][]: &lt;optional&gt;)</code> - Specifies the device
+  requirements. This may be repeated to request multiple device types.
+
+## `resources` Examples
+
+The following examples only show the `resources` stanzas. Remember that the
+`resources` stanza is only valid in the placements listed above.
+
+### Memory
+
+This example specifies the task requires 2 GB of RAM to operate. 2 GB is the
+equivalent of 2000 MB:
+
+```hcl
+resources {
+  memory = 2000
+}
+```
+
+### Devices
+
+This example shows a device constraints as specified in the [device][] stanza
+which require two nvidia GPUs to be made available:
+
+```hcl
+resources {
+  device "nvidia/gpu" {
+    count = 2
+  }
+}
+```
+
+[device]: /docs/job-specification/device 'Nomad device Job Specification'

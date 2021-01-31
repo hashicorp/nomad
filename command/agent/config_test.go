@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/require"
@@ -34,6 +34,7 @@ func TestConfig_Merge(t *testing.T) {
 		Client:         &ClientConfig{},
 		Server:         &ServerConfig{},
 		ACL:            &ACLConfig{},
+		Audit:          &config.AuditConfig{},
 		Ports:          &Ports{},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
@@ -66,8 +67,6 @@ func TestConfig_Merge(t *testing.T) {
 			DataDogTags:                        []string{"cat1:tag1", "cat2:tag2"},
 			PrometheusMetrics:                  true,
 			DisableHostname:                    false,
-			DisableTaggedMetrics:               true,
-			BackwardsCompatibleMetrics:         true,
 			CirconusAPIToken:                   "0",
 			CirconusAPIApp:                     "nomadic",
 			CirconusAPIURL:                     "http://api.circonus.com/v2",
@@ -82,6 +81,22 @@ func TestConfig_Merge(t *testing.T) {
 			CirconusBrokerID:                   "0",
 			CirconusBrokerSelectTag:            "dc:dc1",
 			PrefixFilter:                       []string{"filter1", "filter2"},
+		},
+		Audit: &config.AuditConfig{
+			Enabled: helper.BoolToPtr(true),
+			Sinks: []*config.AuditSink{
+				{
+					DeliveryGuarantee: "enforced",
+					Name:              "file",
+					Type:              "file",
+					Format:            "json",
+					Path:              "/opt/nomad/audit.log",
+					RotateDuration:    24 * time.Hour,
+					RotateDurationHCL: "24h",
+					RotateBytes:       100,
+					RotateMaxFiles:    10,
+				},
+			},
 		},
 		Client: &ClientConfig{
 			Enabled:   false,
@@ -98,8 +113,8 @@ func TestConfig_Merge(t *testing.T) {
 			ClientMaxPort:     19996,
 			DisableRemoteExec: false,
 			TemplateConfig: &ClientTemplateConfig{
-				FunctionBlacklist: []string{"plugin"},
-				DisableSandbox:    false,
+				FunctionDenylist: []string{"plugin"},
+				DisableSandbox:   false,
 			},
 			Reserved: &Resources{
 				CPU:           10,
@@ -115,6 +130,7 @@ func TestConfig_Merge(t *testing.T) {
 			DataDir:                "/tmp/data1",
 			ProtocolVersion:        1,
 			RaftProtocol:           1,
+			RaftMultiplier:         helper.IntToPtr(5),
 			NumSchedulers:          helper.IntToPtr(1),
 			NodeGCThreshold:        "1h",
 			HeartbeatGrace:         30 * time.Second,
@@ -122,6 +138,8 @@ func TestConfig_Merge(t *testing.T) {
 			MaxHeartbeatsPerSecond: 30.0,
 			RedundancyZone:         "foo",
 			UpgradeVersion:         "foo",
+			EnableEventBroker:      helper.BoolToPtr(false),
+			EventBufferSize:        helper.IntToPtr(0),
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -159,27 +177,29 @@ func TestConfig_Merge(t *testing.T) {
 			TLSServerName:        "1",
 		},
 		Consul: &config.ConsulConfig{
-			ServerServiceName:  "1",
-			ClientServiceName:  "1",
-			AutoAdvertise:      &falseValue,
-			Addr:               "1",
-			Timeout:            1 * time.Second,
-			Token:              "1",
-			Auth:               "1",
-			EnableSSL:          &falseValue,
-			VerifySSL:          &falseValue,
-			CAFile:             "1",
-			CertFile:           "1",
-			KeyFile:            "1",
-			ServerAutoJoin:     &falseValue,
-			ClientAutoJoin:     &falseValue,
-			ChecksUseAdvertise: &falseValue,
+			ServerServiceName:    "1",
+			ClientServiceName:    "1",
+			AutoAdvertise:        &falseValue,
+			Addr:                 "1",
+			AllowUnauthenticated: &falseValue,
+			Timeout:              1 * time.Second,
+			Token:                "1",
+			Auth:                 "1",
+			EnableSSL:            &falseValue,
+			VerifySSL:            &falseValue,
+			CAFile:               "1",
+			CertFile:             "1",
+			KeyFile:              "1",
+			ServerAutoJoin:       &falseValue,
+			ClientAutoJoin:       &falseValue,
+			ChecksUseAdvertise:   &falseValue,
 		},
 		Autopilot: &config.AutopilotConfig{
 			CleanupDeadServers:      &falseValue,
 			ServerStabilizationTime: 1 * time.Second,
 			LastContactThreshold:    1 * time.Second,
 			MaxTrailingLogs:         1,
+			MinQuorum:               1,
 			EnableRedundancyZones:   &falseValue,
 			DisableUpgradeMigration: &falseValue,
 			EnableCustomUpgrades:    &falseValue,
@@ -211,6 +231,22 @@ func TestConfig_Merge(t *testing.T) {
 		DisableUpdateCheck:        helper.BoolToPtr(true),
 		DisableAnonymousSignature: true,
 		BindAddr:                  "127.0.0.2",
+		Audit: &config.AuditConfig{
+			Enabled: helper.BoolToPtr(true),
+			Sinks: []*config.AuditSink{
+				{
+					DeliveryGuarantee: "enforced",
+					Name:              "file",
+					Type:              "file",
+					Format:            "json",
+					Path:              "/opt/nomad/audit.log",
+					RotateDuration:    24 * time.Hour,
+					RotateDurationHCL: "24h",
+					RotateBytes:       100,
+					RotateMaxFiles:    10,
+				},
+			},
+		},
 		Telemetry: &Telemetry{
 			StatsiteAddr:                       "127.0.0.2:8125",
 			StatsdAddr:                         "127.0.0.2:8125",
@@ -220,8 +256,6 @@ func TestConfig_Merge(t *testing.T) {
 			DisableHostname:                    true,
 			PublishNodeMetrics:                 true,
 			PublishAllocationMetrics:           true,
-			DisableTaggedMetrics:               true,
-			BackwardsCompatibleMetrics:         true,
 			CirconusAPIToken:                   "1",
 			CirconusAPIApp:                     "nomad",
 			CirconusAPIURL:                     "https://api.circonus.com/v2",
@@ -261,8 +295,8 @@ func TestConfig_Merge(t *testing.T) {
 			MaxKillTimeout:    "50s",
 			DisableRemoteExec: false,
 			TemplateConfig: &ClientTemplateConfig{
-				FunctionBlacklist: []string{"plugin"},
-				DisableSandbox:    false,
+				FunctionDenylist: []string{"plugin"},
+				DisableSandbox:   false,
 			},
 			Reserved: &Resources{
 				CPU:           15,
@@ -282,6 +316,7 @@ func TestConfig_Merge(t *testing.T) {
 			DataDir:                "/tmp/data2",
 			ProtocolVersion:        2,
 			RaftProtocol:           2,
+			RaftMultiplier:         helper.IntToPtr(6),
 			NumSchedulers:          helper.IntToPtr(2),
 			EnabledSchedulers:      []string{structs.JobTypeBatch},
 			NodeGCThreshold:        "12h",
@@ -295,6 +330,8 @@ func TestConfig_Merge(t *testing.T) {
 			NonVotingServer:        true,
 			RedundancyZone:         "bar",
 			UpgradeVersion:         "bar",
+			EnableEventBroker:      helper.BoolToPtr(true),
+			EventBufferSize:        helper.IntToPtr(100),
 		},
 		ACL: &ACLConfig{
 			Enabled:          true,
@@ -333,21 +370,22 @@ func TestConfig_Merge(t *testing.T) {
 			TLSServerName:        "2",
 		},
 		Consul: &config.ConsulConfig{
-			ServerServiceName:  "2",
-			ClientServiceName:  "2",
-			AutoAdvertise:      &trueValue,
-			Addr:               "2",
-			Timeout:            2 * time.Second,
-			Token:              "2",
-			Auth:               "2",
-			EnableSSL:          &trueValue,
-			VerifySSL:          &trueValue,
-			CAFile:             "2",
-			CertFile:           "2",
-			KeyFile:            "2",
-			ServerAutoJoin:     &trueValue,
-			ClientAutoJoin:     &trueValue,
-			ChecksUseAdvertise: &trueValue,
+			ServerServiceName:    "2",
+			ClientServiceName:    "2",
+			AutoAdvertise:        &trueValue,
+			Addr:                 "2",
+			AllowUnauthenticated: &trueValue,
+			Timeout:              2 * time.Second,
+			Token:                "2",
+			Auth:                 "2",
+			EnableSSL:            &trueValue,
+			VerifySSL:            &trueValue,
+			CAFile:               "2",
+			CertFile:             "2",
+			KeyFile:              "2",
+			ServerAutoJoin:       &trueValue,
+			ClientAutoJoin:       &trueValue,
+			ChecksUseAdvertise:   &trueValue,
 		},
 		Sentinel: &config.SentinelConfig{
 			Imports: []*config.SentinelImport{
@@ -363,6 +401,7 @@ func TestConfig_Merge(t *testing.T) {
 			ServerStabilizationTime: 2 * time.Second,
 			LastContactThreshold:    2 * time.Second,
 			MaxTrailingLogs:         2,
+			MinQuorum:               2,
 			EnableRedundancyZones:   &trueValue,
 			DisableUpgradeMigration: &trueValue,
 			EnableCustomUpgrades:    &trueValue,
@@ -388,9 +427,7 @@ func TestConfig_Merge(t *testing.T) {
 	result := c0.Merge(c1)
 	result = result.Merge(c2)
 	result = result.Merge(c3)
-	if !reflect.DeepEqual(result, c3) {
-		t.Fatalf("bad:\n%#v\n%#v", result, c3)
-	}
+	require.Equal(t, c3, result)
 }
 
 func TestConfig_ParseConfigFile(t *testing.T) {
@@ -594,7 +631,9 @@ func TestConfig_Listener(t *testing.T) {
 	}
 
 	// Works with valid inputs
-	ports := freeport.GetT(t, 2)
+	ports := freeport.MustTake(2)
+	defer freeport.Return(ports)
+
 	ln, err := config.Listener("tcp", "127.0.0.1", ports[0])
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -1127,4 +1166,50 @@ func TestTelemetry_Parse(t *testing.T) {
 	require.False(*config.Telemetry.FilterDefault)
 	require.Exactly([]string{"+nomad.raft"}, config.Telemetry.PrefixFilter)
 	require.True(config.Telemetry.DisableDispatchedJobSummaryMetrics)
+}
+
+func TestEventBroker_Parse(t *testing.T) {
+
+	require := require.New(t)
+	{
+		a := &ServerConfig{
+			EnableEventBroker: helper.BoolToPtr(false),
+			EventBufferSize:   helper.IntToPtr(0),
+		}
+		b := DefaultConfig().Server
+		b.EnableEventBroker = nil
+		b.EventBufferSize = nil
+
+		result := a.Merge(b)
+		require.Equal(false, *result.EnableEventBroker)
+		require.Equal(0, *result.EventBufferSize)
+	}
+
+	{
+		a := &ServerConfig{
+			EnableEventBroker: helper.BoolToPtr(true),
+			EventBufferSize:   helper.IntToPtr(5000),
+		}
+		b := DefaultConfig().Server
+		b.EnableEventBroker = nil
+		b.EventBufferSize = nil
+
+		result := a.Merge(b)
+		require.Equal(true, *result.EnableEventBroker)
+		require.Equal(5000, *result.EventBufferSize)
+	}
+
+	{
+		a := &ServerConfig{
+			EnableEventBroker: helper.BoolToPtr(false),
+			EventBufferSize:   helper.IntToPtr(0),
+		}
+		b := DefaultConfig().Server
+		b.EnableEventBroker = helper.BoolToPtr(true)
+		b.EventBufferSize = helper.IntToPtr(20000)
+
+		result := a.Merge(b)
+		require.Equal(true, *result.EnableEventBroker)
+		require.Equal(20000, *result.EventBufferSize)
+	}
 }

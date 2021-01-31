@@ -1,11 +1,12 @@
 job "binstore-storagelocker" {
-  region      = "fooregion"
-  namespace   = "foonamespace"
-  type        = "batch"
-  priority    = 52
-  all_at_once = true
-  datacenters = ["us2", "eu1"]
-  vault_token = "foo"
+  region       = "fooregion"
+  namespace    = "foonamespace"
+  type         = "batch"
+  priority     = 52
+  all_at_once  = true
+  datacenters  = ["us2", "eu1"]
+  consul_token = "abc"
+  vault_token  = "foo"
 
   meta {
     foo = "bar"
@@ -14,6 +15,12 @@ job "binstore-storagelocker" {
   constraint {
     attribute = "kernel.os"
     value     = "windows"
+  }
+
+  constraint {
+    attribute = "${attr.vault.version}"
+    value     = ">= 0.6.1"
+    operator  = "semver"
   }
 
   affinity {
@@ -64,7 +71,27 @@ job "binstore-storagelocker" {
     count = 5
 
     volume "foo" {
-      type = "host"
+      type   = "host"
+      source = "/path"
+    }
+
+    volume "bar" {
+      type      = "csi"
+      source    = "bar-vol"
+      read_only = true
+
+      mount_options {
+        fs_type = "ext4"
+      }
+    }
+
+    volume "baz" {
+      type   = "csi"
+      source = "bar-vol"
+
+      mount_options {
+        mount_flags = ["ro"]
+      }
     }
 
     restart {
@@ -126,11 +153,13 @@ job "binstore-storagelocker" {
       }
     }
 
+    stop_after_client_disconnect = "120s"
+
     task "binstore" {
       driver = "docker"
       user   = "bob"
       leader = true
-      kind = "connect-proxy:test"
+      kind   = "connect-proxy:test"
 
       affinity {
         attribute = "${meta.foo}"
@@ -152,6 +181,10 @@ job "binstore-storagelocker" {
         destination = "/mnt/foo"
       }
 
+      restart {
+        attempts = 10
+      }
+
       logs {
         max_files     = 14
         max_file_size = 101
@@ -163,6 +196,14 @@ job "binstore-storagelocker" {
       }
 
       service {
+        meta {
+          abc = "123"
+        }
+
+        canary_meta {
+          canary = "boom"
+        }
+
         tags        = ["foo", "bar"]
         canary_tags = ["canary", "bam"]
         port        = "http"
@@ -252,7 +293,8 @@ job "binstore-storagelocker" {
       }
 
       vault {
-        policies = ["foo", "bar"]
+        namespace = "ns1"
+        policies  = ["foo", "bar"]
       }
 
       template {
@@ -276,6 +318,11 @@ job "binstore-storagelocker" {
 
     task "storagelocker" {
       driver = "docker"
+
+      lifecycle {
+        hook    = "prestart"
+        sidecar = true
+      }
 
       config {
         image = "hashicorp/storagelocker"

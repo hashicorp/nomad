@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,34 +55,23 @@ func TestAgent_ServerConfig(t *testing.T) {
 		t.Fatalf("error normalizing config: %v", err)
 	}
 	out, err := a.serverConfig()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.NoError(t, err)
+
+	require.True(t, out.EnableEventBroker)
+
 	serfAddr := out.SerfConfig.MemberlistConfig.AdvertiseAddr
-	if serfAddr != "127.0.0.1" {
-		t.Fatalf("expect 127.0.0.1, got: %s", serfAddr)
-	}
+	require.Equal(t, "127.0.0.1", serfAddr)
+
 	serfPort := out.SerfConfig.MemberlistConfig.AdvertisePort
-	if serfPort != 4000 {
-		t.Fatalf("expected 4000, got: %d", serfPort)
-	}
-	if out.AuthoritativeRegion != "global" {
-		t.Fatalf("bad: %#v", out.AuthoritativeRegion)
-	}
-	if !out.ACLEnabled {
-		t.Fatalf("ACL not enabled")
-	}
+	require.Equal(t, 4000, serfPort)
+
+	require.Equal(t, "global", out.AuthoritativeRegion)
+	require.True(t, out.ACLEnabled)
 
 	// Assert addresses weren't changed
-	if addr := conf.AdvertiseAddrs.RPC; addr != "127.0.0.1:4001" {
-		t.Fatalf("bad rpc advertise addr: %#v", addr)
-	}
-	if addr := conf.AdvertiseAddrs.HTTP; addr != "10.10.11.1:4005" {
-		t.Fatalf("expect 10.11.11.1:4005, got: %v", addr)
-	}
-	if addr := conf.Addresses.RPC; addr != "0.0.0.0" {
-		t.Fatalf("expect 0.0.0.0, got: %v", addr)
-	}
+	require.Equal(t, "127.0.0.1:4001", conf.AdvertiseAddrs.RPC)
+	require.Equal(t, "10.10.11.1:4005", conf.AdvertiseAddrs.HTTP)
+	require.Equal(t, "0.0.0.0", conf.Addresses.RPC)
 
 	// Sets up the ports properly
 	conf.Addresses.RPC = ""
@@ -88,19 +79,12 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf.Ports.RPC = 4003
 	conf.Ports.Serf = 4004
 
-	if err := conf.normalizeAddrs(); err != nil {
-		t.Fatalf("error normalizing config: %v", err)
-	}
+	require.NoError(t, conf.normalizeAddrs())
+
 	out, err = a.serverConfig()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if addr := out.RPCAddr.Port; addr != 4003 {
-		t.Fatalf("expect 4003, got: %d", out.RPCAddr.Port)
-	}
-	if port := out.SerfConfig.MemberlistConfig.BindPort; port != 4004 {
-		t.Fatalf("expect 4004, got: %d", port)
-	}
+	require.NoError(t, err)
+	require.Equal(t, 4003, out.RPCAddr.Port)
+	require.Equal(t, 4004, out.SerfConfig.MemberlistConfig.BindPort)
 
 	// Prefers advertise over bind addr
 	conf.BindAddr = "127.0.0.3"
@@ -111,88 +95,52 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf.AdvertiseAddrs.RPC = ""
 	conf.AdvertiseAddrs.Serf = "10.0.0.12:4004"
 
-	if err := conf.normalizeAddrs(); err != nil {
-		t.Fatalf("error normalizing config: %v", err)
-	}
+	require.NoError(t, conf.normalizeAddrs())
+
 	out, err = a.serverConfig()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if addr := out.RPCAddr.IP.String(); addr != "127.0.0.2" {
-		t.Fatalf("expect 127.0.0.2, got: %s", addr)
-	}
-	if port := out.RPCAddr.Port; port != 4003 {
-		t.Fatalf("expect 4647, got: %d", port)
-	}
-	if addr := out.SerfConfig.MemberlistConfig.BindAddr; addr != "127.0.0.2" {
-		t.Fatalf("expect 127.0.0.2, got: %s", addr)
-	}
-	if port := out.SerfConfig.MemberlistConfig.BindPort; port != 4004 {
-		t.Fatalf("expect 4648, got: %d", port)
-	}
-	if addr := conf.Addresses.HTTP; addr != "127.0.0.2" {
-		t.Fatalf("expect 127.0.0.2, got: %s", addr)
-	}
-	if addr := conf.Addresses.RPC; addr != "127.0.0.2" {
-		t.Fatalf("expect 127.0.0.2, got: %s", addr)
-	}
-	if addr := conf.Addresses.Serf; addr != "127.0.0.2" {
-		t.Fatalf("expect 10.0.0.12, got: %s", addr)
-	}
-	if addr := conf.normalizedAddrs.HTTP; addr != "127.0.0.2:4646" {
-		t.Fatalf("expect 127.0.0.2:4646, got: %s", addr)
-	}
-	if addr := conf.normalizedAddrs.RPC; addr != "127.0.0.2:4003" {
-		t.Fatalf("expect 127.0.0.2:4003, got: %s", addr)
-	}
-	if addr := conf.normalizedAddrs.Serf; addr != "127.0.0.2:4004" {
-		t.Fatalf("expect 10.0.0.12:4004, got: %s", addr)
-	}
-	if addr := conf.AdvertiseAddrs.HTTP; addr != "10.0.0.10:4646" {
-		t.Fatalf("expect 10.0.0.10:4646, got: %s", addr)
-	}
-	if addr := conf.AdvertiseAddrs.RPC; addr != "127.0.0.2:4003" {
-		t.Fatalf("expect 127.0.0.2:4003, got: %s", addr)
-	}
-	if addr := conf.AdvertiseAddrs.Serf; addr != "10.0.0.12:4004" {
-		t.Fatalf("expect 10.0.0.12:4004, got: %s", addr)
-	}
+	require.NoError(t, err)
+	require.Equal(t, "127.0.0.2", out.RPCAddr.IP.String())
+	require.Equal(t, 4003, out.RPCAddr.Port)
+	require.Equal(t, "127.0.0.2", out.SerfConfig.MemberlistConfig.BindAddr)
+	require.Equal(t, 4004, out.SerfConfig.MemberlistConfig.BindPort)
+	require.Equal(t, "127.0.0.2", conf.Addresses.HTTP)
+	require.Equal(t, "127.0.0.2", conf.Addresses.RPC)
+	require.Equal(t, "127.0.0.2", conf.Addresses.Serf)
+	require.Equal(t, "127.0.0.2:4646", conf.normalizedAddrs.HTTP)
+	require.Equal(t, "127.0.0.2:4003", conf.normalizedAddrs.RPC)
+	require.Equal(t, "127.0.0.2:4004", conf.normalizedAddrs.Serf)
+	require.Equal(t, "10.0.0.10:4646", conf.AdvertiseAddrs.HTTP)
+	require.Equal(t, "127.0.0.2:4003", conf.AdvertiseAddrs.RPC)
+	require.Equal(t, "10.0.0.12:4004", conf.AdvertiseAddrs.Serf)
 
 	conf.Server.NodeGCThreshold = "42g"
-	if err := conf.normalizeAddrs(); err != nil {
-		t.Fatalf("error normalizing config: %v", err)
-	}
-	out, err = a.serverConfig()
+	require.NoError(t, conf.normalizeAddrs())
+
+	_, err = a.serverConfig()
 	if err == nil || !strings.Contains(err.Error(), "unknown unit") {
 		t.Fatalf("expected unknown unit error, got: %#v", err)
 	}
 
 	conf.Server.NodeGCThreshold = "10s"
-	if err := conf.normalizeAddrs(); err != nil {
-		t.Fatalf("error normalizing config: %v", err)
-	}
+	require.NoError(t, conf.normalizeAddrs())
 	out, err = a.serverConfig()
-	if threshold := out.NodeGCThreshold; threshold != time.Second*10 {
-		t.Fatalf("expect 10s, got: %s", threshold)
-	}
+	require.NoError(t, err)
+	require.Equal(t, 10*time.Second, out.NodeGCThreshold)
 
 	conf.Server.HeartbeatGrace = 37 * time.Second
 	out, err = a.serverConfig()
-	if threshold := out.HeartbeatGrace; threshold != time.Second*37 {
-		t.Fatalf("expect 37s, got: %s", threshold)
-	}
+	require.NoError(t, err)
+	require.Equal(t, 37*time.Second, out.HeartbeatGrace)
 
 	conf.Server.MinHeartbeatTTL = 37 * time.Second
 	out, err = a.serverConfig()
-	if min := out.MinHeartbeatTTL; min != time.Second*37 {
-		t.Fatalf("expect 37s, got: %s", min)
-	}
+	require.NoError(t, err)
+	require.Equal(t, 37*time.Second, out.MinHeartbeatTTL)
 
 	conf.Server.MaxHeartbeatsPerSecond = 11.0
 	out, err = a.serverConfig()
-	if max := out.MaxHeartbeatsPerSecond; max != 11.0 {
-		t.Fatalf("expect 11, got: %v", max)
-	}
+	require.NoError(t, err)
+	require.Equal(t, float64(11.0), out.MaxHeartbeatsPerSecond)
 
 	// Defaults to the global bind addr
 	conf.Addresses.RPC = ""
@@ -204,61 +152,324 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf.Ports.HTTP = 4646
 	conf.Ports.RPC = 4647
 	conf.Ports.Serf = 4648
-	if err := conf.normalizeAddrs(); err != nil {
-		t.Fatalf("error normalizing config: %v", err)
-	}
+	require.NoError(t, conf.normalizeAddrs())
+
 	out, err = a.serverConfig()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if addr := out.RPCAddr.IP.String(); addr != "127.0.0.3" {
-		t.Fatalf("expect 127.0.0.3, got: %s", addr)
-	}
-	if addr := out.SerfConfig.MemberlistConfig.BindAddr; addr != "127.0.0.3" {
-		t.Fatalf("expect 127.0.0.3, got: %s", addr)
-	}
-	if addr := conf.Addresses.HTTP; addr != "127.0.0.3" {
-		t.Fatalf("expect 127.0.0.3, got: %s", addr)
-	}
-	if addr := conf.Addresses.RPC; addr != "127.0.0.3" {
-		t.Fatalf("expect 127.0.0.3, got: %s", addr)
-	}
-	if addr := conf.Addresses.Serf; addr != "127.0.0.3" {
-		t.Fatalf("expect 127.0.0.3, got: %s", addr)
-	}
-	if addr := conf.normalizedAddrs.HTTP; addr != "127.0.0.3:4646" {
-		t.Fatalf("expect 127.0.0.3:4646, got: %s", addr)
-	}
-	if addr := conf.normalizedAddrs.RPC; addr != "127.0.0.3:4647" {
-		t.Fatalf("expect 127.0.0.3:4647, got: %s", addr)
-	}
-	if addr := conf.normalizedAddrs.Serf; addr != "127.0.0.3:4648" {
-		t.Fatalf("expect 127.0.0.3:4648, got: %s", addr)
-	}
+	require.NoError(t, err)
+
+	require.Equal(t, "127.0.0.3", out.RPCAddr.IP.String())
+	require.Equal(t, "127.0.0.3", out.SerfConfig.MemberlistConfig.BindAddr)
+	require.Equal(t, "127.0.0.3", conf.Addresses.HTTP)
+	require.Equal(t, "127.0.0.3", conf.Addresses.RPC)
+	require.Equal(t, "127.0.0.3", conf.Addresses.Serf)
+	require.Equal(t, "127.0.0.3:4646", conf.normalizedAddrs.HTTP)
+	require.Equal(t, "127.0.0.3:4647", conf.normalizedAddrs.RPC)
+	require.Equal(t, "127.0.0.3:4648", conf.normalizedAddrs.Serf)
 
 	// Properly handles the bootstrap flags
 	conf.Server.BootstrapExpect = 1
 	out, err = a.serverConfig()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if !out.Bootstrap {
-		t.Fatalf("should have set bootstrap mode")
-	}
-	if out.BootstrapExpect != 0 {
-		t.Fatalf("bootstrap expect should be 0")
-	}
+	require.NoError(t, err)
+	require.Equal(t, 1, out.BootstrapExpect)
 
 	conf.Server.BootstrapExpect = 3
 	out, err = a.serverConfig()
-	if err != nil {
-		t.Fatalf("err: %s", err)
+	require.NoError(t, err)
+	require.Equal(t, 3, out.BootstrapExpect)
+}
+
+func TestAgent_ServerConfig_SchedulerFlags(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    *structs.SchedulerConfiguration
+		expected structs.SchedulerConfiguration
+	}{
+		{
+			"default case",
+			nil,
+			structs.SchedulerConfiguration{
+				SchedulerAlgorithm: "binpack",
+				PreemptionConfig: structs.PreemptionConfig{
+					SystemSchedulerEnabled: true,
+				},
+			},
+		},
+		{
+			"empty value: preemption is disabled",
+			&structs.SchedulerConfiguration{},
+			structs.SchedulerConfiguration{
+				PreemptionConfig: structs.PreemptionConfig{
+					SystemSchedulerEnabled: false,
+				},
+			},
+		},
+		{
+			"all explicitly set",
+			&structs.SchedulerConfiguration{
+				PreemptionConfig: structs.PreemptionConfig{
+					SystemSchedulerEnabled:  true,
+					BatchSchedulerEnabled:   true,
+					ServiceSchedulerEnabled: true,
+				},
+			},
+			structs.SchedulerConfiguration{
+				PreemptionConfig: structs.PreemptionConfig{
+					SystemSchedulerEnabled:  true,
+					BatchSchedulerEnabled:   true,
+					ServiceSchedulerEnabled: true,
+				},
+			},
+		},
 	}
-	if out.Bootstrap {
-		t.Fatalf("bootstrap mode should be disabled")
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			conf := DefaultConfig()
+			conf.Server.DefaultSchedulerConfig = c.input
+
+			a := &Agent{config: conf}
+			conf.AdvertiseAddrs.Serf = "127.0.0.1:4000"
+			conf.AdvertiseAddrs.RPC = "127.0.0.1:4001"
+			conf.AdvertiseAddrs.HTTP = "10.10.11.1:4005"
+			conf.ACL.Enabled = true
+			require.NoError(t, conf.normalizeAddrs())
+
+			out, err := a.serverConfig()
+			require.NoError(t, err)
+			require.Equal(t, c.expected, out.DefaultSchedulerConfig)
+		})
 	}
-	if out.BootstrapExpect != 3 {
-		t.Fatalf("should have bootstrap-expect = 3")
+}
+
+// TestAgent_ServerConfig_Limits_Errors asserts invalid Limits configurations
+// cause errors. This is the server-only (RPC) counterpart to
+// TestHTTPServer_Limits_Error.
+func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name        string
+		expectedErr string
+		limits      sconfig.Limits
+	}{
+		{
+			name:        "Negative Timeout",
+			expectedErr: "rpc_handshake_timeout must be >= 0",
+			limits: sconfig.Limits{
+				RPCHandshakeTimeout:  "-5s",
+				RPCMaxConnsPerClient: helper.IntToPtr(100),
+			},
+		},
+		{
+			name:        "Invalid Timeout",
+			expectedErr: "error parsing rpc_handshake_timeout",
+			limits: sconfig.Limits{
+				RPCHandshakeTimeout:  "s",
+				RPCMaxConnsPerClient: helper.IntToPtr(100),
+			},
+		},
+		{
+			name:        "Missing Timeout",
+			expectedErr: "error parsing rpc_handshake_timeout",
+			limits: sconfig.Limits{
+				RPCHandshakeTimeout:  "",
+				RPCMaxConnsPerClient: helper.IntToPtr(100),
+			},
+		},
+		{
+			name:        "Negative Connection Limit",
+			expectedErr: "rpc_max_conns_per_client must be > 25; found: -100",
+			limits: sconfig.Limits{
+				RPCHandshakeTimeout:  "5s",
+				RPCMaxConnsPerClient: helper.IntToPtr(-100),
+			},
+		},
+		{
+			name:        "Low Connection Limit",
+			expectedErr: "rpc_max_conns_per_client must be > 25; found: 20",
+			limits: sconfig.Limits{
+				RPCHandshakeTimeout:  "5s",
+				RPCMaxConnsPerClient: helper.IntToPtr(sconfig.LimitsNonStreamingConnsPerClient),
+			},
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			conf := DevConfig(nil)
+			require.NoError(t, conf.normalizeAddrs())
+
+			conf.Limits = tc.limits
+			serverConf, err := convertServerConfig(conf)
+			assert.Nil(t, serverConf)
+			require.Contains(t, err.Error(), tc.expectedErr)
+		})
+	}
+}
+
+// TestAgent_ServerConfig_Limits_OK asserts valid Limits configurations do not
+// cause errors. This is the server-only (RPC) counterpart to
+// TestHTTPServer_Limits_OK.
+func TestAgent_ServerConfig_Limits_OK(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name   string
+		limits sconfig.Limits
+	}{
+		{
+			name:   "Default",
+			limits: config.DefaultLimits(),
+		},
+		{
+			name: "Zero+nil is valid to disable",
+			limits: sconfig.Limits{
+				RPCHandshakeTimeout:  "0",
+				RPCMaxConnsPerClient: nil,
+			},
+		},
+		{
+			name: "Zeros are valid",
+			limits: sconfig.Limits{
+				RPCHandshakeTimeout:  "0s",
+				RPCMaxConnsPerClient: helper.IntToPtr(0),
+			},
+		},
+		{
+			name: "Low limits are valid",
+			limits: sconfig.Limits{
+				RPCHandshakeTimeout:  "1ms",
+				RPCMaxConnsPerClient: helper.IntToPtr(26),
+			},
+		},
+		{
+			name: "High limits are valid",
+			limits: sconfig.Limits{
+				RPCHandshakeTimeout:  "5h",
+				RPCMaxConnsPerClient: helper.IntToPtr(100000),
+			},
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			conf := DevConfig(nil)
+			require.NoError(t, conf.normalizeAddrs())
+
+			conf.Limits = tc.limits
+			serverConf, err := convertServerConfig(conf)
+			assert.NoError(t, err)
+			require.NotNil(t, serverConf)
+		})
+	}
+}
+
+func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		multiplier         *int
+		electionTimout     time.Duration
+		heartbeatTimeout   time.Duration
+		leaderLeaseTimeout time.Duration
+		commitTimeout      time.Duration
+	}{
+		// nil, 0 are the defaults of the Raft library.
+		// Expected values are hardcoded to detect changes from raft.
+		{
+			multiplier: nil,
+
+			electionTimout:     1 * time.Second,
+			heartbeatTimeout:   1 * time.Second,
+			leaderLeaseTimeout: 500 * time.Millisecond,
+			commitTimeout:      50 * time.Millisecond,
+		},
+
+		{
+			multiplier: helper.IntToPtr(0),
+
+			electionTimout:     1 * time.Second,
+			heartbeatTimeout:   1 * time.Second,
+			leaderLeaseTimeout: 500 * time.Millisecond,
+			commitTimeout:      50 * time.Millisecond,
+		},
+		{
+			multiplier: helper.IntToPtr(1),
+
+			electionTimout:     1 * time.Second,
+			heartbeatTimeout:   1 * time.Second,
+			leaderLeaseTimeout: 500 * time.Millisecond,
+			commitTimeout:      50 * time.Millisecond,
+		},
+		{
+			multiplier: helper.IntToPtr(5),
+
+			electionTimout:     5 * time.Second,
+			heartbeatTimeout:   5 * time.Second,
+			leaderLeaseTimeout: 2500 * time.Millisecond,
+			commitTimeout:      250 * time.Millisecond,
+		},
+		{
+			multiplier: helper.IntToPtr(6),
+
+			electionTimout:     6 * time.Second,
+			heartbeatTimeout:   6 * time.Second,
+			leaderLeaseTimeout: 3000 * time.Millisecond,
+			commitTimeout:      300 * time.Millisecond,
+		},
+		{
+			multiplier: helper.IntToPtr(10),
+
+			electionTimout:     10 * time.Second,
+			heartbeatTimeout:   10 * time.Second,
+			leaderLeaseTimeout: 5000 * time.Millisecond,
+			commitTimeout:      500 * time.Millisecond,
+		},
+	}
+
+	for _, tc := range cases {
+		v := "default"
+		if tc.multiplier != nil {
+			v = fmt.Sprintf("%v", *tc.multiplier)
+		}
+		t.Run(v, func(t *testing.T) {
+			conf := DevConfig(nil)
+			require.NoError(t, conf.normalizeAddrs())
+
+			conf.Server.RaftMultiplier = tc.multiplier
+
+			serverConf, err := convertServerConfig(conf)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.electionTimout, serverConf.RaftConfig.ElectionTimeout, "election timeout")
+			assert.Equal(t, tc.heartbeatTimeout, serverConf.RaftConfig.HeartbeatTimeout, "heartbeat timeout")
+			assert.Equal(t, tc.leaderLeaseTimeout, serverConf.RaftConfig.LeaderLeaseTimeout, "leader lease timeout")
+			assert.Equal(t, tc.commitTimeout, serverConf.RaftConfig.CommitTimeout, "commit timeout")
+		})
+	}
+}
+
+func TestAgent_ServerConfig_RaftMultiplier_Bad(t *testing.T) {
+	t.Parallel()
+
+	cases := []int{
+		-1,
+		100,
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%v", tc), func(t *testing.T) {
+			conf := DevConfig(nil)
+			require.NoError(t, conf.normalizeAddrs())
+
+			conf.Server.RaftMultiplier = &tc
+
+			_, err := convertServerConfig(conf)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "raft_multiplier cannot be")
+		})
 	}
 }
 
@@ -307,13 +518,11 @@ func TestAgent_ClientConfig(t *testing.T) {
 }
 
 // Clients should inherit telemetry configuration
-func TestAget_Client_TelemetryConfiguration(t *testing.T) {
+func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
 	assert := assert.New(t)
 
 	conf := DefaultConfig()
 	conf.DevMode = true
-	conf.Telemetry.DisableTaggedMetrics = true
-	conf.Telemetry.BackwardsCompatibleMetrics = true
 
 	a := &Agent{config: conf}
 
@@ -325,8 +534,6 @@ func TestAget_Client_TelemetryConfiguration(t *testing.T) {
 	assert.Equal(c.StatsCollectionInterval, telemetry.collectionInterval)
 	assert.Equal(c.PublishNodeMetrics, telemetry.PublishNodeMetrics)
 	assert.Equal(c.PublishAllocationMetrics, telemetry.PublishAllocationMetrics)
-	assert.Equal(c.DisableTaggedMetrics, telemetry.DisableTaggedMetrics)
-	assert.Equal(c.BackwardsCompatibleMetrics, telemetry.BackwardsCompatibleMetrics)
 }
 
 // TestAgent_HTTPCheck asserts Agent.agentHTTPCheck properly alters the HTTP
@@ -558,7 +765,8 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 	}
 
 	agent := &Agent{
-		config: agentConfig,
+		auditor: &noOpAuditor{},
+		config:  agentConfig,
 	}
 
 	newConfig := &Config{
@@ -606,7 +814,8 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 	}
 
 	agent := &Agent{
-		config: agentConfig,
+		auditor: &noOpAuditor{},
+		config:  agentConfig,
 	}
 
 	newConfig := &Config{
@@ -685,8 +894,9 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	}
 
 	agent := &Agent{
-		logger: logger,
-		config: agentConfig,
+		auditor: &noOpAuditor{},
+		logger:  logger,
+		config:  agentConfig,
 	}
 
 	newConfig := &Config{
@@ -734,8 +944,9 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	}
 
 	agent := &Agent{
-		logger: logger,
-		config: agentConfig,
+		logger:  logger,
+		config:  agentConfig,
+		auditor: &noOpAuditor{},
 	}
 
 	newConfig := &Config{

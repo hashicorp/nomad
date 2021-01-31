@@ -31,6 +31,7 @@ var (
 	hostFingerprinters = map[string]Factory{
 		"arch":    NewArchFingerprint,
 		"consul":  NewConsulFingerprint,
+		"cni":     NewCNIFingerprint,
 		"cpu":     NewCPUFingerprint,
 		"host":    NewHostFingerprint,
 		"memory":  NewMemoryFingerprint,
@@ -45,8 +46,9 @@ var (
 	// This should run after the host fingerprinters as they may override specific
 	// node resources with more detailed information.
 	envFingerprinters = map[string]Factory{
-		"env_aws": NewEnvAWSFingerprint,
-		"env_gce": NewEnvGCEFingerprint,
+		"env_aws":   NewEnvAWSFingerprint,
+		"env_gce":   NewEnvGCEFingerprint,
+		"env_azure": NewEnvAzureFingerprint,
 	}
 )
 
@@ -113,6 +115,13 @@ type Fingerprint interface {
 	// be run periodically. The return value is a boolean indicating if it
 	// should be periodic, and if true, a duration.
 	Periodic() (bool, time.Duration)
+}
+
+// ReloadableFingerprint can be implemented if the fingerprinter needs to be run during client reload.
+// If implemented, the client will call Reload during client reload then immediately Fingerprint
+type ReloadableFingerprint interface {
+	Fingerprint
+	Reload()
 }
 
 // StaticFingerprinter can be embedded in a struct that has a Fingerprint method

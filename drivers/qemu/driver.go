@@ -61,7 +61,7 @@ var (
 	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
 		Config:  map[string]interface{}{},
-		Factory: func(l hclog.Logger) interface{} { return NewQemuDriver(l) },
+		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewQemuDriver(ctx, l) },
 	}
 
 	versionRegex = regexp.MustCompile(`version (\d[\.\d+]+)`)
@@ -83,7 +83,9 @@ var (
 	}
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
-	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{})
+	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"image_paths": hclspec.NewAttr("image_paths", "list(string)", false),
+	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a taskConfig within a job. It is returned in the TaskConfigSchema RPC
@@ -101,6 +103,11 @@ var (
 		SendSignals: false,
 		Exec:        false,
 		FSIsolation: drivers.FSIsolationImage,
+		NetIsolationModes: []drivers.NetIsolationMode{
+			drivers.NetIsolationModeHost,
+			drivers.NetIsolationModeGroup,
+		},
+		MountConfigs: drivers.MountConfigSupportNone,
 	}
 
 	_ drivers.DriverPlugin = (*Driver)(nil)
@@ -125,11 +132,20 @@ type TaskState struct {
 	StartedAt      time.Time
 }
 
+// Config is the driver configuration set by SetConfig RPC call
+type Config struct {
+	// ImagePaths is an allow-list of paths qemu is allowed to load an image from
+	ImagePaths []string `codec:"image_paths"`
+}
+
 // Driver is a driver for running images via Qemu
 type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
+
+	// config is the driver configuration set by the SetConfig RPC
+	config Config
 
 	// tasks is the in memory datastore mapping taskIDs to qemuTaskHandle
 	tasks *taskStore
@@ -141,23 +157,17 @@ type Driver struct {
 	// nomadConf is the client agent's configuration
 	nomadConfig *base.ClientDriverConfig
 
-	// signalShutdown is called when the driver is shutting down and cancels the
-	// ctx passed to any subsystems
-	signalShutdown context.CancelFunc
-
 	// logger will log to the Nomad agent
 	logger hclog.Logger
 }
 
-func NewQemuDriver(logger hclog.Logger) drivers.DriverPlugin {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewQemuDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	return &Driver{
-		eventer:        eventer.NewEventer(ctx, logger),
-		tasks:          newTaskStore(),
-		ctx:            ctx,
-		signalShutdown: cancel,
-		logger:         logger,
+		eventer: eventer.NewEventer(ctx, logger),
+		tasks:   newTaskStore(),
+		ctx:     ctx,
+		logger:  logger,
 	}
 }
 
@@ -170,6 +180,14 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 func (d *Driver) SetConfig(cfg *base.Config) error {
+	var config Config
+	if len(cfg.PluginConfig) != 0 {
+		if err := base.MsgPackDecode(cfg.PluginConfig, &config); err != nil {
+			return err
+		}
+	}
+
+	d.config = config
 	if cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
 	}
@@ -286,12 +304,38 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		procState:    drivers.TaskStateRunning,
 		startedAt:    taskState.StartedAt,
 		exitResult:   &drivers.ExitResult{},
+		logger:       d.logger,
 	}
 
 	d.tasks.Set(taskState.TaskConfig.ID, h)
 
 	go h.run()
 	return nil
+}
+
+func isAllowedImagePath(allowedPaths []string, allocDir, imagePath string) bool {
+	if !filepath.IsAbs(imagePath) {
+		imagePath = filepath.Join(allocDir, imagePath)
+	}
+
+	isParent := func(parent, path string) bool {
+		rel, err := filepath.Rel(parent, path)
+		return err == nil && !strings.HasPrefix(rel, "..")
+	}
+
+	// check if path is under alloc dir
+	if isParent(allocDir, imagePath) {
+		return true
+	}
+
+	// check allowed paths
+	for _, ap := range allowedPaths {
+		if isParent(ap, imagePath) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
@@ -318,6 +362,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 	vmID := filepath.Base(vmPath)
 
+	if !isAllowedImagePath(d.config.ImagePaths, cfg.AllocDir, vmPath) {
+		return nil, nil, fmt.Errorf("image_path is not in the allowed paths")
+	}
+
 	// Parse configuration arguments
 	// Create the base arguments
 	accelerator := "tcg"
@@ -343,6 +391,17 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		"-m", mem,
 		"-drive", "file=" + vmPath,
 		"-nographic",
+	}
+
+	var netdevArgs []string
+	if cfg.DNS != nil {
+		if len(cfg.DNS.Servers) > 0 {
+			netdevArgs = append(netdevArgs, "dns="+cfg.DNS.Servers[0])
+		}
+
+		for _, s := range cfg.DNS.Searches {
+			netdevArgs = append(netdevArgs, "dnssearch="+s)
+		}
 	}
 
 	var monitorPath string
@@ -383,7 +442,6 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		// Loop through the port map and construct the hostfwd string, to map
 		// reserved ports to the ports listenting in the VM
 		// Ex: hostfwd=tcp::22000-:22,hostfwd=tcp::80-:8080
-		var forwarding []string
 		taskPorts := cfg.Resources.NomadResources.Networks[0].PortLabels()
 		for label, guest := range driverConfig.PortMap {
 			host, ok := taskPorts[label]
@@ -392,14 +450,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 			}
 
 			for _, p := range protocols {
-				forwarding = append(forwarding, fmt.Sprintf("hostfwd=%s::%d-:%d", p, host, guest))
+				netdevArgs = append(netdevArgs, fmt.Sprintf("hostfwd=%s::%d-:%d", p, host, guest))
 			}
 		}
 
-		if len(forwarding) != 0 {
+		if len(netdevArgs) != 0 {
 			args = append(args,
 				"-netdev",
-				fmt.Sprintf("user,id=user.0,%s", strings.Join(forwarding, ",")),
+				fmt.Sprintf("user,id=user.0,%s", strings.Join(netdevArgs, ",")),
 				"-device", "virtio-net,netdev=user.0",
 			)
 		}
@@ -433,13 +491,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:        args[0],
-		Args:       args[1:],
-		Env:        cfg.EnvList(),
-		User:       cfg.User,
-		TaskDir:    cfg.TaskDir().Dir,
-		StdoutPath: cfg.StdoutPath,
-		StderrPath: cfg.StderrPath,
+		Cmd:              args[0],
+		Args:             args[1:],
+		Env:              cfg.EnvList(),
+		User:             cfg.User,
+		TaskDir:          cfg.TaskDir().Dir,
+		StdoutPath:       cfg.StdoutPath,
+		StderrPath:       cfg.StderrPath,
+		NetworkIsolation: cfg.NetworkIsolation,
 	}
 	ps, err := execImpl.Launch(execCmd)
 	if err != nil {
@@ -534,10 +593,8 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 	}
 
 	if !handle.pluginClient.Exited() {
-		if handle.IsRunning() {
-			if err := handle.exec.Shutdown("", 0); err != nil {
-				handle.logger.Error("destroying executor failed", "err", err)
-			}
+		if err := handle.exec.Shutdown("", 0); err != nil {
+			handle.logger.Error("destroying executor failed", "err", err)
 		}
 
 		handle.pluginClient.Kill()
@@ -628,7 +685,7 @@ func (d *Driver) getMonitorPath(dir string, fingerPrint *drivers.Fingerprint) (s
 		d.logger.Debug("long socket paths available in this version of QEMU", "version", currentQemuVer)
 	}
 	fullSocketPath := fmt.Sprintf("%s/%s", dir, qemuMonitorSocketName)
-	if len(fullSocketPath) > qemuLegacyMaxMonitorPathLen && longPathSupport == false {
+	if len(fullSocketPath) > qemuLegacyMaxMonitorPathLen && !longPathSupport {
 		return "", fmt.Errorf("monitor path is too long for this version of qemu")
 	}
 	return fullSocketPath, nil
@@ -652,8 +709,4 @@ func sendQemuShutdown(logger hclog.Logger, monitorPath string, userPid int) erro
 		logger.Warn("failed to send shutdown message", "shutdown message", qemuGracefulShutdownMsg, "monitorPath", monitorPath, "userPid", userPid, "error", err)
 	}
 	return err
-}
-
-func (d *Driver) Shutdown() {
-	d.signalShutdown()
 }

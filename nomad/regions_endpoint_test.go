@@ -11,17 +11,18 @@ import (
 
 func TestRegionList(t *testing.T) {
 	t.Parallel()
+
 	// Make the servers
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "region1"
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 
-	s2 := TestServer(t, func(c *Config) {
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.Region = "region2"
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
 	// Join the servers
 	s2Addr := fmt.Sprintf("127.0.0.1:%d",

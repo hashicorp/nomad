@@ -1,0 +1,15 @@
+<tr data-test-entry>
+  <td>
+    <Fs::Link @allocation={{this.allocation}} @taskState={{this.taskState}} @path={{this.pathToEntry}}>
+      {{#if this.entry.IsDir}}
+        {{x-icon "folder-outline"}}
+      {{else}}
+        {{x-icon "file-outline"}}
+      {{/if}}
+
+      <span class="name" data-test-name>{{this.entry.Name}}</span>
+    </Fs::Link>
+  </td>
+  <td class="has-text-right" data-test-size>{{#unless this.entry.IsDir}}{{format-bytes this.entry.Size}}{{/unless}}</td>
+  <td class="has-text-right" title={{format-ts this.entry.ModTime}} data-test-last-modified>{{moment-from this.entry.ModTime interval=1000}}</td>
+</tr>

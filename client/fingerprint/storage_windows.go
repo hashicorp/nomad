@@ -6,7 +6,7 @@ import (
 	"syscall"
 )
 
-//go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zstorage_windows.generated.go storage_windows.go
+//go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zstorage_windows.go storage_windows.go
 
 //sys	getDiskFreeSpaceEx(dirName *uint16, availableFreeBytes *uint64, totalBytes *uint64, totalFreeBytes *uint64) (err error) = kernel32.GetDiskFreeSpaceExW
 

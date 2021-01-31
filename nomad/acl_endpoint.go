@@ -11,6 +11,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -18,7 +19,7 @@ import (
 
 var (
 	// aclDisabled is returned when an ACL endpoint is hit but ACLs are not enabled
-	aclDisabled = fmt.Errorf("ACL support disabled")
+	aclDisabled = structs.NewErrRPCCoded(400, "ACL support disabled")
 )
 
 const (
@@ -55,13 +56,13 @@ func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *struct
 
 	// Validate non-zero set of policies
 	if len(args.Policies) == 0 {
-		return fmt.Errorf("must specify as least one policy")
+		return structs.NewErrRPCCoded(400, "must specify as least one policy")
 	}
 
 	// Validate each policy, compute hash
 	for idx, policy := range args.Policies {
 		if err := policy.Validate(); err != nil {
-			return fmt.Errorf("policy %d invalid: %v", idx, err)
+			return structs.NewErrRPCCodedf(404, "policy %d invalid: %v", idx, err)
 		}
 		policy.SetHash()
 	}
@@ -99,7 +100,7 @@ func (a *ACL) DeletePolicies(args *structs.ACLPolicyDeleteRequest, reply *struct
 
 	// Validate non-zero set of policies
 	if len(args.Names) == 0 {
-		return fmt.Errorf("must specify as least one policy")
+		return structs.NewErrRPCCoded(400, "must specify as least one policy")
 	}
 
 	// Update via Raft
@@ -118,6 +119,7 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
+
 	if done, err := a.srv.forward("ACL.ListPolicies", args, args, reply); done {
 		return err
 	}
@@ -135,12 +137,7 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 	mgt := acl.IsManagement()
 	var policies map[string]struct{}
 	if !mgt {
-		snap, err := a.srv.fsm.State().Snapshot()
-		if err != nil {
-			return err
-		}
-
-		token, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
+		token, err := a.requestACLToken(args.AuthToken)
 		if err != nil {
 			return err
 		}
@@ -206,6 +203,7 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
 	}
+
 	if done, err := a.srv.forward("ACL.GetPolicy", args, args, reply); done {
 		return err
 	}
@@ -219,15 +217,11 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 		return structs.ErrPermissionDenied
 	}
 
+	// If the policy is the anonymous one, anyone can get it
 	// If it is not a management token determine if it can get this policy
 	mgt := acl.IsManagement()
-	if !mgt {
-		snap, err := a.srv.fsm.State().Snapshot()
-		if err != nil {
-			return err
-		}
-
-		token, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
+	if !mgt && args.Name != "anonymous" {
+		token, err := a.requestACLToken(args.AuthToken)
 		if err != nil {
 			return err
 		}
@@ -263,6 +257,12 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 			reply.Policy = out
 			if out != nil {
 				reply.Index = out.ModifyIndex
+				rules, err := policy.Parse(out.Rules)
+
+				if err != nil {
+					return err
+				}
+				reply.Policy.RulesJSON = rules
 			} else {
 				// Use the last index that affected the policy table
 				index, err := state.Index("acl_policy")
@@ -276,6 +276,19 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 	return a.srv.blockingRPC(&opts)
 }
 
+func (a *ACL) requestACLToken(secretID string) (*structs.ACLToken, error) {
+	if secretID == "" {
+		return structs.AnonymousACLToken, nil
+	}
+
+	snap, err := a.srv.fsm.State().Snapshot()
+	if err != nil {
+		return nil, err
+	}
+
+	return snap.ACLTokenBySecretID(nil, secretID)
+}
+
 // GetPolicies is used to get a set of policies
 func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLPolicySetResponse) error {
 	if !a.srv.config.ACLEnabled {
@@ -286,19 +299,12 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	}
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_policies"}, time.Now())
 
-	var token *structs.ACLToken
-	var err error
-	if args.AuthToken == "" {
-		// No need to look up the anonymous token
-		token = structs.AnonymousACLToken
-	} else {
-		// For client typed tokens, allow them to query any policies associated with that token.
-		// This is used by clients which are resolving the policies to enforce. Any associated
-		// policies need to be fetched so that the client can determine what to allow.
-		token, err = a.srv.State().ACLTokenBySecretID(nil, args.AuthToken)
-		if err != nil {
-			return err
-		}
+	// For client typed tokens, allow them to query any policies associated with that token.
+	// This is used by clients which are resolving the policies to enforce. Any associated
+	// policies need to be fetched so that the client can determine what to allow.
+	token, err := a.requestACLToken(args.AuthToken)
+	if err != nil {
+		return err
 	}
 
 	if token == nil {
@@ -370,9 +376,9 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 		// Check if there is a reset index specified
 		specifiedIndex := a.fileBootstrapResetIndex()
 		if specifiedIndex == 0 {
-			return fmt.Errorf("ACL bootstrap already done (reset index: %d)", resetIdx)
+			return structs.NewErrRPCCodedf(400, "ACL bootstrap already done (reset index: %d)", resetIdx)
 		} else if specifiedIndex != resetIdx {
-			return fmt.Errorf("Invalid bootstrap reset index (specified %d, reset index: %d)", specifiedIndex, resetIdx)
+			return structs.NewErrRPCCodedf(400, "Invalid bootstrap reset index (specified %d, reset index: %d)", specifiedIndex, resetIdx)
 		}
 
 		// Setup the reset index to allow bootstrapping again
@@ -404,7 +410,7 @@ func (a *ACL) Bootstrap(args *structs.ACLTokenBootstrapRequest, reply *structs.A
 	}
 	out, err := state.ACLTokenByAccessorID(nil, args.Token.AccessorID)
 	if err != nil {
-		return fmt.Errorf("token lookup failed: %v", err)
+		return structs.NewErrRPCCodedf(400, "token lookup failed: %v", err)
 	}
 	reply.Tokens = append(reply.Tokens, out)
 
@@ -448,7 +454,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 
 	// Validate non-zero set of tokens
 	if len(args.Tokens) == 0 {
-		return fmt.Errorf("must specify as least one token")
+		return structs.NewErrRPCCoded(400, "must specify as least one token")
 	}
 
 	// Force the request to the authoritative region if we are creating global tokens
@@ -466,7 +472,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	// the entire request as a single batch.
 	if hasGlobal {
 		if !allGlobal {
-			return fmt.Errorf("cannot upsert mixed global and non-global tokens")
+			return structs.NewErrRPCCoded(400, "cannot upsert mixed global and non-global tokens")
 		}
 
 		// Force the request to the authoritative region if it has global
@@ -494,7 +500,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	// Validate each token
 	for idx, token := range args.Tokens {
 		if err := token.Validate(); err != nil {
-			return fmt.Errorf("token %d invalid: %v", idx, err)
+			return structs.NewErrRPCCodedf(400, "token %d invalid: %v", idx, err)
 		}
 
 		// Generate an accessor and secret ID if new
@@ -507,15 +513,15 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 			// Verify the token exists
 			out, err := state.ACLTokenByAccessorID(nil, token.AccessorID)
 			if err != nil {
-				return fmt.Errorf("token lookup failed: %v", err)
+				return structs.NewErrRPCCodedf(400, "token lookup failed: %v", err)
 			}
 			if out == nil {
-				return fmt.Errorf("cannot find token %s", token.AccessorID)
+				return structs.NewErrRPCCodedf(404, "cannot find token %s", token.AccessorID)
 			}
 
 			// Cannot toggle the "Global" mode
 			if token.Global != out.Global {
-				return fmt.Errorf("cannot toggle global mode of %s", token.AccessorID)
+				return structs.NewErrRPCCodedf(400, "cannot toggle global mode of %s", token.AccessorID)
 			}
 		}
 
@@ -538,7 +544,7 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	for _, token := range args.Tokens {
 		out, err := state.ACLTokenByAccessorID(nil, token.AccessorID)
 		if err != nil {
-			return fmt.Errorf("token lookup failed: %v", err)
+			return structs.NewErrRPCCodedf(400, "token lookup failed: %v", err)
 		}
 		reply.Tokens = append(reply.Tokens, out)
 	}
@@ -557,7 +563,7 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 
 	// Validate non-zero set of tokens
 	if len(args.AccessorIDs) == 0 {
-		return fmt.Errorf("must specify as least one token")
+		return structs.NewErrRPCCoded(400, "must specify as least one token")
 	}
 
 	if done, err := a.srv.forward("ACL.DeleteTokens", args, args, reply); done {
@@ -585,7 +591,7 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	for _, accessor := range args.AccessorIDs {
 		token, err := state.ACLTokenByAccessorID(nil, accessor)
 		if err != nil {
-			return fmt.Errorf("token lookup failed: %v", err)
+			return structs.NewErrRPCCodedf(400, "token lookup failed: %v", err)
 		}
 		if token == nil {
 			nonexistentTokens = append(nonexistentTokens, accessor)
@@ -599,14 +605,14 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	}
 
 	if len(nonexistentTokens) != 0 {
-		return fmt.Errorf("Cannot delete nonexistent tokens: %v", strings.Join(nonexistentTokens, ", "))
+		return structs.NewErrRPCCodedf(400, "Cannot delete nonexistent tokens: %v", strings.Join(nonexistentTokens, ", "))
 	}
 
 	// Disallow mixed requests with global and non-global tokens since we forward
 	// the entire request as a single batch.
 	if hasGlobal {
 		if !allGlobal {
-			return fmt.Errorf("cannot delete mixed global and non-global tokens")
+			return structs.NewErrRPCCoded(400, "cannot delete mixed global and non-global tokens")
 		}
 
 		// Force the request to the authoritative region if it has global

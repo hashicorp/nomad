@@ -21,7 +21,7 @@ func TestEvalStatusCommand_Fails(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &EvalStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -68,13 +68,13 @@ func TestEvalStatusCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &EvalStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake eval
 	state := srv.Agent.Server().State()
 	e := mock.Eval()
-	assert.Nil(state.UpsertEvals(1000, []*structs.Evaluation{e}))
+	assert.Nil(state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{e}))
 
 	prefix := e.ID[:5]
 	args := complete.Args{Last: prefix}

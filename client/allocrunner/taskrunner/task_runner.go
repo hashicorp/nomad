@@ -11,7 +11,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/hcl2/hcldec"
+	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
@@ -19,7 +19,9 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -50,7 +52,7 @@ const (
 	// giving up and potentially leaking resources.
 	killFailureLimit = 5
 
-	// triggerUpdatechCap is the capacity for the triggerUpdateCh used for
+	// triggerUpdateChCap is the capacity for the triggerUpdateCh used for
 	// triggering updates. It should be exactly 1 as even if multiple
 	// updates have come in since the last one was handled, we only need to
 	// handle the last one.
@@ -156,7 +158,16 @@ type TaskRunner struct {
 
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
-	consulClient consul.ConsulServiceAPI
+	consulServiceClient consul.ConsulServiceAPI
+
+	// consulProxiesClient is the client used by the envoy version hook for
+	// asking consul what version of envoy nomad should inject into the connect
+	// sidecar or gateway task.
+	consulProxiesClient consul.SupportedProxiesAPI
+
+	// sidsClient is the client used by the service identity hook for managing
+	// service identity tokens
+	siClient consul.ServiceIdentityAPI
 
 	// vaultClient is the client to use to derive and renew Vault tokens
 	vaultClient vaultclient.VaultClient
@@ -182,6 +193,9 @@ type TaskRunner struct {
 	// deviceStatsReporter is used to lookup resource usage for alloc devices
 	deviceStatsReporter cinterfaces.DeviceStatsReporter
 
+	// csiManager is used to manage the mounting of CSI volumes into tasks
+	csiManager csimanager.Manager
+
 	// devicemanager is used to mount devices as well as lookup device
 	// statistics
 	devicemanager devicemanager.Manager
@@ -189,6 +203,9 @@ type TaskRunner struct {
 	// driverManager is used to dispense driver plugins and register event
 	// handlers
 	driverManager drivermanager.Manager
+
+	// dynamicRegistry is where dynamic plugins should be registered.
+	dynamicRegistry dynamicplugins.Registry
 
 	// maxEvents is the capacity of the TaskEvents on the TaskState.
 	// Defaults to defaultMaxEvents but overrideable for testing.
@@ -198,6 +215,9 @@ type TaskRunner struct {
 	// GetClientAllocs has been called in case of a failed restore.
 	serversContactedCh <-chan struct{}
 
+	// startConditionMetCtx is done when TR should start the task
+	startConditionMetCtx <-chan struct{}
+
 	// waitOnServers defaults to false but will be set true if a restore
 	// fails and the Run method should wait until serversContactedCh is
 	// closed.
@@ -205,15 +225,29 @@ type TaskRunner struct {
 
 	networkIsolationLock sync.Mutex
 	networkIsolationSpec *drivers.NetworkIsolationSpec
+
+	allocHookResources *cstructs.AllocHookResources
 }
 
 type Config struct {
 	Alloc        *structs.Allocation
 	ClientConfig *config.Config
-	Consul       consul.ConsulServiceAPI
 	Task         *structs.Task
 	TaskDir      *allocdir.TaskDir
 	Logger       log.Logger
+
+	// Consul is the client to use for managing Consul service registrations
+	Consul consul.ConsulServiceAPI
+
+	// ConsulProxies is the client to use for looking up supported envoy versions
+	// from Consul.
+	ConsulProxies consul.SupportedProxiesAPI
+
+	// ConsulSI is the client to use for managing Consul SI tokens
+	ConsulSI consul.ServiceIdentityAPI
+
+	// DynamicRegistry is where dynamic plugins should be registered.
+	DynamicRegistry dynamicplugins.Registry
 
 	// Vault is the client to use to derive and renew Vault tokens
 	Vault vaultclient.VaultClient
@@ -227,6 +261,9 @@ type Config struct {
 	// deviceStatsReporter is used to lookup resource usage for alloc devices
 	DeviceStatsReporter cinterfaces.DeviceStatsReporter
 
+	// CSIManager is used to manage the mounting of CSI volumes into tasks
+	CSIManager csimanager.Manager
+
 	// DeviceManager is used to mount devices as well as lookup device
 	// statistics
 	DeviceManager devicemanager.Manager
@@ -238,6 +275,9 @@ type Config struct {
 	// ServersContactedCh is closed when the first GetClientAllocs call to
 	// servers succeeds and allocs are synced.
 	ServersContactedCh chan struct{}
+
+	// startConditionMetCtx is done when TR should start the task
+	StartConditionMetCtx <-chan struct{}
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -262,31 +302,36 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	}
 
 	tr := &TaskRunner{
-		alloc:               config.Alloc,
-		allocID:             config.Alloc.ID,
-		clientConfig:        config.ClientConfig,
-		task:                config.Task,
-		taskDir:             config.TaskDir,
-		taskName:            config.Task.Name,
-		taskLeader:          config.Task.Leader,
-		envBuilder:          envBuilder,
-		consulClient:        config.Consul,
-		vaultClient:         config.Vault,
-		state:               tstate,
-		localState:          state.NewLocalState(),
-		stateDB:             config.StateDB,
-		stateUpdater:        config.StateUpdater,
-		deviceStatsReporter: config.DeviceStatsReporter,
-		killCtx:             killCtx,
-		killCtxCancel:       killCancel,
-		shutdownCtx:         trCtx,
-		shutdownCtxCancel:   trCancel,
-		triggerUpdateCh:     make(chan struct{}, triggerUpdateChCap),
-		waitCh:              make(chan struct{}),
-		devicemanager:       config.DeviceManager,
-		driverManager:       config.DriverManager,
-		maxEvents:           defaultMaxEvents,
-		serversContactedCh:  config.ServersContactedCh,
+		alloc:                config.Alloc,
+		allocID:              config.Alloc.ID,
+		clientConfig:         config.ClientConfig,
+		task:                 config.Task,
+		taskDir:              config.TaskDir,
+		taskName:             config.Task.Name,
+		taskLeader:           config.Task.Leader,
+		envBuilder:           envBuilder,
+		dynamicRegistry:      config.DynamicRegistry,
+		consulServiceClient:  config.Consul,
+		consulProxiesClient:  config.ConsulProxies,
+		siClient:             config.ConsulSI,
+		vaultClient:          config.Vault,
+		state:                tstate,
+		localState:           state.NewLocalState(),
+		stateDB:              config.StateDB,
+		stateUpdater:         config.StateUpdater,
+		deviceStatsReporter:  config.DeviceStatsReporter,
+		killCtx:              killCtx,
+		killCtxCancel:        killCancel,
+		shutdownCtx:          trCtx,
+		shutdownCtxCancel:    trCancel,
+		triggerUpdateCh:      make(chan struct{}, triggerUpdateChCap),
+		waitCh:               make(chan struct{}),
+		csiManager:           config.CSIManager,
+		devicemanager:        config.DeviceManager,
+		driverManager:        config.DriverManager,
+		maxEvents:            defaultMaxEvents,
+		serversContactedCh:   config.ServersContactedCh,
+		startConditionMetCtx: config.StartConditionMetCtx,
 	}
 
 	// Create the logger based on the allocation ID
@@ -294,39 +339,27 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 
 	// Pull out the task's resources
 	ares := tr.alloc.AllocatedResources
-	if ares != nil {
-		tres, ok := ares.Tasks[tr.taskName]
-		if !ok {
-			return nil, fmt.Errorf("no task resources found on allocation")
-		}
-		tr.taskResources = tres
-	} else {
-		// COMPAT(0.10): Upgrade from old resources to new resources
-		// Grab the old task resources
-		oldTr, ok := tr.alloc.TaskResources[tr.taskName]
-		if !ok {
-			return nil, fmt.Errorf("no task resources found on allocation")
-		}
-
-		// Convert the old to new
-		tr.taskResources = &structs.AllocatedTaskResources{
-			Cpu: structs.AllocatedCpuResources{
-				CpuShares: int64(oldTr.CPU),
-			},
-			Memory: structs.AllocatedMemoryResources{
-				MemoryMB: int64(oldTr.MemoryMB),
-			},
-			Networks: oldTr.Networks,
-		}
+	if ares == nil {
+		return nil, fmt.Errorf("no task resources found on allocation")
 	}
+
+	tres, ok := ares.Tasks[tr.taskName]
+	if !ok {
+		return nil, fmt.Errorf("no task resources found on allocation")
+	}
+	tr.taskResources = tres
 
 	// Build the restart tracker.
-	tg := tr.alloc.Job.LookupTaskGroup(tr.alloc.TaskGroup)
-	if tg == nil {
-		tr.logger.Error("alloc missing task group")
-		return nil, fmt.Errorf("alloc missing task group")
+	rp := config.Task.RestartPolicy
+	if rp == nil {
+		tg := tr.alloc.Job.LookupTaskGroup(tr.alloc.TaskGroup)
+		if tg == nil {
+			tr.logger.Error("alloc missing task group")
+			return nil, fmt.Errorf("alloc missing task group")
+		}
+		rp = tg.RestartPolicy
 	}
-	tr.restartTracker = restarts.NewRestartTracker(tg.RestartPolicy, tr.alloc.Job.Type)
+	tr.restartTracker = restarts.NewRestartTracker(rp, tr.alloc.Job.Type, config.Task.Lifecycle)
 
 	// Get the driver
 	if err := tr.initDriver(); err != nil {
@@ -460,8 +493,17 @@ func (tr *TaskRunner) Run() {
 		}
 	}
 
+	select {
+	case <-tr.startConditionMetCtx:
+		tr.logger.Debug("lifecycle start condition has been met, proceeding")
+		// yay proceed
+	case <-tr.killCtx.Done():
+	case <-tr.shutdownCtx.Done():
+		return
+	}
+
 MAIN:
-	for !tr.Alloc().TerminalStatus() {
+	for !tr.shouldShutdown() {
 		select {
 		case <-tr.killCtx.Done():
 			break MAIN
@@ -584,6 +626,18 @@ MAIN:
 	tr.logger.Debug("task run loop exiting")
 }
 
+func (tr *TaskRunner) shouldShutdown() bool {
+	if tr.alloc.ClientTerminalStatus() {
+		return true
+	}
+
+	if !tr.IsPoststopTask() && tr.alloc.ServerTerminalStatus() {
+		return true
+	}
+
+	return false
+}
+
 // handleTaskExitResult handles the results returned by the task exiting. If
 // retryWait is true, the caller should attempt to wait on the task again since
 // it has not actually finished running. This can happen if the driver plugin
@@ -633,7 +687,7 @@ func (tr *TaskRunner) emitExitResultEvent(result *drivers.ExitResult) {
 
 	tr.EmitEvent(event)
 
-	if result.OOMKilled && !tr.clientConfig.DisableTaggedMetrics {
+	if result.OOMKilled {
 		metrics.IncrCounterWithLabels([]string{"client", "allocs", "oom_killed"}, 1, tr.baseLabels)
 	}
 }
@@ -813,6 +867,14 @@ func (tr *TaskRunner) handleKill() *drivers.ExitResult {
 	// Run the pre killing hooks
 	tr.preKill()
 
+	// Wait for task ShutdownDelay after running prekill hooks
+	// This allows for things like service de-registration to run
+	// before waiting to kill task
+	if delay := tr.Task().ShutdownDelay; delay != 0 {
+		tr.logger.Debug("waiting before killing task", "shutdown_delay", delay)
+		time.Sleep(delay)
+	}
+
 	// Tell the restart tracker that the task has been killed so it doesn't
 	// attempt to restart it.
 	tr.restartTracker.SetKilled()
@@ -897,9 +959,22 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	alloc := tr.Alloc()
 	invocationid := uuid.Generate()[:8]
 	taskResources := tr.taskResources
+	ports := tr.Alloc().AllocatedResources.Shared.Ports
 	env := tr.envBuilder.Build()
 	tr.networkIsolationLock.Lock()
 	defer tr.networkIsolationLock.Unlock()
+
+	var dns *drivers.DNSConfig
+	if alloc.AllocatedResources != nil && len(alloc.AllocatedResources.Shared.Networks) > 0 {
+		allocDNS := alloc.AllocatedResources.Shared.Networks[0].DNS
+		if allocDNS != nil {
+			dns = &drivers.DNSConfig{
+				Servers:  allocDNS.Servers,
+				Searches: allocDNS.Searches,
+				Options:  allocDNS.Options,
+			}
+		}
+	}
 
 	return &drivers.TaskConfig{
 		ID:            fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
@@ -913,6 +988,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 				CPUShares:        taskResources.Cpu.CpuShares,
 				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
 			},
+			Ports: &ports,
 		},
 		Devices:          tr.hookResources.getDevices(),
 		Mounts:           tr.hookResources.getMounts(),
@@ -924,6 +1000,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		StderrPath:       tr.logmonHookConfig.stderrFifo,
 		AllocID:          tr.allocID,
 		NetworkIsolation: tr.networkIsolationSpec,
+		DNS:              dns,
 	}
 }
 
@@ -1051,12 +1128,7 @@ func (tr *TaskRunner) updateStateImpl(state string) error {
 		// Capture the start time if it is just starting
 		if oldState != structs.TaskStateRunning {
 			taskState.StartedAt = time.Now().UTC()
-			if !tr.clientConfig.DisableTaggedMetrics {
-				metrics.IncrCounterWithLabels([]string{"client", "allocs", "running"}, 1, tr.baseLabels)
-			}
-			//if r.config.BackwardsCompatibleMetrics {
-			//metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "running"}, 1)
-			//}
+			metrics.IncrCounterWithLabels([]string{"client", "allocs", "running"}, 1, tr.baseLabels)
 		}
 	case structs.TaskStateDead:
 		// Capture the finished time if not already set
@@ -1066,19 +1138,9 @@ func (tr *TaskRunner) updateStateImpl(state string) error {
 
 		// Emitting metrics to indicate task complete and failures
 		if taskState.Failed {
-			if !tr.clientConfig.DisableTaggedMetrics {
-				metrics.IncrCounterWithLabels([]string{"client", "allocs", "failed"}, 1, tr.baseLabels)
-			}
-			//if r.config.BackwardsCompatibleMetrics {
-			//metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "failed"}, 1)
-			//}
+			metrics.IncrCounterWithLabels([]string{"client", "allocs", "failed"}, 1, tr.baseLabels)
 		} else {
-			if !tr.clientConfig.DisableTaggedMetrics {
-				metrics.IncrCounterWithLabels([]string{"client", "allocs", "complete"}, 1, tr.baseLabels)
-			}
-			//if r.config.BackwardsCompatibleMetrics {
-			//metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "complete"}, 1)
-			//}
+			metrics.IncrCounterWithLabels([]string{"client", "allocs", "complete"}, 1, tr.baseLabels)
 		}
 	}
 
@@ -1138,12 +1200,7 @@ func (tr *TaskRunner) appendEvent(event *structs.TaskEvent) error {
 	// XXX This seems like a super awkward spot for this? Why not shouldRestart?
 	// Update restart metrics
 	if event.Type == structs.TaskRestarting {
-		if !tr.clientConfig.DisableTaggedMetrics {
-			metrics.IncrCounterWithLabels([]string{"client", "allocs", "restart"}, 1, tr.baseLabels)
-		}
-		//if r.config.BackwardsCompatibleMetrics {
-		//metrics.IncrCounter([]string{"client", "allocs", r.alloc.Job.Name, r.alloc.TaskGroup, taskName, "restart"}, 1)
-		//}
+		metrics.IncrCounterWithLabels([]string{"client", "allocs", "restart"}, 1, tr.baseLabels)
 		tr.state.Restarts++
 		tr.state.LastRestart = time.Unix(0, event.Time)
 	}
@@ -1253,76 +1310,54 @@ func (tr *TaskRunner) UpdateStats(ru *cstructs.TaskResourceUsage) {
 func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 	alloc := tr.Alloc()
 	var allocatedMem float32
-	if alloc.AllocatedResources != nil {
-		if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
-			// Convert to bytes to match other memory metrics
-			allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
-		}
-	} else if taskRes := alloc.TaskResources[tr.taskName]; taskRes != nil {
-		// COMPAT(0.11) Remove in 0.11 when TaskResources is removed
-		allocatedMem = float32(taskRes.MemoryMB) * 1024 * 1024
-
+	if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
+		// Convert to bytes to match other memory metrics
+		allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
 	}
 
-	if !tr.clientConfig.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
-			float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "cache"},
-			float32(ru.ResourceUsage.MemoryStats.Cache), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "swap"},
-			float32(ru.ResourceUsage.MemoryStats.Swap), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "usage"},
-			float32(ru.ResourceUsage.MemoryStats.Usage), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_usage"},
-			float32(ru.ResourceUsage.MemoryStats.MaxUsage), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_usage"},
-			float32(ru.ResourceUsage.MemoryStats.KernelUsage), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_max_usage"},
-			float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage), tr.baseLabels)
-		if allocatedMem > 0 {
-			metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "allocated"},
-				allocatedMem, tr.baseLabels)
-		}
-	}
-
-	if tr.clientConfig.BackwardsCompatibleMetrics {
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "rss"}, float32(ru.ResourceUsage.MemoryStats.RSS))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "cache"}, float32(ru.ResourceUsage.MemoryStats.Cache))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "swap"}, float32(ru.ResourceUsage.MemoryStats.Swap))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "usage"}, float32(ru.ResourceUsage.MemoryStats.Usage))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "max_usage"}, float32(ru.ResourceUsage.MemoryStats.MaxUsage))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelUsage))
-		metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "kernel_max_usage"}, float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage))
-		if allocatedMem > 0 {
-			metrics.SetGauge([]string{"client", "allocs", alloc.Job.Name, alloc.TaskGroup, tr.allocID, tr.taskName, "memory", "allocated"}, allocatedMem)
-		}
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
+		float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "cache"},
+		float32(ru.ResourceUsage.MemoryStats.Cache), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "swap"},
+		float32(ru.ResourceUsage.MemoryStats.Swap), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "usage"},
+		float32(ru.ResourceUsage.MemoryStats.Usage), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_usage"},
+		float32(ru.ResourceUsage.MemoryStats.MaxUsage), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_usage"},
+		float32(ru.ResourceUsage.MemoryStats.KernelUsage), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_max_usage"},
+		float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage), tr.baseLabels)
+	if allocatedMem > 0 {
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "allocated"},
+			allocatedMem, tr.baseLabels)
 	}
 }
 
 //TODO Remove Backwardscompat or use tr.Alloc()?
 func (tr *TaskRunner) setGaugeForCPU(ru *cstructs.TaskResourceUsage) {
-	if !tr.clientConfig.DisableTaggedMetrics {
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_percent"},
-			float32(ru.ResourceUsage.CpuStats.Percent), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "system"},
-			float32(ru.ResourceUsage.CpuStats.SystemMode), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "user"},
-			float32(ru.ResourceUsage.CpuStats.UserMode), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_time"},
-			float32(ru.ResourceUsage.CpuStats.ThrottledTime), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_periods"},
-			float32(ru.ResourceUsage.CpuStats.ThrottledPeriods), tr.baseLabels)
-		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_ticks"},
-			float32(ru.ResourceUsage.CpuStats.TotalTicks), tr.baseLabels)
+	alloc := tr.Alloc()
+	var allocatedCPU float32
+	if taskRes := alloc.AllocatedResources.Tasks[tr.taskName]; taskRes != nil {
+		allocatedCPU = float32(taskRes.Cpu.CpuShares)
 	}
 
-	if tr.clientConfig.BackwardsCompatibleMetrics {
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "total_percent"}, float32(ru.ResourceUsage.CpuStats.Percent))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "system"}, float32(ru.ResourceUsage.CpuStats.SystemMode))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "user"}, float32(ru.ResourceUsage.CpuStats.UserMode))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "throttled_time"}, float32(ru.ResourceUsage.CpuStats.ThrottledTime))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "throttled_periods"}, float32(ru.ResourceUsage.CpuStats.ThrottledPeriods))
-		metrics.SetGauge([]string{"client", "allocs", tr.alloc.Job.Name, tr.alloc.TaskGroup, tr.allocID, tr.taskName, "cpu", "total_ticks"}, float32(ru.ResourceUsage.CpuStats.TotalTicks))
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_percent"},
+		float32(ru.ResourceUsage.CpuStats.Percent), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "system"},
+		float32(ru.ResourceUsage.CpuStats.SystemMode), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "user"},
+		float32(ru.ResourceUsage.CpuStats.UserMode), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_time"},
+		float32(ru.ResourceUsage.CpuStats.ThrottledTime), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "throttled_periods"},
+		float32(ru.ResourceUsage.CpuStats.ThrottledPeriods), tr.baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "total_ticks"},
+		float32(ru.ResourceUsage.CpuStats.TotalTicks), tr.baseLabels)
+	if allocatedCPU > 0 {
+		metrics.SetGaugeWithLabels([]string{"client", "allocs", "cpu", "allocated"},
+			allocatedCPU, tr.baseLabels)
 	}
 }
 
@@ -1335,10 +1370,14 @@ func (tr *TaskRunner) emitStats(ru *cstructs.TaskResourceUsage) {
 
 	if ru.ResourceUsage.MemoryStats != nil {
 		tr.setGaugeForMemory(ru)
+	} else {
+		tr.logger.Debug("Skipping memory stats for allocation", "reason", "MemoryStats is nil")
 	}
 
 	if ru.ResourceUsage.CpuStats != nil {
 		tr.setGaugeForCPU(ru)
+	} else {
+		tr.logger.Debug("Skipping cpu stats for allocation", "reason", "CpuStats is nil")
 	}
 }
 
@@ -1371,4 +1410,8 @@ func (tr *TaskRunner) TaskExecHandler() drivermanager.TaskExecHandler {
 
 func (tr *TaskRunner) DriverCapabilities() (*drivers.Capabilities, error) {
 	return tr.driver.Capabilities()
+}
+
+func (tr *TaskRunner) SetAllocHookResources(res *cstructs.AllocHookResources) {
+	tr.allocHookResources = res
 }

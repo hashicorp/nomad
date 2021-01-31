@@ -1,9 +1,7 @@
 package command
 
 import (
-	"bufio"
 	"flag"
-	"io"
 	"os"
 	"strings"
 
@@ -50,11 +48,12 @@ type Meta struct {
 	// token is used for ACLs to access privileged information
 	token string
 
-	caCert     string
-	caPath     string
-	clientCert string
-	clientKey  string
-	insecure   bool
+	caCert        string
+	caPath        string
+	clientCert    string
+	clientKey     string
+	tlsServerName string
+	insecure      bool
 }
 
 // FlagSet returns a FlagSet with the common flags that every
@@ -76,23 +75,13 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 		f.StringVar(&m.clientCert, "client-cert", "", "")
 		f.StringVar(&m.clientKey, "client-key", "", "")
 		f.BoolVar(&m.insecure, "insecure", false, "")
+		f.StringVar(&m.tlsServerName, "tls-server-name", "", "")
 		f.BoolVar(&m.insecure, "tls-skip-verify", false, "")
 		f.StringVar(&m.token, "token", "", "")
 
 	}
 
-	// Create an io.Writer that writes to our UI properly for errors.
-	// This is kind of a hack, but it does the job. Basically: create
-	// a pipe, use a scanner to break it into lines, and output each line
-	// to the UI. Do this forever.
-	errR, errW := io.Pipe()
-	errScanner := bufio.NewScanner(errR)
-	go func() {
-		for errScanner.Scan() {
-			m.Ui.Error(errScanner.Text())
-		}
-	}()
-	f.SetOutput(errW)
+	f.SetOutput(&uiErrorWriter{ui: m.Ui})
 
 	return f
 }
@@ -113,6 +102,7 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 		"-client-cert":     complete.PredictFiles("*"),
 		"-client-key":      complete.PredictFiles("*"),
 		"-insecure":        complete.PredictNothing,
+		"-tls-server-name": complete.PredictNothing,
 		"-tls-skip-verify": complete.PredictNothing,
 		"-token":           complete.PredictAnything,
 	}
@@ -123,7 +113,7 @@ type ApiClientFactory func() (*api.Client, error)
 
 // Client is used to initialize and return a new API client using
 // the default command line arguments and env vars.
-func (m *Meta) Client() (*api.Client, error) {
+func (m *Meta) clientConfig() *api.Config {
 	config := api.DefaultConfig()
 	if m.flagAddress != "" {
 		config.Address = m.flagAddress
@@ -136,13 +126,14 @@ func (m *Meta) Client() (*api.Client, error) {
 	}
 
 	// If we need custom TLS configuration, then set it
-	if m.caCert != "" || m.caPath != "" || m.clientCert != "" || m.clientKey != "" || m.insecure {
+	if m.caCert != "" || m.caPath != "" || m.clientCert != "" || m.clientKey != "" || m.tlsServerName != "" || m.insecure {
 		t := &api.TLSConfig{
-			CACert:     m.caCert,
-			CAPath:     m.caPath,
-			ClientCert: m.clientCert,
-			ClientKey:  m.clientKey,
-			Insecure:   m.insecure,
+			CACert:        m.caCert,
+			CAPath:        m.caPath,
+			ClientCert:    m.clientCert,
+			ClientKey:     m.clientKey,
+			TLSServerName: m.tlsServerName,
+			Insecure:      m.insecure,
 		}
 		config.TLSConfig = t
 	}
@@ -151,7 +142,15 @@ func (m *Meta) Client() (*api.Client, error) {
 		config.SecretID = m.token
 	}
 
-	return api.NewClient(config)
+	return config
+}
+
+func (m *Meta) Client() (*api.Client, error) {
+	return api.NewClient(m.clientConfig())
+}
+
+func (m *Meta) allNamespaces() bool {
+	return m.clientConfig().Namespace == api.AllNamespacesNamespace
 }
 
 func (m *Meta) Colorize() *colorstring.Colorize {
@@ -162,8 +161,16 @@ func (m *Meta) Colorize() *colorstring.Colorize {
 	}
 }
 
+type usageOptsFlags uint8
+
+const (
+	usageOptsDefault     usageOptsFlags = 0
+	usageOptsNoNamespace                = 1 << iota
+)
+
 // generalOptionsUsage returns the help string for the global options.
-func generalOptionsUsage() string {
+func generalOptionsUsage(usageOpts usageOptsFlags) string {
+
 	helpText := `
   -address=<addr>
     The address of the Nomad server.
@@ -174,12 +181,21 @@ func generalOptionsUsage() string {
     The region of the Nomad servers to forward commands to.
     Overrides the NOMAD_REGION environment variable if set.
     Defaults to the Agent's local region.
+`
 
+	namespaceText := `
   -namespace=<namespace>
     The target namespace for queries and actions bound to a namespace.
     Overrides the NOMAD_NAMESPACE environment variable if set.
+    If set to '*', job and alloc subcommands query all namespaces authorized
+    to user.
     Defaults to the "default" namespace.
+`
 
+	// note: that although very few commands use color explicitly, all of them
+	// return red-colored text on error so we don't want to make this
+	// configurable
+	remainingText := `
   -no-color
     Disables colored command output. Alternatively, NOMAD_CLI_NO_COLOR may be
     set.
@@ -205,6 +221,10 @@ func generalOptionsUsage() string {
     client certificate from -client-cert. Overrides the
     NOMAD_CLIENT_KEY environment variable if set.
 
+  -tls-server-name=<value>
+    The server name to use as the SNI host when connecting via
+    TLS. Overrides the NOMAD_TLS_SERVER_NAME environment variable if set.
+
   -tls-skip-verify
     Do not verify TLS certificate. This is highly not recommended. Verification
     will also be skipped if NOMAD_SKIP_VERIFY is set.
@@ -213,6 +233,12 @@ func generalOptionsUsage() string {
     The SecretID of an ACL token to use to authenticate API requests with.
     Overrides the NOMAD_TOKEN environment variable if set.
 `
+
+	if usageOpts&usageOptsNoNamespace == 0 {
+		helpText = helpText + namespaceText
+	}
+
+	helpText = helpText + remainingText
 	return strings.TrimSpace(helpText)
 }
 

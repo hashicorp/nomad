@@ -30,7 +30,7 @@ type BeforeEachTest interface {
 	BeforeEach(*F)
 }
 
-// AfterEachTest is used to degine a method to be called after each test.
+// AfterEachTest is used to define a method to be called after each test.
 type AfterEachTest interface {
 	AfterEach(*F)
 }

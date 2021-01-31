@@ -9,17 +9,16 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
 	testing "github.com/mitchellh/go-testing-interface"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/lib/freeport"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -78,6 +77,16 @@ type TestAgent struct {
 
 	// RootToken is auto-bootstrapped if ACLs are enabled
 	RootToken *structs.ACLToken
+
+	// ports that are reserved through freeport that must be returned at
+	// the end of a test, done when Shutdown() is called.
+	ports []int
+
+	// Enterprise specifies if the agent is enterprise or not
+	Enterprise bool
+
+	// shutdown is set to true if agent has been shutdown
+	shutdown bool
 }
 
 // NewTestAgent returns a started agent with the given name and
@@ -88,6 +97,7 @@ func NewTestAgent(t testing.T, name string, configCallback func(*Config)) *TestA
 		T:              t,
 		Name:           name,
 		ConfigCallback: configCallback,
+		Enterprise:     EnterpriseTestAgent,
 	}
 
 	a.Start()
@@ -119,53 +129,64 @@ func (a *TestAgent) Start() *TestAgent {
 
 	i := 10
 
+	advertiseAddrs := *a.Config.AdvertiseAddrs
 RETRY:
-	for ; i >= 0; i-- {
-		a.pickRandomPorts(a.Config)
-		if a.Config.NodeName == "" {
-			a.Config.NodeName = fmt.Sprintf("Node %d", a.Config.Ports.RPC)
-		}
+	i--
 
-		// write the keyring
-		if a.Key != "" {
-			writeKey := func(key, filename string) {
-				path := filepath.Join(a.Config.DataDir, filename)
-				if err := initKeyring(path, key); err != nil {
-					a.T.Fatalf("Error creating keyring %s: %s", path, err)
-				}
-			}
-			writeKey(a.Key, serfKeyring)
-		}
+	// Clear out the advertise addresses such that through retries we
+	// re-normalize the addresses correctly instead of using the values from the
+	// last port selection that had a port conflict.
+	newAddrs := advertiseAddrs
+	a.Config.AdvertiseAddrs = &newAddrs
+	a.pickRandomPorts(a.Config)
+	if a.Config.NodeName == "" {
+		a.Config.NodeName = fmt.Sprintf("Node %d", a.Config.Ports.RPC)
+	}
 
-		// we need the err var in the next exit condition
-		if agent, err := a.start(); err == nil {
-			a.Agent = agent
-			break
-		} else if i == 0 {
-			a.T.Logf("%s: Error starting agent: %v", a.Name, err)
-			runtime.Goexit()
-		} else {
-			if agent != nil {
-				agent.Shutdown()
+	// Create a null logger before initializing the keyring. This is typically
+	// done using the agent's logger. However, it hasn't been created yet.
+	logger := hclog.NewNullLogger()
+
+	// write the keyring
+	if a.Key != "" {
+		writeKey := func(key, filename string) {
+			path := filepath.Join(a.Config.DataDir, filename)
+			if err := initKeyring(path, key, logger); err != nil {
+				a.T.Fatalf("Error creating keyring %s: %s", path, err)
 			}
-			wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
-			a.T.Logf("%s: retrying in %v", a.Name, wait)
-			time.Sleep(wait)
 		}
+		writeKey(a.Key, serfKeyring)
+	}
+
+	// we need the err var in the next exit condition
+	agent, err := a.start()
+	if err == nil {
+		a.Agent = agent
+	} else if i == 0 {
+		a.T.Fatalf("%s: Error starting agent: %v", a.Name, err)
+	} else {
+
+		if agent != nil {
+			agent.Shutdown()
+		}
+		wait := time.Duration(rand.Int31n(2000)) * time.Millisecond
+		a.T.Logf("%s: retrying in %v", a.Name, wait)
+		time.Sleep(wait)
 
 		// Clean out the data dir if we are responsible for it before we
 		// try again, since the old ports may have gotten written to
 		// the data dir, such as in the Raft configuration.
 		if a.DataDir != "" {
 			if err := os.RemoveAll(a.DataDir); err != nil {
-				a.T.Logf("%s: Error resetting data dir: %v", a.Name, err)
-				runtime.Goexit()
+				a.T.Fatalf("%s: Error resetting data dir: %v", a.Name, err)
 			}
 		}
+
+		goto RETRY
 	}
 
 	failed := false
-	if a.Config.NomadConfig.Bootstrap && a.Config.Server.Enabled {
+	if a.Config.NomadConfig.BootstrapExpect == 1 && a.Config.Server.Enabled {
 		testutil.WaitForResult(func() (bool, error) {
 			args := &structs.GenericRequest{}
 			var leader string
@@ -188,6 +209,9 @@ RETRY:
 	}
 	if failed {
 		a.Agent.Shutdown()
+		if i == 0 {
+			a.T.Fatalf("ran out of retries trying to start test agent")
+		}
 		goto RETRY
 	}
 
@@ -197,7 +221,7 @@ RETRY:
 	if a.Config.ACL.Enabled && a.Config.Server.Enabled && a.Config.ACL.PolicyTTL != 0 {
 		a.RootToken = mock.ACLManagementToken()
 		state := a.Agent.server.State()
-		if err := state.BootstrapACLTokens(1, 0, a.RootToken); err != nil {
+		if err := state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, a.RootToken); err != nil {
 			a.T.Fatalf("token bootstrap failed: %v", err)
 		}
 	}
@@ -206,7 +230,8 @@ RETRY:
 
 func (a *TestAgent) start() (*Agent, error) {
 	if a.LogOutput == nil {
-		a.LogOutput = testlog.NewWriter(a.T)
+		prefix := fmt.Sprintf("%v:%v ", a.Config.BindAddr, a.Config.Ports.RPC)
+		a.LogOutput = testlog.NewPrefixWriter(a.T, prefix)
 	}
 
 	inm := metrics.NewInmemSink(10*time.Second, time.Minute)
@@ -216,7 +241,7 @@ func (a *TestAgent) start() (*Agent, error) {
 		return nil, fmt.Errorf("unable to set up in memory metrics needed for agent initialization")
 	}
 
-	logger := hclog.New(&hclog.LoggerOptions{
+	logger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
 		Name:       "agent",
 		Level:      hclog.LevelFromString(a.Config.LogLevel),
 		Output:     a.LogOutput,
@@ -241,6 +266,13 @@ func (a *TestAgent) start() (*Agent, error) {
 // Shutdown stops the agent and removes the data directory if it is
 // managed by the test agent.
 func (a *TestAgent) Shutdown() error {
+	if a.shutdown {
+		return nil
+	}
+	a.shutdown = true
+
+	defer freeport.Return(a.ports)
+
 	defer func() {
 		if a.DataDir != "" {
 			os.RemoveAll(a.DataDir)
@@ -267,7 +299,11 @@ func (a *TestAgent) HTTPAddr() string {
 	if a.Server == nil {
 		return ""
 	}
-	return "http://" + a.Server.Addr
+	proto := "http://"
+	if a.Config.TLSConfig != nil && a.Config.TLSConfig.EnableHTTP {
+		proto = "https://"
+	}
+	return proto + a.Server.Addr
 }
 
 func (a *TestAgent) Client() *api.Client {
@@ -289,19 +325,12 @@ func (a *TestAgent) Client() *api.Client {
 // Instead of relying on one set of ports to be sufficient we retry
 // starting the agent with different ports on port conflict.
 func (a *TestAgent) pickRandomPorts(c *Config) {
-	ports := freeport.GetT(a.T, 3)
+	ports := freeport.MustTake(3)
+	a.ports = append(a.ports, ports...)
+
 	c.Ports.HTTP = ports[0]
 	c.Ports.RPC = ports[1]
 	c.Ports.Serf = ports[2]
-
-	// Clear out the advertise addresses such that through retries we
-	// re-normalize the addresses correctly instead of using the values from the
-	// last port selection that had a port conflict.
-	if c.AdvertiseAddrs != nil {
-		c.AdvertiseAddrs.HTTP = ""
-		c.AdvertiseAddrs.RPC = ""
-		c.AdvertiseAddrs.Serf = ""
-	}
 
 	if err := c.normalizeAddrs(); err != nil {
 		a.T.Fatalf("error normalizing config: %v", err)
@@ -337,17 +366,12 @@ func (a *TestAgent) config() *Config {
 	config.RaftConfig.LeaderLeaseTimeout = 20 * time.Millisecond
 	config.RaftConfig.HeartbeatTimeout = 40 * time.Millisecond
 	config.RaftConfig.ElectionTimeout = 40 * time.Millisecond
-	config.RaftConfig.StartAsLeader = true
 	config.RaftTimeout = 500 * time.Millisecond
 
 	// Tighten the autopilot timing
 	config.AutopilotConfig.ServerStabilizationTime = 100 * time.Millisecond
 	config.ServerHealthInterval = 50 * time.Millisecond
 	config.AutopilotInterval = 100 * time.Millisecond
-
-	// Bootstrap ourselves
-	config.Bootstrap = true
-	config.BootstrapExpect = 1
 
 	// Tighten the fingerprinter timeouts
 	if conf.Client.Options == nil {

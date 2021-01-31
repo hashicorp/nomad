@@ -1,6 +1,7 @@
 package command
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -16,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper/flatmap"
 	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHelpers_FormatKV(t *testing.T) {
@@ -49,7 +51,7 @@ func TestHelpers_NodeID(t *testing.T) {
 	srv, _, _ := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	meta := Meta{Ui: new(cli.MockUi)}
+	meta := Meta{Ui: cli.NewMockUi()}
 	client, err := meta.Client()
 	if err != nil {
 		t.FailNow()
@@ -174,17 +176,17 @@ func TestHelpers_LineLimitReader_TimeLimit(t *testing.T) {
 
 	expected := []byte("hello world")
 
-	resultCh := make(chan struct{})
+	errCh := make(chan error)
+	resultCh := make(chan []byte)
 	go func() {
+		defer close(resultCh)
+		defer close(errCh)
 		outBytes, err := ioutil.ReadAll(limit)
 		if err != nil {
-			t.Fatalf("ReadAll failed: %v", err)
-		}
-
-		if reflect.DeepEqual(outBytes, expected) {
-			close(resultCh)
+			errCh <- fmt.Errorf("ReadAll failed: %v", err)
 			return
 		}
+		resultCh <- outBytes
 	}()
 
 	// Send the data
@@ -192,7 +194,14 @@ func TestHelpers_LineLimitReader_TimeLimit(t *testing.T) {
 	in.Close()
 
 	select {
-	case <-resultCh:
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("ReadAll: %v", err)
+		}
+	case outBytes := <-resultCh:
+		if !reflect.DeepEqual(outBytes, expected) {
+			t.Fatalf("got:%s, expected,%s", string(outBytes), string(expected))
+		}
 	case <-time.After(1 * time.Second):
 		t.Fatalf("did not exit by time limit")
 	}
@@ -200,20 +209,20 @@ func TestHelpers_LineLimitReader_TimeLimit(t *testing.T) {
 
 const (
 	job = `job "job1" {
-        type = "service"
-        datacenters = [ "dc1" ]
-        group "group1" {
-                count = 1
-                task "task1" {
-                        driver = "exec"
-                        resources = {}
-                }
-                restart{
-                        attempts = 10
-                        mode = "delay"
-						interval = "15s"
-                }
-        }
+  type        = "service"
+  datacenters = ["dc1"]
+  group "group1" {
+    count = 1
+    task "task1" {
+      driver = "exec"
+      resources {}
+    }
+    restart {
+      attempts = 10
+      mode     = "delay"
+      interval = "15s"
+    }
+  }
 }`
 )
 
@@ -269,6 +278,102 @@ func TestJobGetter_LocalFile(t *testing.T) {
 		aflat := flatmap.Flatten(aj, nil, false)
 		t.Fatalf("got:\n%v\nwant:\n%v", aflat, eflat)
 	}
+}
+
+// TestJobGetter_LocalFile_InvalidHCL2 asserts that a custom message is emited
+// if the file is a valid HCL1 but not HCL2
+func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name              string
+		hcl               string
+		expectHCL1Message bool
+	}{
+		{
+			"invalid HCL",
+			"nothing",
+			false,
+		},
+		{
+			"invalid HCL2",
+			`job "example" {
+  meta = { "a" = "b" }
+}`,
+			true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			fh, err := ioutil.TempFile("", "nomad")
+			require.NoError(t, err)
+			defer os.Remove(fh.Name())
+			defer fh.Close()
+
+			_, err = fh.WriteString(c.hcl)
+			require.NoError(t, err)
+
+			j := &JobGetter{}
+			_, err = j.ApiJob(fh.Name())
+			require.Error(t, err)
+
+			exptMessage := "Failed to parse using HCL 2. Use the HCL 1"
+			if c.expectHCL1Message {
+				require.Contains(t, err.Error(), exptMessage)
+			} else {
+				require.NotContains(t, err.Error(), exptMessage)
+			}
+		})
+	}
+}
+
+// TestJobGetter_HCL2_Variables asserts variable arguments from CLI
+// and varfiles are both honored
+func TestJobGetter_HCL2_Variables(t *testing.T) {
+	t.Parallel()
+
+	hcl := `
+variables {
+  var1 = "default-val"
+  var2 = "default-val"
+  var3 = "default-val"
+  var4 = "default-val"
+}
+
+job "example" {
+  datacenters = ["${var.var1}", "${var.var2}", "${var.var3}", "${var.var4}"]
+}
+`
+
+	os.Setenv("NOMAD_VAR_var4", "from-envvar")
+	defer os.Unsetenv("NOMAD_VAR_var4")
+
+	cliArgs := []string{`var2=from-cli`}
+	fileVars := `var3 = "from-varfile"`
+	expected := []string{"default-val", "from-cli", "from-varfile", "from-envvar"}
+
+	hclf, err := ioutil.TempFile("", "hcl")
+	require.NoError(t, err)
+	defer os.Remove(hclf.Name())
+	defer hclf.Close()
+
+	_, err = hclf.WriteString(hcl)
+	require.NoError(t, err)
+
+	vf, err := ioutil.TempFile("", "var.hcl")
+	require.NoError(t, err)
+	defer os.Remove(vf.Name())
+	defer vf.Close()
+
+	_, err = vf.WriteString(fileVars + "\n")
+	require.NoError(t, err)
+
+	j, err := (&JobGetter{}).ApiJobWithArgs(hclf.Name(), cliArgs, []string{vf.Name()})
+	require.NoError(t, err)
+
+	require.NotNil(t, j)
+	require.Equal(t, expected, j.Datacenters)
 }
 
 // Test StructJob with jobfile from HTTP Server
@@ -334,4 +439,52 @@ func TestPrettyTimeDiff(t *testing.T) {
 		t.Fatalf("Expected empty output but got:%v", out)
 	}
 
+}
+
+// TestUiErrorWriter asserts that writer buffers and
+func TestUiErrorWriter(t *testing.T) {
+	t.Parallel()
+
+	var outBuf, errBuf bytes.Buffer
+	ui := &cli.BasicUi{
+		Writer:      &outBuf,
+		ErrorWriter: &errBuf,
+	}
+
+	w := &uiErrorWriter{ui: ui}
+
+	inputs := []string{
+		"some line\n",
+		"multiple\nlines\r\nhere",
+		" with  followup\nand",
+		" more lines ",
+		" without new line ",
+		"until here\nand then",
+		"some more",
+	}
+
+	partialAcc := ""
+	for _, in := range inputs {
+		n, err := w.Write([]byte(in))
+		require.NoError(t, err)
+		require.Equal(t, len(in), n)
+
+		// assert that writer emits partial result until last new line
+		partialAcc += strings.ReplaceAll(in, "\r\n", "\n")
+		lastNL := strings.LastIndex(partialAcc, "\n")
+		require.Equal(t, partialAcc[:lastNL+1], errBuf.String())
+	}
+
+	require.Empty(t, outBuf.String())
+
+	// note that the \r\n got replaced by \n
+	expectedErr := "some line\nmultiple\nlines\nhere with  followup\nand more lines  without new line until here\n"
+	require.Equal(t, expectedErr, errBuf.String())
+
+	// close emits the final line
+	err := w.Close()
+	require.NoError(t, err)
+
+	expectedErr += "and thensome more\n"
+	require.Equal(t, expectedErr, errBuf.String())
 }

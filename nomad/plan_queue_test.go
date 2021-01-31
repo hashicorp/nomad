@@ -39,10 +39,15 @@ func TestPlanQueue_Enqueue_Dequeue(t *testing.T) {
 	}
 
 	resCh := make(chan *structs.PlanResult, 1)
+	errCh := make(chan error)
 	go func() {
+		defer close(errCh)
+		defer close(resCh)
+
 		res, err := future.Wait()
 		if err != nil {
-			t.Fatalf("err: %v", err)
+			errCh <- err
+			return
 		}
 		resCh <- res
 	}()
@@ -65,6 +70,10 @@ func TestPlanQueue_Enqueue_Dequeue(t *testing.T) {
 	pending.respond(result, nil)
 
 	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("error in anonymous goroutine: %s", err)
+		}
 	case r := <-resCh:
 		if r != result {
 			t.Fatalf("Bad: %#v", r)

@@ -1,20 +1,28 @@
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 import { inject as service } from '@ember/service';
+import { tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  store: service(),
-  tagName: '',
+@classic
+@tagName('')
+export default class RescheduleEventRow extends Component {
+  @service store;
 
   // When given a string, the component will fetch the allocation
-  allocationId: null,
+  allocationId = null;
 
   // An allocation can also be provided directly
-  allocation: computed('allocationId', function() {
-    return this.store.findRecord('allocation', this.allocationId);
-  }),
+  @overridable('allocationId', function() {
+    if (this.allocationId) {
+      return this.store.findRecord('allocation', this.allocationId);
+    }
 
-  time: null,
-  linkToAllocation: true,
-  label: '',
-});
+    return null;
+  })
+  allocation;
+
+  time = null;
+  linkToAllocation = true;
+  label = '';
+}

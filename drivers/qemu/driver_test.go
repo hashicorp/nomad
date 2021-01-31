@@ -32,7 +32,10 @@ func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 	}
 
 	require := require.New(t)
-	d := NewQemuDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
@@ -94,7 +97,10 @@ func TestQemuDriver_GetMonitorPathOldQemu(t *testing.T) {
 	}
 
 	require := require.New(t)
-	d := NewQemuDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
@@ -149,7 +155,10 @@ func TestQemuDriver_GetMonitorPathNewQemu(t *testing.T) {
 	}
 
 	require := require.New(t)
-	d := NewQemuDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
@@ -229,7 +238,10 @@ func TestQemuDriver_User(t *testing.T) {
 	}
 
 	require := require.New(t)
-	d := NewQemuDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
@@ -286,7 +298,10 @@ func TestQemuDriver_Stats(t *testing.T) {
 	}
 
 	require := require.New(t)
-	d := NewQemuDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	task := &drivers.TaskConfig{
@@ -363,7 +378,10 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 		t.Parallel()
 	}
 
-	d := NewQemuDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	fingerCh, err := harness.Fingerprint(context.Background())
@@ -405,4 +423,33 @@ config {
 	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
 
 	require.EqualValues(t, expected, tc)
+}
+
+func TestIsAllowedImagePath(t *testing.T) {
+	allowedPaths := []string{"/tmp", "/opt/qemu"}
+	allocDir := "/opt/nomad/some-alloc-dir"
+
+	validPaths := []string{
+		"local/path",
+		"/tmp/subdir/qemu-image",
+		"/opt/qemu/image",
+		"/opt/qemu/subdir/image",
+		"/opt/nomad/some-alloc-dir/local/image.img",
+	}
+
+	invalidPaths := []string{
+		"/image.img",
+		"../image.img",
+		"/tmpimage.img",
+		"/opt/other/image.img",
+		"/opt/nomad-submatch.img",
+	}
+
+	for _, p := range validPaths {
+		require.Truef(t, isAllowedImagePath(allowedPaths, allocDir, p), "path should be allowed: %v", p)
+	}
+
+	for _, p := range invalidPaths {
+		require.Falsef(t, isAllowedImagePath(allowedPaths, allocDir, p), "path should be not allowed: %v", p)
+	}
 }

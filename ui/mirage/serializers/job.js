@@ -2,7 +2,7 @@ import ApplicationSerializer from './application';
 
 export default ApplicationSerializer.extend({
   embed: true,
-  include: ['task_groups', 'job_summary'],
+  include: ['taskGroups', 'jobSummary'],
 
   serialize() {
     var json = ApplicationSerializer.prototype.serialize.apply(this, arguments);

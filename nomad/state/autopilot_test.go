@@ -15,6 +15,7 @@ func TestStateStore_Autopilot(t *testing.T) {
 		CleanupDeadServers:      true,
 		LastContactThreshold:    5 * time.Second,
 		MaxTrailingLogs:         500,
+		MinQuorum:               3,
 		ServerStabilizationTime: 100 * time.Second,
 		EnableRedundancyZones:   true,
 		DisableUpgradeMigration: true,

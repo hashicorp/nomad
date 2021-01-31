@@ -1,8 +1,12 @@
 .section {
   padding: 1.5rem;
   max-width: 1200px;
-}
 
-.full-width-section {
-  max-width: 100%;
+  &.with-headspace {
+    margin-top: 1.5rem;
+  }
+
+  &.is-full-width {
+    max-width: 100%;
+  }
 }

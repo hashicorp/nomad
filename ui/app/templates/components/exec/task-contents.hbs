@@ -1,0 +1,16 @@
+<div class="border-and-label">
+  <div class="border"></div>
+  <div class="task-label">{{this.task.name}}</div>
+  {{#if this.active}}
+    <svg width="20" height="20" class="is-active" data-test-task-active>
+      <circle cx="10" cy="10" r="6" />
+    </svg>
+  {{/if}}
+</div>
+{{#if this.shouldOpenInNewWindow}}
+  <span class="tooltip" aria-label="Open in a new window">
+    {{x-icon "exit" class="show-on-hover"}}
+  </span>
+{{else}}
+  {{x-icon "exit"}}
+{{/if}}

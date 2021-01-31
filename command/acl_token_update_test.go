@@ -25,7 +25,7 @@ func TestACLTokenUpdateCommand(t *testing.T) {
 	token := srv.RootToken
 	assert.NotNil(token, "failed to bootstrap ACL token")
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &ACLTokenUpdateCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 	state := srv.Agent.Server().State()
 
@@ -33,7 +33,7 @@ func TestACLTokenUpdateCommand(t *testing.T) {
 	mockToken := mock.ACLToken()
 	mockToken.Policies = []string{acl.PolicyWrite}
 	mockToken.SetHash()
-	assert.Nil(state.UpsertACLTokens(1000, []*structs.ACLToken{mockToken}))
+	assert.Nil(state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{mockToken}))
 
 	// Request to update a new token without providing a valid management token
 	invalidToken := mock.ACLToken()

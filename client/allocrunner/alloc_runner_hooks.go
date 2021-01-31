@@ -7,24 +7,37 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-type networkIsolationSetter interface {
-	SetNetworkIsolation(*drivers.NetworkIsolationSpec)
+type hookResourceSetter interface {
+	GetAllocHookResources() *cstructs.AllocHookResources
+	SetAllocHookResources(*cstructs.AllocHookResources)
 }
 
-// allocNetworkIsolationSetter is a shim to allow the alloc network hook to
-// set the alloc network isolation configuration without full access
-// to the alloc runner
-type allocNetworkIsolationSetter struct {
+type allocHookResourceSetter struct {
 	ar *allocRunner
 }
 
-func (a *allocNetworkIsolationSetter) SetNetworkIsolation(n *drivers.NetworkIsolationSpec) {
+func (a *allocHookResourceSetter) GetAllocHookResources() *cstructs.AllocHookResources {
+	a.ar.hookStateMu.RLock()
+	defer a.ar.hookStateMu.RUnlock()
+
+	return a.ar.hookState
+}
+
+func (a *allocHookResourceSetter) SetAllocHookResources(res *cstructs.AllocHookResources) {
+	a.ar.hookStateMu.Lock()
+	defer a.ar.hookStateMu.Unlock()
+
+	a.ar.hookState = res
+
+	// Propagate to all of the TRs within the lock to ensure consistent state.
+	// TODO: Refactor so TR's pull state from AR?
 	for _, tr := range a.ar.tasks {
-		tr.SetNetworkIsolation(n)
+		tr.SetAllocHookResources(res)
 	}
 }
 
@@ -94,7 +107,7 @@ func (a *allocHealthSetter) SetHealth(healthy, isDeploy bool, trackerTaskEvents 
 	a.ar.allocBroadcaster.Send(calloc)
 }
 
-// initRunnerHooks intializes the runners hooks.
+// initRunnerHooks initializes the runners hooks.
 func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	hookLogger := ar.logger.Named("runner_hook")
 
@@ -103,6 +116,10 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 
 	// create network isolation setting shim
 	ns := &allocNetworkIsolationSetter{ar: ar}
+
+	// create hook resource setting shim
+	hrs := &allocHookResourceSetter{ar: ar}
+	hrs.SetAllocHookResources(&cstructs.AllocHookResources{})
 
 	// build the network manager
 	nm, err := newNetworkManager(ar.Alloc(), ar.driverManager)
@@ -124,9 +141,18 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, alloc, hs, ar.Listener(), ar.consulClient),
-		newNetworkHook(hookLogger, ns, alloc, nm, nc),
-		newGroupServiceHook(hookLogger, alloc, ar.consulClient),
-		newConsulSockHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
+		newNetworkHook(hookLogger, ns, alloc, nm, nc, ar),
+		newGroupServiceHook(groupServiceHookConfig{
+			alloc:               alloc,
+			consul:              ar.consulClient,
+			restarter:           ar,
+			taskEnvBuilder:      taskenv.NewBuilder(config.Node, ar.Alloc(), nil, config.Region).SetAllocDir(ar.allocDir.AllocDir),
+			networkStatusGetter: ar,
+			logger:              hookLogger,
+		}),
+		newConsulGRPCSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
+		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
+		newCSIHook(ar, hookLogger, alloc, ar.rpcClient, ar.csiManager, hrs),
 	}
 
 	return nil
@@ -196,7 +222,7 @@ func (ar *allocRunner) update(update *structs.Allocation) error {
 		var start time.Time
 		if ar.logger.IsTrace() {
 			start = time.Now()
-			ar.logger.Trace("running pre-run hook", "name", name, "start", start)
+			ar.logger.Trace("running update hook", "name", name, "start", start)
 		}
 
 		if err := h.Update(req); err != nil {
@@ -288,6 +314,29 @@ func (ar *allocRunner) destroy() error {
 	return merr.ErrorOrNil()
 }
 
+func (ar *allocRunner) preKillHooks() {
+	for _, hook := range ar.runnerHooks {
+		pre, ok := hook.(interfaces.RunnerPreKillHook)
+		if !ok {
+			continue
+		}
+
+		name := pre.Name()
+		var start time.Time
+		if ar.logger.IsTrace() {
+			start = time.Now()
+			ar.logger.Trace("running alloc pre shutdown hook", "name", name, "start", start)
+		}
+
+		pre.PreKill()
+
+		if ar.logger.IsTrace() {
+			end := time.Now()
+			ar.logger.Trace("finished alloc pre shutdown hook", "name", name, "end", end, "duration", end.Sub(start))
+		}
+	}
+}
+
 // shutdownHooks calls graceful shutdown hooks for when the agent is exiting.
 func (ar *allocRunner) shutdownHooks() {
 	for _, hook := range ar.runnerHooks {
@@ -308,6 +357,31 @@ func (ar *allocRunner) shutdownHooks() {
 		if ar.logger.IsTrace() {
 			end := time.Now()
 			ar.logger.Trace("finished shutdown hooks", "name", name, "end", end, "duration", end.Sub(start))
+		}
+	}
+}
+
+func (ar *allocRunner) taskRestartHooks() {
+	for _, hook := range ar.runnerHooks {
+		re, ok := hook.(interfaces.RunnerTaskRestartHook)
+		if !ok {
+			continue
+		}
+
+		name := re.Name()
+		var start time.Time
+		if ar.logger.IsTrace() {
+			start = time.Now()
+			ar.logger.Trace("running alloc task restart hook",
+				"name", name, "start", start)
+		}
+
+		re.PreTaskRestart()
+
+		if ar.logger.IsTrace() {
+			end := time.Now()
+			ar.logger.Trace("finished alloc task restart hook",
+				"name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
 }

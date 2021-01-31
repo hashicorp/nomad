@@ -2,6 +2,7 @@ import { find } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import Jobs from 'nomad-ui/tests/pages/jobs/list';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
@@ -17,14 +18,19 @@ module('Acceptance | tokens', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function() {
-    localStorage.clear();
-    sessionStorage.clear();
+    window.localStorage.clear();
+    window.sessionStorage.clear();
 
     server.create('agent');
     node = server.create('node');
     job = server.create('job');
     managementToken = server.create('token');
     clientToken = server.create('token');
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await Tokens.visit();
+    await a11yAudit(assert);
   });
 
   test('the token form sets the token in local storage', async function(assert) {
@@ -39,7 +45,7 @@ module('Acceptance | tokens', function(hooks) {
   });
 
   // TODO: unskip once store.unloadAll reliably waits for in-flight requests to settle
-  skip('the X-Nomad-Token header gets sent with requests once it is set', async function(assert) {
+  skip('the x-nomad-token header gets sent with requests once it is set', async function(assert) {
     const { secretId } = managementToken;
 
     await JobDetail.visit({ id: job.id });
@@ -48,7 +54,7 @@ module('Acceptance | tokens', function(hooks) {
     assert.ok(server.pretender.handledRequests.length > 1, 'Requests have been made');
 
     server.pretender.handledRequests.forEach(req => {
-      assert.notOk(getHeader(req, 'X-Nomad-Token'), `No token for ${req.url}`);
+      assert.notOk(getHeader(req, 'x-nomad-token'), `No token for ${req.url}`);
     });
 
     const requestPosition = server.pretender.handledRequests.length;
@@ -64,7 +70,7 @@ module('Acceptance | tokens', function(hooks) {
 
     // Cross-origin requests can't have a token
     newRequests.forEach(req => {
-      assert.equal(getHeader(req, 'X-Nomad-Token'), secretId, `Token set for ${req.url}`);
+      assert.equal(getHeader(req, 'x-nomad-token'), secretId, `Token set for ${req.url}`);
     });
   });
 
@@ -139,6 +145,23 @@ module('Acceptance | tokens', function(hooks) {
 
     // If jobs are lingering in the store, they would show up
     assert.notOk(find('[data-test-job-row]'), 'No jobs found');
+  });
+
+  test('when namespaces are enabled, setting or clearing a token refetches namespaces available with new permissions', async function(assert) {
+    const { secretId } = clientToken;
+
+    server.createList('namespace', 2);
+    await Tokens.visit();
+
+    const requests = server.pretender.handledRequests;
+
+    assert.equal(requests.filter(req => req.url === '/v1/namespaces').length, 1);
+
+    await Tokens.secret(secretId).submit();
+    assert.equal(requests.filter(req => req.url === '/v1/namespaces').length, 2);
+
+    await Tokens.clear();
+    assert.equal(requests.filter(req => req.url === '/v1/namespaces').length, 3);
   });
 
   function getHeader({ requestHeaders }, name) {

@@ -2,49 +2,56 @@ import Ember from 'ember';
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { computed } from '@ember/object';
+import { computed as overridable } from 'ember-overridable-computed';
 import { alias } from '@ember/object/computed';
 import { run } from '@ember/runloop';
 import { task, timeout } from 'ember-concurrency';
 import { lazyClick } from '../helpers/lazy-click';
 import AllocationStatsTracker from 'nomad-ui/utils/classes/allocation-stats-tracker';
+import classic from 'ember-classic-decorator';
+import { classNames, tagName } from '@ember-decorators/component';
 
-export default Component.extend({
-  store: service(),
-  token: service(),
+@classic
+@tagName('tr')
+@classNames('allocation-row', 'is-interactive')
+export default class AllocationRow extends Component {
+  @service store;
+  @service token;
 
-  tagName: 'tr',
-
-  classNames: ['allocation-row', 'is-interactive'],
-
-  allocation: null,
+  allocation = null;
 
   // Used to determine whether the row should mention the node or the job
-  context: null,
+  context = null;
 
   // Internal state
-  statsError: false,
+  statsError = false;
 
-  enablePolling: computed(() => !Ember.testing),
+  @overridable(() => !Ember.testing) enablePolling;
 
-  stats: computed('allocation', 'allocation.isRunning', function() {
-    if (!this.get('allocation.isRunning')) return;
+  @computed('allocation', 'allocation.isRunning')
+  get stats() {
+    if (!this.get('allocation.isRunning')) return undefined;
 
     return AllocationStatsTracker.create({
       fetch: url => this.token.authorizedRequest(url),
       allocation: this.allocation,
     });
-  }),
+  }
 
-  cpu: alias('stats.cpu.lastObject'),
-  memory: alias('stats.memory.lastObject'),
+  @alias('stats.cpu.lastObject') cpu;
+  @alias('stats.memory.lastObject') memory;
 
-  onClick() {},
+  onClick() {}
 
   click(event) {
     lazyClick([this.onClick, event]);
-  },
+  }
 
   didReceiveAttrs() {
+    this.updateStatsTracker();
+  }
+
+  updateStatsTracker() {
     const allocation = this.allocation;
 
     if (allocation) {
@@ -52,9 +59,9 @@ export default Component.extend({
     } else {
       this.fetchStats.cancelAll();
     }
-  },
+  }
 
-  fetchStats: task(function*() {
+  @(task(function*() {
     do {
       if (this.stats) {
         try {
@@ -67,24 +74,28 @@ export default Component.extend({
 
       yield timeout(500);
     } while (this.enablePolling);
-  }).drop(),
-});
+  }).drop())
+  fetchStats;
+}
 
-function qualifyAllocation() {
+async function qualifyAllocation() {
   const allocation = this.allocation;
-  return allocation.reload().then(() => {
-    this.fetchStats.perform();
 
+  // Make sure the allocation is a complete record and not a partial so we
+  // can show information such as preemptions and rescheduled allocation.
+  if (allocation.isPartial) {
+    await allocation.reload();
+  }
+
+  if (allocation.get('job.isPending')) {
+    // Make sure the job is loaded before starting the stats tracker
+    await allocation.get('job');
+  } else if (!allocation.get('taskGroup')) {
     // Make sure that the job record in the store for this allocation
     // is complete and not a partial from the list endpoint
-    if (
-      allocation &&
-      allocation.get('job') &&
-      !allocation.get('job.isPending') &&
-      !allocation.get('taskGroup')
-    ) {
-      const job = allocation.get('job.content');
-      job && job.reload();
-    }
-  });
+    const job = allocation.get('job.content');
+    if (job) await job.reload();
+  }
+
+  this.fetchStats.perform();
 }

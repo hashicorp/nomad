@@ -127,6 +127,46 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobsList_AllNamespaces_OSS(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		for i := 0; i < 3; i++ {
+			// Create the job
+			job := mock.Job()
+			args := structs.JobRegisterRequest{
+				Job: job,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: structs.DefaultNamespace,
+				},
+			}
+			var resp structs.JobRegisterResponse
+			err := s.Agent.RPC("Job.Register", &args, &resp)
+			require.NoError(t, err)
+		}
+
+		// Make the HTTP request
+		req, err := http.NewRequest("GET", "/v1/jobs?namespace=*", nil)
+		require.NoError(t, err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobsRequest(respW, req)
+		require.NoError(t, err)
+
+		// Check for the index
+		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-Index"), "missing index")
+		require.Equal(t, "true", respW.HeaderMap.Get("X-Nomad-KnownLeader"), "missing known leader")
+		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-LastContact"), "missing last contact")
+
+		// Check the job
+		j := obj.([]*structs.JobListStub)
+		require.Len(t, j, 3)
+
+		require.Equal(t, "default", j[0].Namespace)
+	})
+}
+
 func TestHTTP_JobsRegister(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -367,7 +407,7 @@ func TestHTTP_JobQuery_Payload(t *testing.T) {
 
 		// Directly manipulate the state
 		state := s.Agent.server.State()
-		if err := state.UpsertJob(1000, job); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 			t.Fatalf("Failed to upsert job: %v", err)
 		}
 
@@ -405,6 +445,36 @@ func TestHTTP_JobQuery_Payload(t *testing.T) {
 		if !reflect.DeepEqual(j.Payload, expected) {
 			t.Fatalf("Payload not decompressed properly; got %#v; want %#v", j.Payload, expected)
 		}
+	})
+}
+
+func TestHTTP_jobUpdate_systemScaling(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job := MockJob()
+		job.Type = helper.StringToPtr("system")
+		job.TaskGroups[0].Scaling = &api.ScalingPolicy{Enabled: helper.BoolToPtr(true)}
+		args := api.JobRegisterRequest{
+			Job: job,
+			WriteRequest: api.WriteRequest{
+				Region:    "global",
+				Namespace: api.DefaultNamespace,
+			},
+		}
+		buf := encodeReq(args)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/job/"+*job.ID, buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		assert.Nil(t, obj)
+		assert.Equal(t, CodedError(400, "Task groups with job type system do not support scaling stanzas"), err)
 	})
 }
 
@@ -666,6 +736,106 @@ func TestHTTP_JobDelete(t *testing.T) {
 	})
 }
 
+func TestHTTP_Job_ScaleTaskGroup(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var resp structs.JobRegisterResponse
+		require.NoError(s.Agent.RPC("Job.Register", &args, &resp))
+
+		newCount := job.TaskGroups[0].Count + 1
+		scaleReq := &api.ScalingRequest{
+			Count:   helper.Int64ToPtr(int64(newCount)),
+			Message: "testing",
+			Target: map[string]string{
+				"Job":   job.ID,
+				"Group": job.TaskGroups[0].Name,
+			},
+		}
+		buf := encodeReq(scaleReq)
+
+		// Make the HTTP request to scale the job group
+		req, err := http.NewRequest("POST", "/v1/job/"+job.ID+"/scale", buf)
+		require.NoError(err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		require.NoError(err)
+
+		// Check the response
+		resp = obj.(structs.JobRegisterResponse)
+		require.NotEmpty(resp.EvalID)
+
+		// Check for the index
+		require.NotEmpty(respW.Header().Get("X-Nomad-Index"))
+
+		// Check that the group count was changed
+		getReq := structs.JobSpecificRequest{
+			JobID: job.ID,
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var getResp structs.SingleJobResponse
+		err = s.Agent.RPC("Job.GetJob", &getReq, &getResp)
+		require.NoError(err)
+		require.NotNil(getResp.Job)
+		require.Equal(newCount, getResp.Job.TaskGroups[0].Count)
+	})
+}
+
+func TestHTTP_Job_ScaleStatus(t *testing.T) {
+	t.Parallel()
+
+	require := require.New(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job := mock.Job()
+		args := structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var resp structs.JobRegisterResponse
+		if err := s.Agent.RPC("Job.Register", &args, &resp); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Make the HTTP request to scale the job group
+		req, err := http.NewRequest("GET", "/v1/job/"+job.ID+"/scale", nil)
+		require.NoError(err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		require.NoError(err)
+
+		// Check the response
+		status := obj.(*structs.JobScaleStatus)
+		require.NotEmpty(resp.EvalID)
+		require.Equal(job.TaskGroups[0].Count, status.TaskGroups[job.TaskGroups[0].Name].Desired)
+
+		// Check for the index
+		require.NotEmpty(respW.Header().Get("X-Nomad-Index"))
+	})
+}
+
 func TestHTTP_JobForceEvaluate(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
@@ -837,7 +1007,7 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		alloc1.TaskStates = make(map[string]*structs.TaskState)
 		alloc1.TaskStates["test"] = taskState
 		state := s.Agent.server.State()
-		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1370,6 +1540,249 @@ func TestHTTP_JobStable(t *testing.T) {
 	})
 }
 
+func TestJobs_ParsingWriteRequest(t *testing.T) {
+	t.Parallel()
+
+	// defaults
+	agentRegion := "agentRegion"
+
+	cases := []struct {
+		name                  string
+		jobRegion             string
+		multiregion           *api.Multiregion
+		queryRegion           string
+		queryNamespace        string
+		queryToken            string
+		apiRegion             string
+		apiNamespace          string
+		apiToken              string
+		expectedRequestRegion string
+		expectedJobRegion     string
+		expectedToken         string
+		expectedNamespace     string
+	}{
+		{
+			name:                  "no region provided at all",
+			jobRegion:             "",
+			multiregion:           nil,
+			queryRegion:           "",
+			expectedRequestRegion: agentRegion,
+			expectedJobRegion:     agentRegion,
+			expectedToken:         "",
+			expectedNamespace:     "default",
+		},
+		{
+			name:                  "no region provided but multiregion safe",
+			jobRegion:             "",
+			multiregion:           &api.Multiregion{},
+			queryRegion:           "",
+			expectedRequestRegion: agentRegion,
+			expectedJobRegion:     api.GlobalRegion,
+			expectedToken:         "",
+			expectedNamespace:     "default",
+		},
+		{
+			name:                  "region flag provided",
+			jobRegion:             "",
+			multiregion:           nil,
+			queryRegion:           "west",
+			expectedRequestRegion: "west",
+			expectedJobRegion:     "west",
+			expectedToken:         "",
+			expectedNamespace:     "default",
+		},
+		{
+			name:                  "job region provided",
+			jobRegion:             "west",
+			multiregion:           nil,
+			queryRegion:           "",
+			expectedRequestRegion: "west",
+			expectedJobRegion:     "west",
+			expectedToken:         "",
+			expectedNamespace:     "default",
+		},
+		{
+			name:                  "job region overridden by region flag",
+			jobRegion:             "west",
+			multiregion:           nil,
+			queryRegion:           "east",
+			expectedRequestRegion: "east",
+			expectedJobRegion:     "east",
+			expectedToken:         "",
+			expectedNamespace:     "default",
+		},
+		{
+			name:      "multiregion to valid region",
+			jobRegion: "",
+			multiregion: &api.Multiregion{Regions: []*api.MultiregionRegion{
+				{Name: "west"},
+				{Name: "east"},
+			}},
+			queryRegion:           "east",
+			expectedRequestRegion: "east",
+			expectedJobRegion:     api.GlobalRegion,
+			expectedToken:         "",
+			expectedNamespace:     "default",
+		},
+		{
+			name:      "multiregion sent to wrong region",
+			jobRegion: "",
+			multiregion: &api.Multiregion{Regions: []*api.MultiregionRegion{
+				{Name: "west"},
+				{Name: "east"},
+			}},
+			queryRegion:           "north",
+			expectedRequestRegion: "west",
+			expectedJobRegion:     api.GlobalRegion,
+			expectedToken:         "",
+			expectedNamespace:     "default",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			// we need a valid agent config but we don't want to start up
+			// a real server for this
+			srv := &HTTPServer{}
+			srv.agent = &Agent{config: &Config{Region: agentRegion}}
+
+			job := &api.Job{
+				Region:      helper.StringToPtr(tc.jobRegion),
+				Multiregion: tc.multiregion,
+			}
+
+			req, _ := http.NewRequest("POST", "/", nil)
+			if tc.queryToken != "" {
+				req.Header.Set("X-Nomad-Token", tc.queryToken)
+			}
+			q := req.URL.Query()
+			if tc.queryNamespace != "" {
+				q.Add("namespace", tc.queryNamespace)
+			}
+			if tc.queryRegion != "" {
+				q.Add("region", tc.queryRegion)
+			}
+			req.URL.RawQuery = q.Encode()
+
+			apiReq := api.WriteRequest{
+				Region:    tc.apiRegion,
+				Namespace: tc.apiNamespace,
+				SecretID:  tc.apiToken,
+			}
+
+			sJob, sWriteReq := srv.apiJobAndRequestToStructs(job, req, apiReq)
+			require.Equal(t, tc.expectedJobRegion, sJob.Region)
+			require.Equal(t, tc.expectedNamespace, sJob.Namespace)
+			require.Equal(t, tc.expectedNamespace, sWriteReq.Namespace)
+			require.Equal(t, tc.expectedRequestRegion, sWriteReq.Region)
+			require.Equal(t, tc.expectedToken, sWriteReq.AuthToken)
+		})
+	}
+}
+
+func TestJobs_RegionForJob(t *testing.T) {
+	t.Parallel()
+
+	// defaults
+	agentRegion := "agentRegion"
+
+	cases := []struct {
+		name                  string
+		jobRegion             string
+		multiregion           *api.Multiregion
+		queryRegion           string
+		apiRegion             string
+		agentRegion           string
+		expectedRequestRegion string
+		expectedJobRegion     string
+	}{
+		{
+			name:                  "no region provided",
+			jobRegion:             "",
+			multiregion:           nil,
+			queryRegion:           "",
+			expectedRequestRegion: agentRegion,
+			expectedJobRegion:     agentRegion,
+		},
+		{
+			name:                  "no region provided but multiregion safe",
+			jobRegion:             "",
+			multiregion:           &api.Multiregion{},
+			queryRegion:           "",
+			expectedRequestRegion: agentRegion,
+			expectedJobRegion:     api.GlobalRegion,
+		},
+		{
+			name:                  "region flag provided",
+			jobRegion:             "",
+			multiregion:           nil,
+			queryRegion:           "west",
+			expectedRequestRegion: "west",
+			expectedJobRegion:     "west",
+		},
+		{
+			name:                  "job region provided",
+			jobRegion:             "west",
+			multiregion:           nil,
+			queryRegion:           "",
+			expectedRequestRegion: "west",
+			expectedJobRegion:     "west",
+		},
+		{
+			name:                  "job region overridden by region flag",
+			jobRegion:             "west",
+			multiregion:           nil,
+			queryRegion:           "east",
+			expectedRequestRegion: "east",
+			expectedJobRegion:     "east",
+		},
+		{
+			name:                  "job region overridden by api body",
+			jobRegion:             "west",
+			multiregion:           nil,
+			apiRegion:             "east",
+			expectedRequestRegion: "east",
+			expectedJobRegion:     "east",
+		},
+		{
+			name:      "multiregion to valid region",
+			jobRegion: "",
+			multiregion: &api.Multiregion{Regions: []*api.MultiregionRegion{
+				{Name: "west"},
+				{Name: "east"},
+			}},
+			queryRegion:           "east",
+			expectedRequestRegion: "east",
+			expectedJobRegion:     api.GlobalRegion,
+		},
+		{
+			name:      "multiregion sent to wrong region",
+			jobRegion: "",
+			multiregion: &api.Multiregion{Regions: []*api.MultiregionRegion{
+				{Name: "west"},
+				{Name: "east"},
+			}},
+			queryRegion:           "north",
+			expectedRequestRegion: "west",
+			expectedJobRegion:     api.GlobalRegion,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			job := &api.Job{
+				Region:      helper.StringToPtr(tc.jobRegion),
+				Multiregion: tc.multiregion,
+			}
+			requestRegion, jobRegion := regionForJob(
+				job, tc.queryRegion, tc.apiRegion, agentRegion)
+			require.Equal(t, tc.expectedRequestRegion, requestRegion)
+			require.Equal(t, tc.expectedJobRegion, jobRegion)
+		})
+	}
+}
+
 func TestJobs_ApiJobToStructsJob(t *testing.T) {
 	apiJob := &api.Job{
 		Stop:        helper.BoolToPtr(true),
@@ -1434,6 +1847,20 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Payload: []byte("payload"),
 		Meta: map[string]string{
 			"foo": "bar",
+		},
+		Multiregion: &api.Multiregion{
+			Strategy: &api.MultiregionStrategy{
+				MaxParallel: helper.IntToPtr(2),
+				OnFailure:   helper.StringToPtr("fail_all"),
+			},
+			Regions: []*api.MultiregionRegion{
+				{
+					Name:        "west",
+					Count:       helper.IntToPtr(1),
+					Datacenters: []string{"dc1", "dc2"},
+					Meta:        map[string]string{"region_code": "W"},
+				},
+			},
 		},
 		TaskGroups: []*api.TaskGroup{
 			{
@@ -1503,10 +1930,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 				Services: []*api.Service{
 					{
-						Name:       "groupserviceA",
-						Tags:       []string{"a", "b"},
-						CanaryTags: []string{"d", "e"},
-						PortLabel:  "1234",
+						Name:              "groupserviceA",
+						Tags:              []string{"a", "b"},
+						CanaryTags:        []string{"d", "e"},
+						EnableTagOverride: true,
+						PortLabel:         "1234",
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
@@ -1535,6 +1963,13 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									IgnoreWarnings: true,
 								},
 								TaskName: "task1",
+							},
+						},
+						Connect: &api.ConsulConnect{
+							Native: false,
+							SidecarService: &api.ConsulSidecarService{
+								Tags: []string{"f", "g"},
+								Port: "9000",
 							},
 						},
 					},
@@ -1566,14 +2001,20 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Weight:  helper.Int8ToPtr(50),
 							},
 						},
-
+						RestartPolicy: &api.RestartPolicy{
+							Interval: helper.TimeToPtr(2 * time.Second),
+							Attempts: helper.IntToPtr(10),
+							Delay:    helper.TimeToPtr(20 * time.Second),
+							Mode:     helper.StringToPtr("delay"),
+						},
 						Services: []*api.Service{
 							{
-								Id:         "id",
-								Name:       "serviceA",
-								Tags:       []string{"1", "2"},
-								CanaryTags: []string{"3", "4"},
-								PortLabel:  "foo",
+								Id:                "id",
+								Name:              "serviceA",
+								Tags:              []string{"1", "2"},
+								CanaryTags:        []string{"3", "4"},
+								EnableTagOverride: true,
+								PortLabel:         "foo",
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
@@ -1583,20 +2024,22 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								},
 								Checks: []api.ServiceCheck{
 									{
-										Id:            "hello",
-										Name:          "bar",
-										Type:          "http",
-										Command:       "foo",
-										Args:          []string{"a", "b"},
-										Path:          "/check",
-										Protocol:      "http",
-										PortLabel:     "foo",
-										AddressMode:   "driver",
-										GRPCService:   "foo.Bar",
-										GRPCUseTLS:    true,
-										Interval:      4 * time.Second,
-										Timeout:       2 * time.Second,
-										InitialStatus: "ok",
+										Id:                     "hello",
+										Name:                   "bar",
+										Type:                   "http",
+										Command:                "foo",
+										Args:                   []string{"a", "b"},
+										Path:                   "/check",
+										Protocol:               "http",
+										PortLabel:              "foo",
+										AddressMode:            "driver",
+										GRPCService:            "foo.Bar",
+										GRPCUseTLS:             true,
+										Interval:               4 * time.Second,
+										Timeout:                2 * time.Second,
+										InitialStatus:          "ok",
+										SuccessBeforePassing:   3,
+										FailuresBeforeCritical: 4,
 										CheckRestart: &api.CheckRestart{
 											Limit:          3,
 											IgnoreWarnings: true,
@@ -1680,6 +2123,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 						Vault: &api.Vault{
+							Namespace:    helper.StringToPtr("ns1"),
 							Policies:     []string{"a", "b", "c"},
 							Env:          helper.BoolToPtr(true),
 							ChangeMode:   helper.StringToPtr("c"),
@@ -1697,7 +2141,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LeftDelim:    helper.StringToPtr("abc"),
 								RightDelim:   helper.StringToPtr("def"),
 								Envvars:      helper.BoolToPtr(true),
-								VaultGrace:   helper.TimeToPtr(3 * time.Second),
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
@@ -1707,7 +2150,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 			},
 		},
-		VaultToken:        helper.StringToPtr("token"),
+		ConsulToken:       helper.StringToPtr("abc123"),
+		VaultToken:        helper.StringToPtr("def456"),
+		VaultNamespace:    helper.StringToPtr("ghi789"),
 		Status:            helper.StringToPtr("status"),
 		StatusDescription: helper.StringToPtr("status_desc"),
 		Version:           helper.Uint64ToPtr(10),
@@ -1717,16 +2162,17 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 	}
 
 	expected := &structs.Job{
-		Stop:        true,
-		Region:      "global",
-		Namespace:   "foo",
-		ID:          "foo",
-		ParentID:    "lol",
-		Name:        "name",
-		Type:        "service",
-		Priority:    50,
-		AllAtOnce:   true,
-		Datacenters: []string{"dc1", "dc2"},
+		Stop:           true,
+		Region:         "global",
+		Namespace:      "foo",
+		VaultNamespace: "ghi789",
+		ID:             "foo",
+		ParentID:       "lol",
+		Name:           "name",
+		Type:           "service",
+		Priority:       50,
+		AllAtOnce:      true,
+		Datacenters:    []string{"dc1", "dc2"},
 		Constraints: []*structs.Constraint{
 			{
 				LTarget: "a",
@@ -1773,6 +2219,20 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Payload: []byte("payload"),
 		Meta: map[string]string{
 			"foo": "bar",
+		},
+		Multiregion: &structs.Multiregion{
+			Strategy: &structs.MultiregionStrategy{
+				MaxParallel: 2,
+				OnFailure:   "fail_all",
+			},
+			Regions: []*structs.MultiregionRegion{
+				{
+					Name:        "west",
+					Count:       1,
+					Datacenters: []string{"dc1", "dc2"},
+					Meta:        map[string]string{"region_code": "W"},
+				},
+			},
 		},
 		TaskGroups: []*structs.TaskGroup{
 			{
@@ -1846,11 +2306,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 				Services: []*structs.Service{
 					{
-						Name:        "groupserviceA",
-						Tags:        []string{"a", "b"},
-						CanaryTags:  []string{"d", "e"},
-						PortLabel:   "1234",
-						AddressMode: "auto",
+						Name:              "groupserviceA",
+						Tags:              []string{"a", "b"},
+						CanaryTags:        []string{"d", "e"},
+						EnableTagOverride: true,
+						PortLabel:         "1234",
+						AddressMode:       "auto",
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
@@ -1875,6 +2336,13 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									IgnoreWarnings: true,
 								},
 								TaskName: "task1",
+							},
+						},
+						Connect: &structs.ConsulConnect{
+							Native: false,
+							SidecarService: &structs.ConsulSidecarService{
+								Tags: []string{"f", "g"},
+								Port: "9000",
 							},
 						},
 					},
@@ -1906,31 +2374,40 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Env: map[string]string{
 							"hello": "world",
 						},
+						RestartPolicy: &structs.RestartPolicy{
+							Interval: 2 * time.Second,
+							Attempts: 10,
+							Delay:    20 * time.Second,
+							Mode:     "delay",
+						},
 						Services: []*structs.Service{
 							{
-								Name:        "serviceA",
-								Tags:        []string{"1", "2"},
-								CanaryTags:  []string{"3", "4"},
-								PortLabel:   "foo",
-								AddressMode: "auto",
+								Name:              "serviceA",
+								Tags:              []string{"1", "2"},
+								CanaryTags:        []string{"3", "4"},
+								EnableTagOverride: true,
+								PortLabel:         "foo",
+								AddressMode:       "auto",
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
 								Checks: []*structs.ServiceCheck{
 									{
-										Name:          "bar",
-										Type:          "http",
-										Command:       "foo",
-										Args:          []string{"a", "b"},
-										Path:          "/check",
-										Protocol:      "http",
-										PortLabel:     "foo",
-										AddressMode:   "driver",
-										Interval:      4 * time.Second,
-										Timeout:       2 * time.Second,
-										InitialStatus: "ok",
-										GRPCService:   "foo.Bar",
-										GRPCUseTLS:    true,
+										Name:                   "bar",
+										Type:                   "http",
+										Command:                "foo",
+										Args:                   []string{"a", "b"},
+										Path:                   "/check",
+										Protocol:               "http",
+										PortLabel:              "foo",
+										AddressMode:            "driver",
+										Interval:               4 * time.Second,
+										Timeout:                2 * time.Second,
+										InitialStatus:          "ok",
+										GRPCService:            "foo.Bar",
+										GRPCUseTLS:             true,
+										SuccessBeforePassing:   3,
+										FailuresBeforeCritical: 4,
 										CheckRestart: &structs.CheckRestart{
 											Limit:          3,
 											Grace:          11 * time.Second,
@@ -2018,6 +2495,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 						Vault: &structs.Vault{
+							Namespace:    "ns1",
 							Policies:     []string{"a", "b", "c"},
 							Env:          true,
 							ChangeMode:   "c",
@@ -2035,7 +2513,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								LeftDelim:    "abc",
 								RightDelim:   "def",
 								Envvars:      true,
-								VaultGrace:   3 * time.Second,
 							},
 						},
 						DispatchPayload: &structs.DispatchPayloadConfig{
@@ -2046,7 +2523,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			},
 		},
 
-		VaultToken: "token",
+		ConsulToken: "abc123",
+		VaultToken:  "def456",
 	}
 
 	structsJob := ApiJobToStructJob(apiJob)
@@ -2150,12 +2628,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 						Artifacts: []*api.TaskArtifact{
 							{
-								GetterSource: helper.StringToPtr("source"),
-								GetterOptions: map[string]string{
-									"a": "b",
-								},
-								GetterMode:   helper.StringToPtr("dir"),
-								RelativeDest: helper.StringToPtr("dest"),
+								GetterSource:  helper.StringToPtr("source"),
+								GetterOptions: map[string]string{"a": "b"},
+								GetterHeaders: map[string]string{"User-Agent": "nomad"},
+								GetterMode:    helper.StringToPtr("dir"),
+								RelativeDest:  helper.StringToPtr("dest"),
 							},
 						},
 						DispatchPayload: &api.DispatchPayloadConfig{
@@ -2257,6 +2734,12 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								},
 							},
 						},
+						RestartPolicy: &structs.RestartPolicy{
+							Interval: 1 * time.Second,
+							Attempts: 5,
+							Delay:    10 * time.Second,
+							Mode:     "delay",
+						},
 						Meta: map[string]string{
 							"lol": "code",
 						},
@@ -2268,12 +2751,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						},
 						Artifacts: []*structs.TaskArtifact{
 							{
-								GetterSource: "source",
-								GetterOptions: map[string]string{
-									"a": "b",
-								},
-								GetterMode:   "dir",
-								RelativeDest: "dest",
+								GetterSource:  "source",
+								GetterOptions: map[string]string{"a": "b"},
+								GetterHeaders: map[string]string{"User-Agent": "nomad"},
+								GetterMode:    "dir",
+								RelativeDest:  "dest",
 							},
 						},
 						DispatchPayload: &structs.DispatchPayloadConfig{
@@ -2365,6 +2847,23 @@ func TestJobs_ApiJobToStructsJobUpdate(t *testing.T) {
 	require.Equal(t, group2, *structsJob.TaskGroups[1].Update)
 }
 
+// TestJobs_Matching_Resources asserts:
+//	api.{Default,Min}Resources == structs.{Default,Min}Resources
+//
+// While this is an odd place to test that, this is where both are imported,
+// validated, and converted.
+func TestJobs_Matching_Resources(t *testing.T) {
+	t.Parallel()
+
+	// api.MinResources == structs.MinResources
+	structsMinRes := ApiResourcesToStructs(api.MinResources())
+	assert.Equal(t, structs.MinResources(), structsMinRes)
+
+	// api.DefaultResources == structs.DefaultResources
+	structsDefaultRes := ApiResourcesToStructs(api.DefaultResources())
+	assert.Equal(t, structs.DefaultResources(), structsDefaultRes)
+}
+
 // TestHTTP_JobValidate_SystemMigrate asserts that a system job with a migrate
 // stanza fails to validate but does not panic (see #5477).
 func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
@@ -2405,5 +2904,288 @@ func TestHTTP_JobValidate_SystemMigrate(t *testing.T) {
 		// Check the response
 		resp := obj.(structs.JobValidateResponse)
 		require.Contains(t, resp.Error, `Job type "system" does not allow migrate block`)
+	})
+}
+
+func TestConversion_dereferenceInt(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, 0, dereferenceInt(nil))
+	require.Equal(t, 42, dereferenceInt(helper.IntToPtr(42)))
+}
+
+func TestConversion_apiLogConfigToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiLogConfigToStructs(nil))
+	require.Equal(t, &structs.LogConfig{
+		MaxFiles:      2,
+		MaxFileSizeMB: 8,
+	}, apiLogConfigToStructs(&api.LogConfig{
+		MaxFiles:      helper.IntToPtr(2),
+		MaxFileSizeMB: helper.IntToPtr(8),
+	}))
+}
+
+func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
+	delay := time.Duration(200)
+	timeout := time.Duration(1000)
+	config := make(map[string]interface{})
+	env := make(map[string]string)
+	meta := make(map[string]string)
+	require.Equal(t, &structs.SidecarTask{
+		Name:   "name",
+		Driver: "driver",
+		User:   "user",
+		Config: config,
+		Env:    env,
+		Resources: &structs.Resources{
+			CPU:      1,
+			MemoryMB: 128,
+		},
+		Meta:        meta,
+		KillTimeout: &timeout,
+		LogConfig: &structs.LogConfig{
+			MaxFiles:      2,
+			MaxFileSizeMB: 8,
+		},
+		ShutdownDelay: &delay,
+		KillSignal:    "SIGTERM",
+	}, apiConnectSidecarTaskToStructs(&api.SidecarTask{
+		Name:   "name",
+		Driver: "driver",
+		User:   "user",
+		Config: config,
+		Env:    env,
+		Resources: &api.Resources{
+			CPU:      helper.IntToPtr(1),
+			MemoryMB: helper.IntToPtr(128),
+		},
+		Meta:        meta,
+		KillTimeout: &timeout,
+		LogConfig: &api.LogConfig{
+			MaxFiles:      helper.IntToPtr(2),
+			MaxFileSizeMB: helper.IntToPtr(8),
+		},
+		ShutdownDelay: &delay,
+		KillSignal:    "SIGTERM",
+	}))
+}
+
+func TestConversion_apiConsulExposePathsToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConsulExposePathsToStructs(nil))
+	require.Nil(t, apiConsulExposePathsToStructs(make([]*api.ConsulExposePath, 0)))
+	require.Equal(t, []structs.ConsulExposePath{{
+		Path:          "/health",
+		Protocol:      "http",
+		LocalPathPort: 8080,
+		ListenerPort:  "hcPort",
+	}}, apiConsulExposePathsToStructs([]*api.ConsulExposePath{{
+		Path:          "/health",
+		Protocol:      "http",
+		LocalPathPort: 8080,
+		ListenerPort:  "hcPort",
+	}}))
+}
+
+func TestConversion_apiConsulExposeConfigToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConsulExposeConfigToStructs(nil))
+	require.Equal(t, &structs.ConsulExposeConfig{
+		Paths: []structs.ConsulExposePath{{Path: "/health"}},
+	}, apiConsulExposeConfigToStructs(&api.ConsulExposeConfig{
+		Path: []*api.ConsulExposePath{{Path: "/health"}},
+	}))
+}
+
+func TestConversion_apiUpstreamsToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiUpstreamsToStructs(nil))
+	require.Nil(t, apiUpstreamsToStructs(make([]*api.ConsulUpstream, 0)))
+	require.Equal(t, []structs.ConsulUpstream{{
+		DestinationName: "upstream",
+		LocalBindPort:   8000,
+		Datacenter:      "dc2",
+	}}, apiUpstreamsToStructs([]*api.ConsulUpstream{{
+		DestinationName: "upstream",
+		LocalBindPort:   8000,
+		Datacenter:      "dc2",
+	}}))
+}
+
+func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConnectSidecarServiceProxyToStructs(nil))
+	config := make(map[string]interface{})
+	require.Equal(t, &structs.ConsulProxy{
+		LocalServiceAddress: "192.168.30.1",
+		LocalServicePort:    9000,
+		Config:              nil,
+		Upstreams: []structs.ConsulUpstream{{
+			DestinationName: "upstream",
+		}},
+		Expose: &structs.ConsulExposeConfig{
+			Paths: []structs.ConsulExposePath{{Path: "/health"}},
+		},
+	}, apiConnectSidecarServiceProxyToStructs(&api.ConsulProxy{
+		LocalServiceAddress: "192.168.30.1",
+		LocalServicePort:    9000,
+		Config:              config,
+		Upstreams: []*api.ConsulUpstream{{
+			DestinationName: "upstream",
+		}},
+		ExposeConfig: &api.ConsulExposeConfig{
+			Path: []*api.ConsulExposePath{{
+				Path: "/health",
+			}},
+		},
+	}))
+}
+
+func TestConversion_apiConnectSidecarServiceToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
+	require.Equal(t, &structs.ConsulSidecarService{
+		Tags: []string{"foo"},
+		Port: "myPort",
+		Proxy: &structs.ConsulProxy{
+			LocalServiceAddress: "192.168.30.1",
+		},
+	}, apiConnectSidecarServiceToStructs(&api.ConsulSidecarService{
+		Tags: []string{"foo"},
+		Port: "myPort",
+		Proxy: &api.ConsulProxy{
+			LocalServiceAddress: "192.168.30.1",
+		},
+	}))
+}
+
+func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		require.Nil(t, ApiConsulConnectToStructs(nil))
+	})
+
+	t.Run("sidecar", func(t *testing.T) {
+		require.Equal(t, &structs.ConsulConnect{
+			Native:         false,
+			SidecarService: &structs.ConsulSidecarService{Port: "myPort"},
+			SidecarTask:    &structs.SidecarTask{Name: "task"},
+		}, ApiConsulConnectToStructs(&api.ConsulConnect{
+			Native:         false,
+			SidecarService: &api.ConsulSidecarService{Port: "myPort"},
+			SidecarTask:    &api.SidecarTask{Name: "task"},
+		}))
+	})
+
+	t.Run("gateway proxy", func(t *testing.T) {
+		require.Equal(t, &structs.ConsulConnect{
+			Gateway: &structs.ConsulGateway{
+				Proxy: &structs.ConsulGatewayProxy{
+					ConnectTimeout:                  helper.TimeToPtr(3 * time.Second),
+					EnvoyGatewayBindTaggedAddresses: true,
+					EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
+						"service": {
+							Address: "10.0.0.1",
+							Port:    9000,
+						}},
+					EnvoyGatewayNoDefaultBind: true,
+					EnvoyDNSDiscoveryType:     "STRICT_DNS",
+					Config: map[string]interface{}{
+						"foo": "bar",
+					},
+				},
+			},
+		}, ApiConsulConnectToStructs(&api.ConsulConnect{
+			Gateway: &api.ConsulGateway{
+				Proxy: &api.ConsulGatewayProxy{
+					ConnectTimeout:                  helper.TimeToPtr(3 * time.Second),
+					EnvoyGatewayBindTaggedAddresses: true,
+					EnvoyGatewayBindAddresses: map[string]*api.ConsulGatewayBindAddress{
+						"service": {
+							Address: "10.0.0.1",
+							Port:    9000,
+						},
+					},
+					EnvoyGatewayNoDefaultBind: true,
+					EnvoyDNSDiscoveryType:     "STRICT_DNS",
+					Config: map[string]interface{}{
+						"foo": "bar",
+					},
+				},
+			},
+		}))
+	})
+
+	t.Run("gateway ingress", func(t *testing.T) {
+		require.Equal(t, &structs.ConsulConnect{
+			Gateway: &structs.ConsulGateway{
+				Ingress: &structs.ConsulIngressConfigEntry{
+					TLS: &structs.ConsulGatewayTLSConfig{Enabled: true},
+					Listeners: []*structs.ConsulIngressListener{{
+						Port:     1111,
+						Protocol: "http",
+						Services: []*structs.ConsulIngressService{{
+							Name:  "ingress1",
+							Hosts: []string{"host1"},
+						}},
+					}},
+				},
+			},
+		}, ApiConsulConnectToStructs(
+			&api.ConsulConnect{
+				Gateway: &api.ConsulGateway{
+					Ingress: &api.ConsulIngressConfigEntry{
+						TLS: &api.ConsulGatewayTLSConfig{Enabled: true},
+						Listeners: []*api.ConsulIngressListener{{
+							Port:     1111,
+							Protocol: "http",
+							Services: []*api.ConsulIngressService{{
+								Name:  "ingress1",
+								Hosts: []string{"host1"},
+							}},
+						}},
+					},
+				},
+			},
+		))
+	})
+
+	t.Run("gateway terminating", func(t *testing.T) {
+		require.Equal(t, &structs.ConsulConnect{
+			Gateway: &structs.ConsulGateway{
+				Terminating: &structs.ConsulTerminatingConfigEntry{
+					Services: []*structs.ConsulLinkedService{{
+						Name:     "linked-service",
+						CAFile:   "ca.pem",
+						CertFile: "cert.pem",
+						KeyFile:  "key.pem",
+						SNI:      "linked.consul",
+					}},
+				},
+			},
+		}, ApiConsulConnectToStructs(&api.ConsulConnect{
+			Gateway: &api.ConsulGateway{
+				Terminating: &api.ConsulTerminatingConfigEntry{
+					Services: []*api.ConsulLinkedService{{
+						Name:     "linked-service",
+						CAFile:   "ca.pem",
+						CertFile: "cert.pem",
+						KeyFile:  "key.pem",
+						SNI:      "linked.consul",
+					}},
+				},
+			},
+		}))
+	})
+
+	t.Run("native", func(t *testing.T) {
+		require.Equal(t, &structs.ConsulConnect{
+			Native: true,
+		}, ApiConsulConnectToStructs(&api.ConsulConnect{
+			Native: true,
+		}))
 	})
 }

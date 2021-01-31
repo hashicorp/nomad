@@ -1,0 +1,18 @@
+<BasicDropdown
+  @horizontalPosition="right"
+  @disabled={{this.isDisabled}}
+  @onOpen={{action (queue (action (mut this.isOpen) true) (action this.capture))}}
+  @onClose={{action (mut this.isOpen) false}} as |dd|
+>
+  <dd.Trigger
+    data-test-popover-trigger
+    class={{concat "popover-trigger button is-primary " this.triggerClass (if this.isDisabled " is-disabled")}}
+    aria-label={{this.tooltip}}
+    {{on "keydown" (action "openOnArrowDown" dd)}}
+  >
+    {{this.label}} {{x-icon "chevron-down" class="is-text"}}
+  </dd.Trigger>
+  <dd.Content data-test-popover-menu class="popover-content">
+    {{yield dd}}
+  </dd.Content>
+</BasicDropdown>

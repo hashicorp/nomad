@@ -1,0 +1,25 @@
+<button {{action "toggleOpen"}} class="toggle-button {{if this.hasPendingAllocations "is-loading"}}" data-test-task-group-name type="button">
+  {{x-icon (if this.isOpen "chevron-down" "chevron-right")}}
+  {{this.taskGroup.name}}
+</button>
+{{#if this.isOpen}}
+  <ul class="task-list">
+    {{#each this.sortedTasks as |task|}}
+      {{#if this.shouldOpenInNewWindow}}
+        <a {{on "click" (action "openInNewWindow" this.taskGroup.job this.taskGroup task)}} href="#" class="task-item" data-test-task>
+          <Exec::TaskContents
+            @task={{task}}
+            @active={{and this.currentRouteIsThisTaskGroup (eq task.name this.activeTaskName)}}
+            @shouldOpenInNewWindow={{this.shouldOpenInNewWindow}} />
+        </a>
+      {{else}}
+        <LinkTo @route="exec.task-group.task" @models={{array this.taskGroup.job.plainId this.taskGroup.name task.name}} class="task-item" data-test-task={{true}}>
+          <Exec::TaskContents
+            @task={{task}}
+            @active={{and this.currentRouteIsThisTaskGroup (eq task.name this.activeTaskName)}}
+            @shouldOpenInNewWindow={{this.shouldOpenInNewWindow}} />
+        </LinkTo>
+      {{/if}}
+    {{/each}}
+  </ul>
+{{/if}}

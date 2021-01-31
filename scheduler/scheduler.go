@@ -76,6 +76,9 @@ type State interface {
 	// AllocsByNode returns all the allocations by node
 	AllocsByNode(ws memdb.WatchSet, node string) ([]*structs.Allocation, error)
 
+	// AllocByID returns the allocation
+	AllocByID(ws memdb.WatchSet, allocID string) (*structs.Allocation, error)
+
 	// AllocsByNodeTerminal returns all the allocations by node filtering by terminal status
 	AllocsByNodeTerminal(ws memdb.WatchSet, node string, terminal bool) ([]*structs.Allocation, error)
 
@@ -85,12 +88,24 @@ type State interface {
 	// GetJobByID is used to lookup a job by ID
 	JobByID(ws memdb.WatchSet, namespace, id string) (*structs.Job, error)
 
+	// DeploymentsByJobID returns the deployments associated with the job
+	DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID string, all bool) ([]*structs.Deployment, error)
+
+	// JobByIDAndVersion returns the job associated with id and specific version
+	JobByIDAndVersion(ws memdb.WatchSet, namespace, id string, version uint64) (*structs.Job, error)
+
 	// LatestDeploymentByJobID returns the latest deployment matching the given
 	// job ID
 	LatestDeploymentByJobID(ws memdb.WatchSet, namespace, jobID string) (*structs.Deployment, error)
 
 	// SchedulerConfig returns config options for the scheduler
 	SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error)
+
+	// CSIVolumeByID fetch CSI volumes, containing controller jobs
+	CSIVolumeByID(memdb.WatchSet, string, string) (*structs.CSIVolume, error)
+
+	// CSIVolumeByID fetch CSI volumes, containing controller jobs
+	CSIVolumesByNodeID(memdb.WatchSet, string) (memdb.ResultIterator, error)
 }
 
 // Planner interface is used to submit a task allocation plan.

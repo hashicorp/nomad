@@ -58,13 +58,13 @@ func Bridge(a, b io.ReadWriteCloser) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		io.Copy(a, b)
+		_, _ = io.Copy(a, b)
 		a.Close()
 		b.Close()
 	}()
 	go func() {
 		defer wg.Done()
-		io.Copy(b, a)
+		_, _ = io.Copy(b, a)
 		a.Close()
 		b.Close()
 	}()

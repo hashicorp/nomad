@@ -2,14 +2,21 @@ job "foo" {
   datacenters = ["dc1"]
 
   group "bar" {
-    count = 3
+    count          = 3
+    shutdown_delay = "14s"
 
     network {
       mode = "bridge"
 
       port "http" {
-        static = 80
-        to     = 8080
+        static       = 80
+        to           = 8080
+        host_network = "public"
+      }
+
+      dns {
+        servers = ["8.8.8.8"]
+        options = ["ndots:2", "edns0"]
       }
     }
 
@@ -21,6 +28,8 @@ job "foo" {
 
       connect {
         sidecar_service {
+          tags = ["side1", "side2"]
+
           proxy {
             local_service_port = 8080
 

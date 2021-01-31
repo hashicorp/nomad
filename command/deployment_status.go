@@ -1,6 +1,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -21,9 +22,12 @@ Usage: nomad deployment status [options] <deployment id>
   Status is used to display the status of a deployment. The status will display
   the number of desired changes as well as the currently applied changes.
 
+  When ACLs are enabled, this command requires a token with the 'read-job'
+  capability for the deployment's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Status Options:
 
@@ -85,13 +89,11 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 
 	// Check that we got exactly one argument
 	args = flags.Args()
-	if l := len(args); l != 1 {
+	if l := len(args); l > 1 {
 		c.Ui.Error("This command takes one argument: <deployment id>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-
-	dID := args[0]
 
 	// Truncate the id unless full length is requested
 	length := shortId
@@ -106,7 +108,20 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	// List if no arguments are provided
+	if len(args) == 0 {
+		deploys, _, err := client.Deployments().List(nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error retrieving deployments: %s", err))
+			return 1
+		}
+
+		c.Ui.Output(formatDeployments(deploys, length))
+		return 0
+	}
+
 	// Do a prefix lookup
+	dID := args[0]
 	deploy, possible, err := getDeployment(client.Deployments(), dID)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving deployment: %s", err))
@@ -129,7 +144,7 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 		return 0
 	}
 
-	c.Ui.Output(c.Colorize().Color(formatDeployment(deploy, length)))
+	c.Ui.Output(c.Colorize().Color(formatDeployment(client, deploy, length)))
 	return 0
 }
 
@@ -171,7 +186,7 @@ func getDeployment(client *api.Deployments, dID string) (match *api.Deployment, 
 	}
 }
 
-func formatDeployment(d *api.Deployment, uuidLength int) string {
+func formatDeployment(c *api.Client, d *api.Deployment, uuidLength int) string {
 	if d == nil {
 		return "No deployment found"
 	}
@@ -185,12 +200,91 @@ func formatDeployment(d *api.Deployment, uuidLength int) string {
 	}
 
 	base := formatKV(high)
+
+	// Fetch and Format Multi-region info
+	if d.IsMultiregion {
+		regions, err := fetchMultiRegionDeployments(c, d)
+		if err != nil {
+			base += "\n\nError fetching Multiregion deployments\n\n"
+		} else if len(regions) > 0 {
+			base += "\n\n[bold]Multiregion Deployment[reset]\n"
+			base += formatMultiregionDeployment(regions, uuidLength)
+		}
+	}
+
 	if len(d.TaskGroups) == 0 {
 		return base
 	}
 	base += "\n\n[bold]Deployed[reset]\n"
 	base += formatDeploymentGroups(d, uuidLength)
 	return base
+}
+
+type regionResult struct {
+	region string
+	d      *api.Deployment
+	err    error
+}
+
+func fetchMultiRegionDeployments(c *api.Client, d *api.Deployment) (map[string]*api.Deployment, error) {
+	results := make(map[string]*api.Deployment)
+
+	job, _, err := c.Jobs().Info(d.JobID, &api.QueryOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	requests := make(chan regionResult, len(job.Multiregion.Regions))
+	for i := 0; i < cap(requests); i++ {
+		go func(itr int) {
+			region := job.Multiregion.Regions[itr]
+			d, err := fetchRegionDeployment(c, d, region)
+			requests <- regionResult{d: d, err: err, region: region.Name}
+		}(i)
+	}
+	for i := 0; i < cap(requests); i++ {
+		res := <-requests
+		if res.err != nil {
+			key := fmt.Sprintf("%s (error)", res.region)
+			results[key] = &api.Deployment{}
+			continue
+		}
+		results[res.region] = res.d
+
+	}
+	return results, nil
+}
+
+func fetchRegionDeployment(c *api.Client, d *api.Deployment, region *api.MultiregionRegion) (*api.Deployment, error) {
+	if region == nil {
+		return nil, errors.New("Region not found")
+	}
+
+	opts := &api.QueryOptions{Region: region.Name}
+	deploys, _, err := c.Jobs().Deployments(d.JobID, false, opts)
+	if err != nil {
+		return nil, err
+	}
+	for _, dep := range deploys {
+		if dep.JobVersion == d.JobVersion {
+			return dep, nil
+		}
+	}
+	return nil, fmt.Errorf("Could not find job version %d for region", d.JobVersion)
+}
+
+func formatMultiregionDeployment(regions map[string]*api.Deployment, uuidLength int) string {
+	rowString := "Region|ID|Status"
+	rows := make([]string, len(regions)+1)
+	rows[0] = rowString
+	i := 1
+	for k, v := range regions {
+		row := fmt.Sprintf("%s|%s|%s", k, limit(v.ID, uuidLength), v.Status)
+		rows[i] = row
+		i++
+	}
+	sort.Strings(rows)
+	return formatList(rows)
 }
 
 func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {

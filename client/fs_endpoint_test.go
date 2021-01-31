@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
@@ -28,7 +29,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
-	"github.com/ugorji/go/codec"
 )
 
 // tempAllocDir returns a new alloc dir that is rooted in a temp dir. The caller
@@ -80,14 +80,14 @@ func TestFS_Stat(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Create and add an alloc
 	job := mock.BatchJob()
@@ -114,11 +114,10 @@ func TestFS_Stat(t *testing.T) {
 
 func TestFS_Stat_ACL(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
 
 	// Start a server
-	s, root := nomad.TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	client, cleanup := TestClient(t, func(c *config.Config) {
@@ -135,6 +134,15 @@ func TestFS_Stat_ACL(t *testing.T) {
 		[]string{acl.NamespaceCapabilityReadLogs, acl.NamespaceCapabilityReadFS})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+	}
+
+	// Wait for client to be running job
+	alloc := testutil.WaitForRunningWithToken(t, s.RPC, job, root.SecretID)[0]
+
 	cases := []struct {
 		Name          string
 		Token         string
@@ -146,22 +154,19 @@ func TestFS_Stat_ACL(t *testing.T) {
 			ExpectedError: structs.ErrPermissionDenied.Error(),
 		},
 		{
-			Name:          "good token",
-			Token:         tokenGood.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "good token",
+			Token: tokenGood.SecretID,
 		},
 		{
-			Name:          "root token",
-			Token:         root.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "root token",
+			Token: root.SecretID,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			// Make the request with bad allocation id
 			req := &cstructs.FsStatRequest{
-				AllocID: uuid.Generate(),
+				AllocID: alloc.ID,
 				Path:    "/",
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
@@ -172,8 +177,12 @@ func TestFS_Stat_ACL(t *testing.T) {
 
 			var resp cstructs.FsStatResponse
 			err := client.ClientRPC("FileSystem.Stat", req, &resp)
-			require.NotNil(err)
-			require.Contains(err.Error(), c.ExpectedError)
+			if c.ExpectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.NotNil(t, err)
+				require.Contains(t, err.Error(), c.ExpectedError)
+			}
 		})
 	}
 }
@@ -204,14 +213,14 @@ func TestFS_List(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Create and add an alloc
 	job := mock.BatchJob()
@@ -238,11 +247,10 @@ func TestFS_List(t *testing.T) {
 
 func TestFS_List_ACL(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
 
 	// Start a server
-	s, root := nomad.TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	client, cleanup := TestClient(t, func(c *config.Config) {
@@ -259,6 +267,15 @@ func TestFS_List_ACL(t *testing.T) {
 		[]string{acl.NamespaceCapabilityReadLogs, acl.NamespaceCapabilityReadFS})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+	}
+
+	// Wait for client to be running job
+	alloc := testutil.WaitForRunningWithToken(t, s.RPC, job, root.SecretID)[0]
+
 	cases := []struct {
 		Name          string
 		Token         string
@@ -270,14 +287,12 @@ func TestFS_List_ACL(t *testing.T) {
 			ExpectedError: structs.ErrPermissionDenied.Error(),
 		},
 		{
-			Name:          "good token",
-			Token:         tokenGood.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "good token",
+			Token: tokenGood.SecretID,
 		},
 		{
-			Name:          "root token",
-			Token:         root.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "root token",
+			Token: root.SecretID,
 		},
 	}
 
@@ -285,7 +300,7 @@ func TestFS_List_ACL(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 			// Make the request with bad allocation id
 			req := &cstructs.FsListRequest{
-				AllocID: uuid.Generate(),
+				AllocID: alloc.ID,
 				Path:    "/",
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
@@ -296,8 +311,11 @@ func TestFS_List_ACL(t *testing.T) {
 
 			var resp cstructs.FsListResponse
 			err := client.ClientRPC("FileSystem.List", req, &resp)
-			require.NotNil(err)
-			require.Contains(err.Error(), c.ExpectedError)
+			if c.ExpectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.EqualError(t, err, c.ExpectedError)
+			}
 		})
 	}
 }
@@ -379,11 +397,10 @@ OUTER:
 
 func TestFS_Stream_ACL(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
 
 	// Start a server
-	s, root := nomad.TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	client, cleanup := TestClient(t, func(c *config.Config) {
@@ -400,6 +417,15 @@ func TestFS_Stream_ACL(t *testing.T) {
 		[]string{acl.NamespaceCapabilityReadLogs, acl.NamespaceCapabilityReadFS})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+	}
+
+	// Wait for client to be running job
+	alloc := testutil.WaitForRunningWithToken(t, s.RPC, job, root.SecretID)[0]
+
 	cases := []struct {
 		Name          string
 		Token         string
@@ -411,14 +437,12 @@ func TestFS_Stream_ACL(t *testing.T) {
 			ExpectedError: structs.ErrPermissionDenied.Error(),
 		},
 		{
-			Name:          "good token",
-			Token:         tokenGood.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "good token",
+			Token: tokenGood.SecretID,
 		},
 		{
-			Name:          "root token",
-			Token:         root.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "root token",
+			Token: root.SecretID,
 		},
 	}
 
@@ -426,7 +450,7 @@ func TestFS_Stream_ACL(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 			// Make the request with bad allocation id
 			req := &cstructs.FsStreamRequest{
-				AllocID: uuid.Generate(),
+				AllocID: alloc.ID,
 				Path:    "foo",
 				Origin:  "start",
 				QueryOptions: structs.QueryOptions{
@@ -438,7 +462,7 @@ func TestFS_Stream_ACL(t *testing.T) {
 
 			// Get the handler
 			handler, err := client.StreamingRpcHandler("FileSystem.Stream")
-			require.Nil(err)
+			require.Nil(t, err)
 
 			// Create a pipe
 			p1, p2 := net.Pipe()
@@ -457,10 +481,8 @@ func TestFS_Stream_ACL(t *testing.T) {
 				for {
 					var msg cstructs.StreamErrWrapper
 					if err := decoder.Decode(&msg); err != nil {
-						if err == io.EOF || strings.Contains(err.Error(), "closed") {
-							return
-						}
-						errCh <- fmt.Errorf("error decoding: %v", err)
+						errCh <- err
+						return
 					}
 
 					streamMsg <- &msg
@@ -469,7 +491,7 @@ func TestFS_Stream_ACL(t *testing.T) {
 
 			// Send the request
 			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-			require.Nil(encoder.Encode(req))
+			require.NoError(t, encoder.Encode(req))
 
 			timeout := time.After(5 * time.Second)
 
@@ -479,6 +501,11 @@ func TestFS_Stream_ACL(t *testing.T) {
 				case <-timeout:
 					t.Fatal("timeout")
 				case err := <-errCh:
+					eof := err == io.EOF || strings.Contains(err.Error(), "closed")
+					if c.ExpectedError == "" && eof {
+						// No error was expected!
+						return
+					}
 					t.Fatal(err)
 				case msg := <-streamMsg:
 					if msg.Error == nil {
@@ -501,14 +528,14 @@ func TestFS_Stream(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	expected := "Hello from the other side"
 	job := mock.BatchJob()
@@ -617,14 +644,14 @@ func TestFS_Stream_Follow(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	expectedBase := "Hello from the other side"
 	repeat := 10
@@ -714,8 +741,8 @@ func TestFS_Stream_Limit(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	c, cleanup := TestClient(t, func(c *config.Config) {
@@ -886,14 +913,14 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
@@ -1001,8 +1028,8 @@ func TestFS_Logs_ACL(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server
-	s, root := nomad.TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
 	client, cleanup := TestClient(t, func(c *config.Config) {
@@ -1019,6 +1046,15 @@ func TestFS_Logs_ACL(t *testing.T) {
 		[]string{acl.NamespaceCapabilityReadLogs, acl.NamespaceCapabilityReadFS})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "20s",
+	}
+
+	// Wait for client to be running job
+	alloc := testutil.WaitForRunningWithToken(t, s.RPC, job, root.SecretID)[0]
+
 	cases := []struct {
 		Name          string
 		Token         string
@@ -1030,14 +1066,12 @@ func TestFS_Logs_ACL(t *testing.T) {
 			ExpectedError: structs.ErrPermissionDenied.Error(),
 		},
 		{
-			Name:          "good token",
-			Token:         tokenGood.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "good token",
+			Token: tokenGood.SecretID,
 		},
 		{
-			Name:          "root token",
-			Token:         root.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			Name:  "root token",
+			Token: root.SecretID,
 		},
 	}
 
@@ -1045,8 +1079,8 @@ func TestFS_Logs_ACL(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 			// Make the request with bad allocation id
 			req := &cstructs.FsLogsRequest{
-				AllocID: uuid.Generate(),
-				Task:    "foo",
+				AllocID: alloc.ID,
+				Task:    job.TaskGroups[0].Tasks[0].Name,
 				LogType: "stdout",
 				Origin:  "start",
 				QueryOptions: structs.QueryOptions{
@@ -1077,10 +1111,8 @@ func TestFS_Logs_ACL(t *testing.T) {
 				for {
 					var msg cstructs.StreamErrWrapper
 					if err := decoder.Decode(&msg); err != nil {
-						if err == io.EOF || strings.Contains(err.Error(), "closed") {
-							return
-						}
-						errCh <- fmt.Errorf("error decoding: %v", err)
+						errCh <- err
+						return
 					}
 
 					streamMsg <- &msg
@@ -1099,6 +1131,11 @@ func TestFS_Logs_ACL(t *testing.T) {
 				case <-timeout:
 					t.Fatal("timeout")
 				case err := <-errCh:
+					eof := err == io.EOF || strings.Contains(err.Error(), "closed")
+					if c.ExpectedError == "" && eof {
+						// No error was expected!
+						return
+					}
 					t.Fatal(err)
 				case msg := <-streamMsg:
 					if msg.Error == nil {
@@ -1106,6 +1143,7 @@ func TestFS_Logs_ACL(t *testing.T) {
 					}
 
 					if strings.Contains(msg.Error.Error(), c.ExpectedError) {
+						// Ok! Error matched expectation.
 						break OUTER
 					} else {
 						t.Fatalf("Bad error: %v", msg.Error)
@@ -1121,14 +1159,14 @@ func TestFS_Logs(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	expected := "Hello from the other side\n"
 	job := mock.BatchJob()
@@ -1222,14 +1260,14 @@ func TestFS_Logs_Follow(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := nomad.TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := TestClient(t, func(c *config.Config) {
+	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	expectedBase := "Hello from the other side\n"
 	repeat := 10
@@ -1816,7 +1854,7 @@ func TestFS_logsImpl_NoFollow(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		logFile := fmt.Sprintf("%s.%s.%d", task, logType, i)
 		logFilePath := filepath.Join(logDir, logFile)
-		err := ioutil.WriteFile(logFilePath, expected[i:i+1], 777)
+		err := ioutil.WriteFile(logFilePath, expected[i:i+1], 0777)
 		if err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}
@@ -1846,13 +1884,14 @@ func TestFS_logsImpl_NoFollow(t *testing.T) {
 	}()
 
 	// Start streaming logs
-	go func() {
-		if err := c.endpoints.FileSystem.logsImpl(
-			context.Background(), false, false, 0,
-			OriginStart, task, logType, ad, frames); err != nil {
-			t.Fatalf("logs() failed: %v", err)
-		}
-	}()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	if err := c.endpoints.FileSystem.logsImpl(
+		ctx, false, false, 0,
+		OriginStart, task, logType, ad, frames); err != nil {
+		t.Fatalf("logsImpl failed: %v", err)
+	}
 
 	select {
 	case <-resultCh:
@@ -1885,7 +1924,7 @@ func TestFS_logsImpl_Follow(t *testing.T) {
 	writeToFile := func(index int, data []byte) {
 		logFile := fmt.Sprintf("%s.%s.%d", task, logType, index)
 		logFilePath := filepath.Join(logDir, logFile)
-		err := ioutil.WriteFile(logFilePath, data, 777)
+		err := ioutil.WriteFile(logFilePath, data, 0777)
 		if err != nil {
 			t.Fatalf("Failed to create file: %v", err)
 		}

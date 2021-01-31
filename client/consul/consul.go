@@ -7,13 +7,46 @@ import (
 
 // ConsulServiceAPI is the interface the Nomad Client uses to register and
 // remove services and checks from Consul.
+//
+// ACL requirements
+// - service:write
 type ConsulServiceAPI interface {
-	RegisterGroup(*structs.Allocation) error
-	RemoveGroup(*structs.Allocation) error
-	UpdateGroup(oldAlloc, newAlloc *structs.Allocation) error
-	RegisterTask(*consul.TaskServices) error
-	RemoveTask(*consul.TaskServices)
-	UpdateTask(old, newTask *consul.TaskServices) error
+	// RegisterWorkload with Consul. Adds all service entries and checks to Consul.
+	RegisterWorkload(*consul.WorkloadServices) error
+
+	// RemoveWorkload from Consul. Removes all service entries and checks.
+	RemoveWorkload(*consul.WorkloadServices)
+
+	// UpdateWorkload in Consul. Does not alter the service if only checks have
+	// changed.
+	UpdateWorkload(old, newTask *consul.WorkloadServices) error
+
+	// AllocRegistrations returns the registrations for the given allocation.
 	AllocRegistrations(allocID string) (*consul.AllocRegistration, error)
+
+	// UpdateTTL is used to update the TTL of a check.
 	UpdateTTL(id, output, status string) error
+}
+
+// TokenDeriverFunc takes an allocation and a set of tasks and derives a
+// service identity token for each. Requests go through nomad server.
+type TokenDeriverFunc func(*structs.Allocation, []string) (map[string]string, error)
+
+// ServiceIdentityAPI is the interface the Nomad Client uses to request Consul
+// Service Identity tokens through Nomad Server.
+//
+// ACL requirements
+// - acl:write (used by Server only)
+type ServiceIdentityAPI interface {
+	// DeriveSITokens contacts the nomad server and requests consul service
+	// identity tokens be generated for tasks in the allocation.
+	DeriveSITokens(alloc *structs.Allocation, tasks []string) (map[string]string, error)
+}
+
+// SupportedProxiesAPI is the interface the Nomad Client uses to request from
+// Consul the set of supported proxied to use for Consul Connect.
+//
+// No ACL requirements
+type SupportedProxiesAPI interface {
+	Proxies() (map[string][]string, error)
 }

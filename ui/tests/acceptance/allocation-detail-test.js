@@ -4,8 +4,10 @@ import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
+import isIp from 'is-ip';
 
 let job;
 let node;
@@ -24,7 +26,7 @@ module('Acceptance | allocation detail', function(hooks) {
       withGroupServices: true,
       createAllocations: false,
     });
-    allocation = server.create('allocation', 'withTaskWithPorts', 'withAllocatedResources', {
+    allocation = server.create('allocation', 'withTaskWithPorts', {
       clientStatus: 'running',
     });
 
@@ -46,6 +48,10 @@ module('Acceptance | allocation detail', function(hooks) {
     await Allocation.visit({ id: allocation.id });
   });
 
+  test('it passes an accessibility audit', async function(assert) {
+    await a11yAudit(assert);
+  });
+
   test('/allocation/:id should name the allocation and link to the corresponding job and node', async function(assert) {
     assert.ok(Allocation.title.includes(allocation.name), 'Allocation name is in the heading');
     assert.equal(Allocation.details.job, job.name, 'Job name is in the subheading');
@@ -54,6 +60,7 @@ module('Acceptance | allocation detail', function(hooks) {
       node.id.split('-')[0],
       'Node short id is in the subheading'
     );
+    assert.ok(Allocation.execButton.isPresent);
 
     assert.equal(document.title, `Allocation ${allocation.name} - Nomad`);
 
@@ -72,6 +79,39 @@ module('Acceptance | allocation detail', function(hooks) {
     assert.equal(Allocation.resourceCharts.objectAt(1).name, 'Memory', 'Second chart is Memory');
   });
 
+  test('/allocation/:id should present task lifecycles', async function(assert) {
+    const job = server.create('job', {
+      groupsCount: 1,
+      groupTaskCount: 6,
+      withGroupServices: true,
+      createAllocations: false,
+    });
+
+    const allocation = server.create('allocation', 'withTaskWithPorts', {
+      clientStatus: 'running',
+      jobId: job.id,
+    });
+
+    await Allocation.visit({ id: allocation.id });
+
+    assert.ok(Allocation.lifecycleChart.isPresent);
+    assert.equal(Allocation.lifecycleChart.title, 'Task Lifecycle Status');
+    assert.equal(Allocation.lifecycleChart.phases.length, 4);
+    assert.equal(Allocation.lifecycleChart.tasks.length, 6);
+
+    await Allocation.lifecycleChart.tasks[0].visit();
+
+    const prestartEphemeralTask = server.db.taskStates
+      .where({ allocationId: allocation.id })
+      .sortBy('name')
+      .find(taskState => {
+        const task = server.db.tasks.findBy({ name: taskState.name });
+        return task.Lifecycle && task.Lifecycle.Hook === 'prestart' && !task.Lifecycle.Sidecar;
+      });
+
+    assert.equal(currentURL(), `/allocations/${allocation.id}/${prestartEphemeralTask.name}`);
+  });
+
   test('/allocation/:id should list all tasks for the allocation', async function(assert) {
     assert.equal(
       Allocation.tasks.length,
@@ -83,35 +123,35 @@ module('Acceptance | allocation detail', function(hooks) {
 
   test('each task row should list high-level information for the task', async function(assert) {
     const task = server.db.taskStates.where({ allocationId: allocation.id }).sortBy('name')[0];
-    const taskResources = allocation.taskResourceIds
-      .map(id => server.db.taskResources.find(id))
-      .sortBy('name')[0];
-    const reservedPorts = taskResources.resources.Networks[0].ReservedPorts;
-    const dynamicPorts = taskResources.resources.Networks[0].DynamicPorts;
-    const taskRow = Allocation.tasks.objectAt(0);
     const events = server.db.taskEvents.where({ taskStateId: task.id });
     const event = events[events.length - 1];
 
-    assert.equal(taskRow.name, task.name, 'Name');
-    assert.equal(taskRow.state, task.state, 'State');
-    assert.equal(taskRow.message, event.displayMessage, 'Event Message');
-    assert.equal(
-      taskRow.time,
-      moment(event.time / 1000000).format("MMM DD, 'YY HH:mm:ss ZZ"),
-      'Event Time'
-    );
+    const taskGroup = server.schema.taskGroups.where({
+      jobId: allocation.jobId,
+      name: allocation.taskGroup,
+    }).models[0];
 
-    assert.ok(reservedPorts.length, 'The task has reserved ports');
-    assert.ok(dynamicPorts.length, 'The task has dynamic ports');
+    const jobTask = taskGroup.tasks.models.find(m => m.name === task.name);
+    const volumes = jobTask.volumeMounts.map(volume => ({
+      name: volume.Volume,
+      source: taskGroup.volumes[volume.Volume].Source,
+    }));
 
-    const addressesText = taskRow.ports;
-    reservedPorts.forEach(port => {
-      assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
-      assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
-    });
-    dynamicPorts.forEach(port => {
-      assert.ok(addressesText.includes(port.Label), `Found label ${port.Label}`);
-      assert.ok(addressesText.includes(port.Value), `Found value ${port.Value}`);
+    Allocation.tasks[0].as(taskRow => {
+      assert.equal(taskRow.name, task.name, 'Name');
+      assert.equal(taskRow.state, task.state, 'State');
+      assert.equal(taskRow.message, event.displayMessage, 'Event Message');
+      assert.equal(
+        taskRow.time,
+        moment(event.time / 1000000).format("MMM DD, 'YY HH:mm:ss ZZ"),
+        'Event Time'
+      );
+
+      const volumesText = taskRow.volumes;
+      volumes.forEach(volume => {
+        assert.ok(volumesText.includes(volume.name), `Found label ${volume.name}`);
+        assert.ok(volumesText.includes(volume.source), `Found value ${volume.source}`);
+      });
     });
   });
 
@@ -148,12 +188,12 @@ module('Acceptance | allocation detail', function(hooks) {
       createAllocations: false,
     });
 
-    allocation = server.create('allocation', 'withTaskWithPorts', 'withAllocatedResources', {
+    allocation = server.create('allocation', 'withTaskWithPorts', {
       clientStatus: 'running',
       jobId: job.id,
     });
 
-    const taskState = allocation.task_states.models.sortBy('name')[0];
+    const taskState = allocation.taskStates.models.sortBy('name')[0];
     const task = server.schema.tasks.findBy({ name: taskState.name });
     task.update('kind', 'connect-proxy:task');
     task.save();
@@ -176,19 +216,17 @@ module('Acceptance | allocation detail', function(hooks) {
   });
 
   test('ports are listed', async function(assert) {
-    const serverNetwork = allocation.allocatedResources.Shared.Networks[0];
-    const allServerPorts = serverNetwork.ReservedPorts.concat(serverNetwork.DynamicPorts);
+    const allServerPorts = allocation.taskResources.models[0].resources.Ports;
 
     allServerPorts.sortBy('Label').forEach((serverPort, index) => {
       const renderedPort = Allocation.ports[index];
 
-      assert.equal(
-        renderedPort.dynamic,
-        serverNetwork.ReservedPorts.includes(serverPort) ? 'No' : 'Yes'
-      );
       assert.equal(renderedPort.name, serverPort.Label);
-      assert.equal(renderedPort.address, `${serverNetwork.IP}:${serverPort.Value}`);
       assert.equal(renderedPort.to, serverPort.To);
+      const expectedAddr = isIp.v6(serverPort.HostIP)
+        ? `[${serverPort.HostIP}]:${serverPort.Value}`
+        : `${serverPort.HostIP}:${serverPort.Value}`;
+      assert.equal(renderedPort.address, expectedAddr);
     });
   });
 
@@ -219,7 +257,9 @@ module('Acceptance | allocation detail', function(hooks) {
     await Allocation.visit({ id: 'not-a-real-allocation' });
 
     assert.equal(
-      server.pretender.handledRequests.findBy('status', 404).url,
+      server.pretender.handledRequests
+        .filter(request => !request.url.includes('policy'))
+        .findBy('status', 404).url,
       '/v1/allocation/not-a-real-allocation',
       'A request to the nonexistent allocation is made'
     );
@@ -326,6 +366,12 @@ module('Acceptance | allocation detail (not running)', function(hooks) {
       "Allocation isn't running",
       'Empty message is appropriate'
     );
+  });
+
+  test('the exec and stop/restart buttons are absent', async function(assert) {
+    assert.notOk(Allocation.execButton.isPresent);
+    assert.notOk(Allocation.stop.isPresent);
+    assert.notOk(Allocation.restart.isPresent);
   });
 });
 

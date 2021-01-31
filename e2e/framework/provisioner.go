@@ -3,6 +3,7 @@ package framework
 import (
 	"fmt"
 	"os"
+	"testing"
 
 	capi "github.com/hashicorp/consul/api"
 	napi "github.com/hashicorp/nomad/api"
@@ -10,14 +11,8 @@ import (
 	vapi "github.com/hashicorp/vault/api"
 )
 
-// ProvisionerOptions defines options to be given to the Provisioner when calling
-// ProvisionCluster
-type ProvisionerOptions struct {
-	Name         string
-	ExpectConsul bool // If true, fails if a Consul client can't be configured
-	ExpectVault  bool // If true, fails if a Vault client can't be configured
-}
-
+// ClusterInfo is a handle to a provisioned cluster, along with clients
+// a test run can use to connect to the cluster.
 type ClusterInfo struct {
 	ID           string
 	Name         string
@@ -26,20 +21,74 @@ type ClusterInfo struct {
 	VaultClient  *vapi.Client
 }
 
-// Provisioner interface is used by the test framework to provision a Nomad
-// cluster for each TestCase
-type Provisioner interface {
-	ProvisionCluster(opts ProvisionerOptions) (*ClusterInfo, error)
-	DestroyCluster(clusterID string) error
+// SetupOptions defines options to be given to the Provisioner when
+// calling Setup* methods.
+type SetupOptions struct {
+	Name         string
+	ExpectConsul bool // If true, fails if a Consul client can't be configured
+	ExpectVault  bool // If true, fails if a Vault client can't be configured
 }
 
-// DefaultProvisioner is a noop provisioner that builds clients from environment
-// variables according to the respective client configuration
+// Provisioner interface is used by the test framework to provision API
+// clients for a Nomad cluster, with the possibility of extending to provision
+// standalone clusters for each test case in the future.
+//
+// The Setup* methods are hooks that get run at the appropriate stage. They
+// return a ClusterInfo handle that helps TestCases isolate test state if
+// they use the ClusterInfo.ID as part of job IDs.
+//
+// The TearDown* methods are hooks to clean up provisioned cluster state
+// that isn't covered by the test case's implementation of AfterEachTest.
+type Provisioner interface {
+	// SetupTestRun is called at the start of the entire test run.
+	SetupTestRun(t *testing.T, opts SetupOptions) (*ClusterInfo, error)
+
+	// SetupTestSuite is called at the start of each TestSuite.
+	// TODO: no current provisioner implementation uses this, but we
+	// could use it to provide each TestSuite with an entirely separate
+	// Nomad cluster.
+	SetupTestSuite(t *testing.T, opts SetupOptions) (*ClusterInfo, error)
+
+	// SetupTestCase is called at the start of each TestCase in every TestSuite.
+	SetupTestCase(t *testing.T, opts SetupOptions) (*ClusterInfo, error)
+
+	// TODO: no current provisioner implementation uses any of these,
+	// but it's the obvious need if we setup/teardown after each TestSuite
+	// or TestCase.
+
+	// TearDownTestCase is called after each TestCase in every TestSuite.
+	TearDownTestCase(t *testing.T, clusterID string) error
+
+	// TearDownTestSuite is called after every TestSuite.
+	TearDownTestSuite(t *testing.T, clusterID string) error
+
+	// TearDownTestRun is called at the end of the entire test run.
+	TearDownTestRun(t *testing.T, clusterID string) error
+}
+
+// DefaultProvisioner is a Provisioner that doesn't deploy a Nomad cluster
+// (because that's handled by Terraform elsewhere), but build clients from
+// environment variables.
 var DefaultProvisioner Provisioner = new(singleClusterProvisioner)
 
 type singleClusterProvisioner struct{}
 
-func (p *singleClusterProvisioner) ProvisionCluster(opts ProvisionerOptions) (*ClusterInfo, error) {
+// SetupTestRun in the default case is a no-op.
+func (p *singleClusterProvisioner) SetupTestRun(t *testing.T, opts SetupOptions) (*ClusterInfo, error) {
+	return &ClusterInfo{ID: "framework", Name: "framework"}, nil
+}
+
+// SetupTestSuite in the default case is a no-op.
+func (p *singleClusterProvisioner) SetupTestSuite(t *testing.T, opts SetupOptions) (*ClusterInfo, error) {
+	return &ClusterInfo{
+		ID:   uuid.Generate()[:8],
+		Name: opts.Name,
+	}, nil
+}
+
+// SetupTestCase in the default case only creates new clients and embeds the
+// TestCase name into the ClusterInfo handle.
+func (p *singleClusterProvisioner) SetupTestCase(t *testing.T, opts SetupOptions) (*ClusterInfo, error) {
 	// Build ID based off given name
 	info := &ClusterInfo{
 		ID:   uuid.Generate()[:8],
@@ -55,8 +104,8 @@ func (p *singleClusterProvisioner) ProvisionCluster(opts ProvisionerOptions) (*C
 
 	if opts.ExpectConsul {
 		consulClient, err := capi.NewClient(capi.DefaultConfig())
-		if err != nil && opts.ExpectConsul {
-			return nil, err
+		if err != nil {
+			return nil, fmt.Errorf("expected Consul: %v", err)
 		}
 		info.ConsulClient = consulClient
 	}
@@ -75,7 +124,8 @@ func (p *singleClusterProvisioner) ProvisionCluster(opts ProvisionerOptions) (*C
 	return info, err
 }
 
-func (p *singleClusterProvisioner) DestroyCluster(_ string) error {
-	//Maybe try to GC things based on id?
-	return nil
-}
+// all TearDown* methods of the default provisioner leave the test environment in place
+
+func (p *singleClusterProvisioner) TearDownTestCase(_ *testing.T, _ string) error  { return nil }
+func (p *singleClusterProvisioner) TearDownTestSuite(_ *testing.T, _ string) error { return nil }
+func (p *singleClusterProvisioner) TearDownTestRun(_ *testing.T, _ string) error   { return nil }

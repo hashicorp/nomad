@@ -2,6 +2,11 @@ job "group_check" {
   datacenters = ["dc1"]
   type        = "service"
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "group_check" {
     network {
       mode = "bridge"

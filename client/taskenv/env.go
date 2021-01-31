@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -48,8 +49,14 @@ const (
 	// GroupName is the environment variable for passing the task group name.
 	GroupName = "NOMAD_GROUP_NAME"
 
+	// JobID is the environment variable for passing the job ID.
+	JobID = "NOMAD_JOB_ID"
+
 	// JobName is the environment variable for passing the job name.
 	JobName = "NOMAD_JOB_NAME"
+
+	// JobParentID is the environment variable for passing the ID of the parnt of the job
+	JobParentID = "NOMAD_JOB_PARENT_ID"
 
 	// AllocIndex is the environment variable for passing the allocation index.
 	AllocIndex = "NOMAD_ALLOC_INDEX"
@@ -70,14 +77,20 @@ const (
 	// The ip:port are always the host's.
 	AddrPrefix = "NOMAD_ADDR_"
 
+	HostAddrPrefix = "NOMAD_HOST_ADDR_"
+
 	// IpPrefix is the prefix for passing the host IP of a port allocation
 	// to a task.
 	IpPrefix = "NOMAD_IP_"
+
+	HostIpPrefix = "NOMAD_HOST_IP_"
 
 	// PortPrefix is the prefix for passing the port allocation to a task.
 	// It will be the task's port if a port map is specified. Task's should
 	// bind to this port.
 	PortPrefix = "NOMAD_PORT_"
+
+	AllocPortPrefix = "NOMAD_ALLOC_PORT_"
 
 	// HostPortPrefix is the prefix for passing the host port when a port
 	// map is specified.
@@ -123,15 +136,31 @@ type TaskEnv struct {
 
 	// envList is a memoized list created by List()
 	envList []string
+
+	// EnvMap is the map of environment variables with client-specific
+	// task directories
+	// See https://github.com/hashicorp/nomad/pull/9671
+	EnvMapClient map[string]string
+
+	// clientTaskDir is the absolute path to the task root directory on the host
+	// <alloc_dir>/<task>
+	clientTaskDir string
+
+	// clientSharedAllocDir is the path to shared alloc directory on the host
+	// <alloc_dir>/alloc/
+	clientSharedAllocDir string
 }
 
 // NewTaskEnv creates a new task environment with the given environment, device
 // environment and node attribute maps.
-func NewTaskEnv(env, deviceEnv, node map[string]string) *TaskEnv {
+func NewTaskEnv(env, envClient, deviceEnv, node map[string]string, clientTaskDir, clientAllocDir string) *TaskEnv {
 	return &TaskEnv{
-		NodeAttrs: node,
-		deviceEnv: deviceEnv,
-		EnvMap:    env,
+		NodeAttrs:            node,
+		deviceEnv:            deviceEnv,
+		EnvMap:               env,
+		EnvMapClient:         envClient,
+		clientTaskDir:        clientTaskDir,
+		clientSharedAllocDir: clientAllocDir,
 	}
 }
 
@@ -278,6 +307,52 @@ func (t *TaskEnv) ReplaceEnv(arg string) string {
 	return hargs.ReplaceEnv(arg, t.EnvMap, t.NodeAttrs)
 }
 
+// replaceEnvClient takes an arg and replaces all occurrences of client-specific
+// environment variables and Nomad variables.  If the variable is found in the
+// passed map it is replaced, otherwise the original string is returned.
+// The difference from ReplaceEnv client is potentially different values for
+// the following variables:
+// * NOMAD_ALLOC_DIR
+// * NOMAD_TASK_DIR
+// * NOMAD_SECRETS_DIR
+// and anything that was interpolated using them.
+//
+// See https://github.com/hashicorp/nomad/pull/9671
+func (t *TaskEnv) replaceEnvClient(arg string) string {
+	return hargs.ReplaceEnv(arg, t.EnvMapClient, t.NodeAttrs)
+}
+
+// checkEscape returns true if the absolute path testPath escapes both the
+// task directory and shared allocation directory specified in the
+// directory path fields of this TaskEnv
+func (t *TaskEnv) checkEscape(testPath string) bool {
+	for _, p := range []string{t.clientTaskDir, t.clientSharedAllocDir} {
+		if p != "" && !helper.PathEscapesSandbox(p, testPath) {
+			return false
+		}
+	}
+	return true
+}
+
+// ClientPath interpolates the argument as a path, using the
+// environment variables with client-relative directories. The
+// result is an absolute path on the client filesystem.
+//
+// If the interpolated result is a relative path, it is made absolute
+// If joinEscape, an interpolated path that escapes will be joined with the
+// task dir.
+// The result is checked to see whether it (still) escapes both the task working
+// directory and the shared allocation directory.
+func (t *TaskEnv) ClientPath(rawPath string, joinEscape bool) (string, bool) {
+	path := t.replaceEnvClient(rawPath)
+	if !filepath.IsAbs(path) || (t.checkEscape(path) && joinEscape) {
+		path = filepath.Join(t.clientTaskDir, path)
+	}
+	path = filepath.Clean(path)
+	escapes := t.checkEscape(path)
+	return path, escapes
+}
+
 // Builder is used to build task environment's and is safe for concurrent use.
 type Builder struct {
 	// envvars are custom set environment variables
@@ -304,6 +379,18 @@ type Builder struct {
 	// secretsDir from task's perspective; eg /secrets
 	secretsDir string
 
+	// clientSharedAllocDir is the shared alloc dir from the client's perspective; eg, <alloc_dir>/<alloc_id>/alloc
+	clientSharedAllocDir string
+
+	// clientTaskRoot is the task working directory from the client's perspective; eg <alloc_dir>/<alloc_id>/<task>
+	clientTaskRoot string
+
+	// clientTaskLocalDir is the local dir from the client's perspective; eg <client_task_root>/local
+	clientTaskLocalDir string
+
+	// clientTaskSecretsDir is the secrets dir from the client's perspective; eg <client_task_root>/secrets
+	clientTaskSecretsDir string
+
 	cpuLimit         int64
 	memLimit         int64
 	taskName         string
@@ -317,7 +404,9 @@ type Builder struct {
 	vaultToken       string
 	vaultNamespace   string
 	injectVaultToken bool
+	jobID            string
 	jobName          string
+	jobParentID      string
 
 	// otherPorts for tasks in the same alloc
 	otherPorts map[string]string
@@ -367,24 +456,23 @@ func NewEmptyBuilder() *Builder {
 	}
 }
 
-// Build must be called after all the tasks environment values have been set.
-func (b *Builder) Build() *TaskEnv {
-	nodeAttrs := make(map[string]string)
+// buildEnv returns the environment variables and device environment
+// variables with respect to the task directories passed in the arguments.
+func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
+	nodeAttrs map[string]string) (map[string]string, map[string]string) {
+
 	envMap := make(map[string]string)
 	var deviceEnvs map[string]string
 
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-
 	// Add the directories
-	if b.allocDir != "" {
-		envMap[AllocDir] = b.allocDir
+	if allocDir != "" {
+		envMap[AllocDir] = allocDir
 	}
-	if b.localDir != "" {
-		envMap[TaskLocalDir] = b.localDir
+	if localDir != "" {
+		envMap[TaskLocalDir] = localDir
 	}
-	if b.secretsDir != "" {
-		envMap[SecretsDir] = b.secretsDir
+	if secretsDir != "" {
+		envMap[SecretsDir] = secretsDir
 	}
 
 	// Add the resource limits
@@ -411,8 +499,14 @@ func (b *Builder) Build() *TaskEnv {
 	if b.taskName != "" {
 		envMap[TaskName] = b.taskName
 	}
+	if b.jobID != "" {
+		envMap[JobID] = b.jobID
+	}
 	if b.jobName != "" {
 		envMap[JobName] = b.jobName
+	}
+	if b.jobParentID != "" {
+		envMap[JobParentID] = b.jobParentID
 	}
 	if b.datacenter != "" {
 		envMap[Datacenter] = b.datacenter
@@ -422,9 +516,6 @@ func (b *Builder) Build() *TaskEnv {
 	}
 	if b.region != "" {
 		envMap[Region] = b.region
-
-		// Copy region over to node attrs
-		nodeAttrs[nodeRegionKey] = b.region
 	}
 
 	// Build the network related env vars
@@ -451,11 +542,6 @@ func (b *Builder) Build() *TaskEnv {
 	// Copy task meta
 	for k, v := range b.taskMeta {
 		envMap[k] = v
-	}
-
-	// Copy node attributes
-	for k, v := range b.nodeAttrs {
-		nodeAttrs[k] = v
 	}
 
 	// Interpolate and add environment variables
@@ -502,7 +588,29 @@ func (b *Builder) Build() *TaskEnv {
 		cleanedEnv[cleanedK] = v
 	}
 
-	return NewTaskEnv(cleanedEnv, deviceEnvs, nodeAttrs)
+	return cleanedEnv, deviceEnvs
+}
+
+// Build must be called after all the tasks environment values have been set.
+func (b *Builder) Build() *TaskEnv {
+	nodeAttrs := make(map[string]string)
+
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	if b.region != "" {
+		// Copy region over to node attrs
+		nodeAttrs[nodeRegionKey] = b.region
+	}
+	// Copy node attributes
+	for k, v := range b.nodeAttrs {
+		nodeAttrs[k] = v
+	}
+
+	envMap, deviceEnvs := b.buildEnv(b.allocDir, b.localDir, b.secretsDir, nodeAttrs)
+	envMapClient, _ := b.buildEnv(b.clientSharedAllocDir, b.clientTaskLocalDir, b.clientTaskSecretsDir, nodeAttrs)
+
+	return NewTaskEnv(envMap, envMapClient, deviceEnvs, nodeAttrs, b.clientTaskRoot, b.clientSharedAllocDir)
 }
 
 // Update task updates the environment based on a new alloc and task.
@@ -547,6 +655,9 @@ func (b *Builder) SetDeviceHookEnv(hookName string, envs map[string]string) *Bui
 // setTask is called from NewBuilder to populate task related environment
 // variables.
 func (b *Builder) setTask(task *structs.Task) *Builder {
+	if task == nil {
+		return b
+	}
 	b.taskName = task.Name
 	b.envvars = make(map[string]string, len(task.Env))
 	for k, v := range task.Env {
@@ -571,7 +682,9 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 	b.allocName = alloc.Name
 	b.groupName = alloc.TaskGroup
 	b.allocIndex = int(alloc.Index())
+	b.jobID = alloc.Job.ID
 	b.jobName = alloc.Job.Name
+	b.jobParentID = alloc.Job.ParentID
 	b.namespace = alloc.Namespace
 
 	// Set meta
@@ -600,8 +713,10 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 
-	// COMPAT(0.11): Remove in 0.11
 	b.otherPorts = make(map[string]string, len(tg.Tasks)*2)
+
+	// Protect against invalid allocs where AllocatedResources isn't set.
+	// TestClient_AddAllocError explicitly tests for this condition
 	if alloc.AllocatedResources != nil {
 		// Populate task resources
 		if tr, ok := alloc.AllocatedResources.Tasks[b.taskName]; ok {
@@ -615,6 +730,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 			}
 		}
 
+		// COMPAT(1.0): remove in 1.0 when AllocatedPorts can be used exclusively
 		// Add ports from other tasks
 		for taskName, resources := range alloc.AllocatedResources.Tasks {
 			// Add ports from other tasks
@@ -631,29 +747,22 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 				}
 			}
 		}
-	} else if alloc.TaskResources != nil {
-		if tr, ok := alloc.TaskResources[b.taskName]; ok {
-			// Copy networks to prevent sharing
-			b.networks = make([]*structs.NetworkResource, len(tr.Networks))
-			for i, n := range tr.Networks {
-				b.networks[i] = n.Copy()
-			}
 
+		// COMPAT(1.0): remove in 1.0 when AllocatedPorts can be used exclusively
+		// Add ports from group networks
+		//TODO Expose IPs but possibly only via variable interpolation
+		for _, nw := range alloc.AllocatedResources.Shared.Networks {
+			for _, p := range nw.ReservedPorts {
+				addGroupPort(b.otherPorts, p)
+			}
+			for _, p := range nw.DynamicPorts {
+				addGroupPort(b.otherPorts, p)
+			}
 		}
 
-		for taskName, resources := range alloc.TaskResources {
-			// Add ports from other tasks
-			if taskName == b.taskName {
-				continue
-			}
-			for _, nw := range resources.Networks {
-				for _, p := range nw.ReservedPorts {
-					addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
-				}
-				for _, p := range nw.DynamicPorts {
-					addPort(b.otherPorts, taskName, nw.IP, p.Label, p.Value)
-				}
-			}
+		// Add any allocated host ports
+		if alloc.AllocatedResources.Shared.Ports != nil {
+			addPorts(b.otherPorts, alloc.AllocatedResources.Shared.Ports)
 		}
 	}
 
@@ -664,7 +773,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		}
 	}
 	if len(upstreams) > 0 {
-		b.SetUpstreams(upstreams)
+		b.setUpstreamsLocked(upstreams)
 	}
 
 	return b
@@ -701,6 +810,34 @@ func (b *Builder) SetAllocDir(dir string) *Builder {
 func (b *Builder) SetTaskLocalDir(dir string) *Builder {
 	b.mu.Lock()
 	b.localDir = dir
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetClientSharedAllocDir(dir string) *Builder {
+	b.mu.Lock()
+	b.clientSharedAllocDir = dir
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetClientTaskRoot(dir string) *Builder {
+	b.mu.Lock()
+	b.clientTaskRoot = dir
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetClientTaskLocalDir(dir string) *Builder {
+	b.mu.Lock()
+	b.clientTaskLocalDir = dir
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetClientTaskSecretsDir(dir string) *Builder {
+	b.mu.Lock()
+	b.clientTaskSecretsDir = dir
 	b.mu.Unlock()
 	return b
 }
@@ -760,8 +897,12 @@ func buildPortEnv(envMap map[string]string, p structs.Port, ip string, driverNet
 // SetUpstreams defined by connect enabled group services
 func (b *Builder) SetUpstreams(upstreams []structs.ConsulUpstream) *Builder {
 	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.setUpstreamsLocked(upstreams)
+}
+
+func (b *Builder) setUpstreamsLocked(upstreams []structs.ConsulUpstream) *Builder {
 	b.upstreams = upstreams
-	b.mu.Unlock()
 	return b
 }
 
@@ -848,4 +989,36 @@ func addPort(m map[string]string, taskName, ip, portLabel string, port int) {
 	m[key] = ip
 	key = fmt.Sprintf("%s%s_%s", PortPrefix, taskName, portLabel)
 	m[key] = strconv.Itoa(port)
+}
+
+// addGroupPort adds a group network port. The To value is used if one is
+// specified.
+func addGroupPort(m map[string]string, port structs.Port) {
+	if port.To > 0 {
+		m[PortPrefix+port.Label] = strconv.Itoa(port.To)
+	} else {
+		m[PortPrefix+port.Label] = strconv.Itoa(port.Value)
+	}
+
+	m[HostPortPrefix+port.Label] = strconv.Itoa(port.Value)
+}
+
+func addPorts(m map[string]string, ports structs.AllocatedPorts) {
+	for _, p := range ports {
+		m[AddrPrefix+p.Label] = fmt.Sprintf("%s:%d", p.HostIP, p.Value)
+		m[HostAddrPrefix+p.Label] = fmt.Sprintf("%s:%d", p.HostIP, p.Value)
+		m[IpPrefix+p.Label] = p.HostIP
+		m[HostIpPrefix+p.Label] = p.HostIP
+		if p.To > 0 {
+			val := strconv.Itoa(p.To)
+			m[PortPrefix+p.Label] = val
+			m[AllocPortPrefix+p.Label] = val
+		} else {
+			val := strconv.Itoa(p.Value)
+			m[PortPrefix+p.Label] = val
+			m[AllocPortPrefix+p.Label] = val
+		}
+
+		m[HostPortPrefix+p.Label] = strconv.Itoa(p.Value)
+	}
 }

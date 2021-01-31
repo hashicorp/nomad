@@ -4,19 +4,18 @@ import (
 	"fmt"
 	"sync"
 
-	log "github.com/hashicorp/go-hclog"
-
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper"
 )
 
 // MockCatalog can be used for testing where the CatalogAPI is needed.
 type MockCatalog struct {
-	logger log.Logger
+	logger hclog.Logger
 }
 
-func NewMockCatalog(l log.Logger) *MockCatalog {
-	l = l.Named("mock_consul")
-	return &MockCatalog{logger: l}
+func NewMockCatalog(l hclog.Logger) *MockCatalog {
+	return &MockCatalog{logger: l.Named("mock_consul")}
 }
 
 func (m *MockCatalog) Datacenters() ([]string, error) {
@@ -96,6 +95,16 @@ func (c *MockAgent) Self() (map[string]map[string]interface{}, error) {
 				"build": "0.8.1:'e9ca44d",
 			},
 		},
+		"xDS": {
+			"SupportedProxies": map[string]interface{}{
+				"envoy": []interface{}{
+					"1.14.2",
+					"1.13.2",
+					"1.12.4",
+					"1.11.2",
+				},
+			},
+		},
 	}
 	return s, nil
 }
@@ -111,6 +120,7 @@ func (c *MockAgent) Services() (map[string]*api.AgentService, error) {
 			ID:                v.ID,
 			Service:           v.Name,
 			Tags:              make([]string, len(v.Tags)),
+			Meta:              helper.CopyMapStringString(v.Meta),
 			Port:              v.Port,
 			Address:           v.Address,
 			EnableTagOverride: v.EnableTagOverride,
@@ -187,6 +197,12 @@ func (c *MockAgent) ServiceDeregister(serviceID string) error {
 	defer c.mu.Unlock()
 	c.hits++
 	delete(c.services, serviceID)
+	for k, v := range c.checks {
+		if v.ServiceID == serviceID {
+			delete(c.checks, k)
+			delete(c.checkTTLs, k)
+		}
+	}
 	return nil
 }
 
@@ -203,4 +219,18 @@ func (c *MockAgent) UpdateTTL(id string, output string, status string) error {
 	check.Status = "passing"
 	c.checkTTLs[id]++
 	return nil
+}
+
+// a convenience method for looking up a registered service by name
+func (c *MockAgent) lookupService(name string) []*api.AgentServiceRegistration {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var services []*api.AgentServiceRegistration
+	for _, service := range c.services {
+		if service.Name == name {
+			services = append(services, service)
+		}
+	}
+	return services
 }

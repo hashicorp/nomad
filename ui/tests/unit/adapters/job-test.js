@@ -4,7 +4,7 @@ import { settled } from '@ember/test-helpers';
 import { setupTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
-import XHRToken from 'nomad-ui/utils/classes/xhr-token';
+import { AbortController } from 'fetch';
 
 module('Unit | Adapter | Job', function(hooks) {
   setupTest(hooks);
@@ -18,7 +18,10 @@ module('Unit | Adapter | Job', function(hooks) {
 
     this.server = startMirage();
 
-    this.initializeUI = async () => {
+    this.initializeUI = async ({ region, namespace } = {}) => {
+      if (namespace) window.localStorage.nomadActiveNamespace = namespace;
+      if (region) window.localStorage.nomadActiveRegion = region;
+
       this.server.create('namespace');
       this.server.create('namespace', { id: 'some-namespace' });
       this.server.create('node');
@@ -41,6 +44,17 @@ module('Unit | Adapter | Job', function(hooks) {
       // namespaces request everywhere.
       this.server.pretender.handledRequests.length = 0;
     };
+
+    this.initializeWithJob = async (props = {}) => {
+      await this.initializeUI(props);
+
+      const job = await this.store.findRecord(
+        'job',
+        JSON.stringify(['job-1', props.namespace || 'default'])
+      );
+      this.server.pretender.handledRequests.length = 0;
+      return job;
+    };
   });
 
   hooks.afterEach(function() {
@@ -57,6 +71,7 @@ module('Unit | Adapter | Job', function(hooks) {
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
 
+    await settled();
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
       [`/v1/job/${jobName}`],
@@ -65,9 +80,7 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('When a namespace is set in localStorage but a job in the default namespace is requested, the namespace query param is not present', async function(assert) {
-    window.localStorage.nomadActiveNamespace = 'some-namespace';
-
-    await this.initializeUI();
+    await this.initializeUI({ namespace: 'some-namespace' });
 
     const { pretender } = this.server;
     const jobName = 'job-1';
@@ -75,6 +88,7 @@ module('Unit | Adapter | Job', function(hooks) {
     const jobId = JSON.stringify([jobName, jobNamespace]);
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
+    await settled();
 
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
@@ -84,9 +98,7 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('When a namespace is in localStorage and the requested job is in the default namespace, the namespace query param is left out', async function(assert) {
-    window.localStorage.nomadActiveNamespace = 'red-herring';
-
-    await this.initializeUI();
+    await this.initializeUI({ namespace: 'red-herring' });
 
     const { pretender } = this.server;
     const jobName = 'job-1';
@@ -94,6 +106,7 @@ module('Unit | Adapter | Job', function(hooks) {
     const jobId = JSON.stringify([jobName, jobNamespace]);
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
+    await settled();
 
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
@@ -111,6 +124,7 @@ module('Unit | Adapter | Job', function(hooks) {
     const jobId = JSON.stringify([jobName, jobNamespace]);
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
+    await settled();
 
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
@@ -126,9 +140,10 @@ module('Unit | Adapter | Job', function(hooks) {
     const jobId = JSON.stringify(['job-1', 'default']);
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
+    await settled();
 
     assert.notOk(
-      pretender.handledRequests.mapBy('requestHeaders').some(headers => headers['X-Nomad-Token']),
+      pretender.handledRequests.mapBy('requestHeaders').some(headers => headers['x-nomad-token']),
       'No token header present on either job request'
     );
   });
@@ -142,11 +157,12 @@ module('Unit | Adapter | Job', function(hooks) {
 
     this.subject().set('token.secret', secret);
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
+    await settled();
 
     assert.ok(
       pretender.handledRequests
         .mapBy('requestHeaders')
-        .every(headers => headers['X-Nomad-Token'] === secret),
+        .every(headers => headers['x-nomad-token'] === secret),
       'The token header is present on both job requests'
     );
   });
@@ -242,6 +258,8 @@ module('Unit | Adapter | Job', function(hooks) {
 
     await settled();
     this.subject().reloadRelationship(mockModel, 'summary', { watch: true });
+    await settled();
+
     assert.equal(
       pretender.handledRequests[1].url,
       '/v1/job/job-1/summary?index=2',
@@ -253,14 +271,14 @@ module('Unit | Adapter | Job', function(hooks) {
     await this.initializeUI();
 
     const { pretender } = this.server;
-    const token = new XHRToken();
+    const controller = new AbortController();
 
     pretender.get('/v1/jobs', () => [200, {}, '[]'], true);
 
     this.subject()
       .findAll(null, { modelName: 'job' }, null, {
         reload: true,
-        adapterOptions: { watch: true, abortToken: token },
+        adapterOptions: { watch: true, abortController: controller },
       })
       .catch(() => {});
 
@@ -269,7 +287,7 @@ module('Unit | Adapter | Job', function(hooks) {
 
     // Schedule the cancelation before waiting
     run.next(() => {
-      token.abort();
+      controller.abort();
     });
 
     await settled();
@@ -281,13 +299,13 @@ module('Unit | Adapter | Job', function(hooks) {
 
     const { pretender } = this.server;
     const jobId = JSON.stringify(['job-1', 'default']);
-    const token = new XHRToken();
+    const controller = new AbortController();
 
     pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId, {
       reload: true,
-      adapterOptions: { watch: true, abortToken: token },
+      adapterOptions: { watch: true, abortController: controller },
     });
 
     const { request: xhr } = pretender.requestReferences[0];
@@ -295,7 +313,7 @@ module('Unit | Adapter | Job', function(hooks) {
 
     // Schedule the cancelation before waiting
     run.next(() => {
-      token.abort();
+      controller.abort();
     });
 
     await settled();
@@ -307,18 +325,21 @@ module('Unit | Adapter | Job', function(hooks) {
 
     const { pretender } = this.server;
     const plainId = 'job-1';
-    const token = new XHRToken();
+    const controller = new AbortController();
     const mockModel = makeMockModel(plainId);
     pretender.get('/v1/job/:id/summary', () => [200, {}, '{}'], true);
 
-    this.subject().reloadRelationship(mockModel, 'summary', { watch: true, abortToken: token });
+    this.subject().reloadRelationship(mockModel, 'summary', {
+      watch: true,
+      abortController: controller,
+    });
 
     const { request: xhr } = pretender.requestReferences[0];
     assert.equal(xhr.status, 0, 'Request is still pending');
 
     // Schedule the cancelation before waiting
     run.next(() => {
-      token.abort();
+      controller.abort();
     });
 
     await settled();
@@ -330,19 +351,19 @@ module('Unit | Adapter | Job', function(hooks) {
 
     const { pretender } = this.server;
     const jobId = JSON.stringify(['job-1', 'default']);
-    const token1 = new XHRToken();
-    const token2 = new XHRToken();
+    const controller1 = new AbortController();
+    const controller2 = new AbortController();
 
     pretender.get('/v1/job/:id', () => [200, {}, '{}'], true);
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId, {
       reload: true,
-      adapterOptions: { watch: true, abortToken: token1 },
+      adapterOptions: { watch: true, abortController: controller1 },
     });
 
     this.subject().findRecord(null, { modelName: 'job' }, jobId, {
       reload: true,
-      adapterOptions: { watch: true, abortToken: token2 },
+      adapterOptions: { watch: true, abortController: controller2 },
     });
 
     const { request: xhr } = pretender.requestReferences[0];
@@ -357,7 +378,7 @@ module('Unit | Adapter | Job', function(hooks) {
 
     // Schedule the cancelation and resolution before waiting
     run.next(() => {
-      token1.abort();
+      controller1.abort();
       pretender.resolve(xhr2);
     });
 
@@ -377,6 +398,7 @@ module('Unit | Adapter | Job', function(hooks) {
     await settled();
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
     this.subject().findAll(null, { modelName: 'job' }, null);
+    await settled();
 
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
@@ -387,9 +409,8 @@ module('Unit | Adapter | Job', function(hooks) {
 
   test('when there is a region set, requests are made with the region query param', async function(assert) {
     const region = 'region-2';
-    window.localStorage.nomadActiveRegion = region;
 
-    await this.initializeUI();
+    await this.initializeUI({ region });
 
     const { pretender } = this.server;
     const jobName = 'job-1';
@@ -399,6 +420,7 @@ module('Unit | Adapter | Job', function(hooks) {
     await settled();
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
     this.subject().findAll(null, { modelName: 'job' }, null);
+    await settled();
 
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
@@ -408,9 +430,7 @@ module('Unit | Adapter | Job', function(hooks) {
   });
 
   test('when the region is set to the default region, requests are made without the region query param', async function(assert) {
-    window.localStorage.nomadActiveRegion = 'region-1';
-
-    await this.initializeUI();
+    await this.initializeUI({ region: 'region-1' });
 
     const { pretender } = this.server;
     const jobName = 'job-1';
@@ -420,12 +440,109 @@ module('Unit | Adapter | Job', function(hooks) {
     await settled();
     this.subject().findRecord(null, { modelName: 'job' }, jobId);
     this.subject().findAll(null, { modelName: 'job' }, null);
+    await settled();
 
     assert.deepEqual(
       pretender.handledRequests.mapBy('url'),
       [`/v1/job/${jobName}`, '/v1/jobs'],
       'No requests include the region query param'
     );
+  });
+
+  test('fetchRawDefinition requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+
+    await this.subject().fetchRawDefinition(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}?region=${region}`);
+    assert.equal(request.method, 'GET');
+  });
+
+  test('forcePeriodic requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+    job.set('periodic', true);
+
+    await this.subject().forcePeriodic(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}/periodic/force?region=${region}`);
+    assert.equal(request.method, 'POST');
+  });
+
+  test('stop requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+
+    await this.subject().stop(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}?region=${region}`);
+    assert.equal(request.method, 'DELETE');
+  });
+
+  test('parse requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    await this.initializeUI({ region });
+
+    await this.subject().parse('job "name-goes-here" {');
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/jobs/parse?region=${region}`);
+    assert.equal(request.method, 'POST');
+    assert.deepEqual(JSON.parse(request.requestBody), {
+      JobHCL: 'job "name-goes-here" {',
+      Canonicalize: true,
+    });
+  });
+
+  test('plan requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+    job.set('_newDefinitionJSON', {});
+
+    await this.subject().plan(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}/plan?region=${region}`);
+    assert.equal(request.method, 'POST');
+  });
+
+  test('run requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+    job.set('_newDefinitionJSON', {});
+
+    await this.subject().run(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/jobs?region=${region}`);
+    assert.equal(request.method, 'POST');
+  });
+
+  test('update requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+    job.set('_newDefinitionJSON', {});
+
+    await this.subject().update(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}?region=${region}`);
+    assert.equal(request.method, 'POST');
+  });
+
+  test('scale requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+
+    await this.subject().scale(job, 'group-1', 5, 'Reason: a test');
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}/scale?region=${region}`);
+    assert.equal(request.method, 'POST');
   });
 });
 

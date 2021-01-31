@@ -1,0 +1,124 @@
+---
+layout: docs
+page_title: Storage Plugins
+sidebar_title: Storage
+description: Learn how Nomad manages dynamic storage plugins.
+---
+
+# Storage Plugins
+
+Nomad has built-in support for scheduling compute resources such as
+CPU, memory, and networking. Nomad's storage plugin support extends
+this to allow scheduling tasks with externally created storage
+volumes. Storage plugins are third-party plugins that conform to the
+[Container Storage Interface (CSI)][csi-spec] specification.
+
+Storage plugins are created dynamically as Nomad jobs, unlike device
+and task driver plugins that need to be installed and configured on
+each client. Each dynamic plugin type has its own type-specific job
+spec block; currently there is only the `csi_plugin` type. Nomad
+tracks which clients have instances of a given plugin, and
+communicates with plugins over a Unix domain socket that it creates
+inside the plugin's tasks.
+
+## CSI Plugins
+
+Every storage vendor has its own APIs and workflows, and the
+industry-standard Container Storage Interface specification unifies
+these APIs in a way that's agnostic to both the storage vendor and the
+container orchestrator. Each storage provider can build its own CSI
+plugin. Jobs can claim storage volumes from AWS Elastic Block Storage
+(EBS) volumes, GCP persistent disks, Ceph, Portworx, vSphere, etc. The
+Nomad scheduler will be aware of volumes created by CSI plugins and
+schedule workloads based on the availability of volumes on a given
+Nomad client node. A list of available CSI plugins can be found in the
+[Kubernetes CSI documentation][csi-drivers-list]. Any of these plugins
+should work with Nomad out of the box.
+
+A CSI plugin task requires the [`csi_plugin`][csi_plugin] block:
+
+```hcl
+csi_plugin {
+  id        = "csi-hostpath"
+  type      = "monolith"
+  mount_dir = "/csi"
+}
+```
+
+There are three **types** of CSI plugins. **Controller Plugins**
+communicate with the storage provider's APIs. For example, for a job
+that needs an AWS EBS volume, Nomad will tell the controller plugin
+that it needs a volume to be "published" to the client node, and the
+controller will make the API calls to AWS to attach the EBS volume to
+the right EC2 instance. **Node Plugins** do the work on each client
+node, like creating mount points. **Monolith Plugins** are plugins
+that perform both the controller and node roles in the same
+instance. Not every plugin provider has or needs a controller; that's
+specific to the provider implementation.
+
+You should always run node plugins as Nomad `system` jobs and use the
+`-ignore-system` flag on the `nomad node drain` command to ensure that the
+node plugins are still running while the node is being drained. Use
+constraints for the node plugin jobs based on the availability of volumes. For
+example, AWS EBS volumes are specific to particular availability zones with a
+region. Controller plugins can be run as `service` jobs.
+
+Nomad exposes a Unix domain socket named `csi.sock` inside each CSI
+plugin task, and communicates over the gRPC protocol expected by the
+CSI specification. The `mount_dir` field tells Nomad where the plugin
+expects to find the socket file.
+
+### Plugin Lifecycle and State
+
+CSI plugins report their health like other Nomad jobs. If the plugin
+crashes or otherwise terminates, Nomad will launch it again using the
+same `restart` and `reschedule` logic used for other jobs. If plugins
+are unhealthy, Nomad will mark the volumes they manage as
+"unscheduable".
+
+Storage plugins don't have any responsibility (or ability) to monitor
+the state of tasks that claim their volumes. Nomad sends mount and
+publish requests to storage plugins when a task claims a volume, and
+unmount and unpublish requests when a task stops.
+
+The dynamic plugin registry persists state to the Nomad client so that
+it can restore volume managers for plugin jobs after client restarts
+without disrupting storage.
+
+### Volume Lifecycle
+
+The Nomad scheduler decides whether a given client can run an
+allocation based on whether it has a node plugin present for the
+volume. But before a task can use a volume the client needs to "claim"
+the volume for the allocation. The client makes an RPC call to the
+server and waits for a response; the allocation's tasks won't start
+until the volume has been claimed and is ready.
+
+If the volume's plugin requires a controller, the server will send an
+RPC to the Nomad client where that controller is running. The Nomad
+client will forward this request over the controller plugin's gRPC
+socket. The controller plugin will make the request volume available
+to the node that needs it.
+
+Once the controller is done (or if there's no controller required),
+the server will increment the count of claims on the volume and return
+to the client. This count passes through Nomad's state store so that
+Nomad has a consistent view of which volumes are available for
+scheduling.
+
+The client then makes RPC calls to the node plugin running on that
+client, and the node plugin mounts the volume to a staging area in
+the Nomad data directory. Nomad will bind-mount this staged directory
+into each task that mounts the volume.
+
+This cycle is reversed when a task that claims a volume becomes terminal. The
+client will send an "unpublish" RPC to the server, which will send "detach"
+RPCs to the node plugin. The node plugin unmounts the bind-mount from the
+allocation and unmounts the volume from the plugin (if it's not in use by
+another task). The server will then send "unpublish" RPCs to the controller
+plugin (if any), and decrement the claim count for the volume. At this point
+the volume’s claim capacity has been freed up for scheduling.
+
+[csi-spec]: https://github.com/container-storage-interface/spec
+[csi-drivers-list]: https://kubernetes-csi.github.io/docs/drivers.html
+[csi_plugin]: /docs/job-specification/csi_plugin

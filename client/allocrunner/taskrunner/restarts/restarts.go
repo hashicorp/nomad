@@ -20,11 +20,25 @@ const (
 	ReasonDelay               = "Exceeded allowed attempts, applying a delay"
 )
 
-func NewRestartTracker(policy *structs.RestartPolicy, jobType string) *RestartTracker {
-	onSuccess := true
-	if jobType == structs.JobTypeBatch {
+func NewRestartTracker(policy *structs.RestartPolicy, jobType string, tlc *structs.TaskLifecycleConfig) *RestartTracker {
+	// Batch jobs should not restart if they exit successfully
+	onSuccess := jobType != structs.JobTypeBatch
+
+	// Prestart sidecars should get restarted on success
+	if tlc != nil && tlc.Hook == structs.TaskLifecycleHookPrestart {
+		onSuccess = tlc.Sidecar
+	}
+
+	// Poststart sidecars should get restarted on success
+	if tlc != nil && tlc.Hook == structs.TaskLifecycleHookPoststart {
+		onSuccess = tlc.Sidecar
+	}
+
+	// Poststop should never be restarted on success
+	if tlc != nil && tlc.Hook == structs.TaskLifecycleHookPoststop {
 		onSuccess = false
 	}
+
 	return &RestartTracker{
 		startTime: time.Now(),
 		onSuccess: onSuccess,

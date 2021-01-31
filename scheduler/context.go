@@ -5,7 +5,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -26,16 +25,19 @@ type Context interface {
 	// Reset is invoked after making a placement
 	Reset()
 
-	// ProposedAllocs returns the proposed allocations for a node
-	// which is the existing allocations, removing evictions, and
-	// adding any planned placements.
+	// ProposedAllocs returns the proposed allocations for a node which are
+	// the existing allocations, removing evictions, and adding any planned
+	// placements.
 	ProposedAllocs(nodeID string) ([]*structs.Allocation, error)
 
 	// RegexpCache is a cache of regular expressions
 	RegexpCache() map[string]*regexp.Regexp
 
 	// VersionConstraintCache is a cache of version constraints
-	VersionConstraintCache() map[string]version.Constraints
+	VersionConstraintCache() map[string]VerConstraints
+
+	// SemverConstraintCache is a cache of semver constraints
+	SemverConstraintCache() map[string]VerConstraints
 
 	// Eligibility returns a tracker for node eligibility in the context of the
 	// eval.
@@ -44,8 +46,9 @@ type Context interface {
 
 // EvalCache is used to cache certain things during an evaluation
 type EvalCache struct {
-	reCache         map[string]*regexp.Regexp
-	constraintCache map[string]version.Constraints
+	reCache      map[string]*regexp.Regexp
+	versionCache map[string]VerConstraints
+	semverCache  map[string]VerConstraints
 }
 
 func (e *EvalCache) RegexpCache() map[string]*regexp.Regexp {
@@ -55,11 +58,18 @@ func (e *EvalCache) RegexpCache() map[string]*regexp.Regexp {
 	return e.reCache
 }
 
-func (e *EvalCache) VersionConstraintCache() map[string]version.Constraints {
-	if e.constraintCache == nil {
-		e.constraintCache = make(map[string]version.Constraints)
+func (e *EvalCache) VersionConstraintCache() map[string]VerConstraints {
+	if e.versionCache == nil {
+		e.versionCache = make(map[string]VerConstraints)
 	}
-	return e.constraintCache
+	return e.versionCache
+}
+
+func (e *EvalCache) SemverConstraintCache() map[string]VerConstraints {
+	if e.semverCache == nil {
+		e.semverCache = make(map[string]VerConstraints)
+	}
+	return e.semverCache
 }
 
 // EvalContext is a Context used during an Evaluation
@@ -110,22 +120,21 @@ func (e *EvalContext) Reset() {
 func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, error) {
 	// Get the existing allocations that are non-terminal
 	ws := memdb.NewWatchSet()
-	existingAlloc, err := e.state.AllocsByNodeTerminal(ws, nodeID, false)
+	proposed, err := e.state.AllocsByNodeTerminal(ws, nodeID, false)
 	if err != nil {
 		return nil, err
 	}
 
 	// Determine the proposed allocation by first removing allocations
 	// that are planned evictions and adding the new allocations.
-	proposed := existingAlloc
 	if update := e.plan.NodeUpdate[nodeID]; len(update) > 0 {
-		proposed = structs.RemoveAllocs(existingAlloc, update)
+		proposed = structs.RemoveAllocs(proposed, update)
 	}
 
 	// Remove any allocs that are being preempted
 	nodePreemptedAllocs := e.plan.NodePreemptions[nodeID]
 	if len(nodePreemptedAllocs) > 0 {
-		proposed = structs.RemoveAllocs(existingAlloc, nodePreemptedAllocs)
+		proposed = structs.RemoveAllocs(proposed, nodePreemptedAllocs)
 	}
 
 	// We create an index of the existing allocations so that if an inplace

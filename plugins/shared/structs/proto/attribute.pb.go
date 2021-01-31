@@ -3,9 +3,11 @@
 
 package proto
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -16,7 +18,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // Attribute is used to describe the value of an attribute, optionally
 // specifying units
@@ -38,16 +40,17 @@ func (m *Attribute) Reset()         { *m = Attribute{} }
 func (m *Attribute) String() string { return proto.CompactTextString(m) }
 func (*Attribute) ProtoMessage()    {}
 func (*Attribute) Descriptor() ([]byte, []int) {
-	return fileDescriptor_attribute_aa187fb710a98f5a, []int{0}
+	return fileDescriptor_5b30c64b64565493, []int{0}
 }
+
 func (m *Attribute) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Attribute.Unmarshal(m, b)
 }
 func (m *Attribute) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Attribute.Marshal(b, m, deterministic)
 }
-func (dst *Attribute) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Attribute.Merge(dst, src)
+func (m *Attribute) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Attribute.Merge(m, src)
 }
 func (m *Attribute) XXX_Size() int {
 	return xxx_messageInfo_Attribute.Size(m)
@@ -128,9 +131,9 @@ func (m *Attribute) GetUnit() string {
 	return ""
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*Attribute) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _Attribute_OneofMarshaler, _Attribute_OneofUnmarshaler, _Attribute_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Attribute) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*Attribute_FloatVal)(nil),
 		(*Attribute_IntVal)(nil),
 		(*Attribute_StringVal)(nil),
@@ -138,102 +141,15 @@ func (*Attribute) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) err
 	}
 }
 
-func _Attribute_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*Attribute)
-	// value
-	switch x := m.Value.(type) {
-	case *Attribute_FloatVal:
-		b.EncodeVarint(1<<3 | proto.WireFixed64)
-		b.EncodeFixed64(math.Float64bits(x.FloatVal))
-	case *Attribute_IntVal:
-		b.EncodeVarint(2<<3 | proto.WireVarint)
-		b.EncodeVarint(uint64(x.IntVal))
-	case *Attribute_StringVal:
-		b.EncodeVarint(3<<3 | proto.WireBytes)
-		b.EncodeStringBytes(x.StringVal)
-	case *Attribute_BoolVal:
-		t := uint64(0)
-		if x.BoolVal {
-			t = 1
-		}
-		b.EncodeVarint(4<<3 | proto.WireVarint)
-		b.EncodeVarint(t)
-	case nil:
-	default:
-		return fmt.Errorf("Attribute.Value has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _Attribute_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*Attribute)
-	switch tag {
-	case 1: // value.float_val
-		if wire != proto.WireFixed64 {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeFixed64()
-		m.Value = &Attribute_FloatVal{math.Float64frombits(x)}
-		return true, err
-	case 2: // value.int_val
-		if wire != proto.WireVarint {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeVarint()
-		m.Value = &Attribute_IntVal{int64(x)}
-		return true, err
-	case 3: // value.string_val
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.Value = &Attribute_StringVal{x}
-		return true, err
-	case 4: // value.bool_val
-		if wire != proto.WireVarint {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeVarint()
-		m.Value = &Attribute_BoolVal{x != 0}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _Attribute_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*Attribute)
-	// value
-	switch x := m.Value.(type) {
-	case *Attribute_FloatVal:
-		n += 1 // tag and wire
-		n += 8
-	case *Attribute_IntVal:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(x.IntVal))
-	case *Attribute_StringVal:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.StringVal)))
-		n += len(x.StringVal)
-	case *Attribute_BoolVal:
-		n += 1 // tag and wire
-		n += 1
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
-}
-
 func init() {
 	proto.RegisterType((*Attribute)(nil), "hashicorp.nomad.plugins.shared.structs.Attribute")
 }
 
 func init() {
-	proto.RegisterFile("plugins/shared/structs/proto/attribute.proto", fileDescriptor_attribute_aa187fb710a98f5a)
+	proto.RegisterFile("plugins/shared/structs/proto/attribute.proto", fileDescriptor_5b30c64b64565493)
 }
 
-var fileDescriptor_attribute_aa187fb710a98f5a = []byte{
+var fileDescriptor_5b30c64b64565493 = []byte{
 	// 218 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x34, 0x8f, 0xb1, 0x4e, 0xc3, 0x30,
 	0x10, 0x40, 0x63, 0xda, 0x34, 0xc9, 0x8d, 0x99, 0x8a, 0x10, 0x22, 0x62, 0x40, 0x19, 0x90, 0x33,

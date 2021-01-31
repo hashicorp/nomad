@@ -11,18 +11,18 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/hashicorp/go-msgpack/codec"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/ugorji/go/codec"
 )
 
 var (
-	allocIDNotPresentErr  = fmt.Errorf("must provide a valid alloc id")
-	fileNameNotPresentErr = fmt.Errorf("must provide a file name")
-	taskNotPresentErr     = fmt.Errorf("must provide task name")
-	logTypeNotPresentErr  = fmt.Errorf("must provide log type (stdout/stderr)")
-	clientNotRunning      = fmt.Errorf("node is not running a Nomad Client")
-	invalidOrigin         = fmt.Errorf("origin must be start or end")
+	allocIDNotPresentErr  = CodedError(400, "must provide a valid alloc id")
+	fileNameNotPresentErr = CodedError(400, "must provide a file name")
+	taskNotPresentErr     = CodedError(400, "must provide task name")
+	logTypeNotPresentErr  = CodedError(400, "must provide log type (stdout/stderr)")
+	clientNotRunning      = CodedError(400, "node is not running a Nomad Client")
+	invalidOrigin         = CodedError(400, "origin must be start or end")
 )
 
 func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -33,12 +33,16 @@ func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (int
 	case strings.HasPrefix(path, "stat/"):
 		return s.FileStatRequest(resp, req)
 	case strings.HasPrefix(path, "readat/"):
-		return s.FileReadAtRequest(resp, req)
+		return s.wrapUntrustedContent(s.FileReadAtRequest)(resp, req)
 	case strings.HasPrefix(path, "cat/"):
-		return s.FileCatRequest(resp, req)
+		return s.wrapUntrustedContent(s.FileCatRequest)(resp, req)
 	case strings.HasPrefix(path, "stream/"):
 		return s.Stream(resp, req)
 	case strings.HasPrefix(path, "logs/"):
+		// Logs are *trusted* content because the endpoint
+		// explicitly sets the Content-Type to text/plain or
+		// application/json depending on the value of the ?plain=
+		// parameter.
 		return s.Logs(resp, req)
 	default:
 		return nil, CodedError(404, ErrInvalidMethod)
@@ -273,13 +277,13 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 
 	if followStr := q.Get("follow"); followStr != "" {
 		if follow, err = strconv.ParseBool(followStr); err != nil {
-			return nil, fmt.Errorf("failed to parse follow field to boolean: %v", err)
+			return nil, CodedError(400, fmt.Sprintf("failed to parse follow field to boolean: %v", err))
 		}
 	}
 
 	if plainStr := q.Get("plain"); plainStr != "" {
 		if plain, err = strconv.ParseBool(plainStr); err != nil {
-			return nil, fmt.Errorf("failed to parse plain field to boolean: %v", err)
+			return nil, CodedError(400, fmt.Sprintf("failed to parse plain field to boolean: %v", err))
 		}
 	}
 
@@ -295,7 +299,7 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 	if offsetString != "" {
 		var err error
 		if offset, err = strconv.ParseInt(offsetString, 10, 64); err != nil {
-			return nil, fmt.Errorf("error parsing offset: %v", err)
+			return nil, CodedError(400, fmt.Sprintf("error parsing offset: %v", err))
 		}
 	}
 
@@ -319,6 +323,14 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 		Follow:    follow,
 	}
 	s.parse(resp, req, &fsReq.QueryOptions.Region, &fsReq.QueryOptions)
+
+	// Force the Content-Type to avoid Go's http.ResponseWriter from
+	// detecting an incorrect or unsafe one.
+	if plain {
+		resp.Header().Set("Content-Type", "text/plain")
+	} else {
+		resp.Header().Set("Content-Type", "application/json")
+	}
 
 	// Make the request
 	return s.fsStreamImpl(resp, req, "FileSystem.Logs", fsReq, fsReq.AllocID)
@@ -388,10 +400,13 @@ func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
 			decoder.Reset(httpPipe)
 
 			if err := res.Error; err != nil {
+				code := 500
 				if err.Code != nil {
-					errCh <- CodedError(int(*err.Code), err.Error())
-					return
+					code = int(*err.Code)
 				}
+
+				errCh <- CodedError(code, err.Error())
+				return
 			}
 
 			if _, err := io.Copy(output, bytes.NewReader(res.Payload)); err != nil {

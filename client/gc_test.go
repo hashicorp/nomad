@@ -351,8 +351,8 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 	const maxAllocs = 6
 	require := require.New(t)
 
-	server, serverAddr := testServer(t, nil)
-	defer server.Shutdown()
+	server, serverAddr, cleanupS := testServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, server.RPC)
 
 	client, cleanup := TestClient(t, func(c *config.Config) {
@@ -383,7 +383,7 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 
 	upsertJobFn := func(server *nomad.Server, j *structs.Job) {
 		state := server.State()
-		require.NoError(state.UpsertJob(nextIndex(), j))
+		require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, nextIndex(), j))
 		require.NoError(state.UpsertJobSummary(nextIndex(), mock.JobSummary(j.ID)))
 	}
 
@@ -392,7 +392,7 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 
 	upsertAllocFn := func(server *nomad.Server, a *structs.Allocation) {
 		state := server.State()
-		require.NoError(state.UpsertAllocs(nextIndex(), []*structs.Allocation{a}))
+		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, nextIndex(), []*structs.Allocation{a}))
 	}
 
 	upsertNewAllocFn := func(server *nomad.Server, j *structs.Job) *structs.Allocation {
@@ -481,7 +481,16 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 		t.Fatalf("Allocs did not get GC'd: %v", err)
 	})
 
-	require.Len(client.getAllocRunners(), 8)
+	// check that all 8 get run eventually
+	testutil.WaitForResult(func() (bool, error) {
+		ar := client.getAllocRunners()
+		if len(ar) != 8 {
+			return false, fmt.Errorf("expected 8 ARs, found %d: %v", len(ar), ar)
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
 }
 
 func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {

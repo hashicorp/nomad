@@ -121,6 +121,11 @@ type ExecCommand struct {
 	// Using the cgroup does allow more precise cleanup of processes.
 	BasicProcessCgroup bool
 
+	// NoPivotRoot disables using pivot_root for isolation, useful when the root
+	// partition is on a ramdisk which does not support pivot_root,
+	// see man 2 pivot_root
+	NoPivotRoot bool
+
 	// Mounts are the host paths to be be made available inside rootfs
 	Mounts []*drivers.MountConfig
 
@@ -261,7 +266,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	// setting the user of the process
 	if command.User != "" {
 		e.logger.Debug("running command as user", "user", command.User)
-		if err := e.runAs(command.User); err != nil {
+		if err := setCmdUser(&e.childCmd, command.User); err != nil {
 			return nil, err
 		}
 	}
@@ -275,8 +280,10 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	}
 
 	// Setup cgroups on linux
-	if err := e.configureResourceContainer(os.Getpid()); err != nil {
-		return nil, err
+	if e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup {
+		if err := e.configureResourceContainer(os.Getpid()); err != nil {
+			return nil, err
+		}
 	}
 
 	stdout, err := e.commandCfg.Stdout()
@@ -309,7 +316,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	e.childCmd.Env = e.commandCfg.Env
 
 	// Start the process
-	if err = e.start(command); err != nil {
+	if err = withNetworkIsolation(e.childCmd.Start, command.NetworkIsolation); err != nil {
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
 
@@ -322,13 +329,14 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 func (e *UniversalExecutor) Exec(deadline time.Time, name string, args []string) ([]byte, int, error) {
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
-	return ExecScript(ctx, e.childCmd.Dir, e.commandCfg.Env, e.childCmd.SysProcAttr, name, args)
+	return ExecScript(ctx, e.childCmd.Dir, e.commandCfg.Env, e.childCmd.SysProcAttr, e.commandCfg.NetworkIsolation, name, args)
 }
 
 // ExecScript executes cmd with args and returns the output, exit code, and
 // error. Output is truncated to drivers/shared/structs.CheckBufSize
 func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.SysProcAttr,
-	name string, args []string) ([]byte, int, error) {
+	netSpec *drivers.NetworkIsolationSpec, name string, args []string) ([]byte, int, error) {
+
 	cmd := exec.CommandContext(ctx, name, args...)
 
 	// Copy runtime environment from the main command
@@ -341,7 +349,7 @@ func ExecScript(ctx context.Context, dir string, env []string, attrs *syscall.Sy
 	cmd.Stdout = buf
 	cmd.Stderr = buf
 
-	if err := cmd.Run(); err != nil {
+	if err := withNetworkIsolation(cmd.Run, netSpec); err != nil {
 		exitErr, ok := err.(*exec.ExitError)
 		if !ok {
 			// Non-exit error, return it and let the caller treat
@@ -399,7 +407,15 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			cmd.Stderr = stderr
 			return nil
 		},
-		processStart: cmd.Start,
+		processStart: func() error {
+			if u := e.commandCfg.User; u != "" {
+				if err := setCmdUser(cmd, u); err != nil {
+					return err
+				}
+			}
+
+			return withNetworkIsolation(cmd.Start, e.commandCfg.NetworkIsolation)
+		},
 		processWait: func() (*os.ProcessState, error) {
 			err := cmd.Wait()
 			return cmd.ProcessState, err

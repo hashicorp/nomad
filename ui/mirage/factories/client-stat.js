@@ -1,6 +1,6 @@
 import { Factory } from 'ember-cli-mirage';
 
-import faker from 'faker';
+import faker from 'nomad-ui/mirage/faker';
 
 export default Factory.extend({
   allDirStats: () => ({
@@ -25,7 +25,7 @@ export default Factory.extend({
       })),
   ],
 
-  CPUTicksConsumed: faker.random.number({ min: 100, max: 1000 }),
+  CPUTicksConsumed: () => faker.random.number({ min: 100, max: 1000 }),
 
   diskStats: () => [
     Array(faker.random.number({ min: 1, max: 5 }))

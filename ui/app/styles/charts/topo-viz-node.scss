@@ -1,0 +1,95 @@
+.topo-viz-node {
+  display: block;
+
+  .label {
+    font-weight: $weight-normal;
+  }
+
+  .chart {
+    display: inline-block;
+    height: 100%;
+    width: 100%;
+    overflow: visible;
+
+    .node-background {
+      fill: $white-ter;
+      stroke-width: 1;
+      stroke: $grey-lighter;
+
+      &.is-interactive:hover {
+        fill: $white;
+        stroke: $grey-light;
+      }
+
+      &.is-selected,
+      &.is-selected:hover {
+        fill: $white;
+        stroke: $grey;
+      }
+    }
+
+    .dimension-background {
+      fill: lighten($grey-lighter, 5%);
+    }
+
+    .dimensions.is-active {
+      .bar {
+        opacity: 0.2;
+
+        &.is-active {
+          opacity: 1;
+        }
+      }
+    }
+
+    .bar {
+      cursor: pointer;
+
+      &.is-selected,
+      &.is-selected .layer-0 {
+        stroke-width: 1px;
+        stroke: $blue;
+        fill: $blue-light;
+      }
+    }
+
+    .label {
+      text-anchor: middle;
+      dominant-baseline: central;
+      font-weight: $weight-normal;
+      fill: $grey;
+      pointer-events: none;
+    }
+  }
+
+  .empty-text {
+    fill: $red;
+    transform: translate(50%, 50%);
+
+    text {
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+  }
+
+  & + .topo-viz-node {
+    margin-top: 1em;
+  }
+
+  &.is-empty {
+    .node-background {
+      stroke: $red;
+      stroke-width: 2;
+      fill: $white;
+    }
+
+    .dimension-background {
+      fill: none;
+    }
+  }
+}
+
+.flex-masonry-columns-2 > .flex-masonry-item > .topo-viz-node .chart,
+.flex-masonry-columns-2 > .flex-masonry-item > .topo-viz-node .label {
+  width: calc(100% - 0.75em);
+}

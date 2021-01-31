@@ -3,7 +3,7 @@ import { arrToObj } from '../utils';
 
 export default ApplicationSerializer.extend({
   embed: true,
-  include: ['task_states', 'task_resources'],
+  include: ['taskStates', 'taskResources'],
 
   serialize() {
     var json = ApplicationSerializer.prototype.serialize.apply(this, arguments);
@@ -18,5 +18,14 @@ export default ApplicationSerializer.extend({
 
 function serializeAllocation(allocation) {
   allocation.TaskStates = allocation.TaskStates.reduce(arrToObj('Name'), {});
-  allocation.TaskResources = allocation.TaskResources.reduce(arrToObj('Name', 'Resources'), {});
+  const { Ports, Networks } = allocation.TaskResources[0]
+    ? allocation.TaskResources[0].Resources
+    : {};
+  allocation.AllocatedResources = {
+    Shared: { Ports, Networks },
+    Tasks: allocation.TaskResources.map(({ Name, Resources }) => ({ Name, ...Resources })).reduce(
+      arrToObj('Name'),
+      {}
+    ),
+  };
 }

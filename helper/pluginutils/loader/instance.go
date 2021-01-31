@@ -31,10 +31,12 @@ type PluginInstance interface {
 type internalPluginInstance struct {
 	instance   interface{}
 	apiVersion string
+	killFn     func()
 }
 
-func (p *internalPluginInstance) Internal() bool                                 { return true }
-func (p *internalPluginInstance) Kill()                                          {}
+func (p *internalPluginInstance) Internal() bool { return true }
+func (p *internalPluginInstance) Kill()          { p.killFn() }
+
 func (p *internalPluginInstance) ReattachConfig() (*plugin.ReattachConfig, bool) { return nil, false }
 func (p *internalPluginInstance) Plugin() interface{}                            { return p.instance }
 func (p *internalPluginInstance) Exited() bool                                   { return false }

@@ -18,33 +18,28 @@ import (
 
 // MergeMultierrorWarnings takes job warnings and canonicalize warnings and
 // merges them into a returnable string. Both the errors may be nil.
-func MergeMultierrorWarnings(warnings ...error) string {
-	var warningMsg multierror.Error
-	for _, warn := range warnings {
-		if warn != nil {
-			multierror.Append(&warningMsg, warn)
-		}
-	}
-
-	if len(warningMsg.Errors) == 0 {
+func MergeMultierrorWarnings(errs ...error) string {
+	if len(errs) == 0 {
 		return ""
 	}
 
-	// Set the formatter
-	warningMsg.ErrorFormat = warningsFormatter
-	return warningMsg.Error()
+	var mErr multierror.Error
+	_ = multierror.Append(&mErr, errs...)
+	mErr.ErrorFormat = warningsFormatter
+
+	return mErr.Error()
 }
 
 // warningsFormatter is used to format job warnings
 func warningsFormatter(es []error) string {
-	points := make([]string, len(es))
-	for i, err := range es {
-		points[i] = fmt.Sprintf("* %s", err)
+	sb := strings.Builder{}
+	sb.WriteString(fmt.Sprintf("%d warning(s):\n", len(es)))
+
+	for i := range es {
+		sb.WriteString(fmt.Sprintf("\n* %s", es[i]))
 	}
 
-	return fmt.Sprintf(
-		"%d warning(s):\n\n%s",
-		len(es), strings.Join(points, "\n"))
+	return sb.String()
 }
 
 // RemoveAllocs is used to remove any allocs with the given IDs
@@ -100,11 +95,8 @@ func FilterTerminalAllocs(allocs []*Allocation) ([]*Allocation, map[string]*Allo
 // ensured there are no collisions. If checkDevices is set to true, we check if
 // there is a device oversubscription.
 func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevices bool) (bool, string, *ComparableResources, error) {
-	// Compute the utilization from zero
+	// Compute the allocs' utilization from zero
 	used := new(ComparableResources)
-
-	// Add the reserved resources of the node
-	used.Add(node.ComparableReservedResources())
 
 	// For each alloc, add the resources
 	for _, alloc := range allocs {
@@ -116,9 +108,11 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 		used.Add(alloc.ComparableResources())
 	}
 
-	// Check that the node resources are a super set of those
-	// that are being allocated
-	if superset, dimension := node.ComparableResources().Superset(used); !superset {
+	// Check that the node resources (after subtracting reserved) are a
+	// super set of those that are being allocated
+	available := node.ComparableResources()
+	available.Subtract(node.ComparableReservedResources())
+	if superset, dimension := available.Superset(used); !superset {
 		return false, dimension, used, nil
 	}
 
@@ -148,10 +142,7 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	return true, "", used, nil
 }
 
-// ScoreFit is used to score the fit based on the Google work published here:
-// http://www.columbia.edu/~cs2035/courses/ieor4405.S13/datacenter_scheduling.ppt
-// This is equivalent to their BestFit v3
-func ScoreFit(node *Node, util *ComparableResources) float64 {
+func computeFreePercentage(node *Node, util *ComparableResources) (freePctCpu, freePctRam float64) {
 	// COMPAT(0.11): Remove in 0.11
 	reserved := node.ComparableReservedResources()
 	res := node.ComparableResources()
@@ -165,8 +156,18 @@ func ScoreFit(node *Node, util *ComparableResources) float64 {
 	}
 
 	// Compute the free percentage
-	freePctCpu := 1 - (float64(util.Flattened.Cpu.CpuShares) / nodeCpu)
-	freePctRam := 1 - (float64(util.Flattened.Memory.MemoryMB) / nodeMem)
+	freePctCpu = 1 - (float64(util.Flattened.Cpu.CpuShares) / nodeCpu)
+	freePctRam = 1 - (float64(util.Flattened.Memory.MemoryMB) / nodeMem)
+	return freePctCpu, freePctRam
+}
+
+// ScoreFitBinPack computes a fit score to achieve pinbacking behavior.
+// Score is in [0, 18]
+//
+// It's the BestFit v3 on the Google work published here:
+// http://www.columbia.edu/~cs2035/courses/ieor4405.S13/datacenter_scheduling.ppt
+func ScoreFitBinPack(node *Node, util *ComparableResources) float64 {
+	freePctCpu, freePctRam := computeFreePercentage(node, util)
 
 	// Total will be "maximized" the smaller the value is.
 	// At 100% utilization, the total is 2, while at 0% util it is 20.
@@ -179,6 +180,24 @@ func ScoreFit(node *Node, util *ComparableResources) float64 {
 
 	// Bound the score, just in case
 	// If the score is over 18, that means we've overfit the node.
+	if score > 18.0 {
+		score = 18.0
+	} else if score < 0 {
+		score = 0
+	}
+	return score
+}
+
+// ScoreFitBinSpread computes a fit score to achieve spread behavior.
+// Score is in [0, 18]
+//
+// This is equivalent to Worst Fit of
+// http://www.columbia.edu/~cs2035/courses/ieor4405.S13/datacenter_scheduling.ppt
+func ScoreFitSpread(node *Node, util *ComparableResources) float64 {
+	freePctCpu, freePctRam := computeFreePercentage(node, util)
+	total := math.Pow(10, freePctCpu) + math.Pow(10, freePctRam)
+	score := total - 2
+
 	if score > 18.0 {
 		score = 18.0
 	} else if score < 0 {
@@ -272,6 +291,26 @@ func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 	return flattened
 }
 
+// VaultNaVaultNamespaceSet takes the structure returned by VaultPolicies and
+// returns a set of required namespaces
+func VaultNamespaceSet(policies map[string]map[string]*Vault) []string {
+	set := make(map[string]struct{})
+
+	for _, tgp := range policies {
+		for _, tp := range tgp {
+			if tp.Namespace != "" {
+				set[tp.Namespace] = struct{}{}
+			}
+		}
+	}
+
+	flattened := make([]string, 0, len(set))
+	for p := range set {
+		flattened = append(flattened, p)
+	}
+	return flattened
+}
+
 // DenormalizeAllocationJobs is used to attach a job to all allocations that are
 // non-terminal and do not have a job already. This is useful in cases where the
 // job is normalized.
@@ -297,8 +336,8 @@ func ACLPolicyListHash(policies []*ACLPolicy) string {
 		panic(err)
 	}
 	for _, policy := range policies {
-		cacheKeyHash.Write([]byte(policy.Name))
-		binary.Write(cacheKeyHash, binary.BigEndian, policy.ModifyIndex)
+		_, _ = cacheKeyHash.Write([]byte(policy.Name))
+		_ = binary.Write(cacheKeyHash, binary.BigEndian, policy.ModifyIndex)
 	}
 	cacheKey := string(cacheKeyHash.Sum(nil))
 	return cacheKey
@@ -346,7 +385,9 @@ func GenerateMigrateToken(allocID, nodeSecretID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	h.Write([]byte(allocID))
+
+	_, _ = h.Write([]byte(allocID))
+
 	return base64.URLEncoding.EncodeToString(h.Sum(nil)), nil
 }
 
@@ -357,7 +398,8 @@ func CompareMigrateToken(allocID, nodeSecretID, otherMigrateToken string) bool {
 	if err != nil {
 		return false
 	}
-	h.Write([]byte(allocID))
+
+	_, _ = h.Write([]byte(allocID))
 
 	otherBytes, err := base64.URLEncoding.DecodeString(otherMigrateToken)
 	if err != nil {

@@ -26,7 +26,7 @@ func TestAllocSignalCommand_Fails(t *testing.T) {
 
 	require := require.New(t)
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocSignalCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on lack of alloc ID
@@ -62,13 +62,13 @@ func TestAllocSignalCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocSignalCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
-	assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	prefix := a.ID[:5]
 	args := complete.Args{All: []string{"signal", prefix}, Last: prefix}
@@ -103,7 +103,7 @@ func TestAllocSignalCommand_Run(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocSignalCommand{Meta: Meta{Ui: ui}}
 
 	jobID := "job1_sfx"

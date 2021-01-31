@@ -18,7 +18,7 @@ const (
 	nodeNameRe    = `(?P<name>[[:word:]\.\-\_]+)`
 	nearRe        = `(~(?P<near>[[:word:]\.\-\_]+))?`
 	prefixRe      = `/?(?P<prefix>[^@]+)`
-	tagRe         = `((?P<tag>[[:word:]\.\-\_]+)\.)?`
+	tagRe         = `((?P<tag>[[:word:]=:\.\-\_]+)\.)?`
 )
 
 type Type int

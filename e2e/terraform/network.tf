@@ -2,9 +2,14 @@ data "aws_vpc" "default" {
   default = true
 }
 
+data "aws_subnet" "default" {
+  availability_zone = var.availability_zone
+  vpc_id            = data.aws_vpc.default.id
+}
+
 resource "aws_security_group" "primary" {
-  name   = "${local.random_name}"
-  vpc_id = "${data.aws_vpc.default.id}"
+  name   = local.random_name
+  vpc_id = data.aws_vpc.default.id
 
   ingress {
     from_port   = 22
@@ -33,6 +38,14 @@ resource "aws_security_group" "primary" {
   ingress {
     from_port   = 8500
     to_port     = 8500
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Vault
+  ingress {
+    from_port   = 8200
+    to_port     = 8200
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -76,3 +89,15 @@ resource "aws_security_group" "primary" {
   }
 }
 
+resource "aws_security_group" "nfs" {
+  count  = var.volumes ? 1 : 0
+  name   = "${local.random_name}-nfs"
+  vpc_id = data.aws_vpc.default.id
+
+  ingress {
+    from_port       = 2049
+    to_port         = 2049
+    protocol        = "tcp"
+    security_groups = [aws_security_group.primary.id]
+  }
+}

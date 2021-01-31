@@ -42,6 +42,23 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
     box-shadow: none;
   }
 
+  &.is-disabled {
+    opacity: 0.7;
+    box-shadow: none;
+    cursor: not-allowed;
+    border-color: transparent;
+
+    &:hover {
+      border-color: transparent;
+    }
+  }
+
+  &.is-xsmall {
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: $size-7;
+  }
+
   @each $name, $pair in $colors {
     $color: nth($pair, 1);
     $color-invert: nth($pair, 2);
@@ -70,6 +87,7 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
 
       &.is-outlined {
         border-color: $grey-lighter;
+        background-color: $white;
 
         &.is-important {
           border-color: $color;
@@ -79,14 +97,14 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
         &.is-hovered,
         &:focus,
         &.is-focused {
-          background-color: transparent;
+          background-color: $white;
           border-color: darken($color, 10%);
           color: $color;
         }
 
         &:active,
         &.is-active {
-          background-color: transparent;
+          background-color: $white;
           border-color: darken($color, 10%);
           color: darken($color, 10%);
         }
@@ -95,6 +113,7 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
       &.is-inverted.is-outlined {
         border-color: rgba($color-invert, 0.5);
         color: rgba($color-invert, 0.9);
+        background-color: transparent;
 
         &:hover,
         &.is-hovered,
@@ -110,6 +129,24 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
           background-color: rgba($color-invert, 0.1);
           border-color: $color-invert;
           color: $color-invert;
+          box-shadow: none;
+        }
+      }
+
+      // The is-disabled styles MUST trump other modifier specificites
+      &.is-disabled {
+        background-color: $color;
+        border-color: darken($color, 5%);
+        box-shadow: none;
+
+        &:hover,
+        &:active,
+        &:focus,
+        &.is-hovered,
+        &.is-active,
+        &.is-focused {
+          background-color: $color;
+          border-color: darken($color, 5%);
           box-shadow: none;
         }
       }

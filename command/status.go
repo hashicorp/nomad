@@ -26,7 +26,7 @@ Usage: nomad status [options] <identifier>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Status Options:
 
@@ -162,6 +162,10 @@ func (c *StatusCommand) Run(args []string) int {
 		cmd = &NamespaceStatusCommand{Meta: c.Meta}
 	case contexts.Quotas:
 		cmd = &QuotaStatusCommand{Meta: c.Meta}
+	case contexts.Plugins:
+		cmd = &PluginStatusCommand{Meta: c.Meta}
+	case contexts.Volumes:
+		cmd = &VolumeStatusCommand{Meta: c.Meta}
 	default:
 		c.Ui.Error(fmt.Sprintf("Unable to resolve ID: %q", id))
 		return 1
@@ -180,6 +184,6 @@ func (c *StatusCommand) logMultiMatchError(id string, matches map[contexts.Conte
 		}
 
 		c.Ui.Error(fmt.Sprintf("\n%s:", strings.Title(string(ctx))))
-		c.Ui.Error(fmt.Sprintf("%s", strings.Join(vers, ", ")))
+		c.Ui.Error(strings.Join(vers, ", "))
 	}
 }

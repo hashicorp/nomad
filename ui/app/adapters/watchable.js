@@ -1,31 +1,36 @@
 import { get } from '@ember/object';
 import { assign } from '@ember/polyfills';
 import { inject as service } from '@ember/service';
+import { AbortError } from '@ember-data/adapter/error';
 import queryString from 'query-string';
 import ApplicationAdapter from './application';
-import { AbortError } from 'ember-data/adapters/errors';
+import removeRecord from '../utils/remove-record';
 
-export default ApplicationAdapter.extend({
-  watchList: service(),
-  store: service(),
+export default class Watchable extends ApplicationAdapter {
+  @service watchList;
+  @service store;
 
-  ajaxOptions(url, type, options) {
-    const ajaxOptions = this._super(...arguments);
-    const abortToken = (options || {}).abortToken;
-    if (abortToken) {
-      delete options.abortToken;
+  // Overriding ajax is not advised, but this is a minimal modification
+  // that sets off a series of events that results in query params being
+  // available in handleResponse below. Unfortunately, this is the only
+  // place where what becomes requestData can be modified.
+  //
+  // It's either this weird side-effecting thing that also requires a change
+  // to ajaxOptions or overriding ajax completely.
+  ajax(url, type, options) {
+    const hasParams = hasNonBlockingQueryParams(options);
+    if (!hasParams || type !== 'GET') return super.ajax(url, type, options);
 
-      const previousBeforeSend = ajaxOptions.beforeSend;
-      ajaxOptions.beforeSend = function(jqXHR) {
-        abortToken.capture(jqXHR);
-        if (previousBeforeSend) {
-          previousBeforeSend(...arguments);
-        }
-      };
-    }
+    const params = { ...options.data };
+    delete params.index;
 
-    return ajaxOptions;
-  },
+    // Options data gets appended as query params as part of ajaxOptions.
+    // In order to prevent doubling params, data should only include index
+    // at this point since everything else is added to the URL in advance.
+    options.data = options.data.index ? { index: options.data.index } : {};
+
+    return super.ajax(`${url}?${queryString.stringify(params)}`, type, options);
+  }
 
   findAll(store, type, sinceToken, snapshotRecordArray, additionalParams = {}) {
     const params = assign(this.buildQuery(), additionalParams);
@@ -35,12 +40,12 @@ export default ApplicationAdapter.extend({
       params.index = this.watchList.getIndexFor(url);
     }
 
-    const abortToken = get(snapshotRecordArray || {}, 'adapterOptions.abortToken');
+    const signal = get(snapshotRecordArray || {}, 'adapterOptions.abortController.signal');
     return this.ajax(url, 'GET', {
-      abortToken,
+      signal,
       data: params,
     });
-  },
+  }
 
   findRecord(store, type, id, snapshot, additionalParams = {}) {
     let [url, params] = this.buildURL(type.modelName, id, snapshot, 'findRecord').split('?');
@@ -50,9 +55,9 @@ export default ApplicationAdapter.extend({
       params.index = this.watchList.getIndexFor(url);
     }
 
-    const abortToken = get(snapshot || {}, 'adapterOptions.abortToken');
+    const signal = get(snapshot || {}, 'adapterOptions.abortController.signal');
     return this.ajax(url, 'GET', {
-      abortToken,
+      signal,
       data: params,
     }).catch(error => {
       if (error instanceof AbortError) {
@@ -60,10 +65,52 @@ export default ApplicationAdapter.extend({
       }
       throw error;
     });
-  },
+  }
 
-  reloadRelationship(model, relationshipName, options = { watch: false, abortToken: null }) {
-    const { watch, abortToken } = options;
+  query(store, type, query, snapshotRecordArray, options, additionalParams = {}) {
+    const url = this.buildURL(type.modelName, null, null, 'query', query);
+    let [urlPath, params] = url.split('?');
+    params = assign(queryString.parse(params) || {}, this.buildQuery(), additionalParams, query);
+
+    if (get(options, 'adapterOptions.watch')) {
+      // The intended query without additional blocking query params is used
+      // to track the appropriate query index.
+      params.index = this.watchList.getIndexFor(`${urlPath}?${queryString.stringify(query)}`);
+    }
+
+    const signal = get(options, 'adapterOptions.abortController.signal');
+    return this.ajax(urlPath, 'GET', {
+      signal,
+      data: params,
+    }).then(payload => {
+      const adapter = store.adapterFor(type.modelName);
+
+      // Query params may not necessarily map one-to-one to attribute names.
+      // Adapters are responsible for declaring param mappings.
+      const queryParamsToAttrs = Object.keys(adapter.queryParamsToAttrs || {}).map(key => ({
+        queryParam: key,
+        attr: adapter.queryParamsToAttrs[key],
+      }));
+
+      // Remove existing records that match this query. This way if server-side
+      // deletes have occurred, the store won't have stale records.
+      store
+        .peekAll(type.modelName)
+        .filter(record =>
+          queryParamsToAttrs.some(
+            mapping => get(record, mapping.attr) === query[mapping.queryParam]
+          )
+        )
+        .forEach(record => {
+          removeRecord(store, record);
+        });
+
+      return payload;
+    });
+  }
+
+  reloadRelationship(model, relationshipName, options = { watch: false, abortController: null }) {
+    const { watch, abortController } = options;
     const relationship = model.relationshipFor(relationshipName);
     if (relationship.kind !== 'belongsTo' && relationship.kind !== 'hasMany') {
       throw new Error(
@@ -87,7 +134,7 @@ export default ApplicationAdapter.extend({
       }
 
       return this.ajax(url, 'GET', {
-        abortToken,
+        signal: abortController && abortController.signal,
         data: params,
       }).then(
         json => {
@@ -109,7 +156,7 @@ export default ApplicationAdapter.extend({
         }
       );
     }
-  },
+  }
 
   handleResponse(status, headers, payload, requestData) {
     // Some browsers lowercase all headers. Others keep them
@@ -119,6 +166,15 @@ export default ApplicationAdapter.extend({
       this.watchList.setIndexFor(requestData.url, newIndex);
     }
 
-    return this._super(...arguments);
-  },
-});
+    return super.handleResponse(...arguments);
+  }
+}
+
+function hasNonBlockingQueryParams(options) {
+  if (!options || !options.data) return false;
+  const keys = Object.keys(options.data);
+  if (!keys.length) return false;
+  if (keys.length === 1 && keys[0] === 'index') return false;
+
+  return true;
+}

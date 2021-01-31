@@ -21,6 +21,7 @@ import (
 	"context"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/go-autorest/tracing"
 	"net/http"
 )
 
@@ -34,7 +35,8 @@ func NewLoadBalancersClient(subscriptionID string) LoadBalancersClient {
 	return NewLoadBalancersClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewLoadBalancersClientWithBaseURI creates an instance of the LoadBalancersClient client.
+// NewLoadBalancersClientWithBaseURI creates an instance of the LoadBalancersClient client using a custom endpoint.
+// Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewLoadBalancersClientWithBaseURI(baseURI string, subscriptionID string) LoadBalancersClient {
 	return LoadBalancersClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -45,6 +47,16 @@ func NewLoadBalancersClientWithBaseURI(baseURI string, subscriptionID string) Lo
 // loadBalancerName - the name of the load balancer.
 // parameters - parameters supplied to the create or update load balancer operation.
 func (client LoadBalancersClient) CreateOrUpdate(ctx context.Context, resourceGroupName string, loadBalancerName string, parameters LoadBalancer) (result LoadBalancersCreateOrUpdateFuture, err error) {
+	if tracing.IsEnabled() {
+		ctx = tracing.StartSpan(ctx, fqdn+"/LoadBalancersClient.CreateOrUpdate")
+		defer func() {
+			sc := -1
+			if result.Response() != nil {
+				sc = result.Response().StatusCode
+			}
+			tracing.EndSpan(ctx, sc, err)
+		}()
+	}
 	req, err := client.CreateOrUpdatePreparer(ctx, resourceGroupName, loadBalancerName, parameters)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "network.LoadBalancersClient", "CreateOrUpdate", nil, "Failure preparing request")
@@ -86,15 +98,12 @@ func (client LoadBalancersClient) CreateOrUpdatePreparer(ctx context.Context, re
 // CreateOrUpdateSender sends the CreateOrUpdate request. The method will close the
 // http.Response Body if it receives an error.
 func (client LoadBalancersClient) CreateOrUpdateSender(req *http.Request) (future LoadBalancersCreateOrUpdateFuture, err error) {
-	sender := autorest.DecorateSender(client, azure.DoRetryWithRegistration(client.Client))
-	future.Future = azure.NewFuture(req)
-	future.req = req
-	_, err = future.Done(sender)
+	var resp *http.Response
+	resp, err = client.Send(req, azure.DoRetryWithRegistration(client.Client))
 	if err != nil {
 		return
 	}
-	err = autorest.Respond(future.Response(),
-		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusCreated))
+	future.Future, err = azure.NewFutureFromResponse(resp)
 	return
 }
 
@@ -103,7 +112,6 @@ func (client LoadBalancersClient) CreateOrUpdateSender(req *http.Request) (futur
 func (client LoadBalancersClient) CreateOrUpdateResponder(resp *http.Response) (result LoadBalancer, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusCreated),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -116,6 +124,16 @@ func (client LoadBalancersClient) CreateOrUpdateResponder(resp *http.Response) (
 // resourceGroupName - the name of the resource group.
 // loadBalancerName - the name of the load balancer.
 func (client LoadBalancersClient) Delete(ctx context.Context, resourceGroupName string, loadBalancerName string) (result LoadBalancersDeleteFuture, err error) {
+	if tracing.IsEnabled() {
+		ctx = tracing.StartSpan(ctx, fqdn+"/LoadBalancersClient.Delete")
+		defer func() {
+			sc := -1
+			if result.Response() != nil {
+				sc = result.Response().StatusCode
+			}
+			tracing.EndSpan(ctx, sc, err)
+		}()
+	}
 	req, err := client.DeletePreparer(ctx, resourceGroupName, loadBalancerName)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "network.LoadBalancersClient", "Delete", nil, "Failure preparing request")
@@ -155,15 +173,12 @@ func (client LoadBalancersClient) DeletePreparer(ctx context.Context, resourceGr
 // DeleteSender sends the Delete request. The method will close the
 // http.Response Body if it receives an error.
 func (client LoadBalancersClient) DeleteSender(req *http.Request) (future LoadBalancersDeleteFuture, err error) {
-	sender := autorest.DecorateSender(client, azure.DoRetryWithRegistration(client.Client))
-	future.Future = azure.NewFuture(req)
-	future.req = req
-	_, err = future.Done(sender)
+	var resp *http.Response
+	resp, err = client.Send(req, azure.DoRetryWithRegistration(client.Client))
 	if err != nil {
 		return
 	}
-	err = autorest.Respond(future.Response(),
-		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted, http.StatusNoContent))
+	future.Future, err = azure.NewFutureFromResponse(resp)
 	return
 }
 
@@ -172,7 +187,6 @@ func (client LoadBalancersClient) DeleteSender(req *http.Request) (future LoadBa
 func (client LoadBalancersClient) DeleteResponder(resp *http.Response) (result autorest.Response, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted, http.StatusNoContent),
 		autorest.ByClosing())
 	result.Response = resp
@@ -185,6 +199,16 @@ func (client LoadBalancersClient) DeleteResponder(resp *http.Response) (result a
 // loadBalancerName - the name of the load balancer.
 // expand - expands referenced resources.
 func (client LoadBalancersClient) Get(ctx context.Context, resourceGroupName string, loadBalancerName string, expand string) (result LoadBalancer, err error) {
+	if tracing.IsEnabled() {
+		ctx = tracing.StartSpan(ctx, fqdn+"/LoadBalancersClient.Get")
+		defer func() {
+			sc := -1
+			if result.Response.Response != nil {
+				sc = result.Response.Response.StatusCode
+			}
+			tracing.EndSpan(ctx, sc, err)
+		}()
+	}
 	req, err := client.GetPreparer(ctx, resourceGroupName, loadBalancerName, expand)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "network.LoadBalancersClient", "Get", nil, "Failure preparing request")
@@ -233,8 +257,7 @@ func (client LoadBalancersClient) GetPreparer(ctx context.Context, resourceGroup
 // GetSender sends the Get request. The method will close the
 // http.Response Body if it receives an error.
 func (client LoadBalancersClient) GetSender(req *http.Request) (*http.Response, error) {
-	return autorest.SendWithSender(client, req,
-		azure.DoRetryWithRegistration(client.Client))
+	return client.Send(req, azure.DoRetryWithRegistration(client.Client))
 }
 
 // GetResponder handles the response to the Get request. The method always
@@ -242,7 +265,6 @@ func (client LoadBalancersClient) GetSender(req *http.Request) (*http.Response, 
 func (client LoadBalancersClient) GetResponder(resp *http.Response) (result LoadBalancer, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -254,6 +276,16 @@ func (client LoadBalancersClient) GetResponder(resp *http.Response) (result Load
 // Parameters:
 // resourceGroupName - the name of the resource group.
 func (client LoadBalancersClient) List(ctx context.Context, resourceGroupName string) (result LoadBalancerListResultPage, err error) {
+	if tracing.IsEnabled() {
+		ctx = tracing.StartSpan(ctx, fqdn+"/LoadBalancersClient.List")
+		defer func() {
+			sc := -1
+			if result.lblr.Response.Response != nil {
+				sc = result.lblr.Response.Response.StatusCode
+			}
+			tracing.EndSpan(ctx, sc, err)
+		}()
+	}
 	result.fn = client.listNextResults
 	req, err := client.ListPreparer(ctx, resourceGroupName)
 	if err != nil {
@@ -299,8 +331,7 @@ func (client LoadBalancersClient) ListPreparer(ctx context.Context, resourceGrou
 // ListSender sends the List request. The method will close the
 // http.Response Body if it receives an error.
 func (client LoadBalancersClient) ListSender(req *http.Request) (*http.Response, error) {
-	return autorest.SendWithSender(client, req,
-		azure.DoRetryWithRegistration(client.Client))
+	return client.Send(req, azure.DoRetryWithRegistration(client.Client))
 }
 
 // ListResponder handles the response to the List request. The method always
@@ -308,7 +339,6 @@ func (client LoadBalancersClient) ListSender(req *http.Request) (*http.Response,
 func (client LoadBalancersClient) ListResponder(resp *http.Response) (result LoadBalancerListResult, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -317,8 +347,8 @@ func (client LoadBalancersClient) ListResponder(resp *http.Response) (result Loa
 }
 
 // listNextResults retrieves the next set of results, if any.
-func (client LoadBalancersClient) listNextResults(lastResults LoadBalancerListResult) (result LoadBalancerListResult, err error) {
-	req, err := lastResults.loadBalancerListResultPreparer()
+func (client LoadBalancersClient) listNextResults(ctx context.Context, lastResults LoadBalancerListResult) (result LoadBalancerListResult, err error) {
+	req, err := lastResults.loadBalancerListResultPreparer(ctx)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "network.LoadBalancersClient", "listNextResults", nil, "Failure preparing next results request")
 	}
@@ -339,12 +369,32 @@ func (client LoadBalancersClient) listNextResults(lastResults LoadBalancerListRe
 
 // ListComplete enumerates all values, automatically crossing page boundaries as required.
 func (client LoadBalancersClient) ListComplete(ctx context.Context, resourceGroupName string) (result LoadBalancerListResultIterator, err error) {
+	if tracing.IsEnabled() {
+		ctx = tracing.StartSpan(ctx, fqdn+"/LoadBalancersClient.List")
+		defer func() {
+			sc := -1
+			if result.Response().Response.Response != nil {
+				sc = result.page.Response().Response.Response.StatusCode
+			}
+			tracing.EndSpan(ctx, sc, err)
+		}()
+	}
 	result.page, err = client.List(ctx, resourceGroupName)
 	return
 }
 
 // ListAll gets all the load balancers in a subscription.
 func (client LoadBalancersClient) ListAll(ctx context.Context) (result LoadBalancerListResultPage, err error) {
+	if tracing.IsEnabled() {
+		ctx = tracing.StartSpan(ctx, fqdn+"/LoadBalancersClient.ListAll")
+		defer func() {
+			sc := -1
+			if result.lblr.Response.Response != nil {
+				sc = result.lblr.Response.Response.StatusCode
+			}
+			tracing.EndSpan(ctx, sc, err)
+		}()
+	}
 	result.fn = client.listAllNextResults
 	req, err := client.ListAllPreparer(ctx)
 	if err != nil {
@@ -389,8 +439,7 @@ func (client LoadBalancersClient) ListAllPreparer(ctx context.Context) (*http.Re
 // ListAllSender sends the ListAll request. The method will close the
 // http.Response Body if it receives an error.
 func (client LoadBalancersClient) ListAllSender(req *http.Request) (*http.Response, error) {
-	return autorest.SendWithSender(client, req,
-		azure.DoRetryWithRegistration(client.Client))
+	return client.Send(req, azure.DoRetryWithRegistration(client.Client))
 }
 
 // ListAllResponder handles the response to the ListAll request. The method always
@@ -398,7 +447,6 @@ func (client LoadBalancersClient) ListAllSender(req *http.Request) (*http.Respon
 func (client LoadBalancersClient) ListAllResponder(resp *http.Response) (result LoadBalancerListResult, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -407,8 +455,8 @@ func (client LoadBalancersClient) ListAllResponder(resp *http.Response) (result 
 }
 
 // listAllNextResults retrieves the next set of results, if any.
-func (client LoadBalancersClient) listAllNextResults(lastResults LoadBalancerListResult) (result LoadBalancerListResult, err error) {
-	req, err := lastResults.loadBalancerListResultPreparer()
+func (client LoadBalancersClient) listAllNextResults(ctx context.Context, lastResults LoadBalancerListResult) (result LoadBalancerListResult, err error) {
+	req, err := lastResults.loadBalancerListResultPreparer(ctx)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "network.LoadBalancersClient", "listAllNextResults", nil, "Failure preparing next results request")
 	}
@@ -429,6 +477,16 @@ func (client LoadBalancersClient) listAllNextResults(lastResults LoadBalancerLis
 
 // ListAllComplete enumerates all values, automatically crossing page boundaries as required.
 func (client LoadBalancersClient) ListAllComplete(ctx context.Context) (result LoadBalancerListResultIterator, err error) {
+	if tracing.IsEnabled() {
+		ctx = tracing.StartSpan(ctx, fqdn+"/LoadBalancersClient.ListAll")
+		defer func() {
+			sc := -1
+			if result.Response().Response.Response != nil {
+				sc = result.page.Response().Response.Response.StatusCode
+			}
+			tracing.EndSpan(ctx, sc, err)
+		}()
+	}
 	result.page, err = client.ListAll(ctx)
 	return
 }

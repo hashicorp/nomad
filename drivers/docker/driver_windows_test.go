@@ -6,18 +6,24 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/allocdir"
+	tu "github.com/hashicorp/nomad/testutil"
 )
 
 func newTaskConfig(variant string, command []string) TaskConfig {
 	// busyboxImageID is an id of an image containing nanoserver windows and
 	// a busybox exe.
-	// See https://github.com/dantoml/windows/blob/81cff1ed77729d1fa36721abd6cb6efebff2f8ef/docker/busybox/Dockerfile
-	busyboxImageID := "dantoml/busybox-windows:08012019"
+	busyboxImageID := "hashicorpnomad/busybox-windows:server2016-0.1"
+
+	if tu.IsCI() {
+		// In CI, use HashiCorp Mirror to avoid DockerHub rate limiting
+		busyboxImageID = "docker.mirror.hashicorp.services/" + busyboxImageID
+	}
 
 	return TaskConfig{
-		Image:   busyboxImageID,
-		Command: command[0],
-		Args:    command[1:],
+		Image:            busyboxImageID,
+		ImagePullTimeout: "5m",
+		Command:          command[0],
+		Args:             command[1:],
 	}
 }
 

@@ -2,14 +2,50 @@ package jobspec
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/mapstructure"
+)
+
+var (
+	commonTaskKeys = []string{
+		"driver",
+		"user",
+		"config",
+		"env",
+		"resources",
+		"meta",
+		"logs",
+		"kill_timeout",
+		"shutdown_delay",
+		"kill_signal",
+		"scaling",
+	}
+
+	normalTaskKeys = append(commonTaskKeys,
+		"artifact",
+		"constraint",
+		"affinity",
+		"dispatch_payload",
+		"lifecycle",
+		"leader",
+		"restart",
+		"service",
+		"template",
+		"vault",
+		"kind",
+		"volume_mount",
+		"csi_plugin",
+	)
+
+	sidecarTaskKeys = append(commonTaskKeys,
+		"name",
+	)
 )
 
 func parseTasks(result *[]*api.Task, list *ast.ObjectList) error {
@@ -29,7 +65,7 @@ func parseTasks(result *[]*api.Task, list *ast.ObjectList) error {
 		}
 		seen[n] = struct{}{}
 
-		t, err := parseTask(item)
+		t, err := parseTask(item, normalTaskKeys)
 		if err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
 		}
@@ -42,7 +78,7 @@ func parseTasks(result *[]*api.Task, list *ast.ObjectList) error {
 	return nil
 }
 
-func parseTask(item *ast.ObjectItem) (*api.Task, error) {
+func parseTask(item *ast.ObjectItem, keys []string) (*api.Task, error) {
 	// We need this later
 	var listVal *ast.ObjectList
 	if ot, ok := item.Val.(*ast.ObjectType); ok {
@@ -52,29 +88,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 	}
 
 	// Check for invalid keys
-	valid := []string{
-		"artifact",
-		"config",
-		"constraint",
-		"affinity",
-		"dispatch_payload",
-		"driver",
-		"env",
-		"kill_timeout",
-		"leader",
-		"logs",
-		"meta",
-		"resources",
-		"service",
-		"shutdown_delay",
-		"template",
-		"user",
-		"vault",
-		"kill_signal",
-		"kind",
-		"volume_mount",
-	}
-	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+	if err := checkHCLKeys(listVal, keys); err != nil {
 		return nil, err
 	}
 
@@ -87,14 +101,18 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 	delete(m, "constraint")
 	delete(m, "affinity")
 	delete(m, "dispatch_payload")
+	delete(m, "lifecycle")
 	delete(m, "env")
 	delete(m, "logs")
 	delete(m, "meta")
 	delete(m, "resources")
+	delete(m, "restart")
 	delete(m, "service")
 	delete(m, "template")
 	delete(m, "vault")
 	delete(m, "volume_mount")
+	delete(m, "csi_plugin")
+	delete(m, "scaling")
 
 	// Build the task
 	var t api.Task
@@ -131,6 +149,25 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		}
 
 		t.Services = services
+	}
+
+	if o := listVal.Filter("csi_plugin"); len(o.Items) > 0 {
+		if len(o.Items) != 1 {
+			return nil, fmt.Errorf("csi_plugin -> Expected single stanza, got %d", len(o.Items))
+		}
+		i := o.Elem().Items[0]
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, i.Val); err != nil {
+			return nil, err
+		}
+
+		var cfg api.TaskCSIPluginConfig
+		if err := mapstructure.WeakDecode(m, &cfg); err != nil {
+			return nil, err
+		}
+
+		t.CSIPluginConfig = &cfg
 	}
 
 	// If we have config, then parse that
@@ -192,6 +229,13 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		t.Resources = &r
 	}
 
+	// Parse restart policy
+	if o := listVal.Filter("restart"); len(o.Items) > 0 {
+		if err := parseRestartPolicy(&t.RestartPolicy, o); err != nil {
+			return nil, multierror.Prefix(err, "restart ->")
+		}
+	}
+
 	// If we have logs then parse that
 	if o := listVal.Filter("logs"); len(o.Items) > 0 {
 		if len(o.Items) > 1 {
@@ -205,7 +249,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 			"max_files",
 			"max_file_size",
 		}
-		if err := helper.CheckHCLKeys(logsBlock.Val, valid); err != nil {
+		if err := checkHCLKeys(logsBlock.Val, valid); err != nil {
 			return nil, multierror.Prefix(err, "logs ->")
 		}
 
@@ -235,11 +279,18 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		}
 	}
 
+	// Parse scaling policies
+	if o := listVal.Filter("scaling"); len(o.Items) > 0 {
+		if err := parseTaskScalingPolicies(&t.ScalingPolicies, o); err != nil {
+			return nil, err
+		}
+	}
+
 	// If we have a vault block, then parse that
 	if o := listVal.Filter("vault"); len(o.Items) > 0 {
 		v := &api.Vault{
-			Env:        helper.BoolToPtr(true),
-			ChangeMode: helper.StringToPtr("restart"),
+			Env:        boolToPtr(true),
+			ChangeMode: stringToPtr("restart"),
 		}
 
 		if err := parseVault(v, o); err != nil {
@@ -261,7 +312,7 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		valid := []string{
 			"file",
 		}
-		if err := helper.CheckHCLKeys(dispatchBlock.Val, valid); err != nil {
+		if err := checkHCLKeys(dispatchBlock.Val, valid); err != nil {
 			return nil, multierror.Prefix(err, "dispatch_payload ->")
 		}
 
@@ -275,6 +326,33 @@ func parseTask(item *ast.ObjectItem) (*api.Task, error) {
 		}
 	}
 
+	// If we have a lifecycle block parse that
+	if o := listVal.Filter("lifecycle"); len(o.Items) > 0 {
+		if len(o.Items) > 1 {
+			return nil, fmt.Errorf("only one lifecycle block is allowed in a task. Number of lifecycle blocks found: %d", len(o.Items))
+		}
+
+		var m map[string]interface{}
+		lifecycleBlock := o.Items[0]
+
+		// Check for invalid keys
+		valid := []string{
+			"hook",
+			"sidecar",
+		}
+		if err := checkHCLKeys(lifecycleBlock.Val, valid); err != nil {
+			return nil, multierror.Prefix(err, "lifecycle ->")
+		}
+
+		if err := hcl.DecodeObject(&m, lifecycleBlock.Val); err != nil {
+			return nil, err
+		}
+
+		t.Lifecycle = &api.TaskLifecycle{}
+		if err := mapstructure.WeakDecode(m, t.Lifecycle); err != nil {
+			return nil, err
+		}
+	}
 	return &t, nil
 }
 
@@ -287,7 +365,7 @@ func parseArtifacts(result *[]*api.TaskArtifact, list *ast.ObjectList) error {
 			"mode",
 			"destination",
 		}
-		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return err
 		}
 
@@ -359,9 +437,9 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 			"source",
 			"splay",
 			"env",
-			"vault_grace",
+			"vault_grace", //COMPAT(0.12) not used; emits warning in 0.11.
 		}
-		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+		if err := checkHCLKeys(o.Val, valid); err != nil {
 			return err
 		}
 
@@ -371,9 +449,9 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		}
 
 		templ := &api.Template{
-			ChangeMode: helper.StringToPtr("restart"),
-			Splay:      helper.TimeToPtr(5 * time.Second),
-			Perms:      helper.StringToPtr("0644"),
+			ChangeMode: stringToPtr("restart"),
+			Splay:      timeToPtr(5 * time.Second),
+			Perms:      stringToPtr("0644"),
 		}
 
 		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -389,6 +467,56 @@ func parseTemplates(result *[]*api.Template, list *ast.ObjectList) error {
 		}
 
 		*result = append(*result, templ)
+	}
+
+	return nil
+}
+
+func parseTaskScalingPolicies(result *[]*api.ScalingPolicy, list *ast.ObjectList) error {
+	if len(list.Items) == 0 {
+		return nil
+	}
+
+	errPrefix := "scaling ->"
+	// Go through each object and turn it into an actual result.
+	seen := make(map[string]bool)
+	for _, item := range list.Items {
+		if l := len(item.Keys); l == 0 {
+			return multierror.Prefix(fmt.Errorf("task scaling policy missing name"), errPrefix)
+		} else if l > 1 {
+			return multierror.Prefix(fmt.Errorf("task scaling policy should only have one name"), errPrefix)
+		}
+		n := item.Keys[0].Token.Value().(string)
+		errPrefix = fmt.Sprintf("scaling[%v] ->", n)
+
+		var policyType string
+		switch strings.ToLower(n) {
+		case "cpu":
+			policyType = "vertical_cpu"
+		case "mem":
+			policyType = "vertical_mem"
+		default:
+			return multierror.Prefix(fmt.Errorf(`scaling policy name must be "cpu" or "mem"`), errPrefix)
+		}
+
+		// Make sure we haven't already found this
+		if seen[n] {
+			return multierror.Prefix(fmt.Errorf("scaling policy cannot be defined more than once"), errPrefix)
+		}
+		seen[n] = true
+
+		p, err := parseScalingPolicy(item)
+		if err != nil {
+			return multierror.Prefix(err, errPrefix)
+		}
+
+		if p.Type == "" {
+			p.Type = policyType
+		} else if p.Type != policyType {
+			return multierror.Prefix(fmt.Errorf("policy had invalid 'type': %q", p.Type), errPrefix)
+		}
+
+		*result = append(*result, p)
 	}
 
 	return nil
@@ -423,7 +551,7 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 		"network",
 		"device",
 	}
-	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+	if err := checkHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "resources ->")
 	}
 
@@ -440,7 +568,7 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 
 	// Parse the network resources
 	if o := listVal.Filter("network"); len(o.Items) > 0 {
-		r, err := parseNetwork(o)
+		r, err := ParseNetwork(o)
 		if err != nil {
 			return fmt.Errorf("resource, %v", err)
 		}
@@ -473,7 +601,7 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 				"affinity",
 				"constraint",
 			}
-			if err := helper.CheckHCLKeys(do.Val, valid); err != nil {
+			if err := checkHCLKeys(do.Val, valid); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("resources, device[%d]->", idx))
 			}
 
@@ -522,8 +650,9 @@ func parseVolumeMounts(out *[]*api.VolumeMount, list *ast.ObjectList) error {
 			"volume",
 			"read_only",
 			"destination",
+			"propagation_mode",
 		}
-		if err := helper.CheckHCLKeys(item.Val, valid); err != nil {
+		if err := checkHCLKeys(item.Val, valid); err != nil {
 			return err
 		}
 

@@ -15,10 +15,8 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
-	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/stats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -28,16 +26,16 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	ldevices "github.com/opencontainers/runc/libcontainer/devices"
+	"github.com/opencontainers/runc/libcontainer/specconv"
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
 	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/sys/unix"
 )
 
 const (
-	defaultCgroupParent = "nomad"
+	defaultCgroupParent = "/nomad"
 )
 
 var (
@@ -92,15 +90,6 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 
 	l.command = command
-
-	// Move to the root cgroup until process is started
-	subsystems, err := cgroups.GetAllSubsystems()
-	if err != nil {
-		return nil, err
-	}
-	if err := JoinRootCgroup(subsystems); err != nil {
-		return nil, err
-	}
 
 	// create a new factory which will store the container state in the allocDir
 	factory, err := libcontainer.New(
@@ -184,38 +173,15 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	l.systemCpuStats = stats.NewCpuStats()
 
 	// Starts the task
-	if command.NetworkIsolation != nil && command.NetworkIsolation.Path != "" {
-		netns, err := ns.GetNS(command.NetworkIsolation.Path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get ns %s: %v", command.NetworkIsolation.Path, err)
-		}
-
-		// Start the container in the network namespace
-		err = netns.Do(func(ns.NetNS) error { return container.Run(process) })
-		if err != nil {
-			container.Destroy()
-			return nil, err
-		}
-	} else {
-		if err := container.Run(process); err != nil {
-			container.Destroy()
-			return nil, err
-		}
+	if err := container.Run(process); err != nil {
+		container.Destroy()
+		return nil, err
 	}
 
 	pid, err := process.Pid()
 	if err != nil {
 		container.Destroy()
 		return nil, err
-	}
-
-	// Join process cgroups
-	containerState, err := container.State()
-	if err != nil {
-		l.logger.Error("error entering user process cgroups", "executor_pid", os.Getpid(), "error", err)
-	}
-	if err := cgroups.EnterPid(containerState.CgroupPaths, os.Getpid()); err != nil {
-		l.logger.Error("error entering user process cgroups", "executor_pid", os.Getpid(), "error", err)
 	}
 
 	// start a goroutine to wait on the process to complete, so Wait calls can
@@ -302,15 +268,6 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 		return nil
 	}
 
-	// move executor to root cgroup
-	subsystems, err := cgroups.GetAllSubsystems()
-	if err != nil {
-		return err
-	}
-	if err := JoinRootCgroup(subsystems); err != nil {
-		return err
-	}
-
 	status, err := l.container.Status()
 	if err != nil {
 		return err
@@ -350,7 +307,8 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 			}
 		}
 	} else {
-		if err := l.container.Signal(os.Kill, true); err != nil {
+		err := l.container.Signal(os.Kill, true)
+		if err != nil {
 			return err
 		}
 	}
@@ -617,9 +575,21 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	// set the new root directory for the container
 	cfg.Rootfs = command.TaskDir
 
+	// disable pivot_root if set in the driver's configuration
+	cfg.NoPivotRoot = command.NoPivotRoot
+
 	// launch with mount namespace
 	cfg.Namespaces = lconfigs.Namespaces{
 		{Type: lconfigs.NEWNS},
+		{Type: lconfigs.NEWPID},
+		{Type: lconfigs.NEWIPC},
+	}
+
+	if command.NetworkIsolation != nil {
+		cfg.Namespaces = append(cfg.Namespaces, lconfigs.Namespace{
+			Type: lconfigs.NEWNET,
+			Path: command.NetworkIsolation.Path,
+		})
 	}
 
 	// paths to mask using a bind mount to /dev/null to prevent reading
@@ -633,7 +603,7 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 		"/proc/sys", "/proc/sysrq-trigger", "/proc/irq", "/proc/bus",
 	}
 
-	cfg.Devices = lconfigs.DefaultAutoCreatedDevices
+	cfg.Devices = specconv.AllowedDevices
 	if len(command.Devices) > 0 {
 		devs, err := cmdDevices(command.Devices)
 		if err != nil {
@@ -728,43 +698,51 @@ func configureBasicCgroups(cfg *lconfigs.Config) error {
 	id := uuid.Generate()
 
 	// Manually create freezer cgroup
-	cfg.Cgroups.Paths = map[string]string{}
-	root, err := cgroups.FindCgroupMountpointDir()
-	if err != nil {
-		return err
-	}
 
-	if _, err := os.Stat(root); err != nil {
-		return err
-	}
+	subsystem := "freezer"
 
-	freezer := cgroupFs.FreezerGroup{}
-	subsystem := freezer.Name()
-	path, err := cgroups.FindCgroupMountpoint("", subsystem)
+	path, err := getCgroupPathHelper(subsystem, filepath.Join(defaultCgroupParent, id))
 	if err != nil {
 		return fmt.Errorf("failed to find %s cgroup mountpoint: %v", subsystem, err)
 	}
-	// Sometimes subsystems can be mounted together as 'cpu,cpuacct'.
-	path = filepath.Join(root, filepath.Base(path), defaultCgroupParent, id)
 
 	if err = os.MkdirAll(path, 0755); err != nil {
 		return err
 	}
 
-	cfg.Cgroups.Paths[subsystem] = path
+	cfg.Cgroups.Paths = map[string]string{
+		subsystem: path,
+	}
 	return nil
+}
+
+func getCgroupPathHelper(subsystem, cgroup string) (string, error) {
+	mnt, root, err := cgroups.FindCgroupMountpointAndRoot("", subsystem)
+	if err != nil {
+		return "", err
+	}
+
+	// This is needed for nested containers, because in /proc/self/cgroup we
+	// see paths from host, which don't exist in container.
+	relCgroup, err := filepath.Rel(root, cgroup)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(mnt, relCgroup), nil
 }
 
 func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 	cfg := &lconfigs.Config{
 		Cgroups: &lconfigs.Cgroup{
 			Resources: &lconfigs.Resources{
-				AllowAllDevices:  nil,
 				MemorySwappiness: nil,
-				AllowedDevices:   lconfigs.DefaultAllowedDevices,
 			},
 		},
 		Version: "1.0.0",
+	}
+	for _, device := range specconv.AllowedDevices {
+		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.DeviceRule)
 	}
 
 	if err := configureCapabilities(cfg, command); err != nil {
@@ -777,28 +755,6 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 		return nil, err
 	}
 	return cfg, nil
-}
-
-// JoinRootCgroup moves the current process to the cgroups of the init process
-func JoinRootCgroup(subsystems []string) error {
-	mErrs := new(multierror.Error)
-	paths := map[string]string{}
-	for _, s := range subsystems {
-		mnt, _, err := cgroups.FindCgroupMountpointAndRoot("", s)
-		if err != nil {
-			multierror.Append(mErrs, fmt.Errorf("error getting cgroup path for subsystem: %s", s))
-			continue
-		}
-
-		paths[s] = mnt
-	}
-
-	err := cgroups.EnterPid(paths, os.Getpid())
-	if err != nil {
-		multierror.Append(mErrs, err)
-	}
-
-	return mErrs.ErrorOrNil()
 }
 
 // cmdDevices converts a list of driver.DeviceConfigs into excutor.Devices.
@@ -821,6 +777,15 @@ func cmdDevices(devices []*drivers.DeviceConfig) ([]*lconfigs.Device, error) {
 	return r, nil
 }
 
+var userMountToUnixMount = map[string]int{
+	// Empty string maps to `rprivate` for backwards compatibility in restored
+	// older tasks, where mount propagation will not be present.
+	"":                                       unix.MS_PRIVATE | unix.MS_REC, // rprivate
+	structs.VolumeMountPropagationPrivate:    unix.MS_PRIVATE | unix.MS_REC, // rprivate
+	structs.VolumeMountPropagationHostToTask: unix.MS_SLAVE | unix.MS_REC,   // rslave
+	structs.VolumeMountPropagationBidirectional: unix.MS_SHARED | unix.MS_REC, // rshared
+}
+
 // cmdMounts converts a list of driver.MountConfigs into excutor.Mounts.
 func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
 	if len(mounts) == 0 {
@@ -834,11 +799,13 @@ func cmdMounts(mounts []*drivers.MountConfig) []*lconfigs.Mount {
 		if m.Readonly {
 			flags |= unix.MS_RDONLY
 		}
+
 		r[i] = &lconfigs.Mount{
-			Source:      m.HostPath,
-			Destination: m.TaskPath,
-			Device:      "bind",
-			Flags:       flags,
+			Source:           m.HostPath,
+			Destination:      m.TaskPath,
+			Device:           "bind",
+			Flags:            flags,
+			PropagationFlags: []int{userMountToUnixMount[m.PropagationMode]},
 		}
 	}
 
@@ -868,13 +835,7 @@ func lookupTaskBin(command *ExecCommand) (string, error) {
 		return "", fmt.Errorf("file %s not found under path %s", bin, taskDir)
 	}
 
-	// Find the PATH
 	path := "/usr/local/bin:/usr/bin:/bin"
-	for _, e := range command.Env {
-		if strings.HasPrefix("PATH=", e) {
-			path = e[5:]
-		}
-	}
 
 	return lookPathIn(path, taskDir, bin)
 }

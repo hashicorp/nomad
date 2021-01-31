@@ -7,7 +7,6 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -51,11 +50,14 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			"vault",
 			"migrate",
 			"spread",
+			"shutdown_delay",
 			"network",
 			"service",
 			"volume",
+			"scaling",
+			"stop_after_client_disconnect",
 		}
-		if err := helper.CheckHCLKeys(listVal, valid); err != nil {
+		if err := checkHCLKeys(listVal, valid); err != nil {
 			return multierror.Prefix(err, fmt.Sprintf("'%s' ->", n))
 		}
 
@@ -63,6 +65,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		if err := hcl.DecodeObject(&m, item.Val); err != nil {
 			return err
 		}
+
 		delete(m, "constraint")
 		delete(m, "affinity")
 		delete(m, "meta")
@@ -76,11 +79,21 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		delete(m, "network")
 		delete(m, "service")
 		delete(m, "volume")
+		delete(m, "scaling")
 
 		// Build the group with the basic decode
 		var g api.TaskGroup
-		g.Name = helper.StringToPtr(n)
-		if err := mapstructure.WeakDecode(m, &g); err != nil {
+		g.Name = stringToPtr(n)
+		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+			WeaklyTypedInput: true,
+			Result:           &g,
+		})
+
+		if err != nil {
+			return err
+		}
+		if err := dec.Decode(m); err != nil {
 			return err
 		}
 
@@ -114,7 +127,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 
 		// Parse network
 		if o := listVal.Filter("network"); len(o.Items) > 0 {
-			networks, err := parseNetwork(o)
+			networks, err := ParseNetwork(o)
 			if err != nil {
 				return err
 			}
@@ -170,6 +183,13 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 			}
 		}
 
+		// Parse scaling policy
+		if o := listVal.Filter("scaling"); len(o.Items) > 0 {
+			if err := parseGroupScalingPolicy(&g.Scaling, o); err != nil {
+				return multierror.Prefix(err, "scaling ->")
+			}
+		}
+
 		// Parse tasks
 		if o := listVal.Filter("task"); len(o.Items) > 0 {
 			if err := parseTasks(&g.Tasks, o); err != nil {
@@ -180,8 +200,8 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		// If we have a vault block, then parse that
 		if o := listVal.Filter("vault"); len(o.Items) > 0 {
 			tgVault := &api.Vault{
-				Env:        helper.BoolToPtr(true),
-				ChangeMode: helper.StringToPtr("restart"),
+				Env:        boolToPtr(true),
+				ChangeMode: stringToPtr("restart"),
 			}
 
 			if err := parseVault(tgVault, o); err != nil {
@@ -201,7 +221,6 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 				return multierror.Prefix(err, fmt.Sprintf("'%s',", n))
 			}
 		}
-
 		collection = append(collection, &g)
 	}
 
@@ -224,7 +243,7 @@ func parseEphemeralDisk(result **api.EphemeralDisk, list *ast.ObjectList) error 
 		"size",
 		"migrate",
 	}
-	if err := helper.CheckHCLKeys(obj.Val, valid); err != nil {
+	if err := checkHCLKeys(obj.Val, valid); err != nil {
 		return err
 	}
 
@@ -258,7 +277,7 @@ func parseRestartPolicy(final **api.RestartPolicy, list *ast.ObjectList) error {
 		"delay",
 		"mode",
 	}
-	if err := helper.CheckHCLKeys(obj.Val, valid); err != nil {
+	if err := checkHCLKeys(obj.Val, valid); err != nil {
 		return err
 	}
 
@@ -285,41 +304,99 @@ func parseRestartPolicy(final **api.RestartPolicy, list *ast.ObjectList) error {
 }
 
 func parseVolumes(out *map[string]*api.VolumeRequest, list *ast.ObjectList) error {
-	volumes := make(map[string]*api.VolumeRequest, len(list.Items))
+	hcl.DecodeObject(out, list)
 
-	for _, item := range list.Items {
-		n := item.Keys[0].Token.Value().(string)
-		valid := []string{
-			"type",
-			"read_only",
-			"hidden",
-			"source",
-		}
-		if err := helper.CheckHCLKeys(item.Val, valid); err != nil {
-			return err
-		}
-
-		var m map[string]interface{}
-		if err := hcl.DecodeObject(&m, item.Val); err != nil {
-			return err
-		}
-
-		var result api.VolumeRequest
-		dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-			WeaklyTypedInput: true,
-			Result:           &result,
-		})
+	for k, v := range *out {
+		err := unusedKeys(v)
 		if err != nil {
 			return err
 		}
-		if err := dec.Decode(m); err != nil {
-			return err
-		}
-
-		result.Name = n
-		volumes[n] = &result
+		// This is supported by `hcl:",key"`, but that only works if we start at the
+		// parent ast.ObjectItem
+		v.Name = k
 	}
 
-	*out = volumes
 	return nil
+}
+
+func parseGroupScalingPolicy(out **api.ScalingPolicy, list *ast.ObjectList) error {
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'scaling' block allowed")
+	}
+	item := list.Items[0]
+	if len(item.Keys) != 0 {
+		return fmt.Errorf("task group scaling policy should not have a name")
+	}
+	p, err := parseScalingPolicy(item)
+	if err != nil {
+		return err
+	}
+
+	// group-specific validation
+	if p.Max == nil {
+		return fmt.Errorf("missing 'max'")
+	}
+	if p.Type == "" {
+		p.Type = "horizontal"
+	} else if p.Type != "horizontal" {
+		return fmt.Errorf("task group scaling policy had invalid type: %q", p.Type)
+	}
+	*out = p
+	return nil
+}
+
+func parseScalingPolicy(item *ast.ObjectItem) (*api.ScalingPolicy, error) {
+	// We need this later
+	var listVal *ast.ObjectList
+	if ot, ok := item.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return nil, fmt.Errorf("should be an object")
+	}
+
+	valid := []string{
+		"min",
+		"max",
+		"policy",
+		"enabled",
+		"type",
+	}
+	if err := checkHCLKeys(item.Val, valid); err != nil {
+		return nil, err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, item.Val); err != nil {
+		return nil, err
+	}
+	delete(m, "policy")
+
+	var result api.ScalingPolicy
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		WeaklyTypedInput: true,
+		Result:           &result,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
+
+	// If we have policy, then parse that
+	if o := listVal.Filter("policy"); len(o.Items) > 0 {
+		if len(o.Elem().Items) > 1 {
+			return nil, fmt.Errorf("only one 'policy' block allowed per 'scaling' block")
+		}
+		p := o.Elem().Items[0]
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, p.Val); err != nil {
+			return nil, err
+		}
+		if err := mapstructure.WeakDecode(m, &result.Policy); err != nil {
+			return nil, err
+		}
+	}
+
+	return &result, nil
 }

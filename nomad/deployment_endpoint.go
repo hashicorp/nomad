@@ -28,9 +28,11 @@ func (d *Deployment) GetDeployment(args *structs.DeploymentSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "get_deployment"}, time.Now())
 
 	// Check namespace read-job permissions
-	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityReadJob)
+	aclObj, err := d.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	} else if !allowNsOp(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -48,6 +50,12 @@ func (d *Deployment) GetDeployment(args *structs.DeploymentSpecificRequest,
 			out, err := state.DeploymentByID(ws, args.DeploymentID)
 			if err != nil {
 				return err
+			}
+
+			// Re-check namespace in case it differs from request.
+			if out != nil && !allowNsOp(aclObj, out.Namespace) {
+				// hide this deployment, caller is not authorized to view it
+				out = nil
 			}
 
 			// Setup the output
@@ -77,13 +85,6 @@ func (d *Deployment) Fail(args *structs.DeploymentFailRequest, reply *structs.De
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "fail"}, time.Now())
 
-	// Check namespace submit-job permissions
-	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
-		return structs.ErrPermissionDenied
-	}
-
 	// Validate the arguments
 	if args.DeploymentID == "" {
 		return fmt.Errorf("missing deployment ID")
@@ -104,8 +105,15 @@ func (d *Deployment) Fail(args *structs.DeploymentFailRequest, reply *structs.De
 		return fmt.Errorf("deployment not found")
 	}
 
+	// Check namespace submit-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(deploy.Namespace, acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	if !deploy.Active() {
-		return fmt.Errorf("can't fail terminal deployment")
+		return structs.ErrDeploymentTerminalNoFail
 	}
 
 	// Call into the deployment watcher
@@ -119,13 +127,6 @@ func (d *Deployment) Pause(args *structs.DeploymentPauseRequest, reply *structs.
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "pause"}, time.Now())
 
-	// Check namespace submit-job permissions
-	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
-		return structs.ErrPermissionDenied
-	}
-
 	// Validate the arguments
 	if args.DeploymentID == "" {
 		return fmt.Errorf("missing deployment ID")
@@ -146,12 +147,19 @@ func (d *Deployment) Pause(args *structs.DeploymentPauseRequest, reply *structs.
 		return fmt.Errorf("deployment not found")
 	}
 
+	// Check namespace submit-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(deploy.Namespace, acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	if !deploy.Active() {
 		if args.Pause {
-			return fmt.Errorf("can't pause terminal deployment")
+			return structs.ErrDeploymentTerminalNoPause
 		}
 
-		return fmt.Errorf("can't resume terminal deployment")
+		return structs.ErrDeploymentTerminalNoResume
 	}
 
 	// Call into the deployment watcher
@@ -165,12 +173,47 @@ func (d *Deployment) Promote(args *structs.DeploymentPromoteRequest, reply *stru
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "promote"}, time.Now())
 
+	// Validate the arguments
+	if args.DeploymentID == "" {
+		return fmt.Errorf("missing deployment ID")
+	}
+
+	// Lookup the deployment
+	snap, err := d.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	deploy, err := snap.DeploymentByID(ws, args.DeploymentID)
+	if err != nil {
+		return err
+	}
+	if deploy == nil {
+		return fmt.Errorf("deployment not found")
+	}
+
 	// Check namespace submit-job permissions
 	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+	} else if aclObj != nil && !aclObj.AllowNsOp(deploy.Namespace, acl.NamespaceCapabilitySubmitJob) {
 		return structs.ErrPermissionDenied
 	}
+
+	if !deploy.Active() {
+		return structs.ErrDeploymentTerminalNoPromote
+	}
+
+	// Call into the deployment watcher
+	return d.srv.deploymentWatcher.PromoteDeployment(args, reply)
+}
+
+// Run is used to start a pending deployment
+func (d *Deployment) Run(args *structs.DeploymentRunRequest, reply *structs.DeploymentUpdateResponse) error {
+	if done, err := d.srv.forward("Deployment.Run", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "deployment", "run"}, time.Now())
 
 	// Validate the arguments
 	if args.DeploymentID == "" {
@@ -192,12 +235,103 @@ func (d *Deployment) Promote(args *structs.DeploymentPromoteRequest, reply *stru
 		return fmt.Errorf("deployment not found")
 	}
 
+	// Check namespace submit-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(deploy.Namespace, acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	if !deploy.Active() {
-		return fmt.Errorf("can't promote terminal deployment")
+		return structs.ErrDeploymentTerminalNoRun
 	}
 
 	// Call into the deployment watcher
-	return d.srv.deploymentWatcher.PromoteDeployment(args, reply)
+	return d.srv.deploymentWatcher.RunDeployment(args, reply)
+}
+
+// Unblock is used to unblock a deployment
+func (d *Deployment) Unblock(args *structs.DeploymentUnblockRequest, reply *structs.DeploymentUpdateResponse) error {
+	if done, err := d.srv.forward("Deployment.Unblock", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "deployment", "unblock"}, time.Now())
+
+	// Validate the arguments
+	if args.DeploymentID == "" {
+		return fmt.Errorf("missing deployment ID")
+	}
+
+	// Lookup the deployment
+	snap, err := d.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	deploy, err := snap.DeploymentByID(ws, args.DeploymentID)
+	if err != nil {
+		return err
+	}
+	if deploy == nil {
+		return fmt.Errorf("deployment not found")
+	}
+
+	// Check namespace submit-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(deploy.Namespace, acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
+	if !deploy.Active() {
+		return structs.ErrDeploymentTerminalNoUnblock
+	}
+
+	// Call into the deployment watcher
+	return d.srv.deploymentWatcher.UnblockDeployment(args, reply)
+}
+
+// Cancel is used to cancel a deployment
+func (d *Deployment) Cancel(args *structs.DeploymentCancelRequest, reply *structs.DeploymentUpdateResponse) error {
+	if done, err := d.srv.forward("Deployment.Cancel", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "deployment", "cancel"}, time.Now())
+
+	// Validate the arguments
+	if args.DeploymentID == "" {
+		return fmt.Errorf("missing deployment ID")
+	}
+
+	// Lookup the deployment
+	snap, err := d.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	deploy, err := snap.DeploymentByID(ws, args.DeploymentID)
+	if err != nil {
+		return err
+	}
+	if deploy == nil {
+		return fmt.Errorf("deployment not found")
+	}
+
+	// Check namespace submit-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(deploy.Namespace, acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
+	if !deploy.Active() {
+		return structs.ErrDeploymentTerminalNoCancel
+	}
+
+	// Call into the deployment watcher
+	return d.srv.deploymentWatcher.CancelDeployment(args, reply)
 }
 
 // SetAllocHealth is used to set the health of allocations that are part of the
@@ -207,13 +341,6 @@ func (d *Deployment) SetAllocHealth(args *structs.DeploymentAllocHealthRequest, 
 		return err
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "set_alloc_health"}, time.Now())
-
-	// Check namespace submit-job permissions
-	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
-		return structs.ErrPermissionDenied
-	}
 
 	// Validate the arguments
 	if args.DeploymentID == "" {
@@ -239,8 +366,15 @@ func (d *Deployment) SetAllocHealth(args *structs.DeploymentAllocHealthRequest, 
 		return fmt.Errorf("deployment not found")
 	}
 
+	// Check namespace submit-job permissions
+	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(deploy.Namespace, acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
 	if !deploy.Active() {
-		return fmt.Errorf("can't set health of allocations for a terminal deployment")
+		return structs.ErrDeploymentTerminalNoSetHealth
 	}
 
 	// Call into the deployment watcher
@@ -254,7 +388,8 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "list"}, time.Now())
 
-	// Check namespace read-job permissions
+	// Check namespace read-job permissions against request namespace since
+	// results are filtered by request namespace.
 	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
@@ -310,10 +445,14 @@ func (d *Deployment) Allocations(args *structs.DeploymentSpecificRequest, reply 
 	}
 	defer metrics.MeasureSince([]string{"nomad", "deployment", "allocations"}, time.Now())
 
-	// Check namespace read-job permissions
-	if aclObj, err := d.srv.ResolveToken(args.AuthToken); err != nil {
+	// Check namespace read-job permissions against the request namespace.
+	// Must re-check against the alloc namespace when they return to ensure
+	// there's no namespace mismatch.
+	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityReadJob)
+	aclObj, err := d.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+	} else if !allowNsOp(aclObj, args.RequestNamespace()) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -328,9 +467,18 @@ func (d *Deployment) Allocations(args *structs.DeploymentSpecificRequest, reply 
 				return err
 			}
 
+			// Deployments do not span namespaces so just check the
+			// first allocs namespace.
+			if len(allocs) > 0 {
+				ns := allocs[0].Namespace
+				if ns != args.RequestNamespace() && !allowNsOp(aclObj, ns) {
+					return structs.ErrPermissionDenied
+				}
+			}
+
 			stubs := make([]*structs.AllocListStub, 0, len(allocs))
 			for _, alloc := range allocs {
-				stubs = append(stubs, alloc.Stub())
+				stubs = append(stubs, alloc.Stub(nil))
 			}
 			reply.Allocations = stubs
 

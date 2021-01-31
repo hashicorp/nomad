@@ -20,7 +20,7 @@ func Field(r RR, i int) string {
 		return ""
 	}
 	d := reflect.ValueOf(r).Elem().Field(i)
-	switch k := d.Kind(); k {
+	switch d.Kind() {
 	case reflect.String:
 		return d.String()
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -31,6 +31,9 @@ func Field(r RR, i int) string {
 		switch reflect.ValueOf(r).Elem().Type().Field(i).Tag {
 		case `dns:"a"`:
 			// TODO(miek): Hmm store this as 16 bytes
+			if d.Len() < net.IPv4len {
+				return ""
+			}
 			if d.Len() < net.IPv6len {
 				return net.IPv4(byte(d.Index(0).Uint()),
 					byte(d.Index(1).Uint()),
@@ -42,6 +45,9 @@ func Field(r RR, i int) string {
 				byte(d.Index(14).Uint()),
 				byte(d.Index(15).Uint())).String()
 		case `dns:"aaaa"`:
+			if d.Len() < net.IPv6len {
+				return ""
+			}
 			return net.IP{
 				byte(d.Index(0).Uint()),
 				byte(d.Index(1).Uint()),
@@ -67,15 +73,6 @@ func Field(r RR, i int) string {
 			s := Type(d.Index(0).Uint()).String()
 			for i := 1; i < d.Len(); i++ {
 				s += " " + Type(d.Index(i).Uint()).String()
-			}
-			return s
-		case `dns:"wks"`:
-			if d.Len() == 0 {
-				return ""
-			}
-			s := strconv.Itoa(int(d.Index(0).Uint()))
-			for i := 0; i < d.Len(); i++ {
-				s += " " + strconv.Itoa(int(d.Index(i).Uint()))
 			}
 			return s
 		default:

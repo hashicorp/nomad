@@ -4,13 +4,21 @@
 
 job "restarter" {
   datacenters = ["dc1"]
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "restarter" {
     restart {
       attempts = 100
       delay    = "3s"
     }
+
     task "restarter" {
       driver = "raw_exec"
+
       config {
         command = "/bin/bash"
         args    = ["-c", "echo $$ >> pid && sleep 1 && exit 99"]

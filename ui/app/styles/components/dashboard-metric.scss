@@ -1,0 +1,58 @@
+.dashboard-metric {
+  &:not(:last-child) {
+    margin-bottom: 1.5em;
+  }
+
+  &.column:not(:last-child) {
+    margin-bottom: 0;
+  }
+
+  .metric {
+    text-align: left;
+    font-weight: $weight-bold;
+    font-size: $size-3;
+
+    .metric-units {
+      font-size: $size-4;
+    }
+
+    .metric-label {
+      font-size: $body-size;
+      font-weight: $weight-normal;
+    }
+  }
+
+  .graphic {
+    padding-bottom: 0;
+    margin-bottom: 0;
+
+    > .column {
+      padding: 0.5rem 0.75rem;
+    }
+  }
+
+  .annotation {
+    margin-top: -0.75rem;
+  }
+
+  &.with-divider {
+    border-top: 1px solid $grey-blue;
+    padding-top: 1.5em;
+  }
+
+  .pair,
+  .minor-pair {
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pair {
+    font-size: $size-5;
+  }
+
+  .is-faded {
+    color: darken($grey-blue, 20%);
+  }
+}

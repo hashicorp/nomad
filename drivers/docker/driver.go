@@ -1,8 +1,11 @@
 package docker
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -20,10 +23,10 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
+	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared/structs"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
@@ -66,6 +69,10 @@ var (
 	nvidiaVisibleDevices = "NVIDIA_VISIBLE_DEVICES"
 )
 
+const (
+	dockerLabelAllocID = "com.hashicorp.nomad.alloc_id"
+)
+
 type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
@@ -82,10 +89,6 @@ type Driver struct {
 	// ctx is the context for the driver. It is passed to other subsystems to
 	// coordinate shutdown
 	ctx context.Context
-
-	// signalShutdown is called when the driver is shutting down and cancels the
-	// ctx passed to any subsystems
-	signalShutdown context.CancelFunc
 
 	// tasks is the in memory datastore mapping taskIDs to taskHandles
 	tasks *taskStore
@@ -108,23 +111,23 @@ type Driver struct {
 	// for use during fingerprinting.
 	detected     bool
 	detectedLock sync.RWMutex
+
+	reconciler *containerReconciler
 }
 
 // NewDockerDriver returns a docker implementation of a driver plugin
-func NewDockerDriver(logger hclog.Logger) drivers.DriverPlugin {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewDockerDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	return &Driver{
-		eventer:        eventer.NewEventer(ctx, logger),
-		config:         &DriverConfig{},
-		tasks:          newTaskStore(),
-		ctx:            ctx,
-		signalShutdown: cancel,
-		logger:         logger,
+		eventer: eventer.NewEventer(ctx, logger),
+		config:  &DriverConfig{},
+		tasks:   newTaskStore(),
+		ctx:     ctx,
+		logger:  logger,
 	}
 }
 
-func (d *Driver) reattachToDockerLogger(reattachConfig *structs.ReattachConfig) (docklog.DockerLogger, *plugin.Client, error) {
+func (d *Driver) reattachToDockerLogger(reattachConfig *pstructs.ReattachConfig) (docklog.DockerLogger, *plugin.Client, error) {
 	reattach, err := pstructs.ReattachConfigToGoPlugin(reattachConfig)
 	if err != nil {
 		return nil, nil, err
@@ -185,7 +188,9 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to get docker client: %v", err)
 	}
 
-	container, err := client.InspectContainer(handleState.ContainerID)
+	container, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: handleState.ContainerID,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to inspect container for id %q: %v", handleState.ContainerID, err)
 	}
@@ -203,23 +208,25 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		net:                   handleState.DriverNetwork,
 	}
 
-	h.dlogger, h.dloggerPluginClient, err = d.reattachToDockerLogger(handleState.ReattachConfig)
-	if err != nil {
-		d.logger.Warn("failed to reattach to docker logger process", "error", err)
-
-		h.dlogger, h.dloggerPluginClient, err = d.setupNewDockerLogger(container, handle.Config, time.Now())
+	if !d.config.DisableLogCollection {
+		h.dlogger, h.dloggerPluginClient, err = d.reattachToDockerLogger(handleState.ReattachConfig)
 		if err != nil {
-			if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
-				d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
-			}
-			return fmt.Errorf("failed to setup replacement docker logger: %v", err)
-		}
+			d.logger.Warn("failed to reattach to docker logger process", "error", err)
 
-		if err := handle.SetDriverState(h.buildState()); err != nil {
-			if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
-				d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+			h.dlogger, h.dloggerPluginClient, err = d.setupNewDockerLogger(container, handle.Config, time.Now())
+			if err != nil {
+				if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
+					d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+				}
+				return fmt.Errorf("failed to setup replacement docker logger: %v", err)
 			}
-			return fmt.Errorf("failed to store driver state: %v", err)
+
+			if err := handle.SetDriverState(h.buildState()); err != nil {
+				if err := client.StopContainer(handleState.ContainerID, 0); err != nil {
+					d.logger.Warn("failed to stop container during cleanup", "container_id", handleState.ContainerID, "error", err)
+				}
+				return fmt.Errorf("failed to store driver state: %v", err)
+			}
 		}
 	}
 
@@ -244,10 +251,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("image name required for docker driver")
 	}
 
-	// Remove any http
-	if strings.HasPrefix(driverConfig.Image, "https://") {
-		driverConfig.Image = strings.Replace(driverConfig.Image, "https://", "", 1)
-	}
+	driverConfig.Image = strings.TrimPrefix(driverConfig.Image, "https://")
 
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
@@ -261,6 +265,13 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	id, err := d.createImage(cfg, &driverConfig, client)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	if runtime.GOOS == "windows" {
+		err = d.convertAllocPathsForWindowsLCOW(cfg, driverConfig.Image)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	containerCfg, err := d.createContainerConfig(cfg, &driverConfig, driverConfig.Image)
@@ -304,11 +315,16 @@ CREATE:
 			return nil, nil, nstructs.WrapRecoverable(fmt.Sprintf("Failed to start container %s: %s", container.ID, err), err)
 		}
 
-		// InspectContainer to get all of the container metadata as
-		// much of the metadata (eg networking) isn't populated until
-		// the container is started
-		runningContainer, err := client.InspectContainer(container.ID)
+		// Inspect container to get all of the container metadata as much of the
+		// metadata (eg networking) isn't populated until the container is started
+		runningContainer, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+			ID: container.ID,
+		})
 		if err != nil {
+			client.RemoveContainer(docker.RemoveContainerOptions{
+				ID:    container.ID,
+				Force: true,
+			})
 			msg := "failed to inspect started container"
 			d.logger.Error(msg, "error", err)
 			client.RemoveContainer(docker.RemoveContainerOptions{
@@ -324,11 +340,18 @@ CREATE:
 			container.ID, "container_state", container.State.String())
 	}
 
-	dlogger, pluginClient, err := d.setupNewDockerLogger(container, cfg, time.Unix(0, 0))
-	if err != nil {
-		d.logger.Error("an error occurred after container startup, terminating container", "container_id", container.ID)
-		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
-		return nil, nil, err
+	collectingLogs := !d.config.DisableLogCollection
+
+	var dlogger docklog.DockerLogger
+	var pluginClient *plugin.Client
+
+	if collectingLogs {
+		dlogger, pluginClient, err = d.setupNewDockerLogger(container, cfg, time.Unix(0, 0))
+		if err != nil {
+			d.logger.Error("an error occurred after container startup, terminating container", "container_id", container.ID)
+			client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
+			return nil, nil, err
+		}
 	}
 
 	// Detect container address
@@ -358,8 +381,10 @@ CREATE:
 
 	if err := handle.SetDriverState(h.buildState()); err != nil {
 		d.logger.Error("error encoding container occurred after startup, terminating container", "container_id", container.ID, "error", err)
-		dlogger.Stop()
-		pluginClient.Kill()
+		if collectingLogs {
+			dlogger.Stop()
+			pluginClient.Kill()
+		}
 		client.RemoveContainer(docker.RemoveContainerOptions{ID: container.ID, Force: true})
 		return nil, nil, err
 	}
@@ -415,16 +440,21 @@ CREATE:
 			return container, nil
 		}
 
-		// Delete matching containers
-		err = client.RemoveContainer(docker.RemoveContainerOptions{
-			ID:    container.ID,
-			Force: true,
-		})
-		if err != nil {
-			d.logger.Error("failed to purge container", "container_id", container.ID)
-			return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
-		} else {
-			d.logger.Info("purged container", "container_id", container.ID)
+		// Purge conflicting container if found.
+		// If container is nil here, the conflicting container was
+		// deleted in our check here, so retry again.
+		if container != nil {
+			// Delete matching containers
+			err = client.RemoveContainer(docker.RemoveContainerOptions{
+				ID:    container.ID,
+				Force: true,
+			})
+			if err != nil {
+				d.logger.Error("failed to purge container", "container_id", container.ID)
+				return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %s", container.ID, err))
+			} else {
+				d.logger.Info("purged container", "container_id", container.ID)
+			}
 		}
 
 		if attempted < 5 {
@@ -483,8 +513,6 @@ func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	image := driverConfig.Image
 	repo, tag := parseDockerImage(image)
 
-	callerID := fmt.Sprintf("%s-%s", task.ID, task.Name)
-
 	// We're going to check whether the image is already downloaded. If the tag
 	// is "latest", or ForcePull is set, we have to check for a new version every time so we don't
 	// bother to check and cache the id here. We'll download first, then cache.
@@ -493,7 +521,7 @@ func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	} else if tag != "latest" {
 		if dockerImage, _ := client.InspectImage(image); dockerImage != nil {
 			// Image exists so just increment its reference count
-			d.coordinator.IncrementImageReference(dockerImage.ID, image, callerID)
+			d.coordinator.IncrementImageReference(dockerImage.ID, image, task.ID)
 			return dockerImage.ID, nil
 		}
 	}
@@ -533,7 +561,12 @@ func (d *Driver) pullImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 		},
 	})
 
-	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task))
+	pullDur, err := time.ParseDuration(driverConfig.ImagePullTimeout)
+	if err != nil {
+		return "", fmt.Errorf("Failed to parse image_pull_timeout: %v", err)
+	}
+
+	return d.coordinator.PullImage(driverConfig.Image, authOptions, task.ID, d.emitEventFunc(task), pullDur, d.config.pullActivityTimeoutDuration)
 }
 
 func (d *Driver) emitEventFunc(task *drivers.TaskConfig) LogEventFn {
@@ -587,8 +620,24 @@ func (d *Driver) loadImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 	return dockerImage.ID, nil
 }
 
-func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConfig) ([]string, error) {
+func (d *Driver) convertAllocPathsForWindowsLCOW(task *drivers.TaskConfig, image string) error {
+	imageConfig, err := client.InspectImage(image)
+	if err != nil {
+		return fmt.Errorf("the image does not exist: %v", err)
+	}
+	// LCOW If we are running a Linux Container on Windows, we need to mount it correctly, as c:\ does not exist on unix
+	if imageConfig.OS == "linux" {
+		a := []rune(task.Env[taskenv.AllocDir])
+		task.Env[taskenv.AllocDir] = strings.ReplaceAll(string(a[2:]), "\\", "/")
+		l := []rune(task.Env[taskenv.TaskLocalDir])
+		task.Env[taskenv.TaskLocalDir] = strings.ReplaceAll(string(l[2:]), "\\", "/")
+		s := []rune(task.Env[taskenv.SecretsDir])
+		task.Env[taskenv.SecretsDir] = strings.ReplaceAll(string(s[2:]), "\\", "/")
+	}
+	return nil
+}
 
+func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConfig) ([]string, error) {
 	allocDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir])
 	taskLocalBind := fmt.Sprintf("%s:%s", task.TaskDir().LocalDir, task.Env[taskenv.TaskLocalDir])
 	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir])
@@ -642,6 +691,68 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	return binds, nil
 }
 
+var userMountToUnixMount = map[string]string{
+	// Empty string maps to `rprivate` for backwards compatibility in restored
+	// older tasks, where mount propagation will not be present.
+	"":                                     "rprivate",
+	nstructs.VolumeMountPropagationPrivate: "rprivate",
+	nstructs.VolumeMountPropagationHostToTask:    "rslave",
+	nstructs.VolumeMountPropagationBidirectional: "rshared",
+}
+
+// takes a local seccomp daemon, reads the file contents for sending to the daemon
+// this code modified slightly from the docker CLI code
+// https://github.com/docker/cli/blob/8ef8547eb6934b28497d309d21e280bcd25145f5/cli/command/container/opts.go#L840
+func parseSecurityOpts(securityOpts []string) ([]string, error) {
+	for key, opt := range securityOpts {
+		con := strings.SplitN(opt, "=", 2)
+		if len(con) == 1 && con[0] != "no-new-privileges" {
+			if strings.Contains(opt, ":") {
+				con = strings.SplitN(opt, ":", 2)
+			} else {
+				return securityOpts, fmt.Errorf("invalid security_opt: %q", opt)
+			}
+		}
+		if con[0] == "seccomp" && con[1] != "unconfined" {
+			f, err := ioutil.ReadFile(con[1])
+			if err != nil {
+				return securityOpts, fmt.Errorf("opening seccomp profile (%s) failed: %v", con[1], err)
+			}
+			b := bytes.NewBuffer(nil)
+			if err := json.Compact(b, f); err != nil {
+				return securityOpts, fmt.Errorf("compacting json for seccomp profile (%s) failed: %v", con[1], err)
+			}
+			securityOpts[key] = fmt.Sprintf("seccomp=%s", b.Bytes())
+		}
+	}
+
+	return securityOpts, nil
+}
+
+// memoryLimits computes the memory and memory_reservation values passed along to
+// the docker host config. These fields represent hard and soft memory limits from
+// docker's perspective, respectively.
+//
+// The memory field on the task configuration can be interpreted as a hard or soft
+// limit. Before Nomad v0.11.3, it was always a hard limit. Now, it is interpreted
+// as a soft limit if the memory_hard_limit value is configured on the docker
+// task driver configuration. When memory_hard_limit is set, the docker host
+// config is configured such that the memory field is equal to memory_hard_limit
+// value, and the memory_reservation field is set to the task driver memory value.
+//
+// If memory_hard_limit is not set (i.e. zero value), then the memory field of
+// the task resource config is interpreted as a hard limit. In this case both the
+// memory is set to the task resource memory value and memory_reservation is left
+// unset.
+//
+// Returns (memory (hard), memory_reservation (soft)) values in bytes.
+func (_ *Driver) memoryLimits(driverHardLimitMB, taskMemoryLimitBytes int64) (int64, int64) {
+	if driverHardLimitMB <= 0 {
+		return taskMemoryLimitBytes, 0
+	}
+	return driverHardLimitMB * 1024 * 1024, taskMemoryLimitBytes
+}
+
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (docker.CreateContainerOptions, error) {
 
@@ -656,7 +767,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		logger.Error("task.Resources is empty")
 		return c, fmt.Errorf("task.Resources is empty")
 	}
-
 	binds, err := d.containerBinds(task, driverConfig)
 	if err != nil {
 		return c, err
@@ -677,8 +787,26 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		config.WorkingDir = driverConfig.WorkDir
 	}
 
+	containerRuntime := driverConfig.Runtime
+	if _, ok := task.DeviceEnv[nvidiaVisibleDevices]; ok {
+		if !d.gpuRuntime {
+			return c, fmt.Errorf("requested docker runtime %q was not found", d.config.GPURuntimeName)
+		}
+		if containerRuntime != "" && containerRuntime != d.config.GPURuntimeName {
+			return c, fmt.Errorf("conflicting runtime requests: gpu runtime %q conflicts with task runtime %q", d.config.GPURuntimeName, containerRuntime)
+		}
+		containerRuntime = d.config.GPURuntimeName
+	}
+	if _, ok := d.config.allowRuntimes[containerRuntime]; !ok && containerRuntime != "" {
+		return c, fmt.Errorf("requested runtime %q is not allowed", containerRuntime)
+	}
+
+	memory, memoryReservation := d.memoryLimits(driverConfig.MemoryHardLimit, task.Resources.LinuxResources.MemoryLimitBytes)
+
 	hostConfig := &docker.HostConfig{
-		Memory:    task.Resources.LinuxResources.MemoryLimitBytes,
+		Memory:            memory,            // hard limit
+		MemoryReservation: memoryReservation, // soft limit
+
 		CPUShares: task.Resources.LinuxResources.CPUShares,
 
 		// Binds are used to mount a host volume into the container. We mount a
@@ -689,14 +817,15 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		StorageOpt:   driverConfig.StorageOpt,
 		VolumeDriver: driverConfig.VolumeDriver,
 
-		PidsLimit: driverConfig.PidsLimit,
+		PidsLimit: &driverConfig.PidsLimit,
+
+		Runtime: containerRuntime,
 	}
 
-	if _, ok := task.DeviceEnv[nvidiaVisibleDevices]; ok {
-		if !d.gpuRuntime {
-			return c, fmt.Errorf("requested docker-runtime %q was not found", d.config.GPURuntimeName)
-		}
-		hostConfig.Runtime = d.config.GPURuntimeName
+	// This translates to docker create/run --cpuset-cpus option.
+	// --cpuset-cpus limit the specific CPUs or cores a container can use.
+	if driverConfig.CPUSetCPUs != "" {
+		hostConfig.CPUSetCPUs = driverConfig.CPUSetCPUs
 	}
 
 	// Calculate CPU Quota
@@ -718,9 +847,14 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	// Windows does not support MemorySwap/MemorySwappiness #2193
 	if runtime.GOOS == "windows" {
 		hostConfig.MemorySwap = 0
-		hostConfig.MemorySwappiness = -1
+		hostConfig.MemorySwappiness = nil
 	} else {
-		hostConfig.MemorySwap = task.Resources.LinuxResources.MemoryLimitBytes // MemorySwap is memory + swap.
+		hostConfig.MemorySwap = memory
+
+		// disable swap explicitly in non-Windows environments
+		var swapiness int64 = 0
+		hostConfig.MemorySwappiness = &swapiness
+
 	}
 
 	loggingDriver := driverConfig.Logging.Type
@@ -742,9 +876,11 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 	}
 
-	logger.Debug("configured resources", "memory", hostConfig.Memory,
+	logger.Debug("configured resources",
+		"memory", hostConfig.Memory, "memory_reservation", hostConfig.MemoryReservation,
 		"cpu_shares", hostConfig.CPUShares, "cpu_quota", hostConfig.CPUQuota,
 		"cpu_period", hostConfig.CPUPeriod)
+
 	logger.Debug("binding directories", "binds", hclog.Fmt("%#v", hostConfig.Binds))
 
 	//  set privileged mode
@@ -778,7 +914,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			}
 		}
 		if len(missingCaps) > 0 {
-			return c, fmt.Errorf("Docker driver doesn't have the following caps whitelisted on this Nomad agent: %s", missingCaps)
+			return c, fmt.Errorf("Docker driver doesn't have the following caps allowlisted on this Nomad agent: %s", missingCaps)
 		}
 	}
 
@@ -788,15 +924,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	// set SHM size
 	if driverConfig.ShmSize != 0 {
 		hostConfig.ShmSize = driverConfig.ShmSize
-	}
-
-	// set DNS servers
-	for _, ip := range driverConfig.DNSServers {
-		if net.ParseIP(ip) != nil {
-			hostConfig.DNS = append(hostConfig.DNS, ip)
-		} else {
-			logger.Error("invalid ip address for container dns server", "ip", ip)
-		}
 	}
 
 	// Setup devices
@@ -817,34 +944,73 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	// Setup mounts
 	for _, m := range driverConfig.Mounts {
-		hm, err := m.toDockerHostMount()
+		hm, err := d.toDockerMount(&m, task)
 		if err != nil {
 			return c, err
 		}
+		hostConfig.Mounts = append(hostConfig.Mounts, *hm)
+	}
+	for _, m := range driverConfig.MountsList {
+		hm, err := d.toDockerMount(&m, task)
+		if err != nil {
+			return c, err
+		}
+		hostConfig.Mounts = append(hostConfig.Mounts, *hm)
+	}
 
-		if hm.Type == "bind" {
-			hm.Source = expandPath(task.TaskDir().Dir, hm.Source)
+	// Setup DNS
+	// If task DNS options are configured Nomad will manage the resolv.conf file
+	// Docker driver dns options are not compatible with task dns options
+	if task.DNS != nil {
+		dnsMount, err := resolvconf.GenerateDNSMount(task.TaskDir().Dir, task.DNS)
+		if err != nil {
+			return c, fmt.Errorf("failed to build mount for resolv.conf: %v", err)
+		}
+		hostConfig.Mounts = append(hostConfig.Mounts, docker.HostMount{
+			Target:   dnsMount.TaskPath,
+			Source:   dnsMount.HostPath,
+			Type:     "bind",
+			ReadOnly: dnsMount.Readonly,
+			BindOptions: &docker.BindOptions{
+				Propagation: dnsMount.PropagationMode,
+			},
+		})
+	} else {
+		if len(driverConfig.DNSSearchDomains) > 0 {
+			hostConfig.DNSSearch = driverConfig.DNSSearchDomains
+		}
+		if len(driverConfig.DNSOptions) > 0 {
+			hostConfig.DNSOptions = driverConfig.DNSOptions
+		}
+		// set DNS servers
+		for _, ip := range driverConfig.DNSServers {
+			if net.ParseIP(ip) != nil {
+				hostConfig.DNS = append(hostConfig.DNS, ip)
+			} else {
+				logger.Error("invalid ip address for container dns server", "ip", ip)
+			}
+		}
+	}
 
-			// paths inside alloc dir are always allowed as they mount within a container, and treated as relative to task dir
-			if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, hm.Source) {
-				return c, fmt.Errorf("volumes are not enabled; cannot mount host path: %q %q", hm.Source, task.AllocDir)
+	for _, m := range task.Mounts {
+		hm := docker.HostMount{
+			Type:     "bind",
+			Target:   m.TaskPath,
+			Source:   m.HostPath,
+			ReadOnly: m.Readonly,
+		}
+
+		// MountPropagation is only supported by Docker on Linux:
+		// https://docs.docker.com/storage/bind-mounts/#configure-bind-propagation
+		if runtime.GOOS == "linux" {
+			hm.BindOptions = &docker.BindOptions{
+				Propagation: userMountToUnixMount[m.PropagationMode],
 			}
 		}
 
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
 	}
-	for _, m := range task.Mounts {
-		hostConfig.Mounts = append(hostConfig.Mounts, docker.HostMount{
-			Type:     "bind",
-			Target:   m.TaskPath,
-			Source:   m.HostPath,
-			ReadOnly: m.Readonly,
-		})
-	}
 
-	// set DNS search domains and extra hosts
-	hostConfig.DNSSearch = driverConfig.DNSSearchDomains
-	hostConfig.DNSOptions = driverConfig.DNSOptions
 	hostConfig.ExtraHosts = driverConfig.ExtraHosts
 
 	hostConfig.IpcMode = driverConfig.IPCMode
@@ -853,6 +1019,11 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	hostConfig.UsernsMode = driverConfig.UsernsMode
 	hostConfig.SecurityOpt = driverConfig.SecurityOpt
 	hostConfig.Sysctls = driverConfig.Sysctl
+
+	hostConfig.SecurityOpt, err = parseSecurityOpts(driverConfig.SecurityOpt)
+	if err != nil {
+		return c, fmt.Errorf("failed to parse security_opt configuration: %v", err)
+	}
 
 	ulimits, err := sliceMergeUlimit(driverConfig.Ulimit)
 	if err != nil {
@@ -881,62 +1052,42 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	// Setup port mapping and exposed ports
-	if len(task.Resources.NomadResources.Networks) == 0 {
-		logger.Debug("no network interfaces are available")
-		if len(driverConfig.PortMap) > 0 {
-			return c, fmt.Errorf("Trying to map ports but no network interface is available")
+	ports := newPublishedPorts(logger)
+	switch {
+	case task.Resources.Ports != nil && len(driverConfig.Ports) > 0:
+		// Do not set up docker port mapping if shared alloc networking is used
+		if strings.HasPrefix(hostConfig.NetworkMode, "container:") {
+			break
 		}
-	} else {
-		// TODO add support for more than one network
+
+		for _, port := range driverConfig.Ports {
+			if mapping, ok := task.Resources.Ports.Get(port); ok {
+				ports.add(mapping.Label, mapping.HostIP, mapping.Value, mapping.To)
+			} else {
+				return c, fmt.Errorf("Port %q not found, check network stanza", port)
+			}
+		}
+	case len(task.Resources.NomadResources.Networks) > 0:
 		network := task.Resources.NomadResources.Networks[0]
-		publishedPorts := map[docker.Port][]docker.PortBinding{}
-		exposedPorts := map[docker.Port]struct{}{}
 
 		for _, port := range network.ReservedPorts {
-			// By default we will map the allocated port 1:1 to the container
-			containerPortInt := port.Value
-
-			// If the user has mapped a port using port_map we'll change it here
-			if mapped, ok := driverConfig.PortMap[port.Label]; ok {
-				containerPortInt = mapped
-			}
-
-			hostPortStr := strconv.Itoa(port.Value)
-			containerPort := docker.Port(strconv.Itoa(containerPortInt))
-
-			publishedPorts[containerPort+"/tcp"] = getPortBinding(network.IP, hostPortStr)
-			publishedPorts[containerPort+"/udp"] = getPortBinding(network.IP, hostPortStr)
-			logger.Debug("allocated static port", "ip", network.IP, "port", port.Value)
-
-			exposedPorts[containerPort+"/tcp"] = struct{}{}
-			exposedPorts[containerPort+"/udp"] = struct{}{}
-			logger.Debug("exposed port", "port", port.Value)
+			ports.addMapped(port.Label, network.IP, port.Value, driverConfig.PortMap)
 		}
 
 		for _, port := range network.DynamicPorts {
-			// By default we will map the allocated port 1:1 to the container
-			containerPortInt := port.Value
-
-			// If the user has mapped a port using port_map we'll change it here
-			if mapped, ok := driverConfig.PortMap[port.Label]; ok {
-				containerPortInt = mapped
-			}
-
-			hostPortStr := strconv.Itoa(port.Value)
-			containerPort := docker.Port(strconv.Itoa(containerPortInt))
-
-			publishedPorts[containerPort+"/tcp"] = getPortBinding(network.IP, hostPortStr)
-			publishedPorts[containerPort+"/udp"] = getPortBinding(network.IP, hostPortStr)
-			logger.Debug("allocated mapped port", "ip", network.IP, "port", port.Value)
-
-			exposedPorts[containerPort+"/tcp"] = struct{}{}
-			exposedPorts[containerPort+"/udp"] = struct{}{}
-			logger.Debug("exposed port", "port", containerPort)
+			ports.addMapped(port.Label, network.IP, port.Value, driverConfig.PortMap)
 		}
 
-		hostConfig.PortBindings = publishedPorts
-		config.ExposedPorts = exposedPorts
+	default:
+		if len(driverConfig.PortMap) > 0 {
+			if task.Resources.Ports != nil {
+				return c, fmt.Errorf("'port_map' cannot map group network ports, use 'ports' instead")
+			}
+			return c, fmt.Errorf("Trying to map ports but no network interface is available")
+		}
 	}
+	hostConfig.PortBindings = ports.publishedPorts
+	config.ExposedPorts = ports.exposedPorts
 
 	// If the user specified a custom command to run, we'll inject it here.
 	if driverConfig.Command != "" {
@@ -957,8 +1108,15 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	if len(driverConfig.Labels) > 0 {
 		config.Labels = driverConfig.Labels
-		logger.Debug("applied labels on the container", "labels", config.Labels)
 	}
+
+	labels := make(map[string]string, len(driverConfig.Labels)+1)
+	for k, v := range driverConfig.Labels {
+		labels[k] = v
+	}
+	labels[dockerLabelAllocID] = task.AllocID
+	config.Labels = labels
+	logger.Debug("applied labels on the container", "labels", config.Labels)
 
 	config.Env = task.EnvList()
 
@@ -1000,6 +1158,35 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		HostConfig:       hostConfig,
 		NetworkingConfig: networkingConfig,
 	}, nil
+}
+
+func (d *Driver) toDockerMount(m *DockerMount, task *drivers.TaskConfig) (*docker.HostMount, error) {
+	hm, err := m.toDockerHostMount()
+	if err != nil {
+		return nil, err
+	}
+
+	switch hm.Type {
+	case "bind":
+		hm.Source = expandPath(task.TaskDir().Dir, hm.Source)
+
+		// paths inside alloc dir are always allowed as they mount within
+		// a container, and treated as relative to task dir
+		if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, hm.Source) {
+			return nil, fmt.Errorf(
+				"volumes are not enabled; cannot mount host path: %q %q",
+				hm.Source, task.AllocDir)
+		}
+	case "tmpfs":
+		// no source, so no sandbox check required
+	default: // "volume", but also any new thing that comes along
+		if !d.config.Volumes.Enabled {
+			return nil, fmt.Errorf(
+				"volumes are not enabled; cannot mount volume: %q", hm.Source)
+		}
+	}
+
+	return &hm, nil
 }
 
 // detectIP of Docker container. Returns the first IP found as well as true if
@@ -1088,7 +1275,9 @@ OUTER:
 		return nil, nil
 	}
 
-	container, err := client.InspectContainer(shimContainer.ID)
+	container, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: shimContainer.ID,
+	})
 	if err != nil {
 		err = fmt.Errorf("Failed to inspect container %s: %s", shimContainer.ID, err)
 
@@ -1139,25 +1328,35 @@ func (d *Driver) handleWait(ctx context.Context, ch chan *drivers.ExitResult, h 
 	}
 }
 
-func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) error {
-	h, ok := d.tasks.Get(taskID)
-	if !ok {
-		return drivers.ErrTaskNotFound
-	}
-
+// parseSignal interprets the signal name into an os.Signal. If no name is
+// provided, the docker driver defaults to SIGTERM. If the OS is Windows and
+// SIGINT is provided, the signal is converted to SIGTERM.
+func (d *Driver) parseSignal(os, signal string) (os.Signal, error) {
+	// Unlike other drivers, docker defaults to SIGTERM, aiming for consistency
+	// with the 'docker stop' command.
+	// https://docs.docker.com/engine/reference/commandline/stop/#extended-description
 	if signal == "" {
-		signal = "SIGINT"
+		signal = "SIGTERM"
 	}
 
 	// Windows Docker daemon does not support SIGINT, SIGTERM is the semantic equivalent that
 	// allows for graceful shutdown before being followed up by a SIGKILL.
 	// Supported signals:
 	//   https://github.com/moby/moby/blob/0111ee70874a4947d93f64b672f66a2a35071ee2/pkg/signal/signal_windows.go#L17-L26
-	if runtime.GOOS == "windows" && signal == "SIGINT" {
+	if os == "windows" && signal == "SIGINT" {
 		signal = "SIGTERM"
 	}
 
-	sig, err := signals.Parse(signal)
+	return signals.Parse(signal)
+}
+
+func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) error {
+	h, ok := d.tasks.Get(taskID)
+	if !ok {
+		return drivers.ErrTaskNotFound
+	}
+
+	sig, err := d.parseSignal(runtime.GOOS, signal)
 	if err != nil {
 		return fmt.Errorf("failed to parse signal: %v", err)
 	}
@@ -1171,7 +1370,9 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 		return drivers.ErrTaskNotFound
 	}
 
-	c, err := h.client.InspectContainer(h.containerID)
+	c, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: h.containerID,
+	})
 	if err != nil {
 		switch err.(type) {
 		case *docker.NoSuchContainer:
@@ -1227,7 +1428,9 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	container, err := client.InspectContainer(h.containerID)
+	container, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: h.containerID,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect container %q: %v", h.containerID, err)
 	}
@@ -1278,7 +1481,10 @@ func (d *Driver) SignalTask(taskID string, signal string) error {
 		return fmt.Errorf("failed to parse signal: %v", err)
 	}
 
-	return h.Signal(sig)
+	// TODO: review whether we can timeout in this and other Docker API
+	// calls without breaking the expected client behavior.
+	// see https://github.com/hashicorp/nomad/issues/9503
+	return h.Signal(context.Background(), sig)
 }
 
 func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
@@ -1400,7 +1606,7 @@ func (d *Driver) dockerClients() (*docker.Client, *docker.Client, error) {
 
 	var err error
 
-	// Onlt initialize the client if it hasn't yet been done
+	// Only initialize the client if it hasn't yet been done
 	if client == nil {
 		client, err = d.newDockerClient(dockerTimeout)
 		if err != nil {
@@ -1471,7 +1677,7 @@ func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
 			return []docker.ULimit{}, fmt.Errorf("Malformed ulimit specification %v: %q, cannot be empty", name, ulimitRaw)
 		}
 		// hard limit is optional
-		if strings.Contains(ulimitRaw, ":") == false {
+		if !strings.Contains(ulimitRaw, ":") {
 			ulimitRaw = ulimitRaw + ":" + ulimitRaw
 		}
 
@@ -1496,10 +1702,6 @@ func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
 		ulimits = append(ulimits, ulimit)
 	}
 	return ulimits, nil
-}
-
-func (d *Driver) Shutdown() {
-	d.signalShutdown()
 }
 
 func isDockerTransientError(err error) bool {

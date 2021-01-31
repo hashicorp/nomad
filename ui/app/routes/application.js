@@ -1,56 +1,71 @@
 import { inject as service } from '@ember/service';
 import { next } from '@ember/runloop';
 import Route from '@ember/routing/route';
-import { AbortError } from 'ember-data/adapters/errors';
+import { AbortError } from '@ember-data/adapter/error';
 import RSVP from 'rsvp';
+import { action } from '@ember/object';
+import classic from 'ember-classic-decorator';
 
-export default Route.extend({
-  config: service(),
-  system: service(),
-  store: service(),
+@classic
+export default class ApplicationRoute extends Route {
+  @service config;
+  @service system;
+  @service store;
+  @service token;
 
-  queryParams: {
+  queryParams = {
     region: {
       refreshModel: true,
     },
-  },
+  };
 
   resetController(controller, isExiting) {
     if (isExiting) {
       controller.set('error', null);
     }
-  },
+  }
 
   beforeModel(transition) {
-    return RSVP.all([this.get('system.regions'), this.get('system.defaultRegion')]).then(
-      promises => {
-        if (!this.get('system.shouldShowRegions')) return promises;
+    const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
+      .perform()
+      .catch();
 
-        const queryParam = transition.queryParams.region;
-        const defaultRegion = this.get('system.defaultRegion.region');
-        const currentRegion = this.get('system.activeRegion') || defaultRegion;
+    const fetchLicense = this.get('system.fetchLicense')
+      .perform()
+      .catch();
 
-        // Only reset the store if the region actually changed
-        if (
-          (queryParam && queryParam !== currentRegion) ||
-          (!queryParam && currentRegion !== defaultRegion)
-        ) {
-          this.system.reset();
-          this.store.unloadAll();
-        }
+    return RSVP.all([
+      this.get('system.regions'),
+      this.get('system.defaultRegion'),
+      fetchLicense,
+      fetchSelfTokenAndPolicies,
+    ]).then(promises => {
+      if (!this.get('system.shouldShowRegions')) return promises;
 
-        this.set('system.activeRegion', queryParam || defaultRegion);
+      const queryParam = transition.to.queryParams.region;
+      const defaultRegion = this.get('system.defaultRegion.region');
+      const currentRegion = this.get('system.activeRegion') || defaultRegion;
 
-        return promises;
+      // Only reset the store if the region actually changed
+      if (
+        (queryParam && queryParam !== currentRegion) ||
+        (!queryParam && currentRegion !== defaultRegion)
+      ) {
+        this.system.reset();
+        this.store.unloadAll();
       }
-    );
-  },
+
+      this.set('system.activeRegion', queryParam || defaultRegion);
+
+      return promises;
+    });
+  }
 
   // Model is being used as a way to transfer the provided region
   // query param to update the controller state.
   model(params) {
     return params.region;
-  },
+  }
 
   setupController(controller, model) {
     const queryParam = model;
@@ -61,24 +76,25 @@ export default Route.extend({
       });
     }
 
-    return this._super(...arguments);
-  },
+    return super.setupController(...arguments);
+  }
 
-  actions: {
-    didTransition() {
-      if (!this.get('config.isTest')) {
-        window.scrollTo(0, 0);
-      }
-    },
+  @action
+  didTransition() {
+    if (!this.get('config.isTest')) {
+      window.scrollTo(0, 0);
+    }
+  }
 
-    willTransition() {
-      this.controllerFor('application').set('error', null);
-    },
+  @action
+  willTransition() {
+    this.controllerFor('application').set('error', null);
+  }
 
-    error(error) {
-      if (!(error instanceof AbortError)) {
-        this.controllerFor('application').set('error', error);
-      }
-    },
-  },
-});
+  @action
+  error(error) {
+    if (!(error instanceof AbortError)) {
+      this.controllerFor('application').set('error', error);
+    }
+  }
+}

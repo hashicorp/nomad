@@ -139,7 +139,7 @@ func TestHTTP_NodeForceEval(t *testing.T) {
 		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc1.JobID)); err != nil {
 			t.Fatal(err)
 		}
-		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -199,7 +199,7 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 		alloc1.TaskStates = make(map[string]*structs.TaskState)
 		alloc1.TaskStates["test"] = taskState
 
-		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -273,16 +273,26 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		require.NotZero(respW.HeaderMap.Get("X-Nomad-Index"))
 
 		// Check the response
-		_, ok := obj.(structs.NodeDrainUpdateResponse)
+		dresp, ok := obj.(structs.NodeDrainUpdateResponse)
 		require.True(ok)
+
+		t.Logf("response index=%v node_update_index=0x%x", respW.HeaderMap.Get("X-Nomad-Index"),
+			dresp.NodeModifyIndex)
 
 		// Check that the node has been updated
 		state := s.Agent.server.State()
 		out, err := state.NodeByID(nil, node.ID)
 		require.Nil(err)
-		require.True(out.Drain)
-		require.NotNil(out.DrainStrategy)
-		require.Equal(10*time.Second, out.DrainStrategy.Deadline)
+
+		// the node must either be in drain mode or in elligible
+		// once the node is recognize as not having any running allocs
+		if out.Drain {
+			require.True(out.Drain)
+			require.NotNil(out.DrainStrategy)
+			require.Equal(10*time.Second, out.DrainStrategy.Deadline)
+		} else {
+			require.Equal(structs.NodeSchedulingIneligible, out.SchedulingEligibility)
+		}
 
 		// Make the HTTP request to unset drain
 		drainReq.DrainSpec = nil
@@ -299,61 +309,6 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		require.Nil(err)
 		require.False(out.Drain)
 		require.Nil(out.DrainStrategy)
-	})
-}
-
-// Tests backwards compatibility code to support pre 0.8 clients
-func TestHTTP_NodeDrain_Compat(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-	httpTest(t, nil, func(s *TestAgent) {
-		// Create the node
-		node := mock.Node()
-		args := structs.NodeRegisterRequest{
-			Node:         node,
-			WriteRequest: structs.WriteRequest{Region: "global"},
-		}
-		var resp structs.NodeUpdateResponse
-		require.Nil(s.Agent.RPC("Node.Register", &args, &resp))
-
-		// Make the HTTP request
-		req, err := http.NewRequest("POST", "/v1/node/"+node.ID+"/drain?enable=true", nil)
-		require.Nil(err)
-		respW := httptest.NewRecorder()
-
-		// Make the request
-		obj, err := s.Server.NodeSpecificRequest(respW, req)
-		require.Nil(err)
-
-		// Check for the index
-		require.NotZero(respW.HeaderMap.Get("X-Nomad-Index"))
-
-		// Check the response
-		_, ok := obj.(structs.NodeDrainUpdateResponse)
-		require.True(ok)
-
-		// Check that the node has been updated
-		state := s.Agent.server.State()
-		out, err := state.NodeByID(nil, node.ID)
-		require.Nil(err)
-		require.True(out.Drain)
-		require.NotNil(out.DrainStrategy)
-		require.Equal(-1*time.Second, out.DrainStrategy.Deadline)
-
-		// Make the HTTP request to unset drain
-		req, err = http.NewRequest("POST", "/v1/node/"+node.ID+"/drain?enable=false", nil)
-		require.Nil(err)
-		respW = httptest.NewRecorder()
-
-		// Make the request
-		_, err = s.Server.NodeSpecificRequest(respW, req)
-		require.Nil(err)
-
-		out, err = state.NodeByID(nil, node.ID)
-		require.Nil(err)
-		require.False(out.Drain)
-		require.Nil(out.DrainStrategy)
-		require.Equal(structs.NodeSchedulingEligible, out.SchedulingEligibility)
 	})
 }
 
@@ -432,7 +387,7 @@ func TestHTTP_NodePurge(t *testing.T) {
 		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc1.JobID)); err != nil {
 			t.Fatal(err)
 		}
-		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

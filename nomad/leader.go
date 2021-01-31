@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
-
-	"strings"
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
@@ -22,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -44,14 +44,9 @@ var minAutopilotVersion = version.Must(version.NewVersion("0.8.0"))
 
 var minSchedulerConfigVersion = version.Must(version.NewVersion("0.9.0"))
 
-// Default configuration for scheduler with preemption enabled for system jobs
-var defaultSchedulerConfig = &structs.SchedulerConfiguration{
-	PreemptionConfig: structs.PreemptionConfig{
-		SystemSchedulerEnabled:  true,
-		BatchSchedulerEnabled:   false,
-		ServiceSchedulerEnabled: false,
-	},
-}
+var minClusterIDVersion = version.Must(version.NewVersion("0.10.4"))
+
+var minJobRegisterAtomicEvalVersion = version.Must(version.NewVersion("0.12.1"))
 
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
@@ -59,38 +54,65 @@ var defaultSchedulerConfig = &structs.SchedulerConfiguration{
 func (s *Server) monitorLeadership() {
 	var weAreLeaderCh chan struct{}
 	var leaderLoop sync.WaitGroup
-	for {
-		select {
-		case isLeader := <-s.leaderCh:
-			switch {
-			case isLeader:
-				if weAreLeaderCh != nil {
-					s.logger.Error("attempted to start the leader loop while running")
-					continue
-				}
 
-				weAreLeaderCh = make(chan struct{})
-				leaderLoop.Add(1)
-				go func(ch chan struct{}) {
-					defer leaderLoop.Done()
-					s.leaderLoop(ch)
-				}(weAreLeaderCh)
-				s.logger.Info("cluster leadership acquired")
+	leaderCh := s.raft.LeaderCh()
 
-			default:
-				if weAreLeaderCh == nil {
-					s.logger.Error("attempted to stop the leader loop while not running")
-					continue
-				}
-
-				s.logger.Debug("shutting down leader loop")
-				close(weAreLeaderCh)
-				leaderLoop.Wait()
-				weAreLeaderCh = nil
-				s.logger.Info("cluster leadership lost")
+	leaderStep := func(isLeader bool) {
+		if isLeader {
+			if weAreLeaderCh != nil {
+				s.logger.Error("attempted to start the leader loop while running")
+				return
 			}
 
+			weAreLeaderCh = make(chan struct{})
+			leaderLoop.Add(1)
+			go func(ch chan struct{}) {
+				defer leaderLoop.Done()
+				s.leaderLoop(ch)
+			}(weAreLeaderCh)
+			s.logger.Info("cluster leadership acquired")
+			return
+		}
+
+		if weAreLeaderCh == nil {
+			s.logger.Error("attempted to stop the leader loop while not running")
+			return
+		}
+
+		s.logger.Debug("shutting down leader loop")
+		close(weAreLeaderCh)
+		leaderLoop.Wait()
+		weAreLeaderCh = nil
+		s.logger.Info("cluster leadership lost")
+	}
+
+	wasLeader := false
+	for {
+		select {
+		case isLeader := <-leaderCh:
+			if wasLeader != isLeader {
+				wasLeader = isLeader
+				// normal case where we went through a transition
+				leaderStep(isLeader)
+			} else if wasLeader && isLeader {
+				// Server lost but then gained leadership immediately.
+				// During this time, this server may have received
+				// Raft transitions that haven't been applied to the FSM
+				// yet.
+				// Ensure that that FSM caught up and eval queues are refreshed
+				s.logger.Warn("cluster leadership lost and gained leadership immediately.  Could indicate network issues, memory paging, or high CPU load.")
+
+				leaderStep(false)
+				leaderStep(true)
+			} else {
+				// Server gained but lost leadership immediately
+				// before it reacted; nothing to do, move on
+				s.logger.Warn("cluster leadership gained and lost leadership immediately.  Could indicate network issues, memory paging, or high CPU load.")
+			}
 		case <-s.shutdownCh:
+			if weAreLeaderCh != nil {
+				leaderStep(false)
+			}
 			return
 		}
 	}
@@ -169,6 +191,26 @@ WAIT:
 			goto RECONCILE
 		case member := <-reconcileCh:
 			s.reconcileMember(member)
+		case errCh := <-s.reassertLeaderCh:
+			// Recompute leader state, by asserting leadership and
+			// repopulating leader states.
+
+			// Check first if we are indeed the leaders first. We
+			// can get into this state when the initial
+			// establishLeadership has failed.
+			// Afterwards we will be waiting for the interval to
+			// trigger a reconciliation and can potentially end up
+			// here. There is no point to reassert because this
+			// agent was never leader in the first place.
+			if !establishedLeader {
+				errCh <- fmt.Errorf("leadership has not been established")
+				continue
+			}
+
+			// refresh leadership state
+			s.revokeLeadership()
+			err := s.establishLeadership(stopCh)
+			errCh <- err
 		}
 	}
 }
@@ -186,12 +228,8 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Disable workers to free half the cores for use in the plan queue and
 	// evaluation broker
-	if numWorkers := len(s.workers); numWorkers > 1 {
-		// Disabling 3/4 of the workers frees CPU for raft and the
-		// plan applier which uses 1/2 the cores.
-		for i := 0; i < (3 * numWorkers / 4); i++ {
-			s.workers[i].SetPause(true)
-		}
+	for _, w := range s.pausableWorkers() {
+		w.SetPause(true)
 	}
 
 	// Initialize and start the autopilot routine
@@ -200,6 +238,10 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Initialize scheduler configuration
 	s.getOrCreateSchedulerConfig()
+
+	// Initialize the ClusterID
+	_, _ = s.ClusterID()
+	// todo: use cluster ID for stuff, later!
 
 	// Enable the plan queue, since we are now the leader
 	s.planQueue.SetEnabled(true)
@@ -220,6 +262,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Enable the NodeDrainer
 	s.nodeDrainer.SetEnabled(true, s.State())
 
+	// Enable the volume watcher, since we are now the leader
+	s.volumeWatcher.SetEnabled(true, s.State())
+
 	// Restore the eval broker state
 	if err := s.restoreEvals(); err != nil {
 		return err
@@ -227,12 +272,16 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Activate the vault client
 	s.vault.SetActive(true)
-	if err := s.restoreRevokingAccessors(); err != nil {
-		return err
-	}
 
 	// Enable the periodic dispatcher, since we are now the leader.
 	s.periodicDispatcher.SetEnabled(true)
+
+	// Activate RPC now that local FSM caught up with Raft (as evident by Barrier call success)
+	// and all leader related components (e.g. broker queue) are enabled.
+	// Auxiliary processes (e.g. background, bookkeeping, and cleanup tasks can start after)
+	s.setConsistentReadReady()
+
+	// Further clean ups and follow up that don't block RPC consistency
 
 	// Restore the periodic dispatcher state
 	if err := s.restorePeriodicDispatcher(); err != nil {
@@ -276,6 +325,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	if s.config.ACLEnabled && s.config.Region != s.config.AuthoritativeRegion {
 		go s.replicateACLPolicies(stopCh)
 		go s.replicateACLTokens(stopCh)
+		go s.replicateNamespaces(stopCh)
 	}
 
 	// Setup any enterprise systems required.
@@ -283,9 +333,157 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
-	s.setConsistentReadReady()
+	// Cleanup orphaned Vault token accessors
+	if err := s.revokeVaultAccessorsOnRestore(); err != nil {
+		return err
+	}
+
+	// Cleanup orphaned Service Identity token accessors
+	if err := s.revokeSITokenAccessorsOnRestore(); err != nil {
+		return err
+	}
 
 	return nil
+}
+
+// replicateNamespaces is used to replicate namespaces from the authoritative
+// region to this region.
+func (s *Server) replicateNamespaces(stopCh chan struct{}) {
+	req := structs.NamespaceListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:     s.config.AuthoritativeRegion,
+			AllowStale: true,
+		},
+	}
+	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
+	s.logger.Debug("starting namespace replication from authoritative region", "region", req.Region)
+
+START:
+	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+		}
+
+		// Rate limit how often we attempt replication
+		limiter.Wait(context.Background())
+
+		// Fetch the list of namespaces
+		var resp structs.NamespaceListResponse
+		req.AuthToken = s.ReplicationToken()
+		err := s.forwardRegion(s.config.AuthoritativeRegion, "Namespace.ListNamespaces", &req, &resp)
+		if err != nil {
+			s.logger.Error("failed to fetch namespaces from authoritative region", "error", err)
+			goto ERR_WAIT
+		}
+
+		// Perform a two-way diff
+		delete, update := diffNamespaces(s.State(), req.MinQueryIndex, resp.Namespaces)
+
+		// Delete namespaces that should not exist
+		if len(delete) > 0 {
+			args := &structs.NamespaceDeleteRequest{
+				Namespaces: delete,
+			}
+			_, _, err := s.raftApply(structs.NamespaceDeleteRequestType, args)
+			if err != nil {
+				s.logger.Error("failed to delete namespaces", "error", err)
+				goto ERR_WAIT
+			}
+		}
+
+		// Fetch any outdated namespaces
+		var fetched []*structs.Namespace
+		if len(update) > 0 {
+			req := structs.NamespaceSetRequest{
+				Namespaces: update,
+				QueryOptions: structs.QueryOptions{
+					Region:        s.config.AuthoritativeRegion,
+					AuthToken:     s.ReplicationToken(),
+					AllowStale:    true,
+					MinQueryIndex: resp.Index - 1,
+				},
+			}
+			var reply structs.NamespaceSetResponse
+			if err := s.forwardRegion(s.config.AuthoritativeRegion, "Namespace.GetNamespaces", &req, &reply); err != nil {
+				s.logger.Error("failed to fetch namespaces from authoritative region", "error", err)
+				goto ERR_WAIT
+			}
+			for _, namespace := range reply.Namespaces {
+				fetched = append(fetched, namespace)
+			}
+		}
+
+		// Update local namespaces
+		if len(fetched) > 0 {
+			args := &structs.NamespaceUpsertRequest{
+				Namespaces: fetched,
+			}
+			_, _, err := s.raftApply(structs.NamespaceUpsertRequestType, args)
+			if err != nil {
+				s.logger.Error("failed to update namespaces", "error", err)
+				goto ERR_WAIT
+			}
+		}
+
+		// Update the minimum query index, blocks until there is a change.
+		req.MinQueryIndex = resp.Index
+	}
+
+ERR_WAIT:
+	select {
+	case <-time.After(s.config.ReplicationBackoff):
+		goto START
+	case <-stopCh:
+		return
+	}
+}
+
+// diffNamespaces is used to perform a two-way diff between the local namespaces
+// and the remote namespaces to determine which namespaces need to be deleted or
+// updated.
+func diffNamespaces(state *state.StateStore, minIndex uint64, remoteList []*structs.Namespace) (delete []string, update []string) {
+	// Construct a set of the local and remote namespaces
+	local := make(map[string][]byte)
+	remote := make(map[string]struct{})
+
+	// Add all the local namespaces
+	iter, err := state.Namespaces(nil)
+	if err != nil {
+		panic("failed to iterate local namespaces")
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		namespace := raw.(*structs.Namespace)
+		local[namespace.Name] = namespace.Hash
+	}
+
+	// Iterate over the remote namespaces
+	for _, rns := range remoteList {
+		remote[rns.Name] = struct{}{}
+
+		// Check if the namespace is missing locally
+		if localHash, ok := local[rns.Name]; !ok {
+			update = append(update, rns.Name)
+
+			// Check if the namespace is newer remotely and there is a hash
+			// mis-match.
+		} else if rns.ModifyIndex > minIndex && !bytes.Equal(localHash, rns.Hash) {
+			update = append(update, rns.Name)
+		}
+	}
+
+	// Check if namespaces should be deleted
+	for lns := range local {
+		if _, ok := remote[lns]; !ok {
+			delete = append(delete, lns)
+		}
+	}
+	return
 }
 
 // restoreEvals is used to restore pending evaluations into the eval broker and
@@ -316,9 +514,9 @@ func (s *Server) restoreEvals() error {
 	return nil
 }
 
-// restoreRevokingAccessors is used to restore Vault accessors that should be
+// revokeVaultAccessorsOnRestore is used to restore Vault accessors that should be
 // revoked.
-func (s *Server) restoreRevokingAccessors() error {
+func (s *Server) revokeVaultAccessorsOnRestore() error {
 	// An accessor should be revoked if its allocation or node is terminal
 	ws := memdb.NewWatchSet()
 	state := s.fsm.State()
@@ -360,9 +558,56 @@ func (s *Server) restoreRevokingAccessors() error {
 	}
 
 	if len(revoke) != 0 {
-		if err := s.vault.RevokeTokens(context.Background(), revoke, true); err != nil {
+		s.logger.Info("revoking vault accessors after becoming leader", "accessors", len(revoke))
+
+		if err := s.vault.MarkForRevocation(revoke); err != nil {
 			return fmt.Errorf("failed to revoke tokens: %v", err)
 		}
+	}
+
+	return nil
+}
+
+// revokeSITokenAccessorsOnRestore is used to revoke Service Identity token
+// accessors on behalf of allocs that are now gone / terminal.
+func (s *Server) revokeSITokenAccessorsOnRestore() error {
+	ws := memdb.NewWatchSet()
+	fsmState := s.fsm.State()
+	iter, err := fsmState.SITokenAccessors(ws)
+	if err != nil {
+		return errors.Wrap(err, "failed to get SI token accessors")
+	}
+
+	var toRevoke []*structs.SITokenAccessor
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		accessor := raw.(*structs.SITokenAccessor)
+
+		// Check the allocation
+		alloc, err := fsmState.AllocByID(ws, accessor.AllocID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to lookup alloc %q", accessor.AllocID)
+		}
+		if alloc == nil || alloc.Terminated() {
+			// no longer running and associated accessors should be revoked
+			toRevoke = append(toRevoke, accessor)
+			continue
+		}
+
+		// Check the node
+		node, err := fsmState.NodeByID(ws, accessor.NodeID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to lookup node %q", accessor.NodeID)
+		}
+		if node == nil || node.TerminalStatus() {
+			// node is terminal and associated accessors should be revoked
+			toRevoke = append(toRevoke, accessor)
+			continue
+		}
+	}
+
+	if len(toRevoke) > 0 {
+		s.logger.Info("revoking consul accessors after becoming leader", "accessors", len(toRevoke))
+		s.consulACLs.MarkForRevocation(toRevoke)
 	}
 
 	return nil
@@ -447,6 +692,10 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	defer jobGC.Stop()
 	deploymentGC := time.NewTicker(s.config.DeploymentGCInterval)
 	defer deploymentGC.Stop()
+	csiPluginGC := time.NewTicker(s.config.CSIPluginGCInterval)
+	defer csiPluginGC.Stop()
+	csiVolumeClaimGC := time.NewTicker(s.config.CSIVolumeClaimGCInterval)
+	defer csiVolumeClaimGC.Stop()
 
 	// getLatest grabs the latest index from the state store. It returns true if
 	// the index was retrieved successfully.
@@ -479,6 +728,15 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 			if index, ok := getLatest(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobDeploymentGC, index))
 			}
+		case <-csiPluginGC.C:
+			if index, ok := getLatest(); ok {
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobCSIPluginGC, index))
+			}
+		case <-csiVolumeClaimGC.C:
+			if index, ok := getLatest(); ok {
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobCSIVolumeClaimGC, index))
+			}
+
 		case <-stopCh:
 			return
 		}
@@ -523,25 +781,31 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			updateEval.StatusDescription = fmt.Sprintf("evaluation reached delivery limit (%d)", s.config.EvalDeliveryLimit)
 			s.logger.Warn("eval reached delivery limit, marking as failed", "eval", updateEval.GoString())
 
-			// Create a follow-up evaluation that will be used to retry the
-			// scheduling for the job after the cluster is hopefully more stable
-			// due to the fairly large backoff.
-			followupEvalWait := s.config.EvalFailedFollowupBaselineDelay +
-				time.Duration(rand.Int63n(int64(s.config.EvalFailedFollowupDelayRange)))
+			// Core job evals that fail or span leader elections will never
+			// succeed because the follow-up doesn't have the leader ACL. We
+			// rely on the leader to schedule new core jobs periodically
+			// instead.
+			if eval.Type != structs.JobTypeCore {
 
-			followupEval := eval.CreateFailedFollowUpEval(followupEvalWait)
-			updateEval.NextEval = followupEval.ID
-			updateEval.UpdateModifyTime()
+				// Create a follow-up evaluation that will be used to retry the
+				// scheduling for the job after the cluster is hopefully more stable
+				// due to the fairly large backoff.
+				followupEvalWait := s.config.EvalFailedFollowupBaselineDelay +
+					time.Duration(rand.Int63n(int64(s.config.EvalFailedFollowupDelayRange)))
 
-			// Update via Raft
-			req := structs.EvalUpdateRequest{
-				Evals: []*structs.Evaluation{updateEval, followupEval},
+				followupEval := eval.CreateFailedFollowUpEval(followupEvalWait)
+				updateEval.NextEval = followupEval.ID
+				updateEval.UpdateModifyTime()
+
+				// Update via Raft
+				req := structs.EvalUpdateRequest{
+					Evals: []*structs.Evaluation{updateEval, followupEval},
+				}
+				if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
+					s.logger.Error("failed to update failed eval and create a follow-up", "eval", updateEval.GoString(), "error", err)
+					continue
+				}
 			}
-			if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
-				s.logger.Error("failed to update failed eval and create a follow-up", "eval", updateEval.GoString(), "error", err)
-				continue
-			}
-
 			// Ack completion
 			s.evalBroker.Ack(eval.ID, token)
 		}
@@ -646,65 +910,55 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 
 func (s *Server) iterateJobSummaryMetrics(summary *structs.JobSummary) {
 	for name, tgSummary := range summary.Summary {
-		if !s.config.DisableTaggedMetrics {
-			labels := []metrics.Label{
-				{
-					Name:  "job",
-					Value: summary.JobID,
-				},
-				{
-					Name:  "task_group",
-					Value: name,
-				},
-				{
-					Name:  "namespace",
-					Value: summary.Namespace,
-				},
-			}
-
-			if strings.Contains(summary.JobID, "/dispatch-") {
-				jobInfo := strings.Split(summary.JobID, "/dispatch-")
-				labels = append(labels, metrics.Label{
-					Name:  "parent_id",
-					Value: jobInfo[0],
-				}, metrics.Label{
-					Name:  "dispatch_id",
-					Value: jobInfo[1],
-				})
-			}
-
-			if strings.Contains(summary.JobID, "/periodic-") {
-				jobInfo := strings.Split(summary.JobID, "/periodic-")
-				labels = append(labels, metrics.Label{
-					Name:  "parent_id",
-					Value: jobInfo[0],
-				}, metrics.Label{
-					Name:  "periodic_id",
-					Value: jobInfo[1],
-				})
-			}
-
-			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
-				float32(tgSummary.Queued), labels)
-			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
-				float32(tgSummary.Complete), labels)
-			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "failed"},
-				float32(tgSummary.Failed), labels)
-			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "running"},
-				float32(tgSummary.Running), labels)
-			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "starting"},
-				float32(tgSummary.Starting), labels)
-			metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
-				float32(tgSummary.Lost), labels)
+		labels := []metrics.Label{
+			{
+				Name:  "job",
+				Value: summary.JobID,
+			},
+			{
+				Name:  "task_group",
+				Value: name,
+			},
+			{
+				Name:  "namespace",
+				Value: summary.Namespace,
+			},
 		}
-		if s.config.BackwardsCompatibleMetrics {
-			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "queued"}, float32(tgSummary.Queued))
-			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "complete"}, float32(tgSummary.Complete))
-			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "failed"}, float32(tgSummary.Failed))
-			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "running"}, float32(tgSummary.Running))
-			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "starting"}, float32(tgSummary.Starting))
-			metrics.SetGauge([]string{"nomad", "job_summary", summary.JobID, name, "lost"}, float32(tgSummary.Lost))
+
+		if strings.Contains(summary.JobID, "/dispatch-") {
+			jobInfo := strings.Split(summary.JobID, "/dispatch-")
+			labels = append(labels, metrics.Label{
+				Name:  "parent_id",
+				Value: jobInfo[0],
+			}, metrics.Label{
+				Name:  "dispatch_id",
+				Value: jobInfo[1],
+			})
 		}
+
+		if strings.Contains(summary.JobID, "/periodic-") {
+			jobInfo := strings.Split(summary.JobID, "/periodic-")
+			labels = append(labels, metrics.Label{
+				Name:  "parent_id",
+				Value: jobInfo[0],
+			}, metrics.Label{
+				Name:  "periodic_id",
+				Value: jobInfo[1],
+			})
+		}
+
+		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "queued"},
+			float32(tgSummary.Queued), labels)
+		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "complete"},
+			float32(tgSummary.Complete), labels)
+		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "failed"},
+			float32(tgSummary.Failed), labels)
+		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "running"},
+			float32(tgSummary.Running), labels)
+		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "starting"},
+			float32(tgSummary.Starting), labels)
+		metrics.SetGaugeWithLabels([]string{"nomad", "job_summary", "lost"},
+			float32(tgSummary.Lost), labels)
 	}
 }
 
@@ -798,6 +1052,9 @@ func (s *Server) revokeLeadership() error {
 	// Disable the node drainer
 	s.nodeDrainer.SetEnabled(false, nil)
 
+	// Disable the volume watcher
+	s.volumeWatcher.SetEnabled(false, nil)
+
 	// Disable any enterprise systems required.
 	if err := s.revokeEnterpriseLeadership(); err != nil {
 		return err
@@ -811,12 +1068,27 @@ func (s *Server) revokeLeadership() error {
 	}
 
 	// Unpause our worker if we paused previously
-	if len(s.workers) > 1 {
-		for i := 0; i < len(s.workers)/2; i++ {
-			s.workers[i].SetPause(false)
-		}
+	for _, w := range s.pausableWorkers() {
+		w.SetPause(false)
 	}
+
 	return nil
+}
+
+// pausableWorkers returns a slice of the workers
+// to pause on leader transitions.
+//
+// Upon leadership establishment, pause workers to free half
+// the cores for use in the plan queue and evaluation broker
+func (s *Server) pausableWorkers() []*Worker {
+	n := len(s.workers)
+	if n <= 1 {
+		return []*Worker{}
+	}
+
+	// Disabling 3/4 of the workers frees CPU for raft and the
+	// plan applier which uses 1/2 the cores.
+	return s.workers[:3*n/4]
 }
 
 // reconcile is used to reconcile the differences between Serf
@@ -1319,11 +1591,27 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 		return nil
 	}
 
-	req := structs.SchedulerSetConfigRequest{Config: *defaultSchedulerConfig}
+	req := structs.SchedulerSetConfigRequest{Config: s.config.DefaultSchedulerConfig}
 	if _, _, err = s.raftApply(structs.SchedulerConfigRequestType, req); err != nil {
 		s.logger.Named("core").Error("failed to initialize config", "error", err)
 		return nil
 	}
 
 	return config
+}
+
+func (s *Server) generateClusterID() (string, error) {
+	if !ServersMeetMinimumVersion(s.Members(), minClusterIDVersion, false) {
+		s.logger.Named("core").Warn("cannot initialize cluster ID until all servers are above minimum version", "min_version", minClusterIDVersion)
+		return "", errors.Errorf("cluster ID cannot be created until all servers are above minimum version %s", minClusterIDVersion)
+	}
+
+	newMeta := structs.ClusterMetadata{ClusterID: uuid.Generate(), CreateTime: time.Now().UnixNano()}
+	if _, _, err := s.raftApply(structs.ClusterMetadataRequestType, newMeta); err != nil {
+		s.logger.Named("core").Error("failed to create cluster ID", "error", err)
+		return "", errors.Wrap(err, "failed to create cluster ID")
+	}
+
+	s.logger.Named("core").Info("established cluster id", "cluster_id", newMeta.ClusterID, "create_time", newMeta.CreateTime)
+	return newMeta.ClusterID, nil
 }

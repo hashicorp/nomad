@@ -197,7 +197,7 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 
 		// we always run in a cgroup - testing freezer cgroup
 		r = execTask(t, driver, taskID,
-			fmt.Sprintf("cat /proc/self/cgroup"),
+			"cat /proc/self/cgroup",
 			false, "")
 		require.Zero(t, r.exitCode)
 
@@ -206,6 +206,11 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 
 		}
 	})
+}
+
+func ExecTask(t *testing.T, driver *DriverHarness, taskID string, cmd string, tty bool, stdin string) (exitCode int, stdout, stderr string) {
+	r := execTask(t, driver, taskID, cmd, tty, stdin)
+	return r.exitCode, r.stdout, r.stderr
 }
 
 func execTask(t *testing.T, driver *DriverHarness, taskID string, cmd string, tty bool, stdin string) execResult {

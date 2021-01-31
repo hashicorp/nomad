@@ -29,7 +29,7 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	server := nomad.TestServer(t, func(c *nomad.Config) {
+	server, cleanupS := nomad.TestServer(t, func(c *nomad.Config) {
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -39,7 +39,7 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 			KeyFile:              serverKeyFn,
 		}
 	})
-	defer server.Shutdown()
+	defer cleanupS()
 	testutil.WaitForLeader(t, server.RPC)
 
 	t.Logf("[TEST] Leader started: %s", server.GetConfig().RPCAddr.String())

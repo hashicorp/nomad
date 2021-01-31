@@ -1,4 +1,7 @@
+'use strict';
+
 module.exports = {
+  root: true,
   globals: {
     server: true,
   },
@@ -6,11 +9,21 @@ module.exports = {
     browser: true,
     es6: true,
   },
-  extends: 'eslint:recommended',
+  extends: [
+    'eslint:recommended',
+    'plugin:ember/recommended',
+  ],
+  parser: 'babel-eslint',
   parserOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
+    ecmaFeatures: {
+      legacyDecorators: true,
+    },
   },
+  plugins: [
+    'ember'
+  ],
   rules: {
     indent: ['error', 2, { SwitchCase: 1 }],
     'linebreak-style': ['error', 'unix'],
@@ -22,6 +35,9 @@ module.exports = {
         checkLoops: false,
       },
     ],
+    'ember/classic-decorator-hooks': 'error',
+    'ember/classic-decorator-no-classic-methods': 'error',
+    'ember/no-jquery': 'error',
   },
   overrides: [
     // node files
@@ -33,16 +49,37 @@ module.exports = {
         'testem.js',
         'blueprints/*/index.js',
         'config/**/*.js',
+        'server/**/*.js',
         'lib/*/index.js',
       ],
       parserOptions: {
         sourceType: 'script',
-        ecmaVersion: 2015,
       },
       env: {
         browser: false,
         node: true,
       },
+      plugins: ['node'],
+      rules: Object.assign({}, require('eslint-plugin-node').configs.recommended.rules, {
+        // add your custom rules and overrides for node files here
+
+        // this can be removed once the following is fixed
+        // https://github.com/mysticatea/eslint-plugin-node/issues/77
+        'node/no-unpublished-require': 'off'
+      }),
+    },
+    {
+      files: [
+        'stories/**/*.js'
+      ],
+      parserOptions: {
+        sourceType: 'module',
+      },
+      env: {
+        browser: false,
+        node: true,
+      },
+      plugins: ['node'],
     },
   ],
 };

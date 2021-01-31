@@ -127,7 +127,7 @@ func (iter *SpreadIterator) Next() *RankedNode {
 			usedCount += 1
 			// Set score to -1 if there were errors in building this attribute
 			if errorMsg != "" {
-				iter.ctx.Logger().Named("spread").Warn("error building spread attributes for task group", "task_group", tgName, "error", errorMsg)
+				iter.ctx.Logger().Named("spread").Debug("error building spread attributes for task group", "task_group", tgName, "error", errorMsg)
 				totalSpreadScore -= 1.0
 				continue
 			}

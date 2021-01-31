@@ -30,45 +30,55 @@ func TestAllocExecCommand_Fails(t *testing.T) {
 		expectedError string
 	}{
 		{
-			"misuse",
-			[]string{"bad"},
-			commandErrorText(&AllocExecCommand{}),
+			"alloc id missing",
+			[]string{},
+			`An allocation ID is required`,
 		},
 		{
-			"connection failure",
-			[]string{"-address=nope", "26470238-5CF2-438F-8772-DC67CFB0705C", "/bin/bash"},
-			"Error querying allocation",
+			"alloc id too short",
+			[]string{"-address=" + url, "2", "/bin/bash"},
+			`Alloc ID must contain at least two characters`,
 		},
 		{
-			"not found alloc",
+			"alloc not found",
 			[]string{"-address=" + url, "26470238-5CF2-438F-8772-DC67CFB0705C", "/bin/bash"},
-			"No allocation(s) with prefix or id",
+			`No allocation(s) with prefix or id "26470238-5CF2-438F-8772-DC67CFB0705C"`,
 		},
 		{
-			"not found job",
+			"alloc not found with odd-length prefix",
+			[]string{"-address=" + url, "26470238-5CF", "/bin/bash"},
+			`No allocation(s) with prefix or id "26470238-5CF"`,
+		},
+		{
+			"job id missing",
+			[]string{"-job"},
+			`A job ID is required`,
+		},
+		{
+			"job not found",
 			[]string{"-address=" + url, "-job", "example", "/bin/bash"},
 			`job "example" doesn't exist`,
 		},
 		{
-			"too short allocis",
-			[]string{"-address=" + url, "2", "/bin/bash"},
-			"Alloc ID must contain at least two characters",
-		},
-		{
-			"missing command",
+			"command missing",
 			[]string{"-address=" + url, "26470238-5CF2-438F-8772-DC67CFB0705C"},
-			"A command is required",
+			`A command is required`,
 		},
 		{
-			"long escaped char",
-			[]string{"-address=" + url, "-e", "long_escape", "26470238-5CF2-438F-8772-DC67CFB0705C", "/bin/bash"},
-			"a single character",
+			"connection failure",
+			[]string{"-address=nope", "26470238-5CF2-438F-8772-DC67CFB0705C", "/bin/bash"},
+			`Error querying allocation`,
+		},
+		{
+			"escape char too long",
+			[]string{"-address=" + url, "-e", "es", "26470238-5CF2-438F-8772-DC67CFB0705C", "/bin/bash"},
+			`-e requires 'none' or a single character`,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ui := new(cli.MockUi)
+			ui := cli.NewMockUi()
 			cmd := &AllocExecCommand{Meta: Meta{Ui: ui}}
 
 			code := cmd.Run(c.args)
@@ -100,7 +110,7 @@ func TestAllocExecCommand_Fails(t *testing.T) {
 	})
 
 	t.Run("non existent task", func(t *testing.T) {
-		ui := new(cli.MockUi)
+		ui := cli.NewMockUi()
 		cmd := &AllocExecCommand{Meta: Meta{Ui: ui}}
 
 		jobID := "job1_sfx"
@@ -139,13 +149,13 @@ func TestAllocExecCommand_AutocompleteArgs(t *testing.T) {
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &AllocExecCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
-	assert.Nil(state.UpsertAllocs(1000, []*structs.Allocation{a}))
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	prefix := a.ID[:5]
 	args := complete.Args{Last: prefix}
@@ -193,7 +203,7 @@ func TestAllocExecCommand_Run(t *testing.T) {
 	resp, _, err := client.Jobs().Register(job, nil)
 	require.NoError(t, err)
 
-	evalUi := new(cli.MockUi)
+	evalUi := cli.NewMockUi()
 	code := waitForSuccess(evalUi, client, fullId, t, resp.EvalID)
 	require.Equal(t, 0, code, "failed to get status - output: %v", evalUi.ErrorWriter.String())
 
@@ -249,7 +259,7 @@ func TestAllocExecCommand_Run(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run("by id: "+c.name, func(t *testing.T) {
-			ui := new(cli.MockUi)
+			ui := cli.NewMockUi()
 			var stdout, stderr bufferCloser
 
 			cmd := &AllocExecCommand{
@@ -265,7 +275,7 @@ func TestAllocExecCommand_Run(t *testing.T) {
 			assert.Equal(t, c.stderr, strings.TrimSpace(stderr.String()))
 		})
 		t.Run("by job: "+c.name, func(t *testing.T) {
-			ui := new(cli.MockUi)
+			ui := cli.NewMockUi()
 			var stdout, stderr bufferCloser
 
 			cmd := &AllocExecCommand{

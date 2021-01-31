@@ -1,12 +1,10 @@
 # go-getter
 
-[![Build Status](http://img.shields.io/travis/hashicorp/go-getter.svg?style=flat-square)][travis]
-[![Build status](https://ci.appveyor.com/api/projects/status/ulq3qr43n62croyq/branch/master?svg=true)][appveyor]
+[![CircleCI](https://circleci.com/gh/hashicorp/go-getter/tree/main.svg?style=svg)][circleci]
 [![Go Documentation](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)][godocs]
 
-[travis]: http://travis-ci.org/hashicorp/go-getter
+[circleci]: https://circleci.com/gh/hashicorp/go-getter/tree/main
 [godocs]: http://godoc.org/github.com/hashicorp/go-getter
-[appveyor]: https://ci.appveyor.com/project/hashicorp/go-getter/branch/master
 
 go-getter is a library for Go (golang) for downloading files or directories
 from various sources using a URL as the primary form of input.
@@ -82,6 +80,8 @@ is built-in by default:
     file URLs.
   * GitHub URLs, such as "github.com/mitchellh/vagrant" are automatically
     changed to Git protocol over HTTP.
+  * GitLab URLs, such as "gitlab.com/inkscape/inkscape" are automatically 
+    changed to Git protocol over HTTP.
   * BitBucket URLs, such as "bitbucket.org/mitchellh/vagrant" are automatically
     changed to a Git or mercurial protocol using the BitBucket API.
 
@@ -139,8 +139,8 @@ If you downloaded this to the `/tmp` directory, then the file
 directory in this repository, but because we specified a subdirectory,
 go-getter automatically copied only that directory contents.
 
-Subdirectory paths may contain may also use filesystem glob patterns.
-The path must match _exactly one_ entry or go-getter will return an error.
+Subdirectory paths may also use filesystem glob patterns. The path must
+match _exactly one_ entry or go-getter will return an error.
 This is useful if you're not sure the exact directory name but it follows
 a predictable naming structure.
 
@@ -318,6 +318,7 @@ are also supported. If the query parameters are present, these take priority.
   * `aws_access_key_id` - AWS access key.
   * `aws_access_key_secret` - AWS access key secret.
   * `aws_access_token` - AWS access token if this is being used.
+  * `aws_profile` - Use this profile from local ~/.aws/ config. Takes priority over the other three.
 
 #### Using IAM Instance Profiles with S3
 
@@ -356,3 +357,7 @@ In order to access to GCS, authentication credentials should be provided. More i
 - gcs::https://www.googleapis.com/storage/v1/bucket
 - gcs::https://www.googleapis.com/storage/v1/bucket/foo.zip
 - www.googleapis.com/storage/v1/bucket/foo
+
+#### GCS Testing
+
+The tests for `get_gcs.go` require you to have GCP credentials set in your environment.  These credentials can have any level of permissions to any project, they just need to exist.  This means setting `GOOGLE_APPLICATION_CREDENTIALS="~/path/to/credentials.json"` or `GOOGLE_CREDENTIALS="{stringified-credentials-json}"`.  Due to this configuration, `get_gcs_test.go` will fail for external contributors in CircleCI.

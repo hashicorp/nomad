@@ -1,142 +1,108 @@
-data "template_file" "user_data_server" {
-  template = "${file("${path.root}/user-data-server.sh")}"
-
-  vars {
-    server_count = "${var.server_count}"
-    region       = "${var.region}"
-    retry_join   = "${var.retry_join}"
-  }
-}
-
-data "template_file" "user_data_client" {
-  template = "${file("${path.root}/user-data-client.sh")}"
-  count    = "${var.client_count}"
-
-  vars {
-    region     = "${var.region}"
-    retry_join = "${var.retry_join}"
-  }
-}
-
-data "template_file" "nomad_client_config" {
-  template = "${file("${path.root}/configs/client.hcl")}"
-}
-
-data "template_file" "nomad_server_config" {
-  template = "}"
+locals {
+  ami_prefix = "nomad-e2e-v2"
 }
 
 resource "aws_instance" "server" {
-  ami                    = "${data.aws_ami.main.image_id}"
-  instance_type          = "${var.instance_type}"
-  key_name               = "${module.keys.key_name}"
-  vpc_security_group_ids = ["${aws_security_group.primary.id}"]
-  count                  = "${var.server_count}"
+  ami                    = data.aws_ami.ubuntu_bionic_amd64.image_id
+  instance_type          = var.instance_type
+  key_name               = module.keys.key_name
+  vpc_security_group_ids = [aws_security_group.primary.id]
+  count                  = var.server_count
+  iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
+  availability_zone      = var.availability_zone
 
   # Instance tags
-  tags {
+  tags = {
     Name           = "${local.random_name}-server-${count.index}"
     ConsulAutoJoin = "auto-join"
-    SHA            = "${var.nomad_sha}"
-    User           = "${data.aws_caller_identity.current.arn}"
-  }
-
-  user_data            = "${data.template_file.user_data_server.rendered}"
-  iam_instance_profile = "${aws_iam_instance_profile.instance_profile.name}"
-
-  provisioner "file" {
-    content     = "${file("${path.root}/configs/${var.indexed == false ? "server.hcl" : "indexed/server-${count.index}.hcl"}")}"
-    destination = "/tmp/server.hcl"
-
-    connection {
-      user        = "ubuntu"
-      private_key = "${module.keys.private_key_pem}"
-    }
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "aws s3 cp s3://nomad-team-test-binary/builds-oss/${var.nomad_sha}.tar.gz nomad.tar.gz",
-      "sudo cp /ops/shared/config/nomad.service /etc/systemd/system/nomad.service",
-      "sudo tar -zxvf nomad.tar.gz -C /usr/local/bin/",
-      "sudo cp /tmp/server.hcl /etc/nomad.d/nomad.hcl",
-      "sudo chmod 0755 /usr/local/bin/nomad",
-      "sudo chown root:root /usr/local/bin/nomad",
-      "sudo systemctl enable nomad.service",
-      "sudo systemctl start nomad.service",
-    ]
-
-    connection {
-      user        = "ubuntu"
-      private_key = "${module.keys.private_key_pem}"
-    }
+    SHA            = var.nomad_sha
+    User           = data.aws_caller_identity.current.arn
   }
 }
 
-resource "aws_instance" "client" {
-  ami                    = "${data.aws_ami.main.image_id}"
-  instance_type          = "${var.instance_type}"
-  key_name               = "${module.keys.key_name}"
-  vpc_security_group_ids = ["${aws_security_group.primary.id}"]
-  count                  = "${var.client_count}"
-  depends_on             = ["aws_instance.server"]
+resource "aws_instance" "client_ubuntu_bionic_amd64" {
+  ami                    = data.aws_ami.ubuntu_bionic_amd64.image_id
+  instance_type          = var.instance_type
+  key_name               = module.keys.key_name
+  vpc_security_group_ids = [aws_security_group.primary.id]
+  count                  = var.client_count_ubuntu_bionic_amd64
+  iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
+  availability_zone      = var.availability_zone
 
   # Instance tags
-  tags {
-    Name           = "${local.random_name}-client-${count.index}"
+  tags = {
+    Name           = "${local.random_name}-client-ubuntu-bionic-amd64-${count.index}"
     ConsulAutoJoin = "auto-join"
-    SHA            = "${var.nomad_sha}"
-    User           = "${data.aws_caller_identity.current.arn}"
+    SHA            = var.nomad_sha
+    User           = data.aws_caller_identity.current.arn
+  }
+}
+
+resource "aws_instance" "client_windows_2016_amd64" {
+  ami                    = data.aws_ami.windows_2016_amd64.image_id
+  instance_type          = var.instance_type
+  key_name               = module.keys.key_name
+  vpc_security_group_ids = [aws_security_group.primary.id]
+  count                  = var.client_count_windows_2016_amd64
+  iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
+  availability_zone      = var.availability_zone
+
+  user_data = file("${path.root}/userdata/windows-2016.ps1")
+
+  # Instance tags
+  tags = {
+    Name           = "${local.random_name}-client-windows-2016-${count.index}"
+    ConsulAutoJoin = "auto-join"
+    SHA            = var.nomad_sha
+    User           = data.aws_caller_identity.current.arn
+  }
+}
+
+data "external" "packer_sha" {
+  program = ["/bin/sh", "-c", <<EOT
+sha=$(git log -n 1 --pretty=format:%H packer)
+echo "{\"sha\":\"$${sha}\"}"
+EOT
+]
+
+}
+
+data "aws_ami" "ubuntu_bionic_amd64" {
+  most_recent = true
+  owners      = ["self"]
+
+  filter {
+    name   = "name"
+    values = ["${local.ami_prefix}-ubuntu-bionic-amd64-*"]
   }
 
-  ebs_block_device = {
-    device_name           = "/dev/xvdd"
-    volume_type           = "gp2"
-    volume_size           = "50"
-    delete_on_termination = "true"
+  filter {
+    name   = "tag:OS"
+    values = ["Ubuntu"]
   }
 
-  user_data            = "${element(data.template_file.user_data_client.*.rendered, count.index)}"
-  iam_instance_profile = "${aws_iam_instance_profile.instance_profile.name}"
+  filter {
+    name   = "tag:BuilderSha"
+    values = [data.external.packer_sha.result["sha"]]
+  }
+}
 
-  provisioner "file" {
-    content     = "${file("${path.root}/configs/${var.indexed == false ? "client.hcl" : "indexed/client-${count.index}.hcl"}")}"
-    destination = "/tmp/client.hcl"
+data "aws_ami" "windows_2016_amd64" {
+  most_recent = true
+  owners      = ["self"]
 
-    connection {
-      user        = "ubuntu"
-      private_key = "${module.keys.private_key_pem}"
-    }
+  filter {
+    name   = "name"
+    values = ["${local.ami_prefix}-windows-2016-amd64-*"]
   }
 
-  provisioner "remote-exec" {
-    inline = [
-      "aws s3 cp s3://nomad-team-test-binary/builds-oss/${var.nomad_sha}.tar.gz nomad.tar.gz",
-      "sudo tar -zxvf nomad.tar.gz -C /usr/local/bin/",
-      "sudo cp /ops/shared/config/nomad.service /etc/systemd/system/nomad.service",
-      "sudo cp /tmp/client.hcl /etc/nomad.d/nomad.hcl",
-      "sudo chmod 0755 /usr/local/bin/nomad",
-      "sudo chown root:root /usr/local/bin/nomad",
+  filter {
+    name   = "tag:OS"
+    values = ["Windows2016"]
+  }
 
-      # Setup Host Volumes
-      "sudo mkdir /tmp/data",
-
-      # Run Nomad Service
-      "sudo systemctl enable nomad.service",
-
-      "sudo systemctl start nomad.service",
-
-      # Install CNI plugins
-      "sudo mkdir -p /opt/cni/bin",
-
-      "wget -q -O - https://github.com/containernetworking/plugins/releases/download/v0.8.2/cni-plugins-linux-amd64-v0.8.2.tgz | sudo tar -C /opt/cni/bin -xz",
-    ]
-
-    # Setup host volumes
-
-    connection {
-      user        = "ubuntu"
-      private_key = "${module.keys.private_key_pem}"
-    }
+  filter {
+    name   = "tag:BuilderSha"
+    values = [data.external.packer_sha.result["sha"]]
   }
 }

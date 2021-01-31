@@ -3,9 +3,11 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
 
+	"github.com/LK4D4/joincontext"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
@@ -44,7 +46,7 @@ func (h *hookResources) getMounts() []*drivers.MountConfig {
 	return h.Mounts
 }
 
-// initHooks intializes the tasks hooks.
+// initHooks initializes the tasks hooks.
 func (tr *TaskRunner) initHooks() {
 	hookLogger := tr.logger.Named("task_hook")
 	task := tr.Task()
@@ -60,13 +62,17 @@ func (tr *TaskRunner) initHooks() {
 	tr.runnerHooks = []interfaces.TaskHook{
 		newValidateHook(tr.clientConfig, hookLogger),
 		newTaskDirHook(tr, hookLogger),
-		newLogMonHook(tr.logmonHookConfig, hookLogger),
+		newLogMonHook(tr, hookLogger),
 		newDispatchHook(alloc, hookLogger),
 		newVolumeHook(tr, hookLogger),
 		newArtifactHook(tr, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
-		newEnvoyBootstrapHook(alloc, tr.clientConfig.ConsulConfig.Addr, hookLogger),
+	}
+
+	// If the task has a CSI stanza, add the hook.
+	if task.CSIPluginConfig != nil {
+		tr.runnerHooks = append(tr.runnerHooks, newCSIPluginSupervisorHook(filepath.Join(tr.clientConfig.StateDir, "csi"), tr, tr, hookLogger))
 	}
 
 	// If Vault is enabled, add the hook
@@ -95,22 +101,48 @@ func (tr *TaskRunner) initHooks() {
 		}))
 	}
 
-	// If there are any services, add the hook
-	if len(task.Services) != 0 {
-		tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
-			alloc:     tr.Alloc(),
-			task:      tr.Task(),
-			consul:    tr.consulClient,
-			restarter: tr,
-			logger:    hookLogger,
-		}))
+	// Always add the service hook. A task with no services on initial registration
+	// may be updated to include services, which must be handled with this hook.
+	tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
+		alloc:     tr.Alloc(),
+		task:      tr.Task(),
+		consul:    tr.consulServiceClient,
+		restarter: tr,
+		logger:    hookLogger,
+	}))
+
+	// If this is a Connect sidecar proxy (or a Connect Native) service,
+	// add the sidsHook for requesting a Service Identity token (if ACLs).
+	if task.UsesConnect() {
+		// Enable the Service Identity hook only if the Nomad client is configured
+		// with a consul token, indicating that Consul ACLs are enabled
+		if tr.clientConfig.ConsulConfig.Token != "" {
+			tr.runnerHooks = append(tr.runnerHooks, newSIDSHook(sidsHookConfig{
+				alloc:      tr.Alloc(),
+				task:       tr.Task(),
+				sidsClient: tr.siClient,
+				lifecycle:  tr,
+				logger:     hookLogger,
+			}))
+		}
+
+		if task.UsesConnectSidecar() {
+			tr.runnerHooks = append(tr.runnerHooks,
+				newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, tr.consulProxiesClient, hookLogger)),
+				newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, tr.clientConfig.ConsulConfig, hookLogger)),
+			)
+		} else if task.Kind.IsConnectNative() {
+			tr.runnerHooks = append(tr.runnerHooks, newConnectNativeHook(
+				newConnectNativeHookConfig(alloc, tr.clientConfig.ConsulConfig, hookLogger),
+			))
+		}
 	}
 
 	// If there are any script checks, add the hook
 	scriptCheckHook := newScriptCheckHook(scriptCheckHookConfig{
 		alloc:  tr.Alloc(),
 		task:   tr.Task(),
-		consul: tr.consulClient,
+		consul: tr.consulServiceClient,
 		logger: hookLogger,
 	})
 	tr.runnerHooks = append(tr.runnerHooks, scriptCheckHook)
@@ -130,10 +162,9 @@ func (tr *TaskRunner) emitHookError(err error, hookName string) {
 
 // prestart is used to run the runners prestart hooks.
 func (tr *TaskRunner) prestart() error {
-	// Determine if the allocation is terminaland we should avoid running
+	// Determine if the allocation is terminal and we should avoid running
 	// prestart hooks.
-	alloc := tr.Alloc()
-	if alloc.TerminalStatus() {
+	if tr.shouldShutdown() {
 		tr.logger.Trace("skipping prestart hooks since allocation is terminal")
 		return nil
 	}
@@ -192,8 +223,11 @@ func (tr *TaskRunner) prestart() error {
 		}
 
 		// Run the prestart hook
+		// use a joint context to allow any blocking pre-start hooks
+		// to be canceled by either killCtx or shutdownCtx
+		joinedCtx, _ := joincontext.Join(tr.killCtx, tr.shutdownCtx)
 		var resp interfaces.TaskPrestartResponse
-		if err := pre.Prestart(tr.killCtx, &req, &resp); err != nil {
+		if err := pre.Prestart(joinedCtx, &req, &resp); err != nil {
 			tr.emitHookError(err, name)
 			return structs.WrapRecoverable(fmt.Sprintf("prestart hook %q failed: %v", name, err), err)
 		}

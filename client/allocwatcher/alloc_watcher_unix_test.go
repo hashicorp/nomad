@@ -76,6 +76,10 @@ func TestPrevAlloc_StreamAllocDir_Ok(t *testing.T) {
 	tw := tar.NewWriter(buf)
 
 	walkFn := func(path string, fileInfo os.FileInfo, err error) error {
+		// filepath.Walk passes in an error
+		if err != nil {
+			return fmt.Errorf("error from filepath.Walk(): %s", err)
+		}
 		// Include the path of the file name relative to the alloc dir
 		// so that we can put the files in the right directories
 		link := ""

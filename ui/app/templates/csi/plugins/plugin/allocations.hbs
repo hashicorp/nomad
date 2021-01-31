@@ -1,0 +1,86 @@
+{{title "CSI Plugin " this.model.plainId " allocations"}}
+<div data-test-subnav="plugins" class="tabs is-subnav">
+  <ul>
+    <li data-test-tab="overview"><LinkTo @route="csi.plugins.plugin.index" @model={{this.model}} @activeClass="is-active">Overview</LinkTo></li>
+    <li data-test-tab="allocations"><LinkTo @route="csi.plugins.plugin.allocations" @model={{this.model}} @activeClass="is-active">Allocations</LinkTo></li>
+  </ul>
+</div>
+<section class="section">
+  <div class="toolbar">
+    <div class="toolbar-item">
+      <h1 class="title">Allocations for {{this.model.plainId}}</h1>
+    </div>
+    <div class="toolbar-item is-right-aligned is-mobile-full-width">
+      <div class="button-bar">
+        <MultiSelectDropdown
+          data-test-health-facet
+          @label="Health"
+          @options={{this.optionsHealth}}
+          @selection={{this.selectionHealth}}
+          @onSelect={{action this.setFacetQueryParam "qpHealth"}} />
+        <MultiSelectDropdown
+          data-test-type-facet
+          @label="Type"
+          @options={{this.optionsType}}
+          @selection={{this.selectionType}}
+          @onSelect={{action this.setFacetQueryParam "qpType"}} />
+      </div>
+    </div>
+  </div>
+  {{#if this.sortedAllocations}}
+    <ListPagination
+      @source={{this.sortedAllocations}}
+      @size={{this.pageSize}}
+      @page={{this.currentPage}} as |p|>
+      <ListTable
+        @source={{p.list}}
+        @sortProperty={{this.sortProperty}}
+        @sortDescending={{this.sortDescending}}
+        @class="with-foot" as |t|>
+        <t.head>
+          <th class="is-narrow"></th>
+          <td>ID</td>
+          <th>Created</th>
+          <t.sort-by @prop="updateTime">Modified</t.sort-by>
+          <t.sort-by @prop="healthy">Health</t.sort-by>
+          <th>Client</th>
+          <th>Job</th>
+          <th>Version</th>
+          <th>Volumes</th>
+          <th>CPU</th>
+          <th>Memory</th>
+        </t.head>
+        <t.body @key="model.allocID" as |row|>
+          <PluginAllocationRow
+            @data-test-allocation={{row.model.allocID}}
+            @pluginAllocation={{row.model}} />
+        </t.body>
+      </ListTable>
+      <div class="table-foot">
+        <PageSizeSelect @onChange={{action this.resetPagination}} />
+        <nav class="pagination">
+          <div class="pagination-numbers">
+            {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedAllocations.length}}
+          </div>
+          <p.prev @class="pagination-previous">{{x-icon "chevron-left"}}</p.prev>
+          <p.next @class="pagination-next">{{x-icon "chevron-right"}}</p.next>
+          <ul class="pagination-list"></ul>
+        </nav>
+      </div>
+    </ListPagination>
+  {{else}}
+    <div data-test-empty-list class="empty-message">
+      {{#if (eq this.combinedAllocations.length 0)}}
+        <h3 data-test-empty-list-headline class="empty-message-headline">No Allocations</h3>
+        <p class="empty-message-body">
+          The plugin has no allocations.
+        </p>
+      {{else if (eq this.sortedAllocations.length 0)}}
+        <h3 data-test-empty-list-headline class="empty-message-headline">No Matches</h3>
+        <p class="empty-message-body">
+          No allocations match your current filter selection.
+        </p>
+      {{/if}}
+    </div>
+  {{/if}}
+</section>

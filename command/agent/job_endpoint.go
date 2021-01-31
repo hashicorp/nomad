@@ -7,9 +7,11 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
+
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -81,6 +83,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/stable"):
 		jobName := strings.TrimSuffix(path, "/stable")
 		return s.jobStable(resp, req, jobName)
+	case strings.HasSuffix(path, "/scale"):
+		jobName := strings.TrimSuffix(path, "/scale")
+		return s.jobScale(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -141,30 +146,13 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match")
 	}
 
-	// Region in http request query param takes precedence over region in job hcl config
-	if args.WriteRequest.Region != "" {
-		args.Job.Region = helper.StringToPtr(args.WriteRequest.Region)
-	}
-	// If 'global' region is specified or if no region is given,
-	// default to region of the node you're submitting to
-	if args.Job.Region == nil || *args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
-		args.Job.Region = &s.agent.config.Region
-	}
-
-	sJob := ApiJobToStructJob(args.Job)
-
+	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
 	planReq := structs.JobPlanRequest{
 		Job:            sJob,
 		Diff:           args.Diff,
 		PolicyOverride: args.PolicyOverride,
-		WriteRequest: structs.WriteRequest{
-			Region: sJob.Region,
-		},
+		WriteRequest:   *writeReq,
 	}
-	// parseWriteRequest overrides Namespace, Region and AuthToken
-	// based on values from the original http request
-	s.parseWriteRequest(req, &planReq.WriteRequest)
-	planReq.Namespace = sJob.Namespace
 
 	var out structs.JobPlanResponse
 	if err := s.agent.RPC("Job.Plan", &planReq, &out); err != nil {
@@ -391,32 +379,27 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, "Job ID does not match name")
 	}
 
-	// Region in http request query param takes precedence over region in job hcl config
-	if args.WriteRequest.Region != "" {
-		args.Job.Region = helper.StringToPtr(args.WriteRequest.Region)
-	}
-	// If 'global' region is specified or if no region is given,
-	// default to region of the node you're submitting to
-	if args.Job.Region == nil || *args.Job.Region == "" || *args.Job.Region == api.GlobalRegion {
-		args.Job.Region = &s.agent.config.Region
+	// GH-8481. Jobs of type system can only have a count of 1 and therefore do
+	// not support scaling. Even though this returns an error on the first
+	// occurrence, the error is generic but detailed enough that an operator
+	// can fix the problem across multiple task groups.
+	if args.Job.Type != nil && *args.Job.Type == api.JobTypeSystem {
+		for _, tg := range args.Job.TaskGroups {
+			if tg.Scaling != nil {
+				return nil, CodedError(400, "Task groups with job type system do not support scaling stanzas")
+			}
+		}
 	}
 
-	sJob := ApiJobToStructJob(args.Job)
-
+	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
 	regReq := structs.JobRegisterRequest{
 		Job:            sJob,
 		EnforceIndex:   args.EnforceIndex,
 		JobModifyIndex: args.JobModifyIndex,
 		PolicyOverride: args.PolicyOverride,
-		WriteRequest: structs.WriteRequest{
-			Region:    sJob.Region,
-			AuthToken: args.WriteRequest.SecretID,
-		},
+		PreserveCounts: args.PreserveCounts,
+		WriteRequest:   *writeReq,
 	}
-	// parseWriteRequest overrides Namespace, Region and AuthToken
-	// based on values from the original http request
-	s.parseWriteRequest(req, &regReq.WriteRequest)
-	regReq.Namespace = sJob.Namespace
 
 	var out structs.JobRegisterResponse
 	if err := s.agent.RPC("Job.Register", &regReq, &out); err != nil {
@@ -439,14 +422,99 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 		}
 	}
 
+	globalStr := req.URL.Query().Get("global")
+	var globalBool bool
+	if globalStr != "" {
+		var err error
+		globalBool, err = strconv.ParseBool(globalStr)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a bool: %v", "global", globalStr, err)
+		}
+	}
+
 	args := structs.JobDeregisterRequest{
-		JobID: jobName,
-		Purge: purgeBool,
+		JobID:  jobName,
+		Purge:  purgeBool,
+		Global: globalBool,
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.JobDeregisterResponse
 	if err := s.agent.RPC("Job.Deregister", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
+}
+
+func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+
+	switch req.Method {
+	case "GET":
+		return s.jobScaleStatus(resp, req, jobName)
+	case "PUT", "POST":
+		return s.jobScaleAction(resp, req, jobName)
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+
+	args := structs.JobScaleStatusRequest{
+		JobID: jobName,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.JobScaleStatusResponse
+	if err := s.agent.RPC("Job.ScaleStatus", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	if out.JobScaleStatus == nil {
+		return nil, CodedError(404, "job not found")
+	}
+
+	return out.JobScaleStatus, nil
+}
+
+func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
+	jobName string) (interface{}, error) {
+
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var args api.ScalingRequest
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+
+	targetJob := args.Target[structs.ScalingTargetJob]
+	if targetJob != "" && targetJob != jobName {
+		return nil, CodedError(400, "job ID in payload did not match URL")
+	}
+
+	scaleReq := structs.JobScaleRequest{
+		JobID:          jobName,
+		Target:         args.Target,
+		Count:          args.Count,
+		PolicyOverride: args.PolicyOverride,
+		Message:        args.Message,
+		Error:          args.Error,
+		Meta:           args.Meta,
+	}
+	// parseWriteRequest overrides Namespace, Region and AuthToken
+	// based on values from the original http request
+	s.parseWriteRequest(req, &scaleReq.WriteRequest)
+
+	var out structs.JobRegisterResponse
+	if err := s.agent.RPC("Job.Scale", &scaleReq, &out); err != nil {
 		return nil, err
 	}
 	setIndex(resp, out.Index)
@@ -605,8 +673,17 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(400, "Job spec is empty")
 	}
 
-	jobfile := strings.NewReader(args.JobHCL)
-	jobStruct, err := jobspec.Parse(jobfile)
+	var jobStruct *api.Job
+	var err error
+	if args.HCLv1 {
+		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
+	} else {
+		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(args.JobHCL),
+			AllowFS: false,
+		})
+	}
 	if err != nil {
 		return nil, CodedError(400, err.Error())
 	}
@@ -617,25 +694,108 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	return jobStruct, nil
 }
 
+// apiJobAndRequestToStructs parses the query params from the incoming
+// request and converts to a structs.Job and WriteRequest with the
+func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, apiReq api.WriteRequest) (*structs.Job, *structs.WriteRequest) {
+
+	// parseWriteRequest gets the Namespace, Region, and AuthToken from
+	// the original HTTP request's query params and headers and overrides
+	// those values set in the request body
+	writeReq := &structs.WriteRequest{
+		Namespace: apiReq.Namespace,
+		Region:    apiReq.Region,
+		AuthToken: apiReq.SecretID,
+	}
+
+	queryRegion := req.URL.Query().Get("region")
+	s.parseToken(req, &writeReq.AuthToken)
+	parseNamespace(req, &writeReq.Namespace)
+
+	requestRegion, jobRegion := regionForJob(
+		job, queryRegion, writeReq.Region, s.agent.config.Region,
+	)
+
+	sJob := ApiJobToStructJob(job)
+	sJob.Region = jobRegion
+	writeReq.Region = requestRegion
+	writeReq.Namespace = sJob.Namespace
+
+	return sJob, writeReq
+}
+
+func regionForJob(job *api.Job, queryRegion, apiRegion, agentRegion string) (string, string) {
+	var requestRegion string
+	var jobRegion string
+
+	// Region in query param (-region flag) takes precedence.
+	if queryRegion != "" {
+		requestRegion = queryRegion
+		jobRegion = queryRegion
+	}
+
+	// Next the request body...
+	if apiRegion != "" {
+		requestRegion = apiRegion
+		jobRegion = apiRegion
+	}
+
+	// If no query param was passed, we forward to the job's region
+	// if one is available
+	if requestRegion == "" && job.Region != nil {
+		requestRegion = *job.Region
+		jobRegion = *job.Region
+	}
+
+	// otherwise we default to the region of this node
+	if requestRegion == "" || requestRegion == api.GlobalRegion {
+		requestRegion = agentRegion
+		jobRegion = agentRegion
+	}
+
+	// Multiregion jobs have their job region set to the global region,
+	// and enforce that we forward to a region where they will be deployed
+	if job.Multiregion != nil {
+		jobRegion = api.GlobalRegion
+
+		// multiregion jobs with 0 regions won't pass validation,
+		// but this protects us from NPE
+		if len(job.Multiregion.Regions) > 0 {
+			found := false
+			for _, region := range job.Multiregion.Regions {
+				if region.Name == requestRegion {
+					found = true
+				}
+			}
+			if !found {
+				requestRegion = job.Multiregion.Regions[0].Name
+			}
+		}
+	}
+
+	return requestRegion, jobRegion
+}
+
 func ApiJobToStructJob(job *api.Job) *structs.Job {
 	job.Canonicalize()
 
 	j := &structs.Job{
-		Stop:        *job.Stop,
-		Region:      *job.Region,
-		Namespace:   *job.Namespace,
-		ID:          *job.ID,
-		ParentID:    *job.ParentID,
-		Name:        *job.Name,
-		Type:        *job.Type,
-		Priority:    *job.Priority,
-		AllAtOnce:   *job.AllAtOnce,
-		Datacenters: job.Datacenters,
-		Payload:     job.Payload,
-		Meta:        job.Meta,
-		VaultToken:  *job.VaultToken,
-		Constraints: ApiConstraintsToStructs(job.Constraints),
-		Affinities:  ApiAffinitiesToStructs(job.Affinities),
+		Stop:           *job.Stop,
+		Region:         *job.Region,
+		Namespace:      *job.Namespace,
+		ID:             *job.ID,
+		ParentID:       *job.ParentID,
+		Name:           *job.Name,
+		Type:           *job.Type,
+		Priority:       *job.Priority,
+		AllAtOnce:      *job.AllAtOnce,
+		Datacenters:    job.Datacenters,
+		Payload:        job.Payload,
+		Meta:           job.Meta,
+		ConsulToken:    *job.ConsulToken,
+		VaultToken:     *job.VaultToken,
+		VaultNamespace: *job.VaultNamespace,
+		Constraints:    ApiConstraintsToStructs(job.Constraints),
+		Affinities:     ApiAffinitiesToStructs(job.Affinities),
 	}
 
 	// Update has been pushed into the task groups. stagger and max_parallel are
@@ -680,11 +840,28 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 	}
 
+	if job.Multiregion != nil {
+		j.Multiregion = &structs.Multiregion{}
+		j.Multiregion.Strategy = &structs.MultiregionStrategy{
+			MaxParallel: *job.Multiregion.Strategy.MaxParallel,
+			OnFailure:   *job.Multiregion.Strategy.OnFailure,
+		}
+		j.Multiregion.Regions = []*structs.MultiregionRegion{}
+		for _, region := range job.Multiregion.Regions {
+			r := &structs.MultiregionRegion{}
+			r.Name = region.Name
+			r.Count = *region.Count
+			r.Datacenters = region.Datacenters
+			r.Meta = region.Meta
+			j.Multiregion.Regions = append(j.Multiregion.Regions, r)
+		}
+	}
+
 	if l := len(job.TaskGroups); l != 0 {
 		j.TaskGroups = make([]*structs.TaskGroup, l)
 		for i, taskGroup := range job.TaskGroups {
 			tg := &structs.TaskGroup{}
-			ApiTgToStructsTG(taskGroup, tg)
+			ApiTgToStructsTG(j, taskGroup, tg)
 			j.TaskGroups[i] = tg
 		}
 	}
@@ -692,7 +869,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 	return j
 }
 
-func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
+func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	tg.Name = *taskGroup.Name
 	tg.Count = *taskGroup.Count
 	tg.Meta = taskGroup.Meta
@@ -706,6 +883,14 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 		Interval: *taskGroup.RestartPolicy.Interval,
 		Delay:    *taskGroup.RestartPolicy.Delay,
 		Mode:     *taskGroup.RestartPolicy.Mode,
+	}
+
+	if taskGroup.ShutdownDelay != nil {
+		tg.ShutdownDelay = taskGroup.ShutdownDelay
+	}
+
+	if taskGroup.StopAfterClientDisconnect != nil {
+		tg.StopAfterClientDisconnect = taskGroup.StopAfterClientDisconnect
 	}
 
 	if taskGroup.ReschedulePolicy != nil {
@@ -728,6 +913,10 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 		}
 	}
 
+	if taskGroup.Scaling != nil {
+		tg.Scaling = ApiScalingPolicyToStructs(tg.Count, taskGroup.Scaling).TargetTaskGroup(job, tg)
+	}
+
 	tg.EphemeralDisk = &structs.EphemeralDisk{
 		Sticky:  *taskGroup.EphemeralDisk.Sticky,
 		SizeMB:  *taskGroup.EphemeralDisk.SizeMB,
@@ -744,8 +933,9 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 	if l := len(taskGroup.Volumes); l != 0 {
 		tg.Volumes = make(map[string]*structs.VolumeRequest, l)
 		for k, v := range taskGroup.Volumes {
-			if v.Type != structs.VolumeTypeHost {
-				// Ignore non-host volumes in this iteration currently.
+			if v.Type != structs.VolumeTypeHost && v.Type != structs.VolumeTypeCSI {
+				// Ignore volumes we don't understand in this iteration currently.
+				// - This is because we don't currently have a way to return errors here.
 				continue
 			}
 
@@ -754,6 +944,13 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 				Type:     v.Type,
 				ReadOnly: v.ReadOnly,
 				Source:   v.Source,
+			}
+
+			if v.MountOptions != nil {
+				vol.MountOptions = &structs.CSIMountOptions{
+					FSType:     v.MountOptions.FSType,
+					MountFlags: v.MountOptions.MountFlags,
+				}
 			}
 
 			tg.Volumes[k] = vol
@@ -785,7 +982,13 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 		tg.Tasks = make([]*structs.Task, l)
 		for l, task := range taskGroup.Tasks {
 			t := &structs.Task{}
-			ApiTaskToStructsTask(task, t)
+			ApiTaskToStructsTask(job, tg, task, t)
+
+			// Set the tasks vault namespace from Job if it was not
+			// specified by the task or group
+			if t.Vault != nil && t.Vault.Namespace == "" && job.VaultNamespace != "" {
+				t.Vault.Namespace = job.VaultNamespace
+			}
 			tg.Tasks[l] = t
 		}
 	}
@@ -793,7 +996,9 @@ func ApiTgToStructsTG(taskGroup *api.TaskGroup, tg *structs.TaskGroup) {
 
 // ApiTaskToStructsTask is a copy and type conversion between the API
 // representation of a task from a struct representation of a task.
-func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
+func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
+	apiTask *api.Task, structsTask *structs.Task) {
+
 	structsTask.Name = apiTask.Name
 	structsTask.Driver = apiTask.Driver
 	structsTask.User = apiTask.User
@@ -807,15 +1012,33 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	structsTask.Kind = structs.TaskKind(apiTask.Kind)
 	structsTask.Constraints = ApiConstraintsToStructs(apiTask.Constraints)
 	structsTask.Affinities = ApiAffinitiesToStructs(apiTask.Affinities)
+	structsTask.CSIPluginConfig = ApiCSIPluginConfigToStructsCSIPluginConfig(apiTask.CSIPluginConfig)
+
+	if apiTask.RestartPolicy != nil {
+		structsTask.RestartPolicy = &structs.RestartPolicy{
+			Attempts: *apiTask.RestartPolicy.Attempts,
+			Interval: *apiTask.RestartPolicy.Interval,
+			Delay:    *apiTask.RestartPolicy.Delay,
+			Mode:     *apiTask.RestartPolicy.Mode,
+		}
+	}
 
 	if l := len(apiTask.VolumeMounts); l != 0 {
 		structsTask.VolumeMounts = make([]*structs.VolumeMount, l)
 		for i, mount := range apiTask.VolumeMounts {
 			structsTask.VolumeMounts[i] = &structs.VolumeMount{
-				Volume:      mount.Volume,
-				Destination: mount.Destination,
-				ReadOnly:    mount.ReadOnly,
+				Volume:          *mount.Volume,
+				Destination:     *mount.Destination,
+				ReadOnly:        *mount.ReadOnly,
+				PropagationMode: *mount.PropagationMode,
 			}
+		}
+	}
+
+	if l := len(apiTask.ScalingPolicies); l != 0 {
+		structsTask.ScalingPolicies = make([]*structs.ScalingPolicy, l)
+		for i, policy := range apiTask.ScalingPolicies {
+			structsTask.ScalingPolicies[i] = ApiScalingPolicyToStructs(0, policy).TargetTask(job, group, structsTask)
 		}
 	}
 
@@ -823,34 +1046,38 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 		structsTask.Services = make([]*structs.Service, l)
 		for i, service := range apiTask.Services {
 			structsTask.Services[i] = &structs.Service{
-				Name:        service.Name,
-				PortLabel:   service.PortLabel,
-				Tags:        service.Tags,
-				CanaryTags:  service.CanaryTags,
-				AddressMode: service.AddressMode,
-				Meta:        helper.CopyMapStringString(service.Meta),
+				Name:              service.Name,
+				PortLabel:         service.PortLabel,
+				Tags:              service.Tags,
+				CanaryTags:        service.CanaryTags,
+				EnableTagOverride: service.EnableTagOverride,
+				AddressMode:       service.AddressMode,
+				Meta:              helper.CopyMapStringString(service.Meta),
+				CanaryMeta:        helper.CopyMapStringString(service.CanaryMeta),
 			}
 
 			if l := len(service.Checks); l != 0 {
 				structsTask.Services[i].Checks = make([]*structs.ServiceCheck, l)
 				for j, check := range service.Checks {
 					structsTask.Services[i].Checks[j] = &structs.ServiceCheck{
-						Name:          check.Name,
-						Type:          check.Type,
-						Command:       check.Command,
-						Args:          check.Args,
-						Path:          check.Path,
-						Protocol:      check.Protocol,
-						PortLabel:     check.PortLabel,
-						AddressMode:   check.AddressMode,
-						Interval:      check.Interval,
-						Timeout:       check.Timeout,
-						InitialStatus: check.InitialStatus,
-						TLSSkipVerify: check.TLSSkipVerify,
-						Header:        check.Header,
-						Method:        check.Method,
-						GRPCService:   check.GRPCService,
-						GRPCUseTLS:    check.GRPCUseTLS,
+						Name:                   check.Name,
+						Type:                   check.Type,
+						Command:                check.Command,
+						Args:                   check.Args,
+						Path:                   check.Path,
+						Protocol:               check.Protocol,
+						PortLabel:              check.PortLabel,
+						AddressMode:            check.AddressMode,
+						Interval:               check.Interval,
+						Timeout:                check.Timeout,
+						InitialStatus:          check.InitialStatus,
+						TLSSkipVerify:          check.TLSSkipVerify,
+						Header:                 check.Header,
+						Method:                 check.Method,
+						GRPCService:            check.GRPCService,
+						GRPCUseTLS:             check.GRPCUseTLS,
+						SuccessBeforePassing:   check.SuccessBeforePassing,
+						FailuresBeforeCritical: check.FailuresBeforeCritical,
 					}
 					if check.CheckRestart != nil {
 						structsTask.Services[i].Checks[j].CheckRestart = &structs.CheckRestart{
@@ -860,6 +1087,12 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 						}
 					}
 				}
+			}
+
+			// Task services can't have a connect block. We still convert it so that
+			// we can later return a validation error.
+			if service.Connect != nil {
+				structsTask.Services[i].Connect = ApiConsulConnectToStructs(service.Connect)
 			}
 		}
 	}
@@ -876,7 +1109,8 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 		for k, ta := range apiTask.Artifacts {
 			structsTask.Artifacts[k] = &structs.TaskArtifact{
 				GetterSource:  *ta.GetterSource,
-				GetterOptions: ta.GetterOptions,
+				GetterOptions: helper.CopyMapStringString(ta.GetterOptions),
+				GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
 				GetterMode:    *ta.GetterMode,
 				RelativeDest:  *ta.RelativeDest,
 			}
@@ -886,6 +1120,7 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 	if apiTask.Vault != nil {
 		structsTask.Vault = &structs.Vault{
 			Policies:     apiTask.Vault.Policies,
+			Namespace:    *apiTask.Vault.Namespace,
 			Env:          *apiTask.Vault.Env,
 			ChangeMode:   *apiTask.Vault.ChangeMode,
 			ChangeSignal: *apiTask.Vault.ChangeSignal,
@@ -916,6 +1151,25 @@ func ApiTaskToStructsTask(apiTask *api.Task, structsTask *structs.Task) {
 			File: apiTask.DispatchPayload.File,
 		}
 	}
+
+	if apiTask.Lifecycle != nil {
+		structsTask.Lifecycle = &structs.TaskLifecycleConfig{
+			Hook:    apiTask.Lifecycle.Hook,
+			Sidecar: apiTask.Lifecycle.Sidecar,
+		}
+	}
+}
+
+func ApiCSIPluginConfigToStructsCSIPluginConfig(apiConfig *api.TaskCSIPluginConfig) *structs.TaskCSIPluginConfig {
+	if apiConfig == nil {
+		return nil
+	}
+
+	sc := &structs.TaskCSIPluginConfig{}
+	sc.ID = apiConfig.ID
+	sc.Type = structs.CSIPluginType(apiConfig.Type)
+	sc.MountDir = apiConfig.MountDir
+	return sc
 }
 
 func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
@@ -963,33 +1217,42 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 			Mode:  nw.Mode,
 			CIDR:  nw.CIDR,
 			IP:    nw.IP,
-			MBits: *nw.MBits,
+			MBits: nw.Megabits(),
+		}
+
+		if nw.DNS != nil {
+			out[i].DNS = &structs.DNSConfig{
+				Servers:  nw.DNS.Servers,
+				Searches: nw.DNS.Searches,
+				Options:  nw.DNS.Options,
+			}
 		}
 
 		if l := len(nw.DynamicPorts); l != 0 {
 			out[i].DynamicPorts = make([]structs.Port, l)
 			for j, dp := range nw.DynamicPorts {
-				out[i].DynamicPorts[j] = structs.Port{
-					Label: dp.Label,
-					Value: dp.Value,
-					To:    dp.To,
-				}
+				out[i].DynamicPorts[j] = ApiPortToStructs(dp)
 			}
 		}
 
 		if l := len(nw.ReservedPorts); l != 0 {
 			out[i].ReservedPorts = make([]structs.Port, l)
 			for j, rp := range nw.ReservedPorts {
-				out[i].ReservedPorts[j] = structs.Port{
-					Label: rp.Label,
-					Value: rp.Value,
-					To:    rp.To,
-				}
+				out[i].ReservedPorts[j] = ApiPortToStructs(rp)
 			}
 		}
 	}
 
 	return out
+}
+
+func ApiPortToStructs(in api.Port) structs.Port {
+	return structs.Port{
+		Label:       in.Label,
+		Value:       in.Value,
+		To:          in.To,
+		HostNetwork: in.HostNetwork,
+	}
 }
 
 //TODO(schmichael) refactor and reuse in service parsing above
@@ -1001,12 +1264,15 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 	out := make([]*structs.Service, len(in))
 	for i, s := range in {
 		out[i] = &structs.Service{
-			Name:        s.Name,
-			PortLabel:   s.PortLabel,
-			Tags:        s.Tags,
-			CanaryTags:  s.CanaryTags,
-			AddressMode: s.AddressMode,
-			Meta:        helper.CopyMapStringString(s.Meta),
+			Name:              s.Name,
+			PortLabel:         s.PortLabel,
+			TaskName:          s.TaskName,
+			Tags:              s.Tags,
+			CanaryTags:        s.CanaryTags,
+			EnableTagOverride: s.EnableTagOverride,
+			AddressMode:       s.AddressMode,
+			Meta:              helper.CopyMapStringString(s.Meta),
+			CanaryMeta:        helper.CopyMapStringString(s.CanaryMeta),
 		}
 
 		if l := len(s.Checks); l != 0 {
@@ -1020,6 +1286,7 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 					Path:          check.Path,
 					Protocol:      check.Protocol,
 					PortLabel:     check.PortLabel,
+					Expose:        check.Expose,
 					AddressMode:   check.AddressMode,
 					Interval:      check.Interval,
 					Timeout:       check.Timeout,
@@ -1054,66 +1321,253 @@ func ApiConsulConnectToStructs(in *api.ConsulConnect) *structs.ConsulConnect {
 	if in == nil {
 		return nil
 	}
+	return &structs.ConsulConnect{
+		Native:         in.Native,
+		SidecarService: apiConnectSidecarServiceToStructs(in.SidecarService),
+		SidecarTask:    apiConnectSidecarTaskToStructs(in.SidecarTask),
+		Gateway:        apiConnectGatewayToStructs(in.Gateway),
+	}
+}
 
-	out := &structs.ConsulConnect{
-		Native: in.Native,
+func apiConnectGatewayToStructs(in *api.ConsulGateway) *structs.ConsulGateway {
+	if in == nil {
+		return nil
 	}
 
-	if in.SidecarService != nil {
+	return &structs.ConsulGateway{
+		Proxy:       apiConnectGatewayProxyToStructs(in.Proxy),
+		Ingress:     apiConnectIngressGatewayToStructs(in.Ingress),
+		Terminating: apiConnectTerminatingGatewayToStructs(in.Terminating),
+	}
+}
 
-		out.SidecarService = &structs.ConsulSidecarService{
-			Port: in.SidecarService.Port,
-		}
-
-		if in.SidecarService.Proxy != nil {
-
-			out.SidecarService.Proxy = &structs.ConsulProxy{
-				LocalServiceAddress: in.SidecarService.Proxy.LocalServiceAddress,
-				LocalServicePort:    in.SidecarService.Proxy.LocalServicePort,
-				Config:              in.SidecarService.Proxy.Config,
-			}
-
-			upstreams := make([]structs.ConsulUpstream, len(in.SidecarService.Proxy.Upstreams))
-			for i, p := range in.SidecarService.Proxy.Upstreams {
-				upstreams[i] = structs.ConsulUpstream{
-					DestinationName: p.DestinationName,
-					LocalBindPort:   p.LocalBindPort,
-				}
-			}
-
-			out.SidecarService.Proxy.Upstreams = upstreams
-		}
+func apiConnectGatewayProxyToStructs(in *api.ConsulGatewayProxy) *structs.ConsulGatewayProxy {
+	if in == nil {
+		return nil
 	}
 
-	if in.SidecarTask != nil {
-		out.SidecarTask = &structs.SidecarTask{
-			Name:          in.SidecarTask.Name,
-			Driver:        in.SidecarTask.Driver,
-			Config:        in.SidecarTask.Config,
-			User:          in.SidecarTask.User,
-			Env:           in.SidecarTask.Env,
-			Resources:     ApiResourcesToStructs(in.SidecarTask.Resources),
-			Meta:          in.SidecarTask.Meta,
-			LogConfig:     &structs.LogConfig{},
-			ShutdownDelay: in.SidecarTask.ShutdownDelay,
-			KillSignal:    in.SidecarTask.KillSignal,
-		}
-
-		if in.SidecarTask.KillTimeout != nil {
-			out.SidecarTask.KillTimeout = in.SidecarTask.KillTimeout
-		}
-		if in.SidecarTask.LogConfig != nil {
-			out.SidecarTask.LogConfig = &structs.LogConfig{}
-			if in.SidecarTask.LogConfig.MaxFiles != nil {
-				out.SidecarTask.LogConfig.MaxFiles = *in.SidecarTask.LogConfig.MaxFiles
-			}
-			if in.SidecarTask.LogConfig.MaxFileSizeMB != nil {
-				out.SidecarTask.LogConfig.MaxFileSizeMB = *in.SidecarTask.LogConfig.MaxFileSizeMB
+	bindAddresses := make(map[string]*structs.ConsulGatewayBindAddress)
+	if in.EnvoyGatewayBindAddresses != nil {
+		for k, v := range in.EnvoyGatewayBindAddresses {
+			bindAddresses[k] = &structs.ConsulGatewayBindAddress{
+				Address: v.Address,
+				Port:    v.Port,
 			}
 		}
 	}
 
-	return out
+	return &structs.ConsulGatewayProxy{
+		ConnectTimeout:                  in.ConnectTimeout,
+		EnvoyGatewayBindTaggedAddresses: in.EnvoyGatewayBindTaggedAddresses,
+		EnvoyGatewayBindAddresses:       bindAddresses,
+		EnvoyGatewayNoDefaultBind:       in.EnvoyGatewayNoDefaultBind,
+		EnvoyDNSDiscoveryType:           in.EnvoyDNSDiscoveryType,
+		Config:                          helper.CopyMapStringInterface(in.Config),
+	}
+}
+
+func apiConnectIngressGatewayToStructs(in *api.ConsulIngressConfigEntry) *structs.ConsulIngressConfigEntry {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulIngressConfigEntry{
+		TLS:       apiConnectGatewayTLSConfig(in.TLS),
+		Listeners: apiConnectIngressListenersToStructs(in.Listeners),
+	}
+}
+
+func apiConnectGatewayTLSConfig(in *api.ConsulGatewayTLSConfig) *structs.ConsulGatewayTLSConfig {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulGatewayTLSConfig{
+		Enabled: in.Enabled,
+	}
+}
+
+func apiConnectIngressListenersToStructs(in []*api.ConsulIngressListener) []*structs.ConsulIngressListener {
+	if len(in) == 0 {
+		return nil
+	}
+
+	listeners := make([]*structs.ConsulIngressListener, len(in))
+	for i, listener := range in {
+		listeners[i] = apiConnectIngressListenerToStructs(listener)
+	}
+	return listeners
+}
+
+func apiConnectIngressListenerToStructs(in *api.ConsulIngressListener) *structs.ConsulIngressListener {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulIngressListener{
+		Port:     in.Port,
+		Protocol: in.Protocol,
+		Services: apiConnectIngressServicesToStructs(in.Services),
+	}
+}
+
+func apiConnectIngressServicesToStructs(in []*api.ConsulIngressService) []*structs.ConsulIngressService {
+	if len(in) == 0 {
+		return nil
+	}
+
+	services := make([]*structs.ConsulIngressService, len(in))
+	for i, service := range in {
+		services[i] = apiConnectIngressServiceToStructs(service)
+	}
+	return services
+}
+
+func apiConnectIngressServiceToStructs(in *api.ConsulIngressService) *structs.ConsulIngressService {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulIngressService{
+		Name:  in.Name,
+		Hosts: helper.CopySliceString(in.Hosts),
+	}
+}
+
+func apiConnectTerminatingGatewayToStructs(in *api.ConsulTerminatingConfigEntry) *structs.ConsulTerminatingConfigEntry {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulTerminatingConfigEntry{
+		Services: apiConnectTerminatingServicesToStructs(in.Services),
+	}
+}
+
+func apiConnectTerminatingServicesToStructs(in []*api.ConsulLinkedService) []*structs.ConsulLinkedService {
+	if len(in) == 0 {
+		return nil
+	}
+
+	services := make([]*structs.ConsulLinkedService, len(in))
+	for i, service := range in {
+		services[i] = apiConnectTerminatingServiceToStructs(service)
+	}
+	return services
+}
+
+func apiConnectTerminatingServiceToStructs(in *api.ConsulLinkedService) *structs.ConsulLinkedService {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulLinkedService{
+		Name:     in.Name,
+		CAFile:   in.CAFile,
+		CertFile: in.CertFile,
+		KeyFile:  in.KeyFile,
+		SNI:      in.SNI,
+	}
+}
+
+func apiConnectSidecarServiceToStructs(in *api.ConsulSidecarService) *structs.ConsulSidecarService {
+	if in == nil {
+		return nil
+	}
+	return &structs.ConsulSidecarService{
+		Port:  in.Port,
+		Tags:  helper.CopySliceString(in.Tags),
+		Proxy: apiConnectSidecarServiceProxyToStructs(in.Proxy),
+	}
+}
+
+func apiConnectSidecarServiceProxyToStructs(in *api.ConsulProxy) *structs.ConsulProxy {
+	if in == nil {
+		return nil
+	}
+	return &structs.ConsulProxy{
+		LocalServiceAddress: in.LocalServiceAddress,
+		LocalServicePort:    in.LocalServicePort,
+		Upstreams:           apiUpstreamsToStructs(in.Upstreams),
+		Expose:              apiConsulExposeConfigToStructs(in.ExposeConfig),
+		Config:              helper.CopyMapStringInterface(in.Config),
+	}
+}
+
+func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
+	if len(in) == 0 {
+		return nil
+	}
+	upstreams := make([]structs.ConsulUpstream, len(in))
+	for i, upstream := range in {
+		upstreams[i] = structs.ConsulUpstream{
+			DestinationName: upstream.DestinationName,
+			LocalBindPort:   upstream.LocalBindPort,
+			Datacenter:      upstream.Datacenter,
+		}
+	}
+	return upstreams
+}
+
+func apiConsulExposeConfigToStructs(in *api.ConsulExposeConfig) *structs.ConsulExposeConfig {
+	if in == nil {
+		return nil
+	}
+	return &structs.ConsulExposeConfig{
+		Paths: apiConsulExposePathsToStructs(in.Path),
+	}
+}
+
+func apiConsulExposePathsToStructs(in []*api.ConsulExposePath) []structs.ConsulExposePath {
+	if len(in) == 0 {
+		return nil
+	}
+	paths := make([]structs.ConsulExposePath, len(in))
+	for i, path := range in {
+		paths[i] = structs.ConsulExposePath{
+			Path:          path.Path,
+			Protocol:      path.Protocol,
+			LocalPathPort: path.LocalPathPort,
+			ListenerPort:  path.ListenerPort,
+		}
+	}
+	return paths
+}
+
+func apiConnectSidecarTaskToStructs(in *api.SidecarTask) *structs.SidecarTask {
+	if in == nil {
+		return nil
+	}
+	return &structs.SidecarTask{
+		Name:          in.Name,
+		Driver:        in.Driver,
+		User:          in.User,
+		Config:        in.Config,
+		Env:           in.Env,
+		Resources:     ApiResourcesToStructs(in.Resources),
+		Meta:          in.Meta,
+		ShutdownDelay: in.ShutdownDelay,
+		KillSignal:    in.KillSignal,
+		KillTimeout:   in.KillTimeout,
+		LogConfig:     apiLogConfigToStructs(in.LogConfig),
+	}
+}
+
+func apiLogConfigToStructs(in *api.LogConfig) *structs.LogConfig {
+	if in == nil {
+		return nil
+	}
+	return &structs.LogConfig{
+		MaxFiles:      dereferenceInt(in.MaxFiles),
+		MaxFileSizeMB: dereferenceInt(in.MaxFileSizeMB),
+	}
+}
+
+func dereferenceInt(in *int) int {
+	if in == nil {
+		return 0
+	}
+	return *in
 }
 
 func ApiConstraintsToStructs(in []*api.Constraint) []*structs.Constraint {

@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -47,7 +48,7 @@ var (
 	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
 		Config:  map[string]interface{}{},
-		Factory: func(l hclog.Logger) interface{} { return NewExecDriver(l) },
+		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewExecDriver(ctx, l) },
 	}
 
 	// pluginInfo is the response returned for the PluginInfo RPC
@@ -59,7 +60,12 @@ var (
 	}
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
-	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{})
+	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"no_pivot_root": hclspec.NewDefault(
+			hclspec.NewAttr("no_pivot_root", "bool", false),
+			hclspec.NewLiteral("false"),
+		),
+	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a task within a job. It is returned in the TaskConfigSchema RPC
@@ -78,6 +84,7 @@ var (
 			drivers.NetIsolationModeHost,
 			drivers.NetIsolationModeGroup,
 		},
+		MountConfigs: drivers.MountConfigSupportAll,
 	}
 )
 
@@ -87,6 +94,9 @@ type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
+
+	// config is the driver configuration set by the SetConfig RPC
+	config Config
 
 	// nomadConfig is the client config from nomad
 	nomadConfig *base.ClientDriverConfig
@@ -98,10 +108,6 @@ type Driver struct {
 	// coordinate shutdown
 	ctx context.Context
 
-	// signalShutdown is called when the driver is shutting down and cancels the
-	// ctx passed to any subsystems
-	signalShutdown context.CancelFunc
-
 	// logger will log to the Nomad agent
 	logger hclog.Logger
 
@@ -109,6 +115,13 @@ type Driver struct {
 	// whether it has been successful
 	fingerprintSuccess *bool
 	fingerprintLock    sync.Mutex
+}
+
+// Config is the driver configuration set by the SetConfig RPC call
+type Config struct {
+	// NoPivotRoot disables the use of pivot_root, useful when the root partition
+	// is on ramdisk
+	NoPivotRoot bool `codec:"no_pivot_root"`
 }
 
 // TaskConfig is the driver configuration of a task within a job
@@ -128,15 +141,13 @@ type TaskState struct {
 }
 
 // NewExecDriver returns a new DrivePlugin implementation
-func NewExecDriver(logger hclog.Logger) drivers.DriverPlugin {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewExecDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 	return &Driver{
-		eventer:        eventer.NewEventer(ctx, logger),
-		tasks:          newTaskStore(),
-		ctx:            ctx,
-		signalShutdown: cancel,
-		logger:         logger,
+		eventer: eventer.NewEventer(ctx, logger),
+		tasks:   newTaskStore(),
+		ctx:     ctx,
+		logger:  logger,
 	}
 }
 
@@ -171,14 +182,18 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 func (d *Driver) SetConfig(cfg *base.Config) error {
+	var config Config
+	if len(cfg.PluginConfig) != 0 {
+		if err := base.MsgPackDecode(cfg.PluginConfig, &config); err != nil {
+			return err
+		}
+	}
+
+	d.config = config
 	if cfg != nil && cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
 	}
 	return nil
-}
-
-func (d *Driver) Shutdown() {
-	d.signalShutdown()
 }
 
 func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
@@ -304,6 +319,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		procState:    drivers.TaskStateRunning,
 		startedAt:    taskState.StartedAt,
 		exitResult:   &drivers.ExitResult{},
+		logger:       d.logger,
 	}
 
 	d.tasks.Set(taskState.TaskConfig.ID, h)
@@ -345,12 +361,21 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		user = "nobody"
 	}
 
+	if cfg.DNS != nil {
+		dnsMount, err := resolvconf.GenerateDNSMount(cfg.TaskDir().Dir, cfg.DNS)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to build mount for resolv.conf: %v", err)
+		}
+		cfg.Mounts = append(cfg.Mounts, dnsMount)
+	}
+
 	execCmd := &executor.ExecCommand{
 		Cmd:              driverConfig.Command,
 		Args:             driverConfig.Args,
 		Env:              cfg.EnvList(),
 		User:             user,
 		ResourceLimits:   true,
+		NoPivotRoot:      d.config.NoPivotRoot,
 		Resources:        cfg.Resources,
 		TaskDir:          cfg.TaskDir().Dir,
 		StdoutPath:       cfg.StdoutPath,
@@ -458,10 +483,8 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 	}
 
 	if !handle.pluginClient.Exited() {
-		if handle.IsRunning() {
-			if err := handle.exec.Shutdown("", 0); err != nil {
-				handle.logger.Error("destroying executor failed", "err", err)
-			}
+		if err := handle.exec.Shutdown("", 0); err != nil {
+			handle.logger.Error("destroying executor failed", "err", err)
 		}
 
 		handle.pluginClient.Kill()

@@ -19,18 +19,20 @@ type Writer struct {
 // buffering.
 func (w *Writer) Flush() {
 	w.lock.Lock()
+	defer w.lock.Unlock()
+
 	w.flush = true
-	w.lock.Unlock()
 
 	for _, p := range w.buf {
-		w.Write(p)
+		_, _ = w.Writer.Write(p)
 	}
+
 	w.buf = nil
 }
 
 func (w *Writer) Write(p []byte) (n int, err error) {
-	w.lock.RLock()
-	defer w.lock.RUnlock()
+	w.lock.Lock()
+	defer w.lock.Unlock()
 
 	if w.flush {
 		return w.Writer.Write(p)

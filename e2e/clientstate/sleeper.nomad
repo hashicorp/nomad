@@ -3,8 +3,15 @@
 
 job "sleeper" {
   datacenters = ["dc1"]
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   task "sleeper" {
     driver = "raw_exec"
+
     config {
       command = "/bin/bash"
       args    = ["-c", "echo $$ >> pid && sleep 999999"]

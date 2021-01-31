@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api/contexts"
-	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
 )
 
@@ -28,9 +28,12 @@ Usage: nomad job dispatch [options] <parameterized job> [input source]
   triggered evaluation will be monitored. This can be disabled by supplying the
   detach flag.
 
+  When ACLs are enabled, this command requires a token with the 'dispatch-job'
+  capability for the job's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Dispatch Options:
 
@@ -173,5 +176,5 @@ func (c *JobDispatchCommand) Run(args []string) int {
 
 	c.Ui.Output("")
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(resp.EvalID, false)
+	return mon.monitor(resp.EvalID)
 }

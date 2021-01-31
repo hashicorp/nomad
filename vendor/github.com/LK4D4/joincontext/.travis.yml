@@ -1,0 +1,13 @@
+language: go
+sudo: false
+go:
+  - 1.9
+  - master
+install:
+  - go get -t ./...
+  - go get github.com/golang/lint/golint
+script:
+  - go vet ./...
+  - golint -set_exit_status ./...
+  - test -z "$(gofmt -s -l . | tee /dev/stderr)"
+  - go test -race -v ./...

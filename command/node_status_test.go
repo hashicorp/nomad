@@ -27,7 +27,7 @@ func TestNodeStatusCommand_Self(t *testing.T) {
 	})
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NodeStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Wait for a node to appear
@@ -78,7 +78,7 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 	})
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NodeStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Wait for a node to appear
@@ -137,11 +137,8 @@ func TestNodeStatusCommand_Run(t *testing.T) {
 	if !strings.Contains(out, "mynode") {
 		t.Fatalf("expect to find mynode, got: %s", out)
 	}
-	if strings.Contains(out, nodeID) {
-		t.Fatalf("expected truncated node id, got: %s", out)
-	}
-	if !strings.Contains(out, nodeID[:8]) {
-		t.Fatalf("expected node id %q, got: %s", nodeID[:8], out)
+	if !strings.Contains(out, nodeID) {
+		t.Fatalf("expected node id %q, got: %s", nodeID, out)
 	}
 	ui.OutputWriter.Reset()
 
@@ -170,7 +167,7 @@ func TestNodeStatusCommand_Fails(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NodeStatusCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
@@ -241,7 +238,7 @@ func TestNodeStatusCommand_AutocompleteArgs(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	})
 
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	cmd := &NodeStatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 	prefix := nodeID[:len(nodeID)-5]

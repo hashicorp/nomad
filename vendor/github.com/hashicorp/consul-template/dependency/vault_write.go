@@ -21,7 +21,8 @@ var (
 
 // VaultWriteQuery is the dependency to Vault for a secret
 type VaultWriteQuery struct {
-	stopCh chan struct{}
+	stopCh  chan struct{}
+	sleepCh chan time.Duration
 
 	path     string
 	data     map[string]interface{}
@@ -42,6 +43,7 @@ func NewVaultWriteQuery(s string, d map[string]interface{}) (*VaultWriteQuery, e
 
 	return &VaultWriteQuery{
 		stopCh:   make(chan struct{}, 1),
+		sleepCh:  make(chan time.Duration, 1),
 		path:     s,
 		data:     d,
 		dataHash: sha1Map(d),
@@ -49,73 +51,60 @@ func NewVaultWriteQuery(s string, d map[string]interface{}) (*VaultWriteQuery, e
 }
 
 // Fetch queries the Vault API
-func (d *VaultWriteQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interface{}, *ResponseMetadata, error) {
+func (d *VaultWriteQuery) Fetch(clients *ClientSet, opts *QueryOptions,
+) (interface{}, *ResponseMetadata, error) {
 	select {
 	case <-d.stopCh:
 		return nil, nil, ErrStopped
 	default:
 	}
+	select {
+	case dur := <-d.sleepCh:
+		time.Sleep(dur)
+	default:
+	}
 
-	opts = opts.Merge(&QueryOptions{})
+	firstRun := d.secret == nil
 
-	if d.secret != nil {
-		if vaultSecretRenewable(d.secret) {
-			log.Printf("[TRACE] %s: starting renewer", d)
-
-			renewer, err := clients.Vault().NewRenewer(&api.RenewerInput{
-				Grace:  opts.VaultGrace,
-				Secret: d.vaultSecret,
-			})
-			if err != nil {
-				return nil, nil, errors.Wrap(err, d.String())
-			}
-			go renewer.Renew()
-			defer renewer.Stop()
-
-		RENEW:
-			for {
-				select {
-				case err := <-renewer.DoneCh():
-					if err != nil {
-						log.Printf("[WARN] %s: failed to renew: %s", d, err)
-					}
-					log.Printf("[WARN] %s: renewer returned (maybe the lease expired)", d)
-					break RENEW
-				case renewal := <-renewer.RenewCh():
-					log.Printf("[TRACE] %s: successfully renewed", d)
-					printVaultWarnings(d, renewal.Secret.Warnings)
-					updateSecret(d.secret, renewal.Secret)
-				case <-d.stopCh:
-					return nil, nil, ErrStopped
-				}
-			}
-		} else {
-			// The secret isn't renewable, probably the generic secret backend.
-			dur := vaultRenewDuration(d.secret)
-			log.Printf("[TRACE] %s: secret is not renewable, sleeping for %s", d, dur)
-			select {
-			case <-time.After(dur):
-				// The lease is almost expired, it's time to request a new one.
-			case <-d.stopCh:
-				return nil, nil, ErrStopped
-			}
+	if !firstRun && vaultSecretRenewable(d.secret) {
+		err := renewSecret(clients, d)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, d.String())
 		}
 	}
 
-	// We don't have a secret, or the prior renewal failed
+	opts = opts.Merge(&QueryOptions{})
 	vaultSecret, err := d.writeSecret(clients, opts)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, d.String())
 	}
 
-	// Print any warnings
-	printVaultWarnings(d, vaultSecret.Warnings)
+	// vaultSecret == nil when writing to KVv1 engines
+	if vaultSecret == nil {
+		return respWithMetadata(d.secret)
+	}
 
-	// Create the cloned secret which will be exposed to the template.
+	printVaultWarnings(d, vaultSecret.Warnings)
 	d.vaultSecret = vaultSecret
+	// cloned secret which will be exposed to the template
 	d.secret = transformSecret(vaultSecret)
 
+	if !vaultSecretRenewable(d.secret) {
+		dur := leaseCheckWait(d.secret)
+		log.Printf("[TRACE] %s: non-renewable secret, set sleep for %s", d, dur)
+		d.sleepCh <- dur
+	}
+
 	return respWithMetadata(d.secret)
+}
+
+// meet renewer interface
+func (d *VaultWriteQuery) stopChan() chan struct{} {
+	return d.stopCh
+}
+
+func (d *VaultWriteQuery) secrets() (*Secret, *api.Secret) {
+	return d.secret, d.vaultSecret
 }
 
 // CanShare returns if this dependency is shareable.
@@ -168,14 +157,20 @@ func (d *VaultWriteQuery) writeSecret(clients *ClientSet, opts *QueryOptions) (*
 		RawQuery: opts.String(),
 	})
 
-	vaultSecret, err := clients.Vault().Logical().Write(d.path, d.data)
+	data := d.data
+
+	_, isv2, _ := isKVv2(clients.Vault(), d.path)
+	if isv2 {
+		data = map[string]interface{}{"data": d.data}
+	}
+
+	vaultSecret, err := clients.Vault().Logical().Write(d.path, data)
 	if err != nil {
 		return nil, errors.Wrap(err, d.String())
 	}
-	if vaultSecret == nil {
-		if _, isv2, _ := isKVv2(clients.Vault(), d.path); isv2 {
-			return nil, fmt.Errorf("no secret exists at %s", d.path)
-		}
+	// vaultSecret is always nil when KVv1 engine (isv2==false)
+	if isv2 && vaultSecret == nil {
+		return nil, fmt.Errorf("no secret exists at %s", d.path)
 	}
 
 	return vaultSecret, nil

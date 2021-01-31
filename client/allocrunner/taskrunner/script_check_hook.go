@@ -174,12 +174,13 @@ func (h *scriptCheckHook) Stop(ctx context.Context, req *interfaces.TaskStopRequ
 
 func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 	scriptChecks := make(map[string]*scriptCheck)
-	for _, service := range h.task.Services {
+	interpolatedTaskServices := taskenv.InterpolateServices(h.taskEnv, h.task.Services)
+	for _, service := range interpolatedTaskServices {
 		for _, check := range service.Checks {
 			if check.Type != structs.ServiceCheckScript {
 				continue
 			}
-			serviceID := agentconsul.MakeTaskServiceID(
+			serviceID := agentconsul.MakeAllocServiceID(
 				h.alloc.ID, h.task.Name, service)
 			sc := newScriptCheck(&scriptCheckConfig{
 				allocID:    h.alloc.ID,
@@ -203,17 +204,22 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 	// for them. The group-level service and any check restart behaviors it
 	// needs are entirely encapsulated within the group service hook which
 	// watches Consul for status changes.
+	//
+	// The script check is associated with a group task if the service.task or
+	// service.check.task matches the task name. The service.check.task takes
+	// precedence.
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
-	for _, service := range tg.Services {
+	interpolatedGroupServices := taskenv.InterpolateServices(h.taskEnv, tg.Services)
+	for _, service := range interpolatedGroupServices {
 		for _, check := range service.Checks {
 			if check.Type != structs.ServiceCheckScript {
 				continue
 			}
-			if check.TaskName != h.task.Name {
+			if !h.associated(h.task.Name, service.TaskName, check.TaskName) {
 				continue
 			}
 			groupTaskName := "group-" + tg.Name
-			serviceID := agentconsul.MakeTaskServiceID(
+			serviceID := agentconsul.MakeAllocServiceID(
 				h.alloc.ID, groupTaskName, service)
 			sc := newScriptCheck(&scriptCheckConfig{
 				allocID:    h.alloc.ID,
@@ -233,6 +239,20 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 		}
 	}
 	return scriptChecks
+}
+
+// associated returns true if the script check is associated with the task. This
+// would be the case if the check.task is the same as task, or if the service.task
+// is the same as the task _and_ check.task is not configured (i.e. the check
+// inherits the task of the service).
+func (*scriptCheckHook) associated(task, serviceTask, checkTask string) bool {
+	if checkTask == task {
+		return true
+	}
+	if serviceTask == task && checkTask == "" {
+		return true
+	}
+	return false
 }
 
 // heartbeater is the subset of consul agent functionality needed by script
@@ -293,37 +313,10 @@ func newScriptCheck(config *scriptCheckConfig) *scriptCheck {
 	sc.callback = newScriptCheckCallback(sc)
 	sc.logger = config.logger
 	sc.shutdownCh = config.shutdownCh
-
-	// the hash of the interior structs.ServiceCheck is used by the
-	// Consul client to get the ID to register for the check. So we
-	// update it here so that we have the same ID for UpdateTTL.
-
-	// TODO(tgross): this block is similar to one in service_hook
-	// and we can pull that out to a function so we know we're
-	// interpolating the same everywhere
-	sc.check.Name = config.taskEnv.ReplaceEnv(orig.Name)
-	sc.check.Type = config.taskEnv.ReplaceEnv(orig.Type)
 	sc.check.Command = sc.Command
 	sc.check.Args = sc.Args
-	sc.check.Path = config.taskEnv.ReplaceEnv(orig.Path)
-	sc.check.Protocol = config.taskEnv.ReplaceEnv(orig.Protocol)
-	sc.check.PortLabel = config.taskEnv.ReplaceEnv(orig.PortLabel)
-	sc.check.InitialStatus = config.taskEnv.ReplaceEnv(orig.InitialStatus)
-	sc.check.Method = config.taskEnv.ReplaceEnv(orig.Method)
-	sc.check.GRPCService = config.taskEnv.ReplaceEnv(orig.GRPCService)
-	if len(orig.Header) > 0 {
-		header := make(map[string][]string, len(orig.Header))
-		for k, vs := range orig.Header {
-			newVals := make([]string, len(vs))
-			for i, v := range vs {
-				newVals[i] = config.taskEnv.ReplaceEnv(v)
-			}
-			header[config.taskEnv.ReplaceEnv(k)] = newVals
-		}
-		sc.check.Header = header
-	}
+
 	if config.isGroup {
-		// TODO(tgross):
 		// group services don't have access to a task environment
 		// at creation, so their checks get registered before the
 		// check can be interpolated here. if we don't use the
@@ -396,7 +389,7 @@ const (
 	updateTTLBackoffLimit    = 3 * time.Second
 )
 
-// updateTTL updates the state to Consul, performing an expontential backoff
+// updateTTL updates the state to Consul, performing an exponential backoff
 // in the case where the check isn't registered in Consul to avoid a race between
 // service registration and the first check.
 func (s *scriptCheck) updateTTL(ctx context.Context, msg, state string) error {

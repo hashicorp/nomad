@@ -67,7 +67,7 @@ func (vc *MockVaultClient) SetDeriveTokenError(allocID string, tasks []string, e
 		vc.deriveTokenErrors = make(map[string]map[string]error, 10)
 	}
 
-	if _, ok := vc.renewTokenErrors[allocID]; !ok {
+	if _, ok := vc.deriveTokenErrors[allocID]; !ok {
 		vc.deriveTokenErrors[allocID] = make(map[string]error, 10)
 	}
 
@@ -111,12 +111,10 @@ func (vc *MockVaultClient) StopRenewToken(token string) error {
 	return nil
 }
 
-func (vc *MockVaultClient) RenewLease(leaseId string, interval int) (<-chan error, error) {
-	return nil, nil
-}
-func (vc *MockVaultClient) StopRenewLease(leaseId string) error                   { return nil }
-func (vc *MockVaultClient) Start()                                                {}
-func (vc *MockVaultClient) Stop()                                                 {}
+func (vc *MockVaultClient) Start() {}
+
+func (vc *MockVaultClient) Stop() {}
+
 func (vc *MockVaultClient) GetConsulACL(string, string) (*vaultapi.Secret, error) { return nil, nil }
 
 // StoppedTokens tracks the tokens that have stopped renewing

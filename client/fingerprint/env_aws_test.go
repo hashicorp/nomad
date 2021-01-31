@@ -1,21 +1,21 @@
 package fingerprint
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEnvAWSFingerprint_nonAws(t *testing.T) {
-	os.Setenv("AWS_ENV_URL", "http://127.0.0.1/latest/meta-data/")
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = "http://127.0.0.1/latest"
+
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -23,43 +23,25 @@ func TestEnvAWSFingerprint_nonAws(t *testing.T) {
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if len(response.Attributes) > 0 {
-		t.Fatalf("Should not apply")
-	}
+	require.NoError(t, err)
+	require.Empty(t, response.Attributes)
 }
 
 func TestEnvAWSFingerprint_aws(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
+	defer cleanup()
+
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
 
-	// configure mock server with fixture routes, data
-	routes := routes{}
-	if err := json.Unmarshal([]byte(aws_routes), &routes); err != nil {
-		t.Fatalf("Failed to unmarshal JSON in AWS ENV test: %s", err)
-	}
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for _, e := range routes.Endpoints {
-			if r.RequestURI == e.Uri {
-				w.Header().Set("Content-Type", e.ContentType)
-				fmt.Fprintln(w, e.Body)
-			}
-		}
-	}))
-	defer ts.Close()
-	os.Setenv("AWS_ENV_URL", ts.URL+"/latest/meta-data/")
-
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	keys := []string{
 		"platform.aws.ami-id",
@@ -78,9 +60,7 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 		assertNodeAttributeContains(t, response.Attributes, k)
 	}
 
-	if len(response.Links) == 0 {
-		t.Fatalf("Empty links for Node in AWS Fingerprint test")
-	}
+	require.NotEmpty(t, response.Links)
 
 	// confirm we have at least instance-id and ami-id
 	for _, k := range []string{"aws.ec2"} {
@@ -88,86 +68,13 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 	}
 }
 
-type routes struct {
-	Endpoints []*endpoint `json:"endpoints"`
-}
-type endpoint struct {
-	Uri         string `json:"uri"`
-	ContentType string `json:"content-type"`
-	Body        string `json:"body"`
-}
-
-const aws_routes = `
-{
-  "endpoints": [
-    {
-      "uri": "/latest/meta-data/ami-id",
-      "content-type": "text/plain",
-      "body": "ami-1234"
-    },
-    {
-      "uri": "/latest/meta-data/hostname",
-      "content-type": "text/plain",
-      "body": "ip-10-0-0-207.us-west-2.compute.internal"
-    },
-    {
-      "uri": "/latest/meta-data/placement/availability-zone",
-      "content-type": "text/plain",
-      "body": "us-west-2a"
-    },
-    {
-      "uri": "/latest/meta-data/instance-id",
-      "content-type": "text/plain",
-      "body": "i-b3ba3875"
-    },
-    {
-      "uri": "/latest/meta-data/instance-type",
-      "content-type": "text/plain",
-      "body": "m3.2xlarge"
-    },
-    {
-      "uri": "/latest/meta-data/local-hostname",
-      "content-type": "text/plain",
-      "body": "ip-10-0-0-207.us-west-2.compute.internal"
-    },
-    {
-      "uri": "/latest/meta-data/local-ipv4",
-      "content-type": "text/plain",
-      "body": "10.0.0.207"
-    },
-    {
-      "uri": "/latest/meta-data/public-hostname",
-      "content-type": "text/plain",
-      "body": "ec2-54-191-117-175.us-west-2.compute.amazonaws.com"
-    },
-    {
-      "uri": "/latest/meta-data/public-ipv4",
-      "content-type": "text/plain",
-      "body": "54.191.117.175"
-    }
-  ]
-}
-`
-
 func TestNetworkFingerprint_AWS(t *testing.T) {
-	// configure mock server with fixture routes, data
-	routes := routes{}
-	if err := json.Unmarshal([]byte(aws_routes), &routes); err != nil {
-		t.Fatalf("Failed to unmarshal JSON in AWS ENV test: %s", err)
-	}
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for _, e := range routes.Endpoints {
-			if r.RequestURI == e.Uri {
-				w.Header().Set("Content-Type", e.ContentType)
-				fmt.Fprintln(w, e.Body)
-			}
-		}
-	}))
-
-	defer ts.Close()
-	os.Setenv("AWS_ENV_URL", ts.URL+"/latest/meta-data/")
+	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
+	defer cleanup()
 
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -175,48 +82,27 @@ func TestNetworkFingerprint_AWS(t *testing.T) {
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
 
-	if response.NodeResources == nil || len(response.NodeResources.Networks) == 0 {
-		t.Fatal("Expected to find Network Resources")
-	}
+	require.NotNil(t, response.NodeResources)
+	require.Len(t, response.NodeResources.Networks, 1)
 
 	// Test at least the first Network Resource
 	net := response.NodeResources.Networks[0]
-	if net.IP == "" {
-		t.Fatal("Expected Network Resource to have an IP")
-	}
-	if net.CIDR == "" {
-		t.Fatal("Expected Network Resource to have a CIDR")
-	}
-	if net.Device == "" {
-		t.Fatal("Expected Network Resource to have a Device Name")
-	}
+	require.NotEmpty(t, net.IP, "Expected Network Resource to have an IP")
+	require.NotEmpty(t, net.CIDR, "Expected Network Resource to have a CIDR")
+	require.NotEmpty(t, net.Device, "Expected Network Resource to have a Device Name")
 }
 
 func TestNetworkFingerprint_AWS_network(t *testing.T) {
-	// configure mock server with fixture routes, data
-	routes := routes{}
-	if err := json.Unmarshal([]byte(aws_routes), &routes); err != nil {
-		t.Fatalf("Failed to unmarshal JSON in AWS ENV test: %s", err)
-	}
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for _, e := range routes.Endpoints {
-			if r.RequestURI == e.Uri {
-				w.Header().Set("Content-Type", e.ContentType)
-				fmt.Fprintln(w, e.Body)
-			}
-		}
-	}))
-
-	defer ts.Close()
-	os.Setenv("AWS_ENV_URL", ts.URL+"/latest/meta-data/")
+	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
+	defer cleanup()
 
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
 	{
 		node := &structs.Node{
 			Attributes: make(map[string]string),
@@ -225,34 +111,21 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 		request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(t, err)
 
-		if !response.Detected {
-			t.Fatalf("expected response to be applicable")
-		}
+		require.True(t, response.Detected, "expected response to be applicable")
 
 		assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
 
-		if response.NodeResources == nil || len(response.NodeResources.Networks) == 0 {
-			t.Fatal("Expected to find Network Resources")
-		}
+		require.NotNil(t, response.NodeResources)
+		require.Len(t, response.NodeResources.Networks, 1)
 
 		// Test at least the first Network Resource
 		net := response.NodeResources.Networks[0]
-		if net.IP == "" {
-			t.Fatal("Expected Network Resource to have an IP")
-		}
-		if net.CIDR == "" {
-			t.Fatal("Expected Network Resource to have a CIDR")
-		}
-		if net.Device == "" {
-			t.Fatal("Expected Network Resource to have a Device Name")
-		}
-		if net.MBits != 1000 {
-			t.Fatalf("Expected Network Resource to have speed %d; got %d", 1000, net.MBits)
-		}
+		require.NotEmpty(t, net.IP, "Expected Network Resource to have an IP")
+		require.NotEmpty(t, net.CIDR, "Expected Network Resource to have a CIDR")
+		require.NotEmpty(t, net.Device, "Expected Network Resource to have a Device Name")
+		require.Equal(t, 1000, net.MBits)
 	}
 
 	// Try again this time setting a network speed in the config
@@ -268,36 +141,29 @@ func TestNetworkFingerprint_AWS_network(t *testing.T) {
 		request := &FingerprintRequest{Config: cfg, Node: node}
 		var response FingerprintResponse
 		err := f.Fingerprint(request, &response)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(t, err)
 
 		assertNodeAttributeContains(t, response.Attributes, "unique.network.ip-address")
 
-		if response.NodeResources == nil || len(response.NodeResources.Networks) == 0 {
-			t.Fatal("Expected to find Network Resources")
-		}
+		require.NotNil(t, response.NodeResources)
+		require.Len(t, response.NodeResources.Networks, 1)
 
 		// Test at least the first Network Resource
 		net := response.NodeResources.Networks[0]
-		if net.IP == "" {
-			t.Fatal("Expected Network Resource to have an IP")
-		}
-		if net.CIDR == "" {
-			t.Fatal("Expected Network Resource to have a CIDR")
-		}
-		if net.Device == "" {
-			t.Fatal("Expected Network Resource to have a Device Name")
-		}
-		if net.MBits != 10 {
-			t.Fatalf("Expected Network Resource to have speed %d; got %d", 10, net.MBits)
-		}
+		require.NotEmpty(t, net.IP, "Expected Network Resource to have an IP")
+		require.NotEmpty(t, net.CIDR, "Expected Network Resource to have a CIDR")
+		require.NotEmpty(t, net.Device, "Expected Network Resource to have a Device Name")
+		require.Equal(t, 10, net.MBits)
 	}
 }
 
-func TestNetworkFingerprint_notAWS(t *testing.T) {
-	os.Setenv("AWS_ENV_URL", "http://127.0.0.1/latest/meta-data/")
+func TestNetworkFingerprint_AWS_NoNetwork(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t, noNetworkAWSStubs)
+	defer cleanup()
+
 	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
 	node := &structs.Node{
 		Attributes: make(map[string]string),
 	}
@@ -305,11 +171,281 @@ func TestNetworkFingerprint_notAWS(t *testing.T) {
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	require.NoError(t, err)
+
+	require.True(t, response.Detected, "expected response to be applicable")
+
+	require.Equal(t, "ami-1234", response.Attributes["platform.aws.ami-id"])
+
+	require.Nil(t, response.NodeResources.Networks)
+}
+
+func TestNetworkFingerprint_AWS_IncompleteImitation(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t, incompleteAWSImitationStubs)
+	defer cleanup()
+
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
+	node := &structs.Node{
+		Attributes: make(map[string]string),
 	}
 
-	if len(response.Attributes) > 0 {
-		t.Fatalf("Should not apply")
-	}
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
+	err := f.Fingerprint(request, &response)
+	require.NoError(t, err)
+
+	require.False(t, response.Detected, "expected response not to be applicable")
+
+	require.NotContains(t, response.Attributes, "platform.aws.ami-id")
+	require.Nil(t, response.NodeResources)
+}
+
+func TestCPUFingerprint_AWS_InstanceFound(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
+	defer cleanup()
+
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
+	node := &structs.Node{Attributes: make(map[string]string)}
+
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
+	err := f.Fingerprint(request, &response)
+	require.NoError(t, err)
+	require.True(t, response.Detected)
+	require.Equal(t, "2200", response.Attributes["cpu.frequency"])
+	require.Equal(t, "8", response.Attributes["cpu.numcores"])
+	require.Equal(t, "17600", response.Attributes["cpu.totalcompute"])
+	require.Equal(t, 17600, response.Resources.CPU)
+	require.Equal(t, int64(17600), response.NodeResources.Cpu.CpuShares)
+}
+
+func TestCPUFingerprint_AWS_OverrideCompute(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t, awsStubs)
+	defer cleanup()
+
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
+	node := &structs.Node{Attributes: make(map[string]string)}
+
+	request := &FingerprintRequest{Config: &config.Config{
+		CpuCompute: 99999,
+	}, Node: node}
+	var response FingerprintResponse
+	err := f.Fingerprint(request, &response)
+	require.NoError(t, err)
+	require.True(t, response.Detected)
+	require.Equal(t, "2200", response.Attributes["cpu.frequency"])
+	require.Equal(t, "8", response.Attributes["cpu.numcores"])
+	require.Equal(t, "99999", response.Attributes["cpu.totalcompute"])
+	require.Nil(t, response.Resources)          // defaults in cpu fingerprinter
+	require.Zero(t, response.NodeResources.Cpu) // defaults in cpu fingerprinter
+}
+
+func TestCPUFingerprint_AWS_InstanceNotFound(t *testing.T) {
+	endpoint, cleanup := startFakeEC2Metadata(t, unknownInstanceType)
+	defer cleanup()
+
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+	f.(*EnvAWSFingerprint).endpoint = endpoint
+
+	node := &structs.Node{Attributes: make(map[string]string)}
+
+	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
+	var response FingerprintResponse
+	err := f.Fingerprint(request, &response)
+	require.NoError(t, err)
+	require.True(t, response.Detected)
+	require.NotContains(t, response.Attributes, "cpu.modelname")
+	require.NotContains(t, response.Attributes, "cpu.frequency")
+	require.NotContains(t, response.Attributes, "cpu.numcores")
+	require.NotContains(t, response.Attributes, "cpu.totalcompute")
+	require.Nil(t, response.Resources)
+	require.Nil(t, response.NodeResources)
+}
+
+/// Utility functions for tests
+
+func startFakeEC2Metadata(t *testing.T, endpoints []endpoint) (endpoint string, cleanup func()) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for _, e := range endpoints {
+			if r.RequestURI == e.Uri {
+				w.Header().Set("Content-Type", e.ContentType)
+				fmt.Fprintln(w, e.Body)
+			}
+		}
+	}))
+
+	return ts.URL + "/latest", ts.Close
+}
+
+type routes struct {
+	Endpoints []*endpoint `json:"endpoints"`
+}
+
+type endpoint struct {
+	Uri         string `json:"uri"`
+	ContentType string `json:"content-type"`
+	Body        string `json:"body"`
+}
+
+// awsStubs mimics normal EC2 instance metadata
+var awsStubs = []endpoint{
+	{
+		Uri:         "/latest/meta-data/ami-id",
+		ContentType: "text/plain",
+		Body:        "ami-1234",
+	},
+	{
+		Uri:         "/latest/meta-data/hostname",
+		ContentType: "text/plain",
+		Body:        "ip-10-0-0-207.us-west-2.compute.internal",
+	},
+	{
+		Uri:         "/latest/meta-data/placement/availability-zone",
+		ContentType: "text/plain",
+		Body:        "us-west-2a",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-id",
+		ContentType: "text/plain",
+		Body:        "i-b3ba3875",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-type",
+		ContentType: "text/plain",
+		Body:        "t3a.2xlarge",
+	},
+	{
+		Uri:         "/latest/meta-data/local-hostname",
+		ContentType: "text/plain",
+		Body:        "ip-10-0-0-207.us-west-2.compute.internal",
+	},
+	{
+		Uri:         "/latest/meta-data/local-ipv4",
+		ContentType: "text/plain",
+		Body:        "10.0.0.207",
+	},
+	{
+		Uri:         "/latest/meta-data/public-hostname",
+		ContentType: "text/plain",
+		Body:        "ec2-54-191-117-175.us-west-2.compute.amazonaws.com",
+	},
+	{
+		Uri:         "/latest/meta-data/public-ipv4",
+		ContentType: "text/plain",
+		Body:        "54.191.117.175",
+	},
+	{
+		Uri:         "/latest/meta-data/mac",
+		ContentType: "text/plain",
+		Body:        "0a:20:d2:42:b3:55",
+	},
+}
+
+var unknownInstanceType = []endpoint{
+	{
+		Uri:         "/latest/meta-data/ami-id",
+		ContentType: "text/plain",
+		Body:        "ami-1234",
+	},
+	{
+		Uri:         "/latest/meta-data/hostname",
+		ContentType: "text/plain",
+		Body:        "ip-10-0-0-207.us-west-2.compute.internal",
+	},
+	{
+		Uri:         "/latest/meta-data/placement/availability-zone",
+		ContentType: "text/plain",
+		Body:        "us-west-2a",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-id",
+		ContentType: "text/plain",
+		Body:        "i-b3ba3875",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-type",
+		ContentType: "text/plain",
+		Body:        "xyz123.uber",
+	},
+}
+
+// noNetworkAWSStubs mimics an EC2 instance but without local ip address
+// may happen in environments with odd EC2 Metadata emulation
+var noNetworkAWSStubs = []endpoint{
+	{
+		Uri:         "/latest/meta-data/ami-id",
+		ContentType: "text/plain",
+		Body:        "ami-1234",
+	},
+	{
+		Uri:         "/latest/meta-data/hostname",
+		ContentType: "text/plain",
+		Body:        "ip-10-0-0-207.us-west-2.compute.internal",
+	},
+	{
+		Uri:         "/latest/meta-data/placement/availability-zone",
+		ContentType: "text/plain",
+		Body:        "us-west-2a",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-id",
+		ContentType: "text/plain",
+		Body:        "i-b3ba3875",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-type",
+		ContentType: "text/plain",
+		Body:        "m3.2xlarge",
+	},
+	{
+		Uri:         "/latest/meta-data/local-hostname",
+		ContentType: "text/plain",
+		Body:        "ip-10-0-0-207.us-west-2.compute.internal",
+	},
+	{
+		Uri:         "/latest/meta-data/local-ipv4",
+		ContentType: "text/plain",
+		Body:        "",
+	},
+	{
+		Uri:         "/latest/meta-data/public-hostname",
+		ContentType: "text/plain",
+		Body:        "ec2-54-191-117-175.us-west-2.compute.amazonaws.com",
+	},
+	{
+		Uri:         "/latest/meta-data/public-ipv4",
+		ContentType: "text/plain",
+		Body:        "54.191.117.175",
+	},
+}
+
+// incompleteAWSImitationsStub mimics environments where some AWS endpoints
+// return empty, namely Hetzner
+var incompleteAWSImitationStubs = []endpoint{
+	{
+		Uri:         "/latest/meta-data/hostname",
+		ContentType: "text/plain",
+		Body:        "ip-10-0-0-207.us-west-2.compute.internal",
+	},
+	{
+		Uri:         "/latest/meta-data/instance-id",
+		ContentType: "text/plain",
+		Body:        "i-b3ba3875",
+	},
+	{
+		Uri:         "/latest/meta-data/local-ipv4",
+		ContentType: "text/plain",
+		Body:        "",
+	},
+	{
+		Uri:         "/latest/meta-data/public-ipv4",
+		ContentType: "text/plain",
+		Body:        "54.191.117.175",
+	},
 }

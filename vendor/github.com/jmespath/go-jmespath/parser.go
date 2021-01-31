@@ -137,7 +137,7 @@ func (p *Parser) Parse(expression string) (ASTNode, error) {
 	}
 	if p.current() != tEOF {
 		return ASTNode{}, p.syntaxError(fmt.Sprintf(
-			"Unexpected token at the end of the expresssion: %s", p.current()))
+			"Unexpected token at the end of the expression: %s", p.current()))
 	}
 	return parsed, nil
 }
@@ -353,7 +353,7 @@ func (p *Parser) nud(token token) (ASTNode, error) {
 	case tFlatten:
 		left := ASTNode{
 			nodeType: ASTFlatten,
-			children: []ASTNode{ASTNode{nodeType: ASTIdentity}},
+			children: []ASTNode{{nodeType: ASTIdentity}},
 		}
 		right, err := p.parseProjectionRHS(bindingPowers[tFlatten])
 		if err != nil {
@@ -378,7 +378,7 @@ func (p *Parser) nud(token token) (ASTNode, error) {
 			}
 			return ASTNode{
 				nodeType: ASTProjection,
-				children: []ASTNode{ASTNode{nodeType: ASTIdentity}, right},
+				children: []ASTNode{{nodeType: ASTIdentity}, right},
 			}, nil
 		} else {
 			return p.parseMultiSelectList()

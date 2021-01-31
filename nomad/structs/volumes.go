@@ -4,6 +4,21 @@ const (
 	VolumeTypeHost = "host"
 )
 
+const (
+	VolumeMountPropagationPrivate       = "private"
+	VolumeMountPropagationHostToTask    = "host-to-task"
+	VolumeMountPropagationBidirectional = "bidirectional"
+)
+
+func MountPropagationModeIsValid(propagationMode string) bool {
+	switch propagationMode {
+	case "", VolumeMountPropagationPrivate, VolumeMountPropagationHostToTask, VolumeMountPropagationBidirectional:
+		return true
+	default:
+		return false
+	}
+}
+
 // ClientHostVolumeConfig is used to configure access to host paths on a Nomad Client
 type ClientHostVolumeConfig struct {
 	Name     string `hcl:",key"`
@@ -71,10 +86,11 @@ func HostVolumeSliceMerge(a, b []*ClientHostVolumeConfig) []*ClientHostVolumeCon
 
 // VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
 type VolumeRequest struct {
-	Name     string
-	Type     string
-	Source   string
-	ReadOnly bool
+	Name         string
+	Type         string
+	Source       string
+	ReadOnly     bool
+	MountOptions *CSIMountOptions
 }
 
 func (v *VolumeRequest) Copy() *VolumeRequest {
@@ -83,6 +99,10 @@ func (v *VolumeRequest) Copy() *VolumeRequest {
 	}
 	nv := new(VolumeRequest)
 	*nv = *v
+
+	if v.MountOptions != nil {
+		nv.MountOptions = v.MountOptions.Copy()
+	}
 
 	return nv
 }
@@ -103,9 +123,10 @@ func CopyMapVolumeRequest(s map[string]*VolumeRequest) map[string]*VolumeRequest
 // VolumeMount represents the relationship between a destination path in a task
 // and the task group volume that should be mounted there.
 type VolumeMount struct {
-	Volume      string
-	Destination string
-	ReadOnly    bool
+	Volume          string
+	Destination     string
+	ReadOnly        bool
+	PropagationMode string
 }
 
 func (v *VolumeMount) Copy() *VolumeMount {

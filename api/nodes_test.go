@@ -83,6 +83,45 @@ func TestNodes_PrefixList(t *testing.T) {
 	assertQueryMeta(t, qm)
 }
 
+// TestNodes_List_Resources asserts that ?resources=true includes allocated and
+// reserved resources in the response.
+func TestNodes_List_Resources(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	nodes := c.Nodes()
+
+	var out []*NodeListStub
+	var err error
+
+	testutil.WaitForResult(func() (bool, error) {
+		out, _, err = nodes.List(nil)
+		if err != nil {
+			return false, err
+		}
+		if n := len(out); n != 1 {
+			return false, fmt.Errorf("expected 1 node, got: %d", n)
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// By default resources should *not* be included
+	require.Nil(t, out[0].NodeResources)
+	require.Nil(t, out[0].ReservedResources)
+
+	qo := &QueryOptions{
+		Params: map[string]string{"resources": "true"},
+	}
+	out, _, err = nodes.List(qo)
+	require.NoError(t, err)
+	require.NotNil(t, out[0].NodeResources)
+	require.NotNil(t, out[0].ReservedResources)
+}
+
 func TestNodes_Info(t *testing.T) {
 	t.Parallel()
 	startTime := time.Now().Unix()
@@ -504,6 +543,47 @@ func TestNodes_DrainStrategy_Equal(t *testing.T) {
 
 	o.IgnoreSystemJobs = true
 	require.True(d.Equal(o))
+}
+
+func TestNodes_Purge(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+
+	// Purge on a nonexistent node fails.
+	_, _, err := c.Nodes().Purge("12345678-abcd-efab-cdef-123456789abc", nil)
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error, got: %#v", err)
+	}
+
+	// Wait for node registration and get the ID so we can attempt to purge a
+	// node that exists.
+	var nodeID string
+	testutil.WaitForResult(func() (bool, error) {
+		out, _, err := c.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		if n := len(out); n != 1 {
+			return false, fmt.Errorf("expected 1 node, got: %d", n)
+		}
+		nodeID = out[0].ID
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// Perform the node purge and check the response objects.
+	out, meta, err := c.Nodes().Purge(nodeID, nil)
+	require.Nil(err)
+	require.NotNil(out)
+
+	// We can't use assertQueryMeta here, as the RPC response does not populate
+	// the known leader field.
+	require.Greater(meta.LastIndex, uint64(0))
 }
 
 func TestNodeStatValueFormatting(t *testing.T) {

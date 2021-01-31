@@ -3,10 +3,11 @@ package plugin
 import (
 	"crypto/tls"
 	"fmt"
+	"math"
 	"net"
 	"time"
 
-	"github.com/hashicorp/go-plugin/internal/proto"
+	"github.com/hashicorp/go-plugin/internal/plugin"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -31,6 +32,11 @@ func dialGRPCConn(tls *tls.Config, dialer func(string, time.Duration) (net.Conn,
 		opts = append(opts, grpc.WithTransportCredentials(
 			credentials.NewTLS(tls)))
 	}
+
+	opts = append(opts,
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(math.MaxInt32)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(math.MaxInt32)))
+
 
 	// Connect. Note the first parameter is unused because we use a custom
 	// dialer that has the state to see the address.
@@ -61,7 +67,7 @@ func newGRPCClient(doneCtx context.Context, c *Client) (*GRPCClient, error) {
 		Plugins:    c.config.Plugins,
 		doneCtx:    doneCtx,
 		broker:     broker,
-		controller: proto.NewGRPCControllerClient(conn),
+		controller: plugin.NewGRPCControllerClient(conn),
 	}
 
 	return cl, nil
@@ -75,13 +81,13 @@ type GRPCClient struct {
 	doneCtx context.Context
 	broker  *GRPCBroker
 
-	controller proto.GRPCControllerClient
+	controller plugin.GRPCControllerClient
 }
 
 // ClientProtocol impl.
 func (c *GRPCClient) Close() error {
 	c.broker.Close()
-	c.controller.Shutdown(c.doneCtx, &proto.Empty{})
+	c.controller.Shutdown(c.doneCtx, &plugin.Empty{})
 	return c.Conn.Close()
 }
 

@@ -16,26 +16,21 @@ import (
 	golog "log"
 
 	metrics "github.com/armon/go-metrics"
+	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 
 	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/yamux"
-	"github.com/ugorji/go/codec"
 )
 
 const (
-	// maxQueryTime is used to bound the limit of a blocking query
-	maxQueryTime = 300 * time.Second
-
-	// defaultQueryTime is the amount of time we block waiting for a change
-	// if no time is specified. Previously we would wait the maxQueryTime.
-	defaultQueryTime = 300 * time.Second
-
 	// Warn if the Raft command is larger than this.
 	// If it's over 1MB something is probably being abusive.
 	raftWarnSize = 1024 * 1024
@@ -49,17 +44,48 @@ const (
 
 type rpcHandler struct {
 	*Server
+
+	// connLimiter is used to limit the number of RPC connections per
+	// remote address. It is distinct from the HTTP connection limit.
+	//
+	// nil if limiting is disabled
+	connLimiter *connlimit.Limiter
+	connLimit   int
+
+	// streamLimiter is used to limit the number of *streaming* RPC
+	// connections per remote address. It is lower than the overall
+	// connection limit to ensure their are free connections for Raft and
+	// other RPCs.
+	streamLimiter *connlimit.Limiter
+	streamLimit   int
+
 	logger   log.Logger
 	gologger *golog.Logger
 }
 
 func newRpcHandler(s *Server) *rpcHandler {
-	logger := s.logger.Named("rpc")
-	return &rpcHandler{
-		Server:   s,
-		logger:   logger,
-		gologger: logger.StandardLogger(&log.StandardLoggerOptions{InferLevels: true}),
+	logger := s.logger.NamedIntercept("rpc")
+
+	r := rpcHandler{
+		Server:    s,
+		connLimit: s.config.RPCMaxConnsPerClient,
+		logger:    logger,
+		gologger:  logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true}),
 	}
+
+	// Setup connection limits
+	if r.connLimit > 0 {
+		r.connLimiter = connlimit.NewLimiter(connlimit.Config{
+			MaxConnsPerClientIP: r.connLimit,
+		})
+
+		r.streamLimit = r.connLimit - config.LimitsNonStreamingConnsPerClient
+		r.streamLimiter = connlimit.NewLimiter(connlimit.Config{
+			MaxConnsPerClientIP: r.streamLimit,
+		})
+	}
+
+	return &r
 }
 
 // RPCContext provides metadata about the RPC connection.
@@ -106,6 +132,24 @@ func (r *rpcHandler) listen(ctx context.Context) {
 		// No error, reset loop delay
 		acceptLoopDelay = 0
 
+		// Apply per-connection limits (if enabled) *prior* to launching
+		// goroutine to block further Accept()s until limits are checked.
+		if r.connLimiter != nil {
+			free, err := r.connLimiter.Accept(conn)
+			if err != nil {
+				r.logger.Error("rejecting client for exceeding maximum RPC connections",
+					"remote_addr", conn.RemoteAddr(), "limit", r.connLimit)
+				conn.Close()
+				continue
+			}
+
+			// Wrap the connection so that conn.Close calls free() as well.
+			// This is required for libraries like raft which handoff the
+			// net.Conn to another goroutine and therefore can't be tracked
+			// within this func.
+			conn = connlimit.Wrap(conn, free)
+		}
+
 		go r.handleConn(ctx, conn, &RPCContext{Conn: conn})
 		metrics.IncrCounter([]string{"nomad", "rpc", "accept_conn"}, 1)
 	}
@@ -145,7 +189,16 @@ func (r *rpcHandler) handleAcceptErr(ctx context.Context, err error, loopDelay *
 
 // handleConn is used to determine if this is a Raft or
 // Nomad type RPC connection and invoke the correct handler
+//
+// **Cannot** use defer conn.Close in this method because the Raft handler uses
+// the conn beyond the scope of this func.
 func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCContext) {
+	// Limit how long an unauthenticated client can hold the connection
+	// open before they send the magic byte.
+	if !rpcCtx.TLS && r.config.RPCHandshakeTimeout > 0 {
+		conn.SetDeadline(time.Now().Add(r.config.RPCHandshakeTimeout))
+	}
+
 	// Read a single byte
 	buf := make([]byte, 1)
 	if _, err := conn.Read(buf); err != nil {
@@ -154,6 +207,12 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 		}
 		conn.Close()
 		return
+	}
+
+	// Reset the deadline as we aren't sure what is expected next - it depends on
+	// the protocol.
+	if !rpcCtx.TLS && r.config.RPCHandshakeTimeout > 0 {
+		conn.SetDeadline(time.Time{})
 	}
 
 	// Enforce TLS if EnableRPC is set
@@ -190,6 +249,14 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 			conn.Close()
 			return
 		}
+
+		// Don't allow malicious client to create TLS-in-TLS forever.
+		if rpcCtx.TLS {
+			r.logger.Error("TLS connection attempting to establish inner TLS connection", "remote_addr", conn.RemoteAddr())
+			conn.Close()
+			return
+		}
+
 		conn = tls.Server(conn, r.rpcTLS)
 
 		// Force a handshake so we can get information about the TLS connection
@@ -201,10 +268,22 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 			return
 		}
 
+		// Enforce handshake timeout during TLS handshake to prevent
+		// unauthenticated users from holding connections open
+		// indefinitely.
+		if r.config.RPCHandshakeTimeout > 0 {
+			tlsConn.SetDeadline(time.Now().Add(r.config.RPCHandshakeTimeout))
+		}
+
 		if err := tlsConn.Handshake(); err != nil {
 			r.logger.Warn("failed TLS handshake", "remote_addr", tlsConn.RemoteAddr(), "error", err)
 			conn.Close()
 			return
+		}
+
+		// Reset the deadline as unauthenticated users have now been rejected.
+		if r.config.RPCHandshakeTimeout > 0 {
+			tlsConn.SetDeadline(time.Time{})
 		}
 
 		// Update the connection context with the fact that the connection is
@@ -218,6 +297,20 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 		r.handleConn(ctx, conn, rpcCtx)
 
 	case pool.RpcStreaming:
+		// Apply a lower limit to streaming RPCs to avoid denial of
+		// service by repeatedly starting streaming RPCs.
+		//
+		// TODO Remove once MultiplexV2 is used.
+		if r.streamLimiter != nil {
+			free, err := r.streamLimiter.Accept(conn)
+			if err != nil {
+				r.logger.Error("rejecting client for exceeding maximum streaming RPC connections",
+					"remote_addr", conn.RemoteAddr(), "stream_limit", r.streamLimit)
+				conn.Close()
+				return
+			}
+			defer free()
+		}
 		r.handleStreamingConn(conn)
 
 	case pool.RpcMultiplexV2:
@@ -407,11 +500,9 @@ func (r *rpcHandler) handleMultiplexV2(ctx context.Context, conn net.Conn, rpcCt
 // forward is used to forward to a remote region or to forward to the local leader
 // Returns a bool of if forwarding was performed, as well as any error
 func (r *rpcHandler) forward(method string, info structs.RPCInfo, args interface{}, reply interface{}) (bool, error) {
-	var firstCheck time.Time
-
 	region := info.RequestRegion()
 	if region == "" {
-		return true, fmt.Errorf("missing target RPC")
+		return true, fmt.Errorf("missing region for target RPC")
 	}
 
 	// Handle region forwarding
@@ -427,28 +518,48 @@ func (r *rpcHandler) forward(method string, info structs.RPCInfo, args interface
 		return false, nil
 	}
 
+	remoteServer, err := r.getLeaderForRPC()
+	if err != nil {
+		return true, err
+	}
+
+	// we are the leader
+	if remoteServer == nil {
+		return false, nil
+	}
+
+	// forward to leader
+	info.SetForwarded()
+	err = r.forwardLeader(remoteServer, method, args, reply)
+	return true, err
+}
+
+// getLeaderForRPC returns the server info of the currently known leader, or
+// nil if this server is the current leader.  If the local server is the leader
+// it blocks until it is ready to handle consistent RPC invocations.  If leader
+// is not known or consistency isn't guaranteed, an error is returned.
+func (r *rpcHandler) getLeaderForRPC() (*serverParts, error) {
+	var firstCheck time.Time
+
 CHECK_LEADER:
 	// Find the leader
 	isLeader, remoteServer := r.getLeader()
 
 	// Handle the case we are the leader
 	if isLeader && r.Server.isReadyForConsistentReads() {
-		return false, nil
+		return nil, nil
 	}
 
 	// Handle the case of a known leader
 	if remoteServer != nil {
-		// Mark that we are forwarding the RPC
-		info.SetForwarded()
-		err := r.forwardLeader(remoteServer, method, args, reply)
-		return true, err
+		return remoteServer, nil
 	}
 
 	// Gate the request until there is a leader
 	if firstCheck.IsZero() {
 		firstCheck = time.Now()
 	}
-	if time.Now().Sub(firstCheck) < r.config.RPCHoldTimeout {
+	if time.Since(firstCheck) < r.config.RPCHoldTimeout {
 		jitter := lib.RandomStagger(r.config.RPCHoldTimeout / structs.JitterFraction)
 		select {
 		case <-time.After(jitter):
@@ -459,10 +570,11 @@ CHECK_LEADER:
 
 	// hold time exceeeded without being ready to respond
 	if isLeader {
-		return true, structs.ErrNotReadyForConsistentReads
+		return nil, structs.ErrNotReadyForConsistentReads
 	}
 
-	return true, structs.ErrNoLeader
+	return nil, structs.ErrNoLeader
+
 }
 
 // getLeader returns if the current node is the leader, and if not
@@ -507,77 +619,71 @@ func (r *rpcHandler) forwardServer(server *serverParts, method string, args inte
 	return r.connPool.RPC(r.config.Region, server.Addr, server.MajorVersion, method, args, reply)
 }
 
-// forwardRegion is used to forward an RPC call to a remote region, or fail if no servers
-func (r *rpcHandler) forwardRegion(region, method string, args interface{}, reply interface{}) error {
-	// Bail if we can't find any servers
+func (r *rpcHandler) findRegionServer(region string) (*serverParts, error) {
 	r.peerLock.RLock()
+	defer r.peerLock.RUnlock()
+
 	servers := r.peers[region]
 	if len(servers) == 0 {
-		r.peerLock.RUnlock()
 		r.logger.Warn("no path found to region", "region", region)
-		return structs.ErrNoRegionPath
+		return nil, structs.ErrNoRegionPath
 	}
 
 	// Select a random addr
 	offset := rand.Intn(len(servers))
-	server := servers[offset]
-	r.peerLock.RUnlock()
+	return servers[offset], nil
+}
+
+// forwardRegion is used to forward an RPC call to a remote region, or fail if no servers
+func (r *rpcHandler) forwardRegion(region, method string, args interface{}, reply interface{}) error {
+	server, err := r.findRegionServer(region)
+	if err != nil {
+		return err
+	}
 
 	// Forward to remote Nomad
 	metrics.IncrCounter([]string{"nomad", "rpc", "cross-region", region}, 1)
 	return r.connPool.RPC(region, server.Addr, server.MajorVersion, method, args, reply)
 }
 
+func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
+	// Bail if we can't find any servers
+	r.peerLock.RLock()
+	defer r.peerLock.RUnlock()
+
+	servers := r.peers[region]
+	if len(servers) == 0 {
+		r.logger.Warn("no path found to region", "region", region)
+		return nil, structs.ErrNoRegionPath
+	}
+
+	// Lookup server by id or name
+	for _, server := range servers {
+		if server.Name == serverID || server.ID == serverID {
+			return server, nil
+		}
+	}
+
+	return nil, fmt.Errorf("unknown Nomad server %s", serverID)
+}
+
 // streamingRpc creates a connection to the given server and conducts the
 // initial handshake, returning the connection or an error. It is the callers
 // responsibility to close the connection if there is no returned error.
 func (r *rpcHandler) streamingRpc(server *serverParts, method string) (net.Conn, error) {
-	// Try to dial the server
-	conn, err := net.DialTimeout("tcp", server.Addr.String(), 10*time.Second)
+	c, err := r.connPool.StreamingRPC(r.config.Region, server.Addr, server.MajorVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	// Cast to TCPConn
-	if tcp, ok := conn.(*net.TCPConn); ok {
-		tcp.SetKeepAlive(true)
-		tcp.SetNoDelay(true)
-	}
-
-	return r.streamingRpcImpl(conn, server.Region, method)
+	return r.streamingRpcImpl(c, method)
 }
 
 // streamingRpcImpl takes a pre-established connection to a server and conducts
 // the handshake to establish a streaming RPC for the given method. If an error
 // is returned, the underlying connection has been closed. Otherwise it is
 // assumed that the connection has been hijacked by the RPC method.
-func (r *rpcHandler) streamingRpcImpl(conn net.Conn, region, method string) (net.Conn, error) {
-	// Check if TLS is enabled
-	r.tlsWrapLock.RLock()
-	tlsWrap := r.tlsWrap
-	r.tlsWrapLock.RUnlock()
-
-	if tlsWrap != nil {
-		// Switch the connection into TLS mode
-		if _, err := conn.Write([]byte{byte(pool.RpcTLS)}); err != nil {
-			conn.Close()
-			return nil, err
-		}
-
-		// Wrap the connection in a TLS client
-		tlsConn, err := tlsWrap(region, conn)
-		if err != nil {
-			conn.Close()
-			return nil, err
-		}
-		conn = tlsConn
-	}
-
-	// Write the multiplex byte to set the mode
-	if _, err := conn.Write([]byte{byte(pool.RpcStreaming)}); err != nil {
-		conn.Close()
-		return nil, err
-	}
+func (r *rpcHandler) streamingRpcImpl(conn net.Conn, method string) (net.Conn, error) {
 
 	// Send the header
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
@@ -643,7 +749,7 @@ func (r *rpcHandler) setQueryMeta(m *structs.QueryMeta) {
 		m.LastContact = 0
 		m.KnownLeader = true
 	} else {
-		m.LastContact = time.Now().Sub(r.raft.LastContact())
+		m.LastContact = time.Since(r.raft.LastContact())
 		m.KnownLeader = (r.raft.Leader() != "")
 	}
 }
@@ -674,12 +780,7 @@ func (r *rpcHandler) blockingRPC(opts *blockingOptions) error {
 		goto RUN_QUERY
 	}
 
-	// Restrict the max query time, and ensure there is always one
-	if opts.queryOpts.MaxQueryTime > maxQueryTime {
-		opts.queryOpts.MaxQueryTime = maxQueryTime
-	} else if opts.queryOpts.MaxQueryTime <= 0 {
-		opts.queryOpts.MaxQueryTime = defaultQueryTime
-	}
+	opts.queryOpts.MaxQueryTime = opts.queryOpts.TimeToBlock()
 
 	// Apply a small amount of jitter to the request
 	opts.queryOpts.MaxQueryTime += lib.RandomStagger(opts.queryOpts.MaxQueryTime / structs.JitterFraction)

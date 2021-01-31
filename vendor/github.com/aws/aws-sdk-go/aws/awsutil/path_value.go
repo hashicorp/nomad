@@ -70,7 +70,7 @@ func rValuesAtPath(v interface{}, path string, createPath, caseSensitive, nilTer
 			value = value.FieldByNameFunc(func(name string) bool {
 				if c == name {
 					return true
-				} else if !caseSensitive && strings.ToLower(name) == strings.ToLower(c) {
+				} else if !caseSensitive && strings.EqualFold(name, c) {
 					return true
 				}
 				return false
@@ -106,8 +106,8 @@ func rValuesAtPath(v interface{}, path string, createPath, caseSensitive, nilTer
 
 		if indexStar || index != nil {
 			nextvals = []reflect.Value{}
-			for _, value := range values {
-				value := reflect.Indirect(value)
+			for _, valItem := range values {
+				value := reflect.Indirect(valItem)
 				if value.Kind() != reflect.Slice {
 					continue
 				}
@@ -185,13 +185,12 @@ func ValuesAtPath(i interface{}, path string) ([]interface{}, error) {
 // SetValueAtPath sets a value at the case insensitive lexical path inside
 // of a structure.
 func SetValueAtPath(i interface{}, path string, v interface{}) {
-	if rvals := rValuesAtPath(i, path, true, false, v == nil); rvals != nil {
-		for _, rval := range rvals {
-			if rval.Kind() == reflect.Ptr && rval.IsNil() {
-				continue
-			}
-			setValue(rval, v)
+	rvals := rValuesAtPath(i, path, true, false, v == nil)
+	for _, rval := range rvals {
+		if rval.Kind() == reflect.Ptr && rval.IsNil() {
+			continue
 		}
+		setValue(rval, v)
 	}
 }
 

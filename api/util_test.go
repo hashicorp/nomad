@@ -1,6 +1,8 @@
 package api
 
 import (
+	crand "crypto/rand"
+	"fmt"
 	"testing"
 )
 
@@ -22,7 +24,7 @@ func assertWriteMeta(t *testing.T, wm *WriteMeta) {
 }
 
 func testJob() *Job {
-	task := NewTask("task1", "exec").
+	task := NewTask("task1", "raw_exec").
 		SetConfig("command", "/bin/sleep").
 		Require(&Resources{
 			CPU:      intToPtr(100),
@@ -46,6 +48,17 @@ func testJob() *Job {
 	return job
 }
 
+func testJobWithScalingPolicy() *Job {
+	job := testJob()
+	job.TaskGroups[0].Scaling = &ScalingPolicy{
+		Policy:  map[string]interface{}{},
+		Min:     int64ToPtr(1),
+		Max:     int64ToPtr(5),
+		Enabled: boolToPtr(true),
+	}
+	return job
+}
+
 func testPeriodicJob() *Job {
 	job := testJob().AddPeriodicConfig(&PeriodicConfig{
 		Enabled:  boolToPtr(true),
@@ -53,6 +66,32 @@ func testPeriodicJob() *Job {
 		SpecType: stringToPtr("cron"),
 	})
 	return job
+}
+
+func testRecommendation(job *Job) *Recommendation {
+	rec := &Recommendation{
+		ID:        "",
+		Region:    *job.Region,
+		Namespace: *job.Namespace,
+		JobID:     *job.ID,
+		Group:     *job.TaskGroups[0].Name,
+		Task:      job.TaskGroups[0].Tasks[0].Name,
+		Resource:  "CPU",
+		Value:     *job.TaskGroups[0].Tasks[0].Resources.CPU * 2,
+		Meta: map[string]interface{}{
+			"testing": true,
+			"mocked":  "also true",
+		},
+		Stats: map[string]float64{
+			"median": 50.0,
+			"mean":   51.0,
+			"max":    75.5,
+			"99":     73.0,
+			"min":    0.0,
+		},
+		EnforceVersion: false,
+	}
+	return rec
 }
 
 func testNamespace() *Namespace {
@@ -81,12 +120,22 @@ func testQuotaSpec() *QuotaSpec {
 // conversions utils only used for testing
 // added here to avoid linter warning
 
-// int64ToPtr returns the pointer to an int
-func int64ToPtr(i int64) *int64 {
-	return &i
-}
-
 // float64ToPtr returns the pointer to an float64
 func float64ToPtr(f float64) *float64 {
 	return &f
+}
+
+// generateUUID generates a uuid useful for testing only
+func generateUUID() string {
+	buf := make([]byte, 16)
+	if _, err := crand.Read(buf); err != nil {
+		panic(fmt.Errorf("failed to read random bytes: %v", err))
+	}
+
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%12x",
+		buf[0:4],
+		buf[4:6],
+		buf[6:8],
+		buf[8:10],
+		buf[10:16])
 }

@@ -62,6 +62,7 @@ type ACL struct {
 	node     string
 	operator string
 	quota    string
+	plugin   string
 }
 
 // maxPrivilege returns the policy which grants the most privilege
@@ -74,6 +75,8 @@ func maxPrivilege(a, b string) string {
 		return PolicyWrite
 	case a == PolicyRead || b == PolicyRead:
 		return PolicyRead
+	case a == PolicyList || b == PolicyList:
+		return PolicyList
 	default:
 		return ""
 	}
@@ -192,6 +195,9 @@ func NewACL(management bool, policies []*Policy) (*ACL, error) {
 		}
 		if policy.Quota != nil {
 			acl.quota = maxPrivilege(acl.quota, policy.Quota.Policy)
+		}
+		if policy.Plugin != nil {
+			acl.plugin = maxPrivilege(acl.plugin, policy.Plugin.Policy)
 		}
 	}
 
@@ -477,7 +483,61 @@ func (a *ACL) AllowQuotaWrite() bool {
 	}
 }
 
+// AllowPluginRead checks if read operations are allowed for all plugins
+func (a *ACL) AllowPluginRead() bool {
+	switch {
+	// ACL is nil only if ACLs are disabled
+	case a == nil:
+		return true
+	case a.management:
+		return true
+	case a.plugin == PolicyRead:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllowPluginList checks if list operations are allowed for all plugins
+func (a *ACL) AllowPluginList() bool {
+	switch {
+	// ACL is nil only if ACLs are disabled
+	case a == nil:
+		return true
+	case a.management:
+		return true
+	case a.plugin == PolicyList:
+		return true
+	case a.plugin == PolicyRead:
+		return true
+	default:
+		return false
+	}
+}
+
 // IsManagement checks if this represents a management token
 func (a *ACL) IsManagement() bool {
 	return a.management
+}
+
+// NamespaceValidator returns a func that wraps ACL.AllowNamespaceOperation in
+// a list of operations. Returns true (allowed) if acls are disabled or if
+// *any* capabilities match.
+func NamespaceValidator(ops ...string) func(*ACL, string) bool {
+	return func(acl *ACL, ns string) bool {
+		// Always allow if ACLs are disabled.
+		if acl == nil {
+			return true
+		}
+
+		for _, op := range ops {
+			if acl.AllowNamespaceOperation(ns, op) {
+				// An operation is allowed, return true
+				return true
+			}
+		}
+
+		// No operations are allowed by this ACL, return false
+		return false
+	}
 }

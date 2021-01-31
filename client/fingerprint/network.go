@@ -3,9 +3,12 @@ package fingerprint
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	log "github.com/hashicorp/go-hclog"
 	sockaddr "github.com/hashicorp/go-sockaddr"
+	"github.com/hashicorp/go-sockaddr/template"
+	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -113,9 +116,137 @@ func (f *NetworkFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 	if len(nwResources) > 0 {
 		resp.AddAttribute("unique.network.ip-address", nwResources[0].IP)
 	}
+
+	ifaces, err := f.interfaceDetector.Interfaces()
+	if err != nil {
+		return err
+	}
+	nodeNetResources, err := f.createNodeNetworkResources(ifaces, disallowLinkLocal, req.Config)
+	if err != nil {
+		return err
+	}
+	resp.NodeResources.NodeNetworks = nodeNetResources
+
 	resp.Detected = true
 
 	return nil
+}
+
+func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, disallowLinkLocal bool, conf *config.Config) ([]*structs.NodeNetworkResource, error) {
+	nets := make([]*structs.NodeNetworkResource, 0)
+	for _, iface := range ifaces {
+		speed := f.linkSpeed(iface.Name)
+		if speed == 0 {
+			speed = defaultNetworkSpeed
+			f.logger.Debug("link speed could not be detected, falling back to default speed", "mbits", defaultNetworkSpeed)
+		}
+
+		newNetwork := &structs.NodeNetworkResource{
+			Mode:       "host",
+			Device:     iface.Name,
+			MacAddress: iface.HardwareAddr.String(),
+			Speed:      speed,
+		}
+		addrs, err := f.interfaceDetector.Addrs(&iface)
+		if err != nil {
+			return nil, err
+		}
+		var networkAddrs, linkLocalAddrs []structs.NodeNetworkAddress
+		for _, addr := range addrs {
+			// Find the IP Addr and the CIDR from the Address
+			var ip net.IP
+			var family structs.NodeNetworkAF
+			switch v := (addr).(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			if ip.To4() != nil {
+				family = structs.NodeNetworkAF_IPv4
+			} else {
+				family = structs.NodeNetworkAF_IPv6
+			}
+			newAddr := structs.NodeNetworkAddress{
+				Address: ip.String(),
+				Family:  family,
+				Alias:   deriveAddressAlias(iface, ip, conf),
+			}
+
+			if newAddr.Alias != "" {
+				if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+					linkLocalAddrs = append(linkLocalAddrs, newAddr)
+				} else {
+					networkAddrs = append(networkAddrs, newAddr)
+				}
+			}
+		}
+
+		if len(networkAddrs) == 0 && len(linkLocalAddrs) > 0 {
+			if disallowLinkLocal {
+				f.logger.Debug("ignoring detected link-local address on interface", "interface", iface.Name)
+			} else {
+				newNetwork.Addresses = linkLocalAddrs
+			}
+		} else {
+			newNetwork.Addresses = networkAddrs
+		}
+
+		if len(newNetwork.Addresses) > 0 {
+			nets = append(nets, newNetwork)
+		}
+	}
+	return nets, nil
+}
+
+func deriveAddressAlias(iface net.Interface, addr net.IP, config *config.Config) string {
+	for name, conf := range config.HostNetworks {
+		var cidrMatch, ifaceMatch bool
+		if conf.CIDR != "" {
+			for _, cidr := range strings.Split(conf.CIDR, ",") {
+				_, ipnet, err := net.ParseCIDR(cidr)
+				if err != nil {
+					continue
+				}
+
+				if ipnet.Contains(addr) {
+					cidrMatch = true
+					break
+				}
+			}
+		} else {
+			cidrMatch = true
+		}
+		if conf.Interface != "" {
+			ifaceName, err := template.Parse(conf.Interface)
+			if err != nil {
+				continue
+			}
+
+			if ifaceName == iface.Name {
+				ifaceMatch = true
+			}
+		} else {
+			ifaceMatch = true
+		}
+		if cidrMatch && ifaceMatch {
+			return name
+		}
+	}
+
+	if config.NetworkInterface != "" {
+		if config.NetworkInterface == iface.Name {
+			return "default"
+		}
+	} else if ri, err := sockaddr.NewRouteInfo(); err == nil {
+		defaultIface, err := ri.GetDefaultInterfaceName()
+		if err == nil && iface.Name == defaultIface {
+			return "default"
+		}
+	}
+
+	return ""
 }
 
 // createNetworkResources creates network resources for every IP
@@ -132,6 +263,7 @@ func (f *NetworkFingerprint) createNetworkResources(throughput int, intf *net.In
 	for _, addr := range addrs {
 		// Create a new network resource
 		newNetwork := &structs.NetworkResource{
+			Mode:   "host",
 			Device: intf.Name,
 			MBits:  throughput,
 		}

@@ -1,7 +1,11 @@
 import Component from '@ember/component';
+import classic from 'ember-classic-decorator';
+import { inject as service } from '@ember/service';
 
-export default Component.extend({
-  'data-test-global-header': true,
+@classic
+export default class GlobalHeader extends Component {
+  @service config;
 
-  onHamburgerClick() {},
-});
+  'data-test-global-header' = true;
+  onHamburgerClick() {}
+}

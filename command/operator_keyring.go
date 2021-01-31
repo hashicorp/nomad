@@ -31,9 +31,12 @@ Usage: nomad operator keyring [options]
   are no errors. If any node fails to reply or reports failure, the exit code
   will be 1.
 
+  If ACLs are enabled, this command requires a token with the 'agent:write'
+  capability.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Keyring Options:
 
@@ -168,7 +171,7 @@ func (c *OperatorKeyringCommand) handleKeyResponse(resp *api.KeyringResponse) {
 	out[0] = "Key"
 	i := 1
 	for k := range resp.Keys {
-		out[i] = fmt.Sprintf("%s", k)
+		out[i] = k
 		i = i + 1
 	}
 	c.Ui.Output(formatList(out))

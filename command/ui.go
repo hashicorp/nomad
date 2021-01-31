@@ -29,7 +29,7 @@ object. Supported identifiers are jobs, allocations and nodes.
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 
 	return strings.TrimSpace(helpText)
 }
@@ -148,7 +148,7 @@ func (c *UiCommand) Run(args []string) int {
 
 		switch match {
 		case contexts.Nodes:
-			url.Path = fmt.Sprintf("ui/nodes/%s", fullID)
+			url.Path = fmt.Sprintf("ui/clients/%s", fullID)
 		case contexts.Allocs:
 			url.Path = fmt.Sprintf("ui/allocations/%s", fullID)
 		case contexts.Jobs:
@@ -182,6 +182,6 @@ func (c *UiCommand) logMultiMatchError(id string, matches map[contexts.Context][
 		}
 
 		c.Ui.Error(fmt.Sprintf("\n%s:", strings.Title(string(ctx))))
-		c.Ui.Error(fmt.Sprintf("%s", strings.Join(vers, ", ")))
+		c.Ui.Error(strings.Join(vers, ", "))
 	}
 }

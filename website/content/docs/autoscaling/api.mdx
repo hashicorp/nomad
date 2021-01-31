@@ -1,0 +1,123 @@
+---
+layout: docs
+page_title: HTTP API
+sidebar_title: API
+description: Learn about the Nomad Autoscaler HTTP API.
+---
+
+# Nomad Autoscaler HTTP API
+
+The Nomad Autoscaler exposes a small, simple API to be used for health checking
+the agent and obtaining metric data.
+
+## Health API
+
+This endpoint can be used to query the Nomad Autoscaler agent aliveness. If the
+agent is alive, the request will return a 200 OK, otherwise it will return a
+503 ServiceUnavailable.
+
+| Method | Path         | Produces           |
+| ------ | ------------ | ------------------ |
+| `GET`  | `/v1/health` | `application/json` |
+
+### Sample Request
+
+```shell-session
+$ curl https://localhost:8080/v1/health
+```
+
+## Metrics API
+
+The `/metrics` endpoint returns metrics for the current Nomad Autoscaler process.
+
+| Method | Path          | Produces           |
+| ------ | ------------- | ------------------ |
+| `GET`  | `/v1/metrics` | `application/json` |
+
+### Parameters
+
+- `format` `(string: "")` - Specifies the metrics format to be other than the
+  JSON default. Currently, only `prometheus` is supported as an alternative
+  format. This is specified as a query string parameter.
+
+### Sample Request
+
+```shell-session
+$ curl https://localhost:8080/v1/metrics
+```
+
+```shell-session
+$ curl https://localhost:8080/v1/metrics?format=prometheus
+```
+
+### Sample Response
+
+```json
+{
+  "Counters": [
+    {
+      "Count": 1,
+      "Labels": {
+        "policy_source": "nomad"
+      },
+      "Max": 1,
+      "Mean": 1,
+      "Min": 1,
+      "Name": "nomad-autoscaler.policy.source.error_count",
+      "Rate": 0.1,
+      "Stddev": 0,
+      "Sum": 1
+    }
+  ],
+  "Gauges": [
+    {
+      "Labels": {},
+      "Name": "nomad-autoscaler.pathfinder.policy.total_num",
+      "Value": 0
+    },
+    {
+      "Labels": {},
+      "Name": "nomad-autoscaler.pathfinder.runtime.alloc_bytes",
+      "Value": 7230328
+    },
+    {
+      "Labels": {},
+      "Name": "nomad-autoscaler.pathfinder.runtime.free_count",
+      "Value": 137217
+    },
+    {
+      "Labels": {},
+      "Name": "nomad-autoscaler.pathfinder.runtime.heap_objects",
+      "Value": 90821
+    },
+    {
+      "Labels": {},
+      "Name": "nomad-autoscaler.pathfinder.runtime.malloc_count",
+      "Value": 228038
+    },
+    {
+      "Labels": {},
+      "Name": "nomad-autoscaler.pathfinder.runtime.num_goroutines",
+      "Value": 15
+    },
+    {
+      "Labels": {},
+      "Name": "nomad-autoscaler.pathfinder.runtime.sys_bytes",
+      "Value": 75317504
+    },
+    {
+      "Labels": {},
+      "Name": "nomad-autoscaler.pathfinder.runtime.total_gc_pause_ns",
+      "Value": 293262
+    },
+    {
+      "Labels": {},
+      "Name": "nomad-autoscaler.pathfinder.runtime.total_gc_runs",
+      "Value": 4
+    }
+  ],
+  "Points": [],
+  "Samples": [],
+  "Timestamp": "2020-08-25 10:25:20 +0000 UTC"
+}
+```

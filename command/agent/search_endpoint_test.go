@@ -31,7 +31,7 @@ func createJobForTest(jobID string, s *TestAgent, t *testing.T) {
 	job.TaskGroups[0].Count = 1
 
 	state := s.Agent.server.State()
-	err := state.UpsertJob(1000, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
 	assert.Nil(err)
 }
 
@@ -147,8 +147,7 @@ func TestHTTP_Search_Evaluation(t *testing.T) {
 		state := s.Agent.server.State()
 		eval1 := mock.Eval()
 		eval2 := mock.Eval()
-		err := state.UpsertEvals(9000,
-			[]*structs.Evaluation{eval1, eval2})
+		err := state.UpsertEvals(structs.MsgTypeTestSetup, 9000, []*structs.Evaluation{eval1, eval2})
 		assert.Nil(err)
 
 		prefix := eval1.ID[:len(eval1.ID)-2]
@@ -182,7 +181,7 @@ func TestHTTP_Search_Allocations(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
-		err := state.UpsertAllocs(7000, []*structs.Allocation{alloc})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 7000, []*structs.Allocation{alloc})
 		assert.Nil(err)
 
 		prefix := alloc.ID[:len(alloc.ID)-2]
@@ -215,7 +214,7 @@ func TestHTTP_Search_Nodes(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		node := mock.Node()
-		err := state.UpsertNode(6000, node)
+		err := state.UpsertNode(structs.MsgTypeTestSetup, 6000, node)
 		assert.Nil(err)
 
 		prefix := node.ID[:len(node.ID)-2]
@@ -307,7 +306,7 @@ func TestHTTP_Search_AllContext(t *testing.T) {
 		state := s.Agent.server.State()
 		eval1 := mock.Eval()
 		eval1.ID = testJobID
-		err := state.UpsertEvals(8000, []*structs.Evaluation{eval1})
+		err := state.UpsertEvals(structs.MsgTypeTestSetup, 8000, []*structs.Evaluation{eval1})
 		assert.Nil(err)
 
 		data := structs.SearchRequest{Prefix: testJobPrefix, Context: structs.All}

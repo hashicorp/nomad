@@ -1,4 +1,6 @@
 import config from 'nomad-ui/config/environment';
+import * as topoScenarios from './topo';
+import { pickOne } from '../utils';
 
 const withNamespaces = getConfigValue('mirageWithNamespaces', false);
 const withTokens = getConfigValue('mirageWithTokens', true);
@@ -13,9 +15,10 @@ const allScenarios = {
   allNodeTypes,
   everyFeature,
   emptyCluster,
+  ...topoScenarios,
 };
 
-const scenario = getConfigValue('mirageScenario', 'emptyCluster');
+const scenario = getScenarioQueryParameter() || getConfigValue('mirageScenario', 'emptyCluster');
 
 export default function(server) {
   const activeScenario = allScenarios[scenario];
@@ -38,9 +41,19 @@ export default function(server) {
 function smallCluster(server) {
   server.createList('agent', 3);
   server.createList('node', 5);
-  server.createList('job', 5);
+  server.createList('job', 5, { createRecommendations: true });
   server.createList('allocFile', 5);
   server.create('allocFile', 'dir', { depth: 2 });
+  server.createList('csi-plugin', 2);
+
+  const csiAllocations = server.createList('allocation', 5);
+  const volumes = server.schema.csiVolumes.all().models;
+  csiAllocations.forEach(alloc => {
+    const volume = pickOne(volumes);
+    volume.writeAllocs.add(alloc);
+    volume.readAllocs.add(alloc);
+    volume.save();
+  });
 }
 
 function mediumCluster(server) {
@@ -155,5 +168,10 @@ function getConfigValue(variableName, defaultValue) {
     `No ENV.APP value set for "${variableName}". Defaulting to "${defaultValue}". To set a custom value, modify config/environment.js`
   );
   return defaultValue;
+}
+
+function getScenarioQueryParameter() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('mirage-scenario');
 }
 /* eslint-enable */

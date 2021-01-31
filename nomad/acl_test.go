@@ -29,9 +29,9 @@ func TestResolveACLToken(t *testing.T) {
 	token2 := mock.ACLToken()
 	token2.Type = structs.ACLManagementToken
 	token2.Policies = nil
-	err = state.UpsertACLPolicies(100, []*structs.ACLPolicy{policy, policy2})
+	err = state.UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{policy, policy2})
 	assert.Nil(t, err)
-	err = state.UpsertACLTokens(110, []*structs.ACLToken{token, token2})
+	err = state.UpsertACLTokens(structs.MsgTypeTestSetup, 110, []*structs.ACLToken{token, token2})
 	assert.Nil(t, err)
 
 	snap, err := state.Snapshot()
@@ -78,7 +78,7 @@ func TestResolveACLToken(t *testing.T) {
 	}
 
 	// Bust the cache by upserting the policy
-	err = state.UpsertACLPolicies(120, []*structs.ACLPolicy{policy})
+	err = state.UpsertACLPolicies(structs.MsgTypeTestSetup, 120, []*structs.ACLPolicy{policy})
 	assert.Nil(t, err)
 	snap, err = state.Snapshot()
 	assert.Nil(t, err)
@@ -95,8 +95,8 @@ func TestResolveACLToken(t *testing.T) {
 func TestResolveACLToken_LeaderToken(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
-	s1, _ := TestACLServer(t, nil)
-	defer s1.Shutdown()
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	leaderAcl := s1.getLeaderAcl()
@@ -106,4 +106,28 @@ func TestResolveACLToken_LeaderToken(t *testing.T) {
 	if assert.NotNil(token) {
 		assert.True(token.IsManagement())
 	}
+}
+
+func TestResolveSecretToken(t *testing.T) {
+	t.Parallel()
+
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	state := s1.State()
+	leaderToken := s1.getLeaderAcl()
+	assert.NotEmpty(t, leaderToken)
+
+	token := mock.ACLToken()
+
+	err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 110, []*structs.ACLToken{token})
+	assert.Nil(t, err)
+
+	respToken, err := s1.ResolveSecretToken(token.SecretID)
+	assert.Nil(t, err)
+	if assert.NotNil(t, respToken) {
+		assert.NotEmpty(t, respToken.AccessorID)
+	}
+
 }

@@ -115,7 +115,7 @@ the color output with:
     var flagNoColor = flag.Bool("no-color", false, "Disable color output")
 
     if *flagNoColor {
-	color.NoColor = true // disables colorized output
+    	color.NoColor = true // disables colorized output
     }
 
 It also has support for single color definitions (local). You can

@@ -45,7 +45,7 @@ var (
 	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
 		Config:  map[string]interface{}{},
-		Factory: func(l hclog.Logger) interface{} { return NewMockDriver(l) },
+		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewMockDriver(ctx, l) },
 	}
 
 	// pluginInfo is the response returned for the PluginInfo RPC
@@ -129,10 +129,6 @@ type Driver struct {
 	// coordinate shutdown
 	ctx context.Context
 
-	// signalShutdown is called when the driver is shutting down and cancels the
-	// ctx passed to any subsystems
-	signalShutdown context.CancelFunc
-
 	shutdownFingerprintTime time.Time
 
 	// lastDriverTaskConfig is the last *drivers.TaskConfig passed to StartTask
@@ -149,24 +145,23 @@ type Driver struct {
 }
 
 // NewMockDriver returns a new DriverPlugin implementation
-func NewMockDriver(logger hclog.Logger) drivers.DriverPlugin {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewMockDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugin {
 	logger = logger.Named(pluginName)
 
 	capabilities := &drivers.Capabilities{
-		SendSignals: true,
-		Exec:        true,
-		FSIsolation: drivers.FSIsolationNone,
+		SendSignals:  true,
+		Exec:         true,
+		FSIsolation:  drivers.FSIsolationNone,
+		MountConfigs: drivers.MountConfigSupportNone,
 	}
 
 	return &Driver{
-		eventer:        eventer.NewEventer(ctx, logger),
-		capabilities:   capabilities,
-		config:         &Config{},
-		tasks:          newTaskStore(),
-		ctx:            ctx,
-		signalShutdown: cancel,
-		logger:         logger,
+		eventer:      eventer.NewEventer(ctx, logger),
+		capabilities: capabilities,
+		config:       &Config{},
+		tasks:        newTaskStore(),
+		ctx:          ctx,
+		logger:       logger,
 	}
 }
 
@@ -673,10 +668,6 @@ func (d *Driver) GetTaskConfig() (*drivers.TaskConfig, *TaskConfig) {
 func (d *Driver) GetHandle(taskID string) *taskHandle {
 	h, _ := d.tasks.Get(taskID)
 	return h
-}
-
-func (d *Driver) Shutdown() {
-	d.signalShutdown()
 }
 
 func (d *Driver) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, error) {

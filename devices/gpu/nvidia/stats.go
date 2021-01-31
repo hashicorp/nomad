@@ -81,10 +81,10 @@ func (d *NvidiaDevice) stats(ctx context.Context, stats chan<- *device.StatsResp
 
 // filterStatsByID accepts list of StatsData and set of IDs
 // this function would return entries from StatsData with IDs found in the set
-func filterStatsByID(stats []*nvml.StatsData, IDs map[string]struct{}) []*nvml.StatsData {
+func filterStatsByID(stats []*nvml.StatsData, ids map[string]struct{}) []*nvml.StatsData {
 	var filteredStats []*nvml.StatsData
 	for _, statsItem := range stats {
-		if _, ok := IDs[statsItem.UUID]; ok {
+		if _, ok := ids[statsItem.UUID]; ok {
 			filteredStats = append(filteredStats, statsItem)
 		}
 	}

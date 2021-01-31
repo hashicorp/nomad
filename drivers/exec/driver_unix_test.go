@@ -8,14 +8,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
+
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/unix"
 )
 
 func TestExecDriver_StartWaitStop(t *testing.T) {
@@ -23,7 +24,10 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -41,6 +45,7 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	defer cleanup()
 
 	handle, _, err := harness.StartTask(task)
+	defer harness.DestroyTask(task.ID, true)
 	require.NoError(err)
 
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
@@ -49,12 +54,12 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 
 	go func() {
-		harness.StopTask(task.ID, 2*time.Second, "SIGINT")
+		harness.StopTask(task.ID, 2*time.Second, "SIGKILL")
 	}()
 
 	select {
 	case result := <-ch:
-		require.Equal(int(unix.SIGINT), result.Signal)
+		require.Equal(int(unix.SIGKILL), result.Signal)
 	case <-time.After(10 * time.Second):
 		require.Fail("timeout waiting for task to shutdown")
 	}
@@ -74,15 +79,16 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	}, func(err error) {
 		require.NoError(err)
 	})
-
-	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
 func TestExec_ExecTaskStreaming(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
@@ -105,5 +111,67 @@ func TestExec_ExecTaskStreaming(t *testing.T) {
 	defer d.DestroyTask(task.ID, true)
 
 	dtestutil.ExecTaskStreamingConformanceTests(t, harness, task.ID)
+
+}
+
+// Tests that a given DNSConfig properly configures dns
+func TestExec_dnsConfig(t *testing.T) {
+	t.Parallel()
+	ctestutils.RequireRoot(t)
+	ctestutils.ExecCompatible(t)
+	require := require.New(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	cases := []struct {
+		name string
+		cfg  *drivers.DNSConfig
+	}{
+		{
+			name: "nil DNSConfig",
+		},
+		{
+			name: "basic",
+			cfg: &drivers.DNSConfig{
+				Servers: []string{"1.1.1.1", "1.0.0.1"},
+			},
+		},
+		{
+			name: "full",
+			cfg: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "1.0.0.1"},
+				Searches: []string{"local.test", "node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		task := &drivers.TaskConfig{
+			ID:   uuid.Generate(),
+			Name: "sleep",
+			DNS:  c.cfg,
+		}
+
+		cleanup := harness.MkAllocDir(task, false)
+		defer cleanup()
+
+		tc := &TaskConfig{
+			Command: "/bin/sleep",
+			Args:    []string{"9000"},
+		}
+		require.NoError(task.EncodeConcreteDriverConfig(&tc))
+
+		_, _, err := harness.StartTask(task)
+		require.NoError(err)
+		defer d.DestroyTask(task.ID, true)
+
+		dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)
+	}
 
 }

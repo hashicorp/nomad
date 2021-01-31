@@ -1,19 +1,23 @@
 package api
 
 import (
+	"context"
+	"fmt"
+	"os"
 	"reflect"
 	"sort"
 	"testing"
-
 	"time"
 
-	"github.com/hashicorp/go-uuid"
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAllocations_List(t *testing.T) {
 	t.Parallel()
-	c, s := makeClient(t, nil, nil)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
 	defer s.Stop()
 	a := c.Allocations()
 
@@ -29,33 +33,28 @@ func TestAllocations_List(t *testing.T) {
 		t.Fatalf("expected 0 allocs, got: %d", n)
 	}
 
-	// TODO: do something that causes an allocation to actually happen
-	// so we can query for them.
-	return
+	// Create a job and attempt to register it
+	job := testJob()
+	resp, wm, err := c.Jobs().Register(job, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotEmpty(t, resp.EvalID)
+	assertWriteMeta(t, wm)
 
-	//job := &Job{
-	//ID:   stringToPtr("job1"),
-	//Name: stringToPtr("Job #1"),
-	//Type: stringToPtr(JobTypeService),
-	//}
-	//eval, _, err := c.Jobs().Register(job, nil)
-	//if err != nil {
-	//t.Fatalf("err: %s", err)
-	//}
+	// List the allocations again
+	qo := &QueryOptions{
+		WaitIndex: wm.LastIndex,
+	}
+	allocs, qm, err = a.List(qo)
+	require.NoError(t, err)
+	require.NotZero(t, qm.LastIndex)
 
-	//// List the allocations again
-	//allocs, qm, err = a.List(nil)
-	//if err != nil {
-	//t.Fatalf("err: %s", err)
-	//}
-	//if qm.LastIndex == 0 {
-	//t.Fatalf("bad index: %d", qm.LastIndex)
-	//}
+	// Check that we got the allocation back
+	require.Len(t, allocs, 1)
+	require.Equal(t, resp.EvalID, allocs[0].EvalID)
 
-	//// Check that we got the allocation back
-	//if len(allocs) == 0 || allocs[0].EvalID != eval {
-	//t.Fatalf("bad: %#v", allocs)
-	//}
+	// Resources should be unset by default
+	require.Nil(t, allocs[0].AllocatedResources)
 }
 
 func TestAllocations_PrefixList(t *testing.T) {
@@ -106,6 +105,37 @@ func TestAllocations_PrefixList(t *testing.T) {
 	//}
 }
 
+func TestAllocations_List_Resources(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	a := c.Allocations()
+
+	// Create a job and register it
+	job := testJob()
+	resp, wm, err := c.Jobs().Register(job, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotEmpty(t, resp.EvalID)
+	assertWriteMeta(t, wm)
+
+	// List the allocations
+	qo := &QueryOptions{
+		Params:    map[string]string{"resources": "true"},
+		WaitIndex: wm.LastIndex,
+	}
+	allocs, qm, err := a.List(qo)
+	require.NoError(t, err)
+	require.NotZero(t, qm.LastIndex)
+
+	// Check that we got the allocation back with resources
+	require.Len(t, allocs, 1)
+	require.Equal(t, resp.EvalID, allocs[0].EvalID)
+	require.NotNil(t, allocs[0].AllocatedResources)
+}
+
 func TestAllocations_CreateIndexSort(t *testing.T) {
 	t.Parallel()
 	allocs := []*AllocationListStub{
@@ -146,20 +176,12 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 	}
 	job.Canonicalize()
 
-	uuidGen := func() string {
-		ret, err := uuid.GenerateUUID()
-		if err != nil {
-			t.Fatal(err)
-		}
-		return ret
-	}
-
 	alloc := &Allocation{
-		ID:        uuidGen(),
+		ID:        generateUUID(),
 		Namespace: DefaultNamespace,
-		EvalID:    uuidGen(),
+		EvalID:    generateUUID(),
 		Name:      "foo-bar[1]",
-		NodeID:    uuidGen(),
+		NodeID:    generateUUID(),
 		TaskGroup: *job.TaskGroups[0].Name,
 		JobID:     *job.ID,
 		Job:       job,
@@ -245,6 +267,53 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		})
 	}
 
+}
+
+// TestAllocations_ExecErrors ensures errors are properly formatted
+func TestAllocations_ExecErrors(t *testing.T) {
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Allocations()
+
+	job := &Job{
+		Name:      stringToPtr("foo"),
+		Namespace: stringToPtr(DefaultNamespace),
+		ID:        stringToPtr("bar"),
+		ParentID:  stringToPtr("lol"),
+		TaskGroups: []*TaskGroup{
+			{
+				Name: stringToPtr("bar"),
+				Tasks: []*Task{
+					{
+						Name: "task1",
+					},
+				},
+			},
+		},
+	}
+	job.Canonicalize()
+
+	allocID := generateUUID()
+
+	alloc := &Allocation{
+		ID:        allocID,
+		Namespace: DefaultNamespace,
+		EvalID:    generateUUID(),
+		Name:      "foo-bar[1]",
+		NodeID:    generateUUID(),
+		TaskGroup: *job.TaskGroups[0].Name,
+		JobID:     *job.ID,
+		Job:       job,
+	}
+	// Querying when no allocs exist returns nothing
+	sizeCh := make(chan TerminalSize, 1)
+
+	// make a request that will result in an error
+	// ensure the error is what we expect
+	exitCode, err := a.Exec(context.Background(), alloc, "bar", false, []string{"command"}, os.Stdin, os.Stdout, os.Stderr, sizeCh, nil)
+
+	require.Equal(t, exitCode, -2)
+	require.Equal(t, err.Error(), fmt.Sprintf("Unknown allocation \"%s\"", allocID))
 }
 
 func TestAllocations_ShouldMigrate(t *testing.T) {

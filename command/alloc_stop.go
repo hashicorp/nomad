@@ -3,6 +3,8 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/nomad/api"
 )
 
 type AllocStopCommand struct {
@@ -14,15 +16,19 @@ func (a *AllocStopCommand) Help() string {
 Usage: nomad alloc stop [options] <allocation>
 Alias: nomad stop
 
-  stop an existing allocation. This command is used to signal a specific alloc
+  Stop an existing allocation. This command is used to signal a specific alloc
   to shut down. When the allocation has been shut down, it will then be
   rescheduled. An interactive monitoring session will display log lines as the
   allocation completes shutting down. It is safe to exit the monitor early with
   ctrl-c.
 
+  When ACLs are enabled, this command requires a token with the
+  'alloc-lifecycle', 'read-job', and 'list-jobs' capabilities for the
+  allocation's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Stop Specific Options:
 
@@ -70,7 +76,7 @@ func (c *AllocStopCommand) Run(args []string) int {
 
 	// Query the allocation info
 	if len(allocID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Alloc ID must contain at least two characters."))
+		c.Ui.Error("Alloc ID must contain at least two characters.")
 		return 1
 	}
 
@@ -102,7 +108,8 @@ func (c *AllocStopCommand) Run(args []string) int {
 	}
 
 	// Prefix lookup matched a single allocation
-	alloc, _, err := client.Allocations().Info(allocs[0].ID, nil)
+	q := &api.QueryOptions{Namespace: allocs[0].Namespace}
+	alloc, _, err := client.Allocations().Info(allocs[0].ID, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
 		return 1
@@ -120,7 +127,7 @@ func (c *AllocStopCommand) Run(args []string) int {
 	}
 
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(resp.EvalID, false)
+	return mon.monitor(resp.EvalID)
 }
 
 func (a *AllocStopCommand) Synopsis() string {

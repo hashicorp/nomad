@@ -3,6 +3,7 @@ import { get } from '@ember/object';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moment from 'moment';
 import Deployments from 'nomad-ui/tests/pages/jobs/job/deployments';
 
@@ -31,6 +32,11 @@ module('Acceptance | job deployments', function(hooks) {
       }
       return 0;
     });
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await Deployments.visit({ id: job.id });
+    await a11yAudit(assert);
   });
 
   test('/jobs/:id/deployments should list all job deployments', async function(assert) {
@@ -172,7 +178,7 @@ module('Acceptance | job deployments', function(hooks) {
     );
 
     const taskGroup = taskGroupSummaries[0];
-    const taskGroupRow = deploymentRow.taskGroups.objectAt(0);
+    const taskGroupRow = deploymentRow.taskGroups.findOneBy('name', taskGroup.name);
 
     assert.equal(taskGroupRow.name, taskGroup.name, 'Name');
     assert.equal(taskGroupRow.promotion, promotionTestForTaskGroup(taskGroup), 'Needs Promotion');
@@ -220,7 +226,9 @@ module('Acceptance | job deployments', function(hooks) {
     await Deployments.visit({ id: 'not-a-real-job' });
 
     assert.equal(
-      server.pretender.handledRequests.findBy('status', 404).url,
+      server.pretender.handledRequests
+        .filter(request => !request.url.includes('policy'))
+        .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
     );

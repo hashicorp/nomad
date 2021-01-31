@@ -21,19 +21,15 @@ export default create({
     },
   },
 
-  state: text('[data-test-state]'),
+  state: text('.title [data-test-state]'),
   startedAt: text('[data-test-started-at]'),
+
+  lifecycle: text('.pair [data-test-lifecycle]'),
 
   restart: twoStepButton('[data-test-restart]'),
 
-  breadcrumbs: collection('[data-test-breadcrumb]', {
-    id: attribute('data-test-breadcrumb'),
-    text: text(),
-    visit: clickable(),
-  }),
-
-  breadcrumbFor(id) {
-    return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
+  execButton: {
+    scope: '[data-test-exec-button]',
   },
 
   resourceCharts: collection('[data-test-primary-metric]', {
@@ -43,11 +39,20 @@ export default create({
 
   resourceEmptyMessage: text('[data-test-resource-error-headline]'),
 
-  hasAddresses: isPresent('[data-test-task-addresses]'),
-  addresses: collection('[data-test-task-address]', {
-    name: text('[data-test-task-address-name]'),
-    isDynamic: text('[data-test-task-address-is-dynamic]'),
-    address: text('[data-test-task-address-address]'),
+  hasPrestartTasks: isPresent('[data-test-prestart-tasks]'),
+  prestartTasks: collection('[data-test-prestart-task]', {
+    name: text('[data-test-name]'),
+    state: text('[data-test-state]'),
+    lifecycle: text('[data-test-lifecycle]'),
+    isBlocking: isPresent('.icon-is-warning'),
+  }),
+
+  hasVolumes: isPresent('[data-test-volumes]'),
+  volumes: collection('[data-test-volume]', {
+    name: text('[data-test-volume-name]'),
+    destination: text('[data-test-volume-destination]'),
+    permissions: text('[data-test-volume-permissions]'),
+    clientSource: text('[data-test-volume-client-source]'),
   }),
 
   events: collection('[data-test-task-event]', {

@@ -128,7 +128,7 @@ func New(c *Config) *manager {
 // PluginType identifies this manager to the plugin manager and satisfies the PluginManager interface.
 func (*manager) PluginType() string { return base.PluginTypeDevice }
 
-// Run starts thed device manager. The manager will shutdown any previously
+// Run starts the device manager. The manager will shutdown any previously
 // launched plugin and then begin fingerprinting and stats collection on all new
 // device plugins.
 func (m *manager) Run() {
@@ -283,13 +283,13 @@ func (m *manager) cleanupStalePlugins() error {
 	for name, c := range s.ReattachConfigs {
 		rc, err := pstructs.ReattachConfigToGoPlugin(c)
 		if err != nil {
-			multierror.Append(&mErr, fmt.Errorf("failed to convert reattach config: %v", err))
+			_ = multierror.Append(&mErr, fmt.Errorf("failed to convert reattach config: %v", err))
 			continue
 		}
 
 		instance, err := m.loader.Reattach(name, base.PluginTypeDevice, rc)
 		if err != nil {
-			multierror.Append(&mErr, fmt.Errorf("failed to reattach to plugin %q: %v", name, err))
+			_ = multierror.Append(&mErr, fmt.Errorf("failed to reattach to plugin %q: %v", name, err))
 			continue
 		}
 

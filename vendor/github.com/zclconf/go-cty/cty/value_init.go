@@ -56,6 +56,18 @@ func ParseNumberVal(s string) (Value, error) {
 	return NumberVal(f), nil
 }
 
+// MustParseNumberVal is like ParseNumberVal but it will panic in case of any
+// error. It can be used during initialization or any other situation where
+// the given string is a constant or otherwise known to be correct by the
+// caller.
+func MustParseNumberVal(s string) Value {
+	ret, err := ParseNumberVal(s)
+	if err != nil {
+		panic(err)
+	}
+	return ret
+}
+
 // NumberIntVal returns a Value of type Number whose internal value is equal
 // to the given integer.
 func NumberIntVal(v int64) Value {
@@ -228,8 +240,18 @@ func SetVal(vals []Value) Value {
 	}
 	elementType := DynamicPseudoType
 	rawList := make([]interface{}, len(vals))
+	var markSets []ValueMarks
 
 	for i, val := range vals {
+		if unmarkedVal, marks := val.UnmarkDeep(); len(marks) > 0 {
+			val = unmarkedVal
+			markSets = append(markSets, marks)
+		}
+		if val.ContainsMarked() {
+			// FIXME: Allow this, but unmark the values and apply the
+			// marking to the set itself instead.
+			panic("set cannot contain marked values")
+		}
 		if elementType == DynamicPseudoType {
 			elementType = val.ty
 		} else if val.ty != DynamicPseudoType && !elementType.Equals(val.ty) {
@@ -247,7 +269,7 @@ func SetVal(vals []Value) Value {
 	return Value{
 		ty: Set(elementType),
 		v:  rawVal,
-	}
+	}.WithMarks(markSets...)
 }
 
 // SetValFromValueSet returns a Value of set type based on an already-constructed

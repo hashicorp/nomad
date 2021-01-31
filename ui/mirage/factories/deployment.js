@@ -1,5 +1,5 @@
 import { Factory, trait } from 'ember-cli-mirage';
-import faker from 'faker';
+import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
 
 const UUIDS = provide(100, faker.random.uuid.bind(faker.random));
@@ -11,7 +11,7 @@ export default Factory.extend({
   jobId: null,
   versionNumber: null,
 
-  status: faker.helpers.randomize(DEPLOYMENT_STATUSES),
+  status: () => faker.helpers.randomize(DEPLOYMENT_STATUSES),
   statusDescription: () => faker.lorem.sentence(),
 
   notActive: trait({

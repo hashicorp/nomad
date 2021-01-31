@@ -1,31 +1,31 @@
 job "cpustress" {
   datacenters = ["dc1", "dc2"]
-  type = "batch"
+  type        = "batch"
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "cpustress" {
     count = 1
-    restart {
-      mode = "fail"
-      attempts = 0
-    }
-    reschedule {
-      attempts = 3
-      interval = "10m"
-      unlimited = false
-    }
+
     task "cpustress" {
       driver = "docker"
 
       config {
         image = "progrium/stress"
-        args = [
-          "-c", "4",
-          "-t", "600"
-        ]
 
+        args = [
+          "--cpu",
+          "2",
+          "--timeout",
+          "600",
+        ]
       }
 
       resources {
-        cpu    = 4096
+        cpu    = 2056
         memory = 256
       }
     }

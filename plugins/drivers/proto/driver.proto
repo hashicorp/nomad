@@ -5,8 +5,8 @@ option go_package = "proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
-import "github.com/hashicorp/nomad/plugins/shared/hclspec/hcl_spec.proto";
-import "github.com/hashicorp/nomad/plugins/shared/structs/proto/attribute.proto";
+import "plugins/shared/hclspec/hcl_spec.proto";
+import "plugins/shared/structs/proto/attribute.proto";
 
 // Driver service defines RPCs used to communicate with a nomad runtime driver.
 // Some rpcs may not be implemented by the driver based on it's capabilities.
@@ -60,7 +60,9 @@ service Driver {
 
     // TaskEvents starts a streaming RPC where all task events emitted by the
     // driver are streamed to the caller.
-    rpc TaskEvents(TaskEventsRequest) returns (stream DriverTaskEvent) {}
+    rpc TaskEvents(TaskEventsRequest) returns (stream
+      // buf:lint:ignore RPC_RESPONSE_STANDARD_NAME
+      DriverTaskEvent) {}
 
     // The following RPCs are only implemented if the driver sets the
     // corresponding capability.
@@ -73,6 +75,7 @@ service Driver {
 
     // ExecTaskStreaming executes a command inside the tasks execution context
     // and streams back results
+    // buf:lint:ignore RPC_REQUEST_RESPONSE_UNIQUE
     rpc ExecTaskStreaming(stream ExecTaskStreamingRequest) returns (stream ExecTaskStreamingResponse) {}
 
     // CreateNetwork is implemented when the driver needs to create the network
@@ -109,7 +112,7 @@ message FingerprintResponse {
 
 
     // Attributes are key/value pairs that annotate the nomad client and can be
-    // used in scheduling contraints and affinities.
+    // used in scheduling constraints and affinities.
     map<string, hashicorp.nomad.plugins.shared.structs.Attribute> attributes = 1;
 
     enum HealthState {
@@ -369,6 +372,16 @@ message DriverCapabilities {
     repeated NetworkIsolationSpec.NetworkIsolationMode network_isolation_modes = 4;
 
     bool must_create_network = 5;
+
+    enum MountConfigs {
+        // buf:lint:ignore ENUM_NO_ALLOW_ALIAS
+        option allow_alias = true;
+        UNKNOWN_MOUNTS = 0; // treated as ANY_MOUNTS for backwards compatibility
+        ANY_MOUNTS = 0;
+        NO_MOUNTS = 1;
+    }
+    // MountConfigs indicates whether the driver supports mount configurations.
+    MountConfigs mount_configs = 6;
 }
 
 message NetworkIsolationSpec {
@@ -383,6 +396,12 @@ message NetworkIsolationSpec {
   string path = 2;
 
   map<string,string> labels = 3;
+}
+
+message DNSConfig {
+    repeated string servers = 1;
+    repeated string searches = 2;
+    repeated string options = 3;
 }
 
 message TaskConfig {
@@ -440,6 +459,9 @@ message TaskConfig {
     // NetworkIsolationSpec specifies the configuration for the network namespace
     // to use for the task. *Only supported on Linux
     NetworkIsolationSpec network_isolation_spec = 16;
+
+    // DNSConfig is the configuration for task DNS resolvers and other options
+    DNSConfig dns = 17;
 }
 
 message Resources {
@@ -449,6 +471,10 @@ message Resources {
 
     // LinuxResources are the computed values to set for specific Linux features
     LinuxResources linux_resources = 2;
+
+    // Ports are the allocated port mappings for the allocation.
+    // A task may use these to manually configure port mapping if shared network namespaces aren't being used.
+    repeated PortMapping ports = 3;
 }
 
 message AllocatedTaskResources {
@@ -479,6 +505,13 @@ message NetworkPort {
     int32 value = 2;
 }
 
+message PortMapping {
+    string label = 1;
+    int32 value = 2;
+    int32 to = 3;
+    string host_ip = 4;
+}
+
 message LinuxResources {
 
     // CPU CFS (Completely Fair Scheduler) period. Default: 0 (not specified)
@@ -496,6 +529,7 @@ message LinuxResources {
     // CpusetMems constrains the allowed set of memory nodes. Default: "" (not specified)
     string cpuset_mems = 7;
     // PercentTicks is a compatibility option for docker and should not be used
+    // buf:lint:ignore FIELD_LOWER_SNAKE_CASE
     double PercentTicks = 8;
 }
 

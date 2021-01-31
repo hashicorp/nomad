@@ -13,7 +13,7 @@ name = "nomad"
 # `nomad_binary` (optional, null) - URL of a zip file containing a nomad
 # executable with which to replace the Nomad binaries in the AMI.
 #  - Typically this is left commented unless necessary. 
-#nomad_binary = "https://releases.hashicorp.com/nomad/0.9.0/nomad_0.9.0_linux_amd64.zip"
+#nomad_binary = "https://releases.hashicorp.com/nomad/0.10.0/nomad_0.10.0_linux_amd64.zip"
 
 # `region` ("us-east-1") - sets the AWS region to build your cluster in.
 #region = "us-east-1"

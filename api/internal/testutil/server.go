@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"time"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/api/internal/testutil/discover"
@@ -75,7 +76,8 @@ type ServerConfig struct {
 
 // ClientConfig is used to configure the client
 type ClientConfig struct {
-	Enabled bool `json:"enabled"`
+	Enabled bool              `json:"enabled"`
+	Options map[string]string `json:"options,omitempty"`
 }
 
 // VaultConfig is used to configure Vault
@@ -96,10 +98,16 @@ type ServerConfigCallback func(c *TestServerConfig)
 // with all of the listen ports incremented by one.
 func defaultServerConfig(t testing.T) *TestServerConfig {
 	ports := freeport.GetT(t, 3)
+
+	logLevel := "DEBUG"
+	if envLogLevel := os.Getenv("NOMAD_TEST_LOG_LEVEL"); envLogLevel != "" {
+		logLevel = envLogLevel
+	}
+
 	return &TestServerConfig{
 		NodeName:          fmt.Sprintf("node-%d", ports[0]),
 		DisableCheckpoint: true,
-		LogLevel:          "DEBUG",
+		LogLevel:          logLevel,
 		Ports: &PortsConfig{
 			HTTP: ports[0],
 			RPC:  ports[1],
@@ -167,6 +175,13 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 		cb(nomadConfig)
 	}
 
+	if nomadConfig.DevMode {
+		if nomadConfig.Client.Options == nil {
+			nomadConfig.Client.Options = map[string]string{}
+		}
+		nomadConfig.Client.Options["test.tighten_network_timeouts"] = "true"
+	}
+
 	configContent, err := json.Marshal(nomadConfig)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -231,13 +246,35 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 func (s *TestServer) Stop() {
 	defer os.RemoveAll(s.Config.DataDir)
 
-	if err := s.cmd.Process.Kill(); err != nil {
+	// wait for the process to exit to be sure that the data dir can be
+	// deleted on all platforms.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+
+		s.cmd.Wait()
+	}()
+
+	// kill and wait gracefully
+	if err := s.cmd.Process.Signal(os.Interrupt); err != nil {
 		s.t.Errorf("err: %s", err)
 	}
 
-	// wait for the process to exit to be sure that the data dir can be
-	// deleted on all platforms.
-	s.cmd.Wait()
+	select {
+	case <-done:
+		return
+	case <-time.After(5 * time.Second):
+		s.t.Logf("timed out waiting for process to gracefully terminate")
+	}
+
+	if err := s.cmd.Process.Kill(); err != nil {
+		s.t.Errorf("err: %s", err)
+	}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		s.t.Logf("timed out waiting for process to be killed")
+	}
 }
 
 // waitForAPI waits for only the agent HTTP endpoint to start

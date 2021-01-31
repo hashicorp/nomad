@@ -15,8 +15,7 @@ module.exports = function(environment) {
     EmberENV: {
       FEATURES: {
         // Here you can enable experimental features on an ember canary build
-        // e.g. 'with-controller': true
-        'ember-routing-router-service': true,
+        // e.g. EMBER_NATIVE_DECORATOR_SUPPORT: true
       },
       EXTEND_PROTOTYPES: {
         // Prevent Ember Data from overriding Date.parse.
@@ -26,10 +25,11 @@ module.exports = function(environment) {
 
     APP: {
       blockingQueries: true,
-      mirageScenario: 'smallCluster',
-      mirageWithNamespaces: true,
+      mirageScenario: 'topoMedium',
+      mirageWithNamespaces: false,
       mirageWithTokens: true,
       mirageWithRegions: true,
+      showStorybookLink: process.env.STORYBOOK_LINK === 'true',
     },
   };
 
@@ -44,6 +44,11 @@ module.exports = function(environment) {
       enabled: USE_MIRAGE,
       excludeFilesFromBuild: !USE_MIRAGE,
     };
+
+    if (process.env.STORYBOOK === 'true') {
+      ENV.APP.autoboot = false;
+      ENV.rootURL = '/';
+    }
   }
 
   if (environment === 'test') {

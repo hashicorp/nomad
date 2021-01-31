@@ -11,6 +11,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -24,8 +25,9 @@ meta/
 |--> upgraded -> time.Now().Format(timeRFC3339)
 allocations/
 |--> <alloc-id>/
-   |--> alloc         -> allocEntry{*structs.Allocation}
-   |--> deploy_status -> deployStatusEntry{*structs.AllocDeploymentStatus}
+   |--> alloc          -> allocEntry{*structs.Allocation}
+	 |--> deploy_status  -> deployStatusEntry{*structs.AllocDeploymentStatus}
+	 |--> network_status -> networkStatusEntry{*structs.AllocNetworkStatus}
    |--> task-<name>/
       |--> local_state -> *trstate.LocalState # Local-only state
       |--> task_state  -> *structs.TaskState  # Sync'd to servers
@@ -34,7 +36,10 @@ devicemanager/
 |--> plugin_state -> *dmstate.PluginState
 
 drivermanager/
-|--> plugin_state -> *dmstate.PluginState
+|--> plugin_state -> *driverstate.PluginState
+
+dynamicplugins/
+|--> registry_state -> *dynamicplugins.RegistryState
 */
 
 var (
@@ -65,6 +70,10 @@ var (
 	// stored under.
 	allocDeployStatusKey = []byte("deploy_status")
 
+	// allocNetworkStatusKey is the key *structs.AllocNetworkStatus is
+	// stored under
+	allocNetworkStatusKey = []byte("network_status")
+
 	// allocations -> $allocid -> task-$taskname -> the keys below
 	taskLocalStateKey = []byte("local_state")
 	taskStateKey      = []byte("task_state")
@@ -73,13 +82,20 @@ var (
 	// data
 	devManagerBucket = []byte("devicemanager")
 
-	// driverManagerBucket is the bucket name container all driver manager
+	// driverManagerBucket is the bucket name containing all driver manager
 	// related data
 	driverManagerBucket = []byte("drivermanager")
 
 	// managerPluginStateKey is the key by which plugin manager plugin state is
 	// stored at
 	managerPluginStateKey = []byte("plugin_state")
+
+	// dynamicPluginBucket is the bucket name containing all dynamic plugin
+	// registry data. each dynamic plugin registry will have its own subbucket.
+	dynamicPluginBucket = []byte("dynamicplugins")
+
+	// registryStateKey is the key at which dynamic plugin registry state is stored
+	registryStateKey = []byte("registry_state")
 )
 
 // taskBucketName returns the bucket name for the given task name.
@@ -207,6 +223,10 @@ func (s *BoltStateDB) getAllAllocations(tx *boltdd.Tx) ([]*structs.Allocation, m
 			continue
 		}
 
+		// Handle upgrade path
+		ae.Alloc.Canonicalize()
+		ae.Alloc.Job.Canonicalize()
+
 		allocs = append(allocs, ae.Alloc)
 	}
 
@@ -214,8 +234,8 @@ func (s *BoltStateDB) getAllAllocations(tx *boltdd.Tx) ([]*structs.Allocation, m
 }
 
 // PutAllocation stores an allocation or returns an error.
-func (s *BoltStateDB) PutAllocation(alloc *structs.Allocation) error {
-	return s.db.Update(func(tx *boltdd.Tx) error {
+func (s *BoltStateDB) PutAllocation(alloc *structs.Allocation, opts ...WriteOption) error {
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
 		// Retrieve the root allocations bucket
 		allocsBkt, err := tx.CreateBucketIfNotExists(allocationsBucketName)
 		if err != nil {
@@ -292,6 +312,64 @@ func (s *BoltStateDB) GetDeploymentStatus(allocID string) (*structs.AllocDeploym
 	}
 
 	return entry.DeploymentStatus, nil
+}
+
+// networkStatusEntry wraps values for NetworkStatus keys.
+type networkStatusEntry struct {
+	NetworkStatus *structs.AllocNetworkStatus
+}
+
+// PutDeploymentStatus stores an allocation's DeploymentStatus or returns an
+// error.
+func (s *BoltStateDB) PutNetworkStatus(allocID string, ds *structs.AllocNetworkStatus, opts ...WriteOption) error {
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
+		return putNetworkStatusImpl(tx, allocID, ds)
+	})
+}
+
+func putNetworkStatusImpl(tx *boltdd.Tx, allocID string, ds *structs.AllocNetworkStatus) error {
+	allocBkt, err := getAllocationBucket(tx, allocID)
+	if err != nil {
+		return err
+	}
+
+	entry := networkStatusEntry{
+		NetworkStatus: ds,
+	}
+	return allocBkt.Put(allocNetworkStatusKey, &entry)
+}
+
+// GetNetworkStatus retrieves an allocation's NetworkStatus or returns an
+// error.
+func (s *BoltStateDB) GetNetworkStatus(allocID string) (*structs.AllocNetworkStatus, error) {
+	var entry networkStatusEntry
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		allAllocsBkt := tx.Bucket(allocationsBucketName)
+		if allAllocsBkt == nil {
+			// No state, return
+			return nil
+		}
+
+		allocBkt := allAllocsBkt.Bucket([]byte(allocID))
+		if allocBkt == nil {
+			// No state for alloc, return
+			return nil
+		}
+
+		return allocBkt.Get(allocNetworkStatusKey, &entry)
+	})
+
+	// It's valid for this field to be nil/missing
+	if boltdd.IsErrNotFound(err) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return entry.NetworkStatus, nil
 }
 
 // GetTaskRunnerState returns the LocalState and TaskState for a
@@ -415,8 +493,8 @@ func (s *BoltStateDB) DeleteTaskBucket(allocID, taskName string) error {
 }
 
 // DeleteAllocationBucket is used to delete an allocation bucket if it exists.
-func (s *BoltStateDB) DeleteAllocationBucket(allocID string) error {
-	return s.db.Update(func(tx *boltdd.Tx) error {
+func (s *BoltStateDB) DeleteAllocationBucket(allocID string, opts ...WriteOption) error {
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
 		// Retrieve the root allocations bucket
 		allocations := tx.Bucket(allocationsBucketName)
 		if allocations == nil {
@@ -594,11 +672,70 @@ func (s *BoltStateDB) GetDriverPluginState() (*driverstate.PluginState, error) {
 	return ps, nil
 }
 
+// PutDynamicPluginRegistryState stores the dynamic plugin registry's
+// state or returns an error.
+func (s *BoltStateDB) PutDynamicPluginRegistryState(ps *dynamicplugins.RegistryState) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		// Retrieve the root dynamic plugin manager bucket
+		dynamicBkt, err := tx.CreateBucketIfNotExists(dynamicPluginBucket)
+		if err != nil {
+			return err
+		}
+		return dynamicBkt.Put(registryStateKey, ps)
+	})
+}
+
+// GetDynamicPluginRegistryState stores the dynamic plugin registry's
+// registry state or returns an error.
+func (s *BoltStateDB) GetDynamicPluginRegistryState() (*dynamicplugins.RegistryState, error) {
+	var ps *dynamicplugins.RegistryState
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		dynamicBkt := tx.Bucket(dynamicPluginBucket)
+		if dynamicBkt == nil {
+			// No state, return
+			return nil
+		}
+
+		// Restore Plugin State if it exists
+		ps = &dynamicplugins.RegistryState{}
+		if err := dynamicBkt.Get(registryStateKey, ps); err != nil {
+			if !boltdd.IsErrNotFound(err) {
+				return fmt.Errorf("failed to read dynamic plugin registry state: %v", err)
+			}
+
+			// Key not found, reset ps to nil
+			ps = nil
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return ps, nil
+}
+
 // init initializes metadata entries in a newly created state database.
 func (s *BoltStateDB) init() error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
 		return addMeta(tx.BoltTx())
 	})
+}
+
+// updateWithOptions enables adjustments to db.Update operation, including Batch mode.
+func (s *BoltStateDB) updateWithOptions(opts []WriteOption, updateFn func(tx *boltdd.Tx) error) error {
+	writeOpts := mergeWriteOptions(opts)
+
+	if writeOpts.BatchMode {
+		// In Batch mode, BoltDB opportunistically combines multiple concurrent writes into one or
+		// several transactions. See boltdb.Batch() documentation for details.
+		return s.db.Batch(updateFn)
+	} else {
+		return s.db.Update(updateFn)
+	}
 }
 
 // Upgrade bolt state db from 0.8 schema to 0.9 schema. Noop if already using

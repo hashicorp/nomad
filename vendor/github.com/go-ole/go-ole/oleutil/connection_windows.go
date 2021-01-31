@@ -49,6 +49,7 @@ func ConnectObject(disp *ole.IDispatch, iid *ole.GUID, idisp interface{}) (cooki
 			point.Release()
 			return
 		}
+		return
 	}
 
 	container.Release()

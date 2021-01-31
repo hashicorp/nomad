@@ -29,8 +29,13 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "list"}, time.Now())
 
+	if args.RequestNamespace() == structs.AllNamespacesSentinel {
+		return a.listAllNamespaces(args, reply)
+	}
+
 	// Check namespace read-job permissions
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
@@ -44,7 +49,9 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 			// Capture all the allocations
 			var err error
 			var iter memdb.ResultIterator
-			if prefix := args.QueryOptions.Prefix; prefix != "" {
+
+			prefix := args.QueryOptions.Prefix
+			if prefix != "" {
 				iter, err = state.AllocsByIDPrefix(ws, args.RequestNamespace(), prefix)
 			} else {
 				iter, err = state.AllocsByNamespace(ws, args.RequestNamespace())
@@ -60,9 +67,71 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 					break
 				}
 				alloc := raw.(*structs.Allocation)
-				allocs = append(allocs, alloc.Stub())
+				allocs = append(allocs, alloc.Stub(args.Fields))
 			}
 			reply.Allocations = allocs
+
+			// Use the last index that affected the jobs table
+			index, err := state.Index("allocs")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+
+			// Set the query response
+			a.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return a.srv.blockingRPC(&opts)
+}
+
+// listAllNamespaces lists all allocations across all namespaces
+func (a *Alloc) listAllNamespaces(args *structs.AllocListRequest, reply *structs.AllocListResponse) error {
+	// Check for read-job permissions
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	prefix := args.QueryOptions.Prefix
+	allow := func(ns string) bool {
+		return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
+	}
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// get list of accessible namespaces
+			allowedNSes, err := allowedNSes(aclObj, state, allow)
+			if err == structs.ErrPermissionDenied {
+				// return empty allocations if token isn't authorized for any
+				// namespace, matching other endpoints
+				reply.Allocations = []*structs.AllocListStub{}
+			} else if err != nil {
+				return err
+			} else {
+				var iter memdb.ResultIterator
+				var err error
+				if prefix != "" {
+					iter, err = state.AllocsByIDPrefixAllNSs(ws, prefix)
+				} else {
+					iter, err = state.Allocs(ws)
+				}
+				if err != nil {
+					return err
+				}
+
+				var allocs []*structs.AllocListStub
+				for raw := iter.Next(); raw != nil; raw = iter.Next() {
+					alloc := raw.(*structs.Allocation)
+					if allowedNSes != nil && !allowedNSes[alloc.Namespace] {
+						continue
+					}
+					allocs = append(allocs, alloc.Stub(args.Fields))
+				}
+				reply.Allocations = allocs
+			}
 
 			// Use the last index that affected the jobs table
 			index, err := state.Index("allocs")
@@ -86,8 +155,10 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_alloc"}, time.Now())
 
-	// Check namespace read-job permissions
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+	// Check namespace read-job permissions before performing blocking query.
+	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityReadJob)
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
 		// If ResolveToken had an unexpected error return that
 		if err != structs.ErrTokenNotFound {
 			return err
@@ -107,8 +178,6 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 		if node == nil {
 			return structs.ErrTokenNotFound
 		}
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
-		return structs.ErrPermissionDenied
 	}
 
 	// Setup the blocking query
@@ -125,6 +194,11 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 			// Setup the output
 			reply.Alloc = out
 			if out != nil {
+				// Re-check namespace in case it differs from request.
+				if !allowNsOp(aclObj, out.Namespace) {
+					return structs.NewErrUnknownAllocation(args.AllocID)
+				}
+
 				reply.Index = out.ModifyIndex
 			} else {
 				// Use the last index that affected the allocs table
@@ -214,25 +288,18 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "stop"}, time.Now())
 
-	// Check that it is a management token.
-	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityAllocLifecycle) {
-		return structs.ErrPermissionDenied
-	}
-
-	if args.AllocID == "" {
-		return fmt.Errorf("must provide an alloc id")
-	}
-
-	ws := memdb.NewWatchSet()
-	alloc, err := a.srv.State().AllocByID(ws, args.AllocID)
+	alloc, err := getAlloc(a.srv.State(), args.AllocID)
 	if err != nil {
 		return err
 	}
 
-	if alloc == nil {
-		return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
+	// Check for namespace alloc-lifecycle permissions.
+	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityAllocLifecycle)
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if !allowNsOp(aclObj, alloc.Namespace) {
+		return structs.ErrPermissionDenied
 	}
 
 	now := time.Now().UTC().UnixNano()

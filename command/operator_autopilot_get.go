@@ -45,6 +45,7 @@ func (c *OperatorAutopilotGetCommand) Run(args []string) int {
 	c.Ui.Output(fmt.Sprintf("CleanupDeadServers = %v", config.CleanupDeadServers))
 	c.Ui.Output(fmt.Sprintf("LastContactThreshold = %v", config.LastContactThreshold.String()))
 	c.Ui.Output(fmt.Sprintf("MaxTrailingLogs = %v", config.MaxTrailingLogs))
+	c.Ui.Output(fmt.Sprintf("MinQuorum = %v", config.MinQuorum))
 	c.Ui.Output(fmt.Sprintf("ServerStabilizationTime = %v", config.ServerStabilizationTime.String()))
 	c.Ui.Output(fmt.Sprintf("EnableRedundancyZones = %v", config.EnableRedundancyZones))
 	c.Ui.Output(fmt.Sprintf("DisableUpgradeMigration = %v", config.DisableUpgradeMigration))
@@ -63,9 +64,12 @@ Usage: nomad operator autopilot get-config [options]
 
   Displays the current Autopilot configuration.
 
+  If ACLs are enabled, this command requires a token with the 'operator:read'
+  capability.
+
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 
 	return strings.TrimSpace(helpText)
 }

@@ -8,8 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	basePlug "github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
@@ -55,7 +58,10 @@ func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
 		t.Skip("Test only available not on Linux")
 	}
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	fingerCh, err := harness.Fingerprint(context.Background())
@@ -74,7 +80,10 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
 	fingerCh, err := harness.Fingerprint(context.Background())
@@ -93,7 +102,10 @@ func TestExecDriver_StartWait(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -125,7 +137,10 @@ func TestExecDriver_StartWaitStopKill(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -186,7 +201,10 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	dctx, dcancel := context.WithCancel(context.Background())
+	defer dcancel()
+
+	d := NewExecDriver(dctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -251,12 +269,122 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
+// TestExecDriver_NoOrphans asserts that when the main
+// task dies, the orphans in the PID namespaces are killed by the kernel
+func TestExecDriver_NoOrphans(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctestutils.ExecCompatible(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	task := &drivers.TaskConfig{
+		ID:   uuid.Generate(),
+		Name: "test",
+	}
+
+	cleanup := harness.MkAllocDir(task, true)
+	defer cleanup()
+
+	taskConfig := map[string]interface{}{}
+	taskConfig["command"] = "/bin/sh"
+	// print the child PID in the task PID namespace, then sleep for 5 seconds to give us a chance to examine processes
+	taskConfig["args"] = []string{"-c", fmt.Sprintf(`sleep 3600 & sleep 20`)}
+	require.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
+
+	handle, _, err := harness.StartTask(task)
+	require.NoError(err)
+	defer harness.DestroyTask(task.ID, true)
+
+	waitCh, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	require.NoError(err)
+
+	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
+
+	var childPids []int
+	taskState := TaskState{}
+	testutil.WaitForResult(func() (bool, error) {
+		require.NoError(handle.GetDriverState(&taskState))
+		if taskState.Pid == 0 {
+			return false, fmt.Errorf("task PID is zero")
+		}
+
+		children, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/task/%d/children", taskState.Pid, taskState.Pid))
+		if err != nil {
+			return false, fmt.Errorf("error reading /proc for children: %v", err)
+		}
+		pids := strings.Fields(string(children))
+		if len(pids) < 2 {
+			return false, fmt.Errorf("error waiting for two children, currently %d", len(pids))
+		}
+		for _, cpid := range pids {
+			p, err := strconv.Atoi(cpid)
+			if err != nil {
+				return false, fmt.Errorf("error parsing child pids from /proc: %s", cpid)
+			}
+			childPids = append(childPids, p)
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
+
+	select {
+	case result := <-waitCh:
+		require.True(result.Successful(), "command failed: %#v", result)
+	case <-time.After(30 * time.Second):
+		require.Fail("timeout waiting for task to shutdown")
+	}
+
+	// isProcessRunning returns an error if process is not running
+	isProcessRunning := func(pid int) error {
+		process, err := os.FindProcess(pid)
+		if err != nil {
+			return fmt.Errorf("failed to find process: %s", err)
+		}
+
+		err = process.Signal(syscall.Signal(0))
+		if err != nil {
+			return fmt.Errorf("failed to signal process: %s", err)
+		}
+
+		return nil
+	}
+
+	// task should be dead
+	require.Error(isProcessRunning(taskState.Pid))
+
+	// all children should eventually be killed by OS
+	testutil.WaitForResult(func() (bool, error) {
+		for _, cpid := range childPids {
+			err := isProcessRunning(cpid)
+			if err == nil {
+				return false, fmt.Errorf("child process %d is still running", cpid)
+			}
+			if !strings.Contains(err.Error(), "failed to signal process") {
+				return false, fmt.Errorf("unexpected error: %v", err)
+			}
+		}
+		return true, nil
+	}, func(err error) {
+		require.NoError(err)
+	})
+}
+
 func TestExecDriver_Stats(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	dctx, dcancel := context.WithCancel(context.Background())
+	defer dcancel()
+
+	d := NewExecDriver(dctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -299,7 +427,10 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -348,7 +479,10 @@ func TestExecDriver_User(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -382,7 +516,10 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	require := require.New(t)
 	ctestutils.ExecCompatible(t)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -436,7 +573,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 		}
 		// Skip rdma subsystem; rdma was added in most recent kernels and libcontainer/docker
 		// don't isolate it by default.
-		if strings.Contains(line, ":rdma:") {
+		if strings.Contains(line, ":rdma:") || strings.Contains(line, "::") {
 			continue
 		}
 		if !strings.Contains(line, ":/nomad/") {
@@ -470,7 +607,10 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 	err = ioutil.WriteFile(filepath.Join(tmpDir, "testfile"), []byte("from-host"), 600)
 	require.NoError(err)
 
-	d := NewExecDriver(testlog.HCLogger(t))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	task := &drivers.TaskConfig{
 		ID:         uuid.Generate(),
@@ -567,4 +707,40 @@ config {
 	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
 
 	require.EqualValues(t, expected, tc)
+}
+
+func TestExecDriver_NoPivotRoot(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctestutils.ExecCompatible(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+
+	config := &Config{NoPivotRoot: true}
+	var data []byte
+	require.NoError(basePlug.MsgPackEncode(&data, config))
+	bconfig := &basePlug.Config{PluginConfig: data}
+	require.NoError(harness.SetConfig(bconfig))
+
+	task := &drivers.TaskConfig{
+		ID:        uuid.Generate(),
+		Name:      "sleep",
+		Resources: testResources,
+	}
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	tc := &TaskConfig{
+		Command: "/bin/sleep",
+		Args:    []string{"100"},
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+
+	handle, _, err := harness.StartTask(task)
+	require.NoError(err)
+	require.NotNil(handle)
 }

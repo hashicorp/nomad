@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/devices/gpu/nvidia"
@@ -9,10 +11,10 @@ import (
 
 func main() {
 	// Serve the plugin
-	plugins.Serve(factory)
+	plugins.ServeCtx(factory)
 }
 
 // factory returns a new instance of the Nvidia GPU plugin
-func factory(log log.Logger) interface{} {
-	return nvidia.NewNvidiaDevice(log)
+func factory(ctx context.Context, log log.Logger) interface{} {
+	return nvidia.NewNvidiaDevice(ctx, log)
 }

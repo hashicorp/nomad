@@ -2,7 +2,9 @@ package template
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -18,6 +21,8 @@ import (
 
 	"github.com/BurntSushi/toml"
 	dep "github.com/hashicorp/consul-template/dependency"
+	"github.com/hashicorp/consul/api"
+	socktmpl "github.com/hashicorp/go-sockaddr/template"
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -208,8 +213,13 @@ func keyWithDefaultFunc(b *Brain, used, missing *dep.Set) func(string, string) (
 	}
 }
 
+func safeLsFunc(b *Brain, used, missing *dep.Set) func(string) ([]*dep.KeyPair, error) {
+	// call lsFunc but explicitly mark that empty data set returned on monitored KV prefix is NOT safe
+	return lsFunc(b, used, missing, false)
+}
+
 // lsFunc returns or accumulates keyPrefix dependencies.
-func lsFunc(b *Brain, used, missing *dep.Set) func(string) ([]*dep.KeyPair, error) {
+func lsFunc(b *Brain, used, missing *dep.Set, emptyIsSafe bool) func(string) ([]*dep.KeyPair, error) {
 	return func(s string) ([]*dep.KeyPair, error) {
 		result := []*dep.KeyPair{}
 
@@ -231,9 +241,23 @@ func lsFunc(b *Brain, used, missing *dep.Set) func(string) ([]*dep.KeyPair, erro
 					result = append(result, pair)
 				}
 			}
-			return result, nil
+
+			if len(result) == 0 {
+				if emptyIsSafe {
+					// Operator used potentially unsafe ls function in the template instead of the safeLs
+					return result, nil
+				}
+			} else {
+				// non empty result is good so we just return the data
+				return result, nil
+			}
+
+			// If we reach this part of the code result is completely empty as value returned no KV pairs
+			// Operator selected to use safeLs on the specific KV prefix so we will refuse to render template
+			// by marking d as missing
 		}
 
+		// b.Recall either returned an error or safeLs entered unsafe case
 		missing.Add(d)
 
 		return result, nil
@@ -358,6 +382,49 @@ func secretsFunc(b *Brain, used, missing *dep.Set) func(string) ([]string, error
 	}
 }
 
+// byMeta returns Services grouped by one or many ServiceMeta fields.
+func byMeta(meta string, services []*dep.HealthService) (groups map[string][]*dep.HealthService, err error) {
+	re := regexp.MustCompile("[^a-zA-Z0-9_-]")
+	normalize := func(x string) string {
+		return re.ReplaceAllString(x, "_")
+	}
+	getOrDefault := func(m map[string]string, key string) string {
+		realKey := strings.TrimSuffix(key, "|int")
+		if val := m[realKey]; val != "" {
+			return val
+		}
+		if strings.HasSuffix(key, "|int") {
+			return "0"
+		}
+		return fmt.Sprintf("_no_%s_", realKey)
+	}
+
+	metas := strings.Split(meta, ",")
+
+	groups = make(map[string][]*dep.HealthService)
+
+	for _, s := range services {
+		sm := s.ServiceMeta
+		keyParts := []string{}
+		for _, meta := range metas {
+			value := getOrDefault(sm, meta)
+			if strings.HasSuffix(meta, "|int") {
+				value = getOrDefault(sm, meta)
+				i, err := strconv.Atoi(value)
+				if err != nil {
+					return nil, errors.Wrap(err, fmt.Sprintf("cannot parse %v as number ", value))
+				}
+				value = fmt.Sprintf("%05d", i)
+			}
+			keyParts = append(keyParts, normalize(value))
+		}
+		key := strings.Join(keyParts, "_")
+		groups[key] = append(groups[key], s)
+	}
+
+	return groups, nil
+}
+
 // serviceFunc returns or accumulates health service dependencies.
 func serviceFunc(b *Brain, used, missing *dep.Set) func(...string) ([]*dep.HealthService, error) {
 	return func(s ...string) ([]*dep.HealthService, error) {
@@ -406,8 +473,69 @@ func servicesFunc(b *Brain, used, missing *dep.Set) func(...string) ([]*dep.Cata
 	}
 }
 
+// connectFunc returns or accumulates health connect dependencies.
+func connectFunc(b *Brain, used, missing *dep.Set) func(...string) ([]*dep.HealthService, error) {
+	return func(s ...string) ([]*dep.HealthService, error) {
+		result := []*dep.HealthService{}
+
+		if len(s) == 0 || s[0] == "" {
+			return result, nil
+		}
+
+		d, err := dep.NewHealthConnectQuery(strings.Join(s, "|"))
+		if err != nil {
+			return nil, err
+		}
+
+		used.Add(d)
+
+		if value, ok := b.Recall(d); ok {
+			return value.([]*dep.HealthService), nil
+		}
+
+		missing.Add(d)
+
+		return result, nil
+	}
+}
+
+func connectCARootsFunc(b *Brain, used, missing *dep.Set,
+) func(...string) ([]*api.CARoot, error) {
+	return func(...string) ([]*api.CARoot, error) {
+		d := dep.NewConnectCAQuery()
+		used.Add(d)
+		if value, ok := b.Recall(d); ok {
+			return value.([]*api.CARoot), nil
+		}
+		missing.Add(d)
+		return nil, nil
+	}
+}
+
+func connectLeafFunc(b *Brain, used, missing *dep.Set,
+) func(...string) (*api.LeafCert, error) {
+	return func(s ...string) (*api.LeafCert, error) {
+		if len(s) == 0 || s[0] == "" {
+			return nil, nil
+		}
+		d := dep.NewConnectLeafQuery(s[0])
+		used.Add(d)
+		if value, ok := b.Recall(d); ok {
+			return value.(*api.LeafCert), nil
+		}
+		missing.Add(d)
+		return nil, nil
+
+	}
+}
+
+func safeTreeFunc(b *Brain, used, missing *dep.Set) func(string) ([]*dep.KeyPair, error) {
+	// call treeFunc but explicitly mark that empty data set returned on monitored KV prefix is NOT safe
+	return treeFunc(b, used, missing, false)
+}
+
 // treeFunc returns or accumulates keyPrefix dependencies.
-func treeFunc(b *Brain, used, missing *dep.Set) func(string) ([]*dep.KeyPair, error) {
+func treeFunc(b *Brain, used, missing *dep.Set, emptyIsSafe bool) func(string) ([]*dep.KeyPair, error) {
 	return func(s string) ([]*dep.KeyPair, error) {
 		result := []*dep.KeyPair{}
 
@@ -430,9 +558,23 @@ func treeFunc(b *Brain, used, missing *dep.Set) func(string) ([]*dep.KeyPair, er
 					result = append(result, pair)
 				}
 			}
-			return result, nil
+
+			if len(result) == 0 {
+				if emptyIsSafe {
+					// Operator used potentially unsafe tree function in the template instead of the safeTree
+					return result, nil
+				}
+			} else {
+				// non empty result is good so we just return the data
+				return result, nil
+			}
+
+			// If we reach this part of the code result is completely empty as value returned no KV pairs
+			// Operator selected to use safeTree on the specific KV prefix so we will refuse to render template
+			// by marking d as missing
 		}
 
+		// b.Recall either returned an error or safeTree entered unsafe case
 		missing.Add(d)
 
 		return result, nil
@@ -583,8 +725,8 @@ func explode(pairs []*dep.KeyPair) (map[string]interface{}, error) {
 	return m, nil
 }
 
-// explodeHelper is a recursive helper for explode.
-func explodeHelper(m map[string]interface{}, k, v, p string) error {
+// explodeHelper is a recursive helper for explode and explodeMap
+func explodeHelper(m map[string]interface{}, k string, v interface{}, p string) error {
 	if strings.Contains(k, "/") {
 		parts := strings.Split(k, "/")
 		top := parts[0]
@@ -605,6 +747,24 @@ func explodeHelper(m map[string]interface{}, k, v, p string) error {
 	}
 
 	return nil
+}
+
+// explodeMap turns a single-level map into a deeply-nested hash.
+func explodeMap(mapIn map[string]interface{}) (map[string]interface{}, error) {
+	mapOut := make(map[string]interface{})
+
+	var keys []string
+	for k := range mapIn {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for i := range keys {
+		if err := explodeHelper(mapOut, keys[i], mapIn[keys[i]], keys[i]); err != nil {
+			return nil, errors.Wrap(err, "explodeMap")
+		}
+	}
+	return mapOut, nil
 }
 
 // in searches for a given value in a given interface.
@@ -697,16 +857,41 @@ func indent(spaces int, s string) (string, error) {
 // 			print(i)
 // 		}
 //
-func loop(ints ...int64) (<-chan int64, error) {
-	var start, stop int64
-	switch len(ints) {
+func loop(ifaces ...interface{}) (<-chan int64, error) {
+
+	to64 := func(i interface{}) (int64, error) {
+		v := reflect.ValueOf(i)
+		switch v.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
+			reflect.Int64:
+			return int64(v.Int()), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32,
+			reflect.Uint64:
+			return int64(v.Uint()), nil
+		case reflect.String:
+			return parseInt(v.String())
+		}
+		return 0, fmt.Errorf("loop: bad argument type: %T", i)
+	}
+
+	var i1, i2 interface{}
+	switch len(ifaces) {
 	case 1:
-		start, stop = 0, ints[0]
+		i1, i2 = 0, ifaces[0]
 	case 2:
-		start, stop = ints[0], ints[1]
+		i1, i2 = ifaces[0], ifaces[1]
 	default:
-		return nil, fmt.Errorf("loop: wrong number of arguments, expected 1 or 2"+
-			", but got %d", len(ints))
+		return nil, fmt.Errorf("loop: wrong number of arguments, expected "+
+			"1 or 2, but got %d", len(ifaces))
+	}
+
+	start, err := to64(i1)
+	if err != nil {
+		return nil, err
+	}
+	stop, err := to64(i2)
+	if err != nil {
+		return nil, err
 	}
 
 	ch := make(chan int64)
@@ -794,6 +979,19 @@ func parseUint(s string) (uint64, error) {
 		return 0, errors.Wrap(err, "parseUint")
 	}
 	return result, nil
+}
+
+// parseYAML returns a structure for valid YAML
+func parseYAML(s string) (interface{}, error) {
+	if s == "" {
+		return map[string]interface{}{}, nil
+	}
+
+	var data interface{}
+	if err := yaml.Unmarshal([]byte(s), &data); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // plugin executes a subprocess as the given command string. It is assumed the
@@ -1161,8 +1359,150 @@ func modulo(b, a interface{}) (interface{}, error) {
 	}
 }
 
-// blacklisted always returns an error, to be used in place of blacklisted template functions
-func blacklisted(...string) (string, error) {
+// minimum returns the minimum between a and b.
+func minimum(b, a interface{}) (interface{}, error) {
+	av := reflect.ValueOf(a)
+	bv := reflect.ValueOf(b)
+
+	switch av.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if av.Int() < bv.Int() {
+				return av.Int(), nil
+			}
+			return bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if av.Int() < int64(bv.Uint()) {
+				return av.Int(), nil
+			}
+			return bv.Uint(), nil
+		case reflect.Float32, reflect.Float64:
+			if float64(av.Int()) < bv.Float() {
+				return av.Int(), nil
+			}
+			return bv.Float(), nil
+		default:
+			return nil, fmt.Errorf("minimum: unknown type for %q (%T)", bv, b)
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if int64(av.Uint()) < bv.Int() {
+				return av.Uint(), nil
+			}
+			return bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if av.Uint() < bv.Uint() {
+				return av.Uint(), nil
+			}
+			return bv.Uint(), nil
+		case reflect.Float32, reflect.Float64:
+			if float64(av.Uint()) < bv.Float() {
+				return av.Uint(), nil
+			}
+			return bv.Float(), nil
+		default:
+			return nil, fmt.Errorf("minimum: unknown type for %q (%T)", bv, b)
+		}
+	case reflect.Float32, reflect.Float64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if av.Float() < float64(bv.Int()) {
+				return av.Float(), nil
+			}
+			return bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if av.Float() < float64(bv.Uint()) {
+				return av.Float(), nil
+			}
+			return bv.Uint(), nil
+		case reflect.Float32, reflect.Float64:
+			if av.Float() < bv.Float() {
+				return av.Float(), nil
+			}
+			return bv.Float(), nil
+		default:
+			return nil, fmt.Errorf("minimum: unknown type for %q (%T)", bv, b)
+		}
+	default:
+		return nil, fmt.Errorf("minimum: unknown type for %q (%T)", av, a)
+	}
+}
+
+// maximum returns the maximum between a and b.
+func maximum(b, a interface{}) (interface{}, error) {
+	av := reflect.ValueOf(a)
+	bv := reflect.ValueOf(b)
+
+	switch av.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if av.Int() > bv.Int() {
+				return av.Int(), nil
+			}
+			return bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if av.Int() > int64(bv.Uint()) {
+				return av.Int(), nil
+			}
+			return bv.Uint(), nil
+		case reflect.Float32, reflect.Float64:
+			if float64(av.Int()) > bv.Float() {
+				return av.Int(), nil
+			}
+			return bv.Float(), nil
+		default:
+			return nil, fmt.Errorf("maximum: unknown type for %q (%T)", bv, b)
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if int64(av.Uint()) > bv.Int() {
+				return av.Uint(), nil
+			}
+			return bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if av.Uint() > bv.Uint() {
+				return av.Uint(), nil
+			}
+			return bv.Uint(), nil
+		case reflect.Float32, reflect.Float64:
+			if float64(av.Uint()) > bv.Float() {
+				return av.Uint(), nil
+			}
+			return bv.Float(), nil
+		default:
+			return nil, fmt.Errorf("maximum: unknown type for %q (%T)", bv, b)
+		}
+	case reflect.Float32, reflect.Float64:
+		switch bv.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if av.Float() > float64(bv.Int()) {
+				return av.Float(), nil
+			}
+			return bv.Int(), nil
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if av.Float() > float64(bv.Uint()) {
+				return av.Float(), nil
+			}
+			return bv.Uint(), nil
+		case reflect.Float32, reflect.Float64:
+			if av.Float() > bv.Float() {
+				return av.Float(), nil
+			}
+			return bv.Float(), nil
+		default:
+			return nil, fmt.Errorf("maximum: unknown type for %q (%T)", bv, b)
+		}
+	default:
+		return nil, fmt.Errorf("maximum: unknown type for %q (%T)", av, a)
+	}
+}
+
+// denied always returns an error, to be used in place of denied template functions
+func denied(...string) (string, error) {
 	return "", errors.New("function is disabled")
 }
 
@@ -1183,4 +1523,22 @@ func pathInSandbox(sandbox, path string) error {
 		}
 	}
 	return nil
+}
+
+// sockaddr wraps go-sockaddr templating
+func sockaddr(args ...string) (string, error) {
+	t := fmt.Sprintf("{{ %s }}", strings.Join(args, " "))
+	k, err := socktmpl.Parse(t)
+	if err != nil {
+		return "", err
+	}
+	return k, nil
+}
+
+// sha256Hex return the sha256 hex of a string
+func sha256Hex(item string) (string, error) {
+	h := sha256.New()
+	h.Write([]byte(item))
+	output := hex.EncodeToString(h.Sum(nil))
+	return output, nil
 }

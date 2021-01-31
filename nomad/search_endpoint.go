@@ -29,6 +29,9 @@ var (
 		structs.Nodes,
 		structs.Evals,
 		structs.Deployments,
+		structs.Plugins,
+		structs.Volumes,
+		structs.Namespaces,
 	}
 )
 
@@ -52,15 +55,21 @@ func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string,
 		var id string
 		switch t := raw.(type) {
 		case *structs.Job:
-			id = raw.(*structs.Job).ID
+			id = t.ID
 		case *structs.Evaluation:
-			id = raw.(*structs.Evaluation).ID
+			id = t.ID
 		case *structs.Allocation:
-			id = raw.(*structs.Allocation).ID
+			id = t.ID
 		case *structs.Node:
-			id = raw.(*structs.Node).ID
+			id = t.ID
 		case *structs.Deployment:
-			id = raw.(*structs.Deployment).ID
+			id = t.ID
+		case *structs.CSIPlugin:
+			id = t.ID
+		case *structs.CSIVolume:
+			id = t.ID
+		case *structs.Namespace:
+			id = t.Name
 		default:
 			matchID, ok := getEnterpriseMatch(raw)
 			if !ok {
@@ -95,8 +104,29 @@ func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix
 		return state.NodesByIDPrefix(ws, prefix)
 	case structs.Deployments:
 		return state.DeploymentsByIDPrefix(ws, namespace, prefix)
+	case structs.Plugins:
+		return state.CSIPluginsByIDPrefix(ws, prefix)
+	case structs.Volumes:
+		return state.CSIVolumesByIDPrefix(ws, namespace, prefix)
+	case structs.Namespaces:
+		iter, err := state.NamespacesByNamePrefix(ws, prefix)
+		if err != nil {
+			return nil, err
+		}
+		if aclObj == nil {
+			return iter, nil
+		}
+		return memdb.NewFilterIterator(iter, namespaceFilter(aclObj)), nil
 	default:
 		return getEnterpriseResourceIter(context, aclObj, namespace, prefix, ws, state)
+	}
+}
+
+// namespaceFilter wraps a namespace iterator with a filter for removing
+// namespaces the ACL can't access.
+func namespaceFilter(aclObj *acl.ACL) memdb.FilterFunc {
+	return func(v interface{}) bool {
+		return !aclObj.AllowNamespace(v.(*structs.Namespace).Name)
 	}
 }
 

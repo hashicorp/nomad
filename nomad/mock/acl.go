@@ -14,8 +14,8 @@ import (
 // StateStore defines the methods required from state.StateStore but avoids a
 // circular dependency.
 type StateStore interface {
-	UpsertACLPolicies(index uint64, policies []*structs.ACLPolicy) error
-	UpsertACLTokens(index uint64, tokens []*structs.ACLToken) error
+	UpsertACLPolicies(msgType structs.MessageType, index uint64, policies []*structs.ACLPolicy) error
+	UpsertACLTokens(msgType structs.MessageType, index uint64, tokens []*structs.ACLToken) error
 }
 
 // NamespacePolicy is a helper for generating the policy hcl for a given
@@ -73,6 +73,11 @@ func QuotaPolicy(policy string) string {
 	return fmt.Sprintf("quota {\n\tpolicy = %q\n}\n", policy)
 }
 
+// PluginPolicy is a helper for generating the hcl for a given plugin policy.
+func PluginPolicy(policy string) string {
+	return fmt.Sprintf("plugin {\n\tpolicy = %q\n}\n", policy)
+}
+
 // CreatePolicy creates a policy with the given name and rule.
 func CreatePolicy(t testing.T, state StateStore, index uint64, name, rule string) {
 	t.Helper()
@@ -83,7 +88,7 @@ func CreatePolicy(t testing.T, state StateStore, index uint64, name, rule string
 		Rules: rule,
 	}
 	policy.SetHash()
-	assert.Nil(t, state.UpsertACLPolicies(index, []*structs.ACLPolicy{policy}))
+	assert.Nil(t, state.UpsertACLPolicies(structs.MsgTypeTestSetup, index, []*structs.ACLPolicy{policy}))
 }
 
 // CreateToken creates a local, client token for the given policies
@@ -94,7 +99,7 @@ func CreateToken(t testing.T, state StateStore, index uint64, policies []string)
 	token := ACLToken()
 	token.Policies = policies
 	token.SetHash()
-	assert.Nil(t, state.UpsertACLTokens(index, []*structs.ACLToken{token}))
+	assert.Nil(t, state.UpsertACLTokens(structs.MsgTypeTestSetup, index, []*structs.ACLToken{token}))
 	return token
 }
 

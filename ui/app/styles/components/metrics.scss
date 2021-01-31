@@ -6,7 +6,6 @@
   .metric {
     padding: 0.75em 1em;
     border: 1px solid $grey-blue;
-    text-align: center;
     display: flex;
     flex-direction: column;
     min-width: 120px;
@@ -50,15 +49,25 @@
       }
     }
 
-    .label {
-      font-size: 1.1em;
-      font-weight: $weight-semibold;
-      margin-bottom: 0;
+    &.is-hollow {
+      border-color: transparent;
+      background: transparent;
     }
+  }
+}
 
-    .value {
-      font-size: 2em;
-      margin-bottom: 0;
-    }
+.metric {
+  text-align: center;
+
+  .label {
+    font-size: 1.1em;
+    font-weight: $weight-semibold;
+    margin-bottom: 0;
+  }
+
+  .value {
+    font-size: 2em;
+    margin-bottom: 0;
+    line-height: 1;
   }
 }

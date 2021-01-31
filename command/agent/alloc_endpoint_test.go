@@ -43,8 +43,7 @@ func TestHTTP_AllocsList(t *testing.T) {
 
 		state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 		state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-		err := state.UpsertAllocs(1000,
-			[]*structs.Allocation{alloc1, alloc2})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -112,8 +111,7 @@ func TestHTTP_AllocsPrefixList(t *testing.T) {
 		if err := state.UpsertJobSummary(999, summary2); err != nil {
 			t.Fatal(err)
 		}
-		if err := state.UpsertAllocs(1000,
-			[]*structs.Allocation{alloc1, alloc2}); err != nil {
+		if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
@@ -160,48 +158,42 @@ func TestHTTP_AllocsPrefixList(t *testing.T) {
 
 func TestHTTP_AllocQuery(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
-		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)); err != nil {
-			t.Fatal(err)
-		}
-		err := state.UpsertAllocs(1000,
-			[]*structs.Allocation{alloc})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
+		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/allocation/"+alloc.ID, nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
 		respW := httptest.NewRecorder()
 
 		// Make the request
 		obj, err := s.Server.AllocSpecificRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
-			t.Fatalf("missing index")
-		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
-			t.Fatalf("missing known leader")
-		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
-			t.Fatalf("missing last contact")
-		}
+		require.NotEmpty(respW.Header().Get("X-Nomad-Index"), "missing index")
+		require.Equal("true", respW.Header().Get("X-Nomad-KnownLeader"), "missing known leader")
+		require.NotEmpty(respW.Header().Get("X-Nomad-LastContact"), "missing last contact")
 
 		// Check the job
 		a := obj.(*structs.Allocation)
-		if a.ID != alloc.ID {
-			t.Fatalf("bad: %#v", a)
-		}
+		require.Equal(a.ID, alloc.ID)
+
+		// Check the number of ports
+		require.Len(a.AllocatedResources.Shared.Ports, 2)
+
+		// Make the request again
+		respW = httptest.NewRecorder()
+		obj, err = s.Server.AllocSpecificRequest(respW, req)
+		require.NoError(err)
+		a = obj.(*structs.Allocation)
+		// Check the number of ports again
+		require.Len(a.AllocatedResources.Shared.Ports, 2)
 	})
 }
 
@@ -220,7 +212,7 @@ func TestHTTP_AllocQuery_Payload(t *testing.T) {
 		compressed := snappy.Encode(nil, expected)
 		alloc.Job.Payload = compressed
 
-		err := state.UpsertAllocs(1000, []*structs.Allocation{alloc})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -346,7 +338,7 @@ func TestHTTP_AllocRestart_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err = s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with an invalid token and expect it to fail
@@ -360,7 +352,7 @@ func TestHTTP_AllocRestart_ACL(t *testing.T) {
 			setToken(req, token)
 			_, err = s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with a valid token
@@ -376,7 +368,7 @@ func TestHTTP_AllocRestart_ACL(t *testing.T) {
 			setToken(req, token)
 			_, err = s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.True(structs.IsErrUnknownAllocation(err))
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with a management token
@@ -404,7 +396,7 @@ func TestHTTP_AllocStop(t *testing.T) {
 		require := require.New(t)
 		require.NoError(state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
 
-		require.NoError(state.UpsertAllocs(1000, []*structs.Allocation{alloc}))
+		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 		// Test that the happy path works
 		{
@@ -523,7 +515,7 @@ func TestHTTP_AllocStats_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err := s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with an invalid token and expect failure
@@ -533,7 +525,7 @@ func TestHTTP_AllocStats_ACL(t *testing.T) {
 			setToken(req, token)
 			_, err := s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with a valid token
@@ -545,7 +537,7 @@ func TestHTTP_AllocStats_ACL(t *testing.T) {
 			setToken(req, token)
 			_, err := s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.True(structs.IsErrUnknownAllocation(err))
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with a management token
@@ -629,7 +621,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 		}
 		alloc.NodeID = s.client.NodeID()
 		state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
-		if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc.Copy()}); err != nil {
+		if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc.Copy()}); err != nil {
 			t.Fatalf("error upserting alloc: %v", err)
 		}
 
@@ -812,7 +804,7 @@ func TestHTTP_AllocGC_ACL(t *testing.T) {
 			respW := httptest.NewRecorder()
 			_, err := s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with an invalid token and expect failure
@@ -822,7 +814,7 @@ func TestHTTP_AllocGC_ACL(t *testing.T) {
 			setToken(req, token)
 			_, err := s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with a valid token
@@ -834,7 +826,7 @@ func TestHTTP_AllocGC_ACL(t *testing.T) {
 			setToken(req, token)
 			_, err := s.Server.ClientAllocRequest(respW, req)
 			require.NotNil(err)
-			require.True(structs.IsErrUnknownAllocation(err))
+			require.True(structs.IsErrUnknownAllocation(err), "(%T) %v", err, err)
 		}
 
 		// Try request with a management token
@@ -958,4 +950,58 @@ func TestHTTP_AllocAllGC_ACL(t *testing.T) {
 			require.Equal(http.StatusOK, respW.Code)
 		}
 	})
+}
+
+func TestHTTP_ReadWsHandshake(t *testing.T) {
+	cases := []struct {
+		name      string
+		token     string
+		handshake bool
+	}{
+		{
+			name:      "plain compatible mode",
+			token:     "",
+			handshake: false,
+		},
+		{
+			name:      "handshake unauthenticated",
+			token:     "",
+			handshake: true,
+		},
+		{
+			name:      "handshake authenticated",
+			token:     "mysupersecret",
+			handshake: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+
+			called := false
+			readFn := func(h interface{}) error {
+				called = true
+				if !c.handshake {
+					return fmt.Errorf("should not be called")
+				}
+
+				hm := h.(*wsHandshakeMessage)
+				hm.Version = 1
+				hm.AuthToken = c.token
+				return nil
+			}
+
+			req := httptest.NewRequest("PUT", "/target", nil)
+			if c.handshake {
+				req.URL.RawQuery = "ws_handshake=true"
+			}
+
+			var q structs.QueryOptions
+
+			err := readWsHandshake(readFn, req, &q)
+			require.NoError(t, err)
+			require.Equal(t, c.token, q.AuthToken)
+			require.Equal(t, c.handshake, called)
+		})
+	}
 }

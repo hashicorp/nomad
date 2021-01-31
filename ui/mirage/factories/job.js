@@ -1,9 +1,10 @@
 import { assign } from '@ember/polyfills';
 import { Factory, trait } from 'ember-cli-mirage';
-import faker from 'faker';
-import { provide, provider, pickOne } from '../utils';
+import faker from 'nomad-ui/mirage/faker';
+import { provide, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
 
+const REF_TIME = new Date();
 const JOB_PREFIXES = provide(5, faker.hacker.abbreviation);
 const JOB_TYPES = ['service', 'batch', 'system'];
 const JOB_STATUSES = ['pending', 'running', 'dead'];
@@ -18,13 +19,28 @@ export default Factory.extend({
     return this.id;
   },
 
-  groupsCount: () => faker.random.number({ min: 1, max: 2 }),
+  version: 1,
+  submitTime: () => faker.date.past(2 / 365, REF_TIME) * 1000000,
+
+  // When provided, the resourceSpec will inform how many task groups to create
+  // and how much of each resource that task group reserves.
+  //
+  // One task group, 256 MiB memory and 500 MHz cpu
+  // resourceSpec: ['M: 256, C: 500']
+  //
+  // Two task groups
+  // resourceSpec: ['M: 256, C: 500', 'M: 1024, C: 1200']
+  resourceSpec: null,
+
+  groupsCount() {
+    return this.resourceSpec ? this.resourceSpec.length : faker.random.number({ min: 1, max: 2 });
+  },
 
   region: () => 'global',
-  type: faker.helpers.randomize(JOB_TYPES),
+  type: () => faker.helpers.randomize(JOB_TYPES),
   priority: () => faker.random.number(100),
-  all_at_once: faker.random.boolean,
-  status: faker.helpers.randomize(JOB_STATUSES),
+  allAtOnce: faker.random.boolean,
+  status: () => faker.helpers.randomize(JOB_STATUSES),
   datacenters: () =>
     faker.helpers.shuffle(DATACENTERS).slice(0, faker.random.number({ min: 1, max: 4 })),
 
@@ -52,7 +68,7 @@ export default Factory.extend({
     parameterizedDetails: () => ({
       MetaOptional: null,
       MetaRequired: null,
-      Payload: Math.random() > 0.5 ? 'required' : null,
+      Payload: faker.random.boolean() ? 'required' : null,
     }),
   }),
 
@@ -96,11 +112,17 @@ export default Factory.extend({
   // When true, no evaluations have failed placements
   noFailedPlacements: false,
 
+  // When true, all task groups get the noHostVolumes trait
+  noHostVolumes: false,
+
   // When true, allocations for this job will fail and reschedule, randomly succeeding or not
   withRescheduling: false,
 
   // When true, task groups will have services
   withGroupServices: false,
+
+  // When true, dynamic application sizing recommendations will be made
+  createRecommendations: false,
 
   // When true, only task groups and allocations are made
   shallow: false,
@@ -118,31 +140,60 @@ export default Factory.extend({
       });
     }
 
-    const groups = server.createList('task-group', job.groupsCount, {
+    const groupProps = {
       job,
       createAllocations: job.createAllocations,
       withRescheduling: job.withRescheduling,
       withServices: job.withGroupServices,
+      createRecommendations: job.createRecommendations,
       shallow: job.shallow,
-    });
+    };
+
+    if (job.groupTaskCount) {
+      groupProps.count = job.groupTaskCount;
+    }
+
+    let groups;
+    if (job.noHostVolumes) {
+      groups = provide(job.groupsCount, (_, idx) =>
+        server.create('task-group', 'noHostVolumes', {
+          ...groupProps,
+          resourceSpec: job.resourceSpec && job.resourceSpec.length && job.resourceSpec[idx],
+        })
+      );
+    } else {
+      groups = provide(job.groupsCount, (_, idx) =>
+        server.create('task-group', {
+          ...groupProps,
+          resourceSpec: job.resourceSpec && job.resourceSpec.length && job.resourceSpec[idx],
+        })
+      );
+    }
 
     job.update({
       taskGroupIds: groups.mapBy('id'),
-      task_group_ids: groups.mapBy('id'),
     });
 
     const hasChildren = job.periodic || (job.parameterized && !job.parentId);
     const jobSummary = server.create('job-summary', hasChildren ? 'withChildren' : 'withSummary', {
+      jobId: job.id,
       groupNames: groups.mapBy('name'),
-      job,
-      job_id: job.id,
-      JobID: job.id,
       namespace: job.namespace,
     });
 
     job.update({
       jobSummaryId: jobSummary.id,
-      job_summary_id: jobSummary.id,
+    });
+
+    const jobScale = server.create('job-scale', {
+      groupNames: groups.mapBy('name'),
+      jobId: job.id,
+      namespace: job.namespace,
+      shallow: job.shallow,
+    });
+
+    job.update({
+      jobScaleId: jobScale.id,
     });
 
     if (!job.noDeployments) {

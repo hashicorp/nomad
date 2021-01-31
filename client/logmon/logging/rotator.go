@@ -295,7 +295,7 @@ func (f *FileRotator) purgeOldFiles() {
 
 			// Sorting the file indexes so that we can purge the older files and keep
 			// only the number of files as configured by the user
-			sort.Sort(sort.IntSlice(fIndexes))
+			sort.Ints(fIndexes)
 			toDelete := fIndexes[0 : len(fIndexes)-f.MaxFiles]
 			for _, fIndex := range toDelete {
 				fname := filepath.Join(f.path, fmt.Sprintf("%s.%d", f.baseFileName, fIndex))

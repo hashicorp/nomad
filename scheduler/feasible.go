@@ -7,10 +7,41 @@ import (
 	"strconv"
 	"strings"
 
+	memdb "github.com/hashicorp/go-memdb"
 	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
+
+const (
+	FilterConstraintHostVolumes                 = "missing compatible host volumes"
+	FilterConstraintCSIPluginTemplate           = "CSI plugin %s is missing from client %s"
+	FilterConstraintCSIPluginUnhealthyTemplate  = "CSI plugin %s is unhealthy on client %s"
+	FilterConstraintCSIPluginMaxVolumesTemplate = "CSI plugin %s has the maximum number of volumes on client %s"
+	FilterConstraintCSIVolumesLookupFailed      = "CSI volume lookup failed"
+	FilterConstraintCSIVolumeNotFoundTemplate   = "missing CSI Volume %s"
+	FilterConstraintCSIVolumeNoReadTemplate     = "CSI volume %s is unschedulable or has exhausted its available reader claims"
+	FilterConstraintCSIVolumeNoWriteTemplate    = "CSI volume %s is unschedulable or is read-only"
+	FilterConstraintCSIVolumeInUseTemplate      = "CSI volume %s has exhausted its available writer claims" //
+	FilterConstraintDrivers                     = "missing drivers"
+	FilterConstraintDevices                     = "missing devices"
+)
+
+var (
+	// predatesBridgeFingerprint returns true if the constraint matches a version
+	// of nomad that predates the addition of the bridge network finger-printer,
+	// which was added in Nomad v0.12
+	predatesBridgeFingerprint = mustBridgeConstraint()
+)
+
+func mustBridgeConstraint() version.Constraints {
+	versionC, err := version.NewConstraint("< 0.12")
+	if err != nil {
+		panic(err)
+	}
+	return versionC
+}
 
 // FeasibleIterator is used to iteratively yield nodes that
 // match feasibility constraints. The iterators may manage
@@ -60,14 +91,14 @@ func (iter *StaticIterator) Next() *structs.Node {
 	// Check if exhausted
 	n := len(iter.nodes)
 	if iter.offset == n || iter.seen == n {
-		if iter.seen != n {
+		if iter.seen != n { // seen has been Reset() to 0
 			iter.offset = 0
 		} else {
 			return nil
 		}
 	}
 
-	// Return the next offset
+	// Return the next offset, use this one
 	offset := iter.offset
 	iter.offset += 1
 	iter.seen += 1
@@ -116,7 +147,6 @@ func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 // SetVolumes takes the volumes required by a task group and updates the checker.
 func (h *HostVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
 	lookupMap := make(map[string][]*structs.VolumeRequest)
-
 	// Convert the map from map[DesiredName]Request to map[Source][]Request to improve
 	// lookup performance. Also filter non-host volumes.
 	for _, req := range volumes {
@@ -134,7 +164,7 @@ func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
 		return true
 	}
 
-	h.ctx.Metrics().FilterNode(candidate, "missing compatible host volumes")
+	h.ctx.Metrics().FilterNode(candidate, FilterConstraintHostVolumes)
 	return false
 }
 
@@ -176,6 +206,216 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 	return true
 }
 
+type CSIVolumeChecker struct {
+	ctx       Context
+	namespace string
+	jobID     string
+	volumes   map[string]*structs.VolumeRequest
+}
+
+func NewCSIVolumeChecker(ctx Context) *CSIVolumeChecker {
+	return &CSIVolumeChecker{
+		ctx: ctx,
+	}
+}
+
+func (c *CSIVolumeChecker) SetJobID(jobID string) {
+	c.jobID = jobID
+}
+
+func (c *CSIVolumeChecker) SetNamespace(namespace string) {
+	c.namespace = namespace
+}
+
+func (c *CSIVolumeChecker) SetVolumes(volumes map[string]*structs.VolumeRequest) {
+	xs := make(map[string]*structs.VolumeRequest)
+	// Filter to only CSI Volumes
+	for alias, req := range volumes {
+		if req.Type != structs.VolumeTypeCSI {
+			continue
+		}
+
+		xs[alias] = req
+	}
+	c.volumes = xs
+}
+
+func (c *CSIVolumeChecker) Feasible(n *structs.Node) bool {
+	hasPlugins, failReason := c.hasPlugins(n)
+
+	if hasPlugins {
+		return true
+	}
+
+	c.ctx.Metrics().FilterNode(n, failReason)
+	return false
+}
+
+func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
+	// We can mount the volume if
+	// - if required, a healthy controller plugin is running the driver
+	// - the volume has free claims, or this job owns the claims
+	// - this node is running the node plugin, implies matching topology
+
+	// Fast path: Requested no volumes. No need to check further.
+	if len(c.volumes) == 0 {
+		return true, ""
+	}
+
+	ws := memdb.NewWatchSet()
+
+	// Find the count per plugin for this node, so that can enforce MaxVolumes
+	pluginCount := map[string]int64{}
+	iter, err := c.ctx.State().CSIVolumesByNodeID(ws, n.ID)
+	if err != nil {
+		return false, FilterConstraintCSIVolumesLookupFailed
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		vol, ok := raw.(*structs.CSIVolume)
+		if !ok {
+			continue
+		}
+		pluginCount[vol.PluginID] += 1
+	}
+
+	// For volume requests, find volumes and determine feasibility
+	for _, req := range c.volumes {
+		vol, err := c.ctx.State().CSIVolumeByID(ws, c.namespace, req.Source)
+		if err != nil {
+			return false, FilterConstraintCSIVolumesLookupFailed
+		}
+		if vol == nil {
+			return false, fmt.Sprintf(FilterConstraintCSIVolumeNotFoundTemplate, req.Source)
+		}
+
+		// Check that this node has a healthy running plugin with the right PluginID
+		plugin, ok := n.CSINodePlugins[vol.PluginID]
+		if !ok {
+			return false, fmt.Sprintf(FilterConstraintCSIPluginTemplate, vol.PluginID, n.ID)
+		}
+		if !plugin.Healthy {
+			return false, fmt.Sprintf(FilterConstraintCSIPluginUnhealthyTemplate, vol.PluginID, n.ID)
+		}
+		if pluginCount[vol.PluginID] >= plugin.NodeInfo.MaxVolumes {
+			return false, fmt.Sprintf(FilterConstraintCSIPluginMaxVolumesTemplate, vol.PluginID, n.ID)
+		}
+
+		if req.ReadOnly {
+			if !vol.ReadSchedulable() {
+				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoReadTemplate, vol.ID)
+			}
+		} else {
+			if !vol.WriteSchedulable() {
+				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoWriteTemplate, vol.ID)
+			}
+			if vol.WriteFreeClaims() {
+				return true, ""
+			}
+
+			// Check the blocking allocations to see if they belong to this job
+			for id := range vol.WriteAllocs {
+				a, err := c.ctx.State().AllocByID(ws, id)
+				if err != nil || a == nil || a.Namespace != c.namespace || a.JobID != c.jobID {
+					return false, fmt.Sprintf(FilterConstraintCSIVolumeInUseTemplate, vol.ID)
+				}
+			}
+		}
+	}
+
+	return true, ""
+}
+
+// NetworkChecker is a FeasibilityChecker which returns whether a node has the
+// network resources necessary to schedule the task group
+type NetworkChecker struct {
+	ctx         Context
+	networkMode string
+	ports       []structs.Port
+}
+
+func NewNetworkChecker(ctx Context) *NetworkChecker {
+	return &NetworkChecker{ctx: ctx, networkMode: "host"}
+}
+
+func (c *NetworkChecker) SetNetwork(network *structs.NetworkResource) {
+	c.networkMode = network.Mode
+	if c.networkMode == "" {
+		c.networkMode = "host"
+	}
+
+	c.ports = make([]structs.Port, len(network.DynamicPorts)+len(network.ReservedPorts))
+	c.ports = append(c.ports, network.DynamicPorts...)
+	c.ports = append(c.ports, network.ReservedPorts...)
+}
+
+func (c *NetworkChecker) Feasible(option *structs.Node) bool {
+	if !c.hasNetwork(option) {
+
+		// special case - if the client is running a version older than 0.12 but
+		// the server is 0.12 or newer, we need to maintain an upgrade path for
+		// jobs looking for a bridge network that will not have been fingerprinted
+		// on the client (which was added in 0.12)
+		if c.networkMode == "bridge" {
+			sv, err := version.NewSemver(option.Attributes["nomad.version"])
+			if err == nil && predatesBridgeFingerprint.Check(sv) {
+				return true
+			}
+		}
+
+		c.ctx.Metrics().FilterNode(option, "missing network")
+		return false
+	}
+
+	if c.ports != nil {
+		if !c.hasHostNetworks(option) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (c *NetworkChecker) hasHostNetworks(option *structs.Node) bool {
+	for _, port := range c.ports {
+		if port.HostNetwork != "" {
+			found := false
+			for _, net := range option.NodeResources.NodeNetworks {
+				if net.HasAlias(port.HostNetwork) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				c.ctx.Metrics().FilterNode(option, fmt.Sprintf("missing host network %q for port %q", port.HostNetwork, port.Label))
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (c *NetworkChecker) hasNetwork(option *structs.Node) bool {
+	if option.NodeResources == nil {
+		return false
+	}
+
+	for _, nw := range option.NodeResources.Networks {
+		mode := nw.Mode
+		if mode == "" {
+			mode = "host"
+		}
+		if mode == c.networkMode {
+			return true
+		}
+	}
+
+	return false
+}
+
 // DriverChecker is a FeasibilityChecker which returns whether a node has the
 // drivers necessary to scheduler a task group.
 type DriverChecker struct {
@@ -200,7 +440,7 @@ func (c *DriverChecker) Feasible(option *structs.Node) bool {
 	if c.hasDrivers(option) {
 		return true
 	}
-	c.ctx.Metrics().FilterNode(option, "missing drivers")
+	c.ctx.Metrics().FilterNode(option, FilterConstraintDrivers)
 	return false
 }
 
@@ -551,7 +791,11 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}, lFound
 	case structs.ConstraintAttributeIsNotSet:
 		return !lFound
 	case structs.ConstraintVersion:
-		return lFound && rFound && checkVersionMatch(ctx, lVal, rVal)
+		parser := newVersionConstraintParser(ctx)
+		return lFound && rFound && checkVersionMatch(ctx, parser, lVal, rVal)
+	case structs.ConstraintSemver:
+		parser := newSemverConstraintParser(ctx)
+		return lFound && rFound && checkVersionMatch(ctx, parser, lVal, rVal)
 	case structs.ConstraintRegex:
 		return lFound && rFound && checkRegexpMatch(ctx, lVal, rVal)
 	case structs.ConstraintSetContains, structs.ConstraintSetContainsAll:
@@ -601,7 +845,7 @@ func checkLexicalOrder(op string, lVal, rVal interface{}) bool {
 
 // checkVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkVersionMatch(ctx Context, lVal, rVal interface{}) bool {
+func checkVersionMatch(ctx Context, parse verConstraintParser, lVal, rVal interface{}) bool {
 	// Parse the version
 	var versionStr string
 	switch v := lVal.(type) {
@@ -625,17 +869,10 @@ func checkVersionMatch(ctx Context, lVal, rVal interface{}) bool {
 		return false
 	}
 
-	// Check the cache for a match
-	cache := ctx.VersionConstraintCache()
-	constraints := cache[constraintStr]
-
 	// Parse the constraints
+	constraints := parse(constraintStr)
 	if constraints == nil {
-		constraints, err = version.NewConstraint(constraintStr)
-		if err != nil {
-			return false
-		}
-		cache[constraintStr] = constraints
+		return false
 	}
 
 	// Check the constraints against the version
@@ -644,7 +881,7 @@ func checkVersionMatch(ctx Context, lVal, rVal interface{}) bool {
 
 // checkAttributeVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkAttributeVersionMatch(ctx Context, lVal, rVal *psstructs.Attribute) bool {
+func checkAttributeVersionMatch(ctx Context, parse verConstraintParser, lVal, rVal *psstructs.Attribute) bool {
 	// Parse the version
 	var versionStr string
 	if s, ok := lVal.GetString(); ok {
@@ -667,17 +904,10 @@ func checkAttributeVersionMatch(ctx Context, lVal, rVal *psstructs.Attribute) bo
 		return false
 	}
 
-	// Check the cache for a match
-	cache := ctx.VersionConstraintCache()
-	constraints := cache[constraintStr]
-
 	// Parse the constraints
+	constraints := parse(constraintStr)
 	if constraints == nil {
-		constraints, err = version.NewConstraint(constraintStr)
-		if err != nil {
-			return false
-		}
-		cache[constraintStr] = constraints
+		return false
 	}
 
 	// Check the constraints against the version
@@ -789,18 +1019,20 @@ type FeasibilityWrapper struct {
 	source      FeasibleIterator
 	jobCheckers []FeasibilityChecker
 	tgCheckers  []FeasibilityChecker
+	tgAvailable []FeasibilityChecker
 	tg          string
 }
 
 // NewFeasibilityWrapper returns a FeasibleIterator based on the passed source
 // and FeasibilityCheckers.
 func NewFeasibilityWrapper(ctx Context, source FeasibleIterator,
-	jobCheckers, tgCheckers []FeasibilityChecker) *FeasibilityWrapper {
+	jobCheckers, tgCheckers, tgAvailable []FeasibilityChecker) *FeasibilityWrapper {
 	return &FeasibilityWrapper{
 		ctx:         ctx,
 		source:      source,
 		jobCheckers: jobCheckers,
 		tgCheckers:  tgCheckers,
+		tgAvailable: tgAvailable,
 	}
 }
 
@@ -867,7 +1099,12 @@ OUTER:
 			continue
 		case EvalComputedClassEligible:
 			// Fast path the eligible case
-			return option
+			if w.available(option) {
+				return option
+			}
+			// We match the class but are temporarily unavailable, the eval
+			// should be blocked
+			return nil
 		case EvalComputedClassEscaped:
 			tgEscaped = true
 		case EvalComputedClassUnknown:
@@ -893,8 +1130,30 @@ OUTER:
 			evalElig.SetTaskGroupEligibility(true, w.tg, option.ComputedClass)
 		}
 
+		// tgAvailable handlers are available transiently, so we test them without
+		// affecting the computed class
+		if !w.available(option) {
+			continue OUTER
+		}
+
 		return option
 	}
+}
+
+// available checks transient feasibility checkers which depend on changing conditions,
+// e.g. the health status of a plugin or driver
+func (w *FeasibilityWrapper) available(option *structs.Node) bool {
+	// If we don't have any availability checks, we're available
+	if len(w.tgAvailable) == 0 {
+		return true
+	}
+
+	for _, check := range w.tgAvailable {
+		if !check.Feasible(option) {
+			return false
+		}
+	}
+	return true
 }
 
 // DeviceChecker is a FeasibilityChecker which returns whether a node has the
@@ -929,7 +1188,7 @@ func (c *DeviceChecker) Feasible(option *structs.Node) bool {
 		return true
 	}
 
-	c.ctx.Metrics().FilterNode(option, "missing devices")
+	c.ctx.Metrics().FilterNode(option, FilterConstraintDevices)
 	return false
 }
 
@@ -1119,7 +1378,17 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 			return false
 		}
 
-		return checkAttributeVersionMatch(ctx, lVal, rVal)
+		parser := newVersionConstraintParser(ctx)
+		return checkAttributeVersionMatch(ctx, parser, lVal, rVal)
+
+	case structs.ConstraintSemver:
+		if !(lFound && rFound) {
+			return false
+		}
+
+		parser := newSemverConstraintParser(ctx)
+		return checkAttributeVersionMatch(ctx, parser, lVal, rVal)
+
 	case structs.ConstraintRegex:
 		if !(lFound && rFound) {
 			return false
@@ -1163,4 +1432,51 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 		return false
 	}
 
+}
+
+// VerConstraints is the interface implemented by both go-verson constraints
+// and semver constraints.
+type VerConstraints interface {
+	Check(v *version.Version) bool
+	String() string
+}
+
+// verConstraintParser returns a version constraints implementation (go-version
+// or semver).
+type verConstraintParser func(verConstraint string) VerConstraints
+
+func newVersionConstraintParser(ctx Context) verConstraintParser {
+	cache := ctx.VersionConstraintCache()
+
+	return func(cstr string) VerConstraints {
+		if c := cache[cstr]; c != nil {
+			return c
+		}
+
+		constraints, err := version.NewConstraint(cstr)
+		if err != nil {
+			return nil
+		}
+		cache[cstr] = constraints
+
+		return constraints
+	}
+}
+
+func newSemverConstraintParser(ctx Context) verConstraintParser {
+	cache := ctx.SemverConstraintCache()
+
+	return func(cstr string) VerConstraints {
+		if c := cache[cstr]; c != nil {
+			return c
+		}
+
+		constraints, err := semver.NewConstraint(cstr)
+		if err != nil {
+			return nil
+		}
+		cache[cstr] = constraints
+
+		return constraints
+	}
 }

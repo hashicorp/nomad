@@ -9,7 +9,7 @@
 # For more information and examples on the "job" stanza, please see
 # the online documentation at:
 #
-#     https://www.nomadproject.io/docs/job-specification/job.html
+#     https://www.nomadproject.io/docs/job-specification/job
 #
 job "example" {
   # The "region" parameter specifies the region in which to execute the job.
@@ -27,7 +27,7 @@ job "example" {
   #
   # For more information, please see the online documentation at:
   #
-  #     https://www.nomadproject.io/docs/jobspec/schedulers.html
+  #     https://www.nomadproject.io/docs/schedulers
   #
   type = "service"
 
@@ -38,7 +38,7 @@ job "example" {
   # For more information and examples on the "constraint" stanza, please see
   # the online documentation at:
   #
-  #     https://www.nomadproject.io/docs/job-specification/constraint.html
+  #     https://www.nomadproject.io/docs/job-specification/constraint
   #
   # constraint {
   #   attribute = "${attr.kernel.name}"
@@ -55,7 +55,7 @@ job "example" {
   # For more information and examples on the "update" stanza, please see
   # the online documentation at:
   #
-  #     https://www.nomadproject.io/docs/job-specification/update.html
+  #     https://www.nomadproject.io/docs/job-specification/update
   #
   update {
     # The "max_parallel" parameter specifies the maximum number of updates to
@@ -105,7 +105,7 @@ job "example" {
   # For more information on the "migrate" stanza, please see
   # the online documentation at:
   #
-  #     https://www.nomadproject.io/docs/job-specification/migrate.html
+  #     https://www.nomadproject.io/docs/job-specification/migrate
   #
   migrate {
     # Specifies the number of task groups that can be migrated at the same
@@ -134,7 +134,7 @@ job "example" {
   # For more information and examples on the "group" stanza, please see
   # the online documentation at:
   #
-  #     https://www.nomadproject.io/docs/job-specification/group.html
+  #     https://www.nomadproject.io/docs/job-specification/group
   #
   group "cache" {
     # The "count" parameter specifies the number of the task groups that should
@@ -142,13 +142,56 @@ job "example" {
     # to 1.
     count = 1
 
+    # The "network" stanza specifies the network configuration for the allocation
+    # including requesting port bindings.
+    #
+    # For more information and examples on the "network" stanza, please see
+    # the online documentation at:
+    #
+    #     https://www.nomadproject.io/docs/job-specification/network
+    #
+    network {
+      port "db" {
+        to = 6379
+      }
+    }
+
+    # The "service" stanza instructs Nomad to register this task as a service
+    # in the service discovery engine, which is currently Consul. This will
+    # make the service addressable after Nomad has placed it on a host and
+    # port.
+    #
+    # For more information and examples on the "service" stanza, please see
+    # the online documentation at:
+    #
+    #     https://www.nomadproject.io/docs/job-specification/service
+    #
+    service {
+      name = "redis-cache"
+      tags = ["global", "cache"]
+      port = "db"
+
+      # The "check" stanza instructs Nomad to create a Consul health check for
+      # this service. A sample check is provided here for your convenience;
+      # uncomment it to enable it. The "check" stanza is documented in the
+      # "service" stanza documentation.
+
+      # check {
+      #   name     = "alive"
+      #   type     = "tcp"
+      #   interval = "10s"
+      #   timeout  = "2s"
+      # }
+
+    }
+
     # The "restart" stanza configures a group's behavior on task failure. If
     # left unspecified, a default restart policy is used based on the job type.
     #
     # For more information and examples on the "restart" stanza, please see
     # the online documentation at:
     #
-    #     https://www.nomadproject.io/docs/job-specification/restart.html
+    #     https://www.nomadproject.io/docs/job-specification/restart
     #
     restart {
       # The number of attempts to run the job within the specified interval.
@@ -174,7 +217,7 @@ job "example" {
     # For more information and examples on the "ephemeral_disk" stanza, please
     # see the online documentation at:
     #
-    #     https://www.nomadproject.io/docs/job-specification/ephemeral_disk.html
+    #     https://www.nomadproject.io/docs/job-specification/ephemeral_disk
     #
     ephemeral_disk {
       # When sticky is true and the task group is updated, the scheduler
@@ -198,7 +241,7 @@ job "example" {
     # For more information and examples on the "affinity" stanza, please
     # see the online documentation at:
     #
-    #     https://www.nomadproject.io/docs/job-specification/affinity.html
+    #     https://www.nomadproject.io/docs/job-specification/affinity
     #
     # affinity {
     # attribute specifies the name of a node attribute or metadata
@@ -223,7 +266,7 @@ job "example" {
     # For more information and examples on the "spread" stanza, please
     # see the online documentation at:
     #
-    #     https://www.nomadproject.io/docs/job-specification/spread.html
+    #     https://www.nomadproject.io/docs/job-specification/spread
     #
     # spread {
     # attribute specifies the name of a node attribute or metadata
@@ -247,7 +290,7 @@ job "example" {
     # For more information and examples on the "task" stanza, please see
     # the online documentation at:
     #
-    #     https://www.nomadproject.io/docs/job-specification/task.html
+    #     https://www.nomadproject.io/docs/job-specification/task
     #
     task "redis" {
       # The "driver" parameter specifies the task driver that should be used to
@@ -261,9 +304,7 @@ job "example" {
       config {
         image = "redis:3.2"
 
-        port_map {
-          db = 6379
-        }
+        ports = ["db"]
       }
 
       # The "artifact" stanza instructs Nomad to download an artifact from a
@@ -275,7 +316,7 @@ job "example" {
       # For more information and examples on the "artifact" stanza, please see
       # the online documentation at:
       #
-      #     https://www.nomadproject.io/docs/job-specification/artifact.html
+      #     https://www.nomadproject.io/docs/job-specification/artifact
       #
       # artifact {
       #   source = "http://foo.com/artifact.tar.gz"
@@ -293,7 +334,7 @@ job "example" {
       # For more information and examples on the "logs" stanza, please see
       # the online documentation at:
       #
-      #     https://www.nomadproject.io/docs/job-specification/logs.html
+      #     https://www.nomadproject.io/docs/job-specification/logs
       #
       # logs {
       #   max_files     = 10
@@ -301,46 +342,20 @@ job "example" {
       # }
 
       # The "resources" stanza describes the requirements a task needs to
-      # execute. Resource requirements include memory, network, cpu, and more.
+      # execute. Resource requirements include memory, cpu, and more.
       # This ensures the task will execute on a machine that contains enough
       # resource capacity.
       #
       # For more information and examples on the "resources" stanza, please see
       # the online documentation at:
       #
-      #     https://www.nomadproject.io/docs/job-specification/resources.html
+      #     https://www.nomadproject.io/docs/job-specification/resources
       #
       resources {
         cpu    = 500 # 500 MHz
         memory = 256 # 256MB
-
-        network {
-          mbits = 10
-          port  "db"  {}
-        }
       }
-      # The "service" stanza instructs Nomad to register this task as a service
-      # in the service discovery engine, which is currently Consul. This will
-      # make the service addressable after Nomad has placed it on a host and
-      # port.
-      #
-      # For more information and examples on the "service" stanza, please see
-      # the online documentation at:
-      #
-      #     https://www.nomadproject.io/docs/job-specification/service.html
-      #
-      service {
-        name = "redis-cache"
-        tags = ["global", "cache"]
-        port = "db"
 
-        check {
-          name     = "alive"
-          type     = "tcp"
-          interval = "10s"
-          timeout  = "2s"
-        }
-      }
 
       # The "template" stanza instructs Nomad to manage a template, such as
       # a configuration file or script. This template can optionally pull data
@@ -349,7 +364,7 @@ job "example" {
       # For more information and examples on the "template" stanza, please see
       # the online documentation at:
       #
-      #     https://www.nomadproject.io/docs/job-specification/template.html
+      #     https://www.nomadproject.io/docs/job-specification/template
       #
       # template {
       #   data          = "---\nkey: {{ key \"service/my-key\" }}"
@@ -378,7 +393,7 @@ job "example" {
       # For more information and examples on the "vault" stanza, please see
       # the online documentation at:
       #
-      #     https://www.nomadproject.io/docs/job-specification/vault.html
+      #     https://www.nomadproject.io/docs/job-specification/vault
       #
       # vault {
       #   policies      = ["cdn", "frontend"]

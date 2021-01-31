@@ -11,7 +11,13 @@ module('Unit | Adapter | Node', function(hooks) {
     this.store = this.owner.lookup('service:store');
     this.subject = () => this.store.adapterFor('node');
 
+    window.localStorage.clear();
+
     this.server = startMirage();
+
+    this.server.create('region', { id: 'region-1' });
+    this.server.create('region', { id: 'region-2' });
+
     this.server.create('node', { id: 'node-1' });
     this.server.create('node', { id: 'node-2' });
     this.server.create('job', { id: 'job-1', createAllocations: false });
@@ -84,6 +90,148 @@ module('Unit | Adapter | Node', function(hooks) {
       ['node-1-2', 'node-2-1', 'node-2-2'],
       'The deleted allocation is removed from the store and the allocations associated with the other node are untouched'
     );
+  });
+
+  const testCases = [
+    {
+      variation: '',
+      id: 'node-1',
+      region: null,
+      eligibility: 'POST /v1/node/node-1/eligibility',
+      drain: 'POST /v1/node/node-1/drain',
+    },
+    {
+      variation: 'with non-default region',
+      id: 'node-1',
+      region: 'region-2',
+      eligibility: 'POST /v1/node/node-1/eligibility?region=region-2',
+      drain: 'POST /v1/node/node-1/drain?region=region-2',
+    },
+  ];
+
+  testCases.forEach(testCase => {
+    test(`setEligible makes the correct POST request to /:node_id/eligibility ${testCase.variation}`, async function(assert) {
+      const { pretender } = this.server;
+      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
+
+      const node = await run(() => this.store.findRecord('node', testCase.id));
+      await this.subject().setEligible(node);
+
+      const request = pretender.handledRequests.lastObject;
+      assert.equal(`${request.method} ${request.url}`, testCase.eligibility);
+      assert.deepEqual(JSON.parse(request.requestBody), {
+        NodeID: node.id,
+        Eligibility: 'eligible',
+      });
+    });
+
+    test(`setIneligible makes the correct POST request to /:node_id/eligibility ${testCase.variation}`, async function(assert) {
+      const { pretender } = this.server;
+      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
+
+      const node = await run(() => this.store.findRecord('node', testCase.id));
+      await this.subject().setIneligible(node);
+
+      const request = pretender.handledRequests.lastObject;
+      assert.equal(`${request.method} ${request.url}`, testCase.eligibility);
+      assert.deepEqual(JSON.parse(request.requestBody), {
+        NodeID: node.id,
+        Eligibility: 'ineligible',
+      });
+    });
+
+    test(`drain makes the correct POST request to /:node_id/drain with appropriate defaults ${testCase.variation}`, async function(assert) {
+      const { pretender } = this.server;
+      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
+
+      const node = await run(() => this.store.findRecord('node', testCase.id));
+      await this.subject().drain(node);
+
+      const request = pretender.handledRequests.lastObject;
+      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(JSON.parse(request.requestBody), {
+        NodeID: node.id,
+        DrainSpec: {
+          Deadline: 0,
+          IgnoreSystemJobs: true,
+        },
+      });
+    });
+
+    test(`drain makes the correct POST request to /:node_id/drain with the provided drain spec ${testCase.variation}`, async function(assert) {
+      const { pretender } = this.server;
+      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
+
+      const node = await run(() => this.store.findRecord('node', testCase.id));
+
+      const spec = { Deadline: 123456789, IgnoreSystemJobs: false };
+      await this.subject().drain(node, spec);
+
+      const request = pretender.handledRequests.lastObject;
+      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(JSON.parse(request.requestBody), {
+        NodeID: node.id,
+        DrainSpec: {
+          Deadline: spec.Deadline,
+          IgnoreSystemJobs: spec.IgnoreSystemJobs,
+        },
+      });
+    });
+
+    test(`forceDrain makes the correct POST request to /:node_id/drain with appropriate defaults ${testCase.variation}`, async function(assert) {
+      const { pretender } = this.server;
+      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
+
+      const node = await run(() => this.store.findRecord('node', testCase.id));
+
+      await this.subject().forceDrain(node);
+
+      const request = pretender.handledRequests.lastObject;
+      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(JSON.parse(request.requestBody), {
+        NodeID: node.id,
+        DrainSpec: {
+          Deadline: -1,
+          IgnoreSystemJobs: true,
+        },
+      });
+    });
+
+    test(`forceDrain makes the correct POST request to /:node_id/drain with the provided drain spec ${testCase.variation}`, async function(assert) {
+      const { pretender } = this.server;
+      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
+
+      const node = await run(() => this.store.findRecord('node', testCase.id));
+
+      const spec = { Deadline: 123456789, IgnoreSystemJobs: false };
+      await this.subject().forceDrain(node, spec);
+
+      const request = pretender.handledRequests.lastObject;
+      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(JSON.parse(request.requestBody), {
+        NodeID: node.id,
+        DrainSpec: {
+          Deadline: -1,
+          IgnoreSystemJobs: spec.IgnoreSystemJobs,
+        },
+      });
+    });
+
+    test(`cancelDrain makes the correct POST request to /:node_id/drain ${testCase.variation}`, async function(assert) {
+      const { pretender } = this.server;
+      if (testCase.region) window.localStorage.nomadActiveRegion = testCase.region;
+
+      const node = await run(() => this.store.findRecord('node', testCase.id));
+
+      await this.subject().cancelDrain(node);
+
+      const request = pretender.handledRequests.lastObject;
+      assert.equal(`${request.method} ${request.url}`, testCase.drain);
+      assert.deepEqual(JSON.parse(request.requestBody), {
+        NodeID: node.id,
+        DrainSpec: null,
+      });
+    });
   });
 });
 

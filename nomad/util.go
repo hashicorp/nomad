@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	memdb "github.com/hashicorp/go-memdb"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -245,7 +246,7 @@ func getNodeForRpc(snap *state.StateSnapshot, nodeID string) (*structs.Node, err
 	}
 
 	if node == nil {
-		return nil, fmt.Errorf("Unknown node %q", nodeID)
+		return nil, fmt.Errorf("%w %s", structs.ErrUnknownNode, nodeID)
 	}
 
 	if err := nodeSupportsRpc(node); err != nil {
@@ -274,4 +275,29 @@ func nodeSupportsRpc(node *structs.Node) error {
 	}
 
 	return nil
+}
+
+// AllocGetter is an interface for retrieving allocations by ID. It is
+// satisfied by *state.StateStore and *state.StateSnapshot.
+type AllocGetter interface {
+	AllocByID(ws memdb.WatchSet, id string) (*structs.Allocation, error)
+}
+
+// getAlloc retrieves an allocation by ID and namespace. If the allocation is
+// nil, an error is returned.
+func getAlloc(state AllocGetter, allocID string) (*structs.Allocation, error) {
+	if allocID == "" {
+		return nil, structs.ErrMissingAllocID
+	}
+
+	alloc, err := state.AllocByID(nil, allocID)
+	if err != nil {
+		return nil, err
+	}
+
+	if alloc == nil {
+		return nil, structs.NewErrUnknownAllocation(allocID)
+	}
+
+	return alloc, nil
 }

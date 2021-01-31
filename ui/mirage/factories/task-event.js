@@ -1,12 +1,12 @@
 import { Factory } from 'ember-cli-mirage';
-import faker from 'faker';
+import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
 
 const REF_TIME = new Date();
 const STATES = provide(10, faker.system.fileExt.bind(faker.system));
 
 export default Factory.extend({
-  type: faker.helpers.randomize(STATES),
+  type: () => faker.helpers.randomize(STATES),
 
   signal: () => '',
   exitCode: () => null,

@@ -2,10 +2,12 @@ import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 import queryString from 'query-string';
 
-export default ApplicationSerializer.extend({
-  attrs: {
+export default class JobSerializer extends ApplicationSerializer {
+  attrs = {
     parameterized: 'ParameterizedJob',
-  },
+  };
+
+  separateNanos = ['SubmitTime'];
 
   normalize(typeHash, hash) {
     hash.NamespaceID = hash.Namespace;
@@ -45,20 +47,22 @@ export default ApplicationSerializer.extend({
       });
     }
 
-    return this._super(typeHash, hash);
-  },
+    return super.normalize(typeHash, hash);
+  }
 
   extractRelationships(modelClass, hash) {
     const namespace =
       !hash.NamespaceID || hash.NamespaceID === 'default' ? undefined : hash.NamespaceID;
     const { modelName } = modelClass;
 
+    const apiNamespace = this.store.adapterFor(modelClass.modelName).get('namespace');
+
     const [jobURL] = this.store
       .adapterFor(modelName)
       .buildURL(modelName, hash.ID, hash, 'findRecord')
       .split('?');
 
-    return assign(this._super(...arguments), {
+    return assign(super.extractRelationships(...arguments), {
       allocations: {
         links: {
           related: buildURL(`${jobURL}/allocations`, { namespace }),
@@ -84,9 +88,22 @@ export default ApplicationSerializer.extend({
           related: buildURL(`${jobURL}/evaluations`, { namespace }),
         },
       },
+      scaleState: {
+        links: {
+          related: buildURL(`${jobURL}/scale`, { namespace }),
+        },
+      },
+      recommendationSummaries: {
+        links: {
+          related: buildURL(`/${apiNamespace}/recommendations`, {
+            job: hash.PlainId,
+            namespace: hash.NamespaceID || 'default',
+          }),
+        },
+      },
     });
-  },
-});
+  }
+}
 
 function buildURL(path, queryParams) {
   const qpString = queryString.stringify(queryParams);

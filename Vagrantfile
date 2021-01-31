@@ -2,8 +2,8 @@
 # vi: set ft=ruby :
 #
 
-LINUX_BASE_BOX = "bento/ubuntu-16.04"
-FREEBSD_BASE_BOX = "freebsd/FreeBSD-11.2-STABLE"
+LINUX_BASE_BOX = "bento/ubuntu-18.04"
+FREEBSD_BASE_BOX = "freebsd/FreeBSD-11.3-STABLE"
 
 LINUX_IP_ADDRESS = "10.199.0.200"
 
@@ -153,16 +153,12 @@ def configureLinuxProvisioners(vmCfg)
 		path: './scripts/vagrant-linux-priv-vault.sh'
 
 	vmCfg.vm.provision "shell",
-		privileged: true,
-		path: './scripts/vagrant-linux-priv-rkt.sh'
-
-	vmCfg.vm.provision "shell",
 		privileged: false,
 		path: './scripts/vagrant-linux-unpriv-ui.sh'
 
 	vmCfg.vm.provision "shell",
 		privileged: true,
-		path: './scripts/vagrant-linux-priv-protoc.sh'
+		path: './scripts/vagrant-linux-priv-buf.sh'
 
 	return vmCfg
 end
@@ -183,7 +179,7 @@ def configureProviders(vmCfg, cpus: "2", memory: "2048")
 	end
 
 	vmCfg.vm.provider "virtualbox" do |v|
-		v.customize ["modifyvm", :id, "--cableconnected1", "on"]
+		v.customize ["modifyvm", :id, "--cableconnected1", "on", "--audio", "none"]
 		v.memory = memory
 		v.cpus = cpus
 	end

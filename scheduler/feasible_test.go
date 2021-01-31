@@ -223,6 +223,171 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 			Result:           true,
 		},
 	}
+	for i, c := range cases {
+		checker.SetVolumes(c.RequestedVolumes)
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+}
+
+func TestCSIVolumeChecker(t *testing.T) {
+	t.Parallel()
+	state, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+
+	// Register running plugins on some nodes
+	nodes[0].CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID:       "foo",
+			Healthy:        true,
+			ControllerInfo: &structs.CSIControllerInfo{},
+		},
+	}
+	nodes[0].CSINodePlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID: "foo",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
+		},
+	}
+	nodes[1].CSINodePlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID: "foo",
+			Healthy:  false,
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
+		},
+	}
+	nodes[2].CSINodePlugins = map[string]*structs.CSIInfo{
+		"bar": {
+			PluginID: "bar",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
+		},
+	}
+	nodes[4].CSINodePlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID: "foo",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{MaxVolumes: 1},
+		},
+	}
+
+	// Create the plugins in the state store
+	index := uint64(999)
+	for _, node := range nodes {
+		err := state.UpsertNode(structs.MsgTypeTestSetup, index, node)
+		require.NoError(t, err)
+		index++
+	}
+
+	// Create the volume in the state store
+	vid := "volume-id"
+	vol := structs.NewCSIVolume(vid, index)
+	vol.PluginID = "foo"
+	vol.Namespace = structs.DefaultNamespace
+	vol.AccessMode = structs.CSIVolumeAccessModeMultiNodeMultiWriter
+	vol.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	err := state.CSIVolumeRegister(index, []*structs.CSIVolume{vol})
+	require.NoError(t, err)
+	index++
+
+	// Create some other volumes in use on nodes[3] to trip MaxVolumes
+	vid2 := uuid.Generate()
+	vol2 := structs.NewCSIVolume(vid2, index)
+	vol2.PluginID = "foo"
+	vol2.Namespace = structs.DefaultNamespace
+	vol2.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
+	vol2.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol2})
+	require.NoError(t, err)
+	index++
+
+	alloc := mock.Alloc()
+	alloc.NodeID = nodes[4].ID
+	alloc.Job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		vid2: {
+			Name:   vid2,
+			Type:   "csi",
+			Source: vid2,
+		},
+	}
+	err = state.UpsertJob(structs.MsgTypeTestSetup, index, alloc.Job)
+	require.NoError(t, err)
+	index++
+	summary := mock.JobSummary(alloc.JobID)
+	require.NoError(t, state.UpsertJobSummary(index, summary))
+	index++
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc})
+	require.NoError(t, err)
+	index++
+
+	// Create volume requests
+	noVolumes := map[string]*structs.VolumeRequest{}
+
+	volumes := map[string]*structs.VolumeRequest{
+		"baz": {
+			Type:   "csi",
+			Name:   "baz",
+			Source: "volume-id",
+		},
+		"nonsense": {
+			Type:   "host",
+			Name:   "nonsense",
+			Source: "my-host-volume",
+		},
+	}
+
+	checker := NewCSIVolumeChecker(ctx)
+	checker.SetNamespace(structs.DefaultNamespace)
+
+	cases := []struct {
+		Node             *structs.Node
+		RequestedVolumes map[string]*structs.VolumeRequest
+		Result           bool
+	}{
+		{ // Get it
+			Node:             nodes[0],
+			RequestedVolumes: volumes,
+			Result:           true,
+		},
+		{ // Unhealthy
+			Node:             nodes[1],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{ // Wrong id
+			Node:             nodes[2],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{ // No Volumes requested or available
+			Node:             nodes[3],
+			RequestedVolumes: noVolumes,
+			Result:           true,
+		},
+		{ // No Volumes requested, some available
+			Node:             nodes[0],
+			RequestedVolumes: noVolumes,
+			Result:           true,
+		},
+		{ // Volumes requested, none available
+			Node:             nodes[3],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+		{ // Volumes requested, MaxVolumes exceeded
+			Node:             nodes[4],
+			RequestedVolumes: volumes,
+			Result:           false,
+		},
+	}
 
 	for i, c := range cases {
 		checker.SetVolumes(c.RequestedVolumes)
@@ -230,6 +395,83 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}
 	}
+}
+
+func TestNetworkChecker(t *testing.T) {
+	_, ctx := testContext(t)
+
+	node := func(mode string) *structs.Node {
+		n := mock.Node()
+		n.NodeResources.Networks = append(n.NodeResources.Networks, &structs.NetworkResource{Mode: mode})
+		n.Attributes["nomad.version"] = "0.12.0" // mock version is 0.5.0
+		return n
+	}
+
+	nodes := []*structs.Node{
+		node("bridge"),
+		node("bridge"),
+		node("cni/mynet"),
+	}
+
+	checker := NewNetworkChecker(ctx)
+	cases := []struct {
+		network *structs.NetworkResource
+		results []bool
+	}{
+		{
+			network: &structs.NetworkResource{Mode: "host"},
+			results: []bool{true, true, true},
+		},
+		{
+			network: &structs.NetworkResource{Mode: "bridge"},
+			results: []bool{true, true, false},
+		},
+		{
+			network: &structs.NetworkResource{Mode: "cni/mynet"},
+			results: []bool{false, false, true},
+		},
+		{
+			network: &structs.NetworkResource{Mode: "cni/nonexistent"},
+			results: []bool{false, false, false},
+		},
+	}
+
+	for _, c := range cases {
+		checker.SetNetwork(c.network)
+		for i, node := range nodes {
+			require.Equal(t, c.results[i], checker.Feasible(node), "mode=%q, idx=%d", c.network.Mode, i)
+		}
+	}
+}
+
+func TestNetworkChecker_bridge_upgrade_path(t *testing.T) {
+	_, ctx := testContext(t)
+
+	t.Run("older client", func(t *testing.T) {
+		// Create a client that is still on v0.11, which does not have the bridge
+		// network finger-printer (and thus no bridge network resource)
+		oldClient := mock.Node()
+		oldClient.Attributes["nomad.version"] = "0.11.0"
+
+		checker := NewNetworkChecker(ctx)
+		checker.SetNetwork(&structs.NetworkResource{Mode: "bridge"})
+
+		ok := checker.Feasible(oldClient)
+		require.True(t, ok)
+	})
+
+	t.Run("updated client", func(t *testing.T) {
+		// Create a client that is updated to 0.12, but did not detect a bridge
+		// network resource.
+		oldClient := mock.Node()
+		oldClient.Attributes["nomad.version"] = "0.12.0"
+
+		checker := NewNetworkChecker(ctx)
+		checker.SetNetwork(&structs.NetworkResource{Mode: "bridge"})
+
+		ok := checker.Feasible(oldClient)
+		require.False(t, ok)
+	})
 }
 
 func TestDriverChecker_DriverInfo(t *testing.T) {
@@ -708,6 +950,8 @@ func TestCheckLexicalOrder(t *testing.T) {
 }
 
 func TestCheckVersionConstraint(t *testing.T) {
+	t.Parallel()
+
 	type tcase struct {
 		lVal, rVal interface{}
 		result     bool
@@ -733,12 +977,90 @@ func TestCheckVersionConstraint(t *testing.T) {
 			lVal: 1, rVal: "~> 1.0",
 			result: true,
 		},
+		{
+			// Prereleases are never > final releases
+			lVal: "1.3.0-beta1", rVal: ">= 0.6.1",
+			result: false,
+		},
+		{
+			// Prerelease X.Y.Z must match
+			lVal: "1.7.0-alpha1", rVal: ">= 1.6.0-beta1",
+			result: false,
+		},
+		{
+			// Meta is ignored
+			lVal: "1.3.0-beta1+ent", rVal: "= 1.3.0-beta1",
+			result: true,
+		},
 	}
 	for _, tc := range cases {
 		_, ctx := testContext(t)
-		if res := checkVersionMatch(ctx, tc.lVal, tc.rVal); res != tc.result {
+		p := newVersionConstraintParser(ctx)
+		if res := checkVersionMatch(ctx, p, tc.lVal, tc.rVal); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
+	}
+}
+
+func TestCheckSemverConstraint(t *testing.T) {
+	t.Parallel()
+
+	type tcase struct {
+		name       string
+		lVal, rVal interface{}
+		result     bool
+	}
+	cases := []tcase{
+		{
+			name: "Pessimistic operator always fails 1",
+			lVal: "1.2.3", rVal: "~> 1.0",
+			result: false,
+		},
+		{
+			name: "1.2.3 does satisfy >= 1.0, < 1.4",
+			lVal: "1.2.3", rVal: ">= 1.0, < 1.4",
+			result: true,
+		},
+		{
+			name: "Pessimistic operator always fails 2",
+			lVal: "2.0.1", rVal: "~> 1.0",
+			result: false,
+		},
+		{
+			name: "1.4 does not satisfy >= 1.0, < 1.4",
+			lVal: "1.4", rVal: ">= 1.0, < 1.4",
+			result: false,
+		},
+		{
+			name: "Pessimistic operator always fails 3",
+			lVal: 1, rVal: "~> 1.0",
+			result: false,
+		},
+		{
+			name: "Prereleases are handled according to semver 1",
+			lVal: "1.3.0-beta1", rVal: ">= 0.6.1",
+			result: true,
+		},
+		{
+			name: "Prereleases are handled according to semver 2",
+			lVal: "1.7.0-alpha1", rVal: ">= 1.6.0-beta1",
+			result: true,
+		},
+		{
+			name: "Meta is ignored according to semver",
+			lVal: "1.3.0-beta1+ent", rVal: "= 1.3.0-beta1",
+			result: true,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			_, ctx := testContext(t)
+			p := newSemverConstraintParser(ctx)
+			actual := checkVersionMatch(ctx, p, tc.lVal, tc.rVal)
+			require.Equal(t, tc.result, actual)
+		})
 	}
 }
 
@@ -986,7 +1308,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 		n.Meta["rack"] = fmt.Sprintf("%d", i)
 
 		// Add to state store
-		if err := state.UpsertNode(uint64(100+i), n); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), n); err != nil {
 			t.Fatalf("failed to upsert node: %v", err)
 		}
 	}
@@ -1131,7 +1453,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 			NodeID:    nodes[4].ID,
 		},
 	}
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -1164,7 +1486,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 		n.Meta["rack"] = fmt.Sprintf("%d", i)
 
 		// Add to state store
-		if err := state.UpsertNode(uint64(100+i), n); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), n); err != nil {
 			t.Fatalf("failed to upsert node: %v", err)
 		}
 	}
@@ -1338,7 +1660,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 			NodeID:    nodes[1].ID,
 		},
 	}
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -1368,7 +1690,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 	nodes[0].Meta["rack"] = "1"
 
 	// Add to state store
-	if err := state.UpsertNode(uint64(100), nodes[0]); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100), nodes[0]); err != nil {
 		t.Fatalf("failed to upsert node: %v", err)
 	}
 
@@ -1423,7 +1745,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 			NodeID:    nodes[0].ID,
 		},
 	}
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -1452,7 +1774,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible(t *testing.T) {
 		n.Meta["rack"] = fmt.Sprintf("%d", i)
 
 		// Add to state store
-		if err := state.UpsertNode(uint64(100+i), n); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), n); err != nil {
 			t.Fatalf("failed to upsert node: %v", err)
 		}
 	}
@@ -1500,7 +1822,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible(t *testing.T) {
 			NodeID:    nodes[1].ID,
 		},
 	}
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -1529,7 +1851,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible_Count(t *testin
 		n.Meta["rack"] = fmt.Sprintf("%d", i)
 
 		// Add to state store
-		if err := state.UpsertNode(uint64(100+i), n); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), n); err != nil {
 			t.Fatalf("failed to upsert node: %v", err)
 		}
 	}
@@ -1595,7 +1917,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible_Count(t *testin
 			NodeID:    nodes[1].ID,
 		},
 	}
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -1625,7 +1947,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 		n.Meta["rack"] = fmt.Sprintf("%d", i)
 
 		// Add to state store
-		if err := state.UpsertNode(uint64(100+i), n); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), n); err != nil {
 			t.Fatalf("failed to upsert node: %v", err)
 		}
 	}
@@ -1710,7 +2032,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 			NodeID:    nodes[2].ID,
 		},
 	}
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -1779,7 +2101,7 @@ func TestFeasibilityWrapper_JobIneligible(t *testing.T) {
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
 	mocked := newMockFeasibilityChecker(false)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil)
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil, nil)
 
 	// Set the job to ineligible
 	ctx.Eligibility().SetJobEligibility(false, nodes[0].ComputedClass)
@@ -1797,7 +2119,7 @@ func TestFeasibilityWrapper_JobEscapes(t *testing.T) {
 	nodes := []*structs.Node{mock.Node()}
 	static := NewStaticIterator(ctx, nodes)
 	mocked := newMockFeasibilityChecker(false)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil)
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{mocked}, nil, nil)
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass
@@ -1823,7 +2145,7 @@ func TestFeasibilityWrapper_JobAndTg_Eligible(t *testing.T) {
 	static := NewStaticIterator(ctx, nodes)
 	jobMock := newMockFeasibilityChecker(true)
 	tgMock := newMockFeasibilityChecker(false)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock}, nil)
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass
@@ -1845,7 +2167,7 @@ func TestFeasibilityWrapper_JobEligible_TgIneligible(t *testing.T) {
 	static := NewStaticIterator(ctx, nodes)
 	jobMock := newMockFeasibilityChecker(true)
 	tgMock := newMockFeasibilityChecker(false)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock}, nil)
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass
@@ -1867,7 +2189,7 @@ func TestFeasibilityWrapper_JobEligible_TgEscaped(t *testing.T) {
 	static := NewStaticIterator(ctx, nodes)
 	jobMock := newMockFeasibilityChecker(true)
 	tgMock := newMockFeasibilityChecker(true)
-	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock})
+	wrapper := NewFeasibilityWrapper(ctx, static, []FeasibilityChecker{jobMock}, []FeasibilityChecker{tgMock}, nil)
 
 	// Set the job to escaped
 	cc := nodes[0].ComputedClass

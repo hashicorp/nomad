@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,9 +21,12 @@ func TestConfig_ParseHCL(t *testing.T) {
 				image = "redis:3.2"
 			}`,
 			&TaskConfig{
-				Image:   "redis:3.2",
-				Devices: []DockerDevice{},
-				Mounts:  []DockerMount{},
+				Image:            "redis:3.2",
+				Devices:          []DockerDevice{},
+				Mounts:           []DockerMount{},
+				MountsList:       []DockerMount{},
+				CPUCFSPeriod:     100000,
+				ImagePullTimeout: "5m",
 			},
 		},
 	}
@@ -51,36 +55,48 @@ func TestConfig_ParseJSON(t *testing.T) {
 			name:  "nil values for blocks are safe",
 			input: `{"Config": {"image": "bash:3", "mounts": null}}`,
 			expected: TaskConfig{
-				Image:   "bash:3",
-				Mounts:  []DockerMount{},
-				Devices: []DockerDevice{},
+				Image:            "bash:3",
+				Mounts:           []DockerMount{},
+				MountsList:       []DockerMount{},
+				Devices:          []DockerDevice{},
+				CPUCFSPeriod:     100000,
+				ImagePullTimeout: "5m",
 			},
 		},
 		{
 			name:  "nil values for 'volumes' field are safe",
 			input: `{"Config": {"image": "bash:3", "volumes": null}}`,
 			expected: TaskConfig{
-				Image:   "bash:3",
-				Mounts:  []DockerMount{},
-				Devices: []DockerDevice{},
+				Image:            "bash:3",
+				Mounts:           []DockerMount{},
+				MountsList:       []DockerMount{},
+				Devices:          []DockerDevice{},
+				CPUCFSPeriod:     100000,
+				ImagePullTimeout: "5m",
 			},
 		},
 		{
 			name:  "nil values for 'args' field are safe",
 			input: `{"Config": {"image": "bash:3", "args": null}}`,
 			expected: TaskConfig{
-				Image:   "bash:3",
-				Mounts:  []DockerMount{},
-				Devices: []DockerDevice{},
+				Image:            "bash:3",
+				Mounts:           []DockerMount{},
+				MountsList:       []DockerMount{},
+				Devices:          []DockerDevice{},
+				CPUCFSPeriod:     100000,
+				ImagePullTimeout: "5m",
 			},
 		},
 		{
 			name:  "nil values for string fields are safe",
 			input: `{"Config": {"image": "bash:3", "command": null}}`,
 			expected: TaskConfig{
-				Image:   "bash:3",
-				Mounts:  []DockerMount{},
-				Devices: []DockerDevice{},
+				Image:            "bash:3",
+				Mounts:           []DockerMount{},
+				MountsList:       []DockerMount{},
+				Devices:          []DockerDevice{},
+				CPUCFSPeriod:     100000,
+				ImagePullTimeout: "5m",
 			},
 		},
 	}
@@ -172,6 +188,7 @@ func TestConfig_ParseAllHCL(t *testing.T) {
 	cfgStr := `
 config {
   image = "redis:3.2"
+  image_pull_timeout = "15m"
   advertise_ipv6_address = true
   args = ["command_arg1", "command_arg2"]
   auth {
@@ -216,6 +233,28 @@ config {
     }
   }
   mac_address = "02:42:ac:11:00:02"
+  memory_hard_limit = 512
+
+  mount {
+    type = "bind"
+    target ="/mount-bind-target"
+    source = "/bind-source-mount"
+    readonly = true
+    bind_options {
+      propagation = "rshared"
+    }
+  }
+
+  mount {
+    type = "tmpfs"
+    target ="/mount-tmpfs-target"
+    readonly = true
+    tmpfs_options {
+      size = 30000
+      mode = 0777
+    }
+  }
+
   mounts = [
     {
       type = "bind"
@@ -257,13 +296,15 @@ config {
   network_aliases = ["redis"]
   network_mode = "host"
   pids_limit = 2000
-  pid_mode = "host"
+	pid_mode = "host"
+	ports = ["http", "https"]
   port_map {
     http = 80
     redis = 6379
   }
   privileged = true
   readonly_rootfs = true
+  runtime = "runc"
   security_opt = [
     "credentialspec=file://gmsaUser.json"
   ],
@@ -293,6 +334,7 @@ config {
 
 	expected := &TaskConfig{
 		Image:             "redis:3.2",
+		ImagePullTimeout:  "15m",
 		AdvertiseIPv6Addr: true,
 		Args:              []string{"command_arg1", "command_arg2"},
 		Auth: DockerAuth{
@@ -342,8 +384,30 @@ config {
 				"max-file": "3",
 				"max-size": "10m",
 			}},
-		MacAddress: "02:42:ac:11:00:02",
+		MacAddress:      "02:42:ac:11:00:02",
+		MemoryHardLimit: 512,
 		Mounts: []DockerMount{
+			{
+				Type:     "bind",
+				Target:   "/mount-bind-target",
+				Source:   "/bind-source-mount",
+				ReadOnly: true,
+				BindOptions: DockerBindOptions{
+					Propagation: "rshared",
+				},
+			},
+			{
+				Type:     "tmpfs",
+				Target:   "/mount-tmpfs-target",
+				Source:   "",
+				ReadOnly: true,
+				TmpfsOptions: DockerTmpfsOptions{
+					SizeBytes: 30000,
+					Mode:      511,
+				},
+			},
+		},
+		MountsList: []DockerMount{
 			{
 				Type:     "bind",
 				Target:   "/bind-target",
@@ -386,12 +450,14 @@ config {
 		NetworkMode:    "host",
 		PidsLimit:      2000,
 		PidMode:        "host",
+		Ports:          []string{"http", "https"},
 		PortMap: map[string]int{
 			"http":  80,
 			"redis": 6379,
 		},
 		Privileged:     true,
 		ReadonlyRootfs: true,
+		Runtime:        "runc",
 		SecurityOpt: []string{
 			"credentialspec=file://gmsaUser.json",
 		},
@@ -422,4 +488,229 @@ config {
 	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
 
 	require.EqualValues(t, expected, tc)
+}
+
+// TestConfig_DriverConfig_GC asserts that gc is parsed
+// and populated with defaults as expected
+func TestConfig_DriverConfig_GC(t *testing.T) {
+	cases := []struct {
+		name     string
+		config   string
+		expected GCConfig
+	}{
+		{
+			name:   "pure default",
+			config: `{}`,
+			expected: GCConfig{
+				Image: true, ImageDelay: "3m", Container: true,
+				DanglingContainers: ContainerGCConfig{
+					Enabled: true, PeriodStr: "5m", CreationGraceStr: "5m"},
+			},
+		},
+		{
+			name:   "partial gc",
+			config: `{ gc { } }`,
+			expected: GCConfig{
+				Image: true, ImageDelay: "3m", Container: true,
+				DanglingContainers: ContainerGCConfig{
+					Enabled: true, PeriodStr: "5m", CreationGraceStr: "5m"},
+			},
+		},
+		{
+			name:   "partial gc",
+			config: `{ gc { dangling_containers { } } }`,
+			expected: GCConfig{
+				Image: true, ImageDelay: "3m", Container: true,
+				DanglingContainers: ContainerGCConfig{
+					Enabled: true, PeriodStr: "5m", CreationGraceStr: "5m"},
+			},
+		},
+		{
+			name:   "partial image",
+			config: `{ gc { image = false } }`,
+			expected: GCConfig{
+				Image: false, ImageDelay: "3m", Container: true,
+				DanglingContainers: ContainerGCConfig{
+					Enabled: true, PeriodStr: "5m", CreationGraceStr: "5m"},
+			},
+		},
+		{
+			name:   "partial image_delay",
+			config: `{ gc { image_delay = "1d"} }`,
+			expected: GCConfig{
+				Image: true, ImageDelay: "1d", Container: true,
+				DanglingContainers: ContainerGCConfig{
+					Enabled: true, PeriodStr: "5m", CreationGraceStr: "5m"},
+			},
+		},
+		{
+			name:   "partial dangling_containers",
+			config: `{ gc { dangling_containers { enabled = false } } }`,
+			expected: GCConfig{
+				Image: true, ImageDelay: "3m", Container: true,
+				DanglingContainers: ContainerGCConfig{
+					Enabled: false, PeriodStr: "5m", CreationGraceStr: "5m"},
+			},
+		},
+		{
+			name:   "incomplete dangling_containers 2",
+			config: `{ gc { dangling_containers { period = "10m" } } }`,
+			expected: GCConfig{
+				Image: true, ImageDelay: "3m", Container: true,
+				DanglingContainers: ContainerGCConfig{
+					Enabled: true, PeriodStr: "10m", CreationGraceStr: "5m"},
+			},
+		},
+		{
+			name: "full default",
+			config: `{ gc {
+			image = false
+			image_delay = "5m"
+			container = false
+			dangling_containers {
+			     enabled = false
+			     dry_run = true
+			     period = "10m"
+			     creation_grace = "20m"
+			}}}`,
+			expected: GCConfig{
+				Image:      false,
+				ImageDelay: "5m",
+				Container:  false,
+				DanglingContainers: ContainerGCConfig{
+					Enabled:          false,
+					DryRun:           true,
+					PeriodStr:        "10m",
+					CreationGraceStr: "20m",
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+			require.EqualValues(t, c.expected, tc.GC)
+
+		})
+	}
+}
+
+func TestConfig_InternalCapabilities(t *testing.T) {
+	cases := []struct {
+		name     string
+		config   string
+		expected drivers.InternalCapabilities
+	}{
+		{
+			name:     "pure default",
+			config:   `{}`,
+			expected: drivers.InternalCapabilities{},
+		},
+		{
+			name:     "disabled",
+			config:   `{ disable_log_collection = true }`,
+			expected: drivers.InternalCapabilities{DisableLogCollection: true},
+		},
+		{
+			name:     "enabled explicitly",
+			config:   `{ disable_log_collection = false }`,
+			expected: drivers.InternalCapabilities{},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+
+			d := &Driver{config: &tc}
+			require.Equal(t, c.expected, d.InternalCapabilities())
+		})
+	}
+}
+
+func TestConfig_DriverConfig_InfraImagePullTimeout(t *testing.T) {
+	cases := []struct {
+		name     string
+		config   string
+		expected string
+	}{
+		{
+			name:     "default",
+			config:   `{}`,
+			expected: "5m",
+		},
+		{
+			name:     "set explicitly",
+			config:   `{ infra_image_pull_timeout = "1m" }`,
+			expected: "1m",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+			require.Equal(t, c.expected, tc.InfraImagePullTimeout)
+		})
+	}
+}
+
+func TestConfig_DriverConfig_PullActivityTimeout(t *testing.T) {
+	cases := []struct {
+		name     string
+		config   string
+		expected string
+	}{
+		{
+			name:     "default",
+			config:   `{}`,
+			expected: "2m",
+		},
+		{
+			name:     "set explicitly",
+			config:   `{ pull_activity_timeout = "5m" }`,
+			expected: "5m",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+			require.Equal(t, c.expected, tc.PullActivityTimeout)
+		})
+	}
+}
+
+func TestConfig_DriverConfig_AllowRuntimes(t *testing.T) {
+	cases := []struct {
+		name     string
+		config   string
+		expected map[string]struct{}
+	}{
+		{
+			name:     "pure default",
+			config:   `{}`,
+			expected: map[string]struct{}{"runc": struct{}{}, "nvidia": struct{}{}},
+		},
+		{
+			name:     "custom",
+			config:   `{ allow_runtimes = ["runc", "firecracker"]}`,
+			expected: map[string]struct{}{"runc": struct{}{}, "firecracker": struct{}{}},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc map[string]interface{}
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+
+			dh := dockerDriverHarness(t, tc)
+			d := dh.Impl().(*Driver)
+			require.Equal(t, c.expected, d.config.allowRuntimes)
+		})
+	}
 }

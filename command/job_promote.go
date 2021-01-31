@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
 )
 
@@ -27,9 +27,12 @@ Usage: nomad job promote [options] <job id>
   a new version or failed backwards by reverting to an older version using the
   "nomad job revert" command.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job',
+  'list-jobs', and 'read-job' capabilities for the job's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Promote Options:
 
@@ -124,14 +127,15 @@ func (c *JobPromoteCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
 		return 1
 	}
-	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+	if len(jobs) > 1 && (c.allNamespaces() || strings.TrimSpace(jobID) != jobs[0].ID) {
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
 		return 1
 	}
 	jobID = jobs[0].ID
+	q := &api.QueryOptions{Namespace: jobs[0].JobSummary.Namespace}
 
 	// Do a prefix lookup
-	deploy, _, err := client.Jobs().LatestDeployment(jobID, nil)
+	deploy, _, err := client.Jobs().LatestDeployment(jobID, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving deployment: %s", err))
 		return 1
@@ -142,11 +146,12 @@ func (c *JobPromoteCommand) Run(args []string) int {
 		return 1
 	}
 
+	wq := &api.WriteOptions{Namespace: jobs[0].JobSummary.Namespace}
 	var u *api.DeploymentUpdateResponse
 	if len(groups) == 0 {
-		u, _, err = client.Deployments().PromoteAll(deploy.ID, nil)
+		u, _, err = client.Deployments().PromoteAll(deploy.ID, wq)
 	} else {
-		u, _, err = client.Deployments().PromoteGroups(deploy.ID, groups, nil)
+		u, _, err = client.Deployments().PromoteGroups(deploy.ID, groups, wq)
 	}
 
 	if err != nil {
@@ -161,5 +166,5 @@ func (c *JobPromoteCommand) Run(args []string) int {
 	}
 
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(u.EvalID, false)
+	return mon.monitor(u.EvalID)
 }

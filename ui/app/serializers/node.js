@@ -1,24 +1,17 @@
-import { assign } from '@ember/polyfills';
 import { inject as service } from '@ember/service';
 import ApplicationSerializer from './application';
 
-export default ApplicationSerializer.extend({
-  config: service(),
+export default class NodeSerializer extends ApplicationSerializer {
+  @service config;
 
-  attrs: {
+  attrs = {
     isDraining: 'Drain',
     httpAddr: 'HTTPAddr',
-  },
+    resources: 'NodeResources',
+    reserved: 'ReservedResources',
+  };
 
-  normalize(modelClass, hash) {
-    // Transform the map-based Drivers object into an array-based NodeDriver fragment list
-    const drivers = hash.Drivers || {};
-    hash.Drivers = Object.keys(drivers).map(key => {
-      return assign({}, drivers[key], { Name: key });
-    });
-
-    return this._super(modelClass, hash);
-  },
+  mapToArray = ['Drivers', 'HostVolumes'];
 
   extractRelationships(modelClass, hash) {
     const { modelName } = modelClass;
@@ -33,5 +26,5 @@ export default ApplicationSerializer.extend({
         },
       },
     };
-  },
-});
+  }
+}

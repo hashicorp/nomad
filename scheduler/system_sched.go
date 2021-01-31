@@ -63,7 +63,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) error {
 	case structs.EvalTriggerJobRegister, structs.EvalTriggerNodeUpdate, structs.EvalTriggerFailedFollowUp,
 		structs.EvalTriggerJobDeregister, structs.EvalTriggerRollingUpdate, structs.EvalTriggerPreemption,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerNodeDrain, structs.EvalTriggerAllocStop,
-		structs.EvalTriggerQueuedAllocs:
+		structs.EvalTriggerQueuedAllocs, structs.EvalTriggerScaling:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
@@ -212,18 +212,18 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Add all the allocs to stop
 	for _, e := range diff.stop {
-		s.plan.AppendStoppedAlloc(e.Alloc, allocNotNeeded, "")
+		s.plan.AppendStoppedAlloc(e.Alloc, allocNotNeeded, "", "")
 	}
 
 	// Add all the allocs to migrate
 	for _, e := range diff.migrate {
-		s.plan.AppendStoppedAlloc(e.Alloc, allocNodeTainted, "")
+		s.plan.AppendStoppedAlloc(e.Alloc, allocNodeTainted, "", "")
 	}
 
 	// Lost allocations should be transitioned to desired status stop and client
 	// status lost.
 	for _, e := range diff.lost {
-		s.plan.AppendStoppedAlloc(e.Alloc, allocLost, structs.AllocClientStatusLost)
+		s.plan.AppendStoppedAlloc(e.Alloc, allocLost, structs.AllocClientStatusLost, "")
 	}
 
 	// Attempt to do the upgrades in place
@@ -275,7 +275,8 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 	for _, missing := range place {
 		node, ok := nodeByID[missing.Alloc.NodeID]
 		if !ok {
-			return fmt.Errorf("could not find node %q", missing.Alloc.NodeID)
+			s.logger.Debug("could not find node %q", missing.Alloc.NodeID)
+			continue
 		}
 
 		// Update the set of placement nodes
@@ -327,6 +328,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			// Actual failure to start this task on this candidate node, report it individually
 			s.failedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
 			s.addBlocked(node)
+
 			continue
 		}
 
@@ -338,7 +340,8 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 		// Set fields based on if we found an allocation option
 		resources := &structs.AllocatedResources{
-			Tasks: option.TaskResources,
+			Tasks:          option.TaskResources,
+			TaskLifecycles: option.TaskLifecycles,
 			Shared: structs.AllocatedSharedResources{
 				DiskMB: int64(missing.TaskGroup.EphemeralDisk.SizeMB),
 			},
@@ -346,6 +349,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 		if option.AllocResources != nil {
 			resources.Shared.Networks = option.AllocResources.Networks
+			resources.Shared.Ports = option.AllocResources.Ports
 		}
 
 		// Create an allocation for this
@@ -385,7 +389,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 
 				preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
 				if s.eval.AnnotatePlan && s.plan.Annotations != nil {
-					s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub())
+					s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub(nil))
 					if s.plan.Annotations.DesiredTGUpdates != nil {
 						desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup.Name]
 						desired.Preemptions += 1
@@ -395,7 +399,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			alloc.PreemptedAllocations = preemptedAllocIDs
 		}
 
-		s.plan.AppendAlloc(alloc)
+		s.plan.AppendAlloc(alloc, nil)
 	}
 
 	return nil

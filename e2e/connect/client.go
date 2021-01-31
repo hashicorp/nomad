@@ -7,7 +7,6 @@ import (
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/stretchr/testify/require"
 )
 
 type ConnectClientStateE2ETest struct {
@@ -34,17 +33,17 @@ func (tc *ConnectClientStateE2ETest) AfterEach(f *framework.F) {
 
 func (tc *ConnectClientStateE2ETest) TestClientRestart(f *framework.F) {
 	t := f.T()
-	require := require.New(t)
+
 	jobID := "connect" + uuid.Generate()[0:8]
 	tc.jobIds = append(tc.jobIds, jobID)
 	client := tc.Nomad()
 	consulClient := tc.Consul()
 
 	allocs := e2eutil.RegisterAndWaitForAllocs(t, client,
-		"connect/input/demo.nomad", jobID)
-	require.Equal(2, len(allocs))
+		"connect/input/demo.nomad", jobID, "")
+	f.Equal(2, len(allocs))
 
-	e2eutil.RequireConsulStatus(require, consulClient,
+	e2eutil.RequireConsulStatus(f.Assertions, consulClient,
 		"count-api-sidecar-proxy", capi.HealthPassing)
 	nodeID := allocs[0].NodeID
 
@@ -56,6 +55,6 @@ func (tc *ConnectClientStateE2ETest) TestClientRestart(f *framework.F) {
 		t.Skip("node cannot be restarted", err)
 	}
 
-	e2eutil.RequireConsulStatus(require, consulClient,
+	e2eutil.RequireConsulStatus(f.Assertions, consulClient,
 		"count-api-sidecar-proxy", capi.HealthPassing)
 }

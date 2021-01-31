@@ -3,49 +3,54 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { task, timeout } from 'ember-concurrency';
+import { classNames } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
 
-export default Component.extend({
-  token: service(),
-  statsTrackersRegistry: service('stats-trackers-registry'),
-
-  classNames: ['primary-metric'],
+@classic
+@classNames('primary-metric')
+export default class PrimaryMetric extends Component {
+  @service token;
+  @service('stats-trackers-registry') statsTrackersRegistry;
 
   // One of Node, Allocation, or TaskState
-  resource: null,
+  resource = null;
 
   // cpu or memory
-  metric: null,
+  metric = null;
 
-  'data-test-primary-metric': true,
+  'data-test-primary-metric' = true;
 
   // An instance of a StatsTracker. An alternative interface to resource
-  tracker: computed('trackedResource', 'type', function() {
+  @computed('trackedResource', 'type')
+  get tracker() {
     const resource = this.trackedResource;
     return this.statsTrackersRegistry.getTracker(resource);
-  }),
+  }
 
-  type: computed('resource', function() {
+  @computed('resource')
+  get type() {
     const resource = this.resource;
     return resource && resource.constructor.modelName;
-  }),
+  }
 
-  trackedResource: computed('resource', 'type', function() {
+  @computed('resource', 'type')
+  get trackedResource() {
     // TaskStates use the allocation stats tracker
-    return this.type === 'task-state'
-      ? this.get('resource.allocation')
-      : this.resource;
-  }),
+    return this.type === 'task-state' ? this.get('resource.allocation') : this.resource;
+  }
 
-  metricLabel: computed('metric', function() {
+  @computed('metric')
+  get metricLabel() {
     const metric = this.metric;
     const mappings = {
       cpu: 'CPU',
       memory: 'Memory',
     };
     return mappings[metric] || metric;
-  }),
+  }
 
-  data: computed('resource', 'metric', 'type', function() {
+  @computed('resource', 'metric', 'type')
+  get data() {
     if (!this.tracker) return [];
 
     const metric = this.metric;
@@ -56,9 +61,10 @@ export default Component.extend({
     }
 
     return this.get(`tracker.${metric}`);
-  }),
+  }
 
-  reservedAmount: computed('resource', 'metric', 'type', function() {
+  @computed('resource', 'metric', 'type')
+  get reservedAmount() {
     const metricProperty = this.metric === 'cpu' ? 'reservedCPU' : 'reservedMemory';
 
     if (this.type === 'task-state') {
@@ -67,9 +73,10 @@ export default Component.extend({
     }
 
     return this.get(`tracker.${metricProperty}`);
-  }),
+  }
 
-  chartClass: computed('metric', function() {
+  @computed('metric')
+  get chartClass() {
     const metric = this.metric;
     const mappings = {
       cpu: 'is-info',
@@ -77,23 +84,24 @@ export default Component.extend({
     };
 
     return mappings[metric] || 'is-primary';
-  }),
+  }
 
-  poller: task(function*() {
+  @task(function*() {
     do {
       this.get('tracker.poll').perform();
       yield timeout(100);
     } while (!Ember.testing);
-  }),
+  })
+  poller;
 
   didReceiveAttrs() {
     if (this.tracker) {
       this.poller.perform();
     }
-  },
+  }
 
   willDestroy() {
     this.poller.cancelAll();
     this.get('tracker.signalPause').perform();
-  },
-});
+  }
+}

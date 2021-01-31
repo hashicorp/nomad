@@ -62,6 +62,14 @@ type deploymentWatcher struct {
 	// deployment
 	deploymentTriggers
 
+	// DeploymentRPC holds methods for interacting with peer regions
+	// in enterprise edition
+	DeploymentRPC
+
+	// JobRPC holds methods for interacting with peer regions
+	// in enterprise edition
+	JobRPC
+
 	// state is the state that is watched for state changes.
 	state *state.StateStore
 
@@ -100,7 +108,8 @@ type deploymentWatcher struct {
 // deployments and trigger the scheduler as needed.
 func newDeploymentWatcher(parent context.Context, queryLimiter *rate.Limiter,
 	logger log.Logger, state *state.StateStore, d *structs.Deployment,
-	j *structs.Job, triggers deploymentTriggers) *deploymentWatcher {
+	j *structs.Job, triggers deploymentTriggers,
+	deploymentRPC DeploymentRPC, jobRPC JobRPC) *deploymentWatcher {
 
 	ctx, exitFn := context.WithCancel(parent)
 	w := &deploymentWatcher{
@@ -111,6 +120,8 @@ func newDeploymentWatcher(parent context.Context, queryLimiter *rate.Limiter,
 		j:                  j,
 		state:              state,
 		deploymentTriggers: triggers,
+		DeploymentRPC:      deploymentRPC,
+		JobRPC:             jobRPC,
 		logger:             logger.With("deployment_id", d.ID, "job", j.NamespacedID()),
 		ctx:                ctx,
 		exitFn:             exitFn,
@@ -179,8 +190,8 @@ func (w *deploymentWatcher) SetAllocHealth(
 			}
 
 			// Check if the group has autorevert set
-			group, ok := w.getDeployment().TaskGroups[alloc.TaskGroup]
-			if !ok || !group.AutoRevert {
+			dstate, ok := w.getDeployment().TaskGroups[alloc.TaskGroup]
+			if !ok || !dstate.AutoRevert {
 				continue
 			}
 
@@ -274,13 +285,13 @@ func (w *deploymentWatcher) autoPromoteDeployment(allocs []*structs.AllocListStu
 
 	// AutoPromote iff every task group is marked auto_promote and is healthy. The whole
 	// job version has been incremented, so we promote together. See also AutoRevert
-	for _, tv := range d.TaskGroups {
-		if !tv.AutoPromote || tv.DesiredCanaries != len(tv.PlacedCanaries) {
+	for _, dstate := range d.TaskGroups {
+		if !dstate.AutoPromote || dstate.DesiredCanaries != len(dstate.PlacedCanaries) {
 			return nil
 		}
 
 		// Find the health status of each canary
-		for _, c := range tv.PlacedCanaries {
+		for _, c := range dstate.PlacedCanaries {
 			for _, a := range allocs {
 				if c == a.ID && !a.DeploymentStatus.IsHealthy() {
 					return nil
@@ -336,8 +347,8 @@ func (w *deploymentWatcher) FailDeployment(
 
 	// Determine if we should rollback
 	rollback := false
-	for _, state := range w.getDeployment().TaskGroups {
-		if state.AutoRevert {
+	for _, dstate := range w.getDeployment().TaskGroups {
+		if dstate.AutoRevert {
 			rollback = true
 			break
 		}
@@ -401,7 +412,7 @@ func (w *deploymentWatcher) watch() {
 			<-deadlineTimer.C
 		}
 	} else {
-		deadlineTimer = time.NewTimer(currentDeadline.Sub(time.Now()))
+		deadlineTimer = time.NewTimer(time.Until(currentDeadline))
 	}
 
 	allocIndex := uint64(1)
@@ -432,6 +443,10 @@ FAIL:
 
 			w.logger.Debug("deadline hit", "rollback", rback)
 			rollback = rback
+			err = w.nextRegion(structs.DeploymentStatusFailed)
+			if err != nil {
+				w.logger.Error("multiregion deployment error", "error", err)
+			}
 			break FAIL
 		case <-w.deploymentUpdateCh:
 			// Get the updated deployment and check if we should change the
@@ -459,8 +474,13 @@ FAIL:
 				// rollout, the next progress deadline becomes zero, so we want
 				// to avoid resetting, causing a deployment failure.
 				if !next.IsZero() {
-					deadlineTimer.Reset(next.Sub(time.Now()))
+					deadlineTimer.Reset(time.Until(next))
 				}
+			}
+
+			err := w.nextRegion(w.getStatus())
+			if err != nil {
+				break FAIL
 			}
 
 		case updates = <-w.getAllocsCh(allocIndex):
@@ -490,6 +510,10 @@ FAIL:
 			// handle the failure
 			if res.failDeployment {
 				rollback = res.rollback
+				err := w.nextRegion(structs.DeploymentStatusFailed)
+				if err != nil {
+					w.logger.Error("multiregion deployment error", "error", err)
+				}
 				break FAIL
 			}
 
@@ -629,14 +653,14 @@ func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
 	}
 
 	fail = false
-	for tg, state := range d.TaskGroups {
+	for tg, dstate := range d.TaskGroups {
 		// If we are in a canary state we fail if there aren't enough healthy
 		// allocs to satisfy DesiredCanaries
-		if state.DesiredCanaries > 0 && !state.Promoted {
-			if state.HealthyAllocs >= state.DesiredCanaries {
+		if dstate.DesiredCanaries > 0 && !dstate.Promoted {
+			if dstate.HealthyAllocs >= dstate.DesiredCanaries {
 				continue
 			}
-		} else if state.HealthyAllocs >= state.DesiredTotal {
+		} else if dstate.HealthyAllocs >= dstate.DesiredTotal {
 			continue
 		}
 
@@ -661,19 +685,19 @@ func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
 func (w *deploymentWatcher) getDeploymentProgressCutoff(d *structs.Deployment) time.Time {
 	var next time.Time
 	doneTGs := w.doneGroups(d)
-	for name, state := range d.TaskGroups {
+	for name, dstate := range d.TaskGroups {
 		// This task group is done so we don't have to concern ourselves with
 		// its progress deadline.
 		if done, ok := doneTGs[name]; ok && done {
 			continue
 		}
 
-		if state.RequireProgressBy.IsZero() {
+		if dstate.RequireProgressBy.IsZero() {
 			continue
 		}
 
-		if next.IsZero() || state.RequireProgressBy.Before(next) {
-			next = state.RequireProgressBy
+		if next.IsZero() || dstate.RequireProgressBy.Before(next) {
+			next = dstate.RequireProgressBy
 		}
 	}
 	return next
@@ -710,15 +734,15 @@ func (w *deploymentWatcher) doneGroups(d *structs.Deployment) map[string]bool {
 
 	// Go through each group and check if it done
 	groups := make(map[string]bool, len(d.TaskGroups))
-	for name, state := range d.TaskGroups {
+	for name, dstate := range d.TaskGroups {
 		// Requires promotion
-		if state.DesiredCanaries != 0 && !state.Promoted {
+		if dstate.DesiredCanaries != 0 && !dstate.Promoted {
 			groups[name] = false
 			continue
 		}
 
 		// Check we have enough healthy currently running allocations
-		groups[name] = healthy[name] >= state.DesiredTotal
+		groups[name] = healthy[name] >= dstate.DesiredTotal
 	}
 
 	return groups
@@ -815,6 +839,13 @@ func (w *deploymentWatcher) getDeploymentStatusUpdate(status, desc string) *stru
 	}
 }
 
+// getStatus returns the current status of the deployment
+func (w *deploymentWatcher) getStatus() string {
+	w.l.RLock()
+	defer w.l.RUnlock()
+	return w.d.Status
+}
+
 type allocUpdates struct {
 	allocs []*structs.AllocListStub
 	index  uint64
@@ -868,7 +899,7 @@ func (w *deploymentWatcher) getAllocsImpl(ws memdb.WatchSet, state *state.StateS
 	maxIndex := uint64(0)
 	stubs := make([]*structs.AllocListStub, 0, len(allocs))
 	for _, alloc := range allocs {
-		stubs = append(stubs, alloc.Stub())
+		stubs = append(stubs, alloc.Stub(nil))
 
 		if maxIndex < alloc.ModifyIndex {
 			maxIndex = alloc.ModifyIndex

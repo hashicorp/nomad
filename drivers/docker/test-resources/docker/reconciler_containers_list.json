@@ -1,0 +1,116 @@
+[
+  {
+    "Id": "eb23be71498c2dc0254c029f32b360a000caf33157d1c93e226f4c1a4c9d2218",
+    "Names": [
+      "/redis-72bfa388-024e-a903-45b8-2bc28b74ed69"
+    ],
+    "Image": "redis:3.2",
+    "ImageID": "sha256:87856cc39862cec77541d68382e4867d7ccb29a85a17221446c857ddaebca916",
+    "Command": "docker-entrypoint.sh redis-server",
+    "Created": 1568383081,
+    "Ports": [
+      {
+        "PrivatePort": 6379,
+        "Type": "tcp"
+      }
+    ],
+    "Labels": {},
+    "State": "running",
+    "Status": "Up 9 seconds",
+    "HostConfig": {
+      "NetworkMode": "default"
+    },
+    "NetworkSettings": {
+      "Networks": {
+        "bridge": {
+          "IPAMConfig": null,
+          "Links": null,
+          "Aliases": null,
+          "NetworkID": "6715ed501c1cef14545cd6680f54b4971373ee4441aec2300fff1031c8dbf3a4",
+          "EndpointID": "ed830b4f2f33ab4134aea941611b00b9e576b35a4325d52bacfedd1e2e1ba213",
+          "Gateway": "172.17.0.1",
+          "IPAddress": "172.17.0.3",
+          "IPPrefixLen": 16,
+          "IPv6Gateway": "",
+          "GlobalIPv6Address": "",
+          "GlobalIPv6PrefixLen": 0,
+          "MacAddress": "02:42:ac:11:00:03",
+          "DriverOpts": null
+        }
+      }
+    },
+    "Mounts": [
+      {
+        "Type": "bind",
+        "Source": "/private/var/folders/r6/346cfqyn76b_lx1nrcl5278c0000gp/T/NomadClient831122597/72bfa388-024e-a903-45b8-2bc28b74ed69/alloc",
+        "Destination": "/alloc",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "volume",
+        "Name": "d5d7f0f9a3326414257c57cfca01db96c53a424b43e251516511694554309681",
+        "Source": "",
+        "Destination": "/data",
+        "Driver": "local",
+        "Mode": "",
+        "RW": true,
+        "Propagation": ""
+      },
+      {
+        "Type": "bind",
+        "Source": "/private/var/folders/r6/346cfqyn76b_lx1nrcl5278c0000gp/T/NomadClient831122597/72bfa388-024e-a903-45b8-2bc28b74ed69/redis/local",
+        "Destination": "/local",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/private/var/folders/r6/346cfqyn76b_lx1nrcl5278c0000gp/T/NomadClient831122597/72bfa388-024e-a903-45b8-2bc28b74ed69/redis/secrets",
+        "Destination": "/secrets",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      }
+    ]
+  },
+  {
+    "Id": "99c49fbe999f6df7b7d6a891d69fe57d7b771a30d5d2899a922b44698084e5c9",
+    "Names": [
+      "/serene_keller"
+    ],
+    "Image": "ubuntu:16.04",
+    "ImageID": "sha256:9361ce633ff193349d54bed380a5afe86043b09fd6ea8da7549dbbedfc2a7077",
+    "Command": "/bin/bash",
+    "Created": 1567795217,
+    "Ports": [],
+    "Labels": {},
+    "State": "running",
+    "Status": "Up 6 days",
+    "HostConfig": {
+      "NetworkMode": "default"
+    },
+    "NetworkSettings": {
+      "Networks": {
+        "bridge": {
+          "IPAMConfig": null,
+          "Links": null,
+          "Aliases": null,
+          "NetworkID": "6715ed501c1cef14545cd6680f54b4971373ee4441aec2300fff1031c8dbf3a4",
+          "EndpointID": "fab83a0d4089ca9944ca53c882bdf40ad310c6fda30dda0092731feb9bc9fab6",
+          "Gateway": "172.17.0.1",
+          "IPAddress": "172.17.0.2",
+          "IPPrefixLen": 16,
+          "IPv6Gateway": "",
+          "GlobalIPv6Address": "",
+          "GlobalIPv6PrefixLen": 0,
+          "MacAddress": "02:42:ac:11:00:02",
+          "DriverOpts": null
+        }
+      }
+    },
+    "Mounts": []
+  }
+]

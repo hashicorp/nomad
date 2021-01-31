@@ -100,7 +100,7 @@ func (tc *ClientStateTC) TestClientState_Kill(f *framework.F) {
 	f.NoError(err)
 
 	jobID := "sleeper-" + uuid.Generate()[:8]
-	allocs := e2eutil.RegisterAndWaitForAllocs(t, client, "clientstate/sleeper.nomad", jobID)
+	allocs := e2eutil.RegisterAndWaitForAllocs(t, client, "clientstate/sleeper.nomad", jobID, "")
 	f.Len(allocs, 1)
 
 	alloc, _, err := client.Allocations().Info(allocs[0].ID, nil)
@@ -242,7 +242,7 @@ func (tc *ClientStateTC) TestClientState_KillDuringRestart(f *framework.F) {
 	f.NoError(err)
 
 	jobID := "restarter-" + uuid.Generate()[:8]
-	allocs := e2eutil.RegisterAndWaitForAllocs(t, client, "clientstate/restarter.nomad", jobID)
+	allocs := e2eutil.RegisterAndWaitForAllocs(t, client, "clientstate/restarter.nomad", jobID, "")
 	f.Len(allocs, 1)
 
 	alloc, _, err := client.Allocations().Info(allocs[0].ID, nil)
@@ -363,7 +363,7 @@ func (tc *ClientStateTC) TestClientState_Corrupt(f *framework.F) {
 	f.NoError(err)
 
 	jobID := "sleeper-" + uuid.Generate()[:8]
-	allocs := e2eutil.RegisterAndWaitForAllocs(t, client, "clientstate/sleeper.nomad", jobID)
+	allocs := e2eutil.RegisterAndWaitForAllocs(t, client, "clientstate/sleeper.nomad", jobID, "")
 	f.Len(allocs, 1)
 
 	alloc, _, err := client.Allocations().Info(allocs[0].ID, nil)

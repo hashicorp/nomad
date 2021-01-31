@@ -57,6 +57,18 @@ type Config struct {
 	// LogJson enables log output in a JSON format
 	LogJson bool `hcl:"log_json"`
 
+	// LogFile enables logging to a file
+	LogFile string `hcl:"log_file"`
+
+	// LogRotateDuration is the time period that logs should be rotated in
+	LogRotateDuration string `hcl:"log_rotate_duration"`
+
+	// LogRotateBytes is the max number of bytes that should be written to a file
+	LogRotateBytes int `hcl:"log_rotate_bytes"`
+
+	// LogRotateMaxFiles is the max number of log files to keep
+	LogRotateMaxFiles int `hcl:"log_rotate_max_files"`
+
 	// BindAddr is the address on which all of nomad's services will
 	// be bound. If not specified, this defaults to 127.0.0.1.
 	BindAddr string `hcl:"bind_addr"`
@@ -153,6 +165,12 @@ type Config struct {
 
 	// Plugins is the set of configured plugins
 	Plugins []*config.PluginConfig `hcl:"plugin"`
+
+	// Limits contains the configuration for timeouts.
+	Limits config.Limits `hcl:"limits"`
+
+	// Audit contains the configuration for audit logging.
+	Audit *config.AuditConfig `hcl:"audit"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
@@ -255,12 +273,13 @@ type ClientConfig struct {
 	// available to jobs running on this node.
 	HostVolumes []*structs.ClientHostVolumeConfig `hcl:"host_volume"`
 
-	// ExtraKeysHCL is used by hcl to surface unexpected keys
-	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
-
 	// CNIPath is the path to search for CNI plugins, multiple paths can be
 	// specified colon delimited
 	CNIPath string `hcl:"cni_path"`
+
+	// CNIConfigDir is the directory where CNI network configuration is located. The
+	// client will use this path when fingerprinting CNI networks.
+	CNIConfigDir string `hcl:"cni_config_dir"`
 
 	// BridgeNetworkName is the name of the bridge to create when using the
 	// bridge network mode
@@ -270,14 +289,30 @@ type ClientConfig struct {
 	// creating allocations with bridge networking mode. This range is local to
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
+
+	// HostNetworks describes the different host networks available to the host
+	// if the host uses multiple interfaces
+	HostNetworks []*structs.ClientHostNetworkConfig `hcl:"host_network"`
+
+	// BindWildcardDefaultHostNetwork toggles if when there are no host networks,
+	// should the port mapping rules match the default network address (false) or
+	// matching any destination address (true). Defaults to true
+	BindWildcardDefaultHostNetwork bool `hcl:"bind_wildcard_default_host_network"`
+
+	// ExtraKeysHCL is used by hcl to surface unexpected keys
+	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
 // ClientTemplateConfig is configuration on the client specific to template
 // rendering
 type ClientTemplateConfig struct {
 
-	// FunctionBlacklist disables functions in consul-template that
+	// FunctionDenylist disables functions in consul-template that
 	// are unsafe because they expose information from the client host.
+	FunctionDenylist []string `hcl:"function_denylist"`
+
+	// Deprecated: COMPAT(1.0) consul-template uses inclusive language from
+	// v0.25.0 - function_blacklist is kept for compatibility
 	FunctionBlacklist []string `hcl:"function_blacklist"`
 
 	// DisableSandbox allows templates to access arbitrary files on the
@@ -337,6 +372,9 @@ type ServerConfig struct {
 	// RaftProtocol is the Raft protocol version to speak. This must be from [1-3].
 	RaftProtocol int `hcl:"raft_protocol"`
 
+	// RaftMultiplier scales the Raft timing parameters
+	RaftMultiplier *int `hcl:"raft_multiplier"`
+
 	// NumSchedulers is the number of scheduler thread that are run.
 	// This can be as many as one per core, or zero to disable this server
 	// from doing any scheduling work.
@@ -370,6 +408,16 @@ type ServerConfig struct {
 	// collected by GC.  Age is not the only requirement for a deployment to be
 	// GCed but the threshold can be used to filter by age.
 	DeploymentGCThreshold string `hcl:"deployment_gc_threshold"`
+
+	// CSIVolumeClaimGCThreshold controls how "old" a CSI volume must be to
+	// have its claims collected by GC.	Age is not the only requirement for
+	// a volume to be GCed but the threshold can be used to filter by age.
+	CSIVolumeClaimGCThreshold string `hcl:"csi_volume_claim_gc_threshold"`
+
+	// CSIPluginGCThreshold controls how "old" a CSI plugin must be to be
+	// collected by GC. Age is not the only requirement for a plugin to be
+	// GCed but the threshold can be used to filter by age.
+	CSIPluginGCThreshold string `hcl:"csi_plugin_gc_threshold"`
 
 	// HeartbeatGrace is the grace period beyond the TTL to account for network,
 	// processing delays and clock skew before marking a node as "down".
@@ -431,6 +479,20 @@ type ServerConfig struct {
 
 	// ServerJoin contains information that is used to attempt to join servers
 	ServerJoin *ServerJoin `hcl:"server_join"`
+
+	// DefaultSchedulerConfig configures the initial scheduler config to be persisted in Raft.
+	// Once the cluster is bootstrapped, and Raft persists the config (from here or through API),
+	// This value is ignored.
+	DefaultSchedulerConfig *structs.SchedulerConfiguration `hcl:"default_scheduler_config"`
+
+	// EnableEventBroker configures whether this server's state store
+	// will generate events for its event stream.
+	EnableEventBroker *bool `hcl:"enable_event_broker"`
+
+	// EventBufferSize configure the amount of events to be held in memory.
+	// If EnableEventBroker is set to true, the minimum allowable value
+	// for the EventBufferSize is 1.
+	EventBufferSize *int `hcl:"event_buffer_size"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
@@ -508,14 +570,6 @@ type Telemetry struct {
 	collectionInterval       time.Duration `hcl:"-"`
 	PublishAllocationMetrics bool          `hcl:"publish_allocation_metrics"`
 	PublishNodeMetrics       bool          `hcl:"publish_node_metrics"`
-
-	// DisableTaggedMetrics disables a new version of generating metrics which
-	// uses tags
-	DisableTaggedMetrics bool `hcl:"disable_tagged_metrics"`
-
-	// BackwardsCompatibleMetrics allows for generating metrics in a simple
-	// key/value structure as done in older versions of Nomad
-	BackwardsCompatibleMetrics bool `hcl:"backwards_compatible_metrics"`
 
 	// PrefixFilter allows for filtering out metrics from being collected
 	PrefixFilter []string `hcl:"prefix_filter"`
@@ -720,6 +774,11 @@ func newDevModeConfig(devMode, connectMode bool) (*devModeConfig, error) {
 }
 
 func (mode *devModeConfig) networkConfig() error {
+	if runtime.GOOS == "windows" {
+		mode.bindAddr = "127.0.0.1"
+		mode.iface = "Loopback Pseudo-Interface 1"
+		return nil
+	}
 	if runtime.GOOS == "darwin" {
 		mode.bindAddr = "127.0.0.1"
 		mode.iface = "lo0"
@@ -758,7 +817,8 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.LogLevel = "DEBUG"
 	conf.Client.Enabled = true
 	conf.Server.Enabled = true
-	conf.DevMode = mode != nil
+	conf.DevMode = true
+	conf.Server.BootstrapExpect = 1
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
 	conf.Consul.AutoAdvertise = helper.BoolToPtr(true)
@@ -772,9 +832,10 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
 	conf.Client.TemplateConfig = &ClientTemplateConfig{
-		FunctionBlacklist: []string{"plugin"},
-		DisableSandbox:    false,
+		FunctionDenylist: []string{"plugin"},
+		DisableSandbox:   false,
 	}
+	conf.Client.BindWildcardDefaultHostNetwork = true
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
@@ -817,13 +878,16 @@ func DefaultConfig() *Config {
 				RetryMaxAttempts: 0,
 			},
 			TemplateConfig: &ClientTemplateConfig{
-				FunctionBlacklist: []string{"plugin"},
-				DisableSandbox:    false,
+				FunctionDenylist: []string{"plugin"},
+				DisableSandbox:   false,
 			},
+			BindWildcardDefaultHostNetwork: true,
 		},
 		Server: &ServerConfig{
-			Enabled:   false,
-			StartJoin: []string{},
+			Enabled:           false,
+			EnableEventBroker: helper.BoolToPtr(true),
+			EventBufferSize:   helper.IntToPtr(100),
+			StartJoin:         []string{},
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
@@ -844,7 +908,9 @@ func DefaultConfig() *Config {
 		Sentinel:           &config.SentinelConfig{},
 		Version:            version.GetVersion(),
 		Autopilot:          config.DefaultAutopilotConfig(),
+		Audit:              &config.AuditConfig{},
 		DisableUpdateCheck: helper.BoolToPtr(false),
+		Limits:             config.DefaultLimits(),
 	}
 }
 
@@ -897,6 +963,18 @@ func (c *Config) Merge(b *Config) *Config {
 	}
 	if b.LogJson {
 		result.LogJson = true
+	}
+	if b.LogFile != "" {
+		result.LogFile = b.LogFile
+	}
+	if b.LogRotateDuration != "" {
+		result.LogRotateDuration = b.LogRotateDuration
+	}
+	if b.LogRotateBytes != 0 {
+		result.LogRotateBytes = b.LogRotateBytes
+	}
+	if b.LogRotateMaxFiles != 0 {
+		result.LogRotateMaxFiles = b.LogRotateMaxFiles
 	}
 	if b.BindAddr != "" {
 		result.BindAddr = b.BindAddr
@@ -960,6 +1038,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.ACL = &server
 	} else if b.ACL != nil {
 		result.ACL = result.ACL.Merge(b.ACL)
+	}
+
+	// Apply the Audit config
+	if result.Audit == nil && b.Audit != nil {
+		audit := *b.Audit
+		result.Audit = &audit
+	} else if b.ACL != nil {
+		result.Audit = result.Audit.Merge(b.Audit)
 	}
 
 	// Apply the ports config
@@ -1036,6 +1122,8 @@ func (c *Config) Merge(b *Config) *Config {
 	for k, v := range b.HTTPAPIResponseHeaders {
 		result.HTTPAPIResponseHeaders[k] = v
 	}
+
+	result.Limits = c.Limits.Merge(b.Limits)
 
 	return &result
 }
@@ -1252,6 +1340,10 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.RaftProtocol != 0 {
 		result.RaftProtocol = b.RaftProtocol
 	}
+	if b.RaftMultiplier != nil {
+		c := *b.RaftMultiplier
+		result.RaftMultiplier = &c
+	}
 	if b.NumSchedulers != nil {
 		result.NumSchedulers = helper.IntToPtr(*b.NumSchedulers)
 	}
@@ -1269,6 +1361,12 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.DeploymentGCThreshold != "" {
 		result.DeploymentGCThreshold = b.DeploymentGCThreshold
+	}
+	if b.CSIVolumeClaimGCThreshold != "" {
+		result.CSIVolumeClaimGCThreshold = b.CSIVolumeClaimGCThreshold
+	}
+	if b.CSIPluginGCThreshold != "" {
+		result.CSIPluginGCThreshold = b.CSIPluginGCThreshold
 	}
 	if b.HeartbeatGrace != 0 {
 		result.HeartbeatGrace = b.HeartbeatGrace
@@ -1311,6 +1409,19 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.ServerJoin != nil {
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
+	}
+
+	if b.EnableEventBroker != nil {
+		result.EnableEventBroker = b.EnableEventBroker
+	}
+
+	if b.EventBufferSize != nil {
+		result.EventBufferSize = b.EventBufferSize
+	}
+
+	if b.DefaultSchedulerConfig != nil {
+		c := *b.DefaultSchedulerConfig
+		result.DefaultSchedulerConfig = &c
 	}
 
 	// Add the schedulers
@@ -1440,6 +1551,28 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.HostVolumes = structs.HostVolumeSliceMerge(a.HostVolumes, b.HostVolumes)
 	}
 
+	if b.CNIPath != "" {
+		result.CNIPath = b.CNIPath
+	}
+	if b.CNIConfigDir != "" {
+		result.CNIConfigDir = b.CNIConfigDir
+	}
+	if b.BridgeNetworkName != "" {
+		result.BridgeNetworkName = b.BridgeNetworkName
+	}
+	if b.BridgeNetworkSubnet != "" {
+		result.BridgeNetworkSubnet = b.BridgeNetworkSubnet
+	}
+
+	result.HostNetworks = a.HostNetworks
+
+	if len(b.HostNetworks) != 0 {
+		result.HostNetworks = append(result.HostNetworks, b.HostNetworks...)
+	}
+
+	if b.BindWildcardDefaultHostNetwork {
+		result.BindWildcardDefaultHostNetwork = true
+	}
 	return &result
 }
 
@@ -1519,14 +1652,6 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.CirconusBrokerSelectTag != "" {
 		result.CirconusBrokerSelectTag = b.CirconusBrokerSelectTag
-	}
-
-	if b.DisableTaggedMetrics {
-		result.DisableTaggedMetrics = b.DisableTaggedMetrics
-	}
-
-	if b.BackwardsCompatibleMetrics {
-		result.BackwardsCompatibleMetrics = b.BackwardsCompatibleMetrics
 	}
 
 	if b.PrefixFilter != nil {

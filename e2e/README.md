@@ -1,23 +1,117 @@
-End to End Tests
-================
+# End to End Tests
 
-This package contains integration tests. 
+This package contains integration tests. Unlike tests alongside Nomad code,
+these tests expect there to already be a functional Nomad cluster accessible
+(either on localhost or via the `NOMAD_ADDR` env var).
 
-The `terraform` folder has provisioning code to spin up a Nomad cluster on AWS. The tests work with the `NOMAD_ADDR` environment variable which can be set either to a local dev Nomad agent or a Nomad client on AWS. 
+See [`framework/doc.go`](framework/doc.go) for how to write tests.
 
-Local Development
-=================
-The workflow when developing end to end tests locally is to run the provisioning step described below once, and then run the tests as described below.
-When making local changes, use `./bin/update $(which nomad) /usr/local/bin/nomad` and `./bin/run sudo systemctl restart nomad` to destructively modify the provisioned cluster.
+The `NOMAD_E2E=1` environment variable must be set for these tests to run.
 
-Provisioning
-============
-You'll need AWS credentials (`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`) to create the Nomad cluster. See the [README](https://github.com/hashicorp/nomad/blob/master/e2e/terraform/README.md) for details. The number of servers and clients is configurable, as is the configuration file for each client and server.
+## Provisioning Test Infrastructure on AWS
 
-Running
-===========
-After completing the provisioning step above, you should see CLI output showing the IP addresses of Nomad client machines. To run the tests, set the NOMAD_ADDR variable to `http://[client IP]:4646/`
+The `terraform/` folder has provisioning code to spin up a Nomad cluster on
+AWS. You'll need both Terraform and AWS credentials to setup AWS instances on
+which e2e tests will run. See the
+[README](https://github.com/hashicorp/nomad/blob/master/e2e/terraform/README.md)
+for details. The number of servers and clients is configurable, as is the
+specific build of Nomad to deploy and the configuration file for each client
+and server.
 
+## Provisioning Local Clusters
+
+To run tests against a local cluster, you'll need to make sure the following
+environment variables are set:
+
+* `NOMAD_ADDR` should point to one of the Nomad servers
+* `CONSUL_HTTP_ADDR` should point to one of the Consul servers
+* `NOMAD_E2E=1`
+
+_TODO: the scripts in `./bin` currently work only with Terraform, it would be
+nice for us to have a way to deploy Nomad to Vagrant or local clusters._
+
+## Running
+
+After completing the provisioning step above, you can set the client
+environment for `NOMAD_ADDR` and run the tests as shown below:
+
+```sh
+# from the ./e2e/terraform directory, set your client environment
+# if you haven't already
+$(terraform output environment)
+
+cd ..
+go test -v .
 ```
-$ NOMAD_ADDR=<> NOMAD_E2E=1 go test -v
+
+If you want to run a specific suite, you can specify the `-suite` flag as
+shown below. Only the suite with a matching `Framework.TestSuite.Component`
+will be run, and all others will be skipped.
+
+```sh
+go test -v -suite=Consul .
 ```
+
+If you want to run a specific test, you'll need to regex-escape some of the
+test's name so that the test runner doesn't skip over framework struct method
+names in the full name of the tests:
+
+```sh
+go test -v . -run 'TestE2E/Consul/\*consul\.ScriptChecksE2ETest/TestGroup'
+                              ^       ^             ^               ^
+                              |       |             |               |
+                          Component   |             |           Test func
+                                      |             |
+                                  Go Package      Struct
+```
+
+## I Want To...
+
+### ...SSH Into One Of The Test Machines
+
+You can use the Terraform output to find the IP address. The keys will
+in the `./terraform/keys/` directory.
+
+```sh
+ssh -i keys/nomad-e2e-*.pem ubuntu@${EC2_IP_ADDR}
+```
+
+Run `terraform output` for IP addresses and details.
+
+### ...Deploy a Cluster of Mixed Nomad Versions
+
+The `variables.tf` file describes the `nomad_sha`, `nomad_version`, and
+`nomad_local_binary` variable that can be used for most circumstances. But if
+you want to deploy mixed Nomad versions, you can provide a list of versions in
+your `terraform.tfvars` file.
+
+For example, if you want to provision 3 servers all using Nomad 0.12.1, and 2
+Linux clients using 0.12.1 and 0.12.2, you can use the following variables:
+
+```hcl
+# will be used for servers
+nomad_version = "0.12.1"
+
+# will override the nomad_version for Linux clients
+nomad_version_client_linux = [
+    "0.12.1",
+    "0.12.2"
+]
+```
+
+### ...Deploy Custom Configuration Files
+
+Set the `profile` field to `"custom"` and put the configuration files in
+`./terraform/config/custom/` as described in the
+[README](https://github.com/hashicorp/nomad/blob/master/e2e/terraform/README.md#Profiles).
+
+### ...Deploy More Than 4 Linux Clients
+
+Use the `"custom"` profile as described above.
+
+### ...Change the Nomad Version After Provisioning
+
+You can update the `nomad_sha` or `nomad_version` variables, or simply rebuild
+the binary you have at the `nomad_local_binary` path so that Terraform picks
+up the changes. Then run `terraform plan`/`terraform apply` again. This will
+update Nomad in place, making the minimum amount of changes necessary.

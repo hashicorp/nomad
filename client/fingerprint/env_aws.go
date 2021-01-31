@@ -2,7 +2,6 @@ package fingerprint
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -10,6 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/ec2metadata"
+	"github.com/aws/aws-sdk-go/aws/session"
 	log "github.com/hashicorp/go-hclog"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
@@ -17,19 +20,15 @@ import (
 )
 
 const (
-	// This is where the AWS metadata server normally resides. We hardcode the
-	// "instance" path as well since it's the only one we access here.
-	DEFAULT_AWS_URL = "http://169.254.169.254/latest/meta-data/"
-
 	// AwsMetadataTimeout is the timeout used when contacting the AWS metadata
-	// service
+	// services.
 	AwsMetadataTimeout = 2 * time.Second
 )
 
 // map of instance type to approximate speed, in Mbits/s
 // Estimates from http://stackoverflow.com/a/35806587
 // This data is meant for a loose approximation
-var ec2InstanceSpeedMap = map[*regexp.Regexp]int{
+var ec2NetSpeedTable = map[*regexp.Regexp]int{
 	regexp.MustCompile("t2.nano"):      30,
 	regexp.MustCompile("t2.micro"):     70,
 	regexp.MustCompile("t2.small"):     125,
@@ -50,15 +49,18 @@ var ec2InstanceSpeedMap = map[*regexp.Regexp]int{
 // EnvAWSFingerprint is used to fingerprint AWS metadata
 type EnvAWSFingerprint struct {
 	StaticFingerprinter
-	timeout time.Duration
-	logger  log.Logger
+
+	// endpoint for EC2 metadata as expected by AWS SDK
+	endpoint string
+
+	logger log.Logger
 }
 
 // NewEnvAWSFingerprint is used to create a fingerprint from AWS metadata
 func NewEnvAWSFingerprint(logger log.Logger) Fingerprint {
 	f := &EnvAWSFingerprint{
-		logger:  logger.Named("env_aws"),
-		timeout: AwsMetadataTimeout,
+		logger:   logger.Named("env_aws"),
+		endpoint: strings.TrimSuffix(os.Getenv("AWS_ENV_URL"), "/meta-data/"),
 	}
 	return f
 }
@@ -66,28 +68,20 @@ func NewEnvAWSFingerprint(logger log.Logger) Fingerprint {
 func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *FingerprintResponse) error {
 	cfg := request.Config
 
+	timeout := AwsMetadataTimeout
+
 	// Check if we should tighten the timeout
 	if cfg.ReadBoolDefault(TightenNetworkTimeoutsConfig, false) {
-		f.timeout = 1 * time.Millisecond
+		timeout = 1 * time.Millisecond
 	}
 
-	if !f.isAWS() {
+	ec2meta, err := ec2MetaClient(f.endpoint, timeout)
+	if err != nil {
+		return fmt.Errorf("failed to setup ec2Metadata client: %v", err)
+	}
+
+	if !isAWS(ec2meta) {
 		return nil
-	}
-
-	// newNetwork is populated and added to the Nodes resources
-	newNetwork := &structs.NetworkResource{
-		Device: "eth0",
-	}
-
-	metadataURL := os.Getenv("AWS_ENV_URL")
-	if metadataURL == "" {
-		metadataURL = DEFAULT_AWS_URL
-	}
-
-	client := &http.Client{
-		Timeout:   f.timeout,
-		Transport: cleanhttp.DefaultTransport(),
 	}
 
 	// Keys and whether they should be namespaced as unique. Any key whose value
@@ -102,26 +96,28 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		"local-ipv4":                  true,
 		"public-hostname":             true,
 		"public-ipv4":                 true,
+		"mac":                         true,
 		"placement/availability-zone": false,
 	}
+
 	for k, unique := range keys {
-		res, err := client.Get(metadataURL + k)
-		if err != nil {
+		resp, err := ec2meta.GetMetadata(k)
+		v := strings.TrimSpace(resp)
+		if v == "" {
+			f.logger.Debug("read an empty value", "attribute", k)
+			continue
+		} else if awsErr, ok := err.(awserr.RequestFailure); ok {
+			f.logger.Debug("could not read attribute value", "attribute", k, "error", awsErr)
+			continue
+		} else if awsErr, ok := err.(awserr.Error); ok {
 			// if it's a URL error, assume we're not in an AWS environment
 			// TODO: better way to detect AWS? Check xen virtualization?
-			if _, ok := err.(*url.Error); ok {
+			if _, ok := awsErr.OrigErr().(*url.Error); ok {
 				return nil
 			}
+
 			// not sure what other errors it would return
 			return err
-		} else if res.StatusCode != http.StatusOK {
-			f.logger.Debug("could not read attribute value", "attribute", k)
-			continue
-		}
-		resp, err := ioutil.ReadAll(res.Body)
-		res.Body.Close()
-		if err != nil {
-			f.logger.Error("error reading response body for AWS attribute", "attribute", k, "error", err)
 		}
 
 		// assume we want blank entries
@@ -130,43 +126,76 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 			key = structs.UniqueNamespace(key)
 		}
 
-		response.AddAttribute(key, strings.Trim(string(resp), "\n"))
+		response.AddAttribute(key, v)
 	}
+
+	// accumulate resource information, then assign to response
+	var resources *structs.Resources
+	var nodeResources *structs.NodeResources
 
 	// copy over network specific information
 	if val, ok := response.Attributes["unique.platform.aws.local-ipv4"]; ok && val != "" {
 		response.AddAttribute("unique.network.ip-address", val)
-		newNetwork.IP = val
-		newNetwork.CIDR = newNetwork.IP + "/32"
+		nodeResources = new(structs.NodeResources)
+		nodeResources.Networks = []*structs.NetworkResource{
+			{
+				Mode:   "host",
+				Device: "eth0",
+				IP:     val,
+				CIDR:   val + "/32",
+				MBits:  f.throughput(request, ec2meta, val),
+			},
+		}
 	}
 
-	// find LinkSpeed from lookup
-	throughput := f.linkSpeed()
-	if cfg.NetworkSpeed != 0 {
-		throughput = cfg.NetworkSpeed
-	} else if throughput == 0 {
-		// Failed to determine speed. Check if the network fingerprint got it
-		found := false
-		if request.Node.Resources != nil && len(request.Node.Resources.Networks) > 0 {
-			for _, n := range request.Node.Resources.Networks {
-				if n.IP == newNetwork.IP {
-					throughput = n.MBits
-					found = true
-					break
-				}
+	// copy over IPv6 network specific information
+	if val, ok := response.Attributes["unique.platform.aws.mac"]; ok && val != "" {
+		k := "network/interfaces/macs/" + val + "/ipv6s"
+		addrsStr, err := ec2meta.GetMetadata(k)
+		addrsStr = strings.TrimSpace(addrsStr)
+		if addrsStr == "" {
+			f.logger.Debug("read an empty value", "attribute", k)
+		} else if awsErr, ok := err.(awserr.RequestFailure); ok {
+			f.logger.Debug("could not read attribute value", "attribute", k, "error", awsErr)
+		} else if awsErr, ok := err.(awserr.Error); ok {
+			// if it's a URL error, assume we're not in an AWS environment
+			// TODO: better way to detect AWS? Check xen virtualization?
+			if _, ok := awsErr.OrigErr().(*url.Error); ok {
+				return nil
 			}
-		}
 
-		// Nothing detected so default
-		if !found {
-			throughput = defaultNetworkSpeed
+			// not sure what other errors it would return
+			return err
+		} else {
+			addrs := strings.SplitN(addrsStr, "\n", 2)
+			response.AddAttribute("unique.platform.aws.public-ipv6", addrs[0])
 		}
 	}
 
-	newNetwork.MBits = throughput
-	response.NodeResources = &structs.NodeResources{
-		Networks: []*structs.NetworkResource{newNetwork},
+	// copy over CPU speed information
+	if specs := f.lookupCPU(ec2meta); specs != nil {
+		response.AddAttribute("cpu.frequency", fmt.Sprintf("%d", specs.MHz))
+		response.AddAttribute("cpu.numcores", fmt.Sprintf("%d", specs.Cores))
+		f.logger.Debug("lookup ec2 cpu", "cores", specs.Cores, "ghz", log.Fmt("%.1f", specs.GHz()))
+
+		if ticks := specs.Ticks(); request.Config.CpuCompute <= 0 {
+			response.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", ticks))
+			f.logger.Debug("setting ec2 cpu", "ticks", ticks)
+			resources = new(structs.Resources)
+			resources.CPU = ticks
+			if nodeResources == nil {
+				nodeResources = new(structs.NodeResources)
+			}
+			nodeResources.Cpu = structs.NodeCpuResources{CpuShares: int64(ticks)}
+		} else {
+			response.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", request.Config.CpuCompute))
+		}
+	} else {
+		f.logger.Warn("failed to find the cpu specification for this instance type")
 	}
+
+	response.Resources = resources
+	response.NodeResources = nodeResources
 
 	// populate Links
 	response.AddLink("aws.ec2", fmt.Sprintf("%s.%s",
@@ -177,82 +206,84 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 	return nil
 }
 
-func (f *EnvAWSFingerprint) isAWS() bool {
-	// Read the internal metadata URL from the environment, allowing test files to
-	// provide their own
-	metadataURL := os.Getenv("AWS_ENV_URL")
-	if metadataURL == "" {
-		metadataURL = DEFAULT_AWS_URL
-	}
-
-	client := &http.Client{
-		Timeout:   f.timeout,
-		Transport: cleanhttp.DefaultTransport(),
-	}
-
-	// Query the metadata url for the ami-id, to verify we're on AWS
-	resp, err := client.Get(metadataURL + "ami-id")
+func (f *EnvAWSFingerprint) instanceType(ec2meta *ec2metadata.EC2Metadata) (string, error) {
+	response, err := ec2meta.GetMetadata("instance-type")
 	if err != nil {
-		f.logger.Debug("error querying AWS Metadata URL, skipping")
-		return false
+		return "", err
 	}
-	defer resp.Body.Close()
+	return strings.TrimSpace(response), nil
+}
 
-	if resp.StatusCode >= 400 {
-		// URL not found, which indicates that this isn't AWS
-		return false
-	}
-
-	instanceID, err := ioutil.ReadAll(resp.Body)
+func (f *EnvAWSFingerprint) lookupCPU(ec2meta *ec2metadata.EC2Metadata) *CPU {
+	instanceType, err := f.instanceType(ec2meta)
 	if err != nil {
-		f.logger.Debug("error reading AWS Instance ID, skipping")
-		return false
+		f.logger.Warn("failed to read EC2 metadata instance-type", "error", err)
+		return nil
+	}
+	return LookupEC2CPU(instanceType)
+}
+
+func (f *EnvAWSFingerprint) throughput(request *FingerprintRequest, ec2meta *ec2metadata.EC2Metadata, ip string) int {
+	throughput := request.Config.NetworkSpeed
+	if throughput != 0 {
+		return throughput
 	}
 
-	match, err := regexp.MatchString("ami-*", string(instanceID))
-	if err != nil || !match {
-		return false
+	throughput = f.linkSpeed(ec2meta)
+	if throughput != 0 {
+		return throughput
 	}
 
-	return true
+	if request.Node.Resources != nil && len(request.Node.Resources.Networks) > 0 {
+		for _, n := range request.Node.Resources.Networks {
+			if n.IP == ip {
+				return n.MBits
+			}
+		}
+	}
+
+	return defaultNetworkSpeed
 }
 
 // EnvAWSFingerprint uses lookup table to approximate network speeds
-func (f *EnvAWSFingerprint) linkSpeed() int {
-
-	// Query the API for the instance type, and use the table above to approximate
-	// the network speed
-	metadataURL := os.Getenv("AWS_ENV_URL")
-	if metadataURL == "" {
-		metadataURL = DEFAULT_AWS_URL
-	}
-
-	client := &http.Client{
-		Timeout:   f.timeout,
-		Transport: cleanhttp.DefaultTransport(),
-	}
-
-	res, err := client.Get(metadataURL + "instance-type")
+func (f *EnvAWSFingerprint) linkSpeed(ec2meta *ec2metadata.EC2Metadata) int {
+	instanceType, err := f.instanceType(ec2meta)
 	if err != nil {
 		f.logger.Error("error reading instance-type", "error", err)
 		return 0
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
-	if err != nil {
-		f.logger.Error("error reading response body for instance-type", "error", err)
-		return 0
-	}
-
-	key := strings.Trim(string(body), "\n")
 	netSpeed := 0
-	for reg, speed := range ec2InstanceSpeedMap {
-		if reg.MatchString(key) {
+	for reg, speed := range ec2NetSpeedTable {
+		if reg.MatchString(instanceType) {
 			netSpeed = speed
 			break
 		}
 	}
 
 	return netSpeed
+}
+
+func ec2MetaClient(endpoint string, timeout time.Duration) (*ec2metadata.EC2Metadata, error) {
+	client := &http.Client{
+		Timeout:   timeout,
+		Transport: cleanhttp.DefaultTransport(),
+	}
+
+	c := aws.NewConfig().WithHTTPClient(client).WithMaxRetries(0)
+	if endpoint != "" {
+		c = c.WithEndpoint(endpoint)
+	}
+
+	sess, err := session.NewSession(c)
+	if err != nil {
+		return nil, err
+	}
+	return ec2metadata.New(sess, c), nil
+}
+
+func isAWS(ec2meta *ec2metadata.EC2Metadata) bool {
+	v, err := ec2meta.GetMetadata("ami-id")
+	v = strings.TrimSpace(v)
+	return err == nil && v != ""
 }

@@ -160,7 +160,7 @@ func (tc *UpgradePathTC) testUpgradeForJob(t *testing.T, ver string, jobfile str
 	// Register a sleep job
 	jobID := "sleep-" + uuid.Generate()[:8]
 	t.Logf("registering exec job with id %s", jobID)
-	e2eutil.RegisterAndWaitForAllocs(t, client, jobfile, jobID)
+	e2eutil.RegisterAndWaitForAllocs(t, client, jobfile, jobID, "")
 	allocs, _, err := client.Jobs().Allocations(jobID, false, nil)
 	require.NoError(err)
 	require.Len(allocs, 1)

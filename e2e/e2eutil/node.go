@@ -112,3 +112,75 @@ func newRestartJob(nodeID string) *api.Job {
 	job.Canonicalize()
 	return job
 }
+
+// ListWindowsClientNodes returns a list of Windows client IDs, so that tests
+// can skip operating-specific tests if there are no Windows clients available.
+// Returns an error only on client errors.
+func ListWindowsClientNodes(client *api.Client) ([]string, error) {
+	return listClientNodesByOS(client, "windows")
+}
+
+// ListLinuxClientNodes returns a list of Linux client IDs, so that tests
+// can skip operating-specific tests if there are no Linux clients available
+// Returns an error only on client errors.
+func ListLinuxClientNodes(client *api.Client) ([]string, error) {
+	return listClientNodesByOS(client, "linux")
+}
+
+func listClientNodesByOS(client *api.Client, osName string) ([]string, error) {
+	nodeIDs := []string{}
+	nodes, _, err := client.Nodes().List(&api.QueryOptions{})
+	if err != nil {
+		return nodeIDs, fmt.Errorf("could not query nodes: %v", err)
+	}
+	for _, stubNode := range nodes {
+		node, _, err := client.Nodes().Info(stubNode.ID, nil)
+		if err != nil {
+			return nodeIDs, fmt.Errorf("could not query nodes: %v", err)
+		}
+		if name, ok := node.Attributes["kernel.name"]; ok && name == osName {
+			nodeIDs = append(nodeIDs, stubNode.ID)
+		}
+	}
+	return nodeIDs, nil
+}
+
+func NodeStatusList() ([]map[string]string, error) {
+
+	out, err := Command("nomad", "node", "status", "-verbose")
+	if err != nil {
+		return nil, fmt.Errorf("'nomad node status' failed: %w", err)
+	}
+
+	nodes, err := ParseColumns(out)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse node status output: %w", err)
+	}
+	return nodes, nil
+}
+
+func NodeStatusListFiltered(filterFn func(string) bool) ([]map[string]string, error) {
+
+	out, err := Command("nomad", "node", "status", "-verbose")
+	if err != nil {
+		return nil, fmt.Errorf("'nomad node status' failed: %w", err)
+	}
+
+	allNodes, err := ParseColumns(out)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse node status output: %w", err)
+	}
+	nodes := []map[string]string{}
+
+	for _, node := range allNodes {
+		out, err := Command("nomad", "node", "status", "-verbose", node["ID"])
+		if err != nil {
+			return nil, fmt.Errorf("could not node status output: %w", err)
+		}
+		if filterFn(out) {
+			nodes = append(nodes, node)
+		}
+	}
+
+	return nodes, nil
+}

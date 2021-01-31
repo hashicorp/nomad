@@ -24,6 +24,8 @@ type FingerprintManager struct {
 	// associated node
 	updateNodeAttributes func(*fingerprint.FingerprintResponse) *structs.Node
 
+	reloadableFps map[string]fingerprint.ReloadableFingerprint
+
 	logger log.Logger
 }
 
@@ -44,6 +46,7 @@ func NewFingerprintManager(
 		node:                 node,
 		shutdownCh:           shutdownCh,
 		logger:               logger.Named("fingerprint_mgr"),
+		reloadableFps:        make(map[string]fingerprint.ReloadableFingerprint),
 	}
 }
 
@@ -62,28 +65,30 @@ func (fm *FingerprintManager) getNode() *structs.Node {
 }
 
 // Run starts the process of fingerprinting the node. It does an initial pass,
-// identifying whitelisted and blacklisted fingerprints/drivers. Then, for
+// identifying allowlisted and denylisted fingerprints/drivers. Then, for
 // those which require periotic checking, it starts a periodic process for
 // each.
 func (fp *FingerprintManager) Run() error {
 	// First, set up all fingerprints
 	cfg := fp.getConfig()
-	whitelistFingerprints := cfg.ReadStringListToMap("fingerprint.whitelist")
-	whitelistFingerprintsEnabled := len(whitelistFingerprints) > 0
-	blacklistFingerprints := cfg.ReadStringListToMap("fingerprint.blacklist")
+	// COMPAT(1.0) using inclusive language, whitelist is kept for backward compatibility.
+	allowlistFingerprints := cfg.ReadStringListToMap("fingerprint.allowlist", "fingerprint.whitelist")
+	allowlistFingerprintsEnabled := len(allowlistFingerprints) > 0
+	// COMPAT(1.0) using inclusive language, blacklist is kept for backward compatibility.
+	denylistFingerprints := cfg.ReadStringListToMap("fingerprint.denylist", "fingerprint.blacklist")
 
 	fp.logger.Debug("built-in fingerprints", "fingerprinters", fingerprint.BuiltinFingerprints())
 
 	var availableFingerprints []string
 	var skippedFingerprints []string
 	for _, name := range fingerprint.BuiltinFingerprints() {
-		// Skip modules that are not in the whitelist if it is enabled.
-		if _, ok := whitelistFingerprints[name]; whitelistFingerprintsEnabled && !ok {
+		// Skip modules that are not in the allowlist if it is enabled.
+		if _, ok := allowlistFingerprints[name]; allowlistFingerprintsEnabled && !ok {
 			skippedFingerprints = append(skippedFingerprints, name)
 			continue
 		}
-		// Skip modules that are in the blacklist
-		if _, ok := blacklistFingerprints[name]; ok {
+		// Skip modules that are in the denylist
+		if _, ok := denylistFingerprints[name]; ok {
 			skippedFingerprints = append(skippedFingerprints, name)
 			continue
 		}
@@ -96,11 +101,22 @@ func (fp *FingerprintManager) Run() error {
 	}
 
 	if len(skippedFingerprints) != 0 {
-		fp.logger.Debug("fingerprint modules skipped due to white/blacklist",
+		fp.logger.Debug("fingerprint modules skipped due to allow/denylist",
 			"skipped_fingerprinters", skippedFingerprints)
 	}
 
 	return nil
+}
+
+// Reload will reload any registered ReloadableFingerprinters and immediately call Fingerprint
+func (fm *FingerprintManager) Reload() {
+	for name, fp := range fm.reloadableFps {
+		fm.logger.Info("reloading fingerprinter", "fingerprinter", name)
+		fp.Reload()
+		if _, err := fm.fingerprint(name, fp); err != nil {
+			fm.logger.Warn("error fingerprinting after reload", "fingerprinter", name, "error", err)
+		}
+	}
 }
 
 // setupFingerprints is used to fingerprint the node to see if these attributes are
@@ -129,6 +145,10 @@ func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
 		p, period := f.Periodic()
 		if p {
 			go fm.runFingerprint(f, period, name)
+		}
+
+		if rfp, ok := f.(fingerprint.ReloadableFingerprint); ok {
+			fm.reloadableFps[name] = rfp
 		}
 	}
 

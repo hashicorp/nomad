@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/hashicorp/raft"
@@ -103,6 +104,10 @@ type AutopilotConfig struct {
 	// be behind before being considered unhealthy.
 	MaxTrailingLogs uint64
 
+	// MinQuorum sets the minimum number of servers required in a cluster
+	// before autopilot can prune dead servers.
+	MinQuorum uint
+
 	// (Enterprise-only) EnableRedundancyZones specifies whether to enable redundancy zones.
 	EnableRedundancyZones bool
 
@@ -120,15 +125,61 @@ type AutopilotConfig struct {
 	ModifyIndex uint64
 }
 
+// SchedulerAlgorithm is an enum string that encapsulates the valid options for a
+// SchedulerConfiguration stanza's SchedulerAlgorithm. These modes will allow the
+// scheduler to be user-selectable.
+type SchedulerAlgorithm string
+
+const (
+	// SchedulerAlgorithmBinpack indicates that the scheduler should spread
+	// allocations as evenly as possible over the available hardware.
+	SchedulerAlgorithmBinpack SchedulerAlgorithm = "binpack"
+
+	// SchedulerAlgorithmSpread indicates that the scheduler should spread
+	// allocations as evenly as possible over the available hardware.
+	SchedulerAlgorithmSpread SchedulerAlgorithm = "spread"
+)
+
 // SchedulerConfiguration is the config for controlling scheduler behavior
 type SchedulerConfiguration struct {
+	// SchedulerAlgorithm lets you select between available scheduling algorithms.
+	SchedulerAlgorithm SchedulerAlgorithm `hcl:"scheduler_algorithm"`
+
 	// PreemptionConfig specifies whether to enable eviction of lower
 	// priority jobs to place higher priority jobs.
-	PreemptionConfig PreemptionConfig
+	PreemptionConfig PreemptionConfig `hcl:"preemption_config"`
 
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+func (s *SchedulerConfiguration) EffectiveSchedulerAlgorithm() SchedulerAlgorithm {
+	if s == nil || s.SchedulerAlgorithm == "" {
+		return SchedulerAlgorithmBinpack
+	}
+
+	return s.SchedulerAlgorithm
+}
+
+func (s *SchedulerConfiguration) Canonicalize() {
+	if s != nil && s.SchedulerAlgorithm == "" {
+		s.SchedulerAlgorithm = SchedulerAlgorithmBinpack
+	}
+}
+
+func (s *SchedulerConfiguration) Validate() error {
+	if s == nil {
+		return nil
+	}
+
+	switch s.SchedulerAlgorithm {
+	case "", SchedulerAlgorithmBinpack, SchedulerAlgorithmSpread:
+	default:
+		return fmt.Errorf("invalid scheduler algorithm: %v", s.SchedulerAlgorithm)
+	}
+
+	return nil
 }
 
 // SchedulerConfigurationResponse is the response object that wraps SchedulerConfiguration
@@ -152,13 +203,13 @@ type SchedulerSetConfigurationResponse struct {
 // PreemptionConfig specifies whether preemption is enabled based on scheduler type
 type PreemptionConfig struct {
 	// SystemSchedulerEnabled specifies if preemption is enabled for system jobs
-	SystemSchedulerEnabled bool
+	SystemSchedulerEnabled bool `hcl:"system_scheduler_enabled"`
 
 	// BatchSchedulerEnabled specifies if preemption is enabled for batch jobs
-	BatchSchedulerEnabled bool
+	BatchSchedulerEnabled bool `hcl:"batch_scheduler_enabled"`
 
 	// ServiceSchedulerEnabled specifies if preemption is enabled for service jobs
-	ServiceSchedulerEnabled bool
+	ServiceSchedulerEnabled bool `hcl:"service_scheduler_enabled"`
 }
 
 // SchedulerSetConfigRequest is used by the Operator endpoint to update the
@@ -172,4 +223,37 @@ type SchedulerSetConfigRequest struct {
 
 	// WriteRequest holds the ACL token to go along with this request.
 	WriteRequest
+}
+
+// SnapshotSaveRequest is used by the Operator endpoint to get a Raft snapshot
+type SnapshotSaveRequest struct {
+	QueryOptions
+}
+
+// SnapshotSaveResponse is the header for the streaming snapshot endpoint,
+// and followed by the snapshot file content.
+type SnapshotSaveResponse struct {
+
+	// SnapshotChecksum returns the checksum of snapshot file in the format
+	// `<algo>=<base64>` (e.g. `sha-256=...`)
+	SnapshotChecksum string
+
+	// ErrorCode is an http error code if an error is found, e.g. 403 for permission errors
+	ErrorCode int `codec:",omitempty"`
+
+	// ErrorMsg is the error message if an error is found, e.g. "Permission Denied"
+	ErrorMsg string `codec:",omitempty"`
+
+	QueryMeta
+}
+
+type SnapshotRestoreRequest struct {
+	WriteRequest
+}
+
+type SnapshotRestoreResponse struct {
+	ErrorCode int    `codec:",omitempty"`
+	ErrorMsg  string `codec:",omitempty"`
+
+	QueryMeta
 }

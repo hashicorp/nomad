@@ -1,24 +1,39 @@
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import pageSizeSelect from './behaviors/page-size-select';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 
 module('Acceptance | clients list', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
+  hooks.beforeEach(function() {
+    window.localStorage.clear();
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    const nodesCount = ClientsList.pageSize + 1;
+
+    server.createList('node', nodesCount);
+    server.createList('agent', 1);
+
+    await ClientsList.visit();
+    await a11yAudit(assert);
+  });
+
   test('/clients should list one page of clients', async function(assert) {
     // Make sure to make more nodes than 1 page to assert that pagination is working
-    const nodesCount = 10;
-    const pageSize = 8;
+    const nodesCount = ClientsList.pageSize + 1;
 
     server.createList('node', nodesCount);
     server.createList('agent', 1);
 
     await ClientsList.visit();
 
-    assert.equal(ClientsList.nodes.length, pageSize);
+    assert.equal(ClientsList.nodes.length, ClientsList.pageSize);
     assert.ok(ClientsList.hasPagination, 'Pagination found on the page');
 
     const sortedNodes = server.db.nodes.sortBy('modifyIndex').reverse();
@@ -41,13 +56,46 @@ module('Acceptance | clients list', function(hooks) {
 
     assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
     assert.equal(nodeRow.name, node.name, 'Name');
-    assert.equal(nodeRow.state.text, 'draining', 'Combined status, draining, and eligbility');
+    assert.equal(
+      nodeRow.compositeStatus.text,
+      'draining',
+      'Combined status, draining, and eligbility'
+    );
     assert.equal(nodeRow.address, node.httpAddr);
     assert.equal(nodeRow.datacenter, node.datacenter, 'Datacenter');
     assert.equal(nodeRow.allocations, allocations.length, '# Allocations');
   });
 
-  test('client status, draining, and eligibility are collapsed into one column', async function(assert) {
+  test('each client record should show running allocations', async function(assert) {
+    server.createList('agent', 1);
+
+    const node = server.create('node', {
+      modifyIndex: 4,
+      status: 'ready',
+      schedulingEligibility: 'eligible',
+      drain: false,
+    });
+
+    server.create('job', { createAllocations: false });
+
+    const running = server.createList('allocation', 2, { clientStatus: 'running' });
+    server.createList('allocation', 3, { clientStatus: 'pending' });
+    server.createList('allocation', 10, { clientStatus: 'complete' });
+
+    await ClientsList.visit();
+
+    const nodeRow = ClientsList.nodes.objectAt(0);
+
+    assert.equal(nodeRow.id, node.id.split('-')[0], 'ID');
+    assert.equal(
+      nodeRow.compositeStatus.text,
+      'ready',
+      'Combined status, draining, and eligbility'
+    );
+    assert.equal(nodeRow.allocations, running.length, '# Allocations');
+  });
+
+  test('client status, draining, and eligibility are collapsed into one column that stays sorted', async function(assert) {
     server.createList('agent', 1);
 
     server.create('node', {
@@ -81,20 +129,47 @@ module('Acceptance | clients list', function(hooks) {
 
     await ClientsList.visit();
 
-    ClientsList.nodes[0].state.as(readyClient => {
+    ClientsList.nodes[0].compositeStatus.as(readyClient => {
       assert.equal(readyClient.text, 'ready');
       assert.ok(readyClient.isUnformatted, 'expected no status class');
       assert.equal(readyClient.tooltip, 'ready / not draining / eligible');
     });
 
-    assert.equal(ClientsList.nodes[1].state.text, 'initializing');
-    assert.equal(ClientsList.nodes[2].state.text, 'down');
+    assert.equal(ClientsList.nodes[1].compositeStatus.text, 'initializing');
+    assert.equal(ClientsList.nodes[2].compositeStatus.text, 'down');
 
-    assert.equal(ClientsList.nodes[3].state.text, 'ineligible');
-    assert.ok(ClientsList.nodes[3].state.isWarning, 'expected warning class');
+    assert.equal(ClientsList.nodes[3].compositeStatus.text, 'ineligible');
+    assert.ok(ClientsList.nodes[3].compositeStatus.isWarning, 'expected warning class');
 
-    assert.equal(ClientsList.nodes[4].state.text, 'draining');
-    assert.ok(ClientsList.nodes[4].state.isInfo, 'expected info class');
+    assert.equal(ClientsList.nodes[4].compositeStatus.text, 'draining');
+    assert.ok(ClientsList.nodes[4].compositeStatus.isInfo, 'expected info class');
+
+    await ClientsList.sortBy('compositeStatus');
+
+    assert.deepEqual(ClientsList.nodes.mapBy('compositeStatus.text'), [
+      'ready',
+      'initializing',
+      'ineligible',
+      'draining',
+      'down',
+    ]);
+
+    // Simulate a client state change arriving through polling
+    let readyClient = this.owner
+      .lookup('service:store')
+      .peekAll('node')
+      .findBy('modifyIndex', 4);
+    readyClient.set('schedulingEligibility', 'ineligible');
+
+    await settled();
+
+    assert.deepEqual(ClientsList.nodes.mapBy('compositeStatus.text'), [
+      'initializing',
+      'ineligible',
+      'ineligible',
+      'draining',
+      'down',
+    ]);
   });
 
   test('each client should link to the client detail page', async function(assert) {
@@ -141,6 +216,17 @@ module('Acceptance | clients list', function(hooks) {
     await ClientsList.error.seekHelp();
 
     assert.equal(currentURL(), '/settings/tokens');
+  });
+
+  pageSizeSelect({
+    resourceName: 'client',
+    pageObject: ClientsList,
+    pageObjectList: ClientsList.nodes,
+    async setup() {
+      server.createList('node', ClientsList.pageSize);
+      server.createList('agent', 1);
+      await ClientsList.visit();
+    },
   });
 
   testFacet('Class', {
@@ -199,6 +285,24 @@ module('Acceptance | clients list', function(hooks) {
       await ClientsList.visit();
     },
     filter: (node, selection) => selection.includes(node.datacenter),
+  });
+
+  testFacet('Volumes', {
+    facet: ClientsList.facets.volume,
+    paramName: 'volume',
+    expectedOptions(nodes) {
+      const flatten = (acc, val) => acc.concat(Object.keys(val));
+      return Array.from(new Set(nodes.mapBy('hostVolumes').reduce(flatten, [])));
+    },
+    async beforeEach() {
+      server.create('agent');
+      server.createList('node', 2, { hostVolumes: { One: { Name: 'One' } } });
+      server.createList('node', 2, { hostVolumes: { One: { Name: 'One' }, Two: { Name: 'Two' } } });
+      server.createList('node', 2, { hostVolumes: { Two: { Name: 'Two' } } });
+      await ClientsList.visit();
+    },
+    filter: (node, selection) =>
+      Object.keys(node.hostVolumes).find(volume => selection.includes(volume)),
   });
 
   test('when the facet selections result in no matches, the empty state states why', async function(assert) {

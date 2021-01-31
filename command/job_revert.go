@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
@@ -20,9 +21,12 @@ Usage: nomad job revert [options] <job> <version>
   Revert is used to revert a job to a prior version of the job. The available
   versions to revert to can be found using "nomad job history" command.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job'
+  and 'list-jobs' capabilities for the job's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Revert Options:
 
@@ -31,9 +35,13 @@ Revert Options:
     the evaluation ID will be printed to the screen, which can be used to
     examine the evaluation using the eval-status command.
 
-  -vault-token 
-   The Vault token used to verify that the caller has access to the Vault 
-   policies i the targeted version of the job.
+  -consul-token
+   The Consul token used to verify that the caller has access to the Service
+   Identity policies associated in the targeted version of the job.
+
+  -vault-token
+   The Vault token used to verify that the caller has access to the Vault
+   policies in the targeted version of the job.
 
   -verbose
     Display full information.
@@ -72,12 +80,13 @@ func (c *JobRevertCommand) Name() string { return "job revert" }
 
 func (c *JobRevertCommand) Run(args []string) int {
 	var detach, verbose bool
-	var vaultToken string
+	var consulToken, vaultToken string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.StringVar(&consulToken, "consul-token", "", "")
 	flags.StringVar(&vaultToken, "vault-token", "", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -103,6 +112,12 @@ func (c *JobRevertCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
+	}
+
+	// Parse the Consul token
+	if consulToken == "" {
+		// Check the environment variable
+		consulToken = os.Getenv("CONSUL_HTTP_TOKEN")
 	}
 
 	// Parse the Vault token
@@ -132,13 +147,14 @@ func (c *JobRevertCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
 		return 1
 	}
-	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+	if len(jobs) > 1 && (c.allNamespaces() || strings.TrimSpace(jobID) != jobs[0].ID) {
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
 		return 1
 	}
 
 	// Prefix lookup matched a single job
-	resp, _, err := client.Jobs().Revert(jobs[0].ID, revertVersion, nil, nil, vaultToken)
+	q := &api.WriteOptions{Namespace: jobs[0].JobSummary.Namespace}
+	resp, _, err := client.Jobs().Revert(jobs[0].ID, revertVersion, nil, q, consulToken, vaultToken)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
 		return 1
@@ -151,5 +167,5 @@ func (c *JobRevertCommand) Run(args []string) int {
 	}
 
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(resp.EvalID, false)
+	return mon.monitor(resp.EvalID)
 }

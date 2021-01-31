@@ -2,6 +2,7 @@ import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
+import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Versions from 'nomad-ui/tests/pages/jobs/job/versions';
 import moment from 'moment';
 
@@ -17,6 +18,10 @@ module('Acceptance | job versions', function(hooks) {
     versions = server.db.jobVersions.where({ jobId: job.id });
 
     await Versions.visit({ id: job.id });
+  });
+
+  test('it passes an accessibility audit', async function(assert) {
+    await a11yAudit(assert);
   });
 
   test('/jobs/:id/versions should list all job versions', async function(assert) {
@@ -40,7 +45,9 @@ module('Acceptance | job versions', function(hooks) {
     await Versions.visit({ id: 'not-a-real-job' });
 
     assert.equal(
-      server.pretender.handledRequests.findBy('status', 404).url,
+      server.pretender.handledRequests
+        .filter(request => !request.url.includes('policy'))
+        .findBy('status', 404).url,
       '/v1/job/not-a-real-job',
       'A request to the nonexistent job is made'
     );

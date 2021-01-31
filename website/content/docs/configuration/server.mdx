@@ -1,0 +1,309 @@
+---
+layout: docs
+page_title: server Stanza - Agent Configuration
+sidebar_title: server
+description: |-
+  The "server" stanza configures the Nomad agent to operate in server mode to
+  participate in scheduling decisions, register with service discovery, handle
+  join failures, and more.
+---
+
+# `server` Stanza
+
+<Placement groups={['server']} />
+
+The `server` stanza configures the Nomad agent to operate in server mode to
+participate in scheduling decisions, register with service discovery, handle
+join failures, and more.
+
+```hcl
+server {
+  enabled          = true
+  bootstrap_expect = 3
+  server_join {
+    retry_join = [ "1.1.1.1", "2.2.2.2" ]
+    retry_max = 3
+    retry_interval = "15s"
+  }
+}
+```
+
+## `server` Parameters
+
+- `authoritative_region` `(string: "")` - Specifies the authoritative region, which
+  provides a single source of truth for global configurations such as ACL Policies and
+  global ACL tokens. Non-authoritative regions will replicate from the authoritative
+  to act as a mirror. By default, the local region is assumed to be authoritative.
+
+- `bootstrap_expect` `(int: required)` - Specifies the number of server nodes to
+  wait for before bootstrapping. It is most common to use the odd-numbered
+  integers `3` or `5` for this value, depending on the cluster size. A value of
+  `1` does not provide any fault tolerance and is not recommended for production
+  use cases.
+
+- `data_dir` `(string: "[data_dir]/server")` - Specifies the directory to use -
+  for server-specific data, including the replicated log. By default, this is -
+  the top-level [data_dir](/docs/configuration#data_dir)
+  suffixed with "server", like `"/opt/nomad/server"`. This must be an absolute
+  path.
+
+- `enabled` `(bool: false)` - Specifies if this agent should run in server mode.
+  All other server options depend on this value being set.
+
+- `enabled_schedulers` `(array<string>: [all])` - Specifies which sub-schedulers
+  this server will handle. This can be used to restrict the evaluations that
+  worker threads will dequeue for processing.
+
+- `enable_event_broker` `(bool: true)` - Specifies if this server will generate
+  events for its event stream.
+
+- `encrypt` `(string: "")` - Specifies the secret key to use for encryption of
+  Nomad server's gossip network traffic. This key must be 32 bytes that are
+  [RFC4648] "URL and filename safe" base64-encoded. You can generate an
+  appropriately-formatted key with the [`nomad operator keygen`] command. The
+  provided key is automatically persisted to the data directory and loaded
+  automatically whenever the agent is restarted. This means that to encrypt
+  Nomad server's gossip protocol, this option only needs to be provided once
+  on each agent's initial startup sequence. If it is provided after Nomad has
+  been initialized with an encryption key, then the provided key is ignored
+  and a warning will be displayed. See the [encryption
+  documentation][encryption] for more details on this option and its impact on
+  the cluster.
+
+- `event_buffer_size` `(int: 100)` - Specifies the number of events generated
+  by the server to be held in memory. Increasing this value enables new
+  subscribers to have a larger look back window when initially subscribing.
+  Decreasing will lower the amount of memory used for the event buffer.
+
+- `node_gc_threshold` `(string: "24h")` - Specifies how long a node must be in a
+  terminal state before it is garbage collected and purged from the system. This
+  is specified using a label suffix like "30s" or "1h".
+
+- `job_gc_interval` `(string: "5m")` - Specifies the interval between the job
+  garbage collections. Only jobs who have been terminal for at least
+  `job_gc_threshold` will be collected. Lowering the interval will perform more
+  frequent but smaller collections. Raising the interval will perform collections
+  less frequently but collect more jobs at a time. Reducing this interval is
+  useful if there is a large throughput of tasks, leading to a large set of
+  dead jobs. This is specified using a label suffix like "30s" or "3m". `job_gc_interval`
+  was introduced in Nomad 0.10.0.
+
+- `job_gc_threshold` `(string: "4h")` - Specifies the minimum time a job must be
+  in the terminal state before it is eligible for garbage collection. This is
+  specified using a label suffix like "30s" or "1h".
+
+- `eval_gc_threshold` `(string: "1h")` - Specifies the minimum time an
+  evaluation must be in the terminal state before it is eligible for garbage
+  collection. This is specified using a label suffix like "30s" or "1h".
+
+- `deployment_gc_threshold` `(string: "1h")` - Specifies the minimum time a
+  deployment must be in the terminal state before it is eligible for garbage
+  collection. This is specified using a label suffix like "30s" or "1h".
+
+- `csi_volume_claim_gc_threshold` `(string: "1h")` - Specifies the minimum age of
+  a CSI volume before it is eligible to have its claims garbage collected.
+  This is specified using a label suffix like "30s" or "1h".
+
+- `csi_plugin_gc_threshold` `(string: "1h")` - Specifies the minimum age of a
+  CSI plugin before it is eligible for garbage collection if not in use.
+  This is specified using a label suffix like "30s" or "1h".
+
+- `default_scheduler_config` <code>([scheduler_configuration][update-scheduler-config]:
+  nil)</code> - Specifies the initial default scheduler config when
+  bootstrapping cluster. The parameter is ignored once the cluster is bootstrapped or
+  value is updated through the [API endpoint][update-scheduler-config]. See [the
+  example section](#configuring-scheduler-config) for more details
+  `default_scheduler_config` was introduced in Nomad 0.10.4.
+
+- `heartbeat_grace` `(string: "10s")` - Specifies the additional time given as a
+  grace period beyond the heartbeat TTL of nodes to account for network and
+  processing delays as well as clock skew. This is specified using a label
+  suffix like "30s" or "1h".
+
+- `min_heartbeat_ttl` `(string: "10s")` - Specifies the minimum time between
+  node heartbeats. This is used as a floor to prevent excessive updates. This is
+  specified using a label suffix like "30s" or "1h". Lowering the minimum TTL is
+  a tradeoff as it lowers failure detection time of nodes at the tradeoff of
+  false positives and increased load on the leader.
+
+- `max_heartbeats_per_second` `(float: 50.0)` - Specifies the maximum target
+  rate of heartbeats being processed per second. This allows the TTL to be
+  increased to meet the target rate. Increasing the maximum heartbeats per
+  second is a tradeoff as it lowers failure detection time of nodes at the
+  tradeoff of false positives and increased load on the leader.
+
+- `non_voting_server` `(bool: false)` - (Enterprise-only) Specifies whether
+  this server will act as a non-voting member of the cluster to help provide
+  read scalability.
+
+- `num_schedulers` `(int: [num-cores])` - Specifies the number of parallel
+  scheduler threads to run. This can be as many as one per core, or `0` to
+  disallow this server from making any scheduling decisions. This defaults to
+  the number of CPU cores.
+
+- `protocol_version` `(int: 1)` - Specifies the Nomad protocol version to use
+  when communicating with other Nomad servers. This value is typically not
+  required as the agent internally knows the latest version, but may be useful
+  in some upgrade scenarios.
+
+- `raft_protocol` `(int: 2)` - Specifies the Raft protocol version to use when
+  communicating with other Nomad servers. This affects available Autopilot
+  features and is typically not required as the agent internally knows the
+  latest version, but may be useful in some upgrade scenarios.
+
+- `raft_multiplier` `(int: 1)` - An integer multiplier used by Nomad servers to
+  scale key Raft timing parameters. Omitting this value or setting it to 0 uses
+  default timing described below. Lower values are used to tighten timing and
+  increase sensitivity while higher values relax timings and reduce sensitivity.
+  Tuning this affects the time it takes Nomad to detect leader failures and to
+  perform leader elections, at the expense of requiring more network and CPU
+  resources for better performance. The maximum allowed value is 10.
+
+  By default, Nomad will use the highest-performance timing, currently equivalent
+  to setting this to a value of 1. Increasing the timings makes leader election
+  less likely during periods of networking issues or resource starvation. Since
+  leader elections pause Nomad's normal work, it may be beneficial for slow or
+  unreliable networks to wait longer before electing a new leader. The tradeoff
+  when raising this value is that during network partitions or other events
+  (server crash) where a leader is lost, Nomad will not elect a new leader for
+  a longer period of time than the default. The [`nomad.nomad.leader.barrier` and
+  `nomad.raft.leader.lastContact` metrics](/docs/telemetry/metrics) are a good
+  indicator of how often leader elections occur and raft latency.
+
+- `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
+  zone that this server will be a part of for Autopilot management. For more
+  information, see the [Autopilot Guide](https://learn.hashicorp.com/tutorials/nomad/autopilot).
+
+- `rejoin_after_leave` `(bool: false)` - Specifies if Nomad will ignore a
+  previous leave and attempt to rejoin the cluster when starting. By default,
+  Nomad treats leave as a permanent intent and does not attempt to join the
+  cluster again when starting. This flag allows the previous state to be used to
+  rejoin the cluster.
+
+- `server_join` <code>([server_join][server-join]: nil)</code> - Specifies
+  how the Nomad server will connect to other Nomad servers. The `retry_join`
+  fields may directly specify the server address or use go-discover syntax for
+  auto-discovery. See the [server_join documentation][server-join] for more detail.
+
+- `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
+  in place of the Nomad version when custom upgrades are enabled in Autopilot.
+  For more information, see the [Autopilot Guide](https://learn.hashicorp.com/tutorials/nomad/autopilot).
+
+### Deprecated Parameters
+
+- `retry_join` `(array<string>: [])` - Specifies a list of server addresses to
+  retry joining if the first attempt fails. This is similar to
+  [`start_join`](#start_join), but only invokes if the initial join attempt
+  fails. The list of addresses will be tried in the order specified, until one
+  succeeds. After one succeeds, no further addresses will be contacted. This is
+  useful for cases where we know the address will become available eventually.
+  Use `retry_join` with an array as a replacement for `start_join`, **do not use
+  both options**. See the [server_join][server-join]
+  section for more information on the format of the string. This field is
+  deprecated in favor of the [server_join stanza][server-join].
+
+- `retry_interval` `(string: "30s")` - Specifies the time to wait between retry
+  join attempts. This field is deprecated in favor of the [server_join
+  stanza][server-join].
+
+- `retry_max` `(int: 0)` - Specifies the maximum number of join attempts to be
+  made before exiting with a return code of 1. By default, this is set to 0
+  which is interpreted as infinite retries. This field is deprecated in favor of
+  the [server_join stanza][server-join].
+
+- `start_join` `(array<string>: [])` - Specifies a list of server addresses to
+  join on startup. If Nomad is unable to join with any of the specified
+  addresses, agent startup will fail. See the [server address
+  format](/docs/configuration/server_join#server-address-format)
+  section for more information on the format of the string. This field is
+  deprecated in favor of the [server_join stanza][server-join].
+
+## `server` Examples
+
+### Common Setup
+
+This example shows a common Nomad agent `server` configuration stanza. The two
+IP addresses could also be DNS, and should point to the other Nomad servers in
+the cluster
+
+```hcl
+server {
+  enabled          = true
+  bootstrap_expect = 3
+
+  server_join {
+    retry_join     = [ "1.1.1.1", "2.2.2.2" ]
+    retry_max      = 3
+    retry_interval = "15s"
+  }
+}
+```
+
+### Configuring Data Directory
+
+This example shows configuring a custom data directory for the server data.
+
+```hcl
+server {
+  data_dir = "/opt/nomad/server"
+}
+```
+
+### Automatic Bootstrapping
+
+The Nomad servers can automatically bootstrap if Consul is configured. For a
+more detailed explanation, please see the
+[automatic Nomad bootstrapping documentation](https://learn.hashicorp.com/tutorials/nomad/clustering).
+
+### Restricting Schedulers
+
+This example shows restricting the schedulers that are enabled as well as the
+maximum number of cores to utilize when participating in scheduling decisions:
+
+```hcl
+server {
+  enabled            = true
+  enabled_schedulers = ["batch", "service"]
+  num_schedulers     = 7
+}
+```
+
+### Bootstrapping with a Custom Scheduler Config ((#configuring-scheduler-config))
+
+While [bootstrapping a cluster], you can use the `default_scheduler_config` stanza
+to prime the cluster with a [`SchedulerConfig`][update-scheduler-config]. The
+scheduler configuration determines which scheduling algorithm is configured—
+spread scheduling or binpacking—and which job types are eligible for preemption.
+
+~> **Warning:** Once the cluster is bootstrapped, you must configure this using
+the [update scheduler configuration][update-scheduler-config] API. This
+option is only consulted during bootstrap.
+
+The structure matches the [Update Scheduler Config][update-scheduler-config] API
+endpoint, which you should consult for canonical documentation. However, the
+attributes names must be adapted to HCL syntax by using snake case
+representations rather than camel case.
+
+This example shows configuring spread scheduling and enabling preemption for all
+job-type schedulers.
+
+```hcl
+server {
+  default_scheduler_config {
+    scheduler_algorithm = "spread"
+
+    preemption_config {
+      batch_scheduler_enabled   = true
+      system_scheduler_enabled  = true
+      service_scheduler_enabled = true
+    }
+  }
+}
+```
+
+[encryption]: https://learn.hashicorp.com/tutorials/nomad/security-gossip-encryption 'Nomad Encryption Overview'
+[server-join]: /docs/configuration/server_join 'Server Join'
+[update-scheduler-config]: /api-docs/operator#update-scheduler-configuration 'Scheduler Config'
+[bootstrapping a cluster]: /docs/faq#bootstrapping
+[RFC4648]: https://tools.ietf.org/html/rfc4648#section-5
+[`nomad operator keygen`]: /docs/commands/operator/keygen

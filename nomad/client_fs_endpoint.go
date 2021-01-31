@@ -12,10 +12,10 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/ugorji/go/codec"
 )
 
 // FileSystem endpoint is used for accessing the logs and filesystem of
@@ -108,13 +108,6 @@ func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListRe
 	}
 	defer metrics.MeasureSince([]string{"nomad", "file_system", "list"}, time.Now())
 
-	// Check filesystem read permissions
-	if aclObj, err := f.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadFS) {
-		return structs.ErrPermissionDenied
-	}
-
 	// Verify the arguments.
 	if args.AllocID == "" {
 		return errors.New("missing allocation ID")
@@ -126,12 +119,18 @@ func (f *FileSystem) List(args *cstructs.FsListRequest, reply *cstructs.FsListRe
 		return err
 	}
 
-	alloc, err := snap.AllocByID(nil, args.AllocID)
+	alloc, err := getAlloc(snap, args.AllocID)
 	if err != nil {
 		return err
 	}
-	if alloc == nil {
-		return structs.NewErrUnknownAllocation(args.AllocID)
+
+	// Check namespace filesystem read permissions
+	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityReadFS)
+	aclObj, err := f.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	} else if !allowNsOp(aclObj, alloc.Namespace) {
+		return structs.ErrPermissionDenied
 	}
 
 	// Make sure Node is valid and new enough to support RPC
@@ -163,13 +162,6 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 	}
 	defer metrics.MeasureSince([]string{"nomad", "file_system", "stat"}, time.Now())
 
-	// Check filesystem read permissions
-	if aclObj, err := f.srv.ResolveToken(args.AuthToken); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadFS) {
-		return structs.ErrPermissionDenied
-	}
-
 	// Verify the arguments.
 	if args.AllocID == "" {
 		return errors.New("missing allocation ID")
@@ -181,12 +173,16 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 		return err
 	}
 
-	alloc, err := snap.AllocByID(nil, args.AllocID)
+	alloc, err := getAlloc(snap, args.AllocID)
 	if err != nil {
 		return err
 	}
-	if alloc == nil {
-		return structs.NewErrUnknownAllocation(args.AllocID)
+
+	// Check filesystem read permissions
+	if aclObj, err := f.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
+		return structs.ErrPermissionDenied
 	}
 
 	// Make sure Node is valid and new enough to support RPC
@@ -228,15 +224,6 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 		return
 	}
 
-	// Check node read permissions
-	if aclObj, err := f.srv.ResolveToken(args.AuthToken); err != nil {
-		handleStreamResultError(err, nil, encoder)
-		return
-	} else if aclObj != nil && !aclObj.AllowNsOp(args.Namespace, acl.NamespaceCapabilityReadFS) {
-		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
-		return
-	}
-
 	// Verify the arguments.
 	if args.AllocID == "" {
 		handleStreamResultError(errors.New("missing AllocID"), helper.Int64ToPtr(400), encoder)
@@ -250,15 +237,25 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 		return
 	}
 
-	alloc, err := snap.AllocByID(nil, args.AllocID)
+	alloc, err := getAlloc(snap, args.AllocID)
+	if structs.IsErrUnknownAllocation(err) {
+		handleStreamResultError(structs.NewErrUnknownAllocation(args.AllocID), helper.Int64ToPtr(404), encoder)
+		return
+	}
 	if err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
 	}
-	if alloc == nil {
-		handleStreamResultError(structs.NewErrUnknownAllocation(args.AllocID), helper.Int64ToPtr(404), encoder)
+
+	// Check namespace read-fs permissions.
+	if aclObj, err := f.srv.ResolveToken(args.AuthToken); err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadFS) {
+		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 		return
 	}
+
 	nodeID := alloc.NodeID
 
 	// Make sure Node is valid and new enough to support RPC
@@ -321,7 +318,6 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	}
 
 	structs.Bridge(conn, clientConn)
-	return
 }
 
 // logs is used to access an task's logs for a given allocation
@@ -346,22 +342,9 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		return
 	}
 
-	// Check node read permissions
-	if aclObj, err := f.srv.ResolveToken(args.AuthToken); err != nil {
-		handleStreamResultError(err, nil, encoder)
-		return
-	} else if aclObj != nil {
-		readfs := aclObj.AllowNsOp(args.QueryOptions.Namespace, acl.NamespaceCapabilityReadFS)
-		logs := aclObj.AllowNsOp(args.QueryOptions.Namespace, acl.NamespaceCapabilityReadLogs)
-		if !readfs && !logs {
-			handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
-			return
-		}
-	}
-
 	// Verify the arguments.
 	if args.AllocID == "" {
-		handleStreamResultError(errors.New("missing AllocID"), helper.Int64ToPtr(400), encoder)
+		handleStreamResultError(structs.ErrMissingAllocID, helper.Int64ToPtr(400), encoder)
 		return
 	}
 
@@ -372,15 +355,28 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 		return
 	}
 
-	alloc, err := snap.AllocByID(nil, args.AllocID)
+	alloc, err := getAlloc(snap, args.AllocID)
+	if structs.IsErrUnknownAllocation(err) {
+		handleStreamResultError(structs.NewErrUnknownAllocation(args.AllocID), helper.Int64ToPtr(404), encoder)
+		return
+	}
 	if err != nil {
 		handleStreamResultError(err, nil, encoder)
 		return
 	}
-	if alloc == nil {
-		handleStreamResultError(structs.NewErrUnknownAllocation(args.AllocID), helper.Int64ToPtr(404), encoder)
+
+	// Check namespace read-logs *or* read-fs permissions.
+	allowNsOp := acl.NamespaceValidator(
+		acl.NamespaceCapabilityReadFS, acl.NamespaceCapabilityReadLogs)
+	aclObj, err := f.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		handleStreamResultError(err, nil, encoder)
+		return
+	} else if !allowNsOp(aclObj, alloc.Namespace) {
+		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 		return
 	}
+
 	nodeID := alloc.NodeID
 
 	// Make sure Node is valid and new enough to support RPC
@@ -443,5 +439,4 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	}
 
 	structs.Bridge(conn, clientConn)
-	return
 }

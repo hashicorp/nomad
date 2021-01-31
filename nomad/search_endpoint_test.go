@@ -7,10 +7,13 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const jobIndex = 1000
@@ -19,7 +22,7 @@ func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) *
 	job := mock.Job()
 	job.ID = prefix + strconv.Itoa(counter)
 	state := s.fsm.State()
-	if err := state.UpsertJob(jobIndex, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, jobIndex, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -27,15 +30,14 @@ func registerAndVerifyJob(s *Server, t *testing.T, prefix string, counter int) *
 }
 
 func TestSearch_PrefixSearch_Job(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
-	t.Parallel()
-	s := TestServer(t, func(c *Config) {
+	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -61,21 +63,20 @@ func TestSearch_PrefixSearch_Job(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_ACL(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	jobID := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
-	t.Parallel()
-	s, root := TestACLServer(t, func(c *Config) {
+	s, root, cleanupS := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 	state := s.fsm.State()
 
 	job := registerAndVerifyJob(s, t, jobID, 0)
-	assert.Nil(state.UpsertNode(1001, mock.Node()))
+	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
 
 	req := &structs.SearchRequest{
 		Prefix:  "",
@@ -174,15 +175,14 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	prefix := "example-test-------" // Assert that a job with more than 4 hyphens works
 
-	t.Parallel()
-	s := TestServer(t, func(c *Config) {
+	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -197,7 +197,7 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 	if err := state.UpsertJobSummary(999, summary); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -221,15 +221,14 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	prefix := strings.Repeat("a", 100)
 
-	t.Parallel()
-	s := TestServer(t, func(c *Config) {
+	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -243,7 +242,7 @@ func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
 	if err := state.UpsertJobSummary(999, summary); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -268,15 +267,14 @@ func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
 
 // truncate should limit results to 20
 func TestSearch_PrefixSearch_Truncate(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
-	t.Parallel()
-	s := TestServer(t, func(c *Config) {
+	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -305,15 +303,15 @@ func TestSearch_PrefixSearch_Truncate(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
-	t.Parallel()
-	s := TestServer(t, func(c *Config) {
+	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -321,7 +319,7 @@ func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
 
 	eval1 := mock.Eval()
 	eval1.ID = job.ID
-	s.fsm.State().UpsertEvals(2000, []*structs.Evaluation{eval1})
+	s.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval1})
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
@@ -345,18 +343,18 @@ func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_Evals(t *testing.T) {
-	assert := assert.New(t)
 	t.Parallel()
-	s := TestServer(t, func(c *Config) {
+	assert := assert.New(t)
+
+	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
 	eval1 := mock.Eval()
-	s.fsm.State().UpsertEvals(2000, []*structs.Evaluation{eval1})
+	s.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval1})
 
 	prefix := eval1.ID[:len(eval1.ID)-2]
 
@@ -382,13 +380,13 @@ func TestSearch_PrefixSearch_Evals(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_Allocation(t *testing.T) {
-	assert := assert.New(t)
 	t.Parallel()
-	s := TestServer(t, func(c *Config) {
+	assert := assert.New(t)
+
+	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -399,7 +397,7 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 	if err := state.UpsertJobSummary(999, summary); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertAllocs(90, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 90, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -427,13 +425,13 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
-	assert := assert.New(t)
 	t.Parallel()
-	s := TestServer(t, func(c *Config) {
+	assert := assert.New(t)
+
+	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -444,18 +442,18 @@ func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 	if err := state.UpsertJobSummary(999, summary); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertAllocs(1000, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	node := mock.Node()
-	if err := state.UpsertNode(1001, node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 1001, node); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	eval1 := mock.Eval()
 	eval1.ID = node.ID
-	if err := state.UpsertEvals(1002, []*structs.Evaluation{eval1}); err != nil {
+	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1002, []*structs.Evaluation{eval1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -479,20 +477,20 @@ func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_Node(t *testing.T) {
-	assert := assert.New(t)
 	t.Parallel()
-	s := TestServer(t, func(c *Config) {
+	assert := assert.New(t)
+
+	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
 	state := s.fsm.State()
 	node := mock.Node()
 
-	if err := state.UpsertNode(100, node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 100, node); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -520,13 +518,13 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_Deployment(t *testing.T) {
-	assert := assert.New(t)
 	t.Parallel()
-	s := TestServer(t, func(c *Config) {
+	assert := assert.New(t)
+
+	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -557,26 +555,27 @@ func TestSearch_PrefixSearch_Deployment(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_AllContext(t *testing.T) {
-	assert := assert.New(t)
 	t.Parallel()
-	s := TestServer(t, func(c *Config) {
+	assert := assert.New(t)
+
+	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
 	state := s.fsm.State()
 	node := mock.Node()
 
-	if err := state.UpsertNode(100, node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 100, node); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	eval1 := mock.Eval()
 	eval1.ID = node.ID
-	if err := state.UpsertEvals(1000, []*structs.Evaluation{eval1}); err != nil {
+	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -607,16 +606,14 @@ func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 
 // Tests that the top 20 matches are returned when no prefix is set
 func TestSearch_PrefixSearch_NoPrefix(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
-
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
-	t.Parallel()
-	s := TestServer(t, func(c *Config) {
+	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -644,16 +641,14 @@ func TestSearch_PrefixSearch_NoPrefix(t *testing.T) {
 // Tests that the zero matches are returned when a prefix has no matching
 // results
 func TestSearch_PrefixSearch_NoMatches(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
-
 	prefix := "aaaaaaaa-e8f7-fd38-c855-ab94ceb8970"
 
-	t.Parallel()
-	s := TestServer(t, func(c *Config) {
+	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -678,17 +673,16 @@ func TestSearch_PrefixSearch_NoMatches(t *testing.T) {
 // Prefixes can only be looked up if their length is a power of two. For
 // prefixes which are an odd length, use the length-1 characters.
 func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	id1 := "aaafaaaa-e8f7-fd38-c855-ab94ceb89"
 	id2 := "aaafeaaa-e8f7-fd38-c855-ab94ceb89"
 	prefix := "aaafa"
 
-	t.Parallel()
-	s := TestServer(t, func(c *Config) {
+	s, cleanupS := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
-
-	defer s.Shutdown()
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -714,22 +708,21 @@ func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
 }
 
 func TestSearch_PrefixSearch_MultiRegion(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
-
 	jobName := "exampleexample"
 
-	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.Region = "foo"
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 
-	s2 := TestServer(t, func(c *Config) {
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 		c.Region = "bar"
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -755,4 +748,244 @@ func TestSearch_PrefixSearch_MultiRegion(t *testing.T) {
 	assert.Equal(1, len(resp.Matches[structs.Jobs]))
 	assert.Equal(job.ID, resp.Matches[structs.Jobs][0])
 	assert.Equal(uint64(jobIndex), resp.Index)
+}
+
+func TestSearch_PrefixSearch_CSIPlugin(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s, cleanupS := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanupS()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	id := uuid.Generate()
+	state.CreateTestCSIPlugin(s.fsm.State(), id)
+
+	prefix := id[:len(id)-2]
+
+	req := &structs.SearchRequest{
+		Prefix:  prefix,
+		Context: structs.Plugins,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Plugins]))
+	assert.Equal(id, resp.Matches[structs.Plugins][0])
+	assert.Equal(resp.Truncations[structs.Plugins], false)
+}
+
+func TestSearch_PrefixSearch_CSIVolume(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	s, cleanupS := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanupS()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	id := uuid.Generate()
+	err := s.fsm.State().CSIVolumeRegister(1000, []*structs.CSIVolume{{
+		ID:        id,
+		Namespace: structs.DefaultNamespace,
+		PluginID:  "glade",
+	}})
+	require.NoError(t, err)
+
+	prefix := id[:len(id)-2]
+
+	req := &structs.SearchRequest{
+		Prefix:  prefix,
+		Context: structs.Volumes,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Volumes]))
+	assert.Equal(id, resp.Matches[structs.Volumes][0])
+	assert.Equal(resp.Truncations[structs.Volumes], false)
+}
+
+func TestSearch_PrefixSearch_Namespace(t *testing.T) {
+	assert := assert.New(t)
+	t.Parallel()
+	s, cleanup := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+
+	defer cleanup()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	ns := mock.Namespace()
+	assert.Nil(s.fsm.State().UpsertNamespaces(2000, []*structs.Namespace{ns}))
+
+	prefix := ns.Name[:len(ns.Name)-2]
+
+	req := &structs.SearchRequest{
+		Prefix:  prefix,
+		Context: structs.Namespaces,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+
+	var resp structs.SearchResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	assert.Equal(1, len(resp.Matches[structs.Namespaces]))
+	assert.Equal(ns.Name, resp.Matches[structs.Namespaces][0])
+	assert.Equal(resp.Truncations[structs.Namespaces], false)
+
+	assert.Equal(uint64(2000), resp.Index)
+}
+
+func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	s, root, cleanup := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanup()
+
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+	state := s.fsm.State()
+
+	ns := mock.Namespace()
+	assert.Nil(state.UpsertNamespaces(500, []*structs.Namespace{ns}))
+
+	job1 := mock.Job()
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 502, job1))
+
+	job2 := mock.Job()
+	job2.Namespace = ns.Name
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 504, job2))
+
+	assert.Nil(state.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
+
+	req := &structs.SearchRequest{
+		Prefix:  "",
+		Context: structs.Jobs,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job1.Namespace,
+		},
+	}
+
+	// Try without a token and expect failure
+	{
+		var resp structs.SearchResponse
+		err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with an invalid token and expect failure
+	{
+		invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs}))
+		req.AuthToken = invalidToken.SecretID
+		var resp structs.SearchResponse
+		err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a node:read token and expect failure due to Namespaces being the context
+	{
+		validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-invalid2", mock.NodePolicy(acl.PolicyRead))
+		req.Context = structs.Namespaces
+		req.AuthToken = validToken.SecretID
+		var resp structs.SearchResponse
+		err := msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp)
+		assert.NotNil(err)
+		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+	}
+
+	// Try with a node:read token and expect success due to All context
+	{
+		validToken := mock.CreatePolicyAndToken(t, state, 1007, "test-valid", mock.NodePolicy(acl.PolicyRead))
+		req.Context = structs.All
+		req.AuthToken = validToken.SecretID
+		var resp structs.SearchResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+		assert.Equal(uint64(1001), resp.Index)
+		assert.Len(resp.Matches[structs.Nodes], 1)
+
+		// Jobs filtered out since token only has access to node:read
+		assert.Len(resp.Matches[structs.Jobs], 0)
+	}
+
+	// Try with a valid token for non-default namespace:read-job
+	{
+		validToken := mock.CreatePolicyAndToken(t, state, 1009, "test-valid2",
+			mock.NamespacePolicy(job2.Namespace, "", []string{acl.NamespaceCapabilityReadJob}))
+		req.Context = structs.All
+		req.AuthToken = validToken.SecretID
+		req.Namespace = job2.Namespace
+		var resp structs.SearchResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+		assert.Len(resp.Matches[structs.Jobs], 1)
+		assert.Equal(job2.ID, resp.Matches[structs.Jobs][0])
+		assert.Len(resp.Matches[structs.Namespaces], 1)
+
+		// Index of job - not node - because node context is filtered out
+		assert.Equal(uint64(504), resp.Index)
+
+		// Nodes filtered out since token only has access to namespace:read-job
+		assert.Len(resp.Matches[structs.Nodes], 0)
+	}
+
+	// Try with a valid token for node:read and default namespace:read-job
+	{
+		validToken := mock.CreatePolicyAndToken(t, state, 1011, "test-valid3", strings.Join([]string{
+			mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
+			mock.NodePolicy(acl.PolicyRead),
+		}, "\n"))
+		req.Context = structs.All
+		req.AuthToken = validToken.SecretID
+		req.Namespace = structs.DefaultNamespace
+		var resp structs.SearchResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+		assert.Len(resp.Matches[structs.Jobs], 1)
+		assert.Equal(job1.ID, resp.Matches[structs.Jobs][0])
+		assert.Len(resp.Matches[structs.Nodes], 1)
+		assert.Equal(uint64(1001), resp.Index)
+		assert.Len(resp.Matches[structs.Namespaces], 1)
+	}
+
+	// Try with a management token
+	{
+		req.Context = structs.All
+		req.AuthToken = root.SecretID
+		req.Namespace = structs.DefaultNamespace
+		var resp structs.SearchResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+		assert.Equal(uint64(1001), resp.Index)
+		assert.Len(resp.Matches[structs.Jobs], 1)
+		assert.Equal(job1.ID, resp.Matches[structs.Jobs][0])
+		assert.Len(resp.Matches[structs.Nodes], 1)
+		assert.Len(resp.Matches[structs.Namespaces], 2)
+	}
 }

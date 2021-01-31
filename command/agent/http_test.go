@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,16 +13,22 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
-	"github.com/ugorji/go/codec"
+	"github.com/stretchr/testify/require"
 )
 
 // makeHTTPServer returns a test server whose logs will be written to
@@ -59,6 +66,58 @@ func BenchmarkHTTPRequests(b *testing.B) {
 			s.Server.wrap(handler)(resp, req)
 		}
 	})
+}
+
+// TestRootFallthrough tests rootFallthrough handler to
+// verify redirect and 404 behavior
+func TestRootFallthrough(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		desc         string
+		path         string
+		expectedPath string
+		expectedCode int
+	}{
+		{
+			desc:         "unknown endpoint 404s",
+			path:         "/v1/unknown/endpoint",
+			expectedCode: 404,
+		},
+		{
+			desc:         "root path redirects to ui",
+			path:         "/",
+			expectedPath: "/ui/",
+			expectedCode: 307,
+		},
+	}
+
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	// setup a client that doesn't follow redirects
+	client := &http.Client{
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+
+			reqURL := fmt.Sprintf("http://%s%s", s.Agent.config.AdvertiseAddrs.HTTP, tc.path)
+
+			resp, err := client.Get(reqURL)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedCode, resp.StatusCode)
+
+			if tc.expectedPath != "" {
+				loc, err := resp.Location()
+				require.NoError(t, err)
+				require.Equal(t, tc.expectedPath, loc.Path)
+			}
+		})
+	}
 }
 
 func TestSetIndex(t *testing.T) {
@@ -164,6 +223,60 @@ func TestContentTypeIsJSON(t *testing.T) {
 	if contentType != "application/json" {
 		t.Fatalf("Content-Type header was not 'application/json'")
 	}
+}
+
+func TestWrapNonJSON(t *testing.T) {
+	t.Parallel()
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	resp := httptest.NewRecorder()
+
+	handler := func(resp http.ResponseWriter, req *http.Request) ([]byte, error) {
+		return []byte("test response"), nil
+	}
+
+	req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
+	s.Server.wrapNonJSON(handler)(resp, req)
+
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	require.Equal(t, respBody, []byte("test response"))
+
+}
+
+func TestWrapNonJSON_Error(t *testing.T) {
+	t.Parallel()
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	handlerRPCErr := func(resp http.ResponseWriter, req *http.Request) ([]byte, error) {
+		return nil, structs.NewErrRPCCoded(404, "not found")
+	}
+
+	handlerCodedErr := func(resp http.ResponseWriter, req *http.Request) ([]byte, error) {
+		return nil, CodedError(422, "unprocessable")
+	}
+
+	// RPC coded error
+	{
+		resp := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
+		s.Server.wrapNonJSON(handlerRPCErr)(resp, req)
+		respBody, _ := ioutil.ReadAll(resp.Body)
+		require.Equal(t, []byte("not found"), respBody)
+		require.Equal(t, 404, resp.Code)
+	}
+
+	// CodedError
+	{
+		resp := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", "/v1/kv/key", nil)
+		s.Server.wrapNonJSON(handlerCodedErr)(resp, req)
+		respBody, _ := ioutil.ReadAll(resp.Body)
+		require.Equal(t, []byte("unprocessable"), respBody)
+		require.Equal(t, 422, resp.Code)
+	}
+
 }
 
 func TestPrettyPrint(t *testing.T) {
@@ -404,6 +517,53 @@ func TestParseToken(t *testing.T) {
 	}
 }
 
+func TestParseBool(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Input    string
+		Expected *bool
+		Err      bool // true if an error should be expected
+	}{
+		{
+			Input:    "",
+			Expected: nil,
+		},
+		{
+			Input:    "true",
+			Expected: helper.BoolToPtr(true),
+		},
+		{
+			Input:    "false",
+			Expected: helper.BoolToPtr(false),
+		},
+		{
+			Input: "1234",
+			Err:   true,
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run("Input-"+tc.Input, func(t *testing.T) {
+			testURL, err := url.Parse("http://localhost/foo?resources=" + tc.Input)
+			require.NoError(t, err)
+			req := &http.Request{
+				URL: testURL,
+			}
+
+			result, err := parseBool(req, "resources")
+			if tc.Err {
+				require.Error(t, err)
+				require.Nil(t, result)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.Expected, result)
+			}
+		})
+	}
+}
+
 // TestHTTP_VerifyHTTPSClient asserts that a client certificate signed by the
 // appropriate CA is required when VerifyHTTPSClient=true.
 func TestHTTP_VerifyHTTPSClient(t *testing.T) {
@@ -491,7 +651,9 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected a *url.Error but received: %T -> %v", err, err)
 	}
-	opErr, ok := urlErr.Err.(*net.OpError)
+
+	var opErr *net.OpError
+	ok = errors.As(urlErr.Err, &opErr)
 	if !ok {
 		t.Fatalf("expected a *net.OpErr but received: %T -> %v", urlErr.Err, urlErr.Err)
 	}
@@ -523,23 +685,6 @@ func TestHTTP_VerifyHTTPSClient(t *testing.T) {
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200 status code but got: %d", resp.StatusCode)
 	}
-}
-
-// assertIndex tests that X-Nomad-Index is set and non-zero
-func assertIndex(t *testing.T, resp *httptest.ResponseRecorder) {
-	header := resp.Header().Get("X-Nomad-Index")
-	if header == "" || header == "0" {
-		t.Fatalf("Bad: %v", header)
-	}
-}
-
-// checkIndex is like assertIndex but returns an error
-func checkIndex(resp *httptest.ResponseRecorder) error {
-	header := resp.Header().Get("X-Nomad-Index")
-	if header == "" || header == "0" {
-		return fmt.Errorf("Bad: %v", header)
-	}
-	return nil
 }
 
 func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
@@ -644,17 +789,458 @@ func TestHTTP_VerifyHTTPSClient_AfterConfigReload(t *testing.T) {
 	}
 }
 
-// getIndex parses X-Nomad-Index
-func getIndex(t *testing.T, resp *httptest.ResponseRecorder) uint64 {
-	header := resp.Header().Get("X-Nomad-Index")
-	if header == "" {
-		t.Fatalf("Bad: %v", header)
+// TestHTTPServer_Limits_Error asserts invalid Limits cause errors. This is the
+// HTTP counterpart to TestAgent_ServerConfig_Limits_Error.
+func TestHTTPServer_Limits_Error(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		tls         bool
+		timeout     string
+		limit       *int
+		expectedErr string
+	}{
+		{
+			tls:         true,
+			timeout:     "",
+			limit:       nil,
+			expectedErr: "error parsing https_handshake_timeout: ",
+		},
+		{
+			tls:         false,
+			timeout:     "",
+			limit:       nil,
+			expectedErr: "error parsing https_handshake_timeout: ",
+		},
+		{
+			tls:         true,
+			timeout:     "-1s",
+			limit:       nil,
+			expectedErr: "https_handshake_timeout must be >= 0",
+		},
+		{
+			tls:         false,
+			timeout:     "-1s",
+			limit:       nil,
+			expectedErr: "https_handshake_timeout must be >= 0",
+		},
+		{
+			tls:         true,
+			timeout:     "5s",
+			limit:       helper.IntToPtr(-1),
+			expectedErr: "http_max_conns_per_client must be >= 0",
+		},
+		{
+			tls:         false,
+			timeout:     "5s",
+			limit:       helper.IntToPtr(-1),
+			expectedErr: "http_max_conns_per_client must be >= 0",
+		},
 	}
-	val, err := strconv.Atoi(header)
-	if err != nil {
-		t.Fatalf("Bad: %v", header)
+
+	for i := range cases {
+		tc := cases[i]
+		name := fmt.Sprintf("%d-tls-%t-timeout-%s-limit-%v", i, tc.tls, tc.timeout, tc.limit)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			// Use a fake agent since the HTTP server should never start
+			agent := &Agent{
+				logger: testlog.HCLogger(t),
+			}
+
+			conf := &Config{
+				normalizedAddrs: &Addresses{
+					HTTP: "localhost:0", // port is never used
+				},
+				TLSConfig: &config.TLSConfig{
+					EnableHTTP: tc.tls,
+				},
+				Limits: config.Limits{
+					HTTPSHandshakeTimeout: tc.timeout,
+					HTTPMaxConnsPerClient: tc.limit,
+				},
+			}
+
+			srv, err := NewHTTPServer(agent, conf)
+			require.Error(t, err)
+			require.Nil(t, srv)
+			require.Contains(t, err.Error(), tc.expectedErr)
+		})
 	}
-	return uint64(val)
+}
+
+func limitStr(limit *int) string {
+	if limit == nil {
+		return "none"
+	}
+	return strconv.Itoa(*limit)
+}
+
+// TestHTTPServer_Limits_OK asserts that all valid limits combinations
+// (tls/timeout/conns) work.
+func TestHTTPServer_Limits_OK(t *testing.T) {
+	t.Parallel()
+
+	const (
+		cafile   = "../../helper/tlsutil/testdata/ca.pem"
+		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+		maxConns = 10 // limit must be < this for testing
+		bufSize  = 1  // enough to know if something was written
+	)
+
+	cases := []struct {
+		tls           bool
+		timeout       string
+		limit         *int
+		assertTimeout bool
+		assertLimit   bool
+	}{
+		{
+			tls:           false,
+			timeout:       "5s",
+			limit:         nil,
+			assertTimeout: false,
+			assertLimit:   false,
+		},
+		{
+			tls:           true,
+			timeout:       "5s",
+			limit:         nil,
+			assertTimeout: true,
+			assertLimit:   false,
+		},
+		{
+			tls:           false,
+			timeout:       "0",
+			limit:         nil,
+			assertTimeout: false,
+			assertLimit:   false,
+		},
+		{
+			tls:           true,
+			timeout:       "0",
+			limit:         nil,
+			assertTimeout: false,
+			assertLimit:   false,
+		},
+		{
+			tls:           false,
+			timeout:       "0",
+			limit:         helper.IntToPtr(2),
+			assertTimeout: false,
+			assertLimit:   true,
+		},
+		{
+			tls:           true,
+			timeout:       "0",
+			limit:         helper.IntToPtr(2),
+			assertTimeout: false,
+			assertLimit:   true,
+		},
+		{
+			tls:           false,
+			timeout:       "5s",
+			limit:         helper.IntToPtr(2),
+			assertTimeout: false,
+			assertLimit:   true,
+		},
+		{
+			tls:           true,
+			timeout:       "5s",
+			limit:         helper.IntToPtr(2),
+			assertTimeout: true,
+			assertLimit:   true,
+		},
+	}
+
+	assertTimeout := func(t *testing.T, a *TestAgent, assertTimeout bool, timeout string) {
+		timeoutDeadline, err := time.ParseDuration(timeout)
+		require.NoError(t, err)
+
+		// Increase deadline to detect timeouts
+		deadline := timeoutDeadline + time.Second
+
+		conn, err := net.DialTimeout("tcp", a.Server.Addr, deadline)
+		require.NoError(t, err)
+		defer func() {
+			require.NoError(t, conn.Close())
+		}()
+
+		buf := []byte{0}
+		readDeadline := time.Now().Add(deadline)
+		err = conn.SetReadDeadline(readDeadline)
+		require.NoError(t, err)
+		n, err := conn.Read(buf)
+		require.Zero(t, n)
+		if assertTimeout {
+			// Server timeouts == EOF
+			require.Equal(t, io.EOF, err)
+
+			// Perform blocking query to assert timeout is not
+			// enabled post-TLS-handshake.
+			q := &api.QueryOptions{
+				WaitIndex: 10000, // wait a looong time
+				WaitTime:  deadline,
+			}
+
+			// Assertions don't require certificate validation
+			conf := api.DefaultConfig()
+			conf.Address = a.HTTPAddr()
+			conf.TLSConfig.Insecure = true
+			client, err := api.NewClient(conf)
+			require.NoError(t, err)
+
+			// Assert a blocking query isn't timed out by the
+			// handshake timeout
+			jobs, meta, err := client.Jobs().List(q)
+			require.NoError(t, err)
+			require.Len(t, jobs, 0)
+			require.Truef(t, meta.RequestTime >= deadline,
+				"expected RequestTime (%s) >= Deadline (%s)",
+				meta.RequestTime, deadline)
+
+			return
+		}
+
+		// HTTP Server should *not* have timed out.
+		// Now() should always be after the read deadline, but
+		// isn't a sufficient assertion for correctness as slow
+		// tests may cause this to be true even if the server
+		// timed out.
+		require.True(t, time.Now().After(readDeadline))
+
+		require.Truef(t, errors.Is(err, os.ErrDeadlineExceeded),
+			"error does not wrap os.ErrDeadlineExceeded: (%T) %v", err, err)
+	}
+
+	assertNoLimit := func(t *testing.T, addr string) {
+		var err error
+
+		// Create max connections
+		conns := make([]net.Conn, maxConns)
+		errCh := make(chan error, maxConns)
+		for i := 0; i < maxConns; i++ {
+			conns[i], err = net.DialTimeout("tcp", addr, 1*time.Second)
+			require.NoError(t, err)
+
+			go func(i int) {
+				buf := []byte{0}
+				readDeadline := time.Now().Add(1 * time.Second)
+				err = conns[i].SetReadDeadline(readDeadline)
+				require.NoError(t, err)
+				n, err := conns[i].Read(buf)
+				if n > 0 {
+					errCh <- fmt.Errorf("n > 0: %d", n)
+					return
+				}
+				errCh <- err
+			}(i)
+		}
+
+		// Now assert each error is a clientside read deadline error
+		for i := 0; i < maxConns; i++ {
+			select {
+			case <-time.After(2 * time.Second):
+				t.Fatalf("timed out waiting for conn error %d", i)
+			case err := <-errCh:
+				require.Truef(t, errors.Is(err, os.ErrDeadlineExceeded),
+					"error does not wrap os.ErrDeadlineExceeded: (%T) %v", err, err)
+			}
+		}
+
+		for i := 0; i < maxConns; i++ {
+			require.NoError(t, conns[i].Close())
+		}
+	}
+
+	dial := func(t *testing.T, addr string, useTLS bool) (net.Conn, error) {
+		if useTLS {
+			cert, err := tls.LoadX509KeyPair(foocert, fookey)
+			require.NoError(t, err)
+			return tls.Dial("tcp", addr, &tls.Config{
+				Certificates:       []tls.Certificate{cert},
+				InsecureSkipVerify: true, // good enough
+			})
+		} else {
+			return net.DialTimeout("tcp", addr, 1*time.Second)
+		}
+	}
+
+	assertLimit := func(t *testing.T, addr string, limit int, useTLS bool) {
+		var err error
+
+		// Create limit connections
+		conns := make([]net.Conn, limit)
+		errCh := make(chan error, limit)
+		for i := range conns {
+			conn, err := dial(t, addr, useTLS)
+			require.NoError(t, err)
+			conns[i] = conn
+
+			go func(i int) {
+				buf := []byte{0}
+				n, err := conns[i].Read(buf)
+				if n > 0 {
+					errCh <- fmt.Errorf("n > 0: %d", n)
+					return
+				}
+				errCh <- err
+			}(i)
+		}
+
+		select {
+		case err := <-errCh:
+			t.Fatalf("unexpected error from connection prior to limit: %T %v", err, err)
+		case <-time.After(500 * time.Millisecond):
+		}
+
+		// Create a new connection that will go over the connection limit.
+		limitConn, err := dial(t, addr, useTLS)
+
+		// At this point, the state of the connection + handshake are up in the
+		// air.
+		//
+		// 1) dial failed, handshake never started
+		//     => Conn is nil + io.EOF
+		// 2) dial completed, handshake failed
+		//     => Conn is malformed + (net.OpError OR io.EOF)
+		// 3) dial completed, handshake succeeded
+		//     => Conn is not nil + no error, however using the Conn should
+		//        result in io.EOF
+		//
+		// At no point should Nomad actually write through the limited Conn.
+
+		if limitConn == nil || err != nil {
+			// Case 1 or Case 2 - returned Conn is useless and the error should
+			// be one of:
+			//   "EOF"
+			//   "closed network connection"
+			//   "connection reset by peer"
+			msg := err.Error()
+			acceptable := strings.Contains(msg, "EOF") ||
+				strings.Contains(msg, "closed network connection") ||
+				strings.Contains(msg, "connection reset by peer")
+			require.True(t, acceptable)
+		} else {
+			// Case 3 - returned Conn is usable, but Nomad should not write
+			// anything before closing it.
+			buf := make([]byte, bufSize)
+			deadline := time.Now().Add(10 * time.Second)
+			require.NoError(t, limitConn.SetReadDeadline(deadline))
+			n, err := limitConn.Read(buf)
+			require.Equal(t, io.EOF, err)
+			require.Zero(t, n)
+			require.NoError(t, limitConn.Close())
+		}
+
+		// Assert existing connections are ok
+		require.Len(t, errCh, 0)
+
+		// Cleanup
+		for _, conn := range conns {
+			require.NoError(t, conn.Close())
+		}
+
+		for range conns {
+			err := <-errCh
+			require.Contains(t, err.Error(), "use of closed network connection")
+		}
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		name := fmt.Sprintf("%d-tls-%t-timeout-%s-limit-%v", i, tc.tls, tc.timeout, limitStr(tc.limit))
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if tc.limit != nil && *tc.limit >= maxConns {
+				t.Fatalf("test fixture failure: cannot assert limit (%d) >= max (%d)", *tc.limit, maxConns)
+			}
+
+			s := makeHTTPServer(t, func(c *Config) {
+				if tc.tls {
+					c.TLSConfig = &config.TLSConfig{
+						EnableHTTP: true,
+						CAFile:     cafile,
+						CertFile:   foocert,
+						KeyFile:    fookey,
+					}
+				}
+				c.Limits.HTTPSHandshakeTimeout = tc.timeout
+				c.Limits.HTTPMaxConnsPerClient = tc.limit
+				c.LogLevel = "ERROR"
+			})
+			defer func() {
+				require.NoError(t, s.Shutdown())
+			}()
+
+			assertTimeout(t, s, tc.assertTimeout, tc.timeout)
+
+			if tc.assertLimit {
+				// There's a race between assertTimeout(false) closing
+				// its connection and the HTTP server noticing and
+				// un-tracking it. Since there's no way to coordinate
+				// when this occurs, sleeping is the only way to avoid
+				// asserting limits before the timed out connection is
+				// untracked.
+				time.Sleep(1 * time.Second)
+
+				assertLimit(t, s.Server.Addr, *tc.limit, tc.tls)
+			} else {
+				assertNoLimit(t, s.Server.Addr)
+			}
+		})
+	}
+}
+
+func Test_IsAPIClientError(t *testing.T) {
+	trueCases := []int{400, 403, 404, 499}
+	for _, c := range trueCases {
+		require.Truef(t, isAPIClientError(c), "code: %v", c)
+	}
+
+	falseCases := []int{100, 300, 500, 501, 505}
+	for _, c := range falseCases {
+		require.Falsef(t, isAPIClientError(c), "code: %v", c)
+	}
+}
+
+func Test_decodeBody(t *testing.T) {
+
+	testCases := []struct {
+		inputReq      *http.Request
+		inputOut      interface{}
+		expectedOut   interface{}
+		expectedError error
+		name          string
+	}{
+		{
+			inputReq:      &http.Request{Body: http.NoBody},
+			expectedError: errors.New("Request body is empty"),
+			name:          "empty input request body",
+		},
+		{
+			inputReq: &http.Request{Body: ioutil.NopCloser(strings.NewReader(`{"foo":"bar"}`))},
+			inputOut: &struct {
+				Foo string `json:"foo"`
+			}{},
+			expectedOut: &struct {
+				Foo string `json:"foo"`
+			}{Foo: "bar"},
+			expectedError: nil,
+			name:          "populated request body and correct out",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := decodeBody(tc.inputReq, tc.inputOut)
+			assert.Equal(t, tc.expectedError, actualError, tc.name)
+			assert.Equal(t, tc.expectedOut, tc.inputOut, tc.name)
+		})
+	}
 }
 
 func httpTest(t testing.TB, cb func(c *Config), f func(srv *TestAgent)) {

@@ -9,5 +9,27 @@
     &.is-minimum {
       flex-grow: 0;
     }
+
+    &.is-400 {
+      width: 400px;
+      max-width: 400px;
+    }
+  }
+
+  &.is-bottom-aligned {
+    align-items: flex-end;
+  }
+
+  &.is-max-half {
+    max-width: 50%;
+  }
+
+  &.is-centered {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  &.is-flush {
+    margin-bottom: 0;
   }
 }

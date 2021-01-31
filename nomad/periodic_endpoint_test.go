@@ -14,18 +14,19 @@ import (
 
 func TestPeriodicEndpoint_Force(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
+	defer cleanupS1()
 	state := s1.fsm.State()
-	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create and insert a periodic job.
 	job := mock.PeriodicJob()
 	job.Periodic.ProhibitOverlap = true // Shouldn't affect anything.
-	if err := state.UpsertJob(100, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	s1.periodicDispatcher.Add(job)
@@ -64,10 +65,11 @@ func TestPeriodicEndpoint_Force(t *testing.T) {
 
 func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, func(c *Config) {
+
+	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	state := s1.fsm.State()
 	assert := assert.New(t)
 	codec := rpcClient(t, s1)
@@ -76,7 +78,7 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 	// Create and insert a periodic job.
 	job := mock.PeriodicJob()
 	job.Periodic.ProhibitOverlap = true // Shouldn't affect anything.
-	assert.Nil(state.UpsertJob(100, job))
+	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 100, job))
 	err := s1.periodicDispatcher.Add(job)
 	assert.Nil(err)
 
@@ -114,7 +116,25 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 		req.AuthToken = token.SecretID
 		var resp structs.PeriodicForceResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Periodic.Force", req, &resp))
-		assert.NotEqual(0, resp.Index)
+		assert.NotEqual(uint64(0), resp.Index)
+
+		// Lookup the evaluation
+		ws := memdb.NewWatchSet()
+		eval, err := state.EvalByID(ws, resp.EvalID)
+		assert.Nil(err)
+		if assert.NotNil(eval) {
+			assert.Equal(eval.CreateIndex, resp.EvalCreateIndex)
+		}
+	}
+
+	// Fetch the response with a valid token having dispatch permission
+	{
+		policy := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityDispatchJob})
+		token := mock.CreatePolicyAndToken(t, state, 1005, "valid", policy)
+		req.AuthToken = token.SecretID
+		var resp structs.PeriodicForceResponse
+		assert.Nil(msgpackrpc.CallWithCodec(codec, "Periodic.Force", req, &resp))
+		assert.NotEqual(uint64(0), resp.Index)
 
 		// Lookup the evaluation
 		ws := memdb.NewWatchSet()
@@ -130,7 +150,7 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 		req.AuthToken = root.SecretID
 		var resp structs.PeriodicForceResponse
 		assert.Nil(msgpackrpc.CallWithCodec(codec, "Periodic.Force", req, &resp))
-		assert.NotEqual(0, resp.Index)
+		assert.NotEqual(uint64(0), resp.Index)
 
 		// Lookup the evaluation
 		ws := memdb.NewWatchSet()
@@ -144,17 +164,18 @@ func TestPeriodicEndpoint_Force_ACL(t *testing.T) {
 
 func TestPeriodicEndpoint_Force_NonPeriodic(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
+	defer cleanupS1()
 	state := s1.fsm.State()
-	defer s1.Shutdown()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create and insert a non-periodic job.
 	job := mock.Job()
-	if err := state.UpsertJob(100, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 

@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
+	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -29,20 +31,18 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 
-	hclog "github.com/hashicorp/go-hclog"
 	cstate "github.com/hashicorp/nomad/client/state"
-	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/stretchr/testify/require"
 )
 
-func testACLServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, *structs.ACLToken) {
-	server, token := nomad.TestACLServer(t, cb)
-	return server, server.GetConfig().RPCAddr.String(), token
+func testACLServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, *structs.ACLToken, func()) {
+	server, token, cleanup := nomad.TestACLServer(t, cb)
+	return server, server.GetConfig().RPCAddr.String(), token, cleanup
 }
 
-func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string) {
-	server := nomad.TestServer(t, cb)
-	return server, server.GetConfig().RPCAddr.String()
+func testServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, func()) {
+	server, cleanup := nomad.TestServer(t, cb)
+	return server, server.GetConfig().RPCAddr.String(), cleanup
 }
 
 func TestClient_StartStop(t *testing.T) {
@@ -83,13 +83,14 @@ func TestClient_BaseLabels(t *testing.T) {
 
 func TestClient_RPC(t *testing.T) {
 	t.Parallel()
-	s1, addr := testServer(t, nil)
-	defer s1.Shutdown()
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	_, addr, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
+
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	// RPC should succeed
 	testutil.WaitForResult(func() (bool, error) {
@@ -103,13 +104,14 @@ func TestClient_RPC(t *testing.T) {
 
 func TestClient_RPC_FireRetryWatchers(t *testing.T) {
 	t.Parallel()
-	s1, addr := testServer(t, nil)
-	defer s1.Shutdown()
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	_, addr, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
+
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	watcher := c1.rpcRetryWatcher()
 
@@ -131,13 +133,14 @@ func TestClient_RPC_FireRetryWatchers(t *testing.T) {
 
 func TestClient_RPC_Passthrough(t *testing.T) {
 	t.Parallel()
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
+
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	// RPC should succeed
 	testutil.WaitForResult(func() (bool, error) {
@@ -257,7 +260,7 @@ func TestClient_MixedTLS(t *testing.T) {
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey  = "../helper/tlsutil/testdata/nomad-foo-key.pem"
 	)
-	s1, addr := testServer(t, func(c *nomad.Config) {
+	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.TLSConfig = &nconfig.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -267,7 +270,7 @@ func TestClient_MixedTLS(t *testing.T) {
 			KeyFile:              fookey,
 		}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
@@ -299,6 +302,7 @@ func TestClient_MixedTLS(t *testing.T) {
 // unable to communicate.
 func TestClient_BadTLS(t *testing.T) {
 	t.Parallel()
+
 	const (
 		cafile  = "../helper/tlsutil/testdata/ca.pem"
 		foocert = "../helper/tlsutil/testdata/nomad-foo.pem"
@@ -307,7 +311,7 @@ func TestClient_BadTLS(t *testing.T) {
 		badcert = "../helper/tlsutil/testdata/nomad-bad.pem"
 		badkey  = "../helper/tlsutil/testdata/nomad-bad-key.pem"
 	)
-	s1, addr := testServer(t, func(c *nomad.Config) {
+	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.TLSConfig = &nconfig.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -317,10 +321,10 @@ func TestClient_BadTLS(t *testing.T) {
 			KeyFile:              fookey,
 		}
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.Servers = []string{addr}
 		c.TLSConfig = &nconfig.TLSConfig{
 			EnableHTTP:           true,
@@ -331,7 +335,7 @@ func TestClient_BadTLS(t *testing.T) {
 			KeyFile:              badkey,
 		}
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
@@ -354,14 +358,15 @@ func TestClient_BadTLS(t *testing.T) {
 
 func TestClient_Register(t *testing.T) {
 	t.Parallel()
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
@@ -386,16 +391,17 @@ func TestClient_Register(t *testing.T) {
 
 func TestClient_Heartbeat(t *testing.T) {
 	t.Parallel()
-	s1, _ := testServer(t, func(c *nomad.Config) {
+
+	s1, _, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.MinHeartbeatTTL = 50 * time.Millisecond
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	req := structs.NodeSpecificRequest{
 		NodeID:       c1.Node().ID,
@@ -422,8 +428,9 @@ func TestClient_Heartbeat(t *testing.T) {
 // the server.
 func TestClient_UpdateAllocStatus(t *testing.T) {
 	t.Parallel()
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
 
 	_, cleanup := TestClient(t, func(c *config.Config) {
 		c.RPCHandler = s1
@@ -447,9 +454,9 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 
 func TestClient_WatchAllocs(t *testing.T) {
 	t.Parallel()
-	ctestutil.ExecCompatible(t)
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
@@ -462,6 +469,11 @@ func TestClient_WatchAllocs(t *testing.T) {
 
 	// Create mock allocations
 	job := mock.Job()
+	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "10s",
+	}
 	alloc1 := mock.Alloc()
 	alloc1.JobID = job.ID
 	alloc1.Job = job
@@ -472,13 +484,13 @@ func TestClient_WatchAllocs(t *testing.T) {
 	alloc2.Job = job
 
 	state := s1.State()
-	if err := state.UpsertJob(100, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job); err != nil {
 		t.Fatal(err)
 	}
 	if err := state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID)); err != nil {
 		t.Fatal(err)
 	}
-	err := state.UpsertAllocs(102, []*structs.Allocation{alloc1, alloc2})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc1, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -503,7 +515,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 	// alloc runner.
 	alloc2_2 := alloc2.Copy()
 	alloc2_2.DesiredStatus = structs.AllocDesiredStatusStop
-	if err := state.UpsertAllocs(104, []*structs.Allocation{alloc2_2}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 104, []*structs.Allocation{alloc2_2}); err != nil {
 		t.Fatalf("err upserting stopped alloc: %v", err)
 	}
 
@@ -543,15 +555,15 @@ func waitTilNodeReady(client *Client, t *testing.T) {
 func TestClient_SaveRestoreState(t *testing.T) {
 	t.Parallel()
 
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.DevMode = false
 		c.RPCHandler = s1
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	// Wait until the node is ready
 	waitTilNodeReady(c1, t)
@@ -569,13 +581,13 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	alloc1.ClientStatus = structs.AllocClientStatusRunning
 
 	state := s1.State()
-	if err := state.UpsertJob(100, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job); err != nil {
 		t.Fatal(err)
 	}
 	if err := state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID)); err != nil {
 		t.Fatal(err)
 	}
-	if err := state.UpsertAllocs(102, []*structs.Allocation{alloc1}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -603,10 +615,14 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	// Create a new client
 	logger := testlog.HCLogger(t)
 	c1.config.Logger = logger
-	catalog := consul.NewMockCatalog(logger)
+	consulCatalog := consul.NewMockCatalog(logger)
 	mockService := consulApi.NewMockConsulServiceClient(t, logger)
 
-	c2, err := NewClient(c1.config, catalog, mockService)
+	// ensure we use non-shutdown driver instances
+	c1.config.PluginLoader = catalog.TestPluginLoaderWithOptions(t, "", c1.config.Options, nil)
+	c1.config.PluginSingletonLoader = singleton.NewSingletonLoader(logger, c1.config.PluginLoader)
+
+	c2, err := NewClient(c1.config, consulCatalog, nil, mockService)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -637,110 +653,19 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	}
 }
 
-func TestClient_RestoreError(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	c1, cleanup := TestClient(t, func(c *config.Config) {
-		c.DevMode = false
-		c.RPCHandler = s1
-	})
-	defer cleanup()
-
-	// Wait until the node is ready
-	waitTilNodeReady(c1, t)
-
-	// Create mock allocations
-	job := mock.Job()
-	alloc1 := mock.Alloc()
-	alloc1.NodeID = c1.Node().ID
-	alloc1.Job = job
-	alloc1.JobID = job.ID
-	alloc1.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	alloc1.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-		"run_for": "10s",
-	}
-	alloc1.ClientStatus = structs.AllocClientStatusRunning
-
-	state := s1.State()
-	err := state.UpsertJob(100, job)
-	require.Nil(err)
-
-	err = state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID))
-	require.Nil(err)
-
-	err = state.UpsertAllocs(102, []*structs.Allocation{alloc1})
-	require.Nil(err)
-
-	// Allocations should get registered
-	testutil.WaitForResult(func() (bool, error) {
-		c1.allocLock.RLock()
-		ar := c1.allocs[alloc1.ID]
-		c1.allocLock.RUnlock()
-		if ar == nil {
-			return false, fmt.Errorf("nil alloc runner")
-		}
-		if ar.Alloc().ClientStatus != structs.AllocClientStatusRunning {
-			return false, fmt.Errorf("client status: got %v; want %v", ar.Alloc().ClientStatus, structs.AllocClientStatusRunning)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
-
-	// Shutdown the client, saves state
-	if err := c1.Shutdown(); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Create a new client with a stateDB implementation that errors
-	logger := testlog.HCLogger(t)
-	c1.config.Logger = logger
-	catalog := consul.NewMockCatalog(logger)
-	mockService := consulApi.NewMockConsulServiceClient(t, logger)
-
-	// This stateDB returns errors for all methods called by restore
-	stateDBFunc := func(hclog.Logger, string) (cstate.StateDB, error) {
-		return &cstate.ErrDB{Allocs: []*structs.Allocation{alloc1}}, nil
-	}
-	c1.config.StateDBFactory = stateDBFunc
-
-	c2, err := NewClient(c1.config, catalog, mockService)
-	require.Nil(err)
-	defer c2.Shutdown()
-
-	// Ensure the allocation has been marked as failed on the server
-	testutil.WaitForResult(func() (bool, error) {
-		alloc, err := s1.State().AllocByID(nil, alloc1.ID)
-		require.Nil(err)
-		failed := alloc.ClientStatus == structs.AllocClientStatusFailed
-		if !failed {
-			return false, fmt.Errorf("Expected failed client status, but got %v", alloc.ClientStatus)
-		}
-		return true, nil
-	}, func(err error) {
-		require.NoError(err)
-	})
-
-}
-
 func TestClient_AddAllocError(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	c1, cleanup := TestClient(t, func(c *config.Config) {
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.DevMode = false
 		c.RPCHandler = s1
 	})
-	defer cleanup()
+	defer cleanupC1()
 
 	// Wait until the node is ready
 	waitTilNodeReady(c1, t)
@@ -762,13 +687,13 @@ func TestClient_AddAllocError(t *testing.T) {
 	alloc1.TaskResources = nil
 
 	state := s1.State()
-	err := state.UpsertJob(100, job)
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, job)
 	require.Nil(err)
 
 	err = state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID))
 	require.Nil(err)
 
-	err = state.UpsertAllocs(102, []*structs.Allocation{alloc1})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc1})
 	require.Nil(err)
 
 	// Push this alloc update to the client
@@ -832,8 +757,9 @@ func TestClient_Init(t *testing.T) {
 
 func TestClient_BlockedAllocations(t *testing.T) {
 	t.Parallel()
-	s1, _ := testServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1, cleanup := TestClient(t, func(c *config.Config) {
@@ -869,7 +795,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	}
 
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(100, []*structs.Allocation{alloc})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 
 	// Wait until the client downloads and starts the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -892,7 +818,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	alloc2.Job = alloc.Job
 	alloc2.JobID = alloc.JobID
 	alloc2.PreviousAllocation = alloc.ID
-	if err := state.UpsertAllocs(200, []*structs.Allocation{alloc2}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -913,7 +839,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	// Change the desired state of the parent alloc to stop
 	alloc1 := alloc.Copy()
 	alloc1.DesiredStatus = structs.AllocDesiredStatusStop
-	if err := state.UpsertAllocs(300, []*structs.Allocation{alloc1}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 300, []*structs.Allocation{alloc1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -988,10 +914,10 @@ func TestClient_ReloadTLS_UpgradePlaintextToTLS(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	s1, addr := testServer(t, func(c *nomad.Config) {
+	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.Region = "global"
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	const (
@@ -1064,10 +990,10 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	s1, addr := testServer(t, func(c *nomad.Config) {
+	s1, addr, cleanupS1 := testServer(t, func(c *nomad.Config) {
 		c.Region = "global"
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	const (
@@ -1187,8 +1113,9 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 	// initial check
 	expectedResources := &structs.NodeResources{
 		// computed through test client initialization
-		Networks: client.configCopy.Node.NodeResources.Networks,
-		Disk:     client.configCopy.Node.NodeResources.Disk,
+		Networks:     client.configCopy.Node.NodeResources.Networks,
+		NodeNetworks: client.configCopy.Node.NodeResources.NodeNetworks,
+		Disk:         client.configCopy.Node.NodeResources.Disk,
 
 		// injected
 		Cpu:    structs.NodeCpuResources{CpuShares: 123},
@@ -1224,8 +1151,9 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 
 	expectedResources2 := &structs.NodeResources{
 		// computed through test client initialization
-		Networks: client.configCopy.Node.NodeResources.Networks,
-		Disk:     client.configCopy.Node.NodeResources.Disk,
+		Networks:     client.configCopy.Node.NodeResources.Networks,
+		NodeNetworks: client.configCopy.Node.NodeResources.NodeNetworks,
+		Disk:         client.configCopy.Node.NodeResources.Disk,
 
 		// injected
 		Cpu:    structs.NodeCpuResources{CpuShares: 123},
@@ -1254,22 +1182,28 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	// Client without network configured updates to match fingerprint
 	client, cleanup := TestClient(t, nil)
 	defer cleanup()
-	// capture the platform fingerprinted device name for the next test
-	dev := client.config.Node.NodeResources.Networks[0].Device
+
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
 			Cpu:      structs.NodeCpuResources{CpuShares: 123},
-			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
+			Networks: []*structs.NetworkResource{{Mode: "host", Device: "any-interface"}},
 		},
 		Resources: &structs.Resources{
-			CPU:      80,
-			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
+			CPU: 80,
 		},
 	})
-	assert.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
-	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[0].Device)
-	assert.Equal(t, 80, client.config.Node.Resources.CPU)
-	assert.Equal(t, "any-interface", client.config.Node.Resources.Networks[0].Device)
+	idx := len(client.config.Node.NodeResources.Networks) - 1
+	require.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
+	require.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[idx].Device)
+	require.Equal(t, 80, client.config.Node.Resources.CPU)
+
+	// lookup an interface. client.Node starts with a hardcoded value, eth0,
+	// and is only updated async through fingerprinter.
+	// Let's just lookup network device; anyone will do for this test
+	interfaces, err := net.Interfaces()
+	require.NoError(t, err)
+	require.NotEmpty(t, interfaces)
+	dev := interfaces[0].Name
 
 	// Client with network interface configured keeps the config
 	// setting on update
@@ -1277,48 +1211,43 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	client, cleanup = TestClient(t, func(c *config.Config) {
 		c.NetworkInterface = dev
 		c.Node.Name = name
+		c.Options["fingerprint.denylist"] = "network"
 		// Node is already a mock.Node, with a device
 		c.Node.NodeResources.Networks[0].Device = dev
-		c.Node.Resources.Networks = c.Node.NodeResources.Networks
 	})
 	defer cleanup()
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
 			Cpu: structs.NodeCpuResources{CpuShares: 123},
 			Networks: []*structs.NetworkResource{
-				{Device: "any-interface", MBits: 20},
-				{Device: dev, MBits: 20},
+				{Mode: "host", Device: "any-interface", MBits: 20},
 			},
 		},
-		Resources: &structs.Resources{
-			CPU:      80,
-			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
-		},
 	})
-	assert.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
+	require.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
 	// only the configured device is kept
-	assert.Equal(t, 1, len(client.config.Node.NodeResources.Networks))
-	assert.Equal(t, dev, client.config.Node.NodeResources.Networks[0].Device)
-	// network speed updates to the configured network are kept
-	assert.Equal(t, 20, client.config.Node.NodeResources.Networks[0].MBits)
-	assert.Equal(t, 80, client.config.Node.Resources.CPU)
-	assert.Equal(t, dev, client.config.Node.Resources.Networks[0].Device)
+	require.Equal(t, 2, len(client.config.Node.NodeResources.Networks))
+	require.Equal(t, dev, client.config.Node.NodeResources.Networks[0].Device)
+	require.Equal(t, "bridge", client.config.Node.NodeResources.Networks[1].Mode)
 
 	// Network speed is applied to all NetworkResources
 	client.config.NetworkInterface = ""
 	client.config.NetworkSpeed = 100
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
-			Cpu:      structs.NodeCpuResources{CpuShares: 123},
-			Networks: []*structs.NetworkResource{{Device: "any-interface", MBits: 20}},
+			Cpu: structs.NodeCpuResources{CpuShares: 123},
+			Networks: []*structs.NetworkResource{
+				{Mode: "host", Device: "any-interface", MBits: 20},
+			},
 		},
 		Resources: &structs.Resources{
-			CPU:      80,
-			Networks: []*structs.NetworkResource{{Device: "any-interface"}},
+			CPU: 80,
 		},
 	})
-	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[0].Device)
-	assert.Equal(t, 100, client.config.Node.NodeResources.Networks[0].MBits)
+	assert.Equal(t, 3, len(client.config.Node.NodeResources.Networks))
+	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[2].Device)
+	assert.Equal(t, 100, client.config.Node.NodeResources.Networks[2].MBits)
+	assert.Equal(t, 0, client.config.Node.NodeResources.Networks[1].MBits)
 }
 
 // Support multiple IP addresses (ipv4 vs. 6, e.g.) on the configured network interface
@@ -1336,7 +1265,7 @@ func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
 	// Client without network configured updates to match fingerprint
 	client, cleanup := TestClient(t, func(c *config.Config) {
 		c.NetworkInterface = dev
-		c.Node.NodeResources.Networks[0].Device = dev
+		c.Options["fingerprint.denylist"] = "network,cni,bridge"
 		c.Node.Resources.Networks = c.Node.NodeResources.Networks
 	})
 	defer cleanup()
@@ -1351,12 +1280,13 @@ func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
 		},
 	})
 
-	two := structs.Networks{
+	nets := structs.Networks{
+		mock.Node().NodeResources.Networks[0],
 		{Device: dev, IP: "127.0.0.1"},
 		{Device: dev, IP: "::1"},
 	}
 
-	require.Equal(t, two, client.config.Node.NodeResources.Networks)
+	require.Equal(t, nets, client.config.Node.NodeResources.Networks)
 }
 
 func TestClient_computeAllocatedDeviceStats(t *testing.T) {
@@ -1547,6 +1477,9 @@ func TestClient_getAllocatedResources(t *testing.T) {
 
 	result := client.getAllocatedResources(client.config.Node)
 
+	// Ignore comparing networks for now
+	result.Flattened.Networks = nil
+
 	expected := structs.ComparableResources{
 		Flattened: structs.AllocatedTaskResources{
 			Cpu: structs.AllocatedCpuResources{
@@ -1685,5 +1618,73 @@ func TestClient_hasLocalState(t *testing.T) {
 		c.stateDB.PutTaskState(alloc.ID, taskName, ts)
 
 		require.True(t, c.hasLocalState(alloc))
+	})
+}
+
+func Test_verifiedTasks(t *testing.T) {
+	t.Parallel()
+	logger := testlog.HCLogger(t)
+
+	// produce a result and check against expected tasks and/or error output
+	try := func(t *testing.T, a *structs.Allocation, tasks, expTasks []string, expErr string) {
+		result, err := verifiedTasks(logger, a, tasks)
+		if expErr != "" {
+			require.EqualError(t, err, expErr)
+		} else {
+			require.NoError(t, err)
+			require.Equal(t, expTasks, result)
+		}
+	}
+
+	// create an alloc with TaskGroup=g1, tasks configured given g1Tasks
+	alloc := func(g1Tasks []string) *structs.Allocation {
+		var tasks []*structs.Task
+		for _, taskName := range g1Tasks {
+			tasks = append(tasks, &structs.Task{Name: taskName})
+		}
+
+		return &structs.Allocation{
+			Job: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{
+					{Name: "g0", Tasks: []*structs.Task{{Name: "g0t1"}}},
+					{Name: "g1", Tasks: tasks},
+				},
+			},
+			TaskGroup: "g1",
+		}
+	}
+
+	t.Run("nil alloc", func(t *testing.T) {
+		tasks := []string{"g1t1"}
+		try(t, nil, tasks, nil, "nil allocation")
+	})
+
+	t.Run("missing task names", func(t *testing.T) {
+		var tasks []string
+		tgTasks := []string{"g1t1"}
+		try(t, alloc(tgTasks), tasks, nil, "missing task names")
+	})
+
+	t.Run("missing group", func(t *testing.T) {
+		tasks := []string{"g1t1"}
+		a := alloc(tasks)
+		a.TaskGroup = "other"
+		try(t, a, tasks, nil, "group name in allocation is not present in job")
+	})
+
+	t.Run("nonexistent task", func(t *testing.T) {
+		tasks := []string{"missing"}
+		try(t, alloc([]string{"task1"}), tasks, nil, `task "missing" not found in allocation`)
+	})
+
+	t.Run("matching task", func(t *testing.T) {
+		tasks := []string{"g1t1"}
+		try(t, alloc(tasks), tasks, tasks, "")
+	})
+
+	t.Run("matching task subset", func(t *testing.T) {
+		tasks := []string{"g1t1", "g1t3"}
+		tgTasks := []string{"g1t1", "g1t2", "g1t3"}
+		try(t, alloc(tgTasks), tasks, tasks, "")
 	})
 }

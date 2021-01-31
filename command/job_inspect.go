@@ -20,9 +20,12 @@ Alias: nomad inspect
 
   Inspect is used to see the specification of a submitted job.
 
+  When ACLs are enabled, this command requires a token with the 'read-job' and
+  'list-jobs' capabilities for the job's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Inspect Options:
 
@@ -126,8 +129,8 @@ func (c *JobInspectCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
 		return 1
 	}
-	if len(jobs) > 1 && strings.TrimSpace(jobID) != jobs[0].ID {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs)))
+	if len(jobs) > 1 && (c.allNamespaces() || strings.TrimSpace(jobID) != jobs[0].ID) {
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
 		return 1
 	}
 
@@ -143,7 +146,7 @@ func (c *JobInspectCommand) Run(args []string) int {
 	}
 
 	// Prefix lookup matched a single job
-	job, err := getJob(client, jobs[0].ID, version)
+	job, err := getJob(client, jobs[0].JobSummary.Namespace, jobs[0].ID, version)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error inspecting job: %s", err))
 		return 1
@@ -162,7 +165,11 @@ func (c *JobInspectCommand) Run(args []string) int {
 	}
 
 	// Print the contents of the job
-	req := api.RegisterJobRequest{Job: job}
+	req := struct {
+		Job *api.Job
+	}{
+		Job: job,
+	}
 	f, err := DataFormat("json", "")
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting formatter: %s", err))
@@ -179,13 +186,17 @@ func (c *JobInspectCommand) Run(args []string) int {
 }
 
 // getJob retrieves the job optionally at a particular version.
-func getJob(client *api.Client, jobID string, version *uint64) (*api.Job, error) {
+func getJob(client *api.Client, namespace, jobID string, version *uint64) (*api.Job, error) {
+	var q *api.QueryOptions
+	if namespace != "" {
+		q = &api.QueryOptions{Namespace: namespace}
+	}
 	if version == nil {
-		job, _, err := client.Jobs().Info(jobID, nil)
+		job, _, err := client.Jobs().Info(jobID, q)
 		return job, err
 	}
 
-	versions, _, _, err := client.Jobs().Versions(jobID, false, nil)
+	versions, _, _, err := client.Jobs().Versions(jobID, false, q)
 	if err != nil {
 		return nil, err
 	}

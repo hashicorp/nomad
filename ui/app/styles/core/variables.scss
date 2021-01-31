@@ -4,6 +4,7 @@ $blue: $vagrant-blue;
 $purple: $terraform-purple;
 $red: #c84034;
 $grey-blue: #bbc4d1;
+$blue-light: #c0d5ff;
 
 $primary: $nomad-green;
 $warning: $orange;
@@ -43,3 +44,7 @@ $breadcrumb-item-active-color: $white;
 $breadcrumb-item-separator-color: $primary;
 
 $mq-hidden-gutter: 'only screen and (max-width : 960px)';
+
+$timing-fast: 150ms;
+$timing-medium: 300ms;
+$timing-slow: 450ms;

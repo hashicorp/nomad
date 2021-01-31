@@ -17,13 +17,17 @@ func (a *AllocRestartCommand) Help() string {
 	helpText := `
 Usage: nomad alloc restart [options] <allocation> <task>
 
-  restart an existing allocation. This command is used to restart a specific alloc
+  Restart an existing allocation. This command is used to restart a specific alloc
   and its tasks. If no task is provided then all of the allocation's tasks will
   be restarted.
 
+  When ACLs are enabled, this command requires a token with the
+  'alloc-lifecycle', 'read-job', and 'list-jobs' capabilities for the
+  allocation's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Restart Specific Options:
 
@@ -64,7 +68,7 @@ func (c *AllocRestartCommand) Run(args []string) int {
 
 	// Query the allocation info
 	if len(allocID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Alloc ID must contain at least two characters."))
+		c.Ui.Error("Alloc ID must contain at least two characters.")
 		return 1
 	}
 
@@ -96,7 +100,8 @@ func (c *AllocRestartCommand) Run(args []string) int {
 	}
 
 	// Prefix lookup matched a single allocation
-	alloc, _, err := client.Allocations().Info(allocs[0].ID, nil)
+	q := &api.QueryOptions{Namespace: allocs[0].Namespace}
+	alloc, _, err := client.Allocations().Info(allocs[0].ID, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
 		return 1

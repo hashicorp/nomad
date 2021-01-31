@@ -7,7 +7,6 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -41,14 +40,17 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 		"name",
 		"tags",
 		"canary_tags",
+		"enable_tag_override",
 		"port",
 		"check",
 		"address_mode",
 		"check_restart",
 		"connect",
+		"task",
 		"meta",
+		"canary_meta",
 	}
-	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return nil, err
 	}
 
@@ -62,6 +64,7 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 	delete(m, "check_restart")
 	delete(m, "connect")
 	delete(m, "meta")
+	delete(m, "canary_meta")
 
 	if err := mapstructure.WeakDecode(m, &service); err != nil {
 		return nil, err
@@ -122,17 +125,32 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 		}
 	}
 
+	// Parse out canary_meta fields. These are in HCL as a list so we need
+	// to iterate over them and merge them.
+	if metaO := listVal.Filter("canary_meta"); len(metaO.Items) > 0 {
+		for _, o := range metaO.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return nil, err
+			}
+			if err := mapstructure.WeakDecode(m, &service.CanaryMeta); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	return &service, nil
 }
 
 func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
 	valid := []string{
 		"native",
+		"gateway",
 		"sidecar_service",
 		"sidecar_task",
 	}
 
-	if err := helper.CheckHCLKeys(co.Val, valid); err != nil {
+	if err := checkHCLKeys(co.Val, valid); err != nil {
 		return nil, multierror.Prefix(err, "connect ->")
 	}
 
@@ -142,6 +160,7 @@ func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
 		return nil, err
 	}
 
+	delete(m, "gateway")
 	delete(m, "sidecar_service")
 	delete(m, "sidecar_task")
 
@@ -156,8 +175,20 @@ func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
 		return nil, fmt.Errorf("connect should be an object")
 	}
 
+	// Parse the gateway
+	o := connectList.Filter("gateway")
+	if len(o.Items) > 1 {
+		return nil, fmt.Errorf("only one 'gateway' block allowed per task")
+	} else if len(o.Items) == 1 {
+		g, err := parseGateway(o.Items[0])
+		if err != nil {
+			return nil, fmt.Errorf("gateway, %v", err)
+		}
+		connect.Gateway = g
+	}
+
 	// Parse the sidecar_service
-	o := connectList.Filter("sidecar_service")
+	o = connectList.Filter("sidecar_service")
 	if len(o.Items) == 0 {
 		return &connect, nil
 	}
@@ -189,13 +220,338 @@ func parseConnect(co *ast.ObjectItem) (*api.ConsulConnect, error) {
 	return &connect, nil
 }
 
+func parseGateway(o *ast.ObjectItem) (*api.ConsulGateway, error) {
+	valid := []string{
+		"proxy",
+		"ingress",
+	}
+
+	if err := checkHCLKeys(o.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "gateway ->")
+	}
+
+	var gateway api.ConsulGateway
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	delete(m, "proxy")
+	delete(m, "ingress")
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &gateway,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(m); err != nil {
+		return nil, fmt.Errorf("gateway: %v", err)
+	}
+
+	// list of parameters
+	var listVal *ast.ObjectList
+	if ot, ok := o.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return nil, fmt.Errorf("proxy: should be an object")
+	}
+
+	// extract and parse the proxy block
+	po := listVal.Filter("proxy")
+	if len(po.Items) != 1 {
+		return nil, fmt.Errorf("must have one 'proxy' block")
+	}
+	proxy, err := parseGatewayProxy(po.Items[0])
+	if err != nil {
+		return nil, fmt.Errorf("proxy, %v", err)
+	}
+	gateway.Proxy = proxy
+
+	// extract and parse the ingress block
+	io := listVal.Filter("ingress")
+	if len(io.Items) != 1 {
+		// in the future, may be terminating or mesh block instead
+		return nil, fmt.Errorf("must have one 'ingress' block")
+	}
+	ingress, err := parseIngressConfigEntry(io.Items[0])
+	if err != nil {
+		return nil, fmt.Errorf("ingress, %v", err)
+	}
+	gateway.Ingress = ingress
+
+	return &gateway, nil
+}
+
+// parseGatewayProxy parses envoy gateway proxy options supported by Consul.
+//
+// consul.io/docs/connect/proxies/envoy#gateway-options
+func parseGatewayProxy(o *ast.ObjectItem) (*api.ConsulGatewayProxy, error) {
+	valid := []string{
+		"connect_timeout",
+		"envoy_gateway_bind_tagged_addresses",
+		"envoy_gateway_bind_addresses",
+		"envoy_gateway_no_default_bind",
+		"envoy_dns_discovery_type",
+		"config",
+	}
+
+	if err := checkHCLKeys(o.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "proxy ->")
+	}
+
+	var proxy api.ConsulGatewayProxy
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	delete(m, "config")
+	delete(m, "envoy_gateway_bind_addresses")
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+		WeaklyTypedInput: true,
+		Result:           &proxy,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(m); err != nil {
+		return nil, fmt.Errorf("proxy: %v", err)
+	}
+
+	var listVal *ast.ObjectList
+	if ot, ok := o.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return nil, fmt.Errorf("proxy: should be an object")
+	}
+
+	// need to parse envoy_gateway_bind_addresses if present
+
+	if ebo := listVal.Filter("envoy_gateway_bind_addresses"); len(ebo.Items) > 0 {
+		proxy.EnvoyGatewayBindAddresses = make(map[string]*api.ConsulGatewayBindAddress)
+		for _, listenerM := range ebo.Items { // object item, each listener object
+			listenerName := listenerM.Keys[0].Token.Value().(string)
+
+			var listenerListVal *ast.ObjectList
+			if ot, ok := listenerM.Val.(*ast.ObjectType); ok {
+				listenerListVal = ot.List
+			} else {
+				return nil, fmt.Errorf("listener: should be an object")
+			}
+
+			var bind api.ConsulGatewayBindAddress
+			if err := hcl.DecodeObject(&bind, listenerListVal); err != nil {
+				panic(err)
+			}
+			bind.Name = listenerName
+			proxy.EnvoyGatewayBindAddresses[listenerName] = &bind
+		}
+	}
+
+	// need to parse the opaque config if present
+
+	if co := listVal.Filter("config"); len(co.Items) > 1 {
+		return nil, fmt.Errorf("only 1 meta object supported")
+	} else if len(co.Items) == 1 {
+		var mSlice []map[string]interface{}
+		if err := hcl.DecodeObject(&mSlice, co.Items[0].Val); err != nil {
+			return nil, err
+		}
+
+		if len(mSlice) > 1 {
+			return nil, fmt.Errorf("only 1 meta object supported")
+		}
+
+		m := mSlice[0]
+
+		if err := mapstructure.WeakDecode(m, &proxy.Config); err != nil {
+			return nil, err
+		}
+
+		proxy.Config = flattenMapSlice(proxy.Config)
+	}
+
+	return &proxy, nil
+}
+
+func parseConsulIngressService(o *ast.ObjectItem) (*api.ConsulIngressService, error) {
+	valid := []string{
+		"name",
+		"hosts",
+	}
+
+	if err := checkHCLKeys(o.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "service ->")
+	}
+
+	var service api.ConsulIngressService
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result: &service,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
+
+	return &service, nil
+}
+
+func parseConsulIngressListener(o *ast.ObjectItem) (*api.ConsulIngressListener, error) {
+	valid := []string{
+		"port",
+		"protocol",
+		"service",
+	}
+
+	if err := checkHCLKeys(o.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "listener ->")
+	}
+
+	var listener api.ConsulIngressListener
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	delete(m, "service")
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result: &listener,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
+
+	// Parse services
+
+	var listVal *ast.ObjectList
+	if ot, ok := o.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return nil, fmt.Errorf("listener: should be an object")
+	}
+
+	so := listVal.Filter("service")
+	if len(so.Items) > 0 {
+		listener.Services = make([]*api.ConsulIngressService, len(so.Items))
+		for i := range so.Items {
+			is, err := parseConsulIngressService(so.Items[i])
+			if err != nil {
+				return nil, err
+			}
+			listener.Services[i] = is
+		}
+	}
+	return &listener, nil
+}
+
+func parseConsulGatewayTLS(o *ast.ObjectItem) (*api.ConsulGatewayTLSConfig, error) {
+	valid := []string{
+		"enabled",
+	}
+
+	if err := checkHCLKeys(o.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "tls ->")
+	}
+
+	var tls api.ConsulGatewayTLSConfig
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result: &tls,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
+
+	return &tls, nil
+}
+
+func parseIngressConfigEntry(o *ast.ObjectItem) (*api.ConsulIngressConfigEntry, error) {
+	valid := []string{
+		"tls",
+		"listener",
+	}
+
+	if err := checkHCLKeys(o.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "ingress ->")
+	}
+
+	var ingress api.ConsulIngressConfigEntry
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	delete(m, "tls")
+	delete(m, "listener")
+
+	// Parse tls and listener(s)
+
+	var listVal *ast.ObjectList
+	if ot, ok := o.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return nil, fmt.Errorf("ingress: should be an object")
+	}
+
+	if to := listVal.Filter("tls"); len(to.Items) > 1 {
+		return nil, fmt.Errorf("only 1 tls object supported")
+	} else if len(to.Items) == 1 {
+		if tls, err := parseConsulGatewayTLS(to.Items[0]); err != nil {
+			return nil, err
+		} else {
+			ingress.TLS = tls
+		}
+	}
+
+	lo := listVal.Filter("listener")
+	if len(lo.Items) > 0 {
+		ingress.Listeners = make([]*api.ConsulIngressListener, len(lo.Items))
+		for i := range lo.Items {
+			listener, err := parseConsulIngressListener(lo.Items[i])
+			if err != nil {
+				return nil, err
+			}
+			ingress.Listeners[i] = listener
+		}
+	}
+
+	return &ingress, nil
+}
+
 func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
 	valid := []string{
 		"port",
 		"proxy",
+		"tags",
 	}
 
-	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return nil, multierror.Prefix(err, "sidecar_service ->")
 	}
 
@@ -216,7 +572,7 @@ func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
 		return nil, err
 	}
 	if err := dec.Decode(m); err != nil {
-		return nil, fmt.Errorf("foo: %v", err)
+		return nil, fmt.Errorf("sidecar_service: %v", err)
 	}
 
 	var proxyList *ast.ObjectList
@@ -245,32 +601,7 @@ func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
 }
 
 func parseSidecarTask(item *ast.ObjectItem) (*api.SidecarTask, error) {
-	// We need this later
-	var listVal *ast.ObjectList
-	if ot, ok := item.Val.(*ast.ObjectType); ok {
-		listVal = ot.List
-	} else {
-		return nil, fmt.Errorf("should be an object")
-	}
-
-	// Check for invalid keys
-	valid := []string{
-		"config",
-		"driver",
-		"env",
-		"kill_timeout",
-		"logs",
-		"meta",
-		"resources",
-		"shutdown_delay",
-		"user",
-		"kill_signal",
-	}
-	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
-		return nil, err
-	}
-
-	task, err := parseTask(item)
+	task, err := parseTask(item, sidecarTaskKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +619,7 @@ func parseSidecarTask(item *ast.ObjectItem) (*api.SidecarTask, error) {
 		KillSignal:  task.KillSignal,
 	}
 
-	// Parse ShutdownDelay seperatly to get pointer
+	// Parse ShutdownDelay separatly to get pointer
 	var m map[string]interface{}
 	if err := hcl.DecodeObject(&m, item.Val); err != nil {
 		return nil, err
@@ -318,14 +649,35 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 		"local_service_address",
 		"local_service_port",
 		"upstreams",
+		"expose",
 		"config",
 	}
 
-	if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return nil, multierror.Prefix(err, "proxy ->")
 	}
 
 	var proxy api.ConsulProxy
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	delete(m, "upstreams")
+	delete(m, "expose")
+	delete(m, "config")
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result: &proxy,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(m); err != nil {
+		return nil, fmt.Errorf("proxy: %v", err)
+	}
+
+	// Parse upstreams, expose, and config
 
 	var listVal *ast.ObjectList
 	if ot, ok := o.Val.(*ast.ObjectType); ok {
@@ -334,16 +686,26 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 		return nil, fmt.Errorf("proxy: should be an object")
 	}
 
-	// Parse the proxy
 	uo := listVal.Filter("upstreams")
-	proxy.Upstreams = make([]*api.ConsulUpstream, len(uo.Items))
-	for i := range uo.Items {
-		u, err := parseUpstream(uo.Items[i])
-		if err != nil {
-			return nil, err
+	if len(uo.Items) > 0 {
+		proxy.Upstreams = make([]*api.ConsulUpstream, len(uo.Items))
+		for i := range uo.Items {
+			u, err := parseUpstream(uo.Items[i])
+			if err != nil {
+				return nil, err
+			}
+			proxy.Upstreams[i] = u
 		}
+	}
 
-		proxy.Upstreams[i] = u
+	if eo := listVal.Filter("expose"); len(eo.Items) > 1 {
+		return nil, fmt.Errorf("only 1 expose object supported")
+	} else if len(eo.Items) == 1 {
+		if e, err := parseExpose(eo.Items[0]); err != nil {
+			return nil, err
+		} else {
+			proxy.ExposeConfig = e
+		}
 	}
 
 	// If we have config, then parse that
@@ -371,13 +733,80 @@ func parseProxy(o *ast.ObjectItem) (*api.ConsulProxy, error) {
 	return &proxy, nil
 }
 
+func parseExpose(eo *ast.ObjectItem) (*api.ConsulExposeConfig, error) {
+	valid := []string{
+		"path", // an array of path blocks
+	}
+
+	if err := checkHCLKeys(eo.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "expose ->")
+	}
+
+	var expose api.ConsulExposeConfig
+
+	var listVal *ast.ObjectList
+	if eoType, ok := eo.Val.(*ast.ObjectType); ok {
+		listVal = eoType.List
+	} else {
+		return nil, fmt.Errorf("expose: should be an object")
+	}
+
+	// Parse the expose block
+
+	po := listVal.Filter("path") // array
+	if len(po.Items) > 0 {
+		expose.Path = make([]*api.ConsulExposePath, len(po.Items))
+		for i := range po.Items {
+			p, err := parseExposePath(po.Items[i])
+			if err != nil {
+				return nil, err
+			}
+			expose.Path[i] = p
+		}
+	}
+
+	return &expose, nil
+}
+
+func parseExposePath(epo *ast.ObjectItem) (*api.ConsulExposePath, error) {
+	valid := []string{
+		"path",
+		"protocol",
+		"local_path_port",
+		"listener_port",
+	}
+
+	if err := checkHCLKeys(epo.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "path ->")
+	}
+
+	var path api.ConsulExposePath
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, epo.Val); err != nil {
+		return nil, err
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result: &path,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
+
+	return &path, nil
+}
+
 func parseUpstream(uo *ast.ObjectItem) (*api.ConsulUpstream, error) {
 	valid := []string{
 		"destination_name",
 		"local_bind_port",
 	}
 
-	if err := helper.CheckHCLKeys(uo.Val, valid); err != nil {
+	if err := checkHCLKeys(uo.Val, valid); err != nil {
 		return nil, multierror.Prefix(err, "upstream ->")
 	}
 
@@ -402,6 +831,7 @@ func parseUpstream(uo *ast.ObjectItem) (*api.ConsulUpstream, error) {
 
 	return &upstream, nil
 }
+
 func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 	service.Checks = make([]api.ServiceCheck, len(checkObjs.Items))
 	for idx, co := range checkObjs.Items {
@@ -414,6 +844,7 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"path",
 			"protocol",
 			"port",
+			"expose",
 			"command",
 			"args",
 			"initial_status",
@@ -425,8 +856,10 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"grpc_service",
 			"grpc_use_tls",
 			"task",
+			"success_before_passing",
+			"failures_before_critical",
 		}
-		if err := helper.CheckHCLKeys(co.Val, valid); err != nil {
+		if err := checkHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")
 		}
 
@@ -512,7 +945,7 @@ func parseCheckRestart(cro *ast.ObjectItem) (*api.CheckRestart, error) {
 		"ignore_warnings",
 	}
 
-	if err := helper.CheckHCLKeys(cro.Val, valid); err != nil {
+	if err := checkHCLKeys(cro.Val, valid); err != nil {
 		return nil, multierror.Prefix(err, "check_restart ->")
 	}
 

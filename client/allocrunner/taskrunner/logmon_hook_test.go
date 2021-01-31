@@ -72,7 +72,8 @@ func TestTaskRunner_LogmonHook_StartStop(t *testing.T) {
 	}()
 
 	hookConf := newLogMonHookConfig(task.Name, dir)
-	hook := newLogMonHook(hookConf, testlog.HCLogger(t))
+	runner := &TaskRunner{logmonHookConfig: hookConf}
+	hook := newLogMonHook(runner, testlog.HCLogger(t))
 
 	req := interfaces.TaskPrestartRequest{
 		Task: task,

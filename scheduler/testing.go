@@ -6,6 +6,7 @@ import (
 	"time"
 
 	testing "github.com/mitchellh/go-testing-interface"
+	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -169,7 +170,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	}
 
 	// Apply the full plan
-	err := h.State.UpsertPlanResults(index, &req)
+	err := h.State.UpsertPlanResults(structs.MsgTypeTestSetup, index, &req)
 	return result, nil, err
 }
 
@@ -272,12 +273,7 @@ func (h *Harness) Process(factory Factory, eval *structs.Evaluation) error {
 }
 
 func (h *Harness) AssertEvalStatus(t testing.T, state string) {
-	if len(h.Evals) != 1 {
-		t.Fatalf("bad: %#v", h.Evals)
-	}
+	require.Len(t, h.Evals, 1)
 	update := h.Evals[0]
-
-	if update.Status != state {
-		t.Fatalf("bad: %#v", update)
-	}
+	require.Equal(t, state, update.Status)
 }

@@ -7,9 +7,6 @@ const isTest = environment === 'test';
 
 module.exports = function(defaults) {
   var app = new EmberApp(defaults, {
-    addons: {
-      blacklist: isProd ? ['ember-freestyle'] : [],
-    },
     svg: {
       paths: ['node_modules/@hashicorp/structure-icons/dist', 'public/images/icons'],
       optimize: {
@@ -19,15 +16,11 @@ module.exports = function(defaults) {
     codemirror: {
       modes: ['javascript'],
     },
-    funnel: {
-      enabled: isProd,
-      exclude: [
-        `${defaults.project.pkg.name}/components/freestyle/**/*`,
-        `${defaults.project.pkg.name}/templates/components/freestyle/**/*`,
-      ],
-    },
     babel: {
-      plugins: ['@babel/plugin-proposal-object-rest-spread'],
+      plugins: [
+        '@babel/plugin-proposal-object-rest-spread',
+        require.resolve('ember-auto-import/babel-plugin'),
+      ],
     },
     'ember-cli-babel': {
       includePolyfill: isProd,
@@ -51,6 +44,8 @@ module.exports = function(defaults) {
   // modules that you would like to import into your application
   // please specify an object with the list of modules as keys
   // along with the exports of each module as its value.
+
+  app.import('node_modules/xterm/css/xterm.css');
 
   return app.toTree();
 };

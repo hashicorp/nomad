@@ -7,9 +7,9 @@ import (
 
 	"github.com/boltdb/bolt"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/ugorji/go/codec"
 )
 
 // NeedsUpgrade returns true if the BoltDB needs upgrading or false if it is

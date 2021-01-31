@@ -1,5 +1,4 @@
 job "group_service_check_script" {
-
   group "group" {
     count = 1
 
@@ -7,8 +6,8 @@ job "group_service_check_script" {
       mode = "bridge"
 
       port "http" {
-	static = 80
-	to = 8080
+        static = 80
+        to     = 8080
       }
     }
 

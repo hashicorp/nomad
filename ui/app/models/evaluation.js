@@ -5,25 +5,25 @@ import { belongsTo } from 'ember-data/relationships';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 
-export default Model.extend({
-  shortId: shortUUIDProperty('id'),
-  priority: attr('number'),
-  type: attr('string'),
-  triggeredBy: attr('string'),
-  status: attr('string'),
-  statusDescription: attr('string'),
-  failedTGAllocs: fragmentArray('placement-failure', { defaultValue: () => [] }),
+export default class Evaluation extends Model {
+  @shortUUIDProperty('id') shortId;
+  @attr('number') priority;
+  @attr('string') type;
+  @attr('string') triggeredBy;
+  @attr('string') status;
+  @attr('string') statusDescription;
+  @fragmentArray('placement-failure', { defaultValue: () => [] }) failedTGAllocs;
 
-  hasPlacementFailures: bool('failedTGAllocs.length'),
-  isBlocked: equal('status', 'blocked'),
+  @bool('failedTGAllocs.length') hasPlacementFailures;
+  @equal('status', 'blocked') isBlocked;
 
-  job: belongsTo('job'),
+  @belongsTo('job') job;
 
-  modifyIndex: attr('number'),
-  modifyTime: attr('date'),
+  @attr('number') modifyIndex;
+  @attr('date') modifyTime;
 
-  createIndex: attr('number'),
-  createTime: attr('date'),
+  @attr('number') createIndex;
+  @attr('date') createTime;
 
-  waitUntil: attr('date'),
-});
+  @attr('date') waitUntil;
+}

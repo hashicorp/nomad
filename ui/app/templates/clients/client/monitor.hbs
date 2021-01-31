@@ -1,0 +1,12 @@
+{{title "Client " (or this.model.name this.model.shortId)}}
+<ClientSubnav @client={{this.model}} />
+<section class="section is-full-width">
+  {{#if (can "read agent")}}
+    <AgentMonitor
+      @level={{this.level}}
+      @client={{this.model}}
+      @onLevelChange={{action (mut this.level)}} />
+  {{else}}
+    <ForbiddenMessage @permission="agent:read" />
+  {{/if}}
+</section>

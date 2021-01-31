@@ -5,9 +5,9 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/hashicorp/go-msgpack/codec"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/plugins/base/proto"
-	"github.com/ugorji/go/codec"
 	"google.golang.org/grpc"
 )
 
@@ -65,6 +65,10 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 	h.BasicHandle.TimeNotBuiltin = true
 
 	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
+
+	// only review struct codec tags - ignore `json` flags
+	h.TypeInfos = codec.NewTypeInfos([]string{"codec"})
+
 	return h
 }()
 

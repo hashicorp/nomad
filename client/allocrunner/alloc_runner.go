@@ -17,11 +17,14 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -60,6 +63,14 @@ type allocRunner struct {
 	// consulClient is the client used by the consul service hook for
 	// registering services and checks
 	consulClient consul.ConsulServiceAPI
+
+	// consulProxiesClient is the client used by the envoy version hook for
+	// looking up supported envoy versions of the consul agent.
+	consulProxiesClient consul.SupportedProxiesAPI
+
+	// sidsClient is the client used by the service identity hook for
+	// managing SI tokens
+	sidsClient consul.ServiceIdentityAPI
 
 	// vaultClient is the used to manage Vault tokens
 	vaultClient vaultclient.VaultClient
@@ -113,6 +124,10 @@ type allocRunner struct {
 	// transistions.
 	runnerHooks []interfaces.RunnerHook
 
+	// hookState is the output of allocrunner hooks
+	hookState   *cstructs.AllocHookResources
+	hookStateMu sync.RWMutex
+
 	// tasks are the set of task runners
 	tasks map[string]*taskrunner.TaskRunner
 
@@ -129,6 +144,14 @@ type allocRunner struct {
 	// prevAllocMigrator allows the migration of a previous allocations alloc dir.
 	prevAllocMigrator allocwatcher.PrevAllocMigrator
 
+	// dynamicRegistry contains all locally registered dynamic plugins (e.g csi
+	// plugins).
+	dynamicRegistry dynamicplugins.Registry
+
+	// csiManager is used to wait for CSI Volumes to be attached, and by the task
+	// runner to manage their mounting
+	csiManager csimanager.Manager
+
 	// devicemanager is used to mount devices as well as lookup device
 	// statistics
 	devicemanager devicemanager.Manager
@@ -141,6 +164,17 @@ type allocRunner struct {
 	// servers have been contacted for the first time in case of a failed
 	// restore.
 	serversContactedCh chan struct{}
+
+	taskHookCoordinator *taskHookCoordinator
+
+	// rpcClient is the RPC Client that should be used by the allocrunner and its
+	// hooks to communicate with Nomad Servers.
+	rpcClient RPCer
+}
+
+// RPCer is the interface needed by hooks to make RPC calls.
+type RPCer interface {
+	RPC(method string, args interface{}, reply interface{}) error
 }
 
 // NewAllocRunner returns a new allocation runner.
@@ -156,6 +190,8 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		alloc:                    alloc,
 		clientConfig:             config.ClientConfig,
 		consulClient:             config.Consul,
+		consulProxiesClient:      config.ConsulProxies,
+		sidsClient:               config.ConsulSI,
 		vaultClient:              config.Vault,
 		tasks:                    make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
 		waitCh:                   make(chan struct{}),
@@ -170,9 +206,12 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		deviceStatsReporter:      config.DeviceStatsReporter,
 		prevAllocWatcher:         config.PrevAllocWatcher,
 		prevAllocMigrator:        config.PrevAllocMigrator,
+		dynamicRegistry:          config.DynamicRegistry,
+		csiManager:               config.CSIManager,
 		devicemanager:            config.DeviceManager,
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
+		rpcClient:                config.RPCClient,
 	}
 
 	// Create the logger based on the allocation ID
@@ -183,6 +222,8 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 
 	// Create alloc dir
 	ar.allocDir = allocdir.NewAllocDir(ar.logger, filepath.Join(config.ClientConfig.AllocDir, alloc.ID))
+
+	ar.taskHookCoordinator = newTaskHookCoordinator(ar.logger, tg.Tasks)
 
 	// Initialize the runners hooks.
 	if err := ar.initRunnerHooks(config.ClientConfig); err != nil {
@@ -200,24 +241,29 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 // initTaskRunners creates task runners but does *not* run them.
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
-		config := &taskrunner.Config{
-			Alloc:               ar.alloc,
-			ClientConfig:        ar.clientConfig,
-			Task:                task,
-			TaskDir:             ar.allocDir.NewTaskDir(task.Name),
-			Logger:              ar.logger,
-			StateDB:             ar.stateDB,
-			StateUpdater:        ar,
-			Consul:              ar.consulClient,
-			Vault:               ar.vaultClient,
-			DeviceStatsReporter: ar.deviceStatsReporter,
-			DeviceManager:       ar.devicemanager,
-			DriverManager:       ar.driverManager,
-			ServersContactedCh:  ar.serversContactedCh,
+		trConfig := &taskrunner.Config{
+			Alloc:                ar.alloc,
+			ClientConfig:         ar.clientConfig,
+			Task:                 task,
+			TaskDir:              ar.allocDir.NewTaskDir(task.Name),
+			Logger:               ar.logger,
+			StateDB:              ar.stateDB,
+			StateUpdater:         ar,
+			DynamicRegistry:      ar.dynamicRegistry,
+			Consul:               ar.consulClient,
+			ConsulProxies:        ar.consulProxiesClient,
+			ConsulSI:             ar.sidsClient,
+			Vault:                ar.vaultClient,
+			DeviceStatsReporter:  ar.deviceStatsReporter,
+			CSIManager:           ar.csiManager,
+			DeviceManager:        ar.devicemanager,
+			DriverManager:        ar.driverManager,
+			ServersContactedCh:   ar.serversContactedCh,
+			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
 		}
 
 		// Create, but do not Run, the task runner
-		tr, err := taskrunner.NewTaskRunner(config)
+		tr, err := taskrunner.NewTaskRunner(trConfig)
 		if err != nil {
 			return fmt.Errorf("failed creating runner for task %q: %v", task.Name, err)
 		}
@@ -307,12 +353,26 @@ func (ar *allocRunner) shouldRun() bool {
 
 // runTasks is used to run the task runners and block until they exit.
 func (ar *allocRunner) runTasks() {
+	// Start all tasks
 	for _, task := range ar.tasks {
 		go task.Run()
 	}
 
+	// Block on all tasks except poststop tasks
 	for _, task := range ar.tasks {
-		<-task.WaitCh()
+		if !task.IsPoststopTask() {
+			<-task.WaitCh()
+		}
+	}
+
+	// Signal poststop tasks to proceed to main runtime
+	ar.taskHookCoordinator.StartPoststopTasks()
+
+	// Wait for poststop tasks to finish before proceeding
+	for _, task := range ar.tasks {
+		if task.IsPoststopTask() {
+			<-task.WaitCh()
+		}
 	}
 }
 
@@ -346,16 +406,27 @@ func (ar *allocRunner) Restore() error {
 		return err
 	}
 
+	ns, err := ar.stateDB.GetNetworkStatus(ar.id)
+	if err != nil {
+		return err
+	}
+
 	ar.stateLock.Lock()
 	ar.state.DeploymentStatus = ds
+	ar.state.NetworkStatus = ns
 	ar.stateLock.Unlock()
+
+	states := make(map[string]*structs.TaskState)
 
 	// Restore task runners
 	for _, tr := range ar.tasks {
 		if err := tr.Restore(); err != nil {
 			return err
 		}
+		states[tr.Task().Name] = tr.TaskState()
 	}
+
+	ar.taskHookCoordinator.taskStateUpdated(states)
 
 	return nil
 }
@@ -398,6 +469,8 @@ func (ar *allocRunner) TaskStateUpdated() {
 func (ar *allocRunner) handleTaskStateUpdates() {
 	defer close(ar.taskStateUpdateHandlerCh)
 
+	hasSidecars := hasSidecarTasks(ar.tasks)
+
 	for done := false; !done; {
 		select {
 		case <-ar.taskStateUpdatedCh:
@@ -417,10 +490,6 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 		// name whose fault it is.
 		killTask := ""
 
-		// True if task runners should be killed because a leader
-		// failed (informational).
-		leaderFailed := false
-
 		// Task state has been updated; gather the state of the other tasks
 		trNum := len(ar.tasks)
 		liveRunners := make([]*taskrunner.TaskRunner, 0, trNum)
@@ -429,6 +498,10 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 		for name, tr := range ar.tasks {
 			state := tr.TaskState()
 			states[name] = state
+
+			if tr.IsPoststopTask() {
+				continue
+			}
 
 			// Capture live task runners in case we need to kill them
 			if state.State != structs.TaskStateDead {
@@ -447,18 +520,24 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 				}
 			} else if tr.IsLeader() {
 				killEvent = structs.NewTaskEvent(structs.TaskLeaderDead)
-				leaderFailed = true
-				killTask = name
 			}
+		}
+
+		// if all live runners are sidecars - kill alloc
+		if killEvent == nil && hasSidecars && !hasNonSidecarTasks(liveRunners) {
+			killEvent = structs.NewTaskEvent(structs.TaskMainDead)
 		}
 
 		// If there's a kill event set and live runners, kill them
 		if killEvent != nil && len(liveRunners) > 0 {
 
 			// Log kill reason
-			if leaderFailed {
+			switch killEvent.Type {
+			case structs.TaskLeaderDead:
 				ar.logger.Debug("leader task dead, destroying all tasks", "leader_task", killTask)
-			} else {
+			case structs.TaskMainDead:
+				ar.logger.Debug("main tasks dead, destroying all sidecar tasks")
+			default:
 				ar.logger.Debug("task failure, destroying all tasks", "failed_task", killTask)
 			}
 
@@ -474,12 +553,15 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 			// prevent looping before TaskRunners have transitioned
 			// to Dead.
 			for _, tr := range liveRunners {
+				ar.logger.Info("killing task: ", tr.Task().Name)
 				select {
 				case <-tr.WaitCh():
 				case <-ar.waitCh:
 				}
 			}
 		}
+
+		ar.taskHookCoordinator.taskStateUpdated(states)
 
 		// Get the client allocation
 		calloc := ar.clientAlloc(states)
@@ -498,6 +580,9 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 	var mu sync.Mutex
 	states := make(map[string]*structs.TaskState, len(ar.tasks))
+
+	// run alloc prekill hooks
+	ar.preKillHooks()
 
 	// Kill leader first, synchronously
 	for name, tr := range ar.tasks {
@@ -520,7 +605,8 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 	// Kill the rest concurrently
 	wg := sync.WaitGroup{}
 	for name, tr := range ar.tasks {
-		if tr.IsLeader() {
+		// Filter out poststop tasks so they run after all the other tasks are killed
+		if tr.IsLeader() || tr.IsPoststopTask() {
 			continue
 		}
 
@@ -601,6 +687,22 @@ func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *st
 		}
 	}
 
+	// Set the NetworkStatus and default DNSConfig if one is not returned from the client
+	netStatus := ar.state.NetworkStatus
+	if netStatus != nil {
+		a.NetworkStatus = netStatus
+	} else {
+		a.NetworkStatus = new(structs.AllocNetworkStatus)
+	}
+
+	if a.NetworkStatus.DNS == nil {
+		alloc := ar.Alloc()
+		nws := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Networks
+		if len(nws) > 0 {
+			a.NetworkStatus.DNS = nws[0].DNS.Copy()
+		}
+	}
+
 	return a
 }
 
@@ -644,6 +746,18 @@ func (ar *allocRunner) SetClientStatus(clientStatus string) {
 	ar.stateLock.Lock()
 	defer ar.stateLock.Unlock()
 	ar.state.ClientStatus = clientStatus
+}
+
+func (ar *allocRunner) SetNetworkStatus(s *structs.AllocNetworkStatus) {
+	ar.stateLock.Lock()
+	defer ar.stateLock.Unlock()
+	ar.state.NetworkStatus = s.Copy()
+}
+
+func (ar *allocRunner) NetworkStatus() *structs.AllocNetworkStatus {
+	ar.stateLock.Lock()
+	defer ar.stateLock.Unlock()
+	return ar.state.NetworkStatus.Copy()
 }
 
 // AllocState returns a copy of allocation state including a snapshot of task
@@ -794,17 +908,33 @@ func (ar *allocRunner) PersistState() error {
 	defer ar.destroyedLock.Unlock()
 
 	if ar.destroyed {
-		err := ar.stateDB.DeleteAllocationBucket(ar.id)
+		err := ar.stateDB.DeleteAllocationBucket(ar.id, cstate.WithBatchMode())
 		if err != nil {
 			ar.logger.Warn("failed to delete allocation bucket", "error", err)
 		}
 		return nil
 	}
 
+	// persist network status, wrapping in a func to release state lock as early as possible
+	err := func() error {
+		ar.stateLock.Lock()
+		defer ar.stateLock.Unlock()
+		if ar.state.NetworkStatus != nil {
+			err := ar.stateDB.PutNetworkStatus(ar.id, ar.state.NetworkStatus, cstate.WithBatchMode())
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}()
+	if err != nil {
+		return err
+	}
+
 	// TODO: consider persisting deployment state along with task status.
 	// While we study why only the alloc is persisted, I opted to maintain current
 	// behavior and not risk adding yet more IO calls unnecessarily.
-	return ar.stateDB.PutAllocation(ar.Alloc())
+	return ar.stateDB.PutAllocation(ar.Alloc(), cstate.WithBatchMode())
 }
 
 // Destroy the alloc runner by stopping it if it is still running and cleaning
@@ -1001,11 +1131,50 @@ func (ar *allocRunner) RestartTask(taskName string, taskEvent *structs.TaskEvent
 	return tr.Restart(context.TODO(), taskEvent, false)
 }
 
+// Restart satisfies the WorkloadRestarter interface restarts all task runners
+// concurrently
+func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
+	waitCh := make(chan struct{})
+	var err *multierror.Error
+	var errMutex sync.Mutex
+
+	// run alloc task restart hooks
+	ar.taskRestartHooks()
+
+	go func() {
+		var wg sync.WaitGroup
+		defer close(waitCh)
+		for tn, tr := range ar.tasks {
+			wg.Add(1)
+			go func(taskName string, r agentconsul.WorkloadRestarter) {
+				defer wg.Done()
+				e := r.Restart(ctx, event, failure)
+				if e != nil {
+					errMutex.Lock()
+					defer errMutex.Unlock()
+					err = multierror.Append(err, fmt.Errorf("failed to restart task %s: %v", taskName, e))
+				}
+			}(tn, tr)
+		}
+		wg.Wait()
+	}()
+
+	select {
+	case <-waitCh:
+	case <-ctx.Done():
+	}
+
+	return err.ErrorOrNil()
+}
+
 // RestartAll signalls all task runners in the allocation to restart and passes
 // a copy of the task event to each restart event.
 // Returns any errors in a concatenated form.
 func (ar *allocRunner) RestartAll(taskEvent *structs.TaskEvent) error {
 	var err *multierror.Error
+
+	// run alloc task restart hooks
+	ar.taskRestartHooks()
 
 	for tn := range ar.tasks {
 		rerr := ar.RestartTask(tn, taskEvent.Copy())

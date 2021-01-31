@@ -53,9 +53,9 @@ func (d *diffResult) Append(other *diffResult) {
 	d.lost = append(d.lost, other.lost...)
 }
 
-// diffAllocs is used to do a set difference between the target allocations
-// and the existing allocations. This returns 6 sets of results, the list of
-// named task groups that need to be placed (no existing allocation), the
+// diffSystemAllocsForNode is used to do a set difference between the target allocations
+// and the existing allocations for a particular node. This returns 6 sets of results,
+// the list of named task groups that need to be placed (no existing allocation), the
 // allocations that need to be updated (job definition is newer), allocs that
 // need to be migrated (node is draining), the allocs that need to be evicted
 // (no longer required), those that should be ignored and those that are lost
@@ -67,7 +67,8 @@ func (d *diffResult) Append(other *diffResult) {
 // required is a set of allocations that must exist.
 // allocs is a list of non terminal allocations.
 // terminalAllocs is an index of the latest terminal allocations by name.
-func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
+func diffSystemAllocsForNode(job *structs.Job, nodeID string,
+	eligibleNodes, taintedNodes map[string]*structs.Node,
 	required map[string]*structs.TaskGroup, allocs []*structs.Allocation,
 	terminalAllocs map[string]*structs.Allocation) *diffResult {
 	result := &diffResult{}
@@ -126,6 +127,12 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 			continue
 		}
 
+		// For an existing allocation, if the nodeID is no longer
+		// eligible, the diff should be ignored
+		if _, ok := eligibleNodes[nodeID]; !ok {
+			goto IGNORE
+		}
+
 		// If the definition is updated we need to update
 		if job.JobModifyIndex != exist.Job.JobModifyIndex {
 			result.update = append(result.update, allocTuple{
@@ -152,19 +159,37 @@ func diffAllocs(job *structs.Job, taintedNodes map[string]*structs.Node,
 
 		// Require a placement if no existing allocation. If there
 		// is an existing allocation, we would have checked for a potential
-		// update or ignore above.
+		// update or ignore above. Ignore placements for tainted or
+		// ineligible nodes
 		if !ok {
-			result.place = append(result.place, allocTuple{
+			// Tainted and ineligible nodes for a non existing alloc
+			// should be filtered out and not count towards ignore or place
+			if _, tainted := taintedNodes[nodeID]; tainted {
+				continue
+			}
+			if _, eligible := eligibleNodes[nodeID]; !eligible {
+				continue
+			}
+
+			allocTuple := allocTuple{
 				Name:      name,
 				TaskGroup: tg,
 				Alloc:     terminalAllocs[name],
-			})
+			}
+
+			// If the new allocation isn't annotated with a previous allocation
+			// or if the previous allocation isn't from the same node then we
+			// annotate the allocTuple with a new Allocation
+			if allocTuple.Alloc == nil || allocTuple.Alloc.NodeID != nodeID {
+				allocTuple.Alloc = &structs.Allocation{NodeID: nodeID}
+			}
+			result.place = append(result.place, allocTuple)
 		}
 	}
 	return result
 }
 
-// diffSystemAllocs is like diffAllocs however, the allocations in the
+// diffSystemAllocs is like diffSystemAllocsForNode however, the allocations in the
 // diffResult contain the specific nodeID they should be allocated on.
 //
 // job is the job whose allocs is going to be diff-ed.
@@ -183,10 +208,12 @@ func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[
 		nodeAllocs[alloc.NodeID] = nallocs
 	}
 
+	eligibleNodes := make(map[string]*structs.Node)
 	for _, node := range nodes {
 		if _, ok := nodeAllocs[node.ID]; !ok {
 			nodeAllocs[node.ID] = nil
 		}
+		eligibleNodes[node.ID] = node
 	}
 
 	// Create the required task groups.
@@ -194,25 +221,7 @@ func diffSystemAllocs(job *structs.Job, nodes []*structs.Node, taintedNodes map[
 
 	result := &diffResult{}
 	for nodeID, allocs := range nodeAllocs {
-		diff := diffAllocs(job, taintedNodes, required, allocs, terminalAllocs)
-
-		// If the node is tainted there should be no placements made
-		if _, ok := taintedNodes[nodeID]; ok {
-			diff.place = nil
-		} else {
-			// Mark the alloc as being for a specific node.
-			for i := range diff.place {
-				alloc := &diff.place[i]
-
-				// If the new allocation isn't annotated with a previous allocation
-				// or if the previous allocation isn't from the same node then we
-				// annotate the allocTuple with a new Allocation
-				if alloc.Alloc == nil || alloc.Alloc.NodeID != nodeID {
-					alloc.Alloc = &structs.Allocation{NodeID: nodeID}
-				}
-			}
-		}
-
+		diff := diffSystemAllocsForNode(job, nodeID, eligibleNodes, taintedNodes, required, allocs, terminalAllocs)
 		result.Append(diff)
 	}
 
@@ -337,6 +346,8 @@ func shuffleNodes(nodes []*structs.Node) {
 // tasksUpdated does a diff between task groups to see if the
 // tasks, their drivers, environment variables or config have updated. The
 // inputs are the task group name to diff and two jobs to diff.
+// taskUpdated and functions called within assume that the given
+// taskGroup has already been checked to not be nil
 func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 	a := jobA.LookupTaskGroup(taskGroup)
 	b := jobB.LookupTaskGroup(taskGroup)
@@ -353,6 +364,21 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 
 	// Check that the network resources haven't changed
 	if networkUpdated(a.Networks, b.Networks) {
+		return true
+	}
+
+	// Check Affinities
+	if affinitiesUpdated(jobA, jobB, taskGroup) {
+		return true
+	}
+
+	// Check Spreads
+	if spreadsUpdated(jobA, jobB, taskGroup) {
+		return true
+	}
+
+	// Check connect service(s) updated
+	if connectServiceUpdated(a.Services, b.Services) {
 		return true
 	}
 
@@ -401,8 +427,82 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 			return true
 		} else if ar.MemoryMB != br.MemoryMB {
 			return true
+		} else if !ar.Devices.Equals(&br.Devices) {
+			return true
 		}
 	}
+	return false
+}
+
+// connectServiceUpdated returns true if any services with a connect stanza have
+// been changed in such a way that requires a destructive update.
+//
+// Ordinary services can be updated in-place by updating the service definition
+// in Consul. Connect service changes mostly require destroying the task.
+func connectServiceUpdated(servicesA, servicesB []*structs.Service) bool {
+	for _, serviceA := range servicesA {
+		if serviceA.Connect != nil {
+			for _, serviceB := range servicesB {
+				if serviceA.Name == serviceB.Name {
+					if connectUpdated(serviceA.Connect, serviceB.Connect) {
+						return true
+					}
+					// Part of the Connect plumbing is derived from port label,
+					// if that changes we need to destroy the task.
+					if serviceA.PortLabel != serviceB.PortLabel {
+						return true
+					}
+					break
+				}
+			}
+		}
+	}
+	return false
+}
+
+// connectUpdated returns true if the connect block has been updated in a manner
+// that will require a destructive update.
+//
+// Fields that can be updated through consul-sync do not need a destructive
+// update.
+func connectUpdated(connectA, connectB *structs.ConsulConnect) bool {
+	if connectA == nil || connectB == nil {
+		return connectA == connectB
+	}
+
+	if connectA.Native != connectB.Native {
+		return true
+	}
+
+	if !connectA.Gateway.Equals(connectB.Gateway) {
+		return true
+	}
+
+	if !connectA.SidecarTask.Equals(connectB.SidecarTask) {
+		return true
+	}
+
+	// not everything in sidecar_service needs task destruction
+	if connectSidecarServiceUpdated(connectA.SidecarService, connectB.SidecarService) {
+		return true
+	}
+
+	return false
+}
+
+func connectSidecarServiceUpdated(ssA, ssB *structs.ConsulSidecarService) bool {
+	if ssA == nil || ssB == nil {
+		return ssA == ssB
+	}
+
+	if ssA.Port != ssB.Port {
+		return true
+	}
+
+	// sidecar_service.tags handled in-place (registration)
+
+	// sidecar_service.proxy handled in-place (registration + xDS)
+
 	return false
 }
 
@@ -414,7 +514,15 @@ func networkUpdated(netA, netB []*structs.NetworkResource) bool {
 		an := netA[idx]
 		bn := netB[idx]
 
+		if an.Mode != bn.Mode {
+			return true
+		}
+
 		if an.MBits != bn.MBits {
+			return true
+		}
+
+		if !reflect.DeepEqual(an.DNS, bn.DNS) {
 			return true
 		}
 
@@ -438,6 +546,61 @@ func networkPortMap(n *structs.NetworkResource) map[string]int {
 		m[p.Label] = -1
 	}
 	return m
+}
+
+func affinitiesUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
+	var aAffinities []*structs.Affinity
+	var bAffinities []*structs.Affinity
+
+	tgA := jobA.LookupTaskGroup(taskGroup)
+	tgB := jobB.LookupTaskGroup(taskGroup)
+
+	// Append jobA job and task group level affinities
+	aAffinities = append(aAffinities, jobA.Affinities...)
+	aAffinities = append(aAffinities, tgA.Affinities...)
+
+	// Append jobB job and task group level affinities
+	bAffinities = append(bAffinities, jobB.Affinities...)
+	bAffinities = append(bAffinities, tgB.Affinities...)
+
+	// append task affinities
+	for _, task := range tgA.Tasks {
+		aAffinities = append(aAffinities, task.Affinities...)
+	}
+
+	for _, task := range tgB.Tasks {
+		bAffinities = append(bAffinities, task.Affinities...)
+	}
+
+	// Check for equality
+	if len(aAffinities) != len(bAffinities) {
+		return true
+	}
+
+	return !reflect.DeepEqual(aAffinities, bAffinities)
+}
+
+func spreadsUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
+	var aSpreads []*structs.Spread
+	var bSpreads []*structs.Spread
+
+	tgA := jobA.LookupTaskGroup(taskGroup)
+	tgB := jobB.LookupTaskGroup(taskGroup)
+
+	// append jobA and task group level spreads
+	aSpreads = append(aSpreads, jobA.Spreads...)
+	aSpreads = append(aSpreads, tgA.Spreads...)
+
+	// append jobB and task group level spreads
+	bSpreads = append(bSpreads, jobB.Spreads...)
+	bSpreads = append(bSpreads, tgB.Spreads...)
+
+	// Check for equality
+	if len(aSpreads) != len(bSpreads) {
+		return true
+	}
+
+	return !reflect.DeepEqual(aSpreads, bSpreads)
 }
 
 // setStatus is used to update the status of the evaluation
@@ -519,7 +682,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
-		ctx.Plan().AppendStoppedAlloc(update.Alloc, allocInPlace, "")
+		ctx.Plan().AppendStoppedAlloc(update.Alloc, allocInPlace, "", "")
 
 		// Attempt to match the task group
 		option := stack.Select(update.TaskGroup, nil) // This select only looks at one node so we don't pass selectOptions
@@ -532,22 +695,25 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 			continue
 		}
 
-		// Restore the network offers from the existing allocation.
+		// Restore the network and device offers from the existing allocation.
 		// We do not allow network resources (reserved/dynamic ports)
 		// to be updated. This is guarded in taskUpdated, so we can
 		// safely restore those here.
 		for task, resources := range option.TaskResources {
 			var networks structs.Networks
+			var devices []*structs.AllocatedDeviceResource
 			if update.Alloc.AllocatedResources != nil {
 				if tr, ok := update.Alloc.AllocatedResources.Tasks[task]; ok {
 					networks = tr.Networks
+					devices = tr.Devices
 				}
 			} else if tr, ok := update.Alloc.TaskResources[task]; ok {
 				networks = tr.Networks
 			}
 
-			// Add thhe networks back
+			// Add the networks and devices back
 			resources.Networks = networks
+			resources.Devices = devices
 		}
 
 		// Create a shallow copy
@@ -559,13 +725,16 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		newAlloc.Job = nil       // Use the Job in the Plan
 		newAlloc.Resources = nil // Computed in Plan Apply
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
-			Tasks: option.TaskResources,
+			Tasks:          option.TaskResources,
+			TaskLifecycles: option.TaskLifecycles,
 			Shared: structs.AllocatedSharedResources{
-				DiskMB: int64(update.TaskGroup.EphemeralDisk.SizeMB),
+				DiskMB:   int64(update.TaskGroup.EphemeralDisk.SizeMB),
+				Ports:    update.Alloc.AllocatedResources.Shared.Ports,
+				Networks: update.Alloc.AllocatedResources.Shared.Networks.Copy(),
 			},
 		}
 		newAlloc.Metrics = ctx.Metrics()
-		ctx.Plan().AppendAlloc(newAlloc)
+		ctx.Plan().AppendAlloc(newAlloc, nil)
 
 		// Remove this allocation from the slice
 		doInplace(&i, &n, &inplaceCount)
@@ -584,7 +753,7 @@ func evictAndPlace(ctx Context, diff *diffResult, allocs []allocTuple, desc stri
 	n := len(allocs)
 	for i := 0; i < n && i < *limit; i++ {
 		a := allocs[i]
-		ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "")
+		ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
 		diff.place = append(diff.place, a)
 	}
 	if n <= *limit {
@@ -726,8 +895,8 @@ func adjustQueuedAllocations(logger log.Logger, result *structs.PlanResult, queu
 	}
 }
 
-// updateNonTerminalAllocsToLost updates the allocations which are in pending/running state on tainted node
-// to lost
+// updateNonTerminalAllocsToLost updates the allocations which are in pending/running state
+// on tainted node to lost, but only for allocs already DesiredStatus stop or evict
 func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*structs.Node, allocs []*structs.Allocation) {
 	for _, alloc := range allocs {
 		node, ok := tainted[alloc.NodeID]
@@ -740,12 +909,12 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 			continue
 		}
 
-		// If the scheduler has marked it as stop already but the alloc wasn't
-		// terminal on the client change the status to lost.
-		if alloc.DesiredStatus == structs.AllocDesiredStatusStop &&
+		// If the alloc is already correctly marked lost, we're done
+		if (alloc.DesiredStatus == structs.AllocDesiredStatusStop ||
+			alloc.DesiredStatus == structs.AllocDesiredStatusEvict) &&
 			(alloc.ClientStatus == structs.AllocClientStatusRunning ||
 				alloc.ClientStatus == structs.AllocClientStatusPending) {
-			plan.AppendStoppedAlloc(alloc, allocLost, structs.AllocClientStatusLost)
+			plan.AppendStoppedAlloc(alloc, allocLost, structs.AllocClientStatusLost, "")
 		}
 	}
 }
@@ -795,7 +964,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
-		ctx.Plan().AppendStoppedAlloc(existing, allocInPlace, "")
+		ctx.Plan().AppendStoppedAlloc(existing, allocInPlace, "", "")
 
 		// Attempt to match the task group
 		option := stack.Select(newTG, nil) // This select only looks at one node so we don't pass selectOptions
@@ -808,15 +977,17 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 			return false, true, nil
 		}
 
-		// Restore the network offers from the existing allocation.
+		// Restore the network and device offers from the existing allocation.
 		// We do not allow network resources (reserved/dynamic ports)
 		// to be updated. This is guarded in taskUpdated, so we can
 		// safely restore those here.
 		for task, resources := range option.TaskResources {
 			var networks structs.Networks
+			var devices []*structs.AllocatedDeviceResource
 			if existing.AllocatedResources != nil {
 				if tr, ok := existing.AllocatedResources.Tasks[task]; ok {
 					networks = tr.Networks
+					devices = tr.Devices
 				}
 			} else if tr, ok := existing.TaskResources[task]; ok {
 				networks = tr.Networks
@@ -824,6 +995,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 
 			// Add the networks back
 			resources.Networks = networks
+			resources.Devices = devices
 		}
 
 		// Create a shallow copy
@@ -835,14 +1007,22 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		newAlloc.Job = nil       // Use the Job in the Plan
 		newAlloc.Resources = nil // Computed in Plan Apply
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
-			Tasks: option.TaskResources,
+			Tasks:          option.TaskResources,
+			TaskLifecycles: option.TaskLifecycles,
 			Shared: structs.AllocatedSharedResources{
 				DiskMB: int64(newTG.EphemeralDisk.SizeMB),
-				// Since this is an inplace update, we should copy network
-				// information from the original alloc. This is similar to
-				// how we copy network info for task level networks above.
-				Networks: existing.AllocatedResources.Shared.Networks,
 			},
+		}
+
+		// Since this is an inplace update, we should copy network and port
+		// information from the original alloc. This is similar to how
+		// we copy network info for task level networks above.
+		//
+		// existing.AllocatedResources is nil on Allocations created by
+		// Nomad v0.8 or earlier.
+		if existing.AllocatedResources != nil {
+			newAlloc.AllocatedResources.Shared.Networks = existing.AllocatedResources.Shared.Networks
+			newAlloc.AllocatedResources.Shared.Ports = existing.AllocatedResources.Shared.Ports
 		}
 
 		// Use metrics from existing alloc for in place upgrade

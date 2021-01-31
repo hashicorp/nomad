@@ -1,4 +1,4 @@
-// Copyright 2014-2017 Ulrich Kunitz. All rights reserved.
+// Copyright 2014-2019 Ulrich Kunitz. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,7 +11,7 @@ import (
 
 // opLenMargin provides the upper limit of the number of bytes required
 // to encode a single operation.
-const opLenMargin = 10
+const opLenMargin = 16
 
 // compressFlags control the compression process.
 type compressFlags uint32

@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	"github.com/boltdb/bolt"
+	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/ugorji/go/codec"
 	"golang.org/x/crypto/blake2b"
 )
 
@@ -136,6 +136,13 @@ func (db *DB) createBucketIfNotExists(btx *bolt.Tx, name []byte) (*Bucket, error
 
 func (db *DB) Update(fn func(*Tx) error) error {
 	return db.bdb.Update(func(btx *bolt.Tx) error {
+		tx := newTx(db, btx)
+		return fn(tx)
+	})
+}
+
+func (db *DB) Batch(fn func(*Tx) error) error {
+	return db.bdb.Batch(func(btx *bolt.Tx) error {
 		tx := newTx(db, btx)
 		return fn(tx)
 	})

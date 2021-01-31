@@ -9,7 +9,7 @@ import (
 
 func TestKeygenCommand(t *testing.T) {
 	t.Parallel()
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	c := &OperatorKeygenCommand{Meta: Meta{Ui: ui}}
 	code := c.Run(nil)
 	if code != 0 {
@@ -22,7 +22,7 @@ func TestKeygenCommand(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	if len(result) != 16 {
+	if len(result) != 32 {
 		t.Fatalf("bad: %#v", result)
 	}
 }

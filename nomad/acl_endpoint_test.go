@@ -15,23 +15,29 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestACLEndpoint_GetPolicy(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
 	policy := mock.ACLPolicy()
-	s1.fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{policy})
+	s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy})
+
+	anonymousPolicy := mock.ACLPolicy()
+	anonymousPolicy.Name = "anonymous"
+	s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1001, []*structs.ACLPolicy{anonymousPolicy})
 
 	// Create a token with one the policy
 	token := mock.ACLToken()
 	token.Policies = []string{policy.Name}
-	s1.fsm.State().UpsertACLTokens(1001, []*structs.ACLToken{token})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1002, []*structs.ACLToken{token})
 
 	// Lookup the policy
 	get := &structs.ACLPolicySpecificRequest{
@@ -53,7 +59,7 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", get, &resp); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	assert.Equal(t, uint64(1000), resp.Index)
+	assert.Equal(t, uint64(1001), resp.Index)
 	assert.Nil(t, resp.Policy)
 
 	// Lookup the policy with the token
@@ -70,12 +76,39 @@ func TestACLEndpoint_GetPolicy(t *testing.T) {
 	}
 	assert.EqualValues(t, 1000, resp2.Index)
 	assert.Equal(t, policy, resp2.Policy)
+
+	// Lookup the anonymous policy with no token
+	get = &structs.ACLPolicySpecificRequest{
+		Name: anonymousPolicy.Name,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	var resp3 structs.SingleACLPolicyResponse
+	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", get, &resp3); err != nil {
+		require.NoError(t, err)
+	}
+	assert.EqualValues(t, 1001, resp3.Index)
+	assert.Equal(t, anonymousPolicy, resp3.Policy)
+
+	// Lookup non-anonoymous policy with no token
+	get = &structs.ACLPolicySpecificRequest{
+		Name: policy.Name,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	var resp4 structs.SingleACLPolicyResponse
+	err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", get, &resp4)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), structs.ErrPermissionDenied.Error())
 }
 
 func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -86,7 +119,7 @@ func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
 
 	// First create an unrelated policy
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertACLPolicies(100, []*structs.ACLPolicy{p1})
+		err := state.UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{p1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -94,7 +127,7 @@ func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
 
 	// Upsert the policy we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
-		err := state.UpsertACLPolicies(200, []*structs.ACLPolicy{p2})
+		err := state.UpsertACLPolicies(structs.MsgTypeTestSetup, 200, []*structs.ACLPolicy{p2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -127,7 +160,7 @@ func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
 
 	// Eval delete triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.DeleteACLPolicies(300, []string{p2.Name})
+		err := state.DeleteACLPolicies(structs.MsgTypeTestSetup, 300, []string{p2.Name})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -153,15 +186,16 @@ func TestACLEndpoint_GetPolicy_Blocking(t *testing.T) {
 
 func TestACLEndpoint_GetPolicies(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
 	policy := mock.ACLPolicy()
 	policy2 := mock.ACLPolicy()
-	s1.fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{policy, policy2})
+	s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy, policy2})
 
 	// Lookup the policy
 	get := &structs.ACLPolicySetRequest{
@@ -192,19 +226,20 @@ func TestACLEndpoint_GetPolicies(t *testing.T) {
 
 func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 	t.Parallel()
-	s1, _ := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
 	policy := mock.ACLPolicy()
 	policy2 := mock.ACLPolicy()
-	s1.fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{policy, policy2})
+	s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy, policy2})
 
 	token := mock.ACLToken()
 	token.Policies = []string{policy.Name}
-	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token})
 
 	// Lookup the policy which is a subset of our tokens
 	get := &structs.ACLPolicySetRequest{
@@ -232,8 +267,9 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 
 func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -244,7 +280,7 @@ func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
 
 	// First create an unrelated policy
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertACLPolicies(100, []*structs.ACLPolicy{p1})
+		err := state.UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{p1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -252,7 +288,7 @@ func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
 
 	// Upsert the policy we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
-		err := state.UpsertACLPolicies(200, []*structs.ACLPolicy{p2})
+		err := state.UpsertACLPolicies(structs.MsgTypeTestSetup, 200, []*structs.ACLPolicy{p2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -285,7 +321,7 @@ func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
 
 	// Eval delete triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.DeleteACLPolicies(300, []string{p2.Name})
+		err := state.DeleteACLPolicies(structs.MsgTypeTestSetup, 300, []string{p2.Name})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -312,8 +348,9 @@ func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
 func TestACLEndpoint_ListPolicies(t *testing.T) {
 	assert := assert.New(t)
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -323,12 +360,12 @@ func TestACLEndpoint_ListPolicies(t *testing.T) {
 
 	p1.Name = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
 	p2.Name = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
-	s1.fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{p1, p2})
+	s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{p1, p2})
 
 	// Create a token with one of those policies
 	token := mock.ACLToken()
 	token.Policies = []string{p1.Name}
-	s1.fsm.State().UpsertACLTokens(1001, []*structs.ACLToken{token})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1001, []*structs.ACLToken{token})
 
 	// Lookup the policies
 	get := &structs.ACLPolicyListRequest{
@@ -376,10 +413,63 @@ func TestACLEndpoint_ListPolicies(t *testing.T) {
 	}
 }
 
+// TestACLEndpoint_ListPolicies_Unauthenticated asserts that
+// unauthenticated ListPolicies returns anonymous policy if one
+// exists, otherwise, empty
+func TestACLEndpoint_ListPolicies_Unauthenticated(t *testing.T) {
+	t.Parallel()
+
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	listPolicies := func() (*structs.ACLPolicyListResponse, error) {
+		// Lookup the policies
+		get := &structs.ACLPolicyListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region: "global",
+			},
+		}
+
+		var resp structs.ACLPolicyListResponse
+		err := msgpackrpc.CallWithCodec(codec, "ACL.ListPolicies", get, &resp)
+		if err != nil {
+			return nil, err
+		}
+		return &resp, nil
+	}
+
+	p1 := mock.ACLPolicy()
+	p1.Name = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
+	s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{p1})
+
+	t.Run("no anonymous policy", func(t *testing.T) {
+		resp, err := listPolicies()
+		require.NoError(t, err)
+		require.Empty(t, resp.Policies)
+		require.Equal(t, uint64(1000), resp.Index)
+	})
+
+	// now try with anonymous policy
+	p2 := mock.ACLPolicy()
+	p2.Name = "anonymous"
+	s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1001, []*structs.ACLPolicy{p2})
+
+	t.Run("with anonymous policy", func(t *testing.T) {
+		resp, err := listPolicies()
+		require.NoError(t, err)
+		require.Len(t, resp.Policies, 1)
+		require.Equal(t, "anonymous", resp.Policies[0].Name)
+		require.Equal(t, uint64(1001), resp.Index)
+	})
+}
+
 func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -389,7 +479,7 @@ func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
 
 	// Upsert eval triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertACLPolicies(2, []*structs.ACLPolicy{policy}); err != nil {
+		if err := state.UpsertACLPolicies(structs.MsgTypeTestSetup, 2, []*structs.ACLPolicy{policy}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -417,7 +507,7 @@ func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
 
 	// Eval deletion triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.DeleteACLPolicies(3, []string{policy.Name}); err != nil {
+		if err := state.DeleteACLPolicies(structs.MsgTypeTestSetup, 3, []string{policy.Name}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -438,14 +528,15 @@ func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
 
 func TestACLEndpoint_DeletePolicies(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
 	p1 := mock.ACLPolicy()
-	s1.fsm.State().UpsertACLPolicies(1000, []*structs.ACLPolicy{p1})
+	s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{p1})
 
 	// Lookup the policies
 	req := &structs.ACLPolicyDeleteRequest{
@@ -464,8 +555,9 @@ func TestACLEndpoint_DeletePolicies(t *testing.T) {
 
 func TestACLEndpoint_UpsertPolicies(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -494,8 +586,9 @@ func TestACLEndpoint_UpsertPolicies(t *testing.T) {
 
 func TestACLEndpoint_UpsertPolicies_Invalid(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -521,14 +614,15 @@ func TestACLEndpoint_UpsertPolicies_Invalid(t *testing.T) {
 
 func TestACLEndpoint_GetToken(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
 	token := mock.ACLToken()
-	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token})
 
 	// Lookup the token
 	get := &structs.ACLTokenSpecificRequest{
@@ -566,8 +660,9 @@ func TestACLEndpoint_GetToken(t *testing.T) {
 
 func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -578,7 +673,7 @@ func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 
 	// First create an unrelated token
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertACLTokens(100, []*structs.ACLToken{p1})
+		err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 100, []*structs.ACLToken{p1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -586,7 +681,7 @@ func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 
 	// Upsert the token we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
-		err := state.UpsertACLTokens(200, []*structs.ACLToken{p2})
+		err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 200, []*structs.ACLToken{p2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -619,7 +714,7 @@ func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 
 	// Eval delete triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.DeleteACLTokens(300, []string{p2.AccessorID})
+		err := state.DeleteACLTokens(structs.MsgTypeTestSetup, 300, []string{p2.AccessorID})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -645,15 +740,16 @@ func TestACLEndpoint_GetToken_Blocking(t *testing.T) {
 
 func TestACLEndpoint_GetTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
 	token := mock.ACLToken()
 	token2 := mock.ACLToken()
-	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token, token2})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token, token2})
 
 	// Lookup the token
 	get := &structs.ACLTokenSetRequest{
@@ -683,8 +779,9 @@ func TestACLEndpoint_GetTokens(t *testing.T) {
 
 func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -695,7 +792,7 @@ func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 
 	// First create an unrelated token
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.UpsertACLTokens(100, []*structs.ACLToken{p1})
+		err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 100, []*structs.ACLToken{p1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -703,7 +800,7 @@ func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 
 	// Upsert the token we are watching later
 	time.AfterFunc(200*time.Millisecond, func() {
-		err := state.UpsertACLTokens(200, []*structs.ACLToken{p2})
+		err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 200, []*structs.ACLToken{p2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -736,7 +833,7 @@ func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 
 	// Eval delete triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		err := state.DeleteACLTokens(300, []string{p2.AccessorID})
+		err := state.DeleteACLTokens(structs.MsgTypeTestSetup, 300, []string{p2.AccessorID})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -762,8 +859,9 @@ func TestACLEndpoint_GetTokens_Blocking(t *testing.T) {
 
 func TestACLEndpoint_ListTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -774,7 +872,7 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 
 	p1.AccessorID = "aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"
 	p2.AccessorID = "aaaabbbb-3350-4b4b-d185-0e1992ed43e9"
-	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{p1, p2})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{p1, p2})
 
 	// Lookup the tokens
 	get := &structs.ACLTokenListRequest{
@@ -823,8 +921,9 @@ func TestACLEndpoint_ListTokens(t *testing.T) {
 
 func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	state := s1.fsm.State()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
@@ -834,7 +933,7 @@ func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
 
 	// Upsert eval triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.UpsertACLTokens(3, []*structs.ACLToken{token}); err != nil {
+		if err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 3, []*structs.ACLToken{token}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -862,7 +961,7 @@ func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
 
 	// Eval deletion triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		if err := state.DeleteACLTokens(4, []string{token.AccessorID}); err != nil {
+		if err := state.DeleteACLTokens(structs.MsgTypeTestSetup, 4, []string{token.AccessorID}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -883,14 +982,15 @@ func TestACLEndpoint_ListTokens_Blocking(t *testing.T) {
 
 func TestACLEndpoint_DeleteTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
 	p1 := mock.ACLToken()
-	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{p1})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{p1})
 
 	// Lookup the tokens
 	req := &structs.ACLTokenDeleteRequest{
@@ -911,8 +1011,8 @@ func TestACLEndpoint_DeleteTokens_WithNonexistentToken(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -931,15 +1031,15 @@ func TestACLEndpoint_DeleteTokens_WithNonexistentToken(t *testing.T) {
 
 	assert.NotNil(err)
 	expectedError := fmt.Sprintf("Cannot delete nonexistent tokens: %s", nonexistentToken.AccessorID)
-	assert.Contains(expectedError, err.Error())
+	assert.Contains(err.Error(), expectedError)
 }
 
 func TestACLEndpoint_Bootstrap(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -973,14 +1073,12 @@ func TestACLEndpoint_Bootstrap_Reset(t *testing.T) {
 	t.Parallel()
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 		c.DataDir = dir
 		c.DevMode = false
-		c.Bootstrap = true
-		c.DevDisableBootstrap = false
 	})
-	defer s1.Shutdown()
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1035,8 +1133,9 @@ func TestACLEndpoint_Bootstrap_Reset(t *testing.T) {
 
 func TestACLEndpoint_UpsertTokens(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1091,8 +1190,9 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 
 func TestACLEndpoint_UpsertTokens_Invalid(t *testing.T) {
 	t.Parallel()
-	s1, root := TestACLServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
@@ -1118,14 +1218,14 @@ func TestACLEndpoint_UpsertTokens_Invalid(t *testing.T) {
 
 func TestACLEndpoint_ResolveToken(t *testing.T) {
 	t.Parallel()
-	s1, _ := TestACLServer(t, nil)
-	defer s1.Shutdown()
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create the register request
 	token := mock.ACLToken()
-	s1.fsm.State().UpsertACLTokens(1000, []*structs.ACLToken{token})
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token})
 
 	// Lookup the token
 	get := &structs.ResolveACLTokenRequest{

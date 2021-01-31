@@ -3,7 +3,6 @@ package agent
 import (
 	"encoding/base64"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -20,12 +20,17 @@ import (
 
 const (
 	defaultLoggerMockDriverStdout = "Hello from the other side"
+	xssLoggerMockDriverStdout     = "<script>alert(document.domain);</script>"
 )
 
 var (
 	defaultLoggerMockDriver = map[string]interface{}{
 		"run_for":       "2s",
 		"stdout_string": defaultLoggerMockDriverStdout,
+	}
+	xssLoggerMockDriver = map[string]interface{}{
+		"run_for":       "2s",
+		"stdout_string": xssLoggerMockDriverStdout,
 	}
 )
 
@@ -57,8 +62,8 @@ func addAllocToClient(agent *TestAgent, alloc *structs.Allocation, wait clientAl
 
 	// Upsert the allocation
 	state := agent.server.State()
-	require.Nil(state.UpsertJob(999, alloc.Job))
-	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{alloc}))
+	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, alloc.Job))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{alloc}))
 
 	if wait == noWaitClientAlloc {
 		return
@@ -189,25 +194,26 @@ func TestHTTP_FS_Stream_MissingParams(t *testing.T) {
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		req, err := http.NewRequest("GET", "/v1/client/fs/stream/", nil)
-		require.Nil(err)
+		require.NoError(err)
 		respW := httptest.NewRecorder()
 
 		_, err = s.Server.Stream(respW, req)
 		require.EqualError(err, allocIDNotPresentErr.Error())
 
 		req, err = http.NewRequest("GET", "/v1/client/fs/stream/foo", nil)
-		require.Nil(err)
+		require.NoError(err)
 		respW = httptest.NewRecorder()
 
 		_, err = s.Server.Stream(respW, req)
 		require.EqualError(err, fileNameNotPresentErr.Error())
 
 		req, err = http.NewRequest("GET", "/v1/client/fs/stream/foo?path=/path/to/file", nil)
-		require.Nil(err)
+		require.NoError(err)
 		respW = httptest.NewRecorder()
 
 		_, err = s.Server.Stream(respW, req)
-		require.Nil(err)
+		require.Error(err)
+		require.Contains(err.Error(), "alloc lookup failed")
 	})
 }
 
@@ -219,38 +225,39 @@ func TestHTTP_FS_Logs_MissingParams(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		// AllocID Not Present
 		req, err := http.NewRequest("GET", "/v1/client/fs/logs/", nil)
-		require.Nil(err)
+		require.NoError(err)
 		respW := httptest.NewRecorder()
 
 		s.Server.mux.ServeHTTP(respW, req)
 		require.Equal(respW.Body.String(), allocIDNotPresentErr.Error())
-		require.Equal(500, respW.Code) // 500 for backward compat
+		require.Equal(400, respW.Code)
 
 		// Task Not Present
 		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo", nil)
-		require.Nil(err)
+		require.NoError(err)
 		respW = httptest.NewRecorder()
 
 		s.Server.mux.ServeHTTP(respW, req)
 		require.Equal(respW.Body.String(), taskNotPresentErr.Error())
-		require.Equal(500, respW.Code) // 500 for backward compat
+		require.Equal(400, respW.Code)
 
 		// Log Type Not Present
 		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo?task=foo", nil)
-		require.Nil(err)
+		require.NoError(err)
 		respW = httptest.NewRecorder()
 
 		s.Server.mux.ServeHTTP(respW, req)
 		require.Equal(respW.Body.String(), logTypeNotPresentErr.Error())
-		require.Equal(500, respW.Code) // 500 for backward compat
+		require.Equal(400, respW.Code)
 
-		// Ok
+		// case where all parameters are set but alloc isn't found
 		req, err = http.NewRequest("GET", "/v1/client/fs/logs/foo?task=foo&type=stdout", nil)
-		require.Nil(err)
+		require.NoError(err)
 		respW = httptest.NewRecorder()
 
 		s.Server.mux.ServeHTTP(respW, req)
-		require.Equal(200, respW.Code)
+		require.Equal(500, respW.Code)
+		require.Contains(respW.Body.String(), "alloc lookup failed")
 	})
 }
 
@@ -320,6 +327,31 @@ func TestHTTP_FS_ReadAt(t *testing.T) {
 	})
 }
 
+// TestHTTP_FS_ReadAt_XSS asserts that the readat API is safe from XSS.
+func TestHTTP_FS_ReadAt_XSS(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), xssLoggerMockDriver)
+		addAllocToClient(s, a, terminalClientAlloc)
+
+		path := fmt.Sprintf("%s/v1/client/fs/readat/%s?path=alloc/logs/web.stdout.0&offset=0&limit=%d",
+			s.HTTPAddr(), a.ID, len(xssLoggerMockDriverStdout))
+		resp, err := http.DefaultClient.Get(path)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		buf, err := ioutil.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, xssLoggerMockDriverStdout, string(buf))
+
+		require.Equal(t, []string{"text/plain"}, resp.Header.Values("Content-Type"))
+		require.Equal(t, []string{"nosniff"}, resp.Header.Values("X-Content-Type-Options"))
+		require.Equal(t, []string{"1; mode=block"}, resp.Header.Values("X-XSS-Protection"))
+		require.Equal(t, []string{"default-src 'none'; style-src 'unsafe-inline'; sandbox"},
+			resp.Header.Values("Content-Security-Policy"))
+	})
+}
+
 func TestHTTP_FS_Cat(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -341,6 +373,30 @@ func TestHTTP_FS_Cat(t *testing.T) {
 	})
 }
 
+// TestHTTP_FS_Cat_XSS asserts that the cat API is safe from XSS.
+func TestHTTP_FS_Cat_XSS(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), xssLoggerMockDriver)
+		addAllocToClient(s, a, terminalClientAlloc)
+
+		path := fmt.Sprintf("%s/v1/client/fs/cat/%s?path=alloc/logs/web.stdout.0", s.HTTPAddr(), a.ID)
+		resp, err := http.DefaultClient.Get(path)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		buf, err := ioutil.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, xssLoggerMockDriverStdout, string(buf))
+
+		require.Equal(t, []string{"text/plain"}, resp.Header.Values("Content-Type"))
+		require.Equal(t, []string{"nosniff"}, resp.Header.Values("X-Content-Type-Options"))
+		require.Equal(t, []string{"1; mode=block"}, resp.Header.Values("X-XSS-Protection"))
+		require.Equal(t, []string{"default-src 'none'; style-src 'unsafe-inline'; sandbox"},
+			resp.Header.Values("Content-Security-Policy"))
+	})
+}
+
 func TestHTTP_FS_Stream_NoFollow(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -354,8 +410,7 @@ func TestHTTP_FS_Stream_NoFollow(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/stream/%s?path=alloc/logs/web.stdout.0&offset=%d&origin=end&follow=false",
 			a.ID, offset)
 
-		p, _ := io.Pipe()
-		req, err := http.NewRequest("GET", path, p)
+		req, err := http.NewRequest("GET", path, nil)
 		require.Nil(err)
 		respW := testutil.NewResponseRecorder()
 		doneCh := make(chan struct{})
@@ -383,8 +438,26 @@ func TestHTTP_FS_Stream_NoFollow(t *testing.T) {
 		case <-time.After(1 * time.Second):
 			t.Fatal("should close but did not")
 		}
+	})
+}
 
-		p.Close()
+// TestHTTP_FS_Stream_NoFollow_XSS asserts that the stream API is safe from XSS.
+func TestHTTP_FS_Stream_NoFollow_XSS(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), xssLoggerMockDriver)
+		addAllocToClient(s, a, terminalClientAlloc)
+
+		path := fmt.Sprintf("%s/v1/client/fs/stream/%s?path=alloc/logs/web.stdout.0&follow=false",
+			s.HTTPAddr(), a.ID)
+		resp, err := http.DefaultClient.Get(path)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		buf, err := ioutil.ReadAll(resp.Body)
+		require.NoError(t, err)
+		expected := `{"Data":"PHNjcmlwdD5hbGVydChkb2N1bWVudC5kb21haW4pOzwvc2NyaXB0Pg==","File":"alloc/logs/web.stdout.0","Offset":40}`
+		require.Equal(t, expected, string(buf))
 	})
 }
 
@@ -401,9 +474,7 @@ func TestHTTP_FS_Stream_Follow(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/stream/%s?path=alloc/logs/web.stdout.0&offset=%d&origin=end",
 			a.ID, offset)
 
-		p, _ := io.Pipe()
-
-		req, err := http.NewRequest("GET", path, p)
+		req, err := http.NewRequest("GET", path, nil)
 		require.Nil(err)
 		respW := httptest.NewRecorder()
 		doneCh := make(chan struct{})
@@ -431,8 +502,6 @@ func TestHTTP_FS_Stream_Follow(t *testing.T) {
 			t.Fatal("shouldn't close")
 		case <-time.After(1 * time.Second):
 		}
-
-		p.Close()
 	})
 }
 
@@ -448,8 +517,7 @@ func TestHTTP_FS_Logs(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=%d&origin=end&plain=true",
 			a.ID, offset)
 
-		p, _ := io.Pipe()
-		req, err := http.NewRequest("GET", path, p)
+		req, err := http.NewRequest("GET", path, nil)
 		require.Nil(err)
 		respW := testutil.NewResponseRecorder()
 		go func() {
@@ -469,8 +537,30 @@ func TestHTTP_FS_Logs(t *testing.T) {
 		}, func(err error) {
 			t.Fatal(err)
 		})
+	})
+}
 
-		p.Close()
+// TestHTTP_FS_Logs_XSS asserts that the logs endpoint always returns
+// text/plain or application/json content regardless of whether the logs are
+// HTML+Javascript or not.
+func TestHTTP_FS_Logs_XSS(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		a := mockFSAlloc(s.client.NodeID(), xssLoggerMockDriver)
+		addAllocToClient(s, a, terminalClientAlloc)
+
+		// Must make a "real" request to ensure Go's default content
+		// type detection does not detect text/html
+		path := fmt.Sprintf("%s/v1/client/fs/logs/%s?type=stdout&task=web&plain=true", s.HTTPAddr(), a.ID)
+		resp, err := http.DefaultClient.Get(path)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		buf, err := ioutil.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, xssLoggerMockDriverStdout, string(buf))
+
+		require.Equal(t, []string{"text/plain"}, resp.Header.Values("Content-Type"))
 	})
 }
 
@@ -486,11 +576,10 @@ func TestHTTP_FS_Logs_Follow(t *testing.T) {
 		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=%d&origin=end&plain=true&follow=true",
 			a.ID, offset)
 
-		p, _ := io.Pipe()
-		req, err := http.NewRequest("GET", path, p)
+		req, err := http.NewRequest("GET", path, nil)
 		require.Nil(err)
 		respW := testutil.NewResponseRecorder()
-		errCh := make(chan error)
+		errCh := make(chan error, 1)
 		go func() {
 			_, err := s.Server.Logs(respW, req)
 			errCh <- err
@@ -514,7 +603,23 @@ func TestHTTP_FS_Logs_Follow(t *testing.T) {
 			t.Fatalf("shouldn't exit: %v", err)
 		case <-time.After(1 * time.Second):
 		}
+	})
+}
 
-		p.Close()
+func TestHTTP_FS_Logs_PropagatesErrors(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=0&origin=end&plain=true",
+			uuid.Generate())
+
+		req, err := http.NewRequest("GET", path, nil)
+		require.NoError(t, err)
+		respW := testutil.NewResponseRecorder()
+
+		_, err = s.Server.Logs(respW, req)
+		require.Error(t, err)
+
+		_, ok := err.(HTTPCodedError)
+		require.Truef(t, ok, "expected a coded error but found: %#+v", err)
 	})
 }

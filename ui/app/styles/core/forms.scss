@@ -40,4 +40,51 @@
   &.is-inline {
     display: inline-block;
   }
+
+  &.is-horizontal {
+    .field-label {
+      margin-right: 1rem;
+      padding-top: 0.3em;
+      font-weight: $weight-semibold;
+      white-space: nowrap;
+
+      &.is-small {
+        padding-top: 0.55em;
+      }
+
+      &.is-multiline {
+        white-space: normal;
+      }
+    }
+  }
+
+  &.is-sub-field {
+    margin-left: 2em;
+  }
+
+  &:not(:last-child) {
+    margin-bottom: 1rem;
+  }
+}
+
+.form {
+  &.is-small {
+    font-size: 0.85rem;
+
+    .label {
+      font-size: 0.85rem;
+    }
+  }
+
+  .label {
+    font-weight: $weight-medium;
+  }
+
+  .group-heading {
+    text-transform: uppercase;
+    letter-spacing: 0.05ch;
+    margin-bottom: 1.5em;
+    color: $grey;
+    font-weight: $weight-medium;
+  }
 }

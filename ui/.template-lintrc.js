@@ -31,10 +31,9 @@ module.exports = {
     'attribute-indentation': false,
     'block-indentation': false,
     quotes: false,
-  },
 
-  ignore: [
-    'app/templates/components/freestyle/**',
-    'nomad-ui/templates/components/freestyle/**'
-  ]
+    // remove when moving from extending `recommended` to `octane`
+    'no-curly-component-invocation': true,
+    'no-implicit-this': true,
+  },
 };

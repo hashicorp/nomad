@@ -87,14 +87,6 @@ type DriverNetworkManager interface {
 	DestroyNetwork(allocID string, spec *NetworkIsolationSpec) error
 }
 
-// InternalDriverPlugin is an interface that exposes functions that are only
-// implemented by internal driver plugins.
-type InternalDriverPlugin interface {
-	// Shutdown allows the plugin to cleanup any running state to avoid leaking
-	// resources. It should not block.
-	Shutdown()
-}
-
 // DriverSignalTaskNotSupported can be embedded by drivers which don't support
 // the SignalTask RPC. This satisfies the SignalTask func requirement for the
 // DriverPlugin interface.
@@ -163,6 +155,9 @@ type Capabilities struct {
 	// MustInitiateNetwork tells Nomad that the driver must create the network
 	// namespace and that the CreateNetwork and DestroyNetwork RPCs are implemented.
 	MustInitiateNetwork bool
+
+	// MountConfigs tells Nomad which mounting config options the driver supports.
+	MountConfigs MountConfigSupport
 }
 
 func (c *Capabilities) HasNetIsolationMode(m NetIsolationMode) bool {
@@ -187,7 +182,7 @@ var (
 	NetIsolationModeTask = NetIsolationMode("task")
 
 	// NetIsolationModeNone indicates that there is no network to isolate and is
-	// inteded to be used for tasks that the client manages remotely
+	// intended to be used for tasks that the client manages remotely
 	NetIsolationModeNone = NetIsolationMode("none")
 )
 
@@ -197,9 +192,46 @@ type NetworkIsolationSpec struct {
 	Labels map[string]string
 }
 
+// MountConfigSupport is an enum that defaults to "all" for backwards
+// compatibility with community drivers.
+type MountConfigSupport int32
+
+const (
+	MountConfigSupportAll MountConfigSupport = iota
+	MountConfigSupportNone
+)
+
 type TerminalSize struct {
 	Height int
 	Width  int
+}
+
+type DNSConfig struct {
+	Servers  []string
+	Searches []string
+	Options  []string
+}
+
+func (c *DNSConfig) Copy() *DNSConfig {
+	if c == nil {
+		return nil
+	}
+
+	cfg := new(DNSConfig)
+	if len(c.Servers) > 0 {
+		cfg.Servers = make([]string, len(c.Servers))
+		copy(cfg.Servers, c.Servers)
+	}
+	if len(c.Searches) > 0 {
+		cfg.Searches = make([]string, len(c.Searches))
+		copy(cfg.Searches, c.Searches)
+	}
+	if len(c.Options) > 0 {
+		cfg.Options = make([]string, len(c.Options))
+		copy(cfg.Options, c.Options)
+	}
+
+	return cfg
 }
 
 type TaskConfig struct {
@@ -219,6 +251,7 @@ type TaskConfig struct {
 	StderrPath       string
 	AllocID          string
 	NetworkIsolation *NetworkIsolationSpec
+	DNS              *DNSConfig
 }
 
 func (tc *TaskConfig) Copy() *TaskConfig {
@@ -230,6 +263,7 @@ func (tc *TaskConfig) Copy() *TaskConfig {
 	c.Env = helper.CopyMapStringString(c.Env)
 	c.DeviceEnv = helper.CopyMapStringString(c.DeviceEnv)
 	c.Resources = tc.Resources.Copy()
+	c.DNS = tc.DNS.Copy()
 
 	if c.Devices != nil {
 		dc := make([]*DeviceConfig, len(c.Devices))
@@ -300,6 +334,7 @@ func (tc *TaskConfig) EncodeConcreteDriverConfig(t interface{}) error {
 type Resources struct {
 	NomadResources *structs.AllocatedTaskResources
 	LinuxResources *LinuxResources
+	Ports          *structs.AllocatedPorts
 }
 
 func (r *Resources) Copy() *Resources {
@@ -312,6 +347,11 @@ func (r *Resources) Copy() *Resources {
 	}
 	if r.LinuxResources != nil {
 		res.LinuxResources = r.LinuxResources.Copy()
+	}
+
+	if r.Ports != nil {
+		ports := structs.AllocatedPorts(append(make([]structs.AllocatedPortMapping, 0, len(*r.Ports)), *r.Ports...))
+		res.Ports = &ports
 	}
 	return res
 }
@@ -357,15 +397,17 @@ func (d *DeviceConfig) Copy() *DeviceConfig {
 }
 
 type MountConfig struct {
-	TaskPath string
-	HostPath string
-	Readonly bool
+	TaskPath        string
+	HostPath        string
+	Readonly        bool
+	PropagationMode string
 }
 
 func (m *MountConfig) IsEqual(o *MountConfig) bool {
 	return m.TaskPath == o.TaskPath &&
 		m.HostPath == o.HostPath &&
-		m.Readonly == o.Readonly
+		m.Readonly == o.Readonly &&
+		m.PropagationMode == o.PropagationMode
 }
 
 func (m *MountConfig) Copy() *MountConfig {
@@ -525,3 +567,18 @@ type ExecTaskStream interface {
 
 type ExecTaskStreamingRequestMsg = proto.ExecTaskStreamingRequest
 type ExecTaskStreamingResponseMsg = proto.ExecTaskStreamingResponse
+
+// InternalCapabilitiesDriver is an experimental interface enabling a driver
+// to disable some nomad functionality (e.g. logs or metrics).
+//
+// Intended for internal drivers only while the interface is stabalized.
+type InternalCapabilitiesDriver interface {
+	InternalCapabilities() InternalCapabilities
+}
+
+// InternalCapabilities flags disabled functionality.
+// Zero value means all is supported.
+type InternalCapabilities struct {
+	DisableLogCollection     bool
+	DisableMetricsCollection bool
+}

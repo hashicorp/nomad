@@ -42,6 +42,7 @@ func VirtualMemoryWithContext(ctx context.Context) (*VirtualMemoryStat, error) {
 	ret := &VirtualMemoryStat{
 		Total:       memInfo.ullTotalPhys,
 		Available:   memInfo.ullAvailPhys,
+		Free:        memInfo.ullAvailPhys,
 		UsedPercent: float64(memInfo.dwMemoryLoad),
 	}
 
@@ -80,11 +81,17 @@ func SwapMemoryWithContext(ctx context.Context) (*SwapMemoryStat, error) {
 	tot := perfInfo.commitLimit * perfInfo.pageSize
 	used := perfInfo.commitTotal * perfInfo.pageSize
 	free := tot - used
+	var usedPercent float64
+	if tot == 0 {
+		usedPercent = 0
+	} else {
+		usedPercent = float64(used) / float64(tot) * 100
+	}
 	ret := &SwapMemoryStat{
 		Total:       tot,
 		Used:        used,
 		Free:        free,
-		UsedPercent: float64(used / tot),
+		UsedPercent: usedPercent,
 	}
 
 	return ret, nil

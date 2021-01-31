@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/hashicorp/consul/lib/freeport"
+	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -29,6 +29,10 @@ type TestVault struct {
 	t      testing.T
 	waitCh chan error
 
+	// ports (if any) that are reserved through freeport that must be returned
+	// at the end of a test, done when Stop() is called.
+	ports []int
+
 	Addr      string
 	HTTPAddr  string
 	RootToken string
@@ -37,8 +41,17 @@ type TestVault struct {
 }
 
 func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
+	var ports []int
+	nextPort := func() int {
+		next := freeport.MustTake(1)
+		ports = append(ports, next...)
+		return next[0]
+	}
+
 	for i := 10; i >= 0; i-- {
-		port := freeport.GetT(t, 1)[0]
+
+		port := nextPort() // collect every port for cleanup after the test
+
 		token := uuid.Generate()
 		bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
 		http := fmt.Sprintf("http://127.0.0.1:%d", port)
@@ -63,6 +76,7 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 		tv := &TestVault{
 			cmd:       cmd,
 			t:         t,
+			ports:     ports,
 			Addr:      bind,
 			HTTPAddr:  http,
 			RootToken: token,
@@ -126,7 +140,7 @@ func NewTestVault(t testing.T) *TestVault {
 // Start must be called and it is the callers responsibility to deal with any
 // port conflicts that may occur and retry accordingly.
 func NewTestVaultDelayed(t testing.T) *TestVault {
-	port := freeport.GetT(t, 1)[0]
+	port := freeport.MustTake(1)[0]
 	token := uuid.Generate()
 	bind := fmt.Sprintf("-dev-listen-address=127.0.0.1:%d", port)
 	http := fmt.Sprintf("http://127.0.0.1:%d", port)
@@ -194,6 +208,8 @@ func (tv *TestVault) Start() error {
 
 // Stop stops the test Vault server
 func (tv *TestVault) Stop() {
+	defer freeport.Return(tv.ports)
+
 	if tv.cmd.Process == nil {
 		return
 	}

@@ -12,10 +12,10 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/gorilla/websocket"
+	"github.com/hashicorp/go-msgpack/codec"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/ugorji/go/codec"
 )
 
 const (
@@ -31,6 +31,26 @@ func (s *HTTPServer) AllocsRequest(resp http.ResponseWriter, req *http.Request) 
 	args := structs.AllocListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
+	}
+
+	// Parse resources and task_states field selection
+	resources, err := parseBool(req, "resources")
+	if err != nil {
+		return nil, err
+	}
+	taskStates, err := parseBool(req, "task_states")
+	if err != nil {
+		return nil, err
+	}
+
+	if resources != nil || taskStates != nil {
+		args.Fields = structs.NewAllocStubFields()
+		if resources != nil {
+			args.Fields.Resources = *resources
+		}
+		if taskStates != nil {
+			args.Fields.TaskStates = *taskStates
+		}
 	}
 
 	var out structs.AllocListResponse
@@ -94,6 +114,7 @@ func (s *HTTPServer) allocGet(allocID string, resp http.ResponseWriter, req *htt
 	}
 
 	// Decode the payload if there is any
+
 	alloc := out.Alloc
 	if alloc.Job != nil && len(alloc.Job.Payload) != 0 {
 		decoded, err := snappy.Decode(nil, alloc.Job.Payload)
@@ -104,6 +125,10 @@ func (s *HTTPServer) allocGet(allocID string, resp http.ResponseWriter, req *htt
 		alloc.Job.Payload = decoded
 	}
 	alloc.SetEventDisplayMessages()
+
+	// Handle 0.12 ports upgrade path
+	alloc = alloc.Copy()
+	alloc.AllocatedResources.Canonicalize()
 
 	return alloc, nil
 }
@@ -398,7 +423,46 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
 	}
 
+	if err := readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
+		conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
+		return nil, err
+	}
+
 	return s.execStreamImpl(conn, &args)
+}
+
+// readWsHandshake reads the websocket handshake message and sets
+// query authentication token, if request requires a handshake
+func readWsHandshake(readFn func(interface{}) error, req *http.Request, q *structs.QueryOptions) error {
+
+	// Avoid handshake if request doesn't require one
+	if hv := req.URL.Query().Get("ws_handshake"); hv == "" {
+		return nil
+	} else if h, err := strconv.ParseBool(hv); err != nil {
+		return fmt.Errorf("ws_handshake value is not a boolean: %v", err)
+	} else if !h {
+		return nil
+	}
+
+	var h wsHandshakeMessage
+	err := readFn(&h)
+	if err != nil {
+		return err
+	}
+
+	supportedWSHandshakeVersion := 1
+	if h.Version != supportedWSHandshakeVersion {
+		return fmt.Errorf("unexpected handshake value: %v", h.Version)
+	}
+
+	q.AuthToken = h.AuthToken
+	return nil
+}
+
+type wsHandshakeMessage struct {
+	Version   int    `json:"version"`
+	AuthToken string `json:"auth_token"`
 }
 
 func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExecRequest) (interface{}, error) {

@@ -21,6 +21,7 @@ type RankedNode struct {
 	FinalScore     float64
 	Scores         []float64
 	TaskResources  map[string]*structs.AllocatedTaskResources
+	TaskLifecycles map[string]*structs.TaskLifecycleConfig
 	AllocResources *structs.AllocatedSharedResources
 
 	// Allocs is used to cache the proposed allocations on the
@@ -53,8 +54,10 @@ func (r *RankedNode) SetTaskResources(task *structs.Task,
 	resource *structs.AllocatedTaskResources) {
 	if r.TaskResources == nil {
 		r.TaskResources = make(map[string]*structs.AllocatedTaskResources)
+		r.TaskLifecycles = make(map[string]*structs.TaskLifecycleConfig)
 	}
 	r.TaskResources[task.Name] = resource
+	r.TaskLifecycles[task.Name] = task.Lifecycle
 }
 
 // RankFeasibleIterator is used to iteratively yield nodes along
@@ -150,17 +153,26 @@ type BinPackIterator struct {
 	priority  int
 	jobId     *structs.NamespacedID
 	taskGroup *structs.TaskGroup
+	scoreFit  func(*structs.Node, *structs.ComparableResources) float64
 }
 
 // NewBinPackIterator returns a BinPackIterator which tries to fit tasks
 // potentially evicting other tasks based on a given priority.
-func NewBinPackIterator(ctx Context, source RankIterator, evict bool, priority int) *BinPackIterator {
+func NewBinPackIterator(ctx Context, source RankIterator, evict bool, priority int, algorithm structs.SchedulerAlgorithm) *BinPackIterator {
+
+	scoreFn := structs.ScoreFitBinPack
+	if algorithm == structs.SchedulerAlgorithmSpread {
+		scoreFn = structs.ScoreFitSpread
+	}
+
 	iter := &BinPackIterator{
 		ctx:      ctx,
 		source:   source,
 		evict:    evict,
 		priority: priority,
+		scoreFit: scoreFn,
 	}
+	iter.ctx.Logger().Named("binpack").Trace("NewBinPackIterator created", "algorithm", algorithm)
 	return iter
 }
 
@@ -206,6 +218,8 @@ OUTER:
 		total := &structs.AllocatedResources{
 			Tasks: make(map[string]*structs.AllocatedTaskResources,
 				len(iter.taskGroup.Tasks)),
+			TaskLifecycles: make(map[string]*structs.TaskLifecycleConfig,
+				len(iter.taskGroup.Tasks)),
 			Shared: structs.AllocatedSharedResources{
 				DiskMB: int64(iter.taskGroup.EphemeralDisk.SizeMB),
 			},
@@ -228,8 +242,8 @@ OUTER:
 		// Check if we need task group network resource
 		if len(iter.taskGroup.Networks) > 0 {
 			ask := iter.taskGroup.Networks[0].Copy()
-			offer, err := netIdx.AssignNetwork(ask)
-			if offer == nil {
+			offer, err := netIdx.AssignPorts(ask)
+			if err != nil {
 				// If eviction is not enabled, mark this node as exhausted and continue
 				if !iter.evict {
 					iter.ctx.Metrics().ExhaustedNode(option.Node,
@@ -243,7 +257,7 @@ OUTER:
 
 				netPreemptions := preemptor.PreemptForNetwork(ask, netIdx)
 				if netPreemptions == nil {
-					iter.ctx.Logger().Named("binpack").Error("preemption not possible ", "network_resource", ask)
+					iter.ctx.Logger().Named("binpack").Debug("preemption not possible ", "network_resource", ask)
 					netIdx.Release()
 					continue OUTER
 				}
@@ -258,22 +272,25 @@ OUTER:
 				netIdx.SetNode(option.Node)
 				netIdx.AddAllocs(proposed)
 
-				offer, err = netIdx.AssignNetwork(ask)
-				if offer == nil {
-					iter.ctx.Logger().Named("binpack").Error("unexpected error, unable to create network offer after considering preemption", "error", err)
+				offer, err = netIdx.AssignPorts(ask)
+				if err != nil {
+					iter.ctx.Logger().Named("binpack").Debug("unexpected error, unable to create network offer after considering preemption", "error", err)
 					netIdx.Release()
 					continue OUTER
 				}
 			}
 
 			// Reserve this to prevent another task from colliding
-			netIdx.AddReserved(offer)
+			netIdx.AddReservedPorts(offer)
 
 			// Update the network ask to the offer
-			total.Shared.Networks = []*structs.NetworkResource{offer}
+			nwRes := structs.AllocatedPortsToNetworkResouce(ask, offer, option.Node.NodeResources)
+			total.Shared.Networks = []*structs.NetworkResource{nwRes}
+			total.Shared.Ports = offer
 			option.AllocResources = &structs.AllocatedSharedResources{
-				Networks: []*structs.NetworkResource{offer},
+				Networks: []*structs.NetworkResource{nwRes},
 				DiskMB:   int64(iter.taskGroup.EphemeralDisk.SizeMB),
+				Ports:    offer,
 			}
 
 		}
@@ -307,7 +324,7 @@ OUTER:
 
 					netPreemptions := preemptor.PreemptForNetwork(ask, netIdx)
 					if netPreemptions == nil {
-						iter.ctx.Logger().Named("binpack").Error("preemption not possible ", "network_resource", ask)
+						iter.ctx.Logger().Named("binpack").Debug("preemption not possible ", "network_resource", ask)
 						netIdx.Release()
 						continue OUTER
 					}
@@ -324,7 +341,7 @@ OUTER:
 
 					offer, err = netIdx.AssignNetwork(ask)
 					if offer == nil {
-						iter.ctx.Logger().Named("binpack").Error("unexpected error, unable to create network offer after considering preemption", "error", err)
+						iter.ctx.Logger().Named("binpack").Debug("unexpected error, unable to create network offer after considering preemption", "error", err)
 						netIdx.Release()
 						continue OUTER
 					}
@@ -352,7 +369,7 @@ OUTER:
 					devicePreemptions := preemptor.PreemptForDevice(req, devAllocator)
 
 					if devicePreemptions == nil {
-						iter.ctx.Logger().Named("binpack").Error("preemption not possible", "requested_device", req)
+						iter.ctx.Logger().Named("binpack").Debug("preemption not possible", "requested_device", req)
 						netIdx.Release()
 						continue OUTER
 					}
@@ -368,7 +385,7 @@ OUTER:
 					// Try offer again
 					offer, sumAffinities, err = devAllocator.AssignDevice(req)
 					if offer == nil {
-						iter.ctx.Logger().Named("binpack").Error("unexpected error, unable to create device offer after considering preemption", "error", err)
+						iter.ctx.Logger().Named("binpack").Debug("unexpected error, unable to create device offer after considering preemption", "error", err)
 						continue OUTER
 					}
 				}
@@ -391,6 +408,7 @@ OUTER:
 
 			// Accumulate the total resource requirement
 			total.Tasks[task.Name] = taskResources
+			total.TaskLifecycles[task.Name] = task.Lifecycle
 		}
 
 		// Store current set of running allocs before adding resources for the task group
@@ -430,7 +448,7 @@ OUTER:
 		}
 
 		// Score the fit normally otherwise
-		fitness := structs.ScoreFit(option.Node, util)
+		fitness := iter.scoreFit(option.Node, util)
 		normalizedFit := fitness / binPackingMaxFitScore
 		option.Scores = append(option.Scores, normalizedFit)
 		iter.ctx.Metrics().ScoreNode(option.Node, "binpack", normalizedFit)
@@ -544,21 +562,20 @@ func (iter *NodeReschedulingPenaltyIterator) SetPenaltyNodes(penaltyNodes map[st
 }
 
 func (iter *NodeReschedulingPenaltyIterator) Next() *RankedNode {
-	for {
-		option := iter.source.Next()
-		if option == nil {
-			return nil
-		}
-
-		_, ok := iter.penaltyNodes[option.Node.ID]
-		if ok {
-			option.Scores = append(option.Scores, -1)
-			iter.ctx.Metrics().ScoreNode(option.Node, "node-reschedule-penalty", -1)
-		} else {
-			iter.ctx.Metrics().ScoreNode(option.Node, "node-reschedule-penalty", 0)
-		}
-		return option
+	option := iter.source.Next()
+	if option == nil {
+		return nil
 	}
+
+	_, ok := iter.penaltyNodes[option.Node.ID]
+	if ok {
+		option.Scores = append(option.Scores, -1)
+		iter.ctx.Metrics().ScoreNode(option.Node, "node-reschedule-penalty", -1)
+	} else {
+		iter.ctx.Metrics().ScoreNode(option.Node, "node-reschedule-penalty", 0)
+	}
+
+	return option
 }
 
 func (iter *NodeReschedulingPenaltyIterator) Reset() {
@@ -689,4 +706,77 @@ func (iter *ScoreNormalizationIterator) Next() *RankedNode {
 	//TODO(preetha): Turn map in allocmetrics into a heap of topK scores
 	iter.ctx.Metrics().ScoreNode(option.Node, "normalized-score", option.FinalScore)
 	return option
+}
+
+// PreemptionScoringIterator is used to score nodes according to the
+// combination of preemptible allocations in them
+type PreemptionScoringIterator struct {
+	ctx    Context
+	source RankIterator
+}
+
+// PreemptionScoringIterator is used to create a score based on net aggregate priority
+// of preempted allocations
+func NewPreemptionScoringIterator(ctx Context, source RankIterator) RankIterator {
+	return &PreemptionScoringIterator{
+		ctx:    ctx,
+		source: source,
+	}
+}
+
+func (iter *PreemptionScoringIterator) Reset() {
+	iter.source.Reset()
+}
+
+func (iter *PreemptionScoringIterator) Next() *RankedNode {
+	option := iter.source.Next()
+	if option == nil || option.PreemptedAllocs == nil {
+		return option
+	}
+
+	netPriority := netPriority(option.PreemptedAllocs)
+	// preemption score is inversely proportional to netPriority
+	preemptionScore := preemptionScore(netPriority)
+	option.Scores = append(option.Scores, preemptionScore)
+	iter.ctx.Metrics().ScoreNode(option.Node, "preemption", preemptionScore)
+
+	return option
+}
+
+// netPriority is a scoring heuristic that represents a combination of two factors.
+// First factor is the max priority in the set of allocations, with
+// an additional factor that takes into account the individual priorities of allocations
+func netPriority(allocs []*structs.Allocation) float64 {
+	sumPriority := 0
+	max := 0.0
+	for _, alloc := range allocs {
+		if float64(alloc.Job.Priority) > max {
+			max = float64(alloc.Job.Priority)
+		}
+		sumPriority += alloc.Job.Priority
+	}
+	// We use the maximum priority across all allocations
+	// with an additional penalty that increases proportional to the
+	// ratio of the sum by max
+	// This ensures that we penalize nodes that have a low max but a high
+	// number of preemptible allocations
+	ret := max + (float64(sumPriority) / max)
+	return ret
+}
+
+// preemptionScore is calculated using a logistic function
+// see https://www.desmos.com/calculator/alaeiuaiey for a visual representation of the curve.
+// Lower values of netPriority get a score closer to 1 and the inflection point is around 2048
+// The score is modelled to be between 0 and 1 because its combined with other
+// scoring factors like bin packing
+func preemptionScore(netPriority float64) float64 {
+	// These values were chosen such that a net priority of 2048 would get a preemption score of 0.5
+	// rate is the decay parameter of the logistic function used in scoring preemption options
+	const rate = 0.0048
+
+	// origin controls the inflection point of the logistic function used in scoring preemption options
+	const origin = 2048.0
+
+	// This function manifests as an s curve that asympotically moves towards zero for large values of netPriority
+	return 1.0 / (1 + math.Exp(rate*(netPriority-origin)))
 }

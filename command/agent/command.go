@@ -26,9 +26,10 @@ import (
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper"
-	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/helper/logging"
+	"github.com/hashicorp/nomad/helper/winsvc"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
@@ -71,6 +72,7 @@ func (c *Command) readConfig() *Config {
 		},
 		Vault: &config.VaultConfig{},
 		ACL:   &ACLConfig{},
+		Audit: &config.AuditConfig{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
@@ -154,6 +156,10 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}), "consul-verify-ssl", "")
 	flags.StringVar(&cmdConfig.Consul.Addr, "consul-address", "", "")
+	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
+		cmdConfig.Consul.AllowUnauthenticated = &b
+		return nil
+	}), "consul-allow-unauthenticated", "")
 
 	// Vault options
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
@@ -219,7 +225,7 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Merge in the enterprise overlay
-	config.Merge(DefaultEntConfig())
+	config = config.Merge(DefaultEntConfig())
 
 	for _, path := range configPath {
 		current, err := LoadConfig(path)
@@ -246,6 +252,7 @@ func (c *Command) readConfig() *Config {
 	if config.Client == nil {
 		config.Client = &ClientConfig{}
 	}
+
 	if config.Server == nil {
 		config.Server = &ServerConfig{}
 	}
@@ -278,18 +285,32 @@ func (c *Command) readConfig() *Config {
 		config.PluginDir = filepath.Join(config.DataDir, "plugins")
 	}
 
-	if !c.isValidConfig(config) {
+	config.Server.DefaultSchedulerConfig.Canonicalize()
+
+	if !c.isValidConfig(config, cmdConfig) {
 		return nil
 	}
 
 	return config
 }
 
-func (c *Command) isValidConfig(config *Config) bool {
+func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
 		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
+		return false
+	}
+
+	// Check that the region does not contain invalid characters
+	if strings.ContainsAny(config.Region, "\000") {
+		c.Ui.Error("Region contains invalid characters")
+		return false
+	}
+
+	// Check that the datacenter name does not contain invalid characters
+	if strings.ContainsAny(config.Datacenter, "\000") {
+		c.Ui.Error("Datacenter contains invalid characters")
 		return false
 	}
 
@@ -340,83 +361,115 @@ func (c *Command) isValidConfig(config *Config) bool {
 		}
 	}
 
-	if config.DevMode {
-		// Skip the rest of the validation for dev mode
-		return true
-	}
-
-	// Ensure that we have the directories we need to run.
-	if config.Server.Enabled && config.DataDir == "" {
-		c.Ui.Error("Must specify data directory")
+	if err := config.Server.DefaultSchedulerConfig.Validate(); err != nil {
+		c.Ui.Error(err.Error())
 		return false
 	}
 
-	// The config is valid if the top-level data-dir is set or if both
-	// alloc-dir and state-dir are set.
-	if config.Client.Enabled && config.DataDir == "" {
-		if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
-			c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
+	if !config.DevMode {
+		// Ensure that we have the directories we need to run.
+		if config.Server.Enabled && config.DataDir == "" {
+			c.Ui.Error("Must specify data directory")
 			return false
 		}
-	}
 
-	// Check the bootstrap flags
-	if config.Server.BootstrapExpect > 0 && !config.Server.Enabled {
-		c.Ui.Error("Bootstrap requires server mode to be enabled")
-		return false
-	}
-	if config.Server.BootstrapExpect == 1 {
-		c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
+		// The config is valid if the top-level data-dir is set or if both
+		// alloc-dir and state-dir are set.
+		if config.Client.Enabled && config.DataDir == "" {
+			if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
+				c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
+				return false
+			}
+		}
+
+		// Check the bootstrap flags
+		if !config.Server.Enabled && cmdConfig.Server.BootstrapExpect > 0 {
+			// report an error if BootstrapExpect is set in CLI but server is disabled
+			c.Ui.Error("Bootstrap requires server mode to be enabled")
+			return false
+		}
+		if config.Server.Enabled && config.Server.BootstrapExpect == 1 {
+			c.Ui.Error("WARNING: Bootstrap mode enabled! Potentially unsafe operation.")
+		}
 	}
 
 	return true
 }
 
-// setupLoggers is used to setup the logGate, logWriter, and our logOutput
-func (c *Command) setupLoggers(config *Config) (*gatedwriter.Writer, *logWriter, io.Writer) {
+// setupLoggers is used to setup the logGate, and our logOutput
+func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwriter.Writer, io.Writer) {
 	// Setup logging. First create the gated log writer, which will
 	// store logs until we're ready to show them. Then create the level
 	// filter, filtering logs of the specified level.
 	logGate := &gatedwriter.Writer{
-		Writer: &cli.UiWriter{Ui: c.Ui},
+		Writer: &cli.UiWriter{Ui: ui},
 	}
 
-	c.logFilter = LevelFilter()
-	c.logFilter.MinLevel = logutils.LogLevel(strings.ToUpper(config.LogLevel))
-	c.logFilter.Writer = logGate
-	if !ValidateLevelFilter(c.logFilter.MinLevel, c.logFilter) {
-		c.Ui.Error(fmt.Sprintf(
+	logFilter := LevelFilter()
+	logFilter.MinLevel = logutils.LogLevel(strings.ToUpper(config.LogLevel))
+	logFilter.Writer = logGate
+	if !ValidateLevelFilter(logFilter.MinLevel, logFilter) {
+		ui.Error(fmt.Sprintf(
 			"Invalid log level: %s. Valid log levels are: %v",
-			c.logFilter.MinLevel, c.logFilter.Levels))
+			logFilter.MinLevel, logFilter.Levels))
 		return nil, nil, nil
 	}
 
+	// Create a log writer, and wrap a logOutput around it
+	writers := []io.Writer{logFilter}
+
 	// Check if syslog is enabled
-	var syslog io.Writer
 	if config.EnableSyslog {
 		l, err := gsyslog.NewLogger(gsyslog.LOG_NOTICE, config.SyslogFacility, "nomad")
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
+			ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
 			return nil, nil, nil
 		}
-		syslog = &SyslogWrapper{l, c.logFilter}
+		writers = append(writers, &SyslogWrapper{l, logFilter})
 	}
 
-	// Create a log writer, and wrap a logOutput around it
-	logWriter := NewLogWriter(512)
-	var logOutput io.Writer
-	if syslog != nil {
-		logOutput = io.MultiWriter(c.logFilter, logWriter, syslog)
-	} else {
-		logOutput = io.MultiWriter(c.logFilter, logWriter)
+	// Check if file logging is enabled
+	if config.LogFile != "" {
+		dir, fileName := filepath.Split(config.LogFile)
+
+		// if a path is provided, but has no filename, then a default is used.
+		if fileName == "" {
+			fileName = "nomad.log"
+		}
+
+		// Try to enter the user specified log rotation duration first
+		var logRotateDuration time.Duration
+		if config.LogRotateDuration != "" {
+			duration, err := time.ParseDuration(config.LogRotateDuration)
+			if err != nil {
+				ui.Error(fmt.Sprintf("Failed to parse log rotation duration: %v", err))
+				return nil, nil, nil
+			}
+			logRotateDuration = duration
+		} else {
+			// Default to 24 hrs if no rotation period is specified
+			logRotateDuration = 24 * time.Hour
+		}
+
+		logFile := &logFile{
+			logFilter: logFilter,
+			fileName:  fileName,
+			logPath:   dir,
+			duration:  logRotateDuration,
+			MaxBytes:  config.LogRotateBytes,
+			MaxFiles:  config.LogRotateMaxFiles,
+		}
+
+		writers = append(writers, logFile)
 	}
-	c.logOutput = logOutput
+
+	logOutput := io.MultiWriter(writers...)
 	log.SetOutput(logOutput)
-	return logGate, logWriter, logOutput
+	return logFilter, logGate, logOutput
 }
 
 // setupAgent is used to start the agent and various interfaces
-func (c *Command) setupAgent(config *Config, logger hclog.Logger, logOutput io.Writer, inmem *metrics.InmemSink) error {
+func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOutput io.Writer, inmem *metrics.InmemSink) error {
 	c.Ui.Output("Starting Nomad agent...")
 	agent, err := NewAgent(config, logger, logOutput, inmem)
 	if err != nil {
@@ -529,6 +582,7 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		"-consul-ssl":                    complete.PredictNothing,
 		"-consul-verify-ssl":             complete.PredictNothing,
 		"-consul-address":                complete.PredictAnything,
+		"-consul-token":                  complete.PredictAnything,
 		"-vault-enabled":                 complete.PredictNothing,
 		"-vault-allow-unauthenticated":   complete.PredictNothing,
 		"-vault-token":                   complete.PredictAnything,
@@ -564,14 +618,25 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
+	// reset UI to prevent prefixed json output
+	if config.LogJson {
+		c.Ui = &cli.BasicUi{
+			Reader:      os.Stdin,
+			Writer:      os.Stdout,
+			ErrorWriter: os.Stderr,
+		}
+	}
+
 	// Setup the log outputs
-	logGate, _, logOutput := c.setupLoggers(config)
+	logFilter, logGate, logOutput := SetupLoggers(c.Ui, config)
+	c.logFilter = logFilter
+	c.logOutput = logOutput
 	if logGate == nil {
 		return 1
 	}
 
 	// Create logger
-	logger := hclog.New(&hclog.LoggerOptions{
+	logger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
 		Name:       "agent",
 		Level:      hclog.LevelFromString(config.LogLevel),
 		Output:     logOutput,
@@ -602,10 +667,12 @@ func (c *Command) Run(args []string) int {
 		logGate.Flush()
 		return 1
 	}
-	defer c.agent.Shutdown()
 
-	// Shutdown the HTTP server at the end
 	defer func() {
+		c.agent.Shutdown()
+
+		// Shutdown the http server at the end, to ease debugging if
+		// the agent takes long to shutdown
 		if c.httpServer != nil {
 			c.httpServer.Shutdown()
 		}
@@ -747,6 +814,8 @@ WAIT:
 	select {
 	case s := <-signalCh:
 		sig = s
+	case <-winsvc.ShutdownChannel():
+		sig = os.Interrupt
 	case <-c.ShutdownCh:
 		sig = os.Interrupt
 	case <-c.retryJoinErrCh:
@@ -822,7 +891,7 @@ func (c *Command) handleReload() {
 	c.Ui.Output("Reloading configuration...")
 	newConf := c.readConfig()
 	if newConf == nil {
-		c.Ui.Error(fmt.Sprintf("Failed to reload configs"))
+		c.Ui.Error("Failed to reload configs")
 		return
 	}
 
@@ -920,8 +989,7 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 	metricsConf.EnableHostname = !telConfig.DisableHostname
 
 	// Prefer the hostname as a label.
-	metricsConf.EnableHostnameLabel = !telConfig.DisableHostname &&
-		!telConfig.DisableTaggedMetrics && !telConfig.BackwardsCompatibleMetrics
+	metricsConf.EnableHostnameLabel = !telConfig.DisableHostname
 
 	if telConfig.UseNodeName {
 		metricsConf.HostName = config.NodeName
@@ -1177,9 +1245,9 @@ General Options (clients and servers):
     list of mode configurations:
 
   -dev-connect
-	Start the agent in development mode, but bind to a public network
-	interface rather than localhost for using Consul Connect. This
-	mode is supported only on Linux as root.
+    Start the agent in development mode, but bind to a public network
+    interface rather than localhost for using Consul Connect. This
+    mode is supported only on Linux as root.
 
 Server Options:
 

@@ -17,6 +17,9 @@ import (
 // - Bootstrap this Nomad Client with the list of Nomad Servers registered
 //   with Consul
 //
+// - Establish how this Nomad Client will resolve Envoy Connect Sidecar
+//   images.
+//
 // Both the Agent and the executor need to be able to import ConsulConfig.
 type ConsulConfig struct {
 	// ServerServiceName is the name of the service that Nomad uses to register
@@ -65,12 +68,17 @@ type ConsulConfig struct {
 	GRPCAddr string `hcl:"grpc_address"`
 
 	// Timeout is used by Consul HTTP Client
-	Timeout    time.Duration
-	TimeoutHCL string `hcl:"timeout" json:"-"`
+	Timeout    time.Duration `hcl:"-"`
+	TimeoutHCL string        `hcl:"timeout" json:"-"`
 
 	// Token is used to provide a per-request ACL token. This options overrides
 	// the agent's default token
 	Token string `hcl:"token"`
+
+	// AllowUnauthenticated allows users to submit jobs requiring Consul
+	// Service Identity tokens without providing a Consul token proving they
+	// have access to such policies.
+	AllowUnauthenticated *bool `hcl:"allow_unauthenticated"`
 
 	// Auth is the information to use for http access to Consul agent
 	Auth string `hcl:"auth"`
@@ -79,6 +87,12 @@ type ConsulConfig struct {
 	//
 	// Uses Consul's default and env var.
 	EnableSSL *bool `hcl:"ssl"`
+
+	// ShareSSL enables Consul Connect Native applications to use the TLS
+	// configuration of the Nomad Client for establishing connections to Consul.
+	//
+	// Does not include sharing of ACL tokens.
+	ShareSSL *bool `hcl:"share_ssl"`
 
 	// VerifySSL enables or disables SSL verification when the transport scheme
 	// for the consul api client is https
@@ -107,6 +121,10 @@ type ConsulConfig struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	// Namespace sets the Consul namespace used for all calls against the
+	// Consul API. If this is unset, then Nomad does not specify a consul namespace.
+	Namespace string `hcl:"namespace"`
 }
 
 // DefaultConsulConfig() returns the canonical defaults for the Nomad
@@ -115,29 +133,40 @@ type ConsulConfig struct {
 func DefaultConsulConfig() *ConsulConfig {
 	def := consul.DefaultConfig()
 	return &ConsulConfig{
-		ServerServiceName:   "nomad",
-		ServerHTTPCheckName: "Nomad Server HTTP Check",
-		ServerSerfCheckName: "Nomad Server Serf Check",
-		ServerRPCCheckName:  "Nomad Server RPC Check",
-		ClientServiceName:   "nomad-client",
-		ClientHTTPCheckName: "Nomad Client HTTP Check",
-		AutoAdvertise:       helper.BoolToPtr(true),
-		ChecksUseAdvertise:  helper.BoolToPtr(false),
-		ServerAutoJoin:      helper.BoolToPtr(true),
-		ClientAutoJoin:      helper.BoolToPtr(true),
-		Timeout:             5 * time.Second,
+		ServerServiceName:    "nomad",
+		ServerHTTPCheckName:  "Nomad Server HTTP Check",
+		ServerSerfCheckName:  "Nomad Server Serf Check",
+		ServerRPCCheckName:   "Nomad Server RPC Check",
+		ClientServiceName:    "nomad-client",
+		ClientHTTPCheckName:  "Nomad Client HTTP Check",
+		AutoAdvertise:        helper.BoolToPtr(true),
+		ChecksUseAdvertise:   helper.BoolToPtr(false),
+		ServerAutoJoin:       helper.BoolToPtr(true),
+		ClientAutoJoin:       helper.BoolToPtr(true),
+		AllowUnauthenticated: helper.BoolToPtr(true),
+		Timeout:              5 * time.Second,
 
 		// From Consul api package defaults
 		Addr:      def.Address,
 		EnableSSL: helper.BoolToPtr(def.Scheme == "https"),
 		VerifySSL: helper.BoolToPtr(!def.TLSConfig.InsecureSkipVerify),
 		CAFile:    def.TLSConfig.CAFile,
+		Namespace: def.Namespace,
 	}
 }
 
+// AllowsUnauthenticated returns whether the config allows unauthenticated
+// creation of Consul Service Identity tokens for Consul Connect enabled Tasks.
+//
+// If allow_unauthenticated is false, the operator must provide a token on
+// job submission (i.e. -consul-token or $CONSUL_HTTP_TOKEN).
+func (c *ConsulConfig) AllowsUnauthenticated() bool {
+	return c.AllowUnauthenticated != nil && *c.AllowUnauthenticated
+}
+
 // Merge merges two Consul Configurations together.
-func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
-	result := a.Copy()
+func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
+	result := c.Copy()
 
 	if b.ServerServiceName != "" {
 		result.ServerServiceName = b.ServerServiceName
@@ -185,6 +214,9 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	if b.VerifySSL != nil {
 		result.VerifySSL = helper.BoolToPtr(*b.VerifySSL)
 	}
+	if b.ShareSSL != nil {
+		result.ShareSSL = helper.BoolToPtr(*b.ShareSSL)
+	}
 	if b.CAFile != "" {
 		result.CAFile = b.CAFile
 	}
@@ -202,6 +234,12 @@ func (a *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	}
 	if b.ChecksUseAdvertise != nil {
 		result.ChecksUseAdvertise = helper.BoolToPtr(*b.ChecksUseAdvertise)
+	}
+	if b.AllowUnauthenticated != nil {
+		result.AllowUnauthenticated = helper.BoolToPtr(*b.AllowUnauthenticated)
+	}
+	if b.Namespace != "" {
+		result.Namespace = b.Namespace
 	}
 	return result
 }
@@ -258,6 +296,9 @@ func (c *ConsulConfig) ApiConfig() (*consul.Config, error) {
 		}
 		config.Transport.TLSClientConfig = tlsConfig
 	}
+	if c.Namespace != "" {
+		config.Namespace = c.Namespace
+	}
 	return config, nil
 }
 
@@ -283,11 +324,17 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 	if nc.VerifySSL != nil {
 		nc.VerifySSL = helper.BoolToPtr(*nc.VerifySSL)
 	}
+	if nc.ShareSSL != nil {
+		nc.ShareSSL = helper.BoolToPtr(*nc.ShareSSL)
+	}
 	if nc.ServerAutoJoin != nil {
 		nc.ServerAutoJoin = helper.BoolToPtr(*nc.ServerAutoJoin)
 	}
 	if nc.ClientAutoJoin != nil {
 		nc.ClientAutoJoin = helper.BoolToPtr(*nc.ClientAutoJoin)
+	}
+	if nc.AllowUnauthenticated != nil {
+		nc.AllowUnauthenticated = helper.BoolToPtr(*nc.AllowUnauthenticated)
 	}
 
 	return nc

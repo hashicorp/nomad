@@ -16,6 +16,15 @@ type RunnerPrerunHook interface {
 	Prerun() error
 }
 
+// RunnerPreKillHooks are executed inside of KillTasks before
+// iterating and killing each task. It will run before the Leader
+// task is killed.
+type RunnerPreKillHook interface {
+	RunnerHook
+
+	PreKill()
+}
+
 // RunnerPostrunHooks are executed after calling TaskRunner.Run, even for
 // terminal allocations. Therefore Postrun hooks must be safe to call without
 // first calling Prerun hooks.
@@ -44,6 +53,14 @@ type RunnerUpdateHook interface {
 
 type RunnerUpdateRequest struct {
 	Alloc *structs.Allocation
+}
+
+// RunnerTaskRestartHooks are executed just before the allocation runner is
+// going to restart all tasks.
+type RunnerTaskRestartHook interface {
+	RunnerHook
+
+	PreTaskRestart() error
 }
 
 // ShutdownHook may be implemented by AllocRunner or TaskRunner hooks and will

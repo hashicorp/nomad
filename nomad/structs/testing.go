@@ -90,7 +90,10 @@ func MockNode() *Node {
 		Status:                NodeStatusReady,
 		SchedulingEligibility: NodeSchedulingEligible,
 	}
-	node.ComputeClass()
+	err := node.ComputeClass()
+	if err != nil {
+		panic(fmt.Sprintf("failed to compute node class: %v", err))
+	}
 	return node
 }
 
@@ -120,7 +123,10 @@ func MockNvidiaNode() *Node {
 			},
 		},
 	}
-	n.ComputeClass()
+	err := n.ComputeClass()
+	if err != nil {
+		panic(fmt.Sprintf("failed to compute node class: %v", err))
+	}
 	return n
 }
 

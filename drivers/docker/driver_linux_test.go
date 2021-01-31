@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/freeport"
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -41,7 +42,7 @@ func TestDockerDriver_authFromHelper(t *testing.T) {
 	}
 	content, err := ioutil.ReadFile(filepath.Join(dir, "helper-get.out"))
 	require.NoError(t, err)
-	require.Equal(t, []byte("https://registry.local:5000"), content)
+	require.Equal(t, "registry.local:5000", string(content))
 }
 
 func TestDockerDriver_PidsLimit(t *testing.T) {
@@ -51,13 +52,14 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	testutil.DockerCompatible(t)
 	require := require.New(t)
 
-	task, cfg, _ := dockerTask(t)
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
 	cfg.PidsLimit = 1
 	cfg.Command = "/bin/sh"
-	cfg.Args = []string{"-c", "sleep 2 & sleep 2"}
+	cfg.Args = []string{"-c", "sleep 5 & sleep 5 & sleep 5"}
 	require.NoError(task.EncodeConcreteDriverConfig(cfg))
 
-	_, driver, _, cleanup := dockerSetup(t, task)
+	_, driver, _, cleanup := dockerSetup(t, task, nil)
 	defer cleanup()
 
 	driver.WaitUntilStarted(task.ID, time.Duration(tu.TestMultiplier()*5)*time.Second)

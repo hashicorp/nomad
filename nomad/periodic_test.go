@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type MockJobEvalDispatcher struct {
@@ -81,6 +82,7 @@ func testPeriodicDispatcher(t *testing.T) (*PeriodicDispatch, *MockJobEvalDispat
 	logger := testlog.HCLogger(t)
 	m := NewMockJobEvalDispatcher()
 	d := NewPeriodicDispatch(logger, m)
+	t.Cleanup(func() { d.SetEnabled(false) })
 	d.SetEnabled(true)
 	return d, m
 }
@@ -173,29 +175,22 @@ func TestPeriodicDispatch_Add_UpdateJob(t *testing.T) {
 	t.Parallel()
 	p, _ := testPeriodicDispatcher(t)
 	job := mock.PeriodicJob()
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
-	}
+	err := p.Add(job)
+	require.NoError(t, err)
 
 	tracked := p.Tracked()
-	if len(tracked) != 1 {
-		t.Fatalf("Add didn't track the job: %v", tracked)
-	}
+	require.Lenf(t, tracked, 1, "did not track the job")
 
 	// Update the job and add it again.
 	job.Periodic.Spec = "foo"
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
-	}
+	err = p.Add(job)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed parsing cron expression")
 
 	tracked = p.Tracked()
-	if len(tracked) != 1 {
-		t.Fatalf("Add didn't update: %v", tracked)
-	}
+	require.Lenf(t, tracked, 1, "did not update")
 
-	if !reflect.DeepEqual(job, tracked[0]) {
-		t.Fatalf("Add didn't properly update: got %v; want %v", tracked[0], job)
-	}
+	require.Equalf(t, job, tracked[0], "add did not properly update")
 }
 
 func TestPeriodicDispatch_Add_Remove_Namespaced(t *testing.T) {
@@ -655,14 +650,15 @@ func deriveChildJob(parent *structs.Job) *structs.Job {
 
 func TestPeriodicDispatch_RunningChildren_NoEvals(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Insert job.
 	state := s1.fsm.State()
 	job := mock.PeriodicJob()
-	if err := state.UpsertJob(1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
@@ -678,19 +674,20 @@ func TestPeriodicDispatch_RunningChildren_NoEvals(t *testing.T) {
 
 func TestPeriodicDispatch_RunningChildren_ActiveEvals(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Insert periodic job and child.
 	state := s1.fsm.State()
 	job := mock.PeriodicJob()
-	if err := state.UpsertJob(1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
 	childjob := deriveChildJob(job)
-	if err := state.UpsertJob(1001, childjob); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1001, childjob); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
@@ -698,7 +695,7 @@ func TestPeriodicDispatch_RunningChildren_ActiveEvals(t *testing.T) {
 	eval := mock.Eval()
 	eval.JobID = childjob.ID
 	eval.Status = structs.EvalStatusPending
-	if err := state.UpsertEvals(1002, []*structs.Evaluation{eval}); err != nil {
+	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1002, []*structs.Evaluation{eval}); err != nil {
 		t.Fatalf("UpsertEvals failed: %v", err)
 	}
 
@@ -714,19 +711,20 @@ func TestPeriodicDispatch_RunningChildren_ActiveEvals(t *testing.T) {
 
 func TestPeriodicDispatch_RunningChildren_ActiveAllocs(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Insert periodic job and child.
 	state := s1.fsm.State()
 	job := mock.PeriodicJob()
-	if err := state.UpsertJob(1000, job); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
 	childjob := deriveChildJob(job)
-	if err := state.UpsertJob(1001, childjob); err != nil {
+	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1001, childjob); err != nil {
 		t.Fatalf("UpsertJob failed: %v", err)
 	}
 
@@ -734,7 +732,7 @@ func TestPeriodicDispatch_RunningChildren_ActiveAllocs(t *testing.T) {
 	eval := mock.Eval()
 	eval.JobID = childjob.ID
 	eval.Status = structs.EvalStatusPending
-	if err := state.UpsertEvals(1002, []*structs.Evaluation{eval}); err != nil {
+	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1002, []*structs.Evaluation{eval}); err != nil {
 		t.Fatalf("UpsertEvals failed: %v", err)
 	}
 
@@ -743,7 +741,7 @@ func TestPeriodicDispatch_RunningChildren_ActiveAllocs(t *testing.T) {
 	alloc.JobID = childjob.ID
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusRun
-	if err := state.UpsertAllocs(1003, []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("UpsertAllocs failed: %v", err)
 	}
 

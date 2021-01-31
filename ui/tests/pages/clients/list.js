@@ -12,18 +12,33 @@ import {
 } from 'ember-cli-page-object';
 
 import facet from 'nomad-ui/tests/pages/components/facet';
+import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
+  pageSize: 25,
+
   visit: visitable('/clients'),
 
   search: fillable('.search-box input'),
+
+  sortOptions: collection('[data-test-sort-by]', {
+    id: attribute('data-test-sort-by'),
+    sort: clickable(),
+  }),
+
+  sortBy(id) {
+    return this.sortOptions
+      .toArray()
+      .findBy('id', id)
+      .sort();
+  },
 
   nodes: collection('[data-test-client-node-row]', {
     id: text('[data-test-client-id]'),
     name: text('[data-test-client-name]'),
 
-    state: {
-      scope: '[data-test-client-state]',
+    compositeStatus: {
+      scope: '[data-test-client-composite-status]',
 
       tooltip: attribute('aria-label', '.tooltip'),
 
@@ -47,6 +62,8 @@ export default create({
     headline: text('[data-test-empty-clients-list-headline]'),
   },
 
+  pageSizeSelect: pageSizeSelect(),
+
   error: {
     isPresent: isPresent('[data-test-error]'),
     title: text('[data-test-error-title]'),
@@ -58,5 +75,6 @@ export default create({
     class: facet('[data-test-class-facet]'),
     state: facet('[data-test-state-facet]'),
     datacenter: facet('[data-test-datacenter-facet]'),
+    volume: facet('[data-test-volume-facet]'),
   },
 });

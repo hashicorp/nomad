@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 
@@ -18,7 +19,8 @@ var (
 
 // VaultReadQuery is the dependency to Vault for a secret
 type VaultReadQuery struct {
-	stopCh chan struct{}
+	stopCh  chan struct{}
+	sleepCh chan time.Duration
 
 	rawPath     string
 	queryValues url.Values
@@ -45,79 +47,68 @@ func NewVaultReadQuery(s string) (*VaultReadQuery, error) {
 
 	return &VaultReadQuery{
 		stopCh:      make(chan struct{}, 1),
+		sleepCh:     make(chan time.Duration, 1),
 		rawPath:     secretURL.Path,
 		queryValues: secretURL.Query(),
 	}, nil
 }
 
 // Fetch queries the Vault API
-func (d *VaultReadQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interface{}, *ResponseMetadata, error) {
+func (d *VaultReadQuery) Fetch(clients *ClientSet, opts *QueryOptions,
+) (interface{}, *ResponseMetadata, error) {
 	select {
 	case <-d.stopCh:
 		return nil, nil, ErrStopped
 	default:
 	}
+	select {
+	case dur := <-d.sleepCh:
+		time.Sleep(dur)
+	default:
+	}
 
-	opts = opts.Merge(&QueryOptions{})
+	firstRun := d.secret == nil
 
-	if d.secret != nil {
-		if vaultSecretRenewable(d.secret) {
-			log.Printf("[TRACE] %s: starting renewer", d)
-
-			renewer, err := clients.Vault().NewRenewer(&api.RenewerInput{
-				Grace:  opts.VaultGrace,
-				Secret: d.vaultSecret,
-			})
-			if err != nil {
-				return nil, nil, errors.Wrap(err, d.String())
-			}
-			go renewer.Renew()
-			defer renewer.Stop()
-
-		RENEW:
-			for {
-				select {
-				case err := <-renewer.DoneCh():
-					if err != nil {
-						log.Printf("[WARN] %s: failed to renew: %s", d, err)
-					}
-					log.Printf("[WARN] %s: renewer returned (maybe the lease expired)", d)
-					break RENEW
-				case renewal := <-renewer.RenewCh():
-					log.Printf("[TRACE] %s: successfully renewed", d)
-					printVaultWarnings(d, renewal.Secret.Warnings)
-					updateSecret(d.secret, renewal.Secret)
-				case <-d.stopCh:
-					return nil, nil, ErrStopped
-				}
-			}
-		} else {
-			// The secret isn't renewable, probably the generic secret backend.
-			dur := vaultRenewDuration(d.secret)
-			log.Printf("[TRACE] %s: secret is not renewable, sleeping for %s", d, dur)
-			select {
-			case <-time.After(dur):
-				// The lease is almost expired, it's time to request a new one.
-			case <-d.stopCh:
-				return nil, nil, ErrStopped
-			}
+	if !firstRun && vaultSecretRenewable(d.secret) {
+		err := renewSecret(clients, d)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, d.String())
 		}
 	}
 
-	// We don't have a secret, or the prior renewal failed
-	vaultSecret, err := d.readSecret(clients, opts)
+	err := d.fetchSecret(clients, opts)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, d.String())
 	}
 
-	// Print any warnings
-	printVaultWarnings(d, vaultSecret.Warnings)
-
-	// Create the cloned secret which will be exposed to the template.
-	d.vaultSecret = vaultSecret
-	d.secret = transformSecret(vaultSecret)
+	if !vaultSecretRenewable(d.secret) {
+		dur := leaseCheckWait(d.secret)
+		log.Printf("[TRACE] %s: non-renewable secret, set sleep for %s", d, dur)
+		d.sleepCh <- dur
+	}
 
 	return respWithMetadata(d.secret)
+}
+
+func (d *VaultReadQuery) fetchSecret(clients *ClientSet, opts *QueryOptions,
+) error {
+	opts = opts.Merge(&QueryOptions{})
+	vaultSecret, err := d.readSecret(clients, opts)
+	if err == nil {
+		printVaultWarnings(d, vaultSecret.Warnings)
+		d.vaultSecret = vaultSecret
+		// the cloned secret which will be exposed to the template
+		d.secret = transformSecret(vaultSecret)
+	}
+	return err
+}
+
+func (d *VaultReadQuery) stopChan() chan struct{} {
+	return d.stopCh
+}
+
+func (d *VaultReadQuery) secrets() (*Secret, *api.Secret) {
+	return d.secret, d.vaultSecret
 }
 
 // CanShare returns if this dependency is shareable.
@@ -132,6 +123,9 @@ func (d *VaultReadQuery) Stop() {
 
 // String returns the human-friendly version of this dependency.
 func (d *VaultReadQuery) String() string {
+	if v := d.queryValues["version"]; len(v) > 0 {
+		return fmt.Sprintf("vault.read(%s.v%s)", d.rawPath, v[0])
+	}
 	return fmt.Sprintf("vault.read(%s)", d.rawPath)
 }
 
@@ -147,11 +141,12 @@ func (d *VaultReadQuery) readSecret(clients *ClientSet, opts *QueryOptions) (*ap
 	if d.isKVv2 == nil {
 		mountPath, isKVv2, err := isKVv2(vaultClient, d.rawPath)
 		if err != nil {
-			log.Printf("[WARN] %s: failed to check if %s is KVv2, assume not: %s", d, d.rawPath, err)
+			log.Printf("[WARN] %s: failed to check if %s is KVv2, "+
+				"assume not: %s", d, d.rawPath, err)
 			isKVv2 = false
 			d.secretPath = d.rawPath
 		} else if isKVv2 {
-			d.secretPath = addPrefixToVKVPath(d.rawPath, mountPath, "data")
+			d.secretPath = shimKVv2Path(d.rawPath, mountPath)
 		} else {
 			d.secretPath = d.rawPath
 		}
@@ -163,12 +158,40 @@ func (d *VaultReadQuery) readSecret(clients *ClientSet, opts *QueryOptions) (*ap
 		Path:     "/v1/" + d.secretPath,
 		RawQuery: queryString,
 	})
-	vaultSecret, err := vaultClient.Logical().ReadWithData(d.secretPath, d.queryValues)
+	vaultSecret, err := vaultClient.Logical().ReadWithData(d.secretPath,
+		d.queryValues)
+
 	if err != nil {
 		return nil, errors.Wrap(err, d.String())
 	}
-	if vaultSecret == nil {
+	if vaultSecret == nil || deletedKVv2(vaultSecret) {
 		return nil, fmt.Errorf("no secret exists at %s", d.secretPath)
 	}
 	return vaultSecret, nil
+}
+
+func deletedKVv2(s *api.Secret) bool {
+	switch md := s.Data["metadata"].(type) {
+	case map[string]interface{}:
+		return md["deletion_time"] != ""
+	}
+	return false
+}
+
+// shimKVv2Path aligns the supported legacy path to KV v2 specs by inserting
+// /data/ into the path for reading secrets. Paths for metadata are not modified.
+func shimKVv2Path(rawPath, mountPath string) string {
+	switch {
+	case rawPath == mountPath, rawPath == strings.TrimSuffix(mountPath, "/"):
+		return path.Join(mountPath, "data")
+	default:
+		p := strings.TrimPrefix(rawPath, mountPath)
+
+		// Only add /data/ prefix to the path if neither /data/ or /metadata/ are
+		// present.
+		if strings.HasPrefix(p, "data/") || strings.HasPrefix(p, "metadata/") {
+			return rawPath
+		}
+		return path.Join(mountPath, "data", p)
+	}
 }

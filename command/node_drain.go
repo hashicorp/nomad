@@ -25,13 +25,16 @@ func (c *NodeDrainCommand) Help() string {
 	helpText := `
 Usage: nomad node drain [options] <node>
 
-  Toggles node draining on a specified node. It is required
-  that either -enable or -disable is specified, but not both.
-  The -self flag is useful to drain the local node.
+  Toggles node draining on a specified node. It is required that either
+  -enable or -disable is specified, but not both.  The -self flag is useful to
+  drain the local node.
+
+  If ACLs are enabled, this option requires a token with the 'node:write'
+  capability.
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Node Drain Options:
 
@@ -147,7 +150,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 
 	// Check that we got either enable or disable, but not both.
 	if (enable && disable) || (!monitor && !enable && !disable) {
-		c.Ui.Error("Ethier the '-enable' or '-disable' flag must be set, unless using '-monitor'")
+		c.Ui.Error("Either the '-enable' or '-disable' flag must be set, unless using '-monitor'")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -220,7 +223,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 
 	// Check if node exists
 	if len(nodeID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
+		c.Ui.Error("Identifier must contain at least two characters.")
 		return 1
 	}
 

@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
@@ -87,6 +88,8 @@ type GenericScheduler struct {
 	ctx        *EvalContext
 	stack      *GenericStack
 
+	// followUpEvals are evals with WaitUntil set, which are delayed until that time
+	// before being rescheduled
 	followUpEvals []*structs.Evaluation
 
 	deployment *structs.Deployment
@@ -134,7 +137,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) error {
 		structs.EvalTriggerRollingUpdate, structs.EvalTriggerQueuedAllocs,
 		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc,
-		structs.EvalTriggerFailedFollowUp, structs.EvalTriggerPreemption:
+		structs.EvalTriggerFailedFollowUp, structs.EvalTriggerPreemption,
+		structs.EvalTriggerScaling:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
@@ -257,9 +261,13 @@ func (s *GenericScheduler) process() (bool, error) {
 
 	// If there are failed allocations, we need to create a blocked evaluation
 	// to place the failed allocations when resources become available. If the
-	// current evaluation is already a blocked eval, we reuse it by submitting
-	// a new eval to the planner in createBlockedEval
-	if s.eval.Status != structs.EvalStatusBlocked && len(s.failedTGAllocs) != 0 && s.blocked == nil {
+	// current evaluation is already a blocked eval, we reuse it. If not, submit
+	// a new eval to the planner in createBlockedEval. If rescheduling should
+	// be delayed, do that instead.
+	delayInstead := len(s.followUpEvals) > 0 && s.eval.WaitUntil.IsZero()
+
+	if s.eval.Status != structs.EvalStatusBlocked && len(s.failedTGAllocs) != 0 && s.blocked == nil &&
+		!delayInstead {
 		if err := s.createBlockedEval(false); err != nil {
 			s.logger.Error("failed to make blocked eval", "error", err)
 			return false, err
@@ -273,8 +281,9 @@ func (s *GenericScheduler) process() (bool, error) {
 		return true, nil
 	}
 
-	// Create follow up evals for any delayed reschedule eligible allocations
-	if len(s.followUpEvals) > 0 {
+	// Create follow up evals for any delayed reschedule eligible allocations, except in
+	// the case that this evaluation was already delayed.
+	if delayInstead {
 		for _, eval := range s.followUpEvals {
 			eval.PreviousEval = s.eval.ID
 			// TODO(preetha) this should be batching evals before inserting them
@@ -337,7 +346,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Update the allocations which are in pending/running state on tainted
-	// nodes to lost
+	// nodes to lost, but only if the scheduler has already marked them
 	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
 
 	reconciler := NewAllocReconciler(s.logger,
@@ -370,7 +379,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	// Handle the stop
 	for _, stop := range results.stop {
-		s.plan.AppendStoppedAlloc(stop.alloc, stop.statusDescription, stop.clientStatus)
+		s.plan.AppendStoppedAlloc(stop.alloc, stop.statusDescription, stop.clientStatus, stop.followupEvalID)
 	}
 
 	// Handle the in-place updates
@@ -379,12 +388,12 @@ func (s *GenericScheduler) computeJobAllocs() error {
 			update.DeploymentID = s.deployment.GetID()
 			update.DeploymentStatus = nil
 		}
-		s.ctx.Plan().AppendAlloc(update)
+		s.ctx.Plan().AppendAlloc(update, nil)
 	}
 
 	// Handle the annotation updates
 	for _, update := range results.attributeUpdates {
-		s.ctx.Plan().AppendAlloc(update)
+		s.ctx.Plan().AppendAlloc(update, nil)
 	}
 
 	// Nothing remaining to do if placement is not required
@@ -421,6 +430,43 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	return s.computePlacements(destructive, place)
 }
 
+// downgradedJobForPlacement returns the job appropriate for non-canary placement replacement
+func (s *GenericScheduler) downgradedJobForPlacement(p placementResult) (string, *structs.Job, error) {
+	ns, jobID := s.job.Namespace, s.job.ID
+	tgName := p.TaskGroup().Name
+
+	// find deployments and use the latest promoted or canaried version
+	deployments, err := s.state.DeploymentsByJobID(nil, ns, jobID, false)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to lookup job deployments: %v", err)
+	}
+
+	sort.Slice(deployments, func(i, j int) bool {
+		return deployments[i].JobVersion > deployments[j].JobVersion
+	})
+
+	for _, d := range deployments {
+		// It's unexpected to have a recent deployment that doesn't contain the TaskGroup; as all allocations
+		// should be destroyed. In such cases, attempt to find the deployment for that TaskGroup and hopefully
+		// we will kill it soon.  This is a defensive measure, have not seen it in practice
+		//
+		// Zero dstate.DesiredCanaries indicates that the TaskGroup allocates were updated in-place without using canaries.
+		if dstate := d.TaskGroups[tgName]; dstate != nil && (dstate.Promoted || dstate.DesiredCanaries == 0) {
+			job, err := s.state.JobByIDAndVersion(nil, ns, jobID, d.JobVersion)
+			return d.ID, job, err
+		}
+	}
+
+	// check if the non-promoted version is a job without update stanza. This version should be the latest "stable" version,
+	// as all subsequent versions must be canaried deployments.  Otherwise, we would have found a deployment above,
+	// or the alloc would have been replaced already by a newer non-deployment job.
+	if job, err := s.state.JobByIDAndVersion(nil, ns, jobID, p.MinJobVersion()); err == nil && job != nil && job.Update.IsEmpty() {
+		return "", job, err
+	}
+
+	return "", nil, nil
+}
+
 // computePlacements computes placements for allocations. It is given the set of
 // destructive updates to place and the set of new placements to place.
 func (s *GenericScheduler) computePlacements(destructive, place []placementResult) error {
@@ -449,10 +495,38 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			// Get the task group
 			tg := missing.TaskGroup()
 
+			var downgradedJob *structs.Job
+
+			if missing.DowngradeNonCanary() {
+				jobDeploymentID, job, err := s.downgradedJobForPlacement(missing)
+				if err != nil {
+					return err
+				}
+
+				// Defensive check - if there is no appropriate deployment for this job, use the latest
+				if job != nil && job.Version >= missing.MinJobVersion() && job.LookupTaskGroup(tg.Name) != nil {
+					tg = job.LookupTaskGroup(tg.Name)
+					downgradedJob = job
+					deploymentID = jobDeploymentID
+				} else {
+					jobVersion := -1
+					if job != nil {
+						jobVersion = int(job.Version)
+					}
+					s.logger.Debug("failed to find appropriate job; using the latest", "expected_version", missing.MinJobVersion, "found_version", jobVersion)
+				}
+			}
+
 			// Check if this task group has already failed
 			if metric, ok := s.failedTGAllocs[tg.Name]; ok {
 				metric.CoalescedFailures += 1
 				continue
+			}
+
+			// Use downgraded job in scheduling stack to honor
+			// old job resources and constraints
+			if downgradedJob != nil {
+				s.stack.SetJob(downgradedJob)
 			}
 
 			// Find the preferred node
@@ -468,7 +542,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			stopPrevAlloc, stopPrevAllocDesc := missing.StopPreviousAlloc()
 			prevAllocation := missing.PreviousAllocation()
 			if stopPrevAlloc {
-				s.plan.AppendStoppedAlloc(prevAllocation, stopPrevAllocDesc, "")
+				s.plan.AppendStoppedAlloc(prevAllocation, stopPrevAllocDesc, "", "")
 			}
 
 			// Compute penalty nodes for rescheduled allocs
@@ -481,16 +555,23 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			// Compute top K scoring node metadata
 			s.ctx.Metrics().PopulateScoreMetaData()
 
+			// Restore stack job now that placement is done, to use plan job version
+			if downgradedJob != nil {
+				s.stack.SetJob(s.job)
+			}
+
 			// Set fields based on if we found an allocation option
 			if option != nil {
 				resources := &structs.AllocatedResources{
-					Tasks: option.TaskResources,
+					Tasks:          option.TaskResources,
+					TaskLifecycles: option.TaskLifecycles,
 					Shared: structs.AllocatedSharedResources{
 						DiskMB: int64(tg.EphemeralDisk.SizeMB),
 					},
 				}
 				if option.AllocResources != nil {
 					resources.Shared.Networks = option.AllocResources.Networks
+					resources.Shared.Ports = option.AllocResources.Ports
 				}
 
 				// Create an allocation for this
@@ -529,10 +610,6 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// If we are placing a canary and we found a match, add the canary
 				// to the deployment state object and mark it as a canary.
 				if missing.Canary() && s.deployment != nil {
-					if state, ok := s.deployment.TaskGroups[tg.Name]; ok {
-						state.PlacedCanaries = append(state.PlacedCanaries, alloc.ID)
-					}
-
 					alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
 						Canary: true,
 					}
@@ -541,7 +618,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				s.handlePreemptions(option, alloc, missing)
 
 				// Track the placement
-				s.plan.AppendAlloc(alloc)
+				s.plan.AppendAlloc(alloc, downgradedJob)
 
 			} else {
 				// Lazy initialize the failed map
@@ -570,7 +647,12 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 	selectOptions := &SelectOptions{}
 	if prevAllocation != nil {
 		penaltyNodes := make(map[string]struct{})
-		penaltyNodes[prevAllocation.NodeID] = struct{}{}
+
+		// If alloc failed, penalize the node it failed on to encourage
+		// rescheduling on a new node.
+		if prevAllocation.ClientStatus == structs.AllocClientStatusFailed {
+			penaltyNodes[prevAllocation.NodeID] = struct{}{}
+		}
 		if prevAllocation.RescheduleTracker != nil {
 			for _, reschedEvent := range prevAllocation.RescheduleTracker.Events {
 				penaltyNodes[reschedEvent.PrevNodeID] = struct{}{}
@@ -623,7 +705,7 @@ func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 
 // findPreferredNode finds the preferred node for an allocation
 func (s *GenericScheduler) findPreferredNode(place placementResult) (*structs.Node, error) {
-	if prev := place.PreviousAllocation(); prev != nil && place.TaskGroup().EphemeralDisk.Sticky == true {
+	if prev := place.PreviousAllocation(); prev != nil && place.TaskGroup().EphemeralDisk.Sticky {
 		var preferredNode *structs.Node
 		ws := memdb.NewWatchSet()
 		preferredNode, err := s.state.NodeByID(ws, prev.NodeID)
@@ -636,4 +718,50 @@ func (s *GenericScheduler) findPreferredNode(place placementResult) (*structs.No
 		}
 	}
 	return nil, nil
+}
+
+// selectNextOption calls the stack to get a node for placement
+func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions *SelectOptions) *RankedNode {
+	option := s.stack.Select(tg, selectOptions)
+	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
+
+	// Check if preemption is enabled, defaults to true
+	enablePreemption := true
+	if schedConfig != nil {
+		if s.job.Type == structs.JobTypeBatch {
+			enablePreemption = schedConfig.PreemptionConfig.BatchSchedulerEnabled
+		} else {
+			enablePreemption = schedConfig.PreemptionConfig.ServiceSchedulerEnabled
+		}
+	}
+	// Run stack again with preemption enabled
+	if option == nil && enablePreemption {
+		selectOptions.Preempt = true
+		option = s.stack.Select(tg, selectOptions)
+	}
+	return option
+}
+
+// handlePreemptions sets relevant preeemption related fields.
+func (s *GenericScheduler) handlePreemptions(option *RankedNode, alloc *structs.Allocation, missing placementResult) {
+	if option.PreemptedAllocs == nil {
+		return
+	}
+
+	// If this placement involves preemption, set DesiredState to evict for those allocations
+	var preemptedAllocIDs []string
+	for _, stop := range option.PreemptedAllocs {
+		s.plan.AppendPreemptedAlloc(stop, alloc.ID)
+		preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
+
+		if s.eval.AnnotatePlan && s.plan.Annotations != nil {
+			s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub(nil))
+			if s.plan.Annotations.DesiredTGUpdates != nil {
+				desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup().Name]
+				desired.Preemptions += 1
+			}
+		}
+	}
+
+	alloc.PreemptedAllocations = preemptedAllocIDs
 }

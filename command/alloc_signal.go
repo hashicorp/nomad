@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
@@ -20,9 +21,13 @@ Usage: nomad alloc signal [options] <signal> <allocation> <task>
   and its subtasks. If no task is provided then all of the allocations subtasks
   will receive the signal.
 
+  When ACLs are enabled, this command requires a token with the
+  'alloc-lifecycle', 'read-job', and 'list-jobs' capabilities for the
+  allocation's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Signal Specific Options:
 
@@ -68,7 +73,7 @@ func (c *AllocSignalCommand) Run(args []string) int {
 
 	// Query the allocation info
 	if len(allocID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Alloc ID must contain at least two characters."))
+		c.Ui.Error("Alloc ID must contain at least two characters.")
 		return 1
 	}
 
@@ -100,7 +105,8 @@ func (c *AllocSignalCommand) Run(args []string) int {
 	}
 
 	// Prefix lookup matched a single allocation
-	alloc, _, err := client.Allocations().Info(allocs[0].ID, nil)
+	q := &api.QueryOptions{Namespace: allocs[0].Namespace}
+	alloc, _, err := client.Allocations().Info(allocs[0].ID, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error querying allocation: %s", err))
 		return 1

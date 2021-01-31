@@ -1,0 +1,42 @@
+---
+layout: docs
+page_title: Alternative to Kubernetes
+sidebar_title: Alternative to Kubernetes
+description: Nomad as an alternative to Kubernetes
+---
+
+# An alternative to Kubernetes
+
+While known for its goal of automating and simplifying application deployment, an orchestrator itself can be extremely complex to implement and manage. Kubernetes requires significant time and deep understanding to deploy, operate, and troubleshoot. Teams and organizations choose Nomad as an alternative to Kubernetes for its two core strengths:
+
+- **Simplicity in usage and maintainability**
+
+- **Flexibility to deploy and manage containerized and non-containerized applications**
+
+Operating as a single lightweight binary, Nomad excels on-premises and at the edge, providing the same ease-of-use as it does in the cloud. Its architectural simplicity, native federation capabilities, and operator-friendly design enable companies to scale and manage an orchestrator with little operational overhead. Our customer interviews show that no matter company size, teams and organizations gain benefits from simplicity and flexibility, including
+
+- Fast time to production: Average 1-3 weeks to get Nomad from a technical proof of concept into production
+
+- Rapid adoption: From 2 hours to less than 30 minutes to onboard a developer to directly deploy applications on Nomad
+
+- Great operational efficiency: Allows operation teams to stay lean (1-4 people) to service hundreds of developers and applications, and achieve high uptime with a self-hosted orchestrator
+
+- Smooth path to migration: Allows teams to incrementally migrate or containerize existing applications at their own pace with a single, unified deployment workflow
+
+> “Nomad is easy to cluster up. We converted our Kubernetes deployment manifest to Nomad job files, then tested it. And since it’s a single binary, it’s simple to configure to our specific needs, which eliminates much of the complexity we faced with Kubernetes. More importantly, Nomad’s agnostic infrastructure resource pool and automated workflows let us deploy and manage our containers and apps across on-prem and any private or public cloud environment, which dramatically expands our datacenter options while still meeting our data residency obligations.”
+
+**AmpleOrganics**, Canada's #1 cannabis software company migrated off of Kubernetes to Nomad
+
+> “I’m a complete beginner when it comes to distributed computing and orchestration. Nomad virtually eliminates barriers to entry for developers who don’t have cloud computing expertise and makes it really easy to connect to the cluster, configure it, and run my jobs while having full visibility into the jobs’ status so I can restart them if need be.”
+
+**Autodesk**, Autodesk Research built a scalable, maintenance-free, and multi-cloud orchestration workflow with Nomad
+
+> “We have people who are first-time system administrators deploying applications, building containers, maintaining Nomad. There is a guy on our team who worked in the IT help desk for eight years — just today he upgraded an entire cluster himself. That’s the value proposition that I hope people understand. People seem to get stuck on ‘I need to run Kubernetes because my friend runs it’ — but do you really use it? Can you operate it at the level that’s needed?”
+
+**Roblox**, the top online gaming company built a global gaming platform with Nomad serving more than 150 million players
+
+> “A large portion of our applications are Windows-based, so we need both Windows and Linux support. Although we do prefer running containers, we don’t necessarily want a hard requirement to have to use them and we like the idea of directly running applications on VMs if the use case calls for it. We wanted to make improvements to the current workflow without massive and time-consuming application rewrites. Ultimately we chose Nomad because it met all of our requirements and made the most sense to our environments.”
+
+**Q2** - The ebanking platform that serves 10% of the digital banking customers in America transformed the deployment workflow with Nomad
+
+While Nomad’s strengths lie in simplicity and flexibility in core scheduling, Kubernetes excels over Nomad in terms of ecosystem. The goal for Nomad ecosystem is to build a simpler, leaner, and more prescriptive path to the ecosystem. This is an area of improvement for Nomad that we invest significantly in today and plan to continue into the future. [Read more about Nomad’s ecosystem](/docs/ecosystem).

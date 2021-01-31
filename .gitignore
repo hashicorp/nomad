@@ -28,10 +28,10 @@ _testmain.go
 *.test
 *.prof
 
-tags
-bin/
+/tags
+/bin/
 /pkg/
-.vagrant/
+.vagrant
 website/build/
 website/npm-debug.log
 *.old
@@ -60,6 +60,7 @@ nomad_linux_amd64
 nomad_darwin_amd64
 TODO.md
 codecgen-*.generated.go
+**/structs.generated.go
 GNUMakefile.local
 
 .terraform
@@ -81,11 +82,14 @@ rkt-*
 
 # misc
 /ui/.sass-cache
+/ui/.storybook/preview-head.html
 /ui/connect.lock
 /ui/coverage/*
 /ui/libpeerconnection.log
 /ui/npm-debug.log*
 /ui/testem.log
+/ui/.env*
+/ui/.pnp*
 .ignore
 
 # ember-try

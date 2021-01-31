@@ -2,7 +2,7 @@ syntax = "proto3";
 package hashicorp.nomad.plugins.base.proto;
 option go_package = "proto";
 
-import "github.com/hashicorp/nomad/plugins/shared/hclspec/hcl_spec.proto";
+import "plugins/shared/hclspec/hcl_spec.proto";
 
 // BasePlugin is the methods that all Nomad plugins must support.
 service BasePlugin {
@@ -76,12 +76,14 @@ message NomadConfig {
 // driver plugins
 message NomadDriverConfig {
     // ClientMaxPort is the upper range of the ports that the client uses for
-	// communicating with plugin subsystems over loopback
-	uint32 ClientMaxPort = 1;
+    // communicating with plugin subsystems over loopback
+    // buf:lint:ignore FIELD_LOWER_SNAKE_CASE
+    uint32 ClientMaxPort = 1;
 
-	// ClientMinPort is the lower range of the ports that the client uses for
-	// communicating with plugin subsystems over loopback
-	uint32 ClientMinPort = 2;
+    // ClientMinPort is the lower range of the ports that the client uses for
+    // communicating with plugin subsystems over loopback
+    // buf:lint:ignore FIELD_LOWER_SNAKE_CASE
+    uint32 ClientMinPort = 2;
 }
 
 // SetConfigResponse is used to respond to setting the configuration

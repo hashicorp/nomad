@@ -27,7 +27,7 @@ func (d *Driver) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, b
 	if err != nil {
 		d.logger.Debug("auth failed for infra container image pull", "image", d.config.InfraImage, "error", err)
 	}
-	_, err = d.coordinator.PullImage(d.config.InfraImage, authOptions, allocID, noopLogEventFn)
+	_, err = d.coordinator.PullImage(d.config.InfraImage, authOptions, allocID, noopLogEventFn, d.config.infraImagePullTimeoutDuration, d.config.pullActivityTimeoutDuration)
 	if err != nil {
 		return nil, false, err
 	}
@@ -67,9 +67,11 @@ func (d *Driver) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, b
 		return nil, false, err
 	}
 
-	// until the container is started, InspectContainer
+	// until the container is started, InspectContainerWithOptions
 	// returns a mostly-empty struct
-	container, err = client.InspectContainer(container.ID)
+	container, err = client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: container.ID,
+	})
 	if err != nil {
 		return nil, false, err
 	}

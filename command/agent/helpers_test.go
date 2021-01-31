@@ -11,6 +11,7 @@ func TestHTTP_rpcHandlerForAlloc(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	agent := NewTestAgent(t, t.Name(), nil)
+	defer agent.Shutdown()
 
 	a := mockFSAlloc(agent.client.NodeID(), nil)
 	addAllocToClient(agent, a, terminalClientAlloc)
@@ -54,6 +55,8 @@ func TestHTTP_rpcHandlerForNode(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
 	agent := NewTestAgent(t, t.Name(), nil)
+	defer agent.Shutdown()
+
 	cID := agent.client.NodeID()
 
 	// Case 1: Node running, no node ID given

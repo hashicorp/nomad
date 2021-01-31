@@ -2,7 +2,10 @@ package allocrunner
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"strings"
+	"syscall"
 
 	hclog "github.com/hashicorp/go-hclog"
 	clientconfig "github.com/hashicorp/nomad/client/config"
@@ -54,7 +57,7 @@ func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Ma
 
 		caps, err := driver.Capabilities()
 		if err != nil {
-			return nil, fmt.Errorf("failed to retrive capabilities for driver %s: %v",
+			return nil, fmt.Errorf("failed to retrieve capabilities for driver %s: %v",
 				task.Driver, err)
 		}
 
@@ -92,6 +95,15 @@ type defaultNetworkManager struct{}
 func (*defaultNetworkManager) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, bool, error) {
 	netns, err := nsutil.NewNS(allocID)
 	if err != nil {
+		// when a client restarts, the namespace will already exist and
+		// there will be a namespace file in use by the task process
+		if e, ok := err.(*os.PathError); ok && e.Err == syscall.EPERM {
+			nsPath := path.Join(nsutil.NetNSRunDir, allocID)
+			_, err := os.Stat(nsPath)
+			if err == nil {
+				return nil, false, nil
+			}
+		}
 		return nil, false, err
 	}
 
@@ -117,6 +129,9 @@ func netModeToIsolationMode(netMode string) drivers.NetIsolationMode {
 	case "driver":
 		return drivers.NetIsolationModeTask
 	default:
+		if strings.HasPrefix(strings.ToLower(netMode), "cni/") {
+			return drivers.NetIsolationModeGroup
+		}
 		return drivers.NetIsolationModeHost
 	}
 }
@@ -129,9 +144,17 @@ func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config 
 		return &hostNetworkConfigurator{}, nil
 	}
 
-	switch strings.ToLower(tg.Networks[0].Mode) {
-	case "bridge":
-		return newBridgeNetworkConfigurator(log, config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath)
+	netMode := strings.ToLower(tg.Networks[0].Mode)
+	ignorePortMappingHostIP := config.BindWildcardDefaultHostNetwork
+	if len(config.HostNetworks) > 0 {
+		ignorePortMappingHostIP = false
+	}
+
+	switch {
+	case netMode == "bridge":
+		return newBridgeNetworkConfigurator(log, config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath, ignorePortMappingHostIP)
+	case strings.HasPrefix(netMode, "cni/"):
+		return newCNINetworkConfigurator(log, config.CNIPath, config.CNIInterfacePrefix, config.CNIConfigDir, netMode[4:], ignorePortMappingHostIP)
 	default:
 		return &hostNetworkConfigurator{}, nil
 	}

@@ -1337,19 +1337,19 @@ func TestPreemption(t *testing.T) {
 					Node: node,
 				},
 			}
-			state.UpsertNode(1000, node)
+			state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 			for _, alloc := range tc.currentAllocations {
 				alloc.NodeID = node.ID
 			}
 			require := require.New(t)
-			err := state.UpsertAllocs(1001, tc.currentAllocations)
+			err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, tc.currentAllocations)
 
 			require.Nil(err)
 			if tc.currentPreemptions != nil {
 				ctx.plan.NodePreemptions[node.ID] = tc.currentPreemptions
 			}
 			static := NewStaticRankIterator(ctx, nodes)
-			binPackIter := NewBinPackIterator(ctx, static, true, tc.jobPriority)
+			binPackIter := NewBinPackIterator(ctx, static, true, tc.jobPriority, structs.SchedulerAlgorithmBinpack)
 			job := mock.Job()
 			job.Priority = tc.jobPriority
 			binPackIter.SetJob(job)

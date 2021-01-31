@@ -1,14 +1,14 @@
 import { Factory } from 'ember-cli-mirage';
-import faker from 'faker';
+import faker from 'nomad-ui/mirage/faker';
 
 const TASK_STATUSES = ['pending', 'running', 'finished', 'failed'];
 const REF_TIME = new Date();
 
 export default Factory.extend({
   name: () => '!!!this should be set by the allocation that owns this task state!!!',
-  state: faker.helpers.randomize(TASK_STATUSES),
+  state: () => faker.helpers.randomize(TASK_STATUSES),
   kind: null,
-  startedAt: faker.date.past(2 / 365, REF_TIME),
+  startedAt: () => faker.date.past(2 / 365, REF_TIME),
   finishedAt() {
     if (['pending', 'running'].includes(this.state)) {
       return '0001-01-01T00:00:00Z';

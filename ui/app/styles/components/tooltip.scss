@@ -4,6 +4,7 @@
 }
 
 .tooltip::after {
+  text-transform: none;
   content: attr(aria-label);
   background: $black;
   border-radius: $radius;
@@ -12,6 +13,7 @@
   max-width: 250px;
   color: $white;
   font-size: $size-7;
+  font-weight: $weight-normal;
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.25;
@@ -46,6 +48,10 @@
   transition: top 0.1s ease-in-out;
 }
 
+.tooltip.is-right-aligned::after {
+  transform: translateX(-75%);
+}
+
 .tooltip:hover::after,
 .tooltip.always-active::after {
   opacity: 1;
@@ -56,4 +62,9 @@
 .tooltip.always-active::before {
   opacity: 1;
   top: -20%;
+}
+
+.tooltip.multiline::after {
+  width: 200px;
+  white-space: normal;
 }

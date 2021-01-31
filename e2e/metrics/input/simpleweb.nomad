@@ -1,39 +1,33 @@
-job "nginx" {
+job "simpleweb" {
   datacenters = ["dc1"]
-  type = "system"
+  type        = "system"
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
 
   group "simpleweb" {
-
-    update {
-      stagger          = "5s"
-      max_parallel     = 1
-      min_healthy_time = "10s"
-      healthy_deadline = "2m"
-      auto_revert      = true
+    network {
+      port "http" {
+        to = 8080
+      }
     }
-
     task "simpleweb" {
       driver = "docker"
 
       config {
-        image = "nginxdemos/hello"
+        image = "nginx:latest"
 
-        port_map {
-          http = 8080
-        }
+        ports = ["http"]
       }
 
       resources {
-        cpu    = 500
+        cpu    = 256
         memory = 128
-
-        network {
-          mbits = 1
-          port "http" {
-          }
-        }
       }
 
+      // TODO(tgross): this isn't passing health checks
       service {
         port = "http"
         name = "simpleweb"
@@ -49,4 +43,3 @@ job "nginx" {
     }
   }
 }
-

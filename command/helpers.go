@@ -1,11 +1,13 @@
 package command
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -13,7 +15,9 @@ import (
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/kr/text"
+	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 
 	"github.com/ryanuber/columnize"
@@ -376,13 +380,20 @@ READ:
 }
 
 type JobGetter struct {
+	hcl1 bool
+
 	// The fields below can be overwritten for tests
 	testStdin io.Reader
 }
 
 // StructJob returns the Job struct from jobfile.
 func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
+	return j.ApiJobWithArgs(jpath, nil, nil)
+}
+
+func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []string) (*api.Job, error) {
 	var jobfile io.Reader
+	pathName := filepath.Base(jpath)
 	switch jpath {
 	case "-":
 		if j.testStdin != nil {
@@ -390,6 +401,7 @@ func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 		} else {
 			jobfile = os.Stdin
 		}
+		pathName = "stdin.hcl"
 	default:
 		if len(jpath) == 0 {
 			return nil, fmt.Errorf("Error jobfile path has to be specified.")
@@ -421,18 +433,43 @@ func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 			return nil, fmt.Errorf("Error getting jobfile from %q: %v", jpath, err)
 		} else {
 			file, err := os.Open(job.Name())
-			defer file.Close()
 			if err != nil {
 				return nil, fmt.Errorf("Error opening file %q: %v", jpath, err)
 			}
+			defer file.Close()
 			jobfile = file
 		}
 	}
 
 	// Parse the JobFile
-	jobStruct, err := jobspec.Parse(jobfile)
+	var jobStruct *api.Job
+	var err error
+	if j.hcl1 {
+		jobStruct, err = jobspec.Parse(jobfile)
+	} else {
+		var buf bytes.Buffer
+		_, err = io.Copy(&buf, jobfile)
+		if err != nil {
+			return nil, fmt.Errorf("Error reading job file from %s: %v", jpath, err)
+		}
+		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
+			Path:     pathName,
+			Body:     buf.Bytes(),
+			ArgVars:  vars,
+			AllowFS:  true,
+			VarFiles: varfiles,
+			Envs:     os.Environ(),
+		})
+
+		if err != nil {
+			if _, merr := jobspec.Parse(&buf); merr == nil {
+				return nil, fmt.Errorf("Failed to parse using HCL 2. Use the HCL 1 parser with `nomad run -hcl1`, or address the following issues:\n%v", err)
+			}
+		}
+	}
+
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing job file from %s: %v", jpath, err)
+		return nil, fmt.Errorf("Error parsing job file from %s:\n%v", jpath, err)
 	}
 
 	return jobStruct, nil
@@ -463,4 +500,45 @@ func sanitizeUUIDPrefix(prefix string) string {
 // when an error is printed.
 func commandErrorText(cmd NamedCommand) string {
 	return fmt.Sprintf("For additional help try 'nomad %s -help'", cmd.Name())
+}
+
+// uiErrorWriter is a io.Writer that wraps underlying ui.ErrorWriter().
+// ui.ErrorWriter expects full lines as inputs and it emits its own line breaks.
+//
+// uiErrorWriter scans input for individual lines to pass to ui.ErrorWriter. If data
+// doesn't contain a new line, it buffers result until next new line or writer is closed.
+type uiErrorWriter struct {
+	ui  cli.Ui
+	buf bytes.Buffer
+}
+
+func (w *uiErrorWriter) Write(data []byte) (int, error) {
+	read := 0
+	for len(data) != 0 {
+		a, token, err := bufio.ScanLines(data, false)
+		if err != nil {
+			return read, err
+		}
+
+		if a == 0 {
+			r, err := w.buf.Write(data)
+			return read + r, err
+		}
+
+		w.ui.Error(w.buf.String() + string(token))
+		data = data[a:]
+		w.buf.Reset()
+		read += a
+	}
+
+	return read, nil
+}
+
+func (w *uiErrorWriter) Close() error {
+	// emit what's remaining
+	if w.buf.Len() != 0 {
+		w.ui.Error(w.buf.String())
+		w.buf.Reset()
+	}
+	return nil
 }

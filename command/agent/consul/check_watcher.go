@@ -22,8 +22,8 @@ type ChecksAPI interface {
 	Checks() (map[string]*api.AgentCheck, error)
 }
 
-// TaskRestarter allows the checkWatcher to restart tasks.
-type TaskRestarter interface {
+// WorkloadRestarter allows the checkWatcher to restart tasks or entire task groups.
+type WorkloadRestarter interface {
 	Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error
 }
 
@@ -35,7 +35,7 @@ type checkRestart struct {
 	checkName string
 	taskKey   string // composite of allocID + taskName for uniqueness
 
-	task           TaskRestarter
+	task           WorkloadRestarter
 	grace          time.Duration
 	interval       time.Duration
 	timeLimit      time.Duration
@@ -114,7 +114,7 @@ func (c *checkRestart) apply(ctx context.Context, now time.Time, status string) 
 
 // asyncRestart mimics the pre-0.9 TaskRunner.Restart behavior and is intended
 // to be called in a goroutine.
-func asyncRestart(ctx context.Context, logger log.Logger, task TaskRestarter, event *structs.TaskEvent) {
+func asyncRestart(ctx context.Context, logger log.Logger, task WorkloadRestarter, event *structs.TaskEvent) {
 	// Check watcher restarts are always failures
 	const failure = true
 
@@ -292,7 +292,7 @@ func (w *checkWatcher) Run(ctx context.Context) {
 }
 
 // Watch a check and restart its task if unhealthy.
-func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.ServiceCheck, restarter TaskRestarter) {
+func (w *checkWatcher) Watch(allocID, taskName, checkID string, check *structs.ServiceCheck, restarter WorkloadRestarter) {
 	if !check.TriggersRestarts() {
 		// Not watched, noop
 		return

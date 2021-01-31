@@ -10,6 +10,7 @@ import {
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
+import LifecycleChart from 'nomad-ui/tests/pages/components/lifecycle-chart';
 
 export default create({
   visit: visitable('/allocations/:id'),
@@ -18,6 +19,10 @@ export default create({
 
   stop: twoStepButton('[data-test-stop]'),
   restart: twoStepButton('[data-test-restart]'),
+
+  execButton: {
+    scope: '[data-test-exec-button]',
+  },
 
   details: {
     scope: '[data-test-allocation-details]',
@@ -36,12 +41,14 @@ export default create({
 
   resourceEmptyMessage: text('[data-test-resource-error-headline]'),
 
+  lifecycleChart: LifecycleChart,
+
   tasks: collection('[data-test-task-row]', {
     name: text('[data-test-name]'),
     state: text('[data-test-state]'),
     message: text('[data-test-message]'),
     time: text('[data-test-time]'),
-    ports: text('[data-test-ports]'),
+    volumes: text('[data-test-volumes]'),
 
     hasUnhealthyDriver: isPresent('[data-test-icon="unhealthy-driver"]'),
     hasProxyTag: isPresent('[data-test-proxy-tag]'),
@@ -77,7 +84,6 @@ export default create({
   ...allocations('[data-test-preemptions] [data-test-allocation]', 'preemptions'),
 
   ports: collection('[data-test-allocation-port]', {
-    dynamic: text('[data-test-allocation-port-is-dynamic]'),
     name: text('[data-test-allocation-port-name]'),
     address: text('[data-test-allocation-port-address]'),
     to: text('[data-test-allocation-port-to]'),

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-msgpack/codec"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client"
@@ -22,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
-	"github.com/ugorji/go/codec"
 )
 
 func TestClientAllocations_GarbageCollectAll_Local(t *testing.T) {
@@ -30,15 +30,15 @@ func TestClientAllocations_GarbageCollectAll_Local(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s.connectedNodes()
@@ -70,8 +70,8 @@ func TestClientAllocations_GarbageCollectAll_Local_ACL(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server
-	s, root := TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -130,8 +130,8 @@ func TestClientAllocations_GarbageCollectAll_NoNode(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -153,8 +153,8 @@ func TestClientAllocations_GarbageCollectAll_OldNode(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and fake an old client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	state := s.State()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
@@ -162,7 +162,7 @@ func TestClientAllocations_GarbageCollectAll_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(1005, node))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node))
 
 	req := &structs.NodeSpecificRequest{
 		NodeID:       node.ID,
@@ -175,7 +175,7 @@ func TestClientAllocations_GarbageCollectAll_OldNode(t *testing.T) {
 
 	// Test for a missing version error
 	delete(node.Attributes, "nomad.version")
-	require.Nil(state.UpsertNode(1006, node))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1006, node))
 
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollectAll", req, &resp)
 	require.True(structs.IsErrUnknownNomadVersion(err))
@@ -186,22 +186,24 @@ func TestClientAllocations_GarbageCollectAll_Remote(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
 	})
-	defer s2.Shutdown()
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 	codec := rpcClient(t, s2)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 		c.GCDiskUsageThreshold = 100.0
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s2.connectedNodes()
@@ -244,8 +246,8 @@ func TestClientAllocations_GarbageCollect_OldNode(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and fake an old client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	state := s.State()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
@@ -253,11 +255,11 @@ func TestClientAllocations_GarbageCollect_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(1005, node))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node))
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	require.Nil(state.UpsertAllocs(1006, []*structs.Allocation{alloc}))
+	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1006, []*structs.Allocation{alloc}))
 
 	req := &structs.AllocSpecificRequest{
 		AllocID: alloc.ID,
@@ -273,7 +275,7 @@ func TestClientAllocations_GarbageCollect_OldNode(t *testing.T) {
 
 	// Test for a missing version error
 	delete(node.Attributes, "nomad.version")
-	require.Nil(state.UpsertNode(1007, node))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1007, node))
 
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollect", req, &resp)
 	require.True(structs.IsErrUnknownNomadVersion(err), err.Error())
@@ -284,16 +286,16 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 		c.GCDiskUsageThreshold = 100.0
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -322,8 +324,8 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 
 	// Upsert the allocation
 	state := s.State()
-	require.Nil(state.UpsertJob(999, a.Job))
-	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -363,11 +365,10 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 
 func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
 
 	// Start a server
-	s, root := TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -377,6 +378,12 @@ func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 
 	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
+
+	// Upsert the allocation
+	state := s.State()
+	alloc := mock.Alloc()
+	require.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1010, alloc.Job))
+	require.NoError(t, state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
 
 	cases := []struct {
 		Name          string
@@ -391,12 +398,12 @@ func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			ExpectedError: structs.ErrUnknownNodePrefix,
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			ExpectedError: structs.ErrUnknownNodePrefix,
 		},
 	}
 
@@ -405,7 +412,7 @@ func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 
 			// Make the request without having a node-id
 			req := &structs.AllocSpecificRequest{
-				AllocID: uuid.Generate(),
+				AllocID: alloc.ID,
 				QueryOptions: structs.QueryOptions{
 					AuthToken: c.Token,
 					Region:    "global",
@@ -416,8 +423,8 @@ func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 			// Fetch the response
 			var resp structs.GenericResponse
 			err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollect", req, &resp)
-			require.NotNil(err)
-			require.Contains(err.Error(), c.ExpectedError)
+			require.NotNil(t, err)
+			require.Contains(t, err.Error(), c.ExpectedError)
 		})
 	}
 }
@@ -427,12 +434,14 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
 	})
-	defer s2.Shutdown()
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
@@ -483,10 +492,10 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 	// Upsert the allocation
 	state1 := s1.State()
 	state2 := s2.State()
-	require.Nil(state1.UpsertJob(999, a.Job))
-	require.Nil(state1.UpsertAllocs(1003, []*structs.Allocation{a}))
-	require.Nil(state2.UpsertJob(999, a.Job))
-	require.Nil(state2.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state1.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state1.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
+	require.Nil(state2.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state2.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -528,8 +537,8 @@ func TestClientAllocations_Stats_OldNode(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and fake an old client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	state := s.State()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
@@ -537,11 +546,11 @@ func TestClientAllocations_Stats_OldNode(t *testing.T) {
 	// Test for an old version error
 	node := mock.Node()
 	node.Attributes["nomad.version"] = "0.7.1"
-	require.Nil(state.UpsertNode(1005, node))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node))
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	require.Nil(state.UpsertAllocs(1006, []*structs.Allocation{alloc}))
+	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1006, []*structs.Allocation{alloc}))
 
 	req := &structs.AllocSpecificRequest{
 		AllocID: alloc.ID,
@@ -556,7 +565,7 @@ func TestClientAllocations_Stats_OldNode(t *testing.T) {
 
 	// Test for a missing version error
 	delete(node.Attributes, "nomad.version")
-	require.Nil(state.UpsertNode(1007, node))
+	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1007, node))
 
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.Stats", req, &resp)
 	require.True(structs.IsErrUnknownNomadVersion(err), err.Error())
@@ -567,15 +576,15 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -604,8 +613,8 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 
 	// Upsert the allocation
 	state := s.State()
-	require.Nil(state.UpsertJob(999, a.Job))
-	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -634,7 +643,7 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 	var resp cstructs.AllocStatsResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.Stats", req, &resp)
 	require.NotNil(err)
-	require.Contains(err.Error(), "missing")
+	require.EqualError(err, structs.ErrMissingAllocID.Error(), "(%T) %v")
 
 	// Fetch the response setting the node id
 	req.AllocID = a.ID
@@ -646,11 +655,10 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 
 func TestClientAllocations_Stats_Local_ACL(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
 
 	// Start a server
-	s, root := TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -660,6 +668,12 @@ func TestClientAllocations_Stats_Local_ACL(t *testing.T) {
 
 	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
+
+	// Upsert the allocation
+	state := s.State()
+	alloc := mock.Alloc()
+	require.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1010, alloc.Job))
+	require.NoError(t, state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
 
 	cases := []struct {
 		Name          string
@@ -674,12 +688,12 @@ func TestClientAllocations_Stats_Local_ACL(t *testing.T) {
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			ExpectedError: structs.ErrUnknownNodePrefix,
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: structs.ErrUnknownAllocationPrefix,
+			ExpectedError: structs.ErrUnknownNodePrefix,
 		},
 	}
 
@@ -688,7 +702,7 @@ func TestClientAllocations_Stats_Local_ACL(t *testing.T) {
 
 			// Make the request without having a node-id
 			req := &structs.AllocSpecificRequest{
-				AllocID: uuid.Generate(),
+				AllocID: alloc.ID,
 				QueryOptions: structs.QueryOptions{
 					AuthToken: c.Token,
 					Region:    "global",
@@ -699,8 +713,8 @@ func TestClientAllocations_Stats_Local_ACL(t *testing.T) {
 			// Fetch the response
 			var resp cstructs.AllocStatsResponse
 			err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.Stats", req, &resp)
-			require.NotNil(err)
-			require.Contains(err.Error(), c.ExpectedError)
+			require.NotNil(t, err)
+			require.Contains(t, err.Error(), c.ExpectedError)
 		})
 	}
 }
@@ -710,21 +724,23 @@ func TestClientAllocations_Stats_Remote(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
 	})
-	defer s2.Shutdown()
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 	codec := rpcClient(t, s2)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -753,10 +769,10 @@ func TestClientAllocations_Stats_Remote(t *testing.T) {
 	// Upsert the allocation
 	state1 := s1.State()
 	state2 := s2.State()
-	require.Nil(state1.UpsertJob(999, a.Job))
-	require.Nil(state1.UpsertAllocs(1003, []*structs.Allocation{a}))
-	require.Nil(state2.UpsertJob(999, a.Job))
-	require.Nil(state2.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state1.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state1.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
+	require.Nil(state2.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state2.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -799,16 +815,16 @@ func TestClientAllocations_Restart_Local(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s := TestServer(t, nil)
-	defer s.Shutdown()
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s.config.RPCAddr.String()}
 		c.GCDiskUsageThreshold = 100.0
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -837,8 +853,8 @@ func TestClientAllocations_Restart_Local(t *testing.T) {
 
 	// Upsert the allocation
 	state := s.State()
-	require.Nil(state.UpsertJob(999, a.Job))
-	require.Nil(state.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -867,7 +883,7 @@ func TestClientAllocations_Restart_Local(t *testing.T) {
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.Restart", req, &resp)
 	require.NotNil(err)
-	require.Contains(err.Error(), "missing")
+	require.EqualError(err, structs.ErrMissingAllocID.Error(), "(%T) %v")
 
 	// Fetch the response setting the alloc id - This should not error because the
 	// alloc is running.
@@ -905,21 +921,23 @@ func TestClientAllocations_Restart_Remote(t *testing.T) {
 	require := require.New(t)
 
 	// Start a server and client
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
 	})
-	defer s2.Shutdown()
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 	codec := rpcClient(t, s2)
 
-	c, cleanup := client.TestClient(t, func(c *config.Config) {
+	c, cleanupC := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
-	defer cleanup()
+	defer cleanupC()
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
@@ -949,10 +967,10 @@ func TestClientAllocations_Restart_Remote(t *testing.T) {
 	// Upsert the allocation
 	state1 := s1.State()
 	state2 := s2.State()
-	require.Nil(state1.UpsertJob(999, a.Job))
-	require.Nil(state1.UpsertAllocs(1003, []*structs.Allocation{a}))
-	require.Nil(state2.UpsertJob(999, a.Job))
-	require.Nil(state2.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(state1.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state1.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
+	require.Nil(state2.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(state2.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -981,20 +999,20 @@ func TestClientAllocations_Restart_Remote(t *testing.T) {
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.Restart", req, &resp)
 	require.NotNil(err)
-	require.Contains(err.Error(), "missing")
+	require.EqualError(err, structs.ErrMissingAllocID.Error(), "(%T) %v")
 
 	// Fetch the response setting the alloc id - This should succeed because the
 	// alloc is running
 	req.AllocID = a.ID
 	var resp2 structs.GenericResponse
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.Restart", req, &resp2)
-	require.Nil(err)
+	require.NoError(err)
 }
 
 func TestClientAllocations_Restart_ACL(t *testing.T) {
 	// Start a server
-	s, root := TestACLServer(t, nil)
-	defer s.Shutdown()
+	s, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -1004,6 +1022,12 @@ func TestClientAllocations_Restart_ACL(t *testing.T) {
 
 	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, acl.PolicyWrite, nil)
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
+
+	// Upsert the allocation
+	state := s.State()
+	alloc := mock.Alloc()
+	require.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1010, alloc.Job))
+	require.NoError(t, state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
 
 	cases := []struct {
 		Name          string
@@ -1018,12 +1042,12 @@ func TestClientAllocations_Restart_ACL(t *testing.T) {
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: "Unknown alloc",
+			ExpectedError: "Unknown node",
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: "Unknown alloc",
+			ExpectedError: "Unknown node",
 		},
 	}
 
@@ -1032,7 +1056,7 @@ func TestClientAllocations_Restart_ACL(t *testing.T) {
 
 			// Make the request without having a node-id
 			req := &structs.AllocRestartRequest{
-				AllocID: uuid.Generate(),
+				AllocID: alloc.ID,
 				QueryOptions: structs.QueryOptions{
 					Namespace: structs.DefaultNamespace,
 					AuthToken: c.Token,
@@ -1055,18 +1079,20 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 	t.Parallel()
 
 	////// Nomad clusters topology - not specific to test
-	localServer := TestServer(t, nil)
-	defer localServer.Shutdown()
-
-	remoteServer := TestServer(t, func(c *Config) {
-		c.DevDisableBootstrap = true
+	localServer, cleanupLS := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
 	})
-	defer remoteServer.Shutdown()
+	defer cleanupLS()
 
-	remoteRegionServer := TestServer(t, func(c *Config) {
+	remoteServer, cleanupRS := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 2
+	})
+	defer cleanupRS()
+
+	remoteRegionServer, cleanupRRS := TestServer(t, func(c *Config) {
 		c.Region = "two"
 	})
-	defer remoteRegionServer.Shutdown()
+	defer cleanupRRS()
 
 	TestJoin(t, localServer, remoteServer)
 	TestJoin(t, localServer, remoteRegionServer)
@@ -1108,11 +1134,11 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 
 	// Upsert the allocation
 	localState := localServer.State()
-	require.Nil(t, localState.UpsertJob(999, a.Job))
-	require.Nil(t, localState.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(t, localState.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(t, localState.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 	remoteState := remoteServer.State()
-	require.Nil(t, remoteState.UpsertJob(999, a.Job))
-	require.Nil(t, remoteState.UpsertAllocs(1003, []*structs.Allocation{a}))
+	require.Nil(t, remoteState.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
+	require.Nil(t, remoteState.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {

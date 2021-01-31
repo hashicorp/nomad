@@ -44,7 +44,7 @@ export default function() {
 
       // Annotate the response with the index
       if (response instanceof Response) {
-        response.headers['X-Nomad-Index'] = index;
+        response.headers['x-nomad-index'] = index;
         return response;
       }
       return new Response(200, { 'x-nomad-index': index }, response);
@@ -157,6 +157,14 @@ export default function() {
     return deployment ? this.serialize(deployment) : new Response(200, {}, 'null');
   });
 
+  this.get(
+    '/job/:id/scale',
+    withBlockingSupport(function({ jobScales }, { params }) {
+      const obj = jobScales.findBy({ jobId: params.id });
+      return this.serialize(jobScales.findBy({ jobId: params.id }));
+    })
+  );
+
   this.post('/job/:id/periodic/force', function(schema, { params }) {
     // Create the child job
     const parent = schema.jobs.find(params.id);
@@ -170,6 +178,10 @@ export default function() {
     });
 
     return okEmpty();
+  });
+
+  this.post('/job/:id/scale', function({ jobs }, { params }) {
+    return this.serialize(jobs.find(params.id));
   });
 
   this.delete('/job/:id', function(schema, { params }) {
@@ -207,12 +219,82 @@ export default function() {
     return this.serialize(allocations.where({ nodeId: params.id }));
   });
 
+  this.post('/node/:id/eligibility', function({ nodes }, { params, requestBody }) {
+    const body = JSON.parse(requestBody);
+    const node = nodes.find(params.id);
+
+    node.update({ schedulingEligibility: body.Elibility === 'eligible' });
+    return this.serialize(node);
+  });
+
+  this.post('/node/:id/drain', function({ nodes }, { params }) {
+    return this.serialize(nodes.find(params.id));
+  });
+
   this.get('/allocations');
 
   this.get('/allocation/:id');
 
   this.post('/allocation/:id/stop', function() {
     return new Response(204, {}, '');
+  });
+
+  this.get(
+    '/volumes',
+    withBlockingSupport(function({ csiVolumes }, { queryParams }) {
+      if (queryParams.type !== 'csi') {
+        return new Response(200, {}, '[]');
+      }
+
+      const json = this.serialize(csiVolumes.all());
+      const namespace = queryParams.namespace || 'default';
+      return json.filter(volume =>
+        namespace === 'default'
+          ? !volume.NamespaceID || volume.NamespaceID === namespace
+          : volume.NamespaceID === namespace
+      );
+    })
+  );
+
+  this.get(
+    '/volume/:id',
+    withBlockingSupport(function({ csiVolumes }, { params }) {
+      if (!params.id.startsWith('csi/')) {
+        return new Response(404, {}, null);
+      }
+
+      const id = params.id.replace(/^csi\//, '');
+      const volume = csiVolumes.find(id);
+
+      if (!volume) {
+        return new Response(404, {}, null);
+      }
+
+      return this.serialize(volume);
+    })
+  );
+
+  this.get('/plugins', function({ csiPlugins }, { queryParams }) {
+    if (queryParams.type !== 'csi') {
+      return new Response(200, {}, '[]');
+    }
+
+    return this.serialize(csiPlugins.all());
+  });
+
+  this.get('/plugin/:id', function({ csiPlugins }, { params }) {
+    if (!params.id.startsWith('csi/')) {
+      return new Response(404, {}, null);
+    }
+
+    const id = params.id.replace(/^csi\//, '');
+    const volume = csiPlugins.find(id);
+
+    if (!volume) {
+      return new Response(404, {}, null);
+    }
+
+    return this.serialize(volume);
   });
 
   this.get('/namespaces', function({ namespaces }) {
@@ -241,12 +323,36 @@ export default function() {
     };
   });
 
+  this.get('/agent/self', function({ agents }) {
+    return {
+      member: this.serialize(agents.first()),
+    };
+  });
+
+  this.get('/agent/monitor', function({ agents, nodes }, { queryParams }) {
+    const serverId = queryParams.server_id;
+    const clientId = queryParams.client_id;
+
+    if (serverId && clientId)
+      return new Response(400, {}, 'specify a client or a server, not both');
+    if (serverId && !agents.findBy({ name: serverId }))
+      return new Response(400, {}, 'specified server does not exist');
+    if (clientId && !nodes.find(clientId))
+      return new Response(400, {}, 'specified client does not exist');
+
+    if (queryParams.plain) {
+      return logFrames.join('');
+    }
+
+    return logEncode(logFrames, logFrames.length - 1);
+  });
+
   this.get('/status/leader', function(schema) {
     return JSON.stringify(findLeader(schema));
   });
 
   this.get('/acl/token/self', function({ tokens }, req) {
-    const secret = req.requestHeaders['X-Nomad-Token'];
+    const secret = req.requestHeaders['x-nomad-token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
 
     // Return the token if it exists
@@ -260,7 +366,7 @@ export default function() {
 
   this.get('/acl/token/:id', function({ tokens }, req) {
     const token = tokens.find(req.params.id);
-    const secret = req.requestHeaders['X-Nomad-Token'];
+    const secret = req.requestHeaders['x-nomad-token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
 
     // Return the token only if the request header matches the token
@@ -275,8 +381,16 @@ export default function() {
 
   this.get('/acl/policy/:id', function({ policies, tokens }, req) {
     const policy = policies.find(req.params.id);
-    const secret = req.requestHeaders['X-Nomad-Token'];
+    const secret = req.requestHeaders['x-nomad-token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
+
+    if (req.params.id === 'anonymous') {
+      if (policy) {
+        return this.serialize(policy);
+      } else {
+        return new Response(404, {}, null);
+      }
+    }
 
     // Return the policy only if the token that matches the request header
     // includes the policy or if the token that matches the request header
@@ -294,6 +408,20 @@ export default function() {
 
   this.get('/regions', function({ regions }) {
     return this.serialize(regions.all());
+  });
+
+  this.get('/operator/license', function({ features }) {
+    const records = features.all();
+
+    if (records.length) {
+      return {
+        License: {
+          Features: records.models.mapBy('name'),
+        }
+      };
+    }
+
+    return new Response(501, {}, null);
   });
 
   const clientAllocationStatsHandler = function({ clientAllocationStats }, { params }) {
@@ -315,16 +443,14 @@ export default function() {
     return logEncode(logFrames, logFrames.length - 1);
   };
 
-  const clientAllocationFSLsHandler = function({ allocFiles }, { queryParams }) {
-    // Ignore the task name at the beginning of the path
-    const filterPath = queryParams.path.substr(queryParams.path.indexOf('/') + 1);
+  const clientAllocationFSLsHandler = function({ allocFiles }, { queryParams: { path } }) {
+    const filterPath = path.endsWith('/') ? path.substr(0, path.length - 1) : path;
     const files = filesForPath(allocFiles, filterPath);
     return this.serialize(files);
   };
 
-  const clientAllocationFSStatHandler = function({ allocFiles }, { queryParams }) {
-    // Ignore the task name at the beginning of the path
-    const filterPath = queryParams.path.substr(queryParams.path.indexOf('/') + 1);
+  const clientAllocationFSStatHandler = function({ allocFiles }, { queryParams: { path } }) {
+    const filterPath = path.endsWith('/') ? path.substr(0, path.length - 1) : path;
 
     // Root path
     if (!filterPath) {
@@ -363,15 +489,12 @@ export default function() {
   };
 
   const fileOrError = function(allocFiles, path, message = 'Operation not allowed on a directory') {
-    // Ignore the task name at the beginning of the path
-    const filterPath = path.substr(path.indexOf('/') + 1);
-
     // Root path
-    if (!filterPath) {
+    if (path === '/') {
       return [null, new Response(400, {}, message)];
     }
 
-    const file = allocFiles.where({ path: filterPath }).models[0];
+    const file = allocFiles.where({ path }).models[0];
     if (file.isDir) {
       return [null, new Response(400, {}, message)];
     }
@@ -394,12 +517,12 @@ export default function() {
   this.get('/client/fs/readat/:allocation_id', clientAllocationReadAtHandler);
 
   this.get('/client/stats', function({ clientStats }, { queryParams }) {
-    const seed = Math.random();
-    if (seed > 0.8) {
+    const seed = faker.random.number(10);
+    if (seed >= 8) {
       const stats = clientStats.find(queryParams.node_id);
       stats.update({
         timestamp: Date.now() * 1000000,
-        CPUTicksConsumed: stats.CPUTicksConsumed + (Math.random() * 20 - 10),
+        CPUTicksConsumed: stats.CPUTicksConsumed + faker.random.number({ min: -10, max: 10 }),
       });
       return this.serialize(stats);
     } else {
@@ -422,6 +545,54 @@ export default function() {
     this.get(`http://${host}/v1/client/stats`, function({ clientStats }) {
       return this.serialize(clientStats.find(host));
     });
+  });
+
+  this.get('/recommendations', function(
+    { jobs, namespaces, recommendations },
+    { queryParams: { job: id, namespace } }
+  ) {
+    if (id) {
+      if (!namespaces.all().length) {
+        namespace = null;
+      }
+
+      const job = jobs.findBy({ id, namespace });
+
+      if (!job) {
+        return [];
+      }
+
+      const taskGroups = job.taskGroups.models;
+
+      const tasks = taskGroups.reduce((tasks, taskGroup) => {
+        return tasks.concat(taskGroup.tasks.models);
+      }, []);
+
+      const recommendationIds = tasks.reduce((recommendationIds, task) => {
+        return recommendationIds.concat(task.recommendations.models.mapBy('id'));
+      }, []);
+
+      return recommendations.find(recommendationIds);
+    } else {
+      return recommendations.all();
+    }
+  });
+
+  this.post('/recommendations/apply', function({ recommendations }, { requestBody }) {
+    const { Apply, Dismiss } = JSON.parse(requestBody);
+
+    Apply.concat(Dismiss).forEach(id => {
+      const recommendation = recommendations.find(id);
+      const task = recommendation.task;
+
+      if (Apply.includes(id)) {
+        task.resources[recommendation.resource] = recommendation.value;
+      }
+      recommendation.destroy();
+      task.save();
+    });
+
+    return {};
   });
 }
 

@@ -21,7 +21,7 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 	for i, dc := range dcs {
 		node := mock.Node()
 		node.Datacenter = dc
-		if err := state.UpsertNode(uint64(100+i), node); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), node); err != nil {
 			t.Fatalf("failed to upsert node: %v", err)
 		}
 		nodes = append(nodes, &RankedNode{Node: node})
@@ -54,7 +54,7 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 		},
 	}
 
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -181,7 +181,7 @@ func TestSpreadIterator_MultipleAttributes(t *testing.T) {
 		node := mock.Node()
 		node.Datacenter = dc
 		node.Meta["rack"] = rack[i]
-		if err := state.UpsertNode(uint64(100+i), node); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), node); err != nil {
 			t.Fatalf("failed to upsert node: %v", err)
 		}
 		nodes = append(nodes, &RankedNode{Node: node})
@@ -214,7 +214,7 @@ func TestSpreadIterator_MultipleAttributes(t *testing.T) {
 		},
 	}
 
-	if err := state.UpsertAllocs(1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -280,7 +280,7 @@ func TestSpreadIterator_EvenSpread(t *testing.T) {
 	for i, dc := range dcs {
 		node := mock.Node()
 		node.Datacenter = dc
-		if err := state.UpsertNode(uint64(100+i), node); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), node); err != nil {
 			t.Fatalf("failed to upsert node: %v", err)
 		}
 		nodes = append(nodes, &RankedNode{Node: node})
@@ -416,7 +416,7 @@ func TestSpreadIterator_EvenSpread(t *testing.T) {
 	// Add another node in dc3
 	node := mock.Node()
 	node.Datacenter = "dc3"
-	if err := state.UpsertNode(uint64(1111), node); err != nil {
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(1111), node); err != nil {
 		t.Fatalf("failed to upsert node: %v", err)
 	}
 	nodes = append(nodes, &RankedNode{Node: node})
@@ -467,7 +467,7 @@ func TestSpreadIterator_MaxPenalty(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		node := mock.Node()
 		node.Datacenter = "dc3"
-		if err := state.UpsertNode(uint64(100+i), node); err != nil {
+		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), node); err != nil {
 			t.Fatalf("failed to upsert node: %v", err)
 		}
 		nodes = append(nodes, &RankedNode{Node: node})

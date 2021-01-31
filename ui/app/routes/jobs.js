@@ -2,42 +2,42 @@ import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
+import { action } from '@ember/object';
+import classic from 'ember-classic-decorator';
 
-export default Route.extend(WithForbiddenState, {
-  system: service(),
-  store: service(),
+@classic
+export default class JobsRoute extends Route.extend(WithForbiddenState) {
+  @service store;
+  @service system;
 
-  breadcrumbs: [
+  breadcrumbs = [
     {
       label: 'Jobs',
       args: ['jobs.index'],
     },
-  ],
+  ];
 
-  queryParams: {
+  queryParams = {
     jobNamespace: {
       refreshModel: true,
     },
-  },
+  };
 
   beforeModel(transition) {
     return this.get('system.namespaces').then(namespaces => {
-      const queryParam = transition.queryParams.namespace;
+      const queryParam = transition.to.queryParams.namespace;
       this.set('system.activeNamespace', queryParam || 'default');
 
       return namespaces;
     });
-  },
+  }
 
   model() {
-    return this.store
-      .findAll('job', { reload: true })
-      .catch(notifyForbidden(this));
-  },
+    return this.store.findAll('job', { reload: true }).catch(notifyForbidden(this));
+  }
 
-  actions: {
-    refreshRoute() {
-      this.refresh();
-    },
-  },
-});
+  @action
+  refreshRoute() {
+    this.refresh();
+  }
+}

@@ -1,0 +1,33 @@
+---
+layout: docs
+page_title: base64encode - Functions - Configuration Language
+sidebar_title: base64encode
+description: The base64encode function applies Base64 encoding to a string.
+---
+
+# `base64encode` Function
+
+`base64encode` applies Base64 encoding to a string.
+
+Nomad uses the "standard" Base64 alphabet as defined in
+[RFC 4648 section 4](https://tools.ietf.org/html/rfc4648#section-4).
+
+Strings in the Nomad language are sequences of unicode characters rather
+than bytes, so this function will first encode the characters from the string
+as UTF-8, and then apply Base64 encoding to the result.
+
+The Nomad language applies Unicode normalization to all strings, and so
+passing a string through `base64decode` and then `base64encode` may not yield
+the original result exactly.
+
+## Examples
+
+```shell-session
+> base64encode("Hello World")
+SGVsbG8gV29ybGQ=
+```
+
+## Related Functions
+
+- [`base64decode`](/docs/job-specification/hcl2/functions/encoding/base64decode) performs the opposite operation,
+  decoding Base64 data and interpreting it as a UTF-8 string.

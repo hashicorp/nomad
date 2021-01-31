@@ -1,0 +1,138 @@
+---
+layout: api
+page_title: Plugins - HTTP API
+sidebar_title: Plugins
+description: The `/plugin` endpoints are used to query for and interact with dynamic plugins.
+---
+
+# Plugins HTTP API
+
+The `/plugin` endpoints are used to query for and interact with
+dynamic plugins. Currently only Container Storage Interface (CSI)
+plugins are dynamic.
+
+## List Plugins
+
+This endpoint lists all dynamic plugins.
+
+| Method | Path          | Produces           |
+| ------ | ------------- | ------------------ |
+| `GET`  | `/v1/plugins` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required                |
+| ---------------- | --------------------------- |
+| `YES`            | `namespace:csi-list-plugin` |
+
+### Parameters
+
+- `type` `(string: "")`- Specifies the type of plugin to
+  query. Currently only supports `csi`. This is specified as a query
+  string parameter. Returns an empty list if omitted.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/plugins?type=csi
+```
+
+### Sample Response
+
+```json
+[
+  {
+    "ID": "example",
+    "Provider": "aws.ebs",
+    "ControllerRequired": true,
+    "ControllersHealthy": 2,
+    "ControllersExpected": 3,
+    "NodesHealthy": 14,
+    "NodesExpected": 16,
+    "CreateIndex": 52,
+    "ModifyIndex": 93
+  }
+]
+```
+
+## Read Plugin
+
+Get details of a single plugin, including information about the
+plugin's job and client fingerprint data.
+
+| Method | Path                        | Produces           |
+| ------ | --------------------------- | ------------------ |
+| `GET`  | `/v1/plugin/csi/:plugin_id` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required                |
+| ---------------- | --------------------------- |
+| `YES`            | `namespace:csi-read-plugin` |
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/plugin/csi/example_plugin_id
+```
+
+### Sample Response
+
+```json
+[
+  {
+    "ID": "example_plugin_id",
+    "Provider": "aws.ebs",
+    "Version": "1.0.1",
+    "ControllersRequired": true,
+    "ControllersHealthy": 1,
+    "Controllers": {
+      "example_node_id": {
+        "PluginID": "example_plugin_id",
+        "Provider": "aws.ebs",
+        "ProviderVersion": "1.0.1",
+        "AllocID": "alloc-id",
+        "Healthy": true,
+        "HealthDescription": "healthy",
+        "UpdateTime": "2020-01-31T00:00:00.000Z",
+        "RequiresControllerPlugin": true,
+        "RequiresTopologies": true,
+        "ControllerInfo": {
+          "SupportsReadOnlyAttach": true,
+          "SupportsAttachDetach": true,
+          "SupportsListVolumes": true,
+          "SupportsListVolumesAttachedNodes": false
+        }
+      }
+    },
+    "NodesHealthy": 1,
+    "Nodes": {
+      "example_node_id": {
+        "PluginID": "example_plugin_id",
+        "Provider": "aws.ebs",
+        "ProviderVersion": "1.0.1",
+        "AllocID": "alloc-id",
+        "Healthy": true,
+        "HealthDescription": "healthy",
+        "UpdateTime": "2020-01-30T00:00:00.000Z",
+        "RequiresControllerPlugin": true,
+        "RequiresTopologies": true,
+        "NodeInfo": {
+          "ID": "example_node_id",
+          "MaxVolumes": 51,
+          "AccessibleTopology": {
+            "key": "val2"
+          },
+          "RequiresNodeStageVolume": true
+        }
+      }
+    }
+  }
+]
+```

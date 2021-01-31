@@ -1,28 +1,28 @@
 job "check_initial_status" {
-    type = "service"
-    group "group" {
-        count = 1
+  type = "service"
 
-        task "task" {
-          service {
-            tags = ["foo", "bar"]
-            port = "http"
+  group "group" {
+    count = 1
 
-            check {
-              name     = "check-name"
-              type     = "http"
-              path     = "/"
-              method   = "POST"
-              interval = "10s"
-              timeout  = "2s"
-              initial_status = "passing"
+    task "task" {
+      service {
+        tags = ["foo", "bar"]
+        port = "http"
 
-              header {
-                Authorization = ["Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="]
-              }
-            }
+        check {
+          name           = "check-name"
+          type           = "http"
+          path           = "/"
+          method         = "POST"
+          interval       = "10s"
+          timeout        = "2s"
+          initial_status = "passing"
+
+          header {
+            Authorization = ["Basic ZWxhc3RpYzpjaGFuZ2VtZQ=="]
           }
         }
+      }
     }
+  }
 }
-

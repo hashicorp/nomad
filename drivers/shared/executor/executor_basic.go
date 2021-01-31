@@ -3,7 +3,10 @@
 package executor
 
 import (
+	"os/exec"
+
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 func NewExecutorWithIsolation(logger hclog.Logger) Executor {
@@ -14,8 +17,6 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 
 func (e *UniversalExecutor) configureResourceContainer(_ int) error { return nil }
 
-func (e *UniversalExecutor) runAs(_ string) error { return nil }
-
 func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
 	return getAllPidsByScanning()
 }
@@ -23,3 +24,9 @@ func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
 func (e *UniversalExecutor) start(command *ExecCommand) error {
 	return e.childCmd.Start()
 }
+
+func withNetworkIsolation(f func() error, _ *drivers.NetworkIsolationSpec) error {
+	return f()
+}
+
+func setCmdUser(*exec.Cmd, string) error { return nil }

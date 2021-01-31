@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -16,11 +17,13 @@ import (
 	"github.com/NYTimes/gziphandler"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/gorilla/websocket"
+	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/rs/cors"
-	"github.com/ugorji/go/codec"
 )
 
 const (
@@ -30,6 +33,13 @@ const (
 	// ErrEntOnly is the error returned if accessing an enterprise only
 	// endpoint
 	ErrEntOnly = "Nomad Enterprise only endpoint"
+
+	// ContextKeyReqID is a unique ID for a given request
+	ContextKeyReqID = "requestID"
+
+	// MissingRequestID is a placeholder if we cannot retrieve a request
+	// UUID from context
+	MissingRequestID = "<missing request id>"
 )
 
 var (
@@ -41,11 +51,15 @@ var (
 
 	// allowCORS sets permissive CORS headers for a handler
 	allowCORS = cors.New(cors.Options{
-		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"HEAD", "GET"},
-		AllowedHeaders: []string{"*"},
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"HEAD", "GET"},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
 	})
 )
+
+type handlerFn func(resp http.ResponseWriter, req *http.Request) (interface{}, error)
+type handlerByteFn func(resp http.ResponseWriter, req *http.Request) ([]byte, error)
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
 type HTTPServer struct {
@@ -111,12 +125,99 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 		return nil, err
 	}
 
+	// Get connection handshake timeout limit
+	handshakeTimeout, err := time.ParseDuration(config.Limits.HTTPSHandshakeTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing https_handshake_timeout: %v", err)
+	} else if handshakeTimeout < 0 {
+		return nil, fmt.Errorf("https_handshake_timeout must be >= 0")
+	}
+
+	// Get max connection limit
+	maxConns := 0
+	if mc := config.Limits.HTTPMaxConnsPerClient; mc != nil {
+		maxConns = *mc
+	}
+	if maxConns < 0 {
+		return nil, fmt.Errorf("http_max_conns_per_client must be >= 0")
+	}
+
+	// Create HTTP server with timeouts
+	httpServer := http.Server{
+		Addr:      srv.Addr,
+		Handler:   gzip(mux),
+		ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
+		ErrorLog:  newHTTPServerLogger(srv.logger),
+	}
+
 	go func() {
 		defer close(srv.listenerCh)
-		http.Serve(ln, gzip(mux))
+		httpServer.Serve(ln)
 	}()
 
 	return srv, nil
+}
+
+// makeConnState returns a ConnState func for use in an http.Server. If
+// isTLS=true and handshakeTimeout>0 then the handshakeTimeout will be applied
+// as a connection deadline to new connections and removed when the connection
+// is active (meaning it has successfully completed the TLS handshake).
+//
+// If limit > 0, a per-address connection limit will be enabled regardless of
+// TLS. If connLimit == 0 there is no connection limit.
+func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int) func(conn net.Conn, state http.ConnState) {
+	if !isTLS || handshakeTimeout == 0 {
+		if connLimit > 0 {
+			// Still return the connection limiter
+			return connlimit.NewLimiter(connlimit.Config{
+				MaxConnsPerClientIP: connLimit,
+			}).HTTPConnStateFunc()
+		}
+		return nil
+	}
+
+	if connLimit > 0 {
+		// Return conn state callback with connection limiting and a
+		// handshake timeout.
+		connLimiter := connlimit.NewLimiter(connlimit.Config{
+			MaxConnsPerClientIP: connLimit,
+		}).HTTPConnStateFunc()
+
+		return func(conn net.Conn, state http.ConnState) {
+			switch state {
+			case http.StateNew:
+				// Set deadline to prevent slow send before TLS handshake or first
+				// byte of request.
+				conn.SetDeadline(time.Now().Add(handshakeTimeout))
+			case http.StateActive:
+				// Clear read deadline. We should maybe set read timeouts more
+				// generally but that's a bigger task as some HTTP endpoints may
+				// stream large requests and responses (e.g. snapshot) so we can't
+				// set sensible blanket timeouts here.
+				conn.SetDeadline(time.Time{})
+			}
+
+			// Call connection limiter
+			connLimiter(conn, state)
+		}
+	}
+
+	// Return conn state callback with just a handshake timeout
+	// (connection limiting disabled).
+	return func(conn net.Conn, state http.ConnState) {
+		switch state {
+		case http.StateNew:
+			// Set deadline to prevent slow send before TLS handshake or first
+			// byte of request.
+			conn.SetDeadline(time.Now().Add(handshakeTimeout))
+		case http.StateActive:
+			// Clear read deadline. We should maybe set read timeouts more
+			// generally but that's a bigger task as some HTTP endpoints may
+			// stream large requests and responses (e.g. snapshot) so we can't
+			// set sensible blanket timeouts here.
+			conn.SetDeadline(time.Time{})
+		}
+	}
 }
 
 // tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
@@ -163,6 +264,11 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/deployments", s.wrap(s.DeploymentsRequest))
 	s.mux.HandleFunc("/v1/deployment/", s.wrap(s.DeploymentSpecificRequest))
 
+	s.mux.HandleFunc("/v1/volumes", s.wrap(s.CSIVolumesRequest))
+	s.mux.HandleFunc("/v1/volume/csi/", s.wrap(s.CSIVolumeSpecificRequest))
+	s.mux.HandleFunc("/v1/plugins", s.wrap(s.CSIPluginsRequest))
+	s.mux.HandleFunc("/v1/plugin/csi/", s.wrap(s.CSIPluginSpecificRequest))
+
 	s.mux.HandleFunc("/v1/acl/policies", s.wrap(s.ACLPoliciesRequest))
 	s.mux.HandleFunc("/v1/acl/policy/", s.wrap(s.ACLPolicySpecificRequest))
 
@@ -183,12 +289,25 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/agent/servers", s.wrap(s.AgentServersRequest))
 	s.mux.HandleFunc("/v1/agent/keyring/", s.wrap(s.KeyringOperationRequest))
 	s.mux.HandleFunc("/v1/agent/health", s.wrap(s.HealthRequest))
+	s.mux.HandleFunc("/v1/agent/host", s.wrap(s.AgentHostRequest))
+
+	// Monitor is *not* an untrusted endpoint despite the log contents
+	// potentially containing unsanitized user input. Monitor, like
+	// "/v1/client/fs/logs", explicitly sets a "text/plain" or
+	// "application/json" Content-Type depending on the ?plain= query
+	// parameter.
+	s.mux.HandleFunc("/v1/agent/monitor", s.wrap(s.AgentMonitor))
+
+	s.mux.HandleFunc("/v1/agent/pprof/", s.wrapNonJSON(s.AgentPprofRequest))
 
 	s.mux.HandleFunc("/v1/metrics", s.wrap(s.MetricsRequest))
 
 	s.mux.HandleFunc("/v1/validate/job", s.wrap(s.ValidateJobRequest))
 
 	s.mux.HandleFunc("/v1/regions", s.wrap(s.RegionListRequest))
+
+	s.mux.HandleFunc("/v1/scaling/policies", s.wrap(s.ScalingPoliciesRequest))
+	s.mux.HandleFunc("/v1/scaling/policy/", s.wrap(s.ScalingPolicySpecificRequest))
 
 	s.mux.HandleFunc("/v1/status/leader", s.wrap(s.StatusLeaderRequest))
 	s.mux.HandleFunc("/v1/status/peers", s.wrap(s.StatusPeersRequest))
@@ -198,23 +317,32 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/operator/raft/", s.wrap(s.OperatorRequest))
 	s.mux.HandleFunc("/v1/operator/autopilot/configuration", s.wrap(s.OperatorAutopilotConfiguration))
 	s.mux.HandleFunc("/v1/operator/autopilot/health", s.wrap(s.OperatorServerHealth))
+	s.mux.HandleFunc("/v1/operator/snapshot", s.wrap(s.SnapshotRequest))
 
 	s.mux.HandleFunc("/v1/system/gc", s.wrap(s.GarbageCollectRequest))
 	s.mux.HandleFunc("/v1/system/reconcile/summaries", s.wrap(s.ReconcileJobSummaries))
 
 	s.mux.HandleFunc("/v1/operator/scheduler/configuration", s.wrap(s.OperatorSchedulerConfiguration))
 
+	s.mux.HandleFunc("/v1/event/stream", s.wrap(s.EventStream))
+	s.mux.HandleFunc("/v1/namespaces", s.wrap(s.NamespacesRequest))
+	s.mux.HandleFunc("/v1/namespace", s.wrap(s.NamespaceCreateRequest))
+	s.mux.HandleFunc("/v1/namespace/", s.wrap(s.NamespaceSpecificRequest))
+
 	if uiEnabled {
-		s.mux.Handle("/ui/", http.StripPrefix("/ui/", handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
+		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
 	} else {
 		// Write the stubHTML
 		s.mux.HandleFunc("/ui/", func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(stubHTML))
 		})
 	}
-	s.mux.Handle("/", handleRootRedirect())
+	s.mux.Handle("/", s.handleRootFallthrough())
 
 	if enableDebug {
+		if !s.agent.config.DevMode {
+			s.logger.Warn("enable_debug is set to true. This is insecure and should not be enabled in production")
+		}
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
 		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		s.mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -265,20 +393,48 @@ func (e *codedError) Code() int {
 	return e.code
 }
 
-func handleUI(h http.Handler) http.Handler {
+func (s *HTTPServer) handleUI(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		header := w.Header()
 		header.Add("Content-Security-Policy", "default-src 'none'; connect-src *; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'")
 		h.ServeHTTP(w, req)
-		return
 	})
 }
 
-func handleRootRedirect() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		http.Redirect(w, req, "/ui/", 307)
-		return
-	})
+func (s *HTTPServer) handleRootFallthrough() http.Handler {
+	return s.auditHTTPHandler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/" {
+			http.Redirect(w, req, "/ui/", 307)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+}
+
+func errCodeFromHandler(err error) (int, string) {
+	if err == nil {
+		return 0, ""
+	}
+
+	code := 500
+	errMsg := err.Error()
+	if http, ok := err.(HTTPCodedError); ok {
+		code = http.Code()
+	} else if ecode, emsg, ok := structs.CodeFromRPCCodedErr(err); ok {
+		code = ecode
+		errMsg = emsg
+	} else {
+		// RPC errors get wrapped, so manually unwrap by only looking at their suffix
+		if strings.HasSuffix(errMsg, structs.ErrPermissionDenied.Error()) {
+			errMsg = structs.ErrPermissionDenied.Error()
+			code = 403
+		} else if strings.HasSuffix(errMsg, structs.ErrTokenNotFound.Error()) {
+			errMsg = structs.ErrTokenNotFound.Error()
+			code = 403
+		}
+	}
+
+	return code, errMsg
 }
 
 // wrap is used to wrap functions to make them more convenient
@@ -289,9 +445,9 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		reqURL := req.URL.String()
 		start := time.Now()
 		defer func() {
-			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Now().Sub(start))
+			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Since(start))
 		}()
-		obj, err := handler(resp, req)
+		obj, err := s.auditHandler(handler)(resp, req)
 
 		// Check for an error
 	HAS_ERR:
@@ -300,6 +456,9 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 			errMsg := err.Error()
 			if http, ok := err.(HTTPCodedError); ok {
 				code = http.Code()
+			} else if ecode, emsg, ok := structs.CodeFromRPCCodedErr(err); ok {
+				code = ecode
+				errMsg = emsg
 			} else {
 				// RPC errors get wrapped, so manually unwrap by only looking at their suffix
 				if strings.HasSuffix(errMsg, structs.ErrPermissionDenied.Error()) {
@@ -313,7 +472,11 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 
 			resp.WriteHeader(code)
 			resp.Write([]byte(errMsg))
-			s.logger.Error("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
+			if isAPIClientError(code) {
+				s.logger.Debug("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
+			} else {
+				s.logger.Error("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
+			}
 			return
 		}
 
@@ -347,8 +510,54 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 	return f
 }
 
+// wrapNonJSON is used to wrap functions returning non JSON
+// serializeable data to make them more convenient. It is primarily
+// responsible for setting nomad headers and logging.
+// Handler functions are responsible for setting Content-Type Header
+func (s *HTTPServer) wrapNonJSON(handler func(resp http.ResponseWriter, req *http.Request) ([]byte, error)) func(resp http.ResponseWriter, req *http.Request) {
+	f := func(resp http.ResponseWriter, req *http.Request) {
+		setHeaders(resp, s.agent.config.HTTPAPIResponseHeaders)
+		// Invoke the handler
+		reqURL := req.URL.String()
+		start := time.Now()
+		defer func() {
+			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Since(start))
+		}()
+		obj, err := s.auditNonJSONHandler(handler)(resp, req)
+
+		// Check for an error
+		if err != nil {
+			code, errMsg := errCodeFromHandler(err)
+			resp.WriteHeader(code)
+			resp.Write([]byte(errMsg))
+			if isAPIClientError(code) {
+				s.logger.Debug("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
+			} else {
+				s.logger.Error("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
+			}
+			return
+		}
+
+		// write response
+		if obj != nil {
+			resp.Write(obj)
+		}
+	}
+	return f
+}
+
+// isAPIClientError returns true if the passed http code represents a client error
+func isAPIClientError(code int) bool {
+	return 400 <= code && code <= 499
+}
+
 // decodeBody is used to decode a JSON request body
 func decodeBody(req *http.Request, out interface{}) error {
+
+	if req.Body == http.NoBody {
+		return errors.New("Request body is empty")
+	}
+
 	dec := json.NewDecoder(req.Body)
 	return dec.Decode(&out)
 }
@@ -383,7 +592,7 @@ func setMeta(resp http.ResponseWriter, m *structs.QueryMeta) {
 // setHeaders is used to set canonical response header fields
 func setHeaders(resp http.ResponseWriter, headers map[string]string) {
 	for field, value := range headers {
-		resp.Header().Set(http.CanonicalHeaderKey(field), value)
+		resp.Header().Set(field, value)
 	}
 }
 
@@ -446,6 +655,20 @@ func parseNamespace(req *http.Request, n *string) {
 	}
 }
 
+// parseBool parses a query parameter to a boolean or returns (nil, nil) if the
+// parameter is not present.
+func parseBool(req *http.Request, field string) (*bool, error) {
+	if str := req.URL.Query().Get(field); str != "" {
+		param, err := strconv.ParseBool(str)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a bool: %v", field, str, err)
+		}
+		return &param, nil
+	}
+
+	return nil, nil
+}
+
 // parseToken is used to parse the X-Nomad-Token param
 func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 	if other := req.Header.Get("X-Nomad-Token"); other != "" {
@@ -455,6 +678,7 @@ func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 }
 
 // parse is a convenience method for endpoints that need to parse multiple flags
+// It sets r to the region and b to the QueryOptions in req
 func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *string, b *structs.QueryOptions) bool {
 	s.parseRegion(req, r)
 	s.parseToken(req, &b.AuthToken)
@@ -470,6 +694,27 @@ func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteReques
 	parseNamespace(req, &w.Namespace)
 	s.parseToken(req, &w.AuthToken)
 	s.parseRegion(req, &w.Region)
+}
+
+// wrapUntrustedContent wraps handlers in a http.ResponseWriter that prevents
+// setting Content-Types that a browser may render (eg text/html). Any API that
+// returns service-generated content (eg /v1/client/fs/cat) must be wrapped.
+func (s *HTTPServer) wrapUntrustedContent(handler handlerFn) handlerFn {
+	return func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+		resp, closeWriter := noxssrw.NewResponseWriter(resp)
+		defer func() {
+			if _, err := closeWriter(); err != nil {
+				// Can't write an error response at this point so just
+				// log. s.wrap does not even log when resp.Write fails,
+				// so log at low level.
+				s.logger.Debug("error writing HTTP response", "error", err,
+					"method", req.Method, "path", req.URL.String())
+			}
+		}()
+
+		// Call the wrapped handler
+		return handler(resp, req)
+	}
 }
 
 // wrapCORS wraps a HandlerFunc in allowCORS and returns a http.Handler

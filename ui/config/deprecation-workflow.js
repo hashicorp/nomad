@@ -5,8 +5,8 @@ self.deprecationWorkflow.config = {
     { handler: 'throw', matchId: 'ember-inflector.globals' },
     { handler: 'throw', matchId: 'ember-runtime.deprecate-copy-copyable' },
     { handler: 'throw', matchId: 'ember-console.deprecate-logger' },
-    // Only used in ivy-codemirror.
-    // PR open: https://github.com/IvyApp/ivy-codemirror/pull/40/files
-    { handler: 'log', matchId: 'ember-component.send-action' },
+    { handler: 'throw', matchId: 'ember-test-helpers.rendering-context.jquery-element' },
+    { handler: 'throw', matchId: 'ember-cli-page-object.is-property' },
+    { handler: 'throw', matchId: 'ember-views.partial' },
   ],
 };

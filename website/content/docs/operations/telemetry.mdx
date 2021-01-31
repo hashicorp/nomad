@@ -1,0 +1,166 @@
+---
+layout: docs
+page_title: Telemetry Overview
+sidebar_title: Telemetry
+description: |-
+  Overview of runtime metrics available in Nomad along with monitoring and
+  alerting.
+---
+
+# Telemetry Overview
+
+The Nomad client and server agents collect a wide range of runtime metrics
+related to the performance of the system. Operators can use this data to gain
+real-time visibility into their cluster and improve performance. Additionally,
+Nomad operators can set up monitoring and alerting based on these metrics in
+order to respond to any changes in the cluster state.
+
+On the server side, leaders and
+followers have metrics in common as well as metrics that are specific to their
+roles. Clients have separate metrics for the host metrics and for
+allocations/tasks, both of which have to be [explicitly
+enabled][telemetry-stanza]. There are also runtime metrics that are common to
+all servers and clients.
+
+By default, the Nomad agent collects telemetry data at a [1 second
+interval][collection-interval]. Note that Nomad supports [Gauges, counters and
+timers][metric-types].
+
+There are three ways to obtain metrics from Nomad:
+
+- Query the [/metrics API endpoint][metrics-api-endpoint] to return metrics for
+  the current Nomad process (as of Nomad 0.7). This endpoint supports Prometheus
+  formatted metrics.
+- Send the USR1 signal to the Nomad process. This will dump the current
+  telemetry information to STDERR (on Linux).
+- Configure Nomad to automatically forward metrics to a third-party provider.
+
+Nomad 0.7 added support for [tagged metrics][tagged-metrics], improving the
+integrations with [DataDog][datadog-telem] and [Prometheus][prometheus-telem].
+Metrics can also be forwarded to [Statsite][statsite-telem],
+[StatsD][statsd-telem], and [Circonus][circonus-telem].
+
+## Alerting
+
+The recommended practice for alerting is to leverage the alerting capabilities
+of your monitoring provider. Nomad’s intention is to surface metrics that enable
+users to configure the necessary alerts using their existing monitoring systems
+as a scaffold, rather than to natively support alerting. Here are a few common
+patterns:
+
+- Export metrics from Nomad to Prometheus using the [StatsD
+  exporter][statsd-exporter], define [alerting rules][alerting-rules] in
+  Prometheus, and use [Alertmanager][alertmanager] for summarization and
+  routing/notifications (to PagerDuty, Slack, etc.). A similar workflow is
+  supported for [Datadog][datadog-alerting].
+
+- Periodically submit test jobs into Nomad to determine if your application
+  deployment pipeline is working end-to-end. This pattern is well-suited to
+  batch processing workloads.
+
+- Deploy Nagios on Nomad. Centrally manage Nomad job files and add the Nagios
+  monitor when a new Nomad job is added. When a job is removed, remove the
+  Nagios monitor. Map Consul alerts to the Nagios monitor. This provides a
+  job-specific alerting system.
+
+- Write a script that looks at the history of each batch job to determine
+  whether or not the job is in an unhealthy state, updating your monitoring
+  system as appropriate. In many cases, it may be ok if a given batch job fails
+  occasionally, as long as it goes back to passing.
+
+# Key Performance Indicators
+
+The sections below cover a number of important metrics
+
+## Consensus Protocol (Raft)
+
+Nomad uses the Raft consensus protocol for leader election and state
+replication. Spurious leader elections can be caused by networking issues
+between the servers or insufficient CPU resources. Users in cloud environments
+often bump their servers up to the next instance class with improved networking
+and CPU to stabilize leader elections. The `nomad.raft.leader.lastContact` metric
+is a general indicator of Raft latency which can be used to observe how Raft
+timing is performing and guide the decision to upgrade to more powerful servers.
+`nomad.raft.leader.lastContact` should not get too close to the leader lease
+timeout of 500ms.
+
+## Federated Deployments (Serf)
+
+Nomad uses the membership and failure detection capabilities of the Serf library
+to maintain a single, global gossip pool for all servers in a federated
+deployment. An uptick in `member.flap` and/or `msg.suspect` is a reliable indicator
+that membership is unstable.
+
+## Scheduling
+
+The following metrics allow an operator to observe changes in throughput at the
+various points in the scheduling process (evaluation, scheduling/planning, and
+placement):
+
+- **nomad.broker.total_blocked** - The number of blocked evaluations.
+- **nomad.worker.invoke_scheduler.\<type\>** - The time to run the scheduler of
+  the given type.
+- **nomad.plan.evaluate** - The time to evaluate a scheduler Plan.
+- **nomad.plan.submit** - The time to submit a scheduler Plan.
+- **nomad.plan.queue_depth** - The number of scheduler Plans waiting to be
+  evaluated.
+
+Upticks in any of the above metrics indicate a decrease in scheduler throughput.
+
+## Capacity
+
+The importance of monitoring resource availability is workload specific. Batch
+processing workloads often operate under the assumption that the cluster should
+be at or near capacity, with queued jobs running as soon as adequate resources
+become available. Clusters that are primarily responsible for long running
+services with an uptime requirement may want to maintain headroom at 20% or
+more. The following metrics can be used to assess capacity across the cluster on
+a per client basis:
+
+- **nomad.client.allocated.cpu**
+- **nomad.client.unallocated.cpu**
+- **nomad.client.allocated.disk**
+- **nomad.client.unallocated.disk**
+- **nomad.client.allocated.iops**
+- **nomad.client.unallocated.iops**
+- **nomad.client.allocated.memory**
+- **nomad.client.unallocated.memory**
+
+## Task Resource Consumption
+
+The metrics listed [here][allocation-metrics] can be used to track resource
+consumption on a per task basis. For user facing services, it is common to alert
+when the CPU is at or above the reserved resources for the task.
+
+## Job and Task Status
+
+We do not currently surface metrics for job and task/allocation status, although
+we will consider adding metrics where it makes sense.
+
+## Runtime Metrics
+
+Runtime metrics apply to all clients and servers. The following metrics are
+general indicators of load and memory pressure:
+
+- **nomad.runtime.num_goroutines**
+- **nomad.runtime.heap_objects**
+- **nomad.runtime.alloc_bytes**
+
+It is recommended to alert on upticks in any of the above, server memory usage
+in particular.
+
+[alerting-rules]: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+[alertmanager]: https://prometheus.io/docs/alerting/alertmanager/
+[allocation-metrics]: /docs/telemetry/metrics#allocation-metrics
+[circonus-telem]: /docs/configuration/telemetry#circonus
+[collection-interval]: /docs/configuration/telemetry#collection_interval
+[datadog-alerting]: https://www.datadoghq.com/blog/monitoring-101-alerting/
+[datadog-telem]: /docs/configuration/telemetry#datadog
+[prometheus-telem]: /docs/configuration/telemetry#prometheus
+[metrics-api-endpoint]: /api-docs/metrics
+[metric-types]: /docs/telemetry/metrics#metric-types
+[statsd-exporter]: https://github.com/prometheus/statsd_exporter
+[statsd-telem]: /docs/configuration/telemetry#statsd
+[statsite-telem]: /docs/configuration/telemetry#statsite
+[tagged-metrics]: /docs/telemetry/metrics#tagged-metrics
+[telemetry-stanza]: /docs/configuration/telemetry

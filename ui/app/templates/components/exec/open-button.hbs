@@ -1,0 +1,12 @@
+{{#let (cannot "exec allocation") as |cannotExec|}}
+  <button
+    data-test-exec-button
+    type="button"
+    class="button exec-button is-outline is-small {{if cannotExec "tooltip"}}"
+    disabled={{if cannotExec 'disabled'}}
+    aria-label={{if cannotExec "You don’t have permission to exec"}}
+    {{action "open"}}>
+    {{x-icon "console"}}
+    <span>Exec</span>
+  </button>
+{{/let}}

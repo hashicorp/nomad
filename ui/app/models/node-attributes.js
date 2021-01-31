@@ -5,14 +5,15 @@ import flat from 'flat';
 
 const { unflatten } = flat;
 
-export default Fragment.extend({
-  attributes: attr(),
+export default class NodeAttributes extends Fragment {
+  @attr() nodeAttributes;
 
-  attributesStructured: computed('attributes', function() {
-    const original = this.attributes;
+  @computed('nodeAttributes')
+  get attributesStructured() {
+    const original = this.nodeAttributes;
 
     if (!original) {
-      return;
+      return undefined;
     }
 
     // `unflatten` doesn't sort keys before unflattening, so manual preprocessing is necessary.
@@ -23,13 +24,15 @@ export default Fragment.extend({
         return obj;
       }, {});
     return unflatten(attrs, { overwrite: true });
-  }),
+  }
 
   unknownProperty(key) {
     // Returns the exact value in index 0 and the subtree in index 1
     //
     // ex: nodeAttrs.get('driver.docker')
     // [ "1", { version: "17.05.0-ce", volumes: { enabled: "1" } } ]
-    return get(this.attributesStructured, key);
-  },
-});
+    if (this.attributesStructured) {
+      return get(this.attributesStructured, key);
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{{#if this.show}}
+  <ListAccordion
+    data-test-recommendation-accordion
+    class="recommendation-accordion boxed-section {{if this.closing "closing"}}"
+    @source={{array @summary}}
+    @key="id"
+    {{did-insert this.inserted}}
+  as |a|>
+    {{#if a.isOpen}}
+      <div class="animation-container" style={{this.animationContainerStyle}}>
+        <Das::RecommendationCard
+          @summary={{@summary}}
+          @proceed={{this.proceed}}
+          @onCollapse={{action (mut a.isOpen) false}}
+          @skipReset=true
+        />
+      </div>
+    {{else}}
+      <a.head @buttonLabel={{unless a.isOpen "Show"}}>
+        <section class="left">
+          {{x-icon "info-circle-fill"}}
+          <span>Resource Recommendation</span>
+          <span data-test-group class="group">{{@summary.taskGroup.name}}</span>
+        </section>
+
+        <section class="diffs">
+          {{#if this.diffs.cpu.delta}}
+            <section>
+              <span class="resource">CPU</span>
+              {{this.diffs.cpu.signedDiff}}
+              <span class="percent">{{this.diffs.cpu.percentDiff}}</span>
+            </section>
+          {{/if}}
+
+          {{#if this.diffs.memory.delta}}
+            <section>
+              <span class="resource">Mem</span>
+              {{this.diffs.memory.signedDiff}}
+              <span class="percent">{{this.diffs.memory.percentDiff}}</span>
+            </section>
+          {{/if}}
+        </section>
+      </a.head>
+    {{/if}}
+  </ListAccordion>
+{{/if}}

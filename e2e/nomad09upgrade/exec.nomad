@@ -1,13 +1,18 @@
 job "sleep" {
   datacenters = ["dc1"]
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "sleep" {
     task "sleep" {
       driver = "exec"
 
       config {
         command = "sleep"
-        args = ["10000"]
+        args    = ["10000"]
       }
 
       resources {
@@ -17,4 +22,3 @@ job "sleep" {
     }
   }
 }
-

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -27,7 +26,7 @@ type serviceHookConfig struct {
 	consul consul.ConsulServiceAPI
 
 	// Restarter is a subset of the TaskLifecycle interface
-	restarter agentconsul.TaskRestarter
+	restarter agentconsul.WorkloadRestarter
 
 	logger log.Logger
 }
@@ -36,17 +35,21 @@ type serviceHook struct {
 	consul    consul.ConsulServiceAPI
 	allocID   string
 	taskName  string
-	restarter agentconsul.TaskRestarter
+	restarter agentconsul.WorkloadRestarter
 	logger    log.Logger
 
 	// The following fields may be updated
-	delay      time.Duration
 	driverExec tinterfaces.ScriptExecutor
 	driverNet  *drivers.DriverNetwork
 	canary     bool
 	services   []*structs.Service
 	networks   structs.Networks
+	ports      structs.AllocatedPorts
 	taskEnv    *taskenv.TaskEnv
+
+	// initialRegistrations tracks if Poststart has completed, initializing
+	// fields required in other lifecycle funcs
+	initialRegistration bool
 
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
@@ -60,18 +63,11 @@ func newServiceHook(c serviceHookConfig) *serviceHook {
 		taskName:  c.task.Name,
 		services:  c.task.Services,
 		restarter: c.restarter,
-		delay:     c.task.ShutdownDelay,
+		ports:     c.alloc.AllocatedResources.Shared.Ports,
 	}
 
-	// COMPAT(0.10): Just use the AllocatedResources
-	if c.alloc.AllocatedResources != nil {
-		if res := c.alloc.AllocatedResources.Tasks[c.task.Name]; res != nil {
-			h.networks = res.Networks
-		}
-	} else {
-		if res := c.alloc.TaskResources[c.task.Name]; res != nil {
-			h.networks = res.Networks
-		}
+	if res := c.alloc.AllocatedResources.Tasks[c.task.Name]; res != nil {
+		h.networks = res.Networks
 	}
 
 	if c.alloc.DeploymentStatus != nil && c.alloc.DeploymentStatus.Canary {
@@ -94,37 +90,47 @@ func (h *serviceHook) Poststart(ctx context.Context, req *interfaces.TaskPoststa
 	h.driverExec = req.DriverExec
 	h.driverNet = req.DriverNetwork
 	h.taskEnv = req.TaskEnv
+	h.initialRegistration = true
 
 	// Create task services struct with request's driver metadata
-	taskServices := h.getTaskServices()
+	workloadServices := h.getWorkloadServices()
 
-	return h.consul.RegisterTask(taskServices)
+	return h.consul.RegisterWorkload(workloadServices)
 }
 
 func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if !h.initialRegistration {
+		// no op Consul since initial registration has not finished
+		// only update hook fields
+		return h.updateHookFields(req)
+	}
 
 	// Create old task services struct with request's driver metadata as it
 	// can't change due to Updates
-	oldTaskServices := h.getTaskServices()
+	oldWorkloadServices := h.getWorkloadServices()
 
+	if err := h.updateHookFields(req); err != nil {
+		return err
+	}
+
+	// Create new task services struct with those new values
+	newWorkloadServices := h.getWorkloadServices()
+
+	return h.consul.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
+}
+
+func (h *serviceHook) updateHookFields(req *interfaces.TaskUpdateRequest) error {
 	// Store new updated values out of request
 	canary := false
 	if req.Alloc.DeploymentStatus != nil {
 		canary = req.Alloc.DeploymentStatus.Canary
 	}
 
-	// COMPAT(0.10): Just use the AllocatedResources
 	var networks structs.Networks
-	if req.Alloc.AllocatedResources != nil {
-		if res := req.Alloc.AllocatedResources.Tasks[h.taskName]; res != nil {
-			networks = res.Networks
-		}
-	} else {
-		if res := req.Alloc.TaskResources[h.taskName]; res != nil {
-			networks = res.Networks
-		}
+	if res := req.Alloc.AllocatedResources.Tasks[h.taskName]; res != nil {
+		networks = res.Networks
 	}
 
 	task := req.Alloc.LookupTask(h.taskName)
@@ -133,16 +139,13 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 	}
 
 	// Update service hook fields
-	h.delay = task.ShutdownDelay
 	h.taskEnv = req.TaskEnv
 	h.services = task.Services
 	h.networks = networks
 	h.canary = canary
+	h.ports = req.Alloc.AllocatedResources.Shared.Ports
 
-	// Create new task services struct with those new values
-	newTaskServices := h.getTaskServices()
-
-	return h.consul.UpdateTask(oldTaskServices, newTaskServices)
+	return nil
 }
 
 func (h *serviceHook) PreKilling(ctx context.Context, req *interfaces.TaskPreKillRequest, resp *interfaces.TaskPreKillResponse) error {
@@ -152,16 +155,6 @@ func (h *serviceHook) PreKilling(ctx context.Context, req *interfaces.TaskPreKil
 	// Deregister before killing task
 	h.deregister()
 
-	// If there's no shutdown delay, exit early
-	if h.delay == 0 {
-		return nil
-	}
-
-	h.logger.Debug("waiting before killing task", "shutdown_delay", h.delay)
-	select {
-	case <-ctx.Done():
-	case <-time.After(h.delay):
-	}
 	return nil
 }
 
@@ -174,14 +167,14 @@ func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *in
 
 // deregister services from Consul.
 func (h *serviceHook) deregister() {
-	taskServices := h.getTaskServices()
-	h.consul.RemoveTask(taskServices)
+	workloadServices := h.getWorkloadServices()
+	h.consul.RemoveWorkload(workloadServices)
 
 	// Canary flag may be getting flipped when the alloc is being
 	// destroyed, so remove both variations of the service
-	taskServices.Canary = !taskServices.Canary
-	h.consul.RemoveTask(taskServices)
-
+	workloadServices.Canary = !workloadServices.Canary
+	h.consul.RemoveWorkload(workloadServices)
+	h.initialRegistration = false
 }
 
 func (h *serviceHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
@@ -191,78 +184,20 @@ func (h *serviceHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest,
 	return nil
 }
 
-func (h *serviceHook) getTaskServices() *agentconsul.TaskServices {
+func (h *serviceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 	// Interpolate with the task's environment
-	interpolatedServices := interpolateServices(h.taskEnv, h.services)
+	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, h.services)
 
 	// Create task services struct with request's driver metadata
-	return &agentconsul.TaskServices{
+	return &agentconsul.WorkloadServices{
 		AllocID:       h.allocID,
-		Name:          h.taskName,
+		Task:          h.taskName,
 		Restarter:     h.restarter,
 		Services:      interpolatedServices,
 		DriverExec:    h.driverExec,
 		DriverNetwork: h.driverNet,
 		Networks:      h.networks,
 		Canary:        h.canary,
+		Ports:         h.ports,
 	}
-}
-
-// interpolateServices returns an interpolated copy of services and checks with
-// values from the task's environment.
-func interpolateServices(taskEnv *taskenv.TaskEnv, services []*structs.Service) []*structs.Service {
-	// Guard against not having a valid taskEnv. This can be the case if the
-	// PreKilling or Exited hook is run before Poststart.
-	if taskEnv == nil || len(services) == 0 {
-		return nil
-	}
-
-	interpolated := make([]*structs.Service, len(services))
-
-	for i, origService := range services {
-		// Create a copy as we need to reinterpolate every time the
-		// environment changes
-		service := origService.Copy()
-
-		for _, check := range service.Checks {
-			check.Name = taskEnv.ReplaceEnv(check.Name)
-			check.Type = taskEnv.ReplaceEnv(check.Type)
-			check.Command = taskEnv.ReplaceEnv(check.Command)
-			check.Args = taskEnv.ParseAndReplace(check.Args)
-			check.Path = taskEnv.ReplaceEnv(check.Path)
-			check.Protocol = taskEnv.ReplaceEnv(check.Protocol)
-			check.PortLabel = taskEnv.ReplaceEnv(check.PortLabel)
-			check.InitialStatus = taskEnv.ReplaceEnv(check.InitialStatus)
-			check.Method = taskEnv.ReplaceEnv(check.Method)
-			check.GRPCService = taskEnv.ReplaceEnv(check.GRPCService)
-			if len(check.Header) > 0 {
-				header := make(map[string][]string, len(check.Header))
-				for k, vs := range check.Header {
-					newVals := make([]string, len(vs))
-					for i, v := range vs {
-						newVals[i] = taskEnv.ReplaceEnv(v)
-					}
-					header[taskEnv.ReplaceEnv(k)] = newVals
-				}
-				check.Header = header
-			}
-		}
-
-		service.Name = taskEnv.ReplaceEnv(service.Name)
-		service.PortLabel = taskEnv.ReplaceEnv(service.PortLabel)
-		service.Tags = taskEnv.ParseAndReplace(service.Tags)
-		service.CanaryTags = taskEnv.ParseAndReplace(service.CanaryTags)
-
-		if len(service.Meta) > 0 {
-			meta := make(map[string]string, len(service.Meta))
-			for k, v := range service.Meta {
-				meta[k] = taskEnv.ReplaceEnv(v)
-			}
-			service.Meta = meta
-		}
-
-		interpolated[i] = service
-	}
-
-	return interpolated
 }

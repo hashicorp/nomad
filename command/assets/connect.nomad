@@ -201,19 +201,17 @@ job "countdash" {
     #     https://www.nomadproject.io/docs/job-specification/affinity.html
     #
     # affinity {
-    # attribute specifies the name of a node attribute or metadata
-    # attribute = "${node.datacenter}"
-
-
-    # value specifies the desired attribute value. In this example Nomad
-    # will prefer placement in the "us-west1" datacenter.
-    # value  = "us-west1"
-
-
-    # weight can be used to indicate relative preference
-    # when the job has more than one affinity. It defaults to 50 if not set.
-    # weight = 100
-    #  }
+    #   # attribute specifies the name of a node attribute or metadata
+    #   attribute = "${node.datacenter}"
+    #
+    #   # value specifies the desired attribute value. In this example Nomad
+    #   # will prefer placement in the "us-west1" datacenter.
+    #   value = "us-west1"
+    #
+    #   # weight can be used to indicate relative preference
+    #   # when the job has more than one affinity. It defaults to 50 if not set.
+    #   weight = 100
+    # }
 
 
     # The "spread" stanza allows operators to increase the failure tolerance of
@@ -226,9 +224,9 @@ job "countdash" {
     #     https://www.nomadproject.io/docs/job-specification/spread.html
     #
     # spread {
-    # attribute specifies the name of a node attribute or metadata
-    # attribute = "${node.datacenter}"
-
+    #   # attribute specifies the name of a node attribute or metadata
+    #   attribute = "${node.datacenter}"
+    # }
 
     # targets can be used to define desired percentages of allocations
     # for each targeted attribute value.
@@ -255,6 +253,12 @@ job "countdash" {
       # Consul Connect, so we do not define ports in its network.
       # port "http" {
       #   to = "8080"
+      # }
+
+      # The "dns" stanza allows operators to override the DNS configuration
+      # inherited by the host client.
+      # dns {
+      #   servers = ["1.1.1.1"] 
       # }
     }
     # The "service" stanza enables Consul Connect.
@@ -309,7 +313,7 @@ job "countdash" {
       # are specific to each driver, so please see specific driver
       # documentation for more information.
       config {
-        image = "hashicorpnomad/counter-api:v1"
+        image = "hashicorpnomad/counter-api:v3"
       }
 
       # The "artifact" stanza instructs Nomad to download an artifact from a
@@ -453,7 +457,7 @@ job "countdash" {
       }
 
       config {
-        image = "hashicorpnomad/counter-dashboard:v1"
+        image = "hashicorpnomad/counter-dashboard:v3"
       }
     }
   }

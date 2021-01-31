@@ -1,0 +1,123 @@
+<div data-test-topo-viz-node class="topo-viz-node {{unless this.allocations.length "is-empty"}}" {{did-insert this.reloadNode}}>
+  {{#unless @isDense}}
+    <p data-test-label class="label">
+      {{#if @node.node.isDraining}}
+        <span data-test-status-icon class="tooltip" aria-label="Client is draining">{{x-icon "clock-outline" class="is-info"}}</span>
+      {{else if (not @node.node.isEligible)}}
+        <span data-test-status-icon class="tooltip" aria-label="Client is ineligible">{{x-icon "lock-closed" class="is-warning"}}</span>
+      {{/if}}
+      <strong>{{@node.node.name}}</strong>
+      <span class="bumper-left">{{this.count}} Allocs</span>
+      <span class="bumper-left is-faded">{{@node.memory}} MiB, {{@node.cpu}} MHz</span>
+    </p>
+  {{/unless}}
+  <svg
+    data-test-topo-node-svg
+    class="chart"
+    height="{{this.totalHeight}}px"
+    {{did-insert this.render}}
+    {{did-update this.updateRender}}
+    {{window-resize this.render}}
+    {{on "mouseout" this.allocationBlur}}>
+    <defs>
+      <clipPath id="{{this.maskId}}">
+        <rect class="mask" x="0" y="0" width="{{this.dimensionsWidth}}px" height="{{this.maskHeight}}px" rx="2px" ry="2px" />
+      </clipPath>
+    </defs>
+    <rect
+      data-test-node-background
+      class="node-background {{if @node.isSelected "is-selected"}} {{if @isDense "is-interactive"}}"
+      width="100%"
+      height="{{this.totalHeight}}px"
+      rx="2px"
+      ry="2px"
+      {{on "click" this.selectNode}} />
+    {{#if this.allocations.length}}
+      <g
+        class="dimensions {{if this.activeAllocation "is-active"}}"
+        transform="translate({{this.paddingLeft}},{{this.padding}})"
+        width="{{this.dimensionsWidth}}px"
+        height="{{this.maskHeight}}px"
+        pointer-events="all"
+        {{on "mouseleave" this.clearHighlight}}
+      >
+        <g class="memory">
+          {{#if this.data.memoryLabel}}
+            <text class="label" aria-label="Memory" transform="translate({{this.data.memoryLabel.x}},{{this.data.memoryLabel.y}})">M</text>
+          {{/if}}
+          {{#if this.data.memoryRemainder}}
+            <rect
+              class="dimension-background"
+              x="{{this.data.memoryRemainder.x}}px"
+              width="{{this.data.memoryRemainder.width}}px"
+              height="{{this.height}}px" />
+          {{/if}}
+          {{#each this.data.memory key="allocation.id" as |memory|}}
+            <g
+              data-test-memory-rect="{{memory.allocation.allocation.id}}"
+              class="bar {{memory.className}} {{if (eq this.activeAllocation memory.allocation) "is-active"}} {{if memory.allocation.isSelected "is-selected"}}"
+              clip-path="url(#{{this.maskId}})"
+              data-allocation-id="{{memory.allocation.allocation.id}}"
+              {{on "mouseenter" (fn this.highlightAllocation memory.allocation)}}
+              {{on "click" (fn this.selectAllocation memory.allocation)}}>
+              <rect
+                width="{{memory.width}}px"
+                height="{{if memory.allocation.isSelected this.selectedHeight this.height}}px"
+                x="{{memory.x}}px"
+                y="{{if memory.allocation.isSelected 0.5 0}}px"
+                class="layer-0" />
+              {{#if (or (eq memory.className "starting") (eq memory.className "pending"))}}
+                <rect
+                  width="{{memory.width}}px"
+                  height="{{if memory.allocation.isSelected this.selectedHeight this.height}}px"
+                  x="{{memory.x}}px"
+                  y="{{if memory.allocation.isSelected 0.5 0}}px"
+                  class="layer-1" />
+              {{/if}}
+            </g>
+          {{/each}}
+        </g>
+        <g class="cpu">
+          {{#if this.data.cpuLabel}}
+            <text class="label" aria-label="CPU" transform="translate({{this.data.cpuLabel.x}},{{this.data.cpuLabel.y}})">C</text>
+          {{/if}}
+          {{#if this.data.cpuRemainder}}
+            <rect
+              class="dimension-background"
+              x="{{this.data.cpuRemainder.x}}px"
+              y="{{this.yOffset}}px"
+              width="{{this.data.cpuRemainder.width}}px"
+              height="{{this.height}}px" />
+          {{/if}}
+          {{#each this.data.cpu key="allocation.id" as |cpu|}}
+            <g
+              data-test-cpu-rect="{{cpu.allocation.allocation.id}}"
+              class="bar {{cpu.className}} {{if (eq this.activeAllocation cpu.allocation) "is-active"}} {{if cpu.allocation.isSelected "is-selected"}}"
+              clip-path="url(#{{this.maskId}})"
+              data-allocation-id="{{cpu.allocation.allocation.id}}"
+              {{on "mouseenter" (fn this.highlightAllocation cpu.allocation)}}
+              {{on "click" (fn this.selectAllocation cpu.allocation)}}>
+              <rect
+                width="{{cpu.width}}px"
+                height="{{if cpu.allocation.isSelected this.selectedHeight this.height}}px"
+                x="{{cpu.x}}px"
+                y="{{if cpu.allocation.isSelected this.selectedYOffset this.yOffset}}px"
+                class="layer-0" />
+              {{#if (or (eq cpu.className "starting") (eq cpu.className "pending"))}}
+                <rect
+                  width="{{cpu.width}}px"
+                  height="{{if cpu.allocation.isSelected this.selectedHeight this.height}}px"
+                  x="{{cpu.x}}px"
+                  y="{{if cpu.allocation.isSelected this.selectedYOffset this.yOffset}}px"
+                  class="layer-1" />
+              {{/if}}
+            </g>
+          {{/each}}
+        </g>
+      </g>
+    {{else}}
+      <g class="empty-text"><text data-test-empty-message>Empty Client</text></g>
+    {{/if}}
+  </svg>
+</div>
+

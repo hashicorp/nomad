@@ -1,10 +1,11 @@
 job "binstore-storagelocker" {
-  region      = "global"
-  type        = "service"
-  priority    = 50
-  all_at_once = true
-  datacenters = ["us2", "eu1"]
-  vault_token = "foo"
+  region       = "global"
+  type         = "service"
+  priority     = 50
+  all_at_once  = true
+  datacenters  = ["us2", "eu1"]
+  consul_token = "abc"
+  vault_token  = "foo"
 
   meta {
     foo = "bar"
@@ -61,12 +62,11 @@ job "binstore-storagelocker" {
             static = 3
           }
 
-          port "Http"{
-          }
-          port "http"{
-          }
-          port "HTTP"{
-          }
+          port "Http" {}
+
+          port "http" {}
+
+          port "HTTP" {}
         }
       }
     }

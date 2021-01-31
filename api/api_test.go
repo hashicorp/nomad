@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -199,6 +200,53 @@ func TestSetQueryOptions(t *testing.T) {
 	}
 }
 
+func TestQueryOptionsContext(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	q := (&QueryOptions{
+		WaitIndex: 10000,
+	}).WithContext(ctx)
+
+	if q.ctx != ctx {
+		t.Fatalf("expected context to be set")
+	}
+
+	go func() {
+		cancel()
+	}()
+	_, _, err := c.Jobs().List(q)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected job wait to fail with canceled, got %s", err)
+	}
+}
+
+func TestWriteOptionsContext(t *testing.T) {
+	// No blocking query to test a real cancel of a pending request so
+	// just test that if we pass a pre-canceled context, writes fail quickly
+	t.Parallel()
+
+	c, err := NewClient(DefaultConfig())
+	if err != nil {
+		t.Fatalf("failed to initialize client: %s", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	w := (&WriteOptions{}).WithContext(ctx)
+
+	if w.ctx != ctx {
+		t.Fatalf("expected context to be set")
+	}
+
+	cancel()
+
+	_, _, err = c.Jobs().Deregister("jobid", true, w)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected job to fail with canceled, got %s", err)
+	}
+}
+
 func TestSetWriteOptions(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, nil)
@@ -293,6 +341,22 @@ func TestParseWriteMeta(t *testing.T) {
 	}
 }
 
+func TestClientHeader(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, func(c *Config) {
+		c.Headers = http.Header{
+			"Hello": []string{"World"},
+		}
+	}, nil)
+	defer s.Stop()
+
+	r, _ := c.newRequest("GET", "/v1/jobs")
+
+	if r.header.Get("Hello") != "World" {
+		t.Fatalf("bad: %v", r.header)
+	}
+}
+
 func TestQueryString(t *testing.T) {
 	t.Parallel()
 	c, s := makeClient(t, nil, nil)
@@ -318,24 +382,16 @@ func TestQueryString(t *testing.T) {
 func TestClient_NodeClient(t *testing.T) {
 	http := "testdomain:4646"
 	tlsNode := func(string, *QueryOptions) (*Node, *QueryMeta, error) {
-		uu, err := uuid.GenerateUUID()
-		if err != nil {
-			t.Fatal(err)
-		}
 		return &Node{
-			ID:         uu,
+			ID:         generateUUID(),
 			Status:     "ready",
 			HTTPAddr:   http,
 			TLSEnabled: true,
 		}, nil, nil
 	}
 	noTlsNode := func(string, *QueryOptions) (*Node, *QueryMeta, error) {
-		uu, err := uuid.GenerateUUID()
-		if err != nil {
-			t.Fatal(err)
-		}
 		return &Node{
-			ID:         uu,
+			ID:         generateUUID(),
 			Status:     "ready",
 			HTTPAddr:   http,
 			TLSEnabled: false,

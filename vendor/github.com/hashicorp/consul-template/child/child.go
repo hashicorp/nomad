@@ -197,7 +197,7 @@ func (c *Child) Reload() error {
 		c.Lock()
 		defer c.Unlock()
 
-		c.kill()
+		c.kill(false)
 		return c.start()
 	}
 
@@ -223,7 +223,7 @@ func (c *Child) Kill() {
 	log.Printf("[INFO] (child) killing process")
 	c.Lock()
 	defer c.Unlock()
-	c.kill()
+	c.kill(false)
 }
 
 // Stop behaves almost identical to Kill except it suppresses future processes
@@ -231,6 +231,17 @@ func (c *Child) Kill() {
 // process from sending its value back up the exit channel. This is useful
 // when doing a graceful shutdown of an application.
 func (c *Child) Stop() {
+	c.internalStop(false)
+}
+
+// StopImmediately behaves almost identical to Stop except it does not wait
+// for any random splay if configured. This is used for performing a fast
+// shutdown of consul-template and its children when a kill signal is received.
+func (c *Child) StopImmediately() {
+	c.internalStop(true)
+}
+
+func (c *Child) internalStop(immediately bool) {
 	log.Printf("[INFO] (child) stopping process")
 
 	c.Lock()
@@ -242,7 +253,7 @@ func (c *Child) Stop() {
 		log.Printf("[WARN] (child) already stopped")
 		return
 	}
-	c.kill()
+	c.kill(immediately)
 	close(c.stopCh)
 	c.stopped = true
 }
@@ -279,14 +290,14 @@ func (c *Child) start() error {
 		// down the exit channel.
 		c.stopLock.RLock()
 		defer c.stopLock.RUnlock()
-		if c.stopped {
-			return
+		if !c.stopped {
+			select {
+			case <-c.stopCh:
+			case exitCh <- code:
+			}
 		}
 
-		select {
-		case <-c.stopCh:
-		case exitCh <- code:
-		}
+		close(exitCh)
 	}()
 
 	c.exitCh = exitCh
@@ -354,22 +365,24 @@ func (c *Child) reload() error {
 	return c.signal(c.reloadSignal)
 }
 
-func (c *Child) kill() {
+// kill sends the signal to kill the process using the configured signal
+// if set, else the default system signal
+func (c *Child) kill(immediately bool) {
+
 	if !c.running() {
+		log.Printf("[DEBUG] (child) Kill() called but process dead; not waiting for splay.")
 		return
-	}
-
-	exited := false
-	process := c.cmd.Process
-
-	if c.cmd.ProcessState == nil {
+	} else if immediately {
+		log.Printf("[DEBUG] (child) Kill() called but performing immediate shutdown; not waiting for splay.")
+	} else {
 		select {
 		case <-c.stopCh:
 		case <-c.randomSplay():
 		}
-	} else {
-		log.Printf("[DEBUG] (runner) Kill() called but process dead; not waiting for splay.")
 	}
+
+	exited := false
+	process := c.cmd.Process
 
 	if c.killSignal != nil {
 		if err := process.Signal(c.killSignal); err == nil {
@@ -397,6 +410,11 @@ func (c *Child) kill() {
 }
 
 func (c *Child) running() bool {
+	select {
+	case <-c.exitCh:
+		return false
+	default:
+	}
 	return c.cmd != nil && c.cmd.Process != nil
 }
 

@@ -4,14 +4,16 @@ package fs
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
+	"github.com/moby/sys/mountinfo"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/opencontainers/runc/libcontainer/cgroups/fscommon"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	libcontainerUtils "github.com/opencontainers/runc/libcontainer/utils"
+	"github.com/pkg/errors"
 )
 
 type CpusetGroup struct {
@@ -21,34 +23,48 @@ func (s *CpusetGroup) Name() string {
 	return "cpuset"
 }
 
-func (s *CpusetGroup) Apply(d *cgroupData) error {
-	dir, err := d.path("cpuset")
-	if err != nil && !cgroups.IsNotFound(err) {
-		return err
-	}
-	return s.ApplyDir(dir, d.config, d.pid)
+func (s *CpusetGroup) Apply(path string, d *cgroupData) error {
+	return s.ApplyDir(path, d.config, d.pid)
 }
 
 func (s *CpusetGroup) Set(path string, cgroup *configs.Cgroup) error {
 	if cgroup.Resources.CpusetCpus != "" {
-		if err := writeFile(path, "cpuset.cpus", cgroup.Resources.CpusetCpus); err != nil {
+		if err := fscommon.WriteFile(path, "cpuset.cpus", cgroup.Resources.CpusetCpus); err != nil {
 			return err
 		}
 	}
 	if cgroup.Resources.CpusetMems != "" {
-		if err := writeFile(path, "cpuset.mems", cgroup.Resources.CpusetMems); err != nil {
+		if err := fscommon.WriteFile(path, "cpuset.mems", cgroup.Resources.CpusetMems); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *CpusetGroup) Remove(d *cgroupData) error {
-	return removePath(d.path("cpuset"))
-}
-
 func (s *CpusetGroup) GetStats(path string, stats *cgroups.Stats) error {
 	return nil
+}
+
+// Get the source mount point of directory passed in as argument.
+func getMount(dir string) (string, error) {
+	mi, err := mountinfo.GetMounts(mountinfo.ParentsFilter(dir))
+	if err != nil {
+		return "", err
+	}
+	if len(mi) < 1 {
+		return "", errors.Errorf("Can't find mount point of %s", dir)
+	}
+
+	// find the longest mount point
+	var idx, maxlen int
+	for i := range mi {
+		if len(mi[i].Mountpoint) > maxlen {
+			maxlen = len(mi[i].Mountpoint)
+			idx = i
+		}
+	}
+
+	return mi[idx].Mountpoint, nil
 }
 
 func (s *CpusetGroup) ApplyDir(dir string, cgroup *configs.Cgroup, pid int) error {
@@ -57,11 +73,11 @@ func (s *CpusetGroup) ApplyDir(dir string, cgroup *configs.Cgroup, pid int) erro
 	if dir == "" {
 		return nil
 	}
-	mountInfo, err := ioutil.ReadFile("/proc/self/mountinfo")
+	root, err := getMount(dir)
 	if err != nil {
 		return err
 	}
-	root := filepath.Dir(cgroups.GetClosestMountpointAncestor(dir, string(mountInfo)))
+	root = filepath.Dir(root)
 	// 'ensureParent' start with parent because we don't want to
 	// explicitly inherit from parent, it could conflict with
 	// 'cpuset.cpu_exclusive'.
@@ -107,7 +123,7 @@ func (s *CpusetGroup) ensureParent(current, root string) error {
 	}
 	// Avoid infinite recursion.
 	if parent == current {
-		return fmt.Errorf("cpuset: cgroup parent path outside cgroup root")
+		return errors.New("cpuset: cgroup parent path outside cgroup root")
 	}
 	if err := s.ensureParent(parent, root); err != nil {
 		return err
@@ -135,12 +151,12 @@ func (s *CpusetGroup) copyIfNeeded(current, parent string) error {
 	}
 
 	if s.isEmpty(currentCpus) {
-		if err := writeFile(current, "cpuset.cpus", string(parentCpus)); err != nil {
+		if err := fscommon.WriteFile(current, "cpuset.cpus", string(parentCpus)); err != nil {
 			return err
 		}
 	}
 	if s.isEmpty(currentMems) {
-		if err := writeFile(current, "cpuset.mems", string(parentMems)); err != nil {
+		if err := fscommon.WriteFile(current, "cpuset.mems", string(parentMems)); err != nil {
 			return err
 		}
 	}

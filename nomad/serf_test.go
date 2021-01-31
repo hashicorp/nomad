@@ -6,21 +6,24 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/serf/serf"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNomad_JoinPeer(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.Region = "region2"
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -56,12 +59,13 @@ func TestNomad_JoinPeer(t *testing.T) {
 
 func TestNomad_RemovePeer(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, nil)
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.Region = "global"
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	TestJoin(t, s1, s2)
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -95,32 +99,31 @@ func TestNomad_RemovePeer(t *testing.T) {
 
 func TestNomad_ReapPeer(t *testing.T) {
 	t.Parallel()
+
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NodeName = "node1"
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 	})
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.NodeName = "node2"
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 	})
-	defer s2.Shutdown()
-	s3 := TestServer(t, func(c *Config) {
+	defer cleanupS2()
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.NodeName = "node3"
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node3")
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 	TestJoin(t, s1, s2, s3)
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -189,30 +192,28 @@ func TestNomad_ReapPeer(t *testing.T) {
 
 func TestNomad_BootstrapExpect(t *testing.T) {
 	t.Parallel()
+
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 	})
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 	})
-	defer s2.Shutdown()
-	s3 := TestServer(t, func(c *Config) {
+	defer cleanupS2()
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node3")
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 	TestJoin(t, s1, s2, s3)
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -255,13 +256,12 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 
 	// Join a fourth server after quorum has already been formed and ensure
 	// there is no election
-	s4 := TestServer(t, func(c *Config) {
+	s4, cleanupS4 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node4")
 	})
-	defer s4.Shutdown()
+	defer cleanupS4()
 
 	// Make sure a leader is elected, grab the current term and then add in
 	// the fourth server.
@@ -301,32 +301,30 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 
 func TestNomad_BootstrapExpect_NonVoter(t *testing.T) {
 	t.Parallel()
+
 	dir := tmpDir(t)
 	defer os.RemoveAll(dir)
 
-	s1 := TestServer(t, func(c *Config) {
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node1")
 		c.NonVoter = true
 	})
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node2")
 		c.NonVoter = true
 	})
-	defer s2.Shutdown()
-	s3 := TestServer(t, func(c *Config) {
+	defer cleanupS2()
+	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node3")
 	})
-	defer s3.Shutdown()
+	defer cleanupS3()
 	TestJoin(t, s1, s2, s3)
 
 	// Assert that we do not bootstrap
@@ -342,13 +340,12 @@ func TestNomad_BootstrapExpect_NonVoter(t *testing.T) {
 	})
 
 	// Add the fourth server that is a voter
-	s4 := TestServer(t, func(c *Config) {
+	s4, cleanupS4 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
 		c.DevMode = false
-		c.DevDisableBootstrap = true
 		c.DataDir = path.Join(dir, "node4")
 	})
-	defer s4.Shutdown()
+	defer cleanupS4()
 	TestJoin(t, s1, s2, s3, s4)
 
 	testutil.WaitForResult(func() (bool, error) {
@@ -409,16 +406,15 @@ func TestNomad_BootstrapExpect_NonVoter(t *testing.T) {
 
 func TestNomad_BadExpect(t *testing.T) {
 	t.Parallel()
-	s1 := TestServer(t, func(c *Config) {
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 2
-		c.DevDisableBootstrap = true
 	})
-	defer s1.Shutdown()
-	s2 := TestServer(t, func(c *Config) {
+	defer cleanupS1()
+	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
-		c.DevDisableBootstrap = true
 	})
-	defer s2.Shutdown()
+	defer cleanupS2()
 	servers := []*Server{s1, s2}
 	TestJoin(t, s1, s2)
 
@@ -439,7 +435,7 @@ func TestNomad_BadExpect(t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
 		for _, s := range servers {
 			p, _ := s.numPeers()
-			if p != 1 {
+			if p != 0 {
 				return false, fmt.Errorf("%d", p)
 			}
 		}
@@ -447,4 +443,45 @@ func TestNomad_BadExpect(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("should have 0 peers: %v", err)
 	})
+}
+
+// TestNomad_NonBootstraping_ShouldntBootstap asserts that if BootstrapExpect is zero,
+// the server shouldn't bootstrap
+func TestNomad_NonBootstraping_ShouldntBootstap(t *testing.T) {
+	t.Parallel()
+
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 0
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "node")
+	})
+	defer cleanupS1()
+
+	testutil.WaitForResult(func() (bool, error) {
+		s1.peerLock.Lock()
+		p := len(s1.localPeers)
+		s1.peerLock.Unlock()
+		if p != 1 {
+			return false, fmt.Errorf("%d", p)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("expected 1 local peer: %v", err)
+	})
+
+	// as non-bootstrap mode is the initial state, we must wait long enough to assert that
+	// we don't bootstrap even if enough time has elapsed.  Also, explicitly attempt bootstrap.
+	s1.maybeBootstrap()
+	time.Sleep(100 * time.Millisecond)
+
+	bootstrapped := atomic.LoadInt32(&s1.config.Bootstrapped)
+	require.Zero(t, bootstrapped, "expecting non-bootstrapped servers")
+
+	p, _ := s1.numPeers()
+	require.Zero(t, p, "number of peers in Raft")
+
 }
