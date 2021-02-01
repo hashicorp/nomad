@@ -18,7 +18,7 @@ GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | eg
 endif
 
 # tag corresponding to latest release we maintain backward compatibility with
-PROTO_COMPARE_TAG ?= v1.0.0$(if $(findstring ent,$(GO_TAGS)),+ent,)
+PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
 default: help
 
@@ -125,7 +125,7 @@ check: ## Lint the source code
 	@misspell -error -source=text website/pages/
 
 	@echo "==> Checking for breaking changes in protos..."
-	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
+	@buf breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
 
 	@echo "==> Check proto files are in-sync..."
 	@$(MAKE) proto
