@@ -762,6 +762,63 @@ func TestTasksUpdated_connectServiceUpdated(t *testing.T) {
 	})
 }
 
+func TestNetworkUpdated(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		a       []*structs.NetworkResource
+		b       []*structs.NetworkResource
+		updated bool
+	}{
+		{
+			name: "mode updated",
+			a: []*structs.NetworkResource{
+				{Mode: "host"},
+			},
+			b: []*structs.NetworkResource{
+				{Mode: "bridge"},
+			},
+			updated: true,
+		},
+		{
+			name: "host_network updated",
+			a: []*structs.NetworkResource{
+				{DynamicPorts: []structs.Port{
+					{Label: "http", To: 8080},
+				}},
+			},
+			b: []*structs.NetworkResource{
+				{DynamicPorts: []structs.Port{
+					{Label: "http", To: 8080, HostNetwork: "public"},
+				}},
+			},
+			updated: true,
+		},
+		{
+			name: "port.To updated",
+			a: []*structs.NetworkResource{
+				{DynamicPorts: []structs.Port{
+					{Label: "http", To: 8080},
+				}},
+			},
+			b: []*structs.NetworkResource{
+				{DynamicPorts: []structs.Port{
+					{Label: "http", To: 8088},
+				}},
+			},
+			updated: true,
+		},
+	}
+
+	for i := range cases {
+		c := cases[i]
+		t.Run(c.name, func(tc *testing.T) {
+			tc.Parallel()
+			require.Equal(tc, c.updated, networkUpdated(c.a, c.b), "unexpected network updated result")
+		})
+	}
+}
+
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
 	_, ctx := testContext(t)
 	allocs := []allocTuple{
