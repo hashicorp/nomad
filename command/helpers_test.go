@@ -298,7 +298,7 @@ func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
 		{
 			"invalid HCL2",
 			`job "example" {
-  meta = { "a" = "b" }
+  meta { "key.with.dot" = "b" }
 }`,
 			true,
 		},

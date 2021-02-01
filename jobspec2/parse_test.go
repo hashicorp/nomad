@@ -3,6 +3,7 @@ package jobspec2
 import (
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
@@ -194,6 +195,7 @@ job "example" {
 
 	require.Equal(t, meta, out.Meta)
 }
+
 func TestParse_Locals(t *testing.T) {
 	hcl := `
 variables {
@@ -628,4 +630,195 @@ job "job-webserver" {
 			require.Equal(t, c.expectedJob, found)
 		})
 	}
+}
+
+func TestParse_TaskEnvs(t *testing.T) {
+	cases := []struct {
+		name       string
+		envSnippet string
+		expected   map[string]string
+	}{
+		{
+			"none",
+			``,
+			nil,
+		},
+		{
+			"block",
+			`
+env {
+  key = "value"
+} `,
+			map[string]string{"key": "value"},
+		},
+		{
+			"attribute",
+			`
+env = {
+  "key.dot"                = "val1"
+  key_unquoted_without_dot = "val2"
+} `,
+			map[string]string{"key.dot": "val1", "key_unquoted_without_dot": "val2"},
+		},
+		{
+			"attribute_colons",
+			`env = {
+  "key.dot" : "val1"
+  key_unquoted_without_dot : "val2"
+} `,
+			map[string]string{"key.dot": "val1", "key_unquoted_without_dot": "val2"},
+		},
+		{
+			"attribute_empty",
+			`env = {}`,
+			map[string]string{},
+		},
+		{
+			"attribute_expression",
+			`env = {for k in ["a", "b"]: k => "val-${k}" }`,
+			map[string]string{"a": "val-a", "b": "val-b"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			hcl := `
+job "example" {
+  group "group" {
+    task "task" {
+      driver = "docker"
+      config {}
+
+      ` + c.envSnippet + `
+    }
+  }
+}`
+
+			out, err := ParseWithConfig(&ParseConfig{
+				Path: "input.hcl",
+				Body: []byte(hcl),
+			})
+			require.NoError(t, err)
+
+			require.Equal(t, c.expected, out.TaskGroups[0].Tasks[0].Env)
+		})
+	}
+}
+
+func TestParse_TaskEnvs_Multiple(t *testing.T) {
+	hcl := `
+job "example" {
+  group "group" {
+    task "task" {
+      driver = "docker"
+      config {}
+
+      env = {"a": "b"}
+      env {
+        c = "d"
+      }
+    }
+  }
+}`
+
+	_, err := ParseWithConfig(&ParseConfig{
+		Path: "input.hcl",
+		Body: []byte(hcl),
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Duplicate env block")
+}
+
+func Test_TaskEnvs_Invalid(t *testing.T) {
+	cases := []struct {
+		name        string
+		envSnippet  string
+		expectedErr string
+	}{
+		{
+			"attr: invalid expression",
+			`env = { key = local.undefined_local }`,
+			`does not have an attribute named "undefined_local"`,
+		},
+		{
+			"block: invalid block expression",
+			`env {
+  for k in ["a", "b"]: k => k
+}`,
+			"Invalid block definition",
+		},
+		{
+			"attr: not make sense",
+			`env = [ "a" ]`,
+			"Unsuitable value: map of string required",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			hcl := `
+job "example" {
+  group "group" {
+    task "task" {
+      driver = "docker"
+      config {}
+
+      ` + c.envSnippet + `
+    }
+  }
+}`
+			_, err := ParseWithConfig(&ParseConfig{
+				Path: "input.hcl",
+				Body: []byte(hcl),
+			})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), c.expectedErr)
+		})
+	}
+}
+
+func TestParse_Meta_Alternatives(t *testing.T) {
+	hcl := ` job "example" {
+  group "group" {
+    task "task" {
+      driver = "config"
+      config {}
+
+      meta {
+        source = "task"
+      }
+    }
+
+    meta {
+      source = "group"
+
+    }
+  }
+
+  meta {
+    source = "job"
+  }
+}
+`
+
+	asBlock, err := ParseWithConfig(&ParseConfig{
+		Path: "input.hcl",
+		Body: []byte(hcl),
+	})
+	require.NoError(t, err)
+
+	hclAsAttr := strings.ReplaceAll(hcl, "meta {", "meta = {")
+	require.Equal(t, 3, strings.Count(hclAsAttr, "meta = {"))
+
+	asAttr, err := ParseWithConfig(&ParseConfig{
+		Path: "input.hcl",
+		Body: []byte(hclAsAttr),
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, asBlock, asAttr)
+	require.Equal(t, map[string]string{"source": "job"}, asBlock.Meta)
+	require.Equal(t, map[string]string{"source": "group"}, asBlock.TaskGroups[0].Meta)
+	require.Equal(t, map[string]string{"source": "task"}, asBlock.TaskGroups[0].Tasks[0].Meta)
+
 }
