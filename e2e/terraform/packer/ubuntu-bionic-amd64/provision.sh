@@ -19,6 +19,7 @@ Options for configuration:
  --nostart                  do not start or restart Nomad
  --enterprise               if nomad_sha is passed, use the ENT version
  --nomad_acls               write Nomad ACL configuration
+ --autojoin                 the AWS ConsulAutoJoin tag value
 
 EOF
 
@@ -36,6 +37,7 @@ NOMAD_PROFILE=
 NOMAD_ROLE=
 NOMAD_INDEX=
 BUILD_FOLDER="builds-oss"
+CONSUL_AUTOJOIN=
 ACLS=0
 
 install_from_s3() {
@@ -118,6 +120,9 @@ install_config_profile() {
     fi
 }
 
+update_consul_autojoin() {
+    sudo sed -i'' -e "s|tag_key=ConsulAutoJoin tag_value=auto-join|tag_key=ConsulAutoJoin tag_value=${CONSUL_AUTOJOIN}|g" /etc/consul.d/*.json
+}
 
 while [[ $# -gt 0 ]]
 do
@@ -156,6 +161,11 @@ opt="$1"
             NOMAD_INDEX="$2"
             shift 2
             ;;
+        --autojoin)
+            if [ -z "$2" ]; then ehco "Missing autojoin parameter"; usage; fi
+            CONSUL_AUTOJOIN="$2"
+            shift 2
+            ;;
         --nostart)
             # for initial packer builds, we don't want to start Nomad
             START=0
@@ -179,6 +189,10 @@ if [ -n "$install_fn" ]; then
 fi
 if [ -n "$NOMAD_PROFILE" ]; then
     install_config_profile
+fi
+
+if [ -n "$CONSUL_AUTOJOIN" ]; then
+    update_consul_autojoin
 fi
 
 if [ $START == "1" ]; then
