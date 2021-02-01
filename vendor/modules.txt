@@ -364,10 +364,10 @@ github.com/hashicorp/consul-template/signals
 github.com/hashicorp/consul-template/template
 github.com/hashicorp/consul-template/version
 github.com/hashicorp/consul-template/watch
-# github.com/hashicorp/consul/api v1.6.0
+# github.com/hashicorp/consul/api v1.8.1
 ## explicit
 github.com/hashicorp/consul/api
-# github.com/hashicorp/consul/sdk v0.6.0
+# github.com/hashicorp/consul/sdk v0.7.0
 ## explicit
 github.com/hashicorp/consul/sdk/freeport
 github.com/hashicorp/consul/sdk/testutil
@@ -503,7 +503,7 @@ github.com/hashicorp/raft
 # github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea
 ## explicit
 github.com/hashicorp/raft-boltdb
-# github.com/hashicorp/serf v0.9.3
+# github.com/hashicorp/serf v0.9.5
 ## explicit
 github.com/hashicorp/serf/coordinate
 github.com/hashicorp/serf/serf

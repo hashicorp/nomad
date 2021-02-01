@@ -52,8 +52,8 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.1-0.20200228141219-3ce3d519df39
 	github.com/hashicorp/consul v1.7.8
 	github.com/hashicorp/consul-template v0.25.1
-	github.com/hashicorp/consul/api v1.6.0
-	github.com/hashicorp/consul/sdk v0.6.0
+	github.com/hashicorp/consul/api v1.8.1
+	github.com/hashicorp/consul/sdk v0.7.0
 	github.com/hashicorp/cronexpr v1.1.1
 	github.com/hashicorp/go-checkpoint v0.0.0-20171009173528-1545e56e46de
 	github.com/hashicorp/go-cleanhttp v0.5.1
@@ -81,7 +81,7 @@ require (
 	github.com/hashicorp/nomad/api v0.0.0-20200529203653-c4416b26d3eb
 	github.com/hashicorp/raft v1.1.3-0.20200211192230-365023de17e6
 	github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea
-	github.com/hashicorp/serf v0.9.3
+	github.com/hashicorp/serf v0.9.5
 	github.com/hashicorp/vault/api v1.0.5-0.20190730042357-746c0b111519
 	github.com/hashicorp/vault/sdk v0.1.14-0.20190730042320-0dc007d98cc8
 	github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d
