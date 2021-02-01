@@ -729,6 +729,54 @@ job "example" {
 	require.Contains(t, err.Error(), "Duplicate env block")
 }
 
+func Test_TaskEnvs_Invalid(t *testing.T) {
+	cases := []struct {
+		name        string
+		envSnippet  string
+		expectedErr string
+	}{
+		{
+			"attr: invalid expression",
+			`env = { key = local.undefined_local }`,
+			`does not have an attribute named "undefined_local"`,
+		},
+		{
+			"block: invalid block expression",
+			`env {
+  for k in ["a", "b"]: k => k
+}`,
+			"Invalid block definition",
+		},
+		{
+			"attr: not make sense",
+			`env = [ "a" ]`,
+			"Unsuitable value: map of string required",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			hcl := `
+job "example" {
+  group "group" {
+    task "task" {
+      driver = "docker"
+      config {}
+
+      ` + c.envSnippet + `
+    }
+  }
+}`
+			_, err := ParseWithConfig(&ParseConfig{
+				Path: "input.hcl",
+				Body: []byte(hcl),
+			})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), c.expectedErr)
+		})
+	}
+}
+
 func TestParse_Meta_Alternatives(t *testing.T) {
 	hcl := ` job "example" {
   group "group" {

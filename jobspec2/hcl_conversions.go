@@ -382,7 +382,7 @@ func decodeAsAttribute(body hcl.Body, ctx *hcl.EvalContext, name string) (map[st
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  fmt.Sprintf("Duplicate %v block", name),
-				Detail: fmt.Sprintf("Only one %v block is allowed. Another was defined at %s.",
+				Detail: fmt.Sprintf("%v may not be defined more than once. Another definition is defined at %s.",
 					name, attr.Range.String()),
 				Subject: &bb.Blocks[0].DefRange,
 			})
