@@ -457,6 +457,7 @@ module('Acceptance | client detail', function(hooks) {
     node = server.create('node', {
       drain: false,
       schedulingEligibility: 'ineligible',
+      status: 'ready',
     });
 
     await ClientDetail.visit({ id: node.id });
