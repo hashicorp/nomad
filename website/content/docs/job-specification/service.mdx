@@ -355,11 +355,8 @@ This example must be accompanied by a [`network`][network] stanza which defines
 a static or dynamic port labeled "lb". For example:
 
 ```hcl
-resources {
-  network {
-    mbits = 10
-    port "lb" {}
-  }
+network {
+  port "lb" {}
 }
 ```
 
@@ -500,6 +497,13 @@ configuration:
 ```hcl
 job "example" {
   datacenters = ["dc1"]
+
+  network {
+    port "db" {
+      to = 6379
+    }
+  }
+
   group "cache" {
 
     task "redis" {
@@ -508,18 +512,12 @@ job "example" {
       config {
         image = "redis:3.2"
         network_mode = "weave"
-        port_map {
-          db = 6379
-        }
+        ports = ["db"]
       }
 
       resources {
         cpu    = 500 # 500 MHz
         memory = 256 # 256MB
-        network {
-          mbits = 10
-          port "db" {}
-        }
       }
 
       service {
@@ -571,9 +569,6 @@ job "example" {
       resources {
         cpu    = 500 # 500 MHz
         memory = 256 # 256MB
-        network {
-          mbits = 10
-        }
       }
 
       service {
@@ -620,24 +615,25 @@ job "example" {
   datacenters = ["dc1"]
   group "cache" {
 
+    network {
+      port "db" {
+        to = 6379
+      }
+    }
+
+
     task "redis" {
       driver = "docker"
 
       config {
         image = "redis:3.2"
         advertise_ipv6_address = true
-        port_map {
-          db = 6379
-        }
+        ports = ["db"]
       }
 
       resources {
         cpu    = 500 # 500 MHz
         memory = 256 # 256MB
-        network {
-          mbits = 10
-          port "db" {}
-        }
       }
 
       service {
@@ -676,9 +672,6 @@ job "example" {
       resources {
         cpu    = 500 # 500 MHz
         memory = 256 # 256MB
-        network {
-          mbits = 10
-        }
       }
 
       service {
