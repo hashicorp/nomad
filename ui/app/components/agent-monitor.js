@@ -33,10 +33,16 @@ export default class AgentMonitor extends Component {
     const type = this.server ? 'server_id' : 'client_id';
     const id = this.server ? this.server.id : this.client && this.client.id;
 
-    return {
+    const params = {
       log_level: this.level,
       [type]: id,
     };
+
+    if (this.server) {
+      params.region = this.server.region;
+    }
+
+    return params;
   }
 
   didInsertElement() {
