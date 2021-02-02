@@ -17,6 +17,7 @@ module.exports = function(defaults) {
       modes: ['javascript'],
     },
     babel: {
+      include: ['proposal-optional-chaining'],
       plugins: [
         '@babel/plugin-proposal-object-rest-spread',
         require.resolve('ember-auto-import/babel-plugin'),
