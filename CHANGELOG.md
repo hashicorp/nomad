@@ -10,9 +10,11 @@ BUG FIXES:
  * consul: Fixed a bug where failing tasks with group services would only cause the allocation to restart once instead of respecting the `restart` field. [[GH-9869](https://github.com/hashicorp/nomad/issues/9869)]
  * consul/connect: Fixed a bug where gateway proxy connection default timeout not set [[GH-9851](https://github.com/hashicorp/nomad/pull/9851)]
  * consul/connect: Fixed a bug preventing more than one connect gateway per Nomad client [[GH-9849](https://github.com/hashicorp/nomad/pull/9849)]
+ * nomad/structs: Fixed a bug where static ports with the same value but different `host_network` were invalid [[GH-9946](https://github.com/hashicorp/nomad/issues/9946)]
  * scheduler: Fixed a bug where shared ports were not persisted during inplace updates for service jobs. [[GH-9830](https://github.com/hashicorp/nomad/issues/9830)]
  * scheduler: Fixed a bug where job statuses and summaries where duplicated and miscalculated when registering a job. [[GH-9768](https://github.com/hashicorp/nomad/issues/9768)]
-  * scheduler (Enterprise): Fixed a bug where the deprecated network `mbits` field was being considered as part of quota enforcement. [[GH-9920](https://github.com/hashicorp/nomad/issues/9920)]
+ * scheduler: Fixed a bug that caused the scheduler not to detect changes for `host_network` port field. [[GH-9973](https://github.com/hashicorp/nomad/issues/9973)]
+ * scheduler (Enterprise): Fixed a bug where the deprecated network `mbits` field was being considered as part of quota enforcement. [[GH-9920](https://github.com/hashicorp/nomad/issues/9920)]
  * driver/qemu: Fixed a bug where network namespaces were not supported for QEMU workloads [[GH-9861](https://github.com/hashicorp/nomad/pull/9861)]
 
 ## 1.0.3 (January 28, 2021)
