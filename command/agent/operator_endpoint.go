@@ -289,6 +289,17 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 	return reply, nil
 }
 
+func (s *HTTPServer) LicenseRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	switch req.Method {
+	case "GET":
+		resp.WriteHeader(http.StatusNoContent)
+		return "", nil
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+}
+
 func (s *HTTPServer) SnapshotRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
 	case "GET":
