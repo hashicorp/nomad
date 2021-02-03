@@ -121,6 +121,13 @@ func TestDefaultConfig_env(t *testing.T) {
 	region := "test"
 	namespace := "dev"
 	token := "foobar"
+	headers := "ABC: 123; EFG: 245; XYZ: 29; XYZ: 30;"
+
+	expectedHeaders := http.Header{}
+	expectedHeaders.Add("ABC", "123")
+	expectedHeaders.Add("EFG", "245")
+	expectedHeaders.Add("XYZ", "29")
+	expectedHeaders.Add("XYZ", "30")
 
 	os.Setenv("NOMAD_ADDR", url)
 	defer os.Setenv("NOMAD_ADDR", "")
@@ -137,10 +144,19 @@ func TestDefaultConfig_env(t *testing.T) {
 	os.Setenv("NOMAD_TOKEN", token)
 	defer os.Setenv("NOMAD_TOKEN", "")
 
+	os.Setenv("NOMAD_HEADERS", headers)
+	defer os.Setenv("NOMAD_TOKEN", "")
+
 	config := DefaultConfig()
 
 	if config.Address != url {
 		t.Errorf("expected %q to be %q", config.Address, url)
+	}
+
+	for k, _ := range expectedHeaders {
+		if config.Headers.Get(k) != expectedHeaders.Get(k) {
+			t.Errorf("expected %q to be %q", config.Headers, expectedHeaders)
+		}
 	}
 
 	if config.Region != region {

@@ -241,6 +241,23 @@ func defaultHttpClient() *http.Client {
 	return httpClient
 }
 
+func parseHeaders(headerString string) http.Header {
+	realHeaders := http.Header{}
+	headers := strings.Split(headerString, ";")
+
+	for _, h := range headers {
+		header := strings.Split(strings.TrimSpace(h), ":")
+		if len(header) < 2 {
+			continue
+		}
+		k := strings.TrimSpace(header[0])
+		v := strings.TrimSpace(header[1])
+
+		realHeaders.Add(k, v)
+	}
+	return realHeaders
+}
+
 // DefaultConfig returns a default configuration for the client
 func DefaultConfig() *Config {
 	config := &Config{
@@ -293,6 +310,11 @@ func DefaultConfig() *Config {
 			config.TLSConfig.Insecure = insecure
 		}
 	}
+
+	if v := os.Getenv("NOMAD_HEADERS"); v != "" {
+		config.Headers = parseHeaders(v)
+	}
+
 	if v := os.Getenv("NOMAD_TOKEN"); v != "" {
 		config.SecretID = v
 	}
