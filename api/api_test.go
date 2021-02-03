@@ -121,7 +121,7 @@ func TestDefaultConfig_env(t *testing.T) {
 	region := "test"
 	namespace := "dev"
 	token := "foobar"
-	headers := "ABC: 123; EFG: 245; XYZ: 29; XYZ: 30;"
+	headers := "ABC: 123\r\nEFG: 245\r\nXYZ: 29\r\nXYZ: 30\r\n"
 
 	expectedHeaders := http.Header{}
 	expectedHeaders.Add("ABC", "123")

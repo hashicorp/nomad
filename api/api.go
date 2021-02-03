@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -242,20 +243,14 @@ func defaultHttpClient() *http.Client {
 }
 
 func parseHeaders(headerString string) http.Header {
-	realHeaders := http.Header{}
-	headers := strings.Split(headerString, ";")
+	headers := http.Header{}
+	reader := bufio.NewReader(strings.NewReader("GET / HTTP/1.1\r\n" + headerString + "\r\n"))
 
-	for _, h := range headers {
-		header := strings.Split(strings.TrimSpace(h), ":")
-		if len(header) < 2 {
-			continue
-		}
-		k := strings.TrimSpace(header[0])
-		v := strings.TrimSpace(header[1])
-
-		realHeaders.Add(k, v)
+	logReq, err := http.ReadRequest(reader)
+	if err != nil {
+		return headers
 	}
-	return realHeaders
+	return logReq.Header
 }
 
 // DefaultConfig returns a default configuration for the client
