@@ -35,10 +35,10 @@ func TestScalingPolicyInfoCommand_Run(t *testing.T) {
 	cmd := &ScalingPolicyInfoCommand{Meta: Meta{Ui: ui}}
 
 	// Calling without the policyID should result in an error.
-	if code := cmd.Run([]string{"-address=" + url}); code != 1 {
+	if code := cmd.Run([]string{"-address=" + url, "first", "second"}); code != 1 {
 		t.Fatalf("expected cmd run exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "This command takes one argument: <policy_id>") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "This command takes one of the following argument conditions") {
 		t.Fatalf("expected argument error within output: %v", out)
 	}
 
@@ -46,8 +46,8 @@ func TestScalingPolicyInfoCommand_Run(t *testing.T) {
 	if code := cmd.Run([]string{"-address=" + url, "scaling_policy_info"}); code != 1 {
 		t.Fatalf("expected cmd run exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "404 (policy not found)") {
-		t.Fatalf("expected 404 not found within output: %v", out)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, `No scaling policies with prefix or id "scaling_policy_inf" found`) {
+		t.Fatalf("expected 'no policies found' within output: %v", out)
 	}
 
 	// Generate a test job.

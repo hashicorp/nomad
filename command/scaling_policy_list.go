@@ -87,6 +87,7 @@ func (s *ScalingPolicyListCommand) Run(args []string) int {
 	if args = flags.Args(); len(args) > 0 {
 		s.Ui.Error("This command takes no arguments")
 		s.Ui.Error(commandErrorText(s))
+		return 1
 	}
 
 	// Get the HTTP client.
@@ -111,11 +112,6 @@ func (s *ScalingPolicyListCommand) Run(args []string) int {
 		return 1
 	}
 
-	if len(policies) == 0 {
-		s.Ui.Output("No policies found")
-		return 0
-	}
-
 	if json || len(tmpl) > 0 {
 		out, err := Format(json, tmpl, policies)
 		if err != nil {
@@ -126,23 +122,30 @@ func (s *ScalingPolicyListCommand) Run(args []string) int {
 		return 0
 	}
 
+	output := formatScalingPolicies(policies)
+	s.Ui.Output(output)
+	return 0
+}
+
+func formatScalingPolicies(stubs []*api.ScalingPolicyListStub) string {
+	if len(stubs) == 0 {
+		return "No policies found"
+	}
+
 	// Create the output table header.
-	output := []string{"ID|Enabled|Type|Target"}
+	policies := []string{"ID|Enabled|Type|Target"}
 
 	// Sort the list of policies based on their target.
-	sortedPolicies := scalingPolicyStubList{policies: policies}
+	sortedPolicies := scalingPolicyStubList{policies: stubs}
 	sort.Sort(sortedPolicies)
 
 	// Iterate the policies and add to the output.
 	for _, policy := range sortedPolicies.policies {
-		output = append(output, fmt.Sprintf(
+		policies = append(policies, fmt.Sprintf(
 			"%s|%v|%s|%s",
 			policy.ID, policy.Enabled, policy.Type, formatScalingPolicyTarget(policy.Target)))
 	}
-
-	// Output.
-	s.Ui.Output(formatList(output))
-	return 0
+	return formatList(policies)
 }
 
 // scalingPolicyStubList is a wrapper around []*api.ScalingPolicyListStub that
