@@ -31,6 +31,10 @@ the server will shutdown. If a valid (non-temporary) license expires, the
 cluster will continue to function, but write operations to enterprise features
 will be disabled.
 
+~> **Note:** A Nomad Enterprise cluster cannot be downgraded to the open
+source version of Nomad. Servers for the open source version of Nomad will
+panic if they are joined to a Nomad Enterprise cluster.
+
 See the [License commands](/docs/commands/license) for more information on
 interacting with the Enterprise License.
 
