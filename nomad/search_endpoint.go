@@ -31,6 +31,7 @@ var (
 		structs.Deployments,
 		structs.Plugins,
 		structs.Volumes,
+		structs.ScalingPolicies,
 		structs.Namespaces,
 	}
 )
@@ -67,6 +68,8 @@ func (s *Search) getMatches(iter memdb.ResultIterator, prefix string) ([]string,
 		case *structs.CSIPlugin:
 			id = t.ID
 		case *structs.CSIVolume:
+			id = t.ID
+		case *structs.ScalingPolicy:
 			id = t.ID
 		case *structs.Namespace:
 			id = t.Name
@@ -106,6 +109,8 @@ func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix
 		return state.DeploymentsByIDPrefix(ws, namespace, prefix)
 	case structs.Plugins:
 		return state.CSIPluginsByIDPrefix(ws, prefix)
+	case structs.ScalingPolicies:
+		return state.ScalingPoliciesByIDPrefix(ws, namespace, prefix)
 	case structs.Volumes:
 		return state.CSIVolumesByIDPrefix(ws, namespace, prefix)
 	case structs.Namespaces:
