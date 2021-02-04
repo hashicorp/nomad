@@ -3609,6 +3609,145 @@ func TestTaskGroupDiff(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			TestCase: "TaskGroup volumes added",
+			Old:      &TaskGroup{},
+			New: &TaskGroup{
+				Volumes: map[string]*VolumeRequest{
+					"foo": &VolumeRequest{
+						Name:     "foo",
+						Type:     "host",
+						Source:   "foo-src",
+						ReadOnly: true,
+					},
+				},
+			},
+
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Volume",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Name",
+								Old:  "",
+								New:  "foo",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "ReadOnly",
+								Old:  "",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Source",
+								Old:  "",
+								New:  "foo-src",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Type",
+								Old:  "",
+								New:  "host",
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			TestCase: "TaskGroup volumes edited",
+			Old: &TaskGroup{
+				Volumes: map[string]*VolumeRequest{
+					"foo": &VolumeRequest{
+						Name:     "foo",
+						Type:     "csi",
+						Source:   "foo-src1",
+						ReadOnly: false,
+						MountOptions: &CSIMountOptions{
+							FSType:     "ext4",
+							MountFlags: []string{"relatime", "rw"},
+						},
+					},
+					"bar": &VolumeRequest{
+						Name:     "bar",
+						Type:     "host",
+						Source:   "bar-src",
+						ReadOnly: true,
+					},
+				},
+			},
+			New: &TaskGroup{
+				Volumes: map[string]*VolumeRequest{
+					"foo": &VolumeRequest{
+						Name:     "foo",
+						Type:     "csi",
+						Source:   "foo-src2",
+						ReadOnly: true,
+						MountOptions: &CSIMountOptions{
+							FSType:     "ext4",
+							MountFlags: []string{"relatime", "rw", "nosuid"},
+						},
+					},
+					"bar": &VolumeRequest{ // untouched
+						Name:     "bar",
+						Type:     "host",
+						Source:   "bar-src",
+						ReadOnly: true,
+					},
+				},
+			},
+
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Volume",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "ReadOnly",
+								Old:  "false",
+								New:  "true",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Source",
+								Old:  "foo-src1",
+								New:  "foo-src2",
+							},
+						},
+						Objects: []*ObjectDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "MountOptions",
+								Objects: []*ObjectDiff{
+									{
+										Type: DiffTypeAdded,
+										Name: "MountFlags",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "MountFlags",
+												Old:  "",
+												New:  "nosuid",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for i, c := range cases {
