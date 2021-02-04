@@ -115,7 +115,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	// If args not specified but output format is specified, format and output the allocations data list
-	if len(args) == 0 && json || len(tmpl) > 0 {
+	if len(args) == 0 && (json || len(tmpl) > 0) {
 		allocs, _, err := client.Allocations().List(nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying allocations: %v", err))

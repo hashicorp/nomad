@@ -201,6 +201,7 @@ const (
 	Namespaces      Context = "namespaces"
 	Quotas          Context = "quotas"
 	Recommendations Context = "recommendations"
+	ScalingPolicies Context = "scaling_policy"
 	All             Context = "all"
 	Plugins         Context = "plugins"
 	Volumes         Context = "volumes"
