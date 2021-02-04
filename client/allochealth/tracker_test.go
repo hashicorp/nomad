@@ -487,13 +487,22 @@ func TestTracker_Checks_OnUpdate(t *testing.T) {
 			select {
 			case <-time.After(4 * checkInterval):
 				if !tc.expectedPass {
+					// tracker should still be running
+					require.Nil(t, tracker.ctx.Err())
 					return
 				}
 				require.Fail(t, "timed out while waiting for health")
 			case h := <-tracker.HealthyCh():
 				require.True(t, h)
 			}
+
+			// For healthy checks, the tracker should stop watching
+			select {
+			case <-tracker.ctx.Done():
+				// Ok, tracker should exit after reporting healthy
+			default:
+				require.Fail(t, "expected tracker to exit after reporting healthy")
+			}
 		})
 	}
-
 }

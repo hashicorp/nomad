@@ -344,8 +344,10 @@ func (t *Tracker) watchTaskEvents() {
 	}
 }
 
-// watchConsulEvents is a long lived watcher for the health of the allocation's
-// Consul checks.
+// watchConsulEvents is a  watcher for the health of the allocation's Consul
+// checks. If all checks report healthy the watcher will exit after the
+// MinHealthyTime has been reached, Otherwise the watcher will continue to
+// check unhealthy checks until the ctx is cancelled
 func (t *Tracker) watchConsulEvents() {
 	// checkTicker is the ticker that triggers us to look at the checks in
 	// Consul

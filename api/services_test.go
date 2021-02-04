@@ -23,6 +23,25 @@ func TestService_Canonicalize(t *testing.T) {
 	require.Equal(t, OnUpdateRequireHealthy, s.OnUpdate)
 }
 
+func TestServiceCheck_Canonicalize(t *testing.T) {
+	t.Parallel()
+
+	j := &Job{Name: stringToPtr("job")}
+	tg := &TaskGroup{Name: stringToPtr("group")}
+	task := &Task{Name: "task"}
+	s := &Service{
+		Checks: []ServiceCheck{
+			{
+				Name: "check",
+			},
+		},
+	}
+
+	s.Canonicalize(task, tg, j)
+
+	require.Equal(t, OnUpdateRequireHealthy, s.Checks[0].OnUpdate)
+}
+
 func TestService_Check_PassFail(t *testing.T) {
 	t.Parallel()
 

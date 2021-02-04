@@ -177,7 +177,9 @@ Connect][connect] integration.
   evaluated when determining deployment health (including a job's initial
   deployment). This allows job submitters to define certain checks as readiness
   checks, progressing a deployment even if the Service's checks are not yet
-  healthy. On the Consul side, the status is not altered.
+  healthy. Checks inherit the Servie's value by default. The check status is
+  not altered in Consul and is only used to determine the checks health during
+  an update.
 
   - `require_healthy` - In order for Nomad to consider the check healthy during
     an update it must report as healthy.
@@ -188,10 +190,11 @@ Connect][connect] integration.
   - `ignore` - Any status will be treated as healthy.
 
   ~> **Caveat:** `on_update` is only compatible with certain
-  [`check_restart`][check_restart_stanza] configurations. If `on_update` is set
-  to `ignore_warnings` then `check_restart` `ignore_warnings` must also be set
-  to true. `check_restart` can however have `ignore_warnings` set to true with
-  `on_update` equal to `require_healthy`.
+  [`check_restart`][check_restart_stanza] configurations. `on_update =
+  "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
+  `check_restart` can however specify `ignore_warnings = true` with `on_update
+  = "require_healthy"`. If `on_update` is set to `ignore`, `check_restart` must
+  be omitted entirely.
 
 
 ### `check` Parameters
@@ -302,10 +305,12 @@ scripts.
   checks. Requires Consul >= 0.7.2.
 
 - `on_update` `(string: "require_healthy")` - Specifies how checks should be
-  evaluated when determining deployment health (including an initial
+  evaluated when determining deployment health (including a job's initial
   deployment). This allows job submitters to define certain checks as readiness
   checks, progressing a deployment even if the Service's checks are not yet
-  healthy. On the Consul side, the status is not altered.
+  healthy. Checks inherit the Servie's value by default. The check status is
+  not altered in Consul and is only used to determine the checks health during
+  an update.
 
   - `require_healthy` - In order for Nomad to consider the check healthy during
     an update it must report as healthy.
@@ -316,10 +321,11 @@ scripts.
   - `ignore` - Any status will be treated as healthy.
 
   ~> **Caveat:** `on_update` is only compatible with certain
-  [`check_restart`][check_restart_stanza] configurations. If `on_update` is set
-  to `ignore_warnings` then `check_restart` `ignore_warnings` must also be set
-  to true. `check_restart` can however have `ignore_warnings` set to true with
-  `on_update` equal to `require_healthy`.
+  [`check_restart`][check_restart_stanza] configurations. `on_update =
+  "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
+  `check_restart` can however specify `ignore_warnings = true` with `on_update
+  = "require_healthy"`. If `on_update` is set to `ignore`, `check_restart` must
+  be omitted entirely.
 
 #### `header` Stanza
 

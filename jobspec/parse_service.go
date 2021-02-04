@@ -50,7 +50,6 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 		"task",
 		"meta",
 		"canary_meta",
-		"on_update",
 	}
 	if err := checkHCLKeys(o.Val, valid); err != nil {
 		return nil, err

@@ -678,6 +678,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 												Type:     "tcp",
 												Interval: 10 * time.Second,
 												Timeout:  2 * time.Second,
+												OnUpdate: "require_healthy",
 											},
 										},
 									},

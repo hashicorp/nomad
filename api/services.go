@@ -159,6 +159,11 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 		if s.Checks[i].FailuresBeforeCritical < 0 {
 			s.Checks[i].FailuresBeforeCritical = 0
 		}
+
+		// Inhert Service
+		if s.Checks[i].OnUpdate == "" {
+			s.Checks[i].OnUpdate = s.OnUpdate
+		}
 	}
 }
 

@@ -268,7 +268,7 @@ func (sc *ServiceCheck) validate() error {
 	case "", OnUpdateIgnore, OnUpdateRequireHealthy, OnUpdateIgnoreWarn:
 		// OK
 	default:
-		return fmt.Errorf("invalid on_update - must be %q, %q, or %q; not %q", OnUpdateRequireHealthy, OnUpdateIgnoreWarn, OnUpdateIgnore, sc.OnUpdate)
+		return fmt.Errorf("on_update must be %q, %q, or %q; got %q", OnUpdateRequireHealthy, OnUpdateIgnoreWarn, OnUpdateIgnore, sc.OnUpdate)
 	}
 
 	// Note that we cannot completely validate the Expose field yet - we do not
@@ -300,10 +300,18 @@ func (sc *ServiceCheck) validate() error {
 		return fmt.Errorf("failures_before_critical not supported for check of type %q", sc.Type)
 	}
 
-	// CheckRestart IgnoreWarnings must be true if a check has defined OnUpdate
-	// ignore_warnings
-	if sc.CheckRestart != nil && !sc.CheckRestart.IgnoreWarnings {
-		if sc.OnUpdate == OnUpdateIgnoreWarn || sc.OnUpdate == OnUpdateIgnore {
+	// Check that CheckRestart and OnUpdate do not conflict
+	if sc.CheckRestart != nil {
+		// CheckRestart and OnUpdate Ignore are incompatible If OnUpdate treats
+		// an error has healthy, and the deployment succeeds followed by check
+		// restart restarting erroring checks, the deployment is left in an odd
+		// state
+		if sc.OnUpdate == OnUpdateIgnore {
+			return fmt.Errorf("on_update value %q is not compatible with check_restart", sc.OnUpdate)
+		}
+		// CheckRestart IgnoreWarnings must be true if a check has defined OnUpdate
+		// ignore_warnings
+		if !sc.CheckRestart.IgnoreWarnings && sc.OnUpdate == OnUpdateIgnoreWarn {
 			return fmt.Errorf("on_update value %q not supported with check_restart ignore_warnings value %q", sc.OnUpdate, strconv.FormatBool(sc.CheckRestart.IgnoreWarnings))
 		}
 	}

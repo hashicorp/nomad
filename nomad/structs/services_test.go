@@ -150,6 +150,23 @@ func TestServiceCheck_validate_OnUpdate_CheckRestart_Conflict(t *testing.T) {
 		require.EqualError(t, err, `on_update value "ignore_warnings" not supported with check_restart ignore_warnings value "false"`)
 	})
 
+	t.Run("invalid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:     "check",
+			Type:     "script",
+			Command:  "/nothing",
+			Interval: 1 * time.Second,
+			Timeout:  2 * time.Second,
+			CheckRestart: &CheckRestart{
+				IgnoreWarnings: false,
+				Limit:          3,
+				Grace:          5 * time.Second,
+			},
+			OnUpdate: "ignore",
+		}).validate()
+		require.EqualError(t, err, `on_update value "ignore" is not compatible with check_restart`)
+	})
+
 	t.Run("valid", func(t *testing.T) {
 		err := (&ServiceCheck{
 			Name:     "check",
