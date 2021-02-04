@@ -35,6 +35,14 @@ func TestScalingPolicyInfoCommand_Run(t *testing.T) {
 	cmd := &ScalingPolicyInfoCommand{Meta: Meta{Ui: ui}}
 
 	// Calling without the policyID should result in an error.
+	if code := cmd.Run([]string{"-address=" + url}); code != 1 {
+		t.Fatalf("expected cmd run exit code 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "This command takes one of the following argument conditions") {
+		t.Fatalf("expected argument error within output: %v", out)
+	}
+
+	// Calling with more than one argument should result in an error.
 	if code := cmd.Run([]string{"-address=" + url, "first", "second"}); code != 1 {
 		t.Fatalf("expected cmd run exit code 1, got: %d", code)
 	}
@@ -80,6 +88,14 @@ func TestScalingPolicyInfoCommand_Run(t *testing.T) {
 	}
 
 	if code := cmd.Run([]string{"-address=" + url, policies[0].ID}); code != 0 {
+		t.Fatalf("expected cmd run exit code 0, got: %d", code)
+	}
+	if out := ui.OutputWriter.String(); !strings.Contains(out, "Policy:") {
+		t.Fatalf("expected policy ID within output: %v", out)
+	}
+
+	prefix := policies[0].ID[:2]
+	if code := cmd.Run([]string{"-address=" + url, prefix}); code != 0 {
 		t.Fatalf("expected cmd run exit code 0, got: %d", code)
 	}
 	if out := ui.OutputWriter.String(); !strings.Contains(out, "Policy:") {

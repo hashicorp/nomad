@@ -42,6 +42,9 @@ Policy Info Options:
   -type
     Filter scaling policies by type.
 
+  -verbose
+    Display full information.
+
   -json
     Output the scaling policy in its JSON format.
 
@@ -59,10 +62,11 @@ func (s *ScalingPolicyListCommand) Synopsis() string {
 func (s *ScalingPolicyListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(s.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-job":  complete.PredictNothing,
-			"-type": complete.PredictNothing,
-			"-json": complete.PredictNothing,
-			"-t":    complete.PredictAnything,
+			"-verbose": complete.PredictNothing,
+			"-job":     complete.PredictNothing,
+			"-type":    complete.PredictNothing,
+			"-json":    complete.PredictNothing,
+			"-t":       complete.PredictAnything,
 		})
 }
 
@@ -71,11 +75,12 @@ func (s *ScalingPolicyListCommand) Name() string { return "scaling policy list" 
 
 // Run satisfies the cli.Command Run function.
 func (s *ScalingPolicyListCommand) Run(args []string) int {
-	var json bool
+	var json, verbose bool
 	var tmpl, policyType, job string
 
 	flags := s.Meta.FlagSet(s.Name(), FlagSetClient)
 	flags.Usage = func() { s.Ui.Output(s.Help()) }
+	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
 	flags.StringVar(&policyType, "type", "", "")
@@ -88,6 +93,12 @@ func (s *ScalingPolicyListCommand) Run(args []string) int {
 		s.Ui.Error("This command takes no arguments")
 		s.Ui.Error(commandErrorText(s))
 		return 1
+	}
+
+	// Truncate the id unless full length is requested
+	length := shortId
+	if verbose {
+		length = fullId
 	}
 
 	// Get the HTTP client.
@@ -122,12 +133,12 @@ func (s *ScalingPolicyListCommand) Run(args []string) int {
 		return 0
 	}
 
-	output := formatScalingPolicies(policies)
+	output := formatScalingPolicies(policies, length)
 	s.Ui.Output(output)
 	return 0
 }
 
-func formatScalingPolicies(stubs []*api.ScalingPolicyListStub) string {
+func formatScalingPolicies(stubs []*api.ScalingPolicyListStub, uuidLength int) string {
 	if len(stubs) == 0 {
 		return "No policies found"
 	}
@@ -143,7 +154,10 @@ func formatScalingPolicies(stubs []*api.ScalingPolicyListStub) string {
 	for _, policy := range sortedPolicies.policies {
 		policies = append(policies, fmt.Sprintf(
 			"%s|%v|%s|%s",
-			policy.ID, policy.Enabled, policy.Type, formatScalingPolicyTarget(policy.Target)))
+			limit(policy.ID, uuidLength),
+			policy.Enabled,
+			policy.Type,
+			formatScalingPolicyTarget(policy.Target)))
 	}
 	return formatList(policies)
 }
