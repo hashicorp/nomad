@@ -96,14 +96,15 @@ module('Unit | Utility | generate-exec-url', function(hooks) {
     );
   });
 
-  test('it includes query parameters from the current route', function(assert) {
-    this.router.currentRoute.queryParams = {
-      namespace: 'a-namespace',
-      region: 'a-region',
-    };
-
+  test('it includes job namespace and region when they exist', function(assert) {
     generateExecUrl(this.router, {
-      job: { plainId: 'job-name' },
+      job: {
+        namespace: {
+          name: 'a-namespace',
+        },
+        plainId: 'job-name',
+        region: 'a-region',
+      },
       allocation: { shortId: 'id', taskGroup: { name: 'task-group-name', tasks: [0, 1] } },
     });
 
