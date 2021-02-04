@@ -293,7 +293,7 @@ func (s *HTTPServer) LicenseRequest(resp http.ResponseWriter, req *http.Request)
 	switch req.Method {
 	case "GET":
 		resp.WriteHeader(http.StatusNoContent)
-		return "", nil
+		return nil, nil
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
