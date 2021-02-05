@@ -20,7 +20,7 @@ export default function NotFound() {
     <div className={s.root}>
       <h1>Page Not Found</h1>
       <p>
-        We&lsquo;re sorry but we can&lsquo;t find the page you&lsquo;re looking
+        We're sorry but we can't find the page you're looking
         for.
       </p>
       <p>

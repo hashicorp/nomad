@@ -169,9 +169,9 @@ below.
 target "aws-asg" {
   driver = "aws-asg"
   config = {
-    aws_region        = "eu-west-3"
-    aws_access_key_id = "AKIAIOSFODNN7EXAMPLE"
-    aws_secret_key_id = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    aws_region            = "eu-west-3"
+    aws_access_key_id     = "AKIAIOSFODNN7EXAMPLE"
+    aws_secret_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
   }
 }
 ```
@@ -191,7 +191,7 @@ node {
 - `aws_access_key_id` `(string: "")` - The AWS access key ID used to authenticate
   with the AWS API.
 
-- `aws_secret_key_id` `(string: "")` - The AWS secret key ID used to authenticate
+- `aws_secret_access_key` `(string: "")` - The AWS secret key ID used to authenticate
   with the AWS API.
 
 - `aws_session_token` `(string: "")` - The AWS session token used to authenticate

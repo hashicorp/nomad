@@ -102,6 +102,7 @@ func searchContexts(aclObj *acl.ACL, namespace string, context structs.Context) 
 		acl.NamespaceCapabilityListJobs,
 		acl.NamespaceCapabilityReadJob)
 	volRead := allowVolume(aclObj, namespace)
+	policyRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListScalingPolicies)
 
 	// Filter contexts down to those the ACL grants access to
 	available := make([]structs.Context, 0, len(all))
@@ -109,6 +110,10 @@ func searchContexts(aclObj *acl.ACL, namespace string, context structs.Context) 
 		switch c {
 		case structs.Allocs, structs.Jobs, structs.Evals, structs.Deployments:
 			if jobRead {
+				available = append(available, c)
+			}
+		case structs.ScalingPolicies:
+			if policyRead || jobRead {
 				available = append(available, c)
 			}
 		case structs.Namespaces:

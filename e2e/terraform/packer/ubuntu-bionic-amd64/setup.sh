@@ -102,7 +102,7 @@ echo "Installing Docker"
 sudo apt-get install -y docker-ce
 
 echo "Installing Java"
-sudo apt-get install -y openjdk-8-jdk
+sudo apt-get install -y openjdk-14-jdk-headless
 
 echo "Installing CNI plugins"
 sudo mkdir -p /opt/cni/bin
@@ -163,6 +163,6 @@ export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
 export CONSUL_HTTP_ADDR=$IP_ADDRESS:8500
 export VAULT_ADDR=http://$IP_ADDRESS:8200
 export NOMAD_ADDR=http://$IP_ADDRESS:4646
-export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre
+export JAVA_HOME=/usr/lib/jvm/java-14-openjdk-amd64/bin
 
 EOF

@@ -22,7 +22,7 @@ export default function ResourcesPage() {
               </p>
               <p>
                 This is a collection of resources for joining our community and
-                learning Nomad&apos;s real world use-cases.
+                learning Nomad's real world use-cases.
               </p>
               <p>
                 <strong>Discussion Forum</strong>

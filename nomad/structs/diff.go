@@ -316,6 +316,11 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		diff.Objects = append(diff.Objects, sDiffs...)
 	}
 
+	// Volumes diff
+	if vDiffs := volumeDiffs(tg.Volumes, other.Volumes, contextual); vDiffs != nil {
+		diff.Objects = append(diff.Objects, vDiffs...)
+	}
+
 	// Tasks diff
 	tasks, err := taskDiffs(tg.Tasks, other.Tasks, contextual)
 	if err != nil {
@@ -1556,6 +1561,103 @@ Loop:
 		return nil
 	}
 
+	return diff
+}
+
+// volumeDiffs returns the diff of a group's volume requests. If contextual
+// diff is enabled, all fields will be returned, even if no diff occurred.
+func volumeDiffs(oldVR, newVR map[string]*VolumeRequest, contextual bool) []*ObjectDiff {
+	if reflect.DeepEqual(oldVR, newVR) {
+		return nil
+	}
+
+	diffs := []*ObjectDiff{} //Type: DiffTypeNone, Name: "Volumes"}
+	seen := map[string]bool{}
+	for name, oReq := range oldVR {
+		nReq := newVR[name] // might be nil, that's ok
+		seen[name] = true
+		diff := volumeDiff(oReq, nReq, contextual)
+		if diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+	for name, nReq := range newVR {
+		if !seen[name] {
+			// we know old is nil at this point, or we'd have hit it before
+			diff := volumeDiff(nil, nReq, contextual)
+			if diff != nil {
+				diffs = append(diffs, diff)
+			}
+		}
+	}
+	return diffs
+}
+
+// volumeDiff returns the diff between two volume requests. If contextual diff
+// is enabled, all fields will be returned, even if no diff occurred.
+func volumeDiff(oldVR, newVR *VolumeRequest, contextual bool) *ObjectDiff {
+	if reflect.DeepEqual(oldVR, newVR) {
+		return nil
+	}
+
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Volume"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if oldVR == nil {
+		oldVR = &VolumeRequest{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(newVR, nil, true)
+	} else if newVR == nil {
+		newVR = &VolumeRequest{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(oldVR, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(oldVR, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(newVR, nil, true)
+	}
+
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	mOptsDiff := volumeCSIMountOptionsDiff(oldVR.MountOptions, newVR.MountOptions, contextual)
+	if mOptsDiff != nil {
+		diff.Objects = append(diff.Objects, mOptsDiff)
+	}
+
+	return diff
+}
+
+// volumeCSIMountOptionsDiff returns the diff between volume mount options. If
+// contextual diff is enabled, all fields will be returned, even if no diff
+// occurred.
+func volumeCSIMountOptionsDiff(oldMO, newMO *CSIMountOptions, contextual bool) *ObjectDiff {
+	if reflect.DeepEqual(oldMO, newMO) {
+		return nil
+	}
+
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "MountOptions"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if oldMO == nil && newMO != nil {
+		oldMO = &CSIMountOptions{}
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(newMO, nil, true)
+	} else if oldMO == nil && newMO != nil {
+		newMO = &CSIMountOptions{}
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(oldMO, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(oldMO, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(newMO, nil, true)
+	}
+
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	setDiff := stringSetDiff(oldMO.MountFlags, newMO.MountFlags, "MountFlags", contextual)
+	if setDiff != nil {
+		diff.Objects = append(diff.Objects, setDiff)
+	}
 	return diff
 }
 
