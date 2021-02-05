@@ -255,8 +255,8 @@ testing.
   value such as 30s.
 
 - `log_rotate_max_files` `(int: 0)` - Specifies the maximum number of older log
-  file archives to keep. If 0 no files are ever deleted. The number of log files
-  is greater than the log_rotate_max_files by 1.
+  file archives to keep. If 0 no files are ever deleted. Please note the number
+  of log files will be 1 greater than the log_rotate_max_files value.
 
 - `name` `(string: [hostname])` - Specifies the name of the local node. This
   value is used to identify individual agents. When specified on a server, the
