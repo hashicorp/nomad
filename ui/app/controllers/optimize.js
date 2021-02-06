@@ -62,10 +62,7 @@ export default class OptimizeController extends Controller {
   @selection('qpDatacenter') selectionDatacenter;
   @selection('qpPrefix') selectionPrefix;
 
-  optionsType = [
-    { key: 'service', label: 'Service' },
-    { key: 'system', label: 'System' },
-  ];
+  optionsType = [{ key: 'service', label: 'Service' }, { key: 'system', label: 'System' }];
 
   optionsStatus = [
     { key: 'pending', label: 'Pending' },

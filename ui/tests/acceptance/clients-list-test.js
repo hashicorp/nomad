@@ -146,11 +146,7 @@ module('Acceptance | clients list', function(hooks) {
 
     assert.equal(ClientsList.nodes[1].compositeStatus.text, 'initializing');
     assert.equal(ClientsList.nodes[2].compositeStatus.text, 'down');
-    assert.equal(
-      ClientsList.nodes[2].compositeStatus.text,
-      'down',
-      'down takes priority over ineligible'
-    );
+    assert.equal(ClientsList.nodes[2].compositeStatus.text, 'down', 'down takes priority over ineligible');
 
     assert.equal(ClientsList.nodes[4].compositeStatus.text, 'ineligible');
     assert.ok(ClientsList.nodes[4].compositeStatus.isWarning, 'expected warning class');
