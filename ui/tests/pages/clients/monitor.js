@@ -1,27 +1,9 @@
-import {
-  create,
-  attribute,
-  clickable,
-  collection,
-  isPresent,
-  text,
-  visitable,
-} from 'ember-cli-page-object';
+import { create, clickable, isPresent, text, visitable } from 'ember-cli-page-object';
 import { run } from '@ember/runloop';
 import { selectOpen, selectOpenChoose } from '../../utils/ember-power-select-extensions';
 
 export default create({
   visit: visitable('/clients/:id/monitor'),
-
-  breadcrumbs: collection('[data-test-breadcrumb]', {
-    id: attribute('data-test-breadcrumb'),
-    text: text(),
-    visit: clickable(),
-  }),
-
-  breadcrumbFor(id) {
-    return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
-  },
 
   logsArePresent: isPresent('[data-test-log-box]'),
 

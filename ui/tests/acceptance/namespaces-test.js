@@ -69,7 +69,7 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
     );
     assert.equal(
       JobsList.namespaceSwitcher.options.objectAt(0).label,
-      'Default Namespace',
+      'Namespace: default',
       'The first namespace is always the default one'
     );
 
@@ -79,7 +79,11 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
       if (index === 0) return;
 
       const namespace = sortedNamespaces[index - 1];
-      assert.equal(option.label, namespace.name, `index ${index}: ${namespace.name}`);
+      assert.equal(
+        option.label,
+        `Namespace: ${namespace.name}`,
+        `index ${index}: ${namespace.name}`
+      );
     });
   });
 

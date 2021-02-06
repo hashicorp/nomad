@@ -17,9 +17,11 @@ import (
 	"time"
 
 	ctestutil "github.com/hashicorp/consul/sdk/testutil"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -55,6 +57,9 @@ type MockTaskHooks struct {
 
 	Events      []*structs.TaskEvent
 	EmitEventCh chan *structs.TaskEvent
+
+	// hasHandle can be set to simulate restoring a task after client restart
+	hasHandle bool
 }
 
 func NewMockTaskHooks() *MockTaskHooks {
@@ -94,6 +99,10 @@ func (m *MockTaskHooks) Kill(ctx context.Context, event *structs.TaskEvent) erro
 	default:
 	}
 	return nil
+}
+
+func (m *MockTaskHooks) IsRunning() bool {
+	return m.hasHandle
 }
 
 func (m *MockTaskHooks) EmitEvent(event *structs.TaskEvent) {
@@ -152,6 +161,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 		t.Fatalf("Failed to make tmpdir: %v", err)
 	}
 	harness.taskDir = d
+	harness.envBuilder.SetClientTaskRoot(harness.taskDir)
 
 	if consul {
 		harness.consul, err = ctestutil.NewTestServerConfigT(t, func(c *ctestutil.TestServerConfig) {
@@ -758,6 +768,105 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 	}
 }
 
+// TestTaskTemplateManager_FirstRender_Restored tests that a task that's been
+// restored renders and triggers its change mode if the template has changed
+func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	// Make a template that will render based on a key in Vault
+	vaultPath := "secret/data/password"
+	key := "password"
+	content := "barbaz"
+	embedded := fmt.Sprintf(`{{with secret "%s"}}{{.Data.data.%s}}{{end}}`, vaultPath, key)
+	file := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: embedded,
+		DestPath:     file,
+		ChangeMode:   structs.TemplateChangeModeRestart,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, false, true)
+	harness.start(t)
+	defer harness.stop()
+
+	// Ensure no unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+		require.Fail("Task unblock should not have been called")
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+	}
+
+	// Write the secret to Vault
+	logical := harness.vault.Client.Logical()
+	_, err := logical.Write(vaultPath, map[string]interface{}{"data": map[string]interface{}{key: content}})
+	require.NoError(err)
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		require.Fail("Task unblock should have been called")
+	}
+
+	// Check the file is there
+	path := filepath.Join(harness.taskDir, file)
+	raw, err := ioutil.ReadFile(path)
+	require.NoError(err, "Failed to read rendered template from %q", path)
+	require.Equal(content, string(raw), "Unexpected template data; got %s, want %q", raw, content)
+
+	// task is now running
+	harness.mockHooks.hasHandle = true
+
+	// simulate a client restart
+	harness.manager.Stop()
+	harness.mockHooks.UnblockCh = make(chan struct{}, 1)
+	harness.start(t)
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		require.Fail("Task unblock should have been called")
+	}
+
+	select {
+	case <-harness.mockHooks.RestartCh:
+		require.Fail("should not have restarted", harness.mockHooks)
+	case <-harness.mockHooks.SignalCh:
+		require.Fail("should not have restarted", harness.mockHooks)
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+	}
+
+	// simulate a client restart and TTL expiry
+	harness.manager.Stop()
+	content = "bazbar"
+	_, err = logical.Write(vaultPath, map[string]interface{}{"data": map[string]interface{}{key: content}})
+	require.NoError(err)
+	harness.mockHooks.UnblockCh = make(chan struct{}, 1)
+	harness.start(t)
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		require.Fail("Task unblock should have been called")
+	}
+
+	// Wait for restart
+	timeout := time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second)
+OUTER:
+	for {
+		select {
+		case <-harness.mockHooks.RestartCh:
+			break OUTER
+		case <-harness.mockHooks.SignalCh:
+			require.Fail("Signal with restart policy", harness.mockHooks)
+		case <-timeout:
+			require.Fail("Should have received a restart", harness.mockHooks)
+		}
+	}
+}
+
 func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 	t.Parallel()
 	// Make a template that will render based on a key in Consul
@@ -1192,7 +1301,8 @@ func TestTaskTemplateManager_Env_Missing(t *testing.T) {
 		},
 	}
 
-	if vars, err := loadTemplateEnv(templates, d, taskenv.NewEmptyTaskEnv()); err == nil {
+	taskEnv := taskenv.NewEmptyBuilder().SetClientTaskRoot(d).Build()
+	if vars, err := loadTemplateEnv(templates, taskEnv); err == nil {
 		t.Fatalf("expected an error but instead got env vars: %#v", vars)
 	}
 }
@@ -1226,9 +1336,12 @@ func TestTaskTemplateManager_Env_InterpolatedDest(t *testing.T) {
 	// Build the env
 	taskEnv := taskenv.NewTaskEnv(
 		map[string]string{"NOMAD_META_path": "exists"},
-		map[string]string{}, map[string]string{})
+		map[string]string{"NOMAD_META_path": "exists"},
+		map[string]string{},
+		map[string]string{},
+		d, "")
 
-	vars, err := loadTemplateEnv(templates, d, taskEnv)
+	vars, err := loadTemplateEnv(templates, taskEnv)
 	require.NoError(err)
 	require.Contains(vars, "FOO")
 	require.Equal(vars["FOO"], "bar")
@@ -1267,7 +1380,8 @@ func TestTaskTemplateManager_Env_Multi(t *testing.T) {
 		},
 	}
 
-	vars, err := loadTemplateEnv(templates, d, taskenv.NewEmptyTaskEnv())
+	taskEnv := taskenv.NewEmptyBuilder().SetClientTaskRoot(d).Build()
+	vars, err := loadTemplateEnv(templates, taskEnv)
 	if err != nil {
 		t.Fatalf("expected no error: %v", err)
 	}
@@ -1450,6 +1564,256 @@ func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
 	ctconf, err := newRunnerConfig(config, ctmplMapping)
 	assert.Nil(err, "Building Runner Config")
 	assert.Equal(overriddenNS, *ctconf.Vault.Namespace, "Vault Namespace Value")
+}
+
+// TestTaskTemplateManager_Escapes asserts that when sandboxing is enabled
+// interpolated paths are not incorrectly treated as escaping the alloc dir.
+func TestTaskTemplateManager_Escapes(t *testing.T) {
+	t.Parallel()
+
+	clientConf := config.DefaultConfig()
+	require.False(t, clientConf.TemplateConfig.DisableSandbox, "expected sandbox to be disabled")
+
+	// Set a fake alloc dir to make test output more realistic
+	clientConf.AllocDir = "/fake/allocdir"
+
+	clientConf.Node = mock.Node()
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	logger := testlog.HCLogger(t)
+	allocDir := allocdir.NewAllocDir(logger, filepath.Join(clientConf.AllocDir, alloc.ID))
+	taskDir := allocDir.NewTaskDir(task.Name)
+
+	containerEnv := func() *taskenv.Builder {
+		// To emulate a Docker or exec tasks we must copy the
+		// Set{Alloc,Task,Secrets}Dir logic in taskrunner/task_dir_hook.go
+		b := taskenv.NewBuilder(clientConf.Node, alloc, task, clientConf.Region)
+		b.SetAllocDir(allocdir.SharedAllocContainerPath)
+		b.SetTaskLocalDir(allocdir.TaskLocalContainerPath)
+		b.SetSecretsDir(allocdir.TaskSecretsContainerPath)
+		b.SetClientTaskRoot(taskDir.Dir)
+		b.SetClientSharedAllocDir(taskDir.SharedAllocDir)
+		b.SetClientTaskLocalDir(taskDir.LocalDir)
+		b.SetClientTaskSecretsDir(taskDir.SecretsDir)
+		return b
+	}
+
+	rawExecEnv := func() *taskenv.Builder {
+		// To emulate a unisolated tasks we must copy the
+		// Set{Alloc,Task,Secrets}Dir logic in taskrunner/task_dir_hook.go
+		b := taskenv.NewBuilder(clientConf.Node, alloc, task, clientConf.Region)
+		b.SetAllocDir(taskDir.SharedAllocDir)
+		b.SetTaskLocalDir(taskDir.LocalDir)
+		b.SetSecretsDir(taskDir.SecretsDir)
+		b.SetClientTaskRoot(taskDir.Dir)
+		b.SetClientSharedAllocDir(taskDir.SharedAllocDir)
+		b.SetClientTaskLocalDir(taskDir.LocalDir)
+		b.SetClientTaskSecretsDir(taskDir.SecretsDir)
+		return b
+	}
+
+	cases := []struct {
+		Name   string
+		Config func() *TaskTemplateManagerConfig
+
+		// Expected paths to be returned if Err is nil
+		SourcePath string
+		DestPath   string
+
+		// Err is the expected error to be returned or nil
+		Err error
+	}{
+		{
+			Name: "ContainerOk",
+			Config: func() *TaskTemplateManagerConfig {
+				return &TaskTemplateManagerConfig{
+					ClientConfig: clientConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   containerEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "${NOMAD_TASK_DIR}/src",
+							DestPath:   "${NOMAD_SECRETS_DIR}/dst",
+						},
+					},
+				}
+			},
+			SourcePath: filepath.Join(taskDir.Dir, "local/src"),
+			DestPath:   filepath.Join(taskDir.Dir, "secrets/dst"),
+		},
+		{
+			Name: "ContainerSrcEscapesErr",
+			Config: func() *TaskTemplateManagerConfig {
+				return &TaskTemplateManagerConfig{
+					ClientConfig: clientConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   containerEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "/etc/src_escapes",
+							DestPath:   "${NOMAD_SECRETS_DIR}/dst",
+						},
+					},
+				}
+			},
+			Err: sourceEscapesErr,
+		},
+		{
+			Name: "ContainerSrcEscapesOk",
+			Config: func() *TaskTemplateManagerConfig {
+				unsafeConf := clientConf.Copy()
+				unsafeConf.TemplateConfig.DisableSandbox = true
+				return &TaskTemplateManagerConfig{
+					ClientConfig: unsafeConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   containerEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "/etc/src_escapes_ok",
+							DestPath:   "${NOMAD_SECRETS_DIR}/dst",
+						},
+					},
+				}
+			},
+			SourcePath: "/etc/src_escapes_ok",
+			DestPath:   filepath.Join(taskDir.Dir, "secrets/dst"),
+		},
+		{
+			Name: "ContainerDstAbsoluteOk",
+			Config: func() *TaskTemplateManagerConfig {
+				return &TaskTemplateManagerConfig{
+					ClientConfig: clientConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   containerEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "${NOMAD_TASK_DIR}/src",
+							DestPath:   "/etc/absolutely_relative",
+						},
+					},
+				}
+			},
+			SourcePath: filepath.Join(taskDir.Dir, "local/src"),
+			DestPath:   filepath.Join(taskDir.Dir, "etc/absolutely_relative"),
+		},
+		{
+			Name: "ContainerDstAbsoluteEscapesErr",
+			Config: func() *TaskTemplateManagerConfig {
+				return &TaskTemplateManagerConfig{
+					ClientConfig: clientConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   containerEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "${NOMAD_TASK_DIR}/src",
+							DestPath:   "../escapes",
+						},
+					},
+				}
+			},
+			Err: destEscapesErr,
+		},
+		{
+			Name: "ContainerDstAbsoluteEscapesOk",
+			Config: func() *TaskTemplateManagerConfig {
+				unsafeConf := clientConf.Copy()
+				unsafeConf.TemplateConfig.DisableSandbox = true
+				return &TaskTemplateManagerConfig{
+					ClientConfig: unsafeConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   containerEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "${NOMAD_TASK_DIR}/src",
+							DestPath:   "../escapes",
+						},
+					},
+				}
+			},
+			SourcePath: filepath.Join(taskDir.Dir, "local/src"),
+			DestPath:   filepath.Join(taskDir.Dir, "..", "escapes"),
+		},
+		//TODO: Fix this test. I *think* it should pass. The double
+		//      joining of the task dir onto the destination seems like
+		//      a bug. https://github.com/hashicorp/nomad/issues/9389
+		{
+			Name: "RawExecOk",
+			Config: func() *TaskTemplateManagerConfig {
+				return &TaskTemplateManagerConfig{
+					ClientConfig: clientConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   rawExecEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "${NOMAD_TASK_DIR}/src",
+							DestPath:   "${NOMAD_SECRETS_DIR}/dst",
+						},
+					},
+				}
+			},
+			SourcePath: filepath.Join(taskDir.Dir, "local/src"),
+			DestPath:   filepath.Join(taskDir.Dir, "secrets/dst"),
+		},
+		{
+			Name: "RawExecSrcEscapesErr",
+			Config: func() *TaskTemplateManagerConfig {
+				return &TaskTemplateManagerConfig{
+					ClientConfig: clientConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   rawExecEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "/etc/src_escapes",
+							DestPath:   "${NOMAD_SECRETS_DIR}/dst",
+						},
+					},
+				}
+			},
+			Err: sourceEscapesErr,
+		},
+		{
+			Name: "RawExecDstAbsoluteOk",
+			Config: func() *TaskTemplateManagerConfig {
+				return &TaskTemplateManagerConfig{
+					ClientConfig: clientConf,
+					TaskDir:      taskDir.Dir,
+					EnvBuilder:   rawExecEnv(),
+					Templates: []*structs.Template{
+						{
+							SourcePath: "${NOMAD_TASK_DIR}/src",
+							DestPath:   "/etc/absolutely_relative",
+						},
+					},
+				}
+			},
+			SourcePath: filepath.Join(taskDir.Dir, "local/src"),
+			DestPath:   filepath.Join(taskDir.Dir, "etc/absolutely_relative"),
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			config := tc.Config()
+			mapping, err := parseTemplateConfigs(config)
+			if tc.Err == nil {
+				// Ok path
+				require.NoError(t, err)
+				require.NotNil(t, mapping)
+				require.Len(t, mapping, 1)
+				for k := range mapping {
+					require.Equal(t, tc.SourcePath, *k.Source)
+					require.Equal(t, tc.DestPath, *k.Destination)
+					t.Logf("Rendering %s => %s", *k.Source, *k.Destination)
+				}
+			} else {
+				// Err path
+				assert.EqualError(t, err, tc.Err.Error())
+				require.Nil(t, mapping)
+			}
+
+		})
+	}
 }
 
 func TestTaskTemplateManager_BlockedEvents(t *testing.T) {

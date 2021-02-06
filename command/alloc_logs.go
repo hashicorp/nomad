@@ -26,9 +26,12 @@ Alias: nomad logs
 
   Streams the stdout/stderr of the given allocation and task.
 
+  When ACLs are enabled, this command requires a token with the 'read-logs',
+  'read-job', and 'list-jobs' capabilities for the allocation's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Logs Specific Options:
 
@@ -55,7 +58,12 @@ Logs Specific Options:
 
   -c
     Sets the tail location in number of bytes relative to the end of the logs.
-  `
+
+  Note that the -no-color option applies to Nomad's own output. If the task's
+  logs include terminal escape sequences for color codes, Nomad will not
+  remove them.
+`
+
 	return strings.TrimSpace(helpText)
 }
 
@@ -136,7 +144,7 @@ func (l *AllocLogsCommand) Run(args []string) int {
 	// If -job is specified, use random allocation, otherwise use provided allocation
 	allocID := args[0]
 	if job {
-		allocID, err = getRandomJobAlloc(client, args[0])
+		allocID, err = getRandomJobAllocID(client, args[0])
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
@@ -150,7 +158,7 @@ func (l *AllocLogsCommand) Run(args []string) int {
 	}
 	// Query the allocation info
 	if len(allocID) == 1 {
-		l.Ui.Error(fmt.Sprintf("Alloc ID must contain at least two characters."))
+		l.Ui.Error("Alloc ID must contain at least two characters.")
 		return 1
 	}
 

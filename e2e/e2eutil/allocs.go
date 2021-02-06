@@ -9,17 +9,23 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 )
 
 // WaitForAllocStatusExpected polls 'nomad job status' and exactly compares
 // the status of all allocations (including any previous versions) against the
 // expected list.
 func WaitForAllocStatusExpected(jobID, ns string, expected []string) error {
-	return WaitForAllocStatusComparison(
+	err := WaitForAllocStatusComparison(
 		func() ([]string, error) { return AllocStatuses(jobID, ns) },
 		func(got []string) bool { return reflect.DeepEqual(got, expected) },
 		nil,
 	)
+	if err != nil {
+		allocs, _ := AllocsForJob(jobID, ns)
+		err = fmt.Errorf("%v\nallocs: %v", err, pretty.Sprint(allocs))
+	}
+	return err
 }
 
 // WaitForAllocStatusComparison is a convenience wrapper that polls the query
@@ -186,6 +192,15 @@ func AllocLogs(allocID string, logStream LogStream) (string, error) {
 	return Command(cmd[0], cmd[1:]...)
 }
 
+func AllocTaskLogs(allocID, task string, logStream LogStream) (string, error) {
+	cmd := []string{"nomad", "alloc", "logs"}
+	if logStream == LogsStdErr {
+		cmd = append(cmd, "-stderr")
+	}
+	cmd = append(cmd, allocID, task)
+	return Command(cmd[0], cmd[1:]...)
+}
+
 // AllocExec is a convenience wrapper that runs 'nomad alloc exec' with the
 // passed execCmd via '/bin/sh -c', retrying if the task isn't ready
 func AllocExec(allocID, taskID, execCmd, ns string, wc *WaitConfig) (string, error) {
@@ -208,7 +223,7 @@ func AllocExec(allocID, taskID, execCmd, ns string, wc *WaitConfig) (string, err
 		got, err = Command(cmd[0], cmd[1:]...)
 		return err == nil, err
 	}, func(e error) {
-		err = fmt.Errorf("exec failed: '%s'", strings.Join(cmd, " "))
+		err = fmt.Errorf("exec failed: '%s': %v\nGot: %v", strings.Join(cmd, " "), e, got)
 	})
 	return got, err
 }

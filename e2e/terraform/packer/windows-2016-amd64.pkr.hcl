@@ -1,7 +1,15 @@
-locals { timestamp = regex_replace(timestamp(), "[- TZ:]", "") }
+variable "build_sha" {
+  type        = string
+  description = "the revision of the packer scripts building this image"
+}
+
+locals {
+  timestamp = regex_replace(timestamp(), "[- TZ:]", "")
+  version   = "v2"
+}
 
 source "amazon-ebs" "latest_windows_2016" {
-  ami_name       = "nomad-e2e-windows-2016-amd64-${local.timestamp}"
+  ami_name       = "nomad-e2e-${local.version}-windows-2016-amd64-${local.timestamp}"
   communicator   = "ssh"
   instance_type  = "t2.medium"
   region         = "us-east-1"
@@ -20,7 +28,8 @@ source "amazon-ebs" "latest_windows_2016" {
   }
 
   tags = {
-    OS = "Windows2016"
+    OS         = "Windows2016"
+    BuilderSha = var.build_sha
   }
 }
 
@@ -35,11 +44,6 @@ build {
       "windows-2016-amd64/install-docker.ps1",
       "windows-2016-amd64/install-consul.ps1"
     ]
-  }
-
-  provisioner "file" {
-    destination = "/opt"
-    source      = "../config"
   }
 
   provisioner "file" {

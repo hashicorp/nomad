@@ -1,0 +1,45 @@
+---
+layout: docs
+page_title: 'Commands: scaling policy list'
+sidebar_title: policy list
+description: |
+  Display all Nomad scaling policies.
+---
+
+# Command: scaling policy list
+
+List is used to list all scaling policies stored in Nomad.
+
+## Usage
+
+```plaintext
+nomad scaling policy list [options]
+```
+
+If ACLs are enabled, this command requires a token with the `read-job` and
+`list-jobs` capabilities for the namespace of all policies. Any namespaces
+that the token does not have access to will have its policies filtered from
+the results.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Policy List Options
+
+- `-job` : Specifies the job ID to filter the scaling policies list by.
+- `-type` : Filter scaling policies by type.
+- `-json` : Output the scaling policy list in its JSON format.
+- `-t` : Format and display the scaling policy list using a Go template.
+
+## Examples
+
+List all tracked scaling policies:
+
+```shell-session
+$ nomad scaling policy list
+
+ID                                    Enabled  Target
+b2c64295-4315-2fdc-6158-a27156808729  true     Namespace:default,Job:example,Group:cache,Task:redis
+c355d0ec-7aa1-2604-449d-4ec79c813d2c  true     Namespace:default,Job:webapp,Group:demo,Task:webapp
+```

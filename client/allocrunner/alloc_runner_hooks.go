@@ -360,3 +360,28 @@ func (ar *allocRunner) shutdownHooks() {
 		}
 	}
 }
+
+func (ar *allocRunner) taskRestartHooks() {
+	for _, hook := range ar.runnerHooks {
+		re, ok := hook.(interfaces.RunnerTaskRestartHook)
+		if !ok {
+			continue
+		}
+
+		name := re.Name()
+		var start time.Time
+		if ar.logger.IsTrace() {
+			start = time.Now()
+			ar.logger.Trace("running alloc task restart hook",
+				"name", name, "start", start)
+		}
+
+		re.PreTaskRestart()
+
+		if ar.logger.IsTrace() {
+			end := time.Now()
+			ar.logger.Trace("finished alloc task restart hook",
+				"name", name, "end", end, "duration", end.Sub(start))
+		}
+	}
+}

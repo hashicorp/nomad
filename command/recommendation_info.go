@@ -24,9 +24,12 @@ Usage: nomad recommendation info [options] <recommendation_id>
 
   Info is used to read the specified recommendation.
 
+  When ACLs are enabled, this command requires a token with the 'read-job'
+  capability for the recommendation's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Recommendation Info Options:
 

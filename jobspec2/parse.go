@@ -82,27 +82,18 @@ func (c *ParseConfig) normalize() {
 }
 
 func decode(c *jobConfig) error {
-	var file *hcl.File
-	var diags hcl.Diagnostics
+	config := c.ParseConfig
 
-	pc := c.ParseConfig
+	file, diags := parseHCLOrJSON(config.Body, config.Path)
 
-	if !isJSON(pc.Body) {
-		file, diags = hclsyntax.ParseConfig(pc.Body, pc.Path, hcl.Pos{Line: 1, Column: 1})
-	} else {
-		file, diags = hcljson.Parse(pc.Body, pc.Path)
-
+	for _, varFile := range config.VarFiles {
+		parsedVarFile, ds := parseFile(varFile)
+		config.parsedVarFiles = append(config.parsedVarFiles, parsedVarFile)
+		diags = append(diags, ds...)
 	}
 
-	parsedVarFiles, mdiags := parseVarFiles(pc.VarFiles)
-	pc.parsedVarFiles = parsedVarFiles
-	diags = append(diags, mdiags...)
+	diags = append(diags, c.decodeBody(file.Body)...)
 
-	if diags.HasErrors() {
-		return diags
-	}
-
-	diags = c.decodeBody(file.Body)
 	if diags.HasErrors() {
 		var str strings.Builder
 		for i, diag := range diags {
@@ -113,45 +104,39 @@ func decode(c *jobConfig) error {
 		}
 		return errors.New(str.String())
 	}
+
 	diags = append(diags, decodeMapInterfaceType(&c.Job, c.EvalContext())...)
 	diags = append(diags, decodeMapInterfaceType(&c.Tasks, c.EvalContext())...)
 	diags = append(diags, decodeMapInterfaceType(&c.Vault, c.EvalContext())...)
+
+	if diags.HasErrors() {
+		return diags
+	}
+
 	return nil
 }
 
-func parseVarFiles(paths []string) ([]*hcl.File, hcl.Diagnostics) {
-	if len(paths) == 0 {
-		return nil, nil
-	}
-
-	files := make([]*hcl.File, 0, len(paths))
-	var diags hcl.Diagnostics
-
-	for _, p := range paths {
-		body, err := ioutil.ReadFile(p)
-		if err != nil {
-			diags = append(diags, &hcl.Diagnostic{
+func parseFile(path string) (*hcl.File, hcl.Diagnostics) {
+	body, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, hcl.Diagnostics{
+			&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Failed to read file",
-				Detail:   fmt.Sprintf("failed to read %q: %v", p, err),
-			})
-			continue
+				Detail:   fmt.Sprintf("failed to read %q: %v", path, err),
+			},
 		}
-
-		var file *hcl.File
-		var mdiags hcl.Diagnostics
-		if !isJSON(body) {
-			file, mdiags = hclsyntax.ParseConfig(body, p, hcl.Pos{Line: 1, Column: 1})
-		} else {
-			file, mdiags = hcljson.Parse(body, p)
-
-		}
-
-		files = append(files, file)
-		diags = append(diags, mdiags...)
 	}
 
-	return files, diags
+	return parseHCLOrJSON(body, path)
+}
+
+func parseHCLOrJSON(src []byte, filename string) (*hcl.File, hcl.Diagnostics) {
+	if isJSON(src) {
+		return hcljson.Parse(src, filename)
+	}
+
+	return hclsyntax.ParseConfig(src, filename, hcl.Pos{Line: 1, Column: 1})
 }
 
 func isJSON(src []byte) bool {

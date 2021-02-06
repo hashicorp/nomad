@@ -1,0 +1,157 @@
+---
+layout: api
+page_title: Scheduler - Operator - HTTP API
+sidebar_title: Scheduler
+description: |-
+  The /operator/scheduler endpoints provide tools for management of Nomad server scheduler settings.
+---
+
+# Scheduler Operator HTTP API
+
+The `/operator/scheduler` endpoints provide tools for management of Nomad server scheduler settings.
+
+## Read Scheduler Configuration
+
+This endpoint retrieves the latest Scheduler configuration. This API was introduced in
+Nomad 0.9 and currently supports enabling/disabling preemption. More options may be added in
+the future.
+
+| Method | Path                                   | Produces           |
+| ------ | -------------------------------------- | ------------------ |
+| `GET`  | `/v1/operator/scheduler/configuration` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required    |
+| ---------------- | --------------- |
+| `NO`             | `operator:read` |
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/operator/scheduler/configuration
+```
+
+### Sample Response
+
+```json
+{
+  "Index": 5,
+  "KnownLeader": true,
+  "LastContact": 0,
+  "SchedulerConfig": {
+    "CreateIndex": 5,
+    "ModifyIndex": 5,
+    "SchedulerAlgorithm": "spread",
+    "PreemptionConfig": {
+      "SystemSchedulerEnabled": true,
+      "BatchSchedulerEnabled": false,
+      "ServiceSchedulerEnabled": false
+    }
+  }
+}
+```
+
+#### Field Reference
+
+- `Index` `(int)` - The `Index` value is the Raft index corresponding to this
+  configuration.
+
+- `SchedulerConfig` `(SchedulerConfig)` - The returned `SchedulerConfig` object has configuration
+  settings mentioned below.
+
+  - `SchedulerAlgorithm` `(string: "binpack")` - Specifies whether scheduler binpacks or spreads allocations on available nodes.
+
+  - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
+
+    - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
+      this defaults to true.
+
+    - `BatchSchedulerEnabled` `(bool: false)` - Specifies whether preemption for batch jobs is enabled. Note that
+      this defaults to false and must be explicitly enabled.
+
+    - `ServiceSchedulerEnabled` `(bool: false)` - Specifies whether preemption for service jobs is enabled. Note that
+      this defaults to false and must be explicitly enabled.
+
+  - `CreateIndex` - The Raft index at which the config was created.
+  - `ModifyIndex` - The Raft index at which the config was modified.
+
+## Update Scheduler Configuration
+
+This endpoint updates the scheduler configuration of the cluster.
+
+| Method        | Path                                   | Produces           |
+| ------------- | -------------------------------------- | ------------------ |
+| `PUT`, `POST` | `/v1/operator/scheduler/configuration` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required     |
+| ---------------- | ---------------- |
+| `NO`             | `operator:write` |
+
+### Bootstrap Configuration Element
+
+The [`default_scheduler_config`][] attribute of the server stanza will provide a
+starting value for this configuration. Once bootstrapped, the value in the
+server state is authoritative.
+
+### Parameters
+
+- `cas` `(int: 0)` - Specifies to use a Check-And-Set operation. The update will
+  only happen if the given index matches the `ModifyIndex` of the configuration
+  at the time of writing.
+
+### Sample Payload
+
+```json
+{
+  "SchedulerAlgorithm": "spread",
+  "PreemptionConfig": {
+    "SystemSchedulerEnabled": true,
+    "BatchSchedulerEnabled": false,
+    "ServiceSchedulerEnabled": true
+  }
+}
+```
+
+- `SchedulerAlgorithm` `(string: "binpack")` - Specifies whether scheduler
+  binpacks or spreads allocations on available nodes. Possible values are
+  `"binpack"` and `"spread"`
+
+- `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for
+  various schedulers.
+
+  - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for
+    system jobs is enabled. Note that if this is set to true, then system jobs
+    can preempt any other jobs.
+
+  - `BatchSchedulerEnabled` `(bool: false)` - Specifies
+    whether preemption for batch jobs is enabled. Note that if this is set to
+    true, then batch jobs can preempt any other jobs.
+
+  - `ServiceSchedulerEnabled` `(bool: false)` - Specifies
+    whether preemption for service jobs is enabled. Note that if this is set to
+    true, then service jobs can preempt any other jobs.
+
+### Sample Response
+
+```json
+{
+  "Updated": false,
+  "Index": 15
+}
+```
+
+- `Updated` - Indicates that the configuration was updated when a `cas` value is
+  provided. For non-CAS requests, this field will be false even though the
+  update is applied.
+
+- `Index` - Current Raft index when the request was received.
+
+[`default_scheduler_config`]: /docs/configuration/server#default_scheduler_config

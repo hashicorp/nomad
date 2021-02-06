@@ -46,9 +46,13 @@ Usage: nomad recommendation dismiss [options] <recommendation_ids>
 
   Dismiss one or more Nomad recommendations.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job',
+  'read-job', and 'submit-recommendation' capabilities for the
+  recommendation's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault)
 	return strings.TrimSpace(helpText)
 }
 
@@ -89,9 +93,7 @@ func (r *RecommendationDismissCommand) Run(args []string) int {
 
 	// Create a list of recommendations to dismiss.
 	ids := make([]string, len(args))
-	for i, id := range args {
-		ids[i] = id
-	}
+	copy(ids, args)
 
 	_, err = client.Recommendations().Delete(ids, nil)
 	if err != nil {

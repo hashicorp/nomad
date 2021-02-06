@@ -2,6 +2,7 @@ package e2eutil
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -9,11 +10,10 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,7 +27,7 @@ func WaitForLeader(t *testing.T, nomadClient *api.Client) {
 		leader, err := statusAPI.Leader()
 		return leader != "", err
 	}, func(err error) {
-		t.Fatalf("failed to find leader: %v", err)
+		require.NoError(t, err, "failed to find leader")
 	})
 }
 
@@ -52,7 +52,7 @@ func WaitForNodesReady(t *testing.T, nomadClient *api.Client, nodes int) {
 
 		return eligibleNodes >= nodes, fmt.Errorf("only %d nodes ready (wanted at least %d)", eligibleNodes, nodes)
 	}, func(err error) {
-		t.Fatalf("failed to get enough ready nodes: %v", err)
+		require.NoError(t, err, "failed to get enough ready nodes")
 	})
 }
 
@@ -63,10 +63,16 @@ func stringToPtrOrNil(s string) *string {
 	return helper.StringToPtr(s)
 }
 
+func Parse2(t *testing.T, jobFile string) (*api.Job, error) {
+	f, err := os.Open(jobFile)
+	require.NoError(t, err)
+	return jobspec2.Parse(jobFile, f)
+}
+
 func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToken string) []*api.AllocationListStub {
 
 	// Parse job
-	job, err := jobspec.ParseFile(jobFile)
+	job, err := Parse2(t, jobFile)
 	require.NoError(t, err)
 
 	// Set custom job ID (distinguish among tests)
@@ -107,26 +113,33 @@ func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile, jo
 	evals := []*api.Evaluation{}
 
 	// Wrap in retry to wait until placement
-	ok := assert.Eventually(t, func() bool {
-		allocs, _, err = jobs.Allocations(jobID, false, nil)
-		if len(allocs) < 1 {
-			evals, _, err = nomadClient.Jobs().Evaluations(jobID, nil)
-		}
-		return len(allocs) > 0
-	}, 30*time.Second, time.Second)
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		time.Sleep(time.Second)
 
-	msg := fmt.Sprintf("allocations not placed for %s", jobID)
-	if !ok && len(evals) > 0 {
+		allocs, _, err = jobs.Allocations(jobID, false, nil)
+		if len(allocs) == 0 {
+			evals, _, err = nomadClient.Jobs().Evaluations(jobID, nil)
+			return false, fmt.Errorf("no allocations for job %v", jobID)
+		}
+
+		return true, nil
+	}, func(e error) {
+		msg := fmt.Sprintf("allocations not placed for %s", jobID)
 		for _, eval := range evals {
 			msg += fmt.Sprintf("\n  %s - %s", eval.Status, eval.StatusDescription)
 		}
-	}
-	require.Truef(t, ok, msg)
+
+		require.Fail(t, msg, "full evals: %v", pretty.Sprint(evals))
+	})
+
 	require.NoError(t, err) // we only care about the last error
+
 	return allocs
 }
 
 func WaitForAllocRunning(t *testing.T, nomadClient *api.Client, allocID string) {
+	t.Helper()
+
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
 		time.Sleep(time.Millisecond * 100)
 		alloc, _, err := nomadClient.Allocations().Info(allocID, nil)
@@ -134,7 +147,25 @@ func WaitForAllocRunning(t *testing.T, nomadClient *api.Client, allocID string) 
 			return false, err
 		}
 
-		return alloc.ClientStatus == structs.AllocClientStatusRunning, fmt.Errorf("expected status running, but was: %s", alloc.ClientStatus)
+		return alloc.ClientStatus == structs.AllocClientStatusRunning, fmt.Errorf("expected status running, but was: %s\n%v", alloc.ClientStatus, pretty.Sprint(alloc))
+	}, func(err error) {
+		require.NoError(t, err, "failed to wait on alloc")
+	})
+}
+
+func WaitForAllocTaskRunning(t *testing.T, nomadClient *api.Client, allocID, task string) {
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		time.Sleep(time.Millisecond * 100)
+		alloc, _, err := nomadClient.Allocations().Info(allocID, nil)
+		if err != nil {
+			return false, err
+		}
+
+		state := "n/a"
+		if task := alloc.TaskStates[task]; task != nil {
+			state = task.State
+		}
+		return state == structs.AllocClientStatusRunning, fmt.Errorf("expected status running, but was: %s", state)
 	}, func(err error) {
 		t.Fatalf("failed to wait on alloc: %v", err)
 	})
@@ -162,7 +193,7 @@ func WaitForAllocNotPending(t *testing.T, nomadClient *api.Client, allocID strin
 
 		return alloc.ClientStatus != structs.AllocClientStatusPending, fmt.Errorf("expected status not pending, but was: %s", alloc.ClientStatus)
 	}, func(err error) {
-		t.Fatalf("failed to wait on alloc: %v", err)
+		require.NoError(t, err, "failed to wait on alloc")
 	})
 }
 
@@ -197,7 +228,7 @@ func WaitForAllocStopped(t *testing.T, nomadClient *api.Client, allocID string) 
 				alloc.ClientStatus)
 		}
 	}, func(err error) {
-		t.Fatalf("failed to wait on alloc: %v", err)
+		require.NoError(t, err, "failed to wait on alloc")
 	})
 }
 
@@ -242,7 +273,7 @@ func WaitForDeployment(t *testing.T, nomadClient *api.Client, deployID string, s
 		)
 
 	}, func(err error) {
-		t.Fatalf("failed to wait on deployment: %v", err)
+		require.NoError(t, err, "failed to wait on deployment")
 	})
 }
 

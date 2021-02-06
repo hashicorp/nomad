@@ -73,7 +73,7 @@ If you want to bootstrap Nomad ACLs, include `-var 'nomad_acls=true'`.
 
 The `profile` field selects from a set of configuration files for Nomad,
 Consul, and Vault by uploading the files found in `./config/<profile>`. The
-profiles are as follows:
+standard profiles are as follows:
 
 * `full-cluster`: This profile is used for nightly E2E testing. It assumes at
   least 3 servers and includes a unique config for each Nomad client.
@@ -81,10 +81,10 @@ profiles are as follows:
   set of clients. It assumes at least 3 servers but uses the one config for
   all the Linux Nomad clients and one config for all the Windows Nomad
   clients.
-* `custom`: This profile is used for one-off developer testing of more complex
-  interactions between features. You can build your own custom profile by
-  writing config files to the `./config/custom` directory, which are protected
-  by `.gitignore`
+
+You may create additional profiles for testing more complex interactions between features.
+You can build your own custom profile by writing config files to the
+`./config/<custom name>` directory.
 
 For each profile, application (Nomad, Consul, Vault), and agent type
 (`server`, `client_linux`, or `client_windows`), the agent gets the following
@@ -143,3 +143,34 @@ The terraform state file stores all the info.
 cd e2e/terraform/
 terraform destroy
 ```
+
+## FAQ
+
+#### E2E Provisioning Goals
+
+1. The provisioning process should be able to run a nightly build against a
+  variety of OS targets.
+2. The provisioning process should be able to support update-in-place
+  tests. (See [#7063](https://github.com/hashicorp/nomad/issues/7063))
+3. A developer should be able to quickly stand up a small E2E cluster and
+  provision it with a version of Nomad they've built on their laptop. The
+  developer should be able to send updated builds to that cluster with a short
+  iteration time, rather than having to rebuild the cluster.
+
+#### Why not just drop all the provisioning into the AMI?
+
+While that's the "correct" production approach for cloud infrastructure, it
+creates a few pain points for testing:
+
+* Creating a Linux AMI takes >10min, and creating a Windows AMI can take
+  15-20min. This interferes with goal (3) above.
+* We won't be able to do in-place upgrade testing without having an in-place
+  provisioning process anyways. This interferes with goals (2) above.
+
+#### Why not just drop all the provisioning into the user data?
+
+* Userdata is executed on boot, which prevents using them for in-place upgrade
+  testing.
+* Userdata scripts are not very observable and it's painful to determine
+  whether they've failed or simply haven't finished yet before trying to run
+  tests.

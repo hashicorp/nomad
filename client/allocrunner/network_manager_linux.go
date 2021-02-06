@@ -2,7 +2,10 @@ package allocrunner
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"strings"
+	"syscall"
 
 	hclog "github.com/hashicorp/go-hclog"
 	clientconfig "github.com/hashicorp/nomad/client/config"
@@ -92,6 +95,15 @@ type defaultNetworkManager struct{}
 func (*defaultNetworkManager) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, bool, error) {
 	netns, err := nsutil.NewNS(allocID)
 	if err != nil {
+		// when a client restarts, the namespace will already exist and
+		// there will be a namespace file in use by the task process
+		if e, ok := err.(*os.PathError); ok && e.Err == syscall.EPERM {
+			nsPath := path.Join(nsutil.NetNSRunDir, allocID)
+			_, err := os.Stat(nsPath)
+			if err == nil {
+				return nil, false, nil
+			}
+		}
 		return nil, false, err
 	}
 

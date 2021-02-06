@@ -33,9 +33,12 @@ Usage: nomad status [options] <job>
   Display status information about a job. If no job ID is given, a list of all
   known jobs will be displayed.
 
+  When ACLs are enabled, this command requires a token with the 'read-job' and
+  'list-jobs' capabilities for the job's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Status Options:
 
@@ -185,7 +188,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 
 	if periodic && !parameterized {
 		if *job.Stop {
-			basic = append(basic, fmt.Sprintf("Next Periodic Launch|none (job stopped)"))
+			basic = append(basic, "Next Periodic Launch|none (job stopped)")
 		} else {
 			location, err := job.Periodic.GetLocation()
 			if err == nil {

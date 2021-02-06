@@ -122,6 +122,7 @@
 .ember-power-select-selected-item,
 .dropdown-item {
   text-overflow: ellipsis;
+  overflow: hidden;
   white-space: nowrap;
 }
 

@@ -25,7 +25,7 @@ import (
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper"
-	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/helper/logging"
 	"github.com/hashicorp/nomad/helper/winsvc"
@@ -617,6 +617,15 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
+	// reset UI to prevent prefixed json output
+	if config.LogJson {
+		c.Ui = &cli.BasicUi{
+			Reader:      os.Stdin,
+			Writer:      os.Stdout,
+			ErrorWriter: os.Stderr,
+		}
+	}
+
 	// Setup the log outputs
 	logFilter, logGate, logOutput := SetupLoggers(c.Ui, config)
 	c.logFilter = logFilter
@@ -881,7 +890,7 @@ func (c *Command) handleReload() {
 	c.Ui.Output("Reloading configuration...")
 	newConf := c.readConfig()
 	if newConf == nil {
-		c.Ui.Error(fmt.Sprintf("Failed to reload configs"))
+		c.Ui.Error("Failed to reload configs")
 		return
 	}
 

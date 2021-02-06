@@ -332,7 +332,7 @@ func parseSpread(result *[]*api.Spread, list *ast.ObjectList) error {
 		// Parse spread target
 		if o := listVal.Filter("target"); len(o.Items) > 0 {
 			if err := parseSpreadTarget(&s.SpreadTarget, o); err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("target ->"))
+				return multierror.Prefix(err, "target ->")
 			}
 		}
 
@@ -394,11 +394,11 @@ func parseSpreadTarget(result *[]*api.SpreadTarget, list *ast.ObjectList) error 
 func parseBool(value interface{}) (bool, error) {
 	var enabled bool
 	var err error
-	switch value.(type) {
+	switch data := value.(type) {
 	case string:
-		enabled, err = strconv.ParseBool(value.(string))
+		enabled, err = strconv.ParseBool(data)
 	case bool:
-		enabled = value.(bool)
+		enabled = data
 	default:
 		err = fmt.Errorf("%v couldn't be converted to boolean value", value)
 	}

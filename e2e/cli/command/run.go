@@ -172,7 +172,7 @@ func (c *Run) Run(args []string) int {
 	}
 
 	if len(failedEnvs) > 0 {
-		c.Ui.Error(fmt.Sprintf("The following environments ***FAILED***"))
+		c.Ui.Error("The following environments ***FAILED***")
 		for name, report := range failedEnvs {
 			c.Ui.Error(fmt.Sprintf("  [%s]: %d out of %d suite failures",
 				name, report.TotalFailedSuites, report.TotalSuites))

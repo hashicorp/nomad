@@ -21,9 +21,12 @@ Usage: nomad job revert [options] <job> <version>
   Revert is used to revert a job to a prior version of the job. The available
   versions to revert to can be found using "nomad job history" command.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job'
+  and 'list-jobs' capabilities for the job's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Revert Options:
 
@@ -36,8 +39,8 @@ Revert Options:
    The Consul token used to verify that the caller has access to the Service
    Identity policies associated in the targeted version of the job.
 
-  -vault-token 
-   The Vault token used to verify that the caller has access to the Vault 
+  -vault-token
+   The Vault token used to verify that the caller has access to the Vault
    policies in the targeted version of the job.
 
   -verbose

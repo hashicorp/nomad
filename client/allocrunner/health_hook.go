@@ -215,7 +215,7 @@ func (h *allocHealthWatcherHook) watchHealth(ctx context.Context, deadline time.
 		// Allocation has stopped so no need to set health
 		return
 
-	case <-time.After(deadline.Sub(time.Now())):
+	case <-time.After(time.Until(deadline)):
 		// Time is up! Fallthrough to set unhealthy.
 		h.logger.Trace("deadline reached; setting unhealthy", "deadline", deadline)
 

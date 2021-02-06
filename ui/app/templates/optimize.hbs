@@ -1,12 +1,12 @@
 <PageLayout>
   <section class="section">
     {{#if @model}}
-      <div class="toolbar">
+      <div class="toolbar collapse">
         <div class="toolbar-item">
           {{#if @model}}
             <SearchBox
               data-test-recommendation-summaries-search
-              @onChange={{this.ensureActiveSummaryIsNotExcluded}}
+              @onChange={{this.syncActiveSummary}}
               @searchTerm={{mut this.searchTerm}}
               @placeholder="Search {{this.model.length}} {{pluralize "recommendation" this.model.length}}..." />
           {{/if}}
@@ -40,6 +40,20 @@
           </div>
         </div>
       </div>
+      {{#if this.system.shouldShowNamespaces}}
+        <div class="toolbar">
+          <div class="toolbar-item is-right-aligned is-mobile-full-width">
+            <Toggle
+              data-test-all-namespaces-toggle
+              @class="is-flex"
+              @isActive={{this.includeAllNamespaces}}
+              @onToggle={{this.toggleIncludeAllNamespaces}}
+            >
+              <div class="is-size-7 label">Include all namespaces</div>
+            </Toggle>
+          </div>
+        </div>
+      {{/if}}
 
       {{#if this.filteredSummaries}}
         {{outlet}}

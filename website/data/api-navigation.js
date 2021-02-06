@@ -23,7 +23,10 @@ export default [
   'namespaces',
   'nodes',
   'metrics',
-  'operator',
+  {
+    category: 'operator',
+    content: ['autopilot' ,'raft', 'license', 'scheduler', 'snapshot'],
+  },
   'plugins',
   'quotas',
   'recommendations',

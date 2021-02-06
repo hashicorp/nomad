@@ -466,9 +466,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 
 	if deploymentPlaceReady {
 		desiredChanges.Place += uint64(len(place))
-		for _, p := range place {
-			a.result.place = append(a.result.place, p)
-		}
+		a.result.place = append(a.result.place, place...)
 		a.markStop(rescheduleNow, "", allocRescheduled)
 		desiredChanges.Stop += uint64(len(rescheduleNow))
 
@@ -481,9 +479,7 @@ func (a *allocReconciler) computeGroup(group string, all allocSet) bool {
 		if len(lost) != 0 {
 			allowed := helper.IntMin(len(lost), len(place))
 			desiredChanges.Place += uint64(allowed)
-			for _, p := range place[:allowed] {
-				a.result.place = append(a.result.place, p)
-			}
+			a.result.place = append(a.result.place, place[:allowed]...)
 		}
 
 		// Handle rescheduling of failed allocations even if the deployment is

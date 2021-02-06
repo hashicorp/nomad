@@ -248,12 +248,19 @@ func decodeConstraint(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.
 
 func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
 	tg := val.(*api.TaskGroup)
+
+	var diags hcl.Diagnostics
+
+	metaAttr, body, moreDiags := decodeAsAttribute(body, ctx, "meta")
+	diags = append(diags, moreDiags...)
+
 	tgExtra := struct {
 		Vault *api.Vault `hcl:"vault,block"`
 	}{}
 
 	extra, _ := gohcl.ImpliedBodySchema(tgExtra)
-	content, tgBody, diags := body.PartialContent(extra)
+	content, tgBody, moreDiags := body.PartialContent(extra)
+	diags = append(diags, moreDiags...)
 	if len(diags) != 0 {
 		return diags
 	}
@@ -269,6 +276,10 @@ func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.D
 	d := newHCLDecoder()
 	d.RegisterBlockDecoder(reflect.TypeOf(api.Task{}), decodeTask)
 	diags = d.DecodeBody(tgBody, ctx, tg)
+
+	if metaAttr != nil {
+		tg.Meta = metaAttr
+	}
 
 	if tgExtra.Vault != nil {
 		for _, t := range tg.Tasks {
@@ -291,18 +302,100 @@ func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.D
 func decodeTask(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
 	// special case scaling policy
 	t := val.(*api.Task)
-	b, remain, diags := body.PartialContent(&hcl.BodySchema{
+
+	var diags hcl.Diagnostics
+
+	// special case env and meta
+	envAttr, body, moreDiags := decodeAsAttribute(body, ctx, "env")
+	diags = append(diags, moreDiags...)
+	metaAttr, body, moreDiags := decodeAsAttribute(body, ctx, "meta")
+	diags = append(diags, moreDiags...)
+
+	b, remain, moreDiags := body.PartialContent(&hcl.BodySchema{
 		Blocks: []hcl.BlockHeaderSchema{
 			{Type: "scaling", LabelNames: []string{"name"}},
 		},
 	})
 
+	diags = append(diags, moreDiags...)
 	diags = append(diags, decodeTaskScalingPolicies(b.Blocks, ctx, t)...)
 
 	decoder := newHCLDecoder()
 	diags = append(diags, decoder.DecodeBody(remain, ctx, val)...)
 
+	if envAttr != nil {
+		t.Env = envAttr
+	}
+	if metaAttr != nil {
+		t.Meta = metaAttr
+	}
+
 	return diags
+}
+
+// decodeAsAttribute decodes the named field as an attribute assignment if found.
+//
+// Nomad jobs contain attributes (e.g. `env`, `meta`) that are meant to contain arbitrary
+// keys. HCLv1 allowed both block syntax (the preferred and documented one) as well as attribute
+// assignment syntax:
+//
+// ```hcl
+// # block assignment
+// env {
+//   ENV = "production"
+// }
+//
+// # as attribute
+// env = { ENV: "production" }
+// ```
+//
+// HCLv2 block syntax, though, restricts valid input and doesn't allow dots or invalid identifiers
+// as block attribute keys.
+// Thus, we support both syntax to unrestrict users.
+//
+// This function attempts to read the named field, as an attribute, and returns
+// found map, the remaining body and diagnostics. If the named field is found
+// with block syntax, it returns a nil map, and caller falls back to reading
+// with block syntax.
+//
+func decodeAsAttribute(body hcl.Body, ctx *hcl.EvalContext, name string) (map[string]string, hcl.Body, hcl.Diagnostics) {
+	b, remain, diags := body.PartialContent(&hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
+			{Name: name, Required: false},
+		},
+	})
+
+	if diags.HasErrors() || b.Attributes[name] == nil {
+		// ignoring errors, to avoid duplicate errors. True errors will
+		// reported in the fallback path
+		return nil, body, nil
+	}
+
+	attr := b.Attributes[name]
+
+	if attr != nil {
+		// check if there is another block
+		bb, _, _ := remain.PartialContent(&hcl.BodySchema{
+			Blocks: []hcl.BlockHeaderSchema{{Type: name}},
+		})
+		if len(bb.Blocks) != 0 {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Duplicate %v block", name),
+				Detail: fmt.Sprintf("%v may not be defined more than once. Another definition is defined at %s.",
+					name, attr.Range.String()),
+				Subject: &bb.Blocks[0].DefRange,
+			})
+			return nil, remain, diags
+		}
+	}
+
+	envExpr := attr.Expr
+
+	result := map[string]string{}
+	diags = append(diags, hclDecoder.DecodeExpression(envExpr, ctx, &result)...)
+
+	return result, remain, diags
 }
 
 func decodeTaskScalingPolicies(blocks hcl.Blocks, ctx *hcl.EvalContext, task *api.Task) hcl.Diagnostics {

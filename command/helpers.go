@@ -453,10 +453,12 @@ func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []strin
 			return nil, fmt.Errorf("Error reading job file from %s: %v", jpath, err)
 		}
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
-			Path:    pathName,
-			Body:    buf.Bytes(),
-			ArgVars: vars,
-			AllowFS: true,
+			Path:     pathName,
+			Body:     buf.Bytes(),
+			ArgVars:  vars,
+			AllowFS:  true,
+			VarFiles: varfiles,
+			Envs:     os.Environ(),
 		})
 
 		if err != nil {

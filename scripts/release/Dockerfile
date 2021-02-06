@@ -2,7 +2,7 @@
 # that mimics Vagrant environment as far as required
 # for building the scripts and running provision scripts
 
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 
 RUN apt-get update; apt-get install -y \
             apt-transport-https \
@@ -24,8 +24,8 @@ RUN /tmp/scripts/vagrant-linux-priv-config.sh
 COPY ./scripts/vagrant-linux-priv-go.sh /tmp/scripts/vagrant-linux-priv-go.sh
 RUN /tmp/scripts/vagrant-linux-priv-go.sh
 
-COPY ./scripts/vagrant-linux-priv-protoc.sh /tmp/scripts/vagrant-linux-priv-protoc.sh
-RUN /tmp/scripts/vagrant-linux-priv-protoc.sh
+COPY ./scripts/vagrant-linux-priv-buf.sh /tmp/scripts/vagrant-linux-priv-buf.sh
+RUN /tmp/scripts/vagrant-linux-priv-buf.sh
 
 USER vagrant
 

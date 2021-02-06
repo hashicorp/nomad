@@ -2,10 +2,10 @@ package template
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -36,6 +36,11 @@ const (
 	// DefaultMaxTemplateEventRate is the default maximum rate at which a
 	// template event should be fired.
 	DefaultMaxTemplateEventRate = 3 * time.Second
+)
+
+var (
+	sourceEscapesErr = errors.New("template source path escapes alloc directory")
+	destEscapesErr   = errors.New("template destination path escapes alloc directory")
 )
 
 // TaskTemplateManager is used to run a set of templates for a given task
@@ -204,7 +209,7 @@ func (tm *TaskTemplateManager) run() {
 	}
 
 	// Read environment variables from env templates before we unblock
-	envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.TaskDir, tm.config.EnvBuilder.Build())
+	envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.EnvBuilder.Build())
 	if err != nil {
 		tm.config.Lifecycle.Kill(context.Background(),
 			structs.NewTaskEvent(structs.TaskKilling).
@@ -266,11 +271,22 @@ WAIT:
 				continue
 			}
 
+			dirty := false
 			for _, event := range events {
 				// This template hasn't been rendered
 				if event.LastWouldRender.IsZero() {
 					continue WAIT
 				}
+				if event.WouldRender && event.DidRender {
+					dirty = true
+				}
+			}
+
+			// if there's a driver handle then the task is already running and
+			// that changes how we want to behave on first render
+			if dirty && tm.config.Lifecycle.IsRunning() {
+				handledRenders := make(map[string]time.Time, len(tm.config.Templates))
+				tm.onTemplateRendered(handledRenders, time.Time{})
 			}
 
 			break WAIT
@@ -361,112 +377,117 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 					SetFailsTask().
 					SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
 		case <-tm.runner.TemplateRenderedCh():
-			// A template has been rendered, figure out what to do
-			var handling []string
-			signals := make(map[string]struct{})
-			restart := false
-			var splay time.Duration
+			tm.onTemplateRendered(handledRenders, allRenderedTime)
+		}
+	}
+}
 
-			events := tm.runner.RenderEvents()
-			for id, event := range events {
+func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time.Time, allRenderedTime time.Time) {
 
-				// First time through
-				if allRenderedTime.After(event.LastDidRender) || allRenderedTime.Equal(event.LastDidRender) {
-					handledRenders[id] = allRenderedTime
-					continue
-				}
+	var handling []string
+	signals := make(map[string]struct{})
+	restart := false
+	var splay time.Duration
 
-				// We have already handled this one
-				if htime := handledRenders[id]; htime.After(event.LastDidRender) || htime.Equal(event.LastDidRender) {
-					continue
-				}
+	events := tm.runner.RenderEvents()
+	for id, event := range events {
 
-				// Lookup the template and determine what to do
-				tmpls, ok := tm.lookup[id]
-				if !ok {
-					tm.config.Lifecycle.Kill(context.Background(),
-						structs.NewTaskEvent(structs.TaskKilling).
-							SetFailsTask().
-							SetDisplayMessage(fmt.Sprintf("Template runner returned unknown template id %q", id)))
-					return
-				}
+		// First time through
+		if allRenderedTime.After(event.LastDidRender) || allRenderedTime.Equal(event.LastDidRender) {
+			handledRenders[id] = allRenderedTime
+			continue
+		}
 
-				// Read environment variables from templates
-				envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.TaskDir, tm.config.EnvBuilder.Build())
-				if err != nil {
-					tm.config.Lifecycle.Kill(context.Background(),
-						structs.NewTaskEvent(structs.TaskKilling).
-							SetFailsTask().
-							SetDisplayMessage(fmt.Sprintf("Template failed to read environment variables: %v", err)))
-					return
-				}
-				tm.config.EnvBuilder.SetTemplateEnv(envMap)
+		// We have already handled this one
+		if htime := handledRenders[id]; htime.After(event.LastDidRender) || htime.Equal(event.LastDidRender) {
+			continue
+		}
 
-				for _, tmpl := range tmpls {
-					switch tmpl.ChangeMode {
-					case structs.TemplateChangeModeSignal:
-						signals[tmpl.ChangeSignal] = struct{}{}
-					case structs.TemplateChangeModeRestart:
-						restart = true
-					case structs.TemplateChangeModeNoop:
-						continue
-					}
+		// Lookup the template and determine what to do
+		tmpls, ok := tm.lookup[id]
+		if !ok {
+			tm.config.Lifecycle.Kill(context.Background(),
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Template runner returned unknown template id %q", id)))
+			return
+		}
 
-					if tmpl.Splay > splay {
-						splay = tmpl.Splay
-					}
-				}
+		// Read environment variables from templates
+		envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.EnvBuilder.Build())
+		if err != nil {
+			tm.config.Lifecycle.Kill(context.Background(),
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Template failed to read environment variables: %v", err)))
+			return
+		}
+		tm.config.EnvBuilder.SetTemplateEnv(envMap)
 
-				handling = append(handling, id)
+		for _, tmpl := range tmpls {
+			switch tmpl.ChangeMode {
+			case structs.TemplateChangeModeSignal:
+				signals[tmpl.ChangeSignal] = struct{}{}
+			case structs.TemplateChangeModeRestart:
+				restart = true
+			case structs.TemplateChangeModeNoop:
+				continue
 			}
 
-			if restart || len(signals) != 0 {
-				if splay != 0 {
-					ns := splay.Nanoseconds()
-					offset := rand.Int63n(ns)
-					t := time.Duration(offset)
+			if tmpl.Splay > splay {
+				splay = tmpl.Splay
+			}
+		}
 
-					select {
-					case <-time.After(t):
-					case <-tm.shutdownCh:
-						return
-					}
+		handling = append(handling, id)
+	}
+
+	if restart || len(signals) != 0 {
+		if splay != 0 {
+			ns := splay.Nanoseconds()
+			offset := rand.Int63n(ns)
+			t := time.Duration(offset)
+
+			select {
+			case <-time.After(t):
+			case <-tm.shutdownCh:
+				return
+			}
+		}
+
+		// Update handle time
+		for _, id := range handling {
+			handledRenders[id] = events[id].LastDidRender
+		}
+
+		if restart {
+			tm.config.Lifecycle.Restart(context.Background(),
+				structs.NewTaskEvent(structs.TaskRestartSignal).
+					SetDisplayMessage("Template with change_mode restart re-rendered"), false)
+		} else if len(signals) != 0 {
+			var mErr multierror.Error
+			for signal := range signals {
+				s := tm.signals[signal]
+				event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Template re-rendered")
+				if err := tm.config.Lifecycle.Signal(event, signal); err != nil {
+					_ = multierror.Append(&mErr, err)
+				}
+			}
+
+			if err := mErr.ErrorOrNil(); err != nil {
+				flat := make([]os.Signal, 0, len(signals))
+				for signal := range signals {
+					flat = append(flat, tm.signals[signal])
 				}
 
-				// Update handle time
-				for _, id := range handling {
-					handledRenders[id] = events[id].LastDidRender
-				}
-
-				if restart {
-					tm.config.Lifecycle.Restart(context.Background(),
-						structs.NewTaskEvent(structs.TaskRestartSignal).
-							SetDisplayMessage("Template with change_mode restart re-rendered"), false)
-				} else if len(signals) != 0 {
-					var mErr multierror.Error
-					for signal := range signals {
-						s := tm.signals[signal]
-						event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Template re-rendered")
-						if err := tm.config.Lifecycle.Signal(event, signal); err != nil {
-							multierror.Append(&mErr, err)
-						}
-					}
-
-					if err := mErr.ErrorOrNil(); err != nil {
-						flat := make([]os.Signal, 0, len(signals))
-						for signal := range signals {
-							flat = append(flat, tm.signals[signal])
-						}
-
-						tm.config.Lifecycle.Kill(context.Background(),
-							structs.NewTaskEvent(structs.TaskKilling).
-								SetFailsTask().
-								SetDisplayMessage(fmt.Sprintf("Template failed to send signals %v: %v", flat, err)))
-					}
-				}
+				tm.config.Lifecycle.Kill(context.Background(),
+					structs.NewTaskEvent(structs.TaskKilling).
+						SetFailsTask().
+						SetDisplayMessage(fmt.Sprintf("Template failed to send signals %v: %v", flat, err)))
 			}
 		}
 	}
+
 }
 
 // allTemplatesNoop returns whether all the managed templates have change mode noop.
@@ -552,27 +573,18 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 	for _, tmpl := range config.Templates {
 		var src, dest string
 		if tmpl.SourcePath != "" {
-			src = taskEnv.ReplaceEnv(tmpl.SourcePath)
-			if !filepath.IsAbs(src) {
-				src = filepath.Join(config.TaskDir, src)
-			} else {
-				src = filepath.Clean(src)
-			}
-			escapes := helper.PathEscapesSandbox(config.TaskDir, src)
+			var escapes bool
+			src, escapes = taskEnv.ClientPath(tmpl.SourcePath, false)
 			if escapes && sandboxEnabled {
-				return nil, fmt.Errorf("template source path escapes alloc directory")
+				return nil, sourceEscapesErr
 			}
 		}
 
 		if tmpl.DestPath != "" {
-			dest = taskEnv.ReplaceEnv(tmpl.DestPath)
-			// Note: we *always* join here even if we get passed an absolute
-			// path so that $NOMAD_SECRETS_DIR and friends can be used and
-			// always fall inside the task working directory
-			dest = filepath.Join(config.TaskDir, dest)
-			escapes := helper.PathEscapesSandbox(config.TaskDir, dest)
+			var escapes bool
+			dest, escapes = taskEnv.ClientPath(tmpl.DestPath, true)
 			if escapes && sandboxEnabled {
-				return nil, fmt.Errorf("template destination path escapes alloc directory")
+				return nil, destEscapesErr
 			}
 		}
 
@@ -705,14 +717,15 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 }
 
 // loadTemplateEnv loads task environment variables from all templates.
-func loadTemplateEnv(tmpls []*structs.Template, taskDir string, taskEnv *taskenv.TaskEnv) (map[string]string, error) {
+func loadTemplateEnv(tmpls []*structs.Template, taskEnv *taskenv.TaskEnv) (map[string]string, error) {
 	all := make(map[string]string, 50)
 	for _, t := range tmpls {
 		if !t.Envvars {
 			continue
 		}
 
-		dest := filepath.Join(taskDir, taskEnv.ReplaceEnv(t.DestPath))
+		// we checked escape before we rendered the file
+		dest, _ := taskEnv.ClientPath(t.DestPath, true)
 		f, err := os.Open(dest)
 		if err != nil {
 			return nil, fmt.Errorf("error opening env template: %v", err)

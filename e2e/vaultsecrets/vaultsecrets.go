@@ -83,7 +83,7 @@ func (tc *VaultSecretsTest) TestVaultSecrets(f *framework.F) {
 	pkiCertIssue := tc.pkiPath + "/issue/nomad"
 	policyID := "access-secrets-" + testID
 	index := 0
-	wc := &e2e.WaitConfig{Retries: 10}
+	wc := &e2e.WaitConfig{Retries: 500}
 	interval, retries := wc.OrDefault()
 
 	setupCmds := []string{
@@ -189,7 +189,7 @@ func (tc *VaultSecretsTest) TestVaultSecrets(f *framework.F) {
 		fmt.Sprintf("%s/myapp", tc.secretsPath), "key=UPDATED")
 	f.NoError(err, out)
 
-	elapsed := time.Now().Sub(ttlStart)
+	elapsed := time.Since(ttlStart)
 	time.Sleep((time.Second * 60) - elapsed)
 
 	// tokens will not be updated

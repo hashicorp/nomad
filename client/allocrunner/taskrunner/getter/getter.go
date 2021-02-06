@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"sync"
 
 	gg "github.com/hashicorp/go-getter"
-	"github.com/hashicorp/nomad/helper"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -33,6 +32,7 @@ const (
 // is usually satisfied by taskenv.TaskEnv.
 type EnvReplacer interface {
 	ReplaceEnv(string) string
+	ClientPath(string, bool) (string, bool)
 }
 
 func makeGetters(headers http.Header) map[string]gg.Getter {
@@ -130,21 +130,18 @@ func getHeaders(env EnvReplacer, m map[string]string) http.Header {
 }
 
 // GetArtifact downloads an artifact into the specified task directory.
-func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact, taskDir string) error {
+func GetArtifact(taskEnv EnvReplacer, artifact *structs.TaskArtifact) error {
 	ggURL, err := getGetterUrl(taskEnv, artifact)
 	if err != nil {
 		return newGetError(artifact.GetterSource, err, false)
 	}
 
+	dest, escapes := taskEnv.ClientPath(artifact.RelativeDest, true)
 	// Verify the destination is still in the task sandbox after interpolation
-	// Note: we *always* join here even if we get passed an absolute path so
-	// that $NOMAD_SECRETS_DIR and friends can be used and always fall inside
-	// the task working directory
-	dest := filepath.Join(taskDir, artifact.RelativeDest)
-	escapes := helper.PathEscapesSandbox(taskDir, dest)
 	if escapes {
 		return newGetError(artifact.RelativeDest,
-			errors.New("artifact destination path escapes the alloc directory"), false)
+			errors.New("artifact destination path escapes the alloc directory"),
+			false)
 	}
 
 	// Convert from string getter mode to go-getter const

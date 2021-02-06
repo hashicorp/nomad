@@ -57,7 +57,6 @@ func init() {
 		scalingPolicyTableSchema,
 		scalingEventTableSchema,
 		namespaceTableSchema,
-		eventSinkTableSchema,
 	}...)
 }
 
@@ -288,7 +287,7 @@ func jobIsPeriodic(obj interface{}) (bool, error) {
 		return false, fmt.Errorf("Unexpected type: %v", obj)
 	}
 
-	if j.Periodic != nil && j.Periodic.Enabled == true {
+	if j.Periodic != nil && j.Periodic.Enabled {
 		return true, nil
 	}
 
@@ -926,26 +925,6 @@ func namespaceTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "Quota",
-				},
-			},
-		},
-	}
-}
-
-func eventSinkTableSchema() *memdb.TableSchema {
-	return &memdb.TableSchema{
-		Name: "event_sink",
-		Indexes: map[string]*memdb.IndexSchema{
-			// Primary index is used for event sink management and simple
-			// direct lookup. ID is required to be unique.
-			"id": {
-				Name:         "id",
-				AllowMissing: false,
-				Unique:       true,
-
-				// Sink ID is uniquely identifying
-				Indexer: &memdb.StringFieldIndex{
-					Field: "ID",
 				},
 			},
 		},

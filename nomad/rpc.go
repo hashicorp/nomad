@@ -559,7 +559,8 @@ CHECK_LEADER:
 	if firstCheck.IsZero() {
 		firstCheck = time.Now()
 	}
-	if time.Now().Sub(firstCheck) < r.config.RPCHoldTimeout {
+
+	if time.Since(firstCheck) < r.config.RPCHoldTimeout {
 		jitter := helper.RandomStagger(r.config.RPCHoldTimeout / structs.JitterFraction)
 		select {
 		case <-time.After(jitter):
@@ -749,7 +750,7 @@ func (r *rpcHandler) setQueryMeta(m *structs.QueryMeta) {
 		m.LastContact = 0
 		m.KnownLeader = true
 	} else {
-		m.LastContact = time.Now().Sub(r.raft.LastContact())
+		m.LastContact = time.Since(r.raft.LastContact())
 		m.KnownLeader = (r.raft.Leader() != "")
 	}
 }
@@ -780,12 +781,7 @@ func (r *rpcHandler) blockingRPC(opts *blockingOptions) error {
 		goto RUN_QUERY
 	}
 
-	// Restrict the max query time, and ensure there is always one
-	if opts.queryOpts.MaxQueryTime > structs.MaxBlockingRPCQueryTime {
-		opts.queryOpts.MaxQueryTime = structs.MaxBlockingRPCQueryTime
-	} else if opts.queryOpts.MaxQueryTime <= 0 {
-		opts.queryOpts.MaxQueryTime = structs.DefaultBlockingRPCQueryTime
-	}
+	opts.queryOpts.MaxQueryTime = opts.queryOpts.TimeToBlock()
 
 	// Apply a small amount of jitter to the request
 	opts.queryOpts.MaxQueryTime += helper.RandomStagger(opts.queryOpts.MaxQueryTime / structs.JitterFraction)

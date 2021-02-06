@@ -3,7 +3,7 @@ import { module, test } from 'qunit';
 import { currentURL, triggerEvent, visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import PageLayout from 'nomad-ui/tests/pages/layout';
+import Layout from 'nomad-ui/tests/pages/layout';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import { selectSearch } from 'ember-power-select/test-support';
 import sinon from 'sinon';
@@ -36,9 +36,9 @@ module('Acceptance | search', function(hooks) {
     let presearchJobsRequestCount = getRequestCount(server, '/v1/jobs');
     let presearchNodesRequestCount = getRequestCount(server, '/v1/nodes');
 
-    await selectSearch(PageLayout.navbar.search.scope, 'xy');
+    await selectSearch(Layout.navbar.search.scope, 'xy');
 
-    PageLayout.navbar.search.as(search => {
+    Layout.navbar.search.as(search => {
       assert.equal(search.groups.length, 2);
 
       search.groups[0].as(jobs => {
@@ -66,18 +66,18 @@ module('Acceptance | search', function(hooks) {
       'a nodes request should happen when not in the clients hierarchy'
     );
 
-    await PageLayout.navbar.search.groups[0].options[0].click();
+    await Layout.navbar.search.groups[0].options[0].click();
     assert.equal(currentURL(), '/jobs/xyz');
 
-    await selectSearch(PageLayout.navbar.search.scope, otherNode.id.substr(0, 3));
+    await selectSearch(Layout.navbar.search.scope, otherNode.id.substr(0, 3));
 
-    await PageLayout.navbar.search.groups[1].options[0].click();
+    await Layout.navbar.search.groups[1].options[0].click();
     assert.equal(currentURL(), `/clients/${otherNode.id}`);
 
     presearchJobsRequestCount = getRequestCount(server, '/v1/jobs');
     presearchNodesRequestCount = getRequestCount(server, '/v1/nodes');
 
-    await selectSearch(PageLayout.navbar.search.scope, 'zzzzzzzzzzz');
+    await selectSearch(Layout.navbar.search.scope, 'zzzzzzzzzzz');
 
     assert.equal(
       getRequestCount(server, '/v1/jobs'),
@@ -92,7 +92,7 @@ module('Acceptance | search', function(hooks) {
 
     clock.tick(COLLECTION_CACHE_DURATION * 2);
 
-    await selectSearch(PageLayout.navbar.search.scope, otherNode.id.substr(0, 3));
+    await selectSearch(Layout.navbar.search.scope, otherNode.id.substr(0, 3));
 
     assert.equal(
       getRequestCount(server, '/v1/jobs'),
@@ -112,9 +112,9 @@ module('Acceptance | search', function(hooks) {
 
     await visit('/');
 
-    await selectSearch(PageLayout.navbar.search.scope, 'trae');
+    await selectSearch(Layout.navbar.search.scope, 'trae');
 
-    PageLayout.navbar.search.as(search => {
+    Layout.navbar.search.as(search => {
       search.groups[0].as(jobs => {
         assert.equal(jobs.options[0].text, 'traefik');
         assert.equal(jobs.options[0].formattedText, '*trae*fik');
@@ -124,18 +124,18 @@ module('Acceptance | search', function(hooks) {
       });
     });
 
-    await selectSearch(PageLayout.navbar.search.scope, 'ra');
+    await selectSearch(Layout.navbar.search.scope, 'ra');
 
-    PageLayout.navbar.search.as(search => {
+    Layout.navbar.search.as(search => {
       search.groups[0].as(jobs => {
         assert.equal(jobs.options[0].formattedText, 't*ra*efik');
         assert.equal(jobs.options[1].formattedText, 't*ra*cking');
       });
     });
 
-    await selectSearch(PageLayout.navbar.search.scope, 'sensor');
+    await selectSearch(Layout.navbar.search.scope, 'sensor');
 
-    PageLayout.navbar.search.as(search => {
+    Layout.navbar.search.as(search => {
       search.groups[0].as(jobs => {
         assert.equal(jobs.options[0].formattedText, '*s*mtp-*sensor*');
       });
@@ -151,9 +151,9 @@ module('Acceptance | search', function(hooks) {
 
     await visit('/');
 
-    await selectSearch(PageLayout.navbar.search.scope, 'job');
+    await selectSearch(Layout.navbar.search.scope, 'job');
 
-    PageLayout.navbar.search.as(search => {
+    Layout.navbar.search.as(search => {
       search.groups[0].as(jobs => {
         assert.equal(jobs.name, 'Jobs (showing 10 of 15)');
         assert.equal(jobs.options.length, 10);
@@ -166,13 +166,15 @@ module('Acceptance | search', function(hooks) {
 
     const idPrefix = nodeToMatchById.id.substr(0, 5);
 
-    const nodeToMatchByName = server.create('node', { name: `node-name-with-id-piece-${idPrefix}`});
+    const nodeToMatchByName = server.create('node', {
+      name: `node-name-with-id-piece-${idPrefix}`,
+    });
 
     await visit('/');
 
-    await selectSearch(PageLayout.navbar.search.scope, idPrefix);
+    await selectSearch(Layout.navbar.search.scope, idPrefix);
 
-    PageLayout.navbar.search.as(search => {
+    Layout.navbar.search.as(search => {
       search.groups[1].as(clients => {
         assert.equal(clients.options[0].text, nodeToMatchById.name);
         assert.equal(clients.options[1].text, nodeToMatchByName.name);
@@ -183,23 +185,23 @@ module('Acceptance | search', function(hooks) {
   test('clicking the search field starts search immediately', async function(assert) {
     await visit('/');
 
-    assert.notOk(PageLayout.navbar.search.field.isPresent);
+    assert.notOk(Layout.navbar.search.field.isPresent);
 
-    await PageLayout.navbar.search.click();
+    await Layout.navbar.search.click();
 
-    assert.ok(PageLayout.navbar.search.field.isPresent);
+    assert.ok(Layout.navbar.search.field.isPresent);
   });
 
   test('pressing slash starts a search', async function(assert) {
     await visit('/');
 
-    assert.notOk(PageLayout.navbar.search.field.isPresent);
+    assert.notOk(Layout.navbar.search.field.isPresent);
 
     await triggerEvent('.page-layout', 'keydown', {
       keyCode: 191, // slash
     });
 
-    assert.ok(PageLayout.navbar.search.field.isPresent);
+    assert.ok(Layout.navbar.search.field.isPresent);
   });
 
   test('pressing slash when an input element is focused does not start a search', async function(assert) {
@@ -208,11 +210,11 @@ module('Acceptance | search', function(hooks) {
 
     await visit('/');
 
-    assert.notOk(PageLayout.navbar.search.field.isPresent);
+    assert.notOk(Layout.navbar.search.field.isPresent);
 
     await JobsList.search.click();
     await JobsList.search.keydown({ keyCode: 191 });
 
-    assert.notOk(PageLayout.navbar.search.field.isPresent);
+    assert.notOk(Layout.navbar.search.field.isPresent);
   });
 });

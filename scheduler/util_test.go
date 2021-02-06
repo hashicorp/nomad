@@ -599,7 +599,7 @@ func TestTasksUpdated(t *testing.T) {
 	require.True(t, tasksUpdated(j1, j5, name))
 
 	j6 := mock.Job()
-	j6.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts = []structs.Port{
+	j6.TaskGroups[0].Networks[0].DynamicPorts = []structs.Port{
 		{Label: "http", Value: 0},
 		{Label: "https", Value: 0},
 		{Label: "admin", Value: 0},
@@ -646,16 +646,12 @@ func TestTasksUpdated(t *testing.T) {
 	}
 	require.True(t, tasksUpdated(j11d1, j11d2, name))
 
-	j12 := mock.Job()
-	j12.TaskGroups[0].Tasks[0].Resources.Networks[0].MBits = 100
-	require.True(t, tasksUpdated(j1, j12, name))
-
 	j13 := mock.Job()
-	j13.TaskGroups[0].Tasks[0].Resources.Networks[0].DynamicPorts[0].Label = "foobar"
+	j13.TaskGroups[0].Networks[0].DynamicPorts[0].Label = "foobar"
 	require.True(t, tasksUpdated(j1, j13, name))
 
 	j14 := mock.Job()
-	j14.TaskGroups[0].Tasks[0].Resources.Networks[0].ReservedPorts = []structs.Port{{Label: "foo", Value: 1312}}
+	j14.TaskGroups[0].Networks[0].ReservedPorts = []structs.Port{{Label: "foo", Value: 1312}}
 	require.True(t, tasksUpdated(j1, j14, name))
 
 	j15 := mock.Job()
@@ -678,12 +674,8 @@ func TestTasksUpdated(t *testing.T) {
 
 	// Change network mode
 	j19 := mock.Job()
-	j19.TaskGroups[0].Networks = j19.TaskGroups[0].Tasks[0].Resources.Networks
-	j19.TaskGroups[0].Tasks[0].Resources.Networks = nil
 
 	j20 := mock.Job()
-	j20.TaskGroups[0].Networks = j20.TaskGroups[0].Tasks[0].Resources.Networks
-	j20.TaskGroups[0].Tasks[0].Resources.Networks = nil
 
 	require.False(t, tasksUpdated(j19, j20, name))
 
@@ -768,6 +760,63 @@ func TestTasksUpdated_connectServiceUpdated(t *testing.T) {
 		updated := connectServiceUpdated(servicesA, servicesB)
 		require.True(t, updated)
 	})
+}
+
+func TestNetworkUpdated(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		a       []*structs.NetworkResource
+		b       []*structs.NetworkResource
+		updated bool
+	}{
+		{
+			name: "mode updated",
+			a: []*structs.NetworkResource{
+				{Mode: "host"},
+			},
+			b: []*structs.NetworkResource{
+				{Mode: "bridge"},
+			},
+			updated: true,
+		},
+		{
+			name: "host_network updated",
+			a: []*structs.NetworkResource{
+				{DynamicPorts: []structs.Port{
+					{Label: "http", To: 8080},
+				}},
+			},
+			b: []*structs.NetworkResource{
+				{DynamicPorts: []structs.Port{
+					{Label: "http", To: 8080, HostNetwork: "public"},
+				}},
+			},
+			updated: true,
+		},
+		{
+			name: "port.To updated",
+			a: []*structs.NetworkResource{
+				{DynamicPorts: []structs.Port{
+					{Label: "http", To: 8080},
+				}},
+			},
+			b: []*structs.NetworkResource{
+				{DynamicPorts: []structs.Port{
+					{Label: "http", To: 8088},
+				}},
+			},
+			updated: true,
+		},
+	}
+
+	for i := range cases {
+		c := cases[i]
+		t.Run(c.name, func(tc *testing.T) {
+			tc.Parallel()
+			require.Equal(tc, c.updated, networkUpdated(c.a, c.b), "unexpected network updated result")
+		})
+	}
 }
 
 func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
@@ -915,6 +964,63 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 
 	require.True(t, len(unplaced) == 1 && len(inplace) == 0, "inplaceUpdate incorrectly did an inplace update")
 	require.Empty(t, ctx.plan.NodeAllocation, "inplaceUpdate incorrectly did an inplace update")
+}
+
+func TestInplaceUpdate_AllocatedResources(t *testing.T) {
+	state, ctx := testContext(t)
+	eval := mock.Eval()
+	job := mock.Job()
+
+	node := mock.Node()
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 900, node))
+
+	// Register an alloc
+	alloc := &structs.Allocation{
+		Namespace: structs.DefaultNamespace,
+		ID:        uuid.Generate(),
+		EvalID:    eval.ID,
+		NodeID:    node.ID,
+		JobID:     job.ID,
+		Job:       job,
+		AllocatedResources: &structs.AllocatedResources{
+			Shared: structs.AllocatedSharedResources{
+				Ports: structs.AllocatedPorts{
+					{
+						Label: "api-port",
+						Value: 19910,
+						To:    8080,
+					},
+				},
+			},
+		},
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		TaskGroup:     "web",
+	}
+	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
+	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+
+	// Update TG to add a new service (inplace)
+	tg := job.TaskGroups[0]
+	tg.Services = []*structs.Service{
+		{
+			Name: "tg-service",
+		},
+	}
+
+	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
+	stack := NewGenericStack(false, ctx)
+
+	// Do the inplace update.
+	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
+
+	require.True(t, len(unplaced) == 0 && len(inplace) == 1, "inplaceUpdate incorrectly did not perform an inplace update")
+	require.NotEmpty(t, ctx.plan.NodeAllocation, "inplaceUpdate incorrectly did an inplace update")
+	require.NotEmpty(t, ctx.plan.NodeAllocation[node.ID][0].AllocatedResources.Shared.Ports)
+
+	port, ok := ctx.plan.NodeAllocation[node.ID][0].AllocatedResources.Shared.Ports.Get("api-port")
+	require.True(t, ok)
+	require.Equal(t, 19910, port.Value)
 }
 
 func TestInplaceUpdate_NoMatch(t *testing.T) {

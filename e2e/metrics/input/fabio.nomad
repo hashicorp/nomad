@@ -8,6 +8,15 @@ job "fabio" {
   }
 
   group "fabio" {
+    network {
+      port "lb" {
+        static = 9999
+      }
+
+      port "ui" {
+        static = 9998
+      }
+    }
     task "fabio" {
       driver = "docker"
 
@@ -19,18 +28,6 @@ job "fabio" {
       resources {
         cpu    = 100
         memory = 64
-
-        network {
-          mbits = 20
-
-          port "lb" {
-            static = 9999
-          }
-
-          port "ui" {
-            static = 9998
-          }
-        }
       }
     }
   }

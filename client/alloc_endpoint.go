@@ -62,8 +62,7 @@ func (a *Allocations) GarbageCollect(args *nstructs.AllocSpecificRequest, reply 
 	}
 
 	if !a.c.CollectAllocation(args.AllocID) {
-		// Could not find alloc
-		return nstructs.NewErrUnknownAllocation(args.AllocID)
+		return fmt.Errorf("No such allocation on client, or allocation not eligible for GC")
 	}
 
 	return nil

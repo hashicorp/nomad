@@ -2,6 +2,7 @@ package structs
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -335,8 +336,8 @@ func TestAllocsFit(t *testing.T) {
 				DiskMB: 5000,
 				Networks: Networks{
 					{
-						Mode: "host",
-						IP: "10.0.0.1",
+						Mode:          "host",
+						IP:            "10.0.0.1",
 						ReservedPorts: []Port{{"main", 8000, 0, ""}},
 					},
 				},
@@ -775,4 +776,23 @@ func TestGenerateMigrateToken(t *testing.T) {
 	assert.Nil(err)
 	assert.False(CompareMigrateToken(allocID, nodeSecret, token2))
 	assert.True(CompareMigrateToken("x", nodeSecret, token2))
+}
+
+func TestMergeMultierrorWarnings(t *testing.T) {
+	var errs []error
+
+	// empty
+	str := MergeMultierrorWarnings(errs...)
+	require.Equal(t, "", str)
+
+	// non-empty
+	errs = []error{
+		errors.New("foo"),
+		nil,
+		errors.New("bar"),
+	}
+
+	str = MergeMultierrorWarnings(errs...)
+
+	require.Equal(t, "2 warning(s):\n\n* foo\n* bar", str)
 }

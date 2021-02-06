@@ -18,9 +18,12 @@ Usage: nomad volume deregister [options] <id>
 
   Remove an unused volume from Nomad.
 
+  When ACLs are enabled, this command requires a token with the
+  'csi-write-volume' capability for the volume's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Volume Deregister Options:
 

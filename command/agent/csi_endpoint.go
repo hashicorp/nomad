@@ -310,7 +310,7 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 		return nil
 	}
 
-	allocs := len(vol.WriteAllocs) + len(vol.ReadAllocs)
+	allocCount := len(vol.ReadAllocs) + len(vol.WriteAllocs)
 
 	out := &api.CSIVolume{
 		ID:             vol.ID,
@@ -326,7 +326,11 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 		Context:        vol.Context,
 
 		// Allocations is the collapsed list of both read and write allocs
-		Allocations: make([]*api.AllocationListStub, 0, allocs),
+		Allocations: make([]*api.AllocationListStub, 0, allocCount),
+
+		// tracking of volume claims
+		ReadAllocs:  map[string]*api.Allocation{},
+		WriteAllocs: map[string]*api.Allocation{},
 
 		Schedulable:         vol.Schedulable,
 		PluginID:            vol.PluginID,
@@ -342,15 +346,28 @@ func structsCSIVolumeToApi(vol *structs.CSIVolume) *api.CSIVolume {
 		ModifyIndex:         vol.ModifyIndex,
 	}
 
+	// WriteAllocs and ReadAllocs will only ever contain the Allocation ID,
+	// with a null value for the Allocation; these IDs are mapped to
+	// allocation stubs in the Allocations field. This indirection is so the
+	// API can support both the UI and CLI consumer in a safely backwards
+	// compatible way
 	for _, a := range vol.WriteAllocs {
 		if a != nil {
-			out.Allocations = append(out.Allocations, structsAllocListStubToApi(a.Stub(nil)))
+			alloc := structsAllocListStubToApi(a.Stub(nil))
+			if alloc != nil {
+				out.WriteAllocs[alloc.ID] = nil
+				out.Allocations = append(out.Allocations, alloc)
+			}
 		}
 	}
 
 	for _, a := range vol.ReadAllocs {
 		if a != nil {
-			out.Allocations = append(out.Allocations, structsAllocListStubToApi(a.Stub(nil)))
+			alloc := structsAllocListStubToApi(a.Stub(nil))
+			if alloc != nil {
+				out.ReadAllocs[alloc.ID] = nil
+				out.Allocations = append(out.Allocations, alloc)
+			}
 		}
 	}
 

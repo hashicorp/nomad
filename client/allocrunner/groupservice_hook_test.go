@@ -22,6 +22,7 @@ var _ interfaces.RunnerPrerunHook = (*groupServiceHook)(nil)
 var _ interfaces.RunnerUpdateHook = (*groupServiceHook)(nil)
 var _ interfaces.RunnerPostrunHook = (*groupServiceHook)(nil)
 var _ interfaces.RunnerPreKillHook = (*groupServiceHook)(nil)
+var _ interfaces.RunnerTaskRestartHook = (*groupServiceHook)(nil)
 
 // TestGroupServiceHook_NoGroupServices asserts calling group service hooks
 // without group services does not error.
@@ -50,11 +51,17 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 
 	require.NoError(t, h.Postrun())
 
+	require.NoError(t, h.PreTaskRestart())
+
 	ops := consulClient.GetOps()
-	require.Len(t, ops, 4)
-	require.Equal(t, "add", ops[0].Op)
-	require.Equal(t, "update", ops[1].Op)
-	require.Equal(t, "remove", ops[2].Op)
+	require.Len(t, ops, 7)
+	require.Equal(t, "add", ops[0].Op)    // Prerun
+	require.Equal(t, "update", ops[1].Op) // Update
+	require.Equal(t, "remove", ops[2].Op) // Postrun (1st)
+	require.Equal(t, "remove", ops[3].Op) // Postrun (2nd)
+	require.Equal(t, "remove", ops[4].Op) // Restart -> preKill (1st)
+	require.Equal(t, "remove", ops[5].Op) // Restart -> preKill (2nd)
+	require.Equal(t, "add", ops[6].Op)    // Restart -> preRun
 }
 
 // TestGroupServiceHook_ShutdownDelayUpdate asserts calling group service hooks
@@ -117,15 +124,21 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 
 	require.NoError(t, h.Postrun())
 
+	require.NoError(t, h.PreTaskRestart())
+
 	ops := consulClient.GetOps()
-	require.Len(t, ops, 4)
-	require.Equal(t, "add", ops[0].Op)
-	require.Equal(t, "update", ops[1].Op)
-	require.Equal(t, "remove", ops[2].Op)
+	require.Len(t, ops, 7)
+	require.Equal(t, "add", ops[0].Op)    // Prerun
+	require.Equal(t, "update", ops[1].Op) // Update
+	require.Equal(t, "remove", ops[2].Op) // Postrun (1st)
+	require.Equal(t, "remove", ops[3].Op) // Postrun (2nd)
+	require.Equal(t, "remove", ops[4].Op) // Restart -> preKill (1st)
+	require.Equal(t, "remove", ops[5].Op) // Restart -> preKill (2nd)
+	require.Equal(t, "add", ops[6].Op)    // Restart -> preRun
 }
 
 // TestGroupServiceHook_Error asserts group service hooks with group
-// services but no group network returns an error.
+// services but no group network is handled gracefully.
 func TestGroupServiceHook_NoNetwork(t *testing.T) {
 	t.Parallel()
 
@@ -159,11 +172,17 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 
 	require.NoError(t, h.Postrun())
 
+	require.NoError(t, h.PreTaskRestart())
+
 	ops := consulClient.GetOps()
-	require.Len(t, ops, 4)
-	require.Equal(t, "add", ops[0].Op)
-	require.Equal(t, "update", ops[1].Op)
-	require.Equal(t, "remove", ops[2].Op)
+	require.Len(t, ops, 7)
+	require.Equal(t, "add", ops[0].Op)    // Prerun
+	require.Equal(t, "update", ops[1].Op) // Update
+	require.Equal(t, "remove", ops[2].Op) // Postrun (1st)
+	require.Equal(t, "remove", ops[3].Op) // Postrun (2nd)
+	require.Equal(t, "remove", ops[4].Op) // Restart -> preKill (1st)
+	require.Equal(t, "remove", ops[5].Op) // Restart -> preKill (2nd)
+	require.Equal(t, "add", ops[6].Op)    // Restart -> preRun
 }
 
 func TestGroupServiceHook_getWorkloadServices(t *testing.T) {

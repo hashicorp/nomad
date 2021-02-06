@@ -1,0 +1,54 @@
+---
+layout: docs
+page_title: convert - Functions - Configuration Language
+sidebar_title: convert
+description: 'The convert function converts a value or an expression to a given type. '
+---
+
+# `convert` Function
+
+`convert` converts a value or an expression to a given type.
+
+Explicit type conversions are rarely necessary in HCL because it will convert
+types automatically where required. Use the explicit type conversion functions
+only to normalize types returned in outputs.
+
+Only numbers and strings containing decimal representations of numbers can be
+converted to number. All other values will produce an error.
+
+Only boolean values and the exact strings "true" and "false" can be converted
+to boolean. All other values will produce an error.
+
+Only the primitive types (string, number, and bool) can be converted to string.
+All other values will produce an error.
+
+`convert(value, type_constraint)`
+
+## Examples
+
+```shell-session
+> convert(3, string)
+"3"
+> convert("3", number)
+3
+> convert("false", bool)
+false
+> convert(false, string)
+"false"
+> convert(["a", "b", 3], list)
+[
+  "a",
+  "b",
+  "3",
+]
+> convert(["c", "b", "b"], set)
+[
+  "b",
+  "c",
+]
+> convert({"a" = "foo", "b" = true}, map)
+{
+  "a" = "foo"
+  "b" = "true"
+}
+```

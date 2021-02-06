@@ -2,6 +2,7 @@ import Controller from '@ember/controller';
 import { computed, action } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import { inject as service } from '@ember/service';
+import { tracked } from '@glimmer/tracking';
 import classic from 'ember-classic-decorator';
 import { reduceToLargestUnit } from 'nomad-ui/helpers/format-bytes';
 
@@ -12,6 +13,8 @@ export default class TopologyControllers extends Controller {
   @service userSettings;
 
   @alias('userSettings.showTopoVizPollingNotice') showPollingNotice;
+
+  @tracked filteredNodes = null;
 
   @computed('model.nodes.@each.datacenter')
   get datacenters() {
@@ -44,15 +47,17 @@ export default class TopologyControllers extends Controller {
     return reduceToLargestUnit(this.totalMemory)[1];
   }
 
-  @computed('model.allocations.@each.allocatedResources')
+  @computed('scheduledAllocations.@each.allocatedResources')
   get totalReservedMemory() {
-    const mibs = this.model.allocations.mapBy('allocatedResources.memory').reduce(sumAggregator, 0);
+    const mibs = this.scheduledAllocations
+      .mapBy('allocatedResources.memory')
+      .reduce(sumAggregator, 0);
     return mibs * 1024 * 1024;
   }
 
-  @computed('model.allocations.@each.allocatedResources')
+  @computed('scheduledAllocations.@each.allocatedResources')
   get totalReservedCPU() {
-    return this.model.allocations.mapBy('allocatedResources.cpu').reduce(sumAggregator, 0);
+    return this.scheduledAllocations.mapBy('allocatedResources.cpu').reduce(sumAggregator, 0);
   }
 
   @computed('totalMemory', 'totalReservedMemory')
@@ -67,13 +72,13 @@ export default class TopologyControllers extends Controller {
     return this.totalReservedCPU / this.totalCPU;
   }
 
-  @computed('activeAllocation', 'model.allocations.@each.{taskGroupName,job}')
+  @computed('activeAllocation', 'scheduledAllocations.@each.{taskGroupName,job}')
   get siblingAllocations() {
     if (!this.activeAllocation) return [];
     const taskGroup = this.activeAllocation.taskGroupName;
     const jobId = this.activeAllocation.belongsTo('job').id();
 
-    return this.model.allocations.filter(allocation => {
+    return this.scheduledAllocations.filter(allocation => {
       return allocation.taskGroupName === taskGroup && allocation.belongsTo('job').id() === jobId;
     });
   }
@@ -101,7 +106,7 @@ export default class TopologyControllers extends Controller {
 
   @computed('siblingAllocations.@each.node')
   get uniqueActiveAllocationNodes() {
-    return this.siblingAllocations.mapBy('node').uniq();
+    return this.siblingAllocations.mapBy('node.id').uniq();
   }
 
   @action
@@ -116,5 +121,13 @@ export default class TopologyControllers extends Controller {
   @action
   setNode(node) {
     this.set('activeNode', node);
+  }
+
+  @action
+  handleTopoVizDataError(errors) {
+    const filteredNodesError = errors.findBy('type', 'filtered-nodes');
+    if (filteredNodesError) {
+      this.filteredNodes = filteredNodesError.context;
+    }
   }
 }

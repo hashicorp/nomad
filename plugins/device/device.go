@@ -86,29 +86,29 @@ func (d *DeviceGroup) Validate() error {
 	var mErr multierror.Error
 
 	if d.Vendor == "" {
-		multierror.Append(&mErr, fmt.Errorf("device vendor must be specified"))
+		_ = multierror.Append(&mErr, fmt.Errorf("device vendor must be specified"))
 	}
 	if d.Type == "" {
-		multierror.Append(&mErr, fmt.Errorf("device type must be specified"))
+		_ = multierror.Append(&mErr, fmt.Errorf("device type must be specified"))
 	}
 	if d.Name == "" {
-		multierror.Append(&mErr, fmt.Errorf("device name must be specified"))
+		_ = multierror.Append(&mErr, fmt.Errorf("device name must be specified"))
 	}
 
 	for i, dev := range d.Devices {
 		if dev == nil {
-			multierror.Append(&mErr, fmt.Errorf("device %d is nil", i))
+			_ = multierror.Append(&mErr, fmt.Errorf("device %d is nil", i))
 			continue
 		}
 
 		if err := dev.Validate(); err != nil {
-			multierror.Append(&mErr, multierror.Prefix(err, fmt.Sprintf("device %d: ", i)))
+			_ = multierror.Append(&mErr, multierror.Prefix(err, fmt.Sprintf("device %d: ", i)))
 		}
 	}
 
 	for k, v := range d.Attributes {
 		if err := v.Validate(); err != nil {
-			multierror.Append(&mErr, fmt.Errorf("device attribute %q invalid: %v", k, err))
+			_ = multierror.Append(&mErr, fmt.Errorf("device attribute %q invalid: %v", k, err))
 		}
 	}
 

@@ -34,10 +34,10 @@ module('Integration | Component | agent-monitor', function(hooks) {
 
   const commonTemplate = hbs`
     <AgentMonitor
-      @level={{level}}
-      @client={{client}}
-      @server={{server}}
-      @onLevelChange={{onLevelChange}} />
+      @level={{this.level}}
+      @client={{this.client}}
+      @server={{this.server}}
+      @onLevelChange={{this.onLevelChange}} />
   `;
 
   test('basic appearance', async function(assert) {
@@ -61,7 +61,7 @@ module('Integration | Component | agent-monitor', function(hooks) {
   test('when provided with a client, AgentMonitor streams logs for the client', async function(assert) {
     this.setProperties({
       level: 'info',
-      client: { id: 'client1' },
+      client: { id: 'client1', region: 'us-west-1' },
     });
 
     run.later(run, run.cancelTimers, INTERVAL);
@@ -73,12 +73,13 @@ module('Integration | Component | agent-monitor', function(hooks) {
     assert.ok(logRequest.url.includes('client_id=client1'));
     assert.ok(logRequest.url.includes('log_level=info'));
     assert.notOk(logRequest.url.includes('server_id'));
+    assert.notOk(logRequest.url.includes('region='));
   });
 
   test('when provided with a server, AgentMonitor streams logs for the server', async function(assert) {
     this.setProperties({
       level: 'warn',
-      server: { id: 'server1' },
+      server: { id: 'server1', region: 'us-west-1' },
     });
 
     run.later(run, run.cancelTimers, INTERVAL);
@@ -89,6 +90,7 @@ module('Integration | Component | agent-monitor', function(hooks) {
     assert.ok(logRequest.url.startsWith('/v1/agent/monitor'));
     assert.ok(logRequest.url.includes('server_id=server1'));
     assert.ok(logRequest.url.includes('log_level=warn'));
+    assert.ok(logRequest.url.includes('region=us-west-1'));
     assert.notOk(logRequest.url.includes('client_id'));
   });
 

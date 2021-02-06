@@ -3,6 +3,7 @@ package docker
 import (
 	"fmt"
 
+	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
@@ -33,7 +34,9 @@ func (d *Driver) recoverPre09Task(h *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to get docker client: %v", err)
 	}
 
-	container, err := client.InspectContainer(handle.ContainerID)
+	container, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: handle.ContainerID,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to inspect container for id %q: %v", handle.ContainerID, err)
 	}

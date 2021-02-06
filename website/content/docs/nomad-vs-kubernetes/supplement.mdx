@@ -1,0 +1,42 @@
+---
+layout: docs
+page_title: Supplement to Kubernetes
+sidebar_title: Supplement to Kubernetes
+description: Comparison between Nomad and Kubernetes
+---
+
+# Supplement to Kubernetes
+
+Enterprises are comprised of multiple groups of people (business units) with different projects, infrastructure environments, technical competencies, team sizes, budgets, and SLAs. Each group has different requirements and leverages technologies based on their particular needs and constraints.
+
+Medium to large scale enterprises run into challenges when trying to standardize hundreds to thousands of software developers and administrators onto one single orchestrator (Kubernetes, Nomad, Mesos) as no scheduler today fits all applications, environments, projects, and teams.
+
+Companies in the Global 2000 today such as Intel, Autodesk and Github with multiple products and business units organically run Nomad and Kubernetes to supplement each other. They leverage each scheduler to its strengths with Kubernetes for its cutting edge ecosystem and Nomad for simple maintenance and flexibility in core scheduling.
+
+![](https://lh3.googleusercontent.com/1iKJRlfp374MHd9vGxdabYebn9eCaXS3Q_aFQNB3kdRte_FMsZOui_zKdBzFofE-vq5oI1NUkgPcuxoCqQyn-Xmd4l7hzE_5XfoKkuanA0qbU_hVoERdRcpE35TDxFCB7VUGHsaG)
+
+These are the characteristics we see in teams that typically adopt self-hosted Kubernetes:
+
+- Greenfield use-cases such as machine learning (ML), serverless, and big data that require the Kubernetes ecosystem and Helm chart
+
+- High budget and full-time staffing to maintain Kubernetes
+
+- High-profile projects with significant investment and long-term timeline (multi-year)
+
+- Deploying and managing new, cloud-native applications
+
+- Public cloud environment such as AWS, GCP, Azure
+
+Characteristics of teams that typically adopt Nomad:
+
+- Run a mix of containerized and non-containerized workloads (Windows, Java)
+
+- Small/medium-sized teams with limited capacity to maintain an orchestrator
+
+- Deploying and managing core, existing applications
+
+- On-premises environment, or hybrid environments
+
+- Require simplicity to move fast and fulfill business needs with hard deadlines
+
+We continue to see small enterprises continue to standardize on a single orchestrator given the natural staffing and organizational constraints. There are not enough DevOps members to maintain more than one orchestrator, not enough developers to warrant diverging workflows, or simply not enough workload diversity to require more than one orchestrator.

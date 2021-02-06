@@ -17,10 +17,10 @@ $ packer --version
 1.6.4
 
 # build Ubuntu Bionic AMI
-$ packer build ubuntu-bionic-amd64.pkr.hcl
+$ ./build ubuntu-bionic-amd64
 
 # build Windows AMI
-$ packer build windows-2016-amd64.pkr.hcl
+$ ./build windows-2016-amd64
 ```
 
 ## Debugging Packer Builds

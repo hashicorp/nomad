@@ -307,7 +307,8 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 			}
 		}
 	} else {
-		if err := l.container.Signal(os.Kill, true); err != nil {
+		err := l.container.Signal(os.Kill, true)
+		if err != nil {
 			return err
 		}
 	}
@@ -580,6 +581,8 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	// launch with mount namespace
 	cfg.Namespaces = lconfigs.Namespaces{
 		{Type: lconfigs.NEWNS},
+		{Type: lconfigs.NEWPID},
+		{Type: lconfigs.NEWIPC},
 	}
 
 	if command.NetworkIsolation != nil {
@@ -832,13 +835,7 @@ func lookupTaskBin(command *ExecCommand) (string, error) {
 		return "", fmt.Errorf("file %s not found under path %s", bin, taskDir)
 	}
 
-	// Find the PATH
 	path := "/usr/local/bin:/usr/bin:/bin"
-	for _, e := range command.Env {
-		if strings.HasPrefix("PATH=", e) {
-			path = e[5:]
-		}
-	}
 
 	return lookPathIn(path, taskDir, bin)
 }

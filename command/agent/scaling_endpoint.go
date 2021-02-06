@@ -43,10 +43,7 @@ func (s *HTTPServer) scalingPoliciesListRequest(resp http.ResponseWriter, req *h
 
 func (s *HTTPServer) ScalingPolicySpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/scaling/policy/")
-	switch {
-	default:
-		return s.scalingPolicyCRUD(resp, req, path)
-	}
+	return s.scalingPolicyCRUD(resp, req, path)
 }
 
 func (s *HTTPServer) scalingPolicyCRUD(resp http.ResponseWriter, req *http.Request,

@@ -26,6 +26,7 @@ func newConnect(serviceName string, nc *structs.ConsulConnect, networks structs.
 		return &api.AgentServiceConnect{Native: true}, nil
 
 	case nc.HasSidecar():
+		// must register the sidecar for this service
 		sidecarReg, err := connectSidecarRegistration(serviceName, nc.SidecarService, networks)
 		if err != nil {
 			return nil, err
@@ -33,6 +34,7 @@ func newConnect(serviceName string, nc *structs.ConsulConnect, networks structs.
 		return &api.AgentServiceConnect{SidecarService: sidecarReg}, nil
 
 	default:
+		// a non-nil but empty connect block makes no sense
 		return nil, fmt.Errorf("Connect configuration empty for service %s", serviceName)
 	}
 }
@@ -45,29 +47,37 @@ func newConnectGateway(serviceName string, connect *structs.ConsulConnect) *api.
 		return nil
 	}
 
-	proxy := connect.Gateway.Proxy
+	var envoyConfig map[string]interface{}
 
-	envoyConfig := make(map[string]interface{})
+	// Populate the envoy configuration from the gateway.proxy stanza, if
+	// such configuration is provided.
+	if proxy := connect.Gateway.Proxy; proxy != nil {
+		envoyConfig = make(map[string]interface{})
 
-	if len(proxy.EnvoyGatewayBindAddresses) > 0 {
-		envoyConfig["envoy_gateway_bind_addresses"] = proxy.EnvoyGatewayBindAddresses
-	}
+		if len(proxy.EnvoyGatewayBindAddresses) > 0 {
+			envoyConfig["envoy_gateway_bind_addresses"] = proxy.EnvoyGatewayBindAddresses
+		}
 
-	if proxy.EnvoyGatewayNoDefaultBind {
-		envoyConfig["envoy_gateway_no_default_bind"] = true
-	}
+		if proxy.EnvoyGatewayNoDefaultBind {
+			envoyConfig["envoy_gateway_no_default_bind"] = true
+		}
 
-	if proxy.EnvoyGatewayBindTaggedAddresses {
-		envoyConfig["envoy_gateway_bind_tagged_addresses"] = true
-	}
+		if proxy.EnvoyGatewayBindTaggedAddresses {
+			envoyConfig["envoy_gateway_bind_tagged_addresses"] = true
+		}
 
-	if proxy.ConnectTimeout != nil {
-		envoyConfig["connect_timeout_ms"] = proxy.ConnectTimeout.Milliseconds()
-	}
+		if proxy.EnvoyDNSDiscoveryType != "" {
+			envoyConfig["envoy_dns_discovery_type"] = proxy.EnvoyDNSDiscoveryType
+		}
 
-	if len(proxy.Config) > 0 {
-		for k, v := range proxy.Config {
-			envoyConfig[k] = v
+		if proxy.ConnectTimeout != nil {
+			envoyConfig["connect_timeout_ms"] = proxy.ConnectTimeout.Milliseconds()
+		}
+
+		if len(proxy.Config) > 0 {
+			for k, v := range proxy.Config {
+				envoyConfig[k] = v
+			}
 		}
 	}
 
@@ -85,7 +95,7 @@ func connectSidecarRegistration(serviceName string, css *structs.ConsulSidecarSe
 		return nil, err
 	}
 
-	proxy, err := connectProxy(css.Proxy, cPort.To, networks)
+	proxy, err := connectSidecarProxy(css.Proxy, cPort.To, networks)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +108,7 @@ func connectSidecarRegistration(serviceName string, css *structs.ConsulSidecarSe
 	}, nil
 }
 
-func connectProxy(proxy *structs.ConsulProxy, cPort int, networks structs.Networks) (*api.AgentServiceConnectProxyConfig, error) {
+func connectSidecarProxy(proxy *structs.ConsulProxy, cPort int, networks structs.Networks) (*api.AgentServiceConnectProxyConfig, error) {
 	if proxy == nil {
 		proxy = new(structs.ConsulProxy)
 	}
@@ -165,6 +175,7 @@ func connectUpstreams(in []structs.ConsulUpstream) []api.Upstream {
 		upstreams[i] = api.Upstream{
 			DestinationName: upstream.DestinationName,
 			LocalBindPort:   upstream.LocalBindPort,
+			Datacenter:      upstream.Datacenter,
 		}
 	}
 	return upstreams

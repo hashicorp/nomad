@@ -1,0 +1,255 @@
+---
+layout: docs
+page_title: job Stanza - Job Specification
+sidebar_title: job
+description: |-
+  The "job" stanza is the top-most configuration option in the job
+  specification. A job is a declarative specification of tasks that Nomad
+  should run.
+---
+
+# `job` Stanza
+
+<Placement groups={['job']} />
+
+The `job` stanza is the top-most configuration option in the job specification.
+A job is a declarative specification of tasks that Nomad should run. Jobs have
+one or more task groups, which are themselves collections of one or more tasks.
+Job names are unique per [region][region] or [namespace][namespace].
+
+```hcl
+job "docs" {
+  constraint {
+    # ...
+  }
+
+  datacenters = ["us-east-1"]
+
+  group "example" {
+    # ...
+  }
+
+  meta {
+    my-key = "my-value"
+  }
+
+  parameterized {
+    # ...
+  }
+
+  periodic {
+    # ...
+  }
+
+  priority = 100
+
+  region = "north-america"
+
+  task "docs" {
+    # ...
+  }
+
+  update {
+    # ...
+  }
+}
+```
+
+## `job` Parameters
+
+- `all_at_once` `(bool: false)` - Controls whether the scheduler can make
+  partial placements if optimistic scheduling resulted in an oversubscribed
+  node. This does not control whether all allocations for the job, where all
+  would be the desired count for each task group, must be placed atomically.
+  This should only be used for special circumstances.
+
+- `constraint` <code>([Constraint][constraint]: nil)</code> -
+  This can be provided multiple times to define additional constraints. See the
+  [Nomad constraint reference][constraint] for more
+  details.
+
+- `affinity` <code>([Affinity][affinity]: nil)</code> -
+  This can be provided multiple times to define preferred placement criteria. See the
+  [Nomad affinity reference][affinity] for more
+  details.
+
+- `spread` <code>([Spread][spread]: nil)</code> - This can be provided multiple times
+  to define criteria for spreading allocations across a node attribute or metadata.
+  See the [Nomad spread reference][spread] for more details.
+
+- `datacenters` `(array<string>: <required>)` - A list of datacenters in the region which are eligible
+  for task placement. This must be provided, and does not have a default.
+
+- `group` <code>([Group][group]: &lt;required&gt;)</code> - Specifies the start of a
+  group of tasks. This can be provided multiple times to define additional
+  groups. Group names must be unique within the job file.
+
+- `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
+  with user-defined metadata.
+
+- `name` `(string: <optional>)` - Specifies a name for the job, which otherwise
+  defaults to the job ID.
+
+- `migrate` <code>([Migrate][]: nil)</code> - Specifies the groups strategy for
+  migrating off of draining nodes. If omitted, a default migration strategy is
+  applied. Only service jobs with a count greater than 1 support migrate stanzas.
+
+- `namespace` `(string: "default")` - The namespace in which to execute the job.
+  Prior to Nomad 1.0 namespaces were Enterprise-only.
+
+- `parameterized` <code>([Parameterized][parameterized]: nil)</code> - Specifies
+  the job as a parameterized job such that it can be dispatched against.
+
+- `periodic` <code>([Periodic][]: nil)</code> - Allows the job to be scheduled
+  at fixed times, dates or intervals.
+
+- `priority` `(int: 50)` - Specifies the job priority which is used to
+  prioritize scheduling and access to resources. Must be between 1 and 100
+  inclusively, with a larger value corresponding to a higher priority.
+
+- `region` `(string: "global")` - The region in which to execute the job.
+
+- `reschedule` <code>([Reschedule][]: nil)</code> - Allows to specify a
+  rescheduling strategy. Nomad will then attempt to schedule the task on another
+  node if any of its allocation statuses become "failed".
+
+- `type` `(string: "service")` - Specifies the [Nomad scheduler][scheduler] to
+  use. Nomad provides the `service`, `system` and `batch` schedulers.
+
+- `update` <code>([Update][update]: nil)</code> - Specifies the task's update
+  strategy. When omitted, rolling updates are disabled.
+
+- `vault` <code>([Vault][]: nil)</code> - Specifies the set of Vault policies
+  required by all tasks in this job.
+
+- `vault_token` `(string: "")` - Specifies the Vault token that proves the
+  submitter of the job has access to the specified policies in the
+  [`vault`][vault] stanza. This field is only used to transfer the token and is
+  not stored after job submission.
+
+  !> It is **strongly discouraged** to place the token as a configuration
+  parameter like this, since the token could be checked into source control
+  accidentally. Users should set the `VAULT_TOKEN` environment variable when
+  running the job instead.
+
+- `consul_token` `(string: "")` - Specifies the Consul token that proves the
+  submitter of the job has access to the Service Identity policies associated
+  with the job's Consul Connect enabled services. This field is only used to
+  transfer the token and is not stored after job submission.
+
+  !> It is **strongly discouraged** to place the token as a configuration
+  parameter like this, since the token could be checked into source control
+  accidentally. Users should set the `CONSUL_HTTP_TOKEN` environment variable when
+  running the job instead.
+
+## `job` Examples
+
+The following examples only show the `job` stanzas. Remember that the
+`job` stanza is only valid in the placements listed above.
+
+### Docker Container
+
+This example job starts a Docker container which runs as a service. Even though
+the type is not specified as "service", that is the default job type.
+
+```hcl
+job "docs" {
+  datacenters = ["default"]
+
+  group "example" {
+    task "server" {
+      driver = "docker"
+      config {
+        image = "hashicorp/http-echo"
+        args  = ["-text", "hello"]
+      }
+
+      resources {
+        memory = 128
+      }
+    }
+  }
+}
+```
+
+### Batch Job
+
+This example job executes the `uptime` command on 10 Nomad clients in the fleet,
+restricting the eligible nodes to Linux machines.
+
+```hcl
+job "docs" {
+  datacenters = ["default"]
+
+  type = "batch"
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
+  group "example" {
+    count = 10
+    task "uptime" {
+      driver = "exec"
+      config {
+        command = "uptime"
+      }
+    }
+  }
+}
+```
+
+### Consuming Secrets
+
+This example shows a job which retrieves secrets from Vault and writes those
+secrets to a file on disk, which the application then consumes. Nomad handles
+all interactions with Vault.
+
+```hcl
+job "docs" {
+  datacenters = ["default"]
+
+  group "example" {
+    task "cat" {
+      driver = "exec"
+
+      config {
+        command = "cat"
+        args    = ["local/secrets.txt"]
+      }
+
+      template {
+        data        = "{{ secret \"secret/data\" }}"
+        destination = "local/secrets.txt"
+      }
+
+      vault {
+        policies = ["secret-readonly"]
+      }
+    }
+  }
+}
+```
+
+When submitting this job, you would run:
+
+```shell-session
+$ VAULT_TOKEN="..." nomad job run example.nomad
+```
+
+[affinity]: /docs/job-specification/affinity 'Nomad affinity Job Specification'
+[constraint]: /docs/job-specification/constraint 'Nomad constraint Job Specification'
+[group]: /docs/job-specification/group 'Nomad group Job Specification'
+[meta]: /docs/job-specification/meta 'Nomad meta Job Specification'
+[migrate]: /docs/job-specification/migrate 'Nomad migrate Job Specification'
+[namespace]: https://learn.hashicorp.com/tutorials/nomad/namespaces
+[parameterized]: /docs/job-specification/parameterized 'Nomad parameterized Job Specification'
+[periodic]: /docs/job-specification/periodic 'Nomad periodic Job Specification'
+[region]: https://learn.hashicorp.com/tutorials/nomad/federation
+[reschedule]: /docs/job-specification/reschedule 'Nomad reschedule Job Specification'
+[scheduler]: /docs/schedulers 'Nomad Scheduler Types'
+[spread]: /docs/job-specification/spread 'Nomad spread Job Specification'
+[task]: /docs/job-specification/task 'Nomad task Job Specification'
+[update]: /docs/job-specification/update 'Nomad update Job Specification'
+[vault]: /docs/job-specification/vault 'Nomad vault Job Specification'

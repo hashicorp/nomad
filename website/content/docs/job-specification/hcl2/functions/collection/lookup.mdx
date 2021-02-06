@@ -1,0 +1,28 @@
+---
+layout: docs
+page_title: lookup - Functions - Configuration Language
+sidebar_title: lookup
+description: The lookup function retrieves an element value from a map given its key.
+---
+
+# `lookup` Function
+
+`lookup` retrieves the value of a single element from a map, given its key.
+If the given key does not exist, a the given default value is returned instead.
+
+```hcl
+lookup(map, key, default)
+```
+
+## Examples
+
+```shell-session
+> lookup({a="ay", b="bee"}, "a", "what?")
+ay
+> lookup({a="ay", b="bee"}, "c", "what?")
+what?
+```
+
+## Related Functions
+
+- [`element`](/docs/job-specification/hcl2/functions/collection/element) retrieves a value from a _list_ given its _index_.

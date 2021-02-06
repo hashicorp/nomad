@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/prometheus/common/model"
 
 	"github.com/stretchr/testify/assert"
@@ -118,9 +119,7 @@ func (tc *MetricsTest) runWorkloads(t *testing.T, workloads map[string]string) {
 		tc.jobIDs = append(tc.jobIDs, jobID)
 		file := "metrics/input/" + jobName + ".nomad"
 		allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), file, jobID, "")
-		if len(allocs) == 0 {
-			t.Fatalf("failed to register %s", jobID)
-		}
+		require.NotZerof(t, allocs, "failed to register %s", jobID)
 	}
 }
 
@@ -136,16 +135,21 @@ func (tc *MetricsTest) queryClientMetrics(t *testing.T, clientNodes []string) {
 	}
 	// we start with a very long timeout here because it takes a while for
 	// prometheus to be live and for jobs to initially register metrics.
-	timeout := 60 * time.Second
+	retries := int64(60)
 
 	for _, metric := range metrics {
+
 		var results model.Vector
 		var err error
-		ok := assert.Eventually(t, func() bool {
+
+		testutil.WaitForResultRetries(retries, func() (bool, error) {
+			defer time.Sleep(time.Second)
+
 			results, err = tc.promQuery(metric)
 			if err != nil {
-				return false
+				return false, err
 			}
+
 			instances := make(map[string]struct{})
 			for _, result := range results {
 				instances[string(result.Metric["node_id"])] = struct{}{}
@@ -155,19 +159,18 @@ func (tc *MetricsTest) queryClientMetrics(t *testing.T, clientNodes []string) {
 			// and not just equal lengths
 			for _, clientNode := range clientNodes {
 				if _, ok := instances[clientNode]; !ok {
-					err = fmt.Errorf("expected metric '%s' for all clients. got:\n%v",
-						metric, results)
-					return false
+					return false, fmt.Errorf("expected metric '%s' for all clients. got:\n%v", metric, results)
 				}
 			}
-			return true
-		}, timeout, 1*time.Second)
-		require.Truef(t, ok, "prometheus query failed (%s): %v", metric, err)
+			return true, nil
+		}, func(err error) {
+			require.NoError(t, err)
+		})
 
 		// shorten the timeout after the first workload is successfully
 		// queried so that we don't hang the whole test run if something's
 		// wrong with only one of the jobs
-		timeout = 15 * time.Second
+		retries = 15
 	}
 }
 

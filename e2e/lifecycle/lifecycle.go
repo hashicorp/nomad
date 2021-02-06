@@ -102,7 +102,7 @@ func (tc *LifecycleE2ETest) TestServiceJob(f *framework.F) {
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("failed to wait on alloc: %v", err)
+		require.NoError(err, "failed to wait on alloc")
 	})
 
 	alloc, _, err := nomadClient.Allocations().Info(allocID, nil)

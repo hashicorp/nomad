@@ -85,7 +85,7 @@ func formattedDiagnosticErrors(diag hcl.Diagnostics) []error {
 		if d.Summary == "Extraneous JSON object property" {
 			d.Summary = "Invalid label"
 		}
-		err := errors.New(fmt.Sprintf("%s: %s", d.Summary, d.Detail))
+		err := fmt.Errorf("%s: %s", d.Summary, d.Detail)
 		errs = append(errs, err)
 	}
 	return errs
