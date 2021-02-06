@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -868,15 +870,24 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 	}
 }
 
+func limitStr(limit *int) string {
+	if limit == nil {
+		return "none"
+	}
+	return strconv.Itoa(*limit)
+}
+
 // TestHTTPServer_Limits_OK asserts that all valid limits combinations
 // (tls/timeout/conns) work.
 func TestHTTPServer_Limits_OK(t *testing.T) {
 	t.Parallel()
+
 	const (
 		cafile   = "../../helper/tlsutil/testdata/ca.pem"
 		foocert  = "../../helper/tlsutil/testdata/nomad-foo.pem"
 		fookey   = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
 		maxConns = 10 // limit must be < this for testing
+		bufSize  = 1  // enough to know if something was written
 	)
 
 	cases := []struct {
@@ -953,11 +964,14 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 
 		conn, err := net.DialTimeout("tcp", a.Server.Addr, deadline)
 		require.NoError(t, err)
-		defer conn.Close()
+		defer func() {
+			require.NoError(t, conn.Close())
+		}()
 
 		buf := []byte{0}
 		readDeadline := time.Now().Add(deadline)
-		conn.SetReadDeadline(readDeadline)
+		err = conn.SetReadDeadline(readDeadline)
+		require.NoError(t, err)
 		n, err := conn.Read(buf)
 		require.Zero(t, n)
 		if assertTimeout {
@@ -997,7 +1011,8 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		// timed out.
 		require.True(t, time.Now().After(readDeadline))
 
-		testutil.RequireDeadlineErr(t, err)
+		require.Truef(t, errors.Is(err, os.ErrDeadlineExceeded),
+			"error does not wrap os.ErrDeadlineExceeded: (%T) %v", err, err)
 	}
 
 	assertNoLimit := func(t *testing.T, addr string) {
@@ -1009,12 +1024,12 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		for i := 0; i < maxConns; i++ {
 			conns[i], err = net.DialTimeout("tcp", addr, 1*time.Second)
 			require.NoError(t, err)
-			defer conns[i].Close()
 
 			go func(i int) {
 				buf := []byte{0}
 				readDeadline := time.Now().Add(1 * time.Second)
-				conns[i].SetReadDeadline(readDeadline)
+				err = conns[i].SetReadDeadline(readDeadline)
+				require.NoError(t, err)
 				n, err := conns[i].Read(buf)
 				if n > 0 {
 					errCh <- fmt.Errorf("n > 0: %d", n)
@@ -1030,21 +1045,39 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 			case <-time.After(2 * time.Second):
 				t.Fatalf("timed out waiting for conn error %d", i)
 			case err := <-errCh:
-				testutil.RequireDeadlineErr(t, err)
+				require.Truef(t, errors.Is(err, os.ErrDeadlineExceeded),
+					"error does not wrap os.ErrDeadlineExceeded: (%T) %v", err, err)
 			}
+		}
+
+		for i := 0; i < maxConns; i++ {
+			require.NoError(t, conns[i].Close())
 		}
 	}
 
-	assertLimit := func(t *testing.T, addr string, limit int) {
+	dial := func(t *testing.T, addr string, useTLS bool) (net.Conn, error) {
+		if useTLS {
+			cert, err := tls.LoadX509KeyPair(foocert, fookey)
+			require.NoError(t, err)
+			return tls.Dial("tcp", addr, &tls.Config{
+				Certificates:       []tls.Certificate{cert},
+				InsecureSkipVerify: true, // good enough
+			})
+		} else {
+			return net.DialTimeout("tcp", addr, 1*time.Second)
+		}
+	}
+
+	assertLimit := func(t *testing.T, addr string, limit int, useTLS bool) {
 		var err error
 
 		// Create limit connections
 		conns := make([]net.Conn, limit)
 		errCh := make(chan error, limit)
 		for i := range conns {
-			conns[i], err = net.DialTimeout("tcp", addr, 1*time.Second)
+			conn, err := dial(t, addr, useTLS)
 			require.NoError(t, err)
-			defer conns[i].Close()
+			conns[i] = conn
 
 			go func(i int) {
 				buf := []byte{0}
@@ -1063,27 +1096,53 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		case <-time.After(500 * time.Millisecond):
 		}
 
-		// Assert a new connection is dropped
-		conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
-		require.NoError(t, err)
-		defer conn.Close()
+		// Create a new connection that will go over the connection limit.
+		limitConn, err := dial(t, addr, useTLS)
 
-		buf := []byte{0}
-		deadline := time.Now().Add(10 * time.Second)
-		conn.SetReadDeadline(deadline)
-		n, err := conn.Read(buf)
-		require.Zero(t, n)
+		// At this point, the state of the connection + handshake are up in the
+		// air.
+		//
+		// 1) dial failed, handshake never started
+		//     => Conn is nil + io.EOF
+		// 2) dial completed, handshake failed
+		//     => Conn is malformed + (net.OpError OR io.EOF)
+		// 3) dial completed, handshake succeeded
+		//     => Conn is not nil + no error, however using the Conn should
+		//        result in io.EOF
+		//
+		// At no point should Nomad actually write through the limited Conn.
 
-		// Soft-fail as following assertion helps with debugging
-		assert.Equal(t, io.EOF, err)
+		if limitConn == nil || err != nil {
+			// Case 1 or Case 2 - returned Conn is useless and the error should
+			// be one of:
+			//   "EOF"
+			//   "closed network connection"
+			//   "connection reset by peer"
+			msg := err.Error()
+			acceptable := strings.Contains(msg, "EOF") ||
+				strings.Contains(msg, "closed network connection") ||
+				strings.Contains(msg, "connection reset by peer")
+			require.True(t, acceptable)
+		} else {
+			// Case 3 - returned Conn is usable, but Nomad should not write
+			// anything before closing it.
+			buf := make([]byte, bufSize)
+			deadline := time.Now().Add(10 * time.Second)
+			require.NoError(t, limitConn.SetReadDeadline(deadline))
+			n, err := limitConn.Read(buf)
+			require.Equal(t, io.EOF, err)
+			require.Zero(t, n)
+			require.NoError(t, limitConn.Close())
+		}
 
 		// Assert existing connections are ok
 		require.Len(t, errCh, 0)
 
 		// Cleanup
 		for _, conn := range conns {
-			conn.Close()
+			require.NoError(t, conn.Close())
 		}
+
 		for range conns {
 			err := <-errCh
 			require.Contains(t, err.Error(), "use of closed network connection")
@@ -1092,7 +1151,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 
 	for i := range cases {
 		tc := cases[i]
-		name := fmt.Sprintf("%d-tls-%t-timeout-%s-limit-%v", i, tc.tls, tc.timeout, tc.limit)
+		name := fmt.Sprintf("%d-tls-%t-timeout-%s-limit-%v", i, tc.tls, tc.timeout, limitStr(tc.limit))
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1111,21 +1170,24 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 				}
 				c.Limits.HTTPSHandshakeTimeout = tc.timeout
 				c.Limits.HTTPMaxConnsPerClient = tc.limit
+				c.LogLevel = "ERROR"
 			})
-			defer s.Shutdown()
+			defer func() {
+				require.NoError(t, s.Shutdown())
+			}()
 
 			assertTimeout(t, s, tc.assertTimeout, tc.timeout)
 
 			if tc.assertLimit {
 				// There's a race between assertTimeout(false) closing
 				// its connection and the HTTP server noticing and
-				// untracking it. Since there's no way to coordiante
+				// un-tracking it. Since there's no way to coordinate
 				// when this occurs, sleeping is the only way to avoid
 				// asserting limits before the timed out connection is
 				// untracked.
 				time.Sleep(1 * time.Second)
 
-				assertLimit(t, s.Server.Addr, *tc.limit)
+				assertLimit(t, s.Server.Addr, *tc.limit, tc.tls)
 			} else {
 				assertNoLimit(t, s.Server.Addr)
 			}

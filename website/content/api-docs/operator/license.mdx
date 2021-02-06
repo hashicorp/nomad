@@ -1,0 +1,106 @@
+---
+layout: api
+page_title: License - Operator - HTTP API
+sidebar_title: License
+description: |-
+  The /operator/license endpoints allow for setting and retrieving the Nomad Enterprise License.
+---
+
+# License Operator HTTP API
+
+<EnterpriseAlert />
+
+## Get Nomad Enterprise License Info
+
+This endpoint gets information about the current license.
+
+| Method | Path                   | Produces           |
+| ------ | ---------------------- | ------------------ |
+| `GET`  | `/v1/operator/license` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required    |
+| ---------------- | --------------- |
+| `NO`             | `operator:read` |
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/operator/license
+```
+
+### Sample Response
+
+```json
+{
+  "KnownLeader": false,
+  "LastContact": 0,
+  "LastIndex": 0,
+  "License": {
+    "CustomerID": "temporary license customer",
+    "ExpirationTime": "2020-06-01T14:50:16.581304556-04:00",
+    "Features": [
+      "Automated Upgrades",
+      "Enhanced Read Scalability",
+      "Redundancy Zones",
+      "Namespaces",
+      "Resource Quotas",
+      "Preemption",
+      "Audit Logging",
+      "Setinel Policies"
+    ],
+    "Flags": {
+      "modules": ["governance-policy"]
+    },
+    "InstallationID": "*",
+    "IssueTime": "2020-06-01T08:50:16.581304556-04:00",
+    "LicenseID": "temporary-license",
+    "Modules": ["governance-policy"],
+    "Product": "nomad",
+    "StartTime": "2020-06-01T08:50:16.581304556-04:00",
+    "TerminationTime": "2020-06-01T14:50:16.581304556-04:00"
+  },
+  "RequestTime": 0
+}
+```
+
+## Updating the Nomad Enterprise License
+
+This endpoint updates the Nomad license.
+
+| Method | Path                   | Produces           |
+| ------ | ---------------------- | ------------------ |
+| `PUT`  | `/v1/operator/license` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required     |
+| ---------------- | ---------------- |
+| `NO`             | `operator:write` |
+
+### Sample Payload
+
+The payload is the raw license blob.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request PUT \
+    --data @nomad.license \
+    https://localhost:4646/v1/operator/license
+```
+
+### Sample Response
+
+```json
+{
+  "Index": 15
+}
+```

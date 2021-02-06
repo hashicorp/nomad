@@ -1,0 +1,163 @@
+---
+layout: docs
+page_title: 'Commands: operator debug'
+sidebar_title: debug
+description: |
+  Build an archive of debug data.
+---
+
+# Command: operator debug
+
+The `operator debug` command builds an archive containing Nomad cluster
+configuration and state information, Nomad server and client node
+logs, and pprof profiles from the selected servers and client nodes.
+
+If no selection option is specified, the debug archive contains only
+cluster meta information.
+
+## Usage
+
+```plaintext
+nomad operator debug [options]
+```
+
+This command accepts comma separated `server-id` and `node-id` IDs for
+monitoring and pprof profiling. If IDs are provided, the command will
+monitor logs for the `duration`, saving a snapshot of Nomad state
+every `interval`. Captured logs and configurations are subjected to
+redaction, but may still contain sensitive information and the archive
+contents should be reviewed before sharing.
+
+If an `output` path is provided, `debug` will create a timestamped
+directory in that path instead of an archive. By default, the command
+creates a compressed tar archive in the current directory.
+
+Consul and Vault status and version information are included if
+configured.
+
+If ACLs are enabled, this command will require a token with the 'node:read'
+capability to run. In order to collect information, the token will also
+require the 'agent:read' and 'operator:read' capabilities, as well as the
+'list-jobs' capability for all namespaces. To collect pprof profiles the
+token will also require 'agent:write', or enable_debug configuration set to 
+true.
+
+## General Options
+
+@include 'general_options_no_namespace.mdx'
+
+## Debug Options
+
+- `-duration=2m`: Set the duration of the log monitor command.
+  Defaults to `"2m"`. Logs will be captured from specified servers and
+  nodes at `log-level`.
+
+- `-interval=2m`: The interval between snapshots of the Nomad state.
+  If unspecified, only one snapshot is captured.
+
+- `-log-level=DEBUG`: The log level to monitor. Defaults to `DEBUG`.
+
+- `-max-nodes=<count>`: Cap the maximum number of client nodes included 
+  in the capture.  Defaults to 10, set to 0 for unlimited.
+
+- `-node-class=<node-class>`: Filter client nodes based on node class.
+
+- `-node-id=<node1>,<node2>`: Comma separated list of Nomad client node ids,
+  to monitor for logs and include pprof profiles. Accepts id prefixes, and 
+  "all" to select all nodes (up to count = max-nodes).
+
+- `pprof-duration=<duration>`: Duration for pprof collection. Defaults to 1s.
+
+- `-server-id=s1,s2`: Comma separated list of Nomad server names, "leader", or
+  "all" to monitor for logs and include pprof profiles.
+
+- `stale=<true|false>`: If "false", the default, get membership data from the
+  cluster leader. If the cluster is in an outage unable to establish
+  leadership, it may be necessary to get the configuration from a non-leader
+  server.
+
+- `-output=path`: Path to the parent directory of the output
+  directory. Defaults to the current directory. If specified, no
+  archive is built.
+
+- `-consul-http-addr=<addr>`: The address and port of the Consul HTTP
+  agent. Overrides the `CONSUL_HTTP_ADDR` environment variable.
+
+- `-consul-token=<token>`: Token used to query Consul. Overrides the
+  `CONSUL_HTTP_TOKEN` environment variable and the Consul token
+  file.
+
+- `-consul-token-file=<path>`: Path to the Consul token file. Overrides the `CONSUL_HTTP_TOKEN_FILE`
+  environment variable.
+
+- `-consul-client-cert=<path>`: Path to the Consul client cert file. Overrides the `CONSUL_CLIENT_CERT`
+  environment variable.
+
+- `-consul-client-key=<path>`: Path to the Consul client key file. Overrides the `CONSUL_CLIENT_KEY`
+  environment variable.
+
+- `-consul-ca-cert=<path>`: Path to a CA file to use with Consul. Overrides the `CONSUL_CACERT`
+  environment variable and the Consul CA path.
+
+- `-consul-ca-path=<path>`: Path to a directory of PEM encoded CA cert files to verify the Consul
+  certificate. Overrides the `CONSUL_CAPATH` environment variable.
+
+- `-vault-address=<addr>`: The address and port of the Vault HTTP agent. Overrides the `VAULT_ADDR`
+  environment variable.
+
+- `-vault-token=<token>`: Token used to query Vault. Overrides the `VAULT_TOKEN` environment
+  variable.
+
+- `-vault-client-cert=<path>`: Path to the Vault client cert file. Overrides the `VAULT_CLIENT_CERT`
+  environment variable.
+
+- `-vault-client-key=<path>`: Path to the Vault client key file. Overrides the `VAULT_CLIENT_KEY`
+  environment variable.
+
+- `-vault-ca-cert=<path>`: Path to a CA file to use with Vault. Overrides the `VAULT_CACERT`
+  environment variable and the Vault CA path.
+
+- `-vault-ca-path=<path>`: Path to a directory of PEM encoded CA cert files to verify the Vault
+  certificate. Overrides the `VAULT_CAPATH` environment variable.
+
+## Output
+
+This command prints a summary of the capture and the name of the timestamped 
+archive file produced.
+
+## Examples
+
+```shell-session
+$ nomad operator debug -duration 5s -interval 5s -server-id all -node-id b5,20
+Starting debugger...
+
+          Servers: (3/3) [server1.global server2.global server3.global]
+          Clients: (2/3) [b547cd3a-085f-68c2-55f4-e99beebb0433 20c0964b-72cc-4083-87fe-ec6905b6230a]
+         Interval: 5s
+         Duration: 5s
+
+Capturing cluster data...
+    Capture interval 0000
+    Capture interval 0001
+    Capture interval 0002
+    Capture interval 0003
+Created debug archive: nomad-debug-2020-12-08-034455Z.tar.gz
+```
+
+```shell-session
+$ nomad operator debug -duration 5s -interval 5s -server-id all -node-id all -max-nodes=1
+Starting debugger...
+
+          Servers: (3/3) [server1.global server2.global server3.global]
+          Clients: (1/3) [b547cd3a-085f-68c2-55f4-e99beebb0433]
+                   Max node count reached (1)
+         Interval: 5s
+         Duration: 5s
+
+Capturing cluster data...
+    Capture interval 0000
+    Capture interval 0001
+    Capture interval 0002
+    Capture interval 0003
+Created debug archive: nomad-debug-2020-12-08-034113Z.tar.gz
+```

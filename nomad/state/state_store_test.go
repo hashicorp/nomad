@@ -1659,6 +1659,7 @@ func TestStateStore_UpsertJob_ChildJob(t *testing.T) {
 	}
 
 	child := mock.Job()
+	child.Status = ""
 	child.ParentID = parent.ID
 	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1001, child); err != nil {
 		t.Fatalf("err: %v", err)
@@ -1996,6 +1997,7 @@ func TestStateStore_DeleteJob_ChildJob(t *testing.T) {
 	}
 
 	child := mock.Job()
+	child.Status = ""
 	child.ParentID = parent.ID
 
 	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, child); err != nil {
@@ -2951,7 +2953,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	// Claims
 	r := structs.CSIVolumeClaimRead
 	w := structs.CSIVolumeClaimWrite
-	u := structs.CSIVolumeClaimRelease
+	u := structs.CSIVolumeClaimGC
 	claim0 := &structs.CSIVolumeClaim{
 		AllocationID: a0.ID,
 		NodeID:       node.ID,
@@ -3520,6 +3522,84 @@ func TestStateStore_CSIPluginMultiNodeUpdates(t *testing.T) {
 
 }
 
+// TestStateStore_CSIPlugin_ConcurrentStop tests that concurrent allocation
+// updates don't cause the count to drift unexpectedly or cause allocation
+// update errors.
+func TestStateStore_CSIPlugin_ConcurrentStop(t *testing.T) {
+	t.Parallel()
+	index := uint64(999)
+	state := testStateStore(t)
+	ws := memdb.NewWatchSet()
+
+	var err error
+
+	// Create Nomad client Nodes
+	ns := []*structs.Node{mock.Node(), mock.Node(), mock.Node()}
+	for _, n := range ns {
+		index++
+		err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
+		require.NoError(t, err)
+	}
+
+	plugID := "foo"
+	plugCfg := &structs.TaskCSIPluginConfig{ID: plugID}
+
+	allocs := []*structs.Allocation{}
+
+	// Fingerprint 3 running node plugins and their allocs
+	for _, n := range ns[:] {
+		alloc := mock.Alloc()
+		n, _ := state.NodeByID(ws, n.ID)
+		n.CSINodePlugins = map[string]*structs.CSIInfo{
+			plugID: {
+				PluginID:                 plugID,
+				AllocID:                  alloc.ID,
+				Healthy:                  true,
+				UpdateTime:               time.Now(),
+				RequiresControllerPlugin: true,
+				RequiresTopologies:       false,
+				NodeInfo:                 &structs.CSINodeInfo{},
+			},
+		}
+		index++
+		err = state.UpsertNode(structs.MsgTypeTestSetup, index, n)
+		require.NoError(t, err)
+
+		alloc.NodeID = n.ID
+		alloc.DesiredStatus = "run"
+		alloc.ClientStatus = "running"
+		alloc.Job.TaskGroups[0].Tasks[0].CSIPluginConfig = plugCfg
+
+		index++
+		err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc})
+		require.NoError(t, err)
+
+		allocs = append(allocs, alloc)
+	}
+
+	plug, err := state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Equal(t, 3, plug.NodesHealthy, "nodes healthy")
+	require.Equal(t, 3, len(plug.Nodes), "nodes expected")
+
+	// stop all the allocs
+	for _, alloc := range allocs {
+		alloc.DesiredStatus = "stop"
+		alloc.ClientStatus = "complete"
+	}
+
+	// this is somewhat artificial b/c we get alloc updates from multiple
+	// nodes concurrently but not in a single RPC call. But this guarantees
+	// we'll trigger any nested transaction setup bugs
+	index++
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, allocs)
+	require.NoError(t, err)
+
+	plug, err = state.CSIPluginByID(ws, plugID)
+	require.NoError(t, err)
+	require.Nil(t, plug)
+}
+
 func TestStateStore_CSIPluginJobs(t *testing.T) {
 	s := testStateStore(t)
 	index := uint64(1001)
@@ -3944,6 +4024,7 @@ func TestStateStore_UpsertEvals_Eval_ChildJob(t *testing.T) {
 	}
 
 	child := mock.Job()
+	child.Status = ""
 	child.ParentID = parent.ID
 
 	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, child); err != nil {
@@ -4168,6 +4249,7 @@ func TestStateStore_DeleteEval_ChildJob(t *testing.T) {
 	}
 
 	child := mock.Job()
+	child.Status = ""
 	child.ParentID = parent.ID
 
 	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, child); err != nil {
@@ -4420,6 +4502,7 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	}
 
 	child := mock.Job()
+	child.Status = ""
 	child.ParentID = parent.ID
 	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, child); err != nil {
 		t.Fatalf("err: %v", err)
@@ -4939,16 +5022,13 @@ func TestStateStore_UpsertAlloc_ChildJob(t *testing.T) {
 	state := testStateStore(t)
 
 	parent := mock.Job()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 998, parent); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 998, parent))
 
 	child := mock.Job()
+	child.Status = ""
 	child.ParentID = parent.ID
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 999, child); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, child))
 
 	alloc := mock.Alloc()
 	alloc.JobID = child.ID
@@ -4956,40 +5036,27 @@ func TestStateStore_UpsertAlloc_ChildJob(t *testing.T) {
 
 	// Create watchsets so we can test that delete fires the watch
 	ws := memdb.NewWatchSet()
-	if _, err := state.JobSummaryByID(ws, parent.Namespace, parent.ID); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	_, err := state.JobSummaryByID(ws, parent.Namespace, parent.ID)
+	require.NoError(t, err)
 
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc})
+	require.NoError(t, err)
 
-	if !watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.True(t, watchFired(ws))
 
 	ws = memdb.NewWatchSet()
 	summary, err := state.JobSummaryByID(ws, parent.Namespace, parent.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if summary == nil {
-		t.Fatalf("nil summary")
-	}
-	if summary.JobID != parent.ID {
-		t.Fatalf("bad summary id: %v", parent.ID)
-	}
-	if summary.Children == nil {
-		t.Fatalf("nil children summary")
-	}
-	if summary.Children.Pending != 0 || summary.Children.Running != 1 || summary.Children.Dead != 0 {
-		t.Fatalf("bad children summary: %v", summary.Children)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, summary)
 
-	if watchFired(ws) {
-		t.Fatalf("bad")
-	}
+	require.Equal(t, parent.ID, summary.JobID)
+	require.NotNil(t, summary.Children)
+
+	require.Equal(t, int64(0), summary.Children.Pending)
+	require.Equal(t, int64(1), summary.Children.Running)
+	require.Equal(t, int64(0), summary.Children.Dead)
+
+	require.False(t, watchFired(ws))
 }
 
 func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
@@ -6761,32 +6828,20 @@ func TestStateStore_UpdateJobStability(t *testing.T) {
 
 	// Insert a job twice to get two versions
 	job := mock.Job()
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, job); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1, job))
 
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 2, job); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 2, job.Copy()))
 
 	// Update the stability to true
 	err := state.UpdateJobStability(3, job.Namespace, job.ID, 0, true)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Check that the job was updated properly
 	ws := memdb.NewWatchSet()
-	jout, _ := state.JobByIDAndVersion(ws, job.Namespace, job.ID, 0)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-	if jout == nil {
-		t.Fatalf("bad: %#v", jout)
-	}
-	if !jout.Stable {
-		t.Fatalf("job not marked stable %#v", jout)
-	}
+	jout, err := state.JobByIDAndVersion(ws, job.Namespace, job.ID, 0)
+	require.NoError(t, err)
+	require.NotNil(t, jout)
+	require.True(t, jout.Stable, "job not marked as stable")
 
 	// Update the stability to false
 	err = state.UpdateJobStability(3, job.Namespace, job.ID, 0, false)
@@ -6795,16 +6850,10 @@ func TestStateStore_UpdateJobStability(t *testing.T) {
 	}
 
 	// Check that the job was updated properly
-	jout, _ = state.JobByIDAndVersion(ws, job.Namespace, job.ID, 0)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-	if jout == nil {
-		t.Fatalf("bad: %#v", jout)
-	}
-	if jout.Stable {
-		t.Fatalf("job marked stable %#v", jout)
-	}
+	jout, err = state.JobByIDAndVersion(ws, job.Namespace, job.ID, 0)
+	require.NoError(t, err)
+	require.NotNil(t, jout)
+	require.False(t, jout.Stable)
 }
 
 // Test that nonexistent deployment can't be promoted
@@ -7928,8 +7977,7 @@ func TestStateStore_UpsertACLPolicy(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if err := state.UpsertACLPolicies(1000,
-		[]*structs.ACLPolicy{policy, policy2}); err != nil {
+	if err := state.UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy, policy2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if !watchFired(ws) {
@@ -7984,8 +8032,7 @@ func TestStateStore_DeleteACLPolicy(t *testing.T) {
 	policy2 := mock.ACLPolicy()
 
 	// Create the policy
-	if err := state.UpsertACLPolicies(1000,
-		[]*structs.ACLPolicy{policy, policy2}); err != nil {
+	if err := state.UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy, policy2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -7996,8 +8043,7 @@ func TestStateStore_DeleteACLPolicy(t *testing.T) {
 	}
 
 	// Delete the policy
-	if err := state.DeleteACLPolicies(1001,
-		[]string{policy.Name, policy2.Name}); err != nil {
+	if err := state.DeleteACLPolicies(structs.MsgTypeTestSetup, 1001, []string{policy.Name, policy2.Name}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -8062,7 +8108,7 @@ func TestStateStore_ACLPolicyByNamePrefix(t *testing.T) {
 	for _, name := range names {
 		p := mock.ACLPolicy()
 		p.Name = name
-		if err := state.UpsertACLPolicies(baseIndex, []*structs.ACLPolicy{p}); err != nil {
+		if err := state.UpsertACLPolicies(structs.MsgTypeTestSetup, baseIndex, []*structs.ACLPolicy{p}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		baseIndex++
@@ -8106,7 +8152,7 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 	assert.Equal(t, true, ok)
 	assert.EqualValues(t, 0, resetIdx)
 
-	if err := state.BootstrapACLTokens(1000, 0, tk1); err != nil {
+	if err := state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1000, 0, tk1); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -8119,7 +8165,7 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 	assert.Equal(t, false, ok)
 	assert.EqualValues(t, 1000, resetIdx)
 
-	if err := state.BootstrapACLTokens(1001, 0, tk2); err == nil {
+	if err := state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1001, 0, tk2); err == nil {
 		t.Fatalf("expected error")
 	}
 
@@ -8157,7 +8203,7 @@ func TestStateStore_BootstrapACLTokens(t *testing.T) {
 	}
 
 	// Should allow bootstrap with reset index
-	if err := state.BootstrapACLTokens(1001, 1000, tk2); err != nil {
+	if err := state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1001, 1000, tk2); err != nil {
 		t.Fatalf("err %v", err)
 	}
 
@@ -8193,8 +8239,7 @@ func TestStateStore_UpsertACLTokens(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if err := state.UpsertACLTokens(1000,
-		[]*structs.ACLToken{tk1, tk2}); err != nil {
+	if err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{tk1, tk2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if !watchFired(ws) {
@@ -8257,8 +8302,7 @@ func TestStateStore_DeleteACLTokens(t *testing.T) {
 	tk2 := mock.ACLToken()
 
 	// Create the tokens
-	if err := state.UpsertACLTokens(1000,
-		[]*structs.ACLToken{tk1, tk2}); err != nil {
+	if err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{tk1, tk2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -8269,8 +8313,7 @@ func TestStateStore_DeleteACLTokens(t *testing.T) {
 	}
 
 	// Delete the token
-	if err := state.DeleteACLTokens(1001,
-		[]string{tk1.AccessorID, tk2.AccessorID}); err != nil {
+	if err := state.DeleteACLTokens(structs.MsgTypeTestSetup, 1001, []string{tk1.AccessorID, tk2.AccessorID}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -8335,7 +8378,7 @@ func TestStateStore_ACLTokenByAccessorIDPrefix(t *testing.T) {
 	for _, prefix := range prefixes {
 		tk := mock.ACLToken()
 		tk.AccessorID = prefix + tk.AccessorID[4:]
-		if err := state.UpsertACLTokens(baseIndex, []*structs.ACLToken{tk}); err != nil {
+		if err := state.UpsertACLTokens(structs.MsgTypeTestSetup, baseIndex, []*structs.ACLToken{tk}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 		baseIndex++
@@ -8402,8 +8445,7 @@ func TestStateStore_ACLTokensByGlobal(t *testing.T) {
 	tk4 := mock.ACLToken()
 	tk3.Global = true
 
-	if err := state.UpsertACLTokens(1000,
-		[]*structs.ACLToken{tk1, tk2, tk3, tk4}); err != nil {
+	if err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{tk1, tk2, tk3, tk4}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -9201,7 +9243,7 @@ func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
 
 	iter, err := state.ScalingPoliciesByJob(nil,
 		policyA.Target[structs.ScalingTargetNamespace],
-		policyA.Target[structs.ScalingTargetJob])
+		policyA.Target[structs.ScalingTargetJob], "")
 	require.NoError(err)
 
 	// Ensure we see expected policies
@@ -9223,7 +9265,7 @@ func TestStateStore_ScalingPoliciesByJob(t *testing.T) {
 
 	iter, err = state.ScalingPoliciesByJob(nil,
 		policyB1.Target[structs.ScalingTargetNamespace],
-		policyB1.Target[structs.ScalingTargetJob])
+		policyB1.Target[structs.ScalingTargetJob], "")
 	require.NoError(err)
 
 	// Ensure we see expected policies
@@ -9267,7 +9309,7 @@ func TestStateStore_ScalingPoliciesByJob_PrefixBug(t *testing.T) {
 
 	iter, err := state.ScalingPoliciesByJob(nil,
 		policy1.Target[structs.ScalingTargetNamespace],
-		jobPrefix)
+		jobPrefix, "")
 	require.NoError(err)
 
 	// Ensure we see expected policies
@@ -9492,122 +9534,6 @@ func TestStateStore_RestoreScalingEvents(t *testing.T) {
 	require.NoError(err)
 	require.NotNil(out)
 	require.EqualValues(jobScalingEvents.ScalingEvents, out)
-}
-
-func TestStateStore_UpsertEventSink(t *testing.T) {
-	t.Parallel()
-
-	state := testStateStore(t)
-	sink := &structs.EventSink{
-		ID:   "webhook-sink",
-		Type: structs.SinkWebhook,
-	}
-
-	require.NoError(t, state.UpsertEventSink(100, sink))
-
-	out, err := state.EventSinkByID(nil, "webhook-sink")
-	require.NoError(t, err)
-	require.Equal(t, structs.SinkWebhook, out.Type)
-}
-
-func TestStateStore_BatchUpdateEventSinks(t *testing.T) {
-	t.Parallel()
-
-	state := testStateStore(t)
-	s1 := mock.EventSink()
-	s2 := mock.EventSink()
-
-	require.NoError(t, state.UpsertEventSink(100, s1))
-	require.NoError(t, state.UpsertEventSink(101, s2))
-
-	s1.LatestIndex = uint64(200)
-	s2.LatestIndex = uint64(180)
-
-	require.NoError(t, state.BatchUpdateEventSinks(102, []*structs.EventSink{s1, s2}))
-
-	out, err := state.EventSinkByID(nil, s1.ID)
-	require.NoError(t, err)
-	require.Equal(t, uint64(200), out.LatestIndex)
-
-	out2, err := state.EventSinkByID(nil, s2.ID)
-	require.NoError(t, err)
-	require.Equal(t, uint64(180), out2.LatestIndex)
-}
-
-func TestStateStore_DeleteEventSinks(t *testing.T) {
-	t.Parallel()
-
-	state := testStateStore(t)
-	s1 := mock.EventSink()
-	s2 := mock.EventSink()
-	s3 := mock.EventSink()
-	s4 := mock.EventSink()
-
-	require.NoError(t, state.UpsertEventSink(100, s1))
-	require.NoError(t, state.UpsertEventSink(101, s2))
-	require.NoError(t, state.UpsertEventSink(102, s3))
-	require.NoError(t, state.UpsertEventSink(103, s4))
-
-	require.NoError(t, state.DeleteEventSinks(1000, []string{s1.ID, s2.ID, s3.ID}))
-
-	out, err := state.EventSinkByID(nil, s4.ID)
-	require.NoError(t, err)
-	require.NotNil(t, out)
-
-	out, err = state.EventSinkByID(nil, s1.ID)
-	require.NoError(t, err)
-	require.Nil(t, out)
-
-}
-
-func TestStateStore_EventSinks(t *testing.T) {
-	t.Parallel()
-
-	state := testStateStore(t)
-	s1 := mock.EventSink()
-	s2 := mock.EventSink()
-	s3 := mock.EventSink()
-
-	require.NoError(t, state.UpsertEventSink(100, s1))
-	require.NoError(t, state.UpsertEventSink(101, s2))
-	require.NoError(t, state.UpsertEventSink(102, s3))
-
-	iter, err := state.EventSinks(nil)
-	require.NoError(t, err)
-
-	var out []*structs.EventSink
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		sink := raw.(*structs.EventSink)
-		out = append(out, sink)
-	}
-	require.Len(t, out, 3)
-
-}
-
-func TestStateStore_RestoreEventSink(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-
-	state := testStateStore(t)
-	eventSink := &structs.EventSink{
-		ID: "eventsink",
-	}
-
-	restore, err := state.Restore()
-	require.NoError(err)
-
-	err = restore.EventSinkRestore(eventSink)
-	require.NoError(err)
-	require.NoError(restore.Commit())
-
-	out, err := state.EventSinkByID(nil, "eventsink")
-	require.NoError(err)
-	require.NotNil(out)
-	require.EqualValues(eventSink, out)
 }
 
 func TestStateStore_Abandon(t *testing.T) {

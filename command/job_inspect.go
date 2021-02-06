@@ -20,9 +20,12 @@ Alias: nomad inspect
 
   Inspect is used to see the specification of a submitted job.
 
+  When ACLs are enabled, this command requires a token with the 'read-job' and
+  'list-jobs' capabilities for the job's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Inspect Options:
 
@@ -91,7 +94,7 @@ func (c *JobInspectCommand) Run(args []string) int {
 	}
 
 	// If args not specified but output format is specified, format and output the jobs data list
-	if len(args) == 0 && json || len(tmpl) > 0 {
+	if len(args) == 0 && (json || len(tmpl) > 0) {
 		jobs, _, err := client.Jobs().List(nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying jobs: %v", err))

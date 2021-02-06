@@ -6,11 +6,13 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/serf/serf"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNomad_JoinPeer(t *testing.T) {
@@ -441,4 +443,45 @@ func TestNomad_BadExpect(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("should have 0 peers: %v", err)
 	})
+}
+
+// TestNomad_NonBootstraping_ShouldntBootstap asserts that if BootstrapExpect is zero,
+// the server shouldn't bootstrap
+func TestNomad_NonBootstraping_ShouldntBootstap(t *testing.T) {
+	t.Parallel()
+
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.BootstrapExpect = 0
+		c.DevMode = false
+		c.DataDir = path.Join(dir, "node")
+	})
+	defer cleanupS1()
+
+	testutil.WaitForResult(func() (bool, error) {
+		s1.peerLock.Lock()
+		p := len(s1.localPeers)
+		s1.peerLock.Unlock()
+		if p != 1 {
+			return false, fmt.Errorf("%d", p)
+		}
+
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("expected 1 local peer: %v", err)
+	})
+
+	// as non-bootstrap mode is the initial state, we must wait long enough to assert that
+	// we don't bootstrap even if enough time has elapsed.  Also, explicitly attempt bootstrap.
+	s1.maybeBootstrap()
+	time.Sleep(100 * time.Millisecond)
+
+	bootstrapped := atomic.LoadInt32(&s1.config.Bootstrapped)
+	require.Zero(t, bootstrapped, "expecting non-bootstrapped servers")
+
+	p, _ := s1.numPeers()
+	require.Zero(t, p, "number of peers in Raft")
+
 }

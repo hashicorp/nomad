@@ -244,7 +244,7 @@ var (
 		"volumes": hclspec.NewDefault(hclspec.NewBlock("volumes", false, hclspec.NewObject(map[string]*hclspec.Spec{
 			"enabled":      hclspec.NewAttr("enabled", "bool", false),
 			"selinuxlabel": hclspec.NewAttr("selinuxlabel", "string", false),
-		})), hclspec.NewLiteral("{ enabled = true }")),
+		})), hclspec.NewLiteral("{ enabled = false }")),
 		"allow_privileged": hclspec.NewAttr("allow_privileged", "bool", false),
 		"allow_caps": hclspec.NewDefault(
 			hclspec.NewAttr("allow_caps", "list(string)", false),
@@ -284,6 +284,32 @@ var (
 		"disable_log_collection": hclspec.NewAttr("disable_log_collection", "bool", false),
 	})
 
+	// mountBodySpec is the hcl specification for the `mount` block
+	mountBodySpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"type": hclspec.NewDefault(
+			hclspec.NewAttr("type", "string", false),
+			hclspec.NewLiteral("\"volume\""),
+		),
+		"target":   hclspec.NewAttr("target", "string", false),
+		"source":   hclspec.NewAttr("source", "string", false),
+		"readonly": hclspec.NewAttr("readonly", "bool", false),
+		"bind_options": hclspec.NewBlock("bind_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"propagation": hclspec.NewAttr("propagation", "string", false),
+		})),
+		"tmpfs_options": hclspec.NewBlock("tmpfs_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"size": hclspec.NewAttr("size", "number", false),
+			"mode": hclspec.NewAttr("mode", "number", false),
+		})),
+		"volume_options": hclspec.NewBlock("volume_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"no_copy": hclspec.NewAttr("no_copy", "bool", false),
+			"labels":  hclspec.NewAttr("labels", "list(map(string))", false),
+			"driver_config": hclspec.NewBlock("driver_config", false, hclspec.NewObject(map[string]*hclspec.Spec{
+				"name":    hclspec.NewAttr("name", "string", false),
+				"options": hclspec.NewAttr("options", "list(map(string))", false),
+			})),
+		})),
+	})
+
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a task within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
@@ -300,6 +326,7 @@ var (
 		"cap_add":        hclspec.NewAttr("cap_add", "list(string)", false),
 		"cap_drop":       hclspec.NewAttr("cap_drop", "list(string)", false),
 		"command":        hclspec.NewAttr("command", "string", false),
+		"cpuset_cpus":    hclspec.NewAttr("cpuset_cpus", "string", false),
 		"cpu_hard_limit": hclspec.NewAttr("cpu_hard_limit", "bool", false),
 		"cpu_cfs_period": hclspec.NewDefault(
 			hclspec.NewAttr("cpu_cfs_period", "number", false),
@@ -330,30 +357,11 @@ var (
 		})),
 		"mac_address":       hclspec.NewAttr("mac_address", "string", false),
 		"memory_hard_limit": hclspec.NewAttr("memory_hard_limit", "number", false),
-		"mounts": hclspec.NewBlockList("mounts", hclspec.NewObject(map[string]*hclspec.Spec{
-			"type": hclspec.NewDefault(
-				hclspec.NewAttr("type", "string", false),
-				hclspec.NewLiteral("\"volume\""),
-			),
-			"target":   hclspec.NewAttr("target", "string", false),
-			"source":   hclspec.NewAttr("source", "string", false),
-			"readonly": hclspec.NewAttr("readonly", "bool", false),
-			"bind_options": hclspec.NewBlock("bind_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
-				"propagation": hclspec.NewAttr("propagation", "string", false),
-			})),
-			"tmpfs_options": hclspec.NewBlock("tmpfs_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
-				"size": hclspec.NewAttr("size", "number", false),
-				"mode": hclspec.NewAttr("mode", "number", false),
-			})),
-			"volume_options": hclspec.NewBlock("volume_options", false, hclspec.NewObject(map[string]*hclspec.Spec{
-				"no_copy": hclspec.NewAttr("no_copy", "bool", false),
-				"labels":  hclspec.NewAttr("labels", "list(map(string))", false),
-				"driver_config": hclspec.NewBlock("driver_config", false, hclspec.NewObject(map[string]*hclspec.Spec{
-					"name":    hclspec.NewAttr("name", "string", false),
-					"options": hclspec.NewAttr("options", "list(map(string))", false),
-				})),
-			})),
-		})),
+		// mount and mounts are effectively aliases, but `mounts` is meant for pre-1.0
+		// assignment syntax `mounts = [{type="..." ..."}]` while
+		// `mount` is 1.0 repeated block syntax `mount { type = "..." }`
+		"mount":           hclspec.NewBlockList("mount", mountBodySpec),
+		"mounts":          hclspec.NewBlockList("mounts", mountBodySpec),
 		"network_aliases": hclspec.NewAttr("network_aliases", "list(string)", false),
 		"network_mode":    hclspec.NewAttr("network_mode", "string", false),
 		"runtime":         hclspec.NewAttr("runtime", "string", false),
@@ -407,6 +415,7 @@ type TaskConfig struct {
 	Command           string             `codec:"command"`
 	CPUCFSPeriod      int64              `codec:"cpu_cfs_period"`
 	CPUHardLimit      bool               `codec:"cpu_hard_limit"`
+	CPUSetCPUs        string             `codec:"cpuset_cpus"`
 	Devices           []DockerDevice     `codec:"devices"`
 	DNSSearchDomains  []string           `codec:"dns_search_domains"`
 	DNSOptions        []string           `codec:"dns_options"`
@@ -424,7 +433,7 @@ type TaskConfig struct {
 	Logging           DockerLogging      `codec:"logging"`
 	MacAddress        string             `codec:"mac_address"`
 	MemoryHardLimit   int64              `codec:"memory_hard_limit"`
-	Mounts            []DockerMount      `codec:"mounts"`
+	Mounts            []DockerMount      `codec:"mount"`
 	NetworkAliases    []string           `codec:"network_aliases"`
 	NetworkMode       string             `codec:"network_mode"`
 	Runtime           string             `codec:"runtime"`
@@ -446,6 +455,9 @@ type TaskConfig struct {
 	Volumes           []string           `codec:"volumes"`
 	VolumeDriver      string             `codec:"volume_driver"`
 	WorkDir           string             `codec:"work_dir"`
+
+	// MountsList supports the pre-1.0 mounts array syntax
+	MountsList []DockerMount `codec:"mounts"`
 }
 
 type DockerAuth struct {
@@ -650,6 +662,8 @@ func (d *Driver) SetConfig(c *base.Config) error {
 	}
 
 	d.config = &config
+	d.config.InfraImage = strings.TrimPrefix(d.config.InfraImage, "https://")
+
 	if len(d.config.GC.ImageDelay) > 0 {
 		dur, err := time.ParseDuration(d.config.GC.ImageDelay)
 		if err != nil {

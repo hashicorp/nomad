@@ -221,7 +221,7 @@ RETRY:
 	if a.Config.ACL.Enabled && a.Config.Server.Enabled && a.Config.ACL.PolicyTTL != 0 {
 		a.RootToken = mock.ACLManagementToken()
 		state := a.Agent.server.State()
-		if err := state.BootstrapACLTokens(1, 0, a.RootToken); err != nil {
+		if err := state.BootstrapACLTokens(structs.MsgTypeTestSetup, 1, 0, a.RootToken); err != nil {
 			a.T.Fatalf("token bootstrap failed: %v", err)
 		}
 	}

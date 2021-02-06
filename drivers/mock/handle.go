@@ -94,5 +94,4 @@ func (h *taskHandle) run() {
 	}
 
 	h.exitResult = runCommand(h.command, stdout, stderr, h.killCh, pluginExitTimer, h.logger)
-	return
 }

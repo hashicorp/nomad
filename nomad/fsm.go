@@ -246,15 +246,15 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.JobStabilityRequestType:
 		return n.applyJobStability(buf[1:], log.Index)
 	case structs.ACLPolicyUpsertRequestType:
-		return n.applyACLPolicyUpsert(buf[1:], log.Index)
+		return n.applyACLPolicyUpsert(msgType, buf[1:], log.Index)
 	case structs.ACLPolicyDeleteRequestType:
-		return n.applyACLPolicyDelete(buf[1:], log.Index)
+		return n.applyACLPolicyDelete(msgType, buf[1:], log.Index)
 	case structs.ACLTokenUpsertRequestType:
-		return n.applyACLTokenUpsert(buf[1:], log.Index)
+		return n.applyACLTokenUpsert(msgType, buf[1:], log.Index)
 	case structs.ACLTokenDeleteRequestType:
-		return n.applyACLTokenDelete(buf[1:], log.Index)
+		return n.applyACLTokenDelete(msgType, buf[1:], log.Index)
 	case structs.ACLTokenBootstrapRequestType:
-		return n.applyACLTokenBootstrap(buf[1:], log.Index)
+		return n.applyACLTokenBootstrap(msgType, buf[1:], log.Index)
 	case structs.AutopilotRequestType:
 		return n.applyAutopilotUpdate(buf[1:], log.Index)
 	case structs.UpsertNodeEventsType:
@@ -293,12 +293,12 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyNamespaceUpsert(buf[1:], log.Index)
 	case structs.NamespaceDeleteRequestType:
 		return n.applyNamespaceDelete(buf[1:], log.Index)
-	case structs.EventSinkUpsertRequestType:
-		return n.applyUpsertEventSink(buf[1:], log.Index)
-	case structs.EventSinkDeleteRequestType:
-		return n.applyDeleteEventSink(buf[1:], log.Index)
-	case structs.BatchEventSinkUpdateProgressType:
-		return n.applyBatchUpdateEventSink(buf[1:], log.Index)
+	// COMPAT(1.0): These messages were added and removed during the 1.0-beta
+	// series and should not be immediately reused for other purposes
+	case structs.EventSinkUpsertRequestType,
+		structs.EventSinkDeleteRequestType,
+		structs.BatchEventSinkUpdateProgressType:
+		return nil
 	}
 
 	// Check enterprise only message types.
@@ -1071,14 +1071,14 @@ func (n *nomadFSM) applyJobStability(buf []byte, index uint64) interface{} {
 }
 
 // applyACLPolicyUpsert is used to upsert a set of policies
-func (n *nomadFSM) applyACLPolicyUpsert(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLPolicyUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_policy_upsert"}, time.Now())
 	var req structs.ACLPolicyUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertACLPolicies(index, req.Policies); err != nil {
+	if err := n.state.UpsertACLPolicies(msgType, index, req.Policies); err != nil {
 		n.logger.Error("UpsertACLPolicies failed", "error", err)
 		return err
 	}
@@ -1086,14 +1086,14 @@ func (n *nomadFSM) applyACLPolicyUpsert(buf []byte, index uint64) interface{} {
 }
 
 // applyACLPolicyDelete is used to delete a set of policies
-func (n *nomadFSM) applyACLPolicyDelete(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLPolicyDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_policy_delete"}, time.Now())
 	var req structs.ACLPolicyDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteACLPolicies(index, req.Names); err != nil {
+	if err := n.state.DeleteACLPolicies(msgType, index, req.Names); err != nil {
 		n.logger.Error("DeleteACLPolicies failed", "error", err)
 		return err
 	}
@@ -1101,14 +1101,14 @@ func (n *nomadFSM) applyACLPolicyDelete(buf []byte, index uint64) interface{} {
 }
 
 // applyACLTokenUpsert is used to upsert a set of policies
-func (n *nomadFSM) applyACLTokenUpsert(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLTokenUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_upsert"}, time.Now())
 	var req structs.ACLTokenUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertACLTokens(index, req.Tokens); err != nil {
+	if err := n.state.UpsertACLTokens(msgType, index, req.Tokens); err != nil {
 		n.logger.Error("UpsertACLTokens failed", "error", err)
 		return err
 	}
@@ -1116,14 +1116,14 @@ func (n *nomadFSM) applyACLTokenUpsert(buf []byte, index uint64) interface{} {
 }
 
 // applyACLTokenDelete is used to delete a set of policies
-func (n *nomadFSM) applyACLTokenDelete(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLTokenDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_delete"}, time.Now())
 	var req structs.ACLTokenDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteACLTokens(index, req.AccessorIDs); err != nil {
+	if err := n.state.DeleteACLTokens(msgType, index, req.AccessorIDs); err != nil {
 		n.logger.Error("DeleteACLTokens failed", "error", err)
 		return err
 	}
@@ -1131,14 +1131,14 @@ func (n *nomadFSM) applyACLTokenDelete(buf []byte, index uint64) interface{} {
 }
 
 // applyACLTokenBootstrap is used to bootstrap an ACL token
-func (n *nomadFSM) applyACLTokenBootstrap(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLTokenBootstrap(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_bootstrap"}, time.Now())
 	var req structs.ACLTokenBootstrapRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.BootstrapACLTokens(index, req.ResetIndex, req.Token); err != nil {
+	if err := n.state.BootstrapACLTokens(msgType, index, req.ResetIndex, req.Token); err != nil {
 		n.logger.Error("BootstrapACLToken failed", "error", err)
 		return err
 	}
@@ -1307,51 +1307,6 @@ func (n *nomadFSM) applyNamespaceDelete(buf []byte, index uint64) interface{} {
 
 	if err := n.state.DeleteNamespaces(index, req.Namespaces); err != nil {
 		n.logger.Error("DeleteNamespaces failed", "error", err)
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyUpsertEventSink(buf []byte, index uint64) interface{} {
-	var req structs.EventSinkUpsertRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_upsert_event_sink"}, time.Now())
-
-	if err := n.state.UpsertEventSink(index, req.Sink); err != nil {
-		n.logger.Error("UpsertEventSink failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyDeleteEventSink(buf []byte, index uint64) interface{} {
-	var req structs.EventSinkDeleteRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_delete_event_sink"}, time.Now())
-
-	if err := n.state.DeleteEventSinks(index, req.IDs); err != nil {
-		n.logger.Error("DeleteEventSink failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyBatchUpdateEventSink(buf []byte, index uint64) interface{} {
-	var req structs.EventSinkProgressRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_batch_update_event_sink"}, time.Now())
-
-	if err := n.state.BatchUpdateEventSinks(index, req.Sinks); err != nil {
-		n.logger.Error("BatchUpdateEventSinks failed", "error", err)
-		return err
 	}
 
 	return nil
@@ -1633,16 +1588,9 @@ func (n *nomadFSM) Restore(old io.ReadCloser) error {
 				return err
 			}
 
+		// COMPAT(1.0): Allow 1.0-beta clusterers to gracefully handle
 		case EventSinkSnapshot:
-			sink := new(structs.EventSink)
-			if err := dec.Decode(sink); err != nil {
-				return err
-			}
-
-			if err := restore.EventSinkRestore(sink); err != nil {
-				return err
-			}
-
+			return nil
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
@@ -1946,6 +1894,7 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistNamespaces(sink, encoder); err != nil {
+		sink.Cancel()
 		return err
 	}
 	if err := s.persistEnterpriseTables(sink, encoder); err != nil {
@@ -1957,10 +1906,6 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistClusterMetadata(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
-	if err := s.persistEventSinks(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2489,29 +2434,6 @@ func (s *nomadSnapshot) persistCSIVolumes(sink raft.SnapshotSink,
 		// Write out a volume snapshot
 		sink.Write([]byte{byte(CSIVolumeSnapshot)})
 		if err := encoder.Encode(volume); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *nomadSnapshot) persistEventSinks(sink raft.SnapshotSink,
-	encoder *codec.Encoder) error {
-
-	sinks, err := s.snap.EventSinks(nil)
-	if err != nil {
-		return err
-	}
-
-	for {
-		raw := sinks.Next()
-		if raw == nil {
-			break
-		}
-
-		es := raw.(*structs.EventSink)
-		sink.Write([]byte{byte(EventSinkSnapshot)})
-		if err := encoder.Encode(es); err != nil {
 			return err
 		}
 	}

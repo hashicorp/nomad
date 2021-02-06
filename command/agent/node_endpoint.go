@@ -140,7 +140,8 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 			drainRequest.MarkEligible = true
 		}
 	} else {
-		if err := decodeBody(req, &drainRequest); err != nil {
+		err := decodeBody(req, &drainRequest)
+		if err != nil {
 			return nil, CodedError(400, err.Error())
 		}
 	}

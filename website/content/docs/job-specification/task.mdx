@@ -1,0 +1,220 @@
+---
+layout: docs
+page_title: task Stanza - Job Specification
+sidebar_title: task
+description: |-
+  The "task" stanza creates an individual unit of work, such as a Docker
+  container, web application, or batch processing.
+---
+
+# `task` Stanza
+
+<Placement groups={['job', 'group', 'task']} />
+
+The `task` stanza creates an individual unit of work, such as a Docker
+container, web application, or batch processing.
+
+```hcl
+job "docs" {
+  group "example" {
+    task "server" {
+      # ...
+    }
+  }
+}
+```
+
+## `task` Parameters
+
+- `artifact` <code>([Artifact][]: nil)</code> - Defines an artifact to download
+  before running the task. This may be specified multiple times to download
+  multiple artifacts.
+
+- `config` `(map<string|string>: nil)` - Specifies the driver configuration,
+  which is passed directly to the driver to start the task. The details of
+  configurations are specific to each driver, so please see specific driver
+  documentation for more information.
+
+- `constraint` <code>([Constraint][]: nil)</code> - Specifies user-defined
+  constraints on the task. This can be provided multiple times to define
+  additional constraints.
+
+- `affinity` <code>([Affinity][]: nil)</code> - This can be provided
+  multiple times to define preferred placement criteria.
+
+- `dispatch_payload` <code>([DispatchPayload][]: nil)</code> - Configures the
+  task to have access to dispatch payloads.
+
+- `driver` - Specifies the task driver that should be used to run the
+  task. See the [driver documentation](/docs/drivers) for what
+  is available. Examples include `docker`, `qemu`, `java` and `exec`.
+
+- `env` <code>([Env][]: nil)</code> - Specifies environment variables that will
+  be passed to the running process.
+
+- `kill_timeout` `(string: "5s")` - Specifies the duration to wait for an
+  application to gracefully quit before force-killing. Nomad first sends a
+  [`kill_signal`][kill_signal]. If the task does not exit before the configured
+  timeout, `SIGKILL` is sent to the task. Note that the value set here is capped
+  at the value set for [`max_kill_timeout`][max_kill] on the agent running the
+  task, which has a default value of 30 seconds.
+
+- `kill_signal` `(string)` - Specifies a configurable kill signal for a task,
+  where the default is SIGINT (or SIGTERM for `docker`, or CTRL_BREAK_EVENT
+  for `raw_exec` on Windows). Note that this is only supported for drivers
+  sending signals (currently `docker`, `exec`, `raw_exec`, and `java`
+  drivers).
+
+- `leader` `(bool: false)` - Specifies whether the task is the leader task of
+  the task group. If set to true, when the leader task completes, all other
+  tasks within the task group will be gracefully shutdown.
+
+- `lifecycle` <code>([Lifecycle][]: nil)</code> - Specifies when a task is run
+  within the lifecycle of a task group. Added in Nomad v0.11.
+
+- `logs` <code>([Logs][]: nil)</code> - Specifies logging configuration for the
+  `stdout` and `stderr` of the task.
+
+- `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
+  with user-defined metadata.
+
+- `resources` <code>([Resources][]: &lt;required&gt;)</code> - Specifies the minimum
+  resource requirements such as RAM, CPU and devices.
+
+- `service` <code>([Service][]: nil)</code> - Specifies integrations with
+  [Consul][] for service discovery. Nomad automatically registers when a task
+  is started and de-registers it when the task dies.
+
+- `shutdown_delay` `(string: "0s")` - Specifies the duration to wait when
+  killing a task between removing it from Consul and sending it a shutdown
+  signal. Ideally services would fail healthchecks once they receive a shutdown
+  signal. Alternatively `shutdown_delay` may be set to give in flight requests
+  time to complete before shutting down. In addition, task groups may have their
+  own [`shutdown_delay`](/docs/job-specification/group#shutdown_delay)
+  which waits between deregistering group services and stopping tasks.
+
+- `user` `(string: <varies>)` - Specifies the user that will run the task.
+  Defaults to `nobody` for the [`exec`][exec] and [`java`][java] drivers.
+  [Docker][] and [rkt][] images specify their own default users. This can only
+  be set on Linux platforms, and clients can restrict
+  [which drivers][user_drivers] are allowed to run tasks as
+  [certain users][user_denylist].
+
+- `template` <code>([Template][]: nil)</code> - Specifies the set of templates
+  to render for the task. Templates can be used to inject both static and
+  dynamic configuration with data populated from environment variables, Consul
+  and Vault.
+
+- `vault` <code>([Vault][]: nil)</code> - Specifies the set of Vault policies
+  required by the task. This overrides any `vault` block set at the `group` or
+  `job` level.
+
+- `volume_mount` <code>([VolumeMount][]: nil)</code> - Specifies where a group
+  volume should be mounted.
+
+- `kind` `(string: <varies>)` - Used internally to manage tasks according to
+  the value of this field. Initial use case is for Consul Connect.
+
+## `task` Examples
+
+The following examples only show the `task` stanzas. Remember that the
+`task` stanza is only valid in the placements listed above.
+
+### Docker Container
+
+This example defines a task that starts a Docker container as a service. Docker
+is just one of many drivers supported by Nomad. Read more about drivers in the
+[Nomad drivers documentation](/docs/drivers).
+
+```hcl
+task "server" {
+  driver = "docker"
+  config {
+    image = "hashicorp/http-echo"
+    args  = ["-text", "hello world"]
+  }
+
+  resources {
+    cpu = 20
+  }
+}
+```
+
+### Metadata and Environment Variables
+
+This example uses custom metadata and environment variables to pass information
+to the task.
+
+```hcl
+task "server" {
+  driver = "exec"
+  config {
+    command = "/bin/env"
+  }
+
+  meta {
+    my-key = "my-value"
+  }
+
+  env {
+    MY_KEY = "${meta.my-key}"
+  }
+
+  resources {
+    cpu = 20
+  }
+}
+```
+
+### Service Discovery
+
+This example creates a service in Consul. To read more about service discovery
+in Nomad, please see the [Nomad service discovery documentation][service_discovery].
+
+```hcl
+task "server" {
+  driver = "docker"
+  config {
+    image = "hashicorp/http-echo"
+    args  = ["-text", "hello world"]
+  }
+
+  service {
+    tags = ["default"]
+
+    check {
+      type     = "tcp"
+      interval = "10s"
+      timeout  = "2s"
+    }
+  }
+
+  resources {
+    cpu = 20
+  }
+}
+```
+
+[artifact]: /docs/job-specification/artifact 'Nomad artifact Job Specification'
+[consul]: https://www.consul.io/ 'Consul by HashiCorp'
+[constraint]: /docs/job-specification/constraint 'Nomad constraint Job Specification'
+[affinity]: /docs/job-specification/affinity 'Nomad affinity Job Specification'
+[dispatchpayload]: /docs/job-specification/dispatch_payload 'Nomad dispatch_payload Job Specification'
+[env]: /docs/job-specification/env 'Nomad env Job Specification'
+[meta]: /docs/job-specification/meta 'Nomad meta Job Specification'
+[resources]: /docs/job-specification/resources 'Nomad resources Job Specification'
+[lifecycle]: /docs/job-specification/lifecycle 'Nomad lifecycle Job Specification'
+[logs]: /docs/job-specification/logs 'Nomad logs Job Specification'
+[service]: /docs/job-specification/service 'Nomad service Job Specification'
+[vault]: /docs/job-specification/vault 'Nomad vault Job Specification'
+[volumemount]: /docs/job-specification/volume_mount 'Nomad volume_mount Job Specification'
+[exec]: /docs/drivers/exec 'Nomad exec Driver'
+[java]: /docs/drivers/java 'Nomad Java Driver'
+[docker]: /docs/drivers/docker 'Nomad Docker Driver'
+[rkt]: /docs/drivers/rkt 'Nomad rkt Driver'
+[service_discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
+[template]: /docs/job-specification/template 'Nomad template Job Specification'
+[user_drivers]: /docs/configuration/client#user-checked_drivers
+[user_denylist]: /docs/configuration/client#user-denylist
+[max_kill]: /docs/configuration/client#max_kill_timeout
+[kill_signal]: /docs/job-specification/task#kill_signal

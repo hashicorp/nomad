@@ -268,6 +268,8 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 		"run_for": "20s",
 	}
 
+	noSuchAllocErr := fmt.Errorf("No such allocation on client or allocation not eligible for GC")
+
 	// Wait for client to be running job
 	alloc := testutil.WaitForRunningWithToken(t, server.RPC, job, root.SecretID)[0]
 
@@ -306,7 +308,7 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.True(nstructs.IsErrUnknownAllocation(err))
+		require.Error(err, noSuchAllocErr)
 	}
 
 	// Try request with a management token
@@ -316,7 +318,7 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 
 		var resp nstructs.GenericResponse
 		err := client.ClientRPC("Allocations.GarbageCollect", &req, &resp)
-		require.True(nstructs.IsErrUnknownAllocation(err))
+		require.Error(err, noSuchAllocErr)
 	}
 }
 

@@ -373,9 +373,7 @@ func (p *pluginEventBroadcaster) run() {
 		case msg := <-p.publishCh:
 			p.subscriptionsLock.RLock()
 			for msgCh := range p.subscriptions {
-				select {
-				case msgCh <- msg:
-				}
+				msgCh <- msg
 			}
 			p.subscriptionsLock.RUnlock()
 		}

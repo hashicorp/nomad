@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 func TestRecommendationApplyCommand_Run(t *testing.T) {
@@ -32,7 +33,13 @@ func TestRecommendationApplyCommand_Run(t *testing.T) {
 	})
 
 	ui := cli.NewMockUi()
-	cmd := &RecommendationApplyCommand{Meta: Meta{Ui: ui}}
+	cmd := &RecommendationApplyCommand{
+		RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+			Meta: Meta{
+				Ui: ui,
+			},
+		},
+	}
 
 	// Register a test job to write a recommendation against.
 	testJob := testJob("recommendation_apply")
@@ -82,4 +89,20 @@ func TestRecommendationApplyCommand_Run(t *testing.T) {
 	jobResp, _, err := client.Jobs().Info(*testJob.ID, nil)
 	require.NoError(err)
 	require.Equal(1, *jobResp.TaskGroups[0].Tasks[0].Resources.CPU)
+}
+
+func TestRecommendationApplyCommand_AutocompleteArgs(t *testing.T) {
+	srv, client, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := RecommendationApplyCommand{
+		RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+			Meta: Meta{
+				Ui:          ui,
+				flagAddress: url,
+			},
+		},
+	}
+	testRecommendationAutocompleteCommand(t, client, srv, &cmd.RecommendationAutocompleteCommand)
 }

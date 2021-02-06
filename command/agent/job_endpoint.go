@@ -495,7 +495,6 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, err.Error())
 	}
 
-	namespace := args.Target[structs.ScalingTargetNamespace]
 	targetJob := args.Target[structs.ScalingTargetJob]
 	if targetJob != "" && targetJob != jobName {
 		return nil, CodedError(400, "job ID in payload did not match URL")
@@ -503,7 +502,6 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 
 	scaleReq := structs.JobScaleRequest{
 		JobID:          jobName,
-		Namespace:      namespace,
 		Target:         args.Target,
 		Count:          args.Count,
 		PolicyOverride: args.PolicyOverride,
@@ -675,14 +673,16 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(400, "Job spec is empty")
 	}
 
-	jobfile := strings.NewReader(args.JobHCL)
-
 	var jobStruct *api.Job
 	var err error
 	if args.HCLv1 {
-		jobStruct, err = jobspec.Parse(jobfile)
+		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
 	} else {
-		jobStruct, err = jobspec2.ParseWithArgs("input.hcl", jobfile, nil, false)
+		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(args.JobHCL),
+			AllowFS: false,
+		})
 	}
 	if err != nil {
 		return nil, CodedError(400, err.Error())
@@ -1088,6 +1088,12 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 					}
 				}
 			}
+
+			// Task services can't have a connect block. We still convert it so that
+			// we can later return a validation error.
+			if service.Connect != nil {
+				structsTask.Services[i].Connect = ApiConsulConnectToStructs(service.Connect)
+			}
 		}
 	}
 
@@ -1103,7 +1109,8 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		for k, ta := range apiTask.Artifacts {
 			structsTask.Artifacts[k] = &structs.TaskArtifact{
 				GetterSource:  *ta.GetterSource,
-				GetterOptions: ta.GetterOptions,
+				GetterOptions: helper.CopyMapStringString(ta.GetterOptions),
+				GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
 				GetterMode:    *ta.GetterMode,
 				RelativeDest:  *ta.RelativeDest,
 			}
@@ -1210,7 +1217,7 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 			Mode:  nw.Mode,
 			CIDR:  nw.CIDR,
 			IP:    nw.IP,
-			MBits: *nw.MBits,
+			MBits: nw.Megabits(),
 		}
 
 		if nw.DNS != nil {
@@ -1328,8 +1335,9 @@ func apiConnectGatewayToStructs(in *api.ConsulGateway) *structs.ConsulGateway {
 	}
 
 	return &structs.ConsulGateway{
-		Proxy:   apiConnectGatewayProxyToStructs(in.Proxy),
-		Ingress: apiConnectIngressGatewayToStructs(in.Ingress),
+		Proxy:       apiConnectGatewayProxyToStructs(in.Proxy),
+		Ingress:     apiConnectIngressGatewayToStructs(in.Ingress),
+		Terminating: apiConnectTerminatingGatewayToStructs(in.Terminating),
 	}
 }
 
@@ -1338,9 +1346,8 @@ func apiConnectGatewayProxyToStructs(in *api.ConsulGatewayProxy) *structs.Consul
 		return nil
 	}
 
-	var bindAddresses map[string]*structs.ConsulGatewayBindAddress
+	bindAddresses := make(map[string]*structs.ConsulGatewayBindAddress)
 	if in.EnvoyGatewayBindAddresses != nil {
-		bindAddresses = make(map[string]*structs.ConsulGatewayBindAddress)
 		for k, v := range in.EnvoyGatewayBindAddresses {
 			bindAddresses[k] = &structs.ConsulGatewayBindAddress{
 				Address: v.Address,
@@ -1354,6 +1361,7 @@ func apiConnectGatewayProxyToStructs(in *api.ConsulGatewayProxy) *structs.Consul
 		EnvoyGatewayBindTaggedAddresses: in.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       bindAddresses,
 		EnvoyGatewayNoDefaultBind:       in.EnvoyGatewayNoDefaultBind,
+		EnvoyDNSDiscoveryType:           in.EnvoyDNSDiscoveryType,
 		Config:                          helper.CopyMapStringInterface(in.Config),
 	}
 }
@@ -1426,6 +1434,42 @@ func apiConnectIngressServiceToStructs(in *api.ConsulIngressService) *structs.Co
 	}
 }
 
+func apiConnectTerminatingGatewayToStructs(in *api.ConsulTerminatingConfigEntry) *structs.ConsulTerminatingConfigEntry {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulTerminatingConfigEntry{
+		Services: apiConnectTerminatingServicesToStructs(in.Services),
+	}
+}
+
+func apiConnectTerminatingServicesToStructs(in []*api.ConsulLinkedService) []*structs.ConsulLinkedService {
+	if len(in) == 0 {
+		return nil
+	}
+
+	services := make([]*structs.ConsulLinkedService, len(in))
+	for i, service := range in {
+		services[i] = apiConnectTerminatingServiceToStructs(service)
+	}
+	return services
+}
+
+func apiConnectTerminatingServiceToStructs(in *api.ConsulLinkedService) *structs.ConsulLinkedService {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulLinkedService{
+		Name:     in.Name,
+		CAFile:   in.CAFile,
+		CertFile: in.CertFile,
+		KeyFile:  in.KeyFile,
+		SNI:      in.SNI,
+	}
+}
+
 func apiConnectSidecarServiceToStructs(in *api.ConsulSidecarService) *structs.ConsulSidecarService {
 	if in == nil {
 		return nil
@@ -1459,6 +1503,7 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 		upstreams[i] = structs.ConsulUpstream{
 			DestinationName: upstream.DestinationName,
 			LocalBindPort:   upstream.LocalBindPort,
+			Datacenter:      upstream.Datacenter,
 		}
 	}
 	return upstreams

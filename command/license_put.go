@@ -21,11 +21,14 @@ func (c *LicensePutCommand) Help() string {
 	helpText := `
 Usage: nomad license put [options]
 
-Puts a new license in Servers and Clients
+  Puts a new license in Servers and Clients
+
+  When ACLs are enabled, this command requires a token with the
+  'operator:write' capability.
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Install a new license from a file:
 

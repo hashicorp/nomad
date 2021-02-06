@@ -30,9 +30,6 @@ func (r *Resources) Canonicalize() {
 	if r.MemoryMB == nil {
 		r.MemoryMB = defaultResources.MemoryMB
 	}
-	for _, n := range r.Networks {
-		n.Canonicalize()
-	}
 	for _, d := range r.Devices {
 		d.Canonicalize()
 	}
@@ -103,19 +100,31 @@ type NetworkResource struct {
 	Device        string     `hcl:"device,optional"`
 	CIDR          string     `hcl:"cidr,optional"`
 	IP            string     `hcl:"ip,optional"`
-	MBits         *int       `hcl:"mbits,optional"`
 	DNS           *DNSConfig `hcl:"dns,block"`
 	ReservedPorts []Port     `hcl:"reserved_ports,block"`
 	DynamicPorts  []Port     `hcl:"port,block"`
+
+	// COMPAT(0.13)
+	// XXX Deprecated. Please do not use. The field will be removed in Nomad
+	// 0.13 and is only being kept to allow any references to be removed before
+	// then.
+	MBits *int `hcl:"mbits,optional"`
+}
+
+// COMPAT(0.13)
+// XXX Deprecated. Please do not use. The method will be removed in Nomad
+// 0.13 and is only being kept to allow any references to be removed before
+// then.
+func (n *NetworkResource) Megabits() int {
+	if n == nil || n.MBits == nil {
+		return 0
+	}
+	return *n.MBits
 }
 
 func (n *NetworkResource) Canonicalize() {
-	// COMPAT(0.12) MBits is deprecated but this should not be removed
-	// until MBits is fully removed. Removing this *without* fully removing
-	// MBits would cause unnecessary job diffs and destructive updates.
-	if n.MBits == nil {
-		n.MBits = intToPtr(10)
-	}
+	// COMPAT(0.13)
+	// Noop to maintain backwards compatibility
 }
 
 func (n *NetworkResource) HasPorts() bool {

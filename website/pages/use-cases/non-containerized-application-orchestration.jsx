@@ -1,4 +1,4 @@
-import UseCasesLayout from 'layouts/use-cases'
+import UseCasesLayout from 'components/use-case-page'
 import TextSplitWithImage from '@hashicorp/react-text-split-with-image'
 import FeaturedSliderSection from 'components/featured-slider-section'
 
@@ -12,7 +12,7 @@ export default function NonContainerizedApplicationOrchestrationPage() {
         textSplit={{
           heading: 'Non-Containerized Orchestration',
           content:
-            'Deploy, manage, and scale your non-containerized applications using the Java, Qemu, or exec drivers.',
+            'Deploy, manage, and scale your non-containerized applications using the Java, QEMU, or exec drivers.',
           textSide: 'right',
           links: [
             {

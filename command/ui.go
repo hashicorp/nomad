@@ -29,7 +29,7 @@ object. Supported identifiers are jobs, allocations and nodes.
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 
 	return strings.TrimSpace(helpText)
 }
@@ -182,6 +182,6 @@ func (c *UiCommand) logMultiMatchError(id string, matches map[contexts.Context][
 		}
 
 		c.Ui.Error(fmt.Sprintf("\n%s:", strings.Title(string(ctx))))
-		c.Ui.Error(fmt.Sprintf("%s", strings.Join(vers, ", ")))
+		c.Ui.Error(strings.Join(vers, ", "))
 	}
 }

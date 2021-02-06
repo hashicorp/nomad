@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
@@ -14,7 +15,7 @@ var _ cli.Command = &RecommendationApplyCommand{}
 
 // RecommendationApplyCommand implements cli.Command.
 type RecommendationApplyCommand struct {
-	Meta
+	RecommendationAutocompleteCommand
 }
 
 // Help satisfies the cli.Command Help function.
@@ -24,9 +25,13 @@ Usage: nomad recommendation apply [options] <recommendation_ids>
 
   Apply one or more Nomad recommendations.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job',
+  'read-job', and 'submit-recommendation' capabilities for the
+  recommendation's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Recommendation Apply Options:
 
@@ -91,9 +96,7 @@ func (r *RecommendationApplyCommand) Run(args []string) int {
 
 	// Create a list of recommendations to apply.
 	ids := make([]string, len(args))
-	for i, id := range args {
-		ids[i] = id
-	}
+	copy(ids, args)
 
 	resp, _, err := client.Recommendations().Apply(ids, override)
 	if err != nil {

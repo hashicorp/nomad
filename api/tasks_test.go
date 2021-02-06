@@ -356,16 +356,16 @@ func TestTask_AddAffinity(t *testing.T) {
 func TestTask_Artifact(t *testing.T) {
 	t.Parallel()
 	a := TaskArtifact{
-		GetterSource: stringToPtr("http://localhost/foo.txt"),
-		GetterMode:   stringToPtr("file"),
+		GetterSource:  stringToPtr("http://localhost/foo.txt"),
+		GetterMode:    stringToPtr("file"),
+		GetterHeaders: make(map[string]string),
+		GetterOptions: make(map[string]string),
 	}
 	a.Canonicalize()
-	if *a.GetterMode != "file" {
-		t.Errorf("expected file but found %q", *a.GetterMode)
-	}
-	if filepath.ToSlash(*a.RelativeDest) != "local/foo.txt" {
-		t.Errorf("expected local/foo.txt but found %q", *a.RelativeDest)
-	}
+	require.Equal(t, "file", *a.GetterMode)
+	require.Equal(t, "local/foo.txt", filepath.ToSlash(*a.RelativeDest))
+	require.Nil(t, a.GetterOptions)
+	require.Nil(t, a.GetterHeaders)
 }
 
 func TestTask_VolumeMount(t *testing.T) {

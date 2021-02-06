@@ -36,12 +36,9 @@
                 @onChange={{action this.gotoJobsForNamespace}}
                 @tagName="div"
                 @class="namespace-switcher"
+                title={{this.system.activeNamespace.name}}
                 as |namespace|>
-                {{#if (eq namespace.name "default")}}
-                  Default Namespace
-                {{else}}
-                  {{namespace.name}}
-                {{/if}}
+                <span class="ember-power-select-prefix">Namespace: </span>{{namespace.name}}
               </PowerSelect>
             </div>
           </li>

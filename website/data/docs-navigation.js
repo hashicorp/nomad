@@ -14,7 +14,6 @@ export default [
         category: 'production',
         content: [
           'requirements',
-          'nomad-agent',
           {
             title: 'Reference Architecture',
             href:
@@ -30,7 +29,7 @@ export default [
       'windows-service',
     ],
   },
-  {category: 'upgrade', content: ['upgrade-specific']},
+  { category: 'upgrade', content: ['upgrade-specific'] },
   {
     category: 'integrations',
     content: ['consul-integration', 'consul-connect', 'vault-integration'],
@@ -51,7 +50,7 @@ export default [
       'consensus',
       'filesystem',
       'gossip',
-      'security'
+      'security',
     ],
   },
   {
@@ -108,14 +107,6 @@ export default [
           'unblock',
         ],
       },
-      {
-        category: 'event',
-        content: [
-          'sink-deregister',
-          'sink-list',
-          'sink-register',
-        ],
-      },
       'eval-status',
       {
         category: 'job',
@@ -159,6 +150,7 @@ export default [
           'debug',
           'keygen',
           'keyring',
+          'metrics',
           'raft-list-peers',
           'raft-remove-peer',
           'snapshot-agent',
@@ -167,17 +159,20 @@ export default [
           'snapshot-save',
         ],
       },
-      {category: 'plugin', content: ['status']},
+      { category: 'plugin', content: ['status'] },
       {
         category: 'quota',
         content: ['apply', 'delete', 'init', 'inspect', 'list', 'status'],
       },
-      {category: 'recommendation', content: ['apply', 'dismiss', 'info', 'list']},
-      {category: 'scaling', content: ['policy-info', 'policy-list']},
-      {category: 'sentinel', content: ['apply', 'delete', 'list', 'read']},
-      {category: 'server', content: ['force-leave', 'join', 'members']},
+      {
+        category: 'recommendation',
+        content: ['apply', 'dismiss', 'info', 'list'],
+      },
+      { category: 'scaling', content: ['policy-info', 'policy-list'] },
+      { category: 'sentinel', content: ['apply', 'delete', 'list', 'read'] },
+      { category: 'server', content: ['force-leave', 'join', 'members'] },
       'status',
-      {category: 'system', content: ['gc', 'reconcile-summaries']},
+      { category: 'system', content: ['gc', 'reconcile-summaries'] },
       'ui',
       'version',
       {
@@ -190,7 +185,151 @@ export default [
   {
     category: 'job-specification',
     content: [
-      'hcl2',
+      {
+        category: 'hcl2',
+        content: [
+          'expressions',
+          {
+            category: 'functions',
+            content: [
+              {
+                category: 'collection',
+                name: 'Collection Functions',
+                content: [
+                  'chunklist',
+                  'coalesce',
+                  'coalescelist',
+                  'compact',
+                  'concat',
+                  'contains',
+                  'distinct',
+                  'element',
+                  'flatten',
+                  'index-fn',
+                  'keys',
+                  'length',
+                  'lookup',
+                  'merge',
+                  'range',
+                  'reverse',
+                  'setintersection',
+                  'setproduct',
+                  'setunion',
+                  'slice',
+                  'sort',
+                  'values',
+                  'zipmap',
+                ],
+              },
+              {
+                category: 'conversion',
+                name: 'Type Conversion Functions',
+                content: ['can', 'convert', 'try'],
+              },
+              {
+                category: 'crypto',
+                name: 'Hash and Crypto Functions',
+                content: [
+                  'bcrypt',
+                  'md5',
+                  'rsadecrypt',
+                  'sha1',
+                  'sha256',
+                  'sha512',
+                ],
+              },
+              {
+                category: 'datetime',
+                name: 'Date and Time Functions',
+                content: ['formatdate', 'timeadd'],
+              },
+              {
+                category: 'encoding',
+                name: 'Encoding Functions',
+                content: [
+                  'base64decode',
+                  'base64encode',
+                  'csvdecode',
+                  'jsondecode',
+                  'jsonencode',
+                  'urlencode',
+                  'yamldecode',
+                  'yamlencode',
+                ],
+              },
+              {
+                category: 'file',
+                name: 'Filesystem Functions',
+                content: [
+                  'abspath',
+                  'basename',
+                  'dirname',
+                  'file',
+                  'fileexists',
+                  'fileset',
+                  'pathexpand',
+                ],
+              },
+              {
+                category: 'ipnet',
+                name: 'IP Network Functions',
+                content: [
+                  'cidrhost',
+                  'cidrnetmask',
+                  'cidrsubnet',
+                  'cidrsubnets',
+                ],
+              },
+              {
+                category: 'numeric',
+                name: 'Numeric Functions',
+                content: [
+                  'abs',
+                  'ceil',
+                  'floor',
+                  'log',
+                  'max',
+                  'min',
+                  'parseint',
+                  'pow',
+                  'signum',
+                ],
+              },
+              {
+                category: 'string',
+                name: 'String Functions',
+                content: [
+                  'chomp',
+                  'format',
+                  'formatlist',
+                  'indent',
+                  'join',
+                  'lower',
+                  'regex_replace',
+                  'replace',
+                  'split',
+                  'strrev',
+                  'substr',
+                  'title',
+                  'trim',
+                  'trimprefix',
+                  'trimspace',
+                  'trimsuffix',
+                  'upper',
+                ],
+              },
+              {
+                category: 'uuid',
+                name: 'UUID Functions',
+                content: ['uuidv4', 'uuidv5'],
+              },
+            ],
+          },
+          'locals',
+          'syntax',
+          'variables',
+        ],
+      },
       'artifact',
       'affinity',
       'check_restart',
@@ -258,10 +397,18 @@ export default [
   },
   {
     category: 'devices',
-    content: ['nvidia', 'community'],
+    content: [
+      'nvidia',
+      {
+        category: 'external',
+        content: [
+          'usb'
+        ]
+      }
+    ],
   },
   'schedulers',
-  {category: 'runtime', content: ['environment', 'interpolation']},
+  { category: 'runtime', content: ['environment', 'interpolation'] },
   {
     category: 'autoscaling',
     content: [
@@ -280,8 +427,34 @@ export default [
       },
     ],
   },
-  {category: 'telemetry', content: ['metrics']},
+  {
+    category: 'operations',
+    content: [
+      'nomad-agent',
+      'telemetry',
+      'metrics',
+      {
+        title: 'Cluster Management',
+        href: 'https://learn.hashicorp.com/collections/nomad/manage-clusters',
+      },
+      {
+        title: 'Transport Security',
+        href:
+          'https://learn.hashicorp.com/collections/nomad/transport-security',
+      },
+      {
+        title: 'Access Control',
+        href: 'https://learn.hashicorp.com/collections/nomad/access-control',
+      },
+    ],
+  },
   '------------',
+  {
+    category: 'nomad-vs-kubernetes',
+    content: ['alternative', 'supplement'],
+  },
+  'ecosystem',
+  'who-uses-nomad',
   'enterprise',
   'faq',
 ]

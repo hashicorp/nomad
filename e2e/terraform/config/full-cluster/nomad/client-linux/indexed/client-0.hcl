@@ -12,7 +12,7 @@ client {
   }
 
   host_volume "shared_data" {
-    path = "/tmp/data"
+    path = "/srv/data"
   }
 }
 

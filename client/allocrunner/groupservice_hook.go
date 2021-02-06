@@ -93,7 +93,10 @@ func (h *groupServiceHook) Prerun() error {
 		h.prerun = true
 		h.mu.Unlock()
 	}()
+	return h.prerunLocked()
+}
 
+func (h *groupServiceHook) prerunLocked() error {
 	if len(h.services) == 0 {
 		return nil
 	}
@@ -145,10 +148,26 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	return h.consulClient.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
 }
 
+func (h *groupServiceHook) PreTaskRestart() error {
+	h.mu.Lock()
+	defer func() {
+		// Mark prerun as true to unblock Updates
+		h.prerun = true
+		h.mu.Unlock()
+	}()
+
+	h.preKillLocked()
+	return h.prerunLocked()
+}
+
 func (h *groupServiceHook) PreKill() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.preKillLocked()
+}
 
+// implements the PreKill hook but requires the caller hold the lock
+func (h *groupServiceHook) preKillLocked() {
 	// If we have a shutdown delay deregister
 	// group services and then wait
 	// before continuing to kill tasks

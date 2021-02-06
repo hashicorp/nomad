@@ -96,7 +96,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
     assert.ok(Allocation.lifecycleChart.isPresent);
     assert.equal(Allocation.lifecycleChart.title, 'Task Lifecycle Status');
-    assert.equal(Allocation.lifecycleChart.phases.length, 3);
+    assert.equal(Allocation.lifecycleChart.phases.length, 4);
     assert.equal(Allocation.lifecycleChart.tasks.length, 6);
 
     await Allocation.lifecycleChart.tasks[0].visit();

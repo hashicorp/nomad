@@ -89,18 +89,16 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	// Ensure different ports were used.
 	used := make(map[int]map[string]struct{})
 	for _, alloc := range out {
-		for _, resource := range alloc.TaskResources {
-			for _, port := range resource.Networks[0].DynamicPorts {
-				nodeMap, ok := used[port.Value]
-				if !ok {
-					nodeMap = make(map[string]struct{})
-					used[port.Value] = nodeMap
-				}
-				if _, ok := nodeMap[alloc.NodeID]; ok {
-					t.Fatalf("Port collision on node %q %v", alloc.NodeID, port.Value)
-				}
-				nodeMap[alloc.NodeID] = struct{}{}
+		for _, port := range alloc.AllocatedResources.Shared.Ports {
+			nodeMap, ok := used[port.Value]
+			if !ok {
+				nodeMap = make(map[string]struct{})
+				used[port.Value] = nodeMap
 			}
+			if _, ok := nodeMap[alloc.NodeID]; ok {
+				t.Fatalf("Port collision on node %q %v", alloc.NodeID, port.Value)
+			}
+			nodeMap[alloc.NodeID] = struct{}{}
 		}
 	}
 
@@ -2082,6 +2080,11 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		DeviceIDs: []string{uuid.Generate()},
 	}
 
+	asr := structs.AllocatedSharedResources{
+		Ports:    structs.AllocatedPorts{{Label: "http"}},
+		Networks: structs.Networks{{Mode: "bridge"}},
+	}
+
 	// Create allocs that are part of the old deployment
 	var allocs []*structs.Allocation
 	for i := 0; i < 10; i++ {
@@ -2093,6 +2096,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		alloc.DeploymentID = d.ID
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: helper.BoolToPtr(true)}
 		alloc.AllocatedResources.Tasks[taskName].Devices = []*structs.AllocatedDeviceResource{&adr}
+		alloc.AllocatedResources.Shared = asr
 		allocs = append(allocs, alloc)
 	}
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
@@ -2169,6 +2173,10 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	// Verify the allocated networks and devices did not change
 	rp := structs.Port{Label: "admin", Value: 5000}
 	for _, alloc := range out {
+		// Verify Shared Allocared Resources Persisted
+		require.Equal(t, alloc.AllocatedResources.Shared.Ports, asr.Ports)
+		require.Equal(t, alloc.AllocatedResources.Shared.Networks, asr.Networks)
+
 		for _, resources := range alloc.AllocatedResources.Tasks {
 			if resources.Networks[0].ReservedPorts[0] != rp {
 				t.Fatalf("bad: %#v", alloc)
@@ -5230,20 +5238,20 @@ func TestServiceSched_Preemption(t *testing.T) {
 	// Create a couple of jobs and schedule them
 	job1 := mock.Job()
 	job1.TaskGroups[0].Count = 1
+	job1.TaskGroups[0].Networks = nil
 	job1.Priority = 30
 	r1 := job1.TaskGroups[0].Tasks[0].Resources
 	r1.CPU = 500
 	r1.MemoryMB = 1024
-	r1.Networks = nil
 	require.NoError(h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job1))
 
 	job2 := mock.Job()
 	job2.TaskGroups[0].Count = 1
+	job2.TaskGroups[0].Networks = nil
 	job2.Priority = 50
 	r2 := job2.TaskGroups[0].Tasks[0].Resources
 	r2.CPU = 350
 	r2.MemoryMB = 512
-	r2.Networks = nil
 	require.NoError(h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job2))
 
 	// Create a mock evaluation to register the jobs
@@ -5294,10 +5302,10 @@ func TestServiceSched_Preemption(t *testing.T) {
 	job3 := mock.Job()
 	job3.Priority = 100
 	job3.TaskGroups[0].Count = 1
+	job3.TaskGroups[0].Networks = nil
 	r3 := job3.TaskGroups[0].Tasks[0].Resources
 	r3.CPU = 900
 	r3.MemoryMB = 1700
-	r3.Networks = nil
 	require.NoError(h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job3))
 
 	// Create a mock evaluation to register the job
@@ -5577,6 +5585,124 @@ func TestServiceSched_Migrate_CanaryStatus(t *testing.T) {
 			require.Equal(t, node2.ID, node2Allocs[3].NodeID)
 			require.Equal(t, updateDeployment, node2Allocs[3].DeploymentID)
 		}
+	}
+}
+
+// TestDowngradedJobForPlacement_PicksTheLatest asserts that downgradedJobForPlacement
+// picks the latest deployment that have either been marked as promoted or is considered
+// non-destructive so it doesn't use canaries.
+func TestDowngradedJobForPlacement_PicksTheLatest(t *testing.T) {
+	h := NewHarness(t)
+
+	// This test tests downgradedJobForPlacement directly to ease testing many different scenarios
+	// without invoking the full machinary of scheduling and updating deployment state tracking.
+	//
+	// It scafold the parts of scheduler and state stores so we can mimic the updates.
+	updates := []struct {
+		// Version of the job this update represent
+		version uint64
+
+		// whether this update is marked as promoted: Promoted is only true if the job
+		// update is a "destructive" update and has been updated manually
+		promoted bool
+
+		// requireCanaries indicate whether the job update requires placing canaries due to
+		// it being a destructive update compared to the latest promoted deployment.
+		requireCanaries bool
+
+		// the expected version for migrating a stable non-canary alloc after applying this update
+		expectedVersion uint64
+	}{
+		// always use latest promoted deployment
+		{1, true, true, 1},
+		{2, true, true, 2},
+		{3, true, true, 3},
+
+		// ignore most recent non promoted
+		{4, false, true, 3},
+		{5, false, true, 3},
+		{6, false, true, 3},
+
+		// use latest promoted after promotion
+		{7, true, true, 7},
+
+		// non destructive updates that don't require canaries and are treated as promoted
+		{8, false, false, 8},
+	}
+
+	job := mock.Job()
+	job.Version = 0
+	job.Stable = true
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+
+	initDeployment := &structs.Deployment{
+		ID:             uuid.Generate(),
+		JobID:          job.ID,
+		Namespace:      job.Namespace,
+		JobVersion:     job.Version,
+		JobModifyIndex: job.JobModifyIndex,
+		JobCreateIndex: job.CreateIndex,
+		TaskGroups: map[string]*structs.DeploymentState{
+			"web": {
+				DesiredTotal: 1,
+				Promoted:     true,
+			},
+		},
+		Status:            structs.DeploymentStatusSuccessful,
+		StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+	}
+	require.NoError(t, h.State.UpsertDeployment(h.NextIndex(), initDeployment))
+
+	deploymentIDs := []string{initDeployment.ID}
+
+	for i, u := range updates {
+		t.Run(fmt.Sprintf("%d: %#+v", i, u), func(t *testing.T) {
+			t.Logf("case: %#+v", u)
+			nj := job.Copy()
+			nj.Version = u.version
+			nj.TaskGroups[0].Tasks[0].Env["version"] = fmt.Sprintf("%v", u.version)
+			nj.TaskGroups[0].Count = 1
+			require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nj))
+
+			desiredCanaries := 1
+			if !u.requireCanaries {
+				desiredCanaries = 0
+			}
+			deployment := &structs.Deployment{
+				ID:             uuid.Generate(),
+				JobID:          nj.ID,
+				Namespace:      nj.Namespace,
+				JobVersion:     nj.Version,
+				JobModifyIndex: nj.JobModifyIndex,
+				JobCreateIndex: nj.CreateIndex,
+				TaskGroups: map[string]*structs.DeploymentState{
+					"web": {
+						DesiredTotal:    1,
+						Promoted:        u.promoted,
+						DesiredCanaries: desiredCanaries,
+					},
+				},
+				Status:            structs.DeploymentStatusSuccessful,
+				StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+			}
+			require.NoError(t, h.State.UpsertDeployment(h.NextIndex(), deployment))
+
+			deploymentIDs = append(deploymentIDs, deployment.ID)
+
+			sched := h.Scheduler(NewServiceScheduler).(*GenericScheduler)
+
+			sched.job = nj
+			sched.deployment = deployment
+			placement := &allocPlaceResult{
+				taskGroup: nj.TaskGroups[0],
+			}
+
+			// Here, assert the downgraded job version
+			foundDeploymentID, foundJob, err := sched.downgradedJobForPlacement(placement)
+			require.NoError(t, err)
+			require.Equal(t, u.expectedVersion, foundJob.Version)
+			require.Equal(t, deploymentIDs[u.expectedVersion], foundDeploymentID)
+		})
 	}
 }
 

@@ -412,7 +412,7 @@ func (w *deploymentWatcher) watch() {
 			<-deadlineTimer.C
 		}
 	} else {
-		deadlineTimer = time.NewTimer(currentDeadline.Sub(time.Now()))
+		deadlineTimer = time.NewTimer(time.Until(currentDeadline))
 	}
 
 	allocIndex := uint64(1)
@@ -474,7 +474,7 @@ FAIL:
 				// rollout, the next progress deadline becomes zero, so we want
 				// to avoid resetting, causing a deployment failure.
 				if !next.IsZero() {
-					deadlineTimer.Reset(next.Sub(time.Now()))
+					deadlineTimer.Reset(time.Until(next))
 				}
 			}
 

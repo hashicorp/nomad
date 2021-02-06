@@ -27,7 +27,7 @@ Usage: nomad node <subcommand> [options] [args]
 
       $ nomad node eligibility -disable <node-id>
 
-  Mark a node to be drained, allowing batch jobs four hours to finished before
+  Mark a node to be drained, allowing batch jobs four hours to finish before
   forcing them off the node:
 
       $ nomad node drain -enable -deadline 4h <node-id>

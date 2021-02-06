@@ -49,9 +49,12 @@ Usage: nomad node status [options] <node>
   short-hand list of all nodes will be displayed. The -self flag is useful to
   quickly access the status of the local node.
 
+  If ACLs are enabled, this option requires a token with the 'node:read'
+  capability.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Node Status Options:
 
@@ -236,7 +239,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 	}
 	if len(nodeID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
+		c.Ui.Error("Identifier must contain at least two characters.")
 		return 1
 	}
 

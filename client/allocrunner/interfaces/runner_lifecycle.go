@@ -55,6 +55,14 @@ type RunnerUpdateRequest struct {
 	Alloc *structs.Allocation
 }
 
+// RunnerTaskRestartHooks are executed just before the allocation runner is
+// going to restart all tasks.
+type RunnerTaskRestartHook interface {
+	RunnerHook
+
+	PreTaskRestart() error
+}
+
 // ShutdownHook may be implemented by AllocRunner or TaskRunner hooks and will
 // be called when the agent process is being shutdown gracefully.
 type ShutdownHook interface {

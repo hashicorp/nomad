@@ -266,7 +266,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	// setting the user of the process
 	if command.User != "" {
 		e.logger.Debug("running command as user", "user", command.User)
-		if err := e.runAs(command.User); err != nil {
+		if err := setCmdUser(&e.childCmd, command.User); err != nil {
 			return nil, err
 		}
 	}
@@ -280,8 +280,10 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	}
 
 	// Setup cgroups on linux
-	if err := e.configureResourceContainer(os.Getpid()); err != nil {
-		return nil, err
+	if e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup {
+		if err := e.configureResourceContainer(os.Getpid()); err != nil {
+			return nil, err
+		}
 	}
 
 	stdout, err := e.commandCfg.Stdout()
@@ -406,6 +408,12 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			return nil
 		},
 		processStart: func() error {
+			if u := e.commandCfg.User; u != "" {
+				if err := setCmdUser(cmd, u); err != nil {
+					return err
+				}
+			}
+
 			return withNetworkIsolation(cmd.Start, e.commandCfg.NetworkIsolation)
 		},
 		processWait: func() (*os.ProcessState, error) {

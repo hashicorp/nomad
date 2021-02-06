@@ -6,14 +6,37 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+
+	"github.com/hashicorp/nomad/api/contexts"
 )
 
 // Ensure RecommendationDismissCommand satisfies the cli.Command interface.
 var _ cli.Command = &RecommendationDismissCommand{}
 
+// RecommendationAutocompleteCommand provides AutocompleteArgs for all
+// recommendation commands that support prefix-search autocompletion
+type RecommendationAutocompleteCommand struct {
+	Meta
+}
+
+func (r *RecommendationAutocompleteCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := r.Meta.Client()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Recommendations, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Recommendations]
+	})
+}
+
 // RecommendationDismissCommand implements cli.Command.
 type RecommendationDismissCommand struct {
-	Meta
+	RecommendationAutocompleteCommand
 }
 
 // Help satisfies the cli.Command Help function.
@@ -23,9 +46,13 @@ Usage: nomad recommendation dismiss [options] <recommendation_ids>
 
   Dismiss one or more Nomad recommendations.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job',
+  'read-job', and 'submit-recommendation' capabilities for the
+  recommendation's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault)
 	return strings.TrimSpace(helpText)
 }
 
@@ -66,9 +93,7 @@ func (r *RecommendationDismissCommand) Run(args []string) int {
 
 	// Create a list of recommendations to dismiss.
 	ids := make([]string, len(args))
-	for i, id := range args {
-		ids[i] = id
-	}
+	copy(ids, args)
 
 	_, err = client.Recommendations().Delete(ids, nil)
 	if err != nil {
