@@ -63,7 +63,7 @@ require (
 	github.com/gophercloud/gophercloud v0.12.0 // indirect
 	github.com/gorilla/websocket v1.4.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.1-0.20200228141219-3ce3d519df39
-	github.com/hashicorp/consul v1.8.4
+	github.com/hashicorp/consul v1.8.8
 	github.com/hashicorp/consul-template v0.25.1
 	github.com/hashicorp/consul/api v1.8.1
 	github.com/hashicorp/consul/sdk v0.7.0
@@ -97,13 +97,13 @@ require (
 	github.com/hashicorp/raft v1.1.3-0.20200211192230-365023de17e6
 	github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea
 	github.com/hashicorp/serf v0.9.5
-	github.com/hashicorp/vault/api v1.0.5-0.20190730042357-746c0b111519
-	github.com/hashicorp/vault/sdk v0.1.14-0.20190730042320-0dc007d98cc8
+	github.com/hashicorp/vault/api v1.0.5-0.20200717191844-f687267c8086
+	github.com/hashicorp/vault/sdk v0.1.14-0.20200519221838-e0cfd64bc267
 	github.com/hashicorp/yamux v0.0.0-20200609203250-aecfd211c9ce
 	github.com/hpcloud/tail v1.0.1-0.20170814160653-37f427138745
 	github.com/ishidawataru/sctp v0.0.0-20191218070446-00ab2ac2db07 // indirect
 	github.com/joyent/triton-go v1.8.5 // indirect
-	github.com/kr/pretty v0.2.0
+	github.com/kr/pretty v0.2.1
 	github.com/kr/pty v1.1.5
 	github.com/kr/text v0.2.0
 	github.com/linode/linodego v0.21.1 // indirect
@@ -143,11 +143,11 @@ require (
 	github.com/vmware/govmomi v0.23.1 // indirect
 	github.com/zclconf/go-cty v1.4.1
 	github.com/zclconf/go-cty-yaml v1.0.2
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 	golang.org/x/net v0.0.0-20200904194848-62affa334b73
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
-	golang.org/x/sys v0.0.0-20200828194041-157a740278f4
-	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1
+	golang.org/x/sys v0.0.0-20201007082116-8445cc04cbdf
+	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
 	google.golang.org/grpc v1.32.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
