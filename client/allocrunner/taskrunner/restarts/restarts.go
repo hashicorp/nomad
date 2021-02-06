@@ -34,6 +34,11 @@ func NewRestartTracker(policy *structs.RestartPolicy, jobType string, tlc *struc
 		onSuccess = tlc.Sidecar
 	}
 
+	// Poststop should never be restarted on success
+	if tlc != nil && tlc.Hook == structs.TaskLifecycleHookPoststop {
+		onSuccess = false
+	}
+
 	return &RestartTracker{
 		startTime: time.Now(),
 		onSuccess: onSuccess,

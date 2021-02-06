@@ -25,7 +25,7 @@ module "nomad_server" {
   connection = {
     type        = "ssh"
     user        = "ubuntu"
-    host        = "${aws_instance.server[count.index].public_ip}"
+    host        = aws_instance.server[count.index].public_ip
     port        = 22
     private_key = "${path.root}/keys/${local.random_name}.pem"
   }
@@ -60,7 +60,7 @@ module "nomad_client_ubuntu_bionic_amd64" {
   connection = {
     type        = "ssh"
     user        = "ubuntu"
-    host        = "${aws_instance.client_ubuntu_bionic_amd64[count.index].public_ip}"
+    host        = aws_instance.client_ubuntu_bionic_amd64[count.index].public_ip
     port        = 22
     private_key = "${path.root}/keys/${local.random_name}.pem"
   }
@@ -96,7 +96,7 @@ module "nomad_client_windows_2016_amd64" {
   connection = {
     type        = "ssh"
     user        = "Administrator"
-    host        = "${aws_instance.client_windows_2016_amd64[count.index].public_ip}"
+    host        = aws_instance.client_windows_2016_amd64[count.index].public_ip
     port        = 22
     private_key = "${path.root}/keys/${local.random_name}.pem"
   }

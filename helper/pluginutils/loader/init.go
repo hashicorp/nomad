@@ -24,13 +24,13 @@ func validateConfig(config *PluginLoaderConfig) error {
 	if config == nil {
 		return fmt.Errorf("nil config passed")
 	} else if config.Logger == nil {
-		multierror.Append(&mErr, fmt.Errorf("nil logger passed"))
+		_ = multierror.Append(&mErr, fmt.Errorf("nil logger passed"))
 	}
 
 	// Validate that all plugins have a binary name
 	for _, c := range config.Configs {
 		if c.Name == "" {
-			multierror.Append(&mErr, fmt.Errorf("plugin config passed without binary name"))
+			_ = multierror.Append(&mErr, fmt.Errorf("plugin config passed without binary name"))
 		}
 	}
 
@@ -38,10 +38,10 @@ func validateConfig(config *PluginLoaderConfig) error {
 	for k, config := range config.InternalPlugins {
 		// Validate config
 		if config == nil {
-			multierror.Append(&mErr, fmt.Errorf("nil config passed for internal plugin %s", k))
+			_ = multierror.Append(&mErr, fmt.Errorf("nil config passed for internal plugin %s", k))
 			continue
 		} else if config.Factory == nil {
-			multierror.Append(&mErr, fmt.Errorf("nil factory passed for internal plugin %s", k))
+			_ = multierror.Append(&mErr, fmt.Errorf("nil factory passed for internal plugin %s", k))
 			continue
 		}
 	}
@@ -96,7 +96,7 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, 
 		raw := config.Factory(ctx, l.logger)
 		base, ok := raw.(base.BasePlugin)
 		if !ok {
-			multierror.Append(&mErr, fmt.Errorf("internal plugin %s doesn't meet base plugin interface", k))
+			_ = multierror.Append(&mErr, fmt.Errorf("internal plugin %s doesn't meet base plugin interface", k))
 			continue
 		}
 
@@ -113,7 +113,7 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, 
 		// Fingerprint base info
 		i, err := base.PluginInfo()
 		if err != nil {
-			multierror.Append(&mErr, fmt.Errorf("PluginInfo info failed for internal plugin %s: %v", k, err))
+			_ = multierror.Append(&mErr, fmt.Errorf("PluginInfo info failed for internal plugin %s: %v", k, err))
 			continue
 		}
 		info.baseInfo = i
@@ -121,7 +121,7 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, 
 		// Parse and set the plugin version
 		v, err := version.NewVersion(i.PluginVersion)
 		if err != nil {
-			multierror.Append(&mErr, fmt.Errorf("failed to parse version %q for internal plugin %s: %v", i.PluginVersion, k, err))
+			_ = multierror.Append(&mErr, fmt.Errorf("failed to parse version %q for internal plugin %s: %v", i.PluginVersion, k, err))
 			continue
 		}
 		info.version = v
@@ -129,7 +129,7 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, 
 		// Detect the plugin API version to use
 		av, err := l.selectApiVersion(i)
 		if err != nil {
-			multierror.Append(&mErr, fmt.Errorf("failed to validate API versions %v for internal plugin %s: %v", i.PluginApiVersions, k, err))
+			_ = multierror.Append(&mErr, fmt.Errorf("failed to validate API versions %v for internal plugin %s: %v", i.PluginApiVersions, k, err))
 			continue
 		}
 		if av == "" {
@@ -141,7 +141,7 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, 
 		// Get the config schema
 		schema, err := base.ConfigSchema()
 		if err != nil {
-			multierror.Append(&mErr, fmt.Errorf("failed to retrieve config schema for internal plugin %s: %v", k, err))
+			_ = multierror.Append(&mErr, fmt.Errorf("failed to retrieve config schema for internal plugin %s: %v", k, err))
 			continue
 		}
 		info.configSchema = schema
@@ -265,7 +265,7 @@ func (l *PluginLoader) fingerprintPlugins(plugins []os.FileInfo, configs map[str
 		info, err := l.fingerprintPlugin(p, c)
 		if err != nil {
 			l.logger.Error("failed to fingerprint plugin", "plugin", name, "error", err)
-			multierror.Append(&mErr, err)
+			_ = multierror.Append(&mErr, err)
 			continue
 		}
 		if info == nil {
@@ -424,7 +424,7 @@ func (l *PluginLoader) validatePluginConfigs() error {
 	for id, info := range l.plugins {
 		if err := l.validatePluginConfig(id, info); err != nil {
 			wrapped := multierror.Prefix(err, fmt.Sprintf("plugin %s:", id))
-			multierror.Append(&mErr, wrapped)
+			_ = multierror.Append(&mErr, wrapped)
 		}
 	}
 
@@ -450,7 +450,7 @@ func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) error
 	// Convert the schema to hcl
 	spec, diag := hclspecutils.Convert(info.configSchema)
 	if diag.HasErrors() {
-		multierror.Append(&mErr, diag.Errs()...)
+		_ = multierror.Append(&mErr, diag.Errs()...)
 		return multierror.Prefix(&mErr, "failed converting config schema:")
 	}
 
@@ -463,7 +463,7 @@ func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) error
 	// Parse the config using the spec
 	val, diag, diagErrs := hclutils.ParseHclInterface(info.config, spec, nil)
 	if diag.HasErrors() {
-		multierror.Append(&mErr, diagErrs...)
+		_ = multierror.Append(&mErr, diagErrs...)
 		return multierror.Prefix(&mErr, "failed to parse config: ")
 
 	}

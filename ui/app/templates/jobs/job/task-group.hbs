@@ -176,7 +176,7 @@
             <tr data-test-volume>
               <td data-test-volume-name>
                 {{#if row.model.isCSI}}
-                  <LinkTo @route="csi.volumes.volume" @model={{row.model.name}} @query={{hash volumeNamespace=row.model.namespace.id}}>
+                  <LinkTo @route="csi.volumes.volume" @model={{row.model.source}} @query={{hash volumeNamespace=row.model.namespace.id}}>
                     {{row.model.name}}
                   </LinkTo>
                 {{else}}

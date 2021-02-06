@@ -18,9 +18,13 @@ Usage: nomad volume detach [options] <vol id> <node id>
 
   Detach a volume from a Nomad client.
 
+  When ACLs are enabled, this command requires a token with the
+  'csi-write-volume' and 'csi-read-volume' capabilities for the volume's
+  namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 `
 	return strings.TrimSpace(helpText)
@@ -48,9 +52,7 @@ func (c *VolumeDetachCommand) AutocompleteArgs() complete.Predictor {
 		if err != nil {
 			return []string{}
 		}
-		for _, match := range resp.Matches[contexts.Nodes] {
-			matches = append(matches, match)
-		}
+		matches = append(matches, resp.Matches[contexts.Nodes]...)
 		return matches
 	})
 }

@@ -21,9 +21,13 @@ Usage: nomad alloc signal [options] <signal> <allocation> <task>
   and its subtasks. If no task is provided then all of the allocations subtasks
   will receive the signal.
 
+  When ACLs are enabled, this command requires a token with the
+  'alloc-lifecycle', 'read-job', and 'list-jobs' capabilities for the
+  allocation's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Signal Specific Options:
 
@@ -69,7 +73,7 @@ func (c *AllocSignalCommand) Run(args []string) int {
 
 	// Query the allocation info
 	if len(allocID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Alloc ID must contain at least two characters."))
+		c.Ui.Error("Alloc ID must contain at least two characters.")
 		return 1
 	}
 

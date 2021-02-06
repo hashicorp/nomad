@@ -23,9 +23,12 @@ Usage: nomad node eligibility [options] <node>
   It is required that either -enable or -disable is specified, but not both.
   The -self flag is useful to set the scheduling eligibility of the local node.
 
+  If ACLs are enabled, this option requires a token with the 'node:write'
+  capability.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Node Eligibility Options:
 
@@ -120,7 +123,7 @@ func (c *NodeEligibilityCommand) Run(args []string) int {
 
 	// Check if node exists
 	if len(nodeID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
+		c.Ui.Error("Identifier must contain at least two characters.")
 		return 1
 	}
 

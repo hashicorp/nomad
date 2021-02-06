@@ -16,8 +16,8 @@ func InterpolateServices(taskEnv *TaskEnv, services []*structs.Service) []*struc
 	interpolated := make([]*structs.Service, len(services))
 
 	for i, origService := range services {
-		// Create a copy as we need to reinterpolate every time the
-		// environment changes
+		// Create a copy as we need to re-interpolate every time the
+		// environment changes.
 		service := origService.Copy()
 
 		for _, check := range service.Checks {
@@ -31,42 +31,171 @@ func InterpolateServices(taskEnv *TaskEnv, services []*structs.Service) []*struc
 			check.InitialStatus = taskEnv.ReplaceEnv(check.InitialStatus)
 			check.Method = taskEnv.ReplaceEnv(check.Method)
 			check.GRPCService = taskEnv.ReplaceEnv(check.GRPCService)
-			if len(check.Header) > 0 {
-				header := make(map[string][]string, len(check.Header))
-				for k, vs := range check.Header {
-					newVals := make([]string, len(vs))
-					for i, v := range vs {
-						newVals[i] = taskEnv.ReplaceEnv(v)
-					}
-					header[taskEnv.ReplaceEnv(k)] = newVals
-				}
-				check.Header = header
-			}
+			check.Header = interpolateMapStringSliceString(taskEnv, check.Header)
 		}
 
 		service.Name = taskEnv.ReplaceEnv(service.Name)
 		service.PortLabel = taskEnv.ReplaceEnv(service.PortLabel)
 		service.Tags = taskEnv.ParseAndReplace(service.Tags)
 		service.CanaryTags = taskEnv.ParseAndReplace(service.CanaryTags)
-
-		if len(service.Meta) > 0 {
-			meta := make(map[string]string, len(service.Meta))
-			for k, v := range service.Meta {
-				meta[k] = taskEnv.ReplaceEnv(v)
-			}
-			service.Meta = meta
-		}
-
-		if len(service.CanaryMeta) > 0 {
-			canaryMeta := make(map[string]string, len(service.CanaryMeta))
-			for k, v := range service.CanaryMeta {
-				canaryMeta[k] = taskEnv.ReplaceEnv(v)
-			}
-			service.CanaryMeta = canaryMeta
-		}
+		service.Meta = interpolateMapStringString(taskEnv, service.Meta)
+		service.CanaryMeta = interpolateMapStringString(taskEnv, service.CanaryMeta)
+		interpolateConnect(taskEnv, service.Connect)
 
 		interpolated[i] = service
 	}
 
 	return interpolated
+}
+
+func interpolateMapStringSliceString(taskEnv *TaskEnv, orig map[string][]string) map[string][]string {
+	if len(orig) == 0 {
+		return nil
+	}
+
+	m := make(map[string][]string, len(orig))
+	for k, vs := range orig {
+		m[taskEnv.ReplaceEnv(k)] = taskEnv.ParseAndReplace(vs)
+	}
+	return m
+}
+
+func interpolateMapStringString(taskEnv *TaskEnv, orig map[string]string) map[string]string {
+	if len(orig) == 0 {
+		return nil
+	}
+
+	m := make(map[string]string, len(orig))
+	for k, v := range orig {
+		m[taskEnv.ReplaceEnv(k)] = taskEnv.ReplaceEnv(v)
+	}
+	return m
+}
+
+func interpolateMapStringInterface(taskEnv *TaskEnv, orig map[string]interface{}) map[string]interface{} {
+	if len(orig) == 0 {
+		return nil
+	}
+
+	m := make(map[string]interface{}, len(orig))
+	for k, v := range orig {
+		m[taskEnv.ReplaceEnv(k)] = v
+	}
+	return m
+}
+
+func interpolateConnect(taskEnv *TaskEnv, connect *structs.ConsulConnect) {
+	if connect == nil {
+		return
+	}
+
+	interpolateConnectSidecarService(taskEnv, connect.SidecarService)
+	interpolateConnectSidecarTask(taskEnv, connect.SidecarTask)
+	if connect.Gateway != nil {
+		interpolateConnectGatewayProxy(taskEnv, connect.Gateway.Proxy)
+		interpolateConnectGatewayIngress(taskEnv, connect.Gateway.Ingress)
+	}
+}
+
+func interpolateConnectGatewayProxy(taskEnv *TaskEnv, proxy *structs.ConsulGatewayProxy) {
+	if proxy == nil {
+		return
+	}
+
+	m := make(map[string]*structs.ConsulGatewayBindAddress, len(proxy.EnvoyGatewayBindAddresses))
+	for k, v := range proxy.EnvoyGatewayBindAddresses {
+		m[taskEnv.ReplaceEnv(k)] = &structs.ConsulGatewayBindAddress{
+			Address: taskEnv.ReplaceEnv(v.Address),
+			Port:    v.Port,
+		}
+	}
+
+	proxy.EnvoyGatewayBindAddresses = m
+	proxy.Config = interpolateMapStringInterface(taskEnv, proxy.Config)
+}
+
+func interpolateConnectGatewayIngress(taskEnv *TaskEnv, ingress *structs.ConsulIngressConfigEntry) {
+	if ingress == nil {
+		return
+	}
+
+	for _, listener := range ingress.Listeners {
+		listener.Protocol = taskEnv.ReplaceEnv(listener.Protocol)
+		for _, service := range listener.Services {
+			service.Name = taskEnv.ReplaceEnv(service.Name)
+			service.Hosts = taskEnv.ParseAndReplace(service.Hosts)
+		}
+	}
+}
+
+func interpolateConnectSidecarService(taskEnv *TaskEnv, sidecar *structs.ConsulSidecarService) {
+	if sidecar == nil {
+		return
+	}
+
+	sidecar.Port = taskEnv.ReplaceEnv(sidecar.Port)
+	sidecar.Tags = taskEnv.ParseAndReplace(sidecar.Tags)
+	if sidecar.Proxy != nil {
+		sidecar.Proxy.LocalServiceAddress = taskEnv.ReplaceEnv(sidecar.Proxy.LocalServiceAddress)
+		if sidecar.Proxy.Expose != nil {
+			for i := 0; i < len(sidecar.Proxy.Expose.Paths); i++ {
+				sidecar.Proxy.Expose.Paths[i].Protocol = taskEnv.ReplaceEnv(sidecar.Proxy.Expose.Paths[i].Protocol)
+				sidecar.Proxy.Expose.Paths[i].ListenerPort = taskEnv.ReplaceEnv(sidecar.Proxy.Expose.Paths[i].ListenerPort)
+				sidecar.Proxy.Expose.Paths[i].Path = taskEnv.ReplaceEnv(sidecar.Proxy.Expose.Paths[i].Path)
+			}
+		}
+		for i := 0; i < len(sidecar.Proxy.Upstreams); i++ {
+			sidecar.Proxy.Upstreams[i].Datacenter = taskEnv.ReplaceEnv(sidecar.Proxy.Upstreams[i].Datacenter)
+			sidecar.Proxy.Upstreams[i].DestinationName = taskEnv.ReplaceEnv(sidecar.Proxy.Upstreams[i].DestinationName)
+		}
+		sidecar.Proxy.Config = interpolateMapStringInterface(taskEnv, sidecar.Proxy.Config)
+	}
+}
+
+func interpolateConnectSidecarTask(taskEnv *TaskEnv, task *structs.SidecarTask) {
+	if task == nil {
+		return
+	}
+
+	task.Driver = taskEnv.ReplaceEnv(task.Driver)
+	task.Config = interpolateMapStringInterface(taskEnv, task.Config)
+	task.Env = interpolateMapStringString(taskEnv, task.Env)
+	task.KillSignal = taskEnv.ReplaceEnv(task.KillSignal)
+	task.Meta = interpolateMapStringString(taskEnv, task.Meta)
+	interpolateTaskResources(taskEnv, task.Resources)
+	task.User = taskEnv.ReplaceEnv(task.User)
+}
+
+func interpolateTaskResources(taskEnv *TaskEnv, resources *structs.Resources) {
+	if resources == nil {
+		return
+	}
+
+	for i := 0; i < len(resources.Devices); i++ {
+		resources.Devices[i].Name = taskEnv.ReplaceEnv(resources.Devices[i].Name)
+		// do not interpolate constraints & affinities
+	}
+
+	for i := 0; i < len(resources.Networks); i++ {
+		resources.Networks[i].CIDR = taskEnv.ReplaceEnv(resources.Networks[i].CIDR)
+		resources.Networks[i].Device = taskEnv.ReplaceEnv(resources.Networks[i].Device)
+		resources.Networks[i].IP = taskEnv.ReplaceEnv(resources.Networks[i].IP)
+		resources.Networks[i].Mode = taskEnv.ReplaceEnv(resources.Networks[i].Mode)
+
+		if resources.Networks[i].DNS != nil {
+			resources.Networks[i].DNS.Options = taskEnv.ParseAndReplace(resources.Networks[i].DNS.Options)
+			resources.Networks[i].DNS.Searches = taskEnv.ParseAndReplace(resources.Networks[i].DNS.Searches)
+			resources.Networks[i].DNS.Servers = taskEnv.ParseAndReplace(resources.Networks[i].DNS.Servers)
+		}
+
+		for p := 0; p < len(resources.Networks[i].DynamicPorts); p++ {
+			resources.Networks[i].DynamicPorts[p].HostNetwork = taskEnv.ReplaceEnv(resources.Networks[i].DynamicPorts[p].HostNetwork)
+			resources.Networks[i].DynamicPorts[p].Label = taskEnv.ReplaceEnv(resources.Networks[i].DynamicPorts[p].Label)
+		}
+
+		for p := 0; p < len(resources.Networks[i].ReservedPorts); p++ {
+			resources.Networks[i].ReservedPorts[p].HostNetwork = taskEnv.ReplaceEnv(resources.Networks[i].ReservedPorts[p].HostNetwork)
+			resources.Networks[i].ReservedPorts[p].Label = taskEnv.ReplaceEnv(resources.Networks[i].ReservedPorts[p].Label)
+		}
+	}
 }

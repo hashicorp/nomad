@@ -101,16 +101,15 @@ func (tr *TaskRunner) initHooks() {
 		}))
 	}
 
-	// If there are any services, add the service hook
-	if len(task.Services) != 0 {
-		tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
-			alloc:     tr.Alloc(),
-			task:      tr.Task(),
-			consul:    tr.consulServiceClient,
-			restarter: tr,
-			logger:    hookLogger,
-		}))
-	}
+	// Always add the service hook. A task with no services on initial registration
+	// may be updated to include services, which must be handled with this hook.
+	tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
+		alloc:     tr.Alloc(),
+		task:      tr.Task(),
+		consul:    tr.consulServiceClient,
+		restarter: tr,
+		logger:    hookLogger,
+	}))
 
 	// If this is a Connect sidecar proxy (or a Connect Native) service,
 	// add the sidsHook for requesting a Service Identity token (if ACLs).
@@ -165,8 +164,7 @@ func (tr *TaskRunner) emitHookError(err error, hookName string) {
 func (tr *TaskRunner) prestart() error {
 	// Determine if the allocation is terminal and we should avoid running
 	// prestart hooks.
-	alloc := tr.Alloc()
-	if alloc.TerminalStatus() {
+	if tr.shouldShutdown() {
 		tr.logger.Trace("skipping prestart hooks since allocation is terminal")
 		return nil
 	}

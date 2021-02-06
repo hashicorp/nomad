@@ -65,8 +65,8 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.1-0.20200228141219-3ce3d519df39
 	github.com/hashicorp/consul v1.8.4
 	github.com/hashicorp/consul-template v0.25.1
-	github.com/hashicorp/consul/api v1.7.0
-	github.com/hashicorp/consul/sdk v0.6.0
+	github.com/hashicorp/consul/api v1.8.1
+	github.com/hashicorp/consul/sdk v0.7.0
 	github.com/hashicorp/cronexpr v1.1.1
 	github.com/hashicorp/go-checkpoint v0.5.0
 	github.com/hashicorp/go-cleanhttp v0.5.1
@@ -74,8 +74,8 @@ require (
 	github.com/hashicorp/go-cty-funcs v0.0.0-20200930094925-2721b1e36840
 	github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 	github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
-	github.com/hashicorp/go-getter v1.5.0
-	github.com/hashicorp/go-hclog v0.14.1
+	github.com/hashicorp/go-getter v1.5.2
+	github.com/hashicorp/go-hclog v0.12.0
 	github.com/hashicorp/go-immutable-radix v1.3.0
 	github.com/hashicorp/go-memdb v1.3.0
 	github.com/hashicorp/go-msgpack v1.1.5
@@ -88,15 +88,15 @@ require (
 	github.com/hashicorp/go-version v1.2.1
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
-	github.com/hashicorp/hcl/v2 v2.7.1-0.20201020204811-68a97f93bb48
+	github.com/hashicorp/hcl/v2 v2.7.1-0.20210129140708-3000d85e32a9
 	github.com/hashicorp/logutils v1.0.0
 	github.com/hashicorp/mdns v1.0.3 // indirect
 	github.com/hashicorp/memberlist v0.2.2
 	github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
 	github.com/hashicorp/nomad/api v0.0.0-20200529203653-c4416b26d3eb
 	github.com/hashicorp/raft v1.1.3-0.20200211192230-365023de17e6
-	github.com/hashicorp/raft-boltdb v0.0.0-20191021154308-4207f1bf0617
-	github.com/hashicorp/serf v0.9.4
+	github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea
+	github.com/hashicorp/serf v0.9.5
 	github.com/hashicorp/vault/api v1.0.5-0.20190730042357-746c0b111519
 	github.com/hashicorp/vault/sdk v0.1.14-0.20190730042320-0dc007d98cc8
 	github.com/hashicorp/yamux v0.0.0-20200609203250-aecfd211c9ce

@@ -29,9 +29,12 @@ Usage: nomad alloc status [options] <allocation>
   status, metadata, and verbose failure messages reported by internal
   subsystems.
 
+  When ACLs are enabled, this command requires a token with the 'read-job' and
+  'list-jobs' capabilities for the allocation's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Alloc Status Options:
 
@@ -112,7 +115,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	// If args not specified but output format is specified, format and output the allocations data list
-	if len(args) == 0 && json || len(tmpl) > 0 {
+	if len(args) == 0 && (json || len(tmpl) > 0) {
 		allocs, _, err := client.Allocations().List(nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying allocations: %v", err))
@@ -146,7 +149,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 
 	// Query the allocation info
 	if len(allocID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
+		c.Ui.Error("Identifier must contain at least two characters.")
 		return 1
 	}
 
@@ -785,7 +788,7 @@ FOUND:
 	hostVolumesOutput = append(hostVolumesOutput, "ID|Read Only")
 	if verbose {
 		csiVolumesOutput = append(csiVolumesOutput,
-			"ID|Plugin|Provider|Schedulable|Read Only|Mount Options")
+			"Name|ID|Plugin|Provider|Schedulable|Read Only|Mount Options")
 	} else {
 		csiVolumesOutput = append(csiVolumesOutput, "ID|Read Only")
 	}
@@ -800,15 +803,16 @@ FOUND:
 			if verbose {
 				// there's an extra API call per volume here so we toggle it
 				// off with the -verbose flag
-				vol, _, err := client.CSIVolumes().Info(volReq.Name, nil)
+				vol, _, err := client.CSIVolumes().Info(volReq.Source, nil)
 				if err != nil {
 					c.Ui.Error(fmt.Sprintf("Error retrieving volume info for %q: %s",
 						volReq.Name, err))
 					continue
 				}
 				csiVolumesOutput = append(csiVolumesOutput,
-					fmt.Sprintf("%s|%s|%s|%v|%v|%s",
+					fmt.Sprintf("%s|%s|%s|%s|%v|%v|%s",
 						volReq.Name,
+						vol.ID,
 						vol.PluginID,
 						vol.Provider,
 						vol.Schedulable,

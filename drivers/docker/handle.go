@@ -103,7 +103,7 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 	return execResult, nil
 }
 
-func (h *taskHandle) Signal(s os.Signal) error {
+func (h *taskHandle) Signal(ctx context.Context, s os.Signal) error {
 	// Convert types
 	sysSig, ok := s.(syscall.Signal)
 	if !ok {
@@ -116,8 +116,9 @@ func (h *taskHandle) Signal(s os.Signal) error {
 
 	dockerSignal := docker.Signal(sysSig)
 	opts := docker.KillContainerOptions{
-		ID:     h.containerID,
-		Signal: dockerSignal,
+		ID:      h.containerID,
+		Signal:  dockerSignal,
+		Context: ctx,
 	}
 	return h.client.KillContainer(opts)
 
@@ -127,7 +128,10 @@ func (h *taskHandle) Signal(s os.Signal) error {
 func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 	// Only send signal if killTimeout is set, otherwise stop container
 	if killTimeout > 0 {
-		if err := h.Signal(signal); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), killTimeout)
+		defer cancel()
+
+		if err := h.Signal(ctx, signal); err != nil {
 			// Container has already been removed.
 			if strings.Contains(err.Error(), NoSuchContainerError) {
 				h.logger.Debug("attempted to signal nonexistent container")
@@ -146,7 +150,7 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 		select {
 		case <-h.waitCh:
 			return nil
-		case <-time.After(killTimeout):
+		case <-ctx.Done():
 		}
 	}
 
@@ -197,7 +201,9 @@ func (h *taskHandle) run() {
 		werr = fmt.Errorf("Docker container exited with non-zero exit code: %d", exitCode)
 	}
 
-	container, ierr := h.waitClient.InspectContainer(h.containerID)
+	container, ierr := h.waitClient.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: h.containerID,
+	})
 	oom := false
 	if ierr != nil {
 		h.logger.Error("failed to inspect container", "error", ierr)

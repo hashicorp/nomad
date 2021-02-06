@@ -126,7 +126,7 @@ func (env *environment) provision(nomadPath string) (*envResults, error) {
 	go tfLog(env.logger.Named("tf.stderr"), stderr)
 	go tfLog(env.logger.Named("tf.stdout"), stdout)
 
-	sigChan := make(chan os.Signal)
+	sigChan := make(chan os.Signal, 2)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	cmdChan := make(chan error)

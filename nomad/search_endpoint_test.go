@@ -989,3 +989,42 @@ func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
 		assert.Len(resp.Matches[structs.Namespaces], 2)
 	}
 }
+
+func TestSearch_PrefixSearch_ScalingPolicy(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s, cleanupS := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanupS()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	job, policy := mock.JobWithScalingPolicy()
+	prefix := policy.ID
+	state := s.fsm.State()
+
+	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, jobIndex, job))
+
+	req := &structs.SearchRequest{
+		Prefix:  prefix,
+		Context: structs.ScalingPolicies,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	var resp structs.SearchResponse
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	require.Equal(1, len(resp.Matches[structs.ScalingPolicies]))
+	require.Equal(policy.ID, resp.Matches[structs.ScalingPolicies][0])
+	require.Equal(uint64(jobIndex), resp.Index)
+
+	req.Context = structs.All
+	require.NoError(msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	require.Equal(1, len(resp.Matches[structs.ScalingPolicies]))
+	require.Equal(policy.ID, resp.Matches[structs.ScalingPolicies][0])
+	require.Equal(uint64(jobIndex), resp.Index)
+}

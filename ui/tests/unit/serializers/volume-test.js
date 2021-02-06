@@ -173,30 +173,38 @@ module('Unit | Serializer | Volume', function(hooks) {
         NodesExpected: 2,
         CreateIndex: 1,
         ModifyIndex: 38,
-        WriteAllocs: {
-          'alloc-id-1': {
+        Allocations: [
+          {
+            ID: 'alloc-id-1',
             TaskGroup: 'foobar',
             CreateTime: +REF_DATE * 1000000,
             ModifyTime: +REF_DATE * 1000000,
             JobID: 'the-job',
             Namespace: 'namespace-2',
           },
-          'alloc-id-2': {
+          {
+            ID: 'alloc-id-2',
             TaskGroup: 'write-here',
             CreateTime: +REF_DATE * 1000000,
             ModifyTime: +REF_DATE * 1000000,
             JobID: 'the-job',
             Namespace: 'namespace-2',
           },
-        },
-        ReadAllocs: {
-          'alloc-id-3': {
+          {
+            ID: 'alloc-id-3',
             TaskGroup: 'look-if-you-must',
             CreateTime: +REF_DATE * 1000000,
             ModifyTime: +REF_DATE * 1000000,
             JobID: 'the-job',
             Namespace: 'namespace-2',
           },
+        ],
+        WriteAllocs: {
+          'alloc-id-1': null,
+          'alloc-id-2': null,
+        },
+        ReadAllocs: {
+          'alloc-id-3': null,
         },
       },
       out: {

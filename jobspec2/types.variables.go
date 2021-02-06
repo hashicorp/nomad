@@ -98,8 +98,6 @@ func (v *Variable) validateValue(val VariableAssignment) (diags hcl.Diagnostics)
 
 		result, moreDiags := validation.Condition.Value(hclCtx)
 		diags = append(diags, moreDiags...)
-		if moreDiags.HasErrors() {
-		}
 		if !result.IsKnown() {
 			continue // We'll wait until we've learned more, then.
 		}

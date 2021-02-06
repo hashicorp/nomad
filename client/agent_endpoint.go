@@ -135,10 +135,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 			cancel()
 			return
 		}
-		select {
-		case <-ctx.Done():
-			return
-		}
+		<-ctx.Done()
 	}()
 
 	logCh := monitor.Start()

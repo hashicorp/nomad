@@ -358,7 +358,6 @@ github.com/grpc-ecosystem/go-grpc-middleware/util/metautils
 # github.com/hashicorp/consul v1.8.4
 ## explicit
 github.com/hashicorp/consul/agent/consul/autopilot
-github.com/hashicorp/consul/command/flags
 github.com/hashicorp/consul/ipaddr
 github.com/hashicorp/consul/lib
 github.com/hashicorp/consul/lib/stringslice
@@ -375,10 +374,10 @@ github.com/hashicorp/consul-template/signals
 github.com/hashicorp/consul-template/template
 github.com/hashicorp/consul-template/version
 github.com/hashicorp/consul-template/watch
-# github.com/hashicorp/consul/api v1.7.0
+# github.com/hashicorp/consul/api v1.8.1
 ## explicit
 github.com/hashicorp/consul/api
-# github.com/hashicorp/consul/sdk v0.6.0
+# github.com/hashicorp/consul/sdk v0.7.0
 ## explicit
 github.com/hashicorp/consul/sdk/freeport
 github.com/hashicorp/consul/sdk/testutil
@@ -424,11 +423,11 @@ github.com/hashicorp/go-discover/provider/vsphere
 # github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
 ## explicit
 github.com/hashicorp/go-envparse
-# github.com/hashicorp/go-getter v1.5.0
+# github.com/hashicorp/go-getter v1.5.2
 ## explicit
 github.com/hashicorp/go-getter
 github.com/hashicorp/go-getter/helper/url
-# github.com/hashicorp/go-hclog v0.14.1
+# github.com/hashicorp/go-hclog v0.12.0
 ## explicit
 github.com/hashicorp/go-hclog
 # github.com/hashicorp/go-immutable-radix v1.3.0
@@ -482,7 +481,7 @@ github.com/hashicorp/hcl/hcl/token
 github.com/hashicorp/hcl/json/parser
 github.com/hashicorp/hcl/json/scanner
 github.com/hashicorp/hcl/json/token
-# github.com/hashicorp/hcl/v2 v2.7.1-0.20201020204811-68a97f93bb48
+# github.com/hashicorp/hcl/v2 v2.7.1-0.20210129140708-3000d85e32a9
 ## explicit
 github.com/hashicorp/hcl/v2
 github.com/hashicorp/hcl/v2/ext/customdecode
@@ -513,10 +512,10 @@ github.com/hashicorp/nomad/api/contexts
 # github.com/hashicorp/raft v1.1.3-0.20200211192230-365023de17e6
 ## explicit
 github.com/hashicorp/raft
-# github.com/hashicorp/raft-boltdb v0.0.0-20191021154308-4207f1bf0617
+# github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea
 ## explicit
 github.com/hashicorp/raft-boltdb
-# github.com/hashicorp/serf v0.9.4
+# github.com/hashicorp/serf v0.9.5
 ## explicit
 github.com/hashicorp/serf/coordinate
 github.com/hashicorp/serf/serf
@@ -557,6 +556,12 @@ github.com/joyent/triton-go/utils
 github.com/jstemmer/go-junit-report
 github.com/jstemmer/go-junit-report/formatter
 github.com/jstemmer/go-junit-report/parser
+# github.com/klauspost/compress v1.11.2
+github.com/klauspost/compress/fse
+github.com/klauspost/compress/huff0
+github.com/klauspost/compress/snappy
+github.com/klauspost/compress/zstd
+github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/konsorten/go-windows-terminal-sequences v1.0.3
 github.com/konsorten/go-windows-terminal-sequences
 # github.com/kr/pretty v0.2.0

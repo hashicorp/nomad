@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
-	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
 )
 
@@ -20,9 +20,11 @@ Usage: nomad namespace apply [options] <namespace>
   Apply is used to create or update a namespace. It takes the namespace name to
   create or update as its only argument.
 
+  If ACLs are enabled, this command requires a management ACL token.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Apply Options:
 

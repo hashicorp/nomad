@@ -8,14 +8,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
+
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/unix"
 )
 
 func TestExecDriver_StartWaitStop(t *testing.T) {
@@ -44,6 +45,7 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	defer cleanup()
 
 	handle, _, err := harness.StartTask(task)
+	defer harness.DestroyTask(task.ID, true)
 	require.NoError(err)
 
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
@@ -52,12 +54,12 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 
 	go func() {
-		harness.StopTask(task.ID, 2*time.Second, "SIGINT")
+		harness.StopTask(task.ID, 2*time.Second, "SIGKILL")
 	}()
 
 	select {
 	case result := <-ch:
-		require.Equal(int(unix.SIGINT), result.Signal)
+		require.Equal(int(unix.SIGKILL), result.Signal)
 	case <-time.After(10 * time.Second):
 		require.Fail("timeout waiting for task to shutdown")
 	}
@@ -77,8 +79,6 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	}, func(err error) {
 		require.NoError(err)
 	})
-
-	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
 func TestExec_ExecTaskStreaming(t *testing.T) {

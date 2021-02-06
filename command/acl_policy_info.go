@@ -17,9 +17,12 @@ Usage: nomad acl policy info <name>
 
   Info is used to fetch information on an existing ACL policy.
 
+  This command requires a management ACL token or a token that has the
+  associated policy.
+
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 
 	return strings.TrimSpace(helpText)
 }

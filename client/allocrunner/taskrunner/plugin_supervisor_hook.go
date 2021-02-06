@@ -161,7 +161,7 @@ func (h *csiPluginSupervisorHook) Poststart(_ context.Context, _ *interfaces.Tas
 // Deeper fingerprinting of the plugin is implemented by the csimanager.
 func (h *csiPluginSupervisorHook) ensureSupervisorLoop(ctx context.Context) {
 	h.runningLock.Lock()
-	if h.running == true {
+	if h.running {
 		h.runningLock.Unlock()
 		return
 	}

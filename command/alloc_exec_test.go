@@ -30,39 +30,49 @@ func TestAllocExecCommand_Fails(t *testing.T) {
 		expectedError string
 	}{
 		{
-			"misuse",
-			[]string{"bad"},
-			commandErrorText(&AllocExecCommand{}),
+			"alloc id missing",
+			[]string{},
+			`An allocation ID is required`,
 		},
 		{
-			"connection failure",
-			[]string{"-address=nope", "26470238-5CF2-438F-8772-DC67CFB0705C", "/bin/bash"},
-			"Error querying allocation",
+			"alloc id too short",
+			[]string{"-address=" + url, "2", "/bin/bash"},
+			`Alloc ID must contain at least two characters`,
 		},
 		{
-			"not found alloc",
+			"alloc not found",
 			[]string{"-address=" + url, "26470238-5CF2-438F-8772-DC67CFB0705C", "/bin/bash"},
-			"No allocation(s) with prefix or id",
+			`No allocation(s) with prefix or id "26470238-5CF2-438F-8772-DC67CFB0705C"`,
 		},
 		{
-			"not found job",
+			"alloc not found with odd-length prefix",
+			[]string{"-address=" + url, "26470238-5CF", "/bin/bash"},
+			`No allocation(s) with prefix or id "26470238-5CF"`,
+		},
+		{
+			"job id missing",
+			[]string{"-job"},
+			`A job ID is required`,
+		},
+		{
+			"job not found",
 			[]string{"-address=" + url, "-job", "example", "/bin/bash"},
 			`job "example" doesn't exist`,
 		},
 		{
-			"too short allocis",
-			[]string{"-address=" + url, "2", "/bin/bash"},
-			"Alloc ID must contain at least two characters",
-		},
-		{
-			"missing command",
+			"command missing",
 			[]string{"-address=" + url, "26470238-5CF2-438F-8772-DC67CFB0705C"},
-			"A command is required",
+			`A command is required`,
 		},
 		{
-			"long escaped char",
-			[]string{"-address=" + url, "-e", "long_escape", "26470238-5CF2-438F-8772-DC67CFB0705C", "/bin/bash"},
-			"a single character",
+			"connection failure",
+			[]string{"-address=nope", "26470238-5CF2-438F-8772-DC67CFB0705C", "/bin/bash"},
+			`Error querying allocation`,
+		},
+		{
+			"escape char too long",
+			[]string{"-address=" + url, "-e", "es", "26470238-5CF2-438F-8772-DC67CFB0705C", "/bin/bash"},
+			`-e requires 'none' or a single character`,
 		},
 	}
 

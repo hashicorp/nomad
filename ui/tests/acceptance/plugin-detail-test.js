@@ -6,6 +6,7 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moment from 'moment';
 import { formatBytes } from 'nomad-ui/helpers/format-bytes';
 import PluginDetail from 'nomad-ui/tests/pages/storage/plugins/detail';
+import Layout from 'nomad-ui/tests/pages/layout';
 
 module('Acceptance | plugin detail', function(hooks) {
   setupApplicationTest(hooks);
@@ -26,9 +27,9 @@ module('Acceptance | plugin detail', function(hooks) {
   test('/csi/plugins/:id should have a breadcrumb trail linking back to Plugins and Storage', async function(assert) {
     await PluginDetail.visit({ id: plugin.id });
 
-    assert.equal(PluginDetail.breadcrumbFor('csi.index').text, 'Storage');
-    assert.equal(PluginDetail.breadcrumbFor('csi.plugins').text, 'Plugins');
-    assert.equal(PluginDetail.breadcrumbFor('csi.plugins.plugin').text, plugin.id);
+    assert.equal(Layout.breadcrumbFor('csi.index').text, 'Storage');
+    assert.equal(Layout.breadcrumbFor('csi.plugins').text, 'Plugins');
+    assert.equal(Layout.breadcrumbFor('csi.plugins.plugin').text, plugin.id);
   });
 
   test('/csi/plugins/:id should show the plugin name in the title', async function(assert) {

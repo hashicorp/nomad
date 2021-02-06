@@ -633,6 +633,7 @@ type DispatchPayloadConfig struct {
 const (
 	TaskLifecycleHookPrestart  = "prestart"
 	TaskLifecycleHookPoststart = "poststart"
+	TaskLifecycleHookPoststop  = "poststop"
 )
 
 type TaskLifecycle struct {
@@ -726,6 +727,7 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 type TaskArtifact struct {
 	GetterSource  *string           `mapstructure:"source" hcl:"source,optional"`
 	GetterOptions map[string]string `mapstructure:"options" hcl:"options,block"`
+	GetterHeaders map[string]string `mapstructure:"headers" hcl:"headers,block"`
 	GetterMode    *string           `mapstructure:"mode" hcl:"mode,optional"`
 	RelativeDest  *string           `mapstructure:"destination" hcl:"destination,optional"`
 }
@@ -737,6 +739,12 @@ func (a *TaskArtifact) Canonicalize() {
 	if a.GetterSource == nil {
 		// Shouldn't be possible, but we don't want to panic
 		a.GetterSource = stringToPtr("")
+	}
+	if len(a.GetterOptions) == 0 {
+		a.GetterOptions = nil
+	}
+	if len(a.GetterHeaders) == 0 {
+		a.GetterHeaders = nil
 	}
 	if a.RelativeDest == nil {
 		switch *a.GetterMode {

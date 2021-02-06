@@ -153,10 +153,7 @@ func authFromHelper(helperName string) authBackend {
 			return nil, err
 		}
 
-		// Ensure that the HTTPs prefix exists
-		repoAddr := fmt.Sprintf("https://%s", repoInfo.Index.Name)
-
-		cmd.Stdin = strings.NewReader(repoAddr)
+		cmd.Stdin = strings.NewReader(repoInfo.Index.Name)
 		output, err := cmd.Output()
 		if err != nil {
 			switch err.(type) {

@@ -244,10 +244,6 @@ type Server struct {
 	// Nomad router.
 	statsFetcher *StatsFetcher
 
-	// eventSinkManager is used by the leader to send events to configured
-	// event sinks
-	eventSinkManager *SinkManager
-
 	// EnterpriseState is used to fill in state for Pro/Ent builds
 	EnterpriseState
 
@@ -369,9 +365,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 
 	// Initialize the stats fetcher that autopilot will use.
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
-
-	// Initialize the event sink manager the leader will use
-	s.eventSinkManager = NewSinkManager(s.shutdownCtx, s, s.logger)
 
 	// Setup Consul (more)
 	s.setupConsul(consulConfigEntries, consulACLs)
@@ -796,7 +789,7 @@ func (s *Server) Reload(newConfig *Config) error {
 	// Handle the Vault reload. Vault should never be nil but just guard.
 	if s.vault != nil {
 		if err := s.vault.SetConfig(newConfig.VaultConfig); err != nil {
-			multierror.Append(&mErr, err)
+			_ = multierror.Append(&mErr, err)
 		}
 	}
 
@@ -808,7 +801,7 @@ func (s *Server) Reload(newConfig *Config) error {
 	if shouldReloadTLS {
 		if err := s.reloadTLSConnections(newConfig.TLSConfig); err != nil {
 			s.logger.Error("error reloading server TLS configuration", "error", err)
-			multierror.Append(&mErr, err)
+			_ = multierror.Append(&mErr, err)
 		}
 	}
 
@@ -1201,7 +1194,6 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	server.Register(s.staticEndpoints.FileSystem)
 	server.Register(s.staticEndpoints.Agent)
 	server.Register(s.staticEndpoints.Namespace)
-	server.Register(s.staticEndpoints.Event)
 
 	// Create new dynamic endpoints and add them to the RPC server.
 	node := &Node{srv: s, ctx: ctx, logger: s.logger.Named("client")}

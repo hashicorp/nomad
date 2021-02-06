@@ -47,6 +47,11 @@ export default class LifecycleChart extends Component {
       phases.push({
         name: 'Poststart',
       });
+
+      phases.push({
+        name: 'Poststop',
+        isActive: lifecycles.poststops.some(stateActiveIterator),
+      });
     }
 
     return phases;

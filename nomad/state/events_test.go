@@ -12,6 +12,139 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestEventFromChange_SingleEventPerTable ensures that only a single event is
+// created per table per memdb.Change
+func TestEventFromChange_SingleEventPerTable(t *testing.T) {
+	t.Parallel()
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	changes := Changes{
+		Index:   100,
+		MsgType: structs.JobRegisterRequestType,
+		Changes: memdb.Changes{
+			{
+				Table:  "job_version",
+				Before: mock.Job(),
+				After:  mock.Job(),
+			},
+			{
+				Table:  "jobs",
+				Before: mock.Job(),
+				After:  mock.Job(),
+			},
+		},
+	}
+
+	out := eventsFromChanges(s.db.ReadTxn(), changes)
+	require.Len(t, out.Events, 1)
+	require.Equal(t, out.Events[0].Type, structs.TypeJobRegistered)
+}
+
+func TestEventFromChange_ACLTokenSecretID(t *testing.T) {
+	t.Parallel()
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	token := mock.ACLToken()
+	require.NotEmpty(t, token.SecretID)
+
+	// Create
+	changes := Changes{
+		Index:   100,
+		MsgType: structs.NodeRegisterRequestType,
+		Changes: memdb.Changes{
+			{
+				Table:  "acl_token",
+				Before: nil,
+				After:  token,
+			},
+		},
+	}
+
+	out := eventsFromChanges(s.db.ReadTxn(), changes)
+	require.Len(t, out.Events, 1)
+	// Ensure original value not altered
+	require.NotEmpty(t, token.SecretID)
+
+	aclTokenEvent, ok := out.Events[0].Payload.(*structs.ACLTokenEvent)
+	require.True(t, ok)
+	require.Empty(t, aclTokenEvent.ACLToken.SecretID)
+
+	require.Equal(t, token.SecretID, aclTokenEvent.SecretID())
+
+	// Delete
+	changes = Changes{
+		Index:   100,
+		MsgType: structs.NodeDeregisterRequestType,
+		Changes: memdb.Changes{
+			{
+				Table:  "acl_token",
+				Before: token,
+				After:  nil,
+			},
+		},
+	}
+
+	out2 := eventsFromChanges(s.db.ReadTxn(), changes)
+	require.Len(t, out2.Events, 1)
+
+	tokenEvent2, ok := out2.Events[0].Payload.(*structs.ACLTokenEvent)
+	require.True(t, ok)
+	require.Empty(t, tokenEvent2.ACLToken.SecretID)
+}
+
+// TestEventFromChange_NodeSecretID ensures that a node's secret ID is not
+// included in a node event
+func TestEventFromChange_NodeSecretID(t *testing.T) {
+	t.Parallel()
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	node := mock.Node()
+	require.NotEmpty(t, node.SecretID)
+
+	// Create
+	changes := Changes{
+		Index:   100,
+		MsgType: structs.NodeRegisterRequestType,
+		Changes: memdb.Changes{
+			{
+				Table:  "nodes",
+				Before: nil,
+				After:  node,
+			},
+		},
+	}
+
+	out := eventsFromChanges(s.db.ReadTxn(), changes)
+	require.Len(t, out.Events, 1)
+
+	nodeEvent, ok := out.Events[0].Payload.(*structs.NodeStreamEvent)
+	require.True(t, ok)
+	require.Empty(t, nodeEvent.Node.SecretID)
+
+	// Delete
+	changes = Changes{
+		Index:   100,
+		MsgType: structs.NodeDeregisterRequestType,
+		Changes: memdb.Changes{
+			{
+				Table:  "nodes",
+				Before: node,
+				After:  nil,
+			},
+		},
+	}
+
+	out2 := eventsFromChanges(s.db.ReadTxn(), changes)
+	require.Len(t, out2.Events, 1)
+
+	nodeEvent2, ok := out2.Events[0].Payload.(*structs.NodeStreamEvent)
+	require.True(t, ok)
+	require.Empty(t, nodeEvent2.Node.SecretID)
+}
+
 func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
@@ -53,7 +186,7 @@ func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	require.Equal(t, uint64(100), got.Index)
 	require.Equal(t, d.ID, got.Key)
 
-	de := got.Payload.(*DeploymentEvent)
+	de := got.Payload.(*structs.DeploymentEvent)
 	require.Equal(t, structs.DeploymentStatusPaused, de.Deployment.Status)
 	require.Contains(t, got.FilterKeys, j.ID)
 }
@@ -130,9 +263,9 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	require.Equal(t, uint64(100), got.Index)
 	require.Equal(t, d.ID, got.Key)
 
-	de := got.Payload.(*DeploymentEvent)
+	de := got.Payload.(*structs.DeploymentEvent)
 	require.Equal(t, structs.DeploymentStatusRunning, de.Deployment.Status)
-	require.Equal(t, TypeDeploymentPromotion, got.Type)
+	require.Equal(t, structs.TypeDeploymentPromotion, got.Type)
 }
 
 func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
@@ -208,7 +341,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	var allocEvents []structs.Event
 	var deploymentEvent []structs.Event
 	for _, e := range events {
-		if e.Topic == structs.TopicAlloc {
+		if e.Topic == structs.TopicAllocation {
 			allocEvents = append(allocEvents, e)
 		} else if e.Topic == structs.TopicDeployment {
 			deploymentEvent = append(deploymentEvent, e)
@@ -218,14 +351,14 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	require.Len(t, allocEvents, 2)
 	for _, e := range allocEvents {
 		require.Equal(t, 100, int(e.Index))
-		require.Equal(t, TypeDeploymentAllocHealth, e.Type)
-		require.Equal(t, structs.TopicAlloc, e.Topic)
+		require.Equal(t, structs.TypeDeploymentAllocHealth, e.Type)
+		require.Equal(t, structs.TopicAllocation, e.Topic)
 	}
 
 	require.Len(t, deploymentEvent, 1)
 	for _, e := range deploymentEvent {
 		require.Equal(t, 100, int(e.Index))
-		require.Equal(t, TypeDeploymentAllocHealth, e.Type)
+		require.Equal(t, structs.TypeDeploymentAllocHealth, e.Type)
 		require.Equal(t, structs.TopicDeployment, e.Topic)
 		require.Equal(t, d.ID, e.Key)
 	}
@@ -265,8 +398,8 @@ func TestEventsFromChanges_UpsertNodeEventsType(t *testing.T) {
 
 	for _, e := range events {
 		require.Equal(t, structs.TopicNode, e.Topic)
-		require.Equal(t, TypeNodeEvent, e.Type)
-		event := e.Payload.(*NodeEvent)
+		require.Equal(t, structs.TypeNodeEvent, e.Type)
+		event := e.Payload.(*structs.NodeStreamEvent)
 		require.Equal(t, "update", event.Node.Events[len(event.Node.Events)-1].Message)
 	}
 
@@ -297,8 +430,8 @@ func TestEventsFromChanges_NodeUpdateStatusRequest(t *testing.T) {
 
 	e := events[0]
 	require.Equal(t, structs.TopicNode, e.Topic)
-	require.Equal(t, TypeNodeEvent, e.Type)
-	event := e.Payload.(*NodeEvent)
+	require.Equal(t, structs.TypeNodeEvent, e.Type)
+	event := e.Payload.(*structs.NodeStreamEvent)
 	require.Equal(t, "down", event.Node.Events[len(event.Node.Events)-1].Message)
 	require.Equal(t, structs.NodeStatusDown, event.Node.Status)
 }
@@ -329,12 +462,12 @@ func TestEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 	require.Len(t, events, 1)
 
 	e := events[0]
-	require.Equal(t, structs.TopicEval, e.Topic)
-	require.Equal(t, TypeEvalUpdated, e.Type)
+	require.Equal(t, structs.TopicEvaluation, e.Topic)
+	require.Equal(t, structs.TypeEvalUpdated, e.Type)
 	require.Contains(t, e.FilterKeys, e2.JobID)
 	require.Contains(t, e.FilterKeys, e2.DeploymentID)
-	event := e.Payload.(*EvalEvent)
-	require.Equal(t, "blocked", event.Eval.Status)
+	event := e.Payload.(*structs.EvaluationEvent)
+	require.Equal(t, "blocked", event.Evaluation.Status)
 }
 
 func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
@@ -381,16 +514,16 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	var jobs []structs.Event
 	var deploys []structs.Event
 	for _, e := range events {
-		if e.Topic == structs.TopicAlloc {
+		if e.Topic == structs.TopicAllocation {
 			allocs = append(allocs, e)
-		} else if e.Topic == structs.TopicEval {
+		} else if e.Topic == structs.TopicEvaluation {
 			evals = append(evals, e)
 		} else if e.Topic == structs.TopicJob {
 			jobs = append(jobs, e)
 		} else if e.Topic == structs.TopicDeployment {
 			deploys = append(deploys, e)
 		}
-		require.Equal(t, TypePlanResult, e.Type)
+		require.Equal(t, structs.TypePlanResult, e.Type)
 	}
 	require.Len(t, allocs, 2)
 	require.Len(t, evals, 1)
@@ -446,9 +579,9 @@ func TestEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {
 
 	for _, e := range events {
 		require.Equal(t, 100, int(e.Index))
-		require.Equal(t, TypeNodeDrain, e.Type)
+		require.Equal(t, structs.TypeNodeDrain, e.Type)
 		require.Equal(t, structs.TopicNode, e.Topic)
-		ne := e.Payload.(*NodeEvent)
+		ne := e.Payload.(*structs.NodeStreamEvent)
 		require.Equal(t, event.Message, ne.Node.Events[len(ne.Node.Events)-1].Message)
 	}
 }
@@ -485,9 +618,9 @@ func TestEventsFromChanges_NodeUpdateEligibilityRequestType(t *testing.T) {
 
 	for _, e := range events {
 		require.Equal(t, 100, int(e.Index))
-		require.Equal(t, TypeNodeDrain, e.Type)
+		require.Equal(t, structs.TypeNodeDrain, e.Type)
 		require.Equal(t, structs.TopicNode, e.Topic)
-		ne := e.Payload.(*NodeEvent)
+		ne := e.Payload.(*structs.NodeStreamEvent)
 		require.Equal(t, event.Message, ne.Node.Events[len(ne.Node.Events)-1].Message)
 		require.Equal(t, structs.NodeSchedulingIneligible, ne.Node.SchedulingEligibility)
 	}
@@ -532,15 +665,15 @@ func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T)
 	var allocs []structs.Event
 	var evalEvents []structs.Event
 	for _, e := range events {
-		if e.Topic == structs.TopicEval {
+		if e.Topic == structs.TopicEvaluation {
 			evalEvents = append(evalEvents, e)
-		} else if e.Topic == structs.TopicAlloc {
+		} else if e.Topic == structs.TopicAllocation {
 			allocs = append(allocs, e)
 		} else {
 			require.Fail(t, "unexpected event type")
 		}
 
-		require.Equal(t, TypeAllocUpdateDesiredStatus, e.Type)
+		require.Equal(t, structs.TypeAllocationUpdateDesiredStatus, e.Type)
 	}
 
 	require.Len(t, allocs, 1)
@@ -571,10 +704,12 @@ func TestEventsFromChanges_WithDeletion(t *testing.T) {
 		Index: uint64(1),
 		Changes: memdb.Changes{
 			{
+				Table:  "jobs",
 				Before: &structs.Job{},
 				After:  &structs.Job{},
 			},
 			{
+				Table:  "jobs",
 				Before: &structs.Job{},
 				After:  nil, // deleted
 			},
@@ -600,6 +735,7 @@ func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {
 		Index: uint64(1),
 		Changes: memdb.Changes{
 			{
+				Table:  "nodes",
 				Before: before,
 				After:  nil, // deleted
 			},
@@ -614,14 +750,14 @@ func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {
 
 	event := actual.Events[0]
 
-	require.Equal(t, TypeNodeDeregistration, event.Type)
+	require.Equal(t, structs.TypeNodeDeregistration, event.Type)
 	require.Equal(t, uint64(1), event.Index)
 	require.Equal(t, structs.TopicNode, event.Topic)
 	require.Equal(t, "some-id", event.Key)
 
 	require.Len(t, event.FilterKeys, 0)
 
-	nodeEvent, ok := event.Payload.(*NodeEvent)
+	nodeEvent, ok := event.Payload.(*structs.NodeStreamEvent)
 	require.True(t, ok)
 	require.Equal(t, *before, *nodeEvent.Node)
 }
@@ -644,10 +780,10 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			},
 			WantEvents: []structs.Event{{
 				Topic: structs.TopicNode,
-				Type:  TypeNodeRegistration,
+				Type:  structs.TypeNodeRegistration,
 				Key:   testNodeID(),
 				Index: 100,
-				Payload: &NodeEvent{
+				Payload: &structs.NodeStreamEvent{
 					Node: testNode(),
 				},
 			}},
@@ -661,10 +797,10 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			},
 			WantEvents: []structs.Event{{
 				Topic: structs.TopicNode,
-				Type:  TypeNodeRegistration,
+				Type:  structs.TypeNodeRegistration,
 				Key:   testNodeID(),
 				Index: 100,
-				Payload: &NodeEvent{
+				Payload: &structs.NodeStreamEvent{
 					Node: testNode(nodeNotReady),
 				},
 			}},
@@ -681,10 +817,10 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			},
 			WantEvents: []structs.Event{{
 				Topic: structs.TopicNode,
-				Type:  TypeNodeDeregistration,
+				Type:  structs.TypeNodeDeregistration,
 				Key:   testNodeID(),
 				Index: 100,
-				Payload: &NodeEvent{
+				Payload: &structs.NodeStreamEvent{
 					Node: testNode(),
 				},
 			}},
@@ -703,19 +839,19 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			WantEvents: []structs.Event{
 				{
 					Topic: structs.TopicNode,
-					Type:  TypeNodeDeregistration,
+					Type:  structs.TypeNodeDeregistration,
 					Key:   testNodeID(),
 					Index: 100,
-					Payload: &NodeEvent{
+					Payload: &structs.NodeStreamEvent{
 						Node: testNode(),
 					},
 				},
 				{
 					Topic: structs.TopicNode,
-					Type:  TypeNodeDeregistration,
+					Type:  structs.TypeNodeDeregistration,
 					Key:   testNodeIDTwo(),
 					Index: 100,
-					Payload: &NodeEvent{
+					Payload: &structs.NodeStreamEvent{
 						Node: testNode(nodeIDTwo),
 					},
 				},
@@ -754,19 +890,19 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			WantEvents: []structs.Event{
 				{
 					Topic: structs.TopicNode,
-					Type:  TypeNodeEvent,
+					Type:  structs.TypeNodeEvent,
 					Key:   testNodeID(),
 					Index: 100,
-					Payload: &NodeEvent{
+					Payload: &structs.NodeStreamEvent{
 						Node: testNode(),
 					},
 				},
 				{
 					Topic: structs.TopicNode,
-					Type:  TypeNodeEvent,
+					Type:  structs.TypeNodeEvent,
 					Key:   testNodeIDTwo(),
 					Index: 100,
-					Payload: &NodeEvent{
+					Payload: &structs.NodeStreamEvent{
 						Node: testNode(nodeIDTwo),
 					},
 				},
@@ -857,10 +993,10 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 	require.Len(t, got.Events, 1)
 
 	require.Equal(t, structs.TopicNode, got.Events[0].Topic)
-	require.Equal(t, TypeNodeDrain, got.Events[0].Type)
+	require.Equal(t, structs.TypeNodeDrain, got.Events[0].Type)
 	require.Equal(t, uint64(100), got.Events[0].Index)
 
-	nodeEvent, ok := got.Events[0].Payload.(*NodeEvent)
+	nodeEvent, ok := got.Events[0].Payload.(*structs.NodeStreamEvent)
 	require.True(t, ok)
 
 	require.Equal(t, structs.NodeSchedulingIneligible, nodeEvent.Node.SchedulingEligibility)
@@ -870,8 +1006,8 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 func requireNodeRegistrationEventEqual(t *testing.T, want, got structs.Event) {
 	t.Helper()
 
-	wantPayload := want.Payload.(*NodeEvent)
-	gotPayload := got.Payload.(*NodeEvent)
+	wantPayload := want.Payload.(*structs.NodeStreamEvent)
+	gotPayload := got.Payload.(*structs.NodeStreamEvent)
 
 	// Check payload equality for the fields that we can easily control
 	require.Equal(t, wantPayload.Node.Status, gotPayload.Node.Status)
@@ -882,15 +1018,15 @@ func requireNodeRegistrationEventEqual(t *testing.T, want, got structs.Event) {
 func requireNodeDeregistrationEventEqual(t *testing.T, want, got structs.Event) {
 	t.Helper()
 
-	wantPayload := want.Payload.(*NodeEvent)
-	gotPayload := got.Payload.(*NodeEvent)
+	wantPayload := want.Payload.(*structs.NodeStreamEvent)
+	gotPayload := got.Payload.(*structs.NodeStreamEvent)
 
 	require.Equal(t, wantPayload.Node.ID, gotPayload.Node.ID)
 	require.NotEqual(t, wantPayload.Node.Events, gotPayload.Node.Events)
 }
 
 func requireNodeEventEqual(t *testing.T, want, got structs.Event) {
-	gotPayload := got.Payload.(*NodeEvent)
+	gotPayload := got.Payload.(*structs.NodeStreamEvent)
 
 	require.Len(t, gotPayload.Node.Events, 3)
 }

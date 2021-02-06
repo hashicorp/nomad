@@ -183,6 +183,7 @@ func TestJobEndpoint_Register_Connect(t *testing.T) {
 
 	// Create the register request
 	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Services = nil
 	job.TaskGroups[0].Networks = structs.Networks{{
 		Mode: "bridge",
 	}}
@@ -453,6 +454,7 @@ func TestJobEndpoint_Register_ConnectExposeCheck(t *testing.T) {
 
 	// Setup the job we are going to register
 	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Services = nil
 	job.TaskGroups[0].Networks = structs.Networks{{
 		Mode: "bridge",
 		DynamicPorts: []structs.Port{{
@@ -571,6 +573,7 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 			Mode: "bridge",
 		},
 	}
+	job.TaskGroups[0].Tasks[0].Services = nil
 	job.TaskGroups[0].Services = []*structs.Service{
 		{
 			Name:      "backend",
@@ -665,11 +668,7 @@ func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse(t *testing.T) {
 
 	// Create the register request
 	job := mock.Job()
-	job.TaskGroups[0].Networks = structs.Networks{
-		{
-			Mode: "bridge",
-		},
-	}
+	job.TaskGroups[0].Networks[0].Mode = "bridge"
 	job.TaskGroups[0].Services = []*structs.Service{
 		{
 			Name:      "service1", // matches consul.ExamplePolicyID1
@@ -1213,6 +1212,7 @@ func TestJobEndpoint_Register_Dispatched(t *testing.T) {
 	// Create the register request with a job with 'Dispatch' set to true
 	job := mock.Job()
 	job.Dispatched = true
+	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
 	req := &structs.JobRegisterRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
@@ -2168,10 +2168,10 @@ func TestJobEndpoint_Register_ACL_Namespace(t *testing.T) {
 	// Upsert policy and token
 	token := mock.ACLToken()
 	token.Policies = []string{policy.Name}
-	err := s1.State().UpsertACLPolicies(100, []*structs.ACLPolicy{policy})
+	err := s1.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{policy})
 	assert.Nil(err)
 
-	err = s1.State().UpsertACLTokens(110, []*structs.ACLToken{token})
+	err = s1.State().UpsertACLTokens(structs.MsgTypeTestSetup, 110, []*structs.ACLToken{token})
 	assert.Nil(err)
 
 	// Upsert namespace
@@ -5809,9 +5809,7 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 
 		tg := j.TaskGroups[0]
 		tg.Services = tgServices
-		tg.Networks = structs.Networks{
-			{Mode: "bridge"},
-		}
+		tg.Networks[0].Mode = "bridge"
 
 		err := validateJob(j)
 		require.NoError(t, err)
@@ -6705,6 +6703,49 @@ func TestJobEndpoint_Scale_Invalid(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
 	require.Error(err)
 	require.Contains(err.Error(), "should not contain count if error is true")
+}
+
+func TestJobEndpoint_Scale_OutOfBounds(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	job, pol := mock.JobWithScalingPolicy()
+	pol.Min = 3
+	pol.Max = 10
+	job.TaskGroups[0].Count = 5
+
+	// register the job
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
+	require.Nil(err)
+
+	var resp structs.JobRegisterResponse
+	scale := &structs.JobScaleRequest{
+		JobID: job.ID,
+		Target: map[string]string{
+			structs.ScalingTargetGroup: job.TaskGroups[0].Name,
+		},
+		Count:          helper.Int64ToPtr(pol.Max + 1),
+		Message:        "out of bounds",
+		PolicyOverride: false,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+	require.Error(err)
+	require.Contains(err.Error(), "group count was greater than scaling policy maximum: 11 > 10")
+
+	scale.Count = helper.Int64ToPtr(2)
+	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+	require.Error(err)
+	require.Contains(err.Error(), "group count was less than scaling policy minimum: 2 < 3")
 }
 
 func TestJobEndpoint_Scale_NoEval(t *testing.T) {

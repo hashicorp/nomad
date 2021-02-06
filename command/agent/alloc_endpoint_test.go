@@ -158,47 +158,42 @@ func TestHTTP_AllocsPrefixList(t *testing.T) {
 
 func TestHTTP_AllocQuery(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
-		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)); err != nil {
-			t.Fatal(err)
-		}
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
+		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 		// Make the HTTP request
 		req, err := http.NewRequest("GET", "/v1/allocation/"+alloc.ID, nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
 		respW := httptest.NewRecorder()
 
 		// Make the request
 		obj, err := s.Server.AllocSpecificRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		require.NoError(err)
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
-			t.Fatalf("missing index")
-		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
-			t.Fatalf("missing known leader")
-		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
-			t.Fatalf("missing last contact")
-		}
+		require.NotEmpty(respW.Header().Get("X-Nomad-Index"), "missing index")
+		require.Equal("true", respW.Header().Get("X-Nomad-KnownLeader"), "missing known leader")
+		require.NotEmpty(respW.Header().Get("X-Nomad-LastContact"), "missing last contact")
 
 		// Check the job
 		a := obj.(*structs.Allocation)
-		if a.ID != alloc.ID {
-			t.Fatalf("bad: %#v", a)
-		}
+		require.Equal(a.ID, alloc.ID)
+
+		// Check the number of ports
+		require.Len(a.AllocatedResources.Shared.Ports, 2)
+
+		// Make the request again
+		respW = httptest.NewRecorder()
+		obj, err = s.Server.AllocSpecificRequest(respW, req)
+		require.NoError(err)
+		a = obj.(*structs.Allocation)
+		// Check the number of ports again
+		require.Len(a.AllocatedResources.Shared.Ports, 2)
 	})
 }
 

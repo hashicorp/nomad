@@ -102,7 +102,9 @@ export default class Node extends Model {
   // Useful for coloring and sorting nodes
   @computed('isDraining', 'isEligible', 'status')
   get compositeStatus() {
-    if (this.isDraining) {
+    if (this.status === 'down') {
+      return 'down';
+    } else if (this.isDraining) {
       return 'draining';
     } else if (!this.isEligible) {
       return 'ineligible';

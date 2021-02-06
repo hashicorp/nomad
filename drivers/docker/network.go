@@ -67,9 +67,11 @@ func (d *Driver) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, b
 		return nil, false, err
 	}
 
-	// until the container is started, InspectContainer
+	// until the container is started, InspectContainerWithOptions
 	// returns a mostly-empty struct
-	container, err = client.InspectContainer(container.ID)
+	container, err = client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: container.ID,
+	})
 	if err != nil {
 		return nil, false, err
 	}

@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/mitchellh/cli"
-	"github.com/posener/complete"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestRecommendationDismissCommand_Run(t *testing.T) {
@@ -35,7 +35,14 @@ func TestRecommendationDismissCommand_Run(t *testing.T) {
 	})
 
 	ui := cli.NewMockUi()
-	cmd := &RecommendationDismissCommand{Meta: Meta{Ui: ui}}
+	cmd := &RecommendationDismissCommand{
+		RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+			Meta: Meta{
+				Ui:          ui,
+				flagAddress: url,
+			},
+		},
+	}
 
 	// Register a test job to write a recommendation against.
 	testJob := testJob("recommendation_dismiss")
@@ -85,25 +92,30 @@ func TestRecommendationDismissCommand_Run(t *testing.T) {
 }
 
 func TestRecommendationDismissCommand_AutocompleteArgs(t *testing.T) {
-	srv, client, url := testServer(t, true, nil)
+	srv, client, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
-	cmd := &RecommendationDismissCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+	cmd := &RecommendationDismissCommand{
+		RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+			Meta: Meta{
+				Ui:          ui,
+				flagAddress: url,
+			},
+		},
+	}
 
-	testRecommendationAutocompleteCommand(t, client, srv, ui, &cmd.RecommendationAutocompleteCommand)
+	testRecommendationAutocompleteCommand(t, client, srv, &cmd.RecommendationAutocompleteCommand)
 }
 
-func testRecommendationAutocompleteCommand(t *testing.T, client *api.Client, srv *agent.TestAgent, ui *cli.MockUi, cmd *RecommendationAutocompleteCommand) {
-	assert := assert.New(t)
+func testRecommendationAutocompleteCommand(t *testing.T, client *api.Client, srv *agent.TestAgent, cmd *RecommendationAutocompleteCommand) {
+	require := require.New(t)
 	t.Parallel()
 
 	// Register a test job to write a recommendation against.
 	testJob := testJob("recommendation_autocomplete")
-	regResp, _, err := client.Jobs().Register(testJob, nil)
-	require.NoError(t, err)
-	registerCode := waitForSuccess(ui, client, fullId, t, regResp.EvalID)
-	require.Equal(t, 0, registerCode)
+	_, _, err := client.Jobs().Register(testJob, nil)
+	require.NoError(err)
 
 	// Write a recommendation.
 	rec := &api.Recommendation{
@@ -117,9 +129,9 @@ func testRecommendationAutocompleteCommand(t *testing.T, client *api.Client, srv
 	}
 	rec, _, err = client.Recommendations().Upsert(rec, nil)
 	if srv.Enterprise {
-		require.NoError(t, err)
+		require.NoError(err)
 	} else {
-		require.Error(t, err, "Nomad Enterprise only endpoint")
+		require.Error(err, "Nomad Enterprise only endpoint")
 		return
 	}
 
@@ -128,6 +140,6 @@ func testRecommendationAutocompleteCommand(t *testing.T, client *api.Client, srv
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(rec.ID, res[0])
+	require.Equal(1, len(res))
+	require.Equal(rec.ID, res[0])
 }

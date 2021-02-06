@@ -58,15 +58,13 @@ type intLogger struct {
 	name       string
 	timeFormat string
 
-	// This is an interface so that it's shared by any derived loggers, since
+	// This is a pointer so that it's shared by any derived loggers, since
 	// those derived loggers share the bufio.Writer as well.
-	mutex  Locker
+	mutex  *sync.Mutex
 	writer *writer
 	level  *int32
 
 	implied []interface{}
-
-	exclude func(level Level, msg string, args ...interface{}) bool
 }
 
 // New returns a configured logger.
@@ -108,14 +106,11 @@ func newLogger(opts *LoggerOptions) *intLogger {
 		mutex:      mutex,
 		writer:     newWriter(output, opts.Color),
 		level:      new(int32),
-		exclude:    opts.Exclude,
 	}
 
 	l.setColorization(opts)
 
-	if opts.DisableTime {
-		l.timeFormat = ""
-	} else if opts.TimeFormat != "" {
+	if opts.TimeFormat != "" {
 		l.timeFormat = opts.TimeFormat
 	}
 
@@ -135,10 +130,6 @@ func (l *intLogger) log(name string, level Level, msg string, args ...interface{
 
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-
-	if l.exclude != nil && l.exclude(level, msg, args...) {
-		return
-	}
 
 	if l.json {
 		l.logJSON(t, name, level, msg, args...)
@@ -178,14 +169,12 @@ func trimCallerPath(path string) string {
 	return path[idx+1:]
 }
 
-var logImplFile = regexp.MustCompile(`.+intlogger.go|.+interceptlogger.go$`)
+var logImplFile = regexp.MustCompile(`github.com/hashicorp/go-hclog/.+logger.go$`)
 
 // Non-JSON logging format function
 func (l *intLogger) logPlain(t time.Time, name string, level Level, msg string, args ...interface{}) {
-	if len(l.timeFormat) > 0 {
-		l.writer.WriteString(t.Format(l.timeFormat))
-		l.writer.WriteByte(' ')
-	}
+	l.writer.WriteString(t.Format(l.timeFormat))
+	l.writer.WriteByte(' ')
 
 	s, ok := _levelToBracket[level]
 	if ok {
@@ -271,12 +260,6 @@ func (l *intLogger) logPlain(t time.Time, name string, level Level, msg string, 
 				val = strconv.FormatUint(uint64(st), 10)
 			case uint8:
 				val = strconv.FormatUint(uint64(st), 10)
-			case Hex:
-				val = "0x" + strconv.FormatUint(uint64(st), 16)
-			case Octal:
-				val = "0" + strconv.FormatUint(uint64(st), 8)
-			case Binary:
-				val = "0b" + strconv.FormatUint(uint64(st), 2)
 			case CapturedStacktrace:
 				stacktrace = st
 				continue FOR

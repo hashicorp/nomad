@@ -262,26 +262,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"event": func() (cli.Command, error) {
-			return &EventCommand{
-				Meta: meta,
-			}, nil
-		},
-		"event sink deregister": func() (cli.Command, error) {
-			return &EventSinkDeregisterCommand{
-				Meta: meta,
-			}, nil
-		},
-		"event sink list": func() (cli.Command, error) {
-			return &EventSinkListCommand{
-				Meta: meta,
-			}, nil
-		},
-		"event sink register": func() (cli.Command, error) {
-			return &EventSinkRegisterCommand{
-				Meta: meta,
-			}, nil
-		},
 		"exec": func() (cli.Command, error) {
 			return &AllocExecCommand{
 				Meta: meta,
@@ -655,17 +635,23 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"recommendation apply": func() (cli.Command, error) {
 			return &RecommendationApplyCommand{
-				Meta: meta,
+				RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 		"recommendation dismiss": func() (cli.Command, error) {
 			return &RecommendationDismissCommand{
-				Meta: meta,
+				RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 		"recommendation info": func() (cli.Command, error) {
 			return &RecommendationInfoCommand{
-				Meta: meta,
+				RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+					Meta: meta,
+				},
 			}, nil
 		},
 		"recommendation list": func() (cli.Command, error) {

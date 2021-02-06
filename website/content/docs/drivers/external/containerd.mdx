@@ -1,0 +1,366 @@
+---
+layout: docs
+page_title: 'Drivers: nomad-driver-containerd'
+sidebar_title: containerd
+description: >-
+  The containerd driver is used
+  for launching containers using containerd.
+---
+
+# containerd Task Driver
+
+Name: `containerd-driver`
+
+Homepage: https://github.com/Roblox/nomad-driver-containerd
+
+containerd ([`containerd.io`](https://containerd.io)) is a lightweight container
+daemon for running and managing container lifecycle. Docker daemon also uses
+containerd.
+
+```hcl
+dockerd (docker daemon) --> containerd --> containerd-shim --> runc
+```
+
+`nomad-driver-containerd` enables Nomad clients to launch containers directly
+using containerd, without Docker. The Docker daemon is therefore not required on
+the host system.
+
+See the [project's homepage](https://github.com/Roblox/nomad-driver-containerd)
+for more details.
+
+## Client Requirements
+
+The containerd task driver is not built into Nomad. It must be
+[`downloaded`][releases] onto the client host in the configured plugin
+directory.
+
+- Linux (Ubuntu >=16.04) with [`containerd`](https://containerd.io/downloads/) (>=1.3) installed.
+
+- [`containerd-driver`][releases] binary in Nomad's [plugin_dir][].
+
+## Capabilities
+
+The `containerd-driver` implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
+
+| Feature              | Implementation          |
+| -------------------- | ----------------------- |
+| send signals         | true                    |
+| exec                 | true                    |
+| filesystem isolation | image                   |
+| network isolation    | host, group, task, none |
+| volume mounting      | true                    |
+
+For sending signals, one can use `nomad alloc signal` command.<br/>
+For exec'ing into the container, one can use `nomad alloc exec` command.
+
+## Task Configuration
+
+Since Docker also relies on containerd for managing container lifecycle, the
+example job created by [`nomad init -short`][nomad-init] can easily be adapted
+to use `containerd-driver` instead:
+
+```hcl
+job "redis" {
+  datacenters = ["dc1"]
+
+  group "redis-group" {
+    task "redis-task" {
+      driver = "containerd-driver"
+
+      config {
+        image = "docker.io/library/redis:alpine"
+      }
+
+      resources {
+        cpu    = 500
+        memory = 256
+      }
+    }
+  }
+}
+```
+
+The containerd task driver supports the following parameters:
+
+- `image` - (Required) OCI image (Docker is also OCI compatible) for your
+  container.
+
+```hcl
+config {
+  image = "docker.io/library/redis:alpine"
+}
+```
+
+- `command` - (Optional) Command to override command defined in the image.
+
+```hcl
+config {
+  command = "some-command"
+}
+```
+
+- `args` - (Optional) Arguments to the command.
+
+```hcl
+config {
+  args = [
+    "arg1",
+    "arg2",
+  ]
+}
+```
+
+- `cwd` - (Optional) Specify the current working directory (cwd) for your container process.
+  If the directory does not exist, one will be created for you.
+
+- `privileged` - (Optional) `true` or `false` (default) Run container in
+  privileged mode. Your container will have all Linux capabilities when running
+  in privileged mode.
+
+```hcl
+config {
+  privileged = true
+}
+```
+
+- `host_dns` - (Optional) `true` (default) or `false` By default, a container
+  launched using `containerd-driver` will use host `/etc/resolv.conf`. This is
+  similar to [Docker's behavior]. However, if you don't want to use
+  host DNS, you can turn off this flag by setting `host_dns=false`.
+
+- `seccomp` - (Optional) Enable default seccomp profile. List of [allowed syscalls].
+
+- `seccomp_profile` - (Optional) Path to custom seccomp profile.
+  `seccomp` must be set to `true` in order to use `seccomp_profile`.
+
+  The default `docker` seccomp profile found in the [Moby repository]
+  can be downloaded, and modified (by removing/adding syscalls) to create a custom seccomp profile.
+  The custom seccomp profile can then be saved under `/opt/seccomp/seccomp.json` on the Nomad client nodes.
+
+```hcl
+config {
+  seccomp         = true
+  seccomp_profile = "/opt/seccomp/seccomp.json"
+}
+```
+
+- `readonly_rootfs` - (Optional) `true` or `false` (default) Container root
+  filesystem will be read-only.
+
+```hcl
+config {
+  readonly_rootfs = true
+}
+```
+
+- `host_network` ((#host_network)) - (Optional) `true` or `false` (default)
+  Enable host network. This is equivalent to `--net=host` in docker.
+
+```hcl
+config {
+  host_network = true
+}
+```
+
+- `cap_add` - (Optional) Add individual capabilities.
+
+```hcl
+config {
+  cap_add = [
+    "CAP_SYS_ADMIN",
+    "CAP_CHOWN",
+    "CAP_SYS_CHROOT"
+  ]
+}
+```
+
+- `cap_drop` - (Optional) Drop individual capabilities.
+
+```hcl
+config {
+  cap_drop = [
+    "CAP_SYS_ADMIN",
+    "CAP_CHOWN",
+    "CAP_SYS_CHROOT"
+  ]
+}
+```
+
+- `devices` - (Optional) A list of devices to be exposed to the container.
+
+```hcl
+config {
+  devices = [
+    "/dev/loop0",
+    "/dev/loop1"
+  ]
+}
+```
+
+- `mounts` - (Optional) A list of mounts to be mounted in the container. Volume,
+  bind and tmpfs type mounts are supported. fstab style [`mount options`][] are
+  supported.
+
+  - `type` - (Optional) Supported values are `volume`, `bind` or `tmpfs`.
+    **Default:** `volume`.
+
+  - `target` - (Required) Target path in the container.
+
+  - `source` - (Optional) Source path on the host.
+
+  - `options` - (Optional) fstab style [`mount options`][]. **NOTE:** For bind
+    mounts, at least `rbind` and `ro` are required.
+
+```hcl
+config {
+  mounts = [
+    {
+      type = "bind"
+      target = "/tmp/t1"
+      source = "/tmp/s1"
+      options = ["rbind", "ro"]
+    }
+  ]
+}
+```
+
+## Networking
+
+`nomad-driver-containerd` supports **host** and **bridge** networks.
+
+**NOTE:** `host` and `bridge` are mutually exclusive options, and only one of
+them should be used at a time.
+
+1. **Host** network can be enabled by setting `host_network` to `true` in task
+   config of the job spec (see [host_network][host-network] under Task
+   Configuration).
+
+2. **Bridge** network can be enabled by setting the `network` stanza in the task
+   group section of the job spec.
+
+```hcl
+network {
+  mode = "bridge"
+}
+```
+
+You need to install CNI plugins on Nomad client nodes under `/opt/cni/bin`
+before you can use `bridge` networks.
+
+**Instructions for installing CNI plugins.**
+
+```hcl
+ $ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v0.9.0/cni-plugins-linux-$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)"-v0.9.0.tgz
+ $ sudo mkdir -p /opt/cni/bin
+ $ sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
+```
+
+Also, ensure your Linux operating system distribution has been configured
+to allow container traffic through the bridge network to be routed via iptables.
+These tunables can be set as follows:
+
+```hcl
+ $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-arptables
+ $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
+ $ echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
+```
+
+To preserve these settings on startup of a Nomad client node, add a file
+including the following to `/etc/sysctl.d/` or remove the file your Linux
+distribution puts in that directory.
+
+```hcl
+ net.bridge.bridge-nf-call-arptables = 1
+ net.bridge.bridge-nf-call-ip6tables = 1
+ net.bridge.bridge-nf-call-iptables = 1
+```
+
+## Port Forwarding
+
+Nomad supports both `static` and `dynamic` port mapping.
+
+1. **Static ports**
+
+Static port mapping can be added in the `network` stanza.
+
+```hcl
+network {
+  mode = "bridge"
+  port "lb" {
+    static = 8889
+    to     = 8889
+  }
+}
+```
+Here, `host` port `8889` is mapped to `container` port `8889`.<br/>
+**NOTE:** static ports are usually not recommended, except for
+`system` or specialized jobs like load balancers.
+
+2. **Dynamic ports**
+
+Dynamic port mapping is also enabled in the `network` stanza.
+
+```hcl
+network {
+  mode = "bridge"
+  port "http" {
+    to = 8080
+  }
+}
+```
+Here, nomad will allocate a dynamic port on the `host` and that port
+will be mapped to `8080` in the container.
+
+You can read more about configuring networking under the [`network`] stanza documentation.
+
+## Service discovery
+
+Nomad schedules workloads of various types across a cluster of generic hosts.
+Because of this, placement is not known in advance and you will need to use
+service discovery to connect tasks to other services deployed across your cluster.
+Nomad integrates with Consul to provide service discovery and monitoring.
+
+A [`service`] block can be added to your job spec, to enable service discovery.
+
+The service stanza instructs Nomad to register a service with Consul.
+
+## Plugin Options ((#plugin_options))
+
+- `enabled` - (Optional) The `containerd` driver may be disabled on hosts by
+  setting this option to `false` (defaults to `true`).
+
+- `containerd_runtime` - (Required) Runtime for `containerd` e.g.
+  `io.containerd.runc.v1` or `io.containerd.runc.v2`
+
+- `stats_interval` - (Optional) This value defines how frequently you want to
+  send `TaskStats` to nomad client. (defaults to `1 second`).
+
+An example of using these plugin options with the new [plugin syntax][plugin] is
+shown below:
+
+```hcl
+plugin "containerd-driver" {
+  config {
+    enabled = true
+    containerd_runtime = "io.containerd.runc.v2"
+    stats_interval = "5s"
+  }
+}
+```
+
+Please note the plugin name should match whatever name you have specified for
+the external driver in the [plugin_dir][plugin_dir] directory.
+
+[nomad-driver-containerd]: https://github.com/Roblox/nomad-driver-containerd
+[nomad-init]: /docs/commands/job/init
+[plugin]: /docs/configuration/plugin
+[plugin_dir]: /docs/configuration#plugin_dir
+[plugin-options]: #plugin_options
+[host-network]: #host_network
+[`mount options`]: https://github.com/containerd/containerd/blob/9561d9389d3dd87ff6030bf1da4e705bbc024130/mount/mount_linux.go#L198-L222
+[Moby repository]: https://github.com/moby/moby/blob/master/profiles/seccomp/default.json
+[Docker's behavior]: https://docs.docker.com/config/containers/container-networking/#dns-services
+[allowed syscalls]: https://github.com/containerd/containerd/blob/master/contrib/seccomp/seccomp_default.go#L51-L390
+[`network`]: /docs/job-specification/network
+[`service`]: /docs/job-specification/service
+[releases]: https://github.com/Roblox/nomad-driver-containerd/releases/

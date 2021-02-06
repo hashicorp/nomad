@@ -16,7 +16,7 @@ const bridgeKernelModuleName = "bridge"
 const (
 	dynamicModuleRe = `%s\s+.*$`
 	builtinModuleRe = `.+/%s.ko$`
-	dependsModuleRe = `.+/%s.ko:.*$`
+	dependsModuleRe = `.+/%s.ko(\.xz)?:.*$`
 )
 
 func (f *BridgeFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {

@@ -17,9 +17,11 @@ Usage: nomad system reconcile summaries [options]
 
   Reconciles the summaries of all registered jobs.
 
+  If ACLs are enabled, this option requires a management token.
+
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 	return strings.TrimSpace(helpText)
 }
 

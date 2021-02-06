@@ -32,16 +32,6 @@ export default create({
     scope: '[data-test-exec-button]',
   },
 
-  breadcrumbs: collection('[data-test-breadcrumb]', {
-    id: attribute('data-test-breadcrumb'),
-    text: text(),
-    visit: clickable(),
-  }),
-
-  breadcrumbFor(id) {
-    return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
-  },
-
   resourceCharts: collection('[data-test-primary-metric]', {
     name: text('[data-test-primary-metric-title]'),
     chartClass: attribute('class', '[data-test-percentage-chart] progress'),

@@ -1564,10 +1564,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 		result.BridgeNetworkSubnet = b.BridgeNetworkSubnet
 	}
 
+	result.HostNetworks = a.HostNetworks
+
 	if len(b.HostNetworks) != 0 {
-		result.HostNetworks = append(a.HostNetworks, b.HostNetworks...)
-	} else {
-		result.HostNetworks = a.HostNetworks
+		result.HostNetworks = append(result.HostNetworks, b.HostNetworks...)
 	}
 
 	if b.BindWildcardDefaultHostNetwork {

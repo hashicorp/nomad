@@ -67,6 +67,8 @@ kernel/net/bridge/bridge.ko: kernel/net/802/stp.ko kernel/net/llc/llc.ko
 kernel/net/bridge/br_netfilter.ko: kernel/net/bridge/bridge.ko kernel/net/802/stp.ko kernel/net/llc/llc.ko
 kernel/net/appletalk/appletalk.ko: kernel/net/802/psnap.ko kernel/net/llc/llc.ko
 kernel/net/x25/x25.ko:
+# Dummy module to test RHEL modules.dep format
+kernel/net/bridge/bridgeRHEL.ko.xz: kernel/net/802/stp.ko.xz kernel/net/llc/llc.ko.xz
 `
 )
 
@@ -115,6 +117,9 @@ func TestBridgeFingerprint_search(t *testing.T) {
 			defer cleanupFile(t, file)
 
 			err := f.searchFile("bridge", file, f.regexp(dependsModuleRe, "bridge"))
+			require.NoError(t, err)
+
+			err = f.searchFile("bridgeRHEL", file, f.regexp(dependsModuleRe, "bridgeRHEL"))
 			require.NoError(t, err)
 		})
 

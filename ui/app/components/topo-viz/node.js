@@ -51,7 +51,7 @@ export default class TopoVizNode extends Component {
   }
 
   get count() {
-    return this.args.node.allocations.length;
+    return this.allocations.length;
   }
 
   get allocations() {
@@ -150,7 +150,7 @@ export default class TopoVizNode extends Component {
         allocation,
         offset: cpuOffset * 100,
         percent: cpuPercent * 100,
-        width: cpuWidth,
+        width: Math.max(cpuWidth, 0),
         x: cpuOffset * width + (isFirst ? 0 : 0.5) + (isSelected ? 0.5 : 0),
         className: allocation.allocation.clientStatus,
       });
@@ -158,7 +158,7 @@ export default class TopoVizNode extends Component {
         allocation,
         offset: memoryOffset * 100,
         percent: memoryPercent * 100,
-        width: memoryWidth,
+        width: Math.max(memoryWidth, 0),
         x: memoryOffset * width + (isFirst ? 0 : 0.5) + (isSelected ? 0.5 : 0),
         className: allocation.allocation.clientStatus,
       });
@@ -169,11 +169,11 @@ export default class TopoVizNode extends Component {
 
     const cpuRemainder = {
       x: cpuOffset * width + 0.5,
-      width: width - cpuOffset * width,
+      width: Math.max(width - cpuOffset * width, 0),
     };
     const memoryRemainder = {
       x: memoryOffset * width + 0.5,
-      width: width - memoryOffset * width,
+      width: Math.max(width - memoryOffset * width, 0),
     };
 
     return {

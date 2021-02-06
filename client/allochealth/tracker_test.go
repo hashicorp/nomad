@@ -89,6 +89,46 @@ func TestTracker_Checks_Healthy(t *testing.T) {
 	}
 }
 
+func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
+	t.Parallel()
+
+	alloc := mock.LifecycleAllocWithPoststopDeploy()
+	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
+
+	// Synthesize running alloc and tasks
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc.TaskStates = map[string]*structs.TaskState{
+		"web": {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(),
+		},
+		"post": {
+			State: structs.TaskStatePending,
+		},
+	}
+
+	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
+	defer b.Close()
+
+	consul := consul.NewMockConsulServiceClient(t, logger)
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+
+	checkInterval := 10 * time.Millisecond
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
+		time.Millisecond, true)
+	tracker.checkLookupInterval = checkInterval
+	tracker.Start()
+
+	select {
+	case <-time.After(4 * checkInterval):
+		require.Fail(t, "timed out while waiting for health")
+	case h := <-tracker.HealthyCh():
+		require.True(t, h)
+	}
+}
+
 func TestTracker_Checks_Unhealthy(t *testing.T) {
 	t.Parallel()
 
