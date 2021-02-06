@@ -11,7 +11,6 @@ replace (
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 	github.com/hashicorp/nomad/api => ./api
 	github.com/kr/pty => github.com/kr/pty v1.1.5
-	github.com/shirou/gopsutil => github.com/hashicorp/gopsutil v2.18.13-0.20200531184148-5aca383d4f9d+incompatible
 
 	k8s.io/api => k8s.io/api v0.18.2
 	k8s.io/apimachinery => k8s.io/apimachinery v0.18.2
