@@ -1,0 +1,5 @@
+.callout {
+  border: 1px solid var(--gray-6);
+  background-color: var(--gray-7);
+  padding: 8px 32px 16px 32px;
+}
