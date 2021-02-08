@@ -6,5 +6,6 @@ module('Unit | Utility | escape-task-name', function() {
     assert.equal(escapeTaskName('plain'), 'plain');
     assert.equal(escapeTaskName('a space'), 'a\\ space');
     assert.equal(escapeTaskName('dollar $ign'), 'dollar\\ \\$ign');
+    assert.equal(escapeTaskName('emoji🥳'), 'emoji\\🥳');
   });
 });
