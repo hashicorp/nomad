@@ -9,8 +9,16 @@
     border: none;
   }
 
-  & > ul li::before {
-    content: none;
+  & > ul {
+    padding-left: 0;
+
+    & li {
+      margin-top: 0;
+      margin-bottom: 0;
+      &::before {
+        content: none;
+      }
+    }
   }
 
   @media (max-width: 512px) {
@@ -19,25 +27,28 @@
 }
 
 .companyGrid {
+  --grid-gap-base: 8px;
+
   display: flex;
   flex-wrap: wrap;
   list-style: none;
-  margin: -28px;
+  margin: calc(-1 * var(--grid-gap-base));
   padding: 0;
 
+  /*
   @media (max-width: 768px) {
-    margin: -8px;
-  }
+    margin: -16px;
+  } */
 
   & > li {
-    width: 25%;
+    width: calc(25% - var(--grid-gap-base));
 
     @media (max-width: 1150px) {
-      width: 33.3333%;
+      width: calc(33.3333% - var(--grid-gap-base));
     }
 
     @media (max-width: 1024px) {
-      width: 50%;
+      width: calc(50% - var(--grid-gap-base));
     }
   }
 }

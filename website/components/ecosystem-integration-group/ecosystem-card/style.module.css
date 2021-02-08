@@ -2,19 +2,9 @@
   border: 1px solid var(--DEPRECATED-gray-8);
   border-radius: 2px;
   display: block;
-  margin: 8px;
+  margin: 16px;
   overflow: hidden;
-  padding: 20px;
   transition: box-shadow 0.25s, transform 0.25s;
-
-  @media (max-width: 768px) {
-    margin: 8px;
-    padding: 16px 16px 44px;
-  }
-
-  @media (max-width: 512px) {
-    padding: 16px;
-  }
 
   &:focus {
     outline: 0;
@@ -25,51 +15,72 @@
     cursor: pointer;
     transform: translateY(-4px);
   }
+}
 
-  & .logo {
+.companyInfo {
+  padding: 20px;
+
+  @media (max-width: 768px) {
+    padding: 16px 16px 44px;
+  }
+
+  @media (max-width: 512px) {
+    padding: 16px;
+  }
+}
+
+.companyLogo {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  height: 80px;
+  justify-content: center;
+
+  @media (max-width: 1024px) {
+    height: 116px;
+  }
+
+  @media (max-width: 512px) {
+    height: 42px;
+  }
+
+  & picture {
     align-items: center;
     display: flex;
-    flex-direction: column;
-    height: 80px;
+    height: 100%;
     justify-content: center;
-
-    @media (max-width: 1024px) {
-      height: 116px;
-    }
-
-    @media (max-width: 512px) {
-      height: 42px;
-    }
-
-    & picture {
-      align-items: center;
-      display: flex;
-      height: 100%;
-      justify-content: center;
-      width: 100%;
-
-      & img {
-        margin: 0 auto;
-      }
-    }
+    width: 100%;
 
     & img {
-      display: block;
-      max-height: 70%;
-      max-width: 70%;
-
-      @media (max-width: 768px) {
-        max-height: 100%;
-        max-width: 100%;
-      }
+      margin: 0 auto;
     }
   }
 
-  & .integration-label {
-    color: var(--gray-3);
-    font-size: 15px;
-    overflow: hidden;
-    text-align: center;
+  & img {
+    display: block;
+    max-height: 70%;
+    max-width: 70%;
+
+    @media (max-width: 768px) {
+      max-height: 100%;
+      max-width: 100%;
+    }
+  }
+}
+
+.companyNameLabel {
+  color: var(--gray-4);
+  font-size: 15px;
+  overflow: hidden;
+  text-align: center;
+
+  /* white-space: nowrap; */
+
+  @media (max-width: 512px) {
+    display: none;
+  }
+}
+
 .integrationTypeLabel {
   color: var(--gray-4);
   background-color: var(--gray-7);
@@ -87,4 +98,3 @@
     }
   }
 }
-}}

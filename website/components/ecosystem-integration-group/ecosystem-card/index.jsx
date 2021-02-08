@@ -15,9 +15,13 @@ export default function EcosystemCard({
       as={integrationUrl}
       prefetch={false}
     >
-      <div className="logo">
-        <Image url={companyLogoUrl} alt={`${companyName} Logo`} />
+      <div className={s.companyInfo}>
+        <div className={s.companyLogo}>
+          <Image url={companyLogoUrl} alt={`${companyName} Logo`} />
+        </div>
+        <div className={s.companyNameLabel}>{companyName}</div>
       </div>
+
       <div className={s.integrationTypeLabel}>
         <span>{integrationType}</span>
         <span> integration</span>
