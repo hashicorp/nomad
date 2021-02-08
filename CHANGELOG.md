@@ -18,6 +18,7 @@ BUG FIXES:
  * scheduler: Fixed a bug where job statuses and summaries where duplicated and miscalculated when registering a job. [[GH-9768](https://github.com/hashicorp/nomad/issues/9768)]
  * scheduler: Fixed a bug that caused the scheduler not to detect changes for `host_network` port field. [[GH-9973](https://github.com/hashicorp/nomad/issues/9973)]
  * scheduler (Enterprise): Fixed a bug where the deprecated network `mbits` field was being considered as part of quota enforcement. [[GH-9920](https://github.com/hashicorp/nomad/issues/9920)]
+ * volumes: Fixed a bug where volume diffs were not displayed in the output of `nomad plan`. [[GH-9973](https://github.com/hashicorp/nomad/issues/9973)]
 
 ## 1.0.3 (January 28, 2021)
 
