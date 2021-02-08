@@ -21,6 +21,10 @@
   margin: 0 auto;
 }
 
+.detailCta {
+  color: var(--nomad);
+}
+
 .comparisonItems {
   display: flex;
   justify-content: center;

@@ -14,7 +14,10 @@ export default function ComparisonCallouts({
         <div className={s.description}>
           <h2 className="g-type-display-2">{heading}</h2>
           <p className={s.details}>
-            {details} <a href={detailCta.url}>{detailCta.title}</a>
+            {details}{' '}
+            <a className={s.detailCta} href={detailCta.url}>
+              {detailCta.title}
+            </a>
           </p>
         </div>
 
