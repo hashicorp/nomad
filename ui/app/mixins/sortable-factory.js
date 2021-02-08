@@ -33,7 +33,11 @@ export default function sortableFactory(properties, fromSortableMixin) {
     _sortableFactoryWarningPrinted: false,
 
     listSorted: computed(
-      ...eachProperties, '_sortableFactoryWarningPrinted', 'listToSort.[]', 'sortDescending', 'sortProperty',
+      ...eachProperties,
+      '_sortableFactoryWarningPrinted',
+      'listToSort.[]',
+      'sortDescending',
+      'sortProperty',
       function() {
         if (!this._sortableFactoryWarningPrinted && !Ember.testing) {
           let message =

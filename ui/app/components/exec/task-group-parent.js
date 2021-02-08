@@ -48,7 +48,10 @@ export default class TaskGroupParent extends Component {
   @mapBy('activeTasks', 'taskGroup') activeTaskGroups;
 
   @computed(
-    'activeTaskGroups.@each.name', 'activeTaskStates.@each.name', 'activeTasks.@each.name', 'taskGroup.{name,tasks}'
+    'activeTaskGroups.@each.name',
+    'activeTaskStates.@each.name',
+    'activeTasks.@each.name',
+    'taskGroup.{name,tasks}'
   )
   get tasksWithRunningStates() {
     const activeTaskStateNames = this.activeTaskStates

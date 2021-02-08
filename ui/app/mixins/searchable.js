@@ -69,7 +69,16 @@ export default Mixin.create({
   }),
 
   listSearched: computed(
-    'exactMatchEnabled', 'exactMatchSearchProps.[]', 'fuse', 'fuzzySearchEnabled', 'fuzzySearchProps.[]', 'includeFuzzySearchMatches', 'listToSearch.[]', 'regexEnabled', 'regexSearchProps.[]', 'searchTerm',
+    'exactMatchEnabled',
+    'exactMatchSearchProps.[]',
+    'fuse',
+    'fuzzySearchEnabled',
+    'fuzzySearchProps.[]',
+    'includeFuzzySearchMatches',
+    'listToSearch.[]',
+    'regexEnabled',
+    'regexSearchProps.[]',
+    'searchTerm',
     function() {
       const searchTerm = this.searchTerm.trim();
 
