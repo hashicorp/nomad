@@ -6,11 +6,15 @@
 
 .content {
   composes: g-grid-container from global;
+  text-align: center;
 }
 
 .description {
-  text-align: center;
   margin-bottom: 64px;
+
+  & h2 {
+    margin-top: 0;
+  }
 }
 
 .details {
@@ -20,7 +24,7 @@
 .comparisonItems {
   display: flex;
   justify-content: center;
-  margin: 0 auto 64px auto;
+  margin: 0 auto;
 }
 
 .comparisonItem {
