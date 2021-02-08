@@ -11,79 +11,156 @@ description: >-
 
 # Nomad Enterprise
 
-Nomad Enterprise adds collaboration, operational, and governance capabilities to Nomad. Nomad Enterprise is available as a base Platform package with an optional Governance & Policy add-on module.
+Nomad Enterprise adds collaboration, operational, and governance capabilities
+to Nomad. Nomad Enterprise is available as a base Platform package with an
+optional Governance & Policy add-on module.
 
-Please navigate the sub-sections for more information about each package and its features in detail.
+Please navigate the sub-sections for more information about each package and
+its features in detail.
 
 ## Nomad Enterprise Licensing
 
-Nomad Enterprise requires a license to run. When a Enterprise server first starts it will be set with a temporary license that includes all features. This will be valid for 6 hours and allows users to test enterprise features and provide enough time for operators to apply their enterprise license.
+Nomad Enterprise requires a license to run. When a Enterprise server first
+starts it will be set with a temporary license that includes all
+features. This will be valid for 6 hours and allows users to test enterprise
+features and provide enough time for operators to apply their enterprise
+license.
 
-If a server is never given a valid license and the temporary license expires, the server will shutdown. If a valid (non-temporary) license expires, the cluster will continue to function, but write operations to enterprise features will be disabled.
+If a server is never given a valid license and the temporary license expires,
+the server will shutdown. If a valid (non-temporary) license expires, the
+cluster will continue to function, but write operations to enterprise features
+will be disabled.
 
-See the [License commands](/docs/commands/license) for more information on interacting with the Enterprise License.
+~> **Note:** A Nomad Enterprise cluster cannot be downgraded to the open
+source version of Nomad. Servers running the open source version of Nomad will
+panic if they are joined to a Nomad Enterprise cluster. See issue [gh-9958]
+for more details.
+
+See the [License commands](/docs/commands/license) for more information on
+interacting with the Enterprise License.
 
 ## Nomad Enterprise Platform
 
-Nomad Enterprise Platform enables operators to easily upgrade Nomad as well as enhances performance and availability through Advanced Autopilot features such as Automated Upgrades, Enhanced Read Scalability, and Redundancy Zones.
+Nomad Enterprise Platform enables operators to easily upgrade Nomad as well as
+enhances performance and availability through Advanced Autopilot features such
+as Automated Upgrades, Enhanced Read Scalability, and Redundancy Zones.
 
 ### Automated Upgrades
 
-Automated Upgrades allows operators to deploy a complete cluster of new servers and then simply wait for the upgrade to complete. As the new servers join the cluster, server logic checks the version of each Nomad server node. If the version is higher than the version on the current set of voters, it will avoid promoting the new servers to voters until the number of new servers matches the number of existing servers at the previous version. Once the numbers match, Nomad will begin to promote new servers and demote old ones.
+Automated Upgrades allows operators to deploy a complete cluster of new
+servers and then simply wait for the upgrade to complete. As the new servers
+join the cluster, server logic checks the version of each Nomad server
+node. If the version is higher than the version on the current set of voters,
+it will avoid promoting the new servers to voters until the number of new
+servers matches the number of existing servers at the previous version. Once
+the numbers match, Nomad will begin to promote new servers and demote old
+ones.
 
-See the [Autopilot - Upgrade Migrations](https://learn.hashicorp.com/tutorials/nomad/autopilot#upgrade-migrations) documentation for a thorough overview.
+See the [Autopilot - Upgrade
+Migrations](https://learn.hashicorp.com/tutorials/nomad/autopilot#upgrade-migrations)
+documentation for a thorough overview.
 
 ### Automated Backups
 
-Automated Backups allows operators to run the snapshot agent as a long-running daemon process or in a one-shot mode from a batch job. The agent takes snapshots of the state of the Nomad servers and saves them locally, or pushes them to an optional remote storage service, such as Amazon S3.
+Automated Backups allows operators to run the snapshot agent as a long-running
+daemon process or in a one-shot mode from a batch job. The agent takes
+snapshots of the state of the Nomad servers and saves them locally, or pushes
+them to an optional remote storage service, such as Amazon S3.
 
-This capability provides an enterprise solution for backup and restoring the state of Nomad servers within an environment in an automated manner. These snapshots are atomic and point-in-time.
+This capability provides an enterprise solution for backup and restoring the
+state of Nomad servers within an environment in an automated manner. These
+snapshots are atomic and point-in-time.
 
-See the [Operator Snapshot agent](/docs/commands/operator/snapshot-agent) documentation for a thorough overview.
+See the [Operator Snapshot agent](/docs/commands/operator/snapshot-agent)
+documentation for a thorough overview.
 
 ### Enhanced Read Scalability
 
-This feature enables an operator to introduce non-voting server nodes to a Nomad cluster. Non-voting servers will receive the replication stream but will not take part in quorum (required by the leader before log entries can be committed). Adding explicit non-voters will scale reads and scheduling without impacting write latency.
+This feature enables an operator to introduce non-voting server nodes to a
+Nomad cluster. Non-voting servers will receive the replication stream but will
+not take part in quorum (required by the leader before log entries can be
+committed). Adding explicit non-voters will scale reads and scheduling without
+impacting write latency.
 
-See the [Autopilot - Read Scalability](https://learn.hashicorp.com/tutorials/nomad/autopilot#server-read-and-scheduling-scaling) documentation for a thorough overview.
+See the [Autopilot - Read
+Scalability](https://learn.hashicorp.com/tutorials/nomad/autopilot#server-read-and-scheduling-scaling)
+documentation for a thorough overview.
 
 ### Redundancy Zones
 
-Redundancy Zones enables an operator to deploy a non-voting server as a hot standby server on a per availability zone basis. For example, in an environment with three availability zones an operator can run one voter and one non-voter in each availability zone, for a total of six servers. If an availability zone is completely lost, only one voter will be lost, so the cluster remains available. If a voter is lost in an availability zone, Nomad will promote the non-voter to a voter automatically, putting the hot standby server into service quickly.
+Redundancy Zones enables an operator to deploy a non-voting server as a hot
+standby server on a per availability zone basis. For example, in an
+environment with three availability zones an operator can run one voter and
+one non-voter in each availability zone, for a total of six servers. If an
+availability zone is completely lost, only one voter will be lost, so the
+cluster remains available. If a voter is lost in an availability zone, Nomad
+will promote the non-voter to a voter automatically, putting the hot standby
+server into service quickly.
 
-See the [Autopilot - Redundancy Zones](https://learn.hashicorp.com/tutorials/nomad/autopilot#redundancy-zones) documentation for a thorough overview.
+See the [Autopilot - Redundancy
+Zones](https://learn.hashicorp.com/tutorials/nomad/autopilot#redundancy-zones)
+documentation for a thorough overview.
 
 ### Multiple Vault Namespaces
 
-Multi-Vault Namespaces enables an operator to configure a single Nomad cluster to support multiple Vault Namespaces for topology simplicity and fleet consolidation when running Nomad and Vault together. Nomad will automatically retrieve a Vault token based on a job's defined Vault Namespace and make it available for the specified Nomad task at hand.
+Multi-Vault Namespaces enables an operator to configure a single Nomad cluster
+to support multiple Vault Namespaces for topology simplicity and fleet
+consolidation when running Nomad and Vault together. Nomad will automatically
+retrieve a Vault token based on a job's defined Vault Namespace and make it
+available for the specified Nomad task at hand.
 
 See the [Vault Integration documentation](/docs/integrations/vault-integration#enterprise-configuration) for more information.
 
 ## Governance & Policy
 
-Governance & Policy features are part of an add-on module that enables an organization to securely operate Nomad at scale across multiple teams through features such as Audit Logging, Resource Quotas, and Sentinel Policies.
+Governance & Policy features are part of an add-on module that enables an
+organization to securely operate Nomad at scale across multiple teams through
+features such as Audit Logging, Resource Quotas, and Sentinel Policies.
 
 ### Audit Logging
 
-Secure clusters with enhanced risk management and operational traceability to fulfill compliance requirements. This Enterprise feature provides administrators with a complete set of records for all user-issued actions in Nomad.
+Secure clusters with enhanced risk management and operational traceability to
+fulfill compliance requirements. This Enterprise feature provides
+administrators with a complete set of records for all user-issued actions in
+Nomad.
 
-With Audit Logging, enterprises can now proactively identify access anomalies, ensure enforcement of their security policies, and diagnose cluster behavior by viewing preceding user operations. Designed as an HTTP API based audit logging system, each audit event is captured with relevant request and response information in a JSON format that is easily digestibile and familiar to operators.
+With Audit Logging, enterprises can now proactively identify access anomalies,
+ensure enforcement of their security policies, and diagnose cluster behavior
+by viewing preceding user operations. Designed as an HTTP API based audit
+logging system, each audit event is captured with relevant request and
+response information in a JSON format that is easily digestibile and familiar
+to operators.
 
-See the [Audit Logging Documentation](/docs/configuration/audit) for a thorough overview.
+See the [Audit Logging Documentation](/docs/configuration/audit) for a
+thorough overview.
 
 ### Resource Quotas
 
-Resource Quotas enable an operator to limit resource consumption across teams or projects to reduce waste and align budgets. In Nomad Enterprise, operators can define quota specifications and apply them to namespaces. When a quota is attached to a namespace, the jobs within the namespace may not consume more resources than the quota specification allows.
+Resource Quotas enable an operator to limit resource consumption across teams
+or projects to reduce waste and align budgets. In Nomad Enterprise, operators
+can define quota specifications and apply them to namespaces. When a quota is
+attached to a namespace, the jobs within the namespace may not consume more
+resources than the quota specification allows.
 
-This allows operators to partition a shared cluster and ensure that no single actor can consume the whole resources of the cluster.
+This allows operators to partition a shared cluster and ensure that no single
+actor can consume the whole resources of the cluster.
 
-See the [Resource Quotas Guide](https://learn.hashicorp.com/tutorials/nomad/quotas) for a thorough overview.
+See the [Resource Quotas
+Guide](https://learn.hashicorp.com/tutorials/nomad/quotas) for a thorough
+overview.
 
 ### Sentinel Policies
 
-In Nomad Enterprise, operators can create Sentinel policies for fine-grained policy enforcement. Sentinel policies build on top of the ACL system and allow operators to define policies such as disallowing jobs to be submitted to production on Fridays or only allowing users to run jobs that use pre-authorized Docker images. Sentinel policies are defined as code, giving operators considerable flexibility to meet compliance requirements.
+In Nomad Enterprise, operators can create Sentinel policies for fine-grained
+policy enforcement. Sentinel policies build on top of the ACL system and allow
+operators to define policies such as disallowing jobs to be submitted to
+production on Fridays or only allowing users to run jobs that use
+pre-authorized Docker images. Sentinel policies are defined as code, giving
+operators considerable flexibility to meet compliance requirements.
 
-See the [Sentinel Policies Guide](https://learn.hashicorp.com/tutorials/nomad/sentinel) for a thorough overview.
+See the [Sentinel Policies
+Guide](https://learn.hashicorp.com/tutorials/nomad/sentinel) for a thorough
+overview.
 
 ## Multi-Cluster & Efficiency
 
@@ -115,3 +192,4 @@ request a trial of Nomad Enterprise.
 [multiregion deployments]: /docs/job-specification/multiregion
 [autoscaling capabilities]: /docs/autoscaling
 [scaling policies]: /docs/autoscaling/policy
+[gh-9958]: https://github.com/hashicorp/nomad/issues/9958
