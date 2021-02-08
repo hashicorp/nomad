@@ -564,10 +564,10 @@ func supportedCaps() []string {
 
 func configureNamespaces(pidMode, ipcMode string) lconfigs.Namespaces {
 	namespaces := lconfigs.Namespaces{{Type: lconfigs.NEWNS}}
-	if pidMode == IsoModePrivate {
+	if pidMode == IsolationModePrivate {
 		namespaces = append(namespaces, lconfigs.Namespace{Type: lconfigs.NEWPID})
 	}
-	if ipcMode == IsoModePrivate {
+	if ipcMode == IsolationModePrivate {
 		namespaces = append(namespaces, lconfigs.Namespace{Type: lconfigs.NEWIPC})
 	}
 	return namespaces
@@ -589,7 +589,7 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	// disable pivot_root if set in the driver's configuration
 	cfg.NoPivotRoot = command.NoPivotRoot
 
-	// setup default namespaces as configured
+	// set up default namespaces as configured
 	cfg.Namespaces = configureNamespaces(command.DefaultModePID, command.DefaultModeIPC)
 
 	if command.NetworkIsolation != nil {

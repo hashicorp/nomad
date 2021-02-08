@@ -287,8 +287,8 @@ func TestExecDriver_NoOrphans(t *testing.T) {
 
 	config := &Config{
 		NoPivotRoot:    false,
-		DefaultModePID: executor.IsoModePrivate,
-		DefaultModeIPC: executor.IsoModePrivate,
+		DefaultModePID: executor.IsolationModePrivate,
+		DefaultModeIPC: executor.IsolationModePrivate,
 	}
 
 	var data []byte
@@ -735,8 +735,8 @@ func TestExecDriver_NoPivotRoot(t *testing.T) {
 
 	config := &Config{
 		NoPivotRoot:    true,
-		DefaultModePID: executor.IsoModePrivate,
-		DefaultModeIPC: executor.IsoModePrivate,
+		DefaultModePID: executor.IsolationModePrivate,
+		DefaultModeIPC: executor.IsolationModePrivate,
 	}
 
 	var data []byte
