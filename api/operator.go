@@ -1,6 +1,8 @@
 package api
 
 import (
+	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"strconv"
@@ -297,10 +299,26 @@ func (op *Operator) LicensePut(license string, q *WriteOptions) (*WriteMeta, err
 }
 
 func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, error) {
-	var reply LicenseReply
-	qm, err := op.c.query("/v1/operator/license", &reply, q)
+	req, err := op.c.newRequest("GET", "/v1/operator/license")
 	if err != nil {
 		return nil, nil, err
 	}
-	return &reply, qm, nil
+
+	var reply LicenseReply
+	_, resp, err := op.c.doRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 204 {
+		return nil, nil, errors.New("Nomad Enterprise only endpoint")
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&reply)
+	if err == nil {
+		return &reply, nil, nil
+	}
+
+	return nil, nil, err
 }
