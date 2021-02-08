@@ -371,8 +371,28 @@ export default function Homepage() {
           title: 'Detail CTA',
           url: 'https://nomadproject.io',
         }}
-        itemOne="item One"
-        itemTwo="item Two"
+        items={[
+          {
+            title: 'item one',
+            description: 'item one description here',
+            imageUrl: 'sample.jpg',
+            link: {
+              url: 'https://nomadproject.io',
+              text: 'Link 1',
+              type: 'inbound',
+            },
+          },
+          {
+            title: 'item two',
+            description: 'item two description here',
+            imageUrl: 'sample.jpg',
+            link: {
+              url: 'https://nomadproject.io',
+              text: 'Link 2',
+              type: 'inbound',
+            },
+          },
+        ]}
       />
 
       <CallToAction

@@ -1,11 +1,12 @@
 import s from './style.module.css'
+import Image from '@hashicorp/react-image'
+import Button from '@hashicorp/react-image'
 
 export default function ComparisonCallouts({
   heading,
   details,
   detailCta,
-  itemOne,
-  itemTwo,
+  items,
 }) {
   return (
     <div className={s.comparisonCallouts}>
@@ -18,10 +19,27 @@ export default function ComparisonCallouts({
         </div>
 
         <div className={s.comparisonItems}>
-          <div className={s.itemOne}>{itemOne}</div>
-          <div className={s.itemTwo}>{itemTwo}</div>
+          {items.map((item) => (
+            <ComparisonItem key={item.title} {...item} />
+          ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+function ComparisonItem({ imageUrl, title, description, link }) {
+  return (
+    <div className={s.item}>
+      <Image url={imageUrl} />
+      <h4 className="g-type-display-4">{title}</h4>
+      <p className="g-type-body">{description}</p>
+      <Button
+        url={link.url}
+        title={link.text}
+        linkType={link.type}
+        theme={{ variant: 'tertiary', brand: 'nomad' }}
+      />
     </div>
   )
 }

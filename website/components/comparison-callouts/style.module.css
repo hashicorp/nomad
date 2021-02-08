@@ -1,5 +1,7 @@
 .comparisonCallouts {
-  width: 100%;
+  padding-top: 128px;
+  padding-bottom: 128px;
+  background: var(--gray-7);
 }
 
 .content {
