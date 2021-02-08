@@ -1,6 +1,6 @@
 import s from './style.module.css'
 import Image from '@hashicorp/react-image'
-import Button from '@hashicorp/react-image'
+import Button from '@hashicorp/react-button'
 
 export default function ComparisonCallouts({
   heading,
@@ -30,7 +30,7 @@ export default function ComparisonCallouts({
 
 function ComparisonItem({ imageUrl, title, description, link }) {
   return (
-    <div className={s.item}>
+    <div className={s.comparisonItem}>
       <Image url={imageUrl} />
       <h4 className="g-type-display-4">{title}</h4>
       <p className="g-type-body">{description}</p>

@@ -16,3 +16,29 @@
 .details {
   margin: 0 auto;
 }
+
+.comparisonItems {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 64px auto;
+}
+
+.comparisonItem {
+  padding: 48px 24px;
+  background-color: var(--white);
+  box-shadow: 0 2px 3px rgba(37, 41, 55, 0.08);
+  border: 1px solid var(--gray-6);
+  border-radius: 1px;
+  transition-duration: 0.25s;
+  transition-property: box-shadow, transform;
+
+  &:first-child {
+    margin-right: 32px;
+  }
+
+  &:hover {
+    box-shadow: 0 16px 28px rgba(37, 38, 45, 0.12);
+    transform: translateY(-4px);
+    cursor: pointer;
+  }
+}
