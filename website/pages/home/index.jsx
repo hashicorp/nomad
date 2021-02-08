@@ -364,31 +364,40 @@ export default function Homepage() {
         ]}
       />
 
+      {/* TODO Use proper URLs */}
       <ComparisonCallouts
-        heading="Heading"
-        details="Details."
+        heading="Nomad vs. Kubernetes"
+        details={
+          <p>
+            Choose an orchestrator based on how it fits into your project. Find
+            out{' '}
+            <a href="https://nomadproject.io">
+              Nomad’s unique strengths relative to Kubernetes.
+            </a>
+          </p>
+        }
         detailCta={{
           title: 'Detail CTA',
           url: 'https://nomadproject.io',
         }}
         items={[
           {
-            title: 'item one',
-            description: 'item one description here',
-            imageUrl: 'sample.jpg',
+            title: 'Alternative to Kubernetes',
+            description: 'Deploy and scale containers without complexity',
+            imageUrl: require('./img/nomad-vs-kubernetes/alternative.svg?url'),
             link: {
               url: 'https://nomadproject.io',
-              text: 'Link 1',
+              text: 'Learn more',
               type: 'inbound',
             },
           },
           {
-            title: 'item two',
-            description: 'item two description here',
-            imageUrl: 'sample.jpg',
+            title: 'Supplement to Kubernetes',
+            description: 'Implement a multi-orchestrator pattern',
+            imageUrl: require('./img/nomad-vs-kubernetes/supplement.svg?url'),
             link: {
               url: 'https://nomadproject.io',
-              text: 'Link 2',
+              text: 'Learn more',
               type: 'inbound',
             },
           },

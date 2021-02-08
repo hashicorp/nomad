@@ -14,15 +14,18 @@
 
   & h2 {
     margin-top: 0;
+    margin-bottom: 24px;
   }
 }
 
 .details {
   margin: 0 auto;
-}
+  composes: g-type-body-large from global;
+  max-width: 560px;
 
-.detailCta {
-  color: var(--nomad);
+  & a {
+    color: var(--nomad);
+  }
 }
 
 .comparisonItems {
@@ -32,6 +35,7 @@
 }
 
 .comparisonItem {
+  max-width: 280px;
   padding: 48px 24px;
   background-color: var(--white);
   box-shadow: 0 2px 3px rgba(37, 41, 55, 0.08);
@@ -48,5 +52,10 @@
     box-shadow: 0 16px 28px rgba(37, 38, 45, 0.12);
     transform: translateY(-4px);
     cursor: pointer;
+  }
+
+  & h4 {
+    margin-top: 22px;
+    margin-bottom: 8px;
   }
 }
