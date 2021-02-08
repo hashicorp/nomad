@@ -149,7 +149,6 @@ const nomadCNIConfigTemplate = `{
 			"ipMasq": true,
 			"isGateway": true,
 			"forceAddress": true,
-			"hairpinMode": true,
 			"ipam": {
 				"type": "host-local",
 				"ranges": [
