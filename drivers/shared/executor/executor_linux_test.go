@@ -129,8 +129,8 @@ func TestExecutor_Isolation_PID_and_IPC_hostMode(t *testing.T) {
 	defer allocDir.Destroy()
 
 	execCmd.ResourceLimits = true
-	execCmd.DefaultModePID = "host" // disable PID namespace
-	execCmd.DefaultModeIPC = "host" // disable IPC namespace
+	execCmd.ModePID = "host" // disable PID namespace
+	execCmd.ModeIPC = "host" // disable IPC namespace
 
 	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)
@@ -170,8 +170,8 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	defer allocDir.Destroy()
 
 	execCmd.ResourceLimits = true
-	execCmd.DefaultModePID = "private"
-	execCmd.DefaultModeIPC = "private"
+	execCmd.ModePID = "private"
+	execCmd.ModeIPC = "private"
 
 	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)

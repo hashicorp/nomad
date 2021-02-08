@@ -85,6 +85,8 @@ var (
 		"jar_path":    hclspec.NewAttr("jar_path", "string", false),
 		"jvm_options": hclspec.NewAttr("jvm_options", "list(string)", false),
 		"args":        hclspec.NewAttr("args", "list(string)", false),
+		"pid_mode":    hclspec.NewAttr("pid_mode", "string", false),
+		"ipc_mode":    hclspec.NewAttr("ipc_mode", "string", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -144,6 +146,25 @@ type TaskConfig struct {
 	JarPath   string   `codec:"jar_path"`
 	JvmOpts   []string `codec:"jvm_options"`
 	Args      []string `codec:"args"` // extra arguments to java executable
+	ModePID   string   `codec:"pid_mode"`
+	ModeIPC   string   `codec:"ipc_mode"`
+}
+
+func (tc *TaskConfig) validate() error {
+	switch tc.ModePID {
+	case "", executor.IsolationModePrivate, executor.IsolationModeHost:
+	default:
+		return fmt.Errorf("pid_mode must be %q or %q, got %q", executor.IsolationModePrivate, executor.IsolationModeHost, tc.ModePID)
+
+	}
+
+	switch tc.ModeIPC {
+	case "", executor.IsolationModePrivate, executor.IsolationModeHost:
+	default:
+		return fmt.Errorf("ipc_mode must be %q or %q, got %q", executor.IsolationModePrivate, executor.IsolationModeHost, tc.ModeIPC)
+	}
+
+	return nil
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -369,6 +390,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
+	if err := driverConfig.validate(); err != nil {
+		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
+	}
+
 	if driverConfig.Class == "" && driverConfig.JarPath == "" {
 		return nil, nil, fmt.Errorf("jar_path or class must be specified")
 	}
@@ -425,8 +450,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		Mounts:           cfg.Mounts,
 		Devices:          cfg.Devices,
 		NetworkIsolation: cfg.NetworkIsolation,
-		DefaultModePID:   d.config.DefaultModePID,
-		DefaultModeIPC:   d.config.DefaultModeIPC,
+		ModePID:          executor.IsolationMode(d.config.DefaultModePID, driverConfig.ModePID),
+		ModeIPC:          executor.IsolationMode(d.config.DefaultModeIPC, driverConfig.ModeIPC),
 	}
 
 	ps, err := exec.Launch(execCmd)

@@ -78,8 +78,10 @@ var (
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a task within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"command": hclspec.NewAttr("command", "string", true),
-		"args":    hclspec.NewAttr("args", "list(string)", false),
+		"command":  hclspec.NewAttr("command", "string", true),
+		"args":     hclspec.NewAttr("args", "list(string)", false),
+		"pid_mode": hclspec.NewAttr("pid_mode", "string", false),
+		"ipc_mode": hclspec.NewAttr("ipc_mode", "string", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -158,8 +160,35 @@ func (c *Config) validate() error {
 
 // TaskConfig is the driver configuration of a task within a job
 type TaskConfig struct {
-	Command string   `codec:"command"`
-	Args    []string `codec:"args"`
+	// Command is the thing to exec.
+	Command string `codec:"command"`
+
+	// Args are passed along to Command.
+	Args []string `codec:"args"`
+
+	// ModePID indicates whether PID namespace isolation is enabled for the task.
+	// Must be "private" or "host" if set.
+	ModePID string `codec:"pid_mode"`
+
+	// ModeIPC indicates whether IPC namespace isolation is enabled for the task.
+	// Must be "private" or "host" if set.
+	ModeIPC string `codec:"ipc_mode"`
+}
+
+func (tc *TaskConfig) validate() error {
+	switch tc.ModePID {
+	case "", executor.IsolationModePrivate, executor.IsolationModeHost:
+	default:
+		return fmt.Errorf("pid_mode must be %q or %q, got %q", executor.IsolationModePrivate, executor.IsolationModeHost, tc.ModePID)
+	}
+
+	switch tc.ModeIPC {
+	case "", executor.IsolationModePrivate, executor.IsolationModeHost:
+	default:
+		return fmt.Errorf("ipc_mode must be %q or %q, got %q", executor.IsolationModePrivate, executor.IsolationModeHost, tc.ModeIPC)
+	}
+
+	return nil
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -374,6 +403,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
+	if err := driverConfig.validate(); err != nil {
+		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
+	}
+
 	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
@@ -419,8 +452,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		Mounts:           cfg.Mounts,
 		Devices:          cfg.Devices,
 		NetworkIsolation: cfg.NetworkIsolation,
-		DefaultModePID:   d.config.DefaultModePID,
-		DefaultModeIPC:   d.config.DefaultModeIPC,
+		ModePID:          executor.IsolationMode(d.config.DefaultModePID, driverConfig.ModePID),
+		ModeIPC:          executor.IsolationMode(d.config.DefaultModeIPC, driverConfig.ModeIPC),
 	}
 
 	ps, err := exec.Launch(execCmd)
