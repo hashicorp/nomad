@@ -79,6 +79,39 @@ func AllocsForJob(jobID, ns string) ([]map[string]string, error) {
 	return allocs, nil
 }
 
+// AllocTaskEventsForJob returns a map of allocation IDs containing a map of
+// Task Event key value pairs
+func AllocTaskEventsForJob(jobID, ns string) (map[string][]map[string]string, error) {
+	allocs, err := AllocsForJob(jobID, ns)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make(map[string][]map[string]string)
+	for _, alloc := range allocs {
+		results[alloc["ID"]] = make([]map[string]string, 0)
+
+		cmd := []string{"nomad", "alloc", "status", alloc["ID"]}
+		out, err := Command(cmd[0], cmd[1:]...)
+		if err != nil {
+			return nil, fmt.Errorf("querying alloc status: %w", err)
+		}
+
+		section, err := GetSection(out, "Recent Events:")
+		if err != nil {
+			return nil, fmt.Errorf("could not find Recent Events section: %w", err)
+		}
+
+		events, err := ParseColumns(section)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse recent events section: %w", err)
+		}
+		results[alloc["ID"]] = events
+	}
+
+	return results, nil
+}
+
 // AllocsForNode returns a slice of key->value maps, each describing the values
 // of the 'nomad node status' Allocations section (not actual
 // structs.Allocation objects, query the API if you want those)
@@ -103,6 +136,21 @@ func AllocsForNode(nodeID string) ([]map[string]string, error) {
 
 // AllocStatuses returns a slice of client statuses
 func AllocStatuses(jobID, ns string) ([]string, error) {
+
+	allocs, err := AllocsForJob(jobID, ns)
+	if err != nil {
+		return nil, err
+	}
+
+	statuses := []string{}
+	for _, alloc := range allocs {
+		statuses = append(statuses, alloc["Status"])
+	}
+	return statuses, nil
+}
+
+// AllocStatuses returns a slice of client statuses
+func AllocTaskEvents(jobID, ns string) ([]string, error) {
 
 	allocs, err := AllocsForJob(jobID, ns)
 	if err != nil {

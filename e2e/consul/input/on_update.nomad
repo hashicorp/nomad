@@ -15,7 +15,7 @@ job "test" {
     }
 
     service {
-      name = "echo-service"
+      name = "on-update-service"
       port = "db"
 
       check {
