@@ -108,7 +108,7 @@ This also applies for running Nomad in -dev mode.
 ## Plugin Options
 
 - `default_pid_mode` `(string: optional)` - Defaults to `"private"`. Set to
- `"private"` to enable namespace isolation for tasks by default, or `"host"` to
+ `"private"` to enable PID namespace isolation for tasks by default, or `"host"` to
  disable isolation.
 
 !> **Warning:** If set to `"host"`, other processes running as the same user will
