@@ -27,7 +27,7 @@ func TestConnect_newConnect(t *testing.T) {
 	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
-		asr, err := newConnect("","", nil, nil)
+		asr, err := newConnect("", "", nil, nil)
 		require.NoError(t, err)
 		require.Nil(t, asr)
 	})
@@ -107,6 +107,17 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 				Config: map[string]interface{}{
 					"bind_address": "0.0.0.0",
 					"bind_port":    3000,
+				},
+			},
+			Checks: api.AgentServiceChecks{
+				{
+					Name:     "Connect Sidecar Listening",
+					TCP:      "192.168.30.1:3000",
+					Interval: "10s",
+				},
+				{
+					Name:         "Connect Sidecar Aliasing redis-service-id",
+					AliasService: "redis-service-id",
 				},
 			},
 		}, proxy)
