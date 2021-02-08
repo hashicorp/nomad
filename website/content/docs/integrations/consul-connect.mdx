@@ -255,7 +255,8 @@ any ports in its network. The service stanza enables Connect:
 
 The `port` in the service stanza is the port the API service listens on. The
 Envoy proxy will automatically route traffic to that port inside the network
-namespace.
+namespace. Note that this cannot be a named port; it must be a hard-coded port
+value.
 
 ### Web Frontend
 
