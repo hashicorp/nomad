@@ -149,21 +149,6 @@ func AllocStatuses(jobID, ns string) ([]string, error) {
 	return statuses, nil
 }
 
-// AllocStatuses returns a slice of client statuses
-func AllocTaskEvents(jobID, ns string) ([]string, error) {
-
-	allocs, err := AllocsForJob(jobID, ns)
-	if err != nil {
-		return nil, err
-	}
-
-	statuses := []string{}
-	for _, alloc := range allocs {
-		statuses = append(statuses, alloc["Status"])
-	}
-	return statuses, nil
-}
-
 // AllocStatusesRescheduled is a helper function that pulls
 // out client statuses only from rescheduled allocs.
 func AllocStatusesRescheduled(jobID, ns string) ([]string, error) {

@@ -1,5 +1,12 @@
 job "test" {
   datacenters = ["dc1"]
+  type        = "service"
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
 
   group "test" {
     count = 3

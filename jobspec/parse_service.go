@@ -859,7 +859,6 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"task",
 			"success_before_passing",
 			"failures_before_critical",
-			"on_update",
 		}
 		if err := checkHCLKeys(co.Val, valid); err != nil {
 			return multierror.Prefix(err, "check ->")

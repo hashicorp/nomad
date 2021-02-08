@@ -177,8 +177,8 @@ Connect][connect] integration.
   evaluated when determining deployment health (including a job's initial
   deployment). This allows job submitters to define certain checks as readiness
   checks, progressing a deployment even if the Service's checks are not yet
-  healthy. Checks inherit the Servie's value by default. The check status is
-  not altered in Consul and is only used to determine the checks health during
+  healthy. Checks inherit the Service's value by default. The check status is
+  not altered in Consul and is only used to determine the check's health during
   an update.
 
   - `require_healthy` - In order for Nomad to consider the check healthy during
@@ -308,8 +308,8 @@ scripts.
   evaluated when determining deployment health (including a job's initial
   deployment). This allows job submitters to define certain checks as readiness
   checks, progressing a deployment even if the Service's checks are not yet
-  healthy. Checks inherit the Servie's value by default. The check status is
-  not altered in Consul and is only used to determine the checks health during
+  healthy. Checks inherit the Service's value by default. The check status is
+  not altered in Consul and is only used to determine the check's health during
   an update.
 
   - `require_healthy` - In order for Nomad to consider the check healthy during
@@ -509,6 +509,8 @@ checks by configuring [`on_update`][on_update] for the check.
 
 ```hcl
 service {
+  # This is a liveness check that will be used to verify the service
+  # is up and able to serve traffic
   check {
     name     = "tcp_validate"
     type     = "tcp"
@@ -517,6 +519,9 @@ service {
     timeout  = "2s"
   }
 
+  # This is a readiness check that is used to verify that, for example, the
+  # application has elected a leader between allocations. Warnings from
+  # this check will be ignored during updates.
   check {
     name      = "leader-check"
     type      = "script"
