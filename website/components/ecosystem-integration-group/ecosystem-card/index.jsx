@@ -4,6 +4,7 @@ import SmartLink from 'components/smart-link'
 
 export default function EcosystemCard({
   companyName,
+  integrationType,
   integrationUrl,
   companyLogoUrl,
 }) {
@@ -17,7 +18,10 @@ export default function EcosystemCard({
       <div className="logo">
         <Image url={companyLogoUrl} alt={`${companyName} Logo`} />
       </div>
-      <div className="integration-label">{companyName}</div>
+      <div className={s.integrationTypeLabel}>
+        <span>{integrationType}</span>
+        <span> integration</span>
+      </div>
     </SmartLink>
   )
 }

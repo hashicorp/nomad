@@ -70,10 +70,21 @@
     font-size: 15px;
     overflow: hidden;
     text-align: center;
-    white-space: nowrap;
+.integrationTypeLabel {
+  color: var(--gray-4);
+  background-color: var(--gray-7);
+  border-top: 1px solid var(--gray-6);
+  font-size: 13px;
+  line-height: 1;
+  padding: 10px 0 12px;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
 
+  & > span:last-child {
     @media (max-width: 512px) {
       display: none;
     }
   }
 }
+}}
