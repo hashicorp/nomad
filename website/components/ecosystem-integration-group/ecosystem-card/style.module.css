@@ -1,0 +1,79 @@
+.ecosystemCard {
+  border: 1px solid var(--DEPRECATED-gray-8);
+  border-radius: 2px;
+  display: block;
+  margin: 8px;
+  overflow: hidden;
+  padding: 20px;
+  transition: box-shadow 0.25s, transform 0.25s;
+
+  @media (max-width: 768px) {
+    margin: 8px;
+    padding: 16px 16px 44px;
+  }
+
+  @media (max-width: 512px) {
+    padding: 16px;
+  }
+
+  &:focus {
+    outline: 0;
+  }
+
+  &[href]:hover {
+    box-shadow: 0 16px 28px rgba(37, 38, 45, 0.12);
+    cursor: pointer;
+    transform: translateY(-4px);
+  }
+
+  & .logo {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    height: 80px;
+    justify-content: center;
+
+    @media (max-width: 1024px) {
+      height: 116px;
+    }
+
+    @media (max-width: 512px) {
+      height: 42px;
+    }
+
+    & picture {
+      align-items: center;
+      display: flex;
+      height: 100%;
+      justify-content: center;
+      width: 100%;
+
+      & img {
+        margin: 0 auto;
+      }
+    }
+
+    & img {
+      display: block;
+      max-height: 70%;
+      max-width: 70%;
+
+      @media (max-width: 768px) {
+        max-height: 100%;
+        max-width: 100%;
+      }
+    }
+  }
+
+  & .integration-label {
+    color: var(--gray-3);
+    font-size: 15px;
+    overflow: hidden;
+    text-align: center;
+    white-space: nowrap;
+
+    @media (max-width: 512px) {
+      display: none;
+    }
+  }
+}
