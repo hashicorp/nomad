@@ -119,7 +119,7 @@ This also applies for running Nomad in -dev mode.
  or `"host"` to disable isolation.
 
 !> **Warning:** If set to `"host"`, other processes running as the same user will be
- able to make use of IPC features, like sending unexpected posix signals.
+ able to make use of IPC features, like sending unexpected POSIX signals.
 
 - `no_pivot_root` `(bool: optional)` - Defaults to `false`. When `true`, the driver uses `chroot`
   for file system isolation without `pivot_root`. This is useful for systems
