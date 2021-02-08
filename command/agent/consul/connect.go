@@ -100,7 +100,7 @@ func connectSidecarRegistration(serviceId string, serviceName string, css *struc
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return &api.AgentServiceRegistration{
 		Tags:    helper.CopySliceString(css.Tags),
 		Port:    cPort.Value,
@@ -108,7 +108,7 @@ func connectSidecarRegistration(serviceId string, serviceName string, css *struc
 		Proxy:   proxy,
 		Checks: api.AgentServiceChecks{
 			{
-				Name:     "Connect Sidecar Listening",
+				Name: 	  "Connect Sidecar Listening",
 				TCP:      ipaddr.FormatAddressPort(cNet.IP, cPort.Value),
 				Interval: "10s",
 			},

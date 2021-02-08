@@ -27,13 +27,13 @@ func TestConnect_newConnect(t *testing.T) {
 	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
-		asr, err := newConnect("", nil, nil)
+		asr, err := newConnect("","", nil, nil)
 		require.NoError(t, err)
 		require.Nil(t, asr)
 	})
 
 	t.Run("native", func(t *testing.T) {
-		asr, err := newConnect("", &structs.ConsulConnect{
+		asr, err := newConnect("", "", &structs.ConsulConnect{
 			Native: true,
 		}, nil)
 		require.NoError(t, err)
@@ -42,7 +42,7 @@ func TestConnect_newConnect(t *testing.T) {
 	})
 
 	t.Run("with sidecar", func(t *testing.T) {
-		asr, err := newConnect("redis", &structs.ConsulConnect{
+		asr, err := newConnect("redis-service-id", "redis", &structs.ConsulConnect{
 			Native: false,
 			SidecarService: &structs.ConsulSidecarService{
 				Tags: []string{"foo", "bar"},
@@ -68,20 +68,20 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
-		sidecarReg, err := connectSidecarRegistration("", nil, testConnectNetwork)
+		sidecarReg, err := connectSidecarRegistration("", "", nil, testConnectNetwork)
 		require.NoError(t, err)
 		require.Nil(t, sidecarReg)
 	})
 
 	t.Run("no service port", func(t *testing.T) {
-		_, err := connectSidecarRegistration("unknown", &structs.ConsulSidecarService{
+		_, err := connectSidecarRegistration("unknown-id", "unknown", &structs.ConsulSidecarService{
 			// irrelevant
 		}, testConnectNetwork)
 		require.EqualError(t, err, `No Connect port defined for service "unknown"`)
 	})
 
 	t.Run("bad proxy", func(t *testing.T) {
-		_, err := connectSidecarRegistration("redis", &structs.ConsulSidecarService{
+		_, err := connectSidecarRegistration("redis-service-id", "redis", &structs.ConsulSidecarService{
 			Proxy: &structs.ConsulProxy{
 				Expose: &structs.ConsulExposeConfig{
 					Paths: []structs.ConsulExposePath{{
@@ -94,7 +94,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 	})
 
 	t.Run("normal", func(t *testing.T) {
-		proxy, err := connectSidecarRegistration("redis", &structs.ConsulSidecarService{
+		proxy, err := connectSidecarRegistration("redis-service-id", "redis", &structs.ConsulSidecarService{
 			Tags: []string{"foo", "bar"},
 			Port: "sidecarPort",
 		}, testConnectNetwork)
