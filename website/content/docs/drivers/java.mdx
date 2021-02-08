@@ -109,6 +109,22 @@ The `java` driver implements the following [capabilities](/docs/internals/plugin
 | network isolation    | host, group                   |
 | volume mounting      | none, all (only for linux)    |
 
+## Plugin Options
+
+- `default_pid_mode` `(string: optional)` - Defaults to `"private"`. Set to
+ `"private"` to enable PID namespace isolation for tasks by default, or `"host"` to
+ disable isolation.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will
+ be able to access sensitive process information like environment variables.
+
+- `default_ipc_mode` `(string: optional)` - Defaults to `"private"`. Set to
+`"private"` to enable IPC namespace isolation for tasks by default,
+ or `"host"` to disable isolation.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will be
+ able to make use of IPC features, like sending unexpected POSIX signals.
+
 ## Client Requirements
 
 The `java` driver requires Java to be installed and in your system's `$PATH`. On

@@ -562,6 +562,17 @@ func supportedCaps() []string {
 	return allCaps
 }
 
+func configureNamespaces(pidMode, ipcMode string) lconfigs.Namespaces {
+	namespaces := lconfigs.Namespaces{{Type: lconfigs.NEWNS}}
+	if pidMode == IsolationModePrivate {
+		namespaces = append(namespaces, lconfigs.Namespace{Type: lconfigs.NEWPID})
+	}
+	if ipcMode == IsolationModePrivate {
+		namespaces = append(namespaces, lconfigs.Namespace{Type: lconfigs.NEWIPC})
+	}
+	return namespaces
+}
+
 // configureIsolation prepares the isolation primitives of the container.
 // The process runs in a container configured with the following:
 //
@@ -578,12 +589,8 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	// disable pivot_root if set in the driver's configuration
 	cfg.NoPivotRoot = command.NoPivotRoot
 
-	// launch with mount namespace
-	cfg.Namespaces = lconfigs.Namespaces{
-		{Type: lconfigs.NEWNS},
-		{Type: lconfigs.NEWPID},
-		{Type: lconfigs.NEWIPC},
-	}
+	// set up default namespaces as configured
+	cfg.Namespaces = configureNamespaces(command.DefaultModePID, command.DefaultModeIPC)
 
 	if command.NetworkIsolation != nil {
 		cfg.Namespaces = append(cfg.Namespaces, lconfigs.Namespace{

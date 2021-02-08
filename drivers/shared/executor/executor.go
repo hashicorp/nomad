@@ -34,6 +34,12 @@ const (
 	// ExecutorVersionPre0_9 is the version of executor use prior to the release
 	// of 0.9.x
 	ExecutorVersionPre0_9 = "1.1.0"
+
+	// IsolationModePrivate represents the private isolation mode for a namespace
+	IsolationModePrivate = "private"
+
+	// IsolationModeHost represents the host isolation mode for a namespace
+	IsolationModeHost = "host"
 )
 
 var (
@@ -132,7 +138,14 @@ type ExecCommand struct {
 	// Devices are the the device nodes to be created in isolation environment
 	Devices []*drivers.DeviceConfig
 
+	// NetworkIsolation is the network isolation configuration.
 	NetworkIsolation *drivers.NetworkIsolationSpec
+
+	// DefaultModePID is the default PID isolation mode
+	DefaultModePID string
+
+	// DefaultModeIPC is the default IPC isolation mode
+	DefaultModeIPC string
 }
 
 // SetWriters sets the writer for the process stdout and stderr. This should

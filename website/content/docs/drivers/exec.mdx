@@ -107,7 +107,21 @@ This also applies for running Nomad in -dev mode.
 
 ## Plugin Options
 
-- `no_pivot_root` - Defaults to `false`. When `true`, the driver uses `chroot`
+- `default_pid_mode` `(string: optional)` - Defaults to `"private"`. Set to
+ `"private"` to enable PID namespace isolation for tasks by default, or `"host"` to
+ disable isolation.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will
+ be able to access sensitive process information like environment variables.
+
+- `default_ipc_mode` `(string: optional)` - Defaults to `"private"`. Set to
+`"private"` to enable IPC namespace isolation for tasks by default,
+ or `"host"` to disable isolation.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will be
+ able to make use of IPC features, like sending unexpected POSIX signals.
+
+- `no_pivot_root` `(bool: optional)` - Defaults to `false`. When `true`, the driver uses `chroot`
   for file system isolation without `pivot_root`. This is useful for systems
   where the root is on a ramdisk.
 

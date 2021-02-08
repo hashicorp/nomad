@@ -87,9 +87,39 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 	return testCmd
 }
 
-func TestExecutor_IsolationAndConstraints(t *testing.T) {
+func TestExecutor_configureNamespaces(t *testing.T) {
+	t.Run("host host", func(t *testing.T) {
+		require.Equal(t, lconfigs.Namespaces{
+			{Type: lconfigs.NEWNS},
+		}, configureNamespaces("host", "host"))
+	})
+
+	t.Run("host private", func(t *testing.T) {
+		require.Equal(t, lconfigs.Namespaces{
+			{Type: lconfigs.NEWNS},
+			{Type: lconfigs.NEWIPC},
+		}, configureNamespaces("host", "private"))
+	})
+
+	t.Run("private host", func(t *testing.T) {
+		require.Equal(t, lconfigs.Namespaces{
+			{Type: lconfigs.NEWNS},
+			{Type: lconfigs.NEWPID},
+		}, configureNamespaces("private", "host"))
+	})
+
+	t.Run("private private", func(t *testing.T) {
+		require.Equal(t, lconfigs.Namespaces{
+			{Type: lconfigs.NEWNS},
+			{Type: lconfigs.NEWPID},
+			{Type: lconfigs.NEWIPC},
+		}, configureNamespaces("private", "private"))
+	})
+}
+
+func TestExecutor_Isolation_PID_and_IPC_hostMode(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
+	r := require.New(t)
 	testutil.ExecCompatible(t)
 
 	testExecCmd := testExecutorCommandWithChroot(t)
@@ -99,43 +129,85 @@ func TestExecutor_IsolationAndConstraints(t *testing.T) {
 	defer allocDir.Destroy()
 
 	execCmd.ResourceLimits = true
+	execCmd.DefaultModePID = "host" // disable PID namespace
+	execCmd.DefaultModeIPC = "host" // disable IPC namespace
 
 	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
-	require.NoError(err)
-	require.NotZero(ps.Pid)
+	r.NoError(err)
+	r.NotZero(ps.Pid)
 
 	estate, err := executor.Wait(context.Background())
-	require.NoError(err)
-	require.Zero(estate.ExitCode)
+	r.NoError(err)
+	r.Zero(estate.ExitCode)
 
 	lexec, ok := executor.(*LibcontainerExecutor)
-	require.True(ok)
-
-	// Check if the resource constraints were applied
-	state, err := lexec.container.State()
-	require.NoError(err)
-
-	memLimits := filepath.Join(state.CgroupPaths["memory"], "memory.limit_in_bytes")
-	data, err := ioutil.ReadFile(memLimits)
-	require.NoError(err)
-
-	expectedMemLim := strconv.Itoa(int(execCmd.Resources.NomadResources.Memory.MemoryMB * 1024 * 1024))
-	actualMemLim := strings.TrimSpace(string(data))
-	require.Equal(actualMemLim, expectedMemLim)
+	r.True(ok)
 
 	// Check that namespaces were applied to the container config
 	config := lexec.container.Config()
-	require.NoError(err)
 
-	require.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWNS})
-	require.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWPID})
-	require.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWIPC})
+	r.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWNS})
+	r.NotContains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWPID})
+	r.NotContains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWIPC})
 
 	// Shut down executor
-	require.NoError(executor.Shutdown("", 0))
+	r.NoError(executor.Shutdown("", 0))
+	executor.Wait(context.Background())
+}
+
+func TestExecutor_IsolationAndConstraints(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+	testutil.ExecCompatible(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "/bin/ls"
+	execCmd.Args = []string{"-F", "/", "/etc/"}
+	defer allocDir.Destroy()
+
+	execCmd.ResourceLimits = true
+	execCmd.DefaultModePID = "private"
+	execCmd.DefaultModeIPC = "private"
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	defer executor.Shutdown("SIGKILL", 0)
+
+	ps, err := executor.Launch(execCmd)
+	r.NoError(err)
+	r.NotZero(ps.Pid)
+
+	estate, err := executor.Wait(context.Background())
+	r.NoError(err)
+	r.Zero(estate.ExitCode)
+
+	lexec, ok := executor.(*LibcontainerExecutor)
+	r.True(ok)
+
+	// Check if the resource constraints were applied
+	state, err := lexec.container.State()
+	r.NoError(err)
+
+	memLimits := filepath.Join(state.CgroupPaths["memory"], "memory.limit_in_bytes")
+	data, err := ioutil.ReadFile(memLimits)
+	r.NoError(err)
+
+	expectedMemLim := strconv.Itoa(int(execCmd.Resources.NomadResources.Memory.MemoryMB * 1024 * 1024))
+	actualMemLim := strings.TrimSpace(string(data))
+	r.Equal(actualMemLim, expectedMemLim)
+
+	// Check that namespaces were applied to the container config
+	config := lexec.container.Config()
+
+	r.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWNS})
+	r.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWPID})
+	r.Contains(config.Namespaces, lconfigs.Namespace{Type: lconfigs.NEWIPC})
+
+	// Shut down executor
+	r.NoError(executor.Shutdown("", 0))
 	executor.Wait(context.Background())
 
 	// Check if Nomad has actually removed the cgroups
