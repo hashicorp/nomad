@@ -3,9 +3,9 @@ import HomepageHero from 'components/homepage-hero'
 import CaseStudyCarousel from 'components/case-study-carousel'
 import UseCases from '@hashicorp/react-use-cases'
 import MiniCTA from 'components/mini-cta'
-import NomadEnterpriseInfo from 'components/enterprise-info/nomad'
 import LearnNomad from 'components/learn-nomad'
 import CallToAction from '@hashicorp/react-call-to-action'
+import ComparisonCallouts from 'components/comparison-callouts'
 
 export default function Homepage() {
   return (
@@ -364,7 +364,16 @@ export default function Homepage() {
         ]}
       />
 
-      <NomadEnterpriseInfo />
+      <ComparisonCallouts
+        heading="Heading"
+        details="Details."
+        detailCta={{
+          title: 'Detail CTA',
+          url: 'https://nomadproject.io',
+        }}
+        itemOne="item One"
+        itemTwo="item Two"
+      />
 
       <CallToAction
         variant="compact"

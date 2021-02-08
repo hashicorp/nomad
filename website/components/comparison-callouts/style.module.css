@@ -1,0 +1,16 @@
+.comparisonCallouts {
+  width: 100%;
+}
+
+.content {
+  composes: g-grid-container from global;
+}
+
+.description {
+  text-align: center;
+  margin-bottom: 64px;
+}
+
+.details {
+  margin: 0 auto;
+}
