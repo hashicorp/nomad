@@ -8776,11 +8776,13 @@ type DeploymentState struct {
 	AutoPromote bool
 
 	// ProgressDeadline is the deadline by which an allocation must transition
-	// to healthy before the deployment is considered failed.
+	// to healthy before the deployment is considered failed. This value is set
+	// by the jobspec `update.progress_deadline` field.
 	ProgressDeadline time.Duration
 
-	// RequireProgressBy is the time by which an allocation must transition
-	// to healthy before the deployment is considered failed.
+	// RequireProgressBy is the time by which an allocation must transition to
+	// healthy before the deployment is considered failed. This value is reset
+	// to "now" + ProgressDeadline when an allocation updates the deployment.
 	RequireProgressBy time.Time
 
 	// Promoted marks whether the canaries have been promoted
