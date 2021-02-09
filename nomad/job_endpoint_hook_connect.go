@@ -249,7 +249,7 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 
 			// create a port for the sidecar task's proxy port
 			portLabel := service.Connect.SidecarService.Port
-			if portLabel != "" {
+			if portLabel == "" {
 				portLabel = fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name)
 			}
 			injectPort(g, portLabel)

@@ -22,10 +22,10 @@ var (
 		},
 	}}
 	testConnectPorts = structs.AllocatedPorts{{
-		Label  = "connect-proxy-redis"
-		Value  = 3000,
-		To     = 3000,
-		HostIP = "192.168.30.1",
+		Label:  "connect-proxy-redis",
+		Value:  3000,
+		To:     3000,
+		HostIP: "192.168.30.1",
 	}}
 )
 
