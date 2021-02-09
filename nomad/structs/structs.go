@@ -2602,24 +2602,6 @@ func (n *NetworkResource) PortLabels() map[string]int {
 	return labelValues
 }
 
-// ConnectPort returns the Connect port for the given service. Returns false if
-// no port was found for a service with that name.
-func (n *NetworkResource) PortForService(serviceName string) (Port, bool) {
-	label := fmt.Sprintf("%s-%s", ConnectProxyPrefix, serviceName)
-	for _, port := range n.ReservedPorts {
-		if port.Label == label {
-			return port, true
-		}
-	}
-	for _, port := range n.DynamicPorts {
-		if port.Label == label {
-			return port, true
-		}
-	}
-
-	return Port{}, false
-}
-
 // Networks defined for a task on the Resources struct.
 type Networks []*NetworkResource
 
@@ -2636,20 +2618,30 @@ func (ns Networks) Copy() Networks {
 }
 
 // Port assignment and IP for the given label or empty values.
-func (ns Networks) Port(label string) (string, int) {
+func (ns Networks) Port(label string) AllocatedPortMapping {
 	for _, n := range ns {
 		for _, p := range n.ReservedPorts {
 			if p.Label == label {
-				return n.IP, p.Value
+				return AllocatedPortMapping{
+					Label:  label,
+					Value:  p.Value,
+					To:     p.To,
+					HostIP: n.IP,
+				}
 			}
 		}
 		for _, p := range n.DynamicPorts {
 			if p.Label == label {
-				return n.IP, p.Value
+				return AllocatedPortMapping{
+					Label:  label,
+					Value:  p.Value,
+					To:     p.To,
+					HostIP: n.IP,
+				}
 			}
 		}
 	}
-	return "", 0
+	return AllocatedPortMapping{}
 }
 
 func (ns Networks) NetIndex(n *NetworkResource) int {
