@@ -362,19 +362,26 @@ func TestConnect_getConnectPort(t *testing.T) {
 			To:    23456,
 		}}}}
 
+	ports = structs.AllocatedPorts{{
+		Label:  "foo",
+		Value:  23456,
+		To:     23456,
+		HostIP: "192.168.30.1",
+	}}
+
 	t.Run("normal", func(t *testing.T) {
-		nr, err := connectPort("foo", networks)
+		nr, err := connectPort("foo", networks, ports)
 		require.NoError(t, err)
-		require.Equal(t, structs.Port{
-			Label: "connect-proxy-foo",
-			Value: 23456,
-			To:    23456,
-		}, nr.Value)
-		require.Equal(t, "192.168.30.1", nr.HostIP)
+		require.Equal(t, structs.AllocatedPortMapping{
+			Label:  "foo",
+			Value:  23456,
+			To:     23456,
+			HostIP: "192.168.30.1",
+		}, nr)
 	})
 
 	t.Run("no such service", func(t *testing.T) {
-		_, err := connectPort("other", networks)
+		_, err := connectPort("other", networks, ports)
 		require.EqualError(t, err, `No Connect port defined for service "other"`)
 	})
 
