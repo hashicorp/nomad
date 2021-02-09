@@ -13,34 +13,6 @@ func TestJobExposeCheckHook_Name(t *testing.T) {
 	require.Equal(t, "expose-check", new(jobExposeCheckHook).Name())
 }
 
-func TestJobExposeCheckHook_serviceUsesConnectEnvoy(t *testing.T) {
-	t.Parallel()
-
-	t.Run("connect is nil", func(t *testing.T) {
-		require.False(t, serviceUsesConnectEnvoy(&structs.Service{
-			Connect: nil,
-		}))
-	})
-
-	t.Run("sidecar-task is overridden", func(t *testing.T) {
-		require.False(t, serviceUsesConnectEnvoy(&structs.Service{
-			Connect: &structs.ConsulConnect{
-				SidecarTask: &structs.SidecarTask{
-					Name: "my-sidecar",
-				},
-			},
-		}))
-	})
-
-	t.Run("sidecar-task is nil", func(t *testing.T) {
-		require.True(t, serviceUsesConnectEnvoy(&structs.Service{
-			Connect: &structs.ConsulConnect{
-				SidecarTask: nil,
-			},
-		}))
-	})
-}
-
 func TestJobExposeCheckHook_tgUsesExposeCheck(t *testing.T) {
 	t.Parallel()
 
@@ -135,7 +107,7 @@ func TestJobExposeCheckHook_tgValidateUseOfCheckExpose(t *testing.T) {
 		require.EqualError(t, tgValidateUseOfCheckExpose(&structs.TaskGroup{
 			Name:     "g1",
 			Services: []*structs.Service{withCustomProxyTask},
-		}), `exposed service check g1->s1->s1-check1 requires use of Nomad's builtin Connect proxy`)
+		}), `exposed service check g1->s1->s1-check1 requires use of sidecar_proxy`)
 	})
 
 	t.Run("group-service uses custom proxy but no expose", func(t *testing.T) {
@@ -223,8 +195,10 @@ func TestJobExposeCheckHook_Validate(t *testing.T) {
 					Mode: "bridge",
 				}},
 				Services: []*structs.Service{{
-					Name:    "s1",
-					Connect: &structs.ConsulConnect{},
+					Name: "s1",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{},
+					},
 					Checks: []*structs.ServiceCheck{{
 						Name:   "check1",
 						Type:   "http",
