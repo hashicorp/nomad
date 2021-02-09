@@ -21,13 +21,19 @@ var (
 			{Label: "connect-proxy-redis", Value: 3000, To: 3000},
 		},
 	}}
+	testConnectPorts = structs.AllocatedPorts{{
+		Label  = "connect-proxy-redis"
+		Value  = 3000,
+		To     = 3000,
+		HostIP = "192.168.30.1",
+	}}
 )
 
 func TestConnect_newConnect(t *testing.T) {
 	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
-		asr, err := newConnect("", "", nil, nil)
+		asr, err := newConnect("", "", nil, nil, nil)
 		require.NoError(t, err)
 		require.Nil(t, asr)
 	})
@@ -35,7 +41,7 @@ func TestConnect_newConnect(t *testing.T) {
 	t.Run("native", func(t *testing.T) {
 		asr, err := newConnect("", "", &structs.ConsulConnect{
 			Native: true,
-		}, nil)
+		}, nil, nil)
 		require.NoError(t, err)
 		require.True(t, asr.Native)
 		require.Nil(t, asr.SidecarService)
@@ -48,7 +54,7 @@ func TestConnect_newConnect(t *testing.T) {
 				Tags: []string{"foo", "bar"},
 				Port: "sidecarPort",
 			},
-		}, testConnectNetwork)
+		}, testConnectNetwork, testConnectPorts)
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceRegistration{
 			Tags:    []string{"foo", "bar"},
@@ -79,7 +85,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
-		sidecarReg, err := connectSidecarRegistration("", "", nil, testConnectNetwork)
+		sidecarReg, err := connectSidecarRegistration("", "", nil, testConnectNetwork, testConnectPorts)
 		require.NoError(t, err)
 		require.Nil(t, sidecarReg)
 	})
@@ -87,7 +93,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 	t.Run("no service port", func(t *testing.T) {
 		_, err := connectSidecarRegistration("unknown-id", "unknown", &structs.ConsulSidecarService{
 			// irrelevant
-		}, testConnectNetwork)
+		}, testConnectNetwork, testConnectPorts)
 		require.EqualError(t, err, `No Connect port defined for service "unknown"`)
 	})
 
@@ -100,7 +106,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 					}},
 				},
 			},
-		}, testConnectNetwork)
+		}, testConnectNetwork, testConnectPorts)
 		require.EqualError(t, err, `No port of label "badPort" defined`)
 	})
 
@@ -108,7 +114,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 		proxy, err := connectSidecarRegistration("redis-service-id", "redis", &structs.ConsulSidecarService{
 			Tags: []string{"foo", "bar"},
 			Port: "sidecarPort",
-		}, testConnectNetwork)
+		}, testConnectNetwork, testConnectPorts)
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceRegistration{
 			Tags:    []string{"foo", "bar"},
