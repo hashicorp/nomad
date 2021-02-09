@@ -102,9 +102,9 @@ func tgValidateUseOfCheckExpose(tg *structs.TaskGroup) error {
 	// validation for group services (which must use built-in connect proxy)
 	for _, s := range tg.Services {
 		for _, check := range s.Checks {
-			if check.Expose && !serviceUsesConnectEnvoy(s) {
+			if check.Expose && !s.Connect.HasSidecar() {
 				return errors.Errorf(
-					"exposed service check %s->%s->%s requires use of Nomad's builtin Connect proxy",
+					"exposed service check %s->%s->%s requires use of sidecar_proxy",
 					tg.Name, s.Name, check.Name,
 				)
 			}
@@ -153,29 +153,6 @@ func tgUsesExposeCheck(tg *structs.TaskGroup) bool {
 		}
 	}
 	return false
-}
-
-// serviceUsesConnectEnvoy returns true if the service is going to end up using
-// the built-in envoy proxy.
-//
-// This implementation is kind of reading tea leaves - firstly Connect
-// must be enabled, and second the sidecar_task must not be overridden. If these
-// conditions are met, the preceding connect hook will have injected a Connect
-// sidecar task, the configuration of which is interpolated at runtime.
-func serviceUsesConnectEnvoy(s *structs.Service) bool {
-	// A non-nil connect stanza implies this service isn't connect enabled in
-	// the first place.
-	if s.Connect == nil {
-		return false
-	}
-
-	// A non-nil connect.sidecar_task stanza implies the sidecar task is being
-	// overridden (i.e. the default Envoy is not being used).
-	if s.Connect.SidecarTask != nil {
-		return false
-	}
-
-	return true
 }
 
 // checkIsExposable returns true if check is qualified for automatic generation
