@@ -85,20 +85,20 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
-		sidecarReg, err := connectSidecarRegistration("", "", nil, testConnectNetwork, testConnectPorts)
+		sidecarReg, err := connectSidecarRegistration("", nil, testConnectNetwork, testConnectPorts)
 		require.NoError(t, err)
 		require.Nil(t, sidecarReg)
 	})
 
 	t.Run("no service port", func(t *testing.T) {
-		_, err := connectSidecarRegistration("unknown-id", "unknown", &structs.ConsulSidecarService{
+		_, err := connectSidecarRegistration("unknown-id", &structs.ConsulSidecarService{
 			// irrelevant
 		}, testConnectNetwork, testConnectPorts)
-		require.EqualError(t, err, `No Connect port defined for service "unknown"`)
+		require.EqualError(t, err, `No Connect port defined`)
 	})
 
 	t.Run("bad proxy", func(t *testing.T) {
-		_, err := connectSidecarRegistration("redis-service-id", "redis", &structs.ConsulSidecarService{
+		_, err := connectSidecarRegistration("redis-service-id", &structs.ConsulSidecarService{
 			Proxy: &structs.ConsulProxy{
 				Expose: &structs.ConsulExposeConfig{
 					Paths: []structs.ConsulExposePath{{
@@ -111,7 +111,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 	})
 
 	t.Run("normal", func(t *testing.T) {
-		proxy, err := connectSidecarRegistration("redis-service-id", "redis", &structs.ConsulSidecarService{
+		proxy, err := connectSidecarRegistration("redis-service-id", &structs.ConsulSidecarService{
 			Tags: []string{"foo", "bar"},
 			Port: "sidecarPort",
 		}, testConnectNetwork, testConnectPorts)
@@ -363,31 +363,31 @@ func TestConnect_getConnectPort(t *testing.T) {
 		}}}}
 
 	t.Run("normal", func(t *testing.T) {
-		nr, port, err := connectPort("foo", networks)
+		nr, err := connectPort("foo", networks)
 		require.NoError(t, err)
 		require.Equal(t, structs.Port{
 			Label: "connect-proxy-foo",
 			Value: 23456,
 			To:    23456,
-		}, port)
-		require.Equal(t, "192.168.30.1", nr.IP)
+		}, nr.Value)
+		require.Equal(t, "192.168.30.1", nr.HostIP)
 	})
 
 	t.Run("no such service", func(t *testing.T) {
-		_, _, err := connectPort("other", networks)
+		_, err := connectPort("other", networks)
 		require.EqualError(t, err, `No Connect port defined for service "other"`)
 	})
 
 	t.Run("no network", func(t *testing.T) {
-		_, _, err := connectPort("foo", nil)
+		_, err := connectPort("foo", nil, nil)
 		require.EqualError(t, err, "Connect only supported with exactly 1 network (found 0)")
 	})
 
 	t.Run("multi network", func(t *testing.T) {
-		_, _, err := connectPort("foo", append(networks, &structs.NetworkResource{
+		_, err := connectPort("foo", append(networks, &structs.NetworkResource{
 			Device: "eth1",
 			IP:     "10.0.10.0",
-		}))
+		}), nil)
 		require.EqualError(t, err, "Connect only supported with exactly 1 network (found 2)")
 	})
 }
