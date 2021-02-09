@@ -114,7 +114,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 	t.Run("normal", func(t *testing.T) {
 		proxy, err := connectSidecarRegistration("redis-service-id", &structs.ConsulSidecarService{
 			Tags: []string{"foo", "bar"},
-			Port: "connext-proxy-redis",
+			Port: "connect-proxy-redis",
 		}, testConnectNetwork, testConnectPorts)
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceRegistration{
