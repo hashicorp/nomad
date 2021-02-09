@@ -590,7 +590,7 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	cfg.NoPivotRoot = command.NoPivotRoot
 
 	// set up default namespaces as configured
-	cfg.Namespaces = configureNamespaces(command.DefaultModePID, command.DefaultModeIPC)
+	cfg.Namespaces = configureNamespaces(command.ModePID, command.ModeIPC)
 
 	if command.NetworkIsolation != nil {
 		cfg.Namespaces = append(cfg.Namespaces, lconfigs.Namespace{

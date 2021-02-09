@@ -141,11 +141,11 @@ type ExecCommand struct {
 	// NetworkIsolation is the network isolation configuration.
 	NetworkIsolation *drivers.NetworkIsolationSpec
 
-	// DefaultModePID is the default PID isolation mode
-	DefaultModePID string
+	// ModePID is the PID isolation mode (private or host).
+	ModePID string
 
-	// DefaultModeIPC is the default IPC isolation mode
-	DefaultModeIPC string
+	// ModeIPC is the IPC isolation mode (private or host).
+	ModeIPC string
 }
 
 // SetWriters sets the writer for the process stdout and stderr. This should
