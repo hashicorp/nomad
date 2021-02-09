@@ -52,7 +52,7 @@ func TestConnect_newConnect(t *testing.T) {
 			Native: false,
 			SidecarService: &structs.ConsulSidecarService{
 				Tags: []string{"foo", "bar"},
-				Port: "sidecarPort",
+				Port: "connext-proxy-redis",
 			},
 		}, testConnectNetwork, testConnectPorts)
 		require.NoError(t, err)
@@ -94,11 +94,12 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 		_, err := connectSidecarRegistration("unknown-id", &structs.ConsulSidecarService{
 			Port: "unknown-label",
 		}, testConnectNetwork, testConnectPorts)
-		require.EqualError(t, err, `invalid port unknown-label: port label not found`)
+		require.EqualError(t, err, `invalid port "unknown-label": port label not found`)
 	})
 
 	t.Run("bad proxy", func(t *testing.T) {
 		_, err := connectSidecarRegistration("redis-service-id", &structs.ConsulSidecarService{
+			Port: "connext-proxy-redis",
 			Proxy: &structs.ConsulProxy{
 				Expose: &structs.ConsulExposeConfig{
 					Paths: []structs.ConsulExposePath{{
@@ -113,7 +114,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 	t.Run("normal", func(t *testing.T) {
 		proxy, err := connectSidecarRegistration("redis-service-id", &structs.ConsulSidecarService{
 			Tags: []string{"foo", "bar"},
-			Port: "sidecarPort",
+			Port: "connext-proxy-redis",
 		}, testConnectNetwork, testConnectPorts)
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceRegistration{
@@ -362,7 +363,7 @@ func TestConnect_getConnectPort(t *testing.T) {
 			To:    23456,
 		}}}}
 
-	ports = structs.AllocatedPorts{{
+	ports := structs.AllocatedPorts{{
 		Label:  "foo",
 		Value:  23456,
 		To:     23456,
@@ -382,7 +383,7 @@ func TestConnect_getConnectPort(t *testing.T) {
 
 	t.Run("no such service", func(t *testing.T) {
 		_, err := connectPort("other", networks, ports)
-		require.EqualError(t, err, `No Connect port defined for service "other"`)
+		require.EqualError(t, err, `invalid port "other": port label not found`)
 	})
 
 	t.Run("no network", func(t *testing.T) {
