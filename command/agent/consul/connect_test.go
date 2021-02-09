@@ -52,7 +52,7 @@ func TestConnect_newConnect(t *testing.T) {
 			Native: false,
 			SidecarService: &structs.ConsulSidecarService{
 				Tags: []string{"foo", "bar"},
-				Port: "connext-proxy-redis",
+				Port: "connect-proxy-redis",
 			},
 		}, testConnectNetwork, testConnectPorts)
 		require.NoError(t, err)
@@ -99,7 +99,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 
 	t.Run("bad proxy", func(t *testing.T) {
 		_, err := connectSidecarRegistration("redis-service-id", &structs.ConsulSidecarService{
-			Port: "connext-proxy-redis",
+			Port: "connect-proxy-redis",
 			Proxy: &structs.ConsulProxy{
 				Expose: &structs.ConsulExposeConfig{
 					Paths: []structs.ConsulExposePath{{
