@@ -5,8 +5,8 @@ FEATURES:
 
 IMPROVEMENTS:
  * cli: Improved `scaling policy` commands with -verbose, auto-completion, and prefix-matching [[GH-9964](https://github.com/hashicorp/nomad/issues/9964)]
- * consul/connect: Made handling of sidecar task container image URLs consistent with the `docker` task driver. [[GH-9580](https://github.com/hashicorp/nomad/issues/9580)]
  * consul/connect: Enable custom sidecar tasks to use connect expose checks [[GH-9995](https://github.com/hashicorp/nomad/pull/9995)]
+ * consul/connect: Made handling of sidecar task container image URLs consistent with the `docker` task driver. [[GH-9580](https://github.com/hashicorp/nomad/issues/9580)]
  * drivers/exec+java: Added client plugin configuration to re-enable previous PID/IPC namespace behavior [[GH-9982](https://github.com/hashicorp/nomad/pull/9982)]
 
 BUG FIXES:
