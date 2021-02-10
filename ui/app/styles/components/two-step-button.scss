@@ -5,6 +5,20 @@
   font-size: $body-size;
   line-height: 1;
 
+  &.has-inline-text {
+    display: inline-flex;
+    align-items: center;
+
+    button {
+      margin-left: 0.5ch;
+    }
+
+    .confirmation-text {
+      position: static;
+      margin-right: 0.5ch;
+    }
+  }
+
   .confirmation-text {
     position: absolute;
     left: 0;
@@ -18,23 +32,6 @@
     &.is-right-aligned {
       left: auto;
       right: 0;
-    }
-
-    &.has-text-inline {
-      top: unset;
-      bottom: 0;
-      padding-bottom: 6.462px;
-
-      left: 100%;
-      right: unset;
-      padding-left: 0.5rem;
-
-      &.is-right-aligned {
-        padding-left: 0;
-        padding-right: 0.5rem;
-        left: unset;
-        right: 100%;
-      }
     }
 
     &.inherit-color {
