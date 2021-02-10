@@ -24,4 +24,22 @@ export default class LatestDeployment extends Component {
     }
   })
   promote;
+
+  @task(function*() {
+    try {
+      yield this.get('job.latestDeployment.content').fail();
+    } catch (err) {
+      let message = messageFromAdapterError(err);
+
+      if (err instanceof ForbiddenError) {
+        message = 'Your ACL token does not grant permission to fail deployments.';
+      }
+
+      this.handleError({
+        title: 'Could Not Fail Deployment',
+        description: message,
+      });
+    }
+  })
+  fail;
 }

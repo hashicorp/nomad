@@ -5,6 +5,20 @@
   font-size: $body-size;
   line-height: 1;
 
+  &.has-inline-text {
+    display: inline-flex;
+    align-items: center;
+
+    button {
+      margin-left: 0.5ch;
+    }
+
+    .confirmation-text {
+      position: static;
+      margin-right: 0.5ch;
+    }
+  }
+
   .confirmation-text {
     position: absolute;
     left: 0;

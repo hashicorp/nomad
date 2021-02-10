@@ -2,7 +2,7 @@
   <button
     data-test-idle-button
     type="button"
-    class="button {{if this.isInfoAction "is-warning" "is-danger is-outlined"}} is-important is-small"
+    class="button {{if this.classes.idleButton this.classes.idleButton "is-danger is-outlined"}} is-important is-small"
     disabled={{this.disabled}}
     onclick={{action "promptForConfirmation"}}>
     {{this.idleText}}
@@ -10,13 +10,13 @@
 {{else if this.isPendingConfirmation}}
   <span
     data-test-confirmation-message
-    class="confirmation-text {{if this.isInfoAction "inherit-color"}} {{if this.alignRight "is-right-aligned"}}">
+    class="confirmation-text {{this.classes.confirmationMessage}} {{if this.alignRight "is-right-aligned"}} {{if this.inlineText "has-text-inline"}}">
     {{this.confirmationMessage}}
   </span>
   <button
     data-test-cancel-button
     type="button"
-    class="button {{if this.isInfoAction "is-danger is-important" "is-dark"}} is-outlined is-small"
+    class="button is-outlined is-small {{if this.classes.cancelButton this.classes.cancelButton "is-dark"}}"
     disabled={{this.awaitingConfirmation}}
     onclick={{action (queue
       (action "setToIdle")
@@ -26,7 +26,7 @@
   </button>
   <button
     data-test-confirm-button
-    class="button {{if this.isInfoAction "is-warning" "is-danger"}} is-small {{if this.awaitingConfirmation "is-loading"}}"
+    class="button is-small {{if this.awaitingConfirmation "is-loading"}} {{if this.classes.confirmButton this.classes.confirmButton "is-danger"}}"
     disabled={{this.awaitingConfirmation}}
     onclick={{action "confirm"}}
     type="button">

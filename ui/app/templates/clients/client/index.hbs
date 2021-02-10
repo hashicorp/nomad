@@ -212,7 +212,11 @@
               <TwoStepButton
                 data-test-force
                 @alignRight={{true}}
-                @isInfoAction={{true}}
+                @classes={{hash
+                  idleButton="is-warning"
+                  confirmationMessage="inherit-color"
+                  cancelButton="is-danger is-important"
+                  confirmButton="is-warning"}}
                 @idleText="Force Drain"
                 @cancelText="Cancel"
                 @confirmText="Yes, Force Drain"
