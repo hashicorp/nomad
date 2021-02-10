@@ -23,7 +23,7 @@ function getLatestRecommendationSubmitTimeForJob(job) {
   return Math.max(...recommendations.mapBy('submitTime'));
 }
 
-module('Acceptance | optimize', function(hooks) {
+module('Acceptance | optimize!', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
