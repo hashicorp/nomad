@@ -245,13 +245,11 @@ task "task" {
 
   config {
     image = "redis:6.0"
-    mounts = [
-      {
-        type   = "bind"
-        source = "local"
-        target = "/etc/redis.d"
-      }
-    ]
+    mount {
+      type   = "bind"
+      source = "local"
+      target = "/etc/redis.d"
+    }
   }
 
   template {
