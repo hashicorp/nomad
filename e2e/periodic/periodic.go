@@ -48,15 +48,24 @@ func (tc *PeriodicTest) TestPeriodicDispatch_Basic(f *framework.F) {
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	// register job
-	e2eutil.Register(jobID, "periodic/input/simple.nomad")
+	require.NoError(t, e2eutil.Register(jobID, "periodic/input/simple.nomad"))
 
 	// force dispatch
 	require.NoError(t, e2eutil.PeriodicForce(jobID))
 
 	// Get the child job ID
-	childID, err := e2eutil.JobInspectTemplate(jobID, `{{with index . 1}}{{printf "%s" .ID}}{{end}}`)
-	require.NoError(t, err)
-	require.NotEmpty(t, childID)
+	testutil.WaitForResult(func() (bool, error) {
+		childID, err := e2eutil.JobInspectTemplate(jobID, `{{with index . 1}}{{printf "%s" .ID}}{{end}}`)
+		if err != nil {
+			return false, err
+		}
+		if childID != "" {
+			return true, nil
+		}
+		return false, fmt.Errorf("expected non-empty periodic child jobID for job %s", jobID)
+	}, func(err error) {
+		require.NoError(t, err)
+	})
 
 	testutil.WaitForResult(func() (bool, error) {
 		status, err := e2eutil.JobInspectTemplate(jobID, `{{with index . 1}}{{printf "%s" .Status}}{{end}}`)
