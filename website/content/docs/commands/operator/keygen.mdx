@@ -17,7 +17,7 @@ cryptographically strong pseudo-random number generator to generate the key.
 The resulting key is encoded in the [RFC4648] "URL and filename safe" base64
 alphabet. If you use another tool such as OpenSSL to generate the gossip key,
 you should pipe the input through the `base64(1)` command to ensure it is
-safely encoded. For example: `openssl rand 16 | base64`
+safely encoded. For example: `openssl rand 32 | base64`
 
 ## Usage
 
