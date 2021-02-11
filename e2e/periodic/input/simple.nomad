@@ -25,4 +25,3 @@ job "periodic" {
     }
   }
 }
-
