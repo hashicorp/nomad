@@ -8,11 +8,15 @@ export default function EcosystemCard({
   integrationUrl,
   companyLogoUrl,
 }) {
+  if (!['Partner', 'Community', 'HashiCorp'].includes(integrationType))
+    throw new Error(
+      'integrationType should be one of these: Partner, Community, or HashiCorp'
+    )
+
   return (
     <SmartLink
       className={s.ecosystemCard}
       href={integrationUrl}
-      as={integrationUrl}
       prefetch={false}
     >
       <div className={s.companyInfo}>

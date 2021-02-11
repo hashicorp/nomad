@@ -2,7 +2,6 @@ import Link from 'next/link'
 
 export default function SmartLink({
   href,
-  as,
   replace,
   scroll,
   shallow,
@@ -17,7 +16,6 @@ export default function SmartLink({
     return (
       <Link
         href={href}
-        as={as}
         replace={replace}
         scroll={scroll}
         shallow={shallow}
