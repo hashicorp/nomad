@@ -206,9 +206,7 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	// Check for drain mode
 	out, _, err := nodes.Info(nodeID, nil)
 	require.Nil(err)
-	if out.Drain {
-		t.Fatalf("drain mode should be off")
-	}
+	require.False(out.Drain)
 
 	// Toggle it on
 	spec := &DrainSpec{
@@ -221,9 +219,9 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
 	require.Nil(err)
-	if out.SchedulingEligibility != NodeSchedulingIneligible {
-		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, NodeSchedulingIneligible)
-	}
+	// NOTE: this is potentially flaky; drain may have already completed; if problems occur, switch to event stream
+	require.True(out.Drain)
+	require.Equal(NodeSchedulingIneligible, out.SchedulingEligibility)
 
 	// Toggle off again
 	drainOut, err = nodes.UpdateDrain(nodeID, nil, true, nil)
@@ -233,15 +231,9 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
 	require.Nil(err)
-	if out.Drain {
-		t.Fatalf("drain mode should be off")
-	}
-	if out.DrainStrategy != nil {
-		t.Fatalf("drain strategy should be unset")
-	}
-	if out.SchedulingEligibility != NodeSchedulingEligible {
-		t.Fatalf("should be eligible")
-	}
+	require.False(out.Drain)
+	require.Nil(out.DrainStrategy)
+	require.Equal(NodeSchedulingEligible, out.SchedulingEligibility)
 }
 
 func TestNodes_ToggleEligibility(t *testing.T) {

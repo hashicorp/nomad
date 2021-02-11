@@ -5483,7 +5483,11 @@ func TestNode_Canonicalize(t *testing.T) {
 	require.Equal(NodeSchedulingEligible, node.SchedulingEligibility)
 
 	node = &Node{
-		Drain: true,
+		DrainStrategy: &DrainStrategy{
+			DrainSpec: DrainSpec{
+				Deadline: 30000,
+			},
+		},
 	}
 	node.Canonicalize()
 	require.Equal(NodeSchedulingIneligible, node.SchedulingEligibility)

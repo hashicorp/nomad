@@ -715,7 +715,12 @@ func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
 	t.Parallel()
 	state := testStateStore(t)
 	node := mock.Node()
-	node.Drain = true
+	node.DrainStrategy = &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline:         0,
+			IgnoreSystemJobs: false,
+		},
+	}
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	snap, _ := state.Snapshot()
 

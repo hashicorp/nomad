@@ -255,7 +255,7 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]int
 		if node.Status != structs.NodeStatusReady {
 			continue
 		}
-		if node.Drain {
+		if node.DrainStrategy != nil {
 			continue
 		}
 		if node.SchedulingEligibility != structs.NodeSchedulingEligible {
@@ -327,7 +327,7 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]*struct
 			out[alloc.NodeID] = nil
 			continue
 		}
-		if structs.ShouldDrainNode(node.Status) || node.Drain {
+		if structs.ShouldDrainNode(node.Status) || node.DrainStrategy != nil {
 			out[alloc.NodeID] = node
 		}
 	}

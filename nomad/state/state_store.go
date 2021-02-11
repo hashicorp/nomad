@@ -832,7 +832,6 @@ func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
 					SetTimestamp(time.Unix(node.StatusUpdatedAt, 0))})
 		}
 
-		node.Drain = exist.Drain                                 // Retain the drain mode
 		node.SchedulingEligibility = exist.SchedulingEligibility // Retain the eligibility
 		node.DrainStrategy = exist.DrainStrategy                 // Retain the drain strategy
 	} else {
@@ -951,7 +950,8 @@ func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, update
 	return nil
 }
 
-// BatchUpdateNodeDrain is used to update the drain of a node set of nodes
+// BatchUpdateNodeDrain is used to update the drain of a node set of nodes.
+// This is only called when node drain is completed by the drainer.
 func (s *StateStore) BatchUpdateNodeDrain(msgType structs.MessageType, index uint64, updatedAt int64, updates map[string]*structs.DrainUpdate, events map[string]*structs.NodeEvent) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
@@ -966,9 +966,10 @@ func (s *StateStore) BatchUpdateNodeDrain(msgType structs.MessageType, index uin
 // UpdateNodeDrain is used to update the drain of a node
 func (s *StateStore) UpdateNodeDrain(msgType structs.MessageType, index uint64, nodeID string, drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
 
-	txn := s.db.WriteTxn(index)
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible, updatedAt, event); err != nil {
+
 		return err
 	}
 	return txn.Commit()
@@ -997,7 +998,6 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 	}
 
 	// Update the drain in the copy
-	copyNode.Drain = drain != nil // COMPAT: Remove in Nomad 0.10
 	copyNode.DrainStrategy = drain
 	if drain != nil {
 		copyNode.SchedulingEligibility = structs.NodeSchedulingIneligible

@@ -1051,8 +1051,7 @@ func TestSystemSched_NodeDrain_Down(t *testing.T) {
 	h := NewHarness(t)
 
 	// Register a draining node
-	node := mock.Node()
-	node.Drain = true
+	node := mock.DrainNode()
 	node.Status = structs.NodeStatusDown
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
@@ -1113,8 +1112,7 @@ func TestSystemSched_NodeDrain(t *testing.T) {
 	h := NewHarness(t)
 
 	// Register a draining node
-	node := mock.Node()
-	node.Drain = true
+	node := mock.DrainNode()
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Generate a fake job allocated on that node.
@@ -1708,9 +1706,8 @@ func TestSystemSched_PlanWithDrainedNode(t *testing.T) {
 	h := NewHarness(t)
 
 	// Register two nodes with two different classes
-	node := mock.Node()
+	node := mock.DrainNode()
 	node.NodeClass = "green"
-	node.Drain = true
 	node.ComputeClass()
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 

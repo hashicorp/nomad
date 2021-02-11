@@ -2996,8 +2996,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	h := NewHarness(t)
 
 	// Register a draining node
-	node := mock.Node()
-	node.Drain = true
+	node := mock.DrainNode()
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Create some nodes
@@ -3078,8 +3077,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 	h := NewHarness(t)
 
 	// Register a draining node
-	node := mock.Node()
-	node.Drain = true
+	node := mock.DrainNode()
 	node.Status = structs.NodeStatusDown
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
@@ -3211,7 +3209,7 @@ func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
 	}
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
-	node.Drain = true
+	node.DrainStrategy = mock.DrainNode().DrainStrategy
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Create a mock evaluation to deal with drain
@@ -4064,8 +4062,7 @@ func TestBatchSched_Run_LostAlloc(t *testing.T) {
 func TestBatchSched_Run_FailedAllocQueuedAllocations(t *testing.T) {
 	h := NewHarness(t)
 
-	node := mock.Node()
-	node.Drain = true
+	node := mock.DrainNode()
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Create a job
@@ -4119,8 +4116,7 @@ func TestBatchSched_ReRun_SuccessfullyFinishedAlloc(t *testing.T) {
 
 	// Create two nodes, one that is drained and has a successfully finished
 	// alloc and a fresh undrained one
-	node := mock.Node()
-	node.Drain = true
+	node := mock.DrainNode()
 	node2 := mock.Node()
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node2))
@@ -4329,8 +4325,7 @@ func TestBatchSched_NodeDrain_Running_OldJob(t *testing.T) {
 
 	// Create two nodes, one that is drained and has a successfully finished
 	// alloc and a fresh undrained one
-	node := mock.Node()
-	node.Drain = true
+	node := mock.DrainNode()
 	node2 := mock.Node()
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node2))
@@ -4401,8 +4396,7 @@ func TestBatchSched_NodeDrain_Complete(t *testing.T) {
 
 	// Create two nodes, one that is drained and has a successfully finished
 	// alloc and a fresh undrained one
-	node := mock.Node()
-	node.Drain = true
+	node := mock.DrainNode()
 	node2 := mock.Node()
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node2))
@@ -4754,8 +4748,7 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 	h := NewHarness(t)
 
 	// Register a draining node
-	node := mock.Node()
-	node.Drain = true
+	node := mock.DrainNode()
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Create an alloc on the draining node

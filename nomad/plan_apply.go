@@ -648,7 +648,7 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 		return false, "node is not ready for placements", nil
 	} else if node.SchedulingEligibility == structs.NodeSchedulingIneligible {
 		return false, "node is not eligible for draining", nil
-	} else if node.Drain {
+	} else if node.DrainStrategy != nil {
 		// Deprecate in favor of scheduling eligibility and remove post-0.8
 		return false, "node is draining", nil
 	}

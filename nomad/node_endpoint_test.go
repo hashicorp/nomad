@@ -914,7 +914,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
-	require.True(out.Drain)
+	require.NotNil(out.DrainStrategy)
 	require.Equal(strategy.Deadline, out.DrainStrategy.Deadline)
 	require.Len(out.Events, 2)
 	require.Equal(NodeDrainEventDrainSet, out.Events[1].Message)
@@ -1314,7 +1314,6 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 
 	// Update the status updated at value
 	node.StatusUpdatedAt = resp2.Node.StatusUpdatedAt
-	node.SecretID = ""
 	node.Events = resp2.Node.Events
 	if !reflect.DeepEqual(node, resp2.Node) {
 		t.Fatalf("bad: %#v \n %#v", node, resp2.Node)

@@ -15,10 +15,12 @@
   * Implement and test other logical methods
 * [ ] Add conversion between `api/` and `nomad/structs` in `command/agent/job_endpoint.go`
   * Add test for conversion
+  * msgpack [encoding](http://ugorji.net/blog/go-codec-primer#drop-in-replacement-for-encoding-json-json-key-in-struct-tag-supported) only uses the [`codec` tag](https://github.com/hashicorp/nomad/blob/v1.0.0/nomad/structs/structs.go#L10557-L10558);
+    the `json` tag is available for customizing API output when encoding `structs` objects
 * [ ] Implement diff logic for new structs/fields in `nomad/structs/diff.go`
   * Note that fields must be listed in alphabetical order in `FieldDiff` slices in `nomad/structs/diff_test.go`
   * Add test for diff of new structs/fields
-* [ ] Add change detection for new structs/feilds in `scheduler/util.go/tasksUpdated`
+* [ ] Add change detection for new structs/fields in `scheduler/util.go/tasksUpdated`
   * Might be covered by `.Equals` but might not be, check.
   * Should return true if the task must be replaced as a result of the change.
 

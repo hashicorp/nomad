@@ -20,10 +20,11 @@ import (
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/rs/cors"
+
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/rs/cors"
 )
 
 const (
@@ -500,7 +501,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 					buf.Write([]byte("\n"))
 				}
 			} else {
-				enc := codec.NewEncoder(&buf, structs.JsonHandle)
+				enc := codec.NewEncoder(&buf, structs.JsonHandleWithExtensions)
 				err = enc.Encode(obj)
 			}
 			if err != nil {

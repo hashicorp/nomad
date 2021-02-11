@@ -80,15 +80,11 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				return structs.Event{}, false
 			}
 
-			// Node secret ID should not be included
-			node := before.Copy()
-			node.SecretID = ""
-
 			return structs.Event{
 				Topic: structs.TopicNode,
-				Key:   node.ID,
+				Key:   before.ID,
 				Payload: &structs.NodeStreamEvent{
-					Node: node,
+					Node: before,
 				},
 			}, true
 		}
@@ -179,15 +175,11 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			return structs.Event{}, false
 		}
 
-		// Node secret ID should not be included
-		node := after.Copy()
-		node.SecretID = ""
-
 		return structs.Event{
 			Topic: structs.TopicNode,
-			Key:   node.ID,
+			Key:   after.ID,
 			Payload: &structs.NodeStreamEvent{
-				Node: node,
+				Node: after,
 			},
 		}, true
 	case "deployment":
