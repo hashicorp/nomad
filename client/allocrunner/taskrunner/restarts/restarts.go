@@ -168,6 +168,7 @@ func (r *RestartTracker) GetState() (string, time.Duration) {
 
 	// Hot path if a restart was triggered
 	if r.restartTriggered {
+		fmt.Println("!!! restart triggered")
 		r.reason = ""
 		return structs.TaskRestarting, 0
 	}
