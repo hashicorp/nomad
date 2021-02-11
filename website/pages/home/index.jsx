@@ -6,6 +6,7 @@ import MiniCTA from 'components/mini-cta'
 import LearnNomad from 'components/learn-nomad'
 import CallToAction from '@hashicorp/react-call-to-action'
 import ComparisonCallouts from 'components/comparison-callouts'
+import TextSplitWithLogoGrid from '@hashicorp/react-text-split-with-logo-grid'
 
 export default function Homepage() {
   return (
@@ -401,6 +402,35 @@ export default function Homepage() {
               type: 'inbound',
             },
           },
+        ]}
+      />
+
+      <TextSplitWithLogoGrid
+        textSplit={{
+          brand: 'nomad',
+          heading: 'Nomad Ecosystem',
+          content:
+            'Enable end-to-end automation for your application deployment.',
+          linkStyle: 'links',
+          links: [
+            {
+              text: 'Explore the Nomad Ecosystem',
+              url: '/docs/ecosystem',
+              type: 'inbound',
+            },
+          ],
+        }}
+        // TODO Use proper companies, links, logos
+        logoGrid={[
+          'adobe',
+          'alibaba-cloud',
+          'aws',
+          'barclays',
+          'cassandra',
+          'citadel',
+          'consul',
+          'cruise',
+          'datadog',
         ]}
       />
 
