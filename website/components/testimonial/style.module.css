@@ -1,3 +1,21 @@
 .testimonial {
-  /* Styles TBD */
+  padding-top: 48px;
+  padding-bottom: 32px;
+
+  &:last-of-type {
+    padding-bottom: 60px;
+  }
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+}
+
+.userLogo {
+  margin-right: 48px;
+}
+
+.userDetails {
+  composes: g-type-label from global;
 }

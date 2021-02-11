@@ -8,7 +8,9 @@ export default function Testimonial({ children, userLogoUrl, userDetails }) {
       <InlineSvg src={require('./img/quote-icon.svg?include')} />
       {children}
       <div className={s.userInfo}>
-        <Image url={userLogoUrl} />
+        <div className={s.userLogo}>
+          <Image url={userLogoUrl} />
+        </div>
         <span className={s.userDetails}>{userDetails}</span>
       </div>
     </div>
