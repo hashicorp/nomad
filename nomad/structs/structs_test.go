@@ -1298,6 +1298,93 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 			},
 			ErrContains: "greater than",
 		},
+		{
+			TG: &TaskGroup{
+				Name: "group-same-static-port-different-host_network",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label:       "net1_http",
+								Value:       80,
+								HostNetwork: "net1",
+							},
+							{
+								Label:       "net2_http",
+								Value:       80,
+								HostNetwork: "net2",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "mixing-group-task-ports",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "group_http",
+								Value: 80,
+							},
+						},
+					},
+				},
+				Tasks: []*Task{
+					&Task{
+						Name: "task1",
+						Resources: &Resources{
+							Networks: Networks{
+								&NetworkResource{
+									ReservedPorts: []Port{
+										{
+											Label: "task_http",
+											Value: 80,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "already reserved by",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "mixing-group-task-ports-with-host_network",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label:       "group_http",
+								Value:       80,
+								HostNetwork: "net1",
+							},
+						},
+					},
+				},
+				Tasks: []*Task{
+					&Task{
+						Name: "task1",
+						Resources: &Resources{
+							Networks: Networks{
+								&NetworkResource{
+									ReservedPorts: []Port{
+										{
+											Label: "task_http",
+											Value: 80,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for i := range cases {
