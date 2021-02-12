@@ -16,7 +16,6 @@ operating systems. You can also [build Nomad from source](#from-source).
 <Tabs>
 <Tab heading="Manual installation">
 
-
 You can download a [precompiled binary](/downloads) and
 run it on your machine locally. You can also verify the binary using the
 available SHA-256 sums. After downloading Nomad, unzip the package. Make sure
@@ -52,13 +51,11 @@ Nomad binary's location to that list and then launch a new console window.
 </Tab>
 <Tab heading="Linux Packages">
 
-
 HashiCorp officially maintains and signs packages for the following Linux
 distributions.
 
 <Tabs>
 <Tab heading="Ubuntu/Debian">
-
 
 Add the HashiCorp [GPG key][gpg-key].
 
@@ -81,7 +78,6 @@ $ sudo apt-get update && sudo apt-get install nomad
 </Tab>
 <Tab heading="CentOS/RHEL">
 
-
 Install `yum-config-manager` to manage your repositories.
 
 ```shell-session
@@ -102,7 +98,6 @@ $ sudo yum -y install nomad
 
 </Tab>
 <Tab heading="Fedora">
-
 
 Install `dnf config-manager` to manage your repositories.
 
@@ -125,7 +120,6 @@ $ sudo dnf -y install nomad
 </Tab>
 <Tab heading="Amazon Linux">
 
-
 Install `yum-config-manager` to manage your repositories.
 
 ```shell-session
@@ -147,7 +141,6 @@ $ sudo yum -y install nomad
 </Tab>
 </Tabs>
 
-
 -> **TIP:** Now that you have added the HashiCorp repository, you can install
 [Consul](https://learn.hashicorp.com/consul) and
 [Vault](https://learn.hashicorp.com/vault) with the same command.
@@ -155,26 +148,34 @@ $ sudo yum -y install nomad
 </Tab>
 <Tab heading="Homebrew (macOS)">
 
+[Homebrew](https://brew.sh) is a free and open source package management system
+for Mac OS X. Install the official [Nomad
+formula](https://github.com/hashicorp/homebrew-tap) from the terminal.
 
-[Homebrew](https://brew.sh) is a free and open-source package management system
-for macOS. Install the [Nomad formula](https://formulae.brew.sh/formula/nomad)
-from the terminal.
+First, install the HashiCorp tap, a repository of all of the HashiCorp Homebrew
+packages.
 
 ```shell-session
-$ brew install nomad
+$ brew tap hashicorp/tap
 ```
 
-~> **NOTE:** Homebrew and the Nomad formula are **NOT** directly maintained by
-HashiCorp. The latest version of Nomad is always available by manual
-installation.
+Now, install Nomad with `hashicorp/tap/nomad`.
 
-~> **NOTE**: On macOS, machines without a Java environment installed will be
-prompted to install Java because of a [known issue—#7865][gh-7865]. The linked
-GitHub issue has workarounds for this issue.
+```shell-session
+$ brew install hashicorp/tap/nomad
+```
+
+~> **NOTE:** This installs a signed binary and is automatically updated with
+every new official release.
+
+To update to the latest, run
+
+```shell-session
+$ brew upgrade hashicorp/tap/nomad
+```
 
 </Tab>
 <Tab heading="Chocolatey (Windows)">
-
 
 [Chocolatey](https://chocolatey.org/) is a free and open-source package
 management system for Windows. Install the [Nomad
@@ -190,7 +191,6 @@ installation.
 
 </Tab>
 </Tabs>
-
 
 ---
 
