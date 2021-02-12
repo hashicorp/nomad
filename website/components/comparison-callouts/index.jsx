@@ -1,6 +1,7 @@
 import s from './style.module.css'
 import Image from '@hashicorp/react-image'
 import Button from '@hashicorp/react-button'
+import Link from 'next/link'
 
 export default function ComparisonCallouts({ heading, details, items }) {
   return (
@@ -23,16 +24,18 @@ export default function ComparisonCallouts({ heading, details, items }) {
 
 function ComparisonItem({ imageUrl, title, description, link }) {
   return (
-    <div className={s.comparisonItem}>
-      <Image url={imageUrl} />
-      <h4 className="g-type-display-4">{title}</h4>
-      <p className="g-type-body">{description}</p>
-      <Button
-        url={link.url}
-        title={link.text}
-        linkType={link.type}
-        theme={{ variant: 'tertiary', brand: 'nomad' }}
-      />
-    </div>
+    <Link href={link.url}>
+      <a className={s.comparisonItem}>
+        <Image url={imageUrl} />
+        <h4 className="g-type-display-4">{title}</h4>
+        <p className="g-type-body">{description}</p>
+        <Button
+          url={link.url}
+          title={link.text}
+          linkType={link.type}
+          theme={{ variant: 'tertiary', brand: 'nomad' }}
+        />
+      </a>
+    </Link>
   )
 }

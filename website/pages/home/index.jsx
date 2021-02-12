@@ -7,6 +7,7 @@ import LearnNomad from 'components/learn-nomad'
 import CallToAction from '@hashicorp/react-call-to-action'
 import ComparisonCallouts from 'components/comparison-callouts'
 import TextSplitWithLogoGrid from '@hashicorp/react-text-split-with-logo-grid'
+import Link from 'next/link'
 
 export default function Homepage() {
   return (
@@ -372,22 +373,18 @@ export default function Homepage() {
           <p>
             Choose an orchestrator based on how it fits into your project. Find
             out{' '}
-            <a href="https://nomadproject.io">
-              Nomad’s unique strengths relative to Kubernetes.
-            </a>
+            <Link href="/docs/nomad-vs-kubernetes">
+              <a>Nomad’s unique strengths relative to Kubernetes.</a>
+            </Link>
           </p>
         }
-        detailCta={{
-          title: 'Detail CTA',
-          url: 'https://nomadproject.io',
-        }}
         items={[
           {
             title: 'Alternative to Kubernetes',
             description: 'Deploy and scale containers without complexity',
             imageUrl: require('./img/nomad-vs-kubernetes/alternative.svg?url'),
             link: {
-              url: 'https://nomadproject.io',
+              url: '/docs/nomad-vs-kubernetes/alternative',
               text: 'Learn more',
               type: 'inbound',
             },
@@ -397,7 +394,7 @@ export default function Homepage() {
             description: 'Implement a multi-orchestrator pattern',
             imageUrl: require('./img/nomad-vs-kubernetes/supplement.svg?url'),
             link: {
-              url: 'https://nomadproject.io',
+              url: '/docs/nomad-vs-kubernetes/supplement',
               text: 'Learn more',
               type: 'inbound',
             },

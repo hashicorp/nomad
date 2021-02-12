@@ -43,6 +43,7 @@
   border-radius: 1px;
   transition-duration: 0.25s;
   transition-property: box-shadow, transform;
+  color: var(--black);
 
   &:first-child {
     margin-right: 32px;
@@ -51,7 +52,6 @@
   &:hover {
     box-shadow: 0 16px 28px rgba(37, 38, 45, 0.12);
     transform: translateY(-4px);
-    cursor: pointer;
   }
 
   & h4 {
