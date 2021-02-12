@@ -366,7 +366,6 @@ export default function Homepage() {
         ]}
       />
 
-      {/* TODO Use proper URLs */}
       <ComparisonCallouts
         heading="Nomad vs. Kubernetes"
         details={
