@@ -4,14 +4,12 @@ import { computed } from '@ember/object';
 import { assert } from '@ember/debug';
 import { observes } from '@ember-decorators/object';
 import { computed as overridable } from 'ember-overridable-computed';
-import { guidFor } from '@ember/object/internals';
 import { run } from '@ember/runloop';
 import { htmlSafe } from '@ember/template';
 import d3 from 'd3-selection';
 import d3Scale from 'd3-scale';
 import d3Axis from 'd3-axis';
 import d3Array from 'd3-array';
-import d3Shape from 'd3-shape';
 import d3Format from 'd3-format';
 import d3TimeFormat from 'd3-time-format';
 import WindowResizable from 'nomad-ui/mixins/window-resizable';
@@ -72,16 +70,6 @@ export default class LineChart extends Component.extend(WindowResizable) {
   height = 0;
 
   isActive = false;
-
-  @computed()
-  get fillId() {
-    return `line-chart-fill-${guidFor(this)}`;
-  }
-
-  @computed()
-  get maskId() {
-    return `line-chart-mask-${guidFor(this)}`;
-  }
 
   activeDatum = null;
 
@@ -252,35 +240,6 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return this.width - this.yAxisWidth;
   }
 
-  @computed('data.[]', 'xScale', 'yScale', 'curveMethod')
-  get line() {
-    const { xScale, yScale, xProp, yProp, curveMethod } = this;
-
-    const line = d3Shape
-      .line()
-      .curve(d3Shape[curveMethod])
-      .defined(d => d[yProp] != null)
-      .x(d => xScale(d[xProp]))
-      .y(d => yScale(d[yProp]));
-
-    return line(this.data);
-  }
-
-  @computed('data.[]', 'xScale', 'yScale', 'curveMethod')
-  get area() {
-    const { xScale, yScale, xProp, yProp, curveMethod } = this;
-
-    const area = d3Shape
-      .area()
-      .curve(d3Shape[curveMethod])
-      .defined(d => d[yProp] != null)
-      .x(d => xScale(d[xProp]))
-      .y0(yScale(0))
-      .y1(d => yScale(d[yProp]));
-
-    return area(this.data);
-  }
-
   @computed('annotations.[]', 'xScale', 'xProp', 'timeseries')
   get processedAnnotations() {
     const { xScale, xProp, annotations, timeseries } = this;
@@ -319,7 +278,7 @@ export default class LineChart extends Component.extend(WindowResizable) {
   didInsertElement() {
     this.updateDimensions();
 
-    const canvas = d3.select(this.element.querySelector('.canvas'));
+    const canvas = d3.select(this.element.querySelector('.hover-target'));
     const updateActiveDatum = this.updateActiveDatum.bind(this);
 
     const chart = this;

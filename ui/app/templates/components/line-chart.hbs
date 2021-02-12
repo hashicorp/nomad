@@ -8,23 +8,20 @@
       and Y-axis values range from {{this.yRange.firstObject}} to {{this.yRange.lastObject}}.
     {{/if}}
   </description>
-  <defs>
-    <linearGradient x1="0" x2="0" y1="0" y2="1" class="{{this.chartClass}}" id="{{this.fillId}}">
-      <stop class="start" offset="0%" />
-      <stop class="end" offset="100%" />
-    </linearGradient>
-    <clipPath id="{{this.maskId}}">
-      <path class="fill" d="{{this.area}}" />
-    </clipPath>
-  </defs>
   <g class="y-gridlines gridlines" transform="translate({{this.yAxisOffset}}, 0)"></g>
-  <g class="canvas {{this.chartClass}}">
-    <path class="line" d="{{this.line}}" />
-    <rect class="area" x="0" y="0" width="{{this.yAxisOffset}}" height="{{this.xAxisOffset}}" fill="url(#{{this.fillId}})" clip-path="url(#{{this.maskId}})" />
-    <rect class="hover-target" x="0" y="0" width="{{this.yAxisOffset}}" height="{{this.xAxisOffset}}" />
-  </g>
+  <ChartPrimitives::Area
+    @data={{this.data}}
+    @colorClass={{this.chartClass}}
+    @xScale={{this.xScale}}
+    @yScale={{this.yScale}}
+    @xProp={{this.xProp}}
+    @yProp={{this.yProp}}
+    @width={{this.yAxisOffset}}
+    @height={{this.xAxisOffset}}
+    @curveMethod={{this.curveMethod}} />
   <g aria-hidden="true" class="x-axis axis" transform="translate(0, {{this.xAxisOffset}})"></g>
   <g aria-hidden="true" class="y-axis axis" transform="translate({{this.yAxisOffset}}, 0)"></g>
+  <rect class="hover-target" x="0" y="0" width="{{this.yAxisOffset}}" height="{{this.xAxisOffset}}" />
 </svg>
 <div data-test-annotations class="line-chart-annotations" style={{this.chartAnnotationsStyle}}>
   {{#each this.processedAnnotations key=this.annotationKey as |annotation|}}

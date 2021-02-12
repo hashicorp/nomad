@@ -14,16 +14,18 @@
     overflow: visible;
   }
 
-  .canvas {
-    .line {
-      fill: transparent;
-      stroke-width: 1.25;
-    }
+  .hover-target {
+    fill: transparent;
+    stroke: transparent;
+  }
 
-    .hover-target {
-      fill: transparent;
-      stroke: transparent;
-    }
+  .line {
+    fill: transparent;
+    stroke-width: 1.25;
+  }
+
+  .area {
+    fill: none;
   }
 
   .axis {
@@ -60,7 +62,7 @@
   @each $name, $pair in $colors {
     $color: nth($pair, 1);
 
-    .canvas.is-#{$name} {
+    .area.is-#{$name} {
       .line {
         stroke: $color;
       }
