@@ -6,7 +6,7 @@ description: Comparison between Nomad and Kubernetes
 ---
 
 <EcosystemIntegrationGroup
-  heading="Example Heading"
+  heading="Continuous Integration & Delivery"
   cards={[
     <EcosystemCard
       companyName="GitLab"
@@ -32,199 +32,293 @@ description: Comparison between Nomad and Kubernetes
       integrationUrl="https://docs.drone.io/runner/nomad/overview/"
       companyLogoUrl="sample.jpg"
     />,
+    <EcosystemCard
+      companyName="Jenkins"
+      integrationType="Partner"
+      integrationUrl="https://plugins.jenkins.io/nomad/"
+      companyLogoUrl="sample.jpg"
+    />,
+    <EcosystemCard
+      companyName="Buildkite"
+      integrationType="Partner"
+      integrationUrl="https://buildkite.com/works-with/hashicorp"
+      companyLogoUrl="sample.jpg"
+    />,
   ]}
 />
 
-# Nomad Ecosystem
-
-### Continuous Integration & Delivery
-
-#### GitLab
-
-https://www.hashicorp.com/resources/nomad-ci-cd-developer-workflows-and-integrations
-
-#### Codefresh
-
-https://codefresh.io/docs/docs/yaml-examples/examples/nomad/
-
-#### CircleCI
-
-https://circleci.com/docs/2.0/nomad/
-
-#### Drone
-
-https://docs.drone.io/runner/nomad/overview/
-
-#### Jenkins
-
-https://plugins.jenkins.io/nomad/
-
-#### Buildkite
-
-https://buildkite.com/works-with/hashicorp
-
-### Container Runtime
-
-#### Containerd
-
-https://www.nomadproject.io/docs/drivers/external/containerd
-
-#### Windows IIS
-
-https://github.com/Roblox/nomad-driver-iis
-
-#### Jailtask
-
-https://www.nomadproject.io/docs/drivers/external/jail-task-driver
-
-#### Pot
-
-https://github.com/trivago/nomad-pot-driver
-
-#### Singularity
-
-https://www.nomadproject.io/docs/drivers/external/singularity
-
-#### Firecracker
-
-https://www.nomadproject.io/docs/drivers/external/firecracker-task-driver
-
-#### Podman
-
-https://www.nomadproject.io/docs/drivers/podman
-
-#### LXC
-
-https://www.nomadproject.io/docs/drivers/external/lxc
-
-### Application Definition & Image Build
-
-#### Levant
-
-https://github.com/hashicorp/levant
-
-#### Packer
-
-https://www.packer.io/
-
-#### Waypoint
-
-https://learn.hashicorp.com/collections/waypoint/get-started-nomad
-
-### Container Registry
-
-#### JFrog Artifactory
-
-https://jfrog.com/blog/cluster-management-made-simple-with-jfrog-artifactory-and-hashicorp-nomad/
-
-### Observability and Analysis
-
-#### Prometheus
-
-https://learn.hashicorp.com/tutorials/nomad/prometheus-metrics
-
-https://learn.hashicorp.com/tutorials/nomad/dynamic-application-sizing?in=nomad/nomad-1-0#start-prometheus
-
-#### Grafana
-
-https://www.metricfire.com/blog/monitoring-hashicorp-nomad-with-prometheus-and-grafana/
-
-#### DataDog
-
-https://docs.datadoghq.com/integrations/nomad/
-
-#### Turbonomics
-
-https://www.youtube.com/watch?v=lwtIaPpdDsc
-
-#### Circonus
-
-https://www.hashicorp.com/integrations/circonus/nomad
-
-#### Flowmill
-
-https://www.flowmill.com/blog/announcing-flowmill-s-integration-with-nomad/
-
-#### Sematext
-
-https://www.hashicorp.com/integrations/sematext/nomad
-
-#### Splunk
-
-https://www.kmruddy.com/2020/deploying-splunk-enterprise-with-nomad/
-
-### Secret Management
-
-#### Vault
-
-https://www.nomadproject.io/docs/integrations/vault-integration
-
-### Service Mesh
-
-#### Consul
-
-https://www.nomadproject.io/docs/integrations/consul-integration
-
-### Provisioning
-
-#### Terraform
-
-https://registry.terraform.io/providers/hashicorp/nomad/latest/docs
-
-#### Chef
-
-https://github.com/nathwill/chef-nomad
-
-#### Ansible
-
-https://github.com/ansible-community/ansible-nomad
-
-### Cloud Native Network
-
-#### CNI
-
-https://www.nomadproject.io/docs/integrations/consul-connect#cni-plugins
-
-### Service Proxy
-
-#### Envoy
-
-https://www.nomadproject.io/docs/integrations/consul-connect
-
-#### NGINX
-
-https://learn.hashicorp.com/tutorials/nomad/load-balancing-nginx
-
-#### Traefik
-
-https://learn.hashicorp.com/tutorials/nomad/load-balancing-traefik
-
-### Storage
-
-#### CSI
-
-https://www.nomadproject.io/docs/internals/plugins/csi
-
-#### Portworx
-
-https://www.hashicorp.com/integrations/portworx/nomad
-
-### GPUs
-
-#### NVIDIA
-
-https://developer.nvidia.com/blog/hashicorp-nomad-gpu-scheduling/
-
-https://www.hashicorp.com/resources/running-gpu-accelerated-applications-on-nomad
-
-### Autoscaling
-
-#### AWS ASGs
-
-Dynamically autoscale your Nomad clusters
-
-https://www.hashicorp.com/blog/cluster-scaling-with-the-hashicorp-nomad-autoscaler
-
-#### Spot
-
-https://docs.spot.io/container-management/nomad/nomad-integration-with-elastigroup/
+<EcosystemIntegrationGroup
+  heading="Container Runtime"
+  cards={[
+    <EcosystemCard
+      companyName="Containerd"
+      integrationType="Community"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="/docs/drivers/external/containerd"
+    />,
+    <EcosystemCard
+      companyName="Windows IIS"
+      integrationType="Community"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://github.com/Roblox/nomad-driver-iis"
+    />,
+    <EcosystemCard
+      companyName="Jailtask"
+      integrationType="Community"
+      integrationUrl="/docs/drivers/external/jail-task-driver"
+      companyLogoUrl="sample.jpg"
+    />,
+    <EcosystemCard
+      companyName="Pot"
+      integrationType="Community"
+      integrationUrl="https://github.com/trivago/nomad-pot-driver"
+      companyLogoUrl="sample.jpg"
+    />,
+    <EcosystemCard
+      companyName="Singularity"
+      integrationType="Community"
+      integrationUrl="/docs/drivers/external/singularity"
+      companyLogoUrl="sample.jpg"
+    />,
+    <EcosystemCard
+      companyName="Firecracker"
+      integrationType="Community"
+      integrationUrl="/docs/drivers/external/firecracker-task-driver"
+      companyLogoUrl="sample.jpg"
+    />,
+    <EcosystemCard
+      companyName="Podman"
+      integrationType="Community"
+      integrationUrl="/docs/drivers/podman"
+      companyLogoUrl="sample.jpg"
+    />,
+    <EcosystemCard
+      companyName="LXC"
+      integrationType="Community"
+      integrationUrl="/docs/drivers/external/lxc"
+      companyLogoUrl="sample.jpg"
+    />,
+  ]}
+/>
+
+<EcosystemIntegrationGroup
+  heading="Application Definition & Image Build"
+  cards={[
+    <EcosystemCard
+      companyName="Levant"
+      integrationType="HashiCorp"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://github.com/hashicorp/levant"
+    />,
+    <EcosystemCard
+      companyName="Packer"
+      integrationType="HashiCorp"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://www.packer.io/"
+    />,
+    <EcosystemCard
+      companyName="Waypoint"
+      integrationType="HashiCorp"
+      integrationUrl="https://learn.hashicorp.com/collections/waypoint/get-started-nomad"
+      companyLogoUrl="sample.jpg"
+    />,
+  ]}
+/>
+
+<EcosystemIntegrationGroup
+  heading="Container Registry"
+  cards={[
+    <EcosystemCard
+      companyName="JFrog Artifactory"
+      integrationType="Partner"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://jfrog.com/blog/cluster-management-made-simple-with-jfrog-artifactory-and-hashicorp-nomad/"
+    />,
+  ]}
+/>
+
+<EcosystemIntegrationGroup
+  heading="Observability and Analysis"
+  cards={[
+    <EcosystemCard
+      companyName="Prometheus"
+      integrationType="Partner"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://learn.hashicorp.com/tutorials/nomad/prometheus-metrics"
+    />,
+    <EcosystemCard
+      companyName="Grafana"
+      integrationType="Community"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://www.metricfire.com/blog/monitoring-hashicorp-nomad-with-prometheus-and-grafana"
+    />,
+    <EcosystemCard
+      companyName="DataDog"
+      integrationType="Partner"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://docs.datadoghq.com/integrations/nomad/"
+    />,
+    <EcosystemCard
+      companyName="Turbonomics"
+      integrationType="Partner"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://www.youtube.com/watch?v=lwtIaPpdDsc"
+    />,
+    <EcosystemCard
+      companyName="Circonus"
+      integrationType="Partner"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://www.hashicorp.com/integrations/circonus/nomad"
+    />,
+    <EcosystemCard
+      companyName="Flowmill"
+      integrationType="Partner"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://www.flowmill.com/blog/announcing-flowmill-s-integration-with-nomad/"
+    />,
+    <EcosystemCard
+      companyName="Sematext"
+      integrationType="Partner"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://www.hashicorp.com/integrations/sematext/nomad"
+    />,
+    <EcosystemCard
+      companyName="Splunk"
+      integrationType="Community"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://www.kmruddy.com/2020/deploying-splunk-enterprise-with-nomad/"
+    />,
+  ]}
+/>
+
+<EcosystemIntegrationGroup
+  heading="Secret Management"
+  cards={[
+    <EcosystemCard
+      companyName="Vault"
+      integrationType="HashiCorp"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="/docs/integrations/vault-integration"
+    />,
+  ]}
+/>
+
+<EcosystemIntegrationGroup
+  heading="Service Mesh"
+  cards={[
+    <EcosystemCard
+      companyName="Consul"
+      integrationType="HashiCorp"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="/docs/integrations/consul-integration"
+    />,
+  ]}
+/>
+
+<EcosystemIntegrationGroup
+  heading="Provisioning"
+  cards={[
+    <EcosystemCard
+      companyName="Terraform"
+      integrationType="HashiCorp"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://registry.terraform.io/providers/hashicorp/nomad/latest/docs"
+    />,
+    <EcosystemCard
+      companyName="Chef"
+      integrationType="Community"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://github.com/nathwill/chef-nomad"
+    />,
+    <EcosystemCard
+      companyName="Ansible"
+      integrationType="Community"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://github.com/ansible-community/ansible-nomad"
+    />,
+  ]}
+/>
+
+<EcosystemIntegrationGroup
+  heading="Cloud Native Network"
+  cards={[
+    <EcosystemCard
+      companyName="CNI"
+      integrationType="HashiCorp"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="/docs/integrations/consul-connect#cni-plugins"
+    />,
+  ]}
+/>
+
+<EcosystemIntegrationGroup
+  heading="Service Proxy"
+  cards={[
+    <EcosystemCard
+      companyName="Envoy"
+      integrationType="Partner"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="/docs/integrations/consul-connect"
+    />,
+    <EcosystemCard
+      companyName="NGINX"
+      integrationType="Community"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://learn.hashicorp.com/tutorials/nomad/load-balancing-nginx"
+    />,
+    <EcosystemCard
+      companyName="Traefik"
+      integrationType="Community"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://learn.hashicorp.com/tutorials/nomad/load-balancing-traefik"
+    />,
+  ]}
+/>
+
+<EcosystemIntegrationGroup
+  heading="Storage"
+  cards={[
+    <EcosystemCard
+      companyName="CSI"
+      integrationType="HashiCorp"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="/docs/internals/plugins/csi"
+    />,
+    <EcosystemCard
+      companyName="Portworx"
+      integrationType="Partner"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://www.hashicorp.com/integrations/portworx/nomad"
+    />,
+  ]}
+/>
+
+<EcosystemIntegrationGroup
+  heading="GPUs"
+  cards={[
+    <EcosystemCard
+      companyName="NVIDIA"
+      integrationType="Partner"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://www.hashicorp.com/resources/running-gpu-accelerated-applications-on-nomad"
+    />,
+  ]}
+/>
+
+<EcosystemIntegrationGroup
+  heading="Autoscaling"
+  cards={[
+    <EcosystemCard
+      companyName="AWS ASGs"
+      integrationType="HashiCorp"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://www.hashicorp.com/blog/cluster-scaling-with-the-hashicorp-nomad-autoscaler"
+    />,
+    <EcosystemCard
+      companyName="Spot"
+      integrationType="Partner"
+      companyLogoUrl="sample.jpg"
+      integrationUrl="https://docs.spot.io/container-management/nomad/nomad-integration-with-elastigroup/"
+    />,
+  ]}
+/>
