@@ -420,17 +420,43 @@ export default function Homepage() {
             },
           ],
         }}
-        // TODO Use proper companies, links, logos
         logoGrid={[
-          'adobe',
-          'alibaba-cloud',
-          'aws',
-          'barclays',
-          'cassandra',
-          'citadel',
-          'consul',
-          'cruise',
-          'datadog',
+          {
+            url: require('./img/partner-logos/consul.svg?url'),
+            alt: 'Consul logo',
+          },
+          {
+            url: require('./img/partner-logos/vault.svg?url'),
+            alt: 'Vault logo',
+          },
+          {
+            url: require('./img/partner-logos/github.svg?url'),
+            alt: 'GitHub logo',
+          },
+          {
+            url: require('./img/partner-logos/csi.svg?url'),
+            alt: 'Container Storage interface logo',
+          },
+          {
+            url: require('./img/partner-logos/cni.svg?url'),
+            alt: 'Container Network interface logo',
+          },
+          {
+            url: require('./img/partner-logos/nvidia.svg?url'),
+            alt: 'NVIDIA logo',
+          },
+          {
+            url: require('./img/partner-logos/datadog.svg?url'),
+            alt: 'Datadog logo',
+          },
+          {
+            url: require('./img/partner-logos/jfrog.svg?url'),
+            alt: 'JFrog logo',
+          },
+          {
+            url: require('./img/partner-logos/prometheus.svg?url'),
+            alt: 'Prometheus logo',
+          },
         ]}
       />
 
