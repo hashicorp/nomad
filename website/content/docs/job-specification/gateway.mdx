@@ -287,7 +287,7 @@ job "ingress-demo" {
 
     service {
       name = "uuid-api"
-      port = "${NOMAD_PORT_api}"
+      port = "api"
 
       connect {
         native = true
@@ -298,7 +298,7 @@ job "ingress-demo" {
       driver = "docker"
 
       config {
-        image        = "hashicorpnomad/uuid-api:v3"
+        image        = "hashicorpnomad/uuid-api:v5"
         network_mode = "host"
       }
 
