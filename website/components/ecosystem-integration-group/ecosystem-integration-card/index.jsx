@@ -3,20 +3,20 @@ import Image from '@hashicorp/react-image'
 import SmartLink from 'components/smart-link'
 
 export default function EcosystemCard({
+  type,
+  url,
   companyName,
-  integrationType,
-  integrationUrl,
   companyLogoUrl,
 }) {
-  if (!['Partner', 'Community', 'HashiCorp'].includes(integrationType))
+  if (!['Partner', 'Community', 'HashiCorp'].includes(type))
     throw new Error(
       'integrationType should be one of these: Partner, Community, or HashiCorp'
     )
 
   return (
     <SmartLink
-      className={s.ecosystemCard}
-      href={integrationUrl}
+      className={s.ecosystemIntegrationCard}
+      href={url}
       prefetch={false}
     >
       <div className={s.companyInfo}>
@@ -27,7 +27,7 @@ export default function EcosystemCard({
       </div>
 
       <div className={s.integrationTypeLabel}>
-        <span>{integrationType}</span>
+        <span>{type}</span>
         <span> integration</span>
       </div>
     </SmartLink>

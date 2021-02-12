@@ -7,13 +7,13 @@ import {
 } from '@hashicorp/react-docs-page/server'
 import Placement from 'components/placement-table'
 import EcosystemIntegrationGroup from 'components/ecosystem-integration-group'
-import EcosystemCard from 'components/ecosystem-integration-group/ecosystem-card'
+import EcosystemIntegrationCard from 'components/ecosystem-integration-group/ecosystem-integration-card'
 
 const subpath = 'docs'
 const additionalComponents = {
   Placement,
   EcosystemIntegrationGroup,
-  EcosystemCard,
+  EcosystemIntegrationCard,
 }
 
 export default function DocsLayout(props) {
