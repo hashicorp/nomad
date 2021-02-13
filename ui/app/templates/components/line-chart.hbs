@@ -23,23 +23,15 @@
   <g aria-hidden="true" class="y-axis axis" transform="translate({{this.yAxisOffset}}, 0)"></g>
   <rect class="hover-target" x="0" y="0" width="{{this.yAxisOffset}}" height="{{this.xAxisOffset}}" />
 </svg>
-<div data-test-annotations class="line-chart-annotations" style={{this.chartAnnotationsStyle}}>
-  {{#each this.processedAnnotations key=this.annotationKey as |annotation|}}
-  <div data-test-annotation class="chart-annotation {{annotation.iconClass}} {{annotation.staggerClass}}" style={{annotation.style}}>
-      <button
-        type="button"
-        class="indicator {{if (or
-          (and this.annotationKey (eq-by this.annotationKey annotation.annotation this.activeAnnotation))
-          (and (not this.annotationKey) (eq annotation.annotation this.activeAnnotation))
-        ) "is-active"}}"
-        title={{annotation.label}}
-        onclick={{action this.annotationClick annotation.annotation}}>
-        {{x-icon annotation.icon}}
-      </button>
-      <div class="line" />
-    </div>
-  {{/each}}
-</div>
+<ChartPrimitives::VAnnotations
+  @annotations={{this.annotations}}
+  @key={{this.annotationKey}}
+  @annotationClick={{action this.annotationClick}}
+  @timeseries={{this.timeseries}}
+  @format={{this.xFormat}}
+  @scale={{this.xScale}}
+  @prop={{this.xProp}}
+  @height={{this.xAxisOffset}} />
 <div class="chart-tooltip is-snappy {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
   <p>
     <span class="label">

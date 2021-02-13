@@ -153,6 +153,7 @@ export let Annotations = () => {
       <div class="block" style="height:250px">
         {{#if (and this.data this.annotations)}}
           <LineChart
+            class="with-annotations"
             @timeseries={{true}}
             @xProp="x"
             @yProp="y"
@@ -166,6 +167,7 @@ export let Annotations = () => {
       <div class="block" style="height:150px; width:450px">
         {{#if (and this.data this.annotations)}}
           <LineChart
+            class="with-annotations"
             @timeseries={{true}}
             @xProp="x"
             @yProp="y"

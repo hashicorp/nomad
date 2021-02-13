@@ -5,7 +5,6 @@ import { assert } from '@ember/debug';
 import { observes } from '@ember-decorators/object';
 import { computed as overridable } from 'ember-overridable-computed';
 import { run } from '@ember/runloop';
-import { htmlSafe } from '@ember/template';
 import d3 from 'd3-selection';
 import d3Scale from 'd3-scale';
 import d3Axis from 'd3-axis';
@@ -14,7 +13,7 @@ import d3Format from 'd3-format';
 import d3TimeFormat from 'd3-time-format';
 import WindowResizable from 'nomad-ui/mixins/window-resizable';
 import styleStringProperty from 'nomad-ui/utils/properties/style-string';
-import { classNames, classNameBindings } from '@ember-decorators/component';
+import { classNames } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
 // Returns a new array with the specified number of points linearly
@@ -31,24 +30,12 @@ const lerp = ([low, high], numPoints) => {
 // Round a number or an array of numbers
 const nice = val => (val instanceof Array ? val.map(nice) : Math.round(val));
 
-const iconFor = {
-  error: 'cancel-circle-fill',
-  info: 'info-circle-fill',
-};
-
-const iconClassFor = {
-  error: 'is-danger',
-  info: '',
-};
-
 @classic
 @classNames('chart', 'line-chart')
-@classNameBindings('annotations.length:with-annotations')
 export default class LineChart extends Component.extend(WindowResizable) {
   // Public API
 
   data = null;
-  annotations = null;
   activeAnnotation = null;
   onAnnotationClick() {}
   xProp = null;
@@ -238,41 +225,6 @@ export default class LineChart extends Component.extend(WindowResizable) {
   @computed('width', 'yAxisWidth')
   get yAxisOffset() {
     return this.width - this.yAxisWidth;
-  }
-
-  @computed('annotations.[]', 'xScale', 'xProp', 'timeseries')
-  get processedAnnotations() {
-    const { xScale, xProp, annotations, timeseries } = this;
-
-    if (!annotations || !annotations.length) return null;
-
-    let sortedAnnotations = annotations.sortBy(xProp);
-    if (timeseries) {
-      sortedAnnotations = sortedAnnotations.reverse();
-    }
-
-    let prevX = 0;
-    let prevHigh = false;
-    return sortedAnnotations.map(annotation => {
-      const x = xScale(annotation[xProp]);
-      if (prevX && !prevHigh && Math.abs(x - prevX) < 30) {
-        prevHigh = true;
-      } else if (prevHigh) {
-        prevHigh = false;
-      }
-      const y = prevHigh ? -15 : 0;
-      const formattedX = this.xFormat(timeseries)(annotation[xProp]);
-
-      prevX = x;
-      return {
-        annotation,
-        style: htmlSafe(`transform:translate(${x}px,${y}px)`),
-        icon: iconFor[annotation.type],
-        iconClass: iconClassFor[annotation.type],
-        staggerClass: prevHigh ? 'is-staggered' : '',
-        label: `${annotation.type} event at ${formattedX}`,
-      };
-    });
   }
 
   didInsertElement() {
