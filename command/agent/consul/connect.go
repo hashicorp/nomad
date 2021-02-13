@@ -2,9 +2,10 @@ package consul
 
 import (
 	"fmt"
+	"net"
+	"strconv"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/consul/ipaddr"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -112,7 +113,7 @@ func connectSidecarRegistration(serviceId string, css *structs.ConsulSidecarServ
 		Checks: api.AgentServiceChecks{
 			{
 				Name:     "Connect Sidecar Listening",
-				TCP:      ipaddr.FormatAddressPort(cMapping.HostIP, cMapping.Value),
+				TCP:      net.JoinHostPort(cMapping.HostIP, strconv.Itoa(cMapping.Value)),
 				Interval: "10s",
 			},
 			{
@@ -225,7 +226,7 @@ func connectPort(portLabel string, networks structs.Networks, ports structs.Allo
 		if mapping.Value > 0 {
 			return mapping, nil
 		}
-		return structs.AllocatedPortMapping{}, fmt.Errorf("invalid port %q: port label not found", portLabel)
+		return structs.AllocatedPortMapping{}, fmt.Errorf("No port of label %q defined", portLabel)
 	}
 	return mapping, nil
 }

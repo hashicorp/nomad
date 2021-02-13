@@ -94,7 +94,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 		_, err := connectSidecarRegistration("unknown-id", &structs.ConsulSidecarService{
 			Port: "unknown-label",
 		}, testConnectNetwork, testConnectPorts)
-		require.EqualError(t, err, `invalid port "unknown-label": port label not found`)
+		require.EqualError(t, err, `No port of label "unknown-label" defined`)
 	})
 
 	t.Run("bad proxy", func(t *testing.T) {
@@ -383,7 +383,7 @@ func TestConnect_getConnectPort(t *testing.T) {
 
 	t.Run("no such service", func(t *testing.T) {
 		_, err := connectPort("other", networks, ports)
-		require.EqualError(t, err, `invalid port "other": port label not found`)
+		require.EqualError(t, err, `No port of label "other" defined`)
 	})
 
 	t.Run("no network", func(t *testing.T) {
