@@ -12,8 +12,9 @@ description: >-
 Local values assign a name to an expression, that can then be used multiple
 times within a folder.
 
-If [variables](/docs/job-specification/hcl2/variables) are analogous to function arguments then
-_local values_ are comparable to a function's local variables.
+If [variables](/docs/job-specification/hcl2/variables) are analogous to
+function arguments then _local values_ are comparable to a function's local
+variables.
 
 ## Examples
 
@@ -24,6 +25,10 @@ Local values are defined in `locals` blocks:
 locals {
   default_name_prefix = "${var.project_name}-web"
   name_prefix         = "${var.name_prefix != "" ? var.name_prefix : local.default_name_prefix}"
+
+  # unlike variables, locals don't have type constraints, so if you use
+  # functions that take maps but not objects, you may need to convert them
+  number_of_ports = length(convert({"www" = "80"}, map(string)))
 }
 
 # Local values can be interpolated elsewhere using the "local." prefix.
