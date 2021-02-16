@@ -35,18 +35,18 @@ All other values will produce an error.
 false
 > convert(false, string)
 "false"
-> convert(["a", "b", 3], list)
+> convert(["a", "b", 3], list(string))
 [
   "a",
   "b",
   "3",
 ]
-> convert(["c", "b", "b"], set)
+> convert(["c", "b", "b"], set(string))
 [
   "b",
   "c",
 ]
-> convert({"a" = "foo", "b" = true}, map)
+> convert({"a" = "foo", "b" = true}, map(string))
 {
   "a" = "foo"
   "b" = "true"
