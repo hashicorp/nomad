@@ -45,8 +45,7 @@ automatically unarchived before the starting the task.
   `local/`. The destination is treated as a directory unless `mode` is set to
   `file`. Source files will be downloaded into that directory path. For more
   details on how the `destination` interacts with task drivers, see the
-  [Filesystem internals] documentation. [Interpolation is not yet
-  supported.][gh-6929]
+  [Filesystem internals] documentation.
 
 - `mode` `(string: "any")` - One of `any`, `file`, or `dir`. If set to `file`
   the `destination` must be a file, not a directory. By default the
@@ -231,7 +230,6 @@ artifact {
 }
 ```
 
-[gh-6929]: https://github.com/hashicorp/nomad/issues/6929
 [go-getter]: https://github.com/hashicorp/go-getter 'HashiCorp go-getter Library'
 [go-getter-headers]: https://github.com/hashicorp/go-getter#headers 'HashiCorp go-getter Headers'
 [minio]: https://www.minio.io/
