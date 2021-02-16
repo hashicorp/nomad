@@ -230,6 +230,32 @@ func TestSyncLogic_tagsDifferent(t *testing.T) {
 	})
 }
 
+func TestSyncLogic_sidecarTagsDifferent(t *testing.T) {
+	type tc struct {
+		parent, wanted, sidecar []string
+		expect                  bool
+	}
+
+	try := func(t *testing.T, test tc) {
+		result := sidecarTagsDifferent(test.parent, test.wanted, test.sidecar)
+		require.Equal(t, test.expect, result)
+	}
+
+	try(t, tc{parent: nil, wanted: nil, sidecar: nil, expect: false})
+
+	// wanted is nil, compare sidecar to parent
+	try(t, tc{parent: []string{"foo"}, wanted: nil, sidecar: nil, expect: true})
+	try(t, tc{parent: []string{"foo"}, wanted: nil, sidecar: []string{"foo"}, expect: false})
+	try(t, tc{parent: []string{"foo"}, wanted: nil, sidecar: []string{"bar"}, expect: true})
+	try(t, tc{parent: nil, wanted: nil, sidecar: []string{"foo"}, expect: true})
+
+	// wanted is non-nil, compare sidecar to wanted
+	try(t, tc{parent: nil, wanted: []string{"foo"}, sidecar: nil, expect: true})
+	try(t, tc{parent: nil, wanted: []string{"foo"}, sidecar: []string{"foo"}, expect: false})
+	try(t, tc{parent: nil, wanted: []string{"foo"}, sidecar: []string{"bar"}, expect: true})
+	try(t, tc{parent: []string{"foo"}, wanted: []string{"foo"}, sidecar: []string{"bar"}, expect: true})
+}
+
 func TestSyncLogic_maybeTweakTags(t *testing.T) {
 	t.Parallel()
 

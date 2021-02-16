@@ -189,7 +189,6 @@ func maybeTweakTags(wanted *api.AgentServiceRegistration, existing *api.AgentSer
 // (cached) state of the service registration reported by Consul. If any of the
 // critical fields are not deeply equal, they considered different.
 func different(wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
-
 	switch {
 	case wanted.Kind != existing.Kind:
 		return true
@@ -205,12 +204,11 @@ func different(wanted *api.AgentServiceRegistration, existing *api.AgentService,
 		return true
 	case !reflect.DeepEqual(wanted.Meta, existing.Meta):
 		return true
-	case !reflect.DeepEqual(wanted.Tags, existing.Tags):
+	case tagsDifferent(wanted.Tags, existing.Tags):
 		return true
 	case connectSidecarDifferent(wanted, sidecar):
 		return true
 	}
-
 	return false
 }
 
@@ -228,20 +226,36 @@ func tagsDifferent(a, b []string) bool {
 	return false
 }
 
+// sidecarTagsDifferent includes the special logic for comparing sidecar tags
+// from Nomad vs. Consul perspective. Because Consul forces the sidecar tags
+// to inherit the parent service tags if the sidecar tags are unset, we need to
+// take that into consideration when Nomad's sidecar tags are unset by instead
+// comparing them to the parent service tags.
+func sidecarTagsDifferent(parent, wanted, sidecar []string) bool {
+	if len(wanted) == 0 {
+		return tagsDifferent(parent, sidecar)
+	}
+	return tagsDifferent(wanted, sidecar)
+}
+
+// connectSidecarDifferent returns true if Nomad expects there to be a sidecar
+// hanging off the desired parent service definition on the Consul side, and does
+// not match with what Consul has.
 func connectSidecarDifferent(wanted *api.AgentServiceRegistration, sidecar *api.AgentService) bool {
 	if wanted.Connect != nil && wanted.Connect.SidecarService != nil {
 		if sidecar == nil {
 			// consul lost our sidecar (?)
 			return true
 		}
-		if tagsDifferent(wanted.Connect.SidecarService.Tags, sidecar.Tags) {
+
+		if sidecarTagsDifferent(wanted.Tags, wanted.Connect.SidecarService.Tags, sidecar.Tags) {
 			// tags on the nomad definition have been modified
 			return true
 		}
 	}
 
-	// There is no connect sidecar the nomad side; let consul anti-entropy worry
-	// about any registration on the consul side.
+	// Either Nomad does not expect there to be a sidecar_service, or there is
+	// no actionable difference from the Consul sidecar_service definition.
 	return false
 }
 
