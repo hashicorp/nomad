@@ -63,10 +63,25 @@ module('Acceptance | optimize', function(hooks) {
   });
 
   test('lets recommendations be toggled, reports the choices to the recommendations API, and displays task group recommendations serially', async function(assert) {
-    await Optimize.visit();
-
     const currentTaskGroup = this.job1.taskGroups.models[0];
     const nextTaskGroup = this.job2.taskGroups.models[0];
+
+    const currentTaskGroupHasCPURecommendation = currentTaskGroup.tasks.models
+      .mapBy('recommendations.models')
+      .flat()
+      .find(r => r.resource === 'CPU');
+
+    // If no CPU recommendation, will not be able to accept recommendation with all memory recommendations turned off
+
+    if (!currentTaskGroupHasCPURecommendation) {
+      const currentTaskGroupTask = currentTaskGroup.tasks.models[0];
+      this.server.create('recommendation', {
+        task: currentTaskGroupTask,
+        resource: 'CPU',
+      });
+    }
+
+    await Optimize.visit();
 
     assert.equal(Layout.breadcrumbFor('optimize').text, 'Recommendations');
 
