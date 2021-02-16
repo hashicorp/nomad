@@ -278,7 +278,8 @@ func buildEnvoyAdminBind(alloc *structs.Allocation, serviceName, taskName string
 	case "host":
 		for _, service := range tg.Services {
 			if service.Name == serviceName {
-				_, port = tg.Networks.Port(service.PortLabel)
+				mapping := tg.Networks.Port(service.PortLabel)
+				port = mapping.Value
 				break
 			}
 		}

@@ -248,7 +248,11 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 			task.Canonicalize(job, g)
 
 			// create a port for the sidecar task's proxy port
-			injectPort(g, fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name))
+			portLabel := service.Connect.SidecarService.Port
+			if portLabel == "" {
+				portLabel = fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name)
+			}
+			injectPort(g, portLabel)
 
 		case service.Connect.IsNative():
 			// find the task backing this connect native service and set the kind

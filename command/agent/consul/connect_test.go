@@ -21,34 +21,40 @@ var (
 			{Label: "connect-proxy-redis", Value: 3000, To: 3000},
 		},
 	}}
+	testConnectPorts = structs.AllocatedPorts{{
+		Label:  "connect-proxy-redis",
+		Value:  3000,
+		To:     3000,
+		HostIP: "192.168.30.1",
+	}}
 )
 
 func TestConnect_newConnect(t *testing.T) {
 	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
-		asr, err := newConnect("", nil, nil)
+		asr, err := newConnect("", "", nil, nil, nil)
 		require.NoError(t, err)
 		require.Nil(t, asr)
 	})
 
 	t.Run("native", func(t *testing.T) {
-		asr, err := newConnect("", &structs.ConsulConnect{
+		asr, err := newConnect("", "", &structs.ConsulConnect{
 			Native: true,
-		}, nil)
+		}, nil, nil)
 		require.NoError(t, err)
 		require.True(t, asr.Native)
 		require.Nil(t, asr.SidecarService)
 	})
 
 	t.Run("with sidecar", func(t *testing.T) {
-		asr, err := newConnect("redis", &structs.ConsulConnect{
+		asr, err := newConnect("redis-service-id", "redis", &structs.ConsulConnect{
 			Native: false,
 			SidecarService: &structs.ConsulSidecarService{
 				Tags: []string{"foo", "bar"},
-				Port: "sidecarPort",
+				Port: "connect-proxy-redis",
 			},
-		}, testConnectNetwork)
+		}, testConnectNetwork, testConnectPorts)
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceRegistration{
 			Tags:    []string{"foo", "bar"},
@@ -58,6 +64,17 @@ func TestConnect_newConnect(t *testing.T) {
 				Config: map[string]interface{}{
 					"bind_address": "0.0.0.0",
 					"bind_port":    3000,
+				},
+			},
+			Checks: api.AgentServiceChecks{
+				{
+					Name:     "Connect Sidecar Listening",
+					TCP:      "192.168.30.1:3000",
+					Interval: "10s",
+				},
+				{
+					Name:         "Connect Sidecar Aliasing redis-service-id",
+					AliasService: "redis-service-id",
 				},
 			},
 		}, asr.SidecarService)
@@ -68,20 +85,21 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
-		sidecarReg, err := connectSidecarRegistration("", nil, testConnectNetwork)
+		sidecarReg, err := connectSidecarRegistration("", nil, testConnectNetwork, testConnectPorts)
 		require.NoError(t, err)
 		require.Nil(t, sidecarReg)
 	})
 
 	t.Run("no service port", func(t *testing.T) {
-		_, err := connectSidecarRegistration("unknown", &structs.ConsulSidecarService{
-			// irrelevant
-		}, testConnectNetwork)
-		require.EqualError(t, err, `No Connect port defined for service "unknown"`)
+		_, err := connectSidecarRegistration("unknown-id", &structs.ConsulSidecarService{
+			Port: "unknown-label",
+		}, testConnectNetwork, testConnectPorts)
+		require.EqualError(t, err, `No port of label "unknown-label" defined`)
 	})
 
 	t.Run("bad proxy", func(t *testing.T) {
-		_, err := connectSidecarRegistration("redis", &structs.ConsulSidecarService{
+		_, err := connectSidecarRegistration("redis-service-id", &structs.ConsulSidecarService{
+			Port: "connect-proxy-redis",
 			Proxy: &structs.ConsulProxy{
 				Expose: &structs.ConsulExposeConfig{
 					Paths: []structs.ConsulExposePath{{
@@ -89,15 +107,15 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 					}},
 				},
 			},
-		}, testConnectNetwork)
+		}, testConnectNetwork, testConnectPorts)
 		require.EqualError(t, err, `No port of label "badPort" defined`)
 	})
 
 	t.Run("normal", func(t *testing.T) {
-		proxy, err := connectSidecarRegistration("redis", &structs.ConsulSidecarService{
+		proxy, err := connectSidecarRegistration("redis-service-id", &structs.ConsulSidecarService{
 			Tags: []string{"foo", "bar"},
-			Port: "sidecarPort",
-		}, testConnectNetwork)
+			Port: "connect-proxy-redis",
+		}, testConnectNetwork, testConnectPorts)
 		require.NoError(t, err)
 		require.Equal(t, &api.AgentServiceRegistration{
 			Tags:    []string{"foo", "bar"},
@@ -107,6 +125,17 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 				Config: map[string]interface{}{
 					"bind_address": "0.0.0.0",
 					"bind_port":    3000,
+				},
+			},
+			Checks: api.AgentServiceChecks{
+				{
+					Name:     "Connect Sidecar Listening",
+					TCP:      "192.168.30.1:3000",
+					Interval: "10s",
+				},
+				{
+					Name:         "Connect Sidecar Aliasing redis-service-id",
+					AliasService: "redis-service-id",
 				},
 			},
 		}, proxy)
@@ -334,32 +363,39 @@ func TestConnect_getConnectPort(t *testing.T) {
 			To:    23456,
 		}}}}
 
+	ports := structs.AllocatedPorts{{
+		Label:  "foo",
+		Value:  23456,
+		To:     23456,
+		HostIP: "192.168.30.1",
+	}}
+
 	t.Run("normal", func(t *testing.T) {
-		nr, port, err := connectPort("foo", networks)
+		nr, err := connectPort("foo", networks, ports)
 		require.NoError(t, err)
-		require.Equal(t, structs.Port{
-			Label: "connect-proxy-foo",
-			Value: 23456,
-			To:    23456,
-		}, port)
-		require.Equal(t, "192.168.30.1", nr.IP)
+		require.Equal(t, structs.AllocatedPortMapping{
+			Label:  "foo",
+			Value:  23456,
+			To:     23456,
+			HostIP: "192.168.30.1",
+		}, nr)
 	})
 
 	t.Run("no such service", func(t *testing.T) {
-		_, _, err := connectPort("other", networks)
-		require.EqualError(t, err, `No Connect port defined for service "other"`)
+		_, err := connectPort("other", networks, ports)
+		require.EqualError(t, err, `No port of label "other" defined`)
 	})
 
 	t.Run("no network", func(t *testing.T) {
-		_, _, err := connectPort("foo", nil)
+		_, err := connectPort("foo", nil, nil)
 		require.EqualError(t, err, "Connect only supported with exactly 1 network (found 0)")
 	})
 
 	t.Run("multi network", func(t *testing.T) {
-		_, _, err := connectPort("foo", append(networks, &structs.NetworkResource{
+		_, err := connectPort("foo", append(networks, &structs.NetworkResource{
 			Device: "eth1",
 			IP:     "10.0.10.0",
-		}))
+		}), nil)
 		require.EqualError(t, err, "Connect only supported with exactly 1 network (found 2)")
 	})
 }

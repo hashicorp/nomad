@@ -206,13 +206,15 @@ func exposePathForCheck(tg *structs.TaskGroup, s *structs.Service, check *struct
 	// The difference here is the address is predestined to be localhost since
 	// it is binding inside the namespace.
 	var port int
-	if _, port = tg.Networks.Port(s.PortLabel); port <= 0 { // try looking up by port label
+	if mapping := tg.Networks.Port(s.PortLabel); mapping.Value <= 0 { // try looking up by port label
 		if port, _ = strconv.Atoi(s.PortLabel); port <= 0 { // then try direct port value
 			return nil, errors.Errorf(
 				"unable to determine local service port for service check %s->%s->%s",
 				tg.Name, s.Name, check.Name,
 			)
 		}
+	} else {
+		port = mapping.Value
 	}
 
 	// The Path, Protocol, and PortLabel are just copied over from the service

@@ -866,7 +866,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	}
 
 	// newConnect returns (nil, nil) if there's no Connect-enabled service.
-	connect, err := newConnect(service.Name, service.Connect, workload.Networks)
+	connect, err := newConnect(id, service.Name, service.Connect, workload.Networks, workload.Ports)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}
@@ -1500,9 +1500,9 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		// Check in Networks struct for backwards compatibility if not found
 		mapping, ok := ports.Get(portLabel)
 		if !ok {
-			ip, port := networks.Port(portLabel)
-			if port > 0 {
-				return ip, port, nil
+			mapping = networks.Port(portLabel)
+			if mapping.Value > 0 {
+				return mapping.HostIP, mapping.Value, nil
 			}
 
 			// If port isn't a label, try to parse it as a literal port number
