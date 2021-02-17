@@ -4046,6 +4046,10 @@ func (s *StateStore) UpdateDeploymentPromotion(msgType structs.MessageType, inde
 			continue
 		}
 
+		// reset the progress deadline
+		if status.ProgressDeadline > 0 && !status.RequireProgressBy.IsZero() {
+			status.RequireProgressBy = time.Now().Add(status.ProgressDeadline)
+		}
 		status.Promoted = true
 	}
 
