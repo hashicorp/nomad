@@ -1,7 +1,7 @@
 import classic from 'ember-classic-decorator';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { get, computed } from '@ember/object';
-import attr from 'ember-data/attr';
+import { attr } from '@ember-data/model';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 import { fragment } from 'ember-data-model-fragments/attributes';
 

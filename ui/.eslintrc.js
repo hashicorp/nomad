@@ -37,7 +37,8 @@ module.exports = {
     ],
     'ember/classic-decorator-hooks': 'error',
     'ember/classic-decorator-no-classic-methods': 'error',
-    'ember/no-jquery': 'error',
+    'ember/no-get': 'off',
+    'ember/no-mixins': 'off',
   },
   overrides: [
     // node files
@@ -60,13 +61,9 @@ module.exports = {
         node: true,
       },
       plugins: ['node'],
-      rules: Object.assign({}, require('eslint-plugin-node').configs.recommended.rules, {
-        // add your custom rules and overrides for node files here
-
-        // this can be removed once the following is fixed
-        // https://github.com/mysticatea/eslint-plugin-node/issues/77
+      rules: {
         'node/no-unpublished-require': 'off'
-      }),
+      },
     },
     {
       files: [

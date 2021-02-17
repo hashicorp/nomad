@@ -169,7 +169,7 @@ module('Integration | Component | lifecycle-chart', function(hooks) {
       await render(hbs`<LifecycleChart @taskStates={{taskStates}} />`);
 
       runningTaskNames.forEach(taskName => {
-        const taskState = this.get('taskStates').find(taskState =>
+        const taskState = this.taskStates.find(taskState =>
           taskState.task.name.includes(taskName)
         );
         set(taskState, 'state', 'running');

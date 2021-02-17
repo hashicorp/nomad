@@ -85,7 +85,7 @@ export default class LineChart extends Component.extend(WindowResizable) {
 
   activeDatum = null;
 
-  @computed('activeDatum')
+  @computed('activeDatum', 'timeseries', 'xProp')
   get activeDatumLabel() {
     const datum = this.activeDatum;
 
@@ -95,7 +95,7 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return this.xFormat(this.timeseries)(x);
   }
 
-  @computed('activeDatum')
+  @computed('activeDatum', 'yProp')
   get activeDatumValue() {
     const datum = this.activeDatum;
 
@@ -180,7 +180,7 @@ export default class LineChart extends Component.extend(WindowResizable) {
       .domain([0, max]);
   }
 
-  @computed('xScale')
+  @computed('timeseries', 'xScale')
   get xAxis() {
     const formatter = this.xFormat(this.timeseries);
 
@@ -191,7 +191,7 @@ export default class LineChart extends Component.extend(WindowResizable) {
       .tickFormat(formatter);
   }
 
-  @computed('xAxisOffset')
+  @computed('xAxisOffset', 'yScale')
   get yTicks() {
     const height = this.xAxisOffset;
     const tickCount = Math.ceil(height / 120) * 2 + 1;
@@ -200,7 +200,7 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return domain[1] - domain[0] > 1 ? nice(ticks) : ticks;
   }
 
-  @computed('yScale')
+  @computed('yScale', 'yTicks')
   get yAxis() {
     const formatter = this.yFormat();
 
@@ -211,7 +211,7 @@ export default class LineChart extends Component.extend(WindowResizable) {
       .tickFormat(formatter);
   }
 
-  @computed('yScale')
+  @computed('yAxisOffset', 'yScale', 'yTicks')
   get yGridlines() {
     // The first gridline overlaps the x-axis, so remove it
     const [, ...ticks] = this.yTicks;
@@ -224,7 +224,7 @@ export default class LineChart extends Component.extend(WindowResizable) {
       .tickFormat('');
   }
 
-  @computed()
+  @computed('element')
   get xAxisHeight() {
     // Avoid divide by zero errors by always having a height
     if (!this.element) return 1;
@@ -233,7 +233,7 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return axis && axis.getBBox().height;
   }
 
-  @computed()
+  @computed('element')
   get yAxisWidth() {
     // Avoid divide by zero errors by always having a width
     if (!this.element) return 1;

@@ -1,9 +1,8 @@
 import { alias, equal } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import { assert } from '@ember/debug';
-import Model from 'ember-data/model';
-import attr from 'ember-data/attr';
-import { belongsTo, hasMany } from 'ember-data/relationships';
+import Model from '@ember-data/model';
+import { attr, belongsTo, hasMany } from '@ember-data/model';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 import sumAggregation from '../utils/properties/sum-aggregation';
@@ -19,7 +18,7 @@ export default class Deployment extends Model {
 
   // If any task group is not promoted yet requires promotion and the deployment
   // is still running, the deployment needs promotion.
-  @computed('taskGroupSummaries.@each.promoted')
+  @computed('status', 'taskGroupSummaries.@each.promoted')
   get requiresPromotion() {
     return (
       this.status === 'running' &&

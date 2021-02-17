@@ -13,7 +13,7 @@ export default class ListAccordion extends Component {
   onToggle /* item, isOpen */() {}
   startExpanded = false;
 
-  @computed('source.[]')
+  @computed('key', 'source.[]', 'startExpanded', 'stateCache')
   get decoratedSource() {
     const stateCache = this.stateCache;
     const key = this.key;

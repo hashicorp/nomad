@@ -34,9 +34,10 @@ export default function sortableFactory(properties, fromSortableMixin) {
 
     listSorted: computed(
       ...eachProperties,
+      '_sortableFactoryWarningPrinted',
       'listToSort.[]',
-      'sortProperty',
       'sortDescending',
+      'sortProperty',
       function() {
         if (!this._sortableFactoryWarningPrinted && !Ember.testing) {
           let message =

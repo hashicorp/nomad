@@ -1,4 +1,4 @@
-import attr from 'ember-data/attr';
+import { attr } from '@ember-data/model';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 

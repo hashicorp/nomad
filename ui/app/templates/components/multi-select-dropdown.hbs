@@ -28,7 +28,7 @@
               <input
                 type="checkbox"
                 tabindex="-1"
-                checked={{contains option.key this.selection}}
+                checked={{includes option.key this.selection}}
                 role="option"
                 onchange={{action "toggle" option}}
               />

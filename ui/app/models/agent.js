@@ -1,7 +1,7 @@
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import Model from 'ember-data/model';
-import attr from 'ember-data/attr';
+import Model from '@ember-data/model';
+import { attr } from '@ember-data/model';
 import classic from 'ember-classic-decorator';
 
 @classic
@@ -23,7 +23,7 @@ export default class Agent extends Model {
     return address && rpcPort && `${address}:${rpcPort}`;
   }
 
-  @computed('system.leader.rpcAddr')
+  @computed('rpcAddr', 'system.leader.rpcAddr')
   get isLeader() {
     return this.get('system.leader.rpcAddr') === this.rpcAddr;
   }
