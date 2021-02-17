@@ -83,20 +83,23 @@ a future release.
 - `progress_deadline` `(string: "10m")` - Specifies the deadline in which an
   allocation must be marked as healthy. The deadline begins when the first
   allocation for the deployment is created and is reset whenever an allocation
-  as part of the deployment transitions to a healthy state. If no allocation
-  transitions to the healthy state before the progress deadline, the deployment
-  is marked as failed. If the `progress_deadline` is set to `0`, the first
-  allocation to be marked as unhealthy causes the deployment to fail. This is
-  specified using a label suffix like "2m" or "1h".
+  as part of the deployment transitions to a healthy state or when a
+  deployment is manually promoted. If no allocation transitions to the healthy
+  state before the progress deadline, the deployment is marked as failed. If
+  the `progress_deadline` is set to `0`, the first allocation to be marked as
+  unhealthy causes the deployment to fail. This is specified using a label
+  suffix like "2m" or "1h".
 
 - `auto_revert` `(bool: false)` - Specifies if the job should auto-revert to the
   last stable job on deployment failure. A job is marked as stable if all the
   allocations as part of its deployment were marked healthy.
 
-- `auto_promote` `(bool: false)` - Specifies if the job should auto-promote to the
-  canary version when all canaries become healthy during a deployment. Defaults to
-  false which means canaries must be manually updated with the `nomad deployment promote`
-  command.
+- `auto_promote` `(bool: false)` - Specifies if the job should auto-promote to
+  the canary version when all canaries become healthy during a
+  deployment. Defaults to false which means canaries must be manually updated
+  with the `nomad deployment promote` command. If a job has multiple task
+  groups, all must be set to `auto_promote = true` in order for the deployment
+  to be promoted automatically.
 
 - `canary` `(int: 0)` - Specifies that changes to the job that would result in
   destructive updates should create the specified number of canaries without
