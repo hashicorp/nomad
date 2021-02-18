@@ -113,7 +113,7 @@ func ChildrenJobSummary(jobID string) ([]map[string]string, error) {
 	return summary, nil
 }
 
-func PreviouslyLaunced(jobID string) ([]map[string]string, error) {
+func PreviouslyLaunched(jobID string) ([]map[string]string, error) {
 	out, err := Command("nomad", "job", "status", jobID)
 	if err != nil {
 		return nil, fmt.Errorf("nomad job status failed: %w", err)

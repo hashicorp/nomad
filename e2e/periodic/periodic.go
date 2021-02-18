@@ -54,7 +54,7 @@ func (tc *PeriodicTest) TestPeriodicDispatch_Basic(f *framework.F) {
 	require.NoError(t, e2eutil.PeriodicForce(jobID))
 
 	testutil.WaitForResult(func() (bool, error) {
-		children, err := e2eutil.PreviouslyLaunced(jobID)
+		children, err := e2eutil.PreviouslyLaunched(jobID)
 		if err != nil {
 			return false, err
 		}
