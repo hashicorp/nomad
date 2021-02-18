@@ -4,16 +4,21 @@ FEATURES:
  * **Terminating Gateways**: Adds built-in support for running Consul Connect terminating gateways [[GH-9829](https://github.com/hashicorp/nomad/pull/9829)]
 
 IMPROVEMENTS:
+ * agent: Removed leading whitespace from JSON-formatted log output. [[GH-9795](https://github.com/hashicorp/nomad/issues/9795)]
  * cli: Added optional `-task <task-name>` flag to `alloc logs` to match `alloc exec` [[GH-10026](https://github.com/hashicorp/nomad/issues/10026)]
  * cli: Improved `scaling policy` commands with -verbose, auto-completion, and prefix-matching [[GH-9964](https://github.com/hashicorp/nomad/issues/9964)]
  * consul/connect: Enable custom sidecar tasks to use connect expose checks [[GH-9995](https://github.com/hashicorp/nomad/pull/9995)]
+ * consul/connect: Added validation to prevent `connect` blocks from being added to task services. [[GH-9817](https://github.com/hashicorp/nomad/issues/9817)]
  * consul/connect: Made handling of sidecar task container image URLs consistent with the `docker` task driver. [[GH-9580](https://github.com/hashicorp/nomad/issues/9580)]
  * drivers/exec+java: Added client plugin and task configuration options to re-enable previous PID/IPC namespace behavior [[GH-9982](https://github.com/hashicorp/nomad/pull/9982)] [[GH-9990](https://github.com/hashicorp/nomad/pull/9990)]
 
 BUG FIXES:
+ * cli: Fixed a bug where some fields in `dynamic` blocks were not interpolated. [[GH-9921](https://github.com/hashicorp/nomad/issues/9921)]
+ * cli: Fixed a bug where unset HCL2 variables would panic the CLI if the type was also not set. [[GH-10045](https://github.com/hashicorp/nomad/issues/10045)]
  * consul: Fixed a bug where failing tasks with group services would only cause the allocation to restart once instead of respecting the `restart` field. [[GH-9869](https://github.com/hashicorp/nomad/issues/9869)]
  * consul/connect: Fixed a bug where gateway proxy connection default timeout not set [[GH-9851](https://github.com/hashicorp/nomad/pull/9851)]
  * consul/connect: Fixed a bug preventing more than one connect gateway per Nomad client [[GH-9849](https://github.com/hashicorp/nomad/pull/9849)]
+ * consul/connect: Fixed a bug where the sidecar health checks would fail if `host_network` was defined. [[GH-9975](https://github.com/hashicorp/nomad/issues/9975)]
  * drivers/docker: Fixed a bug preventing multiple ports to be mapped to the same container port [[GH-9951](https://github.com/hashicorp/nomad/issues/9951)]
  * driver/qemu: Fixed a bug where network namespaces were not supported for QEMU workloads [[GH-9861](https://github.com/hashicorp/nomad/pull/9861)]
  * nomad/structs: Fixed a bug where static ports with the same value but different `host_network` were invalid [[GH-9946](https://github.com/hashicorp/nomad/issues/9946)]
