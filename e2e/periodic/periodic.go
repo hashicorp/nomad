@@ -29,16 +29,16 @@ func (tc *PeriodicTest) BeforeAll(f *framework.F) {
 	e2eutil.WaitForLeader(f.T(), tc.Nomad())
 }
 
-func (tc *PeriodicTest) AfterEach(f *framework.F) {
-	nomadClient := tc.Nomad()
-	j := nomadClient.Jobs()
+// func (tc *PeriodicTest) AfterEach(f *framework.F) {
+// 	nomadClient := tc.Nomad()
+// 	j := nomadClient.Jobs()
 
-	for _, id := range tc.jobIDs {
-		j.Deregister(id, true, nil)
-	}
-	_, err := e2eutil.Command("nomad", "system", "gc")
-	f.NoError(err)
-}
+// 	for _, id := range tc.jobIDs {
+// 		j.Deregister(id, true, nil)
+// 	}
+// 	_, err := e2eutil.Command("nomad", "system", "gc")
+// 	f.NoError(err)
+// }
 
 func (tc *PeriodicTest) TestPeriodicDispatch_Basic(f *framework.F) {
 	t := f.T()
@@ -55,7 +55,7 @@ func (tc *PeriodicTest) TestPeriodicDispatch_Basic(f *framework.F) {
 
 	// Get the child job ID
 	testutil.WaitForResult(func() (bool, error) {
-		childID, err := e2eutil.JobInspectTemplate(jobID, `{{with index . 1}}{{printf "%s" .ID}}{{end}}`)
+		childID, err := e2eutil.JobInspectTemplate(jobID, `{{with index . 0}}{{printf "%s" .ID}}{{end}}`)
 		if err != nil {
 			return false, err
 		}

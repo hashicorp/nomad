@@ -6,12 +6,17 @@ PKG_PATH = $(shell pwd)/../../pkg/linux_amd64/nomad
 # https://github.com/hashicorp/nomad/blob/master/e2e/terraform/README.md#nomad-version
 dev-cluster:
 	terraform apply -auto-approve \
-		-var="nomad_sha=$(NOMAD_SHA)"
+		-var="nomad_version=1.0.3"
 	terraform output environment
 
 dev-cluster-from-local:
 	terraform apply -auto-approve \
 		-var="nomad_local_binary=$(PKG_PATH)"
+	terraform output environment
+
+dev-cluster-from-version:
+	terraform apply -auto-approve \
+		-var="nomad_version=$(NOMAD_VERSION)"
 	terraform output environment
 
 clean:
