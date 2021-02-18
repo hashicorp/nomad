@@ -71,6 +71,13 @@ func (c *jobConfig) decodeBody(body hcl.Body) hcl.Diagnostics {
 	diags = append(diags, moreDiags...)
 	diags = append(diags, c.evaluateLocalVariables(c.LocalBlocks)...)
 
+	// Errors at this point are likely syntax errors which can result in
+	// invalid state when we try to decode the rest of the job. If we continue
+	// we may panic and that will obscure the error, so return early so the
+	// user can be told how to fix their jobspec.
+	if diags.HasErrors() {
+		return diags
+	}
 	nctx := c.EvalContext()
 
 	diags = append(diags, c.decodeJob(content, nctx)...)
