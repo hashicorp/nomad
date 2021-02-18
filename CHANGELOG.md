@@ -4,6 +4,7 @@ FEATURES:
  * **Terminating Gateways**: Adds built-in support for running Consul Connect terminating gateways [[GH-9829](https://github.com/hashicorp/nomad/pull/9829)]
 
 IMPROVEMENTS:
+ * api: Added OSS handling for license request to stop spurious errors from appearing in the logs [[GH-9963](https://github.com/hashicorp/nomad/pull/9963)]
  * agent: Removed leading whitespace from JSON-formatted log output. [[GH-9795](https://github.com/hashicorp/nomad/issues/9795)]
  * cli: Added optional `-task <task-name>` flag to `alloc logs` to match `alloc exec` [[GH-10026](https://github.com/hashicorp/nomad/issues/10026)]
  * cli: Improved `scaling policy` commands with -verbose, auto-completion, and prefix-matching [[GH-9964](https://github.com/hashicorp/nomad/issues/9964)]
@@ -11,6 +12,8 @@ IMPROVEMENTS:
  * consul/connect: Added validation to prevent `connect` blocks from being added to task services. [[GH-9817](https://github.com/hashicorp/nomad/issues/9817)]
  * consul/connect: Made handling of sidecar task container image URLs consistent with the `docker` task driver. [[GH-9580](https://github.com/hashicorp/nomad/issues/9580)]
  * drivers/exec+java: Added client plugin and task configuration options to re-enable previous PID/IPC namespace behavior [[GH-9982](https://github.com/hashicorp/nomad/pull/9982)] [[GH-9990](https://github.com/hashicorp/nomad/pull/9990)]
+ * ui: Added button to fail running deployments [[GH-9831](https://github.com/hashicorp/nomad/pull/9831)]
+ * ui: Reduced bundle size by removing support for IE 11 [[GH-9578](https://github.com/hashicorp/nomad/pull/9578)]
 
 BUG FIXES:
  * cli: Fixed a bug where some fields in `dynamic` blocks were not interpolated. [[GH-9921](https://github.com/hashicorp/nomad/issues/9921)]
@@ -26,6 +29,9 @@ BUG FIXES:
  * scheduler: Fixed a bug where job statuses and summaries where duplicated and miscalculated when registering a job. [[GH-9768](https://github.com/hashicorp/nomad/issues/9768)]
  * scheduler: Fixed a bug that caused the scheduler not to detect changes for `host_network` port field. [[GH-9973](https://github.com/hashicorp/nomad/issues/9973)]
  * scheduler (Enterprise): Fixed a bug where the deprecated network `mbits` field was being considered as part of quota enforcement. [[GH-9920](https://github.com/hashicorp/nomad/issues/9920)]
+ * ui: Fixed exec command escaping of emoji in task names [[GH-7813](https://github.com/hashicorp/nomad/pull/7813)]
+ * ui: Fixed node composite status so being down takes priority over being ineligible [[GH-9927](https://github.com/hashicorp/nomad/pull/9927)]
+ * ui: Fixed a bug where namespaces were not being included when opening exec windows from allocations and tasks [[GH-9968](https://github.com/hashicorp/nomad/pull/9968)]
  * volumes: Fixed a bug where volume diffs were not displayed in the output of `nomad plan`. [[GH-9973](https://github.com/hashicorp/nomad/issues/9973)]
 
 ## 1.0.3 (January 28, 2021)
