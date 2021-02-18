@@ -14,11 +14,6 @@ dev-cluster-from-local:
 		-var="nomad_local_binary=$(PKG_PATH)"
 	terraform output environment
 
-dev-cluster-from-version:
-	terraform apply -auto-approve \
-		-var="nomad_version=$(NOMAD_VERSION)"
-	terraform output environment
-
 clean:
 	terraform destroy -auto-approve
 
