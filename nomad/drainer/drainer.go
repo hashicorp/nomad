@@ -273,7 +273,7 @@ func (n *NodeDrainer) handleDeadlinedNodes(nodes []string) {
 	// Raft transaction size.
 	for _, nodes := range partitionIds(defaultMaxIdsPerTxn, nodes) {
 		if _, err := n.raft.NodesDrainComplete(nodes, event); err != nil {
-			n.logger.Error("ailed to unset drain for nodes", "error", err)
+			n.logger.Error("failed to unset drain for nodes", "error", err)
 		}
 	}
 }
