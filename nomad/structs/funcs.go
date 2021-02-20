@@ -169,6 +169,11 @@ func computeFreePercentage(node *Node, util *ComparableResources) (freePctCpu, f
 func ScoreFitBinPack(node *Node, util *ComparableResources) float64 {
 	freePctCpu, freePctRam := computeFreePercentage(node, util)
 
+	// exclude the node if
+	if len(util.Flattened.Cpu.ReservedCores) > len(node.NodeResources.Cpu.ReservableCpuCores) {
+		return 0
+	}
+
 	// Total will be "maximized" the smaller the value is.
 	// At 100% utilization, the total is 2, while at 0% util it is 20.
 	total := math.Pow(10, freePctCpu) + math.Pow(10, freePctRam)

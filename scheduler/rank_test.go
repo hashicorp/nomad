@@ -4,6 +4,8 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
+
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -587,6 +589,123 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 	if out[0].FinalScore != 1.0 {
 		t.Fatalf("Bad Score: %v", out[0].FinalScore)
 	}
+}
+
+func TestBinPackIterator_ReservedCores(t *testing.T) {
+	state, ctx := testContext(t)
+	nodes := []*RankedNode{
+		{
+			Node: &structs.Node{
+				// Perfect fit
+				ID: uuid.Generate(),
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares:          2048,
+						TotalCpuCores:      2,
+						ReservableCpuCores: []uint32{0, 1},
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
+		},
+		{
+			Node: &structs.Node{
+				// Perfect fit
+				ID: uuid.Generate(),
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares:          2048,
+						TotalCpuCores:      2,
+						ReservableCpuCores: []uint32{0, 1},
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	// Add existing allocations
+	j1, j2 := mock.Job(), mock.Job()
+	alloc1 := &structs.Allocation{
+		Namespace: structs.DefaultNamespace,
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    nodes[0].Node.ID,
+		JobID:     j1.ID,
+		Job:       j1,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares:     2048,
+						ReservedCores: []uint32{0, 1},
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
+		},
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+		TaskGroup:     "web",
+	}
+	alloc2 := &structs.Allocation{
+		Namespace: structs.DefaultNamespace,
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    nodes[1].Node.ID,
+		JobID:     j2.ID,
+		Job:       j2,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares:     1024,
+						ReservedCores: []uint32{0},
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+		},
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+		TaskGroup:     "web",
+	}
+	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
+
+	taskGroup := &structs.TaskGroup{
+		EphemeralDisk: &structs.EphemeralDisk{},
+		Tasks: []*structs.Task{
+			{
+				Name: "web",
+				Resources: &structs.Resources{
+					Cores:    1,
+					MemoryMB: 1024,
+				},
+			},
+		},
+	}
+	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp.SetTaskGroup(taskGroup)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+
+	out := collectRanked(scoreNorm)
+	require := require.New(t)
+	require.Len(out, 1)
+	require.Equal(nodes[1].Node.ID, out[0].Node.ID)
+	require.Equal([]uint32{1}, out[0].TaskResources["web"].Cpu.ReservedCores)
+	spew.Dump(out)
 }
 
 func TestBinPackIterator_ExistingAlloc(t *testing.T) {

@@ -12,9 +12,10 @@ import (
 // After calling add for each port, the publishedPorts and exposedPorts fields can be
 // used in the docker container and host configs
 type publishedPorts struct {
-	logger         hclog.Logger
-	publishedPorts map[docker.Port][]docker.PortBinding
-	exposedPorts   map[docker.Port]struct{}
+	logger            hclog.Logger
+	useWildcardHostIP bool
+	publishedPorts    map[docker.Port][]docker.PortBinding
+	exposedPorts      map[docker.Port]struct{}
 }
 
 func newPublishedPorts(logger hclog.Logger) *publishedPorts {

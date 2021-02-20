@@ -1185,6 +1185,7 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 
 	out := &structs.Resources{
 		CPU:      *in.CPU,
+		Cores:    *in.Cores,
 		MemoryMB: *in.MemoryMB,
 	}
 

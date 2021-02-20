@@ -8,6 +8,7 @@ import (
 // a given task or task group.
 type Resources struct {
 	CPU      *int               `hcl:"cpu,optional"`
+	Cores    *int               `hcl:"cores,optional"`
 	MemoryMB *int               `mapstructure:"memory" hcl:"memory,optional"`
 	DiskMB   *int               `mapstructure:"disk" hcl:"disk,optional"`
 	Networks []*NetworkResource `hcl:"network,block"`
@@ -24,8 +25,16 @@ type Resources struct {
 // where they are not provided.
 func (r *Resources) Canonicalize() {
 	defaultResources := DefaultResources()
+	if r.Cores == nil {
+		r.Cores = defaultResources.Cores
+		if r.CPU == nil {
+			r.CPU = defaultResources.CPU
+		}
+	}
+
+	// cpu not set but cores is
 	if r.CPU == nil {
-		r.CPU = defaultResources.CPU
+		r.CPU = intToPtr(0)
 	}
 	if r.MemoryMB == nil {
 		r.MemoryMB = defaultResources.MemoryMB
@@ -42,6 +51,7 @@ func (r *Resources) Canonicalize() {
 func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      intToPtr(100),
+		Cores:    intToPtr(0),
 		MemoryMB: intToPtr(300),
 	}
 }
@@ -54,6 +64,7 @@ func DefaultResources() *Resources {
 func MinResources() *Resources {
 	return &Resources{
 		CPU:      intToPtr(1),
+		Cores:    intToPtr(0),
 		MemoryMB: intToPtr(10),
 	}
 }
@@ -65,6 +76,9 @@ func (r *Resources) Merge(other *Resources) {
 	}
 	if other.CPU != nil {
 		r.CPU = other.CPU
+	}
+	if other.Cores != nil {
+		r.Cores = other.Cores
 	}
 	if other.MemoryMB != nil {
 		r.MemoryMB = other.MemoryMB

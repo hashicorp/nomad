@@ -508,7 +508,9 @@ type NodeResources struct {
 }
 
 type NodeCpuResources struct {
-	CpuShares int64
+	CpuShares          int64
+	TotalCpuCores      uint32
+	ReservableCpuCores []uint32
 }
 
 type NodeMemoryResources struct {
