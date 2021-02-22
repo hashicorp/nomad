@@ -215,8 +215,15 @@ type TaskRunner struct {
 	// GetClientAllocs has been called in case of a failed restore.
 	serversContactedCh <-chan struct{}
 
-	// startConditionMetCtx is done when TR should start the task
+	// startConditionMetCtx is done when TaskRunner should start the task
+	// within the allocation lifecycle. This will allow the task to proceed
+	// runtime execution.
 	startConditionMetCtx <-chan struct{}
+
+	// endConditionMetCtx blocks tasks from exiting the taskrunner Run loop
+	// until the whole allocation is ready to finish. This allows prestart ephemeral
+	// tasks to be restarted successfully
+	endConditionMetCtx <-chan struct{}
 
 	// waitOnServers defaults to false but will be set true if a restore
 	// fails and the Run method should wait until serversContactedCh is
@@ -278,6 +285,10 @@ type Config struct {
 
 	// startConditionMetCtx is done when TR should start the task
 	StartConditionMetCtx <-chan struct{}
+
+	// EndConditionMetCtx is done when TR can let the task exit the run loop
+	// i.e. when the whole allocation is ready to finish
+	EndConditionMetCtx <-chan struct{}
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -332,6 +343,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		maxEvents:            defaultMaxEvents,
 		serversContactedCh:   config.ServersContactedCh,
 		startConditionMetCtx: config.StartConditionMetCtx,
+		endConditionMetCtx:   config.EndConditionMetCtx,
 	}
 
 	// Create the logger based on the allocation ID
@@ -598,6 +610,7 @@ MAIN:
 			tr.logger.Trace("gracefully shutting down during restart delay")
 			return
 		}
+
 	}
 
 	// Ensure handle is cleaned up. Restore could have recovered a task
@@ -621,6 +634,16 @@ MAIN:
 	// Run the stop hooks
 	if err := tr.stop(); err != nil {
 		tr.logger.Error("stop failed", "error", err)
+	}
+
+	// Block until the allocation is ready to finish
+	select {
+	case <-tr.endConditionMetCtx:
+		tr.logger.Debug("lifecycle end condition has been met, proceeding")
+		// yay proceed
+	case <-tr.killCtx.Done():
+	case <-tr.shutdownCtx.Done():
+		return
 	}
 
 	tr.logger.Debug("task run loop exiting")
