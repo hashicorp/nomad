@@ -468,6 +468,7 @@ type AllocatedTaskResources struct {
 	Cpu      AllocatedCpuResources
 	Memory   AllocatedMemoryResources
 	Networks []*NetworkResource
+	Devices  []*AllocatedDeviceResource
 }
 
 type AllocatedSharedResources struct {
@@ -489,6 +490,13 @@ type AllocatedCpuResources struct {
 
 type AllocatedMemoryResources struct {
 	MemoryMB int64
+}
+
+type AllocatedDeviceResource struct {
+	Vendor    string
+	Type      string
+	Name      string
+	DeviceIDs []string
 }
 
 // AllocIndexSort reverse sorts allocs by CreateIndex.
