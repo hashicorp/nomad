@@ -1,43 +1,50 @@
-<svg data-test-line-chart role="img" aria-labelledby="{{concat "title-" this.elementId}} {{concat "desc-" this.elementId}}">
-  <title id="{{concat "title-" this.elementId}}">{{this.title}}</title>
-  <description id="{{concat "desc-" this.elementId}}">
-    {{#if this.description}}
-      {{this.description}}
-    {{else}}
-      X-axis values range from {{this.xRange.firstObject}} to {{this.xRange.lastObject}},
-      and Y-axis values range from {{this.yRange.firstObject}} to {{this.yRange.lastObject}}.
-    {{/if}}
-  </description>
-  <g class="y-gridlines gridlines" transform="translate({{this.yAxisOffset}}, 0)"></g>
-  <ChartPrimitives::Area
-    @data={{this.data}}
-    @colorClass={{this.chartClass}}
-    @xScale={{this.xScale}}
-    @yScale={{this.yScale}}
-    @xProp={{this.xProp}}
-    @yProp={{this.yProp}}
-    @width={{this.yAxisOffset}}
-    @height={{this.xAxisOffset}}
-    @curveMethod={{this.curveMethod}} />
-  <g aria-hidden="true" class="x-axis axis" transform="translate(0, {{this.xAxisOffset}})"></g>
-  <g aria-hidden="true" class="y-axis axis" transform="translate({{this.yAxisOffset}}, 0)"></g>
-  <rect class="hover-target" x="0" y="0" width="{{this.yAxisOffset}}" height="{{this.xAxisOffset}}" />
-</svg>
-<ChartPrimitives::VAnnotations
-  @annotations={{this.annotations}}
-  @key={{this.annotationKey}}
-  @annotationClick={{action this.annotationClick}}
-  @timeseries={{this.timeseries}}
-  @format={{this.xFormat}}
-  @scale={{this.xScale}}
-  @prop={{this.xProp}}
-  @height={{this.xAxisOffset}} />
-<div class="chart-tooltip is-snappy {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
-  <p>
-    <span class="label">
-      <span class="color-swatch {{this.chartClass}}" />
-      {{this.activeDatumLabel}}
-    </span>
-    <span class="value">{{this.activeDatumValue}}</span>
-  </p>
+<div
+  class="chart line-chart"
+  ...attributes
+  {{did-insert this.onInsert}}
+  {{did-update this.renderChart}}
+  {{window-resize this.updateDimensions}}>
+  <svg data-test-line-chart role="img" aria-labelledby="{{concat "title-" this.elementId}} {{concat "desc-" this.elementId}}">
+    <title id="{{concat "title-" this.elementId}}">{{this.title}}</title>
+    <description id="{{concat "desc-" this.elementId}}">
+      {{#if this.description}}
+        {{this.description}}
+      {{else}}
+        X-axis values range from {{this.xRange.firstObject}} to {{this.xRange.lastObject}},
+        and Y-axis values range from {{this.yRange.firstObject}} to {{this.yRange.lastObject}}.
+      {{/if}}
+    </description>
+    <g class="y-gridlines gridlines" transform="translate({{this.yAxisOffset}}, 0)"></g>
+    <ChartPrimitives::Area
+      @data={{this.data}}
+      @colorClass={{this.chartClass}}
+      @xScale={{this.xScale}}
+      @yScale={{this.yScale}}
+      @xProp={{this.xProp}}
+      @yProp={{this.yProp}}
+      @width={{this.yAxisOffset}}
+      @height={{this.xAxisOffset}}
+      @curveMethod={{this.curveMethod}} />
+    <g aria-hidden="true" class="x-axis axis" transform="translate(0, {{this.xAxisOffset}})"></g>
+    <g aria-hidden="true" class="y-axis axis" transform="translate({{this.yAxisOffset}}, 0)"></g>
+    <rect class="hover-target" x="0" y="0" width="{{this.yAxisOffset}}" height="{{this.xAxisOffset}}" />
+  </svg>
+  <ChartPrimitives::VAnnotations
+    @annotations={{@annotations}}
+    @key={{@annotationKey}}
+    @annotationClick={{action this.annotationClick}}
+    @timeseries={{this.timeseries}}
+    @format={{this.xFormat}}
+    @scale={{this.xScale}}
+    @prop={{this.xProp}}
+    @height={{this.xAxisOffset}} />
+  <div class="chart-tooltip is-snappy {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
+    <p>
+      <span class="label">
+        <span class="color-swatch {{this.chartClass}}" />
+        {{this.activeDatumLabel}}
+      </span>
+      <span class="value">{{this.activeDatumValue}}</span>
+    </p>
+  </div>
 </div>

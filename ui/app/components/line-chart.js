@@ -1,9 +1,8 @@
 /* eslint-disable ember/no-observers */
-import Component from '@ember/component';
-import { computed } from '@ember/object';
+import Component from '@glimmer/component';
+import { tracked } from '@glimmer/tracking';
+import { action } from '@ember/object';
 import { assert } from '@ember/debug';
-import { observes } from '@ember-decorators/object';
-import { computed as overridable } from 'ember-overridable-computed';
 import { run } from '@ember/runloop';
 import d3 from 'd3-selection';
 import d3Scale from 'd3-scale';
@@ -11,10 +10,7 @@ import d3Axis from 'd3-axis';
 import d3Array from 'd3-array';
 import d3Format from 'd3-format';
 import d3TimeFormat from 'd3-time-format';
-import WindowResizable from 'nomad-ui/mixins/window-resizable';
-import styleStringProperty from 'nomad-ui/utils/properties/style-string';
-import { classNames } from '@ember-decorators/component';
-import classic from 'ember-classic-decorator';
+import styleString from 'nomad-ui/utils/properties/glimmer-style-string';
 
 // Returns a new array with the specified number of points linearly
 // distributed across the bounds
@@ -30,64 +26,41 @@ const lerp = ([low, high], numPoints) => {
 // Round a number or an array of numbers
 const nice = val => (val instanceof Array ? val.map(nice) : Math.round(val));
 
-@classic
-@classNames('chart', 'line-chart')
-export default class LineChart extends Component.extend(WindowResizable) {
-  // Public API
+export default class LineChart extends Component {
+  /** Args
+    data = null;
+    xProp = null;
+    yProp = null;
+    curve = 'linear';
+    title = 'Line Chart';
+    description = null;
+    timeseries = false;
+    chartClass = 'is-primary';
+    activeAnnotation = null;
+    onAnnotationClick() {}
+  */
 
-  data = null;
-  activeAnnotation = null;
-  onAnnotationClick() {}
-  xProp = null;
-  yProp = null;
-  curve = 'linear';
-  timeseries = false;
-  chartClass = 'is-primary';
+  @tracked width = 0;
+  @tracked height = 0;
+  @tracked isActive = false;
+  @tracked activeDatum = null;
+  @tracked tooltipPosition = null;
+  @tracked element = null;
 
-  title = 'Line Chart';
-
-  @overridable(function() {
-    return null;
-  })
-  description;
-
-  // Private Properties
-
-  width = 0;
-  height = 0;
-
-  isActive = false;
-
-  activeDatum = null;
-
-  @computed('activeDatum', 'timeseries', 'xProp')
-  get activeDatumLabel() {
-    const datum = this.activeDatum;
-
-    if (!datum) return undefined;
-
-    const x = datum[this.xProp];
-    return this.xFormat(this.timeseries)(x);
+  get xProp() {
+    return this.args.xProp || 'time';
   }
-
-  @computed('activeDatum', 'yProp')
-  get activeDatumValue() {
-    const datum = this.activeDatum;
-
-    if (!datum) return undefined;
-
-    const y = datum[this.yProp];
-    return this.yFormat()(y);
+  get yProp() {
+    return this.args.yProp || 'value';
   }
-
-  @computed('curve')
-  get curveMethod() {
-    const mappings = {
-      linear: 'curveLinear',
-      stepAfter: 'curveStepAfter',
-    };
-    assert(`Provided curve "${this.curve}" is not an allowed curve type`, mappings[this.curve]);
-    return mappings[this.curve];
+  get data() {
+    return this.args.data || [];
+  }
+  get curve() {
+    return this.args.curve || 'linear';
+  }
+  get chartClass() {
+    return this.args.chartClass || 'is-primary';
   }
 
   // Overridable functions that retrurn formatter functions
@@ -99,40 +72,57 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return d3Format.format(',.2~r');
   }
 
-  tooltipPosition = null;
-  @styleStringProperty('tooltipPosition') tooltipStyle;
+  get activeDatumLabel() {
+    const datum = this.activeDatum;
 
-  @computed('xAxisOffset')
-  get chartAnnotationBounds() {
-    return {
-      height: this.xAxisOffset,
-    };
+    if (!datum) return undefined;
+
+    const x = datum[this.xProp];
+    return this.xFormat(this.args.timeseries)(x);
   }
-  @styleStringProperty('chartAnnotationBounds') chartAnnotationsStyle;
 
-  @computed('data.[]', 'xProp', 'timeseries', 'yAxisOffset')
+  get activeDatumValue() {
+    const datum = this.activeDatum;
+
+    if (!datum) return undefined;
+
+    const y = datum[this.yProp];
+    return this.yFormat()(y);
+  }
+
+  get curveMethod() {
+    const mappings = {
+      linear: 'curveLinear',
+      stepAfter: 'curveStepAfter',
+    };
+    assert(`Provided curve "${this.curve}" is not an allowed curve type`, mappings[this.curve]);
+    return mappings[this.curve];
+  }
+
+  @styleString
+  get tooltipStyle() {
+    return this.tooltipPosition;
+  }
+
   get xScale() {
-    const xProp = this.xProp;
-    const scale = this.timeseries ? d3Scale.scaleTime() : d3Scale.scaleLinear();
-    const data = this.data;
+    const { xProp, data } = this;
+    const scale = this.args.timeseries ? d3Scale.scaleTime() : d3Scale.scaleLinear();
 
-    const domain = data.length ? d3Array.extent(this.data, d => d[xProp]) : [0, 1];
+    const domain = data.length ? d3Array.extent(data, d => d[xProp]) : [0, 1];
 
     scale.rangeRound([10, this.yAxisOffset]).domain(domain);
 
     return scale;
   }
 
-  @computed('data.[]', 'xFormat', 'xProp', 'timeseries')
   get xRange() {
-    const { xProp, timeseries, data } = this;
+    const { xProp, data } = this;
     const range = d3Array.extent(data, d => d[xProp]);
-    const formatter = this.xFormat(timeseries);
+    const formatter = this.xFormat(this.args.timeseries);
 
     return range.map(formatter);
   }
 
-  @computed('data.[]', 'yFormat', 'yProp')
   get yRange() {
     const yProp = this.yProp;
     const range = d3Array.extent(this.data, d => d[yProp]);
@@ -141,7 +131,6 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return range.map(formatter);
   }
 
-  @computed('data.[]', 'yProp', 'xAxisOffset')
   get yScale() {
     const yProp = this.yProp;
     let max = d3Array.max(this.data, d => d[yProp]) || 1;
@@ -155,9 +144,8 @@ export default class LineChart extends Component.extend(WindowResizable) {
       .domain([0, max]);
   }
 
-  @computed('timeseries', 'xScale')
   get xAxis() {
-    const formatter = this.xFormat(this.timeseries);
+    const formatter = this.xFormat(this.args.timeseries);
 
     return d3Axis
       .axisBottom()
@@ -166,7 +154,6 @@ export default class LineChart extends Component.extend(WindowResizable) {
       .tickFormat(formatter);
   }
 
-  @computed('xAxisOffset', 'yScale')
   get yTicks() {
     const height = this.xAxisOffset;
     const tickCount = Math.ceil(height / 120) * 2 + 1;
@@ -175,7 +162,6 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return domain[1] - domain[0] > 1 ? nice(ticks) : ticks;
   }
 
-  @computed('yScale', 'yTicks')
   get yAxis() {
     const formatter = this.yFormat();
 
@@ -186,7 +172,6 @@ export default class LineChart extends Component.extend(WindowResizable) {
       .tickFormat(formatter);
   }
 
-  @computed('yAxisOffset', 'yScale', 'yTicks')
   get yGridlines() {
     // The first gridline overlaps the x-axis, so remove it
     const [, ...ticks] = this.yTicks;
@@ -199,7 +184,6 @@ export default class LineChart extends Component.extend(WindowResizable) {
       .tickFormat('');
   }
 
-  @computed('element')
   get xAxisHeight() {
     // Avoid divide by zero errors by always having a height
     if (!this.element) return 1;
@@ -208,7 +192,6 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return axis && axis.getBBox().height;
   }
 
-  @computed('element')
   get yAxisWidth() {
     // Avoid divide by zero errors by always having a width
     if (!this.element) return 1;
@@ -217,17 +200,17 @@ export default class LineChart extends Component.extend(WindowResizable) {
     return axis && axis.getBBox().width;
   }
 
-  @overridable('height', 'xAxisHeight', function() {
+  get xAxisOffset() {
     return this.height - this.xAxisHeight;
-  })
-  xAxisOffset;
+  }
 
-  @computed('width', 'yAxisWidth')
   get yAxisOffset() {
     return this.width - this.yAxisWidth;
   }
 
-  didInsertElement() {
+  @action
+  onInsert(element) {
+    this.element = element;
     this.updateDimensions();
 
     const canvas = d3.select(this.element.querySelector('.hover-target'));
@@ -236,25 +219,21 @@ export default class LineChart extends Component.extend(WindowResizable) {
     const chart = this;
     canvas.on('mouseenter', function() {
       const mouseX = d3.mouse(this)[0];
-      chart.set('latestMouseX', mouseX);
+      chart.latestMouseX = mouseX;
       updateActiveDatum(mouseX);
-      run.schedule('afterRender', chart, () => chart.set('isActive', true));
+      run.schedule('afterRender', chart, () => (chart.isActive = true));
     });
 
     canvas.on('mousemove', function() {
       const mouseX = d3.mouse(this)[0];
-      chart.set('latestMouseX', mouseX);
+      chart.latestMouseX = mouseX;
       updateActiveDatum(mouseX);
     });
 
     canvas.on('mouseleave', () => {
-      run.schedule('afterRender', this, () => this.set('isActive', false));
-      this.set('activeDatum', null);
+      run.schedule('afterRender', this, () => (this.isActive = false));
+      this.activeDatum = null;
     });
-  }
-
-  didUpdateAttrs() {
-    this.renderChart();
   }
 
   updateActiveDatum(mouseX) {
@@ -281,16 +260,11 @@ export default class LineChart extends Component.extend(WindowResizable) {
       datum = x - dLeft[xProp] > dRight[xProp] - x ? dRight : dLeft;
     }
 
-    this.set('activeDatum', datum);
-    this.set('tooltipPosition', {
+    this.activeDatum = datum;
+    this.tooltipPosition = {
       left: xScale(datum[xProp]),
       top: yScale(datum[yProp]) - 10,
-    });
-  }
-
-  @observes('data.[]')
-  updateChart() {
-    this.renderChart();
+    };
   }
 
   // The renderChart method should only ever be responsible for runtime calculations
@@ -299,16 +273,11 @@ export default class LineChart extends Component.extend(WindowResizable) {
     // There is nothing to do if the element hasn't been inserted yet
     if (!this.element) return;
 
-    // First, create the axes to get the dimensions of the resulting
+    // Create the axes to get the dimensions of the resulting
     // svg elements
     this.mountD3Elements();
 
     run.next(() => {
-      // Then, recompute anything that depends on the dimensions
-      // on the dimensions of the axes elements
-      this.notifyPropertyChange('xAxisHeight');
-      this.notifyPropertyChange('yAxisWidth');
-
       // Since each axis depends on the dimension of the other
       // axis, the axes themselves are recomputed and need to
       // be re-rendered.
@@ -328,19 +297,15 @@ export default class LineChart extends Component.extend(WindowResizable) {
   }
 
   annotationClick(annotation) {
-    this.onAnnotationClick(annotation);
+    this.args.onAnnotationClick && this.args.onAnnotationClick(annotation);
   }
 
-  windowResizeHandler() {
-    run.once(this, this.updateDimensions);
-  }
-
+  @action
   updateDimensions() {
     const $svg = this.element.querySelector('svg');
-    const width = $svg.clientWidth;
-    const height = $svg.clientHeight;
 
-    this.setProperties({ width, height });
+    this.height = $svg.clientHeight;
+    this.width = $svg.clientWidth;
     this.renderChart();
   }
 }
