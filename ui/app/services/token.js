@@ -42,6 +42,14 @@ export default class TokenService extends Service {
   })
   fetchSelfToken;
 
+  @task(function*(oneTimeToken) {
+    const TokenAdapter = getOwner(this).lookup('adapter:token');
+
+    const token = yield TokenAdapter.exchangeOneTimeToken(oneTimeToken);
+    this.secret = token.secret;
+  })
+  exchangeOneTimeToken;
+
   @computed('secret', 'fetchSelfToken.lastSuccessful.value')
   get selfToken() {
     if (this.secret) return this.get('fetchSelfToken.lastSuccessful.value');

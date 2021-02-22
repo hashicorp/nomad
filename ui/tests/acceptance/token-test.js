@@ -164,6 +164,15 @@ module('Acceptance | tokens', function(hooks) {
     assert.equal(requests.filter(req => req.url === '/v1/namespaces').length, 3);
   });
 
+  test('when the ott query parameter is present upon application load it’s exchanged for a token', async function(assert) {
+    const { oneTimeSecret, secretId } = managementToken;
+
+    await JobDetail.visit({ id: job.id, ott: oneTimeSecret });
+
+    await Tokens.visit();
+    assert.equal(window.localStorage.nomadTokenSecret, secretId, 'Token secret was set');
+  });
+
   function getHeader({ requestHeaders }, name) {
     // Headers are case-insensitive, but object property look up is not
     return (

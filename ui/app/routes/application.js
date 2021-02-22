@@ -26,38 +26,50 @@ export default class ApplicationRoute extends Route {
   }
 
   beforeModel(transition) {
-    const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
-      .perform()
-      .catch();
+    let exchangeOneTimeToken;
 
-    const fetchLicense = this.get('system.fetchLicense')
-      .perform()
-      .catch();
+    if (transition.to.queryParams.ott) {
+      exchangeOneTimeToken = this.get('token.exchangeOneTimeToken')
+        .perform(transition.to.queryParams.ott)
+        .catch();
+    } else {
+      exchangeOneTimeToken = Promise.resolve(true);
+    }
 
-    return RSVP.all([
-      this.get('system.regions'),
-      this.get('system.defaultRegion'),
-      fetchLicense,
-      fetchSelfTokenAndPolicies,
-    ]).then(promises => {
-      if (!this.get('system.shouldShowRegions')) return promises;
+    return exchangeOneTimeToken.then(() => {
+      const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
+        .perform()
+        .catch();
 
-      const queryParam = transition.to.queryParams.region;
-      const defaultRegion = this.get('system.defaultRegion.region');
-      const currentRegion = this.get('system.activeRegion') || defaultRegion;
+      const fetchLicense = this.get('system.fetchLicense')
+        .perform()
+        .catch();
 
-      // Only reset the store if the region actually changed
-      if (
-        (queryParam && queryParam !== currentRegion) ||
-        (!queryParam && currentRegion !== defaultRegion)
-      ) {
-        this.system.reset();
-        this.store.unloadAll();
-      }
+      return RSVP.all([
+        this.get('system.regions'),
+        this.get('system.defaultRegion'),
+        fetchLicense,
+        fetchSelfTokenAndPolicies,
+      ]).then(promises => {
+        if (!this.get('system.shouldShowRegions')) return promises;
 
-      this.set('system.activeRegion', queryParam || defaultRegion);
+        const queryParam = transition.to.queryParams.region;
+        const defaultRegion = this.get('system.defaultRegion.region');
+        const currentRegion = this.get('system.activeRegion') || defaultRegion;
 
-      return promises;
+        // Only reset the store if the region actually changed
+        if (
+          (queryParam && queryParam !== currentRegion) ||
+          (!queryParam && currentRegion !== defaultRegion)
+        ) {
+          this.system.reset();
+          this.store.unloadAll();
+        }
+
+        this.set('system.activeRegion', queryParam || defaultRegion);
+
+        return promises;
+      });
     });
   }
 

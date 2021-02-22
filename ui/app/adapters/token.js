@@ -16,4 +16,18 @@ export default class TokenAdapter extends ApplicationAdapter {
       return store.peekRecord('token', store.normalize('token', token).data.id);
     });
   }
+
+  exchangeOneTimeToken(oneTimeToken) {
+    return this.ajax(`${this.buildURL()}/token/onetime/exchange`, 'POST', {
+      data: {
+        OneTimeSecret: oneTimeToken,
+      }}).then(token => {
+      const store = this.store;
+      store.pushPayload('token', {
+        tokens: [token],
+      });
+
+      return store.peekRecord('token', store.normalize('token', token).data.id);
+    });
+  }
 }

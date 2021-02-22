@@ -384,6 +384,20 @@ export default function() {
     return new Response(403, {}, null);
   });
 
+  this.post('/acl/token/onetime/exchange', function({ tokens }, { requestBody }) {
+    const { OneTimeSecret } = JSON.parse(requestBody);
+
+    const tokenForSecret = tokens.findBy({ oneTimeSecret: OneTimeSecret });
+
+    // Return the token if it exists
+    if (tokenForSecret) {
+      return this.serialize(tokenForSecret);
+    }
+
+    // Forbidden error if it doesn't
+    return new Response(403, {}, null);
+  });
+
   this.get('/acl/policy/:id', function({ policies, tokens }, req) {
     const policy = policies.find(req.params.id);
     const secret = req.requestHeaders['X-Nomad-Token'];
