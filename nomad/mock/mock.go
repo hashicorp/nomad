@@ -1107,6 +1107,7 @@ func JobSummary(jobID string) *structs.JobSummary {
 }
 
 func Alloc() *structs.Allocation {
+	job := Job()
 	alloc := &structs.Allocation{
 		ID:        uuid.Generate(),
 		EvalID:    uuid.Generate(),
@@ -1172,7 +1173,7 @@ func Alloc() *structs.Allocation {
 				DiskMB: 150,
 			},
 		},
-		Job:           Job(),
+		Job:           job,
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
 	}

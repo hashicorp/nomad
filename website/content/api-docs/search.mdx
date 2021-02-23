@@ -6,6 +6,8 @@ description: The /search endpoint is used to search for Nomad objects
 
 # Search HTTP API
 
+## Prefix Searching
+
 The `/search` endpoint returns matches for a given prefix and context, where a
 context can be jobs, allocations, evaluations, nodes, deployments, plugins,
 namespaces, or volumes. When using Nomad Enterprise, the allowed contexts
@@ -41,7 +43,7 @@ job related results will not be returned. If the token is only valid for
 
 ### Sample Payload (for all contexts)
 
-```javascript
+```json
 {
   "Prefix": "abc",
   "Context": "all"
@@ -90,7 +92,7 @@ $ curl \
 
 ### Sample Payload (for a specific context)
 
-```javascript
+```json
 {
   "Prefix": "abc",
   "Context": "evals"
@@ -118,3 +120,469 @@ $ curl \
   }
 }
 ```
+
+## Fuzzy Searching
+
+The `/search/fuzzy` endpoint returns partial substring matches for a given search
+term and context, where a context can be jobs, allocations, nodes, plugins, or namespaces.
+Additionally, fuzzy searching can be done across all contexts. For better control
+over the performance implications of fuzzy searching on Nomad servers, aspects of
+fuzzy searching can be tuned through the <code>[search]</code> stanza in Nomad agent config.
+
+Fuzzy search results are ordered starting with closest matching terms. Items of
+a name that exactly matches the search term are listed first.
+
+| Method | Path               | Produces           |
+| ------ | ------------------ | ------------------ |
+| `POST` | `/v1/search/fuzzy` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required                                                |
+| ---------------- | ----------------------------------------------------------- |
+| `NO`             | `node:read, namespace:read-jobs, namespace:csi-list-plugin` |
+
+When ACLs are enabled, requests must have a token valid for `node:read`, `plugin:read` or
+`namespace:read-jobs` roles. If the token is only valid for a portion of these
+capabilities, then results will include results including only data readable with
+the given token.
+
+### Parameters
+
+- `Text` `(string: <required>)` - Specifies the identifier against which
+  matches will be found. For example, if the given text were "py", potential
+  fuzzy matches might be "python", "spying", or "happy".
+- `Context` `(string: <required>)` - Defines the scope in which a search for a
+  prefix operates. Contexts can be: "jobs", "allocs", "nodes", "plugins", or
+  "all", where "all" means every context will be searched. When "all" is selected,
+  additional prefix matches will be included for the "deployments", "evals", and
+  "volumes" types. When searching in the "jobs" context, results that fuzzy match
+  "groups", "services", "tasks", "images", "commands", and "classes" are also
+  included in the results.
+
+### Scope
+
+Fuzzy match results are accompanied with a `Scope` field which is used to uniquely
+identify the matched object, in a way that the Nomad API can be queried again for
+additional information. The data provided by scope varies depending on the type
+of matched object, described below.
+
+### Sample Payload (for jobs)
+
+```json
+{
+  "Text": "py",
+  "Context": "jobs"
+}
+```
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request POST \
+    --data @payload.json \
+    https://localhost:4646/v1/search/fuzzy
+```
+
+### Sample Response
+
+```json
+{
+  "Index": 90,
+  "KnownLeader": true,
+  "LastContact": 0,
+  "Matches": {
+    "services": [
+      {
+        "ID": "python-logger",
+        "Scope": [
+          "default",
+          "example-python",
+          "my-spy-app",
+          "my-python-task"
+        ]
+      },
+      {
+        "ID": "super-spy-service",
+        "Scope": [
+          "default",
+          "example-python",
+          "my-spy-app"
+        ]
+      }
+    ],
+    "tasks": [
+      {
+        "ID": "my-python-task",
+        "Scope": [
+          "default",
+          "example-python",
+          "my-spy-app"
+        ]
+      }
+    ],
+    "images": [
+      {
+        "ID": "python:3",
+        "Scope": [
+          "default",
+          "example-python",
+          "my-spy-app",
+          "my-python-task"
+        ]
+      }
+    ],
+    "jobs": [
+      {
+        "ID": "example-python",
+        "Scope": [
+          "default"
+        ]
+      }
+    ],
+    "groups": [
+      {
+        "ID": "my-spy-app",
+        "Scope": [
+          "default",
+          "example-python"
+        ]
+      }
+    ]
+  },
+  "Truncations": {
+    "jobs": false
+  }
+}
+```
+
+##### Scope (jobs)
+
+- `Scope[0]` : Namespace
+
+##### Scope (groups)
+
+- `Scope[0]` : Namespace
+- `Scope[1]` : Job
+
+##### Scope (tasks)
+
+- `Scope[0]` : Namespace
+- `Scope[1]` : Job
+- `Scope[2]` : Group
+
+##### Scope (group services)
+
+- `Scope[0]` : Namespace
+- `Scope[1]` : Group
+
+#### Scope (task services)
+
+- `Scope[0]` : Namespace
+- `Scope[1]` : Job
+- `Scope[2]` : Group
+- `Scope[3]` : Task
+
+#### Scope (commands/images/classes)
+
+- `Scope[0]` : Namespace
+- `Scope[1]` : Job
+- `Scope[2]` : Group
+- `Scope[3]` : Task
+
+### Sample Payload (for nodes)
+
+```json
+{
+  "Text": "lab",
+  "Context": "nodes"
+}
+```
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request POST \
+    --data @payload.json \
+    https://localhost:4646/v1/search/fuzzy
+```
+
+### Sample Response
+
+```json
+{
+  "Index": 9,
+  "KnownLeader": true,
+  "LastContact": 0,
+  "Matches": {
+    "nodes": [
+      {
+        "ID": "nomad-lab1",
+        "Scope": [
+          "c48cd39f-dfe1-9cc0-9c62-617d199854be"
+        ]
+      }
+    ]
+  },
+  "Truncations": {
+    "nodes": false
+  }
+}
+```
+
+##### Scope (nodes)
+
+- `Scope[0]` : Node ID
+
+### Sample Payload (for allocs)
+
+```json
+{
+   "Text":"py",
+   "Context":"allocs"
+}
+```
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request POST \
+    --data @payload.json \
+    https://localhost:4646/v1/search/fuzzy
+```
+
+### Sample Response
+
+```json
+{
+  "Index": 136,
+  "KnownLeader": true,
+  "LastContact": 0,
+  "Matches": {
+    "allocs": [
+      {
+        "ID": "example-python.my-spy-app[0]",
+        "Scope": [
+          "default",
+          "0fb703d1-ba4d-116f-13aa-27f31f046858"
+        ]
+      }
+    ]
+  },
+  "Truncations": {
+    "allocs": false
+  }
+}
+```
+
+#### Scope (allocs)
+
+- `Scope[0]` : Namespace
+- `Scope[1]` : Alloc ID
+
+
+### Sample Payload (for plugins)
+
+```json
+{
+  "Text": "aws",
+  "Context": "plugins"
+}
+```
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request POST \
+    --data @payload.json \
+    https://localhost:4646/v1/search/fuzzy
+```
+
+### Sample Response
+
+```json
+{
+  "Index": 0,
+  "KnownLeader": true,
+  "LastContact": 0,
+  "Matches": {
+    "plugins": [
+      {
+        "ID": "aws-efs0"
+      }
+    ]
+  },
+  "Truncations": {
+    "plugins": false
+  }
+}
+```
+
+### Sample Payload (for all)
+
+```json
+{
+  "Index": 260,
+  "KnownLeader": true,
+  "LastContact": 0,
+  "Matches": {
+    "services": [
+      {
+        "ID": "python-logger",
+        "Scope": [
+          "default",
+          "example-python",
+          "my-spy-app",
+          "my-python-task"
+        ]
+      },
+      {
+        "ID": "super-spy-service",
+        "Scope": [
+          "default",
+          "example-python",
+          "my-spy-app"
+        ]
+      }
+    ],
+    "tasks": [
+      {
+        "ID": "my-python-task",
+        "Scope": [
+          "default",
+          "example-python",
+          "my-spy-app"
+        ]
+      }
+    ],
+    "jobs": [
+      {
+        "ID": "example-python",
+        "Scope": [
+          "default"
+        ]
+      }
+    ],
+    "evals": [],
+    "scaling_policy": [],
+    "groups": [
+      {
+        "ID": "my-spy-app",
+        "Scope": [
+          "default",
+          "example-python"
+        ]
+      }
+    ],
+    "images": [
+      {
+        "ID": "python:3",
+        "Scope": [
+          "default",
+          "example-python",
+          "my-spy-app",
+          "my-python-task"
+        ]
+      }
+    ],
+    "plugins": [
+      {
+        "ID": "aws-spy-plugin"
+      }
+    ],
+    "deployment": [],
+    "volumes": [],
+    "allocs": [
+      {
+        "ID": "example-python.my-spy-app[0]",
+        "Scope": [
+          "default",
+          "48608246-4c28-0446-f3d1-c67e3bc650ad"
+        ]
+      }
+    ]
+  },
+  "Truncations": {
+    "deployment": false,
+    "volumes": false,
+    "plugins": false,
+    "namespaces": false,
+    "scaling_policy": false,
+    "evals": false,
+    "allocs": false,
+    "jobs": false,
+    "nodes": false
+  }
+}
+```
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request POST \
+    --data @payload.json \
+    https://localhost:4646/v1/search/fuzzy
+```
+
+### Prefix matching when fuzzy searching
+
+If the search Context is `all` when fuzzy searching, the object types that are
+identified only with UUIDs are also concurrently prefix-searched. Those types include
+deployments, evals, volumes, and quotas (Enterprise).
+
+### Sample Payload (prefix match)
+
+```json
+{
+   "Text":"cc",
+   "Context":"all"
+}
+```
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request POST \
+    --data @payload.json \
+    https://localhost:4646/v1/search/fuzzy
+```
+
+### Sample Result
+```json
+{
+  "Index": 267,
+  "KnownLeader": true,
+  "LastContact": 0,
+  "Matches": {
+    "scaling_policy": [],
+    "evals": [],
+    "deployment": [
+      {
+        "ID": "cc786388-e071-31ec-5821-b829839f9681"
+      }
+    ],
+    "volumes": []
+  },
+  "Truncations": {
+    "deployment": false,
+    "volumes": false,
+    "plugins": false,
+    "namespaces": false,
+    "scaling_policy": false,
+    "evals": false,
+    "allocs": false,
+    "jobs": false,
+    "nodes": false
+  }
+}
+```
+
+[search]: /docs/configuration/search

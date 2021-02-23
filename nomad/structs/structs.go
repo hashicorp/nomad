@@ -193,25 +193,6 @@ var (
 	validNamespaceName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
 
-// Context defines the scope in which a search for Nomad object operates, and
-// is also used to query the matching index value for this context
-type Context string
-
-const (
-	Allocs          Context = "allocs"
-	Deployments     Context = "deployment"
-	Evals           Context = "evals"
-	Jobs            Context = "jobs"
-	Nodes           Context = "nodes"
-	Namespaces      Context = "namespaces"
-	Quotas          Context = "quotas"
-	Recommendations Context = "recommendations"
-	ScalingPolicies Context = "scaling_policy"
-	All             Context = "all"
-	Plugins         Context = "plugins"
-	Volumes         Context = "volumes"
-)
-
 // NamespacedID is a tuple of an ID and a namespace
 type NamespacedID struct {
 	ID        string
@@ -578,35 +559,6 @@ type NodeEvaluateRequest struct {
 type NodeSpecificRequest struct {
 	NodeID   string
 	SecretID string
-	QueryOptions
-}
-
-// SearchResponse is used to return matches and information about whether
-// the match list is truncated specific to each type of context.
-type SearchResponse struct {
-	// Map of context types to ids which match a specified prefix
-	Matches map[Context][]string
-
-	// Truncations indicates whether the matches for a particular context have
-	// been truncated
-	Truncations map[Context]bool
-
-	QueryMeta
-}
-
-// SearchRequest is used to parameterize a request, and returns a
-// list of matches made up of jobs, allocations, evaluations, and/or nodes,
-// along with whether or not the information returned is truncated.
-type SearchRequest struct {
-	// Prefix is what ids are matched to. I.e, if the given prefix were
-	// "a", potential matches might be "abcd" or "aabb"
-	Prefix string
-
-	// Context is the type that can be matched against. A context can be a job,
-	// node, evaluation, allocation, or empty (indicated every context should be
-	// matched)
-	Context Context
-
 	QueryOptions
 }
 

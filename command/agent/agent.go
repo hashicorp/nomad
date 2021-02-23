@@ -424,6 +424,16 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.LicenseEnv = agentConfig.Server.LicenseEnv
 	conf.LicensePath = agentConfig.Server.LicensePath
 
+	// Add the search configuration
+	if search := agentConfig.Server.Search; search != nil {
+		conf.SearchConfig = &structs.SearchConfig{
+			FuzzyEnabled:  search.FuzzyEnabled,
+			LimitQuery:    search.LimitQuery,
+			LimitResults:  search.LimitResults,
+			MinTermLength: search.MinTermLength,
+		}
+	}
+
 	return conf, nil
 }
 

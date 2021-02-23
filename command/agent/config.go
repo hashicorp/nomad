@@ -510,6 +510,44 @@ type ServerConfig struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	Search *Search `hcl:"search"`
+}
+
+// Search is used in servers to configure search API options.
+type Search struct {
+	// FuzzyEnabled toggles whether the FuzzySearch API is enabled. If not
+	// enabled, requests to /v1/search/fuzzy will reply with a 404 response code.
+	//
+	// Default: enabled.
+	FuzzyEnabled bool `hcl:"fuzzy_enabled"`
+
+	// LimitQuery limits the number of objects searched in the FuzzySearch API.
+	// The results are indicated as truncated if the limit is reached.
+	//
+	// Lowering this value can reduce resource consumption of Nomad server when
+	// the FuzzySearch API is enabled.
+	//
+	// Default value: 20.
+	LimitQuery int `hcl:"limit_query"`
+
+	// LimitResults limits the number of results provided by the FuzzySearch API.
+	// The results are indicated as truncate if the limit is reached.
+	//
+	// Lowering this value can reduce resource consumption of Nomad server per
+	// fuzzy search request when the FuzzySearch API is enabled.
+	//
+	// Default value: 100.
+	LimitResults int `hcl:"limit_results"`
+
+	// MinTermLength is the minimum length of Text required before the FuzzySearch
+	// API will return results.
+	//
+	// Increasing this value can avoid resource consumption on Nomad server by
+	// reducing searches with less meaningful results.
+	//
+	// Default value: 2.
+	MinTermLength int `hcl:"min_term_length"`
 }
 
 // ServerJoin is used in both clients and servers to bootstrap connections to
@@ -899,6 +937,12 @@ func DefaultConfig() *Config {
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
 				RetryMaxAttempts: 0,
+			},
+			Search: &Search{
+				FuzzyEnabled:  true,
+				LimitQuery:    20,
+				LimitResults:  100,
+				MinTermLength: 2,
 			},
 		},
 		ACL: &ACLConfig{
@@ -1432,6 +1476,19 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.DefaultSchedulerConfig != nil {
 		c := *b.DefaultSchedulerConfig
 		result.DefaultSchedulerConfig = &c
+	}
+
+	if b.Search != nil {
+		result.Search = &Search{FuzzyEnabled: b.Search.FuzzyEnabled}
+		if b.Search.LimitQuery > 0 {
+			result.Search.LimitQuery = b.Search.LimitQuery
+		}
+		if b.Search.LimitResults > 0 {
+			result.Search.LimitResults = b.Search.LimitResults
+		}
+		if b.Search.MinTermLength > 0 {
+			result.Search.MinTermLength = b.Search.MinTermLength
+		}
 	}
 
 	// Add the schedulers
