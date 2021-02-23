@@ -59,6 +59,10 @@ export default class LineChart extends Component {
     chartClass = 'is-primary';
     activeAnnotation = null;
     onAnnotationClick() {}
+    xFormat;
+    yFormat;
+    xScale;
+    yScale;
   */
 
   @tracked width = 0;

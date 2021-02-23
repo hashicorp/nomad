@@ -112,7 +112,7 @@ export let LiveData = () => {
           clearInterval(this.timer);
         },
 
-        secondsFormat() {
+        get secondsFormat() {
           return date => moment(date).format('HH:mm:ss');
         },
       }).create(),
