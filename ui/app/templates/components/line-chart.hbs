@@ -4,16 +4,16 @@
   {{did-insert this.onInsert}}
   {{did-update this.renderChart}}
   {{window-resize this.updateDimensions}}>
-  <svg data-test-line-chart role="img" aria-labelledby="{{concat "title-" this.elementId}} {{concat "desc-" this.elementId}}">
-    <title id="{{concat "title-" this.elementId}}">{{this.title}}</title>
-    <description id="{{concat "desc-" this.elementId}}">
+  <svg data-test-line-chart aria-labelledby="{{this.titleId}}" aria-describedby="{{this.descriptionId}}">
+    <title id="{{this.titleId}}">{{this.title}}</title>
+    <desc id="{{this.descriptionId}}">
       {{#if this.description}}
         {{this.description}}
       {{else}}
         X-axis values range from {{this.xRange.firstObject}} to {{this.xRange.lastObject}},
         and Y-axis values range from {{this.yRange.firstObject}} to {{this.yRange.lastObject}}.
       {{/if}}
-    </description>
+    </desc>
     <g class="y-gridlines gridlines" transform="translate({{this.yAxisOffset}}, 0)"></g>
     <ChartPrimitives::Area
       @data={{this.data}}
@@ -33,7 +33,7 @@
     @annotations={{@annotations}}
     @key={{@annotationKey}}
     @annotationClick={{action this.annotationClick}}
-    @timeseries={{this.timeseries}}
+    @timeseries={{@timeseries}}
     @format={{this.xFormat}}
     @scale={{this.xScale}}
     @prop={{this.xProp}}

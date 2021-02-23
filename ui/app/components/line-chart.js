@@ -1,4 +1,3 @@
-/* eslint-disable ember/no-observers */
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
@@ -11,6 +10,7 @@ import d3Array from 'd3-array';
 import d3Format from 'd3-format';
 import d3TimeFormat from 'd3-time-format';
 import styleString from 'nomad-ui/utils/properties/glimmer-style-string';
+import uniquely from 'nomad-ui/utils/properties/uniquely';
 
 // Returns a new array with the specified number of points linearly
 // distributed across the bounds
@@ -25,6 +25,27 @@ const lerp = ([low, high], numPoints) => {
 
 // Round a number or an array of numbers
 const nice = val => (val instanceof Array ? val.map(nice) : Math.round(val));
+
+const defaultXScale = (data, yAxisOffset, xProp, timeseries) => {
+  const scale = timeseries ? d3Scale.scaleTime() : d3Scale.scaleLinear();
+  const domain = data.length ? d3Array.extent(data, d => d[xProp]) : [0, 1];
+
+  scale.rangeRound([10, yAxisOffset]).domain(domain);
+
+  return scale;
+};
+
+const defaultYScale = (data, xAxisOffset, yProp) => {
+  let max = d3Array.max(data, d => d[yProp]) || 1;
+  if (max > 1) {
+    max = nice(max);
+  }
+
+  return d3Scale
+    .scaleLinear()
+    .rangeRound([xAxisOffset, 10])
+    .domain([0, max]);
+};
 
 export default class LineChart extends Component {
   /** Args
@@ -47,6 +68,9 @@ export default class LineChart extends Component {
   @tracked tooltipPosition = null;
   @tracked element = null;
 
+  @uniquely('title') titleId;
+  @uniquely('desc') descriptionId;
+
   get xProp() {
     return this.args.xProp || 'time';
   }
@@ -63,12 +87,15 @@ export default class LineChart extends Component {
     return this.args.chartClass || 'is-primary';
   }
 
-  // Overridable functions that retrurn formatter functions
+  @action
   xFormat(timeseries) {
+    if (this.args.xFormat) return this.args.xFormat;
     return timeseries ? d3TimeFormat.timeFormat('%b %d, %H:%M') : d3Format.format(',');
   }
 
+  @action
   yFormat() {
+    if (this.args.yFormat) return this.args.yFormat;
     return d3Format.format(',.2~r');
   }
 
@@ -105,14 +132,8 @@ export default class LineChart extends Component {
   }
 
   get xScale() {
-    const { xProp, data } = this;
-    const scale = this.args.timeseries ? d3Scale.scaleTime() : d3Scale.scaleLinear();
-
-    const domain = data.length ? d3Array.extent(data, d => d[xProp]) : [0, 1];
-
-    scale.rangeRound([10, this.yAxisOffset]).domain(domain);
-
-    return scale;
+    const fn = this.args.xScale || defaultXScale;
+    return fn(this.data, this.yAxisOffset, this.xProp, this.args.timeseries);
   }
 
   get xRange() {
@@ -132,16 +153,8 @@ export default class LineChart extends Component {
   }
 
   get yScale() {
-    const yProp = this.yProp;
-    let max = d3Array.max(this.data, d => d[yProp]) || 1;
-    if (max > 1) {
-      max = nice(max);
-    }
-
-    return d3Scale
-      .scaleLinear()
-      .rangeRound([this.xAxisOffset, 10])
-      .domain([0, max]);
+    const fn = this.args.yScale || defaultYScale;
+    return fn(this.data, this.xAxisOffset, this.yProp);
   }
 
   get xAxis() {
