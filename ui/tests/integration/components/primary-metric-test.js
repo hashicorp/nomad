@@ -90,7 +90,7 @@ module('Integration | Component | primary metric', function(hooks) {
     await render(commonTemplate);
 
     assert.ok(
-      find('[data-test-line-chart] .canvas').classList.contains('is-info'),
+      find('[data-test-line-chart] .area').classList.contains('is-info'),
       'Info class for CPU metric'
     );
   });
@@ -106,7 +106,7 @@ module('Integration | Component | primary metric', function(hooks) {
     await render(commonTemplate);
 
     assert.ok(
-      find('[data-test-line-chart] .canvas').classList.contains('is-danger'),
+      find('[data-test-line-chart] .area').classList.contains('is-danger'),
       'Danger class for Memory metric'
     );
   });
