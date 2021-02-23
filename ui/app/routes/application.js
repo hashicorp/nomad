@@ -25,7 +25,7 @@ export default class ApplicationRoute extends Route {
     }
   }
 
-  beforeModel(transition) {
+  async beforeModel(transition) {
     let exchangeOneTimeToken;
 
     if (transition.to.queryParams.ott) {
@@ -36,41 +36,41 @@ export default class ApplicationRoute extends Route {
       exchangeOneTimeToken = Promise.resolve(true);
     }
 
-    return exchangeOneTimeToken.then(() => {
-      const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
-        .perform()
-        .catch();
+    await exchangeOneTimeToken;
 
-      const fetchLicense = this.get('system.fetchLicense')
-        .perform()
-        .catch();
+    const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
+      .perform()
+      .catch();
 
-      return RSVP.all([
-        this.get('system.regions'),
-        this.get('system.defaultRegion'),
-        fetchLicense,
-        fetchSelfTokenAndPolicies,
-      ]).then(promises => {
-        if (!this.get('system.shouldShowRegions')) return promises;
+    const fetchLicense = this.get('system.fetchLicense')
+      .perform()
+      .catch();
 
-        const queryParam = transition.to.queryParams.region;
-        const defaultRegion = this.get('system.defaultRegion.region');
-        const currentRegion = this.get('system.activeRegion') || defaultRegion;
+    const promises = await RSVP.all([
+      this.get('system.regions'),
+      this.get('system.defaultRegion'),
+      fetchLicense,
+      fetchSelfTokenAndPolicies,
+    ]);
 
-        // Only reset the store if the region actually changed
-        if (
-          (queryParam && queryParam !== currentRegion) ||
-          (!queryParam && currentRegion !== defaultRegion)
-        ) {
-          this.system.reset();
-          this.store.unloadAll();
-        }
+    if (!this.get('system.shouldShowRegions')) return promises;
 
-        this.set('system.activeRegion', queryParam || defaultRegion);
+    const queryParam = transition.to.queryParams.region;
+    const defaultRegion = this.get('system.defaultRegion.region');
+    const currentRegion = this.get('system.activeRegion') || defaultRegion;
 
-        return promises;
-      });
-    });
+    // Only reset the store if the region actually changed
+    if (
+      (queryParam && queryParam !== currentRegion) ||
+      (!queryParam && currentRegion !== defaultRegion)
+    ) {
+      this.system.reset();
+      this.store.unloadAll();
+    }
+
+    this.set('system.activeRegion', queryParam || defaultRegion);
+
+    return promises;
   }
 
   // Model is being used as a way to transfer the provided region
