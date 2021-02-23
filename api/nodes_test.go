@@ -241,8 +241,10 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	out, _, err := nodes.Info(nodeID, nil)
 	require.Nil(err)
 	require.False(out.Drain)
+	require.Nil(out.LastDrain)
 
 	// Toggle it on
+	timeBeforeDrain := time.Now().Add(-1 * time.Second)
 	spec := &DrainSpec{
 		Deadline: 10 * time.Second,
 	}
@@ -260,6 +262,8 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	require.NoError(err)
 
 	// we expect to see the node change to Drain:true and then back to Drain:false+ineligible
+	// sleep because of time round-off in LastDrain
+	time.Sleep(1 * time.Second)
 	var sawDraining, sawDrainComplete uint64
 	for sawDrainComplete == 0 {
 		select {
@@ -271,9 +275,21 @@ func TestNodes_ToggleDrain(t *testing.T) {
 				require.Equal(node.DrainStrategy != nil, node.Drain)
 				require.True(!node.Drain || node.SchedulingEligibility == NodeSchedulingIneligible) // node.Drain => "ineligible"
 				if node.Drain && node.SchedulingEligibility == NodeSchedulingIneligible {
+					require.NotNil(node.LastDrain)
+					require.Equal(DrainStatusDraining, node.LastDrain.Status)
+					now := time.Now()
+					require.True(!node.LastDrain.StartedAt.Before(timeBeforeDrain) && !node.LastDrain.StartedAt.After(now),
+						"wanted %v <= %v <= %v", timeBeforeDrain, node.LastDrain.StartedAt, now)
+					// TODO: test meta vvvv
+					// require.Equal(node.LastDrain.Meta["reason"])
 					sawDraining = node.ModifyIndex
 				} else if sawDraining != 0 && node.ModifyIndex > sawDraining &&
 					!node.Drain && node.SchedulingEligibility == NodeSchedulingIneligible {
+					require.NotNil(node.LastDrain)
+					require.Equal(DrainStatusCompleted, node.LastDrain.Status)
+					require.True(!node.LastDrain.UpdatedAt.Before(node.LastDrain.StartedAt))
+					// TODO: test meta vvvv
+					// require.Equal(node.LastDrain.Meta["reason"])
 					sawDrainComplete = node.ModifyIndex
 				}
 			}

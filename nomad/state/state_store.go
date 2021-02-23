@@ -834,6 +834,7 @@ func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
 
 		node.SchedulingEligibility = exist.SchedulingEligibility // Retain the eligibility
 		node.DrainStrategy = exist.DrainStrategy                 // Retain the drain strategy
+		node.LastDrain = exist.LastDrain                         // Retain the drain metadata
 	} else {
 		// Because this is the first time the node is being registered, we should
 		// also create a node registration event
@@ -951,12 +952,14 @@ func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, update
 }
 
 // BatchUpdateNodeDrain is used to update the drain of a node set of nodes.
-// This is only called when node drain is completed by the drainer.
-func (s *StateStore) BatchUpdateNodeDrain(msgType structs.MessageType, index uint64, updatedAt int64, updates map[string]*structs.DrainUpdate, events map[string]*structs.NodeEvent) error {
+// This is currently only called when node drain is completed by the drainer.
+func (s *StateStore) BatchUpdateNodeDrain(msgType structs.MessageType, index uint64, updatedAt int64,
+	updates map[string]*structs.DrainUpdate, events map[string]*structs.NodeEvent) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 	for node, update := range updates {
-		if err := s.updateNodeDrainImpl(txn, index, node, update.DrainStrategy, update.MarkEligible, updatedAt, events[node]); err != nil {
+		if err := s.updateNodeDrainImpl(txn, index, node, update.DrainStrategy, update.MarkEligible, updatedAt,
+			events[node], nil, "", true); err != nil {
 			return err
 		}
 	}
@@ -964,11 +967,14 @@ func (s *StateStore) BatchUpdateNodeDrain(msgType structs.MessageType, index uin
 }
 
 // UpdateNodeDrain is used to update the drain of a node
-func (s *StateStore) UpdateNodeDrain(msgType structs.MessageType, index uint64, nodeID string, drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
+func (s *StateStore) UpdateNodeDrain(msgType structs.MessageType, index uint64, nodeID string,
+	drain *structs.DrainStrategy, markEligible bool, updatedAt int64,
+	event *structs.NodeEvent, drainMeta map[string]string, accessorId string) error {
 
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
-	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible, updatedAt, event); err != nil {
+	if err := s.updateNodeDrainImpl(txn, index, nodeID, drain, markEligible, updatedAt, event,
+		drainMeta, accessorId, false); err != nil {
 
 		return err
 	}
@@ -976,7 +982,9 @@ func (s *StateStore) UpdateNodeDrain(msgType structs.MessageType, index uint64, 
 }
 
 func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
-	drain *structs.DrainStrategy, markEligible bool, updatedAt int64, event *structs.NodeEvent) error {
+	drain *structs.DrainStrategy, markEligible bool, updatedAt int64,
+	event *structs.NodeEvent, drainMeta map[string]string, accessorId string,
+	drainCompleted bool) error {
 
 	// Lookup the node
 	existing, err := txn.First("nodes", "id", nodeID)
@@ -1003,6 +1011,39 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 		copyNode.SchedulingEligibility = structs.NodeSchedulingIneligible
 	} else if markEligible {
 		copyNode.SchedulingEligibility = structs.NodeSchedulingEligible
+	}
+
+	// Update LastDrain
+	updateTime := time.Unix(updatedAt, 0)
+	// if starting a new drain operation, create a new LastDrain. otherwise, update the existing one.
+	// if LastDrain doesn't exist, we'll need to create a new one. this might happen if we upgrade the
+	// server to 1.0.4 during a drain operation
+	if existingNode.DrainStrategy == nil && drain != nil || existingNode.LastDrain == nil {
+		// starting a new drain operation
+		copyNode.LastDrain = &structs.DrainMetadata{
+			StartedAt:  updateTime,
+			UpdatedAt:  updateTime,
+			Status:     structs.DrainStatusDraining,
+			AccessorID: accessorId,
+			Meta:       drainMeta,
+		}
+	} else {
+		copyNode.LastDrain.UpdatedAt = updateTime
+		if accessorId != "" {
+			// we won't have an accessor ID for drain complete; don't overwrite the existing one
+			copyNode.LastDrain.AccessorID = accessorId
+		}
+		if drainMeta != nil {
+			// similarly, won't have metadata for drain complete; keep existing
+			copyNode.Meta = drainMeta
+		}
+		if drain == nil {
+			if drainCompleted {
+				copyNode.LastDrain.Status = structs.DrainStatusCompleted
+			} else {
+				copyNode.LastDrain.Status = structs.DrainStatusCancelled
+			}
+		}
 	}
 
 	copyNode.ModifyIndex = index

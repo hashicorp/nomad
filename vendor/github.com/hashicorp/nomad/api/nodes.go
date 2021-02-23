@@ -468,6 +468,15 @@ type HostVolumeInfo struct {
 	ReadOnly bool
 }
 
+// DrainMetadata contains information about the most recent drain operation for a given Node.
+type DrainMetadata struct {
+	StartedAt  time.Time
+	UpdatedAt  time.Time
+	Status     string
+	AccessorID string
+	Meta       map[string]string
+}
+
 // Node is used to deserialize a node entry.
 type Node struct {
 	ID                    string
@@ -494,6 +503,7 @@ type Node struct {
 	HostVolumes           map[string]*HostVolumeInfo
 	CSIControllerPlugins  map[string]*CSIInfo
 	CSINodePlugins        map[string]*CSIInfo
+	LastDrain             *DrainMetadata
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }
@@ -789,6 +799,7 @@ type NodeListStub struct {
 	Drivers               map[string]*DriverInfo
 	NodeResources         *NodeResources         `json:",omitempty"`
 	ReservedResources     *NodeReservedResources `json:",omitempty"`
+	LastDrain             *DrainMetadata
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }
