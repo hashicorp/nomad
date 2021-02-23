@@ -315,17 +315,19 @@ func TestConnect_connectUpstreams(t *testing.T) {
 				DestinationName: "foo",
 				LocalBindPort:   8000,
 			}, {
-				DestinationName: "bar",
-				LocalBindPort:   9000,
-				Datacenter:      "dc2",
+				DestinationName:  "bar",
+				LocalBindPort:    9000,
+				Datacenter:       "dc2",
+				LocalBindAddress: "127.0.0.2",
 			}},
 			connectUpstreams([]structs.ConsulUpstream{{
 				DestinationName: "foo",
 				LocalBindPort:   8000,
 			}, {
-				DestinationName: "bar",
-				LocalBindPort:   9000,
-				Datacenter:      "dc2",
+				DestinationName:  "bar",
+				LocalBindPort:    9000,
+				Datacenter:       "dc2",
+				LocalBindAddress: "127.0.0.2",
 			}}),
 		)
 	})
