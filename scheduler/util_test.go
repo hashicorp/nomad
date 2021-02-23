@@ -1386,3 +1386,77 @@ func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
 	expected = []string{}
 	require.True(t, reflect.DeepEqual(allocsLost, expected), "actual: %v, expected: %v", allocsLost, expected)
 }
+
+func TestUtil_connectUpdated(t *testing.T) {
+	t.Run("both nil", func(t *testing.T) {
+		require.False(t, connectUpdated(nil, nil))
+	})
+
+	t.Run("one nil", func(t *testing.T) {
+		require.True(t, connectUpdated(nil, new(structs.ConsulConnect)))
+	})
+
+	t.Run("native differ", func(t *testing.T) {
+		a := &structs.ConsulConnect{Native: true}
+		b := &structs.ConsulConnect{Native: false}
+		require.True(t, connectUpdated(a, b))
+	})
+
+	t.Run("gateway differ", func(t *testing.T) {
+		a := &structs.ConsulConnect{Gateway: &structs.ConsulGateway{
+			Ingress: new(structs.ConsulIngressConfigEntry),
+		}}
+		b := &structs.ConsulConnect{Gateway: &structs.ConsulGateway{
+			Terminating: new(structs.ConsulTerminatingConfigEntry),
+		}}
+		require.True(t, connectUpdated(a, b))
+	})
+
+	t.Run("sidecar task differ", func(t *testing.T) {
+		a := &structs.ConsulConnect{SidecarTask: &structs.SidecarTask{
+			Driver: "exec",
+		}}
+		b := &structs.ConsulConnect{SidecarTask: &structs.SidecarTask{
+			Driver: "docker",
+		}}
+		require.True(t, connectUpdated(a, b))
+	})
+
+	t.Run("sidecar service differ", func(t *testing.T) {
+		a := &structs.ConsulConnect{SidecarService: &structs.ConsulSidecarService{
+			Port: "1111",
+		}}
+		b := &structs.ConsulConnect{SidecarService: &structs.ConsulSidecarService{
+			Port: "2222",
+		}}
+		require.True(t, connectUpdated(a, b))
+	})
+
+	t.Run("same", func(t *testing.T) {
+		a := new(structs.ConsulConnect)
+		b := new(structs.ConsulConnect)
+		require.False(t, connectUpdated(a, b))
+	})
+}
+
+func TestUtil_connectSidecarServiceUpdated(t *testing.T) {
+	t.Run("both nil", func(t *testing.T) {
+		require.False(t, connectSidecarServiceUpdated(nil, nil))
+	})
+
+	t.Run("one nil", func(t *testing.T) {
+		require.True(t, connectSidecarServiceUpdated(nil, new(structs.ConsulSidecarService)))
+	})
+
+	t.Run("ports differ", func(t *testing.T) {
+		a := &structs.ConsulSidecarService{Port: "1111"}
+		b := &structs.ConsulSidecarService{Port: "2222"}
+		require.True(t, connectSidecarServiceUpdated(a, b))
+	})
+
+	t.Run("same", func(t *testing.T) {
+		a := &structs.ConsulSidecarService{Port: "1111"}
+		b := &structs.ConsulSidecarService{Port: "1111"}
+		require.False(t, connectSidecarServiceUpdated(a, b))
+	})
+}

@@ -23,6 +23,7 @@ BUG FIXES:
  * consul/connect: Fixed a bug preventing more than one connect gateway per Nomad client [[GH-9849](https://github.com/hashicorp/nomad/pull/9849)]
  * consul/connect: Fixed a bug where connect sidecar services would be re-registered unnecessarily. [[GH-10059](https://github.com/hashicorp/nomad/pull/10059)]
  * consul/connect: Fixed a bug where the sidecar health checks would fail if `host_network` was defined. [[GH-9975](https://github.com/hashicorp/nomad/issues/9975)]
+ * consul/connect: Fixed a bug where tasks with connect services might be updated when no update necessary. [[GH-10077](https://github.com/hashicorp/nomad/issues/10077)]
  * deployments: Fixed a bug where deployments with multiple task groups and manual promotion would fail if promoted after the progress deadline. [[GH-10042](https://github.com/hashicorp/nomad/issues/10042)]
  * drivers/docker: Fixed a bug preventing multiple ports to be mapped to the same container port [[GH-9951](https://github.com/hashicorp/nomad/issues/9951)]
  * driver/qemu: Fixed a bug where network namespaces were not supported for QEMU workloads [[GH-9861](https://github.com/hashicorp/nomad/pull/9861)]
