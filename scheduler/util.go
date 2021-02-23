@@ -467,7 +467,7 @@ func connectServiceUpdated(servicesA, servicesB []*structs.Service) bool {
 // update.
 func connectUpdated(connectA, connectB *structs.ConsulConnect) bool {
 	if connectA == nil || connectB == nil {
-		return connectA == connectB
+		return connectA != connectB
 	}
 
 	if connectA.Native != connectB.Native {
@@ -492,7 +492,7 @@ func connectUpdated(connectA, connectB *structs.ConsulConnect) bool {
 
 func connectSidecarServiceUpdated(ssA, ssB *structs.ConsulSidecarService) bool {
 	if ssA == nil || ssB == nil {
-		return ssA == ssB
+		return ssA != ssB
 	}
 
 	if ssA.Port != ssB.Port {
