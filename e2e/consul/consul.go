@@ -36,6 +36,7 @@ func init() {
 			new(ConsulE2ETest),
 			new(ScriptChecksE2ETest),
 			new(CheckRestartE2ETest),
+			new(OnUpdateChecksTest),
 		},
 	})
 }

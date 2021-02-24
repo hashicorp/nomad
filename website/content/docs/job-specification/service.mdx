@@ -173,6 +173,30 @@ Connect][connect] integration.
   `meta` parameter. If this is not supplied, the registered meta will be set to
   that of the `meta` parameter.
 
+- `on_update` `(string: "require_healthy")` - Specifies how checks should be
+  evaluated when determining deployment health (including a job's initial
+  deployment). This allows job submitters to define certain checks as readiness
+  checks, progressing a deployment even if the Service's checks are not yet
+  healthy. Checks inherit the Service's value by default. The check status is
+  not altered in Consul and is only used to determine the check's health during
+  an update.
+
+  - `require_healthy` - In order for Nomad to consider the check healthy during
+    an update it must report as healthy.
+
+  - `ignore_warnings` - If a Service Check reports as warning, Nomad will treat
+    the check as healthy. The Check will still be in a warning state in Consul.
+
+  - `ignore` - Any status will be treated as healthy.
+
+  ~> **Caveat:** `on_update` is only compatible with certain
+  [`check_restart`][check_restart_stanza] configurations. `on_update =
+  "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
+  `check_restart` can however specify `ignore_warnings = true` with `on_update
+  = "require_healthy"`. If `on_update` is set to `ignore`, `check_restart` must
+  be omitted entirely.
+
+
 ### `check` Parameters
 
 Note that health checks run inside the task. If your task is a Docker container,
@@ -279,6 +303,29 @@ scripts.
 
 - `tls_skip_verify` `(bool: false)` - Skip verifying TLS certificates for HTTPS
   checks. Requires Consul >= 0.7.2.
+
+- `on_update` `(string: "require_healthy")` - Specifies how checks should be
+  evaluated when determining deployment health (including a job's initial
+  deployment). This allows job submitters to define certain checks as readiness
+  checks, progressing a deployment even if the Service's checks are not yet
+  healthy. Checks inherit the Service's value by default. The check status is
+  not altered in Consul and is only used to determine the check's health during
+  an update.
+
+  - `require_healthy` - In order for Nomad to consider the check healthy during
+    an update it must report as healthy.
+
+  - `ignore_warnings` - If a Service Check reports as warning, Nomad will treat
+    the check as healthy. The Check will still be in a warning state in Consul.
+
+  - `ignore` - Any status will be treated as healthy.
+
+  ~> **Caveat:** `on_update` is only compatible with certain
+  [`check_restart`][check_restart_stanza] configurations. `on_update =
+  "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
+  `check_restart` can however specify `ignore_warnings = true` with `on_update
+  = "require_healthy"`. If `on_update` is set to `ignore`, `check_restart` must
+  be omitted entirely.
 
 #### `header` Stanza
 
@@ -444,12 +491,50 @@ service {
   }
 
   check {
-    name     = "Postgres Check"
-    type     = "script"
-    command  = "/usr/local/bin/pg-tools"
-    args     = ["verify", "database", "prod", "up"]
-    interval = "5s"
+    name      = "Postgres Check"
+    type      = "script"
+    command   = "/usr/local/bin/pg-tools"
+    args      = ["verify", "database", "prod", "up"]
+    interval  = "5s"
+    timeout   = "2s"
+    on_update = "ignore_warnings"
+  }
+}
+```
+
+### Readiness and Liveness Checks
+
+Multiple checks for a service can be composed to create liveness and readiness
+checks by configuring [`on_update`][on_update] for the check.
+
+```hcl
+service {
+  # This is a liveness check that will be used to verify the service
+  # is up and able to serve traffic
+  check {
+    name     = "tcp_validate"
+    type     = "tcp"
+    port     = 6379
+    interval = "10s"
     timeout  = "2s"
+  }
+
+  # This is a readiness check that is used to verify that, for example, the
+  # application has elected a leader between allocations. Warnings from
+  # this check will be ignored during updates.
+  check {
+    name      = "leader-check"
+    type      = "script"
+    command   = "/bin/bash"
+    interval  = "30s"
+    timeout   = "10s"
+    task      = "server"
+    on_update = "ignore_warnings"
+
+    args = [
+      "-c",
+      "echo 'service is not the leader'; exit 1;",
+    ]
   }
 }
 ```
@@ -721,3 +806,4 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [killtimeout]: /docs/job-specification/task#kill_timeout
 [service_task]: /docs/job-specification/service#task-1
 [network_mode]: /docs/job-specification/network#mode
+[on_update]: /docs/job-specification/service#on_update

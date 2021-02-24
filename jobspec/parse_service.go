@@ -34,6 +34,7 @@ func parseServices(serviceObjs *ast.ObjectList) ([]*api.Service, error) {
 	}
 	return services, nil
 }
+
 func parseService(o *ast.ObjectItem) (*api.Service, error) {
 	// Check for invalid keys
 	valid := []string{

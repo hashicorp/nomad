@@ -1,11 +1,46 @@
 package api
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestService_Canonicalize(t *testing.T) {
+	t.Parallel()
+
+	j := &Job{Name: stringToPtr("job")}
+	tg := &TaskGroup{Name: stringToPtr("group")}
+	task := &Task{Name: "task"}
+	s := &Service{}
+
+	s.Canonicalize(task, tg, j)
+
+	require.Equal(t, fmt.Sprintf("%s-%s-%s", *j.Name, *tg.Name, task.Name), s.Name)
+	require.Equal(t, "auto", s.AddressMode)
+	require.Equal(t, OnUpdateRequireHealthy, s.OnUpdate)
+}
+
+func TestServiceCheck_Canonicalize(t *testing.T) {
+	t.Parallel()
+
+	j := &Job{Name: stringToPtr("job")}
+	tg := &TaskGroup{Name: stringToPtr("group")}
+	task := &Task{Name: "task"}
+	s := &Service{
+		Checks: []ServiceCheck{
+			{
+				Name: "check",
+			},
+		},
+	}
+
+	s.Canonicalize(task, tg, j)
+
+	require.Equal(t, OnUpdateRequireHealthy, s.Checks[0].OnUpdate)
+}
 
 func TestService_Check_PassFail(t *testing.T) {
 	t.Parallel()

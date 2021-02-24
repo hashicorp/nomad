@@ -2776,6 +2776,12 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
+								Name: "OnUpdate",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "PortLabel",
 								Old:  "",
 								New:  "",
@@ -2851,6 +2857,12 @@ func TestTaskGroupDiff(t *testing.T) {
 										Name: "Name",
 										Old:  "foo",
 										New:  "foo",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "OnUpdate",
+										Old:  "",
+										New:  "",
 									},
 									{
 										Type: DiffTypeEdited,
@@ -5303,6 +5315,12 @@ func TestTaskDiff(t *testing.T) {
 								New:  "foo",
 							},
 							{
+								Type: DiffTypeNone,
+								Name: "OnUpdate",
+								Old:  "",
+								New:  "",
+							},
+							{
 								Type: DiffTypeEdited,
 								Name: "PortLabel",
 								Old:  "foo",
@@ -5439,6 +5457,10 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "Name",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "OnUpdate",
 							},
 							{
 								Type: DiffTypeNone,
@@ -5881,6 +5903,7 @@ func TestTaskDiff(t *testing.T) {
 								},
 								SuccessBeforePassing:   4,
 								FailuresBeforeCritical: 5,
+								OnUpdate:               "require_healthy",
 							},
 						},
 					},
@@ -5907,6 +5930,7 @@ func TestTaskDiff(t *testing.T) {
 									"Eggs": {"spam"},
 								},
 								SuccessBeforePassing: 4,
+								OnUpdate:             "ignore_warnings",
 							},
 						},
 					},
@@ -5936,6 +5960,10 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Name",
 								Old:  "foo",
 								New:  "foo",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "OnUpdate",
 							},
 							{
 								Type: DiffTypeNone,
@@ -6014,6 +6042,12 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Name",
 										Old:  "foo",
 										New:  "foo",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "OnUpdate",
+										Old:  "require_healthy",
+										New:  "ignore_warnings",
 									},
 									{
 										Type: DiffTypeNone,

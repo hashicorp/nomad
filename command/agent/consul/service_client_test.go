@@ -3,8 +3,12 @@ package consul
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -325,4 +329,87 @@ func TestSyncLogic_maybeTweakTags_emptySC(t *testing.T) {
 			SidecarService: nil, // ooh danger!
 		},
 	})
+}
+
+// TestServiceRegistration_CheckOnUpdate tests that a ServiceRegistrations
+// CheckOnUpdate is populated and updated properly
+func TestServiceRegistration_CheckOnUpdate(t *testing.T) {
+	t.Parallel()
+
+	mock := NewMockAgent()
+	logger := testlog.HCLogger(t)
+	sc := NewServiceClient(mock, logger, true)
+
+	allocID := uuid.Generate()
+	ws := &WorkloadServices{
+		AllocID:   allocID,
+		Task:      "taskname",
+		Restarter: &restartRecorder{},
+		Services: []*structs.Service{
+			{
+				Name:      "taskname-service",
+				PortLabel: "x",
+				Tags:      []string{"tag1", "tag2"},
+				Meta:      map[string]string{"meta1": "foo"},
+				Checks: []*structs.ServiceCheck{
+					{
+
+						Name:      "c1",
+						Type:      "tcp",
+						Interval:  time.Second,
+						Timeout:   time.Second,
+						PortLabel: "x",
+						OnUpdate:  structs.OnUpdateIgnoreWarn,
+					},
+				},
+			},
+		},
+		Networks: []*structs.NetworkResource{
+			{
+				DynamicPorts: []structs.Port{
+					{Label: "x", Value: xPort},
+					{Label: "y", Value: yPort},
+				},
+			},
+		},
+	}
+
+	require.NoError(t, sc.RegisterWorkload(ws))
+
+	require.NotNil(t, sc.allocRegistrations[allocID])
+
+	allocReg := sc.allocRegistrations[allocID]
+	serviceReg := allocReg.Tasks["taskname"]
+	require.NotNil(t, serviceReg)
+
+	// Ensure that CheckOnUpdate was set correctly
+	require.Len(t, serviceReg.Services, 1)
+	for _, sreg := range serviceReg.Services {
+		require.NotEmpty(t, sreg.CheckOnUpdate)
+		for _, onupdate := range sreg.CheckOnUpdate {
+			require.Equal(t, structs.OnUpdateIgnoreWarn, onupdate)
+		}
+	}
+
+	// Update
+	wsUpdate := new(WorkloadServices)
+	*wsUpdate = *ws
+	wsUpdate.Services[0].Checks[0].OnUpdate = structs.OnUpdateRequireHealthy
+
+	require.NoError(t, sc.UpdateWorkload(ws, wsUpdate))
+
+	require.NotNil(t, sc.allocRegistrations[allocID])
+
+	allocReg = sc.allocRegistrations[allocID]
+	serviceReg = allocReg.Tasks["taskname"]
+	require.NotNil(t, serviceReg)
+
+	// Ensure that CheckOnUpdate was updated correctly
+	require.Len(t, serviceReg.Services, 1)
+	for _, sreg := range serviceReg.Services {
+		require.NotEmpty(t, sreg.CheckOnUpdate)
+		for _, onupdate := range sreg.CheckOnUpdate {
+			require.Equal(t, structs.OnUpdateRequireHealthy, onupdate)
+		}
+	}
 }
