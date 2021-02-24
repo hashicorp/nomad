@@ -433,17 +433,35 @@ func TestDebug_Utils(t *testing.T) {
 	require.Empty(t, xs)
 
 	// address calculation honors CONSUL_HTTP_SSL
-	e := &external{addrVal: "http://127.0.0.1:8500", ssl: true}
-	require.Equal(t, "https://127.0.0.1:8500", e.addr("foo"))
+	// ssl: true - Correct alignment
+	e := &external{addrVal: "https://127.0.0.1:8500", ssl: true}
+	addr := e.addr("foo")
+	require.Equal(t, "https://127.0.0.1:8500", addr)
 
-	e = &external{addrVal: "http://127.0.0.1:8500", ssl: false}
-	require.Equal(t, "http://127.0.0.1:8500", e.addr("foo"))
+	// ssl: true - protocol incorrect
+	e = &external{addrVal: "http://127.0.0.1:8500", ssl: true}
+	addr = e.addr("foo")
+	require.Equal(t, "https://127.0.0.1:8500", addr)
 
-	e = &external{addrVal: "127.0.0.1:8500", ssl: false}
-	require.Equal(t, "http://127.0.0.1:8500", e.addr("foo"))
-
+	// ssl: true - protocol missing
 	e = &external{addrVal: "127.0.0.1:8500", ssl: true}
-	require.Equal(t, "https://127.0.0.1:8500", e.addr("foo"))
+	addr = e.addr("foo")
+	require.Equal(t, "https://127.0.0.1:8500", addr)
+
+	// ssl: false - correct alignment
+	e = &external{addrVal: "http://127.0.0.1:8500", ssl: false}
+	addr = e.addr("foo")
+	require.Equal(t, "http://127.0.0.1:8500", addr)
+
+	// ssl: false - protocol incorrect
+	e = &external{addrVal: "https://127.0.0.1:8500", ssl: false}
+	addr = e.addr("foo")
+	require.Equal(t, "http://127.0.0.1:8500", addr)
+
+	// ssl: false - protocol missing
+	e = &external{addrVal: "127.0.0.1:8500", ssl: false}
+	addr = e.addr("foo")
+	require.Equal(t, "http://127.0.0.1:8500", addr)
 }
 
 func TestDebug_WriteBytes_Nil(t *testing.T) {
