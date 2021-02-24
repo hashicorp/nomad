@@ -31,7 +31,6 @@ export default function Homepage() {
 
       <FeaturesList
         title="Why Nomad?"
-        intro="<p>Nomad is widely adopted and used in production by organizations in traditional on-premises datacenters, at the edge, and on the cloud.</p><p>Learn why users choose Nomad as an <a href='/docs/nomad-vs-kubernetes'>alternative to Kubernetes.</a></p>"
         items={[
           {
             title: 'Simple and Lightweight',
@@ -419,39 +418,39 @@ export default function Homepage() {
         logoGrid={[
           {
             url: require('./img/partner-logos/consul.svg?url'),
-            alt: 'Consul logo',
+            alt: 'Consul',
           },
           {
             url: require('./img/partner-logos/vault.svg?url'),
-            alt: 'Vault logo',
+            alt: 'Vault',
           },
           {
             url: require('./img/partner-logos/github.svg?url'),
-            alt: 'GitHub logo',
+            alt: 'GitHub',
           },
           {
             url: require('./img/partner-logos/csi.svg?url'),
-            alt: 'Container Storage interface logo',
+            alt: 'Container Storage interface',
           },
           {
             url: require('./img/partner-logos/cni.svg?url'),
-            alt: 'Container Network interface logo',
+            alt: 'Container Network interface',
           },
           {
             url: require('./img/partner-logos/nvidia.svg?url'),
-            alt: 'NVIDIA logo',
+            alt: 'NVIDIA',
           },
           {
             url: require('./img/partner-logos/datadog.svg?url'),
-            alt: 'Datadog logo',
+            alt: 'Datadog',
           },
           {
             url: require('./img/partner-logos/jfrog.svg?url'),
-            alt: 'JFrog logo',
+            alt: 'JFrog',
           },
           {
             url: require('./img/partner-logos/prometheus.svg?url'),
-            alt: 'Prometheus logo',
+            alt: 'Prometheus',
           },
         ]}
       />
