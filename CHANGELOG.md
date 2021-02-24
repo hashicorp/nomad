@@ -1,5 +1,9 @@
 ## 1.1.0 (Unreleased)
 
+BUG FIXES:
+ * api: Added missing devices block to AllocatedTaskResources [[GH-10064](https://github.com/hashicorp/nomad/pull/10064)]
+ * cli: Fixed a bug where non-int proxy port would panic CLI [[GH-10072](https://github.com/hashicorp/nomad/issues/10072)]
+
 ## 1.0.4 (February 24, 2021)
 
 FEATURES:
