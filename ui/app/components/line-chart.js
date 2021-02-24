@@ -1,7 +1,6 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
-import { assert } from '@ember/debug';
 import { run } from '@ember/runloop';
 import d3 from 'd3-selection';
 import d3Scale from 'd3-scale';
@@ -119,15 +118,6 @@ export default class LineChart extends Component {
 
     const y = datum[this.yProp];
     return this.yFormat()(y);
-  }
-
-  get curveMethod() {
-    const mappings = {
-      linear: 'curveLinear',
-      stepAfter: 'curveStepAfter',
-    };
-    assert(`Provided curve "${this.curve}" is not an allowed curve type`, mappings[this.curve]);
-    return mappings[this.curve];
   }
 
   @styleString
