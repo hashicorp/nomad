@@ -612,6 +612,7 @@ type DriverConfig struct {
 	DisableLogCollection          bool          `codec:"disable_log_collection"`
 	PullActivityTimeout           string        `codec:"pull_activity_timeout"`
 	pullActivityTimeoutDuration   time.Duration `codec:"-"`
+	ExtraLabels                   []string      `codec:"extra_labels"`
 
 	AllowRuntimesList []string            `codec:"allow_runtimes"`
 	allowRuntimes     map[string]struct{} `codec:"-"`
