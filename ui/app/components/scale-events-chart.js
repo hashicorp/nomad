@@ -1,19 +1,17 @@
-import Component from '@ember/component';
+import Component from '@glimmer/component';
+import { tracked } from '@glimmer/tracking';
+import { get } from '@ember/object';
 import { copy } from 'ember-copy';
-import { computed, get } from '@ember/object';
-import { tagName } from '@ember-decorators/component';
-import classic from 'ember-classic-decorator';
 
-@classic
-@tagName('')
 export default class ScaleEventsChart extends Component {
-  events = [];
+  /** Args
+    events = []
+  */
 
-  activeEvent = null;
+  @tracked activeEvent = null;
 
-  @computed('annotations', 'events.[]')
   get data() {
-    const data = this.events.filterBy('hasCount').sortBy('time');
+    const data = this.args.events.filterBy('hasCount').sortBy('time');
 
     // Extend the domain of the chart to the current time
     data.push({
@@ -33,9 +31,8 @@ export default class ScaleEventsChart extends Component {
     return data;
   }
 
-  @computed('events.[]')
   get annotations() {
-    return this.events.rejectBy('hasCount').map(ev => ({
+    return this.args.events.rejectBy('hasCount').map(ev => ({
       type: ev.error ? 'error' : 'info',
       time: ev.time,
       event: copy(ev),
@@ -46,11 +43,11 @@ export default class ScaleEventsChart extends Component {
     if (this.activeEvent && get(this.activeEvent, 'event.uid') === get(ev, 'event.uid')) {
       this.closeEventDetails();
     } else {
-      this.set('activeEvent', ev);
+      this.activeEvent = ev;
     }
   }
 
   closeEventDetails() {
-    this.set('activeEvent', null);
+    this.activeEvent = null;
   }
 }
