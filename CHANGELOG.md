@@ -14,6 +14,7 @@ IMPROVEMENTS:
  * agent: Removed leading whitespace from JSON-formatted log output. [[GH-9795](https://github.com/hashicorp/nomad/issues/9795)]
  * cli: Added optional `-task <task-name>` flag to `alloc logs` to match `alloc exec` [[GH-10026](https://github.com/hashicorp/nomad/issues/10026)]
  * cli: Improved `scaling policy` commands with -verbose, auto-completion, and prefix-matching [[GH-9964](https://github.com/hashicorp/nomad/issues/9964)]
+ * cli: Fixed a bug where `nomad operator debug` incorrectly parsed https Consul API URLs. [[GH-9625](https://github.com/hashicorp/nomad/pull/10082)]
  * consul/connect: Enable custom sidecar tasks to use connect expose checks [[GH-9995](https://github.com/hashicorp/nomad/pull/9995)]
  * consul/connect: Added validation to prevent `connect` blocks from being added to task services. [[GH-9817](https://github.com/hashicorp/nomad/issues/9817)]
  * consul/connect: Made handling of sidecar task container image URLs consistent with the `docker` task driver. [[GH-9580](https://github.com/hashicorp/nomad/issues/9580)]
