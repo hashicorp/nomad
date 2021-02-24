@@ -5,8 +5,8 @@
         type="button"
         title={{annotation.label}}
         class="indicator {{if (or
-          (and @key (eq-by @key annotation.annotation this.activeAnnotation))
-          (and (not @key) (eq annotation.annotation this.activeAnnotation))
+          (and @key (eq-by @key annotation.annotation @activeAnnotation))
+          (and (not @key) (eq annotation.annotation @activeAnnotation))
         ) "is-active"}}"
         {{on "click" (fn this.selectAnnotation annotation.annotation)}}>
         {{x-icon annotation.icon}}
