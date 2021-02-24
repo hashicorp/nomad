@@ -70,6 +70,7 @@ export default class LineChart extends Component {
   @tracked activeDatum = null;
   @tracked tooltipPosition = null;
   @tracked element = null;
+  @tracked ready = false;
 
   @uniquely('title') titleId;
   @uniquely('desc') descriptionId;
@@ -289,6 +290,7 @@ export default class LineChart extends Component {
       // axis, the axes themselves are recomputed and need to
       // be re-rendered.
       this.mountD3Elements();
+      this.ready = true;
       if (this.isActive) {
         this.updateActiveDatum(this.latestMouseX);
       }
