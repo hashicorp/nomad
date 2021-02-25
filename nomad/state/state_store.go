@@ -5340,8 +5340,7 @@ func (s *StateStore) UpsertOneTimeToken(msgType structs.MessageType, index uint6
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
-	// we expect the RPC call to set the ExpiresAt but if it's somehow not
-	// set, set it now.
+	// we expect the RPC call to set the ExpiresAt
 	if token.ExpiresAt.IsZero() {
 		return fmt.Errorf("one-time token must have an ExpiresAt time")
 	}
@@ -5350,7 +5349,7 @@ func (s *StateStore) UpsertOneTimeToken(msgType structs.MessageType, index uint6
 	token.CreateIndex = index
 	token.ModifyIndex = index
 
-	// Update the token
+	// Create the token
 	if err := txn.Insert("one_time_token", token); err != nil {
 		return fmt.Errorf("upserting one-time token failed: %v", err)
 	}
@@ -5367,14 +5366,18 @@ func (s *StateStore) DeleteOneTimeTokens(msgType structs.MessageType, index uint
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
-	// Delete the tokens
+	var deleted int
 	for _, id := range ids {
-		if _, err := txn.DeleteAll("one_time_token", "id", id); err != nil {
+		d, err := txn.DeleteAll("one_time_token", "id", id)
+		if err != nil {
 			return fmt.Errorf("deleting one-time token failed: %v", err)
 		}
+		deleted += d
 	}
-	if err := txn.Insert("index", &IndexEntry{"one_time_token", index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
+	if deleted > 0 {
+		if err := txn.Insert("index", &IndexEntry{"one_time_token", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
 	}
 	return txn.Commit()
 }
