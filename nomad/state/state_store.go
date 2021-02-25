@@ -5343,7 +5343,7 @@ func (s *StateStore) UpsertOneTimeToken(msgType structs.MessageType, index uint6
 	// we expect the RPC call to set the ExpiresAt but if it's somehow not
 	// set, set it now.
 	if token.ExpiresAt.IsZero() {
-		time.Now().Add(time.Minute * 10)
+		return fmt.Errorf("one-time token must have an ExpiresAt time")
 	}
 
 	// Update all the indexes
