@@ -5333,6 +5333,102 @@ func (s *StateStore) BootstrapACLTokens(msgType structs.MessageType, index uint6
 	return txn.Commit()
 }
 
+// UpsertOneTimeToken is used to create or update a set of ACL
+// tokens. Validating that we're not upserting an already-expired token is
+// made the responsibility of the caller to facilitate testing.
+func (s *StateStore) UpsertOneTimeToken(msgType structs.MessageType, index uint64, token *structs.OneTimeToken) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
+	defer txn.Abort()
+
+	// we expect the RPC call to set the ExpiresAt
+	if token.ExpiresAt.IsZero() {
+		return fmt.Errorf("one-time token must have an ExpiresAt time")
+	}
+
+	// Update all the indexes
+	token.CreateIndex = index
+	token.ModifyIndex = index
+
+	// Create the token
+	if err := txn.Insert("one_time_token", token); err != nil {
+		return fmt.Errorf("upserting one-time token failed: %v", err)
+	}
+
+	// Update the indexes table
+	if err := txn.Insert("index", &IndexEntry{"one_time_token", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	return txn.Commit()
+}
+
+// DeleteOneTimeTokens deletes the tokens with the given ACLToken Accessor IDs
+func (s *StateStore) DeleteOneTimeTokens(msgType structs.MessageType, index uint64, ids []string) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
+	defer txn.Abort()
+
+	var deleted int
+	for _, id := range ids {
+		d, err := txn.DeleteAll("one_time_token", "id", id)
+		if err != nil {
+			return fmt.Errorf("deleting one-time token failed: %v", err)
+		}
+		deleted += d
+	}
+	if deleted > 0 {
+		if err := txn.Insert("index", &IndexEntry{"one_time_token", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
+	return txn.Commit()
+}
+
+// OneTimeTokenBySecret is used to lookup a token by secret
+func (s *StateStore) OneTimeTokenBySecret(ws memdb.WatchSet, secret string) (*structs.OneTimeToken, error) {
+	if secret == "" {
+		return nil, fmt.Errorf("one-time token lookup failed: missing secret")
+	}
+
+	txn := s.db.ReadTxn()
+
+	watchCh, existing, err := txn.FirstWatch("one_time_token", "secret", secret)
+	if err != nil {
+		return nil, fmt.Errorf("one-time token lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.OneTimeToken), nil
+	}
+	return nil, nil
+}
+
+// OneTimeTokensExpired returns an iterator over all expired one-time tokens
+func (s *StateStore) OneTimeTokensExpired(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get("one_time_token", "id")
+	if err != nil {
+		return nil, fmt.Errorf("one-time token lookup failed: %v", err)
+	}
+
+	ws.Add(iter.WatchCh())
+	iter = memdb.NewFilterIterator(iter, expiredOneTimeTokenFilter(time.Now()))
+	return iter, nil
+}
+
+// expiredOneTimeTokenFilter returns a filter function that returns only
+// expired one-time tokens
+func expiredOneTimeTokenFilter(now time.Time) func(interface{}) bool {
+	return func(raw interface{}) bool {
+		ott, ok := raw.(*structs.OneTimeToken)
+		if !ok {
+			return true
+		}
+
+		return ott.ExpiresAt.After(now)
+	}
+}
+
 // SchedulerConfig is used to get the current Scheduler configuration.
 func (s *StateStore) SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error) {
 	tx := s.db.ReadTxn()
@@ -6174,6 +6270,14 @@ func (r *StateRestore) ACLPolicyRestore(policy *structs.ACLPolicy) error {
 func (r *StateRestore) ACLTokenRestore(token *structs.ACLToken) error {
 	if err := r.txn.Insert("acl_token", token); err != nil {
 		return fmt.Errorf("inserting acl token failed: %v", err)
+	}
+	return nil
+}
+
+// OneTimeTokenRestore is used to restore a one-time token
+func (r *StateRestore) OneTimeTokenRestore(token *structs.OneTimeToken) error {
+	if err := r.txn.Insert("one_time_token", token); err != nil {
+		return fmt.Errorf("inserting one-time token failed: %v", err)
 	}
 	return nil
 }
