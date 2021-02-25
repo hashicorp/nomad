@@ -209,11 +209,11 @@ export default class LineChart extends Component {
   }
 
   get xAxisOffset() {
-    return this.height - this.xAxisHeight;
+    return Math.max(0, this.height - this.xAxisHeight);
   }
 
   get yAxisOffset() {
-    return this.width - this.yAxisWidth;
+    return Math.max(0, this.width - this.yAxisWidth);
   }
 
   @action
