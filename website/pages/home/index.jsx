@@ -71,6 +71,41 @@ export default function Homepage() {
         ]}
       />
 
+      <ComparisonCallouts
+        heading="Nomad vs. Kubernetes"
+        details={
+          <p>
+            Choose an orchestrator based on how it fits into your project. Find
+            out{' '}
+            <Link href="/docs/nomad-vs-kubernetes">
+              <a>Nomad’s unique strengths relative to Kubernetes.</a>
+            </Link>
+          </p>
+        }
+        items={[
+          {
+            title: 'Alternative to Kubernetes',
+            description: 'Deploy and scale containers without complexity',
+            imageUrl: require('./img/nomad-vs-kubernetes/alternative.svg?url'),
+            link: {
+              url: '/docs/nomad-vs-kubernetes/alternative',
+              text: 'Learn more',
+              type: 'inbound',
+            },
+          },
+          {
+            title: 'Supplement to Kubernetes',
+            description: 'Implement a multi-orchestrator pattern',
+            imageUrl: require('./img/nomad-vs-kubernetes/supplement.svg?url'),
+            link: {
+              url: '/docs/nomad-vs-kubernetes/supplement',
+              text: 'Learn more',
+              type: 'inbound',
+            },
+          },
+        ]}
+      />
+
       <CaseStudyCarousel
         title="Trusted by startups and the world’s largest organizations"
         caseStudies={[
@@ -361,41 +396,6 @@ export default function Homepage() {
             time: '36 mins',
             link: 'https://learn.hashicorp.com/collections/nomad/manage-jobs',
             image: require('./img/learn-nomad/cubes.svg'),
-          },
-        ]}
-      />
-
-      <ComparisonCallouts
-        heading="Nomad vs. Kubernetes"
-        details={
-          <p>
-            Choose an orchestrator based on how it fits into your project. Find
-            out{' '}
-            <Link href="/docs/nomad-vs-kubernetes">
-              <a>Nomad’s unique strengths relative to Kubernetes.</a>
-            </Link>
-          </p>
-        }
-        items={[
-          {
-            title: 'Alternative to Kubernetes',
-            description: 'Deploy and scale containers without complexity',
-            imageUrl: require('./img/nomad-vs-kubernetes/alternative.svg?url'),
-            link: {
-              url: '/docs/nomad-vs-kubernetes/alternative',
-              text: 'Learn more',
-              type: 'inbound',
-            },
-          },
-          {
-            title: 'Supplement to Kubernetes',
-            description: 'Implement a multi-orchestrator pattern',
-            imageUrl: require('./img/nomad-vs-kubernetes/supplement.svg?url'),
-            link: {
-              url: '/docs/nomad-vs-kubernetes/supplement',
-              text: 'Learn more',
-              type: 'inbound',
-            },
           },
         ]}
       />
