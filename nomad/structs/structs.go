@@ -11040,6 +11040,16 @@ type ACLTokenUpsertResponse struct {
 	WriteMeta
 }
 
+// OneTimeToken is used to log into the web UI using a token provided by the
+// command line.
+type OneTimeToken struct {
+	OneTimeSecretID string
+	AccessorID      string
+	ExpiresAt       time.Time
+	CreateIndex     uint64
+	ModifyIndex     uint64
+}
+
 // RpcError is used for serializing errors with a potential error code
 type RpcError struct {
 	Message string
