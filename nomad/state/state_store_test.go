@@ -8549,7 +8549,9 @@ func TestStateStore_OneTimeTokens(t *testing.T) {
 
 	getExpiredTokens := func() []*structs.OneTimeToken {
 		// find all the expired tokens
-		iter, err := state.OneTimeTokensExpired(nil)
+
+		txn := state.db.ReadTxn()
+		iter, err := state.oneTimeTokensExpiredTxn(txn, nil)
 		require.NoError(t, err)
 
 		results := []*structs.OneTimeToken{}
@@ -8578,8 +8580,7 @@ func TestStateStore_OneTimeTokens(t *testing.T) {
 	// clear the expired tokens and verify they're gone
 	index++
 	require.NoError(t,
-		state.DeleteOneTimeTokens(structs.MsgTypeTestSetup, index,
-			[]string{results[0].AccessorID, results[1].AccessorID}))
+		state.ExpireOneTimeTokens(structs.MsgTypeTestSetup, index))
 
 	results = getExpiredTokens()
 	require.Len(t, results, 0)
