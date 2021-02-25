@@ -235,3 +235,36 @@ func TestACLTokens_Delete(t *testing.T) {
 	assert.Nil(t, err)
 	assertWriteMeta(t, wm)
 }
+
+func TestACL_OneTimeToken(t *testing.T) {
+	t.Parallel()
+	c, s, _ := makeACLClient(t, nil, nil)
+	defer s.Stop()
+	at := c.ACLTokens()
+
+	token := &ACLToken{
+		Name:     "foo",
+		Type:     "client",
+		Policies: []string{"foo1"},
+	}
+
+	// Create the ACL token
+	out, wm, err := at.Create(token, nil)
+	assert.Nil(t, err)
+	assertWriteMeta(t, wm)
+	assert.NotNil(t, out)
+
+	// Get a one-time token
+	c.SetSecretID(out.SecretID)
+	out2, wm, err := at.UpsertOneTimeToken(nil)
+	assert.Nil(t, err)
+	assertWriteMeta(t, wm)
+	assert.NotNil(t, out2)
+
+	// Exchange the one-time token
+	out3, wm, err := at.ExchangeOneTimeToken(out2.OneTimeSecretID, nil)
+	assert.Nil(t, err)
+	assertWriteMeta(t, wm)
+	assert.NotNil(t, out3)
+	assert.Equal(t, out3.AccessorID, out.AccessorID)
+}
