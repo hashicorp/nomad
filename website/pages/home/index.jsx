@@ -419,10 +419,12 @@ export default function Homepage() {
           {
             url: require('./img/partner-logos/consul.svg?url'),
             alt: 'Consul',
+            linkUrl: '/docs/integrations/consul-integration',
           },
           {
             url: require('./img/partner-logos/vault.svg?url'),
             alt: 'Vault',
+            linkUrl: '/docs/integrations/vault-integration',
           },
           {
             url: require('./img/partner-logos/github.svg?url'),
@@ -431,26 +433,35 @@ export default function Homepage() {
           {
             url: require('./img/partner-logos/csi.svg?url'),
             alt: 'Container Storage interface',
+            linkUrl: '/docs/internals/plugins/csi',
           },
           {
             url: require('./img/partner-logos/cni.svg?url'),
             alt: 'Container Network interface',
+            linkUrl: '/docs/integrations/consul-connect#cni-plugins',
           },
           {
             url: require('./img/partner-logos/nvidia.svg?url'),
             alt: 'NVIDIA',
+            linkUrl:
+              'https://www.hashicorp.com/resources/running-gpu-accelerated-applications-on-nomad',
           },
           {
             url: require('./img/partner-logos/datadog.svg?url'),
             alt: 'Datadog',
+            linkUrl: 'https://docs.datadoghq.com/integrations/nomad/',
           },
           {
             url: require('./img/partner-logos/jfrog.svg?url'),
-            alt: 'JFrog',
+            alt: 'JFrog Artifactory',
+            linkUrl:
+              'https://jfrog.com/blog/cluster-management-made-simple-with-jfrog-artifactory-and-hashicorp-nomad/',
           },
           {
             url: require('./img/partner-logos/prometheus.svg?url'),
             alt: 'Prometheus',
+            linkUrl:
+              'https://learn.hashicorp.com/tutorials/nomad/dynamic-application-sizing?in=nomad/nomad-1-0#start-prometheus',
           },
         ]}
       />
