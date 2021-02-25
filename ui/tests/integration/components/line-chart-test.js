@@ -29,8 +29,11 @@ module('Integration | Component | line-chart', function(hooks) {
       <LineChart
         @xProp="x"
         @yProp="y"
-        @data={{this.data}}
-        @annotations={{this.annotations}} />
+        @data={{this.data}}>
+        <:after as |c|>
+          <c.VAnnotations @annotations={{this.annotations}} />
+        </:after>
+      </LineChart>
     `);
 
     const sortedAnnotations = annotations.sortBy('x');
@@ -79,8 +82,11 @@ module('Integration | Component | line-chart', function(hooks) {
         @xProp="x"
         @yProp="y"
         @timeseries={{true}}
-        @data={{this.data}}
-        @annotations={{this.annotations}} />
+        @data={{this.data}}>
+        <:after as |c|>
+          <c.VAnnotations @annotations={{this.annotations}} />
+        </:after>
+      </LineChart>
     `);
 
     const sortedAnnotations = annotations.sortBy('x').reverse();
@@ -108,9 +114,11 @@ module('Integration | Component | line-chart', function(hooks) {
       <LineChart
         @xProp="x"
         @yProp="y"
-        @data={{this.data}}
-        @annotations={{this.annotations}}
-        @onAnnotationClick={{this.click}} />
+        @data={{this.data}}>
+        <:after as |c|>
+          <c.VAnnotations @annotations={{this.annotations}} @annotationClick={{this.click}} />
+        </:after>
+      </LineChart>
     `);
 
     await click('[data-test-annotation] button');
@@ -137,8 +145,11 @@ module('Integration | Component | line-chart', function(hooks) {
         <LineChart
           @xProp="x"
           @yProp="y"
-          @data={{this.data}}
-          @annotations={{this.annotations}} />
+          @data={{this.data}}>
+          <:after as |c|>
+            <c.VAnnotations @annotations={{this.annotations}} />
+          </:after>
+        </LineChart>
       </div>
     `);
 

@@ -88,6 +88,7 @@
     "ember-maybe-import-regenerator": "^0.1.6",
     "ember-modifier": "^2.1.1",
     "ember-moment": "^7.8.1",
+    "ember-named-blocks-polyfill": "^0.2.4",
     "ember-overridable-computed": "^1.0.0",
     "ember-page-title": "^6.0.3",
     "ember-power-select": "^3.0.4",

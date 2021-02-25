@@ -15,29 +15,33 @@
       {{/if}}
     </desc>
     <g class="y-gridlines gridlines" transform="translate({{this.yAxisOffset}}, 0)"></g>
-    <ChartPrimitives::Area
-      @data={{this.data}}
-      @colorClass={{this.chartClass}}
-      @xScale={{this.xScale}}
-      @yScale={{this.yScale}}
-      @xProp={{this.xProp}}
-      @yProp={{this.yProp}}
-      @width={{this.yAxisOffset}}
-      @height={{this.xAxisOffset}}
-      @curveMethod={{this.curveMethod}} />
+    {{#if this.ready}}
+      {{yield (hash
+        Area=(component "chart-primitives/area"
+          colorClass=this.chartClass
+          curve="linear"
+          xScale=this.xScale
+          yScale=this.yScale
+          xProp=this.xProp
+          yProp=this.yProp
+          width=this.yAxisOffset
+          height=this.xAxisOffset)
+      ) to="svg"}}
+    {{/if}}
     <g aria-hidden="true" class="x-axis axis" transform="translate(0, {{this.xAxisOffset}})"></g>
     <g aria-hidden="true" class="y-axis axis" transform="translate({{this.yAxisOffset}}, 0)"></g>
     <rect class="hover-target" x="0" y="0" width="{{this.yAxisOffset}}" height="{{this.xAxisOffset}}" />
   </svg>
-  <ChartPrimitives::VAnnotations
-    @annotations={{@annotations}}
-    @key={{@annotationKey}}
-    @annotationClick={{action this.annotationClick}}
-    @timeseries={{@timeseries}}
-    @format={{this.xFormat}}
-    @scale={{this.xScale}}
-    @prop={{this.xProp}}
-    @height={{this.xAxisOffset}} />
+  {{#if this.ready}}
+    {{yield (hash
+      VAnnotations=(component "chart-primitives/v-annotations"
+        timeseries=@timeseries
+        format=this.xFormat
+        scale=this.xScale
+        prop=this.xProp
+        height=this.xAxisOffset)
+    ) to="after"}}
+  {{/if}}
   <div class="chart-tooltip is-snappy {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
     <p>
       <span class="label">

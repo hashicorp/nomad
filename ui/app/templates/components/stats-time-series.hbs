@@ -9,4 +9,8 @@
   @xScale={{this.xScale}}
   @yScale={{this.yScale}}
   @xFormat={{this.xFormat}}
-  @yFormat={{this.yFormat}} />
+  @yFormat={{this.yFormat}}>
+  <:svg as |c|>
+    <c.Area @data={{@data}} @colorClass={{@chartClass}} />
+  </:svg>
+</LineChart>
