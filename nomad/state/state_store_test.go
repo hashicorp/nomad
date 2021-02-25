@@ -8493,6 +8493,114 @@ func TestStateStore_RestoreACLToken(t *testing.T) {
 	assert.Equal(t, token, out)
 }
 
+func TestStateStore_OneTimeTokens(t *testing.T) {
+	t.Parallel()
+	index := uint64(100)
+	state := testStateStore(t)
+
+	// create some ACL tokens
+
+	token1 := mock.ACLToken()
+	token2 := mock.ACLToken()
+	token3 := mock.ACLToken()
+	index++
+	require.Nil(t, state.UpsertACLTokens(
+		structs.MsgTypeTestSetup, index,
+		[]*structs.ACLToken{token1, token2, token3}))
+
+	otts := []*structs.OneTimeToken{
+		{
+			// expired OTT for token1
+			OneTimeSecretID: uuid.Generate(),
+			AccessorID:      token1.AccessorID,
+			ExpiresAt:       time.Now().Add(-1 * time.Minute),
+		},
+		{
+			// valid OTT for token2
+			OneTimeSecretID: uuid.Generate(),
+			AccessorID:      token2.AccessorID,
+			ExpiresAt:       time.Now().Add(10 * time.Minute),
+		},
+		{
+			// new but expired OTT for token2; this will be accepted even
+			// though it's expired and overwrite the other one
+			OneTimeSecretID: uuid.Generate(),
+			AccessorID:      token2.AccessorID,
+			ExpiresAt:       time.Now().Add(-10 * time.Minute),
+		},
+		{
+			// valid OTT for token3
+			AccessorID:      token3.AccessorID,
+			OneTimeSecretID: uuid.Generate(),
+			ExpiresAt:       time.Now().Add(10 * time.Minute),
+		},
+		{
+			// new valid OTT for token3
+			OneTimeSecretID: uuid.Generate(),
+			AccessorID:      token3.AccessorID,
+			ExpiresAt:       time.Now().Add(5 * time.Minute),
+		},
+	}
+
+	for _, ott := range otts {
+		index++
+		require.NoError(t, state.UpsertOneTimeToken(structs.MsgTypeTestSetup, index, ott))
+	}
+
+	getExpiredTokens := func() []*structs.OneTimeToken {
+		// find all the expired tokens
+		iter, err := state.OneTimeTokensExpired(nil)
+		require.NoError(t, err)
+
+		results := []*structs.OneTimeToken{}
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			ott, ok := raw.(*structs.OneTimeToken)
+			require.True(t, ok)
+			results = append(results, ott)
+		}
+		return results
+	}
+
+	results := getExpiredTokens()
+	require.Len(t, results, 2)
+
+	// results aren't ordered
+	expiredAccessors := []string{results[0].AccessorID, results[1].AccessorID}
+	require.Contains(t, expiredAccessors, token1.AccessorID)
+	require.Contains(t, expiredAccessors, token2.AccessorID)
+	require.True(t, time.Now().After(results[0].ExpiresAt))
+	require.True(t, time.Now().After(results[1].ExpiresAt))
+
+	// clear the expired tokens and verify they're gone
+	index++
+	require.NoError(t,
+		state.DeleteOneTimeTokens(structs.MsgTypeTestSetup, index,
+			[]string{results[0].AccessorID, results[1].AccessorID}))
+
+	results = getExpiredTokens()
+	require.Len(t, results, 0)
+
+	// query the unexpired token
+	ott, err := state.OneTimeTokenBySecret(nil, otts[len(otts)-1].OneTimeSecretID)
+	require.NoError(t, err)
+	require.Equal(t, token3.AccessorID, ott.AccessorID)
+	require.True(t, time.Now().Before(ott.ExpiresAt))
+
+	restore, err := state.Restore()
+	require.NoError(t, err)
+	err = restore.OneTimeTokenRestore(ott)
+	require.NoError(t, err)
+	require.NoError(t, restore.Commit())
+
+	ott, err = state.OneTimeTokenBySecret(nil, otts[len(otts)-1].OneTimeSecretID)
+	require.NoError(t, err)
+	require.Equal(t, token3.AccessorID, ott.AccessorID)
+}
+
 func TestStateStore_SchedulerConfig(t *testing.T) {
 	t.Parallel()
 
