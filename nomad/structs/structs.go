@@ -100,6 +100,9 @@ const (
 	EventSinkUpsertRequestType                   MessageType = 41
 	EventSinkDeleteRequestType                   MessageType = 42
 	BatchEventSinkUpdateProgressType             MessageType = 43
+	OneTimeTokenUpsertRequestType                MessageType = 44
+	OneTimeTokenDeleteRequestType                MessageType = 45
+	OneTimeTokenExpireRequestType                MessageType = 46
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
@@ -10006,6 +10009,10 @@ const (
 	// or allocs running them. If so, we delete the plugin.
 	CoreJobCSIPluginGC = "csi-plugin-gc"
 
+	// CoreJobOneTimeTokenGC is use for the garbage collection of one-time
+	// tokens. We periodically scan for expired tokens and delete them.
+	CoreJobOneTimeTokenGC = "one-time-token-gc"
+
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"
 )
@@ -11048,6 +11055,42 @@ type OneTimeToken struct {
 	ExpiresAt       time.Time
 	CreateIndex     uint64
 	ModifyIndex     uint64
+}
+
+// OneTimeTokenUpsertRequest is the request for a UpsertOneTimeToken RPC
+type OneTimeTokenUpsertRequest struct {
+	WriteRequest
+}
+
+// OneTimeTokenUpsertResponse is the response to a UpsertOneTimeToken RPC.
+type OneTimeTokenUpsertResponse struct {
+	OneTimeToken *OneTimeToken
+	WriteMeta
+}
+
+// OneTimeTokenExchangeRequest is a request to swap the one-time token with
+// the backing ACL token
+type OneTimeTokenExchangeRequest struct {
+	OneTimeSecretID string
+	WriteRequest
+}
+
+// OneTimeTokenExchangeResponse is the response to swapping the one-time token
+// with the backing ACL token
+type OneTimeTokenExchangeResponse struct {
+	Token *ACLToken
+	WriteMeta
+}
+
+// OneTimeTokenDeleteRequest is a request to delete a group of one-time tokens
+type OneTimeTokenDeleteRequest struct {
+	AccessorIDs []string
+	WriteRequest
+}
+
+// OneTimeTokenExpireRequest is a request to delete all expired one-time tokens
+type OneTimeTokenExpireRequest struct {
+	WriteRequest
 }
 
 // RpcError is used for serializing errors with a potential error code
