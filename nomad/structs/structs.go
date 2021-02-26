@@ -10009,6 +10009,10 @@ const (
 	// or allocs running them. If so, we delete the plugin.
 	CoreJobCSIPluginGC = "csi-plugin-gc"
 
+	// CoreJobOneTimeTokenGC is use for the garbage collection of one-time
+	// tokens. We periodically scan for expired tokens and delete them.
+	CoreJobOneTimeTokenGC = "one-time-token-gc"
+
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"
 )

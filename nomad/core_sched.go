@@ -56,6 +56,8 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 		return c.csiVolumeClaimGC(eval)
 	case structs.CoreJobCSIPluginGC:
 		return c.csiPluginGC(eval)
+	case structs.CoreJobOneTimeTokenGC:
+		return c.expiredOneTimeTokenGC(eval)
 	case structs.CoreJobForceGC:
 		return c.forceGC(eval)
 	default:
