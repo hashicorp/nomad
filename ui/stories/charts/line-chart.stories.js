@@ -176,7 +176,7 @@ export let Gaps = () => {
   };
 };
 
-export let Annotations = () => {
+export let VerticalAnnotations = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Line Chart data with annotations</h5>
@@ -272,6 +272,50 @@ export let Annotations = () => {
             .toDate(),
           type: 'info',
           info: 'Far right',
+        },
+      ],
+    },
+  };
+};
+
+export let HorizontalAnnotations = () => {
+  return {
+    template: hbs`
+      <div class="block" style="height:250px">
+        {{#if (and this.data this.annotations)}}
+          <LineChart
+            class="with-annotations"
+            @timeseries={{true}}
+            @xProp="x"
+            @yProp="y"
+            @data={{this.data}}>
+            <:svg as |c|>
+              <c.Area @data={{this.data}} @annotationClick={{action (mut this.activeAnnotation)}} />
+            </:svg>
+            <:after as |c|>
+              <c.HAnnotations @annotations={{this.annotations}} @labelProp="info" />
+            </:after>
+          </LineChart>
+        {{/if}}
+      </div>
+    `,
+    context: {
+      data: DelayedArray.create(
+        new Array(180).fill(null).map((_, idx) => ({
+          y: Math.sin((idx * 4 * Math.PI) / 180) * 100 + 200,
+          x: moment()
+            .add(idx, 'd')
+            .toDate(),
+        }))
+      ),
+      annotations: [
+        {
+          y: 300,
+          info: 'High',
+        },
+        {
+          y: 100,
+          info: 'Low',
         },
       ],
     },
