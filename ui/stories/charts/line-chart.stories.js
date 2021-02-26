@@ -49,9 +49,9 @@ export let Standard = () => {
       </div>
       <div class="block" style="height:100px; width: 400px;">
         {{#if this.lineChartMild}}
-          <LineChart @data={{this.lineChartMild}} @xProp="year" @yProp="value" @chartClass="is-info">
+          <LineChart @data={{this.lineChartMild}} @xProp="year" @yProp="value">
             <:svg as |c|>
-              <c.Area @data={{this.lineChartMild}} />
+              <c.Area @data={{this.lineChartMild}} @colorClass="is-info" />
             </:svg>
           </LineChart>
         {{/if}}
@@ -70,18 +70,18 @@ export let FluidWidth = () => {
       <h5 class="title is-5">Fluid-width Line Chart</h5>
       <div class="block" style="height:250px;">
         {{#if this.lineChartData}}
-          <LineChart @data={{this.lineChartData}} @xProp="year" @yProp="value" @chartClass="is-danger">
+          <LineChart @data={{this.lineChartData}} @xProp="year" @yProp="value">
             <:svg as |c|>
-              <c.Area @data={{this.lineChartData}} />
+              <c.Area @data={{this.lineChartData}} @colorClass="is-danger" />
             </:svg>
           </LineChart>
         {{/if}}
       </div>
       <div class="block" style="height:250px;">
         {{#if this.lineChartMild}}
-          <LineChart @data={{this.lineChartMild}} @xProp="year" @yProp="value" @chartClass="is-warning">
+          <LineChart @data={{this.lineChartMild}} @xProp="year" @yProp="value">
             <:svg as |c|>
-              <c.Area @data={{this.lineChartMild}} />
+              <c.Area @data={{this.lineChartMild}} @colorClass="is-warning" />
             </:svg>
           </LineChart>
         {{/if}}
@@ -106,7 +106,6 @@ export let LiveData = () => {
             @xProp="ts"
             @yProp="val"
             @timeseries={{true}}
-            @chartClass="is-primary"
             @xFormat={{this.controller.secondsFormat}}>
             <:svg as |c|>
               <c.Area @data={{this.controller.lineChartLive}} />
@@ -152,7 +151,7 @@ export let Gaps = () => {
       <h5 class="title is-5">Line Chart data with gaps</h5>
       <div class="block" style="height:250px">
         {{#if this.lineChartGapData}}
-          <LineChart @data={{this.lineChartGapData}} @xProp="year" @yProp="value" @chartClass="is-primary">
+          <LineChart @data={{this.lineChartGapData}} @xProp="year" @yProp="value">
             <:svg as |c|>
               <c.Area @data={{this.lineChartGapData}} />
             </:svg>

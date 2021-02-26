@@ -18,7 +18,6 @@
     {{#if this.ready}}
       {{yield (hash
         Area=(component "chart-primitives/area"
-          colorClass=this.chartClass
           curve="linear"
           xScale=this.xScale
           yScale=this.yScale
