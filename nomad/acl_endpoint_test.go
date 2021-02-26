@@ -1328,6 +1328,16 @@ func TestACLEndpoint_OneTimeToken(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, ott)
 
+	// Call the exchange RPC; we should not get an exchange for an expired
+	// token
+	err = msgpackrpc.CallWithCodec(codec, "ACL.ExchangeOneTimeToken", exReq, &exResp)
+	require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+
+	// expired token should be left in place (until GC comes along)
+	ott, err = s1.fsm.State().OneTimeTokenBySecret(nil, ott.OneTimeSecretID)
+	require.NoError(t, err)
+	require.NotNil(t, ott)
+
 	// Call the delete RPC, should fail without proper auth
 	expReq := &structs.OneTimeTokenExpireRequest{
 		WriteRequest: structs.WriteRequest{
