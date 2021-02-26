@@ -374,11 +374,14 @@ $ curl \
 
 ```json
 {
-  "AccessorID": "b780e702-98ce-521f-2e5f-c6b87de05b24",
-  "OneTimeSecretID": "3f4a0fcd-7c42-773c-25db-2d31ba0c05fe",
-  "ExpiresAt": "2017-08-23T22:47:14.695408057Z",
-  "CreateIndex": 7,
-  "ModifyIndex": 7
+  "Index": 15,
+  "OneTimeToken": {
+    "AccessorID": "b780e702-98ce-521f-2e5f-c6b87de05b24",
+    "CreateIndex": 7,
+    "ExpiresAt": "2017-08-23T22:47:14.695408057Z",
+    "ModifyIndex": 7,
+    "OneTimeSecretID": "3f4a0fcd-7c42-773c-25db-2d31ba0c05fe"
+  }
 }
 ```
 
@@ -413,14 +416,20 @@ $ curl \
 
 ```json
 {
-  "AccessorID": "b780e702-98ce-521f-2e5f-c6b87de05b24",
-  "SecretID": "3f4a0fcd-7c42-773c-25db-2d31ba0c05fe",
-  "Name": "Developer token",
-  "Type": "client",
-  "Policies": null,
-  "Global": true,
-  "CreateTime": "2017-08-23T22:47:14.695408057Z",
-  "CreateIndex": 7,
-  "ModifyIndex": 7
+  "Index": 17,
+  "Token": {
+    "AccessorID": "b780e702-98ce-521f-2e5f-c6b87de05b24",
+    "CreateIndex": 7,
+    "CreateTime": "2017-08-23T22:47:14.695408057Z",
+    "Global": true,
+    "Hash": "UhZESkSFGFfX7eBgq5Uwph30OctbUbpe8+dlH2i4whA=",
+    "ModifyIndex": 7,
+    "Name": "Developer token",
+    "Policies": [
+      "developer"
+    ],
+    "SecretID": "3f4a0fcd-7c42-773c-25db-2d31ba0c05fe",
+    "Type": "client"
+  }
 }
 ```
