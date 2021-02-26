@@ -6,9 +6,11 @@ import {
   generateStaticProps,
 } from '@hashicorp/react-docs-page/server'
 import Placement from 'components/placement-table'
+import Callout from 'components/callout'
+import Testimonial from 'components/testimonial'
 
 const subpath = 'docs'
-const additionalComponents = { Placement }
+const additionalComponents = { Placement, Callout, Testimonial }
 
 export default function DocsLayout(props) {
   return (
