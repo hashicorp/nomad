@@ -10,12 +10,30 @@
 .userInfo {
   display: flex;
   align-items: center;
+
+  @media (width < 940px) {
+    max-width: 630px;
+  }
+
+  @media (width < 630px) {
+    flex-direction: column;
+    text-align: center;
+  }
 }
 
 .userLogo {
-  margin-right: 48px;
+  width: 210px;
+  flex-shrink: 0;
+
+  @media (width >= 630px) {
+    margin-right: 48px;
+  }
 }
 
 .userDetails {
   composes: g-type-label from global;
+
+  @media (width < 630px) {
+    max-width: 400px;
+  }
 }
