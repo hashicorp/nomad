@@ -1,3 +1,17 @@
+@mixin standard-gradient($class, $color) {
+  linearGradient.#{$class} {
+    > .start {
+      stop-color: $color;
+      stop-opacity: 0.6;
+    }
+
+    > .end {
+      stop-color: $color;
+      stop-opacity: 0.05;
+    }
+  }
+}
+
 .chart.line-chart {
   display: block;
   height: 100%;
@@ -79,6 +93,20 @@
           stop-color: $color;
           stop-opacity: 0.05;
         }
+      }
+    }
+  }
+
+  @each $name, $scale in $chart-scales {
+    @include standard-gradient($name, nth($scale, -1));
+    .area.#{$name} .line {
+      stroke: nth($scale, -1);
+    }
+
+    @each $color in $scale {
+      @include standard-gradient((#{$name}-#{index($scale, $color)}), $color);
+      .area.#{$name}-#{index($scale, $color)} .line {
+        stroke: $color;
       }
     }
   }
