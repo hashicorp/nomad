@@ -912,6 +912,10 @@ func (a *ACL) ExchangeOneTimeToken(args *structs.OneTimeTokenExchangeRequest, re
 	if ott == nil {
 		return structs.ErrPermissionDenied
 	}
+	if ott.ExpiresAt.Before(time.Now()) {
+		// we return early and leave cleaning up the expired token for GC
+		return structs.ErrPermissionDenied
+	}
 
 	// Look for the token; it may have been deleted, in which case, 403
 	aclToken, err := state.ACLTokenByAccessorID(nil, ott.AccessorID)
