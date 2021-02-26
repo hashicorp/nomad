@@ -354,3 +354,53 @@ export let StepLine = () => {
     },
   };
 };
+
+export let MultiLine = () => ({
+  template: hbs`
+      <h5 class="title is-5">Multiple Lines on One Chart</h5>
+      <div class="block" style="height:250px">
+        {{#if this.data}}
+          <LineChart
+            @xProp="x"
+            @yProp="y"
+            @dataProp="data"
+            @data={{this.data}}>
+            <:svg as |c|>
+              {{#each this.data as |series idx|}}
+                <c.Area @data={{series.data}} @colorScale="reds" @index={{idx}} />
+              {{/each}}
+            </:svg>
+          </LineChart>
+          <p>{{this.activeAnnotation.info}}</p>
+        {{/if}}
+      </div>
+  `,
+  context: {
+    data: DelayedArray.create([
+      {
+        name: 'Series 1',
+        data: [
+          { x: 1, y: 5 },
+          { x: 2, y: 1 },
+          { x: 3, y: 2 },
+          { x: 4, y: 2 },
+          { x: 5, y: 9 },
+          { x: 6, y: 3 },
+          { x: 7, y: 4 },
+        ],
+      },
+      {
+        name: 'Series 2',
+        data: [
+          { x: 3, y: 7 },
+          { x: 4, y: 5 },
+          { x: 5, y: 8 },
+          { x: 6, y: 9 },
+          { x: 7, y: 10 },
+          { x: 8, y: 8 },
+          { x: 9, y: 6 },
+        ],
+      },
+    ]),
+  },
+});
