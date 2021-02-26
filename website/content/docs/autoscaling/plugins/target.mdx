@@ -412,6 +412,9 @@ check "hashistack-allocated-cpu" {
 - `node_drain_deadline` `(duration: "15m")` The Nomad [drain deadline][nomad_node_drain_deadline]
   to use when performing node draining actions.
 
+- `node_drain_ignore_system_jobs` `(bool: "false")` A boolean flag used to control if
+  system jobs should be stopped when performing node draining actions.
+
 - `node_purge` `(bool: "false")` A boolean flag to determine whether Nomad clients should
   be [purged][nomad_node_purge] when performing scale in actions.
 
