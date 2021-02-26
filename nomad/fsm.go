@@ -1175,7 +1175,7 @@ func (n *nomadFSM) applyOneTimeTokenDelete(msgType structs.MessageType, buf []by
 	}
 
 	if err := n.state.DeleteOneTimeTokens(msgType, index, req.AccessorIDs); err != nil {
-		n.logger.Error("DeleteOneTimeToken failed", "error", err)
+		n.logger.Error("DeleteOneTimeTokens failed", "error", err)
 		return err
 	}
 	return nil
@@ -1190,7 +1190,7 @@ func (n *nomadFSM) applyOneTimeTokenExpire(msgType structs.MessageType, buf []by
 	}
 
 	if err := n.state.ExpireOneTimeTokens(msgType, index); err != nil {
-		n.logger.Error("ExpireOneTimeToken failed", "error", err)
+		n.logger.Error("ExpireOneTimeTokens failed", "error", err)
 		return err
 	}
 	return nil

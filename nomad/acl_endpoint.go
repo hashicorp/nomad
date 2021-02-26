@@ -913,7 +913,7 @@ func (a *ACL) ExchangeOneTimeToken(args *structs.OneTimeTokenExchangeRequest, re
 		return structs.ErrPermissionDenied
 	}
 
-	// Look for the token
+	// Look for the token; it may have been deleted, in which case, 403
 	aclToken, err := state.ACLTokenByAccessorID(nil, ott.AccessorID)
 	if err != nil {
 		return err
