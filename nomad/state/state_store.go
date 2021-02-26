@@ -5361,7 +5361,7 @@ func (s *StateStore) UpsertOneTimeToken(msgType structs.MessageType, index uint6
 	return txn.Commit()
 }
 
-// DeleteOneTimeTokens deletes the token withs the given ACLToken Accessor IDs
+// DeleteOneTimeTokens deletes the tokens with the given ACLToken Accessor IDs
 func (s *StateStore) DeleteOneTimeTokens(msgType structs.MessageType, index uint64, ids []string) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
