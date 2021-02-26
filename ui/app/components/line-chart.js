@@ -188,7 +188,7 @@ export default class LineChart extends Component {
       .axisRight()
       .scale(this.yScale)
       .tickValues(ticks)
-      .tickSize(-this.yAxisOffset)
+      .tickSize(-this.canvasDimensions.width)
       .tickFormat('');
   }
 
@@ -214,6 +214,12 @@ export default class LineChart extends Component {
 
   get yAxisOffset() {
     return Math.max(0, this.width - this.yAxisWidth);
+  }
+
+  get canvasDimensions() {
+    const [left, right] = this.xScale.range();
+    const [top, bottom] = this.yScale.range();
+    return { left, width: right - left, top, height: bottom - top };
   }
 
   @action

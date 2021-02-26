@@ -40,6 +40,12 @@
         scale=this.xScale
         prop=this.xProp
         height=this.xAxisOffset)
+      HAnnotations=(component "chart-primitives/h-annotations"
+        format=this.yFormat
+        scale=this.yScale
+        prop=this.yProp
+        left=this.canvasDimensions.left
+        width=this.canvasDimensions.width)
     ) to="after"}}
   {{/if}}
   <div class="chart-tooltip is-snappy {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
