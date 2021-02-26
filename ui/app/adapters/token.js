@@ -21,7 +21,8 @@ export default class TokenAdapter extends ApplicationAdapter {
     return this.ajax(`${this.buildURL()}/token/onetime/exchange`, 'POST', {
       data: {
         OneTimeSecret: oneTimeToken,
-      }}).then(token => {
+      },
+    }).then(({ Token: token }) => {
       const store = this.store;
       store.pushPayload('token', {
         tokens: [token],

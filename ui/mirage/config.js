@@ -391,7 +391,9 @@ export default function() {
 
     // Return the token if it exists
     if (tokenForSecret) {
-      return this.serialize(tokenForSecret);
+      return {
+        Token: this.serialize(tokenForSecret),
+      };
     }
 
     // Forbidden error if it doesn't
@@ -436,7 +438,7 @@ export default function() {
       return {
         License: {
           Features: records.models.mapBy('name'),
-        }
+        },
       };
     }
 
