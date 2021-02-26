@@ -8547,9 +8547,36 @@ func TestStateStore_OneTimeTokens(t *testing.T) {
 		require.NoError(t, state.UpsertOneTimeToken(structs.MsgTypeTestSetup, index, ott))
 	}
 
+	// verify that we have exactly one OTT for each AccessorID
+
+	txn := state.db.ReadTxn()
+	iter, err := txn.Get("one_time_token", "id")
+	require.NoError(t, err)
+	results := []*structs.OneTimeToken{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		ott, ok := raw.(*structs.OneTimeToken)
+		require.True(t, ok)
+		results = append(results, ott)
+	}
+
+	// results aren't ordered but if we have 3 OTT and all 3 tokens, we know
+	// we have no duplicate accessors
+	require.Len(t, results, 3)
+	accessors := []string{
+		results[0].AccessorID, results[1].AccessorID, results[2].AccessorID}
+	require.Contains(t, accessors, token1.AccessorID)
+	require.Contains(t, accessors, token2.AccessorID)
+	require.Contains(t, accessors, token3.AccessorID)
+
+	// now verify expiration
+
 	getExpiredTokens := func() []*structs.OneTimeToken {
-		// find all the expired tokens
-		iter, err := state.OneTimeTokensExpired(nil)
+		txn := state.db.ReadTxn()
+		iter, err := state.oneTimeTokensExpiredTxn(txn, nil)
 		require.NoError(t, err)
 
 		results := []*structs.OneTimeToken{}
@@ -8565,7 +8592,7 @@ func TestStateStore_OneTimeTokens(t *testing.T) {
 		return results
 	}
 
-	results := getExpiredTokens()
+	results = getExpiredTokens()
 	require.Len(t, results, 2)
 
 	// results aren't ordered
@@ -8578,8 +8605,7 @@ func TestStateStore_OneTimeTokens(t *testing.T) {
 	// clear the expired tokens and verify they're gone
 	index++
 	require.NoError(t,
-		state.DeleteOneTimeTokens(structs.MsgTypeTestSetup, index,
-			[]string{results[0].AccessorID, results[1].AccessorID}))
+		state.ExpireOneTimeTokens(structs.MsgTypeTestSetup, index))
 
 	results = getExpiredTokens()
 	require.Len(t, results, 0)
