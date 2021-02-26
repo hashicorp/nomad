@@ -82,7 +82,11 @@ export default class LineChart extends Component {
     return this.args.yProp || 'value';
   }
   get data() {
-    return this.args.data || [];
+    if (!this.args.data) return [];
+    if (this.args.dataProp) {
+      return this.args.data.mapBy(this.args.dataProp).flat();
+    }
+    return this.args.data;
   }
   get curve() {
     return this.args.curve || 'linear';
