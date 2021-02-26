@@ -48,6 +48,9 @@ var msgTypeNames = map[structs.MessageType]string{
 	structs.EventSinkUpsertRequestType:                   "EventSinkUpsertRequestType",
 	structs.EventSinkDeleteRequestType:                   "EventSinkDeleteRequestType",
 	structs.BatchEventSinkUpdateProgressType:             "BatchEventSinkUpdateProgressType",
+	structs.OneTimeTokenUpsertRequestType:                "OneTimeTokenUpsertRequestType",
+	structs.OneTimeTokenDeleteRequestType:                "OneTimeTokenDeleteRequestType",
+	structs.OneTimeTokenExpireRequestType:                "OneTimeTokenExpireRequestType",
 	structs.NamespaceUpsertRequestType:                   "NamespaceUpsertRequestType",
 	structs.NamespaceDeleteRequestType:                   "NamespaceDeleteRequestType",
 }

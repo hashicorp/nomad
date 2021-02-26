@@ -5374,12 +5374,60 @@ func (s *StateStore) DeleteOneTimeTokens(msgType structs.MessageType, index uint
 		}
 		deleted += d
 	}
+
 	if deleted > 0 {
 		if err := txn.Insert("index", &IndexEntry{"one_time_token", index}); err != nil {
 			return fmt.Errorf("index update failed: %v", err)
 		}
 	}
 	return txn.Commit()
+}
+
+// ExpireOneTimeTokens deletes tokens that have expired
+func (s *StateStore) ExpireOneTimeTokens(msgType structs.MessageType, index uint64) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
+	defer txn.Abort()
+
+	iter, err := s.oneTimeTokensExpiredTxn(txn, nil)
+	if err != nil {
+		return err
+	}
+
+	var deleted int
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		ott, ok := raw.(*structs.OneTimeToken)
+		if !ok || ott == nil {
+			return fmt.Errorf("could not decode one-time token")
+		}
+		d, err := txn.DeleteAll("one_time_token", "secret", ott.OneTimeSecretID)
+		if err != nil {
+			return fmt.Errorf("deleting one-time token failed: %v", err)
+		}
+		deleted += d
+	}
+
+	if deleted > 0 {
+		if err := txn.Insert("index", &IndexEntry{"one_time_token", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
+	return txn.Commit()
+}
+
+// oneTimeTokensExpiredTxn returns an iterator over all expired one-time tokens
+func (s *StateStore) oneTimeTokensExpiredTxn(txn *txn, ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	iter, err := txn.Get("one_time_token", "id")
+	if err != nil {
+		return nil, fmt.Errorf("one-time token lookup failed: %v", err)
+	}
+
+	ws.Add(iter.WatchCh())
+	iter = memdb.NewFilterIterator(iter, expiredOneTimeTokenFilter(time.Now()))
+	return iter, nil
 }
 
 // OneTimeTokenBySecret is used to lookup a token by secret
@@ -5400,20 +5448,6 @@ func (s *StateStore) OneTimeTokenBySecret(ws memdb.WatchSet, secret string) (*st
 		return existing.(*structs.OneTimeToken), nil
 	}
 	return nil, nil
-}
-
-// OneTimeTokensExpired returns an iterator over all expired one-time tokens
-func (s *StateStore) OneTimeTokensExpired(ws memdb.WatchSet) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get("one_time_token", "id")
-	if err != nil {
-		return nil, fmt.Errorf("one-time token lookup failed: %v", err)
-	}
-
-	ws.Add(iter.WatchCh())
-	iter = memdb.NewFilterIterator(iter, expiredOneTimeTokenFilter(time.Now()))
-	return iter, nil
 }
 
 // expiredOneTimeTokenFilter returns a filter function that returns only
