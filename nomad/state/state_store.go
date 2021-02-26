@@ -5361,14 +5361,24 @@ func (s *StateStore) UpsertOneTimeToken(msgType structs.MessageType, index uint6
 	return txn.Commit()
 }
 
-// DeleteOneTimeTokens deletes the tokens with the given ACLToken Accessor IDs
+// DeleteOneTimeTokens deletes the token withs the given ACLToken Accessor IDs
 func (s *StateStore) DeleteOneTimeTokens(msgType structs.MessageType, index uint64, ids []string) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
-	err := s.deleteOneTimeTokensTxn(txn, index, ids)
-	if err != nil {
-		return err
+	var deleted int
+	for _, id := range ids {
+		d, err := txn.DeleteAll("one_time_token", "id", id)
+		if err != nil {
+			return fmt.Errorf("deleting one-time token failed: %v", err)
+		}
+		deleted += d
+	}
+
+	if deleted > 0 {
+		if err := txn.Insert("index", &IndexEntry{"one_time_token", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
 	}
 	return txn.Commit()
 }
@@ -5383,7 +5393,7 @@ func (s *StateStore) ExpireOneTimeTokens(msgType structs.MessageType, index uint
 		return err
 	}
 
-	ids := []string{}
+	var deleted int
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -5393,32 +5403,19 @@ func (s *StateStore) ExpireOneTimeTokens(msgType structs.MessageType, index uint
 		if !ok || ott == nil {
 			return fmt.Errorf("could not decode one-time token")
 		}
-		ids = append(ids, ott.AccessorID)
-	}
-
-	err = s.deleteOneTimeTokensTxn(txn, index, ids)
-	if err != nil {
-		return err
-	}
-	return txn.Commit()
-}
-
-// deleteOneTimeTokensTxn deletes the tokens with the given ACLToken Accessor IDs
-func (s *StateStore) deleteOneTimeTokensTxn(txn *txn, index uint64, ids []string) error {
-	var deleted int
-	for _, id := range ids {
-		d, err := txn.DeleteAll("one_time_token", "id", id)
+		d, err := txn.DeleteAll("one_time_token", "secret", ott.OneTimeSecretID)
 		if err != nil {
 			return fmt.Errorf("deleting one-time token failed: %v", err)
 		}
 		deleted += d
 	}
+
 	if deleted > 0 {
 		if err := txn.Insert("index", &IndexEntry{"one_time_token", index}); err != nil {
 			return fmt.Errorf("index update failed: %v", err)
 		}
 	}
-	return nil
+	return txn.Commit()
 }
 
 // oneTimeTokensExpiredTxn returns an iterator over all expired one-time tokens
