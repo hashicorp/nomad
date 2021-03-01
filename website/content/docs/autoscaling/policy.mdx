@@ -86,7 +86,7 @@ job "example" {
           source = "prometheus"
           query  = "scalar(open_connections_example_cache)"
 
-          strategy "target_value" {
+          strategy "target-value" {
             target = 10
           }
         }
