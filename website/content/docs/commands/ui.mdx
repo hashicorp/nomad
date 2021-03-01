@@ -24,10 +24,10 @@ details for that object. Supported identifiers are jobs, allocations and nodes.
 
 If ACLs are enabled, the web UI will start in an unauthenticated state and you
 may see a 403 Unauthorized page if anonymous read access is denied. The `nomad
-ui -login` option will exchange your command line client's Nomad ACL token for
-a one-time login token to the web UI. That one-time token will be exchanged
-for your Nomad ACL token and stored in the browser's local storage for
-authentication.
+ui -authenticate` option will exchange your command line client's Nomad ACL
+token for a one-time token to the web UI. That one-time token will be
+exchanged for your Nomad ACL token and stored in the browser's local storage
+for authentication.
 
 ## General Options
 
@@ -35,7 +35,8 @@ authentication.
 
 ## UI Options
 
-- `-login`: Exchange your Nomad ACL token for a one-time token in the web UI.
+- `-authenticate`: Exchange your Nomad ACL token for a one-time token in the
+  web UI.
 
 ## Examples
 
@@ -60,9 +61,9 @@ $ nomad ui d4005969
 Opening URL "http://127.0.0.1:4646/ui/allocations/d4005969-b16f-10eb-4fe1-a5374986083d"
 ```
 
-Open the UI and login using your ACL token:
+Open the UI and authenticate using your ACL token:
 
 ```shell-session
-$ NOMAD_ACL_TOKEN=e9674b26-763b-4637-a28f-0df95c53cdda nomad ui -login
+$ NOMAD_ACL_TOKEN=e9674b26-763b-4637-a28f-0df95c53cdda nomad ui -authenticate
 Opening URL "http://127.0.0.1:4646" with token
 ```

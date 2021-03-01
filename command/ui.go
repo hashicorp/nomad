@@ -75,11 +75,11 @@ func (c *UiCommand) Synopsis() string {
 func (c *UiCommand) Name() string { return "ui" }
 
 func (c *UiCommand) Run(args []string) int {
-	var login bool
+	var authenticate bool
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&login, "login", false, "")
+	flags.BoolVar(&authenticate, "authenticate", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -107,7 +107,7 @@ func (c *UiCommand) Run(args []string) int {
 	}
 
 	var ottSecret string
-	if login {
+	if authenticate {
 		ott, _, err := client.ACLTokens().UpsertOneTimeToken(nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Could not get one-time token: %s", err))
@@ -172,7 +172,7 @@ func (c *UiCommand) Run(args []string) int {
 		}
 	}
 
-	if login && ottSecret != "" {
+	if authenticate && ottSecret != "" {
 		c.Ui.Output(fmt.Sprintf("Opening URL %q with one-time token", url.String()))
 		url.RawQuery = fmt.Sprintf("ott=%s", ottSecret)
 	} else {
