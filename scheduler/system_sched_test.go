@@ -1897,7 +1897,7 @@ func TestSystemSched_Preemption(t *testing.T) {
 					Addresses: []structs.NodeNetworkAddress{
 						{
 							Family:  structs.NodeNetworkAF_IPv4,
-							Alias:   "default",
+							Aliases: []string{"default"},
 							Address: "192.168.0.100",
 						},
 					},

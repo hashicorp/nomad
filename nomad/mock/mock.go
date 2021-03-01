@@ -80,7 +80,7 @@ func Node() *structs.Node {
 					Speed:  1000,
 					Addresses: []structs.NodeNetworkAddress{
 						{
-							Alias:   "default",
+							Aliases: []string{"default"},
 							Address: "192.168.0.100",
 							Family:  structs.NodeNetworkAF_IPv4,
 						},

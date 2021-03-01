@@ -1963,7 +1963,7 @@ func (n *Node) Canonicalize() {
 				if nr.IP != "" {
 					nnr.Addresses = []NodeNetworkAddress{
 						{
-							Alias:   "default",
+							Aliases: []string{"default"},
 							Address: nr.IP,
 						},
 					}
@@ -2442,8 +2442,10 @@ func (n *NodeNetworkResource) Equals(o *NodeNetworkResource) bool {
 
 func (n *NodeNetworkResource) HasAlias(alias string) bool {
 	for _, addr := range n.Addresses {
-		if addr.Alias == alias {
-			return true
+		for _, a := range addr.Aliases {
+			if a == alias {
+				return true
+			}
 		}
 	}
 	return false
@@ -2458,7 +2460,7 @@ const (
 
 type NodeNetworkAddress struct {
 	Family        NodeNetworkAF
-	Alias         string
+	Aliases       []string
 	Address       string
 	ReservedPorts string
 	Gateway       string // default route for this address
