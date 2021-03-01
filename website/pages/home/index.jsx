@@ -10,6 +10,7 @@ import TextSplitWithLogoGrid from '@hashicorp/react-text-split-with-logo-grid'
 import Link from 'next/link'
 
 export default function Homepage() {
+  // Test comment to see if Vercel picks up this commit
   return (
     <div id="p-home">
       <HomepageHero
