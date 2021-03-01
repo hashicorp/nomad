@@ -14,7 +14,7 @@ resource "aws_instance" "server" {
   # Instance tags
   tags = {
     Name           = "${local.random_name}-server-${count.index}"
-    ConsulAutoJoin = "auto-join"
+    ConsulAutoJoin = "auto-join-${local.random_name}"
     SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
   }
@@ -32,7 +32,7 @@ resource "aws_instance" "client_ubuntu_bionic_amd64" {
   # Instance tags
   tags = {
     Name           = "${local.random_name}-client-ubuntu-bionic-amd64-${count.index}"
-    ConsulAutoJoin = "auto-join"
+    ConsulAutoJoin = "auto-join-${local.random_name}"
     SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
   }
@@ -52,7 +52,7 @@ resource "aws_instance" "client_windows_2016_amd64" {
   # Instance tags
   tags = {
     Name           = "${local.random_name}-client-windows-2016-${count.index}"
-    ConsulAutoJoin = "auto-join"
+    ConsulAutoJoin = "auto-join-${local.random_name}"
     SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
   }

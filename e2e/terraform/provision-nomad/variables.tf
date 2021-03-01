@@ -52,6 +52,12 @@ variable "index" {
   default     = ""
 }
 
+variable "cluster_name" {
+  type        = string
+  description = "The random name assigned to the cluster"
+  default     = ""
+}
+
 variable "connection" {
   type = object({
     type        = string
