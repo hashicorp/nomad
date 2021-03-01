@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	ifs "github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -130,11 +131,12 @@ func (_ *envoyBootstrapHook) extractNameAndKind(kind structs.TaskKind) (string, 
 	return serviceKind, serviceName, nil
 }
 
-func (h *envoyBootstrapHook) lookupService(svcKind, svcName, tgName string) (*structs.Service, error) {
+func (h *envoyBootstrapHook) lookupService(svcKind, svcName, tgName string, taskEnv *taskenv.TaskEnv) (*structs.Service, error) {
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
+	interpolatedServices := taskenv.InterpolateServices(taskEnv, tg.Services)
 
 	var service *structs.Service
-	for _, s := range tg.Services {
+	for _, s := range interpolatedServices {
 		if s.Name == svcName {
 			service = s
 			break
@@ -167,7 +169,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 		return err
 	}
 
-	service, err := h.lookupService(serviceKind, serviceName, h.alloc.TaskGroup)
+	service, err := h.lookupService(serviceKind, serviceName, h.alloc.TaskGroup, req.TaskEnv)
 	if err != nil {
 		return err
 	}
@@ -179,7 +181,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	// Envoy runs an administrative API on the loopback interface. There is no
 	// way to turn this feature off.
 	// https://github.com/envoyproxy/envoy/issues/1297
-	envoyAdminBind := buildEnvoyAdminBind(h.alloc, serviceName, req.Task.Name)
+	envoyAdminBind := buildEnvoyAdminBind(h.alloc, serviceName, req.Task.Name, req.TaskEnv)
 	resp.Env = map[string]string{
 		helper.CleanEnvVar(envoyAdminBindEnvPrefix+serviceName, '_'): envoyAdminBind,
 	}
@@ -271,12 +273,13 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 //
 // In host mode, use the port provided through the service definition, which can
 // be a port chosen by Nomad.
-func buildEnvoyAdminBind(alloc *structs.Allocation, serviceName, taskName string) string {
+func buildEnvoyAdminBind(alloc *structs.Allocation, serviceName, taskName string, taskEnv *taskenv.TaskEnv) string {
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 	port := envoyBaseAdminPort
 	switch tg.Networks[0].Mode {
 	case "host":
-		for _, service := range tg.Services {
+		interpolatedServices := taskenv.InterpolateServices(taskEnv, tg.Services)
+		for _, service := range interpolatedServices {
 			if service.Name == serviceName {
 				mapping := tg.Networks.Port(service.PortLabel)
 				port = mapping.Value
