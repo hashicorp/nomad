@@ -203,6 +203,9 @@ var (
 			"ca":   hclspec.NewAttr("ca", "string", false),
 		})),
 
+		// extra docker labels, globs supported
+		"extra_labels": hclspec.NewAttr("extra_labels", "list(string)", false),
+
 		// garbage collection options
 		// default needed for both if the gc {...} block is not set and
 		// if the default fields are missing
