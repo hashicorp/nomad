@@ -6,9 +6,15 @@ import {
   generateStaticProps,
 } from '@hashicorp/react-docs-page/server'
 import Placement from 'components/placement-table'
+import EcosystemIntegrationGroup from 'components/ecosystem-integration-group'
+import EcosystemIntegrationCard from 'components/ecosystem-integration-group/ecosystem-integration-card'
 
 const subpath = 'docs'
-const additionalComponents = { Placement }
+const additionalComponents = {
+  Placement,
+  EcosystemIntegrationGroup,
+  EcosystemIntegrationCard,
+}
 
 export default function DocsLayout(props) {
   return (

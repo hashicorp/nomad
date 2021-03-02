@@ -1,0 +1,54 @@
+.ecosystemIntegrationGroup {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 80px 0;
+
+  & h3 {
+    margin-bottom: 32px;
+    width: 100%;
+    border: none;
+  }
+
+  & > ul {
+    padding-left: 0;
+
+    & li {
+      margin-top: 0;
+      margin-bottom: 0;
+      &::before {
+        content: none;
+      }
+    }
+  }
+
+  @media (max-width: 512px) {
+    padding-bottom: 0 0 60px 0;
+  }
+}
+
+.companyGrid {
+  --grid-gap-base: 8px;
+
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: calc(-1 * var(--grid-gap-base));
+  padding: 0;
+
+  /*
+  @media (max-width: 768px) {
+    margin: -16px;
+  } */
+
+  & > li {
+    width: calc(25% - var(--grid-gap-base));
+
+    @media (max-width: 1150px) {
+      width: calc(33.3333% - var(--grid-gap-base));
+    }
+
+    @media (max-width: 1024px) {
+      width: calc(50% - var(--grid-gap-base));
+    }
+  }
+}
