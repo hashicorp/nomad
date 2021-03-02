@@ -799,8 +799,8 @@ func TestDockerDriver_Labels(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// expect to see 4 additional standard labels (allocID, jobName, TaskGroupName and TaskName)
-	require.Equal(t, len(cfg.Labels)+4, len(container.Config.Labels))
+	// expect to see 1 additional standard labels (allocID)
+	require.Equal(t, len(cfg.Labels)+1, len(container.Config.Labels))
 	for k, v := range cfg.Labels {
 		require.Equal(t, v, container.Config.Labels[k])
 	}
