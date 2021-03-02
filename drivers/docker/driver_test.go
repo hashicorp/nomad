@@ -1065,11 +1065,8 @@ func TestDockerDriver_CreateContainerConfig_Labels(t *testing.T) {
 	expectedLabels := map[string]string{
 		// user provided labels
 		"user_label": "user_value",
-		// default labels
+		// default label
 		"com.hashicorp.nomad.alloc_id":        task.AllocID,
-		"com.hashicorp.nomad.job_name":        task.JobName,
-		"com.hashicorp.nomad.task_group_name": task.TaskGroupName,
-		"com.hashicorp.nomad.task_name":       task.Name,
 	}
 
 	require.Equal(t, expectedLabels, c.Config.Labels)
