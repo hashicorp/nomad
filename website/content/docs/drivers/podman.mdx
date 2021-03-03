@@ -49,7 +49,7 @@ The Podman task driver is under active development. It currently does not suppor
 Due to Podman's similarity to Docker, the example job created by [`nomad init -short`][nomad-init] is easily adapted to use Podman instead:
 
 ```hcl
-``job "redis" {
+job "redis" {
   datacenters = ["dc1"]
   type        = "service"
 
