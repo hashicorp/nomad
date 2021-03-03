@@ -1,7 +1,7 @@
 ---
 name: Feature Request
 about: Suggest a new feature or enhancement to Nomad
-labels: “type/enhancement”
+labels: "type/enhancement"
 ---
 
 <!--
