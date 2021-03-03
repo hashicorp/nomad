@@ -28,12 +28,6 @@ in the configured plugin directory.
 - Linux host with [`podman`][podman] installed.
 - [`nomad-driver-podman`][releases] binary in Nomad's [`plugin_dir`][plugin_dir].
 
-You need a varlink enabled Podman binary and a system socket activation unit, see https://podman.io/blogs/2019/01/16/podman-varlink.html.
-
-Since the Nomad agent, nomad-driver-podman plugin binary, and Podman will
-reside on the same host, skip the ssh aspects of the Podman varlink
-documentation above.
-
 ## Capabilities
 
 The `podman` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
@@ -49,34 +43,27 @@ The `podman` driver implements the following [capabilities](/docs/internals/plug
 ## Known Limitations
 
 The Podman task driver is under active development. It currently does not support [stderr logging][stderr-logging] and [devices][devices].
-Podman recently released [Podman v2](https://podman.io/blogs/2020/06/29/podman-v2-announce.html). The task driver currently supports v1
-and will be working on supporting v2 in upcoming releases.
 
 ## Task Configuration
 
 Due to Podman's similarity to Docker, the example job created by [`nomad init -short`][nomad-init] is easily adapted to use Podman instead:
 
 ```hcl
-job "example" {
+job "redis" {
   datacenters = ["dc1"]
-  network {
-    port  "db"  {
-      to = 6379
-    }
-  }
+  type        = "service"
 
   group "cache" {
+    network {
+      port "redis" { to = 6379 }
+    }
+
     task "redis" {
       driver = "podman"
 
       config {
-        image = "docker://redis:3.2"
-        ports = ["db"]
-      }
-
-      resources {
-        cpu    = 500
-        memory = 256
+        image = "docker://redis"
+        ports = ["redis"]
       }
     }
   }
