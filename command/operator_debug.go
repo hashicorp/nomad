@@ -94,8 +94,8 @@ Debug Options:
     Duration for pprof collection. Defaults to 1s.
 
   -server-id=<server>,<server>
-    Comma separated list of Nomad server names, "leader", or "all" to monitor for logs and include pprof
-    profiles.
+    Comma separated list of Nomad server names to monitor for logs, API outputs, and pprof profiles.
+    Accepts server names, "leader", or "all". Defaults to "all".
 
   -stale=<true|false>
     If "false", the default, get membership data from the cluster leader. If the cluster is in
@@ -200,7 +200,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
 	flags.StringVar(&c.nodeClass, "node-class", "", "")
 	flags.StringVar(&nodeIDs, "node-id", "", "")
-	flags.StringVar(&serverIDs, "server-id", "", "")
+	flags.StringVar(&serverIDs, "server-id", "all", "")
 	flags.BoolVar(&c.stale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
 	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
