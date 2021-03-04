@@ -74,8 +74,8 @@ Debug Options:
     The duration of the log monitor command. Defaults to 2m.
 
   -interval=<interval>
-    The interval between snapshots of the Nomad state. If unspecified, only one snapshot is
-    captured.
+    The interval between snapshots of the Nomad state. Set interval equal to 
+    duration to capture a single snapshot. Defaults to 30s.
 
   -log-level=<level>
     The log level to monitor. Defaults to DEBUG.
@@ -195,7 +195,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	var nodeIDs, serverIDs string
 
 	flags.StringVar(&duration, "duration", "2m", "")
-	flags.StringVar(&interval, "interval", "2m", "")
+	flags.StringVar(&interval, "interval", "30s", "")
 	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
 	flags.StringVar(&c.nodeClass, "node-class", "", "")
@@ -245,6 +245,13 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 	c.interval = i
+
+	// Sanity check interval
+	if i.Seconds() > d.Seconds() {
+		c.Ui.Info(fmt.Sprintf("Interval %s is greater than duration %s, resetting to %s.", interval, duration, duration))
+		interval = duration     // Update string for summary
+		c.interval = c.duration // Update parsed interval
+	}
 
 	// Parse the pprof capture duration
 	pd, err := time.ParseDuration(pprofDuration)
