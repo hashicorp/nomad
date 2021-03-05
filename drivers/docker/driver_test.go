@@ -806,6 +806,43 @@ func TestDockerDriver_Labels(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_ExtraLabels(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dockerClientConfig := make(map[string]interface{})
+
+	dockerClientConfig["extra_labels"] = []string{"task*", "job_name"}
+	client, d, handle, cleanup := dockerSetup(t, task, dockerClientConfig)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	expectedLabels := map[string]string{
+		"com.hashicorp.nomad.alloc_id":        task.AllocID,
+		"com.hashicorp.nomad.task_name":       task.Name,
+		"com.hashicorp.nomad.task_group_name": task.TaskGroupName,
+		"com.hashicorp.nomad.job_name":        task.JobName,
+	}
+
+	// expect to see 4 labels (allocID by default, task_name and task_group_name due to task*, and job_name)
+	require.Equal(t, 4, len(container.Config.Labels))
+	for k, v := range expectedLabels {
+		require.Equal(t, v, container.Config.Labels[k])
+	}
+}
+
 func TestDockerDriver_ForcePull(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
