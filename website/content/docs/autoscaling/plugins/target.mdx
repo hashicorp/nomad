@@ -219,7 +219,8 @@ check "hashistack-allocated-cpu" {
   identifier used to group nodes into a pool of resource.
 
 - `node_drain_deadline` `(duration: "15m")` The Nomad [drain deadline][nomad_node_drain_deadline]
-  to use when performing node draining actions.
+  to use when performing node draining actions. **Please note that the default value
+  for this setting differs from Nomad's default of 1h.**
 
 - `node_drain_ignore_system_jobs` `(bool: "false")` A boolean flag used to control if
   system jobs should be stopped when performing node draining actions.
@@ -325,7 +326,8 @@ check "clients-azure-vmss" {
   identifier used to group nodes into a pool of resource.
 
 - `node_drain_deadline` `(duration: "15m")` The Nomad [drain deadline][nomad_node_drain_deadline]
-  to use when performing node draining actions.
+  to use when performing node draining actions. **Please note that the default value
+  for this setting differs from Nomad's default of 1h.**
 
 - `node_drain_ignore_system_jobs` `(bool: "false")` A boolean flag used to control if
   system jobs should be stopped when performing node draining actions.
@@ -410,7 +412,8 @@ check "hashistack-allocated-cpu" {
   identifier used to group nodes into a pool of resource.
 
 - `node_drain_deadline` `(duration: "15m")` The Nomad [drain deadline][nomad_node_drain_deadline]
-  to use when performing node draining actions.
+  to use when performing node draining actions. **Please note that the default value
+  for this setting differs from Nomad's default of 1h.**
 
 - `node_drain_ignore_system_jobs` `(bool: "false")` A boolean flag used to control if
   system jobs should be stopped when performing node draining actions.
