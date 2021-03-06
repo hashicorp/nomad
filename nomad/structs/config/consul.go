@@ -125,6 +125,11 @@ type ConsulConfig struct {
 	// Namespace sets the Consul namespace used for all calls against the
 	// Consul API. If this is unset, then Nomad does not specify a consul namespace.
 	Namespace string `hcl:"namespace"`
+
+	// In Consul 1.9.0 the format of metric tags for Envoy clusters was updated.
+	// The old tags were preserved for backward compatibility,
+	// but can be disabled with this flag.
+	OmitDeprecatedTags bool `hcl:"omit_deprecated_tags"`
 }
 
 // DefaultConsulConfig() returns the canonical defaults for the Nomad

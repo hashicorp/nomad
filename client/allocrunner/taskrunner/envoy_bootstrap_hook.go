@@ -23,27 +23,29 @@ import (
 const envoyBootstrapHookName = "envoy_bootstrap"
 
 type consulTransportConfig struct {
-	HTTPAddr  string // required
-	Auth      string // optional, env CONSUL_HTTP_AUTH
-	SSL       string // optional, env CONSUL_HTTP_SSL
-	VerifySSL string // optional, env CONSUL_HTTP_SSL_VERIFY
-	CAFile    string // optional, arg -ca-file
-	CertFile  string // optional, arg -client-cert
-	KeyFile   string // optional, arg -client-key
-	Namespace string // optional, only consul Enterprise, env CONSUL_NAMESPACE
+	HTTPAddr           string // required
+	Auth               string // optional, env CONSUL_HTTP_AUTH
+	SSL                string // optional, env CONSUL_HTTP_SSL
+	VerifySSL          string // optional, env CONSUL_HTTP_SSL_VERIFY
+	CAFile             string // optional, arg -ca-file
+	CertFile           string // optional, arg -client-cert
+	KeyFile            string // optional, arg -client-key
+	Namespace          string // optional, only consul Enterprise, env CONSUL_NAMESPACE
+	OmitDeprecatedTags bool   // optional, arg -omit-deprecated-tags
 	// CAPath (dir) not supported by Nomad's config object
 }
 
 func newConsulTransportConfig(consul *config.ConsulConfig) consulTransportConfig {
 	return consulTransportConfig{
-		HTTPAddr:  consul.Addr,
-		Auth:      consul.Auth,
-		SSL:       decodeTriState(consul.EnableSSL),
-		VerifySSL: decodeTriState(consul.VerifySSL),
-		CAFile:    consul.CAFile,
-		CertFile:  consul.CertFile,
-		KeyFile:   consul.KeyFile,
-		Namespace: consul.Namespace,
+		HTTPAddr:           consul.Addr,
+		Auth:               consul.Auth,
+		SSL:                decodeTriState(consul.EnableSSL),
+		VerifySSL:          decodeTriState(consul.VerifySSL),
+		CAFile:             consul.CAFile,
+		CertFile:           consul.CertFile,
+		KeyFile:            consul.KeyFile,
+		Namespace:          consul.Namespace,
+		OmitDeprecatedTags: consul.OmitDeprecatedTags,
 	}
 }
 
@@ -346,8 +348,7 @@ func (h *envoyBootstrapHook) proxyServiceID(group string, service *structs.Servi
 
 func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
 	group string, service *structs.Service,
-	grpcAddr, envoyAdminBind, siToken, filepath string,
-) envoyBootstrapArgs {
+	grpcAddr, envoyAdminBind, siToken, filepath string) envoyBootstrapArgs {
 	var (
 		sidecarForID string // sidecar only
 		gateway      string // gateway only
@@ -369,8 +370,7 @@ func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
 		"sidecar_for", service.Name, "bootstrap_file", filepath,
 		"sidecar_for_id", sidecarForID, "grpc_addr", grpcAddr,
 		"admin_bind", envoyAdminBind, "gateway", gateway,
-		"proxy_id", proxyID,
-	)
+		"proxy_id", proxyID)
 
 	return envoyBootstrapArgs{
 		consulConfig:   h.consulConfig,
@@ -422,6 +422,10 @@ func (e envoyBootstrapArgs) args() []string {
 
 	if v := e.siToken; v != "" {
 		arguments = append(arguments, "-token", v)
+	}
+
+	if v := e.consulConfig.OmitDeprecatedTags; v {
+		arguments = append(arguments, "-omit-deprecated-tags")
 	}
 
 	if v := e.consulConfig.CAFile; v != "" {
