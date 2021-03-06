@@ -256,11 +256,10 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 	c.interval = i
 
-	// Sanity check interval
+	// Validate interval
 	if i.Seconds() > d.Seconds() {
-		c.Ui.Info(fmt.Sprintf("Interval %s is greater than duration %s, resetting to %s.", interval, duration, duration))
-		interval = duration     // Update string for summary
-		c.interval = c.duration // Update parsed interval
+		c.Ui.Error(fmt.Sprintf("Error parsing interval: %s is greater than duration %s", interval, duration))
+		return 1
 	}
 
 	// Parse the pprof capture duration
