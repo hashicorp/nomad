@@ -290,24 +290,31 @@ export default class LineChart extends Component {
         datum = x - dLeft[xProp] > dRight[xProp] - x ? dRight : dLeft;
       }
 
-      // TODO: Preformat numbers
-      return { series, datum, index: seriesIndex };
+      return {
+        series,
+        datum: {
+          formattedX: this.xFormat()(datum[xProp]),
+          formattedY: this.yFormat()(datum[yProp]),
+          datum,
+        },
+        index: seriesIndex,
+      };
     });
 
     // Of the selected data, determine which is closest
     const closestDatum = activeData.sort(
-      (a, b) => Math.abs(a.datum[xProp] - x) - Math.abs(b.datum[xProp] - x)
+      (a, b) => Math.abs(a.datum.datum[xProp] - x) - Math.abs(b.datum.datum[xProp] - x)
     )[0];
 
     // If any other selected data are beyond a distance threshold, drop them from the list
     // xScale is used here to measure distance in screen-space rather than data-space.
-    const dist = Math.abs(xScale(closestDatum.datum[xProp]) - mouseX);
+    const dist = Math.abs(xScale(closestDatum.datum.datum[xProp]) - mouseX);
     const filteredData = activeData.filter(
-      d => Math.abs(xScale(d.datum[xProp]) - mouseX) < dist + 10
+      d => Math.abs(xScale(d.datum.datum[xProp]) - mouseX) < dist + 10
     );
 
     this.activeData = filteredData;
-    this.activeDatum = closestDatum.datum;
+    this.activeDatum = closestDatum.datum.datum;
     this.tooltipPosition = {
       left: xScale(this.activeDatum[xProp]),
       top: yScale(this.activeDatum[yProp]) - 10,

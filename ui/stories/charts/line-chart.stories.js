@@ -374,7 +374,7 @@ export let MultiLine = () => ({
               <c.Tooltip class="is-snappy" as |series datum index|>
                 <li>
                   <span class="label"><span class="color-swatch swatch-reds swatch-reds-{{index}}" />{{series.name}}</span>
-                  <span class="value">{{datum.y}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
                 </li>
               </c.Tooltip>
             </:after>
