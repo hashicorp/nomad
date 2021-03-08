@@ -126,108 +126,44 @@ The table below shows this endpoint's support for
 
 ```json
 {
-  "EnforceIndex": false,
-  "PreserveCounts": true,
-  "PolicyOverride": false,
-  "JobModifyIndex": 0,
   "Job": {
-    "ID": "example",
-    "Name": "example",
-    "Type": "service",
-    "Priority": 50,
-    "Datacenters": ["dc1"],
+    "Datacenters": [
+      "dc1"
+    ],
+    "ID": "cache",
     "TaskGroups": [
       {
         "Name": "cache",
-        "Count": 1,
-        "Tasks": [
+        "Networks": [
           {
-            "Name": "redis",
-            "Driver": "docker",
-            "User": "",
-            "Config": {
-              "image": "redis:3.2",
-              "port_map": [
-                {
-                  "db": 6379
-                }
-              ]
-            },
-            "Services": [
+            "DynamicPorts": [
               {
-                "Id": "",
-                "Name": "redis-cache",
-                "Tags": ["global", "cache"],
-                "Meta": {
-                  "meta": "for my service"
-                },
-                "PortLabel": "db",
-                "AddressMode": "",
-                "Checks": [
-                  {
-                    "Id": "",
-                    "Name": "alive",
-                    "Type": "tcp",
-                    "Command": "",
-                    "Args": null,
-                    "Path": "",
-                    "Protocol": "",
-                    "PortLabel": "",
-                    "Interval": 10000000000,
-                    "Timeout": 2000000000,
-                    "InitialStatus": "",
-                    "TLSSkipVerify": false
-                  }
-                ]
+                "Label": "db",
+                "To": 6379
               }
-            ],
-            "Resources": {
-              "CPU": 500,
-              "MemoryMB": 256,
-              "Networks": [
-                {
-                  "Device": "",
-                  "CIDR": "",
-                  "IP": "",
-                  "MBits": 10,
-                  "DynamicPorts": [
-                    {
-                      "Label": "db",
-                      "Value": 0
-                    }
-                  ]
-                }
-              ]
-            },
-            "Leader": false
+            ]
           }
         ],
-        "RestartPolicy": {
-          "Interval": 300000000000,
-          "Attempts": 10,
-          "Delay": 25000000000,
-          "Mode": "delay"
-        },
-        "ReschedulePolicy": {
-          "Attempts": 10,
-          "Delay": 30000000000,
-          "DelayFunction": "exponential",
-          "Interval": 36000000000000,
-          "MaxDelay": 3600000000000,
-          "Unlimited": false
-        },
-        "EphemeralDisk": {
-          "SizeMB": 300
-        }
+        "Services": [
+          {
+            "Name": "redis-cache",
+            "PortLabel": "db"
+          }
+        ],
+        "Tasks": [
+          {
+            "Config": {
+              "image": "redis:3.2",
+              "ports": [
+                "db"
+              ]
+            },
+            "Driver": "docker",
+            "Name": "redis"
+          }
+        ]
       }
-    ],
-    "Update": {
-      "MaxParallel": 1,
-      "MinHealthyTime": 10000000000,
-      "HealthyDeadline": 180000000000,
-      "AutoRevert": false,
-      "Canary": 0
-    }
+    ]
   }
 }
 ```
