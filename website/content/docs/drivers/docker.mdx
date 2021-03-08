@@ -774,6 +774,8 @@ plugin "docker" {
       ca   = "/etc/nomad/nomad.cert"
     }
 
+    extra_labels = ["job_name", "job_id", "task_group_name", "task_name", "namespace", "node_name", "node_id"]
+
     gc {
       image       = true
       image_delay = "3m"
@@ -865,6 +867,10 @@ plugin "docker" {
   disable Nomad logs collection of Docker tasks. If you don't rely on nomad log
   capabilities and exclusively use host based log aggregation, you may consider
   this option to disable nomad log collection overhead.
+
+- `extra_labels` - Extra labels to add to Docker containers. 
+   Available options are `job_name`, `job_id`, `task_group_name`, `task_name`,
+   `namespace`, `node_name`, `node_id`. Globs are supported (e.g. `task*`)
 
 - `gc` stanza:
 

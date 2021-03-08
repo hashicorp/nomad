@@ -203,6 +203,9 @@ var (
 			"ca":   hclspec.NewAttr("ca", "string", false),
 		})),
 
+		// extra docker labels, globs supported
+		"extra_labels": hclspec.NewAttr("extra_labels", "list(string)", false),
+
 		// garbage collection options
 		// default needed for both if the gc {...} block is not set and
 		// if the default fields are missing
@@ -612,6 +615,7 @@ type DriverConfig struct {
 	DisableLogCollection          bool          `codec:"disable_log_collection"`
 	PullActivityTimeout           string        `codec:"pull_activity_timeout"`
 	pullActivityTimeoutDuration   time.Duration `codec:"-"`
+	ExtraLabels                   []string      `codec:"extra_labels"`
 
 	AllowRuntimesList []string            `codec:"allow_runtimes"`
 	allowRuntimes     map[string]struct{} `codec:"-"`
