@@ -68,6 +68,7 @@ export default class LineChart extends Component {
   @tracked height = 0;
   @tracked isActive = false;
   @tracked activeDatum = null;
+  @tracked activeData = [];
   @tracked tooltipPosition = null;
   @tracked element = null;
   @tracked ready = false;
@@ -251,37 +252,65 @@ export default class LineChart extends Component {
     canvas.on('mouseleave', () => {
       run.schedule('afterRender', this, () => (this.isActive = false));
       this.activeDatum = null;
+      this.activeData = [];
     });
   }
 
   updateActiveDatum(mouseX) {
-    const { xScale, xProp, yScale, yProp, data } = this;
+    if (!this.data || !this.data.length) return;
 
-    if (!data || !data.length) return;
+    const { xScale, xProp, yScale, yProp } = this;
+    let { dataProp, data } = this.args;
 
-    // Map the mouse coordinate to the index in the data array
-    const bisector = d3Array.bisector(d => d[xProp]).left;
-    const x = xScale.invert(mouseX);
-    const index = bisector(data, x, 1);
-
-    // The data point on either side of the cursor
-    const dLeft = data[index - 1];
-    const dRight = data[index];
-
-    let datum;
-
-    // If there is only one point, it's the activeDatum
-    if (dLeft && !dRight) {
-      datum = dLeft;
-    } else {
-      // Pick the closer point
-      datum = x - dLeft[xProp] > dRight[xProp] - x ? dRight : dLeft;
+    if (!dataProp) {
+      dataProp = 'data';
+      data = [{ data: this.data }];
     }
 
-    this.activeDatum = datum;
+    // Map screen coordinates to data domain
+    const bisector = d3Array.bisector(d => d[xProp]).left;
+    const x = xScale.invert(mouseX);
+
+    // Find the closest datum to the cursor for each series
+    const activeData = data.map((series, seriesIndex) => {
+      const dataset = series[dataProp];
+      const index = bisector(dataset, x, 1);
+
+      // The data point on either side of the cursor
+      const dLeft = dataset[index - 1];
+      const dRight = dataset[index];
+
+      let datum;
+
+      // If there is only one point, it's the activeDatum
+      if (dLeft && !dRight) {
+        datum = dLeft;
+      } else {
+        // Pick the closer point
+        datum = x - dLeft[xProp] > dRight[xProp] - x ? dRight : dLeft;
+      }
+
+      // TODO: Preformat numbers
+      return { series, datum, index: seriesIndex };
+    });
+
+    // Of the selected data, determine which is closest
+    const closestDatum = activeData.sort(
+      (a, b) => Math.abs(a.datum[xProp] - x) - Math.abs(b.datum[xProp] - x)
+    )[0];
+
+    // If any other selected data are beyond a distance threshold, drop them from the list
+    // xScale is used here to measure distance in screen-space rather than data-space.
+    const dist = Math.abs(xScale(closestDatum.datum[xProp]) - mouseX);
+    const filteredData = activeData.filter(
+      d => Math.abs(xScale(d.datum[xProp]) - mouseX) < dist + 10
+    );
+
+    this.activeData = filteredData;
+    this.activeDatum = closestDatum.datum;
     this.tooltipPosition = {
-      left: xScale(datum[xProp]),
-      top: yScale(datum[yProp]) - 10,
+      left: xScale(this.activeDatum[xProp]),
+      top: yScale(this.activeDatum[yProp]) - 10,
     };
   }
 

@@ -45,15 +45,21 @@
         prop=this.yProp
         left=this.canvasDimensions.left
         width=this.canvasDimensions.width)
+      Tooltip=(component "chart-primitives/tooltip"
+        active=this.activeData.length
+        style=this.tooltipStyle
+        data=this.activeData)
     ) to="after"}}
   {{/if}}
-  <div class="chart-tooltip is-snappy {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
-    <p>
-      <span class="label">
-        <span class="color-swatch {{this.chartClass}}" />
-        {{this.activeDatumLabel}}
-      </span>
-      <span class="value">{{this.activeDatumValue}}</span>
-    </p>
-  </div>
+  {{#unless @dataProp}}
+    <div class="chart-tooltip is-snappy {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
+      <p>
+        <span class="label">
+          <span class="color-swatch {{this.chartClass}}" />
+          {{this.activeDatumLabel}}
+        </span>
+        <span class="value">{{this.activeDatumValue}}</span>
+      </p>
+    </div>
+  {{/unless}}
 </div>
