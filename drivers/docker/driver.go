@@ -28,6 +28,9 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
+	cgroupsfs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
+	libcontainerconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/ryanuber/go-glob"
 )
 
@@ -244,6 +247,10 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
+func writeCGroupFile(path string, val int) error {
+	return ioutil.WriteFile(path, []byte(strconv.Itoa(val)), 0700)
+}
+
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
@@ -287,6 +294,58 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		d.logger.Error("failed to create container configuration", "image_name", driverConfig.Image,
 			"image_id", id, "error", err)
 		return nil, nil, fmt.Errorf("Failed to create container configuration for image %q (%q): %v", driverConfig.Image, id, err)
+	}
+
+	// container cgroup settings
+	if containerCfg.HostConfig.CgroupParent != "" {
+		cpusetMount, err := cgroups.FindCgroupMountpoint("", "cpuset")
+		if err != nil {
+			return nil, nil, nstructs.WrapRecoverable(fmt.Sprintf("failed to find cpuset mountpoint: %v", err), err)
+		}
+
+		cgroupParent := filepath.Join(cpusetMount, containerCfg.HostConfig.CgroupParent)
+
+		err = os.MkdirAll(cgroupParent, 0755)
+		if err != nil {
+			return nil, nil, nstructs.WrapRecoverable(fmt.Sprintf("failed to create cgroup parent %s: %v", cgroupParent, err), err)
+		}
+
+		// get cpuset.mems from nomad to set on subgroup
+		// this requires bumping libcontainer; cgroups.Stats.CPUSetStats is missing in the current version
+		// nomadCPUSetStats := new(cgroups.Stats)
+		// err = cpusetGroup.GetStats(filepath.Dir(cgroupParent), nomadCPUSetStats)
+		// if err != nil {
+		// 	return nil, nil, nstructs.WrapRecoverable(fmt.Sprintf("failed to get nomad CPUSetStats: %v", err), err)
+		// }
+
+		cgroupConfig := &libcontainerconfigs.Cgroup{
+			Resources: &libcontainerconfigs.Resources{
+				// this should come from some kind of CPUManager thingy that can hand
+				// out cores based on the requested number of cores
+				CpusetCpus: "0",
+
+				// this should come from nomad/cpuset.mems, available via
+				// nomadCPUSetStats.CPUSetStats.Mems above, which FYI is a []int16
+				CpusetMems: "0",
+
+				// this requires PRing libcontainer; see below
+				// CPUExclusive: "1",
+			},
+		}
+
+		cpusetGroup := new(cgroupsfs.CpusetGroup)
+		err = cpusetGroup.Set(cgroupParent, cgroupConfig)
+		if err != nil {
+			return nil, nil, nstructs.WrapRecoverable(fmt.Sprintf("failed to write cgroup config: %v", err), err)
+		}
+
+		// libcontainer's CpusetGroup.Set does _not_ set CPUExclusive. Maybe PR?
+		// https://github.com/opencontainers/runc/blob/6c85f6389e479764bf28269253331524b3787708/libcontainer/cgroups/fs/cpuset.go#L30
+		// also, where should this value come from? jobspec? docker plugin config?
+		// err = writeCGroupFile(filepath.Join(cgroupParent, "cpuset.cpu_exclusive"), 1)
+		// if err != nil {
+		// 	return nil, nil, nstructs.WrapRecoverable(fmt.Sprintf("failed to write cpuset.mems: %v", err), err)
+		// }
 	}
 
 	startAttempts := 0
@@ -835,6 +894,10 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	if driverConfig.CPUSetCPUs != "" {
 		hostConfig.CPUSetCPUs = driverConfig.CPUSetCPUs
 	}
+
+	// if driverConfig.CPUCores != "" {
+	hostConfig.CgroupParent = fmt.Sprintf("nomad/%s-%s", task.JobName, task.Name)
+	// }
 
 	// Calculate CPU Quota
 	// cfs_quota_us is the time per core, so we must
