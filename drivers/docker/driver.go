@@ -1127,25 +1127,25 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	//optional labels, as configured in plugin configuration
 	for _, configurationExtraLabel := range d.config.ExtraLabels {
-		if glob.Glob(configurationExtraLabel, strings.Split(dockerLabelJobName, ".")[3]) {
+		if glob.Glob(configurationExtraLabel, "job_name") {
 			labels[dockerLabelJobName] = task.JobName
 		}
-		if glob.Glob(configurationExtraLabel, strings.Split(dockerLabelJobID, ".")[3]) {
+		if glob.Glob(configurationExtraLabel, "job_id") {
 			labels[dockerLabelJobID] = task.JobID
 		}
-		if glob.Glob(configurationExtraLabel, strings.Split(dockerLabelTaskGroupName, ".")[3]) {
+		if glob.Glob(configurationExtraLabel, "task_group_name") {
 			labels[dockerLabelTaskGroupName] = task.TaskGroupName
 		}
-		if glob.Glob(configurationExtraLabel, strings.Split(dockerLabelTaskName, ".")[3]) {
+		if glob.Glob(configurationExtraLabel, "task_name") {
 			labels[dockerLabelTaskName] = task.Name
 		}
-		if glob.Glob(configurationExtraLabel, strings.Split(dockerLabelNamespace, ".")[3]) {
+		if glob.Glob(configurationExtraLabel, "namespace") {
 			labels[dockerLabelNamespace] = task.Namespace
 		}
-		if glob.Glob(configurationExtraLabel, strings.Split(dockerLabelNodeName, ".")[3]) {
+		if glob.Glob(configurationExtraLabel, "node_name") {
 			labels[dockerLabelNodeName] = task.NodeName
 		}
-		if glob.Glob(configurationExtraLabel, strings.Split(dockerLabelNodeID, ".")[3]) {
+		if glob.Glob(configurationExtraLabel, "node_id") {
 			labels[dockerLabelNodeID] = task.NodeID
 		}
 	}
