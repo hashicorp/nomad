@@ -122,6 +122,17 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
+
+    &.with-spacing {
+      > * {
+        margin-right: 1em;
+        margin-bottom: 1em;
+      }
+    }
+
+    &.is-left-aligned {
+      justify-content: flex-start;
+    }
   }
 
   .chart-container {
@@ -161,5 +172,18 @@
         color: $grey;
       }
     }
+  }
+
+  .mock-hover-region {
+    width: 200px;
+    height: 100px;
+    position: relative;
+    border-radius: $radius;
+    margin: 1em 0;
+    padding: 1em;
+    border: 1px solid $grey-blue;
+    background: $white-ter;
+    color: $grey;
+    font-weight: $weight-bold;
   }
 }
