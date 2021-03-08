@@ -117,5 +117,21 @@ access to their own data directory and the ability to bind to their ports. You
 should create a `nomad` user with the minimal set of required privileges.
 
 Nomad clients must be run as `root` due to the OS isolation mechanisms that
-require root privileges. The Nomad client's data directory should be owned by
-`root` with filesystem permissions set to `0700`.
+require root privileges (see also [Linux Capabilities] below). The Nomad
+client's data directory should be owned by `root` with filesystem permissions
+set to `0700`.
+
+## Linux Capabilities
+
+On Linux, Nomad clients require privileged capabilities for isolating
+tasks. Nomad clients require `CAP_SYS_ADMIN` for creating the tmpfs used for
+secrets, bind-mounting task directories, mounting volumes, and running some
+task driver engines. Nomad clients require `CAP_NET_ADMIN` for a variety of
+tasks to set up networking. You should run Nomad as `root`, but running as
+`root` does not grant these required capabilities if Nomad is running in a
+user namespace. Running Nomad clients inside a user namespace is
+unsupported. See the [`capabilities(7)`] man page for details on Linux
+capabilities.
+
+[Linux Capabilities]: #linux-capabilities
+[`capabilities(7)`]: https://man7.org/linux/man-pages/man7/capabilities.7.html
