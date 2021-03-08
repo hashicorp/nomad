@@ -232,6 +232,11 @@ EOT
 }
 ```
 
+Note that relative mount source path are relative to the task working
+directory, so to bind the `NOMAD_ALLOC_DIR` as a mount source, you will need
+to use a relative path that traverses up into the allocation working directory
+(ex. `source = "../alloc"`).
+
 ### `chroot` isolation
 
 Task drivers like `exec` or `java` (on Linux) use `chroot` isolation, where
