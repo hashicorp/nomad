@@ -35,7 +35,9 @@ $green-500: #2eb039;
 // Chart Color Scales
 $chart-reds: $red-500, $red-400, $red-300, $red-200;
 $chart-blues: $blue-500, $blue-400, $blue-300, $blue-200;
+$chart-ordinal: $orange, $yellow, $green, $turquoise, $blue, $purple, $red;
 $chart-scales: (
   'reds': $chart-reds,
   'blues': $chart-blues,
+  'ordinal': $chart-ordinal,
 );
