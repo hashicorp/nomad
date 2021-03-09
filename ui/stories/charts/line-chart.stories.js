@@ -39,13 +39,21 @@ export let Standard = () => {
     template: hbs`
       <h5 class="title is-5">Line Chart</h5>
       <div class="block" style="height:100px; width: 400px;">
-        {{#if lineChartData}}
-          <LineChart @data={{lineChartData}} @xProp="year" @yProp="value" @chartClass="is-primary" />
+        {{#if this.lineChartData}}
+          <LineChart @data={{this.lineChartData}} @xProp="year" @yProp="value">
+            <:svg as |c|>
+              <c.Area @data={{this.lineChartData}} />
+            </:svg>
+          </LineChart>
         {{/if}}
       </div>
       <div class="block" style="height:100px; width: 400px;">
-        {{#if lineChartMild}}
-          <LineChart @data={{lineChartMild}} @xProp="year" @yProp="value" @chartClass="is-info" />
+        {{#if this.lineChartMild}}
+          <LineChart @data={{this.lineChartMild}} @xProp="year" @yProp="value" @chartClass="is-info">
+            <:svg as |c|>
+              <c.Area @data={{this.lineChartMild}} />
+            </:svg>
+          </LineChart>
         {{/if}}
       </div>
       `,
@@ -61,13 +69,21 @@ export let FluidWidth = () => {
     template: hbs`
       <h5 class="title is-5">Fluid-width Line Chart</h5>
       <div class="block" style="height:250px;">
-        {{#if lineChartData}}
-          <LineChart @data={{lineChartData}} @xProp="year" @yProp="value" @chartClass="is-danger" />
+        {{#if this.lineChartData}}
+          <LineChart @data={{this.lineChartData}} @xProp="year" @yProp="value" @chartClass="is-danger">
+            <:svg as |c|>
+              <c.Area @data={{this.lineChartData}} />
+            </:svg>
+          </LineChart>
         {{/if}}
       </div>
       <div class="block" style="height:250px;">
-        {{#if lineChartMild}}
-          <LineChart @data={{lineChartMild}} @xProp="year" @yProp="value" @chartClass="is-warning" />
+        {{#if this.lineChartMild}}
+          <LineChart @data={{this.lineChartMild}} @xProp="year" @yProp="value" @chartClass="is-warning">
+            <:svg as |c|>
+              <c.Area @data={{this.lineChartMild}} />
+            </:svg>
+          </LineChart>
         {{/if}}
       </div>
       <p class="annotation">A line chart will assume the width of its container. This includes the dimensions of the axes, which are calculated based on real DOM measurements. This requires a two-pass render: first the axes are placed with their real domains (in order to capture width and height of tick labels), second the axes are adjusted to make sure both the x and y axes are within the height and width bounds of the container.</p>
@@ -84,8 +100,18 @@ export let LiveData = () => {
     template: hbs`
       <h5 class="title is-5">Live data Line Chart</h5>
       <div class="block" style="height:250px">
-        {{#if controller.lineChartLive}}
-          <LineChart @data={{controller.lineChartLive}} @xProp="ts" @yProp="val" @timeseries={{true}} @chartClass="is-primary" @xFormat={{controller.secondsFormat}} />
+        {{#if this.controller.lineChartLive}}
+          <LineChart
+            @data={{this.controller.lineChartLive}}
+            @xProp="ts"
+            @yProp="val"
+            @timeseries={{true}}
+            @chartClass="is-primary"
+            @xFormat={{this.controller.secondsFormat}}>
+            <:svg as |c|>
+              <c.Area @data={{this.controller.lineChartLive}} />
+            </:svg>
+          </LineChart>
         {{/if}}
       </div>
       `,
@@ -125,8 +151,12 @@ export let Gaps = () => {
     template: hbs`
       <h5 class="title is-5">Line Chart data with gaps</h5>
       <div class="block" style="height:250px">
-        {{#if lineChartGapData}}
-          <LineChart @data={{lineChartGapData}} @xProp="year" @yProp="value" @chartClass="is-primary" />
+        {{#if this.lineChartGapData}}
+          <LineChart @data={{this.lineChartGapData}} @xProp="year" @yProp="value" @chartClass="is-primary">
+            <:svg as |c|>
+              <c.Area @data={{this.lineChartGapData}} />
+            </:svg>
+          </LineChart>
         {{/if}}
       </div>
       `,
@@ -157,9 +187,17 @@ export let Annotations = () => {
             @timeseries={{true}}
             @xProp="x"
             @yProp="y"
-            @data={{this.data}}
-            @annotations={{this.annotations}}
-            @onAnnotationClick={{action (mut this.activeAnnotation)}}/>
+            @data={{this.data}}>
+            <:svg as |c|>
+              <c.Area @data={{this.data}} @annotationClick={{action (mut this.activeAnnotation)}} />
+            </:svg>
+            <:after as |c|>
+              <c.VAnnotations
+                @annotations={{this.annotations}}
+                @annotationClick={{action (mut this.activeAnnotation)}}
+                @activeAnnotation={{this.activeAnnotation}} />
+            </:after>
+          </LineChart>
         {{/if}}
       </div>
       <p style="margin:2em 0; padding: 1em; background:#FFEEAC">{{this.activeAnnotation.info}}</p>
@@ -171,9 +209,17 @@ export let Annotations = () => {
             @timeseries={{true}}
             @xProp="x"
             @yProp="y"
-            @data={{this.data}}
-            @annotations={{this.annotations}}
-            @onAnnotationClick={{action (mut this.activeAnnotation)}}/>
+            @data={{this.data}}>
+            <:svg as |c|>
+              <c.Area @data={{this.data}} @annotationClick={{action (mut this.activeAnnotation)}} />
+            </:svg>
+            <:after as |c|>
+              <c.VAnnotations
+                @annotations={{this.annotations}}
+                @annotationClick={{action (mut this.activeAnnotation)}}
+                @activeAnnotation={{this.activeAnnotation}} />
+            </:after>
+          </LineChart>
         {{/if}}
       </div>
     `,
@@ -241,8 +287,11 @@ export let StepLine = () => {
           <LineChart
             @xProp="x"
             @yProp="y"
-            @curve="stepAfter"
-            @data={{this.data}} />
+            @data={{this.data}}>
+            <:svg as |c|>
+              <c.Area @data={{this.data}} @curve="stepAfter" />
+            </:svg>
+          </LineChart>
           <p>{{this.activeAnnotation.info}}</p>
         {{/if}}
       </div>

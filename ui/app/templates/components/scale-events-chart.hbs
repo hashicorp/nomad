@@ -1,13 +1,21 @@
 <LineChart
   @timeseries={{true}}
-  @curve="stepAfter"
   @xProp="time"
   @yProp="count"
-  @data={{this.data}}
-  @annotations={{this.annotations}}
-  @activeAnnotation={{this.activeEvent}}
-  @annotationKey="event.uid"
-  @onAnnotationClick={{action this.toggleEvent}} />
+  @data={{this.data}}>
+  <:svg as |c|>
+    <c.Area
+      @curve="stepAfter"
+      @data={{this.data}} />
+  </:svg>
+  <:after as |c|>
+    <c.VAnnotations
+      @annotations={{this.annotations}}
+      @key="event.uid"
+      @activeAnnotation={{this.activeEvent}}
+      @annotationClick={{action this.toggleEvent}} />
+  </:after>
+</LineChart>
 {{#if this.activeEvent}}
   <div data-test-event-details>
     <div class="event">

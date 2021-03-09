@@ -117,16 +117,22 @@ artifact {
 }
 ```
 
-To download from private repo, sshkey needs to be set. The key must be
+To download from a private repo, sshkey needs to be set. The key must be
 base64-encoded string. On Linux, you can run `base64 -w0 <file>` to encode the
 file. Or use [HCL2](https://www.nomadproject.io/docs/job-specification/hcl2)
 expressions to read and encode the key from a file on your machine:
 
 ```hcl
 artifact {
-  source      = "git@github.com:example/nomad-examples"
+  # The git:: prefix forces go-getter's protocol detection to use the git ssh
+  # protocol. It can also automatically detect the protocol from the domain of
+  # some git hosting providers (such as GitHub) without the prefix.
+  source      = "git::git@bitbucket.org:example/nomad-examples"
   destination = "local/repo"
   options {
+    # Make sure that the Nomad user's known hosts file is populated:
+    # ssh-keyscan github.com | sudo tee -a /root/.ssh/known_hosts
+    # https://github.com/hashicorp/go-getter/issues/55
     sshkey = "${base64encode(file(pathexpand("~/.ssh/id_rsa")))}"
   }
 }

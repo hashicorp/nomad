@@ -41,7 +41,7 @@ resource "null_resource" "provision_nomad" {
 }
 
 data "template_file" "provision_script" {
-  template = "${local.provision_script}${data.template_file.arg_nomad_sha.rendered}${data.template_file.arg_nomad_version.rendered}${data.template_file.arg_nomad_binary.rendered}${data.template_file.arg_nomad_enterprise.rendered}${data.template_file.arg_nomad_acls.rendered}${data.template_file.arg_profile.rendered}${data.template_file.arg_role.rendered}${data.template_file.arg_index.rendered}"
+  template = "${local.provision_script}${data.template_file.arg_nomad_sha.rendered}${data.template_file.arg_nomad_version.rendered}${data.template_file.arg_nomad_binary.rendered}${data.template_file.arg_nomad_enterprise.rendered}${data.template_file.arg_nomad_acls.rendered}${data.template_file.arg_profile.rendered}${data.template_file.arg_role.rendered}${data.template_file.arg_index.rendered}${data.template_file.autojoin_tag.rendered}"
 }
 
 data "template_file" "arg_nomad_sha" {
@@ -74,6 +74,10 @@ data "template_file" "arg_role" {
 
 data "template_file" "arg_index" {
   template = var.index != "" ? " ${local._arg}index ${var.index}" : ""
+}
+
+data "template_file" "autojoin_tag" {
+  template = var.cluster_name != "" ? " ${local._arg}autojoin auto-join-${var.cluster_name}" : ""
 }
 
 resource "null_resource" "upload_nomad_binary" {

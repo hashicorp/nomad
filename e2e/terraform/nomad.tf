@@ -21,6 +21,7 @@ module "nomad_server" {
 
   nomad_enterprise = var.nomad_enterprise
   nomad_acls       = var.nomad_acls
+  cluster_name     = local.random_name
 
   connection = {
     type        = "ssh"
@@ -56,6 +57,7 @@ module "nomad_client_ubuntu_bionic_amd64" {
 
   nomad_enterprise = var.nomad_enterprise
   nomad_acls       = false
+  cluster_name     = local.random_name
 
   connection = {
     type        = "ssh"
@@ -92,6 +94,8 @@ module "nomad_client_windows_2016_amd64" {
 
   nomad_enterprise = var.nomad_enterprise
   nomad_acls       = false
+  cluster_name     = local.random_name
+
 
   connection = {
     type        = "ssh"

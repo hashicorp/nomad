@@ -51,7 +51,7 @@ Developing without Vagrant
 
 Running a development build
 ---
-1. Compile a development binary (see the [UI README](https://github.com/hashicorp/nomad/blob/master/ui/README.md) to include the web UI in the binary)
+1. Compile a development binary (see the [UI README](https://github.com/hashicorp/nomad/blob/main/ui/README.md) to include the web UI in the binary)
     ```sh
     $ make dev
     # find the built binary at ./bin/nomad
@@ -79,7 +79,7 @@ If in the course of your development you change a Protobuf file (those ending in
 
 Building the Web UI
 ---
-See the [UI README](https://github.com/hashicorp/nomad/blob/master/ui/README.md) for instructions.
+See the [UI README](https://github.com/hashicorp/nomad/blob/main/ui/README.md) for instructions.
 
 Create a release binary
 ---

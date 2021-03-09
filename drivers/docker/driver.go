@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/ryanuber/go-glob"
 )
 
 var (
@@ -70,7 +71,14 @@ var (
 )
 
 const (
-	dockerLabelAllocID = "com.hashicorp.nomad.alloc_id"
+	dockerLabelAllocID       = "com.hashicorp.nomad.alloc_id"
+	dockerLabelJobName       = "com.hashicorp.nomad.job_name"
+	dockerLabelJobID         = "com.hashicorp.nomad.job_id"
+	dockerLabelTaskGroupName = "com.hashicorp.nomad.task_group_name"
+	dockerLabelTaskName      = "com.hashicorp.nomad.task_name"
+	dockerLabelNamespace     = "com.hashicorp.nomad.namespace"
+	dockerLabelNodeName      = "com.hashicorp.nomad.node_name"
+	dockerLabelNodeID        = "com.hashicorp.nomad.node_id"
 )
 
 type Driver struct {
@@ -1114,7 +1122,34 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	for k, v := range driverConfig.Labels {
 		labels[k] = v
 	}
+	// main mandatory label
 	labels[dockerLabelAllocID] = task.AllocID
+
+	//optional labels, as configured in plugin configuration
+	for _, configurationExtraLabel := range d.config.ExtraLabels {
+		if glob.Glob(configurationExtraLabel, "job_name") {
+			labels[dockerLabelJobName] = task.JobName
+		}
+		if glob.Glob(configurationExtraLabel, "job_id") {
+			labels[dockerLabelJobID] = task.JobID
+		}
+		if glob.Glob(configurationExtraLabel, "task_group_name") {
+			labels[dockerLabelTaskGroupName] = task.TaskGroupName
+		}
+		if glob.Glob(configurationExtraLabel, "task_name") {
+			labels[dockerLabelTaskName] = task.Name
+		}
+		if glob.Glob(configurationExtraLabel, "namespace") {
+			labels[dockerLabelNamespace] = task.Namespace
+		}
+		if glob.Glob(configurationExtraLabel, "node_name") {
+			labels[dockerLabelNodeName] = task.NodeName
+		}
+		if glob.Glob(configurationExtraLabel, "node_id") {
+			labels[dockerLabelNodeID] = task.NodeID
+		}
+	}
+
 	config.Labels = labels
 	logger.Debug("applied labels on the container", "labels", config.Labels)
 

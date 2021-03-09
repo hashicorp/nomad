@@ -237,8 +237,12 @@ func (c *DNSConfig) Copy() *DNSConfig {
 type TaskConfig struct {
 	ID               string
 	JobName          string
+	JobID            string
 	TaskGroupName    string
 	Name             string
+	Namespace        string
+	NodeName         string
+	NodeID           string
 	Env              map[string]string
 	DeviceEnv        map[string]string
 	Resources        *Resources

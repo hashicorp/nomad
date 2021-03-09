@@ -228,9 +228,10 @@ func TestService_Connect_proxy_settings(t *testing.T) {
 				Proxy: &ConsulProxy{
 					Upstreams: []*ConsulUpstream{
 						{
-							DestinationName: "upstream",
-							LocalBindPort:   80,
-							Datacenter:      "dc2",
+							DestinationName:  "upstream",
+							LocalBindPort:    80,
+							Datacenter:       "dc2",
+							LocalBindAddress: "127.0.0.2",
 						},
 					},
 					LocalServicePort: 8000,
@@ -244,6 +245,7 @@ func TestService_Connect_proxy_settings(t *testing.T) {
 	require.Equal(t, proxy.Upstreams[0].DestinationName, "upstream")
 	require.Equal(t, proxy.Upstreams[0].LocalBindPort, 80)
 	require.Equal(t, proxy.Upstreams[0].Datacenter, "dc2")
+	require.Equal(t, proxy.Upstreams[0].LocalBindAddress, "127.0.0.2")
 	require.Equal(t, proxy.LocalServicePort, 8000)
 }
 

@@ -980,7 +980,11 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		ID:            fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
 		Name:          task.Name,
 		JobName:       alloc.Job.Name,
+		JobID:         alloc.Job.ID,
 		TaskGroupName: alloc.TaskGroup,
+		Namespace:     alloc.Namespace,
+		NodeName:      alloc.NodeName,
+		NodeID:        alloc.NodeID,
 		Resources: &drivers.Resources{
 			NomadResources: taskResources,
 			LinuxResources: &drivers.LinuxResources{

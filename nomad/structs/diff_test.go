@@ -2695,9 +2695,10 @@ func TestTaskGroupDiff(t *testing.T) {
 									LocalServicePort:    8080,
 									Upstreams: []ConsulUpstream{
 										{
-											DestinationName: "foo",
-											LocalBindPort:   8000,
-											Datacenter:      "dc2",
+											DestinationName:  "foo",
+											LocalBindPort:    8000,
+											Datacenter:       "dc2",
+											LocalBindAddress: "127.0.0.2",
 										},
 									},
 									Config: map[string]interface{}{
@@ -2985,6 +2986,12 @@ func TestTaskGroupDiff(t *testing.T) {
 																Name: "DestinationName",
 																Old:  "",
 																New:  "foo",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "LocalBindAddress",
+																Old:  "",
+																New:  "127.0.0.2",
 															},
 															{
 																Type: DiffTypeAdded,

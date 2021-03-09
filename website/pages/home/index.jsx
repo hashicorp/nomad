@@ -3,11 +3,14 @@ import HomepageHero from 'components/homepage-hero'
 import CaseStudyCarousel from 'components/case-study-carousel'
 import UseCases from '@hashicorp/react-use-cases'
 import MiniCTA from 'components/mini-cta'
-import NomadEnterpriseInfo from 'components/enterprise-info/nomad'
 import LearnNomad from 'components/learn-nomad'
 import CallToAction from '@hashicorp/react-call-to-action'
+import ComparisonCallouts from 'components/comparison-callouts'
+import TextSplitWithLogoGrid from '@hashicorp/react-text-split-with-logo-grid'
+import Link from 'next/link'
 
 export default function Homepage() {
+  // Test comment to see if Vercel picks up this commit
   return (
     <div id="p-home">
       <HomepageHero
@@ -29,7 +32,6 @@ export default function Homepage() {
 
       <FeaturesList
         title="Why Nomad?"
-        intro="<p>Nomad is widely adopted and used in production by organizations in traditional on-premises datacenters, at the edge, and on the cloud.</p><p>Learn why users choose Nomad as an <a href='/docs/nomad-vs-kubernetes'>alternative to Kubernetes.</a></p>"
         items={[
           {
             title: 'Simple and Lightweight',
@@ -66,6 +68,41 @@ export default function Homepage() {
             content:
               'Nomad integrates seamlessly with Terraform, Consul and Vault for provisioning, service networking, and secrets management.',
             icon: require('./img/why-nomad/native-integration.svg'),
+          },
+        ]}
+      />
+
+      <ComparisonCallouts
+        heading="Nomad vs. Kubernetes"
+        details={
+          <p>
+            Choose an orchestrator based on how it fits into your project. Find
+            out{' '}
+            <Link href="/docs/nomad-vs-kubernetes">
+              <a>Nomad’s unique strengths relative to Kubernetes.</a>
+            </Link>
+          </p>
+        }
+        items={[
+          {
+            title: 'Alternative to Kubernetes',
+            description: 'Deploy and scale containers without complexity',
+            imageUrl: require('./img/nomad-vs-kubernetes/alternative.svg?url'),
+            link: {
+              url: '/docs/nomad-vs-kubernetes/alternative',
+              text: 'Learn more',
+              type: 'inbound',
+            },
+          },
+          {
+            title: 'Supplement to Kubernetes',
+            description: 'Implement a multi-orchestrator pattern',
+            imageUrl: require('./img/nomad-vs-kubernetes/supplement.svg?url'),
+            link: {
+              url: '/docs/nomad-vs-kubernetes/supplement',
+              text: 'Learn more',
+              type: 'inbound',
+            },
           },
         ]}
       />
@@ -364,7 +401,72 @@ export default function Homepage() {
         ]}
       />
 
-      <NomadEnterpriseInfo />
+      <TextSplitWithLogoGrid
+        textSplit={{
+          brand: 'nomad',
+          heading: 'Nomad Ecosystem',
+          content:
+            'Enable end-to-end automation for your application deployment.',
+          linkStyle: 'links',
+          links: [
+            {
+              text: 'Explore the Nomad Ecosystem',
+              url: '/docs/ecosystem',
+              type: 'inbound',
+            },
+          ],
+        }}
+        logoGrid={[
+          {
+            url: require('./img/partner-logos/consul.svg?url'),
+            alt: 'Consul',
+            linkUrl: '/docs/integrations/consul-integration',
+          },
+          {
+            url: require('./img/partner-logos/vault.svg?url'),
+            alt: 'Vault',
+            linkUrl: '/docs/integrations/vault-integration',
+          },
+          {
+            slug: 'gitlab',
+            linkUrl:
+              'https://www.hashicorp.com/resources/nomad-ci-cd-developer-workflows-and-integrations',
+          },
+          {
+            url: require('./img/partner-logos/csi.svg?url'),
+            alt: 'Container Storage interface',
+            linkUrl: '/docs/internals/plugins/csi',
+          },
+          {
+            url: require('./img/partner-logos/cni.svg?url'),
+            alt: 'Container Network interface',
+            linkUrl: '/docs/integrations/consul-connect#cni-plugins',
+          },
+          {
+            url: require('./img/partner-logos/nvidia.svg?url'),
+            alt: 'NVIDIA',
+            linkUrl:
+              'https://www.hashicorp.com/resources/running-gpu-accelerated-applications-on-nomad',
+          },
+          {
+            url: require('./img/partner-logos/datadog.svg?url'),
+            alt: 'Datadog',
+            linkUrl: 'https://docs.datadoghq.com/integrations/nomad/',
+          },
+          {
+            url: require('./img/partner-logos/jfrog.svg?url'),
+            alt: 'JFrog Artifactory',
+            linkUrl:
+              'https://jfrog.com/blog/cluster-management-made-simple-with-jfrog-artifactory-and-hashicorp-nomad/',
+          },
+          {
+            url: require('./img/partner-logos/prometheus.svg?url'),
+            alt: 'Prometheus',
+            linkUrl:
+              'https://learn.hashicorp.com/tutorials/nomad/dynamic-application-sizing?in=nomad/nomad-1-0#start-prometheus',
+          },
+        ]}
+      />
 
       <CallToAction
         variant="compact"

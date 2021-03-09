@@ -630,6 +630,7 @@ func hashConnect(h hash.Hash, connect *ConsulConnect) {
 				hashString(h, upstream.DestinationName)
 				hashString(h, strconv.Itoa(upstream.LocalBindPort))
 				hashStringIfNonEmpty(h, upstream.Datacenter)
+				hashStringIfNonEmpty(h, upstream.LocalBindAddress)
 			}
 		}
 	}
@@ -1198,6 +1199,10 @@ type ConsulUpstream struct {
 
 	// Datacenter is the datacenter in which to issue the discovery query to.
 	Datacenter string
+
+	// LocalBindAddress is the address the proxy will receive connections for the
+	// upstream on.
+	LocalBindAddress string
 }
 
 func upstreamsEquals(a, b []ConsulUpstream) bool {
@@ -1224,9 +1229,10 @@ func (u *ConsulUpstream) Copy() *ConsulUpstream {
 	}
 
 	return &ConsulUpstream{
-		DestinationName: u.DestinationName,
-		LocalBindPort:   u.LocalBindPort,
-		Datacenter:      u.Datacenter,
+		DestinationName:  u.DestinationName,
+		LocalBindPort:    u.LocalBindPort,
+		Datacenter:       u.Datacenter,
+		LocalBindAddress: u.LocalBindAddress,
 	}
 }
 

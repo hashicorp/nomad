@@ -54,6 +54,7 @@ job "countdash" {
               destination_name = "count-api"
               local_bind_port  = 8080
               datacenter = "dc1"
+              local_bind_address = "127.0.0.1"
             }
           }
         }
@@ -84,6 +85,8 @@ job "countdash" {
 - `datacenter` `(string: "")` - The Consul datacenter in which to issue the
   discovery query. Defaults to the empty string, which Consul interprets as the
   local Consul datacenter.
+- `local_bind_address` - `(string: "")` - The address the proxy will receive
+  connections for the upstream on.
 
 The `NOMAD_UPSTREAM_ADDR_<destination_name>` environment variables may be used
 to interpolate the upstream's `host:port` address.

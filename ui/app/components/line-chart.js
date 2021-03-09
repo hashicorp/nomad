@@ -1,7 +1,6 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
-import { assert } from '@ember/debug';
 import { run } from '@ember/runloop';
 import d3 from 'd3-selection';
 import d3Scale from 'd3-scale';
@@ -71,6 +70,7 @@ export default class LineChart extends Component {
   @tracked activeDatum = null;
   @tracked tooltipPosition = null;
   @tracked element = null;
+  @tracked ready = false;
 
   @uniquely('title') titleId;
   @uniquely('desc') descriptionId;
@@ -119,15 +119,6 @@ export default class LineChart extends Component {
 
     const y = datum[this.yProp];
     return this.yFormat()(y);
-  }
-
-  get curveMethod() {
-    const mappings = {
-      linear: 'curveLinear',
-      stepAfter: 'curveStepAfter',
-    };
-    assert(`Provided curve "${this.curve}" is not an allowed curve type`, mappings[this.curve]);
-    return mappings[this.curve];
   }
 
   @styleString
@@ -218,11 +209,11 @@ export default class LineChart extends Component {
   }
 
   get xAxisOffset() {
-    return this.height - this.xAxisHeight;
+    return Math.max(0, this.height - this.xAxisHeight);
   }
 
   get yAxisOffset() {
-    return this.width - this.yAxisWidth;
+    return Math.max(0, this.width - this.yAxisWidth);
   }
 
   @action
@@ -299,6 +290,7 @@ export default class LineChart extends Component {
       // axis, the axes themselves are recomputed and need to
       // be re-rendered.
       this.mountD3Elements();
+      this.ready = true;
       if (this.isActive) {
         this.updateActiveDatum(this.latestMouseX);
       }

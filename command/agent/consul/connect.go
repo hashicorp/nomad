@@ -189,9 +189,10 @@ func connectUpstreams(in []structs.ConsulUpstream) []api.Upstream {
 	upstreams := make([]api.Upstream, len(in))
 	for i, upstream := range in {
 		upstreams[i] = api.Upstream{
-			DestinationName: upstream.DestinationName,
-			LocalBindPort:   upstream.LocalBindPort,
-			Datacenter:      upstream.Datacenter,
+			DestinationName:  upstream.DestinationName,
+			LocalBindPort:    upstream.LocalBindPort,
+			Datacenter:       upstream.Datacenter,
+			LocalBindAddress: upstream.LocalBindAddress,
 		}
 	}
 	return upstreams
