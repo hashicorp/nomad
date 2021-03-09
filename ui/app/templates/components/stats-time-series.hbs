@@ -13,4 +13,12 @@
   <:svg as |c|>
     <c.Area @data={{@data}} @colorClass={{@chartClass}} />
   </:svg>
+  <:after as |c|>
+    <c.Tooltip class="is-snappy" as |series datum|>
+      <li>
+        <span class="label"><span class="color-swatch {{@chartClass}}" />{{datum.formattedX}}</span>
+        <span class="value">{{datum.formattedY}}</span>
+      </li>
+    </c.Tooltip>
+  </:after>
 </LineChart>

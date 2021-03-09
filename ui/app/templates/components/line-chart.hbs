@@ -51,17 +51,4 @@
         data=this.activeData)
     ) to="after"}}
   {{/if}}
-  {{#unless @dataProp}}
-    <div class="chart-tooltip is-snappy {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
-      <ol>
-        <li>
-          <span class="label">
-            <span class="color-swatch {{this.chartClass}}" />
-            {{this.activeDatumLabel}}
-          </span>
-          <span class="value">{{this.activeDatumValue}}</span>
-        </li>
-      </ol>
-    </div>
-  {{/unless}}
 </div>

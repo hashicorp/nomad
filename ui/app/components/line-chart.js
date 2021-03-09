@@ -293,7 +293,7 @@ export default class LineChart extends Component {
       return {
         series,
         datum: {
-          formattedX: this.xFormat()(datum[xProp]),
+          formattedX: this.xFormat(this.args.timeseries)(datum[xProp]),
           formattedY: this.yFormat()(datum[yProp]),
           datum,
         },
