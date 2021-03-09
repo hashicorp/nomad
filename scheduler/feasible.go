@@ -312,15 +312,15 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 			if !vol.WriteSchedulable() {
 				return false, fmt.Sprintf(FilterConstraintCSIVolumeNoWriteTemplate, vol.ID)
 			}
-			if vol.WriteFreeClaims() {
-				return true, ""
-			}
-
-			// Check the blocking allocations to see if they belong to this job
-			for id := range vol.WriteAllocs {
-				a, err := c.ctx.State().AllocByID(ws, id)
-				if err != nil || a == nil || a.Namespace != c.namespace || a.JobID != c.jobID {
-					return false, fmt.Sprintf(FilterConstraintCSIVolumeInUseTemplate, vol.ID)
+			if !vol.WriteFreeClaims() {
+				// Check the blocking allocations to see if they belong to this job
+				for id := range vol.WriteAllocs {
+					a, err := c.ctx.State().AllocByID(ws, id)
+					if err != nil || a == nil ||
+						a.Namespace != c.namespace || a.JobID != c.jobID {
+						return false, fmt.Sprintf(
+							FilterConstraintCSIVolumeInUseTemplate, vol.ID)
+					}
 				}
 			}
 		}

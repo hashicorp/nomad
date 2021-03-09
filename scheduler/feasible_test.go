@@ -395,6 +395,23 @@ func TestCSIVolumeChecker(t *testing.T) {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}
 	}
+
+	// add a missing volume
+	volumes["missing"] = &structs.VolumeRequest{
+		Type:   "csi",
+		Name:   "bar",
+		Source: "does-not-exist",
+	}
+
+	checker = NewCSIVolumeChecker(ctx)
+	checker.SetNamespace(structs.DefaultNamespace)
+
+	for _, node := range nodes {
+		checker.SetVolumes(volumes)
+		act := checker.Feasible(node)
+		require.False(t, act, "request with missing volume should never be feasible")
+	}
+
 }
 
 func TestNetworkChecker(t *testing.T) {
