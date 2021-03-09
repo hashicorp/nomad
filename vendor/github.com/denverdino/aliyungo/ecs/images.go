@@ -313,7 +313,7 @@ func (client *Client) WaitForImageReady(regionId common.Region, imageId string, 
 		if err != nil {
 			return err
 		}
-		if images == nil || len(images) == 0 {
+		if len(images) == 0 {
 			args.Status = ImageStatusAvailable
 			images, _, er := client.DescribeImages(&args)
 			if er == nil && len(images) == 1 {

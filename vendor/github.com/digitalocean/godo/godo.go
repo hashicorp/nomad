@@ -11,13 +11,15 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/google/go-querystring/query"
+	"golang.org/x/oauth2"
 )
 
 const (
-	libraryVersion = "1.10.0"
+	libraryVersion = "1.44.0"
 	defaultBaseURL = "https://api.digitalocean.com/"
 	userAgent      = "godo/" + libraryVersion
 	mediaType      = "application/json"
@@ -39,18 +41,23 @@ type Client struct {
 	UserAgent string
 
 	// Rate contains the current rate limit for the client as determined by the most recent
-	// API call.
-	Rate Rate
+	// API call. It is not thread-safe. Please consider using GetRate() instead.
+	Rate    Rate
+	ratemtx sync.Mutex
 
 	// Services used for communicating with the API
 	Account           AccountService
 	Actions           ActionsService
+	Apps              AppsService
+	Balance           BalanceService
+	BillingHistory    BillingHistoryService
 	CDNs              CDNService
 	Domains           DomainsService
 	Droplets          DropletsService
 	DropletActions    DropletActionsService
 	Images            ImagesService
 	ImageActions      ImageActionsService
+	Invoices          InvoicesService
 	Keys              KeysService
 	Regions           RegionsService
 	Sizes             SizesService
@@ -65,7 +72,10 @@ type Client struct {
 	Firewalls         FirewallsService
 	Projects          ProjectsService
 	Kubernetes        KubernetesService
+	Registry          RegistryService
 	Databases         DatabasesService
+	VPCs              VPCsService
+	OneClick          OneClickService
 
 	// Optional function called after every successful request made to the DO APIs
 	onRequestCompleted RequestCompletionCallback
@@ -91,6 +101,9 @@ type Response struct {
 	// Links that were returned with the response. These are parsed from
 	// request body and not the header.
 	Links *Links
+
+	// Meta describes generic information about the response.
+	Meta *Meta
 
 	// Monitoring URI
 	Monitor string
@@ -149,7 +162,23 @@ func addOptions(s string, opt interface{}) (string, error) {
 	return origURL.String(), nil
 }
 
-// NewClient returns a new DigitalOcean API client.
+// NewFromToken returns a new DigitalOcean API client with the given API
+// token.
+func NewFromToken(token string) *Client {
+	ctx := context.Background()
+
+	config := &oauth2.Config{}
+	ts := config.TokenSource(ctx, &oauth2.Token{AccessToken: token})
+
+	return NewClient(oauth2.NewClient(ctx, ts))
+}
+
+// NewClient returns a new DigitalOcean API client, using the given
+// http.Client to perform all requests.
+//
+// Users who wish to pass their own http.Client should use this method. If
+// you're in need of further customization, the godo.New method allows more
+// options, such as setting a custom URL or a custom user agent string.
 func NewClient(httpClient *http.Client) *Client {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
@@ -160,6 +189,9 @@ func NewClient(httpClient *http.Client) *Client {
 	c := &Client{client: httpClient, BaseURL: baseURL, UserAgent: userAgent}
 	c.Account = &AccountServiceOp{client: c}
 	c.Actions = &ActionsServiceOp{client: c}
+	c.Apps = &AppsServiceOp{client: c}
+	c.Balance = &BalanceServiceOp{client: c}
+	c.BillingHistory = &BillingHistoryServiceOp{client: c}
 	c.CDNs = &CDNServiceOp{client: c}
 	c.Certificates = &CertificatesServiceOp{client: c}
 	c.Domains = &DomainsServiceOp{client: c}
@@ -170,6 +202,7 @@ func NewClient(httpClient *http.Client) *Client {
 	c.FloatingIPActions = &FloatingIPActionsServiceOp{client: c}
 	c.Images = &ImagesServiceOp{client: c}
 	c.ImageActions = &ImageActionsServiceOp{client: c}
+	c.Invoices = &InvoicesServiceOp{client: c}
 	c.Keys = &KeysServiceOp{client: c}
 	c.LoadBalancers = &LoadBalancersServiceOp{client: c}
 	c.Projects = &ProjectsServiceOp{client: c}
@@ -180,7 +213,10 @@ func NewClient(httpClient *http.Client) *Client {
 	c.StorageActions = &StorageActionsServiceOp{client: c}
 	c.Tags = &TagsServiceOp{client: c}
 	c.Kubernetes = &KubernetesServiceOp{client: c}
+	c.Registry = &RegistryServiceOp{client: c}
 	c.Databases = &DatabasesServiceOp{client: c}
+	c.VPCs = &VPCsServiceOp{client: c}
+	c.OneClick = &OneClickServiceOp{client: c}
 
 	return c
 }
@@ -188,7 +224,7 @@ func NewClient(httpClient *http.Client) *Client {
 // ClientOpt are options for New.
 type ClientOpt func(*Client) error
 
-// New returns a new DIgitalOcean API client instance.
+// New returns a new DigitalOcean API client instance.
 func New(httpClient *http.Client, opts ...ClientOpt) (*Client, error) {
 	c := NewClient(httpClient)
 	for _, opt := range opts {
@@ -225,12 +261,10 @@ func SetUserAgent(ua string) ClientOpt {
 // BaseURL of the Client. Relative URLS should always be specified without a preceding slash. If specified, the
 // value pointed to by body is JSON encoded and included in as the request body.
 func (c *Client) NewRequest(ctx context.Context, method, urlStr string, body interface{}) (*http.Request, error) {
-	rel, err := url.Parse(urlStr)
+	u, err := c.BaseURL.Parse(urlStr)
 	if err != nil {
 		return nil, err
 	}
-
-	u := c.BaseURL.ResolveReference(rel)
 
 	buf := new(bytes.Buffer)
 	if body != nil {
@@ -254,6 +288,14 @@ func (c *Client) NewRequest(ctx context.Context, method, urlStr string, body int
 // OnRequestCompleted sets the DO API request completion callback
 func (c *Client) OnRequestCompleted(rc RequestCompletionCallback) {
 	c.onRequestCompleted = rc
+}
+
+// GetRate returns the current rate limit for the client as determined by the most recent
+// API call. It is thread-safe.
+func (c *Client) GetRate() Rate {
+	c.ratemtx.Lock()
+	defer c.ratemtx.Unlock()
+	return c.Rate
 }
 
 // newResponse creates a new Response for the provided http.Response
@@ -292,13 +334,26 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*Res
 	}
 
 	defer func() {
+		// Ensure the response body is fully read and closed
+		// before we reconnect, so that we reuse the same TCPconnection.
+		// Close the previous response's body. But read at least some of
+		// the body so if it's small the underlying TCP connection will be
+		// re-used. No need to check for errors: if it fails, the Transport
+		// won't reuse it anyway.
+		const maxBodySlurpSize = 2 << 10
+		if resp.ContentLength == -1 || resp.ContentLength <= maxBodySlurpSize {
+			io.CopyN(ioutil.Discard, resp.Body, maxBodySlurpSize)
+		}
+
 		if rerr := resp.Body.Close(); err == nil {
 			err = rerr
 		}
 	}()
 
 	response := newResponse(resp)
+	c.ratemtx.Lock()
 	c.Rate = response.Rate
+	c.ratemtx.Unlock()
 
 	err = CheckResponse(resp)
 	if err != nil {

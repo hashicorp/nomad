@@ -86,25 +86,37 @@ func (client *Client) AllocateEipAddress(args *AllocateEipAddressArgs) (EipAddre
 type EipInstanceType string
 
 const (
-	EcsInstance = "EcsInstance"
-	SlbInstance = "SlbInstance"
-	Nat         = "Nat"
-	HaVip       = "HaVip"
+	EcsInstance      = "EcsInstance"
+	SlbInstance      = "SlbInstance"
+	Nat              = "Nat"
+	HaVip            = "HaVip"
+	NetworkInterface = "NetworkInterface"
+)
+
+type AssociateEipAddressMode string
+
+const (
+	NAT          = "NAT"
+	MULTI_BINDED = "MULTI_BINDED"
+	BINDED       = "BINDED"
 )
 
 type AssociateEipAddressArgs struct {
-	AllocationId string
-	InstanceId   string
-	InstanceType EipInstanceType
+	AllocationId     string
+	InstanceId       string
+	InstanceRegionId common.Region
+	InstanceType     EipInstanceType
+	PrivateIpAddress string
+	Mode             AssociateEipAddressMode
 }
 
 type AssociateEipAddressResponse struct {
 	common.Response
 }
 
-// AssociateEipAddress associates EIP address to VM instance
+// AssociateEipAddress associates EIP address to instance
 //
-// You can read doc at http://docs.aliyun.com/#/pub/ecs/open-api/network&associateeipaddress
+// You can read doc at https://help.aliyun.com/api/vpc/AssociateEipAddress.html
 func (client *Client) AssociateEipAddress(allocationId string, instanceId string) error {
 	args := AssociateEipAddressArgs{
 		AllocationId: allocationId,
@@ -132,10 +144,11 @@ const (
 type AssociatedInstanceType string
 
 const (
-	AssociatedInstanceTypeEcsInstance = AssociatedInstanceType("EcsInstance")
-	AssociatedInstanceTypeSlbInstance = AssociatedInstanceType("SlbInstance")
-	AssociatedInstanceTypeNat         = AssociatedInstanceType("Nat")
-	AssociatedInstanceTypeHaVip       = AssociatedInstanceType("HaVip")
+	AssociatedInstanceTypeEcsInstance      = AssociatedInstanceType("EcsInstance")
+	AssociatedInstanceTypeSlbInstance      = AssociatedInstanceType("SlbInstance")
+	AssociatedInstanceTypeNat              = AssociatedInstanceType("Nat")
+	AssociatedInstanceTypeHaVip            = AssociatedInstanceType("HaVip")
+	AssociatedInstanceTypeNetworkInterface = AssociatedInstanceType("NetworkInterface")
 )
 
 type DescribeEipAddressesArgs struct {
@@ -143,7 +156,7 @@ type DescribeEipAddressesArgs struct {
 	Status                 EipStatus //enum Associating | Unassociating | InUse | Available
 	EipAddress             string
 	AllocationId           string
-	AssociatedInstanceType AssociatedInstanceType //enum EcsInstance | SlbInstance | Nat | HaVip
+	AssociatedInstanceType AssociatedInstanceType //enum EcsInstance | SlbInstance | Nat | HaVip | NetworkInterface
 	AssociatedInstanceId   string                 //绑定的资源的Id。 这是一个过滤器性质的参数，若不指定，则表示不适用该条件对结果进行过滤。 如果要使用该过滤器，必须同时使用AssociatedInstanceType。若InstanceType为EcsInstance，则此处填写ECS实例Id。若InstanceType为SlbInstance，则此处填写VPC类型的私网SLB 的实例ID。若InstanceType为Nat，则此处填写NAT 的实例ID。。若InstanceType为HaVip，则此处填写HaVipId。
 	common.Pagination
 }
@@ -158,6 +171,7 @@ type EipAddressSetType struct {
 	InstanceId         string
 	InstanceType       string
 	Bandwidth          string // Why string
+	PrivateIpAddress   string
 	InternetChargeType common.InternetChargeType
 	OperationLocks     OperationLocksType
 	AllocationTime     util.ISO6801Time
@@ -218,8 +232,10 @@ func (client *Client) ModifyEipAddressAttribute(allocationId string, bandwidth i
 }
 
 type UnallocateEipAddressArgs struct {
-	AllocationId string
-	InstanceId   string
+	AllocationId     string
+	InstanceId       string
+	InstanceType     EipInstanceType
+	PrivateIpAddress string
 }
 
 type UnallocateEipAddressResponse struct {
@@ -236,6 +252,11 @@ func (client *Client) UnassociateEipAddress(allocationId string, instanceId stri
 	}
 	response := UnallocateEipAddressResponse{}
 	return client.Invoke("UnassociateEipAddress", &args, &response)
+}
+
+func (client *Client) NewUnassociateEipAddress(args *UnallocateEipAddressArgs) error {
+	response := UnallocateEipAddressResponse{}
+	return client.Invoke("UnassociateEipAddress", args, &response)
 }
 
 type ReleaseEipAddressArgs struct {

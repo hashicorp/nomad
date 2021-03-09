@@ -42,7 +42,7 @@ func (pm PaymentMethod) String() string {
 // PaymentMethodCreateRequest type used to create a Packet payment method of an organization
 type PaymentMethodCreateRequest struct {
 	Name           string `json:"name"`
-	Nonce          string `json:"name"`
+	Nonce          string `json:"nonce"`
 	CardholderName string `json:"cardholder_name,omitempty"`
 	ExpMonth       string `json:"expiration_month,omitempty"`
 	ExpYear        string `json:"expiration_year,omitempty"`

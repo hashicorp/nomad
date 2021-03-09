@@ -273,7 +273,7 @@ type Notification_Occurrence_Resource_Network_Application_Delivery_Controller_Lo
 	ResourceType *string `json:"resourceType,omitempty" xmlrpc:"resourceType,omitempty"`
 }
 
-// This type contains general information related to a [[SoftLayer_Network_Storage_Iscsi_EqualLogic]] resource that is impacted by a [[SoftLayer_Notification_Occurrence_Event]].
+// This type contains general information related to a [[SoftLayer_Network_Storage_Iscsi]] resource that is impacted by a [[SoftLayer_Notification_Occurrence_Event]].
 type Notification_Occurrence_Resource_Network_Storage_Iscsi_EqualLogic struct {
 	Notification_Occurrence_Resource
 
@@ -329,7 +329,7 @@ type Notification_Occurrence_Resource_Network_Storage_Nas struct {
 	ResourceType *string `json:"resourceType,omitempty" xmlrpc:"resourceType,omitempty"`
 }
 
-// This type contains general information related to a [[SoftLayer_Network_Storage_NetApp_Volume]] resource that is impacted by a [[SoftLayer_Notification_Occurrence_Event]].
+// This type contains general information related to a [[SoftLayer_Network_Storage]] resource that is impacted by a [[SoftLayer_Notification_Occurrence_Event]].
 type Notification_Occurrence_Resource_Network_Storage_NetApp_Volume struct {
 	Notification_Occurrence_Resource
 
@@ -343,7 +343,7 @@ type Notification_Occurrence_Resource_Network_Storage_NetApp_Volume struct {
 	ResourceType *string `json:"resourceType,omitempty" xmlrpc:"resourceType,omitempty"`
 }
 
-// This type contains general information related to a [[SoftLayer_Network_Storage_NetApp_Volume_Replicant_Iscsi]] resource that is impacted by a [[SoftLayer_Notification_Occurrence_Event]].
+// This type contains general information related to a [[SoftLayer_Network_Storage_Iscsi]] resource that is impacted by a [[SoftLayer_Notification_Occurrence_Event]].
 type Notification_Occurrence_Resource_Network_Storage_NetApp_Volume_Replicant_Iscsi struct {
 	Notification_Occurrence_Resource
 

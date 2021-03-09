@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -16,23 +19,30 @@ const (
 	kubernetesOptionsPath  = kubernetesBasePath + "/options"
 )
 
-// KubernetesService is an interface for interfacing with the kubernetes endpoints
+// KubernetesService is an interface for interfacing with the Kubernetes endpoints
 // of the DigitalOcean API.
 // See: https://developers.digitalocean.com/documentation/v2#kubernetes
 type KubernetesService interface {
 	Create(context.Context, *KubernetesClusterCreateRequest) (*KubernetesCluster, *Response, error)
 	Get(context.Context, string) (*KubernetesCluster, *Response, error)
+	GetUser(context.Context, string) (*KubernetesClusterUser, *Response, error)
+	GetUpgrades(context.Context, string) ([]*KubernetesVersion, *Response, error)
 	GetKubeConfig(context.Context, string) (*KubernetesClusterConfig, *Response, error)
+	GetCredentials(context.Context, string, *KubernetesClusterCredentialsGetRequest) (*KubernetesClusterCredentials, *Response, error)
 	List(context.Context, *ListOptions) ([]*KubernetesCluster, *Response, error)
 	Update(context.Context, string, *KubernetesClusterUpdateRequest) (*KubernetesCluster, *Response, error)
+	Upgrade(context.Context, string, *KubernetesClusterUpgradeRequest) (*Response, error)
 	Delete(context.Context, string) (*Response, error)
 
 	CreateNodePool(ctx context.Context, clusterID string, req *KubernetesNodePoolCreateRequest) (*KubernetesNodePool, *Response, error)
 	GetNodePool(ctx context.Context, clusterID, poolID string) (*KubernetesNodePool, *Response, error)
 	ListNodePools(ctx context.Context, clusterID string, opts *ListOptions) ([]*KubernetesNodePool, *Response, error)
 	UpdateNodePool(ctx context.Context, clusterID, poolID string, req *KubernetesNodePoolUpdateRequest) (*KubernetesNodePool, *Response, error)
+	// RecycleNodePoolNodes is DEPRECATED please use DeleteNode
+	// The method will be removed in godo 2.0.
 	RecycleNodePoolNodes(ctx context.Context, clusterID, poolID string, req *KubernetesNodePoolRecycleNodesRequest) (*Response, error)
 	DeleteNodePool(ctx context.Context, clusterID, poolID string) (*Response, error)
+	DeleteNode(ctx context.Context, clusterID, poolID, nodeID string, req *KubernetesNodeDeleteRequest) (*Response, error)
 
 	GetOptions(context.Context) (*KubernetesOptions, *Response, error)
 }
@@ -50,37 +60,72 @@ type KubernetesClusterCreateRequest struct {
 	RegionSlug  string   `json:"region,omitempty"`
 	VersionSlug string   `json:"version,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
+	VPCUUID     string   `json:"vpc_uuid,omitempty"`
 
 	NodePools []*KubernetesNodePoolCreateRequest `json:"node_pools,omitempty"`
+
+	MaintenancePolicy *KubernetesMaintenancePolicy `json:"maintenance_policy"`
+	AutoUpgrade       bool                         `json:"auto_upgrade"`
+	SurgeUpgrade      bool                         `json:"surge_upgrade"`
 }
 
 // KubernetesClusterUpdateRequest represents a request to update a Kubernetes cluster.
 type KubernetesClusterUpdateRequest struct {
-	Name string   `json:"name,omitempty"`
-	Tags []string `json:"tags,omitempty"`
+	Name              string                       `json:"name,omitempty"`
+	Tags              []string                     `json:"tags,omitempty"`
+	MaintenancePolicy *KubernetesMaintenancePolicy `json:"maintenance_policy,omitempty"`
+	AutoUpgrade       *bool                        `json:"auto_upgrade,omitempty"`
+	SurgeUpgrade      bool                         `json:"surge_upgrade,omitempty"`
+}
+
+// KubernetesClusterUpgradeRequest represents a request to upgrade a Kubernetes cluster.
+type KubernetesClusterUpgradeRequest struct {
+	VersionSlug string `json:"version,omitempty"`
 }
 
 // KubernetesNodePoolCreateRequest represents a request to create a node pool for a
 // Kubernetes cluster.
 type KubernetesNodePoolCreateRequest struct {
-	Name  string   `json:"name,omitempty"`
-	Size  string   `json:"size,omitempty"`
-	Count int      `json:"count,omitempty"`
-	Tags  []string `json:"tags,omitempty"`
+	Name      string            `json:"name,omitempty"`
+	Size      string            `json:"size,omitempty"`
+	Count     int               `json:"count,omitempty"`
+	Tags      []string          `json:"tags,omitempty"`
+	Labels    map[string]string `json:"labels,omitempty"`
+	AutoScale bool              `json:"auto_scale,omitempty"`
+	MinNodes  int               `json:"min_nodes,omitempty"`
+	MaxNodes  int               `json:"max_nodes,omitempty"`
 }
 
 // KubernetesNodePoolUpdateRequest represents a request to update a node pool in a
 // Kubernetes cluster.
 type KubernetesNodePoolUpdateRequest struct {
-	Name  string   `json:"name,omitempty"`
-	Count int      `json:"count,omitempty"`
-	Tags  []string `json:"tags,omitempty"`
+	Name      string            `json:"name,omitempty"`
+	Count     *int              `json:"count,omitempty"`
+	Tags      []string          `json:"tags,omitempty"`
+	Labels    map[string]string `json:"labels,omitempty"`
+	AutoScale *bool             `json:"auto_scale,omitempty"`
+	MinNodes  *int              `json:"min_nodes,omitempty"`
+	MaxNodes  *int              `json:"max_nodes,omitempty"`
 }
 
-// KubernetesNodePoolRecycleNodesRequest represents a request to recycle a set of
-// nodes in a node pool. This will recycle the nodes by ID.
+// KubernetesNodePoolRecycleNodesRequest is DEPRECATED please use DeleteNode
+// The type will be removed in godo 2.0.
 type KubernetesNodePoolRecycleNodesRequest struct {
 	Nodes []string `json:"nodes,omitempty"`
+}
+
+// KubernetesNodeDeleteRequest is a request to delete a specific node in a node pool.
+type KubernetesNodeDeleteRequest struct {
+	// Replace will cause a new node to be created to replace the deleted node.
+	Replace bool `json:"replace,omitempty"`
+
+	// SkipDrain skips draining the node before deleting it.
+	SkipDrain bool `json:"skip_drain,omitempty"`
+}
+
+// KubernetesClusterCredentialsGetRequest is a request to get cluster credentials.
+type KubernetesClusterCredentialsGetRequest struct {
+	ExpirySeconds *int `json:"expiry_seconds,omitempty"`
 }
 
 // KubernetesCluster represents a Kubernetes cluster.
@@ -94,12 +139,120 @@ type KubernetesCluster struct {
 	IPv4          string   `json:"ipv4,omitempty"`
 	Endpoint      string   `json:"endpoint,omitempty"`
 	Tags          []string `json:"tags,omitempty"`
+	VPCUUID       string   `json:"vpc_uuid,omitempty"`
 
 	NodePools []*KubernetesNodePool `json:"node_pools,omitempty"`
+
+	MaintenancePolicy *KubernetesMaintenancePolicy `json:"maintenance_policy,omitempty"`
+	AutoUpgrade       bool                         `json:"auto_upgrade,omitempty"`
+	SurgeUpgrade      bool                         `json:"surge_upgrade,omitempty"`
 
 	Status    *KubernetesClusterStatus `json:"status,omitempty"`
 	CreatedAt time.Time                `json:"created_at,omitempty"`
 	UpdatedAt time.Time                `json:"updated_at,omitempty"`
+}
+
+// KubernetesClusterUser represents a Kubernetes cluster user.
+type KubernetesClusterUser struct {
+	Username string   `json:"username,omitempty"`
+	Groups   []string `json:"groups,omitempty"`
+}
+
+// KubernetesClusterCredentials represents Kubernetes cluster credentials.
+type KubernetesClusterCredentials struct {
+	Server                   string    `json:"server"`
+	CertificateAuthorityData []byte    `json:"certificate_authority_data"`
+	ClientCertificateData    []byte    `json:"client_certificate_data"`
+	ClientKeyData            []byte    `json:"client_key_data"`
+	Token                    string    `json:"token"`
+	ExpiresAt                time.Time `json:"expires_at"`
+}
+
+// KubernetesMaintenancePolicy is a configuration to set the maintenance window
+// of a cluster
+type KubernetesMaintenancePolicy struct {
+	StartTime string                         `json:"start_time"`
+	Duration  string                         `json:"duration"`
+	Day       KubernetesMaintenancePolicyDay `json:"day"`
+}
+
+// KubernetesMaintenancePolicyDay represents the possible days of a maintenance
+// window
+type KubernetesMaintenancePolicyDay int
+
+const (
+	KubernetesMaintenanceDayAny KubernetesMaintenancePolicyDay = iota
+	KubernetesMaintenanceDayMonday
+	KubernetesMaintenanceDayTuesday
+	KubernetesMaintenanceDayWednesday
+	KubernetesMaintenanceDayThursday
+	KubernetesMaintenanceDayFriday
+	KubernetesMaintenanceDaySaturday
+	KubernetesMaintenanceDaySunday
+)
+
+var (
+	days = [...]string{
+		"any",
+		"monday",
+		"tuesday",
+		"wednesday",
+		"thursday",
+		"friday",
+		"saturday",
+		"sunday",
+	}
+
+	toDay = map[string]KubernetesMaintenancePolicyDay{
+		"any":       KubernetesMaintenanceDayAny,
+		"monday":    KubernetesMaintenanceDayMonday,
+		"tuesday":   KubernetesMaintenanceDayTuesday,
+		"wednesday": KubernetesMaintenanceDayWednesday,
+		"thursday":  KubernetesMaintenanceDayThursday,
+		"friday":    KubernetesMaintenanceDayFriday,
+		"saturday":  KubernetesMaintenanceDaySaturday,
+		"sunday":    KubernetesMaintenanceDaySunday,
+	}
+)
+
+// KubernetesMaintenanceToDay returns the appropriate KubernetesMaintenancePolicyDay for the given string.
+func KubernetesMaintenanceToDay(day string) (KubernetesMaintenancePolicyDay, error) {
+	d, ok := toDay[day]
+	if !ok {
+		return 0, fmt.Errorf("unknown day: %q", day)
+	}
+
+	return d, nil
+}
+
+func (k KubernetesMaintenancePolicyDay) String() string {
+	if KubernetesMaintenanceDayAny <= k && k <= KubernetesMaintenanceDaySunday {
+		return days[k]
+	}
+	return fmt.Sprintf("%d !Weekday", k)
+
+}
+
+func (k *KubernetesMaintenancePolicyDay) UnmarshalJSON(data []byte) error {
+	var val string
+	if err := json.Unmarshal(data, &val); err != nil {
+		return err
+	}
+
+	parsed, err := KubernetesMaintenanceToDay(val)
+	if err != nil {
+		return err
+	}
+	*k = parsed
+	return nil
+}
+
+func (k KubernetesMaintenancePolicyDay) MarshalJSON() ([]byte, error) {
+	if KubernetesMaintenanceDayAny <= k && k <= KubernetesMaintenanceDaySunday {
+		return json.Marshal(days[k])
+	}
+
+	return nil, fmt.Errorf("invalid day: %d", k)
 }
 
 // Possible states for a cluster.
@@ -109,6 +262,7 @@ const (
 	KubernetesClusterStatusDegraded     = KubernetesClusterStatusState("degraded")
 	KubernetesClusterStatusError        = KubernetesClusterStatusState("error")
 	KubernetesClusterStatusDeleted      = KubernetesClusterStatusState("deleted")
+	KubernetesClusterStatusUpgrading    = KubernetesClusterStatusState("upgrading")
 	KubernetesClusterStatusInvalid      = KubernetesClusterStatusState("invalid")
 )
 
@@ -130,6 +284,8 @@ func (s *KubernetesClusterStatusState) UnmarshalText(text []byte) error {
 		*s = KubernetesClusterStatusError
 	case KubernetesClusterStatusDeleted:
 		*s = KubernetesClusterStatusDeleted
+	case KubernetesClusterStatusUpgrading:
+		*s = KubernetesClusterStatusUpgrading
 	case "", KubernetesClusterStatusInvalid:
 		*s = KubernetesClusterStatusInvalid
 	default:
@@ -146,20 +302,25 @@ type KubernetesClusterStatus struct {
 
 // KubernetesNodePool represents a node pool in a Kubernetes cluster.
 type KubernetesNodePool struct {
-	ID    string   `json:"id,omitempty"`
-	Name  string   `json:"name,omitempty"`
-	Size  string   `json:"size,omitempty"`
-	Count int      `json:"count,omitempty"`
-	Tags  []string `json:"tags,omitempty"`
+	ID        string            `json:"id,omitempty"`
+	Name      string            `json:"name,omitempty"`
+	Size      string            `json:"size,omitempty"`
+	Count     int               `json:"count,omitempty"`
+	Tags      []string          `json:"tags,omitempty"`
+	Labels    map[string]string `json:"labels,omitempty"`
+	AutoScale bool              `json:"auto_scale,omitempty"`
+	MinNodes  int               `json:"min_nodes,omitempty"`
+	MaxNodes  int               `json:"max_nodes,omitempty"`
 
 	Nodes []*KubernetesNode `json:"nodes,omitempty"`
 }
 
 // KubernetesNode represents a Node in a node pool in a Kubernetes cluster.
 type KubernetesNode struct {
-	ID     string                `json:"id,omitempty"`
-	Name   string                `json:"name,omitempty"`
-	Status *KubernetesNodeStatus `json:"status,omitempty"`
+	ID        string                `json:"id,omitempty"`
+	Name      string                `json:"name,omitempty"`
+	Status    *KubernetesNodeStatus `json:"status,omitempty"`
+	DropletID string                `json:"droplet_id,omitempty"`
 
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
@@ -199,10 +360,15 @@ type KubernetesRegion struct {
 type kubernetesClustersRoot struct {
 	Clusters []*KubernetesCluster `json:"kubernetes_clusters,omitempty"`
 	Links    *Links               `json:"links,omitempty"`
+	Meta     *Meta                `json:"meta"`
 }
 
 type kubernetesClusterRoot struct {
 	Cluster *KubernetesCluster `json:"kubernetes_cluster,omitempty"`
+}
+
+type kubernetesClusterUserRoot struct {
+	User *KubernetesClusterUser `json:"kubernetes_cluster_user,omitempty"`
 }
 
 type kubernetesNodePoolRoot struct {
@@ -212,6 +378,10 @@ type kubernetesNodePoolRoot struct {
 type kubernetesNodePoolsRoot struct {
 	NodePools []*KubernetesNodePool `json:"node_pools,omitempty"`
 	Links     *Links                `json:"links,omitempty"`
+}
+
+type kubernetesUpgradesRoot struct {
+	AvailableUpgradeVersions []*KubernetesVersion `json:"available_upgrade_versions,omitempty"`
 }
 
 // Get retrieves the details of a Kubernetes cluster.
@@ -227,6 +397,37 @@ func (svc *KubernetesServiceOp) Get(ctx context.Context, clusterID string) (*Kub
 		return nil, resp, err
 	}
 	return root.Cluster, resp, nil
+}
+
+// GetUser retrieves the details of a Kubernetes cluster user.
+func (svc *KubernetesServiceOp) GetUser(ctx context.Context, clusterID string) (*KubernetesClusterUser, *Response, error) {
+	path := fmt.Sprintf("%s/%s/user", kubernetesClustersPath, clusterID)
+	req, err := svc.client.NewRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	root := new(kubernetesClusterUserRoot)
+	resp, err := svc.client.Do(ctx, req, root)
+	if err != nil {
+		return nil, resp, err
+	}
+	return root.User, resp, nil
+}
+
+// GetUpgrades retrieves versions a Kubernetes cluster can be upgraded to. An
+// upgrade can be requested using `Upgrade`.
+func (svc *KubernetesServiceOp) GetUpgrades(ctx context.Context, clusterID string) ([]*KubernetesVersion, *Response, error) {
+	path := fmt.Sprintf("%s/%s/upgrades", kubernetesClustersPath, clusterID)
+	req, err := svc.client.NewRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	root := new(kubernetesUpgradesRoot)
+	resp, err := svc.client.Do(ctx, req, root)
+	if err != nil {
+		return nil, nil, err
+	}
+	return root.AvailableUpgradeVersions, resp, nil
 }
 
 // Create creates a Kubernetes cluster.
@@ -275,6 +476,14 @@ func (svc *KubernetesServiceOp) List(ctx context.Context, opts *ListOptions) ([]
 	if err != nil {
 		return nil, resp, err
 	}
+
+	if l := root.Links; l != nil {
+		resp.Links = l
+	}
+	if m := root.Meta; m != nil {
+		resp.Meta = m
+	}
+
 	return root.Clusters, resp, nil
 }
 
@@ -303,6 +512,26 @@ func (svc *KubernetesServiceOp) GetKubeConfig(ctx context.Context, clusterID str
 	return res, resp, nil
 }
 
+// GetCredentials returns a Kubernetes API server credentials for the specified cluster.
+func (svc *KubernetesServiceOp) GetCredentials(ctx context.Context, clusterID string, get *KubernetesClusterCredentialsGetRequest) (*KubernetesClusterCredentials, *Response, error) {
+	path := fmt.Sprintf("%s/%s/credentials", kubernetesClustersPath, clusterID)
+	req, err := svc.client.NewRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	q := req.URL.Query()
+	if get.ExpirySeconds != nil {
+		q.Add("expiry_seconds", strconv.Itoa(*get.ExpirySeconds))
+	}
+	req.URL.RawQuery = q.Encode()
+	credentials := new(KubernetesClusterCredentials)
+	resp, err := svc.client.Do(ctx, req, credentials)
+	if err != nil {
+		return nil, nil, err
+	}
+	return credentials, resp, nil
+}
+
 // Update updates a Kubernetes cluster's properties.
 func (svc *KubernetesServiceOp) Update(ctx context.Context, clusterID string, update *KubernetesClusterUpdateRequest) (*KubernetesCluster, *Response, error) {
 	path := fmt.Sprintf("%s/%s", kubernetesClustersPath, clusterID)
@@ -316,6 +545,17 @@ func (svc *KubernetesServiceOp) Update(ctx context.Context, clusterID string, up
 		return nil, resp, err
 	}
 	return root.Cluster, resp, nil
+}
+
+// Upgrade upgrades a Kubernetes cluster to a new version. Valid upgrade
+// versions for a given cluster can be retrieved with `GetUpgrades`.
+func (svc *KubernetesServiceOp) Upgrade(ctx context.Context, clusterID string, upgrade *KubernetesClusterUpgradeRequest) (*Response, error) {
+	path := fmt.Sprintf("%s/%s/upgrade", kubernetesClustersPath, clusterID)
+	req, err := svc.client.NewRequest(ctx, http.MethodPost, path, upgrade)
+	if err != nil {
+		return nil, err
+	}
+	return svc.client.Do(ctx, req, nil)
 }
 
 // CreateNodePool creates a new node pool in an existing Kubernetes cluster.
@@ -382,7 +622,8 @@ func (svc *KubernetesServiceOp) UpdateNodePool(ctx context.Context, clusterID, p
 	return root.NodePool, resp, nil
 }
 
-// RecycleNodePoolNodes schedules nodes in a node pool for recycling.
+// RecycleNodePoolNodes is DEPRECATED please use DeleteNode
+// The method will be removed in godo 2.0.
 func (svc *KubernetesServiceOp) RecycleNodePoolNodes(ctx context.Context, clusterID, poolID string, recycle *KubernetesNodePoolRecycleNodesRequest) (*Response, error) {
 	path := fmt.Sprintf("%s/%s/node_pools/%s/recycle", kubernetesClustersPath, clusterID, poolID)
 	req, err := svc.client.NewRequest(ctx, http.MethodPost, path, recycle)
@@ -399,6 +640,33 @@ func (svc *KubernetesServiceOp) RecycleNodePoolNodes(ctx context.Context, cluste
 // DeleteNodePool deletes a node pool, and subsequently all the nodes in that pool.
 func (svc *KubernetesServiceOp) DeleteNodePool(ctx context.Context, clusterID, poolID string) (*Response, error) {
 	path := fmt.Sprintf("%s/%s/node_pools/%s", kubernetesClustersPath, clusterID, poolID)
+	req, err := svc.client.NewRequest(ctx, http.MethodDelete, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := svc.client.Do(ctx, req, nil)
+	if err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+// DeleteNode deletes a specific node in a node pool.
+func (svc *KubernetesServiceOp) DeleteNode(ctx context.Context, clusterID, poolID, nodeID string, deleteReq *KubernetesNodeDeleteRequest) (*Response, error) {
+	path := fmt.Sprintf("%s/%s/node_pools/%s/nodes/%s", kubernetesClustersPath, clusterID, poolID, nodeID)
+	if deleteReq != nil {
+		v := make(url.Values)
+		if deleteReq.SkipDrain {
+			v.Set("skip_drain", "1")
+		}
+		if deleteReq.Replace {
+			v.Set("replace", "1")
+		}
+		if query := v.Encode(); query != "" {
+			path = path + "?" + query
+		}
+	}
+
 	req, err := svc.client.NewRequest(ctx, http.MethodDelete, path, nil)
 	if err != nil {
 		return nil, err

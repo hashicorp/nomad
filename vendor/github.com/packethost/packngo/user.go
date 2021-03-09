@@ -1,12 +1,20 @@
 package packngo
 
-const userBasePath = "/users"
-const userPath = "/user"
+import "fmt"
+
+const usersBasePath = "/users"
+const userBasePath = "/user"
 
 // UserService interface defines available user methods
 type UserService interface {
-	Get(string) (*User, *Response, error)
+	List(*ListOptions) ([]User, *Response, error)
+	Get(string, *GetOptions) (*User, *Response, error)
 	Current() (*User, *Response, error)
+}
+
+type usersRoot struct {
+	Users []User `json:"users"`
+	Meta  meta   `json:"meta"`
 }
 
 // User represents a Packet user
@@ -28,6 +36,7 @@ type User struct {
 	Emails                []Email `json:"emails,omitempty"`
 	PhoneNumber           string  `json:"phone_number,omitempty"`
 	URL                   string  `json:"href,omitempty"`
+	VPN                   bool    `json:"vpn"`
 }
 
 func (u User) String() string {
@@ -40,7 +49,33 @@ type UserServiceOp struct {
 }
 
 // Get method gets a user by userID
-func (s *UserServiceOp) Get(userID string) (*User, *Response, error) {
+func (s *UserServiceOp) List(listOpt *ListOptions) (users []User, resp *Response, err error) {
+	params := urlQuery(listOpt)
+	path := fmt.Sprintf("%s?%s", usersBasePath, params)
+
+	for {
+		subset := new(usersRoot)
+
+		resp, err = s.client.DoRequest("GET", path, nil, subset)
+		if err != nil {
+			return nil, resp, err
+		}
+
+		users = append(users, subset.Users...)
+
+		if subset.Meta.Next != nil && (listOpt == nil || listOpt.Page == 0) {
+			path = subset.Meta.Next.Href
+			if params != "" {
+				path = fmt.Sprintf("%s&%s", path, params)
+			}
+			continue
+		}
+		return
+	}
+}
+
+// Returns the user object for the currently logged-in user.
+func (s *UserServiceOp) Current() (*User, *Response, error) {
 	user := new(User)
 
 	resp, err := s.client.DoRequest("GET", userBasePath, nil, user)
@@ -51,11 +86,12 @@ func (s *UserServiceOp) Get(userID string) (*User, *Response, error) {
 	return user, resp, err
 }
 
-// Returns the user object for the currently logged-in user.
-func (s *UserServiceOp) Current() (*User, *Response, error) {
+func (s *UserServiceOp) Get(userID string, getOpt *GetOptions) (*User, *Response, error) {
+	params := urlQuery(getOpt)
+	path := fmt.Sprintf("%s/%s?%s", usersBasePath, userID, params)
 	user := new(User)
 
-	resp, err := s.client.DoRequest("GET", userPath, nil, user)
+	resp, err := s.client.DoRequest("GET", path, nil, user)
 	if err != nil {
 		return nil, resp, err
 	}

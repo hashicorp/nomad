@@ -5,16 +5,22 @@ import (
 	"time"
 
 	"github.com/denverdino/aliyungo/common"
+	"github.com/denverdino/aliyungo/util"
 )
 
 type CreateNetworkInterfaceArgs struct {
-	RegionId             common.Region
-	VSwitchId            string
-	PrimaryIpAddress     string // optional
-	SecurityGroupId      string
-	NetworkInterfaceName string // optional
-	Description          string // optional
-	ClientToken          string // optional
+	RegionId                       common.Region
+	VSwitchId                      string
+	PrimaryIpAddress               string // optional
+	SecurityGroupId                string
+	NetworkInterfaceName           string            // optional
+	Description                    string            // optional
+	ClientToken                    string            // optional
+	Tag                            map[string]string // optional
+	ResourceGroupId                string            // optional
+	SecurityGroupIds               []string          `query:"list"` // optional
+	PrivateIpAddress               []string          `query:"list"` // optional
+	SecondaryPrivateIpAddressCount int
 }
 
 type CreateNetworkInterfaceResponse struct {
@@ -33,7 +39,9 @@ type DeleteNetworkInterfaceResponse struct {
 type DescribeNetworkInterfacesArgs struct {
 	RegionId             common.Region
 	VSwitchId            string
+	VpcID                string
 	PrimaryIpAddress     string
+	PrivateIpAddress     []string `query:"list"`
 	SecurityGroupId      string
 	NetworkInterfaceName string
 	Type                 string
@@ -46,9 +54,34 @@ type NetworkInterfaceType struct {
 	NetworkInterfaceId   string
 	NetworkInterfaceName string
 	PrimaryIpAddress     string
-	MacAddress           string
-	Status               string
-	PrivateIpAddress     string
+	PrivateIpSets        struct {
+		PrivateIpSet []PrivateIpType
+	}
+	MacAddress         string
+	Status             string
+	Type               string
+	VpcId              string
+	VSwitchId          string
+	ZoneId             string
+	AssociatedPublicIp AssociatedPublicIp
+	SecurityGroupIds   struct {
+		SecurityGroupId []string
+	}
+	Description      string
+	InstanceId       string
+	CreationTime     util.ISO6801Time
+	PrivateIpAddress string
+}
+
+type PrivateIpType struct {
+	PrivateIpAddress   string
+	Primary            bool
+	AssociatedPublicIp AssociatedPublicIp
+}
+
+type AssociatedPublicIp struct {
+	PublicIpAddress string
+	AllocationId    string
 }
 
 type DescribeNetworkInterfacesResponse struct {
@@ -75,7 +108,7 @@ type DetachNetworkInterfaceResponse common.Response
 type ModifyNetworkInterfaceAttributeArgs struct {
 	RegionId             common.Region
 	NetworkInterfaceId   string
-	SecurityGroupId      []string
+	SecurityGroupId      []string `query:"list"`
 	NetworkInterfaceName string
 	Description          string
 }

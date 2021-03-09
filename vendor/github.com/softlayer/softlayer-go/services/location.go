@@ -123,6 +123,12 @@ func (r Location) GetLocationAddress() (resp datatypes.Account_Address, err erro
 	return
 }
 
+// Retrieve A location's physical addresses.
+func (r Location) GetLocationAddresses() (resp []datatypes.Account_Address, err error) {
+	err = r.Session.DoRequest("SoftLayer_Location", "getLocationAddresses", nil, &r.Options, &resp)
+	return
+}
+
 // Retrieve A location's Dedicated Rack member
 func (r Location) GetLocationReservationMember() (resp datatypes.Location_Reservation_Rack_Member, err error) {
 	err = r.Session.DoRequest("SoftLayer_Location", "getLocationReservationMember", nil, &r.Options, &resp)
@@ -340,6 +346,12 @@ func (r Location_Datacenter) GetHardwareRouters() (resp []datatypes.Hardware, er
 // Retrieve A location's physical address.
 func (r Location_Datacenter) GetLocationAddress() (resp datatypes.Account_Address, err error) {
 	err = r.Session.DoRequest("SoftLayer_Location_Datacenter", "getLocationAddress", nil, &r.Options, &resp)
+	return
+}
+
+// Retrieve A location's physical addresses.
+func (r Location_Datacenter) GetLocationAddresses() (resp []datatypes.Account_Address, err error) {
+	err = r.Session.DoRequest("SoftLayer_Location_Datacenter", "getLocationAddresses", nil, &r.Options, &resp)
 	return
 }
 

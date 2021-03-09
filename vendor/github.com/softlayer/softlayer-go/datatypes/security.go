@@ -137,9 +137,6 @@ type Security_Certificate_Request struct {
 	// The email address of a person who will approve your SSL certificate order. This is usually an email address of your domain administrator.
 	ApproverEmailAddress *string `json:"approverEmailAddress,omitempty" xmlrpc:"approverEmailAddress,omitempty"`
 
-	// The Certificate Authority name
-	CertificateAuthorityName *string `json:"certificateAuthorityName,omitempty" xmlrpc:"certificateAuthorityName,omitempty"`
-
 	// A Certificate Signing Request (CSR) string
 	CertificateSigningRequest *string `json:"certificateSigningRequest,omitempty" xmlrpc:"certificateSigningRequest,omitempty"`
 

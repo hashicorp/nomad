@@ -165,6 +165,9 @@ type Catalyst_Enrollment_Request struct {
 	// Index of answer chosen for how many future users question
 	FutureUserChoice *int `json:"futureUserChoice,omitempty" xmlrpc:"futureUserChoice,omitempty"`
 
+	// Master user's IBMId username
+	IbmIdUsername *string `json:"ibmIdUsername,omitempty" xmlrpc:"ibmIdUsername,omitempty"`
+
 	// Name of accelerator or incubator startup belongs to, if any
 	IncubatorName *string `json:"incubatorName,omitempty" xmlrpc:"incubatorName,omitempty"`
 

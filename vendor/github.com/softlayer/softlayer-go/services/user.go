@@ -76,7 +76,7 @@ func (r User_Customer) AcknowledgeSupportPolicy() (err error) {
 	return
 }
 
-// Create a user's API authentication key, allowing that user access to query the SoftLayer API. addApiAuthenticationKey() returns the users new API key. Each portal user is allowed a maximum of two API keys.
+// Create a user's API authentication key, allowing that user access to query the SoftLayer API. addApiAuthenticationKey() returns the user's new API key. Each portal user is allowed only one API key.
 func (r User_Customer) AddApiAuthenticationKey() (resp string, err error) {
 	err = r.Session.DoRequest("SoftLayer_User_Customer", "addApiAuthenticationKey", nil, &r.Options, &resp)
 	return
@@ -104,7 +104,7 @@ func (r User_Customer) AddBulkHardwareAccess(hardwareIds []int) (resp bool, err 
 	return
 }
 
-// Add multiple permissions to a portal user's permission set. [[Permissions]] control which features in the SoftLayer customer portal and API a user may use. addBulkPortalPermission() does not attempt to add permissions already assigned to the user.
+// Add multiple permissions to a portal user's permission set. [[SoftLayer_User_Customer_CustomerPermission_Permission]] control which features in the SoftLayer customer portal and API a user may use. addBulkPortalPermission() does not attempt to add permissions already assigned to the user.
 //
 // Users can assign permissions to their child users, but not to themselves. An account's master has all portal permissions and can set permissions for any of the other users on their account.
 //
@@ -141,6 +141,8 @@ func (r User_Customer) AddBulkVirtualGuestAccess(virtualGuestIds []int) (resp bo
 // Grants the user access to a single dedicated host device.  The user will only be allowed to see and access devices in both the portal and the API to which they have been granted access.  If the user's account has devices to which the user has not been granted access, then "not found" exceptions are thrown if the user attempts to access any of these devices.
 //
 // Users can assign device access to their child users, but not to themselves. An account's master has access to all devices on their customer account and can set dedicated host access for any of the other users on their account.
+//
+// Only the USER_MANAGE permission is required to execute this.
 func (r User_Customer) AddDedicatedHostAccess(dedicatedHostId *int) (resp bool, err error) {
 	params := []interface{}{
 		dedicatedHostId,
@@ -161,6 +163,8 @@ func (r User_Customer) AddExternalBinding(externalBinding *datatypes.User_Extern
 // Add hardware to a portal user's hardware access list. A user's hardware access list controls which of an account's hardware objects a user has access to in the SoftLayer customer portal and API. Hardware does not exist in the SoftLayer portal and returns "not found" exceptions in the API if the user doesn't have access to it. If a user already has access to the hardware you're attempting to add then addHardwareAccess() returns true.
 //
 // Users can assign hardware access to their child users, but not to themselves. An account's master has access to all hardware on their customer account and can set hardware access for any of the other users on their account.
+//
+// Only the USER_MANAGE permission is required to execute this.
 func (r User_Customer) AddHardwareAccess(hardwareId *int) (resp bool, err error) {
 	params := []interface{}{
 		hardwareId,
@@ -178,7 +182,7 @@ func (r User_Customer) AddNotificationSubscriber(notificationKeyName *string) (r
 	return
 }
 
-// Add a permission to a portal user's permission set. [[Permissions]] control which features in the SoftLayer customer portal and API a user may use. If the user already has the permission you're attempting to add then addPortalPermission() returns true.
+// Add a permission to a portal user's permission set. [[SoftLayer_User_Customer_CustomerPermission_Permission]] control which features in the SoftLayer customer portal and API a user may use. If the user already has the permission you're attempting to add then addPortalPermission() returns true.
 //
 // Users can assign permissions to their child users, but not to themselves. An account's master has all portal permissions and can set permissions for any of the other users on their account.
 //
@@ -204,11 +208,27 @@ func (r User_Customer) AddRole(role *datatypes.User_Permission_Role) (err error)
 // Add a CloudLayer Computing Instance to a portal user's access list. A user's CloudLayer Computing Instance access list controls which of an account's CloudLayer Computing Instance objects a user has access to in the SoftLayer customer portal and API. CloudLayer Computing Instances do not exist in the SoftLayer portal and returns "not found" exceptions in the API if the user doesn't have access to it. If a user already has access to the CloudLayer Computing Instance you're attempting to add then addVirtualGuestAccess() returns true.
 //
 // Users can assign CloudLayer Computing Instance access to their child users, but not to themselves. An account's master has access to all CloudLayer Computing Instances on their customer account and can set CloudLayer Computing Instance access for any of the other users on their account.
+//
+// Only the USER_MANAGE permission is required to execute this.
 func (r User_Customer) AddVirtualGuestAccess(virtualGuestId *int) (resp bool, err error) {
 	params := []interface{}{
 		virtualGuestId,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer", "addVirtualGuestAccess", params, &r.Options, &resp)
+	return
+}
+
+// This method can be used in place of [[SoftLayer_User_Customer::editObject]] to change the parent user of this user.
+//
+// The new parent must be a user on the same account, and must not be a child of this user.  A user is not allowed to change their own parent.
+//
+// If the cascadeFlag is set to false, then an exception will be thrown if the new parent does not have all of the permissions that this user possesses.  If the cascadeFlag is set to true, then permissions will be removed from this user and the descendants of this user as necessary so that no children of the parent will have permissions that the parent does not possess. However, setting the cascadeFlag to true will not remove the access all device permissions from this user. The customer portal will need to be used to remove these permissions.
+func (r User_Customer) AssignNewParentId(parentId *int, cascadePermissionsFlag *bool) (resp datatypes.User_Customer, err error) {
+	params := []interface{}{
+		parentId,
+		cascadePermissionsFlag,
+	}
+	err = r.Session.DoRequest("SoftLayer_User_Customer", "assignNewParentId", params, &r.Options, &resp)
 	return
 }
 
@@ -253,7 +273,13 @@ func (r User_Customer) CreateNotificationSubscriber(keyName *string, resourceTab
 	return
 }
 
-// Create a new user in the SoftLayer customer portal. createObject() creates a user's portal record and adds them into the SoftLayer community forums. It is not possible to set up SLL or PPTP enable flags during object creation. These flags are ignored during object creation. You will need to make a subsequent call to edit object in order to enable VPN access. An account's master user and sub-users who have the User Manage permission can add new users. createObject() creates users with a default permission set. After adding a user it may be helpful to set their permissions and hardware access.
+// Create a new user in the SoftLayer customer portal. It is not possible to set up SLL enable flags during object creation. These flags are ignored during object creation. You will need to make a subsequent call to edit object in order to enable VPN access.
+//
+// An account's master user and sub-users who have the User Manage permission can add new users.
+//
+// Users are created with a default permission set. After adding a user it may be helpful to set their permissions and device access.
+//
+// secondaryPasswordTimeoutDays will be set to the system configured default value if the attribute is not provided or the attribute is not a valid value.
 //
 // Note, neither password nor vpnPassword parameters are required.
 //
@@ -267,7 +293,7 @@ func (r User_Customer) CreateNotificationSubscriber(keyName *string, resourceTab
 //
 // vpnPassword If the vpnPassword is provided, then the user's vpnPassword will be set to the provided password.  When creating a vpn only user, the vpnPassword MUST be supplied.  If the vpnPassword is not provided, then the user will need to use the portal to edit their profile and set the vpnPassword.
 //
-//
+// IBMid considerations When a SoftLayer account is linked to a Platform Services (PaaS, formerly Bluemix) account, AND the trait on the SoftLayer Account indicating IBMid authentication is set, then SoftLayer will delegate the creation of the user to PaaS.  The Platform Services "invite user" API call is asynchronous, and so no user object can be returned from this API call.  In this specific case, this API will throw a SoftLayer_Exception_User_Customer_DelegateIamIdInvitationToPaas exception, with text indicating that the call was at least accepted by Platform Services.  The Platform Services API is the preferred API for creating users based on IBMid in a linked account pair.  If you have automation using this API that depends on getting a synchronous response with a user object with an id, you should contact SoftLayer Support to have the "IBMid authentication" trait set to 0 on this account.  In that case, a normal SoftLayer user will be created (no IBMid association set up) and the createObject call will return synchronously as before.
 func (r User_Customer) CreateObject(templateObject *datatypes.User_Customer, password *string, vpnPassword *string) (resp datatypes.User_Customer, err error) {
 	params := []interface{}{
 		templateObject,
@@ -369,7 +395,7 @@ func (r User_Customer) GetAllowedVirtualGuestIds() (resp []int, err error) {
 	return
 }
 
-// Retrieve A portal user's API Authentication keys. There is a max limit of two API keys per user.
+// Retrieve A portal user's API Authentication keys. There is a max limit of one API key per user.
 func (r User_Customer) GetApiAuthenticationKeys() (resp []datatypes.User_Customer_ApiAuthentication, err error) {
 	err = r.Session.DoRequest("SoftLayer_User_Customer", "getApiAuthenticationKeys", nil, &r.Options, &resp)
 	return
@@ -381,12 +407,6 @@ func (r User_Customer) GetAuthenticationToken(token *datatypes.Container_User_Au
 		token,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer", "getAuthenticationToken", params, &r.Options, &resp)
-	return
-}
-
-// Retrieve The CDN accounts associated with a portal user.
-func (r User_Customer) GetCdnAccounts() (resp []datatypes.Network_ContentDelivery_Account, err error) {
-	err = r.Session.DoRequest("SoftLayer_User_Customer", "getCdnAccounts", nil, &r.Options, &resp)
 	return
 }
 
@@ -408,7 +428,7 @@ func (r User_Customer) GetDedicatedHosts() (resp []datatypes.Virtual_DedicatedHo
 	return
 }
 
-// This API gets the default account for the OpenIdConnect identity that is linked to the current SoftLayer user identity. If there is no default present, the API returns null, except in the special case where we find one active user linked to the IBMid. In that case, we will set the link from the IBMid to that user as default, and return the account of which that user is a member. Invoke this only on IBMid-authenticated users.
+// This method is not applicable to legacy SoftLayer-authenticated users and can only be invoked for IBMid-authenticated users.
 func (r User_Customer) GetDefaultAccount(providerType *string) (resp datatypes.Account, err error) {
 	params := []interface{}{
 		providerType,
@@ -462,6 +482,12 @@ func (r User_Customer) GetHasFullHardwareAccessFlag() (resp bool, err error) {
 // Retrieve Whether or not a portal user has access to all hardware on their account.
 func (r User_Customer) GetHasFullVirtualGuestAccessFlag() (resp bool, err error) {
 	err = r.Session.DoRequest("SoftLayer_User_Customer", "getHasFullVirtualGuestAccessFlag", nil, &r.Options, &resp)
+	return
+}
+
+// Retrieve
+func (r User_Customer) GetIbmIdLink() (resp datatypes.User_Customer_Link, err error) {
+	err = r.Session.DoRequest("SoftLayer_User_Customer", "getIbmIdLink", nil, &r.Options, &resp)
 	return
 }
 
@@ -549,6 +575,15 @@ func (r User_Customer) GetParent() (resp datatypes.User_Customer, err error) {
 	return
 }
 
+// no documentation yet
+func (r User_Customer) GetPasswordRequirements(isVpn *bool) (resp datatypes.Container_User_Customer_PasswordSet, err error) {
+	params := []interface{}{
+		isVpn,
+	}
+	err = r.Session.DoRequest("SoftLayer_User_Customer", "getPasswordRequirements", params, &r.Options, &resp)
+	return
+}
+
 // Retrieve A portal user's permissions. These permissions control that user's access to functions within the SoftLayer customer portal and API.
 func (r User_Customer) GetPermissions() (resp []datatypes.User_Customer_CustomerPermission_Permission, err error) {
 	err = r.Session.DoRequest("SoftLayer_User_Customer", "getPermissions", nil, &r.Options, &resp)
@@ -588,7 +623,9 @@ func (r User_Customer) GetPreferences() (resp []datatypes.User_Preference, err e
 	return
 }
 
-// Retrieve the authentication requirements for an outstanding password set/reset request.  The password key provided to the user in an email generated by the [[SoftLayer_User_Customer::newUserPassword|newUserPassword]]. Password recovery keys are valid for 24 hours after they're generated.
+// Retrieve the authentication requirements for an outstanding password set/reset request.  The requirements returned in the same SoftLayer_Container_User_Customer_PasswordSet container which is provided as a parameter into this request.  The SoftLayer_Container_User_Customer_PasswordSet::authenticationMethods array will contain an entry for each authentication method required for the user.  See SoftLayer_Container_User_Customer_PasswordSet for more details.
+//
+// If the user has required authentication methods, then authentication information will be supplied to the SoftLayer_User_Customer::processPasswordSetRequest method within this same SoftLayer_Container_User_Customer_PasswordSet container.  All existing information in the container must continue to exist in the container to complete the password set/reset process.
 func (r User_Customer) GetRequirementsForPasswordSet(passwordSet *datatypes.Container_User_Customer_PasswordSet) (resp datatypes.Container_User_Customer_PasswordSet, err error) {
 	params := []interface{}{
 		passwordSet,
@@ -603,7 +640,7 @@ func (r User_Customer) GetRoles() (resp []datatypes.User_Permission_Role, err er
 	return
 }
 
-// Retrieve
+// Retrieve [DEPRECATED]
 func (r User_Customer) GetSalesforceUserLink() (resp datatypes.User_Customer_Link, err error) {
 	err = r.Session.DoRequest("SoftLayer_User_Customer", "getSalesforceUserLink", nil, &r.Options, &resp)
 	return
@@ -681,7 +718,9 @@ func (r User_Customer) GetUnsuccessfulLogins() (resp []datatypes.User_Customer_A
 	return
 }
 
-// Retrieve a user object using a password token. When a new user is created or when a user has requested a password change using initiatePortalPasswordChange, they will have received an email that contains a url with a token.  That token is used as the parameter for getUserIdForPasswordSet.
+// Retrieve a user id using a password token provided to the user in an email generated by the SoftLayer_User_Customer::initiatePortalPasswordChange request. Password recovery keys are valid for 24 hours after they're generated.
+//
+// When a new user is created or when a user has requested a password change using initiatePortalPasswordChange, they will have received an email that contains a url with a token.  That token is used as the parameter for getUserIdForPasswordSet.  Once the user id is known, then the SoftLayer_User_Customer object can be retrieved which is necessary to complete the process to set or reset a user's password.
 func (r User_Customer) GetUserIdForPasswordSet(key *string) (resp int, err error) {
 	params := []interface{}{
 		key,
@@ -745,7 +784,7 @@ func (r User_Customer) InitiateExternalAuthentication(authenticationContainer *d
 //
 // If this is a new master user who has never logged into the portal, then password reset will be initiated. Once a master user has logged into the portal, they must setup their security questions prior to logging out because master users are required to answer a security question during the password reset process.  Should a master user not have security questions defined and not remember their password in order to define the security questions, then they will need to contact support at live chat or Revenue Services for assistance.
 //
-// Due to security reasons, the number reset requests per username are limited within a undisclosed timeframe.
+// Due to security reasons, the number of reset requests per username are limited within a undisclosed timeframe.
 func (r User_Customer) InitiatePortalPasswordChange(username *string) (resp bool, err error) {
 	params := []interface{}{
 		username,
@@ -779,18 +818,6 @@ func (r User_Customer) IsMasterUser() (resp bool, err error) {
 	return
 }
 
-// This method is deprecated! SoftLayer Community Forums no longer exist, therefore, any password verified will return false. In the future, this method will be completely removed.
-//
-// Determine if a string is the given user's login password to the SoftLayer community forums.
-func (r User_Customer) IsValidForumPassword(password *string) (err error) {
-	var resp datatypes.Void
-	params := []interface{}{
-		password,
-	}
-	err = r.Session.DoRequest("SoftLayer_User_Customer", "isValidForumPassword", params, &r.Options, &resp)
-	return
-}
-
 // Determine if a string is the given user's login password to the SoftLayer customer portal.
 func (r User_Customer) IsValidPortalPassword(password *string) (resp bool, err error) {
 	params := []interface{}{
@@ -809,7 +836,9 @@ func (r User_Customer) PerformExternalAuthentication(authenticationContainer *da
 	return
 }
 
-// Set the password for a user who has an outstanding password request. A user with an outstanding password request will have an unused and unexpired password key.  The password key is part of the url provided to the user in the email sent to the user with information on how to set their password.  The email was generated by the [[SoftLayer_User_Customer::initiatePortalPasswordRequest|initiatePortalPasswordRequest]] method. Password recovery keys are valid for 24 hours after they're generated.
+// Set the password for a user who has an outstanding password request. A user with an outstanding password request will have an unused and unexpired password key.  The password key is part of the url provided to the user in the email sent to the user with information on how to set their password.  The email was generated by the SoftLayer_User_Customer::initiatePortalPasswordRequest request. Password recovery keys are valid for 24 hours after they're generated.
+//
+// If the user has required authentication methods as specified by in the SoftLayer_Container_User_Customer_PasswordSet container returned from the SoftLayer_User_Customer::getRequirementsForPasswordSet request, then additional requests must be made to processPasswordSetRequest to authenticate the user before changing the password.  First, if the user has security questions set on their profile, they will be required to answer one of their questions correctly. Next, if the user has Verisign, Google Authentication, or Phone Factor on their account, they must authenticate according to the two-factor provider.  All of this authentication is done using the SoftLayer_Container_User_Customer_PasswordSet container.  If the user has Phone Factor authentication, additional requests to SoftLayer_User_Customer::checkPhoneFactorAuthenticationForPasswordSet is required until a response other than Awaiting Response is received.
 //
 // User portal passwords must match the following restrictions. Portal passwords must...
 // * ...be over eight characters long.
@@ -819,7 +848,6 @@ func (r User_Customer) PerformExternalAuthentication(authenticationContainer *da
 // * ...contain at least one number
 // * ...contain one of the special characters _ - | @ . , ? / ! ~ # $ % ^ & * ( ) { } [ ] \ + =
 // * ...not match your username
-// * ...not match your forum password
 func (r User_Customer) ProcessPasswordSetRequest(passwordSet *datatypes.Container_User_Customer_PasswordSet, authenticationContainer *datatypes.Container_User_Customer_External_Binding) (resp bool, err error) {
 	params := []interface{}{
 		passwordSet,
@@ -875,7 +903,7 @@ func (r User_Customer) RemoveBulkDedicatedHostAccess(dedicatedHostIds []int) (re
 	return
 }
 
-// Remove multiple hardware from a portal user's hardware access list. A user's hardware access list controls which of an account's hardware objects a user has access to in the SoftLayer customer portal and API. Hardware does not exist in the SoftLayer portal and returns "not found" exceptions in the API if the user doesn't have access to it. If a user does not has access to the hardware you're attempting remove add then removeBulkHardwareAccess() returns true.
+// Remove multiple hardware from a portal user's hardware access list. A user's hardware access list controls which of an account's hardware objects a user has access to in the SoftLayer customer portal and API. Hardware does not exist in the SoftLayer portal and returns "not found" exceptions in the API if the user doesn't have access to it. If a user does not has access to the hardware you're attempting to remove then removeBulkHardwareAccess() returns true.
 //
 // Users can assign hardware access to their child users, but not to themselves. An account's master has access to all hardware on their customer account and can set hardware access for any of the other users on their account.
 //
@@ -888,14 +916,19 @@ func (r User_Customer) RemoveBulkHardwareAccess(hardwareIds []int) (resp bool, e
 	return
 }
 
-// Remove multiple permissions from a portal user's permission set. [[Permissions]] control which features in the SoftLayer customer portal and API a user may use. Removing a user's permission will affect that user's portal and API access. removePortalPermission() does not attempt to remove permissions that are not assigned to the user.
+// Remove (revoke) multiple permissions from a portal user's permission set. [[SoftLayer_User_Customer_CustomerPermission_Permission]] control which features in the SoftLayer customer portal and API a user may use. Removing a user's permission will affect that user's portal and API access. removePortalPermission() does not attempt to remove permissions that are not assigned to the user.
 //
-// Users can assign permissions to their child users, but not to themselves. An account's master has all portal permissions and can set permissions for any of the other users on their account.
+// Users can grant or revoke permissions to their child users, but not to themselves. An account's master has all portal permissions and can grant permissions for any of the other users on their account.
+//
+// If the cascadePermissionsFlag is set to true, then removing the permissions from a user will cascade down the child hierarchy and remove the permissions from this user along with all child users who also have the permission.
+//
+// If the cascadePermissionsFlag is not provided or is set to false and the user has children users who have the permission, then an exception will be thrown, and the permission will not be removed from this user.
 //
 // Use the [[SoftLayer_User_Customer_CustomerPermission_Permission::getAllObjects]] method to retrieve a list of all permissions available in the SoftLayer customer portal and API. Permissions are removed based on the keyName property of the permission objects within the permissions parameter.
-func (r User_Customer) RemoveBulkPortalPermission(permissions []datatypes.User_Customer_CustomerPermission_Permission) (resp bool, err error) {
+func (r User_Customer) RemoveBulkPortalPermission(permissions []datatypes.User_Customer_CustomerPermission_Permission, cascadePermissionsFlag *bool) (resp bool, err error) {
 	params := []interface{}{
 		permissions,
+		cascadePermissionsFlag,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer", "removeBulkPortalPermission", params, &r.Options, &resp)
 	return
@@ -953,14 +986,19 @@ func (r User_Customer) RemoveHardwareAccess(hardwareId *int) (resp bool, err err
 	return
 }
 
-// Remove a permission from a portal user's permission set. [[Permissions]] control which features in the SoftLayer customer portal and API a user may use. Removing a user's permission will affect that user's portal and API access. If the user does not have the permission you're attempting to remove then removePortalPermission() returns true.
+// Remove (revoke) a permission from a portal user's permission set. [[SoftLayer_User_Customer_CustomerPermission_Permission]] control which features in the SoftLayer customer portal and API a user may use. Removing a user's permission will affect that user's portal and API access. If the user does not have the permission you're attempting to remove then removePortalPermission() returns true.
 //
 // Users can assign permissions to their child users, but not to themselves. An account's master has all portal permissions and can set permissions for any of the other users on their account.
 //
+// If the cascadePermissionsFlag is set to true, then removing the permission from a user will cascade down the child hierarchy and remove the permission from this user and all child users who also have the permission.
+//
+// If the cascadePermissionsFlag is not set or is set to false and the user has children users who have the permission, then an exception will be thrown, and the permission will not be removed from this user.
+//
 // Use the [[SoftLayer_User_Customer_CustomerPermission_Permission::getAllObjects]] method to retrieve a list of all permissions available in the SoftLayer customer portal and API. Permissions are removed based on the keyName property of the permission parameter.
-func (r User_Customer) RemovePortalPermission(permission *datatypes.User_Customer_CustomerPermission_Permission) (resp bool, err error) {
+func (r User_Customer) RemovePortalPermission(permission *datatypes.User_Customer_CustomerPermission_Permission, cascadePermissionsFlag *bool) (resp bool, err error) {
 	params := []interface{}{
 		permission,
+		cascadePermissionsFlag,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer", "removePortalPermission", params, &r.Options, &resp)
 	return
@@ -973,6 +1011,12 @@ func (r User_Customer) RemoveRole(role *datatypes.User_Permission_Role) (err err
 		role,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer", "removeRole", params, &r.Options, &resp)
+	return
+}
+
+// no documentation yet
+func (r User_Customer) RemoveSecurityAnswers() (resp bool, err error) {
+	err = r.Session.DoRequest("SoftLayer_User_Customer", "removeSecurityAnswers", nil, &r.Options, &resp)
 	return
 }
 
@@ -1022,6 +1066,17 @@ func (r User_Customer) SamlLogout(samlResponse *string) (err error) {
 	return
 }
 
+// no documentation yet
+func (r User_Customer) SelfPasswordChange(currentPassword *string, newPassword *string) (err error) {
+	var resp datatypes.Void
+	params := []interface{}{
+		currentPassword,
+		newPassword,
+	}
+	err = r.Session.DoRequest("SoftLayer_User_Customer", "selfPasswordChange", params, &r.Options, &resp)
+	return
+}
+
 // An OpenIdConnect identity, for example an IBMid, can be linked or mapped to one or more individual SoftLayer users, but no more than one per account. If an OpenIdConnect identity is mapped to multiple accounts in this manner, one such account should be identified as the default account for that identity. Invoke this only on IBMid-authenticated users.
 func (r User_Customer) SetDefaultAccount(providerType *string, accountId *int) (resp datatypes.Account, err error) {
 	params := []interface{}{
@@ -1038,27 +1093,6 @@ func (r User_Customer) SilentlyMigrateUserOpenIdConnect(providerType *string) (r
 		providerType,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer", "silentlyMigrateUserOpenIdConnect", params, &r.Options, &resp)
-	return
-}
-
-// This method is deprecated! SoftLayer Community Forums no longer exist, therefore, this method will return false. In the future, this method will be completely removed.
-//
-// Update a user's password on the SoftLayer community forums. As with portal passwords, user forum passwords must match the following restrictions. Forum passwords must...
-// * ...be over eight characters long.
-// * ...be under twenty characters long.
-// * ...contain at least one uppercase letter
-// * ...contain at least one lowercase letter
-// * ...contain at least one number
-// * ...contain one of the special characters _ - | @ . , ? / ! ~ # $ % ^ & * ( ) { } [ ] \ + =
-// * ...not match your username
-// * ...not match your portal password
-// Finally, users can only update their own password.
-func (r User_Customer) UpdateForumPassword(password *string) (err error) {
-	var resp datatypes.Void
-	params := []interface{}{
-		password,
-	}
-	err = r.Session.DoRequest("SoftLayer_User_Customer", "updateForumPassword", params, &r.Options, &resp)
 	return
 }
 
@@ -1101,7 +1135,6 @@ func (r User_Customer) UpdateSubscriberDeliveryMethod(notificationKeyName *strin
 // * ...contain at least one number
 // * ...contain one of the special characters _ - | @ . , ? / ! ~ # $ % ^ & * ( ) { } [ ] \ =
 // * ...not match your username
-// * ...not match your forum password
 // Finally, users can only update their own VPN password. An account's master user can update any of their account users' VPN passwords.
 func (r User_Customer) UpdateVpnPassword(password *string) (resp bool, err error) {
 	params := []interface{}{
@@ -2307,7 +2340,7 @@ func (r User_Customer_Notification_Hardware) GetUser() (resp datatypes.User_Cust
 	return
 }
 
-// The SoftLayer_User_Customer_Notification_Virtual_Guest object stores links between customers and the virtual guests they wish to monitor.  This link is not enough, the user must be sure to also create SoftLayer_Network_Monitor_Version1_Query_Host instance with the response action set to "notify users" in order for the users linked to that hardware object to be notified on failure.
+// The SoftLayer_User_Customer_Notification_Virtual_Guest object stores links between customers and the virtual guests they wish to monitor.  This link is not enough, the user must be sure to also create SoftLayer_Network_Monitor_Version1_Query_Host instance with the response action set to "notify users" in order for the users linked to that Virtual Guest object to be notified on failure.
 type User_Customer_Notification_Virtual_Guest struct {
 	Session *session.Session
 	Options sl.Options
@@ -2374,7 +2407,7 @@ func (r User_Customer_Notification_Virtual_Guest) DeleteObjects(templateObjects 
 	return
 }
 
-// This method returns all SoftLayer_User_Customer_Notification_Virtual_Guest objects associated with the passed in ID as long as that hardware ID is owned by the current user's account.
+// This method returns all SoftLayer_User_Customer_Notification_Virtual_Guest objects associated with the passed in ID as long as that Virtual Guest ID is owned by the current user's account.
 //
 // This behavior can also be accomplished by simply tapping monitoringUserNotification on the Virtual_Guest object.
 func (r User_Customer_Notification_Virtual_Guest) FindByGuestId(id *int) (resp []datatypes.User_Customer_Notification_Virtual_Guest, err error) {
@@ -2451,17 +2484,18 @@ func (r User_Customer_OpenIdConnect) AcknowledgeSupportPolicy() (err error) {
 }
 
 // Completes invitation process for an OpenIdConnect user created by Bluemix Unified User Console.
-func (r User_Customer_OpenIdConnect) ActivateOpenIdConnectUser(verificationCode *string, userInfo *datatypes.User_Customer) (err error) {
+func (r User_Customer_OpenIdConnect) ActivateOpenIdConnectUser(verificationCode *string, userInfo *datatypes.User_Customer, iamId *string) (err error) {
 	var resp datatypes.Void
 	params := []interface{}{
 		verificationCode,
 		userInfo,
+		iamId,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "activateOpenIdConnectUser", params, &r.Options, &resp)
 	return
 }
 
-// Create a user's API authentication key, allowing that user access to query the SoftLayer API. addApiAuthenticationKey() returns the users new API key. Each portal user is allowed a maximum of two API keys.
+// Create a user's API authentication key, allowing that user access to query the SoftLayer API. addApiAuthenticationKey() returns the user's new API key. Each portal user is allowed only one API key.
 func (r User_Customer_OpenIdConnect) AddApiAuthenticationKey() (resp string, err error) {
 	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "addApiAuthenticationKey", nil, &r.Options, &resp)
 	return
@@ -2489,7 +2523,7 @@ func (r User_Customer_OpenIdConnect) AddBulkHardwareAccess(hardwareIds []int) (r
 	return
 }
 
-// Add multiple permissions to a portal user's permission set. [[Permissions]] control which features in the SoftLayer customer portal and API a user may use. addBulkPortalPermission() does not attempt to add permissions already assigned to the user.
+// Add multiple permissions to a portal user's permission set. [[SoftLayer_User_Customer_CustomerPermission_Permission]] control which features in the SoftLayer customer portal and API a user may use. addBulkPortalPermission() does not attempt to add permissions already assigned to the user.
 //
 // Users can assign permissions to their child users, but not to themselves. An account's master has all portal permissions and can set permissions for any of the other users on their account.
 //
@@ -2526,6 +2560,8 @@ func (r User_Customer_OpenIdConnect) AddBulkVirtualGuestAccess(virtualGuestIds [
 // Grants the user access to a single dedicated host device.  The user will only be allowed to see and access devices in both the portal and the API to which they have been granted access.  If the user's account has devices to which the user has not been granted access, then "not found" exceptions are thrown if the user attempts to access any of these devices.
 //
 // Users can assign device access to their child users, but not to themselves. An account's master has access to all devices on their customer account and can set dedicated host access for any of the other users on their account.
+//
+// Only the USER_MANAGE permission is required to execute this.
 func (r User_Customer_OpenIdConnect) AddDedicatedHostAccess(dedicatedHostId *int) (resp bool, err error) {
 	params := []interface{}{
 		dedicatedHostId,
@@ -2546,6 +2582,8 @@ func (r User_Customer_OpenIdConnect) AddExternalBinding(externalBinding *datatyp
 // Add hardware to a portal user's hardware access list. A user's hardware access list controls which of an account's hardware objects a user has access to in the SoftLayer customer portal and API. Hardware does not exist in the SoftLayer portal and returns "not found" exceptions in the API if the user doesn't have access to it. If a user already has access to the hardware you're attempting to add then addHardwareAccess() returns true.
 //
 // Users can assign hardware access to their child users, but not to themselves. An account's master has access to all hardware on their customer account and can set hardware access for any of the other users on their account.
+//
+// Only the USER_MANAGE permission is required to execute this.
 func (r User_Customer_OpenIdConnect) AddHardwareAccess(hardwareId *int) (resp bool, err error) {
 	params := []interface{}{
 		hardwareId,
@@ -2563,7 +2601,7 @@ func (r User_Customer_OpenIdConnect) AddNotificationSubscriber(notificationKeyNa
 	return
 }
 
-// Add a permission to a portal user's permission set. [[Permissions]] control which features in the SoftLayer customer portal and API a user may use. If the user already has the permission you're attempting to add then addPortalPermission() returns true.
+// Add a permission to a portal user's permission set. [[SoftLayer_User_Customer_CustomerPermission_Permission]] control which features in the SoftLayer customer portal and API a user may use. If the user already has the permission you're attempting to add then addPortalPermission() returns true.
 //
 // Users can assign permissions to their child users, but not to themselves. An account's master has all portal permissions and can set permissions for any of the other users on their account.
 //
@@ -2589,11 +2627,27 @@ func (r User_Customer_OpenIdConnect) AddRole(role *datatypes.User_Permission_Rol
 // Add a CloudLayer Computing Instance to a portal user's access list. A user's CloudLayer Computing Instance access list controls which of an account's CloudLayer Computing Instance objects a user has access to in the SoftLayer customer portal and API. CloudLayer Computing Instances do not exist in the SoftLayer portal and returns "not found" exceptions in the API if the user doesn't have access to it. If a user already has access to the CloudLayer Computing Instance you're attempting to add then addVirtualGuestAccess() returns true.
 //
 // Users can assign CloudLayer Computing Instance access to their child users, but not to themselves. An account's master has access to all CloudLayer Computing Instances on their customer account and can set CloudLayer Computing Instance access for any of the other users on their account.
+//
+// Only the USER_MANAGE permission is required to execute this.
 func (r User_Customer_OpenIdConnect) AddVirtualGuestAccess(virtualGuestId *int) (resp bool, err error) {
 	params := []interface{}{
 		virtualGuestId,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "addVirtualGuestAccess", params, &r.Options, &resp)
+	return
+}
+
+// This method can be used in place of [[SoftLayer_User_Customer::editObject]] to change the parent user of this user.
+//
+// The new parent must be a user on the same account, and must not be a child of this user.  A user is not allowed to change their own parent.
+//
+// If the cascadeFlag is set to false, then an exception will be thrown if the new parent does not have all of the permissions that this user possesses.  If the cascadeFlag is set to true, then permissions will be removed from this user and the descendants of this user as necessary so that no children of the parent will have permissions that the parent does not possess. However, setting the cascadeFlag to true will not remove the access all device permissions from this user. The customer portal will need to be used to remove these permissions.
+func (r User_Customer_OpenIdConnect) AssignNewParentId(parentId *int, cascadePermissionsFlag *bool) (resp datatypes.User_Customer, err error) {
+	params := []interface{}{
+		parentId,
+		cascadePermissionsFlag,
+	}
+	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "assignNewParentId", params, &r.Options, &resp)
 	return
 }
 
@@ -2650,7 +2704,13 @@ func (r User_Customer_OpenIdConnect) CreateNotificationSubscriber(keyName *strin
 	return
 }
 
-// Create a new user in the SoftLayer customer portal. createObject() creates a user's portal record and adds them into the SoftLayer community forums. It is not possible to set up SLL or PPTP enable flags during object creation. These flags are ignored during object creation. You will need to make a subsequent call to edit object in order to enable VPN access. An account's master user and sub-users who have the User Manage permission can add new users. createObject() creates users with a default permission set. After adding a user it may be helpful to set their permissions and hardware access.
+// Create a new user in the SoftLayer customer portal. It is not possible to set up SLL enable flags during object creation. These flags are ignored during object creation. You will need to make a subsequent call to edit object in order to enable VPN access.
+//
+// An account's master user and sub-users who have the User Manage permission can add new users.
+//
+// Users are created with a default permission set. After adding a user it may be helpful to set their permissions and device access.
+//
+// secondaryPasswordTimeoutDays will be set to the system configured default value if the attribute is not provided or the attribute is not a valid value.
 //
 // Note, neither password nor vpnPassword parameters are required.
 //
@@ -2664,7 +2724,7 @@ func (r User_Customer_OpenIdConnect) CreateNotificationSubscriber(keyName *strin
 //
 // vpnPassword If the vpnPassword is provided, then the user's vpnPassword will be set to the provided password.  When creating a vpn only user, the vpnPassword MUST be supplied.  If the vpnPassword is not provided, then the user will need to use the portal to edit their profile and set the vpnPassword.
 //
-//
+// IBMid considerations When a SoftLayer account is linked to a Platform Services (PaaS, formerly Bluemix) account, AND the trait on the SoftLayer Account indicating IBMid authentication is set, then SoftLayer will delegate the creation of the user to PaaS.  The Platform Services "invite user" API call is asynchronous, and so no user object can be returned from this API call.  In this specific case, this API will throw a SoftLayer_Exception_User_Customer_DelegateIamIdInvitationToPaas exception, with text indicating that the call was at least accepted by Platform Services.  The Platform Services API is the preferred API for creating users based on IBMid in a linked account pair.  If you have automation using this API that depends on getting a synchronous response with a user object with an id, you should contact SoftLayer Support to have the "IBMid authentication" trait set to 0 on this account.  In that case, a normal SoftLayer user will be created (no IBMid association set up) and the createObject call will return synchronously as before.
 func (r User_Customer_OpenIdConnect) CreateObject(templateObject *datatypes.User_Customer_OpenIdConnect, password *string, vpnPassword *string) (resp datatypes.User_Customer_OpenIdConnect, err error) {
 	params := []interface{}{
 		templateObject,
@@ -2789,7 +2849,7 @@ func (r User_Customer_OpenIdConnect) GetAllowedVirtualGuestIds() (resp []int, er
 	return
 }
 
-// Retrieve A portal user's API Authentication keys. There is a max limit of two API keys per user.
+// Retrieve A portal user's API Authentication keys. There is a max limit of one API key per user.
 func (r User_Customer_OpenIdConnect) GetApiAuthenticationKeys() (resp []datatypes.User_Customer_ApiAuthentication, err error) {
 	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "getApiAuthenticationKeys", nil, &r.Options, &resp)
 	return
@@ -2801,12 +2861,6 @@ func (r User_Customer_OpenIdConnect) GetAuthenticationToken(token *datatypes.Con
 		token,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "getAuthenticationToken", params, &r.Options, &resp)
-	return
-}
-
-// Retrieve The CDN accounts associated with a portal user.
-func (r User_Customer_OpenIdConnect) GetCdnAccounts() (resp []datatypes.Network_ContentDelivery_Account, err error) {
-	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "getCdnAccounts", nil, &r.Options, &resp)
 	return
 }
 
@@ -2828,7 +2882,7 @@ func (r User_Customer_OpenIdConnect) GetDedicatedHosts() (resp []datatypes.Virtu
 	return
 }
 
-// This API gets the default account for the OpenIdConnect identity that is linked to the current SoftLayer user identity. If there is no default present, the API returns null, except in the special case where we find one active user linked to the IBMid. In that case, we will set the link from the IBMid to that user as default, and return the account of which that user is a member. Invoke this only on IBMid-authenticated users.
+// This API gets the account associated with the default user for the OpenIdConnect identity that is linked to the current active SoftLayer user identity. When a single active user is found for that IAMid, it becomes the default user and the associated account is returned. When multiple default users are found only the first is preserved and the associated account is returned (remaining defaults see their default flag unset). If the current SoftLayer user identity isn't linked to any OpenIdConnect identity, or if none of the linked users were found as defaults, the API returns null. Invoke this only on IAMid-authenticated users.
 func (r User_Customer_OpenIdConnect) GetDefaultAccount(providerType *string) (resp datatypes.Account, err error) {
 	params := []interface{}{
 		providerType,
@@ -2885,6 +2939,12 @@ func (r User_Customer_OpenIdConnect) GetHasFullVirtualGuestAccessFlag() (resp bo
 	return
 }
 
+// Retrieve
+func (r User_Customer_OpenIdConnect) GetIbmIdLink() (resp datatypes.User_Customer_Link, err error) {
+	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "getIbmIdLink", nil, &r.Options, &resp)
+	return
+}
+
 // no documentation yet
 func (r User_Customer_OpenIdConnect) GetImpersonationToken() (resp string, err error) {
 	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "getImpersonationToken", nil, &r.Options, &resp)
@@ -2928,7 +2988,7 @@ func (r User_Customer_OpenIdConnect) GetLoginToken(request *datatypes.Container_
 	return
 }
 
-// An OpenIdConnect identity, for example an IBMid, can be linked or mapped to one or more individual SoftLayer users, but no more than one SoftLayer user per account. This effectively links the OpenIdConnect identity to those accounts. This API returns a list of all the accounts for which there is a link between the OpenIdConnect identity and a SoftLayer user. Invoke this only on IBMid-authenticated users.
+// An OpenIdConnect identity, for example an IAMid, can be linked or mapped to one or more individual SoftLayer users, but no more than one SoftLayer user per account. This effectively links the OpenIdConnect identity to those accounts. This API returns a list of all active accounts for which there is a link between the OpenIdConnect identity and a SoftLayer user. Invoke this only on IAMid-authenticated users.
 func (r User_Customer_OpenIdConnect) GetMappedAccounts(providerType *string) (resp []datatypes.Account, err error) {
 	params := []interface{}{
 		providerType,
@@ -2989,6 +3049,15 @@ func (r User_Customer_OpenIdConnect) GetParent() (resp datatypes.User_Customer, 
 	return
 }
 
+// no documentation yet
+func (r User_Customer_OpenIdConnect) GetPasswordRequirements(isVpn *bool) (resp datatypes.Container_User_Customer_PasswordSet, err error) {
+	params := []interface{}{
+		isVpn,
+	}
+	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "getPasswordRequirements", params, &r.Options, &resp)
+	return
+}
+
 // Retrieve A portal user's permissions. These permissions control that user's access to functions within the SoftLayer customer portal and API.
 func (r User_Customer_OpenIdConnect) GetPermissions() (resp []datatypes.User_Customer_CustomerPermission_Permission, err error) {
 	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "getPermissions", nil, &r.Options, &resp)
@@ -3041,7 +3110,9 @@ func (r User_Customer_OpenIdConnect) GetPreferences() (resp []datatypes.User_Pre
 	return
 }
 
-// Retrieve the authentication requirements for an outstanding password set/reset request.  The password key provided to the user in an email generated by the [[SoftLayer_User_Customer::newUserPassword|newUserPassword]]. Password recovery keys are valid for 24 hours after they're generated.
+// Retrieve the authentication requirements for an outstanding password set/reset request.  The requirements returned in the same SoftLayer_Container_User_Customer_PasswordSet container which is provided as a parameter into this request.  The SoftLayer_Container_User_Customer_PasswordSet::authenticationMethods array will contain an entry for each authentication method required for the user.  See SoftLayer_Container_User_Customer_PasswordSet for more details.
+//
+// If the user has required authentication methods, then authentication information will be supplied to the SoftLayer_User_Customer::processPasswordSetRequest method within this same SoftLayer_Container_User_Customer_PasswordSet container.  All existing information in the container must continue to exist in the container to complete the password set/reset process.
 func (r User_Customer_OpenIdConnect) GetRequirementsForPasswordSet(passwordSet *datatypes.Container_User_Customer_PasswordSet) (resp datatypes.Container_User_Customer_PasswordSet, err error) {
 	params := []interface{}{
 		passwordSet,
@@ -3056,7 +3127,7 @@ func (r User_Customer_OpenIdConnect) GetRoles() (resp []datatypes.User_Permissio
 	return
 }
 
-// Retrieve
+// Retrieve [DEPRECATED]
 func (r User_Customer_OpenIdConnect) GetSalesforceUserLink() (resp datatypes.User_Customer_Link, err error) {
 	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "getSalesforceUserLink", nil, &r.Options, &resp)
 	return
@@ -3135,16 +3206,19 @@ func (r User_Customer_OpenIdConnect) GetUnsuccessfulLogins() (resp []datatypes.U
 }
 
 // Returns an IMS User Object from the provided OpenIdConnect User ID or IBMid Unique Identifier for the Account of the active user. Enforces the User Management permissions for the Active User. An exception will be thrown if no matching IMS User is found. NOTE that providing IBMid Unique Identifier is optional, but it will be preferred over OpenIdConnect User ID if provided.
-func (r User_Customer_OpenIdConnect) GetUserForUnifiedInvitation(openIdConnectUserId *string, ibmIdUniqueIdentifier *string) (resp datatypes.User_Customer_OpenIdConnect, err error) {
+func (r User_Customer_OpenIdConnect) GetUserForUnifiedInvitation(openIdConnectUserId *string, uniqueIdentifier *string, searchInvitationsNotLinksFlag *string) (resp datatypes.User_Customer_OpenIdConnect, err error) {
 	params := []interface{}{
 		openIdConnectUserId,
-		ibmIdUniqueIdentifier,
+		uniqueIdentifier,
+		searchInvitationsNotLinksFlag,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "getUserForUnifiedInvitation", params, &r.Options, &resp)
 	return
 }
 
-// Retrieve a user object using a password token. When a new user is created or when a user has requested a password change using initiatePortalPasswordChange, they will have received an email that contains a url with a token.  That token is used as the parameter for getUserIdForPasswordSet.
+// Retrieve a user id using a password token provided to the user in an email generated by the SoftLayer_User_Customer::initiatePortalPasswordChange request. Password recovery keys are valid for 24 hours after they're generated.
+//
+// When a new user is created or when a user has requested a password change using initiatePortalPasswordChange, they will have received an email that contains a url with a token.  That token is used as the parameter for getUserIdForPasswordSet.  Once the user id is known, then the SoftLayer_User_Customer object can be retrieved which is necessary to complete the process to set or reset a user's password.
 func (r User_Customer_OpenIdConnect) GetUserIdForPasswordSet(key *string) (resp int, err error) {
 	params := []interface{}{
 		key,
@@ -3208,7 +3282,7 @@ func (r User_Customer_OpenIdConnect) InitiateExternalAuthentication(authenticati
 //
 // If this is a new master user who has never logged into the portal, then password reset will be initiated. Once a master user has logged into the portal, they must setup their security questions prior to logging out because master users are required to answer a security question during the password reset process.  Should a master user not have security questions defined and not remember their password in order to define the security questions, then they will need to contact support at live chat or Revenue Services for assistance.
 //
-// Due to security reasons, the number reset requests per username are limited within a undisclosed timeframe.
+// Due to security reasons, the number of reset requests per username are limited within a undisclosed timeframe.
 func (r User_Customer_OpenIdConnect) InitiatePortalPasswordChange(username *string) (resp bool, err error) {
 	params := []interface{}{
 		username,
@@ -3242,18 +3316,6 @@ func (r User_Customer_OpenIdConnect) IsMasterUser() (resp bool, err error) {
 	return
 }
 
-// This method is deprecated! SoftLayer Community Forums no longer exist, therefore, any password verified will return false. In the future, this method will be completely removed.
-//
-// Determine if a string is the given user's login password to the SoftLayer community forums.
-func (r User_Customer_OpenIdConnect) IsValidForumPassword(password *string) (err error) {
-	var resp datatypes.Void
-	params := []interface{}{
-		password,
-	}
-	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "isValidForumPassword", params, &r.Options, &resp)
-	return
-}
-
 // Determine if a string is the given user's login password to the SoftLayer customer portal.
 func (r User_Customer_OpenIdConnect) IsValidPortalPassword(password *string) (resp bool, err error) {
 	params := []interface{}{
@@ -3272,7 +3334,9 @@ func (r User_Customer_OpenIdConnect) PerformExternalAuthentication(authenticatio
 	return
 }
 
-// Set the password for a user who has an outstanding password request. A user with an outstanding password request will have an unused and unexpired password key.  The password key is part of the url provided to the user in the email sent to the user with information on how to set their password.  The email was generated by the [[SoftLayer_User_Customer::initiatePortalPasswordRequest|initiatePortalPasswordRequest]] method. Password recovery keys are valid for 24 hours after they're generated.
+// Set the password for a user who has an outstanding password request. A user with an outstanding password request will have an unused and unexpired password key.  The password key is part of the url provided to the user in the email sent to the user with information on how to set their password.  The email was generated by the SoftLayer_User_Customer::initiatePortalPasswordRequest request. Password recovery keys are valid for 24 hours after they're generated.
+//
+// If the user has required authentication methods as specified by in the SoftLayer_Container_User_Customer_PasswordSet container returned from the SoftLayer_User_Customer::getRequirementsForPasswordSet request, then additional requests must be made to processPasswordSetRequest to authenticate the user before changing the password.  First, if the user has security questions set on their profile, they will be required to answer one of their questions correctly. Next, if the user has Verisign, Google Authentication, or Phone Factor on their account, they must authenticate according to the two-factor provider.  All of this authentication is done using the SoftLayer_Container_User_Customer_PasswordSet container.  If the user has Phone Factor authentication, additional requests to SoftLayer_User_Customer::checkPhoneFactorAuthenticationForPasswordSet is required until a response other than Awaiting Response is received.
 //
 // User portal passwords must match the following restrictions. Portal passwords must...
 // * ...be over eight characters long.
@@ -3282,7 +3346,6 @@ func (r User_Customer_OpenIdConnect) PerformExternalAuthentication(authenticatio
 // * ...contain at least one number
 // * ...contain one of the special characters _ - | @ . , ? / ! ~ # $ % ^ & * ( ) { } [ ] \ + =
 // * ...not match your username
-// * ...not match your forum password
 func (r User_Customer_OpenIdConnect) ProcessPasswordSetRequest(passwordSet *datatypes.Container_User_Customer_PasswordSet, authenticationContainer *datatypes.Container_User_Customer_External_Binding) (resp bool, err error) {
 	params := []interface{}{
 		passwordSet,
@@ -3338,7 +3401,7 @@ func (r User_Customer_OpenIdConnect) RemoveBulkDedicatedHostAccess(dedicatedHost
 	return
 }
 
-// Remove multiple hardware from a portal user's hardware access list. A user's hardware access list controls which of an account's hardware objects a user has access to in the SoftLayer customer portal and API. Hardware does not exist in the SoftLayer portal and returns "not found" exceptions in the API if the user doesn't have access to it. If a user does not has access to the hardware you're attempting remove add then removeBulkHardwareAccess() returns true.
+// Remove multiple hardware from a portal user's hardware access list. A user's hardware access list controls which of an account's hardware objects a user has access to in the SoftLayer customer portal and API. Hardware does not exist in the SoftLayer portal and returns "not found" exceptions in the API if the user doesn't have access to it. If a user does not has access to the hardware you're attempting to remove then removeBulkHardwareAccess() returns true.
 //
 // Users can assign hardware access to their child users, but not to themselves. An account's master has access to all hardware on their customer account and can set hardware access for any of the other users on their account.
 //
@@ -3351,14 +3414,19 @@ func (r User_Customer_OpenIdConnect) RemoveBulkHardwareAccess(hardwareIds []int)
 	return
 }
 
-// Remove multiple permissions from a portal user's permission set. [[Permissions]] control which features in the SoftLayer customer portal and API a user may use. Removing a user's permission will affect that user's portal and API access. removePortalPermission() does not attempt to remove permissions that are not assigned to the user.
+// Remove (revoke) multiple permissions from a portal user's permission set. [[SoftLayer_User_Customer_CustomerPermission_Permission]] control which features in the SoftLayer customer portal and API a user may use. Removing a user's permission will affect that user's portal and API access. removePortalPermission() does not attempt to remove permissions that are not assigned to the user.
 //
-// Users can assign permissions to their child users, but not to themselves. An account's master has all portal permissions and can set permissions for any of the other users on their account.
+// Users can grant or revoke permissions to their child users, but not to themselves. An account's master has all portal permissions and can grant permissions for any of the other users on their account.
+//
+// If the cascadePermissionsFlag is set to true, then removing the permissions from a user will cascade down the child hierarchy and remove the permissions from this user along with all child users who also have the permission.
+//
+// If the cascadePermissionsFlag is not provided or is set to false and the user has children users who have the permission, then an exception will be thrown, and the permission will not be removed from this user.
 //
 // Use the [[SoftLayer_User_Customer_CustomerPermission_Permission::getAllObjects]] method to retrieve a list of all permissions available in the SoftLayer customer portal and API. Permissions are removed based on the keyName property of the permission objects within the permissions parameter.
-func (r User_Customer_OpenIdConnect) RemoveBulkPortalPermission(permissions []datatypes.User_Customer_CustomerPermission_Permission) (resp bool, err error) {
+func (r User_Customer_OpenIdConnect) RemoveBulkPortalPermission(permissions []datatypes.User_Customer_CustomerPermission_Permission, cascadePermissionsFlag *bool) (resp bool, err error) {
 	params := []interface{}{
 		permissions,
+		cascadePermissionsFlag,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "removeBulkPortalPermission", params, &r.Options, &resp)
 	return
@@ -3416,14 +3484,19 @@ func (r User_Customer_OpenIdConnect) RemoveHardwareAccess(hardwareId *int) (resp
 	return
 }
 
-// Remove a permission from a portal user's permission set. [[Permissions]] control which features in the SoftLayer customer portal and API a user may use. Removing a user's permission will affect that user's portal and API access. If the user does not have the permission you're attempting to remove then removePortalPermission() returns true.
+// Remove (revoke) a permission from a portal user's permission set. [[SoftLayer_User_Customer_CustomerPermission_Permission]] control which features in the SoftLayer customer portal and API a user may use. Removing a user's permission will affect that user's portal and API access. If the user does not have the permission you're attempting to remove then removePortalPermission() returns true.
 //
 // Users can assign permissions to their child users, but not to themselves. An account's master has all portal permissions and can set permissions for any of the other users on their account.
 //
+// If the cascadePermissionsFlag is set to true, then removing the permission from a user will cascade down the child hierarchy and remove the permission from this user and all child users who also have the permission.
+//
+// If the cascadePermissionsFlag is not set or is set to false and the user has children users who have the permission, then an exception will be thrown, and the permission will not be removed from this user.
+//
 // Use the [[SoftLayer_User_Customer_CustomerPermission_Permission::getAllObjects]] method to retrieve a list of all permissions available in the SoftLayer customer portal and API. Permissions are removed based on the keyName property of the permission parameter.
-func (r User_Customer_OpenIdConnect) RemovePortalPermission(permission *datatypes.User_Customer_CustomerPermission_Permission) (resp bool, err error) {
+func (r User_Customer_OpenIdConnect) RemovePortalPermission(permission *datatypes.User_Customer_CustomerPermission_Permission, cascadePermissionsFlag *bool) (resp bool, err error) {
 	params := []interface{}{
 		permission,
+		cascadePermissionsFlag,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "removePortalPermission", params, &r.Options, &resp)
 	return
@@ -3436,6 +3509,12 @@ func (r User_Customer_OpenIdConnect) RemoveRole(role *datatypes.User_Permission_
 		role,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "removeRole", params, &r.Options, &resp)
+	return
+}
+
+// no documentation yet
+func (r User_Customer_OpenIdConnect) RemoveSecurityAnswers() (resp bool, err error) {
+	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "removeSecurityAnswers", nil, &r.Options, &resp)
 	return
 }
 
@@ -3485,7 +3564,18 @@ func (r User_Customer_OpenIdConnect) SamlLogout(samlResponse *string) (err error
 	return
 }
 
-// An OpenIdConnect identity, for example an IBMid, can be linked or mapped to one or more individual SoftLayer users, but no more than one per account. If an OpenIdConnect identity is mapped to multiple accounts in this manner, one such account should be identified as the default account for that identity. Invoke this only on IBMid-authenticated users.
+// no documentation yet
+func (r User_Customer_OpenIdConnect) SelfPasswordChange(currentPassword *string, newPassword *string) (err error) {
+	var resp datatypes.Void
+	params := []interface{}{
+		currentPassword,
+		newPassword,
+	}
+	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "selfPasswordChange", params, &r.Options, &resp)
+	return
+}
+
+// An OpenIdConnect identity, for example an IAMid, can be linked or mapped to one or more individual SoftLayer users, but no more than one per account. If an OpenIdConnect identity is mapped to multiple accounts in this manner, one such account should be identified as the default account for that identity. Invoke this only on IBMid-authenticated users.
 func (r User_Customer_OpenIdConnect) SetDefaultAccount(providerType *string, accountId *int) (resp datatypes.Account, err error) {
 	params := []interface{}{
 		providerType,
@@ -3501,27 +3591,6 @@ func (r User_Customer_OpenIdConnect) SilentlyMigrateUserOpenIdConnect(providerTy
 		providerType,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "silentlyMigrateUserOpenIdConnect", params, &r.Options, &resp)
-	return
-}
-
-// This method is deprecated! SoftLayer Community Forums no longer exist, therefore, this method will return false. In the future, this method will be completely removed.
-//
-// Update a user's password on the SoftLayer community forums. As with portal passwords, user forum passwords must match the following restrictions. Forum passwords must...
-// * ...be over eight characters long.
-// * ...be under twenty characters long.
-// * ...contain at least one uppercase letter
-// * ...contain at least one lowercase letter
-// * ...contain at least one number
-// * ...contain one of the special characters _ - | @ . , ? / ! ~ # $ % ^ & * ( ) { } [ ] \ + =
-// * ...not match your username
-// * ...not match your portal password
-// Finally, users can only update their own password.
-func (r User_Customer_OpenIdConnect) UpdateForumPassword(password *string) (err error) {
-	var resp datatypes.Void
-	params := []interface{}{
-		password,
-	}
-	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "updateForumPassword", params, &r.Options, &resp)
 	return
 }
 
@@ -3564,7 +3633,6 @@ func (r User_Customer_OpenIdConnect) UpdateSubscriberDeliveryMethod(notification
 // * ...contain at least one number
 // * ...contain one of the special characters _ - | @ . , ? / ! ~ # $ % ^ & * ( ) { } [ ] \ =
 // * ...not match your username
-// * ...not match your forum password
 // Finally, users can only update their own VPN password. An account's master user can update any of their account users' VPN passwords.
 func (r User_Customer_OpenIdConnect) UpdateVpnPassword(password *string) (resp bool, err error) {
 	params := []interface{}{
@@ -3586,6 +3654,55 @@ func (r User_Customer_OpenIdConnect) ValidateAuthenticationToken(authenticationT
 		authenticationToken,
 	}
 	err = r.Session.DoRequest("SoftLayer_User_Customer_OpenIdConnect", "validateAuthenticationToken", params, &r.Options, &resp)
+	return
+}
+
+// no documentation yet
+type User_Customer_Profile_Event_HyperWarp struct {
+	Session *session.Session
+	Options sl.Options
+}
+
+// GetUserCustomerProfileEventHyperWarpService returns an instance of the User_Customer_Profile_Event_HyperWarp SoftLayer service
+func GetUserCustomerProfileEventHyperWarpService(sess *session.Session) User_Customer_Profile_Event_HyperWarp {
+	return User_Customer_Profile_Event_HyperWarp{Session: sess}
+}
+
+func (r User_Customer_Profile_Event_HyperWarp) Id(id int) User_Customer_Profile_Event_HyperWarp {
+	r.Options.Id = &id
+	return r
+}
+
+func (r User_Customer_Profile_Event_HyperWarp) Mask(mask string) User_Customer_Profile_Event_HyperWarp {
+	if !strings.HasPrefix(mask, "mask[") && (strings.Contains(mask, "[") || strings.Contains(mask, ",")) {
+		mask = fmt.Sprintf("mask[%s]", mask)
+	}
+
+	r.Options.Mask = mask
+	return r
+}
+
+func (r User_Customer_Profile_Event_HyperWarp) Filter(filter string) User_Customer_Profile_Event_HyperWarp {
+	r.Options.Filter = filter
+	return r
+}
+
+func (r User_Customer_Profile_Event_HyperWarp) Limit(limit int) User_Customer_Profile_Event_HyperWarp {
+	r.Options.Limit = &limit
+	return r
+}
+
+func (r User_Customer_Profile_Event_HyperWarp) Offset(offset int) User_Customer_Profile_Event_HyperWarp {
+	r.Options.Offset = &offset
+	return r
+}
+
+// no documentation yet
+func (r User_Customer_Profile_Event_HyperWarp) ReceiveEventDirect(eventJson *datatypes.Container_User_Customer_Profile_Event_HyperWarp_ProfileChange) (resp bool, err error) {
+	params := []interface{}{
+		eventJson,
+	}
+	err = r.Session.DoRequest("SoftLayer_User_Customer_Profile_Event_HyperWarp", "receiveEventDirect", params, &r.Options, &resp)
 	return
 }
 
@@ -3708,7 +3825,11 @@ func (r User_Customer_Security_Answer) GetUser() (resp datatypes.User_Customer, 
 	return
 }
 
-// Each SoftLayer portal account is assigned a status code that determines how it's treated in the customer portal. This status is reflected in the SoftLayer_User_Customer_Status data type. Status differs from user permissions in that user status applies globally to the portal while user permissions are applied to specific portal functions.
+// Each SoftLayer User Customer instance is assigned a status code that determines how it's treated in the customer portal. This status is reflected in the SoftLayer_User_Customer_Status data type. Status differs from user permissions in that user status applies globally to the portal while user permissions are applied to specific portal functions.
+//
+// Note that a status of "PENDING" also has been added. This status is specific to users that are configured to use IBMid authentication. This would include some (not all) users on accounts that are linked to Platform Services (PaaS, formerly Bluemix) accounts, but is not limited to users in such accounts. Using IBMid authentication is optional for active users even if it is not required by the account type. PENDING status indicates that a relationship between an IBMid and a user is being set up but is not complete. To be complete, PENDING users need to perform an action ("accepting the invitation") before becoming an active user within IBM Cloud and/or IMS. PENDING is a system state, and can not be administered by users (including the account master user). SoftLayer Commercial is the only environment where IBMid and/or account linking are used.
+//
+//
 type User_Customer_Status struct {
 	Session *session.Session
 	Options sl.Options
@@ -4189,7 +4310,7 @@ func (r User_Permission_Group_Type) Offset(offset int) User_Permission_Group_Typ
 	return r
 }
 
-// Retrieve
+// Retrieve The groups that are of this type.
 func (r User_Permission_Group_Type) GetGroups() (resp []datatypes.User_Permission_Group, err error) {
 	err = r.Session.DoRequest("SoftLayer_User_Permission_Group_Type", "getGroups", nil, &r.Options, &resp)
 	return

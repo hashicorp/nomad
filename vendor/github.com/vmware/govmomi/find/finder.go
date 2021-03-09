@@ -38,14 +38,24 @@ type Finder struct {
 	folders *object.DatacenterFolders
 }
 
-func NewFinder(client *vim25.Client, all bool) *Finder {
+func NewFinder(client *vim25.Client, all ...bool) *Finder {
+	props := false
+	if len(all) == 1 {
+		props = all[0]
+	}
+
 	f := &Finder{
 		client: client,
 		si:     object.NewSearchIndex(client),
 		r: recurser{
 			Collector: property.DefaultCollector(client),
-			All:       all,
+			All:       props,
 		},
+	}
+
+	if len(all) == 0 {
+		// attempt to avoid SetDatacenter() requirement
+		f.dc, _ = f.DefaultDatacenter(context.Background())
 	}
 
 	return f
@@ -253,7 +263,7 @@ func (f *Finder) managedObjectList(ctx context.Context, path string, tl bool, in
 		fn = f.dcReference
 	}
 
-	if len(path) == 0 {
+	if path == "" {
 		path = "."
 	}
 
@@ -905,6 +915,12 @@ func (f *Finder) DefaultFolder(ctx context.Context) (*object.Folder, error) {
 		return nil, toDefaultError(err)
 	}
 	folder := object.NewFolder(f.client, ref.Reference())
+
+	// Set the InventoryPath of the newly created folder object
+	// The default foler becomes the datacenter's "vm" folder.
+	// The "vm" folder always exists for a datacenter. It cannot be
+	// removed or replaced
+	folder.SetInventoryPath(path.Join(f.dc.InventoryPath, "vm"))
 
 	return folder, nil
 }

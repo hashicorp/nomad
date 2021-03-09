@@ -77,6 +77,7 @@ func (d DomainRecord) GetUpdateOptions() (du DomainRecordUpdateOptions) {
 	du.Protocol = copyString(d.Protocol)
 	du.TTLSec = d.TTLSec
 	du.Tag = copyString(d.Tag)
+
 	return
 }
 
@@ -92,6 +93,7 @@ func (DomainRecordsPagedResponse) endpointWithID(c *Client, id int) string {
 	if err != nil {
 		panic(err)
 	}
+
 	return endpoint
 }
 
@@ -104,15 +106,12 @@ func (resp *DomainRecordsPagedResponse) appendData(r *DomainRecordsPagedResponse
 func (c *Client) ListDomainRecords(ctx context.Context, domainID int, opts *ListOptions) ([]DomainRecord, error) {
 	response := DomainRecordsPagedResponse{}
 	err := c.listHelperWithID(ctx, &response, domainID, opts)
+
 	if err != nil {
 		return nil, err
 	}
-	return response.Data, nil
-}
 
-// fixDates converts JSON timestamps to Go time.Time values
-func (d *DomainRecord) fixDates() *DomainRecord {
-	return d
+	return response.Data, nil
 }
 
 // GetDomainRecord gets the domainrecord with the provided ID
@@ -121,18 +120,23 @@ func (c *Client) GetDomainRecord(ctx context.Context, domainID int, id int) (*Do
 	if err != nil {
 		return nil, err
 	}
+
 	e = fmt.Sprintf("%s/%d", e, id)
 	r, err := coupleAPIErrors(c.R(ctx).SetResult(&DomainRecord{}).Get(e))
+
 	if err != nil {
 		return nil, err
 	}
+
 	return r.Result().(*DomainRecord), nil
 }
 
 // CreateDomainRecord creates a DomainRecord
 func (c *Client) CreateDomainRecord(ctx context.Context, domainID int, domainrecord DomainRecordCreateOptions) (*DomainRecord, error) {
 	var body string
+
 	e, err := c.DomainRecords.endpointWithID(domainID)
+
 	if err != nil {
 		return nil, err
 	}
@@ -143,6 +147,7 @@ func (c *Client) CreateDomainRecord(ctx context.Context, domainID int, domainrec
 	if err != nil {
 		return nil, NewError(err)
 	}
+
 	body = string(bodyData)
 
 	r, err := coupleAPIErrors(req.
@@ -152,16 +157,20 @@ func (c *Client) CreateDomainRecord(ctx context.Context, domainID int, domainrec
 	if err != nil {
 		return nil, err
 	}
-	return r.Result().(*DomainRecord).fixDates(), nil
+
+	return r.Result().(*DomainRecord), nil
 }
 
 // UpdateDomainRecord updates the DomainRecord with the specified id
 func (c *Client) UpdateDomainRecord(ctx context.Context, domainID int, id int, domainrecord DomainRecordUpdateOptions) (*DomainRecord, error) {
 	var body string
+
 	e, err := c.DomainRecords.endpointWithID(domainID)
+
 	if err != nil {
 		return nil, err
 	}
+
 	e = fmt.Sprintf("%s/%d", e, id)
 
 	req := c.R(ctx).SetResult(&DomainRecord{})
@@ -179,7 +188,8 @@ func (c *Client) UpdateDomainRecord(ctx context.Context, domainID int, id int, d
 	if err != nil {
 		return nil, err
 	}
-	return r.Result().(*DomainRecord).fixDates(), nil
+
+	return r.Result().(*DomainRecord), nil
 }
 
 // DeleteDomainRecord deletes the DomainRecord with the specified id
@@ -188,8 +198,10 @@ func (c *Client) DeleteDomainRecord(ctx context.Context, domainID int, id int) e
 	if err != nil {
 		return err
 	}
+
 	e = fmt.Sprintf("%s/%d", e, id)
 
 	_, err = coupleAPIErrors(c.R(ctx).Delete(e))
+
 	return err
 }

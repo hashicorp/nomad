@@ -30,6 +30,9 @@ type Product_Catalog struct {
 	// Brands using this Catalog
 	Brands []Brand `json:"brands,omitempty" xmlrpc:"brands,omitempty"`
 
+	// The Key Name of the Catalog, used for direct references
+	KeyName *string `json:"keyName,omitempty" xmlrpc:"keyName,omitempty"`
+
 	// A count of packages available in this catalog
 	PackageCount *uint `json:"packageCount,omitempty" xmlrpc:"packageCount,omitempty"`
 
@@ -168,6 +171,9 @@ type Product_Item struct {
 	// An item's category conflicts. For example, 10 Gbps redundant network functionality cannot be ordered with a secondary GPU and as such is a conflict.
 	GlobalCategoryConflicts []Product_Item_Resource_Conflict `json:"globalCategoryConflicts,omitempty" xmlrpc:"globalCategoryConflicts,omitempty"`
 
+	// The hardware generic component model ID of the product.
+	HardwareGenericComponentId *int `json:"hardwareGenericComponentId,omitempty" xmlrpc:"hardwareGenericComponentId,omitempty"`
+
 	// The generic hardware component that this item represents.
 	HardwareGenericComponentModel *Hardware_Component_Model_Generic `json:"hardwareGenericComponentModel,omitempty" xmlrpc:"hardwareGenericComponentModel,omitempty"`
 
@@ -176,6 +182,9 @@ type Product_Item struct {
 
 	// A product's internal identification number
 	Id *int `json:"id,omitempty" xmlrpc:"id,omitempty"`
+
+	// no documentation yet
+	IneligibleForAccountDiscountFlag *bool `json:"ineligibleForAccountDiscountFlag,omitempty" xmlrpc:"ineligibleForAccountDiscountFlag,omitempty"`
 
 	// DEPRECATED. An item's inventory status per datacenter.
 	Inventory []Product_Package_Inventory `json:"inventory,omitempty" xmlrpc:"inventory,omitempty"`
@@ -203,6 +212,12 @@ type Product_Item struct {
 
 	// Detailed product description
 	LongDescription *string `json:"longDescription,omitempty" xmlrpc:"longDescription,omitempty"`
+
+	// The minimum number of bays that support NVMe SSDs.
+	MinimumNvmeBays *int `json:"minimumNvmeBays,omitempty" xmlrpc:"minimumNvmeBays,omitempty"`
+
+	// Indicates whether an item is a NVMe SSD.
+	NvmeDiskFlag *bool `json:"nvmeDiskFlag,omitempty" xmlrpc:"nvmeDiskFlag,omitempty"`
 
 	// no documentation yet
 	ObjectStorageClusterGeolocationType *string `json:"objectStorageClusterGeolocationType,omitempty" xmlrpc:"objectStorageClusterGeolocationType,omitempty"`
@@ -580,6 +595,9 @@ type Product_Item_Price struct {
 	// no documentation yet
 	Attributes []Product_Item_Price_Attribute `json:"attributes,omitempty" xmlrpc:"attributes,omitempty"`
 
+	// Signifies pricing that is only available on a bare metal reserved capacity order.
+	BareMetalReservedCapacityFlag *bool `json:"bareMetalReservedCapacityFlag,omitempty" xmlrpc:"bareMetalReservedCapacityFlag,omitempty"`
+
 	// Whether the price is for Big Data OS/Journal disks only. (Deprecated)
 	BigDataOsJournalDiskFlag *bool `json:"bigDataOsJournalDiskFlag,omitempty" xmlrpc:"bigDataOsJournalDiskFlag,omitempty"`
 
@@ -612,6 +630,9 @@ type Product_Item_Price struct {
 
 	// Whether this price defines a software license for its product item.
 	DefinedSoftwareLicenseFlag *bool `json:"definedSoftwareLicenseFlag,omitempty" xmlrpc:"definedSoftwareLicenseFlag,omitempty"`
+
+	// Eligibility strategy to assess if a customer can order using this price.
+	EligibilityStrategy *string `json:"eligibilityStrategy,omitempty" xmlrpc:"eligibilityStrategy,omitempty"`
 
 	// The hourly price for this item, should this item be part of an hourly pricing package.
 	HourlyRecurringFee *Float64 `json:"hourlyRecurringFee,omitempty" xmlrpc:"hourlyRecurringFee,omitempty"`
@@ -692,6 +713,9 @@ type Product_Item_Price struct {
 
 	// The number of server cores required to order this item. This is deprecated. Use [[SoftLayer_Product_Item_Price/getCapacityRestrictionMinimum|getCapacityRestrictionMinimum]] and [[SoftLayer_Product_Item_Price/getCapacityRestrictionMaximum|getCapacityRestrictionMaximum]]
 	RequiredCoreCount *int `json:"requiredCoreCount,omitempty" xmlrpc:"requiredCoreCount,omitempty"`
+
+	// Signifies pricing that is only available on a reserved capacity virtual server order.
+	ReservedCapacityInstanceFlag *bool `json:"reservedCapacityInstanceFlag,omitempty" xmlrpc:"reservedCapacityInstanceFlag,omitempty"`
 
 	// The setup fee associated with a product item price.
 	SetupFee *Float64 `json:"setupFee,omitempty" xmlrpc:"setupFee,omitempty"`
@@ -1090,6 +1114,9 @@ type Product_Package struct {
 	// A count of the item categories associated with a package, including information detailing which item categories are required as part of a SoftLayer product order.
 	ConfigurationCount *uint `json:"configurationCount,omitempty" xmlrpc:"configurationCount,omitempty"`
 
+	// The default boot category code for the package.
+	DefaultBootCategoryCode *string `json:"defaultBootCategoryCode,omitempty" xmlrpc:"defaultBootCategoryCode,omitempty"`
+
 	// A count of a collection of valid RAM items available for purchase in this package.
 	DefaultRamItemCount *uint `json:"defaultRamItemCount,omitempty" xmlrpc:"defaultRamItemCount,omitempty"`
 
@@ -1413,6 +1440,9 @@ type Product_Package_Locations struct {
 type Product_Package_Order_Configuration struct {
 	Entity
 
+	// Signifies that selections associated with the configuration are automatically provided by being bundled to another configurations selection. The actual bundling is on the product.
+	BundledFlag *bool `json:"bundledFlag,omitempty" xmlrpc:"bundledFlag,omitempty"`
+
 	// The error message displayed if the submitted order does not contain this item category, if it is required.
 	ErrorMessage *string `json:"errorMessage,omitempty" xmlrpc:"errorMessage,omitempty"`
 
@@ -1498,6 +1528,9 @@ type Product_Package_Preset struct {
 
 	// no documentation yet
 	AvailableStorageUnits *uint `json:"availableStorageUnits,omitempty" xmlrpc:"availableStorageUnits,omitempty"`
+
+	// When true this preset is for ordering a Bare Metal Reserved server.
+	BareMetalReservedFlag *bool `json:"bareMetalReservedFlag,omitempty" xmlrpc:"bareMetalReservedFlag,omitempty"`
 
 	// The item categories that are included in this package preset configuration.
 	Categories []Product_Item_Category `json:"categories,omitempty" xmlrpc:"categories,omitempty"`
@@ -1632,6 +1665,9 @@ type Product_Package_Preset_Configuration struct {
 // The SoftLayer_Product_Package_Server data type contains summarized information for bare metal servers regarding pricing, processor stats, and feature sets.
 type Product_Package_Server struct {
 	Entity
+
+	// Flag to indicate if the server a Bare Metal Reserved offering.
+	BareMetalReservedFlag *bool `json:"bareMetalReservedFlag,omitempty" xmlrpc:"bareMetalReservedFlag,omitempty"`
 
 	// no documentation yet
 	Catalog *Product_Catalog `json:"catalog,omitempty" xmlrpc:"catalog,omitempty"`
@@ -1801,6 +1837,11 @@ type Product_Package_Type struct {
 
 	// All the packages associated with the given package type.
 	Packages []Product_Package `json:"packages,omitempty" xmlrpc:"packages,omitempty"`
+}
+
+// no documentation yet
+type Product_Promotion struct {
+	Entity
 }
 
 // The SoftLayer_Product_Upgrade_Request data type contains general information relating to a hardware, virtual server, or service upgrade. It also relates a [[SoftLayer_Billing_Order]] to a [[SoftLayer_Ticket]].

@@ -1,10 +1,14 @@
 package packngo
 
+import (
+	"fmt"
+)
+
 const planBasePath = "/plans"
 
 // PlanService interface defines available plan methods
 type PlanService interface {
-	List() ([]Plan, *Response, error)
+	List(*ListOptions) ([]Plan, *Response, error)
 }
 
 type planRoot struct {
@@ -13,13 +17,16 @@ type planRoot struct {
 
 // Plan represents a Packet service plan
 type Plan struct {
-	ID          string   `json:"id"`
-	Slug        string   `json:"slug,omitempty"`
-	Name        string   `json:"name,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Line        string   `json:"line,omitempty"`
-	Specs       *Specs   `json:"specs,omitempty"`
-	Pricing     *Pricing `json:"pricing,omitempty"`
+	ID              string     `json:"id"`
+	Slug            string     `json:"slug,omitempty"`
+	Name            string     `json:"name,omitempty"`
+	Description     string     `json:"description,omitempty"`
+	Line            string     `json:"line,omitempty"`
+	Specs           *Specs     `json:"specs,omitempty"`
+	Pricing         *Pricing   `json:"pricing,omitempty"`
+	DeploymentTypes []string   `json:"deployment_types"`
+	Class           string     `json:"class"`
+	AvailableIn     []Facility `json:"available_in"`
 }
 
 func (p Plan) String() string {
@@ -91,8 +98,8 @@ func (f Features) String() string {
 
 // Pricing - the pricing options on a plan
 type Pricing struct {
-	Hourly  float32 `json:"hourly,omitempty"`
-	Monthly float32 `json:"monthly,omitempty"`
+	Hour  float32 `json:"hour,omitempty"`
+	Month float32 `json:"month,omitempty"`
 }
 
 func (p Pricing) String() string {
@@ -105,10 +112,12 @@ type PlanServiceOp struct {
 }
 
 // List method returns all available plans
-func (s *PlanServiceOp) List() ([]Plan, *Response, error) {
+func (s *PlanServiceOp) List(listOpt *ListOptions) ([]Plan, *Response, error) {
 	root := new(planRoot)
+	params := urlQuery(listOpt)
+	path := fmt.Sprintf("%s?%s", planBasePath, params)
 
-	resp, err := s.client.DoRequest("GET", planBasePath, nil, root)
+	resp, err := s.client.DoRequest("GET", path, nil, root)
 	if err != nil {
 		return nil, resp, err
 	}

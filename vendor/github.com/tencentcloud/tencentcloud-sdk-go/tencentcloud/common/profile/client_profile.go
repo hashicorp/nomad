@@ -9,6 +9,7 @@ type ClientProfile struct {
 	// Valid choices: zh-CN, en-US.
 	// Default value is zh-CN.
 	Language string
+	Debug    bool
 }
 
 func NewClientProfile() *ClientProfile {
@@ -17,5 +18,6 @@ func NewClientProfile() *ClientProfile {
 		SignMethod:      "TC3-HMAC-SHA256",
 		UnsignedPayload: false,
 		Language:        "zh-CN",
+		Debug:           false,
 	}
 }

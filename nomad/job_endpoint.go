@@ -13,7 +13,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 
 	"github.com/golang/snappy"
-	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/consul/lib/stringslice"
 	"github.com/pkg/errors"
 
 	"github.com/hashicorp/nomad/acl"
@@ -242,7 +242,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			}
 
 			// If we are given a root token it can access all policies
-			if !lib.StrContains(allowedPolicies, "root") {
+			if !stringslice.Contains(allowedPolicies, "root") {
 				flatPolicies := structs.VaultPoliciesSet(policies)
 				subset, offending := helper.SliceStringIsSubset(allowedPolicies, flatPolicies)
 				if !subset {

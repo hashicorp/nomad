@@ -422,7 +422,7 @@ export default function() {
       return {
         License: {
           Features: records.models.mapBy('name'),
-        }
+        },
       };
     }
 

@@ -76,7 +76,7 @@ func (i Profile) GetUpdateOptions() (o ProfileUpdateOptions) {
 	return
 }
 
-// GetProfile gets the profile with the provided ID
+// GetProfile returns the Profile of the authenticated user
 func (c *Client) GetProfile(ctx context.Context) (*Profile, error) {
 	e, err := c.Profile.Endpoint()
 	if err != nil {
