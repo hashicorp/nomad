@@ -32,9 +32,8 @@ The general mechanisms for a secure Nomad deployment revolve around:
   Access to read, and write to a namespace can be controlled to allow for granular 
   access to job information managed within a multi-tenant cluster.
 
-- **[Sentinel Policies](https://learn.hashicorp.com/tutorials/nomad/sentinel)**
-  <EnterpriseAlert inline /> - Sentinel policies allow for granular control over
-  components such as task drivers within a cluster.
+- **[Sentinel Policies](https://learn.hashicorp.com/tutorials/nomad/sentinel)** <EnterpriseAlert inline /> - 
+  Sentinel policies allow for granular control over components such as task drivers within a cluster.
 
 ### Personas
 
@@ -127,16 +126,14 @@ recommendations accordingly.
   from conflicting with each other. This requires ACLs to be enabled in order
   to be enforced.
 
-- **[Resource Quotas](https://learn.hashicorp.com/tutorials/nomad/quotas)**
-  <EnterpriseAlert inline /> - Can limit a namespace's access to the underlying
-  compute resources in the cluster by setting upper-limits for operators.
-  Access to these resource quotas can be managed via ACLs to ensure read-only
-  access for operators so they can't just change their quotas.
+- **[Resource Quotas](https://learn.hashicorp.com/tutorials/nomad/quotas)** <EnterpriseAlert inline /> - 
+  Can limit a namespace's access to the underlying compute resources in the 
+  cluster by setting upper-limits for operators. Access to these resource quotas 
+  can be managed via ACLs to ensure read-only access for operators so they can't 
+  just change their quotas.
 
-- **[Sentinel Policies](https://learn.hashicorp.com/tutorials/nomad/sentinel)**
-  <EnterpriseAlert inline /> - [Sentinel](https://www.hashicorp.com/sentinel/) enables
-  [policy-as-code](https://docs.hashicorp.com/sentinel/concepts/policy-as-code/)
-  to enforce further restrictions on operators. This is used to augment the
+- **[Sentinel Policies](https://learn.hashicorp.com/tutorials/nomad/sentinel)** <EnterpriseAlert inline /> - 
+  [Sentinel](https://www.hashicorp.com/sentinel/) enables [policy-as-code](https://docs.hashicorp.com/sentinel/concepts/policy-as-code/) to enforce further restrictions on operators. This is used to augment the
   built-in ACL system for fine-grained control over jobs.
 
 
