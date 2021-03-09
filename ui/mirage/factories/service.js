@@ -2,9 +2,12 @@ import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { provide } from '../utils';
 
+const ON_UPDATE = ['default', 'ignore', 'ignore_warnings'];
+
 export default Factory.extend({
   name: id => `${faker.hacker.noun().dasherize()}-${id}-service`,
   portLabel: () => faker.hacker.noun().dasherize(),
+  onUpdate: faker.helpers.randomize(ON_UPDATE),
   tags: () => {
     if (!faker.random.boolean()) {
       return provide(
