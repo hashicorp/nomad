@@ -55,59 +55,26 @@ func (c *OperatorDebugCommand) Help() string {
 	helpText := `
 Usage: nomad operator debug [options]
 
-  Build an archive containing Nomad cluster configuration and state, and Consul and Vault
-  status. Include logs and pprof profiles for selected servers and client nodes.
+  Build an archive containing Nomad cluster configuration and state, and Consul
+  and Vault status. Include logs and pprof profiles for selected servers and
+  client nodes.
 
   If ACLs are enabled, this command will require a token with the 'node:read'
   capability to run. In order to collect information, the token will also
   require the 'agent:read' and 'operator:read' capabilities, as well as the
   'list-jobs' capability for all namespaces. To collect pprof profiles the
-  token will also require 'agent:write', or enable_debug configuration set to true.
+  token will also require 'agent:write', or enable_debug configuration set to
+  true.
 
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
-Debug Options:
-
-  -duration=<duration>
-    The duration of the log monitor command. Defaults to 2m.
-
-  -interval=<interval>
-    The interval between snapshots of the Nomad state. If unspecified, only one snapshot is
-    captured.
-
-  -log-level=<level>
-    The log level to monitor. Defaults to DEBUG.
-
-  -max-nodes=<count>
-    Cap the maximum number of client nodes included in the capture.  Defaults to 10, set to 0 for unlimited.
-
-  -node-id=<node>,<node>
-    Comma separated list of Nomad client node ids, to monitor for logs and include pprof
-    profiles. Accepts id prefixes, and "all" to select all nodes (up to count = max-nodes).
-
-  -node-class=<node-class>
-    Filter client nodes based on node class.
-
-  -pprof-duration=<duration>
-    Duration for pprof collection. Defaults to 1s.
-
-  -server-id=<server>,<server>
-    Comma separated list of Nomad server names, "leader", or "all" to monitor for logs and include pprof
-    profiles.
-
-  -stale=<true|false>
-    If "false", the default, get membership data from the cluster leader. If the cluster is in
-    an outage unable to establish leadership, it may be necessary to get the configuration from
-    a non-leader server.
-
-  -output=<path>
-    Path to the parent directory of the output directory. If not specified, an archive is built
-    in the current directory.
+Consul Options:
 
   -consul-http-addr=<addr>
-    The address and port of the Consul HTTP agent. Overrides the CONSUL_HTTP_ADDR environment variable.
+    The address and port of the Consul HTTP agent. Overrides the
+    CONSUL_HTTP_ADDR environment variable.
 
   -consul-token=<token>
     Token used to query Consul. Overrides the CONSUL_HTTP_TOKEN environment
@@ -133,6 +100,8 @@ Debug Options:
     Path to a directory of PEM encoded CA cert files to verify the Consul
     certificate. Overrides the CONSUL_CAPATH environment variable.
 
+Vault Options:
+
   -vault-address=<addr>
     The address and port of the Vault HTTP agent. Overrides the VAULT_ADDR
     environment variable.
@@ -156,6 +125,47 @@ Debug Options:
   -vault-ca-path=<path>
     Path to a directory of PEM encoded CA cert files to verify the Vault
     certificate. Overrides the VAULT_CAPATH environment variable.
+
+Debug Options:
+
+  -duration=<duration>
+    The duration of the log monitor command. Defaults to 2m.
+
+  -interval=<interval>
+    The interval between snapshots of the Nomad state. Set interval equal to 
+    duration to capture a single snapshot. Defaults to 30s.
+
+  -log-level=<level>
+    The log level to monitor. Defaults to DEBUG.
+
+  -max-nodes=<count>
+    Cap the maximum number of client nodes included in the capture. Defaults
+    to 10, set to 0 for unlimited.
+
+  -node-id=<node>,<node>
+    Comma separated list of Nomad client node ids to monitor for logs, API
+    outputs, and pprof profiles. Accepts id prefixes, and "all" to select all
+    nodes (up to count = max-nodes). Defaults to "all".
+
+  -node-class=<node-class>
+    Filter client nodes based on node class.
+
+  -pprof-duration=<duration>
+    Duration for pprof collection. Defaults to 1s.
+
+  -server-id=<server>,<server>
+    Comma separated list of Nomad server names to monitor for logs, API
+    outputs, and pprof profiles. Accepts server names, "leader", or "all".
+    Defaults to "all".
+
+  -stale=<true|false>
+    If "false", the default, get membership data from the cluster leader. If
+    the cluster is in an outage unable to establish leadership, it may be
+    necessary to get the configuration from a non-leader server.
+
+  -output=<path>
+    Path to the parent directory of the output directory. If not specified, an
+    archive is built in the current directory.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -195,12 +205,12 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	var nodeIDs, serverIDs string
 
 	flags.StringVar(&duration, "duration", "2m", "")
-	flags.StringVar(&interval, "interval", "2m", "")
+	flags.StringVar(&interval, "interval", "30s", "")
 	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
 	flags.StringVar(&c.nodeClass, "node-class", "", "")
 	flags.StringVar(&nodeIDs, "node-id", "", "")
-	flags.StringVar(&serverIDs, "server-id", "", "")
+	flags.StringVar(&serverIDs, "server-id", "all", "")
 	flags.BoolVar(&c.stale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
 	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
@@ -245,6 +255,12 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 	c.interval = i
+
+	// Validate interval
+	if i.Seconds() > d.Seconds() {
+		c.Ui.Error(fmt.Sprintf("Error parsing interval: %s is greater than duration %s", interval, duration))
+		return 1
+	}
 
 	// Parse the pprof capture duration
 	pd, err := time.ParseDuration(pprofDuration)
