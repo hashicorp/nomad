@@ -24,6 +24,15 @@ func (jobExposeCheckHook) Mutate(job *structs.Job) (_ *structs.Job, warnings []e
 		for _, s := range tg.Services {
 			for _, c := range s.Checks {
 				if c.Expose {
+					// TG isn't validated yet, but validation
+					// may depend on mutation results.
+					// Do basic validation here and skip mutation,
+					// so Validate can return a meaningful error
+					// messages
+					if !s.Connect.HasSidecar() {
+						continue
+					}
+
 					if exposePath, err := exposePathForCheck(tg, s, c); err != nil {
 						return nil, nil, err
 					} else if exposePath != nil {
