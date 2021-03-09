@@ -44,6 +44,14 @@ export let Standard = () => {
             <:svg as |c|>
               <c.Area @data={{this.lineChartData}} />
             </:svg>
+            <:after as |c|>
+              <c.Tooltip class="is-snappy" as |series datum|>
+                <li>
+                  <span class="label"><span class="color-swatch is-primary" />{{datum.formattedX}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
+            </:after>
           </LineChart>
         {{/if}}
       </div>
@@ -53,6 +61,14 @@ export let Standard = () => {
             <:svg as |c|>
               <c.Area @data={{this.lineChartMild}} @colorClass="is-info" />
             </:svg>
+            <:after as |c|>
+              <c.Tooltip class="is-snappy" as |series datum|>
+                <li>
+                  <span class="label"><span class="color-swatch is-info" />{{datum.formattedX}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
+            </:after>
           </LineChart>
         {{/if}}
       </div>
@@ -74,6 +90,14 @@ export let FluidWidth = () => {
             <:svg as |c|>
               <c.Area @data={{this.lineChartData}} @colorClass="is-danger" />
             </:svg>
+            <:after as |c|>
+              <c.Tooltip class="is-snappy" as |series datum|>
+                <li>
+                  <span class="label"><span class="color-swatch is-danger" />{{datum.formattedX}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
+            </:after>
           </LineChart>
         {{/if}}
       </div>
@@ -83,6 +107,14 @@ export let FluidWidth = () => {
             <:svg as |c|>
               <c.Area @data={{this.lineChartMild}} @colorClass="is-warning" />
             </:svg>
+            <:after as |c|>
+              <c.Tooltip class="is-snappy" as |series datum|>
+                <li>
+                  <span class="label"><span class="color-swatch is-warning" />{{datum.formattedX}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
+            </:after>
           </LineChart>
         {{/if}}
       </div>
@@ -155,6 +187,14 @@ export let Gaps = () => {
             <:svg as |c|>
               <c.Area @data={{this.lineChartGapData}} />
             </:svg>
+            <:after as |c|>
+              <c.Tooltip class="is-snappy" as |series datum|>
+                <li>
+                  <span class="label"><span class="color-swatch is-primary" />{{datum.formattedX}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
+            </:after>
           </LineChart>
         {{/if}}
       </div>
@@ -217,6 +257,12 @@ export let VerticalAnnotations = () => {
                 @annotations={{this.annotations}}
                 @annotationClick={{action (mut this.activeAnnotation)}}
                 @activeAnnotation={{this.activeAnnotation}} />
+              <c.Tooltip class="is-snappy" as |series datum|>
+                <li>
+                  <span class="label"><span class="color-swatch is-primary" />{{datum.formattedX}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
             </:after>
           </LineChart>
         {{/if}}
@@ -334,6 +380,14 @@ export let StepLine = () => {
             <:svg as |c|>
               <c.Area @data={{this.data}} @curve="stepAfter" />
             </:svg>
+            <:after as |c|>
+              <c.Tooltip class="is-snappy" as |series datum|>
+                <li>
+                  <span class="label"><span class="color-swatch is-primary" />{{datum.formattedX}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
+            </:after>
           </LineChart>
           <p>{{this.activeAnnotation.info}}</p>
         {{/if}}
