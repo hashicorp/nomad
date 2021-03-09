@@ -1,7 +1,7 @@
 job "digitalocean" {
 
   datacenters = ["dc1"]
-  type = "system"
+  type        = "system"
 
   group "csi" {
     task "plugin" {
