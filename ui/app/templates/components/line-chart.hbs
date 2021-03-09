@@ -29,7 +29,7 @@
     {{/if}}
     <g aria-hidden="true" class="x-axis axis" transform="translate(0, {{this.xAxisOffset}})"></g>
     <g aria-hidden="true" class="y-axis axis" transform="translate({{this.yAxisOffset}}, 0)"></g>
-    <rect class="hover-target" x="0" y="0" width="{{this.yAxisOffset}}" height="{{this.xAxisOffset}}" />
+    <rect data-test-hover-target class="hover-target" x="0" y="0" width="{{this.yAxisOffset}}" height="{{this.xAxisOffset}}" />
   </svg>
   {{#if this.ready}}
     {{yield (hash
