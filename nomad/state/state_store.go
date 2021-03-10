@@ -2126,20 +2126,20 @@ func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error)
 func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*structs.CSIVolume, error) {
 	txn := s.db.ReadTxn()
 
-	watchCh, obj, err := txn.FirstWatch("csi_volumes", "id_prefix", namespace, id)
+	obj, err := txn.First("csi_volumes", "id", namespace, id)
 	if err != nil {
-		return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
+		return nil, fmt.Errorf("volume lookup failed for %s: %v", id, err)
 	}
-
-	ws.Add(watchCh)
-
 	if obj == nil {
 		return nil, nil
+	}
+	vol, ok := obj.(*structs.CSIVolume)
+	if !ok {
+		return nil, fmt.Errorf("volume row conversion error")
 	}
 
 	// we return the volume with the plugins denormalized by default,
 	// because the scheduler needs them for feasibility checking
-	vol := obj.(*structs.CSIVolume)
 	return s.CSIVolumeDenormalizePluginsTxn(txn, vol.Copy())
 }
 
