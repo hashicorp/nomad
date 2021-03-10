@@ -14,6 +14,15 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.1.0
+
+#### Agent Metrics API
+
+The Nomad agent metrics API now respects the
+[`prometheus_metrics`](https://www.nomadproject.io/docs/configuration/telemetry#prometheus_metrics)
+configuration value. If this value is set to `false`, which is the default value,
+calling `/v1/metrics?format=prometheus` will now result in a response error.
+
 ## Nomad 1.0.3, 0.12.10
 
 Nomad versions 1.0.3 and 0.12.10 change the behavior of the `exec` and `java` drivers so that
