@@ -1,6 +1,6 @@
 import Component from '@glimmer/component';
 import { htmlSafe } from '@ember/template';
-import { action } from '@ember/object';
+import { action, get } from '@ember/object';
 import styleString from 'nomad-ui/utils/properties/glimmer-style-string';
 
 const iconFor = {
@@ -51,8 +51,18 @@ export default class ChartPrimitiveVAnnotations extends Component {
         iconClass: iconClassFor[annotation.type],
         staggerClass: prevHigh ? 'is-staggered' : '',
         label: `${annotation.type} event at ${formattedX}`,
+        isActive: this.annotationIsActive(annotation),
       };
     });
+  }
+
+  annotationIsActive(annotation) {
+    const { key, activeAnnotation } = this.args;
+    console.log(key, activeAnnotation, annotation);
+    if (!activeAnnotation) return false;
+
+    if (key) return get(annotation, key) === get(activeAnnotation, key);
+    return annotation === activeAnnotation;
   }
 
   @action

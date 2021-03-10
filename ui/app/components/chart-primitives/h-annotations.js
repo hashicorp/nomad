@@ -1,6 +1,6 @@
 import Component from '@glimmer/component';
 import { htmlSafe } from '@ember/template';
-import { action } from '@ember/object';
+import { action, get } from '@ember/object';
 import styleString from 'nomad-ui/utils/properties/glimmer-style-string';
 
 export default class ChartPrimitiveVAnnotations extends Component {
@@ -29,8 +29,17 @@ export default class ChartPrimitiveVAnnotations extends Component {
         style: htmlSafe(`transform:translate(${x}px,${y}px)`),
         label: annotation[labelProp],
         a11yLabel: `${annotation[labelProp]} at ${formattedY}`,
+        isActive: this.annotationIsActive(annotation),
       };
     });
+  }
+
+  annotationIsActive(annotation) {
+    const { key, activeAnnotation } = this.args;
+    if (!activeAnnotation) return false;
+
+    if (key) return get(annotation, key) === get(activeAnnotation, key);
+    return annotation === activeAnnotation;
   }
 
   @action
