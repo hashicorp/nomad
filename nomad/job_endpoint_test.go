@@ -652,7 +652,7 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 
 }
 
-func TestJobEndpoint_Register_Connect_ValidatesWithoutNoSidecarTask(t *testing.T) {
+func TestJobEndpoint_Register_Connect_ValidatesWithoutSidecarTask(t *testing.T) {
 	t.Parallel()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
