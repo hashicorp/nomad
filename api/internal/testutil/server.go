@@ -42,6 +42,7 @@ type TestServerConfig struct {
 	Client            *ClientConfig `json:"client,omitempty"`
 	Vault             *VaultConfig  `json:"vault,omitempty"`
 	ACL               *ACLConfig    `json:"acl,omitempty"`
+	Telemetry         *Telemetry    `json:"telemetry,omitempty"`
 	DevMode           bool          `json:"-"`
 	Stdout, Stderr    io.Writer     `json:"-"`
 }
@@ -88,6 +89,11 @@ type VaultConfig struct {
 // ACLConfig is used to configure ACLs
 type ACLConfig struct {
 	Enabled bool `json:"enabled"`
+}
+
+// Telemetry is used to configure the Nomad telemetry setup.
+type Telemetry struct {
+	PrometheusMetrics bool `json:"prometheus_metrics"`
 }
 
 // ServerConfigCallback is a function interface which can be
