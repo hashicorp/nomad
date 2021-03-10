@@ -2145,7 +2145,7 @@ func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*st
 
 // CSIVolumes looks up csi_volumes by pluginID. Caller should snapshot if it
 // wants to also denormalize the plugins.
-func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, pluginID string) (memdb.ResultIterator, error) {
+func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, prefix, pluginID string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	iter, err := txn.Get("csi_volumes", "plugin_id", pluginID)
@@ -2159,7 +2159,7 @@ func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, pluginID
 		if !ok {
 			return false
 		}
-		return v.Namespace != namespace
+		return v.Namespace != namespace && strings.HasPrefix(v.ID, prefix)
 	}
 
 	wrap := memdb.NewFilterIterator(iter, f)
@@ -2183,7 +2183,7 @@ func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID
 
 // CSIVolumesByNodeID looks up CSIVolumes in use on a node. Caller should
 // snapshot if it wants to also denormalize the plugins.
-func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb.ResultIterator, error) {
+func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, prefix, nodeID string) (memdb.ResultIterator, error) {
 	allocs, err := s.AllocsByNode(ws, nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("alloc lookup failed: %v", err)
@@ -2212,11 +2212,13 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb
 	iter := NewSliceIterator()
 	txn := s.db.ReadTxn()
 	for id, namespace := range ids {
-		raw, err := txn.First("csi_volumes", "id", namespace, id)
-		if err != nil {
-			return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
+		if strings.HasPrefix(id, prefix) {
+			raw, err := txn.First("csi_volumes", "id", namespace, id)
+			if err != nil {
+				return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
+			}
+			iter.Add(raw)
 		}
-		iter.Add(raw)
 	}
 
 	ws.Add(iter.WatchCh())
@@ -2225,10 +2227,10 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb
 }
 
 // CSIVolumesByNamespace looks up the entire csi_volumes table
-func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, "")
+	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, prefix)
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %v", err)
 	}
