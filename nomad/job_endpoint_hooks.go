@@ -40,6 +40,8 @@ type jobValidator interface {
 }
 
 func (j *Job) admissionControllers(job *structs.Job) (out *structs.Job, warnings []error, err error) {
+	// Mutators run first before validators, so validators view the final rendered job.
+	// So, mutators must handle invalid jobs.
 	out, warnings, err = j.admissionMutators(job)
 	if err != nil {
 		return nil, nil, err
