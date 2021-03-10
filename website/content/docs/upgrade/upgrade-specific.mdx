@@ -19,7 +19,7 @@ used to document those details separately from the standard upgrade flow.
 #### Agent Metrics API
 
 The Nomad agent metrics API now respects the
-[prometheus_metrics](https://www.nomadproject.io/docs/configuration/telemetry#prometheus_metrics)
+[`prometheus_metrics`](https://www.nomadproject.io/docs/configuration/telemetry#prometheus_metrics)
 configuration value. If this value is set to `false`, which is the default value,
 calling `/v1/metrics?format=prometheus` will now result in a response error.
 
