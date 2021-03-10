@@ -206,6 +206,18 @@ var (
 		// extra docker labels, globs supported
 		"extra_labels": hclspec.NewAttr("extra_labels", "list(string)", false),
 
+		// logging options
+		"logging": hclspec.NewDefault(hclspec.NewBlock("logging", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"type":   hclspec.NewAttr("type", "string", false),
+			"config": hclspec.NewBlockAttrs("config", "string", false),
+		})), hclspec.NewLiteral(`{
+			type = "json-file" 
+			config = {
+				max-file = "2"
+				max-size = "2m"
+			}
+		}`)),
+
 		// garbage collection options
 		// default needed for both if the gc {...} block is not set and
 		// if the default fields are missing
@@ -616,6 +628,7 @@ type DriverConfig struct {
 	PullActivityTimeout           string        `codec:"pull_activity_timeout"`
 	pullActivityTimeoutDuration   time.Duration `codec:"-"`
 	ExtraLabels                   []string      `codec:"extra_labels"`
+	Logging                       LoggingConfig `codec:"logging"`
 
 	AllowRuntimesList []string            `codec:"allow_runtimes"`
 	allowRuntimes     map[string]struct{} `codec:"-"`
@@ -644,6 +657,11 @@ type GCConfig struct {
 type VolumeConfig struct {
 	Enabled      bool   `codec:"enabled"`
 	SelinuxLabel string `codec:"selinuxlabel"`
+}
+
+type LoggingConfig struct {
+	Type   string            `codec:"type"`
+	Config map[string]string `codec:"config"`
 }
 
 func (d *Driver) PluginInfo() (*base.PluginInfoResponse, error) {
