@@ -866,9 +866,7 @@ func TestDockerDriver_LoggingConfiguration(t *testing.T) {
 	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
 	container, err := client.InspectContainer(handle.containerID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	require.Equal(t, "gelf", container.HostConfig.LogConfig.Type)
 	require.Equal(t, loggerConfig, container.HostConfig.LogConfig.Config)

@@ -874,11 +874,16 @@ plugin "docker" {
 
 - `logging` stanza:
 
-  - `type` - Defaults to `"json-file"`. Specifies the logging driver docker should
-    use for all containers Nomad starts.
+  - `type` - Defaults to `"json-file"`. Specifies the logging driver docker
+    should use for all containers Nomad starts. Note that for older versions
+    of Docker, only `json-file` file or `journald` will allow Nomad to read
+    the driver's logs via the Docker API, and this will prevent commands such
+    as `nomad alloc logs` from functioning.
 
-  - `config` - Defaults to `{ max-file = "2", max-size = "2m" }`. This option can be
-    used to pass further configuration to the logging driver.
+  - `config` - Defaults to `{ max-file = "2", max-size = "2m" }`. This option
+    can also be used to pass further
+    [configuration](https://docs.docker.com/config/containers/logging/configure/)
+    to the logging driver.
 
 - `gc` stanza:
 
