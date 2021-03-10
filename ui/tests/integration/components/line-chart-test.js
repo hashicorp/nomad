@@ -1,4 +1,4 @@
-import { findAll, click, render } from '@ember/test-helpers';
+import { find, findAll, click, render, triggerEvent } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
@@ -159,5 +159,119 @@ module('Integration | Component | line-chart', function(hooks) {
     assert.notOk(annotationEls[2].classList.contains('is-staggered'));
 
     await componentA11yAudit(this.element, assert);
+  });
+
+  test('horizontal annotations render in order', async function(assert) {
+    const annotations = [
+      { y: 2, label: 'label one' },
+      { y: 9, label: 'label three' },
+      { y: 2.4, label: 'label two' },
+    ];
+    this.setProperties({
+      annotations,
+      data: [
+        { x: 1, y: 1 },
+        { x: 10, y: 10 },
+      ],
+    });
+
+    await render(hbs`
+      <LineChart
+        @xProp="x"
+        @yProp="y"
+        @data={{this.data}}>
+        <:after as |c|>
+          <c.HAnnotations @annotations={{this.annotations}} @labelProp="label" />
+        </:after>
+      </LineChart>
+    `);
+
+    const annotationEls = findAll('[data-test-annotation]');
+    annotations
+      .sortBy('y')
+      .reverse()
+      .forEach((annotation, index) => {
+        assert.equal(annotationEls[index].textContent.trim(), annotation.label);
+      });
+  });
+
+  test('the tooltip includes information on the data closest to the mouse', async function(assert) {
+    const series1 = [
+      { x: 1, y: 2 },
+      { x: 3, y: 3 },
+      { x: 5, y: 4 },
+    ];
+    const series2 = [
+      { x: 2, y: 10 },
+      { x: 4, y: 9 },
+      { x: 6, y: 8 },
+    ];
+    this.setProperties({
+      data: [
+        { series: 'One', data: series1 },
+        { series: 'Two', data: series2 },
+      ],
+    });
+
+    await render(hbs`
+      <div style="width:500px;margin-top:100px">
+        <LineChart
+          @xProp="x"
+          @yProp="y"
+          @dataProp="data"
+          @data={{this.data}}>
+          <:svg as |c|>
+            {{#each this.data as |series idx|}}
+              <c.Area @data={{series.data}} @colorScale="blues" @index={{idx}} />
+            {{/each}}
+          </:svg>
+          <:after as |c|>
+            <c.Tooltip as |series datum index|>
+              <li>
+                <span class="label"><span class="color-swatch swatch-blues swatch-blues-{{index}}" />{{series.series}}</span>
+                <span class="value">{{datum.formattedY}}</span>
+              </li>
+            </c.Tooltip>
+          </:after>
+        </LineChart>
+      </div>
+    `);
+
+    // All tooltip events are attached to the hover target
+    const hoverTarget = find('[data-test-hover-target]');
+
+    // Mouse to data mapping happens based on the clientX of the MouseEvent
+    const bbox = hoverTarget.getBoundingClientRect();
+    // The MouseEvent needs to be translated based on the location of the hover target
+    const xOffset = bbox.x;
+    // An interval here is the width between x values given the fixed dimensions of the line chart
+    // and the domain of the data
+    const interval = bbox.width / 5;
+
+    // MouseEnter triggers the tooltip visibility
+    await triggerEvent(hoverTarget, 'mouseenter');
+    // MouseMove positions the tooltip and updates the active datum
+    await triggerEvent(hoverTarget, 'mousemove', { clientX: xOffset + interval * 1 + 5 });
+    assert.equal(findAll('[data-test-chart-tooltip] li').length, 1);
+    assert.equal(find('[data-test-chart-tooltip] .label').textContent.trim(), this.data[1].series);
+    assert.equal(
+      find('[data-test-chart-tooltip] .value').textContent.trim(),
+      series2.find(d => d.x === 2).y
+    );
+
+    // When the mouse falls between points and each series has points with different x values,
+    // points will only be shown in the tooltip if they are close enough to the closest point
+    // to the cursor.
+    // This event is intentionally between points such that both points are within proximity.
+    const expected = [
+      { label: this.data[0].series, value: series1.find(d => d.x === 3).y },
+      { label: this.data[1].series, value: series2.find(d => d.x === 2).y },
+    ];
+    await triggerEvent(hoverTarget, 'mousemove', { clientX: xOffset + interval * 1.5 + 5 });
+    assert.equal(findAll('[data-test-chart-tooltip] li').length, 2);
+    findAll('[data-test-chart-tooltip] li').forEach((tooltipEntry, index) => {
+      assert.equal(tooltipEntry.querySelector('.label').textContent.trim(), expected[index].label);
+      assert.equal(tooltipEntry.querySelector('.value').textContent.trim(), expected[index].value);
+    });
   });
 });

@@ -9,6 +9,12 @@
       @data={{this.data}} />
   </:svg>
   <:after as |c|>
+    <c.Tooltip class="is-snappy" as |series datum|>
+      <li>
+        <span class="label"><span class="color-swatch is-primary" />{{datum.formattedX}}</span>
+        <span class="value">{{datum.formattedY}}</span>
+      </li>
+    </c.Tooltip>
     <c.VAnnotations
       @annotations={{this.annotations}}
       @key="event.uid"

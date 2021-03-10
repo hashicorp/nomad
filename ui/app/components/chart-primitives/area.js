@@ -5,7 +5,10 @@ import uniquely from 'nomad-ui/utils/properties/uniquely';
 
 export default class ChartPrimitiveArea extends Component {
   get colorClass() {
-    return this.args.colorClass || `${this.args.colorScale}-${this.args.index}`;
+    if (this.args.colorClass) return this.args.colorClass;
+    if (this.args.colorScale && this.args.index != null)
+      return `${this.args.colorScale} ${this.args.colorScale}-${this.args.index + 1}`;
+    return 'is-primary';
   }
 
   @uniquely('area-mask') maskId;

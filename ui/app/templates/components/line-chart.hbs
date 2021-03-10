@@ -18,7 +18,6 @@
     {{#if this.ready}}
       {{yield (hash
         Area=(component "chart-primitives/area"
-          colorClass=this.chartClass
           curve="linear"
           xScale=this.xScale
           yScale=this.yScale
@@ -30,7 +29,7 @@
     {{/if}}
     <g aria-hidden="true" class="x-axis axis" transform="translate(0, {{this.xAxisOffset}})"></g>
     <g aria-hidden="true" class="y-axis axis" transform="translate({{this.yAxisOffset}}, 0)"></g>
-    <rect class="hover-target" x="0" y="0" width="{{this.yAxisOffset}}" height="{{this.xAxisOffset}}" />
+    <rect data-test-hover-target class="hover-target" x="0" y="0" width="{{this.yAxisOffset}}" height="{{this.xAxisOffset}}" />
   </svg>
   {{#if this.ready}}
     {{yield (hash
@@ -40,15 +39,16 @@
         scale=this.xScale
         prop=this.xProp
         height=this.xAxisOffset)
+      HAnnotations=(component "chart-primitives/h-annotations"
+        format=this.yFormat
+        scale=this.yScale
+        prop=this.yProp
+        left=this.canvasDimensions.left
+        width=this.canvasDimensions.width)
+      Tooltip=(component "chart-primitives/tooltip"
+        active=this.activeData.length
+        style=this.tooltipStyle
+        data=this.activeData)
     ) to="after"}}
   {{/if}}
-  <div class="chart-tooltip is-snappy {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
-    <p>
-      <span class="label">
-        <span class="color-swatch {{this.chartClass}}" />
-        {{this.activeDatumLabel}}
-      </span>
-      <span class="value">{{this.activeDatumValue}}</span>
-    </p>
-  </div>
 </div>

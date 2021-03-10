@@ -44,15 +44,31 @@ export let Standard = () => {
             <:svg as |c|>
               <c.Area @data={{this.lineChartData}} />
             </:svg>
+            <:after as |c|>
+              <c.Tooltip class="is-snappy" as |series datum|>
+                <li>
+                  <span class="label"><span class="color-swatch is-primary" />{{datum.formattedX}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
+            </:after>
           </LineChart>
         {{/if}}
       </div>
       <div class="block" style="height:100px; width: 400px;">
         {{#if this.lineChartMild}}
-          <LineChart @data={{this.lineChartMild}} @xProp="year" @yProp="value" @chartClass="is-info">
+          <LineChart @data={{this.lineChartMild}} @xProp="year" @yProp="value">
             <:svg as |c|>
-              <c.Area @data={{this.lineChartMild}} />
+              <c.Area @data={{this.lineChartMild}} @colorClass="is-info" />
             </:svg>
+            <:after as |c|>
+              <c.Tooltip class="is-snappy" as |series datum|>
+                <li>
+                  <span class="label"><span class="color-swatch is-info" />{{datum.formattedX}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
+            </:after>
           </LineChart>
         {{/if}}
       </div>
@@ -70,19 +86,35 @@ export let FluidWidth = () => {
       <h5 class="title is-5">Fluid-width Line Chart</h5>
       <div class="block" style="height:250px;">
         {{#if this.lineChartData}}
-          <LineChart @data={{this.lineChartData}} @xProp="year" @yProp="value" @chartClass="is-danger">
+          <LineChart @data={{this.lineChartData}} @xProp="year" @yProp="value">
             <:svg as |c|>
-              <c.Area @data={{this.lineChartData}} />
+              <c.Area @data={{this.lineChartData}} @colorClass="is-danger" />
             </:svg>
+            <:after as |c|>
+              <c.Tooltip class="is-snappy" as |series datum|>
+                <li>
+                  <span class="label"><span class="color-swatch is-danger" />{{datum.formattedX}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
+            </:after>
           </LineChart>
         {{/if}}
       </div>
       <div class="block" style="height:250px;">
         {{#if this.lineChartMild}}
-          <LineChart @data={{this.lineChartMild}} @xProp="year" @yProp="value" @chartClass="is-warning">
+          <LineChart @data={{this.lineChartMild}} @xProp="year" @yProp="value">
             <:svg as |c|>
-              <c.Area @data={{this.lineChartMild}} />
+              <c.Area @data={{this.lineChartMild}} @colorClass="is-warning" />
             </:svg>
+            <:after as |c|>
+              <c.Tooltip class="is-snappy" as |series datum|>
+                <li>
+                  <span class="label"><span class="color-swatch is-warning" />{{datum.formattedX}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
+            </:after>
           </LineChart>
         {{/if}}
       </div>
@@ -106,7 +138,6 @@ export let LiveData = () => {
             @xProp="ts"
             @yProp="val"
             @timeseries={{true}}
-            @chartClass="is-primary"
             @xFormat={{this.controller.secondsFormat}}>
             <:svg as |c|>
               <c.Area @data={{this.controller.lineChartLive}} />
@@ -152,10 +183,18 @@ export let Gaps = () => {
       <h5 class="title is-5">Line Chart data with gaps</h5>
       <div class="block" style="height:250px">
         {{#if this.lineChartGapData}}
-          <LineChart @data={{this.lineChartGapData}} @xProp="year" @yProp="value" @chartClass="is-primary">
+          <LineChart @data={{this.lineChartGapData}} @xProp="year" @yProp="value">
             <:svg as |c|>
               <c.Area @data={{this.lineChartGapData}} />
             </:svg>
+            <:after as |c|>
+              <c.Tooltip class="is-snappy" as |series datum|>
+                <li>
+                  <span class="label"><span class="color-swatch is-primary" />{{datum.formattedX}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
+            </:after>
           </LineChart>
         {{/if}}
       </div>
@@ -176,7 +215,7 @@ export let Gaps = () => {
   };
 };
 
-export let Annotations = () => {
+export let VerticalAnnotations = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Line Chart data with annotations</h5>
@@ -218,6 +257,12 @@ export let Annotations = () => {
                 @annotations={{this.annotations}}
                 @annotationClick={{action (mut this.activeAnnotation)}}
                 @activeAnnotation={{this.activeAnnotation}} />
+              <c.Tooltip class="is-snappy" as |series datum|>
+                <li>
+                  <span class="label"><span class="color-swatch is-primary" />{{datum.formattedX}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
             </:after>
           </LineChart>
         {{/if}}
@@ -278,6 +323,50 @@ export let Annotations = () => {
   };
 };
 
+export let HorizontalAnnotations = () => {
+  return {
+    template: hbs`
+      <div class="block" style="height:250px">
+        {{#if (and this.data this.annotations)}}
+          <LineChart
+            class="with-annotations"
+            @timeseries={{true}}
+            @xProp="x"
+            @yProp="y"
+            @data={{this.data}}>
+            <:svg as |c|>
+              <c.Area @data={{this.data}} @annotationClick={{action (mut this.activeAnnotation)}} />
+            </:svg>
+            <:after as |c|>
+              <c.HAnnotations @annotations={{this.annotations}} @labelProp="info" />
+            </:after>
+          </LineChart>
+        {{/if}}
+      </div>
+    `,
+    context: {
+      data: DelayedArray.create(
+        new Array(180).fill(null).map((_, idx) => ({
+          y: Math.sin((idx * 4 * Math.PI) / 180) * 100 + 200,
+          x: moment()
+            .add(idx, 'd')
+            .toDate(),
+        }))
+      ),
+      annotations: [
+        {
+          y: 300,
+          info: 'High',
+        },
+        {
+          y: 100,
+          info: 'Low',
+        },
+      ],
+    },
+  };
+};
+
 export let StepLine = () => {
   return {
     template: hbs`
@@ -291,6 +380,14 @@ export let StepLine = () => {
             <:svg as |c|>
               <c.Area @data={{this.data}} @curve="stepAfter" />
             </:svg>
+            <:after as |c|>
+              <c.Tooltip class="is-snappy" as |series datum|>
+                <li>
+                  <span class="label"><span class="color-swatch is-primary" />{{datum.formattedX}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
+            </:after>
           </LineChart>
           <p>{{this.activeAnnotation.info}}</p>
         {{/if}}
@@ -311,3 +408,61 @@ export let StepLine = () => {
     },
   };
 };
+
+export let MultiLine = () => ({
+  template: hbs`
+      <h5 class="title is-5">Multiple Lines on One Chart</h5>
+      <div class="block" style="height:250px">
+        {{#if this.data}}
+          <LineChart
+            @xProp="x"
+            @yProp="y"
+            @dataProp="data"
+            @data={{this.data}}>
+            <:svg as |c|>
+              {{#each this.data as |series idx|}}
+                <c.Area @data={{series.data}} @colorScale="reds" @index={{idx}} />
+              {{/each}}
+            </:svg>
+            <:after as |c|>
+              <c.Tooltip class="is-snappy" as |series datum index|>
+                <li>
+                  <span class="label"><span class="color-swatch swatch-reds swatch-reds-{{index}}" />{{series.name}}</span>
+                  <span class="value">{{datum.formattedY}}</span>
+                </li>
+              </c.Tooltip>
+            </:after>
+          </LineChart>
+          <p>{{this.activeAnnotation.info}}</p>
+        {{/if}}
+      </div>
+  `,
+  context: {
+    data: DelayedArray.create([
+      {
+        name: 'Series 1',
+        data: [
+          { x: 3, y: 7 },
+          { x: 4, y: 5 },
+          { x: 5, y: 8 },
+          { x: 6, y: 9 },
+          { x: 7, y: 10 },
+          { x: 8, y: 8 },
+          { x: 9, y: 6 },
+        ],
+      },
+      {
+        name: 'Series 2',
+        data: [
+          { x: 1, y: 5 },
+          { x: 2, y: 1 },
+          { x: 3, y: 2 },
+          { x: 4, y: 2 },
+          { x: 5, y: 9 },
+          { x: 6, y: 3 },
+          { x: 7, y: 4 },
+        ],
+      },
+    ]),
+  },
+});
