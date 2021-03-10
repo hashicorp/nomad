@@ -91,6 +91,7 @@ type VolumeRequest struct {
 	Source       string
 	ReadOnly     bool
 	MountOptions *CSIMountOptions
+	PerAlloc     bool
 }
 
 func (v *VolumeRequest) Copy() *VolumeRequest {

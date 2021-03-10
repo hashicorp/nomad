@@ -695,7 +695,8 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		ctx.Plan().AppendStoppedAlloc(update.Alloc, allocInPlace, "", "")
 
 		// Attempt to match the task group
-		option := stack.Select(update.TaskGroup, nil) // This select only looks at one node so we don't pass selectOptions
+		option := stack.Select(update.TaskGroup,
+			&SelectOptions{AllocName: update.Alloc.Name})
 
 		// Pop the allocation
 		ctx.Plan().PopUpdate(update.Alloc)
@@ -977,7 +978,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		ctx.Plan().AppendStoppedAlloc(existing, allocInPlace, "", "")
 
 		// Attempt to match the task group
-		option := stack.Select(newTG, nil) // This select only looks at one node so we don't pass selectOptions
+		option := stack.Select(newTG, &SelectOptions{AllocName: existing.Name})
 
 		// Pop the allocation
 		ctx.Plan().PopUpdate(existing)

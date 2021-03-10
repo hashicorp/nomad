@@ -35,6 +35,7 @@ type SelectOptions struct {
 	PenaltyNodeIDs map[string]struct{}
 	PreferredNodes []*structs.Node
 	Preempt        bool
+	AllocName      string
 }
 
 // GenericStack is the Stack used for the Generic scheduler. It is
@@ -143,7 +144,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
 	s.taskGroupHostVolumes.SetVolumes(tg.Volumes)
-	s.taskGroupCSIVolumes.SetVolumes(tg.Volumes)
+	s.taskGroupCSIVolumes.SetVolumes(options.AllocName, tg.Volumes)
 	if len(tg.Networks) > 0 {
 		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
 	}
@@ -297,7 +298,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ran
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
 	s.taskGroupHostVolumes.SetVolumes(tg.Volumes)
-	s.taskGroupCSIVolumes.SetVolumes(tg.Volumes)
+	s.taskGroupCSIVolumes.SetVolumes(options.AllocName, tg.Volumes)
 	if len(tg.Networks) > 0 {
 		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
 	}
