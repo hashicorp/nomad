@@ -154,7 +154,7 @@ github.com/circonus-labs/circonus-gometrics/api/config
 github.com/circonus-labs/circonus-gometrics/checkmgr
 # github.com/circonus-labs/circonusllhist v0.1.3
 github.com/circonus-labs/circonusllhist
-# github.com/container-storage-interface/spec v1.2.0-rc1.0.20191021210849-a33ece0a8a9f
+# github.com/container-storage-interface/spec v1.4.0
 ## explicit
 github.com/container-storage-interface/spec/lib/go/csi
 # github.com/containerd/console v1.0.0
