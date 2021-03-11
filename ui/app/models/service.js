@@ -6,5 +6,6 @@ export default class Service extends Fragment {
   @attr('string') name;
   @attr('string') portLabel;
   @attr() tags;
+  @attr('string') onUpdate;
   @fragment('consul-connect') connect;
 }

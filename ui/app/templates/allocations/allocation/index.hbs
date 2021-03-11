@@ -165,6 +165,7 @@
             <th class="is-2">Name</th>
             <th class="is-1">Port</th>
             <td>Tags</td>
+            <td>On Update</td>
             <td>Connect?</td>
             <td>Upstreams</td>
           </t.head>
@@ -173,6 +174,7 @@
               <td data-test-service-name>{{row.model.name}}</td>
               <td data-test-service-port>{{row.model.portLabel}}</td>
               <td data-test-service-tags>{{join ", " row.model.tags}}</td>
+              <td data-test-service-onupdate>{{row.model.onUpdate}}</td>
               <td data-test-service-connect>{{if row.model.connect "Yes" "No"}}</td>
               <td data-test-service-upstreams>
                 {{#each row.model.connect.sidecarService.proxy.upstreams as |upstream|}}

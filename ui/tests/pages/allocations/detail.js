@@ -93,6 +93,7 @@ export default create({
     name: text('[data-test-service-name]'),
     port: text('[data-test-service-port]'),
     tags: text('[data-test-service-tags]'),
+    onUpdate: text('[data-test-service-onupdate]'),
     connect: text('[data-test-service-connect]'),
     upstreams: text('[data-test-service-upstreams]'),
   }),
