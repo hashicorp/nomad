@@ -27,7 +27,7 @@ require (
 	github.com/armon/go-metrics v0.3.4
 	github.com/aws/aws-sdk-go v1.35.3
 	github.com/boltdb/bolt v1.3.1
-	github.com/container-storage-interface/spec v1.2.0-rc1.0.20191021210849-a33ece0a8a9f
+	github.com/container-storage-interface/spec v1.4.0
 	github.com/containerd/go-cni v0.0.0-20190904155053-d20b7eebc7ee
 	github.com/containernetworking/cni v0.7.2-0.20190612152420-dc953e2fd91f
 	github.com/containernetworking/plugins v0.7.3-0.20190501191748-2d6d46d308b2
