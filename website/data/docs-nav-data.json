@@ -724,6 +724,14 @@
             "path": "commands/volume"
           },
           {
+            "title": "create",
+            "path": "commands/volume/create"
+          },
+          {
+            "title": "delete",
+            "path": "commands/volume/delete"
+          },
+          {
             "title": "deregister",
             "path": "commands/volume/deregister"
           },
