@@ -11,7 +11,7 @@
   }
 
   & .g-type-body-large {
-    color: var(--gray-3);
+    color: var(--gray-2);
     margin: 0 auto 0 auto;
     text-align: center;
     max-width: 40em;

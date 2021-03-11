@@ -91,7 +91,7 @@
       }
 
       & .course {
-        border: 1px solid var(--gray-6);
+        border: 1px solid var(--gray-5);
         display: flex;
         flex-direction: column;
         width: 100%;
@@ -102,7 +102,7 @@
         }
 
         & .image {
-          background: var(--gray-7);
+          background: var(--gray-6);
           position: relative;
           display: flex;
           justify-content: center;
@@ -119,7 +119,7 @@
         }
 
         & .time {
-          color: var(--gray-4);
+          color: var(--gray-3);
           position: absolute;
           top: 10px;
           right: 10px;
