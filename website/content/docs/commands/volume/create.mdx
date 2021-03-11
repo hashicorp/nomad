@@ -1,33 +1,29 @@
 ---
 layout: docs
-page_title: 'Commands: volume register'
-sidebar_title: register
+page_title: 'Commands: volume create'
+sidebar_title: create
 description: |
-  Register volumes with CSI plugins.
+  Create volumes with CSI plugins.
 ---
 
-# Command: volume register
+# Command: volume create
 
-The `volume register` command registers external storage volumes with Nomad's
-[Container Storage Interface (CSI)][csi] support. The volume must exist on the
-remote storage provider before it can be registered and used by a task.
-
-CSI plugins that implement the [Controller][csi_plugins_internals] interface
-can be created via the [`volume create`] command, which will automatically
-register the volume as well.
+The `volume create` command creates external storage volumes with Nomad's
+[Container Storage Interface (CSI)][csi] support. Only CSI plugins that
+implement the [Controller][csi_plugins_internals] interface support this
+command. The volume will also be [registered] when it is successfully created.
 
 ## Usage
 
 ```plaintext
-nomad volume register [options] [file]
+nomad volume create [options] [file]
 ```
 
-The `volume register` command requires a single argument, specifying the path
-to a file containing a valid [volume
-specification][volume_specification]. This file will be read and the job will
-be submitted to Nomad for scheduling. If the supplied path is "-", the job
-file is read from STDIN. Otherwise it is read from the file at the supplied
-path.
+The `volume create` command requires a single argument, specifying the path to
+a file containing a valid [volume specification][volume_specification]. This
+file will be read and the volume will be submitted to Nomad for scheduling. If
+the supplied path is "-", the volume file is read from STDIN. Otherwise it is
+read from the file at the supplied path.
 
 When ACLs are enabled, this command requires a token with the
 `csi-write-volume` capability for the volume's namespace.
@@ -47,7 +43,12 @@ type            = "csi"
 external_id     = "vol-23452345"
 plugin_id       = "ebs-prod"
 snapshot_id     = "snap-12345" # or clone_id, see below
-capacity        = "100G"
+
+capacity {
+  required = "100G"
+  limit    = "200G"
+}
+
 access_mode     = "single-node-writer"
 attachment_mode = "file-system"
 
@@ -87,14 +88,25 @@ context {
 - `plugin_id` `(string: <required>)` - The ID of the [CSI plugin][csi_plugin]
   that manages this volume.
 
-- `snapshot_id` - This field is only used during volume creation, and is
-  ignored during volume registration. See [`volume create`].
+- `snapshot_id` `(string: <optional>)` - If the storage provider supports
+  snapshots, the external ID of the snapshot to restore when creating this
+  volume. If omitted, the volume will be created from scratch. The
+  `snapshot_id` cannot be set if the `clone_id` field is set.
 
-- `clone_id` - This field is only used during volume creation, and is ignored
-  during volume registration. See [`volume create`].
+- `clone_id` `(string: <optional>)` - If the storage provider supports
+  cloning, the external ID of the volume to clone when creating this
+  volume. If omitted, the volume will be created from scratch. The
+  `clone_id` cannot be set if the `snapshot_id` field is set.
 
-- `capacity` - This field is only used during volume creation, and is ignored
-  during volume registration. See [`volume create`].
+- `capacity` - Options for setting the capacity. Not all options are supported
+  by all storage providers.
+
+  - `required` `(string: <optional>)` - The volume must be at least this
+    large, in bytes. The storage provider may return a volume that is larger
+    than this value. Accepts human-friendly suffixes such as `"100GiB"`.
+  - `limit` `(string: <optional>)` - The volume must be no more than this
+    large, in bytes. The storage provider may return a volume that is smaller
+    than this value. Accepts human-friendly suffixes such as `"100GiB"`.
 
 - `access_mode` `(string: <required>)` - Defines whether a volume should be
   available concurrently. Can be one of `"single-node-reader-only"`,
@@ -138,4 +150,4 @@ context {
 [volume_specification]: #volume-specification
 [csi_plugin]: /docs/job-specification/csi_plugin
 [csi_volume_source]: /docs/job-specification/volume#source
-[`volume create`]: /docs/commands/volume/create
+[registered]: /docs/commands/volume/register
