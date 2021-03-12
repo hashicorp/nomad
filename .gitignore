@@ -55,7 +55,11 @@ ui/dist/
 website/.bundle
 website/vendor
 
+# init outputs
 example.nomad
+spec.hcl
+volume.hcl
+
 nomad_linux_amd64
 nomad_darwin_amd64
 TODO.md
