@@ -191,6 +191,11 @@ BUG FIXES:
  * ui: Fixed a bug in the volume status page where read allocations and write allocations were not displayed. [[GH-9377](https://github.com/hashicorp/nomad/issues/9377)]
  * ui: Fixed a bug in the CSI volume and plugin status pages where plugins that don't require controllers were shown as unhealthy. [[GH-9416](https://github.com/hashicorp/nomad/issues/9416)]
 
+## 0.12.10 (January 28, 2021)
+
+SECURITY:
+ * drivers/exec+java: Modified exec-based drivers to run tasks in private PID/IPC namespaces. CVE-2021-3283 [[GH-9911](https://github.com/hashicorp/nomad/issues/9911)]
+
 ## 0.12.9 (November 18, 2020)
 
 BUG FIXES:
