@@ -843,6 +843,35 @@ func TestDockerDriver_ExtraLabels(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_LoggingConfiguration(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dockerClientConfig := make(map[string]interface{})
+	loggerConfig := map[string]string{"gelf-address": "udp://1.2.3.4:12201", "tag": "gelf"}
+
+	dockerClientConfig["logging"] = LoggingConfig{
+		Type:   "gelf",
+		Config: loggerConfig,
+	}
+	client, d, handle, cleanup := dockerSetup(t, task, dockerClientConfig)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	require.NoError(t, err)
+
+	require.Equal(t, "gelf", container.HostConfig.LogConfig.Type)
+	require.Equal(t, loggerConfig, container.HostConfig.LogConfig.Config)
+}
+
 func TestDockerDriver_ForcePull(t *testing.T) {
 	if !tu.IsCI() {
 		t.Parallel()
