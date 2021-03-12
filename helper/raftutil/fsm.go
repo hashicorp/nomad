@@ -2,30 +2,76 @@ package raftutil
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/raft"
+	raftboltdb "github.com/hashicorp/raft-boltdb"
 )
 
-// FSMState returns a dump of the FSM state as found in data-dir, as of lastIndx value
-func FSMState(p string, plastIdx int64) (interface{}, error) {
+var ErrNoMoreLogs = fmt.Errorf("no more logs")
+
+type nomadFSM interface {
+	raft.FSM
+	State() *state.StateStore
+	Restore(io.ReadCloser) error
+}
+
+type FSMHelper struct {
+	path string
+
+	logger hclog.Logger
+
+	// nomad state
+	store *raftboltdb.BoltStore
+	fsm   nomadFSM
+	snaps *raft.FileSnapshotStore
+
+	// raft
+	logFirstIdx uint64
+	logLastIdx  uint64
+	nextIdx     uint64
+}
+
+func NewFSM(p string) (*FSMHelper, error) {
 	store, firstIdx, lastIdx, err := RaftStateInfo(filepath.Join(p, "raft.db"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open raft database %v: %v", p, err)
 	}
-	defer store.Close()
-
-	snaps, err := raft.NewFileSnapshotStore(p, 1000, os.Stderr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open snapshot dir: %v", err)
-	}
 
 	logger := hclog.L()
 
+	snaps, err := raft.NewFileSnapshotStoreWithLogger(p, 1000, logger)
+	if err != nil {
+		store.Close()
+		return nil, fmt.Errorf("failed to open snapshot dir: %v", err)
+	}
+
+	fsm, err := dummyFSM(logger)
+	if err != nil {
+		store.Close()
+		return nil, err
+	}
+
+	return &FSMHelper{
+		path:   p,
+		logger: logger,
+		store:  store,
+		fsm:    fsm,
+		snaps:  snaps,
+
+		logFirstIdx: firstIdx,
+		logLastIdx:  lastIdx,
+		nextIdx:     uint64(1),
+	}, nil
+}
+
+func dummyFSM(logger hclog.Logger) (nomadFSM, error) {
 	// use dummy non-enabled FSM dependencies
 	periodicDispatch := nomad.NewPeriodicDispatch(logger, nil)
 	blockedEvals := nomad.NewBlockedEvals(nil, logger)
@@ -33,6 +79,7 @@ func FSMState(p string, plastIdx int64) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	fsmConfig := &nomad.FSMConfig{
 		EvalBroker: evalBroker,
 		Periodic:   periodicDispatch,
@@ -41,38 +88,104 @@ func FSMState(p string, plastIdx int64) (interface{}, error) {
 		Region:     "default",
 	}
 
-	fsm, err := nomad.NewFSM(fsmConfig)
-	if err != nil {
-		return nil, err
-	}
+	return nomad.NewFSM(fsmConfig)
+}
 
-	// restore from snapshot first
-	sFirstIdx, err := restoreFromSnapshot(fsm, snaps, logger)
-	if err != nil {
-		return nil, err
-	}
+func (f *FSMHelper) Close() {
+	f.store.Close()
 
-	if sFirstIdx+1 < firstIdx {
-		return nil, fmt.Errorf("missing logs after snapshot [%v,%v]", sFirstIdx+1, firstIdx-1)
-	} else if sFirstIdx > 0 {
-		firstIdx = sFirstIdx + 1
-	}
+}
 
-	lastIdx = lastIndex(lastIdx, plastIdx)
-
-	for i := firstIdx; i <= lastIdx; i++ {
-		var e raft.Log
-		err := store.GetLog(i, &e)
+func (f *FSMHelper) ApplyNext() (index uint64, term uint64, err error) {
+	if f.nextIdx == 1 {
+		// check snapshots first
+		index, term, err := f.restoreFromSnapshot()
 		if err != nil {
-			return nil, fmt.Errorf("failed to read log entry at index %d: %v, firstIdx: %d, lastIdx: %d", i, err, firstIdx, lastIdx)
+			return 0, 0, err
 		}
 
-		if e.Type == raft.LogCommand {
-			fsm.Apply(&e)
+		if index != 0 {
+			f.nextIdx = index + 1
+			return index, term, nil
 		}
 	}
 
-	state := fsm.State()
+	if f.nextIdx < f.logFirstIdx {
+		return 0, 0, fmt.Errorf("missing logs [%v, %v]", f.nextIdx, f.logFirstIdx-1)
+	}
+
+	if f.nextIdx > f.logLastIdx {
+		return 0, 0, ErrNoMoreLogs
+	}
+
+	var e raft.Log
+	err = f.store.GetLog(f.nextIdx, &e)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to read log entry at index %d: %v", f.nextIdx, err)
+	}
+
+	defer func() {
+		r := recover()
+		if r != nil && strings.HasPrefix(fmt.Sprint(r), "failed to apply request") {
+			// Enterprise specific log entries will fail to load in OSS repository with "failed to apply request."
+			// If not relevant to investigation, we can ignore them and simply worn.
+			f.logger.Warn("failed to apply log; loading Enterprise data-dir in OSS binary?", "index", e.Index)
+
+			f.nextIdx++
+		} else if r != nil {
+			panic(r)
+		}
+	}()
+
+	if e.Type == raft.LogCommand {
+		f.fsm.Apply(&e)
+	}
+
+	f.nextIdx++
+	return e.Index, e.Term, nil
+}
+
+// ApplyUntil applies all raft entries until (inclusive) the passed index.
+func (f *FSMHelper) ApplyUntil(stopIdx uint64) (idx uint64, term uint64, err error) {
+	var lastIdx, lastTerm uint64
+	for {
+		idx, term, err := f.ApplyNext()
+		if err == ErrNoMoreLogs {
+			return lastIdx, lastTerm, nil
+		} else if err != nil {
+			return lastIdx, lastTerm, err
+		} else if idx >= stopIdx {
+			return lastIdx, lastTerm, nil
+		}
+
+		lastIdx, lastTerm = idx, term
+	}
+}
+
+func (f *FSMHelper) ApplyAll() (index uint64, term uint64, err error) {
+	var lastIdx, lastTerm uint64
+	for {
+		idx, term, err := f.ApplyNext()
+		if err == ErrNoMoreLogs {
+			return lastIdx, lastTerm, nil
+		} else if err != nil {
+			return lastIdx, lastTerm, err
+		}
+
+		lastIdx, lastTerm = idx, term
+	}
+}
+
+func (f *FSMHelper) State() *state.StateStore {
+	return f.fsm.State()
+}
+
+func (f *FSMHelper) StateAsMap() map[string][]interface{} {
+	return StateAsMap(f.fsm.State())
+}
+
+// StateAsMap returns a json-able representation of the state
+func StateAsMap(state *state.StateStore) map[string][]interface{} {
 	result := map[string][]interface{}{
 		"ACLPolicies":      toArray(state.ACLPolicies(nil)),
 		"ACLTokens":        toArray(state.ACLTokens(nil)),
@@ -95,52 +208,35 @@ func FSMState(p string, plastIdx int64) (interface{}, error) {
 
 	insertEnterpriseState(result, state)
 
-	return result, nil
+	return result
+
 }
 
-func restoreFromSnapshot(fsm raft.FSM, snaps raft.SnapshotStore, logger hclog.Logger) (uint64, error) {
-	logger = logger.Named("restoreFromSnapshot")
-	snapshots, err := snaps.List()
+func (f *FSMHelper) restoreFromSnapshot() (index uint64, term uint64, err error) {
+	snapshots, err := f.snaps.List()
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	logger.Debug("found snapshots", "count", len(snapshots))
+	f.logger.Debug("found snapshots", "count", len(snapshots))
 
 	for _, snapshot := range snapshots {
-		_, source, err := snaps.Open(snapshot.ID)
+		_, source, err := f.snaps.Open(snapshot.ID)
 		if err != nil {
-			logger.Warn("failed to open a snapshot", "snapshot_id", snapshot.ID, "error", err)
+			f.logger.Warn("failed to open a snapshot", "snapshot_id", snapshot.ID, "error", err)
 			continue
 		}
 
-		err = fsm.Restore(source)
+		err = f.fsm.Restore(source)
 		source.Close()
 		if err != nil {
-			logger.Warn("failed to restore a snapshot", "snapshot_id", snapshot.ID, "error", err)
+			f.logger.Warn("failed to restore a snapshot", "snapshot_id", snapshot.ID, "error", err)
 			continue
 		}
 
-		return snapshot.Index, nil
+		return snapshot.Index, snapshot.Term, nil
 	}
 
-	return 0, nil
-}
-
-func lastIndex(raftLastIdx uint64, cliLastIdx int64) uint64 {
-	switch {
-	case cliLastIdx < 0:
-		if raftLastIdx > uint64(-cliLastIdx) {
-			return raftLastIdx - uint64(-cliLastIdx)
-		} else {
-			return 0
-		}
-	case cliLastIdx == 0:
-		return raftLastIdx
-	case uint64(cliLastIdx) < raftLastIdx:
-		return uint64(cliLastIdx)
-	default:
-		return raftLastIdx
-	}
+	return 0, 0, nil
 }
 
 func toArray(iter memdb.ResultIterator, err error) []interface{} {
