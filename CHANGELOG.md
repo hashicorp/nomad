@@ -11,6 +11,7 @@ IMPROVEMENTS:
  * cli: Update defaults for `nomad operator debug` flags `-interval` and `-server-id` to match common usage. [[GH-10121](https://github.com/hashicorp/nomad/issues/10121)]
  * consul/connect: Enable setting `local_bind_address` field on connect upstreams [[GH-6248](https://github.com/hashicorp/nomad/issues/6248)]
  * driver/docker: Added support for optional extra container labels. [[GH-9885](https://github.com/hashicorp/nomad/issues/9885)]
+ * driver/docker: Added support for configuring default logger behavior in the client configuration. [[GH-10156](https://github.com/hashicorp/nomad/issues/10156)]
 
 ## 1.0.4 (February 24, 2021)
 
