@@ -106,6 +106,7 @@ job "docs" {
       # Configuration is specific to each driver.
       config {
         image = "hashicorp/web-frontend"
+        ports = ["http", "https"]
       }
 
       # It is possible to set environment variables which will be
