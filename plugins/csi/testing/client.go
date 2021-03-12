@@ -49,6 +49,9 @@ type ControllerClient struct {
 	NextPublishVolumeResponse              *csipbv1.ControllerPublishVolumeResponse
 	NextUnpublishVolumeResponse            *csipbv1.ControllerUnpublishVolumeResponse
 	NextValidateVolumeCapabilitiesResponse *csipbv1.ValidateVolumeCapabilitiesResponse
+	NextCreateVolumeResponse               *csipbv1.CreateVolumeResponse
+	NextDeleteVolumeResponse               *csipbv1.DeleteVolumeResponse
+	NextListVolumesResponse                *csipbv1.ListVolumesResponse
 }
 
 // NewControllerClient returns a new ControllerClient
@@ -62,6 +65,9 @@ func (f *ControllerClient) Reset() {
 	f.NextPublishVolumeResponse = nil
 	f.NextUnpublishVolumeResponse = nil
 	f.NextValidateVolumeCapabilitiesResponse = nil
+	f.NextCreateVolumeResponse = nil
+	f.NextDeleteVolumeResponse = nil
+	f.NextListVolumesResponse = nil
 }
 
 func (c *ControllerClient) ControllerGetCapabilities(ctx context.Context, in *csipbv1.ControllerGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.ControllerGetCapabilitiesResponse, error) {
@@ -78,6 +84,18 @@ func (c *ControllerClient) ControllerUnpublishVolume(ctx context.Context, in *cs
 
 func (c *ControllerClient) ValidateVolumeCapabilities(ctx context.Context, in *csipbv1.ValidateVolumeCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.ValidateVolumeCapabilitiesResponse, error) {
 	return c.NextValidateVolumeCapabilitiesResponse, c.NextErr
+}
+
+func (c *ControllerClient) CreateVolume(ctx context.Context, in *csipbv1.CreateVolumeRequest, opts ...grpc.CallOption) (*csipbv1.CreateVolumeResponse, error) {
+	return c.NextCreateVolumeResponse, c.NextErr
+}
+
+func (c *ControllerClient) DeleteVolume(ctx context.Context, in *csipbv1.DeleteVolumeRequest, opts ...grpc.CallOption) (*csipbv1.DeleteVolumeResponse, error) {
+	return c.NextDeleteVolumeResponse, c.NextErr
+}
+
+func (c *ControllerClient) ListVolumes(ctx context.Context, in *csipbv1.ListVolumesRequest, opts ...grpc.CallOption) (*csipbv1.ListVolumesResponse, error) {
+	return c.NextListVolumesResponse, c.NextErr
 }
 
 // NodeClient is a CSI Node client used for testing
