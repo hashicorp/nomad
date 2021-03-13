@@ -75,7 +75,7 @@ func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
 		return err
 	}
 
-	if err := ensureFirstChainRule(ipt, cniAdminChainName, b.generateAdminChainRule()); err != nil {
+	if err := appendChainRule(ipt, cniAdminChainName, b.generateAdminChainRule()); err != nil {
 		return err
 	}
 
@@ -105,12 +105,11 @@ func ensureChain(ipt *iptables.IPTables, table, chain string) error {
 	return err
 }
 
-// ensureFirstChainRule ensures the given rule exists as the first rule in the chain
-func ensureFirstChainRule(ipt *iptables.IPTables, chain string, rule []string) error {
+// appendChainRule adds the given rule to the chain
+func appendChainRule(ipt *iptables.IPTables, chain string, rule []string) error {
 	exists, err := ipt.Exists("filter", chain, rule...)
 	if !exists && err == nil {
-		// iptables rules are 1-indexed
-		err = ipt.Insert("filter", chain, 1, rule...)
+		err = ipt.Append("filter", chain, rule...)
 	}
 	return err
 }
