@@ -421,7 +421,7 @@ func (r *ControllerCreateVolumeRequest) ToCSIRepresentation() *csipbv1.CreateVol
 	if r == nil {
 		return nil
 	}
-	caps := make([]*csipbv1.VolumeCapability, len(r.VolumeCapabilities))
+	caps := make([]*csipbv1.VolumeCapability, 0, len(r.VolumeCapabilities))
 	for _, cap := range r.VolumeCapabilities {
 		caps = append(caps, cap.ToCSIRepresentation())
 	}

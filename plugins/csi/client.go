@@ -387,12 +387,6 @@ func (c *client) ControllerValidateCapabilities(ctx context.Context, req *Contro
 }
 
 func (c *client) ControllerCreateVolume(ctx context.Context, req *ControllerCreateVolumeRequest, opts ...grpc.CallOption) (*ControllerCreateVolumeResponse, error) {
-	if c == nil {
-		return nil, fmt.Errorf("Client not initialized")
-	}
-	if c.controllerClient == nil {
-		return nil, fmt.Errorf("controllerClient not initialized")
-	}
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -436,12 +430,6 @@ func (c *client) ControllerCreateVolume(ctx context.Context, req *ControllerCrea
 }
 
 func (c *client) ControllerListVolumes(ctx context.Context, req *ControllerListVolumesRequest, opts ...grpc.CallOption) (*ControllerListVolumesResponse, error) {
-	if c == nil {
-		return nil, fmt.Errorf("Client not initialized")
-	}
-	if c.controllerClient == nil {
-		return nil, fmt.Errorf("controllerClient not initialized")
-	}
 	err := req.Validate()
 	if err != nil {
 		return nil, err
@@ -464,12 +452,6 @@ func (c *client) ControllerListVolumes(ctx context.Context, req *ControllerListV
 }
 
 func (c *client) ControllerDeleteVolume(ctx context.Context, req *ControllerDeleteVolumeRequest, opts ...grpc.CallOption) error {
-	if c == nil {
-		return fmt.Errorf("Client not initialized")
-	}
-	if c.controllerClient == nil {
-		return fmt.Errorf("controllerClient not initialized")
-	}
 	err := req.Validate()
 	if err != nil {
 		return err
