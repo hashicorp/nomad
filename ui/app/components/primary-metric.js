@@ -1,7 +1,7 @@
 import Ember from 'ember';
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
-import { computed } from '@ember/object';
+import { computed, get } from '@ember/object';
 import { task, timeout } from 'ember-concurrency';
 import { classNames } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
@@ -84,6 +84,29 @@ export default class PrimaryMetric extends Component {
     };
 
     return mappings[metric] || 'is-primary';
+  }
+
+  @computed('type', 'metric', 'reservedAmount', 'resource.reserved.{cpu,memory}')
+  get reservedAnnotations() {
+    if (this.type !== 'node') return [];
+
+    if (this.metric === 'cpu' && get(this, 'resource.reserved.cpu')) {
+      const cpu = this.resource.reserved.cpu;
+      return [{ label: `${cpu} MHz reserved`, percent: cpu / this.reservedAmount }];
+    }
+
+    if (this.metric === 'memory' && get(this, 'resource.reserved.memory')) {
+      const memory = this.resource.reserved.memory;
+      return [{ label: `${memory} MiB reserved`, percent: memory / this.reservedAmount }];
+    }
+
+    return [];
+  }
+
+  @computed('type')
+  get descriptor() {
+    if (this.type === 'node') return 'Total';
+    return 'Reserved';
   }
 
   @task(function*() {
