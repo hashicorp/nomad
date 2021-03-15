@@ -175,6 +175,102 @@ func (c *ClientCSIControllerDetachVolumeRequest) ToCSIRequest() *csi.ControllerU
 
 type ClientCSIControllerDetachVolumeResponse struct{}
 
+// ClientCSIControllerCreateVolumeRequest the RPC made from the server to a
+// Nomad client to tell a CSI controller plugin on that client to perform
+// CreateVolume
+type ClientCSIControllerCreateVolumeRequest struct {
+	Name               string
+	VolumeCapabilities []*structs.CSIVolumeCapability
+	Parameters         map[string]string
+	Secrets            structs.CSISecrets
+	CapacityMin        int64
+	CapacityMax        int64
+	SnapshotID         string
+	CloneID            string
+	// TODO: topology is not yet supported
+	// TopologyRequirement
+
+	CSIControllerQuery
+}
+
+func (req *ClientCSIControllerCreateVolumeRequest) ToCSIRequest() (*csi.ControllerCreateVolumeRequest, error) {
+
+	creq := &csi.ControllerCreateVolumeRequest{
+		Name: req.Name,
+		CapacityRange: &csi.CapacityRange{
+			RequiredBytes: req.CapacityMin,
+			LimitBytes:    req.CapacityMax,
+		},
+		VolumeCapabilities: []*csi.VolumeCapability{},
+		Parameters:         req.Parameters,
+		Secrets:            req.Secrets,
+		ContentSource: &csi.VolumeContentSource{
+			CloneID:    req.CloneID,
+			SnapshotID: req.SnapshotID,
+		},
+		// TODO: topology is not yet supported
+		AccessibilityRequirements: &csi.TopologyRequirement{},
+	}
+	for _, cap := range req.VolumeCapabilities {
+		ccap, err := csi.VolumeCapabilityFromStructs(cap.AttachmentMode, cap.AccessMode)
+		if err != nil {
+			return nil, err
+		}
+		creq.VolumeCapabilities = append(creq.VolumeCapabilities, ccap)
+	}
+	return creq, nil
+}
+
+type ClientCSIControllerCreateVolumeResponse struct {
+	ExternalVolumeID string
+	CapacityBytes    int64
+	VolumeContext    map[string]string
+
+	// TODO: topology is not yet supported
+	// AccessibleTopology []*Topology
+}
+
+// ClientCSIControllerDeleteVolumeRequest the RPC made from the server to a
+// Nomad client to tell a CSI controller plugin on that client to perform
+// DeleteVolume
+type ClientCSIControllerDeleteVolumeRequest struct {
+	ExternalVolumeID string
+	Secrets          structs.CSISecrets
+
+	CSIControllerQuery
+}
+
+func (req *ClientCSIControllerDeleteVolumeRequest) ToCSIRequest() *csi.ControllerDeleteVolumeRequest {
+	return &csi.ControllerDeleteVolumeRequest{
+		ExternalVolumeID: req.ExternalVolumeID,
+		Secrets:          req.Secrets,
+	}
+}
+
+type ClientCSIControllerDeleteVolumeResponse struct{}
+
+// ClientCSIControllerListVolumesVolumeRequest the RPC made from the server to
+// a Nomad client to tell a CSI controller plugin on that client to perform
+// ListVolumes
+type ClientCSIControllerListVolumesRequest struct {
+	MaxEntries    int32
+	StartingToken string
+
+	CSIControllerQuery
+}
+
+func (req *ClientCSIControllerListVolumesRequest) ToCSIRequest() *csi.ControllerListVolumesRequest {
+	return &csi.ControllerListVolumesRequest{
+		MaxEntries:    req.MaxEntries,
+		StartingToken: req.StartingToken,
+	}
+}
+
+type ClientCSIControllerListVolumesResponse struct {
+	Entries   []*structs.CSIVolumeExternalStub
+	NextToken string
+}
+
 // ClientCSINodeDetachVolumeRequest is the RPC made from the server to
 // a Nomad client to tell a CSI node plugin on that client to perform
 // NodeUnpublish and NodeUnstage.
