@@ -698,7 +698,249 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestClient_RPC_ControllerCreateVolume(t *testing.T) {
+
+	cases := []struct {
+		Name          string
+		CapacityRange *CapacityRange
+		ContentSource *VolumeContentSource
+		ResponseErr   error
+		Response      *csipbv1.CreateVolumeResponse
+		ExpectedErr   error
+	}{
+		{
+			Name:        "handles underlying grpc errors",
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
+		},
+
+		{
+			Name: "handles error invalid capacity range",
+			CapacityRange: &CapacityRange{
+				RequiredBytes: 1000,
+				LimitBytes:    500,
+			},
+			ExpectedErr: errors.New("LimitBytes cannot be less than RequiredBytes"),
+		},
+
+		{
+			Name: "handles error invalid content source",
+			ContentSource: &VolumeContentSource{
+				SnapshotID: "snap-12345",
+				CloneID:    "vol-12345",
+			},
+			ExpectedErr: errors.New(
+				"one of SnapshotID or CloneID must be set if ContentSource is set"),
+		},
+
+		{
+			Name:     "handles success missing source and range",
+			Response: &csipbv1.CreateVolumeResponse{},
+		},
+
+		{
+			Name: "handles success with capacity range and source",
+			CapacityRange: &CapacityRange{
+				RequiredBytes: 500,
+				LimitBytes:    1000,
+			},
+			ContentSource: &VolumeContentSource{
+				SnapshotID: "snap-12345",
+			},
+			Response: &csipbv1.CreateVolumeResponse{
+				Volume: &csipbv1.Volume{
+					CapacityBytes: 1000,
+					ContentSource: &csipbv1.VolumeContentSource{
+						Type: &csipbv1.VolumeContentSource_Snapshot{
+							Snapshot: &csipbv1.VolumeContentSource_SnapshotSource{
+								SnapshotId: "snap-12345",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, cc, _, client := newTestClient()
+			defer client.Close()
+
+			req := &ControllerCreateVolumeRequest{
+				Name:          "vol-123456",
+				CapacityRange: tc.CapacityRange,
+				VolumeCapabilities: []*VolumeCapability{
+					{
+						AccessType: VolumeAccessTypeMount,
+						AccessMode: VolumeAccessModeMultiNodeMultiWriter,
+					},
+				},
+				Parameters:                map[string]string{},
+				Secrets:                   structs.CSISecrets{},
+				ContentSource:             tc.ContentSource,
+				AccessibilityRequirements: &TopologyRequirement{},
+			}
+
+			cc.NextCreateVolumeResponse = tc.Response
+			cc.NextErr = tc.ResponseErr
+
+			resp, err := client.ControllerCreateVolume(context.TODO(), req)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
+				return
+			}
+			require.NoError(t, err, tc.Name)
+			if tc.Response == nil {
+				require.Nil(t, resp)
+				return
+			}
+			if tc.CapacityRange != nil {
+				require.Greater(t, resp.Volume.CapacityBytes, int64(0))
+			}
+			if tc.ContentSource != nil {
+				require.Equal(t, tc.ContentSource.CloneID, resp.Volume.ContentSource.CloneID)
+				require.Equal(t, tc.ContentSource.SnapshotID, resp.Volume.ContentSource.SnapshotID)
+			}
+		})
+	}
+}
+
+func TestClient_RPC_ControllerDeleteVolume(t *testing.T) {
+
+	cases := []struct {
+		Name        string
+		Request     *ControllerDeleteVolumeRequest
+		ResponseErr error
+		ExpectedErr error
+	}{
+		{
+			Name:        "handles underlying grpc errors",
+			Request:     &ControllerDeleteVolumeRequest{ExternalVolumeID: "vol-12345"},
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
+		},
+
+		{
+			Name:        "handles error missing volume ID",
+			Request:     &ControllerDeleteVolumeRequest{},
+			ExpectedErr: errors.New("missing ExternalVolumeID"),
+		},
+
+		{
+			Name:    "handles success",
+			Request: &ControllerDeleteVolumeRequest{ExternalVolumeID: "vol-12345"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, cc, _, client := newTestClient()
+			defer client.Close()
+
+			cc.NextErr = tc.ResponseErr
+			err := client.ControllerDeleteVolume(context.TODO(), tc.Request)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
+				return
+			}
+			require.NoError(t, err, tc.Name)
+		})
+	}
+}
+
+func TestClient_RPC_ControllerListVolume(t *testing.T) {
+
+	cases := []struct {
+		Name        string
+		Request     *ControllerListVolumesRequest
+		ResponseErr error
+		ExpectedErr error
+	}{
+		{
+			Name:        "handles underlying grpc errors",
+			Request:     &ControllerListVolumesRequest{},
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
+		},
+
+		{
+			Name:        "handles error invalid max entries",
+			Request:     &ControllerListVolumesRequest{MaxEntries: -1},
+			ExpectedErr: errors.New("MaxEntries cannot be negative"),
+		},
+
+		{
+			Name:    "handles success",
+			Request: &ControllerListVolumesRequest{},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, cc, _, client := newTestClient()
+			defer client.Close()
+
+			cc.NextErr = tc.ResponseErr
+			if tc.ResponseErr != nil {
+				// note: there's nothing interesting to assert here other than
+				// that we don't throw a NPE during transformation from
+				// protobuf to our struct
+				cc.NextListVolumesResponse = &csipbv1.ListVolumesResponse{
+					Entries: []*csipbv1.ListVolumesResponse_Entry{
+						{
+							Volume: &csipbv1.Volume{
+								CapacityBytes: 1000000,
+								VolumeId:      "vol-0",
+								VolumeContext: map[string]string{"foo": "bar"},
+
+								ContentSource: &csipbv1.VolumeContentSource{},
+								AccessibleTopology: []*csipbv1.Topology{
+									{
+										Segments: map[string]string{"rack": "A"},
+									},
+								},
+							},
+						},
+
+						{
+							Volume: &csipbv1.Volume{
+								VolumeId: "vol-1",
+								AccessibleTopology: []*csipbv1.Topology{
+									{
+										Segments: map[string]string{"rack": "A"},
+									},
+								},
+							},
+						},
+
+						{
+							Volume: &csipbv1.Volume{
+								VolumeId: "vol-3",
+								ContentSource: &csipbv1.VolumeContentSource{
+									Type: &csipbv1.VolumeContentSource_Snapshot{
+										Snapshot: &csipbv1.VolumeContentSource_SnapshotSource{
+											SnapshotId: "snap-12345",
+										},
+									},
+								},
+							},
+						},
+					},
+					NextToken: "abcdef",
+				}
+			}
+
+			resp, err := client.ControllerListVolumes(context.TODO(), tc.Request)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
+				return
+			}
+			require.NoError(t, err, tc.Name)
+			require.NotNil(t, resp)
+
+		})
+	}
 }
 
 func TestClient_RPC_NodeStageVolume(t *testing.T) {
