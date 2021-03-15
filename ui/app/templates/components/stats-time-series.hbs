@@ -12,6 +12,7 @@
   @yFormat={{this.yFormat}}>
   <:svg as |c|>
     <c.Area @data={{@data}} @colorClass={{@chartClass}} />
+    {{yield c to="svg"}}
   </:svg>
   <:after as |c|>
     <c.Tooltip class="is-snappy" as |series datum|>
@@ -20,5 +21,6 @@
         <span class="value">{{datum.formattedY}}</span>
       </li>
     </c.Tooltip>
+    {{yield c to="after"}}
   </:after>
 </LineChart>
