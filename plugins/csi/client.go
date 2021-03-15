@@ -68,6 +68,9 @@ type CSIControllerClient interface {
 	ControllerPublishVolume(ctx context.Context, in *csipbv1.ControllerPublishVolumeRequest, opts ...grpc.CallOption) (*csipbv1.ControllerPublishVolumeResponse, error)
 	ControllerUnpublishVolume(ctx context.Context, in *csipbv1.ControllerUnpublishVolumeRequest, opts ...grpc.CallOption) (*csipbv1.ControllerUnpublishVolumeResponse, error)
 	ValidateVolumeCapabilities(ctx context.Context, in *csipbv1.ValidateVolumeCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.ValidateVolumeCapabilitiesResponse, error)
+	CreateVolume(ctx context.Context, in *csipbv1.CreateVolumeRequest, opts ...grpc.CallOption) (*csipbv1.CreateVolumeResponse, error)
+	ListVolumes(ctx context.Context, in *csipbv1.ListVolumesRequest, opts ...grpc.CallOption) (*csipbv1.ListVolumesResponse, error)
+	DeleteVolume(ctx context.Context, in *csipbv1.DeleteVolumeRequest, opts ...grpc.CallOption) (*csipbv1.DeleteVolumeResponse, error)
 }
 
 // CSINodeClient defines the minimal CSI Node Plugin interface used
@@ -381,6 +384,91 @@ func (c *client) ControllerValidateCapabilities(ctx context.Context, req *Contro
 	}
 
 	return nil
+}
+
+func (c *client) ControllerCreateVolume(ctx context.Context, req *ControllerCreateVolumeRequest, opts ...grpc.CallOption) (*ControllerCreateVolumeResponse, error) {
+	err := req.Validate()
+	if err != nil {
+		return nil, err
+	}
+	creq := req.ToCSIRepresentation()
+	resp, err := c.controllerClient.CreateVolume(ctx, creq, opts...)
+
+	// these standard gRPC error codes are overloaded with CSI-specific
+	// meanings, so translate them into user-understandable terms
+	// https://github.com/container-storage-interface/spec/blob/master/spec.md#createvolume-errors
+	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.InvalidArgument:
+			return nil, fmt.Errorf(
+				"volume %q snapshot source %q is not compatible with these parameters: %v",
+				req.Name, req.ContentSource, err)
+		case codes.NotFound:
+			return nil, fmt.Errorf(
+				"volume %q content source %q does not exist: %v",
+				req.Name, req.ContentSource, err)
+		case codes.AlreadyExists:
+			return nil, fmt.Errorf(
+				"volume %q already exists but is incompatible with these parameters: %v",
+				req.Name, err)
+		case codes.ResourceExhausted:
+			return nil, fmt.Errorf(
+				"unable to provision %q in accessible_topology: %v",
+				req.Name, err)
+		case codes.OutOfRange:
+			return nil, fmt.Errorf(
+				"unsupported capacity_range for volume %q: %v", req.Name, err)
+		case codes.Internal:
+			return nil, fmt.Errorf(
+				"controller plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		}
+		return nil, err
+	}
+
+	return NewCreateVolumeResponse(resp), nil
+}
+
+func (c *client) ControllerListVolumes(ctx context.Context, req *ControllerListVolumesRequest, opts ...grpc.CallOption) (*ControllerListVolumesResponse, error) {
+	err := req.Validate()
+	if err != nil {
+		return nil, err
+	}
+	creq := req.ToCSIRepresentation()
+	resp, err := c.controllerClient.ListVolumes(ctx, creq, opts...)
+	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.Aborted:
+			return nil, fmt.Errorf(
+				"invalid starting token %q: %v", req.StartingToken, err)
+		case codes.Internal:
+			return nil, fmt.Errorf(
+				"controller plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		}
+		return nil, err
+	}
+	return NewListVolumesResponse(resp), nil
+}
+
+func (c *client) ControllerDeleteVolume(ctx context.Context, req *ControllerDeleteVolumeRequest, opts ...grpc.CallOption) error {
+	err := req.Validate()
+	if err != nil {
+		return err
+	}
+	creq := req.ToCSIRepresentation()
+	_, err = c.controllerClient.DeleteVolume(ctx, creq, opts...)
+	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.FailedPrecondition:
+			return fmt.Errorf("volume %q is in use: %v", req.ExternalVolumeID, err)
+		case codes.Internal:
+			return fmt.Errorf(
+				"controller plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		}
+	}
+	return err
 }
 
 // compareCapabilities returns an error if the 'got' capabilities aren't found
