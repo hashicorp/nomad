@@ -188,7 +188,10 @@ func TestAllocsFit_Old(t *testing.T) {
 	require.NoError(err)
 	require.True(fit)
 
-	// Sanity check the used resources
+	// Check the used resources are expected values
+	// TODO: This comment is not super useful, but neither was
+	//       the original. It would be better if someone
+	//       explained the invariant that this check validates.
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -197,7 +200,10 @@ func TestAllocsFit_Old(t *testing.T) {
 	require.NoError(err)
 	require.False(fit)
 
-	// Sanity check the used resources
+	// Check the used resources are expected values
+	// TODO: This comment is not super useful, but neither was
+	//       the original. It would be better if someone
+	//       explained the invariant that this check validates.
 	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
 }
@@ -255,7 +261,10 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 	require.NoError(err)
 	require.True(fit)
 
-	// Sanity check the used resources
+	// Check the used resources are expected values
+	// TODO: This comment is not super useful, but neither was
+	//       the original. It would be better if someone
+	//       explained the invariant that this check validates.
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -266,7 +275,10 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 	require.NoError(err)
 	require.True(fit)
 
-	// Sanity check the used resources
+	// Check the used resources are expected values
+	// TODO: This comment is not super useful, but neither was
+	//       the original. It would be better if someone
+	//       explained the invariant that this check validates.
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 }
@@ -357,7 +369,10 @@ func TestAllocsFit(t *testing.T) {
 	require.NoError(err)
 	require.True(fit)
 
-	// Sanity check the used resources
+	// Check the used resources are expected values
+	// TODO: This comment is not super useful, but neither was
+	//       the original. It would be better if someone
+	//       explained the invariant that this check validates.
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -366,7 +381,10 @@ func TestAllocsFit(t *testing.T) {
 	require.NoError(err)
 	require.False(fit)
 
-	// Sanity check the used resources
+	// Check the used resources are expected values
+	// TODO: This comment is not super useful, but neither was
+	//       the original. It would be better if someone
+	//       explained the invariant that this check validates.
 	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
 }
@@ -441,7 +459,10 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	require.NoError(err)
 	require.True(fit)
 
-	// Sanity check the used resources
+	// Check the used resources are expected values
+	// TODO: This comment is not super useful, but neither was
+	//       the original. It would be better if someone
+	//       explained the invariant that this check validates.
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -452,7 +473,10 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	require.NoError(err)
 	require.True(fit, dim)
 
-	// Sanity check the used resources
+	// Check the used resources are expected values
+	// TODO: This comment is not super useful, but neither was
+	//       the original. It would be better if someone
+	//       explained the invariant that this check validates.
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 }

@@ -3188,7 +3188,7 @@ func TestFSM_ClusterMetadata(t *testing.T) {
 	r.NoError(err)
 	r.Equal(clusterID, storedMetadata.ClusterID)
 
-	// Check that the sanity check prevents accidental UUID regeneration
+	// Check that the reasonableness check prevents accidental UUID regeneration
 	erroneous := structs.ClusterMetadata{
 		ClusterID: "99999999-9999-9999-9999-9999999999",
 	}

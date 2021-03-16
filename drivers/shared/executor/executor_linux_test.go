@@ -276,7 +276,7 @@ func TestExecutor_CgroupPaths(t *testing.T) {
 
 	tu.WaitForResult(func() (bool, error) {
 		output := strings.TrimSpace(testExecCmd.stdout.String())
-		// sanity check that we got some cgroups
+		// Verify that we got some cgroups
 		if !strings.Contains(output, ":devices:") {
 			return false, fmt.Errorf("was expected cgroup files but found:\n%v", output)
 		}
@@ -332,7 +332,7 @@ func TestExecutor_CgroupPathsAreDestroyed(t *testing.T) {
 	var cgroupsPaths string
 	tu.WaitForResult(func() (bool, error) {
 		output := strings.TrimSpace(testExecCmd.stdout.String())
-		// sanity check that we got some cgroups
+		// Verify that we got some cgroups
 		if !strings.Contains(output, ":devices:") {
 			return false, fmt.Errorf("was expected cgroup files but found:\n%v", output)
 		}

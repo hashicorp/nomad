@@ -176,7 +176,7 @@ func TestConsul_EnableTagOverride_Syncs(t *testing.T) {
 
 	const service = "taskname-service"
 
-	// sanity check things are what we expect
+	// check things are what we expect
 	consulServiceDefBefore := ctx.FakeConsul.lookupService(service)[0]
 	r.Equal(ctx.Workload.Services[0].Name, consulServiceDefBefore.Name)
 	r.Equal([]string{"tag1", "tag2"}, consulServiceDefBefore.Tags)
