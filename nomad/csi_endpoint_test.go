@@ -7,6 +7,9 @@ import (
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/client"
+	cconfig "github.com/hashicorp/nomad/client/config"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -651,6 +654,135 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(resp.Volumes))
 	require.Equal(t, vols[1].ID, resp.Volumes[0].ID)
+}
+
+func TestCSIVolumeEndpoint_Create(t *testing.T) {
+	t.Parallel()
+	var err error
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+
+	testutil.WaitForLeader(t, srv.RPC)
+
+	fake := newMockClientCSI()
+	fake.NextValidateError = nil
+	fake.NextCreateError = nil
+	fake.NextCreateResponse = &cstructs.ClientCSIControllerCreateVolumeResponse{
+		ExternalVolumeID: "vol-12345",
+		CapacityBytes:    42,
+		VolumeContext:    map[string]string{"plugincontext": "bar"},
+	}
+
+	client, cleanup := client.TestClientWithRPCs(t,
+		func(c *cconfig.Config) {
+			c.Servers = []string{srv.config.RPCAddr.String()}
+		},
+		map[string]interface{}{"CSI": fake},
+	)
+	defer cleanup()
+
+	node := client.Node()
+	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
+
+	req0 := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp0 structs.NodeUpdateResponse
+	err = client.RPC("Node.Register", req0, &resp0)
+	require.NoError(t, err)
+
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := srv.connectedNodes()
+		return len(nodes) == 1, nil
+	}, func(err error) {
+		t.Fatalf("should have a client")
+	})
+
+	ns := structs.DefaultNamespace
+
+	state := srv.fsm.State()
+	codec := rpcClient(t, srv)
+	index := uint64(1000)
+
+	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsAttachDetach: true,
+			},
+			RequiresControllerPlugin: true,
+		},
+	}
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
+		},
+	}
+	index++
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
+
+	// Create the volume
+	volID := uuid.Generate()
+	vols := []*structs.CSIVolume{{
+		ID:             volID,
+		Name:           "vol",
+		Namespace:      "notTheNamespace", // overriden by WriteRequest
+		PluginID:       "minnie",
+		AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader, // ignored in create
+		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,  // ignored in create
+		MountOptions: &structs.CSIMountOptions{
+			FSType: "ext4", MountFlags: []string{"sensitive"}}, // ignored in create
+		Secrets:    structs.CSISecrets{"mysecret": "secretvalue"},
+		Parameters: map[string]string{"myparam": "paramvalue"},
+		Context:    map[string]string{"mycontext": "contextvalue"}, // dropped by create
+	}}
+
+	// Create the create request
+	req1 := &structs.CSIVolumeCreateRequest{
+		Volumes: vols,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: ns,
+		},
+	}
+	resp1 := &structs.CSIVolumeCreateResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Create", req1, resp1)
+	require.NoError(t, err)
+
+	// Get the volume back out
+	req2 := &structs.CSIVolumeGetRequest{
+		ID: volID,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	resp2 := &structs.CSIVolumeGetResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req2, resp2)
+	require.NoError(t, err)
+	require.Equal(t, resp1.Index, resp2.Index)
+
+	vol := resp2.Volume
+	require.NotNil(t, vol)
+	require.Equal(t, volID, vol.ID)
+
+	// these fields are set from the args
+	require.Equal(t, "csi.CSISecrets(map[mysecret:[REDACTED]])",
+		vol.Secrets.String())
+	require.Equal(t, "csi.CSIOptions(FSType: ext4, MountFlags: [REDACTED])",
+		vol.MountOptions.String())
+	require.Equal(t, ns, vol.Namespace)
+
+	// these fields are set from the plugin and should have been written to raft
+	require.Equal(t, "vol-12345", vol.ExternalID)
+	require.Equal(t, int64(42), vol.Capacity)
+	require.Equal(t, "bar", vol.Context["plugincontext"])
+	require.Equal(t, "", vol.Context["mycontext"])
 }
 
 func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
