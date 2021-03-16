@@ -664,6 +664,10 @@ type CSIVolumeDeleteRequest struct {
 	WriteRequest
 }
 
+type CSIVolumeDeleteResponse struct {
+	QueryMeta
+}
+
 type CSIVolumeClaimMode int
 
 const (

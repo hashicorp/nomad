@@ -792,6 +792,115 @@ func (v *CSIVolume) checkpointClaim(vol *structs.CSIVolume, claim *structs.CSIVo
 	return nil
 }
 
+func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.CSIVolumeCreateResponse) error {
+
+	if done, err := v.srv.forward("CSIVolume.Create", args, args, reply); done {
+		return err
+	}
+
+	metricsStart := time.Now()
+	defer metrics.MeasureSince([]string{"nomad", "volume", "create"}, metricsStart)
+
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
+	if err != nil {
+		return err
+	}
+
+	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
+		return structs.ErrPermissionDenied
+	}
+
+	if args.Volumes == nil || len(args.Volumes) == 0 {
+		return fmt.Errorf("missing volume definition")
+	}
+
+	regArgs := &structs.CSIVolumeRegisterRequest{
+		Volumes:      args.Volumes,
+		WriteRequest: args.WriteRequest,
+	}
+
+	// This is the only namespace we ACL checked, force all the volumes to use it.
+	// We also validate that the plugin exists for each plugin, and validate the
+	// capabilities when the plugin has a controller.
+	for _, vol := range args.Volumes {
+		vol.Namespace = args.RequestNamespace()
+		if err = vol.Validate(); err != nil {
+			return err
+		}
+		plugin, err := v.pluginValidateVolume(regArgs, vol)
+		if err != nil {
+			return err
+		}
+		if !plugin.ControllerRequired {
+			return fmt.Errorf("plugin has no controller")
+		}
+		if err := v.controllerValidateVolume(regArgs, vol, plugin); err != nil {
+			return err
+		}
+
+		// TODO: creating the volume in the external storage provider can't be
+		// made atomic with the registration, and creating the volume provides
+		// values we want to write on the CSIVolume in raft anyways. For now
+		// we'll block the RPC on the external storage provider so that we can
+		// easily return meaningful errors to the user, but in the future we
+		// should consider creating registering first and creating a "volume
+		// eval" that can do the plugin RPCs async
+		err = v.createVolume(vol, plugin, reply)
+		if err != nil {
+			return err
+		}
+	}
+
+	resp, index, err := v.srv.raftApply(structs.CSIVolumeRegisterRequestType, regArgs)
+	if err != nil {
+		v.logger.Error("csi raft apply failed", "error", err, "method", "register")
+		return err
+	}
+	if respErr, ok := resp.(error); ok {
+		return respErr
+	}
+
+	reply.Index = index
+	v.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}
+
+func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin, reply *structs.CSIVolumeCreateResponse) error {
+
+	method := "ClientCSI.ControllerCreateVolume"
+	cReq := &cstructs.ClientCSIControllerCreateVolumeRequest{
+		Name:               vol.Name,
+		VolumeCapabilities: vol.RequestedCapabilities,
+		Parameters:         vol.Parameters,
+		Secrets:            vol.Secrets,
+		CapacityMin:        vol.RequestedCapacityMin,
+		CapacityMax:        vol.RequestedCapacityMax,
+		SnapshotID:         vol.SnapshotID,
+		CloneID:            vol.CloneID,
+	}
+
+	cReq.PluginID = plugin.ID
+	cResp := &cstructs.ClientCSIControllerCreateVolumeResponse{}
+	err := v.srv.RPC(method, cReq, cResp)
+	if err != nil {
+		return err
+	}
+
+	vol.ExternalID = cResp.ExternalVolumeID
+	vol.Capacity = cResp.CapacityBytes
+	vol.Context = cResp.VolumeContext
+	return nil
+}
+
+func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.CSIVolumeDeleteResponse) error {
+	return nil
+}
+
+func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, reply *structs.CSIVolumeExternalListResponse) error {
+	return nil
+}
+
 // CSIPlugin wraps the structs.CSIPlugin with request data and server context
 type CSIPlugin struct {
 	srv    *Server
