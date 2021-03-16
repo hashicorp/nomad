@@ -730,6 +730,9 @@ func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse(t *testing.T) {
 		},
 	}
 
+	// For this test we only care about authorizing the connect service
+	job.TaskGroups[0].Tasks[0].Services = nil
+
 	newRequest := func(job *structs.Job) *structs.JobRegisterRequest {
 		return &structs.JobRegisterRequest{
 			Job: job,
@@ -760,7 +763,7 @@ func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse(t *testing.T) {
 		request.Job.ConsulToken = noOpToken
 		var response structs.JobRegisterResponse
 		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
-		require.EqualError(t, err, "operator token denied: missing consul token")
+		require.EqualError(t, err, "job-submitter consul token denied: missing consul token")
 	})
 
 	t.Run("unknown token provided", func(t *testing.T) {
@@ -768,7 +771,7 @@ func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse(t *testing.T) {
 		request.Job.ConsulToken = unrecognizedOpToken
 		var response structs.JobRegisterResponse
 		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
-		require.EqualError(t, err, "operator token denied: unable to validate operator consul token: no such token")
+		require.EqualError(t, err, "job-submitter consul token denied: unable to read consul token: no such token")
 	})
 
 	t.Run("unauthorized token provided", func(t *testing.T) {
@@ -776,7 +779,7 @@ func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse(t *testing.T) {
 		request.Job.ConsulToken = unauthorizedOpToken
 		var response structs.JobRegisterResponse
 		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
-		require.EqualError(t, err, "operator token denied: permission denied for \"service1\"")
+		require.EqualError(t, err, `job-submitter consul token denied: insufficient Consul ACL permissions to write service "service1"`)
 	})
 
 	t.Run("authorized token provided", func(t *testing.T) {

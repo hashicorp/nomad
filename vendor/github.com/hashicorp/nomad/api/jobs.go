@@ -817,6 +817,7 @@ type Job struct {
 	ParentID          *string
 	Dispatched        bool
 	Payload           []byte
+	ConsulNamespace   *string `mapstructure:"consul_namespace"`
 	VaultNamespace    *string `mapstructure:"vault_namespace"`
 	NomadTokenID      *string `mapstructure:"nomad_token_id"`
 	Status            *string
@@ -877,6 +878,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.ConsulToken == nil {
 		j.ConsulToken = stringToPtr("")
+	}
+	if j.ConsulNamespace == nil {
+		j.ConsulNamespace = stringToPtr("")
 	}
 	if j.VaultToken == nil {
 		j.VaultToken = stringToPtr("")

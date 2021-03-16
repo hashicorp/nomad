@@ -9,17 +9,20 @@ import (
 )
 
 // WorkloadServices describes services defined in either a Task or TaskGroup
-// that need to be syncronized with Consul
+// that need to be syncronized with Consul.
 type WorkloadServices struct {
 	AllocID string
 
 	// Name of the task and task group the services are defined for. For
-	// group based services, Task will be empty
+	// group based services, Task will be empty.
 	Task  string
 	Group string
 
-	// Canary indicates whether or not the allocation is a canary
+	// Canary indicates whether or not the allocation is a canary.
 	Canary bool
+
+	// ConsulNamespace is the consul namespace in which services will be registered.
+	ConsulNamespace string
 
 	// Restarter allows restarting the task or task group depending on the
 	// check_restart stanzas.
@@ -32,16 +35,16 @@ type WorkloadServices struct {
 	// TODO: remove and use Ports
 	Networks structs.Networks
 
-	// NetworkStatus from alloc if network namespace is created
-	// Can be nil
+	// NetworkStatus from alloc if network namespace is created.
+	// Can be nil.
 	NetworkStatus *structs.AllocNetworkStatus
 
-	// AllocatedPorts is the list of port mappings
+	// AllocatedPorts is the list of port mappings.
 	Ports structs.AllocatedPorts
 
 	// DriverExec is the script executor for the task's driver.
 	// For group services this is nil and script execution is managed by
-	// a tasklet in the taskrunner script_check_hook
+	// a tasklet in the taskrunner script_check_hook.
 	DriverExec interfaces.ScriptExecutor
 
 	// DriverNetwork is the network specified by the driver and may be nil.

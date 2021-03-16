@@ -123,7 +123,7 @@ func (c *fakeChecksAPI) add(id, status string, at time.Time) {
 	c.mu.Unlock()
 }
 
-func (c *fakeChecksAPI) Checks() (map[string]*api.AgentCheck, error) {
+func (c *fakeChecksAPI) ChecksWithFilterOpts(filter string, opts *api.QueryOptions) (map[string]*api.AgentCheck, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	now := time.Now()
@@ -149,10 +149,12 @@ func (c *fakeChecksAPI) Checks() (map[string]*api.AgentCheck, error) {
 // testWatcherSetup sets up a fakeChecksAPI and a real checkWatcher with a test
 // logger and faster poll frequency.
 func testWatcherSetup(t *testing.T) (*fakeChecksAPI, *checkWatcher) {
-	fakeAPI := newFakeChecksAPI()
-	cw := newCheckWatcher(testlog.HCLogger(t), fakeAPI)
+	logger := testlog.HCLogger(t)
+	checksAPI := newFakeChecksAPI()
+	namespacesClient := NewNamespacesClient(NewMockNamespaces(nil))
+	cw := newCheckWatcher(logger, checksAPI, namespacesClient)
 	cw.pollFreq = 10 * time.Millisecond
-	return fakeAPI, cw
+	return checksAPI, cw
 }
 
 func testCheck() *structs.ServiceCheck {
@@ -176,7 +178,11 @@ func TestCheckWatcher_Skip(t *testing.T) {
 	check := testCheck()
 	check.CheckRestart = nil
 
-	cw := newCheckWatcher(testlog.HCLogger(t), newFakeChecksAPI())
+	logger := testlog.HCLogger(t)
+	checksAPI := newFakeChecksAPI()
+	namespacesClient := NewNamespacesClient(NewMockNamespaces(nil))
+
+	cw := newCheckWatcher(logger, checksAPI, namespacesClient)
 	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check)
 	cw.Watch("testalloc1", "testtask1", "testcheck1", check, restarter1)
 

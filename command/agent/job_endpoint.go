@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
-
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
@@ -877,6 +876,7 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 	tg.Affinities = ApiAffinitiesToStructs(taskGroup.Affinities)
 	tg.Networks = ApiNetworkResourceToStructs(taskGroup.Networks)
 	tg.Services = ApiServicesToStructs(taskGroup.Services)
+	tg.Consul = apiConsulToStructs(taskGroup.Consul)
 
 	tg.RestartPolicy = &structs.RestartPolicy{
 		Attempts: *taskGroup.RestartPolicy.Attempts,
@@ -1572,6 +1572,15 @@ func apiConnectSidecarTaskToStructs(in *api.SidecarTask) *structs.SidecarTask {
 		KillSignal:    in.KillSignal,
 		KillTimeout:   in.KillTimeout,
 		LogConfig:     apiLogConfigToStructs(in.LogConfig),
+	}
+}
+
+func apiConsulToStructs(in *api.Consul) *structs.Consul {
+	if in == nil {
+		return nil
+	}
+	return &structs.Consul{
+		Namespace: in.Namespace,
 	}
 }
 

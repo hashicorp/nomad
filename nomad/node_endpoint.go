@@ -1759,10 +1759,11 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 						return nil
 					}
 					secret, err := n.srv.consulACLs.CreateToken(ctx, ServiceIdentityRequest{
-						TaskKind:  task.TaskKind,
-						TaskName:  task.TaskName,
-						ClusterID: clusterID,
-						AllocID:   alloc.ID,
+						ConsulNamespace: tg.Consul.GetNamespace(),
+						TaskKind:        task.TaskKind,
+						TaskName:        task.TaskName,
+						ClusterID:       clusterID,
+						AllocID:         alloc.ID,
 					})
 					if err != nil {
 						return err
@@ -1795,10 +1796,11 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	for task, secret := range results {
 		tokens[task] = secret.SecretID
 		accessor := &structs.SITokenAccessor{
-			NodeID:     alloc.NodeID,
-			AllocID:    alloc.ID,
-			TaskName:   task,
-			AccessorID: secret.AccessorID,
+			ConsulNamespace: tg.Consul.GetNamespace(),
+			NodeID:          alloc.NodeID,
+			AllocID:         alloc.ID,
+			TaskName:        task,
+			AccessorID:      secret.AccessorID,
 		}
 		accessors = append(accessors, accessor)
 	}

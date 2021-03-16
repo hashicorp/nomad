@@ -81,11 +81,11 @@ type mockConsulACLsAPI struct {
 	stopped        bool
 }
 
-func (m *mockConsulACLsAPI) CheckSIPolicy(_ context.Context, _, _ string) error {
+func (m *mockConsulACLsAPI) CheckPermissions(context.Context, string, *structs.ConsulUsage, string) error {
 	panic("not implemented yet")
 }
 
-func (m *mockConsulACLsAPI) CreateToken(_ context.Context, _ ServiceIdentityRequest) (*structs.SIToken, error) {
+func (m *mockConsulACLsAPI) CreateToken(context.Context, ServiceIdentityRequest) (*structs.SIToken, error) {
 	panic("not implemented yet")
 }
 
@@ -148,10 +148,11 @@ func TestConsulACLsAPI_CreateToken(t *testing.T) {
 
 		ctx := context.Background()
 		sii := ServiceIdentityRequest{
-			AllocID:   uuid.Generate(),
-			ClusterID: uuid.Generate(),
-			TaskName:  "my-task1-sidecar-proxy",
-			TaskKind:  structs.NewTaskKind(structs.ConnectProxyPrefix, "my-service"),
+			ConsulNamespace: "foo-namespace",
+			AllocID:         uuid.Generate(),
+			ClusterID:       uuid.Generate(),
+			TaskName:        "my-task1-sidecar-proxy",
+			TaskKind:        structs.NewTaskKind(structs.ConnectProxyPrefix, "my-service"),
 		}
 
 		token, err := c.CreateToken(ctx, sii)
@@ -161,6 +162,7 @@ func TestConsulACLsAPI_CreateToken(t *testing.T) {
 			require.Nil(t, token)
 		} else {
 			require.NoError(t, err)
+			require.Equal(t, "foo-namespace", token.ConsulNamespace)
 			require.Equal(t, "my-task1-sidecar-proxy", token.TaskName)
 			require.True(t, helper.IsUUID(token.AccessorID))
 			require.True(t, helper.IsUUID(token.SecretID))
@@ -187,10 +189,11 @@ func TestConsulACLsAPI_RevokeTokens(t *testing.T) {
 
 		ctx := context.Background()
 		generated, err := c.CreateToken(ctx, ServiceIdentityRequest{
-			ClusterID: uuid.Generate(),
-			AllocID:   uuid.Generate(),
-			TaskName:  "task1-sidecar-proxy",
-			TaskKind:  structs.NewTaskKind(structs.ConnectProxyPrefix, "service1"),
+			ConsulNamespace: "foo-namespace",
+			ClusterID:       uuid.Generate(),
+			AllocID:         uuid.Generate(),
+			TaskName:        "task1-sidecar-proxy",
+			TaskKind:        structs.NewTaskKind(structs.ConnectProxyPrefix, "service1"),
 		})
 		require.NoError(t, err)
 
@@ -202,7 +205,10 @@ func TestConsulACLsAPI_RevokeTokens(t *testing.T) {
 
 	accessors := func(ids ...string) (result []*structs.SITokenAccessor) {
 		for _, id := range ids {
-			result = append(result, &structs.SITokenAccessor{AccessorID: id})
+			result = append(result, &structs.SITokenAccessor{
+				AccessorID:      id,
+				ConsulNamespace: "foo-namespace",
+			})
 		}
 		return
 	}
@@ -236,17 +242,21 @@ func TestConsulACLsAPI_MarkForRevocation(t *testing.T) {
 	c := NewConsulACLsAPI(aclAPI, logger, nil)
 
 	generated, err := c.CreateToken(context.Background(), ServiceIdentityRequest{
-		ClusterID: uuid.Generate(),
-		AllocID:   uuid.Generate(),
-		TaskName:  "task1-sidecar-proxy",
-		TaskKind:  structs.NewTaskKind(structs.ConnectProxyPrefix, "service1"),
+		ConsulNamespace: "foo-namespace",
+		ClusterID:       uuid.Generate(),
+		AllocID:         uuid.Generate(),
+		TaskName:        "task1-sidecar-proxy",
+		TaskKind:        structs.NewTaskKind(structs.ConnectProxyPrefix, "service1"),
 	})
 	require.NoError(t, err)
 
 	// set the mock error after calling CreateToken for setting up
 	aclAPI.SetError(nil)
 
-	accessors := []*structs.SITokenAccessor{{AccessorID: generated.AccessorID}}
+	accessors := []*structs.SITokenAccessor{{
+		ConsulNamespace: "foo-namespace",
+		AccessorID:      generated.AccessorID,
+	}}
 	c.MarkForRevocation(accessors)
 	require.Len(t, c.bgRetryRevocation, 1)
 	require.Contains(t, c.bgRetryRevocation, accessors[0])
@@ -282,10 +292,11 @@ func TestConsulACLsAPI_bgRetryRevoke(t *testing.T) {
 		c, server := setup(t)
 		accessorID := uuid.Generate()
 		c.bgRetryRevocation = append(c.bgRetryRevocation, &structs.SITokenAccessor{
-			NodeID:     uuid.Generate(),
-			AllocID:    uuid.Generate(),
-			AccessorID: accessorID,
-			TaskName:   "task1",
+			ConsulNamespace: "foo-namespace",
+			NodeID:          uuid.Generate(),
+			AllocID:         uuid.Generate(),
+			AccessorID:      accessorID,
+			TaskName:        "task1",
 		})
 		require.Empty(t, server.purgedAccessorIDs)
 		c.bgRetryRevoke()
@@ -299,10 +310,11 @@ func TestConsulACLsAPI_bgRetryRevoke(t *testing.T) {
 		server.failure = errors.New("revocation fail")
 		accessorID := uuid.Generate()
 		c.bgRetryRevocation = append(c.bgRetryRevocation, &structs.SITokenAccessor{
-			NodeID:     uuid.Generate(),
-			AllocID:    uuid.Generate(),
-			AccessorID: accessorID,
-			TaskName:   "task1",
+			ConsulNamespace: "foo-namespace",
+			NodeID:          uuid.Generate(),
+			AllocID:         uuid.Generate(),
+			AccessorID:      accessorID,
+			TaskName:        "task1",
 		})
 		require.Empty(t, server.purgedAccessorIDs)
 		c.bgRetryRevoke()
@@ -329,43 +341,125 @@ func TestConsulACLsAPI_Stop(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestConsulACLsAPI_CheckSIPolicy(t *testing.T) {
+// CheckPermissions(ctx context.Context, namespace string, usage *structs.ConsulUsage) error
+
+func TestConsulACLsAPI_CheckPermissions(t *testing.T) {
 	t.Parallel()
 
-	try := func(t *testing.T, service, token string, expErr string) {
+	equalError := func(t *testing.T, exp, err error) {
+		if exp == nil {
+			require.NoError(t, err)
+		} else {
+			require.Equal(t, exp.Error(), err.Error())
+		}
+	}
+
+	try := func(t *testing.T, namespace string, usage *structs.ConsulUsage, secretID string, exp error) {
 		logger := testlog.HCLogger(t)
 		aclAPI := consul.NewMockACLsAPI(logger)
 		cAPI := NewConsulACLsAPI(aclAPI, logger, nil)
 
-		err := cAPI.CheckSIPolicy(context.Background(), service, token)
-		if expErr != "" {
-			require.EqualError(t, err, expErr)
-		} else {
-			require.NoError(t, err)
-		}
+		err := cAPI.CheckPermissions(context.Background(), namespace, usage, secretID)
+		equalError(t, exp, err)
 	}
 
-	t.Run("operator has service write", func(t *testing.T) {
-		try(t, "service1", consul.ExampleOperatorTokenID1, "")
+	t.Run("check-permissions kv read", func(t *testing.T) {
+		t.Run("uses kv has permission", func(t *testing.T) {
+			u := &structs.ConsulUsage{KV: true}
+			try(t, "default", u, consul.ExampleOperatorTokenID5, nil)
+		})
+
+		t.Run("uses kv without permission", func(t *testing.T) {
+			u := &structs.ConsulUsage{KV: true}
+			try(t, "default", u, consul.ExampleOperatorTokenID1, errors.New("insufficient Consul ACL permissions to use template"))
+		})
+
+		t.Run("uses kv no token", func(t *testing.T) {
+			u := &structs.ConsulUsage{KV: true}
+			try(t, "default", u, "", errors.New("missing consul token"))
+		})
+
+		t.Run("uses kv nonsense token", func(t *testing.T) {
+			u := &structs.ConsulUsage{KV: true}
+			try(t, "default", u, "47d33e22-720a-7fe6-7d7f-418bf844a0be", errors.New("unable to read consul token: no such token"))
+		})
+
+		t.Run("no kv no token", func(t *testing.T) {
+			u := &structs.ConsulUsage{KV: false}
+			try(t, "default", u, "", nil)
+		})
+
+		t.Run("uses kv wrong namespace", func(t *testing.T) {
+			u := &structs.ConsulUsage{KV: true}
+			try(t, "other", u, consul.ExampleOperatorTokenID5, errors.New(`consul ACL token cannot use namespace "other"`))
+		})
 	})
 
-	t.Run("operator has service_prefix write", func(t *testing.T) {
-		try(t, "foo-service1", consul.ExampleOperatorTokenID2, "")
+	t.Run("check-permissions service write", func(t *testing.T) {
+		usage := &structs.ConsulUsage{Services: []string{"service1"}}
+
+		t.Run("operator has service write", func(t *testing.T) {
+			try(t, "default", usage, consul.ExampleOperatorTokenID1, nil)
+		})
+
+		t.Run("operator has service wrote wrong ns", func(t *testing.T) {
+			try(t, "other", usage, consul.ExampleOperatorTokenID1, errors.New(`consul ACL token cannot use namespace "other"`))
+		})
+
+		t.Run("operator has service_prefix write", func(t *testing.T) {
+			u := &structs.ConsulUsage{Services: []string{"foo-service1"}}
+			try(t, "default", u, consul.ExampleOperatorTokenID2, nil)
+		})
+
+		t.Run("operator has service_prefix write wrong prefix", func(t *testing.T) {
+			u := &structs.ConsulUsage{Services: []string{"bar-service1"}}
+			try(t, "default", u, consul.ExampleOperatorTokenID2, errors.New(`insufficient Consul ACL permissions to write service "bar-service1"`))
+		})
+
+		t.Run("operator permissions insufficient", func(t *testing.T) {
+			try(t, "default", usage, consul.ExampleOperatorTokenID3, errors.New(`insufficient Consul ACL permissions to write service "service1"`))
+		})
+
+		t.Run("operator provided no token", func(t *testing.T) {
+			try(t, "default", usage, "", errors.New("missing consul token"))
+		})
+
+		t.Run("operator provided nonsense token", func(t *testing.T) {
+			try(t, "default", usage, "f1682bde-1e71-90b1-9204-85d35467ba61", errors.New("unable to read consul token: no such token"))
+		})
 	})
 
-	t.Run("operator permissions insufficient", func(t *testing.T) {
-		try(t, "service1", consul.ExampleOperatorTokenID3,
-			"permission denied for \"service1\"",
-		)
-	})
+	t.Run("check-permissions connect service identity write", func(t *testing.T) {
+		usage := &structs.ConsulUsage{Kinds: []structs.TaskKind{structs.NewTaskKind(structs.ConnectProxyPrefix, "service1")}}
 
-	t.Run("no token provided", func(t *testing.T) {
-		try(t, "service1", "", "missing consul token")
-	})
+		t.Run("operator has service write", func(t *testing.T) {
+			try(t, "default", usage, consul.ExampleOperatorTokenID1, nil)
+		})
 
-	t.Run("nonsense token provided", func(t *testing.T) {
-		try(t, "service1", "f1682bde-1e71-90b1-9204-85d35467ba61",
-			"unable to validate operator consul token: no such token",
-		)
+		t.Run("operator has service write wrong ns", func(t *testing.T) {
+			try(t, "other", usage, consul.ExampleOperatorTokenID1, errors.New(`consul ACL token cannot use namespace "other"`))
+		})
+
+		t.Run("operator has service_prefix write", func(t *testing.T) {
+			u := &structs.ConsulUsage{Kinds: []structs.TaskKind{structs.NewTaskKind(structs.ConnectProxyPrefix, "foo-service1")}}
+			try(t, "default", u, consul.ExampleOperatorTokenID2, nil)
+		})
+
+		t.Run("operator has service_prefix write wrong prefix", func(t *testing.T) {
+			u := &structs.ConsulUsage{Kinds: []structs.TaskKind{structs.NewTaskKind(structs.ConnectProxyPrefix, "bar-service1")}}
+			try(t, "default", u, consul.ExampleOperatorTokenID2, errors.New(`insufficient Consul ACL permissions to write Connect service "bar-service1"`))
+		})
+
+		t.Run("operator permissions insufficient", func(t *testing.T) {
+			try(t, "default", usage, consul.ExampleOperatorTokenID3, errors.New(`insufficient Consul ACL permissions to write Connect service "service1"`))
+		})
+
+		t.Run("operator provided no token", func(t *testing.T) {
+			try(t, "default", usage, "", errors.New("missing consul token"))
+		})
+
+		t.Run("operator provided nonsense token", func(t *testing.T) {
+			try(t, "default", usage, "f1682bde-1e71-90b1-9204-85d35467ba61", errors.New("unable to read consul token: no such token"))
+		})
 	})
 }

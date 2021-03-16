@@ -14,20 +14,29 @@ type ConsulServiceRule struct {
 	Policy string
 }
 
+// ConsulKeyRule represents a policy for the keystore.
+type ConsulKeyRule struct {
+	Name   string `hcl:",key"`
+	Policy string
+}
+
 // ConsulPolicy represents the parts of a ConsulServiceRule Policy that are
 // relevant to Service Identity authorizations.
 type ConsulPolicy struct {
 	Services        []*ConsulServiceRule `hcl:"service,expand"`
 	ServicePrefixes []*ConsulServiceRule `hcl:"service_prefix,expand"`
+	KeyPrefixes     []*ConsulKeyRule     `hcl:"key_prefix,expand"`
 }
 
-// IsEmpty returns true if there are no Services or ServicePrefixes defined for
-// the ConsulPolicy.
+// IsEmpty returns true if there are no Services, ServicePrefixes, or KeyPrefixes
+// defined for the ConsulPolicy.
 func (cp *ConsulPolicy) IsEmpty() bool {
 	if cp == nil {
 		return true
 	}
-	return len(cp.Services) == 0 && len(cp.ServicePrefixes) == 0
+
+	policies := len(cp.Services) + len(cp.ServicePrefixes) + len(cp.KeyPrefixes)
+	return policies == 0
 }
 
 // ParseConsulPolicy parses raw string s into a ConsulPolicy. An error is
@@ -45,10 +54,10 @@ func ParseConsulPolicy(s string) (*ConsulPolicy, error) {
 	return cp, nil
 }
 
-func (c *consulACLsAPI) hasSufficientPolicy(task string, token *api.ACLToken) (bool, error) {
+func (c *consulACLsAPI) canReadKeystore(token *api.ACLToken) (bool, error) {
 	// check each policy directly attached to the token
 	for _, policyRef := range token.Policies {
-		if allowable, err := c.policyAllowsServiceWrite(task, policyRef.ID); err != nil {
+		if allowable, err := c.policyAllowsKeystoreRead(policyRef.ID); err != nil {
 			return false, err
 		} else if allowable {
 			return true, nil
@@ -65,11 +74,10 @@ func (c *consulACLsAPI) hasSufficientPolicy(task string, token *api.ACLToken) (b
 		}
 
 		for _, policyLink := range role.Policies {
-			allowable, err := c.policyAllowsServiceWrite(task, policyLink.ID)
+			allowable, err := c.policyAllowsKeystoreRead(policyLink.ID)
 			if err != nil {
 				return false, err
-			}
-			if allowable {
+			} else if allowable {
 				return true, nil
 			}
 		}
@@ -78,7 +86,39 @@ func (c *consulACLsAPI) hasSufficientPolicy(task string, token *api.ACLToken) (b
 	return false, nil
 }
 
-func (c *consulACLsAPI) policyAllowsServiceWrite(task string, policyID string) (bool, error) {
+func (c *consulACLsAPI) canWriteService(service string, token *api.ACLToken) (bool, error) {
+	// check each policy directly attached to the token
+	for _, policyRef := range token.Policies {
+		if allowable, err := c.policyAllowsServiceWrite(service, policyRef.ID); err != nil {
+			return false, err
+		} else if allowable {
+			return true, nil
+		}
+	}
+
+	// check each policy on each role attached to the token
+	for _, roleLink := range token.Roles {
+		role, _, err := c.aclClient.RoleRead(roleLink.ID, &api.QueryOptions{
+			AllowStale: false,
+		})
+		if err != nil {
+			return false, err
+		}
+
+		for _, policyLink := range role.Policies {
+			allowable, err := c.policyAllowsServiceWrite(service, policyLink.ID)
+			if err != nil {
+				return false, err
+			} else if allowable {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
+func (c *consulACLsAPI) policyAllowsServiceWrite(service string, policyID string) (bool, error) {
 	policy, _, err := c.aclClient.PolicyRead(policyID, &api.QueryOptions{
 		AllowStale: false,
 	})
@@ -94,7 +134,7 @@ func (c *consulACLsAPI) policyAllowsServiceWrite(task string, policyID string) (
 		return false, err
 	}
 
-	if cp.allowsServiceWrite(task) {
+	if cp.allowsServiceWrite(service) {
 		return true, nil
 	}
 
@@ -121,6 +161,39 @@ func (cp *ConsulPolicy) allowsServiceWrite(task string) bool {
 		policy := strings.ToLower(servicePrefix.Policy)
 		if policy == ConsulPolicyWrite {
 			if strings.HasPrefix(task, prefix) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (c *consulACLsAPI) policyAllowsKeystoreRead(policyID string) (bool, error) {
+	policy, _, err := c.aclClient.PolicyRead(policyID, &api.QueryOptions{
+		AllowStale: false,
+	})
+	if err != nil {
+		return false, err
+	}
+
+	cp, err := ParseConsulPolicy(policy.Rules)
+	if err != nil {
+		return false, err
+	}
+
+	if cp.allowsKeystoreRead() {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (cp *ConsulPolicy) allowsKeystoreRead() bool {
+	for _, keyPrefix := range cp.KeyPrefixes {
+		name := strings.ToLower(keyPrefix.Name)
+		policy := strings.ToLower(keyPrefix.Policy)
+		if name == "" {
+			if policy == ConsulPolicyWrite || policy == ConsulPolicyRead {
 				return true
 			}
 		}

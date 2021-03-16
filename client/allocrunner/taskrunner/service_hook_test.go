@@ -23,10 +23,10 @@ func TestUpdate_beforePoststart(t *testing.T) {
 	c := consul.NewMockConsulServiceClient(t, logger)
 
 	hook := newServiceHook(serviceHookConfig{
-		alloc:  alloc,
-		task:   alloc.LookupTask("web"),
-		consul: c,
-		logger: logger,
+		alloc:          alloc,
+		task:           alloc.LookupTask("web"),
+		consulServices: c,
+		logger:         logger,
 	})
 	require.NoError(t, hook.Update(context.Background(), &interfaces.TaskUpdateRequest{Alloc: alloc}, &interfaces.TaskUpdateResponse{}))
 	require.Len(t, c.GetOps(), 0)

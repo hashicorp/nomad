@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newScriptMock(hb heartbeater, exec interfaces.ScriptExecutor, logger hclog.Logger, interval, timeout time.Duration) *scriptCheck {
+func newScriptMock(hb TTLUpdater, exec interfaces.ScriptExecutor, logger hclog.Logger, interval, timeout time.Duration) *scriptCheck {
 	script := newScriptCheck(&scriptCheckConfig{
 		allocID:   "allocid",
 		taskName:  "testtask",
@@ -28,7 +28,7 @@ func newScriptMock(hb heartbeater, exec interfaces.ScriptExecutor, logger hclog.
 			Interval: interval,
 			Timeout:  timeout,
 		},
-		agent:      hb,
+		ttlUpdater: hb,
 		driverExec: exec,
 		taskEnv:    &taskenv.TaskEnv{},
 		logger:     logger,
@@ -39,13 +39,13 @@ func newScriptMock(hb heartbeater, exec interfaces.ScriptExecutor, logger hclog.
 	return script
 }
 
-// fakeHeartbeater implements the heartbeater interface to allow mocking out
+// fakeHeartbeater implements the TTLUpdater interface to allow mocking out
 // Consul in script executor tests.
 type fakeHeartbeater struct {
 	heartbeats chan heartbeat
 }
 
-func (f *fakeHeartbeater) UpdateTTL(checkID, output, status string) error {
+func (f *fakeHeartbeater) UpdateTTL(checkID, namespace, output, status string) error {
 	f.heartbeats <- heartbeat{checkID: checkID, output: output, status: status}
 	return nil
 }
@@ -67,7 +67,7 @@ func TestScript_Exec_Cancel(t *testing.T) {
 	defer cancel()
 
 	logger := testlog.HCLogger(t)
-	script := newScriptMock(nil, // heartbeater should never be called
+	script := newScriptMock(nil, // TTLUpdater should never be called
 		exec, logger, time.Hour, time.Hour)
 
 	handle := script.run()
@@ -242,10 +242,10 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 		map[string]string{"SVC_NAME": "frontend"}).Build()
 
 	svcHook := newServiceHook(serviceHookConfig{
-		alloc:  alloc,
-		task:   task,
-		consul: consulClient,
-		logger: logger,
+		alloc:          alloc,
+		task:           task,
+		consulServices: consulClient,
+		logger:         logger,
 	})
 	// emulate prestart having been fired
 	svcHook.taskEnv = env
@@ -255,7 +255,7 @@ func TestScript_TaskEnvInterpolation(t *testing.T) {
 		task:         task,
 		consul:       consulClient,
 		logger:       logger,
-		shutdownWait: time.Hour, // heartbeater will never be called
+		shutdownWait: time.Hour, // TTLUpdater will never be called
 	})
 	// emulate prestart having been fired
 	scHook.taskEnv = env

@@ -18,8 +18,7 @@ const (
 
 // ChecksAPI is the part of the Consul API the checkWatcher requires.
 type ChecksAPI interface {
-	// Checks returns a list of all checks.
-	Checks() (map[string]*api.AgentCheck, error)
+	ChecksWithFilterOpts(filter string, q *api.QueryOptions) (map[string]*api.AgentCheck, error)
 }
 
 // WorkloadRestarter allows the checkWatcher to restart tasks or entire task groups.
@@ -141,7 +140,8 @@ type checkWatchUpdate struct {
 // checkWatcher watches Consul checks and restarts tasks when they're
 // unhealthy.
 type checkWatcher struct {
-	consul ChecksAPI
+	namespacesClient *NamespacesClient
+	checksAPI        ChecksAPI
 
 	// pollFreq is how often to poll the checks API and defaults to
 	// defaultPollFreq
@@ -162,13 +162,14 @@ type checkWatcher struct {
 }
 
 // newCheckWatcher creates a new checkWatcher but does not call its Run method.
-func newCheckWatcher(logger log.Logger, consul ChecksAPI) *checkWatcher {
+func newCheckWatcher(logger log.Logger, checksAPI ChecksAPI, namespacesClient *NamespacesClient) *checkWatcher {
 	return &checkWatcher{
-		consul:        consul,
-		pollFreq:      defaultPollFreq,
-		checkUpdateCh: make(chan checkWatchUpdate, 8),
-		done:          make(chan struct{}),
-		logger:        logger.ResetNamed("consul.health"),
+		namespacesClient: namespacesClient,
+		checksAPI:        checksAPI,
+		pollFreq:         defaultPollFreq,
+		checkUpdateCh:    make(chan checkWatchUpdate, 8),
+		done:             make(chan struct{}),
+		logger:           logger.ResetNamed("consul.health"),
 	}
 }
 
@@ -196,6 +197,7 @@ func (w *checkWatcher) Run(ctx context.Context) {
 	stopTimer()
 
 	// Main watch loop
+WATCHER:
 	for {
 		// disable polling if there are no checks
 		if len(checks) == 0 {
@@ -230,13 +232,30 @@ func (w *checkWatcher) Run(ctx context.Context) {
 			// Set "now" as the point in time the following check results represent
 			now := time.Now()
 
-			results, err := w.consul.Checks()
+			// Get the list of all namespaces so we can iterate them.
+			namespaces, err := w.namespacesClient.List()
 			if err != nil {
 				if !w.lastErr {
 					w.lastErr = true
-					w.logger.Error("failed retrieving health checks", "error", err)
+					w.logger.Error("failed retrieving namespaces", "error", err)
 				}
-				continue
+				continue WATCHER
+			}
+
+			checkResults := make(map[string]*api.AgentCheck)
+			for _, namespace := range namespaces {
+				nsResults, err := w.checksAPI.ChecksWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
+				if err != nil {
+					if !w.lastErr {
+						w.lastErr = true
+						w.logger.Error("failed retrieving health checks", "error", err)
+					}
+					continue WATCHER
+				} else {
+					for k, v := range nsResults {
+						checkResults[k] = v
+					}
+				}
 			}
 
 			w.lastErr = false
@@ -259,11 +278,11 @@ func (w *checkWatcher) Run(ctx context.Context) {
 					continue
 				}
 
-				result, ok := results[cid]
+				result, ok := checkResults[cid]
 				if !ok {
 					// Only warn if outside grace period to avoid races with check registration
 					if now.After(check.graceUntil) {
-						w.logger.Warn("watched check not found in Consul", "check", check.checkName, "check_id", cid)
+						// w.logger.Warn("watched check not found in Consul", "check", check.checkName, "check_id", cid) // add back
 					}
 					continue
 				}

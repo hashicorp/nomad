@@ -87,7 +87,7 @@ func commandAssetsConnectShortNomad() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "command/assets/connect-short.nomad", size: 997, mode: os.FileMode(436), modTime: time.Unix(1612560436, 0)}
+	info := bindataFileInfo{name: "command/assets/connect-short.nomad", size: 997, mode: os.FileMode(436), modTime: time.Unix(1616684356, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -107,7 +107,7 @@ func commandAssetsConnectNomad() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "command/assets/connect.nomad", size: 17842, mode: os.FileMode(436), modTime: time.Unix(1612560436, 0)}
+	info := bindataFileInfo{name: "command/assets/connect.nomad", size: 17842, mode: os.FileMode(436), modTime: time.Unix(1616684356, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -127,7 +127,7 @@ func commandAssetsExampleShortNomad() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "command/assets/example-short.nomad", size: 324, mode: os.FileMode(436), modTime: time.Unix(1612560436, 0)}
+	info := bindataFileInfo{name: "command/assets/example-short.nomad", size: 324, mode: os.FileMode(436), modTime: time.Unix(1616684356, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -147,7 +147,7 @@ func commandAssetsExampleNomad() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "command/assets/example.nomad", size: 16057, mode: os.FileMode(436), modTime: time.Unix(1612560436, 0)}
+	info := bindataFileInfo{name: "command/assets/example.nomad", size: 16057, mode: os.FileMode(436), modTime: time.Unix(1616684356, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

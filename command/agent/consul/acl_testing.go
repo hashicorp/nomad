@@ -40,6 +40,7 @@ const (
 	ExamplePolicyID1 = "a7c86856-0af5-4ab5-8834-03f4517e5564"
 	ExamplePolicyID2 = "ffa1b66c-967d-4468-8775-c687b5cfc16e"
 	ExamplePolicyID3 = "f68f0c36-51f8-4343-97dd-f0d4816c915f"
+	ExamplePolicyID4 = "1087ff34-b8a0-9bb3-9430-d2f758f52bd3"
 )
 
 func (m *MockACLsAPI) PolicyRead(policyID string, _ *api.QueryOptions) (*api.ACLPolicy, *api.QueryMeta, error) {
@@ -64,6 +65,12 @@ func (m *MockACLsAPI) PolicyRead(policyID string, _ *api.QueryOptions) (*api.ACL
 			Rules: `
 service "service1" { policy = "read" }
 service "service2" { policy = "write" }`,
+		}, nil, nil
+
+	case ExamplePolicyID4:
+		return &api.ACLPolicy{
+			ID:    ExamplePolicyID4,
+			Rules: `key_prefix "" { policy = "read" }`,
 		}, nil, nil
 
 	default:
@@ -120,6 +127,7 @@ const (
 	ExampleOperatorTokenID2 = "868cc216-e123-4c2b-b362-f4d4c087de8e"
 	ExampleOperatorTokenID3 = "6177d1b9-c0f6-4118-b891-d818a3cb80b1"
 	ExampleOperatorTokenID4 = "754ae26c-f3cc-e088-d486-9c0d20f5eaea"
+	ExampleOperatorTokenID5 = "097cbb45-506b-c79c-ec38-82eb0dc0794a"
 )
 
 var (
@@ -127,6 +135,7 @@ var (
 		SecretID:    ExampleOperatorTokenID0,
 		AccessorID:  "228865c6-3bf6-6683-df03-06dea2779088 ",
 		Description: "Operator Token 0",
+		Namespace:   "default",
 	}
 
 	ExampleOperatorToken1 = &api.ACLToken{
@@ -136,6 +145,7 @@ var (
 		Policies: []*api.ACLTokenPolicyLink{{
 			ID: ExamplePolicyID1,
 		}},
+		Namespace: "default",
 	}
 
 	ExampleOperatorToken2 = &api.ACLToken{
@@ -145,6 +155,7 @@ var (
 		Policies: []*api.ACLTokenPolicyLink{{
 			ID: ExamplePolicyID2,
 		}},
+		Namespace: "default",
 	}
 
 	ExampleOperatorToken3 = &api.ACLToken{
@@ -154,6 +165,7 @@ var (
 		Policies: []*api.ACLTokenPolicyLink{{
 			ID: ExamplePolicyID3,
 		}},
+		Namespace: "default",
 	}
 
 	ExampleOperatorToken4 = &api.ACLToken{
@@ -165,6 +177,17 @@ var (
 			ID:   ExampleRoleID1,
 			Name: "example-role-1",
 		}},
+		Namespace: "default",
+	}
+
+	ExampleOperatorToken5 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID5,
+		AccessorID:  "cf39aad5-00c3-af23-cf0b-75d41e12f28d",
+		Description: "Operator Token 5",
+		Policies: []*api.ACLTokenPolicyLink{{
+			ID: ExamplePolicyID4,
+		}},
+		Namespace: "default",
 	}
 )
 
@@ -182,6 +205,9 @@ func (m *MockACLsAPI) TokenReadSelf(q *api.QueryOptions) (*api.ACLToken, *api.Qu
 
 	case ExampleOperatorTokenID4:
 		return ExampleOperatorToken4, nil, nil
+
+	case ExampleOperatorTokenID5:
+		return ExampleOperatorToken5, nil, nil
 
 	default:
 		return nil, nil, errors.New("no such token")
@@ -253,6 +279,7 @@ func (m *MockACLsAPI) tokenCreate(token *api.ACLToken, _ *api.WriteOptions) (uin
 		SecretID:          uuid.Generate(),
 		Description:       token.Description,
 		ServiceIdentities: token.ServiceIdentities,
+		Namespace:         token.Namespace,
 		CreateTime:        time.Now(),
 	}
 

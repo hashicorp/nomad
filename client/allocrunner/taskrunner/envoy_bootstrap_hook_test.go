@@ -32,6 +32,12 @@ import (
 
 var _ interfaces.TaskPrestartHook = (*envoyBootstrapHook)(nil)
 
+const (
+	// consulNamespace is empty string in OSS, because Consul OSS does not like
+	// having even the default namespace set.
+	consulNamespace = ""
+)
+
 func writeTmp(t *testing.T, s string, fm os.FileMode) string {
 	dir, err := ioutil.TempDir("", "envoy-")
 	require.NoError(t, err)
@@ -299,8 +305,9 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	consulConfig.Address = testConsul.HTTPAddr
 	consulAPIClient, err := consulapi.NewClient(consulConfig)
 	require.NoError(t, err)
+	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces())
 
-	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), logger, true)
+	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
 	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
@@ -308,7 +315,7 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: consulConfig.Address,
-	}, logger))
+	}, consulNamespace, logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
 		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
@@ -399,8 +406,9 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	consulConfig.Address = testConsul.HTTPAddr
 	consulAPIClient, err := consulapi.NewClient(consulConfig)
 	require.NoError(t, err)
+	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces())
 
-	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), logger, true)
+	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
 	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
@@ -408,7 +416,7 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: consulConfig.Address,
-	}, logger))
+	}, consulNamespace, logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
 		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
@@ -463,9 +471,10 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	consulConfig.Address = testConsul.HTTPAddr
 	consulAPIClient, err := consulapi.NewClient(consulConfig)
 	require.NoError(t, err)
+	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces())
 
 	// Register Group Services
-	serviceClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), logger, true)
+	serviceClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 	go serviceClient.Run()
 	defer serviceClient.Shutdown()
 	require.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
@@ -489,7 +498,7 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	// Run Connect bootstrap hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: consulConfig.Address,
-	}, logger))
+	}, consulNamespace, logger))
 
 	req := &interfaces.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
@@ -542,7 +551,7 @@ func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
 	// not get hit.
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: "http://127.0.0.2:1",
-	}, logger))
+	}, consulNamespace, logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    task,
 		TaskDir: allocDir.NewTaskDir(task.Name),
@@ -615,7 +624,7 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: testConsul.HTTPAddr,
-	}, logger))
+	}, consulNamespace, logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
 		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
@@ -677,12 +686,14 @@ func TestTaskRunner_EnvoyBootstrapHook_grpcAddress(t *testing.T) {
 	bridgeH := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(
 		mock.ConnectIngressGatewayAlloc("bridge"),
 		new(config.ConsulConfig),
+		consulNamespace,
 		testlog.HCLogger(t),
 	))
 
 	hostH := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(
 		mock.ConnectIngressGatewayAlloc("host"),
 		new(config.ConsulConfig),
+		consulNamespace,
 		testlog.HCLogger(t),
 	))
 

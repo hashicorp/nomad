@@ -40,6 +40,9 @@ job "docs" {
   `min` value specified in the [`scaling`](/docs/job-specification/scaling)
   block, if present; otherwise, this defaults to `1`.
 
+- `consul` <code>([Consul][consul]: nil)</code> - Specifies Consul configuration
+  options specific to the group.
+
 - `ephemeral_disk` <code>([EphemeralDisk][]: nil)</code> - Specifies the
   ephemeral disk requirements of the group. Ephemeral disks can be marked as
   sticky and support live data migrations.
@@ -102,6 +105,14 @@ job "docs" {
 
 - `volume` <code>([Volume][]: nil)</code> - Specifies the volumes that are
   required by tasks within the group.
+
+### `consul` Parameters
+
+- `namespace` `(string: "")` <EnterpriseAlert inline/> - The Consul namespace in which
+  group and task-level services within the group will be registered. Use of
+  `template` to access Consul KV will read from the specified Consul namespace.
+  Specifying `namespace` takes precedence over the [`-consul-namespace`][consul_namespace]
+  command line argument in `job run`.
 
 ## `group` Examples
 
@@ -244,6 +255,8 @@ group "second" {
 [task]: /docs/job-specification/task 'Nomad task Job Specification'
 [job]: /docs/job-specification/job 'Nomad job Job Specification'
 [constraint]: /docs/job-specification/constraint 'Nomad constraint Job Specification'
+[consul]: /docs/job-specification/group#consul-parameters
+[consul_namespace]: /docs/commands/job/run#consul-namespace
 [spread]: /docs/job-specification/spread 'Nomad spread Job Specification'
 [affinity]: /docs/job-specification/affinity 'Nomad affinity Job Specification'
 [ephemeraldisk]: /docs/job-specification/ephemeral_disk 'Nomad ephemeral_disk Job Specification'

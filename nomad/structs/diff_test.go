@@ -1662,6 +1662,88 @@ func TestTaskGroupDiff(t *testing.T) {
 			},
 		},
 		{
+			TestCase: "Consul added",
+			Old:      &TaskGroup{},
+			New: &TaskGroup{
+				Consul: &Consul{
+					Namespace: "team1",
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Consul",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Namespace",
+								Old:  "",
+								New:  "team1",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TestCase: "Consul deleted",
+			Old: &TaskGroup{
+				Consul: &Consul{
+					Namespace: "team1",
+				},
+			},
+			New: &TaskGroup{},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "Consul",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Namespace",
+								Old:  "team1",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TestCase: "Consul updated",
+			Old: &TaskGroup{
+				Consul: &Consul{
+					Namespace: "team1",
+				},
+			},
+			New: &TaskGroup{
+				Consul: &Consul{
+					Namespace: "team2",
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Consul",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Namespace",
+								Old:  "team1",
+								New:  "team2",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			TestCase: "RestartPolicy added",
 			Old:      &TaskGroup{},
 			New: &TaskGroup{
@@ -2591,6 +2673,7 @@ func TestTaskGroupDiff(t *testing.T) {
 				Services: []*Service{
 					{
 						Name:              "foo",
+						Namespace:         "team1",
 						TaskName:          "task1",
 						EnableTagOverride: false,
 						Checks: []*ServiceCheck{
@@ -2667,6 +2750,7 @@ func TestTaskGroupDiff(t *testing.T) {
 				Services: []*Service{
 					{
 						Name:              "foo",
+						Namespace:         "team1",
 						TaskName:          "task2",
 						EnableTagOverride: true,
 						Checks: []*ServiceCheck{
@@ -2774,6 +2858,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Name: "Name",
 								Old:  "foo",
 								New:  "foo",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Namespace",
+								Old:  "team1",
+								New:  "team1",
 							},
 							{
 								Type: DiffTypeNone,
@@ -3634,7 +3724,7 @@ func TestTaskGroupDiff(t *testing.T) {
 			Old:      &TaskGroup{},
 			New: &TaskGroup{
 				Volumes: map[string]*VolumeRequest{
-					"foo": &VolumeRequest{
+					"foo": {
 						Name:     "foo",
 						Type:     "host",
 						Source:   "foo-src",
@@ -3691,7 +3781,7 @@ func TestTaskGroupDiff(t *testing.T) {
 			TestCase: "TaskGroup volumes edited",
 			Old: &TaskGroup{
 				Volumes: map[string]*VolumeRequest{
-					"foo": &VolumeRequest{
+					"foo": {
 						Name:     "foo",
 						Type:     "csi",
 						Source:   "foo-src1",
@@ -3701,7 +3791,7 @@ func TestTaskGroupDiff(t *testing.T) {
 							MountFlags: []string{"relatime", "rw"},
 						},
 					},
-					"bar": &VolumeRequest{
+					"bar": {
 						Name:     "bar",
 						Type:     "host",
 						Source:   "bar-src",
@@ -3711,7 +3801,7 @@ func TestTaskGroupDiff(t *testing.T) {
 			},
 			New: &TaskGroup{
 				Volumes: map[string]*VolumeRequest{
-					"foo": &VolumeRequest{
+					"foo": {
 						Name:     "foo",
 						Type:     "csi",
 						Source:   "foo-src2",
@@ -3721,7 +3811,7 @@ func TestTaskGroupDiff(t *testing.T) {
 							MountFlags: []string{"relatime", "rw", "nosuid"},
 						},
 					},
-					"bar": &VolumeRequest{ // untouched
+					"bar": { // untouched
 						Name:     "bar",
 						Type:     "host",
 						Source:   "bar-src",
@@ -5457,6 +5547,12 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
+								Name: "Namespace",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "OnUpdate",
 								Old:  "",
 								New:  "",
@@ -5598,6 +5694,10 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "Name",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Namespace",
 							},
 							{
 								Type: DiffTypeNone,
@@ -6101,6 +6201,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Name",
 								Old:  "foo",
 								New:  "foo",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Namespace",
+								Old:  "",
+								New:  "",
 							},
 							{
 								Type: DiffTypeNone,

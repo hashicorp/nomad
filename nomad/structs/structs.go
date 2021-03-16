@@ -4029,12 +4029,15 @@ type Job struct {
 	// token and is not stored after Job submission.
 	ConsulToken string
 
+	// ConsulNamespace is the Consul namespace
+	ConsulNamespace string
+
 	// VaultToken is the Vault token that proves the submitter of the job has
 	// access to the specified Vault policies. This field is only used to
 	// transfer the token and is not stored after Job submission.
 	VaultToken string
 
-	// VaultNamespace is the Vault namepace
+	// VaultNamespace is the Vault namespace
 	VaultNamespace string
 
 	// NomadTokenID is the Accessor ID of the ACL token (if any)
@@ -5941,6 +5944,9 @@ type TaskGroup struct {
 	// overridden in the task.
 	Networks Networks
 
+	// Consul configuration specific to this task group
+	Consul *Consul
+
 	// Services this group provides
 	Services []*Service
 
@@ -5970,6 +5976,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
 	ntg.Volumes = CopyMapVolumeRequest(ntg.Volumes)
 	ntg.Scaling = ntg.Scaling.Copy()
+	ntg.Consul = ntg.Consul.Copy()
 
 	// Copy the network objects
 	if tg.Networks != nil {
@@ -9175,6 +9182,12 @@ type Allocation struct {
 
 	// ModifyTime is the time the allocation was last updated.
 	ModifyTime int64
+}
+
+// ConsulNamespace returns the Consul namespace of the task group associated
+// with this allocation.
+func (a *Allocation) ConsulNamespace() string {
+	return a.Job.LookupTaskGroup(a.TaskGroup).Consul.GetNamespace()
 }
 
 // Index returns the index of the allocation. If the allocation is from a task

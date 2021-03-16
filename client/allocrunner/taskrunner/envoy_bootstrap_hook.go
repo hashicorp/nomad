@@ -49,9 +49,10 @@ func newConsulTransportConfig(consul *config.ConsulConfig) consulTransportConfig
 }
 
 type envoyBootstrapHookConfig struct {
-	consul consulTransportConfig
-	alloc  *structs.Allocation
-	logger hclog.Logger
+	alloc           *structs.Allocation
+	consul          consulTransportConfig
+	consulNamespace string
+	logger          hclog.Logger
 }
 
 func decodeTriState(b *bool) string {
@@ -65,11 +66,12 @@ func decodeTriState(b *bool) string {
 	}
 }
 
-func newEnvoyBootstrapHookConfig(alloc *structs.Allocation, consul *config.ConsulConfig, logger hclog.Logger) *envoyBootstrapHookConfig {
+func newEnvoyBootstrapHookConfig(alloc *structs.Allocation, consul *config.ConsulConfig, consulNamespace string, logger hclog.Logger) *envoyBootstrapHookConfig {
 	return &envoyBootstrapHookConfig{
-		alloc:  alloc,
-		logger: logger,
-		consul: newConsulTransportConfig(consul),
+		alloc:           alloc,
+		consul:          newConsulTransportConfig(consul),
+		consulNamespace: consulNamespace,
+		logger:          logger,
 	}
 }
 
@@ -95,16 +97,34 @@ type envoyBootstrapHook struct {
 	// before contacting Consul.
 	consulConfig consulTransportConfig
 
+	// consulNamespace is the Consul namespace as set by in the job
+	consulNamespace string
+
 	// logger is used to log things
 	logger hclog.Logger
 }
 
 func newEnvoyBootstrapHook(c *envoyBootstrapHookConfig) *envoyBootstrapHook {
 	return &envoyBootstrapHook{
-		alloc:        c.alloc,
-		consulConfig: c.consul,
-		logger:       c.logger.Named(envoyBootstrapHookName),
+		alloc:           c.alloc,
+		consulConfig:    c.consul,
+		consulNamespace: c.consulNamespace,
+		logger:          c.logger.Named(envoyBootstrapHookName),
 	}
+}
+
+// getConsulNamespace will resolve the Consul namespace, choosing between
+//  - agent config (low precedence)
+//  - task group config (high precedence)
+func (h *envoyBootstrapHook) getConsulNamespace() string {
+	var namespace string
+	if h.consulConfig.Namespace != "" {
+		namespace = h.consulConfig.Namespace
+	}
+	if h.consulNamespace != "" {
+		namespace = h.consulNamespace
+	}
+	return namespace
 }
 
 func (envoyBootstrapHook) Name() string {
@@ -355,7 +375,10 @@ func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
 		sidecarForID string // sidecar only
 		gateway      string // gateway only
 		proxyID      string // gateway only
+		namespace    string
 	)
+
+	namespace = h.getConsulNamespace()
 
 	switch {
 	case service.Connect.HasSidecar():
@@ -372,7 +395,7 @@ func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
 		"sidecar_for", service.Name, "bootstrap_file", filepath,
 		"sidecar_for_id", sidecarForID, "grpc_addr", grpcAddr,
 		"admin_bind", envoyAdminBind, "gateway", gateway,
-		"proxy_id", proxyID,
+		"proxy_id", proxyID, "namespace", namespace,
 	)
 
 	return envoyBootstrapArgs{
@@ -383,6 +406,7 @@ func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
 		siToken:        siToken,
 		gateway:        gateway,
 		proxyID:        proxyID,
+		namespace:      namespace,
 	}
 }
 
@@ -397,6 +421,7 @@ type envoyBootstrapArgs struct {
 	siToken        string
 	gateway        string // gateways only
 	proxyID        string // gateways only
+	namespace      string
 }
 
 // args returns the CLI arguments consul needs in the correct order, with the
@@ -439,7 +464,7 @@ func (e envoyBootstrapArgs) args() []string {
 		arguments = append(arguments, "-client-key", v)
 	}
 
-	if v := e.consulConfig.Namespace; v != "" {
+	if v := e.namespace; v != "" {
 		arguments = append(arguments, "-namespace", v)
 	}
 
@@ -462,7 +487,7 @@ func (e envoyBootstrapArgs) env(env []string) []string {
 	if v := e.consulConfig.VerifySSL; v != "" {
 		env = append(env, fmt.Sprintf("%s=%s", "CONSUL_HTTP_SSL_VERIFY", v))
 	}
-	if v := e.consulConfig.Namespace; v != "" {
+	if v := e.namespace; v != "" {
 		env = append(env, fmt.Sprintf("%s=%s", "CONSUL_NAMESPACE", v))
 	}
 	return env

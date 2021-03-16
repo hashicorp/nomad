@@ -452,6 +452,12 @@ type Service struct {
 	Meta       map[string]string // Consul service meta
 	CanaryMeta map[string]string // Consul service meta when it is a canary
 
+	// The consul namespace in which this service will be registered. Namespace
+	// at the service.check level is not part of the Nomad API - it must be
+	// set at the job or group level. This field is managed internally so
+	// that Hash can work correctly.
+	Namespace string
+
 	// OnUpdate Specifies how the service and its checks should be evaluated
 	// during an update
 	OnUpdate string
@@ -513,6 +519,12 @@ func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 
 	for _, check := range s.Checks {
 		check.Canonicalize(s.Name)
+	}
+
+	// Consul API returns "default" whether the namespace is empty or set as
+	// such, so we coerce our copy of the service to be the same.
+	if s.Namespace == "" {
+		s.Namespace = "default"
 	}
 }
 
@@ -610,6 +622,7 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	hashMeta(h, s.CanaryMeta)
 	hashConnect(h, s.Connect)
 	hashString(h, s.OnUpdate)
+	hashString(h, s.Namespace)
 
 	// Base32 is used for encoding the hash as sha1 hashes can always be
 	// encoded without padding, only 4 bytes larger than base64, and saves
@@ -664,6 +677,10 @@ func hashConfig(h hash.Hash, c map[string]interface{}) {
 func (s *Service) Equals(o *Service) bool {
 	if s == nil || o == nil {
 		return s == o
+	}
+
+	if s.Namespace != o.Namespace {
+		return false
 	}
 
 	if s.AddressMode != o.AddressMode {

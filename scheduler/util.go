@@ -371,6 +371,11 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		return true
 	}
 
+	// Check consul namespace updated
+	if consulNamespaceUpdated(a, b) {
+		return true
+	}
+
 	// Check connect service(s) updated
 	if connectServiceUpdated(a.Services, b.Services) {
 		return true
@@ -430,6 +435,18 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		}
 	}
 	return false
+}
+
+// consulNamespaceUpdated returns true if the Consul namespace in the task group
+// has been changed.
+//
+// This is treated as a destructive update unlike ordinary Consul service configuration
+// because Namespaces directly impact networking validity among Consul intentions.
+// Forcing the task through a reschedule is a sure way of breaking no-longer valid
+// network connections.
+func consulNamespaceUpdated(tgA, tgB *structs.TaskGroup) bool {
+	// job.ConsulNamespace is pushed down to the TGs, just check those
+	return tgA.Consul.GetNamespace() != tgB.Consul.GetNamespace()
 }
 
 // connectServiceUpdated returns true if any services with a connect stanza have

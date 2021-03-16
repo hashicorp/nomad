@@ -3,6 +3,7 @@ package api
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -121,6 +122,7 @@ type AgentServiceConnectProxyConfig struct {
 	Upstreams              []Upstream             `json:",omitempty"`
 	MeshGateway            MeshGatewayConfig      `json:",omitempty"`
 	Expose                 ExposeConfig           `json:",omitempty"`
+	TransparentProxy       bool                   `json:",omitempty"`
 }
 
 const (
@@ -266,12 +268,23 @@ type AgentServiceRegistration struct {
 	Namespace         string                          `json:",omitempty" bexpr:"-" hash:"ignore"`
 }
 
-//ServiceRegisterOpts is used to pass extra options to the service register.
+// ServiceRegisterOpts is used to pass extra options to the service register.
 type ServiceRegisterOpts struct {
 	//Missing healthchecks will be deleted from the agent.
 	//Using this parameter allows to idempotently register a service and its checks without
 	//having to manually deregister checks.
 	ReplaceExistingChecks bool
+
+	// ctx is an optional context pass through to the underlying HTTP
+	// request layer. Use WithContext() to set the context.
+	ctx context.Context
+}
+
+// WithContext sets the context to be used for the request on a new ServiceRegisterOpts,
+// and returns the opts.
+func (o ServiceRegisterOpts) WithContext(ctx context.Context) ServiceRegisterOpts {
+	o.ctx = ctx
+	return o
 }
 
 // AgentCheckRegistration is used to register a new check
@@ -301,6 +314,7 @@ type AgentServiceCheck struct {
 	TCP                    string              `json:",omitempty"`
 	Status                 string              `json:",omitempty"`
 	Notes                  string              `json:",omitempty"`
+	TLSServerName          string              `json:",omitempty"`
 	TLSSkipVerify          bool                `json:",omitempty"`
 	GRPC                   string              `json:",omitempty"`
 	GRPCUseTLS             bool                `json:",omitempty"`
@@ -394,6 +408,7 @@ type Upstream struct {
 	LocalBindPort        int                    `json:",omitempty"`
 	Config               map[string]interface{} `json:",omitempty" bexpr:"-"`
 	MeshGateway          MeshGatewayConfig      `json:",omitempty"`
+	CentrallyConfigured  bool                   `json:",omitempty" bexpr:"-"`
 }
 
 // Agent can be used to query the Agent endpoints
@@ -494,7 +509,14 @@ func (a *Agent) Checks() (map[string]*AgentCheck, error) {
 // ChecksWithFilter returns a subset of the locally registered checks that match
 // the given filter expression
 func (a *Agent) ChecksWithFilter(filter string) (map[string]*AgentCheck, error) {
+	return a.ChecksWithFilterOpts(filter, nil)
+}
+
+// ChecksWithFilterOpts returns a subset of the locally registered checks that match
+// the given filter expression and QueryOptions.
+func (a *Agent) ChecksWithFilterOpts(filter string, q *QueryOptions) (map[string]*AgentCheck, error) {
 	r := a.c.newRequest("GET", "/v1/agent/checks")
+	r.setQueryOptions(q)
 	r.filterQuery(filter)
 	_, resp, err := requireOK(a.c.doRequest(r))
 	if err != nil {
@@ -517,7 +539,14 @@ func (a *Agent) Services() (map[string]*AgentService, error) {
 // ServicesWithFilter returns a subset of the locally registered services that match
 // the given filter expression
 func (a *Agent) ServicesWithFilter(filter string) (map[string]*AgentService, error) {
+	return a.ServicesWithFilterOpts(filter, nil)
+}
+
+// ServicesWithFilterOpts returns a subset of the locally registered services that match
+// the given filter expression and QueryOptions.
+func (a *Agent) ServicesWithFilterOpts(filter string, q *QueryOptions) (map[string]*AgentService, error) {
 	r := a.c.newRequest("GET", "/v1/agent/services")
+	r.setQueryOptions(q)
 	r.filterQuery(filter)
 	_, resp, err := requireOK(a.c.doRequest(r))
 	if err != nil {
@@ -688,6 +717,7 @@ func (a *Agent) ServiceRegisterOpts(service *AgentServiceRegistration, opts Serv
 func (a *Agent) serviceRegister(service *AgentServiceRegistration, opts ServiceRegisterOpts) error {
 	r := a.c.newRequest("PUT", "/v1/agent/service/register")
 	r.obj = service
+	r.ctx = opts.ctx
 	if opts.ReplaceExistingChecks {
 		r.params.Set("replace-existing-checks", "true")
 	}
@@ -703,6 +733,19 @@ func (a *Agent) serviceRegister(service *AgentServiceRegistration, opts ServiceR
 // the local agent
 func (a *Agent) ServiceDeregister(serviceID string) error {
 	r := a.c.newRequest("PUT", "/v1/agent/service/deregister/"+serviceID)
+	_, resp, err := requireOK(a.c.doRequest(r))
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
+}
+
+// ServiceDeregisterOpts is used to deregister a service with
+// the local agent with QueryOptions.
+func (a *Agent) ServiceDeregisterOpts(serviceID string, q *QueryOptions) error {
+	r := a.c.newRequest("PUT", "/v1/agent/service/deregister/"+serviceID)
+	r.setQueryOptions(q)
 	_, resp, err := requireOK(a.c.doRequest(r))
 	if err != nil {
 		return err
@@ -785,6 +828,10 @@ type checkUpdate struct {
 // strings for compatibility (though a newer version of Consul will still be
 // required to use this API).
 func (a *Agent) UpdateTTL(checkID, output, status string) error {
+	return a.UpdateTTLOpts(checkID, output, status, nil)
+}
+
+func (a *Agent) UpdateTTLOpts(checkID, output, status string, q *QueryOptions) error {
 	switch status {
 	case "pass", HealthPassing:
 		status = HealthPassing
@@ -798,6 +845,7 @@ func (a *Agent) UpdateTTL(checkID, output, status string) error {
 
 	endpoint := fmt.Sprintf("/v1/agent/check/update/%s", checkID)
 	r := a.c.newRequest("PUT", endpoint)
+	r.setQueryOptions(q)
 	r.obj = &checkUpdate{
 		Status: status,
 		Output: output,
@@ -827,7 +875,14 @@ func (a *Agent) CheckRegister(check *AgentCheckRegistration) error {
 // CheckDeregister is used to deregister a check with
 // the local agent
 func (a *Agent) CheckDeregister(checkID string) error {
+	return a.CheckDeregisterOpts(checkID, nil)
+}
+
+// CheckDeregisterOpts is used to deregister a check with
+// the local agent using query options
+func (a *Agent) CheckDeregisterOpts(checkID string, q *QueryOptions) error {
 	r := a.c.newRequest("PUT", "/v1/agent/check/deregister/"+checkID)
+	r.setQueryOptions(q)
 	_, resp, err := requireOK(a.c.doRequest(r))
 	if err != nil {
 		return err
