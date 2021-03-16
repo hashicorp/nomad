@@ -187,11 +187,6 @@ func TestAllocsFit_Old(t *testing.T) {
 	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
-
-	// Check the used resources are expected values
-	// TODO: This comment is not super useful, but neither was
-	//       the original. It would be better if someone
-	//       explained the invariant that this check validates.
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -199,11 +194,6 @@ func TestAllocsFit_Old(t *testing.T) {
 	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
 	require.NoError(err)
 	require.False(fit)
-
-	// Check the used resources are expected values
-	// TODO: This comment is not super useful, but neither was
-	//       the original. It would be better if someone
-	//       explained the invariant that this check validates.
 	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
 }
@@ -260,11 +250,6 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
-
-	// Check the used resources are expected values
-	// TODO: This comment is not super useful, but neither was
-	//       the original. It would be better if someone
-	//       explained the invariant that this check validates.
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -274,11 +259,6 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
 	require.NoError(err)
 	require.True(fit)
-
-	// Check the used resources are expected values
-	// TODO: This comment is not super useful, but neither was
-	//       the original. It would be better if someone
-	//       explained the invariant that this check validates.
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 }
@@ -368,11 +348,6 @@ func TestAllocsFit(t *testing.T) {
 	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
-
-	// Check the used resources are expected values
-	// TODO: This comment is not super useful, but neither was
-	//       the original. It would be better if someone
-	//       explained the invariant that this check validates.
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -380,11 +355,6 @@ func TestAllocsFit(t *testing.T) {
 	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
 	require.NoError(err)
 	require.False(fit)
-
-	// Check the used resources are expected values
-	// TODO: This comment is not super useful, but neither was
-	//       the original. It would be better if someone
-	//       explained the invariant that this check validates.
 	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
 }
@@ -458,11 +428,6 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
-
-	// Check the used resources are expected values
-	// TODO: This comment is not super useful, but neither was
-	//       the original. It would be better if someone
-	//       explained the invariant that this check validates.
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -472,11 +437,6 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	fit, dim, used, err := AllocsFit(n, []*Allocation{a1, a2}, nil, false)
 	require.NoError(err)
 	require.True(fit, dim)
-
-	// Check the used resources are expected values
-	// TODO: This comment is not super useful, but neither was
-	//       the original. It would be better if someone
-	//       explained the invariant that this check validates.
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 }
