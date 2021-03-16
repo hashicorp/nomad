@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "author": "HashiCorp",
   "engines": {
-    "node": "12.x"
+    "node": "12.x - 14.x"
   },
   "dependencies": {
     "@hashicorp/mktg-global-styles": "2.1.0",
