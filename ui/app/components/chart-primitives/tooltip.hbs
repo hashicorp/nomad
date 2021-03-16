@@ -1,7 +1,7 @@
 <div data-test-chart-tooltip class="chart-tooltip {{if @active "active" "inactive"}}" style={{@style}} ...attributes>
   <ol>
     {{#each @data as |props|}}
-      {{yield props.series  props.datum (inc props.index)}}
+      {{yield props.series props.datum (inc props.index)}}
     {{/each}}
   </ol>
 </div>

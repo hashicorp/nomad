@@ -297,14 +297,14 @@ export default class LineChart extends Component {
           formattedY: this.yFormat()(datum[yProp]),
           datum,
         },
-        index: seriesIndex,
+        index: data.length - seriesIndex - 1,
       };
     });
 
     // Of the selected data, determine which is closest
-    const closestDatum = activeData.sort(
-      (a, b) => Math.abs(a.datum.datum[xProp] - x) - Math.abs(b.datum.datum[xProp] - x)
-    )[0];
+    const closestDatum = activeData
+      .slice()
+      .sort((a, b) => Math.abs(a.datum.datum[xProp] - x) - Math.abs(b.datum.datum[xProp] - x))[0];
 
     // If any other selected data are beyond a distance threshold, drop them from the list
     // xScale is used here to measure distance in screen-space rather than data-space.
