@@ -839,14 +839,14 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 			return err
 		}
 
-		// TODO: creating the volume in the external storage provider can't be
+		// NOTE: creating the volume in the external storage provider can't be
 		// made atomic with the registration, and creating the volume provides
 		// values we want to write on the CSIVolume in raft anyways. For now
 		// we'll block the RPC on the external storage provider so that we can
 		// easily return meaningful errors to the user, but in the future we
 		// should consider creating registering first and creating a "volume
 		// eval" that can do the plugin RPCs async
-		err = v.createVolume(vol, plugin, reply)
+		err = v.createVolume(vol, plugin)
 		if err != nil {
 			return err
 		}
@@ -866,7 +866,7 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 	return nil
 }
 
-func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin, reply *structs.CSIVolumeCreateResponse) error {
+func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin) error {
 
 	method := "ClientCSI.ControllerCreateVolume"
 	cReq := &cstructs.ClientCSIControllerCreateVolumeRequest{
@@ -879,7 +879,6 @@ func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 		SnapshotID:         vol.SnapshotID,
 		CloneID:            vol.CloneID,
 	}
-
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerCreateVolumeResponse{}
 	err := v.srv.RPC(method, cReq, cResp)
@@ -894,6 +893,81 @@ func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 }
 
 func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.CSIVolumeDeleteResponse) error {
+	if done, err := v.srv.forward("CSIVolume.Delete", args, args, reply); done {
+		return err
+	}
+
+	metricsStart := time.Now()
+	defer metrics.MeasureSince([]string{"nomad", "volume", "delete"}, metricsStart)
+
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
+	if err != nil {
+		return err
+	}
+
+	ns := args.RequestNamespace()
+	if !allowVolume(aclObj, ns) {
+		return structs.ErrPermissionDenied
+	}
+
+	if len(args.VolumeIDs) == 0 {
+		return fmt.Errorf("missing volume IDs")
+	}
+
+	for _, volID := range args.VolumeIDs {
+
+		plugin, vol, err := v.volAndPluginLookup(args.Namespace, volID)
+		if err != nil {
+			if err == fmt.Errorf("volume not found: %s", volID) {
+				v.logger.Warn("volume %q to be deleted was already deregistered")
+				continue
+			} else {
+				return err
+			}
+		}
+
+		// NOTE: deleting the volume in the external storage provider can't be
+		// made atomic with deregistration. We can't delete a volume that's
+		// not registered because we need to be able to lookup its plugin.
+		err = v.deleteVolume(vol, plugin)
+		if err != nil {
+			return err
+		}
+	}
+
+	deregArgs := &structs.CSIVolumeDeregisterRequest{
+		VolumeIDs:    args.VolumeIDs,
+		WriteRequest: args.WriteRequest,
+	}
+	resp, index, err := v.srv.raftApply(structs.CSIVolumeDeregisterRequestType, deregArgs)
+	if err != nil {
+		v.logger.Error("csi raft apply failed", "error", err, "method", "deregister")
+		return err
+	}
+	if respErr, ok := resp.(error); ok {
+		return respErr
+	}
+
+	reply.Index = index
+	v.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}
+
+func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin) error {
+
+	method := "ClientCSI.ControllerDeleteVolume"
+	cReq := &cstructs.ClientCSIControllerDeleteVolumeRequest{
+		ExternalVolumeID: vol.ExternalID,
+		Secrets:          vol.Secrets,
+	}
+	cReq.PluginID = plugin.ID
+	cResp := &cstructs.ClientCSIControllerDeleteVolumeResponse{}
+
+	err := v.srv.RPC(method, cReq, cResp)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
