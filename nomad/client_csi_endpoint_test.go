@@ -152,6 +152,104 @@ func TestClientCSIController_ValidateVolume_Forwarded(t *testing.T) {
 	require.Contains(err.Error(), "no plugins registered for type")
 }
 
+func TestClientCSIController_CreateVolume_Local(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	codec, cleanup := setupLocal(t)
+	defer cleanup()
+
+	req := &cstructs.ClientCSIControllerCreateVolumeRequest{
+		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerCreateVolume", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "no plugins registered for type")
+}
+
+func TestClientCSIController_CreateVolume_Forwarded(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	codec, cleanup := setupForward(t)
+	defer cleanup()
+
+	req := &cstructs.ClientCSIControllerCreateVolumeRequest{
+		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerCreateVolume", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "no plugins registered for type")
+}
+
+func TestClientCSIController_DeleteVolume_Local(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	codec, cleanup := setupLocal(t)
+	defer cleanup()
+
+	req := &cstructs.ClientCSIControllerDeleteVolumeRequest{
+		ExternalVolumeID:   "test",
+		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerDeleteVolume", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "no plugins registered for type")
+}
+
+func TestClientCSIController_DeleteVolume_Forwarded(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	codec, cleanup := setupForward(t)
+	defer cleanup()
+
+	req := &cstructs.ClientCSIControllerDeleteVolumeRequest{
+		ExternalVolumeID:   "test",
+		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerDeleteVolume", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "no plugins registered for type")
+}
+
+func TestClientCSIController_ListVolumes_Local(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	codec, cleanup := setupLocal(t)
+	defer cleanup()
+
+	req := &cstructs.ClientCSIControllerListVolumesRequest{
+		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerListVolumes", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "no plugins registered for type")
+}
+
+func TestClientCSIController_ListVolumes_Forwarded(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	codec, cleanup := setupForward(t)
+	defer cleanup()
+
+	req := &cstructs.ClientCSIControllerListVolumesRequest{
+		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerListVolumes", req, &resp)
+	require.NotNil(err)
+	require.Contains(err.Error(), "no plugins registered for type")
+}
+
 func TestClientCSI_NodeForControllerPlugin(t *testing.T) {
 	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {})
