@@ -294,6 +294,9 @@ func (c *CSI) ControllerListVolumes(req *structs.ClientCSIControllerListVolumesR
 			}
 		}
 		resp.Entries = append(resp.Entries, vol)
+		if req.MaxEntries != 0 && int32(len(resp.Entries)) == req.MaxEntries {
+			break
+		}
 	}
 
 	return nil

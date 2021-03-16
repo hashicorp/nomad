@@ -169,6 +169,36 @@ func (a *ClientCSI) ControllerDeleteVolume(args *cstructs.ClientCSIControllerDel
 	return fmt.Errorf("controller delete volume: %v", err)
 }
 
+func (a *ClientCSI) ControllerListVolumes(args *cstructs.ClientCSIControllerListVolumesRequest, reply *cstructs.ClientCSIControllerListVolumesResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "list_volumes"}, time.Now())
+
+	clientIDs, err := a.clientIDsForController(args.PluginID)
+	if err != nil {
+		return fmt.Errorf("controller list external volumes: %v", err)
+	}
+
+	for _, clientID := range clientIDs {
+		args.ControllerNodeID = clientID
+		state, ok := a.srv.getNodeConn(clientID)
+		if !ok {
+			return findNodeConnAndForward(a.srv,
+				clientID, "ClientCSI.ControllerListVolumes", args, reply)
+		}
+
+		err = NodeRpc(state.Session, "CSI.ControllerListVolumes", args, reply)
+		if err == nil {
+			return nil
+		}
+		if a.isRetryable(err) {
+			a.logger.Debug("failed to reach controller on client",
+				"nodeID", clientID, "err", err)
+			continue
+		}
+		return fmt.Errorf("controller list external volumes: %v", err)
+	}
+	return fmt.Errorf("controller list external volumes: %v", err)
+}
+
 // we can retry the same RPC on a different controller in the cases where the
 // client has stopped and been GC'd, or where the controller has stopped but
 // we don't have the fingerprint update yet

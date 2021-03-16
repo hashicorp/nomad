@@ -972,6 +972,59 @@ func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 }
 
 func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, reply *structs.CSIVolumeExternalListResponse) error {
+
+	if done, err := v.srv.forward("CSIVolume.ListExternal", args, args, reply); done {
+		return err
+	}
+	metricsStart := time.Now()
+	defer metrics.MeasureSince([]string{"nomad", "volume", "list_external"}, metricsStart)
+
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIListVolume,
+		acl.NamespaceCapabilityCSIReadVolume,
+		acl.NamespaceCapabilityCSIMountVolume,
+		acl.NamespaceCapabilityListJobs)
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, false)
+	if err != nil {
+		return err
+	}
+
+	// NOTE: this is the plugin's namespace, not the volume(s) because they
+	// might not even be registered
+	if !allowVolume(aclObj, args.RequestNamespace()) {
+		return structs.ErrPermissionDenied
+	}
+	snap, err := v.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	plugin, err := snap.CSIPluginByID(nil, args.PluginID)
+	if err != nil {
+		return err
+	}
+	if plugin == nil {
+		return fmt.Errorf("no such plugin")
+	}
+
+	method := "ClientCSI.ControllerListVolumes"
+	cReq := &cstructs.ClientCSIControllerListVolumesRequest{
+		MaxEntries:    args.MaxEntries,
+		StartingToken: args.StartingToken,
+	}
+	cReq.PluginID = plugin.ID
+	cResp := &cstructs.ClientCSIControllerListVolumesResponse{}
+
+	err = v.srv.RPC(method, cReq, cResp)
+	if err != nil {
+		return err
+	}
+	if args.MaxEntries > 0 {
+		reply.Volumes = cResp.Entries[:args.MaxEntries]
+	} else {
+		reply.Volumes = cResp.Entries
+	}
+	reply.NextToken = cResp.NextToken
+
 	return nil
 }
 
