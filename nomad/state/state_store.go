@@ -5586,7 +5586,7 @@ func (s *StateStore) schedulerSetConfigTxn(idx uint64, tx *txn, config *structs.
 }
 
 func (s *StateStore) setClusterMetadata(txn *txn, meta *structs.ClusterMetadata) error {
-	// Check for an existing config, if it exists, sanity check the cluster ID matches
+	// Check for an existing config, if it exists, verify that the cluster ID matches
 	existing, err := txn.First("cluster_meta", "id")
 	if err != nil {
 		return fmt.Errorf("failed cluster meta lookup: %v", err)

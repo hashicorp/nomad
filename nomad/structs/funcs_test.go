@@ -187,8 +187,6 @@ func TestAllocsFit_Old(t *testing.T) {
 	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
-
-	// Sanity check the used resources
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -196,8 +194,6 @@ func TestAllocsFit_Old(t *testing.T) {
 	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
 	require.NoError(err)
 	require.False(fit)
-
-	// Sanity check the used resources
 	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
 }
@@ -254,8 +250,6 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
-
-	// Sanity check the used resources
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -265,8 +259,6 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
 	require.NoError(err)
 	require.True(fit)
-
-	// Sanity check the used resources
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 }
@@ -356,8 +348,6 @@ func TestAllocsFit(t *testing.T) {
 	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
-
-	// Sanity check the used resources
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -365,8 +355,6 @@ func TestAllocsFit(t *testing.T) {
 	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
 	require.NoError(err)
 	require.False(fit)
-
-	// Sanity check the used resources
 	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
 }
@@ -440,8 +428,6 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
 	require.True(fit)
-
-	// Sanity check the used resources
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -451,8 +437,6 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	fit, dim, used, err := AllocsFit(n, []*Allocation{a1, a2}, nil, false)
 	require.NoError(err)
 	require.True(fit, dim)
-
-	// Sanity check the used resources
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 }

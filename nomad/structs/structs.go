@@ -4058,7 +4058,7 @@ func (j *Job) Copy() *Job {
 	return nj
 }
 
-// Validate is used to sanity check a job input
+// Validate is used to check a job for reasonable configuration
 func (j *Job) Validate() error {
 	var mErr multierror.Error
 
@@ -5975,7 +5975,7 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 	}
 }
 
-// Validate is used to sanity check a task group
+// Validate is used to check a task group for reasonable configuration
 func (tg *TaskGroup) Validate(j *Job) error {
 	var mErr multierror.Error
 	if tg.Name == "" {
@@ -6745,7 +6745,7 @@ func (t *Task) GoString() string {
 	return fmt.Sprintf("*%#v", *t)
 }
 
-// Validate is used to sanity check a task
+// Validate is used to check a task for reasonable configuration
 func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices []*Service, tgNetworks Networks) error {
 	var mErr multierror.Error
 	if t.Name == "" {
@@ -10935,7 +10935,7 @@ func (a *ACLToken) Stub() *ACLTokenListStub {
 	}
 }
 
-// Validate is used to sanity check a token
+// Validate is used to check a token for reasonableness
 func (a *ACLToken) Validate() error {
 	var mErr multierror.Error
 	if len(a.Name) > maxTokenNameLength {

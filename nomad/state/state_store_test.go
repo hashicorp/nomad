@@ -1893,7 +1893,7 @@ func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
 
 	ws := memdb.NewWatchSet()
 
-	// Sanity check that jobs are present in DB
+	// Check that jobs are present in DB
 	job, err := state.JobByID(ws, jobs[0].Namespace, jobs[0].ID)
 	require.NoError(t, err)
 	require.Equal(t, jobs[0].ID, job.ID)
