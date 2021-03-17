@@ -8,12 +8,12 @@ import (
 )
 
 type CPUSet struct {
-	cpus map[uint32]struct{}
+	cpus map[uint16]struct{}
 }
 
 func NewCPUSet() CPUSet {
 	return CPUSet{
-		cpus: make(map[uint32]struct{}),
+		cpus: make(map[uint16]struct{}),
 	}
 }
 
@@ -21,8 +21,8 @@ func (c CPUSet) Size() int {
 	return len(c.cpus)
 }
 
-func (c CPUSet) ToSlice() []uint32 {
-	cpus := []uint32{}
+func (c CPUSet) ToSlice() []uint16 {
+	cpus := []uint16{}
 	for k := range c.cpus {
 		cpus = append(cpus, k)
 	}
@@ -62,7 +62,7 @@ func (s CPUSet) IsSubsetOf(other CPUSet) bool {
 	return true
 }
 
-func FromSlice(s []uint32) CPUSet {
+func FromSlice(s []uint16) CPUSet {
 	cpuset := NewCPUSet()
 	for _, v := range s {
 		cpuset.cpus[v] = struct{}{}
@@ -81,7 +81,7 @@ func Parse(s string) (CPUSet, error) {
 				return NewCPUSet(), err
 			}
 
-			cpuset.cpus[uint32(v)] = struct{}{}
+			cpuset.cpus[uint16(v)] = struct{}{}
 		}
 		if len(bounds) > 2 {
 			return NewCPUSet(), fmt.Errorf("failed to parse element %s, more than 1 '-' found", set)
@@ -96,7 +96,7 @@ func Parse(s string) (CPUSet, error) {
 			return NewCPUSet(), err
 		}
 		for v := lower; v <= upper; v++ {
-			cpuset.cpus[uint32(v)] = struct{}{}
+			cpuset.cpus[uint16(v)] = struct{}{}
 		}
 	}
 

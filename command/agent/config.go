@@ -299,6 +299,10 @@ type ClientConfig struct {
 	// matching any destination address (true). Defaults to true
 	BindWildcardDefaultHostNetwork bool `hcl:"bind_wildcard_default_host_network"`
 
+	// CgroupParent sets the parent cgroup for all tasks managed by Nomad. If the cgroup
+	// doest not exist Nomad will attempt to create it during startup. Defaults to '/nomad'
+	CgroupParent string `hcl:"cgroup_parent"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }

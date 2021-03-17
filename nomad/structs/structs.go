@@ -2967,8 +2967,8 @@ type NodeCpuResources struct {
 	// cores multiplied by the core frequency.
 	CpuShares int64
 
-	TotalCpuCores      uint32
-	ReservableCpuCores []uint32
+	TotalCpuCores      uint16
+	ReservableCpuCores []uint16
 }
 
 func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
@@ -3672,7 +3672,7 @@ func (a *AllocatedSharedResources) Canonicalize() {
 // AllocatedCpuResources captures the allocated CPU resources.
 type AllocatedCpuResources struct {
 	CpuShares     int64
-	ReservedCores []uint32
+	ReservedCores []uint16
 }
 
 func (a *AllocatedCpuResources) Add(delta *AllocatedCpuResources) {

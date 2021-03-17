@@ -33,6 +33,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
@@ -628,6 +629,14 @@ func (c *Client) init() error {
 	}
 
 	c.logger.Info("using alloc directory", "alloc_dir", c.config.AllocDir)
+
+	// Ensure cgroups are created on linux platform
+	if err := cgutil.InitCpusetParent(c.config.CgroupParent); err != nil {
+		// if the client cannot initialize the cgroup then reserved cores will not be reported and the cpuset manager
+		// will be disabled
+		c.logger.Warn("could not initialize cpuset cgroup subsystem, cpuset management disabled", "error", err)
+		c.config.DisableReservableCores = true
+	}
 	return nil
 }
 

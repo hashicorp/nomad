@@ -265,6 +265,12 @@ type Config struct {
 	//
 	// This configuration is only considered if no host networks are defined.
 	BindWildcardDefaultHostNetwork bool
+
+	// CgroupParent is the parent cgroup Nomad should use when creating its hieratical cgroup structure for allocations
+	CgroupParent string
+
+	// DisableReservableCores if true disables reporting of reservable cpu cores
+	DisableReservableCores bool
 }
 
 type ClientTemplateConfig struct {
@@ -323,6 +329,7 @@ func DefaultConfig() *Config {
 		CNIConfigDir:       "/opt/cni/config",
 		CNIInterfacePrefix: "eth",
 		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
+		CgroupParent:       "/nomad",
 	}
 }
 

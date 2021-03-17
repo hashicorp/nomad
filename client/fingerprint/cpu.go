@@ -30,7 +30,7 @@ func NewCPUFingerprint(logger log.Logger) Fingerprint {
 
 func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	cfg := req.Config
-	setResourcesCPU := func(totalCompute, totalCores int, reservedCores []uint32) {
+	setResourcesCPU := func(totalCompute, totalCores int, reservableCores []uint16) {
 		// COMPAT(0.10): Remove in 0.10
 		resp.Resources = &structs.Resources{
 			CPU: totalCompute,
@@ -39,8 +39,8 @@ func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 		resp.NodeResources = &structs.NodeResources{
 			Cpu: structs.NodeCpuResources{
 				CpuShares:          int64(totalCompute),
-				TotalCpuCores:      uint32(totalCores),
-				ReservableCpuCores: reservedCores,
+				TotalCpuCores:      uint16(totalCores),
+				ReservableCpuCores: reservableCores,
 			},
 		}
 	}
@@ -63,11 +63,15 @@ func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 		resp.AddAttribute("cpu.numcores", fmt.Sprintf("%d", numCores))
 		f.logger.Debug("detected core count", "cores", numCores)
 	}
-
-	// TODO allow selection of which cores are reserved for client workloads
-	reservedCores := make([]uint32, numCores)
-	for i := 0; i < numCores; i++ {
-		reservedCores[i] = uint32(i)
+	var reservableCores []uint16
+	if !req.Config.DisableReservableCores {
+		var err error
+		if reservableCores, err = deriveCpuset(req); err != nil {
+			reservableCores = make([]uint16, numCores)
+			for i := 0; i < numCores; i++ {
+				reservableCores[i] = uint16(i)
+			}
+		}
 	}
 
 	tt := int(stats.TotalTicksAvailable())
@@ -86,7 +90,7 @@ func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 	}
 
 	resp.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", tt))
-	setResourcesCPU(tt, numCores, reservedCores)
+	setResourcesCPU(tt, numCores, reservableCores)
 	resp.Detected = true
 
 	return nil

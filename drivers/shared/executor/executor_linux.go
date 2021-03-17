@@ -749,7 +749,7 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 		Version: "1.0.0",
 	}
 	for _, device := range specconv.AllowedDevices {
-		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.DeviceRule)
+		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.Rule)
 	}
 
 	if err := configureCapabilities(cfg, command); err != nil {
