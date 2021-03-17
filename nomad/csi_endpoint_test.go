@@ -899,6 +899,109 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 	require.Nil(t, resp2.Volume)
 }
 
+func TestCSIVolumeEndpoint_ListExternal(t *testing.T) {
+	t.Parallel()
+	var err error
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+
+	testutil.WaitForLeader(t, srv.RPC)
+
+	fake := newMockClientCSI()
+	fake.NextDeleteError = fmt.Errorf("should not see this")
+	fake.NextListExternalResponse = &cstructs.ClientCSIControllerListVolumesResponse{
+		Entries: []*structs.CSIVolumeExternalStub{
+			{
+				ExternalID:               "vol-12345",
+				CapacityBytes:            70000,
+				PublishedExternalNodeIDs: []string{"i-12345"},
+			},
+			{
+				ExternalID:    "vol-abcde",
+				CapacityBytes: 50000,
+				IsAbnormal:    true,
+				Status:        "something went wrong",
+			},
+			{
+				ExternalID: "vol-00000",
+				Status:     "you should not see me",
+			},
+		},
+		NextToken: "page2",
+	}
+
+	client, cleanup := client.TestClientWithRPCs(t,
+		func(c *cconfig.Config) {
+			c.Servers = []string{srv.config.RPCAddr.String()}
+		},
+		map[string]interface{}{"CSI": fake},
+	)
+	defer cleanup()
+
+	node := client.Node()
+	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
+
+	req0 := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp0 structs.NodeUpdateResponse
+	err = client.RPC("Node.Register", req0, &resp0)
+	require.NoError(t, err)
+
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := srv.connectedNodes()
+		return len(nodes) == 1, nil
+	}, func(err error) {
+		t.Fatalf("should have a client")
+	})
+
+	state := srv.fsm.State()
+	codec := rpcClient(t, srv)
+	index := uint64(1000)
+
+	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsAttachDetach: true,
+			},
+			RequiresControllerPlugin: true,
+		},
+	}
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
+		},
+	}
+	index++
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
+
+	// List external volumes; note that none of these exist in the state store
+
+	req := &structs.CSIVolumeExternalListRequest{
+		MaxEntries:    2,
+		StartingToken: "page1",
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+	resp := &structs.CSIVolumeExternalListResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.ListExternal", req, resp)
+	require.NoError(t, err)
+	require.Len(t, resp.Volumes, 2)
+	require.Equal(t, "vol-12345", resp.Volumes[0].ExternalID)
+	require.Equal(t, "vol-abcde", resp.Volumes[1].ExternalID)
+	require.True(t, resp.Volumes[1].IsAbnormal)
+	require.Equal(t, "page2", resp.NextToken)
+}
+
 func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {
