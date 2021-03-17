@@ -785,6 +785,120 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	require.Equal(t, "", vol.Context["mycontext"])
 }
 
+func TestCSIVolumeEndpoint_Delete(t *testing.T) {
+	t.Parallel()
+	var err error
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+
+	testutil.WaitForLeader(t, srv.RPC)
+
+	fake := newMockClientCSI()
+	fake.NextDeleteError = fmt.Errorf("should not see this")
+
+	client, cleanup := client.TestClientWithRPCs(t,
+		func(c *cconfig.Config) {
+			c.Servers = []string{srv.config.RPCAddr.String()}
+		},
+		map[string]interface{}{"CSI": fake},
+	)
+	defer cleanup()
+
+	node := client.Node()
+	node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
+
+	req0 := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp0 structs.NodeUpdateResponse
+	err = client.RPC("Node.Register", req0, &resp0)
+	require.NoError(t, err)
+
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := srv.connectedNodes()
+		return len(nodes) == 1, nil
+	}, func(err error) {
+		t.Fatalf("should have a client")
+	})
+
+	ns := structs.DefaultNamespace
+
+	state := srv.fsm.State()
+	codec := rpcClient(t, srv)
+	index := uint64(1000)
+
+	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsAttachDetach: true,
+			},
+			RequiresControllerPlugin: true,
+		},
+	}
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{},
+		},
+	}
+	index++
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
+
+	volID := uuid.Generate()
+	vols := []*structs.CSIVolume{{
+		ID:        volID,
+		Namespace: structs.DefaultNamespace,
+		PluginID:  "minnie",
+		Secrets:   structs.CSISecrets{"mysecret": "secretvalue"},
+	}}
+	index++
+	err = state.CSIVolumeRegister(index, vols)
+	require.NoError(t, err)
+
+	// Delete volumes
+
+	// Create an invalid delete request, ensure it doesn't hit the plugin
+	req1 := &structs.CSIVolumeDeleteRequest{
+		VolumeIDs: []string{"bad", volID},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: ns,
+		},
+	}
+	resp1 := &structs.CSIVolumeCreateResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Delete", req1, resp1)
+	require.EqualError(t, err, "volume not found: bad")
+
+	// Make sure the valid volume wasn't deleted
+	req2 := &structs.CSIVolumeGetRequest{
+		ID: volID,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+	resp2 := &structs.CSIVolumeGetResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req2, resp2)
+	require.NoError(t, err)
+	require.NotNil(t, resp2.Volume)
+
+	// Fix the delete request
+	fake.NextDeleteError = nil
+	req1.VolumeIDs = []string{volID}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Delete", req1, resp1)
+	require.NoError(t, err)
+
+	// Make sure it was deregistered
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req2, resp2)
+	require.NoError(t, err)
+	require.Nil(t, resp2.Volume)
+}
+
 func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {
