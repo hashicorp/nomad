@@ -1107,6 +1107,28 @@ func TestTaskGroup_Validate(t *testing.T) {
 	require.Contains(t, err.Error(), `Volume foo has an empty source`)
 
 	tg = &TaskGroup{
+		Name: "group-a",
+		Update: &UpdateStrategy{
+			Canary: 1,
+		},
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Type:     "csi",
+				PerAlloc: true,
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	require.Contains(t, err.Error(), `Volume foo has an empty source`)
+	require.Contains(t, err.Error(), `Volume foo cannot be per_alloc when canaries are in use`)
+
+	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{
 			"foo": {
 				Type: "host",

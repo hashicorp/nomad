@@ -63,7 +63,7 @@ data "external" "packer_sha" {
 sha=$(git log -n 1 --pretty=format:%H packer)
 echo "{\"sha\":\"$${sha}\"}"
 EOT
-]
+  ]
 
 }
 

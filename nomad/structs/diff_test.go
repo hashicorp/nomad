@@ -3639,6 +3639,7 @@ func TestTaskGroupDiff(t *testing.T) {
 						Type:     "host",
 						Source:   "foo-src",
 						ReadOnly: true,
+						PerAlloc: true,
 					},
 				},
 			},
@@ -3655,6 +3656,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Name: "Name",
 								Old:  "",
 								New:  "foo",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "PerAlloc",
+								Old:  "",
+								New:  "true",
 							},
 							{
 								Type: DiffTypeAdded,

@@ -6100,12 +6100,17 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Only one task may be marked as leader"))
 	}
 
-	// Validate the Host Volumes
+	// Validate the volume requests
 	for name, decl := range tg.Volumes {
 		if !(decl.Type == VolumeTypeHost ||
 			decl.Type == VolumeTypeCSI) {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unrecognised type %s", name, decl.Type))
 			continue
+		}
+
+		if decl.PerAlloc && tg.Update != nil && tg.Update.Canary > 0 {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Volume %s cannot be per_alloc when canaries are in use", name))
 		}
 
 		if decl.Source == "" {

@@ -2135,10 +2135,7 @@ func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*st
 	if obj == nil {
 		return nil, nil
 	}
-	vol, ok := obj.(*structs.CSIVolume)
-	if !ok {
-		return nil, fmt.Errorf("volume row conversion error")
-	}
+	vol := obj.(*structs.CSIVolume)
 
 	// we return the volume with the plugins denormalized by default,
 	// because the scheduler needs them for feasibility checking

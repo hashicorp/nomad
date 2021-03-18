@@ -5779,3 +5779,170 @@ func TestServiceSched_RunningWithNextAllocation(t *testing.T) {
 	require.Len(t, allocsByVersion[1], 2)
 	require.Len(t, allocsByVersion[0], 3)
 }
+
+func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
+	h := NewHarness(t)
+	require := require.New(t)
+
+	// Create some nodes, each running the CSI plugin
+	for i := 0; i < 5; i++ {
+		node := mock.Node()
+		node.CSINodePlugins = map[string]*structs.CSIInfo{
+			"test-plugin": {
+				PluginID: "test-plugin",
+				Healthy:  true,
+				NodeInfo: &structs.CSINodeInfo{MaxVolumes: 2},
+			},
+		}
+		require.NoError(h.State.UpsertNode(
+			structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+
+	// create per-alloc volumes
+	vol0 := structs.NewCSIVolume("volume-unique[0]", 0)
+	vol0.PluginID = "test-plugin"
+	vol0.Namespace = structs.DefaultNamespace
+	vol0.AccessMode = structs.CSIVolumeAccessModeSingleNodeWriter
+	vol0.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+
+	vol1 := vol0.Copy()
+	vol1.ID = "volume-unique[1]"
+	vol2 := vol0.Copy()
+	vol2.ID = "volume-unique[2]"
+
+	// create shared volume
+	shared := vol0.Copy()
+	shared.ID = "volume-shared"
+	// TODO: this should cause a test failure, see GH-10157
+	// replace this value with structs.CSIVolumeAccessModeSingleNodeWriter
+	// once its been fixed
+	shared.AccessMode = structs.CSIVolumeAccessModeMultiNodeReader
+
+	require.NoError(h.State.CSIVolumeRegister(
+		h.NextIndex(), []*structs.CSIVolume{shared, vol0, vol1, vol2}))
+
+	// Create a job that uses both
+	job := mock.Job()
+	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"shared": {
+			Type:     "csi",
+			Name:     "shared",
+			Source:   "volume-shared",
+			ReadOnly: true,
+		},
+		"unique": {
+			Type:     "csi",
+			Name:     "unique",
+			Source:   "volume-unique",
+			PerAlloc: true,
+		},
+	}
+
+	require.NoError(h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+
+	require.NoError(h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation and expect a single plan without annotations
+	err := h.Process(NewServiceScheduler, eval)
+	require.NoError(err)
+	require.Len(h.Plans, 1, "expected one plan")
+	require.Nil(h.Plans[0].Annotations, "expected no annotations")
+
+	// Expect the eval has not spawned a blocked eval
+	require.Equal(len(h.CreateEvals), 0)
+	require.Equal("", h.Evals[0].BlockedEval, "did not expect a blocked eval")
+	require.Equal(structs.EvalStatusComplete, h.Evals[0].Status)
+
+	// Ensure the plan allocated and we got expected placements
+	var planned []*structs.Allocation
+	for _, allocList := range h.Plans[0].NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	require.Len(planned, 3, "expected 3 planned allocations")
+
+	out, err := h.State.AllocsByJob(nil, job.Namespace, job.ID, false)
+	require.NoError(err)
+	require.Len(out, 3, "expected 3 placed allocations")
+
+	// Allocations don't have references to the actual volumes assigned, but
+	// because we set a max of 2 volumes per Node plugin, we can verify that
+	// they've been properly scheduled by making sure they're all on separate
+	// clients.
+	seen := map[string]struct{}{}
+	for _, alloc := range out {
+		_, ok := seen[alloc.NodeID]
+		require.False(ok, "allocations should be scheduled to separate nodes")
+		seen[alloc.NodeID] = struct{}{}
+	}
+
+	// Update the job to 5 instances
+	job.TaskGroups[0].Count = 5
+	require.NoError(h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+
+	// Create a new eval and process it. It should not create a new plan.
+	eval.ID = uuid.Generate()
+	require.NoError(h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{eval}))
+	err = h.Process(NewServiceScheduler, eval)
+	require.NoError(err)
+	require.Len(h.Plans, 1, "expected one plan")
+
+	// Expect the eval to have failed
+	require.NotEqual("", h.Evals[1].BlockedEval,
+		"expected a blocked eval to be spawned")
+	require.Equal(2, h.Evals[1].QueuedAllocations["web"], "expected 2 queued allocs")
+	require.Equal(1, h.Evals[1].FailedTGAllocs["web"].
+		ConstraintFiltered["missing CSI Volume volume-unique[3]"])
+
+	// Upsert 2 more per-alloc volumes
+	vol4 := vol0.Copy()
+	vol4.ID = "volume-unique[3]"
+	vol5 := vol0.Copy()
+	vol5.ID = "volume-unique[4]"
+	require.NoError(h.State.CSIVolumeRegister(
+		h.NextIndex(), []*structs.CSIVolume{vol4, vol5}))
+
+	// Process again with failure fixed. It should create a new plan
+	eval.ID = uuid.Generate()
+	require.NoError(h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{eval}))
+	err = h.Process(NewServiceScheduler, eval)
+	require.NoError(err)
+	require.Len(h.Plans, 2, "expected two plans")
+	require.Nil(h.Plans[1].Annotations, "expected no annotations")
+
+	require.Equal("", h.Evals[2].BlockedEval, "did not expect a blocked eval")
+	require.Len(h.Evals[2].FailedTGAllocs, 0)
+
+	// Ensure the plan allocated and we got expected placements
+	planned = []*structs.Allocation{}
+	for _, allocList := range h.Plans[1].NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	require.Len(planned, 2, "expected 2 new planned allocations")
+
+	out, err = h.State.AllocsByJob(nil, job.Namespace, job.ID, false)
+	require.NoError(err)
+	require.Len(out, 5, "expected 5 placed allocations total")
+
+	// Make sure they're still all on seperate clients
+	seen = map[string]struct{}{}
+	for _, alloc := range out {
+		_, ok := seen[alloc.NodeID]
+		require.False(ok, "allocations should be scheduled to separate nodes")
+		seen[alloc.NodeID] = struct{}{}
+	}
+
+}

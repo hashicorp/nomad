@@ -944,6 +944,7 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 				Type:     v.Type,
 				ReadOnly: v.ReadOnly,
 				Source:   v.Source,
+				PerAlloc: v.PerAlloc,
 			}
 
 			if v.MountOptions != nil {
