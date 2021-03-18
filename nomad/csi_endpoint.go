@@ -120,15 +120,18 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			if err != nil {
 				return err
 			}
+
 			// Query all volumes
 			var iter memdb.ResultIterator
 
+			prefix := args.Prefix
+
 			if args.NodeID != "" {
-				iter, err = snap.CSIVolumesByNodeID(ws, args.NodeID)
+				iter, err = snap.CSIVolumesByNodeID(ws, prefix, args.NodeID)
 			} else if args.PluginID != "" {
-				iter, err = snap.CSIVolumesByPluginID(ws, ns, args.PluginID)
+				iter, err = snap.CSIVolumesByPluginID(ws, ns, prefix, args.PluginID)
 			} else {
-				iter, err = snap.CSIVolumesByNamespace(ws, ns)
+				iter, err = snap.CSIVolumesByNamespace(ws, ns, prefix)
 			}
 
 			if err != nil {
