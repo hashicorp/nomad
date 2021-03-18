@@ -94,6 +94,7 @@ func (c *csiHook) Postrun() error {
 
 		source := pair.request.Source
 		if pair.request.PerAlloc {
+			// NOTE: PerAlloc can't be set if we have canaries
 			source = source + structs.AllocSuffix(c.alloc.Name)
 		}
 
