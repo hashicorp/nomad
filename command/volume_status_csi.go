@@ -54,6 +54,10 @@ func (c *VolumeStatusCommand) csiStatus(client *api.Client, id string) int {
 		c.Ui.Error(fmt.Sprintf("Prefix matched multiple volumes\n\n%s", out))
 		return 1
 	}
+	if len(vols) == 0 {
+		c.Ui.Error(fmt.Sprintf("No volumes(s) with prefix or ID %q found", id))
+		return 1
+	}
 	id = vols[0].ID
 
 	// Try querying the volume

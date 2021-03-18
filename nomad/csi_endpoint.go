@@ -120,7 +120,6 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			if err != nil {
 				return err
 			}
-			// TODO: handle prefix arg
 
 			// Query all volumes
 			var iter memdb.ResultIterator

@@ -109,6 +109,10 @@ func (c *VolumeDeregisterCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Prefix matched multiple volumes\n\n%s", out))
 		return 1
 	}
+	if len(vols) == 0 {
+		c.Ui.Error(fmt.Sprintf("No volumes(s) with prefix or ID %q found", volID))
+		return 1
+	}
 	volID = vols[0].ID
 
 	// Confirm the -force flag

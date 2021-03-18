@@ -2126,10 +2126,12 @@ func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error)
 func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*structs.CSIVolume, error) {
 	txn := s.db.ReadTxn()
 
-	obj, err := txn.First("csi_volumes", "id", namespace, id)
+	watchCh, obj, err := txn.FirstWatch("csi_volumes", "id", namespace, id)
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed for %s: %v", id, err)
 	}
+	ws.Add(watchCh)
+
 	if obj == nil {
 		return nil, nil
 	}
@@ -2213,15 +2215,14 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, prefix, nodeID string
 	txn := s.db.ReadTxn()
 	for id, namespace := range ids {
 		if strings.HasPrefix(id, prefix) {
-			raw, err := txn.First("csi_volumes", "id", namespace, id)
+			watchCh, raw, err := txn.FirstWatch("csi_volumes", "id", namespace, id)
 			if err != nil {
 				return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
 			}
+			ws.Add(watchCh)
 			iter.Add(raw)
 		}
 	}
-
-	ws.Add(iter.WatchCh())
 
 	return iter, nil
 }
