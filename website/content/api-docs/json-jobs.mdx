@@ -496,6 +496,8 @@ The `Task` object supports the following keys:
 
     - `Method`: The HTTP method to use for HTTP checks. Defaults to GET.
 
+    - `Body`: The HTTP body to use for HTTP checks. Defaults to an empty string.
+
     - `Path`: The path of the HTTP endpoint which Consul will query to query
       the health of a service if the type of the check is `http`. Nomad
       will add the IP of the service and the port, users are only required
