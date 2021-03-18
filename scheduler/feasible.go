@@ -389,15 +389,20 @@ func (c *NetworkChecker) Feasible(option *structs.Node) bool {
 func (c *NetworkChecker) hasHostNetworks(option *structs.Node) bool {
 	for _, port := range c.ports {
 		if port.HostNetwork != "" {
+			hostNetworkValue, hostNetworkOk := resolveTarget(port.HostNetwork, option)
+			if !hostNetworkOk {
+				c.ctx.Metrics().FilterNode(option, fmt.Sprintf("invalid host network %q template for port %q", port.HostNetwork, port.Label))
+				return false
+			}
 			found := false
 			for _, net := range option.NodeResources.NodeNetworks {
-				if net.HasAlias(port.HostNetwork) {
+				if net.HasAlias(hostNetworkValue.(string)) {
 					found = true
 					break
 				}
 			}
 			if !found {
-				c.ctx.Metrics().FilterNode(option, fmt.Sprintf("missing host network %q for port %q", port.HostNetwork, port.Label))
+				c.ctx.Metrics().FilterNode(option, fmt.Sprintf("missing host network %q for port %q", hostNetworkValue.(string), port.Label))
 				return false
 			}
 		}
