@@ -2913,7 +2913,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Error(t, err, fmt.Sprintf("volume exists: %s", v0.ID))
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.CSIVolumesByNamespace(ws, ns)
+	iter, err := state.CSIVolumesByNamespace(ws, ns, "")
 	require.NoError(t, err)
 
 	slurp := func(iter memdb.ResultIterator) (vs []*structs.CSIVolume) {
@@ -2932,13 +2932,13 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Equal(t, 2, len(vs))
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "", "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByNodeID(ws, node.ID)
+	iter, err = state.CSIVolumesByNodeID(ws, "", node.ID)
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
@@ -2973,7 +2973,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.NoError(t, err)
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "", "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.False(t, vs[0].WriteFreeClaims())
@@ -2982,7 +2982,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	err = state.CSIVolumeClaim(2, ns, vol0, claim0)
 	require.NoError(t, err)
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "", "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.True(t, vs[0].ReadSchedulable())
@@ -3018,13 +3018,13 @@ func TestStateStore_CSIVolume(t *testing.T) {
 
 	// List, now omitting the deregistered volume
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "", "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 0, len(vs))
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByNamespace(ws, ns)
+	iter, err = state.CSIVolumesByNamespace(ws, ns, "")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))

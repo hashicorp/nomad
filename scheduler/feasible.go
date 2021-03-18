@@ -266,7 +266,7 @@ func (c *CSIVolumeChecker) hasPlugins(n *structs.Node) (bool, string) {
 
 	// Find the count per plugin for this node, so that can enforce MaxVolumes
 	pluginCount := map[string]int64{}
-	iter, err := c.ctx.State().CSIVolumesByNodeID(ws, n.ID)
+	iter, err := c.ctx.State().CSIVolumesByNodeID(ws, "", n.ID)
 	if err != nil {
 		return false, FilterConstraintCSIVolumesLookupFailed
 	}

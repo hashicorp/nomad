@@ -34,7 +34,9 @@ func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Reque
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
-
+	if prefix, ok := query["prefix"]; ok {
+		args.Prefix = prefix[0]
+	}
 	if plugin, ok := query["plugin_id"]; ok {
 		args.PluginID = plugin[0]
 	}

@@ -39,6 +39,27 @@ func (c *VolumeStatusCommand) csiStatus(client *api.Client, id string) int {
 		return 0
 	}
 
+	// Prefix search for the volume
+	vols, _, err := client.CSIVolumes().List(&api.QueryOptions{Prefix: id})
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
+		return 1
+	}
+	if len(vols) > 1 {
+		out, err := c.csiFormatVolumes(vols)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
+			return 1
+		}
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple volumes\n\n%s", out))
+		return 1
+	}
+	if len(vols) == 0 {
+		c.Ui.Error(fmt.Sprintf("No volumes(s) with prefix or ID %q found", id))
+		return 1
+	}
+	id = vols[0].ID
+
 	// Try querying the volume
 	vol, _, err := client.CSIVolumes().Info(id, nil)
 	if err != nil {
@@ -68,11 +89,16 @@ func (c *VolumeStatusCommand) csiFormatVolumes(vols []*api.CSIVolumeListStub) (s
 		return out, nil
 	}
 
+	return csiFormatSortedVolumes(vols, c.length)
+}
+
+// Format the volumes, assumes that we're already sorted by volume ID
+func csiFormatSortedVolumes(vols []*api.CSIVolumeListStub, length int) (string, error) {
 	rows := make([]string, len(vols)+1)
 	rows[0] = "ID|Name|Plugin ID|Schedulable|Access Mode"
 	for i, v := range vols {
 		rows[i+1] = fmt.Sprintf("%s|%s|%s|%t|%s",
-			limit(v.ID, c.length),
+			limit(v.ID, length),
 			v.Name,
 			v.PluginID,
 			v.Schedulable,
