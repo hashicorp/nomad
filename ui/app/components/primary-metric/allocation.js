@@ -3,10 +3,9 @@ import Component from '@glimmer/component';
 import { task, timeout } from 'ember-concurrency';
 import { assert } from '@ember/debug';
 import { inject as service } from '@ember/service';
-import { action, get } from '@ember/object';
+import { action, get, computed } from '@ember/object';
 
-export default class NodePrimaryMetric extends Component {
-  @service token;
+export default class AllocationPrimaryMetric extends Component {
   @service('stats-trackers-registry') statsTrackersRegistry;
 
   /** Args
@@ -19,8 +18,13 @@ export default class NodePrimaryMetric extends Component {
     return this.args.metric;
   }
 
+  get allocation() {
+    return this.args.allocation;
+  }
+
+  @computed('allocation')
   get tracker() {
-    return this.statsTrackersRegistry.getTracker(this.args.allocation);
+    return this.statsTrackersRegistry.getTracker(this.allocation);
   }
 
   get data() {
@@ -28,6 +32,7 @@ export default class NodePrimaryMetric extends Component {
     return get(this, `tracker.${this.metric}`);
   }
 
+  @computed('tracker.tasks.[]', 'metric')
   get series() {
     const ret = this.tracker.tasks
       .map(task => ({
