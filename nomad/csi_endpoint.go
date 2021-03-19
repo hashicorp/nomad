@@ -108,8 +108,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 		return structs.ErrPermissionDenied
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "list"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "list"}, time.Now())
 
 	ns := args.RequestNamespace()
 	opts := blockingOptions{
@@ -189,8 +188,7 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 		return structs.ErrPermissionDenied
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "get"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "get"}, time.Now())
 
 	if args.ID == "" {
 		return fmt.Errorf("missing volume ID")
@@ -273,14 +271,13 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		return err
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "register"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "register"}, time.Now())
 
 	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
 	}
 
-	if args.Volumes == nil || len(args.Volumes) == 0 {
+	if len(args.Volumes) == 0 {
 		return fmt.Errorf("missing volume definition")
 	}
 
@@ -328,8 +325,7 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 		return err
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "deregister"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "deregister"}, time.Now())
 
 	ns := args.RequestNamespace()
 	if !allowVolume(aclObj, ns) {
@@ -366,8 +362,7 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		return err
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "claim"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "claim"}, time.Now())
 
 	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
@@ -528,8 +523,7 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 		return err
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "unpublish"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "unpublish"}, time.Now())
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIMountVolume)
 	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, true)
@@ -798,8 +792,7 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		return err
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "create"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "create"}, time.Now())
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
 	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
@@ -811,7 +804,7 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		return structs.ErrPermissionDenied
 	}
 
-	if args.Volumes == nil || len(args.Volumes) == 0 {
+	if len(args.Volumes) == 0 {
 		return fmt.Errorf("missing volume definition")
 	}
 
@@ -897,8 +890,7 @@ func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.
 		return err
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "delete"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "delete"}, time.Now())
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
 	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
@@ -964,11 +956,7 @@ func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerDeleteVolumeResponse{}
 
-	err := v.srv.RPC(method, cReq, cResp)
-	if err != nil {
-		return err
-	}
-	return nil
+	return v.srv.RPC(method, cReq, cResp)
 }
 
 func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, reply *structs.CSIVolumeExternalListResponse) error {
@@ -976,8 +964,7 @@ func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, rep
 	if done, err := v.srv.forward("CSIVolume.ListExternal", args, args, reply); done {
 		return err
 	}
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "list_external"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "list_external"}, time.Now())
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIListVolume,
 		acl.NamespaceCapabilityCSIReadVolume,
@@ -1049,8 +1036,7 @@ func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIP
 		return structs.ErrPermissionDenied
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "plugin", "list"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "plugin", "list"}, time.Now())
 
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -1098,8 +1084,7 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 	withAllocs := aclObj == nil ||
 		aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "plugin", "get"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "plugin", "get"}, time.Now())
 
 	if args.ID == "" {
 		return fmt.Errorf("missing plugin ID")
@@ -1159,8 +1144,7 @@ func (v *CSIPlugin) Delete(args *structs.CSIPluginDeleteRequest, reply *structs.
 		return structs.ErrPermissionDenied
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "plugin", "delete"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "plugin", "delete"}, time.Now())
 
 	if args.ID == "" {
 		return fmt.Errorf("missing plugin ID")
