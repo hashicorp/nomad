@@ -308,8 +308,12 @@ var (
 	noServersErr = errors.New("no servers")
 )
 
-// NewClient is used to create a new client from the given configuration
-func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxies consulApi.SupportedProxiesAPI, consulService consulApi.ConsulServiceAPI) (*Client, error) {
+// NewClient is used to create a new client from the given configuration.
+// `rpcs` is a map of RPC names to RPC structs that, if non-nil, will be
+// registered via https://golang.org/pkg/net/rpc/#Server.RegisterName in place
+// of the client's normal RPC handlers. This allows server tests to override
+// the behavior of the client.
+func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxies consulApi.SupportedProxiesAPI, consulService consulApi.ConsulServiceAPI, rpcs map[string]interface{}) (*Client, error) {
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
@@ -384,7 +388,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		})
 
 	// Setup the clients RPC server
-	c.setupClientRpc()
+	c.setupClientRpc(rpcs)
 
 	// Initialize the ACL state
 	if err := c.clientACLResolver.init(); err != nil {

@@ -18,6 +18,42 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// MockClientCSI is a mock for the nomad.ClientCSI RPC server (see
+// nomad/client_csi_endpoint.go). This can be used with a TestRPCOnlyClient to
+// return specific plugin responses back to server RPCs for testing. Note that
+// responses that have no bodies have no "Next*Response" field and will always
+// return an empty response body.
+type MockClientCSI struct {
+	NextValidateError   error
+	NextAttachError     error
+	NextAttachResponse  *cstructs.ClientCSIControllerAttachVolumeResponse
+	NextDetachError     error
+	NextNodeDetachError error
+}
+
+func newMockClientCSI() *MockClientCSI {
+	return &MockClientCSI{
+		NextAttachResponse: &cstructs.ClientCSIControllerAttachVolumeResponse{},
+	}
+}
+
+func (c *MockClientCSI) ControllerValidateVolume(req *cstructs.ClientCSIControllerValidateVolumeRequest, resp *cstructs.ClientCSIControllerValidateVolumeResponse) error {
+	return c.NextValidateError
+}
+
+func (c *MockClientCSI) ControllerAttachVolume(req *cstructs.ClientCSIControllerAttachVolumeRequest, resp *cstructs.ClientCSIControllerAttachVolumeResponse) error {
+	*resp = *c.NextAttachResponse
+	return c.NextAttachError
+}
+
+func (c *MockClientCSI) ControllerDetachVolume(req *cstructs.ClientCSIControllerDetachVolumeRequest, resp *cstructs.ClientCSIControllerDetachVolumeResponse) error {
+	return c.NextDetachError
+}
+
+func (c *MockClientCSI) NodeDetachVolume(req *cstructs.ClientCSINodeDetachVolumeRequest, resp *cstructs.ClientCSINodeDetachVolumeResponse) error {
+	return c.NextNodeDetachError
+}
+
 func TestClientCSIController_AttachVolume_Local(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -30,7 +66,7 @@ func TestClientCSIController_AttachVolume_Local(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerAttachVolume", req, &resp)
-	require.NotNil(err)
+	require.Error(err)
 	require.Contains(err.Error(), "no plugins registered for type")
 }
 
@@ -46,7 +82,7 @@ func TestClientCSIController_AttachVolume_Forwarded(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerAttachVolume", req, &resp)
-	require.NotNil(err)
+	require.Error(err)
 	require.Contains(err.Error(), "no plugins registered for type")
 }
 
@@ -62,7 +98,7 @@ func TestClientCSIController_DetachVolume_Local(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerDetachVolume", req, &resp)
-	require.NotNil(err)
+	require.Error(err)
 	require.Contains(err.Error(), "no plugins registered for type")
 }
 
@@ -78,7 +114,7 @@ func TestClientCSIController_DetachVolume_Forwarded(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerDetachVolume", req, &resp)
-	require.NotNil(err)
+	require.Error(err)
 	require.Contains(err.Error(), "no plugins registered for type")
 }
 
@@ -95,7 +131,7 @@ func TestClientCSIController_ValidateVolume_Local(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerValidateVolume", req, &resp)
-	require.NotNil(err)
+	require.Error(err)
 	require.Contains(err.Error(), "no plugins registered for type")
 }
 
@@ -112,7 +148,7 @@ func TestClientCSIController_ValidateVolume_Forwarded(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerValidateVolume", req, &resp)
-	require.NotNil(err)
+	require.Error(err)
 	require.Contains(err.Error(), "no plugins registered for type")
 }
 
@@ -163,9 +199,12 @@ func TestClientCSI_NodeForControllerPlugin(t *testing.T) {
 // returns a RPC client to the leader and a cleanup function.
 func setupForward(t *testing.T) (rpc.ClientCodec, func()) {
 
-	s1, cleanupS1 := TestServer(t, func(c *Config) { c.BootstrapExpect = 1 })
+	s1, cleanupS1 := TestServer(t, func(c *Config) { c.BootstrapExpect = 2 })
+	s2, cleanupS2 := TestServer(t, func(c *Config) { c.BootstrapExpect = 2 })
+	TestJoin(t, s1, s2)
 
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForLeader(t, s2.RPC)
 	codec := rpcClient(t, s1)
 
 	c1, cleanupC1 := client.TestClient(t, func(c *config.Config) {
@@ -176,15 +215,11 @@ func setupForward(t *testing.T) (rpc.ClientCodec, func()) {
 	select {
 	case <-c1.Ready():
 	case <-time.After(10 * time.Second):
-		cleanupS1()
 		cleanupC1()
+		cleanupS1()
+		cleanupS2()
 		t.Fatal("client timedout on initialize")
 	}
-
-	waitForNodes(t, s1, 1, 1)
-
-	s2, cleanupS2 := TestServer(t, func(c *Config) { c.BootstrapExpect = 2 })
-	TestJoin(t, s1, s2)
 
 	c2, cleanupC2 := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
@@ -192,8 +227,10 @@ func setupForward(t *testing.T) (rpc.ClientCodec, func()) {
 	select {
 	case <-c2.Ready():
 	case <-time.After(10 * time.Second):
-		cleanupS1()
 		cleanupC1()
+		cleanupC2()
+		cleanupS1()
+		cleanupS2()
 		t.Fatal("client timedout on initialize")
 	}
 
@@ -224,10 +261,10 @@ func setupForward(t *testing.T) (rpc.ClientCodec, func()) {
 	s1.fsm.state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)
 
 	cleanup := func() {
-		cleanupS1()
 		cleanupC1()
-		cleanupS2()
 		cleanupC2()
+		cleanupS2()
+		cleanupS1()
 	}
 
 	return codec, cleanup
@@ -235,23 +272,43 @@ func setupForward(t *testing.T) (rpc.ClientCodec, func()) {
 
 // sets up a single server with a client, and registers a plugin to the client.
 func setupLocal(t *testing.T) (rpc.ClientCodec, func()) {
-
+	var err error
 	s1, cleanupS1 := TestServer(t, func(c *Config) { c.BootstrapExpect = 1 })
 
 	testutil.WaitForLeader(t, s1.RPC)
 	codec := rpcClient(t, s1)
 
-	c1, cleanupC1 := client.TestClient(t, func(c *config.Config) {
-		c.Servers = []string{s1.config.RPCAddr.String()}
-	})
+	mockCSI := newMockClientCSI()
+	mockCSI.NextValidateError = fmt.Errorf("no plugins registered for type")
+	mockCSI.NextAttachError = fmt.Errorf("no plugins registered for type")
+	mockCSI.NextDetachError = fmt.Errorf("no plugins registered for type")
 
-	// Wait for client initialization
-	select {
-	case <-c1.Ready():
-	case <-time.After(10 * time.Second):
-		cleanupS1()
+	c1, cleanupC1 := client.TestClientWithRPCs(t,
+		func(c *config.Config) {
+			c.Servers = []string{s1.config.RPCAddr.String()}
+		},
+		map[string]interface{}{"CSI": mockCSI},
+	)
+
+	if err != nil {
 		cleanupC1()
-		t.Fatal("client timedout on initialize")
+		cleanupS1()
+		require.NoError(t, err, "could not setup test client")
+	}
+
+	node1 := c1.Node()
+	node1.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
+
+	req := &structs.NodeRegisterRequest{
+		Node:         node1,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp structs.NodeUpdateResponse
+	err = c1.RPC("Node.Register", req, &resp)
+	if err != nil {
+		cleanupC1()
+		cleanupS1()
+		require.NoError(t, err, "could not register client node")
 	}
 
 	waitForNodes(t, s1, 1, 1)
@@ -266,15 +323,12 @@ func setupLocal(t *testing.T) (rpc.ClientCodec, func()) {
 	}
 
 	// update w/ plugin
-	node1 := c1.Node()
-	node1.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
 	node1.CSIControllerPlugins = plugins
-
 	s1.fsm.state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)
 
 	cleanup := func() {
-		cleanupS1()
 		cleanupC1()
+		cleanupS1()
 	}
 
 	return codec, cleanup
