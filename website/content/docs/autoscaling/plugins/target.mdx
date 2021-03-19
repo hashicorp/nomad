@@ -152,13 +152,11 @@ below.
       "Sid": "",
       "Effect": "Allow",
       "Action": [
-        "ec2:TerminateInstances",
-        "ec2:DescribeInstanceStatus",
         "autoscaling:UpdateAutoScalingGroup",
-        "autoscaling:DetachInstances",
         "autoscaling:DescribeScalingActivities",
         "autoscaling:DescribeAutoScalingGroups",
-        "autoscaling:CreateOrUpdateTags"
+        "autoscaling:CreateOrUpdateTags",
+        "autoscaling:TerminateInstanceInAutoScalingGroup"
       ],
       "Resource": "*"
     }
