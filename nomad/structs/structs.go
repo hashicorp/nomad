@@ -2212,6 +2212,7 @@ func DefaultResources() *Resources {
 func MinResources() *Resources {
 	return &Resources{
 		CPU:      1,
+		Cores:    0,
 		MemoryMB: 10,
 	}
 }
@@ -3842,6 +3843,9 @@ func (c *ComparableResources) Copy() *ComparableResources {
 func (c *ComparableResources) Superset(other *ComparableResources) (bool, string) {
 	if c.Flattened.Cpu.CpuShares < other.Flattened.Cpu.CpuShares {
 		return false, "cpu"
+	}
+	if len(c.Flattened.Cpu.ReservedCores) > 0 && cpuset.New(other.Flattened.Cpu.ReservedCores...).IsSubsetOf(cpuset.New(c.Flattened.Cpu.ReservedCores...)) {
+		return false, "cores"
 	}
 	if c.Flattened.Memory.MemoryMB < other.Flattened.Memory.MemoryMB {
 		return false, "memory"
