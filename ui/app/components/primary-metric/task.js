@@ -3,14 +3,14 @@ import Component from '@glimmer/component';
 import { task, timeout } from 'ember-concurrency';
 import { assert } from '@ember/debug';
 import { inject as service } from '@ember/service';
-import { action, get } from '@ember/object';
+import { action } from '@ember/object';
 
-export default class NodePrimaryMetric extends Component {
+export default class TaskPrimaryMetric extends Component {
   @service('stats-trackers-registry') statsTrackersRegistry;
 
   /** Args
-    node = null;
-    metric null; (one of 'cpu' or 'memory')
+    taskState = null;
+    metric null; (one of 'cpu' or 'memory'
   */
 
   get metric() {
@@ -19,36 +19,24 @@ export default class NodePrimaryMetric extends Component {
   }
 
   get tracker() {
-    return this.statsTrackersRegistry.getTracker(this.args.node);
+    return this.statsTrackersRegistry.getTracker(this.args.taskState.allocation);
   }
 
   get data() {
     if (!this.tracker) return [];
-    return get(this, `tracker.${this.metric}`);
+    const task = this.tracker.tasks.findBy('task', this.args.taskState.name);
+    return task && task[this.metric];
   }
 
   get reservedAmount() {
-    return this.metric === 'cpu' ? this.tracker.reservedCPU : this.tracker.reservedMemory;
+    const task = this.tracker.tasks.findBy('task', this.args.taskState.name);
+    return this.metric === 'cpu' ? task.reservedCPU : task.reservedMemory;
   }
 
   get chartClass() {
     if (this.metric === 'cpu') return 'is-info';
     if (this.metric === 'memory') return 'is-danger';
     return 'is-primary';
-  }
-
-  get reservedAnnotations() {
-    if (this.metric === 'cpu' && get(this.args.node, 'reserved.cpu')) {
-      const cpu = this.args.node.reserved.cpu;
-      return [{ label: `${cpu} MHz reserved`, percent: cpu / this.reservedAmount }];
-    }
-
-    if (this.metric === 'memory' && get(this.args.node, 'reserved.memory')) {
-      const memory = this.args.node.reserved.memory;
-      return [{ label: `${memory} MiB reserved`, percent: memory / this.reservedAmount }];
-    }
-
-    return [];
   }
 
   @task(function*() {
