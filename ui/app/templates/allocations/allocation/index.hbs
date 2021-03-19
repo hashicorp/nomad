@@ -74,10 +74,10 @@
       {{#if this.model.isRunning}}
         <div class="columns">
           <div class="column">
-            <PrimaryMetric @resource={{this.model}} @metric="cpu" />
+            <PrimaryMetric::Allocation @allocation={{this.model}} @metric="cpu" />
           </div>
           <div class="column">
-            <PrimaryMetric @resource={{this.model}} @metric="memory" />
+            <PrimaryMetric::Allocation @allocation={{this.model}} @metric="memory" />
           </div>
         </div>
       {{else}}
