@@ -41,7 +41,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 					PluginID: "some-garbage",
 				},
 			},
-			ExpectedErr: errors.New("CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+			ExpectedErr: errors.New("CSI.ControllerAttachVolume: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
 		},
 		{
 			Name: "validates volumeid is not empty",
@@ -50,7 +50,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 					PluginID: fakePlugin.Name,
 				},
 			},
-			ExpectedErr: errors.New("VolumeID is required"),
+			ExpectedErr: errors.New("CSI.ControllerAttachVolume: VolumeID is required"),
 		},
 		{
 			Name: "validates nodeid is not empty",
@@ -60,7 +60,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 				},
 				VolumeID: "1234-4321-1234-4321",
 			},
-			ExpectedErr: errors.New("ClientCSINodeID is required"),
+			ExpectedErr: errors.New("CSI.ControllerAttachVolume: ClientCSINodeID is required"),
 		},
 		{
 			Name: "validates AccessMode",
@@ -73,7 +73,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 				AttachmentMode:  nstructs.CSIVolumeAttachmentModeFilesystem,
 				AccessMode:      nstructs.CSIVolumeAccessMode("foo"),
 			},
-			ExpectedErr: errors.New("Unknown volume access mode: foo"),
+			ExpectedErr: errors.New("CSI.ControllerAttachVolume: unknown volume access mode: foo"),
 		},
 		{
 			Name: "validates attachmentmode is not empty",
@@ -86,7 +86,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 				AccessMode:      nstructs.CSIVolumeAccessModeMultiNodeReader,
 				AttachmentMode:  nstructs.CSIVolumeAttachmentMode("bar"),
 			},
-			ExpectedErr: errors.New("Unknown volume attachment mode: bar"),
+			ExpectedErr: errors.New("CSI.ControllerAttachVolume: unknown volume attachment mode: bar"),
 		},
 		{
 			Name: "returns transitive errors",
@@ -102,7 +102,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 				AccessMode:      nstructs.CSIVolumeAccessModeSingleNodeWriter,
 				AttachmentMode:  nstructs.CSIVolumeAttachmentModeFilesystem,
 			},
-			ExpectedErr: errors.New("hello"),
+			ExpectedErr: errors.New("CSI.ControllerAttachVolume: hello"),
 		},
 		{
 			Name: "handles nil PublishContext",
@@ -188,7 +188,7 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 					PluginID: fakePlugin.Name,
 				},
 			},
-			ExpectedErr: errors.New("VolumeID is required"),
+			ExpectedErr: errors.New("CSI.ControllerValidateVolume: VolumeID is required"),
 		},
 		{
 			Name: "returns plugin not found errors",
@@ -198,7 +198,7 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 				},
 				VolumeID: "foo",
 			},
-			ExpectedErr: errors.New("CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+			ExpectedErr: errors.New("CSI.ControllerValidateVolume: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
 		},
 		{
 			Name: "validates attachmentmode",
@@ -210,7 +210,7 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 				AttachmentMode: nstructs.CSIVolumeAttachmentMode("bar"),
 				AccessMode:     nstructs.CSIVolumeAccessModeMultiNodeReader,
 			},
-			ExpectedErr: errors.New("Unknown volume attachment mode: bar"),
+			ExpectedErr: errors.New("CSI.ControllerValidateVolume: unknown volume attachment mode: bar"),
 		},
 		{
 			Name: "validates AccessMode",
@@ -222,7 +222,7 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 				AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
 				AccessMode:     nstructs.CSIVolumeAccessMode("foo"),
 			},
-			ExpectedErr: errors.New("Unknown volume access mode: foo"),
+			ExpectedErr: errors.New("CSI.ControllerValidateVolume: unknown volume access mode: foo"),
 		},
 		{
 			Name: "returns transitive errors",
@@ -237,7 +237,7 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 				AccessMode:     nstructs.CSIVolumeAccessModeSingleNodeWriter,
 				AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
 			},
-			ExpectedErr: errors.New("hello"),
+			ExpectedErr: errors.New("CSI.ControllerValidateVolume: hello"),
 		},
 	}
 
@@ -287,7 +287,7 @@ func TestCSIController_DetachVolume(t *testing.T) {
 					PluginID: "some-garbage",
 				},
 			},
-			ExpectedErr: errors.New("CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+			ExpectedErr: errors.New("CSI.ControllerDetachVolume: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
 		},
 		{
 			Name: "validates volumeid is not empty",
@@ -296,7 +296,7 @@ func TestCSIController_DetachVolume(t *testing.T) {
 					PluginID: fakePlugin.Name,
 				},
 			},
-			ExpectedErr: errors.New("VolumeID is required"),
+			ExpectedErr: errors.New("CSI.ControllerDetachVolume: VolumeID is required"),
 		},
 		{
 			Name: "validates nodeid is not empty",
@@ -306,7 +306,7 @@ func TestCSIController_DetachVolume(t *testing.T) {
 				},
 				VolumeID: "1234-4321-1234-4321",
 			},
-			ExpectedErr: errors.New("ClientCSINodeID is required"),
+			ExpectedErr: errors.New("CSI.ControllerDetachVolume: ClientCSINodeID is required"),
 		},
 		{
 			Name: "returns transitive errors",
@@ -320,7 +320,7 @@ func TestCSIController_DetachVolume(t *testing.T) {
 				VolumeID:        "1234-4321-1234-4321",
 				ClientCSINodeID: "abcde",
 			},
-			ExpectedErr: errors.New("hello"),
+			ExpectedErr: errors.New("CSI.ControllerDetachVolume: hello"),
 		},
 	}
 
@@ -370,7 +370,7 @@ func TestCSIController_CreateVolume(t *testing.T) {
 					PluginID: "some-garbage",
 				},
 			},
-			ExpectedErr: errors.New("CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+			ExpectedErr: errors.New("CSI.ControllerCreateVolume: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
 		},
 		{
 			Name: "validates AccessMode",
@@ -386,7 +386,7 @@ func TestCSIController_CreateVolume(t *testing.T) {
 					},
 				},
 			},
-			ExpectedErr: errors.New("Unknown volume access mode: foo"),
+			ExpectedErr: errors.New("CSI.ControllerCreateVolume: unknown volume access mode: foo"),
 		},
 		{
 			Name: "validates attachmentmode is not empty",
@@ -402,7 +402,7 @@ func TestCSIController_CreateVolume(t *testing.T) {
 					},
 				},
 			},
-			ExpectedErr: errors.New("Unknown volume attachment mode: bar"),
+			ExpectedErr: errors.New("CSI.ControllerCreateVolume: unknown volume attachment mode: bar"),
 		},
 		{
 			Name: "returns transitive errors",
@@ -421,7 +421,7 @@ func TestCSIController_CreateVolume(t *testing.T) {
 					},
 				},
 			},
-			ExpectedErr: errors.New("internal plugin error"),
+			ExpectedErr: errors.New("CSI.ControllerCreateVolume: internal plugin error"),
 		},
 	}
 
@@ -472,7 +472,7 @@ func TestCSIController_DeleteVolume(t *testing.T) {
 					PluginID: "some-garbage",
 				},
 			},
-			ExpectedErr: errors.New("CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+			ExpectedErr: errors.New("CSI.ControllerDeleteVolume: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
 		},
 		{
 			Name: "returns transitive errors",
@@ -485,7 +485,7 @@ func TestCSIController_DeleteVolume(t *testing.T) {
 				},
 				ExternalVolumeID: "1234-4321-1234-4321",
 			},
-			ExpectedErr: errors.New("internal plugin error"),
+			ExpectedErr: errors.New("CSI.ControllerDeleteVolume: internal plugin error"),
 		},
 	}
 
@@ -536,7 +536,7 @@ func TestCSIController_ListVolumes(t *testing.T) {
 					PluginID: "some-garbage",
 				},
 			},
-			ExpectedErr: errors.New("CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+			ExpectedErr: errors.New("CSI.ControllerListVolumes: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
 		},
 		{
 			Name: "returns transitive errors",
@@ -548,7 +548,7 @@ func TestCSIController_ListVolumes(t *testing.T) {
 					PluginID: fakePlugin.Name,
 				},
 			},
-			ExpectedErr: errors.New("internal plugin error"),
+			ExpectedErr: errors.New("CSI.ControllerListVolumes: internal plugin error"),
 		},
 		{
 			Name: "returns volumes",
@@ -649,14 +649,14 @@ func TestCSINode_DetachVolume(t *testing.T) {
 				AccessMode:     nstructs.CSIVolumeAccessModeMultiNodeReader,
 				ReadOnly:       true,
 			},
-			ExpectedErr: errors.New("plugin some-garbage for type csi-node not found"),
+			ExpectedErr: errors.New("CSI.NodeDetachVolume: plugin some-garbage for type csi-node not found"),
 		},
 		{
 			Name: "validates volumeid is not empty",
 			Request: &structs.ClientCSINodeDetachVolumeRequest{
 				PluginID: fakeNodePlugin.Name,
 			},
-			ExpectedErr: errors.New("VolumeID is required"),
+			ExpectedErr: errors.New("CSI.NodeDetachVolume: VolumeID is required"),
 		},
 		{
 			Name: "validates nodeid is not empty",
@@ -664,7 +664,7 @@ func TestCSINode_DetachVolume(t *testing.T) {
 				PluginID: fakeNodePlugin.Name,
 				VolumeID: "1234-4321-1234-4321",
 			},
-			ExpectedErr: errors.New("AllocID is required"),
+			ExpectedErr: errors.New("CSI.NodeDetachVolume: AllocID is required"),
 		},
 		{
 			Name: "returns transitive errors",
@@ -677,7 +677,7 @@ func TestCSINode_DetachVolume(t *testing.T) {
 				AllocID:  "4321-1234-4321-1234",
 			},
 			// we don't have a csimanager in this context
-			ExpectedErr: errors.New("plugin test-plugin for type csi-node not found"),
+			ExpectedErr: errors.New("CSI.NodeDetachVolume: plugin test-plugin for type csi-node not found"),
 		},
 	}
 

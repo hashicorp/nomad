@@ -39,24 +39,25 @@ func (c *CSI) ControllerValidateVolume(req *structs.ClientCSIControllerValidateV
 	defer metrics.MeasureSince([]string{"client", "csi_controller", "validate_volume"}, time.Now())
 
 	if req.VolumeID == "" {
-		return errors.New("VolumeID is required")
+		return errors.New("CSI.ControllerValidateVolume: VolumeID is required")
 	}
 
 	if req.PluginID == "" {
-		return errors.New("PluginID is required")
+		return errors.New("CSI.ControllerValidateVolume: PluginID is required")
 	}
 
 	plugin, err := c.findControllerPlugin(req.PluginID)
 	if err != nil {
 		// the server's view of the plugin health is stale, so let it know it
 		// should retry with another controller instance
-		return fmt.Errorf("%w: %v", nstructs.ErrCSIClientRPCRetryable, err)
+		return fmt.Errorf("CSI.ControllerValidateVolume: %w: %v",
+			nstructs.ErrCSIClientRPCRetryable, err)
 	}
 	defer plugin.Close()
 
 	csiReq, err := req.ToCSIRequest()
 	if err != nil {
-		return err
+		return fmt.Errorf("CSI.ControllerValidateVolume: %v", err)
 	}
 
 	ctx, cancelFn := c.requestContext()
@@ -64,10 +65,14 @@ func (c *CSI) ControllerValidateVolume(req *structs.ClientCSIControllerValidateV
 
 	// CSI ValidateVolumeCapabilities errors for timeout, codes.Unavailable and
 	// codes.ResourceExhausted are retried; all other errors are fatal.
-	return plugin.ControllerValidateCapabilities(ctx, csiReq,
+	err = plugin.ControllerValidateCapabilities(ctx, csiReq,
 		grpc_retry.WithPerRetryTimeout(CSIPluginRequestTimeout),
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
+	if err != nil {
+		return fmt.Errorf("CSI.ControllerValidateVolume: %v", err)
+	}
+	return nil
 }
 
 // ControllerAttachVolume is used to attach a volume from a CSI Cluster to
@@ -84,7 +89,8 @@ func (c *CSI) ControllerAttachVolume(req *structs.ClientCSIControllerAttachVolum
 	if err != nil {
 		// the server's view of the plugin health is stale, so let it know it
 		// should retry with another controller instance
-		return fmt.Errorf("%w: %v", nstructs.ErrCSIClientRPCRetryable, err)
+		return fmt.Errorf("CSI.ControllerAttachVolume: %w: %v",
+			nstructs.ErrCSIClientRPCRetryable, err)
 	}
 	defer plugin.Close()
 
@@ -94,16 +100,16 @@ func (c *CSI) ControllerAttachVolume(req *structs.ClientCSIControllerAttachVolum
 	// requests to plugins, and to aid with development.
 
 	if req.VolumeID == "" {
-		return errors.New("VolumeID is required")
+		return errors.New("CSI.ControllerAttachVolume: VolumeID is required")
 	}
 
 	if req.ClientCSINodeID == "" {
-		return errors.New("ClientCSINodeID is required")
+		return errors.New("CSI.ControllerAttachVolume: ClientCSINodeID is required")
 	}
 
 	csiReq, err := req.ToCSIRequest()
 	if err != nil {
-		return err
+		return fmt.Errorf("CSI.ControllerAttachVolume: %v", err)
 	}
 
 	// Submit the request for a volume to the CSI Plugin.
@@ -116,7 +122,7 @@ func (c *CSI) ControllerAttachVolume(req *structs.ClientCSIControllerAttachVolum
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
 	if err != nil {
-		return err
+		return fmt.Errorf("CSI.ControllerAttachVolume: %v", err)
 	}
 
 	resp.PublishContext = cresp.PublishContext
@@ -131,7 +137,8 @@ func (c *CSI) ControllerDetachVolume(req *structs.ClientCSIControllerDetachVolum
 	if err != nil {
 		// the server's view of the plugin health is stale, so let it know it
 		// should retry with another controller instance
-		return fmt.Errorf("%w: %v", nstructs.ErrCSIClientRPCRetryable, err)
+		return fmt.Errorf("CSI.ControllerDetachVolume: %w: %v",
+			nstructs.ErrCSIClientRPCRetryable, err)
 	}
 	defer plugin.Close()
 
@@ -141,11 +148,11 @@ func (c *CSI) ControllerDetachVolume(req *structs.ClientCSIControllerDetachVolum
 	// requests to plugins, and to aid with development.
 
 	if req.VolumeID == "" {
-		return errors.New("VolumeID is required")
+		return errors.New("CSI.ControllerDetachVolume: VolumeID is required")
 	}
 
 	if req.ClientCSINodeID == "" {
-		return errors.New("ClientCSINodeID is required")
+		return errors.New("CSI.ControllerDetachVolume: ClientCSINodeID is required")
 	}
 
 	csiReq := req.ToCSIRequest()
@@ -159,16 +166,16 @@ func (c *CSI) ControllerDetachVolume(req *structs.ClientCSIControllerDetachVolum
 		grpc_retry.WithPerRetryTimeout(CSIPluginRequestTimeout),
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
-	if err != nil {
-		if errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
-			// if the controller detach previously happened but the server failed to
-			// checkpoint, we'll get an error from the plugin but can safely ignore it.
-			c.c.logger.Debug("could not unpublish volume: %v", err)
-			return nil
-		}
-		return err
+	if errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
+		// if the controller detach previously happened but the server failed to
+		// checkpoint, we'll get an error from the plugin but can safely ignore it.
+		c.c.logger.Debug("could not unpublish volume: %v", err)
+		return nil
 	}
-	return nil
+	if err != nil {
+		return fmt.Errorf("CSI.ControllerDetachVolume: %v", err)
+	}
+	return err
 }
 
 func (c *CSI) ControllerCreateVolume(req *structs.ClientCSIControllerCreateVolumeRequest, resp *structs.ClientCSIControllerCreateVolumeResponse) error {
@@ -178,13 +185,14 @@ func (c *CSI) ControllerCreateVolume(req *structs.ClientCSIControllerCreateVolum
 	if err != nil {
 		// the server's view of the plugin health is stale, so let it know it
 		// should retry with another controller instance
-		return fmt.Errorf("%w: %v", nstructs.ErrCSIClientRPCRetryable, err)
+		return fmt.Errorf("CSI.ControllerCreateVolume: %w: %v",
+			nstructs.ErrCSIClientRPCRetryable, err)
 	}
 	defer plugin.Close()
 
 	csiReq, err := req.ToCSIRequest()
 	if err != nil {
-		return err
+		return fmt.Errorf("CSI.ControllerCreateVolume: %v", err)
 	}
 
 	ctx, cancelFn := c.requestContext()
@@ -197,12 +205,12 @@ func (c *CSI) ControllerCreateVolume(req *structs.ClientCSIControllerCreateVolum
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
 	if err != nil {
-		return err
+		return fmt.Errorf("CSI.ControllerCreateVolume: %v", err)
 	}
 
 	if cresp == nil || cresp.Volume == nil {
 		c.c.logger.Warn("plugin did not return error or volume; this is a bug in the plugin and should be reported to the plugin author")
-		return fmt.Errorf("plugin did not return error or volume")
+		return fmt.Errorf("CSI.ControllerCreateVolume: plugin did not return error or volume")
 	}
 	resp.ExternalVolumeID = cresp.Volume.ExternalVolumeID
 	resp.CapacityBytes = cresp.Volume.CapacityBytes
@@ -218,7 +226,8 @@ func (c *CSI) ControllerDeleteVolume(req *structs.ClientCSIControllerDeleteVolum
 	if err != nil {
 		// the server's view of the plugin health is stale, so let it know it
 		// should retry with another controller instance
-		return fmt.Errorf("%w: %v", nstructs.ErrCSIClientRPCRetryable, err)
+		return fmt.Errorf("CSI.ControllerDeleteVolume: %w: %v",
+			nstructs.ErrCSIClientRPCRetryable, err)
 	}
 	defer plugin.Close()
 
@@ -233,17 +242,16 @@ func (c *CSI) ControllerDeleteVolume(req *structs.ClientCSIControllerDeleteVolum
 		grpc_retry.WithPerRetryTimeout(CSIPluginRequestTimeout),
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
-	if err != nil {
-		if errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
-			// if the volume was deleted out-of-band, we'll get an error from
-			// the plugin but can safely ignore it
-			c.c.logger.Debug("could not delete volume: %v", err)
-			return nil
-		}
-		return err
+	if errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
+		// if the volume was deleted out-of-band, we'll get an error from
+		// the plugin but can safely ignore it
+		c.c.logger.Debug("could not delete volume: %v", err)
+		return nil
 	}
-
-	return nil
+	if err != nil {
+		return fmt.Errorf("CSI.ControllerDeleteVolume: %v", err)
+	}
+	return err
 }
 
 func (c *CSI) ControllerListVolumes(req *structs.ClientCSIControllerListVolumesRequest, resp *structs.ClientCSIControllerListVolumesResponse) error {
@@ -253,7 +261,8 @@ func (c *CSI) ControllerListVolumes(req *structs.ClientCSIControllerListVolumesR
 	if err != nil {
 		// the server's view of the plugin health is stale, so let it know it
 		// should retry with another controller instance
-		return fmt.Errorf("%w: %v", nstructs.ErrCSIClientRPCRetryable, err)
+		return fmt.Errorf("CSI.ControllerListVolumes: %w: %v",
+			nstructs.ErrCSIClientRPCRetryable, err)
 	}
 	defer plugin.Close()
 
@@ -269,7 +278,7 @@ func (c *CSI) ControllerListVolumes(req *structs.ClientCSIControllerListVolumesR
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
 	if err != nil {
-		return err
+		return fmt.Errorf("CSI.ControllerListVolumes: %v", err)
 	}
 
 	resp.NextToken = cresp.NextToken
@@ -277,7 +286,7 @@ func (c *CSI) ControllerListVolumes(req *structs.ClientCSIControllerListVolumesR
 
 	for _, entry := range cresp.Entries {
 		if entry.Volume == nil {
-			return fmt.Errorf("plugin returned an invalid entry")
+			return fmt.Errorf("CSI.ControllerListVolumes: plugin returned an invalid entry")
 		}
 		vol := &nstructs.CSIVolumeExternalStub{
 			ExternalID:    entry.Volume.ExternalVolumeID,
@@ -311,13 +320,13 @@ func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, re
 	// real Nomad cluster. They serve as a defensive check before forwarding
 	// requests to plugins, and to aid with development.
 	if req.PluginID == "" {
-		return errors.New("PluginID is required")
+		return errors.New("CSI.NodeDetachVolume: PluginID is required")
 	}
 	if req.VolumeID == "" {
-		return errors.New("VolumeID is required")
+		return errors.New("CSI.NodeDetachVolume: VolumeID is required")
 	}
 	if req.AllocID == "" {
-		return errors.New("AllocID is required")
+		return errors.New("CSI.NodeDetachVolume: AllocID is required")
 	}
 
 	ctx, cancelFn := c.requestContext()
@@ -325,7 +334,7 @@ func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, re
 
 	mounter, err := c.c.csimanager.MounterForPlugin(ctx, req.PluginID)
 	if err != nil {
-		return err
+		return fmt.Errorf("CSI.NodeDetachVolume: %v", err)
 	}
 
 	usageOpts := &csimanager.UsageOptions{
@@ -339,7 +348,7 @@ func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, re
 		// if the unmounting previously happened but the server failed to
 		// checkpoint, we'll get an error from Unmount but can safely
 		// ignore it.
-		return err
+		return fmt.Errorf("CSI.NodeDetachVolume: %v", err)
 	}
 	return nil
 }
