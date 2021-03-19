@@ -79,6 +79,15 @@ func (s CPUSet) IsSubsetOf(other CPUSet) bool {
 	return true
 }
 
+func (s CPUSet) IsSupersetOf(other CPUSet) bool {
+	for cpu := range other.cpus {
+		if _, ok := s.cpus[cpu]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // Equals tests the equality of the elements in the CPUSet
 func (s CPUSet) Equals(other CPUSet) bool {
 	return reflect.DeepEqual(s.cpus, other.cpus)

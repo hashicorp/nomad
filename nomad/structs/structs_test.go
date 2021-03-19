@@ -6012,6 +6012,69 @@ func TestTaskGroup_validateScriptChecksInGroupServices(t *testing.T) {
 	})
 }
 
+func TestComparableResources_Superset(t *testing.T) {
+	base := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares:     4000,
+				ReservedCores: []uint16{0, 1, 2, 3},
+			},
+			Memory: AllocatedMemoryResources{MemoryMB: 4096},
+		},
+		Shared: AllocatedSharedResources{DiskMB: 10000},
+	}
+	cases := []struct {
+		a         *ComparableResources
+		b         *ComparableResources
+		dimension string
+	}{
+		{
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 1000, ReservedCores: []uint16{0}},
+				},
+			},
+		},
+		{
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 4000, ReservedCores: []uint16{0, 1, 2, 3}},
+				},
+			},
+		},
+		{
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 5000},
+				},
+			},
+			dimension: "cpu",
+		},
+		{
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 1000, ReservedCores: []uint16{3, 4}},
+				},
+			},
+			dimension: "cores",
+		},
+	}
+
+	for _, c := range cases {
+		fit, dim := c.a.Superset(c.b)
+		if c.dimension == "" {
+			require.True(t, fit)
+		} else {
+			require.False(t, fit)
+			require.Equal(t, c.dimension, dim)
+		}
+	}
+}
+
 func requireErrors(t *testing.T, err error, expected ...string) {
 	t.Helper()
 	require.Error(t, err)

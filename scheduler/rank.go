@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/hashicorp/nomad/lib/cpuset"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -401,6 +403,38 @@ OUTER:
 					}
 					sumMatchingAffinities += sumAffinities
 				}
+			}
+
+			// Check if we need to allocate any reserved cores
+			if task.Resources.Cores > 0 {
+				// set of reservable CPUs for the node
+				nodeCPUSet := cpuset.New(option.Node.NodeResources.Cpu.ReservableCpuCores...)
+				// set of all reserved CPUs on the node
+				allocatedCPUSet := cpuset.New()
+				for _, alloc := range proposed {
+					allocatedCPUSet = allocatedCPUSet.Union(cpuset.New(alloc.ComparableResources().Flattened.Cpu.ReservedCores...))
+				}
+
+				// add any cores that were reserved for other tasks
+				for _, tr := range total.Tasks {
+					allocatedCPUSet = allocatedCPUSet.Union(cpuset.New(tr.Cpu.ReservedCores...))
+				}
+
+				// set of CPUs not yet reserved on the node
+				availableCPUSet := nodeCPUSet.Difference(allocatedCPUSet)
+
+				// If not enough cores are available mark the node as exhausted
+				if availableCPUSet.Size() < task.Resources.Cores {
+					// TODO preemption
+					iter.ctx.Metrics().ExhaustedNode(option.Node, "cores")
+					continue OUTER
+				}
+
+				// Set the task's reserved cores
+				taskResources.Cpu.ReservedCores = availableCPUSet.ToSlice()[0:task.Resources.Cores]
+				// Total CPU usage on the node is still tracked by CPUShares. Even though the task will have the entire
+				// core reserved, we still track overall usage by cpu shares.
+				taskResources.Cpu.CpuShares = option.Node.NodeResources.Cpu.SharesPerCore() * int64(task.Resources.Cores)
 			}
 
 			// Store the task resource

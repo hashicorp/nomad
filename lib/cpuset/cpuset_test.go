@@ -63,7 +63,7 @@ func TestCPUSet_Equals(t *testing.T) {
 	}
 }
 
-func TestCpuSet_Union(t *testing.T) {
+func TestCPUSet_Union(t *testing.T) {
 	cases := []struct {
 		a        CPUSet
 		b        CPUSet
@@ -86,7 +86,7 @@ func TestCpuSet_Union(t *testing.T) {
 	}
 }
 
-func TestCpuSet_Difference(t *testing.T) {
+func TestCPUSet_Difference(t *testing.T) {
 	cases := []struct {
 		a        CPUSet
 		b        CPUSet
@@ -105,6 +105,44 @@ func TestCpuSet_Difference(t *testing.T) {
 
 	for _, c := range cases {
 		require.Exactly(t, c.expected.ToSlice(), c.a.Difference(c.b).ToSlice())
+	}
+}
+
+func TestCPUSet_IsSubsetOf(t *testing.T) {
+	cases := []struct {
+		a        CPUSet
+		b        CPUSet
+		isSubset bool
+	}{
+		{New(0), New(0), true},
+		{New(), New(0), true},
+		{New(0), New(), false},
+		{New(1, 2), New(0, 1, 2, 3), true},
+		{New(2, 1), New(0, 1, 2, 3), true},
+		{New(3, 4), New(0, 1, 2, 3), false},
+	}
+
+	for _, c := range cases {
+		require.Equal(t, c.isSubset, c.a.IsSubsetOf(c.b))
+	}
+}
+
+func TestCPUSet_IsSupersetOf(t *testing.T) {
+	cases := []struct {
+		a          CPUSet
+		b          CPUSet
+		isSuperset bool
+	}{
+		{New(0), New(0), true},
+		{New(0), New(), true},
+		{New(), New(0), false},
+		{New(0, 1, 2, 3), New(0), true},
+		{New(0, 1, 2, 3), New(2, 3), true},
+		{New(0, 1, 2, 3), New(2, 3, 4), false},
+	}
+
+	for _, c := range cases {
+		require.Equal(t, c.isSuperset, c.a.IsSupersetOf(c.b))
 	}
 }
 
