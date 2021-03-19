@@ -861,7 +861,8 @@ func (a *Agent) setupClient() error {
 		conf.StateDBFactory = state.GetStateDBFactory(conf.DevMode)
 	}
 
-	nomadClient, err := client.NewClient(conf, a.consulCatalog, a.consulProxies, a.consulService)
+	nomadClient, err := client.NewClient(
+		conf, a.consulCatalog, a.consulProxies, a.consulService, nil)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}
