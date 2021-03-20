@@ -1483,7 +1483,8 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	expected := structs.ComparableResources{
 		Flattened: structs.AllocatedTaskResources{
 			Cpu: structs.AllocatedCpuResources{
-				CpuShares: 768,
+				CpuShares:     768,
+				ReservedCores: []uint16{},
 			},
 			Memory: structs.AllocatedMemoryResources{
 				MemoryMB: 768,
