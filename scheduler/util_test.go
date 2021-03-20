@@ -674,13 +674,18 @@ func TestTasksUpdated(t *testing.T) {
 
 	// Change network mode
 	j19 := mock.Job()
+	j19.TaskGroups[0].Networks[0].Mode = "bridge"
+	require.True(t, tasksUpdated(j1, j19, name))
 
+	// Change cores resource
 	j20 := mock.Job()
+	j20.TaskGroups[0].Tasks[0].Resources.CPU = 0
+	j20.TaskGroups[0].Tasks[0].Resources.Cores = 2
+	j21 := mock.Job()
+	j21.TaskGroups[0].Tasks[0].Resources.CPU = 0
+	j21.TaskGroups[0].Tasks[0].Resources.Cores = 4
+	require.True(t, tasksUpdated(j20, j21, name))
 
-	require.False(t, tasksUpdated(j19, j20, name))
-
-	j20.TaskGroups[0].Networks[0].Mode = "bridge"
-	require.True(t, tasksUpdated(j19, j20, name))
 }
 
 func TestTasksUpdated_connectServiceUpdated(t *testing.T) {

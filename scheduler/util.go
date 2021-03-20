@@ -425,6 +425,8 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		// Inspect the non-network resources
 		if ar, br := at.Resources, bt.Resources; ar.CPU != br.CPU {
 			return true
+		} else if ar.Cores != br.Cores {
+			return true
 		} else if ar.MemoryMB != br.MemoryMB {
 			return true
 		} else if !ar.Devices.Equals(&br.Devices) {
