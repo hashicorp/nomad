@@ -216,12 +216,35 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	require.Nil(err)
 	assertWriteMeta(t, &drainOut.WriteMeta)
 
-	// Check again
-	out, _, err = nodes.Info(nodeID, nil)
-	require.Nil(err)
-	// NOTE: this is potentially flaky; drain may have already completed; if problems occur, switch to event stream
-	require.True(out.Drain)
-	require.Equal(NodeSchedulingIneligible, out.SchedulingEligibility)
+	// Drain may have completed before we can check, use event stream
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	streamCh, err := c.EventStream().Stream(ctx, map[Topic][]string{
+		TopicNode: {nodeID},
+	}, 0, nil)
+	require.NoError(err)
+
+	// we expect to see the node change to Drain:true and then back to Drain:false+ineligible
+	var sawDraining, sawDrainComplete uint64
+	for sawDrainComplete == 0 {
+		select {
+		case events := <-streamCh:
+			require.NoError(events.Err)
+			for _, e := range events.Events {
+				node, err := e.Node()
+				require.NoError(err)
+				if node.Drain && node.SchedulingEligibility == NodeSchedulingIneligible {
+					sawDraining = node.ModifyIndex
+				} else if sawDraining != 0 && node.ModifyIndex > sawDraining &&
+					!node.Drain && node.SchedulingEligibility == NodeSchedulingIneligible {
+					sawDrainComplete = node.ModifyIndex
+				}
+			}
+		case <-time.After(5 * time.Second):
+			require.Fail("failed waiting for event stream event")
+		}
+	}
 
 	// Toggle off again
 	drainOut, err = nodes.UpdateDrain(nodeID, nil, true, nil)
