@@ -152,7 +152,7 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 				AttachmentMode: "nonsense",
 			},
 			UsageOptions: &UsageOptions{},
-			ExpectedErr:  errors.New("Unknown volume attachment mode: nonsense"),
+			ExpectedErr:  errors.New("unknown volume attachment mode: nonsense"),
 		},
 		{
 			Name: "Returns an error when an invalid AccessMode is provided",
@@ -162,7 +162,7 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 				AccessMode:     "nonsense",
 			},
 			UsageOptions: &UsageOptions{},
-			ExpectedErr:  errors.New("Unknown volume access mode: nonsense"),
+			ExpectedErr:  errors.New("unknown volume access mode: nonsense"),
 		},
 		{
 			Name: "Returns an error when the plugin returns an error",
@@ -490,14 +490,14 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	pubCtx := map[string]string{}
 
 	_, err := manager.MountVolume(ctx, vol, alloc, usage, pubCtx)
-	require.Error(t, err, "Unknown volume attachment mode: ")
+	require.Error(t, err, "unknown volume attachment mode: ")
 	require.Equal(t, 1, len(events))
 	e := events[0]
 	require.Equal(t, "Mount volume", e.Message)
 	require.Equal(t, "Storage", e.Subsystem)
 	require.Equal(t, "vol", e.Details["volume_id"])
 	require.Equal(t, "false", e.Details["success"])
-	require.Equal(t, "Unknown volume attachment mode: ", e.Details["error"])
+	require.Equal(t, "unknown volume attachment mode: ", e.Details["error"])
 	events = events[1:]
 
 	vol.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
