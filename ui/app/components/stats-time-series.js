@@ -16,7 +16,7 @@ export default class StatsTimeSeries extends Component {
   }
 
   get useDefaults() {
-    return this.args.useDefaults != null ? this.args.useDefaults : true;
+    return !this.args.dataProp;
   }
 
   // Specific a11y descriptors

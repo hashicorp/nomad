@@ -7,7 +7,7 @@
     {{else}} {{this.metric}} {{/if}}
   </h4>
   <div class="primary-graphic">
-    <StatsTimeSeries @data={{this.series}} @dataProp="data" @useDefaults={{false}}>
+    <StatsTimeSeries @data={{this.series}} @dataProp="data" >
       <:svg as |c|>
         {{#each (reverse this.series) as |series idx|}}
           <c.Area @data={{series.data}} @colorScale={{this.colorScale}} @index={{idx}} />
