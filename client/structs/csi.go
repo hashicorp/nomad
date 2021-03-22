@@ -20,6 +20,12 @@ type CSIVolumeMountOptions struct {
 	MountFlags []string
 }
 
+// CSIControllerRequest interface lets us set embedded CSIControllerQuery
+// fields in the server
+type CSIControllerRequest interface {
+	SetControllerNodeID(string)
+}
+
 // CSIControllerQuery is used to specify various flags for queries against CSI
 // Controllers
 type CSIControllerQuery struct {
@@ -28,6 +34,10 @@ type CSIControllerQuery struct {
 
 	// PluginID is the plugin that should be targeted on the given node.
 	PluginID string
+}
+
+func (c *CSIControllerQuery) SetControllerNodeID(nodeID string) {
+	c.ControllerNodeID = nodeID
 }
 
 type ClientCSIControllerValidateVolumeRequest struct {
