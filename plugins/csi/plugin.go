@@ -728,7 +728,7 @@ func VolumeCapabilityFromStructs(sAccessType structs.CSIVolumeAttachmentMode, sA
 		// final check during transformation into the requisite CSI Data type to
 		// defend against development bugs and corrupted state - and incompatible
 		// nomad versions in the future.
-		return nil, fmt.Errorf("Unknown volume attachment mode: %s", sAccessType)
+		return nil, fmt.Errorf("unknown volume attachment mode: %s", sAccessType)
 	}
 
 	var accessMode VolumeAccessMode
@@ -748,7 +748,7 @@ func VolumeCapabilityFromStructs(sAccessType structs.CSIVolumeAttachmentMode, sA
 		// final check during transformation into the requisite CSI Data type to
 		// defend against development bugs and corrupted state - and incompatible
 		// nomad versions in the future.
-		return nil, fmt.Errorf("Unknown volume access mode: %v", sAccessMode)
+		return nil, fmt.Errorf("unknown volume access mode: %v", sAccessMode)
 	}
 
 	return &VolumeCapability{
