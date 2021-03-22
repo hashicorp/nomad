@@ -291,6 +291,14 @@ type QueryOptions struct {
 	// AuthToken is secret portion of the ACL token used for the request
 	AuthToken string
 
+	// PerPage is the number of entries to be returned in queries that support
+	// paginated lists.
+	PerPage int32
+
+	// NextToken is the token used indicate where to start paging for queries
+	// that support paginated lists.
+	NextToken string
+
 	InternalRpcInfo
 }
 
