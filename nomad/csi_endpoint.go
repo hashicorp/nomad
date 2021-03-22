@@ -808,10 +808,13 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		return fmt.Errorf("missing volume definition")
 	}
 
-	regArgs := &structs.CSIVolumeRegisterRequest{
-		Volumes:      args.Volumes,
-		WriteRequest: args.WriteRequest,
+	regArgs := &structs.CSIVolumeRegisterRequest{WriteRequest: args.WriteRequest}
+
+	type validated struct {
+		vol    *structs.CSIVolume
+		plugin *structs.CSIPlugin
 	}
+	validatedVols := []validated{}
 
 	// This is the only namespace we ACL checked, force all the volumes to use it.
 	// We also validate that the plugin exists for each plugin, and validate the
@@ -828,20 +831,33 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		if !plugin.ControllerRequired {
 			return fmt.Errorf("plugin has no controller")
 		}
+
 		if err := v.controllerValidateVolume(regArgs, vol, plugin); err != nil {
 			return err
 		}
 
-		// NOTE: creating the volume in the external storage provider can't be
-		// made atomic with the registration, and creating the volume provides
-		// values we want to write on the CSIVolume in raft anyways. For now
-		// we'll block the RPC on the external storage provider so that we can
-		// easily return meaningful errors to the user, but in the future we
-		// should consider creating registering first and creating a "volume
-		// eval" that can do the plugin RPCs async
-		err = v.createVolume(vol, plugin)
+		validatedVols = append(validatedVols, validated{vol, plugin})
+	}
+
+	// Attempt to create all the validated volumes and write only successfully
+	// created volumes to raft. And we'll report errors for any failed volumes
+	//
+	// NOTE: creating the volume in the external storage provider can't be
+	// made atomic with the registration, and creating the volume provides
+	// values we want to write on the CSIVolume in raft anyways. For now
+	// we'll block the RPC on the external storage provider so that we can
+	// easily return meaningful errors to the user, but in the future we
+	// should consider creating registering first and creating a "volume
+	// eval" that can do the plugin RPCs async.
+
+	var mErr multierror.Error
+
+	for _, valid := range validatedVols {
+		err = v.createVolume(valid.vol, valid.plugin)
 		if err != nil {
-			return err
+			multierror.Append(&mErr, err)
+		} else {
+			regArgs.Volumes = append(regArgs.Volumes, valid.vol)
 		}
 	}
 
@@ -851,7 +867,12 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		return err
 	}
 	if respErr, ok := resp.(error); ok {
-		return respErr
+		multierror.Append(&mErr, respErr)
+	}
+
+	err = mErr.ErrorOrNil()
+	if err != nil {
+		return err
 	}
 
 	reply.Index = index
