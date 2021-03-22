@@ -22,80 +22,98 @@ type ClientCSI struct {
 func (a *ClientCSI) ControllerAttachVolume(args *cstructs.ClientCSIControllerAttachVolumeRequest, reply *cstructs.ClientCSIControllerAttachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "attach_volume"}, time.Now())
 
-	clientIDs, err := a.clientIDsForController(args.PluginID)
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerAttachVolume",
+		"ClientCSI.ControllerAttachVolume",
+		args, reply)
 	if err != nil {
 		return fmt.Errorf("controller attach volume: %v", err)
 	}
-
-	for _, clientID := range clientIDs {
-		args.ControllerNodeID = clientID
-		state, ok := a.srv.getNodeConn(clientID)
-		if !ok {
-			return findNodeConnAndForward(a.srv,
-				clientID, "ClientCSI.ControllerAttachVolume", args, reply)
-		}
-
-		err = NodeRpc(state.Session, "CSI.ControllerAttachVolume", args, reply)
-		if err == nil {
-			return nil
-		}
-		if a.isRetryable(err) {
-			a.logger.Debug("failed to reach controller on client",
-				"nodeID", clientID, "err", err)
-			continue
-		}
-		return fmt.Errorf("controller attach volume: %v", err)
-	}
-	return fmt.Errorf("controller attach volume: %v", err)
+	return nil
 }
 
 func (a *ClientCSI) ControllerValidateVolume(args *cstructs.ClientCSIControllerValidateVolumeRequest, reply *cstructs.ClientCSIControllerValidateVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "validate_volume"}, time.Now())
 
-	clientIDs, err := a.clientIDsForController(args.PluginID)
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerValidateVolume",
+		"ClientCSI.ControllerValidateVolume",
+		args, reply)
 	if err != nil {
-		return fmt.Errorf("validate volume: %v", err)
+		return fmt.Errorf("controller validate volume: %v", err)
 	}
-
-	for _, clientID := range clientIDs {
-		args.ControllerNodeID = clientID
-		state, ok := a.srv.getNodeConn(clientID)
-		if !ok {
-			return findNodeConnAndForward(a.srv,
-				clientID, "ClientCSI.ControllerValidateVolume", args, reply)
-		}
-
-		err = NodeRpc(state.Session, "CSI.ControllerValidateVolume", args, reply)
-		if err == nil {
-			return nil
-		}
-		if a.isRetryable(err) {
-			a.logger.Debug("failed to reach controller on client",
-				"nodeID", clientID, "err", err)
-			continue
-		}
-		return fmt.Errorf("validate volume: %v", err)
-	}
-	return fmt.Errorf("validate volume: %v", err)
+	return nil
 }
 
 func (a *ClientCSI) ControllerDetachVolume(args *cstructs.ClientCSIControllerDetachVolumeRequest, reply *cstructs.ClientCSIControllerDetachVolumeResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "detach_volume"}, time.Now())
 
-	clientIDs, err := a.clientIDsForController(args.PluginID)
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerDetachVolume",
+		"ClientCSI.ControllerDetachVolume",
+		args, reply)
 	if err != nil {
 		return fmt.Errorf("controller detach volume: %v", err)
 	}
+	return nil
+}
+
+func (a *ClientCSI) ControllerCreateVolume(args *cstructs.ClientCSIControllerCreateVolumeRequest, reply *cstructs.ClientCSIControllerCreateVolumeResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "create_volume"}, time.Now())
+
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerCreateVolume",
+		"ClientCSI.ControllerCreateVolume",
+		args, reply)
+	if err != nil {
+		return fmt.Errorf("controller create volume: %v", err)
+	}
+	return nil
+}
+
+func (a *ClientCSI) ControllerDeleteVolume(args *cstructs.ClientCSIControllerDeleteVolumeRequest, reply *cstructs.ClientCSIControllerDeleteVolumeResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "delete_volume"}, time.Now())
+
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerDeleteVolume",
+		"ClientCSI.ControllerDeleteVolume",
+		args, reply)
+	if err != nil {
+		return fmt.Errorf("controller delete volume: %v", err)
+	}
+	return nil
+}
+
+func (a *ClientCSI) ControllerListVolumes(args *cstructs.ClientCSIControllerListVolumesRequest, reply *cstructs.ClientCSIControllerListVolumesResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "list_volumes"}, time.Now())
+
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerListVolumes",
+		"ClientCSI.ControllerListVolumes",
+		args, reply)
+	if err != nil {
+		return fmt.Errorf("controller list volumes: %v", err)
+	}
+	return nil
+}
+
+func (a *ClientCSI) sendCSIControllerRPC(pluginID, method, fwdMethod string, args cstructs.CSIControllerRequest, reply interface{}) error {
+
+	clientIDs, err := a.clientIDsForController(pluginID)
+	if err != nil {
+		return err
+	}
 
 	for _, clientID := range clientIDs {
-		args.ControllerNodeID = clientID
+		args.SetControllerNodeID(clientID)
+
 		state, ok := a.srv.getNodeConn(clientID)
 		if !ok {
 			return findNodeConnAndForward(a.srv,
-				clientID, "ClientCSI.ControllerDetachVolume", args, reply)
+				clientID, fwdMethod, args, reply)
 		}
 
-		err = NodeRpc(state.Session, "CSI.ControllerDetachVolume", args, reply)
+		err = NodeRpc(state.Session, method, args, reply)
 		if err == nil {
 			return nil
 		}
@@ -104,9 +122,9 @@ func (a *ClientCSI) ControllerDetachVolume(args *cstructs.ClientCSIControllerDet
 				"nodeID", clientID, "err", err)
 			continue
 		}
-		return fmt.Errorf("controller detach volume: %v", err)
+		return err
 	}
-	return fmt.Errorf("controller detach volume: %v", err)
+	return err
 }
 
 // we can retry the same RPC on a different controller in the cases where the
