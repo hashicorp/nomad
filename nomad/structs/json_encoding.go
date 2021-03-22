@@ -6,13 +6,11 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 )
 
-// Special encoding for structs.Node, to perform the following:
-// 1. provide backwards compatibility for the following fields:
-//   * Node.Drain
-type nodeExt struct{}
+func init() {
+	registerExtension(reflect.TypeOf(Node{}), nodeExt)
+}
 
-// ConvertExt converts a structs.Node to a struct with the extra field, Drain
-func (n nodeExt) ConvertExt(v interface{}) interface{} {
+func nodeExt(v interface{}) interface{} {
 	node := v.(*Node)
 	if node == nil {
 		return nil
@@ -27,10 +25,35 @@ func (n nodeExt) ConvertExt(v interface{}) interface{} {
 	}
 }
 
-// UpdateExt is not used
-func (n nodeExt) UpdateExt(_ interface{}, _ interface{}) {}
+// BOILERPLATE GOES HERE
 
-func RegisterJSONEncodingExtensions(h *codec.JsonHandle) *codec.JsonHandle {
-	h.SetInterfaceExt(reflect.TypeOf(Node{}), 1, nodeExt{})
+type extendFunc func(interface{}) interface{}
+
+var (
+	extendedTypes = map[reflect.Type]extendFunc{}
+)
+
+func registerExtension(tpe reflect.Type, ext extendFunc) {
+	extendedTypes[tpe] = ext
+}
+
+type nomadJsonEncodingExtensions struct{}
+
+// ConvertExt calls the registered conversions functions
+func (n nomadJsonEncodingExtensions) ConvertExt(v interface{}) interface{} {
+	if fn, ok := extendedTypes[reflect.TypeOf(v)]; ok {
+		return fn(v)
+	} else {
+		return nil
+	}
+}
+
+// UpdateExt is not used
+func (n nomadJsonEncodingExtensions) UpdateExt(_ interface{}, _ interface{}) {}
+
+func NomadJsonEncodingExtensions(h *codec.JsonHandle) *codec.JsonHandle {
+	for tpe, _ := range extendedTypes {
+		h.SetInterfaceExt(tpe, 1, nomadJsonEncodingExtensions{})
+	}
 	return h
 }

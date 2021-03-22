@@ -10589,10 +10589,10 @@ var (
 	JsonHandle = &codec.JsonHandle{
 		HTMLCharsAsIs: true,
 	}
-	JsonHandleWithExtensions = RegisterJSONEncodingExtensions(&codec.JsonHandle{
+	JsonHandleWithExtensions = NomadJsonEncodingExtensions(&codec.JsonHandle{
 		HTMLCharsAsIs: true,
 	})
-	JsonHandlePretty = RegisterJSONEncodingExtensions(&codec.JsonHandle{
+	JsonHandlePretty = NomadJsonEncodingExtensions(&codec.JsonHandle{
 		HTMLCharsAsIs: true,
 		Indent:        4,
 	})
