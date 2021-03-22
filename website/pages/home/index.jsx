@@ -270,6 +270,24 @@ export default function Homepage() {
                 'https://www.datocms-assets.com/2885/1594242826-bowery-logo-2.png',
             },
           },
+          {
+            quote:
+              'After migrating to Nomad, our deployment is at least twice as fast as Kubernetes.',
+            caseStudyURL:
+              'https://www.hashicorp.com/resources/gitlab-nomad-gitops-internet-archive-migrated-from-kubernetes-nomad-consul',
+            person: {
+              firstName: 'Tracey',
+              lastName: 'Jaquith',
+              photo:
+                'https://www.datocms-assets.com/2885/1616436433-internetarhive.jpeg',
+              title: 'Software Architect',
+            },
+            company: {
+              name: 'Internet Archive',
+              logo:
+                'https://www.datocms-assets.com/2885/1616436427-artboard.png',
+            },
+          },
         ]}
         featuredLogos={[
           {
