@@ -1,5 +1,6 @@
 import Ember from 'ember';
 import Component from '@glimmer/component';
+import { tracked } from '@glimmer/tracking';
 import { task, timeout } from 'ember-concurrency';
 import { assert } from '@ember/debug';
 import { inject as service } from '@ember/service';
@@ -13,23 +14,23 @@ export default class TaskPrimaryMetric extends Component {
     metric null; (one of 'cpu' or 'memory'
   */
 
+  @tracked tracker = null;
+  @tracked taskState = null;
+
   get metric() {
     assert('metric is a required argument', this.args.metric);
     return this.args.metric;
   }
 
-  get tracker() {
-    return this.statsTrackersRegistry.getTracker(this.args.taskState.allocation);
-  }
-
   get data() {
     if (!this.tracker) return [];
-    const task = this.tracker.tasks.findBy('task', this.args.taskState.name);
+    const task = this.tracker.tasks.findBy('task', this.taskState.name);
     return task && task[this.metric];
   }
 
   get reservedAmount() {
-    const task = this.tracker.tasks.findBy('task', this.args.taskState.name);
+    if (!this.tracker) return null;
+    const task = this.tracker.tasks.findBy('task', this.taskState.name);
     return this.metric === 'cpu' ? task.reservedCPU : task.reservedMemory;
   }
 
@@ -49,7 +50,9 @@ export default class TaskPrimaryMetric extends Component {
 
   @action
   start() {
-    if (this.tracker) this.poller.perform();
+    this.taskState = this.args.taskState;
+    this.tracker = this.statsTrackersRegistry.getTracker(this.args.taskState.allocation);
+    this.poller.perform();
   }
 
   willDestroy() {
