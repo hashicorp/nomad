@@ -1189,6 +1189,10 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		MemoryMB: *in.MemoryMB,
 	}
 
+	if in.MemoryMaxMB == nil {
+		out.MemoryMB = *in.MemoryMaxMB
+	}
+
 	// COMPAT(0.10): Only being used to issue warnings
 	if in.IOPS != nil {
 		out.IOPS = *in.IOPS

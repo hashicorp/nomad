@@ -976,6 +976,11 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		}
 	}
 
+	memoryLimit := taskResources.Memory.MemoryMB
+	if max := taskResources.Memory.MemoryMaxMB; max > memoryLimit {
+		memoryLimit = max
+	}
+
 	return &drivers.TaskConfig{
 		ID:            fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
 		Name:          task.Name,
@@ -988,7 +993,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		Resources: &drivers.Resources{
 			NomadResources: taskResources,
 			LinuxResources: &drivers.LinuxResources{
-				MemoryLimitBytes: taskResources.Memory.MemoryMB * 1024 * 1024,
+				MemoryLimitBytes: memoryLimit * 1024 * 1024,
 				CPUShares:        taskResources.Cpu.CpuShares,
 				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
 			},

@@ -3667,7 +3667,8 @@ func (a *AllocatedCpuResources) Max(other *AllocatedCpuResources) {
 
 // AllocatedMemoryResources captures the allocated memory resources.
 type AllocatedMemoryResources struct {
-	MemoryMB int64
+	MemoryMB    int64
+	MemoryMaxMB int64
 }
 
 func (a *AllocatedMemoryResources) Add(delta *AllocatedMemoryResources) {
@@ -3676,6 +3677,11 @@ func (a *AllocatedMemoryResources) Add(delta *AllocatedMemoryResources) {
 	}
 
 	a.MemoryMB += delta.MemoryMB
+	if delta.MemoryMaxMB != 0 {
+		a.MemoryMaxMB += delta.MemoryMaxMB
+	} else {
+		a.MemoryMaxMB += delta.MemoryMB
+	}
 }
 
 func (a *AllocatedMemoryResources) Subtract(delta *AllocatedMemoryResources) {
@@ -3684,6 +3690,11 @@ func (a *AllocatedMemoryResources) Subtract(delta *AllocatedMemoryResources) {
 	}
 
 	a.MemoryMB -= delta.MemoryMB
+	if delta.MemoryMaxMB != 0 {
+		a.MemoryMaxMB -= delta.MemoryMaxMB
+	} else {
+		a.MemoryMaxMB -= delta.MemoryMB
+	}
 }
 
 func (a *AllocatedMemoryResources) Max(other *AllocatedMemoryResources) {
@@ -3693,6 +3704,9 @@ func (a *AllocatedMemoryResources) Max(other *AllocatedMemoryResources) {
 
 	if other.MemoryMB > a.MemoryMB {
 		a.MemoryMB = other.MemoryMB
+	}
+	if other.MemoryMaxMB > a.MemoryMaxMB {
+		a.MemoryMaxMB = other.MemoryMaxMB
 	}
 }
 
