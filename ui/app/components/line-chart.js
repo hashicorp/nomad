@@ -55,7 +55,6 @@ export default class LineChart extends Component {
     title = 'Line Chart';
     description = null;
     timeseries = false;
-    chartClass = 'is-primary';
     activeAnnotation = null;
     onAnnotationClick() {}
     xFormat;
@@ -91,9 +90,6 @@ export default class LineChart extends Component {
   }
   get curve() {
     return this.args.curve || 'linear';
-  }
-  get chartClass() {
-    return this.args.chartClass || 'is-primary';
   }
 
   @action
