@@ -108,8 +108,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 		return structs.ErrPermissionDenied
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "list"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "list"}, time.Now())
 
 	ns := args.RequestNamespace()
 	opts := blockingOptions{
@@ -192,8 +191,7 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 		return structs.ErrPermissionDenied
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "get"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "get"}, time.Now())
 
 	if args.ID == "" {
 		return fmt.Errorf("missing volume ID")
@@ -276,14 +274,13 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		return err
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "register"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "register"}, time.Now())
 
 	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
 	}
 
-	if args.Volumes == nil || len(args.Volumes) == 0 {
+	if len(args.Volumes) == 0 {
 		return fmt.Errorf("missing volume definition")
 	}
 
@@ -331,8 +328,7 @@ func (v *CSIVolume) Deregister(args *structs.CSIVolumeDeregisterRequest, reply *
 		return err
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "deregister"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "deregister"}, time.Now())
 
 	ns := args.RequestNamespace()
 	if !allowVolume(aclObj, ns) {
@@ -369,8 +365,7 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		return err
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "claim"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "claim"}, time.Now())
 
 	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
@@ -531,8 +526,7 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 		return err
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "volume", "unpublish"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "unpublish"}, time.Now())
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIMountVolume)
 	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, true)
@@ -795,6 +789,256 @@ func (v *CSIVolume) checkpointClaim(vol *structs.CSIVolume, claim *structs.CSIVo
 	return nil
 }
 
+func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.CSIVolumeCreateResponse) error {
+
+	if done, err := v.srv.forward("CSIVolume.Create", args, args, reply); done {
+		return err
+	}
+
+	defer metrics.MeasureSince([]string{"nomad", "volume", "create"}, time.Now())
+
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
+	if err != nil {
+		return err
+	}
+
+	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
+		return structs.ErrPermissionDenied
+	}
+
+	if len(args.Volumes) == 0 {
+		return fmt.Errorf("missing volume definition")
+	}
+
+	regArgs := &structs.CSIVolumeRegisterRequest{WriteRequest: args.WriteRequest}
+
+	type validated struct {
+		vol    *structs.CSIVolume
+		plugin *structs.CSIPlugin
+	}
+	validatedVols := []validated{}
+
+	// This is the only namespace we ACL checked, force all the volumes to use it.
+	// We also validate that the plugin exists for each plugin, and validate the
+	// capabilities when the plugin has a controller.
+	for _, vol := range args.Volumes {
+		vol.Namespace = args.RequestNamespace()
+		if err = vol.Validate(); err != nil {
+			return err
+		}
+		plugin, err := v.pluginValidateVolume(regArgs, vol)
+		if err != nil {
+			return err
+		}
+		if !plugin.ControllerRequired {
+			return fmt.Errorf("plugin has no controller")
+		}
+
+		if err := v.controllerValidateVolume(regArgs, vol, plugin); err != nil {
+			return err
+		}
+
+		validatedVols = append(validatedVols, validated{vol, plugin})
+	}
+
+	// Attempt to create all the validated volumes and write only successfully
+	// created volumes to raft. And we'll report errors for any failed volumes
+	//
+	// NOTE: creating the volume in the external storage provider can't be
+	// made atomic with the registration, and creating the volume provides
+	// values we want to write on the CSIVolume in raft anyways. For now
+	// we'll block the RPC on the external storage provider so that we can
+	// easily return meaningful errors to the user, but in the future we
+	// should consider creating registering first and creating a "volume
+	// eval" that can do the plugin RPCs async.
+
+	var mErr multierror.Error
+
+	for _, valid := range validatedVols {
+		err = v.createVolume(valid.vol, valid.plugin)
+		if err != nil {
+			multierror.Append(&mErr, err)
+		} else {
+			regArgs.Volumes = append(regArgs.Volumes, valid.vol)
+		}
+	}
+
+	resp, index, err := v.srv.raftApply(structs.CSIVolumeRegisterRequestType, regArgs)
+	if err != nil {
+		v.logger.Error("csi raft apply failed", "error", err, "method", "register")
+		return err
+	}
+	if respErr, ok := resp.(error); ok {
+		multierror.Append(&mErr, respErr)
+	}
+
+	err = mErr.ErrorOrNil()
+	if err != nil {
+		return err
+	}
+
+	reply.Index = index
+	v.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}
+
+func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin) error {
+
+	method := "ClientCSI.ControllerCreateVolume"
+	cReq := &cstructs.ClientCSIControllerCreateVolumeRequest{
+		Name:               vol.Name,
+		VolumeCapabilities: vol.RequestedCapabilities,
+		Parameters:         vol.Parameters,
+		Secrets:            vol.Secrets,
+		CapacityMin:        vol.RequestedCapacityMin,
+		CapacityMax:        vol.RequestedCapacityMax,
+		SnapshotID:         vol.SnapshotID,
+		CloneID:            vol.CloneID,
+	}
+	cReq.PluginID = plugin.ID
+	cResp := &cstructs.ClientCSIControllerCreateVolumeResponse{}
+	err := v.srv.RPC(method, cReq, cResp)
+	if err != nil {
+		return err
+	}
+
+	vol.ExternalID = cResp.ExternalVolumeID
+	vol.Capacity = cResp.CapacityBytes
+	vol.Context = cResp.VolumeContext
+	return nil
+}
+
+func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.CSIVolumeDeleteResponse) error {
+	if done, err := v.srv.forward("CSIVolume.Delete", args, args, reply); done {
+		return err
+	}
+
+	defer metrics.MeasureSince([]string{"nomad", "volume", "delete"}, time.Now())
+
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
+	if err != nil {
+		return err
+	}
+
+	ns := args.RequestNamespace()
+	if !allowVolume(aclObj, ns) {
+		return structs.ErrPermissionDenied
+	}
+
+	if len(args.VolumeIDs) == 0 {
+		return fmt.Errorf("missing volume IDs")
+	}
+
+	for _, volID := range args.VolumeIDs {
+
+		plugin, vol, err := v.volAndPluginLookup(args.Namespace, volID)
+		if err != nil {
+			if err == fmt.Errorf("volume not found: %s", volID) {
+				v.logger.Warn("volume %q to be deleted was already deregistered")
+				continue
+			} else {
+				return err
+			}
+		}
+
+		// NOTE: deleting the volume in the external storage provider can't be
+		// made atomic with deregistration. We can't delete a volume that's
+		// not registered because we need to be able to lookup its plugin.
+		err = v.deleteVolume(vol, plugin)
+		if err != nil {
+			return err
+		}
+	}
+
+	deregArgs := &structs.CSIVolumeDeregisterRequest{
+		VolumeIDs:    args.VolumeIDs,
+		WriteRequest: args.WriteRequest,
+	}
+	resp, index, err := v.srv.raftApply(structs.CSIVolumeDeregisterRequestType, deregArgs)
+	if err != nil {
+		v.logger.Error("csi raft apply failed", "error", err, "method", "deregister")
+		return err
+	}
+	if respErr, ok := resp.(error); ok {
+		return respErr
+	}
+
+	reply.Index = index
+	v.srv.setQueryMeta(&reply.QueryMeta)
+	return nil
+}
+
+func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin) error {
+
+	method := "ClientCSI.ControllerDeleteVolume"
+	cReq := &cstructs.ClientCSIControllerDeleteVolumeRequest{
+		ExternalVolumeID: vol.ExternalID,
+		Secrets:          vol.Secrets,
+	}
+	cReq.PluginID = plugin.ID
+	cResp := &cstructs.ClientCSIControllerDeleteVolumeResponse{}
+
+	return v.srv.RPC(method, cReq, cResp)
+}
+
+func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, reply *structs.CSIVolumeExternalListResponse) error {
+
+	if done, err := v.srv.forward("CSIVolume.ListExternal", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "volume", "list_external"}, time.Now())
+
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIListVolume,
+		acl.NamespaceCapabilityCSIReadVolume,
+		acl.NamespaceCapabilityCSIMountVolume,
+		acl.NamespaceCapabilityListJobs)
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, false)
+	if err != nil {
+		return err
+	}
+
+	// NOTE: this is the plugin's namespace, not the volume(s) because they
+	// might not even be registered
+	if !allowVolume(aclObj, args.RequestNamespace()) {
+		return structs.ErrPermissionDenied
+	}
+	snap, err := v.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	plugin, err := snap.CSIPluginByID(nil, args.PluginID)
+	if err != nil {
+		return err
+	}
+	if plugin == nil {
+		return fmt.Errorf("no such plugin")
+	}
+
+	method := "ClientCSI.ControllerListVolumes"
+	cReq := &cstructs.ClientCSIControllerListVolumesRequest{
+		MaxEntries:    args.MaxEntries,
+		StartingToken: args.StartingToken,
+	}
+	cReq.PluginID = plugin.ID
+	cResp := &cstructs.ClientCSIControllerListVolumesResponse{}
+
+	err = v.srv.RPC(method, cReq, cResp)
+	if err != nil {
+		return err
+	}
+	if args.MaxEntries > 0 {
+		reply.Volumes = cResp.Entries[:args.MaxEntries]
+	} else {
+		reply.Volumes = cResp.Entries
+	}
+	reply.NextToken = cResp.NextToken
+
+	return nil
+}
+
 // CSIPlugin wraps the structs.CSIPlugin with request data and server context
 type CSIPlugin struct {
 	srv    *Server
@@ -816,8 +1060,7 @@ func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIP
 		return structs.ErrPermissionDenied
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "plugin", "list"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "plugin", "list"}, time.Now())
 
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -865,8 +1108,7 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 	withAllocs := aclObj == nil ||
 		aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "plugin", "get"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "plugin", "get"}, time.Now())
 
 	if args.ID == "" {
 		return fmt.Errorf("missing plugin ID")
@@ -926,8 +1168,7 @@ func (v *CSIPlugin) Delete(args *structs.CSIPluginDeleteRequest, reply *structs.
 		return structs.ErrPermissionDenied
 	}
 
-	metricsStart := time.Now()
-	defer metrics.MeasureSince([]string{"nomad", "plugin", "delete"}, metricsStart)
+	defer metrics.MeasureSince([]string{"nomad", "plugin", "delete"}, time.Now())
 
 	if args.ID == "" {
 		return fmt.Errorf("missing plugin ID")
