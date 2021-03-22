@@ -79,6 +79,13 @@ func (t *TaskCSIPluginConfig) Copy() *TaskCSIPluginConfig {
 	return nt
 }
 
+// CSIVolumeCapability is the requested attachment and access mode for a
+// volume
+type CSIVolumeCapability struct {
+	AttachmentMode CSIVolumeAttachmentMode
+	AccessMode     CSIVolumeAccessMode
+}
+
 // CSIVolumeAttachmentMode chooses the type of storage api that will be used to
 // interact with the device.
 type CSIVolumeAttachmentMode string
@@ -246,6 +253,15 @@ type CSIVolume struct {
 	Secrets        CSISecrets
 	Parameters     map[string]string
 	Context        map[string]string
+	Capacity       int64 // bytes
+
+	// These values are used only on volume creation but we record them
+	// so that we can diff the volume later
+	RequestedCapacityMin  int64 // bytes
+	RequestedCapacityMax  int64 // bytes
+	RequestedCapabilities []*CSIVolumeCapability
+	CloneID               string
+	SnapshotID            string
 
 	// Allocations, tracking claim status
 	ReadAllocs  map[string]*Allocation // AllocID -> Allocation
@@ -590,6 +606,9 @@ func (v *CSIVolume) Validate() error {
 			}
 		}
 	}
+	if v.SnapshotID != "" && v.CloneID != "" {
+		errs = append(errs, "only one of snapshot_id and clone_id is allowed")
+	}
 
 	// TODO: Volume Topologies are optional - We should check to see if the plugin
 	//       the volume is being registered with requires them.
@@ -627,6 +646,25 @@ type CSIVolumeDeregisterRequest struct {
 }
 
 type CSIVolumeDeregisterResponse struct {
+	QueryMeta
+}
+
+type CSIVolumeCreateRequest struct {
+	Volumes []*CSIVolume
+	WriteRequest
+}
+
+type CSIVolumeCreateResponse struct {
+	Volumes []*CSIVolume
+	QueryMeta
+}
+
+type CSIVolumeDeleteRequest struct {
+	VolumeIDs []string
+	WriteRequest
+}
+
+type CSIVolumeDeleteResponse struct {
 	QueryMeta
 }
 
@@ -698,6 +736,39 @@ type CSIVolumeListRequest struct {
 type CSIVolumeListResponse struct {
 	Volumes []*CSIVolListStub
 	QueryMeta
+}
+
+// CSIVolumeExternalListRequest is a request to a controller plugin to list
+// all the volumes known to the the storage provider. This request is
+// paginated by the plugin.
+type CSIVolumeExternalListRequest struct {
+	PluginID      string
+	MaxEntries    int32
+	StartingToken string
+	QueryOptions
+}
+
+type CSIVolumeExternalListResponse struct {
+	Volumes   []*CSIVolumeExternalStub
+	NextToken string
+	QueryMeta
+}
+
+// CSIVolumeExternalStub is the storage provider's view of a volume, as
+// returned from the controller plugin; all IDs are for external resources
+type CSIVolumeExternalStub struct {
+	ExternalID    string
+	CapacityBytes int64
+	VolumeContext map[string]string
+	CloneID       string
+	SnapshotID    string
+
+	// TODO: topology support
+	// AccessibleTopology []*Topology
+
+	PublishedExternalNodeIDs []string
+	IsAbnormal               bool
+	Status                   string
 }
 
 type CSIVolumeGetRequest struct {
