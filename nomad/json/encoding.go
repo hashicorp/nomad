@@ -6,16 +6,21 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 )
 
+// extendFunc is a mapping from one struct to another, to change the shape of the encoded JSON
 type extendFunc func(interface{}) interface{}
 
 var (
+	// extendedTypes is a mapping of extended types to their extension function
 	extendedTypes = map[reflect.Type]extendFunc{}
 )
 
+// registerExtension registers an extension function against a particular type
 func registerExtension(tpe reflect.Type, ext extendFunc) {
 	extendedTypes[tpe] = ext
 }
 
+// nomadJsonEncodingExtensions is a catch-all go-msgpack extension
+// it looks up the types in the list of registered extension functions and applies it
 type nomadJsonEncodingExtensions struct{}
 
 // ConvertExt calls the registered conversions functions
@@ -29,9 +34,12 @@ func (n nomadJsonEncodingExtensions) ConvertExt(v interface{}) interface{} {
 	}
 }
 
-// UpdateExt is not used
+// UpdateExt is required by go-msgpack, but not used by us
 func (n nomadJsonEncodingExtensions) UpdateExt(_ interface{}, _ interface{}) {}
 
+// NomadJsonEncodingExtensions registers all extension functions against the
+// provided JsonHandle.
+// It should be called on any JsonHandle which is used by the API HTTP server.
 func NomadJsonEncodingExtensions(h *codec.JsonHandle) *codec.JsonHandle {
 	for tpe := range extendedTypes {
 		h.SetInterfaceExt(tpe, 1, nomadJsonEncodingExtensions{})
