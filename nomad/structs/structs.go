@@ -1870,6 +1870,7 @@ type Node struct {
 	ComputedClass string
 
 	// DrainStrategy determines the node's draining behavior.
+	// Will be non-nil only while draining.
 	DrainStrategy *DrainStrategy
 
 	// SchedulingEligibility determines whether this node will receive new

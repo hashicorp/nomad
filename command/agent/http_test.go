@@ -29,6 +29,8 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	nomadjson "github.com/hashicorp/nomad/nomad/json/handlers"
 )
 
 // makeHTTPServer returns a test server whose logs will be written to
@@ -312,11 +314,11 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 	var expected bytes.Buffer
 	var err error
 	if prettyFmt {
-		enc := codec.NewEncoder(&expected, structs.JsonHandlePretty)
+		enc := codec.NewEncoder(&expected, nomadjson.JsonHandlePretty)
 		err = enc.Encode(r)
 		expected.WriteByte('\n')
 	} else {
-		enc := codec.NewEncoder(&expected, structs.JsonHandle)
+		enc := codec.NewEncoder(&expected, nomadjson.JsonHandle)
 		err = enc.Encode(r)
 	}
 	if err != nil {

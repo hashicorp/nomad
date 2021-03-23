@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api/internal/testutil"
+	"github.com/mitchellh/mapstructure"
 	"github.com/stretchr/testify/require"
 )
 
@@ -148,9 +149,24 @@ func TestEventStream_PayloadValue(t *testing.T) {
 			require.NoError(t, err)
 		}
 		for _, e := range event.Events {
+			// verify that we get a node
 			n, err := e.Node()
 			require.NoError(t, err)
 			require.NotEqual(t, "", n.ID)
+
+			// raw decoding to verify that the node did not contain SecretID
+			raw := make(map[string]map[string]interface{}, 0)
+			cfg := &mapstructure.DecoderConfig{
+				Result: &raw,
+			}
+
+			dec, err := mapstructure.NewDecoder(cfg)
+			require.NoError(t, err)
+			require.NoError(t, dec.Decode(e.Payload))
+			require.Contains(t, raw, "Node")
+			rawNode := raw["Node"]
+			require.Equal(t, n.ID, rawNode["ID"])
+			require.NotContains(t, rawNode, "SecretID")
 		}
 	case <-time.After(5 * time.Second):
 		require.Fail(t, "failed waiting for event stream event")

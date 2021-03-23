@@ -178,6 +178,38 @@ func TestNodes_Info(t *testing.T) {
 	}
 }
 
+func TestNodes_NoSecretID(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	nodes := c.Nodes()
+
+	// Get the node ID
+	var nodeID string
+	testutil.WaitForResult(func() (bool, error) {
+		out, _, err := nodes.List(nil)
+		if err != nil {
+			return false, err
+		}
+		if n := len(out); n != 1 {
+			return false, fmt.Errorf("expected 1 node, got: %d", n)
+		}
+		nodeID = out[0].ID
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// Query the node, ensure that .SecretID was not returned by the HTTP server
+	resp := make(map[string]interface{})
+	_, err := c.query("/v1/node/"+nodeID, &resp, nil)
+	require.NoError(t, err)
+	require.Equal(t, nodeID, resp["ID"])
+	require.Empty(t, resp["SecretID"])
+}
+
 func TestNodes_ToggleDrain(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
