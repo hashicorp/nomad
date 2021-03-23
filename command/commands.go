@@ -821,6 +821,16 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"volume create": func() (cli.Command, error) {
+			return &VolumeCreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume delete": func() (cli.Command, error) {
+			return &VolumeDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
 	}
 
 	deprecated := map[string]cli.CommandFactory{
