@@ -263,6 +263,8 @@ type ClientCSIControllerDeleteVolumeResponse struct{}
 // a Nomad client to tell a CSI controller plugin on that client to perform
 // ListVolumes
 type ClientCSIControllerListVolumesRequest struct {
+	// these pagination fields match the pagination fields of the plugins and
+	// not Nomad's own fields, for clarity when mapping between the two RPCs
 	MaxEntries    int32
 	StartingToken string
 
