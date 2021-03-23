@@ -985,11 +985,11 @@ func TestCSIVolumeEndpoint_ListExternal(t *testing.T) {
 	// List external volumes; note that none of these exist in the state store
 
 	req := &structs.CSIVolumeExternalListRequest{
-		MaxEntries:    2,
-		StartingToken: "page1",
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
 			Namespace: structs.DefaultNamespace,
+			PerPage:   2,
+			NextToken: "page1",
 		},
 	}
 	resp := &structs.CSIVolumeExternalListResponse{}
