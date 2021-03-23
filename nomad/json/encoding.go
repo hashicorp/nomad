@@ -23,8 +23,9 @@ func (n nomadJsonEncodingExtensions) ConvertExt(v interface{}) interface{} {
 	if fn, ok := extendedTypes[reflect.TypeOf(v)]; ok {
 		return fn(v)
 	} else {
-		// shouldn't get here
-		return v
+		// shouldn't get here, but returning v will probably result in an infinite loop
+		// return nil and erase this field
+		return nil
 	}
 }
 
