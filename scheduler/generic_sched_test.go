@@ -4543,7 +4543,7 @@ func TestBatchSched_ScaleDown_SameName(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
-func TestGenericSched_AllocFit(t *testing.T) {
+func TestGenericSched_AllocFit_Lifecycle(t *testing.T) {
 	testCases := []struct {
 		Name             string
 		NodeCpu          int64
@@ -4613,6 +4613,18 @@ func TestGenericSched_AllocFit(t *testing.T) {
 			SideTaskCount:    10,
 			ShouldPlaceAlloc: false,
 		},
+		{
+			Name:    "simple init + sidecar",
+			NodeCpu: 1200,
+			TaskResources: structs.Resources{
+				CPU:      500,
+				MemoryMB: 256,
+			},
+			MainTaskCount:    1,
+			InitTaskCount:    1,
+			SideTaskCount:    1,
+			ShouldPlaceAlloc: true,
+		},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
@@ -4659,6 +4671,52 @@ func TestGenericSched_AllocFit(t *testing.T) {
 			h.AssertEvalStatus(t, structs.EvalStatusComplete)
 		})
 	}
+}
+
+func TestGenericSched_AllocFit_MemoryOversubscription(t *testing.T) {
+	h := NewHarness(t)
+	node := mock.Node()
+	node.NodeResources.Cpu.CpuShares = 10000
+	node.NodeResources.Memory.MemoryMB = 1224
+	node.ReservedResources.Memory.MemoryMB = 60
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 10
+	job.TaskGroups[0].Tasks[0].Resources.CPU = 100
+	job.TaskGroups[0].Tasks[0].Resources.MemoryMB = 200
+	job.TaskGroups[0].Tasks[0].Resources.MemoryMaxMB = 500
+	job.TaskGroups[0].Tasks[0].Resources.DiskMB = 1
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	require.NoError(t, err)
+
+	// expectedAllocs should be floor((nodeResources.MemoryMB-reservedResources.MemoryMB) / job.MemoryMB)
+	expectedAllocs := 5
+	require.Len(t, h.Plans, 1)
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	require.NoError(t, err)
+
+	// Ensure no allocations placed
+	require.Len(t, out, expectedAllocs)
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
 func TestGenericSched_ChainedAlloc(t *testing.T) {

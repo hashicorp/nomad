@@ -1190,7 +1190,7 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 	}
 
 	if in.MemoryMaxMB == nil {
-		out.MemoryMB = *in.MemoryMaxMB
+		out.MemoryMaxMB = *in.MemoryMaxMB
 	}
 
 	// COMPAT(0.10): Only being used to issue warnings

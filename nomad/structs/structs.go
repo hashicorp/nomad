@@ -2177,12 +2177,13 @@ type NodeStubFields struct {
 // Resources is used to define the resources available
 // on a client
 type Resources struct {
-	CPU      int
-	MemoryMB int
-	DiskMB   int
-	IOPS     int // COMPAT(0.10): Only being used to issue warnings
-	Networks Networks
-	Devices  ResourceDevices
+	CPU         int
+	MemoryMB    int
+	MemoryMaxMB int
+	DiskMB      int
+	IOPS        int // COMPAT(0.10): Only being used to issue warnings
+	Networks    Networks
+	Devices     ResourceDevices
 }
 
 const (

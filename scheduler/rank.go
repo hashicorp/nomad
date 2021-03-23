@@ -296,13 +296,19 @@ OUTER:
 		}
 
 		for _, task := range iter.taskGroup.Tasks {
+			memoryMax := task.Resources.MemoryMaxMB
+			if memoryMax == 0 {
+				memoryMax = task.Resources.MemoryMB
+			}
+
 			// Allocate the resources
 			taskResources := &structs.AllocatedTaskResources{
 				Cpu: structs.AllocatedCpuResources{
 					CpuShares: int64(task.Resources.CPU),
 				},
 				Memory: structs.AllocatedMemoryResources{
-					MemoryMB: int64(task.Resources.MemoryMB),
+					MemoryMB:    int64(task.Resources.MemoryMB),
+					MemoryMaxMB: int64(task.Resources.MemoryMaxMB),
 				},
 			}
 
