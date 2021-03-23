@@ -120,6 +120,12 @@ server {
   processing delays as well as clock skew. This is specified using a label
   suffix like "30s" or "1h".
 
+- `license_path` `(string: "")` - Specifies the path to load a Nomad Enterprise
+  license from. This must be an absolute path (`/opt/nomad/license.hclic`). The
+  license can also be set by setting `NOMAD_LICENSE_PATH` or by setting
+  `NOMAD_LICENSE` as the entire license value. `license_path` has the highest
+  precedence, followed by `NOMAD_LICENSE` and then `NOMAD_LICENSE_PATH`.
+
 - `min_heartbeat_ttl` `(string: "10s")` - Specifies the minimum time between
   node heartbeats. This is used as a floor to prevent excessive updates. This is
   specified using a label suffix like "30s" or "1h". Lowering the minimum TTL is

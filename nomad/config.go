@@ -355,6 +355,9 @@ type Config struct {
 	// LicenseConfig is a tunable knob for enterprise license testing.
 	LicenseConfig *LicenseConfig
 
+	LicenseEnv  string
+	LicensePath string
+
 	// AgentShutdown is used to call agent.Shutdown from the context of a Server
 	// It is used primarily for licensing
 	AgentShutdown func() error

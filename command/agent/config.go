@@ -494,6 +494,13 @@ type ServerConfig struct {
 	// for the EventBufferSize is 1.
 	EventBufferSize *int `hcl:"event_buffer_size"`
 
+	// LicensePath is the path to search for an enterprise license.
+	LicensePath string `hcl:"license_path"`
+
+	// LicenseEnv is the full enterprise license.  If NOMAD_LICENSE
+	// is set, LicenseEnv will be set to the value at startup.
+	LicenseEnv string
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -1409,6 +1416,9 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.ServerJoin != nil {
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)
+	}
+	if b.LicensePath != "" {
+		result.LicensePath = b.LicensePath
 	}
 
 	if b.EnableEventBroker != nil {

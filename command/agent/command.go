@@ -285,6 +285,12 @@ func (c *Command) readConfig() *Config {
 		config.PluginDir = filepath.Join(config.DataDir, "plugins")
 	}
 
+	// License configuration options
+	config.Server.LicenseEnv = os.Getenv("NOMAD_LICENSE")
+	if config.Server.LicensePath == "" {
+		config.Server.LicensePath = os.Getenv("NOMAD_LICENSE_PATH")
+	}
+
 	config.Server.DefaultSchedulerConfig.Canonicalize()
 
 	if !c.isValidConfig(config, cmdConfig) {

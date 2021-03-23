@@ -309,7 +309,8 @@
           "service_scheduler_enabled": true
         }]
       }],
-      "upgrade_version": "0.8.0"
+      "upgrade_version": "0.8.0",
+      "license_path": "/tmp/nomad.hclic"
     }
   ],
   "syslog_facility": "LOCAL1",
