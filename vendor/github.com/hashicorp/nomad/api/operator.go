@@ -274,15 +274,29 @@ type License struct {
 }
 
 type LicenseReply struct {
-	License *License
+	License        *License
+	ConfigOutdated bool
 	QueryMeta
 }
 
+type ApplyLicenseOptions struct {
+	Force bool
+}
+
 func (op *Operator) LicensePut(license string, q *WriteOptions) (*WriteMeta, error) {
+	return op.ApplyLicense(license, nil, q)
+}
+
+func (op *Operator) ApplyLicense(license string, opts *ApplyLicenseOptions, q *WriteOptions) (*WriteMeta, error) {
 	r, err := op.c.newRequest("PUT", "/v1/operator/license")
 	if err != nil {
 		return nil, err
 	}
+
+	if opts != nil && opts.Force {
+		r.params.Add("force", "true")
+	}
+
 	r.setWriteOptions(q)
 	r.body = strings.NewReader(license)
 
