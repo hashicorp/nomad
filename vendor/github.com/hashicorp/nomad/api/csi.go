@@ -28,6 +28,33 @@ func (v *CSIVolumes) List(q *QueryOptions) ([]*CSIVolumeListStub, *QueryMeta, er
 	return resp, qm, nil
 }
 
+// List returns all CSI volumes
+func (v *CSIVolumes) ListExternal(pluginID string, q *QueryOptions) (*CSIVolumeListExternalResponse, *QueryMeta, error) {
+	var resp *CSIVolumeListExternalResponse
+
+	qp := url.Values{}
+	qp.Set("plugin_id", pluginID)
+	if q.NextToken != "" {
+		qp.Set("next_token", q.NextToken)
+	}
+	if q.PerPage != 0 {
+		qp.Set("per_page", fmt.Sprint(q.PerPage))
+	}
+
+	qm, err := v.client.query("/v1/volumes/external?"+qp.Encode(), &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sort.Sort(CSIVolumeExternalStubSort(resp.Volumes))
+	return resp, qm, nil
+}
+
+// PluginList returns all CSI volumes for the specified plugin id
+func (v *CSIVolumes) PluginList(pluginID string) ([]*CSIVolumeListStub, *QueryMeta, error) {
+	return v.List(&QueryOptions{Prefix: pluginID})
+}
+
 // Info is used to retrieve a single CSIVolume
 func (v *CSIVolumes) Info(id string, q *QueryOptions) (*CSIVolume, *QueryMeta, error) {
 	var resp CSIVolume
@@ -49,6 +76,21 @@ func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, erro
 
 func (v *CSIVolumes) Deregister(id string, force bool, w *WriteOptions) error {
 	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v?force=%t", url.PathEscape(id), force), nil, w)
+	return err
+}
+
+func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *WriteMeta, error) {
+	req := CSIVolumeCreateRequest{
+		Volumes: []*CSIVolume{vol},
+	}
+
+	resp := &CSIVolumeCreateResponse{}
+	meta, err := v.client.write(fmt.Sprintf("/v1/volume/csi/%v/create", vol.ID), req, resp, w)
+	return resp.Volumes, meta, err
+}
+
+func (v *CSIVolumes) Delete(externalVolID string, w *WriteOptions) error {
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(externalVolID)), nil, w)
 	return err
 }
 
@@ -169,6 +211,50 @@ type CSIVolumeListStub struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+}
+
+type CSIVolumeListExternalResponse struct {
+	Volumes   []*CSIVolumeExternalStub
+	NextToken string
+}
+
+// CSIVolumeExternalStub is the storage provider's view of a volume, as
+// returned from the controller plugin; all IDs are for external resources
+type CSIVolumeExternalStub struct {
+	ExternalID               string
+	CapacityBytes            int64
+	VolumeContext            map[string]string
+	CloneID                  string
+	SnapshotID               string
+	PublishedExternalNodeIDs []string
+	IsAbnormal               bool
+	Status                   string
+}
+
+// We can't sort external volumes by creation time because we don't get that
+// data back from the storage provider. Sort by External ID within this page.
+type CSIVolumeExternalStubSort []*CSIVolumeExternalStub
+
+func (v CSIVolumeExternalStubSort) Len() int {
+	return len(v)
+}
+
+func (v CSIVolumeExternalStubSort) Less(i, j int) bool {
+	return v[i].ExternalID > v[j].ExternalID
+}
+
+func (v CSIVolumeExternalStubSort) Swap(i, j int) {
+	v[i], v[j] = v[j], v[i]
+}
+
+type CSIVolumeCreateRequest struct {
+	Volumes []*CSIVolume
+	WriteRequest
+}
+
+type CSIVolumeCreateResponse struct {
+	Volumes []*CSIVolume
+	QueryMeta
 }
 
 type CSIVolumeRegisterRequest struct {
