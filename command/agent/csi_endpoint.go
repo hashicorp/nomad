@@ -12,11 +12,28 @@ import (
 func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
 	case http.MethodPut, http.MethodPost:
-		return s.csiVolumePut(resp, req)
+		return s.csiVolumeRegister(resp, req)
 	case http.MethodGet:
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
+
+	// Tokenize the suffix of the path to get the volume id
+	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/volumes")
+	tokens := strings.Split(reqSuffix, "/")
+	if len(tokens) == 2 {
+		if tokens[1] == "external" {
+			return s.csiVolumesListExternal(resp, req)
+		}
+		return nil, CodedError(404, resourceNotFoundErr)
+	} else if len(tokens) > 2 {
+		return nil, CodedError(404, resourceNotFoundErr)
+	}
+
+	return s.csiVolumesList(resp, req)
+}
+
+func (s *HTTPServer) csiVolumesList(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 
 	// Type filters volume lists to a specific type. When support for non-CSI volumes is
 	// introduced, we'll need to dispatch here
@@ -30,22 +47,35 @@ func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Reque
 	}
 
 	args := structs.CSIVolumeListRequest{}
-
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
-	if prefix, ok := query["prefix"]; ok {
-		args.Prefix = prefix[0]
-	}
-	if plugin, ok := query["plugin_id"]; ok {
-		args.PluginID = plugin[0]
-	}
-	if node, ok := query["node_id"]; ok {
-		args.NodeID = node[0]
-	}
+
+	args.Prefix = query.Get("prefix")
+	args.PluginID = query.Get("plugin_id")
+	args.NodeID = query.Get("node_id")
 
 	var out structs.CSIVolumeListResponse
 	if err := s.agent.RPC("CSIVolume.List", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out.Volumes, nil
+}
+
+func (s *HTTPServer) csiVolumesListExternal(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	args := structs.CSIVolumeExternalListRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	query := req.URL.Query()
+	args.PluginID = query.Get("plugin_id")
+
+	var out structs.CSIVolumeExternalListResponse
+	if err := s.agent.RPC("CSIVolume.ListExternal", &args, &out); err != nil {
 		return nil, err
 	}
 
@@ -68,22 +98,30 @@ func (s *HTTPServer) CSIVolumeSpecificRequest(resp http.ResponseWriter, req *htt
 		case http.MethodGet:
 			return s.csiVolumeGet(id, resp, req)
 		case http.MethodPut:
-			return s.csiVolumePut(resp, req)
+			return s.csiVolumeRegister(resp, req)
 		case http.MethodDelete:
-			return s.csiVolumeDelete(id, resp, req)
+			return s.csiVolumeDeregister(id, resp, req)
 		default:
 			return nil, CodedError(405, ErrInvalidMethod)
 		}
 	}
 
 	if len(tokens) == 2 {
-		if tokens[1] != "detach" {
-			return nil, CodedError(404, resourceNotFoundErr)
-		}
-		if req.Method != http.MethodDelete {
+		switch req.Method {
+		case http.MethodPut:
+			if tokens[1] == "create" {
+				return s.csiVolumeCreate(resp, req)
+			}
+		case http.MethodDelete:
+			if tokens[1] == "detach" {
+				return s.csiVolumeDetach(id, resp, req)
+			}
+			if tokens[1] == "delete" {
+				return s.csiVolumeDelete(id, resp, req)
+			}
+		default:
 			return nil, CodedError(405, ErrInvalidMethod)
 		}
-		return s.csiVolumeDetach(id, resp, req)
 	}
 
 	return nil, CodedError(404, resourceNotFoundErr)
@@ -117,20 +155,16 @@ func (s *HTTPServer) csiVolumeGet(id string, resp http.ResponseWriter, req *http
 	return vol, nil
 }
 
-func (s *HTTPServer) csiVolumePut(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) csiVolumeRegister(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
 	case http.MethodPost, http.MethodPut:
 	default:
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	args0 := structs.CSIVolumeRegisterRequest{}
-	if err := decodeBody(req, &args0); err != nil {
+	args := structs.CSIVolumeRegisterRequest{}
+	if err := decodeBody(req, &args); err != nil {
 		return err, CodedError(400, err.Error())
-	}
-
-	args := structs.CSIVolumeRegisterRequest{
-		Volumes: args0.Volumes,
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
@@ -144,7 +178,30 @@ func (s *HTTPServer) csiVolumePut(resp http.ResponseWriter, req *http.Request) (
 	return nil, nil
 }
 
-func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) csiVolumeCreate(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	switch req.Method {
+	case http.MethodPost, http.MethodPut:
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := structs.CSIVolumeCreateRequest{}
+	if err := decodeBody(req, &args); err != nil {
+		return err, CodedError(400, err.Error())
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.CSIVolumeCreateResponse
+	if err := s.agent.RPC("CSIVolume.Create", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+
+	return out, nil
+}
+
+func (s *HTTPServer) csiVolumeDeregister(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodDelete {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -167,6 +224,26 @@ func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *h
 
 	var out structs.CSIVolumeDeregisterResponse
 	if err := s.agent.RPC("CSIVolume.Deregister", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+
+	return nil, nil
+}
+
+func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodDelete {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := structs.CSIVolumeDeleteRequest{
+		VolumeIDs: []string{id},
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.CSIVolumeDeleteResponse
+	if err := s.agent.RPC("CSIVolume.Delete", &args, &out); err != nil {
 		return nil, err
 	}
 

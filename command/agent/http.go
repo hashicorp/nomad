@@ -692,7 +692,23 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *strin
 	parseConsistency(req, b)
 	parsePrefix(req, b)
 	parseNamespace(req, &b.Namespace)
+	parsePagination(req, b)
 	return parseWait(resp, req, b)
+}
+
+// parsePagination parses the pagination fields for QueryOptions
+func parsePagination(req *http.Request, b *structs.QueryOptions) {
+	query := req.URL.Query()
+	rawPerPage := query.Get("per_page")
+	if rawPerPage != "" {
+		perPage, err := strconv.Atoi(rawPerPage)
+		if err == nil {
+			b.PerPage = int32(perPage)
+		}
+	}
+
+	nextToken := query.Get("next_token")
+	b.NextToken = nextToken
 }
 
 // parseWriteRequest is a convenience method for endpoints that need to parse a

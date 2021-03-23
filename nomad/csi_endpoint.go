@@ -878,6 +878,7 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		return err
 	}
 
+	reply.Volumes = regArgs.Volumes
 	reply.Index = index
 	v.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
@@ -1019,8 +1020,8 @@ func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, rep
 
 	method := "ClientCSI.ControllerListVolumes"
 	cReq := &cstructs.ClientCSIControllerListVolumesRequest{
-		MaxEntries:    args.MaxEntries,
-		StartingToken: args.StartingToken,
+		MaxEntries:    args.PerPage,
+		StartingToken: args.NextToken,
 	}
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerListVolumesResponse{}
@@ -1029,8 +1030,8 @@ func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, rep
 	if err != nil {
 		return err
 	}
-	if args.MaxEntries > 0 {
-		reply.Volumes = cResp.Entries[:args.MaxEntries]
+	if args.PerPage > 0 {
+		reply.Volumes = cResp.Entries[:args.PerPage]
 	} else {
 		reply.Volumes = cResp.Entries
 	}
