@@ -148,6 +148,8 @@ server {
       service_scheduler_enabled = true
     }
   }
+
+  license_path = "/tmp/nomad.hclic"
 }
 
 acl {

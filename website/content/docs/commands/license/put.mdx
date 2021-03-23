@@ -28,6 +28,11 @@ capability.
 
 ## Put Options
 
+- `-force`: Force the license to be applied. By default, Nomad will only accept
+  a new license if it is newer than the one currently applied (specified by the
+  license issue date). Use `-force` to override and apply an older, unexpired
+  license.
+
 ```plaintext
 Install a new license from a file:
 
@@ -43,7 +48,7 @@ Install a new license from stdin:
 Set a license using a path
 
 ```shell-session
-$ nomad license put /path/to/my/license.txt
+$ nomad license put -force /path/to/my/license.hclic
 ```
 
 Set a license using a path
