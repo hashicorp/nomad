@@ -1189,7 +1189,7 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		MemoryMB: *in.MemoryMB,
 	}
 
-	if in.MemoryMaxMB == nil {
+	if in.MemoryMaxMB != nil {
 		out.MemoryMaxMB = *in.MemoryMaxMB
 	}
 

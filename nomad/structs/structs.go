@@ -2247,6 +2247,9 @@ func (r *Resources) Merge(other *Resources) {
 	if other.MemoryMB != 0 {
 		r.MemoryMB = other.MemoryMB
 	}
+	if other.MemoryMaxMB != 0 {
+		r.MemoryMaxMB = other.MemoryMaxMB
+	}
 	if other.DiskMB != 0 {
 		r.DiskMB = other.DiskMB
 	}
@@ -2268,6 +2271,7 @@ func (r *Resources) Equals(o *Resources) bool {
 	}
 	return r.CPU == o.CPU &&
 		r.MemoryMB == o.MemoryMB &&
+		r.MemoryMaxMB == o.MemoryMaxMB &&
 		r.DiskMB == o.DiskMB &&
 		r.IOPS == o.IOPS &&
 		r.Networks.Equals(&o.Networks) &&
@@ -3428,9 +3432,10 @@ func (a *AllocatedResources) OldTaskResources() map[string]*Resources {
 	m := make(map[string]*Resources, len(a.Tasks))
 	for name, res := range a.Tasks {
 		m[name] = &Resources{
-			CPU:      int(res.Cpu.CpuShares),
-			MemoryMB: int(res.Memory.MemoryMB),
-			Networks: res.Networks,
+			CPU:         int(res.Cpu.CpuShares),
+			MemoryMB:    int(res.Memory.MemoryMB),
+			MemoryMaxMB: int(res.Memory.MemoryMaxMB),
+			Networks:    res.Networks,
 		}
 	}
 
@@ -3556,7 +3561,8 @@ func (a *AllocatedTaskResources) Comparable() *ComparableResources {
 				CpuShares: a.Cpu.CpuShares,
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: a.Memory.MemoryMB,
+				MemoryMB:    a.Memory.MemoryMB,
+				MemoryMaxMB: a.Memory.MemoryMaxMB,
 			},
 		},
 	}
