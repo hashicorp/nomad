@@ -875,6 +875,7 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		return err
 	}
 
+	reply.Volumes = regArgs.Volumes
 	reply.Index = index
 	v.srv.setQueryMeta(&reply.QueryMeta)
 	return nil

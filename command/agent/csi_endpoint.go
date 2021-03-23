@@ -161,13 +161,9 @@ func (s *HTTPServer) csiVolumeRegister(resp http.ResponseWriter, req *http.Reque
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	args0 := structs.CSIVolumeRegisterRequest{}
-	if err := decodeBody(req, &args0); err != nil {
+	args := structs.CSIVolumeRegisterRequest{}
+	if err := decodeBody(req, &args); err != nil {
 		return err, CodedError(400, err.Error())
-	}
-
-	args := structs.CSIVolumeRegisterRequest{
-		Volumes: args0.Volumes,
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
@@ -188,13 +184,9 @@ func (s *HTTPServer) csiVolumeCreate(resp http.ResponseWriter, req *http.Request
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	args0 := structs.CSIVolumeCreateRequest{}
-	if err := decodeBody(req, &args0); err != nil {
+	args := structs.CSIVolumeCreateRequest{}
+	if err := decodeBody(req, &args); err != nil {
 		return err, CodedError(400, err.Error())
-	}
-
-	args := structs.CSIVolumeCreateRequest{
-		Volumes: args0.Volumes,
 	}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
@@ -205,7 +197,7 @@ func (s *HTTPServer) csiVolumeCreate(resp http.ResponseWriter, req *http.Request
 
 	setMeta(resp, &out.QueryMeta)
 
-	return nil, nil
+	return out, nil
 }
 
 func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {

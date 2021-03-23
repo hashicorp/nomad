@@ -79,12 +79,14 @@ func (v *CSIVolumes) Deregister(id string, force bool, w *WriteOptions) error {
 	return err
 }
 
-func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) (*WriteMeta, error) {
+func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *WriteMeta, error) {
 	req := CSIVolumeCreateRequest{
 		Volumes: []*CSIVolume{vol},
 	}
-	meta, err := v.client.write(fmt.Sprintf("/v1/volume/csi/%v/create", vol.ID), req, nil, w)
-	return meta, err
+
+	resp := &CSIVolumeCreateResponse{}
+	meta, err := v.client.write(fmt.Sprintf("/v1/volume/csi/%v/create", vol.ID), req, resp, w)
+	return resp.Volumes, meta, err
 }
 
 func (v *CSIVolumes) Delete(externalVolID string, w *WriteOptions) error {
@@ -248,6 +250,11 @@ func (v CSIVolumeExternalStubSort) Swap(i, j int) {
 type CSIVolumeCreateRequest struct {
 	Volumes []*CSIVolume
 	WriteRequest
+}
+
+type CSIVolumeCreateResponse struct {
+	Volumes []*CSIVolume
+	QueryMeta
 }
 
 type CSIVolumeRegisterRequest struct {
