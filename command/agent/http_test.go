@@ -573,6 +573,49 @@ func TestParseBool(t *testing.T) {
 	}
 }
 
+func TestParsePagination(t *testing.T) {
+	t.Parallel()
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	cases := []struct {
+		Input             string
+		ExpectedNextToken string
+		ExpectedPerPage   int32
+	}{
+		{
+			Input: "",
+		},
+		{
+			Input:             "next_token=a&per_page=3",
+			ExpectedNextToken: "a",
+			ExpectedPerPage:   3,
+		},
+		{
+			Input:             "next_token=a&next_token=b",
+			ExpectedNextToken: "a",
+		},
+		{
+			Input: "per_page=a",
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run("Input-"+tc.Input, func(t *testing.T) {
+
+			req, err := http.NewRequest("GET",
+				"/v1/volumes/csi/external?"+tc.Input, nil)
+
+			require.NoError(t, err)
+			opts := &structs.QueryOptions{}
+			parsePagination(req, opts)
+			require.Equal(t, tc.ExpectedNextToken, opts.NextToken)
+			require.Equal(t, tc.ExpectedPerPage, opts.PerPage)
+		})
+	}
+}
+
 // TestHTTP_VerifyHTTPSClient asserts that a client certificate signed by the
 // appropriate CA is required when VerifyHTTPSClient=true.
 func TestHTTP_VerifyHTTPSClient(t *testing.T) {
