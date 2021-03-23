@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/hashicorp/nomad/nomad/json/handlers"
 	nomadjson "github.com/hashicorp/nomad/nomad/json/handlers"
 )
 
@@ -318,7 +319,7 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 		err = enc.Encode(r)
 		expected.WriteByte('\n')
 	} else {
-		enc := codec.NewEncoder(&expected, nomadjson.JsonHandle)
+		enc := codec.NewEncoder(&expected, nomadjson.JsonHandleWithExtensions)
 		err = enc.Encode(r)
 	}
 	if err != nil {
@@ -1242,6 +1243,30 @@ func Test_decodeBody(t *testing.T) {
 			assert.Equal(t, tc.expectedError, actualError, tc.name)
 			assert.Equal(t, tc.expectedOut, tc.inputOut, tc.name)
 		})
+	}
+}
+
+// BenchmarkHTTPServer_JSONEncodingWithExtensions benchmarks the performance of
+// encoding JSON objects using extensions
+func BenchmarkHTTPServer_JSONEncodingWithExtensions(b *testing.B) {
+	benchmarkJsonEncoding(b, handlers.JsonHandleWithExtensions)
+}
+
+// BenchmarkHTTPServer_JSONEncodingWithoutExtensions benchmarks the performance of
+// encoding JSON objects using extensions
+func BenchmarkHTTPServer_JSONEncodingWithoutExtensions(b *testing.B) {
+	benchmarkJsonEncoding(b, handlers.JsonHandle)
+}
+
+func benchmarkJsonEncoding(b *testing.B, handle *codec.JsonHandle) {
+	n := mock.Node()
+	var buf bytes.Buffer
+
+	enc := codec.NewEncoder(&buf, handle)
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		err := enc.Encode(n)
+		require.NoError(b, err)
 	}
 }
 
