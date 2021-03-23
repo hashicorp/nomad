@@ -2395,6 +2395,11 @@ func (r *Resources) Add(delta *Resources) {
 
 	r.CPU += delta.CPU
 	r.MemoryMB += delta.MemoryMB
+	if delta.MemoryMaxMB > 0 {
+		r.MemoryMaxMB += delta.MemoryMaxMB
+	} else {
+		r.MemoryMaxMB += delta.MemoryMB
+	}
 	r.DiskMB += delta.DiskMB
 
 	for _, n := range delta.Networks {
