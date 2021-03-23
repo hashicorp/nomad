@@ -134,23 +134,23 @@ type CSISecrets map[string]string
 type CSIVolume struct {
 	ID             string
 	Name           string
-	ExternalID     string `hcl:"external_id"`
+	ExternalID     string `mapstructure:"external_id" hcl:"external_id"`
 	Namespace      string
 	Topologies     []*CSITopology
 	AccessMode     CSIVolumeAccessMode     `hcl:"access_mode"`
 	AttachmentMode CSIVolumeAttachmentMode `hcl:"attachment_mode"`
 	MountOptions   *CSIMountOptions        `hcl:"mount_options"`
-	Secrets        CSISecrets              `hcl:"secrets"`
-	Parameters     map[string]string       `hcl:"parameters"`
-	Context        map[string]string       `hcl:"context"`
+	Secrets        CSISecrets              `mapstructure:"secrets" hcl:"secrets"`
+	Parameters     map[string]string       `mapstructure:"parameters" hcl:"parameters"`
+	Context        map[string]string       `mapstructure:"context" hcl:"context"`
 	Capacity       int64                   `hcl:"-"`
 
 	// These fields are used as part of the volume creation request
 	RequestedCapacityMin  int64                  `hcl:"capacity_min"`
 	RequestedCapacityMax  int64                  `hcl:"capacity_max"`
 	RequestedCapabilities []*CSIVolumeCapability `hcl:"capability"`
-	CloneID               string                 `hcl:"clone_id"`
-	SnapshotID            string                 `hcl:"snapshot_id"`
+	CloneID               string                 `mapstructure:"clone_id" hcl:"clone_id"`
+	SnapshotID            string                 `mapstructure:"snapshot_id" hcl:"snapshot_id"`
 
 	// ReadAllocs is a map of allocation IDs for tracking reader claim status.
 	// The Allocation value will always be nil; clients can populate this data
@@ -167,7 +167,7 @@ type CSIVolume struct {
 
 	// Schedulable is true if all the denormalized plugin health fields are true
 	Schedulable         bool
-	PluginID            string `hcl:"plugin_id"`
+	PluginID            string `mapstructure:"plugin_id" hcl:"plugin_id"`
 	Provider            string
 	ProviderVersion     string
 	ControllerRequired  bool
@@ -187,8 +187,8 @@ type CSIVolume struct {
 // CSIVolumeCapability is a requested attachment and access mode for a
 // volume
 type CSIVolumeCapability struct {
-	AccessMode     CSIVolumeAccessMode     `hcl:"access_mode"`
-	AttachmentMode CSIVolumeAttachmentMode `hcl:"attachment_mode"`
+	AccessMode     CSIVolumeAccessMode     `mapstructure:"access_mode" hcl:"access_mode"`
+	AttachmentMode CSIVolumeAttachmentMode `mapstructure:"attachment_mode" hcl:"attachment_mode"`
 }
 
 type CSIVolumeIndexSort []*CSIVolumeListStub
