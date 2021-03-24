@@ -168,17 +168,19 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 			} else {
 				family = structs.NodeNetworkAF_IPv6
 			}
-			newAddr := structs.NodeNetworkAddress{
-				Address: ip.String(),
-				Family:  family,
-				Aliases: deriveAddressAliases(iface, ip, conf),
-			}
+			for _, alias := range deriveAddressAliases(iface, ip, conf) {
+				newAddr := structs.NodeNetworkAddress{
+					Address: ip.String(),
+					Family:  family,
+					Alias:   alias,
+				}
 
-			if len(newAddr.Aliases) > 0 {
-				if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-					linkLocalAddrs = append(linkLocalAddrs, newAddr)
-				} else {
-					networkAddrs = append(networkAddrs, newAddr)
+				if newAddr.Alias != "" {
+					if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+						linkLocalAddrs = append(linkLocalAddrs, newAddr)
+					} else {
+						networkAddrs = append(networkAddrs, newAddr)
+					}
 				}
 			}
 		}

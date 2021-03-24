@@ -117,9 +117,7 @@ func (idx *NetworkIndex) SetNode(node *Node) (collide bool) {
 	// is it possible to get duplicates here?
 	for _, n := range nodeNetworks {
 		for _, a := range n.Addresses {
-			for _, alias := range a.Aliases {
-				idx.AvailAddresses[alias] = append(idx.AvailAddresses[alias], a)
-			}
+			idx.AvailAddresses[a.Alias] = append(idx.AvailAddresses[a.Alias], a)
 			if idx.AddReservedPortsForIP(a.ReservedPorts, a.Address) {
 				collide = true
 			}
