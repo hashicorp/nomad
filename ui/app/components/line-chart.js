@@ -268,34 +268,42 @@ export default class LineChart extends Component {
     const x = xScale.invert(mouseX);
 
     // Find the closest datum to the cursor for each series
-    const activeData = data.map((series, seriesIndex) => {
-      const dataset = series[dataProp];
-      const index = bisector(dataset, x, 1);
+    const activeData = data
+      .map((series, seriesIndex) => {
+        const dataset = series[dataProp];
 
-      // The data point on either side of the cursor
-      const dLeft = dataset[index - 1];
-      const dRight = dataset[index];
+        // If the dataset is empty, there can't be an activeData.
+        // This must be done here instead of preemptively in a filter to
+        // preserve the seriesIndex value.
+        if (!dataset.length) return null;
 
-      let datum;
+        const index = bisector(dataset, x, 1);
 
-      // If there is only one point, it's the activeDatum
-      if (dLeft && !dRight) {
-        datum = dLeft;
-      } else {
-        // Pick the closer point
-        datum = x - dLeft[xProp] > dRight[xProp] - x ? dRight : dLeft;
-      }
+        // The data point on either side of the cursor
+        const dLeft = dataset[index - 1];
+        const dRight = dataset[index];
 
-      return {
-        series,
-        datum: {
-          formattedX: this.xFormat(this.args.timeseries)(datum[xProp]),
-          formattedY: this.yFormat()(datum[yProp]),
-          datum,
-        },
-        index: data.length - seriesIndex - 1,
-      };
-    });
+        let datum;
+
+        // If there is only one point, it's the activeDatum
+        if (dLeft && !dRight) {
+          datum = dLeft;
+        } else {
+          // Pick the closer point
+          datum = x - dLeft[xProp] > dRight[xProp] - x ? dRight : dLeft;
+        }
+
+        return {
+          series,
+          datum: {
+            formattedX: this.xFormat(this.args.timeseries)(datum[xProp]),
+            formattedY: this.yFormat()(datum[yProp]),
+            datum,
+          },
+          index: data.length - seriesIndex - 1,
+        };
+      })
+      .compact();
 
     // Of the selected data, determine which is closest
     const closestDatum = activeData
