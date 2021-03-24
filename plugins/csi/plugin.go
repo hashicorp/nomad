@@ -280,10 +280,18 @@ func NewPluginCapabilitySet(capabilities *csipbv1.GetPluginCapabilitiesResponse)
 }
 
 type ControllerCapabilitySet struct {
+	HasCreateDeleteVolume        bool
 	HasPublishUnpublishVolume    bool
-	HasPublishReadonly           bool
 	HasListVolumes               bool
+	HasGetCapacity               bool
+	HasCreateDeleteSnapshot      bool
+	HasListSnapshots             bool
+	HasCloneVolume               bool
+	HasPublishReadonly           bool
+	HasExpandVolume              bool
 	HasListVolumesPublishedNodes bool
+	HasVolumeCondition           bool
+	HasGetVolume                 bool
 }
 
 func NewControllerCapabilitySet(resp *csipbv1.ControllerGetCapabilitiesResponse) *ControllerCapabilitySet {
@@ -293,14 +301,30 @@ func NewControllerCapabilitySet(resp *csipbv1.ControllerGetCapabilitiesResponse)
 	for _, pcap := range pluginCapabilities {
 		if c := pcap.GetRpc(); c != nil {
 			switch c.Type {
+			case csipbv1.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME:
+				cs.HasCreateDeleteVolume = true
 			case csipbv1.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME:
 				cs.HasPublishUnpublishVolume = true
-			case csipbv1.ControllerServiceCapability_RPC_PUBLISH_READONLY:
-				cs.HasPublishReadonly = true
 			case csipbv1.ControllerServiceCapability_RPC_LIST_VOLUMES:
 				cs.HasListVolumes = true
+			case csipbv1.ControllerServiceCapability_RPC_GET_CAPACITY:
+				cs.HasGetCapacity = true
+			case csipbv1.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT:
+				cs.HasCreateDeleteSnapshot = true
+			case csipbv1.ControllerServiceCapability_RPC_LIST_SNAPSHOTS:
+				cs.HasListSnapshots = true
+			case csipbv1.ControllerServiceCapability_RPC_CLONE_VOLUME:
+				cs.HasCloneVolume = true
+			case csipbv1.ControllerServiceCapability_RPC_PUBLISH_READONLY:
+				cs.HasPublishReadonly = true
+			case csipbv1.ControllerServiceCapability_RPC_EXPAND_VOLUME:
+				cs.HasExpandVolume = true
 			case csipbv1.ControllerServiceCapability_RPC_LIST_VOLUMES_PUBLISHED_NODES:
 				cs.HasListVolumesPublishedNodes = true
+			case csipbv1.ControllerServiceCapability_RPC_VOLUME_CONDITION:
+				cs.HasVolumeCondition = true
+			case csipbv1.ControllerServiceCapability_RPC_GET_VOLUME:
+				cs.HasGetVolume = true
 			default:
 				continue
 			}

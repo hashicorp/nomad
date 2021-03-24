@@ -122,10 +122,18 @@ func (p *pluginFingerprinter) buildBasicFingerprint(ctx context.Context) (*struc
 }
 
 func applyCapabilitySetToControllerInfo(cs *csi.ControllerCapabilitySet, info *structs.CSIControllerInfo) {
-	info.SupportsReadOnlyAttach = cs.HasPublishReadonly
+	info.SupportsCreateDelete = cs.HasCreateDeleteVolume
 	info.SupportsAttachDetach = cs.HasPublishUnpublishVolume
 	info.SupportsListVolumes = cs.HasListVolumes
+	info.SupportsGetCapacity = cs.HasGetCapacity
+	info.SupportsCreateDeleteSnapshot = cs.HasCreateDeleteSnapshot
+	info.SupportsListSnapshots = cs.HasListSnapshots
+	info.SupportsClone = cs.HasCloneVolume
+	info.SupportsReadOnlyAttach = cs.HasPublishReadonly
+	info.SupportsExpand = cs.HasExpandVolume
 	info.SupportsListVolumesAttachedNodes = cs.HasListVolumesPublishedNodes
+	info.SupportsCondition = cs.HasVolumeCondition
+	info.SupportsGet = cs.HasGetVolume
 }
 
 func (p *pluginFingerprinter) buildControllerFingerprint(ctx context.Context, base *structs.CSIInfo) (*structs.CSIInfo, error) {

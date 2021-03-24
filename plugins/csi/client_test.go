@@ -222,7 +222,7 @@ func TestClient_RPC_ControllerGetCapabilities(t *testing.T) {
 					{
 						Type: &csipbv1.ControllerServiceCapability_Rpc{
 							Rpc: &csipbv1.ControllerServiceCapability_RPC{
-								Type: csipbv1.ControllerServiceCapability_RPC_GET_CAPACITY,
+								Type: csipbv1.ControllerServiceCapability_RPC_UNKNOWN,
 							},
 						},
 					},
