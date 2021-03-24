@@ -162,11 +162,6 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	}
 	resp1 := &structs.CSIVolumeRegisterResponse{}
 	err := msgpackrpc.CallWithCodec(codec, "CSIVolume.Register", req1, resp1)
-	require.Error(t, err, "expected validation error")
-
-	// Fix the registration so that it passes validation
-	vols[0].AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
-	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Register", req1, resp1)
 	require.NoError(t, err)
 	require.NotEqual(t, uint64(0), resp1.Index)
 

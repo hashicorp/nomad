@@ -590,22 +590,6 @@ func (v *CSIVolume) Validate() error {
 	if v.Namespace == "" {
 		errs = append(errs, "missing namespace")
 	}
-	if v.AccessMode == "" {
-		errs = append(errs, "missing access mode")
-	}
-	if v.AttachmentMode == "" {
-		errs = append(errs, "missing attachment mode")
-	}
-	if v.AttachmentMode == CSIVolumeAttachmentModeBlockDevice {
-		if v.MountOptions != nil {
-			if v.MountOptions.FSType != "" {
-				errs = append(errs, "mount options not allowed for block-device")
-			}
-			if v.MountOptions.MountFlags != nil && len(v.MountOptions.MountFlags) != 0 {
-				errs = append(errs, "mount options not allowed for block-device")
-			}
-		}
-	}
 	if v.SnapshotID != "" && v.CloneID != "" {
 		errs = append(errs, "only one of snapshot_id and clone_id is allowed")
 	}
