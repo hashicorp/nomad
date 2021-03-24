@@ -143,6 +143,14 @@ type CSIVolume struct {
 	Secrets        CSISecrets              `hcl:"secrets"`
 	Parameters     map[string]string       `hcl:"parameters"`
 	Context        map[string]string       `hcl:"context"`
+	Capacity       int64                   `hcl:"-"`
+
+	// These fields are used as part of the volume creation request
+	RequestedCapacityMin  int64                  `hcl:"capacity_min"`
+	RequestedCapacityMax  int64                  `hcl:"capacity_max"`
+	RequestedCapabilities []*CSIVolumeCapability `hcl:"capability"`
+	CloneID               string                 `hcl:"clone_id"`
+	SnapshotID            string                 `hcl:"snapshot_id"`
 
 	// ReadAllocs is a map of allocation IDs for tracking reader claim status.
 	// The Allocation value will always be nil; clients can populate this data
@@ -174,6 +182,13 @@ type CSIVolume struct {
 
 	// ExtraKeysHCL is used by the hcl parser to report unexpected keys
 	ExtraKeysHCL []string `hcl1:",unusedKeys" json:"-"`
+}
+
+// CSIVolumeCapability is a requested attachment and access mode for a
+// volume
+type CSIVolumeCapability struct {
+	AccessMode     CSIVolumeAccessMode     `hcl:"access_mode"`
+	AttachmentMode CSIVolumeAttachmentMode `hcl:"attachment_mode"`
 }
 
 type CSIVolumeIndexSort []*CSIVolumeListStub
