@@ -437,3 +437,54 @@ func TestNetworkFingerPrint_LinkLocal_Disallowed(t *testing.T) {
 		t.Fatalf("should not apply attributes")
 	}
 }
+
+func TestNetworkFingerPrint_MultipleAliases(t *testing.T) {
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
+	node := &structs.Node{
+		Attributes: make(map[string]string),
+	}
+	cfg := &config.Config{
+		NetworkSpeed:     100,
+		NetworkInterface: "eth3",
+		HostNetworks: map[string]*structs.ClientHostNetworkConfig{
+			"alias1": {
+				Name:      "alias1",
+				Interface: "eth3",
+				CIDR:      "169.254.155.20/32",
+			},
+			"alias2": {
+				Name:      "alias2",
+				Interface: "eth3",
+				CIDR:      "169.254.155.20/32",
+			},
+			"alias3": {
+				Name:      "alias3",
+				Interface: "eth0",
+				CIDR:      "100.64.0.11/10",
+			},
+		},
+	}
+
+	request := &FingerprintRequest{Config: cfg, Node: node}
+	var response FingerprintResponse
+	err := f.Fingerprint(request, &response)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	aliases := []string{}
+
+	for _, network := range response.NodeResources.NodeNetworks {
+		for _, address := range network.Addresses {
+			aliases = append(aliases, address.Alias)
+		}
+	}
+
+	if len(aliases) != len(cfg.HostNetworks) {
+		actualAliases := []string{}
+		for alias, _ := range cfg.HostNetworks {
+			actualAliases = append(actualAliases, alias)
+		}
+		t.Fatalf("number host networks is not valid len(%v) != len(%v)", aliases, actualAliases)
+	}
+}
