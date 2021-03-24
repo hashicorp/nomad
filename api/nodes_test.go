@@ -266,6 +266,8 @@ func TestNodes_ToggleDrain(t *testing.T) {
 			for _, e := range events.Events {
 				node, err := e.Node()
 				require.NoError(err)
+				require.Equal(node.DrainStrategy != nil, node.Drain)
+				require.True(!node.Drain || node.SchedulingEligibility == NodeSchedulingIneligible) // node.Drain => "ineligible"
 				if node.Drain && node.SchedulingEligibility == NodeSchedulingIneligible {
 					sawDraining = node.ModifyIndex
 				} else if sawDraining != 0 && node.ModifyIndex > sawDraining &&
