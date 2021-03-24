@@ -2442,7 +2442,7 @@ func (n *NodeNetworkResource) Equals(o *NodeNetworkResource) bool {
 
 func (n *NodeNetworkResource) HasAlias(alias string) bool {
 	for _, addr := range n.Addresses {
-		for addr.Alias == alias {
+		if addr.Alias == alias {
 			return true
 		}
 	}
