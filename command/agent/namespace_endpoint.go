@@ -7,6 +7,17 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// @Summary Get Namespaces list
+// @Description get namespaces by region
+// @Tags namespaces
+// @Accept  json
+// @Produce  json
+// @Param region path string empty "Region"
+// @Success 200 {object} structs.NamespaceListResponse
+// @Failure 400 {string} string "unauthorized"
+// @Failure 404 {string} string "not found"
+// @Failure 500 {string} string "internal server error"
+// @Router /namespaces/{region} [get]
 func (s *HTTPServer) NamespacesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)

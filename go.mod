@@ -23,6 +23,7 @@ require (
 	github.com/Microsoft/hcsshim v0.8.8-0.20200312192636-fd0797d766b1 // indirect
 	github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20180829222009-86f2a9fac6c5
 	github.com/NYTimes/gziphandler v1.0.1
+	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.3.4
 	github.com/aws/aws-sdk-go v1.35.3
@@ -45,6 +46,7 @@ require (
 	github.com/fatih/color v1.9.0
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/fsouza/go-dockerclient v1.6.5
+	github.com/go-openapi/spec v0.20.3 // indirect
 	github.com/golang/protobuf v1.4.2
 	github.com/golang/snappy v0.0.1
 	github.com/google/go-cmp v0.4.0
@@ -91,6 +93,7 @@ require (
 	github.com/kr/pretty v0.2.0
 	github.com/kr/pty v1.1.5
 	github.com/kr/text v0.2.0
+	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.6
 	github.com/mitchellh/cli v1.1.0
 	github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286
@@ -113,10 +116,12 @@ require (
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 	github.com/seccomp/libseccomp-golang v0.9.2-0.20200314001724-bdab42bd5128 // indirect
-	github.com/shirou/gopsutil v2.20.9+incompatible
+	github.com/shirou/gopsutil v3.20.11+incompatible
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.6.1
+	github.com/swaggo/http-swagger v1.0.0
+	github.com/swaggo/swag v1.7.0
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
 	github.com/zclconf/go-cty v1.4.1
 	github.com/zclconf/go-cty-yaml v1.0.2
@@ -125,12 +130,10 @@ require (
 	golang.org/x/exp v0.0.0-20191030013958-a1ab85dbe136 // indirect
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/mod v0.3.0 // indirect
-	golang.org/x/net v0.0.0-20200602114024-627f9648deb9
-	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
-	golang.org/x/sys v0.0.0-20200728102440-3e129f6d46b1
-	golang.org/x/text v0.3.3-0.20200306154105-06d492aade88 // indirect
+	golang.org/x/net v0.0.0-20210119194325-5f4716e94777
+	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
+	golang.org/x/sys v0.0.0-20201119102817-f84b799fce68
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
-	golang.org/x/tools v0.0.0-20200522201501-cb1345f3a375 // indirect
 	google.golang.org/api v0.13.0 // indirect
 	google.golang.org/genproto v0.0.0-20200302123026-7795fca6ccb1 // indirect
 	google.golang.org/grpc v1.27.1
@@ -138,7 +141,6 @@ require (
 	gopkg.in/square/go-jose.v2 v2.4.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	gopkg.in/tomb.v2 v2.0.0-20140626144623-14b3d72120e8
-	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gotest.tools/v3 v3.0.2 // indirect
 	honnef.co/go/tools v0.0.1-2020.1.4 // indirect
 )

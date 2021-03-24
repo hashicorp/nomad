@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -16,10 +17,12 @@ import (
 
 	"github.com/NYTimes/gziphandler"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
+
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
+	_ "github.com/hashicorp/nomad/docs"
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -331,6 +334,13 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/namespaces", s.wrap(s.NamespacesRequest))
 	s.mux.HandleFunc("/v1/namespace", s.wrap(s.NamespaceCreateRequest))
 	s.mux.HandleFunc("/v1/namespace/", s.wrap(s.NamespaceSpecificRequest))
+
+	s.mux.HandleFunc("/swagger/", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"), //The url pointing to API definition
+		httpSwagger.DeepLinking(true),
+		httpSwagger.DocExpansion("none"),
+		httpSwagger.DomID("#swagger-ui"),
+	))
 
 	if uiEnabled {
 		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
@@ -724,3 +734,17 @@ func (s *HTTPServer) wrapUntrustedContent(handler handlerFn) handlerFn {
 func wrapCORS(f func(http.ResponseWriter, *http.Request)) http.Handler {
 	return allowCORS.Handler(http.HandlerFunc(f))
 }
+
+// @title Nomad API
+// @version 1.0
+// @description Nomad HTTP API.
+
+// @contact.name HashiCorp Support
+// @contact.url https://support.hashicorp.com/hc/en-us
+// @contact.email nomad@hashicorp.support
+
+// @license.name Mozilla Public License, version 2.0
+// @license.url https://github.com/hashicorp/nomad/blob/main/LICENSE
+
+// @host 127.0.0.1:4646
+// @BasePath /v1

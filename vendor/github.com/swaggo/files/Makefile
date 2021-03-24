@@ -1,0 +1,5 @@
+all: build
+
+.PHONY: build
+build:
+	fileb0x fileb0x/b0x.yaml

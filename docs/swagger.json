@@ -1,0 +1,126 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Nomad HTTP API.",
+        "title": "Nomad API",
+        "contact": {
+            "name": "HashiCorp Support",
+            "url": "https://support.hashicorp.com/hc/en-us",
+            "email": "nomad@hashicorp.support"
+        },
+        "license": {
+            "name": "Mozilla Public License, version 2.0",
+            "url": "https://github.com/hashicorp/nomad/blob/main/LICENSE"
+        },
+        "version": "1.0"
+    },
+    "host": "127.0.0.1:4646",
+    "basePath": "/v1",
+    "paths": {
+        "/namespaces/{region}": {
+            "get": {
+                "description": "get namespaces by region",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "namespaces"
+                ],
+                "summary": "Get Namespaces list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Region",
+                        "name": "region",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/structs.NamespaceListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "structs.Namespace": {
+            "type": "object",
+            "properties": {
+                "createIndex": {
+                    "description": "Raft Indexes",
+                    "type": "integer"
+                },
+                "description": {
+                    "description": "Description is a human readable description of the namespace",
+                    "type": "string"
+                },
+                "hash": {
+                    "description": "Hash is the hash of the namespace which is used to efficiently replicate\ncross-regions.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "modifyIndex": {
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "Name is the name of the namespace",
+                    "type": "string"
+                },
+                "quota": {
+                    "description": "Quota is the quota specification that the namespace should account\nagainst.",
+                    "type": "string"
+                }
+            }
+        },
+        "structs.NamespaceListResponse": {
+            "type": "object",
+            "properties": {
+                "index": {
+                    "description": "This is the index associated with the read",
+                    "type": "integer"
+                },
+                "knownLeader": {
+                    "description": "Used to indicate if there is a known leader node",
+                    "type": "boolean"
+                },
+                "lastContact": {
+                    "description": "If AllowStale is used, this is time elapsed since\nlast contact between the follower and leader. This\ncan be used to gauge staleness.",
+                    "type": "integer"
+                },
+                "namespaces": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/structs.Namespace"
+                    }
+                }
+            }
+        }
+    }
+}
