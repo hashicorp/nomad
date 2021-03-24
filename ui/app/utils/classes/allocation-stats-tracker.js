@@ -26,9 +26,7 @@ const sortMap = [
   return map;
 }, {});
 
-const taskPrioritySort = (a, b) => {
-  return sortMap[a.lifecycleName] - sortMap[b.lifecycleName];
-};
+const taskPrioritySort = (a, b) => sortMap[a.lifecycleName] - sortMap[b.lifecycleName];
 
 @classic
 class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
@@ -124,6 +122,8 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
     const bufferSize = this.bufferSize;
     const tasks = this.get('allocation.taskGroup.tasks') || [];
     return tasks
+      .slice()
+      .sort(taskPrioritySort)
       .map(task => ({
         task: get(task, 'name'),
 
@@ -135,8 +135,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
         // []{ timestamp: Date, used: Number, percent: Number }
         cpu: RollingArray(bufferSize),
         memory: RollingArray(bufferSize),
-      }))
-      .sort(taskPrioritySort);
+      }));
   }
 }
 
