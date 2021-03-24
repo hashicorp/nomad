@@ -118,7 +118,7 @@ export default create({
 
     deadlineToggle: toggle('[data-test-drain-deadline-toggle]'),
     deadlineOptions: {
-      open: clickable('[data-test-drain-deadline-option-select] .ember-power-select-trigger'),
+      open: clickable('[data-test-drain-deadline-option-select-parent] .ember-power-select-trigger'),
       options: collection('.ember-power-select-option', {
         label: text(),
         choose: clickable(),

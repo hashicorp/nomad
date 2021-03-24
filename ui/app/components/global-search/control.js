@@ -21,6 +21,7 @@ export default class GlobalSearchControl extends Component {
 
   constructor() {
     super(...arguments);
+    this['data-test-search-parent'] = true;
 
     this.jobSearch = JobSearch.create({
       dataSource: this,
