@@ -177,7 +177,7 @@ export default [
       'version',
       {
         category: 'volume',
-        content: ['deregister', 'detach', 'init', 'register', 'status'],
+        content: ['create', 'delete', 'deregister', 'detach', 'init', 'register', 'status'],
       },
     ],
   },

@@ -98,28 +98,34 @@ context {
   volume. If omitted, the volume will be created from scratch. The
   `clone_id` cannot be set if the `snapshot_id` field is set.
 
-- `capacity` - Options for setting the capacity. Not all options are supported
-  by all storage providers.
+- `capacity_min` `(string: <optional>)` - Option for setting the capacity. The
+  volume must be at least this large, in bytes. The storage provider may
+  return a volume that is larger than this value. Accepts human-friendly
+  suffixes such as `"100GiB"`. This field may not be supported by all
+  storage providers.
 
-  - `required` `(string: <optional>)` - The volume must be at least this
-    large, in bytes. The storage provider may return a volume that is larger
-    than this value. Accepts human-friendly suffixes such as `"100GiB"`.
-  - `limit` `(string: <optional>)` - The volume must be no more than this
-    large, in bytes. The storage provider may return a volume that is smaller
-    than this value. Accepts human-friendly suffixes such as `"100GiB"`.
+- `capacity_max` `(string: <optional>)` - Option for setting the capacity. The
+  volume must be no more than this large, in bytes. The storage provider may
+  return a volume that is smaller than this value. Accepts human-friendly
+  suffixes such as `"100GiB"`. This field may not be supported by all
+  storage providers.
 
-- `access_mode` `(string: <required>)` - Defines whether a volume should be
-  available concurrently. Can be one of `"single-node-reader-only"`,
-  `"single-node-writer"`, `"multi-node-reader-only"`,
-  `"multi-node-single-writer"`, or `"multi-node-multi-writer"`. Most CSI
-  plugins support only single-node modes. Consult the documentation of the
-  storage provider and CSI plugin.
+- `capability` `(optional)` - Option for validating the capbility of a
+  volume. You may provide multiple `capability` blocks, each of which must
+  have the following fields:
 
-- `attachment_mode` `(string: <required>)` - The storage API that will be used
-  by the volume. Most storage providers will support `"file-system"`, to mount
-  volumes using the CSI filesystem API. Some storage providers will support
-  `"block-device"`, which will mount the volume with the CSI block device API
-  within the container.
+  - `access_mode` `(string: <required>)` - Defines whether a volume should be
+    available concurrently. Can be one of `"single-node-reader-only"`,
+    `"single-node-writer"`, `"multi-node-reader-only"`,
+    `"multi-node-single-writer"`, or `"multi-node-multi-writer"`. Most CSI
+    plugins support only single-node modes. Consult the documentation of the
+    storage provider and CSI plugin.
+
+  - `attachment_mode` `(string: <required>)` - The storage API that will be used
+    by the volume. Most storage providers will support `"file-system"`, to mount
+    volumes using the CSI filesystem API. Some storage providers will support
+    `"block-device"`, which will mount the volume with the CSI block device API
+    within the container.
 
 - `mount_options` - Options for mounting `file-system` volumes that don't
   already have a pre-formatted file system. Consult the documentation for your
@@ -139,11 +145,9 @@ context {
   to each storage provider, so please see the specific plugin
   documentation for more information.
 
-- `context` <code>(map<string|string>:nil)</code> - An optional
-  key-value map of strings passed directly to the CSI plugin to
-  validate the volume. The details of these parameters are specific to
-  each storage provider, so please see the specific plugin
-  documentation for more information.
+- `context` <code>(map<string|string>:nil)</code> - This field is only used
+  during volume registration, and will be set automatically by the plugin when
+  `volume create` is successful. See [`volume register`].
 
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugins_internals]: /docs/internals/plugins/csi#csi-plugins
@@ -151,3 +155,4 @@ context {
 [csi_plugin]: /docs/job-specification/csi_plugin
 [csi_volume_source]: /docs/job-specification/volume#source
 [registered]: /docs/commands/volume/register
+[`volume register`]: /docs/commands/volume/register

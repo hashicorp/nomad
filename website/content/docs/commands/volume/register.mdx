@@ -93,29 +93,17 @@ context {
 - `clone_id` - This field is only used during volume creation, and is ignored
   during volume registration. See [`volume create`].
 
-- `capacity` - This field is only used during volume creation, and is ignored
-  during volume registration. See [`volume create`].
+- `capacity_min` - This field is only used during volume creation, and is
+  ignored during volume registration. See [`volume create`].
 
-- `access_mode` `(string: <required>)` - Defines whether a volume should be
-  available concurrently. Can be one of `"single-node-reader-only"`,
-  `"single-node-writer"`, `"multi-node-reader-only"`,
-  `"multi-node-single-writer"`, or `"multi-node-multi-writer"`. Most CSI
-  plugins support only single-node modes. Consult the documentation of the
-  storage provider and CSI plugin.
+- `capacity_max` - This field is only used during volume creation, and is
+  ignored during volume registration. See [`volume create`].
 
-- `attachment_mode` `(string: <required>)` - The storage API that will be used
-  by the volume. Most storage providers will support `"file-system"`, to mount
-  volumes using the CSI filesystem API. Some storage providers will support
-  `"block-device"`, which will mount the volume with the CSI block device API
-  within the container.
+- `capability` - This field is only used during volume creation, and is
+  ignored during volume registration. See [`volume create`].
 
-- `mount_options` - Options for mounting `file-system` volumes that don't
-  already have a pre-formatted file system. Consult the documentation for your
-  storage provider and CSI plugin as to whether these options are required or
-  necessary.
-
-  - `fs_type`: file system type (ex. `"ext4"`)
-  - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)
+- `mount_options` - This field is only used during volume creation, and is
+  ignored during volume registration. See [`volume create`].
 
 - `secrets` <code>(map<string|string>:nil)</code> - An optional
   key-value map of strings used as credentials for publishing and
