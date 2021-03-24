@@ -45,7 +45,9 @@ export default class AllocationPrimaryMetric extends Component {
   }
 
   get reservedAmount() {
-    return this.metric === 'cpu' ? this.tracker.reservedCPU : this.tracker.reservedMemory;
+    if (this.metric === 'cpu') return this.tracker.reservedCPU;
+    if (this.metric === 'memory') return this.tracker.reservedMemory;
+    return null;
   }
 
   get chartClass() {

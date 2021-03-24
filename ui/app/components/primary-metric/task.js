@@ -31,7 +31,9 @@ export default class TaskPrimaryMetric extends Component {
   get reservedAmount() {
     if (!this.tracker) return null;
     const task = this.tracker.tasks.findBy('task', this.taskState.name);
-    return this.metric === 'cpu' ? task.reservedCPU : task.reservedMemory;
+    if (this.metric === 'cpu') return task.reservedCPU;
+    if (this.metric === 'memory') return task.reservedMemory;
+    return null;
   }
 
   get chartClass() {
