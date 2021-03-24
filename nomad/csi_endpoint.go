@@ -441,9 +441,9 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 		return fmt.Errorf("%s: %s", structs.ErrUnknownAllocationPrefix, req.AllocationID)
 	}
 
-	// if no plugin was returned then controller validation is not required.
-	// Here we can return nil.
-	if plug == nil {
+	// if no plugin was returned or the plugin doesn't attach volumes, then
+	// controller validation is not required and we can safely return nil.
+	if plug == nil || !plug.HasControllerCapability(structs.CSIControllerSupportsAttachDetach) {
 		return nil
 	}
 
@@ -679,11 +679,21 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 		return nil
 	}
 
+	state := v.srv.fsm.State()
+	ws := memdb.NewWatchSet()
+
+	plugin, err := state.CSIPluginByID(ws, vol.PluginID)
+	if err != nil || plugin == nil {
+		return fmt.Errorf("could not query plugin: %v", err)
+	}
+	if !plugin.HasControllerCapability(structs.CSIControllerSupportsAttachDetach) {
+		return nil
+	}
+
 	// we only send a controller detach if a Nomad client no longer has
 	// any claim to the volume, so we need to check the status of claimed
 	// allocations
-	state := v.srv.fsm.State()
-	vol, err := state.CSIVolumeDenormalize(memdb.NewWatchSet(), vol)
+	vol, err = state.CSIVolumeDenormalize(ws, vol)
 	if err != nil {
 		return err
 	}
@@ -834,9 +844,8 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		if !plugin.ControllerRequired {
 			return fmt.Errorf("plugin has no controller")
 		}
-
-		if err := v.controllerValidateVolume(regArgs, vol, plugin); err != nil {
-			return err
+		if !plugin.HasControllerCapability(structs.CSIControllerSupportsCreateDelete) {
+			return fmt.Errorf("plugin does not support creating volumes")
 		}
 
 		validatedVols = append(validatedVols, validated{vol, plugin})

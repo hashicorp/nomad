@@ -846,14 +846,67 @@ func (p *CSIPlugin) Copy() *CSIPlugin {
 	return out
 }
 
+type CSIControllerCapability int
+
+const (
+	CSIControllerSupportsCreateDelete CSIControllerCapability = iota
+	CSIControllerSupportsAttachDetach
+	CSIControllerSupportsListVolumes
+	CSIControllerSupportsGetCapacity
+	CSIControllerSupportsCreateDeleteSnapshot
+	CSIControllerSupportsListSnapshots
+	CSIControllerSupportsClone
+	CSIControllerSupportsReadOnlyAttach
+	CSIControllerSupportsExpand
+	CSIControllerSupportsListVolumesAttachedNodes
+	CSIControllerSupportsCondition
+	CSIControllerSupportsGet
+)
+
+func (p *CSIPlugin) HasControllerCapability(cap CSIControllerCapability) bool {
+	if len(p.Controllers) < 1 {
+		return false
+	}
+	// we're picking the first controller because they should be uniform
+	// across the same version of the plugin
+	for _, c := range p.Controllers {
+		switch cap {
+		case CSIControllerSupportsCreateDelete:
+			return c.ControllerInfo.SupportsCreateDelete
+		case CSIControllerSupportsAttachDetach:
+			return c.ControllerInfo.SupportsAttachDetach
+		case CSIControllerSupportsListVolumes:
+			return c.ControllerInfo.SupportsListVolumes
+		case CSIControllerSupportsGetCapacity:
+			return c.ControllerInfo.SupportsGetCapacity
+		case CSIControllerSupportsCreateDeleteSnapshot:
+			return c.ControllerInfo.SupportsCreateDeleteSnapshot
+		case CSIControllerSupportsListSnapshots:
+			return c.ControllerInfo.SupportsListSnapshots
+		case CSIControllerSupportsClone:
+			return c.ControllerInfo.SupportsClone
+		case CSIControllerSupportsReadOnlyAttach:
+			return c.ControllerInfo.SupportsReadOnlyAttach
+		case CSIControllerSupportsExpand:
+			return c.ControllerInfo.SupportsExpand
+		case CSIControllerSupportsListVolumesAttachedNodes:
+			return c.ControllerInfo.SupportsListVolumesAttachedNodes
+		case CSIControllerSupportsCondition:
+			return c.ControllerInfo.SupportsCondition
+		case CSIControllerSupportsGet:
+			return c.ControllerInfo.SupportsGet
+		default:
+			return false
+		}
+	}
+	return false
+}
+
 // AddPlugin adds a single plugin running on the node. Called from state.NodeUpdate in a
 // transaction
 func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 	if info.ControllerInfo != nil {
-		p.ControllerRequired = info.RequiresControllerPlugin &&
-			(info.ControllerInfo.SupportsAttachDetach ||
-				info.ControllerInfo.SupportsReadOnlyAttach)
-
+		p.ControllerRequired = info.RequiresControllerPlugin
 		prev, ok := p.Controllers[nodeID]
 		if ok {
 			if prev == nil {
