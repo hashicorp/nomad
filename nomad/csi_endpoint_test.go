@@ -708,6 +708,7 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 			Healthy:  true,
 			ControllerInfo: &structs.CSIControllerInfo{
 				SupportsAttachDetach: true,
+				SupportsCreateDelete: true,
 			},
 			RequiresControllerPlugin: true,
 		},
