@@ -1894,6 +1894,8 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	dispatchJob.Name = dispatchJob.ID
 	dispatchJob.SetSubmitTime()
 	dispatchJob.Dispatched = true
+	dispatchJob.Status = ""
+	dispatchJob.StatusDescription = ""
 
 	// Merge in the meta data
 	for k, v := range args.Meta {
