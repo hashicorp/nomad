@@ -112,23 +112,50 @@ func (n *CSINodeInfo) Copy() *CSINodeInfo {
 // CSIControllerInfo is the fingerprinted data from a CSI Plugin that is specific to
 // the Controller API.
 type CSIControllerInfo struct {
+
+	// SupportsCreateDelete indicates plugin support for CREATE_DELETE_VOLUME
+	SupportsCreateDelete bool
+
+	// SupportsPublishVolume is true when the controller implements the
+	// methods required to attach and detach volumes. If this is false Nomad
+	// should skip the controller attachment flow.
+	SupportsAttachDetach bool
+
+	// SupportsListVolumes is true when the controller implements the
+	// ListVolumes RPC. NOTE: This does not guarantee that attached nodes will
+	// be returned unless SupportsListVolumesAttachedNodes is also true.
+	SupportsListVolumes bool
+
+	// SupportsGetCapacity indicates plugin support for GET_CAPACITY
+	SupportsGetCapacity bool
+
+	// SupportsCreateDeleteSnapshot indicates plugin support for
+	// CREATE_DELETE_SNAPSHOT
+	SupportsCreateDeleteSnapshot bool
+
+	// SupportsListSnapshots indicates plugin support for LIST_SNAPSHOTS
+	SupportsListSnapshots bool
+
+	// SupportsClone indicates plugin support for CLONE_VOLUME
+	SupportsClone bool
+
 	// SupportsReadOnlyAttach is set to true when the controller returns the
 	// ATTACH_READONLY capability.
 	SupportsReadOnlyAttach bool
 
-	// SupportsPublishVolume is true when the controller implements the methods
-	// required to attach and detach volumes. If this is false Nomad should skip
-	// the controller attachment flow.
-	SupportsAttachDetach bool
+	// SupportsExpand indicates plugin support for EXPAND_VOLUME
+	SupportsExpand bool
 
-	// SupportsListVolumes is true when the controller implements the ListVolumes
-	// RPC. NOTE: This does not guaruntee that attached nodes will be returned
-	// unless SupportsListVolumesAttachedNodes is also true.
-	SupportsListVolumes bool
-
-	// SupportsListVolumesAttachedNodes indicates whether the plugin will return
-	// attached nodes data when making ListVolume RPCs
+	// SupportsListVolumesAttachedNodes indicates whether the plugin will
+	// return attached nodes data when making ListVolume RPCs (plugin support
+	// for LIST_VOLUMES_PUBLISHED_NODES)
 	SupportsListVolumesAttachedNodes bool
+
+	// SupportsCondition indicates plugin support for VOLUME_CONDITION
+	SupportsCondition bool
+
+	// SupportsGet indicates plugin support for GET_VOLUME
+	SupportsGet bool
 }
 
 func (c *CSIControllerInfo) Copy() *CSIControllerInfo {
