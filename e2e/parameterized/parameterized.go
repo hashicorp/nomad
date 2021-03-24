@@ -1,4 +1,4 @@
-package periodic
+package parameterized
 
 import (
 	"fmt"
@@ -10,26 +10,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type PeriodicTest struct {
+type ParameterizedTest struct {
 	framework.TC
 	jobIDs []string
 }
 
 func init() {
 	framework.AddSuites(&framework.TestSuite{
-		Component:   "Periodic",
+		Component:   "Parameterized",
 		CanRunLocal: true,
 		Cases: []framework.TestCase{
-			new(PeriodicTest),
+			new(ParameterizedTest),
 		},
 	})
 }
 
-func (tc *PeriodicTest) BeforeAll(f *framework.F) {
+func (tc *ParameterizedTest) BeforeAll(f *framework.F) {
 	e2eutil.WaitForLeader(f.T(), tc.Nomad())
 }
 
-func (tc *PeriodicTest) AfterEach(f *framework.F) {
+func (tc *ParameterizedTest) AfterEach(f *framework.F) {
 	nomadClient := tc.Nomad()
 	j := nomadClient.Jobs()
 
@@ -40,31 +40,42 @@ func (tc *PeriodicTest) AfterEach(f *framework.F) {
 	f.NoError(err)
 }
 
-func (tc *PeriodicTest) TestPeriodicDispatch_Basic(f *framework.F) {
+func (tc *ParameterizedTest) TestParameterizedDispatch_Basic(f *framework.F) {
 	t := f.T()
 
 	uuid := uuid.Generate()
-	jobID := fmt.Sprintf("periodicjob-%s", uuid[0:8])
+	jobID := fmt.Sprintf("dispatch-%s", uuid[0:8])
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	// register job
-	require.NoError(t, e2eutil.Register(jobID, "periodic/input/simple.nomad"))
+	require.NoError(t, e2eutil.Register(jobID, "parameterized/input/simple.nomad"))
 
 	// force dispatch
-	require.NoError(t, e2eutil.PeriodicForce(jobID))
+	dispatched := 4
+
+	for i := 0; i < dispatched; i++ {
+		require.NoError(t, e2eutil.Dispatch(jobID, map[string]string{"i": fmt.Sprintf("%v", i)}, ""))
+	}
 
 	testutil.WaitForResult(func() (bool, error) {
-		children, err := e2eutil.PreviouslyLaunched(jobID)
+		children, err := e2eutil.DispatchedJobs(jobID)
 		if err != nil {
 			return false, err
 		}
 
+		dead := 0
 		for _, c := range children {
-			if c["Status"] == "dead" {
-				return true, nil
+			if c["Status"] != "dead" {
+				return false, fmt.Errorf("expected periodic job to be dead")
 			}
+			dead++
 		}
-		return false, fmt.Errorf("expected periodic job to be dead")
+
+		if dead != dispatched {
+			return false, fmt.Errorf("expected %d but found %d children", dispatched, dead)
+		}
+
+		return true, nil
 	}, func(err error) {
 		require.NoError(t, err)
 	})
@@ -75,5 +86,5 @@ func (tc *PeriodicTest) TestPeriodicDispatch_Basic(f *framework.F) {
 	require.Len(t, summary, 1)
 	require.Equal(t, summary[0]["Pending"], "0")
 	require.Equal(t, summary[0]["Running"], "0")
-	require.Equal(t, summary[0]["Dead"], "1")
+	require.Equal(t, summary[0]["Dead"], fmt.Sprintf("%v", dispatched))
 }
