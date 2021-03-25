@@ -168,10 +168,10 @@
                   <p class="minor-pair"><strong>Address:</strong> {{this.activeAllocation.node.httpAddr}}</p>
                 </div>
                 <div class="dashboard-metric with-divider">
-                  <PrimaryMetric @resource={{this.activeAllocation}} @metric="memory" class="is-short" />
+                  <PrimaryMetric::Allocation @allocation={{this.activeAllocation}} @metric="memory" class="is-short" />
                 </div>
                 <div class="dashboard-metric">
-                  <PrimaryMetric @resource={{this.activeAllocation}} @metric="cpu" class="is-short" />
+                  <PrimaryMetric::Allocation @allocation={{this.activeAllocation}} @metric="cpu" class="is-short" />
                 </div>
               {{else}}
                 <div class="columns is-flush">

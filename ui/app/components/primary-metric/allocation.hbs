@@ -1,0 +1,42 @@
+<div data-test-primary-metric class="primary-metric" ...attributes
+  {{did-insert this.start}}
+  {{did-update this.start}}>
+  <h4 data-test-primary-metric-title class="title is-5">
+    {{#if (eq this.metric "cpu")}} CPU
+    {{else if (eq this.metric "memory")}} Memory
+    {{else}} {{this.metric}} {{/if}}
+  </h4>
+  <div class="primary-graphic">
+    <StatsTimeSeries @data={{this.series}} @dataProp="data" >
+      <:svg as |c|>
+        {{#each (reverse this.series) as |series idx|}}
+          <c.Area @data={{series.data}} @colorScale={{this.colorScale}} @index={{idx}} />
+        {{/each}}
+      </:svg>
+      <:after as |c|>
+        <c.Tooltip class="is-snappy" as |series datum idx|>
+          <li>
+            <span class="label"><span class="color-swatch swatch-{{this.colorScale}} swatch-{{this.colorScale}}-{{idx}}" />{{series.name}}</span>
+            {{#if (eq this.metric "cpu")}}
+              <span class="value">{{datum.datum.used}} MHz</span>
+            {{else if (eq this.metric "memory")}}
+              <span class="value">{{format-bytes datum.datum.used}}</span>
+            {{else}}
+              <span class="value">{{datum.formatttedY}}</span>
+            {{/if}}
+          </li>
+        </c.Tooltip>
+      </:after>
+    </StatsTimeSeries>
+  </div>
+  <PrimaryMetric::CurrentValue @chartClass={{this.chartClass}} @percent={{this.data.lastObject.percent}} />
+  <div class="annotation" data-test-absolute-value>
+    {{#if (eq this.metric "cpu")}}
+      <strong>{{this.data.lastObject.used}} MHz</strong> / {{this.reservedAmount}} MHz Total
+    {{else if (eq this.metric "memory")}}
+      <strong>{{format-bytes this.data.lastObject.used}}</strong> / {{this.reservedAmount}} MiB Total
+    {{else}}
+      <strong>{{this.data.lastObject.used}}</strong> / {{this.reservedAmount}} Total
+    {{/if}}
+  </div>
+</div>

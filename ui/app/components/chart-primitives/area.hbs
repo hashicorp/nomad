@@ -7,7 +7,7 @@
     <path class="fill" d="{{this.area}}" />
   </clipPath>
 </defs>
-<g class="area {{this.colorClass}}" ...attributes>
+<g data-test-chart-area class="area {{this.colorClass}}" ...attributes>
   <path class="line" d="{{this.line}}" />
   <rect class="fill" x="0" y="0" width="{{@width}}" height="{{@height}}" fill="url(#{{this.fillId}})" clip-path="url(#{{this.maskId}})" />
 </g>

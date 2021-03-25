@@ -1,24 +1,31 @@
 <LineChart
   @data={{@data}}
+  @dataProp={{@dataProp}}
   @xProp="timestamp"
-  @yProp="percent"
+  @yProp={{if @dataProp "percentStack" "percent"}}
   @chartClass={{@chartClass}}
   @timeseries={{true}}
   @title="Stats Time Series Chart"
   @description={{this.description}}
-  @xScale={{this.xScale}}
-  @yScale={{this.yScale}}
+  @xScale={{bind this.xScale this}}
+  @yScale={{bind this.yScale this}}
   @xFormat={{this.xFormat}}
   @yFormat={{this.yFormat}}>
   <:svg as |c|>
-    <c.Area @data={{@data}} @colorClass={{@chartClass}} />
+    {{#if this.useDefaults}}
+      <c.Area @data={{@data}} @colorClass={{@chartClass}} />
+    {{/if}}
+    {{yield c to="svg"}}
   </:svg>
   <:after as |c|>
-    <c.Tooltip class="is-snappy" as |series datum|>
-      <li>
-        <span class="label"><span class="color-swatch {{@chartClass}}" />{{datum.formattedX}}</span>
-        <span class="value">{{datum.formattedY}}</span>
-      </li>
-    </c.Tooltip>
+    {{#if this.useDefaults}}
+      <c.Tooltip class="is-snappy" as |series datum|>
+        <li>
+          <span class="label"><span class="color-swatch {{@chartClass}}" />{{datum.formattedX}}</span>
+          <span class="value">{{datum.formattedY}}</span>
+        </li>
+      </c.Tooltip>
+    {{/if}}
+    {{yield c to="after"}}
   </:after>
 </LineChart>
