@@ -419,6 +419,28 @@ func (a *Allocation) Stub() *AllocationListStub {
 	}
 }
 
+// ServerTerminalStatus returns true if the desired state of the allocation is
+// terminal.
+func (a *Allocation) ServerTerminalStatus() bool {
+	switch a.DesiredStatus {
+	case AllocDesiredStatusStop, AllocDesiredStatusEvict:
+		return true
+	default:
+		return false
+	}
+}
+
+// ClientTerminalStatus returns true if the client status is terminal and will
+// therefore no longer transition.
+func (a *Allocation) ClientTerminalStatus() bool {
+	switch a.ClientStatus {
+	case AllocClientStatusComplete, AllocClientStatusFailed, AllocClientStatusLost:
+		return true
+	default:
+		return false
+	}
+}
+
 // AllocationListStub is used to return a subset of an allocation
 // during list operations.
 type AllocationListStub struct {
