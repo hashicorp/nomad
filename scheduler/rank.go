@@ -250,6 +250,8 @@ OUTER:
 						ask.DynamicPorts[i].HostNetwork = hostNetworkValue.(string)
 					} else {
 						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("Invalid template for %s host network in port %s", port.HostNetwork, port.Label))
+						netIdx.Release()
+						continue OUTER
 					}
 				}
 			}
@@ -259,6 +261,8 @@ OUTER:
 						ask.ReservedPorts[i].HostNetwork = hostNetworkValue.(string)
 					} else {
 						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("Invalid template for %s host network in port %s", port.HostNetwork, port.Label))
+						netIdx.Release()
+						continue OUTER
 					}
 				}
 			}
