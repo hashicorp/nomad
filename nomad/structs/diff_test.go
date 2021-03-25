@@ -2896,6 +2896,12 @@ func TestTaskGroupDiff(t *testing.T) {
 										New:  "",
 									},
 									{
+										Type: DiffTypeNone,
+										Name: "Body",
+										Old:  "",
+										New:  "",
+									},
+									{
 										Type: DiffTypeEdited,
 										Name: "Command",
 										Old:  "foo",
@@ -6233,6 +6239,12 @@ func TestTaskDiff(t *testing.T) {
 									{
 										Type: DiffTypeNone,
 										Name: "AddressMode",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Body",
 										Old:  "",
 										New:  "",
 									},

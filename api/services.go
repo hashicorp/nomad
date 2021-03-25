@@ -95,6 +95,7 @@ type ServiceCheck struct {
 	TaskName               string              `mapstructure:"task" hcl:"task,optional"`
 	SuccessBeforePassing   int                 `mapstructure:"success_before_passing" hcl:"success_before_passing,optional"`
 	FailuresBeforeCritical int                 `mapstructure:"failures_before_critical" hcl:"failures_before_critical,optional"`
+	Body                   string              `hcl:"body,optional"`
 	OnUpdate               string              `mapstructure:"on_update" hcl:"on_update,optional"`
 }
 
