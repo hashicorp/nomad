@@ -2,7 +2,7 @@
 
 set -o errexit
 set -o nounset
-set +ex
+set +x
 
 usage() {
     cat <<EOF
@@ -202,8 +202,8 @@ if [ -n "$CONSUL_AUTOJOIN" ]; then
     update_consul_autojoin
 fi
 
+sudo touch /etc/nomad.d/.environment
 if [ -n "$NOMAD_LICENSE" ]; then
-  sudo touch /etc/nomad.d/.environment
   echo "NOMAD_LICENSE=${NOMAD_LICENSE}" > /tmp/.nomad-environment
   sudo mv /tmp/.nomad-environment /etc/nomad.d/.environment
 fi
