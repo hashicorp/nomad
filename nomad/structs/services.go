@@ -357,6 +357,7 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	hashString(h, sc.Interval.String())
 	hashString(h, sc.Timeout.String())
 	hashString(h, sc.Method)
+	hashString(h, sc.Body)
 	hashString(h, sc.OnUpdate)
 
 	// use name "true" to maintain ID stability
