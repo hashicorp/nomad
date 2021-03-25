@@ -30,7 +30,7 @@ variable "nomad_enterprise" {
 
 variable "nomad_license" {
   type        = string
-  description = "The enterprise license to user; overrides Nomad temporary license"
+  description = "The enterprise license to use. overrides Nomad temporary license"
   default     = ""
 }
 
