@@ -6,6 +6,7 @@ import (
 
 	"sort"
 
+	"github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/helper"
@@ -953,9 +954,30 @@ func (a *allocReconciler) handleDelayedLost(rescheduleLater []*delayedReschedule
 			// Set the evalID for the first alloc in this new batch
 			allocIDToFollowupEvalID[allocReschedInfo.allocID] = eval.ID
 		}
+		emitRescheduleInfo(allocReschedInfo.alloc, eval)
 	}
 
 	a.result.desiredFollowupEvals[tgName] = evals
 
 	return allocIDToFollowupEvalID
+}
+
+// emitRescheduleInfo emits metrics about the reschedule decision of an evaluation. If a followup evaluation is
+// provided, the waitUntil time is emitted.
+func emitRescheduleInfo(alloc *structs.Allocation, followupEval *structs.Evaluation) {
+	// Emit short-lived metrics data point. Note, these expire and stop emitting after about a minute.
+	baseMetric := []string{"client", "allocs", "reschedule"}
+	labels := []metrics.Label{
+		{Name: "alloc_id", Value: alloc.ID},
+		{Name: "job", Value: alloc.JobID},
+		{Name: "namespace", Value: alloc.Namespace},
+		{Name: "task_group", Value: alloc.TaskGroup},
+	}
+	if followupEval != nil {
+		labels = append(labels, metrics.Label{Name: "followup_eval_id", Value: followupEval.ID})
+		metrics.SetGaugeWithLabels(append(baseMetric, "wait_until"), float32(followupEval.WaitUntil.Unix()), labels)
+	}
+	attempted, availableAttempts := alloc.RescheduleInfo()
+	metrics.SetGaugeWithLabels(append(baseMetric, "attempted"), float32(attempted), labels)
+	metrics.SetGaugeWithLabels(append(baseMetric, "limit"), float32(availableAttempts), labels)
 }

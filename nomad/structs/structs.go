@@ -9241,7 +9241,6 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, fail
 		return false
 	}
 	attempts := reschedulePolicy.Attempts
-	interval := reschedulePolicy.Interval
 	enabled := attempts > 0 || reschedulePolicy.Unlimited
 	if !enabled {
 		return false
@@ -9253,15 +9252,32 @@ func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, fail
 	if (a.RescheduleTracker == nil || len(a.RescheduleTracker.Events) == 0) && attempts > 0 {
 		return true
 	}
+	attempted, _ := a.rescheduleInfo(reschedulePolicy, failTime)
+	return attempted < attempts
+}
+
+func (a *Allocation) rescheduleInfo(reschedulePolicy *ReschedulePolicy, failTime time.Time) (int, int) {
+	if reschedulePolicy == nil {
+		return 0, 0
+	}
+	attempts := reschedulePolicy.Attempts
+	interval := reschedulePolicy.Interval
+
 	attempted := 0
-	for j := len(a.RescheduleTracker.Events) - 1; j >= 0; j-- {
-		lastAttempt := a.RescheduleTracker.Events[j].RescheduleTime
-		timeDiff := failTime.UTC().UnixNano() - lastAttempt
-		if timeDiff < interval.Nanoseconds() {
-			attempted += 1
+	if a.RescheduleTracker != nil && attempts > 0 {
+		for j := len(a.RescheduleTracker.Events) - 1; j >= 0; j-- {
+			lastAttempt := a.RescheduleTracker.Events[j].RescheduleTime
+			timeDiff := failTime.UTC().UnixNano() - lastAttempt
+			if timeDiff < interval.Nanoseconds() {
+				attempted += 1
+			}
 		}
 	}
-	return attempted < attempts
+	return attempted, attempts
+}
+
+func (a *Allocation) RescheduleInfo() (int, int) {
+	return a.rescheduleInfo(a.ReschedulePolicy(), a.LastEventTime())
 }
 
 // LastEventTime is the time of the last task event in the allocation.
@@ -9315,15 +9331,8 @@ func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
 	rescheduleEligible := reschedulePolicy.Unlimited || (reschedulePolicy.Attempts > 0 && a.RescheduleTracker == nil)
 	if reschedulePolicy.Attempts > 0 && a.RescheduleTracker != nil && a.RescheduleTracker.Events != nil {
 		// Check for eligibility based on the interval if max attempts is set
-		attempted := 0
-		for j := len(a.RescheduleTracker.Events) - 1; j >= 0; j-- {
-			lastAttempt := a.RescheduleTracker.Events[j].RescheduleTime
-			timeDiff := failTime.UTC().UnixNano() - lastAttempt
-			if timeDiff < reschedulePolicy.Interval.Nanoseconds() {
-				attempted += 1
-			}
-		}
-		rescheduleEligible = attempted < reschedulePolicy.Attempts && nextDelay < reschedulePolicy.Interval
+		attempted, attempts := a.rescheduleInfo(reschedulePolicy, failTime)
+		rescheduleEligible = attempted < attempts && nextDelay < reschedulePolicy.Interval
 	}
 	return nextRescheduleTime, rescheduleEligible
 }
