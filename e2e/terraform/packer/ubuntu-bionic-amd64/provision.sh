@@ -18,6 +18,7 @@ Options for configuration:
  --index INDEX              count of instance, for profiles with per-instance config
  --nostart                  do not start or restart Nomad
  --enterprise               if nomad_sha is passed, use the ENT version
+ --nomad_license            set the NOMAD_LICENSE environment variable
  --nomad_acls               write Nomad ACL configuration
  --autojoin                 the AWS ConsulAutoJoin tag value
 
@@ -39,6 +40,7 @@ NOMAD_INDEX=
 BUILD_FOLDER="builds-oss"
 CONSUL_AUTOJOIN=
 ACLS=0
+NOMAD_LICENSE=
 
 install_from_s3() {
     # check that we don't already have this version
@@ -175,6 +177,11 @@ opt="$1"
             BUILD_FOLDER="builds-ent"
             shift
             ;;
+        --nomad_license)
+            if [ -z "$2" ]; then echo "Missing license parameter"; usage; fi
+            NOMAD_LICENSE="$2"
+            shift 2
+            ;;
         --nomad_acls)
             ACLS=1
             shift
@@ -193,6 +200,12 @@ fi
 
 if [ -n "$CONSUL_AUTOJOIN" ]; then
     update_consul_autojoin
+fi
+
+sudo touch /etc/nomad.d/.environment
+if [ -n "$NOMAD_LICENSE" ]; then
+  echo "NOMAD_LICENSE=${NOMAD_LICENSE}" > /tmp/.nomad-environment
+  sudo mv /tmp/.nomad-environment /etc/nomad.d/.environment
 fi
 
 if [ $START == "1" ]; then
