@@ -1487,6 +1487,7 @@ func createCheckReg(serviceID, checkID string, check *structs.ServiceCheck, host
 		chkReg.HTTP = checkURL.String()
 		chkReg.Method = check.Method
 		chkReg.Header = check.Header
+		chkReg.Body = check.Body
 
 	case structs.ServiceCheckTCP:
 		chkReg.TCP = net.JoinHostPort(host, strconv.Itoa(port))
