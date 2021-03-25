@@ -5888,6 +5888,7 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 	}
 
 	// Update the job to 5 instances
+	job = job.Copy()
 	job.TaskGroups[0].Count = 5
 	require.NoError(h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
 
