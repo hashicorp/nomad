@@ -53,6 +53,9 @@ type ControllerClient struct {
 	NextCreateVolumeResponse               *csipbv1.CreateVolumeResponse
 	NextDeleteVolumeResponse               *csipbv1.DeleteVolumeResponse
 	NextListVolumesResponse                *csipbv1.ListVolumesResponse
+	NextCreateSnapshotResponse             *csipbv1.CreateSnapshotResponse
+	NextDeleteSnapshotResponse             *csipbv1.DeleteSnapshotResponse
+	NextListSnapshotsResponse              *csipbv1.ListSnapshotsResponse
 }
 
 // NewControllerClient returns a new ControllerClient
@@ -69,6 +72,9 @@ func (f *ControllerClient) Reset() {
 	f.NextCreateVolumeResponse = nil
 	f.NextDeleteVolumeResponse = nil
 	f.NextListVolumesResponse = nil
+	f.NextCreateSnapshotResponse = nil
+	f.NextDeleteSnapshotResponse = nil
+	f.NextListSnapshotsResponse = nil
 }
 
 func (c *ControllerClient) ControllerGetCapabilities(ctx context.Context, in *csipbv1.ControllerGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.ControllerGetCapabilitiesResponse, error) {
@@ -108,6 +114,18 @@ func (c *ControllerClient) DeleteVolume(ctx context.Context, in *csipbv1.DeleteV
 
 func (c *ControllerClient) ListVolumes(ctx context.Context, in *csipbv1.ListVolumesRequest, opts ...grpc.CallOption) (*csipbv1.ListVolumesResponse, error) {
 	return c.NextListVolumesResponse, c.NextErr
+}
+
+func (c *ControllerClient) CreateSnapshot(ctx context.Context, in *csipbv1.CreateSnapshotRequest, opts ...grpc.CallOption) (*csipbv1.CreateSnapshotResponse, error) {
+	return c.NextCreateSnapshotResponse, c.NextErr
+}
+
+func (c *ControllerClient) DeleteSnapshot(ctx context.Context, in *csipbv1.DeleteSnapshotRequest, opts ...grpc.CallOption) (*csipbv1.DeleteSnapshotResponse, error) {
+	return c.NextDeleteSnapshotResponse, c.NextErr
+}
+
+func (c *ControllerClient) ListSnapshots(ctx context.Context, in *csipbv1.ListSnapshotsRequest, opts ...grpc.CallOption) (*csipbv1.ListSnapshotsResponse, error) {
+	return c.NextListSnapshotsResponse, c.NextErr
 }
 
 // NodeClient is a CSI Node client used for testing

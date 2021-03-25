@@ -57,6 +57,18 @@ type CSIPlugin interface {
 	// external storage provider
 	ControllerListVolumes(ctx context.Context, req *ControllerListVolumesRequest, opts ...grpc.CallOption) (*ControllerListVolumesResponse, error)
 
+	// ControllerCreateSnapshot is used to create a volume snapshot in the
+	// external storage provider
+	ControllerCreateSnapshot(ctx context.Context, req *ControllerCreateSnapshotRequest, opts ...grpc.CallOption) (*ControllerCreateSnapshotResponse, error)
+
+	// ControllerDeleteSnapshot is used to delete a volume snapshot from the
+	// external storage provider
+	ControllerDeleteSnapshot(ctx context.Context, req *ControllerDeleteSnapshotRequest, opts ...grpc.CallOption) error
+
+	// ControllerListSnapshots is used to list all volume snapshots available
+	// in the external storage provider
+	ControllerListSnapshots(ctx context.Context, req *ControllerListSnapshotsRequest, opts ...grpc.CallOption) (*ControllerListSnapshotsResponse, error)
+
 	// NodeGetCapabilities is used to return the available capabilities from the
 	// Node Service.
 	NodeGetCapabilities(ctx context.Context) (*NodeCapabilitySet, error)
@@ -679,6 +691,116 @@ type ListVolumesResponse_VolumeStatus struct {
 type VolumeCondition struct {
 	Abnormal bool
 	Message  string
+}
+
+type ControllerCreateSnapshotRequest struct {
+	VolumeID   string
+	Name       string
+	Secrets    structs.CSISecrets
+	Parameters map[string]string
+}
+
+func (r *ControllerCreateSnapshotRequest) ToCSIRepresentation() *csipbv1.CreateSnapshotRequest {
+	return &csipbv1.CreateSnapshotRequest{
+		SourceVolumeId: r.VolumeID,
+		Name:           r.Name,
+		Secrets:        r.Secrets,
+		Parameters:     r.Parameters,
+	}
+}
+
+func (r *ControllerCreateSnapshotRequest) Validate() error {
+	if r.VolumeID == "" {
+		return errors.New("missing VolumeID")
+	}
+	if r.Name == "" {
+		return errors.New("missing Name")
+	}
+	return nil
+}
+
+type ControllerCreateSnapshotResponse struct {
+	Snapshot *Snapshot
+}
+
+type Snapshot struct {
+	ID             string
+	SourceVolumeID string
+	SizeBytes      int64
+	CreateTime     int64
+	IsReady        bool
+}
+
+type ControllerDeleteSnapshotRequest struct {
+	SnapshotID string
+	Secrets    structs.CSISecrets
+}
+
+func (r *ControllerDeleteSnapshotRequest) ToCSIRepresentation() *csipbv1.DeleteSnapshotRequest {
+	return &csipbv1.DeleteSnapshotRequest{
+		SnapshotId: r.SnapshotID,
+		Secrets:    r.Secrets,
+	}
+}
+
+func (r *ControllerDeleteSnapshotRequest) Validate() error {
+	if r.SnapshotID == "" {
+		return errors.New("missing SnapshotID")
+	}
+	return nil
+}
+
+type ControllerListSnapshotsRequest struct {
+	MaxEntries    int32
+	StartingToken string
+}
+
+func (r *ControllerListSnapshotsRequest) ToCSIRepresentation() *csipbv1.ListSnapshotsRequest {
+	return &csipbv1.ListSnapshotsRequest{
+		MaxEntries:    r.MaxEntries,
+		StartingToken: r.StartingToken,
+	}
+}
+
+func (r *ControllerListSnapshotsRequest) Validate() error {
+	if r.MaxEntries < 0 {
+		return errors.New("MaxEntries cannot be negative")
+	}
+	return nil
+}
+
+func NewListSnapshotsResponse(resp *csipbv1.ListSnapshotsResponse) *ControllerListSnapshotsResponse {
+	if resp == nil {
+		return &ControllerListSnapshotsResponse{}
+	}
+	entries := []*ListSnapshotsResponse_Entry{}
+	if resp.Entries != nil {
+		for _, entry := range resp.Entries {
+			snap := entry.GetSnapshot()
+			entries = append(entries, &ListSnapshotsResponse_Entry{
+				Snapshot: &Snapshot{
+					SizeBytes:      snap.GetSizeBytes(),
+					ID:             snap.GetSnapshotId(),
+					SourceVolumeID: snap.GetSourceVolumeId(),
+					CreateTime:     snap.GetCreationTime().GetSeconds(),
+					IsReady:        snap.GetReadyToUse(),
+				},
+			})
+		}
+	}
+	return &ControllerListSnapshotsResponse{
+		Entries:   entries,
+		NextToken: resp.NextToken,
+	}
+}
+
+type ControllerListSnapshotsResponse struct {
+	Entries   []*ListSnapshotsResponse_Entry
+	NextToken string
+}
+
+type ListSnapshotsResponse_Entry struct {
+	Snapshot *Snapshot
 }
 
 type NodeCapabilitySet struct {

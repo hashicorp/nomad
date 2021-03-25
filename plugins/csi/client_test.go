@@ -943,6 +943,173 @@ func TestClient_RPC_ControllerListVolume(t *testing.T) {
 	}
 }
 
+func TestClient_RPC_ControllerCreateSnapshot(t *testing.T) {
+
+	cases := []struct {
+		Name        string
+		Request     *ControllerCreateSnapshotRequest
+		Response    *csipbv1.CreateSnapshotResponse
+		ResponseErr error
+		ExpectedErr error
+	}{
+		{
+			Name: "handles underlying grpc errors",
+			Request: &ControllerCreateSnapshotRequest{
+				VolumeID: "vol-12345",
+				Name:     "snap-12345",
+			},
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
+		},
+
+		{
+			Name:        "handles error missing volume ID",
+			Request:     &ControllerCreateSnapshotRequest{},
+			ExpectedErr: errors.New("missing VolumeID"),
+		},
+
+		{
+			Name: "handles success",
+			Request: &ControllerCreateSnapshotRequest{
+				VolumeID: "vol-12345",
+				Name:     "snap-12345",
+			},
+			Response: &csipbv1.CreateSnapshotResponse{
+				Snapshot: &csipbv1.Snapshot{
+					SizeBytes:      100000,
+					SnapshotId:     "snap-12345",
+					SourceVolumeId: "vol-12345",
+					ReadyToUse:     true,
+				},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, cc, _, client := newTestClient()
+			defer client.Close()
+
+			cc.NextErr = tc.ResponseErr
+			cc.NextCreateSnapshotResponse = tc.Response
+			// note: there's nothing interesting to assert about the response
+			// here other than that we don't throw a NPE during transformation
+			// from protobuf to our struct
+			_, err := client.ControllerCreateSnapshot(context.TODO(), tc.Request)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
+			} else {
+				require.NoError(t, err, tc.Name)
+			}
+		})
+	}
+}
+
+func TestClient_RPC_ControllerDeleteSnapshot(t *testing.T) {
+
+	cases := []struct {
+		Name        string
+		Request     *ControllerDeleteSnapshotRequest
+		ResponseErr error
+		ExpectedErr error
+	}{
+		{
+			Name:        "handles underlying grpc errors",
+			Request:     &ControllerDeleteSnapshotRequest{SnapshotID: "vol-12345"},
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
+		},
+
+		{
+			Name:        "handles error missing volume ID",
+			Request:     &ControllerDeleteSnapshotRequest{},
+			ExpectedErr: errors.New("missing SnapshotID"),
+		},
+
+		{
+			Name:    "handles success",
+			Request: &ControllerDeleteSnapshotRequest{SnapshotID: "vol-12345"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, cc, _, client := newTestClient()
+			defer client.Close()
+
+			cc.NextErr = tc.ResponseErr
+			err := client.ControllerDeleteSnapshot(context.TODO(), tc.Request)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
+				return
+			}
+			require.NoError(t, err, tc.Name)
+		})
+	}
+}
+
+func TestClient_RPC_ControllerListSnapshots(t *testing.T) {
+
+	cases := []struct {
+		Name        string
+		Request     *ControllerListSnapshotsRequest
+		ResponseErr error
+		ExpectedErr error
+	}{
+		{
+			Name:        "handles underlying grpc errors",
+			Request:     &ControllerListSnapshotsRequest{},
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
+		},
+
+		{
+			Name:        "handles error invalid max entries",
+			Request:     &ControllerListSnapshotsRequest{MaxEntries: -1},
+			ExpectedErr: errors.New("MaxEntries cannot be negative"),
+		},
+
+		{
+			Name:    "handles success",
+			Request: &ControllerListSnapshotsRequest{},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, cc, _, client := newTestClient()
+			defer client.Close()
+
+			cc.NextErr = tc.ResponseErr
+			if tc.ResponseErr != nil {
+				// note: there's nothing interesting to assert here other than
+				// that we don't throw a NPE during transformation from
+				// protobuf to our struct
+				cc.NextListSnapshotsResponse = &csipbv1.ListSnapshotsResponse{
+					Entries: []*csipbv1.ListSnapshotsResponse_Entry{
+						{
+							Snapshot: &csipbv1.Snapshot{
+								SizeBytes:      1000000,
+								SnapshotId:     "snap-12345",
+								SourceVolumeId: "vol-12345",
+								ReadyToUse:     true,
+							},
+						},
+					},
+					NextToken: "abcdef",
+				}
+			}
+
+			resp, err := client.ControllerListSnapshots(context.TODO(), tc.Request)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
+				return
+			}
+			require.NoError(t, err, tc.Name)
+			require.NotNil(t, resp)
+
+		})
+	}
+}
+
 func TestClient_RPC_NodeStageVolume(t *testing.T) {
 	cases := []struct {
 		Name        string
