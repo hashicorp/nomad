@@ -748,6 +748,18 @@
             "path": "commands/volume/register"
           },
           {
+            "title": "snapshot create",
+            "path": "commands/volume/snapshot-create"
+          },
+          {
+            "title": "snapshot delete",
+            "path": "commands/volume/snapshot-delete"
+          },
+          {
+            "title": "snapshot list",
+            "path": "commands/volume/snapshot-list"
+          },
+          {
             "title": "status",
             "path": "commands/volume/status"
           }
