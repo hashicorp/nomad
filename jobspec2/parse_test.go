@@ -874,3 +874,52 @@ func TestParse_UndefinedVariables(t *testing.T) {
 		})
 	}
 }
+
+func TestParseServiceCheck(t *testing.T) {
+	hcl := ` job "group_service_check_script" {
+  group "group" {
+    service {
+      name = "foo-service"
+      port = "http"
+      check {
+        name   = "check-name"
+        type   = "http"
+        method = "POST"
+        body   = "{\"check\":\"mem\"}"
+      }
+    }
+  }
+}
+`
+	parsedJob, err := ParseWithConfig(&ParseConfig{
+		Path: "input.hcl",
+		Body: []byte(hcl),
+	})
+	require.NoError(t, err)
+
+	expectedJob := &api.Job{
+		ID:   stringToPtr("group_service_check_script"),
+		Name: stringToPtr("group_service_check_script"),
+		TaskGroups: []*api.TaskGroup{
+			{
+				Name: stringToPtr("group"),
+				Services: []*api.Service{
+					{
+						Name:      "foo-service",
+						PortLabel: "http",
+						Checks: []api.ServiceCheck{
+							{
+								Name:   "check-name",
+								Type:   "http",
+								Method: "POST",
+								Body:   "{\"check\":\"mem\"}",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	require.Equal(t, expectedJob, parsedJob)
+}
