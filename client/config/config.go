@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/cgutil"
+
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/helper"
@@ -265,6 +267,14 @@ type Config struct {
 	//
 	// This configuration is only considered if no host networks are defined.
 	BindWildcardDefaultHostNetwork bool
+
+	// CgroupParent is the parent cgroup Nomad should use when managing any cgroup subsystems.
+	// Currently this only includes the 'cpuset' cgroup subsystem
+	CgroupParent string
+
+	// DisableCgroupManagement if true disables all management of cgroup subsystems by the Nomad client. It does
+	// not prevent individual drivers from manging their own cgroups.
+	DisableCgroupManagement bool
 }
 
 type ClientTemplateConfig struct {
@@ -323,6 +333,7 @@ func DefaultConfig() *Config {
 		CNIConfigDir:       "/opt/cni/config",
 		CNIInterfacePrefix: "eth",
 		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
+		CgroupParent:       cgutil.DefaultCgroupParent,
 	}
 }
 
