@@ -1,6 +1,6 @@
 import { inject as service } from '@ember/service';
-import { computed, get } from '@ember/object';
-import RESTAdapter from 'ember-data/adapters/rest';
+import { computed } from '@ember/object';
+import RESTAdapter from '@ember-data/adapter/rest';
 import codesForError from '../utils/codes-for-error';
 import removeRecord from '../utils/remove-record';
 import { default as NoLeaderError, NO_LEADER } from '../utils/no-leader-error';
@@ -92,7 +92,7 @@ export default class ApplicationAdapter extends RESTAdapter {
   urlForFindRecord(id, modelName) {
     let path;
     let url = [];
-    let host = get(this, 'host');
+    let host = this.host;
     let prefix = this.urlPrefix();
 
     if (modelName) {

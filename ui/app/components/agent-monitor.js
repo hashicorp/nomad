@@ -23,7 +23,7 @@ export default class AgentMonitor extends Component {
   isStreaming = true;
   logger = null;
 
-  @computed('level', 'client.id', 'server.id')
+  @computed('client.id', 'level', 'server.{id,region}')
   get monitorParams() {
     assert(
       'Provide a client OR a server to AgentMonitor, not both.',

@@ -200,6 +200,7 @@ job "binstore-storagelocker" {
           abc = "123"
         }
 
+
         canary_meta {
           canary = "boom"
         }

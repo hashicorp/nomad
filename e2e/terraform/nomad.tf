@@ -20,7 +20,9 @@ module "nomad_server" {
   nomad_local_binary = count.index < length(var.nomad_local_binary_server) ? var.nomad_local_binary_server[count.index] : var.nomad_local_binary
 
   nomad_enterprise = var.nomad_enterprise
+  nomad_license    = var.nomad_license
   nomad_acls       = var.nomad_acls
+  cluster_name     = local.random_name
 
   connection = {
     type        = "ssh"
@@ -56,6 +58,7 @@ module "nomad_client_ubuntu_bionic_amd64" {
 
   nomad_enterprise = var.nomad_enterprise
   nomad_acls       = false
+  cluster_name     = local.random_name
 
   connection = {
     type        = "ssh"
@@ -92,6 +95,8 @@ module "nomad_client_windows_2016_amd64" {
 
   nomad_enterprise = var.nomad_enterprise
   nomad_acls       = false
+  cluster_name     = local.random_name
+
 
   connection = {
     type        = "ssh"

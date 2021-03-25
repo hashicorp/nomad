@@ -652,6 +652,57 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 
 }
 
+func TestJobEndpoint_Register_Connect_ValidatesWithoutSidecarTask(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.TaskGroups[0].Networks = structs.Networks{
+		{
+			Mode: "bridge",
+		},
+	}
+	job.TaskGroups[0].Tasks[0].Services = nil
+	job.TaskGroups[0].Services = []*structs.Service{
+		{
+			Name:      "backend",
+			PortLabel: "8080",
+			Connect: &structs.ConsulConnect{
+				SidecarService: nil,
+			},
+			Checks: []*structs.ServiceCheck{{
+				Name:     "exposed_no_sidecar",
+				Type:     "http",
+				Expose:   true,
+				Path:     "/health",
+				Interval: 10 * time.Second,
+				Timeout:  2 * time.Second,
+			}},
+		},
+	}
+
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp structs.JobRegisterResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exposed_no_sidecar requires use of sidecar_proxy")
+}
+
 // TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse asserts that a job
 // submission fails allow_unauthenticated is false, and either an invalid or no
 // operator Consul token is provided.

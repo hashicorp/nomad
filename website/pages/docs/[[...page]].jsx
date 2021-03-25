@@ -17,7 +17,7 @@ export default function DocsLayout(props) {
       subpath={subpath}
       order={order}
       staticProps={props}
-      mainBranch="master"
+      mainBranch="main"
       additionalComponents={additionalComponents}
     />
   )

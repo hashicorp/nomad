@@ -100,6 +100,9 @@ const (
 	EventSinkUpsertRequestType                   MessageType = 41
 	EventSinkDeleteRequestType                   MessageType = 42
 	BatchEventSinkUpdateProgressType             MessageType = 43
+	OneTimeTokenUpsertRequestType                MessageType = 44
+	OneTimeTokenDeleteRequestType                MessageType = 45
+	OneTimeTokenExpireRequestType                MessageType = 46
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
@@ -2602,24 +2605,6 @@ func (n *NetworkResource) PortLabels() map[string]int {
 	return labelValues
 }
 
-// ConnectPort returns the Connect port for the given service. Returns false if
-// no port was found for a service with that name.
-func (n *NetworkResource) PortForService(serviceName string) (Port, bool) {
-	label := fmt.Sprintf("%s-%s", ConnectProxyPrefix, serviceName)
-	for _, port := range n.ReservedPorts {
-		if port.Label == label {
-			return port, true
-		}
-	}
-	for _, port := range n.DynamicPorts {
-		if port.Label == label {
-			return port, true
-		}
-	}
-
-	return Port{}, false
-}
-
 // Networks defined for a task on the Resources struct.
 type Networks []*NetworkResource
 
@@ -2636,20 +2621,30 @@ func (ns Networks) Copy() Networks {
 }
 
 // Port assignment and IP for the given label or empty values.
-func (ns Networks) Port(label string) (string, int) {
+func (ns Networks) Port(label string) AllocatedPortMapping {
 	for _, n := range ns {
 		for _, p := range n.ReservedPorts {
 			if p.Label == label {
-				return n.IP, p.Value
+				return AllocatedPortMapping{
+					Label:  label,
+					Value:  p.Value,
+					To:     p.To,
+					HostIP: n.IP,
+				}
 			}
 		}
 		for _, p := range n.DynamicPorts {
 			if p.Label == label {
-				return n.IP, p.Value
+				return AllocatedPortMapping{
+					Label:  label,
+					Value:  p.Value,
+					To:     p.To,
+					HostIP: n.IP,
+				}
 			}
 		}
 	}
-	return "", 0
+	return AllocatedPortMapping{}
 }
 
 func (ns Networks) NetIndex(n *NetworkResource) int {
@@ -4063,7 +4058,7 @@ func (j *Job) Copy() *Job {
 	return nj
 }
 
-// Validate is used to sanity check a job input
+// Validate is used to check a job for reasonable configuration
 func (j *Job) Validate() error {
 	var mErr multierror.Error
 
@@ -5980,7 +5975,7 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 	}
 }
 
-// Validate is used to sanity check a task group
+// Validate is used to check a task group for reasonable configuration
 func (tg *TaskGroup) Validate(j *Job) error {
 	var mErr multierror.Error
 	if tg.Name == "" {
@@ -6105,12 +6100,17 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Only one task may be marked as leader"))
 	}
 
-	// Validate the Host Volumes
+	// Validate the volume requests
 	for name, decl := range tg.Volumes {
 		if !(decl.Type == VolumeTypeHost ||
 			decl.Type == VolumeTypeCSI) {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unrecognised type %s", name, decl.Type))
 			continue
+		}
+
+		if decl.PerAlloc && tg.Update != nil && tg.Update.Canary > 0 {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("Volume %s cannot be per_alloc when canaries are in use", name))
 		}
 
 		if decl.Source == "" {
@@ -6168,7 +6168,8 @@ func (tg *TaskGroup) Validate(j *Job) error {
 func (tg *TaskGroup) validateNetworks() error {
 	var mErr multierror.Error
 	portLabels := make(map[string]string)
-	staticPorts := make(map[int]string)
+	// host_network -> static port tracking
+	staticPortsIndex := make(map[string]map[int]string)
 
 	for _, net := range tg.Networks {
 		for _, port := range append(net.ReservedPorts, net.DynamicPorts...) {
@@ -6179,6 +6180,14 @@ func (tg *TaskGroup) validateNetworks() error {
 			}
 
 			if port.Value != 0 {
+				hostNetwork := port.HostNetwork
+				if hostNetwork == "" {
+					hostNetwork = "default"
+				}
+				staticPorts, ok := staticPortsIndex[hostNetwork]
+				if !ok {
+					staticPorts = make(map[int]string)
+				}
 				// static port
 				if other, ok := staticPorts[port.Value]; ok {
 					err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
@@ -6188,6 +6197,7 @@ func (tg *TaskGroup) validateNetworks() error {
 					mErr.Errors = append(mErr.Errors, err)
 				} else {
 					staticPorts[port.Value] = fmt.Sprintf("taskgroup network:%s", port.Label)
+					staticPortsIndex[hostNetwork] = staticPorts
 				}
 			}
 
@@ -6213,6 +6223,14 @@ func (tg *TaskGroup) validateNetworks() error {
 				}
 
 				if port.Value != 0 {
+					hostNetwork := port.HostNetwork
+					if hostNetwork == "" {
+						hostNetwork = "default"
+					}
+					staticPorts, ok := staticPortsIndex[hostNetwork]
+					if !ok {
+						staticPorts = make(map[int]string)
+					}
 					if other, ok := staticPorts[port.Value]; ok {
 						err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
 						mErr.Errors = append(mErr.Errors, err)
@@ -6221,6 +6239,7 @@ func (tg *TaskGroup) validateNetworks() error {
 						mErr.Errors = append(mErr.Errors, err)
 					} else {
 						staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
+						staticPortsIndex[hostNetwork] = staticPorts
 					}
 				}
 			}
@@ -6731,7 +6750,7 @@ func (t *Task) GoString() string {
 	return fmt.Sprintf("*%#v", *t)
 }
 
-// Validate is used to sanity check a task
+// Validate is used to check a task for reasonable configuration
 func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices []*Service, tgNetworks Networks) error {
 	var mErr multierror.Error
 	if t.Name == "" {
@@ -8765,11 +8784,13 @@ type DeploymentState struct {
 	AutoPromote bool
 
 	// ProgressDeadline is the deadline by which an allocation must transition
-	// to healthy before the deployment is considered failed.
+	// to healthy before the deployment is considered failed. This value is set
+	// by the jobspec `update.progress_deadline` field.
 	ProgressDeadline time.Duration
 
-	// RequireProgressBy is the time by which an allocation must transition
-	// to healthy before the deployment is considered failed.
+	// RequireProgressBy is the time by which an allocation must transition to
+	// healthy before the deployment is considered failed. This value is reset
+	// to "now" + ProgressDeadline when an allocation updates the deployment.
 	RequireProgressBy time.Time
 
 	// Promoted marks whether the canaries have been promoted
@@ -9993,6 +10014,10 @@ const (
 	// or allocs running them. If so, we delete the plugin.
 	CoreJobCSIPluginGC = "csi-plugin-gc"
 
+	// CoreJobOneTimeTokenGC is use for the garbage collection of one-time
+	// tokens. We periodically scan for expired tokens and delete them.
+	CoreJobOneTimeTokenGC = "one-time-token-gc"
+
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"
 )
@@ -10915,7 +10940,7 @@ func (a *ACLToken) Stub() *ACLTokenListStub {
 	}
 }
 
-// Validate is used to sanity check a token
+// Validate is used to check a token for reasonableness
 func (a *ACLToken) Validate() error {
 	var mErr multierror.Error
 	if len(a.Name) > maxTokenNameLength {
@@ -11025,6 +11050,52 @@ type ACLTokenUpsertRequest struct {
 type ACLTokenUpsertResponse struct {
 	Tokens []*ACLToken
 	WriteMeta
+}
+
+// OneTimeToken is used to log into the web UI using a token provided by the
+// command line.
+type OneTimeToken struct {
+	OneTimeSecretID string
+	AccessorID      string
+	ExpiresAt       time.Time
+	CreateIndex     uint64
+	ModifyIndex     uint64
+}
+
+// OneTimeTokenUpsertRequest is the request for a UpsertOneTimeToken RPC
+type OneTimeTokenUpsertRequest struct {
+	WriteRequest
+}
+
+// OneTimeTokenUpsertResponse is the response to a UpsertOneTimeToken RPC.
+type OneTimeTokenUpsertResponse struct {
+	OneTimeToken *OneTimeToken
+	WriteMeta
+}
+
+// OneTimeTokenExchangeRequest is a request to swap the one-time token with
+// the backing ACL token
+type OneTimeTokenExchangeRequest struct {
+	OneTimeSecretID string
+	WriteRequest
+}
+
+// OneTimeTokenExchangeResponse is the response to swapping the one-time token
+// with the backing ACL token
+type OneTimeTokenExchangeResponse struct {
+	Token *ACLToken
+	WriteMeta
+}
+
+// OneTimeTokenDeleteRequest is a request to delete a group of one-time tokens
+type OneTimeTokenDeleteRequest struct {
+	AccessorIDs []string
+	WriteRequest
+}
+
+// OneTimeTokenExpireRequest is a request to delete all expired one-time tokens
+type OneTimeTokenExpireRequest struct {
+	WriteRequest
 }
 
 // RpcError is used for serializing errors with a potential error code

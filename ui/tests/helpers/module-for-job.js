@@ -4,6 +4,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 
+// eslint-disable-next-line ember/no-test-module-for
 export default function moduleForJob(title, context, jobFactory, additionalTests) {
   let job;
 

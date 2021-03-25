@@ -19,18 +19,18 @@ const MockStreamer = EmberObject.extend({
   },
 
   start() {
-    this.get('poll').isRunning = true;
+    this.poll.isRunning = true;
     startSpy(...arguments);
   },
 
   stop() {
-    this.get('poll').isRunning = true;
+    this.poll.isRunning = true;
     stopSpy(...arguments);
   },
 
   step(chunk) {
-    if (this.get('poll').isRunning) {
-      this.get('write')(chunk);
+    if (this.poll.isRunning) {
+      this.write(chunk);
     }
   },
 });
@@ -38,7 +38,7 @@ const MockStreamer = EmberObject.extend({
 const Log = _Log.extend({
   init() {
     this._super();
-    const props = this.get('logStreamer').getProperties('url', 'params', 'logFetch', 'write');
+    const props = this.logStreamer.getProperties('url', 'params', 'logFetch', 'write');
     this.set('logStreamer', MockStreamer.create(props));
   },
 });

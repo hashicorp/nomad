@@ -796,6 +796,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"volume init": func() (cli.Command, error) {
+			return &VolumeInitCommand{
+				Meta: meta,
+			}, nil
+		},
 		"volume status": func() (cli.Command, error) {
 			return &VolumeStatusCommand{
 				Meta: meta,

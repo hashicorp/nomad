@@ -41,6 +41,20 @@ The `exec` driver supports the following configuration in the job spec:
   variables](/docs/runtime/interpolation) will be interpreted before
   launching the task.
 
+- `pid_mode` - (Optional) Set to `"private"` to enable PID namespace isolation for
+  this task, or `"host"` to disable isolation. If left unset, the behavior is
+  determined from the [`default_pid_mode`][default_pid_mode] in plugin configuration.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will
+ be able to access sensitive process information like environment variables.
+
+- `ipc_mode` - (Optional) Set to `"private"` to enable IPC namespace isolation for
+  this task, or `"host"` to disable isolation. If left unset, the behavior is
+  determined from the [`default_ipc_mode`][default_ipc_mode] in plugin configuration.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will be
+ able to make use of IPC features, like sending unexpected POSIX signals.
+
 ## Examples
 
 To run a binary present on the Node:
@@ -107,7 +121,21 @@ This also applies for running Nomad in -dev mode.
 
 ## Plugin Options
 
-- `no_pivot_root` - Defaults to `false`. When `true`, the driver uses `chroot`
+- `default_pid_mode` `(string: optional)` - Defaults to `"private"`. Set to
+ `"private"` to enable PID namespace isolation for tasks by default, or `"host"` to
+ disable isolation.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will
+ be able to access sensitive process information like environment variables.
+
+- `default_ipc_mode` `(string: optional)` - Defaults to `"private"`. Set to
+`"private"` to enable IPC namespace isolation for tasks by default,
+ or `"host"` to disable isolation.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will be
+ able to make use of IPC features, like sending unexpected POSIX signals.
+
+- `no_pivot_root` `(bool: optional)` - Defaults to `false`. When `true`, the driver uses `chroot`
   for file system isolation without `pivot_root`. This is useful for systems
   where the root is on a ramdisk.
 
@@ -170,3 +198,6 @@ create.
 
 This list is configurable through the agent client
 [configuration file](/docs/configuration/client#chroot_env).
+
+[default_pid_mode]: /docs/drivers/exec#default_pid_mode
+[default_ipc_mode]: /docs/drivers/exec#default_ipc_mode

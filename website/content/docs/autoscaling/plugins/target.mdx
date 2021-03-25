@@ -17,6 +17,7 @@ Below is a list of plugins you can use with the Nomad Autoscaler:
 - [Dynamic Application Sizing Nomad Task][das_task_target]
 - [AWS AutoScaling Group][aws_asg_target]
 - [Azure Virtual Machine Scale Set][azure_vmss_target]
+- [Google Cloud Platform Managed Instance Groups][gcp_mig_target]
 
 ## Nomad Task Group Target
 
@@ -218,7 +219,11 @@ check "hashistack-allocated-cpu" {
   identifier used to group nodes into a pool of resource.
 
 - `node_drain_deadline` `(duration: "15m")` The Nomad [drain deadline][nomad_node_drain_deadline]
-  to use when performing node draining actions.
+  to use when performing node draining actions. **Please note that the default value
+  for this setting differs from Nomad's default of 1h.**
+
+- `node_drain_ignore_system_jobs` `(bool: "false")` A boolean flag used to control if
+  system jobs should be stopped when performing node draining actions.
 
 - `node_purge` `(bool: "false")` A boolean flag to determine whether Nomad clients should
   be [purged][nomad_node_purge] when performing scale in actions.
@@ -248,7 +253,7 @@ in the Autoscaler configuration file:
 target "azure-vmss" {
   driver = "azure-vmss"
   config = {
-    subscription_id   = "ee0886ab-5cc2-4583-a3f0-c4bfd044ee82"
+    subscription_id = "ee0886ab-5cc2-4583-a3f0-c4bfd044ee82"
   }
 }
 ```
@@ -321,7 +326,11 @@ check "clients-azure-vmss" {
   identifier used to group nodes into a pool of resource.
 
 - `node_drain_deadline` `(duration: "15m")` The Nomad [drain deadline][nomad_node_drain_deadline]
-  to use when performing node draining actions.
+  to use when performing node draining actions. **Please note that the default value
+  for this setting differs from Nomad's default of 1h.**
+
+- `node_drain_ignore_system_jobs` `(bool: "false")` A boolean flag used to control if
+  system jobs should be stopped when performing node draining actions.
 
 - `node_purge` `(bool: "false")` A boolean flag to determine whether Nomad clients should
   be [purged][nomad_node_purge] when performing scale in actions.
@@ -333,6 +342,84 @@ Alternatively, you can set a [client meta tag][client_meta_tag_docs] called
 `unique.platform.azure.name` with the value being the Azure VMSS node name.
 This can be retrieved programatically via the
 [Azure Instance Metadata service][azure_instance_metadata].
+
+## Google Cloud Platform Managed Instance Groups Target
+
+The GCP MIG target plugin allows for the scaling of the Nomad cluster clients
+via manipulating [Google Cloud Platform Managed Instance Groups][gcp_migs]. The
+plugin supports both regional and zonal groups.
+
+### Agent Configuration Options
+
+The plugin uses the official Google Cloud Golang SDK. This means it supports the
+common ways of [providing credentials to Google Cloud][gcp_credentials]. It is
+recommended, if possible to use the [Vault GCP Secrets engine][vault_gcp_backend]
+for supplying access credentials to the plugin. Credentials should be injected
+into the configuration via a template rather than as environment variables. This
+ensures the credentials are passed only to the plugin, rather than being available
+for all plugins and the agent process.
+
+```hcl
+target "gcp-mig" {
+  driver = "gcp-mig"
+  config = {
+    credentials = "local/creds.json"
+  }
+}
+```
+
+- `credentials` `(string: "")` - This is specified as the path to a Google Cloud
+credentials file, typically for a service account.
+
+When using a Nomad cluster with ACLs enabled, the plugin will require an ACL token
+which provides the following permissions:
+
+```hcl
+node {
+  policy = "write"
+}
+```
+
+### Policy Configuration Options
+
+```hcl
+check "hashistack-allocated-cpu" {
+  ...
+  target "gcp-mig" {
+    project             = "hashistack-demo"
+    region              = "us-west1"
+    mig_name            = "nomad-client-hashistack"
+    node_class          = "hashistack"
+    node_drain_deadline = "5m"
+    node_purge          = "true"
+  }
+  ...
+```
+
+- `project` `(string: <required>)` - The [Google Cloud Platform project ID][gcp_projects]
+  within which the managed instance group is running.
+
+- `region` `(string: "")` - The GCP region where the Managed Instance Group resides.
+  Providing this parameter indicates the MIG is regional. Conflicts with `zone`.
+
+- `zone` `(string: "")` - The GCP zone where the Managed Instance Group resides.
+  Providing this parameter indicates the MIG is zonal. Conflicts with `region`.
+
+- `mig_name` `(string: <required>)` - The name of the GCP Managed Instance Group
+  to interact with when performing scaling actions.
+
+- `node_class` `(string: <required>)` - The Nomad [client node class][nomad_node_class]
+  identifier used to group nodes into a pool of resource.
+
+- `node_drain_deadline` `(duration: "15m")` The Nomad [drain deadline][nomad_node_drain_deadline]
+  to use when performing node draining actions. **Please note that the default value
+  for this setting differs from Nomad's default of 1h.**
+
+- `node_drain_ignore_system_jobs` `(bool: "false")` A boolean flag used to control if
+  system jobs should be stopped when performing node draining actions.
+
+- `node_purge` `(bool: "false")` A boolean flag to determine whether Nomad clients should
+  be [purged][nomad_node_purge] when performing scale in actions.
 
 [nomad_node_class]: /docs/configuration/client#node_class
 [nomad_node_drain_deadline]: /api-docs/nodes#deadline
@@ -360,3 +447,8 @@ This can be retrieved programatically via the
 [client_meta_tag]: /docs/autoscaling/plugins/target#client-meta-tag
 [azure_instance_metadata]: https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service
 [das_task_target]: /docs/autoscaling/plugins/target#dynamic-application-sizing-nomad-task-target
+[gcp_migs]: https://cloud.google.com/compute/docs/instance-groups/
+[vault_gcp_backend]: https://www.vaultproject.io/docs/secrets/gcp
+[gcp_credentials]: https://cloud.google.com/docs/authentication/production#providing_credentials_to_your_application
+[gcp_projects]: https://cloud.google.com/resource-manager/docs/creating-managing-projects
+[gcp_mig_target]: /docs/autoscaling/plugins/target#google-cloud-platform-managed-instance-groups-target

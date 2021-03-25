@@ -1,6 +1,7 @@
 package java
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -412,4 +413,23 @@ func Test_dnsConfig(t *testing.T) {
 		dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)
 	}
 
+}
+
+func TestDriver_Config_validate(t *testing.T) {
+	for _, tc := range []struct {
+		pidMode, ipcMode string
+		exp              error
+	}{
+		{pidMode: "host", ipcMode: "host", exp: nil},
+		{pidMode: "private", ipcMode: "host", exp: nil},
+		{pidMode: "host", ipcMode: "private", exp: nil},
+		{pidMode: "private", ipcMode: "private", exp: nil},
+		{pidMode: "other", ipcMode: "private", exp: errors.New(`default_pid_mode must be "private" or "host", got "other"`)},
+		{pidMode: "private", ipcMode: "other", exp: errors.New(`default_ipc_mode must be "private" or "host", got "other"`)},
+	} {
+		require.Equal(t, tc.exp, (&Config{
+			DefaultModePID: tc.pidMode,
+			DefaultModeIPC: tc.ipcMode,
+		}).validate())
+	}
 }

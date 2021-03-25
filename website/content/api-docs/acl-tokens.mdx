@@ -342,3 +342,94 @@ $ curl \
     --request DELETE \
     https://localhost:4646/v1/acl/token/aa534e09-6a07-0a45-2295-a7f77063d429
 ```
+
+## Upsert One-Time Token
+
+This endpoint creates a one-time token for the ACL token provided in the
+`X-Nomad-Token` header. Returns 403 if the token header is not set.
+
+| Method   | Path                      | Produces       |
+| -------- | ------------------------- | -------------- |
+| `POST`   | `/acl/token/onetime`      | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `any`        |
+
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request POST \
+    -H "X-Nomad-Token: aa534e09-6a07-0a45-2295-a7f77063d429" \
+    https://localhost:4646/v1/acl/token/onetime
+```
+
+### Sample Response
+
+```json
+{
+  "Index": 15,
+  "OneTimeToken": {
+    "AccessorID": "b780e702-98ce-521f-2e5f-c6b87de05b24",
+    "CreateIndex": 7,
+    "ExpiresAt": "2017-08-23T22:47:14.695408057Z",
+    "ModifyIndex": 7,
+    "OneTimeSecretID": "3f4a0fcd-7c42-773c-25db-2d31ba0c05fe"
+  }
+}
+```
+
+## Exchange One-Time Token
+
+This endpoint exchanges a one-time token for the original ACL token used to
+create it.
+
+| Method   | Path                          | Produces           |
+| -------- | -------------------------     | --------------     |
+| `POST`   | `/acl/token/onetime/exchange` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/api-docs#blocking-queries) and
+[required ACLs](/api-docs#acls).
+
+| Blocking Queries | ACL Required |
+| ---------------- | ------------ |
+| `NO`             | `any`        |
+
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request POST \
+    -d '{ "OneTimeSecretID": "aa534e09-6a07-0a45-2295-a7f77063d429" } \
+    https://localhost:4646/v1/acl/token/onetime/exchange
+```
+
+### Sample Response
+
+```json
+{
+  "Index": 17,
+  "Token": {
+    "AccessorID": "b780e702-98ce-521f-2e5f-c6b87de05b24",
+    "CreateIndex": 7,
+    "CreateTime": "2017-08-23T22:47:14.695408057Z",
+    "Global": true,
+    "Hash": "UhZESkSFGFfX7eBgq5Uwph30OctbUbpe8+dlH2i4whA=",
+    "ModifyIndex": 7,
+    "Name": "Developer token",
+    "Policies": [
+      "developer"
+    ],
+    "SecretID": "3f4a0fcd-7c42-773c-25db-2d31ba0c05fe",
+    "Type": "client"
+  }
+}
+```

@@ -1,0 +1,22 @@
+<div data-test-primary-metric class="primary-metric" ...attributes
+  {{did-insert this.start}}
+  {{did-update this.start @taskState @metric}}>
+  <h4 data-test-primary-metric-title class="title is-5">
+    {{#if (eq this.metric "cpu")}} CPU
+    {{else if (eq this.metric "memory")}} Memory
+    {{else}} {{this.metric}} {{/if}}
+  </h4>
+  <div class="primary-graphic">
+    <StatsTimeSeries @data={{this.data}} @chartClass={{this.chartClass}} />
+  </div>
+  <PrimaryMetric::CurrentValue @chartClass={{this.chartClass}} @percent={{this.data.lastObject.percent}} />
+  <div class="annotation" data-test-absolute-value>
+    {{#if (eq this.metric "cpu")}}
+      <strong>{{this.data.lastObject.used}} MHz</strong> / {{this.reservedAmount}} MHz Total
+    {{else if (eq this.metric "memory")}}
+      <strong>{{format-bytes this.data.lastObject.used}}</strong> / {{this.reservedAmount}} MiB Total
+    {{else}}
+      <strong>{{this.data.lastObject.used}}</strong> / {{this.reservedAmount}} Total
+    {{/if}}
+  </div>
+</div>

@@ -93,3 +93,41 @@ func RegisterFromJobspec(jobID, jobspec string) error {
 	}
 	return nil
 }
+
+func ChildrenJobSummary(jobID string) ([]map[string]string, error) {
+	out, err := Command("nomad", "job", "status", jobID)
+	if err != nil {
+		return nil, fmt.Errorf("nomad job status failed: %w", err)
+	}
+
+	section, err := GetSection(out, "Children Job Summary")
+	if err != nil {
+		return nil, fmt.Errorf("could not find children job summary section: %w", err)
+	}
+
+	summary, err := ParseColumns(section)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse children job summary section: %w", err)
+	}
+
+	return summary, nil
+}
+
+func PreviouslyLaunched(jobID string) ([]map[string]string, error) {
+	out, err := Command("nomad", "job", "status", jobID)
+	if err != nil {
+		return nil, fmt.Errorf("nomad job status failed: %w", err)
+	}
+
+	section, err := GetSection(out, "Previously Launched Jobs")
+	if err != nil {
+		return nil, fmt.Errorf("could not find previously launched jobs section: %w", err)
+	}
+
+	summary, err := ParseColumns(section)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse previously launched jobs section: %w", err)
+	}
+
+	return summary, nil
+}

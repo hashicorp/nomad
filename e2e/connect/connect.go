@@ -15,6 +15,10 @@ const (
 	// demoConnectJob is the example connect enabled job useful for testing
 	demoConnectJob = "connect/input/demo.nomad"
 
+	// demoConnectCustomProxyExposed is a connect job with custom sidecar_task
+	// that also uses the expose check feature.
+	demoConnectCustomProxyExposed = "connect/input/expose-custom.nomad"
+
 	// demoConnectNativeJob is the example connect native enabled job useful for testing
 	demoConnectNativeJob = "connect/input/native-demo.nomad"
 
@@ -34,7 +38,7 @@ type ConnectE2ETest struct {
 }
 
 func init() {
-	// connect tests without Consul ACLs enabled
+	// Connect tests without Consul ACLs enabled.
 	framework.AddSuites(&framework.TestSuite{
 		Component:   "Connect",
 		CanRunLocal: true,
@@ -45,16 +49,22 @@ func init() {
 		},
 	})
 
-	// connect tests with Consul ACLs enabled
-	framework.AddSuites(&framework.TestSuite{
-		Component:   "ConnectACLs",
-		CanRunLocal: false,
-		Consul:      true,
-		Parallel:    false,
-		Cases: []framework.TestCase{
-			new(ConnectACLsE2ETest),
-		},
-	})
+	// Connect tests with Consul ACLs enabled. These are now gated behind the
+	// NOMAD_TEST_CONNECT_ACLS environment variable, because they cause lots of
+	// problems for e2e test flakiness (due to restarting consul, nomad, etc.).
+	//
+	// Run these tests locally when working on Connect.
+	if os.Getenv("NOMAD_TEST_CONNECT_ACLS") == "1" {
+		framework.AddSuites(&framework.TestSuite{
+			Component:   "ConnectACLs",
+			CanRunLocal: false,
+			Consul:      true,
+			Parallel:    false,
+			Cases: []framework.TestCase{
+				new(ConnectACLsE2ETest),
+			},
+		})
+	}
 }
 
 func (tc *ConnectE2ETest) BeforeAll(f *framework.F) {
@@ -86,6 +96,19 @@ func (tc *ConnectE2ETest) TestConnectDemo(f *framework.F) {
 	tc.jobIds = append(tc.jobIds, jobID)
 
 	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), demoConnectJob, jobID, "")
+	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
+	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
+}
+
+// TestConnectCustomSidecarExposed tests that a connect sidecar with custom task
+// definition can also make use of the expose service check feature.
+func (tc *ConnectE2ETest) TestConnectCustomSidecarExposed(f *framework.F) {
+	t := f.T()
+
+	jobID := connectJobID()
+	tc.jobIds = append(tc.jobIds, jobID)
+
+	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), demoConnectCustomProxyExposed, jobID, "")
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
 	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
 }

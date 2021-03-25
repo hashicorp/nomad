@@ -68,6 +68,13 @@ export default Factory.extend({
     hostVolumes: () => ({}),
   }),
 
+  reserved: trait({
+    reservedResources: generateResources({
+      CPU: 1000,
+      MemoryMB: 2000,
+    }),
+  }),
+
   drainStrategy: null,
 
   drivers: makeDrivers,

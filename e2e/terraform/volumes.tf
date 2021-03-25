@@ -30,8 +30,8 @@ data "template_file" "ebs_volume_hcl" {
   count    = var.volumes ? 1 : 0
   template = <<EOT
 type = "csi"
-id = "ebs-vol0"
-name = "ebs-vol0"
+id = "ebs-vol[0]"
+name = "ebs-vol"
 external_id = "${aws_ebs_volume.csi[0].id}"
 access_mode = "single-node-writer"
 attachment_mode = "file-system"

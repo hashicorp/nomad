@@ -138,6 +138,10 @@ export default class OptimizeController extends Controller {
     return this.summarySearch.listSearched.filter(summary => {
       const job = summary.get('job');
 
+      if (job.isDestroying) {
+        return false;
+      }
+
       if (
         shouldShowNamespaces &&
         !this.includeAllNamespaces &&

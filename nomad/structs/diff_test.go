@@ -2695,9 +2695,10 @@ func TestTaskGroupDiff(t *testing.T) {
 									LocalServicePort:    8080,
 									Upstreams: []ConsulUpstream{
 										{
-											DestinationName: "foo",
-											LocalBindPort:   8000,
-											Datacenter:      "dc2",
+											DestinationName:  "foo",
+											LocalBindPort:    8000,
+											Datacenter:       "dc2",
+											LocalBindAddress: "127.0.0.2",
 										},
 									},
 									Config: map[string]interface{}{
@@ -2776,6 +2777,12 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
+								Name: "OnUpdate",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "PortLabel",
 								Old:  "",
 								New:  "",
@@ -2851,6 +2858,12 @@ func TestTaskGroupDiff(t *testing.T) {
 										Name: "Name",
 										Old:  "foo",
 										New:  "foo",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "OnUpdate",
+										Old:  "",
+										New:  "",
 									},
 									{
 										Type: DiffTypeEdited,
@@ -2973,6 +2986,12 @@ func TestTaskGroupDiff(t *testing.T) {
 																Name: "DestinationName",
 																Old:  "",
 																New:  "foo",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "LocalBindAddress",
+																Old:  "",
+																New:  "127.0.0.2",
 															},
 															{
 																Type: DiffTypeAdded,
@@ -3620,6 +3639,7 @@ func TestTaskGroupDiff(t *testing.T) {
 						Type:     "host",
 						Source:   "foo-src",
 						ReadOnly: true,
+						PerAlloc: true,
 					},
 				},
 			},
@@ -3636,6 +3656,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Name: "Name",
 								Old:  "",
 								New:  "foo",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "PerAlloc",
+								Old:  "",
+								New:  "true",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -5303,6 +5329,12 @@ func TestTaskDiff(t *testing.T) {
 								New:  "foo",
 							},
 							{
+								Type: DiffTypeNone,
+								Name: "OnUpdate",
+								Old:  "",
+								New:  "",
+							},
+							{
 								Type: DiffTypeEdited,
 								Name: "PortLabel",
 								Old:  "foo",
@@ -5439,6 +5471,10 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "Name",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "OnUpdate",
 							},
 							{
 								Type: DiffTypeNone,
@@ -5881,6 +5917,7 @@ func TestTaskDiff(t *testing.T) {
 								},
 								SuccessBeforePassing:   4,
 								FailuresBeforeCritical: 5,
+								OnUpdate:               "require_healthy",
 							},
 						},
 					},
@@ -5907,6 +5944,7 @@ func TestTaskDiff(t *testing.T) {
 									"Eggs": {"spam"},
 								},
 								SuccessBeforePassing: 4,
+								OnUpdate:             "ignore_warnings",
 							},
 						},
 					},
@@ -5936,6 +5974,10 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Name",
 								Old:  "foo",
 								New:  "foo",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "OnUpdate",
 							},
 							{
 								Type: DiffTypeNone,
@@ -6014,6 +6056,12 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Name",
 										Old:  "foo",
 										New:  "foo",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "OnUpdate",
+										Old:  "require_healthy",
+										New:  "ignore_warnings",
 									},
 									{
 										Type: DiffTypeNone,

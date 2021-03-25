@@ -1,0 +1,31 @@
+---
+layout: docs
+page_title: 'Commands: volume init'
+sidebar_title: init
+description: |
+  Generate an example volume specification.
+---
+
+# Command: volume init
+
+The `volume init` command is used to create an example volume specification
+file that can be used as a starting point to customize further.
+
+## Usage
+
+```plaintext
+nomad volume init
+```
+
+## Init Options
+
+- `-json`: Create an example JSON volume specification.
+
+## Examples
+
+Create an example volume specification:
+
+```shell-session
+$ nomad volume init
+Example volume specification written to volume.hcl
+```

@@ -376,3 +376,133 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 	}
 
 }
+
+func TestTracker_Checks_OnUpdate(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		desc          string
+		checkOnUpdate string
+		consulResp    string
+		expectedPass  bool
+	}{
+		{
+			desc:          "check require_healthy consul healthy",
+			checkOnUpdate: structs.OnUpdateRequireHealthy,
+			consulResp:    consulapi.HealthPassing,
+			expectedPass:  true,
+		},
+		{
+			desc:          "check on_update ignore_warning, consul warn",
+			checkOnUpdate: structs.OnUpdateIgnoreWarn,
+			consulResp:    consulapi.HealthWarning,
+			expectedPass:  true,
+		},
+		{
+			desc:          "check on_update ignore_warning, consul critical",
+			checkOnUpdate: structs.OnUpdateIgnoreWarn,
+			consulResp:    consulapi.HealthCritical,
+			expectedPass:  false,
+		},
+		{
+			desc:          "check on_update ignore_warning, consul healthy",
+			checkOnUpdate: structs.OnUpdateIgnoreWarn,
+			consulResp:    consulapi.HealthPassing,
+			expectedPass:  true,
+		},
+		{
+			desc:          "check on_update ignore, consul critical",
+			checkOnUpdate: structs.OnUpdateIgnore,
+			consulResp:    consulapi.HealthCritical,
+			expectedPass:  true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+
+			alloc := mock.Alloc()
+			alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
+			task := alloc.Job.TaskGroups[0].Tasks[0]
+
+			// Synthesize running alloc and tasks
+			alloc.ClientStatus = structs.AllocClientStatusRunning
+			alloc.TaskStates = map[string]*structs.TaskState{
+				task.Name: {
+					State:     structs.TaskStateRunning,
+					StartedAt: time.Now(),
+				},
+			}
+
+			// Make Consul response
+			check := &consulapi.AgentCheck{
+				Name:   task.Services[0].Checks[0].Name,
+				Status: tc.consulResp,
+			}
+			taskRegs := map[string]*agentconsul.ServiceRegistrations{
+				task.Name: {
+					Services: map[string]*agentconsul.ServiceRegistration{
+						task.Services[0].Name: {
+							Service: &consulapi.AgentService{
+								ID:      "foo",
+								Service: task.Services[0].Name,
+							},
+							Checks: []*consulapi.AgentCheck{check},
+							CheckOnUpdate: map[string]string{
+								check.CheckID: tc.checkOnUpdate,
+							},
+						},
+					},
+				},
+			}
+
+			logger := testlog.HCLogger(t)
+			b := cstructs.NewAllocBroadcaster(logger)
+			defer b.Close()
+
+			// Don't reply on the first call
+			var called uint64
+			consul := consul.NewMockConsulServiceClient(t, logger)
+			consul.AllocRegistrationsFn = func(string) (*agentconsul.AllocRegistration, error) {
+				if atomic.AddUint64(&called, 1) == 1 {
+					return nil, nil
+				}
+
+				reg := &agentconsul.AllocRegistration{
+					Tasks: taskRegs,
+				}
+
+				return reg, nil
+			}
+
+			ctx, cancelFn := context.WithCancel(context.Background())
+			defer cancelFn()
+
+			checkInterval := 10 * time.Millisecond
+			tracker := NewTracker(ctx, logger, alloc, b.Listen(), consul,
+				time.Millisecond, true)
+			tracker.checkLookupInterval = checkInterval
+			tracker.Start()
+
+			select {
+			case <-time.After(4 * checkInterval):
+				if !tc.expectedPass {
+					// tracker should still be running
+					require.Nil(t, tracker.ctx.Err())
+					return
+				}
+				require.Fail(t, "timed out while waiting for health")
+			case h := <-tracker.HealthyCh():
+				require.True(t, h)
+			}
+
+			// For healthy checks, the tracker should stop watching
+			select {
+			case <-tracker.ctx.Done():
+				// Ok, tracker should exit after reporting healthy
+			default:
+				require.Fail(t, "expected tracker to exit after reporting healthy")
+			}
+		})
+	}
+}

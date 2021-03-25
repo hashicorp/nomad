@@ -13,7 +13,7 @@ The `NOMAD_E2E=1` environment variable must be set for these tests to run.
 The `terraform/` folder has provisioning code to spin up a Nomad cluster on
 AWS. You'll need both Terraform and AWS credentials to setup AWS instances on
 which e2e tests will run. See the
-[README](https://github.com/hashicorp/nomad/blob/master/e2e/terraform/README.md)
+[README](https://github.com/hashicorp/nomad/blob/main/e2e/terraform/README.md)
 for details. The number of servers and clients is configurable, as is the
 specific build of Nomad to deploy and the configuration file for each client
 and server.
@@ -103,7 +103,7 @@ nomad_version_client_linux = [
 
 Set the `profile` field to `"custom"` and put the configuration files in
 `./terraform/config/custom/` as described in the
-[README](https://github.com/hashicorp/nomad/blob/master/e2e/terraform/README.md#Profiles).
+[README](https://github.com/hashicorp/nomad/blob/main/e2e/terraform/README.md#Profiles).
 
 ### ...Deploy More Than 4 Linux Clients
 

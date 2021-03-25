@@ -138,19 +138,19 @@ recommendations accordingly.
   identity. This allows for access to capabilities within the cluster to be
   restricted to specific users.
 
+- **[Namespaces](https://learn.hashicorp.com/tutorials/nomad/namespaces)**
+  - This feature allows for a cluster to be shared by
+  multiple teams within a company. Using this logical separation is important
+  for multi-tenant clusters to prevent users without access to that namespace
+  from conflicting with each other. This requires ACLs to be enabled in order
+  to be enforced.
+
 - **[Sentinel Policies](https://learn.hashicorp.com/tutorials/nomad/sentinel)**
   (**Enterprise Only**) - [Sentinel](https://www.hashicorp.com/sentinel/) is
   a feature which enables
   [policy-as-code](https://docs.hashicorp.com/sentinel/concepts/policy-as-code/)
   to enforce further restrictions on operators. This is used to augment the
   built-in ACL system for fine-grained control over jobs.
-
-- **[Namespaces](https://learn.hashicorp.com/tutorials/nomad/namespaces)**
-  (**Enterprise Only**) - This feature allows for a cluster to be shared by
-  multiple teams within a company. Using this logical separation is important
-  for multi-tenant clusters to prevent users without access to that namespace
-  from conflicting with each other. This requires ACLs to be enabled in order
-  to be enforced.
 
 - **[Resource Quotas](https://learn.hashicorp.com/tutorials/nomad/quotas)**
   (**Enterprise Only**) - Can limit a namespace's access to the underlying

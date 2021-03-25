@@ -1,8 +1,7 @@
 import { alias, equal, or, and, mapBy } from '@ember/object/computed';
 import { computed } from '@ember/object';
-import Model from 'ember-data/model';
-import attr from 'ember-data/attr';
-import { belongsTo, hasMany } from 'ember-data/relationships';
+import Model from '@ember-data/model';
+import { attr, belongsTo, hasMany } from '@ember-data/model';
 import { fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
@@ -43,7 +42,7 @@ export default class Job extends Model {
   @hasMany('job', { inverse: 'parent' }) children;
 
   // The parent job name is prepended to child launch job names
-  @computed('name', 'parent')
+  @computed('name', 'parent.content')
   get trimmedName() {
     return this.get('parent.content') ? this.name.replace(/.+?\//, '') : this.name;
   }
@@ -139,7 +138,7 @@ export default class Job extends Model {
 
   // Getting all unhealthy drivers for a job can be incredibly expensive if the job
   // has many allocations. This can lead to making an API request for many nodes.
-  @computed('allocationsUnhealthyDrivers.[]')
+  @computed('allocations', 'allocationsUnhealthyDrivers.[]')
   get unhealthyDrivers() {
     return this.allocations
       .mapBy('unhealthyDrivers')

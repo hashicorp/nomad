@@ -254,8 +254,11 @@ testing.
   log should be written to before it needs to be rotated. Must be a duration
   value such as 30s.
 
-- `log_rotate_max_files` `(int: 0)` - Specifies the maximum number of older log
-  file archives to keep. If 0 no files are ever deleted.
+- `log_rotate_max_files` `(int: 0)` - Specifies the maximum number of older
+  log file archives to keep, not including the log file currently being
+  written. If set to 0 no files are ever deleted. Note that the total number
+  of log files, for each of `stderr` and `stdout`, will be 1 greater than the
+  `log_rotate_max_files` value.
 
 - `name` `(string: [hostname])` - Specifies the name of the local node. This
   value is used to identify individual agents. When specified on a server, the

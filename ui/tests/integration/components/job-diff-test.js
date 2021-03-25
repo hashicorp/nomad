@@ -148,7 +148,7 @@ module('Integration | Component | job diff', function(hooks) {
       findAll(
         '[data-test-diff-section-label="object"][data-test-diff-field="added"] > [data-test-diff-section-label]'
       ).length,
-      this.get('diff').Objects[1].Objects.length + this.get('diff').Objects[1].Fields.length,
+      this.diff.Objects[1].Objects.length + this.diff.Objects[1].Fields.length,
       'Edited block contains each nested field and object'
     );
 
@@ -156,7 +156,7 @@ module('Integration | Component | job diff', function(hooks) {
       findAll(
         '[data-test-diff-section-label="object"][data-test-diff-field="added"] [data-test-diff-section-label="object"] [data-test-diff-section-label="field"]'
       ).length,
-      this.get('diff').Objects[1].Objects[0].Fields.length,
+      this.diff.Objects[1].Objects[0].Fields.length,
       'Objects within objects are rendered'
     );
 

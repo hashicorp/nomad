@@ -12,10 +12,10 @@
     activeDatum=this.activeDatum
   )}}
 {{else}}
-  <div class="chart-tooltip {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
+  <div class="chart-tooltip with-active-datum {{if this.isActive "active" "inactive"}}" style={{this.tooltipStyle}}>
     <ol>
       {{#each this._data as |datum index|}}
-        <li class="{{if (eq datum.label this.activeDatum.label) "active"}}">
+        <li class="{{if (eq datum.label this.activeDatum.label) "is-active"}}">
           <span class="label {{if (eq datum.value 0) "is-empty"}}">
             <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
             {{datum.label}}

@@ -28,11 +28,6 @@ func (v *CSIVolumes) List(q *QueryOptions) ([]*CSIVolumeListStub, *QueryMeta, er
 	return resp, qm, nil
 }
 
-// PluginList returns all CSI volumes for the specified plugin id
-func (v *CSIVolumes) PluginList(pluginID string) ([]*CSIVolumeListStub, *QueryMeta, error) {
-	return v.List(&QueryOptions{Prefix: pluginID})
-}
-
 // Info is used to retrieve a single CSIVolume
 func (v *CSIVolumes) Info(id string, q *QueryOptions) (*CSIVolume, *QueryMeta, error) {
 	var resp CSIVolume

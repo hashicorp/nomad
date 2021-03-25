@@ -1,4 +1,4 @@
-.chart-annotation {
+.chart-vertical-annotation {
   position: absolute;
   height: 100%;
 
@@ -50,6 +50,34 @@
     width: 1px;
     height: calc(100% - 8px);
     background: $grey;
+    z-index: -1;
+  }
+}
+
+.chart-horizontal-annotation {
+  position: absolute;
+  width: 100%;
+
+  .indicator {
+    transform: translateY(-50%);
+    display: block;
+    border: none;
+    border-radius: 100px;
+    background: $red;
+    color: $white;
+    font-weight: $weight-semibold;
+    font-size: $size-7;
+    margin-left: 10px;
+    pointer-events: auto;
+  }
+
+  .line {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 1px;
+    width: 100%;
+    background: $red;
     z-index: -1;
   }
 }

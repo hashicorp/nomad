@@ -8,8 +8,14 @@ $ui-gray-800: #373a42;
 $ui-gray-900: #1f2124;
 
 $red-500: #c73445;
+$red-400: #d15866;
 $red-300: #db7d88;
 $red-200: #e5a2aa;
+
+$blue-500: #1563ff;
+$blue-400: #387aff;
+$blue-300: #5b92ff;
+$blue-200: #8ab1ff;
 
 $teal-500: #25ba81;
 $teal-300: #74d3ae;
@@ -25,3 +31,13 @@ $yellow-400: #face30;
 $yellow-700: #a07d02;
 
 $green-500: #2eb039;
+
+// Chart Color Scales
+$chart-reds: $red-500, $red-400, $red-300, $red-200;
+$chart-blues: $blue-500, $blue-400, $blue-300, $blue-200;
+$chart-ordinal: $orange, $yellow, $green, $turquoise, $blue, $purple, $red;
+$chart-scales: (
+  'reds': $chart-reds,
+  'blues': $chart-blues,
+  'ordinal': $chart-ordinal,
+);

@@ -805,6 +805,10 @@ func (s *Server) Reload(newConfig *Config) error {
 		}
 	}
 
+	if newConfig.LicenseEnv != "" || newConfig.LicensePath != "" {
+		s.EnterpriseState.ReloadLicense(newConfig)
+	}
+
 	return mErr.ErrorOrNil()
 }
 

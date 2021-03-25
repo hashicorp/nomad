@@ -130,6 +130,61 @@ func TestServiceCheck_validate_PassFailZero_on_scripts(t *testing.T) {
 	})
 }
 
+func TestServiceCheck_validate_OnUpdate_CheckRestart_Conflict(t *testing.T) {
+	t.Parallel()
+
+	t.Run("invalid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:     "check",
+			Type:     "script",
+			Command:  "/nothing",
+			Interval: 1 * time.Second,
+			Timeout:  2 * time.Second,
+			CheckRestart: &CheckRestart{
+				IgnoreWarnings: false,
+				Limit:          3,
+				Grace:          5 * time.Second,
+			},
+			OnUpdate: "ignore_warnings",
+		}).validate()
+		require.EqualError(t, err, `on_update value "ignore_warnings" not supported with check_restart ignore_warnings value "false"`)
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:     "check",
+			Type:     "script",
+			Command:  "/nothing",
+			Interval: 1 * time.Second,
+			Timeout:  2 * time.Second,
+			CheckRestart: &CheckRestart{
+				IgnoreWarnings: false,
+				Limit:          3,
+				Grace:          5 * time.Second,
+			},
+			OnUpdate: "ignore",
+		}).validate()
+		require.EqualError(t, err, `on_update value "ignore" is not compatible with check_restart`)
+	})
+
+	t.Run("valid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:     "check",
+			Type:     "script",
+			Command:  "/nothing",
+			Interval: 1 * time.Second,
+			Timeout:  2 * time.Second,
+			CheckRestart: &CheckRestart{
+				IgnoreWarnings: true,
+				Limit:          3,
+				Grace:          5 * time.Second,
+			},
+			OnUpdate: "ignore_warnings",
+		}).validate()
+		require.NoError(t, err)
+	})
+}
+
 func TestService_Hash(t *testing.T) {
 	t.Parallel()
 

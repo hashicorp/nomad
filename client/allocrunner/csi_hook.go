@@ -92,8 +92,14 @@ func (c *csiHook) Postrun() error {
 			mode = structs.CSIVolumeClaimWrite
 		}
 
+		source := pair.request.Source
+		if pair.request.PerAlloc {
+			// NOTE: PerAlloc can't be set if we have canaries
+			source = source + structs.AllocSuffix(c.alloc.Name)
+		}
+
 		req := &structs.CSIVolumeUnpublishRequest{
-			VolumeID: pair.request.Source,
+			VolumeID: source,
 			Claim: &structs.CSIVolumeClaim{
 				AllocationID: c.alloc.ID,
 				NodeID:       c.alloc.NodeID,
@@ -159,8 +165,13 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 			claimType = structs.CSIVolumeClaimRead
 		}
 
+		source := pair.request.Source
+		if pair.request.PerAlloc {
+			source = source + structs.AllocSuffix(c.alloc.Name)
+		}
+
 		req := &structs.CSIVolumeClaimRequest{
-			VolumeID:     pair.request.Source,
+			VolumeID:     source,
 			AllocationID: c.alloc.ID,
 			NodeID:       c.alloc.NodeID,
 			Claim:        claimType,

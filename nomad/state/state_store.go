@@ -2126,26 +2126,25 @@ func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error)
 func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*structs.CSIVolume, error) {
 	txn := s.db.ReadTxn()
 
-	watchCh, obj, err := txn.FirstWatch("csi_volumes", "id_prefix", namespace, id)
+	watchCh, obj, err := txn.FirstWatch("csi_volumes", "id", namespace, id)
 	if err != nil {
-		return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
+		return nil, fmt.Errorf("volume lookup failed for %s: %v", id, err)
 	}
-
 	ws.Add(watchCh)
 
 	if obj == nil {
 		return nil, nil
 	}
+	vol := obj.(*structs.CSIVolume)
 
 	// we return the volume with the plugins denormalized by default,
 	// because the scheduler needs them for feasibility checking
-	vol := obj.(*structs.CSIVolume)
 	return s.CSIVolumeDenormalizePluginsTxn(txn, vol.Copy())
 }
 
 // CSIVolumes looks up csi_volumes by pluginID. Caller should snapshot if it
 // wants to also denormalize the plugins.
-func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, pluginID string) (memdb.ResultIterator, error) {
+func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, prefix, pluginID string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	iter, err := txn.Get("csi_volumes", "plugin_id", pluginID)
@@ -2159,7 +2158,7 @@ func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, pluginID
 		if !ok {
 			return false
 		}
-		return v.Namespace != namespace
+		return v.Namespace != namespace && strings.HasPrefix(v.ID, prefix)
 	}
 
 	wrap := memdb.NewFilterIterator(iter, f)
@@ -2183,7 +2182,7 @@ func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID
 
 // CSIVolumesByNodeID looks up CSIVolumes in use on a node. Caller should
 // snapshot if it wants to also denormalize the plugins.
-func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb.ResultIterator, error) {
+func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, prefix, nodeID string) (memdb.ResultIterator, error) {
 	allocs, err := s.AllocsByNode(ws, nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("alloc lookup failed: %v", err)
@@ -2212,23 +2211,24 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, nodeID string) (memdb
 	iter := NewSliceIterator()
 	txn := s.db.ReadTxn()
 	for id, namespace := range ids {
-		raw, err := txn.First("csi_volumes", "id", namespace, id)
-		if err != nil {
-			return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
+		if strings.HasPrefix(id, prefix) {
+			watchCh, raw, err := txn.FirstWatch("csi_volumes", "id", namespace, id)
+			if err != nil {
+				return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
+			}
+			ws.Add(watchCh)
+			iter.Add(raw)
 		}
-		iter.Add(raw)
 	}
-
-	ws.Add(iter.WatchCh())
 
 	return iter, nil
 }
 
 // CSIVolumesByNamespace looks up the entire csi_volumes table
-func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, "")
+	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, prefix)
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %v", err)
 	}
@@ -4046,6 +4046,10 @@ func (s *StateStore) UpdateDeploymentPromotion(msgType structs.MessageType, inde
 			continue
 		}
 
+		// reset the progress deadline
+		if status.ProgressDeadline > 0 && !status.RequireProgressBy.IsZero() {
+			status.RequireProgressBy = time.Now().Add(status.ProgressDeadline)
+		}
 		status.Promoted = true
 	}
 
@@ -5329,6 +5333,136 @@ func (s *StateStore) BootstrapACLTokens(msgType structs.MessageType, index uint6
 	return txn.Commit()
 }
 
+// UpsertOneTimeToken is used to create or update a set of ACL
+// tokens. Validating that we're not upserting an already-expired token is
+// made the responsibility of the caller to facilitate testing.
+func (s *StateStore) UpsertOneTimeToken(msgType structs.MessageType, index uint64, token *structs.OneTimeToken) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
+	defer txn.Abort()
+
+	// we expect the RPC call to set the ExpiresAt
+	if token.ExpiresAt.IsZero() {
+		return fmt.Errorf("one-time token must have an ExpiresAt time")
+	}
+
+	// Update all the indexes
+	token.CreateIndex = index
+	token.ModifyIndex = index
+
+	// Create the token
+	if err := txn.Insert("one_time_token", token); err != nil {
+		return fmt.Errorf("upserting one-time token failed: %v", err)
+	}
+
+	// Update the indexes table
+	if err := txn.Insert("index", &IndexEntry{"one_time_token", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
+	return txn.Commit()
+}
+
+// DeleteOneTimeTokens deletes the tokens with the given ACLToken Accessor IDs
+func (s *StateStore) DeleteOneTimeTokens(msgType structs.MessageType, index uint64, ids []string) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
+	defer txn.Abort()
+
+	var deleted int
+	for _, id := range ids {
+		d, err := txn.DeleteAll("one_time_token", "id", id)
+		if err != nil {
+			return fmt.Errorf("deleting one-time token failed: %v", err)
+		}
+		deleted += d
+	}
+
+	if deleted > 0 {
+		if err := txn.Insert("index", &IndexEntry{"one_time_token", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
+	return txn.Commit()
+}
+
+// ExpireOneTimeTokens deletes tokens that have expired
+func (s *StateStore) ExpireOneTimeTokens(msgType structs.MessageType, index uint64) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
+	defer txn.Abort()
+
+	iter, err := s.oneTimeTokensExpiredTxn(txn, nil)
+	if err != nil {
+		return err
+	}
+
+	var deleted int
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		ott, ok := raw.(*structs.OneTimeToken)
+		if !ok || ott == nil {
+			return fmt.Errorf("could not decode one-time token")
+		}
+		d, err := txn.DeleteAll("one_time_token", "secret", ott.OneTimeSecretID)
+		if err != nil {
+			return fmt.Errorf("deleting one-time token failed: %v", err)
+		}
+		deleted += d
+	}
+
+	if deleted > 0 {
+		if err := txn.Insert("index", &IndexEntry{"one_time_token", index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
+	return txn.Commit()
+}
+
+// oneTimeTokensExpiredTxn returns an iterator over all expired one-time tokens
+func (s *StateStore) oneTimeTokensExpiredTxn(txn *txn, ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	iter, err := txn.Get("one_time_token", "id")
+	if err != nil {
+		return nil, fmt.Errorf("one-time token lookup failed: %v", err)
+	}
+
+	ws.Add(iter.WatchCh())
+	iter = memdb.NewFilterIterator(iter, expiredOneTimeTokenFilter(time.Now()))
+	return iter, nil
+}
+
+// OneTimeTokenBySecret is used to lookup a token by secret
+func (s *StateStore) OneTimeTokenBySecret(ws memdb.WatchSet, secret string) (*structs.OneTimeToken, error) {
+	if secret == "" {
+		return nil, fmt.Errorf("one-time token lookup failed: missing secret")
+	}
+
+	txn := s.db.ReadTxn()
+
+	watchCh, existing, err := txn.FirstWatch("one_time_token", "secret", secret)
+	if err != nil {
+		return nil, fmt.Errorf("one-time token lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.OneTimeToken), nil
+	}
+	return nil, nil
+}
+
+// expiredOneTimeTokenFilter returns a filter function that returns only
+// expired one-time tokens
+func expiredOneTimeTokenFilter(now time.Time) func(interface{}) bool {
+	return func(raw interface{}) bool {
+		ott, ok := raw.(*structs.OneTimeToken)
+		if !ok {
+			return true
+		}
+
+		return ott.ExpiresAt.After(now)
+	}
+}
+
 // SchedulerConfig is used to get the current Scheduler configuration.
 func (s *StateStore) SchedulerConfig() (uint64, *structs.SchedulerConfiguration, error) {
 	tx := s.db.ReadTxn()
@@ -5452,7 +5586,7 @@ func (s *StateStore) schedulerSetConfigTxn(idx uint64, tx *txn, config *structs.
 }
 
 func (s *StateStore) setClusterMetadata(txn *txn, meta *structs.ClusterMetadata) error {
-	// Check for an existing config, if it exists, sanity check the cluster ID matches
+	// Check for an existing config, if it exists, verify that the cluster ID matches
 	existing, err := txn.First("cluster_meta", "id")
 	if err != nil {
 		return fmt.Errorf("failed cluster meta lookup: %v", err)
@@ -6170,6 +6304,14 @@ func (r *StateRestore) ACLPolicyRestore(policy *structs.ACLPolicy) error {
 func (r *StateRestore) ACLTokenRestore(token *structs.ACLToken) error {
 	if err := r.txn.Insert("acl_token", token); err != nil {
 		return fmt.Errorf("inserting acl token failed: %v", err)
+	}
+	return nil
+}
+
+// OneTimeTokenRestore is used to restore a one-time token
+func (r *StateRestore) OneTimeTokenRestore(token *structs.OneTimeToken) error {
+	if err := r.txn.Insert("one_time_token", token); err != nil {
+		return fmt.Errorf("inserting one-time token failed: %v", err)
 	}
 	return nil
 }

@@ -61,7 +61,7 @@ export default class IndexController extends Controller.extend(
   /**
     Visible volumes are those that match the selected namespace
   */
-  @computed('model.{[],@each.parent}')
+  @computed('model.@each.parent', 'system.{activeNamespace.id,namespaces.length}')
   get visibleVolumes() {
     if (!this.model) return [];
 

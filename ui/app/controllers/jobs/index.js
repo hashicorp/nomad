@@ -93,7 +93,7 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
     ];
   }
 
-  @computed('visibleJobs.[]')
+  @computed('selectionDatacenter', 'visibleJobs.[]')
   get optionsDatacenter() {
     const flatten = (acc, val) => acc.concat(val);
     const allDatacenters = new Set(this.visibleJobs.mapBy('datacenters').reduce(flatten, []));
@@ -111,7 +111,7 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
     return availableDatacenters.sort().map(dc => ({ key: dc, label: dc }));
   }
 
-  @computed('visibleJobs.[]')
+  @computed('selectionPrefix', 'visibleJobs.[]')
   get optionsPrefix() {
     // A prefix is defined as the start of a job name up to the first - or .
     // ex: mktg-analytics -> mktg, ds.supermodel.classifier -> ds
@@ -154,7 +154,7 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  @computed('model.{[],@each.parent}')
+  @computed('model.@each.parent', 'system.{activeNamespace.id,namespaces.length}')
   get visibleJobs() {
     // Namespace related properties are ommitted from the dependent keys
     // due to a prop invalidation bug caused by region switching.

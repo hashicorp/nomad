@@ -418,6 +418,10 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf.RPCMaxConnsPerClient = limit
 	}
 
+	// Add Enterprise license configs
+	conf.LicenseEnv = agentConfig.Server.LicenseEnv
+	conf.LicensePath = agentConfig.Server.LicensePath
+
 	return conf, nil
 }
 

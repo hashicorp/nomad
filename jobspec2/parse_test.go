@@ -196,6 +196,28 @@ job "example" {
 	require.Equal(t, meta, out.Meta)
 }
 
+// TestParse_UnsetVariables asserts that variables that have neither types nor
+// values return early instead of panicking.
+func TestParse_UnsetVariables(t *testing.T) {
+	hcl := `
+variable "region_var" {}
+job "example" {
+  datacenters = [for s in ["dc1", "dc2"] : upper(s)]
+  region      = var.region_var
+}
+`
+
+	_, err := ParseWithConfig(&ParseConfig{
+		Path:    "input.hcl",
+		Body:    []byte(hcl),
+		ArgVars: []string{},
+		AllowFS: true,
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Unset variable")
+}
+
 func TestParse_Locals(t *testing.T) {
 	hcl := `
 variables {

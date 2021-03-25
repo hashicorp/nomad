@@ -147,6 +147,7 @@ func interpolateConnectSidecarService(taskEnv *TaskEnv, sidecar *structs.ConsulS
 		for i := 0; i < len(sidecar.Proxy.Upstreams); i++ {
 			sidecar.Proxy.Upstreams[i].Datacenter = taskEnv.ReplaceEnv(sidecar.Proxy.Upstreams[i].Datacenter)
 			sidecar.Proxy.Upstreams[i].DestinationName = taskEnv.ReplaceEnv(sidecar.Proxy.Upstreams[i].DestinationName)
+			sidecar.Proxy.Upstreams[i].LocalBindAddress = taskEnv.ReplaceEnv(sidecar.Proxy.Upstreams[i].LocalBindAddress)
 		}
 		sidecar.Proxy.Config = interpolateMapStringInterface(taskEnv, sidecar.Proxy.Config)
 	}

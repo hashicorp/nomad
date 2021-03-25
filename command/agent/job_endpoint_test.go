@@ -2315,6 +2315,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
+						OnUpdate: "require_healthy",
 						Checks: []*structs.ServiceCheck{
 							{
 								Name:          "bar",
@@ -2336,6 +2337,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									IgnoreWarnings: true,
 								},
 								TaskName: "task1",
+								OnUpdate: "require_healthy",
 							},
 						},
 						Connect: &structs.ConsulConnect{
@@ -2391,6 +2393,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
+								OnUpdate: "require_healthy",
 								Checks: []*structs.ServiceCheck{
 									{
 										Name:                   "bar",
@@ -2413,6 +2416,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Grace:          11 * time.Second,
 											IgnoreWarnings: true,
 										},
+										OnUpdate: "require_healthy",
 									},
 									{
 										Name:      "check2",
@@ -2424,6 +2428,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Limit: 4,
 											Grace: 11 * time.Second,
 										},
+										OnUpdate: "require_healthy",
 									},
 								},
 							},
@@ -3004,13 +3009,15 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 	require.Nil(t, apiUpstreamsToStructs(nil))
 	require.Nil(t, apiUpstreamsToStructs(make([]*api.ConsulUpstream, 0)))
 	require.Equal(t, []structs.ConsulUpstream{{
-		DestinationName: "upstream",
-		LocalBindPort:   8000,
-		Datacenter:      "dc2",
+		DestinationName:  "upstream",
+		LocalBindPort:    8000,
+		Datacenter:       "dc2",
+		LocalBindAddress: "127.0.0.2",
 	}}, apiUpstreamsToStructs([]*api.ConsulUpstream{{
-		DestinationName: "upstream",
-		LocalBindPort:   8000,
-		Datacenter:      "dc2",
+		DestinationName:  "upstream",
+		LocalBindPort:    8000,
+		Datacenter:       "dc2",
+		LocalBindAddress: "127.0.0.2",
 	}}))
 }
 

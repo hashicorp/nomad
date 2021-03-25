@@ -139,3 +139,13 @@ func processStateFromProto(pb *proto.ProcessState) (*ProcessState, error) {
 		Time:     timestamp,
 	}, nil
 }
+
+// IsolationMode returns the namespace isolation mode as determined from agent
+// plugin configuration and task driver configuration. The task configuration
+// takes precedence, if it is configured.
+func IsolationMode(plugin, task string) string {
+	if task != "" {
+		return task
+	}
+	return plugin
+}

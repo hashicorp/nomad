@@ -79,9 +79,9 @@ configuration.
 
 ## Using Input Variable Values
 
-Within the job that declared a variable, its value can be accessed from
-within [expressions](/docs/job-specification/hcl2/expressions) as `var.<NAME>`, where `<NAME>`
-matches the label given in the declaration block:
+Within the job that declared a variable, its value can be accessed from within
+[expressions](/docs/job-specification/hcl2/expressions) as `var.<NAME>`, where
+`<NAME>` matches the label given in the declaration block:
 
 ```hcl
 config {
@@ -91,14 +91,16 @@ config {
 ```
 
 The value assigned to a variable can be accessed only from expressions within
-the folder where it was declared.
+the folder where it was declared. Note that a block label (such as the job ID
+or task group name) is not an expression and so can't be interpolated with a
+variable or local.
 
 ## Type Constraints
 
 The `type` argument in a `variable` block allows you to restrict the [type of
-value](/docs/job-specification/hcl2/expressions#types-and-values) that will be accepted as the value
-for a variable. If no type constraint is set then a value of any type is
-accepted.
+value](/docs/job-specification/hcl2/expressions#types-and-values) that will be
+accepted as the value for a variable. If no type constraint is set then a
+value of any type is accepted.
 
 While type constraints are optional, we recommend specifying them; they serve
 as easy reminders for users of the job, and allow Nomad to return a helpful

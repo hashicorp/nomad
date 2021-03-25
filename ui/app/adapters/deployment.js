@@ -1,6 +1,16 @@
 import Watchable from './watchable';
 
 export default class DeploymentAdapter extends Watchable {
+  fail(deployment) {
+    const id = deployment.get('id');
+    const url = urlForAction(this.urlForFindRecord(id, 'deployment'), '/fail');
+    return this.ajax(url, 'POST', {
+      data: {
+        DeploymentId: id,
+      },
+    });
+  }
+
   promote(deployment) {
     const id = deployment.get('id');
     const url = urlForAction(this.urlForFindRecord(id, 'deployment'), '/promote');

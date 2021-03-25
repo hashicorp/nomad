@@ -17,7 +17,7 @@ export default class JobEditor extends Component {
   job = null;
   onSubmit() {}
 
-  @computed
+  @computed('_context')
   get context() {
     return this._context;
   }
@@ -28,7 +28,6 @@ export default class JobEditor extends Component {
     assert(`context must be one of: ${allowedValues.join(', ')}`, allowedValues.includes(value));
 
     this.set('_context', value);
-    return value;
   }
 
   _context = null;

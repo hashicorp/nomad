@@ -329,6 +329,17 @@ func AllocName(job, group string, idx uint) string {
 	return fmt.Sprintf("%s.%s[%d]", job, group, idx)
 }
 
+// AllocSuffix returns the alloc index suffix that was added by the AllocName
+// function above.
+func AllocSuffix(name string) string {
+	idx := strings.LastIndex(name, "[")
+	if idx == -1 {
+		return ""
+	}
+	suffix := name[idx:]
+	return suffix
+}
+
 // ACLPolicyListHash returns a consistent hash for a set of policies.
 func ACLPolicyListHash(policies []*ACLPolicy) string {
 	cacheKeyHash, err := blake2b.New256(nil)

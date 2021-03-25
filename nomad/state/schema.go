@@ -49,6 +49,7 @@ func init() {
 		siTokenAccessorTableSchema,
 		aclPolicyTableSchema,
 		aclTokenTableSchema,
+		oneTimeTokenTableSchema,
 		autopilotConfigTableSchema,
 		schedulerConfigTableSchema,
 		clusterMetaTableSchema,
@@ -645,6 +646,32 @@ func aclTokenTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.FieldSetIndex{
 					Field: "Global",
+				},
+			},
+		},
+	}
+}
+
+// oneTimeTokenTableSchema returns the MemDB schema for the tokens table.
+// This table is used to store one-time tokens for ACL tokens
+func oneTimeTokenTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "one_time_token",
+		Indexes: map[string]*memdb.IndexSchema{
+			"secret": {
+				Name:         "secret",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "OneTimeSecretID",
+				},
+			},
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "AccessorID",
 				},
 			},
 		},

@@ -66,12 +66,12 @@ true.
   to monitor for logs and include pprof profiles. Accepts id prefixes, and 
   "all" to select all nodes (up to count = max-nodes).
 
-- `pprof-duration=<duration>`: Duration for pprof collection. Defaults to 1s.
+- `-pprof-duration=<duration>`: Duration for pprof collection. Defaults to 1s.
 
 - `-server-id=s1,s2`: Comma separated list of Nomad server names, "leader", or
   "all" to monitor for logs and include pprof profiles.
 
-- `stale=<true|false>`: If "false", the default, get membership data from the
+- `-stale=<true|false>`: If "false", the default, get membership data from the
   cluster leader. If the cluster is in an outage unable to establish
   leadership, it may be necessary to get the configuration from a non-leader
   server.
