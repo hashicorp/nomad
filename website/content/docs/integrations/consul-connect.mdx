@@ -255,7 +255,8 @@ any ports in its network. The service stanza enables Connect:
 
 The `port` in the service stanza is the port the API service listens on. The
 Envoy proxy will automatically route traffic to that port inside the network
-namespace.
+namespace. Note that currently this cannot be a named port; it must be a
+hard-coded port value. See [GH-9907].
 
 ### Web Frontend
 
@@ -333,5 +334,4 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
   connections while the Nomad agent is restarting.
 
 [count-dashboard]: /img/count-dashboard.png
-[gh6120]: https://github.com/hashicorp/nomad/issues/6120
-[gh6701]: https://github.com/hashicorp/nomad/issues/6701
+[GH-9907]: https://github.com/hashicorp/nomad/issues/9907
