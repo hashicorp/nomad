@@ -11,14 +11,14 @@ APM plugins are used by the autoscaler to interact with an external APM system,
 returning metrics that are used by the autoscaler to inform scaling actions.
 
 For a real-world example of a Nomad APM plugin implementation, see the
-[Prometheus plugin](https://github.com/hashicorp/nomad-autoscaler/tree/main/plugins/builtin/apm/prometheus).
+[`prometheus` plugin](https://github.com/hashicorp/nomad-autoscaler/tree/main/plugins/builtin/apm/prometheus).
 
 ## Authoring APM Plugins
 
 Authoring an APM plugin in Go can be accomplished by implementing the
-[apm.APM][apm_plugin] interface, alongside a main package to launch the plugin.
+[`apm.APM`][apm_plugin] interface, alongside a `main` package to launch the plugin.
 
-The [no-op APM plugin][noop_plugin] can be used as a starting point for new APM
+The [`no-op` APM plugin][noop_plugin] can be used as a starting point for new APM
 plugins.
 
 ## APM Plugin API
@@ -26,7 +26,7 @@ plugins.
 The [base plugin][base_plugin] interface must be implemented in addition to the
 following functions.
 
-### `Query(query string, timeRange sdk.TimeRange) (sdk.TimestampedMetrics, error)`
+#### `Query(query string, timeRange sdk.TimeRange) (sdk.TimestampedMetrics, error)`
 
 The `Query` function is called by the agent during policy
 evaluation. The `query` argument is the opaque string from the scaling policy,
@@ -35,10 +35,11 @@ made. The response is a series of timestamped metrics; as such, the query semant
 should be such that the backing APM will return a time series. An example is the
 CPU utilization of a task group, averaged over all current allocations.
 
-### `QueryMultiple(query string, timeRange sdk.TimeRange) ([]sdk.TimestampedMetrics, error)`
+#### `QueryMultiple(query string, timeRange sdk.TimeRange) ([]sdk.TimestampedMetrics, error)`
 
 The `QueryMultiple` method is similar to `Query`, except that the interface allows
-multiple time series to be returned. This endpoint is currently only used by [DAS][das].
+multiple time series to be returned. This endpoint is currently only used for
+[Dynamic Application Sizing][das].
 An example would be to return the CPU utilization for all allocations during
 the time range.
 

@@ -17,9 +17,9 @@ For a real-world example of a Nomad strategy plugin implementation, see the
 ## Authoring Strategy Plugins
 
 Authoring a strategy plugin in Go can be accomplished by implementing the
-[strategy.Strategy][strategy_plugin] interface, alongside a main package to launch the plugin.
+[`strategy.Strategy`][strategy_plugin] interface, alongside a `main` package to launch the plugin.
 
-The [no-op Strategy plugin][noop_plugin] can be used as a starting point for new Strategy
+The [`no-op` Strategy plugin][noop_plugin] can be used as a starting point for new Strategy
 plugins.
 
 ## Strategy Plugin API
@@ -27,7 +27,7 @@ plugins.
 The [base plugin][base_plugin] interface must be implemented in addition to the
 following functions.
 
-### `	Run(eval *sdk.ScalingCheckEvaluation, count int64) (*sdk.ScalingCheckEvaluation, error)`
+#### `Run(eval *sdk.ScalingCheckEvaluation, count int64) (*sdk.ScalingCheckEvaluation, error)`
 
 The `Run` function is called by the agent during policy
 evaluation. The `eval` argument contains [information](https://github.com/hashicorp/nomad-autoscaler/blob/v0.3.0/sdk/eval_oss.go#L8)
@@ -38,4 +38,4 @@ from applying the strategy.
 [strategy_plugin]: https://github.com/hashicorp/nomad-autoscaler/blob/v0.3.0/plugins/strategy/strategy.go#L11
 [base_plugin]: /docs/autoscaling/internals/plugins/base
 [noop_plugin]: https://github.com/hashicorp/nomad-autoscaler/tree/v0.3.0/plugins/test/noop-strategy
-[target_value]: https://github.com/hashicorp/nomad-autoscaler/tree/main/plugins/builtin/strategy/target-value
+[target_value]: https://github.com/hashicorp/nomad-autoscaler/tree/v0.3.0/plugins/builtin/strategy/target-value
