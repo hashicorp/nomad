@@ -26,6 +26,11 @@ module('Unit | Util | units#formatBytes', function() {
     { in: [1024 ** 4 * 2.1234], out: '2.12 TiB' },
     { in: [1024 ** 5], out: '1 PiB', name: 'formats x > 1024^5 as PiB' },
     { in: [1024 ** 5 * 4000], out: '4,000 PiB' },
+    {
+      in: [1024 ** 2, 'MiB'],
+      out: '1 TiB',
+      name: 'accepts a starting unit size as an optional argument',
+    },
   ]);
 });
 
@@ -43,6 +48,11 @@ module('Unit | Util | units#formatScheduledBytes', function() {
       in: [1024 ** 3 + 1024 ** 2 * 0.6],
       out: '1,025 MiB',
       name: 'MiBs are rounded to whole numbers',
+    },
+    {
+      in: [2000, 'MiB'],
+      out: '2,000 MiB',
+      name: 'accepts a starting unit size as an optional argument',
     },
   ]);
 });
@@ -63,6 +73,11 @@ module('Unit | Util | units#formatHertz', function() {
     { in: [1000 ** 4 * 12], out: '12 THz' },
     { in: [1000 ** 5], out: '1 PHz', name: 'formats x > 1000^5 as PHz' },
     { in: [1000 ** 5 * 34567.89], out: '34,567.89 PHz' },
+    {
+      in: [2000, 'KHz'],
+      out: '2 MHz',
+      name: 'accepts a starting unit size as an optional argument',
+    },
   ]);
 });
 
@@ -81,6 +96,11 @@ module('Unit | Util | units#formatScheduledHertz', function() {
       out: '1,001 MHz',
       name: 'MHz are rounded to whole numbers',
     },
+    {
+      in: [2000, 'MHz'],
+      out: '2,000 MHz',
+      name: 'accepts a starting unit size as an optional argument',
+    },
   ]);
 });
 
@@ -98,6 +118,11 @@ module('Unit | Util | units#reduceBytes', function() {
       out: [2048, 'KiB'],
       name: 'Reduction ends when the specified max unit is reached',
     },
+    {
+      in: [1024 ** 2, 'MiB', 'KiB'],
+      out: [1024, 'MiB'],
+      name: 'accepts a starting unit size as an optional argument',
+    },
   ]);
 });
 
@@ -114,6 +139,11 @@ module('Unit | Util | units#reduceHertz', function() {
       in: [1000 ** 4 * 2, 'GHz'],
       out: [2000, 'GHz'],
       name: 'Reduction ends when the specified max unit is reached',
+    },
+    {
+      in: [1000 * 2, 'THz', 'MHz'],
+      out: [2, 'GHz'],
+      name: 'accepts a starting unit size as an optional argument',
     },
   ]);
 });

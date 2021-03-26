@@ -9,7 +9,10 @@ const roundFormatter = new Intl.NumberFormat(locale, {
   maximumFractionDigits: 0,
 });
 
-const unitReducer = (number = 0, interval, units, maxUnit) => {
+const unitReducer = (number = 0, interval, units, maxUnit, startingUnit) => {
+  if (startingUnit && units.indexOf(startingUnit) !== -1) {
+    units = units.slice(units.indexOf(startingUnit));
+  }
   if (maxUnit && units.indexOf(maxUnit) !== -1) {
     units = units.slice(0, units.indexOf(maxUnit) + 1);
   }
@@ -22,34 +25,34 @@ const unitReducer = (number = 0, interval, units, maxUnit) => {
   return [number, units[unitIndex]];
 };
 
-export function reduceBytes(bytes = 0, maxUnitSize) {
-  return unitReducer(bytes, 1024, BYTES_UNITS, maxUnitSize);
+export function reduceBytes(bytes = 0, maxUnitSize, startingUnitSize) {
+  return unitReducer(bytes, 1024, BYTES_UNITS, maxUnitSize, startingUnitSize);
 }
 
-export function reduceHertz(hertz, maxUnitSize) {
-  return unitReducer(hertz, 1000, HERTZ_UNITS, maxUnitSize);
+export function reduceHertz(hertz, maxUnitSize, startingUnitSize) {
+  return unitReducer(hertz, 1000, HERTZ_UNITS, maxUnitSize, startingUnitSize);
 }
 
 // General purpose formatters meant to reduce units as much
 // as possible.
-export function formatBytes(bytes) {
-  const [number, unit] = reduceBytes(bytes);
+export function formatBytes(bytes, startingUnitSize) {
+  const [number, unit] = reduceBytes(bytes, null, startingUnitSize);
   return `${decimalFormatter.format(number)} ${unit}`;
 }
 
-export function formatHertz(hertz) {
-  const [number, unit] = reduceHertz(hertz);
+export function formatHertz(hertz, startingUnitSize) {
+  const [number, unit] = reduceHertz(hertz, null, startingUnitSize);
   return `${decimalFormatter.format(number)} ${unit}`;
 }
 
 // Specialized formatters meant to reduce units to the resolution
 // the scheduler and job specs operate at.
-export function formatScheduledBytes(bytes) {
-  const [number, unit] = reduceBytes(bytes, 'MiB');
+export function formatScheduledBytes(bytes, startingUnitSize) {
+  const [number, unit] = reduceBytes(bytes, 'MiB', startingUnitSize);
   return `${roundFormatter.format(number)} ${unit}`;
 }
 
-export function formatScheduledHertz(hertz) {
-  const [number, unit] = reduceHertz(hertz, 'MHz');
+export function formatScheduledHertz(hertz, startingUnitSize) {
+  const [number, unit] = reduceHertz(hertz, 'MHz', startingUnitSize);
   return `${roundFormatter.format(number)} ${unit}`;
 }
