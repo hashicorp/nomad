@@ -8,11 +8,8 @@ job "periodic" {
     value     = "darwin,linux"
   }
 
-
-
-  periodic {
-    cron             = "* * * * *"
-    prohibit_overlap = true
+  parameterized {
+    meta_optional = ["i"]
   }
 
   group "group" {
