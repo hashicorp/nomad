@@ -74,10 +74,11 @@ func TestRootFallthrough(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		desc         string
-		path         string
-		expectedPath string
-		expectedCode int
+		desc             string
+		path             string
+		expectedPath     string
+		expectedRawQuery string
+		expectedCode     int
 	}{
 		{
 			desc:         "unknown endpoint 404s",
@@ -89,6 +90,13 @@ func TestRootFallthrough(t *testing.T) {
 			path:         "/",
 			expectedPath: "/ui/",
 			expectedCode: 307,
+		},
+		{
+			desc:             "root path with one-time token redirects to ui",
+			path:             "/?ott=whatever",
+			expectedPath:     "/ui/",
+			expectedRawQuery: "ott=whatever",
+			expectedCode:     307,
 		},
 	}
 
@@ -115,6 +123,7 @@ func TestRootFallthrough(t *testing.T) {
 				loc, err := resp.Location()
 				require.NoError(t, err)
 				require.Equal(t, tc.expectedPath, loc.Path)
+				require.Equal(t, tc.expectedRawQuery, loc.RawQuery)
 			}
 		})
 	}

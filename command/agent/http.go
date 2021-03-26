@@ -407,7 +407,11 @@ func (s *HTTPServer) handleUI(h http.Handler) http.Handler {
 func (s *HTTPServer) handleRootFallthrough() http.Handler {
 	return s.auditHTTPHandler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Path == "/" {
-			http.Redirect(w, req, "/ui/", 307)
+			url := "/ui/"
+			if req.URL.RawQuery != "" {
+				url = url + "?" + req.URL.RawQuery
+			}
+			http.Redirect(w, req, url, 307)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
