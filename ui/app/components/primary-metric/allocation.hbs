@@ -20,7 +20,7 @@
             {{#if (eq this.metric "cpu")}}
               <span class="value">{{datum.datum.used}} MHz</span>
             {{else if (eq this.metric "memory")}}
-              <span class="value">{{format-bytes datum.datum.used}}</span>
+              <span class="value">{{format-scheduled-bytes datum.datum.used}}</span>
             {{else}}
               <span class="value">{{datum.formatttedY}}</span>
             {{/if}}
@@ -34,7 +34,7 @@
     {{#if (eq this.metric "cpu")}}
       <strong>{{this.data.lastObject.used}} MHz</strong> / {{this.reservedAmount}} MHz Total
     {{else if (eq this.metric "memory")}}
-      <strong>{{format-bytes this.data.lastObject.used}}</strong> / {{this.reservedAmount}} MiB Total
+      <strong>{{format-scheduled-bytes this.data.lastObject.used}}</strong> / {{this.reservedAmount}} MiB Total
     {{else}}
       <strong>{{this.data.lastObject.used}}</strong> / {{this.reservedAmount}} Total
     {{/if}}
