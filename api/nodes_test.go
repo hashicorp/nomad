@@ -202,7 +202,9 @@ func TestNodes_NoSecretID(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	})
 
-	// Query the node, ensure that .SecretID was not returned by the HTTP server
+	// perform a raw http call and make sure that:
+	// - "ID" to make sure that raw decoding is working correctly
+	// - "SecretID" to make sure it's not present
 	resp := make(map[string]interface{})
 	_, err := c.query("/v1/node/"+nodeID, &resp, nil)
 	require.NoError(t, err)

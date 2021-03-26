@@ -801,6 +801,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 
 			// Setup the output
 			if out != nil {
+				out = out.Sanitize()
 				reply.Node = out
 				reply.Index = out.ModifyIndex
 			} else {

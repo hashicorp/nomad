@@ -1,9 +1,7 @@
-package handlers
+package jsonhandles
 
 import (
 	"github.com/hashicorp/go-msgpack/codec"
-
-	"github.com/hashicorp/nomad/nomad/json"
 )
 
 var (
@@ -14,10 +12,10 @@ var (
 	JsonHandle = &codec.JsonHandle{
 		HTMLCharsAsIs: true,
 	}
-	JsonHandleWithExtensions = json.NomadJsonEncodingExtensions(&codec.JsonHandle{
+	JsonHandleWithExtensions = NomadJsonEncodingExtensions(&codec.JsonHandle{
 		HTMLCharsAsIs: true,
 	})
-	JsonHandlePretty = json.NomadJsonEncodingExtensions(&codec.JsonHandle{
+	JsonHandlePretty = NomadJsonEncodingExtensions(&codec.JsonHandle{
 		HTMLCharsAsIs: true,
 		Indent:        4,
 	})

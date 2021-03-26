@@ -1314,6 +1314,7 @@ func TestClientEndpoint_GetNode(t *testing.T) {
 
 	// Update the status updated at value
 	node.StatusUpdatedAt = resp2.Node.StatusUpdatedAt
+	node.SecretID = ""
 	node.Events = resp2.Node.Events
 	if !reflect.DeepEqual(node, resp2.Node) {
 		t.Fatalf("bad: %#v \n %#v", node, resp2.Node)

@@ -63,8 +63,3 @@ a few ways that this can be accomplished:
   appear in other handlers. 
   Otherwise, it is possible to register an extension on the JSON encoding used by the HTTP agent; these extensions
   can be put in `nomad/json/extensions.go`.
-  
-Note, for simple transformations to encoding (like renaming or neglecting fields), we can use field tags on the structs
-from `nomad/structs`. Our msgpack [encoding](http://ugorji.net/blog/go-codec-primer#drop-in-replacement-for-encoding-json-json-key-in-struct-tag-supported) 
-only uses the [`codec` tag](https://github.com/hashicorp/nomad/blob/v1.0.0/nomad/structs/structs.go#L10557-L10558).
-Therefore, the `json` tag is available for customizing API output when encoding `structs` objects. See `structs.Node.SecretID`, for example.

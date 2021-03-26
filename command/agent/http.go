@@ -24,7 +24,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
-	"github.com/hashicorp/nomad/nomad/json/handlers"
+	"github.com/hashicorp/nomad/nomad/jsonhandles"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -496,13 +496,13 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		if obj != nil {
 			var buf bytes.Buffer
 			if prettyPrint {
-				enc := codec.NewEncoder(&buf, handlers.JsonHandlePretty)
+				enc := codec.NewEncoder(&buf, jsonhandles.JsonHandlePretty)
 				err = enc.Encode(obj)
 				if err == nil {
 					buf.Write([]byte("\n"))
 				}
 			} else {
-				enc := codec.NewEncoder(&buf, handlers.JsonHandleWithExtensions)
+				enc := codec.NewEncoder(&buf, jsonhandles.JsonHandleWithExtensions)
 				err = enc.Encode(obj)
 			}
 			if err != nil {

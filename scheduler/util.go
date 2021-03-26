@@ -252,13 +252,7 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]int
 
 		// Filter on datacenter and status
 		node := raw.(*structs.Node)
-		if node.Status != structs.NodeStatusReady {
-			continue
-		}
-		if node.DrainStrategy != nil {
-			continue
-		}
-		if node.SchedulingEligibility != structs.NodeSchedulingEligible {
+		if !node.Ready() {
 			continue
 		}
 		if _, ok := dcMap[node.Datacenter]; !ok {

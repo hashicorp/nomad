@@ -1907,6 +1907,20 @@ type Node struct {
 	ModifyIndex uint64
 }
 
+// Sanitize returns a copy of the Node omitting confidential fields
+// It only returns a copy if the Node contains the confidential fields
+func (n *Node) Sanitize() *Node {
+	if n == nil {
+		return nil
+	}
+	if n.SecretID == "" {
+		return n
+	}
+	clean := n.Copy()
+	clean.SecretID = ""
+	return clean
+}
+
 // Ready returns true if the node is ready for running allocations
 func (n *Node) Ready() bool {
 	return n.Status == NodeStatusReady && n.DrainStrategy == nil && n.SchedulingEligibility == NodeSchedulingEligible
@@ -1915,6 +1929,16 @@ func (n *Node) Ready() bool {
 func (n *Node) Canonicalize() {
 	if n == nil {
 		return
+	}
+
+	// Ensure SchedulingEligibility is set whenever draining so the plan applier and other scheduling logic only need
+	// to check SchedulingEligibility when determining whether a placement is feasible on a node.
+	if n.SchedulingEligibility == "" {
+		if n.DrainStrategy != nil {
+			n.SchedulingEligibility = NodeSchedulingIneligible
+		} else {
+			n.SchedulingEligibility = NodeSchedulingEligible
+		}
 	}
 
 	// COMPAT remove in 1.0
@@ -1938,14 +1962,6 @@ func (n *Node) Canonicalize() {
 				}
 				n.NodeResources.NodeNetworks = append(n.NodeResources.NodeNetworks, nnr)
 			}
-		}
-	}
-
-	if n.SchedulingEligibility == "" {
-		if n.DrainStrategy != nil {
-			n.SchedulingEligibility = NodeSchedulingIneligible
-		} else {
-			n.SchedulingEligibility = NodeSchedulingEligible
 		}
 	}
 }

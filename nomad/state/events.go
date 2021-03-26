@@ -80,6 +80,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				return structs.Event{}, false
 			}
 
+			before = before.Sanitize()
 			return structs.Event{
 				Topic: structs.TopicNode,
 				Key:   before.ID,
@@ -175,6 +176,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			return structs.Event{}, false
 		}
 
+		after = after.Sanitize()
 		return structs.Event{
 			Topic: structs.TopicNode,
 			Key:   after.ID,

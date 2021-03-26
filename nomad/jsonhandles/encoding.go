@@ -1,4 +1,4 @@
-package json
+package jsonhandles
 
 import (
 	"reflect"
@@ -8,16 +8,6 @@ import (
 
 // extendFunc is a mapping from one struct to another, to change the shape of the encoded JSON
 type extendFunc func(interface{}) interface{}
-
-var (
-	// extendedTypes is a mapping of extended types to their extension function
-	extendedTypes = map[reflect.Type]extendFunc{}
-)
-
-// registerExtension registers an extension function against a particular type
-func registerExtension(tpe reflect.Type, ext extendFunc) {
-	extendedTypes[tpe] = ext
-}
 
 // nomadJsonEncodingExtensions is a catch-all go-msgpack extension
 // it looks up the types in the list of registered extension functions and applies it
