@@ -152,9 +152,11 @@ func TestEventStream_PayloadValue(t *testing.T) {
 			// verify that we get a node
 			n, err := e.Node()
 			require.NoError(t, err)
-			require.NotEqual(t, "", n.ID)
+			require.NotEmpty(t, n.ID)
 
-			// raw decoding to verify that the node did not contain SecretID
+			// perform a raw decoding and look for:
+			// - "ID", to make sure that raw decoding is correct
+			// - "SecretID", to make sure it's not present
 			raw := make(map[string]map[string]interface{}, 0)
 			cfg := &mapstructure.DecoderConfig{
 				Result: &raw,
