@@ -1474,6 +1474,7 @@ func TestTask_Validate_Resources(t *testing.T) {
 	cases := []struct {
 		name string
 		res  *Resources
+		err  string
 	}{
 		{
 			name: "Minimum",
@@ -1486,9 +1487,10 @@ func TestTask_Validate_Resources(t *testing.T) {
 		{
 			name: "Full",
 			res: &Resources{
-				CPU:      1000,
-				MemoryMB: 1000,
-				IOPS:     1000,
+				CPU:         1000,
+				MemoryMB:    1000,
+				MemoryMaxMB: 2000,
+				IOPS:        1000,
 				Networks: []*NetworkResource{
 					{
 						Mode:   "host",
@@ -1521,12 +1523,43 @@ func TestTask_Validate_Resources(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "too little cpu",
+			res: &Resources{
+				CPU:      0,
+				MemoryMB: 200,
+			},
+			err: "minimum CPU value is 1",
+		},
+		{
+			name: "too little memory",
+			res: &Resources{
+				CPU:      100,
+				MemoryMB: 1,
+			},
+			err: "minimum MemoryMB value is 10; got 1",
+		},
+		{
+			name: "too little memory max",
+			res: &Resources{
+				CPU:         100,
+				MemoryMB:    200,
+				MemoryMaxMB: 10,
+			},
+			err: "MemoryMaxMB value (10) should be larger than MemoryMB value (200",
+		},
 	}
 
 	for i := range cases {
 		tc := cases[i]
 		t.Run(tc.name, func(t *testing.T) {
-			require.NoError(t, tc.res.Validate())
+			err := tc.res.Validate()
+			if tc.err == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.err)
+			}
 		})
 	}
 }
@@ -2736,7 +2769,8 @@ func TestComparableResources_Subtract(t *testing.T) {
 				CpuShares: 2000,
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: 2048,
+				MemoryMB:    2048,
+				MemoryMaxMB: 3048,
 			},
 			Networks: []*NetworkResource{
 				{
@@ -2757,7 +2791,8 @@ func TestComparableResources_Subtract(t *testing.T) {
 				CpuShares: 1000,
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: 1024,
+				MemoryMB:    1024,
+				MemoryMaxMB: 1524,
 			},
 			Networks: []*NetworkResource{
 				{
@@ -2779,7 +2814,8 @@ func TestComparableResources_Subtract(t *testing.T) {
 				CpuShares: 1000,
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: 1024,
+				MemoryMB:    1024,
+				MemoryMaxMB: 1524,
 			},
 			Networks: []*NetworkResource{
 				{
@@ -2796,6 +2832,29 @@ func TestComparableResources_Subtract(t *testing.T) {
 
 	require := require.New(t)
 	require.Equal(expect, r1)
+}
+
+func TestMemoryResources_Add(t *testing.T) {
+	r := &AllocatedMemoryResources{}
+
+	// adding plain no max
+	r.Add(&AllocatedMemoryResources{
+		MemoryMB: 100,
+	})
+	require.Equal(t, &AllocatedMemoryResources{
+		MemoryMB:    100,
+		MemoryMaxMB: 100,
+	}, r)
+
+	// adding with max
+	r.Add(&AllocatedMemoryResources{
+		MemoryMB:    100,
+		MemoryMaxMB: 200,
+	})
+	require.Equal(t, &AllocatedMemoryResources{
+		MemoryMB:    200,
+		MemoryMaxMB: 300,
+	}, r)
 }
 
 func TestEncodeDecode(t *testing.T) {
