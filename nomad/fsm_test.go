@@ -11,6 +11,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/raft"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -19,10 +24,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/hashicorp/raft"
-	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type MockSink struct {
@@ -178,6 +179,60 @@ func TestFSM_UpsertNode(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	})
 
+}
+
+func TestFSM_UpsertNode_Canonicalize(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
+
+	// Setup a node without eligibility, ensure that upsert/canonicalize put it back
+	node := mock.Node()
+	node.SchedulingEligibility = ""
+
+	req := structs.NodeRegisterRequest{
+		Node: node,
+	}
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	require.Nil(err)
+
+	require.Nil(fsm.Apply(makeLog(buf)))
+
+	// Verify we are registered
+	n, err := fsm.State().NodeByID(nil, req.Node.ID)
+	require.Nil(err)
+	require.NotNil(n)
+	require.EqualValues(1, n.CreateIndex)
+	require.Equal(structs.NodeSchedulingEligible, n.SchedulingEligibility)
+}
+
+func TestFSM_UpsertNode_Canonicalize_Ineligible(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
+
+	// Setup a node without eligibility, ensure that upsert/canonicalize put it back
+	node := mock.DrainNode()
+	node.SchedulingEligibility = ""
+
+	req := structs.NodeRegisterRequest{
+		Node: node,
+	}
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	require.Nil(err)
+
+	require.Nil(fsm.Apply(makeLog(buf)))
+
+	// Verify we are registered
+	n, err := fsm.State().NodeByID(nil, req.Node.ID)
+	require.Nil(err)
+	require.NotNil(n)
+	require.EqualValues(1, n.CreateIndex)
+	require.Equal(structs.NodeSchedulingIneligible, n.SchedulingEligibility)
 }
 
 func TestFSM_DeregisterNode(t *testing.T) {
