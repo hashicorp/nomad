@@ -91,7 +91,7 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
     const namespace = server.db.namespaces[1];
 
     await JobsList.visit();
-    await selectChoose('[data-test-namespace-switcher]', namespace.name);
+    await selectChoose('[data-test-namespace-switcher-parent]', namespace.name);
 
     assert.equal(
       window.localStorage.nomadActiveNamespace,
@@ -114,7 +114,7 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
     );
 
     // TODO: handle this with Page Objects
-    await selectChoose('[data-test-namespace-switcher]', namespace.name);
+    await selectChoose('[data-test-namespace-switcher-parent]', namespace.name);
 
     requests = server.pretender.handledRequests.filter(req => req.url.startsWith('/v1/jobs'));
     assert.equal(requests.length, 2, 'Second request to jobs');
@@ -129,7 +129,7 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
     const namespace = server.db.namespaces[1];
 
     await ClientsList.visit();
-    await selectChoose('[data-test-namespace-switcher]', namespace.name);
+    await selectChoose('[data-test-namespace-switcher-parent]', namespace.name);
 
     assert.equal(currentURL(), `/jobs?namespace=${namespace.name}`);
   });
@@ -139,7 +139,7 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
     const allocation = server.create('allocation', { job: server.db.jobs[0] });
 
     await Allocation.visit({ id: allocation.id });
-    await selectChoose('[data-test-namespace-switcher]', namespace.name);
+    await selectChoose('[data-test-namespace-switcher-parent]', namespace.name);
 
     assert.equal(currentURL(), `/jobs?namespace=${namespace.name}`);
   });
@@ -148,7 +148,7 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
     const namespace = server.db.namespaces[1];
 
     await PluginsList.visit();
-    await selectChoose('[data-test-namespace-switcher]', namespace.name);
+    await selectChoose('[data-test-namespace-switcher-parent]', namespace.name);
 
     assert.equal(currentURL(), `/csi/volumes?namespace=${namespace.name}`);
   });
@@ -165,7 +165,7 @@ module('Acceptance | namespaces (enabled)', function(hooks) {
     assert.equal(requests[0].queryParams.namespace, undefined);
 
     // TODO: handle this with Page Objects
-    await selectChoose('[data-test-namespace-switcher]', namespace.name);
+    await selectChoose('[data-test-namespace-switcher-parent]', namespace.name);
 
     requests = server.pretender.handledRequests.filter(req => req.url.startsWith('/v1/volumes'));
     assert.equal(requests.length, 2);

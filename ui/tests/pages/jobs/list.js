@@ -59,8 +59,8 @@ export default create({
   },
 
   namespaceSwitcher: {
-    isPresent: isPresent('[data-test-namespace-switcher]'),
-    open: clickable('[data-test-namespace-switcher] .ember-power-select-trigger'),
+    isPresent: isPresent('[data-test-namespace-switcher-parent]'),
+    open: clickable('[data-test-namespace-switcher-parent] .ember-power-select-trigger'),
     options: collection('.ember-power-select-option', {
       testContainer: '#ember-testing',
       resetScope: true,

@@ -33,7 +33,7 @@ export default function pageSizeSelect({ resourceName, pageObject, pageObjectLis
     assert.equal(pageObjectList.length, pageObject.pageSize);
     assert.equal(pageObject.pageSizeSelect.selectedOption, pageObject.pageSize);
 
-    await selectChoose('[data-test-page-size-select]', desiredPageSize);
+    await selectChoose('[data-test-page-size-select-parent]', desiredPageSize);
 
     assert.equal(window.localStorage.nomadPageSize, desiredPageSize);
     assert.equal(pageObjectList.length, desiredPageSize);

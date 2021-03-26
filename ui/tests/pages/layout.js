@@ -13,7 +13,7 @@ export default create({
     scope: '[data-test-global-header]',
 
     regionSwitcher: {
-      scope: '[data-test-region-switcher]',
+      scope: '[data-test-region-switcher-parent]',
       isPresent: isPresent(),
       open: clickable('.ember-power-select-trigger'),
       options: collection('.ember-power-select-option', {
@@ -22,7 +22,7 @@ export default create({
     },
 
     search: {
-      scope: '[data-test-search]',
+      scope: '[data-test-search-parent]',
 
       click: clickable('.ember-power-select-trigger'),
 
@@ -66,7 +66,7 @@ export default create({
   gutter: {
     scope: '[data-test-gutter-menu]',
     namespaceSwitcher: {
-      scope: '[data-test-namespace-switcher]',
+      scope: '[data-test-namespace-switcher-parent]',
       isPresent: isPresent(),
       open: clickable('.ember-power-select-trigger'),
       options: collection('.ember-power-select-option', {
