@@ -7,12 +7,13 @@ import (
 // Resources encapsulates the required resources of
 // a given task or task group.
 type Resources struct {
-	CPU      *int               `hcl:"cpu,optional"`
-	Cores    *int               `hcl:"cores,optional"`
-	MemoryMB *int               `mapstructure:"memory" hcl:"memory,optional"`
-	DiskMB   *int               `mapstructure:"disk" hcl:"disk,optional"`
-	Networks []*NetworkResource `hcl:"network,block"`
-	Devices  []*RequestedDevice `hcl:"device,block"`
+	CPU         *int               `hcl:"cpu,optional"`
+	Cores       *int               `hcl:"cores,optional"`
+	MemoryMB    *int               `mapstructure:"memory" hcl:"memory,optional"`
+	MemoryMaxMB *int               `mapstructure:"memory_max" hcl:"memory_max,optional"`
+	DiskMB      *int               `mapstructure:"disk" hcl:"disk,optional"`
+	Networks    []*NetworkResource `hcl:"network,block"`
+	Devices     []*RequestedDevice `hcl:"device,block"`
 
 	// COMPAT(0.10)
 	// XXX Deprecated. Please do not use. The field will be removed in Nomad

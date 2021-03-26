@@ -2930,6 +2930,53 @@ func TestConversion_apiLogConfigToStructs(t *testing.T) {
 	}))
 }
 
+func TestConversion_apiResourcesToStructs(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		input    *api.Resources
+		expected *structs.Resources
+	}{
+		{
+			"nil",
+			nil,
+			nil,
+		},
+		{
+			"plain",
+			&api.Resources{
+				CPU:      helper.IntToPtr(100),
+				MemoryMB: helper.IntToPtr(200),
+			},
+			&structs.Resources{
+				CPU:      100,
+				MemoryMB: 200,
+			},
+		},
+		{
+			"with memory max",
+			&api.Resources{
+				CPU:         helper.IntToPtr(100),
+				MemoryMB:    helper.IntToPtr(200),
+				MemoryMaxMB: helper.IntToPtr(300),
+			},
+			&structs.Resources{
+				CPU:         100,
+				MemoryMB:    200,
+				MemoryMaxMB: 300,
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			found := ApiResourcesToStructs(c.input)
+			require.Equal(t, c.expected, found)
+		})
+	}
+}
+
 func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 	t.Parallel()
 	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
