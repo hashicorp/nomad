@@ -2235,6 +2235,10 @@ func (r *Resources) Validate() error {
 		}
 	}
 
+	if r.MemoryMaxMB != 0 && r.MemoryMaxMB < r.MemoryMB {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("MemoryMaxMB value (%d) should be larger than MemoryMB value (%d)", r.MemoryMaxMB, r.MemoryMB))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
