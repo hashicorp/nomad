@@ -1,6 +1,6 @@
 import d3Format from 'd3-format';
 
-import { reduceToLargestUnit } from 'nomad-ui/helpers/format-bytes';
+import { reduceBytes } from 'nomad-ui/utils/units';
 
 const formatPercent = d3Format.format('+.0%');
 const sumAggregate = (total, val) => total + val;
@@ -90,7 +90,7 @@ class ResourceDiffs {
         return '0 MiB';
       }
 
-      const [memory, units] = reduceToLargestUnit(delta * 1024 * 1024);
+      const [memory, units] = reduceBytes(delta * 1024 * 1024);
       const formattedMemory = Number.isInteger(memory) ? memory : memory.toFixed(2);
 
       return `${formattedMemory} ${units}`;
