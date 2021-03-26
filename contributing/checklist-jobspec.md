@@ -62,4 +62,4 @@ a few ways that this can be accomplished:
   This conversion can be performed in-situ in the agent HTTP handler, as long as the conversion doesn't need to 
   appear in other handlers. 
   Otherwise, it is possible to register an extension on the JSON encoding used by the HTTP agent; these extensions
-  can be put in `nomad/json/extensions.go`.
+  can be put in `nomad/jsonhandles/extensions.go`.
