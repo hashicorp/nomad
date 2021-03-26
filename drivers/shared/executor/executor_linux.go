@@ -682,9 +682,16 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 		return nil
 	}
 
-	if mb := command.Resources.NomadResources.Memory.MemoryMB; mb > 0 {
-		// Total amount of memory allowed to consume
-		cfg.Cgroups.Resources.Memory = mb * 1024 * 1024
+	// Total amount of memory allowed to consume
+	var memoryLimit int64
+	if res := command.Resources.NomadResources.Memory; res.MemoryMaxMB > 0 {
+		memoryLimit = res.MemoryMaxMB * 1024 * 1024
+	} else if res.MemoryMB > 0 {
+		memoryLimit = res.MemoryMB * 1024 * 1024
+	}
+	if memoryLimit > 0 {
+		cfg.Cgroups.Resources.Memory = memoryLimit
+
 		// Disable swap to avoid issues on the machine
 		var memSwappiness uint64
 		cfg.Cgroups.Resources.MemorySwappiness = &memSwappiness
