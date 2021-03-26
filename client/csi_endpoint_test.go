@@ -627,6 +627,262 @@ func TestCSIController_ListVolumes(t *testing.T) {
 		})
 	}
 }
+func TestCSIController_CreateSnapshot(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Name             string
+		ClientSetupFunc  func(*fake.Client)
+		Request          *structs.ClientCSIControllerCreateSnapshotRequest
+		ExpectedErr      error
+		ExpectedResponse *structs.ClientCSIControllerCreateSnapshotResponse
+	}{
+		{
+			Name: "returns plugin not found errors",
+			Request: &structs.ClientCSIControllerCreateSnapshotRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: "some-garbage",
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerCreateSnapshot: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+		},
+		{
+			Name: "returns transitive errors",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerCreateSnapshotErr = errors.New("internal plugin error")
+			},
+			Request: &structs.ClientCSIControllerCreateSnapshotRequest{
+				ExternalSourceVolumeID: "vol-1",
+				Name:                   "1234-4321-1234-4321",
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerCreateSnapshot: internal plugin error"),
+		},
+		{
+			Name: "returns snapshot on success",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerCreateSnapshotResponse = &csi.ControllerCreateSnapshotResponse{
+					Snapshot: &csi.Snapshot{
+						ID:             "snap-12345",
+						SourceVolumeID: "vol-1",
+						SizeBytes:      10000000,
+						IsReady:        true,
+					},
+				}
+			},
+			Request: &structs.ClientCSIControllerCreateSnapshotRequest{
+				ExternalSourceVolumeID: "vol-1",
+				Name:                   "1234-4321-1234-4321",
+				Secrets:                nstructs.CSISecrets{"password": "xyzzy"},
+				Parameters:             map[string]string{"foo": "bar"},
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+			},
+			ExpectedResponse: &structs.ClientCSIControllerCreateSnapshotResponse{
+				ID:                     "snap-12345",
+				ExternalSourceVolumeID: "vol-1",
+				SizeBytes:              10000000,
+				IsReady:                true,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			require := require.New(t)
+			client, cleanup := TestClient(t, nil)
+			defer cleanup()
+
+			fakeClient := &fake.Client{}
+			if tc.ClientSetupFunc != nil {
+				tc.ClientSetupFunc(fakeClient)
+			}
+
+			dispenserFunc := func(*dynamicplugins.PluginInfo) (interface{}, error) {
+				return fakeClient, nil
+			}
+			client.dynamicRegistry.StubDispenserForType(
+				dynamicplugins.PluginTypeCSIController, dispenserFunc)
+
+			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
+			require.Nil(err)
+
+			var resp structs.ClientCSIControllerCreateSnapshotResponse
+			err = client.ClientRPC("CSI.ControllerCreateSnapshot", tc.Request, &resp)
+			require.Equal(tc.ExpectedErr, err)
+			if tc.ExpectedResponse != nil {
+				require.Equal(tc.ExpectedResponse, &resp)
+			}
+		})
+	}
+}
+
+func TestCSIController_DeleteSnapshot(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Name             string
+		ClientSetupFunc  func(*fake.Client)
+		Request          *structs.ClientCSIControllerDeleteSnapshotRequest
+		ExpectedErr      error
+		ExpectedResponse *structs.ClientCSIControllerDeleteSnapshotResponse
+	}{
+		{
+			Name: "returns plugin not found errors",
+			Request: &structs.ClientCSIControllerDeleteSnapshotRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: "some-garbage",
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerDeleteSnapshot: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+		},
+		{
+			Name: "returns transitive errors",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerDeleteSnapshotErr = errors.New("internal plugin error")
+			},
+			Request: &structs.ClientCSIControllerDeleteSnapshotRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				ID: "1234-4321-1234-4321",
+			},
+			ExpectedErr: errors.New("CSI.ControllerDeleteSnapshot: internal plugin error"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			require := require.New(t)
+			client, cleanup := TestClient(t, nil)
+			defer cleanup()
+
+			fakeClient := &fake.Client{}
+			if tc.ClientSetupFunc != nil {
+				tc.ClientSetupFunc(fakeClient)
+			}
+
+			dispenserFunc := func(*dynamicplugins.PluginInfo) (interface{}, error) {
+				return fakeClient, nil
+			}
+			client.dynamicRegistry.StubDispenserForType(
+				dynamicplugins.PluginTypeCSIController, dispenserFunc)
+
+			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
+			require.Nil(err)
+
+			var resp structs.ClientCSIControllerDeleteSnapshotResponse
+			err = client.ClientRPC("CSI.ControllerDeleteSnapshot", tc.Request, &resp)
+			require.Equal(tc.ExpectedErr, err)
+			if tc.ExpectedResponse != nil {
+				require.Equal(tc.ExpectedResponse, &resp)
+			}
+		})
+	}
+}
+
+func TestCSIController_ListSnapshots(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Name             string
+		ClientSetupFunc  func(*fake.Client)
+		Request          *structs.ClientCSIControllerListSnapshotsRequest
+		ExpectedErr      error
+		ExpectedResponse *structs.ClientCSIControllerListSnapshotsResponse
+	}{
+		{
+			Name: "returns plugin not found errors",
+			Request: &structs.ClientCSIControllerListSnapshotsRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: "some-garbage",
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerListSnapshots: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+		},
+		{
+			Name: "returns transitive errors",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerListSnapshotsErr = errors.New("internal plugin error")
+			},
+			Request: &structs.ClientCSIControllerListSnapshotsRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerListSnapshots: internal plugin error"),
+		},
+		{
+			Name: "returns volumes",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerListSnapshotsResponse = &csi.ControllerListSnapshotsResponse{
+					Entries: []*csi.ListSnapshotsResponse_Entry{
+						{
+							Snapshot: &csi.Snapshot{
+								ID:             "snap-1",
+								SourceVolumeID: "vol-1",
+								SizeBytes:      1000000,
+								IsReady:        true,
+							},
+						},
+					},
+					NextToken: "2",
+				}
+			},
+			Request: &structs.ClientCSIControllerListSnapshotsRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				StartingToken: "1",
+				MaxEntries:    100,
+			},
+			ExpectedResponse: &structs.ClientCSIControllerListSnapshotsResponse{
+				Entries: []*nstructs.CSISnapshot{
+					{
+						ID:                     "snap-1",
+						ExternalSourceVolumeID: "vol-1",
+						SizeBytes:              1000000,
+						IsReady:                true,
+						PluginID:               fakePlugin.Name,
+					},
+				},
+				NextToken: "2",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			require := require.New(t)
+			client, cleanup := TestClient(t, nil)
+			defer cleanup()
+
+			fakeClient := &fake.Client{}
+			if tc.ClientSetupFunc != nil {
+				tc.ClientSetupFunc(fakeClient)
+			}
+
+			dispenserFunc := func(*dynamicplugins.PluginInfo) (interface{}, error) {
+				return fakeClient, nil
+			}
+			client.dynamicRegistry.StubDispenserForType(
+				dynamicplugins.PluginTypeCSIController, dispenserFunc)
+
+			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
+			require.Nil(err)
+
+			var resp structs.ClientCSIControllerListSnapshotsResponse
+			err = client.ClientRPC("CSI.ControllerListSnapshots", tc.Request, &resp)
+			require.Equal(tc.ExpectedErr, err)
+			if tc.ExpectedResponse != nil {
+				require.Equal(tc.ExpectedResponse, &resp)
+			}
+		})
+	}
+}
 
 func TestCSINode_DetachVolume(t *testing.T) {
 	t.Parallel()

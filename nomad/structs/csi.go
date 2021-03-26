@@ -774,6 +774,60 @@ type CSIVolumeUnpublishResponse struct {
 	QueryMeta
 }
 
+// CSISnapshot is the storage provider's view of a volume snapshot
+type CSISnapshot struct {
+	// These fields map to those returned by the storage provider plugin
+	ID                     string // storage provider's ID
+	ExternalSourceVolumeID string // storage provider's ID for volume
+	SizeBytes              int64
+	CreateTime             int64
+	IsReady                bool
+
+	// These fields are controlled by Nomad
+	SourceVolumeID string
+	PluginID       string
+
+	// These field are only used during snapshot creation and will not be
+	// populated when the snapshot is returned
+	Name       string
+	Secrets    CSISecrets
+	Parameters map[string]string
+}
+
+type CSISnapshotCreateRequest struct {
+	Snapshots []*CSISnapshot
+	WriteRequest
+}
+
+type CSISnapshotCreateResponse struct {
+	Snapshots []*CSISnapshot
+	QueryMeta
+}
+
+type CSISnapshotDeleteRequest struct {
+	Snapshots []*CSISnapshot
+	WriteRequest
+}
+
+type CSISnapshotDeleteResponse struct {
+	QueryMeta
+}
+
+// CSISnapshotListRequest is a request to a controller plugin to list all the
+// snapshot known to the the storage provider. This request is paginated by
+// the plugin and accepts the QueryOptions.PerPage and QueryOptions.NextToken
+// fields
+type CSISnapshotListRequest struct {
+	PluginID string
+	QueryOptions
+}
+
+type CSISnapshotListResponse struct {
+	Snapshots []*CSISnapshot
+	NextToken string
+	QueryMeta
+}
+
 // CSIPlugin collects fingerprint info context for the plugin for clients
 type CSIPlugin struct {
 	ID                 string

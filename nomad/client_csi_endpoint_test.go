@@ -24,23 +24,30 @@ import (
 // responses that have no bodies have no "Next*Response" field and will always
 // return an empty response body.
 type MockClientCSI struct {
-	NextValidateError        error
-	NextAttachError          error
-	NextAttachResponse       *cstructs.ClientCSIControllerAttachVolumeResponse
-	NextDetachError          error
-	NextCreateError          error
-	NextCreateResponse       *cstructs.ClientCSIControllerCreateVolumeResponse
-	NextDeleteError          error
-	NextListExternalError    error
-	NextListExternalResponse *cstructs.ClientCSIControllerListVolumesResponse
-	NextNodeDetachError      error
+	NextValidateError                 error
+	NextAttachError                   error
+	NextAttachResponse                *cstructs.ClientCSIControllerAttachVolumeResponse
+	NextDetachError                   error
+	NextCreateError                   error
+	NextCreateResponse                *cstructs.ClientCSIControllerCreateVolumeResponse
+	NextDeleteError                   error
+	NextListExternalError             error
+	NextListExternalResponse          *cstructs.ClientCSIControllerListVolumesResponse
+	NextCreateSnapshotError           error
+	NextCreateSnapshotResponse        *cstructs.ClientCSIControllerCreateSnapshotResponse
+	NextDeleteSnapshotError           error
+	NextListExternalSnapshotsError    error
+	NextListExternalSnapshotsResponse *cstructs.ClientCSIControllerListSnapshotsResponse
+	NextNodeDetachError               error
 }
 
 func newMockClientCSI() *MockClientCSI {
 	return &MockClientCSI{
-		NextAttachResponse:       &cstructs.ClientCSIControllerAttachVolumeResponse{},
-		NextCreateResponse:       &cstructs.ClientCSIControllerCreateVolumeResponse{},
-		NextListExternalResponse: &cstructs.ClientCSIControllerListVolumesResponse{},
+		NextAttachResponse:                &cstructs.ClientCSIControllerAttachVolumeResponse{},
+		NextCreateResponse:                &cstructs.ClientCSIControllerCreateVolumeResponse{},
+		NextListExternalResponse:          &cstructs.ClientCSIControllerListVolumesResponse{},
+		NextCreateSnapshotResponse:        &cstructs.ClientCSIControllerCreateSnapshotResponse{},
+		NextListExternalSnapshotsResponse: &cstructs.ClientCSIControllerListSnapshotsResponse{},
 	}
 }
 
@@ -69,6 +76,20 @@ func (c *MockClientCSI) ControllerDeleteVolume(req *cstructs.ClientCSIController
 func (c *MockClientCSI) ControllerListVolumes(req *cstructs.ClientCSIControllerListVolumesRequest, resp *cstructs.ClientCSIControllerListVolumesResponse) error {
 	*resp = *c.NextListExternalResponse
 	return c.NextListExternalError
+}
+
+func (c *MockClientCSI) ControllerCreateSnapshot(req *cstructs.ClientCSIControllerCreateSnapshotRequest, resp *cstructs.ClientCSIControllerCreateSnapshotResponse) error {
+	*resp = *c.NextCreateSnapshotResponse
+	return c.NextCreateSnapshotError
+}
+
+func (c *MockClientCSI) ControllerDeleteSnapshot(req *cstructs.ClientCSIControllerDeleteSnapshotRequest, resp *cstructs.ClientCSIControllerDeleteSnapshotResponse) error {
+	return c.NextDeleteSnapshotError
+}
+
+func (c *MockClientCSI) ControllerListSnapshots(req *cstructs.ClientCSIControllerListSnapshotsRequest, resp *cstructs.ClientCSIControllerListSnapshotsResponse) error {
+	*resp = *c.NextListExternalSnapshotsResponse
+	return c.NextListExternalSnapshotsError
 }
 
 func (c *MockClientCSI) NodeDetachVolume(req *cstructs.ClientCSINodeDetachVolumeRequest, resp *cstructs.ClientCSINodeDetachVolumeResponse) error {
@@ -271,6 +292,104 @@ func TestClientCSIController_ListVolumes_Forwarded(t *testing.T) {
 	require.Contains(err.Error(), "no plugins registered for type")
 }
 
+func TestClientCSIController_CreateSnapshot_Local(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	codec, cleanup := setupLocal(t)
+	defer cleanup()
+
+	req := &cstructs.ClientCSIControllerCreateSnapshotRequest{
+		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerCreateSnapshot", req, &resp)
+	require.Error(err)
+	require.Contains(err.Error(), "no plugins registered for type")
+}
+
+func TestClientCSIController_CreateSnapshot_Forwarded(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	codec, cleanup := setupForward(t)
+	defer cleanup()
+
+	req := &cstructs.ClientCSIControllerCreateSnapshotRequest{
+		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerCreateSnapshot", req, &resp)
+	require.Error(err)
+	require.Contains(err.Error(), "no plugins registered for type")
+}
+
+func TestClientCSIController_DeleteSnapshot_Local(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	codec, cleanup := setupLocal(t)
+	defer cleanup()
+
+	req := &cstructs.ClientCSIControllerDeleteSnapshotRequest{
+		ID:                 "test",
+		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerDeleteSnapshot", req, &resp)
+	require.Error(err)
+	require.Contains(err.Error(), "no plugins registered for type")
+}
+
+func TestClientCSIController_DeleteSnapshot_Forwarded(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	codec, cleanup := setupForward(t)
+	defer cleanup()
+
+	req := &cstructs.ClientCSIControllerDeleteSnapshotRequest{
+		ID:                 "test",
+		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerDeleteSnapshot", req, &resp)
+	require.Error(err)
+	require.Contains(err.Error(), "no plugins registered for type")
+}
+
+func TestClientCSIController_ListSnapshots_Local(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	codec, cleanup := setupLocal(t)
+	defer cleanup()
+
+	req := &cstructs.ClientCSIControllerListSnapshotsRequest{
+		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerListSnapshots", req, &resp)
+	require.Error(err)
+	require.Contains(err.Error(), "no plugins registered for type")
+}
+
+func TestClientCSIController_ListSnapshots_Forwarded(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	codec, cleanup := setupForward(t)
+	defer cleanup()
+
+	req := &cstructs.ClientCSIControllerListSnapshotsRequest{
+		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
+	}
+
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerListSnapshots", req, &resp)
+	require.Error(err)
+	require.Contains(err.Error(), "no plugins registered for type")
+}
+
 func TestClientCSI_NodeForControllerPlugin(t *testing.T) {
 	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {})
@@ -404,6 +523,9 @@ func setupLocal(t *testing.T) (rpc.ClientCodec, func()) {
 	mockCSI.NextCreateError = fmt.Errorf("no plugins registered for type")
 	mockCSI.NextDeleteError = fmt.Errorf("no plugins registered for type")
 	mockCSI.NextListExternalError = fmt.Errorf("no plugins registered for type")
+	mockCSI.NextCreateSnapshotError = fmt.Errorf("no plugins registered for type")
+	mockCSI.NextDeleteSnapshotError = fmt.Errorf("no plugins registered for type")
+	mockCSI.NextListExternalSnapshotsError = fmt.Errorf("no plugins registered for type")
 
 	c1, cleanupC1 := client.TestClientWithRPCs(t,
 		func(c *config.Config) {

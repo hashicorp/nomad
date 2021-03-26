@@ -97,6 +97,45 @@ func (a *ClientCSI) ControllerListVolumes(args *cstructs.ClientCSIControllerList
 	return nil
 }
 
+func (a *ClientCSI) ControllerCreateSnapshot(args *cstructs.ClientCSIControllerCreateSnapshotRequest, reply *cstructs.ClientCSIControllerCreateSnapshotResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "create_snapshot"}, time.Now())
+
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerCreateSnapshot",
+		"ClientCSI.ControllerCreateSnapshot",
+		args, reply)
+	if err != nil {
+		return fmt.Errorf("controller create snapshot: %v", err)
+	}
+	return nil
+}
+
+func (a *ClientCSI) ControllerDeleteSnapshot(args *cstructs.ClientCSIControllerDeleteSnapshotRequest, reply *cstructs.ClientCSIControllerDeleteSnapshotResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "delete_snapshot"}, time.Now())
+
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerDeleteSnapshot",
+		"ClientCSI.ControllerDeleteSnapshot",
+		args, reply)
+	if err != nil {
+		return fmt.Errorf("controller delete snapshot: %v", err)
+	}
+	return nil
+}
+
+func (a *ClientCSI) ControllerListSnapshots(args *cstructs.ClientCSIControllerListSnapshotsRequest, reply *cstructs.ClientCSIControllerListSnapshotsResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_csi_controller", "list_snapshots"}, time.Now())
+
+	err := a.sendCSIControllerRPC(args.PluginID,
+		"CSI.ControllerListSnapshots",
+		"ClientCSI.ControllerListSnapshots",
+		args, reply)
+	if err != nil {
+		return fmt.Errorf("controller list snapshots: %v", err)
+	}
+	return nil
+}
+
 func (a *ClientCSI) sendCSIControllerRPC(pluginID, method, fwdMethod string, args cstructs.CSIControllerRequest, reply interface{}) error {
 
 	clientIDs, err := a.clientIDsForController(pluginID)
