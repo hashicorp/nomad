@@ -23,6 +23,12 @@ The Nomad agent metrics API now respects the
 configuration value. If this value is set to `false`, which is the default value,
 calling `/v1/metrics?format=prometheus` will now result in a response error.
 
+#### Connect native tasks
+
+Connect native tasks running in host networking mode will now have `CONSUL_HTTP_ADDR`
+set automatically. Before this was only the case for bridge networking. If an operator
+already explicitly set `CONSUL_HTTP_ADDR` then it will not get overriden.
+
 ## Nomad 1.0.3, 0.12.10
 
 Nomad versions 1.0.3 and 0.12.10 change the behavior of the `exec` and `java` drivers so that
