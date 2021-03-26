@@ -110,6 +110,7 @@ func ResourcesFromProto(pb *proto.Resources) *Resources {
 
 		if pb.AllocatedResources.Memory != nil {
 			r.NomadResources.Memory.MemoryMB = pb.AllocatedResources.Memory.MemoryMb
+			r.NomadResources.Memory.MemoryMaxMB = pb.AllocatedResources.Memory.MemoryMaxMb
 		}
 
 		for _, network := range pb.AllocatedResources.Networks {

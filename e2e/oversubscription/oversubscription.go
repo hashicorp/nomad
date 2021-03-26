@@ -3,6 +3,7 @@ package oversubscription
 import (
 	"fmt"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -26,6 +27,8 @@ func init() {
 func (tc *OversubscriptionTest) BeforeAll(f *framework.F) {
 	// Ensure cluster has leader before running tests
 	e2eutil.WaitForLeader(f.T(), tc.Nomad())
+	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 1)
+
 }
 
 func (tc *OversubscriptionTest) AfterEach(f *framework.F) {
@@ -38,17 +41,33 @@ func (tc *OversubscriptionTest) AfterEach(f *framework.F) {
 	tc.Nomad().System().GarbageCollect()
 }
 
-func (tc *OverSubscriptionTest) TestDocker(f *framework.F) {
-	tc.runTest(f, "oversubscription-docker-", "docker.nomad")
+func (tc *OversubscriptionTest) TestDocker(f *framework.F) {
+	alloc := tc.runTest(f, "oversubscription-docker-", "docker.nomad")
+
+	// check that cgroup reports the memoryMaxMB as the limit within he container
+	stdout, err := e2eutil.AllocLogs(alloc.ID, e2eutil.LogsStdOut)
+	f.NoError(err)
+	f.Equal(fmt.Sprintf("%d\n", 30*1024*1024), stdout)
 }
 
-func (tc *OverSubscriptionTest) TestExec(f *framework.F) {
-	tc.runTest(f, "oversubscription-exec-", "exec.nomad")
+func (tc *OversubscriptionTest) TestExec(f *framework.F) {
+	alloc := tc.runTest(f, "oversubscription-exec-", "exec.nomad")
+
+	// check the the cgroup is configured with the memoryMaxMB
+	var err error
+	expected := fmt.Sprintf("%d\n", 30*1024*1024)
+	e2eutil.WaitForAllocFile(alloc.ID, "/alloc/tmp/memory.limit_in_bytes", func(s string) bool {
+		if s != expected {
+			err = fmt.Errorf("expected %v got %v", expected, s)
+			return false
+		}
+		err = nil
+		return true
+	}, nil)
+	f.NoError(err)
 }
 
-func (tc *OversubscriptionTest) runTest(f *framework.F, jobPrefix, jobfile string) {
-	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 1)
-
+func (tc *OversubscriptionTest) runTest(f *framework.F, jobPrefix, jobfile string) *api.Allocation {
 	// register a job
 	jobID := jobPrefix + uuid.Generate()[:8]
 	tc.jobIDs = append(tc.jobIDs, jobID)
@@ -61,12 +80,16 @@ func (tc *OversubscriptionTest) runTest(f *framework.F, jobPrefix, jobfile strin
 	alloc, _, err := tc.Nomad().Allocations().Info(allocs[0].ID, nil)
 	f.NoError(err)
 
+	// assert the resources info
 	resources := alloc.AllocatedResources.Tasks["task"]
 	f.Equal(int64(20), resources.Memory.MemoryMB)
 	f.Equal(int64(30), resources.Memory.MemoryMaxMB)
 
-	// check that cgroup reports the memoryMaxMB as the limit
-	stdout, err := e2eutil.AllocLogs(alloc.ID, e2eutil.LogsStdOut)
+	// assert the status API report memory
+	allocInfo, err := e2eutil.Command("nomad", "alloc", "status", alloc.ID)
 	f.NoError(err)
-	f.Equal(fmt.Sprintf("%d\n", 30*1024*1024), stdout)
+	f.Contains(allocInfo, "/20 MiB")     // memory reserve
+	f.Contains(allocInfo, "Max: 30 MiB") // memory max
+
+	return alloc
 }

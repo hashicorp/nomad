@@ -1486,7 +1486,8 @@ func TestClient_getAllocatedResources(t *testing.T) {
 				CpuShares: 768,
 			},
 			Memory: structs.AllocatedMemoryResources{
-				MemoryMB: 768,
+				MemoryMB:    768,
+				MemoryMaxMB: 768,
 			},
 			Networks: nil,
 		},

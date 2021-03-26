@@ -683,11 +683,11 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 	}
 
 	// Total amount of memory allowed to consume
-	memoryLimit := 0
-	if bytes := command.Resources.LinuxResources.MemoryLimitBytes; bytes > 0 {
-		memoryLimit = bytes
-	} else if mb := command.Resources.NomadResources.Memory.MemoryMB; mb > 0 {
-		memoryLimit = bytes
+	var memoryLimit int64
+	if res := command.Resources.NomadResources.Memory; res.MemoryMaxMB > 0 {
+		memoryLimit = res.MemoryMaxMB * 1024 * 1024
+	} else if res.MemoryMB > 0 {
+		memoryLimit = res.MemoryMB * 1024 * 1024
 	}
 	if memoryLimit > 0 {
 		cfg.Cgroups.Resources.Memory = memoryLimit
