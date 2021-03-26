@@ -109,6 +109,7 @@ config {
   ]
 }
 ```
+- `entrypoint` - (Optional) A string list overriding the image's entrypoint.
 
 - `cwd` - (Optional) Specify the current working directory (cwd) for your container process.
   If the directory does not exist, one will be created for you.
@@ -161,6 +162,9 @@ config {
   host_network = true
 }
 ```
+
+- `extra_hosts` - (Optional) A list of hosts, given as host:IP, to be added to
+  `/etc/hosts`.
 
 - `cap_add` - (Optional) Add individual capabilities.
 
@@ -334,6 +338,9 @@ The service stanza instructs Nomad to register a service with Consul.
 
 - `stats_interval` - (Optional) This value defines how frequently you want to
   send `TaskStats` to nomad client. (defaults to `1 second`).
+
+- `allow_privileged` - (Optional) If set to `false`, driver will deny running
+  privileged jobs. (defaults to `true`).
 
 An example of using these plugin options with the new [plugin syntax][plugin] is
 shown below:
