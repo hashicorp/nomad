@@ -26,6 +26,7 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/nodedrain"
 	_ "github.com/hashicorp/nomad/e2e/nomad09upgrade"
 	_ "github.com/hashicorp/nomad/e2e/nomadexec"
+	_ "github.com/hashicorp/nomad/e2e/parameterized"
 	_ "github.com/hashicorp/nomad/e2e/periodic"
 	_ "github.com/hashicorp/nomad/e2e/podman"
 	_ "github.com/hashicorp/nomad/e2e/quotas"
