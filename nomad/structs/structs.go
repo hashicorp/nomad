@@ -1931,14 +1931,12 @@ func (n *Node) Canonicalize() {
 		return
 	}
 
-	// Ensure SchedulingEligibility is set whenever draining so the plan applier and other scheduling logic only need
-	// to check SchedulingEligibility when determining whether a placement is feasible on a node.
-	if n.SchedulingEligibility == "" {
-		if n.DrainStrategy != nil {
-			n.SchedulingEligibility = NodeSchedulingIneligible
-		} else {
-			n.SchedulingEligibility = NodeSchedulingEligible
-		}
+	// Ensure SchedulingEligibility is correctly set whenever draining so the plan applier and other scheduling logic
+	// only need to check SchedulingEligibility when determining whether a placement is feasible on a node.
+	if n.DrainStrategy != nil {
+		n.SchedulingEligibility = NodeSchedulingIneligible
+	} else if n.SchedulingEligibility == "" {
+		n.SchedulingEligibility = NodeSchedulingEligible
 	}
 
 	// COMPAT remove in 1.0

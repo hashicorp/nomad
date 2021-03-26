@@ -123,6 +123,7 @@ func DrainNode() *structs.Node {
 	node.DrainStrategy = &structs.DrainStrategy{
 		DrainSpec: structs.DrainSpec{},
 	}
+	node.Canonicalize()
 	return node
 }
 
