@@ -175,7 +175,8 @@ func ResourcesToProto(r *Resources) *proto.Resources {
 				CpuShares: r.NomadResources.Cpu.CpuShares,
 			},
 			Memory: &proto.AllocatedMemoryResources{
-				MemoryMb: r.NomadResources.Memory.MemoryMB,
+				MemoryMb:    r.NomadResources.Memory.MemoryMB,
+				MemoryMaxMb: r.NomadResources.Memory.MemoryMaxMB,
 			},
 			Networks: make([]*proto.NetworkResource, len(r.NomadResources.Networks)),
 		}
