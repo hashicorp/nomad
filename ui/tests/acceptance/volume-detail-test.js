@@ -4,7 +4,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moment from 'moment';
-import { formatBytes } from 'nomad-ui/helpers/format-bytes';
+import { formatBytes } from 'nomad-ui/utils/units';
 import VolumeDetail from 'nomad-ui/tests/pages/storage/volumes/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
 
@@ -152,7 +152,10 @@ module('Acceptance | volume detail', function(hooks) {
       );
       assert.equal(
         allocationRow.memTooltip,
-        `${formatBytes([allocStats.resourceUsage.MemoryStats.RSS])} / ${memoryUsed} MiB`,
+        `${formatBytes(allocStats.resourceUsage.MemoryStats.RSS)} / ${formatBytes(
+          memoryUsed,
+          'MiB'
+        )}`,
         'Detailed memory information is in a tooltip'
       );
     });

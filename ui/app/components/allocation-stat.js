@@ -1,7 +1,7 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
-import { formatScheduledBytes } from 'nomad-ui/utils/units';
+import { formatScheduledBytes, formatBytes } from 'nomad-ui/utils/units';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 
@@ -35,13 +35,13 @@ export default class AllocationStat extends Component {
   @computed('metric', 'stat.used')
   get formattedStat() {
     if (!this.stat) return undefined;
-    if (this.metric === 'memory') return formatScheduledBytes(this.stat.used);
+    if (this.metric === 'memory') return formatBytes(this.stat.used);
     return this.stat.used;
   }
 
   @computed('metric', 'statsTracker.{reservedMemory,reservedCPU}')
   get formattedReserved() {
-    if (this.metric === 'memory') return `${this.statsTracker.reservedMemory} MiB`;
+    if (this.metric === 'memory') return formatBytes(this.statsTracker.reservedMemory, 'MiB');
     if (this.metric === 'cpu') return `${this.statsTracker.reservedCPU} MHz`;
     return undefined;
   }

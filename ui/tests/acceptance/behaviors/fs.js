@@ -2,7 +2,7 @@ import { test } from 'qunit';
 import { currentURL, visit } from '@ember/test-helpers';
 
 import { filesForPath } from 'nomad-ui/mirage/config';
-import { formatBytes } from 'nomad-ui/helpers/format-bytes';
+import { formatBytes } from 'nomad-ui/utils/units';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 
 import Response from 'ember-cli-mirage/response';
@@ -130,7 +130,7 @@ export default function browseFilesystem({
       const fileRecord = sortedFiles[2];
       assert.equal(file.name, fileRecord.name);
       assert.ok(file.isFile);
-      assert.equal(file.size, formatBytes([fileRecord.size]));
+      assert.equal(file.size, formatBytes(fileRecord.size));
       assert.equal(file.lastModified, moment(fileRecord.modTime).fromNow());
     });
 
