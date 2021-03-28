@@ -419,11 +419,30 @@ export default [
       'telemetry',
       {
         category: 'plugins',
-        content: ['apm', 'strategy', 'target'],
+        content: [
+          'apm',
+          'strategy',
+          'target',
+          {
+            category: 'external',
+            content: [],
+          }
+        ],
       },
       {
         category: 'internals',
-        content: ['checks'],
+        content: [
+          'checks',
+          {
+            category: 'plugins',
+            content: [
+              'base',
+              'apm',
+              'strategy',
+              'target',
+            ],
+          }
+        ],
       },
     ],
   },
