@@ -257,7 +257,12 @@ func TestHTTP_NodeDrain(t *testing.T) {
 			DrainSpec: &api.DrainSpec{
 				Deadline: 10 * time.Second,
 			},
+			Meta: map[string]string{
+				"reason": "drain",
+			},
 		}
+
+		beforeDrain := time.Now().Add(-1 * time.Second) // handle roundoff
 
 		// Make the HTTP request
 		buf := encodeReq(drainReq)
@@ -292,6 +297,11 @@ func TestHTTP_NodeDrain(t *testing.T) {
 			require.Equal(structs.NodeSchedulingIneligible, out.SchedulingEligibility)
 		}
 
+		require.NotNil(out.LastDrain)
+		require.Equal(map[string]string{
+			"reason": "drain",
+		}, out.LastDrain.Meta)
+
 		// Make the HTTP request to unset drain
 		drainReq.DrainSpec = nil
 		buf = encodeReq(drainReq)
@@ -306,6 +316,10 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		out, err = state.NodeByID(nil, node.ID)
 		require.Nil(err)
 		require.Nil(out.DrainStrategy)
+		require.NotNil(out.LastDrain)
+		require.False(out.LastDrain.StartedAt.Before(beforeDrain))
+		require.False(out.LastDrain.UpdatedAt.Before(out.LastDrain.StartedAt))
+		require.Equal(structs.DrainStatusCompleted, out.LastDrain.Status)
 	})
 }
 

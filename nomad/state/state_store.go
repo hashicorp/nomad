@@ -997,70 +997,70 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
-	copyNode := existingNode.Copy()
-	copyNode.StatusUpdatedAt = updatedAt
+	updatedNode := existingNode.Copy()
+	updatedNode.StatusUpdatedAt = updatedAt
 
 	// Add the event if given
 	if event != nil {
-		appendNodeEvents(index, copyNode, []*structs.NodeEvent{event})
+		appendNodeEvents(index, updatedNode, []*structs.NodeEvent{event})
 	}
 
 	// Update the drain in the copy
-	copyNode.DrainStrategy = drain
+	updatedNode.DrainStrategy = drain
 	if drain != nil {
-		copyNode.SchedulingEligibility = structs.NodeSchedulingIneligible
+		updatedNode.SchedulingEligibility = structs.NodeSchedulingIneligible
 	} else if markEligible {
-		copyNode.SchedulingEligibility = structs.NodeSchedulingEligible
+		updatedNode.SchedulingEligibility = structs.NodeSchedulingEligible
 	}
 
 	// Update LastDrain
 	updateTime := time.Unix(updatedAt, 0)
-	// when done with this method, copyNode.LastDrain should be set
+	// when done with this method, updatedNode.LastDrain should be set
 	// this is either a new LastDrain struct or an update of the existing one
 	//
 	// if starting a new drain operation, create a new LastDrain. otherwise, update the existing one.
 	// if already draining and LastDrain doesn't exist, we'll need to create a new one.
 	// this might happen if we upgrade/transition to 1.1 during a drain operation
-	if existingNode.DrainStrategy == nil && copyNode.DrainStrategy != nil ||
-		copyNode.LastDrain == nil {
+	if existingNode.DrainStrategy == nil && updatedNode.DrainStrategy != nil ||
+		updatedNode.LastDrain == nil {
 
-		copyNode.LastDrain = &structs.DrainMetadata{
+		updatedNode.LastDrain = &structs.DrainMetadata{
 			StartedAt:  updateTime,
 			UpdatedAt:  updateTime,
 			AccessorID: accessorId,
 			Meta:       drainMeta,
 		}
 		switch {
-		case drain != nil:
-			copyNode.LastDrain.Status = structs.DrainStatusDraining
+		case updatedNode.DrainStrategy != nil:
+			updatedNode.LastDrain.Status = structs.DrainStatusDraining
 		case drainCompleted:
-			copyNode.LastDrain.Status = structs.DrainStatusCompleted
+			updatedNode.LastDrain.Status = structs.DrainStatusCompleted
 		default:
-			copyNode.LastDrain.Status = structs.DrainStatusCancelled
+			updatedNode.LastDrain.Status = structs.DrainStatusCancelled
 		}
 	} else {
-		copyNode.LastDrain.UpdatedAt = updateTime
+		updatedNode.LastDrain.UpdatedAt = updateTime
 		if accessorId != "" {
 			// we won't have an accessor ID for drain complete; don't overwrite the existing one
-			copyNode.LastDrain.AccessorID = accessorId
+			updatedNode.LastDrain.AccessorID = accessorId
 		}
 		if drainMeta != nil {
 			// similarly, won't have metadata for drain complete; keep the existing operator-provided metadata
-			copyNode.LastDrain.Meta = drainMeta
+			updatedNode.LastDrain.Meta = drainMeta
 		}
-		if drain == nil {
+		if updatedNode.DrainStrategy == nil {
 			if drainCompleted {
-				copyNode.LastDrain.Status = structs.DrainStatusCompleted
+				updatedNode.LastDrain.Status = structs.DrainStatusCompleted
 			} else {
-				copyNode.LastDrain.Status = structs.DrainStatusCancelled
+				updatedNode.LastDrain.Status = structs.DrainStatusCancelled
 			}
 		}
 	}
 
-	copyNode.ModifyIndex = index
+	updatedNode.ModifyIndex = index
 
 	// Insert the node
-	if err := txn.Insert("nodes", copyNode); err != nil {
+	if err := txn.Insert("nodes", updatedNode); err != nil {
 		return fmt.Errorf("node update failed: %v", err)
 	}
 	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {

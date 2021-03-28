@@ -515,6 +515,8 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_drain"}, time.Now())
 
+	n.logger.Warn("Node.UpdateDrain info", "meta", args.Meta)
+
 	// Check node write permissions
 	if aclObj, err := n.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
@@ -801,6 +803,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 
 			// Setup the output
 			if out != nil {
+				n.logger.Warn("Node.GetNode()", "LastDrain", out.LastDrain)
 				out = out.Sanitize()
 				reply.Node = out
 				reply.Index = out.ModifyIndex
