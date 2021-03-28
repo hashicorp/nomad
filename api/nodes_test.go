@@ -248,7 +248,14 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	spec := &DrainSpec{
 		Deadline: 10 * time.Second,
 	}
-	drainOut, err := nodes.UpdateDrain(nodeID, spec, false, nil)
+	drainMeta := map[string]string{
+		"reason": "this node needs to go",
+	}
+	drainOut, err := nodes.UpdateDrainOpts(nodeID, DrainOptions{
+		DrainSpec:    spec,
+		MarkEligible: false,
+		Meta:         drainMeta,
+	}, nil)
 	require.Nil(err)
 	assertWriteMeta(t, &drainOut.WriteMeta)
 
@@ -280,16 +287,14 @@ func TestNodes_ToggleDrain(t *testing.T) {
 					now := time.Now()
 					require.True(!node.LastDrain.StartedAt.Before(timeBeforeDrain) && !node.LastDrain.StartedAt.After(now),
 						"wanted %v <= %v <= %v", timeBeforeDrain, node.LastDrain.StartedAt, now)
-					// TODO: test meta vvvv
-					// require.Equal(node.LastDrain.Meta["reason"])
+					require.Equal(drainMeta, node.LastDrain.Meta)
 					sawDraining = node.ModifyIndex
 				} else if sawDraining != 0 && node.ModifyIndex > sawDraining &&
 					!node.Drain && node.SchedulingEligibility == NodeSchedulingIneligible {
 					require.NotNil(node.LastDrain)
 					require.Equal(DrainStatusCompleted, node.LastDrain.Status)
 					require.True(!node.LastDrain.UpdatedAt.Before(node.LastDrain.StartedAt))
-					// TODO: test meta vvvv
-					// require.Equal(node.LastDrain.Meta["reason"])
+					require.Equal(drainMeta, node.LastDrain.Meta)
 					sawDrainComplete = node.ModifyIndex
 				}
 			}

@@ -1015,17 +1015,28 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 
 	// Update LastDrain
 	updateTime := time.Unix(updatedAt, 0)
+	// when done with this method, copyNode.LastDrain should be set
+	// this is either a new LastDrain struct or an update of the existing one
+	//
 	// if starting a new drain operation, create a new LastDrain. otherwise, update the existing one.
-	// if LastDrain doesn't exist, we'll need to create a new one. this might happen if we upgrade the
-	// server to 1.0.4 during a drain operation
-	if existingNode.DrainStrategy == nil && drain != nil || existingNode.LastDrain == nil {
-		// starting a new drain operation
+	// if already draining and LastDrain doesn't exist, we'll need to create a new one.
+	// this might happen if we upgrade/transition to 1.1 during a drain operation
+	if existingNode.DrainStrategy == nil && copyNode.DrainStrategy != nil ||
+		copyNode.LastDrain == nil {
+
 		copyNode.LastDrain = &structs.DrainMetadata{
 			StartedAt:  updateTime,
 			UpdatedAt:  updateTime,
-			Status:     structs.DrainStatusDraining,
 			AccessorID: accessorId,
 			Meta:       drainMeta,
+		}
+		switch {
+		case drain != nil:
+			copyNode.LastDrain.Status = structs.DrainStatusDraining
+		case drainCompleted:
+			copyNode.LastDrain.Status = structs.DrainStatusCompleted
+		default:
+			copyNode.LastDrain.Status = structs.DrainStatusCancelled
 		}
 	} else {
 		copyNode.LastDrain.UpdatedAt = updateTime
@@ -1034,8 +1045,8 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 			copyNode.LastDrain.AccessorID = accessorId
 		}
 		if drainMeta != nil {
-			// similarly, won't have metadata for drain complete; keep existing
-			copyNode.Meta = drainMeta
+			// similarly, won't have metadata for drain complete; keep the existing operator-provided metadata
+			copyNode.LastDrain.Meta = drainMeta
 		}
 		if drain == nil {
 			if drainCompleted {
