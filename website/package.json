@@ -14,6 +14,7 @@
     "@hashicorp/react-call-to-action": "1.0.3",
     "@hashicorp/react-content": "6.2.0",
     "@hashicorp/react-docs-page": "10.6.0",
+    "@hashicorp/react-featured-slider": "^2.0.0",
     "@hashicorp/react-hashi-stack-menu": "^1.1.0",
     "@hashicorp/react-hero": "4.1.0",
     "@hashicorp/react-image": "3.0.3",
