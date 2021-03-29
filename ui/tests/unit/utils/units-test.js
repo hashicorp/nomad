@@ -31,6 +31,7 @@ module('Unit | Util | units#formatBytes', function() {
       out: '1 TiB',
       name: 'accepts a starting unit size as an optional argument',
     },
+    { in: [1024 ** 2 * -1], out: '-1 MiB', name: 'negative values are still reduced' },
   ]);
 });
 
@@ -54,6 +55,7 @@ module('Unit | Util | units#formatScheduledBytes', function() {
       out: '2,000 MiB',
       name: 'accepts a starting unit size as an optional argument',
     },
+    { in: [1024 ** 3 * -1], out: '-1,024 MiB', name: 'negative values are still reduced' },
   ]);
 });
 
@@ -78,6 +80,7 @@ module('Unit | Util | units#formatHertz', function() {
       out: '2 MHz',
       name: 'accepts a starting unit size as an optional argument',
     },
+    { in: [1000 ** 3 * -1], out: '-1 GHz', name: 'negative values are still reduced' },
   ]);
 });
 
@@ -101,6 +104,7 @@ module('Unit | Util | units#formatScheduledHertz', function() {
       out: '2,000 MHz',
       name: 'accepts a starting unit size as an optional argument',
     },
+    { in: [1000 ** 3 * -1], out: '-1,000 MHz', name: 'negative values are still reduced' },
   ]);
 });
 
@@ -123,6 +127,7 @@ module('Unit | Util | units#reduceBytes', function() {
       out: [1024, 'MiB'],
       name: 'accepts a starting unit size as an optional argument',
     },
+    { in: [1024 ** 3 * -1], out: [-1, 'GiB'], name: 'negative values are still reduced' },
   ]);
 });
 
@@ -145,5 +150,6 @@ module('Unit | Util | units#reduceHertz', function() {
       out: [2, 'GHz'],
       name: 'accepts a starting unit size as an optional argument',
     },
+    { in: [1000 ** 3 * -1], out: [-1, 'GHz'], name: 'negative values are still reduced' },
   ]);
 });

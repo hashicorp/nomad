@@ -6,6 +6,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { setupPrimaryMetricMocks, primaryMetric } from './primary-metric';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { formatScheduledHertz } from 'nomad-ui/utils/units';
 
 module('Integration | Component | PrimaryMetric::Node', function(hooks) {
   setupRenderingTest(hooks);
@@ -57,7 +58,7 @@ module('Integration | Component | PrimaryMetric::Node', function(hooks) {
     assert.ok(find('[data-test-annotation]'));
     assert.equal(
       find('[data-test-annotation]').textContent.trim(),
-      `${resource.reserved.cpu} MHz reserved`
+      `${formatScheduledHertz(resource.reserved.cpu, 'MHz')} reserved`
     );
   });
 

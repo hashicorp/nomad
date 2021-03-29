@@ -130,7 +130,7 @@
                     </div>
                   </div>
                   <div class="annotation" data-test-cpu-absolute-value>
-                    <strong>{{this.nodeUtilization.totalReservedCPU}} MHz</strong> / {{this.nodeUtilization.totalCPU}} MHz reserved
+                    <strong>{{format-scheduled-hertz this.nodeUtilization.totalReservedCPU}}</strong> / {{format-scheduled-hertz this.nodeUtilization.totalCPU}} reserved
                   </div>
                 </div>
                 {{/let}}
@@ -223,7 +223,7 @@
                     </div>
                   </div>
                   <div class="annotation" data-test-cpu-absolute-value>
-                    <strong>{{this.totalReservedCPU}} MHz</strong> / {{this.totalCPU}} MHz reserved
+                    <strong>{{format-hertz this.totalReservedCPU}}</strong> / {{format-hertz this.totalCPU}} reserved
                   </div>
                 </div>
               {{/if}}

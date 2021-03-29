@@ -1,6 +1,6 @@
 import d3Format from 'd3-format';
 
-import { reduceBytes } from 'nomad-ui/utils/units';
+import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
 
 const formatPercent = d3Format.format('+.0%');
 const sumAggregate = (total, val) => total + val;
@@ -86,14 +86,9 @@ class ResourceDiffs {
     const delta = Math.abs(this.aggregateDiff);
 
     if (this.units === 'MiB') {
-      if (delta === 0) {
-        return '0 MiB';
-      }
-
-      const [memory, units] = reduceBytes(delta * 1024 * 1024);
-      const formattedMemory = Number.isInteger(memory) ? memory : memory.toFixed(2);
-
-      return `${formattedMemory} ${units}`;
+      return formatBytes(delta, 'MiB');
+    } else if (this.units === 'MHz') {
+      return formatHertz(delta, 'MHz');
     } else {
       return `${delta} ${this.units}`;
     }

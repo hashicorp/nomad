@@ -5,7 +5,12 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Topology from 'nomad-ui/tests/pages/topology';
-import { reduceBytes, formatBytes, formatScheduledBytes } from 'nomad-ui/utils/units';
+import {
+  formatBytes,
+  formatScheduledBytes,
+  formatHertz,
+  formatScheduledHertz,
+} from 'nomad-ui/utils/units';
 import queryString from 'query-string';
 
 const sumResources = (list, dimension) =>
@@ -67,7 +72,7 @@ module('Acceptance | topology', function(hooks) {
 
     assert.equal(
       Topology.clusterInfoPanel.cpuAbsoluteValue,
-      `${reservedCPU} MHz / ${totalCPU} MHz reserved`
+      `${formatHertz(reservedCPU, 'MHz')} / ${formatHertz(totalCPU, 'MHz')} reserved`
     );
   });
 
@@ -206,7 +211,10 @@ module('Acceptance | topology', function(hooks) {
 
     assert.equal(
       Topology.nodeInfoPanel.cpuAbsoluteValue,
-      `${reservedCPU} MHz / ${totalCPU} MHz reserved`
+      `${formatScheduledHertz(reservedCPU, 'MHz')} / ${formatScheduledHertz(
+        totalCPU,
+        'MHz'
+      )} reserved`
     );
 
     await Topology.nodeInfoPanel.visitNode();

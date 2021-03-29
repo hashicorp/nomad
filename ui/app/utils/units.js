@@ -16,12 +16,22 @@ const unitReducer = (number = 0, interval, units, maxUnit, startingUnit) => {
   if (maxUnit && units.indexOf(maxUnit) !== -1) {
     units = units.slice(0, units.indexOf(maxUnit) + 1);
   }
+
+  // Reduce negative numbers by temporarily flipping them positive.
+  const negative = number < 0;
+  if (negative) {
+    number *= -1;
+  }
+
   let unitIndex = 0;
   while (number >= interval && unitIndex < units.length - 1) {
     number /= interval;
     unitIndex++;
   }
 
+  if (negative) {
+    number *= -1;
+  }
   return [number, units[unitIndex]];
 };
 
