@@ -1,7 +1,7 @@
 import UseCasesLayout from 'components/use-case-page'
 import TextSplitWithCode from '@hashicorp/react-text-split-with-code'
 import TextSplitWithImage from '@hashicorp/react-text-split-with-image'
-import FeaturedSliderSection from 'components/featured-slider-section'
+import FeaturedSlider from '@hashicorp/react-featured-slider'
 // Imports below are used in getStaticProps only
 import highlightData from '@hashicorp/nextjs-scripts/prism/highlight-data'
 
@@ -198,8 +198,10 @@ export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
         }}
       />
 
-      <FeaturedSliderSection
+      <FeaturedSlider
         heading="Case Studies"
+        product="nomad"
+        theme="dark"
         features={[
           {
             logo: {

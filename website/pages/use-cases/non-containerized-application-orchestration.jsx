@@ -1,6 +1,6 @@
 import UseCasesLayout from 'components/use-case-page'
 import TextSplitWithImage from '@hashicorp/react-text-split-with-image'
-import FeaturedSliderSection from 'components/featured-slider-section'
+import FeaturedSlider from '@hashicorp/react-featured-slider'
 
 export default function NonContainerizedApplicationOrchestrationPage() {
   return (
@@ -98,8 +98,10 @@ export default function NonContainerizedApplicationOrchestrationPage() {
         />
       </div>
 
-      <FeaturedSliderSection
+      <FeaturedSlider
         heading="Case Study"
+        product="nomad"
+        theme="dark"
         features={[
           {
             logo: {
