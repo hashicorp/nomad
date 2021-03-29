@@ -426,47 +426,15 @@ func (r *ControllerCreateVolumeRequest) ToCSIRepresentation() *csipbv1.CreateVol
 		caps = append(caps, cap.ToCSIRepresentation())
 	}
 	req := &csipbv1.CreateVolumeRequest{
-		Name:                r.Name,
-		CapacityRange:       r.CapacityRange.ToCSIRepresentation(),
-		VolumeCapabilities:  caps,
-		Parameters:          r.Parameters,
-		Secrets:             r.Secrets,
-		VolumeContentSource: &csipbv1.VolumeContentSource{},
-		AccessibilityRequirements: &csipbv1.TopologyRequirement{
-			Requisite: []*csipbv1.Topology{},
-			Preferred: []*csipbv1.Topology{},
-		},
+		Name:                      r.Name,
+		CapacityRange:             r.CapacityRange.ToCSIRepresentation(),
+		VolumeCapabilities:        caps,
+		Parameters:                r.Parameters,
+		Secrets:                   r.Secrets,
+		VolumeContentSource:       r.ContentSource.ToCSIRepresentation(),
+		AccessibilityRequirements: r.AccessibilityRequirements.ToCSIRepresentation(),
 	}
 
-	if r.AccessibilityRequirements != nil {
-		for _, topo := range r.AccessibilityRequirements.Requisite {
-			req.AccessibilityRequirements.Requisite = append(
-				req.AccessibilityRequirements.Requisite,
-				&csipbv1.Topology{Segments: topo.Segments})
-		}
-		for _, topo := range r.AccessibilityRequirements.Preferred {
-			req.AccessibilityRequirements.Preferred = append(
-				req.AccessibilityRequirements.Preferred,
-				&csipbv1.Topology{Segments: topo.Segments})
-		}
-	}
-
-	if r.ContentSource != nil {
-		if r.ContentSource.CloneID != "" {
-			req.VolumeContentSource.Type = &csipbv1.VolumeContentSource_Volume{
-				Volume: &csipbv1.VolumeContentSource_VolumeSource{
-					VolumeId: r.ContentSource.CloneID,
-				},
-			}
-		}
-		if r.ContentSource.SnapshotID != "" {
-			req.VolumeContentSource.Type = &csipbv1.VolumeContentSource_Snapshot{
-				Snapshot: &csipbv1.VolumeContentSource_SnapshotSource{
-					SnapshotId: r.ContentSource.SnapshotID,
-				},
-			}
-		}
-	}
 	return req
 }
 
@@ -500,6 +468,28 @@ type VolumeContentSource struct {
 	CloneID    string
 }
 
+func (vcr *VolumeContentSource) ToCSIRepresentation() *csipbv1.VolumeContentSource {
+	if vcr == nil {
+		return nil
+	}
+	result := &csipbv1.VolumeContentSource{}
+	if vcr.CloneID != "" {
+		result.Type = &csipbv1.VolumeContentSource_Volume{
+			Volume: &csipbv1.VolumeContentSource_VolumeSource{
+				VolumeId: vcr.CloneID,
+			},
+		}
+	}
+	if vcr.SnapshotID != "" {
+		result.Type = &csipbv1.VolumeContentSource_Snapshot{
+			Snapshot: &csipbv1.VolumeContentSource_SnapshotSource{
+				SnapshotId: vcr.SnapshotID,
+			},
+		}
+	}
+	return result
+}
+
 func newVolumeContentSource(src *csipbv1.VolumeContentSource) *VolumeContentSource {
 	return &VolumeContentSource{
 		SnapshotID: src.GetSnapshot().GetSnapshotId(),
@@ -510,6 +500,25 @@ func newVolumeContentSource(src *csipbv1.VolumeContentSource) *VolumeContentSour
 type TopologyRequirement struct {
 	Requisite []*Topology
 	Preferred []*Topology
+}
+
+func (tr *TopologyRequirement) ToCSIRepresentation() *csipbv1.TopologyRequirement {
+	if tr == nil {
+		return nil
+	}
+	result := &csipbv1.TopologyRequirement{
+		Requisite: []*csipbv1.Topology{},
+		Preferred: []*csipbv1.Topology{},
+	}
+	for _, topo := range tr.Requisite {
+		result.Requisite = append(result.Requisite,
+			&csipbv1.Topology{Segments: topo.Segments})
+	}
+	for _, topo := range tr.Preferred {
+		result.Preferred = append(result.Preferred,
+			&csipbv1.Topology{Segments: topo.Segments})
+	}
+	return result
 }
 
 func newTopologies(src []*csipbv1.Topology) []*Topology {
