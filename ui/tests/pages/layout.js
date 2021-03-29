@@ -93,4 +93,10 @@ export default create({
   breadcrumbFor(id) {
     return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
   },
+
+  error: {
+    isPresent: isPresent('[data-test-error]'),
+    title: text('[data-test-error-title]'),
+    message: text('[data-test-error-message]'),
+  },
 });

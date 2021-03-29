@@ -4,6 +4,7 @@ import Route from '@ember/routing/route';
 import { AbortError } from '@ember-data/adapter/error';
 import RSVP from 'rsvp';
 import { action } from '@ember/object';
+import OTTExchangeError from '../utils/ott-exchange-error';
 import classic from 'ember-classic-decorator';
 
 @classic
@@ -31,7 +32,9 @@ export default class ApplicationRoute extends Route {
     if (transition.to.queryParams.ott) {
       exchangeOneTimeToken = this.get('token.exchangeOneTimeToken')
         .perform(transition.to.queryParams.ott)
-        .catch();
+        .catch(() => {
+          this.controllerFor('application').set('error', new OTTExchangeError());
+        });
     } else {
       exchangeOneTimeToken = Promise.resolve(true);
     }

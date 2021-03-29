@@ -7,6 +7,7 @@ import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import Jobs from 'nomad-ui/tests/pages/jobs/list';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
+import Layout from 'nomad-ui/tests/pages/layout';
 
 let job;
 let node;
@@ -171,6 +172,14 @@ module('Acceptance | tokens', function(hooks) {
 
     await Tokens.visit();
     assert.equal(window.localStorage.nomadTokenSecret, secretId, 'Token secret was set');
+  });
+
+  test('when the ott exchange fails an error is shown', async function(assert) {
+    await visit('/?ott=fake');
+
+    assert.ok(Layout.error.isPresent, 'An error is shown');
+    assert.equal(Layout.error.title, 'Token Exchange Error');
+    assert.equal(Layout.error.message, 'Failed to exchange the one-time token. FIXME');
   });
 
   function getHeader({ requestHeaders }, name) {
