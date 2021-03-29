@@ -20,6 +20,7 @@
 @import '~@hashicorp/react-docs-page/style.css';
 @import '~@hashicorp/react-docs-sidenav/style.css';
 @import '~@hashicorp/react-enterprise-alert/style.css';
+@import '~@hashicorp/react-featured-slider/style.css';
 @import '~@hashicorp/react-hero/style.css';
 @import '~@hashicorp/react-product-downloader/dist/style.css';
 @import '~@hashicorp/react-search/style.css';
@@ -37,8 +38,6 @@
 @import '../components/enterprise-info/style.css';
 @import '../components/mini-cta/style.css';
 @import '../components/homepage-hero/style.css';
-@import '../components/featured-slider/style.css';
-@import '../components/featured-slider-section/style.css';
 @import '../components/learn-nomad/style.css';
 @import '../components/basic-hero/style.css';
 @import '../components/footer/style.css';
