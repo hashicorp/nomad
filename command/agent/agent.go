@@ -671,6 +671,13 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.BindWildcardDefaultHostNetwork = agentConfig.Client.BindWildcardDefaultHostNetwork
 
 	conf.CgroupParent = agentConfig.Client.CgroupParent
+	if agentConfig.Client.ReserveableCores != "" {
+		cores, err := cpuset.Parse(agentConfig.Client.ReserveableCores)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse 'reservable_cores': %v", err)
+		}
+		conf.ReservableCores = cores.ToSlice()
+	}
 
 	return conf, nil
 }

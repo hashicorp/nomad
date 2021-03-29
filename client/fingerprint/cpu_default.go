@@ -2,6 +2,6 @@
 
 package fingerprint
 
-func (f *CPUFingerprint) deriveReservableCores(req *FingerprintRequest, totalCores int) ([]uint16, error) {
-	return defaultReservableCores(totalCores), nil
+func (f *CPUFingerprint) deriveReservableCores(req *FingerprintRequest) ([]uint16, error) {
+	return nil, nil
 }

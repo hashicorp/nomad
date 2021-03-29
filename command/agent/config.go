@@ -219,6 +219,9 @@ type ClientConfig struct {
 	// MemoryMB is used to override any detected or default total memory.
 	MemoryMB int `hcl:"memory_total_mb"`
 
+	// ReservableCores is used to override detected reservable cpu cores.
+	ReserveableCores string `hcl:"reservable_cores"`
+
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout.
 	MaxKillTimeout string `hcl:"max_kill_timeout"`
 

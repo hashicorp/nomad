@@ -4,10 +4,6 @@ import (
 	"github.com/hashicorp/nomad/client/lib/cgutil"
 )
 
-func (f *CPUFingerprint) deriveReservableCores(req *FingerprintRequest, totalCores int) ([]uint16, error) {
-	if req.Config.DisableCgroupManagement {
-		return defaultReservableCores(totalCores), nil
-	}
+func (f *CPUFingerprint) deriveReservableCores(req *FingerprintRequest) ([]uint16, error) {
 	return cgutil.GetCPUsFromCgroup(req.Config.CgroupParent)
-
 }

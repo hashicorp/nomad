@@ -67,11 +67,16 @@ func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 	}
 
 	var reservableCores []uint16
-	if cores, err := f.deriveReservableCores(req, numCores); err != nil {
-		f.logger.Warn("failed to detect set of reservable cores", "error", err)
+	if req.Config.ReservableCores != nil {
+		reservableCores = req.Config.ReservableCores
+		f.logger.Debug("reservable cores set by config", "cpuset", reservableCores)
 	} else {
-		reservableCores = cpuset.New(cores...).Difference(cpuset.New(req.Node.ReservedResources.Cpu.ReservedCpuCores...)).ToSlice()
-		f.logger.Debug("detected reservable cores", "cpuset", reservableCores)
+		if cores, err := f.deriveReservableCores(req); err != nil {
+			f.logger.Warn("failed to detect set of reservable cores", "error", err)
+		} else {
+			reservableCores = cpuset.New(cores...).Difference(cpuset.New(req.Node.ReservedResources.Cpu.ReservedCpuCores...)).ToSlice()
+			f.logger.Debug("detected reservable cores", "cpuset", reservableCores)
+		}
 	}
 
 	tt := int(stats.TotalTicksAvailable())
@@ -94,12 +99,4 @@ func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 	resp.Detected = true
 
 	return nil
-}
-
-func defaultReservableCores(totalCores int) []uint16 {
-	cores := make([]uint16, totalCores)
-	for i := range cores {
-		cores[i] = uint16(i)
-	}
-	return cores
 }
