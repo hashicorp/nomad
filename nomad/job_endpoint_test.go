@@ -4727,9 +4727,7 @@ func TestJobEndpoint_ListJobs_AllNamespaces_OSS(t *testing.T) {
 	job := mock.Job()
 	state := s1.fsm.State()
 	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Lookup the jobs
 	get := &structs.JobListRequest{
