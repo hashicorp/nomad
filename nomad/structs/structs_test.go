@@ -2621,32 +2621,6 @@ func TestResource_NetIndex(t *testing.T) {
 	}
 }
 
-func TestResource_Superset(t *testing.T) {
-	r1 := &Resources{
-		CPU:      2000,
-		MemoryMB: 2048,
-		DiskMB:   10000,
-	}
-	r2 := &Resources{
-		CPU:      2000,
-		MemoryMB: 1024,
-		DiskMB:   5000,
-	}
-
-	if s, _ := r1.Superset(r1); !s {
-		t.Fatalf("bad")
-	}
-	if s, _ := r1.Superset(r2); !s {
-		t.Fatalf("bad")
-	}
-	if s, _ := r2.Superset(r1); s {
-		t.Fatalf("bad")
-	}
-	if s, _ := r2.Superset(r2); !s {
-		t.Fatalf("bad")
-	}
-}
-
 func TestResource_Add(t *testing.T) {
 	r1 := &Resources{
 		CPU:      2000,
@@ -2733,7 +2707,8 @@ func TestComparableResources_Subtract(t *testing.T) {
 	r1 := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: 2000,
+				CpuShares:     2000,
+				ReservedCores: []uint16{0, 1},
 			},
 			Memory: AllocatedMemoryResources{
 				MemoryMB: 2048,
@@ -2754,7 +2729,8 @@ func TestComparableResources_Subtract(t *testing.T) {
 	r2 := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: 1000,
+				CpuShares:     1000,
+				ReservedCores: []uint16{0},
 			},
 			Memory: AllocatedMemoryResources{
 				MemoryMB: 1024,
@@ -2776,7 +2752,8 @@ func TestComparableResources_Subtract(t *testing.T) {
 	expect := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: 1000,
+				CpuShares:     1000,
+				ReservedCores: []uint16{1},
 			},
 			Memory: AllocatedMemoryResources{
 				MemoryMB: 1024,
@@ -5532,7 +5509,9 @@ func TestNode_Copy(t *testing.T) {
 		},
 		NodeResources: &NodeResources{
 			Cpu: NodeCpuResources{
-				CpuShares: 4000,
+				CpuShares:          4000,
+				TotalCpuCores:      4,
+				ReservableCpuCores: []uint16{0, 1, 2, 3},
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 8192,
@@ -5550,7 +5529,8 @@ func TestNode_Copy(t *testing.T) {
 		},
 		ReservedResources: &NodeReservedResources{
 			Cpu: NodeReservedCpuResources{
-				CpuShares: 100,
+				CpuShares:        100,
+				ReservedCpuCores: []uint16{0},
 			},
 			Memory: NodeReservedMemoryResources{
 				MemoryMB: 256,
@@ -5803,7 +5783,8 @@ func TestMultiregion_CopyCanonicalize(t *testing.T) {
 func TestNodeResources_Merge(t *testing.T) {
 	res := &NodeResources{
 		Cpu: NodeCpuResources{
-			CpuShares: int64(32000),
+			CpuShares:     int64(32000),
+			TotalCpuCores: 32,
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(64000),
@@ -5816,6 +5797,7 @@ func TestNodeResources_Merge(t *testing.T) {
 	}
 
 	res.Merge(&NodeResources{
+		Cpu: NodeCpuResources{ReservableCpuCores: []uint16{0, 1, 2, 3}},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(100000),
 		},
@@ -5828,7 +5810,9 @@ func TestNodeResources_Merge(t *testing.T) {
 
 	require.Exactly(t, &NodeResources{
 		Cpu: NodeCpuResources{
-			CpuShares: int64(32000),
+			CpuShares:          int64(32000),
+			TotalCpuCores:      32,
+			ReservableCpuCores: []uint16{0, 1, 2, 3},
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(100000),
@@ -6048,6 +6032,69 @@ func TestTaskGroup_validateScriptChecksInGroupServices(t *testing.T) {
 		mErrOK := tgOK.validateScriptChecksInGroupServices()
 		require.Nil(t, mErrOK)
 	})
+}
+
+func TestComparableResources_Superset(t *testing.T) {
+	base := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares:     4000,
+				ReservedCores: []uint16{0, 1, 2, 3},
+			},
+			Memory: AllocatedMemoryResources{MemoryMB: 4096},
+		},
+		Shared: AllocatedSharedResources{DiskMB: 10000},
+	}
+	cases := []struct {
+		a         *ComparableResources
+		b         *ComparableResources
+		dimension string
+	}{
+		{
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 1000, ReservedCores: []uint16{0}},
+				},
+			},
+		},
+		{
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 4000, ReservedCores: []uint16{0, 1, 2, 3}},
+				},
+			},
+		},
+		{
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 5000},
+				},
+			},
+			dimension: "cpu",
+		},
+		{
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 1000, ReservedCores: []uint16{3, 4}},
+				},
+			},
+			dimension: "cores",
+		},
+	}
+
+	for _, c := range cases {
+		fit, dim := c.a.Superset(c.b)
+		if c.dimension == "" {
+			require.True(t, fit)
+		} else {
+			require.False(t, fit)
+			require.Equal(t, c.dimension, dim)
+		}
+	}
 }
 
 func requireErrors(t *testing.T, err error, expected ...string) {

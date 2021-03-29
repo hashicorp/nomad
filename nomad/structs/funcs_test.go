@@ -269,7 +269,9 @@ func TestAllocsFit(t *testing.T) {
 	n := &Node{
 		NodeResources: &NodeResources{
 			Cpu: NodeCpuResources{
-				CpuShares: 2000,
+				CpuShares:          2000,
+				TotalCpuCores:      2,
+				ReservableCpuCores: []uint16{0, 1},
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 2048,
@@ -317,7 +319,8 @@ func TestAllocsFit(t *testing.T) {
 			Tasks: map[string]*AllocatedTaskResources{
 				"web": {
 					Cpu: AllocatedCpuResources{
-						CpuShares: 1000,
+						CpuShares:     1000,
+						ReservedCores: []uint16{},
 					},
 					Memory: AllocatedMemoryResources{
 						MemoryMB: 1024,
@@ -345,9 +348,9 @@ func TestAllocsFit(t *testing.T) {
 	}
 
 	// Should fit one allocation
-	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
+	fit, dim, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
 	require.NoError(err)
-	require.True(fit)
+	require.True(fit, "failed for dimension %q", dim)
 	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 
@@ -357,6 +360,48 @@ func TestAllocsFit(t *testing.T) {
 	require.False(fit)
 	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
 	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
+
+	a2 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu: AllocatedCpuResources{
+						CpuShares:     500,
+						ReservedCores: []uint16{0},
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 512,
+					},
+				},
+			},
+			Shared: AllocatedSharedResources{
+				DiskMB: 1000,
+				Networks: Networks{
+					{
+						Mode: "host",
+						IP:   "10.0.0.1",
+					},
+				},
+			},
+		},
+	}
+
+	// Should fit one allocation
+	fit, dim, used, err = AllocsFit(n, []*Allocation{a2}, nil, false)
+	require.NoError(err)
+	require.True(fit, "failed for dimension %q", dim)
+	require.EqualValues(500, used.Flattened.Cpu.CpuShares)
+	require.EqualValues([]uint16{0}, used.Flattened.Cpu.ReservedCores)
+	require.EqualValues(512, used.Flattened.Memory.MemoryMB)
+
+	// Should not fit second allocation
+	fit, dim, used, err = AllocsFit(n, []*Allocation{a2, a2}, nil, false)
+	require.NoError(err)
+	require.False(fit)
+	require.EqualValues("cores", dim)
+	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
+	require.EqualValues([]uint16{0}, used.Flattened.Cpu.ReservedCores)
+	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
 }
 
 func TestAllocsFit_TerminalAlloc(t *testing.T) {
