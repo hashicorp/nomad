@@ -567,7 +567,6 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 				continue
 			}
 			fh.Write(out.Data)
-			fh.WriteString("\n")
 
 		case err := <-errCh:
 			fh.WriteString(fmt.Sprintf("monitor: %s\n", err.Error()))
