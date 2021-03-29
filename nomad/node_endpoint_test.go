@@ -903,10 +903,8 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	dereg := &structs.NodeUpdateDrainRequest{
 		NodeID:        node.ID,
 		DrainStrategy: strategy,
-		Meta: map[string]string{
-			"message": "this node looks funny",
-		},
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		Meta:          map[string]string{"message": "this node is not needed"},
+		WriteRequest:  structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.NodeDrainUpdateResponse
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2))
@@ -922,10 +920,12 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.Len(out.Events, 2)
 	require.Equal(NodeDrainEventDrainSet, out.Events[1].Message)
 	require.NotNil(out.LastDrain)
-	require.Equal(structs.DrainStatusDraining, out.LastDrain.Status)
-	require.True(out.LastDrain.StartedAt.Before(time.Now()))
-	require.Equal(out.LastDrain.StartedAt, out.LastDrain.UpdatedAt)
-	require.Equal("this node looks funny", out.LastDrain.Meta["message"])
+	require.Equal(structs.DrainMetadata{
+		StartedAt: out.LastDrain.UpdatedAt,
+		UpdatedAt: out.LastDrain.StartedAt,
+		Status:    structs.DrainStatusDraining,
+		Meta:      map[string]string{"message": "this node is not needed"},
+	}, *out.LastDrain)
 
 	// before+deadline should be before the forced deadline
 	require.True(beforeUpdate.Add(strategy.Deadline).Before(out.DrainStrategy.ForceDeadline))
@@ -951,6 +951,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	// Update the eligibility and expect evals
 	dereg.DrainStrategy = nil
 	dereg.MarkEligible = true
+	dereg.Meta = map[string]string{"cancelled": "yes"}
 	var resp3 structs.NodeDrainUpdateResponse
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp3))
 	require.NotZero(resp3.Index)
@@ -963,6 +964,15 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.NoError(err)
 	require.Len(out.Events, 4)
 	require.Equal(NodeDrainEventDrainDisabled, out.Events[3].Message)
+	require.NotNil(out.LastDrain)
+	require.NotNil(out.LastDrain)
+	require.False(out.LastDrain.UpdatedAt.Before(out.LastDrain.StartedAt))
+	require.Equal(structs.DrainMetadata{
+		StartedAt: out.LastDrain.StartedAt,
+		UpdatedAt: out.LastDrain.UpdatedAt,
+		Status:    structs.DrainStatusCancelled,
+		Meta:      map[string]string{"cancelled": "yes"},
+	}, *out.LastDrain)
 
 	// Check that calling UpdateDrain with the same DrainStrategy does not emit
 	// a node event.
@@ -971,6 +981,110 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	out, err = state.NodeByID(ws, node.ID)
 	require.NoError(err)
 	require.Len(out.Events, 4)
+}
+
+func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Disable drainer for now
+	s1.nodeDrainer.SetEnabled(false, nil)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+
+	strategy := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: 10 * time.Second,
+		},
+	}
+
+	// Update the status
+	dereg := &structs.NodeUpdateDrainRequest{
+		NodeID:        node.ID,
+		DrainStrategy: strategy,
+		Meta: map[string]string{
+			"message": "first",
+		},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.NodeDrainUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2))
+	require.NotZero(resp2.Index)
+
+	// Check for the node in the FSM
+	out, err := state.NodeByID(nil, node.ID)
+	require.Nil(err)
+	require.NotNil(out.DrainStrategy)
+	require.NotNil(out.LastDrain)
+	firstDrainUpdate := out.LastDrain.UpdatedAt
+	require.Equal(structs.DrainMetadata{
+		StartedAt: firstDrainUpdate,
+		UpdatedAt: firstDrainUpdate,
+		Status:    structs.DrainStatusDraining,
+		Meta:      map[string]string{"message": "first"},
+	}, *out.LastDrain)
+
+	time.Sleep(1 * time.Second)
+
+	// Update the drain
+	dereg.DrainStrategy.DrainSpec.Deadline *= 2
+	dereg.Meta["message"] = "second"
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2))
+	require.NotZero(resp2.Index)
+
+	out, err = state.NodeByID(nil, node.ID)
+	require.Nil(err)
+	require.NotNil(out.DrainStrategy)
+	require.NotNil(out.LastDrain)
+	secondDrainUpdate := out.LastDrain.UpdatedAt
+	require.True(secondDrainUpdate.After(firstDrainUpdate))
+	require.Equal(structs.DrainMetadata{
+		StartedAt: firstDrainUpdate,
+		UpdatedAt: secondDrainUpdate,
+		Status:    structs.DrainStatusDraining,
+		Meta:      map[string]string{"message": "second"},
+	}, *out.LastDrain)
+
+	time.Sleep(1 * time.Second)
+
+	// Enable the drainer, wait for completion
+	s1.nodeDrainer.SetEnabled(true, state)
+
+	testutil.WaitForResult(func() (bool, error) {
+		out, err = state.NodeByID(nil, node.ID)
+		if err != nil {
+			return false, err
+		}
+		if out == nil {
+			return false, fmt.Errorf("could not find node")
+		}
+		return out.DrainStrategy == nil, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	require.True(out.LastDrain.UpdatedAt.After(secondDrainUpdate))
+	require.Equal(structs.DrainMetadata{
+		StartedAt: firstDrainUpdate,
+		UpdatedAt: out.LastDrain.UpdatedAt,
+		Status:    structs.DrainStatusComplete,
+		Meta:      map[string]string{"message": "second"},
+	}, *out.LastDrain)
 }
 
 func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
@@ -1029,10 +1143,14 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
+	dereg.DrainStrategy.DrainSpec.Deadline = 20 * time.Second
 	dereg.AuthToken = root.SecretID
 	{
 		var resp structs.NodeDrainUpdateResponse
 		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
+		out, err := state.NodeByID(nil, node.ID)
+		require.NoError(err)
+		require.Equal(root.AccessorID, out.LastDrain.AccessorID)
 	}
 }
 

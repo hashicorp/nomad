@@ -1769,7 +1769,7 @@ func (d *DrainStrategy) Equal(o *DrainStrategy) bool {
 const (
 	// DrainStatuses are the various states a drain can be in, as reflect in DrainMetadata
 	DrainStatusDraining  = "draining"
-	DrainStatusCompleted = "complete"
+	DrainStatusComplete  = "complete"
 	DrainStatusCancelled = "cancelled"
 )
 

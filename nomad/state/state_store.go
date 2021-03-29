@@ -1034,7 +1034,7 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 		case updatedNode.DrainStrategy != nil:
 			updatedNode.LastDrain.Status = structs.DrainStatusDraining
 		case drainCompleted:
-			updatedNode.LastDrain.Status = structs.DrainStatusCompleted
+			updatedNode.LastDrain.Status = structs.DrainStatusComplete
 		default:
 			updatedNode.LastDrain.Status = structs.DrainStatusCancelled
 		}
@@ -1050,7 +1050,7 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 		}
 		if updatedNode.DrainStrategy == nil {
 			if drainCompleted {
-				updatedNode.LastDrain.Status = structs.DrainStatusCompleted
+				updatedNode.LastDrain.Status = structs.DrainStatusComplete
 			} else {
 				updatedNode.LastDrain.Status = structs.DrainStatusCancelled
 			}
