@@ -385,9 +385,9 @@ export default function() {
   });
 
   this.post('/acl/token/onetime/exchange', function({ tokens }, { requestBody }) {
-    const { OneTimeSecret } = JSON.parse(requestBody);
+    const { OneTimeSecretID } = JSON.parse(requestBody);
 
-    const tokenForSecret = tokens.findBy({ oneTimeSecret: OneTimeSecret });
+    const tokenForSecret = tokens.findBy({ oneTimeSecret: OneTimeSecretID });
 
     // Return the token if it exists
     if (tokenForSecret) {
