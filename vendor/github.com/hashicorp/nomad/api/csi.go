@@ -31,7 +31,7 @@ func (v *CSIVolumes) List(q *QueryOptions) ([]*CSIVolumeListStub, *QueryMeta, er
 // ListExternal returns all CSI volumes, as understood by the external storage
 // provider. These volumes may or may not be currently registered with Nomad.
 // The response is paginated by the plugin and accepts the
-// QueryOptions.PerPage and QueryOptions.NextToken fields
+// QueryOptions.PerPage and QueryOptions.NextToken fields.
 func (v *CSIVolumes) ListExternal(pluginID string, q *QueryOptions) (*CSIVolumeListExternalResponse, *QueryMeta, error) {
 	var resp *CSIVolumeListExternalResponse
 
@@ -79,7 +79,7 @@ func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, erro
 	return meta, err
 }
 
-// Register deregisters a single CSIVolume from Nomad. The volume will not be deleted from the external storage provider.
+// Deregister deregisters a single CSIVolume from Nomad. The volume will not be deleted from the external storage provider.
 func (v *CSIVolumes) Deregister(id string, force bool, w *WriteOptions) error {
 	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v?force=%t", url.PathEscape(id), force), nil, w)
 	return err
@@ -112,6 +112,49 @@ func (v *CSIVolumes) Delete(externalVolID string, w *WriteOptions) error {
 func (v *CSIVolumes) Detach(volID, nodeID string, w *WriteOptions) error {
 	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/detach?node=%v", url.PathEscape(volID), nodeID), nil, w)
 	return err
+}
+
+// CreateSnapshot snapshots an external storage volume.
+func (v *CSIVolumes) CreateSnapshot(snap *CSISnapshot, w *WriteOptions) ([]*CSISnapshot, *WriteMeta, error) {
+	req := &CSISnapshotCreateRequest{
+		Snapshots: []*CSISnapshot{snap},
+	}
+	resp := &CSISnapshotCreateResponse{}
+	meta, err := v.client.write(fmt.Sprintf("/v1/volumes/snapshot"), req, resp, w)
+	return resp.Snapshots, meta, err
+}
+
+// DeleteSnapshot deletes an external storage volume snapshot.
+func (v *CSIVolumes) DeleteSnapshot(snap *CSISnapshot, w *WriteOptions) error {
+	req := &CSISnapshotDeleteRequest{
+		Snapshots: []*CSISnapshot{snap},
+	}
+	_, err := v.client.delete(fmt.Sprintf("/v1/volumes/snapshot"), req, w)
+	return err
+}
+
+// ListSnapshots lists external storage volume snapshots.
+func (v *CSIVolumes) ListSnapshots(pluginID string, q *QueryOptions) (*CSISnapshotListResponse, *QueryMeta, error) {
+	var resp *CSISnapshotListResponse
+
+	qp := url.Values{}
+	if pluginID != "" {
+		qp.Set("plugin_id", pluginID)
+	}
+	if q.NextToken != "" {
+		qp.Set("next_token", q.NextToken)
+	}
+	if q.PerPage != 0 {
+		qp.Set("per_page", fmt.Sprint(q.PerPage))
+	}
+
+	qm, err := v.client.query("/v1/volumes/snapshots?"+qp.Encode(), &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sort.Sort(CSISnapshotSort(resp.Snapshots))
+	return resp, qm, nil
 }
 
 // CSIVolumeAttachmentMode chooses the type of storage api that will be used to
@@ -310,6 +353,68 @@ type CSIVolumeRegisterRequest struct {
 type CSIVolumeDeregisterRequest struct {
 	VolumeIDs []string
 	WriteRequest
+}
+
+// CSISnapshot is the storage provider's view of a volume snapshot
+type CSISnapshot struct {
+	ID                     string // storage provider's ID
+	ExternalSourceVolumeID string // storage provider's ID for volume
+	SizeBytes              int64  // value from storage provider
+	CreateTime             int64  // value from storage provider
+	IsReady                bool   // value from storage provider
+	SourceVolumeID         string // Nomad volume ID
+	PluginID               string // CSI plugin ID
+
+	// These field are only used during snapshot creation and will not be
+	// populated when the snapshot is returned
+	Name       string            // suggested name of the snapshot, used for creation
+	Secrets    CSISecrets        // secrets needed to create snapshot
+	Parameters map[string]string // secrets needed to create snapshot
+}
+
+// CSISnapshotSort is a helper used for sorting snapshots by creation time.
+type CSISnapshotSort []*CSISnapshot
+
+func (v CSISnapshotSort) Len() int {
+	return len(v)
+}
+
+func (v CSISnapshotSort) Less(i, j int) bool {
+	return v[i].CreateTime > v[j].CreateTime
+}
+
+func (v CSISnapshotSort) Swap(i, j int) {
+	v[i], v[j] = v[j], v[i]
+}
+
+type CSISnapshotCreateRequest struct {
+	Snapshots []*CSISnapshot
+	WriteRequest
+}
+
+type CSISnapshotCreateResponse struct {
+	Snapshots []*CSISnapshot
+	QueryMeta
+}
+
+type CSISnapshotDeleteRequest struct {
+	Snapshots []*CSISnapshot
+	WriteRequest
+}
+
+// CSISnapshotListRequest is a request to a controller plugin to list all the
+// snapshot known to the the storage provider. This request is paginated by
+// the plugin and accepts the QueryOptions.PerPage and QueryOptions.NextToken
+// fields
+type CSISnapshotListRequest struct {
+	PluginID string
+	QueryOptions
+}
+
+type CSISnapshotListResponse struct {
+	Snapshots []*CSISnapshot
+	NextToken string
+	QueryMeta
 }
 
 // CSI Plugins are jobs with plugin specific data
