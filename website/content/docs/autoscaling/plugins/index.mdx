@@ -9,15 +9,17 @@ description: Plugins are used to architect the Nomad Autoscaler into distinct ar
 
 Plugins are an essential part of the Nomad Autoscaler architecture. The Autoscaler
 uses the [go-plugin][go_plugin_github] library to implement an ecosystem of
-different types of plugins. Each plugin type is responsible for a specific task;
-APM plugins retrieve metrics about the workloads being monitored and Strategy
-plugins decide which actions Nomad should execute to keep the policy valid. The
-flexibility of plugins allows the Nomad Autoscaler to be extended to meet specific
-business requirements or technology use cases.
+different types of plugins. Each plugin type is responsible for a specific task:
+APM plugins retrieve metrics about the workloads being monitored; strategy
+plugins decide the scaling action to satisfy the scaling policy; and target
+plugins perform the scaling action. The flexibility of plugins allows the Nomad
+Autoscaler to be extended to meet specific business requirements or technology
+use cases.
 
 The Nomad Autoscaler currently ships with a number of built-in plugins to ease
 the learning curve. Details of these can be found in the side menu, under the
-specific plugin type sections.
+specific plugin type sections. The autoscaler also supports external plugins; see
+this list of [community-supported plugins][community_plugins].
 
 # General Options
 
@@ -63,3 +65,4 @@ targets.
   strongly discouraged.
 
 [go_plugin_github]: https://github.com/hashicorp/go-plugin
+[community_plugins]: /docs/autoscaling/plugins/external
