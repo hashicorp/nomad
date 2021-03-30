@@ -21,7 +21,7 @@ import (
 	"github.com/hashicorp/nomad/helper/envoy"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/pkg/errors"
-	"github.com/shirou/gopsutil/host"
+	"github.com/shirou/gopsutil/v3/host"
 
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
