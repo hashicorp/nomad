@@ -463,6 +463,9 @@ func (r *ControllerCreateVolumeRequest) Validate() error {
 	return nil
 }
 
+// VolumeContentSource is snapshot or volume that the plugin will use to
+// create the new volume. At most one of these fields can be set, but nil (and
+// not an empty struct) is expected by CSI plugins if neither field is set.
 type VolumeContentSource struct {
 	SnapshotID string
 	CloneID    string
@@ -479,8 +482,7 @@ func (vcr *VolumeContentSource) ToCSIRepresentation() *csipbv1.VolumeContentSour
 				VolumeId: vcr.CloneID,
 			},
 		}
-	}
-	if vcr.SnapshotID != "" {
+	} else if vcr.SnapshotID != "" {
 		result.Type = &csipbv1.VolumeContentSource_Snapshot{
 			Snapshot: &csipbv1.VolumeContentSource_SnapshotSource{
 				SnapshotId: vcr.SnapshotID,
