@@ -27,6 +27,7 @@ BUG FIXES:
  * cli: Fixed a bug where `nomad operator debug` incorrectly parsed https Consul API URLs. [[GH-10082](https://github.com/hashicorp/nomad/pull/10082)]
  * cli: Remove extra linefeeds in monitor.log files written by `nomad operator debug`. [[GH-10252](https://github.com/hashicorp/nomad/issues/10252)]
  * client: Fixed log formatting when killing tasks. [[GH-10135](https://github.com/hashicorp/nomad/issues/10135)]
+ * core (Enterprise): Update licensing library to v0.0.11 to include race condition fix. [[GH-10253](https://github.com/hashicorp/nomad/issues/10253)]
  * csi: Fixed a bug where volume with IDs that are a substring prefix of another volume could use the wrong volume for feasibility checking. [[GH-10158](https://github.com/hashicorp/nomad/issues/10158)]
  * scheduler: Fixed a bug where Nomad reports negative or incorrect running children counts for periodic jobs. [[GH-10145](https://github.com/hashicorp/nomad/issues/10145)]
  * scheduler: Fixed a bug where jobs requesting multiple CSI volumes could be incorrectly scheduled if only one of the volumes passed feasibility checking. [[GH-10143](https://github.com/hashicorp/nomad/issues/10143)]
