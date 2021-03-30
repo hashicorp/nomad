@@ -145,7 +145,7 @@ NOMAD_LICENSE=misconfigured nomad agent -dev
 Some Nomad servers are controlled with a level of automation or could be part
 of an autoscaling group. If an operator accidentally has an old, expired
 license set as the disk or environment license, the server will emit a warning
-log, but not exit in case a valid license exists in raft. If a valid license
+log, but not exit if a valid license exists in raft. If a valid license
 doesn't exist in raft then the server will enter a grace period before exiting.
 
 ```
