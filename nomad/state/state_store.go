@@ -1015,45 +1015,49 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 
 	// Update LastDrain
 	updateTime := time.Unix(updatedAt, 0)
-	// when done with this method, updatedNode.LastDrain should be set
-	// this is either a new LastDrain struct or an update of the existing one
-	//
-	// if starting a new drain operation, create a new LastDrain. otherwise, update the existing one.
-	// if already draining and LastDrain doesn't exist, we'll need to create a new one.
-	// this might happen if we upgrade/transition to 1.1 during a drain operation
-	if existingNode.DrainStrategy == nil && updatedNode.DrainStrategy != nil ||
-		updatedNode.LastDrain == nil {
 
-		updatedNode.LastDrain = &structs.DrainMetadata{
-			StartedAt:  updateTime,
-			UpdatedAt:  updateTime,
-			AccessorID: accessorId,
-			Meta:       drainMeta,
+	// if drain strategy isn't before or after, this wasn't a drain operation
+	// in that case, we don't care about .LastDrain
+	drainNoop := existingNode.DrainStrategy == nil && updatedNode.DrainStrategy == nil
+	// when done with this method, updatedNode.LastDrain should be set
+	// if starting a new drain operation, create a new LastDrain. otherwise, update the existing one.
+	startedDraining := existingNode.DrainStrategy == nil && updatedNode.DrainStrategy != nil
+	// if already draining and LastDrain doesn't exist, we need to create a new one.
+	missingLastDrain := updatedNode.LastDrain == nil
+	if !drainNoop {
+		if startedDraining {
+			updatedNode.LastDrain = &structs.DrainMetadata{
+				StartedAt: updateTime,
+				Meta:      drainMeta,
+			}
+		} else if missingLastDrain {
+			updatedNode.LastDrain = &structs.DrainMetadata{
+				// we don't have sub-second accuracy, so truncate this
+				StartedAt: time.Unix(existingNode.DrainStrategy.StartedAt.Unix(), 0),
+				Status:    structs.DrainStatusDraining,
+				Meta:      drainMeta,
+			}
 		}
-		switch {
-		case updatedNode.DrainStrategy != nil:
-			updatedNode.LastDrain.Status = structs.DrainStatusDraining
-		case drainCompleted:
-			updatedNode.LastDrain.Status = structs.DrainStatusComplete
-		default:
-			updatedNode.LastDrain.Status = structs.DrainStatusCancelled
-		}
-	} else {
+
 		updatedNode.LastDrain.UpdatedAt = updateTime
-		if accessorId != "" {
-			// we won't have an accessor ID for drain complete; don't overwrite the existing one
-			updatedNode.LastDrain.AccessorID = accessorId
-		}
+
+		// won't have new metadata on drain complete; keep the existing operator-provided metadata
+		// also, keep existing if they didn't provide it
 		if drainMeta != nil {
-			// similarly, won't have metadata for drain complete; keep the existing operator-provided metadata
 			updatedNode.LastDrain.Meta = drainMeta
 		}
-		if updatedNode.DrainStrategy == nil {
-			if drainCompleted {
-				updatedNode.LastDrain.Status = structs.DrainStatusComplete
-			} else {
-				updatedNode.LastDrain.Status = structs.DrainStatusCancelled
-			}
+
+		// we won't have an accessor ID for drain complete; don't overwrite the existing one
+		if accessorId != "" {
+			updatedNode.LastDrain.AccessorID = accessorId
+		}
+
+		if updatedNode.DrainStrategy != nil {
+			updatedNode.LastDrain.Status = structs.DrainStatusDraining
+		} else if drainCompleted {
+			updatedNode.LastDrain.Status = structs.DrainStatusComplete
+		} else {
+			updatedNode.LastDrain.Status = structs.DrainStatusCancelled
 		}
 	}
 

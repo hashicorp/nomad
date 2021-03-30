@@ -11,6 +11,11 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	vapi "github.com/hashicorp/vault/api"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
@@ -19,10 +24,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	vapi "github.com/hashicorp/vault/api"
-	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestClientEndpoint_Register(t *testing.T) {
@@ -1085,6 +1086,78 @@ func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
 		Status:    structs.DrainStatusComplete,
 		Meta:      map[string]string{"message": "second"},
 	}, *out.LastDrain)
+}
+
+func TestClientEndpoint_UpdatedDrainNoop(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+
+	// Update the status
+	dereg := &structs.NodeUpdateDrainRequest{
+		NodeID: node.ID,
+		DrainStrategy: &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: 10 * time.Second,
+			},
+		},
+		Meta: map[string]string{
+			"message": "drain",
+		},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var drainResp structs.NodeDrainUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &drainResp))
+	require.NotZero(drainResp.Index)
+
+	var out *structs.Node
+	testutil.WaitForResult(func() (bool, error) {
+		var err error
+		out, err = state.NodeByID(nil, node.ID)
+		if err != nil {
+			return false, err
+		}
+		if out == nil {
+			return false, fmt.Errorf("could not find node")
+		}
+		return out.DrainStrategy == nil && out.SchedulingEligibility == structs.NodeSchedulingIneligible, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	require.Equal(structs.DrainStatusComplete, out.LastDrain.Status)
+	require.Equal(map[string]string{"message": "drain"}, out.LastDrain.Meta)
+	prevDrain := out.LastDrain
+
+	// call again with Drain Strategy nil; should be a no-op because drain is already complete
+	dereg.DrainStrategy = nil
+	dereg.Meta = map[string]string{
+		"new_message": "is new",
+	}
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &drainResp))
+	require.NotZero(drainResp.Index)
+
+	out, err := state.NodeByID(nil, node.ID)
+	require.Nil(err)
+	require.Nil(out.DrainStrategy)
+	require.NotNil(out.LastDrain)
+	require.Equal(prevDrain, out.LastDrain)
 }
 
 func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
