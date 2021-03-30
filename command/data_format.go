@@ -6,6 +6,7 @@ import (
 	"io"
 	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/hashicorp/go-msgpack/codec"
 )
 
@@ -62,7 +63,9 @@ func (p *TemplateFormat) TransformData(data interface{}) (string, error) {
 		return "", fmt.Errorf("template needs to be specified the golang templates.")
 	}
 
-	t, err := template.New("format").Parse(p.tmpl)
+	tmpl := template.New("format")
+	tmpl.Funcs(makeFuncMap())
+	t, err := tmpl.Parse(p.tmpl)
 	if err != nil {
 		return "", err
 	}
@@ -97,4 +100,12 @@ func Format(json bool, template string, data interface{}) (string, error) {
 	}
 
 	return out, nil
+}
+
+func makeFuncMap() template.FuncMap {
+	fm := template.FuncMap{}
+	for k, v := range sprig.FuncMap() {
+		fm[k] = v
+	}
+	return fm
 }

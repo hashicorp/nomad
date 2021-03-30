@@ -45,6 +45,13 @@ github.com/DataDog/datadog-go/statsd
 # github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
 ## explicit
 github.com/LK4D4/joincontext
+# github.com/Masterminds/goutils v1.1.1
+github.com/Masterminds/goutils
+# github.com/Masterminds/semver/v3 v3.1.1
+github.com/Masterminds/semver/v3
+# github.com/Masterminds/sprig/v3 v3.2.1
+## explicit
+github.com/Masterminds/sprig/v3
 # github.com/Microsoft/go-winio v0.4.15-0.20200113171025-3fe6c5262873 => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
 ## explicit
 github.com/Microsoft/go-winio
@@ -527,6 +534,10 @@ github.com/hashicorp/yamux
 ## explicit
 github.com/hpcloud/tail/util
 github.com/hpcloud/tail/watch
+# github.com/huandu/xstrings v1.3.1
+github.com/huandu/xstrings
+# github.com/imdario/mergo v0.3.11
+github.com/imdario/mergo
 # github.com/ishidawataru/sctp v0.0.0-20191218070446-00ab2ac2db07
 ## explicit
 github.com/ishidawataru/sctp
@@ -711,6 +722,8 @@ github.com/shirou/gopsutil/internal/common
 github.com/shirou/gopsutil/mem
 github.com/shirou/gopsutil/net
 github.com/shirou/gopsutil/process
+# github.com/shopspring/decimal v1.2.0
+github.com/shopspring/decimal
 # github.com/sirupsen/logrus v1.6.0
 github.com/sirupsen/logrus
 # github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
@@ -723,6 +736,8 @@ github.com/softlayer/softlayer-go/filter
 github.com/softlayer/softlayer-go/services
 github.com/softlayer/softlayer-go/session
 github.com/softlayer/softlayer-go/sl
+# github.com/spf13/cast v1.3.1
+github.com/spf13/cast
 # github.com/stretchr/objx v0.2.0
 ## explicit
 github.com/stretchr/objx
@@ -819,6 +834,7 @@ golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/pkcs12
 golang.org/x/crypto/pkcs12/internal/rc2
 golang.org/x/crypto/poly1305
+golang.org/x/crypto/scrypt
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/agent
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
@@ -1002,7 +1018,6 @@ gopkg.in/tomb.v1
 ## explicit
 gopkg.in/tomb.v2
 # gopkg.in/yaml.v2 v2.3.0
-## explicit
 gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 gopkg.in/yaml.v3
