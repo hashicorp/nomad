@@ -441,8 +441,9 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 		return fmt.Errorf("%s: %s", structs.ErrUnknownAllocationPrefix, req.AllocationID)
 	}
 
-	// if no plugin was returned or the plugin doesn't attach volumes, then
-	// controller validation is not required and we can safely return nil.
+	// Some plugins support controllers for create/snapshot but not attach. So
+	// if there's no plugin or the plugin doesn't attach volumes, then we can
+	// skip the controller publish workflow and return nil.
 	if plug == nil || !plug.HasControllerCapability(structs.CSIControllerSupportsAttachDetach) {
 		return nil
 	}
