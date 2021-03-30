@@ -1016,23 +1016,23 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 	// Update LastDrain
 	updateTime := time.Unix(updatedAt, 0)
 
-	// if drain strategy isn't before or after, this wasn't a drain operation
+	// if drain strategy isn't set before or after, this wasn't a drain operation
 	// in that case, we don't care about .LastDrain
 	drainNoop := existingNode.DrainStrategy == nil && updatedNode.DrainStrategy == nil
-	// when done with this method, updatedNode.LastDrain should be set
+	// otherwise, when done with this method, updatedNode.LastDrain should be set
 	// if starting a new drain operation, create a new LastDrain. otherwise, update the existing one.
 	startedDraining := existingNode.DrainStrategy == nil && updatedNode.DrainStrategy != nil
-	// if already draining and LastDrain doesn't exist, we need to create a new one.
-	missingLastDrain := updatedNode.LastDrain == nil
 	if !drainNoop {
 		if startedDraining {
 			updatedNode.LastDrain = &structs.DrainMetadata{
 				StartedAt: updateTime,
 				Meta:      drainMeta,
 			}
-		} else if missingLastDrain {
+		} else if updatedNode.LastDrain == nil {
+			// if already draining and LastDrain doesn't exist, we need to create a new one
+			// this could happen if we upgraded to 1.1.x during a drain
 			updatedNode.LastDrain = &structs.DrainMetadata{
-				// we don't have sub-second accuracy, so truncate this
+				// we don't have sub-second accuracy on these fields, so truncate this
 				StartedAt: time.Unix(existingNode.DrainStrategy.StartedAt.Unix(), 0),
 				Status:    structs.DrainStatusDraining,
 				Meta:      drainMeta,
@@ -1043,11 +1043,11 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 
 		// won't have new metadata on drain complete; keep the existing operator-provided metadata
 		// also, keep existing if they didn't provide it
-		if drainMeta != nil {
+		if len(drainMeta) != 0 {
 			updatedNode.LastDrain.Meta = drainMeta
 		}
 
-		// we won't have an accessor ID for drain complete; don't overwrite the existing one
+		// we won't have an accessor ID on drain complete, so don't overwrite the existing one
 		if accessorId != "" {
 			updatedNode.LastDrain.AccessorID = accessorId
 		}
