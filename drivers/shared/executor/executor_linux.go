@@ -683,21 +683,23 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 	}
 
 	// Total amount of memory allowed to consume
-	var memoryLimit int64
-	if res := command.Resources.NomadResources.Memory; res.MemoryMaxMB > 0 {
-		memoryLimit = res.MemoryMaxMB * 1024 * 1024
-	} else if res.MemoryMB > 0 {
-		memoryLimit = res.MemoryMB * 1024 * 1024
+	res := command.Resources.NomadResources
+	memHard, memSoft := res.Memory.MemoryMaxMB, res.Memory.MemoryMB
+	if memHard <= 0 {
+		memHard = res.Memory.MemoryMB
+		memSoft = 0
 	}
-	if memoryLimit > 0 {
-		cfg.Cgroups.Resources.Memory = memoryLimit
+
+	if memHard > 0 {
+		cfg.Cgroups.Resources.Memory = memHard * 1024 * 1024
+		cfg.Cgroups.Resources.MemoryReservation = memSoft * 1024 * 1024
 
 		// Disable swap to avoid issues on the machine
 		var memSwappiness uint64
 		cfg.Cgroups.Resources.MemorySwappiness = &memSwappiness
 	}
 
-	cpuShares := command.Resources.NomadResources.Cpu.CpuShares
+	cpuShares := res.Cpu.CpuShares
 	if cpuShares < 2 {
 		return fmt.Errorf("resources.Cpu.CpuShares must be equal to or greater than 2: %v", cpuShares)
 	}
