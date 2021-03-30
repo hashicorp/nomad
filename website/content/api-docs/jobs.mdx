@@ -1,7 +1,6 @@
 ---
 layout: api
 page_title: Jobs - HTTP API
-sidebar_title: Jobs
 description: The /jobs endpoints are used to query for and interact with jobs.
 ---
 
@@ -127,9 +126,7 @@ The table below shows this endpoint's support for
 ```json
 {
   "Job": {
-    "Datacenters": [
-      "dc1"
-    ],
+    "Datacenters": ["dc1"],
     "ID": "cache",
     "TaskGroups": [
       {
@@ -154,9 +151,7 @@ The table below shows this endpoint's support for
           {
             "Config": {
               "image": "redis:3.2",
-              "ports": [
-                "db"
-              ]
+              "ports": ["db"]
             },
             "Driver": "docker",
             "Name": "redis"
@@ -364,8 +359,8 @@ $ curl \
           "Name": "init",
           "Resources": {
             "CPU": 100,
-            "MemoryMB": 300,
-          },
+            "MemoryMB": 300
+          }
         },
         {
           "Name": "redis",

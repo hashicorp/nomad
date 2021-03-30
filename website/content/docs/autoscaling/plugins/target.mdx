@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: Target
-sidebar_title: Target
 description: Target plugins determine where the resource to be autoscaled is located.
 ---
 
@@ -18,8 +17,6 @@ Below is a list of plugins you can use with the Nomad Autoscaler:
 - [AWS AutoScaling Group][aws_asg_target]
 - [Azure Virtual Machine Scale Set][azure_vmss_target]
 - [Google Cloud Platform Managed Instance Groups][gcp_mig_target]
-
-
 
 ## Nomad Task Group Target
 
@@ -67,8 +64,8 @@ check "example-check" {
 ## Dynamic Application Sizing Nomad Task Target
 
 <EnterpriseAlert>
-This functionality only exists in Nomad Autoscaler
-Enterprise. This is not present in the open source version of Nomad Autoscaler.
+  This functionality only exists in Nomad Autoscaler Enterprise. This is not
+  present in the open source version of Nomad Autoscaler.
 </EnterpriseAlert>
 
 The `app-sizing-nomad` target plugin reports on the current task resource value
@@ -371,7 +368,7 @@ target "gcp-mig" {
 ```
 
 - `credentials` `(string: "")` - This is specified as the path to a Google Cloud
-credentials file, typically for a service account.
+  credentials file, typically for a service account.
 
 When using a Nomad cluster with ACLs enabled, the plugin will require an ACL token
 which provides the following permissions:

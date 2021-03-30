@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: service Stanza - Job Specification
-sidebar_title: service
 description: |-
   The "service" stanza instructs Nomad to register the task as a service using
   the service discovery integration.
@@ -190,12 +189,9 @@ Connect][connect] integration.
   - `ignore` - Any status will be treated as healthy.
 
   ~> **Caveat:** `on_update` is only compatible with certain
-  [`check_restart`][check_restart_stanza] configurations. `on_update =
-  "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
-  `check_restart` can however specify `ignore_warnings = true` with `on_update
-  = "require_healthy"`. If `on_update` is set to `ignore`, `check_restart` must
+  [`check_restart`][check_restart_stanza] configurations. `on_update = "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
+  `check_restart` can however specify `ignore_warnings = true` with `on_update = "require_healthy"`. If `on_update` is set to `ignore`, `check_restart` must
   be omitted entirely.
-
 
 ### `check` Parameters
 
@@ -321,10 +317,8 @@ scripts.
   - `ignore` - Any status will be treated as healthy.
 
   ~> **Caveat:** `on_update` is only compatible with certain
-  [`check_restart`][check_restart_stanza] configurations. `on_update =
-  "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
-  `check_restart` can however specify `ignore_warnings = true` with `on_update
-  = "require_healthy"`. If `on_update` is set to `ignore`, `check_restart` must
+  [`check_restart`][check_restart_stanza] configurations. `on_update = "ignore_warnings"` requires that `check_restart.ignore_warnings = true`.
+  `check_restart` can however specify `ignore_warnings = true` with `on_update = "require_healthy"`. If `on_update` is set to `ignore`, `check_restart` must
   be omitted entirely.
 
 #### `header` Stanza
@@ -787,8 +781,8 @@ advertise and check directly since Nomad isn't managing any port assignments.
 </sup>
 <small>
   {' '}
-  Script checks are not supported for the QEMU driver since the Nomad
-  client does not have access to the file system of a task for that driver.
+  Script checks are not supported for the QEMU driver since the Nomad client
+  does not have access to the file system of a task for that driver.
 </small>
 
 [check_restart_stanza]: /docs/job-specification/check_restart

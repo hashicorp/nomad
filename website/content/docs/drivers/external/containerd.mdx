@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: 'Drivers: nomad-driver-containerd'
-sidebar_title: containerd
 description: >-
   The containerd driver is used
   for launching containers using containerd.
@@ -109,6 +108,7 @@ config {
   ]
 }
 ```
+
 - `entrypoint` - (Optional) A string list overriding the image's entrypoint.
 
 - `cwd` - (Optional) Specify the current working directory (cwd) for your container process.
@@ -296,6 +296,7 @@ network {
   }
 }
 ```
+
 Here, `host` port `8889` is mapped to `container` port `8889`.<br/>
 **NOTE:** static ports are usually not recommended, except for
 `system` or specialized jobs like load balancers.
@@ -312,6 +313,7 @@ network {
   }
 }
 ```
+
 Here, nomad will allocate a dynamic port on the `host` and that port
 will be mapped to `8080` in the container.
 
@@ -365,8 +367,8 @@ the external driver in the [plugin_dir][plugin_dir] directory.
 [plugin-options]: #plugin_options
 [host-network]: #host_network
 [`mount options`]: https://github.com/containerd/containerd/blob/9561d9389d3dd87ff6030bf1da4e705bbc024130/mount/mount_linux.go#L198-L222
-[Moby repository]: https://github.com/moby/moby/blob/master/profiles/seccomp/default.json
-[Docker's behavior]: https://docs.docker.com/config/containers/container-networking/#dns-services
+[moby repository]: https://github.com/moby/moby/blob/master/profiles/seccomp/default.json
+[docker's behavior]: https://docs.docker.com/config/containers/container-networking/#dns-services
 [allowed syscalls]: https://github.com/containerd/containerd/blob/master/contrib/seccomp/seccomp_default.go#L51-L390
 [`network`]: /docs/job-specification/network
 [`service`]: /docs/job-specification/service
