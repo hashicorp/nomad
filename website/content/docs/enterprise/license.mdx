@@ -22,7 +22,7 @@ for more details.
 
 ## Evaluating Nomad Enterprise
 
-Nomad Enterprise can be used without a valid license for 6 hours. When Nomad
+Nomad Enterprise can be used without a valid license for 6 hours. When a Nomad
 Enterprise server starts without a license configuration option (see [license
 configuration]) it uses a temporary trial license. This license is valid
 for 6 hours.
@@ -60,12 +60,13 @@ After the trial period, if you attempt to start Nomad with the same state or
 `data_dir`, Nomad will wait a brief grace period time to allow an operator to
 set a valid license before shutting down.
 
-## Expiring License
+## Expiring Licenses
 
-As a Nomad Enterprise license approaches its expiration time. Nomad will
+### Temporary Licenses
+
+As a Nomad Enterprise license approaches its expiration time, Nomad will
 periodically log a warning message about the approaching expiration. Below
-shows log excerpts of the warnings. Since this was a temporary license, when
-the temporary license expires, the agent shuts down.
+shows log excerpts of the warnings.
 
 ```
     2021-03-29T15:02:28.100-0400 [WARN]  nomad.licensing: license expiring: time_left=5m0s
@@ -97,6 +98,22 @@ the temporary license expires, the agent shuts down.
     2021-03-29T15:09:30.170-0400 [INFO]  agent: shutdown complete
 ```
 
+Since this was a temporary license, when
+the temporary license expires, the agent shuts down.
+
+### Valid, Non-Temporary Licenses
+
+License expiry is handled differently for valid enterprise licenses. Nomad
+licensing will continue to log about the expiring license above, but when the
+license fully expires (the Termination Time is reached) the server _will not_
+shut down. Instead, of shutting down, enterprise functionality will become limited. Only
+read operations on enterprise endpoints will be supported, and write operations
+will return an error.
+
+~> **Note:** When an enterprise server starts and the license is expired, Nomad
+will wait for a short grace period to apply a valid license before shutting
+down.
+
 ## Setting the License
 
 See the server [license configuration] reference documentation on all the
@@ -126,7 +143,7 @@ NOMAD_LICENSE=misconfigured nomad agent -dev
 ```
 
 Some Nomad servers are controlled with a level of automation or could be part
-of an autoscaling group. If an operator accidentially has an old, expired
+of an autoscaling group. If an operator accidentally has an old, expired
 license set as the disk or environment license, the server will emit a warning
 log, but not exit in case a valid license exists in raft. If a valid license
 doesn't exist in raft then the server will enter a grace period before exiting.
@@ -135,6 +152,33 @@ doesn't exist in raft then the server will enter a grace period before exiting.
 2021-03-29T16:33:01.691-0400 [WARN]  nomad.licensing: Configured enterprise
 license file is expired! Falling back to temporary license. Please update, or
 remove license configuration if setting the license via CLI/API
+```
+
+## Overriding a File or Environment License
+
+A Nomad Enterprise server that starts with an automatically loaded file or
+environment variable license is able to be overridden using the CLI or API.
+When setting a different license from the server's file license a warning will
+be emitted.
+
+If an older (determined by license issue date), but valid license is applied,
+an error is returned.
+
+```
+$ nomad license put nomadlicense.hclic
+Error putting license: Unexpected response code: 500 (error setting license: requested license is older than current one, use force to override)
+```
+
+This can be overridden by setting the `-force` flag.
+
+```
+$ nomad license put -force nomadlicense.hclic
+
+WARNING: The server's configured file license is now outdated. Please update or
+remove the server's license configuration to prevent initialization issues with
+potentially expired licenses.
+
+Successfully applied license
 ```
 
 See the [License commands](/docs/commands/license) for more information on
