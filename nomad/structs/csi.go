@@ -846,21 +846,21 @@ func (p *CSIPlugin) Copy() *CSIPlugin {
 	return out
 }
 
-type CSIControllerCapability int
+type CSIControllerCapability byte
 
 const (
-	CSIControllerSupportsCreateDelete CSIControllerCapability = iota
-	CSIControllerSupportsAttachDetach
-	CSIControllerSupportsListVolumes
-	CSIControllerSupportsGetCapacity
-	CSIControllerSupportsCreateDeleteSnapshot
-	CSIControllerSupportsListSnapshots
-	CSIControllerSupportsClone
-	CSIControllerSupportsReadOnlyAttach
-	CSIControllerSupportsExpand
-	CSIControllerSupportsListVolumesAttachedNodes
-	CSIControllerSupportsCondition
-	CSIControllerSupportsGet
+	CSIControllerSupportsCreateDelete             CSIControllerCapability = 0
+	CSIControllerSupportsAttachDetach             CSIControllerCapability = 1
+	CSIControllerSupportsListVolumes              CSIControllerCapability = 2
+	CSIControllerSupportsGetCapacity              CSIControllerCapability = 3
+	CSIControllerSupportsCreateDeleteSnapshot     CSIControllerCapability = 4
+	CSIControllerSupportsListSnapshots            CSIControllerCapability = 5
+	CSIControllerSupportsClone                    CSIControllerCapability = 6
+	CSIControllerSupportsReadOnlyAttach           CSIControllerCapability = 7
+	CSIControllerSupportsExpand                   CSIControllerCapability = 8
+	CSIControllerSupportsListVolumesAttachedNodes CSIControllerCapability = 9
+	CSIControllerSupportsCondition                CSIControllerCapability = 10
+	CSIControllerSupportsGet                      CSIControllerCapability = 11
 )
 
 func (p *CSIPlugin) HasControllerCapability(cap CSIControllerCapability) bool {

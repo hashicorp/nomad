@@ -683,8 +683,10 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 	ws := memdb.NewWatchSet()
 
 	plugin, err := state.CSIPluginByID(ws, vol.PluginID)
-	if err != nil || plugin == nil {
+	if err != nil {
 		return fmt.Errorf("could not query plugin: %v", err)
+	} else if plugin == nil {
+		return fmt.Errorf("no such plugin: %q", vol.PluginID)
 	}
 	if !plugin.HasControllerCapability(structs.CSIControllerSupportsAttachDetach) {
 		return nil
