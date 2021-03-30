@@ -67,7 +67,7 @@ module('Acceptance | topology', function(hooks) {
 
     assert.equal(
       Topology.clusterInfoPanel.memoryAbsoluteValue,
-      `${formatBytes(reservedMem, 'MiB')} / ${formatBytes(totalMem, 'MiB')} reserved`
+      `${formatBytes(reservedMem * 1024 * 1024)} / ${formatBytes(totalMem * 1024 * 1024)} reserved`
     );
 
     assert.equal(

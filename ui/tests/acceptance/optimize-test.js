@@ -161,12 +161,6 @@ module('Acceptance | optimize', function(hooks) {
         memDiff ? `${memSign}${formattedMemDiff(memDiff)} ${memSign}${memDiffPercent}%` : ''
       );
 
-      console.log(
-        summary.aggregateCpu,
-        cpuDiff,
-        cpuDiff * currentTaskGroupAllocations.length,
-        formatHertz(cpuDiff * currentTaskGroupAllocations.length, 'MHz')
-      );
       assert.equal(
         summary.aggregateCpu,
         cpuDiff

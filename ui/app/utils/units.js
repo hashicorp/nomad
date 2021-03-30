@@ -39,7 +39,7 @@ export function reduceBytes(bytes = 0, maxUnitSize, startingUnitSize) {
   return unitReducer(bytes, 1024, BYTES_UNITS, maxUnitSize, startingUnitSize);
 }
 
-export function reduceHertz(hertz, maxUnitSize, startingUnitSize) {
+export function reduceHertz(hertz = 0, maxUnitSize, startingUnitSize) {
   return unitReducer(hertz, 1000, HERTZ_UNITS, maxUnitSize, startingUnitSize);
 }
 
