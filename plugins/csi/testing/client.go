@@ -2,6 +2,7 @@ package testing
 
 import (
 	"context"
+	"fmt"
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
@@ -87,6 +88,17 @@ func (c *ControllerClient) ValidateVolumeCapabilities(ctx context.Context, in *c
 }
 
 func (c *ControllerClient) CreateVolume(ctx context.Context, in *csipbv1.CreateVolumeRequest, opts ...grpc.CallOption) (*csipbv1.CreateVolumeResponse, error) {
+	if in.VolumeContentSource != nil {
+		if in.VolumeContentSource.Type == nil || (in.VolumeContentSource.Type ==
+			&csipbv1.VolumeContentSource_Volume{
+				Volume: &csipbv1.VolumeContentSource_VolumeSource{VolumeId: ""},
+			}) || (in.VolumeContentSource.Type ==
+			&csipbv1.VolumeContentSource_Snapshot{
+				Snapshot: &csipbv1.VolumeContentSource_SnapshotSource{SnapshotId: ""},
+			}) {
+			return nil, fmt.Errorf("empty content source should be nil")
+		}
+	}
 	return c.NextCreateVolumeResponse, c.NextErr
 }
 
