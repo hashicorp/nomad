@@ -1,4 +1,4 @@
-import { find } from '@ember/test-helpers';
+import { find, visit } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
