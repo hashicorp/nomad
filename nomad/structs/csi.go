@@ -849,18 +849,53 @@ func (p *CSIPlugin) Copy() *CSIPlugin {
 type CSIControllerCapability byte
 
 const (
-	CSIControllerSupportsCreateDelete             CSIControllerCapability = 0
-	CSIControllerSupportsAttachDetach             CSIControllerCapability = 1
-	CSIControllerSupportsListVolumes              CSIControllerCapability = 2
-	CSIControllerSupportsGetCapacity              CSIControllerCapability = 3
-	CSIControllerSupportsCreateDeleteSnapshot     CSIControllerCapability = 4
-	CSIControllerSupportsListSnapshots            CSIControllerCapability = 5
-	CSIControllerSupportsClone                    CSIControllerCapability = 6
-	CSIControllerSupportsReadOnlyAttach           CSIControllerCapability = 7
-	CSIControllerSupportsExpand                   CSIControllerCapability = 8
+	// CSIControllerSupportsCreateDelete indicates plugin support for
+	// CREATE_DELETE_VOLUME
+	CSIControllerSupportsCreateDelete CSIControllerCapability = 0
+
+	// CSIControllerSupportsAttachDetach is true when the controller
+	// implements the methods required to attach and detach volumes. If this
+	// is false Nomad should skip the controller attachment flow.
+	CSIControllerSupportsAttachDetach CSIControllerCapability = 1
+
+	// CSIControllerSupportsListVolumes is true when the controller implements
+	// the ListVolumes RPC. NOTE: This does not guarantee that attached nodes
+	// will be returned unless SupportsListVolumesAttachedNodes is also true.
+	CSIControllerSupportsListVolumes CSIControllerCapability = 2
+
+	// CSIControllerSupportsGetCapacity indicates plugin support for
+	// GET_CAPACITY
+	CSIControllerSupportsGetCapacity CSIControllerCapability = 3
+
+	// CSIControllerSupportsCreateDeleteSnapshot indicates plugin support for
+	// CREATE_DELETE_SNAPSHOT
+	CSIControllerSupportsCreateDeleteSnapshot CSIControllerCapability = 4
+
+	// CSIControllerSupportsListSnapshots indicates plugin support for
+	// LIST_SNAPSHOTS
+	CSIControllerSupportsListSnapshots CSIControllerCapability = 5
+
+	// CSIControllerSupportsClone indicates plugin support for CLONE_VOLUME
+	CSIControllerSupportsClone CSIControllerCapability = 6
+
+	// CSIControllerSupportsReadOnlyAttach is set to true when the controller
+	// returns the ATTACH_READONLY capability.
+	CSIControllerSupportsReadOnlyAttach CSIControllerCapability = 7
+
+	// CSIControllerSupportsExpand indicates plugin support for EXPAND_VOLUME
+	CSIControllerSupportsExpand CSIControllerCapability = 8
+
+	// CSIControllerSupportsListVolumesAttachedNodes indicates whether the
+	// plugin will return attached nodes data when making ListVolume RPCs
+	// (plugin support for LIST_VOLUMES_PUBLISHED_NODES)
 	CSIControllerSupportsListVolumesAttachedNodes CSIControllerCapability = 9
-	CSIControllerSupportsCondition                CSIControllerCapability = 10
-	CSIControllerSupportsGet                      CSIControllerCapability = 11
+
+	// CSIControllerSupportsCondition indicates plugin support for
+	// VOLUME_CONDITION
+	CSIControllerSupportsCondition CSIControllerCapability = 10
+
+	// CSIControllerSupportsGet indicates plugin support for GET_VOLUME
+	CSIControllerSupportsGet CSIControllerCapability = 11
 )
 
 func (p *CSIPlugin) HasControllerCapability(cap CSIControllerCapability) bool {
