@@ -4,7 +4,7 @@ import (
 	"runtime"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/shirou/gopsutil/host"
+	"github.com/shirou/gopsutil/v3/host"
 )
 
 // HostFingerprint is used to fingerprint the host
