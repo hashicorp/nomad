@@ -262,7 +262,7 @@ func TestHTTP_NodeDrain(t *testing.T) {
 			},
 		}
 
-		beforeDrain := time.Now().Add(-1 * time.Second) // handle roundoff
+		beforeDrain := time.Unix(time.Now().Unix(), 0)
 
 		// Make the HTTP request
 		buf := encodeReq(drainReq)

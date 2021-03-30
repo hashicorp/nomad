@@ -311,12 +311,10 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		}
 	}
 
-	// fill drain metadata map, copy existing map if we're updating or cancelling drain
-	var drainMeta map[string]string
-	if node.DrainStrategy != nil && node.LastDrain != nil && node.LastDrain.Meta != nil {
+	// copy drain if cancelling and we have -m or -meta
+	drainMeta := make(map[string]string)
+	if disable && node.LastDrain != nil && node.LastDrain.Meta != nil {
 		drainMeta = node.LastDrain.Meta
-	} else {
-		drainMeta = make(map[string]string)
 	}
 	if message != "" {
 		if enable {
@@ -338,11 +336,12 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	}
 
 	// Toggle node draining
-	drainResponse, err := client.Nodes().UpdateDrainOpts(node.ID, &api.DrainOptions{
-		DrainSpec:    spec,
-		MarkEligible: !keepIneligible,
-		Meta:         drainMeta,
-	}, nil)
+	drainResponse, err := client.Nodes().UpdateDrainOpts(node.ID,
+		&api.DrainOptions{
+			DrainSpec:    spec,
+			MarkEligible: !keepIneligible,
+			Meta:         drainMeta,
+		}, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error updating drain specification: %s", err))
 		return 1
