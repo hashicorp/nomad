@@ -105,7 +105,7 @@ type DrainOptions struct {
 // markEligible is true and the drain is being removed, the node will be marked
 // as having its scheduling being eligible
 func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, markEligible bool, q *WriteOptions) (*NodeDrainUpdateResponse, error) {
-	resp, err := n.UpdateDrainOpts(nodeID, DrainOptions{
+	resp, err := n.UpdateDrainOpts(nodeID, &DrainOptions{
 		DrainSpec:    spec,
 		MarkEligible: markEligible,
 		Meta:         nil,
@@ -116,7 +116,7 @@ func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, markEligible bool, q
 // UpdateDrainWithMeta is used to update the drain strategy for a given node. If
 // markEligible is true and the drain is being removed, the node will be marked
 // as having its scheduling being eligible
-func (n *Nodes) UpdateDrainOpts(nodeID string, opts DrainOptions, q *WriteOptions) (*NodeDrainUpdateResponse,
+func (n *Nodes) UpdateDrainOpts(nodeID string, opts *DrainOptions, q *WriteOptions) (*NodeDrainUpdateResponse,
 	error) {
 	req := &NodeUpdateDrainRequest{
 		NodeID:       nodeID,
