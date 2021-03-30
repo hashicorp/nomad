@@ -656,7 +656,7 @@ workflows:
           filters:
             branches:
               only:
-                - master
+                - main
 
       - algolia_index:
           context: static-sites
