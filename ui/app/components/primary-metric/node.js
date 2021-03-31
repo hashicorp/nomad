@@ -4,6 +4,7 @@ import { task, timeout } from 'ember-concurrency';
 import { assert } from '@ember/debug';
 import { inject as service } from '@ember/service';
 import { action, get } from '@ember/object';
+import { formatScheduledBytes, formatScheduledHertz } from 'nomad-ui/utils/units';
 
 export default class NodePrimaryMetric extends Component {
   @service('stats-trackers-registry') statsTrackersRegistry;
@@ -42,12 +43,22 @@ export default class NodePrimaryMetric extends Component {
   get reservedAnnotations() {
     if (this.metric === 'cpu' && get(this.args.node, 'reserved.cpu')) {
       const cpu = this.args.node.reserved.cpu;
-      return [{ label: `${cpu} MHz reserved`, percent: cpu / this.reservedAmount }];
+      return [
+        {
+          label: `${formatScheduledHertz(cpu, 'MHz')} reserved`,
+          percent: cpu / this.reservedAmount,
+        },
+      ];
     }
 
     if (this.metric === 'memory' && get(this.args.node, 'reserved.memory')) {
       const memory = this.args.node.reserved.memory;
-      return [{ label: `${memory} MiB reserved`, percent: memory / this.reservedAmount }];
+      return [
+        {
+          label: `${formatScheduledBytes(memory, 'MiB')} reserved`,
+          percent: memory / this.reservedAmount,
+        },
+      ];
     }
 
     return [];

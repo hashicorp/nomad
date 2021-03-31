@@ -18,9 +18,9 @@
   <PrimaryMetric::CurrentValue @chartClass={{this.chartClass}} @percent={{this.data.lastObject.percent}} />
   <div class="annotation" data-test-absolute-value>
     {{#if (eq this.metric "cpu")}}
-      <strong>{{this.data.lastObject.used}} MHz</strong> / {{this.reservedAmount}} MHz Total
+      <strong>{{format-scheduled-hertz this.data.lastObject.used}}</strong> / {{format-scheduled-hertz this.reservedAmount}} Total
     {{else if (eq this.metric "memory")}}
-      <strong>{{format-bytes this.data.lastObject.used}}</strong> / {{this.reservedAmount}} MiB Total
+      <strong>{{format-scheduled-bytes this.data.lastObject.used}}</strong> / {{format-scheduled-bytes this.reservedAmount start="MiB"}} Total
     {{else}}
       <strong>{{this.data.lastObject.used}}</strong> / {{this.reservedAmount}} Total
     {{/if}}

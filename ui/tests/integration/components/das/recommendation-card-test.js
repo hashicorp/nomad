@@ -22,13 +22,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
         this._super(...arguments);
       },
 
-      urlFor(
-        route,
-        slug,
-        {
-          queryParams: { namespace },
-        }
-      ) {
+      urlFor(route, slug, { queryParams: { namespace } }) {
         return `${route}:${slug}?namespace=${namespace}`;
       },
     });
@@ -99,7 +93,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
       })
     );
 
-    await render(hbs`<Das::RecommendationCard @summary={{summary}} />`);
+    await render(hbs`<Das::RecommendationCard @summary={{this.summary}} />`);
 
     assert.equal(RecommendationCard.slug.jobName, 'job-name');
     assert.equal(RecommendationCard.slug.groupName, 'group-name');
@@ -241,7 +235,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
       })
     );
 
-    await render(hbs`<Das::RecommendationCard @summary={{summary}} />`);
+    await render(hbs`<Das::RecommendationCard @summary={{this.summary}} />`);
 
     assert.notOk(RecommendationCard.togglesTable.toggleAllIsPresent);
     assert.notOk(RecommendationCard.togglesTable.toggleAllCPU.isPresent);
@@ -281,7 +275,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
       })
     );
 
-    await render(hbs`<Das::RecommendationCard @summary={{summary}} />`);
+    await render(hbs`<Das::RecommendationCard @summary={{this.summary}} />`);
 
     await RecommendationCard.togglesTable.tasks[0].cpu.toggle();
     await RecommendationCard.togglesTable.tasks[0].memory.toggle();
@@ -320,7 +314,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
       })
     );
 
-    await render(hbs`<Das::RecommendationCard @summary={{summary}} />`);
+    await render(hbs`<Das::RecommendationCard @summary={{this.summary}} />`);
 
     assert.equal(RecommendationCard.totalsTable.recommended.memory.text, '128 MiB');
     assert.equal(RecommendationCard.totalsTable.unitDiff.memory, '0 MiB');
@@ -378,7 +372,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
       })
     );
 
-    await render(hbs`<Das::RecommendationCard @summary={{summary}} />`);
+    await render(hbs`<Das::RecommendationCard @summary={{this.summary}} />`);
 
     assert.ok(RecommendationCard.togglesTable.toggleAllMemory.isDisabled);
     assert.notOk(RecommendationCard.togglesTable.toggleAllMemory.isActive);
@@ -447,7 +441,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
       })
     );
 
-    await render(hbs`<Das::RecommendationCard @summary={{summary}} />`);
+    await render(hbs`<Das::RecommendationCard @summary={{this.summary}} />`);
 
     const [cpuRec1, memRec1, cpuRec2, memRec2] = this.summary.recommendations;
 
@@ -486,7 +480,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
 
     assert.equal(
       RecommendationCard.narrative.trim(),
-      'Applying the selected recommendations will save an aggregate 1000 MHz of CPU across 10 allocations.'
+      'Applying the selected recommendations will save an aggregate 1 GHz of CPU across 10 allocations.'
     );
 
     this.summary.toggleRecommendation(cpuRec1);
@@ -499,7 +493,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
 
     assert.equal(
       RecommendationCard.narrative.trim(),
-      'Applying the selected recommendations will save an aggregate 1000 MHz of CPU across 10 allocations.'
+      'Applying the selected recommendations will save an aggregate 1 GHz of CPU across 10 allocations.'
     );
 
     this.summary.toggleRecommendation(memRec2);
@@ -508,7 +502,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
 
     assert.equal(
       RecommendationCard.narrative.trim(),
-      'Applying the selected recommendations will save an aggregate 1000 MHz of CPU and 1.25 GiB of memory across 10 allocations.'
+      'Applying the selected recommendations will save an aggregate 1 GHz of CPU and 1.25 GiB of memory across 10 allocations.'
     );
   });
 
@@ -574,7 +568,7 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
       })
     );
 
-    await render(hbs`<Das::RecommendationCard @summary={{summary}} />`);
+    await render(hbs`<Das::RecommendationCard @summary={{this.summary}} />`);
 
     assert.equal(
       RecommendationCard.narrative.trim(),

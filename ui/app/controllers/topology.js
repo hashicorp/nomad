@@ -4,9 +4,12 @@ import { alias } from '@ember/object/computed';
 import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import classic from 'ember-classic-decorator';
-import { reduceToLargestUnit } from 'nomad-ui/helpers/format-bytes';
+import { reduceBytes, reduceHertz } from 'nomad-ui/utils/units';
 
 const sumAggregator = (sum, value) => sum + (value || 0);
+const formatter = new Intl.NumberFormat(window.navigator.locale || 'en', {
+  maximumFractionDigits: 2,
+});
 
 @classic
 export default class TopologyControllers extends Controller {
@@ -39,12 +42,22 @@ export default class TopologyControllers extends Controller {
 
   @computed('totalMemory')
   get totalMemoryFormatted() {
-    return reduceToLargestUnit(this.totalMemory)[0].toFixed(2);
+    return formatter.format(reduceBytes(this.totalMemory)[0]);
   }
 
   @computed('totalMemory')
   get totalMemoryUnits() {
-    return reduceToLargestUnit(this.totalMemory)[1];
+    return reduceBytes(this.totalMemory)[1];
+  }
+
+  @computed('totalCPU')
+  get totalCPUFormatted() {
+    return formatter.format(reduceHertz(this.totalCPU, null, 'MHz')[0]);
+  }
+
+  @computed('totalCPU')
+  get totalCPUUnits() {
+    return reduceHertz(this.totalCPU, null, 'MHz')[1];
   }
 
   @computed('scheduledAllocations.@each.allocatedResources')
@@ -86,7 +99,7 @@ export default class TopologyControllers extends Controller {
   @computed('activeNode')
   get nodeUtilization() {
     const node = this.activeNode;
-    const [formattedMemory, memoryUnits] = reduceToLargestUnit(node.memory * 1024 * 1024);
+    const [formattedMemory, memoryUnits] = reduceBytes(node.memory * 1024 * 1024);
     const totalReservedMemory = node.allocations.mapBy('memory').reduce(sumAggregator, 0);
     const totalReservedCPU = node.allocations.mapBy('cpu').reduce(sumAggregator, 0);
 
