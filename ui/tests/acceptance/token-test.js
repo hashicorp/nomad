@@ -169,8 +169,8 @@ module('Acceptance | tokens', function(hooks) {
     const { oneTimeSecret, secretId } = managementToken;
 
     await JobDetail.visit({ id: job.id, ott: oneTimeSecret });
-
     await Tokens.visit();
+
     assert.equal(window.localStorage.nomadTokenSecret, secretId, 'Token secret was set');
   });
 
