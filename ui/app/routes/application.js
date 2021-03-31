@@ -4,7 +4,6 @@ import Route from '@ember/routing/route';
 import { AbortError } from '@ember-data/adapter/error';
 import RSVP from 'rsvp';
 import { action } from '@ember/object';
-import OTTExchangeError from '../utils/ott-exchange-error';
 import classic from 'ember-classic-decorator';
 
 @classic
@@ -38,7 +37,7 @@ export default class ApplicationRoute extends Route {
     try {
       await exchangeOneTimeToken;
     } catch (e) {
-      this.controllerFor('application').set('error', new OTTExchangeError());
+      this.controllerFor('application').set('error', e);
     }
 
     const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
