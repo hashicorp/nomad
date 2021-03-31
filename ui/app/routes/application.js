@@ -30,16 +30,16 @@ export default class ApplicationRoute extends Route {
     let exchangeOneTimeToken;
 
     if (transition.to.queryParams.ott) {
-      exchangeOneTimeToken = this.get('token.exchangeOneTimeToken')
-        .perform(transition.to.queryParams.ott)
-        .catch(() => {
-          this.controllerFor('application').set('error', new OTTExchangeError());
-        });
+      exchangeOneTimeToken = this.get('token').exchangeOneTimeToken(transition.to.queryParams.ott);
     } else {
       exchangeOneTimeToken = Promise.resolve(true);
     }
 
-    await exchangeOneTimeToken;
+    try {
+      await exchangeOneTimeToken;
+    } catch (e) {
+      this.controllerFor('application').set('error', new OTTExchangeError());
+    }
 
     const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
       .perform()
