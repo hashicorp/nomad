@@ -304,7 +304,8 @@ OUTER:
 					CpuShares: int64(task.Resources.CPU),
 				},
 				Memory: structs.AllocatedMemoryResources{
-					MemoryMB: int64(task.Resources.MemoryMB),
+					MemoryMB:    int64(task.Resources.MemoryMB),
+					MemoryMaxMB: int64(task.Resources.MemoryMaxMB),
 				},
 			}
 

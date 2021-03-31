@@ -2855,17 +2855,57 @@ func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
 func TestDockerDriver_memoryLimits(t *testing.T) {
 	t.Parallel()
 
-	t.Run("driver hard limit not set", func(t *testing.T) {
-		memory, memoryReservation := new(Driver).memoryLimits(0, 256*1024*1024)
-		require.Equal(t, int64(256*1024*1024), memory)
-		require.Equal(t, int64(0), memoryReservation)
-	})
+	cases := []struct {
+		name           string
+		driverMemoryMB int64
+		taskResources  drivers.MemoryResources
+		expectedHard   int64
+		expectedSoft   int64
+	}{
+		{
+			"plain request",
+			0,
+			drivers.MemoryResources{MemoryMB: 10},
+			10 * 1024 * 1024,
+			0,
+		},
+		{
+			"with driver max",
+			20,
+			drivers.MemoryResources{MemoryMB: 10},
+			20 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+		{
+			"with resources max",
+			20,
+			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 20},
+			20 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+		{
+			"with driver and resources max: higher driver",
+			30,
+			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 20},
+			30 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+		{
+			"with driver and resources max: higher resources",
+			20,
+			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 30},
+			30 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+	}
 
-	t.Run("driver hard limit is set", func(t *testing.T) {
-		memory, memoryReservation := new(Driver).memoryLimits(512, 256*1024*1024)
-		require.Equal(t, int64(512*1024*1024), memory)
-		require.Equal(t, int64(256*1024*1024), memoryReservation)
-	})
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			hard, soft := memoryLimits(c.driverMemoryMB, c.taskResources)
+			require.Equal(t, c.expectedHard, hard)
+			require.Equal(t, c.expectedSoft, soft)
+		})
+	}
 }
 
 func TestDockerDriver_parseSignal(t *testing.T) {

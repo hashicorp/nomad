@@ -429,6 +429,8 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 			return true
 		} else if ar.MemoryMB != br.MemoryMB {
 			return true
+		} else if ar.MemoryMaxMB != br.MemoryMaxMB {
+			return true
 		} else if !ar.Devices.Equals(&br.Devices) {
 			return true
 		}

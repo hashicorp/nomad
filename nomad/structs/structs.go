@@ -2179,13 +2179,14 @@ type NodeStubFields struct {
 // Resources is used to define the resources available
 // on a client
 type Resources struct {
-	CPU      int
-	Cores    int
-	MemoryMB int
-	DiskMB   int
-	IOPS     int // COMPAT(0.10): Only being used to issue warnings
-	Networks Networks
-	Devices  ResourceDevices
+	CPU         int
+	Cores       int
+	MemoryMB    int
+	MemoryMaxMB int
+	DiskMB      int
+	IOPS        int // COMPAT(0.10): Only being used to issue warnings
+	Networks    Networks
+	Devices     ResourceDevices
 }
 
 const (
@@ -2244,6 +2245,10 @@ func (r *Resources) Validate() error {
 		}
 	}
 
+	if r.MemoryMaxMB != 0 && r.MemoryMaxMB < r.MemoryMB {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("MemoryMaxMB value (%d) should be larger than MemoryMB value (%d)", r.MemoryMaxMB, r.MemoryMB))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -2258,6 +2263,9 @@ func (r *Resources) Merge(other *Resources) {
 	}
 	if other.MemoryMB != 0 {
 		r.MemoryMB = other.MemoryMB
+	}
+	if other.MemoryMaxMB != 0 {
+		r.MemoryMaxMB = other.MemoryMaxMB
 	}
 	if other.DiskMB != 0 {
 		r.DiskMB = other.DiskMB
@@ -2281,6 +2289,7 @@ func (r *Resources) Equals(o *Resources) bool {
 	return r.CPU == o.CPU &&
 		r.Cores == o.Cores &&
 		r.MemoryMB == o.MemoryMB &&
+		r.MemoryMaxMB == o.MemoryMaxMB &&
 		r.DiskMB == o.DiskMB &&
 		r.IOPS == o.IOPS &&
 		r.Networks.Equals(&o.Networks) &&
@@ -2387,6 +2396,11 @@ func (r *Resources) Add(delta *Resources) {
 
 	r.CPU += delta.CPU
 	r.MemoryMB += delta.MemoryMB
+	if delta.MemoryMaxMB > 0 {
+		r.MemoryMaxMB += delta.MemoryMaxMB
+	} else {
+		r.MemoryMaxMB += delta.MemoryMB
+	}
 	r.DiskMB += delta.DiskMB
 
 	for _, n := range delta.Networks {
@@ -3460,9 +3474,10 @@ func (a *AllocatedResources) OldTaskResources() map[string]*Resources {
 	m := make(map[string]*Resources, len(a.Tasks))
 	for name, res := range a.Tasks {
 		m[name] = &Resources{
-			CPU:      int(res.Cpu.CpuShares),
-			MemoryMB: int(res.Memory.MemoryMB),
-			Networks: res.Networks,
+			CPU:         int(res.Cpu.CpuShares),
+			MemoryMB:    int(res.Memory.MemoryMB),
+			MemoryMaxMB: int(res.Memory.MemoryMaxMB),
+			Networks:    res.Networks,
 		}
 	}
 
@@ -3589,7 +3604,8 @@ func (a *AllocatedTaskResources) Comparable() *ComparableResources {
 				ReservedCores: a.Cpu.ReservedCores,
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: a.Memory.MemoryMB,
+				MemoryMB:    a.Memory.MemoryMB,
+				MemoryMaxMB: a.Memory.MemoryMaxMB,
 			},
 		},
 	}
@@ -3709,7 +3725,8 @@ func (a *AllocatedCpuResources) Max(other *AllocatedCpuResources) {
 
 // AllocatedMemoryResources captures the allocated memory resources.
 type AllocatedMemoryResources struct {
-	MemoryMB int64
+	MemoryMB    int64
+	MemoryMaxMB int64
 }
 
 func (a *AllocatedMemoryResources) Add(delta *AllocatedMemoryResources) {
@@ -3718,6 +3735,11 @@ func (a *AllocatedMemoryResources) Add(delta *AllocatedMemoryResources) {
 	}
 
 	a.MemoryMB += delta.MemoryMB
+	if delta.MemoryMaxMB != 0 {
+		a.MemoryMaxMB += delta.MemoryMaxMB
+	} else {
+		a.MemoryMaxMB += delta.MemoryMB
+	}
 }
 
 func (a *AllocatedMemoryResources) Subtract(delta *AllocatedMemoryResources) {
@@ -3726,6 +3748,11 @@ func (a *AllocatedMemoryResources) Subtract(delta *AllocatedMemoryResources) {
 	}
 
 	a.MemoryMB -= delta.MemoryMB
+	if delta.MemoryMaxMB != 0 {
+		a.MemoryMaxMB -= delta.MemoryMaxMB
+	} else {
+		a.MemoryMaxMB -= delta.MemoryMB
+	}
 }
 
 func (a *AllocatedMemoryResources) Max(other *AllocatedMemoryResources) {
@@ -3735,6 +3762,9 @@ func (a *AllocatedMemoryResources) Max(other *AllocatedMemoryResources) {
 
 	if other.MemoryMB > a.MemoryMB {
 		a.MemoryMB = other.MemoryMB
+	}
+	if other.MemoryMaxMB > a.MemoryMaxMB {
+		a.MemoryMaxMB = other.MemoryMaxMB
 	}
 }
 

@@ -4547,6 +4547,115 @@ func TestTaskDiff(t *testing.T) {
 								Old:  "100",
 								New:  "100",
 							},
+							{
+								Type: DiffTypeNone,
+								Name: "MemoryMaxMB",
+								Old:  "0",
+								New:  "0",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "Resources edited memory_max",
+			Old: &Task{
+				Resources: &Resources{
+					CPU:         100,
+					MemoryMB:    100,
+					MemoryMaxMB: 200,
+					DiskMB:      100,
+				},
+			},
+			New: &Task{
+				Resources: &Resources{
+					CPU:         100,
+					MemoryMB:    100,
+					MemoryMaxMB: 300,
+					DiskMB:      100,
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Resources",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "MemoryMaxMB",
+								Old:  "200",
+								New:  "300",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:       "Resources edited memory_max with context",
+			Contextual: true,
+			Old: &Task{
+				Resources: &Resources{
+					CPU:         100,
+					MemoryMB:    100,
+					MemoryMaxMB: 200,
+					DiskMB:      100,
+				},
+			},
+			New: &Task{
+				Resources: &Resources{
+					CPU:         100,
+					MemoryMB:    100,
+					MemoryMaxMB: 300,
+					DiskMB:      100,
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Resources",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "CPU",
+								Old:  "100",
+								New:  "100",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Cores",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "DiskMB",
+								Old:  "100",
+								New:  "100",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "IOPS",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "MemoryMB",
+								Old:  "100",
+								New:  "100",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "MemoryMaxMB",
+								Old:  "200",
+								New:  "300",
+							},
 						},
 					},
 				},
@@ -4905,6 +5014,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "MemoryMB",
 								Old:  "100",
 								New:  "100",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "MemoryMaxMB",
+								Old:  "0",
+								New:  "0",
 							},
 						},
 						Objects: []*ObjectDiff{

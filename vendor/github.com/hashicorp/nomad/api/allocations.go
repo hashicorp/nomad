@@ -511,7 +511,8 @@ type AllocatedCpuResources struct {
 }
 
 type AllocatedMemoryResources struct {
-	MemoryMB int64
+	MemoryMB    int64
+	MemoryMaxMB int64
 }
 
 type AllocatedDeviceResource struct {

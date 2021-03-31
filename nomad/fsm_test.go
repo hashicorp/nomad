@@ -1399,6 +1399,7 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 
 	// Resources should be recomputed
 	origResources.DiskMB = alloc.Job.TaskGroups[0].EphemeralDisk.SizeMB
+	origResources.MemoryMaxMB = origResources.MemoryMB
 	alloc.Resources = origResources
 	if !reflect.DeepEqual(alloc, out) {
 		t.Fatalf("not equal: % #v", pretty.Diff(alloc, out))

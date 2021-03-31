@@ -552,6 +552,61 @@ func TestAllocsFit_Devices(t *testing.T) {
 	require.True(fit)
 }
 
+// TestAllocsFit_MemoryOversubscription asserts that only reserved memory is
+// used for capacity
+func TestAllocsFit_MemoryOversubscription(t *testing.T) {
+	n := &Node{
+		NodeResources: &NodeResources{
+			Cpu: NodeCpuResources{
+				CpuShares: 2000,
+			},
+			Memory: NodeMemoryResources{
+				MemoryMB: 2048,
+			},
+		},
+	}
+
+	a1 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu: AllocatedCpuResources{
+						CpuShares: 100,
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB:    1000,
+						MemoryMaxMB: 4000,
+					},
+				},
+			},
+		},
+	}
+
+	// Should fit one allocation
+	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
+	require.NoError(t, err)
+	require.True(t, fit)
+	require.EqualValues(t, 100, used.Flattened.Cpu.CpuShares)
+	require.EqualValues(t, 1000, used.Flattened.Memory.MemoryMB)
+	require.EqualValues(t, 4000, used.Flattened.Memory.MemoryMaxMB)
+
+	// Should fit second allocation
+	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
+	require.NoError(t, err)
+	require.True(t, fit)
+	require.EqualValues(t, 200, used.Flattened.Cpu.CpuShares)
+	require.EqualValues(t, 2000, used.Flattened.Memory.MemoryMB)
+	require.EqualValues(t, 8000, used.Flattened.Memory.MemoryMaxMB)
+
+	// Should not fit a third allocation
+	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1, a1}, nil, false)
+	require.NoError(t, err)
+	require.False(t, fit)
+	require.EqualValues(t, 300, used.Flattened.Cpu.CpuShares)
+	require.EqualValues(t, 3000, used.Flattened.Memory.MemoryMB)
+	require.EqualValues(t, 12000, used.Flattened.Memory.MemoryMaxMB)
+}
+
 // COMPAT(0.11): Remove in 0.11
 func TestScoreFitBinPack_Old(t *testing.T) {
 	node := &Node{}
