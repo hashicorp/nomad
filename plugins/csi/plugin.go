@@ -499,21 +499,25 @@ func (vcr *VolumeContentSource) ToCSIRepresentation() *csipbv1.VolumeContentSour
 	if vcr == nil {
 		return nil
 	}
-	result := &csipbv1.VolumeContentSource{}
 	if vcr.CloneID != "" {
-		result.Type = &csipbv1.VolumeContentSource_Volume{
-			Volume: &csipbv1.VolumeContentSource_VolumeSource{
-				VolumeId: vcr.CloneID,
+		return &csipbv1.VolumeContentSource{
+			Type: &csipbv1.VolumeContentSource_Volume{
+				Volume: &csipbv1.VolumeContentSource_VolumeSource{
+					VolumeId: vcr.CloneID,
+				},
 			},
 		}
 	} else if vcr.SnapshotID != "" {
-		result.Type = &csipbv1.VolumeContentSource_Snapshot{
-			Snapshot: &csipbv1.VolumeContentSource_SnapshotSource{
-				SnapshotId: vcr.SnapshotID,
+		return &csipbv1.VolumeContentSource{
+			Type: &csipbv1.VolumeContentSource_Snapshot{
+				Snapshot: &csipbv1.VolumeContentSource_SnapshotSource{
+					SnapshotId: vcr.SnapshotID,
+				},
 			},
 		}
 	}
-	return result
+	// Nomad's RPCs will hand us an empty struct, not nil
+	return nil
 }
 
 func newVolumeContentSource(src *csipbv1.VolumeContentSource) *VolumeContentSource {
