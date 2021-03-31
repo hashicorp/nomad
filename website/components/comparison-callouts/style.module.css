@@ -24,7 +24,7 @@
   max-width: 560px;
 
   & a {
-    color: var(--nomad);
+    color: var(--nomad-link);
   }
 }
 
