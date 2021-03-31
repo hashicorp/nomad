@@ -31,7 +31,7 @@
 
   .terminal {
     background: $grey-lighter;
-    border-radius: 2px;
+    border-radius: $radius;
     padding: 0.75rem 1rem;
 
     .prompt {
