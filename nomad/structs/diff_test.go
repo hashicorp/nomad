@@ -4628,6 +4628,12 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
+								Name: "Cores",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "DiskMB",
 								Old:  "100",
 								New:  "100",
