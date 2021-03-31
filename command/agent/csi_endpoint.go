@@ -100,7 +100,7 @@ func (s *HTTPServer) CSIVolumeSpecificRequest(resp http.ResponseWriter, req *htt
 		case http.MethodPut:
 			return s.csiVolumeRegister(resp, req)
 		case http.MethodDelete:
-			return s.csiVolumeDelete(id, resp, req)
+			return s.csiVolumeDeregister(id, resp, req)
 		default:
 			return nil, CodedError(405, ErrInvalidMethod)
 		}
@@ -201,7 +201,7 @@ func (s *HTTPServer) csiVolumeCreate(resp http.ResponseWriter, req *http.Request
 	return out, nil
 }
 
-func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) csiVolumeDeregister(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodDelete {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -224,6 +224,26 @@ func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *h
 
 	var out structs.CSIVolumeDeregisterResponse
 	if err := s.agent.RPC("CSIVolume.Deregister", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+
+	return nil, nil
+}
+
+func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodDelete {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := structs.CSIVolumeDeleteRequest{
+		VolumeIDs: []string{id},
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.CSIVolumeDeleteResponse
+	if err := s.agent.RPC("CSIVolume.Delete", &args, &out); err != nil {
 		return nil, err
 	}
 
