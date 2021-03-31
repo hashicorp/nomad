@@ -319,7 +319,7 @@ func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, erro
 	}
 
 	var reply LicenseReply
-	_, resp, err := op.c.doRequest(req)
+	rtt, resp, err := op.c.doRequest(req)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -330,9 +330,13 @@ func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, erro
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&reply)
-	if err == nil {
-		return &reply, nil, nil
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return nil, nil, err
+	qm := &QueryMeta{}
+	parseQueryMeta(resp, qm)
+	qm.RequestTime = rtt
+
+	return &reply, qm, nil
 }
