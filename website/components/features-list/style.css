@@ -43,7 +43,7 @@
       }
 
       & a {
-        color: var(--nomad);
+        color: var(--nomad-link);
       }
 
       & .item-icon img {

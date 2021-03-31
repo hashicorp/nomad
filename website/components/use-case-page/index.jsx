@@ -30,7 +30,7 @@ export default function UseCaseLayout({ title, description, children }) {
         variant="compact"
         heading="Ready to get started?"
         content="Nomad Open Source addresses the technical complexity of managing a mixed type of workloads in production at scale by providing a simple and flexible workload orchestrator across distributed infrastructure and clouds."
-        brand="nomad"
+        product="nomad"
         links={[
           {
             text: 'Explore HashiCorp Learn',

@@ -139,7 +139,7 @@
           }
 
           & label {
-            color: var(--nomad);
+            color: var(--gray-3);
           }
         }
       }
