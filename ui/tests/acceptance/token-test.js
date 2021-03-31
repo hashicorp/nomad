@@ -177,7 +177,7 @@ module('Acceptance | tokens', function(hooks) {
   test('when the ott exchange fails an error is shown', async function(assert) {
     await visit('/?ott=fake');
 
-    assert.ok(Layout.error.isPresent, 'An error is shown');
+    assert.ok(Layout.error.isPresent);
     assert.equal(Layout.error.title, 'Token Exchange Error');
     assert.equal(Layout.error.message, 'Failed to exchange the one-time token.');
   });
