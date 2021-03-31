@@ -179,7 +179,7 @@ module('Acceptance | tokens', function(hooks) {
 
     assert.ok(Layout.error.isPresent, 'An error is shown');
     assert.equal(Layout.error.title, 'Token Exchange Error');
-    assert.equal(Layout.error.message, 'Failed to exchange the one-time token. FIXME');
+    assert.equal(Layout.error.message, 'Failed to exchange the one-time token.');
   });
 
   function getHeader({ requestHeaders }, name) {
