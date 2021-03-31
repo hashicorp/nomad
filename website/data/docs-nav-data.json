@@ -1604,7 +1604,16 @@
   },
   {
     "title": "Nomad Enterprise",
-    "path": "enterprise"
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "enterprise"
+      },
+      {
+        "title":"License",
+        "path": "enterprise/license"
+      }
+    ]
   },
   {
     "title": "FAQ",

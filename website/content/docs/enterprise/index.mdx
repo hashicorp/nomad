@@ -17,26 +17,10 @@ optional Governance & Policy add-on module.
 Please navigate the sub-sections for more information about each package and
 its features in detail.
 
-## Nomad Enterprise Licensing
-
-Nomad Enterprise requires a license to run. When a Enterprise server first
-starts it will be set with a temporary license that includes all
-features. This will be valid for 6 hours and allows users to test enterprise
-features and provide enough time for operators to apply their enterprise
-license.
-
-If a server is never given a valid license and the temporary license expires,
-the server will shutdown. If a valid (non-temporary) license expires, the
-cluster will continue to function, but write operations to enterprise features
-will be disabled.
-
 ~> **Note:** A Nomad Enterprise cluster cannot be downgraded to the open
 source version of Nomad. Servers running the open source version of Nomad will
 panic if they are joined to a Nomad Enterprise cluster. See issue [gh-9958]
 for more details.
-
-See the [License commands](/docs/commands/license) for more information on
-interacting with the Enterprise License.
 
 ## Nomad Enterprise Platform
 
