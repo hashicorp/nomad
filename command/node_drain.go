@@ -77,7 +77,7 @@ Node Drain Options:
     Message for the drain update operation. Registered in drain metadata as
     "message" for drain enable and "cancel_message" for drain disable.
 
-  --meta <key>=<value>
+  -meta <key>=<value>
     Custom metadata to store on thed drain operation, can be used multiple times.
 
   -self
@@ -105,7 +105,7 @@ func (c *NodeDrainCommand) AutocompleteFlags() complete.Flags {
 			"-ignore-system":   complete.PredictNothing,
 			"-keep-ineligible": complete.PredictNothing,
 			"-m":               complete.PredictNothing,
-			"--meta":           complete.PredictNothing,
+			"-meta":            complete.PredictNothing,
 			"-self":            complete.PredictNothing,
 			"-yes":             complete.PredictNothing,
 		})
