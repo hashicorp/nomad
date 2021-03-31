@@ -7,17 +7,17 @@ import (
 	"time"
 )
 
-// CSIVolumes is used to query the top level csi volumes
+// CSIVolumes is used to access Container Storage Interface (CSI) endpoints.
 type CSIVolumes struct {
 	client *Client
 }
 
-// CSIVolumes returns a handle on the CSIVolumes endpoint
+// CSIVolumes returns a handle on the CSIVolumes endpoint.
 func (c *Client) CSIVolumes() *CSIVolumes {
 	return &CSIVolumes{client: c}
 }
 
-// List returns all CSI volumes
+// List returns all CSI volumes.
 func (v *CSIVolumes) List(q *QueryOptions) ([]*CSIVolumeListStub, *QueryMeta, error) {
 	var resp []*CSIVolumeListStub
 	qm, err := v.client.query("/v1/volumes?type=csi", &resp, q)
@@ -28,7 +28,10 @@ func (v *CSIVolumes) List(q *QueryOptions) ([]*CSIVolumeListStub, *QueryMeta, er
 	return resp, qm, nil
 }
 
-// ListExternal returns all CSI volumes, as known to the storage provider
+// ListExternal returns all CSI volumes, as understood by the external storage
+// provider. These volumes may or may not be currently registered with Nomad.
+// The response is paginated by the plugin and accepts the
+// QueryOptions.PerPage and QueryOptions.NextToken fields
 func (v *CSIVolumes) ListExternal(pluginID string, q *QueryOptions) (*CSIVolumeListExternalResponse, *QueryMeta, error) {
 	var resp *CSIVolumeListExternalResponse
 
@@ -66,6 +69,8 @@ func (v *CSIVolumes) Info(id string, q *QueryOptions) (*CSIVolume, *QueryMeta, e
 	return &resp, qm, nil
 }
 
+// Register registers a single CSIVolume with Nomad. The volume must already
+// exist in the external storage provider.
 func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, error) {
 	req := CSIVolumeRegisterRequest{
 		Volumes: []*CSIVolume{vol},
@@ -74,11 +79,15 @@ func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, erro
 	return meta, err
 }
 
+// Register deregisters a single CSIVolume from Nomad. The volume will not be deleted from the external storage provider.
 func (v *CSIVolumes) Deregister(id string, force bool, w *WriteOptions) error {
 	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v?force=%t", url.PathEscape(id), force), nil, w)
 	return err
 }
 
+// Create creates a single CSIVolume in an external storage provider and
+// registers it with Nomad. You do not need to call Register if this call is
+// successful.
 func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *WriteMeta, error) {
 	req := CSIVolumeCreateRequest{
 		Volumes: []*CSIVolume{vol},
@@ -89,17 +98,24 @@ func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *Wri
 	return resp.Volumes, meta, err
 }
 
+// Delete deletes a CSI volume from an external storage provider. The ID
+// passed as an argument here is for the storage provider's ID, so a volume
+// that's already been deregistered can be deleted.
 func (v *CSIVolumes) Delete(externalVolID string, w *WriteOptions) error {
 	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(externalVolID)), nil, w)
 	return err
 }
 
+// Detach causes Nomad to attempt to detach a CSI volume from a client
+// node. This is used in the case that the node is temporarily lost and the
+// allocations are unable to drop their claims automatically.
 func (v *CSIVolumes) Detach(volID, nodeID string, w *WriteOptions) error {
 	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/detach?node=%v", url.PathEscape(volID), nodeID), nil, w)
 	return err
 }
 
-// CSIVolumeAttachmentMode duplicated in nomad/structs/csi.go
+// CSIVolumeAttachmentMode chooses the type of storage api that will be used to
+// interact with the device. (Duplicated in nomad/structs/csi.go)
 type CSIVolumeAttachmentMode string
 
 const (
@@ -108,26 +124,37 @@ const (
 	CSIVolumeAttachmentModeFilesystem  CSIVolumeAttachmentMode = "file-system"
 )
 
-// CSIVolumeAccessMode duplicated in nomad/structs/csi.go
+// CSIVolumeAccessMode indicates how a volume should be used in a storage topology
+// e.g whether the provider should make the volume available concurrently. (Duplicated in nomad/structs/csi.go)
 type CSIVolumeAccessMode string
 
 const (
-	CSIVolumeAccessModeUnknown CSIVolumeAccessMode = ""
-
-	CSIVolumeAccessModeSingleNodeReader CSIVolumeAccessMode = "single-node-reader-only"
-	CSIVolumeAccessModeSingleNodeWriter CSIVolumeAccessMode = "single-node-writer"
-
+	CSIVolumeAccessModeUnknown               CSIVolumeAccessMode = ""
+	CSIVolumeAccessModeSingleNodeReader      CSIVolumeAccessMode = "single-node-reader-only"
+	CSIVolumeAccessModeSingleNodeWriter      CSIVolumeAccessMode = "single-node-writer"
 	CSIVolumeAccessModeMultiNodeReader       CSIVolumeAccessMode = "multi-node-reader-only"
 	CSIVolumeAccessModeMultiNodeSingleWriter CSIVolumeAccessMode = "multi-node-single-writer"
 	CSIVolumeAccessModeMultiNodeMultiWriter  CSIVolumeAccessMode = "multi-node-multi-writer"
 )
 
+// CSIMountOptions contain optional additional configuration that can be used
+// when specifying that a Volume should be used with VolumeAccessTypeMount.
 type CSIMountOptions struct {
-	FSType       string   `hcl:"fs_type,optional"`
-	MountFlags   []string `hcl:"mount_flags,optional"`
+	// FSType is an optional field that allows an operator to specify the type
+	// of the filesystem.
+	FSType string `hcl:"fs_type,optional"`
+
+	// MountFlags contains additional options that may be used when mounting the
+	// volume by the plugin. This may contain sensitive data and should not be
+	// leaked.
+	MountFlags []string `hcl:"mount_flags,optional"`
+
 	ExtraKeysHCL []string `hcl1:",unusedKeys" json:"-"` // report unexpected keys
 }
 
+// CSISecrets contain optional additional credentials that may be needed by
+// the storage provider. These values will be redacted when reported in the
+// API or in Nomad's logs.
 type CSISecrets map[string]string
 
 // CSIVolume is used for serialization, see also nomad/structs/csi.go
@@ -191,6 +218,8 @@ type CSIVolumeCapability struct {
 	AttachmentMode CSIVolumeAttachmentMode `mapstructure:"attachment_mode" hcl:"attachment_mode"`
 }
 
+// CSIVolumeIndexSort is a helper used for sorting volume stubs by creation
+// time.
 type CSIVolumeIndexSort []*CSIVolumeListStub
 
 func (v CSIVolumeIndexSort) Len() int {
@@ -246,8 +275,9 @@ type CSIVolumeExternalStub struct {
 	Status                   string
 }
 
-// We can't sort external volumes by creation time because we don't get that
-// data back from the storage provider. Sort by External ID within this page.
+// CSIVolumeExternalStubSort is a sorting helper for external volumes. We
+// can't sort these by creation time because we don't get that data back from
+// the storage provider. Sort by External ID within this page.
 type CSIVolumeExternalStubSort []*CSIVolumeExternalStub
 
 func (v CSIVolumeExternalStubSort) Len() int {
@@ -287,6 +317,7 @@ type CSIPlugins struct {
 	client *Client
 }
 
+// CSIPlugin is used for serialization, see also nomad/structs/csi.go
 type CSIPlugin struct {
 	ID                 string
 	Provider           string
@@ -316,6 +347,8 @@ type CSIPluginListStub struct {
 	ModifyIndex         uint64
 }
 
+// CSIPluginIndexSort is a helper used for sorting plugin stubs by creation
+// time.
 type CSIPluginIndexSort []*CSIPluginListStub
 
 func (v CSIPluginIndexSort) Len() int {
