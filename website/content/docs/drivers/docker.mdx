@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: 'Drivers: Docker'
-sidebar_title: Docker
 description: The Docker task driver is used to run Docker based tasks.
 ---
 
@@ -328,7 +327,7 @@ config {
 
 - `work_dir` - (Optional) The working directory inside the container.
 
-- `mount` - *Since 1.0.1* (Optional) Specify a
+- `mount` - _Since 1.0.1_ (Optional) Specify a
   [mount](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-volumes-or-memory-filesystems)
   to be mounted into the container. Volume, bind, and tmpfs type mounts are supported. May be specified multiple times.
 
@@ -377,7 +376,7 @@ config {
   }
   ```
 
-- `mounts` - (*deprecated*: Replaced by `mount` in 1.0.1) (Optional) A list of
+- `mounts` - (_deprecated_: Replaced by `mount` in 1.0.1) (Optional) A list of
   [mounts](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-volumes-or-memory-filesystems)
   to be mounted into the container. Volume, bind, and tmpfs type mounts are supported.
 
@@ -869,8 +868,8 @@ plugin "docker" {
   this option to disable nomad log collection overhead.
 
 - `extra_labels` - Extra labels to add to Docker containers.
-   Available options are `job_name`, `job_id`, `task_group_name`, `task_name`,
-   `namespace`, `node_name`, `node_id`. Globs are supported (e.g. `task*`)
+  Available options are `job_name`, `job_id`, `task_group_name`, `task_name`,
+  `namespace`, `node_name`, `node_id`. Globs are supported (e.g. `task*`)
 
 - `logging` stanza:
 

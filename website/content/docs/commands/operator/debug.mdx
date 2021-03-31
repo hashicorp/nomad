@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: 'Commands: operator debug'
-sidebar_title: debug
 description: |
   Build an archive of debug data.
 ---
@@ -39,7 +38,7 @@ If ACLs are enabled, this command will require a token with the 'node:read'
 capability to run. In order to collect information, the token will also
 require the 'agent:read' and 'operator:read' capabilities, as well as the
 'list-jobs' capability for all namespaces. To collect pprof profiles the
-token will also require 'agent:write', or enable_debug configuration set to 
+token will also require 'agent:write', or enable_debug configuration set to
 true.
 
 ## General Options
@@ -57,13 +56,13 @@ true.
 
 - `-log-level=DEBUG`: The log level to monitor. Defaults to `DEBUG`.
 
-- `-max-nodes=<count>`: Cap the maximum number of client nodes included 
-  in the capture.  Defaults to 10, set to 0 for unlimited.
+- `-max-nodes=<count>`: Cap the maximum number of client nodes included
+  in the capture. Defaults to 10, set to 0 for unlimited.
 
 - `-node-class=<node-class>`: Filter client nodes based on node class.
 
 - `-node-id=<node1>,<node2>`: Comma separated list of Nomad client node ids,
-  to monitor for logs and include pprof profiles. Accepts id prefixes, and 
+  to monitor for logs and include pprof profiles. Accepts id prefixes, and
   "all" to select all nodes (up to count = max-nodes).
 
 - `-pprof-duration=<duration>`: Duration for pprof collection. Defaults to 1s.
@@ -122,7 +121,7 @@ true.
 
 ## Output
 
-This command prints a summary of the capture and the name of the timestamped 
+This command prints a summary of the capture and the name of the timestamped
 archive file produced.
 
 ## Examples
