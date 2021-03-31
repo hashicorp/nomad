@@ -1611,7 +1611,7 @@
       },
       {
         "title":"License",
-        "path": "license"
+        "path": "enterprise/license"
       }
     ]
   },
