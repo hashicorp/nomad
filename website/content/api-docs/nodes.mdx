@@ -112,6 +112,7 @@ $ curl \
       }
     },
     "ID": "f7476465-4d6e-c0de-26d0-e383c49be941",
+    "LastDrain": null,
     "ModifyIndex": 2526,
     "Name": "nomad-4",
     "NodeClass": "",
@@ -180,7 +181,7 @@ $ curl \
     "memory.totalbytes": "16571674624",
     "nomad.advertise.address": "127.0.0.1:4646",
     "nomad.revision": "30da2b8f6c3aa860113c9d313c695a05eff5bb97+CHANGES",
-    "nomad.version": "0.10.0-dev",
+    "nomad.version": "1.1.0",
     "os.name": "nixos",
     "os.signals": "SIGTTOU,SIGTTIN,SIGSTOP,SIGSYS,SIGXCPU,SIGBUS,SIGKILL,SIGTERM,SIGIOT,SIGILL,SIGIO,SIGQUIT,SIGSEGV,SIGUSR1,SIGXFSZ,SIGCHLD,SIGUSR2,SIGURG,SIGFPE,SIGHUP,SIGINT,SIGPROF,SIGCONT,SIGALRM,SIGPIPE,SIGTRAP,SIGTSTP,SIGWINCH,SIGABRT",
     "os.version": "\"19.03.173017.85f820d6e41 (Koi)\"",
@@ -261,11 +262,25 @@ $ curl \
   },
   "Events": [
     {
-      "CreateIndex": 0,
+      "CreateIndex": 6,
       "Details": null,
       "Message": "Node registered",
       "Subsystem": "Cluster",
-      "Timestamp": "2019-08-26T12:22:50+02:00"
+      "Timestamp": "2021-03-31T12:11:39Z"
+    },
+    {
+      "CreateIndex": 11,
+      "Details": null,
+      "Message": "Node drain strategy set",
+      "Subsystem": "Drain",
+      "Timestamp": "2021-03-31T12:12:20.213412Z"
+    },
+    {
+      "CreateIndex": 12,
+      "Details": null,
+      "Message": "Node drain complete",
+      "Subsystem": "Drain",
+      "Timestamp": "2021-03-31T12:12:20.213639Z"
     }
   ],
   "HTTPAddr": "127.0.0.1:4646",
@@ -282,6 +297,15 @@ $ curl \
     }
   },
   "ID": "1ac61e33-a465-2ace-f63f-cffa1285e7eb",
+  "LastDrain": {
+    "AccessorID": "4e1b7ce1-f8aa-d7ff-09f1-55c3a0fd3988",
+    "Meta": {
+      "message": "node maintenance"
+    },
+    "StartedAt": "2021-03-31T12:12:20Z",
+    "Status": "complete",
+    "UpdatedAt": "2021-03-31T12:12:20Z"
+  },
   "Links": {
     "consul": "dc1.mew"
   },
@@ -289,7 +313,7 @@ $ curl \
     "connect.log_level": "info",
     "connect.sidecar_image": "envoyproxy/envoy:v1.11.1"
   },
-  "ModifyIndex": 9,
+  "ModifyIndex": 14,
   "Name": "mew",
   "NodeClass": "",
   "NodeResources": {
@@ -929,6 +953,9 @@ The table below shows this endpoint's support for
 - `MarkEligible` `(bool: false)` - Specifies whether to mark a node as eligible
   for scheduling again when _disabling_ a drain.
 
+- `Meta` `(json: <optional>)` - A JSON map of strings with drain operation
+  metadata that will be persisted in `.LastDrain.Meta`.
+
 ### Sample Payload
 
 ```json
@@ -936,6 +963,9 @@ The table below shows this endpoint's support for
   "DrainSpec": {
     "Deadline": 3600000000000,
     "IgnoreSystemJobs": true
+  },
+  "Meta": {
+    "message": "drain for maintenance"
   }
 }
 ```

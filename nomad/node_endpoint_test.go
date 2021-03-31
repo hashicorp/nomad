@@ -870,6 +870,10 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly_Advertise(t *testing.T) {
 	require.Equal(resp.Servers[0].RPCAdvertiseAddr, advAddr)
 }
 
+// TestClientEndpoint_UpdateDrain asserts the ability to initiate drain
+// against a node and cancel that drain. It also asserts:
+// * an evaluation is created when the node becomes eligible
+// * drain metadata is properly persisted in Node.LastDrain
 func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -984,6 +988,9 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.Len(out.Events, 4)
 }
 
+// TestClientEndpoint_UpdatedDrainAndCompleted asserts that drain metadata
+// is properly persisted in Node.LastDrain as the node drain is updated and
+// completes.
 func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -1019,7 +1026,7 @@ func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
 		NodeID:        node.ID,
 		DrainStrategy: strategy,
 		Meta: map[string]string{
-			"message": "first",
+			"message": "first drain",
 		},
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
@@ -1037,14 +1044,14 @@ func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
 		StartedAt: firstDrainUpdate,
 		UpdatedAt: firstDrainUpdate,
 		Status:    structs.DrainStatusDraining,
-		Meta:      map[string]string{"message": "first"},
+		Meta:      map[string]string{"message": "first drain"},
 	}, *out.LastDrain)
 
 	time.Sleep(1 * time.Second)
 
 	// Update the drain
 	dereg.DrainStrategy.DrainSpec.Deadline *= 2
-	dereg.Meta["message"] = "second"
+	dereg.Meta["message"] = "second drain"
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2))
 	require.NotZero(resp2.Index)
 
@@ -1058,7 +1065,7 @@ func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
 		StartedAt: firstDrainUpdate,
 		UpdatedAt: secondDrainUpdate,
 		Status:    structs.DrainStatusDraining,
-		Meta:      map[string]string{"message": "second"},
+		Meta:      map[string]string{"message": "second drain"},
 	}, *out.LastDrain)
 
 	time.Sleep(1 * time.Second)
@@ -1084,10 +1091,13 @@ func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
 		StartedAt: firstDrainUpdate,
 		UpdatedAt: out.LastDrain.UpdatedAt,
 		Status:    structs.DrainStatusComplete,
-		Meta:      map[string]string{"message": "second"},
+		Meta:      map[string]string{"message": "second drain"},
 	}, *out.LastDrain)
 }
 
+// TestClientEndpoint_UpdatedDrainNoop asserts that drain metadata is properly
+// persisted in Node.LastDrain when calls to Node.UpdateDrain() don't affect
+// the drain status.
 func TestClientEndpoint_UpdatedDrainNoop(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -1160,6 +1170,9 @@ func TestClientEndpoint_UpdatedDrainNoop(t *testing.T) {
 	require.Equal(prevDrain, out.LastDrain)
 }
 
+// TestClientEndpoint_UpdateDrain_ACL asserts that Node.UpdateDrain() enforces
+// node.write ACLs, and that token accessor ID is properly persisted in
+// Node.LastDrain.AccessorID
 func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	t.Parallel()
 

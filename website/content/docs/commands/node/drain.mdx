@@ -79,6 +79,12 @@ capability.
   existing drain is being cancelled but additional scheduling on the node is not
   desired.
 
+- `-m`: Message for the drain update operation. Registered in drain metadata as
+  `"message"` during drain enable and `"cancel_message"` during drain disable.
+
+- `-meta <key>=<value>`: Custom metadata to store on the drain operation, can be
+  used multiple times.
+
 - `-self`: Drain the local node.
 
 - `-yes`: Automatic yes to prompts.
@@ -88,7 +94,7 @@ capability.
 Enable drain mode on node with ID prefix "4d2ba53b":
 
 ```shell-session
-$ nomad node drain -enable f4e8a9e5
+$ nomad node drain -enable f4e8a9e5 -m "node maintenance"
 Are you sure you want to enable drain mode for node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e"? [y/N] y
 2018-03-30T23:13:16Z: Ctrl-C to stop monitoring: will not cancel the node drain
 2018-03-30T23:13:16Z: Node "f4e8a9e5-30d8-3536-1e6f-cda5c869c35e" drain strategy set

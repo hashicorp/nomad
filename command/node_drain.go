@@ -75,10 +75,10 @@ Node Drain Options:
 
   -m 
     Message for the drain update operation. Registered in drain metadata as
-    "message" for drain enable and "cancel_message" for drain disable.
+    "message" during drain enable and "cancel_message" during drain disable.
 
   -meta <key>=<value>
-    Custom metadata to store on thed drain operation, can be used multiple times.
+    Custom metadata to store on the drain operation, can be used multiple times.
 
   -self
     Set the drain status of the local node.
