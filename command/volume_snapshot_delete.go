@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
 )
 
@@ -26,13 +27,21 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
 
+Snapshot Options:
+
+  -secret
+    Secrets to pass to the plugin to create the snapshot. Accepts multiple
+    flags in the form -secret key=value
+
 `
 	return strings.TrimSpace(helpText)
 }
 
 func (c *VolumeSnapshotDeleteCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{})
+		complete.Flags{
+			"-secret": complete.PredictNothing,
+		})
 }
 
 func (c *VolumeSnapshotDeleteCommand) AutocompleteArgs() complete.Predictor {
@@ -57,8 +66,10 @@ func (c *VolumeSnapshotDeleteCommand) Synopsis() string {
 func (c *VolumeSnapshotDeleteCommand) Name() string { return "volume snapshot delete" }
 
 func (c *VolumeSnapshotDeleteCommand) Run(args []string) int {
+	var secretsArgs flaghelper.StringFlag
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.Var(&secretsArgs, "secret", "secrets for snapshot, ex. -secret key=value")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
@@ -66,7 +77,7 @@ func (c *VolumeSnapshotDeleteCommand) Run(args []string) int {
 	}
 	// Check that we get exactly two arguments
 	args = flags.Args()
-	if l := len(args); l != 1 {
+	if l := len(args); l != 2 {
 		c.Ui.Error("This command takes two arguments: <plugin id> <snapshot id>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
@@ -81,10 +92,18 @@ func (c *VolumeSnapshotDeleteCommand) Run(args []string) int {
 		return 1
 	}
 
+	secrets := api.CSISecrets{}
+	for _, kv := range secretsArgs {
+		s := strings.Split(kv, "=")
+		if len(s) == 2 {
+			secrets[s[0]] = s[1]
+		}
+	}
+
 	err = client.CSIVolumes().DeleteSnapshot(&api.CSISnapshot{
 		ID:       snapID,
 		PluginID: pluginID,
-		// Secrets: // TODO: how can we safely plumb Secrets through here?
+		Secrets:  secrets,
 	}, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deleting volume: %s", err))
