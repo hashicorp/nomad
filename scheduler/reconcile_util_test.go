@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
@@ -37,8 +38,8 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 
 	nodes := map[string]*structs.Node{
 		"draining": {
-			ID:    "draining",
-			Drain: true,
+			ID:            "draining",
+			DrainStrategy: mock.DrainNode().DrainStrategy,
 		},
 		"lost": {
 			ID:     "lost",

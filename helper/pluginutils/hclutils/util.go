@@ -9,7 +9,9 @@ import (
 	hcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	hjson "github.com/hashicorp/hcl/v2/json"
-	"github.com/hashicorp/nomad/nomad/structs"
+
+	"github.com/hashicorp/nomad/nomad/jsonhandles"
+
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
@@ -26,7 +28,7 @@ func ParseHclInterface(val interface{}, spec hcldec.Spec, vars map[string]cty.Va
 
 	// Encode to json
 	var buf bytes.Buffer
-	enc := codec.NewEncoder(&buf, structs.JsonHandle)
+	enc := codec.NewEncoder(&buf, jsonhandles.JsonHandle)
 	err := enc.Encode(val)
 	if err != nil {
 		// Convert to a hcl diagnostics message

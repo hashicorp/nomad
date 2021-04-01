@@ -178,6 +178,40 @@ func TestNodes_Info(t *testing.T) {
 	}
 }
 
+func TestNodes_NoSecretID(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	nodes := c.Nodes()
+
+	// Get the node ID
+	var nodeID string
+	testutil.WaitForResult(func() (bool, error) {
+		out, _, err := nodes.List(nil)
+		if err != nil {
+			return false, err
+		}
+		if n := len(out); n != 1 {
+			return false, fmt.Errorf("expected 1 node, got: %d", n)
+		}
+		nodeID = out[0].ID
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	// perform a raw http call and make sure that:
+	// - "ID" to make sure that raw decoding is working correctly
+	// - "SecretID" to make sure it's not present
+	resp := make(map[string]interface{})
+	_, err := c.query("/v1/node/"+nodeID, &resp, nil)
+	require.NoError(t, err)
+	require.Equal(t, nodeID, resp["ID"])
+	require.Empty(t, resp["SecretID"])
+}
+
 func TestNodes_ToggleDrain(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -206,9 +240,7 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	// Check for drain mode
 	out, _, err := nodes.Info(nodeID, nil)
 	require.Nil(err)
-	if out.Drain {
-		t.Fatalf("drain mode should be off")
-	}
+	require.False(out.Drain)
 
 	// Toggle it on
 	spec := &DrainSpec{
@@ -218,11 +250,36 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	require.Nil(err)
 	assertWriteMeta(t, &drainOut.WriteMeta)
 
-	// Check again
-	out, _, err = nodes.Info(nodeID, nil)
-	require.Nil(err)
-	if out.SchedulingEligibility != NodeSchedulingIneligible {
-		t.Fatalf("bad eligibility: %v vs %v", out.SchedulingEligibility, NodeSchedulingIneligible)
+	// Drain may have completed before we can check, use event stream
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	streamCh, err := c.EventStream().Stream(ctx, map[Topic][]string{
+		TopicNode: {nodeID},
+	}, 0, nil)
+	require.NoError(err)
+
+	// we expect to see the node change to Drain:true and then back to Drain:false+ineligible
+	var sawDraining, sawDrainComplete uint64
+	for sawDrainComplete == 0 {
+		select {
+		case events := <-streamCh:
+			require.NoError(events.Err)
+			for _, e := range events.Events {
+				node, err := e.Node()
+				require.NoError(err)
+				require.Equal(node.DrainStrategy != nil, node.Drain)
+				require.True(!node.Drain || node.SchedulingEligibility == NodeSchedulingIneligible) // node.Drain => "ineligible"
+				if node.Drain && node.SchedulingEligibility == NodeSchedulingIneligible {
+					sawDraining = node.ModifyIndex
+				} else if sawDraining != 0 && node.ModifyIndex > sawDraining &&
+					!node.Drain && node.SchedulingEligibility == NodeSchedulingIneligible {
+					sawDrainComplete = node.ModifyIndex
+				}
+			}
+		case <-time.After(5 * time.Second):
+			require.Fail("failed waiting for event stream event")
+		}
 	}
 
 	// Toggle off again
@@ -233,15 +290,9 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	// Check again
 	out, _, err = nodes.Info(nodeID, nil)
 	require.Nil(err)
-	if out.Drain {
-		t.Fatalf("drain mode should be off")
-	}
-	if out.DrainStrategy != nil {
-		t.Fatalf("drain strategy should be unset")
-	}
-	if out.SchedulingEligibility != NodeSchedulingEligible {
-		t.Fatalf("should be eligible")
-	}
+	require.False(out.Drain)
+	require.Nil(out.DrainStrategy)
+	require.Equal(NodeSchedulingEligible, out.SchedulingEligibility)
 }
 
 func TestNodes_ToggleEligibility(t *testing.T) {

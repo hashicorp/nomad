@@ -518,12 +518,6 @@ type NodeUpdateDrainRequest struct {
 	NodeID        string
 	DrainStrategy *DrainStrategy
 
-	// COMPAT Remove in version 0.10
-	// As part of Nomad 0.8 we have deprecated the drain boolean in favor of a
-	// drain strategy but we need to handle the upgrade path where the Raft log
-	// contains drain updates with just the drain boolean being manipulated.
-	Drain bool
-
 	// MarkEligible marks the node as eligible if removing the drain strategy.
 	MarkEligible bool
 
@@ -1827,7 +1821,7 @@ type Node struct {
 	// SecretID is an ID that is only known by the Node and the set of Servers.
 	// It is not accessible via the API and is used to authenticate nodes
 	// conducting privileged activities.
-	SecretID string
+	SecretID string `json:"-"`
 
 	// Datacenter for this node
 	Datacenter string
@@ -1885,15 +1879,8 @@ type Node struct {
 	// attributes and capabilities.
 	ComputedClass string
 
-	// COMPAT: Remove in Nomad 0.9
-	// Drain is controlled by the servers, and not the client.
-	// If true, no jobs will be scheduled to this node, and existing
-	// allocations will be drained. Superseded by DrainStrategy in Nomad
-	// 0.8 but kept for backward compat.
-	Drain bool
-
-	// DrainStrategy determines the node's draining behavior. Will be nil
-	// when Drain=false.
+	// DrainStrategy determines the node's draining behavior.
+	// Will be non-nil only while draining.
 	DrainStrategy *DrainStrategy
 
 	// SchedulingEligibility determines whether this node will receive new
@@ -1930,10 +1917,23 @@ type Node struct {
 	ModifyIndex uint64
 }
 
+// Sanitize returns a copy of the Node omitting confidential fields
+// It only returns a copy if the Node contains the confidential fields
+func (n *Node) Sanitize() *Node {
+	if n == nil {
+		return nil
+	}
+	if n.SecretID == "" {
+		return n
+	}
+	clean := n.Copy()
+	clean.SecretID = ""
+	return clean
+}
+
 // Ready returns true if the node is ready for running allocations
 func (n *Node) Ready() bool {
-	// Drain is checked directly to support pre-0.8 Node data
-	return n.Status == NodeStatusReady && !n.Drain && n.SchedulingEligibility == NodeSchedulingEligible
+	return n.Status == NodeStatusReady && n.DrainStrategy == nil && n.SchedulingEligibility == NodeSchedulingEligible
 }
 
 func (n *Node) Canonicalize() {
@@ -1941,15 +1941,12 @@ func (n *Node) Canonicalize() {
 		return
 	}
 
-	// COMPAT Remove in 0.10
-	// In v0.8.0 we introduced scheduling eligibility, so we need to set it for
-	// upgrading nodes
-	if n.SchedulingEligibility == "" {
-		if n.Drain {
-			n.SchedulingEligibility = NodeSchedulingIneligible
-		} else {
-			n.SchedulingEligibility = NodeSchedulingEligible
-		}
+	// Ensure SchedulingEligibility is correctly set whenever draining so the plan applier and other scheduling logic
+	// only need to check SchedulingEligibility when determining whether a placement is feasible on a node.
+	if n.DrainStrategy != nil {
+		n.SchedulingEligibility = NodeSchedulingIneligible
+	} else if n.SchedulingEligibility == "" {
+		n.SchedulingEligibility = NodeSchedulingEligible
 	}
 
 	// COMPAT remove in 1.0
@@ -2138,7 +2135,7 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 		Name:                  n.Name,
 		NodeClass:             n.NodeClass,
 		Version:               n.Attributes["nomad.version"],
-		Drain:                 n.Drain,
+		Drain:                 n.DrainStrategy != nil,
 		SchedulingEligibility: n.SchedulingEligibility,
 		Status:                n.Status,
 		StatusDescription:     n.StatusDescription,
@@ -10682,18 +10679,6 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 
 	return h
 }()
-
-var (
-	// JsonHandle and JsonHandlePretty are the codec handles to JSON encode
-	// structs. The pretty handle will add indents for easier human consumption.
-	JsonHandle = &codec.JsonHandle{
-		HTMLCharsAsIs: true,
-	}
-	JsonHandlePretty = &codec.JsonHandle{
-		HTMLCharsAsIs: true,
-		Indent:        4,
-	}
-)
 
 // Decode is used to decode a MsgPack encoded object
 func Decode(buf []byte, out interface{}) error {

@@ -284,11 +284,9 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		out, err := state.NodeByID(nil, node.ID)
 		require.Nil(err)
 
-		// the node must either be in drain mode or in elligible
+		// the node must either be in drain mode or ineligible
 		// once the node is recognize as not having any running allocs
-		if out.Drain {
-			require.True(out.Drain)
-			require.NotNil(out.DrainStrategy)
+		if out.DrainStrategy != nil {
 			require.Equal(10*time.Second, out.DrainStrategy.Deadline)
 		} else {
 			require.Equal(structs.NodeSchedulingIneligible, out.SchedulingEligibility)
@@ -307,7 +305,6 @@ func TestHTTP_NodeDrain(t *testing.T) {
 
 		out, err = state.NodeByID(nil, node.ID)
 		require.Nil(err)
-		require.False(out.Drain)
 		require.Nil(out.DrainStrategy)
 	})
 }

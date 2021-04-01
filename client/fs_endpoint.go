@@ -17,13 +17,15 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hpcloud/tail/watch"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/allocdir"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/jsonhandles"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hpcloud/tail/watch"
 )
 
 var (
@@ -237,7 +239,7 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	frames := make(chan *sframer.StreamFrame, streamFramesBuffer)
 	errCh := make(chan error)
 	var buf bytes.Buffer
-	frameCodec := codec.NewEncoder(&buf, structs.JsonHandle)
+	frameCodec := codec.NewEncoder(&buf, jsonhandles.JsonHandle)
 
 	// Create the framer
 	framer := sframer.NewStreamFramer(frames, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
@@ -468,7 +470,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 
 	var streamErr error
 	buf := new(bytes.Buffer)
-	frameCodec := codec.NewEncoder(buf, structs.JsonHandle)
+	frameCodec := codec.NewEncoder(buf, jsonhandles.JsonHandle)
 OUTER:
 	for {
 		select {

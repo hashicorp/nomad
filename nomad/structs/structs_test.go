@@ -5519,7 +5519,11 @@ func TestNode_Canonicalize(t *testing.T) {
 	require.Equal(NodeSchedulingEligible, node.SchedulingEligibility)
 
 	node = &Node{
-		Drain: true,
+		DrainStrategy: &DrainStrategy{
+			DrainSpec: DrainSpec{
+				Deadline: 30000,
+			},
+		},
 	}
 	node.Canonicalize()
 	require.Equal(NodeSchedulingIneligible, node.SchedulingEligibility)
@@ -5634,6 +5638,31 @@ func TestNode_Copy(t *testing.T) {
 	require.Equal(node.Events, node2.Events)
 	require.Equal(node.DrainStrategy, node2.DrainStrategy)
 	require.Equal(node.Drivers, node2.Drivers)
+}
+
+func TestNode_Sanitize(t *testing.T) {
+	require := require.New(t)
+
+	testCases := []*Node{
+		nil,
+		{
+			ID:       uuid.Generate(),
+			SecretID: "",
+		},
+		{
+			ID:       uuid.Generate(),
+			SecretID: uuid.Generate(),
+		},
+	}
+	for _, tc := range testCases {
+		sanitized := tc.Sanitize()
+		if tc == nil {
+			require.Nil(sanitized)
+		} else {
+			require.NotNil(sanitized)
+			require.Empty(sanitized.SecretID)
+		}
+	}
 }
 
 func TestSpread_Validate(t *testing.T) {

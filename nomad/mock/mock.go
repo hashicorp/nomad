@@ -118,6 +118,15 @@ func Node() *structs.Node {
 	return node
 }
 
+func DrainNode() *structs.Node {
+	node := Node()
+	node.DrainStrategy = &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{},
+	}
+	node.Canonicalize()
+	return node
+}
+
 // NvidiaNode returns a node with two instances of an Nvidia GPU
 func NvidiaNode() *structs.Node {
 	n := Node()

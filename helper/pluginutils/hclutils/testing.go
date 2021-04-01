@@ -6,13 +6,14 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
-	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/mitchellh/mapstructure"
 	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
+	"github.com/hashicorp/nomad/nomad/jsonhandles"
+	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
 type HCLParser struct {
@@ -121,7 +122,7 @@ func JsonConfigToInterface(t *testing.T, config string) interface{} {
 	t.Helper()
 
 	// Decode from json
-	dec := codec.NewDecoderBytes([]byte(config), structs.JsonHandle)
+	dec := codec.NewDecoderBytes([]byte(config), jsonhandles.JsonHandle)
 
 	var m map[string]interface{}
 	err := dec.Decode(&m)

@@ -39,8 +39,7 @@ func TestDiffSystemAllocsForNode(t *testing.T) {
 	eligibleNode := mock.Node()
 	eligibleNode.ID = "zip"
 
-	drainNode := mock.Node()
-	drainNode.Drain = true
+	drainNode := mock.DrainNode()
 
 	deadNode := mock.Node()
 	deadNode.Status = structs.NodeStatusDown
@@ -220,8 +219,7 @@ func TestDiffSystemAllocsForNode_ExistingAllocIneligibleNode(t *testing.T) {
 func TestDiffSystemAllocs(t *testing.T) {
 	job := mock.SystemJob()
 
-	drainNode := mock.Node()
-	drainNode.Drain = true
+	drainNode := mock.DrainNode()
 
 	deadNode := mock.Node()
 	deadNode.Status = structs.NodeStatusDown
@@ -332,8 +330,7 @@ func TestReadyNodesInDCs(t *testing.T) {
 	node3 := mock.Node()
 	node3.Datacenter = "dc2"
 	node3.Status = structs.NodeStatusDown
-	node4 := mock.Node()
-	node4.Drain = true
+	node4 := mock.DrainNode()
 
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2))
@@ -392,8 +389,7 @@ func TestTaintedNodes(t *testing.T) {
 	node3 := mock.Node()
 	node3.Datacenter = "dc2"
 	node3.Status = structs.NodeStatusDown
-	node4 := mock.Node()
-	node4.Drain = true
+	node4 := mock.DrainNode()
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2))
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1002, node3))

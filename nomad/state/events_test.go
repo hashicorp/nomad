@@ -94,57 +94,6 @@ func TestEventFromChange_ACLTokenSecretID(t *testing.T) {
 	require.Empty(t, tokenEvent2.ACLToken.SecretID)
 }
 
-// TestEventFromChange_NodeSecretID ensures that a node's secret ID is not
-// included in a node event
-func TestEventFromChange_NodeSecretID(t *testing.T) {
-	t.Parallel()
-	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
-	defer s.StopEventBroker()
-
-	node := mock.Node()
-	require.NotEmpty(t, node.SecretID)
-
-	// Create
-	changes := Changes{
-		Index:   100,
-		MsgType: structs.NodeRegisterRequestType,
-		Changes: memdb.Changes{
-			{
-				Table:  "nodes",
-				Before: nil,
-				After:  node,
-			},
-		},
-	}
-
-	out := eventsFromChanges(s.db.ReadTxn(), changes)
-	require.Len(t, out.Events, 1)
-
-	nodeEvent, ok := out.Events[0].Payload.(*structs.NodeStreamEvent)
-	require.True(t, ok)
-	require.Empty(t, nodeEvent.Node.SecretID)
-
-	// Delete
-	changes = Changes{
-		Index:   100,
-		MsgType: structs.NodeDeregisterRequestType,
-		Changes: memdb.Changes{
-			{
-				Table:  "nodes",
-				Before: node,
-				After:  nil,
-			},
-		},
-	}
-
-	out2 := eventsFromChanges(s.db.ReadTxn(), changes)
-	require.Len(t, out2.Events, 1)
-
-	nodeEvent2, ok := out2.Events[0].Payload.(*structs.NodeStreamEvent)
-	require.True(t, ok)
-	require.Empty(t, nodeEvent2.Node.SecretID)
-}
-
 func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	t.Parallel()
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))

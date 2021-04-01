@@ -1,11 +1,14 @@
 package stream
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/go-msgpack/codec"
+
+	"github.com/hashicorp/nomad/nomad/jsonhandles"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -71,7 +74,9 @@ func (n *JsonStream) Send(v interface{}) error {
 		return n.ctx.Err()
 	}
 
-	buf, err := json.Marshal(v)
+	var buf bytes.Buffer
+	enc := codec.NewEncoder(&buf, jsonhandles.JsonHandleWithExtensions)
+	err := enc.Encode(v)
 	if err != nil {
 		return fmt.Errorf("error marshaling json for stream: %w", err)
 	}
@@ -79,7 +84,7 @@ func (n *JsonStream) Send(v interface{}) error {
 	select {
 	case <-n.ctx.Done():
 		return fmt.Errorf("error stream is no longer running: %w", err)
-	case n.outCh <- &structs.EventJson{Data: buf}:
+	case n.outCh <- &structs.EventJson{Data: buf.Bytes()}:
 	}
 
 	return nil

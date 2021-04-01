@@ -885,10 +885,9 @@ func TestReconciler_DrainNode(t *testing.T) {
 	// Build a map of tainted nodes
 	tainted := make(map[string]*structs.Node, 2)
 	for i := 0; i < 2; i++ {
-		n := mock.Node()
+		n := mock.DrainNode()
 		n.ID = allocs[i].NodeID
 		allocs[i].DesiredTransition.Migrate = helper.BoolToPtr(true)
-		n.Drain = true
 		tainted[n.ID] = n
 	}
 
@@ -938,10 +937,9 @@ func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
 	// Build a map of tainted nodes
 	tainted := make(map[string]*structs.Node, 2)
 	for i := 0; i < 2; i++ {
-		n := mock.Node()
+		n := mock.DrainNode()
 		n.ID = allocs[i].NodeID
 		allocs[i].DesiredTransition.Migrate = helper.BoolToPtr(true)
-		n.Drain = true
 		tainted[n.ID] = n
 	}
 
@@ -992,10 +990,9 @@ func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
 	// Build a map of tainted nodes
 	tainted := make(map[string]*structs.Node, 3)
 	for i := 0; i < 3; i++ {
-		n := mock.Node()
+		n := mock.DrainNode()
 		n.ID = allocs[i].NodeID
 		allocs[i].DesiredTransition.Migrate = helper.BoolToPtr(true)
-		n.Drain = true
 		tainted[n.ID] = n
 	}
 
@@ -2994,10 +2991,9 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 
 	// Build a map of tainted nodes that contains the last canary
 	tainted := make(map[string]*structs.Node, 1)
-	n := mock.Node()
+	n := mock.DrainNode()
 	n.ID = allocs[11].NodeID
 	allocs[11].DesiredTransition.Migrate = helper.BoolToPtr(true)
-	n.Drain = true
 	tainted[n.ID] = n
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
@@ -3785,7 +3781,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 		if i == 0 {
 			n.Status = structs.NodeStatusDown
 		} else {
-			n.Drain = true
+			n.DrainStrategy = mock.DrainNode().DrainStrategy
 			allocs[2+i].DesiredTransition.Migrate = helper.BoolToPtr(true)
 		}
 		tainted[n.ID] = n
@@ -3870,7 +3866,7 @@ func TestReconciler_FailedDeployment_TaintedNodes(t *testing.T) {
 		if i == 0 {
 			n.Status = structs.NodeStatusDown
 		} else {
-			n.Drain = true
+			n.DrainStrategy = mock.DrainNode().DrainStrategy
 			allocs[6+i].DesiredTransition.Migrate = helper.BoolToPtr(true)
 		}
 		tainted[n.ID] = n
