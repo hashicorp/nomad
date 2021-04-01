@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: group Stanza - Job Specification
-sidebar_title: group
 description: |-
   The "group" stanza defines a series of tasks that should be co-located on the
   same Nomad client. Any task within a group will be placed on the same client.
@@ -65,7 +64,7 @@ job "docs" {
   type, which can be found in the [restart stanza documentation][restart].
 
 - `service` <code>([Service][]: nil)</code> - Specifies integrations with
-  [Consul](/docs/configuration/consul) for service discovery. 
+  [Consul](/docs/configuration/consul) for service discovery.
   Nomad automatically registers each service when an allocation
   is started and de-registers them when the allocation is destroyed.
 

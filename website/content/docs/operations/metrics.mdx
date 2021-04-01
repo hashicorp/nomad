@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: Metrics
-sidebar_title: Metrics
 description: Learn about the different metrics available in Nomad.
 ---
 
@@ -71,7 +70,7 @@ Below is sample output of a telemetry dump:
 ### Metric Types
 
 | Type    | Description                                                                                                         | Quantiles |
-|---------|---------------------------------------------------------------------------------------------------------------------|-----------|
+| ------- | ------------------------------------------------------------------------------------------------------------------- | --------- |
 | Gauge   | Gauge types report an absolute number at the end of the aggregation interval                                        | false     |
 | Counter | Counts are incremented and flushed at the end of the aggregation interval and then are reset to zero                | true      |
 | Timer   | Timers measure the time to complete a task and will include quantiles, means, standard deviation, etc per interval. | true      |
@@ -82,7 +81,6 @@ Nomad emits metrics in a tagged format. Each metric can support more than one
 tag, meaning that it is possible to do a match over metrics for datapoints
 such as a particular datacenter, and return all metrics with this tag. Nomad
 supports labels for namespaces as well.
-
 
 ## Key Metrics
 
@@ -95,7 +93,7 @@ be assumed to be 10 seconds when retrieving metrics using the above described
 signals.
 
 | Metrics                                      | Description                                                                                                                                                                | Unit                           | Type    |
-|-------------------|--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ------- |
 | `nomad.runtime.alloc_bytes`                  | Memory utilization                                                                                                                                                         | # of bytes                     | Gauge   |
 | `nomad.runtime.heap_objects`                 | Number of objects on the heap. General memory pressure indicator                                                                                                           | # of heap objects              | Gauge   |
 | `nomad.runtime.num_goroutines`               | Number of goroutines and general load pressure indicator                                                                                                                   | # of goroutines                | Gauge   |
@@ -115,8 +113,6 @@ signals.
 | `nomad.raft.apply`                           | Number of Raft transactions                                                                                                                                                | Raft transactions / `interval` | Counter |
 | `nomad.raft.leader.lastContact`              | Time since last contact to leader. General indicator of Raft latency                                                                                                       | ms / Leader Contact            | Timer   |
 | `nomad.raft.replication.appendEntries`       | Raft transaction commit time                                                                                                                                               | ms / Raft Log Append           | Timer   |
-
-
 
 ## Client Metrics
 
@@ -141,18 +137,17 @@ parameterized or periodic job respectively. For example, a dispatch job with the
 `myjob/dispatch-1312323423423`, will have the following labels.
 
 | Label       | Value                          |
-|-------------|--------------------------------|
+| ----------- | ------------------------------ |
 | job         | `myjob/dispatch-1312323423423` |
 | parent_id   | `myjob`                        |
 | dispatch_id | `1312323423423`                |
-
 
 ## Host Metrics
 
 Nomad will emit [tagged metrics][tagged-metrics], in the below format:
 
 | Metric                                  | Description                                                                         | Unit       | Type  | Labels                                                                                |
-|-----------------------------------------|-------------------------------------------------------------------------------------|------------|-------|---------------------------------------------------------------------------------------|
+| --------------------------------------- | ----------------------------------------------------------------------------------- | ---------- | ----- | ------------------------------------------------------------------------------------- |
 | `nomad.client.allocated.cpu`            | Total amount of CPU shares the scheduler has allocated to tasks                     | Mhz        | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.allocated.memory`         | Total amount of memory the scheduler has allocated to tasks                         | Megabytes  | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.allocated_disk`           | Total amount of disk space the scheduler has allocated to tasks                     | Megabytes  | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
@@ -188,7 +183,7 @@ are enabled. Note that allocation metrics available may be dependent on the
 task driver; not all task drivers can provide all metrics.
 
 | Metric                                        | Description                                                       | Unit        | Type  | Labels                                           |
-|-----------------------------------------------|-------------------------------------------------------------------|-------------|-------|--------------------------------------------------|
+| --------------------------------------------- | ----------------------------------------------------------------- | ----------- | ----- | ------------------------------------------------ |
 | `nomad.client.allocs.cpu.allocated`           | Total CPU resources allocated by the task across all cores        | MHz         | Gauge | alloc_id, host, job, namespace, task, task_group |
 | `nomad.client.allocs.cpu.system`              | Total CPU resources consumed by the task in system space          | Percentage  | Gauge | alloc_id, host, job, namespace, task, task_group |
 | `nomad.client.allocs.cpu.throttled_periods`   | Total number of CPU periods that the task was throttled           | Nanoseconds | Gauge | alloc_id, host, job, namespace, task, task_group |
@@ -210,7 +205,7 @@ task driver; not all task drivers can provide all metrics.
 Job summary metrics are emitted by the Nomad leader server.
 
 | Metric                             | Description                              | Unit    | Type  | Labels                           |
-|------------------------------------|------------------------------------------|---------|-------|----------------------------------|
+| ---------------------------------- | ---------------------------------------- | ------- | ----- | -------------------------------- |
 | `nomad.nomad.job_summary.complete` | Number of complete allocations for a job | Integer | Gauge | host, job, namespace, task_group |
 | `nomad.nomad.job_summary.failed`   | Number of failed allocations for a job   | Integer | Gauge | host, job, namespace, task_group |
 | `nomad.nomad.job_summary.lost`     | Number of lost allocations for a job     | Integer | Gauge | host, job, namespace, task_group |
@@ -223,7 +218,7 @@ Job summary metrics are emitted by the Nomad leader server.
 Job status metrics are emitted by the Nomad leader server.
 
 | Metric                           | Description            | Unit    | Type  | Labels |
-|----------------------------------|------------------------|---------|-------|--------|
+| -------------------------------- | ---------------------- | ------- | ----- | ------ |
 | `nomad.nomad.job_status.dead`    | Number of dead jobs    | Integer | Gauge | host   |
 | `nomad.nomad.job_status.pending` | Number of pending jobs | Integer | Gauge | host   |
 | `nomad.nomad.job_status.running` | Number of running jobs | Integer | Gauge | host   |
@@ -234,7 +229,7 @@ The following table includes metrics for overall cluster health in addition to
 those listed in [Key Metrics](#key-metrics) above.
 
 | Metric                                               | Description                                                       | Unit                 | Type    | Labels |
-|------------------------------------------------------|-------------------------------------------------------------------|----------------------|---------|--------|
+| ---------------------------------------------------- | ----------------------------------------------------------------- | -------------------- | ------- | ------ |
 | `nomad.memberlist.gossip`                            | Time elapsed to broadcast gossip messages                         | Nanoseconds          | Summary | host   |
 | `nomad.nomad.acl.bootstrap`                          | Time elapsed for `ACL.Bootstrap` RPC call                         | Nanoseconds          | Summary | Host   |
 | `nomad.nomad.acl.delete_policies`                    | Time elapsed for `ACL.DeletePolicies` RPC call                    | Nanoseconds          | Summary | Host   |
@@ -442,6 +437,5 @@ those listed in [Key Metrics](#key-metrics) above.
 | `nomad.serf.queue.Intent`                            | Count of memberlist changes                                       | Integer              | Summary | host   |
 | `nomad.serf.queue.Query`                             | Count of memberlist queries                                       | Integer              | Summary | host   |
 | `nomad.state.snapshotIndex`                          | Current snapshot index                                            | Integer              | Gauge   | host   |
-
 
 [tagged-metrics]: /docs/telemetry/metrics#tagged-metrics
