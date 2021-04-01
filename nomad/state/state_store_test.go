@@ -1010,7 +1010,6 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
 	require.NotNil(out.DrainStrategy)
-	// TODO: cgbaker: more tests for LastDrain
 	require.NotNil(out.LastDrain)
 	require.Equal(structs.DrainStatusDraining, out.LastDrain.Status)
 	require.Equal(out.DrainStrategy, expectedDrain)
