@@ -586,7 +586,13 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 				cpuUsage = fmt.Sprintf("%v/%v", math.Floor(cs.TotalTicks), cpuUsage)
 			}
 			if ms := ru.ResourceUsage.MemoryStats; ms != nil {
-				memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(ms.RSS), memUsage)
+				// Nomad uses RSS as the top-level metric to report, for historical reasons,
+				// but it's not always measured (e.g. with cgroup-v2)
+				usage := ms.RSS
+				if usage == 0 && !stringsContain(ms.Measured, "RSS") {
+					usage = ms.Usage
+				}
+				memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(usage), memUsage)
 			}
 			deviceStats = ru.ResourceUsage.DeviceStats
 		}
