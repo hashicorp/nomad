@@ -805,6 +805,9 @@ type ListSnapshotsResponse_Entry struct {
 
 type NodeCapabilitySet struct {
 	HasStageUnstageVolume bool
+	HasGetVolumeStats     bool
+	HasExpandVolume       bool
+	HasVolumeCondition    bool
 }
 
 func NewNodeCapabilitySet(resp *csipbv1.NodeGetCapabilitiesResponse) *NodeCapabilitySet {
@@ -815,6 +818,12 @@ func NewNodeCapabilitySet(resp *csipbv1.NodeGetCapabilitiesResponse) *NodeCapabi
 			switch c.Type {
 			case csipbv1.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME:
 				cs.HasStageUnstageVolume = true
+			case csipbv1.NodeServiceCapability_RPC_GET_VOLUME_STATS:
+				cs.HasGetVolumeStats = true
+			case csipbv1.NodeServiceCapability_RPC_EXPAND_VOLUME:
+				cs.HasExpandVolume = true
+			case csipbv1.NodeServiceCapability_RPC_VOLUME_CONDITION:
+				cs.HasVolumeCondition = true
 			default:
 				continue
 			}

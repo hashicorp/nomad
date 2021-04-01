@@ -314,22 +314,7 @@ func TestClient_RPC_NodeGetCapabilities(t *testing.T) {
 			ExpectedErr: fmt.Errorf("some grpc error"),
 		},
 		{
-			Name: "ignores unknown capabilities",
-			Response: &csipbv1.NodeGetCapabilitiesResponse{
-				Capabilities: []*csipbv1.NodeServiceCapability{
-					{
-						Type: &csipbv1.NodeServiceCapability_Rpc{
-							Rpc: &csipbv1.NodeServiceCapability_RPC{
-								Type: csipbv1.NodeServiceCapability_RPC_EXPAND_VOLUME,
-							},
-						},
-					},
-				},
-			},
-			ExpectedResponse: &NodeCapabilitySet{},
-		},
-		{
-			Name: "detects stage volumes capability",
+			Name: "detects multiple capabilities",
 			Response: &csipbv1.NodeGetCapabilitiesResponse{
 				Capabilities: []*csipbv1.NodeServiceCapability{
 					{
@@ -339,10 +324,18 @@ func TestClient_RPC_NodeGetCapabilities(t *testing.T) {
 							},
 						},
 					},
+					{
+						Type: &csipbv1.NodeServiceCapability_Rpc{
+							Rpc: &csipbv1.NodeServiceCapability_RPC{
+								Type: csipbv1.NodeServiceCapability_RPC_EXPAND_VOLUME,
+							},
+						},
+					},
 				},
 			},
 			ExpectedResponse: &NodeCapabilitySet{
 				HasStageUnstageVolume: true,
+				HasExpandVolume:       true,
 			},
 		},
 	}

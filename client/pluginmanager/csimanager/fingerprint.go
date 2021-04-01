@@ -168,6 +168,9 @@ func (p *pluginFingerprinter) buildNodeFingerprint(ctx context.Context, base *st
 		return fp, err
 	}
 	fp.NodeInfo.RequiresNodeStageVolume = caps.HasStageUnstageVolume
+	fp.NodeInfo.SupportsStats = caps.HasGetVolumeStats
+	fp.NodeInfo.SupportsExpand = caps.HasExpandVolume
+	fp.NodeInfo.SupportsCondition = caps.HasVolumeCondition
 
 	return fp, nil
 }
