@@ -95,6 +95,15 @@ type CSINodeInfo struct {
 	// RequiresNodeStageVolume indicates whether the client should Stage/Unstage
 	// volumes on this node.
 	RequiresNodeStageVolume bool
+
+	// SupportsStats indicates plugin support for GET_VOLUME_STATS
+	SupportsStats bool
+
+	// SupportsExpand indicates plugin support for EXPAND_VOLUME
+	SupportsExpand bool
+
+	// SupportsCondition indicates plugin support for VOLUME_CONDITION
+	SupportsCondition bool
 }
 
 func (n *CSINodeInfo) Copy() *CSINodeInfo {

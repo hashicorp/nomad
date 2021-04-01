@@ -952,6 +952,24 @@ const (
 	CSIControllerSupportsGet CSIControllerCapability = 11
 )
 
+type CSINodeCapability byte
+
+const (
+
+	// CSINodeSupportsStageVolume indicates whether the client should
+	// Stage/Unstage volumes on this node.
+	CSINodeSupportsStageVolume CSINodeCapability = 0
+
+	// CSINodeSupportsStats indicates plugin support for GET_VOLUME_STATS
+	CSINodeSupportsStats CSINodeCapability = 1
+
+	// CSINodeSupportsExpand indicates plugin support for EXPAND_VOLUME
+	CSINodeSupportsExpand CSINodeCapability = 2
+
+	// CSINodeSupportsCondition indicates plugin support for VOLUME_CONDITION
+	CSINodeSupportsCondition CSINodeCapability = 3
+)
+
 func (p *CSIPlugin) HasControllerCapability(cap CSIControllerCapability) bool {
 	if len(p.Controllers) < 1 {
 		return false
@@ -984,6 +1002,29 @@ func (p *CSIPlugin) HasControllerCapability(cap CSIControllerCapability) bool {
 			return c.ControllerInfo.SupportsCondition
 		case CSIControllerSupportsGet:
 			return c.ControllerInfo.SupportsGet
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+func (p *CSIPlugin) HasNodeCapability(cap CSINodeCapability) bool {
+	if len(p.Nodes) < 1 {
+		return false
+	}
+	// we're picking the first node because they should be uniform
+	// across the same version of the plugin
+	for _, c := range p.Nodes {
+		switch cap {
+		case CSINodeSupportsStageVolume:
+			return c.NodeInfo.RequiresNodeStageVolume
+		case CSINodeSupportsStats:
+			return c.NodeInfo.SupportsStats
+		case CSINodeSupportsExpand:
+			return c.NodeInfo.SupportsExpand
+		case CSINodeSupportsCondition:
+			return c.NodeInfo.SupportsCondition
 		default:
 			return false
 		}
