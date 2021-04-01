@@ -1075,6 +1075,10 @@ func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply
 	method := "ClientCSI.ControllerCreateSnapshot"
 	var mErr multierror.Error
 	for _, snap := range args.Snapshots {
+		if snap == nil {
+			// we intentionally don't multierror here because we're in a weird state
+			return fmt.Errorf("snapshot cannot be nil")
+		}
 
 		plugin, err := state.CSIPluginByID(nil, snap.PluginID)
 		if err != nil {
@@ -1154,6 +1158,10 @@ func (v *CSIVolume) DeleteSnapshot(args *structs.CSISnapshotDeleteRequest, reply
 
 	var mErr multierror.Error
 	for _, snap := range args.Snapshots {
+		if snap == nil {
+			// we intentionally don't multierror here because we're in a weird state
+			return fmt.Errorf("snapshot cannot be nil")
+		}
 
 		plugin, err := stateSnap.CSIPluginByID(nil, snap.PluginID)
 		if err != nil {
