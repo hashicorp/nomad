@@ -31,7 +31,7 @@ func (v *CSIVolumes) List(q *QueryOptions) ([]*CSIVolumeListStub, *QueryMeta, er
 // ListExternal returns all CSI volumes, as understood by the external storage
 // provider. These volumes may or may not be currently registered with Nomad.
 // The response is paginated by the plugin and accepts the
-// QueryOptions.PerPage and QueryOptions.NextToken fields
+// QueryOptions.PerPage and QueryOptions.NextToken fields.
 func (v *CSIVolumes) ListExternal(pluginID string, q *QueryOptions) (*CSIVolumeListExternalResponse, *QueryMeta, error) {
 	var resp *CSIVolumeListExternalResponse
 
@@ -79,7 +79,7 @@ func (v *CSIVolumes) Register(vol *CSIVolume, w *WriteOptions) (*WriteMeta, erro
 	return meta, err
 }
 
-// Register deregisters a single CSIVolume from Nomad. The volume will not be deleted from the external storage provider.
+// Deregister deregisters a single CSIVolume from Nomad. The volume will not be deleted from the external storage provider.
 func (v *CSIVolumes) Deregister(id string, force bool, w *WriteOptions) error {
 	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v?force=%t", url.PathEscape(id), force), nil, w)
 	return err
