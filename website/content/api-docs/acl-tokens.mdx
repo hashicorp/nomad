@@ -1,7 +1,6 @@
 ---
 layout: api
 page_title: ACL Tokens - HTTP API
-sidebar_title: ACL Tokens
 description: The /acl/token/ endpoints are used to configure and manage ACL tokens.
 ---
 
@@ -348,9 +347,9 @@ $ curl \
 This endpoint creates a one-time token for the ACL token provided in the
 `X-Nomad-Token` header. Returns 403 if the token header is not set.
 
-| Method   | Path                      | Produces       |
-| -------- | ------------------------- | -------------- |
-| `POST`   | `/acl/token/onetime`      | `application/json` |
+| Method | Path                 | Produces           |
+| ------ | -------------------- | ------------------ |
+| `POST` | `/acl/token/onetime` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/api-docs#blocking-queries) and
@@ -359,7 +358,6 @@ The table below shows this endpoint's support for
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
 | `NO`             | `any`        |
-
 
 ### Sample Request
 
@@ -390,9 +388,9 @@ $ curl \
 This endpoint exchanges a one-time token for the original ACL token used to
 create it.
 
-| Method   | Path                          | Produces           |
-| -------- | -------------------------     | --------------     |
-| `POST`   | `/acl/token/onetime/exchange` | `application/json` |
+| Method | Path                          | Produces           |
+| ------ | ----------------------------- | ------------------ |
+| `POST` | `/acl/token/onetime/exchange` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/api-docs#blocking-queries) and
@@ -401,7 +399,6 @@ The table below shows this endpoint's support for
 | Blocking Queries | ACL Required |
 | ---------------- | ------------ |
 | `NO`             | `any`        |
-
 
 ### Sample Request
 
@@ -425,9 +422,7 @@ $ curl \
     "Hash": "UhZESkSFGFfX7eBgq5Uwph30OctbUbpe8+dlH2i4whA=",
     "ModifyIndex": 7,
     "Name": "Developer token",
-    "Policies": [
-      "developer"
-    ],
+    "Policies": ["developer"],
     "SecretID": "3f4a0fcd-7c42-773c-25db-2d31ba0c05fe",
     "Type": "client"
   }

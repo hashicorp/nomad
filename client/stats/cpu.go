@@ -5,7 +5,7 @@ import (
 	"time"
 
 	shelpers "github.com/hashicorp/nomad/helper/stats"
-	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/v3/cpu"
 )
 
 // CpuStats calculates cpu usage percentage

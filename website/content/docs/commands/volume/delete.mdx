@@ -1,0 +1,38 @@
+---
+layout: docs
+page_title: 'Commands: volume delete'
+description: |
+  Delete volumes with CSI plugins.
+---
+
+# Command: volume delete
+
+The `volume delete` command deletes external storage volumes with Nomad's
+[Container Storage Interface (CSI)][csi] support. Only CSI plugins that
+implement the [Controller][csi_plugins_internals] interface support this
+command. The volume will also be [deregistered] when it is successfully
+deleted.
+
+## Usage
+
+```plaintext
+nomad volume delete [options] [volume]
+```
+
+The `volume delete` command requires a single argument, specifying the ID of
+volume to be deleted. The volume must still be [registered] with Nomad in
+order to be deleted. Deleting will fail if the volume is still in use by an
+allocation or in the process of being unpublished. If the volume no longer
+exists, this command will silently return without an error.
+
+When ACLs are enabled, this command requires a token with the
+`csi-write-volume` capability for the volume's namespace.
+
+## General Options
+
+@include 'general_options.mdx'
+
+[csi]: https://github.com/container-storage-interface/spec
+[csi_plugins_internals]: /docs/internals/plugins/csi#csi-plugins
+[deregistered]: /docs/commands/volume/deregister
+[registered]: /docs/commands/volume/register

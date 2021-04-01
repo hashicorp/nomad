@@ -41,7 +41,7 @@ resource "null_resource" "provision_nomad" {
 }
 
 data "template_file" "provision_script" {
-  template = "${local.provision_script}${data.template_file.arg_nomad_sha.rendered}${data.template_file.arg_nomad_version.rendered}${data.template_file.arg_nomad_binary.rendered}${data.template_file.arg_nomad_enterprise.rendered}${data.template_file.arg_nomad_acls.rendered}${data.template_file.arg_profile.rendered}${data.template_file.arg_role.rendered}${data.template_file.arg_index.rendered}${data.template_file.autojoin_tag.rendered}"
+  template = "${local.provision_script}${data.template_file.arg_nomad_sha.rendered}${data.template_file.arg_nomad_version.rendered}${data.template_file.arg_nomad_binary.rendered}${data.template_file.arg_nomad_enterprise.rendered}${data.template_file.arg_nomad_license.rendered}${data.template_file.arg_nomad_acls.rendered}${data.template_file.arg_profile.rendered}${data.template_file.arg_role.rendered}${data.template_file.arg_index.rendered}${data.template_file.autojoin_tag.rendered}"
 }
 
 data "template_file" "arg_nomad_sha" {
@@ -58,6 +58,10 @@ data "template_file" "arg_nomad_binary" {
 
 data "template_file" "arg_nomad_enterprise" {
   template = var.nomad_enterprise ? " ${local._arg}enterprise" : ""
+}
+
+data "template_file" "arg_nomad_license" {
+  template = var.nomad_license != "" ? " ${local._arg}nomad_license ${var.nomad_license}" : ""
 }
 
 data "template_file" "arg_nomad_acls" {

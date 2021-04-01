@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: 'Commands: ui'
-sidebar_title: ui
 description: |
   The ui command is used to open the Nomad Web UI.
 ---
@@ -23,8 +22,7 @@ An identifier may be provided, in which case the UI will be opened to view the
 details for that object. Supported identifiers are jobs, allocations and nodes.
 
 If ACLs are enabled, the web UI will start in an unauthenticated state and you
-may see a 403 Unauthorized page if anonymous read access is denied. The `nomad
-ui -authenticate` option will exchange your command line client's Nomad ACL
+may see a 403 Unauthorized page if anonymous read access is denied. The `nomad ui -authenticate` option will exchange your command line client's Nomad ACL
 token for a one-time token, which is passed to the web UI. That one-time token
 will be exchanged for your Nomad ACL token and stored in the browser's local
 storage for authentication.

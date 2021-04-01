@@ -489,6 +489,7 @@ message AllocatedCpuResources {
 
 message AllocatedMemoryResources {
     int64 memory_mb = 2;
+    int64 memory_max_mb = 3;
 }
 
 message NetworkResource {

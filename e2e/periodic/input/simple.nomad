@@ -4,8 +4,10 @@ job "periodic" {
 
   constraint {
     attribute = "${attr.kernel.name}"
-    value     = "linux"
+    operator  = "set_contains_any"
+    value     = "darwin,linux"
   }
+
 
 
   periodic {

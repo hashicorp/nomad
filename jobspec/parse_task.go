@@ -548,6 +548,7 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 		"iops", // COMPAT(0.10): Remove after one release to allow it to be removed from jobspecs
 		"disk",
 		"memory",
+		"memory_max",
 		"network",
 		"device",
 	}

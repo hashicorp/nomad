@@ -13,6 +13,21 @@ const percent = (numerator, denominator) => {
 
 const empty = ts => ({ timestamp: ts, used: null, percent: null });
 
+// Tasks are sorted by their lifecycle phase in this order:
+const sortMap = [
+  'main',
+  'prestart-sidecar',
+  'poststart-sidecar',
+  'prestart-ephemeral',
+  'poststart-ephemeral',
+  'poststop',
+].reduce((map, phase, index) => {
+  map[phase] = index;
+  return map;
+}, {});
+
+const taskPrioritySort = (a, b) => sortMap[a.lifecycleName] - sortMap[b.lifecycleName];
+
 @classic
 class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   // Set via the stats computed property macro
@@ -40,29 +55,39 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
       percent: percent(memoryUsed / 1024 / 1024, this.reservedMemory),
     });
 
-    for (var taskName in frame.Tasks) {
-      const taskFrame = frame.Tasks[taskName];
-      const stats = this.tasks.findBy('task', taskName);
+    let aggregateCpu = 0;
+    let aggregateMemory = 0;
+    for (var stats of this.tasks) {
+      const taskFrame = frame.Tasks[stats.task];
 
-      // If for whatever reason there is a task in the frame data that isn't in the
-      // allocation, don't attempt to append data for the task.
-      if (!stats) continue;
+      // If the task is not present in the frame data (because it hasn't started or
+      // it has already stopped), just keep going.
+      if (!taskFrame) continue;
 
       const frameTimestamp = new Date(Math.floor(taskFrame.Timestamp / 1000000));
 
       const taskCpuUsed = Math.floor(taskFrame.ResourceUsage.CpuStats.TotalTicks) || 0;
+      const percentCpuTotal = percent(taskCpuUsed, this.reservedCPU);
       stats.cpu.pushObject({
         timestamp: frameTimestamp,
         used: taskCpuUsed,
         percent: percent(taskCpuUsed, stats.reservedCPU),
+        percentTotal: percentCpuTotal,
+        percentStack: percentCpuTotal + aggregateCpu,
       });
 
       const taskMemoryUsed = taskFrame.ResourceUsage.MemoryStats.RSS;
+      const percentMemoryTotal = percent(taskMemoryUsed / 1024 / 1024, this.reservedMemory);
       stats.memory.pushObject({
         timestamp: frameTimestamp,
         used: taskMemoryUsed,
         percent: percent(taskMemoryUsed / 1024 / 1024, stats.reservedMemory),
+        percentTotal: percentMemoryTotal,
+        percentStack: percentMemoryTotal + aggregateMemory,
       });
+
+      aggregateCpu += percentCpuTotal;
+      aggregateMemory += percentMemoryTotal;
     }
   }
 
@@ -96,18 +121,21 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   get tasks() {
     const bufferSize = this.bufferSize;
     const tasks = this.get('allocation.taskGroup.tasks') || [];
-    return tasks.map(task => ({
-      task: get(task, 'name'),
+    return tasks
+      .slice()
+      .sort(taskPrioritySort)
+      .map(task => ({
+        task: get(task, 'name'),
 
-      // Static figures, denominators for stats
-      reservedCPU: get(task, 'reservedCPU'),
-      reservedMemory: get(task, 'reservedMemory'),
+        // Static figures, denominators for stats
+        reservedCPU: get(task, 'reservedCPU'),
+        reservedMemory: get(task, 'reservedMemory'),
 
-      // Dynamic figures, collected over time
-      // []{ timestamp: Date, used: Number, percent: Number }
-      cpu: RollingArray(bufferSize),
-      memory: RollingArray(bufferSize),
-    }));
+        // Dynamic figures, collected over time
+        // []{ timestamp: Date, used: Number, percent: Number }
+        cpu: RollingArray(bufferSize),
+        memory: RollingArray(bufferSize),
+      }));
   }
 }
 

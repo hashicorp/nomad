@@ -285,8 +285,9 @@ func TestParse(t *testing.T) {
 									"LOREM": "ipsum",
 								},
 								Resources: &api.Resources{
-									CPU:      intToPtr(500),
-									MemoryMB: intToPtr(128),
+									CPU:         intToPtr(500),
+									MemoryMB:    intToPtr(128),
+									MemoryMaxMB: intToPtr(256),
 									Networks: []*api.NetworkResource{
 										{
 											MBits:         intToPtr(100),

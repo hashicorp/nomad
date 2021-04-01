@@ -100,7 +100,7 @@ module('Acceptance | regions (many)', function(hooks) {
 
     await JobsList.visit();
 
-    await selectChoose('[data-test-region-switcher]', newRegion);
+    await selectChoose('[data-test-region-switcher-parent]', newRegion);
 
     assert.ok(
       currentURL().includes(`region=${newRegion}`),
@@ -115,7 +115,7 @@ module('Acceptance | regions (many)', function(hooks) {
 
     await JobsList.visit({ region: startingRegion });
 
-    await selectChoose('[data-test-region-switcher]', defaultRegion);
+    await selectChoose('[data-test-region-switcher-parent]', defaultRegion);
 
     assert.notOk(currentURL().includes('region='), 'No region query param for the default region');
     assert.equal(
@@ -130,7 +130,7 @@ module('Acceptance | regions (many)', function(hooks) {
 
     await Allocation.visit({ id: server.db.allocations[0].id });
 
-    await selectChoose('[data-test-region-switcher]', newRegion);
+    await selectChoose('[data-test-region-switcher-parent]', newRegion);
 
     assert.ok(currentURL().includes('/jobs?'), 'Back at the jobs page');
   });

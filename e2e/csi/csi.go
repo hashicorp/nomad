@@ -107,8 +107,7 @@ func (tc *CSIVolumesTest) TestEBSVolumeClaim(f *framework.F) {
 		"aws-ebs0 node plugins did not become healthy")
 
 	// register a volume
-	// TODO: we don't have a unique ID threaded thru the jobspec yet
-	volID := "ebs-vol0"
+	volID := "ebs-vol[0]"
 	err := volumeRegister(volID, "csi/input/volume-ebs.hcl")
 	require.NoError(err)
 	tc.volumeIDs = append(tc.volumeIDs, volID)

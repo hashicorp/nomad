@@ -28,6 +28,12 @@ variable "nomad_enterprise" {
   default     = false
 }
 
+variable "nomad_license" {
+  type        = string
+  description = "The enterprise license to use. overrides Nomad temporary license"
+  default     = ""
+}
+
 variable "nomad_acls" {
   type        = bool
   description = "Bootstrap ACLs"

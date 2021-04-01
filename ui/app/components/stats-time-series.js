@@ -15,6 +15,10 @@ export default class StatsTimeSeries extends Component {
     return d3Format.format('.1~%');
   }
 
+  get useDefaults() {
+    return !this.args.dataProp;
+  }
+
   // Specific a11y descriptors
   get description() {
     const data = this.args.data;
@@ -44,7 +48,7 @@ export default class StatsTimeSeries extends Component {
   }
 
   yScale(data, xAxisOffset) {
-    const yValues = (data || []).mapBy('percent');
+    const yValues = (data || []).mapBy(this.args.dataProp ? 'percentStack' : 'percent');
 
     let [low, high] = [0, 1];
     if (yValues.compact().length) {

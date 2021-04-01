@@ -115,6 +115,7 @@ func (h *connectNativeHook) Prestart(
 	}
 
 	merge(environment, h.bridgeEnv(request.TaskEnv.EnvMap))
+	merge(environment, h.hostEnv(request.TaskEnv.EnvMap))
 
 	// tls/acl setup for native task done
 	response.Done = true
@@ -219,6 +220,25 @@ func (h *connectNativeHook) bridgeEnv(env map[string]string) map[string]string {
 	if _, exists := env["CONSUL_HTTP_ADDR"]; !exists {
 		return map[string]string{
 			"CONSUL_HTTP_ADDR": "unix:///" + allocdir.AllocHTTPSocket,
+		}
+	}
+
+	return nil
+}
+
+// hostEnv creates a set of additional environment variables to be used when launching
+// the connect native task. This will enable the task to communicate with Consul
+// if the task is running in host network mode.
+//
+// Sets CONSUL_HTTP_ADDR if not already set.
+func (h *connectNativeHook) hostEnv(env map[string]string) map[string]string {
+	if h.alloc.AllocatedResources.Shared.Networks[0].Mode != "host" {
+		return nil
+	}
+
+	if _, exists := env["CONSUL_HTTP_ADDR"]; !exists {
+		return map[string]string{
+			"CONSUL_HTTP_ADDR": h.consulConfig.HTTPAddr,
 		}
 	}
 

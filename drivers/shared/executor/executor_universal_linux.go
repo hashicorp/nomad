@@ -74,7 +74,7 @@ func (e *UniversalExecutor) configureResourceContainer(pid int) error {
 		},
 	}
 	for _, device := range specconv.AllowedDevices {
-		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.DeviceRule)
+		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.Rule)
 	}
 
 	err := configureBasicCgroups(cfg)

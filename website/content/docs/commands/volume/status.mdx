@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: 'Commands: volume status'
-sidebar_title: status
 description: |
   Display information and status of volumes.
 ---
@@ -46,8 +45,12 @@ namespace.
   being queried. Drops verbose volume allocation data from the
   output.
 
-- `-verbose`: Show full information. Allocation create and modify
-  times are shown in `yyyy/mm/dd hh:mm:ss` format.
+- `-verbose`: Show full information. Allocation create and modify times are
+  shown in `yyyy/mm/dd hh:mm:ss` format. When listing volumes, this flag will
+  cause Nomad to query the storage provider for volumes that are known to the
+  storage provider but not yet registered with Nomad. This may include volumes
+  that have been created by the [`volume create`] command that are not yet
+  schedulable.
 
 ## Examples
 
@@ -57,6 +60,18 @@ List of all volumes:
 $ nomad volume [-type csi] status
 ID            Name      Plugin ID  Schedulable  Access Mode
 ebs_prod_db1  database  ebs-prod   true         single-node-writer
+```
+
+List of all volumes, with external provider info:
+
+```shell-session
+$ nomad volume [-type csi] status -verbose
+ID            Name      Plugin ID  Schedulable  Access Mode
+ebs_prod_db1  database  ebs-prod   true         single-node-writer
+
+External ID   Condition                         Nodes
+vol-abcedf    OK                                i-abc123f2,i-14a12df13
+vol-cd46df    Abnormal (provider message here)  i-14a12df13
 ```
 
 Short view of a specific volume:
@@ -109,3 +124,4 @@ b00fa322  28be17d5  write         csi         0        run
 
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugin]: /docs/job-specification/csi_plugin
+[`volume create`]: /docs/commands/volume/create

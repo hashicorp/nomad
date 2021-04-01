@@ -6401,6 +6401,117 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 	}
 }
 
+// TestJobEndpoint_Dispatch_JobChildrenSummary asserts that the job summary is updated
+// appropriately as its dispatched/children jobs status are updated.
+func TestJobEndpoint_Dispatch_JobChildrenSummary(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+
+	state := s1.fsm.State()
+
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	node := mock.Node()
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
+
+	parameterizedJob := mock.BatchJob()
+	parameterizedJob.ParameterizedJob = &structs.ParameterizedJobConfig{}
+
+	// Create the register request
+	regReq := &structs.JobRegisterRequest{
+		Job: parameterizedJob,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: parameterizedJob.Namespace,
+		},
+	}
+	var regResp structs.JobRegisterResponse
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", regReq, &regResp))
+
+	jobChildren := func() *structs.JobChildrenSummary {
+		summary, err := state.JobSummaryByID(nil, parameterizedJob.Namespace, parameterizedJob.ID)
+		require.NoError(t, err)
+
+		return summary.Children
+	}
+	require.Equal(t, &structs.JobChildrenSummary{}, jobChildren())
+
+	// dispatch a child job
+	dispatchReq := &structs.JobDispatchRequest{
+		JobID: parameterizedJob.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: parameterizedJob.Namespace,
+		},
+	}
+	var dispatchResp structs.JobDispatchResponse
+	err := msgpackrpc.CallWithCodec(codec, "Job.Dispatch", dispatchReq, &dispatchResp)
+	require.NoError(t, err)
+
+	nextIdx := dispatchResp.Index + 1
+
+	require.Equal(t, &structs.JobChildrenSummary{Pending: 1}, jobChildren())
+
+	dispatchedJob, err := state.JobByID(nil, parameterizedJob.Namespace, dispatchResp.DispatchedJobID)
+	require.NoError(t, err)
+	require.NotNil(t, dispatchedJob)
+
+	dispatchedStatus := func() string {
+		job, err := state.JobByID(nil, dispatchedJob.Namespace, dispatchedJob.ID)
+		require.NoError(t, err)
+		require.NotNil(t, job)
+
+		return job.Status
+	}
+
+	// Let's start a alloc for the dispatch job and walk through states
+	// Note that job summary reports 1 running even when alloc is pending!
+	nextIdx++
+	alloc := mock.Alloc()
+	alloc.Job = dispatchedJob
+	alloc.JobID = dispatchedJob.ID
+	alloc.TaskGroup = dispatchedJob.TaskGroups[0].Name
+	alloc.Namespace = dispatchedJob.Namespace
+	alloc.ClientStatus = structs.AllocClientStatusPending
+	err = s1.State().UpsertAllocs(structs.MsgTypeTestSetup, nextIdx, []*structs.Allocation{alloc})
+	require.NoError(t, err)
+	require.Equal(t, &structs.JobChildrenSummary{Running: 1}, jobChildren())
+	require.Equal(t, structs.JobStatusRunning, dispatchedStatus())
+
+	// mark the creation eval as completed
+	nextIdx++
+	eval, err := state.EvalByID(nil, dispatchResp.EvalID)
+	require.NoError(t, err)
+	eval = eval.Copy()
+	eval.Status = structs.EvalStatusComplete
+	require.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, nextIdx, []*structs.Evaluation{eval}))
+
+	updateAllocStatus := func(status string) {
+		nextIdx++
+		nalloc, err := state.AllocByID(nil, alloc.ID)
+		require.NoError(t, err)
+		nalloc = nalloc.Copy()
+		nalloc.ClientStatus = status
+		err = s1.State().UpdateAllocsFromClient(structs.MsgTypeTestSetup, nextIdx, []*structs.Allocation{nalloc})
+		require.NoError(t, err)
+	}
+
+	// job should remain remaining when alloc runs
+	updateAllocStatus(structs.AllocClientStatusRunning)
+	require.Equal(t, &structs.JobChildrenSummary{Running: 1}, jobChildren())
+	require.Equal(t, structs.JobStatusRunning, dispatchedStatus())
+
+	// job should be dead after alloc completes
+	updateAllocStatus(structs.AllocClientStatusComplete)
+	require.Equal(t, &structs.JobChildrenSummary{Dead: 1}, jobChildren())
+	require.Equal(t, structs.JobStatusDead, dispatchedStatus())
+}
+
 func TestJobEndpoint_Scale(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

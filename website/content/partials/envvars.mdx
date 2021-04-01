@@ -260,5 +260,65 @@
         Consul Connect enabled service.
       </td>
     </tr>
+    <tr>
+      <th colspan="2">Consul-related Variables (only set for connect native tasks)</th>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_HTTP_ADDR</code>
+      </td>
+      <td>
+        Specifies the address to the local Consul agent, will be a unix domain
+        socket in bridge mode and a tcp address in host networking.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_HTTP_TOKEN</code>
+      </td>
+      <td>
+        The token to authenticate against consul.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_HTTP_SSL</code>
+      </td>
+      <td>
+        Specifies whether HTTPS should be used when communicating with consul.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_HTTP_SSL_VERIFY</code>
+      </td>
+      <td>
+        Specifies whether the HTTPS connection should be verified.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_CACERT</code>
+      </td>
+      <td>
+        Specifies the path to the CA certificate used for Consul communication.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_CLIENT_CERT</code>
+      </td>
+      <td>
+        The client certificate to use when communicating with Consul.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_CLIENT_KEY</code>
+      </td>
+      <td>
+        The client key to use when communicating with Consul.
+      </td>
+    </tr>
   </tbody>
 </table>

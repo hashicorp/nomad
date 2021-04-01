@@ -682,15 +682,24 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 		return nil
 	}
 
-	if mb := command.Resources.NomadResources.Memory.MemoryMB; mb > 0 {
-		// Total amount of memory allowed to consume
-		cfg.Cgroups.Resources.Memory = mb * 1024 * 1024
+	// Total amount of memory allowed to consume
+	res := command.Resources.NomadResources
+	memHard, memSoft := res.Memory.MemoryMaxMB, res.Memory.MemoryMB
+	if memHard <= 0 {
+		memHard = res.Memory.MemoryMB
+		memSoft = 0
+	}
+
+	if memHard > 0 {
+		cfg.Cgroups.Resources.Memory = memHard * 1024 * 1024
+		cfg.Cgroups.Resources.MemoryReservation = memSoft * 1024 * 1024
+
 		// Disable swap to avoid issues on the machine
 		var memSwappiness uint64
 		cfg.Cgroups.Resources.MemorySwappiness = &memSwappiness
 	}
 
-	cpuShares := command.Resources.NomadResources.Cpu.CpuShares
+	cpuShares := res.Cpu.CpuShares
 	if cpuShares < 2 {
 		return fmt.Errorf("resources.Cpu.CpuShares must be equal to or greater than 2: %v", cpuShares)
 	}
@@ -749,7 +758,7 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 		Version: "1.0.0",
 	}
 	for _, device := range specconv.AllowedDevices {
-		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.DeviceRule)
+		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.Rule)
 	}
 
 	if err := configureCapabilities(cfg, command); err != nil {

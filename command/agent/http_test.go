@@ -76,10 +76,11 @@ func TestRootFallthrough(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		desc         string
-		path         string
-		expectedPath string
-		expectedCode int
+		desc             string
+		path             string
+		expectedPath     string
+		expectedRawQuery string
+		expectedCode     int
 	}{
 		{
 			desc:         "unknown endpoint 404s",
@@ -91,6 +92,13 @@ func TestRootFallthrough(t *testing.T) {
 			path:         "/",
 			expectedPath: "/ui/",
 			expectedCode: 307,
+		},
+		{
+			desc:             "root path with one-time token redirects to ui",
+			path:             "/?ott=whatever",
+			expectedPath:     "/ui/",
+			expectedRawQuery: "ott=whatever",
+			expectedCode:     307,
 		},
 	}
 
@@ -117,6 +125,7 @@ func TestRootFallthrough(t *testing.T) {
 				loc, err := resp.Location()
 				require.NoError(t, err)
 				require.Equal(t, tc.expectedPath, loc.Path)
+				require.Equal(t, tc.expectedRawQuery, loc.RawQuery)
 			}
 		})
 	}
@@ -562,6 +571,49 @@ func TestParseBool(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tc.Expected, result)
 			}
+		})
+	}
+}
+
+func TestParsePagination(t *testing.T) {
+	t.Parallel()
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	cases := []struct {
+		Input             string
+		ExpectedNextToken string
+		ExpectedPerPage   int32
+	}{
+		{
+			Input: "",
+		},
+		{
+			Input:             "next_token=a&per_page=3",
+			ExpectedNextToken: "a",
+			ExpectedPerPage:   3,
+		},
+		{
+			Input:             "next_token=a&next_token=b",
+			ExpectedNextToken: "a",
+		},
+		{
+			Input: "per_page=a",
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run("Input-"+tc.Input, func(t *testing.T) {
+
+			req, err := http.NewRequest("GET",
+				"/v1/volumes/csi/external?"+tc.Input, nil)
+
+			require.NoError(t, err)
+			opts := &structs.QueryOptions{}
+			parsePagination(req, opts)
+			require.Equal(t, tc.ExpectedNextToken, opts.NextToken)
+			require.Equal(t, tc.ExpectedPerPage, opts.PerPage)
 		})
 	}
 }

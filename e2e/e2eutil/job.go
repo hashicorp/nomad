@@ -40,8 +40,7 @@ func Register(jobID, jobFilePath string) error {
 	return nil
 }
 
-// PeriodicForce forces a periodic job to dispatch, returning the child job ID
-// or an error
+// PeriodicForce forces a periodic job to dispatch
 func PeriodicForce(jobID string) error {
 	// nomad job periodic force
 	cmd := exec.Command("nomad", "job", "periodic", "force", jobID)
@@ -49,6 +48,29 @@ func PeriodicForce(jobID string) error {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("could not register job: %w\n%v", err, string(out))
+	}
+
+	return nil
+}
+
+// Dispatch dispatches a parameterized job
+func Dispatch(jobID string, meta map[string]string, payload string) error {
+	// nomad job periodic force
+	args := []string{"job", "dispatch"}
+	for k, v := range meta {
+		args = append(args, "-meta", fmt.Sprintf("%v=%v", k, v))
+	}
+	args = append(args, jobID)
+	if payload != "" {
+		args = append(args, "-")
+	}
+
+	cmd := exec.Command("nomad", args...)
+	cmd.Stdin = strings.NewReader(payload)
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("could not dispatch job: %w\n%v", err, string(out))
 	}
 
 	return nil
@@ -102,7 +124,10 @@ func ChildrenJobSummary(jobID string) ([]map[string]string, error) {
 
 	section, err := GetSection(out, "Children Job Summary")
 	if err != nil {
-		return nil, fmt.Errorf("could not find children job summary section: %w", err)
+		section, err = GetSection(out, "Parameterized Job Summary")
+		if err != nil {
+			return nil, fmt.Errorf("could not find children job summary section: %w", err)
+		}
 	}
 
 	summary, err := ParseColumns(section)
@@ -120,6 +145,25 @@ func PreviouslyLaunched(jobID string) ([]map[string]string, error) {
 	}
 
 	section, err := GetSection(out, "Previously Launched Jobs")
+	if err != nil {
+		return nil, fmt.Errorf("could not find previously launched jobs section: %w", err)
+	}
+
+	summary, err := ParseColumns(section)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse previously launched jobs section: %w", err)
+	}
+
+	return summary, nil
+}
+
+func DispatchedJobs(jobID string) ([]map[string]string, error) {
+	out, err := Command("nomad", "job", "status", jobID)
+	if err != nil {
+		return nil, fmt.Errorf("nomad job status failed: %w", err)
+	}
+
+	section, err := GetSection(out, "Dispatched Jobs")
 	if err != nil {
 		return nil, fmt.Errorf("could not find previously launched jobs section: %w", err)
 	}

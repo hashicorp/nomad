@@ -58,7 +58,6 @@ export default class ChartPrimitiveVAnnotations extends Component {
 
   annotationIsActive(annotation) {
     const { key, activeAnnotation } = this.args;
-    console.log(key, activeAnnotation, annotation);
     if (!activeAnnotation) return false;
 
     if (key) return get(annotation, key) === get(activeAnnotation, key);

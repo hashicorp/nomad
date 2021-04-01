@@ -8,7 +8,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/pkg/errors"
+	"github.com/posener/complete"
 )
 
 type LicensePutCommand struct {
@@ -26,9 +28,19 @@ Usage: nomad license put [options]
   When ACLs are enabled, this command requires a token with the
   'operator:write' capability.
 
+  Use the -force flag to override the currently installed license with an older
+  license.
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
+
+License Options:
+
+  -force
+	Force is used to override the currently installed license. By default
+	Nomad will keep the newest license, as determined by the license issue
+	date. Use this flag to apply an older license.
 
 Install a new license from a file:
 
@@ -46,11 +58,20 @@ func (c *LicensePutCommand) Synopsis() string {
 	return "Install a new Nomad Enterprise License"
 }
 
+func (c *LicensePutCommand) AutoCompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-force": complete.PredictNothing,
+		})
+}
+
 func (c *LicensePutCommand) Name() string { return "license put" }
 
 func (c *LicensePutCommand) Run(args []string) int {
+	var force bool
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&force, "force", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing flags: %s", err))
@@ -70,10 +91,27 @@ func (c *LicensePutCommand) Run(args []string) int {
 		return 1
 	}
 
-	_, err = client.Operator().LicensePut(data, nil)
+	opts := &api.ApplyLicenseOptions{
+		Force: force,
+	}
+	_, err = client.Operator().ApplyLicense(data, opts, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error putting license: %v", err))
 		return 1
+	}
+
+	lic, _, err := client.Operator().LicenseGet(nil)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error retrieving new license: %v", err))
+		return 1
+	}
+
+	if lic.ConfigOutdated {
+		c.Ui.Warn(`
+WARNING: The server's configured file license is now outdated. Please update or
+remove the server's license configuration to prevent initialization issues with
+potentially expired licenses.
+`) // New line for cli output
 	}
 
 	c.Ui.Output("Successfully applied license")

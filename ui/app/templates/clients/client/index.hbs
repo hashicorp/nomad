@@ -264,15 +264,18 @@
 
   <div class="boxed-section">
     <div class="boxed-section-head is-hollow">
-      Resource Utilization
+      Host Resource Utilization
+      <span class="tooltip multiline pad-left" aria-label="All allocation and system processes aggregated">
+        {{x-icon "info-circle-outline" class="is-faded"}}
+      </span>
     </div>
     <div class="boxed-section-body">
       <div class="columns">
         <div class="column">
-          <PrimaryMetric @resource={{this.model}} @metric="cpu" />
+          <PrimaryMetric::Node @node={{this.model}} @metric="cpu" />
         </div>
         <div class="column">
-          <PrimaryMetric @resource={{this.model}} @metric="memory" />
+          <PrimaryMetric::Node @node={{this.model}} @metric="memory" />
         </div>
       </div>
     </div>

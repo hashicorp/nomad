@@ -5,7 +5,12 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Topology from 'nomad-ui/tests/pages/topology';
-import { reduceToLargestUnit } from 'nomad-ui/helpers/format-bytes';
+import {
+  formatBytes,
+  formatScheduledBytes,
+  formatHertz,
+  formatScheduledHertz,
+} from 'nomad-ui/utils/units';
 import queryString from 'query-string';
 
 const sumResources = (list, dimension) =>
@@ -60,17 +65,14 @@ module('Acceptance | topology', function(hooks) {
     assert.equal(Topology.clusterInfoPanel.memoryProgressValue, reservedMem / totalMem);
     assert.equal(Topology.clusterInfoPanel.cpuProgressValue, reservedCPU / totalCPU);
 
-    const [rNum, rUnit] = reduceToLargestUnit(reservedMem * 1024 * 1024);
-    const [tNum, tUnit] = reduceToLargestUnit(totalMem * 1024 * 1024);
-
     assert.equal(
       Topology.clusterInfoPanel.memoryAbsoluteValue,
-      `${Math.floor(rNum)} ${rUnit} / ${Math.floor(tNum)} ${tUnit} reserved`
+      `${formatBytes(reservedMem * 1024 * 1024)} / ${formatBytes(totalMem * 1024 * 1024)} reserved`
     );
 
     assert.equal(
       Topology.clusterInfoPanel.cpuAbsoluteValue,
-      `${reservedCPU} MHz / ${totalCPU} MHz reserved`
+      `${formatHertz(reservedCPU, 'MHz')} / ${formatHertz(totalCPU, 'MHz')} reserved`
     );
   });
 
@@ -199,17 +201,20 @@ module('Acceptance | topology', function(hooks) {
     assert.equal(Topology.nodeInfoPanel.memoryProgressValue, reservedMem / totalMem);
     assert.equal(Topology.nodeInfoPanel.cpuProgressValue, reservedCPU / totalCPU);
 
-    const [rNum, rUnit] = reduceToLargestUnit(reservedMem * 1024 * 1024);
-    const [tNum, tUnit] = reduceToLargestUnit(totalMem * 1024 * 1024);
-
     assert.equal(
       Topology.nodeInfoPanel.memoryAbsoluteValue,
-      `${Math.floor(rNum)} ${rUnit} / ${Math.floor(tNum)} ${tUnit} reserved`
+      `${formatScheduledBytes(reservedMem * 1024 * 1024)} / ${formatScheduledBytes(
+        totalMem,
+        'MiB'
+      )} reserved`
     );
 
     assert.equal(
       Topology.nodeInfoPanel.cpuAbsoluteValue,
-      `${reservedCPU} MHz / ${totalCPU} MHz reserved`
+      `${formatScheduledHertz(reservedCPU, 'MHz')} / ${formatScheduledHertz(
+        totalCPU,
+        'MHz'
+      )} reserved`
     );
 
     await Topology.nodeInfoPanel.visitNode();

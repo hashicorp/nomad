@@ -15,7 +15,7 @@ export default create({
   },
 
   async selectLogLevel(level) {
-    const contentId = await selectOpen('[data-test-level-switcher]');
+    const contentId = await selectOpen('[data-test-level-switcher-parent]');
     run.later(run, run.cancelTimers, 500);
     await selectOpenChoose(contentId, level);
   },

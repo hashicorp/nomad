@@ -1,0 +1,55 @@
+---
+layout: docs
+page_title: 'Commands: volume snapshot list'
+description: |
+  List external volume snapshots.
+---
+
+# Command: volume snapshot list
+
+The `volume snapshot list` command lists volume snapshots known to to a
+[Container Storage Interface (CSI)][csi] storage provider. Only CSI plugins
+that implement the [Controller][csi_plugins_internals] interface support this
+command.
+
+## Usage
+
+```plaintext
+nomad volume snapshot list [-plugin plugin_id]
+```
+
+The `volume snapshot list` command returns a list of snapshots along with their
+source volume ID as known to the external storage provider. This is not the
+same as the Nomad volume ID, as the source volume may not be [registered] with
+Nomad.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Status Options
+
+- `-plugin`: Display only snapshots managed by a particular [CSI
+  plugin][csi_plugin]. By default the `snapshot list` command will query all
+  plugins for their snapshots. This flag accepts a plugin ID or prefix. If
+  there is an exact match based on the provided plugin, then that specific
+  plugin will be queried. Otherwise, a list of matching plugins will be
+  displayed.
+
+When ACLs are enabled, this command requires a token with the
+`csi-list-volumes` capability for the plugin's namespace.
+
+## Examples
+
+List volume snapshots for a plugin:
+
+```shell-session
+$ nomad volume snapshot list -plugin aws-ebs0
+Snapshot ID  External ID  Size   Creation Time         Ready?
+snap-12345   vol-abcdef   50GiB  2021-01-03T12:15:02Z  true
+snap-67890   vol-fedcba   50GiB  2021-01-04T15:45:00Z  true
+```
+
+[csi]: https://github.com/container-storage-interface/spec
+[csi_plugin]: /docs/job-specification/csi_plugin
+[registered]: /docs/commands/volume/register

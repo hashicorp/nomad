@@ -13,7 +13,7 @@ module('Unit | Util | StreamLogger', function() {
     });
 
     logger.start();
-    logger.stop();
+    await logger.stop();
 
     assert.notOk(logger.poll.isRunning);
     assert.equal(fetchMock.reader.cancel.callCount, 0);
