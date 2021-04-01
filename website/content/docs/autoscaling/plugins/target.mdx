@@ -223,6 +223,10 @@ check "hashistack-allocated-cpu" {
 - `node_purge` `(bool: "false")` A boolean flag to determine whether Nomad clients should
   be [purged][nomad_node_purge] when performing scale in actions.
 
+- `node_selector_strategy` `(string: "least_busy")` The strategy to use when selecting
+  nodes for termination. Please see the [node selector strategy][node_selector_strategy]
+  documentation for more detailed information.
+
 ## Azure Virtual Machine Scale Set Target
 
 The Azure VMSS target plugin allows for the scaling of the Nomad cluster clients
@@ -326,6 +330,10 @@ check "clients-azure-vmss" {
 - `node_purge` `(bool: "false")` A boolean flag to determine whether Nomad clients should
   be [purged][nomad_node_purge] when performing scale in actions.
 
+- `node_selector_strategy` `(string: "least_busy")` The strategy to use when selecting
+  nodes for termination. Please see the [node selector strategy][node_selector_strategy]
+  documentation for more detailed information.
+
 ### Client meta tag
 
 The Azure VMSS target plugin requires Nomad 1.0 for Azure fingerprinting.
@@ -408,6 +416,10 @@ check "hashistack-allocated-cpu" {
 - `node_purge` `(bool: "false")` A boolean flag to determine whether Nomad clients should
   be [purged][nomad_node_purge] when performing scale in actions.
 
+- `node_selector_strategy` `(string: "least_busy")` The strategy to use when selecting
+  nodes for termination. Please see the [node selector strategy][node_selector_strategy]
+  documentation for more detailed information.
+
 [nomad_node_class]: /docs/configuration/client#node_class
 [nomad_node_drain_deadline]: /api-docs/nodes#deadline
 [nomad_scaling_stanza]: /docs/job-specification/scaling
@@ -439,3 +451,4 @@ check "hashistack-allocated-cpu" {
 [gcp_credentials]: https://cloud.google.com/docs/authentication/production#providing_credentials_to_your_application
 [gcp_projects]: https://cloud.google.com/resource-manager/docs/creating-managing-projects
 [gcp_mig_target]: /docs/autoscaling/plugins/target#google-cloud-platform-managed-instance-groups-target
+[node_selector_strategy]: /docs/autoscaling/internals/node-selector-strategy
