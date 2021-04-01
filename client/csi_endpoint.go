@@ -169,7 +169,7 @@ func (c *CSI) ControllerDetachVolume(req *structs.ClientCSIControllerDetachVolum
 	if errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
 		// if the controller detach previously happened but the server failed to
 		// checkpoint, we'll get an error from the plugin but can safely ignore it.
-		c.c.logger.Debug("could not unpublish volume: %v", err)
+		c.c.logger.Debug("could not unpublish volume", "error", err)
 		return nil
 	}
 	if err != nil {
@@ -245,7 +245,7 @@ func (c *CSI) ControllerDeleteVolume(req *structs.ClientCSIControllerDeleteVolum
 	if errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
 		// if the volume was deleted out-of-band, we'll get an error from
 		// the plugin but can safely ignore it
-		c.c.logger.Debug("could not delete volume: %v", err)
+		c.c.logger.Debug("could not delete volume", "error", err)
 		return nil
 	}
 	if err != nil {
@@ -380,7 +380,7 @@ func (c *CSI) ControllerDeleteSnapshot(req *structs.ClientCSIControllerDeleteSna
 	if errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
 		// if the snapshot was deleted out-of-band, we'll get an error from
 		// the plugin but can safely ignore it
-		c.c.logger.Debug("could not delete snapshot: %v", err)
+		c.c.logger.Debug("could not delete snapshot", "error", err)
 		return nil
 	}
 	if err != nil {
