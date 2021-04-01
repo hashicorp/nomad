@@ -283,6 +283,78 @@ type ClientCSIControllerListVolumesResponse struct {
 	NextToken string
 }
 
+// ClientCSIControllerCreateSnapshotRequest the RPC made from the server to a
+// Nomad client to tell a CSI controller plugin on that client to perform
+// CreateSnapshot
+type ClientCSIControllerCreateSnapshotRequest struct {
+	ExternalSourceVolumeID string
+	Name                   string
+	Secrets                structs.CSISecrets
+	Parameters             map[string]string
+
+	CSIControllerQuery
+}
+
+func (req *ClientCSIControllerCreateSnapshotRequest) ToCSIRequest() (*csi.ControllerCreateSnapshotRequest, error) {
+	return &csi.ControllerCreateSnapshotRequest{
+		VolumeID:   req.ExternalSourceVolumeID,
+		Name:       req.Name,
+		Secrets:    req.Secrets,
+		Parameters: req.Parameters,
+	}, nil
+}
+
+type ClientCSIControllerCreateSnapshotResponse struct {
+	ID                     string
+	ExternalSourceVolumeID string
+	SizeBytes              int64
+	CreateTime             int64
+	IsReady                bool
+}
+
+// ClientCSIControllerDeleteSnapshotRequest the RPC made from the server to a
+// Nomad client to tell a CSI controller plugin on that client to perform
+// DeleteSnapshot
+type ClientCSIControllerDeleteSnapshotRequest struct {
+	ID      string
+	Secrets structs.CSISecrets
+
+	CSIControllerQuery
+}
+
+func (req *ClientCSIControllerDeleteSnapshotRequest) ToCSIRequest() *csi.ControllerDeleteSnapshotRequest {
+	return &csi.ControllerDeleteSnapshotRequest{
+		SnapshotID: req.ID,
+		Secrets:    req.Secrets,
+	}
+}
+
+type ClientCSIControllerDeleteSnapshotResponse struct{}
+
+// ClientCSIControllerListSnapshotsRequest is the RPC made from the server to
+// a Nomad client to tell a CSI controller plugin on that client to perform
+// ListSnapshots
+type ClientCSIControllerListSnapshotsRequest struct {
+	// these pagination fields match the pagination fields of the plugins and
+	// not Nomad's own fields, for clarity when mapping between the two RPCs
+	MaxEntries    int32
+	StartingToken string
+
+	CSIControllerQuery
+}
+
+func (req *ClientCSIControllerListSnapshotsRequest) ToCSIRequest() *csi.ControllerListSnapshotsRequest {
+	return &csi.ControllerListSnapshotsRequest{
+		MaxEntries:    req.MaxEntries,
+		StartingToken: req.StartingToken,
+	}
+}
+
+type ClientCSIControllerListSnapshotsResponse struct {
+	Entries   []*structs.CSISnapshot
+	NextToken string
+}
+
 // ClientCSINodeDetachVolumeRequest is the RPC made from the server to
 // a Nomad client to tell a CSI node plugin on that client to perform
 // NodeUnpublish and NodeUnstage.

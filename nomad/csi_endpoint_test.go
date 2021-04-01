@@ -998,6 +998,279 @@ func TestCSIVolumeEndpoint_ListExternal(t *testing.T) {
 	require.Equal(t, "page2", resp.NextToken)
 }
 
+func TestCSIVolumeEndpoint_CreateSnapshot(t *testing.T) {
+	t.Parallel()
+	var err error
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+
+	testutil.WaitForLeader(t, srv.RPC)
+
+	fake := newMockClientCSI()
+	fake.NextCreateSnapshotError = nil
+	fake.NextCreateSnapshotResponse = &cstructs.ClientCSIControllerCreateSnapshotResponse{
+		ID:                     "snap-12345",
+		ExternalSourceVolumeID: "vol-12345",
+		SizeBytes:              42,
+		IsReady:                true,
+	}
+
+	client, cleanup := client.TestClientWithRPCs(t,
+		func(c *cconfig.Config) {
+			c.Servers = []string{srv.config.RPCAddr.String()}
+		},
+		map[string]interface{}{"CSI": fake},
+	)
+	defer cleanup()
+
+	node := client.Node()
+
+	req0 := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp0 structs.NodeUpdateResponse
+	err = client.RPC("Node.Register", req0, &resp0)
+	require.NoError(t, err)
+
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := srv.connectedNodes()
+		return len(nodes) == 1, nil
+	}, func(err error) {
+		t.Fatalf("should have a client")
+	})
+
+	ns := structs.DefaultNamespace
+
+	state := srv.fsm.State()
+	codec := rpcClient(t, srv)
+	index := uint64(1000)
+
+	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsCreateDeleteSnapshot: true,
+			},
+			RequiresControllerPlugin: true,
+		},
+	}
+	index++
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
+
+	// Create the volume
+	vols := []*structs.CSIVolume{{
+		ID:             "test-volume0",
+		Namespace:      ns,
+		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		PluginID:       "minnie",
+		ExternalID:     "vol-12345",
+	}}
+	index++
+	require.NoError(t, state.CSIVolumeRegister(index, vols))
+
+	// Create the snapshot request
+	req1 := &structs.CSISnapshotCreateRequest{
+		Snapshots: []*structs.CSISnapshot{{
+			Name:           "snap",
+			SourceVolumeID: "test-volume0",
+			Secrets:        structs.CSISecrets{"mysecret": "secretvalue"},
+			Parameters:     map[string]string{"myparam": "paramvalue"},
+			PluginID:       "minnie",
+		}},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: ns,
+		},
+	}
+	resp1 := &structs.CSISnapshotCreateResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.CreateSnapshot", req1, resp1)
+	require.NoError(t, err)
+
+	snap := resp1.Snapshots[0]
+	require.Equal(t, "vol-12345", snap.ExternalSourceVolumeID)       // set by the args
+	require.Equal(t, "snap-12345", snap.ID)                          // set by the plugin
+	require.Equal(t, "csi.CSISecrets(map[])", snap.Secrets.String()) // should not be set
+	require.Len(t, snap.Parameters, 0)                               // should not be set
+}
+
+func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
+	t.Parallel()
+	var err error
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+
+	testutil.WaitForLeader(t, srv.RPC)
+
+	fake := newMockClientCSI()
+	fake.NextDeleteSnapshotError = nil
+
+	client, cleanup := client.TestClientWithRPCs(t,
+		func(c *cconfig.Config) {
+			c.Servers = []string{srv.config.RPCAddr.String()}
+		},
+		map[string]interface{}{"CSI": fake},
+	)
+	defer cleanup()
+
+	node := client.Node()
+
+	req0 := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp0 structs.NodeUpdateResponse
+	err = client.RPC("Node.Register", req0, &resp0)
+	require.NoError(t, err)
+
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := srv.connectedNodes()
+		return len(nodes) == 1, nil
+	}, func(err error) {
+		t.Fatalf("should have a client")
+	})
+
+	ns := structs.DefaultNamespace
+
+	state := srv.fsm.State()
+	codec := rpcClient(t, srv)
+	index := uint64(1000)
+
+	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsCreateDeleteSnapshot: true,
+			},
+			RequiresControllerPlugin: true,
+		},
+	}
+	index++
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
+
+	// Delete the snapshot request
+	req1 := &structs.CSISnapshotDeleteRequest{
+		Snapshots: []*structs.CSISnapshot{
+			{
+				ID:       "snap-12345",
+				PluginID: "minnie",
+			},
+			{
+				ID:       "snap-34567",
+				PluginID: "minnie",
+			},
+		},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: ns,
+		},
+	}
+
+	resp1 := &structs.CSISnapshotDeleteResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.DeleteSnapshot", req1, resp1)
+	require.NoError(t, err)
+}
+
+func TestCSIVolumeEndpoint_ListSnapshots(t *testing.T) {
+	t.Parallel()
+	var err error
+	srv, shutdown := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer shutdown()
+
+	testutil.WaitForLeader(t, srv.RPC)
+
+	fake := newMockClientCSI()
+	fake.NextListExternalSnapshotsResponse = &cstructs.ClientCSIControllerListSnapshotsResponse{
+		Entries: []*structs.CSISnapshot{
+			{
+				ID:                     "snap-12345",
+				ExternalSourceVolumeID: "vol-12345",
+				SizeBytes:              70000,
+				IsReady:                true,
+			},
+			{
+				ID:                     "snap-abcde",
+				ExternalSourceVolumeID: "vol-abcde",
+				SizeBytes:              70000,
+				IsReady:                false,
+			},
+			{
+				ExternalSourceVolumeID: "you should not see me",
+			},
+		},
+		NextToken: "page2",
+	}
+
+	client, cleanup := client.TestClientWithRPCs(t,
+		func(c *cconfig.Config) {
+			c.Servers = []string{srv.config.RPCAddr.String()}
+		},
+		map[string]interface{}{"CSI": fake},
+	)
+	defer cleanup()
+
+	node := client.Node()
+	req0 := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp0 structs.NodeUpdateResponse
+	err = client.RPC("Node.Register", req0, &resp0)
+	require.NoError(t, err)
+
+	testutil.WaitForResult(func() (bool, error) {
+		nodes := srv.connectedNodes()
+		return len(nodes) == 1, nil
+	}, func(err error) {
+		t.Fatalf("should have a client")
+	})
+
+	state := srv.fsm.State()
+	codec := rpcClient(t, srv)
+	index := uint64(1000)
+
+	node.CSIControllerPlugins = map[string]*structs.CSIInfo{
+		"minnie": {
+			PluginID: "minnie",
+			Healthy:  true,
+			ControllerInfo: &structs.CSIControllerInfo{
+				SupportsListSnapshots: true,
+			},
+			RequiresControllerPlugin: true,
+		},
+	}
+	index++
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
+
+	// List snapshots
+
+	req := &structs.CSISnapshotListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+			PerPage:   2,
+			NextToken: "page1",
+		},
+	}
+	resp := &structs.CSISnapshotListResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.ListSnapshots", req, resp)
+	require.NoError(t, err)
+	require.Len(t, resp.Snapshots, 2)
+	require.Equal(t, "vol-12345", resp.Snapshots[0].ExternalSourceVolumeID)
+	require.Equal(t, "vol-abcde", resp.Snapshots[1].ExternalSourceVolumeID)
+	require.True(t, resp.Snapshots[0].IsReady)
+	require.Equal(t, "page2", resp.NextToken)
+}
+
 func TestCSIPluginEndpoint_RegisterViaFingerprint(t *testing.T) {
 	t.Parallel()
 	srv, shutdown := TestServer(t, func(c *Config) {

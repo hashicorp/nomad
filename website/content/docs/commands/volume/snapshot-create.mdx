@@ -1,0 +1,56 @@
+---
+layout: docs
+page_title: 'Commands: volume snapshot create'
+description: |
+  Create external volume snapshots.
+---
+
+# Command: volume snapshot create
+
+The `volume snapshot create` command creates a snapshot of an existing
+[Container Storage Interface (CSI)][csi] volume. Only CSI plugins that
+implement the [Controller][csi_plugins_internals] interface support this
+command.
+
+## Usage
+
+```plaintext
+nomad volume snapshot create [volume] [snapshot_name]
+```
+
+The `volume snapshot create` command requires a volume ID or prefix. If there
+is an exact match based on the provided volume ID or prefix, then the specific
+volume is snapshotted. Otherwise, a list of matching volumes and information
+will be displayed. The volume must still be [registered] with Nomad in order
+to be snapshotted.
+
+If an optional snapshot name is provided, the argument will be passed to the
+CSI plugin to be used as the ID of the resulting snapshot. Not all plugins
+accept this name and it may be ignored.
+
+When ACLs are enabled, this command requires a token with the
+`csi-write-volume` capability for the volume's namespace.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Examples
+
+Snapshot a volume:
+
+```shell-session
+$ nomad volume snapshot create ebs_prod_db1
+Completed snapshot of volume ebs_prod_db1 with snapshot ID snap-12345.
+```
+
+Snapshot a volume with a suggested snapshot ID:
+
+```shell-session
+$ nomad volume snapshot create ebs_prod_db1 snap-12345
+Completed snapshot of volume ebs_prod_db1 with snapshot ID snap-12345.
+```
+
+[csi]: https://github.com/container-storage-interface/spec
+[csi_plugin]: /docs/job-specification/csi_plugin
+[registered]: /docs/commands/volume/register

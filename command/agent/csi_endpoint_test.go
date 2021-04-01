@@ -128,6 +128,29 @@ func TestHTTP_CSIEndpointCreateVolume(t *testing.T) {
 	})
 }
 
+func TestHTTP_CSIEndpointSnapshot(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		server := s.Agent.Server()
+		cleanup := state.CreateTestCSIPlugin(server.State(), "foo")
+		defer cleanup()
+
+		args := &api.CSISnapshotCreateRequest{
+			Snapshots: []*api.CSISnapshot{{
+				Name:           "snap-*",
+				PluginID:       "foo",
+				SourceVolumeID: "bar",
+			}},
+		}
+		body := encodeReq(args)
+		req, err := http.NewRequest("PUT", "/v1/volumes/snapshot", body)
+		require.NoError(t, err)
+		resp := httptest.NewRecorder()
+		_, err = s.Server.CSISnapshotsRequest(resp, req)
+		require.Error(t, err, "no such volume: bar")
+	})
+}
+
 // TestHTTP_CSIEndpoint_Cast is a smoke test for converting from structs to
 // API structs
 func TestHTTP_CSIEndpoint_Cast(t *testing.T) {

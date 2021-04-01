@@ -64,6 +64,17 @@ type Client struct {
 	NextControllerValidateVolumeErr   error
 	ControllerValidateVolumeCallCount int64
 
+	NextControllerCreateSnapshotResponse *csi.ControllerCreateSnapshotResponse
+	NextControllerCreateSnapshotErr      error
+	ControllerCreateSnapshotCallCount    int64
+
+	NextControllerDeleteSnapshotErr   error
+	ControllerDeleteSnapshotCallCount int64
+
+	NextControllerListSnapshotsResponse *csi.ControllerListSnapshotsResponse
+	NextControllerListSnapshotsErr      error
+	ControllerListSnapshotsCallCount    int64
+
 	NextNodeGetCapabilitiesResponse *csi.NodeCapabilitySet
 	NextNodeGetCapabilitiesErr      error
 	NodeGetCapabilitiesCallCount    int64
@@ -198,6 +209,27 @@ func (c *Client) ControllerListVolumes(ctx context.Context, req *csi.ControllerL
 	defer c.Mu.Unlock()
 	c.ControllerListVolumesCallCount++
 	return c.NextControllerListVolumesResponse, c.NextControllerListVolumesErr
+}
+
+func (c *Client) ControllerCreateSnapshot(ctx context.Context, req *csi.ControllerCreateSnapshotRequest, opts ...grpc.CallOption) (*csi.ControllerCreateSnapshotResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.ControllerCreateSnapshotCallCount++
+	return c.NextControllerCreateSnapshotResponse, c.NextControllerCreateSnapshotErr
+}
+
+func (c *Client) ControllerDeleteSnapshot(ctx context.Context, req *csi.ControllerDeleteSnapshotRequest, opts ...grpc.CallOption) error {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.ControllerDeleteSnapshotCallCount++
+	return c.NextControllerDeleteSnapshotErr
+}
+
+func (c *Client) ControllerListSnapshots(ctx context.Context, req *csi.ControllerListSnapshotsRequest, opts ...grpc.CallOption) (*csi.ControllerListSnapshotsResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.ControllerListSnapshotsCallCount++
+	return c.NextControllerListSnapshotsResponse, c.NextControllerListSnapshotsErr
 }
 
 func (c *Client) NodeGetCapabilities(ctx context.Context) (*csi.NodeCapabilitySet, error) {

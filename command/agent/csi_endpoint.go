@@ -280,6 +280,71 @@ func (s *HTTPServer) csiVolumeDetach(id string, resp http.ResponseWriter, req *h
 	return nil, nil
 }
 
+func (s *HTTPServer) CSISnapshotsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	switch req.Method {
+	case http.MethodPut, http.MethodPost:
+		return s.csiSnapshotCreate(resp, req)
+	case http.MethodDelete:
+		return s.csiSnapshotDelete(resp, req)
+	case http.MethodGet:
+		return s.csiSnapshotList(resp, req)
+	}
+	return nil, CodedError(405, ErrInvalidMethod)
+}
+
+func (s *HTTPServer) csiSnapshotCreate(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	args := structs.CSISnapshotCreateRequest{}
+	if err := decodeBody(req, &args); err != nil {
+		return err, CodedError(400, err.Error())
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.CSISnapshotCreateResponse
+	if err := s.agent.RPC("CSIVolume.CreateSnapshot", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out.Snapshots, nil
+}
+
+func (s *HTTPServer) csiSnapshotDelete(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	args := structs.CSISnapshotDeleteRequest{}
+	if err := decodeBody(req, &args); err != nil {
+		return err, CodedError(400, err.Error())
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.CSISnapshotDeleteResponse
+	if err := s.agent.RPC("CSIVolume.DeleteSnapshot", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return nil, nil
+}
+
+func (s *HTTPServer) csiSnapshotList(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+
+	args := structs.CSISnapshotListRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	query := req.URL.Query()
+	args.PluginID = query.Get("plugin_id")
+
+	var out structs.CSISnapshotListResponse
+	if err := s.agent.RPC("CSIVolume.SnapshotList", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out.Snapshots, nil
+}
+
 // CSIPluginsRequest lists CSI plugins
 func (s *HTTPServer) CSIPluginsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodGet {

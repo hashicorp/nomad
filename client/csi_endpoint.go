@@ -169,7 +169,7 @@ func (c *CSI) ControllerDetachVolume(req *structs.ClientCSIControllerDetachVolum
 	if errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
 		// if the controller detach previously happened but the server failed to
 		// checkpoint, we'll get an error from the plugin but can safely ignore it.
-		c.c.logger.Debug("could not unpublish volume: %v", err)
+		c.c.logger.Debug("could not unpublish volume", "error", err)
 		return nil
 	}
 	if err != nil {
@@ -245,7 +245,7 @@ func (c *CSI) ControllerDeleteVolume(req *structs.ClientCSIControllerDeleteVolum
 	if errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
 		// if the volume was deleted out-of-band, we'll get an error from
 		// the plugin but can safely ignore it
-		c.c.logger.Debug("could not delete volume: %v", err)
+		c.c.logger.Debug("could not delete volume", "error", err)
 		return nil
 	}
 	if err != nil {
@@ -303,6 +303,135 @@ func (c *CSI) ControllerListVolumes(req *structs.ClientCSIControllerListVolumesR
 			}
 		}
 		resp.Entries = append(resp.Entries, vol)
+		if req.MaxEntries != 0 && int32(len(resp.Entries)) == req.MaxEntries {
+			break
+		}
+	}
+
+	return nil
+}
+
+func (c *CSI) ControllerCreateSnapshot(req *structs.ClientCSIControllerCreateSnapshotRequest, resp *structs.ClientCSIControllerCreateSnapshotResponse) error {
+	defer metrics.MeasureSince([]string{"client", "csi_controller", "create_snapshot"}, time.Now())
+
+	plugin, err := c.findControllerPlugin(req.PluginID)
+	if err != nil {
+		// the server's view of the plugin health is stale, so let it know it
+		// should retry with another controller instance
+		return fmt.Errorf("CSI.ControllerCreateSnapshot: %w: %v",
+			nstructs.ErrCSIClientRPCRetryable, err)
+	}
+	defer plugin.Close()
+
+	csiReq, err := req.ToCSIRequest()
+	if err != nil {
+		return fmt.Errorf("CSI.ControllerCreateSnapshot: %v", err)
+	}
+
+	ctx, cancelFn := c.requestContext()
+	defer cancelFn()
+
+	// CSI ControllerCreateSnapshot errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
+	cresp, err := plugin.ControllerCreateSnapshot(ctx, csiReq,
+		grpc_retry.WithPerRetryTimeout(CSIPluginRequestTimeout),
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
+	if err != nil {
+		return fmt.Errorf("CSI.ControllerCreateSnapshot: %v", err)
+	}
+
+	if cresp == nil || cresp.Snapshot == nil {
+		c.c.logger.Warn("plugin did not return error or snapshot; this is a bug in the plugin and should be reported to the plugin author")
+		return fmt.Errorf("CSI.ControllerCreateSnapshot: plugin did not return error or snapshot")
+	}
+	resp.ID = cresp.Snapshot.ID
+	resp.ExternalSourceVolumeID = cresp.Snapshot.SourceVolumeID
+	resp.SizeBytes = cresp.Snapshot.SizeBytes
+	resp.CreateTime = cresp.Snapshot.CreateTime
+	resp.IsReady = cresp.Snapshot.IsReady
+
+	return nil
+}
+
+func (c *CSI) ControllerDeleteSnapshot(req *structs.ClientCSIControllerDeleteSnapshotRequest, resp *structs.ClientCSIControllerDeleteSnapshotResponse) error {
+	defer metrics.MeasureSince([]string{"client", "csi_controller", "delete_snapshot"}, time.Now())
+
+	plugin, err := c.findControllerPlugin(req.PluginID)
+	if err != nil {
+		// the server's view of the plugin health is stale, so let it know it
+		// should retry with another controller instance
+		return fmt.Errorf("CSI.ControllerDeleteSnapshot: %w: %v",
+			nstructs.ErrCSIClientRPCRetryable, err)
+	}
+	defer plugin.Close()
+
+	csiReq := req.ToCSIRequest()
+
+	ctx, cancelFn := c.requestContext()
+	defer cancelFn()
+
+	// CSI ControllerDeleteSnapshot errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
+	err = plugin.ControllerDeleteSnapshot(ctx, csiReq,
+		grpc_retry.WithPerRetryTimeout(CSIPluginRequestTimeout),
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
+	if errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
+		// if the snapshot was deleted out-of-band, we'll get an error from
+		// the plugin but can safely ignore it
+		c.c.logger.Debug("could not delete snapshot", "error", err)
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("CSI.ControllerDeleteSnapshot: %v", err)
+	}
+	return err
+}
+
+func (c *CSI) ControllerListSnapshots(req *structs.ClientCSIControllerListSnapshotsRequest, resp *structs.ClientCSIControllerListSnapshotsResponse) error {
+	defer metrics.MeasureSince([]string{"client", "csi_controller", "list_snapshots"}, time.Now())
+
+	plugin, err := c.findControllerPlugin(req.PluginID)
+	if err != nil {
+		// the server's view of the plugin health is stale, so let it know it
+		// should retry with another controller instance
+		return fmt.Errorf("CSI.ControllerListSnapshots: %w: %v",
+			nstructs.ErrCSIClientRPCRetryable, err)
+	}
+	defer plugin.Close()
+
+	csiReq := req.ToCSIRequest()
+
+	ctx, cancelFn := c.requestContext()
+	defer cancelFn()
+
+	// CSI ControllerListSnapshots errors for timeout, codes.Unavailable and
+	// codes.ResourceExhausted are retried; all other errors are fatal.
+	cresp, err := plugin.ControllerListSnapshots(ctx, csiReq,
+		grpc_retry.WithPerRetryTimeout(CSIPluginRequestTimeout),
+		grpc_retry.WithMax(3),
+		grpc_retry.WithBackoff(grpc_retry.BackoffExponential(100*time.Millisecond)))
+	if err != nil {
+		return fmt.Errorf("CSI.ControllerListSnapshots: %v", err)
+	}
+
+	resp.NextToken = cresp.NextToken
+	resp.Entries = []*nstructs.CSISnapshot{}
+
+	for _, entry := range cresp.Entries {
+		if entry.Snapshot == nil {
+			return fmt.Errorf("CSI.ControllerListSnapshot: plugin returned an invalid entry")
+		}
+		snap := &nstructs.CSISnapshot{
+			ID:                     entry.Snapshot.ID,
+			ExternalSourceVolumeID: entry.Snapshot.SourceVolumeID,
+			SizeBytes:              entry.Snapshot.SizeBytes,
+			CreateTime:             entry.Snapshot.CreateTime,
+			IsReady:                entry.Snapshot.IsReady,
+			PluginID:               req.PluginID,
+		}
+		resp.Entries = append(resp.Entries, snap)
 		if req.MaxEntries != 0 && int32(len(resp.Entries)) == req.MaxEntries {
 			break
 		}

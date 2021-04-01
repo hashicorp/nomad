@@ -71,6 +71,9 @@ type CSIControllerClient interface {
 	CreateVolume(ctx context.Context, in *csipbv1.CreateVolumeRequest, opts ...grpc.CallOption) (*csipbv1.CreateVolumeResponse, error)
 	ListVolumes(ctx context.Context, in *csipbv1.ListVolumesRequest, opts ...grpc.CallOption) (*csipbv1.ListVolumesResponse, error)
 	DeleteVolume(ctx context.Context, in *csipbv1.DeleteVolumeRequest, opts ...grpc.CallOption) (*csipbv1.DeleteVolumeResponse, error)
+	CreateSnapshot(ctx context.Context, in *csipbv1.CreateSnapshotRequest, opts ...grpc.CallOption) (*csipbv1.CreateSnapshotResponse, error)
+	DeleteSnapshot(ctx context.Context, in *csipbv1.DeleteSnapshotRequest, opts ...grpc.CallOption) (*csipbv1.DeleteSnapshotResponse, error)
+	ListSnapshots(ctx context.Context, in *csipbv1.ListSnapshotsRequest, opts ...grpc.CallOption) (*csipbv1.ListSnapshotsResponse, error)
 }
 
 // CSINodeClient defines the minimal CSI Node Plugin interface used
@@ -546,6 +549,107 @@ NEXT_CAP:
 		return nil
 	}
 	return err.ErrorOrNil()
+}
+
+func (c *client) ControllerCreateSnapshot(ctx context.Context, req *ControllerCreateSnapshotRequest, opts ...grpc.CallOption) (*ControllerCreateSnapshotResponse, error) {
+	err := req.Validate()
+	if err != nil {
+		return nil, err
+	}
+	creq := req.ToCSIRepresentation()
+	resp, err := c.controllerClient.CreateSnapshot(ctx, creq, opts...)
+
+	// these standard gRPC error codes are overloaded with CSI-specific
+	// meanings, so translate them into user-understandable terms
+	// https://github.com/container-storage-interface/spec/blob/master/spec.md#createsnapshot-errors
+	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.AlreadyExists:
+			return nil, fmt.Errorf(
+				"snapshot %q already exists but is incompatible with volume ID %q: %v",
+				req.Name, req.VolumeID, err)
+		case codes.Aborted:
+			return nil, fmt.Errorf(
+				"snapshot %q is already pending: %v",
+				req.Name, err)
+		case codes.ResourceExhausted:
+			return nil, fmt.Errorf(
+				"storage provider does not have enough space for this snapshot: %v", err)
+		case codes.Internal:
+			return nil, fmt.Errorf(
+				"controller plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		}
+		return nil, err
+	}
+
+	snap := resp.GetSnapshot()
+	return &ControllerCreateSnapshotResponse{
+		Snapshot: &Snapshot{
+			ID:             snap.GetSnapshotId(),
+			SourceVolumeID: snap.GetSourceVolumeId(),
+			SizeBytes:      snap.GetSizeBytes(),
+			CreateTime:     snap.GetCreationTime().GetSeconds(),
+			IsReady:        snap.GetReadyToUse(),
+		},
+	}, nil
+}
+
+func (c *client) ControllerDeleteSnapshot(ctx context.Context, req *ControllerDeleteSnapshotRequest, opts ...grpc.CallOption) error {
+	err := req.Validate()
+	if err != nil {
+		return err
+	}
+	creq := req.ToCSIRepresentation()
+	_, err = c.controllerClient.DeleteSnapshot(ctx, creq, opts...)
+
+	// these standard gRPC error codes are overloaded with CSI-specific
+	// meanings, so translate them into user-understandable terms
+	// https://github.com/container-storage-interface/spec/blob/master/spec.md#deletesnapshot-errors
+	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.FailedPrecondition:
+			return fmt.Errorf(
+				"snapshot %q could not be deleted because it is in use: %v",
+				req.SnapshotID, err)
+		case codes.Aborted:
+			return fmt.Errorf("snapshot %q has a pending operation: %v", req.SnapshotID, err)
+		case codes.Internal:
+			return fmt.Errorf(
+				"controller plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (c *client) ControllerListSnapshots(ctx context.Context, req *ControllerListSnapshotsRequest, opts ...grpc.CallOption) (*ControllerListSnapshotsResponse, error) {
+	err := req.Validate()
+	if err != nil {
+		return nil, err
+	}
+	creq := req.ToCSIRepresentation()
+	resp, err := c.controllerClient.ListSnapshots(ctx, creq, opts...)
+
+	// these standard gRPC error codes are overloaded with CSI-specific
+	// meanings, so translate them into user-understandable terms
+	// https://github.com/container-storage-interface/spec/blob/master/spec.md#listsnapshot-errors
+	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.Aborted:
+			return nil, fmt.Errorf(
+				"invalid starting token %q: %v", req.StartingToken, err)
+		case codes.Internal:
+			return nil, fmt.Errorf(
+				"controller plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		}
+		return nil, err
+	}
+
+	return NewListSnapshotsResponse(resp), nil
 }
 
 //

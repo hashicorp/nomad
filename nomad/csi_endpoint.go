@@ -935,8 +935,7 @@ func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.
 		return err
 	}
 
-	ns := args.RequestNamespace()
-	if !allowVolume(aclObj, ns) {
+	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1046,6 +1045,205 @@ func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, rep
 		reply.Volumes = cResp.Entries[:args.PerPage]
 	} else {
 		reply.Volumes = cResp.Entries
+	}
+	reply.NextToken = cResp.NextToken
+
+	return nil
+}
+
+func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply *structs.CSISnapshotCreateResponse) error {
+
+	if done, err := v.srv.forward("CSIVolume.CreateSnapshot", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "volume", "create_snapshot"}, time.Now())
+
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
+	if err != nil {
+		return err
+	}
+	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
+		return structs.ErrPermissionDenied
+	}
+
+	state, err := v.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	method := "ClientCSI.ControllerCreateSnapshot"
+	var mErr multierror.Error
+	for _, snap := range args.Snapshots {
+		if snap == nil {
+			// we intentionally don't multierror here because we're in a weird state
+			return fmt.Errorf("snapshot cannot be nil")
+		}
+
+		plugin, err := state.CSIPluginByID(nil, snap.PluginID)
+		if err != nil {
+			multierror.Append(&mErr,
+				fmt.Errorf("error querying plugin %q: %v", snap.PluginID, err))
+			continue
+		}
+		if plugin == nil {
+			multierror.Append(&mErr, fmt.Errorf("no such plugin %q", snap.PluginID))
+			continue
+		}
+		if !plugin.HasControllerCapability(structs.CSIControllerSupportsCreateDeleteSnapshot) {
+			multierror.Append(&mErr,
+				fmt.Errorf("plugin %q does not support snapshot", snap.PluginID))
+			continue
+		}
+
+		vol, err := state.CSIVolumeByID(nil, args.RequestNamespace(), snap.SourceVolumeID)
+		if err != nil {
+			multierror.Append(&mErr, fmt.Errorf("error querying volume %q: %v", snap.SourceVolumeID, err))
+			continue
+		}
+		if vol == nil {
+			multierror.Append(&mErr, fmt.Errorf("no such volume %q", snap.SourceVolumeID))
+			continue
+		}
+
+		cReq := &cstructs.ClientCSIControllerCreateSnapshotRequest{
+			ExternalSourceVolumeID: vol.ExternalID,
+			Name:                   snap.Name,
+			Secrets:                snap.Secrets,
+			Parameters:             snap.Parameters,
+		}
+		cReq.PluginID = plugin.ID
+		cResp := &cstructs.ClientCSIControllerCreateSnapshotResponse{}
+		err = v.srv.RPC(method, cReq, cResp)
+		if err != nil {
+			multierror.Append(&mErr, fmt.Errorf("could not create snapshot: %v", err))
+			continue
+		}
+		reply.Snapshots = append(reply.Snapshots, &structs.CSISnapshot{
+			ID:                     cResp.ID,
+			ExternalSourceVolumeID: cResp.ExternalSourceVolumeID,
+			SizeBytes:              cResp.SizeBytes,
+			CreateTime:             cResp.CreateTime,
+			IsReady:                cResp.IsReady,
+		})
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func (v *CSIVolume) DeleteSnapshot(args *structs.CSISnapshotDeleteRequest, reply *structs.CSISnapshotDeleteResponse) error {
+
+	if done, err := v.srv.forward("CSIVolume.DeleteSnapshot", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "volume", "delete_snapshot"}, time.Now())
+
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIWriteVolume)
+	aclObj, err := v.srv.WriteACLObj(&args.WriteRequest, false)
+	if err != nil {
+		return err
+	}
+
+	// NOTE: this is the plugin's namespace, not the snapshot(s) because we
+	// don't track snapshots in the state store at all and their source
+	// volume(s) because they might not even be registered
+	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
+		return structs.ErrPermissionDenied
+	}
+
+	stateSnap, err := v.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	var mErr multierror.Error
+	for _, snap := range args.Snapshots {
+		if snap == nil {
+			// we intentionally don't multierror here because we're in a weird state
+			return fmt.Errorf("snapshot cannot be nil")
+		}
+
+		plugin, err := stateSnap.CSIPluginByID(nil, snap.PluginID)
+		if err != nil {
+			multierror.Append(&mErr,
+				fmt.Errorf("could not query plugin %q: %v", snap.PluginID, err))
+			continue
+		}
+		if plugin == nil {
+			multierror.Append(&mErr, fmt.Errorf("no such plugin"))
+			continue
+		}
+		if !plugin.HasControllerCapability(structs.CSIControllerSupportsCreateDeleteSnapshot) {
+			multierror.Append(&mErr, fmt.Errorf("plugin does not support snapshot"))
+			continue
+		}
+
+		method := "ClientCSI.ControllerDeleteSnapshot"
+
+		cReq := &cstructs.ClientCSIControllerDeleteSnapshotRequest{ID: snap.ID}
+		cReq.PluginID = plugin.ID
+		cResp := &cstructs.ClientCSIControllerDeleteSnapshotResponse{}
+		err = v.srv.RPC(method, cReq, cResp)
+		if err != nil {
+			multierror.Append(&mErr, fmt.Errorf("could not delete %q: %v", snap.ID, err))
+		}
+	}
+	return mErr.ErrorOrNil()
+}
+
+func (v *CSIVolume) ListSnapshots(args *structs.CSISnapshotListRequest, reply *structs.CSISnapshotListResponse) error {
+
+	if done, err := v.srv.forward("CSIVolume.ListSnapshots", args, args, reply); done {
+		return err
+	}
+	defer metrics.MeasureSince([]string{"nomad", "volume", "list_snapshots"}, time.Now())
+
+	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIListVolume,
+		acl.NamespaceCapabilityCSIReadVolume,
+		acl.NamespaceCapabilityCSIMountVolume,
+		acl.NamespaceCapabilityListJobs)
+	aclObj, err := v.srv.QueryACLObj(&args.QueryOptions, false)
+	if err != nil {
+		return err
+	}
+
+	// NOTE: this is the plugin's namespace, not the volume(s) because they
+	// might not even be registered
+	if !allowVolume(aclObj, args.RequestNamespace()) {
+		return structs.ErrPermissionDenied
+	}
+	snap, err := v.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	plugin, err := snap.CSIPluginByID(nil, args.PluginID)
+	if err != nil {
+		return err
+	}
+	if plugin == nil {
+		return fmt.Errorf("no such plugin")
+	}
+	if !plugin.HasControllerCapability(structs.CSIControllerSupportsListSnapshots) {
+		return fmt.Errorf("plugin does not support listing snapshots")
+	}
+
+	method := "ClientCSI.ControllerListSnapshots"
+	cReq := &cstructs.ClientCSIControllerListSnapshotsRequest{
+		MaxEntries:    args.PerPage,
+		StartingToken: args.NextToken,
+	}
+	cReq.PluginID = plugin.ID
+	cResp := &cstructs.ClientCSIControllerListSnapshotsResponse{}
+
+	err = v.srv.RPC(method, cReq, cResp)
+	if err != nil {
+		return err
+	}
+	if args.PerPage > 0 {
+		reply.Snapshots = cResp.Entries[:args.PerPage]
+	} else {
+		reply.Snapshots = cResp.Entries
 	}
 	reply.NextToken = cResp.NextToken
 
