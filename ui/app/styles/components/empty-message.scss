@@ -17,6 +17,10 @@
     strong {
       color: $grey;
     }
+
+    &:not(:last-child) {
+      margin-bottom: 1rem;
+    }
   }
 
   &.is-hollow {
