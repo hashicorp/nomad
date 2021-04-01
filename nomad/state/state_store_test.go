@@ -965,7 +965,6 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 		require.Nil(err)
 		require.NotNil(out.DrainStrategy)
 		require.Equal(out.DrainStrategy, expectedDrain)
-		// TODO: cgbaker: more tests for LastDrain
 		require.NotNil(out.LastDrain)
 		require.Equal(structs.DrainStatusDraining, out.LastDrain.Status)
 		require.Len(out.Events, 2)
