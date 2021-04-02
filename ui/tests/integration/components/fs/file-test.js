@@ -3,6 +3,7 @@ import { setupRenderingTest } from 'ember-qunit';
 import { find, click, render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import Pretender from 'pretender';
+import sinon from 'sinon';
 import { logEncode } from '../../../../mirage/data/logs';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
@@ -33,7 +34,7 @@ module('Integration | Component | fs/file', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    <Fs::File @allocation={{allocation}} @taskState={{taskState}} @file={{file}} @stat={{stat}} />
+    <Fs::File @allocation={{this.allocation}} @taskState={{this.taskState}} @file={{this.file}} @stat={{this.stat}} />
   `;
 
   const fileStat = (type, size = 0) => ({
@@ -217,7 +218,7 @@ module('Integration | Component | fs/file', function(hooks) {
     this.setProperties(props);
 
     await render(hbs`
-      <Fs::File @allocation={{allocation}} @taskState={{taskState}} @file={{file}} @stat={{stat}}>
+      <Fs::File @allocation={{this.allocation}} @taskState={{this.taskState}} @file={{this.file}} @stat={{this.stat}}>
         <div data-test-yield-spy>Yielded content</div>
       </Fs::File>
     `);
