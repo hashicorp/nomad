@@ -38,8 +38,11 @@ const (
 )
 
 var (
-	// ExecutorCgroupMeasuredMemStats is the list of memory stats captured by the executor
-	ExecutorCgroupMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
+	// ExecutorCgroupV1MeasuredMemStats is the list of memory stats captured by the executor with cgroup-v1
+	ExecutorCgroupV1MeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
+
+	// ExecutorCgroupV2MeasuredMemStats is the list of memory stats captured by the executor with cgroup-v2. cgroup-v2 exposes different memory stats and no longer reports rss or max usage.
+	ExecutorCgroupV2MeasuredMemStats = []string{"Cache", "Swap", "Usage"}
 
 	// ExecutorCgroupMeasuredCpuStats is the list of CPU stats captures by the executor
 	ExecutorCgroupMeasuredCpuStats = []string{"System Mode", "User Mode", "Throttled Periods", "Throttled Time", "Percent"}
@@ -341,6 +344,12 @@ func (l *LibcontainerExecutor) Stats(ctx context.Context, interval time.Duration
 func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx context.Context, interval time.Duration) {
 	defer close(ch)
 	timer := time.NewTimer(0)
+
+	measuredMemStats := ExecutorCgroupV1MeasuredMemStats
+	if cgroups.IsCgroup2UnifiedMode() {
+		measuredMemStats = ExecutorCgroupV2MeasuredMemStats
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -378,7 +387,7 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 			MaxUsage:       maxUsage,
 			KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
 			KernelMaxUsage: stats.MemoryStats.KernelUsage.MaxUsage,
-			Measured:       ExecutorCgroupMeasuredMemStats,
+			Measured:       measuredMemStats,
 		}
 
 		// CPU Related Stats
