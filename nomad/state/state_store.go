@@ -2479,6 +2479,23 @@ func (s *StateStore) CSIVolumeDenormalizeTxn(txn Txn, ws memdb.WatchSet, vol *st
 		}
 	}
 
+	// COMPAT: the AccessMode and AttachmentMode fields were added to claims
+	// in 1.1.0, so claims made before that may be missing this value. In this
+	// case, the volume will already have AccessMode/AttachmentMode until it
+	// no longer has any claims, so set from those values
+	for _, claim := range vol.ReadClaims {
+		if claim.AccessMode == "" || claim.AttachmentMode == "" {
+			claim.AccessMode = vol.AccessMode
+			claim.AttachmentMode = vol.AttachmentMode
+		}
+	}
+	for _, claim := range vol.WriteClaims {
+		if claim.AccessMode == "" || claim.AttachmentMode == "" {
+			claim.AccessMode = vol.AccessMode
+			claim.AttachmentMode = vol.AttachmentMode
+		}
+	}
+
 	return vol, nil
 }
 

@@ -54,8 +54,8 @@ func (c *csiHook) Prerun() error {
 
 		usageOpts := &csimanager.UsageOptions{
 			ReadOnly:       pair.request.ReadOnly,
-			AttachmentMode: string(pair.volume.AttachmentMode),
-			AccessMode:     string(pair.volume.AccessMode),
+			AttachmentMode: pair.request.AttachmentMode,
+			AccessMode:     pair.request.AccessMode,
 			MountOptions:   pair.request.MountOptions,
 		}
 
@@ -171,10 +171,12 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 		}
 
 		req := &structs.CSIVolumeClaimRequest{
-			VolumeID:     source,
-			AllocationID: c.alloc.ID,
-			NodeID:       c.alloc.NodeID,
-			Claim:        claimType,
+			VolumeID:       source,
+			AllocationID:   c.alloc.ID,
+			NodeID:         c.alloc.NodeID,
+			Claim:          claimType,
+			AccessMode:     pair.request.AccessMode,
+			AttachmentMode: pair.request.AttachmentMode,
 			WriteRequest: structs.WriteRequest{
 				Region:    c.alloc.Job.Region,
 				Namespace: c.alloc.Job.Namespace,
@@ -191,6 +193,7 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 			return nil, fmt.Errorf("Unexpected nil volume returned for ID: %v", pair.request.Source)
 		}
 
+		result[alias].request = pair.request
 		result[alias].volume = resp.Volume
 		result[alias].publishContext = resp.PublishContext
 	}

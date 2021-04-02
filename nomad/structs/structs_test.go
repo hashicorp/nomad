@@ -1088,7 +1088,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 		},
 	}
 	err = tg.Validate(&Job{})
-	require.Contains(t, err.Error(), `volume has unrecognised type nothost`)
+	require.Contains(t, err.Error(), `volume has unrecognized type nothost`)
 
 	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{

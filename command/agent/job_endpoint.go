@@ -940,11 +940,13 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 			}
 
 			vol := &structs.VolumeRequest{
-				Name:     v.Name,
-				Type:     v.Type,
-				ReadOnly: v.ReadOnly,
-				Source:   v.Source,
-				PerAlloc: v.PerAlloc,
+				Name:           v.Name,
+				Type:           v.Type,
+				ReadOnly:       v.ReadOnly,
+				Source:         v.Source,
+				AttachmentMode: structs.CSIVolumeAttachmentMode(v.AttachmentMode),
+				AccessMode:     structs.CSIVolumeAccessMode(v.AccessMode),
+				PerAlloc:       v.PerAlloc,
 			}
 
 			if v.MountOptions != nil {

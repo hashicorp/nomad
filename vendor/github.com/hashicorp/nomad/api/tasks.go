@@ -377,13 +377,15 @@ func (m *MigrateStrategy) Copy() *MigrateStrategy {
 
 // VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
 type VolumeRequest struct {
-	Name         string           `hcl:"name,label"`
-	Type         string           `hcl:"type,optional"`
-	Source       string           `hcl:"source,optional"`
-	ReadOnly     bool             `hcl:"read_only,optional"`
-	MountOptions *CSIMountOptions `hcl:"mount_options,block"`
-	PerAlloc     bool             `hcl:"per_alloc,optional"`
-	ExtraKeysHCL []string         `hcl1:",unusedKeys,optional" json:"-"`
+	Name           string           `hcl:"name,label"`
+	Type           string           `hcl:"type,optional"`
+	Source         string           `hcl:"source,optional"`
+	ReadOnly       bool             `hcl:"read_only,optional"`
+	AccessMode     string           `hcl:"access_mode,optional"`
+	AttachmentMode string           `hcl:"attachment_mode,optional"`
+	MountOptions   *CSIMountOptions `hcl:"mount_options,block"`
+	PerAlloc       bool             `hcl:"per_alloc,optional"`
+	ExtraKeysHCL   []string         `hcl1:",unusedKeys,optional" json:"-"`
 }
 
 const (

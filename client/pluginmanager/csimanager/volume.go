@@ -127,7 +127,7 @@ func (v *volumeManager) ensureAllocDir(vol *structs.CSIVolume, alloc *structs.Al
 }
 
 func volumeCapability(vol *structs.CSIVolume, usage *UsageOptions) (*csi.VolumeCapability, error) {
-	capability, err := csi.VolumeCapabilityFromStructs(vol.AttachmentMode, vol.AccessMode)
+	capability, err := csi.VolumeCapabilityFromStructs(usage.AttachmentMode, usage.AccessMode)
 	if err != nil {
 		return nil, err
 	}
