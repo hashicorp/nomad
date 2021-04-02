@@ -42,7 +42,6 @@ module.exports = function(environment) {
 
     ENV['ember-cli-mirage'] = {
       enabled: USE_MIRAGE,
-      excludeFilesFromBuild: !USE_MIRAGE,
     };
 
     if (process.env.STORYBOOK === 'true') {

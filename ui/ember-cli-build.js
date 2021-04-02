@@ -26,8 +26,6 @@ module.exports = function(defaults) {
     'ember-cli-babel': {
       includePolyfill: isProd,
     },
-    hinting: isTest,
-    tests: isTest,
     sourcemaps: {
       enabled: false,
     },
