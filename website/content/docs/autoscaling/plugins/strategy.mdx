@@ -28,7 +28,7 @@ strategy "target-value" {
 ### Policy Configuration Options
 
 ```hcl
-check {
+check "target-value-check" {
   ...
   strategy "target-value" {
     target    = 20
@@ -43,6 +43,63 @@ check {
 - `threshold` `(float: 0.01)` - Specifies how significant a change in the input
   metric should be considered. Small threshold values can lead to output
   fluctuation.
+
+## Fixed Value Strategy Plugin
+
+The fixed value strategy receives a count value as an input configuration option
+and returns a scaling action whose count is set to the same value. This strategy is
+useful in situations where there’s a known baseline for the infrastructure that
+does not change often.
+
+### Agent Configuration Options
+
+```hcl
+strategy "fixed-value" {
+  driver = "fixed-value"
+}
+```
+
+### Policy Configuration Options
+
+```hcl
+check "fixed-value-check" {
+  ...
+  strategy "fixed-value" {
+    value = 3
+  }
+  ...
+```
+
+- `value` `(int: <required>)` - The value used by the Nomad Autoscaler to set the
+  target count.
+
+## Pass-Through Strategy Plugin
+
+The pass-through strategy is a very simple, yet useful strategy. It does not
+add any extra computation on top of the metric query result, and instead uses
+the APM query result as the scaling count. It doesn't have any configuration
+options.
+
+This allows the Nomad Autoscaler to be integrated into systems where the
+scaling computation is done externally like an edge router, or easily derived
+from a query such as running one allocation per item in a queue.
+
+### Agent Configuration Options
+
+```hcl
+strategy "pass-through" {
+  driver = "pass-through"
+}
+```
+
+### Policy Configuration Options
+
+```hcl
+check "pass-through-check" {
+  ...
+  strategy "pass-through" {}
+  ...
+```
 
 ## Dynamic Application Sizing Average Strategy Plugin
 

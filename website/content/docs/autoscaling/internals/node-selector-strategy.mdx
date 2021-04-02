@@ -1,0 +1,47 @@
+---
+layout: docs
+page_title: Node Selector Strategy
+description: Learn about the Autoscaler's node selection strategies.
+---
+
+# Node Selector Strategy
+
+The node selector strategy is a mechanism the Nomad Autoscaler uses to identify
+nodes for termination when performing horizontal cluster scale-in actions. It
+is exposed as a target configuration option so that operators can modify its
+behaviour based on requirements.
+
+### `least_busy` Node Selector Strategy
+
+The `least_busy` strategy is the default node selector strategy used if the
+`node_selector_strategy` configuration option is omitted. When used, the Nomad
+Autoscaler will sort nodes based on their overall CPU and memory allocation;
+picking those with the lowest values. In the event a number of nodes have the
+same allocated percentage value, the selection will be random according to Golang's
+sort implementation.
+
+The `least_busy` strategy suits workloads that can tolerate migrations but
+allows you to minimise such events.
+
+### `empty` Node Selector Strategy
+
+The `empty` strategy will only consider nodes eligible for termination if they
+have zero non-terminal allocations. The terminal status of an allocation is
+determined using [these Nomad SDK allocation functions][nomad_api_terminal_alloc].
+The strategy will skip any node that does not meet this requirement. This can
+result in scaling actions terminating a smaller number of nodes than desired. In
+the event no nodes are found to be empty, the Nomad Autoscaler will decline to
+perform the scaling action.
+
+The `empty` strategy is ideal for batch workloads, ensuring allocations are not
+interrupted by scaling.
+
+### `newest_create_index` Node Selector Strategy
+
+The `newest_create_index` strategy is the simplest strategy and uses the order
+in which nodes are returned by the [Nomad SDK][nomad_api_node_stub_sort]. The
+strategy is ideal for workloads and environments which can handle migrations
+due to scaling. It is also the least computationally intensive selector strategy.
+
+[nomad_api_terminal_alloc]: https://github.com/hashicorp/nomad/blob/14568b3e002868fc5c83ee7d158a78394c1ea9c1/api/allocations.go#L422-L442
+[nomad_api_node_stub_sort]: https://github.com/hashicorp/nomad/blob/14568b3e002868fc5c83ee7d158a78394c1ea9c1/api/nodes.go#L797-L810
