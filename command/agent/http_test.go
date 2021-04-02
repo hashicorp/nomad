@@ -20,17 +20,15 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
-	"github.com/hashicorp/nomad/api"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	"github.com/hashicorp/nomad/nomad/jsonhandles"
 )
 
 // makeHTTPServer returns a test server whose logs will be written to
@@ -323,11 +321,11 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 	var expected bytes.Buffer
 	var err error
 	if prettyFmt {
-		enc := codec.NewEncoder(&expected, jsonhandles.JsonHandlePretty)
+		enc := codec.NewEncoder(&expected, structs.JsonHandlePretty)
 		err = enc.Encode(r)
 		expected.WriteByte('\n')
 	} else {
-		enc := codec.NewEncoder(&expected, jsonhandles.JsonHandleWithExtensions)
+		enc := codec.NewEncoder(&expected, structs.JsonHandleWithExtensions)
 		err = enc.Encode(r)
 	}
 	if err != nil {
@@ -1300,13 +1298,13 @@ func Test_decodeBody(t *testing.T) {
 // BenchmarkHTTPServer_JSONEncodingWithExtensions benchmarks the performance of
 // encoding JSON objects using extensions
 func BenchmarkHTTPServer_JSONEncodingWithExtensions(b *testing.B) {
-	benchmarkJsonEncoding(b, jsonhandles.JsonHandleWithExtensions)
+	benchmarkJsonEncoding(b, structs.JsonHandleWithExtensions)
 }
 
 // BenchmarkHTTPServer_JSONEncodingWithoutExtensions benchmarks the performance of
 // encoding JSON objects using extensions
 func BenchmarkHTTPServer_JSONEncodingWithoutExtensions(b *testing.B) {
-	benchmarkJsonEncoding(b, jsonhandles.JsonHandle)
+	benchmarkJsonEncoding(b, structs.JsonHandle)
 }
 
 func benchmarkJsonEncoding(b *testing.B, handle *codec.JsonHandle) {

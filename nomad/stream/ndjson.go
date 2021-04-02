@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/go-msgpack/codec"
 
-	"github.com/hashicorp/nomad/nomad/jsonhandles"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -75,7 +74,7 @@ func (n *JsonStream) Send(v interface{}) error {
 	}
 
 	var buf bytes.Buffer
-	enc := codec.NewEncoder(&buf, jsonhandles.JsonHandleWithExtensions)
+	enc := codec.NewEncoder(&buf, structs.JsonHandleWithExtensions)
 	err := enc.Encode(v)
 	if err != nil {
 		return fmt.Errorf("error marshaling json for stream: %w", err)
