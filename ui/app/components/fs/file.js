@@ -1,3 +1,4 @@
+import Ember from 'ember';
 import { inject as service } from '@ember/service';
 import Component from '@ember/component';
 import { action, computed } from '@ember/object';
@@ -167,32 +168,39 @@ export default class File extends Component {
   }
 
   @action
-  downloadFile() {
+  async downloadFile() {
     const timing = this.useServer ? this.serverTimeout : this.clientTimeout;
-    const fileDownload = url =>
-      RSVP.race([this.token.authorizedRequest(url), timeout(timing)])
-        .then(
-          response => {
-            if (!response || !response.ok) {
-              this.nextErrorState(response);
-            }
-            return response;
-          },
-          error => this.nextErrorState(error)
-        )
-        .then(response => response.blob())
-        .then(blob => {
-          var url = window.URL.createObjectURL(blob);
-          var a = document.createElement('a');
-          a.href = url;
-          a.target = '_blank';
-          a.rel = 'noopener noreferrer';
-          a.download = this.file;
-          document.body.appendChild(a); // we need to append the element to the dom -> otherwise it will not work in firefox
-          a.click();
-          a.remove(); //afterwards we remove the element again
-          window.URL.revokeObjectURL(url);
-        });
-    fileDownload(this.catUrlWithoutRegion);
+
+    try {
+      const response = await RSVP.race([
+        this.token.authorizedRequest(this.catUrlWithoutRegion),
+        timeout(timing),
+      ]);
+
+      if (!response || !response.ok) throw new Error('file download timeout');
+
+      // Don't download in tests. Unfortunately, since the download is triggered
+      // by the download attribute of the ephemeral anchor element, there's no
+      // way to stub this in tests.
+      if (Ember.testing) return;
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const downloadAnchor = document.createElement('a');
+
+      downloadAnchor.href = url;
+      downloadAnchor.target = '_blank';
+      downloadAnchor.rel = 'noopener noreferrer';
+      downloadAnchor.download = this.file;
+
+      // Appending the element to the DOM is required for Firefox support
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      this.nextErrorState(err);
+    }
   }
 }
