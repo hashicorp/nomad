@@ -126,12 +126,16 @@ func parseCapacityBytes(cap *ast.ObjectList) (int64, error) {
 			if !ok {
 				break
 			}
-			b, err := humanize.ParseBytes(strings.Trim(lit.Token.Text, "\""))
+			literal := strings.Trim(lit.Token.Text, "\"")
+			if literal == "" {
+				return 0, nil
+			}
+			b, err := humanize.ParseBytes(literal)
 			if err != nil {
 				return 0, fmt.Errorf("could not parse value as bytes: %v", err)
 			}
 			return int64(b), err
 		}
 	}
-	return 0, fmt.Errorf("could not parse value as bytes")
+	return 0, nil
 }
