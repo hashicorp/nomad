@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/jsonhandles"
 	"github.com/hashicorp/nomad/nomad/structs"
 
 	metrics "github.com/armon/go-metrics"
@@ -124,7 +123,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 	frames := make(chan *sframer.StreamFrame, streamFramesBuffer)
 	errCh := make(chan error)
 	var buf bytes.Buffer
-	frameCodec := codec.NewEncoder(&buf, jsonhandles.JsonHandle)
+	frameCodec := codec.NewEncoder(&buf, structs.JsonHandle)
 
 	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 1024)
 	framer.Run()

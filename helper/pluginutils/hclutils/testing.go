@@ -11,7 +11,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
-	"github.com/hashicorp/nomad/nomad/jsonhandles"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
@@ -122,7 +122,7 @@ func JsonConfigToInterface(t *testing.T, config string) interface{} {
 	t.Helper()
 
 	// Decode from json
-	dec := codec.NewDecoderBytes([]byte(config), jsonhandles.JsonHandle)
+	dec := codec.NewDecoderBytes([]byte(config), structs.JsonHandle)
 
 	var m map[string]interface{}
 	err := dec.Decode(&m)

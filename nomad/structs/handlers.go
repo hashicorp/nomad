@@ -1,4 +1,4 @@
-package jsonhandles
+package structs
 
 import (
 	"github.com/hashicorp/go-msgpack/codec"
