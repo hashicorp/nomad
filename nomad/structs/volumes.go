@@ -92,21 +92,44 @@ func HostVolumeSliceMerge(a, b []*ClientHostVolumeConfig) []*ClientHostVolumeCon
 
 // VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
 type VolumeRequest struct {
-	Name         string
-	Type         string
-	Source       string
-	ReadOnly     bool
-	MountOptions *CSIMountOptions
-	PerAlloc     bool
+	Name           string
+	Type           string
+	Source         string
+	ReadOnly       bool
+	AccessMode     CSIVolumeAccessMode
+	AttachmentMode CSIVolumeAttachmentMode
+	MountOptions   *CSIMountOptions
+	PerAlloc       bool
 }
 
 func (v *VolumeRequest) Validate(canaries int) error {
 	if !(v.Type == VolumeTypeHost ||
 		v.Type == VolumeTypeCSI) {
-		return fmt.Errorf("volume has unrecognised type %s", v.Type)
+		return fmt.Errorf("volume has unrecognized type %s", v.Type)
 	}
 
 	var mErr multierror.Error
+	if v.Type == VolumeTypeHost && v.AttachmentMode != CSIVolumeAttachmentModeUnknown {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("host volumes cannot have an attachment mode"))
+	}
+	if v.Type == VolumeTypeHost && v.AccessMode != CSIVolumeAccessModeUnknown {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("host volumes cannot have an access mode"))
+	}
+
+	if v.AccessMode == CSIVolumeAccessModeSingleNodeReader || v.AccessMode == CSIVolumeAccessModeMultiNodeReader {
+		if !v.ReadOnly {
+			mErr.Errors = append(mErr.Errors,
+				fmt.Errorf("%s volumes must be read-only", v.AccessMode))
+		}
+	}
+
+	if v.AttachmentMode == CSIVolumeAttachmentModeBlockDevice && v.MountOptions != nil {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("block devices cannot have mount options"))
+	}
+
 	if v.PerAlloc && canaries > 0 {
 		mErr.Errors = append(mErr.Errors,
 			fmt.Errorf("volume cannot be per_alloc when canaries are in use"))

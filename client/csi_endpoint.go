@@ -468,8 +468,8 @@ func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, re
 
 	usageOpts := &csimanager.UsageOptions{
 		ReadOnly:       req.ReadOnly,
-		AttachmentMode: string(req.AttachmentMode),
-		AccessMode:     string(req.AccessMode),
+		AttachmentMode: req.AttachmentMode,
+		AccessMode:     req.AccessMode,
 	}
 
 	err = mounter.UnmountVolume(ctx, req.VolumeID, req.ExternalID, req.AllocID, usageOpts)

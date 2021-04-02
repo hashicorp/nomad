@@ -148,43 +148,45 @@ func TestVolumeManager_stageVolume(t *testing.T) {
 		{
 			Name: "Returns an error when an invalid AttachmentMode is provided",
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
-				AttachmentMode: "nonsense",
+				ID: "foo",
 			},
-			UsageOptions: &UsageOptions{},
+			UsageOptions: &UsageOptions{AttachmentMode: "nonsense"},
 			ExpectedErr:  errors.New("unknown volume attachment mode: nonsense"),
 		},
 		{
 			Name: "Returns an error when an invalid AccessMode is provided",
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
+				ID: "foo",
+			},
+			UsageOptions: &UsageOptions{
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     "nonsense",
 			},
-			UsageOptions: &UsageOptions{},
-			ExpectedErr:  errors.New("unknown volume access mode: nonsense"),
+			ExpectedErr: errors.New("unknown volume access mode: nonsense"),
 		},
 		{
 			Name: "Returns an error when the plugin returns an error",
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
+				ID: "foo",
+			},
+			UsageOptions: &UsageOptions{
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 			},
-			UsageOptions: &UsageOptions{},
-			PluginErr:    errors.New("Some Unknown Error"),
-			ExpectedErr:  errors.New("Some Unknown Error"),
+			PluginErr:   errors.New("Some Unknown Error"),
+			ExpectedErr: errors.New("Some Unknown Error"),
 		},
 		{
 			Name: "Happy Path",
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
+				ID: "foo",
+			},
+			UsageOptions: &UsageOptions{
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 			},
-			UsageOptions: &UsageOptions{},
-			PluginErr:    nil,
-			ExpectedErr:  nil,
+			PluginErr:   nil,
+			ExpectedErr: nil,
 		},
 	}
 
@@ -293,11 +295,12 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			Name:       "Returns an error when the plugin returns an error",
 			Allocation: structs.MockAlloc(),
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
+				ID: "foo",
+			},
+			UsageOptions: &UsageOptions{
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 			},
-			UsageOptions:         &UsageOptions{},
 			PluginErr:            errors.New("Some Unknown Error"),
 			ExpectedErr:          errors.New("Some Unknown Error"),
 			ExpectedCSICallCount: 1,
@@ -306,11 +309,12 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			Name:       "Happy Path",
 			Allocation: structs.MockAlloc(),
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
+				ID: "foo",
+			},
+			UsageOptions: &UsageOptions{
 				AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
 				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 			},
-			UsageOptions:         &UsageOptions{},
 			PluginErr:            nil,
 			ExpectedErr:          nil,
 			ExpectedCSICallCount: 1,
@@ -319,14 +323,15 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			Name:       "Mount options in the volume",
 			Allocation: structs.MockAlloc(),
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
-				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+				ID: "foo",
 				MountOptions: &structs.CSIMountOptions{
 					MountFlags: []string{"ro"},
 				},
 			},
-			UsageOptions:         &UsageOptions{},
+			UsageOptions: &UsageOptions{
+				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+			},
 			PluginErr:            nil,
 			ExpectedErr:          nil,
 			ExpectedCSICallCount: 1,
@@ -342,14 +347,14 @@ func TestVolumeManager_publishVolume(t *testing.T) {
 			Name:       "Mount options override in the request",
 			Allocation: structs.MockAlloc(),
 			Volume: &structs.CSIVolume{
-				ID:             "foo",
-				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+				ID: "foo",
 				MountOptions: &structs.CSIMountOptions{
 					MountFlags: []string{"ro"},
 				},
 			},
 			UsageOptions: &UsageOptions{
+				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				AccessMode:     structs.CSIVolumeAccessModeMultiNodeMultiWriter,
 				MountOptions: &structs.CSIMountOptions{
 					MountFlags: []string{"rw"},
 				},
@@ -481,12 +486,13 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	manager := newVolumeManager(testlog.HCLogger(t), eventer, csiFake, tmpPath, tmpPath, true)
 	ctx := context.Background()
 	vol := &structs.CSIVolume{
-		ID:         "vol",
-		Namespace:  "ns",
-		AccessMode: structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+		ID:        "vol",
+		Namespace: "ns",
 	}
 	alloc := mock.Alloc()
-	usage := &UsageOptions{}
+	usage := &UsageOptions{
+		AccessMode: structs.CSIVolumeAccessModeMultiNodeMultiWriter,
+	}
 	pubCtx := map[string]string{}
 
 	_, err := manager.MountVolume(ctx, vol, alloc, usage, pubCtx)
@@ -500,7 +506,7 @@ func TestVolumeManager_MountVolumeEvents(t *testing.T) {
 	require.Equal(t, "unknown volume attachment mode: ", e.Details["error"])
 	events = events[1:]
 
-	vol.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	usage.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 	_, err = manager.MountVolume(ctx, vol, alloc, usage, pubCtx)
 	require.NoError(t, err)
 
