@@ -71,7 +71,7 @@ Compiling Protobufs
 ---
 If in the course of your development you change a Protobuf file (those ending in .proto), you'll need to recompile the protos.
 
-1. Install [Buf](https://docs.buf.build/installation)
+1. Install [Buf v0.30.1](https://github.com/bufbuild/buf/releases/tag/v0.30.1)
 1. Compile Protobufs
     ```sh
     $ make proto
