@@ -51,7 +51,7 @@ func TestCSIVolumeDecode(t *testing.T) {
 		expected *api.CSIVolume
 		err      string
 	}{{
-		name: "typical volume",
+		name: "volume creation",
 		hcl: `
 id              = "testvolume"
 name            = "test"
@@ -108,6 +108,34 @@ capability {
 			},
 			Parameters: map[string]string{"skuname": "Premium_LRS"},
 			Secrets:    map[string]string{"password": "xyzzy"},
+		},
+		err: "",
+	}, {
+		name: "volume registration",
+		hcl: `
+id              = "testvolume"
+external_id     = "vol-12345"
+name            = "test"
+type            = "csi"
+plugin_id       = "myplugin"
+capacity_min    = "" # meaningless for registration
+
+capability {
+  access_mode     = "single-node-writer"
+  attachment_mode = "file-system"
+}
+`,
+		expected: &api.CSIVolume{
+			ID:         "testvolume",
+			ExternalID: "vol-12345",
+			Name:       "test",
+			PluginID:   "myplugin",
+			RequestedCapabilities: []*api.CSIVolumeCapability{
+				{
+					AccessMode:     api.CSIVolumeAccessModeSingleNodeWriter,
+					AttachmentMode: api.CSIVolumeAttachmentModeFilesystem,
+				},
+			},
 		},
 		err: "",
 	},
