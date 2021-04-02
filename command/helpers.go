@@ -542,14 +542,3 @@ func (w *uiErrorWriter) Close() error {
 	}
 	return nil
 }
-
-// stringsContains returns true if s is present in the vs string slice
-func stringsContain(vs []string, s string) bool {
-	for _, v := range vs {
-		if v == s {
-			return true
-		}
-	}
-
-	return false
-}

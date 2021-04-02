@@ -21,7 +21,7 @@ var (
 func DockerStatsToTaskResourceUsage(s *docker.Stats) *cstructs.TaskResourceUsage {
 	measuredMems := DockerCgroupV1MeasuredMemStats
 
-	// use a simple heauristic to check if cgroup-v2 is used.
+	// use a simple heuristic to check if cgroup-v2 is used.
 	// go-dockerclient doesn't distinguish between 0 and not-present value
 	if s.MemoryStats.Stats.Rss == 0 && s.MemoryStats.MaxUsage == 0 && s.MemoryStats.Usage != 0 {
 		measuredMems = DockerCgroupV2MeasuredMemStats
