@@ -7,7 +7,12 @@ GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
-GO_TAGS ?= codegen_generated
+
+GO_TAGS ?=
+
+ifeq ($(CI),true)
+GO_TAGS := codegen_generated $(GO_TAGS)
+endif
 
 GO_TEST_CMD = $(if $(shell command -v gotestsum 2>/dev/null),gotestsum --,go test)
 
