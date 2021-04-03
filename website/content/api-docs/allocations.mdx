@@ -1,7 +1,6 @@
 ---
 layout: api
 page_title: Allocations - HTTP API
-sidebar_title: Allocations
 description: The /allocation endpoints are used to query for and interact with allocations.
 ---
 
@@ -718,24 +717,24 @@ $ curl -X POST -d '{"Task": "redis" }' \
 This endpoint executes a command inside the isolation container where an allocation is running.
 It opens a WebSocket to transmit input to and output from the command.
 
-| Method | Path                       | Produces                   |
-| ------ | -------------------------- | -------------------------- |
+| Method      | Path                                   | Produces               |
+| ----------- | -------------------------------------- | ---------------------- |
 | `WebSocket` | `/v1/client/allocation/:alloc_id/exec` | WebSocket JSON streams |
 
 The table below shows this endpoint's support for
 [blocking queries](/api/index.html#blocking-queries) and
 [required ACLs](/api/index.html#acls).
 
-| Blocking Queries | ACL Required         |
-| ---------------- | -------------------- |
-| `NO`            | `namespace:alloc-exec` (and `namespace:alloc-node-exec` if target task uses raw_exec driver) |
+| Blocking Queries | ACL Required                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------- |
+| `NO`             | `namespace:alloc-exec` (and `namespace:alloc-node-exec` if target task uses raw_exec driver) |
 
 ### Parameters
 
 - `:alloc_id` `(string: <required>)`- Specifies the UUID of the allocation. This
   must be the full UUID, not the short 8-character one. This is specified as
   part of the path.
-- `command` `(string: <required>)` - Specifies the command to be executed.  This
+- `command` `(string: <required>)` - Specifies the command to be executed. This
   must be a JSON-encoded array of the command to be executed, e.g. `["echo", "hi"]`
   or `["/bin/bash"]`. This is specified as a query parameter.
 - `task` `(string: <required>)` - Specifies the task name, as a query parameter.
@@ -803,3 +802,4 @@ Request and response frames encompass the full range of terminal emulator inputs
 # "\x1b[H\x1b[2J$ ":
 # CSI-H (move cursor to top left corner), CSI-2J (clear entire screen), print "$ "
 {"stdout":{"data":"G1tIG1sySiQg"}}
+```

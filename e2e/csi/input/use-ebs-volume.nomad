@@ -9,8 +9,9 @@ job "use-ebs-volume" {
 
   group "group" {
     volume "test" {
-      type   = "csi"
-      source = "ebs-vol0"
+      type      = "csi"
+      source    = "ebs-vol"
+      per_alloc = true
     }
 
     task "task" {

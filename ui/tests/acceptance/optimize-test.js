@@ -5,6 +5,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Response from 'ember-cli-mirage/response';
 import moment from 'moment';
+import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
 
 import Optimize from 'nomad-ui/tests/pages/optimize';
 import Layout from 'nomad-ui/tests/pages/layout';
@@ -63,10 +64,25 @@ module('Acceptance | optimize', function(hooks) {
   });
 
   test('lets recommendations be toggled, reports the choices to the recommendations API, and displays task group recommendations serially', async function(assert) {
-    await Optimize.visit();
-
     const currentTaskGroup = this.job1.taskGroups.models[0];
     const nextTaskGroup = this.job2.taskGroups.models[0];
+
+    const currentTaskGroupHasCPURecommendation = currentTaskGroup.tasks.models
+      .mapBy('recommendations.models')
+      .flat()
+      .find(r => r.resource === 'CPU');
+
+    // If no CPU recommendation, will not be able to accept recommendation with all memory recommendations turned off
+
+    if (!currentTaskGroupHasCPURecommendation) {
+      const currentTaskGroupTask = currentTaskGroup.tasks.models[0];
+      this.server.create('recommendation', {
+        task: currentTaskGroupTask,
+        resource: 'CPU',
+      });
+    }
+
+    await Optimize.visit();
 
     assert.equal(Layout.breadcrumbFor('optimize').text, 'Recommendations');
 
@@ -138,7 +154,7 @@ module('Acceptance | optimize', function(hooks) {
 
       assert.equal(
         summary.cpu,
-        cpuDiff ? `${cpuSign}${cpuDiff} MHz ${cpuSign}${cpuDiffPercent}%` : ''
+        cpuDiff ? `${cpuSign}${formatHertz(cpuDiff, 'MHz')} ${cpuSign}${cpuDiffPercent}%` : ''
       );
       assert.equal(
         summary.memory,
@@ -147,7 +163,9 @@ module('Acceptance | optimize', function(hooks) {
 
       assert.equal(
         summary.aggregateCpu,
-        cpuDiff ? `${cpuSign}${cpuDiff * currentTaskGroupAllocations.length} MHz` : ''
+        cpuDiff
+          ? `${cpuSign}${formatHertz(cpuDiff * currentTaskGroupAllocations.length, 'MHz')}`
+          : ''
       );
 
       assert.equal(
@@ -758,15 +776,5 @@ function formattedMemDiff(memDiff) {
   const absMemDiff = Math.abs(memDiff);
   const negativeSign = memDiff < 0 ? '-' : '';
 
-  if (absMemDiff >= 1024) {
-    const gibDiff = absMemDiff / 1024;
-
-    if (Number.isInteger(gibDiff)) {
-      return `${negativeSign}${gibDiff} GiB`;
-    } else {
-      return `${negativeSign}${gibDiff.toFixed(2)} GiB`;
-    }
-  } else {
-    return `${negativeSign}${absMemDiff} MiB`;
-  }
+  return negativeSign + formatBytes(absMemDiff, 'MiB');
 }

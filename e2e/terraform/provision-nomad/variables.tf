@@ -28,6 +28,12 @@ variable "nomad_enterprise" {
   default     = false
 }
 
+variable "nomad_license" {
+  type        = string
+  description = "The enterprise license to use. overrides Nomad temporary license"
+  default     = ""
+}
+
 variable "nomad_acls" {
   type        = bool
   description = "Bootstrap ACLs"
@@ -49,6 +55,12 @@ variable "role" {
 variable "index" {
   type        = string # note that we have string here so we can default to ""
   description = "The count of this instance for indexed configurations"
+  default     = ""
+}
+
+variable "cluster_name" {
+  type        = string
+  description = "The random name assigned to the cluster"
   default     = ""
 }
 

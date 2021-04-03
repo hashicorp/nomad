@@ -284,7 +284,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		s.stack.SetNodes(nodes)
 
 		// Attempt to match the task group
-		option := s.stack.Select(missing.TaskGroup, nil)
+		option := s.stack.Select(missing.TaskGroup, &SelectOptions{AllocName: missing.Name})
 
 		if option == nil {
 			// If the task can't be placed on this node, update reporting data

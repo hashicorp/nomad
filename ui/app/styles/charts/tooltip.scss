@@ -67,13 +67,13 @@
     }
   }
 
-  ol > li,
-  p {
+  ol > li {
     display: flex;
     flex-flow: row;
     flex-wrap: nowrap;
     justify-content: space-between;
     padding: 0.25rem 0.5rem;
+    white-space: nowrap;
 
     span {
       display: inline-block;
@@ -93,24 +93,24 @@
     .value {
       padding-left: 1em;
     }
+
+    + li {
+      border-top: 1px solid $grey-light;
+    }
   }
 
-  ol > li {
-    .label {
+  &.with-active-datum {
+    li .label {
       color: rgba($black, 0.6);
     }
 
-    &.active {
+    li.is-active {
       color: $black;
       background: $white-ter;
 
       .label {
         color: $black;
       }
-    }
-
-    + li {
-      border-top: 1px solid $grey-light;
     }
   }
 }

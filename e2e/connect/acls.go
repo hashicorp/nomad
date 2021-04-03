@@ -44,12 +44,12 @@ func (tc *ConnectACLsE2ETest) BeforeAll(f *framework.F) {
 	require.NoError(f.T(), err)
 	tc.enableConsulACLs(f)
 
-	// Sanity check the consul master token exists, otherwise tests are just
+	// Validate the consul master token exists, otherwise tests are just
 	// going to be a train wreck.
 	tokenLength := len(tc.consulMasterToken)
 	require.Equal(f.T(), 36, tokenLength, "consul master token wrong length")
 
-	// Sanity check the CONSUL_HTTP_TOKEN is NOT set, because that will cause
+	// Validate the CONSUL_HTTP_TOKEN is NOT set, because that will cause
 	// the agent checks to fail (which do not allow having a token set (!)).
 	consulTokenEnv := os.Getenv(envConsulToken)
 	require.Empty(f.T(), consulTokenEnv)

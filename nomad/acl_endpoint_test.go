@@ -1247,3 +1247,122 @@ func TestACLEndpoint_ResolveToken(t *testing.T) {
 	assert.Equal(t, uint64(1000), resp.Index)
 	assert.Nil(t, resp.Token)
 }
+
+func TestACLEndpoint_OneTimeToken(t *testing.T) {
+	t.Parallel()
+
+	s1, root, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// create an ACL token
+
+	p1 := mock.ACLToken()
+	p1.AccessorID = "" // has to be blank to create
+	aclReq := &structs.ACLTokenUpsertRequest{
+		Tokens: []*structs.ACLToken{p1},
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: root.SecretID,
+		},
+	}
+	var aclResp structs.ACLTokenUpsertResponse
+	err := msgpackrpc.CallWithCodec(codec, "ACL.UpsertTokens", aclReq, &aclResp)
+	require.NoError(t, err)
+	aclToken := aclResp.Tokens[0]
+
+	// Generate a one-time token for this ACL token
+	upReq := &structs.OneTimeTokenUpsertRequest{
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: aclToken.SecretID,
+		}}
+
+	var upResp structs.OneTimeTokenUpsertResponse
+
+	// Call the upsert RPC
+	err = msgpackrpc.CallWithCodec(codec, "ACL.UpsertOneTimeToken", upReq, &upResp)
+	require.NoError(t, err)
+	result := upResp.OneTimeToken
+	require.True(t, time.Now().Before(result.ExpiresAt))
+	require.Equal(t, aclToken.AccessorID, result.AccessorID)
+
+	// make sure we can get it back out
+	ott, err := s1.fsm.State().OneTimeTokenBySecret(nil, result.OneTimeSecretID)
+	require.NoError(t, err)
+	require.NotNil(t, ott)
+
+	exReq := &structs.OneTimeTokenExchangeRequest{
+		OneTimeSecretID: result.OneTimeSecretID,
+		WriteRequest: structs.WriteRequest{
+			Region: "global", // note: not authenticated!
+		}}
+	var exResp structs.OneTimeTokenExchangeResponse
+
+	// Call the exchange RPC
+	err = msgpackrpc.CallWithCodec(codec, "ACL.ExchangeOneTimeToken", exReq, &exResp)
+	require.NoError(t, err)
+	token := exResp.Token
+	require.Equal(t, aclToken.AccessorID, token.AccessorID)
+	require.Equal(t, aclToken.SecretID, token.SecretID)
+
+	// Make sure the one-time token is gone
+	ott, err = s1.fsm.State().OneTimeTokenBySecret(nil, result.OneTimeSecretID)
+	require.NoError(t, err)
+	require.Nil(t, ott)
+
+	// directly write the OTT to the state store so that we can write an
+	// expired OTT, and query to ensure it's been written
+	index := exResp.Index
+	index += 10
+	ott = &structs.OneTimeToken{
+		OneTimeSecretID: uuid.Generate(),
+		AccessorID:      token.AccessorID,
+		ExpiresAt:       time.Now().Add(-1 * time.Minute),
+	}
+
+	err = s1.fsm.State().UpsertOneTimeToken(structs.MsgTypeTestSetup, index, ott)
+	require.NoError(t, err)
+	ott, err = s1.fsm.State().OneTimeTokenBySecret(nil, ott.OneTimeSecretID)
+	require.NoError(t, err)
+	require.NotNil(t, ott)
+
+	// Call the exchange RPC; we should not get an exchange for an expired
+	// token
+	err = msgpackrpc.CallWithCodec(codec, "ACL.ExchangeOneTimeToken", exReq, &exResp)
+	require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+
+	// expired token should be left in place (until GC comes along)
+	ott, err = s1.fsm.State().OneTimeTokenBySecret(nil, ott.OneTimeSecretID)
+	require.NoError(t, err)
+	require.NotNil(t, ott)
+
+	// Call the delete RPC, should fail without proper auth
+	expReq := &structs.OneTimeTokenExpireRequest{
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: aclToken.SecretID,
+		},
+	}
+	err = msgpackrpc.CallWithCodec(codec, "ACL.ExpireOneTimeTokens",
+		expReq, &structs.GenericResponse{})
+	require.EqualError(t, err, structs.ErrPermissionDenied.Error(),
+		"one-time token garbage collection requires management ACL")
+
+	// should not have caused an expiration either!
+	ott, err = s1.fsm.State().OneTimeTokenBySecret(nil, ott.OneTimeSecretID)
+	require.NoError(t, err)
+	require.NotNil(t, ott)
+
+	// Call with correct permissions
+	expReq.WriteRequest.AuthToken = root.SecretID
+	err = msgpackrpc.CallWithCodec(codec, "ACL.ExpireOneTimeTokens",
+		expReq, &structs.GenericResponse{})
+	require.NoError(t, err)
+
+	// Now the expired OTT should be gone
+	ott, err = s1.fsm.State().OneTimeTokenBySecret(nil, result.OneTimeSecretID)
+	require.NoError(t, err)
+	require.Nil(t, ott)
+}

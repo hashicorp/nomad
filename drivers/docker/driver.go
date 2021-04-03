@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/ryanuber/go-glob"
 )
 
 var (
@@ -70,7 +71,14 @@ var (
 )
 
 const (
-	dockerLabelAllocID = "com.hashicorp.nomad.alloc_id"
+	dockerLabelAllocID       = "com.hashicorp.nomad.alloc_id"
+	dockerLabelJobName       = "com.hashicorp.nomad.job_name"
+	dockerLabelJobID         = "com.hashicorp.nomad.job_id"
+	dockerLabelTaskGroupName = "com.hashicorp.nomad.task_group_name"
+	dockerLabelTaskName      = "com.hashicorp.nomad.task_name"
+	dockerLabelNamespace     = "com.hashicorp.nomad.namespace"
+	dockerLabelNodeName      = "com.hashicorp.nomad.node_name"
+	dockerLabelNodeID        = "com.hashicorp.nomad.node_id"
 )
 
 type Driver struct {
@@ -730,8 +738,8 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 }
 
 // memoryLimits computes the memory and memory_reservation values passed along to
-// the docker host config. These fields represent hard and soft memory limits from
-// docker's perspective, respectively.
+// the docker host config. These fields represent hard and soft/reserved memory
+// limits from docker's perspective, respectively.
 //
 // The memory field on the task configuration can be interpreted as a hard or soft
 // limit. Before Nomad v0.11.3, it was always a hard limit. Now, it is interpreted
@@ -746,11 +754,18 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 // unset.
 //
 // Returns (memory (hard), memory_reservation (soft)) values in bytes.
-func (_ *Driver) memoryLimits(driverHardLimitMB, taskMemoryLimitBytes int64) (int64, int64) {
-	if driverHardLimitMB <= 0 {
-		return taskMemoryLimitBytes, 0
+func memoryLimits(driverHardLimitMB int64, taskMemory drivers.MemoryResources) (memory, reserve int64) {
+	softBytes := taskMemory.MemoryMB * 1024 * 1024
+
+	hard := driverHardLimitMB
+	if taskMemory.MemoryMaxMB > hard {
+		hard = taskMemory.MemoryMaxMB
 	}
-	return driverHardLimitMB * 1024 * 1024, taskMemoryLimitBytes
+
+	if hard <= 0 {
+		return softBytes, 0
+	}
+	return hard * 1024 * 1024, softBytes
 }
 
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
@@ -801,7 +816,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		return c, fmt.Errorf("requested runtime %q is not allowed", containerRuntime)
 	}
 
-	memory, memoryReservation := d.memoryLimits(driverConfig.MemoryHardLimit, task.Resources.LinuxResources.MemoryLimitBytes)
+	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
 
 	hostConfig := &docker.HostConfig{
 		Memory:            memory,            // hard limit
@@ -868,12 +883,9 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	if hostConfig.LogConfig.Type == "" && hostConfig.LogConfig.Config == nil {
-		logger.Trace("no docker log driver provided, defaulting to json-file")
-		hostConfig.LogConfig.Type = "json-file"
-		hostConfig.LogConfig.Config = map[string]string{
-			"max-file": "2",
-			"max-size": "2m",
-		}
+		logger.Trace("no docker log driver provided, defaulting to plugin config")
+		hostConfig.LogConfig.Type = d.config.Logging.Type
+		hostConfig.LogConfig.Config = d.config.Logging.Config
 	}
 
 	logger.Debug("configured resources",
@@ -1114,7 +1126,34 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	for k, v := range driverConfig.Labels {
 		labels[k] = v
 	}
+	// main mandatory label
 	labels[dockerLabelAllocID] = task.AllocID
+
+	//optional labels, as configured in plugin configuration
+	for _, configurationExtraLabel := range d.config.ExtraLabels {
+		if glob.Glob(configurationExtraLabel, "job_name") {
+			labels[dockerLabelJobName] = task.JobName
+		}
+		if glob.Glob(configurationExtraLabel, "job_id") {
+			labels[dockerLabelJobID] = task.JobID
+		}
+		if glob.Glob(configurationExtraLabel, "task_group_name") {
+			labels[dockerLabelTaskGroupName] = task.TaskGroupName
+		}
+		if glob.Glob(configurationExtraLabel, "task_name") {
+			labels[dockerLabelTaskName] = task.Name
+		}
+		if glob.Glob(configurationExtraLabel, "namespace") {
+			labels[dockerLabelNamespace] = task.Namespace
+		}
+		if glob.Glob(configurationExtraLabel, "node_name") {
+			labels[dockerLabelNodeName] = task.NodeName
+		}
+		if glob.Glob(configurationExtraLabel, "node_id") {
+			labels[dockerLabelNodeID] = task.NodeID
+		}
+	}
+
 	config.Labels = labels
 	logger.Debug("applied labels on the container", "labels", config.Labels)
 

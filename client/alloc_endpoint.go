@@ -10,6 +10,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-msgpack/codec"
+
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
@@ -279,7 +280,7 @@ func newExecStream(decoder *codec.Decoder, encoder *codec.Encoder) drivers.ExecT
 
 		buf:        buf,
 		encoder:    encoder,
-		frameCodec: codec.NewEncoder(buf, structs.JsonHandle),
+		frameCodec: codec.NewEncoder(buf, nstructs.JsonHandle),
 	}
 }
 

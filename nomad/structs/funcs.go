@@ -98,6 +98,9 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	// Compute the allocs' utilization from zero
 	used := new(ComparableResources)
 
+	reservedCores := map[uint16]struct{}{}
+	var coreOverlap bool
+
 	// For each alloc, add the resources
 	for _, alloc := range allocs {
 		// Do not consider the resource impact of terminal allocations
@@ -105,7 +108,21 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 			continue
 		}
 
-		used.Add(alloc.ComparableResources())
+		cr := alloc.ComparableResources()
+		used.Add(cr)
+
+		// Adding the comparable resource unions reserved core sets, need to check if reserved cores overlap
+		for _, core := range cr.Flattened.Cpu.ReservedCores {
+			if _, ok := reservedCores[core]; ok {
+				coreOverlap = true
+			} else {
+				reservedCores[core] = struct{}{}
+			}
+		}
+	}
+
+	if coreOverlap {
+		return false, "cores", used, nil
 	}
 
 	// Check that the node resources (after subtracting reserved) are a
@@ -327,6 +344,17 @@ func DenormalizeAllocationJobs(job *Job, allocs []*Allocation) {
 // AllocName returns the name of the allocation given the input.
 func AllocName(job, group string, idx uint) string {
 	return fmt.Sprintf("%s.%s[%d]", job, group, idx)
+}
+
+// AllocSuffix returns the alloc index suffix that was added by the AllocName
+// function above.
+func AllocSuffix(name string) string {
+	idx := strings.LastIndex(name, "[")
+	if idx == -1 {
+		return ""
+	}
+	suffix := name[idx:]
+	return suffix
 }
 
 // ACLPolicyListHash returns a consistent hash for a set of policies.

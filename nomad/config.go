@@ -213,6 +213,10 @@ type Config struct {
 	// eligible for GC. This gives users some time to debug volumes.
 	CSIVolumeClaimGCThreshold time.Duration
 
+	// OneTimeTokenGCInterval is how often we dispatch a job to GC
+	// one-time tokens.
+	OneTimeTokenGCInterval time.Duration
+
 	// EvalNackTimeout controls how long we allow a sub-scheduler to
 	// work on an evaluation before we consider it failed and Nack it.
 	// This allows that evaluation to be handed to another sub-scheduler
@@ -351,6 +355,9 @@ type Config struct {
 	// LicenseConfig is a tunable knob for enterprise license testing.
 	LicenseConfig *LicenseConfig
 
+	LicenseEnv  string
+	LicensePath string
+
 	// AgentShutdown is used to call agent.Shutdown from the context of a Server
 	// It is used primarily for licensing
 	AgentShutdown func() error
@@ -402,6 +409,7 @@ func DefaultConfig() *Config {
 		CSIPluginGCThreshold:             1 * time.Hour,
 		CSIVolumeClaimGCInterval:         5 * time.Minute,
 		CSIVolumeClaimGCThreshold:        5 * time.Minute,
+		OneTimeTokenGCInterval:           10 * time.Minute,
 		EvalNackTimeout:                  60 * time.Second,
 		EvalDeliveryLimit:                3,
 		EvalNackInitialReenqueueDelay:    1 * time.Second,

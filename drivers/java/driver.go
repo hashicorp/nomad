@@ -63,7 +63,16 @@ var (
 	}
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
-	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{})
+	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"default_pid_mode": hclspec.NewDefault(
+			hclspec.NewAttr("default_pid_mode", "string", false),
+			hclspec.NewLiteral(`"private"`),
+		),
+		"default_ipc_mode": hclspec.NewDefault(
+			hclspec.NewAttr("default_ipc_mode", "string", false),
+			hclspec.NewLiteral(`"private"`),
+		),
+	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a taskConfig within a job. It is returned in the TaskConfigSchema RPC
@@ -76,6 +85,8 @@ var (
 		"jar_path":    hclspec.NewAttr("jar_path", "string", false),
 		"jvm_options": hclspec.NewAttr("jvm_options", "list(string)", false),
 		"args":        hclspec.NewAttr("args", "list(string)", false),
+		"pid_mode":    hclspec.NewAttr("pid_mode", "string", false),
+		"ipc_mode":    hclspec.NewAttr("ipc_mode", "string", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -101,6 +112,33 @@ func init() {
 	}
 }
 
+// Config is the driver configuration set by the SetConfig RPC call
+type Config struct {
+	// DefaultModePID is the default PID isolation set for all tasks using
+	// exec-based task drivers.
+	DefaultModePID string `codec:"default_pid_mode"`
+
+	// DefaultModeIPC is the default IPC isolation set for all tasks using
+	// exec-based task drivers.
+	DefaultModeIPC string `codec:"default_ipc_mode"`
+}
+
+func (c *Config) validate() error {
+	switch c.DefaultModePID {
+	case executor.IsolationModePrivate, executor.IsolationModeHost:
+	default:
+		return fmt.Errorf("default_pid_mode must be %q or %q, got %q", executor.IsolationModePrivate, executor.IsolationModeHost, c.DefaultModePID)
+	}
+
+	switch c.DefaultModeIPC {
+	case executor.IsolationModePrivate, executor.IsolationModeHost:
+	default:
+		return fmt.Errorf("default_ipc_mode must be %q or %q, got %q", executor.IsolationModePrivate, executor.IsolationModeHost, c.DefaultModeIPC)
+	}
+
+	return nil
+}
+
 // TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
 	Class     string   `codec:"class"`
@@ -108,6 +146,25 @@ type TaskConfig struct {
 	JarPath   string   `codec:"jar_path"`
 	JvmOpts   []string `codec:"jvm_options"`
 	Args      []string `codec:"args"` // extra arguments to java executable
+	ModePID   string   `codec:"pid_mode"`
+	ModeIPC   string   `codec:"ipc_mode"`
+}
+
+func (tc *TaskConfig) validate() error {
+	switch tc.ModePID {
+	case "", executor.IsolationModePrivate, executor.IsolationModeHost:
+	default:
+		return fmt.Errorf("pid_mode must be %q or %q, got %q", executor.IsolationModePrivate, executor.IsolationModeHost, tc.ModePID)
+
+	}
+
+	switch tc.ModeIPC {
+	case "", executor.IsolationModePrivate, executor.IsolationModeHost:
+	default:
+		return fmt.Errorf("ipc_mode must be %q or %q, got %q", executor.IsolationModePrivate, executor.IsolationModeHost, tc.ModeIPC)
+	}
+
+	return nil
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -125,6 +182,9 @@ type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
+
+	// config is the driver configuration set by the SetConfig RPC
+	config Config
 
 	// tasks is the in memory datastore mapping taskIDs to taskHandle
 	tasks *taskStore
@@ -159,6 +219,18 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 func (d *Driver) SetConfig(cfg *base.Config) error {
+	// unpack, validate, and set agent plugin config
+	var config Config
+	if len(cfg.PluginConfig) != 0 {
+		if err := base.MsgPackDecode(cfg.PluginConfig, &config); err != nil {
+			return err
+		}
+	}
+	if err := config.validate(); err != nil {
+		return err
+	}
+	d.config = config
+
 	if cfg != nil && cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
 	}
@@ -318,6 +390,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
+	if err := driverConfig.validate(); err != nil {
+		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
+	}
+
 	if driverConfig.Class == "" && driverConfig.JarPath == "" {
 		return nil, nil, fmt.Errorf("jar_path or class must be specified")
 	}
@@ -374,6 +450,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		Mounts:           cfg.Mounts,
 		Devices:          cfg.Devices,
 		NetworkIsolation: cfg.NetworkIsolation,
+		ModePID:          executor.IsolationMode(d.config.DefaultModePID, driverConfig.ModePID),
+		ModeIPC:          executor.IsolationMode(d.config.DefaultModeIPC, driverConfig.ModeIPC),
 	}
 
 	ps, err := exec.Launch(execCmd)

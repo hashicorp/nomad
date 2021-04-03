@@ -37,6 +37,6 @@
   <div class="inline-chart"><AllocationStatusBar @allocationContainer={{this.taskGroup.summary}} @isNarrow={{true}} /></div>
 </td>
 <td data-test-task-group-volume>{{if this.taskGroup.volumes.length "Yes"}}</td>
-<td data-test-task-group-cpu>{{this.taskGroup.reservedCPU}} MHz</td>
-<td data-test-task-group-mem>{{this.taskGroup.reservedMemory}} MiB</td>
-<td data-test-task-group-disk>{{this.taskGroup.reservedEphemeralDisk}} MiB</td>
+<td data-test-task-group-cpu>{{format-scheduled-hertz this.taskGroup.reservedCPU}}</td>
+<td data-test-task-group-mem>{{format-scheduled-bytes this.taskGroup.reservedMemory start="MiB"}}</td>
+<td data-test-task-group-disk>{{format-scheduled-bytes this.taskGroup.reservedEphemeralDisk start="MiB"}}</td>

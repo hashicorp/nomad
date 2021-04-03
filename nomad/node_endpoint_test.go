@@ -914,7 +914,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
-	require.True(out.Drain)
+	require.NotNil(out.DrainStrategy)
 	require.Equal(strategy.Deadline, out.DrainStrategy.Deadline)
 	require.Len(out.Events, 2)
 	require.Equal(NodeDrainEventDrainSet, out.Events[1].Message)

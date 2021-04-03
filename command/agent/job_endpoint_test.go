@@ -2315,6 +2315,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Meta: map[string]string{
 							"servicemeta": "foobar",
 						},
+						OnUpdate: "require_healthy",
 						Checks: []*structs.ServiceCheck{
 							{
 								Name:          "bar",
@@ -2336,6 +2337,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									IgnoreWarnings: true,
 								},
 								TaskName: "task1",
+								OnUpdate: "require_healthy",
 							},
 						},
 						Connect: &structs.ConsulConnect{
@@ -2391,6 +2393,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
+								OnUpdate: "require_healthy",
 								Checks: []*structs.ServiceCheck{
 									{
 										Name:                   "bar",
@@ -2413,6 +2416,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Grace:          11 * time.Second,
 											IgnoreWarnings: true,
 										},
+										OnUpdate: "require_healthy",
 									},
 									{
 										Name:      "check2",
@@ -2424,6 +2428,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 											Limit: 4,
 											Grace: 11 * time.Second,
 										},
+										OnUpdate: "require_healthy",
 									},
 								},
 							},
@@ -2925,6 +2930,53 @@ func TestConversion_apiLogConfigToStructs(t *testing.T) {
 	}))
 }
 
+func TestConversion_apiResourcesToStructs(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		input    *api.Resources
+		expected *structs.Resources
+	}{
+		{
+			"nil",
+			nil,
+			nil,
+		},
+		{
+			"plain",
+			&api.Resources{
+				CPU:      helper.IntToPtr(100),
+				MemoryMB: helper.IntToPtr(200),
+			},
+			&structs.Resources{
+				CPU:      100,
+				MemoryMB: 200,
+			},
+		},
+		{
+			"with memory max",
+			&api.Resources{
+				CPU:         helper.IntToPtr(100),
+				MemoryMB:    helper.IntToPtr(200),
+				MemoryMaxMB: helper.IntToPtr(300),
+			},
+			&structs.Resources{
+				CPU:         100,
+				MemoryMB:    200,
+				MemoryMaxMB: 300,
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			found := ApiResourcesToStructs(c.input)
+			require.Equal(t, c.expected, found)
+		})
+	}
+}
+
 func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 	t.Parallel()
 	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
@@ -3004,13 +3056,15 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 	require.Nil(t, apiUpstreamsToStructs(nil))
 	require.Nil(t, apiUpstreamsToStructs(make([]*api.ConsulUpstream, 0)))
 	require.Equal(t, []structs.ConsulUpstream{{
-		DestinationName: "upstream",
-		LocalBindPort:   8000,
-		Datacenter:      "dc2",
+		DestinationName:  "upstream",
+		LocalBindPort:    8000,
+		Datacenter:       "dc2",
+		LocalBindAddress: "127.0.0.2",
 	}}, apiUpstreamsToStructs([]*api.ConsulUpstream{{
-		DestinationName: "upstream",
-		LocalBindPort:   8000,
-		Datacenter:      "dc2",
+		DestinationName:  "upstream",
+		LocalBindPort:    8000,
+		Datacenter:       "dc2",
+		LocalBindAddress: "127.0.0.2",
 	}}))
 }
 

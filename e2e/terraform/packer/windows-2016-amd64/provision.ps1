@@ -7,6 +7,7 @@ param(
     [string]$config_profile,
     [string]$role,
     [string]$index,
+    [string]$autojoin,
     [switch]$nostart = $false
 )
 
@@ -26,6 +27,7 @@ Options for configuration:
  -index INDEX             count of instance, for profiles with per-instance config
  -nostart                 do not start or restart Nomad
  -enterprise              if nomad_sha is passed, use the ENT version
+--autojoin                 the AWS ConsulAutoJoin tag value
 
 "@
 
@@ -189,6 +191,11 @@ function InstallConfigProfile {
     }
 }
 
+function UpdateConsulAutojoin {
+    (Get-Content C:\opt\consul.d\aws.json).replace("tag_key=ConsulAutoJoin tag_value=auto-join", "tag_key=ConsulAutoJoin tag_value=${autojoin}") | `
+      Set-Content C:\opt\consul.d\aws.json
+}
+
 function CreateConsulService {
     New-Service `
       -Name "Consul" `
@@ -228,6 +235,9 @@ if ( "" -ne $nomad_binary ) {
 }
 if ( "" -ne $config_profile) {
     InstallConfigProfile
+}
+if ( "" -ne $autojoin) {
+    UpdateConsulAutojoin
 }
 
 if (!($nostart)) {

@@ -79,6 +79,12 @@ variable "nomad_enterprise" {
   default     = false
 }
 
+variable "nomad_license" {
+  type        = string
+  description = "If nomad_license is set, deploy a license to override the temporary license"
+  default     = ""
+}
+
 variable "nomad_acls" {
   type        = bool
   description = "Bootstrap ACLs"

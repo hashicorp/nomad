@@ -8,6 +8,7 @@ import { create } from 'ember-cli-page-object';
 import sinon from 'sinon';
 import faker from 'nomad-ui/mirage/faker';
 import topoVizDatacenterPageObject from 'nomad-ui/tests/pages/components/topo-viz/datacenter';
+import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
 
 const TopoVizDatacenter = create(topoVizDatacenterPageObject());
 
@@ -107,8 +108,16 @@ module('Integration | Component | TopoViz::Datacenter', function(hooks) {
     assert.ok(TopoVizDatacenter.label.includes(this.datacenter.name));
     assert.ok(TopoVizDatacenter.label.includes(`${this.datacenter.nodes.length} Nodes`));
     assert.ok(TopoVizDatacenter.label.includes(`${allocs.length} Allocs`));
-    assert.ok(TopoVizDatacenter.label.includes(`${memoryReserved}/${memoryTotal} MiB`));
-    assert.ok(TopoVizDatacenter.label.includes(`${cpuReserved}/${cpuTotal} MHz`));
+    assert.ok(
+      TopoVizDatacenter.label.includes(
+        `${formatBytes(memoryReserved, 'MiB')}/${formatBytes(memoryTotal, 'MiB')}`
+      )
+    );
+    assert.ok(
+      TopoVizDatacenter.label.includes(
+        `${formatHertz(cpuReserved, 'MHz')}/${formatHertz(cpuTotal, 'MHz')}`
+      )
+    );
   });
 
   test('when @isSingleColumn is true, the FlexMasonry layout gets one column, otherwise it gets two', async function(assert) {

@@ -8,6 +8,7 @@ import faker from 'nomad-ui/mirage/faker';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import topoVisNodePageObject from 'nomad-ui/tests/pages/components/topo-viz/node';
+import { formatScheduledBytes, formatScheduledHertz } from 'nomad-ui/utils/units';
 
 const TopoVizNode = create(topoVisNodePageObject());
 
@@ -110,8 +111,8 @@ module('Integration | Component | TopoViz::Node', function(hooks) {
         `${this.node.allocations.filterBy('allocation.isScheduled').length} Allocs`
       )
     );
-    assert.ok(TopoVizNode.label.includes(`${this.node.memory} MiB`));
-    assert.ok(TopoVizNode.label.includes(`${this.node.cpu} MHz`));
+    assert.ok(TopoVizNode.label.includes(`${formatScheduledBytes(this.node.memory, 'MiB')}`));
+    assert.ok(TopoVizNode.label.includes(`${formatScheduledHertz(this.node.cpu, 'MHz')}`));
   });
 
   test('the status icon indicates when the node is draining', async function(assert) {

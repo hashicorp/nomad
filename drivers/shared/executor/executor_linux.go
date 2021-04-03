@@ -39,8 +39,11 @@ const (
 )
 
 var (
-	// ExecutorCgroupMeasuredMemStats is the list of memory stats captured by the executor
-	ExecutorCgroupMeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
+	// ExecutorCgroupV1MeasuredMemStats is the list of memory stats captured by the executor with cgroup-v1
+	ExecutorCgroupV1MeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
+
+	// ExecutorCgroupV2MeasuredMemStats is the list of memory stats captured by the executor with cgroup-v2. cgroup-v2 exposes different memory stats and no longer reports rss or max usage.
+	ExecutorCgroupV2MeasuredMemStats = []string{"Cache", "Swap", "Usage"}
 
 	// ExecutorCgroupMeasuredCpuStats is the list of CPU stats captures by the executor
 	ExecutorCgroupMeasuredCpuStats = []string{"System Mode", "User Mode", "Throttled Periods", "Throttled Time", "Percent"}
@@ -342,6 +345,12 @@ func (l *LibcontainerExecutor) Stats(ctx context.Context, interval time.Duration
 func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx context.Context, interval time.Duration) {
 	defer close(ch)
 	timer := time.NewTimer(0)
+
+	measuredMemStats := ExecutorCgroupV1MeasuredMemStats
+	if cgroups.IsCgroup2UnifiedMode() {
+		measuredMemStats = ExecutorCgroupV2MeasuredMemStats
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -379,7 +388,7 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 			MaxUsage:       maxUsage,
 			KernelUsage:    stats.MemoryStats.KernelUsage.Usage,
 			KernelMaxUsage: stats.MemoryStats.KernelUsage.MaxUsage,
-			Measured:       ExecutorCgroupMeasuredMemStats,
+			Measured:       measuredMemStats,
 		}
 
 		// CPU Related Stats
@@ -562,6 +571,17 @@ func supportedCaps() []string {
 	return allCaps
 }
 
+func configureNamespaces(pidMode, ipcMode string) lconfigs.Namespaces {
+	namespaces := lconfigs.Namespaces{{Type: lconfigs.NEWNS}}
+	if pidMode == IsolationModePrivate {
+		namespaces = append(namespaces, lconfigs.Namespace{Type: lconfigs.NEWPID})
+	}
+	if ipcMode == IsolationModePrivate {
+		namespaces = append(namespaces, lconfigs.Namespace{Type: lconfigs.NEWIPC})
+	}
+	return namespaces
+}
+
 // configureIsolation prepares the isolation primitives of the container.
 // The process runs in a container configured with the following:
 //
@@ -578,12 +598,8 @@ func configureIsolation(cfg *lconfigs.Config, command *ExecCommand) error {
 	// disable pivot_root if set in the driver's configuration
 	cfg.NoPivotRoot = command.NoPivotRoot
 
-	// launch with mount namespace
-	cfg.Namespaces = lconfigs.Namespaces{
-		{Type: lconfigs.NEWNS},
-		{Type: lconfigs.NEWPID},
-		{Type: lconfigs.NEWIPC},
-	}
+	// set up default namespaces as configured
+	cfg.Namespaces = configureNamespaces(command.ModePID, command.ModeIPC)
 
 	if command.NetworkIsolation != nil {
 		cfg.Namespaces = append(cfg.Namespaces, lconfigs.Namespace{
@@ -675,15 +691,24 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 		return nil
 	}
 
-	if mb := command.Resources.NomadResources.Memory.MemoryMB; mb > 0 {
-		// Total amount of memory allowed to consume
-		cfg.Cgroups.Resources.Memory = mb * 1024 * 1024
+	// Total amount of memory allowed to consume
+	res := command.Resources.NomadResources
+	memHard, memSoft := res.Memory.MemoryMaxMB, res.Memory.MemoryMB
+	if memHard <= 0 {
+		memHard = res.Memory.MemoryMB
+		memSoft = 0
+	}
+
+	if memHard > 0 {
+		cfg.Cgroups.Resources.Memory = memHard * 1024 * 1024
+		cfg.Cgroups.Resources.MemoryReservation = memSoft * 1024 * 1024
+
 		// Disable swap to avoid issues on the machine
 		var memSwappiness uint64
 		cfg.Cgroups.Resources.MemorySwappiness = &memSwappiness
 	}
 
-	cpuShares := command.Resources.NomadResources.Cpu.CpuShares
+	cpuShares := res.Cpu.CpuShares
 	if cpuShares < 2 {
 		return fmt.Errorf("resources.Cpu.CpuShares must be equal to or greater than 2: %v", cpuShares)
 	}
@@ -742,7 +767,7 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 		Version: "1.0.0",
 	}
 	for _, device := range specconv.AllowedDevices {
-		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.DeviceRule)
+		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.Rule)
 	}
 
 	if err := configureCapabilities(cfg, command); err != nil {

@@ -224,7 +224,7 @@ func (c *consulACLsAPI) CreateToken(ctx context.Context, sir ServiceIdentityRequ
 		return nil, errors.New("client stopped and may no longer create tokens")
 	}
 
-	// sanity check the metadata for the token we want
+	// Check the metadata for the token we want
 	if err := sir.Validate(); err != nil {
 		return nil, err
 	}

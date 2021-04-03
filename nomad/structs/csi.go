@@ -79,6 +79,13 @@ func (t *TaskCSIPluginConfig) Copy() *TaskCSIPluginConfig {
 	return nt
 }
 
+// CSIVolumeCapability is the requested attachment and access mode for a
+// volume
+type CSIVolumeCapability struct {
+	AttachmentMode CSIVolumeAttachmentMode
+	AccessMode     CSIVolumeAccessMode
+}
+
 // CSIVolumeAttachmentMode chooses the type of storage api that will be used to
 // interact with the device.
 type CSIVolumeAttachmentMode string
@@ -246,6 +253,15 @@ type CSIVolume struct {
 	Secrets        CSISecrets
 	Parameters     map[string]string
 	Context        map[string]string
+	Capacity       int64 // bytes
+
+	// These values are used only on volume creation but we record them
+	// so that we can diff the volume later
+	RequestedCapacityMin  int64 // bytes
+	RequestedCapacityMax  int64 // bytes
+	RequestedCapabilities []*CSIVolumeCapability
+	CloneID               string
+	SnapshotID            string
 
 	// Allocations, tracking claim status
 	ReadAllocs  map[string]*Allocation // AllocID -> Allocation
@@ -574,21 +590,8 @@ func (v *CSIVolume) Validate() error {
 	if v.Namespace == "" {
 		errs = append(errs, "missing namespace")
 	}
-	if v.AccessMode == "" {
-		errs = append(errs, "missing access mode")
-	}
-	if v.AttachmentMode == "" {
-		errs = append(errs, "missing attachment mode")
-	}
-	if v.AttachmentMode == CSIVolumeAttachmentModeBlockDevice {
-		if v.MountOptions != nil {
-			if v.MountOptions.FSType != "" {
-				errs = append(errs, "mount options not allowed for block-device")
-			}
-			if v.MountOptions.MountFlags != nil && len(v.MountOptions.MountFlags) != 0 {
-				errs = append(errs, "mount options not allowed for block-device")
-			}
-		}
+	if v.SnapshotID != "" && v.CloneID != "" {
+		errs = append(errs, "only one of snapshot_id and clone_id is allowed")
 	}
 
 	// TODO: Volume Topologies are optional - We should check to see if the plugin
@@ -627,6 +630,25 @@ type CSIVolumeDeregisterRequest struct {
 }
 
 type CSIVolumeDeregisterResponse struct {
+	QueryMeta
+}
+
+type CSIVolumeCreateRequest struct {
+	Volumes []*CSIVolume
+	WriteRequest
+}
+
+type CSIVolumeCreateResponse struct {
+	Volumes []*CSIVolume
+	QueryMeta
+}
+
+type CSIVolumeDeleteRequest struct {
+	VolumeIDs []string
+	WriteRequest
+}
+
+type CSIVolumeDeleteResponse struct {
 	QueryMeta
 }
 
@@ -700,6 +722,38 @@ type CSIVolumeListResponse struct {
 	QueryMeta
 }
 
+// CSIVolumeExternalListRequest is a request to a controller plugin to list
+// all the volumes known to the the storage provider. This request is
+// paginated by the plugin and accepts the QueryOptions.PerPage and
+// QueryOptions.NextToken fields
+type CSIVolumeExternalListRequest struct {
+	PluginID string
+	QueryOptions
+}
+
+type CSIVolumeExternalListResponse struct {
+	Volumes   []*CSIVolumeExternalStub
+	NextToken string
+	QueryMeta
+}
+
+// CSIVolumeExternalStub is the storage provider's view of a volume, as
+// returned from the controller plugin; all IDs are for external resources
+type CSIVolumeExternalStub struct {
+	ExternalID    string
+	CapacityBytes int64
+	VolumeContext map[string]string
+	CloneID       string
+	SnapshotID    string
+
+	// TODO: topology support
+	// AccessibleTopology []*Topology
+
+	PublishedExternalNodeIDs []string
+	IsAbnormal               bool
+	Status                   string
+}
+
 type CSIVolumeGetRequest struct {
 	ID string
 	QueryOptions
@@ -717,6 +771,60 @@ type CSIVolumeUnpublishRequest struct {
 }
 
 type CSIVolumeUnpublishResponse struct {
+	QueryMeta
+}
+
+// CSISnapshot is the storage provider's view of a volume snapshot
+type CSISnapshot struct {
+	// These fields map to those returned by the storage provider plugin
+	ID                     string // storage provider's ID
+	ExternalSourceVolumeID string // storage provider's ID for volume
+	SizeBytes              int64
+	CreateTime             int64
+	IsReady                bool
+
+	// These fields are controlled by Nomad
+	SourceVolumeID string
+	PluginID       string
+
+	// These field are only used during snapshot creation and will not be
+	// populated when the snapshot is returned
+	Name       string
+	Secrets    CSISecrets
+	Parameters map[string]string
+}
+
+type CSISnapshotCreateRequest struct {
+	Snapshots []*CSISnapshot
+	WriteRequest
+}
+
+type CSISnapshotCreateResponse struct {
+	Snapshots []*CSISnapshot
+	QueryMeta
+}
+
+type CSISnapshotDeleteRequest struct {
+	Snapshots []*CSISnapshot
+	WriteRequest
+}
+
+type CSISnapshotDeleteResponse struct {
+	QueryMeta
+}
+
+// CSISnapshotListRequest is a request to a controller plugin to list all the
+// snapshot known to the the storage provider. This request is paginated by
+// the plugin and accepts the QueryOptions.PerPage and QueryOptions.NextToken
+// fields
+type CSISnapshotListRequest struct {
+	PluginID string
+	QueryOptions
+}
+
+type CSISnapshotListResponse struct {
+	Snapshots []*CSISnapshot
+	NextToken string
 	QueryMeta
 }
 
@@ -792,14 +900,143 @@ func (p *CSIPlugin) Copy() *CSIPlugin {
 	return out
 }
 
+type CSIControllerCapability byte
+
+const (
+	// CSIControllerSupportsCreateDelete indicates plugin support for
+	// CREATE_DELETE_VOLUME
+	CSIControllerSupportsCreateDelete CSIControllerCapability = 0
+
+	// CSIControllerSupportsAttachDetach is true when the controller
+	// implements the methods required to attach and detach volumes. If this
+	// is false Nomad should skip the controller attachment flow.
+	CSIControllerSupportsAttachDetach CSIControllerCapability = 1
+
+	// CSIControllerSupportsListVolumes is true when the controller implements
+	// the ListVolumes RPC. NOTE: This does not guarantee that attached nodes
+	// will be returned unless SupportsListVolumesAttachedNodes is also true.
+	CSIControllerSupportsListVolumes CSIControllerCapability = 2
+
+	// CSIControllerSupportsGetCapacity indicates plugin support for
+	// GET_CAPACITY
+	CSIControllerSupportsGetCapacity CSIControllerCapability = 3
+
+	// CSIControllerSupportsCreateDeleteSnapshot indicates plugin support for
+	// CREATE_DELETE_SNAPSHOT
+	CSIControllerSupportsCreateDeleteSnapshot CSIControllerCapability = 4
+
+	// CSIControllerSupportsListSnapshots indicates plugin support for
+	// LIST_SNAPSHOTS
+	CSIControllerSupportsListSnapshots CSIControllerCapability = 5
+
+	// CSIControllerSupportsClone indicates plugin support for CLONE_VOLUME
+	CSIControllerSupportsClone CSIControllerCapability = 6
+
+	// CSIControllerSupportsReadOnlyAttach is set to true when the controller
+	// returns the ATTACH_READONLY capability.
+	CSIControllerSupportsReadOnlyAttach CSIControllerCapability = 7
+
+	// CSIControllerSupportsExpand indicates plugin support for EXPAND_VOLUME
+	CSIControllerSupportsExpand CSIControllerCapability = 8
+
+	// CSIControllerSupportsListVolumesAttachedNodes indicates whether the
+	// plugin will return attached nodes data when making ListVolume RPCs
+	// (plugin support for LIST_VOLUMES_PUBLISHED_NODES)
+	CSIControllerSupportsListVolumesAttachedNodes CSIControllerCapability = 9
+
+	// CSIControllerSupportsCondition indicates plugin support for
+	// VOLUME_CONDITION
+	CSIControllerSupportsCondition CSIControllerCapability = 10
+
+	// CSIControllerSupportsGet indicates plugin support for GET_VOLUME
+	CSIControllerSupportsGet CSIControllerCapability = 11
+)
+
+type CSINodeCapability byte
+
+const (
+
+	// CSINodeSupportsStageVolume indicates whether the client should
+	// Stage/Unstage volumes on this node.
+	CSINodeSupportsStageVolume CSINodeCapability = 0
+
+	// CSINodeSupportsStats indicates plugin support for GET_VOLUME_STATS
+	CSINodeSupportsStats CSINodeCapability = 1
+
+	// CSINodeSupportsExpand indicates plugin support for EXPAND_VOLUME
+	CSINodeSupportsExpand CSINodeCapability = 2
+
+	// CSINodeSupportsCondition indicates plugin support for VOLUME_CONDITION
+	CSINodeSupportsCondition CSINodeCapability = 3
+)
+
+func (p *CSIPlugin) HasControllerCapability(cap CSIControllerCapability) bool {
+	if len(p.Controllers) < 1 {
+		return false
+	}
+	// we're picking the first controller because they should be uniform
+	// across the same version of the plugin
+	for _, c := range p.Controllers {
+		switch cap {
+		case CSIControllerSupportsCreateDelete:
+			return c.ControllerInfo.SupportsCreateDelete
+		case CSIControllerSupportsAttachDetach:
+			return c.ControllerInfo.SupportsAttachDetach
+		case CSIControllerSupportsListVolumes:
+			return c.ControllerInfo.SupportsListVolumes
+		case CSIControllerSupportsGetCapacity:
+			return c.ControllerInfo.SupportsGetCapacity
+		case CSIControllerSupportsCreateDeleteSnapshot:
+			return c.ControllerInfo.SupportsCreateDeleteSnapshot
+		case CSIControllerSupportsListSnapshots:
+			return c.ControllerInfo.SupportsListSnapshots
+		case CSIControllerSupportsClone:
+			return c.ControllerInfo.SupportsClone
+		case CSIControllerSupportsReadOnlyAttach:
+			return c.ControllerInfo.SupportsReadOnlyAttach
+		case CSIControllerSupportsExpand:
+			return c.ControllerInfo.SupportsExpand
+		case CSIControllerSupportsListVolumesAttachedNodes:
+			return c.ControllerInfo.SupportsListVolumesAttachedNodes
+		case CSIControllerSupportsCondition:
+			return c.ControllerInfo.SupportsCondition
+		case CSIControllerSupportsGet:
+			return c.ControllerInfo.SupportsGet
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+func (p *CSIPlugin) HasNodeCapability(cap CSINodeCapability) bool {
+	if len(p.Nodes) < 1 {
+		return false
+	}
+	// we're picking the first node because they should be uniform
+	// across the same version of the plugin
+	for _, c := range p.Nodes {
+		switch cap {
+		case CSINodeSupportsStageVolume:
+			return c.NodeInfo.RequiresNodeStageVolume
+		case CSINodeSupportsStats:
+			return c.NodeInfo.SupportsStats
+		case CSINodeSupportsExpand:
+			return c.NodeInfo.SupportsExpand
+		case CSINodeSupportsCondition:
+			return c.NodeInfo.SupportsCondition
+		default:
+			return false
+		}
+	}
+	return false
+}
+
 // AddPlugin adds a single plugin running on the node. Called from state.NodeUpdate in a
 // transaction
 func (p *CSIPlugin) AddPlugin(nodeID string, info *CSIInfo) error {
 	if info.ControllerInfo != nil {
-		p.ControllerRequired = info.RequiresControllerPlugin &&
-			(info.ControllerInfo.SupportsAttachDetach ||
-				info.ControllerInfo.SupportsReadOnlyAttach)
-
+		p.ControllerRequired = info.RequiresControllerPlugin
 		prev, ok := p.Controllers[nodeID]
 		if ok {
 			if prev == nil {

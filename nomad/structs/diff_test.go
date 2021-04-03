@@ -2695,9 +2695,10 @@ func TestTaskGroupDiff(t *testing.T) {
 									LocalServicePort:    8080,
 									Upstreams: []ConsulUpstream{
 										{
-											DestinationName: "foo",
-											LocalBindPort:   8000,
-											Datacenter:      "dc2",
+											DestinationName:  "foo",
+											LocalBindPort:    8000,
+											Datacenter:       "dc2",
+											LocalBindAddress: "127.0.0.2",
 										},
 									},
 									Config: map[string]interface{}{
@@ -2776,6 +2777,12 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
+								Name: "OnUpdate",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "PortLabel",
 								Old:  "",
 								New:  "",
@@ -2851,6 +2858,12 @@ func TestTaskGroupDiff(t *testing.T) {
 										Name: "Name",
 										Old:  "foo",
 										New:  "foo",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "OnUpdate",
+										Old:  "",
+										New:  "",
 									},
 									{
 										Type: DiffTypeEdited,
@@ -2973,6 +2986,12 @@ func TestTaskGroupDiff(t *testing.T) {
 																Name: "DestinationName",
 																Old:  "",
 																New:  "foo",
+															},
+															{
+																Type: DiffTypeAdded,
+																Name: "LocalBindAddress",
+																Old:  "",
+																New:  "127.0.0.2",
 															},
 															{
 																Type: DiffTypeAdded,
@@ -3620,6 +3639,7 @@ func TestTaskGroupDiff(t *testing.T) {
 						Type:     "host",
 						Source:   "foo-src",
 						ReadOnly: true,
+						PerAlloc: true,
 					},
 				},
 			},
@@ -3636,6 +3656,12 @@ func TestTaskGroupDiff(t *testing.T) {
 								Name: "Name",
 								Old:  "",
 								New:  "foo",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "PerAlloc",
+								Old:  "",
+								New:  "true",
 							},
 							{
 								Type: DiffTypeAdded,
@@ -4498,6 +4524,12 @@ func TestTaskDiff(t *testing.T) {
 								New:  "200",
 							},
 							{
+								Type: DiffTypeNone,
+								Name: "Cores",
+								Old:  "0",
+								New:  "0",
+							},
+							{
 								Type: DiffTypeEdited,
 								Name: "DiskMB",
 								Old:  "100",
@@ -4514,6 +4546,115 @@ func TestTaskDiff(t *testing.T) {
 								Name: "MemoryMB",
 								Old:  "100",
 								New:  "100",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "MemoryMaxMB",
+								Old:  "0",
+								New:  "0",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "Resources edited memory_max",
+			Old: &Task{
+				Resources: &Resources{
+					CPU:         100,
+					MemoryMB:    100,
+					MemoryMaxMB: 200,
+					DiskMB:      100,
+				},
+			},
+			New: &Task{
+				Resources: &Resources{
+					CPU:         100,
+					MemoryMB:    100,
+					MemoryMaxMB: 300,
+					DiskMB:      100,
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Resources",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "MemoryMaxMB",
+								Old:  "200",
+								New:  "300",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:       "Resources edited memory_max with context",
+			Contextual: true,
+			Old: &Task{
+				Resources: &Resources{
+					CPU:         100,
+					MemoryMB:    100,
+					MemoryMaxMB: 200,
+					DiskMB:      100,
+				},
+			},
+			New: &Task{
+				Resources: &Resources{
+					CPU:         100,
+					MemoryMB:    100,
+					MemoryMaxMB: 300,
+					DiskMB:      100,
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Resources",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "CPU",
+								Old:  "100",
+								New:  "100",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Cores",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "DiskMB",
+								Old:  "100",
+								New:  "100",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "IOPS",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "MemoryMB",
+								Old:  "100",
+								New:  "100",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "MemoryMaxMB",
+								Old:  "200",
+								New:  "300",
 							},
 						},
 					},
@@ -4852,6 +4993,12 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
+								Name: "Cores",
+								Old:  "0",
+								New:  "0",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "DiskMB",
 								Old:  "100",
 								New:  "100",
@@ -4867,6 +5014,12 @@ func TestTaskDiff(t *testing.T) {
 								Name: "MemoryMB",
 								Old:  "100",
 								New:  "100",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "MemoryMaxMB",
+								Old:  "0",
+								New:  "0",
 							},
 						},
 						Objects: []*ObjectDiff{
@@ -5303,6 +5456,12 @@ func TestTaskDiff(t *testing.T) {
 								New:  "foo",
 							},
 							{
+								Type: DiffTypeNone,
+								Name: "OnUpdate",
+								Old:  "",
+								New:  "",
+							},
+							{
 								Type: DiffTypeEdited,
 								Name: "PortLabel",
 								Old:  "foo",
@@ -5439,6 +5598,10 @@ func TestTaskDiff(t *testing.T) {
 							{
 								Type: DiffTypeNone,
 								Name: "Name",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "OnUpdate",
 							},
 							{
 								Type: DiffTypeNone,
@@ -5881,6 +6044,7 @@ func TestTaskDiff(t *testing.T) {
 								},
 								SuccessBeforePassing:   4,
 								FailuresBeforeCritical: 5,
+								OnUpdate:               "require_healthy",
 							},
 						},
 					},
@@ -5907,6 +6071,7 @@ func TestTaskDiff(t *testing.T) {
 									"Eggs": {"spam"},
 								},
 								SuccessBeforePassing: 4,
+								OnUpdate:             "ignore_warnings",
 							},
 						},
 					},
@@ -5936,6 +6101,10 @@ func TestTaskDiff(t *testing.T) {
 								Name: "Name",
 								Old:  "foo",
 								New:  "foo",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "OnUpdate",
 							},
 							{
 								Type: DiffTypeNone,
@@ -6014,6 +6183,12 @@ func TestTaskDiff(t *testing.T) {
 										Name: "Name",
 										Old:  "foo",
 										New:  "foo",
+									},
+									{
+										Type: DiffTypeEdited,
+										Name: "OnUpdate",
+										Old:  "require_healthy",
+										New:  "ignore_warnings",
 									},
 									{
 										Type: DiffTypeNone,

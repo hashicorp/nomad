@@ -344,8 +344,10 @@ func (t *Tracker) watchTaskEvents() {
 	}
 }
 
-// watchConsulEvents is a long lived watcher for the health of the allocation's
-// Consul checks.
+// watchConsulEvents is a  watcher for the health of the allocation's Consul
+// checks. If all checks report healthy the watcher will exit after the
+// MinHealthyTime has been reached, Otherwise the watcher will continue to
+// check unhealthy checks until the ctx is cancelled
 func (t *Tracker) watchConsulEvents() {
 	// checkTicker is the ticker that triggers us to look at the checks in
 	// Consul
@@ -420,8 +422,19 @@ OUTER:
 		for _, treg := range allocReg.Tasks {
 			for _, sreg := range treg.Services {
 				for _, check := range sreg.Checks {
-					if check.Status == api.HealthPassing {
+					onupdate := sreg.CheckOnUpdate[check.CheckID]
+					switch check.Status {
+					case api.HealthPassing:
 						continue
+					case api.HealthWarning:
+						if onupdate == structs.OnUpdateIgnoreWarn || onupdate == structs.OnUpdateIgnore {
+							continue
+						}
+					case api.HealthCritical:
+						if onupdate == structs.OnUpdateIgnore {
+							continue
+						}
+					default:
 					}
 
 					passed = false

@@ -944,6 +944,7 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 				Type:     v.Type,
 				ReadOnly: v.ReadOnly,
 				Source:   v.Source,
+				PerAlloc: v.PerAlloc,
 			}
 
 			if v.MountOptions != nil {
@@ -1054,11 +1055,16 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 				AddressMode:       service.AddressMode,
 				Meta:              helper.CopyMapStringString(service.Meta),
 				CanaryMeta:        helper.CopyMapStringString(service.CanaryMeta),
+				OnUpdate:          service.OnUpdate,
 			}
 
 			if l := len(service.Checks); l != 0 {
 				structsTask.Services[i].Checks = make([]*structs.ServiceCheck, l)
 				for j, check := range service.Checks {
+					onUpdate := service.OnUpdate // Inherit from service as default
+					if check.OnUpdate != "" {
+						onUpdate = check.OnUpdate
+					}
 					structsTask.Services[i].Checks[j] = &structs.ServiceCheck{
 						Name:                   check.Name,
 						Type:                   check.Type,
@@ -1078,6 +1084,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 						GRPCUseTLS:             check.GRPCUseTLS,
 						SuccessBeforePassing:   check.SuccessBeforePassing,
 						FailuresBeforeCritical: check.FailuresBeforeCritical,
+						OnUpdate:               onUpdate,
 					}
 					if check.CheckRestart != nil {
 						structsTask.Services[i].Checks[j].CheckRestart = &structs.CheckRestart{
@@ -1182,6 +1189,14 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		MemoryMB: *in.MemoryMB,
 	}
 
+	if in.Cores != nil {
+		out.Cores = *in.Cores
+	}
+
+	if in.MemoryMaxMB != nil {
+		out.MemoryMaxMB = *in.MemoryMaxMB
+	}
+
 	// COMPAT(0.10): Only being used to issue warnings
 	if in.IOPS != nil {
 		out.IOPS = *in.IOPS
@@ -1273,11 +1288,16 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 			AddressMode:       s.AddressMode,
 			Meta:              helper.CopyMapStringString(s.Meta),
 			CanaryMeta:        helper.CopyMapStringString(s.CanaryMeta),
+			OnUpdate:          s.OnUpdate,
 		}
 
 		if l := len(s.Checks); l != 0 {
 			out[i].Checks = make([]*structs.ServiceCheck, l)
 			for j, check := range s.Checks {
+				onUpdate := s.OnUpdate // Inherit from service as default
+				if check.OnUpdate != "" {
+					onUpdate = check.OnUpdate
+				}
 				out[i].Checks[j] = &structs.ServiceCheck{
 					Name:          check.Name,
 					Type:          check.Type,
@@ -1297,6 +1317,7 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 					GRPCService:   check.GRPCService,
 					GRPCUseTLS:    check.GRPCUseTLS,
 					TaskName:      check.TaskName,
+					OnUpdate:      onUpdate,
 				}
 				if check.CheckRestart != nil {
 					out[i].Checks[j].CheckRestart = &structs.CheckRestart{
@@ -1501,9 +1522,10 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 	upstreams := make([]structs.ConsulUpstream, len(in))
 	for i, upstream := range in {
 		upstreams[i] = structs.ConsulUpstream{
-			DestinationName: upstream.DestinationName,
-			LocalBindPort:   upstream.LocalBindPort,
-			Datacenter:      upstream.Datacenter,
+			DestinationName:  upstream.DestinationName,
+			LocalBindPort:    upstream.LocalBindPort,
+			Datacenter:       upstream.Datacenter,
+			LocalBindAddress: upstream.LocalBindAddress,
 		}
 	}
 	return upstreams

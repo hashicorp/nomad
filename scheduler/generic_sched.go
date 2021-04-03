@@ -547,6 +547,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 
 			// Compute penalty nodes for rescheduled allocs
 			selectOptions := getSelectOptions(prevAllocation, preferredNode)
+			selectOptions.AllocName = missing.Name()
 			option := s.selectNextOption(tg, selectOptions)
 
 			// Store the available nodes by datacenter

@@ -24,6 +24,15 @@ func (jobExposeCheckHook) Mutate(job *structs.Job) (_ *structs.Job, warnings []e
 		for _, s := range tg.Services {
 			for _, c := range s.Checks {
 				if c.Expose {
+					// TG isn't validated yet, but validation
+					// may depend on mutation results.
+					// Do basic validation here and skip mutation,
+					// so Validate can return a meaningful error
+					// messages
+					if !s.Connect.HasSidecar() {
+						continue
+					}
+
 					if exposePath, err := exposePathForCheck(tg, s, c); err != nil {
 						return nil, nil, err
 					} else if exposePath != nil {
@@ -102,9 +111,9 @@ func tgValidateUseOfCheckExpose(tg *structs.TaskGroup) error {
 	// validation for group services (which must use built-in connect proxy)
 	for _, s := range tg.Services {
 		for _, check := range s.Checks {
-			if check.Expose && !serviceUsesConnectEnvoy(s) {
+			if check.Expose && !s.Connect.HasSidecar() {
 				return errors.Errorf(
-					"exposed service check %s->%s->%s requires use of Nomad's builtin Connect proxy",
+					"exposed service check %s->%s->%s requires use of sidecar_proxy",
 					tg.Name, s.Name, check.Name,
 				)
 			}
@@ -153,29 +162,6 @@ func tgUsesExposeCheck(tg *structs.TaskGroup) bool {
 		}
 	}
 	return false
-}
-
-// serviceUsesConnectEnvoy returns true if the service is going to end up using
-// the built-in envoy proxy.
-//
-// This implementation is kind of reading tea leaves - firstly Connect
-// must be enabled, and second the sidecar_task must not be overridden. If these
-// conditions are met, the preceding connect hook will have injected a Connect
-// sidecar task, the configuration of which is interpolated at runtime.
-func serviceUsesConnectEnvoy(s *structs.Service) bool {
-	// A non-nil connect stanza implies this service isn't connect enabled in
-	// the first place.
-	if s.Connect == nil {
-		return false
-	}
-
-	// A non-nil connect.sidecar_task stanza implies the sidecar task is being
-	// overridden (i.e. the default Envoy is not being used).
-	if s.Connect.SidecarTask != nil {
-		return false
-	}
-
-	return true
 }
 
 // checkIsExposable returns true if check is qualified for automatic generation
@@ -229,13 +215,15 @@ func exposePathForCheck(tg *structs.TaskGroup, s *structs.Service, check *struct
 	// The difference here is the address is predestined to be localhost since
 	// it is binding inside the namespace.
 	var port int
-	if _, port = tg.Networks.Port(s.PortLabel); port <= 0 { // try looking up by port label
+	if mapping := tg.Networks.Port(s.PortLabel); mapping.Value <= 0 { // try looking up by port label
 		if port, _ = strconv.Atoi(s.PortLabel); port <= 0 { // then try direct port value
 			return nil, errors.Errorf(
 				"unable to determine local service port for service check %s->%s->%s",
 				tg.Name, s.Name, check.Name,
 			)
 		}
+	} else {
+		port = mapping.Value
 	}
 
 	// The Path, Protocol, and PortLabel are just copied over from the service

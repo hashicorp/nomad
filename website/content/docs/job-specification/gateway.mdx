@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: gateway Stanza - Job Specification
-sidebar_title: gateway
 description: |-
   The "gateway" stanza allows specifying options for configuring Consul Gateways
   used in the Consul Connect integration
@@ -287,7 +286,7 @@ job "ingress-demo" {
 
     service {
       name = "uuid-api"
-      port = "${NOMAD_PORT_api}"
+      port = "api"
 
       connect {
         native = true
@@ -298,7 +297,7 @@ job "ingress-demo" {
       driver = "docker"
 
       config {
-        image        = "hashicorpnomad/uuid-api:v3"
+        image        = "hashicorpnomad/uuid-api:v5"
         network_mode = "host"
       }
 
@@ -447,4 +446,3 @@ job "countdash-terminating" {
 [sidecar_task]: /docs/job-specification/sidecar_task
 [terminating]: /docs/job-specification/gateway#terminating-parameters
 [tls]: /docs/job-specification/gateway#tls-parameters
-

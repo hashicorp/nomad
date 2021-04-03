@@ -14,14 +14,32 @@
         <span class="tag is-outlined {{this.job.latestDeployment.statusClass}}" data-test-deployment-status="{{this.job.latestDeployment.statusClass}}">
           {{this.job.latestDeployment.status}}
         </span>
-        {{#if this.job.latestDeployment.requiresPromotion}}
-          <button
-            data-test-promote-canary
-            type="button"
-            class="button is-warning is-small pull-right {{if this.promote.isRunning "is-loading"}}"
-            disabled={{this.promote.isRunning}}
-            onclick={{perform this.promote}}>Promote Canary</button>
-        {{/if}}
+        <div class="pull-right">
+          {{#if this.job.latestDeployment.isRunning}}
+            <TwoStepButton
+              data-test-fail
+              @classes={{hash
+                idleButton="is-danger"
+                confirmationMessage="inherit-color"
+                confirmButton="is-danger"}}
+              @idleText="Fail Deployment"
+              @cancelText="Cancel"
+              @confirmText="Yes, Fail"
+              @confirmationMessage="Are you sure?"
+              @inlineText={{true}}
+              @awaitingConfirmation={{this.fail.isRunning}}
+              @disabled={{this.fail.isRunning}}
+              @onConfirm={{perform this.fail}} />
+          {{/if}}
+          {{#if this.job.latestDeployment.requiresPromotion}}
+            <button
+              data-test-promote-canary
+              type="button"
+              class="button is-warning is-small {{if this.promote.isRunning "is-loading"}}"
+              disabled={{this.promote.isRunning}}
+              onclick={{perform this.promote}}>Promote Canary</button>
+          {{/if}}
+        </div>
       </div>
     </div>
     <div class="boxed-section-body with-foot">

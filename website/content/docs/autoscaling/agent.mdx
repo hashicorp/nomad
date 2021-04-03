@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: Agent
-sidebar_title: Agent
 description: The Nomad Autoscaler is a long lived process which coordinates scaling activates.
 ---
 
@@ -65,6 +64,16 @@ following actions.
 
 - reload the contents of the scaling policy directory as defined by the [`-policy-dir`][autoscaler_cli_policy_dir]
   parameter.
+
+- reconfigure the Nomad clients used to fetch policies and execute scaling
+  actions with the values defined in the [`nomad`](#nomad-block) block.
+
+- stop plugins that are no longer present in the configuration file.
+
+- start plugins that were not previously present in the configuration file.
+
+- reconfigure the remaining plugins with the configuration defined in their
+  `config` parameter.
 
 ## General Parameters
 

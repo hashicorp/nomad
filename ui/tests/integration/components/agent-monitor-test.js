@@ -50,7 +50,7 @@ module('Integration | Component | agent-monitor', function(hooks) {
 
     await render(commonTemplate);
 
-    assert.ok(find('[data-test-level-switcher]'));
+    assert.ok(find('[data-test-level-switcher-parent]'));
     assert.ok(find('[data-test-toggle]'));
     assert.ok(find('[data-test-log-box]'));
     assert.ok(find('[data-test-log-box].is-full-bleed.is-dark'));
@@ -109,7 +109,7 @@ module('Integration | Component | agent-monitor', function(hooks) {
     await render(commonTemplate);
     await settled();
 
-    const contentId = await selectOpen('[data-test-level-switcher]');
+    const contentId = await selectOpen('[data-test-level-switcher-parent]');
     run.later(run, run.cancelTimers, INTERVAL);
     await selectOpenChoose(contentId, newLevel.capitalize());
     await settled();
@@ -137,7 +137,7 @@ module('Integration | Component | agent-monitor', function(hooks) {
     await settled();
     assert.equal(find('[data-test-log-cli]').textContent, `[INFO] ${LOG_MESSAGE}\n`);
 
-    const contentId = await selectOpen('[data-test-level-switcher]');
+    const contentId = await selectOpen('[data-test-level-switcher-parent]');
     run.later(run, run.cancelTimers, INTERVAL);
     await selectOpenChoose(contentId, newLevel.capitalize());
     await settled();
@@ -173,7 +173,7 @@ module('Integration | Component | agent-monitor', function(hooks) {
     await settled();
     assert.equal(find('[data-test-log-cli]').textContent, '');
 
-    const contentId = await selectOpen('[data-test-level-switcher]');
+    const contentId = await selectOpen('[data-test-level-switcher-parent]');
     run.later(run, run.cancelTimers, INTERVAL);
     await selectOpenChoose(contentId, newLevel.capitalize());
     await settled();

@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: Upgrade Guides
-sidebar_title: Specific Version Details
 description: |-
   Specific versions of Nomad may have additional information about the upgrade
   process beyond the standard flow.
@@ -13,6 +12,21 @@ The [upgrading page](/docs/upgrade) covers the details of doing a standard
 upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
+
+## Nomad 1.1.0
+
+#### Agent Metrics API
+
+The Nomad agent metrics API now respects the
+[`prometheus_metrics`](https://www.nomadproject.io/docs/configuration/telemetry#prometheus_metrics)
+configuration value. If this value is set to `false`, which is the default value,
+calling `/v1/metrics?format=prometheus` will now result in a response error.
+
+#### Connect native tasks
+
+Connect native tasks running in host networking mode will now have `CONSUL_HTTP_ADDR`
+set automatically. Before this was only the case for bridge networking. If an operator
+already explicitly set `CONSUL_HTTP_ADDR` then it will not get overriden.
 
 ## Nomad 1.0.3, 0.12.10
 

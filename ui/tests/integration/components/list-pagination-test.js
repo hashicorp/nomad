@@ -81,7 +81,7 @@ module('Integration | Component | list pagination', function(hooks) {
       </ListPagination>
     `);
 
-    const totalPages = Math.ceil(this.get('source').length / this.get('size'));
+    const totalPages = Math.ceil(this.source.length / this.size);
     assert.equal(find('.page-info').textContent, `1 of ${totalPages}`, `${totalPages} total pages`);
   });
 
@@ -172,7 +172,7 @@ module('Integration | Component | list pagination', function(hooks) {
       page: 3,
     });
 
-    const totalPages = Math.ceil(this.get('source.length') / this.get('size'));
+    const totalPages = Math.ceil(this.get('source.length') / this.size);
 
     await render(hbs`
       <ListPagination @source={{source}} @page={{page}} @spread={{spread}} @size={{size}} as |p|>

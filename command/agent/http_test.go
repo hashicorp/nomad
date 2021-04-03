@@ -20,6 +20,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -27,8 +30,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // makeHTTPServer returns a test server whose logs will be written to
@@ -74,10 +75,11 @@ func TestRootFallthrough(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		desc         string
-		path         string
-		expectedPath string
-		expectedCode int
+		desc             string
+		path             string
+		expectedPath     string
+		expectedRawQuery string
+		expectedCode     int
 	}{
 		{
 			desc:         "unknown endpoint 404s",
@@ -89,6 +91,13 @@ func TestRootFallthrough(t *testing.T) {
 			path:         "/",
 			expectedPath: "/ui/",
 			expectedCode: 307,
+		},
+		{
+			desc:             "root path with one-time token redirects to ui",
+			path:             "/?ott=whatever",
+			expectedPath:     "/ui/",
+			expectedRawQuery: "ott=whatever",
+			expectedCode:     307,
 		},
 	}
 
@@ -115,6 +124,7 @@ func TestRootFallthrough(t *testing.T) {
 				loc, err := resp.Location()
 				require.NoError(t, err)
 				require.Equal(t, tc.expectedPath, loc.Path)
+				require.Equal(t, tc.expectedRawQuery, loc.RawQuery)
 			}
 		})
 	}
@@ -316,7 +326,7 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 		err = enc.Encode(r)
 		expected.WriteByte('\n')
 	} else {
-		enc := codec.NewEncoder(&expected, structs.JsonHandle)
+		enc := codec.NewEncoder(&expected, structs.JsonHandleWithExtensions)
 		err = enc.Encode(r)
 	}
 	if err != nil {
@@ -560,6 +570,49 @@ func TestParseBool(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tc.Expected, result)
 			}
+		})
+	}
+}
+
+func TestParsePagination(t *testing.T) {
+	t.Parallel()
+	s := makeHTTPServer(t, nil)
+	defer s.Shutdown()
+
+	cases := []struct {
+		Input             string
+		ExpectedNextToken string
+		ExpectedPerPage   int32
+	}{
+		{
+			Input: "",
+		},
+		{
+			Input:             "next_token=a&per_page=3",
+			ExpectedNextToken: "a",
+			ExpectedPerPage:   3,
+		},
+		{
+			Input:             "next_token=a&next_token=b",
+			ExpectedNextToken: "a",
+		},
+		{
+			Input: "per_page=a",
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run("Input-"+tc.Input, func(t *testing.T) {
+
+			req, err := http.NewRequest("GET",
+				"/v1/volumes/csi/external?"+tc.Input, nil)
+
+			require.NoError(t, err)
+			opts := &structs.QueryOptions{}
+			parsePagination(req, opts)
+			require.Equal(t, tc.ExpectedNextToken, opts.NextToken)
+			require.Equal(t, tc.ExpectedPerPage, opts.PerPage)
 		})
 	}
 }
@@ -1240,6 +1293,30 @@ func Test_decodeBody(t *testing.T) {
 			assert.Equal(t, tc.expectedError, actualError, tc.name)
 			assert.Equal(t, tc.expectedOut, tc.inputOut, tc.name)
 		})
+	}
+}
+
+// BenchmarkHTTPServer_JSONEncodingWithExtensions benchmarks the performance of
+// encoding JSON objects using extensions
+func BenchmarkHTTPServer_JSONEncodingWithExtensions(b *testing.B) {
+	benchmarkJsonEncoding(b, structs.JsonHandleWithExtensions)
+}
+
+// BenchmarkHTTPServer_JSONEncodingWithoutExtensions benchmarks the performance of
+// encoding JSON objects using extensions
+func BenchmarkHTTPServer_JSONEncodingWithoutExtensions(b *testing.B) {
+	benchmarkJsonEncoding(b, structs.JsonHandle)
+}
+
+func benchmarkJsonEncoding(b *testing.B, handle *codec.JsonHandle) {
+	n := mock.Node()
+	var buf bytes.Buffer
+
+	enc := codec.NewEncoder(&buf, handle)
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		err := enc.Encode(n)
+		require.NoError(b, err)
 	}
 }
 

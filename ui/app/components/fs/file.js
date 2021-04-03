@@ -58,7 +58,7 @@ export default class File extends Component {
     return `/v1/client/fs/cat/${this.allocation.id}?path=${encodedPath}`;
   }
 
-  @computed('catUrlWithoutRegion')
+  @computed('catUrlWithoutRegion', 'system.{activeRegion,shouldIncludeRegion}')
   get catUrl() {
     let apiPath = this.catUrlWithoutRegion;
     if (this.system.shouldIncludeRegion) {
@@ -89,7 +89,7 @@ export default class File extends Component {
     return this.useServer ? url : `//${address}${url}`;
   }
 
-  @computed('taskState.name', 'file', 'mode')
+  @computed('file', 'mode', 'stat.Size', 'taskState.name')
   get fileParams() {
     // The Log class handles encoding query params
     const taskUrlPrefix = this.taskState ? `${this.taskState.name}/` : '';
@@ -107,7 +107,7 @@ export default class File extends Component {
     }
   }
 
-  @computed('fileUrl', 'fileParams', 'mode')
+  @computed('clientTimeout', 'fileParams', 'fileUrl', 'mode', 'serverTimeout', 'useServer')
   get logger() {
     // The cat and readat APIs are in plainText while the stream API is always encoded.
     const plainText = this.mode === 'head' || this.mode === 'tail';

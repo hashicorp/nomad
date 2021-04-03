@@ -1,3 +1,4 @@
+/* eslint-disable ember/no-test-module-for */
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -134,7 +135,7 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     await JobDetail.visit({ id: job.id, namespace: namespace.name });
 
     // TODO: Migrate to Page Objects
-    await selectChoose('[data-test-namespace-switcher]', otherNamespace);
+    await selectChoose('[data-test-namespace-switcher-parent]', otherNamespace);
     assert.equal(currentURL().split('?')[0], '/jobs', 'Navigated to /jobs');
 
     const jobs = server.db.jobs

@@ -1887,13 +1887,15 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		return err
 	}
 
-	// Derive the child job and commit it via Raft
+	// Derive the child job and commit it via Raft - with initial status
 	dispatchJob := parameterizedJob.Copy()
 	dispatchJob.ID = structs.DispatchedID(parameterizedJob.ID, time.Now())
 	dispatchJob.ParentID = parameterizedJob.ID
 	dispatchJob.Name = dispatchJob.ID
 	dispatchJob.SetSubmitTime()
 	dispatchJob.Dispatched = true
+	dispatchJob.Status = ""
+	dispatchJob.StatusDescription = ""
 
 	// Merge in the meta data
 	for k, v := range args.Meta {

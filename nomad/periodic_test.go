@@ -70,6 +70,20 @@ func (m *MockJobEvalDispatcher) LaunchTimes(p *PeriodicDispatch, namespace, pare
 	return launches, nil
 }
 
+func (m *MockJobEvalDispatcher) dispatchedJobs(parent *structs.Job) []*structs.Job {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	jobs := []*structs.Job{}
+	for _, job := range m.Jobs {
+		if job.ParentID == parent.ID && job.Namespace == parent.Namespace {
+			jobs = append(jobs, job)
+		}
+	}
+
+	return jobs
+}
+
 type times []time.Time
 
 func (t times) Len() int           { return len(t) }
@@ -753,4 +767,23 @@ func TestPeriodicDispatch_RunningChildren_ActiveAllocs(t *testing.T) {
 	if !running {
 		t.Fatalf("RunningChildren should return true")
 	}
+}
+
+// TestPeriodicDispatch_JobEmptyStatus asserts that dispatched
+// job will always has an empty status
+func TestPeriodicDispatch_JobEmptyStatus(t *testing.T) {
+	t.Parallel()
+	p, m := testPeriodicDispatcher(t)
+
+	job := testPeriodicJob(time.Now().Add(1 * time.Second))
+	job.Status = structs.JobStatusRunning
+
+	err := p.Add(job)
+	require.NoError(t, err)
+
+	time.Sleep(2 * time.Second)
+
+	dispatched := m.dispatchedJobs(job)
+	require.NotEmpty(t, dispatched)
+	require.Empty(t, dispatched[0].Status)
 }

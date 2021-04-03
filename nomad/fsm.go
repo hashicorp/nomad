@@ -299,6 +299,12 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		structs.EventSinkDeleteRequestType,
 		structs.BatchEventSinkUpdateProgressType:
 		return nil
+	case structs.OneTimeTokenUpsertRequestType:
+		return n.applyOneTimeTokenUpsert(msgType, buf[1:], log.Index)
+	case structs.OneTimeTokenDeleteRequestType:
+		return n.applyOneTimeTokenDelete(msgType, buf[1:], log.Index)
+	case structs.OneTimeTokenExpireRequestType:
+		return n.applyOneTimeTokenExpire(msgType, buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -421,20 +427,6 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 	var req structs.NodeUpdateDrainRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	// COMPAT Remove in version 0.10
-	// As part of Nomad 0.8 we have deprecated the drain boolean in favor of a
-	// drain strategy but we need to handle the upgrade path where the Raft log
-	// contains drain updates with just the drain boolean being manipulated.
-	if req.Drain && req.DrainStrategy == nil {
-		// Mark the drain strategy as a force to imitate the old style drain
-		// functionality.
-		req.DrainStrategy = &structs.DrainStrategy{
-			DrainSpec: structs.DrainSpec{
-				Deadline: -1 * time.Second,
-			},
-		}
 	}
 
 	if err := n.state.UpdateNodeDrain(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
@@ -1140,6 +1132,51 @@ func (n *nomadFSM) applyACLTokenBootstrap(msgType structs.MessageType, buf []byt
 
 	if err := n.state.BootstrapACLTokens(msgType, index, req.ResetIndex, req.Token); err != nil {
 		n.logger.Error("BootstrapACLToken failed", "error", err)
+		return err
+	}
+	return nil
+}
+
+// applyOneTimeTokenUpsert is used to upsert a one-time token
+func (n *nomadFSM) applyOneTimeTokenUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_one_time_token_upsert"}, time.Now())
+	var req structs.OneTimeToken
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertOneTimeToken(msgType, index, &req); err != nil {
+		n.logger.Error("UpsertOneTimeToken failed", "error", err)
+		return err
+	}
+	return nil
+}
+
+// applyOneTimeTokenDelete is used to delete a set of one-time tokens
+func (n *nomadFSM) applyOneTimeTokenDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_one_time_token_delete"}, time.Now())
+	var req structs.OneTimeTokenDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteOneTimeTokens(msgType, index, req.AccessorIDs); err != nil {
+		n.logger.Error("DeleteOneTimeTokens failed", "error", err)
+		return err
+	}
+	return nil
+}
+
+// applyOneTimeTokenExpire is used to delete a set of one-time tokens
+func (n *nomadFSM) applyOneTimeTokenExpire(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_one_time_token_expire"}, time.Now())
+	var req structs.OneTimeTokenExpireRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.ExpireOneTimeTokens(msgType, index); err != nil {
+		n.logger.Error("ExpireOneTimeTokens failed", "error", err)
 		return err
 	}
 	return nil

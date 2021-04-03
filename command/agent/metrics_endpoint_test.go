@@ -29,6 +29,40 @@ func TestHTTP_MetricsWithIllegalMethod(t *testing.T) {
 	})
 }
 
+func TestHTTP_MetricsPrometheusDisabled(t *testing.T) {
+	assert := assert.New(t)
+
+	t.Parallel()
+	httpTest(t, func(c *Config) { c.Telemetry.PrometheusMetrics = false }, func(s *TestAgent) {
+		req, err := http.NewRequest("GET", "/v1/metrics?format=prometheus", nil)
+		assert.Nil(err)
+
+		resp, err := s.Server.MetricsRequest(nil, req)
+		assert.Nil(resp)
+		assert.Error(err, "Prometheus is not enabled")
+	})
+}
+
+func TestHTTP_MetricsPrometheusEnabled(t *testing.T) {
+	assert := assert.New(t)
+
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		req, err := http.NewRequest("GET", "/v1/metrics?format=prometheus", nil)
+		assert.Nil(err)
+		respW := httptest.NewRecorder()
+
+		resp, err := s.Server.MetricsRequest(respW, req)
+		assert.Nil(resp)
+		assert.Nil(err)
+
+		// Ensure the response body is not empty and that it contains something
+		// that looks like a metric we expect.
+		assert.NotNil(respW.Body)
+		assert.Contains(respW.Body.String(), "HELP go_gc_duration_seconds")
+	})
+}
+
 func TestHTTP_Metrics(t *testing.T) {
 	assert := assert.New(t)
 

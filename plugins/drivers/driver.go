@@ -237,8 +237,12 @@ func (c *DNSConfig) Copy() *DNSConfig {
 type TaskConfig struct {
 	ID               string
 	JobName          string
+	JobID            string
 	TaskGroupName    string
 	Name             string
+	Namespace        string
+	NodeName         string
+	NodeID           string
 	Env              map[string]string
 	DeviceEnv        map[string]string
 	Resources        *Resources
@@ -330,6 +334,8 @@ func (tc *TaskConfig) EncodeConcreteDriverConfig(t interface{}) error {
 	tc.rawDriverConfig = data
 	return nil
 }
+
+type MemoryResources = structs.AllocatedMemoryResources
 
 type Resources struct {
 	NomadResources *structs.AllocatedTaskResources

@@ -138,6 +138,7 @@ var basicConfig = &Config{
 				ServiceSchedulerEnabled: true,
 			},
 		},
+		LicensePath: "/tmp/nomad.hclic",
 	},
 	ACL: &ACLConfig{
 		Enabled:          true,

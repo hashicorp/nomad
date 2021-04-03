@@ -32,6 +32,9 @@ under `/etc/systemd/system/nomad.service`.
 
 You can control Nomad with `systemctl start|stop|restart nomad`.
 
+The `system/nomad.service` unit file is compatible with systemd v230
+or higher.
+
 ## Upstart
 
 On systems using upstart the basic upstart file under

@@ -799,11 +799,77 @@ func TestDockerDriver_Labels(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// expect to see 1 additional standard labels
+	// expect to see 1 additional standard labels (allocID)
 	require.Equal(t, len(cfg.Labels)+1, len(container.Config.Labels))
 	for k, v := range cfg.Labels {
 		require.Equal(t, v, container.Config.Labels[k])
 	}
+}
+
+func TestDockerDriver_ExtraLabels(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dockerClientConfig := make(map[string]interface{})
+
+	dockerClientConfig["extra_labels"] = []string{"task*", "job_name"}
+	client, d, handle, cleanup := dockerSetup(t, task, dockerClientConfig)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	expectedLabels := map[string]string{
+		"com.hashicorp.nomad.alloc_id":        task.AllocID,
+		"com.hashicorp.nomad.task_name":       task.Name,
+		"com.hashicorp.nomad.task_group_name": task.TaskGroupName,
+		"com.hashicorp.nomad.job_name":        task.JobName,
+	}
+
+	// expect to see 4 labels (allocID by default, task_name and task_group_name due to task*, and job_name)
+	require.Equal(t, 4, len(container.Config.Labels))
+	for k, v := range expectedLabels {
+		require.Equal(t, v, container.Config.Labels[k])
+	}
+}
+
+func TestDockerDriver_LoggingConfiguration(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dockerClientConfig := make(map[string]interface{})
+	loggerConfig := map[string]string{"gelf-address": "udp://1.2.3.4:12201", "tag": "gelf"}
+
+	dockerClientConfig["logging"] = LoggingConfig{
+		Type:   "gelf",
+		Config: loggerConfig,
+	}
+	client, d, handle, cleanup := dockerSetup(t, task, dockerClientConfig)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	require.NoError(t, err)
+
+	require.Equal(t, "gelf", container.HostConfig.LogConfig.Type)
+	require.Equal(t, loggerConfig, container.HostConfig.LogConfig.Config)
 }
 
 func TestDockerDriver_ForcePull(t *testing.T) {
@@ -1065,7 +1131,7 @@ func TestDockerDriver_CreateContainerConfig_Labels(t *testing.T) {
 	expectedLabels := map[string]string{
 		// user provided labels
 		"user_label": "user_value",
-		// default labels
+		// default label
 		"com.hashicorp.nomad.alloc_id": task.AllocID,
 	}
 
@@ -2789,17 +2855,57 @@ func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
 func TestDockerDriver_memoryLimits(t *testing.T) {
 	t.Parallel()
 
-	t.Run("driver hard limit not set", func(t *testing.T) {
-		memory, memoryReservation := new(Driver).memoryLimits(0, 256*1024*1024)
-		require.Equal(t, int64(256*1024*1024), memory)
-		require.Equal(t, int64(0), memoryReservation)
-	})
+	cases := []struct {
+		name           string
+		driverMemoryMB int64
+		taskResources  drivers.MemoryResources
+		expectedHard   int64
+		expectedSoft   int64
+	}{
+		{
+			"plain request",
+			0,
+			drivers.MemoryResources{MemoryMB: 10},
+			10 * 1024 * 1024,
+			0,
+		},
+		{
+			"with driver max",
+			20,
+			drivers.MemoryResources{MemoryMB: 10},
+			20 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+		{
+			"with resources max",
+			20,
+			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 20},
+			20 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+		{
+			"with driver and resources max: higher driver",
+			30,
+			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 20},
+			30 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+		{
+			"with driver and resources max: higher resources",
+			20,
+			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 30},
+			30 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+	}
 
-	t.Run("driver hard limit is set", func(t *testing.T) {
-		memory, memoryReservation := new(Driver).memoryLimits(512, 256*1024*1024)
-		require.Equal(t, int64(512*1024*1024), memory)
-		require.Equal(t, int64(256*1024*1024), memoryReservation)
-	})
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			hard, soft := memoryLimits(c.driverMemoryMB, c.taskResources)
+			require.Equal(t, c.expectedHard, hard)
+			require.Equal(t, c.expectedSoft, soft)
+		})
+	}
 }
 
 func TestDockerDriver_parseSignal(t *testing.T) {

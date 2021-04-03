@@ -26,8 +26,6 @@ export default class TokenService extends Service {
     } else {
       window.localStorage.nomadTokenSecret = value;
     }
-
-    return value;
   }
 
   @task(function*() {
@@ -43,6 +41,13 @@ export default class TokenService extends Service {
     }
   })
   fetchSelfToken;
+
+  async exchangeOneTimeToken(oneTimeToken) {
+    const TokenAdapter = getOwner(this).lookup('adapter:token');
+
+    const token = await TokenAdapter.exchangeOneTimeToken(oneTimeToken);
+    this.secret = token.secret;
+  }
 
   @computed('secret', 'fetchSelfToken.lastSuccessful.value')
   get selfToken() {

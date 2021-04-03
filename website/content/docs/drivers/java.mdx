@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: 'Drivers: Java'
-sidebar_title: Java
 description: The Java task driver is used to run Jars using the JVM.
 ---
 
@@ -47,6 +46,20 @@ The `java` driver supports the following configuration in the job spec:
 
 - `jvm_options` - (Optional) A list of JVM options to be passed while invoking
   java. These options are passed without being validated in any way by Nomad.
+
+- `pid_mode` - (Optional) Set to `"private"` to enable PID namespace isolation for
+  this task, or `"host"` to disable isolation. If left unset, the behavior is
+  determined from the [`default_pid_mode`][default_pid_mode] in plugin configuration.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will
+be able to access sensitive process information like environment variables.
+
+- `ipc_mode` - (Optional) Set to `"private"` to enable IPC namespace isolation for
+  this task, or `"host"` to disable isolation. If left unset, the behavior is
+  determined from the [`default_ipc_mode`][default_ipc_mode] in plugin configuration.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will be
+able to make use of IPC features, like sending unexpected POSIX signals.
 
 ## Examples
 
@@ -108,6 +121,22 @@ The `java` driver implements the following [capabilities](/docs/internals/plugin
 | filesystem isolation | none, chroot (only for linux) |
 | network isolation    | host, group                   |
 | volume mounting      | none, all (only for linux)    |
+
+## Plugin Options
+
+- `default_pid_mode` `(string: optional)` - Defaults to `"private"`. Set to
+  `"private"` to enable PID namespace isolation for tasks by default, or `"host"` to
+  disable isolation.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will
+be able to access sensitive process information like environment variables.
+
+- `default_ipc_mode` `(string: optional)` - Defaults to `"private"`. Set to
+  `"private"` to enable IPC namespace isolation for tasks by default,
+  or `"host"` to disable isolation.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will be
+able to make use of IPC features, like sending unexpected POSIX signals.
 
 ## Client Requirements
 
@@ -176,3 +205,6 @@ create.
 
 This list is configurable through the agent client
 [configuration file](/docs/configuration/client#chroot_env).
+
+[default_pid_mode]: /docs/drivers/java#default_pid_mode
+[default_ipc_mode]: /docs/drivers/java#default_ipc_mode

@@ -1,4 +1,4 @@
-{{title "Allocation " this.model.name}}
+{{page-title "Allocation " this.model.name}}
 <AllocationSubnav @allocation={{this.model}} />
 <section class="section">
   {{#if this.error}}
@@ -74,10 +74,10 @@
       {{#if this.model.isRunning}}
         <div class="columns">
           <div class="column">
-            <PrimaryMetric @resource={{this.model}} @metric="cpu" />
+            <PrimaryMetric::Allocation @allocation={{this.model}} @metric="cpu" />
           </div>
           <div class="column">
-            <PrimaryMetric @resource={{this.model}} @metric="memory" />
+            <PrimaryMetric::Allocation @allocation={{this.model}} @metric="memory" />
           </div>
         </div>
       {{else}}
@@ -165,6 +165,7 @@
             <th class="is-2">Name</th>
             <th class="is-1">Port</th>
             <td>Tags</td>
+            <td>On Update</td>
             <td>Connect?</td>
             <td>Upstreams</td>
           </t.head>
@@ -173,6 +174,7 @@
               <td data-test-service-name>{{row.model.name}}</td>
               <td data-test-service-port>{{row.model.portLabel}}</td>
               <td data-test-service-tags>{{join ", " row.model.tags}}</td>
+              <td data-test-service-onupdate>{{row.model.onUpdate}}</td>
               <td data-test-service-connect>{{if row.model.connect "Yes" "No"}}</td>
               <td data-test-service-upstreams>
                 {{#each row.model.connect.sidecarService.proxy.upstreams as |upstream|}}
@@ -223,10 +225,10 @@
                 <LinkTo @route="clients.client" @model={{this.preempter.node}} data-test-client-link>{{this.preempter.node.shortId}}</LinkTo>
               </span>
               <span class="pair"><span class="term">Reserved CPU</span>
-                <span data-test-allocation-cpu>{{this.preempter.resources.cpu}} MHz</span>
+                <span data-test-allocation-cpu>{{format-scheduled-hertz this.preempter.resources.cpu}}</span>
               </span>
               <span class="pair"><span class="term">Reserved Memory</span>
-                <span data-test-allocation-memory>{{this.preempter.resources.memory}} MiB</span>
+                <span data-test-allocation-memory>{{format-scheduled-bytes this.preempter.resources.memory start="MiB"}}</span>
               </span>
             </div>
           </div>

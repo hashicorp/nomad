@@ -79,6 +79,7 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 	if cfg.alloc.DeploymentStatus != nil {
 		h.canary = cfg.alloc.DeploymentStatus.Canary
 	}
+
 	return h
 }
 

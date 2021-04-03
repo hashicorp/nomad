@@ -5,7 +5,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import sinon from 'sinon';
 import RSVP from 'rsvp';
-import { formatBytes } from 'nomad-ui/helpers/format-bytes';
+import { formatBytes } from 'nomad-ui/utils/units';
 
 module('Integration | Component | image file', function(hooks) {
   setupRenderingTest(hooks);
@@ -81,7 +81,7 @@ module('Integration | Component | image file', function(hooks) {
       'Width and height are formatted correctly'
     );
     assert.ok(
-      statsEl.textContent.trim().endsWith(formatBytes([commonProperties.size]) + ')'),
+      statsEl.textContent.trim().endsWith(formatBytes(commonProperties.size) + ')'),
       'Human-formatted size is included'
     );
   });

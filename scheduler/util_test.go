@@ -39,8 +39,7 @@ func TestDiffSystemAllocsForNode(t *testing.T) {
 	eligibleNode := mock.Node()
 	eligibleNode.ID = "zip"
 
-	drainNode := mock.Node()
-	drainNode.Drain = true
+	drainNode := mock.DrainNode()
 
 	deadNode := mock.Node()
 	deadNode.Status = structs.NodeStatusDown
@@ -220,8 +219,7 @@ func TestDiffSystemAllocsForNode_ExistingAllocIneligibleNode(t *testing.T) {
 func TestDiffSystemAllocs(t *testing.T) {
 	job := mock.SystemJob()
 
-	drainNode := mock.Node()
-	drainNode.Drain = true
+	drainNode := mock.DrainNode()
 
 	deadNode := mock.Node()
 	deadNode.Status = structs.NodeStatusDown
@@ -332,8 +330,7 @@ func TestReadyNodesInDCs(t *testing.T) {
 	node3 := mock.Node()
 	node3.Datacenter = "dc2"
 	node3.Status = structs.NodeStatusDown
-	node4 := mock.Node()
-	node4.Drain = true
+	node4 := mock.DrainNode()
 
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2))
@@ -392,8 +389,7 @@ func TestTaintedNodes(t *testing.T) {
 	node3 := mock.Node()
 	node3.Datacenter = "dc2"
 	node3.Status = structs.NodeStatusDown
-	node4 := mock.Node()
-	node4.Drain = true
+	node4 := mock.DrainNode()
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2))
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1002, node3))
@@ -674,13 +670,18 @@ func TestTasksUpdated(t *testing.T) {
 
 	// Change network mode
 	j19 := mock.Job()
+	j19.TaskGroups[0].Networks[0].Mode = "bridge"
+	require.True(t, tasksUpdated(j1, j19, name))
 
+	// Change cores resource
 	j20 := mock.Job()
+	j20.TaskGroups[0].Tasks[0].Resources.CPU = 0
+	j20.TaskGroups[0].Tasks[0].Resources.Cores = 2
+	j21 := mock.Job()
+	j21.TaskGroups[0].Tasks[0].Resources.CPU = 0
+	j21.TaskGroups[0].Tasks[0].Resources.Cores = 4
+	require.True(t, tasksUpdated(j20, j21, name))
 
-	require.False(t, tasksUpdated(j19, j20, name))
-
-	j20.TaskGroups[0].Networks[0].Mode = "bridge"
-	require.True(t, tasksUpdated(j19, j20, name))
 }
 
 func TestTasksUpdated_connectServiceUpdated(t *testing.T) {
@@ -1385,4 +1386,78 @@ func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
 	}
 	expected = []string{}
 	require.True(t, reflect.DeepEqual(allocsLost, expected), "actual: %v, expected: %v", allocsLost, expected)
+}
+
+func TestUtil_connectUpdated(t *testing.T) {
+	t.Run("both nil", func(t *testing.T) {
+		require.False(t, connectUpdated(nil, nil))
+	})
+
+	t.Run("one nil", func(t *testing.T) {
+		require.True(t, connectUpdated(nil, new(structs.ConsulConnect)))
+	})
+
+	t.Run("native differ", func(t *testing.T) {
+		a := &structs.ConsulConnect{Native: true}
+		b := &structs.ConsulConnect{Native: false}
+		require.True(t, connectUpdated(a, b))
+	})
+
+	t.Run("gateway differ", func(t *testing.T) {
+		a := &structs.ConsulConnect{Gateway: &structs.ConsulGateway{
+			Ingress: new(structs.ConsulIngressConfigEntry),
+		}}
+		b := &structs.ConsulConnect{Gateway: &structs.ConsulGateway{
+			Terminating: new(structs.ConsulTerminatingConfigEntry),
+		}}
+		require.True(t, connectUpdated(a, b))
+	})
+
+	t.Run("sidecar task differ", func(t *testing.T) {
+		a := &structs.ConsulConnect{SidecarTask: &structs.SidecarTask{
+			Driver: "exec",
+		}}
+		b := &structs.ConsulConnect{SidecarTask: &structs.SidecarTask{
+			Driver: "docker",
+		}}
+		require.True(t, connectUpdated(a, b))
+	})
+
+	t.Run("sidecar service differ", func(t *testing.T) {
+		a := &structs.ConsulConnect{SidecarService: &structs.ConsulSidecarService{
+			Port: "1111",
+		}}
+		b := &structs.ConsulConnect{SidecarService: &structs.ConsulSidecarService{
+			Port: "2222",
+		}}
+		require.True(t, connectUpdated(a, b))
+	})
+
+	t.Run("same", func(t *testing.T) {
+		a := new(structs.ConsulConnect)
+		b := new(structs.ConsulConnect)
+		require.False(t, connectUpdated(a, b))
+	})
+}
+
+func TestUtil_connectSidecarServiceUpdated(t *testing.T) {
+	t.Run("both nil", func(t *testing.T) {
+		require.False(t, connectSidecarServiceUpdated(nil, nil))
+	})
+
+	t.Run("one nil", func(t *testing.T) {
+		require.True(t, connectSidecarServiceUpdated(nil, new(structs.ConsulSidecarService)))
+	})
+
+	t.Run("ports differ", func(t *testing.T) {
+		a := &structs.ConsulSidecarService{Port: "1111"}
+		b := &structs.ConsulSidecarService{Port: "2222"}
+		require.True(t, connectSidecarServiceUpdated(a, b))
+	})
+
+	t.Run("same", func(t *testing.T) {
+		a := &structs.ConsulSidecarService{Port: "1111"}
+		b := &structs.ConsulSidecarService{Port: "1111"}
+		require.False(t, connectSidecarServiceUpdated(a, b))
+	})
 }

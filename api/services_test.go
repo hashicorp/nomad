@@ -1,11 +1,46 @@
 package api
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestService_Canonicalize(t *testing.T) {
+	t.Parallel()
+
+	j := &Job{Name: stringToPtr("job")}
+	tg := &TaskGroup{Name: stringToPtr("group")}
+	task := &Task{Name: "task"}
+	s := &Service{}
+
+	s.Canonicalize(task, tg, j)
+
+	require.Equal(t, fmt.Sprintf("%s-%s-%s", *j.Name, *tg.Name, task.Name), s.Name)
+	require.Equal(t, "auto", s.AddressMode)
+	require.Equal(t, OnUpdateRequireHealthy, s.OnUpdate)
+}
+
+func TestServiceCheck_Canonicalize(t *testing.T) {
+	t.Parallel()
+
+	j := &Job{Name: stringToPtr("job")}
+	tg := &TaskGroup{Name: stringToPtr("group")}
+	task := &Task{Name: "task"}
+	s := &Service{
+		Checks: []ServiceCheck{
+			{
+				Name: "check",
+			},
+		},
+	}
+
+	s.Canonicalize(task, tg, j)
+
+	require.Equal(t, OnUpdateRequireHealthy, s.Checks[0].OnUpdate)
+}
 
 func TestService_Check_PassFail(t *testing.T) {
 	t.Parallel()
@@ -193,9 +228,10 @@ func TestService_Connect_proxy_settings(t *testing.T) {
 				Proxy: &ConsulProxy{
 					Upstreams: []*ConsulUpstream{
 						{
-							DestinationName: "upstream",
-							LocalBindPort:   80,
-							Datacenter:      "dc2",
+							DestinationName:  "upstream",
+							LocalBindPort:    80,
+							Datacenter:       "dc2",
+							LocalBindAddress: "127.0.0.2",
 						},
 					},
 					LocalServicePort: 8000,
@@ -209,6 +245,7 @@ func TestService_Connect_proxy_settings(t *testing.T) {
 	require.Equal(t, proxy.Upstreams[0].DestinationName, "upstream")
 	require.Equal(t, proxy.Upstreams[0].LocalBindPort, 80)
 	require.Equal(t, proxy.Upstreams[0].Datacenter, "dc2")
+	require.Equal(t, proxy.Upstreams[0].LocalBindAddress, "127.0.0.2")
 	require.Equal(t, proxy.LocalServicePort, 8000)
 }
 

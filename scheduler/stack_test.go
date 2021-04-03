@@ -240,7 +240,7 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 
 	// Create a volume in the state store
 	index := uint64(999)
-	v := structs.NewCSIVolume("foo", index)
+	v := structs.NewCSIVolume("foo[0]", index)
 	v.Namespace = structs.DefaultNamespace
 	v.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	v.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
@@ -284,16 +284,19 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 	stack.SetNodes(nodes)
 
 	job := mock.Job()
+	job.TaskGroups[0].Count = 2
 	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"foo": {
 		Name:     "bar",
 		Type:     structs.VolumeTypeCSI,
 		Source:   "foo",
 		ReadOnly: true,
+		PerAlloc: true,
 	}}
 
 	stack.SetJob(job)
 
-	selectOptions := &SelectOptions{}
+	selectOptions := &SelectOptions{
+		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 0)}
 	node := stack.Select(job.TaskGroups[0], selectOptions)
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())

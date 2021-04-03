@@ -189,7 +189,6 @@ func maybeTweakTags(wanted *api.AgentServiceRegistration, existing *api.AgentSer
 // (cached) state of the service registration reported by Consul. If any of the
 // critical fields are not deeply equal, they considered different.
 func different(wanted *api.AgentServiceRegistration, existing *api.AgentService, sidecar *api.AgentService) bool {
-
 	switch {
 	case wanted.Kind != existing.Kind:
 		return true
@@ -205,12 +204,11 @@ func different(wanted *api.AgentServiceRegistration, existing *api.AgentService,
 		return true
 	case !reflect.DeepEqual(wanted.Meta, existing.Meta):
 		return true
-	case !reflect.DeepEqual(wanted.Tags, existing.Tags):
+	case tagsDifferent(wanted.Tags, existing.Tags):
 		return true
 	case connectSidecarDifferent(wanted, sidecar):
 		return true
 	}
-
 	return false
 }
 
@@ -228,20 +226,36 @@ func tagsDifferent(a, b []string) bool {
 	return false
 }
 
+// sidecarTagsDifferent includes the special logic for comparing sidecar tags
+// from Nomad vs. Consul perspective. Because Consul forces the sidecar tags
+// to inherit the parent service tags if the sidecar tags are unset, we need to
+// take that into consideration when Nomad's sidecar tags are unset by instead
+// comparing them to the parent service tags.
+func sidecarTagsDifferent(parent, wanted, sidecar []string) bool {
+	if len(wanted) == 0 {
+		return tagsDifferent(parent, sidecar)
+	}
+	return tagsDifferent(wanted, sidecar)
+}
+
+// connectSidecarDifferent returns true if Nomad expects there to be a sidecar
+// hanging off the desired parent service definition on the Consul side, and does
+// not match with what Consul has.
 func connectSidecarDifferent(wanted *api.AgentServiceRegistration, sidecar *api.AgentService) bool {
 	if wanted.Connect != nil && wanted.Connect.SidecarService != nil {
 		if sidecar == nil {
 			// consul lost our sidecar (?)
 			return true
 		}
-		if tagsDifferent(wanted.Connect.SidecarService.Tags, sidecar.Tags) {
+
+		if sidecarTagsDifferent(wanted.Tags, wanted.Connect.SidecarService.Tags, sidecar.Tags) {
 			// tags on the nomad definition have been modified
 			return true
 		}
 	}
 
-	// There is no connect sidecar the nomad side; let consul anti-entropy worry
-	// about any registration on the consul side.
+	// Either Nomad does not expect there to be a sidecar_service, or there is
+	// no actionable difference from the Consul sidecar_service definition.
 	return false
 }
 
@@ -334,6 +348,11 @@ type ServiceRegistration struct {
 	serviceID string
 	checkIDs  map[string]struct{}
 
+	// CheckOnUpdate is a map of checkIDs and the associated OnUpdate value
+	// from the ServiceCheck It is used to determine how a reported checks
+	// status should be evaluated.
+	CheckOnUpdate map[string]string
+
 	// Service is the AgentService registered in Consul.
 	Service *api.AgentService
 
@@ -346,8 +365,9 @@ func (s *ServiceRegistration) copy() *ServiceRegistration {
 	// is so that the caller of AllocRegistrations can not access the internal
 	// fields and that method uses these fields to populate the external fields.
 	return &ServiceRegistration{
-		serviceID: s.serviceID,
-		checkIDs:  helper.CopyMapStringStruct(s.checkIDs),
+		serviceID:     s.serviceID,
+		checkIDs:      helper.CopyMapStringStruct(s.checkIDs),
+		CheckOnUpdate: helper.CopyMapStringString(s.CheckOnUpdate),
 	}
 }
 
@@ -839,8 +859,9 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	// Get the services ID
 	id := MakeAllocServiceID(workload.AllocID, workload.Name(), service)
 	sreg := &ServiceRegistration{
-		serviceID: id,
-		checkIDs:  make(map[string]struct{}, len(service.Checks)),
+		serviceID:     id,
+		checkIDs:      make(map[string]struct{}, len(service.Checks)),
+		CheckOnUpdate: make(map[string]string, len(service.Checks)),
 	}
 
 	// Service address modes default to auto
@@ -866,7 +887,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	}
 
 	// newConnect returns (nil, nil) if there's no Connect-enabled service.
-	connect, err := newConnect(service.Name, service.Connect, workload.Networks)
+	connect, err := newConnect(id, service.Name, service.Connect, workload.Networks, workload.Ports)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Consul Connect configuration for service %q: %v", service.Name, err)
 	}
@@ -924,7 +945,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	ops.regServices = append(ops.regServices, serviceReg)
 
 	// Build the check registrations
-	checkRegs, err := c.checkRegs(id, service, workload)
+	checkRegs, err := c.checkRegs(id, service, workload, sreg)
 	if err != nil {
 		return nil, err
 	}
@@ -938,7 +959,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 
 // checkRegs creates check registrations for the given service
 func (c *ServiceClient) checkRegs(serviceID string, service *structs.Service,
-	workload *WorkloadServices) ([]*api.AgentCheckRegistration, error) {
+	workload *WorkloadServices, sreg *ServiceRegistration) ([]*api.AgentCheckRegistration, error) {
 
 	registrations := make([]*api.AgentCheckRegistration, 0, len(service.Checks))
 	for _, check := range service.Checks {
@@ -969,6 +990,7 @@ func (c *ServiceClient) checkRegs(serviceID string, service *structs.Service,
 		if err != nil {
 			return nil, fmt.Errorf("failed to add check %q: %v", check.Name, err)
 		}
+		sreg.CheckOnUpdate[checkID] = check.OnUpdate
 
 		registrations = append(registrations, registration)
 	}
@@ -1063,8 +1085,9 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 
 		// Service still exists so add it to the task's registration
 		sreg := &ServiceRegistration{
-			serviceID: existingID,
-			checkIDs:  make(map[string]struct{}, len(newSvc.Checks)),
+			serviceID:     existingID,
+			checkIDs:      make(map[string]struct{}, len(newSvc.Checks)),
+			CheckOnUpdate: make(map[string]string, len(newSvc.Checks)),
 		}
 		regs.Services[existingID] = sreg
 
@@ -1082,16 +1105,18 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 				// deleted later.
 				delete(existingChecks, checkID)
 				sreg.checkIDs[checkID] = struct{}{}
+				sreg.CheckOnUpdate[checkID] = check.OnUpdate
 			}
 
 			// New check on an unchanged service; add them now
-			checkRegs, err := c.checkRegs(existingID, newSvc, newWorkload)
+			checkRegs, err := c.checkRegs(existingID, newSvc, newWorkload, sreg)
 			if err != nil {
 				return err
 			}
 
 			for _, registration := range checkRegs {
 				sreg.checkIDs[registration.ID] = struct{}{}
+				sreg.CheckOnUpdate[registration.ID] = check.OnUpdate
 				ops.regChecks = append(ops.regChecks, registration)
 			}
 
@@ -1500,9 +1525,9 @@ func getAddress(addrMode, portLabel string, networks structs.Networks, driverNet
 		// Check in Networks struct for backwards compatibility if not found
 		mapping, ok := ports.Get(portLabel)
 		if !ok {
-			ip, port := networks.Port(portLabel)
-			if port > 0 {
-				return ip, port, nil
+			mapping = networks.Port(portLabel)
+			if mapping.Value > 0 {
+				return mapping.HostIP, mapping.Value, nil
 			}
 
 			// If port isn't a label, try to parse it as a literal port number

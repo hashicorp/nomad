@@ -95,6 +95,7 @@ type ServiceCheck struct {
 	TaskName               string              `mapstructure:"task" hcl:"task,optional"`
 	SuccessBeforePassing   int                 `mapstructure:"success_before_passing" hcl:"success_before_passing,optional"`
 	FailuresBeforeCritical int                 `mapstructure:"failures_before_critical" hcl:"failures_before_critical,optional"`
+	OnUpdate               string              `mapstructure:"on_update" hcl:"on_update,optional"`
 }
 
 // Service represents a Consul service definition.
@@ -113,7 +114,14 @@ type Service struct {
 	Meta              map[string]string `hcl:"meta,block"`
 	CanaryMeta        map[string]string `hcl:"canary_meta,block"`
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
+	OnUpdate          string            `mapstructure:"on_update" hcl:"on_update,optional"`
 }
+
+const (
+	OnUpdateRequireHealthy = "require_healthy"
+	OnUpdateIgnoreWarn     = "ignore_warnings"
+	OnUpdateIgnore         = "ignore"
+)
 
 // Canonicalize the Service by ensuring its name and address mode are set. Task
 // will be nil for group services.
@@ -131,6 +139,11 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 		s.AddressMode = "auto"
 	}
 
+	// Default to OnUpdateRequireHealthy
+	if s.OnUpdate == "" {
+		s.OnUpdate = OnUpdateRequireHealthy
+	}
+
 	s.Connect.Canonicalize()
 
 	// Canonicalize CheckRestart on Checks and merge Service.CheckRestart
@@ -145,6 +158,11 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 
 		if s.Checks[i].FailuresBeforeCritical < 0 {
 			s.Checks[i].FailuresBeforeCritical = 0
+		}
+
+		// Inhert Service
+		if s.Checks[i].OnUpdate == "" {
+			s.Checks[i].OnUpdate = s.OnUpdate
 		}
 	}
 }
@@ -268,9 +286,10 @@ func (cp *ConsulProxy) Canonicalize() {
 
 // ConsulUpstream represents a Consul Connect upstream jobspec stanza.
 type ConsulUpstream struct {
-	DestinationName string `mapstructure:"destination_name" hcl:"destination_name,optional"`
-	LocalBindPort   int    `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
-	Datacenter      string `mapstructure:"datacenter" hcl:"datacenter,optional"`
+	DestinationName  string `mapstructure:"destination_name" hcl:"destination_name,optional"`
+	LocalBindPort    int    `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
+	Datacenter       string `mapstructure:"datacenter" hcl:"datacenter,optional"`
+	LocalBindAddress string `mapstructure:"local_bind_address" hcl:"local_bind_address,optional"`
 }
 
 type ConsulExposeConfig struct {

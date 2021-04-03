@@ -18,7 +18,9 @@ Options for configuration:
  --index INDEX              count of instance, for profiles with per-instance config
  --nostart                  do not start or restart Nomad
  --enterprise               if nomad_sha is passed, use the ENT version
+ --nomad_license            set the NOMAD_LICENSE environment variable
  --nomad_acls               write Nomad ACL configuration
+ --autojoin                 the AWS ConsulAutoJoin tag value
 
 EOF
 
@@ -36,7 +38,9 @@ NOMAD_PROFILE=
 NOMAD_ROLE=
 NOMAD_INDEX=
 BUILD_FOLDER="builds-oss"
+CONSUL_AUTOJOIN=
 ACLS=0
+NOMAD_LICENSE=
 
 install_from_s3() {
     # check that we don't already have this version
@@ -118,6 +122,9 @@ install_config_profile() {
     fi
 }
 
+update_consul_autojoin() {
+    sudo sed -i'' -e "s|tag_key=ConsulAutoJoin tag_value=auto-join|tag_key=ConsulAutoJoin tag_value=${CONSUL_AUTOJOIN}|g" /etc/consul.d/*.json
+}
 
 while [[ $# -gt 0 ]]
 do
@@ -156,6 +163,11 @@ opt="$1"
             NOMAD_INDEX="$2"
             shift 2
             ;;
+        --autojoin)
+            if [ -z "$2" ]; then ehco "Missing autojoin parameter"; usage; fi
+            CONSUL_AUTOJOIN="$2"
+            shift 2
+            ;;
         --nostart)
             # for initial packer builds, we don't want to start Nomad
             START=0
@@ -164,6 +176,11 @@ opt="$1"
         --enterprise)
             BUILD_FOLDER="builds-ent"
             shift
+            ;;
+        --nomad_license)
+            if [ -z "$2" ]; then echo "Missing license parameter"; usage; fi
+            NOMAD_LICENSE="$2"
+            shift 2
             ;;
         --nomad_acls)
             ACLS=1
@@ -179,6 +196,16 @@ if [ -n "$install_fn" ]; then
 fi
 if [ -n "$NOMAD_PROFILE" ]; then
     install_config_profile
+fi
+
+if [ -n "$CONSUL_AUTOJOIN" ]; then
+    update_consul_autojoin
+fi
+
+sudo touch /etc/nomad.d/.environment
+if [ -n "$NOMAD_LICENSE" ]; then
+  echo "NOMAD_LICENSE=${NOMAD_LICENSE}" > /tmp/.nomad-environment
+  sudo mv /tmp/.nomad-environment /etc/nomad.d/.environment
 fi
 
 if [ $START == "1" ]; then

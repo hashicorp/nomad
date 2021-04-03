@@ -42,6 +42,8 @@ message LaunchRequest {
     repeated hashicorp.nomad.plugins.drivers.proto.Device devices = 12;
     hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec network_isolation = 13;
     bool no_pivot_root = 14;
+    string default_pid_mode = 15;
+    string default_ipc_mode = 16;
 }
 
 message LaunchResponse {
