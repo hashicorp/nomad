@@ -460,6 +460,49 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	return 0
 }
 
+func getConsulAddrFromSelf(self *api.AgentSelf) string {
+	if self == nil {
+		return ""
+	}
+
+	var consul string
+	r, ok := self.Config["Consul"]
+	if ok {
+		m, ok := r.(map[string]interface{})
+		if ok {
+
+			raw := m["Addr"]
+			consul, _ = raw.(string)
+			raw = m["EnableSSL"]
+			ssl, _ := raw.(bool)
+			if ssl {
+				consul = "https://" + consul
+			} else {
+				consul = "http://" + consul
+			}
+		}
+	}
+	return consul
+}
+
+func getVaultAddrFromSelf(self *api.AgentSelf) string {
+	if self == nil {
+		return ""
+	}
+
+	var vaultAddr string
+	r, ok := self.Config["Vault"]
+	if ok {
+		m, ok := r.(map[string]interface{})
+		if ok {
+			raw := m["Addr"]
+			vaultAddr, _ = raw.(string)
+		}
+	}
+
+	return vaultAddr
+}
+
 // collect collects data from our endpoints and writes the archive bundle
 func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	// Version contains cluster meta information
@@ -468,39 +511,14 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	self, err := client.Agent().Self()
 	c.writeJSON(dir, "agent-self.json", self, err)
 
-	// Fetch data directly from consul and vault. Ignore errors
-	var consul, vault string
+	// Fetch data from consul
+	consulAddr := getConsulAddrFromSelf(self)
+	c.collectConsul(dir, consulAddr)
 
-	if self != nil {
-		r, ok := self.Config["Consul"]
-		if ok {
-			m, ok := r.(map[string]interface{})
-			if ok {
+	// Fetch data from vault
+	vaultAddr := getVaultAddrFromSelf(self)
+	c.collectVault(dir, vaultAddr)
 
-				raw := m["Addr"]
-				consul, _ = raw.(string)
-				raw = m["EnableSSL"]
-				ssl, _ := raw.(bool)
-				if ssl {
-					consul = "https://" + consul
-				} else {
-					consul = "http://" + consul
-				}
-			}
-		}
-
-		r, ok = self.Config["Vault"]
-		if ok {
-			m, ok := r.(map[string]interface{})
-			if ok {
-				raw := m["Addr"]
-				vault, _ = raw.(string)
-			}
-		}
-	}
-
-	c.collectConsul(dir, consul)
-	c.collectVault(dir, vault)
 	c.collectAgentHosts(client)
 	c.collectPprofs(client)
 
