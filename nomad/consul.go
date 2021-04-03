@@ -235,6 +235,7 @@ func (c *consulACLsAPI) CreateToken(ctx context.Context, sir ServiceIdentityRequ
 	partial := &api.ACLToken{
 		Description:       sir.Description(),
 		ServiceIdentities: []*api.ACLServiceIdentity{{ServiceName: service}},
+		Local:             true,
 	}
 
 	// Ensure we are under our rate limit.
