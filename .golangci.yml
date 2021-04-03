@@ -57,6 +57,10 @@ linters-settings:
     list-type: blacklist
     packages:
       - github.com/hashicorp/consul/command/flags
+  gocritic:
+    disabled-checks:
+      - commentFormatting
+      - deprecatedComment
 
 issues:
   exclude:

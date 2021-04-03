@@ -20,7 +20,7 @@ func checkForMacJVM() (ok bool, err error) {
 	cmd.Stderr = &out
 	err = cmd.Run()
 	if err != nil {
-		err = fmt.Errorf("failed check for macOS jvm: %v, out: %v", err, strings.Replace(strings.Replace(out.String(), "\n", " ", -1), `"`, `\"`, -1))
+		err = fmt.Errorf("failed check for macOS jvm: %v, out: %v", err, strings.ReplaceAll(strings.ReplaceAll(out.String(), "\n", " "), `"`, `\"`))
 		return false, err
 	}
 	return true, nil

@@ -117,7 +117,7 @@ func (a *TestAgent) Start() *TestAgent {
 		if a.Name != "" {
 			name = a.Name + "-agent"
 		}
-		name = strings.Replace(name, "/", "_", -1)
+		name = strings.ReplaceAll(name, "/", "_")
 		d, err := ioutil.TempDir(TempDir, name)
 		if err != nil {
 			a.T.Fatalf("Error creating data dir %s: %s", filepath.Join(TempDir, name), err)
