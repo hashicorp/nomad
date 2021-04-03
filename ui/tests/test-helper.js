@@ -9,4 +9,5 @@ useNativeEvents();
 
 setApplication(Application.create(config.APP));
 
-start();
+const startTests = !/[?&]__newrunner/.test(window.location.search);
+start({ startTests });
