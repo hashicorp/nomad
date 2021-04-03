@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: volume Stanza - Job Specification
-sidebar_title: volume
 description: >-
   The "volume" stanza allows the group to specify that it requires a given
   volume from the cluster. Nomad will automatically handle ensuring that the
@@ -52,8 +51,7 @@ the [volume_mount][volume_mount] stanza in the `task` configuration.
 - `per_alloc` `(bool: false)` - Specifies that the `source` of the volume
   should have the suffix `[n]`, where `n` is the allocation index. This allows
   mounting a unique volume per allocation, so long as the volume's source is
-  named appropriately. For example, with the source `myvolume` and `per_alloc
-  = true`, the allocation named `myjob.mygroup.mytask[0]` will require a
+  named appropriately. For example, with the source `myvolume` and `per_alloc = true`, the allocation named `myjob.mygroup.mytask[0]` will require a
   volume ID `myvolume[0]`.
 
 - `read_only` `(bool: false)` - Specifies that the group only requires

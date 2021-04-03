@@ -108,7 +108,7 @@
                     </div>
                   </div>
                   <div class="annotation" data-test-memory-absolute-value>
-                    <strong>{{format-bytes this.nodeUtilization.totalReservedMemory}}</strong> / {{format-bytes this.nodeUtilization.totalMemory}} reserved
+                    <strong>{{format-scheduled-bytes this.nodeUtilization.totalReservedMemory}}</strong> / {{format-scheduled-bytes this.nodeUtilization.totalMemory}} reserved
                   </div>
                 </div>
                 <div class="dashboard-metric">
@@ -130,7 +130,7 @@
                     </div>
                   </div>
                   <div class="annotation" data-test-cpu-absolute-value>
-                    <strong>{{this.nodeUtilization.totalReservedCPU}} MHz</strong> / {{this.nodeUtilization.totalCPU}} MHz reserved
+                    <strong>{{format-scheduled-hertz this.nodeUtilization.totalReservedCPU}}</strong> / {{format-scheduled-hertz this.nodeUtilization.totalCPU}} reserved
                   </div>
                 </div>
                 {{/let}}
@@ -205,7 +205,7 @@
                   </div>
                 </div>
                 <div class="dashboard-metric">
-                  <p class="metric">{{this.totalCPU}} <span class="metric-units">MHz</span> <span class="metric-label">of CPU</span></p>
+                  <p class="metric">{{this.totalCPUFormatted}} <span class="metric-units">{{this.totalCPUUnits}}</span> <span class="metric-label">of CPU</span></p>
                   <div class="columns graphic">
                     <div class="column">
                       <div class="inline-chart" data-test-percentage-bar>
@@ -223,7 +223,7 @@
                     </div>
                   </div>
                   <div class="annotation" data-test-cpu-absolute-value>
-                    <strong>{{this.totalReservedCPU}} MHz</strong> / {{this.totalCPU}} MHz reserved
+                    <strong>{{format-hertz this.totalReservedCPU}}</strong> / {{format-hertz this.totalCPU}} reserved
                   </div>
                 </div>
               {{/if}}

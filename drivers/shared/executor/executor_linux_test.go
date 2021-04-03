@@ -21,6 +21,7 @@ import (
 	tu "github.com/hashicorp/nomad/testutil"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
@@ -597,8 +598,8 @@ func TestExecutor_cmdDevices(t *testing.T) {
 		},
 	}
 
-	expected := &lconfigs.Device{
-		DeviceRule: lconfigs.DeviceRule{
+	expected := &devices.Device{
+		Rule: devices.Rule{
 			Type:        99,
 			Major:       1,
 			Minor:       3,

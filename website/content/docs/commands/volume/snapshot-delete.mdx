@@ -1,0 +1,43 @@
+---
+layout: docs
+page_title: 'Commands: volume snapshot delete'
+description: |
+  Delete external volume snapshots.
+---
+
+# Command: volume snapshot delete
+
+The `volume snapshot delete` command deletes a snapshot of an existing
+[Container Storage Interface (CSI)][csi] volume. Only CSI plugins that
+implement the [Controller][csi_plugins_internals] interface support this
+command.
+
+## Usage
+
+```plaintext
+nomad volume snapshot delete [plugin_id] [snapshot_id]
+```
+
+The `volume snapshot delete` command requires both the plugin ID and the
+snapshot ID. The volume that was the source of the snapshot does not still
+need to be [registered] with Nomad in order to be deleted.
+
+When ACLs are enabled, this command requires a token with the `csi-write-
+volume` and `plugin:read` capabilities.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Examples
+
+Delete a volume snapshot:
+
+```shell-session
+$ nomad volume snapshot delete aws-ebs0 snap-12345
+Deleted snapshot snap-12345.
+```
+
+[csi]: https://github.com/container-storage-interface/spec
+[csi_plugin]: /docs/job-specification/csi_plugin
+[registered]: /docs/commands/volume/register

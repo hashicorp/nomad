@@ -202,6 +202,48 @@ func TestConnectNativeHook_bridgeEnv_host(t *testing.T) {
 	})
 }
 
+func TestConnectNativeHook_hostEnv_host(t *testing.T) {
+	t.Parallel()
+
+	hook := new(connectNativeHook)
+	hook.alloc = mock.ConnectNativeAlloc("host")
+	hook.consulConfig.HTTPAddr = "http://1.2.3.4:9999"
+
+	t.Run("consul address env not preconfigured", func(t *testing.T) {
+		result := hook.hostEnv(nil)
+		require.Equal(t, map[string]string{
+			"CONSUL_HTTP_ADDR": "http://1.2.3.4:9999",
+		}, result)
+	})
+
+	t.Run("consul address env is preconfigured", func(t *testing.T) {
+		result := hook.hostEnv(map[string]string{
+			"CONSUL_HTTP_ADDR": "10.1.1.1",
+		})
+		require.Empty(t, result)
+	})
+}
+
+func TestConnectNativeHook_hostEnv_bridge(t *testing.T) {
+	t.Parallel()
+
+	hook := new(connectNativeHook)
+	hook.alloc = mock.ConnectNativeAlloc("bridge")
+	hook.consulConfig.HTTPAddr = "http://1.2.3.4:9999"
+
+	t.Run("consul address env not preconfigured", func(t *testing.T) {
+		result := hook.hostEnv(nil)
+		require.Empty(t, result)
+	})
+
+	t.Run("consul address env is preconfigured", func(t *testing.T) {
+		result := hook.hostEnv(map[string]string{
+			"CONSUL_HTTP_ADDR": "10.1.1.1",
+		})
+		require.Empty(t, result)
+	})
+}
+
 func TestTaskRunner_ConnectNativeHook_Noop(t *testing.T) {
 	t.Parallel()
 	logger := testlog.HCLogger(t)
@@ -230,6 +272,9 @@ func TestTaskRunner_ConnectNativeHook_Noop(t *testing.T) {
 
 	// Assert the hook is Done
 	require.True(t, response.Done)
+
+	// Assert no environment variables configured to be set
+	require.Empty(t, response.Env)
 
 	// Assert secrets dir is empty (no TLS config set)
 	checkFilesInDir(t, request.TaskDir.SecretsDir,
@@ -292,8 +337,8 @@ func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 	// Assert the hook is Done
 	require.True(t, response.Done)
 
-	// Assert no environment variables configured to be set
-	require.Empty(t, response.Env)
+	// Assert only CONSUL_HTTP_ADDR env variable is set
+	require.Equal(t, map[string]string{"CONSUL_HTTP_ADDR": testConsul.HTTPAddr}, response.Env)
 
 	// Assert no secrets were written
 	checkFilesInDir(t, request.TaskDir.SecretsDir,
@@ -443,6 +488,9 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 		// Assert the hook is Done
 		require.True(t, response.Done)
 
+		// Remove variables we are not interested in
+		delete(response.Env, "CONSUL_HTTP_ADDR")
+
 		// Assert environment variable for token is set
 		require.NotEmpty(t, response.Env)
 		require.Equal(t, map[string]string{
@@ -550,6 +598,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 		"CONSUL_CLIENT_KEY":      "/foo/key.pem",
 		"CONSUL_HTTP_AUTH":       "foo:bar",
 		"CONSUL_HTTP_SSL_VERIFY": "false",
+		"CONSUL_HTTP_ADDR":       "localhost:8500",
 		// CONSUL_HTTP_SSL (check the default value is assumed from client config)
 	}
 

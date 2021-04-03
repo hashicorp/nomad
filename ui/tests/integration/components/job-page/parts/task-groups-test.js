@@ -6,6 +6,7 @@ import sinon from 'sinon';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { setupRenderingTest } from 'ember-qunit';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
+import { formatScheduledHertz, formatScheduledBytes } from 'nomad-ui/utils/units';
 
 module('Integration | Component | job-page/parts/task-groups', function(hooks) {
   setupRenderingTest(hooks);
@@ -46,10 +47,10 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
 
     await this.render(hbs`
       <JobPage::Parts::TaskGroups
-        @job={{job}}
-        @sortProperty={{sortProperty}}
-        @sortDescending={{sortDescending}}
-        @gotoTaskGroup={{gotoTaskGroup}} />
+        @job={{this.job}}
+        @sortProperty={{this.sortProperty}}
+        @sortDescending={{this.sortDescending}}
+        @gotoTaskGroup={{this.gotoTaskGroup}} />
     `);
 
     assert.equal(
@@ -80,10 +81,10 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
 
     await this.render(hbs`
       <JobPage::Parts::TaskGroups
-        @job={{job}}
-        @sortProperty={{sortProperty}}
-        @sortDescending={{sortDescending}}
-        @gotoTaskGroup={{gotoTaskGroup}} />
+        @job={{this.job}}
+        @sortProperty={{this.sortProperty}}
+        @sortDescending={{this.sortDescending}}
+        @gotoTaskGroup={{this.gotoTaskGroup}} />
     `);
 
     const taskGroupRow = find('[data-test-task-group]');
@@ -105,17 +106,17 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
     );
     assert.equal(
       taskGroupRow.querySelector('[data-test-task-group-cpu]').textContent.trim(),
-      `${taskGroup.get('reservedCPU')} MHz`,
+      `${formatScheduledHertz(taskGroup.get('reservedCPU'), 'MHz')}`,
       'Reserved CPU'
     );
     assert.equal(
       taskGroupRow.querySelector('[data-test-task-group-mem]').textContent.trim(),
-      `${taskGroup.get('reservedMemory')} MiB`,
+      `${formatScheduledBytes(taskGroup.get('reservedMemory'), 'MiB')}`,
       'Reserved Memory'
     );
     assert.equal(
       taskGroupRow.querySelector('[data-test-task-group-disk]').textContent.trim(),
-      `${taskGroup.get('reservedEphemeralDisk')} MiB`,
+      `${formatScheduledBytes(taskGroup.get('reservedEphemeralDisk'), 'MiB')}`,
       'Reserved Disk'
     );
   });
@@ -145,10 +146,10 @@ module('Integration | Component | job-page/parts/task-groups', function(hooks) {
 
     await this.render(hbs`
       <JobPage::Parts::TaskGroups
-        @job={{job}}
-        @sortProperty={{sortProperty}}
-        @sortDescending={{sortDescending}}
-        @gotoTaskGroup={{gotoTaskGroup}} />
+        @job={{this.job}}
+        @sortProperty={{this.sortProperty}}
+        @sortDescending={{this.sortDescending}}
+        @gotoTaskGroup={{this.gotoTaskGroup}} />
     `);
 
     await click('[data-test-task-group]');

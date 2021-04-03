@@ -1,6 +1,6 @@
 import UseCasesLayout from 'components/use-case-page'
 import TextSplitWithImage from '@hashicorp/react-text-split-with-image'
-import FeaturedSliderSection from 'components/featured-slider-section'
+import FeaturedSlider from '@hashicorp/react-featured-slider'
 
 export default function AutomatedServiceNetworkingWithConsulPage() {
   return (
@@ -71,8 +71,10 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
         }}
       />
 
-      <FeaturedSliderSection
+      <FeaturedSlider
         heading="Case Studies"
+        theme="dark"
+        product="nomad"
         features={[
           {
             logo: {

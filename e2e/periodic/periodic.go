@@ -74,5 +74,6 @@ func (tc *PeriodicTest) TestPeriodicDispatch_Basic(f *framework.F) {
 	require.NoError(t, err)
 	require.Len(t, summary, 1)
 	require.Equal(t, summary[0]["Pending"], "0")
+	require.Equal(t, summary[0]["Running"], "0")
 	require.Equal(t, summary[0]["Dead"], "1")
 }

@@ -18,25 +18,7 @@ func (c *VolumeStatusCommand) csiBanner() {
 func (c *VolumeStatusCommand) csiStatus(client *api.Client, id string) int {
 	// Invoke list mode if no volume id
 	if id == "" {
-		c.csiBanner()
-		vols, _, err := client.CSIVolumes().List(nil)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
-			return 1
-		}
-
-		if len(vols) == 0 {
-			// No output if we have no volumes
-			c.Ui.Error("No CSI volumes")
-		} else {
-			str, err := c.csiFormatVolumes(vols)
-			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
-				return 1
-			}
-			c.Ui.Output(str)
-		}
-		return 0
+		return c.listVolumes(client)
 	}
 
 	// Prefix search for the volume
@@ -75,6 +57,89 @@ func (c *VolumeStatusCommand) csiStatus(client *api.Client, id string) int {
 	c.Ui.Output(str)
 
 	return 0
+}
+
+func (c *VolumeStatusCommand) listVolumes(client *api.Client) int {
+
+	c.csiBanner()
+	vols, _, err := client.CSIVolumes().List(nil)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
+		return 1
+	}
+
+	if len(vols) == 0 {
+		// No output if we have no volumes
+		c.Ui.Error("No CSI volumes")
+	} else {
+		str, err := c.csiFormatVolumes(vols)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
+			return 1
+		}
+		c.Ui.Output(str)
+	}
+	if !c.verbose {
+		return 0
+	}
+
+	plugins, _, err := client.CSIPlugins().List(nil)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying CSI plugins: %s", err))
+		return 1
+	}
+
+	if len(plugins) == 0 {
+		return 0 // No more output if we have no plugins
+	}
+
+	var code int
+	q := &api.QueryOptions{PerPage: 30} // TODO: tune page size
+
+	for _, plugin := range plugins {
+		if !plugin.ControllerRequired || plugin.ControllersHealthy < 1 {
+			continue // only controller plugins can support this query
+		}
+		for {
+			externalList, _, err := client.CSIVolumes().ListExternal(plugin.ID, q)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf(
+					"Error querying CSI external volumes for plugin %q: %s", plugin.ID, err))
+				// we'll stop querying this plugin, but there may be more to
+				// query, so report and set the error code but move on to the
+				// next plugin
+				code = 1
+				continue
+			}
+			rows := []string{}
+			if len(externalList.Volumes) > 0 {
+				rows[0] = "External ID|Condition|Nodes"
+				for i, v := range externalList.Volumes {
+					condition := "OK"
+					if v.IsAbnormal {
+						condition = fmt.Sprintf("Abnormal (%v)", v.Status)
+					}
+
+					rows[i+1] = fmt.Sprintf("%s|%s|%s",
+						limit(v.ExternalID, c.length),
+						limit(condition, 20),
+						strings.Join(v.PublishedExternalNodeIDs, ","),
+					)
+				}
+				c.Ui.Output(formatList(rows))
+			}
+
+			q.NextToken = externalList.NextToken
+			if q.NextToken == "" {
+				break
+			}
+			// we can't know the shape of arbitrarily-sized lists of volumes,
+			// so break after each page
+			c.Ui.Output("...")
+		}
+	}
+
+	return code
 }
 
 func (c *VolumeStatusCommand) csiFormatVolumes(vols []*api.CSIVolumeListStub) (string, error) {

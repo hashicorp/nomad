@@ -81,6 +81,8 @@ func createTestCSIPlugin(s *StateStore, id string, requiresController bool) func
 				SupportsAttachDetach:             true,
 				SupportsListVolumes:              true,
 				SupportsListVolumesAttachedNodes: false,
+				SupportsCreateDeleteSnapshot:     true,
+				SupportsListSnapshots:            true,
 			},
 		},
 	}

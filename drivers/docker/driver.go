@@ -738,8 +738,8 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 }
 
 // memoryLimits computes the memory and memory_reservation values passed along to
-// the docker host config. These fields represent hard and soft memory limits from
-// docker's perspective, respectively.
+// the docker host config. These fields represent hard and soft/reserved memory
+// limits from docker's perspective, respectively.
 //
 // The memory field on the task configuration can be interpreted as a hard or soft
 // limit. Before Nomad v0.11.3, it was always a hard limit. Now, it is interpreted
@@ -754,11 +754,18 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 // unset.
 //
 // Returns (memory (hard), memory_reservation (soft)) values in bytes.
-func (_ *Driver) memoryLimits(driverHardLimitMB, taskMemoryLimitBytes int64) (int64, int64) {
-	if driverHardLimitMB <= 0 {
-		return taskMemoryLimitBytes, 0
+func memoryLimits(driverHardLimitMB int64, taskMemory drivers.MemoryResources) (memory, reserve int64) {
+	softBytes := taskMemory.MemoryMB * 1024 * 1024
+
+	hard := driverHardLimitMB
+	if taskMemory.MemoryMaxMB > hard {
+		hard = taskMemory.MemoryMaxMB
 	}
-	return driverHardLimitMB * 1024 * 1024, taskMemoryLimitBytes
+
+	if hard <= 0 {
+		return softBytes, 0
+	}
+	return hard * 1024 * 1024, softBytes
 }
 
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
@@ -809,7 +816,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		return c, fmt.Errorf("requested runtime %q is not allowed", containerRuntime)
 	}
 
-	memory, memoryReservation := d.memoryLimits(driverConfig.MemoryHardLimit, task.Resources.LinuxResources.MemoryLimitBytes)
+	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
 
 	hostConfig := &docker.HostConfig{
 		Memory:            memory,            // hard limit

@@ -252,13 +252,7 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]int
 
 		// Filter on datacenter and status
 		node := raw.(*structs.Node)
-		if node.Status != structs.NodeStatusReady {
-			continue
-		}
-		if node.Drain {
-			continue
-		}
-		if node.SchedulingEligibility != structs.NodeSchedulingEligible {
+		if !node.Ready() {
 			continue
 		}
 		if _, ok := dcMap[node.Datacenter]; !ok {
@@ -327,7 +321,7 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]*struct
 			out[alloc.NodeID] = nil
 			continue
 		}
-		if structs.ShouldDrainNode(node.Status) || node.Drain {
+		if structs.ShouldDrainNode(node.Status) || node.DrainStrategy != nil {
 			out[alloc.NodeID] = node
 		}
 	}
@@ -425,7 +419,11 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) bool {
 		// Inspect the non-network resources
 		if ar, br := at.Resources, bt.Resources; ar.CPU != br.CPU {
 			return true
+		} else if ar.Cores != br.Cores {
+			return true
 		} else if ar.MemoryMB != br.MemoryMB {
+			return true
+		} else if ar.MemoryMaxMB != br.MemoryMaxMB {
 			return true
 		} else if !ar.Devices.Equals(&br.Devices) {
 			return true

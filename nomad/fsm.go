@@ -429,20 +429,6 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	// COMPAT Remove in version 0.10
-	// As part of Nomad 0.8 we have deprecated the drain boolean in favor of a
-	// drain strategy but we need to handle the upgrade path where the Raft log
-	// contains drain updates with just the drain boolean being manipulated.
-	if req.Drain && req.DrainStrategy == nil {
-		// Mark the drain strategy as a force to imitate the old style drain
-		// functionality.
-		req.DrainStrategy = &structs.DrainStrategy{
-			DrainSpec: structs.DrainSpec{
-				Deadline: -1 * time.Second,
-			},
-		}
-	}
-
 	if err := n.state.UpdateNodeDrain(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
 		n.logger.Error("UpdateNodeDrain failed", "error", err)
 		return err

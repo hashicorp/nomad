@@ -18,9 +18,9 @@
           <li>
             <span class="label"><span class="color-swatch swatch-{{this.colorScale}} swatch-{{this.colorScale}}-{{idx}}" />{{series.name}}</span>
             {{#if (eq this.metric "cpu")}}
-              <span class="value">{{datum.datum.used}} MHz</span>
+              <span class="value">{{format-scheduled-hertz datum.datum.used}}</span>
             {{else if (eq this.metric "memory")}}
-              <span class="value">{{format-bytes datum.datum.used}}</span>
+              <span class="value">{{format-scheduled-bytes datum.datum.used}}</span>
             {{else}}
               <span class="value">{{datum.formatttedY}}</span>
             {{/if}}
@@ -32,9 +32,9 @@
   <PrimaryMetric::CurrentValue @chartClass={{this.chartClass}} @percent={{this.data.lastObject.percent}} />
   <div class="annotation" data-test-absolute-value>
     {{#if (eq this.metric "cpu")}}
-      <strong>{{this.data.lastObject.used}} MHz</strong> / {{this.reservedAmount}} MHz Total
+      <strong>{{format-scheduled-hertz this.data.lastObject.used}}</strong> / {{format-scheduled-hertz this.reservedAmount}} Total
     {{else if (eq this.metric "memory")}}
-      <strong>{{format-bytes this.data.lastObject.used}}</strong> / {{this.reservedAmount}} MiB Total
+      <strong>{{format-scheduled-bytes this.data.lastObject.used}}</strong> / {{format-scheduled-bytes this.reservedAmount start="MiB"}} Total
     {{else}}
       <strong>{{this.data.lastObject.used}}</strong> / {{this.reservedAmount}} Total
     {{/if}}

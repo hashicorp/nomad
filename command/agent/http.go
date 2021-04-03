@@ -20,10 +20,11 @@ import (
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/rs/cors"
+
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/rs/cors"
 )
 
 const (
@@ -265,6 +266,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/deployment/", s.wrap(s.DeploymentSpecificRequest))
 
 	s.mux.HandleFunc("/v1/volumes", s.wrap(s.CSIVolumesRequest))
+	s.mux.HandleFunc("/v1/volumes/snapshot", s.wrap(s.CSISnapshotsRequest))
 	s.mux.HandleFunc("/v1/volume/csi/", s.wrap(s.CSIVolumeSpecificRequest))
 	s.mux.HandleFunc("/v1/plugins", s.wrap(s.CSIPluginsRequest))
 	s.mux.HandleFunc("/v1/plugin/csi/", s.wrap(s.CSIPluginSpecificRequest))
@@ -407,7 +409,11 @@ func (s *HTTPServer) handleUI(h http.Handler) http.Handler {
 func (s *HTTPServer) handleRootFallthrough() http.Handler {
 	return s.auditHTTPHandler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Path == "/" {
-			http.Redirect(w, req, "/ui/", 307)
+			url := "/ui/"
+			if req.URL.RawQuery != "" {
+				url = url + "?" + req.URL.RawQuery
+			}
+			http.Redirect(w, req, url, 307)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -500,7 +506,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 					buf.Write([]byte("\n"))
 				}
 			} else {
-				enc := codec.NewEncoder(&buf, structs.JsonHandle)
+				enc := codec.NewEncoder(&buf, structs.JsonHandleWithExtensions)
 				err = enc.Encode(obj)
 			}
 			if err != nil {
@@ -688,7 +694,23 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *strin
 	parseConsistency(req, b)
 	parsePrefix(req, b)
 	parseNamespace(req, &b.Namespace)
+	parsePagination(req, b)
 	return parseWait(resp, req, b)
+}
+
+// parsePagination parses the pagination fields for QueryOptions
+func parsePagination(req *http.Request, b *structs.QueryOptions) {
+	query := req.URL.Query()
+	rawPerPage := query.Get("per_page")
+	if rawPerPage != "" {
+		perPage, err := strconv.Atoi(rawPerPage)
+		if err == nil {
+			b.PerPage = int32(perPage)
+		}
+	}
+
+	nextToken := query.Get("next_token")
+	b.NextToken = nextToken
 }
 
 // parseWriteRequest is a convenience method for endpoints that need to parse a

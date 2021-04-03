@@ -225,10 +225,10 @@
                 <LinkTo @route="clients.client" @model={{this.preempter.node}} data-test-client-link>{{this.preempter.node.shortId}}</LinkTo>
               </span>
               <span class="pair"><span class="term">Reserved CPU</span>
-                <span data-test-allocation-cpu>{{this.preempter.resources.cpu}} MHz</span>
+                <span data-test-allocation-cpu>{{format-scheduled-hertz this.preempter.resources.cpu}}</span>
               </span>
               <span class="pair"><span class="term">Reserved Memory</span>
-                <span data-test-allocation-memory>{{this.preempter.resources.memory}} MiB</span>
+                <span data-test-allocation-memory>{{format-scheduled-bytes this.preempter.resources.memory start="MiB"}}</span>
               </span>
             </div>
           </div>

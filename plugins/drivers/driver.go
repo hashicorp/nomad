@@ -335,6 +335,8 @@ func (tc *TaskConfig) EncodeConcreteDriverConfig(t interface{}) error {
 	return nil
 }
 
+type MemoryResources = structs.AllocatedMemoryResources
+
 type Resources struct {
 	NomadResources *structs.AllocatedTaskResources
 	LinuxResources *LinuxResources

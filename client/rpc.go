@@ -245,19 +245,24 @@ func (c *Client) streamingRpcConn(server *servers.Server, method string) (net.Co
 }
 
 // setupClientRpc is used to setup the Client's RPC endpoints
-func (c *Client) setupClientRpc() {
-	// Initialize the RPC handlers
-	c.endpoints.ClientStats = &ClientStats{c}
-	c.endpoints.CSI = &CSI{c}
-	c.endpoints.FileSystem = NewFileSystemEndpoint(c)
-	c.endpoints.Allocations = NewAllocationsEndpoint(c)
-	c.endpoints.Agent = NewAgentEndpoint(c)
-
+func (c *Client) setupClientRpc(rpcs map[string]interface{}) {
 	// Create the RPC Server
 	c.rpcServer = rpc.NewServer()
 
-	// Register the endpoints with the RPC server
-	c.setupClientRpcServer(c.rpcServer)
+	// Initialize the RPC handlers
+	if rpcs != nil {
+		// override RPCs
+		for name, rpc := range rpcs {
+			c.rpcServer.RegisterName(name, rpc)
+		}
+	} else {
+		c.endpoints.ClientStats = &ClientStats{c}
+		c.endpoints.CSI = &CSI{c}
+		c.endpoints.FileSystem = NewFileSystemEndpoint(c)
+		c.endpoints.Allocations = NewAllocationsEndpoint(c)
+		c.endpoints.Agent = NewAgentEndpoint(c)
+		c.setupClientRpcServer(c.rpcServer)
+	}
 
 	go c.rpcConnListener()
 }
