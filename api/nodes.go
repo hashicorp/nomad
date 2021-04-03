@@ -224,8 +224,7 @@ func (n *Nodes) monitorDrainNode(ctx context.Context, nodeID string,
 		}
 
 		if node.DrainStrategy == nil {
-			var msg *MonitorMessage
-			msg = Messagef(MonitorMsgLevelInfo, "Drain complete for node %s", nodeID)
+			msg := Messagef(MonitorMsgLevelInfo, "Drain complete for node %s", nodeID)
 			select {
 			case nodeCh <- msg:
 			case <-ctx.Done():

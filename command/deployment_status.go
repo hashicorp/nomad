@@ -159,7 +159,7 @@ func getDeployment(client *api.Deployments, dID string) (match *api.Deployment, 
 		return d, nil, nil
 	}
 
-	dID = strings.Replace(dID, "-", "", -1)
+	dID = strings.ReplaceAll(dID, "-", "")
 	if len(dID) == 1 {
 		return nil, nil, fmt.Errorf("Identifier must contain at least two characters.")
 	}

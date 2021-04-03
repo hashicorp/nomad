@@ -120,7 +120,7 @@ func (v *CSIVolumes) CreateSnapshot(snap *CSISnapshot, w *WriteOptions) ([]*CSIS
 		Snapshots: []*CSISnapshot{snap},
 	}
 	resp := &CSISnapshotCreateResponse{}
-	meta, err := v.client.write(fmt.Sprintf("/v1/volumes/snapshot"), req, resp, w)
+	meta, err := v.client.write("/v1/volumes/snapshot", req, resp, w)
 	return resp.Snapshots, meta, err
 }
 
@@ -129,7 +129,7 @@ func (v *CSIVolumes) DeleteSnapshot(snap *CSISnapshot, w *WriteOptions) error {
 	req := &CSISnapshotDeleteRequest{
 		Snapshots: []*CSISnapshot{snap},
 	}
-	_, err := v.client.delete(fmt.Sprintf("/v1/volumes/snapshot"), req, w)
+	_, err := v.client.delete("/v1/volumes/snapshot", req, w)
 	return err
 }
 
