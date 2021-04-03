@@ -720,7 +720,7 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 	}
 	start := time.Now()
 	resp, err := c.httpClient.Do(req)
-	diff := time.Now().Sub(start)
+	diff := time.Since(start)
 
 	// If the response is compressed, we swap the body's reader.
 	if resp != nil && resp.Header != nil {

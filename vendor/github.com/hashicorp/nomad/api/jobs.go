@@ -691,9 +691,7 @@ func (m *Multiregion) Copy() *Multiregion {
 		copyRegion := new(MultiregionRegion)
 		copyRegion.Name = region.Name
 		copyRegion.Count = intToPtr(*region.Count)
-		for _, dc := range region.Datacenters {
-			copyRegion.Datacenters = append(copyRegion.Datacenters, dc)
-		}
+		copyRegion.Datacenters = append(copyRegion.Datacenters, region.Datacenters...)
 		for k, v := range region.Meta {
 			copyRegion.Meta[k] = v
 		}

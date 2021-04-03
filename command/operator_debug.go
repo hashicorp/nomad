@@ -1018,7 +1018,7 @@ func TarCZF(archive string, src, target string) error {
 		}
 
 		// remove leading path to the src, so files are relative to the archive
-		path := strings.Replace(file, src, "", -1)
+		path := strings.ReplaceAll(file, src, "")
 		if target != "" {
 			path = filepath.Join([]string{target, path}...)
 		}

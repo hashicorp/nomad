@@ -73,7 +73,7 @@ func NewExecutorWithIsolation(logger hclog.Logger) Executor {
 		logger.Error("unable to initialize stats", "error", err)
 	}
 	return &LibcontainerExecutor{
-		id:             strings.Replace(uuid.Generate(), "-", "_", -1),
+		id:             strings.ReplaceAll(uuid.Generate(), "-", "_"),
 		logger:         logger,
 		totalCpuStats:  stats.NewCpuStats(),
 		userCpuStats:   stats.NewCpuStats(),

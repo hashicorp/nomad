@@ -165,12 +165,12 @@ type Affinity struct {
 	Weight  *int8  `hcl:"weight,optional"`    // Weight applied to nodes that match the affinity. Can be negative
 }
 
-func NewAffinity(LTarget string, Operand string, RTarget string, Weight int8) *Affinity {
+func NewAffinity(lTarget string, operand string, rTarget string, weight int8) *Affinity {
 	return &Affinity{
-		LTarget: LTarget,
-		RTarget: RTarget,
-		Operand: Operand,
-		Weight:  int8ToPtr(Weight),
+		LTarget: lTarget,
+		RTarget: rTarget,
+		Operand: operand,
+		Weight:  int8ToPtr(weight),
 	}
 }
 
