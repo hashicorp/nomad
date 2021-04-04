@@ -52,6 +52,7 @@ module('Unit | Util | AllocationStatsTracker', function() {
       },
       MemoryStats: {
         RSS: (step + 400) * 1024 * 1024,
+        Measured: ['RSS'],
       },
     },
     Tasks: {
@@ -62,6 +63,7 @@ module('Unit | Util | AllocationStatsTracker', function() {
           },
           MemoryStats: {
             RSS: (step + 100) * 1024 * 1024,
+            Measured: ['RSS'],
           },
         },
         Timestamp: refDate + step,
@@ -73,6 +75,7 @@ module('Unit | Util | AllocationStatsTracker', function() {
           },
           MemoryStats: {
             RSS: (step + 50) * 1024 * 1024,
+            Measured: ['RSS'],
           },
         },
         Timestamp: refDate + step * 10,
@@ -84,6 +87,7 @@ module('Unit | Util | AllocationStatsTracker', function() {
           },
           MemoryStats: {
             RSS: (step + 51) * 1024 * 1024,
+            Measured: ['RSS'],
           },
         },
         Timestamp: refDate + step * 100,
@@ -557,6 +561,98 @@ module('Unit | Util | AllocationStatsTracker', function() {
       stats1 === stats2,
       'Changing the value of alloc results in creating a new AllocationStatsTracker instance'
     );
+  });
+
+  test('the stats property uses Usage value if RSS if it zero', async function(assert) {
+    const allocation = {
+      id: 'some-identifier',
+      taskGroup: {
+        reservedCPU: 300,
+        reservedMemory: 600,
+        tasks: [
+          {
+            name: 'rss',
+            reservedCPU: 100,
+            reservedMemory: 200,
+            lifecycleName: 'main',
+          },
+          {
+            name: 'rss_zero',
+            reservedCPU: 100,
+            reservedMemory: 200,
+            lifecycleName: 'main',
+          },
+          {
+            name: 'rss_no',
+            reservedCPU: 100,
+            reservedMemory: 200,
+            lifecycleName: 'main',
+          },
+        ],
+      },
+    };
+    const bufferSize = 2;
+    const tracker = AllocationStatsTracker.create({ fetch, allocation, bufferSize });
+
+    const frame = {
+      ResourceUsage: {
+        CpuStats: {
+          TotalTicks: 300,
+        },
+        MemoryStats: {
+          RSS: 30,
+          Usage: 60,
+          Measured: ['RSS', 'Usage'],
+        },
+      },
+      Tasks: {
+        rss: {
+          ResourceUsage: {
+            CpuStats: {
+              TotalTicks: 100,
+            },
+            MemoryStats: {
+              RSS: 10,
+              Usage: 20,
+              Measured: ['RSS', 'Usage'],
+            },
+          },
+          Timestamp: refDate,
+        },
+        rss_zero: {
+          ResourceUsage: {
+            CpuStats: {
+              TotalTicks: 100,
+            },
+            MemoryStats: {
+              RSS: 0,
+              Usage: 20,
+              Measured: ['RSS', 'Usage'],
+            },
+          },
+          Timestamp: refDate,
+        },
+        rss_no: {
+          ResourceUsage: {
+            CpuStats: {
+              TotalTicks: 100,
+            },
+            MemoryStats: {
+              Usage: 30,
+              Measured: ['Usage'],
+            },
+          },
+          Timestamp: refDate,
+        },
+      },
+    };
+    tracker.append(frame);
+
+    const found = tracker.get('tasks').reduce((obj, t) => {
+      obj[t.task] = t.memory[0].used;
+      return obj;
+    }, {});
+    assert.deepEqual(found, { rss: 10, rss_zero: 0, rss_no: 30 });
   });
 
   statsTrackerFrameMissingBehavior({
