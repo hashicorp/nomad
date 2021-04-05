@@ -91,6 +91,7 @@
     "ember-named-blocks-polyfill": "^0.2.4",
     "ember-overridable-computed": "^1.0.0",
     "ember-page-title": "^6.0.3",
+    "ember-play": "^0.1.2",
     "ember-power-select": "^4.1.3",
     "ember-qunit": "^4.6.0",
     "ember-qunit-nice-errors": "^1.2.0",

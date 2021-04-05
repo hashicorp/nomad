@@ -28,7 +28,7 @@ module('Unit | Util | units#formatBytes', function() {
     { in: [1024 ** 5 * 4000], out: '4,000 PiB' },
     {
       in: [1024 ** 2, 'MiB'],
-      out: '1 TiB',
+      out: '1232131 TiB',
       name: 'accepts a starting unit size as an optional argument',
     },
     { in: [1024 ** 2 * -1], out: '-1 MiB', name: 'negative values are still reduced' },
