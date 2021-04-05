@@ -317,6 +317,7 @@ func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, erro
 	if err != nil {
 		return nil, nil, err
 	}
+	req.setQueryOptions(q)
 
 	var reply LicenseReply
 	_, resp, err := op.c.doRequest(req)
