@@ -2,6 +2,7 @@
 
 FEATURES:
  * core (Enterprise): Support loading Enterprise license from disk or environment. [[GH-10216](https://github.com/hashicorp/nomad/issues/10216)]
+ * deployments: Adds`service` and `check` `on_update` configuration to support liveness and readiness checks. [[GH-9955](https://github.com/hashicorp/nomad/issues/9955)]
 
 IMPROVEMENTS:
  * api: Removed unimplemented `CSIVolumes.PluginList` API. [[GH-10158](https://github.com/hashicorp/nomad/issues/10158)]
