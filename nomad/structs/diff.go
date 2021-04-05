@@ -300,6 +300,11 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		diff.Objects = append(diff.Objects, diskDiff)
 	}
 
+	consulDiff := primitiveObjectDiff(tg.Consul, other.Consul, nil, "Consul", contextual)
+	if consulDiff != nil {
+		diff.Objects = append(diff.Objects, consulDiff)
+	}
+
 	// Update diff
 	// COMPAT: Remove "Stagger" in 0.7.0.
 	if uDiff := primitiveObjectDiff(tg.Update, other.Update, []string{"Stagger"}, "Update", contextual); uDiff != nil {

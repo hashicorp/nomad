@@ -25,7 +25,7 @@ type ConsulServiceAPI interface {
 	AllocRegistrations(allocID string) (*consul.AllocRegistration, error)
 
 	// UpdateTTL is used to update the TTL of a check.
-	UpdateTTL(id, output, status string) error
+	UpdateTTL(id, namespace, output, status string) error
 }
 
 // TokenDeriverFunc takes an allocation and a set of tasks and derives a

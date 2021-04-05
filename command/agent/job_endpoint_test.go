@@ -1928,6 +1928,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Meta: map[string]string{
 					"key": "value",
 				},
+				Consul: &api.Consul{
+					Namespace: "team-foo",
+				},
 				Services: []*api.Service{
 					{
 						Name:              "groupserviceA",
@@ -2304,6 +2307,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Meta: map[string]string{
 					"key": "value",
 				},
+				Consul: &structs.Consul{
+					Namespace: "team-foo",
+				},
 				Services: []*structs.Service{
 					{
 						Name:              "groupserviceA",
@@ -2581,6 +2587,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Meta: map[string]string{
 					"key": "value",
 				},
+				Consul: &api.Consul{
+					Namespace: "foo",
+				},
 				Tasks: []*api.Task{
 					{
 						Name:   "task1",
@@ -2697,6 +2706,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 				Meta: map[string]string{
 					"key": "value",
+				},
+				Consul: &structs.Consul{
+					Namespace: "foo",
 				},
 				Tasks: []*structs.Task{
 					{

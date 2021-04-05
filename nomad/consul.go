@@ -58,13 +58,22 @@ const (
 	//   service "web" { policy = "write" }
 	//   service_prefix "" { policy = "write" }
 	ConsulPolicyWrite = "write"
+
+	// ConsulPolicyRead is the literal text of the policy field of a Consul Policy
+	// Rule that we check when validating a job-submitter Consul token against the
+	// necessary permissions for reading the key-value store.
+	//
+	// The only acceptable rule is
+	//  - service_prefix "" { policy = "read|write" }
+	ConsulPolicyRead = "read"
 )
 
 type ServiceIdentityRequest struct {
-	TaskKind  structs.TaskKind
-	TaskName  string
-	ClusterID string
-	AllocID   string
+	ConsulNamespace string
+	TaskKind        structs.TaskKind
+	TaskName        string
+	ClusterID       string
+	AllocID         string
 }
 
 func (sir ServiceIdentityRequest) Validate() error {
@@ -92,10 +101,10 @@ func (sir ServiceIdentityRequest) Description() string {
 // ACL requirements
 // - acl:write (transitive through ACLsAPI)
 type ConsulACLsAPI interface {
-
-	// CheckSIPolicy checks that the given operator token has the equivalent ACL
-	// permissiveness that a Service Identity token policy for task would have.
-	CheckSIPolicy(ctx context.Context, task, secretID string) error
+	// CheckPermissions checks that the given Consul token has the necessary ACL
+	// permissions for each way that Consul is used as indicated by usage,
+	// returning an error if not.
+	CheckPermissions(ctx context.Context, namespace string, usage *structs.ConsulUsage, secretID string) error
 
 	// Create instructs Consul to create a Service Identity token.
 	CreateToken(context.Context, ServiceIdentityRequest) (*structs.SIToken, error)
@@ -109,10 +118,6 @@ type ConsulACLsAPI interface {
 	// Stop is used to stop background token revocations. Intended to be used
 	// on Nomad Server shutdown.
 	Stop()
-
-	// todo(shoenig): use list endpoint for finding orphaned tokens
-	// ListTokens lists every token in Consul.
-	// ListTokens() ([]string, error)
 }
 
 // PurgeSITokenAccessorFunc is called to remove SI Token accessors from the
@@ -181,32 +186,82 @@ func (c *consulACLsAPI) Stop() {
 	c.bgRevokeStopped = true
 }
 
-func (c *consulACLsAPI) CheckSIPolicy(ctx context.Context, task, secretID string) error {
-	defer metrics.MeasureSince([]string{"nomad", "consul", "check_si_policy"}, time.Now())
+func (c *consulACLsAPI) readToken(ctx context.Context, secretID string) (*api.ACLToken, error) {
+	defer metrics.MeasureSince([]string{"nomad", "consul", "read_token"}, time.Now())
 
-	if id := strings.TrimSpace(secretID); id == "" {
-		return errors.New("missing consul token")
+	if id := strings.TrimSpace(secretID); !helper.IsUUID(id) {
+		return nil, errors.New("missing consul token")
 	}
 
 	// Ensure we are under our rate limit.
 	if err := c.limiter.Wait(ctx); err != nil {
-		return err
+		return nil, errors.Wrap(err, "unable to read consul token")
 	}
 
-	opToken, _, err := c.aclClient.TokenReadSelf(&api.QueryOptions{
+	consulToken, _, err := c.aclClient.TokenReadSelf(&api.QueryOptions{
 		AllowStale: false,
 		Token:      secretID,
 	})
 	if err != nil {
-		return errors.Wrap(err, "unable to validate operator consul token")
+		return nil, errors.Wrap(err, "unable to read consul token")
 	}
 
-	allowable, err := c.hasSufficientPolicy(task, opToken)
-	if err != nil {
-		return errors.Wrap(err, "unable to validate operator consul token")
+	return consulToken, nil
+}
+
+func (c *consulACLsAPI) CheckPermissions(ctx context.Context, namespace string, usage *structs.ConsulUsage, secretID string) error {
+	// consul not used, nothing to check
+	if !usage.Used() {
+		return nil
 	}
-	if !allowable {
-		return errors.Errorf("permission denied for %q", task)
+
+	// If namespace is not declared on nomad jobs, assume default consul namespace
+	// when comparing with the consul ACL token. This maintains backwards compatibility
+	// with existing connect jobs, which may already be authorized with Consul tokens.
+	if namespace == "" {
+		namespace = "default"
+	}
+
+	// lookup the token from consul
+	token, err := c.readToken(ctx, secretID)
+	if err != nil {
+		return err
+	}
+
+	// verify the token namespace matches namespace in job
+	if token.Namespace != namespace {
+		return errors.Errorf("consul ACL token cannot use namespace %q", namespace)
+	}
+
+	// verify token has keystore read permission, if using template
+	if usage.KV {
+		allowable, err := c.canReadKeystore(token)
+		if err != nil {
+			return err
+		} else if !allowable {
+			return errors.New("insufficient Consul ACL permissions to use template")
+		}
+	}
+
+	// verify token has service write permission for group+task services
+	for _, service := range usage.Services {
+		allowable, err := c.canWriteService(service, token)
+		if err != nil {
+			return err
+		} else if !allowable {
+			return errors.Errorf("insufficient Consul ACL permissions to write service %q", service)
+		}
+	}
+
+	// verify token has service identity permission for connect services
+	for _, kind := range usage.Kinds {
+		service := kind.Value()
+		allowable, err := c.canWriteService(service, token)
+		if err != nil {
+			return err
+		} else if !allowable {
+			return errors.Errorf("insufficient Consul ACL permissions to write Connect service %q", service)
+		}
 	}
 
 	return nil
@@ -235,6 +290,7 @@ func (c *consulACLsAPI) CreateToken(ctx context.Context, sir ServiceIdentityRequ
 	partial := &api.ACLToken{
 		Description:       sir.Description(),
 		ServiceIdentities: []*api.ACLServiceIdentity{{ServiceName: service}},
+		Namespace:         sir.ConsulNamespace,
 	}
 
 	// Ensure we are under our rate limit.
@@ -248,9 +304,10 @@ func (c *consulACLsAPI) CreateToken(ctx context.Context, sir ServiceIdentityRequ
 	}
 
 	return &structs.SIToken{
-		TaskName:   sir.TaskName,
-		AccessorID: token.AccessorID,
-		SecretID:   token.SecretID,
+		ConsulNamespace: token.Namespace,
+		AccessorID:      token.AccessorID,
+		SecretID:        token.SecretID,
+		TaskName:        sir.TaskName,
 	}, nil
 }
 
@@ -370,7 +427,7 @@ func (c *consulACLsAPI) singleRevoke(ctx context.Context, accessor *structs.SITo
 	}
 
 	// Consul will no-op the deletion of a non-existent token (no error)
-	_, err := c.aclClient.TokenDelete(accessor.AccessorID, nil)
+	_, err := c.aclClient.TokenDelete(accessor.AccessorID, &api.WriteOptions{Namespace: accessor.ConsulNamespace})
 	return err
 }
 

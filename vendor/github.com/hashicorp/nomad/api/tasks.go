@@ -430,6 +430,7 @@ type TaskGroup struct {
 	ShutdownDelay             *time.Duration            `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
 	StopAfterClientDisconnect *time.Duration            `mapstructure:"stop_after_client_disconnect" hcl:"stop_after_client_disconnect,optional"`
 	Scaling                   *ScalingPolicy            `hcl:"scaling,block"`
+	Consul                    *Consul                   `hcl:"consul,block"`
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -461,6 +462,13 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	} else {
 		g.EphemeralDisk.Canonicalize()
 	}
+
+	// Merge job.consul onto group.consul
+	if g.Consul == nil {
+		g.Consul = new(Consul)
+	}
+	g.Consul.MergeNamespace(job.ConsulNamespace)
+	g.Consul.Canonicalize()
 
 	// Merge the update policy from the job
 	if ju, tu := job.Update != nil, g.Update != nil; ju && tu {

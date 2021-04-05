@@ -253,30 +253,31 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		}
 	}
 
-	// helper function that checks if the "operator token" supplied with the
-	// job has sufficient ACL permissions for establishing consul connect services
-	checkOperatorToken := func(kind structs.TaskKind) error {
+	// helper function that checks if the Consul token supplied with the job has
+	// sufficient ACL permissions for:
+	//   - registering services into namespace of each group
+	//   - reading kv store of each group
+	//   - establishing consul connect services
+	checkConsulToken := func(usages map[string]*structs.ConsulUsage) error {
 		if j.srv.config.ConsulConfig.AllowsUnauthenticated() {
 			// if consul.allow_unauthenticated is enabled (which is the default)
-			// just let the Job through without checking anything.
+			// just let the job through without checking anything
 			return nil
 		}
 
-		service := kind.Value()
 		ctx := context.Background()
-		if err := j.srv.consulACLs.CheckSIPolicy(ctx, service, args.Job.ConsulToken); err != nil {
-			// not much in the way of exported error types, we could parse
-			// the content, but all errors are going to be failures anyway
-			return errors.Wrap(err, "operator token denied")
+		for namespace, usage := range usages {
+			if err := j.srv.consulACLs.CheckPermissions(ctx, namespace, usage, args.Job.ConsulToken); err != nil {
+				return errors.Wrap(err, "job-submitter consul token denied")
+			}
 		}
+
 		return nil
 	}
 
-	// Enforce that the operator has necessary Consul ACL permissions
-	for _, taskKind := range args.Job.ConnectTasks() {
-		if err := checkOperatorToken(taskKind); err != nil {
-			return err
-		}
+	// Enforce the job-submitter has a Consul token with necessary ACL permissions.
+	if err := checkConsulToken(args.Job.ConsulUsages()); err != nil {
+		return err
 	}
 
 	// Create or Update Consul Configuration Entries defined in the job. For now

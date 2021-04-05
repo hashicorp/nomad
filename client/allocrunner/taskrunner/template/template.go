@@ -85,6 +85,9 @@ type TaskTemplateManagerConfig struct {
 	// ClientConfig is the Nomad Client configuration
 	ClientConfig *config.Config
 
+	// ConsulNamespace is the Consul namespace for the task
+	ConsulNamespace string
+
 	// VaultToken is the Vault token for the task.
 	VaultToken string
 
@@ -642,7 +645,12 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	if cc.ConsulConfig != nil {
 		conf.Consul.Address = &cc.ConsulConfig.Addr
 		conf.Consul.Token = &cc.ConsulConfig.Token
-		conf.Consul.Namespace = &cc.ConsulConfig.Namespace
+
+		// Get the Consul namespace from agent config. This is the lower level
+		// of precedence (beyond default).
+		if cc.ConsulConfig.Namespace != "" {
+			conf.Consul.Namespace = &cc.ConsulConfig.Namespace
+		}
 
 		if cc.ConsulConfig.EnableSSL != nil && *cc.ConsulConfig.EnableSSL {
 			verify := cc.ConsulConfig.VerifySSL != nil && *cc.ConsulConfig.VerifySSL
@@ -667,6 +675,12 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 				Password: &parts[1],
 			}
 		}
+	}
+
+	// Get the Consul namespace from job/group config. This is the higher level
+	// of precedence if set (above agent config).
+	if config.ConsulNamespace != "" {
+		conf.Consul.Namespace = &config.ConsulNamespace
 	}
 
 	// Setup the Vault config

@@ -21,9 +21,10 @@ var _ interfaces.TaskExitedHook = &serviceHook{}
 var _ interfaces.TaskStopHook = &serviceHook{}
 
 type serviceHookConfig struct {
-	alloc  *structs.Allocation
-	task   *structs.Task
-	consul consul.ConsulServiceAPI
+	alloc           *structs.Allocation
+	task            *structs.Task
+	consulServices  consul.ConsulServiceAPI
+	consulNamespace string
 
 	// Restarter is a subset of the TaskLifecycle interface
 	restarter agentconsul.WorkloadRestarter
@@ -32,11 +33,12 @@ type serviceHookConfig struct {
 }
 
 type serviceHook struct {
-	consul    consul.ConsulServiceAPI
-	allocID   string
-	taskName  string
-	restarter agentconsul.WorkloadRestarter
-	logger    log.Logger
+	allocID         string
+	taskName        string
+	consulNamespace string
+	consulServices  consul.ConsulServiceAPI
+	restarter       agentconsul.WorkloadRestarter
+	logger          log.Logger
 
 	// The following fields may be updated
 	driverExec tinterfaces.ScriptExecutor
@@ -58,12 +60,13 @@ type serviceHook struct {
 
 func newServiceHook(c serviceHookConfig) *serviceHook {
 	h := &serviceHook{
-		consul:    c.consul,
-		allocID:   c.alloc.ID,
-		taskName:  c.task.Name,
-		services:  c.task.Services,
-		restarter: c.restarter,
-		ports:     c.alloc.AllocatedResources.Shared.Ports,
+		allocID:         c.alloc.ID,
+		taskName:        c.task.Name,
+		consulServices:  c.consulServices,
+		consulNamespace: c.consulNamespace,
+		services:        c.task.Services,
+		restarter:       c.restarter,
+		ports:           c.alloc.AllocatedResources.Shared.Ports,
 	}
 
 	if res := c.alloc.AllocatedResources.Tasks[c.task.Name]; res != nil {
@@ -95,7 +98,7 @@ func (h *serviceHook) Poststart(ctx context.Context, req *interfaces.TaskPoststa
 	// Create task services struct with request's driver metadata
 	workloadServices := h.getWorkloadServices()
 
-	return h.consul.RegisterWorkload(workloadServices)
+	return h.consulServices.RegisterWorkload(workloadServices)
 }
 
 func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest, _ *interfaces.TaskUpdateResponse) error {
@@ -118,7 +121,7 @@ func (h *serviceHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequ
 	// Create new task services struct with those new values
 	newWorkloadServices := h.getWorkloadServices()
 
-	return h.consul.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
+	return h.consulServices.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
 }
 
 func (h *serviceHook) updateHookFields(req *interfaces.TaskUpdateRequest) error {
@@ -168,12 +171,12 @@ func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *in
 // deregister services from Consul.
 func (h *serviceHook) deregister() {
 	workloadServices := h.getWorkloadServices()
-	h.consul.RemoveWorkload(workloadServices)
+	h.consulServices.RemoveWorkload(workloadServices)
 
 	// Canary flag may be getting flipped when the alloc is being
 	// destroyed, so remove both variations of the service
 	workloadServices.Canary = !workloadServices.Canary
-	h.consul.RemoveWorkload(workloadServices)
+	h.consulServices.RemoveWorkload(workloadServices)
 	h.initialRegistration = false
 }
 
@@ -190,14 +193,15 @@ func (h *serviceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 
 	// Create task services struct with request's driver metadata
 	return &agentconsul.WorkloadServices{
-		AllocID:       h.allocID,
-		Task:          h.taskName,
-		Restarter:     h.restarter,
-		Services:      interpolatedServices,
-		DriverExec:    h.driverExec,
-		DriverNetwork: h.driverNet,
-		Networks:      h.networks,
-		Canary:        h.canary,
-		Ports:         h.ports,
+		AllocID:         h.allocID,
+		Task:            h.taskName,
+		ConsulNamespace: h.consulNamespace,
+		Restarter:       h.restarter,
+		Services:        interpolatedServices,
+		DriverExec:      h.driverExec,
+		DriverNetwork:   h.driverNet,
+		Networks:        h.networks,
+		Canary:          h.canary,
+		Ports:           h.ports,
 	}
 }

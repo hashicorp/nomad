@@ -106,10 +106,11 @@ func (t *testFakeCtx) syncOnce(reason syncReason) error {
 // A test Workload is also provided.
 func setupFake(t *testing.T) *testFakeCtx {
 	fc := NewMockAgent()
+	nsc := NewNamespacesClient(NewMockNamespaces(nil))
 	tw := testWorkload()
 
 	// by default start fake client being out of probation
-	sc := NewServiceClient(fc, testlog.HCLogger(t), true)
+	sc := NewServiceClient(fc, nsc, testlog.HCLogger(t), true)
 	sc.deregisterProbationExpiry = time.Now().Add(-1 * time.Minute)
 
 	return &testFakeCtx{
@@ -135,7 +136,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 	r.Equal(1, reg1.NumServices())
 	r.Equal(0, reg1.NumChecks())
 
-	serviceBefore := ctx.FakeConsul.lookupService("taskname-service")[0]
+	serviceBefore := ctx.FakeConsul.lookupService("default", "taskname-service")[0]
 	r.Equal(serviceBefore.Name, ctx.Workload.Services[0].Name)
 	r.Equal(serviceBefore.Tags, ctx.Workload.Services[0].Tags)
 
@@ -149,7 +150,7 @@ func TestConsul_ChangeTags(t *testing.T) {
 	r.Equal(1, len(ctx.FakeConsul.services), "Expected 1 service to be registered with Consul")
 
 	// Validate the consul service definition changed
-	serviceAfter := ctx.FakeConsul.lookupService("taskname-service")[0]
+	serviceAfter := ctx.FakeConsul.lookupService("default", "taskname-service")[0]
 	r.Equal(serviceAfter.Name, ctx.Workload.Services[0].Name)
 	r.Equal(serviceAfter.Tags, ctx.Workload.Services[0].Tags)
 	r.Equal("new-tag", serviceAfter.Tags[0])
@@ -177,25 +178,25 @@ func TestConsul_EnableTagOverride_Syncs(t *testing.T) {
 	const service = "taskname-service"
 
 	// check things are what we expect
-	consulServiceDefBefore := ctx.FakeConsul.lookupService(service)[0]
+	consulServiceDefBefore := ctx.FakeConsul.lookupService("default", service)[0]
 	r.Equal(ctx.Workload.Services[0].Name, consulServiceDefBefore.Name)
 	r.Equal([]string{"tag1", "tag2"}, consulServiceDefBefore.Tags)
 	r.True(consulServiceDefBefore.EnableTagOverride)
 
 	// manually set the tags in consul
-	ctx.FakeConsul.lookupService(service)[0].Tags = []string{"new", "tags"}
+	ctx.FakeConsul.lookupService("default", service)[0].Tags = []string{"new", "tags"}
 
 	// do a periodic sync (which will respect EnableTagOverride)
 	r.NoError(ctx.syncOnce(syncPeriodic))
 	r.Equal(1, len(ctx.FakeConsul.services))
-	consulServiceDefAfter := ctx.FakeConsul.lookupService(service)[0]
+	consulServiceDefAfter := ctx.FakeConsul.lookupService("default", service)[0]
 	r.Equal([]string{"new", "tags"}, consulServiceDefAfter.Tags) // manually set tags should still be there
 
 	// now do a new-ops sync (which will override EnableTagOverride)
 	r.NoError(ctx.ServiceClient.RegisterWorkload(ctx.Workload))
 	r.NoError(ctx.syncOnce(syncNewOps))
 	r.Equal(1, len(ctx.FakeConsul.services))
-	consulServiceDefUpdated := ctx.FakeConsul.lookupService(service)[0]
+	consulServiceDefUpdated := ctx.FakeConsul.lookupService("default", service)[0]
 	r.Equal([]string{"tag1", "tag2"}, consulServiceDefUpdated.Tags) // jobspec tags should be set now
 }
 
@@ -233,20 +234,20 @@ func TestConsul_ChangePorts(t *testing.T) {
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(ctx.Workload))
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Equal(1, len(ctx.FakeConsul.services), "Expected 1 service to be registered with Consul")
+	require.Equal(1, len(ctx.FakeConsul.services["default"]), "Expected 1 service to be registered with Consul")
 
-	for _, v := range ctx.FakeConsul.services {
+	for _, v := range ctx.FakeConsul.services["default"] {
 		require.Equal(ctx.Workload.Services[0].Name, v.Name)
 		require.Equal(ctx.Workload.Services[0].Tags, v.Tags)
 		require.Equal(xPort, v.Port)
 	}
 
-	require.Len(ctx.FakeConsul.checks, 3)
+	require.Len(ctx.FakeConsul.checks["default"], 3)
 
 	origTCPKey := ""
 	origScriptKey := ""
 	origHTTPKey := ""
-	for k, v := range ctx.FakeConsul.checks {
+	for k, v := range ctx.FakeConsul.checks["default"] {
 		switch v.Name {
 		case "c1":
 			origTCPKey = k
@@ -295,17 +296,17 @@ func TestConsul_ChangePorts(t *testing.T) {
 
 	require.NoError(ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload))
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Equal(1, len(ctx.FakeConsul.services), "Expected 1 service to be registered with Consul")
+	require.Equal(1, len(ctx.FakeConsul.services["default"]), "Expected 1 service to be registered with Consul")
 
-	for _, v := range ctx.FakeConsul.services {
+	for _, v := range ctx.FakeConsul.services["default"] {
 		require.Equal(ctx.Workload.Services[0].Name, v.Name)
 		require.Equal(ctx.Workload.Services[0].Tags, v.Tags)
 		require.Equal(yPort, v.Port)
 	}
 
-	require.Equal(3, len(ctx.FakeConsul.checks))
+	require.Equal(3, len(ctx.FakeConsul.checks["default"]))
 
-	for k, v := range ctx.FakeConsul.checks {
+	for k, v := range ctx.FakeConsul.checks["default"] {
 		switch v.Name {
 		case "c1":
 			// C1 is changed because the service was re-registered
@@ -348,8 +349,8 @@ func TestConsul_ChangeChecks(t *testing.T) {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
 
-	if n := len(ctx.FakeConsul.services); n != 1 {
-		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services)
+	if n := len(ctx.FakeConsul.services["default"]); n != 1 {
+		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services["default"])
 	}
 
 	// Assert a check restart watch update was enqueued and clear it
@@ -376,7 +377,7 @@ func TestConsul_ChangeChecks(t *testing.T) {
 	}
 
 	origServiceKey := ""
-	for k, v := range ctx.FakeConsul.services {
+	for k, v := range ctx.FakeConsul.services["default"] {
 		origServiceKey = k
 		if v.Name != ctx.Workload.Services[0].Name {
 			t.Errorf("expected Name=%q != %q", ctx.Workload.Services[0].Name, v.Name)
@@ -386,10 +387,10 @@ func TestConsul_ChangeChecks(t *testing.T) {
 		}
 	}
 
-	if n := len(ctx.FakeConsul.checks); n != 1 {
-		t.Fatalf("expected 1 check but found %d:\n%#v", n, ctx.FakeConsul.checks)
+	if n := len(ctx.FakeConsul.checks["default"]); n != 1 {
+		t.Fatalf("expected 1 check but found %d:\n%#v", n, ctx.FakeConsul.checks["default"])
 	}
-	for _, v := range ctx.FakeConsul.checks {
+	for _, v := range ctx.FakeConsul.checks["default"] {
 		if v.Name != "c1" {
 			t.Fatalf("expected check c1 but found %q", v.Name)
 		}
@@ -444,19 +445,19 @@ func TestConsul_ChangeChecks(t *testing.T) {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
 
-	if n := len(ctx.FakeConsul.services); n != 1 {
-		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services)
+	if n := len(ctx.FakeConsul.services["default"]); n != 1 {
+		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services["default"])
 	}
 
-	if _, ok := ctx.FakeConsul.services[origServiceKey]; !ok {
+	if _, ok := ctx.FakeConsul.services["default"][origServiceKey]; !ok {
 		t.Errorf("unexpected key change; was: %q -- but found %#v", origServiceKey, ctx.FakeConsul.services)
 	}
 
-	if n := len(ctx.FakeConsul.checks); n != 2 {
-		t.Fatalf("expected 2 check but found %d:\n%#v", n, ctx.FakeConsul.checks)
+	if n := len(ctx.FakeConsul.checks["default"]); n != 2 {
+		t.Fatalf("expected 2 check but found %d:\n%#v", n, ctx.FakeConsul.checks["default"])
 	}
 
-	for k, v := range ctx.FakeConsul.checks {
+	for k, v := range ctx.FakeConsul.checks["default"] {
 		switch v.Name {
 		case "c1":
 			if expected := fmt.Sprintf(":%d", xPort); v.TCP != expected {
@@ -538,11 +539,11 @@ func TestConsul_ChangeChecks(t *testing.T) {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
 
-	if n := len(ctx.FakeConsul.checks); n != 2 {
-		t.Fatalf("expected 2 check but found %d:\n%#v", n, ctx.FakeConsul.checks)
+	if n := len(ctx.FakeConsul.checks["default"]); n != 2 {
+		t.Fatalf("expected 2 check but found %d:\n%#v", n, ctx.FakeConsul.checks["default"])
 	}
 
-	for k, v := range ctx.FakeConsul.checks {
+	for k, v := range ctx.FakeConsul.checks["default"] {
 		if v.Name == "c1" {
 			if k != c1ID {
 				t.Errorf("expected c1 to still have id %q but found %q", c1ID, k)
@@ -582,11 +583,11 @@ func TestConsul_RegServices(t *testing.T) {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
 
-	if n := len(ctx.FakeConsul.services); n != 1 {
-		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services)
+	if n := len(ctx.FakeConsul.services["default"]); n != 1 {
+		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services["default"])
 	}
 
-	for _, v := range ctx.FakeConsul.services {
+	for _, v := range ctx.FakeConsul.services["default"] {
 		if v.Name != ctx.Workload.Services[0].Name {
 			t.Errorf("expected Name=%q != %q", ctx.Workload.Services[0].Name, v.Name)
 		}
@@ -632,10 +633,10 @@ func TestConsul_RegServices(t *testing.T) {
 
 	// Make sure changes don't take affect until sync() is called (since
 	// Run() isn't running)
-	if n := len(ctx.FakeConsul.services); n != 1 {
-		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services)
+	if n := len(ctx.FakeConsul.services["default"]); n != 1 {
+		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services["default"])
 	}
-	for _, v := range ctx.FakeConsul.services {
+	for _, v := range ctx.FakeConsul.services["default"] {
 		if reflect.DeepEqual(v.Tags, ctx.Workload.Services[0].Tags) {
 			t.Errorf("expected Tags to differ, changes applied before sync()")
 		}
@@ -645,11 +646,11 @@ func TestConsul_RegServices(t *testing.T) {
 	if err := ctx.syncOnce(syncNewOps); err != nil {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
-	if n := len(ctx.FakeConsul.services); n != 2 {
-		t.Fatalf("expected 2 services but found %d:\n%#v", n, ctx.FakeConsul.services)
+	if n := len(ctx.FakeConsul.services["default"]); n != 2 {
+		t.Fatalf("expected 2 services but found %d:\n%#v", n, ctx.FakeConsul.services["default"])
 	}
 	found := false
-	for _, v := range ctx.FakeConsul.services {
+	for _, v := range ctx.FakeConsul.services["default"] {
 		if v.Name == ctx.Workload.Services[0].Name {
 			if found {
 				t.Fatalf("found new service name %q twice", v.Name)
@@ -669,10 +670,10 @@ func TestConsul_RegServices(t *testing.T) {
 	if err := ctx.syncOnce(syncNewOps); err != nil {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
-	if n := len(ctx.FakeConsul.services); n != 1 {
-		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services)
+	if n := len(ctx.FakeConsul.services["default"]); n != 1 {
+		t.Fatalf("expected 1 service but found %d:\n%#v", n, ctx.FakeConsul.services["default"])
 	}
-	for _, v := range ctx.FakeConsul.services {
+	for _, v := range ctx.FakeConsul.services["default"] {
 		if v.Name != "taskname-service" {
 			t.Errorf("expected original task to survive not %q", v.Name)
 		}
@@ -721,15 +722,14 @@ func TestConsul_ShutdownOK(t *testing.T) {
 	require.Eventually(ctx.ServiceClient.hasSeen, time.Second, 10*time.Millisecond)
 
 	// assert successful registration
-	require.Len(ctx.FakeConsul.services, 1, "expected agent service to be registered")
-	require.Len(ctx.FakeConsul.checks, 1, "expected agent check to be registered")
-	require.Contains(ctx.FakeConsul.services,
-		makeAgentServiceID("client", agentServices[0]))
+	require.Len(ctx.FakeConsul.services["default"], 1, "expected agent service to be registered")
+	require.Len(ctx.FakeConsul.checks["default"], 1, "expected agent check to be registered")
+	require.Contains(ctx.FakeConsul.services["default"], makeAgentServiceID("client", agentServices[0]))
 
 	// Shutdown() should block until Nomad agent service/check is deregistered
 	require.NoError(ctx.ServiceClient.Shutdown())
-	require.Len(ctx.FakeConsul.services, 0, "expected agent service to be deregistered")
-	require.Len(ctx.FakeConsul.checks, 0, "expected agent check to be deregistered")
+	require.Len(ctx.FakeConsul.services["default"], 0, "expected agent service to be deregistered")
+	require.Len(ctx.FakeConsul.checks["default"], 0, "expected agent check to be deregistered")
 }
 
 // TestConsul_ShutdownBlocked tests the blocked past deadline path for the
@@ -763,8 +763,8 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 	}
 	require.NoError(ctx.ServiceClient.RegisterAgent("client", agentServices))
 	require.Eventually(ctx.ServiceClient.hasSeen, time.Second, 10*time.Millisecond)
-	require.Len(ctx.FakeConsul.services, 1, "expected agent service to be registered")
-	require.Len(ctx.FakeConsul.checks, 1, "expected agent check to be registered")
+	require.Len(ctx.FakeConsul.services["default"], 1, "expected agent service to be registered")
+	require.Len(ctx.FakeConsul.checks["default"], 1, "expected agent check to be registered")
 
 	// prevent normal shutdown by blocking Consul. the shutdown should wait
 	// until agent deregistration has finished
@@ -792,9 +792,9 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 		"expected shutdown to take >200ms and <1s")
 	require.Greater(shutdownTime, 200*time.Millisecond.Seconds(),
 		"expected shutdown to take >200ms and <1s")
-	require.Len(ctx.FakeConsul.services, 0,
+	require.Len(ctx.FakeConsul.services["default"], 0,
 		"expected agent service to be deregistered")
-	require.Len(ctx.FakeConsul.checks, 0,
+	require.Len(ctx.FakeConsul.checks["default"], 0,
 		"expected agent check to be deregistered")
 }
 
@@ -863,11 +863,11 @@ func TestConsul_DriverNetwork_AutoUse(t *testing.T) {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
 
-	if n := len(ctx.FakeConsul.services); n != 3 {
+	if n := len(ctx.FakeConsul.services["default"]); n != 3 {
 		t.Fatalf("expected 2 services but found: %d", n)
 	}
 
-	for _, v := range ctx.FakeConsul.services {
+	for _, v := range ctx.FakeConsul.services["default"] {
 		switch v.Name {
 		case ctx.Workload.Services[0].Name: // x
 			// Since DriverNetwork.AutoAdvertise=true, driver ports should be used
@@ -967,11 +967,11 @@ func TestConsul_DriverNetwork_NoAutoUse(t *testing.T) {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
 
-	if n := len(ctx.FakeConsul.services); n != 3 {
+	if n := len(ctx.FakeConsul.services["default"]); n != 3 {
 		t.Fatalf("expected 3 services but found: %d", n)
 	}
 
-	for _, v := range ctx.FakeConsul.services {
+	for _, v := range ctx.FakeConsul.services["default"] {
 		switch v.Name {
 		case ctx.Workload.Services[0].Name: // x + auto
 			// Since DriverNetwork.AutoAdvertise=false, host ports should be used
@@ -1028,11 +1028,11 @@ func TestConsul_DriverNetwork_Change(t *testing.T) {
 			t.Fatalf("unexpected error syncing task: %v", err)
 		}
 
-		if n := len(ctx.FakeConsul.services); n != 1 {
+		if n := len(ctx.FakeConsul.services["default"]); n != 1 {
 			t.Fatalf("expected 1 service but found: %d", n)
 		}
 
-		for _, v := range ctx.FakeConsul.services {
+		for _, v := range ctx.FakeConsul.services["default"] {
 			switch v.Name {
 			case ctx.Workload.Services[0].Name:
 				if v.Port != port {
@@ -1085,8 +1085,8 @@ func TestConsul_CanaryTags(t *testing.T) {
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(ctx.Workload))
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 1)
-	for _, service := range ctx.FakeConsul.services {
+	require.Len(ctx.FakeConsul.services["default"], 1)
+	for _, service := range ctx.FakeConsul.services["default"] {
 		require.Equal(canaryTags, service.Tags)
 	}
 
@@ -1095,14 +1095,14 @@ func TestConsul_CanaryTags(t *testing.T) {
 	ctx.Workload.Canary = false
 	require.NoError(ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload))
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 1)
-	for _, service := range ctx.FakeConsul.services {
+	require.Len(ctx.FakeConsul.services["default"], 1)
+	for _, service := range ctx.FakeConsul.services["default"] {
 		require.NotEqual(canaryTags, service.Tags)
 	}
 
 	ctx.ServiceClient.RemoveWorkload(ctx.Workload)
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 0)
+	require.Len(ctx.FakeConsul.services["default"], 0)
 }
 
 // TestConsul_CanaryTags_NoTags asserts Tags are used when Canary=true and there
@@ -1118,8 +1118,8 @@ func TestConsul_CanaryTags_NoTags(t *testing.T) {
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(ctx.Workload))
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 1)
-	for _, service := range ctx.FakeConsul.services {
+	require.Len(ctx.FakeConsul.services["default"], 1)
+	for _, service := range ctx.FakeConsul.services["default"] {
 		require.Equal(tags, service.Tags)
 	}
 
@@ -1128,14 +1128,14 @@ func TestConsul_CanaryTags_NoTags(t *testing.T) {
 	ctx.Workload.Canary = false
 	require.NoError(ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload))
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 1)
-	for _, service := range ctx.FakeConsul.services {
+	require.Len(ctx.FakeConsul.services["default"], 1)
+	for _, service := range ctx.FakeConsul.services["default"] {
 		require.Equal(tags, service.Tags)
 	}
 
 	ctx.ServiceClient.RemoveWorkload(ctx.Workload)
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 0)
+	require.Len(ctx.FakeConsul.services["default"], 0)
 }
 
 // TestConsul_CanaryMeta asserts CanaryMeta are used when Canary=true
@@ -1151,8 +1151,8 @@ func TestConsul_CanaryMeta(t *testing.T) {
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(ctx.Workload))
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 1)
-	for _, service := range ctx.FakeConsul.services {
+	require.Len(ctx.FakeConsul.services["default"], 1)
+	for _, service := range ctx.FakeConsul.services["default"] {
 		require.Equal(canaryMeta, service.Meta)
 	}
 
@@ -1161,14 +1161,14 @@ func TestConsul_CanaryMeta(t *testing.T) {
 	ctx.Workload.Canary = false
 	require.NoError(ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload))
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 1)
-	for _, service := range ctx.FakeConsul.services {
+	require.Len(ctx.FakeConsul.services["default"], 1)
+	for _, service := range ctx.FakeConsul.services["default"] {
 		require.NotEqual(canaryMeta, service.Meta)
 	}
 
 	ctx.ServiceClient.RemoveWorkload(ctx.Workload)
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 0)
+	require.Len(ctx.FakeConsul.services["default"], 0)
 }
 
 // TestConsul_CanaryMeta_NoMeta asserts Meta are used when Canary=true and there
@@ -1185,8 +1185,8 @@ func TestConsul_CanaryMeta_NoMeta(t *testing.T) {
 
 	require.NoError(ctx.ServiceClient.RegisterWorkload(ctx.Workload))
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 1)
-	for _, service := range ctx.FakeConsul.services {
+	require.Len(ctx.FakeConsul.services["default"], 1)
+	for _, service := range ctx.FakeConsul.services["default"] {
 		require.Equal(meta, service.Meta)
 	}
 
@@ -1195,14 +1195,14 @@ func TestConsul_CanaryMeta_NoMeta(t *testing.T) {
 	ctx.Workload.Canary = false
 	require.NoError(ctx.ServiceClient.UpdateWorkload(origWorkload, ctx.Workload))
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 1)
-	for _, service := range ctx.FakeConsul.services {
+	require.Len(ctx.FakeConsul.services["default"], 1)
+	for _, service := range ctx.FakeConsul.services["default"] {
 		require.Equal(meta, service.Meta)
 	}
 
 	ctx.ServiceClient.RemoveWorkload(ctx.Workload)
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 0)
+	require.Len(ctx.FakeConsul.services["default"], 0)
 }
 
 // TestConsul_PeriodicSync asserts that Nomad periodically reconciles with
@@ -1284,8 +1284,10 @@ func TestCreateCheckReg_HTTP(t *testing.T) {
 	checkID := check.Hash(serviceID)
 	host := "localhost"
 	port := 41111
+	namespace := ""
 
 	expected := &api.AgentCheckRegistration{
+		Namespace: namespace,
 		ID:        checkID,
 		Name:      "name",
 		ServiceID: serviceID,
@@ -1300,7 +1302,7 @@ func TestCreateCheckReg_HTTP(t *testing.T) {
 		},
 	}
 
-	actual, err := createCheckReg(serviceID, checkID, check, host, port)
+	actual, err := createCheckReg(serviceID, checkID, check, host, port, namespace)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1329,6 +1331,7 @@ func TestCreateCheckReg_GRPC(t *testing.T) {
 	checkID := check.Hash(serviceID)
 
 	expected := &api.AgentCheckRegistration{
+		Namespace: "",
 		ID:        checkID,
 		Name:      "name",
 		ServiceID: serviceID,
@@ -1341,7 +1344,7 @@ func TestCreateCheckReg_GRPC(t *testing.T) {
 		},
 	}
 
-	actual, err := createCheckReg(serviceID, checkID, check, "localhost", 8080)
+	actual, err := createCheckReg(serviceID, checkID, check, "localhost", 8080, "default")
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
 }
@@ -1747,9 +1750,9 @@ func TestConsul_ServiceName_Duplicates(t *testing.T) {
 
 	require.NoError(ctx.syncOnce(syncNewOps))
 
-	require.Len(ctx.FakeConsul.services, 3)
+	require.Len(ctx.FakeConsul.services["default"], 3)
 
-	for _, v := range ctx.FakeConsul.services {
+	for _, v := range ctx.FakeConsul.services["default"] {
 		if v.Name == ctx.Workload.Services[0].Name && v.Port == xPort {
 			require.ElementsMatch(v.Tags, ctx.Workload.Services[0].Tags)
 			require.Len(v.Checks, 1)
@@ -1815,8 +1818,8 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 	require.NoError(ctx.ServiceClient.RegisterWorkload(explicitlyRemovedWorkload))
 
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 2)
-	require.Len(ctx.FakeConsul.checks, 2)
+	require.Len(ctx.FakeConsul.services["default"], 2)
+	require.Len(ctx.FakeConsul.checks["default"], 2)
 
 	// we register a task through nomad API then remove it out of band
 	outofbandWorkload := testWorkload()
@@ -1840,7 +1843,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 	require.NoError(ctx.ServiceClient.RegisterWorkload(outofbandWorkload))
 	require.NoError(ctx.syncOnce(syncNewOps))
 
-	require.Len(ctx.FakeConsul.services, 3)
+	require.Len(ctx.FakeConsul.services["default"], 3)
 
 	// remove outofbandWorkload from local services so it appears unknown to client
 	require.Len(ctx.ServiceClient.services, 3)
@@ -1857,16 +1860,16 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 	ctx.ServiceClient.RemoveWorkload(explicitlyRemovedWorkload)
 	require.NoError(ctx.syncOnce(syncNewOps))
 	require.NoError(ctx.ServiceClient.sync(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 1)
-	require.Len(ctx.FakeConsul.checks, 1)
+	require.Len(ctx.FakeConsul.services["default"], 1)
+	require.Len(ctx.FakeConsul.checks["default"], 1)
 
-	require.Contains(ctx.FakeConsul.services, remainingWorkloadServiceID)
-	require.NotContains(ctx.FakeConsul.services, outofbandWorkloadServiceID)
-	require.NotContains(ctx.FakeConsul.services, explicitlyRemovedWorkloadServiceID)
+	require.Contains(ctx.FakeConsul.services["default"], remainingWorkloadServiceID)
+	require.NotContains(ctx.FakeConsul.services["default"], outofbandWorkloadServiceID)
+	require.NotContains(ctx.FakeConsul.services["default"], explicitlyRemovedWorkloadServiceID)
 
-	require.Contains(ctx.FakeConsul.checks, MakeCheckID(remainingWorkloadServiceID, remainingWorkload.Services[0].Checks[0]))
-	require.NotContains(ctx.FakeConsul.checks, MakeCheckID(outofbandWorkloadServiceID, outofbandWorkload.Services[0].Checks[0]))
-	require.NotContains(ctx.FakeConsul.checks, MakeCheckID(explicitlyRemovedWorkloadServiceID, explicitlyRemovedWorkload.Services[0].Checks[0]))
+	require.Contains(ctx.FakeConsul.checks["default"], MakeCheckID(remainingWorkloadServiceID, remainingWorkload.Services[0].Checks[0]))
+	require.NotContains(ctx.FakeConsul.checks["default"], MakeCheckID(outofbandWorkloadServiceID, outofbandWorkload.Services[0].Checks[0]))
+	require.NotContains(ctx.FakeConsul.checks["default"], MakeCheckID(explicitlyRemovedWorkloadServiceID, explicitlyRemovedWorkload.Services[0].Checks[0]))
 }
 
 // TestConsul_ServiceDeregistration_InProbation asserts that during initialization
@@ -1924,8 +1927,8 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 	require.NoError(ctx.ServiceClient.RegisterWorkload(explicitlyRemovedWorkload))
 
 	require.NoError(ctx.syncOnce(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 2)
-	require.Len(ctx.FakeConsul.checks, 2)
+	require.Len(ctx.FakeConsul.services["default"], 2)
+	require.Len(ctx.FakeConsul.checks["default"], 2)
 
 	// we register a task through nomad API then remove it out of band
 	outofbandWorkload := testWorkload()
@@ -1949,7 +1952,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 	require.NoError(ctx.ServiceClient.RegisterWorkload(outofbandWorkload))
 	require.NoError(ctx.syncOnce(syncNewOps))
 
-	require.Len(ctx.FakeConsul.services, 3)
+	require.Len(ctx.FakeConsul.services["default"], 3)
 
 	// remove outofbandWorkload from local services so it appears unknown to client
 	require.Len(ctx.ServiceClient.services, 3)
@@ -1966,30 +1969,29 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 	ctx.ServiceClient.RemoveWorkload(explicitlyRemovedWorkload)
 	require.NoError(ctx.syncOnce(syncNewOps))
 	require.NoError(ctx.ServiceClient.sync(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 2)
-	require.Len(ctx.FakeConsul.checks, 2)
+	require.Len(ctx.FakeConsul.services["default"], 2)
+	require.Len(ctx.FakeConsul.checks["default"], 2)
 
-	require.Contains(ctx.FakeConsul.services, remainingWorkloadServiceID)
-	require.Contains(ctx.FakeConsul.services, outofbandWorkloadServiceID)
-	require.NotContains(ctx.FakeConsul.services, explicitlyRemovedWorkloadServiceID)
+	require.Contains(ctx.FakeConsul.services["default"], remainingWorkloadServiceID)
+	require.Contains(ctx.FakeConsul.services["default"], outofbandWorkloadServiceID)
+	require.NotContains(ctx.FakeConsul.services["default"], explicitlyRemovedWorkloadServiceID)
 
-	require.Contains(ctx.FakeConsul.checks, MakeCheckID(remainingWorkloadServiceID, remainingWorkload.Services[0].Checks[0]))
-	require.Contains(ctx.FakeConsul.checks, MakeCheckID(outofbandWorkloadServiceID, outofbandWorkload.Services[0].Checks[0]))
-	require.NotContains(ctx.FakeConsul.checks, MakeCheckID(explicitlyRemovedWorkloadServiceID, explicitlyRemovedWorkload.Services[0].Checks[0]))
+	require.Contains(ctx.FakeConsul.checks["default"], MakeCheckID(remainingWorkloadServiceID, remainingWorkload.Services[0].Checks[0]))
+	require.Contains(ctx.FakeConsul.checks["default"], MakeCheckID(outofbandWorkloadServiceID, outofbandWorkload.Services[0].Checks[0]))
+	require.NotContains(ctx.FakeConsul.checks["default"], MakeCheckID(explicitlyRemovedWorkloadServiceID, explicitlyRemovedWorkload.Services[0].Checks[0]))
 
 	// after probation, outofband services and checks are removed
 	ctx.ServiceClient.deregisterProbationExpiry = time.Now().Add(-1 * time.Hour)
 
 	require.NoError(ctx.ServiceClient.sync(syncNewOps))
-	require.Len(ctx.FakeConsul.services, 1)
-	require.Len(ctx.FakeConsul.checks, 1)
+	require.Len(ctx.FakeConsul.services["default"], 1)
+	require.Len(ctx.FakeConsul.checks["default"], 1)
 
-	require.Contains(ctx.FakeConsul.services, remainingWorkloadServiceID)
-	require.NotContains(ctx.FakeConsul.services, outofbandWorkloadServiceID)
-	require.NotContains(ctx.FakeConsul.services, explicitlyRemovedWorkloadServiceID)
+	require.Contains(ctx.FakeConsul.services["default"], remainingWorkloadServiceID)
+	require.NotContains(ctx.FakeConsul.services["default"], outofbandWorkloadServiceID)
+	require.NotContains(ctx.FakeConsul.services["default"], explicitlyRemovedWorkloadServiceID)
 
-	require.Contains(ctx.FakeConsul.checks, MakeCheckID(remainingWorkloadServiceID, remainingWorkload.Services[0].Checks[0]))
-	require.NotContains(ctx.FakeConsul.checks, MakeCheckID(outofbandWorkloadServiceID, outofbandWorkload.Services[0].Checks[0]))
-	require.NotContains(ctx.FakeConsul.checks, MakeCheckID(explicitlyRemovedWorkloadServiceID, explicitlyRemovedWorkload.Services[0].Checks[0]))
-
+	require.Contains(ctx.FakeConsul.checks["default"], MakeCheckID(remainingWorkloadServiceID, remainingWorkload.Services[0].Checks[0]))
+	require.NotContains(ctx.FakeConsul.checks["default"], MakeCheckID(outofbandWorkloadServiceID, outofbandWorkload.Services[0].Checks[0]))
+	require.NotContains(ctx.FakeConsul.checks["default"], MakeCheckID(explicitlyRemovedWorkloadServiceID, explicitlyRemovedWorkload.Services[0].Checks[0]))
 }

@@ -183,7 +183,7 @@ func TestConsulACLsAPI_hasSufficientPolicy(t *testing.T) {
 			aclClient: consul.NewMockACLsAPI(logger),
 			logger:    logger,
 		}
-		result, err := cAPI.hasSufficientPolicy(task, token)
+		result, err := cAPI.canWriteService(task, token)
 		require.NoError(t, err)
 		require.Equal(t, exp, result)
 	}
@@ -198,5 +198,56 @@ func TestConsulACLsAPI_hasSufficientPolicy(t *testing.T) {
 
 	t.Run("working role only", func(t *testing.T) {
 		try(t, "service1", consul.ExampleOperatorToken4, true)
+	})
+}
+
+func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		require.False(t, new(ConsulPolicy).allowsKeystoreRead())
+	})
+
+	t.Run("services only", func(t *testing.T) {
+		require.False(t, (&ConsulPolicy{
+			Services: []*ConsulServiceRule{{
+				Name:   "service1",
+				Policy: "write",
+			}},
+		}).allowsKeystoreRead())
+	})
+
+	t.Run("kv any read", func(t *testing.T) {
+		require.True(t, (&ConsulPolicy{
+			KeyPrefixes: []*ConsulKeyRule{{
+				Name:   "",
+				Policy: "read",
+			}},
+		}).allowsKeystoreRead())
+	})
+
+	t.Run("kv any write", func(t *testing.T) {
+		require.True(t, (&ConsulPolicy{
+			KeyPrefixes: []*ConsulKeyRule{{
+				Name:   "",
+				Policy: "write",
+			}},
+		}).allowsKeystoreRead())
+	})
+
+	t.Run("kv limited read", func(t *testing.T) {
+		require.False(t, (&ConsulPolicy{
+			KeyPrefixes: []*ConsulKeyRule{{
+				Name:   "foo/bar",
+				Policy: "read",
+			}},
+		}).allowsKeystoreRead())
+	})
+
+	t.Run("kv limited write", func(t *testing.T) {
+		require.False(t, (&ConsulPolicy{
+			KeyPrefixes: []*ConsulKeyRule{{
+				Name:   "foo/bar",
+				Policy: "write",
+			}},
+		}).allowsKeystoreRead())
 	})
 }

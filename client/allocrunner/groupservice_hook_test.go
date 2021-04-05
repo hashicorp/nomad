@@ -238,7 +238,9 @@ func TestGroupServiceHook_Update08Alloc(t *testing.T) {
 	consulConfig.Address = testconsul.HTTPAddr
 	consulClient, err := consulapi.NewClient(consulConfig)
 	require.NoError(t, err)
-	serviceClient := agentconsul.NewServiceClient(consulClient.Agent(), testlog.HCLogger(t), true)
+	namespacesClient := agentconsul.NewNamespacesClient(consulClient.Namespaces())
+
+	serviceClient := agentconsul.NewServiceClient(consulClient.Agent(), namespacesClient, testlog.HCLogger(t), true)
 
 	// Lower periodicInterval to ensure periodic syncing doesn't improperly
 	// remove Connect services.
