@@ -31,10 +31,10 @@
 
   /* HACK: Override variant-tertiary-neutral's color rules */
   & .g-text-split .g-btn.variant-tertiary-neutral {
-    color: var(--nomad);
+    color: var(--nomad-link);
 
     & svg path {
-      stroke: var(--nomad);
+      stroke: var(--nomad-link);
     }
   }
 }
