@@ -114,7 +114,7 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 
 	if c.logger.IsDebug() {
 		resultJSON, _ := json.Marshal(res)
-		c.logger.Debug("received result from CNI", "result", resultJSON)
+		c.logger.Debug("received result from CNI", "result", string(resultJSON))
 	}
 
 	netStatus := new(structs.AllocNetworkStatus)
