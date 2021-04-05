@@ -25,6 +25,15 @@ capability.
 
 @include 'general_options_no_namespace.mdx'
 
+## License Get Options
+
+- `-stale`: By default the `license get` command will be forwarded to the Nomad
+  leader. If `-stale` is set to `true`, the command will not be forwarded to
+  the leader and will return the license from the specific server being
+  contacted. This option may be useful during upgrade scenarios when a server
+  is given a new file license and is a follower so the new license has not yet
+  been propagated to raft.
+
 ## Examples
 
 ```shell-session
@@ -50,4 +59,31 @@ Licensed Features:
         Preemption
         Audit Logging
         Setinel Policies
+```
+
+```shell-session
+$ nomad license get -stale=true
+
+Product        = nomad
+License Status = valid
+License ID     = 8c647f6c-1e6d-18d8-7f05-92c4d8110b2d
+Customer ID    = 350356e5-8aec-bdf4-8510-b205079ccad2
+Issued At      = 2021-03-31 14:21:16.969610774 +0000 UTC
+Expires At     = 2022-04-01 00:00:00 +0000 UTC
+Terminates At  = 2022-04-04 00:00:00 +0000 UTC
+Datacenter     = *
+Modules:
+        governance-policy
+        multicluster-and-efficiency
+Licensed Features:
+        Automated Upgrades
+        Enhanced Read Scalability
+        Redundancy Zones
+        Namespaces
+        Resource Quotas
+        Audit Logging
+        Sentinel Policies
+        Multiregion Deployments
+        Automated Backups
+        Multi-Vault Namespaces
 ```
