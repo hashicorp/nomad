@@ -395,7 +395,7 @@ export default function Homepage() {
 
       <TextSplitWithLogoGrid
         textSplit={{
-          brand: 'nomad',
+          product: 'nomad',
           heading: 'Nomad Ecosystem',
           content:
             'Enable end-to-end automation for your application deployment.',
