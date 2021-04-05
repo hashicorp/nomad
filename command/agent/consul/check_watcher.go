@@ -282,7 +282,7 @@ WATCHER:
 				if !ok {
 					// Only warn if outside grace period to avoid races with check registration
 					if now.After(check.graceUntil) {
-						// w.logger.Warn("watched check not found in Consul", "check", check.checkName, "check_id", cid) // add back
+						w.logger.Warn("watched check not found in Consul", "check", check.checkName, "check_id", cid)
 					}
 					continue
 				}

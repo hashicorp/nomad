@@ -341,18 +341,8 @@ func TestConsulACLsAPI_Stop(t *testing.T) {
 	require.Error(t, err)
 }
 
-// CheckPermissions(ctx context.Context, namespace string, usage *structs.ConsulUsage) error
-
 func TestConsulACLsAPI_CheckPermissions(t *testing.T) {
 	t.Parallel()
-
-	equalError := func(t *testing.T, exp, err error) {
-		if exp == nil {
-			require.NoError(t, err)
-		} else {
-			require.Equal(t, exp.Error(), err.Error())
-		}
-	}
 
 	try := func(t *testing.T, namespace string, usage *structs.ConsulUsage, secretID string, exp error) {
 		logger := testlog.HCLogger(t)
@@ -360,7 +350,11 @@ func TestConsulACLsAPI_CheckPermissions(t *testing.T) {
 		cAPI := NewConsulACLsAPI(aclAPI, logger, nil)
 
 		err := cAPI.CheckPermissions(context.Background(), namespace, usage, secretID)
-		equalError(t, exp, err)
+		if exp == nil {
+			require.NoError(t, err)
+		} else {
+			require.Equal(t, exp.Error(), err.Error())
+		}
 	}
 
 	t.Run("check-permissions kv read", func(t *testing.T) {

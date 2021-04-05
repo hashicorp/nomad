@@ -807,6 +807,10 @@ func (c *ServiceClient) sync(reason syncReason) error {
 // asynchronous.
 //
 // Agents will be deregistered when Shutdown is called.
+//
+// Note: no need to manually plumb Consul namespace into the agent service registration
+// or its check registrations, because the Nomad Client's Consul Client will already
+// have the Nomad Client's Consul Namespace set on startup.
 func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) error {
 	ops := operations{}
 
@@ -855,7 +859,7 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 				}
 				checkHost, checkPort = host, port
 			}
-			checkReg, err := createCheckReg(id, checkID, check, checkHost, checkPort, "") // todo ... whats up with agent namespace and its checks?
+			checkReg, err := createCheckReg(id, checkID, check, checkHost, checkPort, "")
 			if err != nil {
 				return fmt.Errorf("failed to add check %q: %v", check.Name, err)
 			}
