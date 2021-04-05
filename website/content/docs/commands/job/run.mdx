@@ -86,7 +86,7 @@ that volume.
 - `-consul-namespace`: <EnterpriseAlert inline/> If set, any services in the job will be registered into the
   specified Consul namespace. Any `template` stanza reading from Consul KV will
   scoped to the the specified Consul namespace. If Consul ACLs are enabled and the
-  [allow_unauthenticated] Nomad server Consul configuration is not enabled, then
+  [`allow_unauthenticated`] Nomad server Consul configuration is not enabled, then
   a Consul token must be supplied with appropriate service and kv Consul ACL policy
   permissions.
 
@@ -157,4 +157,4 @@ $ nomad job run failing.nomad
 [`job plan` command]: /docs/commands/job/plan
 [eval status]: /docs/commands/eval-status
 [job specification]: /docs/job-specification
-[allow_unauthenticated]: /docs/configuration/consul#allow_unauthenticated
+[`allow_unauthenticated`]: /docs/configuration/consul#allow_unauthenticated

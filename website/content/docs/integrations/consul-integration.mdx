@@ -70,7 +70,7 @@ The Consul namespace used for a set of group or task service registrations withi
 a group, as well as `template` KV store access is determined from the following
 hierarchy from lowest to highest precedence:
 
-- consul default: If no Consul namespace options are configured, Consul will automatically
+- Consul default: If no Consul namespace options are configured, Consul will automatically
   make use of the `"default"` namespace.
 
 - agent configuration: If the [`namespace`][consul_agent_namespace] Nomad agent
@@ -85,7 +85,7 @@ hierarchy from lowest to highest precedence:
   Consul namespace is configured, this namespace will take precedence over all other
   options.
 
-If [Consul ACLs][consul_acls] are enabled, the [allow_unauthenticated] configuration parameter
+If [Consul ACLs][consul_acls] are enabled, the [`allow_unauthenticated`] configuration parameter
 will control whether a Consul token will be required when submitting a job with
 Consul namespace configured. The provided Consul token must belong to the correct
 namespace, and must be backed by a Consul ACL Policy with sufficient `service:write`
@@ -121,7 +121,7 @@ service_prefix "" {
   way is to run the container in the host networking mode, or make the Consul
   agent listen on an interface in the network namespace of the container.
 
-[allow_unauthenticated]: /docs/configuration/consul#allow_unauthenticated
+[`allow_unauthenticated`]: /docs/configuration/consul#allow_unauthenticated
 [consul]: https://www.consul.io/ 'Consul by HashiCorp'
 [consul_acls]: https://www.consul.io/docs/security/acl
 [consul_namespaces]: https://www.consul.io/docs/enterprise/namespaces
