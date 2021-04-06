@@ -463,17 +463,17 @@ func (v *CSIVolume) Claim(claim *CSIVolumeClaim, alloc *Allocation) error {
 	if claim.State == CSIVolumeClaimStateTaken {
 		switch claim.Mode {
 		case CSIVolumeClaimRead:
-			return v.ClaimRead(claim, alloc)
+			return v.claimRead(claim, alloc)
 		case CSIVolumeClaimWrite:
-			return v.ClaimWrite(claim, alloc)
+			return v.claimWrite(claim, alloc)
 		}
 	}
 	// either GC or a Unpublish checkpoint
-	return v.ClaimRelease(claim)
+	return v.claimRelease(claim)
 }
 
-// ClaimRead marks an allocation as using a volume read-only
-func (v *CSIVolume) ClaimRead(claim *CSIVolumeClaim, alloc *Allocation) error {
+// claimRead marks an allocation as using a volume read-only
+func (v *CSIVolume) claimRead(claim *CSIVolumeClaim, alloc *Allocation) error {
 	if _, ok := v.ReadAllocs[claim.AllocationID]; ok {
 		return nil
 	}
@@ -497,8 +497,8 @@ func (v *CSIVolume) ClaimRead(claim *CSIVolumeClaim, alloc *Allocation) error {
 	return nil
 }
 
-// ClaimWrite marks an allocation as using a volume as a writer
-func (v *CSIVolume) ClaimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
+// claimWrite marks an allocation as using a volume as a writer
+func (v *CSIVolume) claimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
 	if _, ok := v.WriteAllocs[claim.AllocationID]; ok {
 		return nil
 	}
@@ -531,9 +531,9 @@ func (v *CSIVolume) ClaimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
 	return nil
 }
 
-// ClaimRelease is called when the allocation has terminated and
+// claimRelease is called when the allocation has terminated and
 // already stopped using the volume
-func (v *CSIVolume) ClaimRelease(claim *CSIVolumeClaim) error {
+func (v *CSIVolume) claimRelease(claim *CSIVolumeClaim) error {
 	if claim.State == CSIVolumeClaimStateReadyToFree {
 		delete(v.ReadAllocs, claim.AllocationID)
 		delete(v.WriteAllocs, claim.AllocationID)
