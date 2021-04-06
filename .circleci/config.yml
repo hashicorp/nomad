@@ -294,14 +294,14 @@ jobs:
         type: string
         default: "amd64"
       enable_race_testing:
-        type: string
-        default: ""
+        type: boolean
+        default: false
     environment:
       GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
       GOTEST_PKGS: "<< parameters.test_packages >>"
       GOTEST_MOD: "<< parameters.test_module >>"
       GOTESTARCH: "<< parameters.goarch >>"
-      ENABLE_RACE: "<< parameters.enable_race_testing >>"
+      ENABLE_RACE: << parameters.enable_race_testing >> && "TRUE" || ""
     steps:
       - checkout
       - install-golang
@@ -620,7 +620,7 @@ workflows:
           name: "test-api"
           test_module: "api"
           filters: *backend_test_branches_filter
-          enable_race_testing: "1"
+          enable_race_testing: true
       - test-container:
           name: "test-devices"
           test_packages: "./devices/..."
