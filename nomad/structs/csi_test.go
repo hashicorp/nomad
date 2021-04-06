@@ -20,28 +20,28 @@ func TestCSIVolumeClaim(t *testing.T) {
 		Mode:         CSIVolumeClaimRead,
 	}
 
-	require.NoError(t, vol.ClaimRead(claim, alloc))
+	require.NoError(t, vol.claimRead(claim, alloc))
 	require.True(t, vol.ReadSchedulable())
 	require.True(t, vol.WriteSchedulable())
-	require.NoError(t, vol.ClaimRead(claim, alloc))
+	require.NoError(t, vol.claimRead(claim, alloc))
 
 	claim.Mode = CSIVolumeClaimWrite
-	require.NoError(t, vol.ClaimWrite(claim, alloc))
+	require.NoError(t, vol.claimWrite(claim, alloc))
 	require.True(t, vol.ReadSchedulable())
 	require.False(t, vol.WriteFreeClaims())
 
-	vol.ClaimRelease(claim)
+	vol.claimRelease(claim)
 	require.True(t, vol.ReadSchedulable())
 	require.False(t, vol.WriteFreeClaims())
 
 	claim.State = CSIVolumeClaimStateReadyToFree
-	vol.ClaimRelease(claim)
+	vol.claimRelease(claim)
 	require.True(t, vol.ReadSchedulable())
 	require.True(t, vol.WriteFreeClaims())
 
 	vol.AccessMode = CSIVolumeAccessModeMultiNodeMultiWriter
-	require.NoError(t, vol.ClaimWrite(claim, alloc))
-	require.NoError(t, vol.ClaimWrite(claim, alloc))
+	require.NoError(t, vol.claimWrite(claim, alloc))
+	require.NoError(t, vol.claimWrite(claim, alloc))
 	require.True(t, vol.WriteFreeClaims())
 }
 
