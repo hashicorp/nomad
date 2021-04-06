@@ -685,8 +685,8 @@ func (c *Client) newRequest(method, path string) (*request, error) {
 		}
 	}
 
-	if c.config.Headers != nil {
-		r.header = c.config.Headers
+	for key, values := range c.config.Headers {
+		r.header[key] = values
 	}
 
 	return r, nil
