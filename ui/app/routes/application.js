@@ -1,5 +1,5 @@
 import { inject as service } from '@ember/service';
-import { next } from '@ember/runloop';
+import { later, next } from '@ember/runloop';
 import Route from '@ember/routing/route';
 import { AbortError } from '@ember-data/adapter/error';
 import RSVP from 'rsvp';
@@ -89,6 +89,11 @@ export default class ApplicationRoute extends Route {
         controller.set('region', null);
       });
     }
+
+    // Hack to force clear the OTT query parameter
+    later(() => {
+      controller.set('oneTimeToken', '');
+    }, 500);
 
     return super.setupController(...arguments);
   }

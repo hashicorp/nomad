@@ -1,4 +1,4 @@
-import { find, visit } from '@ember/test-helpers';
+import { currentURL, find, visit } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -169,6 +169,9 @@ module('Acceptance | tokens', function(hooks) {
     const { oneTimeSecret, secretId } = managementToken;
 
     await JobDetail.visit({ id: job.id, ott: oneTimeSecret });
+
+    assert.notOk(currentURL().includes(oneTimeSecret), 'OTT is cleared from the URL after loading');
+
     await Tokens.visit();
 
     assert.equal(window.localStorage.nomadTokenSecret, secretId, 'Token secret was set');
