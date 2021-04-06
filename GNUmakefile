@@ -102,6 +102,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@v2.5.1
 	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
