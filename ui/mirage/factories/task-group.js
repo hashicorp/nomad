@@ -157,6 +157,7 @@ function makeHostVolumes() {
 function parseResourceSpec(spec) {
   const mapping = {
     M: 'MemoryMB',
+    MM: 'MemoryMaxMB',
     C: 'CPU',
     D: 'DiskMB',
     I: 'IOPS',

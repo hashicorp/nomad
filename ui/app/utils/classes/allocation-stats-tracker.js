@@ -104,6 +104,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   // Static figures, denominators for stats
   @alias('allocation.taskGroup.reservedCPU') reservedCPU;
   @alias('allocation.taskGroup.reservedMemory') reservedMemory;
+  @alias('allocation.taskGroup.reservedMemoryMax') reservedMemoryMax;
 
   // Dynamic figures, collected over time
   // []{ timestamp: Date, used: Number, percent: Number }
@@ -130,6 +131,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
         // Static figures, denominators for stats
         reservedCPU: get(task, 'reservedCPU'),
         reservedMemory: get(task, 'reservedMemory'),
+        reservedMemoryMax: get(task, 'reservedMemoryMax'),
 
         // Dynamic figures, collected over time
         // []{ timestamp: Date, used: Number, percent: Number }

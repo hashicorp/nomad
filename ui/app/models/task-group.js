@@ -38,6 +38,19 @@ export default class TaskGroup extends Fragment {
 
   @attr('number') reservedEphemeralDisk;
 
+  @computed('tasks.@each.{reservedMemory,reservedMemoryMax}')
+  get reservedMemoryMax() {
+    const s = this.tasks.reduce(
+      (sum, t) => {
+        sum.max += t.reservedMemoryMax || t.reservedMemory;
+        sum.has_max ||= t.reservedMemoryMax;
+        return sum;
+      },
+      { max: 0, has_max: false }
+    );
+    return s.has_max ? s.max : null;
+  }
+
   @computed('job.latestFailureEvaluation.failedTGAllocs.[]', 'name')
   get placementFailures() {
     const placementFailures = this.get('job.latestFailureEvaluation.failedTGAllocs');
