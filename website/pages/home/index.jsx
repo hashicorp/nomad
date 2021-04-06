@@ -331,7 +331,7 @@ export default function Homepage() {
       <div className="use-cases g-grid-container">
         <h2 className="g-type-display-2">Use Cases</h2>
         <UseCases
-          theme="nomad"
+          product="nomad"
           items={[
             {
               title: 'Simple Container Orchestration',
@@ -403,7 +403,7 @@ export default function Homepage() {
 
       <TextSplitWithLogoGrid
         textSplit={{
-          brand: 'nomad',
+          product: 'nomad',
           heading: 'Nomad Ecosystem',
           content:
             'Enable end-to-end automation for your application deployment.',
@@ -472,7 +472,7 @@ export default function Homepage() {
         variant="compact"
         heading="Ready to get started?"
         content="Nomad Open Source addresses the technical complexity of managing a mixed type of workloads in production at scale by providing a simple and flexible workload orchestrator across distributed infrastructure and clouds."
-        brand="nomad"
+        product="nomad"
         links={[
           {
             text: 'Explore HashiCorp Learn',

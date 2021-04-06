@@ -31,6 +31,6 @@
   }
 
   & a {
-    color: var(--highlight-color);
+    color: var(--nomad-link);
   }
 }
