@@ -6189,20 +6189,14 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	}
 
 	// Validate the volume requests
-	for name, decl := range tg.Volumes {
-		if !(decl.Type == VolumeTypeHost ||
-			decl.Type == VolumeTypeCSI) {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unrecognised type %s", name, decl.Type))
-			continue
-		}
-
-		if decl.PerAlloc && tg.Update != nil && tg.Update.Canary > 0 {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Volume %s cannot be per_alloc when canaries are in use", name))
-		}
-
-		if decl.Source == "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has an empty source", name))
+	var canaries int
+	if tg.Update != nil {
+		canaries = tg.Update.Canary
+	}
+	for name, volReq := range tg.Volumes {
+		if err := volReq.Validate(canaries); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf(
+				"Task group volume validation for %s failed: %v", name, err))
 		}
 	}
 

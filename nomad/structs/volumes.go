@@ -1,5 +1,11 @@
 package structs
 
+import (
+	"fmt"
+
+	multierror "github.com/hashicorp/go-multierror"
+)
+
 const (
 	VolumeTypeHost = "host"
 )
@@ -92,6 +98,24 @@ type VolumeRequest struct {
 	ReadOnly     bool
 	MountOptions *CSIMountOptions
 	PerAlloc     bool
+}
+
+func (v *VolumeRequest) Validate(canaries int) error {
+	if !(v.Type == VolumeTypeHost ||
+		v.Type == VolumeTypeCSI) {
+		return fmt.Errorf("volume has unrecognised type %s", v.Type)
+	}
+
+	var mErr multierror.Error
+	if v.PerAlloc && canaries > 0 {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("volume cannot be per_alloc when canaries are in use"))
+	}
+
+	if v.Source == "" {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("volume has an empty source"))
+	}
+	return mErr.ErrorOrNil()
 }
 
 func (v *VolumeRequest) Copy() *VolumeRequest {
