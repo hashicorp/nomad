@@ -301,7 +301,7 @@ jobs:
       GOTEST_PKGS: "<< parameters.test_packages >>"
       GOTEST_MOD: "<< parameters.test_module >>"
       GOTESTARCH: "<< parameters.goarch >>"
-      ENABLE_RACE: << parameters.enable_race_testing >> && "TRUE" || ""
+      ENABLE_RACE: <<# parameters.enable_race_testing >>TRUE<</ parameters.enable_race_testing >>
     steps:
       - checkout
       - install-golang
