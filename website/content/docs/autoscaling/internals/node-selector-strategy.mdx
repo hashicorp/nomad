@@ -36,6 +36,17 @@ perform the scaling action.
 The `empty` strategy is ideal for batch workloads, ensuring allocations are not
 interrupted by scaling.
 
+~> **Note:** [system][system_scheduler] jobs will prevent this strategy from
+scaling-in nodes. Please use the [`empty_ignore_system`](#empty_ignore_system)
+strategy if you have system jobs in your cluster.
+
+### `empty_ignore_system` Node Selector Strategy
+
+The `empty_ignore_system` strategy is similar to `empty`, but it will not
+consider allocations from [system][system_scheduler] jobs. A node with only
+terminal allocations and allocations from system jobs is considered empty under
+this strategy.
+
 ### `newest_create_index` Node Selector Strategy
 
 The `newest_create_index` strategy is the simplest strategy and uses the order
@@ -45,3 +56,4 @@ due to scaling. It is also the least computationally intensive selector strategy
 
 [nomad_api_terminal_alloc]: https://github.com/hashicorp/nomad/blob/14568b3e002868fc5c83ee7d158a78394c1ea9c1/api/allocations.go#L422-L442
 [nomad_api_node_stub_sort]: https://github.com/hashicorp/nomad/blob/14568b3e002868fc5c83ee7d158a78394c1ea9c1/api/nodes.go#L797-L810
+[system_scheduler]: /docs/schedulers#system
