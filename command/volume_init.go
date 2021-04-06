@@ -125,10 +125,11 @@ snapshot_id = "snap-12345"
 capacity_min = "10GiB"
 capacity_max = "20G"
 
-# Optional: for 'nomad volume create', specify one or more capabilities to
-# validate. Registering an existing volume will record but ignore these fields.
+# Required (at least one): for 'nomad volume create', specify one or more
+# capabilities to validate. Registering an existing volume will record but
+# ignore these fields.
 capability {
-  access_mode     = "single-node-writer"
+  access_mode = "single-node-writer"
   attachment_mode = "file-system"
 }
 
@@ -137,9 +138,9 @@ capability {
   attachment_mode = "block-device"
 }
 
-# Optional: for 'nomad volume create', specify mount options to
-# validate. Registering an existing volume will record but ignore these
-# fields.
+# Optional: for 'nomad volume create', specify mount options to validate for
+# 'attachment_mode = "file-system". Registering an existing volume will record
+# but ignore these fields.
 mount_options {
   fs_type     = "ext4"
   mount_flags = ["ro"]

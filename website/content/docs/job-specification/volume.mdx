@@ -29,6 +29,27 @@ job "docs" {
 }
 ```
 
+```hcl
+job "docs" {
+  group "example" {
+    volume "data" {
+      type            = "csi"
+      source          = "csi-volume"
+      read_only       = true
+      attachment_mode = "file-system"
+      access_mode     = "single-node-writer"
+      per_alloc       = true
+
+      mount_options {
+        fs_type     = "ext4"
+        mount_flags = "noatime"
+      }
+    }
+  }
+}
+```
+
+
 The Nomad server will ensure that the allocations are only scheduled
 on hosts that have a set of volumes that meet the criteria specified
 in the `volume` stanzas. These may be [host volumes][host_volume]
@@ -48,17 +69,33 @@ the [volume_mount][volume_mount] stanza in the `task` configuration.
   name of the host volume. When using `csi` volumes, this should match
   the ID of the registered volume.
 
-- `per_alloc` `(bool: false)` - Specifies that the `source` of the volume
-  should have the suffix `[n]`, where `n` is the allocation index. This allows
-  mounting a unique volume per allocation, so long as the volume's source is
-  named appropriately. For example, with the source `myvolume` and `per_alloc = true`, the allocation named `myjob.mygroup.mytask[0]` will require a
-  volume ID `myvolume[0]`.
-
 - `read_only` `(bool: false)` - Specifies that the group only requires
   read only access to a volume and is used as the default value for
   the `volume_mount -> read_only` configuration. This value is also
   used for validating `host_volume` ACLs and for scheduling when a
   matching `host_volume` requires `read_only` usage.
+
+The following fields are only valid for volumes with `type = "csi"`:
+
+- `access_mode` `(string: <required>)` - Defines whether a volume should be
+  available concurrently. Can be one of `"single-node-reader-only"`,
+  `"single-node-writer"`, `"multi-node-reader-only"`,
+  `"multi-node-single-writer"`, or `"multi-node-multi-writer"`. Most CSI
+  plugins support only single-node modes. Consult the documentation of the
+  storage provider and CSI plugin.
+
+- `attachment_mode` `(string: <required>)` - The storage API that will be used
+  by the volume. Most storage providers will support `"file-system"`, to mount
+  volumes using the CSI filesystem API. Some storage providers will support
+  `"block-device"`, which will mount the volume with the CSI block device API
+  within the container.
+
+- `per_alloc` `(bool: false)` - Specifies that the `source` of the volume
+  should have the suffix `[n]`, where `n` is the allocation index. This allows
+  mounting a unique volume per allocation, so long as the volume's source is
+  named appropriately. For example, with the source `myvolume` and `per_alloc
+  = true`, the allocation named `myjob.mygroup.mytask[0]` will require a
+  volume ID `myvolume[0]`.
 
 - `mount_options` - Options for mounting CSI volumes that have the
   `file-system` [attachment mode]. These options override the `mount_options`

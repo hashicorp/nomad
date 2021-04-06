@@ -45,15 +45,6 @@ name            = "database"
 type            = "csi"
 external_id     = "vol-23452345"
 plugin_id       = "ebs-prod"
-snapshot_id     = "snap-12345" # or clone_id, see below
-capacity        = "100G"
-access_mode     = "single-node-writer"
-attachment_mode = "file-system"
-
-mount_options {
-  fs_type     = "ext4"
-  mount_flags = ["ro"]
-}
 
 secrets {
   example_secret = "xyzzy"
@@ -86,24 +77,6 @@ context {
 - `plugin_id` `(string: <required>)` - The ID of the [CSI plugin][csi_plugin]
   that manages this volume.
 
-- `snapshot_id` - This field is only used during volume creation, and is
-  ignored during volume registration. See [`volume create`].
-
-- `clone_id` - This field is only used during volume creation, and is ignored
-  during volume registration. See [`volume create`].
-
-- `capacity_min` - This field is only used during volume creation, and is
-  ignored during volume registration. See [`volume create`].
-
-- `capacity_max` - This field is only used during volume creation, and is
-  ignored during volume registration. See [`volume create`].
-
-- `capability` - This field is only used during volume creation, and is
-  ignored during volume registration. See [`volume create`].
-
-- `mount_options` - This field is only used during volume creation, and is
-  ignored during volume registration. See [`volume create`].
-
 - `secrets` <code>(map<string|string>:nil)</code> - An optional
   key-value map of strings used as credentials for publishing and
   unpublishing volumes.
@@ -119,6 +92,14 @@ context {
   validate the volume. The details of these parameters are specific to
   each storage provider, so please see the specific plugin
   documentation for more information.
+
+### Unused Fields
+
+Note that several fields used in the [`volume create`] command are set
+automatically by the plugin when `volume create` is successful and cannot be
+set on a pre-existing volume. You should not set the `snapshot_id`,
+`clone_id`, `capacity_min`, `capacity_max`, or `capability` fields described
+on that page.
 
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugins_internals]: /docs/internals/plugins/csi#csi-plugins

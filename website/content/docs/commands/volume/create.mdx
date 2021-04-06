@@ -39,7 +39,6 @@ The file may be provided as either HCL or JSON. An example HCL configuration:
 id              = "ebs_prod_db1"
 name            = "database"
 type            = "csi"
-external_id     = "vol-23452345"
 plugin_id       = "ebs-prod"
 snapshot_id     = "snap-12345" # or clone_id, see below
 
@@ -48,12 +47,14 @@ capacity {
   limit    = "200G"
 }
 
-access_mode     = "single-node-writer"
-attachment_mode = "file-system"
+capability {
+  access_mode = "single-node-reader-only"
+  attachment_mode = "file-system"
+}
 
-mount_options {
-  fs_type     = "ext4"
-  mount_flags = ["ro"]
+capability {
+  access_mode = "single-node-writer"
+  attachment_mode = "file-system"
 }
 
 secrets {
@@ -75,14 +76,11 @@ context {
   [`volume.source`][csi_volume_source] field in a job specification will refer
   to the volume.
 
-- `name` `(string: <required>)` - The display name of the volume.
+- `name` `(string: <required>)` - The display name of the volume. This field
+  may be used by the external storage provider to tag the volume.
 
 - `type` `(string: <required>)` - The type of volume. Currently only `"csi"`
   is supported.
-
-- `external_id` `(string: <required>)` - The ID of the physical volume from
-  the storage provider. For example, the volume ID of an AWS EBS volume or
-  Digital Ocean volume.
 
 - `plugin_id` `(string: <required>)` - The ID of the [CSI plugin][csi_plugin]
   that manages this volume.
@@ -109,9 +107,10 @@ context {
   suffixes such as `"100GiB"`. This field may not be supported by all
   storage providers.
 
-- `capability` `(optional)` - Option for validating the capbility of a
-  volume. You may provide multiple `capability` blocks, each of which must
-  have the following fields:
+- `capability` `(Capability: <required>)` - Option for validating the
+  capbility of a volume. You must provide at least one `capability` block, and
+  you must provide a block for each capability you intend to use in a job's
+  [`volume`] block. Each `capability` block must have the following fields:
 
   - `access_mode` `(string: <required>)` - Defines whether a volume should be
     available concurrently. Can be one of `"single-node-reader-only"`,
@@ -127,9 +126,10 @@ context {
     within the container.
 
 - `mount_options` - Options for mounting `file-system` volumes that don't
-  already have a pre-formatted file system. Consult the documentation for your
-  storage provider and CSI plugin as to whether these options are required or
-  necessary.
+  already have a pre-formatted file system. These field will be validated
+  during volume creation against the `capability` field. Consult the
+  documentation for your storage provider and CSI plugin as to whether these
+  options are required or necessary.
 
   - `fs_type` `(string <optional>)` - File system type (ex. `"ext4"`)
   - `mount_flags` `([]string: <optional>)` - The flags passed to `mount`
@@ -145,9 +145,11 @@ context {
   to each storage provider, so please see the specific plugin
   documentation for more information.
 
-- `context` <code>(map<string|string>:nil)</code> - This field is only used
-  during volume registration, and will be set automatically by the plugin when
-  `volume create` is successful. See [`volume register`].
+### Unused Fields
+
+Note that several fields used in the [`volume register`] command are set
+automatically by the plugin when `volume create` is successful. You should not
+set the `external_id` or `context` fields described on that page.
 
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugins_internals]: /docs/internals/plugins/csi#csi-plugins
@@ -156,3 +158,4 @@ context {
 [csi_volume_source]: /docs/job-specification/volume#source
 [registered]: /docs/commands/volume/register
 [`volume register`]: /docs/commands/volume/register
+[`volume`]: /docs/job-specification/volume
