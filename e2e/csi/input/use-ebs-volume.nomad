@@ -9,9 +9,11 @@ job "use-ebs-volume" {
 
   group "group" {
     volume "test" {
-      type      = "csi"
-      source    = "ebs-vol"
-      per_alloc = true
+      type            = "csi"
+      source          = "ebs-vol"
+      attachment_mode = "file-system"
+      access_mode     = "single-node-writer"
+      per_alloc       = true
     }
 
     task "task" {
