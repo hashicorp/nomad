@@ -354,7 +354,7 @@ func (s *HTTPServer) csiSnapshotList(resp http.ResponseWriter, req *http.Request
 	}
 
 	setMeta(resp, &out.QueryMeta)
-	return out.Snapshots, nil
+	return out, nil
 }
 
 // CSIPluginsRequest lists CSI plugins
