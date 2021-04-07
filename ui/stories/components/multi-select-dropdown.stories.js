@@ -32,6 +32,21 @@ export let Standard = () => {
   };
 };
 
+export let SingleSelect = () => ({
+  template: hbs`
+    <h5 class="title is-5">Single-Select Dropdown</h5>
+    <SingleSelectDropdown
+      @label="Single"
+      @options={{this.options1}}
+      @selection={{this.selection}}
+      @onSelect={{action (mut this.selection)}} />
+  `,
+  context: {
+    options1,
+    selection: 'option-2',
+  },
+});
+
 export let RightAligned = () => {
   return {
     template: hbs`
