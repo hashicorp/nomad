@@ -151,7 +151,7 @@ func (v *CSIVolumes) ListSnapshots(pluginID string, q *QueryOptions) (*CSISnapsh
 		qp.Set("per_page", fmt.Sprint(q.PerPage))
 	}
 
-	qm, err := v.client.query("/v1/volumes/snapshots?"+qp.Encode(), &resp, q)
+	qm, err := v.client.query("/v1/volumes/snapshot?"+qp.Encode(), &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}

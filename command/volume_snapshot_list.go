@@ -122,7 +122,7 @@ func (c *VolumeSnapshotListCommand) Run(args []string) int {
 		resp, _, err := client.CSIVolumes().ListSnapshots(pluginID, q)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf(
-				"Error querying CSI external volumes for plugin %q: %s", pluginID, err))
+				"Error querying CSI external snapshots for plugin %q: %s", pluginID, err))
 			return 1
 		}
 		if len(resp.Snapshots) > 0 {
