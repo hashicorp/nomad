@@ -1,0 +1,10 @@
+<div class="dropdown" ...attributes>
+  <PowerSelect
+    @options={{@options}}
+    @selected={{this.activeOption}}
+    @onChange={{action this.setSelection}}
+    @dropdownClass="dropdown-list-test"
+    as |option|>
+    <span class="ember-power-select-prefix">{{@label}}: </span>{{option.label}}
+  </PowerSelect>
+</div>
