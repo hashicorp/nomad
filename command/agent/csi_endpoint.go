@@ -298,10 +298,22 @@ func (s *HTTPServer) csiSnapshotCreate(resp http.ResponseWriter, req *http.Reque
 func (s *HTTPServer) csiSnapshotDelete(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 
 	args := structs.CSISnapshotDeleteRequest{}
-	if err := decodeBody(req, &args); err != nil {
-		return err, CodedError(400, err.Error())
-	}
 	s.parseWriteRequest(req, &args.WriteRequest)
+
+	snap := &structs.CSISnapshot{Secrets: structs.CSISecrets{}}
+
+	query := req.URL.Query()
+	snap.PluginID = query.Get("plugin_id")
+	snap.ID = query.Get("snapshot_id")
+	secrets := query["secret"]
+	for _, raw := range secrets {
+		secret := strings.Split(raw, "=")
+		if len(secret) == 2 {
+			snap.Secrets[secret[0]] = secret[1]
+		}
+	}
+
+	args.Snapshots = []*structs.CSISnapshot{snap}
 
 	var out structs.CSISnapshotDeleteResponse
 	if err := s.agent.RPC("CSIVolume.DeleteSnapshot", &args, &out); err != nil {
