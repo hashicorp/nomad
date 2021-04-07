@@ -306,7 +306,7 @@ func (s *HTTPServer) csiSnapshotCreate(resp http.ResponseWriter, req *http.Reque
 	}
 
 	setMeta(resp, &out.QueryMeta)
-	return out.Snapshots, nil
+	return out, nil
 }
 
 func (s *HTTPServer) csiSnapshotDelete(resp http.ResponseWriter, req *http.Request) (interface{}, error) {

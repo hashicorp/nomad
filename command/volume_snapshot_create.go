@@ -106,6 +106,6 @@ func (c *VolumeSnapshotCreateCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Ui.Output(csiFormatSnapshots(snaps, verbose))
+	c.Ui.Output(csiFormatSnapshots(snaps.Snapshots, verbose))
 	return 0
 }
