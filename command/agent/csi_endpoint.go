@@ -18,23 +18,6 @@ func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Reque
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	// Tokenize the suffix of the path to get the volume id
-	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/volumes")
-	tokens := strings.Split(reqSuffix, "/")
-	if len(tokens) == 2 {
-		if tokens[1] == "external" {
-			return s.csiVolumesListExternal(resp, req)
-		}
-		return nil, CodedError(404, resourceNotFoundErr)
-	} else if len(tokens) > 2 {
-		return nil, CodedError(404, resourceNotFoundErr)
-	}
-
-	return s.csiVolumesList(resp, req)
-}
-
-func (s *HTTPServer) csiVolumesList(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-
 	// Type filters volume lists to a specific type. When support for non-CSI volumes is
 	// introduced, we'll need to dispatch here
 	query := req.URL.Query()
@@ -64,7 +47,10 @@ func (s *HTTPServer) csiVolumesList(resp http.ResponseWriter, req *http.Request)
 	return out.Volumes, nil
 }
 
-func (s *HTTPServer) csiVolumesListExternal(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) CSIExternalVolumesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
 
 	args := structs.CSIVolumeExternalListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
@@ -80,7 +66,7 @@ func (s *HTTPServer) csiVolumesListExternal(resp http.ResponseWriter, req *http.
 	}
 
 	setMeta(resp, &out.QueryMeta)
-	return out.Volumes, nil
+	return out, nil
 }
 
 // CSIVolumeSpecificRequest dispatches GET and PUT
