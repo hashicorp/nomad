@@ -69,6 +69,8 @@ that volume.
   will be output, which can be used to examine the evaluation using the
   [eval status] command.
 
+- `-hcl1`: If set, HCL1 parser is used for parsing the job spec.
+
 - `-output`: Output the JSON that would be submitted to the HTTP API without
   submitting the job.
 
@@ -95,7 +97,12 @@ that volume.
   storing it in the job file. This overrides the token found in the
   `$VAULT_TOKEN` environment variable and that found in the job.
 
-- `-hcl1`: If set, HCL1 parser is used for parsing the job spec.
+- `-vault-namespace`: If set, the passed Vault namespace is stored in the job
+  before sending to the Nomad servers.
+
+- `-var=<key=value>`: Variable for template, can be used multiple times.
+
+- `-var-file=<path>`: Path to HCL2 file containing user variables.
 
 - `-verbose`: Show full information.
 
