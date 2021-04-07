@@ -2,7 +2,6 @@ package hcl
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/zclconf/go-cty/cty"
 )
@@ -71,10 +70,10 @@ func (t Traversal) TraverseAbs(ctx *EvalContext) (cty.Value, Diagnostics) {
 
 	thisCtx := ctx
 	hasNonNil := false
-	var unknownHandler func(string) (cty.Value, error)
+	var undefinedHandler func(Traversal) (cty.Value, Diagnostics)
 	for thisCtx != nil {
-		if unknownHandler == nil && thisCtx.UnknownVariable != nil {
-			unknownHandler = thisCtx.UnknownVariable
+		if undefinedHandler == nil && thisCtx.UndefinedVariable != nil {
+			undefinedHandler = thisCtx.UndefinedVariable
 		}
 
 		if thisCtx.Variables == nil {
@@ -82,7 +81,6 @@ func (t Traversal) TraverseAbs(ctx *EvalContext) (cty.Value, Diagnostics) {
 			continue
 		}
 		hasNonNil = true
-
 		val, exists := thisCtx.Variables[name]
 		if exists {
 			return split.Rel.TraverseRel(val)
@@ -90,11 +88,9 @@ func (t Traversal) TraverseAbs(ctx *EvalContext) (cty.Value, Diagnostics) {
 		thisCtx = thisCtx.parent
 	}
 
-	if unknownHandler != nil {
-		v, err := unknownHandler(t.toStringValue())
-		if err == nil {
-			return v, nil
-		}
+	if undefinedHandler != nil {
+		v, diags := undefinedHandler(t)
+		return v, diags
 	}
 
 	if !hasNonNil {
@@ -129,18 +125,6 @@ func (t Traversal) TraverseAbs(ctx *EvalContext) (cty.Value, Diagnostics) {
 			Subject:  &root.SrcRange,
 		},
 	}
-}
-
-func (t Traversal) toStringValue() string {
-	var o strings.Builder
-	o.WriteString(t.RootName())
-
-	for _, v := range t[1:] {
-		o.WriteByte('.')
-		o.WriteString(v.(TraverseAttr).Name)
-	}
-
-	return o.String()
 }
 
 // IsRelative returns true if the receiver is a relative traversal, or false

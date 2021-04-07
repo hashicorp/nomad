@@ -362,9 +362,14 @@ func splitDateFormat(data []byte, atEOF bool) (advance int, token []byte, err er
 		for i := 1; i < len(data); i++ {
 			if data[i] == esc {
 				if (i + 1) == len(data) {
-					// We need at least one more byte to decide if this is an
-					// escape or a terminator.
-					return 0, nil, nil
+					if atEOF {
+						// We have a closing quote and are at the end of our input
+						return len(data), data, nil
+					} else {
+						// We need at least one more byte to decide if this is an
+						// escape or a terminator.
+						return 0, nil, nil
+					}
 				}
 				if data[i+1] == esc {
 					i++ // doubled-up quotes are an escape sequence
