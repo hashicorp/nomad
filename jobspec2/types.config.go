@@ -2,6 +2,7 @@ package jobspec2
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -308,9 +309,44 @@ func (c *jobConfig) EvalContext() *hcl.EvalContext {
 			inputVariablesAccessor: cty.ObjectVal(vars),
 			localsAccessor:         cty.ObjectVal(locals),
 		},
-		UnknownVariable: func(expr string) (cty.Value, error) {
-			v := "${" + expr + "}"
-			return cty.StringVal(v), nil
+		UndefinedVariable: func(t hcl.Traversal) (cty.Value, hcl.Diagnostics) {
+			var o strings.Builder
+			o.WriteString("${")
+			o.WriteString(t.RootName())
+
+			for _, v := range t[1:] {
+				o.WriteByte('.')
+				switch vt := v.(type) {
+				case hcl.TraverseAttr:
+					o.WriteString(vt.Name)
+				case hcl.TraverseIndex:
+					// index must be an integer
+					if vt.Key.Type() != cty.Number {
+						return cty.DynamicVal, hcl.Diagnostics{{
+							Severity: hcl.DiagError,
+							Summary:  "Unknown type",
+							Detail:   "expected an integer",
+
+							Subject: &vt.SrcRange,
+						}}
+					}
+					fmt.Println(vt.Key.GoString(), vt.Key.Type().GoString())
+					v, _ := vt.Key.AsBigFloat().Int64()
+					o.WriteString(strconv.FormatInt(v, 10))
+				default:
+					src := vt.SourceRange()
+					return cty.DynamicVal, hcl.Diagnostics{{
+						Severity: hcl.DiagError,
+						Summary:  "Unknown type",
+						Detail:   "expected a string or an int",
+
+						Subject: &src,
+					}}
+				}
+			}
+			o.WriteString("}")
+
+			return cty.StringVal(o.String()), nil
 		},
 	}
 }
