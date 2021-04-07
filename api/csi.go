@@ -126,10 +126,13 @@ func (v *CSIVolumes) CreateSnapshot(snap *CSISnapshot, w *WriteOptions) (*CSISna
 
 // DeleteSnapshot deletes an external storage volume snapshot.
 func (v *CSIVolumes) DeleteSnapshot(snap *CSISnapshot, w *WriteOptions) error {
-	req := &CSISnapshotDeleteRequest{
-		Snapshots: []*CSISnapshot{snap},
+	qp := url.Values{}
+	qp.Set("snapshot_id", snap.ID)
+	qp.Set("plugin_id", snap.PluginID)
+	for k, v := range snap.Secrets {
+		qp.Set("secret", fmt.Sprintf("%v=%v", k, v))
 	}
-	_, err := v.client.delete("/v1/volumes/snapshot", req, w)
+	_, err := v.client.delete("/v1/volumes/snapshot?"+qp.Encode(), nil, w)
 	return err
 }
 
@@ -395,11 +398,6 @@ type CSISnapshotCreateRequest struct {
 type CSISnapshotCreateResponse struct {
 	Snapshots []*CSISnapshot
 	QueryMeta
-}
-
-type CSISnapshotDeleteRequest struct {
-	Snapshots []*CSISnapshot
-	WriteRequest
 }
 
 // CSISnapshotListRequest is a request to a controller plugin to list all the
