@@ -5,6 +5,7 @@ SECURITY:
 
 BUG FIXES:
  * agent: Only allow querying Prometheus formatted metrics if Prometheus is enabled within the config [[GH-10140](https://github.com/hashicorp/nomad/pull/10140)]
+ * api: Fixed a panic that may occur on concurrent access to an SDK client [[GH-10302](https://github.com/hashicorp/nomad/issues/10302)]
  * api: Added missing devices block to AllocatedTaskResources [[GH-10064](https://github.com/hashicorp/nomad/pull/10064)]
  * api: Removed unimplemented `CSIVolumes.PluginList` API. [[GH-10158](https://github.com/hashicorp/nomad/issues/10158)]
  * cli: Fixed a bug where non-int proxy port would panic CLI [[GH-10072](https://github.com/hashicorp/nomad/issues/10072)]
