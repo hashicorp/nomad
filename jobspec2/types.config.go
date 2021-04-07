@@ -1,6 +1,7 @@
 package jobspec2
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -308,8 +309,26 @@ func (c *jobConfig) EvalContext() *hcl.EvalContext {
 			inputVariablesAccessor: cty.ObjectVal(vars),
 			localsAccessor:         cty.ObjectVal(locals),
 		},
-		UnknownVariable: func(expr string) (cty.Value, error) {
-			v := "${" + expr + "}"
+		UndefinedVariable: func(t hcl.Traversal) (cty.Value, hcl.Diagnostics) {
+			body := c.ParseConfig.Body
+			start := t.SourceRange().Start.Byte
+			end := t.SourceRange().End.Byte
+
+			v := string(body[start:end])
+			if i := bytes.IndexByte(body[end:], '}'); i != -1 {
+				v += string(body[end : end+i+1])
+			} else {
+				// fallback for unexpected cases
+				v += "}"
+			}
+
+			if i := bytes.LastIndex(body[:start], []byte("${")); i != 0 {
+				v = string(body[i:start]) + v
+			} else {
+				// fallback for unexpected cases
+				v = "${" + v
+			}
+
 			return cty.StringVal(v), nil
 		},
 	}

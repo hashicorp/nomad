@@ -855,6 +855,7 @@ func TestParse_UndefinedVariables(t *testing.T) {
 		"foo-${attr.network.dev-us-east1-relay-vpc.external-ip.0}",
 		`${env["BLAH"]}`,
 		`${mixed-indexing.0[3]["FOO"].5}`,
+		`with spaces ${   root.  field[  "FOO"].5  }`,
 	}
 
 	for _, c := range cases {
