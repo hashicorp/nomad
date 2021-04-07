@@ -1028,6 +1028,9 @@ func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, rep
 	if plugin == nil {
 		return fmt.Errorf("no such plugin")
 	}
+	if !plugin.HasControllerCapability(structs.CSIControllerSupportsListVolumes) {
+		return fmt.Errorf("unimplemented for this plugin")
+	}
 
 	method := "ClientCSI.ControllerListVolumes"
 	cReq := &cstructs.ClientCSIControllerListVolumesRequest{
