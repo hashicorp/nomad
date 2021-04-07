@@ -115,13 +115,13 @@ func (v *CSIVolumes) Detach(volID, nodeID string, w *WriteOptions) error {
 }
 
 // CreateSnapshot snapshots an external storage volume.
-func (v *CSIVolumes) CreateSnapshot(snap *CSISnapshot, w *WriteOptions) ([]*CSISnapshot, *WriteMeta, error) {
+func (v *CSIVolumes) CreateSnapshot(snap *CSISnapshot, w *WriteOptions) (*CSISnapshotCreateResponse, *WriteMeta, error) {
 	req := &CSISnapshotCreateRequest{
 		Snapshots: []*CSISnapshot{snap},
 	}
 	resp := &CSISnapshotCreateResponse{}
 	meta, err := v.client.write("/v1/volumes/snapshot", req, resp, w)
-	return resp.Snapshots, meta, err
+	return resp, meta, err
 }
 
 // DeleteSnapshot deletes an external storage volume snapshot.
