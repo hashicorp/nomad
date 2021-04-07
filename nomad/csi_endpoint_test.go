@@ -964,6 +964,7 @@ func TestCSIVolumeEndpoint_ListExternal(t *testing.T) {
 			Healthy:  true,
 			ControllerInfo: &structs.CSIControllerInfo{
 				SupportsAttachDetach: true,
+				SupportsListVolumes:  true,
 			},
 			RequiresControllerPlugin: true,
 		},
