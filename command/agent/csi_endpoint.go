@@ -337,7 +337,7 @@ func (s *HTTPServer) csiSnapshotList(resp http.ResponseWriter, req *http.Request
 	args.PluginID = query.Get("plugin_id")
 
 	var out structs.CSISnapshotListResponse
-	if err := s.agent.RPC("CSIVolume.SnapshotList", &args, &out); err != nil {
+	if err := s.agent.RPC("CSIVolume.ListSnapshots", &args, &out); err != nil {
 		return nil, err
 	}
 
