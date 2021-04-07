@@ -96,6 +96,7 @@ func (c *VolumeStatusCommand) listVolumes(client *api.Client) int {
 	var code int
 	q := &api.QueryOptions{PerPage: 30} // TODO: tune page size
 
+NEXT_PLUGIN:
 	for _, plugin := range plugins {
 		if !plugin.ControllerRequired || plugin.ControllersHealthy < 1 {
 			continue // only controller plugins can support this query
@@ -109,7 +110,7 @@ func (c *VolumeStatusCommand) listVolumes(client *api.Client) int {
 				// query, so report and set the error code but move on to the
 				// next plugin
 				code = 1
-				continue
+				continue NEXT_PLUGIN
 			}
 			rows := []string{}
 			if len(externalList.Volumes) > 0 {
