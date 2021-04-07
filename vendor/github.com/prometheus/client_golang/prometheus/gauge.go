@@ -14,6 +14,7 @@
 package prometheus
 
 import (
+	"fmt"
 	"math"
 	"sync/atomic"
 	"time"
@@ -223,6 +224,7 @@ func (v *GaugeVec) WithLabelValues(lvs ...string) Gauge {
 // returned an error. Not returning an error allows shortcuts like
 //     myVec.With(prometheus.Labels{"code": "404", "method": "GET"}).Add(42)
 func (v *GaugeVec) With(labels Labels) Gauge {
+	fmt.Printf("With")
 	g, err := v.GetMetricWith(labels)
 	if err != nil {
 		panic(err)

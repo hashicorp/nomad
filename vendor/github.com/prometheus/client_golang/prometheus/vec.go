@@ -333,13 +333,16 @@ func (m *metricMap) getOrCreateMetricWithLabels(
 	metric, ok := m.getMetricWithHashAndLabels(hash, labels, curry)
 	m.mtx.RUnlock()
 	if ok {
+		fmt.Printf("Existing metric foundor %+v", metric)
 		return metric
 	}
 
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	metric, ok = m.getMetricWithHashAndLabels(hash, labels, curry)
+	fmt.Printf("wat? %+v", metric)
 	if !ok {
+		fmt.Printf("New metric or %+v", metric)
 		lvs := extractLabelValues(m.desc, labels, curry)
 		metric = m.newMetric(lvs...)
 		m.metrics[hash] = append(m.metrics[hash], metricWithLabelValues{values: lvs, metric: metric})
