@@ -72,8 +72,14 @@ endif
 		CC=$(CC) \
 		go build -trimpath -ldflags $(GO_LDFLAGS) -tags "$(GO_TAGS)" -o $(GO_OUT)
 
-pkg/linux_arm/nomad: CC = arm-linux-gnueabihf-gcc-5
-pkg/linux_arm64/nomad: CC = aarch64-linux-gnu-gcc-5
+ifneq (armv7l,$(THIS_ARCH))
+pkg/linux_arm/nomad: CC = arm-linux-gnueabihf-gcc
+endif
+
+ifneq (aarch64,$(THIS_ARCH))
+pkg/linux_arm64/nomad: CC = aarch64-linux-gnu-gcc
+endif
+
 pkg/windows_%/nomad: GO_OUT = $@.exe
 
 # Define package targets for each of the build targets we actually have on this system
