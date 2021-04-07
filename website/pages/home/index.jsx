@@ -112,6 +112,24 @@ export default function Homepage() {
         caseStudies={[
           {
             quote:
+              'After migrating to Nomad, our deployment is at least twice as fast as Kubernetes.',
+            caseStudyURL:
+              'https://www.hashicorp.com/resources/gitlab-nomad-gitops-internet-archive-migrated-from-kubernetes-nomad-consul',
+            person: {
+              firstName: 'Tracey',
+              lastName: 'Jaquith',
+              photo:
+                'https://www.datocms-assets.com/2885/1616436433-internetarhive.jpeg',
+              title: 'Software Architect',
+            },
+            company: {
+              name: 'Internet Archive',
+              logo:
+                'https://www.datocms-assets.com/2885/1616436427-artboard.png',
+            },
+          },
+          {
+            quote:
               'We deployed a dynamic task scheduling system with Nomad. It helped us improve the availability of distributed services across more than 200 edge cities worldwide.',
             caseStudyURL:
               'https://blog.cloudflare.com/how-we-use-hashicorp-nomad/',
@@ -201,23 +219,6 @@ export default function Homepage() {
           },
           {
             quote:
-              'Adopting Nomad did not require us to change our packaging format — we could continue to package Python in Docker and build binaries for the rest of our applications.',
-            caseStudyURL:
-              'https://medium.com/@copyconstruct/schedulers-kubernetes-and-nomad-b0f2e14a896',
-            person: {
-              firstName: 'Cindy',
-              lastName: 'Sridharan',
-              photo:
-                'https://www.datocms-assets.com/2885/1582181517-cindy-sridharan.png',
-              title: 'Engineer',
-            },
-            company: {
-              name: 'imgix',
-              logo: 'https://www.datocms-assets.com/2885/1582181250-imgix.svg',
-            },
-          },
-          {
-            quote:
               "I know many teams doing incredible work with Kubernetes but I also have heard horror stories about what happens when it doesn't go well. We attribute our systems' stability to the simplicity and elegance of Nomad.",
             caseStudyURL:
               'https://www.hashicorp.com/resources/betterhelp-s-hashicorp-nomad-use-case/',
@@ -296,15 +297,6 @@ export default function Homepage() {
             companyName: 'Pandora',
             url:
               'https://www.datocms-assets.com/2885/1523044075-pandora-black.svg',
-          },
-          {
-            companyName: 'Citadel',
-            url:
-              'https://www.datocms-assets.com/2885/1582323352-logocitadelwhite-knockout.svg',
-          },
-          {
-            companyName: 'Jet',
-            url: 'https://www.datocms-assets.com/2885/1522341143-jet-black.svg',
           },
           {
             companyName: 'Deluxe',
