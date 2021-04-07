@@ -13,6 +13,14 @@ import (
 // if we're converting from a set into a list of the same element type.)
 func conversionCollectionToList(ety cty.Type, conv conversion) conversion {
 	return func(val cty.Value, path cty.Path) (cty.Value, error) {
+		if !val.Length().IsKnown() {
+			// If the input collection has an unknown length (which is true
+			// for a set containing unknown values) then our result must be
+			// an unknown list, because we can't predict how many elements
+			// the resulting list should have.
+			return cty.UnknownVal(cty.List(val.Type().ElementType())), nil
+		}
+
 		elems := make([]cty.Value, 0, val.LengthInt())
 		i := int64(0)
 		elemPath := append(path.Copy(), nil)
@@ -156,34 +164,45 @@ func conversionCollectionToMap(ety cty.Type, conv conversion) conversion {
 // given tuple type and return a set of the given element type.
 //
 // Will panic if the given tupleType isn't actually a tuple type.
-func conversionTupleToSet(tupleType cty.Type, listEty cty.Type, unsafe bool) conversion {
+func conversionTupleToSet(tupleType cty.Type, setEty cty.Type, unsafe bool) conversion {
 	tupleEtys := tupleType.TupleElementTypes()
 
 	if len(tupleEtys) == 0 {
 		// Empty tuple short-circuit
 		return func(val cty.Value, path cty.Path) (cty.Value, error) {
-			return cty.SetValEmpty(listEty), nil
+			return cty.SetValEmpty(setEty), nil
 		}
 	}
 
-	if listEty == cty.DynamicPseudoType {
+	if setEty == cty.DynamicPseudoType {
 		// This is a special case where the caller wants us to find
 		// a suitable single type that all elements can convert to, if
 		// possible.
-		listEty, _ = unify(tupleEtys, unsafe)
-		if listEty == cty.NilType {
+		setEty, _ = unify(tupleEtys, unsafe)
+		if setEty == cty.NilType {
 			return nil
+		}
+
+		// If the set element type after unification is still the dynamic
+		// type, the only way this can result in a valid set is if all values
+		// are of dynamic type
+		if setEty == cty.DynamicPseudoType {
+			for _, tupleEty := range tupleEtys {
+				if !tupleEty.Equals(cty.DynamicPseudoType) {
+					return nil
+				}
+			}
 		}
 	}
 
 	elemConvs := make([]conversion, len(tupleEtys))
 	for i, tupleEty := range tupleEtys {
-		if tupleEty.Equals(listEty) {
+		if tupleEty.Equals(setEty) {
 			// no conversion required
 			continue
 		}
 
-		elemConvs[i] = getConversion(tupleEty, listEty, unsafe)
+		elemConvs[i] = getConversion(tupleEty, setEty, unsafe)
 		if elemConvs[i] == nil {
 			// If any of our element conversions are impossible, then the our
 			// whole conversion is impossible.
@@ -243,6 +262,17 @@ func conversionTupleToList(tupleType cty.Type, listEty cty.Type, unsafe bool) co
 		listEty, _ = unify(tupleEtys, unsafe)
 		if listEty == cty.NilType {
 			return nil
+		}
+
+		// If the list element type after unification is still the dynamic
+		// type, the only way this can result in a valid list is if all values
+		// are of dynamic type
+		if listEty == cty.DynamicPseudoType {
+			for _, tupleEty := range tupleEtys {
+				if !tupleEty.Equals(cty.DynamicPseudoType) {
+					return nil
+				}
+			}
 		}
 	}
 
@@ -434,6 +464,16 @@ func conversionMapToObject(mapType cty.Type, objType cty.Type, unsafe bool) conv
 			}
 
 			elems[name.AsString()] = val
+		}
+
+		for name, aty := range objectAtys {
+			if _, exists := elems[name]; !exists {
+				if optional := objType.AttributeOptional(name); optional {
+					elems[name] = cty.NullVal(aty)
+				} else {
+					return cty.NilVal, path.NewErrorf("map has no element for required attribute %q", name)
+				}
+			}
 		}
 
 		return cty.ObjectVal(elems), nil

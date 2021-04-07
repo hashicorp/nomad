@@ -159,6 +159,12 @@ func (bl *blockLabels) Current() []string {
 				if !diags.HasErrors() {
 					labelNames = append(labelNames, labelString)
 				}
+			} else if len(tokens) == 2 &&
+				tokens[0].Type == hclsyntax.TokenOQuote &&
+				tokens[1].Type == hclsyntax.TokenCQuote {
+				// An open quote followed immediately by a closing quote is a
+				// valid but unusual blank string label.
+				labelNames = append(labelNames, "")
 			}
 
 		default:

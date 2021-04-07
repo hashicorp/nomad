@@ -1,5 +1,60 @@
 # HCL Changelog
 
+## v2.9.1 (March 10, 2021)
+
+### Bugs Fixed
+
+* hclsyntax: Fix panic for marked index value. ([#451](https://github.com/hashicorp/hcl/pull/451))
+
+## v2.9.0 (February 23, 2021)
+
+### Enhancements
+
+* HCL's native syntax and JSON scanners -- and thus all of the other parsing components that build on top of them -- are now using Unicode 13 rules for text segmentation when counting text characters for the purpose of reporting source location columns. Previously HCL was using Unicode 12. Unicode 13 still uses the same algorithm but includes some additions to the character tables the algorithm is defined in terms of, to properly categorize new characters defined in Unicode 13.
+
+## v2.8.2 (January 6, 2021)
+
+### Bugs Fixed
+
+* hclsyntax: Fix panic for marked collection splat. ([#436](https://github.com/hashicorp/hcl/pull/436))
+* hclsyntax: Fix panic for marked template loops. ([#437](https://github.com/hashicorp/hcl/pull/437))
+* hclsyntax: Fix `for` expression marked conditional. ([#438](https://github.com/hashicorp/hcl/pull/438))
+* hclsyntax: Mark objects with keys that are sensitive. ([#440](https://github.com/hashicorp/hcl/pull/440))
+
+## v2.8.1 (December 17, 2020)
+ 
+### Bugs Fixed
+
+* hclsyntax: Fix panic when expanding marked function arguments. ([#429](https://github.com/hashicorp/hcl/pull/429))
+* hclsyntax: Error when attempting to use a marked value as an object key. ([#434](https://github.com/hashicorp/hcl/pull/434))
+* hclsyntax: Error when attempting to use a marked value as an object key in expressions. ([#433](https://github.com/hashicorp/hcl/pull/433))
+
+## v2.8.0 (December 7, 2020)
+
+### Enhancements
+
+* hclsyntax: Expression grouping parentheses will now be reflected by an explicit node in the AST, whereas before they were only considered during parsing. ([#426](https://github.com/hashicorp/hcl/pull/426))
+
+### Bugs Fixed
+
+* hclwrite: The parser will now correctly include the `(` and `)` tokens when an expression is surrounded by parentheses. Previously it would incorrectly recognize those tokens as being extraneous tokens outside of the expression. ([#426](https://github.com/hashicorp/hcl/pull/426))
+* hclwrite: The formatter will now remove (rather than insert) spaces between the `!` (unary boolean "not") operator and its subsequent operand. ([#403](https://github.com/hashicorp/hcl/pull/403))
+* hclsyntax: Unmark conditional values in expressions before checking their truthfulness ([#427](https://github.com/hashicorp/hcl/pull/427))
+
+## v2.7.2 (November 30, 2020)
+
+### Bugs Fixed
+
+* gohcl: Fix panic when decoding into type containing value slices. ([#335](https://github.com/hashicorp/hcl/pull/335))
+* hclsyntax: The unusual expression `null[*]` was previously always returning an unknown value, even though the rules for `[*]` normally call for it to return an empty tuple when applied to a null. As well as being a surprising result, it was particularly problematic because it violated the rule that a calling application may assume that an expression result will always be known unless the application itself introduces unknown values via the evaluation context. `null[*]` will now produce an empty tuple. ([#416](https://github.com/hashicorp/hcl/pull/416))
+* hclsyntax: Fix panic when traversing a list, tuple, or map with cty "marks" ([#424](https://github.com/hashicorp/hcl/pull/424))
+
+## v2.7.1 (November 18, 2020)
+
+### Bugs Fixed
+
+* hclwrite: Correctly handle blank quoted string block labels, instead of dropping them ([#422](https://github.com/hashicorp/hcl/pull/422))
+
 ## v2.7.0 (October 14, 2020)
 
 ### Enhancements

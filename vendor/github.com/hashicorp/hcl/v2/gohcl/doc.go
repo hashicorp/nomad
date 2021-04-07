@@ -30,6 +30,13 @@
 // in which case multiple blocks of the corresponding type are decoded into
 // the slice.
 //
+// "body" can be placed on a single field of type hcl.Body to capture
+// the full hcl.Body that was decoded for a block. This does not allow leftover
+// values like "remain", so a decoding error will still be returned if leftover
+// fields are given. If you want to capture the decoding body PLUS leftover
+// fields, you must specify a "remain" field as well to prevent errors. The
+// body field and the remain field will both contain the leftover fields.
+//
 // "label" fields are considered only in a struct used as the type of a field
 // marked as "block", and are used sequentially to capture the labels of
 // the blocks being decoded. In this case, the name token is used only as
