@@ -1034,7 +1034,6 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 			updatedNode.LastDrain = &structs.DrainMetadata{
 				// we don't have sub-second accuracy on these fields, so truncate this
 				StartedAt: time.Unix(existingNode.DrainStrategy.StartedAt.Unix(), 0),
-				Status:    structs.DrainStatusDraining,
 				Meta:      drainMeta,
 			}
 		}
