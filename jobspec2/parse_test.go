@@ -844,3 +844,33 @@ func TestParse_Meta_Alternatives(t *testing.T) {
 	require.Equal(t, map[string]string{"source": "task"}, asBlock.TaskGroups[0].Tasks[0].Meta)
 
 }
+
+// TestParse_UndefinedVariables asserts that values with undefined variables are left
+// intact in the job representation
+func TestParse_UndefinedVariables(t *testing.T) {
+
+	cases := []string{
+		"plain",
+		"foo-${BAR}",
+		"foo-${attr.network.dev-us-east1-relay-vpc.external-ip.0}",
+		`${env["BLAH"]}`,
+		`${mixed-indexing.0[3]["FOO"].5}`,
+		`with spaces ${   root.  field[  "FOO"].5  }`,
+	}
+
+	for _, c := range cases {
+		t.Run(c, func(t *testing.T) {
+			hcl := `job "example" {
+  region = "` + c + `"
+}`
+
+			job, err := ParseWithConfig(&ParseConfig{
+				Path: "input.hcl",
+				Body: []byte(hcl),
+			})
+			require.NoError(t, err)
+
+			require.Equal(t, c, *job.Region)
+		})
+	}
+}

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/apparentlymart/go-textseg/v12/textseg"
+	"github.com/apparentlymart/go-textseg/v13/textseg"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )

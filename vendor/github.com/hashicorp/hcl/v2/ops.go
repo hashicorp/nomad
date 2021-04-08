@@ -76,7 +76,10 @@ func Index(collection, key cty.Value, srcRange *Range) (cty.Value, Diagnostics) 
 			}
 		}
 
-		has := collection.HasIndex(key)
+		// Here we drop marks from HasIndex result, in order to allow basic
+		// traversal of a marked list, tuple, or map in the same way we can
+		// traverse a marked object
+		has, _ := collection.HasIndex(key).Unmark()
 		if !has.IsKnown() {
 			if ty.IsTupleType() {
 				return cty.DynamicVal, nil
@@ -92,6 +95,7 @@ func Index(collection, key cty.Value, srcRange *Range) (cty.Value, Diagnostics) 
 			// division rather than integer division.
 			if (ty.IsListType() || ty.IsTupleType()) && key.Type().Equals(cty.Number) {
 				if key.IsKnown() && !key.IsNull() {
+					key, _ := key.Unmark()
 					bf := key.AsBigFloat()
 					if _, acc := bf.Int(nil); acc != big.Exact {
 						return cty.DynamicVal, Diagnostics{
@@ -140,6 +144,7 @@ func Index(collection, key cty.Value, srcRange *Range) (cty.Value, Diagnostics) 
 			return cty.DynamicVal, nil
 		}
 
+		key, _ = key.Unmark()
 		attrName := key.AsString()
 
 		if !ty.HasAttribute(attrName) {
