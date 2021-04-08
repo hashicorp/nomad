@@ -1,7 +1,9 @@
 package command
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 
@@ -103,7 +105,7 @@ NEXT_PLUGIN:
 		}
 		for {
 			externalList, _, err := client.CSIVolumes().ListExternal(plugin.ID, q)
-			if err != nil {
+			if err != nil && !errors.Is(err, io.EOF) {
 				c.Ui.Error(fmt.Sprintf(
 					"Error querying CSI external volumes for plugin %q: %s", plugin.ID, err))
 				// we'll stop querying this plugin, but there may be more to
@@ -112,23 +114,26 @@ NEXT_PLUGIN:
 				code = 1
 				continue NEXT_PLUGIN
 			}
-			rows := []string{}
-			if len(externalList.Volumes) > 0 {
-				rows[0] = "External ID|Condition|Nodes"
-				for i, v := range externalList.Volumes {
-					condition := "OK"
-					if v.IsAbnormal {
-						condition = fmt.Sprintf("Abnormal (%v)", v.Status)
-					}
-
-					rows[i+1] = fmt.Sprintf("%s|%s|%s",
-						limit(v.ExternalID, c.length),
-						limit(condition, 20),
-						strings.Join(v.PublishedExternalNodeIDs, ","),
-					)
-				}
-				c.Ui.Output(formatList(rows))
+			if externalList == nil || len(externalList.Volumes) == 0 {
+				// several plugins return EOF once you hit the end of the page,
+				// rather than an empty list
+				continue NEXT_PLUGIN
 			}
+			rows := []string{}
+			rows[0] = "External ID|Condition|Nodes"
+			for i, v := range externalList.Volumes {
+				condition := "OK"
+				if v.IsAbnormal {
+					condition = fmt.Sprintf("Abnormal (%v)", v.Status)
+				}
+
+				rows[i+1] = fmt.Sprintf("%s|%s|%s",
+					limit(v.ExternalID, c.length),
+					limit(condition, 20),
+					strings.Join(v.PublishedExternalNodeIDs, ","),
+				)
+			}
+			c.Ui.Output(formatList(rows))
 
 			q.NextToken = externalList.NextToken
 			if q.NextToken == "" {
