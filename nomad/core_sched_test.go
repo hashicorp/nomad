@@ -2293,12 +2293,14 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 
 	// Register a volume
 	vols := []*structs.CSIVolume{{
-		ID:             volID,
-		Namespace:      ns,
-		PluginID:       pluginID,
-		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
-		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-		Topologies:     []*structs.CSITopology{},
+		ID:         volID,
+		Namespace:  ns,
+		PluginID:   pluginID,
+		Topologies: []*structs.CSITopology{},
+		RequestedCapabilities: []*structs.CSIVolumeCapability{{
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		}},
 	}}
 	volReq := &structs.CSIVolumeRegisterRequest{Volumes: vols}
 	volReq.Namespace = ns

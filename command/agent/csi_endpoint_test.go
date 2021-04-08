@@ -67,10 +67,12 @@ func TestHTTP_CSIEndpointRegisterVolume(t *testing.T) {
 
 		args := structs.CSIVolumeRegisterRequest{
 			Volumes: []*structs.CSIVolume{{
-				ID:             "bar",
-				PluginID:       "foo",
-				AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
-				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				ID:       "bar",
+				PluginID: "foo",
+				RequestedCapabilities: []*structs.CSIVolumeCapability{{
+					AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+					AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				}},
 			}},
 		}
 		body := encodeReq(args)
@@ -107,10 +109,12 @@ func TestHTTP_CSIEndpointCreateVolume(t *testing.T) {
 
 		args := structs.CSIVolumeCreateRequest{
 			Volumes: []*structs.CSIVolume{{
-				ID:             "baz",
-				PluginID:       "foo",
-				AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
-				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				ID:       "baz",
+				PluginID: "foo",
+				RequestedCapabilities: []*structs.CSIVolumeCapability{{
+					AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+					AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				}},
 			}},
 		}
 		body := encodeReq(args)

@@ -22,6 +22,19 @@ The Nomad agent metrics API now respects the
 configuration value. If this value is set to `false`, which is the default value,
 calling `/v1/metrics?format=prometheus` will now result in a response error.
 
+#### CSI volumes
+
+The volume specification for CSI volumes has been updated to support volume
+creation. The `access_mode` and `attachment_mode` fields have been moved to a
+`capability` block that can be repeated. Existing registered volumes will be
+automatically modified the next time that a volume claim is updated. Volume
+specification files for new volumes should be updated to the format described
+in the [`volume create`] and [`volume register`] commands.
+
+The [`volume`] block has an `access_mode` and `attachment_mode` field that are
+required for CSI volumes. Jobs that use CSI volumes should be updated with
+these fields.
+
 #### Connect native tasks
 
 Connect native tasks running in host networking mode will now have `CONSUL_HTTP_ADDR`
@@ -1024,3 +1037,6 @@ deleted and then Nomad 0.3.0 can be launched.
 [node drain]: https://www.nomadproject.io/docs/upgrade#5-upgrade-clients
 [`template.disable_file_sandbox`]: /docs/configuration/client#template-parameters
 [pki]: https://www.vaultproject.io/docs/secrets/pki
+[`volume create`]: /docs/commands/volume/create
+[`volume register`]: /docs/commands/volume/register
+[`volume`]: /docs/job-specification/volume

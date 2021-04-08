@@ -1,9 +1,13 @@
 ## 1.1.0 (Unreleased)
 
 FEATURES:
- * **Consul Namespaces (Enterprise)**: Adds support for Consul Namespaces [[GH-10235](https://github.com/hashicorp/nomad/pull/10235)]
+ * **Consul Namespaces (Enterprise)**: Added support for Consul Namespaces [[GH-10235](https://github.com/hashicorp/nomad/pull/10235)]
+ * **CSI Volume Create and Snapshot**: Added support for creating, deleting, listing, and snapshotting volumes managed by Container Storage Interface (CSI) plugins. [[GH-8212](https://github.com/hashicorp/nomad/issues/8212)]
  * **Licensing (Enterprise)**: Support loading Enterprise license from disk or environment. [[GH-10216](https://github.com/hashicorp/nomad/issues/10216)]
- * **Readiness Checks**: Adds `service` and `check` `on_update` configuration to support liveness and readiness checks. [[GH-9955](https://github.com/hashicorp/nomad/issues/9955)]
+ * **Readiness Checks**: Added `service` and `check` `on_update` configuration to support liveness and readiness checks. [[GH-9955](https://github.com/hashicorp/nomad/issues/9955)]
+
+__BACKWARDS INCOMPATIBILITIES:__
+ * csi: The `attachment_mode` and `access_mode` field are required for `volume` blocks in job specifications. Registering a volume requires at least one `capability` block with the `attachment_mode` and `access_mode` fields set. [[GH-10330](https://github.com/hashicorp/nomad/issues/10330)]
 
 IMPROVEMENTS:
  * api: Removed unimplemented `CSIVolumes.PluginList` API. [[GH-10158](https://github.com/hashicorp/nomad/issues/10158)]

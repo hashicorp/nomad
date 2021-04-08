@@ -36,12 +36,14 @@ func TestCSIVolumeEndpoint_Get(t *testing.T) {
 
 	// Create the volume
 	vols := []*structs.CSIVolume{{
-		ID:             id0,
-		Namespace:      ns,
-		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
-		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-		PluginID:       "minnie",
-		Secrets:        structs.CSISecrets{"mysecret": "secretvalue"},
+		ID:        id0,
+		Namespace: ns,
+		PluginID:  "minnie",
+		Secrets:   structs.CSISecrets{"mysecret": "secretvalue"},
+		RequestedCapabilities: []*structs.CSIVolumeCapability{{
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		}},
 	}}
 	err := state.CSIVolumeRegister(999, vols)
 	require.NoError(t, err)
@@ -84,12 +86,14 @@ func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
 
 	// Create the volume
 	vols := []*structs.CSIVolume{{
-		ID:             id0,
-		Namespace:      ns,
-		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
-		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-		PluginID:       "minnie",
-		Secrets:        structs.CSISecrets{"mysecret": "secretvalue"},
+		ID:        id0,
+		Namespace: ns,
+		PluginID:  "minnie",
+		Secrets:   structs.CSISecrets{"mysecret": "secretvalue"},
+		RequestedCapabilities: []*structs.CSIVolumeCapability{{
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		}},
 	}}
 	err := state.CSIVolumeRegister(999, vols)
 	require.NoError(t, err)
@@ -143,13 +147,17 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 		ID:             id0,
 		Namespace:      "notTheNamespace",
 		PluginID:       "minnie",
-		AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
-		AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,
+		AccessMode:     structs.CSIVolumeAccessModeSingleNodeReader, // legacy field ignored
+		AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,  // legacy field ignored
 		MountOptions: &structs.CSIMountOptions{
 			FSType: "ext4", MountFlags: []string{"sensitive"}},
 		Secrets:    structs.CSISecrets{"mysecret": "secretvalue"},
 		Parameters: map[string]string{"myparam": "paramvalue"},
 		Context:    map[string]string{"mycontext": "contextvalue"},
+		RequestedCapabilities: []*structs.CSIVolumeCapability{{
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		}},
 	}}
 
 	// Create the register request
@@ -262,15 +270,17 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	require.NoError(t, err)
 
 	vols := []*structs.CSIVolume{{
-		ID:             id0,
-		Namespace:      structs.DefaultNamespace,
-		PluginID:       "minnie",
-		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
-		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		ID:        id0,
+		Namespace: structs.DefaultNamespace,
+		PluginID:  "minnie",
 		Topologies: []*structs.CSITopology{{
 			Segments: map[string]string{"foo": "bar"},
 		}},
 		Secrets: structs.CSISecrets{"mysecret": "secretvalue"},
+		RequestedCapabilities: []*structs.CSIVolumeCapability{{
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		}},
 	}}
 	index++
 	err = state.CSIVolumeRegister(index, vols)
@@ -406,9 +416,11 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 		Namespace:          ns,
 		PluginID:           "minnie",
 		ControllerRequired: true,
-		AccessMode:         structs.CSIVolumeAccessModeMultiNodeSingleWriter,
-		AttachmentMode:     structs.CSIVolumeAttachmentModeFilesystem,
 		Secrets:            structs.CSISecrets{"mysecret": "secretvalue"},
+		RequestedCapabilities: []*structs.CSIVolumeCapability{{
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		}},
 	}}
 	err = state.CSIVolumeRegister(1003, vols)
 	require.NoError(t, err)
@@ -510,11 +522,13 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			vol := &structs.CSIVolume{
 				ID:                 volID,
 				Namespace:          ns,
-				AccessMode:         structs.CSIVolumeAccessModeMultiNodeSingleWriter,
-				AttachmentMode:     structs.CSIVolumeAttachmentModeFilesystem,
 				PluginID:           "minnie",
 				Secrets:            structs.CSISecrets{"mysecret": "secretvalue"},
 				ControllerRequired: true,
+				RequestedCapabilities: []*structs.CSIVolumeCapability{{
+					AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+					AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				}},
 			}
 
 			index++
@@ -608,18 +622,22 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 	id0 := uuid.Generate()
 	id1 := uuid.Generate()
 	vols := []*structs.CSIVolume{{
-		ID:             id0,
-		Namespace:      structs.DefaultNamespace,
-		AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
-		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-		PluginID:       "minnie",
-		Secrets:        structs.CSISecrets{"mysecret": "secretvalue"},
+		ID:        id0,
+		Namespace: structs.DefaultNamespace,
+		PluginID:  "minnie",
+		Secrets:   structs.CSISecrets{"mysecret": "secretvalue"},
+		RequestedCapabilities: []*structs.CSIVolumeCapability{{
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		}},
 	}, {
-		ID:             id1,
-		Namespace:      structs.DefaultNamespace,
-		AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
-		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-		PluginID:       "adam",
+		ID:        id1,
+		Namespace: structs.DefaultNamespace,
+		PluginID:  "adam",
+		RequestedCapabilities: []*structs.CSIVolumeCapability{{
+			AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		}},
 	}}
 	err = state.CSIVolumeRegister(1002, vols)
 	require.NoError(t, err)
@@ -730,13 +748,19 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 		Name:           "vol",
 		Namespace:      "notTheNamespace", // overriden by WriteRequest
 		PluginID:       "minnie",
-		AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader, // ignored in create
-		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,  // ignored in create
+		AccessMode:     structs.CSIVolumeAccessModeSingleNodeReader, // legacy field ignored
+		AttachmentMode: structs.CSIVolumeAttachmentModeBlockDevice,  // legacy field ignored
 		MountOptions: &structs.CSIMountOptions{
 			FSType: "ext4", MountFlags: []string{"sensitive"}}, // ignored in create
 		Secrets:    structs.CSISecrets{"mysecret": "secretvalue"},
 		Parameters: map[string]string{"myparam": "paramvalue"},
 		Context:    map[string]string{"mycontext": "contextvalue"}, // dropped by create
+		RequestedCapabilities: []*structs.CSIVolumeCapability{
+			{
+				AccessMode:     structs.CSIVolumeAccessModeMultiNodeReader,
+				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+			},
+		},
 	}}
 
 	// Create the create request
@@ -773,6 +797,7 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	require.Equal(t, "csi.CSIOptions(FSType: ext4, MountFlags: [REDACTED])",
 		vol.MountOptions.String())
 	require.Equal(t, ns, vol.Namespace)
+	require.Len(t, vol.RequestedCapabilities, 1)
 
 	// these fields are set from the plugin and should have been written to raft
 	require.Equal(t, "vol-12345", vol.ExternalID)
