@@ -139,6 +139,9 @@ func (c *cpusetManager) Init() error {
 	}
 
 	parentCpus, parentMems, err := getCpusetSubsystemSettings(cgroupParentPath)
+	if err != nil {
+		return fmt.Errorf("failed to detect parent cpuset settings: %v", err)
+	}
 	c.parentCpuset, err = cpuset.Parse(parentCpus)
 	if err != nil {
 		return fmt.Errorf("failed to parse parent cpuset.cpus setting: %v", err)
@@ -150,7 +153,7 @@ func (c *cpusetManager) Init() error {
 		if err != nil {
 			return err
 		}
-		if err := fscommon.WriteFile(filepath.Join(cgroupParentPath, ReservedCpusetCgroupName), "cpuset.mems", string(parentMems)); err != nil {
+		if err := fscommon.WriteFile(filepath.Join(cgroupParentPath, ReservedCpusetCgroupName), "cpuset.mems", parentMems); err != nil {
 			return err
 		}
 	} else if !os.IsExist(err) {
@@ -274,11 +277,20 @@ func (_ *cpusetManager) setCgroupCpusetCPUs(path, cpus string) error {
 }
 
 func (c *cpusetManager) signalReconcile() {
-	c.signalCh <- struct{}{}
+	select {
+	case c.signalCh <- struct{}{}:
+	case <-c.doneCh:
+	}
 }
 
 func (c *cpusetManager) getCpuset(group string) (cpuset.CPUSet, error) {
-	man := cgroupFs.NewManager(&configs.Cgroup{Path: filepath.Join(c.cgroupParent, group)}, map[string]string{"cpuset": filepath.Join(c.cgroupParentPath, group)}, false)
+	man := cgroupFs.NewManager(
+		&configs.Cgroup{
+			Path: filepath.Join(c.cgroupParent, group),
+		},
+		map[string]string{"cpuset": filepath.Join(c.cgroupParentPath, group)},
+		false,
+	)
 	stats, err := man.GetStats()
 	if err != nil {
 		return cpuset.CPUSet{}, err

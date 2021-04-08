@@ -74,7 +74,9 @@ func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 		if cores, err := f.deriveReservableCores(req); err != nil {
 			f.logger.Warn("failed to detect set of reservable cores", "error", err)
 		} else {
-			reservableCores = cpuset.New(cores...).Difference(cpuset.New(req.Node.ReservedResources.Cpu.ReservedCpuCores...)).ToSlice()
+			if req.Node.ReservedResources != nil {
+				reservableCores = cpuset.New(cores...).Difference(cpuset.New(req.Node.ReservedResources.Cpu.ReservedCpuCores...)).ToSlice()
+			}
 			f.logger.Debug("detected reservable cores", "cpuset", reservableCores)
 		}
 	}

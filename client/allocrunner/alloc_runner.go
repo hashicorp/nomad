@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/cgutil"
+
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -152,6 +154,9 @@ type allocRunner struct {
 	// runner to manage their mounting
 	csiManager csimanager.Manager
 
+	// cpusetManager is responsible for configuring task cgroups if supported by the platform
+	cpusetManager cgutil.CpusetManager
+
 	// devicemanager is used to mount devices as well as lookup device
 	// statistics
 	devicemanager devicemanager.Manager
@@ -208,6 +213,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		prevAllocMigrator:        config.PrevAllocMigrator,
 		dynamicRegistry:          config.DynamicRegistry,
 		csiManager:               config.CSIManager,
+		cpusetManager:            config.CpusetManager,
 		devicemanager:            config.DeviceManager,
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
@@ -242,24 +248,25 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
 		trConfig := &taskrunner.Config{
-			Alloc:                ar.alloc,
-			ClientConfig:         ar.clientConfig,
-			Task:                 task,
-			TaskDir:              ar.allocDir.NewTaskDir(task.Name),
-			Logger:               ar.logger,
-			StateDB:              ar.stateDB,
-			StateUpdater:         ar,
-			DynamicRegistry:      ar.dynamicRegistry,
-			Consul:               ar.consulClient,
-			ConsulProxies:        ar.consulProxiesClient,
-			ConsulSI:             ar.sidsClient,
-			Vault:                ar.vaultClient,
-			DeviceStatsReporter:  ar.deviceStatsReporter,
-			CSIManager:           ar.csiManager,
-			DeviceManager:        ar.devicemanager,
-			DriverManager:        ar.driverManager,
-			ServersContactedCh:   ar.serversContactedCh,
-			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
+			Alloc:                  ar.alloc,
+			ClientConfig:           ar.clientConfig,
+			Task:                   task,
+			TaskDir:                ar.allocDir.NewTaskDir(task.Name),
+			Logger:                 ar.logger,
+			StateDB:                ar.stateDB,
+			StateUpdater:           ar,
+			DynamicRegistry:        ar.dynamicRegistry,
+			Consul:                 ar.consulClient,
+			ConsulProxies:          ar.consulProxiesClient,
+			ConsulSI:               ar.sidsClient,
+			Vault:                  ar.vaultClient,
+			DeviceStatsReporter:    ar.deviceStatsReporter,
+			CSIManager:             ar.csiManager,
+			CpusetCgroupPathGetter: ar.cpusetManager.CgroupPathFor(ar.id, task.Name),
+			DeviceManager:          ar.devicemanager,
+			DriverManager:          ar.driverManager,
+			ServersContactedCh:     ar.serversContactedCh,
+			StartConditionMetCtx:   ar.taskHookCoordinator.startConditionForTask(task),
 		}
 
 		// Create, but do not Run, the task runner
