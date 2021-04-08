@@ -311,7 +311,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		}
 	}
 
-	// copy drain if cancelling and we have -m or -meta
+	// propagate drain metadata if cancelling
 	drainMeta := make(map[string]string)
 	if disable && node.LastDrain != nil && node.LastDrain.Meta != nil {
 		drainMeta = node.LastDrain.Meta
