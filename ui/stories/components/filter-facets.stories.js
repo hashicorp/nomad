@@ -14,7 +14,7 @@ let options1 = [
 
 let selection1 = ['option-2', 'option-4', 'option-5'];
 
-export let Standard = () => {
+export let MultiSelect = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Multi-Select Dropdown</h5>
@@ -66,7 +66,7 @@ export let RightAligned = () => {
   };
 };
 
-export let ManyOptions = () => {
+export let ManyOptionsMulti = () => {
   return {
     template: hbs`
       <h5 class="title is-5">Multi-Select Dropdown with many options</h5>
@@ -87,6 +87,28 @@ export let ManyOptions = () => {
         .fill(null)
         .map((_, i) => ({ label: `Option ${i}`, key: `option-${i}` })),
       selectionMany: [],
+    },
+  };
+};
+
+export let ManyOptionsSingle = () => {
+  return {
+    template: hbs`
+      <h5 class="title is-5">Single-Select Dropdown with many options</h5>
+      <SingleSelectDropdown
+        @label="Lots of options in here"
+        @options={{this.optionsMany}}
+        @selection={{this.selection}}
+        @onSelect={{action (mut this.selection)}} />
+      <p class="annotation">
+        Single select supports search at a certain option threshold via Ember Power Select.
+      </p>
+      `,
+    context: {
+      optionsMany: Array(100)
+        .fill(null)
+        .map((_, i) => ({ label: `Option ${i}`, key: `option-${i}` })),
+      selection: 'option-1',
     },
   };
 };
@@ -112,6 +134,42 @@ export let Bar = () => {
           @selection={{this.selectionStatus}}
           @onSelect={{action (mut this.selectionStatus)}} />
       </div>
+      <h5 class="title is-5">Single-Select Dropdown bar</h5>
+      <div class="button-bar">
+        <SingleSelectDropdown
+          @label="Datacenter"
+          @options={{this.optionsDatacenter}}
+          @selection={{this.selectionDatacenterSingle}}
+          @onSelect={{action (mut this.selectionDatacenterSingle)}} />
+        <SingleSelectDropdown
+          @label="Type"
+          @options={{this.optionsType}}
+          @selection={{this.selectionTypeSingle}}
+          @onSelect={{action (mut this.selectionTypeSingle)}} />
+        <SingleSelectDropdown
+          @label="Status"
+          @options={{this.optionsStatus}}
+          @selection={{this.selectionStatusSingle}}
+          @onSelect={{action (mut this.selectionStatusSingle)}} />
+      </div>
+      <h5 class="title is-5">Mixed Dropdown bar</h5>
+      <div class="button-bar">
+        <SingleSelectDropdown
+          @label="Datacenter"
+          @options={{this.optionsDatacenter}}
+          @selection={{this.selectionDatacenterSingle}}
+          @onSelect={{action (mut this.selectionDatacenterSingle)}} />
+        <MultiSelectDropdown
+          @label="Type"
+          @options={{this.optionsType}}
+          @selection={{this.selectionType}}
+          @onSelect={{action (mut this.selectionType)}} />
+        <MultiSelectDropdown
+          @label="Status"
+          @options={{this.optionsStatus}}
+          @selection={{this.selectionStatus}}
+          @onSelect={{action (mut this.selectionStatus)}} />
+      </div>
       <p class="annotation">
         Since this is a core component for faceted search, it makes sense to letruct an arrangement of multi-select dropdowns.
         Do this by wrapping all the options in a <code>.button-bar</code> container.
@@ -124,7 +182,8 @@ export let Bar = () => {
         { key: 'jfk-2', label: 'jfk-2' },
         { key: 'muc-1', label: 'muc-1' },
       ],
-      selectionDatacenter: ['jfk-1', 'jfk-2'],
+      selectionDatacenter: ['jfk-1'],
+      selectionDatacenterSingle: 'jfk-1',
 
       optionsType: [
         { key: 'batch', label: 'Batch' },
@@ -134,6 +193,7 @@ export let Bar = () => {
         { key: 'parameterized', label: 'Parameterized' },
       ],
       selectionType: ['system', 'service'],
+      selectionTypeSingle: 'system',
 
       optionsStatus: [
         { key: 'pending', label: 'Pending' },
@@ -141,6 +201,7 @@ export let Bar = () => {
         { key: 'dead', label: 'Dead' },
       ],
       selectionStatus: [],
+      selectionStatusSingle: 'dead',
     },
   };
 };

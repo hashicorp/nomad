@@ -2,6 +2,8 @@
   <PowerSelect
     @options={{@options}}
     @selected={{this.activeOption}}
+    @searchEnabled={{gt @options.length 10}}
+    @searchField="label"
     @onChange={{action this.setSelection}}
     @dropdownClass="dropdown-options"
     as |option|>

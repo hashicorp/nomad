@@ -54,6 +54,7 @@
   }
 
   .annotation {
+    padding: 1rem 0;
     font-size: 0.9rem;
   }
 
@@ -185,5 +186,9 @@
     background: $white-ter;
     color: $grey;
     font-weight: $weight-bold;
+  }
+
+  .title:not(:first-child) {
+    margin-top: 2em;
   }
 }
