@@ -61,3 +61,63 @@ $ nomad status -address=https://remote-address:4646
 The provided address must be reachable from your local machine. There are a
 variety of ways to accomplish this (VPN, SSH Tunnel, etc). If the port is
 exposed to the public internet it is highly recommended to configure TLS.
+
+### Environment Variables
+
+Nomad can use environment variables to configure command-line tool options.
+These environment variables can be overridden as needed using individual
+flags.
+
+#### Connection Environment Variables
+
+- `NOMAD_ADDR` - The address of the Nomad server. Defaults to
+  `http://127.0.0.1:4646`.
+
+- `NOMAD_REGION` - The region of the Nomad server to forward commands to.
+  Defaults to the Agent's local region
+
+- `NOMAD_NAMESPACE` - The target namespace for queries and actions bound to a
+  namespace. If set to `*`, job and alloc subcommands query all namespacecs
+  authorized to user. Defaults to the "default" namespace.
+
+- `NOMAD_HTTP_AUTH` - (Optional) This allows users to supply "Basic" HTTP
+  authentication scheme ([RFC 7617](https://tools.ietf.org/html/rfc7617))
+  information in environments where the Nomad API is behind an authenticating
+  proxy server.
+
+#### ACL Environment Variables
+
+- `NOMAD_TOKEN` - The SecretID of an ACL token to use to authenticate API
+  requests with.
+
+#### CLI Environment Variables
+
+- `NOMAD_CLI_NO_COLOR` - Disables colored command output.
+
+#### mTLS Environment Variables
+
+- `NOMAD_CLIENT_CERT` - Path to a PEM encoded client certificate for TLS
+  authentication to the Nomad server. Must also specify `NOMAD_CLIENT_KEY`.
+
+- `NOMAD_CLIENT_KEY` - Path to an unencrypted PEM encoded private key matching
+  the client certificate from `NOMAD_CLIENT_CERT`.
+
+- `NOMAD_CACERT` - Path to a PEM encoded CA cert file to use to verify the
+  Nomad server SSL certificate.
+
+- `NOMAD_CAPATH` - Path to a directory of PEM encoded CA cert files to verify
+  the Nomad server SSL certificate. If both `NOMAD_CACERT` and `NOMAD_CAPATH`
+  are specified, `NOMAD_CACERT` is used.
+
+- `NOMAD_SKIP_VERIFY` - Do not verify TLS certificate. **This is highly not
+  recommended.**
+
+- `NOMAD_TLS_SERVER_NAME` - The server name to use as the SNI host when
+  connecting via TLS.
+
+#### Nomad Enterprise Licensing Environment Variables
+
+- `NOMAD_LICENSE_PATH` - An absolute path to a Nomad Enterprise license file,
+  for example `/opt/nomad/license.hclic`.
+
+- `NOMAD_LICENSE` - The Nomad Enterprise license file contents as a string.
