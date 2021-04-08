@@ -2,12 +2,14 @@ package command
 
 import (
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/pkg/errors"
 	"github.com/posener/complete"
 )
 
@@ -120,15 +122,18 @@ func (c *VolumeSnapshotListCommand) Run(args []string) int {
 
 	for {
 		resp, _, err := client.CSIVolumes().ListSnapshots(pluginID, q)
-		if err != nil {
+		if err != nil && !errors.Is(err, io.EOF) {
 			c.Ui.Error(fmt.Sprintf(
 				"Error querying CSI external snapshots for plugin %q: %s", pluginID, err))
 			return 1
 		}
-		if len(resp.Snapshots) > 0 {
-			c.Ui.Output(csiFormatSnapshots(resp.Snapshots, verbose))
+		if resp == nil || len(resp.Snapshots) == 0 {
+			// several plugins return EOF once you hit the end of the page,
+			// rather than an empty list
+			break
 		}
 
+		c.Ui.Output(csiFormatSnapshots(resp.Snapshots, verbose))
 		q.NextToken = resp.NextToken
 		if q.NextToken == "" {
 			break

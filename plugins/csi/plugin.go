@@ -782,7 +782,7 @@ func NewListSnapshotsResponse(resp *csipbv1.ListSnapshotsResponse) *ControllerLi
 					SizeBytes:      snap.GetSizeBytes(),
 					ID:             snap.GetSnapshotId(),
 					SourceVolumeID: snap.GetSourceVolumeId(),
-					CreateTime:     snap.GetCreationTime().GetSeconds(),
+					CreateTime:     int64(snap.GetCreationTime().GetNanos()),
 					IsReady:        snap.GetReadyToUse(),
 				},
 			})
