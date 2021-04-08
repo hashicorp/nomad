@@ -78,17 +78,19 @@ the [volume_mount][volume_mount] stanza in the `task` configuration.
 The following fields are only valid for volumes with `type = "csi"`:
 
 - `access_mode` `(string: <required>)` - Defines whether a volume should be
-  available concurrently. Can be one of `"single-node-reader-only"`,
-  `"single-node-writer"`, `"multi-node-reader-only"`,
-  `"multi-node-single-writer"`, or `"multi-node-multi-writer"`. Most CSI
-  plugins support only single-node modes. Consult the documentation of the
-  storage provider and CSI plugin.
+  available concurrently. The `access_mode` and `attachment_mode` together
+  must exactly match one of the volume's `capability` blocks. Can be one of
+  `"single-node-reader-only"`, `"single-node-writer"`,
+  `"multi-node-reader-only"`, `"multi-node-single-writer"`, or
+  `"multi-node-multi-writer"`. Most CSI plugins support only single-node
+  modes. Consult the documentation of the storage provider and CSI plugin.
 
 - `attachment_mode` `(string: <required>)` - The storage API that will be used
-  by the volume. Most storage providers will support `"file-system"`, to mount
-  volumes using the CSI filesystem API. Some storage providers will support
-  `"block-device"`, which will mount the volume with the CSI block device API
-  within the container.
+  by the volume. The `access_mode` and `attachment_mode` together must exactly
+  match one of the volume's `capability` blocks. Most storage providers will
+  support `"file-system"`, to mount volumes using the CSI filesystem API. Some
+  storage providers will support `"block-device"`, which will mount the volume
+  with the CSI block device API within the container.
 
 - `per_alloc` `(bool: false)` - Specifies that the `source` of the volume
   should have the suffix `[n]`, where `n` is the allocation index. This allows

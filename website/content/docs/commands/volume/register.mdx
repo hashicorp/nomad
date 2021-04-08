@@ -77,6 +77,24 @@ context {
 - `plugin_id` `(string: <required>)` - The ID of the [CSI plugin][csi_plugin]
   that manages this volume.
 
+- `capability` `(Capability: <required>)` - Option for validating the
+  capbility of a volume. You must provide at least one `capability` block, and
+  you must provide a block for each capability you intend to use in a job's
+  [`volume`] block. Each `capability` block must have the following fields:
+
+  - `access_mode` `(string: <required>)` - Defines whether a volume should be
+    available concurrently. Can be one of `"single-node-reader-only"`,
+    `"single-node-writer"`, `"multi-node-reader-only"`,
+    `"multi-node-single-writer"`, or `"multi-node-multi-writer"`. Most CSI
+    plugins support only single-node modes. Consult the documentation of the
+    storage provider and CSI plugin.
+
+  - `attachment_mode` `(string: <required>)` - The storage API that will be used
+    by the volume. Most storage providers will support `"file-system"`, to mount
+    volumes using the CSI filesystem API. Some storage providers will support
+    `"block-device"`, which will mount the volume with the CSI block device API
+    within the container.
+
 - `secrets` <code>(map<string|string>:nil)</code> - An optional
   key-value map of strings used as credentials for publishing and
   unpublishing volumes.
@@ -98,8 +116,7 @@ context {
 Note that several fields used in the [`volume create`] command are set
 automatically by the plugin when `volume create` is successful and cannot be
 set on a pre-existing volume. You should not set the `snapshot_id`,
-`clone_id`, `capacity_min`, `capacity_max`, or `capability` fields described
-on that page.
+`clone_id`, `capacity_min`, or `capacity_max` fields described on that page.
 
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugins_internals]: /docs/internals/plugins/csi#csi-plugins

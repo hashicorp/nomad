@@ -664,6 +664,9 @@ func (v *CSIVolume) Validate() error {
 	if v.SnapshotID != "" && v.CloneID != "" {
 		errs = append(errs, "only one of snapshot_id and clone_id is allowed")
 	}
+	if len(v.RequestedCapabilities) == 0 {
+		errs = append(errs, "must include at least one capability block")
+	}
 
 	// TODO: Volume Topologies are optional - We should check to see if the plugin
 	//       the volume is being registered with requires them.
