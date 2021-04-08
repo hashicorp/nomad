@@ -517,6 +517,19 @@ func TestAgent_ClientConfig(t *testing.T) {
 	}
 }
 
+func TestAgent_ClientConfig_ReservedCores(t *testing.T) {
+	t.Parallel()
+	conf := DefaultConfig()
+	conf.Client.Enabled = true
+	conf.Client.ReserveableCores = "0-7"
+	conf.Client.Reserved.Cores = "0,2-3"
+	a := &Agent{config: conf}
+	c, err := a.clientConfig()
+	require.NoError(t, err)
+	require.Exactly(t, []uint16{0, 1, 2, 3, 4, 5, 6, 7}, c.ReservableCores)
+	require.Exactly(t, []uint16{0, 2, 3}, c.Node.ReservedResources.Cpu.ReservedCpuCores)
+}
+
 // Clients should inherit telemetry configuration
 func TestAgent_Client_TelemetryConfiguration(t *testing.T) {
 	assert := assert.New(t)
