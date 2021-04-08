@@ -723,6 +723,18 @@ type CSIVolumeDeleteResponse struct {
 	QueryMeta
 }
 
+type CSIVolumeResizeRequest struct {
+	VolumeID             string
+	RequestedCapacityMin int64
+	RequestedCapacityMax int64
+	WriteRequest
+}
+
+type CSIVolumeResizeResponse struct {
+	Capacity int64 // bytes
+	QueryMeta
+}
+
 type CSIVolumeClaimMode int
 
 const (

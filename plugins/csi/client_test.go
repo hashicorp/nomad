@@ -936,6 +936,66 @@ func TestClient_RPC_ControllerListVolume(t *testing.T) {
 	}
 }
 
+func TestClient_RPC_ControllerExpandVolume(t *testing.T) {
+
+	cases := []struct {
+		Name        string
+		Request     *ControllerExpandVolumeRequest
+		ResponseErr error
+		ExpectedErr error
+	}{
+		{
+			Name: "handles underlying grpc errors",
+			Request: &ControllerExpandVolumeRequest{
+				ExternalVolumeID: "vol-1", LimitBytes: 1000},
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
+		},
+
+		{
+			Name:        "handles error missing volume ID",
+			Request:     &ControllerExpandVolumeRequest{},
+			ExpectedErr: errors.New("missing ExternalVolumeID"),
+		},
+
+		{
+			Name: "handles success",
+			Request: &ControllerExpandVolumeRequest{
+				ExternalVolumeID: "vol-1",
+				RequiredBytes:    1000,
+				LimitBytes:       2000,
+				Capability:       &VolumeCapability{},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, cc, _, client := newTestClient()
+			defer client.Close()
+
+			cc.NextErr = tc.ResponseErr
+			if tc.ResponseErr != nil {
+				// note: there's nothing interesting to assert here other than
+				// that we don't throw a NPE during transformation from
+				// protobuf to our struct
+				cc.NextControllerExpandVolumeResponse = &csipbv1.ControllerExpandVolumeResponse{
+					CapacityBytes:         1500,
+					NodeExpansionRequired: true,
+				}
+			}
+			resp, err := client.ControllerExpandVolume(context.TODO(), tc.Request)
+			if tc.ExpectedErr != nil {
+				require.EqualError(t, err, tc.ExpectedErr.Error())
+				return
+			}
+			require.NoError(t, err, tc.Name)
+			require.NotNil(t, resp)
+
+		})
+	}
+}
+
 func TestClient_RPC_ControllerCreateSnapshot(t *testing.T) {
 
 	cases := []struct {
@@ -1236,6 +1296,7 @@ func TestClient_RPC_NodePublishVolume(t *testing.T) {
 		})
 	}
 }
+
 func TestClient_RPC_NodeUnpublishVolume(t *testing.T) {
 	cases := []struct {
 		Name        string

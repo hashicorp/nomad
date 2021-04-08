@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -97,6 +98,9 @@ func (s *HTTPServer) CSIVolumeSpecificRequest(resp http.ResponseWriter, req *htt
 		case http.MethodPut:
 			if tokens[1] == "create" {
 				return s.csiVolumeCreate(resp, req)
+			}
+			if tokens[1] == "resize" {
+				return s.csiVolumeResize(id, resp, req)
 			}
 		case http.MethodDelete:
 			if tokens[1] == "detach" {
@@ -263,6 +267,43 @@ func (s *HTTPServer) csiVolumeDetach(id string, resp http.ResponseWriter, req *h
 	}
 
 	setMeta(resp, &out.QueryMeta)
+	return nil, nil
+}
+
+func (s *HTTPServer) csiVolumeResize(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	raw := req.URL.Query().Get("min_size")
+	var minSize int64
+	if raw != "" {
+		b, err := strconv.Atoi(raw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid min_size value: %v", err)
+		}
+		minSize = int64(b)
+	}
+	raw = req.URL.Query().Get("max_size")
+	var maxSize int64
+	if raw != "" {
+		b, err := strconv.Atoi(raw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid max_size value: %v", err)
+		}
+		maxSize = int64(b)
+	}
+
+	args := structs.CSIVolumeResizeRequest{
+		VolumeID:             id,
+		RequestedCapacityMin: minSize,
+		RequestedCapacityMax: maxSize,
+	}
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.CSIVolumeResizeResponse
+	if err := s.agent.RPC("CSIVolume.Resize", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+
 	return nil, nil
 }
 

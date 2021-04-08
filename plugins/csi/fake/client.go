@@ -64,6 +64,10 @@ type Client struct {
 	NextControllerValidateVolumeErr   error
 	ControllerValidateVolumeCallCount int64
 
+	NextControllerExpandVolumeResponse *csi.ControllerExpandVolumeResponse
+	NextControllerExpandVolumeErr      error
+	ControllerExpandVolumeCallCount    int64
+
 	NextControllerCreateSnapshotResponse *csi.ControllerCreateSnapshotResponse
 	NextControllerCreateSnapshotErr      error
 	ControllerCreateSnapshotCallCount    int64
@@ -95,6 +99,10 @@ type Client struct {
 
 	NextNodeUnpublishVolumeErr   error
 	NodeUnpublishVolumeCallCount int64
+
+	NextNodeExpandVolumeResponse *csi.NodeExpandVolumeResponse
+	NextNodeExpandVolumeErr      error
+	NodeExpandVolumeCallCount    int64
 }
 
 // PluginInfo describes the type and version of a plugin.
@@ -211,6 +219,13 @@ func (c *Client) ControllerListVolumes(ctx context.Context, req *csi.ControllerL
 	return c.NextControllerListVolumesResponse, c.NextControllerListVolumesErr
 }
 
+func (c *Client) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest, opts ...grpc.CallOption) (*csi.ControllerExpandVolumeResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.ControllerExpandVolumeCallCount++
+	return c.NextControllerExpandVolumeResponse, c.NextControllerExpandVolumeErr
+}
+
 func (c *Client) ControllerCreateSnapshot(ctx context.Context, req *csi.ControllerCreateSnapshotRequest, opts ...grpc.CallOption) (*csi.ControllerCreateSnapshotResponse, error) {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
@@ -297,6 +312,13 @@ func (c *Client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath s
 	return c.NextNodeUnpublishVolumeErr
 }
 
+func (c *Client) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest, opts ...grpc.CallOption) (*csi.NodeExpandVolumeResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.NodeExpandVolumeCallCount++
+	return c.NextNodeExpandVolumeResponse, c.NextNodeExpandVolumeErr
+}
+
 // Shutdown the client and ensure any connections are cleaned up.
 func (c *Client) Close() error {
 
@@ -324,6 +346,9 @@ func (c *Client) Close() error {
 
 	c.NextControllerValidateVolumeErr = fmt.Errorf("closed client")
 
+	c.NextControllerExpandVolumeResponse = nil
+	c.NextControllerExpandVolumeErr = fmt.Errorf("closed client")
+
 	c.NextNodeGetCapabilitiesResponse = nil
 	c.NextNodeGetCapabilitiesErr = fmt.Errorf("closed client")
 
@@ -337,6 +362,9 @@ func (c *Client) Close() error {
 	c.NextNodePublishVolumeErr = fmt.Errorf("closed client")
 
 	c.NextNodeUnpublishVolumeErr = fmt.Errorf("closed client")
+
+	c.NextNodeExpandVolumeResponse = nil
+	c.NextNodeExpandVolumeErr = fmt.Errorf("closed client")
 
 	return nil
 }
