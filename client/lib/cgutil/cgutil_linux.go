@@ -107,12 +107,12 @@ func cpusetCopyIfNeeded(current, parent string) error {
 	}
 
 	if isEmptyCpuset(currentCpus) {
-		if err := fscommon.WriteFile(current, "cpuset.cpus", string(parentCpus)); err != nil {
+		if err := fscommon.WriteFile(current, "cpuset.cpus", parentCpus); err != nil {
 			return err
 		}
 	}
 	if isEmptyCpuset(currentMems) {
-		if err := fscommon.WriteFile(current, "cpuset.mems", string(parentMems)); err != nil {
+		if err := fscommon.WriteFile(current, "cpuset.mems", parentMems); err != nil {
 			return err
 		}
 	}
