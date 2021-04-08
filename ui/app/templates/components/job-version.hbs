@@ -9,9 +9,9 @@
     <span data-test-version-submit-time class="submit-date">{{format-ts this.version.submitTime}}</span>
   </span>
   <div class="pull-right">
-    {{#if (not this.isCurrent)}}
-      <button class="button is-warning is-outlined is-compact" {{action (perform this.revertTo)}} data-test-revert-to-button>Revert To</button>&nbsp;
-    {{/if}}
+    {{#unless this.isCurrent}}
+      <button class="button is-warning is-outlined is-compact" {{action (perform this.revertTo)}} type="button" data-test-revert-to-button>Revert To</button>&nbsp;
+    {{/unless}}
 
     {{#if this.version.diff}}
       <button class="button is-light is-compact" {{action "toggleDiff"}} type="button">{{this.changeCount}} {{pluralize "Change" this.changeCount}}</button>
