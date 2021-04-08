@@ -12,7 +12,9 @@ type EvalContext struct {
 	Functions map[string]function.Function
 	parent    *EvalContext
 
-	UnknownVariable func(expr string) (cty.Value, error)
+	// UndefinedVariable is called when an undefined variable is referenced.
+	// This handler is experimental and may change in the future.
+	UndefinedVariable func(Traversal) (cty.Value, Diagnostics)
 }
 
 // NewChild returns a new EvalContext that is a child of the receiver.

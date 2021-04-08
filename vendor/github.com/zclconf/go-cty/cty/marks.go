@@ -67,6 +67,23 @@ func (m ValueMarks) GoString() string {
 	return s.String()
 }
 
+// PathValueMarks is a structure that enables tracking marks
+// and the paths where they are located in one type
+type PathValueMarks struct {
+	Path  Path
+	Marks ValueMarks
+}
+
+func (p PathValueMarks) Equal(o PathValueMarks) bool {
+	if !p.Path.Equals(o.Path) {
+		return false
+	}
+	if !p.Marks.Equal(o.Marks) {
+		return false
+	}
+	return true
+}
+
 // IsMarked returns true if and only if the receiving value carries at least
 // one mark. A marked value cannot be used directly with integration methods
 // without explicitly unmarking it (and retrieving the markings) first.
@@ -174,6 +191,31 @@ func (val Value) Mark(mark interface{}) Value {
 	}
 }
 
+type applyPathValueMarksTransformer struct {
+	pvm []PathValueMarks
+}
+
+func (t *applyPathValueMarksTransformer) Enter(p Path, v Value) (Value, error) {
+	return v, nil
+}
+
+func (t *applyPathValueMarksTransformer) Exit(p Path, v Value) (Value, error) {
+	for _, path := range t.pvm {
+		if p.Equals(path.Path) {
+			return v.WithMarks(path.Marks), nil
+		}
+	}
+	return v, nil
+}
+
+// MarkWithPaths accepts a slice of PathValueMarks to apply
+// markers to particular paths and returns the marked
+// Value.
+func (val Value) MarkWithPaths(pvm []PathValueMarks) Value {
+	ret, _ := TransformWithTransformer(val, &applyPathValueMarksTransformer{pvm})
+	return ret
+}
+
 // Unmark separates the marks of the receiving value from the value itself,
 // removing a new unmarked value and a map (representing a set) of the marks.
 //
@@ -191,6 +233,24 @@ func (val Value) Unmark() (Value, ValueMarks) {
 	}, marks
 }
 
+type unmarkTransformer struct {
+	pvm []PathValueMarks
+}
+
+func (t *unmarkTransformer) Enter(p Path, v Value) (Value, error) {
+	unmarkedVal, marks := v.Unmark()
+	if len(marks) > 0 {
+		path := make(Path, len(p), len(p)+1)
+		copy(path, p)
+		t.pvm = append(t.pvm, PathValueMarks{path, marks})
+	}
+	return unmarkedVal, nil
+}
+
+func (t *unmarkTransformer) Exit(p Path, v Value) (Value, error) {
+	return v, nil
+}
+
 // UnmarkDeep is similar to Unmark, but it works with an entire nested structure
 // rather than just the given value directly.
 //
@@ -198,15 +258,27 @@ func (val Value) Unmark() (Value, ValueMarks) {
 // the returned marks set includes the superset of all of the marks encountered
 // during the operation.
 func (val Value) UnmarkDeep() (Value, ValueMarks) {
+	t := unmarkTransformer{}
+	ret, _ := TransformWithTransformer(val, &t)
+
 	marks := make(ValueMarks)
-	ret, _ := Transform(val, func(_ Path, v Value) (Value, error) {
-		unmarkedV, valueMarks := v.Unmark()
-		for m, s := range valueMarks {
+	for _, pvm := range t.pvm {
+		for m, s := range pvm.Marks {
 			marks[m] = s
 		}
-		return unmarkedV, nil
-	})
+	}
+
 	return ret, marks
+}
+
+// UnmarkDeepWithPaths is like UnmarkDeep, except it returns a slice
+// of PathValueMarks rather than a superset of all marks. This allows
+// a caller to know which marks are associated with which paths
+// in the Value.
+func (val Value) UnmarkDeepWithPaths() (Value, []PathValueMarks) {
+	t := unmarkTransformer{}
+	ret, _ := TransformWithTransformer(val, &t)
+	return ret, t.pvm
 }
 
 func (val Value) unmarkForce() Value {

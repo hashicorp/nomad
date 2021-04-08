@@ -244,19 +244,21 @@ func (f Function) Call(args []cty.Value) (val cty.Value, err error) {
 			return cty.UnknownVal(expectedType), nil
 		}
 
-		if val.IsMarked() && !spec.AllowMarked {
-			unwrappedVal, marks := val.Unmark()
-			// In order to avoid additional overhead on applications that
-			// are not using marked values, we copy the given args only
-			// if we encounter a marked value we need to unmark. However,
-			// as a consequence we end up doing redundant copying if multiple
-			// marked values need to be unwrapped. That seems okay because
-			// argument lists are generally small.
-			newArgs := make([]cty.Value, len(args))
-			copy(newArgs, args)
-			newArgs[i] = unwrappedVal
-			resultMarks = append(resultMarks, marks)
-			args = newArgs
+		if !spec.AllowMarked {
+			unwrappedVal, marks := val.UnmarkDeep()
+			if len(marks) > 0 {
+				// In order to avoid additional overhead on applications that
+				// are not using marked values, we copy the given args only
+				// if we encounter a marked value we need to unmark. However,
+				// as a consequence we end up doing redundant copying if multiple
+				// marked values need to be unwrapped. That seems okay because
+				// argument lists are generally small.
+				newArgs := make([]cty.Value, len(args))
+				copy(newArgs, args)
+				newArgs[i] = unwrappedVal
+				resultMarks = append(resultMarks, marks)
+				args = newArgs
+			}
 		}
 	}
 
@@ -266,13 +268,15 @@ func (f Function) Call(args []cty.Value) (val cty.Value, err error) {
 			if !val.IsKnown() && !spec.AllowUnknown {
 				return cty.UnknownVal(expectedType), nil
 			}
-			if val.IsMarked() && !spec.AllowMarked {
-				unwrappedVal, marks := val.Unmark()
-				newArgs := make([]cty.Value, len(args))
-				copy(newArgs, args)
-				newArgs[len(posArgs)+i] = unwrappedVal
-				resultMarks = append(resultMarks, marks)
-				args = newArgs
+			if !spec.AllowMarked {
+				unwrappedVal, marks := val.UnmarkDeep()
+				if len(marks) > 0 {
+					newArgs := make([]cty.Value, len(args))
+					copy(newArgs, args)
+					newArgs[len(posArgs)+i] = unwrappedVal
+					resultMarks = append(resultMarks, marks)
+					args = newArgs
+				}
 			}
 		}
 	}
