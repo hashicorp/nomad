@@ -20,8 +20,8 @@ export let Standard = () => {
       <h5 class="title is-5">Multi-Select Dropdown</h5>
       <MultiSelectDropdown
         @label="Example Dropdown"
-        @options={{options1}}
-        @selection={{selection1}}
+        @options={{this.options1}}
+        @selection={{this.selection1}}
         @onSelect={{action (mut selection1)}} />
       <p class="annotation">A wrapper around basic-dropdown for creating a list of checkboxes and tracking the state thereof.</p>
       `,
@@ -54,8 +54,8 @@ export let RightAligned = () => {
       <div style="display:flex; justify-content:flex-end">
         <MultiSelectDropdown
           @label="Example right-aligned Dropdown"
-          @options={{options1}}
-          @selection={{selection1}}
+          @options={{this.options1}}
+          @selection={{this.selection1}}
           @onSelect={{action (mut selection1)}} />
       </div>
       `,
@@ -72,9 +72,9 @@ export let ManyOptions = () => {
       <h5 class="title is-5">Multi-Select Dropdown with many options</h5>
       <MultiSelectDropdown
         @label="Lots of options in here"
-        @options={{optionsMany}}
-        @selection={{selectionMany}}
-        @onSelect={{action (mut selectionMany)}} />
+        @options={{this.optionsMany}}
+        @selection={{this.selectionMany}}
+        @onSelect={{action (mut this.selectionMany)}} />
       <p class="annotation">
         A strength of the multi-select-dropdown is its simple presentation. It is quick to select options and it is quick to remove options.
         However, this strength becomes a weakness when there are too many options. Since the selection isn't pinned in any way, removing a selection
@@ -98,19 +98,19 @@ export let Bar = () => {
       <div class="button-bar">
         <MultiSelectDropdown
           @label="Datacenter"
-          @options={{optionsDatacenter}}
-          @selection={{selectionDatacenter}}
-          @onSelect={{action (mut selectionDatacenter)}} />
+          @options={{this.optionsDatacenter}}
+          @selection={{this.selectionDatacenter}}
+          @onSelect={{action (mut this.selectionDatacenter)}} />
         <MultiSelectDropdown
           @label="Type"
-          @options={{optionsType}}
-          @selection={{selectionType}}
-          @onSelect={{action (mut selectionType)}} />
+          @options={{this.optionsType}}
+          @selection={{this.selectionType}}
+          @onSelect={{action (mut this.selectionType)}} />
         <MultiSelectDropdown
           @label="Status"
-          @options={{optionsStatus}}
-          @selection={{selectionStatus}}
-          @onSelect={{action (mut selectionStatus)}} />
+          @options={{this.optionsStatus}}
+          @selection={{this.selectionStatus}}
+          @onSelect={{action (mut this.selectionStatus)}} />
       </div>
       <p class="annotation">
         Since this is a core component for faceted search, it makes sense to letruct an arrangement of multi-select dropdowns.
