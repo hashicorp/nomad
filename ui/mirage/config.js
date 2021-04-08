@@ -180,6 +180,11 @@ export default function() {
     return okEmpty();
   });
 
+  this.post('/job/:id/revert', function() {
+    // FIXME return something more realistic?
+    return okEmpty();
+  });
+
   this.post('/job/:id/scale', function({ jobs }, { params }) {
     return this.serialize(jobs.find(params.id));
   });

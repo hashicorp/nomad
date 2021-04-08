@@ -41,6 +41,33 @@ module('Acceptance | job versions', function(hooks) {
     assert.equal(versionRow.submitTime, formattedSubmitTime, 'Submit time');
   });
 
+  test('all versions but the current one have a button to revert to that version', async function(assert) {
+    let versionRowToRevertTo;
+
+    Versions.versions.forEach((versionRow) => {
+      if (versionRow.number === job.version) {
+        assert.ok(versionRow.revertToButton.isHidden);
+      } else {
+        assert.ok(versionRow.revertToButton.isPresent);
+
+        versionRowToRevertTo = versionRow;
+      }
+    });
+
+    if (versionRowToRevertTo) {
+      await versionRowToRevertTo.revertToButton.click();
+
+      const revertRequest = this.server.pretender.handledRequests.find(request => request.url.includes('revert'));
+
+      assert.equal(revertRequest.url, `/v1/job/${job.id}/revert`);
+
+      assert.deepEqual(JSON.parse(revertRequest.requestBody), {
+        JobID: job.id,
+        JobVersion: versionRowToRevertTo.number,
+      });
+    }
+  });
+
   test('when the job for the versions is not found, an error message is shown, but the URL persists', async function(assert) {
     await Versions.visit({ id: 'not-a-real-job' });
 

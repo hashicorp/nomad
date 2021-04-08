@@ -8,11 +8,17 @@
     <span class="term">Submitted</span>
     <span data-test-version-submit-time class="submit-date">{{format-ts this.version.submitTime}}</span>
   </span>
-  {{#if this.version.diff}}
-    <button class="button is-light is-compact pull-right" {{action "toggleDiff"}} type="button">{{this.changeCount}} {{pluralize "Change" this.changeCount}}</button>
-  {{else}}
-    <span class="pull-right">No Changes</span>
-  {{/if}}
+  <div class="pull-right">
+    {{#if (not this.isCurrent)}}
+      <button class="button is-warning is-outlined is-compact" {{action (perform this.revertTo)}} data-test-revert-to-button>Revert To</button>&nbsp;
+    {{/if}}
+
+    {{#if this.version.diff}}
+      <button class="button is-light is-compact" {{action "toggleDiff"}} type="button">{{this.changeCount}} {{pluralize "Change" this.changeCount}}</button>
+    {{else}}
+      No Changes
+    {{/if}}
+  </div>
 </div>
 {{#if this.isOpen}}
   <div class="boxed-section-body is-dark">

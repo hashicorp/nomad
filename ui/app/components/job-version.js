@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import { action, computed } from '@ember/object';
 import { classNames } from '@ember-decorators/component';
+import { task } from 'ember-concurrency';
 import classic from 'ember-classic-decorator';
 
 const changeTypes = ['Added', 'Deleted', 'Edited'];
@@ -30,10 +31,24 @@ export default class JobVersion extends Component {
     );
   }
 
+  @computed('version.{number,job.version}')
+  get isCurrent() {
+    return this.get('version.number') === this.get('version.job.version');
+  }
+
   @action
   toggleDiff() {
     this.toggleProperty('isOpen');
   }
+
+  @task(function*() {
+    try {
+      yield this.version.revertTo();
+    } catch (e) {
+      // FIXME what is to be done
+    }
+  })
+  revertTo;
 }
 
 const flatten = (accumulator, array) => accumulator.concat(array);
