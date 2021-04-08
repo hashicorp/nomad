@@ -13,35 +13,10 @@ import (
 )
 
 const (
-	DefaultCgroupParent    = "/nomad"
-	SharedCpusetCgroupName = "shared"
+	DefaultCgroupParent      = "/nomad"
+	SharedCpusetCgroupName   = "shared"
+	ReservedCpusetCgroupName = "reserved"
 )
-
-// InitCpusetParent checks that the cgroup parent and expected child cgroups have been created.
-// If the cgroup parent is set to /nomad then this will ensure that the /nomad/shared
-// cgroup is initialized. The /nomad/reserved cgroup will be lazily created when a workload
-// with reserved cores is created.
-func InitCpusetParent(cgroupParent string) error {
-	if cgroupParent == "" {
-		cgroupParent = DefaultCgroupParent
-	}
-	var err error
-	if cgroupParent, err = getCgroupPathHelper("cpuset", cgroupParent); err != nil {
-		return err
-	}
-
-	// 'ensureParent' start with parent because we don't want to
-	// explicitly inherit from parent, it could conflict with
-	// 'cpuset.cpu_exclusive'.
-	if err := cpusetEnsureParent(cgroupParent); err != nil {
-		return err
-	}
-	if err := os.Mkdir(filepath.Join(cgroupParent, SharedCpusetCgroupName), 0755); err != nil && !os.IsExist(err) {
-		return err
-	}
-
-	return nil
-}
 
 func GetCPUsFromCgroup(group string) ([]uint16, error) {
 	cgroupPath, err := getCgroupPathHelper("cpuset", group)
@@ -137,4 +112,18 @@ func getCgroupPathHelper(subsystem, cgroup string) (string, error) {
 	}
 
 	return filepath.Join(mnt, relCgroup), nil
+}
+
+// FindCgroupMountpointDir is used to find the cgroup mount point on a Linux
+// system.
+func FindCgroupMountpointDir() (string, error) {
+	mount, err := cgroups.GetCgroupMounts(false)
+	if err != nil {
+		return "", err
+	}
+	// It's okay if the mount point is not discovered
+	if len(mount) == 0 {
+		return "", nil
+	}
+	return mount[0].Mountpoint, nil
 }
