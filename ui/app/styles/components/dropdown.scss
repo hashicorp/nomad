@@ -161,32 +161,46 @@
     width: 100%;
   }
 
-  .dropdown-option {
+  // ember-power-select@v4.1.3: There is currently no way to set a class
+  // on an individual option, so .ember-power-select-option must be included
+  // in these selectors.
+  .dropdown-option,
+  .ember-power-select-option {
     margin: 0;
     padding: 0;
     white-space: nowrap;
     line-height: 1.75;
 
-    label {
+    label,
+    .dropdown-label {
       display: block;
       padding: 3px 8px;
       min-width: 100px;
       cursor: pointer;
     }
 
-    & + .dropdown-option {
+    & + .dropdown-option,
+    & + .ember-power-select-option {
       border-top: 1px solid $grey-lighter;
     }
 
     &:hover,
-    &:focus {
+    &:focus,
+    &[aria-current='true'],
+    &[aria-selected='true'] {
       background: $white-bis;
+      color: $black;
       outline: none;
       border-left: 2px solid $blue;
-      label {
+      label,
+      .dropdown-label {
         padding-left: 6px;
         min-width: 98px;
       }
+    }
+
+    &[aria-selected='true'] {
+      background: $blue-050;
     }
   }
 

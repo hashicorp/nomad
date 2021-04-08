@@ -3,8 +3,8 @@
     @options={{@options}}
     @selected={{this.activeOption}}
     @onChange={{action this.setSelection}}
-    @dropdownClass="dropdown-list-test"
+    @dropdownClass="dropdown-options"
     as |option|>
-    <span class="ember-power-select-prefix">{{@label}}: </span>{{option.label}}
+    <span class="ember-power-select-prefix">{{@label}}: </span><span class="dropdown-label">{{option.label}}</span>
   </PowerSelect>
 </div>
