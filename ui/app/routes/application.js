@@ -75,27 +75,30 @@ export default class ApplicationRoute extends Route {
     return promises;
   }
 
-  // Model is being used as a way to transfer the provided region
-  // query param to update the controller state.
-  model(params) {
-    return params.region;
+  // Model is being used as a way to propagate the region and
+  // one time token query parameters for use in setupController.
+  model({ region }, { to: { queryParams: { ott }}}) {
+    return {
+      region,
+      hasOneTimeToken: ott,
+    };
   }
 
-  setupController(controller, model) {
-    const queryParam = model;
-
-    if (queryParam === this.get('system.defaultRegion.region')) {
+  setupController(controller, { region, hasOneTimeToken }) {
+    if (region === this.get('system.defaultRegion.region')) {
       next(() => {
         controller.set('region', null);
       });
     }
 
-    // Hack to force clear the OTT query parameter
-    later(() => {
-      controller.set('oneTimeToken', '');
-    }, 500);
+    super.setupController(...arguments);
 
-    return super.setupController(...arguments);
+    if (hasOneTimeToken) {
+      // Hack to force clear the OTT query parameter
+      later(() => {
+        controller.set('oneTimeToken', '');
+      }, 500);
+    }
   }
 
   @action
