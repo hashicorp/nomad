@@ -111,22 +111,12 @@ The following fields are only valid for volumes with `type = "csi"`:
 ## Volume Interpolation
 
 Because volumes represent state, many workloads with multiple allocations will
-want to mount specific volumes to specific tasks. You can use the [HCL2]
-syntax in Nomad 1.0 for fine-grained control over how volumes are used.
-
-There are two limitations to using HCL2 interpolation for `volume` blocks:
-
-- The `volume` block is used to schedule workloads, so any interpolation needs
-  to be done before placement. This means that variables like
-  `NOMAD_ALLOC_INDEX` can't be used for interpolation. Use the `per_alloc`
-  field described above.
-- Nomad does not yet support dynamic volume creation (see [GH-8212]), so volumes
-  must be created and registered before being used as a `volume.source`.
-
-The following job specification demonstrates how to use multiple volumes with
-multiple allocations, using the `per_alloc` field. This job specification also
-shows using HCL2 -variables interpolation to expose information to the task's
-environment.
+want to mount specific volumes to specific tasks. The `volume` block is used
+to schedule workloads, so `${NOMAD_ALLOC_INDEX}` can't be used directly in the
+`volume.source` field. The following job specification demonstrates how to use
+multiple volumes with multiple allocations, using the `per_alloc` field. This
+job specification also shows using HCL2 -variables interpolation to expose
+information to the task's environment.
 
 ```hcl
 variables {
@@ -141,9 +131,11 @@ job "example" {
     count = 2
 
     volume "cache-volume" {
-      type      = "csi"
-      source    = "test-volume"
-      per_alloc = true
+      type            = "csi"
+      source          = "test-volume"
+      attachment_mode = "file-system"
+      access_mode     = "single-node-writer"
+      per_alloc       = true
     }
 
     network {
@@ -212,5 +204,3 @@ ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
 [csi_volume]: /docs/commands/volume/register
 [attachment mode]: /docs/commands/volume/register#attachment_mode
 [volume registration]: /docs/commands/volume/register#mount_options
-[hcl2]: /docs/job-specification/hcl2
-[gh-8212]: https://github.com/hashicorp/nomad/issues/8212
