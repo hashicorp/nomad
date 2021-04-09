@@ -21,6 +21,7 @@
 @import '~@hashicorp/react-enterprise-alert/style.css';
 @import '~@hashicorp/react-featured-slider/style.css';
 @import '~@hashicorp/react-hero/style.css';
+@import '~@hashicorp/react-learn-callout/style.css';
 @import '~@hashicorp/react-product-downloader/dist/style.css';
 @import '~@hashicorp/react-search/style.css';
 @import '~@hashicorp/react-subnav/style.css';
@@ -36,7 +37,6 @@
 @import '../components/enterprise-info/style.css';
 @import '../components/mini-cta/style.css';
 @import '../components/homepage-hero/style.css';
-@import '../components/learn-nomad/style.css';
 @import '../components/basic-hero/style.css';
 @import '../components/footer/style.css';
 @import '../components/use-case-page/style.css';
