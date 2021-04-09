@@ -79,9 +79,6 @@ function InstallFromS3 {
 
         Remove-Item -Path $install_path -Force -ErrorAction Stop
         Expand-Archive ./nomad.zip ./ -Force -ErrorAction Stop
-        Move-Item `
-          -Path .\pkg\windows_amd64\nomad.exe `
-          -Destination $install_path -Force -ErrorAction Stop
         Remove-Item -Path nomad.zip -Force -ErrorAction Ignore
 
         New-Item -ItemType Directory -Force -Path C:\opt\nomad.d -ErrorAction Stop
