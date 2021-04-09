@@ -269,10 +269,10 @@ type Config struct {
 	BindWildcardDefaultHostNetwork bool
 
 	// CgroupParent is the parent cgroup Nomad should use when managing any cgroup subsystems.
-	// Currently this only includes the 'cpuset' cgroup subsystem
+	// Currently this only includes the 'cpuset' cgroup subsystem.
 	CgroupParent string
 
-	// ReservableCores if set overrides the set of reservable cores reported in fingerprinting
+	// ReservableCores if set overrides the set of reservable cores reported in fingerprinting.
 	ReservableCores []uint16
 
 	// DisableCgroupManagement if true disables all management of cgroup subsystems by the Nomad client. It does

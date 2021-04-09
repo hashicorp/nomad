@@ -17,10 +17,10 @@ const (
 	SharedCpusetCgroupName = "shared"
 )
 
-// InitCpusetParent checks that the cgroup parent and expected child cgroups have been created
+// InitCpusetParent checks that the cgroup parent and expected child cgroups have been created.
 // If the cgroup parent is set to /nomad then this will ensure that the /nomad/shared
 // cgroup is initialized. The /nomad/reserved cgroup will be lazily created when a workload
-// with reserved cores is created
+// with reserved cores is created.
 func InitCpusetParent(cgroupParent string) error {
 	if cgroupParent == "" {
 		cgroupParent = DefaultCgroupParent
