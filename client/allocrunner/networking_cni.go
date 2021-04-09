@@ -6,6 +6,7 @@ package allocrunner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -111,29 +112,67 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 		break
 	}
 
+	if c.logger.IsDebug() {
+		resultJSON, _ := json.Marshal(res)
+		c.logger.Debug("received result from CNI", "result", string(resultJSON))
+	}
+
+	return c.cniToAllocNet(res)
+
+}
+
+// cniToAllocNet converts a CNIResult to an AllocNetworkStatus or returns an
+// error. The first interface and IP with a sandbox and address set are
+// preferred. Failing that the first interface with an IP is selected.
+//
+// Unfortunately the go-cni library returns interfaces in an unordered map so
+// the results may be nondeterministic depending on CNI plugin output.
+func (c *cniNetworkConfigurator) cniToAllocNet(res *cni.CNIResult) (*structs.AllocNetworkStatus, error) {
 	netStatus := new(structs.AllocNetworkStatus)
 
+	// Use the first sandbox interface with an IP address
 	if len(res.Interfaces) > 0 {
-		// find an interface with Sandbox set, or any one of them if no
-		// interface has it set
-		var iface *cni.Config
-		var name string
-		for name, iface = range res.Interfaces {
-			if iface != nil && iface.Sandbox != "" {
+		for name, iface := range res.Interfaces {
+			if iface == nil {
+				// this should never happen but this value is coming from external
+				// plugins so we should guard against it
+				delete(res.Interfaces, name)
+			}
+
+			if iface.Sandbox != "" && len(iface.IPConfigs) > 0 {
+				netStatus.Address = iface.IPConfigs[0].IP.String()
+				netStatus.InterfaceName = name
 				break
 			}
 		}
-		if iface == nil {
-			// this should never happen but this value is coming from external
-			// plugins so we should guard against it
-			return nil, fmt.Errorf("failed to configure network: no valid interface")
-		}
+	}
 
-		netStatus.InterfaceName = name
-		if len(iface.IPConfigs) > 0 {
-			netStatus.Address = iface.IPConfigs[0].IP.String()
+	// If no IP address was found, use the first interface with an address
+	// found as a fallback
+	if netStatus.Address == "" {
+		var found bool
+		for name, iface := range res.Interfaces {
+			if len(iface.IPConfigs) > 0 {
+				ip := iface.IPConfigs[0].IP.String()
+				c.logger.Debug("no sandbox interface with an address found CNI result, using first available", "interface", name, "ip", ip)
+				netStatus.Address = ip
+				netStatus.InterfaceName = name
+				found = true
+				break
+			}
+		}
+		if !found {
+			c.logger.Warn("no address could be found from CNI result")
 		}
 	}
+
+	// If no IP address could be found, return an error
+	if netStatus.Address == "" {
+		return nil, fmt.Errorf("failed to configure network: no interface with an address")
+
+	}
+
+	// Use the first DNS results.
 	if len(res.DNS) > 0 {
 		netStatus.DNS = &structs.DNSConfig{
 			Servers:  res.DNS[0].Nameservers,
@@ -143,7 +182,6 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	}
 
 	return netStatus, nil
-
 }
 
 func loadCNIConf(confDir, name string) ([]byte, error) {
