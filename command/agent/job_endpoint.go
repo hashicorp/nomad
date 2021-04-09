@@ -26,6 +26,18 @@ func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (i
 	}
 }
 
+// @Summary Get Jobs list
+// @Description get jobs by region
+// @Tags jobs
+// @Accept  application/json
+// @Produce  json
+// @Param region query string false "string region - filters jobs based on region"
+// @Param prefix query string false "string prefix - filters jobs based on prefix"
+// @Success 200 {array} structs.JobsListResponse
+// @Failure 400 {string} string "unauthorized"
+// @Failure 404 {string} string "not found"
+// @Failure 500 {string} string "internal server error"
+// @Router /jobs [get]
 func (s *HTTPServer) jobListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	args := structs.JobListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {

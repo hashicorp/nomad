@@ -12,12 +12,13 @@ import (
 // @Tags namespaces
 // @Accept  json
 // @Produce  json
-// @Param region path string empty "Region"
-// @Success 200 {object} structs.NamespaceListResponse
+// @Param region query string false "string region - filters namespaces based on region"
+// @Param prefix query string false "string prefix - filters namespaces based on prefix"
+// @Success 200 {array} structs.Namespace
 // @Failure 400 {string} string "unauthorized"
 // @Failure 404 {string} string "not found"
 // @Failure 500 {string} string "internal server error"
-// @Router /namespaces/{region} [get]
+// @Router /namespaces [get]
 func (s *HTTPServer) NamespacesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != "GET" {
 		return nil, CodedError(405, ErrInvalidMethod)

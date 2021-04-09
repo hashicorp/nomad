@@ -32,7 +32,7 @@ var doc = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/namespaces/{region}": {
+        "/namespaces": {
             "get": {
                 "description": "get namespaces by region",
                 "consumes": [
@@ -48,16 +48,25 @@ var doc = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Region",
+                        "description": "string region - filters namespaces based on region",
                         "name": "region",
-                        "in": "path"
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "string prefix - filters namespaces based on prefix",
+                        "name": "prefix",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/structs.NamespaceListResponse"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/structs.Namespace"
+                            }
                         }
                     },
                     "400": {
@@ -111,29 +120,6 @@ var doc = `{
                 "quota": {
                     "description": "Quota is the quota specification that the namespace should account\nagainst.",
                     "type": "string"
-                }
-            }
-        },
-        "structs.NamespaceListResponse": {
-            "type": "object",
-            "properties": {
-                "index": {
-                    "description": "This is the index associated with the read",
-                    "type": "integer"
-                },
-                "knownLeader": {
-                    "description": "Used to indicate if there is a known leader node",
-                    "type": "boolean"
-                },
-                "lastContact": {
-                    "description": "If AllowStale is used, this is time elapsed since\nlast contact between the follower and leader. This\ncan be used to gauge staleness.",
-                    "type": "integer"
-                },
-                "namespaces": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/structs.Namespace"
-                    }
                 }
             }
         }

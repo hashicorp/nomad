@@ -26,25 +26,6 @@ definitions:
           against.
         type: string
     type: object
-  structs.NamespaceListResponse:
-    properties:
-      index:
-        description: This is the index associated with the read
-        type: integer
-      knownLeader:
-        description: Used to indicate if there is a known leader node
-        type: boolean
-      lastContact:
-        description: |-
-          If AllowStale is used, this is time elapsed since
-          last contact between the follower and leader. This
-          can be used to gauge staleness.
-        type: integer
-      namespaces:
-        items:
-          $ref: '#/definitions/structs.Namespace'
-        type: array
-    type: object
 host: 127.0.0.1:4646
 info:
   contact:
@@ -58,15 +39,19 @@ info:
   title: Nomad API
   version: "1.0"
 paths:
-  /namespaces/{region}:
+  /namespaces:
     get:
       consumes:
       - application/json
       description: get namespaces by region
       parameters:
-      - description: Region
-        in: path
+      - description: string region - filters namespaces based on region
+        in: query
         name: region
+        type: string
+      - description: string prefix - filters namespaces based on prefix
+        in: query
+        name: prefix
         type: string
       produces:
       - application/json
@@ -74,7 +59,9 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/structs.NamespaceListResponse'
+            items:
+              $ref: '#/definitions/structs.Namespace'
+            type: array
         "400":
           description: unauthorized
           schema:
