@@ -1647,7 +1647,7 @@ func volumeCSIMountOptionsDiff(oldMO, newMO *CSIMountOptions, contextual bool) *
 		oldMO = &CSIMountOptions{}
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(newMO, nil, true)
-	} else if oldMO == nil && newMO != nil {
+	} else if oldMO != nil && newMO == nil {
 		newMO = &CSIMountOptions{}
 		diff.Type = DiffTypeDeleted
 		oldPrimitiveFlat = flatmap.Flatten(oldMO, nil, true)
