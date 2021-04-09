@@ -1,7 +1,7 @@
-id          = "VOLUME_NAME"
-name        = "VOLUME_NAME"
-type        = "csi"
-plugin_id   = "hostpath-plugin0"
+id        = "VOLUME_NAME"
+name      = "VOLUME_NAME"
+type      = "csi"
+plugin_id = "hostpath-plugin0"
 
 capacity_min = "1MB"
 capacity_max = "1GB"
