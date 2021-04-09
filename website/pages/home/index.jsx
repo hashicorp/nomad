@@ -1,13 +1,14 @@
-import FeaturesList from 'components/features-list'
-import HomepageHero from 'components/homepage-hero'
-import CaseStudyCarousel from 'components/case-study-carousel'
+import Link from 'next/link'
 import UseCases from '@hashicorp/react-use-cases'
-import MiniCTA from 'components/mini-cta'
-import LearnNomad from 'components/learn-nomad'
 import CallToAction from '@hashicorp/react-call-to-action'
 import ComparisonCallouts from 'components/comparison-callouts'
 import TextSplitWithLogoGrid from '@hashicorp/react-text-split-with-logo-grid'
-import Link from 'next/link'
+import LearnCallout from '@hashicorp/react-learn-callout'
+
+import FeaturesList from 'components/features-list'
+import HomepageHero from 'components/homepage-hero'
+import CaseStudyCarousel from 'components/case-study-carousel'
+import MiniCTA from 'components/mini-cta'
 
 export default function Homepage() {
   // Test comment to see if Vercel picks up this commit
@@ -374,7 +375,9 @@ export default function Homepage() {
         />
       </div>
 
-      <LearnNomad
+      <LearnCallout
+        headline="Learn the latest Nomad skills"
+        product="nomad"
         items={[
           {
             title: 'Getting Started',
