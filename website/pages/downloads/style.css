@@ -1,4 +1,15 @@
 #p-downloads {
   margin-top: 72px;
   margin-bottom: 72px;
+
+  /** DEBT - temporary override until product download page is rolled out */
+  & .g-product-downloader.product-nomad {
+    --highlight-color: var(--nomad-link);
+
+    & .g-btn.brand-nomad {
+      border-color: var(--nomad);
+      background-color: var(--nomad);
+      color: var(--nomad-text-on-primary);
+    }
+  }
 }
