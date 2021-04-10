@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/copystructure"
 
 	"github.com/hashicorp/go-msgpack/codec"
 )
@@ -452,6 +453,91 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 
 	reply.AgentID = a.srv.serf.LocalMember().Name
 	reply.HostData = data
+	return nil
+}
+
+// Self returns the agent's configuration and statistics
+
+func (a *Agent) Self(args *structs.AgentSelfRequest, reply *structs.AgentSelfResponse) error {
+
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	if (aclObj != nil && !aclObj.AllowAgentRead()) ||
+		(aclObj == nil && !a.srv.config.EnableDebug) {
+		return structs.ErrPermissionDenied
+	}
+
+	// Forward to different region if necessary
+	// this would typically be done in a.srv.forward() but since
+	// we are targeting a specific server, not just the leader
+	// we must manually handle region forwarding here.
+	region := args.RequestRegion()
+	if region == "" {
+		return fmt.Errorf("missing target RPC")
+	}
+
+	if region != a.srv.config.Region {
+		// Mark that we are forwarding
+		args.SetForwarded()
+		return a.srv.forwardRegion(region, "Agent.Self", args, reply)
+	}
+
+	// Targeting a client node, forward request to node
+	if args.NodeID != "" {
+		client, srv, err := a.findClientConn(args.NodeID)
+
+		if err != nil {
+			return err
+		}
+
+		if srv != nil {
+			return a.srv.forwardServer(srv, "Agent.Self", args, reply)
+		}
+
+		return NodeRpc(client.Session, "Agent.Self", args, reply)
+	}
+
+	// Handle serverID not equal to ours
+	if args.ServerID != "" {
+		srv, err := a.forwardFor(args.ServerID, region)
+		if err != nil {
+			return err
+		}
+		if srv != nil {
+			return a.srv.forwardServer(srv, "Agent.Self", args, reply)
+		}
+	}
+
+	// Process the request on this agent
+//	reply.AgentID = a.srv.serf.LocalMember().Name // Why did host use this method instead of the line below, used by AgentSelfRequest?
+	reply.AgentID = a.srv.LocalMember().Name // Why did host use this method instead of the line below, used by AgentSelfRequest?
+	reply.Member = a.srv.LocalMember()
+	reply.Stats = a.srv.Stats()
+
+	if ac, err := copystructure.Copy(a.srv.config); err != nil {
+		return err
+	} else {
+		reply.Config = ac.(*Config)
+	}
+
+	if reply.Config != nil && reply.Config.Vault != nil && reply.Config.Vault.Token != "" {
+		reply.Config.Vault.Token = "<redacted>"
+	}
+
+	if reply.Config != nil && reply.Config.ACL != nil && reply.Config.ACL.ReplicationToken != "" {
+		reply.Config.ACL.ReplicationToken = "<redacted>"
+	}
+
+	if reply.Config != nil && reply.Config.Consul != nil && reply.Config.Consul.Token != "" {
+		reply.Config.Consul.Token = "<redacted>"
+	}
+
+	if reply.Config != nil && reply.Config.Telemetry != nil && reply.Config.Telemetry.CirconusAPIToken != "" {
+		reply.Config.Telemetry.CirconusAPIToken = "<redacted>"
+	}
+
 	return nil
 }
 

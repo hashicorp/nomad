@@ -84,33 +84,77 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, structs.ErrPermissionDenied
 	}
 
-	self := agentSelf{
-		Member: nomadMember(member),
-		Stats:  s.agent.Stats(),
+	serverID := req.URL.Query().Get("server_id")
+	nodeID := req.URL.Query().Get("node_id")
+
+	if serverID != "" && nodeID != "" {
+		return nil, CodedError(400, "Can only forward to either client node or server")
 	}
-	if ac, err := copystructure.Copy(s.agent.config); err != nil {
-		return nil, CodedError(500, err.Error())
+
+	// If no other node is specified, return self from local host
+	if serverID == "" && nodeID == "" {
+
+		self := agentSelf{
+			Member: nomadMember(member),
+			Stats:  s.agent.Stats(),
+		}
+		if ac, err := copystructure.Copy(s.agent.config); err != nil {
+			return nil, CodedError(500, err.Error())
+		} else {
+			self.Config = ac.(*Config)
+		}
+
+		if self.Config != nil && self.Config.Vault != nil && self.Config.Vault.Token != "" {
+			self.Config.Vault.Token = "<redacted>"
+		}
+
+		if self.Config != nil && self.Config.ACL != nil && self.Config.ACL.ReplicationToken != "" {
+			self.Config.ACL.ReplicationToken = "<redacted>"
+		}
+
+		if self.Config != nil && self.Config.Consul != nil && self.Config.Consul.Token != "" {
+			self.Config.Consul.Token = "<redacted>"
+		}
+
+		if self.Config != nil && self.Config.Telemetry != nil && self.Config.Telemetry.CirconusAPIToken != "" {
+			self.Config.Telemetry.CirconusAPIToken = "<redacted>"
+		}
+
+		return self, nil
+	}
+
+	args := &structs.AgentSelfRequest{
+		ServerID: serverID,
+		NodeID:   nodeID,
+	}
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	var reply structs.AgentSelfResponse
+	var rpcErr error
+
+	// If serverID is specified, use that to lookup the RPC interface
+	lookupNodeID := nodeID
+	if serverID != "" {
+		lookupNodeID = serverID
+	}
+
+	// The RPC endpoint actually forwards the request to the correct
+	// agent, but we need to use the correct RPC interface.
+	localClient, remoteClient, localServer := s.rpcHandlerForNode(lookupNodeID)
+	s.agent.logger.Debug("s.rpcHandlerForNode()", "lookupNodeID", lookupNodeID, "serverID", serverID, "nodeID", nodeID, "localClient", localClient, "remoteClient", remoteClient, "localServer", localServer)
+
+	// Make the RPC call
+	if localClient {
+		rpcErr = s.agent.Client().ClientRPC("Agent.Self", &args, &reply)
+	} else if remoteClient {
+		rpcErr = s.agent.Client().RPC("Agent.Self", &args, &reply)
+	} else if localServer {
+		rpcErr = s.agent.Server().RPC("Agent.Self", &args, &reply)
 	} else {
-		self.Config = ac.(*Config)
+		rpcErr = fmt.Errorf("node not found: %s", nodeID)
 	}
 
-	if self.Config != nil && self.Config.Vault != nil && self.Config.Vault.Token != "" {
-		self.Config.Vault.Token = "<redacted>"
-	}
-
-	if self.Config != nil && self.Config.ACL != nil && self.Config.ACL.ReplicationToken != "" {
-		self.Config.ACL.ReplicationToken = "<redacted>"
-	}
-
-	if self.Config != nil && self.Config.Consul != nil && self.Config.Consul.Token != "" {
-		self.Config.Consul.Token = "<redacted>"
-	}
-
-	if self.Config != nil && self.Config.Telemetry != nil && self.Config.Telemetry.CirconusAPIToken != "" {
-		self.Config.Telemetry.CirconusAPIToken = "<redacted>"
-	}
-
-	return self, nil
+	return reply, rpcErr
 }
 
 func (s *HTTPServer) AgentJoinRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {

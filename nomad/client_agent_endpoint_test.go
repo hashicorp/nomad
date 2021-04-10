@@ -1009,3 +1009,26 @@ func TestAgentHost_ACLDebugRequired(t *testing.T) {
 	err := s.RPC("Agent.Host", &req, &resp)
 	require.Equal(t, "Permission denied", err.Error())
 }
+
+func TestAgentSelf_LocalServer(t *testing.T) {
+	t.Parallel()
+
+	// start server
+	s, cleanupS := TestServer(t, func(c *Config) {
+		c.EnableDebug = false
+	})
+	defer cleanupS()
+	testutil.WaitForLeader(t, s.RPC)
+
+	req := structs.AgentSelfRequest{
+		QueryOptions: structs.QueryOptions{
+			Namespace: structs.DefaultNamespace,
+			Region:    "global",
+		},
+	}
+
+	var resp structs.AgentSelfResponse
+
+	err := s.RPC("Agent.Self", &req, &resp)
+	require.NotEqual(t, "Permission denied", err.Error())
+}
