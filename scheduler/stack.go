@@ -49,6 +49,7 @@ type GenericStack struct {
 	quota                FeasibleIterator
 	jobVersion           *uint64
 	jobConstraint        *ConstraintChecker
+	jobNamespace         *NamespaceChecker
 	taskGroupDrivers     *DriverChecker
 	taskGroupConstraint  *ConstraintChecker
 	taskGroupDevices     *DeviceChecker
@@ -99,6 +100,7 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 	s.jobVersion = &jobVer
 
 	s.jobConstraint.SetConstraints(job.Constraints)
+	s.jobNamespace.SetNamespace(job.Namespace)
 	s.distinctHostsConstraint.SetJob(job)
 	s.distinctPropertyConstraint.SetJob(job)
 	s.binPack.SetJob(job)
@@ -187,6 +189,7 @@ type SystemStack struct {
 	wrappedChecks        *FeasibilityWrapper
 	quota                FeasibleIterator
 	jobConstraint        *ConstraintChecker
+	jobNamespace         *NamespaceChecker
 	taskGroupDrivers     *DriverChecker
 	taskGroupConstraint  *ConstraintChecker
 	taskGroupDevices     *DeviceChecker
@@ -215,6 +218,8 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintChecker(ctx, nil)
 
+	s.jobNamespace = NewNamespaceChecker(ctx)
+
 	// Filter on task group drivers first as they are faster
 	s.taskGroupDrivers = NewDriverChecker(ctx, nil)
 
@@ -237,7 +242,7 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
-	jobs := []FeasibilityChecker{s.jobConstraint}
+	jobs := []FeasibilityChecker{s.jobConstraint, s.jobNamespace}
 	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint,
 		s.taskGroupHostVolumes,
 		s.taskGroupDevices,
@@ -275,6 +280,7 @@ func (s *SystemStack) SetNodes(baseNodes []*structs.Node) {
 
 func (s *SystemStack) SetJob(job *structs.Job) {
 	s.jobConstraint.SetConstraints(job.Constraints)
+	s.jobNamespace.SetNamespace(job.Namespace)
 	s.distinctPropertyConstraint.SetJob(job)
 	s.binPack.SetJob(job)
 	s.ctx.Eligibility().SetJob(job)
@@ -350,6 +356,8 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Filter on task group host volumes
 	s.taskGroupHostVolumes = NewHostVolumeChecker(ctx)
 
+	s.jobNamespace = NewNamespaceChecker(ctx)
+
 	// Filter on available, healthy CSI plugins
 	s.taskGroupCSIVolumes = NewCSIVolumeChecker(ctx)
 
@@ -360,7 +368,7 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
-	jobs := []FeasibilityChecker{s.jobConstraint}
+	jobs := []FeasibilityChecker{s.jobConstraint, s.jobNamespace}
 	tgs := []FeasibilityChecker{s.taskGroupDrivers,
 		s.taskGroupConstraint,
 		s.taskGroupHostVolumes,

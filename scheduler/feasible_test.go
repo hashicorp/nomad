@@ -81,6 +81,55 @@ func TestRandomIterator(t *testing.T) {
 	}
 }
 
+func TestNamespaceChecker(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+
+	nodes[1].Namespaces = []string{"default", "dev-tenant1"}
+	nodes[2].Namespaces = []string{"default", "dev-*"}
+
+	checker := NewNamespaceChecker(ctx)
+
+	cases := []struct {
+		Node               *structs.Node
+		RequestedNamespace string
+		Result             bool
+	}{
+		{ // Namespace schedules if no namespaces are set
+			Node:               nodes[0],
+			RequestedNamespace: "random",
+			Result:             true,
+		},
+		{ // Namespace does not schedule if namespaces set and don't match
+			Node:               nodes[1],
+			RequestedNamespace: "random",
+			Result:             false,
+		},
+		{ // Namespace does schedule if direct match
+			Node:               nodes[1],
+			RequestedNamespace: "dev-tenant1",
+			Result:             true,
+		},
+		{ // Namespace does schedule if wildcard match
+			Node:               nodes[2],
+			RequestedNamespace: "dev-tenant1",
+			Result:             true,
+		},
+	}
+
+	for i, c := range cases {
+		checker.SetNamespace(c.RequestedNamespace)
+		if act := checker.Feasible(c.Node); act != c.Result {
+			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+		}
+	}
+
+}
+
 func TestHostVolumeChecker(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
