@@ -161,7 +161,7 @@ func (tc *CSIControllerPluginEBSTest) TestSnapshot(f *framework.F) {
 
 	defer func() {
 		_, err := e2e.Command("nomad", "volume", "snapshot", "delete",
-			ebsPluginID, snaps[0]["External ID"])
+			ebsPluginID, snaps[0]["Snapshot ID"])
 		requireNoErrorElseDump(f, err, "could not delete volume snapshot", tc.pluginJobIDs)
 	}()
 
