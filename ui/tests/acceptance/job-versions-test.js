@@ -66,6 +66,9 @@ module('Acceptance | job versions', function(hooks) {
         JobID: job.id,
         JobVersion: versionRowToRevertTo.number,
       });
+
+      // The job should reload and have a new version number
+      assert.ok(versionRowToRevertTo.revertToButton.isHidden);
     }
   });
 

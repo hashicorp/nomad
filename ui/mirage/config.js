@@ -180,8 +180,12 @@ export default function() {
     return okEmpty();
   });
 
-  this.post('/job/:id/revert', function() {
-    // FIXME return something more realistic?
+  this.post('/job/:id/revert', function({ jobs }, { requestBody }) {
+    const { JobID, JobVersion } = JSON.parse(requestBody);
+    const job = jobs.find(JobID);
+    job.version = JobVersion;
+    job.save();
+
     return okEmpty();
   });
 

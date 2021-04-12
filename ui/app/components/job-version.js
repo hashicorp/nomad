@@ -45,6 +45,7 @@ export default class JobVersion extends Component {
   @task(function*() {
     try {
       yield this.version.revertTo();
+      yield this.version.job.reload();
     } catch (e) {
       this.handleError({
         title: 'Could Not Revert',
