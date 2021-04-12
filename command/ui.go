@@ -29,7 +29,13 @@ object. Supported identifiers are jobs, allocations and nodes.
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
+
+UI Options
+
+  -authenticate: Exchange your Nomad ACL token for a one-time token in the
+    web UI, if ACLs are enabled.
+`
 
 	return strings.TrimSpace(helpText)
 }
