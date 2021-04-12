@@ -82,12 +82,31 @@ module('Acceptance | job versions', function(hooks) {
       await versionRowToRevertTo.revertToButton.click();
 
       assert.ok(Layout.inlineError.isShown);
+      assert.ok(Layout.inlineError.isDanger);
       assert.ok(Layout.inlineError.title.includes('Could Not Revert'));
       assert.equal(Layout.inlineError.message, message);
 
       await Layout.inlineError.dismiss();
 
       assert.notOk(Layout.inlineError.isShown);
+    } else {
+      assert.expect(0);
+    }
+  });
+
+  test('when reversion has no effect, the error message explains', async function(assert) {
+    const versionRowToRevertTo = Versions.versions.filter(versionRow => versionRow.revertToButton.isPresent)[0];
+
+    if (versionRowToRevertTo) {
+      // The default Mirage implementation updates the job version as passed in, this does nothing
+      server.pretender.post('/v1/job/:id/revert', () => [200, {}, '']);
+
+      await versionRowToRevertTo.revertToButton.click();
+
+      assert.ok(Layout.inlineError.isShown);
+      assert.ok(Layout.inlineError.isWarning);
+      assert.ok(Layout.inlineError.title.includes('Reversion Had No Effect'));
+      assert.equal(Layout.inlineError.message, 'Reverting to an identical older version doesn’t produce a new version');
     } else {
       assert.expect(0);
     }

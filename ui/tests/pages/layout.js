@@ -105,5 +105,8 @@ export default create({
     title: text('[data-test-inline-error-title]'),
     message: text('[data-test-inline-error-body]'),
     dismiss: clickable('[data-test-inline-error-close]'),
+
+    isDanger: hasClass('is-danger', '[data-test-inline-error]'),
+    isWarning: hasClass('is-warning', '[data-test-inline-error]'),
   },
 });

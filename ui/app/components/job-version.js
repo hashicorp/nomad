@@ -44,10 +44,23 @@ export default class JobVersion extends Component {
 
   @task(function*() {
     try {
+      const versionBeforeReversion = this.get('version.job.version');
+
       yield this.version.revertTo();
       yield this.version.job.reload();
+
+      const versionAfterRevision = this.get('version.job.version');
+
+      if (versionBeforeReversion === versionAfterRevision) {
+        this.handleError({
+          level: 'warn',
+          title: 'Reversion Had No Effect',
+          description: 'Reverting to an identical older version doesn’t produce a new version',
+        });
+      }
     } catch (e) {
       this.handleError({
+        level: 'danger',
         title: 'Could Not Revert',
         description: messageForError(e, 'revert'),
       });
