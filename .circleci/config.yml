@@ -393,7 +393,7 @@ jobs:
       - install-golang:
           target_directory: ~/goinstall
       - run: source ${BASH_ENV} && make deps
-      - run: brew install protobuf
+      - run: brew update && brew install protobuf
       - run: PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-structs
 
       - run:
