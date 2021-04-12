@@ -4,6 +4,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Versions from 'nomad-ui/tests/pages/jobs/job/versions';
+import Layout from 'nomad-ui/tests/pages/layout';
 import moment from 'moment';
 
 let job;
@@ -65,6 +66,27 @@ module('Acceptance | job versions', function(hooks) {
         JobID: job.id,
         JobVersion: versionRowToRevertTo.number,
       });
+    }
+  });
+
+  test('when reversion fails, the error message from the API is piped through to the alert', async function(assert) {
+    const versionRowToRevertTo = Versions.versions.filter(versionRow => versionRow.revertToButton.isPresent)[0];
+
+    if (versionRowToRevertTo) {
+      const message = 'A plaintext error message';
+      server.pretender.post('/v1/job/:id/revert', () => [500, {}, message]);
+
+      await versionRowToRevertTo.revertToButton.click();
+
+      assert.ok(Layout.inlineError.isShown);
+      assert.ok(Layout.inlineError.title.includes('Could Not Revert'));
+      assert.equal(Layout.inlineError.message, message);
+
+      await Layout.inlineError.dismiss();
+
+      assert.notOk(Layout.inlineError.isShown);
+    } else {
+      assert.expect(0);
     }
   });
 

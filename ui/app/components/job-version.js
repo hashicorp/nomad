@@ -2,6 +2,7 @@ import Component from '@ember/component';
 import { action, computed } from '@ember/object';
 import { classNames } from '@ember-decorators/component';
 import { task } from 'ember-concurrency';
+import messageForError from 'nomad-ui/utils/message-from-adapter-error';
 import classic from 'ember-classic-decorator';
 
 const changeTypes = ['Added', 'Deleted', 'Edited'];
@@ -45,7 +46,10 @@ export default class JobVersion extends Component {
     try {
       yield this.version.revertTo();
     } catch (e) {
-      // FIXME what is to be done
+      this.handleError({
+        title: 'Could Not Revert',
+        description: messageForError(e, 'revert'),
+      });
     }
   })
   revertTo;
