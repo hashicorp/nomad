@@ -1830,10 +1830,10 @@ func validateJobUpdate(old, new *structs.Job) error {
 
 	// Transitioning to/from parameterized is disallowed
 	if old.IsParameterized() && !new.IsParameterized() {
-		return fmt.Errorf("cannot update non-parameterized job to being parameterized")
+		return fmt.Errorf("cannot update parameterized job to being non-parameterized")
 	}
 	if new.IsParameterized() && !old.IsParameterized() {
-		return fmt.Errorf("cannot update parameterized job to being non-parameterized")
+		return fmt.Errorf("cannot update non-parameterized job to being parameterized")
 	}
 
 	if old.Dispatched != new.Dispatched {
