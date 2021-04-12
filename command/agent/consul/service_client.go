@@ -14,6 +14,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/pkg/errors"
 
 	"github.com/hashicorp/consul/api"
@@ -961,9 +962,24 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		kind = api.ServiceKindTerminatingGateway
 		// set the default port if bridge / default listener set
 		if defaultBind, exists := service.Connect.Gateway.Proxy.EnvoyGatewayBindAddresses["default"]; exists {
-			portLabel := fmt.Sprintf("%s-%s", structs.ConnectTerminatingPrefix, service.Name)
+			portLabel := envoy.PortLabel(structs.ConnectTerminatingPrefix, service.Name, "")
 			if dynPort, ok := workload.Ports.Get(portLabel); ok {
 				defaultBind.Port = dynPort.Value
+			}
+		}
+	case service.Connect.IsMesh():
+		kind = api.ServiceKindMeshGateway
+		// wan uses the service port label, which is typically on a discrete host_network
+		if wanBind, exists := service.Connect.Gateway.Proxy.EnvoyGatewayBindAddresses["wan"]; exists {
+			if wanPort, ok := workload.Ports.Get(service.PortLabel); ok {
+				wanBind.Port = wanPort.Value
+			}
+		}
+		// lan uses a nomad generated dynamic port on the default network
+		if lanBind, exists := service.Connect.Gateway.Proxy.EnvoyGatewayBindAddresses["lan"]; exists {
+			portLabel := envoy.PortLabel(structs.ConnectMeshPrefix, service.Name, "lan")
+			if dynPort, ok := workload.Ports.Get(portLabel); ok {
+				lanBind.Port = dynPort.Value
 			}
 		}
 	}

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/golang/snappy"
-	"github.com/hashicorp/nomad/api"
+	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -3138,12 +3138,21 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 		LocalBindPort:    8000,
 		Datacenter:       "dc2",
 		LocalBindAddress: "127.0.0.2",
+		MeshGateway:      &structs.ConsulMeshGateway{Mode: "local"},
 	}}, apiUpstreamsToStructs([]*api.ConsulUpstream{{
 		DestinationName:  "upstream",
 		LocalBindPort:    8000,
 		Datacenter:       "dc2",
 		LocalBindAddress: "127.0.0.2",
+		MeshGateway:      &api.ConsulMeshGateway{Mode: "local"},
 	}}))
+}
+
+func TestConversion_apiConsulMeshGatewayToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiMeshGatewayToStructs(nil))
+	require.Equal(t, &structs.ConsulMeshGateway{Mode: "remote"},
+		apiMeshGatewayToStructs(&api.ConsulMeshGateway{Mode: "remote"}))
 }
 
 func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
@@ -3308,6 +3317,22 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 						KeyFile:  "key.pem",
 						SNI:      "linked.consul",
 					}},
+				},
+			},
+		}))
+	})
+
+	t.Run("gateway mesh", func(t *testing.T) {
+		require.Equal(t, &structs.ConsulConnect{
+			Gateway: &structs.ConsulGateway{
+				Mesh: &structs.ConsulMeshConfigEntry{
+					// nothing
+				},
+			},
+		}, ApiConsulConnectToStructs(&api.ConsulConnect{
+			Gateway: &api.ConsulGateway{
+				Mesh: &api.ConsulMeshConfigEntry{
+					// nothing
 				},
 			},
 		}))

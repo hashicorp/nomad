@@ -849,6 +849,32 @@ func connectGatewayDiff(prev, next *ConsulGateway, contextual bool) *ObjectDiff 
 		diff.Objects = append(diff.Objects, gatewayTerminatingDiff)
 	}
 
+	// Diff the mesh gateway fields.
+	gatewayMeshDiff := connectGatewayMeshDiff(prev.Mesh, next.Mesh, contextual)
+	if gatewayMeshDiff != nil {
+		diff.Objects = append(diff.Objects, gatewayMeshDiff)
+	}
+
+	return diff
+}
+
+func connectGatewayMeshDiff(prev, next *ConsulMeshConfigEntry, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Mesh"}
+
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if prev == nil {
+		// no fields to further diff
+		diff.Type = DiffTypeAdded
+	} else if next == nil {
+		// no fields to further diff
+		diff.Type = DiffTypeDeleted
+	} else {
+		diff.Type = DiffTypeEdited
+	}
+
+	// Currently no fields in mesh gateways.
+
 	return diff
 }
 
@@ -1326,20 +1352,85 @@ func consulProxyDiff(old, new *ConsulProxy, contextual bool) *ObjectDiff {
 		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
 	}
 
-	// Diff the primitive fields.
+	// diff the primitive fields
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
 
-	consulUpstreamsDiff := primitiveObjectSetDiff(
-		interfaceSlice(old.Upstreams),
-		interfaceSlice(new.Upstreams),
-		nil, "ConsulUpstreams", contextual)
-	if consulUpstreamsDiff != nil {
-		diff.Objects = append(diff.Objects, consulUpstreamsDiff...)
+	// diff the consul upstream slices
+	if upDiffs := consulProxyUpstreamsDiff(old.Upstreams, new.Upstreams, contextual); upDiffs != nil {
+		diff.Objects = append(diff.Objects, upDiffs...)
 	}
 
-	// Config diff
+	// diff the config blob
 	if cDiff := configDiff(old.Config, new.Config, contextual); cDiff != nil {
 		diff.Objects = append(diff.Objects, cDiff)
+	}
+
+	return diff
+}
+
+// consulProxyUpstreamsDiff diffs a set of connect upstreams. If contextual diff is
+// enabled, unchanged fields within objects nested in the tasks will be returned.
+func consulProxyUpstreamsDiff(old, new []ConsulUpstream, contextual bool) []*ObjectDiff {
+	oldMap := make(map[string]ConsulUpstream, len(old))
+	newMap := make(map[string]ConsulUpstream, len(new))
+
+	idx := func(up ConsulUpstream) string {
+		return fmt.Sprintf("%s/%s", up.Datacenter, up.DestinationName)
+	}
+
+	for _, o := range old {
+		oldMap[idx(o)] = o
+	}
+	for _, n := range new {
+		newMap[idx(n)] = n
+	}
+
+	var diffs []*ObjectDiff
+	for index, oldUpstream := range oldMap {
+		// Diff the same, deleted, and edited
+		if diff := consulProxyUpstreamDiff(oldUpstream, newMap[index], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	for index, newUpstream := range newMap {
+		// diff the added
+		if oldUpstream, exists := oldMap[index]; !exists {
+			if diff := consulProxyUpstreamDiff(oldUpstream, newUpstream, contextual); diff != nil {
+				diffs = append(diffs, diff)
+			}
+		}
+	}
+	sort.Sort(ObjectDiffs(diffs))
+	return diffs
+}
+
+func consulProxyUpstreamDiff(prev, next ConsulUpstream, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "ConsulUpstreams"}
+	var oldPrimFlat, newPrimFlat map[string]string
+
+	if reflect.DeepEqual(prev, next) {
+		return nil
+	} else if prev.Equals(new(ConsulUpstream)) {
+		prev = ConsulUpstream{}
+		diff.Type = DiffTypeAdded
+		newPrimFlat = flatmap.Flatten(next, nil, true)
+	} else if next.Equals(new(ConsulUpstream)) {
+		next = ConsulUpstream{}
+		diff.Type = DiffTypeDeleted
+		oldPrimFlat = flatmap.Flatten(prev, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimFlat = flatmap.Flatten(prev, nil, true)
+		newPrimFlat = flatmap.Flatten(next, nil, true)
+	}
+
+	// diff the primitive fields
+	diff.Fields = fieldDiffs(oldPrimFlat, newPrimFlat, contextual)
+
+	// diff the mesh gateway primitive object
+	if mDiff := primitiveObjectDiff(prev.MeshGateway, next.MeshGateway, nil, "MeshGateway", contextual); mDiff != nil {
+		diff.Objects = append(diff.Objects, mDiff)
 	}
 
 	return diff
