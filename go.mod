@@ -64,12 +64,12 @@ require (
 	github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 	github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
 	github.com/hashicorp/go-getter v1.5.2
-	github.com/hashicorp/go-hclog v0.12.0
+	github.com/hashicorp/go-hclog v0.14.1
 	github.com/hashicorp/go-immutable-radix v1.3.0
 	github.com/hashicorp/go-memdb v1.3.0
 	github.com/hashicorp/go-msgpack v1.1.5
 	github.com/hashicorp/go-multierror v1.1.0
-	github.com/hashicorp/go-plugin v1.0.2-0.20191004171845-809113480b55
+	github.com/hashicorp/go-plugin v1.4.0
 	github.com/hashicorp/go-sockaddr v1.0.2
 	github.com/hashicorp/go-syslog v1.0.0
 	github.com/hashicorp/go-uuid v1.0.1

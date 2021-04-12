@@ -304,6 +304,7 @@ github.com/golang/protobuf/protoc-gen-go/plugin
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
+github.com/golang/protobuf/ptypes/empty
 github.com/golang/protobuf/ptypes/timestamp
 github.com/golang/protobuf/ptypes/wrappers
 # github.com/golang/snappy v0.0.1
@@ -417,7 +418,7 @@ github.com/hashicorp/go-envparse
 ## explicit
 github.com/hashicorp/go-getter
 github.com/hashicorp/go-getter/helper/url
-# github.com/hashicorp/go-hclog v0.12.0
+# github.com/hashicorp/go-hclog v0.14.1
 ## explicit
 github.com/hashicorp/go-hclog
 # github.com/hashicorp/go-immutable-radix v1.3.0
@@ -432,7 +433,7 @@ github.com/hashicorp/go-msgpack/codec
 # github.com/hashicorp/go-multierror v1.1.0
 ## explicit
 github.com/hashicorp/go-multierror
-# github.com/hashicorp/go-plugin v1.0.2-0.20191004171845-809113480b55
+# github.com/hashicorp/go-plugin v1.4.0
 ## explicit
 github.com/hashicorp/go-plugin
 github.com/hashicorp/go-plugin/internal/plugin
@@ -986,6 +987,8 @@ google.golang.org/grpc/keepalive
 google.golang.org/grpc/metadata
 google.golang.org/grpc/naming
 google.golang.org/grpc/peer
+google.golang.org/grpc/reflection
+google.golang.org/grpc/reflection/grpc_reflection_v1alpha
 google.golang.org/grpc/resolver
 google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
