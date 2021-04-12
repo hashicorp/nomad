@@ -1,5 +1,6 @@
 #p-community {
   --brand-link: var(--nomad-link);
+  --brand: var(--nomad-link);
 
   max-width: var(--site-max-width);
   margin: 72px auto;
