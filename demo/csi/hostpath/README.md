@@ -13,10 +13,9 @@ works on Nomad in a Vagrant environment, this demo is a good option.
 
 ## Requirements
 
-* A running Nomad cluster with `docker.privileged.enabled = true` and
-  `docker.volumes.enabled = true`. The Nomad developer
-  [Vagrantfile](https://github.com/hashicorp/nomad/blob/main/Vagrantfile) in
-  this repo is suitable.
+* A running Nomad cluster with `docker.privileged.enabled = true`. The Nomad
+  developer [Vagrantfile](https://github.com/hashicorp/nomad/blob/main/Vagrantfile)
+  in this repo is suitable.
 
 Running the `run.sh` script in this directory will output the Nomad command
 used to run the demo, as well as their outputs:
