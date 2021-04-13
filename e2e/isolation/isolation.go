@@ -299,3 +299,35 @@ func (tc *IsolationTest) TestIsolation_RawExecDriver_NoPIDNamespacing(f *framewo
 
 	require.Greater(t, pid, uint64(1))
 }
+
+func (tc *IsolationTest) TestIsolation_ExecDriver_CpusetCgroup(f *framework.F) {
+	t := f.T()
+	clientNodes, err := e2eutil.ListLinuxClientNodes(tc.Nomad())
+	require.Nil(t, err)
+
+	if len(clientNodes) == 0 {
+		t.Skip("no Linux clients")
+	}
+
+	jobID := "isolation-cpusets-" + uuid.Short()
+	file := "isolation/input/exec_cores.nomad"
+
+	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), file, jobID, "")
+	require.Equal(t, len(allocs), 1, fmt.Sprintf("failed to register %s", jobID))
+
+	defer func() {
+		_, _, err = tc.Nomad().Jobs().Deregister(jobID, true, nil)
+		require.NoError(t, err)
+	}()
+
+	allocID := allocs[0].ID
+	e2eutil.WaitForAllocStopped(t, tc.Nomad(), allocID)
+
+	out, err := e2eutil.AllocLogs(allocID, e2eutil.LogsStdOut)
+	require.NoError(t, err, fmt.Sprintf("could not get logs for alloc %s", allocID))
+
+	parts := strings.Split(strings.TrimSpace(out), ":")
+	cpusetPath := parts[len(parts)-1]
+
+	require.Contains(t, cpusetPath, "/nomad/reserved/")
+}
