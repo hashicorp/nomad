@@ -524,6 +524,36 @@ func TestNetworkChecker(t *testing.T) {
 			results: []bool{false, false, false},
 		},
 		{
+			network: &structs.NetworkResource{
+				Mode:          "bridge",
+				ReservedPorts: []structs.Port{},
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "metrics",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "public",
+					},
+				},
+			},
+			results: []bool{true, true, false},
+		},
+		{
+			network: &structs.NetworkResource{
+				Mode:          "bridge",
+				ReservedPorts: []structs.Port{},
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "metrics",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "${meta.private_network}-nonexisting",
+					},
+				},
+			},
+			results: []bool{false, false, false},
+		},
+		{
 			network: &structs.NetworkResource{Mode: "cni/mynet"},
 			results: []bool{false, false, true},
 		},
