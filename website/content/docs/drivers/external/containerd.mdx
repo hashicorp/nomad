@@ -90,6 +90,10 @@ config {
 }
 ```
 
+- `image_pull_timeout` - (Optional) A time duration that controls how long
+  `containerd-driver` will wait before cancelling an in-progress pull of the
+  OCI image as specified in `image`. Defaults to `"5m"`.
+
 - `command` - (Optional) Command to override command defined in the image.
 
 ```hcl
@@ -124,6 +128,9 @@ config {
 }
 ```
 
+- `pids_limit` - (Optional) An integer value that specifies the pid limit for
+  the container. Defaults to unlimited.
+
 - `host_dns` - (Optional) `true` (default) or `false` By default, a container
   launched using `containerd-driver` will use host `/etc/resolv.conf`. This is
   similar to [Docker's behavior]. However, if you don't want to use
@@ -143,6 +150,18 @@ config {
   seccomp         = true
   seccomp_profile = "/opt/seccomp/seccomp.json"
 }
+```
+
+- `sysctl` - (Optional) A key-value map of sysctl configurations to set to the
+  containers on start.
+
+```hcl
+  config {
+    sysctl = {
+      "net.core.somaxconn"  = "16384"
+      "net.ipv4.ip_forward" = "1"
+    }
+  }
 ```
 
 - `readonly_rootfs` - (Optional) `true` or `false` (default) Container root
