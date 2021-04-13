@@ -12,13 +12,14 @@ const taskGroupFromJob = (job, taskGroupName) => {
 const merge = tasks => {
   const mergedResources = {
     Cpu: { CpuShares: 0 },
-    Memory: { MemoryMB: 0 },
+    Memory: { MemoryMB: 0, MemoryMaxMB: 0 },
     Disk: { DiskMB: 0 },
   };
 
   return tasks.reduce((resources, task) => {
     resources.Cpu.CpuShares += (task.Cpu && task.Cpu.CpuShares) || 0;
     resources.Memory.MemoryMB += (task.Memory && task.Memory.MemoryMB) || 0;
+    resources.Memory.MemoryMaxMB += (task.Memory && task.Memory.MemoryMaxMB) || 0;
     resources.Disk.DiskMB += (task.Disk && task.Disk.DiskMB) || 0;
     return resources;
   }, mergedResources);

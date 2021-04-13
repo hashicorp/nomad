@@ -1,6 +1,6 @@
 import { setupRenderingTest } from 'ember-qunit';
 import { module, test } from 'qunit';
-import { find, findAll, render } from '@ember/test-helpers';
+import { findAll, render } from '@ember/test-helpers';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import hbs from 'htmlbars-inline-precompile';
 import { setupPrimaryMetricMocks, primaryMetric } from './primary-metric';
@@ -61,22 +61,6 @@ module('Integration | Component | PrimaryMetric::Allocation', function(hooks) {
 
     await render(template);
     assert.equal(findAll('[data-test-chart-area]').length, mockTasks.length);
-  });
-
-  test('memory chart shows max if enabled', async function(assert) {
-    await preload(this.store);
-
-    this.server.create('job', {
-      groupCount: 1,
-      resourceSpec: ['M: 256, MM: 512'],
-    });
-    const alloc = this.server.create('allocation');
-
-    this.setProperties({ alloc, metric: 'memory' });
-    await render(template);
-
-    console.log(find('.annotation').innerText);
-    assert.ok(find('.annotation').innerText.includes('/ 256 MiB reserved, 512 MiB max'));
   });
 
   primaryMetric({

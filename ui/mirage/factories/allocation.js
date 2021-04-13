@@ -48,6 +48,7 @@ export default Factory.extend({
           resources: generateResources({
             CPU: task.resources.CPU,
             MemoryMB: task.resources.MemoryMB,
+            MemoryMaxMB: task.resources.MemoryMaxMB,
             DiskMB: task.resources.DiskMB,
             networks: { minPorts: 1 },
           }),
@@ -69,6 +70,7 @@ export default Factory.extend({
           resources: generateResources({
             CPU: task.resources.CPU,
             MemoryMB: task.resources.MemoryMB,
+            MemoryMaxMB: task.resources.MemoryMaxMB,
             DiskMB: task.resources.DiskMB,
             networks: { minPorts: 0, maxPorts: 0 },
           }),

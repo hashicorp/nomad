@@ -25,18 +25,21 @@ module('Unit | Util | AllocationStatsTracker', function() {
               name: 'log-shipper',
               reservedCPU: 50,
               reservedMemory: 128,
+              reservedMemoryMax: null,
               lifecycleName: 'poststop',
             },
             {
               name: 'service',
               reservedCPU: 100,
               reservedMemory: 256,
+              reservedMemoryMax: null,
               lifecycleName: 'main',
             },
             {
               name: 'sidecar',
               reservedCPU: 50,
               reservedMemory: 128,
+              reservedMemoryMax: null,
               lifecycleName: 'prestart-sidecar',
             },
           ],
@@ -192,9 +195,30 @@ module('Unit | Util | AllocationStatsTracker', function() {
     assert.deepEqual(
       tracker.get('tasks'),
       [
-        { task: 'service', reservedCPU: 100, reservedMemory: 256, cpu: [], memory: [] },
-        { task: 'sidecar', reservedCPU: 50, reservedMemory: 128, cpu: [], memory: [] },
-        { task: 'log-shipper', reservedCPU: 50, reservedMemory: 128, cpu: [], memory: [] },
+        {
+          task: 'service',
+          reservedCPU: 100,
+          reservedMemory: 256,
+          reservedMemoryMax: null,
+          cpu: [],
+          memory: [],
+        },
+        {
+          task: 'sidecar',
+          reservedCPU: 50,
+          reservedMemory: 128,
+          reservedMemoryMax: null,
+          cpu: [],
+          memory: [],
+        },
+        {
+          task: 'log-shipper',
+          reservedCPU: 50,
+          reservedMemory: 128,
+          reservedMemoryMax: null,
+          cpu: [],
+          memory: [],
+        },
       ],
       'tasks represents the tasks for the allocation with no stats yet'
     );
@@ -225,6 +249,7 @@ module('Unit | Util | AllocationStatsTracker', function() {
           task: 'service',
           reservedCPU: 100,
           reservedMemory: 256,
+          reservedMemoryMax: null,
           cpu: [
             {
               timestamp: makeDate(refDate + 1),
@@ -248,6 +273,7 @@ module('Unit | Util | AllocationStatsTracker', function() {
           task: 'sidecar',
           reservedCPU: 50,
           reservedMemory: 128,
+          reservedMemoryMax: null,
           cpu: [
             {
               timestamp: makeDate(refDate + 100),
@@ -271,6 +297,7 @@ module('Unit | Util | AllocationStatsTracker', function() {
           task: 'log-shipper',
           reservedCPU: 50,
           reservedMemory: 128,
+          reservedMemoryMax: null,
           cpu: [
             {
               timestamp: makeDate(refDate + 10),
@@ -320,6 +347,7 @@ module('Unit | Util | AllocationStatsTracker', function() {
           task: 'service',
           reservedCPU: 100,
           reservedMemory: 256,
+          reservedMemoryMax: null,
           cpu: [
             {
               timestamp: makeDate(refDate + 1),
@@ -357,6 +385,7 @@ module('Unit | Util | AllocationStatsTracker', function() {
           task: 'sidecar',
           reservedCPU: 50,
           reservedMemory: 128,
+          reservedMemoryMax: null,
           cpu: [
             {
               timestamp: makeDate(refDate + 100),
@@ -394,6 +423,7 @@ module('Unit | Util | AllocationStatsTracker', function() {
           task: 'log-shipper',
           reservedCPU: 50,
           reservedMemory: 128,
+          reservedMemoryMax: null,
           cpu: [
             {
               timestamp: makeDate(refDate + 10),

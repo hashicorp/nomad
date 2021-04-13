@@ -30,6 +30,7 @@ export function generateResources(options = {}) {
     },
     Memory: {
       MemoryMB: options.MemoryMB || faker.helpers.randomize(MEMORY_RESERVATIONS),
+      MemoryMaxMB: options.MemoryMaxMB,
     },
     Disk: {
       DiskMB: options.DiskMB || faker.helpers.randomize(DISK_RESERVATIONS),

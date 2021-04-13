@@ -5,7 +5,11 @@ export default class ResourcesSerializer extends ApplicationSerializer {
 
   normalize(typeHash, hash) {
     hash.Cpu = hash.Cpu && hash.Cpu.CpuShares;
-    hash.Memory = hash.Memory && hash.Memory.MemoryMB;
+
+    const memory = hash.Memory;
+    hash.Memory = memory && memory.MemoryMB;
+    hash.MemoryMax = memory && memory.MemoryMaxMB;
+
     hash.Disk = hash.Disk && hash.Disk.DiskMB;
 
     // Networks for ReservedResources is different than for Resources.
