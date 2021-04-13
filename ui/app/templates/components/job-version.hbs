@@ -27,9 +27,9 @@
     {{/unless}}
 
     {{#if this.version.diff}}
-      <button class="button is-light is-small" {{action "toggleDiff"}} type="button">{{this.changeCount}} {{pluralize "Change" this.changeCount}}</button>
+      <button class="button is-light is-small is-fixed-width" {{action "toggleDiff"}} type="button">{{this.changeCount}} {{pluralize "Change" this.changeCount}}</button>
     {{else}}
-      No Changes
+      <div class="is-fixed-width is-size-7 has-text-centered">No Changes</div>
     {{/if}}
   </div>
 </div>

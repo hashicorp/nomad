@@ -19,6 +19,11 @@
       margin-left: auto;
     }
 
+    .is-fixed-width {
+      display: inline-block;
+      width: 8em;
+    }
+
     &.is-compact {
       padding: 0.75em;
     }
