@@ -156,10 +156,11 @@ func (c *cpusetManager) Init() error {
 		if err != nil {
 			return err
 		}
-		if err := fscommon.WriteFile(filepath.Join(cgroupParentPath, ReservedCpusetCgroupName), "cpuset.mems", parentMems); err != nil {
-			return err
-		}
 	} else if !os.IsExist(err) {
+		return err
+	}
+
+	if err := fscommon.WriteFile(filepath.Join(cgroupParentPath, ReservedCpusetCgroupName), "cpuset.mems", parentMems); err != nil {
 		return err
 	}
 
