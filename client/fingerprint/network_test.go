@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sort"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 // Set skipOnlineTestEnvVar to a non-empty value to skip network tests.  Useful
@@ -468,23 +470,19 @@ func TestNetworkFingerPrint_MultipleAliases(t *testing.T) {
 	request := &FingerprintRequest{Config: cfg, Node: node}
 	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	aliases := []string{}
-
 	for _, network := range response.NodeResources.NodeNetworks {
 		for _, address := range network.Addresses {
 			aliases = append(aliases, address.Alias)
 		}
 	}
-
-	if len(aliases) != len(cfg.HostNetworks) {
-		actualAliases := []string{}
-		for alias, _ := range cfg.HostNetworks {
-			actualAliases = append(actualAliases, alias)
-		}
-		t.Fatalf("number host networks is not valid len(%v) != len(%v)", aliases, actualAliases)
+	expected := []string{}
+	for alias, _ := range cfg.HostNetworks {
+		expected = append(expected, alias)
 	}
+	sort.Strings(expected)
+	sort.Strings(aliases)
+	require.Equal(t, expected, aliases, "host networks should match aliases")
 }
