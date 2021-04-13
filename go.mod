@@ -9,7 +9,7 @@ replace (
 	github.com/godbus/dbus => github.com/godbus/dbus v5.0.1+incompatible
 	github.com/golang/protobuf => github.com/golang/protobuf v1.3.4
 
-	github.com/hashicorp/consul/api => github.com/hashicorp/consul/api v1.4.1-0.20210319180826-cd1cd4febd26
+	github.com/hashicorp/consul/api => github.com/hashicorp/consul/api v1.4.1-0.20210413155605-66de74767c74
 	github.com/hashicorp/go-discover => github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 	github.com/hashicorp/nomad/api => ./api
