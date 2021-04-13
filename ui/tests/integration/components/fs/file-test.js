@@ -33,7 +33,7 @@ module('Integration | Component | fs/file', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    <Fs::File @allocation={{allocation}} @taskState={{taskState}} @file={{file}} @stat={{stat}} />
+    <Fs::File @allocation={{this.allocation}} @taskState={{this.taskState}} @file={{this.file}} @stat={{this.stat}} />
   `;
 
   const fileStat = (type, size = 0) => ({
@@ -217,7 +217,7 @@ module('Integration | Component | fs/file', function(hooks) {
     this.setProperties(props);
 
     await render(hbs`
-      <Fs::File @allocation={{allocation}} @taskState={{taskState}} @file={{file}} @stat={{stat}}>
+      <Fs::File @allocation={{this.allocation}} @taskState={{this.taskState}} @file={{this.file}} @stat={{this.stat}}>
         <div data-test-yield-spy>Yielded content</div>
       </Fs::File>
     `);
