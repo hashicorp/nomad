@@ -58,7 +58,6 @@
     "lint": "next-hashicorp lint",
     "start": "next-remote-watch ./content/**/*.mdx",
     "static": "npm run build && npm run export",
-    "linkcheck": "linkcheck https://www.nomadproject.io",
-    "prepare": "husky install"
+    "linkcheck": "linkcheck https://www.nomadproject.io"
   }
 }
