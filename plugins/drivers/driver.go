@@ -368,8 +368,6 @@ type LinuxResources struct {
 	CPUShares        int64
 	MemoryLimitBytes int64
 	OOMScoreAdj      int64
-	CpusetCPUs       string
-	CpusetMems       string
 
 	CpusetCgroupPath string
 
