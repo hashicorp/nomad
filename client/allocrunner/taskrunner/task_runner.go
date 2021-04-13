@@ -27,6 +27,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -1324,20 +1325,22 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 		allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
 	}
 
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
-		float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "cache"},
-		float32(ru.ResourceUsage.MemoryStats.Cache), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "swap"},
-		float32(ru.ResourceUsage.MemoryStats.Swap), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "usage"},
-		float32(ru.ResourceUsage.MemoryStats.Usage), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_usage"},
-		float32(ru.ResourceUsage.MemoryStats.MaxUsage), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_usage"},
-		float32(ru.ResourceUsage.MemoryStats.KernelUsage), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_max_usage"},
-		float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage), tr.baseLabels)
+	ms := ru.ResourceUsage.MemoryStats
+
+	publishMetric := func(v uint64, reported, measured string) {
+		if v != 0 || helper.SliceStringContains(ms.Measured, measured) {
+			metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", reported},
+				float32(v), tr.baseLabels)
+		}
+	}
+
+	publishMetric(ms.RSS, "rss", "RSS")
+	publishMetric(ms.Cache, "cache", "Cache")
+	publishMetric(ms.Swap, "swap", "Swap")
+	publishMetric(ms.Usage, "usage", "Usage")
+	publishMetric(ms.MaxUsage, "max_usage", "Max Usage")
+	publishMetric(ms.KernelUsage, "kernel_usage", "Kernel Usage")
+	publishMetric(ms.KernelMaxUsage, "kernel_max_usage", "Kernel Max Usage")
 	if allocatedMem > 0 {
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "allocated"},
 			allocatedMem, tr.baseLabels)
