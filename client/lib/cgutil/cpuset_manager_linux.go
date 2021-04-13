@@ -57,6 +57,9 @@ type cpusetManager struct {
 }
 
 func (c *cpusetManager) AddAlloc(alloc *structs.Allocation) {
+	if alloc == nil || alloc.AllocatedResources == nil {
+		return
+	}
 	allocInfo := allocTaskCgroupInfo{}
 	for task, resources := range alloc.AllocatedResources.Tasks {
 		taskCpuset := cpuset.New(resources.Cpu.ReservedCores...)
