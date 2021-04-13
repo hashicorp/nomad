@@ -56,7 +56,8 @@ module('Acceptance | job versions', function(hooks) {
     });
 
     if (versionRowToRevertTo) {
-      await versionRowToRevertTo.revertToButton.click();
+      await versionRowToRevertTo.revertToButton.idle();
+      await versionRowToRevertTo.revertToButton.confirm();
 
       const revertRequest = this.server.pretender.handledRequests.find(request => request.url.includes('revert'));
 
@@ -79,7 +80,8 @@ module('Acceptance | job versions', function(hooks) {
       const message = 'A plaintext error message';
       server.pretender.post('/v1/job/:id/revert', () => [500, {}, message]);
 
-      await versionRowToRevertTo.revertToButton.click();
+      await versionRowToRevertTo.revertToButton.idle();
+      await versionRowToRevertTo.revertToButton.confirm();
 
       assert.ok(Layout.inlineError.isShown);
       assert.ok(Layout.inlineError.isDanger);
@@ -101,7 +103,8 @@ module('Acceptance | job versions', function(hooks) {
       // The default Mirage implementation updates the job version as passed in, this does nothing
       server.pretender.post('/v1/job/:id/revert', () => [200, {}, '']);
 
-      await versionRowToRevertTo.revertToButton.click();
+      await versionRowToRevertTo.revertToButton.idle();
+      await versionRowToRevertTo.revertToButton.confirm();
 
       assert.ok(Layout.inlineError.isShown);
       assert.ok(Layout.inlineError.isWarning);

@@ -10,11 +10,24 @@
   </span>
   <div class="pull-right">
     {{#unless this.isCurrent}}
-      <button class="button is-warning is-outlined is-compact" {{action (perform this.revertTo)}} type="button" data-test-revert-to-button>Revert To</button>&nbsp;
+      <TwoStepButton
+        data-test-revert-to
+        @classes={{hash
+          idleButton="is-warning is-outlined"
+          confirmButton="is-warning"}}
+        @alignRight={{true}}
+        @idleText="Revert"
+        @cancelText="Cancel"
+        @confirmText="Yes, Revert"
+        @confirmationMessage="Are you sure you want to revert to this version?"
+        @inlineText={{true}}
+        @fadingBackground={{true}}
+        @awaitingConfirmation={{this.revertTo.isRunning}}
+        @onConfirm={{perform this.revertTo}} />
     {{/unless}}
 
     {{#if this.version.diff}}
-      <button class="button is-light is-compact" {{action "toggleDiff"}} type="button">{{this.changeCount}} {{pluralize "Change" this.changeCount}}</button>
+      <button class="button is-light is-small" {{action "toggleDiff"}} type="button">{{this.changeCount}} {{pluralize "Change" this.changeCount}}</button>
     {{else}}
       No Changes
     {{/if}}
