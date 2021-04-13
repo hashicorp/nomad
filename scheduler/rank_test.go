@@ -487,6 +487,360 @@ func TestBinPackIterator_Network_Failure(t *testing.T) {
 	require.Equal(1, ctx.metrics.DimensionExhausted["network: bandwidth exceeded"])
 }
 
+// Tests bin packing iterator with host network interpolation of task group level ports configuration
+func TestBinPackIterator_Network_Interpolation_Success(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*RankedNode{
+		{
+			Node: &structs.Node{
+				Meta: map[string]string{
+					"test_network": "private",
+					"some_network": "public",
+				},
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 2048,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
+					NodeNetworks: []*structs.NodeNetworkResource{
+						{
+							Mode:   "host",
+							Device: "eth0",
+							Addresses: []structs.NodeNetworkAddress{
+								{
+									Alias:         "private",
+									Address:       "192.168.0.101/32",
+									ReservedPorts: "9091-10000",
+								},
+							},
+						},
+						{
+							Mode:   "host",
+							Device: "eth1",
+							Addresses: []structs.NodeNetworkAddress{
+								{
+									Alias:   "public",
+									Address: "9.9.9.9/32",
+								},
+							},
+						},
+					},
+				},
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+		},
+		{
+			Node: &structs.Node{
+				Meta: map[string]string{
+					"test_network": "first",
+					"some_network": "second",
+				},
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 4096,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 4096,
+					},
+					NodeNetworks: []*structs.NodeNetworkResource{
+						{
+							Mode:   "host",
+							Device: "eth0",
+							Addresses: []structs.NodeNetworkAddress{
+								{
+									Alias:         "first",
+									Address:       "192.168.0.100/32",
+									ReservedPorts: "9091-10000",
+								},
+							},
+						},
+						{
+							Mode:   "host",
+							Device: "eth1",
+							Addresses: []structs.NodeNetworkAddress{
+								{
+									Alias:   "second",
+									Address: "8.8.8.8/32",
+								},
+							},
+						},
+					},
+				},
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	// Create a task group with networks specified at task group level
+	taskGroup := &structs.TaskGroup{
+		Networks: []*structs.NetworkResource{
+			{
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "http",
+						Value:       8080,
+						To:          8080,
+						HostNetwork: "${meta.test_network}",
+					},
+					{
+						Label:       "stats",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "${meta.some_network}",
+					},
+				},
+			},
+		},
+		EphemeralDisk: &structs.EphemeralDisk{},
+		Tasks: []*structs.Task{
+			{
+				Name: "web",
+				Resources: &structs.Resources{
+					CPU:      1024,
+					MemoryMB: 1024,
+				},
+			},
+		},
+	}
+	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp.SetTaskGroup(taskGroup)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+
+	out := collectRanked(scoreNorm)
+	require := require.New(t)
+
+	// We expect both nodes to be eligible to place
+	require.Len(out, 2)
+	require.Equal(out[0], nodes[0])
+	require.Equal(out[1], nodes[1])
+
+	// Verify network information at taskgroup level
+	require.Contains([]string{"public", "private"}, out[0].AllocResources.Networks[0].DynamicPorts[0].HostNetwork)
+	require.Contains([]string{"public", "private"}, out[0].AllocResources.Networks[0].DynamicPorts[1].HostNetwork)
+	require.Contains([]string{"first", "second"}, out[1].AllocResources.Networks[0].DynamicPorts[0].HostNetwork)
+	require.Contains([]string{"first", "second"}, out[1].AllocResources.Networks[0].DynamicPorts[1].HostNetwork)
+}
+
+// Tests that bin packing iterator fails due to absence of meta value
+// This test has network resources at task group
+func TestBinPackIterator_Host_Network_Interpolation_Absent_Value(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*RankedNode{
+		{
+			Node: &structs.Node{
+				Meta: map[string]string{
+					"test_network": "private",
+					"some_network": "public",
+				},
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 4096,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 4096,
+					},
+					NodeNetworks: []*structs.NodeNetworkResource{
+						{
+							Mode:   "host",
+							Device: "eth0",
+							Addresses: []structs.NodeNetworkAddress{
+								{
+									Alias:         "private",
+									Address:       "192.168.0.100/32",
+									ReservedPorts: "9091-10000",
+								},
+							},
+						},
+						{
+							Mode:   "host",
+							Device: "eth1",
+							Addresses: []structs.NodeNetworkAddress{
+								{
+									Alias:   "public",
+									Address: "8.8.8.8/32",
+								},
+							},
+						},
+					},
+				},
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 1024,
+					},
+					Networks: structs.NodeReservedNetworkResources{
+						ReservedHostPorts: "1000-2000",
+					},
+				},
+			},
+		},
+	}
+
+	static := NewStaticRankIterator(ctx, nodes)
+
+	// Create a task group with host networks specified at task group level
+	taskGroup := &structs.TaskGroup{
+		Networks: []*structs.NetworkResource{
+			{
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "http",
+						Value:       8080,
+						To:          8080,
+						HostNetwork: "${meta.test_network}",
+					},
+					{
+						Label:       "stats",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "${meta.absent_network}",
+					},
+				},
+			},
+		},
+		EphemeralDisk: &structs.EphemeralDisk{},
+		Tasks: []*structs.Task{
+			{
+				Name: "web",
+				Resources: &structs.Resources{
+					CPU:      1024,
+					MemoryMB: 1024,
+				},
+			},
+		},
+	}
+
+	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp.SetTaskGroup(taskGroup)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+
+	out := collectRanked(scoreNorm)
+	require := require.New(t)
+	require.Len(out, 0)
+}
+
+// Tests that bin packing iterator fails due to absence of meta value
+// This test has network resources at task group
+func TestBinPackIterator_Host_Network_Interpolation_Interface_Not_Exists(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*RankedNode{
+		{
+			Node: &structs.Node{
+				Meta: map[string]string{
+					"test_network": "private",
+					"some_network": "absent",
+				},
+				NodeResources: &structs.NodeResources{
+					Cpu: structs.NodeCpuResources{
+						CpuShares: 4096,
+					},
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 4096,
+					},
+					NodeNetworks: []*structs.NodeNetworkResource{
+						{
+							Mode:   "host",
+							Device: "eth0",
+							Addresses: []structs.NodeNetworkAddress{
+								{
+									Alias:         "private",
+									Address:       "192.168.0.100/32",
+									ReservedPorts: "9091-10000",
+								},
+							},
+						},
+						{
+							Mode:   "host",
+							Device: "eth1",
+							Addresses: []structs.NodeNetworkAddress{
+								{
+									Alias:   "public",
+									Address: "8.8.8.8/32",
+								},
+							},
+						},
+					},
+				},
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 1024,
+					},
+					Networks: structs.NodeReservedNetworkResources{
+						ReservedHostPorts: "1000-2000",
+					},
+				},
+			},
+		},
+	}
+
+	static := NewStaticRankIterator(ctx, nodes)
+
+	// Create a task group with host networks specified at task group level
+	taskGroup := &structs.TaskGroup{
+		Networks: []*structs.NetworkResource{
+			{
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "http",
+						Value:       8080,
+						To:          8080,
+						HostNetwork: "${meta.test_network}",
+					},
+					{
+						Label:       "stats",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "${meta.some_network}",
+					},
+				},
+			},
+		},
+		EphemeralDisk: &structs.EphemeralDisk{},
+		Tasks: []*structs.Task{
+			{
+				Name: "web",
+				Resources: &structs.Resources{
+					CPU:      1024,
+					MemoryMB: 1024,
+				},
+			},
+		},
+	}
+
+	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp.SetTaskGroup(taskGroup)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+
+	out := collectRanked(scoreNorm)
+	require := require.New(t)
+	require.Len(out, 0)
+}
+
 func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{

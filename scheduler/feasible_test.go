@@ -433,7 +433,23 @@ func TestNetworkChecker(t *testing.T) {
 	node := func(mode string) *structs.Node {
 		n := mock.Node()
 		n.NodeResources.Networks = append(n.NodeResources.Networks, &structs.NetworkResource{Mode: mode})
+		if mode == "bridge" {
+			n.NodeResources.NodeNetworks = []*structs.NodeNetworkResource{
+				{
+					Addresses: []structs.NodeNetworkAddress{
+						{
+							Alias: "public",
+						}, {
+							Alias: "private",
+						},
+					},
+				},
+			}
+		}
 		n.Attributes["nomad.version"] = "0.12.0" // mock version is 0.5.0
+		n.Meta["public_network"] = "public"
+		n.Meta["private_network"] = "private"
+		n.Meta["wrong_network"] = "empty"
 		return n
 	}
 
@@ -455,6 +471,87 @@ func TestNetworkChecker(t *testing.T) {
 		{
 			network: &structs.NetworkResource{Mode: "bridge"},
 			results: []bool{true, true, false},
+		},
+		{
+			network: &structs.NetworkResource{
+				Mode:          "bridge",
+				ReservedPorts: []structs.Port{},
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "http",
+						Value:       8080,
+						To:          8080,
+						HostNetwork: "${meta.public_network}",
+					},
+					{
+						Label:       "metrics",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "${meta.private_network}",
+					},
+				},
+			},
+			results: []bool{true, true, false},
+		},
+		{
+			network: &structs.NetworkResource{
+				Mode:          "bridge",
+				ReservedPorts: []structs.Port{},
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "metrics",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "${meta.wrong_network}",
+					},
+				},
+			},
+			results: []bool{false, false, false},
+		},
+		{
+			network: &structs.NetworkResource{
+				Mode:          "bridge",
+				ReservedPorts: []structs.Port{},
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "metrics",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "${meta.nonetwork}",
+					},
+				},
+			},
+			results: []bool{false, false, false},
+		},
+		{
+			network: &structs.NetworkResource{
+				Mode:          "bridge",
+				ReservedPorts: []structs.Port{},
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "metrics",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "public",
+					},
+				},
+			},
+			results: []bool{true, true, false},
+		},
+		{
+			network: &structs.NetworkResource{
+				Mode:          "bridge",
+				ReservedPorts: []structs.Port{},
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "metrics",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "${meta.private_network}-nonexisting",
+					},
+				},
+			},
+			results: []bool{false, false, false},
 		},
 		{
 			network: &structs.NetworkResource{Mode: "cni/mynet"},
