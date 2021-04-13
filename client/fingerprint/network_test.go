@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sort"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/require"
 )
 
 // Set skipOnlineTestEnvVar to a non-empty value to skip network tests.  Useful
@@ -436,4 +438,51 @@ func TestNetworkFingerPrint_LinkLocal_Disallowed(t *testing.T) {
 	if len(response.Attributes) != 0 {
 		t.Fatalf("should not apply attributes")
 	}
+}
+
+func TestNetworkFingerPrint_MultipleAliases(t *testing.T) {
+	f := &NetworkFingerprint{logger: testlog.HCLogger(t), interfaceDetector: &NetworkInterfaceDetectorMultipleInterfaces{}}
+	node := &structs.Node{
+		Attributes: make(map[string]string),
+	}
+	cfg := &config.Config{
+		NetworkSpeed:     100,
+		NetworkInterface: "eth3",
+		HostNetworks: map[string]*structs.ClientHostNetworkConfig{
+			"alias1": {
+				Name:      "alias1",
+				Interface: "eth3",
+				CIDR:      "169.254.155.20/32",
+			},
+			"alias2": {
+				Name:      "alias2",
+				Interface: "eth3",
+				CIDR:      "169.254.155.20/32",
+			},
+			"alias3": {
+				Name:      "alias3",
+				Interface: "eth0",
+				CIDR:      "100.64.0.11/10",
+			},
+		},
+	}
+
+	request := &FingerprintRequest{Config: cfg, Node: node}
+	var response FingerprintResponse
+	err := f.Fingerprint(request, &response)
+	require.NoError(t, err)
+
+	aliases := []string{}
+	for _, network := range response.NodeResources.NodeNetworks {
+		for _, address := range network.Addresses {
+			aliases = append(aliases, address.Alias)
+		}
+	}
+	expected := []string{}
+	for alias, _ := range cfg.HostNetworks {
+		expected = append(expected, alias)
+	}
+	sort.Strings(expected)
+	sort.Strings(aliases)
+	require.Equal(t, expected, aliases, "host networks should match aliases")
 }
