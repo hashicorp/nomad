@@ -20,7 +20,7 @@
     "@hashicorp/react-image": "^4.0.0",
     "@hashicorp/react-inline-svg": "^6.0.0",
     "@hashicorp/react-learn-callout": "^1.0.1",
-    "@hashicorp/react-product-downloader": "4.1.5",
+    "@hashicorp/react-product-downloads-page": "^1.0.2",
     "@hashicorp/react-section-header": "^5.0.0",
     "@hashicorp/react-subnav": "^8.0.0",
     "@hashicorp/react-text-split": "^3.0.0",
@@ -41,7 +41,7 @@
   "devDependencies": {
     "@types/react": "^17.0.3",
     "dart-linkcheck": "2.0.15",
-    "husky": "6.0.0",
+    "husky": "^6.0.0",
     "prettier": "2.2.1"
   },
   "husky": {
@@ -58,6 +58,7 @@
     "lint": "next-hashicorp lint",
     "start": "next-remote-watch ./content/**/*.mdx",
     "static": "npm run build && npm run export",
-    "linkcheck": "linkcheck https://www.nomadproject.io"
+    "linkcheck": "linkcheck https://www.nomadproject.io",
+    "prepare": "husky install"
   }
 }
