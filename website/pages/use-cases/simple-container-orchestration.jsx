@@ -200,7 +200,6 @@ export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
 
       <FeaturedSlider
         heading="Case Studies"
-        product="nomad"
         theme="dark"
         features={[
           {

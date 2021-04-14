@@ -100,7 +100,6 @@ export default function NonContainerizedApplicationOrchestrationPage() {
 
       <FeaturedSlider
         heading="Case Study"
-        product="nomad"
         theme="dark"
         features={[
           {
