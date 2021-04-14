@@ -640,7 +640,7 @@ func (c *Client) init() error {
 	c.logger.Info("using alloc directory", "alloc_dir", c.config.AllocDir)
 
 	// Ensure cgroups are created on linux platform
-	if runtime.GOOS == "linux" {
+	if runtime.GOOS == "linux" && c.cpusetManager != nil {
 		err := c.cpusetManager.Init()
 		if err != nil {
 			// if the client cannot initialize the cgroup then reserved cores will not be reported and the cpuset manager
