@@ -3,12 +3,10 @@ package e2eutil
 import (
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
-	consulapi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/api"
+	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -209,6 +207,12 @@ func WaitForJobStopped(t *testing.T, nomadClient *api.Client, job string) {
 	}
 }
 
+func WaitForAllocsStopped(t *testing.T, nomadClient *api.Client, allocIDs []string) {
+	for _, allocID := range allocIDs {
+		WaitForAllocStopped(t, nomadClient, allocID)
+	}
+}
+
 func WaitForAllocStopped(t *testing.T, nomadClient *api.Client, allocID string) {
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
 		time.Sleep(time.Millisecond * 100)
@@ -275,51 +279,4 @@ func WaitForDeployment(t *testing.T, nomadClient *api.Client, deployID string, s
 	}, func(err error) {
 		require.NoError(t, err, "failed to wait on deployment")
 	})
-}
-
-// CheckServicesPassing scans for passing agent checks via the given agent API
-// client.
-//
-// Deprecated: not useful in e2e, where more than one node exists and Nomad jobs
-// are placed non-deterministically. The Consul agentAPI only knows about what
-// is registered on its node, and cannot be used to query for cluster wide state.
-func CheckServicesPassing(t *testing.T, agentAPI *consulapi.Agent, allocIDs []string) {
-	failing := map[string]*consulapi.AgentCheck{}
-	for i := 0; i < 60; i++ {
-		checks, err := agentAPI.Checks()
-		require.NoError(t, err)
-
-		// Filter out checks for other services
-		for cid, check := range checks {
-			found := false
-			for _, allocID := range allocIDs {
-				if strings.Contains(check.ServiceID, allocID) {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				delete(checks, cid)
-			}
-		}
-
-		// Ensure checks are all passing
-		failing = map[string]*consulapi.AgentCheck{}
-		for _, check := range checks {
-			if check.Status != "passing" {
-				failing[check.CheckID] = check
-				break
-			}
-		}
-
-		if len(failing) == 0 {
-			break
-		}
-
-		t.Logf("still %d checks not passing", len(failing))
-
-		time.Sleep(time.Second)
-	}
-	require.Len(t, failing, 0, pretty.Sprint(failing))
 }

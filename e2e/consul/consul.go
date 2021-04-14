@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hashicorp/nomad/api"
+	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper"
@@ -22,6 +22,11 @@ const (
 	consulJobRegisterOnUpdatePart2 = "consul/input/services_present.nomad"
 )
 
+const (
+	// unless otherwise set, tests should just use the default consul namespace
+	consulNamespace = "default"
+)
+
 type ConsulE2ETest struct {
 	framework.TC
 	jobIds []string
@@ -37,6 +42,7 @@ func init() {
 			new(ScriptChecksE2ETest),
 			new(CheckRestartE2ETest),
 			new(OnUpdateChecksTest),
+			new(ConsulNamespacesE2ETest),
 		},
 	})
 }
@@ -79,7 +85,7 @@ func (tc *ConsulE2ETest) TestConsulRegistration(f *framework.F) {
 	}
 
 	// Assert services get registered
-	e2eutil.RequireConsulRegistered(r, tc.Consul(), "consul-example", 3)
+	e2eutil.RequireConsulRegistered(r, tc.Consul(), consulNamespace, "consul-example", 3)
 	services, _, err := tc.Consul().Catalog().Service("consul-example", "", nil)
 	require.NoError(t, err)
 	for _, s := range services {
@@ -91,7 +97,7 @@ func (tc *ConsulE2ETest) TestConsulRegistration(f *framework.F) {
 	e2eutil.WaitForJobStopped(t, nomadClient, jobId)
 
 	// Verify that services were de-registered in Consul
-	e2eutil.RequireConsulDeregistered(r, tc.Consul(), "consul-example")
+	e2eutil.RequireConsulDeregistered(r, tc.Consul(), consulNamespace, "consul-example")
 }
 
 func (tc *ConsulE2ETest) TestConsulRegisterOnUpdate(f *framework.F) {
@@ -121,7 +127,7 @@ func (tc *ConsulE2ETest) TestConsulRegisterOnUpdate(f *framework.F) {
 	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
 
 	// Assert service is now registered.
-	e2eutil.RequireConsulRegistered(r, tc.Consul(), "nc-service", 1)
+	e2eutil.RequireConsulRegistered(r, tc.Consul(), consulNamespace, "nc-service", 1)
 }
 
 // TestCanaryInplaceUpgrades verifies setting and unsetting canary tags
