@@ -37,6 +37,8 @@ type TaskCgroupInfo struct {
 	Error              error
 }
 
+func NoopCpusetManager() CpusetManager { return noopCpusetManager{} }
+
 type noopCpusetManager struct{}
 
 func (n noopCpusetManager) Init() error {

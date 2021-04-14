@@ -248,25 +248,28 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
 		trConfig := &taskrunner.Config{
-			Alloc:                  ar.alloc,
-			ClientConfig:           ar.clientConfig,
-			Task:                   task,
-			TaskDir:                ar.allocDir.NewTaskDir(task.Name),
-			Logger:                 ar.logger,
-			StateDB:                ar.stateDB,
-			StateUpdater:           ar,
-			DynamicRegistry:        ar.dynamicRegistry,
-			Consul:                 ar.consulClient,
-			ConsulProxies:          ar.consulProxiesClient,
-			ConsulSI:               ar.sidsClient,
-			Vault:                  ar.vaultClient,
-			DeviceStatsReporter:    ar.deviceStatsReporter,
-			CSIManager:             ar.csiManager,
-			CpusetCgroupPathGetter: ar.cpusetManager.CgroupPathFor(ar.id, task.Name),
-			DeviceManager:          ar.devicemanager,
-			DriverManager:          ar.driverManager,
-			ServersContactedCh:     ar.serversContactedCh,
-			StartConditionMetCtx:   ar.taskHookCoordinator.startConditionForTask(task),
+			Alloc:                ar.alloc,
+			ClientConfig:         ar.clientConfig,
+			Task:                 task,
+			TaskDir:              ar.allocDir.NewTaskDir(task.Name),
+			Logger:               ar.logger,
+			StateDB:              ar.stateDB,
+			StateUpdater:         ar,
+			DynamicRegistry:      ar.dynamicRegistry,
+			Consul:               ar.consulClient,
+			ConsulProxies:        ar.consulProxiesClient,
+			ConsulSI:             ar.sidsClient,
+			Vault:                ar.vaultClient,
+			DeviceStatsReporter:  ar.deviceStatsReporter,
+			CSIManager:           ar.csiManager,
+			DeviceManager:        ar.devicemanager,
+			DriverManager:        ar.driverManager,
+			ServersContactedCh:   ar.serversContactedCh,
+			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
+		}
+
+		if ar.cpusetManager != nil {
+			trConfig.CpusetCgroupPathGetter = ar.cpusetManager.CgroupPathFor(ar.id, task.Name)
 		}
 
 		// Create, but do not Run, the task runner
