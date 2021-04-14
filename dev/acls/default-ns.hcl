@@ -1,3 +1,0 @@
-namespace "default" {
-  policy = "write"
-}

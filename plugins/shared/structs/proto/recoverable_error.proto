@@ -1,9 +1,0 @@
-syntax = "proto3";
-package hashicorp.nomad.plugins.shared.structs;
-option go_package = "proto";
-
-// RecoverableError is used with a grpc Status to indicate if the error is one
-// which is recoverable and can be reattempted by the client.
-message RecoverableError {
-    bool recoverable = 1;
-}
