@@ -274,10 +274,6 @@ type Config struct {
 
 	// ReservableCores if set overrides the set of reservable cores reported in fingerprinting.
 	ReservableCores []uint16
-
-	// DisableCgroupManagement if true disables all management of cgroup subsystems by the Nomad client. It does
-	// not prevent individual drivers from manging their own cgroups.
-	DisableCgroupManagement bool
 }
 
 type ClientTemplateConfig struct {

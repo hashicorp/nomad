@@ -646,7 +646,7 @@ func (c *Client) init() error {
 			// if the client cannot initialize the cgroup then reserved cores will not be reported and the cpuset manager
 			// will be disabled. this is common when running in dev mode under a non-root user for example
 			c.logger.Warn("could not initialize cpuset cgroup subsystem, cpuset management disabled", "error", err)
-			c.config.DisableCgroupManagement = true
+			c.cpusetManager = cgutil.NoopCpusetManager()
 		}
 	}
 	return nil
