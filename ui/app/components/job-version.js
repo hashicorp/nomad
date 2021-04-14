@@ -49,9 +49,9 @@ export default class JobVersion extends Component {
       yield this.version.revertTo();
       yield this.version.job.reload();
 
-      const versionAfterRevision = this.get('version.job.version');
+      const versionAfterReversion = this.get('version.job.version');
 
-      if (versionBeforeReversion === versionAfterRevision) {
+      if (versionBeforeReversion === versionAfterReversion) {
         this.handleError({
           level: 'warn',
           title: 'Reversion Had No Effect',
