@@ -1,0 +1,38 @@
+---
+layout: docs
+page_title: apm Stanza - Nomad Autoscaler Agent Configuration
+description: >-
+  The "apm" block is used to configure application performance metric (APM) plugins.
+---
+
+# `apm` Block
+
+<Placement groups={['apm']} />
+
+The `apm` block is used to configure application performance metric (APM) plugins.
+
+```hcl
+apm "example-apm-plugin" {
+  driver = "example-apm-plugin"
+  args   = ["-my-flag"]
+
+  config = {
+    address = "http://127.0.0.1:9090"
+  }
+}
+```
+
+### `apm` Parameters
+
+- `args` `(array<string>: [])` - Specifies a set of arguments to pass to the
+  plugin binary when it is executed.
+
+- `driver` `(string: "")` - The plugin's executable name relative to to the
+  [`plugin_dir`][plugin_dir]. If the plugin has a suffix, such as .exe, this
+  should be omitted.
+
+- `config` `(map<string><string>: nil)` - Specifies configuration values for
+  the plugin either as HCL or JSON. The accepted values are plugin specific.
+  Please refer to the individual plugin's documentation.
+
+[plugin_dir]: /docs/autoscaling/agent#plugin_dir
