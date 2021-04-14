@@ -74,7 +74,6 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
       <FeaturedSlider
         heading="Case Studies"
         theme="dark"
-        product="nomad"
         features={[
           {
             logo: {
