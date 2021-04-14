@@ -8,7 +8,6 @@ export default class JobVersionAdapter extends ApplicationAdapter {
 
     const url = addToPath(jobAdapter.urlForFindRecord(jobVersion.get('job.id'), 'job'), '/revert');
 
-    // FIXME is there a better place for this?
     const [jobName] = JSON.parse(jobVersion.get('job.id'));
 
     return this.ajax(url, 'POST', {
