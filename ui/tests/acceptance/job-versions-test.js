@@ -18,6 +18,9 @@ module('Acceptance | job versions', function(hooks) {
     job = server.create('job', { createAllocations: false });
     versions = server.db.jobVersions.where({ jobId: job.id });
 
+    const managementToken = server.create('token');
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
+
     await Versions.visit({ id: job.id });
   });
 
@@ -128,5 +131,33 @@ module('Acceptance | job versions', function(hooks) {
     assert.equal(currentURL(), '/jobs/not-a-real-job/versions', 'The URL persists');
     assert.ok(Versions.error.isPresent, 'Error message is shown');
     assert.equal(Versions.error.title, 'Not Found', 'Error message is for 404');
+  });
+});
+
+module('Acceptance | job versions (with client token)', function(hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(async function() {
+    job = server.create('job', { createAllocations: false });
+    versions = server.db.jobVersions.where({ jobId: job.id });
+
+    server.create('token');
+    const clientToken = server.create('token');
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    await Versions.visit({ id: job.id });
+  });
+
+  test('reversion buttons are disabled when the token lacks permissions', async function(assert) {
+    const versionRowWithReversion = Versions.versions.filter(versionRow => versionRow.revertToButton.isPresent)[0];
+
+    if (versionRowWithReversion) {
+      assert.ok(versionRowWithReversion.revertToButtonIsDisabled);
+    } else {
+      assert.expect(0);
+    }
+
+    window.localStorage.clear();
   });
 });

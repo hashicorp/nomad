@@ -10,20 +10,32 @@
   </span>
   <div class="pull-right">
     {{#unless this.isCurrent}}
-      <TwoStepButton
-        data-test-revert-to
-        @classes={{hash
-          idleButton="is-warning is-outlined"
-          confirmButton="is-warning"}}
-        @alignRight={{true}}
-        @idleText="Revert"
-        @cancelText="Cancel"
-        @confirmText="Yes, Revert"
-        @confirmationMessage="Are you sure you want to revert to this version?"
-        @inlineText={{true}}
-        @fadingBackground={{true}}
-        @awaitingConfirmation={{this.revertTo.isRunning}}
-        @onConfirm={{perform this.revertTo}} />
+      {{#if (can "run job")}}
+        <TwoStepButton
+          data-test-revert-to
+          @classes={{hash
+            idleButton="is-warning is-outlined"
+            confirmButton="is-warning"}}
+          @alignRight={{true}}
+          @idleText="Revert"
+          @cancelText="Cancel"
+          @confirmText="Yes, Revert"
+          @confirmationMessage="Are you sure you want to revert to this version?"
+          @inlineText={{true}}
+          @fadingBackground={{true}}
+          @awaitingConfirmation={{this.revertTo.isRunning}}
+          @onConfirm={{perform this.revertTo}} />
+      {{else}}
+        <button
+          data-test-revert-to
+          type="button"
+          class="button is-warning is-outlined is-small tooltip"
+          disabled
+          aria-label="You don’t have permission to revert"
+        >
+          Revert
+        </button>
+      {{/if}}
     {{/unless}}
 
     {{#if this.version.diff}}
