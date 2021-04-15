@@ -471,9 +471,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		args = append(args,
 			"-enable-kvm",
 			"-cpu", "host",
-			// Do we have cores information available to the Driver?
-			// "-smp", fmt.Sprintf("%d", cores),
 		)
+
+		if cfg.Resources.LinuxResources != nil && cfg.Resources.LinuxResources.CpusetCpus != "" {
+			cores := strings.Split(cfg.Resources.LinuxResources.CpusetCpus, ",")
+			args = append(args,
+				"-smp", fmt.Sprintf("%d", len(cores)),
+			)
+		}
 	}
 	d.logger.Debug("starting QemuVM command ", "args", strings.Join(args, " "))
 
