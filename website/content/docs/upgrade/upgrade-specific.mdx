@@ -41,6 +41,13 @@ Connect native tasks running in host networking mode will now have `CONSUL_HTTP_
 set automatically. Before this was only the case for bridge networking. If an operator
 already explicitly set `CONSUL_HTTP_ADDR` then it will not get overriden.
 
+#### iptables
+
+Nomad now appends its iptables rules to the `NOMAD-ADMIN` chain instead of
+inserting them as the first rule. This allows better control for user-defined
+iptables rules but users who append rules currently should verify that their
+rules are being appended in the correct order.
+
 ## Nomad 1.0.3, 0.12.10
 
 Nomad versions 1.0.3 and 0.12.10 change the behavior of the `exec` and `java` drivers so that
