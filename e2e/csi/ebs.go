@@ -75,6 +75,14 @@ func (tc *CSIControllerPluginEBSTest) BeforeAll(f *framework.F) {
 
 // AfterAll cleans up the volumes and plugin jobs created by the test.
 func (tc *CSIControllerPluginEBSTest) AfterAll(f *framework.F) {
+
+	// Stop all jobs in test
+	for _, id := range tc.testJobIDs {
+		out, err := e2e.Command("nomad", "job", "stop", "-purge", id)
+		f.Assert().NoError(err, out)
+	}
+	tc.testJobIDs = []string{}
+
 	for _, volID := range tc.volumeIDs {
 		err := waitForVolumeClaimRelease(volID, reapWait)
 		f.Assert().NoError(err, "volume claims were not released")
