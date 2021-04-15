@@ -121,6 +121,11 @@ func (c *taskHookCoordinator) startConditionForTask(task *structs.Task) <-chan s
 	}
 }
 
+// Tasks are able to exit the taskrunner Run() loop when poststop tasks are ready to start
+func (c *taskHookCoordinator) endConditionForTask(task *structs.Task) <-chan struct{} {
+	return c.poststopTaskCtx.Done()
+}
+
 // This is not thread safe! This must only be called from one thread per alloc runner.
 func (c *taskHookCoordinator) taskStateUpdated(states map[string]*structs.TaskState) {
 	for task := range c.prestartSidecar {

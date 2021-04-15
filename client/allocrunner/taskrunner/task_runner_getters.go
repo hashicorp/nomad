@@ -28,6 +28,11 @@ func (tr *TaskRunner) IsLeader() bool {
 	return tr.taskLeader
 }
 
+// IsPrestartTask returns true if this task is a prestart task in its task group.
+func (tr *TaskRunner) IsPrestartTask() bool {
+	return tr.Task().Lifecycle != nil && tr.Task().Lifecycle.Hook == structs.TaskLifecycleHookPrestart
+}
+
 // IsPoststopTask returns true if this task is a poststop task in its task group.
 func (tr *TaskRunner) IsPoststopTask() bool {
 	return tr.Task().Lifecycle != nil && tr.Task().Lifecycle.Hook == structs.TaskLifecycleHookPoststop

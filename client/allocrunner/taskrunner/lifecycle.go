@@ -2,6 +2,7 @@ package taskrunner
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -15,7 +16,8 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 	handle := tr.getDriverHandle()
 
 	// Check it is running
-	if handle == nil {
+	if handle == nil && !tr.IsPrestartTask() {
+		fmt.Println("!!! task not running, not restarting")
 		return ErrTaskNotRunning
 	}
 
