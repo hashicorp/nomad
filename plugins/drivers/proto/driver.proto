@@ -525,8 +525,14 @@ message LinuxResources {
     int64 memory_limit_bytes = 4;
     // OOMScoreAdj adjusts the oom-killer score. Default: 0 (not specified)
     int64 oom_score_adj = 5;
+
+    // CpusetCpus constrains the allowed set of logical CPUs. Default: "" (not specified)
+    // This field exists to support drivers which can't set a cgroup path.
+    string cpuset_cpus = 6;
+    // Previously cpuset_mems fields never set by the Nomad client
+    reserved 7;
     // CpusetCgroup is the path to the cpuset cgroup managed by the client
-    string cpuset_cgroup = 6;
+    string cpuset_cgroup = 9;
 
     // PercentTicks is a compatibility option for docker and should not be used
     // buf:lint:ignore FIELD_LOWER_SNAKE_CASE

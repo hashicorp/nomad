@@ -142,6 +142,7 @@ func ResourcesFromProto(pb *proto.Resources) *Resources {
 			CPUShares:        pb.LinuxResources.CpuShares,
 			MemoryLimitBytes: pb.LinuxResources.MemoryLimitBytes,
 			OOMScoreAdj:      pb.LinuxResources.OomScoreAdj,
+			CpusetCpus:       pb.LinuxResources.CpusetCpus,
 			CpusetCgroupPath: pb.LinuxResources.CpusetCgroup,
 			PercentTicks:     pb.LinuxResources.PercentTicks,
 		}
@@ -211,6 +212,7 @@ func ResourcesToProto(r *Resources) *proto.Resources {
 			CpuShares:        r.LinuxResources.CPUShares,
 			MemoryLimitBytes: r.LinuxResources.MemoryLimitBytes,
 			OomScoreAdj:      r.LinuxResources.OOMScoreAdj,
+			CpusetCpus:       r.LinuxResources.CpusetCpus,
 			CpusetCgroup:     r.LinuxResources.CpusetCgroupPath,
 			PercentTicks:     r.LinuxResources.PercentTicks,
 		}

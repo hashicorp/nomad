@@ -369,6 +369,7 @@ type LinuxResources struct {
 	MemoryLimitBytes int64
 	OOMScoreAdj      int64
 
+	CpusetCpus       string
 	CpusetCgroupPath string
 
 	// PrecentTicks is used to calculate the CPUQuota, currently the docker
