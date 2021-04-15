@@ -6,7 +6,7 @@ set -e
 
 # Will be overwritten at test time with the version specified
 NOMADVERSION=0.12.7
-CONSULVERSION=1.9.0
+CONSULVERSION=1.9.4+ent
 VAULTVERSION=1.5.4
 
 NOMAD_PLUGIN_DIR=/opt/nomad/plugins/
