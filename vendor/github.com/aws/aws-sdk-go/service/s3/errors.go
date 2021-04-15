@@ -21,6 +21,12 @@ const (
 	// bucket access control lists (ACLs).
 	ErrCodeBucketAlreadyOwnedByYou = "BucketAlreadyOwnedByYou"
 
+	// ErrCodeInvalidObjectState for service response error code
+	// "InvalidObjectState".
+	//
+	// Object is archived and inaccessible until restored.
+	ErrCodeInvalidObjectState = "InvalidObjectState"
+
 	// ErrCodeNoSuchBucket for service response error code
 	// "NoSuchBucket".
 	//
@@ -42,13 +48,13 @@ const (
 	// ErrCodeObjectAlreadyInActiveTierError for service response error code
 	// "ObjectAlreadyInActiveTierError".
 	//
-	// This operation is not allowed against this storage tier.
+	// This action is not allowed against this storage tier.
 	ErrCodeObjectAlreadyInActiveTierError = "ObjectAlreadyInActiveTierError"
 
 	// ErrCodeObjectNotInActiveTierError for service response error code
 	// "ObjectNotInActiveTierError".
 	//
-	// The source object of the COPY operation is not in the active tier and is
-	// only stored in Amazon S3 Glacier.
+	// The source object of the COPY action is not in the active tier and is only
+	// stored in Amazon S3 Glacier.
 	ErrCodeObjectNotInActiveTierError = "ObjectNotInActiveTierError"
 )
