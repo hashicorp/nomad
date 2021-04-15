@@ -413,12 +413,12 @@ export default function Homepage() {
         }}
         logoGrid={[
           {
-            url: require('./img/partner-logos/consul.svg?url'),
+            url: require('@hashicorp/mktg-logos/product/consul/logomark/color.svg?url'),
             alt: 'Consul',
             linkUrl: '/docs/integrations/consul-integration',
           },
           {
-            url: require('./img/partner-logos/vault.svg?url'),
+            url: require('@hashicorp/mktg-logos/product/vault/logomark/color.svg?url'),
             alt: 'Vault',
             linkUrl: '/docs/integrations/vault-integration',
           },
