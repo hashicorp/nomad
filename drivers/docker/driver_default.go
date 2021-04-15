@@ -5,7 +5,6 @@ package docker
 import (
 	"github.com/docker/docker/oci/caps"
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
 )
 
 func getPortBinding(ip string, port string) docker.PortBinding {
@@ -29,8 +28,4 @@ func tweakCapabilities(basics, adds, drops []string) ([]string, error) {
 		effectiveCaps[i] = cap[len("CAP_"):]
 	}
 	return effectiveCaps, nil
-}
-
-func setCPUSetCgroup(path string, pid int) error {
-	return cgroups.WriteCgroupProc(path, pid)
 }
