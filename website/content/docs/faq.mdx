@@ -71,8 +71,12 @@ In order to properly setup this connection you will need to explicitly bind
 the Nomad client to a non-loopback network interface, and anything else you
 would like to access must also be in the same interface.
 
-For example, to use the network named `en0` that has the IP address
-`192.168.0.10`, you can start Nomad with this command.
+On Windows, we recommend you to start with the [WSL2 backend for Docker
+Desktop][wsl2-docker]. Once you are more familiarized with Nomad you can start
+running it natively.
+
+To use the network named `en0` that has the IP address `192.168.0.10`, you can
+start Nomad with this command.
 
 ```shell-session
 $ sudo nomad agent -dev -bind=0.0.0.0 -network-interface=en0
@@ -97,3 +101,4 @@ $ curl http://192.168.0.10:8080
 [nomad_region]: /docs/configuration#datacenter
 [`bootstrap_expect`]: /docs/configuration/server#bootstrap_expect
 [`default_scheduler_config`]: /docs/configuration/server#default_scheduler_config
+[wsl2-docker]: https://docs.docker.com/docker-for-windows/wsl/
