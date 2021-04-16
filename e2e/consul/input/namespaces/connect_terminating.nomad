@@ -32,6 +32,10 @@ job "connect_terminating" {
         image        = "hashicorpnomad/counter-api:v3"
         network_mode = "host"
       }
+
+      env {
+        PORT = "9001"
+      }
     }
   }
 
@@ -57,6 +61,10 @@ job "connect_terminating" {
       config {
         image        = "hashicorpnomad/counter-api:v3"
         network_mode = "host"
+      }
+
+      env {
+        PORT = "9011"
       }
     }
   }

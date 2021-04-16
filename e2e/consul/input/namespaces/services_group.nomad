@@ -1,4 +1,4 @@
-job "group_services" {
+job "services_group" {
   datacenters = ["dc1"]
   type        = "service"
 

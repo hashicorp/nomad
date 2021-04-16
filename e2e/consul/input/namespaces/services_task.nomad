@@ -1,4 +1,4 @@
-job "task_services" {
+job "services_task" {
   datacenters = ["dc1"]
   type        = "service"
 
