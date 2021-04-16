@@ -801,7 +801,7 @@ func (mode *devModeConfig) networkConfig() error {
 			return fmt.Errorf(errMsg, err)
 		}
 		if len(ifAddrs) < 1 {
-			return fmt.Errorf(errMsg, "could not find public network inteface")
+			return fmt.Errorf(errMsg, "could not find public network interface")
 		}
 		iface := ifAddrs[0].Name
 		mode.iface = iface
@@ -1191,7 +1191,54 @@ func (c *Config) normalizeAddrs() error {
 		c.AdvertiseAddrs.Serf = addr
 	}
 
+	// Skip network_interface evaluation if not a client
+	if c.Client != nil && c.Client.Enabled && c.Client.NetworkInterface != "" {
+		parsed, err := parseSingleInterfaceTemplate(c.Client.NetworkInterface)
+		if err != nil {
+			return fmt.Errorf("Failed to parse network-interface: %v", err)
+		}
+
+		c.Client.NetworkInterface = parsed
+	}
+
 	return nil
+}
+
+// parseSingleInterfaceTemplate parses a go-sockaddr template and returns an
+// error if it doesn't result in a single value.
+func parseSingleInterfaceTemplate(tpl string) (string, error) {
+	out, err := template.Parse(tpl)
+	if err != nil {
+		// typically something like
+		// unable to parse template "{{printfl \"en50\"}}": template: sockaddr.Parse:1: function "printfl" not defined
+		return "", err
+	}
+
+	ifaces := strings.Split(out, " ")
+
+	if len(ifaces) > 1 {
+		return "", fmt.Errorf("multiple interfaces returned: %v", ifaces)
+	}
+	if len(ifaces) == 0 {
+		return "", fmt.Errorf("no interface returned")
+	}
+
+	// This turns an invalid interface into a fast-fail
+	if !isValidInterface(ifaces[0]) {
+		return "", fmt.Errorf("invalid interface name: %v", ifaces[0])
+	}
+	return ifaces[0], nil
+
+}
+func isValidInterface(iface string) bool {
+	if iface == "" {
+		return true
+	}
+	parsed, err := template.Parse(
+		fmt.Sprintf("{{ GetAllInterfaces | include \"name\" \"%v\" | attr \"name\" }}",
+			iface))
+
+	return err == nil && parsed == iface
 }
 
 // parseSingleIPTemplate is used as a helper function to parse out a single IP
