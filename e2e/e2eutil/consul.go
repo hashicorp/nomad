@@ -8,6 +8,7 @@ import (
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -65,6 +66,10 @@ func RequireConsulRegistered(require *require.Assertions, client *capi.Client, n
 	})
 }
 
+// CreateConsulNamespaces will create each namespace in Consul, with a description
+// containing the namespace name.
+//
+// Requires Consul Enterprise.
 func CreateConsulNamespaces(t *testing.T, client *capi.Client, namespaces []string) {
 	nsClient := client.Namespaces()
 	for _, namespace := range namespaces {
@@ -76,14 +81,20 @@ func CreateConsulNamespaces(t *testing.T, client *capi.Client, namespaces []stri
 	}
 }
 
+// DeleteConsulNamespaces will delete each namespace from Consul.
+//
+// Requires Consul Enterprise.
 func DeleteConsulNamespaces(t *testing.T, client *capi.Client, namespaces []string) {
 	nsClient := client.Namespaces()
 	for _, namespace := range namespaces {
 		_, err := nsClient.Delete(namespace, nil)
-		require.NoError(t, err)
+		assert.NoError(t, err) // be lenient; used in cleanup
 	}
 }
 
+// ListConsulNamespaces will list the namespaces in Consul.
+//
+// Requires Consul Enterprise.
 func ListConsulNamespaces(t *testing.T, client *capi.Client) []string {
 	nsClient := client.Namespaces()
 	namespaces, _, err := nsClient.List(nil)
@@ -95,18 +106,28 @@ func ListConsulNamespaces(t *testing.T, client *capi.Client) []string {
 	return result
 }
 
+// PutConsulKey sets key:value in the Consul KV store under given namespace.
+//
+// Requires Consul Enterprise.
 func PutConsulKey(t *testing.T, client *capi.Client, namespace, key, value string) {
 	kvClient := client.KV()
 	_, err := kvClient.Put(&capi.KVPair{Key: key, Value: []byte(value)}, &capi.WriteOptions{Namespace: namespace})
 	require.NoError(t, err)
 }
 
+// DeleteConsulKey deletes the key from the Consul KV store from given namespace.
+//
+// Requires Consul Enterprise.
 func DeleteConsulKey(t *testing.T, client *capi.Client, namespace, key string) {
 	kvClient := client.KV()
 	_, err := kvClient.Delete(key, &capi.WriteOptions{Namespace: namespace})
 	require.NoError(t, err)
 }
 
+// ReadConsulConfigEntry retrieves the ConfigEntry of the given namespace, kind,
+// and name.
+//
+// Requires Consul Enterprise.
 func ReadConsulConfigEntry(t *testing.T, client *capi.Client, namespace, kind, name string) capi.ConfigEntry {
 	ceClient := client.ConfigEntries()
 	ce, _, err := ceClient.Get(kind, name, &capi.QueryOptions{Namespace: namespace})
@@ -114,6 +135,10 @@ func ReadConsulConfigEntry(t *testing.T, client *capi.Client, namespace, kind, n
 	return ce
 }
 
+// DeleteConsulConfigEntry deletes the ConfigEntry of the given namespace, kind,
+// and name.
+//
+// Requires Consul Enterprise.
 func DeleteConsulConfigEntry(t *testing.T, client *capi.Client, namespace, kind, name string) {
 	ceClient := client.ConfigEntries()
 	_, err := ceClient.Delete(kind, name, &capi.WriteOptions{Namespace: namespace})
