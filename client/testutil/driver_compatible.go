@@ -6,7 +6,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 )
 
 // RequireRoot skips tests unless running on a Unix as root.
@@ -50,7 +50,7 @@ func QemuCompatible(t *testing.T) {
 }
 
 func CgroupCompatible(t *testing.T) {
-	mount, err := fingerprint.FindCgroupMountpointDir()
+	mount, err := cgutil.FindCgroupMountpointDir()
 	if err != nil || mount == "" {
 		t.Skipf("Failed to find cgroup mount: %v %v", mount, err)
 	}

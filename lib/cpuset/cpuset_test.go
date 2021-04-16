@@ -146,13 +146,34 @@ func TestCPUSet_IsSupersetOf(t *testing.T) {
 	}
 }
 
+func TestCPUSet_ContainsAny(t *testing.T) {
+	cases := []struct {
+		a           CPUSet
+		b           CPUSet
+		containsAny bool
+	}{
+		{New(0), New(0), true},
+		{New(0), New(), false},
+		{New(), New(0), false},
+		{New(0, 1, 2, 3), New(0), true},
+		{New(0, 1, 2, 3), New(2, 3), true},
+		{New(0, 1, 2, 3), New(2, 3, 4), true},
+	}
+
+	for _, c := range cases {
+		require.Equal(t, c.containsAny, c.a.ContainsAny(c.b))
+	}
+}
+
 func TestParse(t *testing.T) {
 	cases := []struct {
 		cpuset   string
 		expected CPUSet
 	}{
 		{"", New()},
+		{"\n", New()},
 		{"1", New(1)},
+		{"1\n", New(1)},
 		{"0,1,2,3", New(0, 1, 2, 3)},
 		{"0-3", New(0, 1, 2, 3)},
 		{"0,2-3,5", New(0, 2, 3, 5)},
@@ -162,5 +183,21 @@ func TestParse(t *testing.T) {
 		result, err := Parse(c.cpuset)
 		require.NoError(t, err)
 		require.True(t, result.Equals(c.expected))
+	}
+}
+
+func TestCPUSet_String(t *testing.T) {
+	cases := []struct {
+		cpuset   CPUSet
+		expected string
+	}{
+		{New(), ""},
+		{New(0, 1, 2, 3), "0-3"},
+		{New(1, 3), "1,3"},
+		{New(0, 2, 3, 5), "0,2-3,5"},
+	}
+
+	for _, c := range cases {
+		require.Equal(t, c.expected, c.cpuset.String())
 	}
 }

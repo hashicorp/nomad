@@ -27,6 +27,38 @@ func New(cpus ...uint16) CPUSet {
 	return cpuset
 }
 
+// String returns the cpuset as a comma delimited set of core values and ranged
+func (c CPUSet) String() string {
+	if c.Size() == 0 {
+		return ""
+	}
+	cores := c.ToSlice()
+	cpusetStrs := []string{}
+	cur := [2]uint16{cores[0], cores[0]}
+	for i := 1; i < len(cores); i++ {
+		if cores[i] == cur[1]+1 {
+			cur[1] = cores[i]
+			continue
+		}
+
+		if cur[0] == cur[1] {
+			cpusetStrs = append(cpusetStrs, fmt.Sprintf("%d", cur[0]))
+		} else {
+			cpusetStrs = append(cpusetStrs, fmt.Sprintf("%d-%d", cur[0], cur[1]))
+		}
+
+		// new range
+		cur = [2]uint16{cores[i], cores[i]}
+	}
+	if cur[0] == cur[1] {
+		cpusetStrs = append(cpusetStrs, fmt.Sprintf("%d", cur[0]))
+	} else {
+		cpusetStrs = append(cpusetStrs, fmt.Sprintf("%d-%d", cur[0], cur[1]))
+	}
+
+	return strings.Join(cpusetStrs, ",")
+}
+
 // Size returns to the number of cpus contained in the CPUSet
 func (c CPUSet) Size() int {
 	return len(c.cpus)
@@ -88,6 +120,16 @@ func (s CPUSet) IsSupersetOf(other CPUSet) bool {
 	return true
 }
 
+// ContainsAny returns true if any cpus in other CPUSet are present
+func (s CPUSet) ContainsAny(other CPUSet) bool {
+	for cpu := range other.cpus {
+		if _, ok := s.cpus[cpu]; ok {
+			return true
+		}
+	}
+	return false
+}
+
 // Equals tests the equality of the elements in the CPUSet
 func (s CPUSet) Equals(other CPUSet) bool {
 	return reflect.DeepEqual(s.cpus, other.cpus)
@@ -98,6 +140,7 @@ func (s CPUSet) Equals(other CPUSet) bool {
 // Ref: http://man7.org/linux/man-pages/man7/cpuset.7.html#FORMATS
 func Parse(s string) (CPUSet, error) {
 	cpuset := New()
+	s = strings.TrimSpace(s)
 	if s == "" {
 		return cpuset, nil
 	}

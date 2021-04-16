@@ -1186,6 +1186,9 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 // network interfaces take precedence over fingerprinted ones.
 func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS != "linux" {
+		t.Skip("assertions assume linux platform")
+	}
 
 	// Client without network configured updates to match fingerprint
 	client, cleanup := TestClient(t, nil)

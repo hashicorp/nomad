@@ -5,5 +5,9 @@ import (
 )
 
 func (f *CPUFingerprint) deriveReservableCores(req *FingerprintRequest) ([]uint16, error) {
-	return cgutil.GetCPUsFromCgroup(req.Config.CgroupParent)
+	parent := req.Config.CgroupParent
+	if parent == "" {
+		parent = cgutil.DefaultCgroupParent
+	}
+	return cgutil.GetCPUsFromCgroup(parent)
 }
