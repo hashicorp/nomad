@@ -206,7 +206,6 @@ type TaskRunner struct {
 	// cpusetCgroupPathGetter is used to lookup the cgroup path if supported by the platform
 	cpusetCgroupPathGetter cgutil.CgroupPathGetter
 
-	CpusetCgroupPathGetter cgutil.CgroupPathGetter
 	// driverManager is used to dispense driver plugins and register event
 	// handlers
 	driverManager drivermanager.Manager

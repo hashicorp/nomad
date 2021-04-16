@@ -531,6 +531,7 @@ message LinuxResources {
     string cpuset_cpus = 6;
     // Previously cpuset_mems fields never set by the Nomad client
     reserved 7;
+    reserved "cpuset_mems";
     // CpusetCgroup is the path to the cpuset cgroup managed by the client
     string cpuset_cgroup = 9;
 
