@@ -721,7 +721,7 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 	if command.Resources.LinuxResources != nil && command.Resources.LinuxResources.CpusetCgroupPath != "" {
 		cfg.Hooks = lconfigs.Hooks{
 			lconfigs.CreateRuntime: lconfigs.HookList{
-				newSetCPuSetCgroupHook(command.Resources.LinuxResources.CpusetCgroupPath),
+				newSetCPUSetCgroupHook(command.Resources.LinuxResources.CpusetCgroupPath),
 			},
 		}
 	}
@@ -896,7 +896,7 @@ func lookPathIn(path string, root string, bin string) (string, error) {
 	return "", fmt.Errorf("file %s not found under path %s", bin, root)
 }
 
-func newSetCPuSetCgroupHook(cgroupPath string) lconfigs.Hook {
+func newSetCPUSetCgroupHook(cgroupPath string) lconfigs.Hook {
 	return lconfigs.NewFunctionHook(func(state *specs.State) error {
 		return cgroups.WriteCgroupProc(cgroupPath, state.Pid)
 	})

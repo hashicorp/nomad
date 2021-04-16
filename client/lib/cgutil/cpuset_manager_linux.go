@@ -11,15 +11,12 @@ import (
 	"time"
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-
-	"github.com/hashicorp/go-hclog"
-
-	"github.com/opencontainers/runc/libcontainer/cgroups/fscommon"
-
-	"github.com/hashicorp/nomad/lib/cpuset"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
+	"github.com/opencontainers/runc/libcontainer/cgroups/fscommon"
 	"github.com/opencontainers/runc/libcontainer/configs"
 
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
