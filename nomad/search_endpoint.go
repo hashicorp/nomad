@@ -244,7 +244,7 @@ func (*Search) fuzzyMatchesJob(j *structs.Job, text string) map[structs.Context]
 
 	// job.name
 	if idx := fuzzyIndex(j.Name, text); idx >= 0 {
-		sm[structs.Jobs] = append(sm[structs.Jobs], score(job, ns, idx))
+		sm[structs.Jobs] = append(sm[structs.Jobs], score(j.Name, ns, idx, job))
 	}
 
 	// job|group.name

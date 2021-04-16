@@ -1026,8 +1026,8 @@ func TestSearch_FuzzySearch_ACL(t *testing.T) {
 		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 		require.Len(t, resp.Matches[structs.Jobs], 1)
 		require.Equal(t, structs.FuzzyMatch{
-			ID:    job.ID,
-			Scope: []string{"default"},
+			ID:    "my-job",
+			Scope: []string{"default", job.ID},
 		}, resp.Matches[structs.Jobs][0])
 
 		// Index of job - not node - because node context is filtered out
@@ -1046,7 +1046,7 @@ func TestSearch_FuzzySearch_ACL(t *testing.T) {
 		require.Equal(t, uint64(1001), resp.Index)
 		require.Len(t, resp.Matches[structs.Jobs], 1)
 		require.Equal(t, structs.FuzzyMatch{
-			ID: job.ID, Scope: []string{"default"},
+			ID: job.Name, Scope: []string{"default", job.ID},
 		}, resp.Matches[structs.Jobs][0])
 		require.Len(t, resp.Matches[structs.Nodes], 1)
 		require.Equal(t, structs.FuzzyMatch{
@@ -1559,7 +1559,7 @@ func TestSearch_FuzzySearch_Namespace_ACL(t *testing.T) {
 		var resp structs.FuzzySearchResponse
 		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 		require.Len(t, resp.Matches[structs.Jobs], 1)
-		require.Equal(t, job2.ID, resp.Matches[structs.Jobs][0].ID)
+		require.Equal(t, job2.Name, resp.Matches[structs.Jobs][0].ID)
 
 		// Index of job - not node - because node context is filtered out
 		require.Equal(t, uint64(504), resp.Index)
@@ -1578,7 +1578,7 @@ func TestSearch_FuzzySearch_Namespace_ACL(t *testing.T) {
 		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 		require.Equal(t, uint64(1001), resp.Index)
 		require.Len(t, resp.Matches[structs.Jobs], 1)
-		require.Equal(t, job1.ID, resp.Matches[structs.Jobs][0].ID)
+		require.Equal(t, job1.Name, resp.Matches[structs.Jobs][0].ID)
 		require.Len(t, resp.Matches[structs.Nodes], 1)
 		require.Len(t, resp.Matches[structs.Namespaces], 1) // matches "team-job-app"
 	}
@@ -1710,7 +1710,7 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 		var resp structs.FuzzySearchResponse
 		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 		require.Len(t, resp.Matches[structs.Jobs], 1)
-		require.Equal(t, job2.ID, resp.Matches[structs.Jobs][0].ID)
+		require.Equal(t, job2.Name, resp.Matches[structs.Jobs][0].ID)
 
 		// Nodes filtered out since token only has access to namespace:read-job
 		require.Len(t, resp.Matches[structs.Nodes], 0)
@@ -1732,8 +1732,8 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 		var resp structs.FuzzySearchResponse
 		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 		require.Len(t, resp.Matches[structs.Jobs], 2)
-		require.Equal(t, job2.ID, resp.Matches[structs.Jobs][0].ID)
-		require.Equal(t, job3.ID, resp.Matches[structs.Jobs][1].ID)
+		require.Equal(t, job2.Name, resp.Matches[structs.Jobs][0].ID)
+		require.Equal(t, job3.Name, resp.Matches[structs.Jobs][1].ID)
 	})
 
 	// Using a management token, we should get job results from all three namespaces
@@ -1744,9 +1744,9 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 		var resp structs.FuzzySearchResponse
 		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 		require.Len(t, resp.Matches[structs.Jobs], 3)
-		require.Equal(t, job1.ID, resp.Matches[structs.Jobs][0].ID)
-		require.Equal(t, job2.ID, resp.Matches[structs.Jobs][1].ID)
-		require.Equal(t, job3.ID, resp.Matches[structs.Jobs][2].ID)
+		require.Equal(t, job1.Name, resp.Matches[structs.Jobs][0].ID)
+		require.Equal(t, job2.Name, resp.Matches[structs.Jobs][1].ID)
+		require.Equal(t, job3.Name, resp.Matches[structs.Jobs][2].ID)
 	})
 
 	// Using a token that can read nodes, we should get our 1 matching node when
