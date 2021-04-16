@@ -1118,7 +1118,11 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 		Disk:         client.configCopy.Node.NodeResources.Disk,
 
 		// injected
-		Cpu:    structs.NodeCpuResources{CpuShares: 123},
+		Cpu: structs.NodeCpuResources{
+			CpuShares:          123,
+			ReservableCpuCores: client.configCopy.Node.NodeResources.Cpu.ReservableCpuCores,
+			TotalCpuCores:      client.configCopy.Node.NodeResources.Cpu.TotalCpuCores,
+		},
 		Memory: structs.NodeMemoryResources{MemoryMB: 1024},
 		Devices: []*structs.NodeDeviceResource{
 			{
@@ -1156,7 +1160,11 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 		Disk:         client.configCopy.Node.NodeResources.Disk,
 
 		// injected
-		Cpu:    structs.NodeCpuResources{CpuShares: 123},
+		Cpu: structs.NodeCpuResources{
+			CpuShares:          123,
+			ReservableCpuCores: client.configCopy.Node.NodeResources.Cpu.ReservableCpuCores,
+			TotalCpuCores:      client.configCopy.Node.NodeResources.Cpu.TotalCpuCores,
+		},
 		Memory: structs.NodeMemoryResources{MemoryMB: 2048},
 		Devices: []*structs.NodeDeviceResource{
 			{

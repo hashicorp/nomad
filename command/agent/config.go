@@ -219,6 +219,9 @@ type ClientConfig struct {
 	// MemoryMB is used to override any detected or default total memory.
 	MemoryMB int `hcl:"memory_total_mb"`
 
+	// ReservableCores is used to override detected reservable cpu cores.
+	ReserveableCores string `hcl:"reservable_cores"`
+
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout.
 	MaxKillTimeout string `hcl:"max_kill_timeout"`
 
@@ -298,6 +301,10 @@ type ClientConfig struct {
 	// should the port mapping rules match the default network address (false) or
 	// matching any destination address (true). Defaults to true
 	BindWildcardDefaultHostNetwork bool `hcl:"bind_wildcard_default_host_network"`
+
+	// CgroupParent sets the parent cgroup for subsystems managed by Nomad. If the cgroup
+	// doest not exist Nomad will attempt to create it during startup. Defaults to '/nomad'
+	CgroupParent string `hcl:"cgroup_parent"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
@@ -720,16 +727,9 @@ type Resources struct {
 	MemoryMB      int    `hcl:"memory"`
 	DiskMB        int    `hcl:"disk"`
 	ReservedPorts string `hcl:"reserved_ports"`
+	Cores         string `hcl:"cores"`
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
-}
-
-// CanParseReserved returns if the reserved ports specification is parsable.
-// The supported syntax is comma separated integers or ranges separated by
-// hyphens. For example, "80,120-150,160"
-func (r *Resources) CanParseReserved() error {
-	_, err := structs.ParsePortRanges(r.ReservedPorts)
-	return err
 }
 
 // devModeConfig holds the config for the -dev and -dev-connect flags
@@ -1740,6 +1740,9 @@ func (r *Resources) Merge(b *Resources) *Resources {
 	}
 	if b.ReservedPorts != "" {
 		result.ReservedPorts = b.ReservedPorts
+	}
+	if b.Cores != "" {
+		result.Cores = b.Cores
 	}
 	return &result
 }

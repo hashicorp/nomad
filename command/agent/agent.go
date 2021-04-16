@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/lib/cpuset"
+
 	metrics "github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
@@ -613,6 +615,13 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	res.Memory.MemoryMB = int64(agentConfig.Client.Reserved.MemoryMB)
 	res.Disk.DiskMB = int64(agentConfig.Client.Reserved.DiskMB)
 	res.Networks.ReservedHostPorts = agentConfig.Client.Reserved.ReservedPorts
+	if agentConfig.Client.Reserved.Cores != "" {
+		cores, err := cpuset.Parse(agentConfig.Client.Reserved.Cores)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse client > reserved > cores value %q: %v", agentConfig.Client.Reserved.Cores, err)
+		}
+		res.Cpu.ReservedCpuCores = cores.ToSlice()
+	}
 
 	conf.Version = agentConfig.Version
 
@@ -660,6 +669,15 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		conf.HostNetworks[hn.Name] = hn
 	}
 	conf.BindWildcardDefaultHostNetwork = agentConfig.Client.BindWildcardDefaultHostNetwork
+
+	conf.CgroupParent = agentConfig.Client.CgroupParent
+	if agentConfig.Client.ReserveableCores != "" {
+		cores, err := cpuset.Parse(agentConfig.Client.ReserveableCores)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse 'reservable_cores': %v", err)
+		}
+		conf.ReservableCores = cores.ToSlice()
+	}
 
 	return conf, nil
 }
