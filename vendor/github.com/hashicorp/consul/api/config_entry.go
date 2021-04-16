@@ -21,10 +21,8 @@ const (
 	IngressGateway     string = "ingress-gateway"
 	TerminatingGateway string = "terminating-gateway"
 	ServiceIntentions  string = "service-intentions"
-	ClusterConfig      string = "cluster"
 
-	ProxyConfigGlobal    string = "global"
-	ClusterConfigCluster string = "cluster"
+	ProxyConfigGlobal string = "global"
 )
 
 type ConfigEntry interface {
@@ -48,8 +46,8 @@ const (
 	// should be direct and not flow through a mesh gateway.
 	MeshGatewayModeNone MeshGatewayMode = "none"
 
-	// MeshGatewayModeLocal represents that the Upstream Connect connections
-	// should be made to a mesh gateway in the local datacenter.
+	// MeshGatewayModeLocal represents that the Upstrea Connect connections
+	// should be made to a mesh gateway in the local datacenter. This is
 	MeshGatewayModeLocal MeshGatewayMode = "local"
 
 	// MeshGatewayModeRemote represents that the Upstream Connect connections
@@ -62,28 +60,6 @@ const (
 type MeshGatewayConfig struct {
 	// Mode is the mode that should be used for the upstream connection.
 	Mode MeshGatewayMode `json:",omitempty"`
-}
-
-type ProxyMode string
-
-const (
-	// ProxyModeDefault represents no specific mode and should
-	// be used to indicate that a different layer of the configuration
-	// chain should take precedence
-	ProxyModeDefault ProxyMode = ""
-
-	// ProxyModeTransparent represents that inbound and outbound application
-	// traffic is being captured and redirected through the proxy.
-	ProxyModeTransparent ProxyMode = "transparent"
-
-	// ProxyModeDirect represents that the proxy's listeners must be dialed directly
-	// by the local application and other proxies.
-	ProxyModeDirect ProxyMode = "direct"
-)
-
-type TransparentProxyConfig struct {
-	// The port of the listener where outbound application traffic is being redirected to.
-	OutboundListenerPort int `json:",omitempty" alias:"outbound_listener_port"`
 }
 
 // ExposeConfig describes HTTP paths to expose through Envoy outside of Connect.
@@ -120,7 +96,7 @@ type ConnectConfiguration struct {
 	UpstreamConfigs map[string]UpstreamConfig `json:",omitempty" alias:"upstream_configs"`
 
 	// UpstreamDefaults contains default configuration for all upstreams of a given service
-	UpstreamDefaults *UpstreamConfig `json:",omitempty" alias:"upstream_defaults"`
+	UpstreamDefaults UpstreamConfig `json:",omitempty" alias:"upstream_defaults"`
 }
 
 type UpstreamConfig struct {
@@ -193,15 +169,14 @@ type UpstreamLimits struct {
 type ServiceConfigEntry struct {
 	Kind             string
 	Name             string
-	Namespace        string                 `json:",omitempty"`
-	Protocol         string                 `json:",omitempty"`
-	Mode             ProxyMode              `json:",omitempty"`
-	TransparentProxy TransparentProxyConfig `json:",omitempty" alias:"transparent_proxy"`
-	MeshGateway      MeshGatewayConfig      `json:",omitempty" alias:"mesh_gateway"`
-	Connect          ConnectConfiguration   `json:",omitempty"`
-	Expose           ExposeConfig           `json:",omitempty"`
-	ExternalSNI      string                 `json:",omitempty" alias:"external_sni"`
-	Meta             map[string]string      `json:",omitempty"`
+	Namespace        string               `json:",omitempty"`
+	Protocol         string               `json:",omitempty"`
+	MeshGateway      MeshGatewayConfig    `json:",omitempty" alias:"mesh_gateway"`
+	Connect          ConnectConfiguration `json:",omitempty"`
+	Expose           ExposeConfig         `json:",omitempty"`
+	TransparentProxy bool                 `json:",omitempty" alias:"transparent_proxy"`
+	ExternalSNI      string               `json:",omitempty" alias:"external_sni"`
+	Meta             map[string]string    `json:",omitempty"`
 	CreateIndex      uint64
 	ModifyIndex      uint64
 }
@@ -234,11 +209,10 @@ type ProxyConfigEntry struct {
 	Kind             string
 	Name             string
 	Namespace        string                 `json:",omitempty"`
-	Mode             ProxyMode              `json:",omitempty"`
-	TransparentProxy TransparentProxyConfig `json:",omitempty" alias:"transparent_proxy"`
 	Config           map[string]interface{} `json:",omitempty"`
 	MeshGateway      MeshGatewayConfig      `json:",omitempty" alias:"mesh_gateway"`
 	Expose           ExposeConfig           `json:",omitempty"`
+	TransparentProxy bool                   `json:",omitempty" alias:"transparent_proxy"`
 	Meta             map[string]string      `json:",omitempty"`
 	CreateIndex      uint64
 	ModifyIndex      uint64
@@ -286,8 +260,6 @@ func makeConfigEntry(kind, name string) (ConfigEntry, error) {
 		return &TerminatingGatewayConfigEntry{Kind: kind, Name: name}, nil
 	case ServiceIntentions:
 		return &ServiceIntentionsConfigEntry{Kind: kind, Name: name}, nil
-	case ClusterConfig:
-		return &ClusterConfigEntry{Kind: kind, Name: name}, nil
 	default:
 		return nil, fmt.Errorf("invalid config entry kind: %s", kind)
 	}
