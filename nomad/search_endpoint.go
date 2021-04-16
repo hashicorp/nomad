@@ -182,6 +182,14 @@ func (s *Search) getFuzzyMatches(iter memdb.ResultIterator, text string) (map[st
 	return m, truncations
 }
 
+// fuzzyIndex returns the index of text in name, ignoring case.
+//   text is assumed to be lower case.
+//   -1 is returned if name does not contain text.
+func fuzzyIndex(name, text string) int {
+	lower := strings.ToLower(name)
+	return strings.Index(lower, text)
+}
+
 // fuzzySingleMatch determines if the ID of raw is a fuzzy match with text.
 // Returns the context and score or nil if there is no match.
 func (s *Search) fuzzyMatchSingle(raw interface{}, text string) (structs.Context, *fuzzyMatch) {
@@ -208,7 +216,7 @@ func (s *Search) fuzzyMatchSingle(raw interface{}, text string) (structs.Context
 		ctx = structs.Plugins
 	}
 
-	if idx := strings.Index(name, text); idx >= 0 {
+	if idx := fuzzyIndex(name, text); idx >= 0 {
 		return ctx, &fuzzyMatch{
 			id:    name,
 			score: idx,
@@ -235,32 +243,32 @@ func (*Search) fuzzyMatchesJob(j *structs.Job, text string) map[structs.Context]
 	job := j.ID
 
 	// job.name
-	if idx := strings.Index(j.Name, text); idx >= 0 {
+	if idx := fuzzyIndex(j.Name, text); idx >= 0 {
 		sm[structs.Jobs] = append(sm[structs.Jobs], score(job, ns, idx))
 	}
 
 	// job|group.name
 	for _, group := range j.TaskGroups {
-		if idx := strings.Index(group.Name, text); idx >= 0 {
+		if idx := fuzzyIndex(group.Name, text); idx >= 0 {
 			sm[structs.Groups] = append(sm[structs.Groups], score(group.Name, ns, idx, job))
 		}
 
 		// job|group|service.name
 		for _, service := range group.Services {
-			if idx := strings.Index(service.Name, text); idx >= 0 {
+			if idx := fuzzyIndex(service.Name, text); idx >= 0 {
 				sm[structs.Services] = append(sm[structs.Services], score(service.Name, ns, idx, job, group.Name))
 			}
 		}
 
 		// job|group|task.name
 		for _, task := range group.Tasks {
-			if idx := strings.Index(task.Name, text); idx >= 0 {
+			if idx := fuzzyIndex(task.Name, text); idx >= 0 {
 				sm[structs.Tasks] = append(sm[structs.Tasks], score(task.Name, ns, idx, job, group.Name))
 			}
 
 			// job|group|task|service.name
 			for _, service := range task.Services {
-				if idx := strings.Index(service.Name, text); idx >= 0 {
+				if idx := fuzzyIndex(service.Name, text); idx >= 0 {
 					sm[structs.Services] = append(sm[structs.Services], score(service.Name, ns, idx, job, group.Name, task.Name))
 				}
 			}
@@ -269,17 +277,17 @@ func (*Search) fuzzyMatchesJob(j *structs.Job, text string) map[structs.Context]
 			switch task.Driver {
 			case "docker":
 				image := getConfigParam(task.Config, "image")
-				if idx := strings.Index(image, text); idx >= 0 {
+				if idx := fuzzyIndex(image, text); idx >= 0 {
 					sm[structs.Images] = append(sm[structs.Images], score(image, ns, idx, job, group.Name, task.Name))
 				}
 			case "exec", "raw_exec":
 				command := getConfigParam(task.Config, "command")
-				if idx := strings.Index(command, text); idx >= 0 {
+				if idx := fuzzyIndex(command, text); idx >= 0 {
 					sm[structs.Commands] = append(sm[structs.Commands], score(command, ns, idx, job, group.Name, task.Name))
 				}
 			case "java":
 				class := getConfigParam(task.Config, "class")
-				if idx := strings.Index(class, text); idx >= 0 {
+				if idx := fuzzyIndex(class, text); idx >= 0 {
 					sm[structs.Classes] = append(sm[structs.Classes], score(class, ns, idx, job, group.Name, task.Name))
 				}
 			}
@@ -621,6 +629,10 @@ func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.Fu
 		return fmt.Errorf("fuzzy search query must be at least %d characters, got %d", min, n)
 	}
 
+	// for case-insensitive searching, lower-case the search term once and reuse
+	text := strings.ToLower(args.Text)
+
+	// accumulate fuzzy search results and any truncations
 	reply.Matches = make(map[structs.Context][]structs.FuzzyMatch)
 	reply.Truncations = make(map[structs.Context]bool)
 
@@ -685,7 +697,7 @@ func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.Fu
 				// the response for negative results
 				reply.Truncations[iterCtx] = false
 
-				matches, truncations := s.getFuzzyMatches(iter, args.Text)
+				matches, truncations := s.getFuzzyMatches(iter, text)
 				for ctx := range matches {
 					reply.Matches[ctx] = matches[ctx]
 				}

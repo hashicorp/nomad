@@ -1402,6 +1402,37 @@ func TestSearch_FuzzySearch_Namespace(t *testing.T) {
 	require.Equal(t, uint64(2000), resp.Index)
 }
 
+func TestSearch_FuzzySearch_Namespace_caseInsensitive(t *testing.T) {
+	t.Parallel()
+
+	s, cleanup := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanup()
+	codec := rpcClient(t, s)
+	testutil.WaitForLeader(t, s.RPC)
+
+	ns := mock.Namespace()
+	ns.Name = "TheFooNamespace"
+	require.NoError(t, s.fsm.State().UpsertNamespaces(2000, []*structs.Namespace{ns}))
+
+	req := &structs.FuzzySearchRequest{
+		Text:    "foon",
+		Context: structs.Namespaces,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+
+	var resp structs.FuzzySearchResponse
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+
+	require.Len(t, resp.Matches[structs.Namespaces], 1)
+	require.Equal(t, ns.Name, resp.Matches[structs.Namespaces][0].ID)
+	require.False(t, resp.Truncations[structs.Namespaces])
+	require.Equal(t, uint64(2000), resp.Index)
+}
+
 func TestSearch_FuzzySearch_ScalingPolicy(t *testing.T) {
 	t.Parallel()
 
@@ -1991,4 +2022,18 @@ func TestSearch_FuzzySearch_Job(t *testing.T) {
 			Scope: []string{"team-sleepy", job.ID, "sleep-in-java", "prod-java-sleep"},
 		}}, m[structs.Classes])
 	})
+}
+
+func TestSearch_FuzzySearch_fuzzyIndex(t *testing.T) {
+	for _, tc := range []struct {
+		name, text string
+		exp        int
+	}{
+		{name: "foo-bar-baz", text: "bar", exp: 4},
+		{name: "Foo-Bar-Baz", text: "bar", exp: 4},
+		{name: "foo-bar-baz", text: "zap", exp: -1},
+	} {
+		result := fuzzyIndex(tc.name, tc.text)
+		require.Equal(t, tc.exp, result, "name: %s, text: %s, exp: %d, got: %d", tc.name, tc.text, tc.exp, result)
+	}
 }
