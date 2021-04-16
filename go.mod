@@ -106,6 +106,7 @@ require (
 	github.com/oklog/run v1.0.1-0.20180308005104-6934b124db28 // indirect
 	github.com/onsi/gomega v1.9.0 // indirect
 	github.com/opencontainers/runc v1.0.0-rc93
+	github.com/opencontainers/runtime-spec v1.0.3-0.20200929063507-e6143ca7d51d
 	github.com/pkg/errors v0.9.1
 	github.com/posener/complete v1.2.3
 	github.com/prometheus/client_golang v1.4.0
