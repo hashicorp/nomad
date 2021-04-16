@@ -374,10 +374,18 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	mb := cfg.Resources.NomadResources.Memory.MemoryMB
-	if mb < 128 || mb > 4000000 {
-		return nil, nil, fmt.Errorf("Qemu memory assignment out of bounds")
+	if mb < 128 || mb > 4_000_000 {
+		return nil, nil, fmt.Errorf("Qemu memory assignment out of bounds [128MB, 4GB]: %v", mb)
 	}
 	mem := fmt.Sprintf("%dM", mb)
+
+	if mmax := cfg.Resources.NomadResources.Memory.MemoryMaxMB; mmax > 0 {
+		if mmax > 4_000_000 {
+			return nil, nil, fmt.Errorf("Qemu memory_max assignment out of bounds, must be less than 4GB: %v", mmax)
+		}
+
+		mem = fmt.Sprintf("%v,maxmem=%dM", mem, mmax)
+	}
 
 	absPath, err := GetAbsolutePath("qemu-system-x86_64")
 	if err != nil {
