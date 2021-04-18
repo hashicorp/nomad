@@ -3,10 +3,10 @@ package command
 import (
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/require"
 )
 
 func TestQuotaInitCommand_Implements(t *testing.T) {
@@ -20,50 +20,47 @@ func TestQuotaInitCommand_Run_HCL(t *testing.T) {
 	cmd := &QuotaInitCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
-	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
-		t.Fatalf("expect exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
-		t.Fatalf("expect help output, got: %s", out)
-	}
+	code := cmd.Run([]string{"some", "bad", "args"})
+	require.Equal(t, 1, code)
+	require.Contains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
 
 	// Ensure we change the cwd back
 	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.NoError(t, err)
 	defer os.Chdir(origDir)
 
 	// Create a temp dir and change into it
 	dir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.NoError(t, err)
 	defer os.RemoveAll(dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("err: %s", err)
-	}
+
+	err = os.Chdir(dir)
+	require.NoError(t, err)
 
 	// Works if the file doesn't exist
-	if code := cmd.Run([]string{}); code != 0 {
-		t.Fatalf("expect exit code 0, got: %d", code)
-	}
+	code = cmd.Run([]string{})
+	require.Empty(t, ui.ErrorWriter.String())
+	require.Zero(t, code)
+
 	content, err := ioutil.ReadFile(DefaultHclQuotaInitName)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if string(content) != defaultHclQuotaSpec {
-		t.Fatalf("unexpected file content\n\n%s", string(content))
-	}
+	require.NoError(t, err)
+	require.Equal(t, defaultHclQuotaSpec, string(content))
 
 	// Fails if the file exists
-	if code := cmd.Run([]string{}); code != 1 {
-		t.Fatalf("expect exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "exists") {
-		t.Fatalf("expect file exists error, got: %s", out)
-	}
+	code = cmd.Run([]string{})
+	require.Contains(t, ui.ErrorWriter.String(), "exists")
+	require.Equal(t, 1, code)
+	ui.ErrorWriter.Reset()
+
+	// Works if file is passed
+	code = cmd.Run([]string{"mytest.hcl"})
+	require.Empty(t, ui.ErrorWriter.String())
+	require.Zero(t, code)
+
+	content, err = ioutil.ReadFile("mytest.hcl")
+	require.NoError(t, err)
+	require.Equal(t, defaultHclQuotaSpec, string(content))
 }
 
 func TestQuotaInitCommand_Run_JSON(t *testing.T) {
@@ -72,48 +69,45 @@ func TestQuotaInitCommand_Run_JSON(t *testing.T) {
 	cmd := &QuotaInitCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
-	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
-		t.Fatalf("expect exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
-		t.Fatalf("expect help output, got: %s", out)
-	}
+	code := cmd.Run([]string{"some", "bad", "args"})
+	require.Equal(t, 1, code)
+	require.Contains(t, ui.ErrorWriter.String(), commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
 
 	// Ensure we change the cwd back
 	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.NoError(t, err)
 	defer os.Chdir(origDir)
 
 	// Create a temp dir and change into it
 	dir, err := ioutil.TempDir("", "nomad")
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+	require.NoError(t, err)
 	defer os.RemoveAll(dir)
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("err: %s", err)
-	}
+
+	err = os.Chdir(dir)
+	require.NoError(t, err)
 
 	// Works if the file doesn't exist
-	if code := cmd.Run([]string{"-json"}); code != 0 {
-		t.Fatalf("expect exit code 0, got: %d", code)
-	}
+	code = cmd.Run([]string{"-json"})
+	require.Empty(t, ui.ErrorWriter.String())
+	require.Zero(t, code)
+
 	content, err := ioutil.ReadFile(DefaultJsonQuotaInitName)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if string(content) != defaultJsonQuotaSpec {
-		t.Fatalf("unexpected file content\n\n%s", string(content))
-	}
+	require.NoError(t, err)
+	require.Equal(t, defaultJsonQuotaSpec, string(content))
 
 	// Fails if the file exists
-	if code := cmd.Run([]string{"-json"}); code != 1 {
-		t.Fatalf("expect exit code 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "exists") {
-		t.Fatalf("expect file exists error, got: %s", out)
-	}
+	code = cmd.Run([]string{"-json"})
+	require.Contains(t, ui.ErrorWriter.String(), "exists")
+	require.Equal(t, 1, code)
+	ui.ErrorWriter.Reset()
+
+	// Works if file is passed
+	code = cmd.Run([]string{"-json", "mytest.json"})
+	require.Empty(t, ui.ErrorWriter.String())
+	require.Zero(t, code)
+
+	content, err = ioutil.ReadFile("mytest.json")
+	require.NoError(t, err)
+	require.Equal(t, defaultJsonQuotaSpec, string(content))
 }
