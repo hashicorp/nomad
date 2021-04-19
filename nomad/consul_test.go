@@ -41,29 +41,32 @@ func TestConsulConfigsAPI_SetCE(t *testing.T) {
 
 	ctx := context.Background()
 
+	// existing behavior is no set namespace
+	consulNamespace := ""
+
 	ingressCE := new(structs.ConsulIngressConfigEntry)
 	t.Run("ingress ok", func(t *testing.T) {
 		try(t, nil, func(c ConsulConfigsAPI) error {
-			return c.SetIngressCE(ctx, "ig", ingressCE)
+			return c.SetIngressCE(ctx, consulNamespace, "ig", ingressCE)
 		})
 	})
 
 	t.Run("ingress fail", func(t *testing.T) {
 		try(t, errors.New("consul broke"), func(c ConsulConfigsAPI) error {
-			return c.SetIngressCE(ctx, "ig", ingressCE)
+			return c.SetIngressCE(ctx, consulNamespace, "ig", ingressCE)
 		})
 	})
 
 	terminatingCE := new(structs.ConsulTerminatingConfigEntry)
 	t.Run("terminating ok", func(t *testing.T) {
 		try(t, nil, func(c ConsulConfigsAPI) error {
-			return c.SetTerminatingCE(ctx, "tg", terminatingCE)
+			return c.SetTerminatingCE(ctx, consulNamespace, "tg", terminatingCE)
 		})
 	})
 
 	t.Run("terminating fail", func(t *testing.T) {
 		try(t, errors.New("consul broke"), func(c ConsulConfigsAPI) error {
-			return c.SetTerminatingCE(ctx, "tg", terminatingCE)
+			return c.SetTerminatingCE(ctx, consulNamespace, "tg", terminatingCE)
 		})
 	})
 

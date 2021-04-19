@@ -34,7 +34,7 @@ job "connect_terminating" {
       }
 
       env {
-        PORT = "9001"
+        PORT = "${NOMAD_PORT_port}"
       }
     }
   }
@@ -64,7 +64,7 @@ job "connect_terminating" {
       }
 
       env {
-        PORT = "9011"
+        PORT = "${NOMAD_PORT_port}"
       }
     }
   }
