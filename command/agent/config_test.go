@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	sockaddr "github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/freeport"
@@ -983,6 +984,95 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 
 	if c.AdvertiseAddrs.RPC != "127.0.0.1:4647" {
 		t.Fatalf("expected RPC advertise address 127.0.0.1:4647, got %s", c.AdvertiseAddrs.RPC)
+	}
+
+	// find the first interface
+	ifaces, err := sockaddr.GetAllInterfaces()
+	if err != nil {
+		t.Fatalf("failed to get interfaces: %v", err)
+	}
+	iface := ifaces[0]
+
+	// allow network_interface templates
+	c = &Config{
+		BindAddr: "127.0.0.1",
+		Ports: &Ports{
+			HTTP: 4646,
+			RPC:  4647,
+			Serf: 4648,
+		},
+		Addresses: &Addresses{},
+		AdvertiseAddrs: &AdvertiseAddrs{
+			HTTP: "127.0.0.1:4646",
+			RPC:  "127.0.0.1:4647",
+			Serf: "127.0.0.1:4648",
+		},
+		DevMode: false,
+		Client: &ClientConfig{
+			Enabled:          true,
+			NetworkInterface: `{{ GetAllInterfaces | attr "name" }}`,
+		},
+	}
+
+	if err := c.normalizeAddrs(); err != nil {
+		t.Fatalf("unable to normalize addresses: %s", err)
+	}
+
+	if c.Client.NetworkInterface != iface.Name {
+		t.Fatalf("expected client network_interface to be %q, got %q", iface.Name, c.Client.NetworkInterface)
+	}
+
+	// allow raw network_interface
+	c = &Config{
+		BindAddr: "127.0.0.1",
+		Ports: &Ports{
+			HTTP: 4646,
+			RPC:  4647,
+			Serf: 4648,
+		},
+		Addresses: &Addresses{},
+		AdvertiseAddrs: &AdvertiseAddrs{
+			HTTP: "127.0.0.1:4646",
+			RPC:  "127.0.0.1:4647",
+			Serf: "127.0.0.1:4648",
+		},
+		DevMode: false,
+		Client: &ClientConfig{
+			Enabled:          true,
+			NetworkInterface: iface.Name,
+		},
+	}
+
+	if err := c.normalizeAddrs(); err != nil {
+		t.Fatalf("unable to normalize addresses: %s", err)
+	}
+
+	if c.Client.NetworkInterface != iface.Name {
+		t.Fatalf("expected client network_interface to be %q, got %q", iface.Name, c.Client.NetworkInterface)
+	}
+
+	// invalid network_interface template
+	c = &Config{
+		BindAddr: "127.0.0.1",
+		Ports: &Ports{
+			HTTP: 4646,
+			RPC:  4647,
+			Serf: 4648,
+		},
+		Addresses: &Addresses{},
+		AdvertiseAddrs: &AdvertiseAddrs{
+			HTTP: "127.0.0.1:4646",
+			RPC:  "127.0.0.1:4647",
+			Serf: "127.0.0.1:4648",
+		},
+		DevMode: false,
+		Client: &ClientConfig{
+			Enabled:          true,
+			NetworkInterface: "not an interface",
+		},
+	}
+	if err := c.normalizeAddrs(); err == nil {
+		t.Fatal("expected normalizeAddrs to fail")
 	}
 }
 

@@ -1209,36 +1209,39 @@ func (c *Config) normalizeAddrs() error {
 func parseSingleInterfaceTemplate(tpl string) (string, error) {
 	out, err := template.Parse(tpl)
 	if err != nil {
-		// typically something like
+		// Typically something like:
 		// unable to parse template "{{printfl \"en50\"}}": template: sockaddr.Parse:1: function "printfl" not defined
 		return "", err
 	}
 
-	ifaces := strings.Split(out, " ")
-
-	if len(ifaces) > 1 {
-		return "", fmt.Errorf("multiple interfaces returned: %v", ifaces)
-	}
-	if len(ifaces) == 0 {
-		return "", fmt.Errorf("no interface returned")
+	// Remove any extra empty space around the rendered result and check if the
+	// result is also not empty if the user provided a template.
+	out = strings.TrimSpace(out)
+	if tpl != "" && out == "" {
+		return "", fmt.Errorf("template %q evaluated to empty result", tpl)
 	}
 
-	// This turns an invalid interface into a fast-fail
-	if !isValidInterface(ifaces[0]) {
-		return "", fmt.Errorf("invalid interface name: %v", ifaces[0])
+	// `template.Parse` returns a space-separated list of results, but on
+	// Windows network interfaces are allowed to have spaces, so there is no
+	// guaranteed separators that we can use to test if the template returned
+	// multiple interfaces.
+	// The test below checks if the template results to a single valid interface.
+
+	if !isValidInterface(out) {
+		return "", fmt.Errorf("invalid interface name %q", out)
 	}
-	return ifaces[0], nil
+	return out, nil
 
 }
-func isValidInterface(iface string) bool {
-	if iface == "" {
+
+// isValidInterface returns true if the input interface name exists.
+func isValidInterface(name string) bool {
+	if name == "" {
 		return true
 	}
-	parsed, err := template.Parse(
-		fmt.Sprintf("{{ GetAllInterfaces | include \"name\" \"%v\" | attr \"name\" }}",
-			iface))
 
-	return err == nil && parsed == iface
+	_, err := net.InterfaceByName(name)
+	return err == nil
 }
 
 // parseSingleIPTemplate is used as a helper function to parse out a single IP
