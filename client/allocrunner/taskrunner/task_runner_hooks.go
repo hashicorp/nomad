@@ -138,14 +138,15 @@ func (tr *TaskRunner) initHooks() {
 		}
 	}
 
-	// If there are any script checks, add the hook
-	scriptCheckHook := newScriptCheckHook(scriptCheckHookConfig{
+	// Always add the script checks hook. A task with no script check hook on
+	// initial registration may be updated to include script checks, which must
+	// be handled with this hook.
+	tr.runnerHooks = append(tr.runnerHooks, newScriptCheckHook(scriptCheckHookConfig{
 		alloc:  tr.Alloc(),
 		task:   tr.Task(),
 		consul: tr.consulServiceClient,
 		logger: hookLogger,
-	})
-	tr.runnerHooks = append(tr.runnerHooks, scriptCheckHook)
+	}))
 }
 
 func (tr *TaskRunner) emitHookError(err error, hookName string) {
