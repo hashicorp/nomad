@@ -14,6 +14,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/opencontainers/runtime-spec/specs-go"
+
 	"github.com/armon/circbuf"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
@@ -716,6 +718,14 @@ func configureCgroups(cfg *lconfigs.Config, command *ExecCommand) error {
 	// Set the relative CPU shares for this cgroup.
 	cfg.Cgroups.Resources.CpuShares = uint64(cpuShares)
 
+	if command.Resources.LinuxResources != nil && command.Resources.LinuxResources.CpusetCgroupPath != "" {
+		cfg.Hooks = lconfigs.Hooks{
+			lconfigs.CreateRuntime: lconfigs.HookList{
+				newSetCPUSetCgroupHook(command.Resources.LinuxResources.CpusetCgroupPath),
+			},
+		}
+	}
+
 	return nil
 }
 
@@ -779,6 +789,7 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 	if err := configureCgroups(cfg, command); err != nil {
 		return nil, err
 	}
+
 	return cfg, nil
 }
 
@@ -883,4 +894,10 @@ func lookPathIn(path string, root string, bin string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("file %s not found under path %s", bin, root)
+}
+
+func newSetCPUSetCgroupHook(cgroupPath string) lconfigs.Hook {
+	return lconfigs.NewFunctionHook(func(state *specs.State) error {
+		return cgroups.WriteCgroupProc(cgroupPath, state.Pid)
+	})
 }

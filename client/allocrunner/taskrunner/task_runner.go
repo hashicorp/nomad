@@ -206,7 +206,6 @@ type TaskRunner struct {
 	// cpusetCgroupPathGetter is used to lookup the cgroup path if supported by the platform
 	cpusetCgroupPathGetter cgutil.CgroupPathGetter
 
-	CpusetCgroupPathGetter cgutil.CgroupPathGetter
 	// driverManager is used to dispense driver plugins and register event
 	// handlers
 	driverManager drivermanager.Manager
@@ -999,6 +998,11 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		memoryLimit = max
 	}
 
+	cpusetCpus := make([]string, len(taskResources.Cpu.ReservedCores))
+	for i, v := range taskResources.Cpu.ReservedCores {
+		cpusetCpus[i] = fmt.Sprintf("%d", v)
+	}
+
 	return &drivers.TaskConfig{
 		ID:            fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
 		Name:          task.Name,
@@ -1013,6 +1017,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: memoryLimit * 1024 * 1024,
 				CPUShares:        taskResources.Cpu.CpuShares,
+				CpusetCpus:       strings.Join(cpusetCpus, ","),
 				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
 			},
 			Ports: &ports,
