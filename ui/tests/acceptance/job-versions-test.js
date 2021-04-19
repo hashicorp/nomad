@@ -59,6 +59,7 @@ module('Acceptance | job versions', function(hooks) {
     });
 
     if (versionRowToRevertTo) {
+      const versionNumberRevertingTo = versionRowToRevertTo.number;
       await versionRowToRevertTo.revertToButton.idle();
       await versionRowToRevertTo.revertToButton.confirm();
 
@@ -68,11 +69,10 @@ module('Acceptance | job versions', function(hooks) {
 
       assert.deepEqual(JSON.parse(revertRequest.requestBody), {
         JobID: job.id,
-        JobVersion: versionRowToRevertTo.number,
+        JobVersion: versionNumberRevertingTo,
       });
 
-      // The job should reload and have a new version number
-      assert.ok(versionRowToRevertTo.revertToButton.isHidden);
+      assert.equal(currentURL(), `/jobs/${job.id}`);
     }
   });
 

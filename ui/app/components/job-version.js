@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import { action, computed } from '@ember/object';
 import { classNames } from '@ember-decorators/component';
+import { inject as service } from '@ember/service';
 import { task } from 'ember-concurrency';
 import messageForError from 'nomad-ui/utils/message-from-adapter-error';
 import classic from 'ember-classic-decorator';
@@ -15,6 +16,8 @@ export default class JobVersion extends Component {
 
   // Passes through to the job-diff component
   verbose = true;
+
+  @service router;
 
   @computed('version.diff')
   get changeCount() {
@@ -56,6 +59,12 @@ export default class JobVersion extends Component {
           level: 'warn',
           title: 'Reversion Had No Effect',
           description: 'Reverting to an identical older version doesn’t produce a new version',
+        });
+      } else {
+        const job = this.get('version.job');
+
+        this.router.transitionTo('jobs.job', job.get('plainId'), {
+          queryParams: { namespace: job.get('namespace.name') },
         });
       }
     } catch (e) {
