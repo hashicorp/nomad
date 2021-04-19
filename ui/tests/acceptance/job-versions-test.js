@@ -8,6 +8,7 @@ import Layout from 'nomad-ui/tests/pages/layout';
 import moment from 'moment';
 
 let job;
+let namespace;
 let versions;
 
 module('Acceptance | job versions', function(hooks) {
@@ -15,13 +16,16 @@ module('Acceptance | job versions', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function() {
-    job = server.create('job', { createAllocations: false });
+    server.create('namespace');
+    namespace = server.create('namespace');
+
+    job = server.create('job', { namespaceId: namespace.id, createAllocations: false });
     versions = server.db.jobVersions.where({ jobId: job.id });
 
     const managementToken = server.create('token');
     window.localStorage.nomadTokenSecret = managementToken.secretId;
 
-    await Versions.visit({ id: job.id });
+    await Versions.visit({ id: job.id, namespace: namespace.id });
   });
 
   test('it passes an accessibility audit', async function(assert) {
@@ -65,14 +69,14 @@ module('Acceptance | job versions', function(hooks) {
 
       const revertRequest = this.server.pretender.handledRequests.find(request => request.url.includes('revert'));
 
-      assert.equal(revertRequest.url, `/v1/job/${job.id}/revert`);
+      assert.equal(revertRequest.url, `/v1/job/${job.id}/revert?namespace=${namespace.id}`);
 
       assert.deepEqual(JSON.parse(revertRequest.requestBody), {
         JobID: job.id,
         JobVersion: versionNumberRevertingTo,
       });
 
-      assert.equal(currentURL(), `/jobs/${job.id}`);
+      assert.equal(currentURL(), `/jobs/${job.id}?namespace=${namespace.id}`);
     }
   });
 
