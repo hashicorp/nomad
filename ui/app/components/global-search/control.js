@@ -127,6 +127,11 @@ export default class GlobalSearchControl extends Component {
   }
 
   @action
+  ensureMinimumLength(string) {
+    return string.length > 1;
+  }
+
+  @action
   selectOption(model) {
     if (model.type === 'job') {
       this.router.transitionTo('jobs.job', model.Scope[1], {

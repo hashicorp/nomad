@@ -4,6 +4,7 @@ import {
   clickable,
   collection,
   hasClass,
+  isHidden,
   isPresent,
   text,
 } from 'ember-cli-page-object';
@@ -53,6 +54,11 @@ export default create({
             },
           })
         ),
+      }),
+
+      noOptionsShown: isHidden('.ember-power-select-options', {
+        testContainer: '.ember-basic-dropdown-content',
+        resetScope: true,
       }),
 
       field: {

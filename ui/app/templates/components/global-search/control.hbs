@@ -3,6 +3,7 @@
     data-test-search
     @searchEnabled={{true}}
     @search={{perform this.search}}
+    @onInput={{action 'ensureMinimumLength'}}
     @onChange={{action 'selectOption'}}
     @onFocus={{action 'openOnClickOrTab'}}
     @onClose={{action 'onCloseEvent'}}

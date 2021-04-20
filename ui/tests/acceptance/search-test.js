@@ -56,7 +56,14 @@ module('Acceptance | search', function(hooks) {
     assert.equal(currentURL(), `/clients/${otherNode.id}`);
   });
 
-  skip('search only triggers after two characters have been entered');
+  test('search does not perform a request when only one character has been entered', async function(assert) {
+    await visit('/');
+
+    await selectSearch(Layout.navbar.search.scope, 'q');
+
+    assert.ok(Layout.navbar.search.noOptionsShown);
+    assert.notOk(server.pretender.handledRequests.findBy('url', '/v1/search/fuzzy'));
+  });
 
   skip('search searches jobs and nodes with route- and time-based caching and navigates to chosen items', async function(assert) {
     server.create('node', { name: 'xyz' });
