@@ -18,6 +18,29 @@ module('Acceptance | search', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
+  test('search exposes results from the fuzzy search endpoint', async function(assert) {
+    server.create('node');
+
+    server.create('job', { id: 'vwxyz', namespaceId: 'default' });
+    server.create('job', { id: 'xyz', name: 'xyz job', namespace: 'default' });
+    server.create('job', { id: 'abc', namespace: 'default' });
+
+    await visit('/');
+
+    await selectSearch(Layout.navbar.search.scope, 'xy');
+
+    Layout.navbar.search.as(search => {
+      assert.equal(search.groups.length, 2);
+
+      search.groups[0].as(jobs => {
+        assert.equal(jobs.name, 'Jobs (2)');
+        assert.equal(jobs.options.length, 2);
+        assert.equal(jobs.options[0].text, 'vwxyz');
+        assert.equal(jobs.options[1].text, 'xyz job');
+      });
+    });
+  });
+
   skip('search searches jobs and nodes with route- and time-based caching and navigates to chosen items', async function(assert) {
     server.create('node', { name: 'xyz' });
     const otherNode = server.create('node', { name: 'ghi' });

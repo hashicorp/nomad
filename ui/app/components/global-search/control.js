@@ -16,6 +16,7 @@ export default class GlobalSearchControl extends Component {
   @service dataCaches;
   @service router;
   @service store;
+  @service token;
 
   searchString = null;
 
@@ -85,6 +86,33 @@ export default class GlobalSearchControl extends Component {
       // eslint-disable-next-line
       console.log('exception searching', e);
     }
+  })
+  searchOld;
+
+  @task(function*(string) {
+    const searchResponse = yield this.token.authorizedRequest('/v1/search/fuzzy', {
+      method: 'POST',
+      body: JSON.stringify({
+        Text: string,
+        Context: 'all',
+      }),
+    });
+
+    const results = yield searchResponse.json();
+
+    const jobResults = results.Matches.jobs || [];
+    const nodeResults = results.Matches.nodes || [];
+
+    return [
+      {
+        groupName: resultsGroupLabel('Jobs', jobResults, [] /* FIXME */),
+        options: jobResults,
+      },
+      {
+        groupName: resultsGroupLabel('Clients', nodeResults, [] /* FIXME */),
+        options: nodeResults,
+      },
+    ];
   })
   search;
 

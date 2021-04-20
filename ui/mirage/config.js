@@ -568,6 +568,24 @@ export default function() {
     });
   });
 
+  this.post('/search/fuzzy', function( { jobs }, { requestBody }) {
+    const { Text } = JSON.parse(requestBody);
+
+    const matchedJobs = jobs.where(job => job.name.includes(Text));
+
+    return {
+      Matches: {
+        jobs: matchedJobs.models.map(job => ({
+          ID: job.name,
+          Scope: [
+            job.id,
+            job.namespace,
+          ]
+        }))
+      }
+    }
+  });
+
   this.get('/recommendations', function(
     { jobs, namespaces, recommendations },
     { queryParams: { job: id, namespace } }
