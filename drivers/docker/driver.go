@@ -348,6 +348,12 @@ CREATE:
 			container.ID, "container_state", container.State.String())
 	}
 
+	if containerCfg.HostConfig.CPUSet == "" && cfg.Resources.LinuxResources.CpusetCgroupPath != "" {
+		if err := setCPUSetCgroup(cfg.Resources.LinuxResources.CpusetCgroupPath, container.State.Pid); err != nil {
+			return nil, nil, fmt.Errorf("failed to set the cpuset cgroup for container: %v", err)
+		}
+	}
+
 	collectingLogs := !d.config.DisableLogCollection
 
 	var dlogger docklog.DockerLogger
@@ -839,6 +845,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	// This translates to docker create/run --cpuset-cpus option.
 	// --cpuset-cpus limit the specific CPUs or cores a container can use.
+	// Nomad natively manages cpusets, setting this option will override
+	// Nomad managed cpusets.
 	if driverConfig.CPUSetCPUs != "" {
 		hostConfig.CPUSetCPUs = driverConfig.CPUSetCPUs
 	}

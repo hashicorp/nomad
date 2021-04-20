@@ -7,6 +7,7 @@ import (
 	"net/rpc"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -33,6 +34,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
@@ -297,6 +299,9 @@ type Client struct {
 	// with a nomad client. Currently only used for CSI.
 	dynamicRegistry dynamicplugins.Registry
 
+	// cpusetManager configures cpusets on supported platforms
+	cpusetManager cgutil.CpusetManager
+
 	// EnterpriseClient is used to set and check enterprise features for clients
 	EnterpriseClient *EnterpriseClient
 }
@@ -356,6 +361,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		invalidAllocs:        make(map[string]struct{}),
 		serversContactedCh:   make(chan struct{}),
 		serversContactedOnce: sync.Once{},
+		cpusetManager:        cgutil.NewCpusetManager(cfg.CgroupParent, logger.Named("cpuset_manager")),
 		EnterpriseClient:     newEnterpriseClient(logger),
 	}
 
@@ -632,6 +638,17 @@ func (c *Client) init() error {
 	}
 
 	c.logger.Info("using alloc directory", "alloc_dir", c.config.AllocDir)
+
+	// Ensure cgroups are created on linux platform
+	if runtime.GOOS == "linux" && c.cpusetManager != nil {
+		err := c.cpusetManager.Init()
+		if err != nil {
+			// if the client cannot initialize the cgroup then reserved cores will not be reported and the cpuset manager
+			// will be disabled. this is common when running in dev mode under a non-root user for example
+			c.logger.Warn("could not initialize cpuset cgroup subsystem, cpuset management disabled", "error", err)
+			c.cpusetManager = cgutil.NoopCpusetManager()
+		}
+	}
 	return nil
 }
 
@@ -1115,6 +1132,7 @@ func (c *Client) restoreState() error {
 			PrevAllocMigrator:   prevAllocMigrator,
 			DynamicRegistry:     c.dynamicRegistry,
 			CSIManager:          c.csimanager,
+			CpusetManager:       c.cpusetManager,
 			DeviceManager:       c.devicemanager,
 			DriverManager:       c.drivermanager,
 			ServersContactedCh:  c.serversContactedCh,
@@ -2409,6 +2427,7 @@ func (c *Client) addAlloc(alloc *structs.Allocation, migrateToken string) error 
 		PrevAllocMigrator:   prevAllocMigrator,
 		DynamicRegistry:     c.dynamicRegistry,
 		CSIManager:          c.csimanager,
+		CpusetManager:       c.cpusetManager,
 		DeviceManager:       c.devicemanager,
 		DriverManager:       c.drivermanager,
 		RPCClient:           c,

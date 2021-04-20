@@ -368,8 +368,9 @@ type LinuxResources struct {
 	CPUShares        int64
 	MemoryLimitBytes int64
 	OOMScoreAdj      int64
-	CpusetCPUs       string
-	CpusetMems       string
+
+	CpusetCpus       string
+	CpusetCgroupPath string
 
 	// PrecentTicks is used to calculate the CPUQuota, currently the docker
 	// driver exposes cpu period and quota through the driver configuration

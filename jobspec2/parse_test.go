@@ -844,3 +844,82 @@ func TestParse_Meta_Alternatives(t *testing.T) {
 	require.Equal(t, map[string]string{"source": "task"}, asBlock.TaskGroups[0].Tasks[0].Meta)
 
 }
+
+// TestParse_UndefinedVariables asserts that values with undefined variables are left
+// intact in the job representation
+func TestParse_UndefinedVariables(t *testing.T) {
+
+	cases := []string{
+		"plain",
+		"foo-${BAR}",
+		"foo-${attr.network.dev-us-east1-relay-vpc.external-ip.0}",
+		`${env["BLAH"]}`,
+		`${mixed-indexing.0[3]["FOO"].5}`,
+		`with spaces ${   root.  field[  "FOO"].5  }`,
+	}
+
+	for _, c := range cases {
+		t.Run(c, func(t *testing.T) {
+			hcl := `job "example" {
+  region = "` + c + `"
+}`
+
+			job, err := ParseWithConfig(&ParseConfig{
+				Path: "input.hcl",
+				Body: []byte(hcl),
+			})
+			require.NoError(t, err)
+
+			require.Equal(t, c, *job.Region)
+		})
+	}
+}
+
+func TestParseServiceCheck(t *testing.T) {
+	hcl := ` job "group_service_check_script" {
+  group "group" {
+    service {
+      name = "foo-service"
+      port = "http"
+      check {
+        name   = "check-name"
+        type   = "http"
+        method = "POST"
+        body   = "{\"check\":\"mem\"}"
+      }
+    }
+  }
+}
+`
+	parsedJob, err := ParseWithConfig(&ParseConfig{
+		Path: "input.hcl",
+		Body: []byte(hcl),
+	})
+	require.NoError(t, err)
+
+	expectedJob := &api.Job{
+		ID:   stringToPtr("group_service_check_script"),
+		Name: stringToPtr("group_service_check_script"),
+		TaskGroups: []*api.TaskGroup{
+			{
+				Name: stringToPtr("group"),
+				Services: []*api.Service{
+					{
+						Name:      "foo-service",
+						PortLabel: "http",
+						Checks: []api.ServiceCheck{
+							{
+								Name:   "check-name",
+								Type:   "http",
+								Method: "POST",
+								Body:   "{\"check\":\"mem\"}",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	require.Equal(t, expectedJob, parsedJob)
+}

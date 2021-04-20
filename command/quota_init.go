@@ -27,10 +27,11 @@ type QuotaInitCommand struct {
 
 func (c *QuotaInitCommand) Help() string {
 	helpText := `
-Usage: nomad quota init
+Usage: nomad quota init <filename>
 
   Creates an example quota specification file that can be used as a starting
-  point to customize further.
+  point to customize further. If no filename is given, the default of "spec.hcl"
+  or "spec.json" will be used.
 
 Init Options:
 
@@ -68,8 +69,8 @@ func (c *QuotaInitCommand) Run(args []string) int {
 
 	// Check that we get no arguments
 	args = flags.Args()
-	if l := len(args); l != 0 {
-		c.Ui.Error("This command takes no arguments")
+	if l := len(args); l > 1 {
+		c.Ui.Error("This command takes no arguments or one: <filename>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -79,6 +80,9 @@ func (c *QuotaInitCommand) Run(args []string) int {
 	if jsonOutput {
 		fileName = DefaultJsonQuotaInitName
 		fileContent = defaultJsonQuotaSpec
+	}
+	if len(args) == 1 {
+		fileName = args[0]
 	}
 
 	// Check if the file already exists

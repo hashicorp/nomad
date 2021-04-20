@@ -44,6 +44,7 @@ message LaunchRequest {
     bool no_pivot_root = 14;
     string default_pid_mode = 15;
     string default_ipc_mode = 16;
+    string cpuset_cgroup = 17;
 }
 
 message LaunchResponse {

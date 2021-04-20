@@ -3,6 +3,8 @@ package fingerprint
 import (
 	"fmt"
 
+	"github.com/hashicorp/nomad/lib/cpuset"
+
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/stats"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -30,7 +32,7 @@ func NewCPUFingerprint(logger log.Logger) Fingerprint {
 
 func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
 	cfg := req.Config
-	setResourcesCPU := func(totalCompute int) {
+	setResourcesCPU := func(totalCompute int, totalCores uint16, reservableCores []uint16) {
 		// COMPAT(0.10): Remove in 0.10
 		resp.Resources = &structs.Resources{
 			CPU: totalCompute,
@@ -38,7 +40,9 @@ func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 
 		resp.NodeResources = &structs.NodeResources{
 			Cpu: structs.NodeCpuResources{
-				CpuShares: int64(totalCompute),
+				CpuShares:          int64(totalCompute),
+				TotalCpuCores:      totalCores,
+				ReservableCpuCores: reservableCores,
 			},
 		}
 	}
@@ -56,9 +60,25 @@ func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 		f.logger.Debug("detected cpu frequency", "MHz", log.Fmt("%.0f", mhz))
 	}
 
-	if numCores := stats.CPUNumCores(); numCores > 0 {
+	var numCores int
+	if numCores = stats.CPUNumCores(); numCores > 0 {
 		resp.AddAttribute("cpu.numcores", fmt.Sprintf("%d", numCores))
 		f.logger.Debug("detected core count", "cores", numCores)
+	}
+
+	var reservableCores []uint16
+	if req.Config.ReservableCores != nil {
+		reservableCores = req.Config.ReservableCores
+		f.logger.Debug("reservable cores set by config", "cpuset", reservableCores)
+	} else {
+		if cores, err := f.deriveReservableCores(req); err != nil {
+			f.logger.Warn("failed to detect set of reservable cores", "error", err)
+		} else {
+			if req.Node.ReservedResources != nil {
+				reservableCores = cpuset.New(cores...).Difference(cpuset.New(req.Node.ReservedResources.Cpu.ReservedCpuCores...)).ToSlice()
+			}
+			f.logger.Debug("detected reservable cores", "cpuset", reservableCores)
+		}
 	}
 
 	tt := int(stats.TotalTicksAvailable())
@@ -77,7 +97,7 @@ func (f *CPUFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintR
 	}
 
 	resp.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", tt))
-	setResourcesCPU(tt)
+	setResourcesCPU(tt, uint16(numCores), reservableCores)
 	resp.Detected = true
 
 	return nil

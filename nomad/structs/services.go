@@ -61,6 +61,7 @@ type ServiceCheck struct {
 	TaskName               string              // What task to execute this check in
 	SuccessBeforePassing   int                 // Number of consecutive successes required before considered healthy
 	FailuresBeforeCritical int                 // Number of consecutive failures required before considered unhealthy
+	Body                   string              // Body to use in HTTP check
 	OnUpdate               string
 }
 
@@ -165,6 +166,10 @@ func (sc *ServiceCheck) Equals(o *ServiceCheck) bool {
 	}
 
 	if sc.Type != o.Type {
+		return false
+	}
+
+	if sc.Body != o.Body {
 		return false
 	}
 
@@ -352,6 +357,7 @@ func (sc *ServiceCheck) Hash(serviceID string) string {
 	hashString(h, sc.Interval.String())
 	hashString(h, sc.Timeout.String())
 	hashString(h, sc.Method)
+	hashString(h, sc.Body)
 	hashString(h, sc.OnUpdate)
 
 	// use name "true" to maintain ID stability

@@ -491,6 +491,7 @@ func TestHTTP_OneTimeToken(t *testing.T) {
 		buf := encodeReq(structs.OneTimeTokenExchangeRequest{
 			OneTimeSecretID: ott.OneTimeToken.OneTimeSecretID})
 		req, err = http.NewRequest("POST", "/v1/acl/token/onetime/exchange", buf)
+		require.NoError(t, err)
 		respW = httptest.NewRecorder()
 
 		obj, err = s.Server.ExchangeOneTimeToken(respW, req)
@@ -506,6 +507,7 @@ func TestHTTP_OneTimeToken(t *testing.T) {
 		buf = encodeReq(structs.OneTimeTokenExchangeRequest{
 			OneTimeSecretID: ott.OneTimeToken.OneTimeSecretID})
 		req, err = http.NewRequest("POST", "/v1/acl/token/onetime/exchange", buf)
+		require.NoError(t, err)
 		respW = httptest.NewRecorder()
 
 		obj, err = s.Server.ExchangeOneTimeToken(respW, req)

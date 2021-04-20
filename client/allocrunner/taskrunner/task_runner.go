@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/cgutil"
+
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
@@ -27,6 +29,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -200,6 +203,9 @@ type TaskRunner struct {
 	// statistics
 	devicemanager devicemanager.Manager
 
+	// cpusetCgroupPathGetter is used to lookup the cgroup path if supported by the platform
+	cpusetCgroupPathGetter cgutil.CgroupPathGetter
+
 	// driverManager is used to dispense driver plugins and register event
 	// handlers
 	driverManager drivermanager.Manager
@@ -264,6 +270,9 @@ type Config struct {
 	// CSIManager is used to manage the mounting of CSI volumes into tasks
 	CSIManager csimanager.Manager
 
+	// CpusetCgroupPathGetter is used to lookup the cgroup path if supported by the platform
+	CpusetCgroupPathGetter cgutil.CgroupPathGetter
+
 	// DeviceManager is used to mount devices as well as lookup device
 	// statistics
 	DeviceManager devicemanager.Manager
@@ -302,36 +311,37 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	}
 
 	tr := &TaskRunner{
-		alloc:                config.Alloc,
-		allocID:              config.Alloc.ID,
-		clientConfig:         config.ClientConfig,
-		task:                 config.Task,
-		taskDir:              config.TaskDir,
-		taskName:             config.Task.Name,
-		taskLeader:           config.Task.Leader,
-		envBuilder:           envBuilder,
-		dynamicRegistry:      config.DynamicRegistry,
-		consulServiceClient:  config.Consul,
-		consulProxiesClient:  config.ConsulProxies,
-		siClient:             config.ConsulSI,
-		vaultClient:          config.Vault,
-		state:                tstate,
-		localState:           state.NewLocalState(),
-		stateDB:              config.StateDB,
-		stateUpdater:         config.StateUpdater,
-		deviceStatsReporter:  config.DeviceStatsReporter,
-		killCtx:              killCtx,
-		killCtxCancel:        killCancel,
-		shutdownCtx:          trCtx,
-		shutdownCtxCancel:    trCancel,
-		triggerUpdateCh:      make(chan struct{}, triggerUpdateChCap),
-		waitCh:               make(chan struct{}),
-		csiManager:           config.CSIManager,
-		devicemanager:        config.DeviceManager,
-		driverManager:        config.DriverManager,
-		maxEvents:            defaultMaxEvents,
-		serversContactedCh:   config.ServersContactedCh,
-		startConditionMetCtx: config.StartConditionMetCtx,
+		alloc:                  config.Alloc,
+		allocID:                config.Alloc.ID,
+		clientConfig:           config.ClientConfig,
+		task:                   config.Task,
+		taskDir:                config.TaskDir,
+		taskName:               config.Task.Name,
+		taskLeader:             config.Task.Leader,
+		envBuilder:             envBuilder,
+		dynamicRegistry:        config.DynamicRegistry,
+		consulServiceClient:    config.Consul,
+		consulProxiesClient:    config.ConsulProxies,
+		siClient:               config.ConsulSI,
+		vaultClient:            config.Vault,
+		state:                  tstate,
+		localState:             state.NewLocalState(),
+		stateDB:                config.StateDB,
+		stateUpdater:           config.StateUpdater,
+		deviceStatsReporter:    config.DeviceStatsReporter,
+		killCtx:                killCtx,
+		killCtxCancel:          killCancel,
+		shutdownCtx:            trCtx,
+		shutdownCtxCancel:      trCancel,
+		triggerUpdateCh:        make(chan struct{}, triggerUpdateChCap),
+		waitCh:                 make(chan struct{}),
+		csiManager:             config.CSIManager,
+		cpusetCgroupPathGetter: config.CpusetCgroupPathGetter,
+		devicemanager:          config.DeviceManager,
+		driverManager:          config.DriverManager,
+		maxEvents:              defaultMaxEvents,
+		serversContactedCh:     config.ServersContactedCh,
+		startConditionMetCtx:   config.StartConditionMetCtx,
 	}
 
 	// Create the logger based on the allocation ID
@@ -740,6 +750,13 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 func (tr *TaskRunner) runDriver() error {
 
 	taskConfig := tr.buildTaskConfig()
+	if tr.cpusetCgroupPathGetter != nil {
+		cpusetCgroupPath, err := tr.cpusetCgroupPathGetter(tr.killCtx)
+		if err != nil {
+			return err
+		}
+		taskConfig.Resources.LinuxResources.CpusetCgroupPath = cpusetCgroupPath
+	}
 
 	// Build hcl context variables
 	vars, errs, err := tr.envBuilder.Build().AllValues()
@@ -981,6 +998,11 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		memoryLimit = max
 	}
 
+	cpusetCpus := make([]string, len(taskResources.Cpu.ReservedCores))
+	for i, v := range taskResources.Cpu.ReservedCores {
+		cpusetCpus[i] = fmt.Sprintf("%d", v)
+	}
+
 	return &drivers.TaskConfig{
 		ID:            fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
 		Name:          task.Name,
@@ -995,6 +1017,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: memoryLimit * 1024 * 1024,
 				CPUShares:        taskResources.Cpu.CpuShares,
+				CpusetCpus:       strings.Join(cpusetCpus, ","),
 				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
 			},
 			Ports: &ports,
@@ -1324,20 +1347,22 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 		allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
 	}
 
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
-		float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "cache"},
-		float32(ru.ResourceUsage.MemoryStats.Cache), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "swap"},
-		float32(ru.ResourceUsage.MemoryStats.Swap), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "usage"},
-		float32(ru.ResourceUsage.MemoryStats.Usage), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_usage"},
-		float32(ru.ResourceUsage.MemoryStats.MaxUsage), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_usage"},
-		float32(ru.ResourceUsage.MemoryStats.KernelUsage), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_max_usage"},
-		float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage), tr.baseLabels)
+	ms := ru.ResourceUsage.MemoryStats
+
+	publishMetric := func(v uint64, reported, measured string) {
+		if v != 0 || helper.SliceStringContains(ms.Measured, measured) {
+			metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", reported},
+				float32(v), tr.baseLabels)
+		}
+	}
+
+	publishMetric(ms.RSS, "rss", "RSS")
+	publishMetric(ms.Cache, "cache", "Cache")
+	publishMetric(ms.Swap, "swap", "Swap")
+	publishMetric(ms.Usage, "usage", "Usage")
+	publishMetric(ms.MaxUsage, "max_usage", "Max Usage")
+	publishMetric(ms.KernelUsage, "kernel_usage", "Kernel Usage")
+	publishMetric(ms.KernelMaxUsage, "kernel_max_usage", "Kernel Max Usage")
 	if allocatedMem > 0 {
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "allocated"},
 			allocatedMem, tr.baseLabels)

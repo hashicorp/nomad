@@ -2684,6 +2684,8 @@ func TestTaskGroupDiff(t *testing.T) {
 								Args:                   []string{"foo"},
 								Path:                   "foo",
 								Protocol:               "http",
+								Method:                 "POST",
+								Body:                   "{\"key\": \"value\"}",
 								Expose:                 true,
 								Interval:               1 * time.Second,
 								Timeout:                1 * time.Second,
@@ -2896,6 +2898,12 @@ func TestTaskGroupDiff(t *testing.T) {
 										New:  "",
 									},
 									{
+										Type: DiffTypeDeleted,
+										Name: "Body",
+										Old:  "{\"key\": \"value\"}",
+										New:  "",
+									},
+									{
 										Type: DiffTypeEdited,
 										Name: "Command",
 										Old:  "foo",
@@ -2938,9 +2946,9 @@ func TestTaskGroupDiff(t *testing.T) {
 										New:  "2000000000",
 									},
 									{
-										Type: DiffTypeNone,
+										Type: DiffTypeDeleted,
 										Name: "Method",
-										Old:  "",
+										Old:  "POST",
 										New:  "",
 									},
 									{
@@ -6233,6 +6241,12 @@ func TestTaskDiff(t *testing.T) {
 									{
 										Type: DiffTypeNone,
 										Name: "AddressMode",
+										Old:  "",
+										New:  "",
+									},
+									{
+										Type: DiffTypeNone,
+										Name: "Body",
 										Old:  "",
 										New:  "",
 									},

@@ -1043,7 +1043,8 @@ func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, rep
 	if err != nil {
 		return err
 	}
-	if args.PerPage > 0 {
+	if args.PerPage > 0 && args.PerPage < int32(len(cResp.Entries)) {
+		// this should be done in the plugin already, but enforce it
 		reply.Volumes = cResp.Entries[:args.PerPage]
 	} else {
 		reply.Volumes = cResp.Entries
@@ -1242,7 +1243,8 @@ func (v *CSIVolume) ListSnapshots(args *structs.CSISnapshotListRequest, reply *s
 	if err != nil {
 		return err
 	}
-	if args.PerPage > 0 {
+	if args.PerPage > 0 && args.PerPage < int32(len(cResp.Entries)) {
+		// this should be done in the plugin already, but enforce it
 		reply.Snapshots = cResp.Entries[:args.PerPage]
 	} else {
 		reply.Snapshots = cResp.Entries

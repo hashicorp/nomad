@@ -90,4 +90,5 @@ EOF
 echo '=======>>>> Retrieving mac compiled binaries'
 rsync -avz --ignore-existing ${remote_macos_host}:"${REPO_REMOTE_PATH}/pkg/" "${REPO}/pkg"
 
-ssh ${remote_macos_host} rm -rf "${TMP_WORKSPACE}"
+ssh ${remote_macos_host} chmod -R +w "${TMP_WORKSPACE}" || true
+ssh ${remote_macos_host} rm -rf "${TMP_WORKSPACE}" || true

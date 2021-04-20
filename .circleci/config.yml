@@ -393,7 +393,6 @@ jobs:
       - install-golang:
           target_directory: ~/goinstall
       - run: source ${BASH_ENV} && make deps
-      - run: brew install protobuf
       - run: PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-structs
 
       - run:
@@ -533,7 +532,7 @@ executors:
   go-macos:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     macos:
-      xcode: 11.3.1
+      xcode: 12.4.0
     environment:
       <<: *common_envs
       GOPATH: /Users/distiller/go

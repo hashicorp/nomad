@@ -244,6 +244,28 @@ OUTER:
 		// Check if we need task group network resource
 		if len(iter.taskGroup.Networks) > 0 {
 			ask := iter.taskGroup.Networks[0].Copy()
+			for i, port := range ask.DynamicPorts {
+				if port.HostNetwork != "" {
+					if hostNetworkValue, hostNetworkOk := resolveTarget(port.HostNetwork, option.Node); hostNetworkOk {
+						ask.DynamicPorts[i].HostNetwork = hostNetworkValue.(string)
+					} else {
+						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("Invalid template for %s host network in port %s", port.HostNetwork, port.Label))
+						netIdx.Release()
+						continue OUTER
+					}
+				}
+			}
+			for i, port := range ask.ReservedPorts {
+				if port.HostNetwork != "" {
+					if hostNetworkValue, hostNetworkOk := resolveTarget(port.HostNetwork, option.Node); hostNetworkOk {
+						ask.ReservedPorts[i].HostNetwork = hostNetworkValue.(string)
+					} else {
+						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("Invalid template for %s host network in port %s", port.HostNetwork, port.Label))
+						netIdx.Release()
+						continue OUTER
+					}
+				}
+			}
 			offer, err := netIdx.AssignPorts(ask)
 			if err != nil {
 				// If eviction is not enabled, mark this node as exhausted and continue

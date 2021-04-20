@@ -466,27 +466,27 @@ The `Task` object supports the following keys:
 
     - `Name`: The name of the health check.
 
-  - `AddressMode`: Same as `AddressMode` on `Service`. Unlike services,
-    checks do not have an `auto` address mode as there's no way for
-    Nomad to know which is the best address to use for checks. Consul
-    needs access to the address for any HTTP or TCP checks. Added in
-    Nomad 0.7.1. Unlike `PortLabel`, this setting is _not_ inherited
-    from the `Service`.
+    - `AddressMode`: Same as `AddressMode` on `Service`. Unlike services,
+      checks do not have an `auto` address mode as there's no way for
+      Nomad to know which is the best address to use for checks. Consul
+      needs access to the address for any HTTP or TCP checks. Added in
+      Nomad 0.7.1. Unlike `PortLabel`, this setting is _not_ inherited
+      from the `Service`.
 
-  - `PortLabel`: Specifies the label of the port on which the check will
-    be performed. Note this is the _label_ of the port and not the port
-    number unless `AddressMode: "driver"`. The port label must match one
-    defined in the Network stanza. If a port value was declared on the
-    `Service`, this will inherit from that value if not supplied. If
-    supplied, this value takes precedence over the `Service.PortLabel`
-    value. This is useful for services which operate on multiple ports.
-    `http` and `tcp` checks require a port while `script` checks do not.
-    Checks will use the host IP and ports by default. In Nomad 0.7.1 or
-    later numeric ports may be used if `AddressMode: "driver"` is set on
-    the check.
+    - `PortLabel`: Specifies the label of the port on which the check will
+      be performed. Note this is the _label_ of the port and not the port
+      number unless `AddressMode: "driver"`. The port label must match one
+      defined in the Network stanza. If a port value was declared on the
+      `Service`, this will inherit from that value if not supplied. If
+      supplied, this value takes precedence over the `Service.PortLabel`
+      value. This is useful for services which operate on multiple ports.
+      `http` and `tcp` checks require a port while `script` checks do not.
+      Checks will use the host IP and ports by default. In Nomad 0.7.1 or
+      later numeric ports may be used if `AddressMode: "driver"` is set on
+      the check.
 
-  - `Header`: Headers for HTTP checks. Should be an object where the values are an
-    array of values. Headers will be written once for each value.
+    - `Header`: Headers for HTTP checks. Should be an object where the values
+      are an array of values. Headers will be written once for each value.
 
     - `Interval`: This indicates the frequency of the health checks that
       Consul will perform.
@@ -495,6 +495,8 @@ The `Task` object supports the following keys:
       check query to succeed.
 
     - `Method`: The HTTP method to use for HTTP checks. Defaults to GET.
+
+    - `Body`: The HTTP body to use for HTTP checks. Defaults to an empty string.
 
     - `Path`: The path of the HTTP endpoint which Consul will query to query
       the health of a service if the type of the check is `http`. Nomad
@@ -511,8 +513,8 @@ The `Task` object supports the following keys:
     - `Args`: Additional arguments to the `command` for script based health
       checks.
 
-  - `TLSSkipVerify`: If true, Consul will not attempt to verify the
-    certificate when performing HTTPS checks. Requires Consul >= 0.7.2.
+    - `TLSSkipVerify`: If true, Consul will not attempt to verify the
+      certificate when performing HTTPS checks. Requires Consul >= 0.7.2.
 
     - `CheckRestart`: `CheckRestart` is an object which enables
       restarting of tasks based upon Consul health checks.
