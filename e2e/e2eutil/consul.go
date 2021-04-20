@@ -52,8 +52,8 @@ func RequireConsulDeregistered(require *require.Assertions, client *capi.Client,
 
 // RequireConsulRegistered assert that the service is registered in Consul.
 func RequireConsulRegistered(require *require.Assertions, client *capi.Client, namespace, service string, count int) {
-	testutil.WaitForResultRetries(5, func() (bool, error) {
-		defer time.Sleep(time.Second)
+	testutil.WaitForResultRetries(10, func() (bool, error) {
+		defer time.Sleep(2 * time.Second)
 
 		services, _, err := client.Catalog().Service(service, "", &capi.QueryOptions{Namespace: namespace})
 		require.NoError(err)
@@ -72,6 +72,7 @@ func RequireConsulRegistered(require *require.Assertions, client *capi.Client, n
 // Requires Consul Enterprise.
 func CreateConsulNamespaces(t *testing.T, client *capi.Client, namespaces []string) {
 	nsClient := client.Namespaces()
+
 	for _, namespace := range namespaces {
 		_, _, err := nsClient.Create(&capi.Namespace{
 			Name:        namespace,
@@ -86,6 +87,7 @@ func CreateConsulNamespaces(t *testing.T, client *capi.Client, namespaces []stri
 // Requires Consul Enterprise.
 func DeleteConsulNamespaces(t *testing.T, client *capi.Client, namespaces []string) {
 	nsClient := client.Namespaces()
+
 	for _, namespace := range namespaces {
 		_, err := nsClient.Delete(namespace, nil)
 		assert.NoError(t, err) // be lenient; used in cleanup
@@ -97,8 +99,10 @@ func DeleteConsulNamespaces(t *testing.T, client *capi.Client, namespaces []stri
 // Requires Consul Enterprise.
 func ListConsulNamespaces(t *testing.T, client *capi.Client) []string {
 	nsClient := client.Namespaces()
+
 	namespaces, _, err := nsClient.List(nil)
 	require.NoError(t, err)
+
 	result := make([]string, 0, len(namespaces))
 	for _, namespace := range namespaces {
 		result = append(result, namespace.Name)
@@ -111,7 +115,9 @@ func ListConsulNamespaces(t *testing.T, client *capi.Client) []string {
 // Requires Consul Enterprise.
 func PutConsulKey(t *testing.T, client *capi.Client, namespace, key, value string) {
 	kvClient := client.KV()
-	_, err := kvClient.Put(&capi.KVPair{Key: key, Value: []byte(value)}, &capi.WriteOptions{Namespace: namespace})
+	opts := &capi.WriteOptions{Namespace: namespace}
+
+	_, err := kvClient.Put(&capi.KVPair{Key: key, Value: []byte(value)}, opts)
 	require.NoError(t, err)
 }
 
@@ -120,7 +126,9 @@ func PutConsulKey(t *testing.T, client *capi.Client, namespace, key, value strin
 // Requires Consul Enterprise.
 func DeleteConsulKey(t *testing.T, client *capi.Client, namespace, key string) {
 	kvClient := client.KV()
-	_, err := kvClient.Delete(key, &capi.WriteOptions{Namespace: namespace})
+	opts := &capi.WriteOptions{Namespace: namespace}
+
+	_, err := kvClient.Delete(key, opts)
 	require.NoError(t, err)
 }
 
@@ -130,7 +138,9 @@ func DeleteConsulKey(t *testing.T, client *capi.Client, namespace, key string) {
 // Requires Consul Enterprise.
 func ReadConsulConfigEntry(t *testing.T, client *capi.Client, namespace, kind, name string) capi.ConfigEntry {
 	ceClient := client.ConfigEntries()
-	ce, _, err := ceClient.Get(kind, name, &capi.QueryOptions{Namespace: namespace})
+	opts := &capi.QueryOptions{Namespace: namespace}
+
+	ce, _, err := ceClient.Get(kind, name, opts)
 	require.NoError(t, err)
 	return ce
 }
@@ -141,6 +151,78 @@ func ReadConsulConfigEntry(t *testing.T, client *capi.Client, namespace, kind, n
 // Requires Consul Enterprise.
 func DeleteConsulConfigEntry(t *testing.T, client *capi.Client, namespace, kind, name string) {
 	ceClient := client.ConfigEntries()
-	_, err := ceClient.Delete(kind, name, &capi.WriteOptions{Namespace: namespace})
+	opts := &capi.WriteOptions{Namespace: namespace}
+
+	_, err := ceClient.Delete(kind, name, opts)
 	require.NoError(t, err)
+}
+
+// ConsulPolicy is used for create Consul ACL policies that Consul ACL tokens
+// can make use of.
+type ConsulPolicy struct {
+	Name  string // e.g. nomad-operator
+	Rules string // e.g. service "" { policy="write" }
+}
+
+// CreateConsulPolicy is used to create a Consul ACL policy backed by the given
+// ConsulPolicy in the specified namespace.
+//
+// Requires Consul Enterprise.
+func CreateConsulPolicy(t *testing.T, client *capi.Client, namespace string, policy ConsulPolicy) string {
+	aclClient := client.ACL()
+	opts := &capi.WriteOptions{Namespace: namespace}
+
+	result, _, err := aclClient.PolicyCreate(&capi.ACLPolicy{
+		Name:        policy.Name,
+		Rules:       policy.Rules,
+		Description: fmt.Sprintf("An e2e test policy %q", policy.Name),
+	}, opts)
+	require.NoError(t, err, "failed to create consul acl policy")
+	return result.ID
+}
+
+// DeleteConsulPolicies is used to delete a set Consul ACL policies from Consul.
+//
+// Requires Consul Enterprise.
+func DeleteConsulPolicies(t *testing.T, client *capi.Client, policies map[string][]string) {
+	aclClient := client.ACL()
+
+	for namespace, policyIDs := range policies {
+		opts := &capi.WriteOptions{Namespace: namespace}
+		for _, policyID := range policyIDs {
+			_, err := aclClient.PolicyDelete(policyID, opts)
+			assert.NoError(t, err)
+		}
+	}
+}
+
+// CreateConsulToken is used to create a Consul ACL token backed by the policy of
+// the given policyID in the specified namespace.
+//
+// Requires Consul Enterprise.
+func CreateConsulToken(t *testing.T, client *capi.Client, namespace, policyID string) string {
+	aclClient := client.ACL()
+	opts := &capi.WriteOptions{Namespace: namespace}
+
+	token, _, err := aclClient.TokenCreate(&capi.ACLToken{
+		Policies:    []*capi.ACLTokenPolicyLink{{ID: policyID}},
+		Description: "An e2e test token",
+	}, opts)
+	require.NoError(t, err, "failed to create consul acl token")
+	return token.SecretID
+}
+
+// DeleteConsulTokens is used to delete a set of tokens from Consul.
+//
+// Requires Consul Enterprise.
+func DeleteConsulTokens(t *testing.T, client *capi.Client, tokens map[string][]string) {
+	aclClient := client.ACL()
+
+	for namespace, tokenIDs := range tokens {
+		opts := &capi.WriteOptions{Namespace: namespace}
+		for _, tokenID := range tokenIDs {
+			_, err := aclClient.TokenDelete(tokenID, opts)
+			assert.NoError(t, err)
+		}
+	}
 }
