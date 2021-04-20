@@ -575,29 +575,44 @@ export default function() {
     const matchedJobs = jobs.where(job => job.name.includes(Text));
     const matchedNodes = nodes.where(node => node.name.includes(Text));
 
+    const transformedGroups = matchedGroups.models.map(group => ({
+      ID: group.name,
+      Scope: [
+        group.job.namespace,
+        group.job.id,
+      ],
+    }));
+
+    const transformedJobs = matchedJobs.models.map(job => ({
+      ID: job.name,
+      Scope: [
+        job.namespace,
+        job.id,
+      ]
+    }));
+
+    const transformedNodes = matchedNodes.models.map(node => ({
+      ID: node.name,
+      Scope: [
+        node.id,
+      ],
+    }));
+
+    const truncatedGroups = transformedGroups.slice(0, 20);
+    const truncatedJobs = transformedJobs.slice(0, 20);
+    const truncatedNodes = transformedNodes.slice(0, 20);
+
     return {
       Matches: {
-        groups: matchedGroups.models.map(group => ({
-          ID: group.name,
-          Scope: [
-            group.job.namespace,
-            group.job.id,
-          ],
-        })),
-        jobs: matchedJobs.models.map(job => ({
-          ID: job.name,
-          Scope: [
-            job.namespace,
-            job.id,
-          ]
-        })),
-        nodes: matchedNodes.models.map(node => ({
-          ID: node.name,
-          Scope: [
-            node.id,
-          ],
-        }))
-      }
+        groups: truncatedGroups,
+        jobs: truncatedJobs,
+        nodes: truncatedNodes,
+      },
+      Truncations: {
+        groups: truncatedGroups.length < transformedGroups.length,
+        jobs: truncatedJobs.length < transformedJobs.length,
+        nodes: truncatedNodes.length < transformedNodes.length,
+      },
     }
   });
 

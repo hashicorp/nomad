@@ -112,17 +112,19 @@ export default class GlobalSearchControl extends Component {
     nodeResults.forEach(node => node.type = 'node');
     groupResults.forEach(group => group.type = 'group');
 
+    const truncations = results.Truncations;
+
     return [
       {
-        groupName: resultsGroupLabel('Jobs', jobResults, allJobResults),
+        groupName: resultsGroupLabel('Jobs', jobResults, allJobResults, truncations.jobs),
         options: jobResults,
       },
       {
-        groupName: resultsGroupLabel('Clients', nodeResults, allNodeResults),
+        groupName: resultsGroupLabel('Clients', nodeResults, allNodeResults, truncations.nodes),
         options: nodeResults,
       },
       {
-        groupName: resultsGroupLabel('Task Groups', groupResults, allGroupResults),
+        groupName: resultsGroupLabel('Task Groups', groupResults, allGroupResults, truncations.groups),
         options: groupResults,
       },
     ];
@@ -252,7 +254,7 @@ class NodeIdSearch extends EmberObject.extend(Searchable) {
   regexEnabled = true;
 }
 
-function resultsGroupLabel(type, renderedResults, allResults) {
+function resultsGroupLabel(type, renderedResults, allResults, truncated) {
   let countString;
 
   if (renderedResults.length < allResults.length) {
@@ -261,5 +263,7 @@ function resultsGroupLabel(type, renderedResults, allResults) {
     countString = renderedResults.length;
   }
 
-  return `${type} (${countString})`;
+  const truncationIndicator = truncated ? '+' : '';
+
+  return `${type} (${countString}${truncationIndicator})`;
 }
