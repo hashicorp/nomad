@@ -23,6 +23,7 @@ IMPROVEMENTS:
  * networking: Added support for user-defined iptables rules on the NOMAD-ADMIN chain. [[GH-10181](https://github.com/hashicorp/nomad/issues/10181)]
  * networking: Added support for interpolating host network names with node attributes. [[GH-10196](https://github.com/hashicorp/nomad/issues/10196)]
  * nomad/structs: Removed deprecated Node.Drain field, added API extensions to restore it [[GH-10202](https://github.com/hashicorp/nomad/issues/10202)]
+ * ui: Added a job reversion button [[GH-10336](https://github.com/hashicorp/nomad/pull/10336)]
 
 BUG FIXES:
  * core (Enterprise): Update licensing library to v0.0.11 to include race condition fix. [[GH-10253](https://github.com/hashicorp/nomad/issues/10253)]
