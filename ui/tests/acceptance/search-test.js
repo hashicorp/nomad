@@ -1,5 +1,5 @@
 /* eslint-disable ember-a11y-testing/a11y-audit-called */ // TODO
-import { module, test } from 'qunit';
+import { module, skip, test } from 'qunit';
 import { currentURL, triggerEvent, visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -18,7 +18,7 @@ module('Acceptance | search', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  test('search searches jobs and nodes with route- and time-based caching and navigates to chosen items', async function(assert) {
+  skip('search searches jobs and nodes with route- and time-based caching and navigates to chosen items', async function(assert) {
     server.create('node', { name: 'xyz' });
     const otherNode = server.create('node', { name: 'ghi' });
 
@@ -103,7 +103,7 @@ module('Acceptance | search', function(hooks) {
     clock.restore();
   });
 
-  test('search highlights matching substrings', async function(assert) {
+  skip('search highlights matching substrings', async function(assert) {
     server.create('node', { name: 'xyz' });
 
     server.create('job', { id: 'traefik', namespaceId: 'default' });
@@ -142,7 +142,7 @@ module('Acceptance | search', function(hooks) {
     });
   });
 
-  test('results are truncated at 10 per group', async function(assert) {
+  skip('results are truncated at 10 per group', async function(assert) {
     server.create('node', { name: 'xyz' });
 
     for (let i = 0; i < 15; i++) {
@@ -161,7 +161,7 @@ module('Acceptance | search', function(hooks) {
     });
   });
 
-  test('node id prefix matches take priority over node name matches', async function(assert) {
+  skip('node id prefix matches take priority over node name matches', async function(assert) {
     const nodeToMatchById = server.create('node', { name: 'xyz' });
 
     const idPrefix = nodeToMatchById.id.substr(0, 5);
