@@ -125,15 +125,9 @@ export default class GlobalSearchControl extends Component {
 
   @action
   selectOption(model) {
-    const itemModelName = model.constructor.modelName;
-
-    if (itemModelName === 'job') {
-      this.router.transitionTo('jobs.job', model.plainId, {
-        queryParams: { namespace: model.get('namespace.name') },
-      });
-    } else if (itemModelName === 'node') {
-      this.router.transitionTo('clients.client', model.id);
-    }
+    this.router.transitionTo('jobs.job', model.Scope[1], {
+      queryParams: { namespace: model.Scope[0] },
+    });
   }
 
   @action

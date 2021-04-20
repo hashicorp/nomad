@@ -578,8 +578,8 @@ export default function() {
         jobs: matchedJobs.models.map(job => ({
           ID: job.name,
           Scope: [
-            job.id,
             job.namespace,
+            job.id,
           ]
         }))
       }

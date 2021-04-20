@@ -18,12 +18,12 @@ module('Acceptance | search', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  test('search exposes results from the fuzzy search endpoint', async function(assert) {
+  test('search exposes and navigates to results from the fuzzy search endpoint', async function(assert) {
     server.create('node');
 
     server.create('job', { id: 'vwxyz', namespaceId: 'default' });
-    server.create('job', { id: 'xyz', name: 'xyz job', namespace: 'default' });
-    server.create('job', { id: 'abc', namespace: 'default' });
+    server.create('job', { id: 'xyz', name: 'xyz job', namespaceId: 'default' });
+    server.create('job', { id: 'abc', namespaceId: 'default' });
 
     await visit('/');
 
@@ -39,6 +39,9 @@ module('Acceptance | search', function(hooks) {
         assert.equal(jobs.options[1].text, 'xyz job');
       });
     });
+
+    await Layout.navbar.search.groups[0].options[1].click();
+    assert.equal(currentURL(), '/jobs/xyz');
   });
 
   skip('search only triggers after two characters have been entered');
