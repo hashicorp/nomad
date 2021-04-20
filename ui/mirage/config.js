@@ -568,14 +568,22 @@ export default function() {
     });
   });
 
-  this.post('/search/fuzzy', function( { jobs, nodes }, { requestBody }) {
+  this.post('/search/fuzzy', function( { jobs, nodes, taskGroups }, { requestBody }) {
     const { Text } = JSON.parse(requestBody);
 
+    const matchedGroups = taskGroups.where(taskGroup => taskGroup.name.includes(Text));
     const matchedJobs = jobs.where(job => job.name.includes(Text));
     const matchedNodes = nodes.where(node => node.name.includes(Text));
 
     return {
       Matches: {
+        groups: matchedGroups.models.map(group => ({
+          ID: group.name,
+          Scope: [
+            group.job.namespace,
+            group.job.id,
+          ],
+        })),
         jobs: matchedJobs.models.map(job => ({
           ID: job.name,
           Scope: [

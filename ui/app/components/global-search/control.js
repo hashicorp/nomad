@@ -102,9 +102,11 @@ export default class GlobalSearchControl extends Component {
 
     const jobResults = results.Matches.jobs || [];
     const nodeResults = results.Matches.nodes || [];
+    const groupResults = results.Matches.groups || [];
 
     jobResults.forEach(job => job.type = 'job');
     nodeResults.forEach(node => node.type = 'node');
+    groupResults.forEach(group => group.type = 'group');
 
     return [
       {
@@ -114,6 +116,10 @@ export default class GlobalSearchControl extends Component {
       {
         groupName: resultsGroupLabel('Clients', nodeResults, [] /* FIXME */),
         options: nodeResults,
+      },
+      {
+        groupName: resultsGroupLabel('Task Groups', groupResults, []),
+        options: groupResults,
       },
     ];
   })
@@ -139,6 +145,10 @@ export default class GlobalSearchControl extends Component {
       });
     } else if (model.type === 'node') {
       this.router.transitionTo('clients.client', model.Scope[0]);
+    } else if (model.type === 'group') {
+      this.router.transitionTo('jobs.job.task-group', model.Scope[1], model.ID, {
+        queryParams: { namespace: model.Scope[0] },
+      });
     }
   }
 

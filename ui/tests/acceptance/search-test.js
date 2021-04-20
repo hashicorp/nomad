@@ -22,16 +22,22 @@ module('Acceptance | search', function(hooks) {
     server.create('node', { name: 'xyz' });
     const otherNode = server.create('node', { name: 'ghi' });
 
-    server.create('job', { id: 'vwxyz', namespaceId: 'default' });
-    server.create('job', { id: 'xyz', name: 'xyz job', namespaceId: 'default' });
-    server.create('job', { id: 'abc', namespaceId: 'default' });
+    server.create('job', { id: 'vwxyz', namespaceId: 'default', groupsCount: 1 });
+    server.create('job', { id: 'xyz', name: 'xyz job', namespaceId: 'default', groupsCount: 1 });
+    server.create('job', { id: 'abc', namespaceId: 'default', groupsCount: 1 });
+
+    // Override random task group names to include job names to make results deterministic
+    server.schema.taskGroups.all().models.forEach(group => {
+      group.name = `${group.job.name}-group`;
+      group.save();
+    });
 
     await visit('/');
 
     await selectSearch(Layout.navbar.search.scope, 'xy');
 
     Layout.navbar.search.as(search => {
-      assert.equal(search.groups.length, 2);
+      assert.equal(search.groups.length, 3);
 
       search.groups[0].as(jobs => {
         assert.equal(jobs.name, 'Jobs (2)');
@@ -45,15 +51,25 @@ module('Acceptance | search', function(hooks) {
         assert.equal(clients.options.length, 1);
         assert.equal(clients.options[0].text, 'xyz');
       });
+
+      search.groups[2].as(groups => {
+        assert.equal(groups.name, 'Task Groups (2)');
+        assert.equal(groups.options.length, 2);
+        assert.equal(groups.options[0].text, 'vwxyz-group');
+        assert.equal(groups.options[1].text, 'xyz job-group');
+      });
     });
 
     await Layout.navbar.search.groups[0].options[1].click();
     assert.equal(currentURL(), '/jobs/xyz');
 
     await selectSearch(Layout.navbar.search.scope, otherNode.name);
-
     await Layout.navbar.search.groups[1].options[0].click();
     assert.equal(currentURL(), `/clients/${otherNode.id}`);
+
+    await selectSearch(Layout.navbar.search.scope, 'xy');
+    await Layout.navbar.search.groups[2].options[0].click();
+    assert.equal(currentURL(), '/jobs/vwxyz/vwxyz-group');
   });
 
   test('search does not perform a request when only one character has been entered', async function(assert) {
