@@ -100,9 +100,13 @@ export default class GlobalSearchControl extends Component {
 
     const results = yield searchResponse.json();
 
-    const jobResults = results.Matches.jobs || [];
-    const nodeResults = results.Matches.nodes || [];
-    const groupResults = results.Matches.groups || [];
+    const allJobResults = results.Matches.jobs || [];
+    const allNodeResults = results.Matches.nodes || [];
+    const allGroupResults = results.Matches.groups || [];
+
+    const jobResults = allJobResults.slice(0, MAXIMUM_RESULTS);
+    const nodeResults = allNodeResults.slice(0, MAXIMUM_RESULTS);
+    const groupResults = allGroupResults.slice(0, MAXIMUM_RESULTS);
 
     jobResults.forEach(job => job.type = 'job');
     nodeResults.forEach(node => node.type = 'node');
@@ -110,15 +114,15 @@ export default class GlobalSearchControl extends Component {
 
     return [
       {
-        groupName: resultsGroupLabel('Jobs', jobResults, [] /* FIXME */),
+        groupName: resultsGroupLabel('Jobs', jobResults, allJobResults),
         options: jobResults,
       },
       {
-        groupName: resultsGroupLabel('Clients', nodeResults, [] /* FIXME */),
+        groupName: resultsGroupLabel('Clients', nodeResults, allNodeResults),
         options: nodeResults,
       },
       {
-        groupName: resultsGroupLabel('Task Groups', groupResults, []),
+        groupName: resultsGroupLabel('Task Groups', groupResults, allGroupResults),
         options: groupResults,
       },
     ];
