@@ -71,7 +71,10 @@ func (tc *OnUpdateChecksTest) TestOnUpdateCheck_IgnoreWarning_IgnoreErrors(f *fr
 
 // TestOnUpdate_CheckRestart ensures that a service check set to ignore
 // warnings still follows the check_restart stanza if the task becomes
-// unhealthy after a deployment is successful
+// unhealthy after a deployment is successful.  on_update_check_restart has a
+// script check that should report as a warning status for the deployment to
+// become healthy. The script check then reports unhealthy and the
+// check_restart policy should restart the task
 func (tc *OnUpdateChecksTest) TestOnUpdate_CheckRestart(f *framework.F) {
 	uuid := uuid.Generate()
 	jobID := fmt.Sprintf("on-update-restart-%s", uuid[0:8])
@@ -91,22 +94,9 @@ func (tc *OnUpdateChecksTest) TestOnUpdate_CheckRestart(f *framework.F) {
 		"deployment should have completed successfully",
 	)
 
-	// register update with on_update = ignore
-	// this check errors, deployment should still be successful
-	f.NoError(
-		e2eutil.Register(jobID, "consul/input/on_update_2.nomad"),
-		"should have registered successfully",
-	)
-
-	f.NoError(
-		e2eutil.WaitForLastDeploymentStatus(jobID, "", "successful", wc),
-		"deployment should have completed successfully",
-	)
-
-	interval, retries := wc.OrDefault()
 	// Wait for and ensure that allocation restarted
-	testutil.WaitForResultRetries(retries, func() (bool, error) {
-		time.Sleep(interval)
+	testutil.WaitForResultRetries(wc.Retries, func() (bool, error) {
+		time.Sleep(wc.Interval)
 		allocs, err := e2e.AllocTaskEventsForJob(jobID, "")
 		if err != nil {
 			return false, err
@@ -114,7 +104,9 @@ func (tc *OnUpdateChecksTest) TestOnUpdate_CheckRestart(f *framework.F) {
 
 		for allocID, allocEvents := range allocs {
 			var allocRestarted bool
+			var eventTypes []string
 			for _, events := range allocEvents {
+				eventTypes = append(eventTypes, events["Type"])
 				if events["Type"] == "Restart Signaled" {
 					allocRestarted = true
 				}
@@ -122,7 +114,7 @@ func (tc *OnUpdateChecksTest) TestOnUpdate_CheckRestart(f *framework.F) {
 			if allocRestarted {
 				return true, nil
 			}
-			return false, fmt.Errorf("alloc %s expected to restart", allocID)
+			return false, fmt.Errorf("alloc %s expected to restart got %v", allocID, eventTypes)
 		}
 
 		return true, nil
