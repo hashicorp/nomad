@@ -41,6 +41,8 @@ module('Acceptance | search', function(hooks) {
     });
   });
 
+  skip('search only triggers after two characters have been entered');
+
   skip('search searches jobs and nodes with route- and time-based caching and navigates to chosen items', async function(assert) {
     server.create('node', { name: 'xyz' });
     const otherNode = server.create('node', { name: 'ghi' });
