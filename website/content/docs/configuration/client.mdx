@@ -48,7 +48,8 @@ client {
   to force network fingerprinting on. When run in dev mode, this defaults to the
   loopback interface. When not in dev mode, the interface attached to the
   default route is used. The scheduler chooses from these fingerprinted IP
-  addresses when allocating ports for tasks.
+  addresses when allocating ports for tasks. This value support [go-sockaddr/template
+  format][go-sockaddr/template].
 
   If no non-local IP addresses are found, Nomad could fingerprint link-local IPv6
   addresses depending on the client's
@@ -455,3 +456,4 @@ client {
 [server-join]: /docs/configuration/server_join 'Server Join'
 [metadata_constraint]: /docs/job-specification/constraint#user-specified-metadata 'Nomad User-Specified Metadata Constraint Example'
 [task working directory]: /docs/runtime/environment#task-directories 'Task directories'
+[go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template

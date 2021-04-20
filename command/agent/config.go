@@ -839,7 +839,7 @@ func (mode *devModeConfig) networkConfig() error {
 			return fmt.Errorf(errMsg, err)
 		}
 		if len(ifAddrs) < 1 {
-			return fmt.Errorf(errMsg, "could not find public network inteface")
+			return fmt.Errorf(errMsg, "could not find public network interface")
 		}
 		iface := ifAddrs[0].Name
 		mode.iface = iface
@@ -1180,7 +1180,7 @@ func (c *Config) Merge(b *Config) *Config {
 }
 
 // normalizeAddrs normalizes Addresses and AdvertiseAddrs to always be
-// initialized and have sane defaults.
+// initialized and have reasonable defaults.
 func (c *Config) normalizeAddrs() error {
 	if c.BindAddr != "" {
 		ipStr, err := parseSingleIPTemplate(c.BindAddr)
@@ -1235,7 +1235,47 @@ func (c *Config) normalizeAddrs() error {
 		c.AdvertiseAddrs.Serf = addr
 	}
 
+	// Skip network_interface evaluation if not a client
+	if c.Client != nil && c.Client.Enabled && c.Client.NetworkInterface != "" {
+		parsed, err := parseSingleInterfaceTemplate(c.Client.NetworkInterface)
+		if err != nil {
+			return fmt.Errorf("Failed to parse network-interface: %v", err)
+		}
+
+		c.Client.NetworkInterface = parsed
+	}
+
 	return nil
+}
+
+// parseSingleInterfaceTemplate parses a go-sockaddr template and returns an
+// error if it doesn't result in a single value.
+func parseSingleInterfaceTemplate(tpl string) (string, error) {
+	out, err := template.Parse(tpl)
+	if err != nil {
+		// Typically something like:
+		// unable to parse template "{{printfl \"en50\"}}": template: sockaddr.Parse:1: function "printfl" not defined
+		return "", err
+	}
+
+	// Remove any extra empty space around the rendered result and check if the
+	// result is also not empty if the user provided a template.
+	out = strings.TrimSpace(out)
+	if tpl != "" && out == "" {
+		return "", fmt.Errorf("template %q evaluated to empty result", tpl)
+	}
+
+	// `template.Parse` returns a space-separated list of results, but on
+	// Windows network interfaces are allowed to have spaces, so there is no
+	// guaranteed separators that we can use to test if the template returned
+	// multiple interfaces.
+	// The test below checks if the template results to a single valid interface.
+	_, err = net.InterfaceByName(out)
+	if err != nil {
+		return "", fmt.Errorf("invalid interface name %q", out)
+	}
+
+	return out, nil
 }
 
 // parseSingleIPTemplate is used as a helper function to parse out a single IP
