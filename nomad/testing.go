@@ -95,6 +95,14 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	// Disable consul autojoining: tests typically join servers directly
 	config.ConsulConfig.ServerAutoJoin = &f
 
+	// Enable fuzzy search API
+	config.SearchConfig = &structs.SearchConfig{
+		FuzzyEnabled:  true,
+		LimitQuery:    20,
+		LimitResults:  100,
+		MinTermLength: 2,
+	}
+
 	// Invoke the callback if any
 	if cb != nil {
 		cb(config)

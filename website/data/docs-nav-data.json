@@ -181,6 +181,10 @@
         "path": "configuration/sentinel"
       },
       {
+        "title": "search",
+        "path": "configuration/search"
+      },
+      {
         "title": "server",
         "path": "configuration/server"
       },

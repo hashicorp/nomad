@@ -354,9 +354,11 @@ type Config struct {
 
 	// LicenseConfig is a tunable knob for enterprise license testing.
 	LicenseConfig *LicenseConfig
+	LicenseEnv    string
+	LicensePath   string
 
-	LicenseEnv  string
-	LicensePath string
+	// SearchConfig provides knobs for Search API.
+	SearchConfig *structs.SearchConfig
 
 	// AgentShutdown is used to call agent.Shutdown from the context of a Server
 	// It is used primarily for licensing

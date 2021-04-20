@@ -194,6 +194,9 @@ server {
   in place of the Nomad version when custom upgrades are enabled in Autopilot.
   For more information, see the [Autopilot Guide](https://learn.hashicorp.com/tutorials/nomad/autopilot).
 
+- `search` <code>([search][search]: nil)</code> - Specifies configuration parameters
+  for the Nomad search API.
+
 ### Deprecated Parameters
 
 - `retry_join` `(array<string>: [])` - Specifies a list of server addresses to
@@ -312,3 +315,4 @@ server {
 [bootstrapping a cluster]: /docs/faq#bootstrapping
 [rfc4648]: https://tools.ietf.org/html/rfc4648#section-5
 [`nomad operator keygen`]: /docs/commands/operator/keygen
+[search]: /docs/configuration/search

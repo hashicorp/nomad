@@ -1,0 +1,50 @@
+---
+layout: docs
+page_title: search Stanza - Agent Configuration
+sidebar_title: search
+description: >-
+  The "search" stanza specifies configuration for the search API provided
+  by the Nomad servers.
+---
+
+# `search` Stanza
+
+<Placement
+  groups={[
+    ['server', 'search'],
+  ]}
+/>
+
+The `search` stanza specifies configuration for the search API provided by the
+Nomad servers.
+
+```hcl
+server {
+  search {
+    fuzzy_enabled   = true
+    limit_query     = 200
+    limit_results   = 1000
+    min_term_length = 5
+  }
+}
+```
+
+## `search` Parameters
+
+- `fuzzy_enabled` `(bool: true)` - Specifies whether the [fuzzy search API][fuzzy]
+  is enabled. If not enabled, requests to the fuzzy search API endpoint will return
+  an error response.
+
+- `limit_query` `(int: 20)` - Specifies the maximum number of Nomad objects to
+  search through per context type in the Nomad server before truncating results.
+  Setting this parameter to high value may degrade Nomad server performance.
+
+- `limit_results` `(int: 100)` - Specifies the maximum number of matching results
+  to accumulate per context type in the API response before truncating results.
+  Setting this parameter to a high value may cause excessively large API response sizes.
+
+- `min_term_length` `(int: 2)` - Specifies the minimum size of the search term
+  allowed for matching with the fuzzy search API. Setting this value higher can
+  prevent unnecessary load on the Nomad server from broad queries.
+
+[fuzzy]: /api-docs/search#fuzzy-searching
