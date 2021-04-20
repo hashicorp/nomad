@@ -1136,7 +1136,7 @@ func (c *Config) Merge(b *Config) *Config {
 }
 
 // normalizeAddrs normalizes Addresses and AdvertiseAddrs to always be
-// initialized and have sane defaults.
+// initialized and have reasonable defaults.
 func (c *Config) normalizeAddrs() error {
 	if c.BindAddr != "" {
 		ipStr, err := parseSingleIPTemplate(c.BindAddr)
@@ -1226,22 +1226,12 @@ func parseSingleInterfaceTemplate(tpl string) (string, error) {
 	// guaranteed separators that we can use to test if the template returned
 	// multiple interfaces.
 	// The test below checks if the template results to a single valid interface.
-
-	if !isValidInterface(out) {
+	_, err = net.InterfaceByName(out)
+	if err != nil {
 		return "", fmt.Errorf("invalid interface name %q", out)
 	}
+
 	return out, nil
-
-}
-
-// isValidInterface returns true if the input interface name exists.
-func isValidInterface(name string) bool {
-	if name == "" {
-		return true
-	}
-
-	_, err := net.InterfaceByName(name)
-	return err == nil
 }
 
 // parseSingleIPTemplate is used as a helper function to parse out a single IP

@@ -985,94 +985,102 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 	if c.AdvertiseAddrs.RPC != "127.0.0.1:4647" {
 		t.Fatalf("expected RPC advertise address 127.0.0.1:4647, got %s", c.AdvertiseAddrs.RPC)
 	}
+}
 
+func TestConfig_templateNetworkInterface(t *testing.T) {
 	// find the first interface
 	ifaces, err := sockaddr.GetAllInterfaces()
 	if err != nil {
 		t.Fatalf("failed to get interfaces: %v", err)
 	}
 	iface := ifaces[0]
-
-	// allow network_interface templates
-	c = &Config{
-		BindAddr: "127.0.0.1",
-		Ports: &Ports{
-			HTTP: 4646,
-			RPC:  4647,
-			Serf: 4648,
+	testCases := []struct {
+		name              string
+		clientConfig      *ClientConfig
+		expectedInterface string
+		expectErr         bool
+	}{
+		{
+			name: "empty string",
+			clientConfig: &ClientConfig{
+				Enabled:          true,
+				NetworkInterface: "",
+			},
+			expectedInterface: "",
+			expectErr:         false,
 		},
-		Addresses: &Addresses{},
-		AdvertiseAddrs: &AdvertiseAddrs{
-			HTTP: "127.0.0.1:4646",
-			RPC:  "127.0.0.1:4647",
-			Serf: "127.0.0.1:4648",
+		{
+			name: "simple string",
+			clientConfig: &ClientConfig{
+				Enabled:          true,
+				NetworkInterface: iface.Name,
+			},
+			expectedInterface: iface.Name,
+			expectErr:         false,
 		},
-		DevMode: false,
-		Client: &ClientConfig{
-			Enabled:          true,
-			NetworkInterface: `{{ GetAllInterfaces | attr "name" }}`,
+		{
+			name: "valid interface",
+			clientConfig: &ClientConfig{
+				Enabled:          true,
+				NetworkInterface: `{{ GetAllInterfaces | attr "name" }}`,
+			},
+			expectedInterface: iface.Name,
+			expectErr:         false,
 		},
-	}
-
-	if err := c.normalizeAddrs(); err != nil {
-		t.Fatalf("unable to normalize addresses: %s", err)
-	}
-
-	if c.Client.NetworkInterface != iface.Name {
-		t.Fatalf("expected client network_interface to be %q, got %q", iface.Name, c.Client.NetworkInterface)
-	}
-
-	// allow raw network_interface
-	c = &Config{
-		BindAddr: "127.0.0.1",
-		Ports: &Ports{
-			HTTP: 4646,
-			RPC:  4647,
-			Serf: 4648,
+		{
+			name: "invalid interface",
+			clientConfig: &ClientConfig{
+				Enabled:          true,
+				NetworkInterface: `no such interface`,
+			},
+			expectedInterface: iface.Name,
+			expectErr:         true,
 		},
-		Addresses: &Addresses{},
-		AdvertiseAddrs: &AdvertiseAddrs{
-			HTTP: "127.0.0.1:4646",
-			RPC:  "127.0.0.1:4647",
-			Serf: "127.0.0.1:4648",
+		{
+			name: "insignificant whitespace",
+			clientConfig: &ClientConfig{
+				Enabled: true,
+				NetworkInterface: `		{{GetAllInterfaces | attr "name" }}`,
+			},
+			expectedInterface: iface.Name,
+			expectErr:         false,
 		},
-		DevMode: false,
-		Client: &ClientConfig{
-			Enabled:          true,
-			NetworkInterface: iface.Name,
-		},
-	}
-
-	if err := c.normalizeAddrs(); err != nil {
-		t.Fatalf("unable to normalize addresses: %s", err)
-	}
-
-	if c.Client.NetworkInterface != iface.Name {
-		t.Fatalf("expected client network_interface to be %q, got %q", iface.Name, c.Client.NetworkInterface)
-	}
-
-	// invalid network_interface template
-	c = &Config{
-		BindAddr: "127.0.0.1",
-		Ports: &Ports{
-			HTTP: 4646,
-			RPC:  4647,
-			Serf: 4648,
-		},
-		Addresses: &Addresses{},
-		AdvertiseAddrs: &AdvertiseAddrs{
-			HTTP: "127.0.0.1:4646",
-			RPC:  "127.0.0.1:4647",
-			Serf: "127.0.0.1:4648",
-		},
-		DevMode: false,
-		Client: &ClientConfig{
-			Enabled:          true,
-			NetworkInterface: "not an interface",
+		{
+			name: "empty template return",
+			clientConfig: &ClientConfig{
+				Enabled:          true,
+				NetworkInterface: `{{ printf "" }}`,
+			},
+			expectedInterface: iface.Name,
+			expectErr:         true,
 		},
 	}
-	if err := c.normalizeAddrs(); err == nil {
-		t.Fatal("expected normalizeAddrs to fail")
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &Config{
+				BindAddr: "127.0.0.1",
+				Ports: &Ports{
+					HTTP: 4646,
+					RPC:  4647,
+					Serf: 4648,
+				},
+				Addresses: &Addresses{},
+				AdvertiseAddrs: &AdvertiseAddrs{
+					HTTP: "127.0.0.1:4646",
+					RPC:  "127.0.0.1:4647",
+					Serf: "127.0.0.1:4648",
+				},
+				DevMode: false,
+				Client:  tc.clientConfig,
+			}
+			err := c.normalizeAddrs()
+			if tc.expectErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, c.Client.NetworkInterface, tc.expectedInterface)
+		})
 	}
 }
 
