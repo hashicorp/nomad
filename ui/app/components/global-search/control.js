@@ -103,6 +103,9 @@ export default class GlobalSearchControl extends Component {
     const jobResults = results.Matches.jobs || [];
     const nodeResults = results.Matches.nodes || [];
 
+    jobResults.forEach(job => job.type = 'job');
+    nodeResults.forEach(node => node.type = 'node');
+
     return [
       {
         groupName: resultsGroupLabel('Jobs', jobResults, [] /* FIXME */),
@@ -125,9 +128,13 @@ export default class GlobalSearchControl extends Component {
 
   @action
   selectOption(model) {
-    this.router.transitionTo('jobs.job', model.Scope[1], {
-      queryParams: { namespace: model.Scope[0] },
-    });
+    if (model.type === 'job') {
+      this.router.transitionTo('jobs.job', model.Scope[1], {
+        queryParams: { namespace: model.Scope[0] },
+      });
+    } else if (model.type === 'node') {
+      this.router.transitionTo('clients.client', model.Scope[0]);
+    }
   }
 
   @action

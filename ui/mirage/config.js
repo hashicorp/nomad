@@ -568,10 +568,11 @@ export default function() {
     });
   });
 
-  this.post('/search/fuzzy', function( { jobs }, { requestBody }) {
+  this.post('/search/fuzzy', function( { jobs, nodes }, { requestBody }) {
     const { Text } = JSON.parse(requestBody);
 
     const matchedJobs = jobs.where(job => job.name.includes(Text));
+    const matchedNodes = nodes.where(node => node.name.includes(Text));
 
     return {
       Matches: {
@@ -581,6 +582,12 @@ export default function() {
             job.namespace,
             job.id,
           ]
+        })),
+        nodes: matchedNodes.models.map(node => ({
+          ID: node.name,
+          Scope: [
+            node.id,
+          ],
         }))
       }
     }

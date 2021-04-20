@@ -19,7 +19,8 @@ module('Acceptance | search', function(hooks) {
   setupMirage(hooks);
 
   test('search exposes and navigates to results from the fuzzy search endpoint', async function(assert) {
-    server.create('node');
+    server.create('node', { name: 'xyz' });
+    const otherNode = server.create('node', { name: 'ghi' });
 
     server.create('job', { id: 'vwxyz', namespaceId: 'default' });
     server.create('job', { id: 'xyz', name: 'xyz job', namespaceId: 'default' });
@@ -38,10 +39,21 @@ module('Acceptance | search', function(hooks) {
         assert.equal(jobs.options[0].text, 'vwxyz');
         assert.equal(jobs.options[1].text, 'xyz job');
       });
+
+      search.groups[1].as(clients => {
+        assert.equal(clients.name, 'Clients (1)');
+        assert.equal(clients.options.length, 1);
+        assert.equal(clients.options[0].text, 'xyz');
+      });
     });
 
     await Layout.navbar.search.groups[0].options[1].click();
     assert.equal(currentURL(), '/jobs/xyz');
+
+    await selectSearch(Layout.navbar.search.scope, otherNode.name);
+
+    await Layout.navbar.search.groups[1].options[0].click();
+    assert.equal(currentURL(), `/clients/${otherNode.id}`);
   });
 
   skip('search only triggers after two characters have been entered');
