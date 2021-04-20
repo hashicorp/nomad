@@ -1,33 +1,39 @@
 package structs
 
-// ConsulConfigEntries represents Consul ConfigEntry definitions from a job.
+// ConsulConfigEntries represents Consul ConfigEntry definitions from a job for
+// a single Consul namespace.
 type ConsulConfigEntries struct {
 	Ingress     map[string]*ConsulIngressConfigEntry
 	Terminating map[string]*ConsulTerminatingConfigEntry
-	// Mesh later
 }
 
 // ConfigEntries accumulates the Consul Configuration Entries defined in task groups
-// of j.
-func (j *Job) ConfigEntries() *ConsulConfigEntries {
-	entries := &ConsulConfigEntries{
-		Ingress:     make(map[string]*ConsulIngressConfigEntry),
-		Terminating: make(map[string]*ConsulTerminatingConfigEntry),
-		// Mesh later
-	}
+// of j, organized by Consul namespace.
+func (j *Job) ConfigEntries() map[string]*ConsulConfigEntries {
+	collection := make(map[string]*ConsulConfigEntries)
 
 	for _, tg := range j.TaskGroups {
+
+		// accumulate config entries by namespace
+		ns := tg.Consul.GetNamespace()
+		if _, exists := collection[ns]; !exists {
+			collection[ns] = &ConsulConfigEntries{
+				Ingress:     make(map[string]*ConsulIngressConfigEntry),
+				Terminating: make(map[string]*ConsulTerminatingConfigEntry),
+			}
+		}
+
 		for _, service := range tg.Services {
 			if service.Connect.IsGateway() {
 				gateway := service.Connect.Gateway
 				if ig := gateway.Ingress; ig != nil {
-					entries.Ingress[service.Name] = ig
-				} else if tg := gateway.Terminating; tg != nil {
-					entries.Terminating[service.Name] = tg
-				} // mesh later
+					collection[ns].Ingress[service.Name] = ig
+				} else if term := gateway.Terminating; term != nil {
+					collection[ns].Terminating[service.Name] = term
+				}
 			}
 		}
 	}
 
-	return entries
+	return collection
 }

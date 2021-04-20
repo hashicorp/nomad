@@ -281,8 +281,9 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Create or Update Consul Configuration Entries defined in the job. For now
-	// Nomad only supports Configuration Entries of type "ingress-gateway" for managing
-	// Consul Connect Ingress Gateway tasks derived from TaskGroup services.
+	// Nomad only supports Configuration Entries types
+	// - "ingress-gateway" for managing Ingress Gateways
+	// - "terminating-gateway" for managing Terminating Gateways
 	//
 	// This is done as a blocking operation that prevents the job from being
 	// submitted if the configuration entries cannot be set in Consul.
@@ -290,18 +291,19 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	// Every job update will re-write the Configuration Entry into Consul.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	entries := args.Job.ConfigEntries()
-	for service, entry := range entries.Ingress {
-		if err := j.srv.consulConfigEntries.SetIngressCE(ctx, service, entry); err != nil {
-			return err
+
+	for ns, entries := range args.Job.ConfigEntries() {
+		for service, entry := range entries.Ingress {
+			if errCE := j.srv.consulConfigEntries.SetIngressCE(ctx, ns, service, entry); errCE != nil {
+				return errCE
+			}
+		}
+		for service, entry := range entries.Terminating {
+			if errCE := j.srv.consulConfigEntries.SetTerminatingCE(ctx, ns, service, entry); errCE != nil {
+				return errCE
+			}
 		}
 	}
-	for service, entry := range entries.Terminating {
-		if err := j.srv.consulConfigEntries.SetTerminatingCE(ctx, service, entry); err != nil {
-			return err
-		}
-	}
-	// also mesh
 
 	// Enforce Sentinel policies. Pass a copy of the job to prevent
 	// sentinel from altering it.

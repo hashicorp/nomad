@@ -14,10 +14,9 @@ job "template_kv" {
     }
 
     task "task-b" {
-      driver = "docker"
+      driver = "raw_exec"
 
       config {
-        image   = "busybox:1"
         command = "cat"
         args    = ["local/a.txt"]
       }
@@ -34,10 +33,9 @@ job "template_kv" {
     # no consul namespace set
 
     task "task-z" {
-      driver = "docker"
+      driver = "raw_exec"
 
       config {
-        image   = "busybox:1"
         command = "cat"
         args    = ["local/a.txt"]
       }
