@@ -782,7 +782,6 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Region:         *job.Region,
 		Namespace:      *job.Namespace,
 		ID:             *job.ID,
-		ParentID:       *job.ParentID,
 		Name:           *job.Name,
 		Type:           *job.Type,
 		Priority:       *job.Priority,
