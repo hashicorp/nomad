@@ -568,12 +568,13 @@ export default function() {
     });
   });
 
-  this.post('/search/fuzzy', function( { jobs, nodes, taskGroups }, { requestBody }) {
+  this.post('/search/fuzzy', function( { jobs, nodes, taskGroups, csiPlugins, csiVolumes }, { requestBody }) {
     const { Text } = JSON.parse(requestBody);
 
     const matchedGroups = taskGroups.where(taskGroup => taskGroup.name.includes(Text));
     const matchedJobs = jobs.where(job => job.name.includes(Text));
     const matchedNodes = nodes.where(node => node.name.includes(Text));
+    const matchedPlugins = csiPlugins.where(plugin => plugin.id.includes(Text));
 
     const transformedGroups = matchedGroups.models.map(group => ({
       ID: group.name,
@@ -598,20 +599,27 @@ export default function() {
       ],
     }));
 
+    const transformedPlugins = matchedPlugins.models.map(plugin => ({
+      ID: plugin.id,
+    }));
+
     const truncatedGroups = transformedGroups.slice(0, 20);
     const truncatedJobs = transformedJobs.slice(0, 20);
     const truncatedNodes = transformedNodes.slice(0, 20);
+    const truncatedPlugins = transformedPlugins.slice(0, 20);
 
     return {
       Matches: {
         groups: truncatedGroups,
         jobs: truncatedJobs,
         nodes: truncatedNodes,
+        plugins: truncatedPlugins,
       },
       Truncations: {
         groups: truncatedGroups.length < transformedGroups.length,
         jobs: truncatedJobs.length < transformedJobs.length,
         nodes: truncatedNodes.length < transformedNodes.length,
+        plugins: truncatedPlugins.length < transformedPlugins.length,
       },
     }
   });

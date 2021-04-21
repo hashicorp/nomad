@@ -26,12 +26,14 @@ module('Acceptance | search', function(hooks) {
       group.save();
     });
 
+    server.create('csi-plugin', { id: 'xyz-plugin', createVolumes: false });
+
     await visit('/');
 
     await selectSearch(Layout.navbar.search.scope, 'xy');
 
     Layout.navbar.search.as(search => {
-      assert.equal(search.groups.length, 3);
+      assert.equal(search.groups.length, 4);
 
       search.groups[0].as(jobs => {
         assert.equal(jobs.name, 'Jobs (2)');
@@ -52,6 +54,12 @@ module('Acceptance | search', function(hooks) {
         assert.equal(groups.options[0].text, 'vwxyz-group');
         assert.equal(groups.options[1].text, 'xyz job-group');
       });
+
+      search.groups[3].as(plugins => {
+        assert.equal(plugins.name, 'CSI Plugins (1)');
+        assert.equal(plugins.options.length, 1);
+        assert.equal(plugins.options[0].text, 'xyz-plugin');
+      });
     });
 
     await Layout.navbar.search.groups[0].options[1].click();
@@ -64,6 +72,10 @@ module('Acceptance | search', function(hooks) {
     await selectSearch(Layout.navbar.search.scope, 'xy');
     await Layout.navbar.search.groups[2].options[0].click();
     assert.equal(currentURL(), '/jobs/vwxyz/vwxyz-group');
+
+    await selectSearch(Layout.navbar.search.scope, 'xy');
+    await Layout.navbar.search.groups[3].options[0].click();
+    assert.equal(currentURL(), '/csi/plugins/xyz-plugin');
   });
 
   test('search does not perform a request when only one character has been entered', async function(assert) {

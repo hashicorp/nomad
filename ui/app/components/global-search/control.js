@@ -54,14 +54,17 @@ export default class GlobalSearchControl extends Component {
     const allJobResults = results.Matches.jobs || [];
     const allNodeResults = results.Matches.nodes || [];
     const allGroupResults = results.Matches.groups || [];
+    const allPluginResults = results.Matches.plugins || [];
 
     const jobResults = allJobResults.slice(0, MAXIMUM_RESULTS);
     const nodeResults = allNodeResults.slice(0, MAXIMUM_RESULTS);
     const groupResults = allGroupResults.slice(0, MAXIMUM_RESULTS);
+    const pluginResults = allPluginResults.slice(0, MAXIMUM_RESULTS);
 
     jobResults.forEach(job => job.type = 'job');
     nodeResults.forEach(node => node.type = 'node');
     groupResults.forEach(group => group.type = 'group');
+    pluginResults.forEach(plugin => plugin.type = 'plugin');
 
     const truncations = results.Truncations;
 
@@ -78,6 +81,10 @@ export default class GlobalSearchControl extends Component {
         groupName: resultsGroupLabel('Task Groups', groupResults, allGroupResults, truncations.groups),
         options: groupResults,
       },
+      {
+        groupName: resultsGroupLabel('CSI Plugins', pluginResults, allPluginResults, truncations.plugins),
+        options: pluginResults,
+      }
     ];
   })
   search;
@@ -106,6 +113,8 @@ export default class GlobalSearchControl extends Component {
       this.router.transitionTo('jobs.job.task-group', model.Scope[1], model.ID, {
         queryParams: { namespace: model.Scope[0] },
       });
+    } else if (model.type === 'plugin') {
+      this.router.transitionTo('csi.plugins.plugin', model.ID);
     }
   }
 
