@@ -48,7 +48,7 @@ The docker image is pre-built with all the website dependencies installed, which
 
 ### With Node
 
-If your local development environment has a supported version (v12.0.0+) of [node installed](https://nodejs.org/en/) you can run:
+If your local development environment has a supported version (v10.0.0+) of [node installed](https://nodejs.org/en/) you can run:
 
 - `npm install`
 - `npm start`
@@ -64,9 +64,11 @@ If you pull down new code from github, you should run `npm install` again. Other
 
 ## Editing Markdown Content
 
-Documentation content is written in [Markdown](https://www.markdownguide.org/cheat-sheet/) and you'll find all files listed under the `/pages` directory.
+Documentation content is written in [Markdown](https://www.markdownguide.org/cheat-sheet/) and you'll find all files listed under the `/content` directory.
 
-To create a new page with Markdown, create a file ending in `.mdx` in the `pages/` directory. The path in the pages directory will be the URL route. For example, `pages/hello/world.mdx` will be served from the `/hello/world` URL.
+To create a new page with Markdown, create a file ending in `.mdx` in a `content/<subdirectory>`. The path in the content directory will be the URL route. For example, `content/docs/hello.mdx` will be served from the `/docs/hello` URL.
+
+> **Important**: Files and directories will only be rendered and published to the website if they are [included in sidebar data](#editing-navigation-sidebars). Any file not included in sidebar data will not be rendered or published.
 
 This file can be standard Markdown and also supports [YAML frontmatter](https://middlemanapp.com/basics/frontmatter/). YAML frontmatter is optional, there are defaults for all keys.
 
@@ -83,7 +85,7 @@ The significant keys in the YAML frontmatter are:
 - `title` `(string)` - This is the title of the page that will be set in the HTML title.
 - `description` `(string)` - This is a description of the page that will be set in the HTML description.
 
-> ⚠️ Since `api` is a reserved directory within NextJS, all `/api/**` pages are listed under the `/pages/api-docs` path.
+> ⚠️ If there is a need for a `/api/*` url on this website, the url will be changed to `/api-docs/*`, as the `api` folder is reserved by next.js.
 
 ### Creating New Pages
 
@@ -94,7 +96,7 @@ There is currently a small bug with new page creation - if you create a new page
 There are several custom markdown plugins that are available by default that enhance [standard markdown](https://commonmark.org/) to fit our use cases. This set of plugins introduces a couple instances of custom syntax, and a couple specific pitfalls that are not present by default with markdown, detailed below:
 
 - If you see the symbols `~>`, `->`, `=>`, or `!>`, these represent [custom alerts](https://github.com/hashicorp/remark-plugins/tree/master/plugins/paragraph-custom-alerts#paragraph-custom-alerts). These render as colored boxes to draw the user's attention to some type of aside.
-- If you see `@include '/some/path.mdx'`, this is a [markdown include](https://github.com/hashicorp/remark-plugins/tree/master/plugins/include-markdown#include-markdown-plugin). It's worth noting as well that all includes resolve from `website/pages/partials` by default, and that changes to partials will not live-reload the website.
+- If you see `@include '/some/path.mdx'`, this is a [markdown include](https://github.com/hashicorp/remark-plugins/tree/master/plugins/include-markdown#include-markdown-plugin). It's worth noting as well that all includes resolve from `website/content/partials` by default, and that changes to partials will not live-reload the website.
 - If you see `# Headline ((#slug))`, this is an example of an [anchor link alias](https://github.com/hashicorp/remark-plugins/tree/je.anchor-link-adjustments/plugins/anchor-links#anchor-link-aliases). It adds an extra permalink to a headline for compatibility and is removed from the output.
 - Due to [automatically generated permalinks](https://github.com/hashicorp/remark-plugins/tree/je.anchor-link-adjustments/plugins/anchor-links#anchor-links), any text changes to _headlines_ or _list items that begin with inline code_ can and will break existing permalinks. Be very cautious when changing either of these two text items.
 
@@ -124,6 +126,8 @@ The `Tabs` component creates tabbed content of any type, but is often used for c
 
 ![Tabs Component](https://p176.p0.n0.cdn.getcloudapp.com/items/WnubALZ4/Screen%20Recording%202020-06-11%20at%2006.03%20PM.gif?v=1de81ea720a8cc8ade83ca64fb0b9edd)
 
+> Please refer to the [Swingset](https://react-components.vercel.app/?component=Tabs) documention for the latest examples and API reference.
+
 It can be used as such within a markdown file:
 
 ````mdx
@@ -146,11 +150,10 @@ $ curl ...
 </Tab>
 </Tabs>
 
-
 Contined normal markdown content
 ````
 
-The intentionally skipped line is a limitation of the mdx parser which is being actively worked on. All tabs mst have a heading, and there is no limit to the number of tabs, though it is recommended to go for a maximum of three or four.
+The intentionally skipped line is a limitation of the mdx parser which is being actively worked on. All tabs must have a heading, and there is no limit to the number of tabs, though it is recommended to go for a maximum of three or four.
 
 #### Enterprise Alert
 
@@ -241,9 +244,9 @@ $ terraform apply
 
 ## Editing Navigation Sidebars
 
-The structure of the sidebars are controlled by files in the [`/data` directory](data). For example, [this file](data/docs-navigation.js) controls the **docs** sidebar. Within the `data` folder, any file with `-navigation` after it controls the navigation for the given section.
+The structure of the sidebars are controlled by files in the [`/data` directory](data). For example, [data/docs-nav-data.json](data/docs-nav-data.json) controls the **docs** sidebar. Within the `data` folder, any file with `-nav-data` after it controls the navigation for the given section.
 
-The sidebar uses a simple recursive data structure to represent _files_ and _directories_. A file is represented by a string, and a directory is represented by an object. The sidebar is meant to reflect the structure of the docs within the filesystem while also allowing custom ordering. Let's look at an example. First, here's our example folder structure:
+The sidebar uses a simple recursive data structure to represent _files_ and _directories_. The sidebar is meant to reflect the structure of the docs within the filesystem while also allowing custom ordering. Let's look at an example. First, here's our example folder structure:
 
 ```text
 .
@@ -257,36 +260,55 @@ The sidebar uses a simple recursive data structure to represent _files_ and _dir
 │           └── nested-file.mdx
 ```
 
-Here's how this folder structure could be represented as a sidebar navigation, in this example it would be the file `website/data/docs-navigation.js`:
+Here's how this folder structure could be represented as a sidebar navigation, in this example it would be the file `website/data/docs-nav-data.json`:
 
-```js
-export default {
-  category: 'directory',
-  content: [
-    'file',
-    'another-file',
-    {
-      category: 'nested-directory',
-      content: ['nested-file'],
-    },
-  ],
-}
+```json
+[
+  {
+    "title": "Directory",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "directory"
+      },
+      {
+        "title": "File",
+        "path": "directory/file"
+      },
+      {
+        "title": "Another File",
+        "path": "directory/another-file"
+      },
+      {
+        "title": "Nested Directory",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "directory/nested-directory"
+          },
+          {
+            "title": "Nested File",
+            "path": "directory/nested-directory/nested-file"
+          }
+        ]
+      }
+    ]
+  }
+]
 ```
-
-- `category` values will be **directory names** within the `pages/<section>` directory
-- `content` values will be **file names** within their appropriately nested directory
 
 A couple more important notes:
 
-- Within this data structure, ordering does not matter, but hierarchy does. So while you could put `file` and `another-file` in any order, or even leave one or both of them out, you could not decide to un-nest the `nested-directory` object without also un-nesting it in the filesystem.
-- The `sidebar_title` frontmatter property on each `mdx` page is responsible for displaying the human-readable page name in the navigation.
-- _By default_, every directory/category must have an `index.mdx` file. This file will be automatically added to the navigation as "Overview", and its `sidebar_title` property will set the human-readable name of the entire category.
+- Within this data structure, ordering is flexible, but hierarchy is not. The structure of the sidebar must correspond to the structure of the content directory. So while you could put `file` and `another-file` in any order in the sidebar, or even leave one or both of them out, you could not decide to un-nest the `nested-directory` object without also un-nesting it in the filesystem.
+- The `title` property on each node in the `nav-data` tree is the human-readable name in the navigation.
+- The `path` property on each leaf node in the `nav-data` tree is the URL path where the `.mdx` document will be rendered, and the
+- Note that "index" files must be explicitly added. These will be automatically resolved, so the `path` value should be, as above, `directory` rather than `directory/index`. A common convention is to set the `title` of an "index" node to be `"Overview"`.
 
 Below we will discuss a couple of more unusual but still helpful patterns.
 
 ### Index-less Categories
 
-Sometimes you may want to include a category but not have a need for an index page for the category. This can be accomplished, but a human-readable category name needs to be set manually, since the category name is normally pulled from the `sidebar_title` property of the index page. Here's an example of how an index-less category might look:
+Sometimes you may want to include a category but not have a need for an index page for the category. This can be accomplished, but as with other branch and leaf nodes, a human-readable `title` needs to be set manually. Here's an example of how an index-less category might look:
 
 ```text
 .
@@ -295,31 +317,45 @@ Sometimes you may want to include a category but not have a need for an index pa
 │       └── file.mdx
 ```
 
-```js
-// website/data/docs-navigation.js
-export default {
-  category: 'indexless-category',
-  name: 'Indexless Category',
-  content: ['file'],
-}
+```json
+// website/data/docs-nav-data.json
+[
+  {
+    "title": "Indexless Category",
+    "routes": [
+      {
+        "title": "File",
+        "path": "indexless-category/file"
+      }
+    ]
+  }
+]
 ```
-
-The addition of the `name` property to a category object is all it takes to be able to skip the index file.
 
 ### Custom or External Links
 
 Sometimes you may have a need to include a link that is not directly to a file within the docs hierarchy. This can also be supported using a different pattern. For example:
 
-```js
-export default {
-  category: 'directory',
-  content: [
-    'file',
-    'another-file',
-    { title: 'Tao of HashiCorp', href: 'https://www.hashicorp.com/tao-of-hashicorp' }
-    }
-  ]
-}
+```json
+[
+  {
+    "name": "Directory",
+    "routes": [
+      {
+        "title": "File",
+        "path": "directory/file"
+      },
+      {
+        "title": "Another File",
+        "path": "directory/another-file"
+      },
+      {
+        "title": "Tao of HashiCorp",
+        "href": "https://www.hashicorp.com/tao-of-hashicorp"
+      }
+    ]
+  }
+]
 ```
 
 If the link provided in the `href` property is external, it will display a small icon indicating this. If it's internal, it will appear the same way as any other direct file link.
@@ -393,7 +429,7 @@ This redirect rule will send all incoming links to `/foo` to `/bar`. For more de
 
 There is still one caveat though: redirects do not apply to client-side navigation. By default, all links in the navigation and docs sidebar will navigate purely on the client side, which makes navigation through the docs significantly faster, especially for those with low-end devices and/or weak internet connections. In the future, we plan to convert all internal links within docs pages to behave this way as well. This means that if there is a link on this website to a given piece of content that has changed locations in some way, we need to also _directly change existing links to the content_. This way, if a user clicks a link that navigates on the client side, or if they hit the url directly and the page renders from the server side, either one will work perfectly.
 
-Let's look at an example. Say you have a page called `/docs/foo` which needs to be moved to `/docs/nested/foo`. Additionally, this is a page that has been around for a while and we know there are links into `/docs/foo.html` left over from our previous website structure. First, we move the page, then adjust the docs sidenav, in `data/docs-navigation.js`. Find the category the page is in, and move it into the appropriate subcategory. Next, we add to redirects as such:
+Let's look at an example. Say you have a page called `/docs/foo` which needs to be moved to `/docs/nested/foo`. Additionally, this is a page that has been around for a while and we know there are links into `/docs/foo.html` left over from our previous website structure. First, we move the page, then adjust the docs sidenav, in `data/docs-navigation.js`. Find the category the page is in, and move it into the appropriate subcategory. Next, we add to `_redirects` as such. The `.html` version is covered automatically.
 
 ```js
 { source: '/foo', destination: '/nested/foo', permanent: true }
