@@ -568,7 +568,7 @@ export default function() {
     });
   });
 
-  this.post('/search/fuzzy', function( { jobs, nodes, taskGroups, csiPlugins, csiVolumes }, { requestBody }) {
+  this.post('/search/fuzzy', function( { jobs, nodes, taskGroups, csiPlugins }, { requestBody }) {
     const { Text } = JSON.parse(requestBody);
 
     const matchedGroups = taskGroups.where(taskGroup => taskGroup.name.includes(Text));
