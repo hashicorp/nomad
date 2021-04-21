@@ -7,6 +7,7 @@ import Layout from 'nomad-ui/tests/pages/layout';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import { selectSearch } from 'ember-power-select/test-support';
 import sinon from 'sinon';
+import Response from 'ember-cli-mirage/response';
 
 import { COLLECTION_CACHE_DURATION } from 'nomad-ui/services/data-caches';
 
@@ -78,7 +79,17 @@ module('Acceptance | search', function(hooks) {
     await selectSearch(Layout.navbar.search.scope, 'q');
 
     assert.ok(Layout.navbar.search.noOptionsShown);
-    assert.notOk(server.pretender.handledRequests.findBy('url', '/v1/search/fuzzy'));
+    assert.equal(server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy').length, 1, 'expect the feature detection query');
+  });
+
+  test('when fuzzy search is disabled on the server, the search control is hidden', async function(assert) {
+    server.post('/search/fuzzy', function() {
+      return new Response(500, {}, '');
+    });
+
+    await visit('/');
+
+    assert.ok(Layout.navbar.search.isHidden);
   });
 
   skip('search searches jobs and nodes with route- and time-based caching and navigates to chosen items', async function(assert) {

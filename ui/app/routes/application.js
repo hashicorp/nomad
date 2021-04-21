@@ -48,11 +48,16 @@ export default class ApplicationRoute extends Route {
       .perform()
       .catch();
 
+    const checkFuzzySearchPresence = this.get('system.checkFuzzySearchPresence')
+      .perform()
+      .catch();
+
     const promises = await RSVP.all([
       this.get('system.regions'),
       this.get('system.defaultRegion'),
       fetchLicense,
       fetchSelfTokenAndPolicies,
+      checkFuzzySearchPresence,
     ]);
 
     if (!this.get('system.shouldShowRegions')) return promises;
