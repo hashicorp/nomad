@@ -316,10 +316,10 @@ func (c *jobConfig) EvalContext() *hcl.EvalContext {
 			v := string(body[start:end])
 
 			// find the start of inclusing "${..}" if it's inclused in one; otherwise, wrap it in one
-			quoted := false
+			isBracketed := false
 			for i := start - 1; i >= 1; i-- {
 				if body[i] == '{' && body[i-1] == '$' {
-					quoted = true
+					isBracketed = true
 					v = string(body[i-1:start]) + v
 					break
 				} else if body[i] != ' ' {
@@ -327,7 +327,7 @@ func (c *jobConfig) EvalContext() *hcl.EvalContext {
 				}
 			}
 
-			if quoted {
+			if isBracketed {
 				for i := end + 1; i < len(body); i++ {
 					if body[i] == '}' {
 						v += string(body[end:i])
