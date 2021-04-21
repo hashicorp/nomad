@@ -1,21 +1,16 @@
 import Component from '@ember/component';
 import { classNames } from '@ember-decorators/component';
 import { task } from 'ember-concurrency';
-import EmberObject, { action, computed, set } from '@ember/object';
-import { alias } from '@ember/object/computed';
+import { action, set } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { debounce, run } from '@ember/runloop';
-import Searchable from 'nomad-ui/mixins/searchable';
-import classic from 'ember-classic-decorator';
 
 const SLASH_KEY = 191;
 const MAXIMUM_RESULTS = 10;
 
 @classNames('global-search-container')
 export default class GlobalSearchControl extends Component {
-  @service dataCaches;
   @service router;
-  @service store;
   @service token;
 
   searchString = null;
@@ -23,18 +18,6 @@ export default class GlobalSearchControl extends Component {
   constructor() {
     super(...arguments);
     this['data-test-search-parent'] = true;
-
-    this.jobSearch = JobSearch.create({
-      dataSource: this,
-    });
-
-    this.nodeNameSearch = NodeNameSearch.create({
-      dataSource: this,
-    });
-
-    this.nodeIdSearch = NodeIdSearch.create({
-      dataSource: this,
-    });
   }
 
   keyDownHandler(e) {
@@ -56,38 +39,6 @@ export default class GlobalSearchControl extends Component {
   willDestroyElement() {
     document.removeEventListener('keydown', this._keyDownHandler);
   }
-
-  @task(function*(string) {
-    try {
-      set(this, 'searchString', string);
-
-      const jobs = yield this.dataCaches.fetch('job');
-      const nodes = yield this.dataCaches.fetch('node');
-
-      set(this, 'jobs', jobs.toArray());
-      set(this, 'nodes', nodes.toArray());
-
-      const jobResults = this.jobSearch.listSearched.slice(0, MAXIMUM_RESULTS);
-
-      const mergedNodeListSearched = this.nodeIdSearch.listSearched.concat(this.nodeNameSearch.listSearched).uniq();
-      const nodeResults = mergedNodeListSearched.slice(0, MAXIMUM_RESULTS);
-
-      return [
-        {
-          groupName: resultsGroupLabel('Jobs', jobResults, this.jobSearch.listSearched),
-          options: jobResults,
-        },
-        {
-          groupName: resultsGroupLabel('Clients', nodeResults, mergedNodeListSearched),
-          options: nodeResults,
-        },
-      ];
-    } catch (e) {
-      // eslint-disable-next-line
-      console.log('exception searching', e);
-    }
-  })
-  searchOld;
 
   @task(function*(string) {
     const searchResponse = yield this.token.authorizedRequest('/v1/search/fuzzy', {
@@ -198,60 +149,6 @@ export default class GlobalSearchControl extends Component {
       },
     };
   }
-}
-
-@classic
-class JobSearch extends EmberObject.extend(Searchable) {
-  @computed
-  get searchProps() {
-    return ['id', 'name'];
-  }
-
-  @computed
-  get fuzzySearchProps() {
-    return ['name'];
-  }
-
-  @alias('dataSource.jobs') listToSearch;
-  @alias('dataSource.searchString') searchTerm;
-
-  fuzzySearchEnabled = true;
-  includeFuzzySearchMatches = true;
-}
-@classic
-class NodeNameSearch extends EmberObject.extend(Searchable) {
-  @computed
-  get searchProps() {
-    return ['name'];
-  }
-
-  @computed
-  get fuzzySearchProps() {
-    return ['name'];
-  }
-
-  @alias('dataSource.nodes') listToSearch;
-  @alias('dataSource.searchString') searchTerm;
-
-  fuzzySearchEnabled = true;
-  includeFuzzySearchMatches = true;
-}
-
-@classic
-class NodeIdSearch extends EmberObject.extend(Searchable) {
-  @computed
-  get regexSearchProps() {
-    return ['id'];
-  }
-
-  @alias('dataSource.nodes') listToSearch;
-  @computed('dataSource.searchString')
-  get searchTerm() {
-    return `^${this.get('dataSource.searchString')}`;
-  }
-
-  exactMatchEnabled = false;
-  regexEnabled = true;
 }
 
 function resultsGroupLabel(type, renderedResults, allResults, truncated) {

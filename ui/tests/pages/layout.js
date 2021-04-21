@@ -3,7 +3,6 @@ import {
   create,
   clickable,
   collection,
-  hasClass,
   isHidden,
   isPresent,
   text,
@@ -32,28 +31,7 @@ export default create({
         resetScope: true,
         name: text('.ember-power-select-group-name'),
 
-        options: collection(
-          '.ember-power-select-option',
-          create({
-            label: text(),
-
-            substrings: collection('[data-test-match-substring]', {
-              isHighlighted: hasClass('highlighted'),
-            }),
-
-            get formattedText() {
-              return this.substrings
-                .map(string => {
-                  if (string.isHighlighted) {
-                    return `*${string.text}*`;
-                  } else {
-                    return string.text;
-                  }
-                })
-                .join('');
-            },
-          })
-        ),
+        options: collection('.ember-power-select-option'),
       }),
 
       noOptionsShown: isHidden('.ember-power-select-options', {
