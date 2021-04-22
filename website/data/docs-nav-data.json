@@ -1627,6 +1627,10 @@
     "path": "ecosystem"
   },
   {
+    "title": "Nomad Partnerships",
+    "path": "partnerships"
+  },
+  {
     "title": "Who Uses Nomad",
     "path": "who-uses-nomad"
   },
@@ -1638,7 +1642,7 @@
         "path": "enterprise"
       },
       {
-        "title":"License",
+        "title": "License",
         "path": "enterprise/license"
       }
     ]
