@@ -148,23 +148,6 @@ module('Acceptance | tokens', function(hooks) {
     assert.notOk(find('[data-test-job-row]'), 'No jobs found');
   });
 
-  test('when namespaces are enabled, setting or clearing a token refetches namespaces available with new permissions', async function(assert) {
-    const { secretId } = clientToken;
-
-    server.createList('namespace', 2);
-    await Tokens.visit();
-
-    const requests = server.pretender.handledRequests;
-
-    assert.equal(requests.filter(req => req.url === '/v1/namespaces').length, 1);
-
-    await Tokens.secret(secretId).submit();
-    assert.equal(requests.filter(req => req.url === '/v1/namespaces').length, 2);
-
-    await Tokens.clear();
-    assert.equal(requests.filter(req => req.url === '/v1/namespaces').length, 3);
-  });
-
   test('when the ott query parameter is present upon application load it’s exchanged for a token', async function(assert) {
     const { oneTimeSecret, secretId } = managementToken;
 

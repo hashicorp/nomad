@@ -128,27 +128,6 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     assert.ok(JobDetail.statFor('namespace').text, 'Namespace included in stats');
   });
 
-  test('when switching namespaces, the app redirects to /jobs with the new namespace', async function(assert) {
-    const namespace = server.db.namespaces.find(job.namespaceId);
-    const otherNamespace = server.db.namespaces.toArray().find(ns => ns !== namespace).name;
-
-    await JobDetail.visit({ id: job.id, namespace: namespace.name });
-
-    // TODO: Migrate to Page Objects
-    await selectChoose('[data-test-namespace-switcher-parent]', otherNamespace);
-    assert.equal(currentURL().split('?')[0], '/jobs', 'Navigated to /jobs');
-
-    const jobs = server.db.jobs
-      .where({ namespace: otherNamespace })
-      .sortBy('modifyIndex')
-      .reverse();
-
-    assert.equal(JobsList.jobs.length, jobs.length, 'Shows the right number of jobs');
-    JobsList.jobs.forEach((jobRow, index) => {
-      assert.equal(jobRow.name, jobs[index].name, `Job ${index} is right`);
-    });
-  });
-
   test('the exec button state can change between namespaces', async function(assert) {
     const job1 = server.create('job', {
       status: 'running',

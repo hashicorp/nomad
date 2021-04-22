@@ -16,9 +16,14 @@ export default class Abstract extends Ability {
   // https://github.com/minutebase/ember-can#additional-attributes
   namespace = 'default';
 
-  @computed('namespace', 'token.selfTokenPolicies.[]')
+  get _namespace() {
+    if (typeof this.namespace === 'string') return this.namespace;
+    return get(this.namespace, 'name');
+  }
+
+  @computed('_namespace', 'token.selfTokenPolicies.[]')
   get rulesForNamespace() {
-    let namespace = this.namespace;
+    let namespace = this._namespace;
 
     return (this.get('token.selfTokenPolicies') || []).toArray().reduce((rules, policy) => {
       let policyNamespaces = get(policy, 'rulesJSON.Namespaces') || [];
