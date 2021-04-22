@@ -163,7 +163,7 @@ export default class SystemService extends Service {
         method: 'POST',
         body: JSON.stringify({
           Text: 'feature-detection-query',
-          Context: 'jobs',
+          Context: 'namespaces',
         }),
       });
 
