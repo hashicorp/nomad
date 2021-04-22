@@ -18,7 +18,7 @@ export default class JobRoute extends Route {
   }
 
   model(params, transition) {
-    const namespace = transition.to.queryParams.namespace;
+    const namespace = transition.to.queryParams.jobNamespace;
     const name = params.job_name;
     const fullId = JSON.stringify([name, namespace || 'default']);
 

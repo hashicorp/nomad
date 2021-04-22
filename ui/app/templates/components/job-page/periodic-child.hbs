@@ -9,7 +9,7 @@
       <span data-test-job-stat="priority"><strong>Priority:</strong> {{this.job.priority}} </span>
       <span data-test-job-stat="parent">
         <strong>Parent:</strong>
-        <LinkTo @route="jobs.job" @model={{this.job.parent}} @query={{hash jobNamespace=this.job.parent.namespace.name}}>
+        <LinkTo @route="jobs.job" @model={{this.job.parent}} @query={{hash namespace=this.job.parent.namespace.name}}>
           {{this.job.parent.name}}
         </LinkTo>
       </span>

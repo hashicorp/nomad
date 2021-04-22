@@ -30,6 +30,12 @@
       {{/if}}
       <div class="toolbar-item is-right-aligned is-mobile-full-width">
         <div class="button-bar">
+          <SingleSelectDropdown
+            data-test-namespace-facet
+            @label="Namespace"
+            @options={{this.optionsNamespaces}}
+            @selection={{this.qpNamespace}}
+            @onSelect={{action this.setFacetQueryParam "qpNamespace"}} />
           <MultiSelectDropdown
             data-test-type-facet
             @label="Type"
