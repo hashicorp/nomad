@@ -57,17 +57,38 @@ export default class GlobalSearchControl extends Component {
     const allGroupResults = results.Matches.groups || [];
     const allPluginResults = results.Matches.plugins || [];
 
-    const jobResults = allJobResults.slice(0, MAXIMUM_RESULTS);
-    const nodeResults = allNodeResults.slice(0, MAXIMUM_RESULTS);
-    const allocResults = allAllocResults.slice(0, MAXIMUM_RESULTS);
-    const groupResults = allGroupResults.slice(0, MAXIMUM_RESULTS);
-    const pluginResults = allPluginResults.slice(0, MAXIMUM_RESULTS);
+    const jobResults = allJobResults.slice(0, MAXIMUM_RESULTS).map(({ ID: name, Scope: [ namespace, id ]}) => ({
+      type: 'job',
+      id,
+      namespace,
+      label: name,
+    }));
 
-    jobResults.forEach(job => job.type = 'job');
-    nodeResults.forEach(node => node.type = 'node');
-    allocResults.forEach(alloc => alloc.type = 'alloc');
-    groupResults.forEach(group => group.type = 'group');
-    pluginResults.forEach(plugin => plugin.type = 'plugin');
+    const nodeResults = allNodeResults.slice(0, MAXIMUM_RESULTS).map(({ ID: name, Scope: [ id ]}) => ({
+      type: 'node',
+      id,
+      label: name,
+    }));
+
+    const allocResults = allAllocResults.slice(0, MAXIMUM_RESULTS).map(({ ID: name, Scope: [ , id ]}) => ({
+      type: 'allocation',
+      id,
+      label: name,
+    }));
+
+    const groupResults = allGroupResults.slice(0, MAXIMUM_RESULTS).map(({ ID: id, Scope: [ namespace, jobId ]}) => ({
+      type: 'task-group',
+      id,
+      namespace,
+      jobId,
+      label: id,
+    }));
+
+    const pluginResults = allPluginResults.slice(0, MAXIMUM_RESULTS).map(({ ID: id }) => ({
+      type: 'plugin',
+      id,
+      label: id,
+    }));
 
     const truncations = results.Truncations;
 
@@ -111,19 +132,19 @@ export default class GlobalSearchControl extends Component {
   @action
   selectOption(model) {
     if (model.type === 'job') {
-      this.router.transitionTo('jobs.job', model.Scope[1], {
-        queryParams: { namespace: model.Scope[0] },
+      this.router.transitionTo('jobs.job', model.id, {
+        queryParams: { namespace: model.namespace },
       });
     } else if (model.type === 'node') {
-      this.router.transitionTo('clients.client', model.Scope[0]);
-    } else if (model.type === 'group') {
-      this.router.transitionTo('jobs.job.task-group', model.Scope[1], model.ID, {
-        queryParams: { namespace: model.Scope[0] },
+      this.router.transitionTo('clients.client', model.id);
+    } else if (model.type === 'task-group') {
+      this.router.transitionTo('jobs.job.task-group', model.jobId, model.id, {
+        queryParams: { namespace: model.namespace },
       });
     } else if (model.type === 'plugin') {
-      this.router.transitionTo('csi.plugins.plugin', model.ID);
-    } else if (model.type === 'alloc') {
-      this.router.transitionTo('allocations.allocation', model.Scope[1]);
+      this.router.transitionTo('csi.plugins.plugin', model.id);
+    } else if (model.type === 'allocation') {
+      this.router.transitionTo('allocations.allocation', model.id);
     }
   }
 
