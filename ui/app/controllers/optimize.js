@@ -62,7 +62,10 @@ export default class OptimizeController extends Controller {
   @selection('qpDatacenter') selectionDatacenter;
   @selection('qpPrefix') selectionPrefix;
 
-  optionsType = [{ key: 'service', label: 'Service' }, { key: 'system', label: 'System' }];
+  optionsType = [
+    { key: 'service', label: 'Service' },
+    { key: 'system', label: 'System' },
+  ];
 
   optionsStatus = [
     { key: 'pending', label: 'Pending' },
@@ -131,7 +134,6 @@ export default class OptimizeController extends Controller {
     } = this;
 
     const shouldShowNamespaces = this.system.shouldShowNamespaces;
-    const activeNamespace = shouldShowNamespaces ? this.system.activeNamespace.name : undefined;
 
     // A summary’s job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.
@@ -142,11 +144,7 @@ export default class OptimizeController extends Controller {
         return false;
       }
 
-      if (
-        shouldShowNamespaces &&
-        !this.includeAllNamespaces &&
-        activeNamespace !== summary.jobNamespace
-      ) {
+      if (shouldShowNamespaces && !this.includeAllNamespaces) {
         return false;
       }
 

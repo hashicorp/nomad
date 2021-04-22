@@ -43,7 +43,7 @@ export default class VolumeRoute extends Route.extend(WithWatchers) {
   }
 
   model(params, transition) {
-    const namespace = transition.to.queryParams.namespace || this.get('system.activeNamespace.id');
+    const namespace = transition.to.queryParams.namespace;
     const name = params.volume_name;
     const fullId = JSON.stringify([`csi/${name}`, namespace || 'default']);
     return this.store.findRecord('volume', fullId, { reload: true }).catch(notifyError(this));

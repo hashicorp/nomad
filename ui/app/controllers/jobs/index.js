@@ -154,12 +154,12 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  @computed('model.@each.parent', 'system.{activeNamespace.id,namespaces.length}')
+  @computed('model.@each.parent', 'system.{namespaces.length}')
   get visibleJobs() {
     // Namespace related properties are ommitted from the dependent keys
     // due to a prop invalidation bug caused by region switching.
     const hasNamespaces = this.get('system.namespaces.length');
-    const activeNamespace = this.get('system.activeNamespace.id') || 'default';
+    const activeNamespace = 'default';
 
     return this.model
       .compact()

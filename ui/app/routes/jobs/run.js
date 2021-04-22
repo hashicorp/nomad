@@ -22,9 +22,7 @@ export default class RunRoute extends Route {
   }
 
   model() {
-    return this.store.createRecord('job', {
-      namespace: this.get('system.activeNamespace'),
-    });
+    return this.store.createRecord('job');
   }
 
   resetController(controller, isExiting) {

@@ -23,13 +23,8 @@ export default class JobsRoute extends Route.extend(WithForbiddenState) {
     },
   };
 
-  beforeModel(transition) {
-    return this.get('system.namespaces').then(namespaces => {
-      const queryParam = transition.to.queryParams.namespace;
-      this.set('system.activeNamespace', queryParam || 'default');
-
-      return namespaces;
-    });
+  beforeModel() {
+    return this.get('system.namespaces');
   }
 
   model() {

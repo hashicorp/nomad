@@ -9,15 +9,15 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class IndexController extends Controller.extend(
-    SortableFactory([
-      'id',
-      'schedulable',
-      'controllersHealthyProportion',
-      'nodesHealthyProportion',
-      'provider',
-    ]),
-    Searchable
-  ) {
+  SortableFactory([
+    'id',
+    'schedulable',
+    'controllersHealthyProportion',
+    'nodesHealthyProportion',
+    'provider',
+  ]),
+  Searchable
+) {
   @service system;
   @service userSettings;
   @controller('csi/volumes') volumesController;
@@ -61,14 +61,14 @@ export default class IndexController extends Controller.extend(
   /**
     Visible volumes are those that match the selected namespace
   */
-  @computed('model.@each.parent', 'system.{activeNamespace.id,namespaces.length}')
+  @computed('model.@each.parent', 'system.{namespaces.length}')
   get visibleVolumes() {
     if (!this.model) return [];
 
     // Namespace related properties are ommitted from the dependent keys
     // due to a prop invalidation bug caused by region switching.
     const hasNamespaces = this.get('system.namespaces.length');
-    const activeNamespace = this.get('system.activeNamespace.id') || 'default';
+    const activeNamespace = 'default';
 
     return this.model
       .compact()
