@@ -113,37 +113,6 @@ export default class SystemService extends Service {
     return namespaces.length && namespaces.some(namespace => namespace.get('id') !== 'default');
   }
 
-  @computed('namespaces.[]')
-  get activeNamespace() {
-    const namespaceId = window.localStorage.nomadActiveNamespace || 'default';
-    const namespace = this.namespaces.findBy('id', namespaceId);
-
-    if (namespace) {
-      return namespace;
-    }
-
-    // If the namespace in localStorage is no longer in the cluster, it needs to
-    // be cleared from localStorage
-    window.localStorage.removeItem('nomadActiveNamespace');
-    return this.namespaces.findBy('id', 'default');
-  }
-
-  set activeNamespace(value) {
-    if (value == null) {
-      window.localStorage.removeItem('nomadActiveNamespace');
-      return;
-    } else if (typeof value === 'string') {
-      window.localStorage.nomadActiveNamespace = value;
-    } else {
-      window.localStorage.nomadActiveNamespace = value.get('name');
-    }
-  }
-
-  reset() {
-    this.set('activeNamespace', null);
-    this.notifyPropertyChange('namespaces');
-  }
-
   @task(function*() {
     const emptyLicense = { License: { Features: [] } };
 
