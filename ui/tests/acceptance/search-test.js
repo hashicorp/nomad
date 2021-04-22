@@ -82,6 +82,12 @@ module('Acceptance | search', function(hooks) {
     await selectSearch(Layout.navbar.search.scope, 'xy');
     await Layout.navbar.search.groups[4].options[0].click();
     assert.equal(currentURL(), '/csi/plugins/xyz-plugin');
+
+    const featureDetectionQueries = server.pretender.handledRequests
+      .filterBy('url', '/v1/search/fuzzy')
+      .filter(request => request.requestBody.includes('PLACEHOLDER'));
+
+    assert.equal(featureDetectionQueries.length, 1, 'expect the feature detection query to only run once');
   });
 
   test('search does not perform a request when only one character has been entered', async function(assert) {

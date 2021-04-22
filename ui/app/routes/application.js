@@ -26,6 +26,12 @@ export default class ApplicationRoute extends Route {
   }
 
   async beforeModel(transition) {
+    // service:router#transitionTo can cause this to rerun because of refreshModel on
+    // the region query parameter, this skips rerunning the detection/loading queries.
+    if (transition.queryParamsOnly) {
+      return;
+    }
+
     let exchangeOneTimeToken;
 
     if (transition.to.queryParams.ott) {
