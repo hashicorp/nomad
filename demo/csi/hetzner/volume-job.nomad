@@ -12,10 +12,7 @@ job "example" {
 
       config {
         image = "redis:3.2"
-
-        port_map {
-          db = 6379
-        }
+        ports = ["redis"]
       }
 
       volume_mount {
@@ -29,7 +26,9 @@ job "example" {
 
         network {
           mbits = 14
-          port "db" {}
+          port "redis" {
+            static = 6379
+          }
         }
       }
     }
