@@ -85,7 +85,7 @@ module('Acceptance | search', function(hooks) {
 
     const featureDetectionQueries = server.pretender.handledRequests
       .filterBy('url', '/v1/search/fuzzy')
-      .filter(request => request.requestBody.includes('PLACEHOLDER'));
+      .filter(request => request.requestBody.includes('feature-detection-query'));
 
     assert.equal(featureDetectionQueries.length, 1, 'expect the feature detection query to only run once');
   });

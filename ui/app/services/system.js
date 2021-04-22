@@ -162,7 +162,7 @@ export default class SystemService extends Service {
       const request = yield this.token.authorizedRequest('/v1/search/fuzzy', {
         method: 'POST',
         body: JSON.stringify({
-          Text: 'PLACEHOLDERFIXME',
+          Text: 'feature-detection-query',
           Context: 'jobs',
         }),
       });
