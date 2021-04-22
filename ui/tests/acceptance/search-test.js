@@ -16,15 +16,12 @@ module('Acceptance | search', function(hooks) {
     server.create('node', { name: 'xyz' });
     const otherNode = server.create('node', { name: 'ghi' });
 
-    server.create('job', { id: 'vwxyz', namespaceId: 'default', groupsCount: 1 });
-    server.create('job', { id: 'xyz', name: 'xyz job', namespaceId: 'default', groupsCount: 1 });
-    server.create('job', { id: 'abc', namespaceId: 'default', groupsCount: 1 });
+    server.create('job', { id: 'vwxyz', namespaceId: 'default', groupsCount: 1, groupTaskCount: 1 });
+    server.create('job', { id: 'xyz', name: 'xyz job', namespaceId: 'default', groupsCount: 1, groupTaskCount: 1 });
+    server.create('job', { id: 'abc', namespaceId: 'default', groupsCount: 1, groupTaskCount: 1 });
 
-    // Override random task group names to include job names to make results deterministic
-    server.schema.taskGroups.all().models.forEach(group => {
-      group.name = `${group.job.name}-group`;
-      group.save();
-    });
+    const firstAllocation = server.schema.allocations.all().models[0];
+    const firstTaskGroup = server.schema.taskGroups.all().models[0];
 
     server.create('csi-plugin', { id: 'xyz-plugin', createVolumes: false });
 
@@ -33,7 +30,7 @@ module('Acceptance | search', function(hooks) {
     await selectSearch(Layout.navbar.search.scope, 'xy');
 
     Layout.navbar.search.as(search => {
-      assert.equal(search.groups.length, 4);
+      assert.equal(search.groups.length, 5);
 
       search.groups[0].as(jobs => {
         assert.equal(jobs.name, 'Jobs (2)');
@@ -48,14 +45,17 @@ module('Acceptance | search', function(hooks) {
         assert.equal(clients.options[0].text, 'xyz');
       });
 
-      search.groups[2].as(groups => {
-        assert.equal(groups.name, 'Task Groups (2)');
-        assert.equal(groups.options.length, 2);
-        assert.equal(groups.options[0].text, 'vwxyz-group');
-        assert.equal(groups.options[1].text, 'xyz job-group');
+      search.groups[2].as(allocs => {
+        assert.equal(allocs.name, 'Allocations (0)');
+        assert.equal(allocs.options.length, 0);
       });
 
-      search.groups[3].as(plugins => {
+      search.groups[3].as(groups => {
+        assert.equal(groups.name, 'Task Groups (0)');
+        assert.equal(groups.options.length, 0);
+      });
+
+      search.groups[4].as(plugins => {
         assert.equal(plugins.name, 'CSI Plugins (1)');
         assert.equal(plugins.options.length, 1);
         assert.equal(plugins.options[0].text, 'xyz-plugin');
@@ -69,12 +69,18 @@ module('Acceptance | search', function(hooks) {
     await Layout.navbar.search.groups[1].options[0].click();
     assert.equal(currentURL(), `/clients/${otherNode.id}`);
 
-    await selectSearch(Layout.navbar.search.scope, 'xy');
+    await selectSearch(Layout.navbar.search.scope, firstAllocation.name);
+    assert.equal(Layout.navbar.search.groups[2].options[0].text, firstAllocation.name);
     await Layout.navbar.search.groups[2].options[0].click();
-    assert.equal(currentURL(), '/jobs/vwxyz/vwxyz-group');
+    assert.equal(currentURL(), `/allocations/${firstAllocation.id}`);
+
+    await selectSearch(Layout.navbar.search.scope, firstTaskGroup.name);
+    assert.equal(Layout.navbar.search.groups[3].options[0].text, firstTaskGroup.name);
+    await Layout.navbar.search.groups[3].options[0].click();
+    assert.equal(currentURL(), `/jobs/vwxyz/${firstTaskGroup.name}`);
 
     await selectSearch(Layout.navbar.search.scope, 'xy');
-    await Layout.navbar.search.groups[3].options[0].click();
+    await Layout.navbar.search.groups[4].options[0].click();
     assert.equal(currentURL(), '/csi/plugins/xyz-plugin');
   });
 
