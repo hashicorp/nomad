@@ -6,23 +6,30 @@ description: Update this content
 
 # Nomad Integration Program
 
-
 ## Introduction
 
-The HashiCorp Nomad Integration Program allows vendors to integrate their products to work with Nomad. As a scheduler, Nomad encompasses a broad area.  Thereby, a set of integrations may require vendor integration code.
- 
-Vendors integrating their solutions via the Nomad Integration Process provide their customers a verified and seamless user experience. The Nomad Integration Program primarily supports coding with the Gco programming language. 
- 
+The HashiCorp Nomad Integration Program allows vendors to integrate their products to work with Nomad. As a scheduler, Nomad encompasses a broad area. Thereby, a set of integrations may require vendor integration code.
+
+Vendors integrating their solutions via the Nomad Integration Process provide their customers a verified and seamless user experience. The Nomad Integration Program primarily supports coding with the Go programming language.
+
 This program is intended to be largely a self-service process with links and guidance to information sources, clearly defined steps, and checkpoints.
 
-## Types of Nomad Integrations 
+## Types of Nomad Integrations
 
-Nomad is a simple and flexible orchestrator to deploy and manage containers and non-containerized applications across on-premises and cloud environments at scale. Nomad is widely adopted and used in production by organizations like Cloudflare, Roblox, Q2, Pandora, and more. For a full description of the current features please refer to the Nomad website [Nomad Website](/).  
-The diagram below depicts the key Nomad integration categories and types.
+Nomad is a simple and flexible orchestrator to deploy and manage containers and non-containerized applications across on-premises and cloud environments at scale. Nomad is widely adopted and used in production by organizations like Cloudflare, Roblox, Q2, Pandora, and more. For a full description of the current features please refer to the [Nomad Website](/). The diagram below depicts the key Nomad integration categories and types.
 
-![Integration Categories](https://www.datocms-assets.com/2885/1618464032-control-plane.png)
+<!-- Using a workaround since images don't have scale option
+ ![Integration Categories](https://www.datocms-assets.com/2885/1618464032-control-plane.png)
+-->
+
+<img
+  src="https://www.datocms-assets.com/2885/1618464032-control-plane.png"
+  alt="Integration Categories"
+  style={{ height: '70%', width: '70%' }}
+/>
 
 Main Nomad categories for partners to integrate with include:
+
 - CI/CD (Continuous Integration & Delivery)
 - Container Runtime
 - GPUs & Other Hardware Devices
@@ -32,7 +39,8 @@ Main Nomad categories for partners to integrate with include:
 - Storage
 - Autoscaling
 
-## Development Process 
+## Development Process
+
 The Nomad integration development process is divided into six steps. By following these steps, Nomad integrations can be developed alongside HashiCorp to ensure that the integrations are able to be verified and supported in Nomad as quickly as possible. A visual representation of the self-guided steps is depicted below.
 ![Development Process](https://www.datocms-assets.com/2885/1618463733-nomad-integration-program-steps.png)
 
@@ -46,6 +54,7 @@ The individual Nomad integration steps include:
 6.  Support: Ongoing maintenance and support of the provider by the vendor.
 
 ### 1. Engage
+
 Please begin by providing some basic information about the integration that is being built via a simple [webform](https://docs.google.com/forms/d/e/1FAIpQLSflmhg8lkY5QyH3CB5TUMi4I1ZFQFx_GP_TVDtsbxMaFEMWpw/viewform).
 
 This information is recorded and used by HashiCorp to track the integration through various stages. The information is also used to notify the integration developer of any overlapping work, perhaps coming from the community so you may better focus resources.
@@ -56,16 +65,17 @@ Nomad has a large and active community and ecosystem of partners that may have a
 
 While not mandatory, HashiCorp encourages vendors to sign and MNDA (Mutual Non-Disclosure Agreement) to allow for open dialog and sharing of ideas during the integration process.
 
-In an effort to support our self-serve model we’ve included links to resources, documentation, examples and best practices to guide you through the Vault integration development and testing process.
+In an effort to support our self-serve model we've included links to resources, documentation, examples and best practices to guide you through the Vault integration development and testing process.
 
 - Contributing to Nomad [guidelines](https://github.com/hashicorp/nomad/tree/main/contributing)
 - [Nomad Developer Community Forum](https://groups.google.com/g/nomad-tool)
 - [Nomad's source code](https://github.com/hashicorp/nomad)
+
 We encourage vendors to closely follow the above guidance. Adopting the same structure and coding patterns helps expedite the review and release cycles.
 
 ### 3. Dev & Test
 
-Nomad requires all code-level integrations to be written in the [Go](https://golang.org/) programming language and contain an [MPL-2.0](https://en.wikipedia.org/wiki/Mozilla_Public_License) open source license. The only knowledge necessary to write a plugin is basic command-line skills and knowledge of the Go programming language.  When writing in Go-Language, HashiCorp has found the integration development process to be straightforward and simple when vendors pay close attention and follow the resources and by adopting the same structure and coding patterns helps expedite the review and release cycles. Please remember that all integration major steps should contain acceptance testing and the appropriate documentation.
+Nomad requires all code-level integrations to be written in the [Go](https://golang.org/) programming language and contain an [MPL-2.0](https://en.wikipedia.org/wiki/Mozilla_Public_License) open source license. The only knowledge necessary to write a plugin is basic command-line skills and knowledge of the Go programming language. When writing in Go-Language, HashiCorp has found the integration development process to be straightforward and simple when vendors pay close attention and follow the resources and by adopting the same structure and coding patterns helps expedite the review and release cycles. Please remember that all integration major steps should contain acceptance testing and the appropriate documentation.
 
 Container Runtime
 
@@ -100,14 +110,15 @@ For task, device, storage, and autoscaling plugins, please submit a GitHub pull 
 
 The review process can take a while to complete and may require some iterations through the code to address and problems identified by the HashiCorp team.
 
-### 5. Release 
+### 5. Release
 
 At this stage, it is expected that the integration is fully complete, the necessary documentation has been written, the acceptance tests have all passed, and that HashiCorp has reviewed the integration. Once the plugin has been validated and accepted by HashiCorp, the plugin can be hosted anywhere so it can easily be downloaded then installed within Nomad.
 
 Once the integration has been released the vendor is requested to sign the HashiCorp Technology Partner Agreement so that we can have their integration be listed on the HashiCorp website.
- 
+
 ### 6. Support
-Many vendors view the release step to be the end of the journey, while at HashiCorp we view it to be the beginning of the journey. Getting the integration built is just the first step in enabling users to leverage it against their infrastructure. Once development is completed, on-going effort is required to support the developed integration, maintain the provider and address any issues in a timely manner.
+
+Many vendors view the release step to be the end of the journey, while at HashiCorp we view it to be the beginning of the journey. Getting the integration built is just the first step in enabling users to leverage it against their infrastructure. Once development is completed, on-going effort is required to support the developed integration, maintain the provider, and address any issues in a timely manner.
 
 The expectation from the vendor/partner is to create a mechanism for them to track and resolve all critical issues as soon as possible within 48 hours and all other issues within 5 business days. This is a requirement given the critical nature of Nomad to the customer's operation. Vendors who choose to not support their integration will not be considered a verified integration and cannot be listed on the website.
 
@@ -125,6 +136,6 @@ Below is an ordered checklist of steps that should be followed during the integr
 - Execute HashiCorp Partner Agreement Documents, review logo guidelines, partner listing and more
 - Plan to continue supporting the integration with additional functionality and responding to customer issues.
 
-
 ## Contact Us
+
 For any questions or feedback, please contact us at: [Nomad-integration-dev@hashicorp.com](mailto:Nomad-integration-dev@hashicorp.com).
