@@ -53,9 +53,9 @@ export default class GlobalSearchControl extends Component {
 
     const allJobResults = results.Matches.jobs || [];
     const allNodeResults = results.Matches.nodes || [];
-    const allAllocResults = results.Matches.allocs || [];
-    const allGroupResults = results.Matches.groups || [];
-    const allPluginResults = results.Matches.plugins || [];
+    const allAllocationResults = results.Matches.allocs || [];
+    const allTaskGroupResults = results.Matches.groups || [];
+    const allCSIPluginResults = results.Matches.plugins || [];
 
     const jobResults = allJobResults.slice(0, MAXIMUM_RESULTS).map(({ ID: name, Scope: [ namespace, id ]}) => ({
       type: 'job',
@@ -70,13 +70,13 @@ export default class GlobalSearchControl extends Component {
       label: name,
     }));
 
-    const allocResults = allAllocResults.slice(0, MAXIMUM_RESULTS).map(({ ID: name, Scope: [ , id ]}) => ({
+    const allocationResults = allAllocationResults.slice(0, MAXIMUM_RESULTS).map(({ ID: name, Scope: [ , id ]}) => ({
       type: 'allocation',
       id,
       label: name,
     }));
 
-    const groupResults = allGroupResults.slice(0, MAXIMUM_RESULTS).map(({ ID: id, Scope: [ namespace, jobId ]}) => ({
+    const taskGroupResults = allTaskGroupResults.slice(0, MAXIMUM_RESULTS).map(({ ID: id, Scope: [ namespace, jobId ]}) => ({
       type: 'task-group',
       id,
       namespace,
@@ -84,34 +84,40 @@ export default class GlobalSearchControl extends Component {
       label: id,
     }));
 
-    const pluginResults = allPluginResults.slice(0, MAXIMUM_RESULTS).map(({ ID: id }) => ({
+    const csiPluginResults = allCSIPluginResults.slice(0, MAXIMUM_RESULTS).map(({ ID: id }) => ({
       type: 'plugin',
       id,
       label: id,
     }));
 
-    const truncations = results.Truncations;
+    const {
+      jobs: jobsTruncated,
+      nodes: nodesTruncated,
+      allocs: allocationsTruncated,
+      groups: taskGroupsTruncated,
+      plugins: csiPluginsTruncated,
+    } = results.Truncations;
 
     return [
       {
-        groupName: resultsGroupLabel('Jobs', jobResults, allJobResults, truncations.jobs),
+        groupName: resultsGroupLabel('Jobs', jobResults, allJobResults, jobsTruncated),
         options: jobResults,
       },
       {
-        groupName: resultsGroupLabel('Clients', nodeResults, allNodeResults, truncations.nodes),
+        groupName: resultsGroupLabel('Clients', nodeResults, allNodeResults, nodesTruncated),
         options: nodeResults,
       },
       {
-        groupName: resultsGroupLabel('Allocations', allocResults, allAllocResults, truncations.allocs),
-        options: allocResults,
+        groupName: resultsGroupLabel('Allocations', allocationResults, allAllocationResults, allocationsTruncated),
+        options: allocationResults,
       },
       {
-        groupName: resultsGroupLabel('Task Groups', groupResults, allGroupResults, truncations.groups),
-        options: groupResults,
+        groupName: resultsGroupLabel('Task Groups', taskGroupResults, allTaskGroupResults, taskGroupsTruncated),
+        options: taskGroupResults,
       },
       {
-        groupName: resultsGroupLabel('CSI Plugins', pluginResults, allPluginResults, truncations.plugins),
-        options: pluginResults,
+        groupName: resultsGroupLabel('CSI Plugins', csiPluginResults, allCSIPluginResults, csiPluginsTruncated),
+        options: csiPluginResults,
       }
     ];
   })
