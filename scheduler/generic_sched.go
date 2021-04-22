@@ -200,7 +200,7 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 		classEligibility = e.GetClasses()
 	}
 
-	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached())
+	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs)
 	if planFailure {
 		s.blocked.TriggeredBy = structs.EvalTriggerMaxPlans
 		s.blocked.StatusDescription = blockedEvalMaxPlanDesc
@@ -520,6 +520,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			// Check if this task group has already failed
 			if metric, ok := s.failedTGAllocs[tg.Name]; ok {
 				metric.CoalescedFailures += 1
+				metric.ExhaustResources(tg)
 				continue
 			}
 
@@ -626,6 +627,9 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				if s.failedTGAllocs == nil {
 					s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 				}
+
+				// Update metrics with the resources requested by the task group.
+				s.ctx.Metrics().ExhaustResources(tg)
 
 				// Track the fact that we didn't find a placement
 				s.failedTGAllocs[tg.Name] = s.ctx.Metrics()

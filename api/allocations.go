@@ -374,6 +374,7 @@ type AllocationMetric struct {
 	ClassExhausted     map[string]int
 	DimensionExhausted map[string]int
 	QuotaExhausted     []string
+	ResourcesExhausted map[string]*Resources
 	// Deprecated, replaced with ScoreMetaData
 	Scores            map[string]float64
 	AllocationTime    time.Duration
