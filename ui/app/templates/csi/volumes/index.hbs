@@ -11,13 +11,23 @@
   {{else}}
     <div class="toolbar">
       <div class="toolbar-item">
-        {{#if this.model.length}}
+        {{#if this.visibleVolumes.length}}
           <SearchBox
             data-test-volumes-search
             @searchTerm={{mut this.searchTerm}}
             @onChange={{action this.resetPagination}}
             @placeholder="Search volumes..." />
         {{/if}}
+      </div>
+      <div class="toolbar-item is-right-aligned is-mobile-full-width">
+        <div class="button-bar">
+          <SingleSelectDropdown
+            data-test-namespace-facet
+            @label="Namespace"
+            @options={{this.optionsNamespaces}}
+            @selection={{this.qpNamespace}}
+            @onSelect={{action this.setFacetQueryParam "qpNamespace"}} />
+        </div>
       </div>
     </div>
     {{#if this.sortedVolumes}}
@@ -80,10 +90,10 @@
       </ListPagination>
     {{else}}
       <div data-test-empty-volumes-list class="empty-message">
-        {{#if (eq this.model.length 0)}}
+        {{#if (eq this.visibleVolumes.length 0)}}
           <h3 data-test-empty-volumes-list-headline class="empty-message-headline">No Volumes</h3>
           <p class="empty-message-body">
-            The cluster currently has no CSI Volumes.
+            This namespace currently has no CSI Volumes.
           </p>
         {{else if this.searchTerm}}
           <h3 data-test-empty-volumes-list-headline class="empty-message-headline">No Matches</h3>

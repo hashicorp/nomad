@@ -25,7 +25,7 @@ export default class IndexRoute extends Route.extend(WithWatchers, WithForbidden
 
   startWatchers(controller) {
     controller.set('namespacesWatch', this.watchNamespaces.perform());
-    controller.set('modelWatch', this.watchJobs.perform());
+    controller.set('modelWatch', this.watchJobs.perform({ namespace: controller.qpNamesapce }));
   }
 
   @watchQuery('job') watchJobs;
