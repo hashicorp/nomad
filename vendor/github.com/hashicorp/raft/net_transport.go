@@ -5,12 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/go-hclog"
 	"io"
 	"net"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/go-msgpack/codec"
 )
@@ -670,6 +671,8 @@ func decodeResponse(conn *netConn, resp interface{}) (bool, error) {
 // sendRPC is used to encode and send the RPC.
 func sendRPC(conn *netConn, rpcType uint8, args interface{}) error {
 	// Write the request type
+	start := time.Now()
+	defer fmt.Println("#### RAFT RPC REQUEST type=", rpcType, " time=", time.Since(start))
 	if err := conn.w.WriteByte(rpcType); err != nil {
 		conn.Release()
 		return err
