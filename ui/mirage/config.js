@@ -320,15 +320,11 @@ export default function() {
       return this.serialize(records);
     }
 
-    return new Response(501, {}, null);
+    return this.serialize([{ Name: 'default' }]);
   });
 
   this.get('/namespace/:id', function({ namespaces }, { params }) {
-    if (namespaces.all().length) {
-      return this.serialize(namespaces.find(params.id));
-    }
-
-    return new Response(501, {}, null);
+    return this.serialize(namespaces.find(params.id));
   });
 
   this.get('/agent/members', function({ agents, regions }) {
