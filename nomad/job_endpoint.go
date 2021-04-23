@@ -1427,7 +1427,6 @@ func (j *Job) listAllNamespaces(args *structs.JobListRequest, reply *structs.Job
 				}
 
 				stub := job.Stub(summary)
-				stub.Namespace = job.Namespace
 				jobs = append(jobs, stub)
 			}
 			reply.Jobs = jobs
