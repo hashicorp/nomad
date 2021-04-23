@@ -1,0 +1,53 @@
+---
+layout: docs
+page_title: nomad Stanza - Nomad Autoscaler Agent Configuration
+description: >-
+  The "nomad" block configures the Nomad Autoscaler's Nomad client.
+---
+
+# `nomad` Block
+
+<Placement groups={['nomad']} />
+
+The `nomad` block configures the Nomad Autoscaler's Nomad client.
+
+```hcl
+nomad {
+  address = "http://my-nomad.systems:4646"
+  region  = "esp-vlc-1"
+}
+```
+
+### `nomad` Parameters
+
+- `address` `(string: "http://127.0.0.1:4646")` - The address of the Nomad server
+  in the form of `protocol://addr:port`.
+
+- `region` `(string: "global")` - The region of the Nomad servers to connect with.
+
+- `namespace` `(string: "")` - The target namespace for queries and actions bound
+  to a namespace.
+
+- `token` `(string: "")` - The SecretID of an ACL token to use to authenticate
+  API requests with.
+
+- `http_auth` `(string: "")` - The authentication information to use when connecting
+  to a Nomad API which is using HTTP authentication.
+
+- `ca_cert` `(string: "")` - Path to a PEM encoded CA cert file to use to verify
+  the Nomad server SSL certificate.
+
+- `ca_path` `(string: "")` - Path to a directory of PEM encoded CA cert files to
+  verify the Nomad server SSL certificate.
+
+- `client_cert` `(string: "")` - Path to a PEM encoded client certificate for TLS
+  authentication to the Nomad server.
+
+- `client_key` `(string: "")` - Path to an unencrypted PEM encoded private key
+  matching the client certificate.
+
+- `tls_server_name` `(string: "")` - The server name to use as the SNI host when
+  connecting via TLS.
+
+- `skip_verify` `(bool: false)` - Do not verify TLS certificates. This is strongly
+  discouraged.

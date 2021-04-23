@@ -1477,7 +1477,48 @@
       },
       {
         "title": "Agent",
-        "path": "autoscaling/agent"
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "autoscaling/agent"
+          },
+          {
+            "title": "apm",
+            "path": "autoscaling/agent/apm"
+          },
+          {
+            "title": "dynamic_application_sizing",
+            "path": "autoscaling/agent/dynamic_application_sizing"
+          },
+          {
+            "title": "http",
+            "path": "autoscaling/agent/http"
+          },
+          {
+            "title": "nomad",
+            "path": "autoscaling/agent/nomad"
+          },
+          {
+            "title": "policy",
+            "path": "autoscaling/agent/policy"
+          },
+          {
+            "title": "policy_eval",
+            "path": "autoscaling/agent/policy_eval"
+          },
+          {
+            "title": "strategy",
+            "path": "autoscaling/agent/strategy"
+          },
+          {
+            "title": "target",
+            "path": "autoscaling/agent/target"
+          },
+          {
+            "title": "telemetry",
+            "path": "autoscaling/agent/telemetry"
+          }
+        ]
       },
       {
         "title": "API",
