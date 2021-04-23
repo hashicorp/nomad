@@ -51,7 +51,13 @@
           <t.body @key="model.name" as |row|>
             <tr class="is-interactive" data-test-volume-row {{on "click" (action "gotoVolume" row.model)}}>
               <td data-test-volume-name>
-                <LinkTo @route="csi.volumes.volume" @model={{row.model.plainId}} class="is-primary">{{row.model.name}}</LinkTo>
+                <LinkTo
+                  @route="csi.volumes.volume"
+                  @model={{row.model.plainId}}
+                  @query={{hash volumeNamespace=row.model.namespace.name}}
+                  class="is-primary">
+                  {{row.model.name}}
+                </LinkTo>
               </td>
               <td data-test-volume-schedulable>{{if row.model.schedulable "Schedulable" "Unschedulable"}}</td>
               <td data-test-volume-controller-health>
