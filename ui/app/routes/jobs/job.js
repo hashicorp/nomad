@@ -18,14 +18,18 @@ export default class JobRoute extends Route {
   }
 
   model(params, transition) {
-    const namespace = transition.to.queryParams.jobNamespace;
+    const namespace = transition.to.queryParams.namespace || 'default';
     const name = params.job_name;
-    const fullId = JSON.stringify([name, namespace || 'default']);
+    const fullId = JSON.stringify([name, namespace]);
 
     return this.store
       .findRecord('job', fullId, { reload: true })
       .then(job => {
-        const relatedModelsQueries = [job.get('allocations'), job.get('evaluations')];
+        const relatedModelsQueries = [
+          job.get('allocations'),
+          job.get('evaluations'),
+          this.store.query('job', { namespace }),
+        ];
 
         if (this.can.can('accept recommendation')) {
           relatedModelsQueries.push(job.get('recommendationSummaries'));
