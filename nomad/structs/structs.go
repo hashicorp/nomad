@@ -4334,6 +4334,7 @@ func (j *Job) HasUpdateStrategy() bool {
 func (j *Job) Stub(summary *JobSummary) *JobListStub {
 	return &JobListStub{
 		ID:                j.ID,
+		Namespace:         j.Namespace,
 		ParentID:          j.ParentID,
 		Name:              j.Name,
 		Datacenters:       j.Datacenters,
