@@ -64,15 +64,7 @@ export default class IndexController extends Controller.extend(
   @computed('model.@each.parent', 'system.{namespaces.length}')
   get visibleVolumes() {
     if (!this.model) return [];
-
-    // Namespace related properties are ommitted from the dependent keys
-    // due to a prop invalidation bug caused by region switching.
-    const hasNamespaces = this.get('system.namespaces.length');
-    const activeNamespace = 'default';
-
-    return this.model
-      .compact()
-      .filter(volume => !hasNamespaces || volume.get('namespace.id') === activeNamespace);
+    return this.model.compact();
   }
 
   @alias('visibleVolumes') listToSort;

@@ -29,6 +29,7 @@ export default class JobRoute extends Route {
           job.get('allocations'),
           job.get('evaluations'),
           this.store.query('job', { namespace }),
+          this.store.findAll('namespace'),
         ];
 
         if (this.can.can('accept recommendation')) {

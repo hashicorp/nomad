@@ -359,7 +359,7 @@ module('Acceptance | optimize', function(hooks) {
     window.localStorage.nomadTokenSecret = clientToken.secretId;
     await Optimize.visit();
 
-    assert.equal(currentURL(), '/jobs');
+    assert.equal(currentURL(), '/jobs?namespace=default');
     assert.ok(Layout.gutter.optimize.isHidden);
   });
 

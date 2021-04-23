@@ -1,4 +1,4 @@
-<td data-test-job-name><LinkTo @route="jobs.job" @model={{this.job.plainId}} @query={{hash jobNamespace=this.job.namespace.id}} class="is-primary">{{this.job.name}}</LinkTo></td>
+<td data-test-job-name><LinkTo @route="jobs.job" @model={{this.job.plainId}} @query={{hash namespace=this.job.namespace.id}} class="is-primary">{{this.job.name}}</LinkTo></td>
 {{#if (eq @context "child")}}
   <td data-test-job-submit-time>{{format-month-ts this.job.submitTime}}</td>
 {{/if}}

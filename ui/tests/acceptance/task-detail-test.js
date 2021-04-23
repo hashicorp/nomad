@@ -81,7 +81,7 @@ module('Acceptance | task detail', function(hooks) {
     );
 
     await Layout.breadcrumbFor('jobs.index').visit();
-    assert.equal(currentURL(), '/jobs', 'Jobs breadcrumb links correctly');
+    assert.equal(currentURL(), '/jobs?namespace=default', 'Jobs breadcrumb links correctly');
 
     await Task.visit({ id: allocation.id, name: task.name });
     await Layout.breadcrumbFor('jobs.job.index').visit();

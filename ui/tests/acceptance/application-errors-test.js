@@ -70,7 +70,7 @@ module('Acceptance | application errors ', function(hooks) {
     assert.ok(JobsList.error.isPresent, 'An error is shown');
 
     await JobsList.error.gotoJobs();
-    assert.equal(currentURL(), '/jobs', 'Now on the jobs page');
+    assert.equal(currentURL(), '/jobs?namespace=default', 'Now on the jobs page');
     assert.notOk(JobsList.error.isPresent, 'The error is gone now');
 
     await visit('/a/non-existent/page');

@@ -45,7 +45,7 @@ module('Acceptance | regions (only one)', function(hooks) {
     server.create('region', { id: 'global' });
 
     await JobsList.visit();
-    assert.equal(currentURL(), '/jobs', 'No region query param');
+    assert.equal(currentURL(), '/jobs?namespace=default', 'No region query param');
 
     const jobId = JobsList.jobs.objectAt(0).id;
     await JobsList.jobs.objectAt(0).clickRow();
@@ -91,7 +91,7 @@ module('Acceptance | regions (many)', function(hooks) {
   test('when on the default region, pages do not include the region query param', async function(assert) {
     await JobsList.visit();
 
-    assert.equal(currentURL(), '/jobs', 'No region query param');
+    assert.equal(currentURL(), '/jobs?namespace=default', 'No region query param');
     assert.equal(window.localStorage.nomadActiveRegion, 'global', 'Region in localStorage');
   });
 

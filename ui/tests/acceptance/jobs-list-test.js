@@ -32,7 +32,7 @@ module('Acceptance | jobs list', function(hooks) {
   test('visiting /jobs', async function(assert) {
     await JobsList.visit();
 
-    assert.equal(currentURL(), '/jobs');
+    assert.equal(currentURL(), '/jobs?namespace=default');
     assert.equal(document.title, 'Jobs - Nomad');
   });
 
@@ -90,7 +90,7 @@ module('Acceptance | jobs list', function(hooks) {
     assert.ok(JobsList.runJobButton.isDisabled);
 
     await JobsList.runJobButton.click();
-    assert.equal(currentURL(), '/jobs');
+    assert.equal(currentURL(), '/jobs?namespace=default');
   });
 
   test('the anonymous policy is fetched to check whether to show the job run button', async function(assert) {
@@ -137,32 +137,33 @@ module('Acceptance | jobs list', function(hooks) {
     await JobsList.visit();
     await JobsList.nextPage();
 
-    assert.equal(currentURL(), '/jobs?page=2', 'Page query param captures page=2');
+    assert.equal(
+      currentURL(),
+      '/jobs?namespace=default&page=2',
+      'Page query param captures page=2'
+    );
 
     await JobsList.search.fillIn('foobar');
 
-    assert.equal(currentURL(), '/jobs?search=foobar', 'No page query param');
+    assert.equal(currentURL(), '/jobs?namespace=default&search=foobar', 'No page query param');
   });
 
-  todo(
-    'when the namespace query param is set, only matching jobs are shown and the namespace value is forwarded to app state',
-    async function(assert) {
-      server.createList('namespace', 2);
-      const job1 = server.create('job', { namespaceId: server.db.namespaces[0].id });
-      const job2 = server.create('job', { namespaceId: server.db.namespaces[1].id });
+  test('when the namespace query param is set, only matching jobs are shown', async function(assert) {
+    server.createList('namespace', 2);
+    const job1 = server.create('job', { namespaceId: server.db.namespaces[0].id });
+    const job2 = server.create('job', { namespaceId: server.db.namespaces[1].id });
 
-      await JobsList.visit();
+    await JobsList.visit();
 
-      assert.equal(JobsList.jobs.length, 1, 'One job in the default namespace');
-      assert.equal(JobsList.jobs.objectAt(0).name, job1.name, 'The correct job is shown');
+    assert.equal(JobsList.jobs.length, 1, 'One job in the default namespace');
+    assert.equal(JobsList.jobs.objectAt(0).name, job1.name, 'The correct job is shown');
 
-      const secondNamespace = server.db.namespaces[1];
-      await JobsList.visit({ namespace: secondNamespace.id });
+    const secondNamespace = server.db.namespaces[1];
+    await JobsList.visit({ namespace: secondNamespace.id });
 
-      assert.equal(JobsList.jobs.length, 1, `One job in the ${secondNamespace.name} namespace`);
-      assert.equal(JobsList.jobs.objectAt(0).name, job2.name, 'The correct job is shown');
-    }
-  );
+    assert.equal(JobsList.jobs.length, 1, `One job in the ${secondNamespace.name} namespace`);
+    assert.equal(JobsList.jobs.objectAt(0).name, job2.name, 'The correct job is shown');
+  });
 
   test('when accessing jobs is forbidden, show a message with a link to the tokens page', async function(assert) {
     server.pretender.get('/v1/jobs', () => [403, {}, null]);
@@ -420,9 +421,8 @@ module('Acceptance | jobs list', function(hooks) {
       await option2.toggle();
       selection.push(option2.key);
 
-      assert.equal(
-        currentURL(),
-        `/jobs?${paramName}=${encodeURIComponent(JSON.stringify(selection))}`,
+      assert.ok(
+        currentURL().includes(encodeURIComponent(JSON.stringify(selection))),
         'URL has the correct query param key and value'
       );
     });
