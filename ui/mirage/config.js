@@ -274,19 +274,22 @@ export default function() {
 
   this.get(
     '/volume/:id',
-    withBlockingSupport(function({ csiVolumes }, { params }) {
+    withBlockingSupport(function({ csiVolumes }, { params, queryParams }) {
       if (!params.id.startsWith('csi/')) {
         return new Response(404, {}, null);
       }
 
       const id = params.id.replace(/^csi\//, '');
-      const volume = csiVolumes.find(id);
+      const volume = csiVolumes.all().models.find(volume => {
+        const volumeIsDefault = !volume.namespaceId || volume.namespaceId === 'default';
+        const qpIsDefault = !queryParams.namespace || queryParams.namespace === 'default';
+        return (
+          volume.id === id &&
+          (volume.namespaceId === queryParams.namespace || (volumeIsDefault && qpIsDefault))
+        );
+      });
 
-      if (!volume) {
-        return new Response(404, {}, null);
-      }
-
-      return this.serialize(volume);
+      return volume ? this.serialize(volume) : new Response(404, {}, null);
     })
   );
 
