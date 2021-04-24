@@ -21,12 +21,14 @@ export default create({
 
   volumes: collection('[data-test-volume-row]', {
     name: text('[data-test-volume-name]'),
+    namespace: text('[data-test-volume-namespace]'),
     schedulable: text('[data-test-volume-schedulable]'),
     controllerHealth: text('[data-test-volume-controller-health]'),
     nodeHealth: text('[data-test-volume-node-health]'),
     provider: text('[data-test-volume-provider]'),
     allocations: text('[data-test-volume-allocations]'),
 
+    hasNamespace: isPresent('[data-test-volume-namespace]'),
     clickRow: clickable(),
     clickName: clickable('[data-test-volume-name] a'),
   }),

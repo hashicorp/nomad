@@ -92,6 +92,9 @@
           @class="with-foot" as |t|>
           <t.head>
             <t.sort-by @prop="name">Name</t.sort-by>
+            {{#if this.system.shouldShowNamespaces}}
+              <t.sort-by @prop="namespace.name">Namespace</t.sort-by>
+            {{/if}}
             <t.sort-by @prop="status">Status</t.sort-by>
             <t.sort-by @prop="type">Type</t.sort-by>
             <t.sort-by @prop="priority">Priority</t.sort-by>

@@ -82,6 +82,7 @@ module('Acceptance | volumes list', function(hooks) {
     const nodeHealthStr = volume.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
 
     assert.equal(volumeRow.name, volume.id);
+    assert.notOk(volumeRow.hasNamespace);
     assert.equal(volumeRow.schedulable, volume.schedulable ? 'Schedulable' : 'Unschedulable');
     assert.equal(volumeRow.controllerHealth, controllerHealthStr);
     assert.equal(
@@ -137,6 +138,16 @@ module('Acceptance | volumes list', function(hooks) {
     await VolumesList.search('foobar');
 
     assert.equal(currentURL(), '/csi/volumes?search=foobar');
+  });
+
+  test('when the cluster has namespaces, each volume row includes the volume namespace', async function(assert) {
+    server.createList('namespace', 2);
+    const volume = server.create('csi-volume');
+
+    await VolumesList.visit({ namespace: '*' });
+
+    const volumeRow = VolumesList.volumes.objectAt(0);
+    assert.equal(volumeRow.namespace, volume.namespaceId);
   });
 
   test('when the namespace query param is set, only matching volumes are shown and the namespace value is forwarded to app state', async function(assert) {

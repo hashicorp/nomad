@@ -59,6 +59,7 @@ module('Acceptance | jobs list', function(hooks) {
     const jobRow = JobsList.jobs.objectAt(0);
 
     assert.equal(jobRow.name, job.name, 'Name');
+    assert.notOk(jobRow.hasNamespace);
     assert.equal(jobRow.link, `/ui/jobs/${job.id}`, 'Detail Link');
     assert.equal(jobRow.status, job.status, 'Status');
     assert.equal(jobRow.type, typeForJob(job), 'Type');
@@ -142,6 +143,17 @@ module('Acceptance | jobs list', function(hooks) {
     await JobsList.search.fillIn('foobar');
 
     assert.equal(currentURL(), '/jobs?search=foobar', 'No page query param');
+  });
+
+  test('when a cluster has namespaces, each job row includes the job namespace', async function(assert) {
+    server.createList('namespace', 2);
+    server.createList('job', 2);
+    const job = server.db.jobs.sortBy('modifyIndex').reverse()[0];
+
+    await JobsList.visit({ namespace: '*' });
+
+    const jobRow = JobsList.jobs.objectAt(0);
+    assert.equal(jobRow.namespace, job.namespaceId);
   });
 
   test('when the namespace query param is set, only matching jobs are shown', async function(assert) {

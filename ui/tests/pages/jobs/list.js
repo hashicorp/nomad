@@ -31,12 +31,14 @@ export default create({
   jobs: collection('[data-test-job-row]', {
     id: attribute('data-test-job-row'),
     name: text('[data-test-job-name]'),
+    namespace: text('[data-test-job-namespace]'),
     link: attribute('href', '[data-test-job-name] a'),
     status: text('[data-test-job-status]'),
     type: text('[data-test-job-type]'),
     priority: text('[data-test-job-priority]'),
     taskGroups: text('[data-test-job-task-groups]'),
 
+    hasNamespace: isPresent('[data-test-job-namespace]'),
     clickRow: clickable(),
     clickName: clickable('[data-test-job-name] a'),
   }),
