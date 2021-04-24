@@ -18,9 +18,9 @@ export default class IndexRoute extends Route.extend(WithWatchers, WithForbidden
 
   model(params) {
     return RSVP.hash({
-      jobs: this.store.query('job', { namespace: params.qpNamespace }),
+      jobs: this.store.query('job', { namespace: params.qpNamespace }).catch(notifyForbidden(this)),
       namespaces: this.store.findAll('namespace'),
-    }).catch(notifyForbidden(this));
+    });
   }
 
   startWatchers(controller) {

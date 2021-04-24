@@ -6,32 +6,32 @@
   </ul>
 </div>
 <section class="section">
+  <div class="toolbar">
+    <div class="toolbar-item">
+      {{#if this.visibleVolumes.length}}
+        <SearchBox
+          data-test-volumes-search
+          @searchTerm={{mut this.searchTerm}}
+          @onChange={{action this.resetPagination}}
+          @placeholder="Search volumes..." />
+      {{/if}}
+    </div>
+    {{#if this.system.shouldShowNamespaces}}
+      <div class="toolbar-item is-right-aligned is-mobile-full-width">
+        <div class="button-bar">
+          <SingleSelectDropdown
+            data-test-namespace-facet
+            @label="Namespace"
+            @options={{this.optionsNamespaces}}
+            @selection={{this.qpNamespace}}
+            @onSelect={{action this.setFacetQueryParam "qpNamespace"}} />
+        </div>
+      </div>
+    {{/if}}
+  </div>
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
-    <div class="toolbar">
-      <div class="toolbar-item">
-        {{#if this.visibleVolumes.length}}
-          <SearchBox
-            data-test-volumes-search
-            @searchTerm={{mut this.searchTerm}}
-            @onChange={{action this.resetPagination}}
-            @placeholder="Search volumes..." />
-        {{/if}}
-      </div>
-      {{#if this.system.shouldShowNamespaces}}
-        <div class="toolbar-item is-right-aligned is-mobile-full-width">
-          <div class="button-bar">
-            <SingleSelectDropdown
-              data-test-namespace-facet
-              @label="Namespace"
-              @options={{this.optionsNamespaces}}
-              @selection={{this.qpNamespace}}
-              @onSelect={{action this.setFacetQueryParam "qpNamespace"}} />
-          </div>
-        </div>
-      {{/if}}
-    </div>
     {{#if this.sortedVolumes}}
       <ListPagination
         @source={{this.sortedVolumes}}

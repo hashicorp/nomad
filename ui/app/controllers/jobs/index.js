@@ -181,6 +181,7 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
   */
   @computed('model.jobs.@each.parent')
   get visibleJobs() {
+    if (!this.model || !this.model.jobs) return [];
     return this.model.jobs
       .compact()
       .filter(job => !job.isNew)
