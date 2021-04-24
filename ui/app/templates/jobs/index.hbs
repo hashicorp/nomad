@@ -33,7 +33,10 @@
             @label="Namespace"
             @options={{this.optionsNamespaces}}
             @selection={{this.qpNamespace}}
-            @onSelect={{action this.setFacetQueryParam "qpNamespace"}} />
+            @onSelect={{action (queue
+              (action this.cacheNamespace)
+              (action this.setFacetQueryParam "qpNamespace")
+            )}} />
         {{/if}}
         <MultiSelectDropdown
           data-test-type-facet

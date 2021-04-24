@@ -1,5 +1,5 @@
 import { currentURL } from '@ember/test-helpers';
-import { module, test, todo } from 'qunit';
+import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
@@ -343,11 +343,13 @@ module('Acceptance | jobs list', function(hooks) {
     assert.equal(JobsList.jobs.length, 1, 'Only one job shown due to query param');
   });
 
-  todo('the active namespace is carried over to the storage pages', async function(assert) {
+  test('the active namespace is carried over to the storage pages', async function(assert) {
     server.createList('namespace', 2);
 
     const namespace = server.db.namespaces[1];
-    await JobsList.visit({ namespace: namespace.id });
+    await JobsList.visit();
+    await JobsList.facets.namespace.toggle();
+    await JobsList.facets.namespace.options.objectAt(2).select();
 
     await Layout.gutter.visitStorage();
 

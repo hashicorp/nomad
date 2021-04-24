@@ -63,7 +63,7 @@ export default class IndexController extends Controller.extend(
 
   fuzzySearchEnabled = true;
 
-  @computed('qpNamespace', 'model.namespaces.[]')
+  @computed('qpNamespace', 'model.namespaces.[]', 'system.cachedNamespace')
   get optionsNamespaces() {
     const availableNamespaces = this.model.namespaces.map(namespace => ({
       key: namespace.name,
@@ -80,7 +80,7 @@ export default class IndexController extends Controller.extend(
       // eslint-disable-next-line ember/no-incorrect-calls-with-inline-anonymous-functions
       scheduleOnce('actions', () => {
         // eslint-disable-next-line ember/no-side-effects
-        this.set('qpNamespace', 'default');
+        this.set('qpNamespace', this.system.cachedNamespace || 'default');
       });
     }
 
@@ -99,6 +99,11 @@ export default class IndexController extends Controller.extend(
   @alias('visibleVolumes') listToSort;
   @alias('listSorted') listToSearch;
   @alias('listSearched') sortedVolumes;
+
+  @action
+  cacheNamespace(namespace) {
+    this.system.cachedNamespace = namespace;
+  }
 
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));

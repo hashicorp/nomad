@@ -152,7 +152,7 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
     }));
   }
 
-  @computed('qpNamespace', 'model.namespaces.[]')
+  @computed('qpNamespace', 'model.namespaces.[]', 'system.cachedNamespace')
   get optionsNamespaces() {
     const availableNamespaces = this.model.namespaces.map(namespace => ({
       key: namespace.name,
@@ -168,7 +168,7 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
     if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
       scheduleOnce('actions', () => {
         // eslint-disable-next-line ember/no-side-effects
-        this.set('qpNamespace', 'default');
+        this.set('qpNamespace', this.system.cachedNamespace || 'default');
       });
     }
 
@@ -232,6 +232,11 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
   @alias('listSearched') sortedJobs;
 
   isShowingDeploymentDetails = false;
+
+  @action
+  cacheNamespace(namespace) {
+    this.system.cachedNamespace = namespace;
+  }
 
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));

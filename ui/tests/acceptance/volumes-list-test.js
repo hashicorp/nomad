@@ -1,5 +1,5 @@
 import { currentURL, visit } from '@ember/test-helpers';
-import { module, test, todo } from 'qunit';
+import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
@@ -167,11 +167,13 @@ module('Acceptance | volumes list', function(hooks) {
     assert.equal(VolumesList.volumes.objectAt(0).name, volume2.id);
   });
 
-  todo('the active namespace is carried over to the jobs pages', async function(assert) {
+  test('the active namespace is carried over to the jobs pages', async function(assert) {
     server.createList('namespace', 2);
 
     const namespace = server.db.namespaces[1];
-    await VolumesList.visit({ namespace: namespace.id });
+    await VolumesList.visit();
+    await VolumesList.facets.namespace.toggle();
+    await VolumesList.facets.namespace.options.objectAt(2).select();
 
     await Layout.gutter.visitJobs();
 
