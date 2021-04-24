@@ -209,7 +209,7 @@ module('Acceptance | volume detail (with namespaces)', function(hooks) {
   });
 
   test('/csi/volumes/:id detail ribbon includes the namespace of the volume', async function(assert) {
-    await VolumeDetail.visit({ id: volume.id });
+    await VolumeDetail.visit({ id: volume.id, namespace: volume.namespaceId });
 
     assert.ok(VolumeDetail.hasNamespace);
     assert.ok(VolumeDetail.namespace.includes(volume.namespaceId || 'default'));

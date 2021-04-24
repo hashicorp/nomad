@@ -134,7 +134,7 @@ module('Acceptance | task group detail', function(hooks) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     await Layout.breadcrumbFor('jobs.index').visit();
-    assert.equal(currentURL(), '/jobs?namespace=default', 'First breadcrumb links back to jobs');
+    assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
   });
 
   test('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', async function(assert) {

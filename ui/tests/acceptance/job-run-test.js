@@ -104,6 +104,6 @@ module('Acceptance | job run', function(hooks) {
     window.localStorage.nomadTokenSecret = clientToken.secretId;
 
     await JobRun.visit();
-    assert.equal(currentURL(), '/jobs?namespace=default');
+    assert.equal(currentURL(), '/jobs');
   });
 });

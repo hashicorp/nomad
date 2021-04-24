@@ -32,7 +32,7 @@ module('Acceptance | jobs list', function(hooks) {
   test('visiting /jobs', async function(assert) {
     await JobsList.visit();
 
-    assert.equal(currentURL(), '/jobs?namespace=default');
+    assert.equal(currentURL(), '/jobs');
     assert.equal(document.title, 'Jobs - Nomad');
   });
 
@@ -90,7 +90,7 @@ module('Acceptance | jobs list', function(hooks) {
     assert.ok(JobsList.runJobButton.isDisabled);
 
     await JobsList.runJobButton.click();
-    assert.equal(currentURL(), '/jobs?namespace=default');
+    assert.equal(currentURL(), '/jobs');
   });
 
   test('the anonymous policy is fetched to check whether to show the job run button', async function(assert) {
@@ -137,15 +137,11 @@ module('Acceptance | jobs list', function(hooks) {
     await JobsList.visit();
     await JobsList.nextPage();
 
-    assert.equal(
-      currentURL(),
-      '/jobs?namespace=default&page=2',
-      'Page query param captures page=2'
-    );
+    assert.equal(currentURL(), '/jobs?page=2', 'Page query param captures page=2');
 
     await JobsList.search.fillIn('foobar');
 
-    assert.equal(currentURL(), '/jobs?namespace=default&search=foobar', 'No page query param');
+    assert.equal(currentURL(), '/jobs?search=foobar', 'No page query param');
   });
 
   test('when the namespace query param is set, only matching jobs are shown', async function(assert) {

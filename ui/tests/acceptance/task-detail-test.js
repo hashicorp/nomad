@@ -1,5 +1,5 @@
 import { currentURL } from '@ember/test-helpers';
-import { module, test, todo } from 'qunit';
+import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
@@ -81,7 +81,7 @@ module('Acceptance | task detail', function(hooks) {
     );
 
     await Layout.breadcrumbFor('jobs.index').visit();
-    assert.equal(currentURL(), '/jobs?namespace=default', 'Jobs breadcrumb links correctly');
+    assert.equal(currentURL(), '/jobs', 'Jobs breadcrumb links correctly');
 
     await Task.visit({ id: allocation.id, name: task.name });
     await Layout.breadcrumbFor('jobs.job.index').visit();
@@ -293,18 +293,12 @@ module('Acceptance | task detail (different namespace)', function(hooks) {
     await Task.visit({ id: allocation.id, name: task.name });
   });
 
-  // TODO: Reloading the task detail page breaks because the allocation no longer has a job
-  // Presumably, somehow the job is being unloaded upon visiting the job list page
-  todo('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {
+  test('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {
     const { jobId, taskGroup } = allocation;
     const job = server.db.jobs.find(jobId);
 
     await Layout.breadcrumbFor('jobs.index').visit();
-    assert.equal(
-      currentURL(),
-      '/jobs?namespace=other-namespace',
-      'Jobs breadcrumb links correctly'
-    );
+    assert.equal(currentURL(), '/jobs?namespace=default', 'Jobs breadcrumb links correctly');
 
     await Task.visit({ id: allocation.id, name: task.name });
     await Layout.breadcrumbFor('jobs.job.index').visit();

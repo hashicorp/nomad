@@ -21,10 +21,10 @@ export default class OptimizeController extends Controller {
 
   queryParams = [
     {
-      includeAllNamespaces: 'all-namespaces',
+      searchTerm: 'search',
     },
     {
-      searchTerm: 'search',
+      qpNamespace: 'namespacefilter',
     },
     {
       qpType: 'type',
@@ -48,19 +48,48 @@ export default class OptimizeController extends Controller {
     });
   }
 
+  get namespaces() {
+    return this.model.namespaces;
+  }
+
+  get summaries() {
+    return this.model.summaries;
+  }
+
   @tracked searchTerm = '';
 
   @tracked qpType = '';
   @tracked qpStatus = '';
   @tracked qpDatacenter = '';
   @tracked qpPrefix = '';
-
-  @tracked includeAllNamespaces = true;
+  @tracked qpNamespace = '*';
 
   @selection('qpType') selectionType;
   @selection('qpStatus') selectionStatus;
   @selection('qpDatacenter') selectionDatacenter;
   @selection('qpPrefix') selectionPrefix;
+
+  get optionsNamespaces() {
+    const availableNamespaces = this.namespaces.map(namespace => ({
+      key: namespace.name,
+      label: namespace.name,
+    }));
+
+    availableNamespaces.unshift({
+      key: '*',
+      label: 'All (*)',
+    });
+
+    // Unset the namespace selection if it was server-side deleted
+    if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
+      scheduleOnce('actions', () => {
+        // eslint-disable-next-line ember/no-side-effects
+        this.qpNamespace = 'default';
+      });
+    }
+
+    return availableNamespaces;
+  }
 
   optionsType = [
     { key: 'service', label: 'Service' },
@@ -75,7 +104,7 @@ export default class OptimizeController extends Controller {
 
   get optionsDatacenter() {
     const flatten = (acc, val) => acc.concat(val);
-    const allDatacenters = new Set(this.model.mapBy('job.datacenters').reduce(flatten, []));
+    const allDatacenters = new Set(this.summaries.mapBy('job.datacenters').reduce(flatten, []));
 
     // Remove any invalid datacenters from the query param/selection
     const availableDatacenters = Array.from(allDatacenters).compact();
@@ -93,7 +122,7 @@ export default class OptimizeController extends Controller {
     const hasPrefix = /.[-._]/;
 
     // Collect and count all the prefixes
-    const allNames = this.model.mapBy('job.name');
+    const allNames = this.summaries.mapBy('job.name');
     const nameHistogram = allNames.reduce((hist, name) => {
       if (hasPrefix.test(name)) {
         const prefix = name.match(/(.+?)[-._]/)[1];
@@ -133,8 +162,6 @@ export default class OptimizeController extends Controller {
       selectionPrefix: prefixes,
     } = this;
 
-    const shouldShowNamespaces = this.system.shouldShowNamespaces;
-
     // A summary’s job must match ALL filter facets, but it can match ANY selection within a facet
     // Always return early to prevent unnecessary facet predicates.
     return this.summarySearch.listSearched.filter(summary => {
@@ -144,7 +171,7 @@ export default class OptimizeController extends Controller {
         return false;
       }
 
-      if (shouldShowNamespaces && !this.includeAllNamespaces) {
+      if (this.qpNamespace !== '*' && job.get('namespace.name') !== this.qpNamespace) {
         return false;
       }
 
@@ -205,12 +232,6 @@ export default class OptimizeController extends Controller {
   }
 
   @action
-  toggleIncludeAllNamespaces() {
-    this.includeAllNamespaces = !this.includeAllNamespaces;
-    this.syncActiveSummary();
-  }
-
-  @action
   syncActiveSummary() {
     scheduleOnce('actions', () => {
       if (
@@ -236,7 +257,7 @@ class RecommendationSummarySearch extends EmberObject.extend(Searchable) {
     return ['slug'];
   }
 
-  @alias('dataSource.model') listToSearch;
+  @alias('dataSource.summaries') listToSearch;
   @alias('dataSource.searchTerm') searchTerm;
 
   exactMatchEnabled = false;

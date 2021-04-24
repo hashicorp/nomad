@@ -1,4 +1,4 @@
-import { module, test, todo } from 'qunit';
+import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { currentURL, visit } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -444,43 +444,6 @@ module('Acceptance | optimize search and facets', function(hooks) {
     assert.ok(Optimize.recommendationSummaries[0].isActive);
   });
 
-  // Ultimately this will be deleted, but it should be preserved until the replacement implementation is in place.
-  todo(
-    'turning off the namespaces toggle narrows summaries to only the current namespace and changes an active summary if it has become filtered out',
-    async function(assert) {
-      server.create('job', {
-        name: 'pppppp',
-        createRecommendations: true,
-        groupsCount: 1,
-        groupTaskCount: 4,
-        namespaceId: server.db.namespaces[1].id,
-      });
-
-      // Ensure this job’s recommendations are sorted to the top of the table
-      const futureSubmitTime = (Date.now() + 10000) * 1000000;
-      server.db.recommendations.update({ submitTime: futureSubmitTime });
-
-      server.create('job', {
-        name: 'oooooo',
-        createRecommendations: true,
-        groupsCount: 1,
-        groupTaskCount: 6,
-        namespaceId: server.db.namespaces[0].id,
-      });
-
-      await Optimize.visit();
-
-      assert.ok(Optimize.allNamespacesToggle.isActive);
-
-      await Optimize.allNamespacesToggle.toggle();
-
-      assert.equal(Optimize.recommendationSummaries.length, 1);
-      assert.ok(Optimize.recommendationSummaries[0].slug.startsWith('ooo'));
-      assert.ok(currentURL().includes('all-namespaces=false'));
-      assert.equal(Optimize.card.slug.jobName, 'oooooo');
-    }
-  );
-
   test('the namespaces toggle doesn’t show when there aren’t namespaces', async function(assert) {
     server.db.namespaces.remove();
 
@@ -492,7 +455,7 @@ module('Acceptance | optimize search and facets', function(hooks) {
 
     await Optimize.visit();
 
-    assert.ok(Optimize.allNamespacesToggle.isHidden);
+    assert.ok(Optimize.facets.namespace.isHidden);
   });
 
   test('processing a summary moves to the next one in the sorted list', async function(assert) {

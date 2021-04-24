@@ -93,18 +93,19 @@ module('Acceptance | volumes list', function(hooks) {
   });
 
   test('each volume row should link to the corresponding volume', async function(assert) {
-    const volume = server.create('csi-volume');
+    const [, secondNamespace] = server.createList('namespace', 2);
+    const volume = server.create('csi-volume', { namespaceId: secondNamespace.id });
 
-    await VolumesList.visit();
+    await VolumesList.visit({ namespace: '*' });
 
     await VolumesList.volumes.objectAt(0).clickName();
-    assert.equal(currentURL(), `/csi/volumes/${volume.id}`);
+    assert.equal(currentURL(), `/csi/volumes/${volume.id}?namespace=${secondNamespace.id}`);
 
-    await VolumesList.visit();
-    assert.equal(currentURL(), '/csi/volumes');
+    await VolumesList.visit({ namespace: '*' });
+    assert.equal(currentURL(), '/csi/volumes?namespace=*');
 
     await VolumesList.volumes.objectAt(0).clickRow();
-    assert.equal(currentURL(), `/csi/volumes/${volume.id}`);
+    assert.equal(currentURL(), `/csi/volumes/${volume.id}?namespace=${secondNamespace.id}`);
   });
 
   test('when there are no volumes, there is an empty message', async function(assert) {
@@ -138,25 +139,22 @@ module('Acceptance | volumes list', function(hooks) {
     assert.equal(currentURL(), '/csi/volumes?search=foobar');
   });
 
-  todo(
-    'when the namespace query param is set, only matching volumes are shown and the namespace value is forwarded to app state',
-    async function(assert) {
-      server.createList('namespace', 2);
-      const volume1 = server.create('csi-volume', { namespaceId: server.db.namespaces[0].id });
-      const volume2 = server.create('csi-volume', { namespaceId: server.db.namespaces[1].id });
+  test('when the namespace query param is set, only matching volumes are shown and the namespace value is forwarded to app state', async function(assert) {
+    server.createList('namespace', 2);
+    const volume1 = server.create('csi-volume', { namespaceId: server.db.namespaces[0].id });
+    const volume2 = server.create('csi-volume', { namespaceId: server.db.namespaces[1].id });
 
-      await VolumesList.visit();
+    await VolumesList.visit();
 
-      assert.equal(VolumesList.volumes.length, 1);
-      assert.equal(VolumesList.volumes.objectAt(0).name, volume1.id);
+    assert.equal(VolumesList.volumes.length, 1);
+    assert.equal(VolumesList.volumes.objectAt(0).name, volume1.id);
 
-      const secondNamespace = server.db.namespaces[1];
-      await VolumesList.visit({ namespace: secondNamespace.id });
+    const secondNamespace = server.db.namespaces[1];
+    await VolumesList.visit({ namespace: secondNamespace.id });
 
-      assert.equal(VolumesList.volumes.length, 1);
-      assert.equal(VolumesList.volumes.objectAt(0).name, volume2.id);
-    }
-  );
+    assert.equal(VolumesList.volumes.length, 1);
+    assert.equal(VolumesList.volumes.objectAt(0).name, volume2.id);
+  });
 
   todo('the active namespace is carried over to the jobs pages', async function(assert) {
     server.createList('namespace', 2);
