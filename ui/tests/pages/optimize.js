@@ -10,7 +10,7 @@ import {
 } from 'ember-cli-page-object';
 
 import recommendationCard from 'nomad-ui/tests/pages/components/recommendation-card';
-import facet from 'nomad-ui/tests/pages/components/facet';
+import { multiFacet, singleFacet } from 'nomad-ui/tests/pages/components/facet';
 
 export default create({
   visit: visitable('/optimize'),
@@ -21,11 +21,11 @@ export default create({
   },
 
   facets: {
-    namespace: facet('[data-test-namespace-facet]'),
-    type: facet('[data-test-type-facet]'),
-    status: facet('[data-test-status-facet]'),
-    datacenter: facet('[data-test-datacenter-facet]'),
-    prefix: facet('[data-test-prefix-facet]'),
+    namespace: singleFacet('[data-test-namespace-facet]'),
+    type: multiFacet('[data-test-type-facet]'),
+    status: multiFacet('[data-test-status-facet]'),
+    datacenter: multiFacet('[data-test-datacenter-facet]'),
+    prefix: multiFacet('[data-test-prefix-facet]'),
   },
 
   card: recommendationCard,

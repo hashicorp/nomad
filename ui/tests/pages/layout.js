@@ -50,14 +50,6 @@ export default create({
 
   gutter: {
     scope: '[data-test-gutter-menu]',
-    namespaceSwitcher: {
-      scope: '[data-test-namespace-switcher-parent]',
-      isPresent: isPresent(),
-      open: clickable('.ember-power-select-trigger'),
-      options: collection('.ember-power-select-option', {
-        label: text(),
-      }),
-    },
     visitJobs: clickable('[data-test-gutter-link="jobs"]'),
 
     optimize: {

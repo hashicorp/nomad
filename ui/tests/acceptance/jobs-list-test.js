@@ -178,10 +178,28 @@ module('Acceptance | jobs list', function(hooks) {
   test('the jobs list page has appropriate faceted search options', async function(assert) {
     await JobsList.visit();
 
+    assert.ok(JobsList.facets.namespace.isHidden, 'Namespace facet not found (no namespaces)');
     assert.ok(JobsList.facets.type.isPresent, 'Type facet found');
     assert.ok(JobsList.facets.status.isPresent, 'Status facet found');
     assert.ok(JobsList.facets.datacenter.isPresent, 'Datacenter facet found');
     assert.ok(JobsList.facets.prefix.isPresent, 'Prefix facet found');
+  });
+
+  testSingleSelectFacet('Namespace', {
+    facet: JobsList.facets.namespace,
+    paramName: 'namespace',
+    expectedOptions: ['All (*)', 'default', 'namespace-2'],
+    optionToSelect: 'namespace-2',
+    async beforeEach() {
+      server.create('namespace', { id: 'default' });
+      server.create('namespace', { id: 'namespace-2' });
+      server.createList('job', 2, { namespaceId: 'default' });
+      server.createList('job', 2, { namespaceId: 'namespace-2' });
+      await JobsList.visit();
+    },
+    filter(job, selection) {
+      return job.namespaceId === selection;
+    },
   });
 
   testFacet('Type', {
@@ -334,23 +352,72 @@ module('Acceptance | jobs list', function(hooks) {
     },
   });
 
-  function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
+  async function facetOptions(assert, beforeEach, facet, expectedOptions) {
+    await beforeEach();
+    await facet.toggle();
+
+    let expectation;
+    if (typeof expectedOptions === 'function') {
+      expectation = expectedOptions(server.db.jobs);
+    } else {
+      expectation = expectedOptions;
+    }
+
+    assert.deepEqual(
+      facet.options.map(option => option.label.trim()),
+      expectation,
+      'Options for facet are as expected'
+    );
+  }
+
+  function testSingleSelectFacet(
+    label,
+    { facet, paramName, beforeEach, filter, expectedOptions, optionToSelect }
+  ) {
     test(`the ${label} facet has the correct options`, async function(assert) {
+      await facetOptions(assert, beforeEach, facet, expectedOptions);
+    });
+
+    test(`the ${label} facet filters the jobs list by ${label}`, async function(assert) {
       await beforeEach();
       await facet.toggle();
 
-      let expectation;
-      if (typeof expectedOptions === 'function') {
-        expectation = expectedOptions(server.db.jobs);
-      } else {
-        expectation = expectedOptions;
-      }
+      const option = facet.options.findOneBy('label', optionToSelect);
+      const selection = option.key;
+      await option.select();
 
-      assert.deepEqual(
-        facet.options.map(option => option.label.trim()),
-        expectation,
-        'Options for facet are as expected'
+      const expectedJobs = server.db.jobs
+        .filter(job => filter(job, selection))
+        .sortBy('modifyIndex')
+        .reverse();
+
+      JobsList.jobs.forEach((job, index) => {
+        assert.equal(
+          job.id,
+          expectedJobs[index].id,
+          `Job at ${index} is ${expectedJobs[index].id}`
+        );
+      });
+    });
+
+    test(`selecting an option in the ${label} facet updates the ${paramName} query param`, async function(assert) {
+      await beforeEach();
+      await facet.toggle();
+
+      const option = facet.options.objectAt(1);
+      const selection = option.key;
+      await option.select();
+
+      assert.ok(
+        currentURL().includes(`${paramName}=${selection}`),
+        'URL has the correct query param key and value'
       );
+    });
+  }
+
+  function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
+    test(`the ${label} facet has the correct options`, async function(assert) {
+      await facetOptions(assert, beforeEach, facet, expectedOptions);
     });
 
     test(`the ${label} facet filters the jobs list by ${label}`, async function(assert) {

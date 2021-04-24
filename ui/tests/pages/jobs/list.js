@@ -10,7 +10,7 @@ import {
   visitable,
 } from 'ember-cli-page-object';
 
-import facet from 'nomad-ui/tests/pages/components/facet';
+import { multiFacet, singleFacet } from 'nomad-ui/tests/pages/components/facet';
 import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
@@ -58,22 +58,13 @@ export default create({
     gotoClients: clickable('[data-test-error-clients-link]'),
   },
 
-  namespaceSwitcher: {
-    isPresent: isPresent('[data-test-namespace-switcher-parent]'),
-    open: clickable('[data-test-namespace-switcher-parent] .ember-power-select-trigger'),
-    options: collection('.ember-power-select-option', {
-      testContainer: '#ember-testing',
-      resetScope: true,
-      label: text(),
-    }),
-  },
-
   pageSizeSelect: pageSizeSelect(),
 
   facets: {
-    type: facet('[data-test-type-facet]'),
-    status: facet('[data-test-status-facet]'),
-    datacenter: facet('[data-test-datacenter-facet]'),
-    prefix: facet('[data-test-prefix-facet]'),
+    namespace: singleFacet('[data-test-namespace-facet]'),
+    type: multiFacet('[data-test-type-facet]'),
+    status: multiFacet('[data-test-status-facet]'),
+    datacenter: multiFacet('[data-test-datacenter-facet]'),
+    prefix: multiFacet('[data-test-prefix-facet]'),
   },
 });

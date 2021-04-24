@@ -186,4 +186,79 @@ module('Acceptance | volumes list', function(hooks) {
       await VolumesList.visit();
     },
   });
+
+  testSingleSelectFacet('Namespace', {
+    facet: VolumesList.facets.namespace,
+    paramName: 'namespace',
+    expectedOptions: ['All (*)', 'default', 'namespace-2'],
+    optionToSelect: 'namespace-2',
+    async beforeEach() {
+      server.create('namespace', { id: 'default' });
+      server.create('namespace', { id: 'namespace-2' });
+      server.createList('csi-volume', 2, { namespaceId: 'default' });
+      server.createList('csi-volume', 2, { namespaceId: 'namespace-2' });
+      await VolumesList.visit();
+    },
+    filter(volume, selection) {
+      return volume.namespaceId === selection;
+    },
+  });
+
+  function testSingleSelectFacet(
+    label,
+    { facet, paramName, beforeEach, filter, expectedOptions, optionToSelect }
+  ) {
+    test(`the ${label} facet has the correct options`, async function(assert) {
+      await beforeEach();
+      await facet.toggle();
+
+      let expectation;
+      if (typeof expectedOptions === 'function') {
+        expectation = expectedOptions(server.db.jobs);
+      } else {
+        expectation = expectedOptions;
+      }
+
+      assert.deepEqual(
+        facet.options.map(option => option.label.trim()),
+        expectation,
+        'Options for facet are as expected'
+      );
+    });
+
+    test(`the ${label} facet filters the volumes list by ${label}`, async function(assert) {
+      await beforeEach();
+      await facet.toggle();
+
+      const option = facet.options.findOneBy('label', optionToSelect);
+      const selection = option.key;
+      await option.select();
+
+      const expectedVolumes = server.db.csiVolumes
+        .filter(volume => filter(volume, selection))
+        .sortBy('id');
+
+      VolumesList.volumes.forEach((volume, index) => {
+        assert.equal(
+          volume.name,
+          expectedVolumes[index].name,
+          `Volume at ${index} is ${expectedVolumes[index].name}`
+        );
+      });
+    });
+
+    test(`selecting an option in the ${label} facet updates the ${paramName} query param`, async function(assert) {
+      await beforeEach();
+      await facet.toggle();
+
+      const option = facet.options.objectAt(1);
+      const selection = option.key;
+      await option.select();
+
+      assert.ok(
+        currentURL().includes(`${paramName}=${selection}`),
+        'URL has the correct query param key and value'
+      );
+    });
+  }
 });

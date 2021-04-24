@@ -9,6 +9,7 @@ import {
 } from 'ember-cli-page-object';
 
 import error from 'nomad-ui/tests/pages/components/error';
+import { singleFacet } from 'nomad-ui/tests/pages/components/facet';
 import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
@@ -41,13 +42,7 @@ export default create({
   error: error(),
   pageSizeSelect: pageSizeSelect(),
 
-  namespaceSwitcher: {
-    isPresent: isPresent('[data-test-namespace-switcher-parent]'),
-    open: clickable('[data-test-namespace-switcher-parent] .ember-power-select-trigger'),
-    options: collection('.ember-power-select-option', {
-      testContainer: '#ember-testing',
-      resetScope: true,
-      label: text(),
-    }),
+  facets: {
+    namespace: singleFacet('[data-test-namespace-facet]'),
   },
 });
