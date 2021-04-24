@@ -11,15 +11,15 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class IndexController extends Controller.extend(
-  SortableFactory([
-    'id',
-    'schedulable',
-    'controllersHealthyProportion',
-    'nodesHealthyProportion',
-    'provider',
-  ]),
-  Searchable
-) {
+    SortableFactory([
+      'id',
+      'schedulable',
+      'controllersHealthyProportion',
+      'nodesHealthyProportion',
+      'provider',
+    ]),
+    Searchable
+  ) {
   @service system;
   @service userSettings;
   @controller('csi/volumes') volumesController;
