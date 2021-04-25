@@ -144,7 +144,7 @@ func (idx *NetworkIndex) SetNode(node *Node) (collide bool) {
 func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool) {
 	for _, alloc := range allocs {
 		// Do not consider the resource impact of terminal allocations
-		if alloc.TerminalStatus() {
+		if alloc.ClientTerminalStatus() {
 			continue
 		}
 
