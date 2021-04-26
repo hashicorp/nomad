@@ -17,6 +17,7 @@ IMPROVEMENTS:
  * client/config: Enable sockaddr templating for `network-interface` attribute. [[GH-10404](https://github.com/hashicorp/nomad/issues/10404)]
  * client/fingerprint: Added support multiple host network aliases for the same interface. [[GH-10104](https://github.com/hashicorp/nomad/issues/10104)]
  * consul: Allow setting `body` field on service/check Consul health checks. [[GH-10186](https://github.com/hashicorp/nomad/issues/10186)]
+ * consul/connect: Use exponential backoff for consul envoy bootstrap process [[GH-10453](https://github.com/hashicorp/nomad/pull/10453)]
  * consul/connect: Enable setting `local_bind_address` field on connect upstreams [[GH-6248](https://github.com/hashicorp/nomad/issues/6248)]
  * consul/connect: Automatically populate `CONSUL_HTTP_ADDR` for connect native tasks in host networking mode. [[GH-10239](https://github.com/hashicorp/nomad/issues/10239)]
  * csi: Added support for jobs to request a unique volume ID per allocation. [[GH-10136](https://github.com/hashicorp/nomad/issues/10136)]
