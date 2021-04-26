@@ -63,5 +63,17 @@ targets.
 - `nomad_skip-verify` `(string: "")` - Do not verify TLS certificates. This is
   strongly discouraged.
 
+# Loading External Plugins
+
+In order to utilise external plugins, the plugin binary must be downloaded to a
+directory on the same host that the Nomad Autoscaler will run. This directory
+should be referenced by the [plugin_dir][plugin_dir_config] config parameter along
+with an appropriate [APM][apm], [Strategy][strategy] or [Target][target] block
+entry.
+
 [go_plugin_github]: https://github.com/hashicorp/go-plugin
 [community_plugins]: /docs/autoscaling/plugins/external
+[plugin_dir_config]: /docs/autoscaling/agent#plugin_dir
+[apm]: /docs/autoscaling/agent/apm#apm-block
+[strategy]: /docs/autoscaling/agent/strategy#strategy-block
+[target]: /docs/autoscaling/agent/target#target-block
