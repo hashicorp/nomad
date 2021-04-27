@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -444,7 +445,7 @@ func groupConnectValidate(g *structs.TaskGroup) (warnings []error, err error) {
 	for _, s := range g.Services {
 		switch {
 		case s.Connect.HasSidecar():
-			if err := groupConnectSidecarValidate(g); err != nil {
+			if err := groupConnectSidecarValidate(g, s); err != nil {
 				return nil, err
 			}
 		case s.Connect.IsNative():
@@ -460,7 +461,7 @@ func groupConnectValidate(g *structs.TaskGroup) (warnings []error, err error) {
 	return nil, nil
 }
 
-func groupConnectSidecarValidate(g *structs.TaskGroup) error {
+func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) error {
 	if n := len(g.Networks); n != 1 {
 		return fmt.Errorf("Consul Connect sidecars require exactly 1 network, found %d in group %q", n, g.Name)
 	}
@@ -468,6 +469,19 @@ func groupConnectSidecarValidate(g *structs.TaskGroup) error {
 	if g.Networks[0].Mode != "bridge" {
 		return fmt.Errorf("Consul Connect sidecar requires bridge network, found %q in group %q", g.Networks[0].Mode, g.Name)
 	}
+
+	// We must enforce lowercase characters on group and service names for connect
+	// sidecar proxies, because Consul assumes this invariant without validating it.
+	// https://github.com/hashicorp/consul/blob/v1.9.5/command/connect/proxy/proxy.go#L235
+
+	if s.Name != strings.ToLower(s.Name) {
+		return fmt.Errorf("Consul Connect service name %q in group %q must not contain uppercase characters", s.Name, g.Name)
+	}
+
+	if g.Name != strings.ToLower(g.Name) {
+		return fmt.Errorf("Consul Connect group %q with service %q must not contain uppercase characters", g.Name, s.Name)
+	}
+
 	return nil
 }
 
