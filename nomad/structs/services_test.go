@@ -1051,6 +1051,20 @@ func TestConsulIngressService_Validate(t *testing.T) {
 		}).Validate(true)
 		require.NoError(t, err)
 	})
+
+	t.Run("http with wildcard service", func(t *testing.T) {
+		err := (&ConsulIngressService{
+			Name: "*",
+		}).Validate(true)
+		require.NoError(t, err)
+	})
+
+	t.Run("tcp with wildcard service", func(t *testing.T) {
+		err := (&ConsulIngressService{
+			Name: "*",
+		}).Validate(false)
+		require.EqualError(t, err, "Consul Ingress Service supports wildcard names only with HTTP protocol")
+	})
 }
 
 func TestConsulIngressListener_Validate(t *testing.T) {
