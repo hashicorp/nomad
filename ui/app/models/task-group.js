@@ -34,6 +34,7 @@ export default class TaskGroup extends Fragment {
 
   @sumAggregation('tasks', 'reservedCPU') reservedCPU;
   @sumAggregation('tasks', 'reservedMemory') reservedMemory;
+  @sumAggregation('tasks', 'reservedMemoryMax') reservedMemoryMax;
   @sumAggregation('tasks', 'reservedDisk') reservedDisk;
 
   @attr('number') reservedEphemeralDisk;
