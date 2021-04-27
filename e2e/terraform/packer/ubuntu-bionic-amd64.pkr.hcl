@@ -15,6 +15,7 @@ source "amazon-ebs" "latest_ubuntu_bionic" {
   instance_type        = "t2.medium"
   region               = "us-east-1"
   ssh_username         = "ubuntu"
+  ssh_interface        = "public_ip"
 
   source_ami_filter {
     filters = {
