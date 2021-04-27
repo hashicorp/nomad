@@ -6,3 +6,5 @@ const (
 	// EnterpriseTestAgent is used to configure a TestAgent's Enterprise flag
 	EnterpriseTestAgent = false
 )
+
+func defaultEnterpriseTestServerConfig(c *ServerConfig) {}

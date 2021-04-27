@@ -508,6 +508,10 @@ type ServerConfig struct {
 	// is set, LicenseEnv will be set to the value at startup.
 	LicenseEnv string
 
+	// licenseAdditionalPublicKeys is an internal-only field used to
+	// setup test licenses.
+	licenseAdditionalPublicKeys []string
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 

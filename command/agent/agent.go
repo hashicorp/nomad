@@ -423,6 +423,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	// Add Enterprise license configs
 	conf.LicenseEnv = agentConfig.Server.LicenseEnv
 	conf.LicensePath = agentConfig.Server.LicensePath
+	conf.LicenseConfig.AdditionalPubKeys = agentConfig.Server.licenseAdditionalPublicKeys
 
 	// Add the search configuration
 	if search := agentConfig.Server.Search; search != nil {

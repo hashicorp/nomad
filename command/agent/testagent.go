@@ -112,6 +112,8 @@ func (a *TestAgent) Start() *TestAgent {
 	if a.Config == nil {
 		a.Config = a.config()
 	}
+	defaultEnterpriseTestServerConfig(a.Config.Server)
+
 	if a.Config.DataDir == "" {
 		name := "agent"
 		if a.Name != "" {
