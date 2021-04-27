@@ -44,6 +44,10 @@ func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken, f
 func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	// Setup the default settings
 	config := DefaultConfig()
+
+	// Setup default enterprise-specific settings, including license
+	defaultEnterpriseTestConfig(config)
+
 	config.Logger = testlog.HCLogger(t)
 	config.Build = version.Version + "+unittest"
 	config.DevMode = true

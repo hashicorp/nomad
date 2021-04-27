@@ -19,7 +19,6 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/events"
 	_ "github.com/hashicorp/nomad/e2e/example"
 	_ "github.com/hashicorp/nomad/e2e/isolation"
-	_ "github.com/hashicorp/nomad/e2e/license"
 	_ "github.com/hashicorp/nomad/e2e/lifecycle"
 	_ "github.com/hashicorp/nomad/e2e/metrics"
 	_ "github.com/hashicorp/nomad/e2e/namespaces"
