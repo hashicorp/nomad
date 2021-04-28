@@ -435,10 +435,6 @@
           {
             "title": "get",
             "path": "commands/license/get"
-          },
-          {
-            "title": "put",
-            "path": "commands/license/put"
           }
         ]
       },
