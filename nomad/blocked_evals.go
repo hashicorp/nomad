@@ -749,7 +749,7 @@ func (b *BlockedEvals) prune(stopCh <-chan struct{}) {
 		case t := <-ticker.C:
 			cutoff := t.UTC().Add(-1 * pruneThreshold)
 			b.pruneUnblockIndexes(cutoff)
-			b.stats.prune(cutoff)
+			b.pruneStats(cutoff)
 		}
 	}
 }
