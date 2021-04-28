@@ -97,7 +97,7 @@ module('Acceptance | task group detail', function(hooks) {
     let totalMemoryMaxAddendum = '';
 
     if (totalMemoryMax) {
-      totalMemoryMaxAddendum = ` (${formatScheduledBytes(totalMemoryMax, 'MiB')})`;
+      totalMemoryMaxAddendum = ` (${formatScheduledBytes(totalMemoryMax, 'MiB')} Max)`;
     }
 
     assert.equal(
