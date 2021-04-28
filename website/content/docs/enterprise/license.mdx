@@ -8,9 +8,9 @@ description: >-
 
 ## Nomad Enterprise Licensing
 
-Licensing capabilities were added to Nomad Enterprise v0.12.0. The license is
-set once for a region and automatically propagates to all servers within the
-region. Nomad Enterprise can be downloaded from the [releases site].
+Licensing capabilities were added to Nomad Enterprise v0.12.0. Each server in
+the cluster must have its own license. Nomad Enterprise can be downloaded from
+the [releases site].
 
 Click [here](https://www.hashicorp.com/go/nomad-enterprise) to set up a demo or
 request a trial of Nomad Enterprise.
@@ -20,24 +20,19 @@ source version of Nomad. Servers running the open source version of Nomad will
 panic if they are joined to a Nomad Enterprise cluster. See issue [gh-9958]
 for more details.
 
-## Evaluating Nomad Enterprise
+## Expiring Licenses
 
-Nomad Enterprise can be used without a valid license for 6 hours. When a Nomad
-Enterprise server starts without a license configuration option (see [license
-configuration]) it uses a temporary trial license. This license is valid
-for 6 hours.
-
-You can inspect the temporary license using `nomad license get`.
+Nomad Enterprise license have an expiration time. You can read the license on
+a server with the `nomad license get` command:
 
 ```
 $ nomad license get
 Product        = nomad
 License Status = valid
-License ID     = temporary-license
-Customer ID    = temporary license customer
+License ID     = eaaecbd5-b598-4fa4-b649-bb234bf49fa3
+Customer ID    = ae94bdd0-39bf-4c58-bf80-8a9468b0467c
 Issued At      = 2021-03-29 14:47:29.024191 -0400 EDT
 Expires At     = 2021-03-29 20:47:29.024191 -0400 EDT
-Terminates At  = 2021-03-29 20:47:29.024191 -0400 EDT
 Datacenter     = *
 Modules:
         governance-policy
@@ -56,17 +51,9 @@ Licensed Features:
         Dynamic Application Sizing
 ```
 
-After the trial period, if you attempt to start Nomad with the same state or
-`data_dir`, Nomad will wait a brief grace period time to allow an operator to
-set a valid license before shutting down.
-
-## Expiring Licenses
-
-### Temporary Licenses
-
-As a Nomad Enterprise license approaches its expiration time, Nomad will
-periodically log a warning message about the approaching expiration. Below
-shows log excerpts of the warnings.
+As a Nomad Enterprise license approaches its expiration time, Nomad servers
+will periodically log a warning message about the approaching
+expiration. Below shows log excerpts of the warnings.
 
 ```
     2021-03-29T15:02:28.100-0400 [WARN]  nomad.licensing: license expiring: time_left=5m0s
@@ -75,64 +62,24 @@ shows log excerpts of the warnings.
     2021-03-29T15:05:28.109-0400 [WARN]  nomad.licensing: license expiring: time_left=2m0s
     2021-03-29T15:06:28.112-0400 [WARN]  nomad.licensing: license expiring: time_left=1m0s
     2021-03-29T15:07:28.114-0400 [WARN]  nomad.licensing: license expiring: time_left=0s
-    2021-03-29T15:07:30.160-0400 [WARN]  nomad.licensing: temporary license too old for evaluation period. Nomad will
-        wait an additional grace period for valid Enterprise license to be applied
-        before shutting down: grace period=1m0s
-    2021-03-29T15:07:58.104-0400 [ERROR] nomad.licensing: license expired, please update license: error="invalid license or license is
-    2021-03-29T15:08:30.163-0400 [ERROR] nomad.licensing: cluster age is greater than temporary license lifespan. Please apply a valid license
-    2021-03-29T15:08:30.163-0400 [ERROR] nomad.licensing: cluster will shutdown soon. Please apply a valid license
-    2021-03-29T15:09:30.164-0400 [ERROR] nomad.licensing: temporary license grace period expired. shutting down
-    2021-03-29T15:09:30.164-0400 [INFO]  agent: requesting shutdown
-    2021-03-29T15:09:30.164-0400 [INFO]  client: shutting down
-    2021-03-29T15:09:30.164-0400 [INFO]  client.plugin: shutting down plugin manager: plugin-type=device
-    2021-03-29T15:09:30.164-0400 [INFO]  client.plugin: plugin manager finished: plugin-type=device
-    2021-03-29T15:09:30.164-0400 [INFO]  client.plugin: shutting down plugin manager: plugin-type=driver
-    2021-03-29T15:09:30.164-0400 [INFO]  client.plugin: plugin manager finished: plugin-type=driver
-    2021-03-29T15:09:30.164-0400 [INFO]  client.plugin: shutting down plugin manager: plugin-type=csi
-    2021-03-29T15:09:30.164-0400 [INFO]  client.plugin: plugin manager finished: plugin-type=csi
-    2021-03-29T15:09:30.164-0400 [DEBUG] client.server_mgr: shutting down
-    2021-03-29T15:09:30.164-0400 [INFO]  nomad: shutting down server
-    2021-03-29T15:09:30.164-0400 [WARN]  nomad: serf: Shutdown without a Leave
-    2021-03-29T15:09:30.165-0400 [DEBUG] nomad: shutting down leader loop
-    2021-03-29T15:09:30.165-0400 [INFO]  nomad: cluster leadership lost
-    2021-03-29T15:09:30.170-0400 [INFO]  agent: shutdown complete
+    2021-03-29T15:07:58.104-0400 [ERROR] nomad.licensing: license expired, please update license: error="invalid license or license is expired"
 ```
 
-Since this was a temporary license, when
-the temporary license expires, the agent shuts down.
+When the license expires, enterprise functionality will become limited. Only
+read operations on enterprise endpoints will be supported, and write
+operations will return an error.
 
-### Valid, Non-Temporary Licenses
+Note that if the server is restarted with an expired license, it will
+immediately stop.
 
-License expiry is handled differently for valid enterprise licenses. Nomad
-licensing will continue to log about the expiring license above, but when the
-license fully expires (the Termination Time is reached) the server _will not_
-shut down. Instead, of shutting down, enterprise functionality will become limited. Only
-read operations on enterprise endpoints will be supported, and write operations
-will return an error.
-
-~> **Note:** When an enterprise server starts and the license is expired, Nomad
-will wait for a short grace period to apply a valid license before shutting
-down.
-
-## Setting the License
+## Configuring the License
 
 See the server [license configuration] reference documentation on all the
-options to set an enterprise license.
-
-When setting a Nomad Enterprise license there are two options to pick from. You
-can set the license via the CLI or API after the server is running, or Nomad
-can automatically load the file from disk or environment when it starts.
-
-To set the license via CLI, see the [license command] documentation. To set the
-license programmatically see the [license endpoint] API documentation.
-
-To configure Nomad to load the license from disk or environment see the server
-[license configuration].
-
-## Operating Nomad Enterprise with a License
+options to set an enterprise license. Nomad will load the license file from
+disk or environment when it starts.
 
 In order to immediately alert operators of a bad configuration setting, if a
-license configuration option is a completely invalid license, the nomad server
+license configuration option is an invalid or expired license, the Nomad server
 will exit with an error.
 
 ```
@@ -140,45 +87,6 @@ NOMAD_LICENSE=misconfigured nomad agent -dev
 ==> No configuration files loaded
 ==> Starting Nomad agent...
 ==> Error starting agent: server setup failed: failed to initialize enterprise licensing: a file license was configured but the license is invalid: error decoding version: expected integer
-```
-
-Some Nomad servers are controlled with a level of automation or could be part
-of an autoscaling group. If an operator accidentally has an old, expired
-license set as the disk or environment license, the server will emit a warning
-log, but not exit if a valid license exists in raft. If a valid license
-doesn't exist in raft then the server will enter a grace period before exiting.
-
-```
-2021-03-29T16:33:01.691-0400 [WARN]  nomad.licensing: Configured enterprise
-license file is expired! Falling back to temporary license. Please update, or
-remove license configuration if setting the license via CLI/API
-```
-
-## Overriding a File or Environment License
-
-A Nomad Enterprise server that starts with an automatically loaded file or
-environment variable license is able to be overridden using the CLI or API.
-When setting a different license from the server's file license a warning will
-be emitted.
-
-If an older (determined by license issue date), but valid license is applied,
-an error is returned.
-
-```
-$ nomad license put nomadlicense.hclic
-Error putting license: Unexpected response code: 500 (error setting license: requested license is older than current one, use force to override)
-```
-
-This can be overridden by setting the `-force` flag.
-
-```
-$ nomad license put -force nomadlicense.hclic
-
-WARNING: The server's configured file license is now outdated. Please update or
-remove the server's license configuration to prevent initialization issues with
-potentially expired licenses.
-
-Successfully applied license
 ```
 
 See the [License commands](/docs/commands/license) for more information on

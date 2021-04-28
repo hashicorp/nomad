@@ -331,6 +331,12 @@ its configuration. The fields that currently support reloading are:
 In order to reload any other configuration values, you must restart the Nomad
 agent.
 
+<EnterpriseAlert>
+Nomad Enterprise requires a license. If the server.license_path
+configuration or NOMAD_LICENSE_PATH environment variable are set, the
+license will be reloaded from the file on a configuration reload.
+</EnterpriseAlert>
+
 If the Nomad agent receives a `SIGHUP` during initialization, it may crash
 (see [GH-3885]). Ensure that the Nomad agent is able to receive RPC traffic
 before attempting to reload its configuration.
