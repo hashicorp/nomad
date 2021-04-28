@@ -223,19 +223,25 @@ func (c *consulACLsAPI) CheckPermissions(ctx context.Context, namespace string, 
 	}
 
 	// lookup the token from consul
-	token, err := c.readToken(ctx, secretID)
-	if err != nil {
-		return err
+	token, readErr := c.readToken(ctx, secretID)
+	if readErr != nil {
+		return readErr
 	}
 
-	// verify the token namespace matches namespace in job
-	if token.Namespace != namespace {
-		return errors.Errorf("consul ACL token cannot use namespace %q", namespace)
+	// if the token is a global-management token, it has unrestricted privileges
+	if c.isManagementToken(token) {
+		return nil
+	}
+
+	// if the token cannot possibly be used to act on objects in the desired
+	// namespace, reject it immediately
+	if err := namespaceCheck(namespace, token); err != nil {
+		return err
 	}
 
 	// verify token has keystore read permission, if using template
 	if usage.KV {
-		allowable, err := c.canReadKeystore(token)
+		allowable, err := c.canReadKeystore(namespace, token)
 		if err != nil {
 			return err
 		} else if !allowable {
@@ -245,7 +251,7 @@ func (c *consulACLsAPI) CheckPermissions(ctx context.Context, namespace string, 
 
 	// verify token has service write permission for group+task services
 	for _, service := range usage.Services {
-		allowable, err := c.canWriteService(service, token)
+		allowable, err := c.canWriteService(namespace, service, token)
 		if err != nil {
 			return err
 		} else if !allowable {
@@ -256,7 +262,7 @@ func (c *consulACLsAPI) CheckPermissions(ctx context.Context, namespace string, 
 	// verify token has service identity permission for connect services
 	for _, kind := range usage.Kinds {
 		service := kind.Value()
-		allowable, err := c.canWriteService(service, token)
+		allowable, err := c.canWriteService(namespace, service, token)
 		if err != nil {
 			return err
 		} else if !allowable {
@@ -504,17 +510,21 @@ func (s *Server) purgeSITokenAccessors(accessors []*structs.SITokenAccessor) err
 // ConsulConfigsAPI is an abstraction over the consul/api.ConfigEntries API used by
 // Nomad Server.
 //
-// Nomad will only perform write operations on Consul Ingress Gateway Configuration Entries.
-// Removing the entries is not particularly safe, given that multiple Nomad clusters
-// may be writing to the same config entries, which are global in the Consul scope.
+// Nomad will only perform write operations on Consul Ingress/Terminating Gateway
+// Configuration Entries. Removing the entries is not yet safe, given that multiple
+// Nomad clusters may be writing to the same config entries, which are global in
+// the Consul scope. There was a Meta field introduced which Nomad can leverage
+// in the future, when Consul no longer supports versions that do not contain the
+// field. The Meta field would be used to track which Nomad "owns" the CE.
+// https://github.com/hashicorp/nomad/issues/8971
 type ConsulConfigsAPI interface {
 	// SetIngressCE adds the given ConfigEntry to Consul, overwriting
 	// the previous entry if set.
-	SetIngressCE(ctx context.Context, service string, entry *structs.ConsulIngressConfigEntry) error
+	SetIngressCE(ctx context.Context, namespace, service string, entry *structs.ConsulIngressConfigEntry) error
 
 	// SetTerminatingCE adds the given ConfigEntry to Consul, overwriting
 	// the previous entry if set.
-	SetTerminatingCE(ctx context.Context, service string, entry *structs.ConsulTerminatingConfigEntry) error
+	SetTerminatingCE(ctx context.Context, namespace, service string, entry *structs.ConsulTerminatingConfigEntry) error
 
 	// Stop is used to stop additional creations of Configuration Entries. Intended to
 	// be used on Nomad Server shutdown.
@@ -552,15 +562,13 @@ func (c *consulConfigsAPI) Stop() {
 	c.stopped = true
 }
 
-func (c *consulConfigsAPI) SetIngressCE(ctx context.Context, service string, entry *structs.ConsulIngressConfigEntry) error {
-	return c.setCE(ctx, convertIngressCE(service, entry))
+func (c *consulConfigsAPI) SetIngressCE(ctx context.Context, namespace, service string, entry *structs.ConsulIngressConfigEntry) error {
+	return c.setCE(ctx, convertIngressCE(namespace, service, entry))
 }
 
-func (c *consulConfigsAPI) SetTerminatingCE(ctx context.Context, service string, entry *structs.ConsulTerminatingConfigEntry) error {
-	return c.setCE(ctx, convertTerminatingCE(service, entry))
+func (c *consulConfigsAPI) SetTerminatingCE(ctx context.Context, namespace, service string, entry *structs.ConsulTerminatingConfigEntry) error {
+	return c.setCE(ctx, convertTerminatingCE(namespace, service, entry))
 }
-
-// also mesh
 
 // setCE will set the Configuration Entry of any type Consul supports.
 func (c *consulConfigsAPI) setCE(ctx context.Context, entry api.ConfigEntry) error {
@@ -580,11 +588,11 @@ func (c *consulConfigsAPI) setCE(ctx context.Context, entry api.ConfigEntry) err
 		return err
 	}
 
-	_, _, err := c.configsClient.Set(entry, nil)
+	_, _, err := c.configsClient.Set(entry, &api.WriteOptions{Namespace: entry.GetNamespace()})
 	return err
 }
 
-func convertIngressCE(service string, entry *structs.ConsulIngressConfigEntry) api.ConfigEntry {
+func convertIngressCE(namespace, service string, entry *structs.ConsulIngressConfigEntry) api.ConfigEntry {
 	var listeners []api.IngressListener = nil
 	for _, listener := range entry.Listeners {
 		var services []api.IngressService = nil
@@ -607,6 +615,7 @@ func convertIngressCE(service string, entry *structs.ConsulIngressConfigEntry) a
 	}
 
 	return &api.IngressGatewayConfigEntry{
+		Namespace: namespace,
 		Kind:      api.IngressGateway,
 		Name:      service,
 		TLS:       api.GatewayTLSConfig{Enabled: tlsEnabled},
@@ -614,7 +623,7 @@ func convertIngressCE(service string, entry *structs.ConsulIngressConfigEntry) a
 	}
 }
 
-func convertTerminatingCE(service string, entry *structs.ConsulTerminatingConfigEntry) api.ConfigEntry {
+func convertTerminatingCE(namespace, service string, entry *structs.ConsulTerminatingConfigEntry) api.ConfigEntry {
 	var linked []api.LinkedService = nil
 	for _, s := range entry.Services {
 		linked = append(linked, api.LinkedService{
@@ -626,8 +635,9 @@ func convertTerminatingCE(service string, entry *structs.ConsulTerminatingConfig
 		})
 	}
 	return &api.TerminatingGatewayConfigEntry{
-		Kind:     api.TerminatingGateway,
-		Name:     service,
-		Services: linked,
+		Namespace: namespace,
+		Kind:      api.TerminatingGateway,
+		Name:      service,
+		Services:  linked,
 	}
 }

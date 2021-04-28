@@ -180,6 +180,15 @@ export default function() {
     return okEmpty();
   });
 
+  this.post('/job/:id/revert', function({ jobs }, { requestBody }) {
+    const { JobID, JobVersion } = JSON.parse(requestBody);
+    const job = jobs.find(JobID);
+    job.version = JobVersion;
+    job.save();
+
+    return okEmpty();
+  });
+
   this.post('/job/:id/scale', function({ jobs }, { params }) {
     return this.serialize(jobs.find(params.id));
   });

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	sockaddr "github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/freeport"
@@ -983,6 +984,103 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 
 	if c.AdvertiseAddrs.RPC != "127.0.0.1:4647" {
 		t.Fatalf("expected RPC advertise address 127.0.0.1:4647, got %s", c.AdvertiseAddrs.RPC)
+	}
+}
+
+func TestConfig_templateNetworkInterface(t *testing.T) {
+	// find the first interface
+	ifaces, err := sockaddr.GetAllInterfaces()
+	if err != nil {
+		t.Fatalf("failed to get interfaces: %v", err)
+	}
+	iface := ifaces[0]
+	testCases := []struct {
+		name              string
+		clientConfig      *ClientConfig
+		expectedInterface string
+		expectErr         bool
+	}{
+		{
+			name: "empty string",
+			clientConfig: &ClientConfig{
+				Enabled:          true,
+				NetworkInterface: "",
+			},
+			expectedInterface: "",
+			expectErr:         false,
+		},
+		{
+			name: "simple string",
+			clientConfig: &ClientConfig{
+				Enabled:          true,
+				NetworkInterface: iface.Name,
+			},
+			expectedInterface: iface.Name,
+			expectErr:         false,
+		},
+		{
+			name: "valid interface",
+			clientConfig: &ClientConfig{
+				Enabled:          true,
+				NetworkInterface: `{{ GetAllInterfaces | attr "name" }}`,
+			},
+			expectedInterface: iface.Name,
+			expectErr:         false,
+		},
+		{
+			name: "invalid interface",
+			clientConfig: &ClientConfig{
+				Enabled:          true,
+				NetworkInterface: `no such interface`,
+			},
+			expectedInterface: iface.Name,
+			expectErr:         true,
+		},
+		{
+			name: "insignificant whitespace",
+			clientConfig: &ClientConfig{
+				Enabled: true,
+				NetworkInterface: `		{{GetAllInterfaces | attr "name" }}`,
+			},
+			expectedInterface: iface.Name,
+			expectErr:         false,
+		},
+		{
+			name: "empty template return",
+			clientConfig: &ClientConfig{
+				Enabled:          true,
+				NetworkInterface: `{{ printf "" }}`,
+			},
+			expectedInterface: iface.Name,
+			expectErr:         true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &Config{
+				BindAddr: "127.0.0.1",
+				Ports: &Ports{
+					HTTP: 4646,
+					RPC:  4647,
+					Serf: 4648,
+				},
+				Addresses: &Addresses{},
+				AdvertiseAddrs: &AdvertiseAddrs{
+					HTTP: "127.0.0.1:4646",
+					RPC:  "127.0.0.1:4647",
+					Serf: "127.0.0.1:4648",
+				},
+				DevMode: false,
+				Client:  tc.clientConfig,
+			}
+			err := c.normalizeAddrs()
+			if tc.expectErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, c.Client.NetworkInterface, tc.expectedInterface)
+		})
 	}
 }
 

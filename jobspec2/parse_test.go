@@ -873,6 +873,21 @@ func TestParse_UndefinedVariables(t *testing.T) {
 			require.Equal(t, c, *job.Region)
 		})
 	}
+
+	t.Run("unquoted", func(t *testing.T) {
+		hcl := `job "example" {
+  region = meta.mytest
+}`
+
+		job, err := ParseWithConfig(&ParseConfig{
+			Path: "input.hcl",
+			Body: []byte(hcl),
+		})
+		require.NoError(t, err)
+
+		require.Equal(t, "${meta.mytest}", *job.Region)
+
+	})
 }
 
 func TestParseServiceCheck(t *testing.T) {

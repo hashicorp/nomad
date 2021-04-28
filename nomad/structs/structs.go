@@ -4334,6 +4334,7 @@ func (j *Job) HasUpdateStrategy() bool {
 func (j *Job) Stub(summary *JobSummary) *JobListStub {
 	return &JobListStub{
 		ID:                j.ID,
+		Namespace:         j.Namespace,
 		ParentID:          j.ParentID,
 		Name:              j.Name,
 		Datacenters:       j.Datacenters,
@@ -9134,6 +9135,10 @@ type Allocation struct {
 // with this allocation.
 func (a *Allocation) ConsulNamespace() string {
 	return a.Job.LookupTaskGroup(a.TaskGroup).Consul.GetNamespace()
+}
+
+func (a *Allocation) JobNamespacedID() NamespacedID {
+	return NewNamespacedID(a.JobID, a.Namespace)
 }
 
 // Index returns the index of the allocation. If the allocation is from a task

@@ -18,18 +18,12 @@ type LicenseCommand struct {
 func (l *LicenseCommand) Help() string {
 	helpText := `
 Usage: nomad license <subcommand> [options] [args]
-	
+
 This command has subcommands for managing the Nomad Enterprise license.
 For more detailed examples see:
 https://www.nomadproject.io/docs/commands/license/
 
-Install a new license from a file:
-	$ nomad license put <path>
-
-Install a new license from stdin:
-	$ nomad license put -
-
-Retrieve the current license:
+Retrieve the server's license:
 
 	$ nomad license get
 
@@ -76,7 +70,6 @@ func outputLicenseInfo(ui cli.Ui, lic *api.License, expired bool) {
 		fmt.Sprintf("Customer ID|%s", lic.CustomerID),
 		fmt.Sprintf("Issued At|%s", lic.IssueTime),
 		expStr,
-		fmt.Sprintf("Terminates At|%s", lic.TerminationTime.String()),
 		fmt.Sprintf("Datacenter|%s", lic.InstallationID),
 	}
 	ui.Output(formatKV(output))

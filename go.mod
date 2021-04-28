@@ -9,7 +9,7 @@ replace (
 	github.com/godbus/dbus => github.com/godbus/dbus v5.0.1+incompatible
 	github.com/golang/protobuf => github.com/golang/protobuf v1.3.4
 
-	github.com/hashicorp/consul/api => github.com/hashicorp/consul/api v1.4.1-0.20210319180826-cd1cd4febd26
+	github.com/hashicorp/consul/api => github.com/hashicorp/consul/api v1.4.1-0.20210419202301-f265dd635f89
 	github.com/hashicorp/go-discover => github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 	github.com/hashicorp/nomad/api => ./api
@@ -106,6 +106,7 @@ require (
 	github.com/oklog/run v1.0.1-0.20180308005104-6934b124db28 // indirect
 	github.com/onsi/gomega v1.9.0 // indirect
 	github.com/opencontainers/runc v1.0.0-rc93
+	github.com/opencontainers/runtime-spec v1.0.3-0.20200929063507-e6143ca7d51d
 	github.com/pkg/errors v0.9.1
 	github.com/posener/complete v1.2.3
 	github.com/prometheus/client_golang v1.4.0

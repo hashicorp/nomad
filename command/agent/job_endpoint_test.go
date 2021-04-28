@@ -221,6 +221,68 @@ func TestHTTP_JobsRegister(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobsRegister_IgnoresParentID(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job := MockJob()
+		parentID := "somebadparentid"
+		job.ParentID = &parentID
+		args := api.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: api.WriteRequest{Region: "global"},
+		}
+		buf := encodeReq(args)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/jobs", buf)
+		require.NoError(t, err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobsRequest(respW, req)
+		require.NoError(t, err)
+
+		// Check the response
+		reg := obj.(structs.JobRegisterResponse)
+		require.NotEmpty(t, reg.EvalID)
+
+		// Check for the index
+		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-Index"))
+
+		// Check the job is registered
+		getReq := structs.JobSpecificRequest{
+			JobID: *job.ID,
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var getResp structs.SingleJobResponse
+		err = s.Agent.RPC("Job.GetJob", &getReq, &getResp)
+		require.NoError(t, err)
+
+		require.NotNil(t, getResp.Job)
+		require.Equal(t, *job.ID, getResp.Job.ID)
+		require.Empty(t, getResp.Job.ParentID)
+
+		// check the eval exists
+		evalReq := structs.EvalSpecificRequest{
+			EvalID: reg.EvalID,
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var evalResp structs.SingleEvalResponse
+		err = s.Agent.RPC("Eval.GetEval", &evalReq, &evalResp)
+		require.NoError(t, err)
+
+		require.NotNil(t, evalResp.Eval)
+		require.Equal(t, reg.EvalID, evalResp.Eval.ID)
+	})
+}
+
 // Test that ACL token is properly threaded through to the RPC endpoint
 func TestHTTP_JobsRegister_ACL(t *testing.T) {
 	t.Parallel()
@@ -2172,7 +2234,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Namespace:      "foo",
 		VaultNamespace: "ghi789",
 		ID:             "foo",
-		ParentID:       "lol",
 		Name:           "name",
 		Type:           "service",
 		Priority:       50,
@@ -2673,7 +2734,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Region:      "global",
 		Namespace:   "foo",
 		ID:          "foo",
-		ParentID:    "lol",
 		Name:        "name",
 		Type:        "system",
 		Priority:    50,

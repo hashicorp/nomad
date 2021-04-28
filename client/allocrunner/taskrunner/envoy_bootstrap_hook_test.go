@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -625,6 +626,11 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: testConsul.HTTPAddr,
 	}, consulNamespace, logger))
+
+	// Lower the allowable wait time for testing
+	h.envoyBootstrapWaitTime = 1 * time.Second
+	h.envoyBoostrapInitialGap = 100 * time.Millisecond
+
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
 		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
@@ -646,6 +652,99 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 	_, err = os.Open(filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json"))
 	require.Error(t, err)
 	require.True(t, os.IsNotExist(err))
+}
+
+func TestTaskRunner_EnvoyBootstrapHook_retryTimeout(t *testing.T) {
+	t.Parallel()
+	logger := testlog.HCLogger(t)
+
+	testConsul := getTestConsul(t)
+	defer testConsul.Stop()
+
+	begin := time.Now()
+
+	// Setup an Allocation
+	alloc := mock.ConnectAlloc()
+	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
+		{
+			Mode: "bridge",
+			IP:   "10.0.0.1",
+			DynamicPorts: []structs.Port{
+				{
+					Label: "connect-proxy-foo",
+					Value: 9999,
+					To:    9999,
+				},
+			},
+		},
+	}
+	tg := alloc.Job.TaskGroups[0]
+	tg.Services = []*structs.Service{
+		{
+			Name:      "foo",
+			PortLabel: "9999", // Just need a valid port, nothing will bind to it
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+			},
+		},
+	}
+	sidecarTask := &structs.Task{
+		Name: "sidecar",
+		Kind: structs.NewTaskKind(structs.ConnectProxyPrefix, "foo"),
+	}
+	tg.Tasks = append(tg.Tasks, sidecarTask)
+	allocDir, cleanupAlloc := allocdir.TestAllocDir(t, logger, "EnvoyBootstrapRetryTimeout")
+	defer cleanupAlloc()
+
+	// Get a Consul client
+	consulConfig := consulapi.DefaultConfig()
+	consulConfig.Address = testConsul.HTTPAddr
+
+	// Do NOT register group services, causing the hook to retry until timeout
+
+	// Run Connect bootstrap hook
+	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
+		Addr: consulConfig.Address,
+	}, consulNamespace, logger))
+
+	// Keep track of the retry backoff iterations
+	iterations := 0
+
+	// Lower the allowable wait time for testing
+	h.envoyBootstrapWaitTime = 3 * time.Second
+	h.envoyBoostrapInitialGap = 1 * time.Second
+	h.envoyBootstrapExpSleep = func(d time.Duration) {
+		iterations++
+		time.Sleep(d)
+	}
+
+	// Create the prestart request
+	req := &interfaces.TaskPrestartRequest{
+		Task:    sidecarTask,
+		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
+		TaskEnv: taskenv.NewEmptyTaskEnv(),
+	}
+	require.NoError(t, req.TaskDir.Build(false, nil))
+
+	var resp interfaces.TaskPrestartResponse
+
+	// Run the hook and get the error
+	err := h.Prestart(context.Background(), req, &resp)
+	require.EqualError(t, err, "error creating bootstrap configuration for Connect proxy sidecar: exit status 1")
+
+	// Current time should be at least start time + total wait time
+	minimum := begin.Add(h.envoyBootstrapWaitTime)
+	require.True(t, time.Now().After(minimum))
+
+	// Should hit at least 2 iterations
+	require.Greater(t, 2, iterations)
+
+	// Make sure we captured the recoverable-ness of the error
+	_, ok := err.(*structs.RecoverableError)
+	require.True(t, ok)
+
+	// Assert the hook is not done (it failed)
+	require.False(t, resp.Done)
 }
 
 func TestTaskRunner_EnvoyBootstrapHook_extractNameAndKind(t *testing.T) {

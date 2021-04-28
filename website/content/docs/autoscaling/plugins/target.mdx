@@ -212,8 +212,11 @@ check "hashistack-allocated-cpu" {
 - `aws_asg_name` `(string: <required>)` - The name of the AWS AutoScaling Group to
   interact with when performing scaling actions.
 
-- `node_class` `(string: <required>)` - The Nomad [client node class][nomad_node_class]
-  identifier used to group nodes into a pool of resource.
+- `datacenter` `(string: "")` - The Nomad client [datacenter][datacenter] identifier
+  used to group nodes into a pool of resource. Conflicts with `node_class`.
+
+- `node_class` `(string: "")` - The Nomad [client node class][nomad_node_class] identifier
+  used to group nodes into a pool of resource. Conflicts with `datacenter`.
 
 - `node_drain_deadline` `(duration: "15m")` The Nomad [drain deadline][nomad_node_drain_deadline]
   to use when performing node draining actions. **Please note that the default value
@@ -323,8 +326,11 @@ check "clients-azure-vmss" {
 - `vm_scale_set` `(string: <required>)` - The name of the Azure virtual machine
   scale set to interact with when performing scaling actions.
 
-- `node_class` `(string: <required>)` - The Nomad [client node class][nomad_node_class]
-  identifier used to group nodes into a pool of resource.
+- `datacenter` `(string: "")` - The Nomad client [datacenter][datacenter] identifier
+  used to group nodes into a pool of resource. Conflicts with `node_class`.
+
+- `node_class` `(string: "")` - The Nomad [client node class][nomad_node_class] identifier
+  used to group nodes into a pool of resource. Conflicts with `datacenter`.
 
 - `node_drain_deadline` `(duration: "15m")` The Nomad [drain deadline][nomad_node_drain_deadline]
   to use when performing node draining actions. **Please note that the default value
@@ -413,8 +419,11 @@ check "hashistack-allocated-cpu" {
 - `mig_name` `(string: <required>)` - The name of the GCP Managed Instance Group
   to interact with when performing scaling actions.
 
-- `node_class` `(string: <required>)` - The Nomad [client node class][nomad_node_class]
-  identifier used to group nodes into a pool of resource.
+- `datacenter` `(string: "")` - The Nomad client [datacenter][datacenter] identifier
+  used to group nodes into a pool of resource. Conflicts with `node_class`.
+
+- `node_class` `(string: "")` - The Nomad [client node class][nomad_node_class] identifier
+  used to group nodes into a pool of resource. Conflicts with `datacenter`.
 
 - `node_drain_deadline` `(duration: "15m")` The Nomad [drain deadline][nomad_node_drain_deadline]
   to use when performing node draining actions. **Please note that the default value
@@ -431,6 +440,7 @@ check "hashistack-allocated-cpu" {
   documentation for more detailed information.
 
 [nomad_node_class]: /docs/configuration/client#node_class
+[datacenter]: /docs/configuration#datacenter
 [nomad_node_drain_deadline]: /api-docs/nodes#deadline
 [nomad_scaling_stanza]: /docs/job-specification/scaling
 [nomad_group_stanza]: /docs/job-specification/group#group-stanza

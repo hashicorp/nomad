@@ -185,16 +185,16 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 			serviceID := agentconsul.MakeAllocServiceID(
 				h.alloc.ID, h.task.Name, service)
 			sc := newScriptCheck(&scriptCheckConfig{
-				namespace:  h.consulNamespace,
-				allocID:    h.alloc.ID,
-				taskName:   h.task.Name,
-				check:      check,
-				serviceID:  serviceID,
-				ttlUpdater: h.consul,
-				driverExec: h.driverExec,
-				taskEnv:    h.taskEnv,
-				logger:     h.logger,
-				shutdownCh: h.shutdownCh,
+				consulNamespace: h.consulNamespace,
+				allocID:         h.alloc.ID,
+				taskName:        h.task.Name,
+				check:           check,
+				serviceID:       serviceID,
+				ttlUpdater:      h.consul,
+				driverExec:      h.driverExec,
+				taskEnv:         h.taskEnv,
+				logger:          h.logger,
+				shutdownCh:      h.shutdownCh,
 			})
 			if sc != nil {
 				scriptChecks[sc.id] = sc
@@ -225,16 +225,17 @@ func (h *scriptCheckHook) newScriptChecks() map[string]*scriptCheck {
 			serviceID := agentconsul.MakeAllocServiceID(
 				h.alloc.ID, groupTaskName, service)
 			sc := newScriptCheck(&scriptCheckConfig{
-				allocID:    h.alloc.ID,
-				taskName:   groupTaskName,
-				check:      check,
-				serviceID:  serviceID,
-				ttlUpdater: h.consul,
-				driverExec: h.driverExec,
-				taskEnv:    h.taskEnv,
-				logger:     h.logger,
-				shutdownCh: h.shutdownCh,
-				isGroup:    true,
+				consulNamespace: h.consulNamespace,
+				allocID:         h.alloc.ID,
+				taskName:        groupTaskName,
+				check:           check,
+				serviceID:       serviceID,
+				ttlUpdater:      h.consul,
+				driverExec:      h.driverExec,
+				taskEnv:         h.taskEnv,
+				logger:          h.logger,
+				shutdownCh:      h.shutdownCh,
+				isGroup:         true,
 			})
 			if sc != nil {
 				scriptChecks[sc.id] = sc
@@ -277,17 +278,17 @@ type scriptCheck struct {
 
 // scriptCheckConfig is a parameter struct for newScriptCheck
 type scriptCheckConfig struct {
-	allocID    string
-	taskName   string
-	serviceID  string
-	namespace  string // consul namespace (TODO: SET)
-	check      *structs.ServiceCheck
-	ttlUpdater TTLUpdater
-	driverExec tinterfaces.ScriptExecutor
-	taskEnv    *taskenv.TaskEnv
-	logger     log.Logger
-	shutdownCh chan struct{}
-	isGroup    bool
+	allocID         string
+	taskName        string
+	serviceID       string
+	consulNamespace string
+	check           *structs.ServiceCheck
+	ttlUpdater      TTLUpdater
+	driverExec      tinterfaces.ScriptExecutor
+	taskEnv         *taskenv.TaskEnv
+	logger          log.Logger
+	shutdownCh      chan struct{}
+	isGroup         bool
 }
 
 // newScriptCheck constructs a scriptCheck. we're only going to
@@ -330,7 +331,7 @@ func newScriptCheck(config *scriptCheckConfig) *scriptCheck {
 	} else {
 		sc.id = agentconsul.MakeCheckID(config.serviceID, sc.check)
 	}
-	sc.consulNamespace = config.namespace
+	sc.consulNamespace = config.consulNamespace
 	return sc
 }
 

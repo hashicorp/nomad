@@ -4662,9 +4662,7 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 	job := mock.Job()
 	state := s1.fsm.State()
 	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Lookup the jobs
 	get := &structs.JobListRequest{
@@ -4674,19 +4672,12 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 		},
 	}
 	var resp2 structs.JobListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp2.Index != 1000 {
-		t.Fatalf("Bad index: %d %d", resp2.Index, 1000)
-	}
-
-	if len(resp2.Jobs) != 1 {
-		t.Fatalf("bad: %#v", resp2.Jobs)
-	}
-	if resp2.Jobs[0].ID != job.ID {
-		t.Fatalf("bad: %#v", resp2.Jobs[0])
-	}
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp2)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1000), resp2.Index)
+	require.Len(t, resp2.Jobs, 1)
+	require.Equal(t, job.ID, resp2.Jobs[0].ID)
+	require.Equal(t, job.Namespace, resp2.Jobs[0].Namespace)
 
 	// Lookup the jobs by prefix
 	get = &structs.JobListRequest{
@@ -4697,19 +4688,12 @@ func TestJobEndpoint_ListJobs(t *testing.T) {
 		},
 	}
 	var resp3 structs.JobListResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp3); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp3.Index != 1000 {
-		t.Fatalf("Bad index: %d %d", resp3.Index, 1000)
-	}
-
-	if len(resp3.Jobs) != 1 {
-		t.Fatalf("bad: %#v", resp3.Jobs)
-	}
-	if resp3.Jobs[0].ID != job.ID {
-		t.Fatalf("bad: %#v", resp3.Jobs[0])
-	}
+	err = msgpackrpc.CallWithCodec(codec, "Job.List", get, &resp3)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1000), resp3.Index)
+	require.Len(t, resp3.Jobs, 1)
+	require.Equal(t, job.ID, resp3.Jobs[0].ID)
+	require.Equal(t, job.Namespace, resp3.Jobs[0].Namespace)
 }
 
 // TestJobEndpoint_ListJobs_AllNamespaces_OSS asserts that server

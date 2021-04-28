@@ -8,7 +8,9 @@ import (
 
 // LicenseConfig allows for tunable licensing config
 // primarily used for enterprise testing
-type LicenseConfig struct{}
+type LicenseConfig struct {
+	AdditionalPubKeys []string
+}
 
 type EnterpriseState struct{}
 

@@ -16,12 +16,28 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/exptime"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/pkg/errors"
 )
 
 const envoyBootstrapHookName = "envoy_bootstrap"
+
+const (
+	// envoyBootstrapWaitTime is the amount of time this hook should wait on Consul
+	// objects to be created before giving up.
+	envoyBootstrapWaitTime = 60 * time.Second
+
+	// envoyBootstrapInitialGap is the initial amount of time the envoy bootstrap
+	// retry loop will wait, exponentially increasing each iteration, not including
+	// jitter.
+	envoyBoostrapInitialGap = 1 * time.Second
+
+	// envoyBootstrapMaxJitter is the maximum amount of jitter applied to the
+	// wait gap each iteration of the envoy bootstrap retry loop.
+	envoyBootstrapMaxJitter = 500 * time.Millisecond
+)
 
 type consulTransportConfig struct {
 	HTTPAddr  string // required
@@ -100,16 +116,32 @@ type envoyBootstrapHook struct {
 	// consulNamespace is the Consul namespace as set by in the job
 	consulNamespace string
 
+	// envoyBootstrapWaitTime is the total amount of time hook will wait for Consul
+	envoyBootstrapWaitTime time.Duration
+
+	// envoyBootstrapInitialGap is the initial wait gap when retyring
+	envoyBoostrapInitialGap time.Duration
+
+	// envoyBootstrapMaxJitter is the maximum amount of jitter applied to retries
+	envoyBootstrapMaxJitter time.Duration
+
+	// envoyBootstrapExpSleep controls exponential waiting
+	envoyBootstrapExpSleep func(time.Duration)
+
 	// logger is used to log things
 	logger hclog.Logger
 }
 
 func newEnvoyBootstrapHook(c *envoyBootstrapHookConfig) *envoyBootstrapHook {
 	return &envoyBootstrapHook{
-		alloc:           c.alloc,
-		consulConfig:    c.consul,
-		consulNamespace: c.consulNamespace,
-		logger:          c.logger.Named(envoyBootstrapHookName),
+		alloc:                   c.alloc,
+		consulConfig:            c.consul,
+		consulNamespace:         c.consulNamespace,
+		envoyBootstrapWaitTime:  envoyBootstrapWaitTime,
+		envoyBoostrapInitialGap: envoyBoostrapInitialGap,
+		envoyBootstrapMaxJitter: envoyBootstrapMaxJitter,
+		envoyBootstrapExpSleep:  time.Sleep,
+		logger:                  c.logger.Named(envoyBootstrapHookName),
 	}
 }
 
@@ -221,66 +253,71 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	bootstrapArgs := bootstrap.args()
 	bootstrapEnv := bootstrap.env(os.Environ())
 
-	// Since Consul services are registered asynchronously with this task
-	// hook running, retry a small number of times with backoff.
-	for tries := 3; ; tries-- {
+	// keep track of latest error returned from exec-ing consul envoy bootstrap
+	var cmdErr error
 
+	// Since Consul services are registered asynchronously with this task
+	// hook running, retry until timeout or success.
+	if backoffErr := exptime.Backoff(func() (bool, error) {
+
+		// If hook is killed, just stop.
+		select {
+		case <-ctx.Done():
+			return false, nil
+		default:
+		}
+
+		// Prepare bootstrap command to run.
 		cmd := exec.CommandContext(ctx, "consul", bootstrapArgs...)
 		cmd.Env = bootstrapEnv
 
-		// Redirect output to secrets/envoy_bootstrap.json
-		fd, err := os.Create(bootstrapFilePath)
-		if err != nil {
-			return fmt.Errorf("error creating secrets/envoy_bootstrap.json for envoy: %v", err)
+		// Redirect stdout to secrets/envoy_bootstrap.json.
+		fd, fileErr := os.Create(bootstrapFilePath)
+		if fileErr != nil {
+			return false, fmt.Errorf("failed to create secrets/envoy_bootstrap.json for envoy: %w", fileErr)
 		}
 		cmd.Stdout = fd
 
+		// Redirect stderr into a buffer for later reading.
 		buf := bytes.NewBuffer(nil)
 		cmd.Stderr = buf
 
 		// Generate bootstrap
-		err = cmd.Run()
+		cmdErr = cmd.Run()
 
-		// Close bootstrap.json
-		fd.Close()
+		// Close bootstrap.json regardless of any command errors.
+		_ = fd.Close()
 
-		if err == nil {
-			// Happy path! Bootstrap was created, exit.
-			break
+		// Command succeeded, exit.
+		if cmdErr == nil {
+			// Bootstrap written. Mark as done and move on.
+			resp.Done = true
+			return false, nil
 		}
 
-		// Check for error from command
-		if tries == 0 {
-			h.logger.Error("error creating bootstrap configuration for Connect proxy sidecar", "error", err, "stderr", buf.String())
+		// Command failed, prepare for retry
+		//
+		// Cleanup the bootstrap file. An errors here is not
+		// important as (a) we test to ensure the deletion
+		// occurs, and (b) the file will either be rewritten on
+		// retry or eventually garbage collected if the task
+		// fails.
+		_ = os.Remove(bootstrapFilePath)
 
-			// Cleanup the bootstrap file. An errors here is not
-			// important as (a) we test to ensure the deletion
-			// occurs, and (b) the file will either be rewritten on
-			// retry or eventually garbage collected if the task
-			// fails.
-			os.Remove(bootstrapFilePath)
-
-			// ExitErrors are recoverable since they indicate the
-			// command was runnable but exited with a unsuccessful
-			// error code.
-			_, recoverable := err.(*exec.ExitError)
-			return structs.NewRecoverableError(
-				fmt.Errorf("error creating bootstrap configuration for Connect proxy sidecar: %v", err),
-				recoverable,
-			)
-		}
-
-		// Sleep before retrying to give Consul services time to register
-		select {
-		case <-time.After(2 * time.Second):
-		case <-ctx.Done():
-			// Killed before bootstrap, exit without setting Done
-			return nil
-		}
+		return true, cmdErr
+	}, exptime.BackoffOptions{
+		MaxSleepTime:   h.envoyBootstrapWaitTime,
+		InitialGapSize: h.envoyBoostrapInitialGap,
+		MaxJitterSize:  h.envoyBootstrapMaxJitter,
+	}); backoffErr != nil {
+		// Wrap the last error from Consul and set that as our status.
+		_, recoverable := cmdErr.(*exec.ExitError)
+		return structs.NewRecoverableError(
+			fmt.Errorf("error creating bootstrap configuration for Connect proxy sidecar: %v", cmdErr),
+			recoverable,
+		)
 	}
 
-	// Bootstrap written. Mark as done and move on.
-	resp.Done = true
 	return nil
 }
 

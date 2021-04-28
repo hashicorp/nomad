@@ -1303,7 +1303,8 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*AllocRegistration, 
 // UpdateTTL is used to update the TTL of a check. Typically this will only be
 // called to heartbeat script checks.
 func (c *ServiceClient) UpdateTTL(id, namespace, output, status string) error {
-	return c.agentAPI.UpdateTTLOpts(id, output, status, &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
+	ns := normalizeNamespace(namespace)
+	return c.agentAPI.UpdateTTLOpts(id, output, status, &api.QueryOptions{Namespace: ns})
 }
 
 // Shutdown the Consul client. Update running task registrations and deregister

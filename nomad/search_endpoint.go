@@ -652,7 +652,7 @@ func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.Fu
 			for _, ctx := range prefixContexts {
 				switch ctx {
 				// only apply on the types that use UUID prefix searching
-				case structs.Evals, structs.Deployments, structs.ScalingPolicies, structs.Volumes:
+				case structs.Evals, structs.Deployments, structs.ScalingPolicies, structs.Volumes, structs.Quotas, structs.Recommendations:
 					iter, err := getResourceIter(ctx, aclObj, namespace, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
 					if err != nil {
 						if !s.silenceError(err) {
@@ -668,7 +668,7 @@ func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.Fu
 			for _, ctx := range fuzzyContexts {
 				switch ctx {
 				// skip the types that use UUID prefix searching
-				case structs.Evals, structs.Deployments, structs.ScalingPolicies, structs.Volumes:
+				case structs.Evals, structs.Deployments, structs.ScalingPolicies, structs.Volumes, structs.Quotas, structs.Recommendations:
 					continue
 				default:
 					iter, err := getFuzzyResourceIterator(ctx, aclObj, namespace, ws, state)

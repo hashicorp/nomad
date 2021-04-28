@@ -11,15 +11,12 @@ import (
 	"time"
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-
-	"github.com/hashicorp/go-hclog"
-
-	"github.com/opencontainers/runc/libcontainer/cgroups/fscommon"
-
-	"github.com/hashicorp/nomad/lib/cpuset"
 	cgroupFs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
+	"github.com/opencontainers/runc/libcontainer/cgroups/fscommon"
 	"github.com/opencontainers/runc/libcontainer/configs"
 
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -128,8 +125,6 @@ type allocTaskCgroupInfo map[string]*TaskCgroupInfo
 // If the cgroup parent is set to /nomad then this will ensure that the /nomad/shared
 // cgroup is initialized.
 func (c *cpusetManager) Init() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	cgroupParentPath, err := getCgroupPathHelper("cpuset", c.cgroupParent)
 	if err != nil {
 		return err
@@ -156,10 +151,11 @@ func (c *cpusetManager) Init() error {
 		if err != nil {
 			return err
 		}
-		if err := fscommon.WriteFile(filepath.Join(cgroupParentPath, ReservedCpusetCgroupName), "cpuset.mems", parentMems); err != nil {
-			return err
-		}
 	} else if !os.IsExist(err) {
+		return err
+	}
+
+	if err := fscommon.WriteFile(filepath.Join(cgroupParentPath, ReservedCpusetCgroupName), "cpuset.mems", parentMems); err != nil {
 		return err
 	}
 

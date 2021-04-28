@@ -27,10 +27,11 @@ type VolumeInitCommand struct {
 
 func (c *VolumeInitCommand) Help() string {
 	helpText := `
-Usage: nomad volume init
+Usage: nomad volume init <filename>
 
   Creates an example volume specification file that can be used as a starting
-  point to customize further.
+  point to customize further. If no filename is give, the default "volume.json"
+  or "volume.hcl" will be used.
 
 Init Options:
 
@@ -68,8 +69,8 @@ func (c *VolumeInitCommand) Run(args []string) int {
 
 	// Check that we get no arguments
 	args = flags.Args()
-	if l := len(args); l != 0 {
-		c.Ui.Error("This command takes no arguments")
+	if l := len(args); l > 1 {
+		c.Ui.Error("This command takes no arguments or one: <filename>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -79,6 +80,9 @@ func (c *VolumeInitCommand) Run(args []string) int {
 	if jsonOutput {
 		fileName = DefaultJsonVolumeInitName
 		fileContent = defaultJsonVolumeSpec
+	}
+	if len(args) == 1 {
+		fileName = args[0]
 	}
 
 	// Check if the file already exists

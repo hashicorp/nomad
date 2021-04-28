@@ -22,9 +22,10 @@ type ConnectACLsE2ETest struct {
 	// manageConsulACLs is used to 'enable' and 'disable' Consul ACLs in the
 	// Consul Cluster that has been setup for e2e testing.
 	manageConsulACLs consulacls.Manager
-	// consulMasterToken is set to the generated Consul ACL token after using
+
+	// consulManagementToken is set to the generated Consul ACL token after using
 	// the consul-acls-manage.sh script to enable ACLs.
-	consulMasterToken string
+	consulManagementToken string
 
 	// things to cleanup after each test case
 	jobIDs          []string
@@ -46,7 +47,7 @@ func (tc *ConnectACLsE2ETest) BeforeAll(f *framework.F) {
 
 	// Validate the consul master token exists, otherwise tests are just
 	// going to be a train wreck.
-	tokenLength := len(tc.consulMasterToken)
+	tokenLength := len(tc.consulManagementToken)
 	require.Equal(f.T(), 36, tokenLength, "consul master token wrong length")
 
 	// Validate the CONSUL_HTTP_TOKEN is NOT set, because that will cause
@@ -63,7 +64,7 @@ func (tc *ConnectACLsE2ETest) BeforeAll(f *framework.F) {
 // enableConsulACLs effectively executes `consul-acls-manage.sh enable`, which
 // will activate Consul ACLs, going through the bootstrap process if necessary.
 func (tc *ConnectACLsE2ETest) enableConsulACLs(f *framework.F) {
-	tc.consulMasterToken = tc.manageConsulACLs.Enable(f.T())
+	tc.consulManagementToken = tc.manageConsulACLs.Enable(f.T())
 }
 
 // AfterAll runs after all tests are complete.
@@ -100,14 +101,14 @@ func (tc *ConnectACLsE2ETest) AfterEach(f *framework.F) {
 	// cleanup consul tokens
 	for _, id := range tc.consulTokenIDs {
 		t.Log("cleanup: delete consul token id:", id)
-		_, err := tc.Consul().ACL().TokenDelete(id, &consulapi.WriteOptions{Token: tc.consulMasterToken})
+		_, err := tc.Consul().ACL().TokenDelete(id, &consulapi.WriteOptions{Token: tc.consulManagementToken})
 		f.NoError(err)
 	}
 
 	// cleanup consul policies
 	for _, id := range tc.consulPolicyIDs {
 		t.Log("cleanup: delete consul policy id:", id)
-		_, err := tc.Consul().ACL().PolicyDelete(id, &consulapi.WriteOptions{Token: tc.consulMasterToken})
+		_, err := tc.Consul().ACL().PolicyDelete(id, &consulapi.WriteOptions{Token: tc.consulManagementToken})
 		f.NoError(err)
 	}
 
@@ -128,27 +129,30 @@ func (tc *ConnectACLsE2ETest) AfterEach(f *framework.F) {
 	tc.consulPolicyIDs = []string{}
 }
 
+// todo(shoenig): follow up refactor with e2eutil.ConsulPolicy
 type consulPolicy struct {
 	Name  string // e.g. nomad-operator
 	Rules string // e.g. service "" { policy="write" }
 }
 
+// todo(shoenig): follow up refactor with e2eutil.ConsulPolicy
 func (tc *ConnectACLsE2ETest) createConsulPolicy(p consulPolicy, f *framework.F) string {
 	result, _, err := tc.Consul().ACL().PolicyCreate(&consulapi.ACLPolicy{
 		Name:        p.Name,
 		Description: "test policy " + p.Name,
 		Rules:       p.Rules,
-	}, &consulapi.WriteOptions{Token: tc.consulMasterToken})
+	}, &consulapi.WriteOptions{Token: tc.consulManagementToken})
 	f.NoError(err, "failed to create consul policy")
 	tc.consulPolicyIDs = append(tc.consulPolicyIDs, result.ID)
 	return result.ID
 }
 
+// todo(shoenig): follow up refactor with e2eutil.ConsulPolicy
 func (tc *ConnectACLsE2ETest) createOperatorToken(policyID string, f *framework.F) string {
 	token, _, err := tc.Consul().ACL().TokenCreate(&consulapi.ACLToken{
 		Description: "operator token",
 		Policies:    []*consulapi.ACLTokenPolicyLink{{ID: policyID}},
-	}, &consulapi.WriteOptions{Token: tc.consulMasterToken})
+	}, &consulapi.WriteOptions{Token: tc.consulManagementToken})
 	f.NoError(err, "failed to create operator token")
 	tc.consulTokenIDs = append(tc.consulTokenIDs, token.AccessorID)
 	return token.SecretID
@@ -170,7 +174,7 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterMasterToken(f *framework.F)
 	// Set the job file to use the consul master token.
 	// One should never do this in practice, but, it should work.
 	// https://www.consul.io/docs/acl/acl-system.html#builtin-tokens
-	job.ConsulToken = &tc.consulMasterToken
+	job.ConsulToken = &tc.consulManagementToken
 
 	// Avoid using Register here, because that would actually create and run the
 	// Job which runs the task, creates the SI token, which all needs to be
@@ -368,7 +372,7 @@ func (tc *ConnectACLsE2ETest) serviceofSIToken(description string) string {
 func (tc *ConnectACLsE2ETest) countSITokens(t *testing.T) map[string]int {
 	aclAPI := tc.Consul().ACL()
 	tokens, _, err := aclAPI.TokenList(&consulapi.QueryOptions{
-		Token: tc.consulMasterToken,
+		Token: tc.consulManagementToken,
 	})
 	require.NoError(t, err)
 

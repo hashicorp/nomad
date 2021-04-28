@@ -2,6 +2,7 @@ package structs
 
 import (
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -1645,13 +1646,29 @@ func (s *ConsulIngressService) Validate(isHTTP bool) error {
 	}
 
 	if s.Name == "" {
-		return fmt.Errorf("Consul Ingress Service requires a name")
+		return errors.New("Consul Ingress Service requires a name")
 	}
 
-	if isHTTP && len(s.Hosts) == 0 {
-		return fmt.Errorf("Consul Ingress Service requires one or more hosts when using HTTP protocol")
-	} else if !isHTTP && len(s.Hosts) > 0 {
-		return fmt.Errorf("Consul Ingress Service supports hosts only when using HTTP protocol")
+	// Validation of wildcard service name and hosts varies on whether the protocol
+	// for the gateway is HTTP.
+	// https://www.consul.io/docs/connect/config-entries/ingress-gateway#hosts
+	switch isHTTP {
+	case true:
+		if s.Name == "*" {
+			return nil
+		}
+
+		if len(s.Hosts) == 0 {
+			return errors.New("Consul Ingress Service requires one or more hosts when using HTTP protocol")
+		}
+	case false:
+		if s.Name == "*" {
+			return errors.New("Consul Ingress Service supports wildcard names only with HTTP protocol")
+		}
+
+		if len(s.Hosts) > 0 {
+			return errors.New("Consul Ingress Service supports hosts only when using HTTP protocol")
+		}
 	}
 
 	return nil
