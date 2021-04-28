@@ -274,7 +274,7 @@ module('Acceptance | allocation detail', function(hooks) {
     await Allocation.stop.confirm();
 
     assert.equal(
-      server.pretender.handledRequests.findBy('method', 'POST').url,
+      server.pretender.handledRequests.reject(request => request.url.includes('fuzzy')).findBy('method', 'POST').url,
       `/v1/allocation/${allocation.id}/stop`,
       'Stop request is made for the allocation'
     );

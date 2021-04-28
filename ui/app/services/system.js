@@ -157,7 +157,25 @@ export default class SystemService extends Service {
   })
   fetchLicense;
 
+  @task(function*() {
+    try {
+      const request = yield this.token.authorizedRequest('/v1/search/fuzzy', {
+        method: 'POST',
+        body: JSON.stringify({
+          Text: 'feature-detection-query',
+          Context: 'namespaces',
+        }),
+      });
+
+      return request.ok;
+    } catch (e) {
+      return false;
+    }
+  })
+  checkFuzzySearchPresence;
+
   @alias('fetchLicense.lastSuccessful.value') license;
+  @alias('checkFuzzySearchPresence.last.value') fuzzySearchEnabled;
 
   @computed('license.License.Features.[]')
   get features() {

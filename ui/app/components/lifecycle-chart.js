@@ -24,7 +24,10 @@ export default class LifecycleChart extends Component {
 
     tasksOrStates.forEach(taskOrState => {
       const task = taskOrState.task || taskOrState;
-      lifecycles[`${task.lifecycleName}s`].push(taskOrState);
+
+      if (task.lifecycleName) {
+        lifecycles[`${task.lifecycleName}s`].push(taskOrState);
+      }
     });
 
     const phases = [];

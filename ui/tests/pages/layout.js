@@ -4,6 +4,7 @@ import {
   clickable,
   collection,
   hasClass,
+  isHidden,
   isPresent,
   text,
 } from 'ember-cli-page-object';
@@ -31,28 +32,12 @@ export default create({
         resetScope: true,
         name: text('.ember-power-select-group-name'),
 
-        options: collection(
-          '.ember-power-select-option',
-          create({
-            label: text(),
+        options: collection('.ember-power-select-option'),
+      }),
 
-            substrings: collection('[data-test-match-substring]', {
-              isHighlighted: hasClass('highlighted'),
-            }),
-
-            get formattedText() {
-              return this.substrings
-                .map(string => {
-                  if (string.isHighlighted) {
-                    return `*${string.text}*`;
-                  } else {
-                    return string.text;
-                  }
-                })
-                .join('');
-            },
-          })
-        ),
+      noOptionsShown: isHidden('.ember-power-select-options', {
+        testContainer: '.ember-basic-dropdown-content',
+        resetScope: true,
       }),
 
       field: {

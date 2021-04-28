@@ -26,34 +26,48 @@ export default class ApplicationRoute extends Route {
   }
 
   async beforeModel(transition) {
-    let exchangeOneTimeToken;
+    let promises;
 
-    if (transition.to.queryParams.ott) {
-      exchangeOneTimeToken = this.get('token').exchangeOneTimeToken(transition.to.queryParams.ott);
+    // service:router#transitionTo can cause this to rerun because of refreshModel on
+    // the region query parameter, this skips rerunning the detection/loading queries.
+    if (transition.queryParamsOnly) {
+      promises = Promise.resolve(true);
     } else {
-      exchangeOneTimeToken = Promise.resolve(true);
+
+      let exchangeOneTimeToken;
+
+      if (transition.to.queryParams.ott) {
+        exchangeOneTimeToken = this.get('token').exchangeOneTimeToken(transition.to.queryParams.ott);
+      } else {
+        exchangeOneTimeToken = Promise.resolve(true);
+      }
+
+      try {
+        await exchangeOneTimeToken;
+      } catch (e) {
+        this.controllerFor('application').set('error', e);
+      }
+
+      const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
+        .perform()
+        .catch();
+
+      const fetchLicense = this.get('system.fetchLicense')
+        .perform()
+        .catch();
+
+      const checkFuzzySearchPresence = this.get('system.checkFuzzySearchPresence')
+        .perform()
+        .catch();
+
+      promises = await RSVP.all([
+        this.get('system.regions'),
+        this.get('system.defaultRegion'),
+        fetchLicense,
+        fetchSelfTokenAndPolicies,
+        checkFuzzySearchPresence,
+      ]);
     }
-
-    try {
-      await exchangeOneTimeToken;
-    } catch (e) {
-      this.controllerFor('application').set('error', e);
-    }
-
-    const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
-      .perform()
-      .catch();
-
-    const fetchLicense = this.get('system.fetchLicense')
-      .perform()
-      .catch();
-
-    const promises = await RSVP.all([
-      this.get('system.regions'),
-      this.get('system.defaultRegion'),
-      fetchLicense,
-      fetchSelfTokenAndPolicies,
-    ]);
 
     if (!this.get('system.shouldShowRegions')) return promises;
 
