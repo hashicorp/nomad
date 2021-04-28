@@ -223,19 +223,25 @@ func (c *consulACLsAPI) CheckPermissions(ctx context.Context, namespace string, 
 	}
 
 	// lookup the token from consul
-	token, err := c.readToken(ctx, secretID)
-	if err != nil {
-		return err
+	token, readErr := c.readToken(ctx, secretID)
+	if readErr != nil {
+		return readErr
 	}
 
-	// verify the token namespace matches namespace in job
-	if token.Namespace != namespace {
-		return errors.Errorf("consul ACL token cannot use namespace %q", namespace)
+	// if the token is a global-management token, it has unrestricted privileges
+	if c.isManagementToken(token) {
+		return nil
+	}
+
+	// if the token cannot possibly be used to act on objects in the desired
+	// namespace, reject it immediately
+	if err := namespaceCheck(namespace, token); err != nil {
+		return err
 	}
 
 	// verify token has keystore read permission, if using template
 	if usage.KV {
-		allowable, err := c.canReadKeystore(token)
+		allowable, err := c.canReadKeystore(namespace, token)
 		if err != nil {
 			return err
 		} else if !allowable {
@@ -245,7 +251,7 @@ func (c *consulACLsAPI) CheckPermissions(ctx context.Context, namespace string, 
 
 	// verify token has service write permission for group+task services
 	for _, service := range usage.Services {
-		allowable, err := c.canWriteService(service, token)
+		allowable, err := c.canWriteService(namespace, service, token)
 		if err != nil {
 			return err
 		} else if !allowable {
@@ -256,7 +262,7 @@ func (c *consulACLsAPI) CheckPermissions(ctx context.Context, namespace string, 
 	// verify token has service identity permission for connect services
 	for _, kind := range usage.Kinds {
 		service := kind.Value()
-		allowable, err := c.canWriteService(service, token)
+		allowable, err := c.canWriteService(namespace, service, token)
 		if err != nil {
 			return err
 		} else if !allowable {
