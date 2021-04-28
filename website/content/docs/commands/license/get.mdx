@@ -7,7 +7,9 @@ description: |
 
 # Command: license get
 
-The `license get` command is used to retrieve the current Nomad Enterprise license.
+The `license get` command is used to retrieve the current Nomad Enterprise
+license. The command is not forwarded to the Nomad leader, and will return
+the license from the specific server being contacted.
 
 ~> License commands are new in Nomad 0.12.0 and are only available with Nomad
 Enterprise.
@@ -24,15 +26,6 @@ capability.
 ## General Options
 
 @include 'general_options_no_namespace.mdx'
-
-## License Get Options
-
-- `-stale`: By default the `license get` command will be forwarded to the Nomad
-  leader. If `-stale` is set to `true`, the command will not be forwarded to
-  the leader and will return the license from the specific server being
-  contacted. This option may be useful during upgrade scenarios when a server
-  is given a new file license and is a follower so the new license has not yet
-  been propagated to raft.
 
 ## Examples
 
