@@ -1349,7 +1349,7 @@ func TestPreemption(t *testing.T) {
 				ctx.plan.NodePreemptions[node.ID] = tc.currentPreemptions
 			}
 			static := NewStaticRankIterator(ctx, nodes)
-			binPackIter := NewBinPackIterator(ctx, static, true, tc.jobPriority, structs.SchedulerAlgorithmBinpack)
+			binPackIter := NewBinPackIterator(ctx, static, true, tc.jobPriority, testSchedulerConfig)
 			job := mock.Job()
 			job.Priority = tc.jobPriority
 			binPackIter.SetJob(job)

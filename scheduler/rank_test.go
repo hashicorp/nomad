@@ -10,6 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var testSchedulerConfig = &structs.SchedulerConfiguration{
+	SchedulerAlgorithm:            structs.SchedulerAlgorithmBinpack,
+	MemoryOversubscriptionEnabled: true,
+}
+
 func TestFeasibleRankIterator(t *testing.T) {
 	_, ctx := testContext(t)
 	var nodes []*structs.Node
@@ -107,7 +112,7 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -220,7 +225,7 @@ func TestBinPackIterator_NoExistingAlloc_MixedReserve(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -341,7 +346,7 @@ func TestBinPackIterator_Network_Success(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -473,7 +478,7 @@ func TestBinPackIterator_Network_Failure(t *testing.T) {
 		},
 	}
 
-	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -619,7 +624,7 @@ func TestBinPackIterator_Network_Interpolation_Success(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -730,7 +735,7 @@ func TestBinPackIterator_Host_Network_Interpolation_Absent_Value(t *testing.T) {
 		},
 	}
 
-	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -831,7 +836,7 @@ func TestBinPackIterator_Host_Network_Interpolation_Interface_Not_Exists(t *test
 		},
 	}
 
-	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -925,7 +930,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 		},
 	}
 
-	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -1047,7 +1052,7 @@ func TestBinPackIterator_ReservedCores(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -1157,7 +1162,7 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 			},
 		},
 	}
-	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -1277,7 +1282,7 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 		},
 	}
 
-	binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+	binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
 	binp.SetTaskGroup(taskGroup)
 
 	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
@@ -1582,7 +1587,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 			}
 
 			static := NewStaticRankIterator(ctx, []*RankedNode{{Node: c.Node}})
-			binp := NewBinPackIterator(ctx, static, false, 0, structs.SchedulerAlgorithmBinpack)
+			binp := NewBinPackIterator(ctx, static, false, 0, testSchedulerConfig)
 			binp.SetTaskGroup(c.TaskGroup)
 
 			out := binp.Next()

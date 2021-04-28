@@ -2147,6 +2147,48 @@ func TestJobEndpoint_Register_EvalCreation_Legacy(t *testing.T) {
 	})
 }
 
+func TestJobEndpoint_Register_ValidateMemoryMax(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	submitNewJob := func() *structs.JobRegisterResponse {
+		job := mock.Job()
+		job.TaskGroups[0].Tasks[0].Resources.MemoryMaxMB = 2000
+
+		req := &structs.JobRegisterRequest{
+			Job: job,
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				Namespace: job.Namespace,
+			},
+		}
+
+		// Fetch the response
+		var resp structs.JobRegisterResponse
+		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
+		require.NoError(t, err)
+		return &resp
+	}
+
+	// try default case: Memory oversubscription is disabled
+	resp := submitNewJob()
+	require.Contains(t, resp.Warnings, "Memory oversubscription is not enabled")
+
+	// enable now and try again
+	s1.State().SchedulerSetConfig(100, &structs.SchedulerConfiguration{
+		MemoryOversubscriptionEnabled: true,
+	})
+	resp = submitNewJob()
+	require.Empty(t, resp.Warnings)
+}
+
 // evalUpdateFromRaft searches the raft logs for the eval update pertaining to the eval
 func evalUpdateFromRaft(t *testing.T, s *Server, evalID string) *structs.Evaluation {
 	var store raft.LogStore = s.raftInmem
