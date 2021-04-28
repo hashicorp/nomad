@@ -30,6 +30,7 @@ export default class Task extends Fragment {
   }
 
   @attr('number') reservedMemory;
+  @attr('number') reservedMemoryMax;
   @attr('number') reservedCPU;
   @attr('number') reservedDisk;
   @attr('number') reservedEphemeralDisk;

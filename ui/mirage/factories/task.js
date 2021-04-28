@@ -26,6 +26,7 @@ export default Factory.extend({
     return {
       CPU: resources.Cpu.CpuShares,
       MemoryMB: resources.Memory.MemoryMB,
+      MemoryMaxMB: resources.Memory.MemoryMaxMB,
       DiskMB: resources.Disk.DiskMB,
     };
   },

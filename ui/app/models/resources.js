@@ -5,6 +5,7 @@ import { fragmentArray } from 'ember-data-model-fragments/attributes';
 export default class Resources extends Fragment {
   @attr('number') cpu;
   @attr('number') memory;
+  @attr('number') memoryMax;
   @attr('number') disk;
   @attr('number') iops;
   @fragmentArray('network', { defaultValue: () => [] }) networks;
