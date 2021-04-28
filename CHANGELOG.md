@@ -4,6 +4,7 @@ FEATURES:
  * **Consul Namespaces (Enterprise)**: Added support for Consul Namespaces [[GH-10235](https://github.com/hashicorp/nomad/pull/10235)]
  * **CSI Volume Create and Snapshot**: Added support for creating, deleting, listing, and snapshotting volumes managed by Container Storage Interface (CSI) plugins. [[GH-8212](https://github.com/hashicorp/nomad/issues/8212)]
  * **Licensing (Enterprise)**: Support loading Enterprise license from disk or environment. [[GH-10216](https://github.com/hashicorp/nomad/issues/10216)]
+ * **`nomad ui -authenticate`**: Added the authenticate flag to open the UI with the ACL token. [[GH-10097](https://github.com/hashicorp/nomad/issues/10097)] [[GH-10066](https://github.com/hashicorp/nomad/pull/10066)]
  * **Readiness Checks**: Added `service` and `check` `on_update` configuration to support liveness and readiness checks. [[GH-9955](https://github.com/hashicorp/nomad/issues/9955)]
 
 __BACKWARDS INCOMPATIBILITIES:__
@@ -31,6 +32,8 @@ IMPROVEMENTS:
  * ui: Added a job reversion button [[GH-10336](https://github.com/hashicorp/nomad/pull/10336)]
  * ui: Added memory maximum to task group ribbon [[GH-10459](https://github.com/hashicorp/nomad/pull/10459)]
  * ui: Updated global search to use fuzzy search API [[GH-10412](https://github.com/hashicorp/nomad/pull/10412)]
+ * ui: Changed displays of aggregate units to use larger suffixes when appropriate [[GH-10257](https://github.com/hashicorp/nomad/pull/10257)]
+ * ui: Added resource reservation indicators on client charts and task breakdowns on allocation charts [[GH-10208](https://github.com/hashicorp/nomad/pull/10208)]
 
 BUG FIXES:
  * core (Enterprise): Update licensing library to v0.0.11 to include race condition fix. [[GH-10253](https://github.com/hashicorp/nomad/issues/10253)]
