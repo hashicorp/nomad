@@ -35,7 +35,7 @@
         <span class="term">Reserved Memory</span>
         {{format-scheduled-bytes this.model.reservedMemory start="MiB"}}
         {{#if this.model.reservedMemoryMax}}
-          ({{format-scheduled-bytes this.model.reservedMemoryMax start="MiB"}})
+          ({{format-scheduled-bytes this.model.reservedMemoryMax start="MiB"}} Max)
         {{/if}}
       </span>
       <span class="pair" data-test-task-group-disk><span class="term">Reserved Disk</span> {{format-scheduled-bytes this.model.reservedEphemeralDisk start="MiB"}}</span>
