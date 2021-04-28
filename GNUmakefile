@@ -223,6 +223,10 @@ tidy:
 .PHONY: sync
 sync: tidy
 	@echo "--> Sync vendor directory"
+	@if [[ -L "$(shell pwd)" ]]; then \
+		echo "==> Failed to sync vendor directory: current directory is a symlink, please run \"make sync\" within the referenced directory instead."; \
+		exit 1; \
+		fi
 	@go mod vendor
 
 .PHONY: dev
