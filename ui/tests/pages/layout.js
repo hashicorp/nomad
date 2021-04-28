@@ -3,6 +3,7 @@ import {
   create,
   clickable,
   collection,
+  hasClass,
   isHidden,
   isPresent,
   text,
