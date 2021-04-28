@@ -1,5 +1,0 @@
-{{#if this.substrings}}
-  {{#each this.substrings as |substring|}}<span class="{{if substring.isHighlighted "highlighted"}}" data-test-match-substring>{{substring.string}}</span>{{/each}}
-{{else}}
-  {{this.label}}
-{{/if}}

@@ -386,9 +386,14 @@ func TestConsulACLsAPI_CheckPermissions(t *testing.T) {
 			try(t, "default", u, "", nil)
 		})
 
-		t.Run("uses kv wrong namespace", func(t *testing.T) {
+		t.Run("uses kv default token missing permissions", func(t *testing.T) {
 			u := &structs.ConsulUsage{KV: true}
-			try(t, "other", u, consul.ExampleOperatorTokenID5, errors.New(`consul ACL token cannot use namespace "other"`))
+			try(t, "other", u, consul.ExampleOperatorTokenID5, errors.New(`insufficient Consul ACL permissions to use template`))
+		})
+
+		t.Run("uses kv token in wrong namespace", func(t *testing.T) {
+			u := &structs.ConsulUsage{KV: true}
+			try(t, "other", u, consul.ExampleOperatorTokenID15, errors.New(`consul ACL token cannot use namespace "other"`))
 		})
 	})
 
@@ -399,8 +404,12 @@ func TestConsulACLsAPI_CheckPermissions(t *testing.T) {
 			try(t, "default", usage, consul.ExampleOperatorTokenID1, nil)
 		})
 
-		t.Run("operator has service wrote wrong ns", func(t *testing.T) {
-			try(t, "other", usage, consul.ExampleOperatorTokenID1, errors.New(`consul ACL token cannot use namespace "other"`))
+		t.Run("operator has service write but no policy", func(t *testing.T) {
+			try(t, "other", usage, consul.ExampleOperatorTokenID1, errors.New(`insufficient Consul ACL permissions to write service "service1"`))
+		})
+
+		t.Run("operator has token in wrong namespace", func(t *testing.T) {
+			try(t, "other", usage, consul.ExampleOperatorTokenID11, errors.New(`consul ACL token cannot use namespace "other"`))
 		})
 
 		t.Run("operator has service_prefix write", func(t *testing.T) {
@@ -434,7 +443,11 @@ func TestConsulACLsAPI_CheckPermissions(t *testing.T) {
 		})
 
 		t.Run("operator has service write wrong ns", func(t *testing.T) {
-			try(t, "other", usage, consul.ExampleOperatorTokenID1, errors.New(`consul ACL token cannot use namespace "other"`))
+			try(t, "other", usage, consul.ExampleOperatorTokenID1, errors.New(`insufficient Consul ACL permissions to write Connect service "service1"`))
+		})
+
+		t.Run("operator has token in wrong namespace", func(t *testing.T) {
+			try(t, "other", usage, consul.ExampleOperatorTokenID11, errors.New(`consul ACL token cannot use namespace "other"`))
 		})
 
 		t.Run("operator has service_prefix write", func(t *testing.T) {

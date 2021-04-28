@@ -39,7 +39,12 @@ var (
 
 type ConsulNamespacesE2ETest struct {
 	framework.TC
+
 	jobIDs []string
+
+	// cToken contains the Consul global-management token during ACL enabled
+	// tests (i.e. ConsulNamespacesE2ETestACLs which embeds ConsulNamespacesE2ETest).
+	cToken string
 }
 
 func (tc *ConsulNamespacesE2ETest) BeforeAll(f *framework.F) {
@@ -56,6 +61,9 @@ func (tc *ConsulNamespacesE2ETest) BeforeAll(f *framework.F) {
 		value := fmt.Sprintf("ns_%s", namespace)
 		e2eutil.PutConsulKey(f.T(), tc.Consul(), namespace, "ns-kv-example", value)
 	}
+
+	// make the unused variable linter happy in oss
+	f.T().Log("Consul global-management token:", tc.cToken)
 }
 
 func (tc *ConsulNamespacesE2ETest) AfterAll(f *framework.F) {
@@ -68,13 +76,13 @@ func (tc *ConsulNamespacesE2ETest) TestNamespacesExist(f *framework.F) {
 	require.True(f.T(), helper.CompareSliceSetString(namespaces, append(consulNamespaces, "default")))
 }
 
-func (tc *ConsulNamespacesE2ETest) testConsulRegisterGroupServices(f *framework.F, nsA, nsB, nsC, nsZ string) {
+func (tc *ConsulNamespacesE2ETest) testConsulRegisterGroupServices(f *framework.F, token, nsA, nsB, nsC, nsZ string) {
 	nomadClient := tc.Nomad()
 	jobID := "cns-group-services"
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	// Run job and wait for allocs
-	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, cnsJobGroupServices, jobID, "")
+	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, cnsJobGroupServices, jobID, token)
 	require.Len(f.T(), allocations, 3)
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocations)
 	e2eutil.WaitForAllocsRunning(f.T(), tc.Nomad(), allocIDs)
@@ -112,13 +120,13 @@ func (tc *ConsulNamespacesE2ETest) testConsulRegisterGroupServices(f *framework.
 	e2eutil.RequireConsulDeregistered(r, c, nsZ, "z2")
 }
 
-func (tc *ConsulNamespacesE2ETest) testConsulRegisterTaskServices(f *framework.F, nsA, nsB, nsC, nsZ string) {
+func (tc *ConsulNamespacesE2ETest) testConsulRegisterTaskServices(f *framework.F, token, nsA, nsB, nsC, nsZ string) {
 	nomadClient := tc.Nomad()
 	jobID := "cns-task-services"
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	// Run job and wait for allocs
-	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, cnsJobTaskServices, jobID, "")
+	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, cnsJobTaskServices, jobID, token)
 	require.Len(f.T(), allocations, 3)
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocations)
 	e2eutil.WaitForAllocsRunning(f.T(), tc.Nomad(), allocIDs)
@@ -154,14 +162,14 @@ func (tc *ConsulNamespacesE2ETest) testConsulRegisterTaskServices(f *framework.F
 	e2eutil.RequireConsulDeregistered(r, c, nsZ, "z2")
 }
 
-func (tc *ConsulNamespacesE2ETest) testConsulTemplateKV(f *framework.F, expB, expZ string) {
+func (tc *ConsulNamespacesE2ETest) testConsulTemplateKV(f *framework.F, token, expB, expZ string) {
 	t := f.T()
 	nomadClient := tc.Nomad()
 	jobID := "cns-template-kv"
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	// Run job and wait for allocs to complete
-	allocations := e2eutil.RegisterAndWaitForAllocs(t, nomadClient, cnsJobTemplateKV, jobID, "")
+	allocations := e2eutil.RegisterAndWaitForAllocs(t, nomadClient, cnsJobTemplateKV, jobID, token)
 	require.Len(t, allocations, 2)
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocations)
 	e2eutil.WaitForAllocsStopped(f.T(), tc.Nomad(), allocIDs)
@@ -183,13 +191,13 @@ func (tc *ConsulNamespacesE2ETest) testConsulTemplateKV(f *framework.F, expB, ex
 	e2eutil.WaitForJobStopped(t, nomadClient, jobID)
 }
 
-func (tc *ConsulNamespacesE2ETest) testConsulConnectSidecars(f *framework.F, nsA, nsZ string) {
+func (tc *ConsulNamespacesE2ETest) testConsulConnectSidecars(f *framework.F, token, nsA, nsZ string) {
 	nomadClient := tc.Nomad()
 	jobID := "cns-connect-sidecars"
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	// Run job and wait for allocs
-	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, cnsJobConnectSidecars, jobID, "")
+	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, cnsJobConnectSidecars, jobID, token)
 	require.Len(f.T(), allocations, 4)
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocations)
 	e2eutil.WaitForAllocsRunning(f.T(), tc.Nomad(), allocIDs)
@@ -223,13 +231,13 @@ func (tc *ConsulNamespacesE2ETest) testConsulConnectSidecars(f *framework.F, nsA
 	e2eutil.RequireConsulDeregistered(r, c, nsZ, "count-dashboard-z-sidecar-proxy")
 }
 
-func (tc *ConsulNamespacesE2ETest) testConsulConnectIngressGateway(f *framework.F, nsA, nsZ string) {
+func (tc *ConsulNamespacesE2ETest) testConsulConnectIngressGateway(f *framework.F, token, nsA, nsZ string) {
 	nomadClient := tc.Nomad()
 	jobID := "cns-connect-ingress"
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	// Run job and wait for allocs
-	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, cnsJobConnectIngress, jobID, "")
+	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, cnsJobConnectIngress, jobID, token)
 	require.Len(f.T(), allocations, 4) // 2 x (1 service + 1 gateway)
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocations)
 	e2eutil.WaitForAllocsRunning(f.T(), tc.Nomad(), allocIDs)
@@ -261,13 +269,13 @@ func (tc *ConsulNamespacesE2ETest) testConsulConnectIngressGateway(f *framework.
 	e2eutil.DeleteConsulConfigEntry(f.T(), c, nsZ, "ingress-gateway", "my-ingress-service-z")
 }
 
-func (tc *ConsulNamespacesE2ETest) testConsulConnectTerminatingGateway(f *framework.F, nsA, nsZ string) {
+func (tc *ConsulNamespacesE2ETest) testConsulConnectTerminatingGateway(f *framework.F, token, nsA, nsZ string) {
 	nomadClient := tc.Nomad()
 	jobID := "cns-connect-terminating"
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	// Run job and wait for allocs
-	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, cnsJobConnectTerminating, jobID, "")
+	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, cnsJobConnectTerminating, jobID, token)
 	require.Len(f.T(), allocations, 6) // 2 x (2 services + 1 gateway)
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocations)
 	e2eutil.WaitForAllocsRunning(f.T(), tc.Nomad(), allocIDs)
@@ -301,13 +309,13 @@ func (tc *ConsulNamespacesE2ETest) testConsulConnectTerminatingGateway(f *framew
 	e2eutil.DeleteConsulConfigEntry(f.T(), c, nsZ, "terminating-gateway", "api-gateway-z")
 }
 
-func (tc *ConsulNamespacesE2ETest) testConsulScriptChecksTask(f *framework.F, nsA, nsZ string) {
+func (tc *ConsulNamespacesE2ETest) testConsulScriptChecksTask(f *framework.F, token, nsA, nsZ string) {
 	nomadClient := tc.Nomad()
 	jobID := "cns-script-checks-task"
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	// Run job and wait for allocs
-	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, cnsJobScriptChecksTask, jobID, "")
+	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, cnsJobScriptChecksTask, jobID, token)
 	require.Len(f.T(), allocations, 2)
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocations)
 	e2eutil.WaitForAllocsRunning(f.T(), tc.Nomad(), allocIDs)
@@ -351,13 +359,13 @@ func (tc *ConsulNamespacesE2ETest) testConsulScriptChecksTask(f *framework.F, ns
 	e2eutil.WaitForJobStopped(f.T(), nomadClient, jobID)
 }
 
-func (tc *ConsulNamespacesE2ETest) testConsulScriptChecksGroup(f *framework.F, nsA, nsZ string) {
+func (tc *ConsulNamespacesE2ETest) testConsulScriptChecksGroup(f *framework.F, token, nsA, nsZ string) {
 	nomadClient := tc.Nomad()
 	jobID := "cns-script-checks-group"
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	// Run job and wait for allocs
-	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, cnsJobScriptChecksGroup, jobID, "")
+	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, cnsJobScriptChecksGroup, jobID, token)
 	require.Len(f.T(), allocations, 2)
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocations)
 	e2eutil.WaitForAllocsRunning(f.T(), tc.Nomad(), allocIDs)

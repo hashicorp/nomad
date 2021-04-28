@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,10 +14,9 @@ func TestConsulPolicy_ParseConsulPolicy(t *testing.T) {
 	t.Parallel()
 
 	try := func(t *testing.T, text string, expPolicy *ConsulPolicy, expErr string) {
-		policy, err := ParseConsulPolicy(text)
+		policy, err := parseConsulPolicy(text)
 		if expErr != "" {
 			require.EqualError(t, err, expErr)
-			require.True(t, policy.IsEmpty())
 		} else {
 			require.NoError(t, err)
 			require.Equal(t, expPolicy, policy)
@@ -26,8 +26,7 @@ func TestConsulPolicy_ParseConsulPolicy(t *testing.T) {
 	t.Run("service", func(t *testing.T) {
 		text := `service "web" { policy = "read" }`
 		exp := &ConsulPolicy{
-			Services:        []*ConsulServiceRule{{Name: "web", Policy: "read"}},
-			ServicePrefixes: []*ConsulServiceRule(nil),
+			Services: []*ConsulServiceRule{{Name: "web", Policy: "read"}},
 		}
 		try(t, text, exp, "")
 	})
@@ -35,16 +34,17 @@ func TestConsulPolicy_ParseConsulPolicy(t *testing.T) {
 	t.Run("service_prefix", func(t *testing.T) {
 		text := `service_prefix "data" { policy = "write" }`
 		exp := &ConsulPolicy{
-			Services:        []*ConsulServiceRule(nil),
 			ServicePrefixes: []*ConsulServiceRule{{Name: "data", Policy: "write"}},
 		}
 		try(t, text, exp, "")
 	})
 
-	t.Run("empty", func(t *testing.T) {
-		text := ``
-		expErr := "consul policy contains no service rules"
-		try(t, text, nil, expErr)
+	t.Run("key_prefix", func(t *testing.T) {
+		text := `key_prefix "keys" { policy = "read" }`
+		exp := &ConsulPolicy{
+			KeyPrefixes: []*ConsulKeyRule{{Name: "keys", Policy: "read"}},
+		}
+		try(t, text, exp, "")
 	})
 
 	t.Run("malformed", func(t *testing.T) {
@@ -52,53 +52,75 @@ func TestConsulPolicy_ParseConsulPolicy(t *testing.T) {
 		expErr := "failed to parse ACL policy: At 1:22: illegal char"
 		try(t, text, nil, expErr)
 	})
+
+	t.Run("multi-namespace", func(t *testing.T) {
+		text := `
+service_prefix "z" { policy = "write" }
+
+namespace_prefix "b" {
+  service_prefix "b" { policy = "write" }
+  key_prefix "" { policy = "read" }
 }
 
-func TestConsulPolicy_IsEmpty(t *testing.T) {
-	t.Parallel()
+namespace_prefix "c" {
+  service_prefix "c" { policy = "read" }
+  key_prefix "" { policy = "read" }
+}
 
-	try := func(t *testing.T, cp *ConsulPolicy, exp bool) {
-		result := cp.IsEmpty()
-		require.Equal(t, exp, result)
-	}
+namespace_prefix "" {
+  key_prefix "shared/" { policy = "read" }
+}
 
-	t.Run("nil", func(t *testing.T) {
-		cp := (*ConsulPolicy)(nil)
-		try(t, cp, true)
-	})
-
-	t.Run("empty slices", func(t *testing.T) {
-		cp := &ConsulPolicy{
-			Services:        []*ConsulServiceRule(nil),
-			ServicePrefixes: []*ConsulServiceRule(nil),
+namespace "foo" {
+  service "bar" { policy = "read" }
+  service_prefix "foo-" { policy = "write" }
+  key_prefix "" { policy = "read" }
+}
+`
+		exp := &ConsulPolicy{
+			ServicePrefixes: []*ConsulServiceRule{{Name: "z", Policy: "write"}},
+			NamespacePrefixes: map[string]*ConsulPolicy{
+				"b": {
+					ServicePrefixes: []*ConsulServiceRule{{Name: "b", Policy: "write"}},
+					KeyPrefixes:     []*ConsulKeyRule{{Name: "", Policy: "read"}},
+				},
+				"c": {
+					ServicePrefixes: []*ConsulServiceRule{{Name: "c", Policy: "read"}},
+					KeyPrefixes:     []*ConsulKeyRule{{Name: "", Policy: "read"}},
+				},
+				"": {
+					KeyPrefixes: []*ConsulKeyRule{{Name: "shared/", Policy: "read"}},
+				},
+			},
+			Namespaces: map[string]*ConsulPolicy{
+				"foo": {
+					Services:        []*ConsulServiceRule{{Name: "bar", Policy: "read"}},
+					ServicePrefixes: []*ConsulServiceRule{{Name: "foo-", Policy: "write"}},
+					KeyPrefixes:     []*ConsulKeyRule{{Name: "", Policy: "read"}},
+				},
+			},
 		}
-		try(t, cp, true)
-	})
-
-	t.Run("services nonempty", func(t *testing.T) {
-		cp := &ConsulPolicy{
-			Services: []*ConsulServiceRule{{Name: "example", Policy: "write"}},
-		}
-		try(t, cp, false)
-	})
-
-	t.Run("service_prefixes nonempty", func(t *testing.T) {
-		cp := &ConsulPolicy{
-			ServicePrefixes: []*ConsulServiceRule{{Name: "pre", Policy: "read"}},
-		}
-		try(t, cp, false)
+		try(t, text, exp, "")
 	})
 }
 
 func TestConsulACLsAPI_allowsServiceWrite(t *testing.T) {
 	t.Parallel()
 
-	try := func(t *testing.T, task string, cp *ConsulPolicy, exp bool) {
-		result := cp.allowsServiceWrite(task)
+	try := func(t *testing.T, matches bool, namespace, task string, cp *ConsulPolicy, exp bool) {
+		// If matches is false, the implication is that the consul acl token is in
+		// the default namespace, otherwise prior validation would stop the request
+		// before getting to policy checks. Only consul acl tokens in the default
+		// namespace are allowed to have namespace_prefix blocks.
+		result := cp.allowsServiceWrite(matches, namespace, task)
 		require.Equal(t, exp, result)
 	}
 
-	makeCP := func(services [][2]string, prefixes [][2]string) *ConsulPolicy {
+	// create a consul policy backed by service and/or service_prefix rules
+	//
+	// if namespace == "_", use the top level service/service_prefix rules, otherwise
+	// set the rules as a namespace_prefix ruleset
+	makeCP := func(namespace string, services [][2]string, prefixes [][2]string) *ConsulPolicy {
 		serviceRules := make([]*ConsulServiceRule, 0, len(services))
 		for _, service := range services {
 			serviceRules = append(serviceRules, &ConsulServiceRule{Name: service[0], Policy: service[1]})
@@ -107,147 +129,526 @@ func TestConsulACLsAPI_allowsServiceWrite(t *testing.T) {
 		for _, prefix := range prefixes {
 			prefixRules = append(prefixRules, &ConsulServiceRule{Name: prefix[0], Policy: prefix[1]})
 		}
-		return &ConsulPolicy{Services: serviceRules, ServicePrefixes: prefixRules}
+
+		if namespace == "_" {
+			return &ConsulPolicy{Services: serviceRules, ServicePrefixes: prefixRules}
+		}
+
+		return &ConsulPolicy{
+			Namespaces: map[string]*ConsulPolicy{
+				namespace: {
+					Services:        serviceRules,
+					ServicePrefixes: prefixRules,
+				},
+			},
+			NamespacePrefixes: map[string]*ConsulPolicy{
+				namespace: {
+					Services:        serviceRules,
+					ServicePrefixes: prefixRules,
+				},
+			}}
 	}
 
 	t.Run("matching service policy write", func(t *testing.T) {
-		try(t, "task1", makeCP(
-			[][2]string{{"task1", "write"}},
-			nil,
-		), true)
+		rule := [][2]string{{"task1", "write"}}
+		const task = "task1"
+		t.Run("namespaces match", func(t *testing.T) {
+			const matches = true
+			try(t, matches, "default", task, makeCP("_", rule, nil), true)
+			try(t, matches, "default", task, makeCP("default", rule, nil), true)
+			try(t, matches, "apple", task, makeCP("_", rule, nil), true)
+			try(t, matches, "apple", task, makeCP("apple", rule, nil), true)
+			try(t, matches, "apple", task, makeCP("app", rule, nil), true)
+			try(t, matches, "other", task, makeCP("", rule, nil), true)
+			try(t, matches, "other", task, makeCP("apple", rule, nil), false)
+		})
+		t.Run("namespaces do not match", func(t *testing.T) {
+			const matches = false
+			try(t, matches, "apple", task, makeCP("_", rule, nil), false)
+			try(t, matches, "apple", task, makeCP("apple", rule, nil), true)
+			try(t, matches, "apple", task, makeCP("app", rule, nil), true)
+			try(t, matches, "other", task, makeCP("", rule, nil), true)
+			try(t, matches, "other", task, makeCP("apple", rule, nil), false)
+		})
 	})
 
 	t.Run("matching service policy read", func(t *testing.T) {
-		try(t, "task1", makeCP(
-			[][2]string{{"task1", "read"}},
-			nil,
-		), false)
+		rule := [][2]string{{"task1", "read"}}
+		const task = "task1"
+		t.Run("namespaces match", func(t *testing.T) {
+			const matches = true
+			try(t, matches, "default", task, makeCP("_", rule, nil), false)
+			try(t, matches, "default", task, makeCP("default", rule, nil), false)
+			try(t, matches, "apple", task, makeCP("_", rule, nil), false)
+			try(t, matches, "apple", task, makeCP("apple", rule, nil), false)
+			try(t, matches, "apple", task, makeCP("app", rule, nil), false)
+			try(t, matches, "other", task, makeCP("", rule, nil), false)
+			try(t, matches, "other", task, makeCP("apple", rule, nil), false)
+		})
+		t.Run("namespaces do not match", func(t *testing.T) {
+			const matches = false
+			try(t, matches, "apple", task, makeCP("_", rule, nil), false)
+			try(t, matches, "apple", task, makeCP("apple", rule, nil), false)
+			try(t, matches, "apple", task, makeCP("app", rule, nil), false)
+			try(t, matches, "other", task, makeCP("", rule, nil), false)
+			try(t, matches, "other", task, makeCP("apple", rule, nil), false)
+		})
 	})
 
 	t.Run("wildcard service policy write", func(t *testing.T) {
-		try(t, "task1", makeCP(
-			[][2]string{{"*", "write"}},
-			nil,
-		), true)
+		rule := [][2]string{{"*", "write"}}
+		const task = "task1"
+		t.Run("namespaces match", func(t *testing.T) {
+			const matches = true
+			try(t, matches, "default", task, makeCP("_", rule, nil), true)
+			try(t, matches, "default", task, makeCP("default", rule, nil), true)
+			try(t, matches, "apple", task, makeCP("_", rule, nil), true)
+			try(t, matches, "apple", task, makeCP("app", rule, nil), true)
+			try(t, matches, "other", task, makeCP("", rule, nil), true)
+			try(t, matches, "other", task, makeCP("apple", rule, nil), false)
+		})
+		t.Run("namespaces do not match", func(t *testing.T) {
+			const matches = false
+			try(t, matches, "apple", task, makeCP("_", rule, nil), false)
+			try(t, matches, "apple", task, makeCP("app", rule, nil), true)
+			try(t, matches, "other", task, makeCP("", rule, nil), true)
+			try(t, matches, "other", task, makeCP("apple", rule, nil), false)
+		})
 	})
 
 	t.Run("wrong service policy write", func(t *testing.T) {
-		try(t, "other1", makeCP(
-			[][2]string{{"task1", "write"}},
-			nil,
-		), false)
+		rule := [][2]string{{"task1", "write"}}
+		const task = "other1"
+		t.Run("namespaces match", func(t *testing.T) {
+			const matches = true
+			try(t, matches, "default", task, makeCP("_", rule, nil), false)
+			try(t, matches, "default", task, makeCP("default", rule, nil), false)
+			try(t, matches, "apple", task, makeCP("_", rule, nil), false)
+			try(t, matches, "apple", task, makeCP("app", rule, nil), false)
+			try(t, matches, "other", task, makeCP("", rule, nil), false)
+			try(t, matches, "other", task, makeCP("apple", rule, nil), false)
+		})
+		t.Run("namespaces do not match", func(t *testing.T) {
+			const matches = true
+			try(t, matches, "apple", task, makeCP("_", rule, nil), false)
+			try(t, matches, "apple", task, makeCP("app", rule, nil), false)
+			try(t, matches, "other", task, makeCP("", rule, nil), false)
+			try(t, matches, "other", task, makeCP("apple", rule, nil), false)
+		})
 	})
 
 	t.Run("matching prefix policy write", func(t *testing.T) {
-		try(t, "task-one", makeCP(
-			nil,
-			[][2]string{{"task-", "write"}},
-		), true)
+		rule := [][2]string{{"task-", "write"}}
+		const task = "task-one"
+		t.Run("namespaces match", func(t *testing.T) {
+			const matches = true
+			try(t, matches, "default", task, makeCP("_", nil, rule), true)
+			try(t, matches, "default", task, makeCP("default", nil, rule), true)
+			try(t, matches, "apple", task, makeCP("_", nil, rule), true)
+			try(t, matches, "apple", task, makeCP("app", nil, rule), true)
+			try(t, matches, "other", task, makeCP("", nil, rule), true)
+			try(t, matches, "other", task, makeCP("apple", nil, rule), false)
+		})
+		t.Run("namespaces do not match", func(t *testing.T) {
+			const matches = false
+			try(t, matches, "apple", task, makeCP("_", nil, rule), false)
+			try(t, matches, "apple", task, makeCP("app", nil, rule), true)
+			try(t, matches, "other", task, makeCP("", nil, rule), true)
+			try(t, matches, "other", task, makeCP("apple", nil, rule), false)
+		})
 	})
 
 	t.Run("matching prefix policy read", func(t *testing.T) {
-		try(t, "task-one", makeCP(
-			nil,
-			[][2]string{{"task-", "read"}},
-		), false)
+		rule := [][2]string{{"task-", "read"}}
+		const task = "task-one"
+		t.Run("namespaces match", func(t *testing.T) {
+			const matches = true
+			try(t, matches, "default", task, makeCP("_", nil, rule), false)
+			try(t, matches, "default", task, makeCP("default", nil, rule), false)
+			try(t, matches, "apple", task, makeCP("_", nil, rule), false)
+			try(t, matches, "apple", task, makeCP("app", nil, rule), false)
+			try(t, matches, "other", task, makeCP("", nil, rule), false)
+			try(t, matches, "other", task, makeCP("apple", nil, rule), false)
+		})
+		t.Run("namespaces do not match", func(t *testing.T) {
+			const matches = false
+			try(t, matches, "apple", task, makeCP("_", nil, rule), false)
+			try(t, matches, "apple", task, makeCP("app", nil, rule), false)
+			try(t, matches, "other", task, makeCP("", nil, rule), false)
+			try(t, matches, "other", task, makeCP("apple", nil, rule), false)
+		})
 	})
 
 	t.Run("empty prefix policy write", func(t *testing.T) {
-		try(t, "task-one", makeCP(
-			nil,
-			[][2]string{{"", "write"}},
-		), true)
+		rule := [][2]string{{"", "write"}}
+		const task = "task-one"
+		t.Run("namespaces match", func(t *testing.T) {
+			const matches = true
+			try(t, matches, "default", task, makeCP("_", nil, rule), true)
+			try(t, matches, "default", task, makeCP("default", nil, rule), true)
+			try(t, matches, "apple", task, makeCP("_", nil, rule), true)
+			try(t, matches, "apple", task, makeCP("app", nil, rule), true)
+			try(t, matches, "other", task, makeCP("", nil, rule), true)
+			try(t, matches, "other", task, makeCP("apple", nil, rule), false)
+		})
+		t.Run("namespaces do not match", func(t *testing.T) {
+			const matches = false
+			try(t, matches, "apple", task, makeCP("_", nil, rule), false)
+			try(t, matches, "apple", task, makeCP("app", nil, rule), true)
+			try(t, matches, "other", task, makeCP("", nil, rule), true)
+			try(t, matches, "other", task, makeCP("apple", nil, rule), false)
+		})
 	})
 
 	t.Run("late matching service", func(t *testing.T) {
-		try(t, "task1", makeCP(
-			[][2]string{{"task0", "write"}, {"task1", "write"}},
-			nil,
-		), true)
+		rule := [][2]string{{"task0", "write"}, {"task1", "write"}}
+		const task = "task1"
+		t.Run("namespaces match", func(t *testing.T) {
+			const matches = true
+			try(t, matches, "default", task, makeCP("_", rule, nil), true)
+			try(t, matches, "default", task, makeCP("default", rule, nil), true)
+			try(t, matches, "apple", task, makeCP("_", rule, nil), true)
+			try(t, matches, "apple", task, makeCP("app", rule, nil), true)
+			try(t, matches, "other", task, makeCP("", rule, nil), true)
+			try(t, matches, "other", task, makeCP("apple", rule, nil), false)
+		})
+		t.Run("namespaces do not match", func(t *testing.T) {
+			const matches = false
+			try(t, matches, "apple", task, makeCP("_", rule, nil), false)
+			try(t, matches, "apple", task, makeCP("app", rule, nil), true)
+			try(t, matches, "other", task, makeCP("", rule, nil), true)
+			try(t, matches, "other", task, makeCP("apple", rule, nil), false)
+		})
 	})
 
 	t.Run("late matching prefix", func(t *testing.T) {
-		try(t, "task-one", makeCP(
-			nil,
-			[][2]string{{"foo-", "write"}, {"task-", "write"}},
-		), true)
+		rule := [][2]string{{"foo-", "write"}, {"task-", "write"}}
+		const task = "task-one"
+		t.Run("namespaces match", func(t *testing.T) {
+			const matches = true
+			try(t, matches, "default", task, makeCP("_", nil, rule), true)
+			try(t, matches, "default", task, makeCP("default", nil, rule), true)
+			try(t, matches, "apple", task, makeCP("_", nil, rule), true)
+			try(t, matches, "apple", task, makeCP("app", nil, rule), true)
+			try(t, matches, "other", task, makeCP("", nil, rule), true)
+			try(t, matches, "other", task, makeCP("apple", nil, rule), false)
+		})
+		t.Run("namespaces do not match", func(t *testing.T) {
+			const matches = false
+			try(t, matches, "apple", task, makeCP("_", nil, rule), false)
+			try(t, matches, "apple", task, makeCP("app", nil, rule), true)
+			try(t, matches, "other", task, makeCP("", nil, rule), true)
+			try(t, matches, "other", task, makeCP("apple", nil, rule), false)
+		})
 	})
 }
 
 func TestConsulACLsAPI_hasSufficientPolicy(t *testing.T) {
 	t.Parallel()
 
-	try := func(t *testing.T, task string, token *api.ACLToken, exp bool) {
+	try := func(t *testing.T, namespace, task string, token *api.ACLToken, exp bool) {
 		logger := testlog.HCLogger(t)
 		cAPI := &consulACLsAPI{
 			aclClient: consul.NewMockACLsAPI(logger),
 			logger:    logger,
 		}
-		result, err := cAPI.canWriteService(task, token)
+		result, err := cAPI.canWriteService(namespace, task, token)
 		require.NoError(t, err)
 		require.Equal(t, exp, result)
 	}
 
-	t.Run("no useful policy or role", func(t *testing.T) {
-		try(t, "service1", consul.ExampleOperatorToken0, false)
+	t.Run("default namespace with default token", func(t *testing.T) {
+		t.Run("no useful policy or role", func(t *testing.T) {
+			try(t, "default", "service1", consul.ExampleOperatorToken0, false)
+		})
+
+		t.Run("working policy only", func(t *testing.T) {
+			try(t, "default", "service1", consul.ExampleOperatorToken1, true)
+		})
+
+		t.Run("working role only", func(t *testing.T) {
+			try(t, "default", "service1", consul.ExampleOperatorToken4, true)
+		})
 	})
 
-	t.Run("working policy only", func(t *testing.T) {
-		try(t, "service1", consul.ExampleOperatorToken1, true)
+	t.Run("other namespace with default token", func(t *testing.T) {
+		t.Run("no useful policy or role", func(t *testing.T) {
+			try(t, "other", "service1", consul.ExampleOperatorToken0, false)
+		})
+
+		t.Run("working policy only", func(t *testing.T) {
+			try(t, "other", "service1", consul.ExampleOperatorToken1, false)
+		})
+
+		t.Run("working role only", func(t *testing.T) {
+			try(t, "other", "service1", consul.ExampleOperatorToken4, false)
+		})
 	})
 
-	t.Run("working role only", func(t *testing.T) {
-		try(t, "service1", consul.ExampleOperatorToken4, true)
+	t.Run("default namespace with banana token", func(t *testing.T) {
+		t.Run("no useful policy or role", func(t *testing.T) {
+			try(t, "default", "service1", consul.ExampleOperatorToken10, false)
+		})
+
+		t.Run("working policy only", func(t *testing.T) {
+			try(t, "default", "service1", consul.ExampleOperatorToken11, false)
+		})
+
+		t.Run("working role only", func(t *testing.T) {
+			try(t, "default", "service1", consul.ExampleOperatorToken14, false)
+		})
+	})
+
+	t.Run("banana namespace with banana token", func(t *testing.T) {
+		t.Run("no useful policy or role", func(t *testing.T) {
+			try(t, "banana", "service1", consul.ExampleOperatorToken10, false)
+		})
+
+		t.Run("working policy only", func(t *testing.T) {
+			try(t, "banana", "service1", consul.ExampleOperatorToken11, true)
+		})
+
+		t.Run("working role only", func(t *testing.T) {
+			try(t, "banana", "service1", consul.ExampleOperatorToken14, true)
+		})
 	})
 }
 
 func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
-		require.False(t, new(ConsulPolicy).allowsKeystoreRead())
+		require.False(t, new(ConsulPolicy).allowsKeystoreRead(true, "default"))
 	})
 
 	t.Run("services only", func(t *testing.T) {
-		require.False(t, (&ConsulPolicy{
+		policy := &ConsulPolicy{
 			Services: []*ConsulServiceRule{{
 				Name:   "service1",
 				Policy: "write",
 			}},
-		}).allowsKeystoreRead())
+		}
+		require.False(t, policy.allowsKeystoreRead(true, "default"))
+		require.False(t, policy.allowsKeystoreRead(false, "apple"))
 	})
 
+	// using top-level key_prefix block
+
 	t.Run("kv any read", func(t *testing.T) {
-		require.True(t, (&ConsulPolicy{
+		policy := &ConsulPolicy{
 			KeyPrefixes: []*ConsulKeyRule{{
 				Name:   "",
 				Policy: "read",
 			}},
-		}).allowsKeystoreRead())
+		}
+		require.True(t, policy.allowsKeystoreRead(true, "default"))
+		require.False(t, policy.allowsKeystoreRead(false, "apple"))
 	})
 
 	t.Run("kv any write", func(t *testing.T) {
-		require.True(t, (&ConsulPolicy{
+		policy := &ConsulPolicy{
 			KeyPrefixes: []*ConsulKeyRule{{
 				Name:   "",
 				Policy: "write",
 			}},
-		}).allowsKeystoreRead())
+		}
+		require.True(t, policy.allowsKeystoreRead(true, "default"))
+		require.False(t, policy.allowsKeystoreRead(false, "apple"))
 	})
 
 	t.Run("kv limited read", func(t *testing.T) {
-		require.False(t, (&ConsulPolicy{
+		policy := &ConsulPolicy{
 			KeyPrefixes: []*ConsulKeyRule{{
 				Name:   "foo/bar",
 				Policy: "read",
 			}},
-		}).allowsKeystoreRead())
+		}
+		require.False(t, policy.allowsKeystoreRead(true, "default"))
+		require.False(t, policy.allowsKeystoreRead(false, "apple"))
 	})
 
 	t.Run("kv limited write", func(t *testing.T) {
-		require.False(t, (&ConsulPolicy{
+		policy := &ConsulPolicy{
 			KeyPrefixes: []*ConsulKeyRule{{
 				Name:   "foo/bar",
 				Policy: "write",
 			}},
-		}).allowsKeystoreRead())
+		}
+		require.False(t, policy.allowsKeystoreRead(true, "default"))
+		require.False(t, policy.allowsKeystoreRead(false, "apple"))
+	})
+
+	// using namespace_prefix block
+
+	t.Run("kv wild namespace prefix any read", func(t *testing.T) {
+		policy := &ConsulPolicy{
+			NamespacePrefixes: map[string]*ConsulPolicy{
+				"": &ConsulPolicy{
+					KeyPrefixes: []*ConsulKeyRule{{
+						Name:   "",
+						Policy: "read",
+					}},
+				},
+			},
+		}
+		require.True(t, policy.allowsKeystoreRead(true, "default"))
+		require.True(t, policy.allowsKeystoreRead(false, "apple"))
+	})
+
+	t.Run("kv apple namespace prefix any read", func(t *testing.T) {
+		policy := &ConsulPolicy{
+			NamespacePrefixes: map[string]*ConsulPolicy{
+				"apple": &ConsulPolicy{
+					KeyPrefixes: []*ConsulKeyRule{{
+						Name:   "",
+						Policy: "read",
+					}},
+				},
+			},
+		}
+		require.False(t, policy.allowsKeystoreRead(true, "default"))
+		require.True(t, policy.allowsKeystoreRead(false, "apple"))
+	})
+
+	t.Run("kv matching namespace prefix any read", func(t *testing.T) {
+		policy := &ConsulPolicy{
+			NamespacePrefixes: map[string]*ConsulPolicy{
+				"app": &ConsulPolicy{
+					KeyPrefixes: []*ConsulKeyRule{{
+						Name:   "",
+						Policy: "read",
+					}},
+				},
+			},
+		}
+		require.False(t, policy.allowsKeystoreRead(true, "default"))
+		require.True(t, policy.allowsKeystoreRead(false, "apple"))
+	})
+
+	t.Run("kv other namespace prefix any read", func(t *testing.T) {
+		policy := &ConsulPolicy{
+			NamespacePrefixes: map[string]*ConsulPolicy{
+				"other": &ConsulPolicy{
+					KeyPrefixes: []*ConsulKeyRule{{
+						Name:   "",
+						Policy: "read",
+					}},
+				},
+			},
+		}
+		require.False(t, policy.allowsKeystoreRead(true, "default"))
+		require.False(t, policy.allowsKeystoreRead(false, "apple"))
+	})
+
+	// using namespace block
+
+	t.Run("kv match namespace any read", func(t *testing.T) {
+		policy := &ConsulPolicy{
+			Namespaces: map[string]*ConsulPolicy{
+				"apple": &ConsulPolicy{
+					KeyPrefixes: []*ConsulKeyRule{{
+						Name:   "",
+						Policy: "read",
+					}},
+				},
+			},
+		}
+		require.False(t, policy.allowsKeystoreRead(true, "default"))
+		require.True(t, policy.allowsKeystoreRead(true, "apple"))
+	})
+
+	t.Run("kv mismatch namespace any read", func(t *testing.T) {
+		policy := &ConsulPolicy{
+			Namespaces: map[string]*ConsulPolicy{
+				"other": &ConsulPolicy{
+					KeyPrefixes: []*ConsulKeyRule{{
+						Name:   "",
+						Policy: "read",
+					}},
+				},
+			},
+		}
+		require.False(t, policy.allowsKeystoreRead(true, "default"))
+		require.False(t, policy.allowsKeystoreRead(true, "apple"))
+	})
+
+	t.Run("kv matching namespace prefix any read", func(t *testing.T) {
+		policy := &ConsulPolicy{
+			Namespaces: map[string]*ConsulPolicy{
+				"apple": &ConsulPolicy{
+					KeyPrefixes: []*ConsulKeyRule{{
+						Name:   "",
+						Policy: "read",
+					}},
+				},
+			},
+		}
+		require.False(t, policy.allowsKeystoreRead(false, "default"))
+		require.True(t, policy.allowsKeystoreRead(false, "apple"))
+	})
+
+	t.Run("kv mismatch namespace prefix any read", func(t *testing.T) {
+		policy := &ConsulPolicy{
+			Namespaces: map[string]*ConsulPolicy{
+				"other": &ConsulPolicy{
+					KeyPrefixes: []*ConsulKeyRule{{
+						Name:   "",
+						Policy: "read",
+					}},
+				},
+			},
+		}
+		require.False(t, policy.allowsKeystoreRead(true, "default"))
+		require.False(t, policy.allowsKeystoreRead(true, "apple"))
+	})
+}
+
+func TestConsulPolicy_isManagementToken(t *testing.T) {
+	aclsAPI := new(consulACLsAPI)
+
+	t.Run("nil", func(t *testing.T) {
+		token := (*api.ACLToken)(nil)
+		result := aclsAPI.isManagementToken(token)
+		require.False(t, result)
+	})
+
+	t.Run("no policies", func(t *testing.T) {
+		token := &api.ACLToken{
+			Policies: []*api.ACLTokenPolicyLink{},
+		}
+		result := aclsAPI.isManagementToken(token)
+		require.False(t, result)
+	})
+
+	t.Run("management policy", func(t *testing.T) {
+		token := &api.ACLToken{
+			Policies: []*api.ACLTokenPolicyLink{{
+				ID: consulGlobalManagementPolicyID,
+			}},
+		}
+		result := aclsAPI.isManagementToken(token)
+		require.True(t, result)
+	})
+
+	t.Run("other policy", func(t *testing.T) {
+		token := &api.ACLToken{
+			Policies: []*api.ACLTokenPolicyLink{{
+				ID: uuid.Generate(),
+			}},
+		}
+		result := aclsAPI.isManagementToken(token)
+		require.False(t, result)
+	})
+
+	t.Run("mixed policies", func(t *testing.T) {
+		token := &api.ACLToken{
+			Policies: []*api.ACLTokenPolicyLink{{
+				ID: uuid.Generate(),
+			}, {
+				ID: consulGlobalManagementPolicyID,
+			}, {
+				ID: uuid.Generate(),
+			}},
+		}
+		result := aclsAPI.isManagementToken(token)
+		require.True(t, result)
 	})
 }

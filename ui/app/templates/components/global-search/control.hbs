@@ -3,6 +3,7 @@
     data-test-search
     @searchEnabled={{true}}
     @search={{perform this.search}}
+    @onInput={{action 'ensureMinimumLength'}}
     @onChange={{action 'selectOption'}}
     @onFocus={{action 'openOnClickOrTab'}}
     @onClose={{action 'onCloseEvent'}}
@@ -12,5 +13,5 @@
     @triggerComponent="global-search/trigger"
     @registerAPI={{action 'storeSelect'}}
     as |option|>
-    <GlobalSearch::Match @match={{option}} />
+    {{option.label}}
   </PowerSelect>
