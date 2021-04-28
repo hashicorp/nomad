@@ -34,7 +34,7 @@
       <span class="pair" data-test-task-group-mem>
         <span class="term">Reserved Memory</span>
         {{format-scheduled-bytes this.model.reservedMemory start="MiB"}}
-        {{#if this.model.reservedMemoryMax}}
+        {{#if (gt this.model.reservedMemoryMax this.model.reservedMemory)}}
           ({{format-scheduled-bytes this.model.reservedMemoryMax start="MiB"}} Max)
         {{/if}}
       </span>

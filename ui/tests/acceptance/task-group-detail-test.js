@@ -82,7 +82,7 @@ module('Acceptance | task group detail', function(hooks) {
   test('/jobs/:id/:task-group should list high-level metrics for the allocation', async function(assert) {
     const totalCPU = tasks.mapBy('resources.CPU').reduce(sum, 0);
     const totalMemory = tasks.mapBy('resources.MemoryMB').reduce(sum, 0);
-    const totalMemoryMax = tasks.mapBy('resources.MemoryMaxMB').reduce(sum, 0);
+    const totalMemoryMax = tasks.map(t => t.resources.MemoryMaxMB || t.resources.MemoryMB).reduce(sum, 0);
     const totalDisk = taskGroup.ephemeralDisk.SizeMB;
 
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
@@ -96,7 +96,7 @@ module('Acceptance | task group detail', function(hooks) {
 
     let totalMemoryMaxAddendum = '';
 
-    if (totalMemoryMax) {
+    if (totalMemoryMax > totalMemory) {
       totalMemoryMaxAddendum = ` (${formatScheduledBytes(totalMemoryMax, 'MiB')} Max)`;
     }
 
