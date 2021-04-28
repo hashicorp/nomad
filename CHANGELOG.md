@@ -28,6 +28,7 @@ IMPROVEMENTS:
  * networking: Added support for interpolating host network names with node attributes. [[GH-10196](https://github.com/hashicorp/nomad/issues/10196)]
  * nomad/structs: Removed deprecated Node.Drain field, added API extensions to restore it [[GH-10202](https://github.com/hashicorp/nomad/issues/10202)]
  * ui: Added a job reversion button [[GH-10336](https://github.com/hashicorp/nomad/pull/10336)]
+ * ui: Added memory maximum to task group ribbon [[GH-10459](https://github.com/hashicorp/nomad/pull/10459)]
  * ui: Updated global search to use fuzzy search API [[GH-10412](https://github.com/hashicorp/nomad/pull/10412)]
 
 BUG FIXES:
