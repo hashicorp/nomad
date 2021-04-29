@@ -144,7 +144,7 @@ export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
           ],
         }}
         image={{
-          url: require('./img/batch-workloads.png'),
+          url: require('./img/batch-workloads@3x.png'),
           alt: '',
         }}
       />

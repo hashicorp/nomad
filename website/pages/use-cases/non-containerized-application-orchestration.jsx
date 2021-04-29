@@ -91,7 +91,7 @@ export default function NonContainerizedApplicationOrchestrationPage() {
           ],
         }}
         image={{
-          url: require('./img/batch-workloads.png'),
+          url: require('./img/batch-workloads@3x.png'),
           alt: '',
         }}
       />
