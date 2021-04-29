@@ -21,11 +21,13 @@ import (
 )
 
 const (
-	ecsTaskStatusDeactivating   = "DEACTIVATING"
-	ecsTaskStatusStopping       = "STOPPING"
-	ecsTaskStatusDeprovisioning = "DEPROVISIONING"
-	ecsTaskStatusStopped        = "STOPPED"
-	ecsTaskStatusRunning        = "RUNNING"
+	// ECS Task Statuses (currently unused statuses commented out to
+	// appease linter)
+	//ecsTaskStatusDeactivating   = "DEACTIVATING"
+	//ecsTaskStatusStopping       = "STOPPING"
+	//ecsTaskStatusDeprovisioning = "DEPROVISIONING"
+	ecsTaskStatusStopped = "STOPPED"
+	ecsTaskStatusRunning = "RUNNING"
 )
 
 type RemoteTasksTest struct {
