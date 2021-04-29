@@ -57,11 +57,12 @@ export default function() {
       const json = this.serialize(jobs.all());
       const namespace = queryParams.namespace || 'default';
       return json
-        .filter(job =>
-          namespace === 'default'
+        .filter(job => {
+          if (namespace === '*') return true;
+          return namespace === 'default'
             ? !job.NamespaceID || job.NamespaceID === namespace
-            : job.NamespaceID === namespace
-        )
+            : job.NamespaceID === namespace;
+        })
         .map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
     })
   );
@@ -262,29 +263,33 @@ export default function() {
 
       const json = this.serialize(csiVolumes.all());
       const namespace = queryParams.namespace || 'default';
-      return json.filter(volume =>
-        namespace === 'default'
+      return json.filter(volume => {
+        if (namespace === '*') return true;
+        return namespace === 'default'
           ? !volume.NamespaceID || volume.NamespaceID === namespace
-          : volume.NamespaceID === namespace
-      );
+          : volume.NamespaceID === namespace;
+      });
     })
   );
 
   this.get(
     '/volume/:id',
-    withBlockingSupport(function({ csiVolumes }, { params }) {
+    withBlockingSupport(function({ csiVolumes }, { params, queryParams }) {
       if (!params.id.startsWith('csi/')) {
         return new Response(404, {}, null);
       }
 
       const id = params.id.replace(/^csi\//, '');
-      const volume = csiVolumes.find(id);
+      const volume = csiVolumes.all().models.find(volume => {
+        const volumeIsDefault = !volume.namespaceId || volume.namespaceId === 'default';
+        const qpIsDefault = !queryParams.namespace || queryParams.namespace === 'default';
+        return (
+          volume.id === id &&
+          (volume.namespaceId === queryParams.namespace || (volumeIsDefault && qpIsDefault))
+        );
+      });
 
-      if (!volume) {
-        return new Response(404, {}, null);
-      }
-
-      return this.serialize(volume);
+      return volume ? this.serialize(volume) : new Response(404, {}, null);
     })
   );
 
@@ -318,15 +323,11 @@ export default function() {
       return this.serialize(records);
     }
 
-    return new Response(501, {}, null);
+    return this.serialize([{ Name: 'default' }]);
   });
 
   this.get('/namespace/:id', function({ namespaces }, { params }) {
-    if (namespaces.all().length) {
-      return this.serialize(namespaces.find(params.id));
-    }
-
-    return new Response(501, {}, null);
+    return this.serialize(namespaces.find(params.id));
   });
 
   this.get('/agent/members', function({ agents, regions }) {

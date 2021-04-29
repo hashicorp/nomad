@@ -6,6 +6,13 @@ export default class VolumeController extends Controller {
   // Used in the template
   @service system;
 
+  queryParams = [
+    {
+      volumeNamespace: 'namespace',
+    },
+  ];
+  volumeNamespace = 'default';
+
   @computed('model.readAllocations.@each.modifyIndex')
   get sortedReadAllocations() {
     return this.model.readAllocations.sortBy('modifyIndex').reverse();

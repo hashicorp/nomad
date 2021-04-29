@@ -82,6 +82,7 @@ module('Acceptance | volumes list', function(hooks) {
     const nodeHealthStr = volume.nodesHealthy > 0 ? 'Healthy' : 'Unhealthy';
 
     assert.equal(volumeRow.name, volume.id);
+    assert.notOk(volumeRow.hasNamespace);
     assert.equal(volumeRow.schedulable, volume.schedulable ? 'Schedulable' : 'Unschedulable');
     assert.equal(volumeRow.controllerHealth, controllerHealthStr);
     assert.equal(
@@ -93,18 +94,19 @@ module('Acceptance | volumes list', function(hooks) {
   });
 
   test('each volume row should link to the corresponding volume', async function(assert) {
-    const volume = server.create('csi-volume');
+    const [, secondNamespace] = server.createList('namespace', 2);
+    const volume = server.create('csi-volume', { namespaceId: secondNamespace.id });
 
-    await VolumesList.visit();
+    await VolumesList.visit({ namespace: '*' });
 
     await VolumesList.volumes.objectAt(0).clickName();
-    assert.equal(currentURL(), `/csi/volumes/${volume.id}`);
+    assert.equal(currentURL(), `/csi/volumes/${volume.id}?namespace=${secondNamespace.id}`);
 
-    await VolumesList.visit();
-    assert.equal(currentURL(), '/csi/volumes');
+    await VolumesList.visit({ namespace: '*' });
+    assert.equal(currentURL(), '/csi/volumes?namespace=*');
 
     await VolumesList.volumes.objectAt(0).clickRow();
-    assert.equal(currentURL(), `/csi/volumes/${volume.id}`);
+    assert.equal(currentURL(), `/csi/volumes/${volume.id}?namespace=${secondNamespace.id}`);
   });
 
   test('when there are no volumes, there is an empty message', async function(assert) {
@@ -138,6 +140,16 @@ module('Acceptance | volumes list', function(hooks) {
     assert.equal(currentURL(), '/csi/volumes?search=foobar');
   });
 
+  test('when the cluster has namespaces, each volume row includes the volume namespace', async function(assert) {
+    server.createList('namespace', 2);
+    const volume = server.create('csi-volume');
+
+    await VolumesList.visit({ namespace: '*' });
+
+    const volumeRow = VolumesList.volumes.objectAt(0);
+    assert.equal(volumeRow.namespace, volume.namespaceId);
+  });
+
   test('when the namespace query param is set, only matching volumes are shown and the namespace value is forwarded to app state', async function(assert) {
     server.createList('namespace', 2);
     const volume1 = server.create('csi-volume', { namespaceId: server.db.namespaces[0].id });
@@ -159,7 +171,9 @@ module('Acceptance | volumes list', function(hooks) {
     server.createList('namespace', 2);
 
     const namespace = server.db.namespaces[1];
-    await VolumesList.visit({ namespace: namespace.id });
+    await VolumesList.visit();
+    await VolumesList.facets.namespace.toggle();
+    await VolumesList.facets.namespace.options.objectAt(2).select();
 
     await Layout.gutter.visitJobs();
 
@@ -185,4 +199,79 @@ module('Acceptance | volumes list', function(hooks) {
       await VolumesList.visit();
     },
   });
+
+  testSingleSelectFacet('Namespace', {
+    facet: VolumesList.facets.namespace,
+    paramName: 'namespace',
+    expectedOptions: ['All (*)', 'default', 'namespace-2'],
+    optionToSelect: 'namespace-2',
+    async beforeEach() {
+      server.create('namespace', { id: 'default' });
+      server.create('namespace', { id: 'namespace-2' });
+      server.createList('csi-volume', 2, { namespaceId: 'default' });
+      server.createList('csi-volume', 2, { namespaceId: 'namespace-2' });
+      await VolumesList.visit();
+    },
+    filter(volume, selection) {
+      return volume.namespaceId === selection;
+    },
+  });
+
+  function testSingleSelectFacet(
+    label,
+    { facet, paramName, beforeEach, filter, expectedOptions, optionToSelect }
+  ) {
+    test(`the ${label} facet has the correct options`, async function(assert) {
+      await beforeEach();
+      await facet.toggle();
+
+      let expectation;
+      if (typeof expectedOptions === 'function') {
+        expectation = expectedOptions(server.db.jobs);
+      } else {
+        expectation = expectedOptions;
+      }
+
+      assert.deepEqual(
+        facet.options.map(option => option.label.trim()),
+        expectation,
+        'Options for facet are as expected'
+      );
+    });
+
+    test(`the ${label} facet filters the volumes list by ${label}`, async function(assert) {
+      await beforeEach();
+      await facet.toggle();
+
+      const option = facet.options.findOneBy('label', optionToSelect);
+      const selection = option.key;
+      await option.select();
+
+      const expectedVolumes = server.db.csiVolumes
+        .filter(volume => filter(volume, selection))
+        .sortBy('id');
+
+      VolumesList.volumes.forEach((volume, index) => {
+        assert.equal(
+          volume.name,
+          expectedVolumes[index].name,
+          `Volume at ${index} is ${expectedVolumes[index].name}`
+        );
+      });
+    });
+
+    test(`selecting an option in the ${label} facet updates the ${paramName} query param`, async function(assert) {
+      await beforeEach();
+      await facet.toggle();
+
+      const option = facet.options.objectAt(1);
+      const selection = option.key;
+      await option.select();
+
+      assert.ok(
+        currentURL().includes(`${paramName}=${selection}`),
+        'URL has the correct query param key and value'
+      );
+    });
+  }
 });

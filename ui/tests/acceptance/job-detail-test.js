@@ -2,13 +2,11 @@
 import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
-import { selectChoose } from 'ember-power-select/test-support';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import moment from 'moment';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moduleForJob from 'nomad-ui/tests/helpers/module-for-job';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
-import JobsList from 'nomad-ui/tests/pages/jobs/list';
 
 moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
   server.create('job', { type: 'batch', shallow: true })
@@ -126,27 +124,6 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     await JobDetail.visit({ id: job.id, namespace: namespace.name });
 
     assert.ok(JobDetail.statFor('namespace').text, 'Namespace included in stats');
-  });
-
-  test('when switching namespaces, the app redirects to /jobs with the new namespace', async function(assert) {
-    const namespace = server.db.namespaces.find(job.namespaceId);
-    const otherNamespace = server.db.namespaces.toArray().find(ns => ns !== namespace).name;
-
-    await JobDetail.visit({ id: job.id, namespace: namespace.name });
-
-    // TODO: Migrate to Page Objects
-    await selectChoose('[data-test-namespace-switcher-parent]', otherNamespace);
-    assert.equal(currentURL().split('?')[0], '/jobs', 'Navigated to /jobs');
-
-    const jobs = server.db.jobs
-      .where({ namespace: otherNamespace })
-      .sortBy('modifyIndex')
-      .reverse();
-
-    assert.equal(JobsList.jobs.length, jobs.length, 'Shows the right number of jobs');
-    JobsList.jobs.forEach((jobRow, index) => {
-      assert.equal(jobRow.name, jobs[index].name, `Job ${index} is right`);
-    });
   });
 
   test('the exec button state can change between namespaces', async function(assert) {

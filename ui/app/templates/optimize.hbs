@@ -1,18 +1,29 @@
 <PageLayout>
   <section class="section">
-    {{#if @model}}
+    {{#if this.summaries}}
       <div class="toolbar collapse">
         <div class="toolbar-item">
-          {{#if @model}}
+          {{#if this.summaries}}
             <SearchBox
               data-test-recommendation-summaries-search
               @onChange={{this.syncActiveSummary}}
               @searchTerm={{mut this.searchTerm}}
-              @placeholder="Search {{this.model.length}} {{pluralize "recommendation" this.model.length}}..." />
+              @placeholder="Search {{this.summaries.length}} {{pluralize "recommendation" this.summaries.length}}..." />
           {{/if}}
         </div>
         <div class="toolbar-item is-right-aligned is-mobile-full-width">
           <div class="button-bar">
+            {{#if this.system.shouldShowNamespaces}}
+              <SingleSelectDropdown
+                data-test-namespace-facet
+                @label="Namespace"
+                @options={{this.optionsNamespaces}}
+                @selection={{this.qpNamespace}}
+                @onSelect={{action (queue
+                  (action this.cacheNamespace)
+                  (action this.setFacetQueryParam "qpNamespace")
+                )}} />
+            {{/if}}
             <MultiSelectDropdown
               data-test-type-facet
               @label="Type"
@@ -40,20 +51,6 @@
           </div>
         </div>
       </div>
-      {{#if this.system.shouldShowNamespaces}}
-        <div class="toolbar">
-          <div class="toolbar-item is-right-aligned is-mobile-full-width">
-            <Toggle
-              data-test-all-namespaces-toggle
-              @class="is-flex"
-              @isActive={{this.includeAllNamespaces}}
-              @onToggle={{this.toggleIncludeAllNamespaces}}
-            >
-              <div class="is-size-7 label">Include all namespaces</div>
-            </Toggle>
-          </div>
-        </div>
-      {{/if}}
 
       {{#if this.filteredSummaries}}
         {{outlet}}

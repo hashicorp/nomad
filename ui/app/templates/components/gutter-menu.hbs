@@ -23,27 +23,6 @@
           </ul>
         </div>
       {{/if}}
-      {{#if this.system.shouldShowNamespaces}}
-        <ul class="menu-list">
-          <li>
-            <div class="menu-item is-wide" data-test-namespace-switcher-parent>
-              <PowerSelect
-                data-test-namespace-switcher
-                @options={{this.sortedNamespaces}}
-                @selected={{this.system.activeNamespace}}
-                @searchField="name"
-                @searchEnabled={{gt this.sortedNamespaces.length 10}}
-                @onChange={{action this.gotoJobsForNamespace}}
-                @tagName="div"
-                @class="namespace-switcher"
-                title={{this.system.activeNamespace.name}}
-                as |namespace|>
-                <span class="ember-power-select-prefix">Namespace: </span>{{namespace.name}}
-              </PowerSelect>
-            </div>
-          </li>
-        </ul>
-      {{/if}}
       <p class="menu-label">
         Workload
       </p>
@@ -51,7 +30,6 @@
         <li>
           <LinkTo
             @route="jobs"
-            @query={{hash jobNamespace=this.system.activeNamespace.id}}
             @activeClass="is-active"
             data-test-gutter-link="jobs">
             Jobs
@@ -75,7 +53,6 @@
         <li>
           <LinkTo
             @route="csi"
-            @query={{hash volumeNamespace=this.system.activeNamespace.id}}
             @activeClass="is-active"
             data-test-gutter-link="storage">
             Storage <span class="tag is-small">Beta</span>

@@ -59,6 +59,7 @@ module('Acceptance | jobs list', function(hooks) {
     const jobRow = JobsList.jobs.objectAt(0);
 
     assert.equal(jobRow.name, job.name, 'Name');
+    assert.notOk(jobRow.hasNamespace);
     assert.equal(jobRow.link, `/ui/jobs/${job.id}`, 'Detail Link');
     assert.equal(jobRow.status, job.status, 'Status');
     assert.equal(jobRow.type, typeForJob(job), 'Type');
@@ -91,41 +92,6 @@ module('Acceptance | jobs list', function(hooks) {
 
     await JobsList.runJobButton.click();
     assert.equal(currentURL(), '/jobs');
-  });
-
-  test('the job run button state can change between namespaces', async function(assert) {
-    server.createList('namespace', 2);
-    const job1 = server.create('job', { namespaceId: server.db.namespaces[0].id });
-    const job2 = server.create('job', { namespaceId: server.db.namespaces[1].id });
-
-    window.localStorage.nomadTokenSecret = clientToken.secretId;
-
-    const policy = server.create('policy', {
-      id: 'something',
-      name: 'something',
-      rulesJSON: {
-        Namespaces: [
-          {
-            Name: job1.namespaceId,
-            Capabilities: ['list-jobs', 'submit-job'],
-          },
-          {
-            Name: job2.namespaceId,
-            Capabilities: ['list-jobs'],
-          },
-        ],
-      },
-    });
-
-    clientToken.policyIds = [policy.id];
-    clientToken.save();
-
-    await JobsList.visit();
-    assert.notOk(JobsList.runJobButton.isDisabled);
-
-    const secondNamespace = server.db.namespaces[1];
-    await JobsList.visit({ namespace: secondNamespace.id });
-    assert.ok(JobsList.runJobButton.isDisabled);
   });
 
   test('the anonymous policy is fetched to check whether to show the job run button', async function(assert) {
@@ -179,7 +145,18 @@ module('Acceptance | jobs list', function(hooks) {
     assert.equal(currentURL(), '/jobs?search=foobar', 'No page query param');
   });
 
-  test('when the namespace query param is set, only matching jobs are shown and the namespace value is forwarded to app state', async function(assert) {
+  test('when a cluster has namespaces, each job row includes the job namespace', async function(assert) {
+    server.createList('namespace', 2);
+    server.createList('job', 2);
+    const job = server.db.jobs.sortBy('modifyIndex').reverse()[0];
+
+    await JobsList.visit({ namespace: '*' });
+
+    const jobRow = JobsList.jobs.objectAt(0);
+    assert.equal(jobRow.namespace, job.namespaceId);
+  });
+
+  test('when the namespace query param is set, only matching jobs are shown', async function(assert) {
     server.createList('namespace', 2);
     const job1 = server.create('job', { namespaceId: server.db.namespaces[0].id });
     const job2 = server.create('job', { namespaceId: server.db.namespaces[1].id });
@@ -213,10 +190,28 @@ module('Acceptance | jobs list', function(hooks) {
   test('the jobs list page has appropriate faceted search options', async function(assert) {
     await JobsList.visit();
 
+    assert.ok(JobsList.facets.namespace.isHidden, 'Namespace facet not found (no namespaces)');
     assert.ok(JobsList.facets.type.isPresent, 'Type facet found');
     assert.ok(JobsList.facets.status.isPresent, 'Status facet found');
     assert.ok(JobsList.facets.datacenter.isPresent, 'Datacenter facet found');
     assert.ok(JobsList.facets.prefix.isPresent, 'Prefix facet found');
+  });
+
+  testSingleSelectFacet('Namespace', {
+    facet: JobsList.facets.namespace,
+    paramName: 'namespace',
+    expectedOptions: ['All (*)', 'default', 'namespace-2'],
+    optionToSelect: 'namespace-2',
+    async beforeEach() {
+      server.create('namespace', { id: 'default' });
+      server.create('namespace', { id: 'namespace-2' });
+      server.createList('job', 2, { namespaceId: 'default' });
+      server.createList('job', 2, { namespaceId: 'namespace-2' });
+      await JobsList.visit();
+    },
+    filter(job, selection) {
+      return job.namespaceId === selection;
+    },
   });
 
   testFacet('Type', {
@@ -352,7 +347,9 @@ module('Acceptance | jobs list', function(hooks) {
     server.createList('namespace', 2);
 
     const namespace = server.db.namespaces[1];
-    await JobsList.visit({ namespace: namespace.id });
+    await JobsList.visit();
+    await JobsList.facets.namespace.toggle();
+    await JobsList.facets.namespace.options.objectAt(2).select();
 
     await Layout.gutter.visitStorage();
 
@@ -369,23 +366,72 @@ module('Acceptance | jobs list', function(hooks) {
     },
   });
 
-  function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
+  async function facetOptions(assert, beforeEach, facet, expectedOptions) {
+    await beforeEach();
+    await facet.toggle();
+
+    let expectation;
+    if (typeof expectedOptions === 'function') {
+      expectation = expectedOptions(server.db.jobs);
+    } else {
+      expectation = expectedOptions;
+    }
+
+    assert.deepEqual(
+      facet.options.map(option => option.label.trim()),
+      expectation,
+      'Options for facet are as expected'
+    );
+  }
+
+  function testSingleSelectFacet(
+    label,
+    { facet, paramName, beforeEach, filter, expectedOptions, optionToSelect }
+  ) {
     test(`the ${label} facet has the correct options`, async function(assert) {
+      await facetOptions(assert, beforeEach, facet, expectedOptions);
+    });
+
+    test(`the ${label} facet filters the jobs list by ${label}`, async function(assert) {
       await beforeEach();
       await facet.toggle();
 
-      let expectation;
-      if (typeof expectedOptions === 'function') {
-        expectation = expectedOptions(server.db.jobs);
-      } else {
-        expectation = expectedOptions;
-      }
+      const option = facet.options.findOneBy('label', optionToSelect);
+      const selection = option.key;
+      await option.select();
 
-      assert.deepEqual(
-        facet.options.map(option => option.label.trim()),
-        expectation,
-        'Options for facet are as expected'
+      const expectedJobs = server.db.jobs
+        .filter(job => filter(job, selection))
+        .sortBy('modifyIndex')
+        .reverse();
+
+      JobsList.jobs.forEach((job, index) => {
+        assert.equal(
+          job.id,
+          expectedJobs[index].id,
+          `Job at ${index} is ${expectedJobs[index].id}`
+        );
+      });
+    });
+
+    test(`selecting an option in the ${label} facet updates the ${paramName} query param`, async function(assert) {
+      await beforeEach();
+      await facet.toggle();
+
+      const option = facet.options.objectAt(1);
+      const selection = option.key;
+      await option.select();
+
+      assert.ok(
+        currentURL().includes(`${paramName}=${selection}`),
+        'URL has the correct query param key and value'
       );
+    });
+  }
+
+  function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
+    test(`the ${label} facet has the correct options`, async function(assert) {
+      await facetOptions(assert, beforeEach, facet, expectedOptions);
     });
 
     test(`the ${label} facet filters the jobs list by ${label}`, async function(assert) {
@@ -452,9 +498,8 @@ module('Acceptance | jobs list', function(hooks) {
       await option2.toggle();
       selection.push(option2.key);
 
-      assert.equal(
-        currentURL(),
-        `/jobs?${paramName}=${encodeURIComponent(JSON.stringify(selection))}`,
+      assert.ok(
+        currentURL().includes(encodeURIComponent(JSON.stringify(selection))),
         'URL has the correct query param key and value'
       );
     });

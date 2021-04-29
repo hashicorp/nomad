@@ -6,20 +6,35 @@
   </ul>
 </div>
 <section class="section">
+  <div class="toolbar">
+    <div class="toolbar-item">
+      {{#if this.visibleVolumes.length}}
+        <SearchBox
+          data-test-volumes-search
+          @searchTerm={{mut this.searchTerm}}
+          @onChange={{action this.resetPagination}}
+          @placeholder="Search volumes..." />
+      {{/if}}
+    </div>
+    {{#if this.system.shouldShowNamespaces}}
+      <div class="toolbar-item is-right-aligned is-mobile-full-width">
+        <div class="button-bar">
+          <SingleSelectDropdown
+            data-test-namespace-facet
+            @label="Namespace"
+            @options={{this.optionsNamespaces}}
+            @selection={{this.qpNamespace}}
+            @onSelect={{action (queue
+              (action this.cacheNamespace)
+              (action this.setFacetQueryParam "qpNamespace")
+            )}} />
+        </div>
+      </div>
+    {{/if}}
+  </div>
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
-    <div class="toolbar">
-      <div class="toolbar-item">
-        {{#if this.model.length}}
-          <SearchBox
-            data-test-volumes-search
-            @searchTerm={{mut this.searchTerm}}
-            @onChange={{action this.resetPagination}}
-            @placeholder="Search volumes..." />
-        {{/if}}
-      </div>
-    </div>
     {{#if this.sortedVolumes}}
       <ListPagination
         @source={{this.sortedVolumes}}
@@ -32,6 +47,9 @@
           @class="with-foot" as |t|>
           <t.head>
             <t.sort-by @prop="name">Name</t.sort-by>
+            {{#if this.system.shouldShowNamespaces}}
+              <t.sort-by @prop="namespace.name">Namespace</t.sort-by>
+            {{/if}}
             <t.sort-by @prop="schedulable">Volume Health</t.sort-by>
             <t.sort-by @prop="controllersHealthyProportion">Controller Health</t.sort-by>
             <t.sort-by @prop="nodesHealthyProportion">Node Health</t.sort-by>
@@ -41,8 +59,17 @@
           <t.body @key="model.name" as |row|>
             <tr class="is-interactive" data-test-volume-row {{on "click" (action "gotoVolume" row.model)}}>
               <td data-test-volume-name>
-                <LinkTo @route="csi.volumes.volume" @model={{row.model.plainId}} class="is-primary">{{row.model.name}}</LinkTo>
+                <LinkTo
+                  @route="csi.volumes.volume"
+                  @model={{row.model.plainId}}
+                  @query={{hash volumeNamespace=row.model.namespace.name}}
+                  class="is-primary">
+                  {{row.model.name}}
+                </LinkTo>
               </td>
+              {{#if this.system.shouldShowNamespaces}}
+                <td data-test-volume-namespace>{{row.model.namespace.name}}</td>
+              {{/if}}
               <td data-test-volume-schedulable>{{if row.model.schedulable "Schedulable" "Unschedulable"}}</td>
               <td data-test-volume-controller-health>
                 {{#if row.model.controllerRequired}}
@@ -80,10 +107,10 @@
       </ListPagination>
     {{else}}
       <div data-test-empty-volumes-list class="empty-message">
-        {{#if (eq this.model.length 0)}}
+        {{#if (eq this.visibleVolumes.length 0)}}
           <h3 data-test-empty-volumes-list-headline class="empty-message-headline">No Volumes</h3>
           <p class="empty-message-body">
-            The cluster currently has no CSI Volumes.
+            This namespace currently has no CSI Volumes.
           </p>
         {{else if this.searchTerm}}
           <h3 data-test-empty-volumes-list-headline class="empty-message-headline">No Matches</h3>

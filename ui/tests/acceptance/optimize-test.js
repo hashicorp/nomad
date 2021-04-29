@@ -359,7 +359,7 @@ module('Acceptance | optimize', function(hooks) {
     window.localStorage.nomadTokenSecret = clientToken.secretId;
     await Optimize.visit();
 
-    assert.equal(currentURL(), '/jobs');
+    assert.equal(currentURL(), '/jobs?namespace=default');
     assert.ok(Layout.gutter.optimize.isHidden);
   });
 
@@ -444,39 +444,6 @@ module('Acceptance | optimize search and facets', function(hooks) {
     assert.ok(Optimize.recommendationSummaries[0].isActive);
   });
 
-  test('turning off the namespaces toggle narrows summaries to only the current namespace and changes an active summary if it has become filtered out', async function(assert) {
-    server.create('job', {
-      name: 'pppppp',
-      createRecommendations: true,
-      groupsCount: 1,
-      groupTaskCount: 4,
-      namespaceId: server.db.namespaces[1].id,
-    });
-
-    // Ensure this job’s recommendations are sorted to the top of the table
-    const futureSubmitTime = (Date.now() + 10000) * 1000000;
-    server.db.recommendations.update({ submitTime: futureSubmitTime });
-
-    server.create('job', {
-      name: 'oooooo',
-      createRecommendations: true,
-      groupsCount: 1,
-      groupTaskCount: 6,
-      namespaceId: server.db.namespaces[0].id,
-    });
-
-    await Optimize.visit();
-
-    assert.ok(Optimize.allNamespacesToggle.isActive);
-
-    await Optimize.allNamespacesToggle.toggle();
-
-    assert.equal(Optimize.recommendationSummaries.length, 1);
-    assert.ok(Optimize.recommendationSummaries[0].slug.startsWith('ooo'));
-    assert.ok(currentURL().includes('all-namespaces=false'));
-    assert.equal(Optimize.card.slug.jobName, 'oooooo');
-  });
-
   test('the namespaces toggle doesn’t show when there aren’t namespaces', async function(assert) {
     server.db.namespaces.remove();
 
@@ -488,7 +455,7 @@ module('Acceptance | optimize search and facets', function(hooks) {
 
     await Optimize.visit();
 
-    assert.ok(Optimize.allNamespacesToggle.isHidden);
+    assert.ok(Optimize.facets.namespace.isHidden);
   });
 
   test('processing a summary moves to the next one in the sorted list', async function(assert) {
@@ -547,10 +514,26 @@ module('Acceptance | optimize search and facets', function(hooks) {
 
     await Optimize.visit();
 
+    assert.ok(Optimize.facets.namespace.isPresent, 'Namespace facet found');
     assert.ok(Optimize.facets.type.isPresent, 'Type facet found');
     assert.ok(Optimize.facets.status.isPresent, 'Status facet found');
     assert.ok(Optimize.facets.datacenter.isPresent, 'Datacenter facet found');
     assert.ok(Optimize.facets.prefix.isPresent, 'Prefix facet found');
+  });
+
+  testSingleSelectFacet('Namespace', {
+    facet: Optimize.facets.namespace,
+    paramName: 'namespace',
+    expectedOptions: ['All (*)', 'default', 'namespace-1'],
+    optionToSelect: 'namespace-1',
+    async beforeEach() {
+      server.createList('job', 2, { namespaceId: 'default', createRecommendations: true });
+      server.createList('job', 2, { namespaceId: 'namespace-1', createRecommendations: true });
+      await Optimize.visit();
+    },
+    filter(taskGroup, selection) {
+      return taskGroup.job.namespaceId === selection;
+    },
   });
 
   testFacet('Type', {
@@ -683,23 +666,72 @@ module('Acceptance | optimize search and facets', function(hooks) {
       selection.find(prefix => taskGroup.job.name.startsWith(prefix)),
   });
 
-  function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
+  async function facetOptions(assert, beforeEach, facet, expectedOptions) {
+    await beforeEach();
+    await facet.toggle();
+
+    let expectation;
+    if (typeof expectedOptions === 'function') {
+      expectation = expectedOptions(server.db.jobs);
+    } else {
+      expectation = expectedOptions;
+    }
+
+    assert.deepEqual(
+      facet.options.map(option => option.label.trim()),
+      expectation,
+      'Options for facet are as expected'
+    );
+  }
+
+  function testSingleSelectFacet(
+    label,
+    { facet, paramName, beforeEach, filter, expectedOptions, optionToSelect }
+  ) {
     test(`the ${label} facet has the correct options`, async function(assert) {
+      await facetOptions.call(this, assert, beforeEach, facet, expectedOptions);
+    });
+
+    test(`the ${label} facet filters the jobs list by ${label}`, async function(assert) {
       await beforeEach();
       await facet.toggle();
 
-      let expectation;
-      if (typeof expectedOptions === 'function') {
-        expectation = expectedOptions(server.db.jobs);
-      } else {
-        expectation = expectedOptions;
-      }
+      const option = facet.options.findOneBy('label', optionToSelect);
+      const selection = option.key;
+      await option.select();
 
-      assert.deepEqual(
-        facet.options.map(option => option.label.trim()),
-        expectation,
-        'Options for facet are as expected'
+      const sortedRecommendations = server.db.recommendations.sortBy('submitTime').reverse();
+
+      const recommendationTaskGroups = server.schema.tasks
+        .find(sortedRecommendations.mapBy('taskId').uniq())
+        .models.mapBy('taskGroup')
+        .uniqBy('id')
+        .filter(group => filter(group, selection));
+
+      Optimize.recommendationSummaries.forEach((summary, index) => {
+        const group = recommendationTaskGroups[index];
+        assert.equal(summary.slug, `${group.job.name} / ${group.name}`);
+      });
+    });
+
+    test(`selecting an option in the ${label} facet updates the ${paramName} query param`, async function(assert) {
+      await beforeEach();
+      await facet.toggle();
+
+      const option = facet.options.objectAt(1);
+      const selection = option.key;
+      await option.select();
+
+      assert.ok(
+        currentURL().includes(`${paramName}=${selection}`),
+        'URL has the correct query param key and value'
       );
+    });
+  }
+
+  function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
+    test(`the ${label} facet has the correct options`, async function(assert) {
+      await facetOptions.call(this, assert, beforeEach, facet, expectedOptions);
     });
 
     test(`the ${label} facet filters the recommendation summaries by ${label}`, async function(assert) {

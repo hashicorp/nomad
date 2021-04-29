@@ -12,19 +12,24 @@ export default class Abstract extends Ability {
   @not('token.aclEnabled') bypassAuthorization;
   @equal('token.selfToken.type', 'management') selfTokenIsManagement;
 
-  @computed('system.activeNamespace.name')
-  get activeNamespace() {
-    return this.get('system.activeNamespace.name') || 'default';
+  // Pass in a namespace to `can` or `cannot` calls to override
+  // https://github.com/minutebase/ember-can#additional-attributes
+  namespace = 'default';
+
+  get _namespace() {
+    if (!this.namespace) return 'default';
+    if (typeof this.namespace === 'string') return this.namespace;
+    return get(this.namespace, 'name');
   }
 
-  @computed('activeNamespace', 'token.selfTokenPolicies.[]')
-  get rulesForActiveNamespace() {
-    let activeNamespace = this.activeNamespace;
+  @computed('_namespace', 'token.selfTokenPolicies.[]')
+  get rulesForNamespace() {
+    let namespace = this._namespace;
 
     return (this.get('token.selfTokenPolicies') || []).toArray().reduce((rules, policy) => {
       let policyNamespaces = get(policy, 'rulesJSON.Namespaces') || [];
 
-      let matchingNamespace = this._findMatchingNamespace(policyNamespaces, activeNamespace);
+      let matchingNamespace = this._findMatchingNamespace(policyNamespaces, namespace);
 
       if (matchingNamespace) {
         rules.push(policyNamespaces.find(namespace => namespace.Name === matchingNamespace));
@@ -46,8 +51,8 @@ export default class Abstract extends Ability {
       }, []);
   }
 
-  activeNamespaceIncludesCapability(capability) {
-    return this.rulesForActiveNamespace.some(rules => {
+  namespaceIncludesCapability(capability) {
+    return this.rulesForNamespace.some(rules => {
       let capabilities = get(rules, 'Capabilities') || [];
       return capabilities.includes(capability);
     });
@@ -64,11 +69,11 @@ export default class Abstract extends Ability {
 
   // Chooses the closest namespace as described at the bottom here:
   // https://learn.hashicorp.com/tutorials/nomad/access-control-policies?in=nomad/access-control#namespace-rules
-  _findMatchingNamespace(policyNamespaces, activeNamespace) {
+  _findMatchingNamespace(policyNamespaces, namespace) {
     let namespaceNames = policyNamespaces.mapBy('Name');
 
-    if (namespaceNames.includes(activeNamespace)) {
-      return activeNamespace;
+    if (namespaceNames.includes(namespace)) {
+      return namespace;
     }
 
     let globNamespaceNames = namespaceNames.filter(namespaceName => namespaceName.includes('*'));
@@ -77,11 +82,11 @@ export default class Abstract extends Ability {
       (mostMatching, namespaceName) => {
         // Convert * wildcards to .* for regex matching
         let namespaceNameRegExp = new RegExp(namespaceName.replace(/\*/g, '.*'));
-        let characterDifference = activeNamespace.length - namespaceName.length;
+        let characterDifference = namespace.length - namespaceName.length;
 
         if (
           characterDifference < mostMatching.mostMatchingCharacterDifference &&
-          activeNamespace.match(namespaceNameRegExp)
+          namespace.match(namespaceNameRegExp)
         ) {
           return {
             mostMatchingNamespaceName: namespaceName,

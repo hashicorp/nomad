@@ -80,7 +80,6 @@ export default class ApplicationRoute extends Route {
       (queryParam && queryParam !== currentRegion) ||
       (!queryParam && currentRegion !== defaultRegion)
     ) {
-      this.system.reset();
       this.store.unloadAll();
     }
 
@@ -91,7 +90,14 @@ export default class ApplicationRoute extends Route {
 
   // Model is being used as a way to propagate the region and
   // one time token query parameters for use in setupController.
-  model({ region }, { to: { queryParams: { ott }}}) {
+  model(
+    { region },
+    {
+      to: {
+        queryParams: { ott },
+      },
+    }
+  ) {
     return {
       region,
       hasOneTimeToken: ott,

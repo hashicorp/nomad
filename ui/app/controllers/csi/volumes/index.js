@@ -1,10 +1,12 @@
 import { inject as service } from '@ember/service';
 import { action, computed } from '@ember/object';
 import { alias, readOnly } from '@ember/object/computed';
+import { scheduleOnce } from '@ember/runloop';
 import Controller, { inject as controller } from '@ember/controller';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';
 import { lazyClick } from 'nomad-ui/helpers/lazy-click';
+import { serialize } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 
 @classic
@@ -38,6 +40,9 @@ export default class IndexController extends Controller.extend(
     {
       sortDescending: 'desc',
     },
+    {
+      qpNamespace: 'namespace',
+    },
   ];
 
   currentPage = 1;
@@ -58,21 +63,37 @@ export default class IndexController extends Controller.extend(
 
   fuzzySearchEnabled = true;
 
+  @computed('qpNamespace', 'model.namespaces.[]', 'system.cachedNamespace')
+  get optionsNamespaces() {
+    const availableNamespaces = this.model.namespaces.map(namespace => ({
+      key: namespace.name,
+      label: namespace.name,
+    }));
+
+    availableNamespaces.unshift({
+      key: '*',
+      label: 'All (*)',
+    });
+
+    // Unset the namespace selection if it was server-side deleted
+    if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
+      // eslint-disable-next-line ember/no-incorrect-calls-with-inline-anonymous-functions
+      scheduleOnce('actions', () => {
+        // eslint-disable-next-line ember/no-side-effects
+        this.set('qpNamespace', this.system.cachedNamespace || 'default');
+      });
+    }
+
+    return availableNamespaces;
+  }
+
   /**
     Visible volumes are those that match the selected namespace
   */
-  @computed('model.@each.parent', 'system.{activeNamespace.id,namespaces.length}')
+  @computed('model.volumes.@each.parent', 'system.{namespaces.length}')
   get visibleVolumes() {
-    if (!this.model) return [];
-
-    // Namespace related properties are ommitted from the dependent keys
-    // due to a prop invalidation bug caused by region switching.
-    const hasNamespaces = this.get('system.namespaces.length');
-    const activeNamespace = this.get('system.activeNamespace.id') || 'default';
-
-    return this.model
-      .compact()
-      .filter(volume => !hasNamespaces || volume.get('namespace.id') === activeNamespace);
+    if (!this.model.volumes) return [];
+    return this.model.volumes.compact();
   }
 
   @alias('visibleVolumes') listToSort;
@@ -80,7 +101,22 @@ export default class IndexController extends Controller.extend(
   @alias('listSearched') sortedVolumes;
 
   @action
+  cacheNamespace(namespace) {
+    this.system.cachedNamespace = namespace;
+  }
+
+  setFacetQueryParam(queryParam, selection) {
+    this.set(queryParam, serialize(selection));
+  }
+
+  @action
   gotoVolume(volume, event) {
-    lazyClick([() => this.transitionToRoute('csi.volumes.volume', volume.get('plainId')), event]);
+    lazyClick([
+      () =>
+        this.transitionToRoute('csi.volumes.volume', volume.get('plainId'), {
+          queryParams: { volumeNamespace: volume.get('namespace.name') },
+        }),
+      event,
+    ]);
   }
 }
