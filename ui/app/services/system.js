@@ -1,5 +1,6 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { tracked } from '@glimmer/tracking';
 import { alias } from '@ember/object/computed';
 import PromiseObject from '../utils/classes/promise-object';
 import PromiseArray from '../utils/classes/promise-array';
@@ -112,6 +113,12 @@ export default class SystemService extends Service {
     const namespaces = this.namespaces.toArray();
     return namespaces.length && namespaces.some(namespace => namespace.get('id') !== 'default');
   }
+
+  // The cachedNamespace is set on pages that have a namespaces filter.
+  // It is set so other pages that have a namespaces filter can default to
+  // what the previous namespaces filter page used rather than defaulting
+  // to 'default' or '*'.
+  @tracked cachedNamespace = null;
 
   @task(function*() {
     const emptyLicense = { License: { Features: [] } };
