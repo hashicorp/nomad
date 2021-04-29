@@ -652,8 +652,10 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 // lost. Remote task drivers rely on this to reconnect to remote tasks when the
 // allocation managing them changes due to a down or draining node.
 //
-// The previous allocation will be marked as lost as part of this plan, so its
-// ClientStatus is not yet lost.
+// The previous allocation will be marked as lost after task state has been
+// propagated (when the plan is applied), so its ClientStatus is not yet marked
+// as lost. Instead, we use the `prevLost` flag to track whether the previous
+// allocation will be marked lost.
 func propagateTaskState(newAlloc, prev *structs.Allocation, prevLost bool) {
 	// Don't transfer state from client terminal allocs
 	if prev.ClientTerminalStatus() {

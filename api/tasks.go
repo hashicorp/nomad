@@ -921,6 +921,8 @@ type TaskState struct {
 	TaskHandle *TaskHandle
 }
 
+// Experimental - TaskHandle is based on drivers.TaskHandle and used by remote
+// task drivers to migrate task handles between allocations.
 type TaskHandle struct {
 	Version     int
 	DriverState []byte
