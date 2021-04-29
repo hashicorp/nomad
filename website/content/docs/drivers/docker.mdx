@@ -12,6 +12,9 @@ The `docker` driver provides a first-class Docker workflow on Nomad. The Docker
 driver handles downloading containers, mapping ports, and starting, watching,
 and cleaning up after containers.
 
+-> **Note:** If you are using Docker Desktop for Windows or MacOS, please check
+[our FAQ][faq-win-mac].
+
 ## Task Configuration
 
 ```hcl
@@ -1127,6 +1130,7 @@ Docker for Windows only supports running Windows containers. Because Docker for
 Windows is relatively new and rapidly evolving you may want to consult the
 [list of relevant issues on GitHub][winissues].
 
+[faq-win-mac]: /docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos
 [winissues]: https://github.com/hashicorp/nomad/issues?q=is%3Aopen+is%3Aissue+label%3Atheme%2Fdriver%2Fdocker+label%3Atheme%2Fplatform-windows
 [plugin-options]: #plugin-options
 [plugin-stanza]: /docs/configuration/plugin

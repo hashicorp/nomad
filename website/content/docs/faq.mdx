@@ -57,8 +57,48 @@ all of the Nomad servers in the same outage, the cluster will re-bootstrap based
 on the Nomad defaults and any configuration present that impacts the bootstrap
 process.
 
+## Q: How to connect to my host network when using Docker Desktop (Windows and MacOS)?
+
+Since Docker is based on Linux-native technologies, Docker Desktop for Windows
+and MacOS uses a small Linux virtual machine to run containers. This extra step
+adds a layer of indirection between the network of your host (the computer you
+are currently using) and the network of the VM running your containers.
+
+This means that, by default, your Docker tasks will not be able to access
+endpoints that are available in your host network, such as a local Consul agent.
+
+In order to properly setup this connection you will need to explicitly bind
+the Nomad client to a non-loopback network interface, and anything else you
+would like to access must also be in the same interface.
+
+On Windows, we recommend you to start with the [WSL2 backend for Docker
+Desktop][wsl2-docker]. Once you are more familiarized with Nomad you can start
+running it natively.
+
+To use the network named `en0` that has the IP address `192.168.0.10`, you can
+start Nomad with this command.
+
+```shell-session
+$ sudo nomad agent -dev -bind=0.0.0.0 -network-interface=en0
+```
+
+To start Consul in the same network, you can run this command.
+
+```shell-session
+$ consul agent -dev -client=0.0.0.0 -bind=192.168.0.10
+```
+
+Now your services will be registered in Consul using the right IP and your
+tasks will be able to reach each other. To access your tasks from your host
+machine you will need to use the network interface IP address.
+
+```shell-session
+$ curl http://192.168.0.10:8080
+```
+
 [consul_dc]: https://www.consul.io/docs/agent/options#_datacenter
 [consul_fed]: https://learn.hashicorp.com/tutorials/consul/federarion-gossip-wan
 [nomad_region]: /docs/configuration#datacenter
 [`bootstrap_expect`]: /docs/configuration/server#bootstrap_expect
 [`default_scheduler_config`]: /docs/configuration/server#default_scheduler_config
+[wsl2-docker]: https://docs.docker.com/docker-for-windows/wsl/
