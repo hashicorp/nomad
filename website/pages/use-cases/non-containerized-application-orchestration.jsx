@@ -70,7 +70,7 @@ export default function NonContainerizedApplicationOrchestrationPage() {
             'Install and run Nomad easily on bare metal as a single binary and with the same ease as on cloud.',
         }}
         image={{
-          url: require('./img/run-on-prem-with-ease.svg'),
+          url: require('./img/run-on-prem-with-ease.png'),
           alt: '',
         }}
       />
