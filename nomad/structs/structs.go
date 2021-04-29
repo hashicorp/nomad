@@ -9749,6 +9749,10 @@ type AllocMetric struct {
 	// QuotaExhausted provides the exhausted dimensions
 	QuotaExhausted []string
 
+	// ResourcesExhausted provides the amount of resources exhausted by task
+	// during the allocation placement
+	ResourcesExhausted map[string]*Resources
+
 	// Scores is the scores of the final few nodes remaining
 	// for placement. The top score is typically selected.
 	// Deprecated: Replaced by ScoreMetaData in Nomad 0.9
@@ -9835,6 +9839,35 @@ func (a *AllocMetric) ExhaustQuota(dimensions []string) {
 	}
 
 	a.QuotaExhausted = append(a.QuotaExhausted, dimensions...)
+}
+
+// ExhaustResources updates the amount of resources exhausted for the
+// allocation because of the given task group.
+func (a *AllocMetric) ExhaustResources(tg *TaskGroup) {
+	if a.DimensionExhausted == nil {
+		return
+	}
+
+	if a.ResourcesExhausted == nil {
+		a.ResourcesExhausted = make(map[string]*Resources)
+	}
+
+	for _, t := range tg.Tasks {
+		exhaustedResources := a.ResourcesExhausted[t.Name]
+		if exhaustedResources == nil {
+			exhaustedResources = &Resources{}
+		}
+
+		if a.DimensionExhausted["memory"] > 0 {
+			exhaustedResources.MemoryMB += t.Resources.MemoryMB
+		}
+
+		if a.DimensionExhausted["cpu"] > 0 {
+			exhaustedResources.CPU += t.Resources.CPU
+		}
+
+		a.ResourcesExhausted[t.Name] = exhaustedResources
+	}
 }
 
 // ScoreNode is used to gather top K scoring nodes in a heap
@@ -10308,7 +10341,7 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 // ineligible, whether the job has escaped computed node classes and whether the
 // quota limit was reached.
 func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
-	escaped bool, quotaReached string) *Evaluation {
+	escaped bool, quotaReached string, failedTGAllocs map[string]*AllocMetric) *Evaluation {
 	now := time.Now().UTC().UnixNano()
 	return &Evaluation{
 		ID:                   uuid.Generate(),
@@ -10320,6 +10353,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
 		JobModifyIndex:       e.JobModifyIndex,
 		Status:               EvalStatusBlocked,
 		PreviousEval:         e.ID,
+		FailedTGAllocs:       failedTGAllocs,
 		ClassEligibility:     classEligibility,
 		EscapedComputedClass: escaped,
 		QuotaLimitReached:    quotaReached,

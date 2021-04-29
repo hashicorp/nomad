@@ -311,6 +311,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			// Check if this task group has already failed, reported to the user as a count
 			if metric, ok := s.failedTGAllocs[missing.TaskGroup.Name]; ok {
 				metric.CoalescedFailures += 1
+				metric.ExhaustResources(missing.TaskGroup)
 				continue
 			}
 
@@ -324,6 +325,9 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			if s.failedTGAllocs == nil {
 				s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 			}
+
+			// Update metrics with the resources requested by the task group.
+			s.ctx.Metrics().ExhaustResources(missing.TaskGroup)
 
 			// Actual failure to start this task on this candidate node, report it individually
 			s.failedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
@@ -417,7 +421,7 @@ func (s *SystemScheduler) addBlocked(node *structs.Node) error {
 		classEligibility = e.GetClasses()
 	}
 
-	blocked := s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached())
+	blocked := s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs)
 	blocked.StatusDescription = blockedEvalFailedPlacements
 	blocked.NodeID = node.ID
 

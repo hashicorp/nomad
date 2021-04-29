@@ -1092,6 +1092,26 @@ func Eval() *structs.Evaluation {
 	return eval
 }
 
+func BlockedEval() *structs.Evaluation {
+	e := Eval()
+	e.Status = structs.EvalStatusBlocked
+	e.FailedTGAllocs = map[string]*structs.AllocMetric{
+		"cache": {
+			DimensionExhausted: map[string]int{
+				"memory": 1,
+			},
+			ResourcesExhausted: map[string]*structs.Resources{
+				"redis": {
+					CPU:      100,
+					MemoryMB: 1024,
+				},
+			},
+		},
+	}
+
+	return e
+}
+
 func JobSummary(jobID string) *structs.JobSummary {
 	js := &structs.JobSummary{
 		JobID:     jobID,
