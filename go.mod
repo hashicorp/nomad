@@ -36,9 +36,9 @@ require (
 	github.com/coreos/go-iptables v0.4.3-0.20190724151750-969b135e941d
 	github.com/coreos/go-semver v0.3.0
 	github.com/cyphar/filepath-securejoin v0.2.3-0.20190205144030-7efe413b52e1 // indirect
-	github.com/docker/cli v0.0.0-20200303215952-eb310fca4956
+	github.com/docker/cli v0.0.0-20210129131206-eeec7e566a2d
 	github.com/docker/distribution v2.7.1+incompatible
-	github.com/docker/docker v17.12.0-ce-rc1.0.20200330121334-7f8b4b621b5d+incompatible
+	github.com/docker/docker v17.12.0-ce-rc1.0.20210128214336-420b1d36250f+incompatible
 	github.com/docker/docker-credential-helpers v0.6.2-0.20180719074751-73e5f5dbfea3 // indirect
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20200612180813-9e99af28df21
