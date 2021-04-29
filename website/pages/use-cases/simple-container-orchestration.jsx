@@ -55,7 +55,7 @@ export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
             'Install and run Nomad easily on bare metal as a single binary and with the same ease as on cloud.',
         }}
         image={{
-          url: require('./img/on-prem-with-ease.svg'),
+          url: require('./img/simple-container-orchestration/run-on-prem-with-ease.svg?url'),
           alt: '',
         }}
       />
@@ -95,20 +95,18 @@ export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
         codeBlock={codeBlocks.multiRegionFederation}
       />
 
-      <div className="with-border">
-        <TextSplitWithImage
-          textSplit={{
-            heading: 'Edge Deployment with Simple Topology',
-            content:
-              'Deploy Nomad with a simple cluster topology on hybrid infrastructure to place workloads to the cloud or at the edge.',
-            textSide: 'right',
-          }}
-          image={{
-            url: require('./img/edge-deployment.svg'),
-            alt: '',
-          }}
-        />
-      </div>
+      <TextSplitWithImage
+        textSplit={{
+          heading: 'Edge Deployment with Simple Topology',
+          content:
+            'Deploy Nomad with a simple cluster topology on hybrid infrastructure to place workloads to the cloud or at the edge.',
+          textSide: 'right',
+        }}
+        image={{
+          url: require('./img/simple-container-orchestration/edge.png'),
+          alt: '',
+        }}
+      />
 
       <TextSplitWithImage
         textSplit={{
@@ -125,33 +123,31 @@ export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
           ],
         }}
         image={{
-          url: require('./img/zero-downtime-deployments.png'),
+          url: require('./img/simple-container-orchestration/zero-downtime.png'),
           alt: 'Zero Downtime Deployments',
         }}
       />
 
-      <div className="with-border">
-        <TextSplitWithImage
-          textSplit={{
-            heading: 'High Performance Batch Workloads',
-            content:
-              'Run batch jobs with proven scalability of thousands of deployments per second via the batch scheduler.',
-            textSide: 'right',
-            links: [
-              {
-                text: 'Watch tech presentation from Citadel',
-                url:
-                  'https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel',
-                type: 'outbound',
-              },
-            ],
-          }}
-          image={{
-            url: require('./img/high-performance-batch-workloads.png'),
-            alt: '',
-          }}
-        />
-      </div>
+      <TextSplitWithImage
+        textSplit={{
+          heading: 'High Performance Batch Workloads',
+          content:
+            'Run batch jobs with proven scalability of thousands of deployments per second via the batch scheduler.',
+          textSide: 'right',
+          links: [
+            {
+              text: 'Watch tech presentation from Citadel',
+              url:
+                'https://www.hashicorp.com/resources/end-to-end-production-nomad-citadel',
+              type: 'outbound',
+            },
+          ],
+        }}
+        image={{
+          url: require('./img/simple-container-orchestration/batch-workloads.png'),
+          alt: '',
+        }}
+      />
 
       <TextSplitWithImage
         textSplit={{
@@ -181,7 +177,7 @@ export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
           textSide: 'right',
         }}
         image={{
-          url: require('./img/csi.svg'),
+          url: require('./img/simple-container-orchestration/stateful-workloads@3x.png'),
           alt: 'Stateful Workloads',
         }}
       />
@@ -193,7 +189,7 @@ export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
             'Deploy containerized applications with customized network configurations from third-party vendors via Container Network Interface plugin system',
         }}
         image={{
-          url: require('./img/cni.svg'),
+          url: require('./img/simple-container-orchestration/networking-capabilities@3x.png'),
           alt: 'Flexible Networking Capabilities',
         }}
       />
