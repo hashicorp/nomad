@@ -25,6 +25,7 @@ IMPROVEMENTS:
  * csi: Added support for jobs to request a unique volume ID per allocation. [[GH-10136](https://github.com/hashicorp/nomad/issues/10136)]
  * driver/docker: Added support for optional extra container labels. [[GH-9885](https://github.com/hashicorp/nomad/issues/9885)]
  * driver/docker: Added support for configuring default logger behavior in the client configuration. [[GH-10156](https://github.com/hashicorp/nomad/issues/10156)]
+ * metrics: Added blocked evaluation resources metrics [[GH-10454](https://github.com/hashicorp/nomad/pull/10454)]
  * networking: Added support for user-defined iptables rules on the NOMAD-ADMIN chain. [[GH-10181](https://github.com/hashicorp/nomad/issues/10181)]
  * networking: Added support for interpolating host network names with node attributes. [[GH-10196](https://github.com/hashicorp/nomad/issues/10196)]
  * nomad/structs: Removed deprecated Node.Drain field, added API extensions to restore it [[GH-10202](https://github.com/hashicorp/nomad/issues/10202)]
