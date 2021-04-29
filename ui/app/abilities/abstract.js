@@ -17,6 +17,7 @@ export default class Abstract extends Ability {
   namespace = 'default';
 
   get _namespace() {
+    if (!this.namespace) return 'default';
     if (typeof this.namespace === 'string') return this.namespace;
     return get(this.namespace, 'name');
   }
