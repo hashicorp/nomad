@@ -333,7 +333,7 @@ export default function Homepage() {
               image: {
                 alt: null,
                 format: 'png',
-                url: require('./img/use-cases/simple-container-orchestration.svg'),
+                url: require('./img/use-cases/simple_container_orchestration_icon.svg?url'),
               },
               link: {
                 external: false,
@@ -348,7 +348,7 @@ export default function Homepage() {
               image: {
                 alt: null,
                 format: 'png',
-                url: require('./img/use-cases/non-containerized-application-orchestration.svg'),
+                url: require('./img/use-cases/non-containerized_app_orch_icon.svg?url'),
               },
               link: {
                 external: false,
@@ -363,7 +363,7 @@ export default function Homepage() {
               image: {
                 alt: null,
                 format: 'png',
-                url: require('./img/use-cases/automated-service-networking-with-consul.svg'),
+                url: require('./img/use-cases/automated_service_networking_icon.svg?url'),
               },
               link: {
                 external: false,

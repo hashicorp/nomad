@@ -1,7 +1,7 @@
 .g-homepage-hero {
   background-repeat: no-repeat;
   background-color: var(--nomad-secondary);
-  background-image: url(/img/nomad-hero-pattern.svg);
+  background-image: url(/img/nomad-bg-pattern.svg);
   width: 100%;
   background-size: cover;
   background-position: center;
