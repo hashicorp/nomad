@@ -149,7 +149,7 @@ type SchedulerConfiguration struct {
 	// priority jobs to place higher priority jobs.
 	PreemptionConfig PreemptionConfig `hcl:"preemption_config"`
 
-	MemoryOversubscriptionEnabled bool `hcl:"memory_oversubscription"`
+	MemoryOversubscriptionEnabled bool `hcl:"memory_oversubscription_enabled"`
 
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
