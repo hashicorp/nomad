@@ -10,7 +10,11 @@
     <StatsTimeSeries @data={{this.series}} @dataProp="data" >
       <:svg as |c|>
         {{#each (reverse this.series) as |series idx|}}
-          <c.Area @data={{series.data}} @colorScale={{this.colorScale}} @index={{idx}} />
+          <c.Area
+            @data={{series.data}}
+            @colorScale={{this.colorScale}}
+            @index={{idx}}
+            data-test-task-name={{series.name}} />
         {{/each}}
       </:svg>
       <:after as |c|>
