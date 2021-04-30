@@ -3348,6 +3348,98 @@ func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
 	}
 }
 
+// TestServiceSched_NodeDrain_TaskHandle asserts that allocations with task
+// handles have them propagated to replacement allocations when drained.
+func TestServiceSched_NodeDrain_TaskHandle(t *testing.T) {
+	h := NewHarness(t)
+
+	node := mock.Node()
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// Create some nodes
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations and an update policy.
+	job := mock.Job()
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = node.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
+		alloc.TaskStates = map[string]*structs.TaskState{
+			"web": &structs.TaskState{
+				TaskHandle: &structs.TaskHandle{
+					Version:     1,
+					DriverState: []byte("test-driver-state"),
+				},
+			},
+		}
+		allocs = append(allocs, alloc)
+	}
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+	node.DrainStrategy = mock.DrainNode().DrainStrategy
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// Create a mock evaluation to deal with drain
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		NodeID:      node.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	require.NoError(t, err)
+
+	// Ensure a single plan
+	require.Len(t, h.Plans, 1)
+	plan := h.Plans[0]
+
+	// Ensure the plan evicted all allocs
+	require.Len(t, plan.NodeUpdate[node.ID], len(allocs))
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	require.Len(t, planned, len(allocs))
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	require.NoError(t, err)
+
+	// Ensure all allocations placed
+	out, _ = structs.FilterTerminalAllocs(out)
+	require.Len(t, out, len(allocs))
+
+	// Ensure task states were propagated
+	for _, a := range out {
+		require.NotEmpty(t, a.TaskStates)
+		require.NotEmpty(t, a.TaskStates["web"])
+		require.NotNil(t, a.TaskStates["web"].TaskHandle)
+		assert.Equal(t, 1, a.TaskStates["web"].TaskHandle.Version)
+		assert.Equal(t, []byte("test-driver-state"), a.TaskStates["web"].TaskHandle.DriverState)
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func TestServiceSched_RetryLimit(t *testing.T) {
 	h := NewHarness(t)
 	h.Planner = &RejectPlan{h}
@@ -6095,4 +6187,122 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 		seen[alloc.NodeID] = struct{}{}
 	}
 
+}
+
+// TestPropagateTaskState asserts that propagateTaskState only copies state
+// when the previous allocation is lost or draining.
+func TestPropagateTaskState(t *testing.T) {
+	t.Parallel()
+
+	const taskName = "web"
+	taskHandle := &structs.TaskHandle{
+		Version:     1,
+		DriverState: []byte("driver-state"),
+	}
+
+	cases := []struct {
+		name      string
+		prevAlloc *structs.Allocation
+		prevLost  bool
+		copied    bool
+	}{
+		{
+			name: "LostWithState",
+			prevAlloc: &structs.Allocation{
+				ClientStatus:      structs.AllocClientStatusRunning,
+				DesiredTransition: structs.DesiredTransition{},
+				TaskStates: map[string]*structs.TaskState{
+					taskName: &structs.TaskState{
+						TaskHandle: taskHandle,
+					},
+				},
+			},
+			prevLost: true,
+			copied:   true,
+		},
+		{
+			name: "DrainedWithState",
+			prevAlloc: &structs.Allocation{
+				ClientStatus: structs.AllocClientStatusRunning,
+				DesiredTransition: structs.DesiredTransition{
+					Migrate: helper.BoolToPtr(true),
+				},
+				TaskStates: map[string]*structs.TaskState{
+					taskName: &structs.TaskState{
+						TaskHandle: taskHandle,
+					},
+				},
+			},
+			prevLost: false,
+			copied:   true,
+		},
+		{
+			name: "LostWithoutState",
+			prevAlloc: &structs.Allocation{
+				ClientStatus:      structs.AllocClientStatusRunning,
+				DesiredTransition: structs.DesiredTransition{},
+				TaskStates: map[string]*structs.TaskState{
+					taskName: &structs.TaskState{},
+				},
+			},
+			prevLost: true,
+			copied:   false,
+		},
+		{
+			name: "DrainedWithoutState",
+			prevAlloc: &structs.Allocation{
+				ClientStatus: structs.AllocClientStatusRunning,
+				DesiredTransition: structs.DesiredTransition{
+					Migrate: helper.BoolToPtr(true),
+				},
+				TaskStates: map[string]*structs.TaskState{
+					taskName: &structs.TaskState{},
+				},
+			},
+			prevLost: false,
+			copied:   false,
+		},
+		{
+			name: "TerminalWithState",
+			prevAlloc: &structs.Allocation{
+				ClientStatus:      structs.AllocClientStatusComplete,
+				DesiredTransition: structs.DesiredTransition{},
+				TaskStates: map[string]*structs.TaskState{
+					taskName: &structs.TaskState{
+						TaskHandle: taskHandle,
+					},
+				},
+			},
+			prevLost: false,
+			copied:   false,
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			newAlloc := &structs.Allocation{
+				// Required by propagateTaskState and populated
+				// by the scheduler's node iterator.
+				AllocatedResources: &structs.AllocatedResources{
+					Tasks: map[string]*structs.AllocatedTaskResources{
+						taskName: nil, // value isn't used
+					},
+				},
+			}
+
+			propagateTaskState(newAlloc, tc.prevAlloc, tc.prevLost)
+
+			if tc.copied {
+				// Assert state was copied
+				require.NotNil(t, newAlloc.TaskStates)
+				require.Contains(t, newAlloc.TaskStates, taskName)
+				require.Equal(t, taskHandle, newAlloc.TaskStates[taskName].TaskHandle)
+			} else {
+				// Assert state was *not* copied
+				require.Empty(t, newAlloc.TaskStates,
+					"expected task states not to be copied")
+			}
+		})
+	}
 }

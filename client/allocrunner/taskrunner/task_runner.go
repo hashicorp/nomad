@@ -377,7 +377,8 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		return nil, err
 	}
 
-	// Initialize the runners hooks.
+	// Initialize the runners hooks. Must come after initDriver so hooks
+	// can use tr.driverCapabilities
 	tr.initHooks()
 
 	// Initialize base labels
@@ -496,6 +497,7 @@ func (tr *TaskRunner) Run() {
 		tr.logger.Info("task failed to restore; waiting to contact server before restarting")
 		select {
 		case <-tr.killCtx.Done():
+			tr.logger.Info("task killed while waiting for server contact")
 		case <-tr.shutdownCtx.Done():
 			return
 		case <-tr.serversContactedCh:
@@ -637,11 +639,12 @@ MAIN:
 }
 
 func (tr *TaskRunner) shouldShutdown() bool {
-	if tr.alloc.ClientTerminalStatus() {
+	alloc := tr.Alloc()
+	if alloc.ClientTerminalStatus() {
 		return true
 	}
 
-	if !tr.IsPoststopTask() && tr.alloc.ServerTerminalStatus() {
+	if !tr.IsPoststopTask() && alloc.ServerTerminalStatus() {
 		return true
 	}
 
@@ -1140,6 +1143,12 @@ func (tr *TaskRunner) UpdateState(state string, event *structs.TaskEvent) {
 		// Only log the error as we persistence errors should not
 		// affect task state.
 		tr.logger.Error("error persisting task state", "error", err, "event", event, "state", state)
+	}
+
+	// Store task handle for remote tasks
+	if tr.driverCapabilities != nil && tr.driverCapabilities.RemoteTasks {
+		tr.logger.Trace("storing remote task handle state")
+		tr.localState.TaskHandle.Store(tr.state)
 	}
 
 	// Notify the alloc runner of the transition

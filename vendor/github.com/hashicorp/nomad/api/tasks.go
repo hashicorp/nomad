@@ -915,6 +915,17 @@ type TaskState struct {
 	StartedAt   time.Time
 	FinishedAt  time.Time
 	Events      []*TaskEvent
+
+	// Experimental -  TaskHandle is based on drivers.TaskHandle and used
+	// by remote task drivers to migrate task handles between allocations.
+	TaskHandle *TaskHandle
+}
+
+// Experimental - TaskHandle is based on drivers.TaskHandle and used by remote
+// task drivers to migrate task handles between allocations.
+type TaskHandle struct {
+	Version     int
+	DriverState []byte
 }
 
 const (

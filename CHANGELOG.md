@@ -6,6 +6,7 @@ FEATURES:
  * **Licensing (Enterprise)**: Support loading Enterprise license from disk or environment. [[GH-10216](https://github.com/hashicorp/nomad/issues/10216)]
  * **`nomad ui -authenticate`**: Added the authenticate flag to open the UI with the ACL token. [[GH-10097](https://github.com/hashicorp/nomad/issues/10097)] [[GH-10066](https://github.com/hashicorp/nomad/pull/10066)]
  * **Readiness Checks**: Added `service` and `check` `on_update` configuration to support liveness and readiness checks. [[GH-9955](https://github.com/hashicorp/nomad/issues/9955)]
+ * **Remote Task Drivers (Tech Preview)**: Added support for remote task drivers, such as AWS ECS, where tasks are not colocated on the same host as the Nomad client agent [[GH-10248](https://github.com/hashicorp/nomad/issues/10248)]
 
 __BACKWARDS INCOMPATIBILITIES:__
  * csi: The `attachment_mode` and `access_mode` field are required for `volume` blocks in job specifications. Registering a volume requires at least one `capability` block with the `attachment_mode` and `access_mode` fields set. [[GH-10330](https://github.com/hashicorp/nomad/issues/10330)]

@@ -19,6 +19,7 @@ var _ interfaces.TaskPoststartHook = &serviceHook{}
 var _ interfaces.TaskPreKillHook = &serviceHook{}
 var _ interfaces.TaskExitedHook = &serviceHook{}
 var _ interfaces.TaskStopHook = &serviceHook{}
+var _ interfaces.TaskUpdateHook = &serviceHook{}
 
 type serviceHookConfig struct {
 	alloc           *structs.Allocation

@@ -31,6 +31,7 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/periodic"
 	_ "github.com/hashicorp/nomad/e2e/podman"
 	_ "github.com/hashicorp/nomad/e2e/quotas"
+	_ "github.com/hashicorp/nomad/e2e/remotetasks"
 	_ "github.com/hashicorp/nomad/e2e/rescheduling"
 	_ "github.com/hashicorp/nomad/e2e/scaling"
 	_ "github.com/hashicorp/nomad/e2e/scalingpolicies"
