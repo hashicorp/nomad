@@ -590,7 +590,7 @@ export default function() {
     const transformedAllocs = matchedAllocs.models.map(alloc => ({
       ID: alloc.name,
       Scope: [
-        alloc.namespace.id,
+        (alloc.namespace || {}).id,
         alloc.id,
       ],
     }));
