@@ -34,7 +34,9 @@ job "docs" {
 
 - `cpu` `(int: 100)` - Specifies the CPU required to run this task in MHz.
 
-- `memory` `(int: 300)` - Specifies the memory required in MB
+- `memory` `(int: 300)` - Specifies the memory required in MB.
+
+- `memory_max` <code>(`int`: &lt;optional&gt;)</code> - Optionally, specifies the maximum memory the task may use, if the client has excess memory capacity, in MB.
 
 - `device` <code>([Device][]: &lt;optional&gt;)</code> - Specifies the device
   requirements. This may be repeated to request multiple device types.
