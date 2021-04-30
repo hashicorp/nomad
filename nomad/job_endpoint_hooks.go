@@ -235,7 +235,7 @@ func (v *memoryOversubscriptionValidate) Validate(job *structs.Job) (warnings []
 	for _, tg := range job.TaskGroups {
 		for _, t := range tg.Tasks {
 			if t.Resources != nil && t.Resources.MemoryMaxMB != 0 {
-				warnings = append(warnings, fmt.Errorf("Memory oversubscription is not enabled; Task %v.%v memory_max value will be ignored", tg.Name, t.Name))
+				warnings = append(warnings, fmt.Errorf("Memory oversubscription is not enabled; Task \"%v.%v\" memory_max value will be ignored. Update the Scheduler Configuration to allow oversubscription.", tg.Name, t.Name))
 			}
 		}
 	}
