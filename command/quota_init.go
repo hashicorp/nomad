@@ -109,17 +109,18 @@ func (c *QuotaInitCommand) Run(args []string) int {
 }
 
 var defaultHclQuotaSpec = strings.TrimSpace(`
-name = "default-quota"
+name        = "default-quota"
 description = "Limit the shared default namespace"
 
 # Create a limit for the global region. Additional limits may
 # be specified in-order to limit other regions.
 limit {
-    region = "global"
-    region_limit {
-        cpu = 2500
-        memory = 1000
-    }
+  region = "global"
+  region_limit {
+    cpu        = 2500
+    memory     = 1000
+    memory_max = 1000
+  }
 }
 `)
 
@@ -132,7 +133,8 @@ var defaultJsonQuotaSpec = strings.TrimSpace(`
 			"Region": "global",
 			"RegionLimit": {
 				"CPU": 2500,
-				"MemoryMB": 1000
+				"MemoryMB": 1000,
+				"MemoryMaxMB": 1000
 			}
 		}
 	]
