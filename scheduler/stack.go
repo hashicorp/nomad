@@ -255,13 +255,12 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// by a particular task group. Enable eviction as system jobs are high
 	// priority.
 	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
-	schedulerAlgorithm := schedConfig.EffectiveSchedulerAlgorithm()
 	enablePreemption := true
 	if schedConfig != nil {
 		enablePreemption = schedConfig.PreemptionConfig.SystemSchedulerEnabled
 	}
 
-	s.binPack = NewBinPackIterator(ctx, rankSource, enablePreemption, 0, schedulerAlgorithm)
+	s.binPack = NewBinPackIterator(ctx, rankSource, enablePreemption, 0, schedConfig)
 
 	// Apply score normalization
 	s.scoreNorm = NewScoreNormalizationIterator(ctx, s.binPack)
@@ -381,7 +380,7 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group.
 	_, schedConfig, _ := ctx.State().SchedulerConfig()
-	s.binPack = NewBinPackIterator(ctx, rankSource, false, 0, schedConfig.EffectiveSchedulerAlgorithm())
+	s.binPack = NewBinPackIterator(ctx, rankSource, false, 0, schedConfig)
 
 	// Apply the job anti-affinity iterator. This is to avoid placing
 	// multiple allocations on the same node for this job.

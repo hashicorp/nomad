@@ -108,27 +108,45 @@ func TestServiceSched_JobRegister(t *testing.T) {
 func TestServiceSched_JobRegister_MemoryMaxHonored(t *testing.T) {
 
 	cases := []struct {
-		name      string
-		cpu       int
-		memory    int
-		memoryMax int
+		name                          string
+		cpu                           int
+		memory                        int
+		memoryMax                     int
+		memoryOversubscriptionEnabled bool
 
+		expectedTaskMemoryMax int
 		// expectedTotalMemoryMax should be SUM(MAX(memory, memoryMax)) for all tasks
 		expectedTotalMemoryMax int
 	}{
 		{
-			name:                   "plain no max",
-			cpu:                    100,
-			memory:                 200,
-			memoryMax:              0,
+			name:                          "plain no max",
+			cpu:                           100,
+			memory:                        200,
+			memoryMax:                     0,
+			memoryOversubscriptionEnabled: true,
+
+			expectedTaskMemoryMax:  0,
 			expectedTotalMemoryMax: 200,
 		},
 		{
-			name:                   "with max",
-			cpu:                    100,
-			memory:                 200,
-			memoryMax:              300,
+			name:                          "with max",
+			cpu:                           100,
+			memory:                        200,
+			memoryMax:                     300,
+			memoryOversubscriptionEnabled: true,
+
+			expectedTaskMemoryMax:  300,
 			expectedTotalMemoryMax: 300,
+		},
+		{
+			name:      "with max but disabled",
+			cpu:       100,
+			memory:    200,
+			memoryMax: 300,
+
+			memoryOversubscriptionEnabled: false,
+			expectedTaskMemoryMax:         0,
+			expectedTotalMemoryMax:        200, // same as no max
 		},
 	}
 
@@ -144,6 +162,9 @@ func TestServiceSched_JobRegister_MemoryMaxHonored(t *testing.T) {
 			res.MemoryMaxMB = c.memoryMax
 
 			h := NewHarness(t)
+			h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{
+				MemoryOversubscriptionEnabled: c.memoryOversubscriptionEnabled,
+			})
 
 			// Create some nodes
 			for i := 0; i < 10; i++ {
@@ -180,12 +201,12 @@ func TestServiceSched_JobRegister_MemoryMaxHonored(t *testing.T) {
 			// checking new resources field deprecated Resources fields
 			require.Equal(t, int64(c.cpu), alloc.AllocatedResources.Tasks[task].Cpu.CpuShares)
 			require.Equal(t, int64(c.memory), alloc.AllocatedResources.Tasks[task].Memory.MemoryMB)
-			require.Equal(t, int64(c.memoryMax), alloc.AllocatedResources.Tasks[task].Memory.MemoryMaxMB)
+			require.Equal(t, int64(c.expectedTaskMemoryMax), alloc.AllocatedResources.Tasks[task].Memory.MemoryMaxMB)
 
 			// checking old deprecated Resources fields
 			require.Equal(t, c.cpu, alloc.TaskResources[task].CPU)
 			require.Equal(t, c.memory, alloc.TaskResources[task].MemoryMB)
-			require.Equal(t, c.memoryMax, alloc.TaskResources[task].MemoryMaxMB)
+			require.Equal(t, c.expectedTaskMemoryMax, alloc.TaskResources[task].MemoryMaxMB)
 
 			// check total resource fields - alloc.Resources deprecated field, no modern equivalent
 			require.Equal(t, c.cpu, alloc.Resources.CPU)

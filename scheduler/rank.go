@@ -149,30 +149,33 @@ func (iter *StaticRankIterator) Reset() {
 // BinPackIterator is a RankIterator that scores potential options
 // based on a bin-packing algorithm.
 type BinPackIterator struct {
-	ctx       Context
-	source    RankIterator
-	evict     bool
-	priority  int
-	jobId     *structs.NamespacedID
-	taskGroup *structs.TaskGroup
-	scoreFit  func(*structs.Node, *structs.ComparableResources) float64
+	ctx                    Context
+	source                 RankIterator
+	evict                  bool
+	priority               int
+	jobId                  *structs.NamespacedID
+	taskGroup              *structs.TaskGroup
+	memoryOversubscription bool
+	scoreFit               func(*structs.Node, *structs.ComparableResources) float64
 }
 
 // NewBinPackIterator returns a BinPackIterator which tries to fit tasks
 // potentially evicting other tasks based on a given priority.
-func NewBinPackIterator(ctx Context, source RankIterator, evict bool, priority int, algorithm structs.SchedulerAlgorithm) *BinPackIterator {
+func NewBinPackIterator(ctx Context, source RankIterator, evict bool, priority int, schedConfig *structs.SchedulerConfiguration) *BinPackIterator {
 
+	algorithm := schedConfig.EffectiveSchedulerAlgorithm()
 	scoreFn := structs.ScoreFitBinPack
 	if algorithm == structs.SchedulerAlgorithmSpread {
 		scoreFn = structs.ScoreFitSpread
 	}
 
 	iter := &BinPackIterator{
-		ctx:      ctx,
-		source:   source,
-		evict:    evict,
-		priority: priority,
-		scoreFit: scoreFn,
+		ctx:                    ctx,
+		source:                 source,
+		evict:                  evict,
+		priority:               priority,
+		memoryOversubscription: schedConfig != nil && schedConfig.MemoryOversubscriptionEnabled,
+		scoreFit:               scoreFn,
 	}
 	iter.ctx.Logger().Named("binpack").Trace("NewBinPackIterator created", "algorithm", algorithm)
 	return iter
@@ -326,9 +329,11 @@ OUTER:
 					CpuShares: int64(task.Resources.CPU),
 				},
 				Memory: structs.AllocatedMemoryResources{
-					MemoryMB:    int64(task.Resources.MemoryMB),
-					MemoryMaxMB: int64(task.Resources.MemoryMaxMB),
+					MemoryMB: int64(task.Resources.MemoryMB),
 				},
+			}
+			if iter.memoryOversubscription {
+				taskResources.Memory.MemoryMaxMB = int64(task.Resources.MemoryMaxMB)
 			}
 
 			// Check if we need a network resource

@@ -71,6 +71,7 @@ func NewJobEndpoints(s *Server) *Job {
 			jobConnectHook{},
 			jobExposeCheckHook{},
 			jobValidate{},
+			&memoryOversubscriptionValidate{srv: s},
 		},
 	}
 }
