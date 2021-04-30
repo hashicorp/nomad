@@ -52,6 +52,7 @@ BUG FIXES:
  * cli: Remove extra linefeeds in monitor.log files written by `nomad operator debug`. [[GH-10252](https://github.com/hashicorp/nomad/issues/10252)]
  * client: Fixed log formatting when killing tasks. [[GH-10135](https://github.com/hashicorp/nomad/issues/10135)]
  * client: Fixed a bug where small files would be assigned the wrong content type. [[GH-10348](https://github.com/hashicorp/nomad/pull/10348)]
+ * consul/connect: Fixed a bug where job plan always different when using expose checks. [[GH-10492](https://github.com/hashicorp/nomad/pull/10492)]
  * consul/connect: Fixed a bug where HTTP ingress gateways could not use wildcard names. [[GH-10457](https://github.com/hashicorp/nomad/pull/10457)]
  * csi: Fixed a bug where volume with IDs that are a substring prefix of another volume could use the wrong volume for feasibility checking. [[GH-10158](https://github.com/hashicorp/nomad/issues/10158)]
  * scheduler: Fixed a bug where Nomad reports negative or incorrect running children counts for periodic jobs. [[GH-10145](https://github.com/hashicorp/nomad/issues/10145)]
