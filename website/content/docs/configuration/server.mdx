@@ -300,6 +300,8 @@ server {
   default_scheduler_config {
     scheduler_algorithm = "spread"
 
+    memory_oversubscription_enabled = true
+
     preemption_config {
       batch_scheduler_enabled   = true
       system_scheduler_enabled  = true
