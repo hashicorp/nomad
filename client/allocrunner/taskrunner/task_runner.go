@@ -569,7 +569,7 @@ MAIN:
 				case <-tr.killCtx.Done():
 					// We can go through the normal should restart check since
 					// the restart tracker knowns it is killed
-					result = tr.handleKill()
+					result = tr.handleKill(resultCh)
 				case <-tr.shutdownCtx.Done():
 					// TaskRunner was told to exit immediately
 					return
@@ -616,7 +616,7 @@ MAIN:
 	// that should be terminal, so if the handle still exists we should
 	// kill it here.
 	if tr.getDriverHandle() != nil {
-		if result = tr.handleKill(); result != nil {
+		if result = tr.handleKill(nil); result != nil {
 			tr.emitExitResultEvent(result)
 		}
 
@@ -883,7 +883,7 @@ func (tr *TaskRunner) initDriver() error {
 // handleKill is used to handle the a request to kill a task. It will return
 // the handle exit result if one is available and store any error in the task
 // runner killErr value.
-func (tr *TaskRunner) handleKill() *drivers.ExitResult {
+func (tr *TaskRunner) handleKill(resultCh <-chan *drivers.ExitResult) *drivers.ExitResult {
 	// Run the pre killing hooks
 	tr.preKill()
 
@@ -892,7 +892,12 @@ func (tr *TaskRunner) handleKill() *drivers.ExitResult {
 	// before waiting to kill task
 	if delay := tr.Task().ShutdownDelay; delay != 0 {
 		tr.logger.Debug("waiting before killing task", "shutdown_delay", delay)
-		time.Sleep(delay)
+
+		select {
+		case result := <-resultCh:
+			return result
+		case <-time.After(delay):
+		}
 	}
 
 	// Tell the restart tracker that the task has been killed so it doesn't
@@ -900,35 +905,48 @@ func (tr *TaskRunner) handleKill() *drivers.ExitResult {
 	tr.restartTracker.SetKilled()
 
 	// Check it is running
+	select {
+	case result := <-resultCh:
+		return result
+	default:
+	}
+
 	handle := tr.getDriverHandle()
 	if handle == nil {
 		return nil
 	}
 
 	// Kill the task using an exponential backoff in-case of failures.
-	killErr := tr.killTask(handle)
+	result, killErr := tr.killTask(handle, resultCh)
 	if killErr != nil {
 		// We couldn't successfully destroy the resource created.
 		tr.logger.Error("failed to kill task. Resources may have been leaked", "error", killErr)
 		tr.setKillErr(killErr)
 	}
 
-	// Block until task has exited.
-	waitCh, err := handle.WaitCh(tr.shutdownCtx)
+	if result != nil {
+		return result
+	}
 
-	// The error should be nil or TaskNotFound, if it's something else then a
-	// failure in the driver or transport layer occurred
-	if err != nil {
-		if err == drivers.ErrTaskNotFound {
+	// Block until task has exited.
+	if resultCh == nil {
+		var err error
+		resultCh, err = handle.WaitCh(tr.shutdownCtx)
+
+		// The error should be nil or TaskNotFound, if it's something else then a
+		// failure in the driver or transport layer occurred
+		if err != nil {
+			if err == drivers.ErrTaskNotFound {
+				return nil
+			}
+			tr.logger.Error("failed to wait on task. Resources may have been leaked", "error", err)
+			tr.setKillErr(killErr)
 			return nil
 		}
-		tr.logger.Error("failed to wait on task. Resources may have been leaked", "error", err)
-		tr.setKillErr(killErr)
-		return nil
 	}
 
 	select {
-	case result := <-waitCh:
+	case result := <-resultCh:
 		return result
 	case <-tr.shutdownCtx.Done():
 		return nil
@@ -938,14 +956,14 @@ func (tr *TaskRunner) handleKill() *drivers.ExitResult {
 // killTask kills the task handle. In the case that killing fails,
 // killTask will retry with an exponential backoff and will give up at a
 // given limit. Returns an error if the task could not be killed.
-func (tr *TaskRunner) killTask(handle *DriverHandle) error {
+func (tr *TaskRunner) killTask(handle *DriverHandle, resultCh <-chan *drivers.ExitResult) (*drivers.ExitResult, error) {
 	// Cap the number of times we attempt to kill the task.
 	var err error
 	for i := 0; i < killFailureLimit; i++ {
 		if err = handle.Kill(); err != nil {
 			if err == drivers.ErrTaskNotFound {
 				tr.logger.Warn("couldn't find task to kill", "task_id", handle.ID())
-				return nil
+				return nil, nil
 			}
 			// Calculate the new backoff
 			backoff := (1 << (2 * uint64(i))) * killBackoffBaseline
@@ -954,13 +972,17 @@ func (tr *TaskRunner) killTask(handle *DriverHandle) error {
 			}
 
 			tr.logger.Error("failed to kill task", "backoff", backoff, "error", err)
-			time.Sleep(backoff)
+			select {
+			case result := <-resultCh:
+				return result, nil
+			case <-time.After(backoff):
+			}
 		} else {
 			// Kill was successful
-			return nil
+			return nil, nil
 		}
 	}
-	return err
+	return nil, err
 }
 
 // persistLocalState persists local state to disk synchronously.
