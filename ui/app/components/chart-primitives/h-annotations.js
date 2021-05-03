@@ -3,7 +3,7 @@ import { htmlSafe } from '@ember/template';
 import { action, get } from '@ember/object';
 import styleString from 'nomad-ui/utils/properties/glimmer-style-string';
 
-export default class ChartPrimitiveVAnnotations extends Component {
+export default class ChartPrimitiveHAnnotations extends Component {
   @styleString
   get chartAnnotationsStyle() {
     return {
