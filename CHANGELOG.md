@@ -57,6 +57,7 @@ BUG FIXES:
  * client: Added handling for cgroup-v2 memory metrics [[GH-10286](https://github.com/hashicorp/nomad/issues/10286)]
  * client: Only publish measured allocation memory metrics [[GH-10376](https://github.com/hashicorp/nomad/issues/10376)]
  * client: Fixed a bug where small files would be assigned the wrong content type. [[GH-10348](https://github.com/hashicorp/nomad/pull/10348)]
+ * consul/connect: Fixed a bug where job plan always different when using expose checks. [[GH-10492](https://github.com/hashicorp/nomad/pull/10492)]
  * consul/connect: Fixed a bug where HTTP ingress gateways could not use wildcard names. [[GH-10457](https://github.com/hashicorp/nomad/pull/10457)]
  * cni: Fallback to an interface with an IP address if sandbox interface lacks one. [[GH-9895](https://github.com/hashicorp/nomad/issues/9895)]
  * csi: Fixed a bug where volume with IDs that are a substring prefix of another volume could use the wrong volume for feasibility checking. [[GH-10158](https://github.com/hashicorp/nomad/issues/10158)]
