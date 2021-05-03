@@ -126,6 +126,9 @@ type SchedulerConfiguration struct {
 	// priority jobs to place higher priority jobs.
 	PreemptionConfig PreemptionConfig
 
+	// MemoryOversubscriptionEnabled specifies whether memory oversubscription is enabled
+	MemoryOversubscriptionEnabled bool
+
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
 	ModifyIndex uint64
