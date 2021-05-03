@@ -284,6 +284,7 @@ func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 		require.True(out.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
 		require.False(out.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
 		require.False(out.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
+		require.False(out.SchedulerConfig.MemoryOversubscriptionEnabled)
 	})
 }
 
@@ -291,10 +292,14 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		require := require.New(t)
-		body := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
-                     "SystemSchedulerEnabled": true,
-                     "ServiceSchedulerEnabled": true
-        }}`))
+		body := bytes.NewBuffer([]byte(`
+{
+  "MemoryOversubscriptionEnabled": true,
+  "PreemptionConfig": {
+    "SystemSchedulerEnabled": true,
+    "ServiceSchedulerEnabled": true
+  }
+}`))
 		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/configuration", body)
 		resp := httptest.NewRecorder()
 		setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
@@ -315,6 +320,7 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 		require.Nil(err)
 		require.True(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
 		require.True(reply.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
+		require.True(reply.SchedulerConfig.MemoryOversubscriptionEnabled)
 	})
 }
 
