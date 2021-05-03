@@ -156,12 +156,12 @@ func authFromHelper(helperName string) authBackend {
 		cmd.Stdin = strings.NewReader(repoInfo.Index.Name)
 		output, err := cmd.Output()
 		if err != nil {
-			switch err.(type) {
-			default:
-				return nil, err
-			case *exec.ExitError:
-				return nil, fmt.Errorf("%s with input %q failed with stderr: %s", helper, repo, err.Error())
+			exitErr, ok := err.(*exec.ExitError)
+			if ok {
+				return nil, fmt.Errorf(
+					"%s with input %q failed with stderr: %s", helper, repo, exitErr.Stderr)
 			}
+			return nil, err
 		}
 
 		var response map[string]string
