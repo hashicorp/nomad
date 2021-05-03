@@ -23,7 +23,7 @@
     flex-wrap: wrap;
 
     & .item {
-      border: 1px solid var(--gray-6);
+      border: 1px solid var(--gray-5);
       flex-basis: calc(50% - 16px);
       margin-bottom: 32px;
       padding: 40px;
@@ -43,7 +43,7 @@
       }
 
       & a {
-        color: var(--nomad);
+        color: var(--nomad-link);
       }
 
       & .item-icon img {

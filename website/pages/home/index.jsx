@@ -1,13 +1,14 @@
-import FeaturesList from 'components/features-list'
-import HomepageHero from 'components/homepage-hero'
-import CaseStudyCarousel from 'components/case-study-carousel'
+import Link from 'next/link'
 import UseCases from '@hashicorp/react-use-cases'
-import MiniCTA from 'components/mini-cta'
-import LearnNomad from 'components/learn-nomad'
 import CallToAction from '@hashicorp/react-call-to-action'
 import ComparisonCallouts from 'components/comparison-callouts'
 import TextSplitWithLogoGrid from '@hashicorp/react-text-split-with-logo-grid'
-import Link from 'next/link'
+import LearnCallout from '@hashicorp/react-learn-callout'
+
+import FeaturesList from 'components/features-list'
+import HomepageHero from 'components/homepage-hero'
+import CaseStudyCarousel from 'components/case-study-carousel'
+import MiniCTA from 'components/mini-cta'
 
 export default function Homepage() {
   // Test comment to see if Vercel picks up this commit
@@ -323,7 +324,7 @@ export default function Homepage() {
       <div className="use-cases g-grid-container">
         <h2 className="g-type-display-2">Use Cases</h2>
         <UseCases
-          theme="nomad"
+          product="nomad"
           items={[
             {
               title: 'Simple Container Orchestration',
@@ -332,7 +333,7 @@ export default function Homepage() {
               image: {
                 alt: null,
                 format: 'png',
-                url: require('./img/use-cases/simple-container-orchestration.svg'),
+                url: require('./img/use-cases/simple_container_orchestration_icon.svg?url'),
               },
               link: {
                 external: false,
@@ -347,7 +348,7 @@ export default function Homepage() {
               image: {
                 alt: null,
                 format: 'png',
-                url: require('./img/use-cases/non-containerized-application-orchestration.svg'),
+                url: require('./img/use-cases/non-containerized_app_orch_icon.svg?url'),
               },
               link: {
                 external: false,
@@ -362,7 +363,7 @@ export default function Homepage() {
               image: {
                 alt: null,
                 format: 'png',
-                url: require('./img/use-cases/automated-service-networking-with-consul.svg'),
+                url: require('./img/use-cases/automated_service_networking_icon.svg?url'),
               },
               link: {
                 external: false,
@@ -374,7 +375,9 @@ export default function Homepage() {
         />
       </div>
 
-      <LearnNomad
+      <LearnCallout
+        headline="Learn the latest Nomad skills"
+        product="nomad"
         items={[
           {
             title: 'Getting Started',
@@ -395,7 +398,7 @@ export default function Homepage() {
 
       <TextSplitWithLogoGrid
         textSplit={{
-          brand: 'nomad',
+          product: 'nomad',
           heading: 'Nomad Ecosystem',
           content:
             'Enable end-to-end automation for your application deployment.',
@@ -410,12 +413,12 @@ export default function Homepage() {
         }}
         logoGrid={[
           {
-            url: require('./img/partner-logos/consul.svg?url'),
+            url: require('@hashicorp/mktg-logos/product/consul/logomark/color.svg?url'),
             alt: 'Consul',
             linkUrl: '/docs/integrations/consul-integration',
           },
           {
-            url: require('./img/partner-logos/vault.svg?url'),
+            url: require('@hashicorp/mktg-logos/product/vault/logomark/color.svg?url'),
             alt: 'Vault',
             linkUrl: '/docs/integrations/vault-integration',
           },
@@ -464,7 +467,7 @@ export default function Homepage() {
         variant="compact"
         heading="Ready to get started?"
         content="Nomad Open Source addresses the technical complexity of managing a mixed type of workloads in production at scale by providing a simple and flexible workload orchestrator across distributed infrastructure and clouds."
-        brand="nomad"
+        product="nomad"
         links={[
           {
             text: 'Explore HashiCorp Learn',
