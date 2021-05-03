@@ -2,7 +2,7 @@
 # processes in a single task and doesn't will not persist data after a restart
 
 variable "cluster_id" {
-  type        = string
+  type = string
   # generated from uuid5(dns) with ceph.example.com as the seed
   default     = "e9ba69fa-67ff-5920-b374-84d5801edd19"
   description = "cluster ID for the Ceph monitor"
@@ -40,10 +40,10 @@ job "ceph" {
       port = 5000
 
       check {
-        type = "http"
-        interval = "5s"
-        timeout = "1s"
-        path = "/"
+        type           = "http"
+        interval       = "5s"
+        timeout        = "1s"
+        path           = "/"
         initial_status = "warning"
       }
     }
