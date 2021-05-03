@@ -158,6 +158,34 @@ module('Acceptance | topology', function(hooks) {
     assert.equal(currentURL(), `/clients/${node.id}`);
   });
 
+  test('changing which allocation is selected changes the metric charts', async function(assert) {
+    server.create('node');
+    const job1 = server.create('job', { createAllocations: false });
+    const taskGroup1 = server.schema.find('taskGroup', job1.taskGroupIds[0]).name;
+    server.create('allocation', {
+      forceRunningClientStatus: true,
+      jobId: job1.id,
+      taskGroup1,
+    });
+
+    const job2 = server.create('job', { createAllocations: false });
+    const taskGroup2 = server.schema.find('taskGroup', job2.taskGroupIds[0]).name;
+    server.create('allocation', {
+      forceRunningClientStatus: true,
+      jobId: job2.id,
+      taskGroup2,
+    });
+
+    await Topology.visit();
+    await Topology.viz.datacenters[0].nodes[0].memoryRects[0].select();
+    const firstAllocationTaskNames = Topology.allocInfoPanel.charts[0].areas.mapBy('taskName');
+
+    await Topology.viz.datacenters[0].nodes[0].memoryRects[1].select();
+    const secondAllocationTaskNames = Topology.allocInfoPanel.charts[0].areas.mapBy('taskName');
+
+    assert.notDeepEqual(firstAllocationTaskNames, secondAllocationTaskNames);
+  });
+
   test('when a node is selected, the info panel shows information on the node', async function(assert) {
     // A high node count is required for node selection
     const nodes = server.createList('node', 51);
