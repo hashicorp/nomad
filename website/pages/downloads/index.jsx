@@ -39,7 +39,7 @@ export default function DownloadsPage(staticProps) {
       }}
       merchandisingSlot={
         <>
-          <div>
+          <div className={s.releaseCandidate}>
             <p>
               A beta for Nomad v1.1.0 is available! The release can be{' '}
               <a href="https://releases.hashicorp.com/nomad/1.1.0-beta1/">
