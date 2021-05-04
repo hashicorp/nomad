@@ -9,12 +9,13 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
+	"github.com/posener/complete"
+
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/posener/complete"
 )
 
 type AllocStatusCommand struct {
@@ -562,7 +563,11 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 	}
 
 	var resourcesOutput []string
-	resourcesOutput = append(resourcesOutput, "CPU|Memory|Disk|Addresses")
+	cpuHeader := "CPU"
+	if resource.Cores != nil && *resource.Cores > 0 {
+		cpuHeader = fmt.Sprintf("CPU (%v cores)", *resource.Cores)
+	}
+	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%s|Memory|Disk|Addresses", cpuHeader))
 	firstAddr := ""
 	secondAddr := ""
 	if len(addr) > 0 {
