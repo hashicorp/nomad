@@ -5,6 +5,7 @@ export default class ResourcesSerializer extends ApplicationSerializer {
 
   normalize(typeHash, hash) {
     hash.Cpu = hash.Cpu && hash.Cpu.CpuShares;
+    hash.MemoryMax = hash.Memory && hash.Memory.MemoryMaxMB;
     hash.Memory = hash.Memory && hash.Memory.MemoryMB;
     hash.Disk = hash.Disk && hash.Disk.DiskMB;
 

@@ -30,6 +30,9 @@
             {{/if}}
           </li>
         </c.Tooltip>
+        {{#if this.softLimitAnnotations}}
+          <c.HAnnotations @annotations={{this.softLimitAnnotations}} @prop="percent" @labelProp="label" />
+        {{/if}}
       </:after>
     </StatsTimeSeries>
   </div>

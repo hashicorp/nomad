@@ -1,11 +1,12 @@
 import { setupRenderingTest } from 'ember-qunit';
 import { module, test } from 'qunit';
-import { findAll, render } from '@ember/test-helpers';
+import { find, findAll, render } from '@ember/test-helpers';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import hbs from 'htmlbars-inline-precompile';
 import { setupPrimaryMetricMocks, primaryMetric } from './primary-metric';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { formatScheduledBytes } from 'nomad-ui/utils/units';
 
 const mockTasks = [
   { task: 'One', reservedCPU: 200, reservedMemory: 500, cpu: [], memory: [] },
@@ -61,6 +62,25 @@ module('Integration | Component | PrimaryMetric::Allocation', function(hooks) {
 
     await render(template);
     assert.equal(findAll('[data-test-chart-area]').length, mockTasks.length);
+  });
+
+  test('When tasks have a hard memory limit, the soft limit shows as an annotation', async function(assert) {
+    await preload(this.store);
+
+    const resource = findResource(this.store);
+    this.setProperties({ resource, metric: 'memory' });
+
+    await render(template);
+
+    if (resource.allocatedResources.memoryMax > resource.allocatedResources.memory) {
+      assert.ok(find('[data-test-annotation]'));
+      assert.equal(
+        find('[data-test-annotation]').textContent.trim(),
+        `${formatScheduledBytes(resource.allocatedResources.memory, 'MiB')} soft limit`
+      );
+    } else {
+      assert.notOk(find('[data-test-annotation]'));
+    }
   });
 
   primaryMetric({
