@@ -34,6 +34,9 @@ job "docs" {
 
 - `cpu` `(int: 100)` - Specifies the CPU required to run this task in MHz.
 
+- `cores` <code>(`int`: &lt;optional&gt;)</code> - Specifies the number of CPU cores to reserve
+  for the task. This may not be used with `cpu`.
+
 - `memory` `(int: 300)` - Specifies the memory required in MB.
 
 - `memory_max` <code>(`int`: &lt;optional&gt;)</code> - Optionally, specifies the maximum memory the task may use, if the client has excess memory capacity, in MB.
@@ -45,6 +48,20 @@ job "docs" {
 
 The following examples only show the `resources` stanzas. Remember that the
 `resources` stanza is only valid in the placements listed above.
+
+### Cores
+
+This example specifies that the task requires 2 reserved cores. With this stanza, Nomad will find
+a client with enough spare capacity to reserve 2 cores exclusively for the task. Unlike the `cpu` field, the
+task will not share cpu time with any other tasks managed by Nomad on the client.
+
+```hcl
+resources {
+  cores = 2
+}
+```
+
+If `cores` and `cpu` are both defined in the same resource stanza, validation of the job will fail.
 
 ### Memory
 

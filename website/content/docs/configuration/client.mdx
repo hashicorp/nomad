@@ -144,6 +144,10 @@ client {
 - `host_network` <code>([host_network](#host_network-stanza): nil)</code> - Registers
   additional host networks with the node that can be selected when port mapping.
 
+- `cgroup_parent` `(string: "/nomad")` - Specifies the cgroup parent for which cgroup
+  subsystems managed by Nomad will be mounted under. Currently this only applies to the
+  `cpuset` subsystems. This field is ignored on non Linux platforms.
+
 ### `chroot_env` Parameters
 
 Drivers based on [isolated fork/exec](/docs/drivers/exec) implement file
