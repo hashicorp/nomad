@@ -30,7 +30,7 @@ export default function DownloadsPage(staticProps) {
         <img
           className={s.logo}
           alt="Nomad"
-          src={require('./img/nomad-logo.svg')}
+          src={require('@hashicorp/mktg-logos/product/nomad/primary/color.svg')}
         />
       }
       tutorialLink={{
