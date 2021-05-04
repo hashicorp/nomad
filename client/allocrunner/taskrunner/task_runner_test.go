@@ -136,6 +136,121 @@ func runTestTaskRunner(t *testing.T, alloc *structs.Allocation, taskName string)
 	}
 }
 
+func TestTaskRunner_BuildTaskConfig_CPU_Memory(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name                  string
+		cpu                   int64
+		memoryMB              int64
+		memoryMaxMB           int64
+		expectedLinuxMemoryMB int64
+	}{
+		{
+			name:                  "plain no max",
+			cpu:                   100,
+			memoryMB:              100,
+			memoryMaxMB:           0,
+			expectedLinuxMemoryMB: 100,
+		},
+		{
+			name:                  "plain with max=reserve",
+			cpu:                   100,
+			memoryMB:              100,
+			memoryMaxMB:           100,
+			expectedLinuxMemoryMB: 100,
+		},
+		{
+			name:                  "plain with max>reserve",
+			cpu:                   100,
+			memoryMB:              100,
+			memoryMaxMB:           200,
+			expectedLinuxMemoryMB: 200,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			alloc := mock.BatchAlloc()
+			alloc.Job.TaskGroups[0].Count = 1
+			task := alloc.Job.TaskGroups[0].Tasks[0]
+			task.Driver = "mock_driver"
+			task.Config = map[string]interface{}{
+				"run_for": "2s",
+			}
+			res := alloc.AllocatedResources.Tasks[task.Name]
+			res.Cpu.CpuShares = c.cpu
+			res.Memory.MemoryMB = c.memoryMB
+			res.Memory.MemoryMaxMB = c.memoryMaxMB
+
+			conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+			conf.StateDB = cstate.NewMemDB(conf.Logger) // "persist" state between task runners
+			defer cleanup()
+
+			// Run the first TaskRunner
+			tr, err := NewTaskRunner(conf)
+			require.NoError(t, err)
+
+			tc := tr.buildTaskConfig()
+			require.Equal(t, c.cpu, tc.Resources.LinuxResources.CPUShares)
+			require.Equal(t, c.expectedLinuxMemoryMB*1024*1024, tc.Resources.LinuxResources.MemoryLimitBytes)
+
+			require.Equal(t, c.cpu, tc.Resources.NomadResources.Cpu.CpuShares)
+			require.Equal(t, c.memoryMB, tc.Resources.NomadResources.Memory.MemoryMB)
+			require.Equal(t, c.memoryMaxMB, tc.Resources.NomadResources.Memory.MemoryMaxMB)
+		})
+	}
+}
+
+// TestTaskRunner_Stop_ExitCode asserts that the exit code is captured on a task, even if it's stopped
+func TestTaskRunner_Stop_ExitCode(t *testing.T) {
+	ctestutil.ExecCompatible(t)
+	t.Parallel()
+
+	alloc := mock.BatchAlloc()
+	alloc.Job.TaskGroups[0].Count = 1
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.KillSignal = "SIGTERM"
+	task.Driver = "raw_exec"
+	task.Config = map[string]interface{}{
+		"command": "/bin/sleep",
+		"args":    []string{"1000"},
+	}
+
+	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name)
+	defer cleanup()
+
+	// Run the first TaskRunner
+	tr, err := NewTaskRunner(conf)
+	require.NoError(t, err)
+	go tr.Run()
+
+	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+
+	// Wait for it to be running
+	testWaitForTaskToStart(t, tr)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err = tr.Kill(ctx, structs.NewTaskEvent("shutdown"))
+	require.NoError(t, err)
+
+	var exitEvent *structs.TaskEvent
+	state := tr.TaskState()
+	for _, e := range state.Events {
+		if e.Type == structs.TaskTerminated {
+			exitEvent = e
+			break
+		}
+	}
+	require.NotNilf(t, exitEvent, "exit event not found: %v", state.Events)
+
+	require.Equal(t, 143, exitEvent.ExitCode)
+	require.Equal(t, 15, exitEvent.Signal)
+
+}
+
 // TestTaskRunner_Restore_Running asserts restoring a running task does not
 // rerun the task.
 func TestTaskRunner_Restore_Running(t *testing.T) {
