@@ -7,7 +7,13 @@
     {{else}} {{this.metric}} {{/if}}
   </h4>
   <div class="primary-graphic">
-    <StatsTimeSeries @data={{this.data}} @chartClass={{this.chartClass}} />
+    <StatsTimeSeries @data={{this.data}} @chartClass={{this.chartClass}}>
+      <:after as |c|>
+        {{#if this.softLimitAnnotations}}
+          <c.HAnnotations @annotations={{this.softLimitAnnotations}} @prop="percent" @labelProp="label" />
+        {{/if}}
+      </:after>
+    </StatsTimeSeries>
   </div>
   <PrimaryMetric::CurrentValue @chartClass={{this.chartClass}} @percent={{this.data.lastObject.percent}} />
   <div class="annotation" data-test-absolute-value>
