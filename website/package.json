@@ -14,7 +14,7 @@
     "@hashicorp/react-button": "5.0.1",
     "@hashicorp/react-call-to-action": "3.0.1",
     "@hashicorp/react-content": "7.0.1",
-    "@hashicorp/react-docs-page": "13.1.1",
+    "@hashicorp/react-docs-page": "13.1.7-alpha.10",
     "@hashicorp/react-featured-slider": "4.0.2",
     "@hashicorp/react-hashi-stack-menu": "2.0.3",
     "@hashicorp/react-hero": "7.1.2",
