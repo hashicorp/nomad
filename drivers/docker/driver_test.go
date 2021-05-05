@@ -2911,28 +2911,154 @@ func TestDockerDriver_memoryLimits(t *testing.T) {
 func TestDockerDriver_parseSignal(t *testing.T) {
 	t.Parallel()
 
-	d := new(Driver)
+	tests := []struct {
+		name            string
+		runtime         string
+		specifiedSignal string
+		expectedSignal  string
+	}{
+		{
+			name:            "default",
+			runtime:         runtime.GOOS,
+			specifiedSignal: "",
+			expectedSignal:  "SIGTERM",
+		},
+		{
+			name:            "set",
+			runtime:         runtime.GOOS,
+			specifiedSignal: "SIGHUP",
+			expectedSignal:  "SIGHUP",
+		},
+		{
+			name:            "windows conversion",
+			runtime:         "windows",
+			specifiedSignal: "SIGINT",
+			expectedSignal:  "SIGTERM",
+		},
+		{
+			name:            "not signal",
+			runtime:         runtime.GOOS,
+			specifiedSignal: "SIGDOESNOTEXIST",
+			expectedSignal:  "", // throws error
+		},
+	}
 
-	t.Run("default", func(t *testing.T) {
-		s, err := d.parseSignal(runtime.GOOS, "")
-		require.NoError(t, err)
-		require.Equal(t, syscall.SIGTERM, s)
-	})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s, err := parseSignal(tc.runtime, tc.specifiedSignal)
+			if tc.expectedSignal == "" {
+				require.Error(t, err, "invalid signal")
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, s.(syscall.Signal), s)
+			}
+		})
+	}
+}
 
-	t.Run("set", func(t *testing.T) {
-		s, err := d.parseSignal(runtime.GOOS, "SIGHUP")
-		require.NoError(t, err)
-		require.Equal(t, syscall.SIGHUP, s)
-	})
+// This test asserts that Nomad isn't overriding the STOPSIGNAL in a Dockerfile
+func TestDockerDriver_StopSignal(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipped on windows, we don't have image variants available")
+	}
 
-	t.Run("windows conversion", func(t *testing.T) {
-		s, err := d.parseSignal("windows", "SIGINT")
-		require.NoError(t, err)
-		require.Equal(t, syscall.SIGTERM, s)
-	})
+	testutil.DockerCompatible(t)
+	cases := []struct {
+		name            string
+		variant         string
+		jobKillSignal   string
+		expectedSignals []string
+	}{
+		{
+			name:            "stopsignal-only",
+			variant:         "stopsignal",
+			jobKillSignal:   "",
+			expectedSignals: []string{"19", "9"},
+		},
+		{
+			name:            "stopsignal-killsignal",
+			variant:         "stopsignal",
+			jobKillSignal:   "SIGTERM",
+			expectedSignals: []string{"15", "19", "9"},
+		},
+		{
+			name:            "killsignal-only",
+			variant:         "",
+			jobKillSignal:   "SIGTERM",
+			expectedSignals: []string{"15", "15", "9"},
+		},
+		{
+			name:            "nosignals-default",
+			variant:         "",
+			jobKillSignal:   "",
+			expectedSignals: []string{"15", "9"},
+		},
+	}
 
-	t.Run("not a signal", func(t *testing.T) {
-		_, err := d.parseSignal(runtime.GOOS, "SIGDOESNOTEXIST")
-		require.Error(t, err)
-	})
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			taskCfg := newTaskConfig(c.variant, []string{"sleep", "9901"})
+
+			task := &drivers.TaskConfig{
+				ID:        uuid.Generate(),
+				Name:      c.name,
+				AllocID:   uuid.Generate(),
+				Resources: basicResources,
+			}
+			require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
+
+			d := dockerDriverHarness(t, nil)
+			cleanup := d.MkAllocDir(task, true)
+			defer cleanup()
+
+			if c.variant == "stopsignal" {
+				copyImage(t, task.TaskDir(), "busybox_stopsignal.tar") // Default busybox image with STOPSIGNAL 19 added
+			} else {
+				copyImage(t, task.TaskDir(), "busybox.tar")
+			}
+
+			client := newTestDockerClient(t)
+
+			listener := make(chan *docker.APIEvents)
+			err := client.AddEventListener(listener)
+			require.NoError(t, err)
+
+			defer func() {
+				err := client.RemoveEventListener(listener)
+				require.NoError(t, err)
+			}()
+
+			_, _, err = d.StartTask(task)
+			require.NoError(t, err)
+			require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+			go func() {
+				err := d.StopTask(task.ID, 1*time.Second, c.jobKillSignal)
+				if err != nil {
+					t.Errorf("stop task failed: %v", err)
+				}
+			}()
+
+			timeout := time.After(10 * time.Second)
+			var receivedSignals []string
+		WAIT:
+			for {
+				select {
+				case msg := <-listener:
+					// Only add kill signals
+					if msg.Action == "kill" {
+						sig := msg.Actor.Attributes["signal"]
+						receivedSignals = append(receivedSignals, sig)
+
+						if reflect.DeepEqual(receivedSignals, c.expectedSignals) {
+							break WAIT
+						}
+					}
+				case <-timeout:
+					// timeout waiting for signals
+					require.Equal(t, c.expectedSignals, receivedSignals, "timed out waiting for expected signals")
+				}
+			}
+		})
+	}
 }

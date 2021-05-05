@@ -1375,40 +1375,13 @@ func (d *Driver) handleWait(ctx context.Context, ch chan *drivers.ExitResult, h 
 	}
 }
 
-// parseSignal interprets the signal name into an os.Signal. If no name is
-// provided, the docker driver defaults to SIGTERM. If the OS is Windows and
-// SIGINT is provided, the signal is converted to SIGTERM.
-func (d *Driver) parseSignal(os, signal string) (os.Signal, error) {
-	// Unlike other drivers, docker defaults to SIGTERM, aiming for consistency
-	// with the 'docker stop' command.
-	// https://docs.docker.com/engine/reference/commandline/stop/#extended-description
-	if signal == "" {
-		signal = "SIGTERM"
-	}
-
-	// Windows Docker daemon does not support SIGINT, SIGTERM is the semantic equivalent that
-	// allows for graceful shutdown before being followed up by a SIGKILL.
-	// Supported signals:
-	//   https://github.com/moby/moby/blob/0111ee70874a4947d93f64b672f66a2a35071ee2/pkg/signal/signal_windows.go#L17-L26
-	if os == "windows" && signal == "SIGINT" {
-		signal = "SIGTERM"
-	}
-
-	return signals.Parse(signal)
-}
-
 func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) error {
 	h, ok := d.tasks.Get(taskID)
 	if !ok {
 		return drivers.ErrTaskNotFound
 	}
 
-	sig, err := d.parseSignal(runtime.GOOS, signal)
-	if err != nil {
-		return fmt.Errorf("failed to parse signal: %v", err)
-	}
-
-	return h.Kill(timeout, sig)
+	return h.Kill(timeout, signal)
 }
 
 func (d *Driver) DestroyTask(taskID string, force bool) error {
