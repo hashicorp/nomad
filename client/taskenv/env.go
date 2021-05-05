@@ -34,7 +34,7 @@ const (
 	// MemLimit is the environment variable with the tasks memory limit in MBs.
 	MemLimit = "NOMAD_MEMORY_LIMIT"
 
-	// MemLimit is the environment variable with the tasks memory limit in MBs.
+	// MemMaxLimit is the environment variable with the tasks maximum memory limit in MBs.
 	MemMaxLimit = "NOMAD_MEMORY_MAX_LIMIT"
 
 	// CpuLimit is the environment variable with the tasks CPU limit in MHz.
