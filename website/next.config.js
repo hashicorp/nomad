@@ -5,7 +5,11 @@ const rewrites = require('./rewrites')
 
 module.exports = withHashicorp({
   defaultLayout: true,
-  transpileModules: ['is-absolute-url', '@hashicorp/react-.*'],
+  transpileModules: [
+    'is-absolute-url',
+    '@hashicorp/react-.*',
+    '@hashicorp/versioned-docs',
+  ],
   mdx: { resolveIncludes: path.join(__dirname, 'pages/partials') },
 })({
   redirects() {
