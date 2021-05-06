@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -2037,6 +2035,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							SidecarService: &api.ConsulSidecarService{
 								Tags: []string{"f", "g"},
 								Port: "9000",
+
+								Checks: []api.ServiceCheck{
+									{
+										Type:     "TCP",
+										Interval: 10 * time.Second,
+										Timeout:  5 * time.Second,
+									},
+								},
 							},
 						},
 					},
@@ -2416,6 +2422,13 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							SidecarService: &structs.ConsulSidecarService{
 								Tags: []string{"f", "g"},
 								Port: "9000",
+								Checks: []*structs.ServiceCheck{
+									{
+										Type:     "TCP",
+										Interval: 10 * time.Second,
+										Timeout:  5 * time.Second,
+									},
+								},
 							},
 						},
 					},
@@ -2605,9 +2618,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 
 	structsJob := ApiJobToStructJob(apiJob)
 
-	if diff := pretty.Diff(expected, structsJob); len(diff) > 0 {
-		t.Fatalf("bad:\n%s", strings.Join(diff, "\n"))
-	}
+	require.Equal(t, expected, structsJob)
 
 	systemAPIJob := &api.Job{
 		Stop:        helper.BoolToPtr(true),
@@ -2850,9 +2861,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 
 	systemStructsJob := ApiJobToStructJob(systemAPIJob)
 
-	if diff := pretty.Diff(expectedSystemJob, systemStructsJob); len(diff) > 0 {
-		t.Fatalf("bad:\n%s", strings.Join(diff, "\n"))
-	}
+	require.Equal(t, expectedSystemJob, systemStructsJob)
 }
 
 func TestJobs_ApiJobToStructsJobUpdate(t *testing.T) {
