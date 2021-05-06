@@ -58,7 +58,7 @@
     "generate:readme": "next-hashicorp markdown-blocks README.md",
     "lint": "next-hashicorp lint",
     "start": "next-remote-watch ./content/**/*.mdx",
-    "static": "npm run build && npm run export",
+    "static": "npm run build",
     "linkcheck": "linkcheck https://www.nomadproject.io"
   }
 }
