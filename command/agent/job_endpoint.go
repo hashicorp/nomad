@@ -1333,7 +1333,7 @@ func apiServiceChecksToStructs(in []api.ServiceCheck, defaultOnUpdate string) []
 			TaskName:      inc.TaskName,
 			OnUpdate:      onUpdate,
 		}
-		if check.CheckRestart != nil {
+		if inc.CheckRestart != nil {
 			check.CheckRestart = &structs.CheckRestart{
 				Limit:          inc.CheckRestart.Limit,
 				Grace:          *inc.CheckRestart.Grace,
