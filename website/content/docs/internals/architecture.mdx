@@ -38,10 +38,10 @@ clarify what is being discussed:
   which allow Nomad to be flexible in the types of tasks it supports. Tasks
   specify their driver, configuration for the driver, constraints, and resources required.
 
-- **Client** - A Client of Nomad is a machine that tasks can be run on. All clients run the
-  Nomad agent. The agent is responsible for registering with the servers, watching for any
-  work to be assigned and executing tasks. The Nomad agent is a long lived process which
-  interfaces with the servers.
+- **Client** - A Nomad client is an agent configured to run and manage tasks
+  using available compute resources on a machine. The agent is responsible for
+  registering with the servers, watching for any work to be assigned and executing
+  tasks. The Nomad agent is a long lived process which interfaces with the servers.
 
 - **Allocation** - An Allocation is a mapping between a task group in a job and a client
   node. A single job may have hundreds or thousands of task groups, meaning an equivalent
@@ -56,16 +56,17 @@ clarify what is being discussed:
 - **Server** - Nomad servers are the brains of the cluster. There is a cluster of servers
   per region and they manage all jobs and clients, run evaluations, and create task allocations.
   The servers replicate data between each other and perform leader election to ensure high
-  availability. Servers federate across regions to make Nomad globally aware.
+  availability. More information about latency requirements for servers can be found
+  in [Network Topology](/docs/install/production/requirements#network-topology).
 
-- **Regions and Datacenters** - Nomad models infrastructure as regions and
-  datacenters. Regions may contain multiple datacenters. Servers are assigned to
-  a specific region, managing state and making scheduling decisions within that
-  region. Multiple regions can be federated together. For example, you may
-  have a `US` region with the `us-east-1` and `us-west-1` datacenters,
-  connected to the `EU` region with the `eu-fr-1` and `eu-uk-1` datacenters.
-  Requests that are made between regions are forwarded to the appropriate servers.
-  Data is _not_ replicated between regions.
+- **Regions** - Nomad models infrastructure as regions and datacenters. A region will contain
+  one or more datacenters. A set of servers joined together will represent a single
+  region. Servers federate across regions to make Nomad globally aware.
+
+- **Datacenters** - Nomad models a datacenter as an abstract grouping of clients within
+  a region. Nomad clients are not required to be in the same datacenter as the servers
+  they are joined with, but do need to be in the same region. Datacenters provide
+  a way to express fault tolerance among jobs as well as isolation of infrastructure.
 
 - **Bin Packing** - Bin Packing is the process of filling bins with items in a way that
   maximizes the utilization of bins. This extends to Nomad, where the clients are "bins"
