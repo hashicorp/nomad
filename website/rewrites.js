@@ -1,1 +1,6 @@
-module.exports = [{ source: '/api/:splat*', destination: '/api-docs/:splat*' }]
+module.exports = [
+  {
+    source: '/api/:splat((?!versioned-asset).*)',
+    destination: '/api-docs/:splat',
+  },
+]
