@@ -1,4 +1,5 @@
 import { productName, productSlug } from 'data/metadata'
+import currentVersion from 'data/version'
 import DocsPage from '@hashicorp/react-docs-page'
 import {
   generateStaticPaths,
@@ -21,10 +22,13 @@ export default function DocsLayout(props) {
 
 export async function getStaticPaths() {
   return {
-    fallback: false,
+    fallback: true,
     paths: await generateStaticPaths({
       navDataFile: NAV_DATA_FILE,
       localContentDir: CONTENT_DIR,
+      product: { name: productName, slug: productSlug },
+      currentVersion,
+      basePath,
     }),
   }
 }
@@ -36,6 +40,8 @@ export async function getStaticProps({ params }) {
       localContentDir: CONTENT_DIR,
       product: { name: productName, slug: productSlug },
       params,
+      currentVersion,
+      basePath,
     }),
   }
 }

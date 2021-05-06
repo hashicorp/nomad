@@ -1,0 +1,36 @@
+[
+  {
+    "display": "v1.0.4",
+    "slug": "v1.0.4",
+    "ref": "v1.0.4",
+    "sha": "149b150fb2d87766b8462346d68b72831f622047",
+    "navData": {
+      "docs": "docs-navigation.js",
+      "api-docs": "api-navigation.js",
+      "intro": "intro-navigation.js"
+    },
+    "latest": true
+  },
+  {
+    "display": "v1.0.3",
+    "slug": "v1.0.3",
+    "ref": "v1.0.3",
+    "sha": "d79b74c937496a7b94146b3615996652c5d27c58",
+    "navData": {
+      "docs": "docs-navigation.js",
+      "api-docs": "api-navigation.js",
+      "intro": "intro-navigation.js"
+    }
+  },
+  {
+    "display": "v1.0.2",
+    "slug": "v1.0.2",
+    "ref": "v1.0.2",
+    "sha": "fff533a3fefe848b6997f56855327f653e4ec491",
+    "navData": {
+      "docs": "docs-navigation.js",
+      "api-docs": "api-navigation.js",
+      "intro": "intro-navigation.js"
+    }
+  }
+]
