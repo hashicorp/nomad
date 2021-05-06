@@ -64,7 +64,7 @@ $ curl \
 
   - `SchedulerAlgorithm` `(string: "binpack")` - Specifies whether scheduler binpacks or spreads allocations on available nodes.
 
-  - `MemoryOversubscriptionEnabled` `(bool: false)` - When `true`, tasks may exceed their reserved memory limit, if the client has excess memory capacity. Tasks must specify [`memory_max`](/docs/job-specification/resources#memory_max) to take advantage of memory oversubscription.
+  - `MemoryOversubscriptionEnabled` `(bool: false)` <sup>1.1 Beta</sup> - When `true`, tasks may exceed their reserved memory limit, if the client has excess memory capacity. Tasks must specify [`memory_max`](/docs/job-specification/resources#memory_max) to take advantage of memory oversubscription.
 
   - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
 
@@ -126,7 +126,7 @@ server state is authoritative.
   binpacks or spreads allocations on available nodes. Possible values are
   `"binpack"` and `"spread"`
 
-- `MemoryOversubscriptionEnabled` `(bool: false)` - When `true`, tasks may exceed their reserved memory limit, if the client has excess memory capacity. Tasks must specify [`memory_max`](/docs/job-specification/resources#memory_max) to take advantage of memory oversubscription.
+- `MemoryOversubscriptionEnabled` `(bool: false)` <sup>1.1 Beta</sup> - When `true`, tasks may exceed their reserved memory limit, if the client has excess memory capacity. Tasks must specify [`memory_max`](/docs/job-specification/resources#memory_max) to take advantage of memory oversubscription.
 
 - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for
   various schedulers.
