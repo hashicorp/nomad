@@ -105,12 +105,9 @@ func connectSidecarRegistration(serviceId string, css *structs.ConsulSidecarServ
 		return nil, err
 	}
 
-	return &api.AgentServiceRegistration{
-		Tags:    helper.CopySliceString(css.Tags),
-		Port:    cMapping.Value,
-		Address: cMapping.HostIP,
-		Proxy:   proxy,
-		Checks: api.AgentServiceChecks{
+	var checks api.AgentServiceChecks
+	if !css.DisableDefaultTCPCheck {
+		checks = api.AgentServiceChecks{
 			{
 				Name:     "Connect Sidecar Listening",
 				TCP:      net.JoinHostPort(cMapping.HostIP, strconv.Itoa(cMapping.Value)),
@@ -120,7 +117,23 @@ func connectSidecarRegistration(serviceId string, css *structs.ConsulSidecarServ
 				Name:         "Connect Sidecar Aliasing " + serviceId,
 				AliasService: serviceId,
 			},
-		},
+		}
+	} else {
+		// insert a NOOP check to avoid Consul inserting the default
+		checks = api.AgentServiceChecks{
+			{
+				Name:         "Connect Sidecar Aliasing " + serviceId,
+				AliasService: serviceId,
+			},
+		}
+	}
+
+	return &api.AgentServiceRegistration{
+		Tags:    helper.CopySliceString(css.Tags),
+		Port:    cMapping.Value,
+		Address: cMapping.HostIP,
+		Proxy:   proxy,
+		Checks:  checks,
 	}, nil
 }
 

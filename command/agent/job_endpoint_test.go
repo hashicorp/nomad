@@ -2035,8 +2035,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Connect: &api.ConsulConnect{
 							Native: false,
 							SidecarService: &api.ConsulSidecarService{
-								Tags: []string{"f", "g"},
-								Port: "9000",
+								Tags:                   []string{"f", "g"},
+								Port:                   "9000",
+								DisableDefaultTCPCheck: true,
 							},
 						},
 					},
@@ -2414,8 +2415,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Connect: &structs.ConsulConnect{
 							Native: false,
 							SidecarService: &structs.ConsulSidecarService{
-								Tags: []string{"f", "g"},
-								Port: "9000",
+								Tags:                   []string{"f", "g"},
+								Port:                   "9000",
+								DisableDefaultTCPCheck: true,
 							},
 						},
 					},

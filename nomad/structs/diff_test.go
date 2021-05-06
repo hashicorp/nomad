@@ -3046,6 +3046,12 @@ func TestTaskGroupDiff(t *testing.T) {
 										Fields: []*FieldDiff{
 											{
 												Type: DiffTypeAdded,
+												Name: "DisableDefaultTCPCheck",
+												Old:  "",
+												New:  "false",
+											},
+											{
+												Type: DiffTypeAdded,
 												Name: "Port",
 												Old:  "",
 												New:  "http",
@@ -3884,8 +3890,7 @@ func TestTaskGroupDiff(t *testing.T) {
 				require.Error(t, err, "case %q expected error", c.TestCase)
 			case false:
 				require.NoError(t, err, "case %q expected no error", c.TestCase)
-				require.True(t, reflect.DeepEqual(result, c.Expected),
-					"case %q got\n%#v\nwant:\n%#v\n", c.TestCase, result, c.Expected)
+				require.Equal(t, c.Expected, result)
 			}
 		})
 	}
@@ -5766,6 +5771,14 @@ func TestTaskDiff(t *testing.T) {
 									{
 										Type: DiffTypeAdded,
 										Name: "SidecarService",
+										Fields: []*FieldDiff{
+											{
+												Type: DiffTypeAdded,
+												Name: "DisableDefaultTCPCheck",
+												Old:  "",
+												New:  "false",
+											},
+										},
 									},
 								},
 							},
@@ -7149,20 +7162,14 @@ func TestTaskDiff(t *testing.T) {
 
 	for i, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			actual, err := c.Old.Diff(c.New, c.Contextual)
-			if c.Error && err == nil {
-				t.Fatalf("case %d: expected errored", i+1)
-			} else if err != nil {
-				if !c.Error {
-					t.Fatalf("case %d: errored %#v", i+1, err)
-				} else {
-					return
-				}
-			}
+			t.Logf("running case: %d %v", i, c.Name)
 
-			if !reflect.DeepEqual(actual, c.Expected) {
-				t.Errorf("case %d: got:\n%#v\n want:\n%#v\n",
-					i+1, actual, c.Expected)
+			actual, err := c.Old.Diff(c.New, c.Contextual)
+			if c.Error {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, c.Expected, actual)
 			}
 		})
 	}
