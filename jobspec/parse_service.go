@@ -80,9 +80,11 @@ func parseService(o *ast.ObjectItem) (*api.Service, error) {
 	}
 
 	if co := listVal.Filter("check"); len(co.Items) > 0 {
-		if err := parseChecks(&service, co); err != nil {
+		checks, err := parseChecks(co)
+		if err != nil {
 			return nil, multierror.Prefix(err, fmt.Sprintf("'%s',", service.Name))
 		}
+		service.Checks = checks
 	}
 
 	// Filter check_restart
@@ -550,6 +552,7 @@ func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
 		"port",
 		"proxy",
 		"tags",
+		"check",
 	}
 
 	if err := checkHCLKeys(o.Val, valid); err != nil {
@@ -562,6 +565,7 @@ func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
 		return nil, err
 	}
 
+	delete(m, "check")
 	delete(m, "proxy")
 
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -576,27 +580,31 @@ func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
 		return nil, fmt.Errorf("sidecar_service: %v", err)
 	}
 
-	var proxyList *ast.ObjectList
+	var listVal *ast.ObjectList
 	if ot, ok := o.Val.(*ast.ObjectType); ok {
-		proxyList = ot.List
+		listVal = ot.List
 	} else {
 		return nil, fmt.Errorf("sidecar_service: should be an object")
 	}
 
 	// Parse the proxy
-	po := proxyList.Filter("proxy")
-	if len(po.Items) == 0 {
-		return &sidecar, nil
-	}
-	if len(po.Items) > 1 {
+	if po := listVal.Filter("proxy"); len(po.Items) > 1 {
 		return nil, fmt.Errorf("only one 'proxy' block allowed per task")
+	} else if len(po.Items) == 1 {
+		r, err := parseProxy(po.Items[0])
+		if err != nil {
+			return nil, fmt.Errorf("proxy, %v", err)
+		}
+		sidecar.Proxy = r
 	}
 
-	r, err := parseProxy(po.Items[0])
-	if err != nil {
-		return nil, fmt.Errorf("proxy, %v", err)
+	if co := listVal.Filter("check"); len(co.Items) > 0 {
+		checks, err := parseChecks(co)
+		if err != nil {
+			return nil, multierror.Prefix(err, "'service_sidecar',")
+		}
+		sidecar.Checks = checks
 	}
-	sidecar.Proxy = r
 
 	return &sidecar, nil
 }
@@ -833,8 +841,8 @@ func parseUpstream(uo *ast.ObjectItem) (*api.ConsulUpstream, error) {
 	return &upstream, nil
 }
 
-func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
-	service.Checks = make([]api.ServiceCheck, len(checkObjs.Items))
+func parseChecks(checkObjs *ast.ObjectList) ([]api.ServiceCheck, error) {
+	checks := make([]api.ServiceCheck, len(checkObjs.Items))
 	for idx, co := range checkObjs.Items {
 		// Check for invalid keys
 		valid := []string{
@@ -861,13 +869,13 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			"failures_before_critical",
 		}
 		if err := checkHCLKeys(co.Val, valid); err != nil {
-			return multierror.Prefix(err, "check ->")
+			return nil, multierror.Prefix(err, "check ->")
 		}
 
 		var check api.ServiceCheck
 		var cm map[string]interface{}
 		if err := hcl.DecodeObject(&cm, co.Val); err != nil {
-			return err
+			return nil, err
 		}
 
 		// HCL allows repeating stanzas so merge 'header' into a single
@@ -875,19 +883,19 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 		if headerI, ok := cm["header"]; ok {
 			headerRaw, ok := headerI.([]map[string]interface{})
 			if !ok {
-				return fmt.Errorf("check -> header -> expected a []map[string][]string but found %T", headerI)
+				return nil, fmt.Errorf("check -> header -> expected a []map[string][]string but found %T", headerI)
 			}
 			m := map[string][]string{}
 			for _, rawm := range headerRaw {
 				for k, vI := range rawm {
 					vs, ok := vI.([]interface{})
 					if !ok {
-						return fmt.Errorf("check -> header -> %q expected a []string but found %T", k, vI)
+						return nil, fmt.Errorf("check -> header -> %q expected a []string but found %T", k, vI)
 					}
 					for _, vI := range vs {
 						v, ok := vI.(string)
 						if !ok {
-							return fmt.Errorf("check -> header -> %q expected a string but found %T", k, vI)
+							return nil, fmt.Errorf("check -> header -> %q expected a string but found %T", k, vI)
 						}
 						m[k] = append(m[k], v)
 					}
@@ -908,10 +916,10 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 			Result:           &check,
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if err := dec.Decode(cm); err != nil {
-			return err
+			return nil, err
 		}
 
 		// Filter check_restart
@@ -919,24 +927,24 @@ func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
 		if ot, ok := co.Val.(*ast.ObjectType); ok {
 			checkRestartList = ot.List
 		} else {
-			return fmt.Errorf("check_restart '%s': should be an object", check.Name)
+			return nil, fmt.Errorf("check_restart '%s': should be an object", check.Name)
 		}
 
 		if cro := checkRestartList.Filter("check_restart"); len(cro.Items) > 0 {
 			if len(cro.Items) > 1 {
-				return fmt.Errorf("check_restart '%s': cannot have more than 1 check_restart", check.Name)
+				return nil, fmt.Errorf("check_restart '%s': cannot have more than 1 check_restart", check.Name)
 			}
 			cr, err := parseCheckRestart(cro.Items[0])
 			if err != nil {
-				return multierror.Prefix(err, fmt.Sprintf("check: '%s',", check.Name))
+				return nil, multierror.Prefix(err, fmt.Sprintf("check: '%s',", check.Name))
 			}
 			check.CheckRestart = cr
 		}
 
-		service.Checks[idx] = check
+		checks[idx] = check
 	}
 
-	return nil
+	return checks, nil
 }
 
 func parseCheckRestart(cro *ast.ObjectItem) (*api.CheckRestart, error) {
