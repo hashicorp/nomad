@@ -79,6 +79,42 @@ func TestConnect_newConnect(t *testing.T) {
 			},
 		}, asr.SidecarService)
 	})
+
+	t.Run("with sidecar and custom check", func(t *testing.T) {
+		asr, err := newConnect("redis-service-id", "redis", &structs.ConsulConnect{
+			Native: false,
+			SidecarService: &structs.ConsulSidecarService{
+				Tags: []string{"foo", "bar"},
+				Port: "connect-proxy-redis",
+				Checks: []*structs.ServiceCheck{
+					{
+						Type:     "tcp",
+						Interval: 5 * time.Second,
+						Timeout:  2 * time.Second,
+					},
+				},
+			},
+		}, testConnectNetwork, testConnectPorts)
+		require.NoError(t, err)
+		require.Equal(t, &api.AgentServiceRegistration{
+			Tags:    []string{"foo", "bar"},
+			Port:    3000,
+			Address: "192.168.30.1",
+			Proxy: &api.AgentServiceConnectProxyConfig{
+				Config: map[string]interface{}{
+					"bind_address": "0.0.0.0",
+					"bind_port":    3000,
+				},
+			},
+			Checks: api.AgentServiceChecks{
+				{
+					TCP:      "192.168.30.1:3000",
+					Interval: "5s",
+					Timeout:  "2s",
+				},
+			},
+		}, asr.SidecarService)
+	})
 }
 
 func TestConnect_connectSidecarRegistration(t *testing.T) {
