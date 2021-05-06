@@ -1291,51 +1291,57 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 			Meta:              helper.CopyMapStringString(s.Meta),
 			CanaryMeta:        helper.CopyMapStringString(s.CanaryMeta),
 			OnUpdate:          s.OnUpdate,
+			Checks:            apiServiceChecksToStructs(s.Checks, s.OnUpdate), // Inherit OnUpdate from service by default
+			Connect:           ApiConsulConnectToStructs(s.Connect),
 		}
 
-		if l := len(s.Checks); l != 0 {
-			out[i].Checks = make([]*structs.ServiceCheck, l)
-			for j, check := range s.Checks {
-				onUpdate := s.OnUpdate // Inherit from service as default
-				if check.OnUpdate != "" {
-					onUpdate = check.OnUpdate
-				}
-				out[i].Checks[j] = &structs.ServiceCheck{
-					Name:          check.Name,
-					Type:          check.Type,
-					Command:       check.Command,
-					Args:          check.Args,
-					Path:          check.Path,
-					Protocol:      check.Protocol,
-					PortLabel:     check.PortLabel,
-					Expose:        check.Expose,
-					AddressMode:   check.AddressMode,
-					Interval:      check.Interval,
-					Timeout:       check.Timeout,
-					InitialStatus: check.InitialStatus,
-					TLSSkipVerify: check.TLSSkipVerify,
-					Header:        check.Header,
-					Method:        check.Method,
-					Body:          check.Body,
-					GRPCService:   check.GRPCService,
-					GRPCUseTLS:    check.GRPCUseTLS,
-					TaskName:      check.TaskName,
-					OnUpdate:      onUpdate,
-				}
-				if check.CheckRestart != nil {
-					out[i].Checks[j].CheckRestart = &structs.CheckRestart{
-						Limit:          check.CheckRestart.Limit,
-						Grace:          *check.CheckRestart.Grace,
-						IgnoreWarnings: check.CheckRestart.IgnoreWarnings,
-					}
-				}
+	}
+
+	return out
+}
+
+func apiServiceChecksToStructs(in []api.ServiceCheck, defaultOnUpdate string) []*structs.ServiceCheck {
+	if len(in) == 0 {
+		return nil
+	}
+
+	out := make([]*structs.ServiceCheck, len(in))
+	for i, inc := range in {
+		onUpdate := defaultOnUpdate
+		if inc.OnUpdate != "" {
+			onUpdate = inc.OnUpdate
+		}
+		check := &structs.ServiceCheck{
+			Name:          inc.Name,
+			Type:          inc.Type,
+			Command:       inc.Command,
+			Args:          inc.Args,
+			Path:          inc.Path,
+			Protocol:      inc.Protocol,
+			PortLabel:     inc.PortLabel,
+			Expose:        inc.Expose,
+			AddressMode:   inc.AddressMode,
+			Interval:      inc.Interval,
+			Timeout:       inc.Timeout,
+			InitialStatus: inc.InitialStatus,
+			TLSSkipVerify: inc.TLSSkipVerify,
+			Header:        inc.Header,
+			Method:        inc.Method,
+			Body:          inc.Body,
+			GRPCService:   inc.GRPCService,
+			GRPCUseTLS:    inc.GRPCUseTLS,
+			TaskName:      inc.TaskName,
+			OnUpdate:      onUpdate,
+		}
+		if check.CheckRestart != nil {
+			check.CheckRestart = &structs.CheckRestart{
+				Limit:          inc.CheckRestart.Limit,
+				Grace:          *inc.CheckRestart.Grace,
+				IgnoreWarnings: inc.CheckRestart.IgnoreWarnings,
 			}
 		}
 
-		if s.Connect != nil {
-			out[i].Connect = ApiConsulConnectToStructs(s.Connect)
-		}
-
+		out[i] = check
 	}
 
 	return out
@@ -1499,9 +1505,10 @@ func apiConnectSidecarServiceToStructs(in *api.ConsulSidecarService) *structs.Co
 		return nil
 	}
 	return &structs.ConsulSidecarService{
-		Port:  in.Port,
-		Tags:  helper.CopySliceString(in.Tags),
-		Proxy: apiConnectSidecarServiceProxyToStructs(in.Proxy),
+		Port:   in.Port,
+		Tags:   helper.CopySliceString(in.Tags),
+		Proxy:  apiConnectSidecarServiceProxyToStructs(in.Proxy),
+		Checks: apiServiceChecksToStructs(in.Checks, ""),
 	}
 }
 
