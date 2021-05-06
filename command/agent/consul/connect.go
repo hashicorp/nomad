@@ -105,12 +105,9 @@ func connectSidecarRegistration(serviceId string, css *structs.ConsulSidecarServ
 		return nil, err
 	}
 
-	return &api.AgentServiceRegistration{
-		Tags:    helper.CopySliceString(css.Tags),
-		Port:    cMapping.Value,
-		Address: cMapping.HostIP,
-		Proxy:   proxy,
-		Checks: api.AgentServiceChecks{
+	var checks []*api.AgentServiceCheck
+	if len(css.Checks) == 0 {
+		checks = api.AgentServiceChecks{
 			{
 				Name:     "Connect Sidecar Listening",
 				TCP:      net.JoinHostPort(cMapping.HostIP, strconv.Itoa(cMapping.Value)),
@@ -120,7 +117,25 @@ func connectSidecarRegistration(serviceId string, css *structs.ConsulSidecarServ
 				Name:         "Connect Sidecar Aliasing " + serviceId,
 				AliasService: serviceId,
 			},
-		},
+		}
+	} else {
+		checks = make([]*api.AgentServiceCheck, len(css.Checks))
+		for i, c := range css.Checks {
+			check, err := createCheckReg(serviceId, "", c, cMapping.HostIP, cMapping.Value, "")
+			if err != nil {
+				return nil, fmt.Errorf("failed to register check %v: %w", c.Name, err)
+			}
+
+			checks[i] = &check.AgentServiceCheck
+		}
+	}
+
+	return &api.AgentServiceRegistration{
+		Tags:    helper.CopySliceString(css.Tags),
+		Port:    cMapping.Value,
+		Address: cMapping.HostIP,
+		Proxy:   proxy,
+		Checks:  checks,
 	}, nil
 }
 
