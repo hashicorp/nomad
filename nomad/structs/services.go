@@ -516,6 +516,9 @@ func (s *Service) Canonicalize(job string, taskGroup string, task string) {
 	if len(s.Checks) == 0 {
 		s.Checks = nil
 	}
+	if s.Connect != nil && s.Connect.SidecarService != nil {
+		s.Connect.SidecarService.Canonicalize()
+	}
 
 	s.Name = args.ReplaceEnv(s.Name, map[string]string{
 		"JOB":       job,
@@ -680,6 +683,27 @@ func hashConfig(h hash.Hash, c map[string]interface{}) {
 	_, _ = fmt.Fprintf(h, "%v", c)
 }
 
+func checksEqual(c1, c2 []*ServiceCheck) bool {
+	if len(c1) != len(c2) {
+		return false
+	}
+
+OUTER:
+	for i := range c1 {
+		for j := range c2 {
+			if c1[i].Equals(c2[j]) {
+				// Found match; continue with next check
+				continue OUTER
+			}
+		}
+
+		// No match
+		return false
+	}
+
+	return true
+}
+
 // Equals returns true if the structs are recursively equal.
 func (s *Service) Equals(o *Service) bool {
 	if s == nil || o == nil {
@@ -702,20 +726,7 @@ func (s *Service) Equals(o *Service) bool {
 		return false
 	}
 
-	if len(s.Checks) != len(o.Checks) {
-		return false
-	}
-
-OUTER:
-	for i := range s.Checks {
-		for ii := range o.Checks {
-			if s.Checks[i].Equals(o.Checks[ii]) {
-				// Found match; continue with next check
-				continue OUTER
-			}
-		}
-
-		// No match
+	if !checksEqual(s.Checks, o.Checks) {
 		return false
 	}
 
@@ -866,6 +877,11 @@ func (c *ConsulConnect) Validate() error {
 		}
 	}
 
+	if c.SidecarService != nil {
+		if err := c.SidecarService.Validate(); err != nil {
+			return err
+		}
+	}
 	// The Native and Sidecar cases are validated up at the service level.
 
 	return nil
@@ -884,6 +900,9 @@ type ConsulSidecarService struct {
 
 	// Proxy stanza defining the sidecar proxy configuration.
 	Proxy *ConsulProxy
+
+	// Checks define the checks for the sidecar service, overriding the default TCP check
+	Checks []*ServiceCheck
 }
 
 // HasUpstreams checks if the sidecar service has any upstreams configured
@@ -896,11 +915,48 @@ func (s *ConsulSidecarService) Copy() *ConsulSidecarService {
 	if s == nil {
 		return nil
 	}
-	return &ConsulSidecarService{
-		Tags:  helper.CopySliceString(s.Tags),
-		Port:  s.Port,
-		Proxy: s.Proxy.Copy(),
+
+	var checks []*ServiceCheck
+	if s.Checks != nil {
+		checks = make([]*ServiceCheck, len(s.Checks))
+		for i, c := range s.Checks {
+			checks[i] = c.Copy()
+		}
 	}
+
+	return &ConsulSidecarService{
+		Tags:   helper.CopySliceString(s.Tags),
+		Port:   s.Port,
+		Proxy:  s.Proxy.Copy(),
+		Checks: checks,
+	}
+
+}
+
+func (s *ConsulSidecarService) Canonicalize() {
+	if len(s.Checks) == 0 {
+		s.Checks = nil
+	}
+
+	for _, check := range s.Checks {
+		check.Canonicalize("sidecar_service")
+	}
+}
+
+func (s *ConsulSidecarService) Validate() error {
+	var mErr multierror.Error
+	for _, c := range s.Checks {
+
+		//if c.PortLabel != "" {
+		//	mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s invalid: port is automatically assigned", c.Name))
+		//	continue
+		//}
+
+		if err := c.validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s invalid: %v", c.Name, err))
+		}
+	}
+	return mErr.ErrorOrNil()
 }
 
 // Equals returns true if the structs are recursively equal.
@@ -917,7 +973,15 @@ func (s *ConsulSidecarService) Equals(o *ConsulSidecarService) bool {
 		return false
 	}
 
-	return s.Proxy.Equals(o.Proxy)
+	if !s.Proxy.Equals(o.Proxy) {
+		return false
+	}
+
+	if !checksEqual(s.Checks, o.Checks) {
+		return false
+	}
+
+	return true
 }
 
 // SidecarTask represents a subset of Task fields that are able to be overridden

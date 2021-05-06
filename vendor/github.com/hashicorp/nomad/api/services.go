@@ -189,9 +189,10 @@ func (cc *ConsulConnect) Canonicalize() {
 // ConsulSidecarService represents a Consul Connect SidecarService jobspec
 // stanza.
 type ConsulSidecarService struct {
-	Tags  []string     `hcl:"tags,optional"`
-	Port  string       `hcl:"port,optional"`
-	Proxy *ConsulProxy `hcl:"proxy,block"`
+	Tags   []string       `hcl:"tags,optional"`
+	Port   string         `hcl:"port,optional"`
+	Proxy  *ConsulProxy   `hcl:"proxy,block"`
+	Checks []ServiceCheck `hcl:"check,block"`
 }
 
 func (css *ConsulSidecarService) Canonicalize() {
