@@ -15,6 +15,16 @@ used to document those details separately from the standard upgrade flow.
 
 ## Nomad 1.1.0
 
+#### Enterprise licenses
+
+Nomad Enterprise licenses are no longer stored in raft or synced between
+servers. Nomad Enterprise servers will not start without a license. Before
+upgrading, you must provide each server with a license on disk or in its
+environment (see the [Enterprise licensing] documentation for details). The
+`nomad license put` command has been removed.
+
+Click [here](https://www.hashicorp.com/products/nomad/trial) to get a trial license for Nomad Enterprise.
+
 #### Agent Metrics API
 
 The Nomad agent metrics API now respects the
@@ -40,16 +50,6 @@ these fields.
 Connect native tasks running in host networking mode will now have `CONSUL_HTTP_ADDR`
 set automatically. Before this was only the case for bridge networking. If an operator
 already explicitly set `CONSUL_HTTP_ADDR` then it will not get overriden.
-
-#### Enterprise licenses
-
-Nomad Enterprise licenses are no longer stored in raft or synced between
-servers. Nomad Enterprise servers will not start without a license. Before
-upgrading, you must provide each server with its own license on disk or in its
-environment (see the [Enterprise licensing] documentation for details). The
-`nomad license put` command has been removed.
-
-Click [here](https://www.hashicorp.com/products/nomad/trial) to get a trial license for Nomad Enterprise.
 
 #### iptables
 
