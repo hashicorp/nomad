@@ -291,7 +291,7 @@ func TestNodes_ToggleDrain(t *testing.T) {
 					sawDraining = node.ModifyIndex
 				} else if sawDraining != 0 && !node.Drain && node.SchedulingEligibility == NodeSchedulingIneligible {
 					require.NotNil(node.LastDrain)
-					require.Equal(DrainStatusCompleted, node.LastDrain.Status)
+					require.Equal(DrainStatusComplete, node.LastDrain.Status)
 					require.True(!node.LastDrain.UpdatedAt.Before(node.LastDrain.StartedAt))
 					require.Equal(drainMeta, node.LastDrain.Meta)
 					sawDrainComplete = node.ModifyIndex

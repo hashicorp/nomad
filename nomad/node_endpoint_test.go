@@ -975,7 +975,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.Equal(structs.DrainMetadata{
 		StartedAt: out.LastDrain.StartedAt,
 		UpdatedAt: out.LastDrain.UpdatedAt,
-		Status:    structs.DrainStatusCancelled,
+		Status:    structs.DrainStatusCanceled,
 		Meta:      map[string]string{"cancelled": "yes"},
 	}, *out.LastDrain)
 

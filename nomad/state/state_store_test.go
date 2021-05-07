@@ -1157,7 +1157,7 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 	require.Nil(out.DrainStrategy)
 	require.Equal(out.SchedulingEligibility, structs.NodeSchedulingEligible)
 	require.NotNil(out.LastDrain)
-	require.Equal(structs.DrainStatusCancelled, out.LastDrain.Status)
+	require.Equal(structs.DrainStatusCanceled, out.LastDrain.Status)
 	require.Equal(time.Unix(7, 0), out.LastDrain.StartedAt)
 	require.Equal(time.Unix(9, 0), out.LastDrain.UpdatedAt)
 	require.Len(out.Events, 3)
