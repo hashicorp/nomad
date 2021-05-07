@@ -27,10 +27,11 @@ export default class SocketsService extends Service {
       const applicationAdapter = getOwner(this).lookup('adapter:application');
       const prefix = `${applicationAdapter.host ||
         window.location.host}/${applicationAdapter.urlPrefix()}`;
+      const region = window.localStorage.nomadActiveRegion;
 
       return new WebSocket(
         `${protocol}//${prefix}/client/allocation/${taskState.allocation.id}` +
-          `/exec?task=${taskState.name}&tty=true&ws_handshake=true` +
+          `/exec?task=${taskState.name}&tty=true&ws_handshake=true&region=${region}` +
           `&command=${encodeURIComponent(`["${command}"]`)}`
       );
     }
