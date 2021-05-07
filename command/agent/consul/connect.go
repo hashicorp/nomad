@@ -105,27 +105,19 @@ func connectSidecarRegistration(serviceId string, css *structs.ConsulSidecarServ
 		return nil, err
 	}
 
-	var checks api.AgentServiceChecks
+	// if the service has a TCP check that's failing, we need an alias to
+	// ensure service discovery doesn't exclude results that include this
+	// sidecar (ex. in the case of Connect upstreams)
+	checks := api.AgentServiceChecks{{
+		Name:         "Connect Sidecar Aliasing " + serviceId,
+		AliasService: serviceId,
+	}}
 	if !css.DisableDefaultTCPCheck {
-		checks = api.AgentServiceChecks{
-			{
-				Name:     "Connect Sidecar Listening",
-				TCP:      net.JoinHostPort(cMapping.HostIP, strconv.Itoa(cMapping.Value)),
-				Interval: "10s",
-			},
-			{
-				Name:         "Connect Sidecar Aliasing " + serviceId,
-				AliasService: serviceId,
-			},
-		}
-	} else {
-		// insert a NOOP check to avoid Consul inserting the default
-		checks = api.AgentServiceChecks{
-			{
-				Name:         "Connect Sidecar Aliasing " + serviceId,
-				AliasService: serviceId,
-			},
-		}
+		checks = append(checks, &api.AgentServiceCheck{
+			Name:     "Connect Sidecar Listening",
+			TCP:      net.JoinHostPort(cMapping.HostIP, strconv.Itoa(cMapping.Value)),
+			Interval: "10s",
+		})
 	}
 
 	return &api.AgentServiceRegistration{
