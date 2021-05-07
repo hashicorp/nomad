@@ -1590,6 +1590,10 @@
               {
                 "title": "Target Value",
                 "path": "autoscaling/plugins/strategy/target-value"
+              },
+              {
+                "title": "Threshold",
+                "path": "autoscaling/plugins/strategy/threshold"
               }
             ]
           },
