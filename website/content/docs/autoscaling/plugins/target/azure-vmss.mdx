@@ -1,0 +1,147 @@
+---
+layout: docs
+page_title: 'Autoscaling Plugins: Azure VMSS'
+description: The "azure-vmss" target plugin scales an Azure Virtual Machine Scale Set.
+---
+
+# Azure Virtual Machine Scale Set Target
+
+The `azure-vmss` target plugin allows for the scaling of the Nomad cluster
+clients via manipulating [Azure Virtual Machine Scale
+Sets][azure_virtual_machine_scale_sets].
+
+~> The `azure-vmss` target plugin requires Azure fingerprinting, which was
+added in Nomad 1.0. If you are running a previous version of Nomad you will to
+set a [meta tag][client_meta_tag] in all of your nodes.
+
+## Agent Configuration Options
+
+To use the `azure-vmss` target plugin, the agent configuration needs to be
+populated with the appropriate target block. Authentication to the Azure API
+can be supplied in a number of ways.
+
+### Virtual Machine Identities
+
+When using [virtual machine identities][azure_vm_identity] you will need to
+provide a user-managed identity with the `Contributor` role and set the
+`subscription_id` in the Autoscaler configuration file:
+
+```hcl
+target "azure-vmss" {
+  driver = "azure-vmss"
+  config = {
+    subscription_id = "ee0886ab-5cc2-4583-a3f0-c4bfd044ee82"
+  }
+}
+```
+
+### Configuration file
+
+Credentials should be injected into the configuration via a template rather
+than as environment variables. This ensures the credentials are passed only to
+the plugin, rather than being available for all plugins and the agent process.
+It is recommended, if possible to use the [Vault Azure Secrets
+engine][vault_azure_backend] for supplying access credentials to the plugin.
+
+```hcl
+target "azure-vmss" {
+  driver = "azure-vmss"
+  config = {
+    tenant_id         = "02e99e69-91b0-4d0a-bd61-bf5c08fbfbab"
+    client_id         = "34c276fa-2a74-4cf9-9fce-4e60642274cb"
+    secret_access_key = "ThisIrznTIS_~FAKEj4X93FTyAgilUC511"
+    subscription_id   = "ee0886ab-5cc2-4583-a3f0-c4bfd044ee82"
+  }
+}
+```
+
+- `tenant_id` `(string: "")` - The ID of the tenant to authenticate to.
+
+- `client_id` `(string: "")` - The app ID of the user-assigned identity in
+  Azure Active Directory.
+
+- `secret_access_key` `(string: "")` - The secret key ID used to authenticate
+  with the Azure API.
+
+- `subscription_id` `(string: "")` - The ID of the subscription to authenticate
+  to.
+
+### Nomad ACL
+
+When using a Nomad cluster with ACLs enabled, the plugin will require an ACL
+token which provides the following permissions:
+
+```hcl
+node {
+  policy = "write"
+}
+```
+
+## Policy Configuration Options
+
+```hcl
+check "clients-azure-vmss" {
+  # ...
+  target "azure-vmss" {
+    resource_group      = "prod"
+    vm_scale_set        = "hashistack-client-set"
+    node_class          = "hashistack"
+    node_drain_deadline = "5m"
+    node_purge          = "true"
+  }
+  # ...
+
+```
+
+- `resource_group` `(string: <required>)` - The name of the [Azure resource
+  group][azure_resource_group] within which the virtual machine scale set
+  resides.
+
+- `vm_scale_set` `(string: <required>)` - The name of the Azure virtual machine
+  scale set to interact with when performing scaling actions.
+
+- `datacenter` `(string: "")` - The Nomad client [datacenter][nomad_datacenter]
+  identifier used to group nodes into a pool of resource. Conflicts with
+  `node_class`.
+
+- `node_class` `(string: "")` - The Nomad [client node class][nomad_node_class]
+  identifier used to group nodes into a pool of resource. Conflicts with
+  `datacenter`.
+
+- `node_drain_deadline` `(duration: "15m")` The Nomad [drain
+  deadline][nomad_node_drain_deadline] to use when performing node draining
+  actions. **Note that the default value for this setting differs from Nomad's
+  default of 1h.**
+
+- `node_drain_ignore_system_jobs` `(bool: "false")` A boolean flag used to
+  control if system jobs should be stopped when performing node draining
+  actions.
+
+- `node_purge` `(bool: "false")` A boolean flag to determine whether Nomad
+  clients should be [purged][nomad_node_purge] when performing scale in
+  actions.
+
+- `node_selector_strategy` `(string: "least_busy")` The strategy to use when
+  selecting nodes for termination. Refer to the [node selector
+  strategy][node_selector_strategy] documentation for more information.
+
+### Client meta tag
+
+The `azure-vmss` target plugin requires Nomad 1.0 for Azure fingerprinting.
+Alternatively, you can set a [client meta tag][nomad_client_meta_tag] called
+`unique.platform.azure.name` with the value being the Azure VMSS node name.
+This can be retrieved programatically via the [Azure Instance Metadata
+service][azure_instance_metadata].
+
+[azure_instance_metadata]: https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service
+[azure_resource_group]: https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/manage-resource-groups-portal#what-is-a-resource-group
+[azure_virtual_machine_scale_sets]: https://docs.microsoft.com/en-us/azure/virtual-machine-scale-sets/overview
+[azure_vm_identity]: https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/
+[client_meta_tag]: #client-meta-tag
+[node_selector_strategy]: /docs/autoscaling/internals/node-selector-strategy
+[nomad_datacenter]: /docs/configuration#datacenter
+[nomad_client_meta_tag]: /docs/configuration/client#meta
+[nomad_node_class]: /docs/configuration/client#node_class
+[nomad_node_drain_deadline]: /api-docs/nodes#deadline
+[nomad_node_purge]: /api-docs/nodes#purge-node
+[vault_azure_backend]: https://www.vaultproject.io/docs/secrets/azure
