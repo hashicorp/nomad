@@ -125,6 +125,7 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 	args := structs.NodeUpdateDrainRequest{
 		NodeID:       nodeID,
 		MarkEligible: drainRequest.MarkEligible,
+		Meta:         drainRequest.Meta,
 	}
 	if drainRequest.DrainSpec != nil {
 		args.DrainStrategy = &structs.DrainStrategy{

@@ -88,7 +88,7 @@ func TestNodeDrainWatcher_Remove(t *testing.T) {
 	require.Equal(n, tracked[n.ID])
 
 	// Change the node to be not draining and wait for it to be untracked
-	require.Nil(state.UpdateNodeDrain(structs.MsgTypeTestSetup, 101, n.ID, nil, false, 0, nil))
+	require.Nil(state.UpdateNodeDrain(structs.MsgTypeTestSetup, 101, n.ID, nil, false, 0, nil, nil, ""))
 	testutil.WaitForResult(func() (bool, error) {
 		return len(m.events()) == 2, nil
 	}, func(err error) {
@@ -166,7 +166,7 @@ func TestNodeDrainWatcher_Update(t *testing.T) {
 	// Change the node to have a new spec
 	s2 := n.DrainStrategy.Copy()
 	s2.Deadline += time.Hour
-	require.Nil(state.UpdateNodeDrain(structs.MsgTypeTestSetup, 101, n.ID, s2, false, 0, nil))
+	require.Nil(state.UpdateNodeDrain(structs.MsgTypeTestSetup, 101, n.ID, s2, false, 0, nil, nil, ""))
 
 	// Wait for it to be updated
 	testutil.WaitForResult(func() (bool, error) {

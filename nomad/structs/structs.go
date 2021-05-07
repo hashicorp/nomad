@@ -508,6 +508,9 @@ type NodeUpdateDrainRequest struct {
 	// UpdatedAt represents server time of receiving request
 	UpdatedAt int64
 
+	// Meta is user-provided metadata relating to the drain operation
+	Meta map[string]string
+
 	WriteRequest
 }
 
@@ -1763,6 +1766,45 @@ func (d *DrainStrategy) Equal(o *DrainStrategy) bool {
 	return true
 }
 
+const (
+	// DrainStatuses are the various states a drain can be in, as reflect in DrainMetadata
+	DrainStatusDraining DrainStatus = "draining"
+	DrainStatusComplete DrainStatus = "complete"
+	DrainStatusCanceled DrainStatus = "canceled"
+)
+
+type DrainStatus string
+
+// DrainMetadata contains information about the most recent drain operation for a given Node.
+type DrainMetadata struct {
+	// StartedAt is the time that the drain operation started. This is equal to Node.DrainStrategy.StartedAt,
+	// if it exists
+	StartedAt time.Time
+
+	// UpdatedAt is the time that that this struct was most recently updated, either via API action
+	// or drain completion
+	UpdatedAt time.Time
+
+	// Status reflects the status of the drain operation.
+	Status DrainStatus
+
+	// AccessorID is the accessor ID of the ACL token used in the most recent API operation against this drain
+	AccessorID string
+
+	// Meta includes the operator-submitted metadata about this drain operation
+	Meta map[string]string
+}
+
+func (m *DrainMetadata) Copy() *DrainMetadata {
+	if m == nil {
+		return nil
+	}
+	c := new(DrainMetadata)
+	*c = *m
+	c.Meta = helper.CopyMapStringString(m.Meta)
+	return c
+}
+
 // Node is a representation of a schedulable client node
 type Node struct {
 	// ID is a unique identifier for the node. It can be constructed
@@ -1773,7 +1815,7 @@ type Node struct {
 	// SecretID is an ID that is only known by the Node and the set of Servers.
 	// It is not accessible via the API and is used to authenticate nodes
 	// conducting privileged activities.
-	SecretID string `json:"-"`
+	SecretID string
 
 	// Datacenter for this node
 	Datacenter string
@@ -1864,6 +1906,9 @@ type Node struct {
 	// HostVolumes is a map of host volume names to their configuration
 	HostVolumes map[string]*ClientHostVolumeConfig
 
+	// LastDrain contains metadata about the most recent drain operation
+	LastDrain *DrainMetadata
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -1941,6 +1986,7 @@ func (n *Node) Copy() *Node {
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
 	nn.Events = copyNodeEvents(n.Events)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
+	nn.LastDrain = nn.LastDrain.Copy()
 	nn.CSIControllerPlugins = copyNodeCSI(nn.CSIControllerPlugins)
 	nn.CSINodePlugins = copyNodeCSI(nn.CSINodePlugins)
 	nn.Drivers = copyNodeDrivers(n.Drivers)
@@ -2093,6 +2139,7 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 		StatusDescription:     n.StatusDescription,
 		Drivers:               n.Drivers,
 		HostVolumes:           n.HostVolumes,
+		LastDrain:             n.LastDrain,
 		CreateIndex:           n.CreateIndex,
 		ModifyIndex:           n.ModifyIndex,
 	}
@@ -2124,6 +2171,7 @@ type NodeListStub struct {
 	HostVolumes           map[string]*ClientHostVolumeConfig
 	NodeResources         *NodeResources         `json:",omitempty"`
 	ReservedResources     *NodeReservedResources `json:",omitempty"`
+	LastDrain             *DrainMetadata
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }
