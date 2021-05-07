@@ -83,6 +83,11 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
 - `client_http_check_name` `(string: "Nomad Client HTTP Check")` - Specifies the
   HTTP health check name in Consul for the Nomad clients.
 
+- `grpc_address` `(string: "127.0.0.1:8502")` - Specifies the address to the local
+  Consul agent for `gRPC` requests, given in the format `host:port`. Note that
+  Consul does not enable the [`grpc`](https://www.consul.io/docs/agent/options#_grpc_port)
+  listener by default.
+
 - `key_file` `(string: "")` - Specifies the path to the private key used for
   Consul communication. If this is set then you need to also set `cert_file`.
 
