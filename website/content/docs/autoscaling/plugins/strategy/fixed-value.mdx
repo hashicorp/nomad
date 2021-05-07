@@ -1,0 +1,35 @@
+---
+layout: docs
+page_title: 'Autoscaling Plugins: Fixed Value'
+description: The "fixed-value" strategy plugin sets a pre-defined value when scaling.
+---
+
+# Fixed Value Strategy Plugin
+
+The `fixed-value` strategy receives a count value as an input configuration
+option and returns a scaling action whose count is set to the same value. This
+strategy is useful in situations where there’s a known baseline for the
+infrastructure that does not change often.
+
+## Agent Configuration Options
+
+```hcl
+strategy "fixed-value" {
+  driver = "fixed-value"
+}
+```
+
+## Policy Configuration Options
+
+```hcl
+check "fixed-value-check" {
+  # ...
+  strategy "fixed-value" {
+    value = 3
+  }
+  # ...
+}
+```
+
+- `value` `(int: <required>)` - The value used by the Nomad Autoscaler to set
+  the target count.
