@@ -1056,7 +1056,7 @@ func (s *StateStore) updateNodeDrainImpl(txn *txn, index uint64, nodeID string,
 		} else if drainCompleted {
 			updatedNode.LastDrain.Status = structs.DrainStatusComplete
 		} else {
-			updatedNode.LastDrain.Status = structs.DrainStatusCancelled
+			updatedNode.LastDrain.Status = structs.DrainStatusCanceled
 		}
 	}
 

@@ -1768,10 +1768,12 @@ func (d *DrainStrategy) Equal(o *DrainStrategy) bool {
 
 const (
 	// DrainStatuses are the various states a drain can be in, as reflect in DrainMetadata
-	DrainStatusDraining  = "draining"
-	DrainStatusComplete  = "complete"
-	DrainStatusCancelled = "cancelled"
+	DrainStatusDraining DrainStatus = "draining"
+	DrainStatusComplete DrainStatus = "complete"
+	DrainStatusCanceled DrainStatus = "canceled"
 )
+
+type DrainStatus string
 
 // DrainMetadata contains information about the most recent drain operation for a given Node.
 type DrainMetadata struct {
@@ -1783,8 +1785,8 @@ type DrainMetadata struct {
 	// or drain completion
 	UpdatedAt time.Time
 
-	// Status reflects the status of the drain operation: "draining", "completed", "cancelled"
-	Status string
+	// Status reflects the status of the drain operation.
+	Status DrainStatus
 
 	// AccessorID is the accessor ID of the ACL token used in the most recent API operation against this drain
 	AccessorID string

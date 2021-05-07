@@ -19,9 +19,9 @@ const (
 	NodeSchedulingEligible   = "eligible"
 	NodeSchedulingIneligible = "ineligible"
 
-	DrainStatusDraining  = "draining"
-	DrainStatusCompleted = "complete"
-	DrainStatusCancelled = "cancelled"
+	DrainStatusDraining DrainStatus = "draining"
+	DrainStatusComplete DrainStatus = "complete"
+	DrainStatusCanceled DrainStatus = "canceled"
 )
 
 // Nodes is used to query node-related API endpoints
@@ -506,11 +506,13 @@ type HostVolumeInfo struct {
 	ReadOnly bool
 }
 
+type DrainStatus string
+
 // DrainMetadata contains information about the most recent drain operation for a given Node.
 type DrainMetadata struct {
 	StartedAt  time.Time
 	UpdatedAt  time.Time
-	Status     string
+	Status     DrainStatus
 	AccessorID string
 	Meta       map[string]string
 }
