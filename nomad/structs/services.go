@@ -884,6 +884,10 @@ type ConsulSidecarService struct {
 
 	// Proxy stanza defining the sidecar proxy configuration.
 	Proxy *ConsulProxy
+
+	// DisableDefaultTCPCheck, if true, instructs Nomad to avoid setting a
+	// default TCP check for the sidecar service.
+	DisableDefaultTCPCheck bool
 }
 
 // HasUpstreams checks if the sidecar service has any upstreams configured
@@ -897,9 +901,10 @@ func (s *ConsulSidecarService) Copy() *ConsulSidecarService {
 		return nil
 	}
 	return &ConsulSidecarService{
-		Tags:  helper.CopySliceString(s.Tags),
-		Port:  s.Port,
-		Proxy: s.Proxy.Copy(),
+		Tags:                   helper.CopySliceString(s.Tags),
+		Port:                   s.Port,
+		Proxy:                  s.Proxy.Copy(),
+		DisableDefaultTCPCheck: s.DisableDefaultTCPCheck,
 	}
 }
 
@@ -910,6 +915,10 @@ func (s *ConsulSidecarService) Equals(o *ConsulSidecarService) bool {
 	}
 
 	if s.Port != o.Port {
+		return false
+	}
+
+	if s.DisableDefaultTCPCheck != o.DisableDefaultTCPCheck {
 		return false
 	}
 
