@@ -106,8 +106,8 @@ func connectSidecarRegistration(serviceId string, css *structs.ConsulSidecarServ
 	}
 
 	// if the service has a TCP check that's failing, we need an alias to
-	// ensure service discovery doesn't exclude results that include this
-	// sidecar (ex. in the case of Connect upstreams)
+	// ensure service discovery excludes this sidecar from queries
+	// (ex. in the case of Connect upstreams)
 	checks := api.AgentServiceChecks{{
 		Name:         "Connect Sidecar Aliasing " + serviceId,
 		AliasService: serviceId,
