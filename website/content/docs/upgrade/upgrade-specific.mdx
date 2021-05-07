@@ -18,10 +18,15 @@ used to document those details separately from the standard upgrade flow.
 #### Enterprise licenses
 
 Nomad Enterprise licenses are no longer stored in raft or synced between
-servers. Nomad Enterprise servers will not start without a license. Before
+servers. Nomad Enterprise servers will not start without a license. There is
+no longer a six hour evaluation period when running Nomad Enterprise. Before
 upgrading, you must provide each server with a license on disk or in its
-environment (see the [Enterprise licensing] documentation for details). The
-`nomad license put` command has been removed.
+environment (see the [Enterprise licensing] documentation for details).
+
+The `nomad license put` command has been removed.
+
+The `nomad license get` command is no longer forwarded to the Nomad leader,
+and will return the license from the specific server being contacted.
 
 Click [here](https://www.hashicorp.com/products/nomad/trial) to get a trial license for Nomad Enterprise.
 
