@@ -322,7 +322,7 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		require.NotNil(out.LastDrain)
 		require.False(out.LastDrain.StartedAt.Before(beforeDrain))
 		require.False(out.LastDrain.UpdatedAt.Before(out.LastDrain.StartedAt))
-		require.Contains([]string{structs.DrainStatusCanceled, structs.DrainStatusComplete}, out.LastDrain.Status)
+		require.Contains([]structs.DrainStatus{structs.DrainStatusCanceled, structs.DrainStatusComplete}, out.LastDrain.Status)
 		if out.LastDrain.Status == structs.DrainStatusComplete {
 			require.Equal(map[string]string{
 				"reason": "drain",
