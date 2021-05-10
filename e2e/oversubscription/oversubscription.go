@@ -11,7 +11,8 @@ import (
 
 type OversubscriptionTest struct {
 	framework.TC
-	jobIDs []string
+	jobIDs                 []string
+	initialSchedulerConfig *api.SchedulerConfiguration
 }
 
 func init() {
@@ -29,6 +30,30 @@ func (tc *OversubscriptionTest) BeforeAll(f *framework.F) {
 	e2eutil.WaitForLeader(f.T(), tc.Nomad())
 	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 1)
 
+	tc.enableMemoryOversubscription(f)
+}
+
+func (tc *OversubscriptionTest) AfterAll(f *framework.F) {
+	tc.restoreSchedulerConfig(f)
+}
+
+func (tc *OversubscriptionTest) enableMemoryOversubscription(f *framework.F) {
+	resp, _, err := tc.Nomad().Operator().SchedulerGetConfiguration(nil)
+	f.NoError(err)
+
+	tc.initialSchedulerConfig = resp.SchedulerConfig
+
+	conf := *resp.SchedulerConfig
+	conf.MemoryOversubscriptionEnabled = true
+	_, _, err = tc.Nomad().Operator().SchedulerSetConfiguration(&conf, nil)
+	f.NoError(err)
+}
+
+func (tc *OversubscriptionTest) restoreSchedulerConfig(f *framework.F) {
+	if tc.initialSchedulerConfig != nil {
+		_, _, err := tc.Nomad().Operator().SchedulerSetConfiguration(tc.initialSchedulerConfig, nil)
+		f.NoError(err)
+	}
 }
 
 func (tc *OversubscriptionTest) AfterEach(f *framework.F) {
