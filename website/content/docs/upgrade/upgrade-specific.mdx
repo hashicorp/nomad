@@ -14,6 +14,97 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.1.0
+
+#### Enterprise licenses
+
+Nomad Enterprise licenses are no longer stored in raft or synced between
+servers. Nomad Enterprise servers will not start without a license. Before
+upgrading, you must provide each server with a license on disk or in its
+environment (see the [Enterprise licensing] documentation for details). The
+`nomad license put` command has been removed.
+
+Click [here](https://www.hashicorp.com/products/nomad/trial) to get a trial license for Nomad Enterprise.
+
+#### Agent Metrics API
+
+The Nomad agent metrics API now respects the
+[`prometheus_metrics`](https://www.nomadproject.io/docs/configuration/telemetry#prometheus_metrics)
+configuration value. If this value is set to `false`, which is the default value,
+calling `/v1/metrics?format=prometheus` will now result in a response error.
+
+#### CSI volumes
+
+The volume specification for CSI volumes has been updated to support volume
+creation. The `access_mode` and `attachment_mode` fields have been moved to a
+`capability` block that can be repeated. Existing registered volumes will be
+automatically modified the next time that a volume claim is updated. Volume
+specification files for new volumes should be updated to the format described
+in the [`volume create`] and [`volume register`] commands.
+
+The [`volume`] block has an `access_mode` and `attachment_mode` field that are
+required for CSI volumes. Jobs that use CSI volumes should be updated with
+these fields.
+
+#### Connect native tasks
+
+Connect native tasks running in host networking mode will now have `CONSUL_HTTP_ADDR`
+set automatically. Before this was only the case for bridge networking. If an operator
+already explicitly set `CONSUL_HTTP_ADDR` then it will not get overriden.
+
+#### iptables
+
+Nomad now appends its iptables rules to the `NOMAD-ADMIN` chain instead of
+inserting them as the first rule. This allows better control for user-defined
+iptables rules but users who append rules currently should verify that their
+rules are being appended in the correct order.
+
+## Nomad 1.1.0, 1.0.5, 0.12.12
+
+Nomad versions 1.1.0, 1.0.5 and 0.12.12 change the behavior of the `docker`, `exec`,
+and `java` task drivers so that the [`CAP_NET_RAW`] linux capability is disabled
+by default. This is one of the [`linux capabilities`] that Docker itself enables
+by default, as this capability enables the generation of ICMP packets - used by
+the common `ping` utility for performing network diagnostics. When used by groups in
+`bridge` networking mode, the `CAP_NET_RAW` capability also exposes tasks to ARP spoofing,
+enabling DoS and MITM attacks against other tasks running in `bridge` networking
+on the same host. Operators should weigh potential impact of an upgrade on their
+applications against the security consequences inherit with `CAP_NET_RAW`. Typical
+applications using `tcp` or `udp` based networking should not be affected.
+
+This is the sole change for Nomad 1.0.5 and 0.12.12, intended to provide better
+task network isolation by default.
+
+Users of the `docker` driver can restore the previous behavior by configuring the
+[`allow_caps`] driver configuration option to explicitly enable the `CAP_NET_RAW`
+capability.
+
+```hcl
+plugin "docker" {
+  config {
+    allow_caps = [
+      "CHOWN", "DAC_OVERRIDE", "FSETID", "FOWNER", "MKNOD",
+      "SETGID", "SETUID", "SETFCAP", "SETPCAP", "NET_BIND_SERVICE",
+      "SYS_CHROOT", "KILL", "AUDIT_WRITE", "NET_RAW",
+    ]
+  }
+}
+```
+
+An upcoming version of Nomad will include similar configuration options for the
+`exec` and `java` task drivers.
+
+This change is limited to `docker`, `exec`, and `java` driver plugins. It does
+not affect the Nomad server. This only affects Nomad clients running Linux, with
+tasks using `bridge` networking and one of these task drivers, or third-party
+plugins which relied on the shared Nomad executor library.
+
+Upgrading a Nomad client to 1.0.5 or 0.12.12 will not restart existing tasks. As
+such, processes from existing `docker`, `exec`, or `java` tasks will need to be
+manually restarted (using `alloc stop` or another mechanism) in order to be
+fully isolated.
+
+>>>>>>> 4f1583163... drivers/docker+exec+java: disable net_raw capability by default
 ## Nomad 1.0.3, 0.12.10
 
 Nomad versions 1.0.3 and 0.12.10 change the behavior of the `exec` and `java` drivers so that
@@ -1010,3 +1101,10 @@ deleted and then Nomad 0.3.0 can be launched.
 [node drain]: https://www.nomadproject.io/docs/upgrade#5-upgrade-clients
 [`template.disable_file_sandbox`]: /docs/configuration/client#template-parameters
 [pki]: https://www.vaultproject.io/docs/secrets/pki
+[`volume create`]: /docs/commands/volume/create
+[`volume register`]: /docs/commands/volume/register
+[`volume`]: /docs/job-specification/volume
+[Enterprise licensing]: /docs/enterprise/license
+[`CAP_NET_RAW`]: https://security.stackexchange.com/a/128988
+[`linux capabilities`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[`allow_caps`]: /docs/drivers/docker#allow_caps

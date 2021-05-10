@@ -477,7 +477,7 @@ func TestExecutor_Capabilities(t *testing.T) {
 CapInh: 0000000000000000
 CapPrm: 0000000000000000
 CapEff: 0000000000000000
-CapBnd: 0000003fffffffff
+CapBnd: 0000003fffffdfff
 CapAmb: 0000000000000000`,
 		},
 		{

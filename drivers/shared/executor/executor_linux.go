@@ -30,7 +30,6 @@ import (
 	ldevices "github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
-	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/sys/unix"
 )
 
@@ -523,12 +522,12 @@ func (l *LibcontainerExecutor) handleExecWait(ch chan *waitResult, process *libc
 }
 
 func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) error {
-	// TODO: allow better control of these
+	// TODO(shoenig): allow better control of these
 	// use capabilities list as prior to adopting libcontainer in 0.9
-	allCaps := supportedCaps()
 
 	// match capabilities used in Nomad 0.8
 	if command.User == "root" {
+		allCaps := SupportedCaps(true)
 		cfg.Capabilities = &lconfigs.Capabilities{
 			Bounding:    allCaps,
 			Permitted:   allCaps,
@@ -537,29 +536,13 @@ func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) error {
 			Inheritable: nil,
 		}
 	} else {
+		allCaps := SupportedCaps(false)
 		cfg.Capabilities = &lconfigs.Capabilities{
 			Bounding: allCaps,
 		}
 	}
 
 	return nil
-}
-
-// supportedCaps returns a list of all supported capabilities in kernel
-func supportedCaps() []string {
-	allCaps := []string{}
-	last := capability.CAP_LAST_CAP
-	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
-	if last == capability.Cap(63) {
-		last = capability.CAP_BLOCK_SUSPEND
-	}
-	for _, cap := range capability.List() {
-		if cap > last {
-			continue
-		}
-		allCaps = append(allCaps, fmt.Sprintf("CAP_%s", strings.ToUpper(cap.String())))
-	}
-	return allCaps
 }
 
 func configureNamespaces(pidMode, ipcMode string) lconfigs.Namespaces {

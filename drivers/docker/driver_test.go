@@ -19,6 +19,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/freeport"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -1320,44 +1321,44 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 		{
 			Name:    "default-allowlist-add-allowed",
 			CapAdd:  []string{"fowner", "mknod"},
-			CapDrop: []string{"all"},
+			CapDrop: []string{"ALL"},
 		},
 		{
 			Name:       "default-allowlist-add-forbidden",
 			CapAdd:     []string{"net_admin"},
-			StartError: "net_admin",
+			StartError: "NET_ADMIN",
 		},
 		{
 			Name:    "default-allowlist-drop-existing",
-			CapDrop: []string{"fowner", "mknod"},
+			CapDrop: []string{"FOWNER", "MKNOD", "NET_RAW"},
 		},
 		{
 			Name:      "restrictive-allowlist-drop-all",
-			CapDrop:   []string{"all"},
-			Allowlist: "fowner,mknod",
+			CapDrop:   []string{"ALL"},
+			Allowlist: "FOWNER,MKNOD",
 		},
 		{
 			Name:      "restrictive-allowlist-add-allowed",
 			CapAdd:    []string{"fowner", "mknod"},
-			CapDrop:   []string{"all"},
+			CapDrop:   []string{"ALL"},
 			Allowlist: "fowner,mknod",
 		},
 		{
 			Name:       "restrictive-allowlist-add-forbidden",
 			CapAdd:     []string{"net_admin", "mknod"},
-			CapDrop:    []string{"all"},
+			CapDrop:    []string{"ALL"},
 			Allowlist:  "fowner,mknod",
-			StartError: "net_admin",
+			StartError: "NET_ADMIN",
 		},
 		{
 			Name:      "permissive-allowlist",
 			CapAdd:    []string{"net_admin", "mknod"},
-			Allowlist: "all",
+			Allowlist: "ALL",
 		},
 		{
 			Name:      "permissive-allowlist-add-all",
 			CapAdd:    []string{"all"},
-			Allowlist: "all",
+			Allowlist: "ALL",
 		},
 	}
 
@@ -2828,5 +2829,171 @@ func TestDockerDriver_parseSignal(t *testing.T) {
 	t.Run("not a signal", func(t *testing.T) {
 		_, err := d.parseSignal(runtime.GOOS, "SIGDOESNOTEXIST")
 		require.Error(t, err)
+	})
+}
+
+func TestDockerCaps_normalizeCaps(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		result := normalizeCaps(nil)
+		require.Len(t, result, 0)
+	})
+
+	t.Run("mixed", func(t *testing.T) {
+		result := normalizeCaps([]string{
+			"DAC_OVERRIDE", "sys_chroot", "kill", "KILL",
+		})
+		require.Equal(t, []string{
+			"DAC_OVERRIDE", "KILL", "SYS_CHROOT",
+		}, result)
+	})
+}
+
+func TestDockerCaps_missingCaps(t *testing.T) {
+	allowed := []string{
+		"DAC_OVERRIDE", "SYS_CHROOT", "KILL", "CHOWN",
+	}
+
+	t.Run("none missing", func(t *testing.T) {
+		result := missingCaps(allowed, []string{
+			"SYS_CHROOT", "chown", "KILL",
+		})
+		require.Equal(t, []string(nil), result)
+	})
+
+	t.Run("some missing", func(t *testing.T) {
+		result := missingCaps(allowed, []string{
+			"chown", "audit_write", "SETPCAP", "dac_override",
+		})
+		require.Equal(t, []string{"AUDIT_WRITE", "SETPCAP"}, result)
+	})
+}
+
+func TestDockerCaps_expandAllowCaps(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		result := expandAllowCaps(nil)
+		require.Empty(t, result)
+	})
+
+	t.Run("manual", func(t *testing.T) {
+		result := expandAllowCaps([]string{
+			"DAC_OVERRIDE", "SYS_CHROOT", "KILL", "CHOWN",
+		})
+		require.Equal(t, []string{
+			"CHOWN", "DAC_OVERRIDE", "KILL", "SYS_CHROOT",
+		}, result)
+	})
+
+	t.Run("all", func(t *testing.T) {
+		result := expandAllowCaps([]string{"all"})
+		exp := normalizeCaps(executor.SupportedCaps(true))
+		sort.Strings(exp)
+		require.Equal(t, exp, result)
+	})
+}
+
+func TestDockerCaps_capDrops(t *testing.T) {
+	// docker default caps is always the same, task configured drop_caps and
+	// plugin config allow_caps may be altered
+
+	// This is the 90% use case, where NET_RAW is dropped, as Nomad's default
+	// capability allow-list is a subset of the docker default cap list.
+	t.Run("defaults", func(t *testing.T) {
+		result := capDrops(nil, nomadDefaultCaps())
+		require.Equal(t, []string{"NET_RAW"}, result)
+	})
+
+	// Users want to use ICMP (ping).
+	t.Run("enable net_raw", func(t *testing.T) {
+		result := capDrops(nil, append(nomadDefaultCaps(), "net_raw"))
+		require.Empty(t, result)
+	})
+
+	// The plugin is reduced in ability.
+	t.Run("enable minimal", func(t *testing.T) {
+		allow := []string{"setgid", "setuid", "chown", "kill"}
+		exp := []string{"AUDIT_WRITE", "DAC_OVERRIDE", "FOWNER", "FSETID", "MKNOD", "NET_BIND_SERVICE", "NET_RAW", "SETFCAP", "SETPCAP", "SYS_CHROOT"}
+		result := capDrops(nil, allow)
+		require.Equal(t, exp, result)
+	})
+
+	// The task drops abilities.
+	t.Run("task drops", func(t *testing.T) {
+		drops := []string{"audit_write", "fowner", "kill", "chown"}
+		exp := []string{"AUDIT_WRITE", "CHOWN", "FOWNER", "KILL", "NET_RAW"}
+		result := capDrops(drops, nomadDefaultCaps())
+		require.Equal(t, exp, result)
+	})
+
+	// Drop all mixed with others.
+	t.Run("task drops mix", func(t *testing.T) {
+		drops := []string{"audit_write", "all", "chown"}
+		exp := []string{"ALL"} // minimized
+		result := capDrops(drops, nomadDefaultCaps())
+		require.Equal(t, exp, result)
+	})
+}
+
+func TestDockerCaps_getCaps(t *testing.T) {
+	testutil.ExecCompatible(t) // tests require linux
+
+	t.Run("defaults", func(t *testing.T) {
+		d := Driver{config: &DriverConfig{
+			AllowCaps: nomadDefaultCaps(),
+		}}
+		add, drop, err := d.getCaps(&TaskConfig{
+			CapAdd: nil, CapDrop: nil,
+		})
+		require.NoError(t, err)
+		require.Empty(t, add)
+		require.Equal(t, []string{"NET_RAW"}, drop)
+	})
+
+	t.Run("enable net_raw", func(t *testing.T) {
+		d := Driver{config: &DriverConfig{
+			AllowCaps: append(nomadDefaultCaps(), "net_raw"),
+		}}
+		add, drop, err := d.getCaps(&TaskConfig{
+			CapAdd: nil, CapDrop: nil,
+		})
+		require.NoError(t, err)
+		require.Empty(t, add)
+		require.Empty(t, drop)
+	})
+
+	t.Run("block sys_time", func(t *testing.T) {
+		d := Driver{config: &DriverConfig{
+			AllowCaps: nomadDefaultCaps(),
+		}}
+		_, _, err := d.getCaps(&TaskConfig{
+			CapAdd:  []string{"SYS_TIME"},
+			CapDrop: nil,
+		})
+		require.EqualError(t, err, `Docker driver does not have the following caps allow-listed on this Nomad agent: [SYS_TIME]`)
+	})
+
+	t.Run("enable sys_time", func(t *testing.T) {
+		d := Driver{config: &DriverConfig{
+			AllowCaps: append(nomadDefaultCaps(), "sys_time"),
+		}}
+		add, drop, err := d.getCaps(&TaskConfig{
+			CapAdd:  []string{"SYS_TIME"},
+			CapDrop: nil,
+		})
+		require.NoError(t, err)
+		require.Equal(t, []string{"SYS_TIME"}, add)
+		require.Equal(t, []string{"NET_RAW"}, drop)
+	})
+
+	t.Run("task drops chown", func(t *testing.T) {
+		d := Driver{config: &DriverConfig{
+			AllowCaps: nomadDefaultCaps(),
+		}}
+		add, drop, err := d.getCaps(&TaskConfig{
+			CapAdd:  nil,
+			CapDrop: []string{"chown"},
+		})
+		require.NoError(t, err)
+		require.Empty(t, add)
+		require.Equal(t, []string{"CHOWN", "NET_RAW"}, drop)
 	})
 }

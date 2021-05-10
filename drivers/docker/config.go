@@ -36,16 +36,40 @@ const (
 	// it is timed out.
 	dockerTimeout = 5 * time.Minute
 
-	// dockerBasicCaps is comma-separated list of Linux capabilities that are
-	// allowed by docker by default, as documented in
-	// https://docs.docker.com/engine/reference/run/#block-io-bandwidth-blkio-constraint
-	dockerBasicCaps = "CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID," +
-		"SETUID,SETFCAP,SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"
-
 	// dockerAuthHelperPrefix is the prefix to attach to the credential helper
 	// and should be found in the $PATH. Example: ${prefix-}${helper-name}
 	dockerAuthHelperPrefix = "docker-credential-"
 )
+
+// nomadDefaultCaps is the subset of dockerDefaultCaps that Nomad enables by
+// default and is used to compute the set of capabilities to add/drop given
+// docker driver configuration.
+func nomadDefaultCaps() []string {
+	return []string{
+		"AUDIT_WRITE",
+		"CHOWN",
+		"DAC_OVERRIDE",
+		"FOWNER",
+		"FSETID",
+		"KILL",
+		"MKNOD",
+		"NET_BIND_SERVICE",
+		"SETFCAP",
+		"SETGID",
+		"SETPCAP",
+		"SETUID",
+		"SYS_CHROOT",
+	}
+}
+
+// dockerDefaultCaps is a list of Linux capabilities enabled by docker by default
+// and is used to compute the set of capabilities to add/drop given docker driver
+// configuration, as well as Nomad built-in limitations.
+//
+// https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+func dockerDefaultCaps() []string {
+	return append(nomadDefaultCaps(), "NET_RAW")
+}
 
 func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	conf := map[string]interface{}{}
@@ -248,7 +272,7 @@ var (
 		"allow_privileged": hclspec.NewAttr("allow_privileged", "bool", false),
 		"allow_caps": hclspec.NewDefault(
 			hclspec.NewAttr("allow_caps", "list(string)", false),
-			hclspec.NewLiteral(`["CHOWN","DAC_OVERRIDE","FSETID","FOWNER","MKNOD","NET_RAW","SETGID","SETUID","SETFCAP","SETPCAP","NET_BIND_SERVICE","SYS_CHROOT","KILL","AUDIT_WRITE"]`),
+			hclspec.NewLiteral(`["CHOWN","DAC_OVERRIDE","FSETID","FOWNER","MKNOD","SETGID","SETUID","SETFCAP","SETPCAP","NET_BIND_SERVICE","SYS_CHROOT","KILL","AUDIT_WRITE"]`),
 		),
 		"nvidia_runtime": hclspec.NewDefault(
 			hclspec.NewAttr("nvidia_runtime", "string", false),
