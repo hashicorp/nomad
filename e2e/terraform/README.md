@@ -49,19 +49,13 @@ You'll need to pass one of the following variables in either your
 
 * `nomad_local_binary`: provision this specific local binary of Nomad. This is
   a path to a Nomad binary on your own host. Ex. `nomad_local_binary =
-  "/home/me/nomad"`. This setting overrides `nomad_sha` or `nomad_version`.
-* `nomad_sha`: provision this specific sha from S3. This is a Nomad binary
-  identified by its full commit SHA that's stored in a shared s3 bucket that
-  Nomad team developers can access. That commit SHA can be from any branch
-  that's pushed to remote. Ex. `nomad_sha =
-  "0b6b475e7da77fed25727ea9f01f155a58481b6c"`. This setting overrides
-  `nomad_version`.
+  "/home/me/nomad"`. This setting overrides `nomad_version`.
 * `nomad_version`: provision this version from
   [releases.hashicorp.com](https://releases.hashicorp.com/nomad). Ex. `nomad_version
   = "0.10.2+ent"`
 
-If you want to deploy the Enterprise build of a specific SHA, include
-`-var 'nomad_enterprise=true'`.
+If you want to deploy the Enterprise build, include `-var
+'nomad_enterprise=true'`.
 
 If you want to bootstrap Nomad ACLs, include `-var 'nomad_acls=true'`.
 
