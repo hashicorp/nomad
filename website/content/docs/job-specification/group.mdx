@@ -99,6 +99,9 @@ job "docs" {
   within this group. This can be specified multiple times, to add a task as part
   of the group.
 
+- `update` <code>([Update][update]: nil)</code> - Specifies the task's update
+  strategy. When omitted, a default update strategy is applied.
+
 - `vault` <code>([Vault][]: nil)</code> - Specifies the set of Vault policies
   required by all tasks in this group. Overrides a `vault` block set at the
   `job` level.
@@ -268,5 +271,6 @@ group "second" {
 [restart]: /docs/job-specification/restart 'Nomad restart Job Specification'
 [service]: /docs/job-specification/service 'Nomad service Job Specification'
 [service_discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
+[update]: /docs/job-specification/update 'Nomad update Job Specification'
 [vault]: /docs/job-specification/vault 'Nomad vault Job Specification'
 [volume]: /docs/job-specification/volume 'Nomad volume Job Specification'
