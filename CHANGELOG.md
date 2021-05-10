@@ -1,3 +1,8 @@
+## 0.12.12 (May 12, 2021)
+
+SECURITY:
+ * drivers/docker+exec+java: Disable `CAP_NET_RAW` linux capability by default to prevent ARP spoofing. CVE-2021-32575 [[GH-10568](https://github.com/hashicorp/nomad/issues/10568)]
+
 ## 0.12.11 (March 18, 2021)
 
 BUG FIXES:

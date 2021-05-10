@@ -27,5 +27,6 @@ func tweakCapabilities(basics, adds, drops []string) ([]string, error) {
 	for i, cap := range effectiveCaps {
 		effectiveCaps[i] = cap[len("CAP_"):]
 	}
+
 	return effectiveCaps, nil
 }
