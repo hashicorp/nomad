@@ -116,7 +116,7 @@ job "docs" {
   use. Nomad provides the `service`, `system` and `batch` schedulers.
 
 - `update` <code>([Update][update]: nil)</code> - Specifies the task's update
-  strategy. When omitted, rolling updates are disabled.
+  strategy. When omitted, a default update strategy is applied.
 
 - `vault` <code>([Vault][]: nil)</code> - Specifies the set of Vault policies
   required by all tasks in this job.

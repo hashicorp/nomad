@@ -99,6 +99,9 @@ job "docs" {
   within this group. This can be specified multiple times, to add a task as part
   of the group.
 
+- `update` <code>([Update][update]: nil)</code> - Specifies the task's update
+  strategy. When omitted, a default update strategy is applied.
+
 - `vault` <code>([Vault][]: nil)</code> - Specifies the set of Vault policies
   required by all tasks in this group. Overrides a `vault` block set at the
   `job` level.
