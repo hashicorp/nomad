@@ -3055,7 +3055,6 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 					}
 				case err := <-stopErr:
 					require.NoError(t, err, "stop task failed")
-					break WAIT
 				case <-timeout:
 					// timeout waiting for signals
 					require.Equal(t, c.expectedSignals, receivedSignals, "timed out waiting for expected signals")
