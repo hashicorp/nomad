@@ -3032,7 +3032,7 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-			stopErr := make(chan error)
+			stopErr := make(chan error, 1)
 			go func() {
 				err := d.StopTask(task.ID, 1*time.Second, c.jobKillSignal)
 				stopErr <- err
@@ -3054,7 +3054,7 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 						}
 					}
 				case err := <-stopErr:
-					t.Errorf("stop task failed: %v", err)
+					require.NoError(t, err, "stop task failed")
 					break WAIT
 				case <-timeout:
 					// timeout waiting for signals
