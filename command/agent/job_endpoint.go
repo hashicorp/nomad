@@ -1499,9 +1499,10 @@ func apiConnectSidecarServiceToStructs(in *api.ConsulSidecarService) *structs.Co
 		return nil
 	}
 	return &structs.ConsulSidecarService{
-		Port:  in.Port,
-		Tags:  helper.CopySliceString(in.Tags),
-		Proxy: apiConnectSidecarServiceProxyToStructs(in.Proxy),
+		Port:                   in.Port,
+		Tags:                   helper.CopySliceString(in.Tags),
+		Proxy:                  apiConnectSidecarServiceProxyToStructs(in.Proxy),
+		DisableDefaultTCPCheck: in.DisableDefaultTCPCheck,
 	}
 }
 

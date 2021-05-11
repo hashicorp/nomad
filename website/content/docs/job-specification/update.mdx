@@ -4,7 +4,7 @@ page_title: update Stanza - Job Specification
 description: |-
   The "update" stanza specifies the group's update strategy. The update strategy
   is used to control things like rolling upgrades and canary deployments. If
-  omitted, rolling updates and canaries are disabled.
+  omitted, a default update strategy is applied.
 ---
 
 # `update` Stanza
@@ -18,7 +18,7 @@ description: |-
 
 The `update` stanza specifies the group's update strategy. The update strategy
 is used to control things like [rolling upgrades][rolling] and [canary
-deployments][canary]. If omitted, rolling updates and canaries are disabled. If
+deployments][canary]. If omitted, a default update strategy is applied. If
 specified at the job level, the configuration will apply to all groups within
 the job. If multiple `update` stanzas are specified, they are merged with the
 group stanza taking the highest precedence and then the job.

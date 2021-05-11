@@ -59,7 +59,7 @@ variable "profile" {
 # nomad_sha, nomad_version, or nomad_local_binary is set
 
 variable "nomad_sha" {
-  description = "The sha of Nomad to provision"
+  description = "The sha of Nomad to provision; only used for automated nightly testing"
   default     = ""
 }
 

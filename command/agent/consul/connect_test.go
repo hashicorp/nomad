@@ -68,10 +68,39 @@ func TestConnect_newConnect(t *testing.T) {
 			},
 			Checks: api.AgentServiceChecks{
 				{
+					Name:         "Connect Sidecar Aliasing redis-service-id",
+					AliasService: "redis-service-id",
+				},
+				{
 					Name:     "Connect Sidecar Listening",
 					TCP:      "192.168.30.1:3000",
 					Interval: "10s",
 				},
+			},
+		}, asr.SidecarService)
+	})
+
+	t.Run("with sidecar without TCP checks", func(t *testing.T) {
+		asr, err := newConnect("redis-service-id", "redis", &structs.ConsulConnect{
+			Native: false,
+			SidecarService: &structs.ConsulSidecarService{
+				Tags:                   []string{"foo", "bar"},
+				Port:                   "connect-proxy-redis",
+				DisableDefaultTCPCheck: true,
+			},
+		}, testConnectNetwork, testConnectPorts)
+		require.NoError(t, err)
+		require.Equal(t, &api.AgentServiceRegistration{
+			Tags:    []string{"foo", "bar"},
+			Port:    3000,
+			Address: "192.168.30.1",
+			Proxy: &api.AgentServiceConnectProxyConfig{
+				Config: map[string]interface{}{
+					"bind_address": "0.0.0.0",
+					"bind_port":    3000,
+				},
+			},
+			Checks: api.AgentServiceChecks{
 				{
 					Name:         "Connect Sidecar Aliasing redis-service-id",
 					AliasService: "redis-service-id",
@@ -129,13 +158,13 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 			},
 			Checks: api.AgentServiceChecks{
 				{
+					Name:         "Connect Sidecar Aliasing redis-service-id",
+					AliasService: "redis-service-id",
+				},
+				{
 					Name:     "Connect Sidecar Listening",
 					TCP:      "192.168.30.1:3000",
 					Interval: "10s",
-				},
-				{
-					Name:         "Connect Sidecar Aliasing redis-service-id",
-					AliasService: "redis-service-id",
 				},
 			},
 		}, proxy)

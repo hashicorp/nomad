@@ -429,7 +429,22 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateNodeDrain(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt, req.NodeEvent); err != nil {
+	accessorId := ""
+	if req.AuthToken != "" {
+		token, err := n.state.ACLTokenBySecretID(nil, req.AuthToken)
+		if err != nil {
+			n.logger.Error("error looking up ACL token from drain update", "error", err)
+			return fmt.Errorf("error looking up ACL token: %v", err)
+		}
+		if token == nil {
+			n.logger.Error("token did not exist during node drain update")
+			return fmt.Errorf("token did not exist during node drain update")
+		}
+		accessorId = token.AccessorID
+	}
+
+	if err := n.state.UpdateNodeDrain(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt,
+		req.NodeEvent, req.Meta, accessorId); err != nil {
 		n.logger.Error("UpdateNodeDrain failed", "error", err)
 		return err
 	}

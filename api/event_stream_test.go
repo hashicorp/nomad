@@ -167,7 +167,7 @@ func TestEventStream_PayloadValue(t *testing.T) {
 			require.Contains(t, raw, "Node")
 			rawNode := raw["Node"]
 			require.Equal(t, n.ID, rawNode["ID"])
-			require.NotContains(t, rawNode, "SecretID")
+			require.Empty(t, rawNode["SecretID"])
 		}
 	case <-time.After(5 * time.Second):
 		require.Fail(t, "failed waiting for event stream event")

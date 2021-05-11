@@ -80,8 +80,8 @@ Run `terraform output` for IP addresses and details.
 
 ### ...Deploy a Cluster of Mixed Nomad Versions
 
-The `variables.tf` file describes the `nomad_sha`, `nomad_version`, and
-`nomad_local_binary` variable that can be used for most circumstances. But if
+The `variables.tf` file describes the `nomad_version`, and
+`nomad_local_binary` variables that can be used for most circumstances. But if
 you want to deploy mixed Nomad versions, you can provide a list of versions in
 your `terraform.tfvars` file.
 
@@ -111,7 +111,7 @@ Use the `"custom"` profile as described above.
 
 ### ...Change the Nomad Version After Provisioning
 
-You can update the `nomad_sha` or `nomad_version` variables, or simply rebuild
-the binary you have at the `nomad_local_binary` path so that Terraform picks
-up the changes. Then run `terraform plan`/`terraform apply` again. This will
-update Nomad in place, making the minimum amount of changes necessary.
+You can update the `nomad_version` variable, or simply rebuild the binary you
+have at the `nomad_local_binary` path so that Terraform picks up the
+changes. Then run `terraform plan`/`terraform apply` again. This will update
+Nomad in place, making the minimum amount of changes necessary.

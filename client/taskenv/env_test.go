@@ -143,13 +143,21 @@ func TestEnvironment_AsList(t *testing.T) {
 	}
 	a := mock.Alloc()
 	a.Job.ParentID = fmt.Sprintf("mock-parent-service-%s", uuid.Generate())
-	a.AllocatedResources.Tasks["web"].Networks[0] = &structs.NetworkResource{
-		Device:        "eth0",
-		IP:            "127.0.0.1",
-		ReservedPorts: []structs.Port{{Label: "https", Value: 8080}},
-		MBits:         50,
-		DynamicPorts:  []structs.Port{{Label: "http", Value: 80}},
+	a.AllocatedResources.Tasks["web"] = &structs.AllocatedTaskResources{
+		Cpu: structs.AllocatedCpuResources{CpuShares: 500},
+		Memory: structs.AllocatedMemoryResources{
+			MemoryMB:    256,
+			MemoryMaxMB: 512,
+		},
+		Networks: []*structs.NetworkResource{{
+			Device:        "eth0",
+			IP:            "127.0.0.1",
+			ReservedPorts: []structs.Port{{Label: "https", Value: 8080}},
+			MBits:         50,
+			DynamicPorts:  []structs.Port{{Label: "http", Value: 80}},
+		}},
 	}
+
 	a.AllocatedResources.Tasks["ssh"] = &structs.AllocatedTaskResources{
 		Networks: []*structs.NetworkResource{
 			{
@@ -196,6 +204,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		"NOMAD_NAMESPACE=not-default",
 		"NOMAD_REGION=global",
 		"NOMAD_MEMORY_LIMIT=256",
+		"NOMAD_MEMORY_MAX_LIMIT=512",
 		"NOMAD_META_ELB_CHECK_INTERVAL=30s",
 		"NOMAD_META_ELB_CHECK_MIN=3",
 		"NOMAD_META_ELB_CHECK_TYPE=http",

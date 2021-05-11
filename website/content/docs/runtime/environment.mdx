@@ -37,11 +37,11 @@ tell you which resources have been allocated after evaluation and placement.
 
 ### CPU and Memory
 
-Nomad will pass CPU and memory limits to your job as `NOMAD_CPU_LIMIT` and
-`NOMAD_MEMORY_LIMIT`. Your task should use these values to adapt its behavior to
-fit inside the resource allocation that nomad provides. For example, you can use
-the memory limit to inform how large your in-process cache should be, or to
-decide when to flush buffers to disk.
+Nomad will pass CPU and memory limits to your job as `NOMAD_CPU_LIMIT`,
+`NOMAD_MEMORY_LIMIT`, and `NOMAD_MEMORY_MAX_LIMIT`. Your task should use these
+values to adapt its behavior to fit inside the resource allocation that nomad
+provides. For example, you can use the memory limit to inform how large your
+in-process cache should be, or to decide when to flush buffers to disk.
 
 Both CPU and memory are presented as integers. The unit for CPU limit is
 `1024 = 1GHz`. The unit for memory is `1 = 1 megabyte`.

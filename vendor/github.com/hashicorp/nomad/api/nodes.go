@@ -18,6 +18,10 @@ const (
 	// status being ready.
 	NodeSchedulingEligible   = "eligible"
 	NodeSchedulingIneligible = "ineligible"
+
+	DrainStatusDraining DrainStatus = "draining"
+	DrainStatusComplete DrainStatus = "complete"
+	DrainStatusCanceled DrainStatus = "canceled"
 )
 
 // Nodes is used to query node-related API endpoints
@@ -67,6 +71,9 @@ type NodeUpdateDrainRequest struct {
 	// MarkEligible marks the node as eligible for scheduling if removing
 	// the drain strategy.
 	MarkEligible bool
+
+	// Meta allows operators to specify metadata related to the drain operation
+	Meta map[string]string
 }
 
 // NodeDrainUpdateResponse is used to respond to a node drain update
@@ -77,14 +84,45 @@ type NodeDrainUpdateResponse struct {
 	WriteMeta
 }
 
+// DrainOptions is used to pass through node drain parameters
+type DrainOptions struct {
+	// DrainSpec contains the drain specification for the node. If non-nil,
+	// the node will be marked ineligible and begin/continue draining according
+	// to the provided drain spec.
+	// If nil, any existing drain operation will be canceled.
+	DrainSpec *DrainSpec
+
+	// MarkEligible indicates whether the node should be marked as eligible when
+	// canceling a drain operation.
+	MarkEligible bool
+
+	// Meta is metadata that is persisted in Node.LastDrain about this
+	// drain update.
+	Meta map[string]string
+}
+
 // UpdateDrain is used to update the drain strategy for a given node. If
 // markEligible is true and the drain is being removed, the node will be marked
 // as having its scheduling being eligible
 func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, markEligible bool, q *WriteOptions) (*NodeDrainUpdateResponse, error) {
-	req := &NodeUpdateDrainRequest{
-		NodeID:       nodeID,
+	resp, err := n.UpdateDrainOpts(nodeID, &DrainOptions{
 		DrainSpec:    spec,
 		MarkEligible: markEligible,
+		Meta:         nil,
+	}, q)
+	return resp, err
+}
+
+// UpdateDrainWithMeta is used to update the drain strategy for a given node. If
+// markEligible is true and the drain is being removed, the node will be marked
+// as having its scheduling being eligible
+func (n *Nodes) UpdateDrainOpts(nodeID string, opts *DrainOptions, q *WriteOptions) (*NodeDrainUpdateResponse,
+	error) {
+	req := &NodeUpdateDrainRequest{
+		NodeID:       nodeID,
+		DrainSpec:    opts.DrainSpec,
+		MarkEligible: opts.MarkEligible,
+		Meta:         opts.Meta,
 	}
 
 	var resp NodeDrainUpdateResponse
@@ -468,6 +506,17 @@ type HostVolumeInfo struct {
 	ReadOnly bool
 }
 
+type DrainStatus string
+
+// DrainMetadata contains information about the most recent drain operation for a given Node.
+type DrainMetadata struct {
+	StartedAt  time.Time
+	UpdatedAt  time.Time
+	Status     DrainStatus
+	AccessorID string
+	Meta       map[string]string
+}
+
 // Node is used to deserialize a node entry.
 type Node struct {
 	ID                    string
@@ -494,6 +543,7 @@ type Node struct {
 	HostVolumes           map[string]*HostVolumeInfo
 	CSIControllerPlugins  map[string]*CSIInfo
 	CSINodePlugins        map[string]*CSIInfo
+	LastDrain             *DrainMetadata
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }
@@ -789,6 +839,7 @@ type NodeListStub struct {
 	Drivers               map[string]*DriverInfo
 	NodeResources         *NodeResources         `json:",omitempty"`
 	ReservedResources     *NodeReservedResources `json:",omitempty"`
+	LastDrain             *DrainMetadata
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }

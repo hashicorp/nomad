@@ -34,6 +34,9 @@ const (
 	// MemLimit is the environment variable with the tasks memory limit in MBs.
 	MemLimit = "NOMAD_MEMORY_LIMIT"
 
+	// MemMaxLimit is the environment variable with the tasks maximum memory limit in MBs.
+	MemMaxLimit = "NOMAD_MEMORY_MAX_LIMIT"
+
 	// CpuLimit is the environment variable with the tasks CPU limit in MHz.
 	CpuLimit = "NOMAD_CPU_LIMIT"
 
@@ -393,6 +396,7 @@ type Builder struct {
 
 	cpuLimit         int64
 	memLimit         int64
+	memMaxLimit      int64
 	taskName         string
 	allocIndex       int
 	datacenter       string
@@ -478,6 +482,9 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	// Add the resource limits
 	if b.memLimit != 0 {
 		envMap[MemLimit] = strconv.FormatInt(b.memLimit, 10)
+	}
+	if b.memMaxLimit != 0 {
+		envMap[MemMaxLimit] = strconv.FormatInt(b.memMaxLimit, 10)
 	}
 	if b.cpuLimit != 0 {
 		envMap[CpuLimit] = strconv.FormatInt(b.cpuLimit, 10)
@@ -667,9 +674,11 @@ func (b *Builder) setTask(task *structs.Task) *Builder {
 	// COMPAT(0.11): Remove in 0.11
 	if task.Resources == nil {
 		b.memLimit = 0
+		b.memMaxLimit = 0
 		b.cpuLimit = 0
 	} else {
 		b.memLimit = int64(task.Resources.MemoryMB)
+		b.memMaxLimit = int64(task.Resources.MemoryMaxMB)
 		b.cpuLimit = int64(task.Resources.CPU)
 	}
 	return b
@@ -722,6 +731,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		if tr, ok := alloc.AllocatedResources.Tasks[b.taskName]; ok {
 			b.cpuLimit = tr.Cpu.CpuShares
 			b.memLimit = tr.Memory.MemoryMB
+			b.memMaxLimit = tr.Memory.MemoryMaxMB
 
 			// Copy networks to prevent sharing
 			b.networks = make([]*structs.NetworkResource, len(tr.Networks))
