@@ -3,6 +3,12 @@ module.exports = [
   // Vercel's redirect documentation: https://vercel.com/docs/configuration#project/redirects
   // Playground for testing url pattern matching: https://npm.runkit.com/path-to-regexp
 
+  // Friendly URL for trial form redirection
+  {
+    source: '/trial',
+    destination: 'https://www.hashicorp.com/products/nomad/trial',
+    permanent: true,
+  },
   {
     source: '/docs/operations/overview',
     destination: '/docs/operations',
