@@ -146,7 +146,7 @@ job "example" {
 		defer os.Remove(varFile.Name())
 
 		content := `dc_var = "set_dc"
-region_var = "set_region"`
+	region_var = "set_region"`
 		_, err = varFile.WriteString(content)
 		require.NoError(t, err)
 
@@ -161,6 +161,18 @@ region_var = "set_region"`
 		require.Equal(t, []string{"set_dc"}, out.Datacenters)
 		require.NotNil(t, out.Region)
 		require.Equal(t, "set_region", *out.Region)
+	})
+
+	t.Run("var-file does not exist", func(t *testing.T) {
+
+		out, err := ParseWithConfig(&ParseConfig{
+			Path:     "input.hcl",
+			Body:     []byte(hcl),
+			VarFiles: []string{"does-not-exist.hcl"},
+			AllowFS:  true,
+		})
+		require.Error(t, err)
+		require.Nil(t, out)
 	})
 }
 
