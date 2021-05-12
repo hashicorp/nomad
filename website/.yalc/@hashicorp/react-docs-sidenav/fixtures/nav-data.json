@@ -1,0 +1,101 @@
+[
+  {
+    "title": "What is Vault?",
+    "path": "what-is-vault"
+  },
+  {
+    "title": "Vault Agent",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "agent"
+      },
+      {
+        "title": "Auto-Auth With A Very Long NavCategory Title That Should Wrap To Multiple Lines",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "agent/autoauth"
+          },
+          {
+            "title": "AWS Agent",
+            "path": "agent/autoauth/aws"
+          },
+          {
+            "title": "Methods",
+            "routes": [
+              {
+                "title": "Overview",
+                "path": "agent/autoauth/methods"
+              },
+              {
+                "title": "AliCloud With A Very Long NavLeaf Title That Should Wrap To Multiple Lines",
+                "path": "agent/autoauth/methods/alicloud"
+              },
+              {
+                "title": "AWS",
+                "path": "agent/autoauth/methods/aws"
+              },
+              { "divider": true },
+              {
+                "title": "<code>GCP</code>",
+                "path": "agent/autoauth/methods/gcp"
+              },
+              { "divider": true },
+              {
+                "title": "External Link",
+                "href": "https://google.com"
+              },
+              {
+                "title": "Internal Direct Link",
+                "href": "/some-non-docs-path"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "No Index Category",
+        "routes": [
+          {
+            "title": "Foo Item",
+            "path": "agent/no-index-test/foo"
+          }
+        ]
+      },
+      {
+        "title": "Category With First Item Hidden",
+        "routes": [
+          {
+            "title": "First Item",
+            "path": "hidden-first-item/first",
+            "hidden": true
+          },
+          {
+            "title": "Second Item",
+            "path": "hidden-first-item/second"
+          }
+        ]
+      },
+      {
+        "title": "Hidden Category",
+        "hidden": true,
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "hidden-category"
+          }
+        ]
+      },
+      {
+        "title": "Only Index Test <sup>ENT</sup>",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "agent/only-index-test"
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,21 @@
+.wrapper {
+  max-width: var(--site-max-width);
+  margin: 0 auto;
+  padding: 0 32px;
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  margin-top: 72px;
+}
+
+.sidebar {
+  margin-right: 2em;
+  width: 250px;
+  flex-shrink: 0;
+}
+
+.content {
+  flex: 1 1;
+  padding: 0 32px;
+  overflow: auto;
+}

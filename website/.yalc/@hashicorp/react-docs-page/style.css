@@ -1,0 +1,155 @@
+/** @TODO: remove once search is converted to use css modules https://app.asana.com/0/1100423001970639/1199982445969979/f **/
+@import '~@hashicorp/react-search/style.css';
+
+@custom-media --mobile-viewports (max-width: 939px);
+@custom-media --desktop-viewports (min-width: 940px);
+
+/* @TODO: adjustment for versioned docs */
+@media (max-width: 767px) {
+  .g-alert-banner {
+    display: none !important;
+  }
+}
+
+#p-docs {
+  & .content-wrap {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    flex: 1 0 auto;
+    position: relative;
+    width: 100%;
+
+    @media (--mobile-viewports) {
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    @media (--desktop-viewports) {
+      flex-direction: row;
+      margin-bottom: 24px;
+      margin-top: 72px;
+    }
+  }
+
+  & #inner {
+    margin: 32px 0;
+    overflow: auto;
+    width: 100%;
+    position: relative;
+
+    @media (--desktop-viewports) {
+      flex: 1;
+      margin: 0;
+
+      &.versionedDocsOffset {
+        margin-top: 22px;
+      }
+    }
+
+    & .g-content {
+      @media (--desktop-viewports) {
+        padding-right: 0;
+      }
+
+      & > :first-child {
+        padding-top: 0;
+      }
+
+      & > h1:first-child {
+        margin-top: 0;
+
+        &.has-jts {
+          margin-bottom: 10px;
+        }
+      }
+    }
+
+    & .g-section-header {
+      margin-bottom: 100px;
+    }
+
+    /* TODO: this should be applied in global styles, temporary override here */
+    & pre,
+    & code {
+      font-size: 0.875em;
+    }
+
+    & pre code {
+      font-size: 1em;
+    }
+  }
+
+  & #edit-this-page {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 48px;
+
+    & a {
+      align-items: center;
+      color: var(--gray-1);
+      display: flex;
+      opacity: 0.5;
+      padding-right: 32px;
+      transition: opacity 0.4s ease;
+
+      &:hover {
+        opacity: 1;
+      }
+
+      & > img {
+        height: 22px;
+        margin-right: 9px;
+        width: 23px;
+      }
+    }
+  }
+
+  & table tr.warning td {
+    background: #fcf8e3;
+  }
+
+  & #jump-to-section {
+    cursor: pointer;
+    display: inline-block;
+    margin-bottom: 20px;
+    margin-left: 1rem;
+    position: relative;
+    user-select: none;
+    z-index: 3;
+
+    & .trigger {
+      align-items: center;
+      display: flex;
+    }
+
+    & svg {
+      margin-left: 5px;
+    }
+
+    & .dropdown {
+      background: white;
+      border-radius: 3px;
+      box-shadow: 0 5px 8px rgba(0, 0, 0, 0.25);
+      display: none;
+      margin: 10px 0 0 0;
+      padding: 0 0 0 30px;
+      position: absolute;
+      z-index: 2;
+      width: 500px;
+
+      @media (--mobile-viewports) {
+        width: 345px;
+      }
+
+      &.active {
+        display: block;
+      }
+    }
+  }
+
+  & .version-select {
+    margin-bottom: 1rem;
+    max-width: 90%;
+  }
+}

@@ -1,0 +1,36 @@
+.wrapper {
+  padding: 8px 8px 8px 14px;
+  border-radius: 2px;
+  background-color: var(--warning-l2);
+  width: calc(100% - 4em);
+  position: absolute;
+  top: -3.5em;
+
+  @media (max-width: 940px) {
+    position: unset;
+    width: 100%;
+  }
+
+  /* stylelint-disable-next-line */
+  & :global(.g-alert) {
+    width: 100%;
+
+    & span {
+      border: none;
+      line-height: 1.667em;
+      color: var(--black);
+    }
+
+    & p {
+      color: var(--gray-2);
+    }
+
+    & svg line {
+      stroke: var(--warning);
+    }
+
+    & svg path {
+      fill: var(--warning);
+    }
+  }
+}
