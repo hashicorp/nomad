@@ -177,7 +177,7 @@ export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
           textSide: 'right',
         }}
         image={{
-          url: require('./img/stateful-workloads@3x.png'),
+          url: require('./img/stateful-workloads.png'),
           alt: 'Stateful Workloads',
         }}
       />
@@ -189,7 +189,7 @@ export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
             'Deploy containerized applications with customized network configurations from third-party vendors via Container Network Interface plugin system',
         }}
         image={{
-          url: require('./img/networking-capabilities@3x.png'),
+          url: require('./img/networking-capabilities.png'),
           alt: 'Flexible Networking Capabilities',
         }}
       />
