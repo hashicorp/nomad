@@ -23,6 +23,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/kr/pty"
+	"github.com/syndtr/gocapability/capability"
 
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
@@ -683,4 +684,24 @@ func makeExecutable(binPath string) error {
 		}
 	}
 	return nil
+}
+
+// SupportedCaps returns a list of all supported capabilities in kernel.
+func SupportedCaps(allowNetRaw bool) []string {
+	var allCaps []string
+	last := capability.CAP_LAST_CAP
+	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
+	if last == capability.Cap(63) {
+		last = capability.CAP_BLOCK_SUSPEND
+	}
+	for _, cap := range capability.List() {
+		if cap > last {
+			continue
+		}
+		if !allowNetRaw && cap == capability.CAP_NET_RAW {
+			continue
+		}
+		allCaps = append(allCaps, fmt.Sprintf("CAP_%s", strings.ToUpper(cap.String())))
+	}
+	return allCaps
 }
