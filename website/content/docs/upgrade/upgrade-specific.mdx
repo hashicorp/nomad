@@ -63,6 +63,51 @@ inserting them as the first rule. This allows better control for user-defined
 iptables rules but users who append rules currently should verify that their
 rules are being appended in the correct order.
 
+## Nomad 1.1.0, 1.0.5, 0.12.12
+
+Nomad versions 1.1.0, 1.0.5 and 0.12.12 change the behavior of the `docker`, `exec`,
+and `java` task drivers so that the [`CAP_NET_RAW`] linux capability is disabled
+by default. This is one of the [`linux capabilities`] that Docker itself enables
+by default, as this capability enables the generation of ICMP packets - used by
+the common `ping` utility for performing network diagnostics. When used by groups in
+`bridge` networking mode, the `CAP_NET_RAW` capability also exposes tasks to ARP spoofing,
+enabling DoS and MITM attacks against other tasks running in `bridge` networking
+on the same host. Operators should weigh potential impact of an upgrade on their
+applications against the security consequences inherit with `CAP_NET_RAW`. Typical
+applications using `tcp` or `udp` based networking should not be affected.
+
+This is the sole change for Nomad 1.0.5 and 0.12.12, intended to provide better
+task network isolation by default.
+
+Users of the `docker` driver can restore the previous behavior by configuring the
+[`allow_caps`] driver configuration option to explicitly enable the `CAP_NET_RAW`
+capability.
+
+```hcl
+plugin "docker" {
+  config {
+    allow_caps = [
+      "CHOWN", "DAC_OVERRIDE", "FSETID", "FOWNER", "MKNOD",
+      "SETGID", "SETUID", "SETFCAP", "SETPCAP", "NET_BIND_SERVICE",
+      "SYS_CHROOT", "KILL", "AUDIT_WRITE", "NET_RAW",
+    ]
+  }
+}
+```
+
+An upcoming version of Nomad will include similar configuration options for the
+`exec` and `java` task drivers.
+
+This change is limited to `docker`, `exec`, and `java` driver plugins. It does
+not affect the Nomad server. This only affects Nomad clients running Linux, with
+tasks using `bridge` networking and one of these task drivers, or third-party
+plugins which relied on the shared Nomad executor library.
+
+Upgrading a Nomad client to 1.0.5 or 0.12.12 will not restart existing tasks. As
+such, processes from existing `docker`, `exec`, or `java` tasks will need to be
+manually restarted (using `alloc stop` or another mechanism) in order to be
+fully isolated.
+
 ## Nomad 1.0.3, 0.12.10
 
 Nomad versions 1.0.3 and 0.12.10 change the behavior of the `exec` and `java` drivers so that
@@ -1063,3 +1108,6 @@ deleted and then Nomad 0.3.0 can be launched.
 [`volume register`]: /docs/commands/volume/register
 [`volume`]: /docs/job-specification/volume
 [Enterprise licensing]: /docs/enterprise/license
+[`CAP_NET_RAW`]: https://security.stackexchange.com/a/128988
+[`linux capabilities`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[`allow_caps`]: /docs/drivers/docker#allow_caps
