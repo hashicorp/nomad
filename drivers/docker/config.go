@@ -10,6 +10,7 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -287,7 +288,7 @@ var (
 		"allow_privileged": hclspec.NewAttr("allow_privileged", "bool", false),
 		"allow_caps": hclspec.NewDefault(
 			hclspec.NewAttr("allow_caps", "list(string)", false),
-			hclspec.NewLiteral(`["CHOWN","DAC_OVERRIDE","FSETID","FOWNER","MKNOD","SETGID","SETUID","SETFCAP","SETPCAP","NET_BIND_SERVICE","SYS_CHROOT","KILL","AUDIT_WRITE"]`),
+			hclspec.NewLiteral(capabilities.HCLSpecLiteral),
 		),
 		"nvidia_runtime": hclspec.NewDefault(
 			hclspec.NewAttr("nvidia_runtime", "string", false),
@@ -427,9 +428,9 @@ var (
 		"work_dir":        hclspec.NewAttr("work_dir", "string", false),
 	})
 
-	// capabilities is returned by the Capabilities RPC and indicates what
-	// optional features this driver supports
-	capabilities = &drivers.Capabilities{
+	// driverCapabilities represents the RPC response for what features are
+	// implemented by the docker task driver
+	driverCapabilities = &drivers.Capabilities{
 		SendSignals: true,
 		Exec:        true,
 		FSIsolation: drivers.FSIsolationImage,
@@ -788,8 +789,10 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 	return taskConfigSpec, nil
 }
 
+// Capabilities is returned by the Capabilities RPC and indicates what optional
+// features this driver supports.
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
-	return capabilities, nil
+	return driverCapabilities, nil
 }
 
 var _ drivers.InternalCapabilitiesDriver = (*Driver)(nil)
