@@ -39,7 +39,7 @@ job "docs" {
 
 - `memory` `(int: 300)` - Specifies the memory required in MB.
 
-- `memory_max` <code>(`int`: &lt;optional&gt;)</code> <sup>1.1 Beta</sup> - Optionally, specifies the maximum memory the task may use, if the client has excess memory capacity, in MB. See the [Memory Oversubscription for more details](#memory-oversubscription).
+- `memory_max` <code>(`int`: &lt;optional&gt;)</code> <sup>1.1 Beta</sup> - Optionally, specifies the maximum memory the task may use, if the client has excess memory capacity, in MB. See [Memory Oversubscription](#memory-oversubscription) for more details.
 
 - `device` <code>([Device][]: &lt;optional&gt;)</code> - Specifies the device
   requirements. This may be repeated to request multiple device types.
@@ -88,16 +88,14 @@ resources {
 ```
 ## Memory Oversubscription
 
-Setting task memory limits is a challenging act of balance. Job authors must set
-a memory limit for each task — if it’s too low, the task may be interrupted if
-it exceeds the limit unexpectedly; if it’s too high, the cluster is left
-underutilized and resources are wasted. Job authors usually set limits based on
-their task's typical memory usage and then add a safety margin to handle
-unexpected load spikes or uncommon scenarios. That means that in some clusters,
-20-40% of the cluster memory may be reserved but unused.
+Setting task memory limits requires balancing the risk of interrupting tasks
+against the risk of wasting resources. If a task memory limit is set too low,
+the task may exceed the limit and be interrupted; if the task memory is too
+high, the cluster is left underutilized.
 
-To help minimize reserved but not used cluster memory, Nomad 1.1 lets job
-authors set two separate memory limits:
+To help maximize cluster memory utilization while allowing a safety margin for
+unexpected load spikes, Nomad 1.1. lets job authors set two separate memory
+limits:
 
 * `memory`: the reserve limit to represent the task’s typical memory usage —
   this number is used by the Nomad scheduler to reserve and place the task
@@ -106,18 +104,17 @@ authors set two separate memory limits:
   available memory, and may be terminated if it exceeds
 
 If a client's memory becomes contended or low, the operating system will
-pressure the running tasks to free up memory. If the contention persist, Nomad
-may kill oversubscriped tasks and reschedule them to other clients. The exact
-mechanism for memory pressure is specific to the task driver and application
-runtime.
+pressure the running tasks to free up memory. If the contention persists, Nomad
+may kill oversubscribed tasks and reschedule them to other clients. The exact
+mechanism for memory pressure is specific to the task driver, operating system,
+and application runtime.
 
-The new max limit attribute is currently supported by Docker and all default
-Nomad drivers except raw_exec and QEMU. Consult the third-party drivers
-documentation for memory oversubscription support.
+The new max limit attribute is currently supported by the official `docker`,
+`exec`, and `java` task drivers.  Consult the documentation of
+community-supported task drivers for their memory oversubscription support.
 
-Nomad operators must enable [Memory Oversubscription in Scheduler
-Config](/api-docs/operator/scheduler#update-scheduler-configuration); memory
-oversubscription is opt-in. Enterprise customers can use [Resource
+Memory oversubscription is opt-in. Nomad operators can enable [Memory Oversubscription in the scheduler
+configuration](/api-docs/operator/scheduler#update-scheduler-configuration). Enterprise customers can use [Resource
 Quotas](https://learn.hashicorp.com/tutorials/nomad/quotas) to limit the memory
 oversubscription.
 
@@ -129,6 +126,11 @@ resource utilization and considering the following suggestions:
 
 * Monitor hosts for memory utilization and set alerts on Out-Of-Memory errors
 
-* Set the [client `reserved`](/docs/configuration/client#reserved) with enough memory for host unmanaged services as well as a buffer for the memory excess. e.g. If the client reserved memory is 1GB, the allocations on the host may exceeed their soft memory limit by almost 1GB in aggregate before the memory becomes contended and allocations get killed.
+* Set the [client `reserved`](/docs/configuration/client#reserved) with enough
+  memory for host services that aren't managed by Nomad as well as a buffer
+  for the memory excess. For example, if the client reserved memory is 1GB,
+  the allocations on the host may exceed their soft memory limit by almost
+  1GB in aggregate before the memory becomes contended and allocations get
+  killed.
 
 [device]: /docs/job-specification/device 'Nomad device Job Specification'
