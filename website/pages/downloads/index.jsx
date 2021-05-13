@@ -41,8 +41,8 @@ export default function DownloadsPage(staticProps) {
         <>
           <div className={s.releaseCandidate}>
             <p>
-              A beta for Nomad v1.1.0 is available! The release can be{' '}
-              <a href="https://releases.hashicorp.com/nomad/1.1.0-beta1/">
+              A Release Candidate for Nomad v1.1.0 is available! The release can be{' '}
+              <a href="https://releases.hashicorp.com/nomad/1.1.0-rc1/">
                 downloaded here
               </a>
             </p>
