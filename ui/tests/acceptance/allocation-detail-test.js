@@ -7,7 +7,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
-import isIp from 'is-ip';
+import formatHost from 'nomad-ui/utils/format-host';
 
 let job;
 let node;
@@ -223,10 +223,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
       assert.equal(renderedPort.name, serverPort.Label);
       assert.equal(renderedPort.to, serverPort.To);
-      const expectedAddr = isIp.v6(serverPort.HostIP)
-        ? `[${serverPort.HostIP}]:${serverPort.Value}`
-        : `${serverPort.HostIP}:${serverPort.Value}`;
-      assert.equal(renderedPort.address, expectedAddr);
+      assert.equal(renderedPort.address, formatHost(serverPort.HostIP, serverPort.Value));
     });
   });
 
