@@ -12,6 +12,13 @@ description: >-
 incompatible changes between Nomad releases or deprecation. Please refer to the
 [Upgrade Guide][upgrade] to find breaking changes.
 
+~> **Known Bugs:** When a Nomad node running a remote task driver goes down,
+another node must be available and able to run the replacement allocation in
+order to take advantage of remote task driver's ability to avoid restarting
+lost tasks. If a new node is not immediately available but made started later,
+it will start a new instance of the remote task instead of reconnecting to the
+old one. Follow [#10592][gh-10592] for the fix.
+
 Nomad 1.1.0 introduces support for Remote Task Drivers. Remote Task Drivers
 allow custom task driver plugins to execute tasks using nonlocal runtimes such
 as cloud container runtimes. Without this support, task driver plugins trying
@@ -95,6 +102,7 @@ behavior of the following features is completely driver dependent:
 [drain]: /docs/commands/node/drain
 [ephemeral-disk]: /docs/job-specification/ephemeral_disk
 [gh-10549]: https://github.com/hashicorp/nomad/issues/10549
+[gh-10592]: https://github.com/hashicorp/nomad/issues/10592
 [network]: /docs/job-specification/network
 [remote-cap]: /docs/internals/plugins/task-drivers#capabilities-capabilities-error
 [resources]: /docs/job-specification/resources
