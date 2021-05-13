@@ -5,7 +5,6 @@ import { useRouter } from 'next/router'
 import useProductMeta from '@hashicorp/nextjs-scripts/lib/providers/product-meta'
 import LinkWrap, { isAbsoluteURL } from '@hashicorp/react-link-wrap'
 import InlineSvg from '@hashicorp/react-inline-svg'
-import IconMagGlass from '@hashicorp/react-search/img/search.svg.js'
 // local utilities
 import flagActiveNodes from './utils/flag-active-nodes'
 import filterContent from './utils/filter-content'
@@ -15,6 +14,7 @@ import svgMenuIcon from './icons/menu.svg?include'
 import svgChevron from './icons/chevron.svg?include'
 import svgBullet from './icons/bullet.svg?include'
 import svgExternalLink from './icons/external-link.svg?include'
+import svgSearchIcon from './icons/search.svg?include'
 // styles
 import s from './style.module.css'
 
@@ -109,15 +109,16 @@ export default function DocsSidenav({
               <InlineSvg src={svgMenuIcon} /> Documentation Menu
             </span>
           </button>
-          <button
-            type="button"
-            aria-label="Show Search Bar"
-            className={s.searchToggle}
-            onClick={() => setIsSearchOpen(true)}
-            dangerouslySetInnerHTML={{
-              __html: IconMagGlass,
-            }}
-          />
+          {search ? (
+            <button
+              type="button"
+              aria-label="Show Search Bar"
+              className={s.searchToggle}
+              onClick={() => setIsSearchOpen(true)}
+            >
+              <InlineSvg src={svgSearchIcon} />
+            </button>
+          ) : null}
         </>
       ) : (
         <>

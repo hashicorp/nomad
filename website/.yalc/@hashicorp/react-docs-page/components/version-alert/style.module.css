@@ -2,7 +2,7 @@
   padding: 8px 8px 8px 14px;
   border-radius: 2px;
   background-color: var(--warning-l2);
-  width: calc(100% - 4em);
+  width: calc(100% - 6em);
   position: absolute;
   top: -3.5em;
 

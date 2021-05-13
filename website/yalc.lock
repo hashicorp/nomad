@@ -2,12 +2,12 @@
   "version": "v1",
   "packages": {
     "@hashicorp/react-docs-page": {
-      "signature": "7b83d31373f11c3010a9ab8b855acebb",
+      "signature": "c933c99ddd1b3b62db46f4787f2e4310",
       "file": true,
       "replaced": "^13.2.0-alpha.0"
     },
     "@hashicorp/react-docs-sidenav": {
-      "signature": "0eecf6e6cf1c853a4407f3bda4eeda66",
+      "signature": "dc4771ca3b0f2a14e46c58bbfb37d0cb",
       "file": true
     }
   }

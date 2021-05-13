@@ -1,11 +1,13 @@
+@custom-media --mobile-viewports (max-width: 939px);
+@custom-media --desktop-viewports (min-width: 940px);
+
 .wrapper {
-  max-width: var(--site-max-width);
-  margin: 0 auto;
-  padding: 0 32px;
   display: flex;
   flex-direction: row;
-  width: 100%;
-  margin-top: 72px;
+
+  @media (--mobile-viewports) {
+    flex-direction: column;
+  }
 }
 
 .sidebar {
@@ -16,6 +18,38 @@
 
 .content {
   flex: 1 1;
-  padding: 0 32px;
+  padding-left: 32px;
+  margin-top: 16px;
   overflow: auto;
+
+  @media (--mobile-viewports) {
+    padding-left: 0;
+  }
+}
+
+.oldVersionNotice {
+  margin-bottom: 24px;
+}
+
+.menuBar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  margin-bottom: 64px;
+  border-top: 1px solid var(--gray-5);
+  border-bottom: 1px solid var(--gray-5);
+}
+
+.hideMobile {
+  @media (--mobile-viewports) {
+    display: none;
+  }
+}
+
+.hideDesktop {
+  @media (--desktop-viewports) {
+    display: none;
+  }
 }

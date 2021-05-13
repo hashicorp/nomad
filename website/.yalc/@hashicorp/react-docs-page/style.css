@@ -48,6 +48,8 @@
     }
 
     & .g-content {
+      padding: 0 1rem;
+
       @media (--desktop-viewports) {
         padding-right: 0;
       }
@@ -113,10 +115,13 @@
     cursor: pointer;
     display: inline-block;
     margin-bottom: 20px;
-    margin-left: 1rem;
     position: relative;
     user-select: none;
     z-index: 3;
+
+    @media (--mobile-viewports) {
+      margin-left: 1rem;
+    }
 
     & .trigger {
       align-items: center;
