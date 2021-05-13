@@ -36,24 +36,21 @@ When ACLs are enabled, this command requires a token with the
 The file may be provided as either HCL or JSON. An example HCL configuration:
 
 ```hcl
-id              = "ebs_prod_db1"
-name            = "database"
-type            = "csi"
-plugin_id       = "ebs-prod"
-snapshot_id     = "snap-12345" # or clone_id, see below
-
-capacity {
-  required = "100G"
-  limit    = "200G"
-}
+id           = "ebs_prod_db1"
+name         = "database"
+type         = "csi"
+plugin_id    = "ebs-prod"
+snapshot_id  = "snap-12345" # or clone_id, see below
+capacity_max = "200G"
+capacity_min = "100G"
 
 capability {
-  access_mode = "single-node-reader-only"
+  access_mode     = "single-node-reader-only"
   attachment_mode = "file-system"
 }
 
 capability {
-  access_mode = "single-node-writer"
+  access_mode     = "single-node-writer"
   attachment_mode = "file-system"
 }
 
