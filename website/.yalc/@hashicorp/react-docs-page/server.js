@@ -34,7 +34,7 @@ async function generateStaticPaths({
   // This code path handles versioned docs integration, which is currently gated behind the ENABLE_VERSIONED_DOCS env var
   if (
     process.env.ENABLE_VERSIONED_DOCS &&
-    process.env.VERCEL_ENV === 'production'
+    process.env.VERCEL_ENV === 'preview'
   ) {
     // Fetch and parse navigation data
     navData = (
@@ -104,7 +104,7 @@ async function generateStaticProps({
 
     // Only load docs content from the DB if we're in production or there's an explicit version in the path
     // Preview and dev environments will read the "latest" content from the filesystem
-    if (process.env.VERCEL_ENV === 'production' || versionFromPath) {
+    if (process.env.VERCEL_ENV === 'preview' || versionFromPath) {
       const pagePathToLoad = versionFromPath
         ? [basePath, ...(params[paramId] ?? [])].join('/')
         : [basePath, currentVersionNormalized, ...(params[paramId] ?? [])].join(
