@@ -15,7 +15,7 @@ incompatible changes between Nomad releases or deprecation. Please refer to the
 ~> **Known Bugs:** When a Nomad node running a remote task driver goes down,
 another node must be available and able to run the replacement allocation in
 order to take advantage of remote task driver's ability to avoid restarting
-lost tasks. If a new node is not immediately available but made started later,
+lost tasks. If a new node is not immediately available but started later,
 it will start a new instance of the remote task instead of reconnecting to the
 old one. Follow [#10592][gh-10592] for the fix.
 

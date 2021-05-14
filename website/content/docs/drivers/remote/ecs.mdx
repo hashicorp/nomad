@@ -16,7 +16,7 @@ intended for production use.**
 
 The ECS task driver plugin for Nomad allows running [AWS ECS][ecs] tasks via
 Nomad. Allocations for these jobs are scheduled onto Nomad clients like
-traditional task drivers, however the actual task code in executed remotely in
+traditional task drivers, however the actual task is executed remotely in
 AWS ECS. The Nomad client agent manages the remote ECS task like any other
 local Nomad task: restarting it if it fails, stopping it when requested, etc.
 
@@ -104,7 +104,7 @@ job "nomad-ecs-demo" {
 - `config.task` stanza defines the configuration of the ECS task:
 
   - `launch_type` - The launch type on which to run your task.
-  - `task_definition` - The family and revision (family:revision) or full ARN
+  - `task_definition` - The family and revision (`family:revision`) or full ARN
     of the task definition to run.
   - `network_configuration` - The network configuration for the task (eg
     `awsvpc` for `FARGATE` tasks).
