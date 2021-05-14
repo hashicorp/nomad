@@ -78,9 +78,9 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	config.SerfConfig.MemberlistConfig.GossipInterval = 100 * time.Millisecond
 
 	// Tighten the Raft timing
-	// config.RaftConfig.LeaderLeaseTimeout = 50 * time.Millisecond
-	// config.RaftConfig.HeartbeatTimeout = 50 * time.Millisecond
-	// config.RaftConfig.ElectionTimeout = 50 * time.Millisecond
+	config.RaftConfig.LeaderLeaseTimeout = 100 * time.Millisecond
+	config.RaftConfig.HeartbeatTimeout = 100 * time.Millisecond
+	config.RaftConfig.ElectionTimeout = 100 * time.Millisecond
 	config.RaftTimeout = 500 * time.Millisecond
 
 	// Disable Vault
