@@ -3,8 +3,6 @@ Description=Nomad
 Documentation=https://nomadproject.io/docs/
 Wants=network-online.target
 After=network-online.target
-StartLimitIntervalSec=10
-StartLimitBurst=3
 
 # When using Nomad with Consul it is not necessary to start Consul first. These
 # lines start Consul before Nomad as an optimization to avoid Nomad logging
@@ -13,14 +11,17 @@ StartLimitBurst=3
 #After=consul.service
 
 [Service]
+EnvironmentFile=/etc/nomad.d/nomad.env
 ExecReload=/bin/kill -HUP $MAINPID
-ExecStart=/usr/local/bin/nomad agent -config /etc/nomad.d
+ExecStart=/usr/bin/nomad agent -config /etc/nomad.d
 KillMode=process
 KillSignal=SIGINT
 LimitNOFILE=65536
 LimitNPROC=infinity
 Restart=on-failure
 RestartSec=2
+StartLimitBurst=3
+StartLimitInterval=10
 TasksMax=infinity
 OOMScoreAdjust=-1000
 
