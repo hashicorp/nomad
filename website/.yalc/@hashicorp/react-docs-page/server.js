@@ -9,8 +9,11 @@ import {
   loadVersionedNavData,
   getVersionFromPath,
 } from '@hashicorp/versioned-docs/server'
+import moize from 'moize'
 import { normalizeVersion } from '@hashicorp/versioned-docs/client'
 import renderPageMdx from './render-page-mdx'
+
+const cachedLoadVersionNavData = moize(loadVersionedNavData)
 
 // So far, we have a pattern of using a common value for
 // docs catchall route parameters: route/[[...page]].jsx.
@@ -35,7 +38,7 @@ async function generateStaticPaths({
   ) {
     // Fetch and parse navigation data
     navData = (
-      await loadVersionedNavData(
+      await cachedLoadVersionNavData(
         product.slug,
         basePath,
         normalizeVersion(currentVersion)
@@ -116,7 +119,7 @@ async function generateStaticProps({
             return mdxRenderer(docResult.markdownSource)
           }
         ),
-        loadVersionedNavData(
+        cachedLoadVersionNavData(
           product.slug,
           basePath,
           versionFromPath ?? currentVersionNormalized
