@@ -1414,6 +1414,19 @@
             "path": "drivers/external/iis"
           }
         ]
+      },
+      {
+        "title": "Remote",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "drivers/remote"
+          },
+          {
+            "title": "ECS",
+            "path": "drivers/remote/ecs"
+          }
+        ]
       }
     ]
   },
