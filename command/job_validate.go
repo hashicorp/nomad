@@ -70,7 +70,7 @@ func (c *JobValidateCommand) Run(args []string) int {
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetNone)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
-	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
+	flagSet.BoolVar(&c.JobGetter.Hcl1, "hcl1", false, "")
 	flagSet.Var(&varArgs, "var", "")
 	flagSet.Var(&varFiles, "var-file", "")
 

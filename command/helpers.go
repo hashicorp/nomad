@@ -380,7 +380,7 @@ READ:
 }
 
 type JobGetter struct {
-	hcl1 bool
+	Hcl1 bool
 
 	// The fields below can be overwritten for tests
 	testStdin io.Reader
@@ -444,7 +444,7 @@ func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []strin
 	// Parse the JobFile
 	var jobStruct *api.Job
 	var err error
-	if j.hcl1 {
+	if j.Hcl1 {
 		jobStruct, err = jobspec.Parse(jobfile)
 	} else {
 		var buf bytes.Buffer

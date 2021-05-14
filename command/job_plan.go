@@ -124,7 +124,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 	flagSet.BoolVar(&diff, "diff", true, "")
 	flagSet.BoolVar(&policyOverride, "policy-override", false, "")
 	flagSet.BoolVar(&verbose, "verbose", false, "")
-	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
+	flagSet.BoolVar(&c.JobGetter.Hcl1, "hcl1", false, "")
 	flagSet.Var(&varArgs, "var", "")
 	flagSet.Var(&varFiles, "var-file", "")
 
