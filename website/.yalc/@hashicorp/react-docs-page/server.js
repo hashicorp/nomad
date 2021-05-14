@@ -32,10 +32,7 @@ async function generateStaticPaths({
   let navData
 
   // This code path handles versioned docs integration, which is currently gated behind the ENABLE_VERSIONED_DOCS env var
-  if (
-    process.env.ENABLE_VERSIONED_DOCS &&
-    process.env.VERCEL_ENV === 'preview'
-  ) {
+  if (process.env.ENABLE_VERSIONED_DOCS) {
     // Fetch and parse navigation data
     navData = (
       await cachedLoadVersionNavData(
@@ -104,12 +101,13 @@ async function generateStaticProps({
 
     // Only load docs content from the DB if we're in production or there's an explicit version in the path
     // Preview and dev environments will read the "latest" content from the filesystem
-    if (process.env.VERCEL_ENV === 'preview' || versionFromPath) {
+    if (true || versionFromPath) {
+      const paramsNoIndex = (params[paramId] ?? []).filter(
+        (param) => param !== 'index'
+      )
       const pagePathToLoad = versionFromPath
-        ? [basePath, ...(params[paramId] ?? [])].join('/')
-        : [basePath, currentVersionNormalized, ...(params[paramId] ?? [])].join(
-            '/'
-          )
+        ? [basePath, ...paramsNoIndex].join('/')
+        : [basePath, currentVersionNormalized, ...paramsNoIndex].join('/')
 
       let doc
       const [{ mdxSource }, navData] = await Promise.all([

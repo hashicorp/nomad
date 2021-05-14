@@ -2,7 +2,7 @@
   "version": "v1",
   "packages": {
     "@hashicorp/react-docs-page": {
-      "signature": "18342c04df01d331321bf1ba8ed42e6f",
+      "signature": "4da8c5669092214b027f71d1c9f3612f",
       "file": true,
       "replaced": "^13.2.0-alpha.0"
     },
