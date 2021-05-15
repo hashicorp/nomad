@@ -42,36 +42,6 @@ const (
 	dockerAuthHelperPrefix = "docker-credential-"
 )
 
-// nomadDefaultCaps is the subset of dockerDefaultCaps that Nomad enables by
-// default and is used to compute the set of capabilities to add/drop given
-// docker driver configuration.
-func nomadDefaultCaps() []string {
-	return []string{
-		"AUDIT_WRITE",
-		"CHOWN",
-		"DAC_OVERRIDE",
-		"FOWNER",
-		"FSETID",
-		"KILL",
-		"MKNOD",
-		"NET_BIND_SERVICE",
-		"SETFCAP",
-		"SETGID",
-		"SETPCAP",
-		"SETUID",
-		"SYS_CHROOT",
-	}
-}
-
-// dockerDefaultCaps is a list of Linux capabilities enabled by docker by default
-// and is used to compute the set of capabilities to add/drop given docker driver
-// configuration, as well as Nomad built-in limitations.
-//
-// https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
-func dockerDefaultCaps() []string {
-	return append(nomadDefaultCaps(), "NET_RAW")
-}
-
 func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	conf := map[string]interface{}{}
 	if v, ok := opts["docker.endpoint"]; ok {
