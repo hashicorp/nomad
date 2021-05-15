@@ -298,29 +298,6 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 	return taskConfigSpec, nil
 }
 
-// getCaps computes the complete set of linux capabilities to enable for driver,
-// which gets passed along to libcontainer.
-func (d *Driver) getCaps(tc *TaskConfig) ([]string, error) {
-	driverAllowed := capabilities.New(d.config.AllowCaps)
-
-	// determine caps the task wants that are not allowed
-	taskCaps := capabilities.New(tc.CapAdd)
-	missing := driverAllowed.Difference(taskCaps)
-	if !missing.Empty() {
-		return nil, fmt.Errorf("driver does not allow the following capabilities: %s", missing)
-	}
-
-	// if task did not specify allowed caps, use nomad defaults minus task drops
-	if len(tc.CapAdd) == 0 {
-		driverAllowed.Remove(tc.CapDrop)
-		return driverAllowed.Slice(true), nil
-	}
-
-	// otherwise task did specify allowed caps, enable exactly those
-	taskAdd := capabilities.New(tc.CapAdd)
-	return taskAdd.Slice(true), nil
-}
-
 // Capabilities is returned by the Capabilities RPC and indicates what
 // optional features this driver supports
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
@@ -496,7 +473,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		cfg.Mounts = append(cfg.Mounts, dnsMount)
 	}
 
-	caps, err := d.getCaps(&driverConfig)
+	caps, err := capabilities.Calculate(d.config.AllowCaps, driverConfig.CapAdd, driverConfig.CapDrop)
 	if err != nil {
 		return nil, nil, err
 	}

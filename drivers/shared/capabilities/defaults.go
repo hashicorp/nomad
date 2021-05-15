@@ -1,6 +1,7 @@
 package capabilities
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/syndtr/gocapability/capability"
@@ -13,7 +14,7 @@ const (
 )
 
 var (
-	extractLiteral = regexp.MustCompile(`("[\w]+)`)
+	extractLiteral = regexp.MustCompile(`([\w]+)`)
 )
 
 // NomadDefaults is the set of Linux capabilities that Nomad enables by
@@ -111,4 +112,34 @@ func LegacySupported() *Set {
 		"CAP_BLOCK_SUSPEND",
 		"CAP_AUDIT_READ",
 	})
+}
+
+// Calculate the reduced set of linux capabilities to enable for driver, taking
+// into account the capabilities allowed by the driver and the capabilities
+// explicitly requested / removed by the task configuration.
+//
+// capAdd if set indicates the minimal set of capabilities that should be enabled.
+// capDrop if set indicates capabilities that should be dropped from the driver defaults
+//
+// If the task requests a capability not allowed by the driver, an error is
+// returned.
+func Calculate(allowCaps, capAdd, capDrop []string) ([]string, error) {
+	driverAllowed := New(allowCaps)
+
+	// determine caps the task wants that are not allowed
+	taskCaps := New(capAdd)
+	missing := driverAllowed.Difference(taskCaps)
+	if !missing.Empty() {
+		return nil, fmt.Errorf("driver does not allow the following capabilities: %s", missing)
+	}
+
+	// if task did not specify allowed caps, use nomad defaults minus task drops
+	if len(capAdd) == 0 {
+		driverAllowed.Remove(capDrop)
+		return driverAllowed.Slice(true), nil
+	}
+
+	// otherwise task did specify allowed caps, enable exactly those
+	taskAdd := New(capAdd)
+	return taskAdd.Slice(true), nil
 }
