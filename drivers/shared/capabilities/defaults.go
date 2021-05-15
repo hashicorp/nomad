@@ -39,6 +39,10 @@ func DockerDefaults() *Set {
 
 // Supported returns the set of capabilities supported by the operating system.
 //
+// This set will expand over time as new capabilities are introduced to the kernel
+// and the capability library is updated (which tends to happen to keep up with
+// run-container libraries).
+//
 // Defers to a library generated from
 // https://github.com/torvalds/linux/blob/master/include/uapi/linux/capability.h
 func Supported() *Set {
@@ -114,32 +118,92 @@ func LegacySupported() *Set {
 	})
 }
 
-// Calculate the reduced set of linux capabilities to enable for driver, taking
-// into account the capabilities allowed by the driver and the capabilities
-// explicitly requested / removed by the task configuration.
+// Calculate the resulting set of linux capabilities to enable for a task, taking
+// into account:
+// - default capability basis
+// - driver allowable capabilities
+// - task capability drops
+// - task capability adds
 //
-// capAdd if set indicates the minimal set of capabilities that should be enabled.
-// capDrop if set indicates capabilities that should be dropped from the driver defaults
+// Nomad establishes a standard set of enabled capabilities allowed by the task
+// driver if allow_caps is not set. This is the same set that the task will be
+// enabled with by default if allow_caps does not further reduce permissions,
+// in which case the task capabilities will also be reduced accordingly.
 //
-// If the task requests a capability not allowed by the driver, an error is
-// returned.
-func Calculate(allowCaps, capAdd, capDrop []string) ([]string, error) {
-	driverAllowed := New(allowCaps)
+// The task will drop any capabilities specified in cap_drop, and add back
+// capabilities specified in cap_add. The task will not be allowed to add capabilities
+// not set in the the allow_caps setting (which by default is the same as the basis).
+//
+// cap_add takes precedence over cap_drop, enabling the common pattern of dropping
+// all capabilities, then adding back the desired smaller set. e.g.
+//   cap_drop = ["all"]
+//   cap_add = ["chown", "kill"]
+//
+// Note that the resulting capability names are upper-cased and prefixed with
+// "CAP_", which is the expected input for the exec/java driver implementation.
+func Calculate(basis *Set, allowCaps, capAdd, capDrop []string) ([]string, error) {
+	allow := New(allowCaps)
+	adds := New(capAdd)
 
 	// determine caps the task wants that are not allowed
-	taskCaps := New(capAdd)
-	missing := driverAllowed.Difference(taskCaps)
+	missing := allow.Difference(adds)
 	if !missing.Empty() {
 		return nil, fmt.Errorf("driver does not allow the following capabilities: %s", missing)
 	}
 
-	// if task did not specify allowed caps, use nomad defaults minus task drops
-	if len(capAdd) == 0 {
-		driverAllowed.Remove(capDrop)
-		return driverAllowed.Slice(true), nil
+	// the realized enabled capabilities starts with what is allowed both by driver
+	// config AND is a member of the basis (i.e. nomad defaults)
+	result := basis.Intersect(allow)
+
+	// then remove capabilities the task explicitly drops
+	result.Remove(capDrop)
+
+	// then add back capabilities the task explicitly adds
+	return result.Union(adds).Slice(true), nil
+}
+
+// Delta calculates the set of capabilities that must be added and dropped relative
+// to a basis to achieve a desired result. The use case is that the docker driver
+// assumes a default set (DockerDefault), and we must calculate what to pass into
+// --cap-add and --cap-drop on container creation given the inputs of the docker
+// plugin config for allow_caps, and the docker task configuration for cap_add and
+// cap_drop. Note that the user provided cap_add and cap_drop settings are always
+// included, even if they are redundant with the basis (maintaining existing
+// behavior, working with existing tests).
+//
+// Note that the resulting capability names are lower-cased and not prefixed with
+// "CAP_", which is the existing style used with the docker driver implementation.
+func Delta(basis *Set, allowCaps, capAdd, capDrop []string) ([]string, []string, error) {
+	all := func(caps []string) bool {
+		for _, c := range caps {
+			if normalize(c) == "all" {
+				return true
+			}
+		}
+		return false
 	}
 
-	// otherwise task did specify allowed caps, enable exactly those
-	taskAdd := New(capAdd)
-	return taskAdd.Slice(true), nil
+	// set of caps allowed by driver
+	allow := New(allowCaps)
+
+	// determine caps the task wants that are not allowed
+	missing := allow.Difference(New(capAdd))
+	if !missing.Empty() {
+		return nil, nil, fmt.Errorf("driver does not allow the following capabilities: %s", missing)
+	}
+
+	// add what the task is asking for
+	add := New(capAdd).Slice(false)
+	if all(capAdd) {
+		add = []string{"all"}
+	}
+
+	// drop what the task removes plus whatever is in the basis that is not
+	// in the driver allow configuration
+	drop := New(allowCaps).Difference(basis).Union(New(capDrop)).Slice(false)
+	if all(capDrop) {
+		drop = []string{"all"}
+	}
+
+	return add, drop, nil
 }

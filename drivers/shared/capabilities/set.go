@@ -14,7 +14,7 @@ var null = nothing{}
 // operations, taking care of name normalization, and sentinel value expansions.
 //
 // Linux capabilities can be expressed in multiple ways when working with docker
-// and/or libcontainer, along with Nomad.
+// and/or executor, along with Nomad configuration.
 //
 // Capability names may be upper or lower case, and may or may not be prefixed
 // with "CAP_" or "cap_". On top of that, Nomad interprets the special name "all"
@@ -61,11 +61,34 @@ func (s *Set) Remove(caps []string) {
 	}
 }
 
+// Union returns of Set of elements of both s and b.
+func (s *Set) Union(b *Set) *Set {
+	data := make(map[string]nothing)
+	for c := range s.data {
+		data[c] = null
+	}
+	for c := range b.data {
+		data[c] = null
+	}
+	return &Set{data: data}
+}
+
 // Difference returns the Set of elements of b not in s.
 func (s *Set) Difference(b *Set) *Set {
 	data := make(map[string]nothing)
 	for c := range b.data {
 		if _, exists := s.data[c]; !exists {
+			data[c] = null
+		}
+	}
+	return &Set{data: data}
+}
+
+// Intersect returns the Set of elements in both s and b.
+func (s *Set) Intersect(b *Set) *Set {
+	data := make(map[string]nothing)
+	for c := range s.data {
+		if _, exists := b.data[c]; exists {
 			data[c] = null
 		}
 	}
@@ -84,7 +107,7 @@ func (s *Set) String() string {
 
 // Slice returns a sorted slice of capabilities in s.
 //
-// big - indicates whether to uppercase and prefix capabilities with CAP_
+// upper - indicates whether to uppercase and prefix capabilities with CAP_
 func (s *Set) Slice(upper bool) []string {
 	caps := make([]string, 0, len(s.data))
 	for c := range s.data {

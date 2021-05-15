@@ -485,7 +485,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		cfg.Mounts = append(cfg.Mounts, dnsMount)
 	}
 
-	caps, err := capabilities.Calculate(d.config.AllowCaps, driverConfig.CapAdd, driverConfig.CapDrop)
+	caps, err := capabilities.Calculate(
+		capabilities.NomadDefaults(), d.config.AllowCaps, driverConfig.CapAdd, driverConfig.CapDrop,
+	)
 	if err != nil {
 		return nil, nil, err
 	}

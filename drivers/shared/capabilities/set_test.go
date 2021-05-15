@@ -160,3 +160,55 @@ func TestSet_Difference(t *testing.T) {
 		require.Equal(t, "x, y", result.String())
 	})
 }
+
+func TestSet_Intersect(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty", func(t *testing.T) {
+		a := New(nil)
+		b := New([]string{"a", "b"})
+
+		result := a.Intersect(b)
+		require.True(t, result.Empty())
+
+		result2 := b.Intersect(a)
+		require.True(t, result2.Empty())
+	})
+
+	t.Run("intersect", func(t *testing.T) {
+		a := New([]string{"A", "b", "C", "d", "e", "f", "G"})
+		b := New([]string{"Z", "B", "E", "f", "y"})
+
+		result := a.Intersect(b)
+		require.Equal(t, "b, e, f", result.String())
+
+		result2 := b.Intersect(a)
+		require.Equal(t, "b, e, f", result2.String())
+	})
+}
+
+func TestSet_Union(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty", func(t *testing.T) {
+		a := New(nil)
+		b := New([]string{"a", "b"})
+
+		result := a.Union(b)
+		require.Equal(t, "a, b", result.String())
+
+		result2 := b.Union(a)
+		require.Equal(t, "a, b", result2.String())
+	})
+
+	t.Run("union", func(t *testing.T) {
+		a := New([]string{"A", "b", "C", "d", "e", "f", "G"})
+		b := New([]string{"Z", "B", "E", "f", "y"})
+
+		result := a.Union(b)
+		require.Equal(t, "a, b, c, d, e, f, g, y, z", result.String())
+
+		result2 := b.Union(a)
+		require.Equal(t, "a, b, c, d, e, f, g, y, z", result2.String())
+	})
+}
