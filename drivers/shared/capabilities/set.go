@@ -23,6 +23,7 @@ type Set struct {
 	data map[string]nothing
 }
 
+// New creates a new Set setting caps as the initial elements.
 func New(caps []string) *Set {
 	m := make(map[string]nothing, len(caps))
 	for _, c := range caps {
