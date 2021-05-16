@@ -479,6 +479,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	if err != nil {
 		return nil, nil, err
 	}
+	d.logger.Debug("task capabilities", "capabilities", caps)
 
 	execCmd := &executor.ExecCommand{
 		Cmd:              driverConfig.Command,

@@ -534,7 +534,6 @@ func (l *LibcontainerExecutor) handleExecWait(ch chan *waitResult, process *libc
 }
 
 func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
-
 	switch command.User {
 	case "root":
 		// when running as root, use the legacy set of system capabilities, so
