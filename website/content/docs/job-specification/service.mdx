@@ -579,13 +579,12 @@ configuration:
 job "example" {
   datacenters = ["dc1"]
 
-  network {
-    port "db" {
-      to = 6379
-    }
-  }
-
   group "cache" {
+    network {
+      port "db" {
+        to = 6379
+      }
+    }
 
     task "redis" {
       driver = "docker"
@@ -739,6 +738,7 @@ Or using `address_mode=driver` for `service` and `check` with numeric ports:
 ```hcl
 job "example" {
   datacenters = ["dc1"]
+
   group "cache" {
 
     task "redis" {
