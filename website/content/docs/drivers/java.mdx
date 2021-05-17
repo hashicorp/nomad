@@ -167,7 +167,7 @@ able to make use of IPC features, like sending unexpected POSIX signals.
 ```
 
   which is modeled after the capabilities allowed by [docker by default][docker_caps]
-  (sans [`NET_RAW`][no_net_raw]). Allows the operator to control which capabilities
+  (without [`NET_RAW`][no_net_raw]). Allows the operator to control which capabilities
   can be obtained by tasks using [`cap_add`][cap_add] and [`cap_drop`][cap_drop] options.
   Supports the value `"all"` as a shortcut for allow-listing all capabilities supported
   by the operating system.
