@@ -54,7 +54,37 @@ these fields.
 
 Connect native tasks running in host networking mode will now have `CONSUL_HTTP_ADDR`
 set automatically. Before this was only the case for bridge networking. If an operator
-already explicitly set `CONSUL_HTTP_ADDR` then it will not get overriden.
+already explicitly set `CONSUL_HTTP_ADDR` then it will not get overridden.
+
+#### Linux capabilities in exec/java
+
+Following the security [remediation][no_net_raw] in Nomad versions 0.12.12, 1.0.5,
+and 1.1.0-rc1, the `exec` and `java` task drivers will additionally no longer enable
+the following linux capabilities by default.
+
+```
+AUDIT_CONTROL  AUDIT_READ  BLOCK_SUSPEND  DAC_READ_SEARCH  IPC_LOCK  IPC_OWNER  LEASE
+LINUX_IMMUTABLE  MAC_ADMIN  MAC_OVERRIDE  NET_ADMIN  NET_BROADCAST  NET_RAW  SYS_ADMIN
+SYS_BOOT  SYSLOG  SYS_MODULE  SYS_NICE  SYS_PACCT  SYS_PTRACE  SYS_RAWIO  SYS_RESOURCE
+SYS_TIME  SYS_TTY_CONFIG  WAKE_ALARM
+```
+
+The capabilities now enabled by default are modeled after Docker default
+[`linux capabilities`] (excluding `NET_RAW`).
+
+```
+AUDIT_WRITE  CHOWN  DAC_OVERRIDE  FOWNER  FSETID  KILL  MKNOD  NET_BIND_SERVICE
+SETFCAP  SETGID  SETPCAP  SETUID  SYS_CHROOT
+```
+
+A new `allow_caps` plugin configuration parameter for [`exec`][allow_caps_exec]
+and [`java`][allow_caps_java] task drivers can be used to restrict the set of
+capabilities allowed for use by tasks.
+
+Tasks using the `exec` or `java` task drivers can add or remove desired linux
+capabilities using the [`cap_add`][cap_add_exec] and [`cap_drop`][cap_drop_exec]
+task configuration options.
+
 
 #### iptables
 
@@ -63,9 +93,9 @@ inserting them as the first rule. This allows better control for user-defined
 iptables rules but users who append rules currently should verify that their
 rules are being appended in the correct order.
 
-## Nomad 1.1.0, 1.0.5, 0.12.12
+## Nomad 1.1.0-rc1, 1.0.5, 0.12.12
 
-Nomad versions 1.1.0, 1.0.5 and 0.12.12 change the behavior of the `docker`, `exec`,
+Nomad versions 1.1.0-rc1, 1.0.5 and 0.12.12 change the behavior of the `docker`, `exec`,
 and `java` task drivers so that the [`CAP_NET_RAW`] linux capability is disabled
 by default. This is one of the [`linux capabilities`] that Docker itself enables
 by default, as this capability enables the generation of ICMP packets - used by
@@ -1111,3 +1141,8 @@ deleted and then Nomad 0.3.0 can be launched.
 [`CAP_NET_RAW`]: https://security.stackexchange.com/a/128988
 [`linux capabilities`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
 [`allow_caps`]: /docs/drivers/docker#allow_caps
+[no_net_raw]: /docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+[allow_caps_exec]: /docs/drivers/exec#allow_caps
+[allow_caps_java]: /docs/drivers/java#allow_caps
+[cap_add_exec]: /docs/drivers/exec#cap_add
+[cap_drop_exec]: /docs/drivers/exec#cap_drop

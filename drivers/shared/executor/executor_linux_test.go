@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -478,7 +479,7 @@ func TestExecutor_Capabilities(t *testing.T) {
 CapInh: 0000000000000000
 CapPrm: 0000000000000000
 CapEff: 0000000000000000
-CapBnd: 0000003fffffdfff
+CapBnd: 00000000a80405fb
 CapAmb: 0000000000000000`,
 		},
 		{
@@ -494,7 +495,6 @@ CapAmb: 0000000000000000`,
 
 	for _, c := range cases {
 		t.Run(c.user, func(t *testing.T) {
-			require := require.New(t)
 
 			testExecCmd := testExecutorCommandWithChroot(t)
 			execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -504,12 +504,13 @@ CapAmb: 0000000000000000`,
 			execCmd.ResourceLimits = true
 			execCmd.Cmd = "/bin/bash"
 			execCmd.Args = []string{"-c", "cat /proc/$$/status"}
+			execCmd.Capabilities = capabilities.NomadDefaults().Slice(true)
 
 			executor := NewExecutorWithIsolation(testlog.HCLogger(t))
 			defer executor.Shutdown("SIGKILL", 0)
 
 			_, err := executor.Launch(execCmd)
-			require.NoError(err)
+			require.NoError(t, err)
 
 			ch := make(chan interface{})
 			go func() {
@@ -521,7 +522,7 @@ CapAmb: 0000000000000000`,
 			case <-ch:
 				// all good
 			case <-time.After(5 * time.Second):
-				require.Fail("timeout waiting for exec to shutdown")
+				require.Fail(t, "timeout waiting for exec to shutdown")
 			}
 
 			canonical := func(s string) string {
@@ -538,7 +539,7 @@ CapAmb: 0000000000000000`,
 					return false, fmt.Errorf("capabilities didn't match: want\n%v\n; got:\n%v\n", expected, output)
 				}
 				return true, nil
-			}, func(err error) { require.NoError(err) })
+			}, func(err error) { require.NoError(t, err) })
 		})
 	}
 
