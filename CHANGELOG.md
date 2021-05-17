@@ -1,51 +1,4 @@
-## 1.0.5 (May 12, 2021)
-
-SECURITY:
- * drivers/docker+exec+java: Disable `CAP_NET_RAW` linux capability by default to prevent ARP spoofing. CVE-2021-32575 [[GH-10568](https://github.com/hashicorp/nomad/issues/10568)](https://github.com/hashicorp/nomad/issues/10568)
-
-FEATURES:
- * **Memory oversubscription**: Improve cluster efficiency by allowing applications,  whether containerized or non-containerized, to use memory in excess of their scheduled amount.
- * **Reserved CPU cores**: Improve the performance of your applications by ensuring tasks have exclusive use of client CPUs.
- * **UI improvements**: Enjoy a streamlined operator experience with fuzzy search, resource monitoring, and authentication improvements.
- * **CSI enhancements**: Run stateful applications with improved volume management and support for Container Storage Interface (CSI) plugins such as Ceph.
- * **Readiness checks**: Differentiate between application liveness and readiness with new options for task health checks.
- * **Remote task drivers (technical preview)**: Use Nomad to manage your workloads on more platforms, such as AWS Lambda or Amazon ECS.
- * **Consul namespace support (Enterprise)**: Run Nomad-defined services in their HashiCorp Consul namespaces more easily using Nomad Enterprise.
- * **License autoloading (Enterprise)**: Automatically load Nomad licenses when a Nomad server agent starts using Nomad Enterprise.
- * **Autoscaling improvements**: Scale your applications more precisely with new strategies.
-
-__BACKWARDS INCOMPATIBILITIES:__
- * csi: The `attachment_mode` and `access_mode` field are required for `volume` blocks in job specifications. Registering a volume requires at least one `capability` block with the `attachment_mode` and `access_mode` fields set. [[GH-10330](https://github.com/hashicorp/nomad/issues/10330)]
- * licensing: Enterprise licenses are no longer stored in raft or synced between servers. Loading the Enterprise license from disk or environment is required. The `nomad license put` command has been removed. [[GH-10458](https://github.com/hashicorp/nomad/issues/10458)]
-
-IMPROVEMENTS:
- * api: Added an API endpoint for fuzzy search queries [[GH-10184](https://github.com/hashicorp/nomad/pull/10184)]
- * api: Removed unimplemented `CSIVolumes.PluginList` API. [[GH-10158](https://github.com/hashicorp/nomad/issues/10158)]
- * api: Added `namespace` field for the jobs list endpoint response [[GH-10434](https://github.com/hashicorp/nomad/issues/10434)]
- * build: Updated to Go 1.16.3 [[GH-10483](https://github.com/hashicorp/nomad/issues/10483)]
- * cli: Update defaults for `nomad operator debug` flags `-interval` and `-server-id` to match common usage. [[GH-10121](https://github.com/hashicorp/nomad/issues/10121)]
- * cli: Support an optional file argument for `volume init` and `quota init` commands [[GH-10397](https://github.com/hashicorp/nomad/issues/10397)]
- * client/config: Enable sockaddr templating for `network-interface` attribute. [[GH-10404](https://github.com/hashicorp/nomad/issues/10404)]
- * client/fingerprint: Added support multiple host network aliases for the same interface. [[GH-10104](https://github.com/hashicorp/nomad/issues/10104)]
- * consul: Allow setting `body` field on service/check Consul health checks. [[GH-10186](https://github.com/hashicorp/nomad/issues/10186)]
- * consul/connect: Use exponential backoff for consul envoy bootstrap process [[GH-10453](https://github.com/hashicorp/nomad/pull/10453)]
- * consul/connect: Enable setting `local_bind_address` field on connect upstreams [[GH-6248](https://github.com/hashicorp/nomad/issues/6248)]
- * consul/connect: Added job-submission validation for Connect sidecar service and group names [[GH-10455](https://github.com/hashicorp/nomad/pull/10455)]
- * consul/connect: Automatically populate `CONSUL_HTTP_ADDR` for connect native tasks in host networking mode. [[GH-10239](https://github.com/hashicorp/nomad/issues/10239)]
- * consul/connect: Added `disable_default_tcp_check` field to `connect.sidecar_service` blocks to disable the default TCP listener check for Connect sidecar tasks. [[GH-10531](https://github.com/hashicorp/nomad/pull/10531)]
- * core: Persist metadata about most recent drain in Node.LastDrain [[GH-10250](https://github.com/hashicorp/nomad/issues/10250)]
- * csi: Added support for jobs to request a unique volume ID per allocation. [[GH-10136](https://github.com/hashicorp/nomad/issues/10136)]
- * driver/docker: Added support for optional extra container labels. [[GH-9885](https://github.com/hashicorp/nomad/issues/9885)]
- * driver/docker: Added support for configuring default logger behavior in the client configuration. [[GH-10156](https://github.com/hashicorp/nomad/issues/10156)]
- * metrics: Added blocked evaluation resources metrics [[GH-10454](https://github.com/hashicorp/nomad/pull/10454)]
- * networking: Added support for user-defined iptables rules on the NOMAD-ADMIN chain. [[GH-10181](https://github.com/hashicorp/nomad/issues/10181)]
- * networking: Added support for interpolating host network names with node attributes. [[GH-10196](https://github.com/hashicorp/nomad/issues/10196)]
- * nomad/structs: Removed deprecated Node.Drain field, added API extensions to restore it [[GH-10202](https://github.com/hashicorp/nomad/issues/10202)]
- * ui: Added a job reversion button [[GH-10336](https://github.com/hashicorp/nomad/pull/10336)]
- * ui: Added memory maximum to task group ribbon [[GH-10459](https://github.com/hashicorp/nomad/pull/10459)]
- * ui: Updated global search to use fuzzy search API [[GH-10412](https://github.com/hashicorp/nomad/pull/10412)]
- * ui: Changed displays of aggregate units to use larger suffixes when appropriate [[GH-10257](https://github.com/hashicorp/nomad/pull/10257)]
- * ui: Added resource reservation indicators on client charts and task breakdowns on allocation charts [[GH-10208](https://github.com/hashicorp/nomad/pull/10208)]
+## 1.0.6 (Unreleased)
 
 BUG FIXES:
  * core (Enterprise): Update licensing library to v0.0.11 to include race condition fix. [[GH-10253](https://github.com/hashicorp/nomad/issues/10253)]
@@ -67,31 +20,21 @@ BUG FIXES:
  * consul/connect: Fixed a bug where HTTP ingress gateways could not use wildcard names. [[GH-10457](https://github.com/hashicorp/nomad/pull/10457)]
  * cni: Fallback to an interface with an IP address if sandbox interface lacks one. [[GH-9895](https://github.com/hashicorp/nomad/issues/9895)]
  * csi: Fixed a bug where volume with IDs that are a substring prefix of another volume could use the wrong volume for feasibility checking. [[GH-10158](https://github.com/hashicorp/nomad/issues/10158)]
+ * drivers/docker: Fixed a bug where Dockerfile `STOPSIGNAL` was not honored. [GH-10441]
+ * drivers/raw_exec: Fixed a bug where exit codes could be dropped and return a spurious error. [GH-10494]
  * scheduler: Fixed a bug where Nomad reports negative or incorrect running children counts for periodic jobs. [[GH-10145](https://github.com/hashicorp/nomad/issues/10145)]
  * scheduler: Fixed a bug where jobs requesting multiple CSI volumes could be incorrectly scheduled if only one of the volumes passed feasibility checking. [[GH-10143](https://github.com/hashicorp/nomad/issues/10143)]
+ * service: Fixed a bug where new script checks would not be added on job updates. [GH-10403]
  * server: Fixed a bug affecting periodic job summary counts [[GH-10145](https://github.com/hashicorp/nomad/issues/10145)]
  * server: Fixed a bug where draining a node may fail to migrate its allocations [[GH-10411](https://github.com/hashicorp/nomad/issues/10411)]
  * server: Fixed a bug where jobs may not run if submitted with ParentID field set [[GH-10424](https://github.com/hashicorp/nomad/issues/10424)]
  * server: Fixed a panic that may arise on submission of jobs containing invalid service checks [[GH-10154](https://github.com/hashicorp/nomad/issues/10154)]
  * ui: Fixed the rendering of interstitial components shown after processing a dynamic application sizing recommendation. [[GH-10094](https://github.com/hashicorp/nomad/pull/10094)]
 
-## 1.0.6 (Unreleased)
+## 1.0.5 (May 12, 2021)
 
-BUG FIXES:
- * agent: Only allow querying Prometheus formatted metrics if Prometheus is enabled within the config [[GH-10140](https://github.com/hashicorp/nomad/pull/10140)]
- * api: Fixed a panic that may occur on concurrent access to an SDK client [[GH-10302](https://github.com/hashicorp/nomad/issues/10302)]
- * api: Added missing devices block to AllocatedTaskResources [[GH-10064](https://github.com/hashicorp/nomad/pull/10064)]
- * api: Removed unimplemented `CSIVolumes.PluginList` API. [[GH-10158](https://github.com/hashicorp/nomad/issues/10158)]
- * cli: Fixed a bug where non-int proxy port would panic CLI [[GH-10072](https://github.com/hashicorp/nomad/issues/10072)]
- * cli: Fixed a bug where `nomad operator debug` incorrectly parsed https Consul API URLs. [[GH-10082](https://github.com/hashicorp/nomad/pull/10082)]
- * cli: Remove extra linefeeds in monitor.log files written by `nomad operator debug`. [[GH-10252](https://github.com/hashicorp/nomad/issues/10252)]
- * cli: Fixed a panic where `nomad job run` or `plan` would crash when supplied with non-existent `-var-file` files. [[GH-10569](https://github.com/hashicorp/nomad/issues/10569)]
- * client: Fixed log formatting when killing tasks. [[GH-10135](https://github.com/hashicorp/nomad/issues/10135)]
- * client: Fixed a bug where small files would be assigned the wrong content type. [[GH-10348](https://github.com/hashicorp/nomad/pull/10348)]
- * consul/connect: Fixed a bug where HTTP ingress gateways could not use wildcard names. [[GH-10457](https://github.com/hashicorp/nomad/pull/10457)]
- * csi: Fixed a bug where volume with IDs that are a substring prefix of another volume could use the wrong volume for feasibility checking. [[GH-10158](https://github.com/hashicorp/nomad/issues/10158)]
- * scheduler: Fixed a bug where jobs requesting multiple CSI volumes could be incorrectly scheduled if only one of the volumes passed feasibility checking. [[GH-10143](https://github.com/hashicorp/nomad/issues/10143)]
- * ui: Fixed the rendering of interstitial components shown after processing a dynamic application sizing recommendation. [[GH-10094](https://github.com/hashicorp/nomad/pull/10094)]
+SECURITY:
+ * drivers/docker+exec+java: Disable `CAP_NET_RAW` linux capability by default to prevent ARP spoofing. CVE-2021-32575 [[GH-10568](https://github.com/hashicorp/nomad/issues/10568)](https://github.com/hashicorp/nomad/issues/10568)
 
 ## 1.0.4 (February 24, 2021)
 
