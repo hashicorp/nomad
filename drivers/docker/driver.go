@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,10 +22,9 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
-	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
-	"github.com/hashicorp/nomad/helper"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -913,8 +911,9 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	hostConfig.Privileged = driverConfig.Privileged
 
 	// set add/drop capabilities
-	hostConfig.CapAdd, hostConfig.CapDrop, err = d.getCaps(driverConfig)
-	if err != nil {
+	if hostConfig.CapAdd, hostConfig.CapDrop, err = capabilities.Delta(
+		capabilities.DockerDefaults(), d.config.AllowCaps, driverConfig.CapAdd, driverConfig.CapDrop,
+	); err != nil {
 		return c, err
 	}
 
@@ -1182,119 +1181,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		HostConfig:       hostConfig,
 		NetworkingConfig: networkingConfig,
 	}, nil
-}
-
-// getCaps computes the capabilities to supply to the --add-cap and --drop-cap
-// options to the docker driver, which override the default capabilities enabled
-// by docker itself.
-func (d *Driver) getCaps(taskConfig *TaskConfig) ([]string, []string, error) {
-
-	// capabilities allowable by client docker plugin configuration
-	allowCaps := expandAllowCaps(d.config.AllowCaps)
-
-	// capabilities the task docker config is asking for based on the default
-	// capabilities allowable by nomad
-	desiredCaps, err := tweakCapabilities(nomadDefaultCaps(), taskConfig.CapAdd, taskConfig.CapDrop)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// capabilities the task is requesting that are NOT allowed by the docker plugin
-	if missing := missingCaps(allowCaps, desiredCaps); len(missing) > 0 {
-		return nil, nil, fmt.Errorf("Docker driver does not have the following caps allow-listed on this Nomad agent: %s", missing)
-	}
-
-	// capabilities that should be dropped relative to the docker default capabilities
-	dropCaps := capDrops(taskConfig.CapDrop, allowCaps)
-
-	return taskConfig.CapAdd, dropCaps, nil
-}
-
-// capDrops will compute the total dropped capabilities set
-//
-// {task cap_drop} U ({docker defaults} \ {driver allow caps})
-func capDrops(dropCaps []string, allowCaps []string) []string {
-	dropSet := make(map[string]struct{})
-
-	for _, c := range normalizeCaps(dropCaps) {
-		dropSet[c] = struct{}{}
-	}
-
-	// if dropCaps includes ALL, no need to iterate every capability
-	if _, exists := dropSet["ALL"]; exists {
-		return []string{"ALL"}
-	}
-
-	dockerDefaults := helper.SliceStringToSet(normalizeCaps(dockerDefaultCaps()))
-	allowedCaps := helper.SliceStringToSet(normalizeCaps(allowCaps))
-
-	// find the docker default caps not in allowed caps
-	for dCap := range dockerDefaults {
-		if _, exists := allowedCaps[dCap]; !exists {
-			dropSet[dCap] = struct{}{}
-		}
-	}
-
-	drops := make([]string, 0, len(dropSet))
-	for c := range dropSet {
-		drops = append(drops, c)
-	}
-	sort.Strings(drops)
-	return drops
-}
-
-// expandAllowCaps returns the normalized set of allowable capabilities set
-// for the docker plugin configuration.
-func expandAllowCaps(allowCaps []string) []string {
-	if len(allowCaps) == 0 {
-		return nil
-	}
-
-	set := make(map[string]struct{}, len(allowCaps))
-
-	for _, rawCap := range allowCaps {
-		capability := strings.ToUpper(rawCap)
-		if capability == "ALL" {
-			for _, defCap := range normalizeCaps(executor.SupportedCaps(true)) {
-				set[defCap] = struct{}{}
-			}
-		} else {
-			set[capability] = struct{}{}
-		}
-	}
-
-	result := make([]string, 0, len(set))
-	for capability := range set {
-		result = append(result, capability)
-	}
-	sort.Strings(result)
-	return result
-}
-
-// missingCaps returns the set of elements in desired that are not present in
-// allowed. The elements in desired are first upper-cased before comparison.
-// The elements in allowed are assumed to be upper-cased.
-func missingCaps(allowed, desired []string) []string {
-	_, missing := helper.SliceStringIsSubset(allowed, normalizeCaps(desired))
-	sort.Strings(missing)
-	return missing
-}
-
-// normalizeCaps returns a copy of caps with duplicate elements removed and all
-// elements upper-cased.
-func normalizeCaps(caps []string) []string {
-	set := make(map[string]struct{}, len(caps))
-	for _, c := range caps {
-		normal := strings.TrimPrefix(strings.ToUpper(c), "CAP_")
-		set[strings.ToUpper(normal)] = struct{}{}
-	}
-
-	result := make([]string, 0, len(set))
-	for c := range set {
-		result = append(result, c)
-	}
-	sort.Strings(result)
-	return result
 }
 
 func (d *Driver) toDockerMount(m *DockerMount, task *drivers.TaskConfig) (*docker.HostMount, error) {

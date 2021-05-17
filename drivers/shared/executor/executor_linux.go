@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/armon/circbuf"
@@ -532,28 +533,25 @@ func (l *LibcontainerExecutor) handleExecWait(ch chan *waitResult, process *libc
 	ch <- &waitResult{ps, err}
 }
 
-func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) error {
-	// TODO(shoenig): allow better control of these
-	// use capabilities list as prior to adopting libcontainer in 0.9
-
-	// match capabilities used in Nomad 0.8
-	if command.User == "root" {
-		allCaps := SupportedCaps(true)
+func configureCapabilities(cfg *lconfigs.Config, command *ExecCommand) {
+	switch command.User {
+	case "root":
+		// when running as root, use the legacy set of system capabilities, so
+		// that we do not break existing nomad clusters using this "feature"
+		legacyCaps := capabilities.LegacySupported().Slice(true)
 		cfg.Capabilities = &lconfigs.Capabilities{
-			Bounding:    allCaps,
-			Permitted:   allCaps,
-			Effective:   allCaps,
+			Bounding:    legacyCaps,
+			Permitted:   legacyCaps,
+			Effective:   legacyCaps,
 			Ambient:     nil,
 			Inheritable: nil,
 		}
-	} else {
-		allCaps := SupportedCaps(false)
+	default:
+		// otherwise apply the plugin + task capability configuration
 		cfg.Capabilities = &lconfigs.Capabilities{
-			Bounding: allCaps,
+			Bounding: command.Capabilities,
 		}
 	}
-
-	return nil
 }
 
 func configureNamespaces(pidMode, ipcMode string) lconfigs.Namespaces {
@@ -759,16 +757,17 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 		},
 		Version: "1.0.0",
 	}
+
 	for _, device := range specconv.AllowedDevices {
 		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.Rule)
 	}
 
-	if err := configureCapabilities(cfg, command); err != nil {
-		return nil, err
-	}
+	configureCapabilities(cfg, command)
+
 	if err := configureIsolation(cfg, command); err != nil {
 		return nil, err
 	}
+
 	if err := configureCgroups(cfg, command); err != nil {
 		return nil, err
 	}

@@ -92,6 +92,10 @@ type Executor interface {
 
 // ExecCommand holds the user command, args, and other isolation related
 // settings.
+//
+// Important (!): when adding fields, make sure to update the RPC methods in
+// grpcExecutorClient.Launch and grpcExecutorServer.Launch. Number of hours
+// spent tracking this down: too many.
 type ExecCommand struct {
 	// Cmd is the command that the user wants to run.
 	Cmd string
@@ -147,6 +151,9 @@ type ExecCommand struct {
 
 	// ModeIPC is the IPC isolation mode (private or host).
 	ModeIPC string
+
+	// Capabilities are the linux capabilities to be enabled by the task driver.
+	Capabilities []string
 }
 
 // SetWriters sets the writer for the process stdout and stderr. This should
