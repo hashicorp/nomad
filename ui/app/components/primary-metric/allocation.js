@@ -54,7 +54,7 @@ export default class AllocationPrimaryMetric extends Component {
   }
 
   get maximumAmount() {
-    if (this.metric === 'memory') return this.tracker.reservedMemoryMax;
+    if (this.metric === 'memory') return get(this, 'allocation.allocatedResources.memoryMax');
     return null;
   }
 
