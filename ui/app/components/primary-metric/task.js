@@ -40,7 +40,7 @@ export default class TaskPrimaryMetric extends Component {
   get maximumAmount() {
     if (!this.tracker) return null;
     const task = this.tracker.tasks.findBy('task', this.taskState.name);
-    if (this.metric === 'memory') return task.reservedMemoryMax;
+    if (this.metric === 'memory') return task.allocatedReservedMemoryMax;
     return null;
   }
 
