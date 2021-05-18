@@ -129,7 +129,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
       .sort(taskPrioritySort)
       .map(task => {
         const taskName = get(task, 'name');
-        const taskState = states.findBy('name', taskName);
+        const taskState = states.findBy('name', taskName) || {};
 
         return {
           task: taskName,
