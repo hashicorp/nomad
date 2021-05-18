@@ -8,7 +8,7 @@ import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 
 const mockTasks = [
-  { task: 'One', reservedCPU: 200, reservedMemory: 500, reservedMemoryMax: 600, cpu: [], memory: [] },
+  { task: 'One', reservedCPU: 200, reservedMemory: 500, allocatedReservedMemory: 500, reservedMemoryMax: 600, allocatedReservedMemoryMax: 600, cpu: [], memory: [] },
   { task: 'Two', reservedCPU: 100, reservedMemory: 200, reservedMemoryMax: 300, cpu: [], memory: [] },
   { task: 'Three', reservedCPU: 300, reservedMemory: 100, reservedMemoryMax: 200, cpu: [], memory: [] },
 ];
