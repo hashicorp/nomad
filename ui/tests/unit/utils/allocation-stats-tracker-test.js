@@ -195,9 +195,9 @@ module('Unit | Util | AllocationStatsTracker', function() {
     assert.deepEqual(
       tracker.get('tasks'),
       [
-        { task: 'service', reservedCPU: 100, reservedMemory: 250, reservedMemoryMax: 256, cpu: [], memory: [] },
-        { task: 'sidecar', reservedCPU: 50, reservedMemory: 120, reservedMemoryMax: 128, cpu: [], memory: [] },
-        { task: 'log-shipper', reservedCPU: 50, reservedMemory: 120, reservedMemoryMax: 128, cpu: [], memory: [] },
+        { task: 'service', reservedCPU: 100, reservedMemory: 250, reservedMemoryMax: 256, allocatedReservedMemory: undefined, allocatedReservedMemoryMax: undefined, cpu: [], memory: [] },
+        { task: 'sidecar', reservedCPU: 50, reservedMemory: 120, reservedMemoryMax: 128, allocatedReservedMemory: undefined, allocatedReservedMemoryMax: undefined, cpu: [], memory: [] },
+        { task: 'log-shipper', reservedCPU: 50, reservedMemory: 120, reservedMemoryMax: 128, allocatedReservedMemory: undefined, allocatedReservedMemoryMax: undefined, cpu: [], memory: [] },
       ],
       'tasks represents the tasks for the allocation with no stats yet'
     );
@@ -229,6 +229,8 @@ module('Unit | Util | AllocationStatsTracker', function() {
           reservedCPU: 100,
           reservedMemory: 250,
           reservedMemoryMax: 256,
+          allocatedReservedMemory: undefined,
+          allocatedReservedMemoryMax: undefined,
           cpu: [
             {
               timestamp: makeDate(refDate + 1),
@@ -253,6 +255,8 @@ module('Unit | Util | AllocationStatsTracker', function() {
           reservedCPU: 50,
           reservedMemory: 120,
           reservedMemoryMax: 128,
+          allocatedReservedMemory: undefined,
+          allocatedReservedMemoryMax: undefined,
           cpu: [
             {
               timestamp: makeDate(refDate + 100),
@@ -277,6 +281,8 @@ module('Unit | Util | AllocationStatsTracker', function() {
           reservedCPU: 50,
           reservedMemory: 120,
           reservedMemoryMax: 128,
+          allocatedReservedMemory: undefined,
+          allocatedReservedMemoryMax: undefined,
           cpu: [
             {
               timestamp: makeDate(refDate + 10),
@@ -327,6 +333,8 @@ module('Unit | Util | AllocationStatsTracker', function() {
           reservedCPU: 100,
           reservedMemory: 250,
           reservedMemoryMax: 256,
+          allocatedReservedMemory: undefined,
+          allocatedReservedMemoryMax: undefined,
           cpu: [
             {
               timestamp: makeDate(refDate + 1),
@@ -365,6 +373,8 @@ module('Unit | Util | AllocationStatsTracker', function() {
           reservedCPU: 50,
           reservedMemory: 120,
           reservedMemoryMax: 128,
+          allocatedReservedMemory: undefined,
+          allocatedReservedMemoryMax: undefined,
           cpu: [
             {
               timestamp: makeDate(refDate + 100),
@@ -403,6 +413,8 @@ module('Unit | Util | AllocationStatsTracker', function() {
           reservedCPU: 50,
           reservedMemory: 120,
           reservedMemoryMax: 128,
+          allocatedReservedMemory: undefined,
+          allocatedReservedMemoryMax: undefined,
           cpu: [
             {
               timestamp: makeDate(refDate + 10),
