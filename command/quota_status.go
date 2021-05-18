@@ -189,14 +189,16 @@ func formatQuotaLimits(spec *api.QuotaSpec, usages map[string]*api.QuotaUsage) s
 			continue
 		}
 
-		cpu := fmt.Sprintf("%d / %s", *used.RegionLimit.CPU, formatQuotaLimitInt(specLimit.RegionLimit.CPU))
-		memory := fmt.Sprintf("%d / %s", *used.RegionLimit.MemoryMB, formatQuotaLimitInt(specLimit.RegionLimit.MemoryMB))
-
-		memMax := 0
-		if mm := used.RegionLimit.MemoryMaxMB; mm != nil {
-			memMax = *mm
+		orZero := func(v *int) int {
+			if v == nil {
+				return 0
+			}
+			return *v
 		}
-		memoryMax := fmt.Sprintf("%d / %s", memMax, formatQuotaLimitInt(specLimit.RegionLimit.MemoryMaxMB))
+
+		cpu := fmt.Sprintf("%d / %s", orZero(used.RegionLimit.CPU), formatQuotaLimitInt(specLimit.RegionLimit.CPU))
+		memory := fmt.Sprintf("%d / %s", orZero(used.RegionLimit.MemoryMB), formatQuotaLimitInt(specLimit.RegionLimit.MemoryMB))
+		memoryMax := fmt.Sprintf("%d / %s", orZero(used.RegionLimit.MemoryMaxMB), formatQuotaLimitInt(specLimit.RegionLimit.MemoryMaxMB))
 
 		net := fmt.Sprintf("- / %s", formatQuotaLimitInt(&specBits))
 		if len(used.RegionLimit.Networks) == 1 {
