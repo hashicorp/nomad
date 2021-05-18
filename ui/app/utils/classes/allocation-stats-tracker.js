@@ -122,12 +122,14 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   get tasks() {
     const bufferSize = this.bufferSize;
     const tasks = this.get('allocation.taskGroup.tasks') || [];
+    const states = this.get('allocation.states') || [];
+
     return tasks
       .slice()
       .sort(taskPrioritySort)
       .map(task => {
         const taskName = get(task, 'name');
-        const taskState = this.allocation.states.findBy('name', taskName);
+        const taskState = states.findBy('name', taskName);
 
         return {
           task: taskName,
