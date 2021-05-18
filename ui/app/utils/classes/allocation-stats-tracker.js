@@ -125,19 +125,27 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
     return tasks
       .slice()
       .sort(taskPrioritySort)
-      .map(task => ({
-        task: get(task, 'name'),
+      .map(task => {
+        const taskName = get(task, 'name');
+        const taskState = this.allocation.states.findBy('name', taskName);
 
-        // Static figures, denominators for stats
-        reservedCPU: get(task, 'reservedCPU'),
-        reservedMemory: get(task, 'reservedMemory'),
-        reservedMemoryMax: get(task, 'reservedMemoryMax'),
+        return {
+          task: taskName,
 
-        // Dynamic figures, collected over time
-        // []{ timestamp: Date, used: Number, percent: Number }
-        cpu: RollingArray(bufferSize),
-        memory: RollingArray(bufferSize),
-      }));
+          // Static figures, denominators for stats
+          reservedCPU: get(task, 'reservedCPU'),
+          reservedMemory: get(task, 'reservedMemory'),
+          reservedMemoryMax: get(task, 'reservedMemoryMax'),
+
+          allocatedReservedMemory: get(taskState, 'resources.memory'),
+          allocatedReservedMemoryMax: get(taskState, 'resources.memoryMax'),
+
+          // Dynamic figures, collected over time
+          // []{ timestamp: Date, used: Number, percent: Number }
+          cpu: RollingArray(bufferSize),
+          memory: RollingArray(bufferSize),
+        };
+      });
   }
 }
 

@@ -53,13 +53,13 @@ export default class TaskPrimaryMetric extends Component {
   get softLimitAnnotations() {
     const task = this.tracker.tasks.findBy('task', this.taskState.name);
 
-    if (this.metric === 'memory' && (task.reservedMemoryMax > task.reservedMemory)) {
-      const memory = task.reservedMemory;
+    if (this.metric === 'memory' && (task.allocatedReservedMemoryMax > task.allocatedReservedMemory)) {
+      const memory = task.allocatedReservedMemory;
 
       return [
         {
           label: `${formatScheduledBytes(memory, 'MiB')} soft limit`,
-          percent: memory / task.reservedMemoryMax,
+          percent: memory / task.allocatedReservedMemoryMax,
         },
       ];
     }
