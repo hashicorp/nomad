@@ -118,7 +118,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
     return RollingArray(this.bufferSize);
   }
 
-  @computed('allocation.taskGroup.tasks', 'bufferSize')
+  @computed('allocation.{states.[],taskGroup.tasks}', 'bufferSize')
   get tasks() {
     const bufferSize = this.bufferSize;
     const tasks = this.get('allocation.taskGroup.tasks') || [];
