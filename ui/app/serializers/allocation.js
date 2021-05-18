@@ -19,7 +19,7 @@ const merge = tasks => {
   return tasks.reduce((resources, task) => {
     resources.Cpu.CpuShares += (task.Cpu && task.Cpu.CpuShares) || 0;
     resources.Memory.MemoryMB += (task.Memory && task.Memory.MemoryMB) || 0;
-    resources.Memory.MemoryMaxMB += (task.Memory && (task.Memory.MemoryMaxMB || task.Memory.MemoryMB)) || 0;
+    resources.Memory.MemoryMaxMB += (task.Memory && task.Memory.MemoryMaxMB) || 0;
     resources.Disk.DiskMB += (task.Disk && task.Disk.DiskMB) || 0;
     return resources;
   }, mergedResources);
