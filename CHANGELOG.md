@@ -1,5 +1,8 @@
 ## 1.1.1 (Unreleased)
 
+BUG FIXES:
+* cli: Fixed a bug where `quota status` and `namespace status` commands may panic if the CLI targets a pre-1.1.0 cluster
+
 ## 1.1.0 (May 18, 2021)
 
 FEATURES:
