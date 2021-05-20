@@ -1,0 +1,28 @@
+language: go
+sudo: false
+
+matrix:
+  include:
+    - go: 1.11.x
+      os: linux
+    - go: 1.12.x
+      os: linux
+    - go: 1.11.x
+      os: linux
+      env: CROSS_COMPILE=true
+    - go: 1.12.x
+      os: linux
+      env: CROSS_COMPILE=true
+    - go: 1.11.x
+      os: osx
+    - go: 1.12.x
+      os: osx
+
+install:
+  - if [ "$TRAVIS_OS_NAME" = "linux" -a "$CROSS_COMPILE" = "true" ]; then go get github.com/mattn/go-isatty ; fi
+  - go get -t -v ./...
+
+script:
+  - go build
+  - go test
+  - if [ "$TRAVIS_OS_NAME" = "linux" -a "$CROSS_COMPILE" = "true" ]; then env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -v; fi
