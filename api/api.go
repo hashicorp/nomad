@@ -36,6 +36,7 @@ const (
 )
 
 // QueryOptions are used to parametrize a query
+// swagger:model queryOptions
 type QueryOptions struct {
 	// Providing a datacenter overwrites the region provided
 	// by the Config

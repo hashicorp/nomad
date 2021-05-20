@@ -46,6 +46,7 @@ type Jobs struct {
 }
 
 // JobsParseRequest is used for arguments of the /v1/jobs/parse endpoint
+// swagger:model jobParseRequest
 type JobsParseRequest struct {
 	// JobHCL is an hcl jobspec
 	JobHCL string
@@ -86,6 +87,7 @@ func (j *Jobs) Validate(job *Job, q *WriteOptions) (*JobValidateResponse, *Write
 }
 
 // RegisterOptions is used to pass through job registration parameters
+// swagger:model registerOptions
 type RegisterOptions struct {
 	EnforceIndex   bool
 	ModifyIndex    uint64
@@ -281,6 +283,7 @@ func (j *Jobs) Deregister(jobID string, purge bool, q *WriteOptions) (string, *W
 }
 
 // DeregisterOptions is used to pass through job deregistration parameters
+// swagger:model deregisterOptions
 type DeregisterOptions struct {
 	// If Purge is set to true, the job is deregistered and purged from the
 	// system versus still being queryable and eventually GC'ed from the
@@ -341,6 +344,7 @@ func (j *Jobs) PeriodicForce(jobID string, q *WriteOptions) (string, *WriteMeta,
 }
 
 // PlanOptions is used to pass through job planning parameters
+// swagger:model planOptions
 type PlanOptions struct {
 	Diff           bool
 	PolicyOverride bool
@@ -436,11 +440,13 @@ func (j *Jobs) Stable(jobID string, version uint64, stable bool,
 }
 
 // periodicForceResponse is used to deserialize a force response
+// swagger:model periodicForceResponse
 type periodicForceResponse struct {
 	EvalID string
 }
 
 // UpdateStrategy defines a task groups update strategy.
+// swagger:model updateStrategy
 type UpdateStrategy struct {
 	Stagger          *time.Duration `mapstructure:"stagger" hcl:"stagger,optional"`
 	MaxParallel      *int           `mapstructure:"max_parallel" hcl:"max_parallel,optional"`
@@ -947,6 +953,7 @@ func (j *Job) LookupTaskGroup(name string) *TaskGroup {
 }
 
 // JobSummary summarizes the state of the allocations of a job
+// swagger:model jobSummary
 type JobSummary struct {
 	JobID     string
 	Namespace string
@@ -975,6 +982,7 @@ func (jc *JobChildrenSummary) Sum() int {
 
 // TaskGroup summarizes the state of all the allocations of a particular
 // TaskGroup
+// swagger:model taskGroupSummary
 type TaskGroupSummary struct {
 	Queued   int
 	Complete int
@@ -986,6 +994,7 @@ type TaskGroupSummary struct {
 
 // JobListStub is used to return a subset of information about
 // jobs during list operations.
+// swagger:model jobListResponse
 type JobListStub struct {
 	ID                string
 	ParentID          string
@@ -1090,6 +1099,8 @@ func (j *Job) AddSpread(s *Spread) *Job {
 	return j
 }
 
+// WriteRequest is used to scope and authorize a write operation
+// swagger:model writeRequest
 type WriteRequest struct {
 	// The target region for this write
 	Region string
@@ -1102,12 +1113,14 @@ type WriteRequest struct {
 }
 
 // JobValidateRequest is used to validate a job
+// swagger:model jobValidateRequest
 type JobValidateRequest struct {
 	Job *Job
 	WriteRequest
 }
 
 // JobValidateResponse is the response from validate request
+// swagger:model jobValidateResponse
 type JobValidateResponse struct {
 	// DriverConfigValidated indicates whether the agent validated the driver
 	// config
@@ -1125,6 +1138,7 @@ type JobValidateResponse struct {
 }
 
 // JobRevertRequest is used to revert a job to a prior version.
+// swagger:model jobRevertRequest
 type JobRevertRequest struct {
 	// JobID is the ID of the job  being reverted
 	JobID string
@@ -1152,6 +1166,7 @@ type JobRevertRequest struct {
 }
 
 // JobRegisterRequest is used to update a job
+// swagger:model jobRegisterRequest
 type JobRegisterRequest struct {
 	Job *Job
 	// If EnforceIndex is set then the job will only be registered if the passed
@@ -1166,6 +1181,7 @@ type JobRegisterRequest struct {
 }
 
 // JobRegisterResponse is used to respond to a job registration
+// swagger:model jobRegisterResponse
 type JobRegisterResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
@@ -1179,6 +1195,7 @@ type JobRegisterResponse struct {
 }
 
 // JobDeregisterResponse is used to respond to a job deregistration
+// swagger:model jobDeregisterResponse
 type JobDeregisterResponse struct {
 	EvalID          string
 	EvalCreateIndex uint64
@@ -1186,6 +1203,8 @@ type JobDeregisterResponse struct {
 	QueryMeta
 }
 
+// JobPlanRequest is used to write a Job plan
+// swagger:model jobPlanRequest
 type JobPlanRequest struct {
 	Job            *Job
 	Diff           bool
@@ -1193,6 +1212,8 @@ type JobPlanRequest struct {
 	WriteRequest
 }
 
+// JobPlanResponse details the results of a Job plan write operation
+// swagger:model jobPlanResponse
 type JobPlanResponse struct {
 	JobModifyIndex     uint64
 	CreatedEvals       []*Evaluation
@@ -1206,6 +1227,9 @@ type JobPlanResponse struct {
 	Warnings string
 }
 
+
+// JobDiff details the differences between two Job specs
+// swagger:model jobDiff
 type JobDiff struct {
 	Type       string
 	ID         string
@@ -1214,6 +1238,8 @@ type JobDiff struct {
 	TaskGroups []*TaskGroupDiff
 }
 
+// TaskGroupDiff details the differences between two TaskGroup specs
+// swagger:model taskGroupDiff
 type TaskGroupDiff struct {
 	Type    string
 	Name    string
@@ -1223,6 +1249,8 @@ type TaskGroupDiff struct {
 	Updates map[string]uint64
 }
 
+// TaskDiff details the differences between two Task specs
+// swagger:model taskDiff
 type TaskDiff struct {
 	Type        string
 	Name        string
@@ -1231,6 +1259,8 @@ type TaskDiff struct {
 	Annotations []string
 }
 
+// FieldDiff details the differences between to struct fields
+// swagger:model fieldDiff
 type FieldDiff struct {
 	Type        string
 	Name        string
@@ -1238,6 +1268,8 @@ type FieldDiff struct {
 	Annotations []string
 }
 
+// ObjectDiff detals the differences between two objects
+// swagger:model objectDiff
 type ObjectDiff struct {
 	Type    string
 	Name    string
@@ -1245,11 +1277,15 @@ type ObjectDiff struct {
 	Objects []*ObjectDiff
 }
 
+// PlanAnnotations contains annotation details for a JobResponse
+// swagger:model planAnnotations
 type PlanAnnotations struct {
 	DesiredTGUpdates map[string]*DesiredUpdates
 	PreemptedAllocs  []*AllocationListStub
 }
 
+// DesiredUpdates contains the desired change set for a TaskGroup update operation
+// swagger:model desiredUpdates
 type DesiredUpdates struct {
 	Ignore            uint64
 	Place             uint64
@@ -1261,12 +1297,16 @@ type DesiredUpdates struct {
 	Preemptions       uint64
 }
 
+// JobDispatch request targets a Job for dispatch
+// swagger:model jobDispatchRequest
 type JobDispatchRequest struct {
 	JobID   string
 	Payload []byte
 	Meta    map[string]string
 }
 
+// JobDispatchResponse contains the result of JobDispatchRequest
+// swagger:response jobDispatchResponse
 type JobDispatchResponse struct {
 	DispatchedJobID string
 	EvalID          string
@@ -1276,6 +1316,7 @@ type JobDispatchResponse struct {
 }
 
 // JobVersionsResponse is used for a job get versions request
+// swagger:response jobVersionsResponse
 type JobVersionsResponse struct {
 	Versions []*Job
 	Diffs    []*JobDiff
@@ -1283,6 +1324,7 @@ type JobVersionsResponse struct {
 }
 
 // JobStabilityRequest is used to marked a job as stable.
+// swagger:model jobStabilityRequest
 type JobStabilityRequest struct {
 	// Job to set the stability on
 	JobID      string
@@ -1294,12 +1336,14 @@ type JobStabilityRequest struct {
 }
 
 // JobStabilityResponse is the response when marking a job as stable.
+// swagger:response jobStabilityResponse
 type JobStabilityResponse struct {
 	JobModifyIndex uint64
 	WriteMeta
 }
 
 // JobEvaluateRequest is used when we just need to re-evaluate a target job
+// swagger:model jobEvaluateRequest
 type JobEvaluateRequest struct {
 	JobID       string
 	EvalOptions EvalOptions
@@ -1307,6 +1351,7 @@ type JobEvaluateRequest struct {
 }
 
 // EvalOptions is used to encapsulate options when forcing a job evaluation
+// swagger:model evalOptions
 type EvalOptions struct {
 	ForceReschedule bool
 }
