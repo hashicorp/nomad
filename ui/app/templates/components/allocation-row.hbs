@@ -1,9 +1,11 @@
 <td data-test-indicators class="is-narrow">
+  {{!--
   {{#if this.allocation.unhealthyDrivers.length}}
     <span data-test-icon="unhealthy-driver" class="tooltip text-center" role="tooltip" aria-label="Allocation depends on unhealthy drivers">
       {{x-icon "alert-triangle" class="is-warning"}}
     </span>
   {{/if}}
+  --}}
   {{#if this.allocation.nextAllocation}}
     <span data-test-icon="reschedule" class="tooltip text-center" role="tooltip" aria-label="Allocation was rescheduled">
       {{x-icon "history" class="is-faded"}}
@@ -53,6 +55,7 @@
   </td>
   <td data-test-job-version class="is-1">{{this.allocation.jobVersion}}</td>
 {{/if}}
+{{!--
 {{#if (not (eq this.context "volume"))}}
   <td data-test-volume>{{if this.allocation.taskGroup.volumes.length "Yes"}}</td>
 {{/if}}
@@ -72,3 +75,4 @@
     @isLoading={{this.fetchStats.isRunning}}
     @error={{this.statsError}} />
 </td>
+--}}

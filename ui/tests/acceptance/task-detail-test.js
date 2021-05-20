@@ -1,5 +1,5 @@
 import { currentURL } from '@ember/test-helpers';
-import { module, skip, test } from 'qunit';
+import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
@@ -52,7 +52,7 @@ module('Acceptance | task detail', function(hooks) {
     assert.equal(document.title, `Task ${task.name} - Nomad`);
   });
 
-  skip('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {
+  test('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {
     const { jobId, taskGroup } = allocation;
     const job = server.db.jobs.find(jobId);
 
@@ -293,7 +293,7 @@ module('Acceptance | task detail (different namespace)', function(hooks) {
     await Task.visit({ id: allocation.id, name: task.name });
   });
 
-  skip('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {
+  test('breadcrumbs match jobs / job / task group / allocation / task', async function(assert) {
     const { jobId, taskGroup } = allocation;
     const job = server.db.jobs.find(jobId);
 
