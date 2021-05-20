@@ -1,13 +1,22 @@
 package command
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"os"
+	"runtime"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/docker/docker/pkg/term"
+	"github.com/gosuri/uilive"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/mitchellh/go-glint"
+	"github.com/mitchellh/go-glint/components"
 	"github.com/posener/complete"
 )
 
@@ -37,6 +46,9 @@ Status Options:
   -json
     Output the deployment in its JSON format.
 
+  -monitor
+    Enter monitor mode to poll for updates to the deployment status.
+
   -t
     Format and display deployment using a Go template.
 `
@@ -52,6 +64,7 @@ func (c *DeploymentStatusCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-verbose": complete.PredictNothing,
 			"-json":    complete.PredictNothing,
+			"-monitor": complete.PredictNothing,
 			"-t":       complete.PredictAnything,
 		})
 }
@@ -74,16 +87,23 @@ func (c *DeploymentStatusCommand) AutocompleteArgs() complete.Predictor {
 func (c *DeploymentStatusCommand) Name() string { return "deployment status" }
 
 func (c *DeploymentStatusCommand) Run(args []string) int {
-	var json, verbose bool
+	var json, verbose, monitor bool
 	var tmpl string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&json, "json", false, "")
+	flags.BoolVar(&monitor, "monitor", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
+		return 1
+	}
+
+	// Check that json or tmpl isn't set with monitor
+	if monitor && (json || len(tmpl) > 0) {
+		c.Ui.Error("The monitor flag cannot be used with the '-json' or '-t' flags")
 		return 1
 	}
 
@@ -144,8 +164,261 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 		return 0
 	}
 
+	if monitor {
+		// Call just to get meta
+		_, meta, err := client.Deployments().Info(deploy.ID, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error retrieving deployment: %s", err))
+		}
+
+		c.Ui.Output(fmt.Sprintf("%s: Monitoring deployment %q",
+			formatTime(time.Now()), limit(deploy.ID, length)))
+		c.monitor(client, deploy.ID, meta.LastIndex, verbose)
+
+		return 0
+	}
 	c.Ui.Output(c.Colorize().Color(formatDeployment(client, deploy, length)))
 	return 0
+}
+
+func (c *DeploymentStatusCommand) monitor(client *api.Client, deployID string, index uint64, verbose bool) {
+	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
+	// TODO if/when glint offers full Windows support take out the runtime check
+	if isStdoutTerminal && runtime.GOOS != "windows" {
+		c.ttyMonitor(client, deployID, index, verbose)
+	} else {
+		c.defaultMonitor(client, deployID, index, verbose)
+	}
+}
+
+// Uses glint for printing in place. Same logic as the defaultMonitor function
+// but only used for tty and non-Windows machines since glint doesn't work with
+// cmd/PowerShell and non-interactive interfaces
+// Margins are used to match the text alignment from job run
+func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string, index uint64, verbose bool) {
+	var length int
+	if verbose {
+		length = fullId
+	} else {
+		length = shortId
+	}
+
+	d := glint.New()
+	spinner := glint.Layout(
+		components.Spinner(),
+		glint.Text(fmt.Sprintf(" Deployment %q in progress...", limit(deployID, length))),
+	).Row().MarginLeft(2)
+	refreshRate := 100 * time.Millisecond
+
+	d.SetRefreshRate(refreshRate)
+	d.Set(spinner)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go d.Render(ctx)
+	defer cancel()
+
+	q := api.QueryOptions{
+		AllowStale: true,
+		WaitIndex:  index,
+		WaitTime:   2 * time.Second,
+	}
+
+	var statusComponent *glint.LayoutComponent
+	var endSpinner *glint.LayoutComponent
+
+UPDATE:
+	for {
+		deploy, meta, err := client.Deployments().Info(deployID, &q)
+		if err != nil {
+			d.Append(glint.Style(
+				glint.Text(fmt.Sprintf("%s: Error fetching deployment", formatTime(time.Now()))),
+				glint.Color("red"),
+			))
+			d.RenderFrame()
+			return
+		}
+
+		status := deploy.Status
+		statusComponent = glint.Layout(
+			glint.Text(""),
+			glint.Text(formatTime(time.Now())),
+			// Use colorize to render bold text in formatDeployment function
+			glint.Text(c.Colorize().Color(formatDeployment(client, deploy, length))),
+		)
+
+		if verbose {
+			allocComponent := glint.Layout(glint.Style(
+				glint.Text("Allocations"),
+				glint.Bold(),
+			))
+
+			allocs, _, err := client.Deployments().Allocations(deployID, nil)
+			if err != nil {
+				allocComponent = glint.Layout(
+					allocComponent,
+					glint.Style(
+						glint.Text("Error fetching allocations"),
+						glint.Color("red"),
+					),
+				)
+			} else {
+				allocComponent = glint.Layout(
+					allocComponent,
+					glint.Text(formatAllocListStubs(allocs, verbose, length)),
+				)
+			}
+
+			statusComponent = glint.Layout(
+				statusComponent,
+				glint.Text(""),
+				allocComponent,
+			)
+		}
+
+		statusComponent = glint.Layout(statusComponent).MarginLeft(4)
+		d.Set(spinner, statusComponent)
+
+		endSpinner = glint.Layout(
+			components.Spinner(),
+			glint.Text(fmt.Sprintf(" Deployment %q %s", limit(deployID, length), status)),
+		).Row().MarginLeft(2)
+
+		switch status {
+		case structs.DeploymentStatusFailed:
+			if hasAutoRevert(deploy) {
+				// Separate rollback monitoring from failed deployment
+				d.Set(
+					endSpinner,
+					statusComponent,
+					glint.Layout(glint.Text("")),
+				)
+
+				// Wait for rollback to launch
+				time.Sleep(1 * time.Second)
+				rollback, _, err := client.Jobs().LatestDeployment(deploy.JobID, nil)
+
+				if err != nil {
+					d.Append(glint.Style(
+						glint.Text(fmt.Sprintf("%s: Error fetching rollback deployment", formatTime(time.Now()))),
+						glint.Color("red")),
+					)
+					d.RenderFrame()
+					return
+				}
+
+				// Check for noop/no target rollbacks
+				// TODO We may want to find a more robust way of waiting for rollbacks to launch instead of
+				// just sleeping for 1 sec. If scheduling is slow, this will break update here instead of
+				// waiting for the (eventual) rollback
+				if rollback.ID == deploy.ID {
+					break UPDATE
+				}
+
+				d.Close()
+				c.ttyMonitor(client, rollback.ID, index, verbose)
+				return
+			} else {
+				break UPDATE
+			}
+		case structs.DeploymentStatusSuccessful, structs.DeploymentStatusCancelled, structs.DeploymentStatusDescriptionBlocked:
+			break UPDATE
+		default:
+			q.WaitIndex = meta.LastIndex
+			continue
+		}
+	}
+	// Render one final time with completion message
+	d.Set(endSpinner, statusComponent)
+	d.RenderFrame()
+}
+
+// Used for Windows and non-tty
+func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID string, index uint64, verbose bool) {
+	writer := uilive.New()
+	writer.Start()
+	defer writer.Stop()
+
+	var length int
+	if verbose {
+		length = fullId
+	} else {
+		length = shortId
+	}
+
+	q := api.QueryOptions{
+		AllowStale: true,
+		WaitIndex:  index,
+		WaitTime:   2 * time.Second,
+	}
+
+	for {
+		deploy, meta, err := client.Deployments().Info(deployID, &q)
+		if err != nil {
+			c.Ui.Error(c.Colorize().Color(fmt.Sprintf("%s: Error fetching deployment", formatTime(time.Now()))))
+			return
+		}
+
+		status := deploy.Status
+		info := formatTime(time.Now())
+		info += fmt.Sprintf("\n%s", formatDeployment(client, deploy, length))
+
+		if verbose {
+			info += "\n\n[bold]Allocations[reset]\n"
+			allocs, _, err := client.Deployments().Allocations(deployID, nil)
+			if err != nil {
+				info += "Error fetching allocations"
+			} else {
+				info += formatAllocListStubs(allocs, verbose, length)
+			}
+		}
+
+		// Add newline before output to avoid prefix indentation when called from job run
+		msg := c.Colorize().Color(fmt.Sprintf("\n%s", info))
+
+		// Print in place if tty
+		_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
+		if isStdoutTerminal {
+			fmt.Fprint(writer, msg)
+		} else {
+			c.Ui.Output(msg)
+		}
+
+		switch status {
+		case structs.DeploymentStatusFailed:
+			if hasAutoRevert(deploy) {
+				// Wait for rollback to launch
+				time.Sleep(1 * time.Second)
+				rollback, _, err := client.Jobs().LatestDeployment(deploy.JobID, nil)
+
+				// Separate rollback monitoring from failed deployment
+				// Needs to be after time.Sleep or it messes up the formatting
+				c.Ui.Output("")
+				if err != nil {
+					c.Ui.Error(c.Colorize().Color(
+						fmt.Sprintf("%s: Error fetching deployment of previous job version", formatTime(time.Now())),
+					))
+					return
+				}
+
+				// Check for noop/no target rollbacks
+				// TODO We may want to find a more robust way of waiting for rollbacks to launch instead of
+				// just sleeping for 1 sec. If scheduling is slow, this will break update here instead of
+				// waiting for the (eventual) rollback
+				if rollback.ID == deploy.ID {
+					return
+				}
+				c.defaultMonitor(client, rollback.ID, index, verbose)
+			}
+			return
+
+		case structs.DeploymentStatusSuccessful, structs.DeploymentStatusCancelled, structs.DeploymentStatusDescriptionBlocked:
+			return
+		default:
+			q.WaitIndex = meta.LastIndex
+			continue
+		}
+	}
 }
 
 func getDeployment(client *api.Deployments, dID string) (match *api.Deployment, possible []*api.Deployment, err error) {
@@ -357,4 +630,14 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 	}
 
 	return formatList(rows)
+}
+
+func hasAutoRevert(d *api.Deployment) bool {
+	taskGroups := d.TaskGroups
+	for _, state := range taskGroups {
+		if state.AutoRevert {
+			return true
+		}
+	}
+	return false
 }

@@ -60,6 +60,8 @@ github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml
 github.com/NYTimes/gziphandler
 # github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d
 github.com/StackExchange/wmi
+# github.com/VividCortex/ewma v1.1.1
+github.com/VividCortex/ewma
 # github.com/agext/levenshtein v1.2.1
 github.com/agext/levenshtein
 # github.com/apparentlymart/go-cidr v1.0.1
@@ -147,6 +149,9 @@ github.com/cespare/xxhash/v2
 # github.com/checkpoint-restore/go-criu/v4 v4.1.0
 github.com/checkpoint-restore/go-criu/v4
 github.com/checkpoint-restore/go-criu/v4/rpc
+# github.com/cheggaaa/pb/v3 v3.0.5
+github.com/cheggaaa/pb/v3
+github.com/cheggaaa/pb/v3/termutil
 # github.com/cilium/ebpf v0.2.0
 github.com/cilium/ebpf
 github.com/cilium/ebpf/asm
@@ -331,6 +336,8 @@ github.com/google/go-querystring/query
 github.com/google/uuid
 # github.com/googleapis/gax-go/v2 v2.0.5
 github.com/googleapis/gax-go/v2
+# github.com/gookit/color v1.3.1
+github.com/gookit/color
 # github.com/gophercloud/gophercloud v0.1.0
 github.com/gophercloud/gophercloud
 github.com/gophercloud/gophercloud/openstack
@@ -347,6 +354,9 @@ github.com/gorilla/mux
 # github.com/gorilla/websocket v1.4.2
 ## explicit
 github.com/gorilla/websocket
+# github.com/gosuri/uilive v0.0.4
+## explicit
+github.com/gosuri/uilive
 # github.com/grpc-ecosystem/go-grpc-middleware v1.2.1-0.20200228141219-3ce3d519df39
 ## explicit
 github.com/grpc-ecosystem/go-grpc-middleware/retry
@@ -571,6 +581,8 @@ github.com/linode/linodego
 github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.12
 github.com/mattn/go-isatty
+# github.com/mattn/go-runewidth v0.0.7
+github.com/mattn/go-runewidth
 # github.com/mattn/go-shellwords v1.0.5
 github.com/mattn/go-shellwords
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
@@ -586,15 +598,21 @@ github.com/mitchellh/colorstring
 # github.com/mitchellh/copystructure v1.0.0
 ## explicit
 github.com/mitchellh/copystructure
+# github.com/mitchellh/go-glint v0.0.0-20201119015200-53f6eb3bf4d2
+## explicit
+github.com/mitchellh/go-glint
+github.com/mitchellh/go-glint/components
+github.com/mitchellh/go-glint/flex
+github.com/mitchellh/go-glint/internal/layout
 # github.com/mitchellh/go-homedir v1.1.0
 github.com/mitchellh/go-homedir
 # github.com/mitchellh/go-ps v0.0.0-20190716172923-621e5597135b
 ## explicit
 github.com/mitchellh/go-ps
-# github.com/mitchellh/go-testing-interface v1.0.3
+# github.com/mitchellh/go-testing-interface v1.14.1
 ## explicit
 github.com/mitchellh/go-testing-interface
-# github.com/mitchellh/go-wordwrap v1.0.0
+# github.com/mitchellh/go-wordwrap v1.0.1
 github.com/mitchellh/go-wordwrap
 # github.com/mitchellh/hashstructure v1.0.0
 ## explicit
@@ -747,6 +765,8 @@ github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/errors
 github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/http
 github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile
 github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm/v20170312
+# github.com/tj/go-spin v1.1.0
+github.com/tj/go-spin
 # github.com/tklauser/go-sysconf v0.3.5
 ## explicit
 github.com/tklauser/go-sysconf
@@ -821,7 +841,7 @@ go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
-# golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+# golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 ## explicit
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blake2b

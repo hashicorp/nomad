@@ -108,18 +108,20 @@ func (m *monitor) update(update *evalState) {
 
 	// Check if the evaluation was triggered by a node
 	if existing.node == "" && update.node != "" {
-		m.ui.Output(fmt.Sprintf("Evaluation triggered by node %q",
-			limit(update.node, m.length)))
+		m.ui.Output(fmt.Sprintf("%s: Evaluation triggered by node %q",
+			formatTime(time.Now()), limit(update.node, m.length)))
 	}
 
 	// Check if the evaluation was triggered by a job
 	if existing.job == "" && update.job != "" {
-		m.ui.Output(fmt.Sprintf("Evaluation triggered by job %q", update.job))
+		m.ui.Output(fmt.Sprintf("%s: Evaluation triggered by job %q",
+			formatTime(time.Now()), update.job))
 	}
 
 	// Check if the evaluation was triggered by a deployment
 	if existing.deployment == "" && update.deployment != "" {
-		m.ui.Output(fmt.Sprintf("Evaluation within deployment: %q", limit(update.deployment, m.length)))
+		m.ui.Output(fmt.Sprintf("%s: Evaluation within deployment: %q",
+			formatTime(time.Now()), limit(update.deployment, m.length)))
 	}
 
 	// Check the allocations
@@ -130,14 +132,16 @@ func (m *monitor) update(update *evalState) {
 				// New alloc with create index lower than the eval
 				// create index indicates modification
 				m.ui.Output(fmt.Sprintf(
-					"Allocation %q modified: node %q, group %q",
-					limit(alloc.id, m.length), limit(alloc.node, m.length), alloc.group))
+					"%s: Allocation %q modified: node %q, group %q",
+					formatTime(time.Now()), limit(alloc.id, m.length),
+					limit(alloc.node, m.length), alloc.group))
 
 			case alloc.desired == structs.AllocDesiredStatusRun:
 				// New allocation with desired status running
 				m.ui.Output(fmt.Sprintf(
-					"Allocation %q created: node %q, group %q",
-					limit(alloc.id, m.length), limit(alloc.node, m.length), alloc.group))
+					"%s: Allocation %q created: node %q, group %q",
+					formatTime(time.Now()), limit(alloc.id, m.length),
+					limit(alloc.node, m.length), alloc.group))
 			}
 		} else {
 			switch {
@@ -148,8 +152,9 @@ func (m *monitor) update(update *evalState) {
 				}
 				// Allocation status has changed
 				m.ui.Output(fmt.Sprintf(
-					"Allocation %q status changed: %q -> %q%s",
-					limit(alloc.id, m.length), existing.client, alloc.client, description))
+					"%s: Allocation %q status changed: %q -> %q%s",
+					formatTime(time.Now()), limit(alloc.id, m.length),
+					existing.client, alloc.client, description))
 			}
 		}
 	}
@@ -158,8 +163,8 @@ func (m *monitor) update(update *evalState) {
 	if existing.status != "" &&
 		update.status != structs.AllocClientStatusPending &&
 		existing.status != update.status {
-		m.ui.Output(fmt.Sprintf("Evaluation status changed: %q -> %q",
-			existing.status, update.status))
+		m.ui.Output(fmt.Sprintf("%s: Evaluation status changed: %q -> %q",
+			formatTime(time.Now()), existing.status, update.status))
 	}
 }
 
@@ -189,7 +194,8 @@ func (m *monitor) monitor(evalID string) int {
 			return 1
 		}
 
-		m.ui.Info(fmt.Sprintf("Monitoring evaluation %q", limit(eval.ID, m.length)))
+		m.ui.Info(fmt.Sprintf("%s: Monitoring evaluation %q",
+			formatTime(time.Now()), limit(eval.ID, m.length)))
 
 		// Create the new eval state.
 		state := newEvalState()
@@ -204,7 +210,7 @@ func (m *monitor) monitor(evalID string) int {
 		// Query the allocations associated with the evaluation
 		allocs, _, err := m.client.Evaluations().Allocations(eval.ID, nil)
 		if err != nil {
-			m.ui.Error(fmt.Sprintf("Error reading allocations: %s", err))
+			m.ui.Error(fmt.Sprintf("%s: Error reading allocations: %s", formatTime(time.Now()), err))
 			return 1
 		}
 
@@ -228,13 +234,13 @@ func (m *monitor) monitor(evalID string) int {
 		switch eval.Status {
 		case structs.EvalStatusComplete, structs.EvalStatusFailed, structs.EvalStatusCancelled:
 			if len(eval.FailedTGAllocs) == 0 {
-				m.ui.Info(fmt.Sprintf("Evaluation %q finished with status %q",
-					limit(eval.ID, m.length), eval.Status))
+				m.ui.Info(fmt.Sprintf("%s: Evaluation %q finished with status %q",
+					formatTime(time.Now()), limit(eval.ID, m.length), eval.Status))
 			} else {
 				// There were failures making the allocations
 				schedFailure = true
-				m.ui.Info(fmt.Sprintf("Evaluation %q finished with status %q but failed to place all allocations:",
-					limit(eval.ID, m.length), eval.Status))
+				m.ui.Info(fmt.Sprintf("%s: Evaluation %q finished with status %q but failed to place all allocations:",
+					formatTime(time.Now()), limit(eval.ID, m.length), eval.Status))
 
 				// Print the failures per task group
 				for tg, metrics := range eval.FailedTGAllocs {
@@ -242,7 +248,8 @@ func (m *monitor) monitor(evalID string) int {
 					if metrics.CoalescedFailures > 0 {
 						noun += "s"
 					}
-					m.ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):", tg, metrics.CoalescedFailures+1, noun))
+					m.ui.Output(fmt.Sprintf("%s: Task Group %q (failed to place %d %s):",
+						formatTime(time.Now()), tg, metrics.CoalescedFailures+1, noun))
 					metrics := formatAllocMetrics(metrics, false, "  ")
 					for _, line := range strings.Split(metrics, "\n") {
 						m.ui.Output(line)
@@ -250,8 +257,8 @@ func (m *monitor) monitor(evalID string) int {
 				}
 
 				if eval.BlockedEval != "" {
-					m.ui.Output(fmt.Sprintf("Evaluation %q waiting for additional capacity to place remainder",
-						limit(eval.BlockedEval, m.length)))
+					m.ui.Output(fmt.Sprintf("%s: Evaluation %q waiting for additional capacity to place remainder",
+						formatTime(time.Now()), limit(eval.BlockedEval, m.length)))
 				}
 			}
 		default:
@@ -264,8 +271,8 @@ func (m *monitor) monitor(evalID string) int {
 		if eval.NextEval != "" {
 			if eval.Wait.Nanoseconds() != 0 {
 				m.ui.Info(fmt.Sprintf(
-					"Monitoring next evaluation %q in %s",
-					limit(eval.NextEval, m.length), eval.Wait))
+					"%s: Monitoring next evaluation %q in %s",
+					formatTime(time.Now()), limit(eval.NextEval, m.length), eval.Wait))
 
 				// Skip some unnecessary polling
 				time.Sleep(eval.Wait)
@@ -277,6 +284,22 @@ func (m *monitor) monitor(evalID string) int {
 		}
 		break
 	}
+
+	// Monitor the deployment
+	dID := m.state.deployment
+	m.ui.Info(fmt.Sprintf("%s: Monitoring deployment %q", formatTime(time.Now()), limit(dID, m.length)))
+
+	var verbose bool
+	if m.length == fullId {
+		verbose = true
+	} else {
+		verbose = false
+	}
+
+	meta := new(Meta)
+	meta.Ui = m.ui
+	cmd := &DeploymentStatusCommand{Meta: *meta}
+	cmd.monitor(m.client, dID, 0, verbose)
 
 	// Treat scheduling failures specially using a dedicated exit code.
 	// This makes it easier to detect failures from the CLI.
