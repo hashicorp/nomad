@@ -32,5 +32,10 @@
       "api-docs": "api-navigation.js",
       "intro": "intro-navigation.js"
     }
+  },
+  {
+    "display": "v1.1.0",
+    "slug": "v1.1.0",
+    "ref": "v1.1.0"
   }
 ]
