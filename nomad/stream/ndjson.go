@@ -33,7 +33,8 @@ type JsonStream struct {
 
 // NewJsonStream creates a new json stream that will output Json structs
 // to the passed output channel. The constructor starts a goroutine
-// to begin heartbeating on its set interval.
+// to begin heartbeating on its set interval and also sends an initial heartbeat
+// to notify the client about the successful connection initialization.
 func NewJsonStream(ctx context.Context, heartbeat time.Duration) *JsonStream {
 	s := &JsonStream{
 		ctx:           ctx,
@@ -41,6 +42,7 @@ func NewJsonStream(ctx context.Context, heartbeat time.Duration) *JsonStream {
 		heartbeatTick: time.NewTicker(heartbeat),
 	}
 
+	s.outCh <- JsonHeartbeat
 	go s.heartbeat()
 
 	return s
