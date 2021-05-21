@@ -31,9 +31,7 @@ export default class TokenService extends Service {
   @task(function*() {
     const TokenAdapter = getOwner(this).lookup('adapter:token');
     try {
-      let token = yield TokenAdapter.findSelf();
-      this.secret = token.secret;
-      return token;
+      return yield TokenAdapter.findSelf();
     } catch (e) {
       const errors = e.errors ? e.errors.mapBy('detail') : [];
       if (errors.find(error => error === 'ACL support disabled')) {
@@ -51,10 +49,9 @@ export default class TokenService extends Service {
     this.secret = token.secret;
   }
 
-  @computed('secret', 'fetchSelfToken.lastSuccessful.value')
+  @computed('fetchSelfToken.lastSuccessful.value')
   get selfToken() {
-    if (this.secret) return this.get('fetchSelfToken.lastSuccessful.value');
-    return undefined;
+    return this.get('fetchSelfToken.lastSuccessful.value');
   }
 
   @task(function*() {
