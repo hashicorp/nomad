@@ -16,14 +16,24 @@ Usage: `nomad volume <subcommand> [options]`
 Run `nomad volume <subcommand> -h` for help on that subcommand. The following
 subcommands are available:
 
+- [`volume create`][create] - Create a volume.
+- [`volume delete`][delete] - Delete a volume.
 - [`volume deregister`][deregister] - Deregister a volume.
 - [`volume detach`][detach] - Detach a volume.
-- [`volume init`][init] - Create an example volume specification file
+- [`volume init`][init] - Create an example volume specification file.
 - [`volume register`][register] - Register a volume.
-- [`volume status`][status] - Display status information about a volume
+- [`volume snapshot create`][snapshot-create] - Create a volume snapshot.
+- [`volume snapshot delete`][snapshot-delete] - Delete a volume snapshot.
+- [`volume snapshot list`][snapshot-list] - List all volume snapshots.
+- [`volume status`][status] - Display status information about a volume.
 
+[create]: /docs/commands/volume/create
+[delete]: /docs/commands/volume/delete
 [deregister]: /docs/commands/volume/deregister 'Deregister a volume'
 [detach]: /docs/commands/volume/detach 'Detach a volume'
 [init]: /docs/commands/volume/init 'Create an example volume specification file'
 [register]: /docs/commands/volume/register 'Register a volume'
+[snapshot-create]: /docs/commands/volume/snapshot-create
+[snapshot-delete]: /docs/commands/volume/snapshot-delete
+[snapshot-list]: /docs/commands/volume/snapshot-list
 [status]: /docs/commands/volume/status 'Display status information about a volume'
