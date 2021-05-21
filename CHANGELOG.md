@@ -1,8 +1,8 @@
 ## 1.1.1 (Unreleased)
 
 BUG FIXES:
+* api: Fixed event stream connection initialization when there are no events to send [[GH-10637](https://github.com/hashicorp/nomad/issues/10637)]
 * cli: Fixed a bug where `quota status` and `namespace status` commands may panic if the CLI targets a pre-1.1.0 cluster
-* Event stream: Fixed slow event stream connection initialisation not having any events yet [[GH-10636](https://github.com/hashicorp/nomad/issues/10636)]
 
 ## 1.1.0 (May 18, 2021)
 
