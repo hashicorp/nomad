@@ -25,6 +25,29 @@ func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (i
 	}
 }
 
+// swagger:operation GET /jobs getJobs
+// Returns a list of jobs filtered by region and QueryOptions.
+// ---
+// produces:
+// - application/json
+// parameters:
+//	 - $ref: '#/parameters/RegionParam'
+//	 - $ref: '#/parameters/StaleParam'
+//	 - $ref: '#/parameters/PrefixParam'
+//	 - $ref: '#/parameters/NamespaceParam'
+//	 - $ref: '#/parameters/PerPageParam'
+//	 - $ref: '#/parameters/NextTokenParam'
+// responses:
+//   '200':
+//     description: job list response
+//     schema:
+//       type: array
+//       items:
+//         "$ref": "#/definitions/JobListItem"
+//   default:
+//     description: unexpected error
+//     schema:
+//       "$ref": "#/definitions/errorModel"
 func (s *HTTPServer) jobListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	args := structs.JobListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {

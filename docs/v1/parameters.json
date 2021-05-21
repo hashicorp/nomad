@@ -1,0 +1,47 @@
+{
+  "parameters": {
+    "RegionParam": {
+      "name": "region",
+      "in": "query",
+      "description": "Filters results based on the specified region",
+      "required": false,
+      "type": "string"
+    },
+    "StaleParam": {
+      "name": "stale",
+      "in": "query",
+      "description": "If present, results will include stale reads",
+      "required": false,
+      "type": "string"
+    },
+    "PrefixParam": {
+      "name": "prefix",
+      "in": "query",
+      "description": "Constrains results to jobs that start with the defined prefix",
+      "required": false,
+      "type": "string"
+    },
+    "NamespaceParam": {
+      "name": "namespace",
+      "in": "query",
+      "description": "Filters results based on the specified namespace",
+      "required": false,
+      "type": "string"
+    },
+    "PerPageParam": {
+      "name": "per_page",
+      "in": "query",
+      "description": "maximum number of results to return",
+      "required": false,
+      "type": "integer",
+      "format": "int32"
+    },
+    "NextTokenParam": {
+      "name": "next_token",
+      "in": "query",
+      "description": "Indicates where to start paging for queries that support pagination",
+      "required": false,
+      "type": "string"
+    }
+  }
+}

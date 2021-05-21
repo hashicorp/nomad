@@ -1,0 +1,329 @@
+{
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "swagger": "2.0",
+  "info": {
+    "description": "Documentation of the Nomad v1 API.",
+    "title": "nomad.",
+    "contact": {
+      "email": "support@hashicorp.com"
+    },
+    "license": {
+      "name": "MIT 2",
+      "url": "https://github.com/hashicorp/nomad/blob/main/LICENSE"
+    },
+    "version": "1.0.0"
+  },
+  "host": "localhost:4646",
+  "basePath": "/v1/",
+  "paths": {
+    "/jobs": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "summary": "Returns a list of jobs filtered by region and QueryOptions.",
+        "operationId": "getJobs",
+        "parameters": [
+          {
+            "$ref": "#/parameters/RegionParam"
+          },
+          {
+            "$ref": "#/parameters/StaleParam"
+          },
+          {
+            "$ref": "#/parameters/PrefixParam"
+          },
+          {
+            "$ref": "#/parameters/NamespaceParam"
+          },
+          {
+            "$ref": "#/parameters/PerPageParam"
+          },
+          {
+            "$ref": "#/parameters/NextTokenParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "job list response",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/JobListItem"
+              }
+            }
+          },
+          "default": {
+            "description": "unexpected error",
+            "schema": {
+              "$ref": "#/definitions/errorModel"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "JobChildrenSummary": {
+      "description": "JobChildrenSummary contains the summary of children job statuses",
+      "type": "object",
+      "properties": {
+        "Dead": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Pending": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Running": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "x-go-package": "github.com/hashicorp/nomad/nomad/structs"
+    },
+    "JobSummary": {
+      "description": "JobSummary summarizes the state of the allocations of a job",
+      "type": "object",
+      "properties": {
+        "Children": {
+          "$ref": "#/definitions/JobChildrenSummary"
+        },
+        "CreateIndex": {
+          "description": "Raft Indexes",
+          "type": "integer",
+          "format": "uint64"
+        },
+        "JobID": {
+          "description": "JobID is the ID of the job the summary is for",
+          "type": "string"
+        },
+        "ModifyIndex": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "Namespace": {
+          "description": "Namespace is the namespace of the job and its summary",
+          "type": "string"
+        },
+        "Summary": {
+          "description": "Summary contains the summary per task group for the Job",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/TaskGroupSummary"
+          }
+        }
+      },
+      "x-go-package": "github.com/hashicorp/nomad/nomad/structs"
+    },
+    "Multiregion": {
+      "type": "object",
+      "properties": {
+        "Regions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MultiregionRegion"
+          }
+        },
+        "Strategy": {
+          "$ref": "#/definitions/MultiregionStrategy"
+        }
+      },
+      "x-go-package": "github.com/hashicorp/nomad/nomad/structs"
+    },
+    "MultiregionRegion": {
+      "type": "object",
+      "properties": {
+        "Count": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Datacenters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "Meta": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "Name": {
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/hashicorp/nomad/nomad/structs"
+    },
+    "MultiregionStrategy": {
+      "type": "object",
+      "properties": {
+        "MaxParallel": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "OnFailure": {
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/hashicorp/nomad/nomad/structs"
+    },
+    "TaskGroupSummary": {
+      "description": "TaskGroup summarizes the state of all the allocations of a particular\nTaskGroup",
+      "type": "object",
+      "properties": {
+        "Complete": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Failed": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Lost": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Queued": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Running": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Starting": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "x-go-package": "github.com/hashicorp/nomad/nomad/structs"
+    }
+  },
+  "parameters": {
+    "NamespaceParam": {
+      "type": "string",
+      "description": "Filters results based on the specified namespace",
+      "name": "namespace",
+      "in": "query"
+    },
+    "NextTokenParam": {
+      "type": "string",
+      "description": "Indicates where to start paging for queries that support pagination",
+      "name": "next_token",
+      "in": "query"
+    },
+    "PerPageParam": {
+      "type": "integer",
+      "format": "int32",
+      "description": "maximum number of results to return",
+      "name": "per_page",
+      "in": "query"
+    },
+    "PrefixParam": {
+      "type": "string",
+      "description": "Constrains results to jobs that start with the defined prefix",
+      "name": "prefix",
+      "in": "query"
+    },
+    "RegionParam": {
+      "type": "string",
+      "description": "Filters results based on the specified region",
+      "name": "region",
+      "in": "query"
+    },
+    "StaleParam": {
+      "type": "string",
+      "description": "If present, results will include stale reads",
+      "name": "stale",
+      "in": "query"
+    }
+  },
+  "responses": {
+    "JobListItem": {
+      "description": "JobListStub is used to return a subset of job information\nfor the job list",
+      "schema": {
+        "$ref": "#/definitions/JobSummary"
+      },
+      "headers": {
+        "CreateIndex": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "Datacenters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ID": {
+          "type": "string"
+        },
+        "JobModifyIndex": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "JobSummary": {},
+        "ModifyIndex": {
+          "type": "integer",
+          "format": "uint64"
+        },
+        "Multiregion": {},
+        "Name": {
+          "type": "string"
+        },
+        "Namespace": {
+          "type": "string"
+        },
+        "ParameterizedJob": {
+          "type": "boolean"
+        },
+        "ParentID": {
+          "type": "string"
+        },
+        "Periodic": {
+          "type": "boolean"
+        },
+        "Priority": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Status": {
+          "type": "string"
+        },
+        "StatusDescription": {
+          "type": "string"
+        },
+        "Stop": {
+          "type": "boolean"
+        },
+        "SubmitTime": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Type": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "securityDefinitions": {
+    "apiKey": {
+      "description": "ACL tokens to operate. The token are used to authenticate the request and determine if the request is allowed based on the associated authorizations. Tokens are specified per-request by using the `X-Nomad-Token` request header set to the `SecretID` of an ACL Token.",
+      "type": "apiKey",
+      "name": "X-Nomad-Token",
+      "in": "header"
+    }
+  }
+}

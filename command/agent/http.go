@@ -21,7 +21,8 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/rs/cors"
-
+	// api docs imported for OpenAPI generation purposes
+	_ "github.com/hashicorp/nomad/docs/v1"
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"

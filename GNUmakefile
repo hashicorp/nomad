@@ -386,3 +386,9 @@ ui-screenshots:
 ui-screenshots-local:
 	@echo "==> Collecting UI screenshots (local)..."
 	@cd scripts/screenshots/src && SCREENSHOTS_DIR="../screenshots" node index.js
+
+.PHONY: swagger-v1
+swagger-v1:
+	swagger generate spec -m -o docs/v1/models.json -w api && \
+	swagger generate spec -o docs/v1/nomad-v1.json -w command/agent && \
+	swagger mixin docs/v1/nomad-v1.json docs/v1/models.json docs/v1/parameters.json -o docs/v1/nomad-v1.json
