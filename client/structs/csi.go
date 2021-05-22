@@ -20,6 +20,17 @@ type CSIVolumeMountOptions struct {
 	MountFlags []string
 }
 
+func (c *CSIVolumeMountOptions) ToCSIMountOptions() *structs.CSIMountOptions {
+	if c == nil {
+		return nil
+	}
+
+	return &structs.CSIMountOptions{
+		FSType:     c.Filesystem,
+		MountFlags: c.MountFlags,
+	}
+}
+
 // CSIControllerRequest interface lets us set embedded CSIControllerQuery
 // fields in the server
 type CSIControllerRequest interface {
@@ -45,6 +56,7 @@ type ClientCSIControllerValidateVolumeRequest struct {
 
 	AttachmentMode structs.CSIVolumeAttachmentMode
 	AccessMode     structs.CSIVolumeAccessMode
+	MountOptions   *structs.CSIMountOptions
 	Secrets        structs.CSISecrets
 
 	// Parameters as returned by storage provider in CreateVolumeResponse.
@@ -63,7 +75,7 @@ func (c *ClientCSIControllerValidateVolumeRequest) ToCSIRequest() (*csi.Controll
 		return &csi.ControllerValidateVolumeRequest{}, nil
 	}
 
-	caps, err := csi.VolumeCapabilityFromStructs(c.AttachmentMode, c.AccessMode)
+	caps, err := csi.VolumeCapabilityFromStructs(c.AttachmentMode, c.AccessMode, c.MountOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +132,8 @@ func (c *ClientCSIControllerAttachVolumeRequest) ToCSIRequest() (*csi.Controller
 		return &csi.ControllerPublishVolumeRequest{}, nil
 	}
 
-	caps, err := csi.VolumeCapabilityFromStructs(c.AttachmentMode, c.AccessMode)
+	var opts = c.MountOptions.ToCSIMountOptions()
+	caps, err := csi.VolumeCapabilityFromStructs(c.AttachmentMode, c.AccessMode, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -191,6 +204,7 @@ type ClientCSIControllerDetachVolumeResponse struct{}
 type ClientCSIControllerCreateVolumeRequest struct {
 	Name               string
 	VolumeCapabilities []*structs.CSIVolumeCapability
+	MountOptions       *structs.CSIMountOptions
 	Parameters         map[string]string
 	Secrets            structs.CSISecrets
 	CapacityMin        int64
@@ -222,7 +236,7 @@ func (req *ClientCSIControllerCreateVolumeRequest) ToCSIRequest() (*csi.Controll
 		AccessibilityRequirements: &csi.TopologyRequirement{},
 	}
 	for _, cap := range req.VolumeCapabilities {
-		ccap, err := csi.VolumeCapabilityFromStructs(cap.AttachmentMode, cap.AccessMode)
+		ccap, err := csi.VolumeCapabilityFromStructs(cap.AttachmentMode, cap.AccessMode, req.MountOptions)
 		if err != nil {
 			return nil, err
 		}
