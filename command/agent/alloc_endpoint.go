@@ -520,14 +520,6 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 		go forwardExecInput(encoder, ws, errCh, s.logger)
 
 		for {
-			select {
-			case <-ctx.Done():
-				s.logger.Info("http exec: ctx expired")
-				errCh <- nil
-				return
-			default:
-			}
-
 			var res cstructs.StreamErrWrapper
 			err := decoder.Decode(&res)
 			s.logger.Info("http exec: decoded resp", "res_payload", string(res.Payload), "res_error", fmt.Sprintf("%#+v", res.Error), "error", err)
