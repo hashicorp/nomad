@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -86,13 +87,20 @@ func (a *Allocations) Exec(ctx context.Context,
 	alloc *Allocation, task string, tty bool, command []string,
 	stdin io.Reader, stdout, stderr io.Writer,
 	terminalSizeCh <-chan TerminalSize, q *QueryOptions) (exitCode int, err error) {
+	return a.ExecWithTesting(nil, ctx, alloc, task, tty, command, stdin, stdout, stderr, terminalSizeCh, q)
+}
+
+func (a *Allocations) ExecWithTesting(t *testing.T, ctx context.Context,
+	alloc *Allocation, task string, tty bool, command []string,
+	stdin io.Reader, stdout, stderr io.Writer,
+	terminalSizeCh <-chan TerminalSize, q *QueryOptions) (exitCode int, err error) {
 
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
 	errCh := make(chan error, 4)
 
-	sender, output := a.execFrames(ctx, alloc, task, tty, command, errCh, q)
+	sender, output := a.execFrames(t, ctx, alloc, task, tty, command, errCh, q)
 
 	select {
 	case err := <-errCh:
@@ -175,15 +183,25 @@ func (a *Allocations) Exec(ctx context.Context,
 	for {
 		select {
 		case err := <-errCh:
+			if t != nil {
+				t.Logf("api exec: received error from errch: %v", err)
+			}
 			// drop websocket code, not relevant to user
 			if wsErr, ok := err.(*websocket.CloseError); ok && wsErr.Text != "" {
 				return -2, errors.New(wsErr.Text)
 			}
 			return -2, err
 		case <-ctx.Done():
+			if t != nil {
+				t.Logf("api exec: receeived ctx done")
+			}
 			return -2, ctx.Err()
 		case frame, ok := <-output:
+			t.Logf("api exec: received ok=%v frame=%v", ok, toJson(frame))
 			if !ok {
+				if t != nil {
+					t.Logf("api exec: disconnected without receiving the exit code")
+				}
 				return -2, errors.New("disconnected without receiving the exit code")
 			}
 
@@ -207,7 +225,12 @@ func (a *Allocations) Exec(ctx context.Context,
 	}
 }
 
-func (a *Allocations) execFrames(ctx context.Context, alloc *Allocation, task string, tty bool, command []string,
+func toJson(v interface{}) string {
+	p, _ := json.Marshal(v)
+	return string(p)
+}
+
+func (a *Allocations) execFrames(t *testing.T, ctx context.Context, alloc *Allocation, task string, tty bool, command []string,
 	errCh chan<- error, q *QueryOptions) (sendFn func(*ExecStreamingInput) error, output <-chan *ExecStreamingOutput) {
 	nodeClient, _ := a.client.GetNodeClientWithTimeout(alloc.NodeID, ClientConnTimeout, q)
 
@@ -254,6 +277,9 @@ func (a *Allocations) execFrames(ctx context.Context, alloc *Allocation, task st
 			// Decode the next frame
 			var frame ExecStreamingOutput
 			err := conn.ReadJSON(&frame)
+			if t != nil {
+				t.Logf("api exec: received frame=%v error=%v", toJson(frame), err)
+			}
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 				close(frames)
 				return
@@ -271,7 +297,11 @@ func (a *Allocations) execFrames(ctx context.Context, alloc *Allocation, task st
 		sendLock.Lock()
 		defer sendLock.Unlock()
 
-		return conn.WriteJSON(v)
+		err := conn.WriteJSON(v)
+		if t != nil {
+			t.Logf("api exec: sending frame=%v error=%v", toJson(v), err)
+		}
+		return err
 	}
 
 	return send, frames

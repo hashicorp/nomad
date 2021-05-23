@@ -83,7 +83,7 @@ func (tc *NomadExecE2ETest) TestExecBasicResponses(f *framework.F) {
 			ctx, cancelFn := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancelFn()
 
-			exitCode, err := tc.Nomad().Allocations().Exec(ctx,
+			exitCode, err := tc.Nomad().Allocations().ExecWithTesting(t, ctx,
 				&tc.alloc, "task", c.Tty,
 				[]string{"/bin/sh", "-c", c.Command},
 				stdin, &stdout, &stderr,
