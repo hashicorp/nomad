@@ -6,12 +6,12 @@ client_count_windows_2016_amd64  = "0"
 profile                          = "dev-cluster"
 nomad_acls                       = false
 nomad_enterprise                 = false
-vault                            = true
+vault                            = false
 volumes                          = false
 
-nomad_version      = "1.0.1" # default version for deployment
+nomad_version      = "" # default version for deployment
 nomad_local_binary = ""      # overrides nomad_version if set
-nomad_url          = ""      # overrides nomad_version if set
+nomad_url = "https://156691-36653430-gh.circle-artifacts.com/0/builds/linux_amd64.zip"
 
 # Example overrides:
 # nomad_local_binary = "../../pkg/linux_amd64/nomad"
