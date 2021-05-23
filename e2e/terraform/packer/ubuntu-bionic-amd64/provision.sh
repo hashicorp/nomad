@@ -75,6 +75,26 @@ install_from_release() {
     set_ownership
 }
 
+install_from_url() {
+    # check that we don't already have this version
+    if [ "$(command -v nomad)" ]; then
+        nomad -version | grep -v 'dev' | grep -q "${NOMAD_VERSION}" \
+            && echo "$NOMAD_VERSION already installed" && return
+    fi
+
+    case "${NOMAD_URL}" in
+        *.zip*)
+            curl -sL --fail -o /tmp/nomad.zip "$NOMAD_URL"
+            sudo unzip -o /tmp/nomad.zip -d "$INSTALL_DIR"
+            ;;
+        *.tar.gz*)
+            curl -sL --fail -o /tmp/nomad.zip "$NOMAD_URL"
+            sudo tar -zxvf nomad.tar.gz -C "$INSTALL_DIR"
+            ;;
+    esac
+    set_ownership
+}
+
 set_ownership() {
     sudo chmod 0755 "$INSTALL_PATH"
     sudo chown root:root "$INSTALL_PATH"
@@ -146,6 +166,12 @@ opt="$1"
             if [ -z "$2" ]; then echo "Missing file parameter"; usage; fi
             NOMAD_UPLOADED_BINARY="$2"
             install_fn=install_from_uploaded_binary
+            shift 2
+            ;;
+        --nomad_url)
+            if [ -z "$2" ]; then echo "Missing URL parameter"; usage; fi
+            NOMAD_URL="$2"
+            install_fn=install_from_url
             shift 2
             ;;
         --config_profile)

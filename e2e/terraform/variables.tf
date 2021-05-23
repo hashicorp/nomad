@@ -73,6 +73,11 @@ variable "nomad_local_binary" {
   default     = ""
 }
 
+variable "nomad_url" {
+  description = "the URL to Nomad binary url"
+  default     = ""
+}
+
 variable "nomad_enterprise" {
   type        = bool
   description = "If nomad_sha is used, deploy Nomad Enterprise"
@@ -126,6 +131,12 @@ variable "nomad_local_binary_server" {
   default     = []
 }
 
+variable "nomad_url_server" {
+  description = "A list of Nomad SHAs to deploy to servers, to override nomad_sha"
+  type        = list(string)
+  default     = []
+}
+
 variable "nomad_version_client_ubuntu_bionic_amd64" {
   description = "A list of Nomad versions to deploy to Ubuntu Bionic clients, to override nomad_version"
   type        = list(string)
@@ -144,6 +155,12 @@ variable "nomad_local_binary_client_ubuntu_bionic_amd64" {
   default     = []
 }
 
+variable "nomad_url_client_ubuntu_bionic_amd64" {
+  description = "A list of Nomad SHAs to deploy to servers, to override nomad_sha"
+  type        = list(string)
+  default     = []
+}
+
 variable "nomad_version_client_windows_2016_amd64" {
   description = "A list of Nomad versions to deploy to Windows 2016 clients, to override nomad_version"
   type        = list(string)
@@ -157,6 +174,12 @@ variable "nomad_sha_client_windows_2016_amd64" {
 }
 
 variable "nomad_local_binary_client_windows_2016_amd64" {
+  description = "A list of Nomad SHAs to deploy to Windows 2016 clients, to override nomad_sha"
+  type        = list(string)
+  default     = []
+}
+
+variable "nomad_url_client_windows_2016_amd64" {
   description = "A list of Nomad SHAs to deploy to Windows 2016 clients, to override nomad_sha"
   type        = list(string)
   default     = []
