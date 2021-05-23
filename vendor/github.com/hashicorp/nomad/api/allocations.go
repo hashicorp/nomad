@@ -197,7 +197,9 @@ func (a *Allocations) ExecWithTesting(t *testing.T, ctx context.Context,
 			}
 			return -2, ctx.Err()
 		case frame, ok := <-output:
-			t.Logf("api exec: received ok=%v frame=%v", ok, toJson(frame))
+			if t != nil {
+				t.Logf("api exec: received ok=%v frame=%v", ok, toJson(frame))
+			}
 			if !ok {
 				if t != nil {
 					t.Logf("api exec: disconnected without receiving the exit code")
