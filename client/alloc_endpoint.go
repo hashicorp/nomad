@@ -9,6 +9,7 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
 
 	"github.com/hashicorp/nomad/acl"
@@ -161,8 +162,10 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	// Decode the arguments
 	var req cstructs.AllocExecRequest
 	if err := decoder.Decode(&req); err != nil {
+		a.c.logger.Error("alloc_exec: failed to decode request", "error", err)
 		return helper.Int64ToPtr(500), err
 	}
+	a.c.logger.Error("alloc_exec: parsed args", "request", fmt.Sprintf("%#+v", req))
 
 	if a.c.GetConfig().DisableRemoteExec {
 		return nil, nstructs.ErrPermissionDenied
@@ -177,6 +180,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 		if nstructs.IsErrUnknownAllocation(err) {
 			code = helper.Int64ToPtr(404)
 		}
+		a.c.logger.Error("alloc_exec: failed to get alloc runner", "alloc_id", req.AllocID, "code", *code, "error", err)
 
 		return code, err
 	}
@@ -262,19 +266,22 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 		return helper.Int64ToPtr(404), fmt.Errorf("task %q is not running.", req.Task)
 	}
 
-	err = h(ctx, req.Cmd, req.Tty, newExecStream(decoder, encoder))
+	err = h(ctx, req.Cmd, req.Tty, newExecStream(a.c.logger, decoder, encoder))
 	if err != nil {
 		code := helper.Int64ToPtr(500)
+		a.c.logger.Error("alloc_exec: handler call failed", "code", *code, "error", err)
 		return code, err
 	}
 
+	a.c.logger.Error("alloc_exec: finished without error")
 	return nil, nil
 }
 
 // newExecStream returns a new exec stream as expected by drivers that interpolate with RPC streaming format
-func newExecStream(decoder *codec.Decoder, encoder *codec.Encoder) drivers.ExecTaskStream {
+func newExecStream(logger hclog.Logger, decoder *codec.Decoder, encoder *codec.Encoder) drivers.ExecTaskStream {
 	buf := new(bytes.Buffer)
 	return &execStream{
+		logger:  logger,
 		decoder: decoder,
 
 		buf:        buf,
@@ -284,6 +291,7 @@ func newExecStream(decoder *codec.Decoder, encoder *codec.Encoder) drivers.ExecT
 }
 
 type execStream struct {
+	logger  hclog.Logger
 	decoder *codec.Decoder
 
 	encoder    *codec.Encoder
@@ -293,6 +301,7 @@ type execStream struct {
 
 // Send sends driver output response across RPC mechanism using cstructs.StreamErrWrapper
 func (s *execStream) Send(m *drivers.ExecTaskStreamingResponseMsg) error {
+	s.logger.Info("alloc_exec: sending event", "message", fmt.Sprintf("%#+v", m))
 	s.buf.Reset()
 	s.frameCodec.Reset(s.buf)
 

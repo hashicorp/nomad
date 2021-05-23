@@ -283,9 +283,11 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
 	if err := decoder.Decode(&args); err != nil {
+		a.logger.Error("alloc_exec_server: failed decoding args", "error", err)
 		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
 		return
 	}
+	a.logger.Info("alloc_exec_server: got args", "args", fmt.Sprintf("%#+v", args))
 
 	// Check if we need to forward to a different region
 	if r := args.RequestRegion(); r != a.srv.Region() {
@@ -303,12 +305,14 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 	// Retrieve the allocation
 	snap, err := a.srv.State().Snapshot()
 	if err != nil {
+		a.logger.Error("alloc_exec_server: failed to lookup snap", "error", err)
 		handleStreamResultError(err, nil, encoder)
 		return
 	}
 
 	alloc, err := getAlloc(snap, args.AllocID)
 	if structs.IsErrUnknownAllocation(err) {
+		a.logger.Error("alloc_exec_server: unknown allocs", "error", err)
 		handleStreamResultError(err, helper.Int64ToPtr(404), encoder)
 		return
 	}
@@ -319,9 +323,11 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 
 	// Check node read permissions
 	if aclObj, err := a.srv.ResolveToken(args.AuthToken); err != nil {
+		a.logger.Error("alloc_exec_server: failed to resolve token", "error", err)
 		handleStreamResultError(err, nil, encoder)
 		return
 	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocExec) {
+		a.logger.Error("alloc_exec_server: no permission", "error", err)
 		// client ultimately checks if AllocNodeExec is required
 		handleStreamResultError(structs.ErrPermissionDenied, nil, encoder)
 		return
@@ -332,17 +338,20 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 	// Make sure Node is valid and new enough to support RPC
 	node, err := snap.NodeByID(nil, nodeID)
 	if err != nil {
+		a.logger.Error("alloc_exec_server: failed to find node", "node_id", nodeID, "error", err)
 		handleStreamResultError(err, helper.Int64ToPtr(500), encoder)
 		return
 	}
 
 	if node == nil {
 		err := fmt.Errorf("Unknown node %q", nodeID)
+		a.logger.Error("alloc_exec_server: failed to find node", "node_id", nodeID, "error", err)
 		handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
 		return
 	}
 
 	if err := nodeSupportsRpc(node); err != nil {
+		a.logger.Error("alloc_exec_server: node does not support rpc", "node_id", nodeID, "error", err)
 		handleStreamResultError(err, helper.Int64ToPtr(400), encoder)
 		return
 	}
@@ -359,6 +368,7 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 			if structs.IsErrNoNodeConn(err) {
 				code = helper.Int64ToPtr(404)
 			}
+			a.logger.Error("alloc_exec_server: failed to find node connection", "node_id", nodeID, "error", err)
 			handleStreamResultError(err, code, encoder)
 			return
 		}
@@ -366,6 +376,7 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 		// Get a connection to the server
 		conn, err := a.srv.streamingRpc(srv, "Allocations.Exec")
 		if err != nil {
+			a.logger.Error("alloc_exec_server: failed to streaming rpc", "node_id", nodeID, "error", err)
 			handleStreamResultError(err, nil, encoder)
 			return
 		}
@@ -374,6 +385,7 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 	} else {
 		stream, err := NodeStreamingRpc(state.Session, "Allocations.Exec")
 		if err != nil {
+			a.logger.Error("alloc_exec_server: failed to streaming rpc 2", "node_id", nodeID, "error", err)
 			handleStreamResultError(err, nil, encoder)
 			return
 		}
@@ -384,6 +396,7 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 	// Send the request.
 	outEncoder := codec.NewEncoder(clientConn, structs.MsgpackHandle)
 	if err := outEncoder.Encode(args); err != nil {
+		a.logger.Error("alloc_exec_server: failed to encode args", "args", args, "error", err)
 		handleStreamResultError(err, nil, encoder)
 		return
 	}

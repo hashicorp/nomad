@@ -12,6 +12,7 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/gorilla/websocket"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -417,9 +418,11 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 		Tty:     ttyB,
 	}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+	s.logger.Error("exec: parsed args", "args", fmt.Sprintf("%#+v", args))
 
 	conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
 	if err != nil {
+		s.logger.Error("exec: conn upgrade failed", "error", err)
 		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
 	}
 
@@ -504,19 +507,22 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 
 	// stream response
 	go func() {
+		s.logger.Info("http exec: streaming response")
 		defer cancel()
 
 		// Send the request
 		if err := encoder.Encode(args); err != nil {
+			s.logger.Info("http exec: input: failed to encode args", "args", args, "error", err)
 			errCh <- CodedError(500, err.Error())
 			return
 		}
 
-		go forwardExecInput(encoder, ws, errCh)
+		go forwardExecInput(encoder, ws, errCh, s.logger)
 
 		for {
 			select {
 			case <-ctx.Done():
+				s.logger.Info("http exec: ctx expired")
 				errCh <- nil
 				return
 			default:
@@ -524,6 +530,8 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 
 			var res cstructs.StreamErrWrapper
 			err := decoder.Decode(&res)
+			s.logger.Info("http exec: decoded resp", "res_payload", string(res.Payload), "res_error", fmt.Sprintf("%#+v", res.Error), "error", err)
+
 			if isClosedError(err) {
 				ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 				errCh <- nil
@@ -546,6 +554,7 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 			}
 
 			if err := ws.WriteMessage(websocket.TextMessage, res.Payload); err != nil {
+				s.logger.Info("http exec: failed to write message", "error", err)
 				errCh <- CodedError(500, err.Error())
 				return
 			}
@@ -559,6 +568,7 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 	// retreieve any error and/or wait until goroutine stop and close errCh connection before
 	// closing websocket connection
 	codedErr := <-errCh
+	s.logger.Info("http exec: codedErr", "error", codedErr)
 
 	if isClosedError(codedErr) {
 		codedErr = nil
@@ -594,10 +604,11 @@ func isClosedError(err error) bool {
 
 // forwardExecInput forwards exec input (e.g. stdin) from websocket connection
 // to the streaming RPC connection to client
-func forwardExecInput(encoder *codec.Encoder, ws *websocket.Conn, errCh chan<- HTTPCodedError) {
+func forwardExecInput(encoder *codec.Encoder, ws *websocket.Conn, errCh chan<- HTTPCodedError, logger hclog.Logger) {
 	for {
 		sf := &drivers.ExecTaskStreamingRequestMsg{}
 		err := ws.ReadJSON(sf)
+		logger.Info("http exec: read input", "sf", fmt.Sprintf("%#+v", sf), "error", err)
 		if err == io.EOF {
 			return
 		}
@@ -609,6 +620,7 @@ func forwardExecInput(encoder *codec.Encoder, ws *websocket.Conn, errCh chan<- H
 
 		err = encoder.Encode(sf)
 		if err != nil {
+			logger.Info("http exec: failed to encode input", "error", err)
 			errCh <- CodedError(500, err.Error())
 		}
 	}
