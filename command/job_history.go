@@ -121,7 +121,7 @@ func (c *JobHistoryCommand) Run(args []string) int {
 		return 1
 	}
 
-	jobID := args[0]
+	jobID := strings.TrimSpace(args[0])
 
 	// Check if the job exists
 	jobs, _, err := client.Jobs().PrefixList(jobID)
@@ -134,7 +134,7 @@ func (c *JobHistoryCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 {
-		if strings.TrimSpace(jobID) != jobs[0].ID {
+		if jobID != jobs[0].ID {
 			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
 			return 1
 		}

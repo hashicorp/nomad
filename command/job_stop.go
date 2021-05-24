@@ -116,7 +116,7 @@ func (c *JobStopCommand) Run(args []string) int {
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-	jobID := args[0]
+	jobID := strings.TrimSpace(args[0])
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -136,7 +136,7 @@ func (c *JobStopCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 {
-		if strings.TrimSpace(jobID) != jobs[0].ID {
+		if jobID != jobs[0].ID {
 			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
 			return 1
 		}
