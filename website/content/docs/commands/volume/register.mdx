@@ -46,6 +46,21 @@ type            = "csi"
 external_id     = "vol-23452345"
 plugin_id       = "ebs-prod"
 
+capability {
+  access_mode     = "single-node-reader-only"
+  attachment_mode = "file-system"
+}
+
+capability {
+  access_mode     = "single-node-writer"
+  attachment_mode = "file-system"
+}
+
+mount_options {
+  fs_type     = "ext4"
+  mount_flags = "noatime"
+}
+
 secrets {
   example_secret = "xyzzy"
 }
@@ -95,6 +110,16 @@ context {
     `"block-device"`, which will mount the volume with the CSI block device API
     within the container.
 
+- `mount_options` - Options for mounting `file-system` volumes that don't
+  already have a pre-formatted file system. This block will be validated
+  during volume creation against the `capability` field. The `mount_options`
+  provided in a job specification's [`volume`] block will override this
+  block. Consult the documentation for your storage provider and CSI plugin as
+  to whether these options are required or necessary.
+
+  - `fs_type`: file system type (ex. `"ext4"`)
+  - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)
+
 - `secrets` <code>(map<string|string>:nil)</code> - An optional
   key-value map of strings used as credentials for publishing and
   unpublishing volumes.
@@ -123,4 +148,5 @@ set on a pre-existing volume. You should not set the `snapshot_id`,
 [volume_specification]: #volume-specification
 [csi_plugin]: /docs/job-specification/csi_plugin
 [csi_volume_source]: /docs/job-specification/volume#source
+[`volume`]: /docs/job-specification/volume
 [`volume create`]: /docs/commands/volume/create
