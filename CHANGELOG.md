@@ -1,6 +1,7 @@
 ## 1.1.1 (Unreleased)
 
 IMPROVEMENTS:
+* cli: Added success confirmation message for `nomad volume delete` and `nomad volume deregister`. [[GH-10591](https://github.com/hashicorp/nomad/issues/10591)]
 * cli: Cross-namespace `nomad job` commands will now select exact matches if the selection is unambiguous. [[GH-10648](https://github.com/hashicorp/nomad/issues/10648)]
 
 BUG FIXES:
