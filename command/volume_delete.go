@@ -98,5 +98,6 @@ func (c *VolumeDeleteCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.Ui.Output(fmt.Sprintf("Successfully deleted volume %q!", volID))
 	return 0
 }
