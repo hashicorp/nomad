@@ -22,6 +22,12 @@ variable "nomad_local_binary" {
   default     = ""
 }
 
+variable "nomad_url" {
+  type        = string
+  description = "URL to Nomad binary (ex. \"https://circleci.com/.../linux_amd64.zip\")"
+  default     = ""
+}
+
 variable "nomad_enterprise" {
   type        = bool
   description = "If nomad_sha is used, deploy Nomad Enterprise"

@@ -2,6 +2,7 @@ param(
     [string]$nomad_sha,
     [string]$nomad_version,
     [string]$nomad_binary,
+    [string]$nomad_url,
     [switch]$enterprise = $false,
     [switch]$nomad_acls = $false,
     [string]$config_profile,
@@ -20,6 +21,7 @@ Options (use one of the following):
  -nomad_sha SHA          full git sha to install from S3
  -nomad_version VERSION  release version number (ex. 0.12.4+ent)
  -nomad_binary FILEPATH  path to file on host
+ -nomad_url URL          url path to nomad binary archive
 
 Options for configuration:
  -config_profile FILEPATH path to config profile directory
@@ -155,6 +157,44 @@ function InstallFromRelease {
     Write-Output "Installed Nomad."
 }
 
+function InstallFromURL {
+    Try {
+        # check that we don't already have this version
+        if (C:\opt\nomad.exe -version `
+          | Select-String -Pattern $nomad_version -SimpleMatch -Quiet) {
+              if (C:\opt\nomad.exe -version `
+                | Select-String -Pattern dev -SimpleMatch -Quiet -NotMatch) {
+                    Write-Output "${nomad_version} already installed"
+                    return
+                }
+          }
+    } Catch {
+        Write-Output "${nomad_version} not previously installed"
+    }
+
+    Stop-Service -Name nomad -ErrorAction Ignore
+
+    Write-Output "Downloading Nomad from: $nomad_url"
+    Try {
+        Remove-Item -Path ./nomad.zip -Force -ErrorAction Ignore
+        Invoke-WebRequest -Uri $nomad_url -Outfile nomad.zip -ErrorAction Stop
+
+        Remove-Item -Path $install_path -Force -ErrorAction Ignore
+        Expand-Archive .\nomad.zip .\ -ErrorAction Stop
+        Remove-Item -Path nomad.zip -Force -ErrorAction Ignore
+
+        New-Item -ItemType Directory -Force -Path C:\opt\nomad.d -ErrorAction Stop
+        New-Item -ItemType Directory -Force -Path C:\opt\nomad -ErrorAction Stop
+    } Catch {
+        Write-Output "Failed to install Nomad."
+        Write-Output $_
+        $host.SetShouldExit(-1)
+        throw
+    }
+
+    Write-Output "Installed Nomad."
+}
+
 
 function ConfigFiles($src, $dest) {
     Get-ChildItem -Path "$src" -Name -Attributes !Directory -ErrorAction Ignore`
@@ -228,6 +268,10 @@ if ( "" -ne $nomad_version ) {
 }
 if ( "" -ne $nomad_binary ) {
     InstallFromUploadedBinary
+    CreateNomadService
+}
+if ( "" -ne $nomad_url ) {
+    InstallFromURL
     CreateNomadService
 }
 if ( "" -ne $config_profile) {
