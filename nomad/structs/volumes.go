@@ -117,6 +117,18 @@ func (v *VolumeRequest) Validate(canaries int) error {
 		mErr.Errors = append(mErr.Errors,
 			fmt.Errorf("host volumes cannot have an access mode"))
 	}
+	if v.Type == VolumeTypeHost && v.MountOptions != nil {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("host volumes cannot have mount options"))
+	}
+	if v.Type == VolumeTypeCSI && v.AttachmentMode == CSIVolumeAttachmentModeUnknown {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("CSI volumes must have an attachment mode"))
+	}
+	if v.Type == VolumeTypeCSI && v.AccessMode == CSIVolumeAccessModeUnknown {
+		mErr.Errors = append(mErr.Errors,
+			fmt.Errorf("CSI volumes must have an access mode"))
+	}
 
 	if v.AccessMode == CSIVolumeAccessModeSingleNodeReader || v.AccessMode == CSIVolumeAccessModeMultiNodeReader {
 		if !v.ReadOnly {
