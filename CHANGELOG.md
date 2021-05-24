@@ -1,9 +1,13 @@
 ## 1.1.1 (Unreleased)
 
+IMPROVEMENTS:
+* cli: Cross-namespace `nomad job` commands will now select exact matches if the selection is unambiguous. [[GH-10648](https://github.com/hashicorp/nomad/issues/10648)]
+
 BUG FIXES:
 * api: Fixed event stream connection initialization when there are no events to send [[GH-10637](https://github.com/hashicorp/nomad/issues/10637)]
 * cli: Fixed a bug where `quota status` and `namespace status` commands may panic if the CLI targets a pre-1.1.0 cluster
 * csi: Fixed a bug where `mount_options` were not passed to CSI controller plugins for validation during volume creation and mounting. [[GH-10643](https://github.com/hashicorp/nomad/issues/10643)]
+
 
 ## 1.1.0 (May 18, 2021)
 

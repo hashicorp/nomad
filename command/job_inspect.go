@@ -117,7 +117,7 @@ func (c *JobInspectCommand) Run(args []string) int {
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-	jobID := args[0]
+	jobID := strings.TrimSpace(args[0])
 
 	// Check if the job exists
 	jobs, _, err := client.Jobs().PrefixList(jobID)
@@ -129,9 +129,15 @@ func (c *JobInspectCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
 		return 1
 	}
-	if len(jobs) > 1 && (c.allNamespaces() || strings.TrimSpace(jobID) != jobs[0].ID) {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
-		return 1
+	if len(jobs) > 1 {
+		if jobID != jobs[0].ID {
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
+			return 1
+		}
+		if c.allNamespaces() && jobs[0].ID == jobs[1].ID {
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
+			return 1
+		}
 	}
 
 	var version *uint64
