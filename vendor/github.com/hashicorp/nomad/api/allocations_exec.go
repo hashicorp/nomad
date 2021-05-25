@@ -62,7 +62,12 @@ func (s *execSession) run(ctx context.Context) (exitCode int, err error) {
 }
 
 func (s *execSession) startConnection() (*websocket.Conn, error) {
-	nodeClient, _ := s.client.GetNodeClientWithTimeout(s.alloc.NodeID, ClientConnTimeout, s.q)
+	// First, attempt to connect to the node directly, but may fail due to network isolation
+	// and network errors.  Fallback to using server-side forwarding instead.
+	nodeClient, err := s.client.GetNodeClientWithTimeout(s.alloc.NodeID, ClientConnTimeout, s.q)
+	if err == NodeDownErr {
+		return nil, NodeDownErr
+	}
 
 	q := s.q
 	if q == nil {
