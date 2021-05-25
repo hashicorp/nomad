@@ -5,7 +5,7 @@ description: >-
   Frequently Asked Questions pertaining to Nomad Enterprise Licensing.
 ---
 
-# Frequently Asked Questions
+# Frequently Asked Questions (FAQ)
 
 This FAQ is for the license changes introduced in Nomad Enterprise version v1.1.0+ent. 
 Nomad Enterprise automatically load Nomad licenses when a Nomad server agent starts using Nomad Enterprise.
@@ -20,15 +20,25 @@ In previous versions of HashiCorp enterprise products, one server could distribu
 This will no longer work since each server must be able to find a valid license during the startup process.
 
 
+## Q: What resources are available?
+
+The list below is a great starting starting point for learning more about the license changes introduced in Nomad Enterprise v1.1.0
+
+- [v1.1.0 Upgrade Guide](https://www.nomadproject.io/docs/upgrade/upgrade-specific#enterprise-licenses)
+
+- [Nomad License Documentation](https://www.nomadproject.io/docs/enterprise/license)
+
+- [License configuration values documentation](https://www.nomadproject.io/docs/configuration/server#license_path)
+
+- [Install a HashiCorp Enterprise License Tutorial](https://learn.hashicorp.com/tutorials/nomad/hashicorp-enterprise-license)
+
 ## Q: Does this affect Nomad or older versions of Nomad?
 
 This change only affects Nomad Enterprise version v1.1.0+ent and later.
 
-
 ## Q: Does the license have to be present on Nomad client nodes?
 
 Only Nomad server nodes need to have the license present.
-
 Nomad agents running with the “-dev” flag will also need a license.
 
 ## Q: What are some pitfalls that could be experienced during an upgrade because of the license changes?
