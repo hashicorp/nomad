@@ -53,18 +53,6 @@ function Usage {
 }
 
 function InstallFromS3 {
-
-    Try {
-        # check that we don't already have this version
-        if (C:\opt\nomad.exe -version `
-          | Select-String -Pattern $nomad_sha -SimpleMatch -Quiet) {
-              Write-Output "${nomad_sha} already installed"
-              return
-          }
-    } Catch {
-        Write-Output "${nomad_sha} not previously installed"
-    }
-
     Stop-Service -Name nomad -ErrorAction Ignore
 
     $build_folder = "builds-oss"
@@ -158,20 +146,6 @@ function InstallFromRelease {
 }
 
 function InstallFromURL {
-    Try {
-        # check that we don't already have this version
-        if (C:\opt\nomad.exe -version `
-          | Select-String -Pattern $nomad_version -SimpleMatch -Quiet) {
-              if (C:\opt\nomad.exe -version `
-                | Select-String -Pattern dev -SimpleMatch -Quiet -NotMatch) {
-                    Write-Output "${nomad_version} already installed"
-                    return
-                }
-          }
-    } Catch {
-        Write-Output "${nomad_version} not previously installed"
-    }
-
     Stop-Service -Name nomad -ErrorAction Ignore
 
     Write-Output "Downloading Nomad from: $nomad_url"
