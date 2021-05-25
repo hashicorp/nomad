@@ -11,6 +11,7 @@ volumes                          = false
 
 nomad_version      = "1.0.1" # default version for deployment
 nomad_local_binary = ""      # overrides nomad_version if set
+nomad_url          = ""      # overrides nomad_version if set
 
 # Example overrides:
 # nomad_local_binary = "../../pkg/linux_amd64/nomad"

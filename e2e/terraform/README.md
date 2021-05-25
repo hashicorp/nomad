@@ -50,6 +50,7 @@ You'll need to pass one of the following variables in either your
 * `nomad_local_binary`: provision this specific local binary of Nomad. This is
   a path to a Nomad binary on your own host. Ex. `nomad_local_binary =
   "/home/me/nomad"`. This setting overrides `nomad_version`.
+* `nomad_url`: provision this version from a remote archived binary, e.g. `build-binaries` CircleCI artifacts zip file urls.
 * `nomad_version`: provision this version from
   [releases.hashicorp.com](https://releases.hashicorp.com/nomad). Ex. `nomad_version
   = "0.10.2+ent"`
