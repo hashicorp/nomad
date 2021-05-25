@@ -14,7 +14,7 @@ Nomad Enterprise automatically load Nomad licenses when a Nomad server agent sta
 
 Starting with Nomad Enterprise v1.1.0, the license enablement process is different.
 
-HashiCorp Enterprise servers will no longer start without a license. When the server instance initializes the license watcher, it will read from an environment variable or file. If the license is missing, invalid, or expired, the server will immediately exit. 
+HashiCorp Enterprise servers will no longer start without a license. When the server instance initializes the license watcher, the server reads from either an environment variable or file. If the license is missing, invalid, or expired, the server will immediately exit. 
 This check is part of the server boot-up process.
 In previous versions of HashiCorp enterprise products, one server could distribute a license to other servers via the Raft protocol. 
 This will no longer work since each server must be able to find a valid license during the startup process.
@@ -22,7 +22,7 @@ This will no longer work since each server must be able to find a valid license 
 
 ## Q: What resources are available?
 
-The list below is a great starting starting point for learning more about the license changes introduced in Nomad Enterprise v1.1.0
+The list below is a great starting point for learning more about the license changes introduced in Nomad Enterprise v1.1.0
 
 - [v1.1.0 Upgrade Guide](https://www.nomadproject.io/docs/upgrade/upgrade-specific#enterprise-licenses)
 
@@ -47,7 +47,7 @@ If you follow the steps in the [upgrade guide](https://www.nomadproject.io/docs/
 
 If you do not check cluster health after adding new servers, and verify that the new servers have joined properly, then you may accidentally take down old servers without replacing them.
 
-If you are using a trial license in production, this could cause issues as the cluster will fail start once the trial expires.
+If you are using a trial license in production, this could cause issues as the cluster will fail to start once the trial expires.
 
 If you have built automation around `nomad license put`, this command will fail as it has been removed from Nomad v1.1.0+.
 
@@ -63,8 +63,8 @@ Running `nomad agent -dev` will fail for these users.
 Use `nomad license get` to retrieve the license, then save the license to disk.
 
 ## Q: What happens when a license expires?
-If a license expires after the server instance is joined to the cluster, the existing behavior is preserved: disallow Enterprise feature operations until a grace period expires, at which point the Nomad servers shut down. 
-The grace period will be one day.
+If a license expires after a server node joins the cluster, the existing Enterprise features will continue to operate until a grace period expires. 
+The grace period duration is 1 day, and upon the end of the grace period the Nomad servers will shut down. 
 
 ## Q: Will on-prem binaries with “baked-in” licenses work?
 
