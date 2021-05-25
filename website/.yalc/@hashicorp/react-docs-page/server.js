@@ -114,8 +114,6 @@ async function generateStaticProps({
         ? [basePath, ...paramsNoIndex].join('/')
         : [basePath, currentVersionNormalized, ...paramsNoIndex].join('/')
 
-      console.log(pagePathToLoad, versionFromPath, paramsNoIndex)
-
       let doc
       const [{ mdxSource }, navData] = await Promise.all([
         loadVersionedDocument(product.slug, pagePathToLoad).then(

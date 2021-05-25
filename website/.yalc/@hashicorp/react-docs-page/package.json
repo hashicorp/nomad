@@ -1,7 +1,7 @@
 {
   "name": "@hashicorp/react-docs-page",
   "description": "Create a Hashicorp branded docs page in NextJS projects.",
-  "version": "13.3.1+cd567a1a",
+  "version": "13.3.1+43e1b141",
   "author": "HashiCorp",
   "contributors": [
     "Jeff Escalante"
@@ -13,7 +13,7 @@
     "@hashicorp/react-head": "^3.0.2",
     "@hashicorp/react-placeholder": "^0.1.0",
     "@hashicorp/react-search": "^5.1.0",
-    "@hashicorp/versioned-docs": "^0.0.13",
+    "@hashicorp/versioned-docs": "^0.0.17",
     "classnames": "^2.2.6",
     "fs-exists-sync": "0.1.0",
     "gray-matter": "4.0.2",
@@ -32,5 +32,5 @@
   "publishConfig": {
     "access": "public"
   },
-  "yalcSig": "cd567a1a5e1719667e954f2729d1ae9d"
+  "yalcSig": "43e1b1410863df8416d662db0d4bc7c6"
 }
