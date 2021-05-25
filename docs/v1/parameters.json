@@ -31,7 +31,7 @@
     "PerPageParam": {
       "name": "per_page",
       "in": "query",
-      "description": "maximum number of results to return",
+      "description": "Maximum number of results to return",
       "required": false,
       "type": "integer",
       "format": "int32"
@@ -40,6 +40,41 @@
       "name": "next_token",
       "in": "query",
       "description": "Indicates where to start paging for queries that support pagination",
+      "required": false,
+      "type": "string"
+    },
+    "WaitParam": {
+      "name": "wait",
+      "in": "query",
+      "description": "Provided with IndexParam to wait for change",
+      "required": false,
+      "type": "int32"
+    },
+    "IndexParam": {
+      "name": "index",
+      "in": "query",
+      "description": "If set, wait until query exceeds given index. Must be provided with WaitParam.",
+      "required": false,
+      "type": "int32"
+    },
+    "AllParam": {
+      "name": "all",
+      "in": "query",
+      "description": "Flag indicating whether to constrain by job creation index or not.",
+      "required": false,
+      "type": "int32"
+    },
+    "JobNameParam": {
+      "name": "jobName",
+      "in": "path",
+      "description": "The job identifier.",
+      "required": true,
+      "type": "string"
+    },
+    "NomadTokenHeader": {
+      "name": "X-Nomad-Token",
+      "in": "header",
+      "description": "A Nomad ACL token",
       "required": false,
       "type": "string"
     }

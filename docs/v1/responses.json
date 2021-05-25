@@ -1,0 +1,16 @@
+{
+  "responses": {
+      "NotFound": {
+        "description": "Not found"
+      },
+      "InternalServerError": {
+        "description": "Internal server error"
+      },
+      "Forbidden": {
+        "description": "Forbidden"
+      },
+      "MethodNotAllowed": {
+        "description": "Method not allowed"
+      }
+    }
+  }

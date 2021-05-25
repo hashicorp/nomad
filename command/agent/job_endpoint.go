@@ -2,12 +2,12 @@ package agent
 
 import (
 	"fmt"
+	"github.com/hashicorp/nomad/api"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/golang/snappy"
-	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
@@ -26,10 +26,10 @@ func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (i
 }
 
 // swagger:operation GET /jobs getJobs
-// Returns a list of jobs filtered by region and QueryOptions.
+// List all known jobs registered with Nomad. See https://www.nomadproject.io/api-docs/jobs#list-jobs.
 // ---
 // produces:
-// - application/json
+//   - application/json
 // parameters:
 //	 - $ref: '#/parameters/RegionParam'
 //	 - $ref: '#/parameters/StaleParam'
@@ -39,15 +39,35 @@ func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (i
 //	 - $ref: '#/parameters/NextTokenParam'
 // responses:
 //   '200':
-//     description: job list response
+//     description: List of jobs
 //     schema:
 //       type: array
 //       items:
-//         "$ref": "#/definitions/JobListItem"
-//   default:
-//     description: unexpected error
+//         "$ref": "#/definitions/JobListStub"
+//     headers:
+//       Content-Type:
+//         type: string
+//         description: Informs clients that payload will be in application/json form.
+//       X-Nomad-Index:
+//         type: integer
+//         description: Endpoints that support blocking queries return an HTTP
+//           header named set this unique identifier representing the current
+//           state of the requested resource. On a new Nomad cluster the value of
+//           this index starts at 1.
+//       X-Nomad-KnownLeader:
+//         type: boolean
+//         description: Flag indicating the agent that fulfilled the request had
+//           known Raft leader at the time of the operation.
+//       X-Nomad-LastContact:
+//         type: integer
+//         description: If AllowStale is used, this is time elapsed since last
+//           contact between the follower and leader. This can be used to gauge staleness.
+//   '403':
 //     schema:
-//       "$ref": "#/definitions/errorModel"
+//       $ref: "#/responses/Forbidden"
+//   '500':
+//     schema:
+//       $ref: "#/responses/InternalServerError"
 func (s *HTTPServer) jobListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	args := structs.JobListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
@@ -113,6 +133,34 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	}
 }
 
+// swagger:operation PUT /job/{jobName}/evaluate evaluateJob
+// Creates a new evaluation for the given job. This can be used to force run the scheduling logic if necessary. See https://www.nomadproject.io/api-docs/jobs#create-job-evaluation.
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: jobEvaluateRequest
+//     description: The job to force an evaluation of.
+//     schema:
+//       $ref: '#/definitions/JobEvaluateRequest'
+// responses:
+//   '200':
+//     schema:
+//       $ref: "#/definitions/JobRegisterResponse"
+//     headers:
+//       Content-Type:
+//         type: string
+//         description: Informs clients that payload will be in application/json form.
+//   '403':
+//     schema:
+//       $ref: "#/responses/Forbidden"
+//   '405':
+//     schema:
+//       $ref: "#/responses/MethodNotAllowed"
+//   '500':
+//     schema:
+//       $ref: "#/responses/InternalServerError"
 func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
 	if req.Method != "PUT" && req.Method != "POST" {
@@ -217,6 +265,37 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 	return out, nil
 }
 
+// swagger:operation PUT /job/{jobName}/periodic/force putJobForceRequest
+// Forces the evaluation of a periodic job. See https://www.nomadproject.io/docs/commands/job/periodic-force.
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - $ref: '#/parameters/JobNameParam'
+//   - $ref: '#/parameters/RegionParam'
+//   - $ref: '#/parameters/NamespaceParam'
+//   - $ref: '#/parameters/NomadTokenHeader'
+// responses:
+//   '200':
+//     description: Returns a type containing relevant write operation metadata.
+//     schema:
+//       $ref: '#/definitions/PeriodicForceResponse'
+//     headers:
+//       Content-Type:
+//         type: string
+//         description: Informs clients that payload will be in application/json form.
+//       X-Nomad-Index:
+//         type: integer
+//         description: Unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+//   '403':
+//     schema:
+//       $ref: '#/responses/Forbidden'
+//   '405':
+//     schema:
+//       $ref: '#/responses/MethodNotAllowed'
+//   '500':
+//     schema:
+//       $ref: '#/responses/InternalServerError'
 func (s *HTTPServer) periodicForceRequest(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
 	if req.Method != "PUT" && req.Method != "POST" {
@@ -236,6 +315,54 @@ func (s *HTTPServer) periodicForceRequest(resp http.ResponseWriter, req *http.Re
 	return out, nil
 }
 
+// swagger:operation GET /job/{jobName}/allocations getJobAllocations
+// List allocations for the specified job. See https://www.nomadproject.io/api-docs/allocations#list-allocations.
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - $ref: '#/parameters/JobNameParam'
+//   - $ref: '#/parameters/AllParam'
+//   - $ref: '#/parameters/RegionParam'
+//   - $ref: '#/parameters/StaleParam'
+//   - $ref: '#/parameters/PrefixParam'
+//   - $ref: '#/parameters/NamespaceParam'
+//   - $ref: '#/parameters/PerPageParam'
+//   - $ref: '#/parameters/NextTokenParam'
+// responses:
+//   '200':
+//     description: List of allocations for the specified job.
+//     schema:
+//       type: array
+//       items:
+//         $ref: '#/definitions/AllocListStub'
+//     headers:
+//       Content-Type:
+//         type: string
+//         description: Informs clients that payload will be in application/json form.
+//       X-Nomad-Index:
+//         type: integer
+//         description: Endpoints that support blocking queries return an HTTP
+//           header named set this unique identifier representing the current
+//           state of the requested resource. On a new Nomad cluster the value of
+//           this index starts at 1.
+//       X-Nomad-KnownLeader:
+//         type: boolean
+//         description: Flag indicating the agent that fulfilled the request had
+//           known Raft leader at the time of the operation.
+//       X-Nomad-LastContact:
+//         type: integer
+//         description: If AllowStale is used, this is time elapsed since last
+//           contact between the follower and leader. This can be used to gauge staleness.
+//   '403':
+//     schema:
+//       $ref: '#/responses/Forbidden'
+//   '405':
+//     schema:
+//       $ref: '#/responses/MethodNotAllowed'
+//   '500':
+//     schema:
+//       $ref: '#/responses/InternalServerError'
 func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
 	if req.Method != "GET" {
@@ -266,6 +393,48 @@ func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request,
 	return out.Allocations, nil
 }
 
+// swagger:operation GET /job/{jobName}/evaluations getJobEvaluations
+// List evaluations for the specified job. See https://www.nomadproject.io/api-docs/evaluations#list-evaluations.
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - $ref: '#/parameters/JobNameParam'
+//   - $ref: '#/parameters/RegionParam'
+//   - $ref: '#/parameters/StaleParam'
+//   - $ref: '#/parameters/PrefixParam'
+//   - $ref: '#/parameters/NamespaceParam'
+//   - $ref: '#/parameters/PerPageParam'
+//   - $ref: '#/parameters/NextTokenParam'
+// responses:
+//   '200':
+//     description: A list of job evaluations.
+//     schema:
+//       type: array
+//       items:
+//         "$ref": "#/definitions/Evaluation"
+//     headers:
+//       Content-Type:
+//         type: string
+//         description: Informs clients that payload will be in application/json form.
+//       X-Nomad-Index:
+//         type: integer
+//         description: Unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+//       X-Nomad-KnownLeader:
+//         type: boolean
+//         description: Flag indicating the agent that fulfilled the request had a known Raft leader at the time of the operation.
+//       X-Nomad-LastContact:
+//         type: integer
+//         description: If AllowStale is used, this is time elapsed since last contact between the follower and leader. This can be used to gauge staleness.
+//   '403':
+//     schema:
+//       $ref: "#/responses/Forbidden"
+//   '405':
+//     schema:
+//       $ref: "#/responses/MethodNotAllowed"
+//   '500':
+//     schema:
+//       $ref: "#/responses/InternalServerError"
 func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
 	if req.Method != "GET" {
@@ -681,7 +850,37 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 	return out, nil
 }
 
-// JobsParseRequest parses a hcl jobspec and returns a api.Job
+// JobsParseRequest parses a hcl jobSpec and returns a api.Job
+// swagger:operation PUT /jobs/parse parseJobSpec
+// Parses a HCL jobspec and produce the equivalent JSON encoded job. See https://www.nomadproject.io/api-docs/jobs#parse-job.
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: JobParseRequest
+//     description: Container request that contains the HCL to parse.
+//     schema:
+//       $ref: '#/definitions/JobsParseRequest'
+// responses:
+//   '200':
+//     schema:
+//       $ref: "#/definitions/Job"
+//     headers:
+//       Content-Type:
+//         type: string
+//         description: Informs clients that payload will be in application/json form.
+//   '400':
+//     type: string
+//   '403':
+//     schema:
+//       $ref: "#/responses/Forbidden"
+//   '405':
+//     schema:
+//       $ref: "#/responses/MethodNotAllowed"
+//   '500':
+//     schema:
+//       $ref: "#/responses/InternalServerError"
 func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)

@@ -1175,7 +1175,7 @@
       },
       "x-go-package": "github.com/hashicorp/nomad/api"
     },
-    "JobListItem": {
+    "JobListStub": {
       "description": "JobListStub is used to return a subset of information about\njobs during list operations.",
       "type": "object",
       "properties": {
@@ -1239,7 +1239,6 @@
           "type": "string"
         }
       },
-      "x-go-name": "JobListStub",
       "x-go-package": "github.com/hashicorp/nomad/api"
     },
     "JobPlanRequest": {

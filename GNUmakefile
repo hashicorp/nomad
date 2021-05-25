@@ -391,4 +391,4 @@ ui-screenshots-local:
 swagger-v1:
 	swagger generate spec -m -o docs/v1/models.json -w api && \
 	swagger generate spec -o docs/v1/nomad-v1.json -w command/agent && \
-	swagger mixin docs/v1/nomad-v1.json docs/v1/models.json docs/v1/parameters.json -o docs/v1/nomad-v1.json
+	swagger mixin docs/v1/nomad-v1.json docs/v1/models.json docs/v1/parameters.json docs/v1/responses.json -o docs/v1/nomad-v1.json

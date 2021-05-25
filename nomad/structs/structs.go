@@ -4552,7 +4552,6 @@ func (j *Job) SetSubmitTime() {
 
 // JobListStub is used to return a subset of job information
 // for the job list
-// swagger:response JobListItem
 type JobListStub struct {
 	ID                string
 	ParentID          string

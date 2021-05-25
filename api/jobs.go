@@ -994,7 +994,7 @@ type TaskGroupSummary struct {
 
 // JobListStub is used to return a subset of information about
 // jobs during list operations.
-// swagger:model JobListItem
+// swagger:model
 type JobListStub struct {
 	ID                string
 	ParentID          string
