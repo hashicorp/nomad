@@ -9,11 +9,6 @@
     "@hashicorp/react-docs-sidenav": {
       "signature": "dc4771ca3b0f2a14e46c58bbfb37d0cb",
       "file": true
-    },
-    "@hashicorp/versioned-docs": {
-      "signature": "ee971f52b42fbff448d9e14d67d7a63f",
-      "file": true,
-      "replaced": "0.0.15"
     }
   }
 }

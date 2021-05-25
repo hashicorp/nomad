@@ -31,7 +31,7 @@
     "@hashicorp/react-text-split-with-logo-grid": "4.1.1",
     "@hashicorp/react-use-cases": "3.0.2",
     "@hashicorp/react-vertical-text-block-list": "6.0.2",
-    "@hashicorp/versioned-docs": "file:.yalc/@hashicorp/versioned-docs",
+    "@hashicorp/versioned-docs": "0.0.15",
     "marked": "0.7.0",
     "next": "10.1.3",
     "next-mdx-remote": "3.0.1",
