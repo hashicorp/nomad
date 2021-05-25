@@ -1,0 +1,38 @@
+.g-subnav .menu-items-overflow {
+  position: relative;
+  margin-left: auto;
+
+  & .dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    padding: 12px 24px 0 24px;
+    width: 256px;
+    max-height: calc(100vh - 300%);
+    overflow-y: auto;
+
+    & .submenu-title {
+      margin: 12px 0 8px 0;
+      color: var(--gray-3);
+    }
+
+    & hr.divider {
+      margin: 12px 0;
+      border: 0;
+      padding: 0;
+      height: 1px;
+      background: var(--gray-5);
+    }
+
+    & a.submenu-item {
+      display: block;
+      padding: 4px 0;
+      line-height: 1.6em;
+    }
+
+    &.is-collapsed {
+      display: none;
+    }
+  }
+}

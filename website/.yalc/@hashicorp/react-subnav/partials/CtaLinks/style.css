@@ -1,0 +1,33 @@
+@import './github-stars-link/style.css';
+
+.g-subnav .cta-links {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  white-space: nowrap;
+
+  & > * + * {
+    /* Spaces consecutive buttons horizontally on desktop */
+    margin-left: 16px;
+  }
+
+  &.is-in-dropdown {
+    /* Allows consecutive buttons to wrap */
+    flex-wrap: wrap;
+    white-space: wrap;
+
+    & > * {
+      /* Forces full width so we have 1 button per line */
+      display: block;
+      width: 100%;
+
+      /* Spaces consecutive buttons vertically */
+      margin-left: 0;
+      margin-top: 16px;
+
+      &:last-of-type {
+        margin-bottom: 24px;
+      }
+    }
+  }
+}

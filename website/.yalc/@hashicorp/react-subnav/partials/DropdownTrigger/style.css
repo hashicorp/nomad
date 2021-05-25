@@ -1,0 +1,26 @@
+.g-subnav .dropdown-trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  white-space: nowrap;
+  line-height: 2.5rem;
+  padding-left: 16px;
+
+  & svg {
+    margin-top: 1px;
+    margin-bottom: -1px;
+    margin-left: 6px;
+    width: 12px;
+    height: 12px;
+    transition: transform 0.3s;
+    transform: rotate(-180deg);
+    & [stroke] {
+      stroke-width: 2.5;
+    }
+  }
+
+  &.is-collapsed svg {
+    transform: rotate(0deg);
+  }
+}

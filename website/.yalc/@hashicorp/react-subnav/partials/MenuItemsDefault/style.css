@@ -1,0 +1,62 @@
+.g-subnav .menu-items-default {
+  display: flex;
+  padding-left: 32px;
+  padding-right: 32px;
+  margin-left: auto;
+  margin-right: auto;
+  align-items: center;
+
+  &.menu-items-align-right {
+    margin-right: 0;
+    padding-right: 16px;
+  }
+
+  & > li {
+    position: relative;
+    white-space: nowrap;
+    margin: 0;
+    padding: 0;
+
+    & .nav-link {
+      position: relative;
+      padding-left: 16px;
+      padding-right: 16px;
+      line-height: 2.5rem;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    & .submenu-modal {
+      display: block;
+      position: absolute;
+      top: 100%;
+      margin-top: 8px;
+      padding: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+
+      & li {
+        & a:hover .text {
+          text-decoration: underline;
+        }
+
+        & + li {
+          margin-top: 6px;
+        }
+      }
+
+      &.is-collapsed {
+        display: none;
+      }
+    }
+  }
+
+  & > .vertical-divider {
+    background: var(--gray-5);
+    height: 1.75rem;
+    width: 1px;
+    margin-left: 8px;
+    margin-right: 8px;
+  }
+}

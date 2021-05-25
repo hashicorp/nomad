@@ -1,12 +1,16 @@
 import { useEffect } from 'react'
 import classNames from 'classnames'
 import { useRouter } from 'next/router'
+import Head from 'next/head'
 import Content from '@hashicorp/react-content'
 import DocsSidenav from '@hashicorp/react-docs-sidenav'
 import HashiHead from '@hashicorp/react-head'
 import { MDXRemote } from 'next-mdx-remote'
 import { SearchProvider } from '@hashicorp/react-search'
-import { VersionSelect } from '@hashicorp/versioned-docs/client'
+import {
+  VersionSelect,
+  getVersionFromPath,
+} from '@hashicorp/versioned-docs/client'
 import SearchBar from './components/search-bar'
 import VersionAlert from './components/version-alert'
 import generateComponents from './components'
@@ -28,6 +32,8 @@ export function DocsPageWrapper({
   versions,
 }) {
   const isMobile = useIsMobile()
+  const { asPath } = useRouter()
+  const versionInPath = getVersionFromPath(asPath)
 
   // TEMPORARY (https://app.asana.com/0/1100423001970639/1160656182754009)
   // activates the "jump to section" feature
@@ -37,17 +43,17 @@ export function DocsPageWrapper({
     return temporary_injectJumpToSection(node)
   }, [children])
 
-  const versionSelect = process.env.ENABLE_VERSIONED_DOCS ? (
-    <div className="version-select">
-      <VersionSelect versions={versions} />
-    </div>
-  ) : null
-
   const search = (
     <SearchProvider>
       <SearchBar product={name} />
     </SearchProvider>
   )
+
+  const versionSelect = process.env.ENABLE_VERSIONED_DOCS ? (
+    <div className="version-select">
+      <VersionSelect versions={versions} />
+    </div>
+  ) : null
 
   const versionAlert = process.env.ENABLE_VERSIONED_DOCS ? (
     <VersionAlert product={name} />
@@ -62,6 +68,11 @@ export function DocsPageWrapper({
         siteName={`${name} by HashiCorp`}
         title={`${pageTitle} | ${name} by HashiCorp`}
       />
+      {process.env.ENABLE_VERSIONED_DOCS && versionInPath ? (
+        <Head>
+          <meta name="robots" content="noindex" key="robots" />
+        </Head>
+      ) : null}
       {/* render the sidebar nav */}
       {/* TODO: we can probably remove several of these wrappers */}
       <div className="content-wrap g-grid-container">

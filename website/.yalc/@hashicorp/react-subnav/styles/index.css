@@ -1,0 +1,77 @@
+@import './_temp-g-svg.css';
+@import './_temp-resets.css';
+
+.g-subnav {
+  --gray-6-transparent: rgba(174, 176, 183, 0.45);
+
+  position: sticky;
+  top: -1px;
+  z-index: 900;
+  background: var(--white);
+  border-top: 1px solid var(--gray-6-transparent);
+  border-bottom: 1px solid transparent;
+  transition: border-bottom-color 0.8s;
+
+  &.is-sticky {
+    border-bottom-color: var(--gray-6-transparent);
+  }
+
+  & .constrain-width-wrapper {
+    /*
+     * TEMPORARY: this is a temporary patch
+     * to constrain the width of the subnav.
+     * We want to settle on fully consistent subnav
+     * max-width and alignment behavior at some point
+     * Related Asana task:
+     * https://app.asana.com/0/1126477231080283/1162972875950505/f
+     */
+  }
+
+  & .g-subnav-inner {
+    display: flex;
+    align-items: center;
+    height: 62px;
+
+    &:not(.is-constrained) {
+      padding-left: 24px;
+      padding-right: 24px;
+
+      @media (--medium-up) {
+        padding-left: 32px;
+        padding-right: 32px;
+      }
+    }
+
+    & .style-dropdown {
+      border-radius: 4px;
+      box-shadow: 0 8px 12px rgba(37, 38, 45, 0.08);
+      background: var(--white);
+      z-index: 1;
+    }
+
+    & .style-menu-item {
+      & .text {
+        color: var(--black);
+        position: relative;
+        &::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: 2px;
+          background: var(--black);
+          opacity: 0;
+        }
+      }
+
+      &:hover .text {
+        color: var(--black);
+      }
+
+      &.is-active .text::after {
+        opacity: 1;
+      }
+    }
+  }
+}

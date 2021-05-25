@@ -1,0 +1,15 @@
+.g-subnav {
+  & ul {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  & button {
+    border: none;
+    background: none;
+    &:hover {
+      cursor: pointer;
+    }
+  }
+}

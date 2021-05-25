@@ -4,7 +4,7 @@ import validateFilePaths from '@hashicorp/react-docs-sidenav/utils/validate-file
 import validateRouteStructure from '@hashicorp/react-docs-sidenav/utils/validate-route-structure'
 import validateUnlinkedContent from '@hashicorp/react-docs-sidenav/utils/validate-unlinked-content'
 import {
-  loadVersionListFromManifest,
+  loadVersionList,
   loadVersionedDocument,
   loadVersionedNavData,
   getVersionFromPath,
@@ -32,7 +32,10 @@ async function generateStaticPaths({
   let navData
 
   // This code path handles versioned docs integration, which is currently gated behind the ENABLE_VERSIONED_DOCS env var
-  if (process.env.ENABLE_VERSIONED_DOCS) {
+  if (
+    process.env.ENABLE_VERSIONED_DOCS &&
+    process.env.VERCEL_ENV === 'production'
+  ) {
     // Fetch and parse navigation data
     navData = (
       await cachedLoadVersionNavData(
@@ -97,17 +100,21 @@ async function generateStaticProps({
 
     const currentVersionNormalized = normalizeVersion(currentVersion)
 
-    versions = await loadVersionListFromManifest(currentVersionNormalized)
+    versions = await loadVersionList(product.slug)
 
     // Only load docs content from the DB if we're in production or there's an explicit version in the path
     // Preview and dev environments will read the "latest" content from the filesystem
-    if (true || versionFromPath) {
+    if (process.env.VERCEL_ENV === 'production' || versionFromPath) {
+      // remove trailing index to ensure we fetch the right document from the DB
       const paramsNoIndex = (params[paramId] ?? []).filter(
-        (param) => param !== 'index'
+        (param, idx) =>
+          !(param === 'index' && idx === params[paramId].length - 1)
       )
       const pagePathToLoad = versionFromPath
         ? [basePath, ...paramsNoIndex].join('/')
         : [basePath, currentVersionNormalized, ...paramsNoIndex].join('/')
+
+      console.log(pagePathToLoad, versionFromPath, paramsNoIndex)
 
       let doc
       const [{ mdxSource }, navData] = await Promise.all([
