@@ -22,6 +22,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
@@ -909,37 +910,12 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 	hostConfig.Privileged = driverConfig.Privileged
 
-	// set capabilities
-	hostCapsWhitelistConfig := d.config.AllowCaps
-	hostCapsWhitelist := make(map[string]struct{})
-	for _, cap := range hostCapsWhitelistConfig {
-		cap = strings.ToLower(strings.TrimSpace(cap))
-		hostCapsWhitelist[cap] = struct{}{}
+	// set add/drop capabilities
+	if hostConfig.CapAdd, hostConfig.CapDrop, err = capabilities.Delta(
+		capabilities.DockerDefaults(), d.config.AllowCaps, driverConfig.CapAdd, driverConfig.CapDrop,
+	); err != nil {
+		return c, err
 	}
-
-	if _, ok := hostCapsWhitelist["all"]; !ok {
-		effectiveCaps, err := tweakCapabilities(
-			strings.Split(dockerBasicCaps, ","),
-			driverConfig.CapAdd,
-			driverConfig.CapDrop,
-		)
-		if err != nil {
-			return c, err
-		}
-		var missingCaps []string
-		for _, cap := range effectiveCaps {
-			cap = strings.ToLower(cap)
-			if _, ok := hostCapsWhitelist[cap]; !ok {
-				missingCaps = append(missingCaps, cap)
-			}
-		}
-		if len(missingCaps) > 0 {
-			return c, fmt.Errorf("Docker driver doesn't have the following caps allowlisted on this Nomad agent: %s", missingCaps)
-		}
-	}
-
-	hostConfig.CapAdd = driverConfig.CapAdd
-	hostConfig.CapDrop = driverConfig.CapDrop
 
 	// set SHM size
 	if driverConfig.ShmSize != 0 {

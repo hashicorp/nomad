@@ -764,42 +764,99 @@ func TestExecDriver_NoPivotRoot(t *testing.T) {
 }
 
 func TestDriver_Config_validate(t *testing.T) {
-	for _, tc := range []struct {
-		pidMode, ipcMode string
-		exp              error
-	}{
-		{pidMode: "host", ipcMode: "host", exp: nil},
-		{pidMode: "private", ipcMode: "host", exp: nil},
-		{pidMode: "host", ipcMode: "private", exp: nil},
-		{pidMode: "private", ipcMode: "private", exp: nil},
-		{pidMode: "other", ipcMode: "private", exp: errors.New(`default_pid_mode must be "private" or "host", got "other"`)},
-		{pidMode: "private", ipcMode: "other", exp: errors.New(`default_ipc_mode must be "private" or "host", got "other"`)},
-	} {
-		require.Equal(t, tc.exp, (&Config{
-			DefaultModePID: tc.pidMode,
-			DefaultModeIPC: tc.ipcMode,
-		}).validate())
-	}
+	t.Run("pid/ipc", func(t *testing.T) {
+		for _, tc := range []struct {
+			pidMode, ipcMode string
+			exp              error
+		}{
+			{pidMode: "host", ipcMode: "host", exp: nil},
+			{pidMode: "private", ipcMode: "host", exp: nil},
+			{pidMode: "host", ipcMode: "private", exp: nil},
+			{pidMode: "private", ipcMode: "private", exp: nil},
+			{pidMode: "other", ipcMode: "private", exp: errors.New(`default_pid_mode must be "private" or "host", got "other"`)},
+			{pidMode: "private", ipcMode: "other", exp: errors.New(`default_ipc_mode must be "private" or "host", got "other"`)},
+		} {
+			require.Equal(t, tc.exp, (&Config{
+				DefaultModePID: tc.pidMode,
+				DefaultModeIPC: tc.ipcMode,
+			}).validate())
+		}
+	})
+
+	t.Run("allow_caps", func(t *testing.T) {
+		for _, tc := range []struct {
+			ac  []string
+			exp error
+		}{
+			{ac: []string{}, exp: nil},
+			{ac: []string{"all"}, exp: nil},
+			{ac: []string{"chown", "sys_time"}, exp: nil},
+			{ac: []string{"CAP_CHOWN", "cap_sys_time"}, exp: nil},
+			{ac: []string{"chown", "not_valid", "sys_time"}, exp: errors.New("allow_caps configured with capabilities not supported by system: not_valid")},
+		} {
+			require.Equal(t, tc.exp, (&Config{
+				DefaultModePID: "private",
+				DefaultModeIPC: "private",
+				AllowCaps:      tc.ac,
+			}).validate())
+		}
+	})
 }
 
 func TestDriver_TaskConfig_validate(t *testing.T) {
-	for _, tc := range []struct {
-		pidMode, ipcMode string
-		exp              error
-	}{
-		{pidMode: "host", ipcMode: "host", exp: nil},
-		{pidMode: "host", ipcMode: "private", exp: nil},
-		{pidMode: "host", ipcMode: "", exp: nil},
-		{pidMode: "host", ipcMode: "other", exp: errors.New(`ipc_mode must be "private" or "host", got "other"`)},
+	t.Run("pid/ipc", func(t *testing.T) {
+		for _, tc := range []struct {
+			pidMode, ipcMode string
+			exp              error
+		}{
+			{pidMode: "host", ipcMode: "host", exp: nil},
+			{pidMode: "host", ipcMode: "private", exp: nil},
+			{pidMode: "host", ipcMode: "", exp: nil},
+			{pidMode: "host", ipcMode: "other", exp: errors.New(`ipc_mode must be "private" or "host", got "other"`)},
 
-		{pidMode: "host", ipcMode: "host", exp: nil},
-		{pidMode: "private", ipcMode: "host", exp: nil},
-		{pidMode: "", ipcMode: "host", exp: nil},
-		{pidMode: "other", ipcMode: "host", exp: errors.New(`pid_mode must be "private" or "host", got "other"`)},
-	} {
-		require.Equal(t, tc.exp, (&TaskConfig{
-			ModePID: tc.pidMode,
-			ModeIPC: tc.ipcMode,
-		}).validate())
-	}
+			{pidMode: "host", ipcMode: "host", exp: nil},
+			{pidMode: "private", ipcMode: "host", exp: nil},
+			{pidMode: "", ipcMode: "host", exp: nil},
+			{pidMode: "other", ipcMode: "host", exp: errors.New(`pid_mode must be "private" or "host", got "other"`)},
+		} {
+			require.Equal(t, tc.exp, (&TaskConfig{
+				ModePID: tc.pidMode,
+				ModeIPC: tc.ipcMode,
+			}).validate())
+		}
+	})
+
+	t.Run("cap_add", func(t *testing.T) {
+		for _, tc := range []struct {
+			adds []string
+			exp  error
+		}{
+			{adds: nil, exp: nil},
+			{adds: []string{"chown"}, exp: nil},
+			{adds: []string{"CAP_CHOWN"}, exp: nil},
+			{adds: []string{"chown", "sys_time"}, exp: nil},
+			{adds: []string{"chown", "not_valid", "sys_time"}, exp: errors.New("cap_add configured with capabilities not supported by system: not_valid")},
+		} {
+			require.Equal(t, tc.exp, (&TaskConfig{
+				CapAdd: tc.adds,
+			}).validate())
+		}
+	})
+
+	t.Run("cap_drop", func(t *testing.T) {
+		for _, tc := range []struct {
+			drops []string
+			exp   error
+		}{
+			{drops: nil, exp: nil},
+			{drops: []string{"chown"}, exp: nil},
+			{drops: []string{"CAP_CHOWN"}, exp: nil},
+			{drops: []string{"chown", "sys_time"}, exp: nil},
+			{drops: []string{"chown", "not_valid", "sys_time"}, exp: errors.New("cap_drop configured with capabilities not supported by system: not_valid")},
+		} {
+			require.Equal(t, tc.exp, (&TaskConfig{
+				CapDrop: tc.drops,
+			}).validate())
+		}
+	})
 }

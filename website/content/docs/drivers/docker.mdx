@@ -452,30 +452,26 @@ config {
 - `cap_add` - (Optional) A list of Linux capabilities as strings to pass directly to
   [`--cap-add`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
   Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured allowlist.
-  The allowlist can be customized using the [`allow_caps`](#plugin_caps) plugin option key in the client node's configuration.
+  The allowlist can be customized using the [`allow_caps`][allow_caps] plugin option key in the client node's configuration.
   For example:
 
-  ```hcl
-  config {
-    cap_add = [
-      "SYS_TIME",
-    ]
-  }
-  ```
+```hcl
+config {
+  cap_add = ["net_raw", sys_time"]
+}
+```
 
 - `cap_drop` - (Optional) A list of Linux capabilities as strings to pass directly to
   [`--cap-drop`](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
   Effective capabilities (computed from `cap_add` and `cap_drop`) have to match the configured allowlist.
-  The allowlist can be customized using the [`allow_caps`](#plugin_caps) plugin option key in the client node's configuration.
+  The allowlist can be customized using the [`allow_caps`][allow_caps] plugin option key in the client node's configuration.
   For example:
 
-  ```hcl
-  config {
-    cap_drop = [
-      "MKNOD",
-    ]
-  }
-  ```
+```hcl
+config {
+  cap_drop = ["mknod"]
+}
+```
 
 - `cpu_hard_limit` - (Optional) `true` or `false` (default). Use hard CPU
   limiting instead of soft limiting. By default this is `false` which means
@@ -797,10 +793,7 @@ plugin "docker" {
     }
 
     allow_privileged = false
-    allow_caps       = ["CHOWN", "NET_RAW"]
-
-    # allow_caps can also be set to "ALL"
-    # allow_caps = ["ALL"]
+    allow_caps       = ["chown", "net_raw"]
   }
 }
 ```
@@ -823,13 +816,22 @@ plugin "docker" {
   from the Docker engine during an image pull within this timeframe, Nomad will
   timeout the request that initiated the pull command. (Minimum of `1m`)
 
-- `allow_caps`<a id="plugin_caps"></a> - A list of allowed Linux capabilities.
-  Defaults to
-  `CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP,SETPCAP, NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE` which is the list of
-  capabilities allowed by docker by default, as defined here. Allows the
-  operator to control which capabilities can be obtained by tasks using cap_add
-  and cap_drop options. Supports the value "ALL" as a shortcut for allowlisting
-  all capabilities.
+- `allow_caps` - A list of allowed Linux capabilities. Defaults to
+
+```hcl
+["audit_write", "chown", "dac_override", "fowner", "fsetid", "kill", "mknod",
+ "net_bind_service", "setfcap", "setgid", "setpcap", "setuid", "sys_chroot"]
+```
+
+  which is the same list of capabilities allowed by [docker by default][docker_caps]
+  (without [`NET_RAW`][no_net_raw]). Allows the operator to control which capabilities can be obtained
+  by tasks using [`cap_add`][cap_add] and [`cap_drop`][cap_drop] options. Supports
+  the value `"all"` as a shortcut for allow-listing all capabilities supported by
+  the operating system.
+
+!> **Warning:** Allowing more capabilities beyond the default may lead to
+undesirable consequences, including untrusted tasks being able to compromise the
+host system.
 
 - `allow_runtimes` - defaults to `["runc", "nvidia"]` - A list of the allowed
   docker runtimes a task may use.
@@ -1136,3 +1138,8 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [plugin-stanza]: /docs/configuration/plugin
 [allocation working directory]: /docs/runtime/environment#task-directories 'Task Directories'
 [`auth_soft_fail=true`]: #auth_soft_fail
+[cap_add]: /docs/drivers/docker#cap_add
+[cap_drop]: /docs/drivers/docker#cap_drop
+[no_net_raw]: /docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+[docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[allow_caps]: /docs/drivers/docker#allow_caps

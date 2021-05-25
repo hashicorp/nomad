@@ -37,6 +37,7 @@ func (s *grpcExecutorServer) Launch(ctx context.Context, req *proto.LaunchReques
 		NetworkIsolation:   drivers.NetworkIsolationSpecFromProto(req.NetworkIsolation),
 		ModePID:            req.DefaultPidMode,
 		ModeIPC:            req.DefaultIpcMode,
+		Capabilities:       req.Capabilities,
 	})
 
 	if err != nil {

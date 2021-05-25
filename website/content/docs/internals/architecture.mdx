@@ -20,58 +20,84 @@ spelunking through the source code.
 Before describing the architecture, we provide a glossary of terms to help
 clarify what is being discussed:
 
-- **Job** - A Job is a specification provided by users that declares a workload for
-  Nomad. A Job is a form of _desired state_; the user is expressing that the job should
-  be running, but not where it should be run. The responsibility of Nomad is to make sure
-  the _actual state_ matches the user desired state. A Job is composed of one or more
-  task groups.
+#### Job
 
-- **Task Group** - A Task Group is a set of tasks that must be run together. For example, a
-  web server may require that a log shipping co-process is always running as well. A task
-  group is the unit of scheduling, meaning the entire group must run on the same client node and
-  cannot be split.
+A Job is a specification provided by users that declares a workload for
+Nomad. A Job is a form of _desired state_; the user is expressing that the
+job should be running, but not where it should be run. The responsibility of
+Nomad is to make sure the _actual state_ matches the user desired state. A
+Job is composed of one or more task groups.
 
-- **Driver** – A Driver represents the basic means of executing your **Tasks**.
-  Example Drivers include Docker, QEMU, Java, and static binaries.
+#### Task Group
 
-- **Task** - A Task is the smallest unit of work in Nomad. Tasks are executed by drivers,
-  which allow Nomad to be flexible in the types of tasks it supports. Tasks
-  specify their driver, configuration for the driver, constraints, and resources required.
+A Task Group is a set of tasks that must be run together. For example, a web
+server may require that a log shipping co-process is always running as well. A
+task group is the unit of scheduling, meaning the entire group must run on the
+same client node and cannot be split.
 
-- **Client** - A Nomad client is an agent configured to run and manage tasks
-  using available compute resources on a machine. The agent is responsible for
-  registering with the servers, watching for any work to be assigned and executing
-  tasks. The Nomad agent is a long lived process which interfaces with the servers.
+#### Driver
 
-- **Allocation** - An Allocation is a mapping between a task group in a job and a client
-  node. A single job may have hundreds or thousands of task groups, meaning an equivalent
-  number of allocations must exist to map the work to client machines. Allocations are created
-  by the Nomad servers as part of scheduling decisions made during an evaluation.
+A Driver represents the basic means of executing your **Tasks**.  Example
+Drivers include Docker, QEMU, Java, and static binaries.
 
-- **Evaluation** - Evaluations are the mechanism by which Nomad makes scheduling decisions.
-  When either the _desired state_ (jobs) or _actual state_ (clients) changes, Nomad creates
-  a new evaluation to determine if any actions must be taken. An evaluation may result
-  in changes to allocations if necessary.
+#### Task
 
-- **Server** - Nomad servers are the brains of the cluster. There is a cluster of servers
-  per region and they manage all jobs and clients, run evaluations, and create task allocations.
-  The servers replicate data between each other and perform leader election to ensure high
-  availability. More information about latency requirements for servers can be found
-  in [Network Topology](/docs/install/production/requirements#network-topology).
+A Task is the smallest unit of work in Nomad. Tasks are executed by drivers,
+which allow Nomad to be flexible in the types of tasks it supports. Tasks
+specify their driver, configuration for the driver, constraints, and resources
+required.
 
-- **Regions** - Nomad models infrastructure as regions and datacenters. A region will contain
-  one or more datacenters. A set of servers joined together will represent a single
-  region. Servers federate across regions to make Nomad globally aware.
+#### Client
 
-- **Datacenters** - Nomad models a datacenter as an abstract grouping of clients within
-  a region. Nomad clients are not required to be in the same datacenter as the servers
-  they are joined with, but do need to be in the same region. Datacenters provide
-  a way to express fault tolerance among jobs as well as isolation of infrastructure.
+A Nomad client is an agent configured to run and manage tasks using available
+compute resources on a machine. The agent is responsible for registering with
+the servers, watching for any work to be assigned and executing tasks. The
+Nomad agent is a long lived process which interfaces with the servers.
 
-- **Bin Packing** - Bin Packing is the process of filling bins with items in a way that
-  maximizes the utilization of bins. This extends to Nomad, where the clients are "bins"
-  and the items are task groups. Nomad optimizes resources by efficiently bin packing
-  tasks onto client machines.
+#### Allocation
+
+An Allocation is a mapping between a task group in a job and a client node. A
+single job may have hundreds or thousands of task groups, meaning an
+equivalent number of allocations must exist to map the work to client
+machines. Allocations are created by the Nomad servers as part of scheduling
+decisions made during an evaluation.
+
+#### Evaluation
+
+Evaluations are the mechanism by which Nomad makes scheduling decisions.  When
+either the _desired state_ (jobs) or _actual state_ (clients) changes, Nomad
+creates a new evaluation to determine if any actions must be taken. An
+evaluation may result in changes to allocations if necessary.
+
+#### Server
+
+Nomad servers are the brains of the cluster. There is a cluster of servers per
+region and they manage all jobs and clients, run evaluations, and create task
+allocations.  The servers replicate data between each other and perform leader
+election to ensure high availability. More information about latency
+requirements for servers can be found in [Network
+Topology](/docs/install/production/requirements#network-topology).
+
+#### Regions
+
+Nomad models infrastructure as regions and datacenters. A region will contain
+one or more datacenters. A set of servers joined together will represent a
+single region. Servers federate across regions to make Nomad globally aware.
+
+#### Datacenters
+
+Nomad models a datacenter as an abstract grouping of clients within a
+region. Nomad clients are not required to be in the same datacenter as the
+servers they are joined with, but do need to be in the same
+region. Datacenters provide a way to express fault tolerance among jobs as
+well as isolation of infrastructure.
+
+#### Bin Packing
+
+Bin Packing is the process of filling bins with items in a way that maximizes
+the utilization of bins. This extends to Nomad, where the clients are "bins"
+and the items are task groups. Nomad optimizes resources by efficiently bin
+packing tasks onto client machines.
 
 # High-Level Overview
 

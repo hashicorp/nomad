@@ -779,7 +779,7 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "good token",
@@ -912,7 +912,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "alloc-exec token",
@@ -1061,7 +1061,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "alloc-exec token",
@@ -1205,12 +1205,12 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "alloc-exec token",
 			Token:         tokenAllocExec.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "alloc-node-exec token",

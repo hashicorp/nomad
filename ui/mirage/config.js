@@ -5,10 +5,11 @@ import { logFrames, logEncode } from './data/logs';
 import { generateDiff } from './factories/job-version';
 import { generateTaskGroupFailures } from './factories/evaluation';
 import { copy } from 'ember-copy';
+import formatHost from 'nomad-ui/utils/format-host';
 
 export function findLeader(schema) {
   const agent = schema.agents.first();
-  return `${agent.address}:${agent.tags.port}`;
+  return formatHost(agent.address, agent.tags.port);
 }
 
 export function filesForPath(allocFiles, filterPath) {

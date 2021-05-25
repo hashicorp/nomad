@@ -5,6 +5,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import { findLeader } from '../../mirage/config';
 import ServersList from 'nomad-ui/tests/pages/servers/list';
+import formatHost from 'nomad-ui/utils/format-host';
 
 const minimumSetup = () => {
   server.createList('node', 1);
@@ -12,9 +13,9 @@ const minimumSetup = () => {
 };
 
 const agentSort = leader => (a, b) => {
-  if (`${a.address}:${a.tags.port}` === leader) {
+  if (formatHost(a.address, a.tags.port) === leader) {
     return 1;
-  } else if (`${b.address}:${b.tags.port}` === leader) {
+  } else if (formatHost(b.address, b.tags.port) === leader) {
     return -1;
   }
   return 0;

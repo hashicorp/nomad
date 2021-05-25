@@ -1395,7 +1395,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 		},
 		{
 			Name:    "default-allowlist-drop-existing",
-			CapDrop: []string{"fowner", "mknod"},
+			CapDrop: []string{"fowner", "mknod", "net_raw"},
 		},
 		{
 			Name:      "restrictive-allowlist-drop-all",
@@ -1406,7 +1406,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 			Name:      "restrictive-allowlist-add-allowed",
 			CapAdd:    []string{"fowner", "mknod"},
 			CapDrop:   []string{"all"},
-			Allowlist: "fowner,mknod",
+			Allowlist: "mknod,fowner",
 		},
 		{
 			Name:       "restrictive-allowlist-add-forbidden",
@@ -1417,7 +1417,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 		},
 		{
 			Name:      "permissive-allowlist",
-			CapAdd:    []string{"net_admin", "mknod"},
+			CapAdd:    []string{"mknod", "net_admin"},
 			Allowlist: "all",
 		},
 		{

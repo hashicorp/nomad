@@ -146,5 +146,6 @@ func (c *VolumeDeregisterCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.Ui.Output(fmt.Sprintf("Successfully deregistered volume %q!", volID))
 	return 0
 }
