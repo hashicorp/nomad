@@ -515,13 +515,6 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 		go forwardExecInput(encoder, ws, errCh)
 
 		for {
-			select {
-			case <-ctx.Done():
-				errCh <- nil
-				return
-			default:
-			}
-
 			var res cstructs.StreamErrWrapper
 			err := decoder.Decode(&res)
 			if isClosedError(err) {

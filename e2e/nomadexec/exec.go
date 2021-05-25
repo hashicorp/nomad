@@ -7,7 +7,6 @@ import (
 	"io"
 	"reflect"
 	"regexp"
-	"strings"
 	"testing"
 	"time"
 
@@ -90,13 +89,7 @@ func (tc *NomadExecE2ETest) TestExecBasicResponses(f *framework.F) {
 				stdin, &stdout, &stderr,
 				resizeCh, nil)
 
-			// TODO: Occasionally, we get "Unexpected EOF" error, but with the correct output.
-			// investigate why
-			if err != nil && strings.Contains(err.Error(), io.ErrUnexpectedEOF.Error()) {
-				f.T().Logf("got unexpected EOF error, ignoring: %v", err)
-			} else {
-				assert.NoError(t, err)
-			}
+			assert.NoError(t, err)
 
 			assert.Equal(t, c.ExitCode, exitCode)
 
