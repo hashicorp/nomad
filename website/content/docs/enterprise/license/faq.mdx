@@ -53,9 +53,9 @@ If you have built automation around `nomad license put`, this command will fail 
 
 ## Q: What are some other gotchas?
 
-Operators at a company might not have access to the company's Nomad license. 
+You might not have access to your oragnization's Nomad license. 
 The  6-hour temporary license window is now removed, and a license is required for proper boot-up.
-Running `nomad agent -dev` will fail for these users. 
+Running `nomad agent -dev` without a license will fail.
 
 
 ## Q: How can a user get their existing license to put on disk for an upgrade?
