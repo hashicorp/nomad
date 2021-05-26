@@ -1,14 +1,14 @@
 {
   "version": "v1",
   "packages": {
+    "@hashicorp/react-docs-sidenav": {
+      "signature": "c0887d409c897e5c5c64eccde52d77af",
+      "file": true
+    },
     "@hashicorp/react-docs-page": {
       "signature": "43e1b1410863df8416d662db0d4bc7c6",
       "file": true,
       "replaced": "^13.2.0-alpha.0"
-    },
-    "@hashicorp/react-docs-sidenav": {
-      "signature": "c0887d409c897e5c5c64eccde52d77af",
-      "file": true
     }
   }
 }
