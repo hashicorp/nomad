@@ -8,6 +8,7 @@ import (
 	"io"
 	"strconv"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -27,6 +28,8 @@ type execSession struct {
 	terminalSizeCh <-chan TerminalSize
 
 	q *QueryOptions
+
+	t *testing.T
 }
 
 func (s *execSession) run(ctx context.Context) (exitCode int, err error) {
@@ -45,10 +48,19 @@ func (s *execSession) run(ctx context.Context) (exitCode int, err error) {
 	for {
 		select {
 		case <-ctx.Done():
+			if s.t != nil {
+				s.t.Logf("api exec: ctx expired")
+			}
 			return -2, ctx.Err()
 		case exitCode := <-exitCh:
+			if s.t != nil {
+				s.t.Logf("api exec: received exit_code=%v", exitCode)
+			}
 			return exitCode, nil
 		case recvErr := <-recvErrCh:
+			if s.t != nil {
+				s.t.Logf("api exec: recv_err error=%v", recvErr)
+			}
 			// drop websocket code, not relevant to user
 			if wsErr, ok := recvErr.(*websocket.CloseError); ok && wsErr.Text != "" {
 				return -2, errors.New(wsErr.Text)
@@ -56,6 +68,9 @@ func (s *execSession) run(ctx context.Context) (exitCode int, err error) {
 
 			return -2, recvErr
 		case sendErr := <-sendErrCh:
+			if s.t != nil {
+				s.t.Logf("api exec: send_err error=%v", sendErr)
+			}
 			return -2, fmt.Errorf("failed to send input: %w", sendErr)
 		}
 	}
@@ -117,7 +132,10 @@ func (s *execSession) startTransmit(ctx context.Context, conn *websocket.Conn) <
 		sendLock.Lock()
 		defer sendLock.Unlock()
 
-		conn.WriteJSON(v)
+		err := conn.WriteJSON(v)
+		if s.t != nil {
+			s.t.Logf("api exec: failed to send v=%#+v error=%v", v, err)
+		}
 	}
 
 	errCh := make(chan error, 4)
@@ -202,6 +220,10 @@ func (s *execSession) startReceiving(ctx context.Context, conn *websocket.Conn) 
 			// Decode the next frame
 			var frame ExecStreamingOutput
 			err := conn.ReadJSON(&frame)
+			if s.t != nil {
+				s.t.Logf("api exec: received frame=%#+v error=%v", frame, err)
+			}
+
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 				errCh <- fmt.Errorf("websocket closed before receiving exit code: %w", err)
 				return

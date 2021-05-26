@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"testing"
 	"time"
 )
 
@@ -99,6 +100,31 @@ func (a *Allocations) Exec(ctx context.Context,
 	return s.run(ctx)
 }
 
+func (a *Allocations) ExecWithTesting(ctx context.Context,
+	t *testing.T,
+	alloc *Allocation, task string, tty bool, command []string,
+	stdin io.Reader, stdout, stderr io.Writer,
+	terminalSizeCh <-chan TerminalSize, q *QueryOptions) (exitCode int, err error) {
+
+	s := &execSession{
+		client:  a.client,
+		alloc:   alloc,
+		task:    task,
+		tty:     tty,
+		command: command,
+
+		stdin:  stdin,
+		stdout: stdout,
+		stderr: stderr,
+
+		terminalSizeCh: terminalSizeCh,
+		q:              q,
+
+		t: t,
+	}
+
+	return s.run(ctx)
+}
 func (a *Allocations) Stats(alloc *Allocation, q *QueryOptions) (*AllocResourceUsage, error) {
 	var resp AllocResourceUsage
 	path := fmt.Sprintf("/v1/client/allocation/%s/stats", alloc.ID)
