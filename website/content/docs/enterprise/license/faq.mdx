@@ -16,6 +16,7 @@ Starting with Nomad Enterprise v1.1.0, the license enablement process is differe
 
 HashiCorp Enterprise servers will no longer start without a license. When the server instance initializes the license watcher, the server reads from either an environment variable or file. If the license is missing, invalid, or expired, the server will immediately exit. 
 This check is part of the server boot-up process.
+
 In previous versions of HashiCorp enterprise products, one server could distribute a license to other servers via the Raft protocol. 
 This will no longer work since each server must be able to find a valid license during the startup process.
 
@@ -60,7 +61,8 @@ Running `nomad agent -dev` without a license will fail.
 
 ## Q: How can a user get their existing license to put on disk for an upgrade?
 
-Use `nomad license get` to retrieve the license, then save the license to disk.
+If you are an existing HashiCorp enterprise customer you may contact your organization's customer success manager (CSM) or email support-softwaredelivery@hashicorp.com for information on how to get your organization's enterprise license.
+You can use `nomad license get` to retrieve information about the license, but not the license itself. 
 
 ## Q: What happens when a license expires?
 If a license expires after a server node joins the cluster, the existing Enterprise features will continue to operate until a grace period expires. 
