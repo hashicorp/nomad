@@ -10541,6 +10541,67 @@ type Plan struct {
 	SnapshotIndex uint64
 }
 
+func (p *Plan) GoString() string {
+	out := fmt.Sprintf("(eval %s", p.EvalID[:8])
+	out += fmt.Sprintf(", job %s", p.Job.ID)
+	if p.Deployment != nil {
+		out += fmt.Sprintf(", deploy %s", p.Deployment.ID[:8])
+	}
+	if len(p.NodeUpdate) > 0 {
+		out += ", NodeUpdates: "
+		for node, allocs := range p.NodeUpdate {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s stop/evict)", alloc.ID[:8])
+			}
+			out += ")"
+		}
+	}
+	if len(p.NodeAllocation) > 0 {
+		out += ", NodeAllocations: "
+		for node, allocs := range p.NodeAllocation {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s %s %s)",
+					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
+				)
+			}
+			out += ")"
+		}
+	}
+	if len(p.NodePreemptions) > 0 {
+		out += ", NodePreemptions: "
+		for node, allocs := range p.NodePreemptions {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s %s %s)",
+					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
+				)
+			}
+			out += ")"
+		}
+	}
+	if len(p.DeploymentUpdates) > 0 {
+		out += ", DeploymentUpdates: "
+		for _, dupdate := range p.DeploymentUpdates {
+			out += fmt.Sprintf("(%s %s)",
+				dupdate.DeploymentID[:8], dupdate.Status)
+		}
+	}
+	if p.Annotations != nil {
+		out += ", Annotations: "
+		for tg, updates := range p.Annotations.DesiredTGUpdates {
+			out += fmt.Sprintf("(update[%s] %v)", tg, updates)
+		}
+		for _, preempted := range p.Annotations.PreemptedAllocs {
+			out += fmt.Sprintf("(preempt %s)", preempted.ID[:8])
+		}
+	}
+
+	out += ")"
+	return out
+}
+
 // AppendStoppedAlloc marks an allocation to be stopped. The clientStatus of the
 // allocation may be optionally set by passing in a non-empty value.
 func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus, followupEvalID string) {
