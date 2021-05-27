@@ -1760,10 +1760,20 @@
       {
         "title": "Overview",
         "path": "enterprise"
-      },
+      }, 
       {
         "title": "License",
-        "path": "enterprise/license"
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "enterprise/license"
+
+          },
+          {
+            "title": "FAQ",
+            "path": "enterprise/license/faq"
+          }
+        ]
       }
     ]
   },
