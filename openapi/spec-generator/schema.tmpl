@@ -1,0 +1,32 @@
+    {{ .Name }}:
+      type: object
+      title: {{ .Title }}
+      properties:
+        {{- range .Properties }}
+        {{ .Name }}
+          {{ .Type }}
+          {{- if eq .Type "object"}}
+          additionalProperties:
+            {{ if eq .AdditionalPropertyType "ref" }}
+            $ref : '#/components/schemas/{{ .AdditionalPropertyType.Ref.Name }}
+            {{ else }}
+            type: {{ .AdditionalPropertyType }}
+            {{- if eq .AdditionalPropertyType "integer"}}
+            format: {{ .Format }}
+            {{ end }}
+            {{- end }}
+          {{- else if  eq .Type "array"}}
+          items:
+            {{ if eq .ItemsType "ref" }}
+            $ref : '#/components/schemas/{{ .Ref.Name }}
+            {{ else }}
+            type: {{ .ItemsType }}
+            {{- if eq .ItemsType "integer"}}
+            format: {{ .ItemsTypeFormat }}
+            {{ end }}
+            {{ end }}
+          {{- else if eq. .Type "ref "}}
+          $ref : '#/components/schemas/{{ .Ref.Name }}
+          {{- end }}
+        {{- end }}
+      x-go-package: {{ .GoPackage }}

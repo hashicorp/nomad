@@ -73,7 +73,7 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // Spec defines the available specification types.
 type Spec struct {
-	// Types that are valid to be assigned to Block:
+	// Structs that are valid to be assigned to Block:
 	//	*Spec_Object
 	//	*Spec_Array
 	//	*Spec_Attr

@@ -1,9 +1,11 @@
 package agent
 
 import (
+	"github.com/hashicorp/nomad/testutil"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -50,22 +52,29 @@ func TestHTTP_JobsList(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
-			t.Fatalf("missing index")
-		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
-			t.Fatalf("missing known leader")
-		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
-			t.Fatalf("missing last contact")
-		}
+		testutil.ValidateMetaResponseHeaders(respW, t)
 
 		// Check the job
 		j := obj.([]*structs.JobListStub)
 		if len(j) != 3 {
 			t.Fatalf("bad: %#v", j)
 		}
+
+		oac, ctx := testutil.OpenAPIV1.NewClientAndContext("http", strconv.Itoa(s.Config.Ports.HTTP))
+
+		jobsRequest := oac.JobsApi.GetJobs(ctx)
+
+		jobs, apiResponse, err := oac.JobsApi.GetJobsExecute(jobsRequest)
+		if err != nil {
+			t.Fatalf("OpenAPI client error getJobs: %s", err)
+		}
+
+		// Check the response
+		if len(jobs) != 3 {
+			t.Fatalf("OpenAPI bad response getJobs: %v", jobs)
+		}
+
+		testutil.OpenAPIV1.ValidateMetaHeaders(apiResponse, t)
 	})
 }
 
@@ -1105,6 +1114,27 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
+
+		// Begin OpenAPI Client test
+		oac, ctx := testutil.OpenAPIV1.NewClientAndContext("http", strconv.Itoa(s.Config.Ports.HTTP))
+		jobAllocReq := oac.JobsApi.GetJobAllocations(ctx, alloc1.Job.ID).All(1)
+
+		allocations, apiResponse, err := oac.JobsApi.GetJobAllocationsExecute(jobAllocReq)
+		if err != nil {
+			t.Fatalf("OpenAPI client error: %s", err)
+		}
+
+		// Check the response
+		if len(allocations) != 1 || *allocations[0].ID != alloc1.ID {
+			t.Fatalf("OpenAPI bad response: %v", allocs)
+		}
+
+		taskStates := *allocations[0].TaskStates
+		e := *taskStates["test"].Events
+		displayMsg = *e[0].DisplayMessage
+		assert.Equal(t, expectedDisplayMsg, displayMsg)
+
+		testutil.OpenAPIV1.ValidateMetaHeaders(apiResponse, t)
 	})
 }
 

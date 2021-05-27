@@ -11,11 +11,11 @@ import (
 )
 
 var (
-	// DefaultUnsafeTypes are Content-Types that browsers will render as hypertext.
-	// Any Content-Types that allow Javascript or remote resource fetching must be
+	// DefaultUnsafeTypes are Content-Structs that browsers will render as hypertext.
+	// Any Content-Structs that allow Javascript or remote resource fetching must be
 	// converted to a Content-Type that prevents evaluation.
 	//
-	// Types are prefix matched to avoid comparing against specific
+	// Structs are prefix matched to avoid comparing against specific
 	// character sets (eg "text/html; charset=utf-8") which may be user
 	// controlled.
 	DefaultUnsafeTypes = map[string]string{
@@ -34,7 +34,7 @@ var (
 )
 
 // NoXSSResponseWriter implements http.ResponseWriter but prevents renderable
-// Content-Types from being automatically detected. Create with
+// Content-Structs from being automatically detected. Create with
 // NewResponseWriter.
 type NoXSSResponseWriter struct {
 	// TypeMap maps types unsafe for untrusted content to their safe

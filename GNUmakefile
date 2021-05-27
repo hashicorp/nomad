@@ -109,7 +109,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
 	go install gotest.tools/gotestsum@v0.4.2
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@v2.5.1
-	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+	go install github.com/golang/protobuf/protoc-gen-go@v1.5.2
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
@@ -184,7 +184,7 @@ checkproto: ## Lint protobuf files
 	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
 
 .PHONY: generate-all
-generate-all: generate-structs proto generate-examples
+generate-all: generate-structs proto openapi generate-examples
 
 .PHONY: generate-structs
 generate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
@@ -199,6 +199,13 @@ proto:
 
 .PHONY: generate-examples
 generate-examples: command/job_init.bindata_assetfs.go
+
+.PHONY: openapi
+openapi:
+	@echo "--> Building OpenAPI Specification and test client"
+	@node openapi/v1/build-spec.js
+    @docker run --rm -v "${PWD}:/local" openapitools/openapi-generator-cli batch /local/openapi/v1/config.yaml
+
 
 command/job_init.bindata_assetfs.go: command/assets/*
 	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
