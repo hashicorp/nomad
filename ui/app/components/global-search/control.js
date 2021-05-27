@@ -71,10 +71,10 @@ export default class GlobalSearchControl extends Component {
       label: name,
     }));
 
-    const allocationResults = allAllocationResults.slice(0, MAXIMUM_RESULTS).map(({ ID: name, Scope: [ , id ]}) => ({
+    const allocationResults = allAllocationResults.slice(0, MAXIMUM_RESULTS).map(({ ID: name, Scope: [ namespace, id ]}) => ({
       type: 'allocation',
       id,
-      label: name,
+      label: `${name} @ ${namespace}`,
     }));
 
     const taskGroupResults = allTaskGroupResults.slice(0, MAXIMUM_RESULTS).map(({ ID: id, Scope: [ namespace, jobId ]}) => ({

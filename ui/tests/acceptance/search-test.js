@@ -70,7 +70,7 @@ module('Acceptance | search', function(hooks) {
     assert.equal(currentURL(), `/clients/${otherNode.id}`);
 
     await selectSearch(Layout.navbar.search.scope, firstAllocation.name);
-    assert.equal(Layout.navbar.search.groups[2].options[0].text, firstAllocation.name);
+    assert.equal(Layout.navbar.search.groups[2].options[0].text, `${firstAllocation.name} @ ${firstAllocation.namespace}`);
     await Layout.navbar.search.groups[2].options[0].click();
     assert.equal(currentURL(), `/allocations/${firstAllocation.id}`);
 
