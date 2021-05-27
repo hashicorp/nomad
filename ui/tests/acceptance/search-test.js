@@ -83,11 +83,21 @@ module('Acceptance | search', function(hooks) {
     await Layout.navbar.search.groups[4].options[0].click();
     assert.equal(currentURL(), '/csi/plugins/xyz-plugin');
 
-    const featureDetectionQueries = server.pretender.handledRequests
-      .filterBy('url', '/v1/search/fuzzy')
+    const fuzzySearchQueries = server.pretender.handledRequests
+      .filterBy('url', '/v1/search/fuzzy');
+
+    const featureDetectionQueries = fuzzySearchQueries
       .filter(request => request.requestBody.includes('feature-detection-query'));
 
-    assert.equal(featureDetectionQueries.length, 1, 'expect the feature detection query to only run once');
+    assert.ok(featureDetectionQueries.length, 1, 'expect the feature detection query to only run once');
+
+    const realFuzzySearchQuery = fuzzySearchQueries[1];
+
+    assert.deepEqual(JSON.parse(realFuzzySearchQuery.requestBody), {
+      'Context': 'all',
+      'Namespace': '*',
+      'Text': 'xy'
+    });
   });
 
   test('search does not perform a request when only one character has been entered', async function(assert) {

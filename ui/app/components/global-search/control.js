@@ -46,6 +46,7 @@ export default class GlobalSearchControl extends Component {
       body: JSON.stringify({
         Text: string,
         Context: 'all',
+        Namespace: '*',
       }),
     });
 
