@@ -3254,12 +3254,6 @@ components:
       description: Indicates where to start paging for queries that support pagination
       name: next_token
       in: query
-    NomadTokenHeader:
-      schema:
-        type: string
-      description: A Nomad ACL token
-      name: X-Nomad-Token
-      in: header
     PerPageParam:
       schema:
         type: integer
@@ -3290,6 +3284,31 @@ components:
       description: Provided with IndexParam to wait for change
       name: wait
       in: query
+    NomadTokenHeader:
+      schema:
+        type: string
+      description: A Nomad ACL token
+      name: X-Nomad-Token
+      in: header
+  headers:
+    X-Nomad-Index:
+      schema:
+        type: integer
+      description: >
+        Endpoints that support blocking queries return an HTTP header named set
+        this unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+    X-Nomad-Known-Leader:
+      schema:
+        type: boolean
+      description: >
+        Flag indicating the agent that fulfilled the request had known Raft leader
+        at the time of the operation.
+    X-Nomad-Last-Contact:
+      schema:
+        type: integer
+      description: >
+        If AllowStale is used, this is time elapsed since last contact between
+        the follower and leader. This can be used to gauge staleness.
   responses:
     Forbidden:
       description: Forbidden
@@ -3300,21 +3319,23 @@ components:
     NotFound:
       description: Not found
 paths:
-  '/job/{jobName}/allocations':
+  /job/{jobName}/allocations:
     get:
+      tags:
+        - Jobs
       summary: >
         Gets information about a single job's allocations.
         See [documentation](https://www.nomadproject.io/api-docs/allocations#list-allocations).
       operationId: getJobAllocations
       parameters:
-        - $ref: '#/parameters/JobNameParam'
-        - $ref: '#/parameters/AllParam'
-        - $ref: '#/parameters/RegionParam'
-        - $ref: '#/parameters/StaleParam'
-        - $ref: '#/parameters/PrefixParam'
-        - $ref: '#/parameters/NamespaceParam'
-        - $ref: '#/parameters/PerPageParam'
-        - $ref: '#/parameters/NextTokenParam'
+        - $ref: '#/components/parameters/JobNameParam'
+        - $ref: '#/components/parameters/AllParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StaleParam'
+        - $ref: '#/components/parameters/PrefixParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/NextTokenParam'
       responses:
         '200':
           description: List of allocations for the specified job.
@@ -3324,68 +3345,58 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/AllocListStub'
-          $ref:
           headers:
-            Content-Type:
-              type: string
-              description: Informs clients that payload will be in application/json form.
             X-Nomad-Index:
-              type: integer
-              description: Endpoints that support blocking queries return an HTTP header named set this unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
-            X-Nomad-KnownLeader:
-              type: boolean
-              description: Flag indicating the agent that fulfilled the request had known Raft leader at the time of the operation.
-            X-Nomad-LastContact:
-              type: integer
-              description: 'If AllowStale is used, this is time elapsed since last contact between the follower and leader. This can be used to gauge staleness.'
+              $ref: '#/components/headers/X-Nomad-Index'
+            X-Nomad-Known-Leader:
+              $ref: '#/components/headers/X-Nomad-Known-Leader'
+            X-Nomad-Last-Contact:
+              $ref: '#/components/headers/X-Nomad-Last-Contact'
         '403':
-          $ref: '#/responses/Forbidden'
+          $ref: '#/components/responses/Forbidden'
         '405':
-          $ref: '#/responses/MethodNotAllowed'
+          $ref: '#/components/responses/MethodNotAllowed'
         '500':
-          $ref: '#/responses/InternalServerError'
-  '/job/{jobName}/evaluate':
+          $ref: '#/components/responses/InternalServerError'
+  /job/{jobName}/evaluate:
     put:
-      produces:
-        - application/json
       summary: 'Creates a new evaluation for the given job. This can be used to force run the scheduling logic if necessary. See https://www.nomadproject.io/api-docs/jobs#create-job-evaluation.'
       operationId: evaluateJob
       parameters:
-        - $ref: '#/parameters/JobNameParam'
-        - description: The job to force an evaluation of.
-          name: jobEvaluateRequest
-          in: body
-          schema:
-            $ref: '#/definitions/JobEvaluateRequest'
+        - $ref: '#/components/parameters/JobNameParam'
+      requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobEvaluateRequest'
       responses:
         '200':
-          description: (empty)
+          description: Contains relevant query response metadata.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/JobRegisterResponse'
-          headers:
-            Content-Type:
-              type: string
-              description: Informs clients that payload will be in application/json form.
         '403':
-          $ref: '#/responses/Forbidden'
+          $ref: '#/components/responses/Forbidden'
         '405':
-          $ref: '#/responses/MethodNotAllowed'
+          $ref: '#/components/responses/MethodNotAllowed'
         '500':
-          $ref: '#/responses/InternalServerError'
+          $ref: '#/components/responses/InternalServerError'
   '/job/{jobName}/evaluations':
     get:
-      summary: 'Gets information about a single job''s evaluations. See https://www.nomadproject.io/api-docs/evaluations#list-evaluations.'
+      summary: >
+        Gets information about a single job's evaluations.
+        See [documentation](https://www.nomadproject.io/api-docs/evaluations#list-evaluations).
       operationId: getJobEvaluations
       parameters:
-        - $ref: '#/parameters/JobNameParam'
-        - $ref: '#/parameters/RegionParam'
-        - $ref: '#/parameters/StaleParam'
-        - $ref: '#/parameters/PrefixParam'
-        - $ref: '#/parameters/NamespaceParam'
-        - $ref: '#/parameters/PerPageParam'
-        - $ref: '#/parameters/NextTokenParam'
+        - $ref: '#/components/parameters/JobNameParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StaleParam'
+        - $ref: '#/components/parameters/PrefixParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/NextTokenParam'
       responses:
         '200':
           description: A list of job evaluations.
@@ -3394,118 +3405,98 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/definitions/Evaluation'
+                  $ref: '#/components/schemas/Evaluation'
           headers:
-            Content-Type:
-              type: string
-              description: Informs clients that payload will be in application/json form.
             X-Nomad-Index:
-              type: integer
-              description: Unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
-            X-Nomad-KnownLeader:
-              type: boolean
-              description: Flag indicating the agent that fulfilled the request had a known Raft leader at the time of the operation.
-            X-Nomad-LastContact:
-              type: integer
-              description: 'If AllowStale is used, this is time elapsed since last contact between the follower and leader. This can be used to gauge staleness.'
+              $ref: '#/components/headers/X-Nomad-Index'
+            X-Nomad-Known-Leader:
+              $ref: '#/components/headers/X-Nomad-Known-Leader'
+            X-Nomad-Last-Contact:
+              $ref: '#/components/headers/X-Nomad-Last-Contact'
         '403':
-          $ref: '#/responses/Forbidden'
+          $ref: '#/components/responses/Forbidden'
         '405':
-          $ref: '#/responses/MethodNotAllowed'
+          $ref: '#/components/responses/MethodNotAllowed'
         '500':
-          $ref: '#/responses/InternalServerError'
-  '/job/{jobName}/periodic/force':
+          $ref: '#/components/responses/InternalServerError'
+  /job/{jobName}/periodic/force:
     put:
-      produces:
-        - application/json
       summary: 'Forces a new instance of the periodic job. A new instance will be created even if it violates the job''s prohibit_overlap settings. As such, this should be only used to immediately run a periodic job. See [documentation](https://www.nomadproject.io/docs/commands/job/periodic-force).'
       operationId: putJobForceRequest
       parameters:
-        - $ref: '#/parameters/JobNameParam'
-        - $ref: '#/parameters/RegionParam'
-        - $ref: '#/parameters/NamespaceParam'
-        - $ref: '#/parameters/NomadTokenHeader'
+        - $ref: '#/components/parameters/JobNameParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
       responses:
         '200':
           description: Returns a type containing relevant write operation metadata.
-          schema:
-            $ref: '#/definitions/PeriodicForceResponse'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schema/PeriodicForceResponse'
           headers:
-            Content-Type:
-              type: string
-              description: Informs clients that payload will be in application/json form.
             X-Nomad-Index:
-              type: integer
-              description: Unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+              $ref: '#/components/headers/X-Nomad-Index'
         '403':
-          $ref: '#/responses/Forbidden'
+          $ref: '#/components/responses/Forbidden'
         '405':
-          $ref: '#/responses/MethodNotAllowed'
+          $ref: '#/components/responses/MethodNotAllowed'
         '500':
-          $ref: '#/responses/InternalServerError'
+          $ref: '#/components/responses/InternalServerError'
   /jobs:
     get:
-      produces:
-        - application/json
       summary: 'List all known jobs registered with Nomad. See https://www.nomadproject.io/api-docs/jobs#list-jobs.'
       operationId: getJobs
       parameters:
-        - $ref: '#/parameters/RegionParam'
-        - $ref: '#/parameters/StaleParam'
-        - $ref: '#/parameters/PrefixParam'
-        - $ref: '#/parameters/NamespaceParam'
-        - $ref: '#/parameters/PerPageParam'
-        - $ref: '#/parameters/NextTokenParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StaleParam'
+        - $ref: '#/components/parameters/PrefixParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/NextTokenParam'
       responses:
         '200':
           description: List of jobs
-          schema:
-            type: array
-            items:
-              $ref: '#/definitions/JobListStub'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schema/JobListStub'
           headers:
-            Content-Type:
-              type: string
-              description: Informs clients that payload will be in application/json form.
             X-Nomad-Index:
-              type: integer
-              description: Endpoints that support blocking queries return an HTTP header named set this unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
-            X-Nomad-KnownLeader:
-              type: boolean
-              description: Flag indicating the agent that fulfilled the request had known Raft leader at the time of the operation.
-            X-Nomad-LastContact:
-              type: integer
-              description: 'If AllowStale is used, this is time elapsed since last contact between the follower and leader. This can be used to gauge staleness.'
+              $ref: '#/components/headers/X-Nomad-Index'
+            X-Nomad-Known-Leader:
+              $ref: '#/components/headers/X-Nomad-Known-Leader'
+            X-Nomad-Last-Contact:
+              $ref: '#/components/headers/X-Nomad-Last-Contact'
         '403':
-          $ref: '#/responses/Forbidden'
+          $ref: '#/components/responses/Forbidden'
         '500':
-          $ref: '#/responses/InternalServerError'
+          $ref: '#/components/responses/InternalServerError'
   /jobs/parse:
     put:
-      produces:
-        - application/json
       summary: 'Parses a HCL jobspec and produce the equivalent JSON encoded job. See https://www.nomadproject.io/api-docs/jobs#parse-job.'
       operationId: parseJobSpec
-      parameters:
-        - description: Container request that contains the HCL to parse.
-          name: JobParseRequest
-          in: body
-          schema:
-            $ref: '#/definitions/JobsParseRequest'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobsParseRequest'
       responses:
         '200':
-          description: (empty)
-          schema:
-            $ref: '#/definitions/Job'
-          headers:
-            Content-Type:
-              type: string
-              description: Informs clients that payload will be in application/json form.
+          description: 'Parsed HCL job spec in JSON format.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schema/Job'
         '400':
           description: (empty)
         '403':
-          $ref: '#/responses/Forbidden'
+          $ref: '#/components/responses/Forbidden'
         '405':
-          $ref: '#/responses/MethodNotAllowed'
+          $ref: '#/components/responses/MethodNotAllowed'
         '500':
-          $ref: '#/responses/InternalServerError'
+          $ref: '#/components/responses/InternalServerError'
