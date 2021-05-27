@@ -154,7 +154,7 @@ func csiFormatSnapshots(snapshots []*api.CSISnapshot, verbose bool) string {
 	}
 	for _, v := range snapshots {
 		rows = append(rows, fmt.Sprintf("%s|%s|%s|%s|%v",
-			limit(v.ID, length),
+			v.ID,
 			limit(v.ExternalSourceVolumeID, length),
 			humanize.IBytes(uint64(v.SizeBytes)),
 			formatUnixNanoTime(v.CreateTime),
