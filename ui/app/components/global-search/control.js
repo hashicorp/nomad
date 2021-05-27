@@ -61,7 +61,7 @@ export default class GlobalSearchControl extends Component {
       type: 'job',
       id,
       namespace,
-      label: name,
+      label: `${name} @ ${namespace}`,
     }));
 
     const nodeResults = allNodeResults.slice(0, MAXIMUM_RESULTS).map(({ ID: name, Scope: [ id ]}) => ({
