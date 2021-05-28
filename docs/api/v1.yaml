@@ -74,7 +74,7 @@ components:
       type: object
       properties:
         AllocatedResources:
-          $ref: '#/definitions/AllocatedResources'
+          $ref: '#/components/schemas/AllocatedResources'
         ClientDescription:
           type: string
         ClientStatus:
@@ -86,13 +86,13 @@ components:
           type: integer
           format: int64
         DeploymentStatus:
-          $ref: '#/definitions/AllocDeploymentStatus'
+          $ref: '#/components/schemas/AllocDeploymentStatus'
         DesiredDescription:
           type: string
         DesiredStatus:
           type: string
         DesiredTransition:
-          $ref: '#/definitions/DesiredTransition'
+          $ref: '#/components/schemas/DesiredTransition'
         EvalID:
           type: string
         FollowupEvalID:
@@ -127,13 +127,13 @@ components:
         PreemptedByAllocation:
           type: string
         RescheduleTracker:
-          $ref: '#/definitions/RescheduleTracker'
+          $ref: '#/components/schemas/RescheduleTracker'
         TaskGroup:
           type: string
         TaskStates:
           type: object
           additionalProperties:
-            $ref: '#/definitions/TaskState'
+            $ref: '#/components/schemas/TaskState'
       x-go-package: github.com/hashicorp/nomad/nomad/structs
     AllocatedCpuResources:
       type: object
@@ -195,23 +195,23 @@ components:
     AllocatedPorts:
       type: array
       items:
-        $ref: '#/definitions/AllocatedPortMapping'
+        $ref: '#/components/schemas/AllocatedPortMapping'
       x-go-package: github.com/hashicorp/nomad/nomad/structs
     AllocatedResources:
       type: object
       title: AllocatedResources is the set of resources to be used by an allocation.
       properties:
         Shared:
-          $ref: '#/definitions/AllocatedSharedResources'
+          $ref: '#/components/schemas/AllocatedSharedResources'
         TaskLifecycles:
           type: object
           additionalProperties:
-            $ref: '#/definitions/TaskLifecycleConfig'
+            $ref: '#/components/schemas/TaskLifecycleConfig'
         Tasks:
           description: Tasks is a mapping of task name to the resources for the task.
           type: object
           additionalProperties:
-            $ref: '#/definitions/AllocatedTaskResources'
+            $ref: '#/components/schemas/AllocatedTaskResources'
       x-go-package: github.com/hashicorp/nomad/nomad/structs
     AllocatedSharedResources:
       type: object
@@ -221,24 +221,24 @@ components:
           type: integer
           format: int64
         Networks:
-          $ref: '#/definitions/Networks'
+          $ref: '#/components/schemas/Networks'
         Ports:
-          $ref: '#/definitions/AllocatedPorts'
+          $ref: '#/components/schemas/AllocatedPorts'
       x-go-package: github.com/hashicorp/nomad/nomad/structs
     AllocatedTaskResources:
       type: object
       title: AllocatedTaskResources are the set of resources allocated to a task.
       properties:
         Cpu:
-          $ref: '#/definitions/AllocatedCpuResources'
+          $ref: '#/components/schemas/AllocatedCpuResources'
         Devices:
           type: array
           items:
-            $ref: '#/definitions/AllocatedDeviceResource'
+            $ref: '#/components/schemas/AllocatedDeviceResource'
         Memory:
-          $ref: '#/definitions/AllocatedMemoryResources'
+          $ref: '#/components/schemas/AllocatedMemoryResources'
         Networks:
-          $ref: '#/definitions/Networks'
+          $ref: '#/components/schemas/Networks'
       x-go-package: github.com/hashicorp/nomad/nomad/structs
     AllocationListStub:
       description: |-
@@ -247,7 +247,7 @@ components:
       type: object
       properties:
         AllocatedResources:
-          $ref: '#/definitions/AllocatedResources'
+          $ref: '#/components/schemas/AllocatedResources'
         ClientDescription:
           type: string
         ClientStatus:
@@ -259,7 +259,7 @@ components:
           type: integer
           format: int64
         DeploymentStatus:
-          $ref: '#/definitions/AllocDeploymentStatus'
+          $ref: '#/components/schemas/AllocDeploymentStatus'
         DesiredDescription:
           type: string
         DesiredStatus:
@@ -298,20 +298,20 @@ components:
         PreemptedByAllocation:
           type: string
         RescheduleTracker:
-          $ref: '#/definitions/RescheduleTracker'
+          $ref: '#/components/schemas/RescheduleTracker'
         TaskGroup:
           type: string
         TaskStates:
           type: object
           additionalProperties:
-            $ref: '#/definitions/TaskState'
+            $ref: '#/components/schemas/TaskState'
       x-go-package: github.com/hashicorp/nomad/api
     AllocationMetric:
       type: object
       title: AllocationMetric is used to deserialize allocation metrics.
       properties:
         AllocationTime:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         ClassExhausted:
           type: object
           additionalProperties:
@@ -356,11 +356,11 @@ components:
         ResourcesExhausted:
           type: object
           additionalProperties:
-            $ref: '#/definitions/Resources'
+            $ref: '#/components/schemas/Resources'
         ScoreMetaData:
           type: array
           items:
-            $ref: '#/definitions/NodeScoreMeta'
+            $ref: '#/components/schemas/NodeScoreMeta'
         Scores:
           description: 'Deprecated, replaced with ScoreMetaData'
           type: object
@@ -416,7 +416,7 @@ components:
       type: object
       properties:
         Grace:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         IgnoreWarnings:
           type: boolean
         Limit:
@@ -447,13 +447,13 @@ components:
       title: ConsulConnect represents a Consul Connect jobspec stanza.
       properties:
         Gateway:
-          $ref: '#/definitions/ConsulGateway'
+          $ref: '#/components/schemas/ConsulGateway'
         Native:
           type: boolean
         SidecarService:
-          $ref: '#/definitions/ConsulSidecarService'
+          $ref: '#/components/schemas/ConsulSidecarService'
         SidecarTask:
-          $ref: '#/definitions/SidecarTask'
+          $ref: '#/components/schemas/SidecarTask'
       x-go-package: github.com/hashicorp/nomad/api
     ConsulExposeConfig:
       type: object
@@ -461,7 +461,7 @@ components:
         Path:
           type: array
           items:
-            $ref: '#/definitions/ConsulExposePath'
+            $ref: '#/components/schemas/ConsulExposePath'
       x-go-package: github.com/hashicorp/nomad/api
     ConsulExposePath:
       type: object
@@ -481,11 +481,11 @@ components:
       title: ConsulGateway is used to configure one of the Consul Connect Gateway types.
       properties:
         Ingress:
-          $ref: '#/definitions/ConsulIngressConfigEntry'
+          $ref: '#/components/schemas/ConsulIngressConfigEntry'
         Proxy:
-          $ref: '#/definitions/ConsulGatewayProxy'
+          $ref: '#/components/schemas/ConsulGatewayProxy'
         Terminating:
-          $ref: '#/definitions/ConsulTerminatingConfigEntry'
+          $ref: '#/components/schemas/ConsulTerminatingConfigEntry'
       x-go-package: github.com/hashicorp/nomad/api
     ConsulGatewayBindAddress:
       type: object
@@ -510,13 +510,13 @@ components:
           additionalProperties:
             type: object
         ConnectTimeout:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         EnvoyDNSDiscoveryType:
           type: string
         EnvoyGatewayBindAddresses:
           type: object
           additionalProperties:
-            $ref: '#/definitions/ConsulGatewayBindAddress'
+            $ref: '#/components/schemas/ConsulGatewayBindAddress'
         EnvoyGatewayBindTaggedAddresses:
           type: boolean
         EnvoyGatewayNoDefaultBind:
@@ -539,9 +539,9 @@ components:
         Listeners:
           type: array
           items:
-            $ref: '#/definitions/ConsulIngressListener'
+            $ref: '#/components/schemas/ConsulIngressListener'
         TLS:
-          $ref: '#/definitions/ConsulGatewayTLSConfig'
+          $ref: '#/components/schemas/ConsulGatewayTLSConfig'
       x-go-package: github.com/hashicorp/nomad/api
     ConsulIngressListener:
       description: |-
@@ -557,7 +557,7 @@ components:
         Services:
           type: array
           items:
-            $ref: '#/definitions/ConsulIngressService'
+            $ref: '#/components/schemas/ConsulIngressService'
       x-go-package: github.com/hashicorp/nomad/api
     ConsulIngressService:
       type: object
@@ -596,7 +596,7 @@ components:
           additionalProperties:
             type: object
         ExposeConfig:
-          $ref: '#/definitions/ConsulExposeConfig'
+          $ref: '#/components/schemas/ConsulExposeConfig'
         LocalServiceAddress:
           type: string
         LocalServicePort:
@@ -605,7 +605,7 @@ components:
         Upstreams:
           type: array
           items:
-            $ref: '#/definitions/ConsulUpstream'
+            $ref: '#/components/schemas/ConsulUpstream'
       x-go-package: github.com/hashicorp/nomad/api
     ConsulSidecarService:
       description: |-
@@ -618,7 +618,7 @@ components:
         Port:
           type: string
         Proxy:
-          $ref: '#/definitions/ConsulProxy'
+          $ref: '#/components/schemas/ConsulProxy'
         Tags:
           type: array
           items:
@@ -634,7 +634,7 @@ components:
         Services:
           type: array
           items:
-            $ref: '#/definitions/ConsulLinkedService'
+            $ref: '#/components/schemas/ConsulLinkedService'
       x-go-package: github.com/hashicorp/nomad/api
     ConsulUpstream:
       type: object
@@ -722,7 +722,7 @@ components:
         - StatusCode
       properties:
         Error:
-          $ref: '#/definitions/ContainerWaitOKBodyError'
+          $ref: '#/components/schemas/ContainerWaitOKBodyError'
         StatusCode:
           description: Exit code of the container
           type: integer
@@ -894,7 +894,7 @@ components:
         FailedTGAllocs:
           type: object
           additionalProperties:
-            $ref: '#/definitions/AllocationMetric'
+            $ref: '#/components/schemas/AllocationMetric'
         ID:
           type: string
         JobID:
@@ -941,7 +941,7 @@ components:
         Type:
           type: string
         Wait:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         WaitUntil:
           type: string
           format: date-time
@@ -1067,13 +1067,13 @@ components:
         Affinities:
           type: array
           items:
-            $ref: '#/definitions/Affinity'
+            $ref: '#/components/schemas/Affinity'
         AllAtOnce:
           type: boolean
         Constraints:
           type: array
           items:
-            $ref: '#/definitions/Constraint'
+            $ref: '#/components/schemas/Constraint'
         ConsulNamespace:
           type: string
         ConsulToken:
@@ -1097,12 +1097,12 @@ components:
           additionalProperties:
             type: string
         Migrate:
-          $ref: '#/definitions/MigrateStrategy'
+          $ref: '#/components/schemas/MigrateStrategy'
         ModifyIndex:
           type: integer
           format: uint64
         Multiregion:
-          $ref: '#/definitions/Multiregion'
+          $ref: '#/components/schemas/Multiregion'
         Name:
           type: string
         Namespace:
@@ -1110,7 +1110,7 @@ components:
         NomadTokenID:
           type: string
         ParameterizedJob:
-          $ref: '#/definitions/ParameterizedJobConfig'
+          $ref: '#/components/schemas/ParameterizedJobConfig'
         ParentID:
           type: string
         Payload:
@@ -1119,18 +1119,18 @@ components:
             type: integer
             format: uint8
         Periodic:
-          $ref: '#/definitions/PeriodicConfig'
+          $ref: '#/components/schemas/PeriodicConfig'
         Priority:
           type: integer
           format: int64
         Region:
           type: string
         Reschedule:
-          $ref: '#/definitions/ReschedulePolicy'
+          $ref: '#/components/schemas/ReschedulePolicy'
         Spreads:
           type: array
           items:
-            $ref: '#/definitions/Spread'
+            $ref: '#/components/schemas/Spread'
         Stable:
           type: boolean
         Status:
@@ -1145,11 +1145,11 @@ components:
         TaskGroups:
           type: array
           items:
-            $ref: '#/definitions/TaskGroup'
+            $ref: '#/components/schemas/TaskGroup'
         Type:
           type: string
         Update:
-          $ref: '#/definitions/UpdateStrategy'
+          $ref: '#/components/schemas/UpdateStrategy'
         VaultNamespace:
           type: string
         VaultToken:
@@ -1188,7 +1188,7 @@ components:
           description: Is there a known leader
           type: boolean
         LastContact:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         LastIndex:
           description: |-
             LastIndex. This can be used as a WaitIndex to perform
@@ -1196,7 +1196,7 @@ components:
           type: integer
           format: uint64
         RequestTime:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
       x-go-package: github.com/hashicorp/nomad/api
     JobDiff:
       description: JobDiff details the differences between two Job specs
@@ -1205,17 +1205,17 @@ components:
         Fields:
           type: array
           items:
-            $ref: '#/definitions/FieldDiff'
+            $ref: '#/components/schemas/FieldDiff'
         ID:
           type: string
         Objects:
           type: array
           items:
-            $ref: '#/definitions/ObjectDiff'
+            $ref: '#/components/schemas/ObjectDiff'
         TaskGroups:
           type: array
           items:
-            $ref: '#/definitions/TaskGroupDiff'
+            $ref: '#/components/schemas/TaskGroupDiff'
         Type:
           type: string
       x-go-package: github.com/hashicorp/nomad/api
@@ -1256,14 +1256,14 @@ components:
           type: integer
           format: uint64
         RequestTime:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
       x-go-package: github.com/hashicorp/nomad/api
     JobEvaluateRequest:
       description: JobEvaluateRequest is used when we just need to re-evaluate a target job
       type: object
       properties:
         EvalOptions:
-          $ref: '#/definitions/EvalOptions'
+          $ref: '#/components/schemas/EvalOptions'
         JobID:
           type: string
         Namespace:
@@ -1295,7 +1295,7 @@ components:
           type: integer
           format: uint64
         JobSummary:
-          $ref: '#/definitions/JobSummary'
+          $ref: '#/components/schemas/JobSummary'
         ModifyIndex:
           type: integer
           format: uint64
@@ -1331,7 +1331,7 @@ components:
         Diff:
           type: boolean
         Job:
-          $ref: '#/definitions/Job'
+          $ref: '#/components/schemas/Job'
         Namespace:
           description: Namespace is the target namespace for this write
           type: string
@@ -1349,17 +1349,17 @@ components:
       type: object
       properties:
         Annotations:
-          $ref: '#/definitions/PlanAnnotations'
+          $ref: '#/components/schemas/PlanAnnotations'
         CreatedEvals:
           type: array
           items:
-            $ref: '#/definitions/Evaluation'
+            $ref: '#/components/schemas/Evaluation'
         Diff:
-          $ref: '#/definitions/JobDiff'
+          $ref: '#/components/schemas/JobDiff'
         FailedTGAllocs:
           type: object
           additionalProperties:
-            $ref: '#/definitions/AllocationMetric'
+            $ref: '#/components/schemas/AllocationMetric'
         JobModifyIndex:
           type: integer
           format: uint64
@@ -1383,7 +1383,7 @@ components:
             register only occurs if the job is new.
           type: boolean
         Job:
-          $ref: '#/definitions/Job'
+          $ref: '#/components/schemas/Job'
         JobModifyIndex:
           type: integer
           format: uint64
@@ -1417,7 +1417,7 @@ components:
           description: Is there a known leader
           type: boolean
         LastContact:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         LastIndex:
           description: |-
             LastIndex. This can be used as a WaitIndex to perform
@@ -1425,7 +1425,7 @@ components:
           type: integer
           format: uint64
         RequestTime:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         Warnings:
           description: |-
             Warnings contains any warnings about the given job. These may include
@@ -1510,14 +1510,14 @@ components:
           type: integer
           format: uint64
         RequestTime:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
       x-go-package: github.com/hashicorp/nomad/api
     JobSummary:
       description: JobSummary summarizes the state of the allocations of a job
       type: object
       properties:
         Children:
-          $ref: '#/definitions/JobChildrenSummary'
+          $ref: '#/components/schemas/JobChildrenSummary'
         CreateIndex:
           description: Raft Indexes
           type: integer
@@ -1532,14 +1532,14 @@ components:
         Summary:
           type: object
           additionalProperties:
-            $ref: '#/definitions/TaskGroupSummary'
+            $ref: '#/components/schemas/TaskGroupSummary'
       x-go-package: github.com/hashicorp/nomad/api
     JobValidateRequest:
       description: JobValidateRequest is used to validate a job
       type: object
       properties:
         Job:
-          $ref: '#/definitions/Job'
+          $ref: '#/components/schemas/Job'
         Namespace:
           description: Namespace is the target namespace for this write
           type: string
@@ -1580,12 +1580,12 @@ components:
         Diffs:
           type: array
           items:
-            $ref: '#/definitions/JobDiff'
+            $ref: '#/components/schemas/JobDiff'
         KnownLeader:
           description: Is there a known leader
           type: boolean
         LastContact:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         LastIndex:
           description: |-
             LastIndex. This can be used as a WaitIndex to perform
@@ -1593,11 +1593,11 @@ components:
           type: integer
           format: uint64
         RequestTime:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         Versions:
           type: array
           items:
-            $ref: '#/definitions/Job'
+            $ref: '#/components/schemas/Job'
       x-go-package: github.com/hashicorp/nomad/api
     JobsParseRequest:
       description: JobsParseRequest is used for arguments of the /v1/jobs/parse endpoint
@@ -1636,12 +1636,12 @@ components:
         HealthCheck:
           type: string
         HealthyDeadline:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         MaxParallel:
           type: integer
           format: int64
         MinHealthyTime:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
       x-go-package: github.com/hashicorp/nomad/api
     Multiregion:
       type: object
@@ -1649,9 +1649,9 @@ components:
         Regions:
           type: array
           items:
-            $ref: '#/definitions/MultiregionRegion'
+            $ref: '#/components/schemas/MultiregionRegion'
         Strategy:
-          $ref: '#/definitions/MultiregionStrategy'
+          $ref: '#/components/schemas/MultiregionStrategy'
       x-go-package: github.com/hashicorp/nomad/api
     MultiregionRegion:
       type: object
@@ -1688,13 +1688,13 @@ components:
         CIDR:
           type: string
         DNS:
-          $ref: '#/definitions/DNSConfig'
+          $ref: '#/components/schemas/DNSConfig'
         Device:
           type: string
         DynamicPorts:
           type: array
           items:
-            $ref: '#/definitions/Port'
+            $ref: '#/components/schemas/Port'
         IP:
           type: string
         MBits:
@@ -1705,13 +1705,13 @@ components:
         ReservedPorts:
           type: array
           items:
-            $ref: '#/definitions/Port'
+            $ref: '#/components/schemas/Port'
       x-go-package: github.com/hashicorp/nomad/nomad/structs
     Networks:
       type: array
       title: Networks defined for a task on the Resources struct.
       items:
-        $ref: '#/definitions/NetworkResource'
+        $ref: '#/components/schemas/NetworkResource'
       x-go-package: github.com/hashicorp/nomad/nomad/structs
     NodeScoreMeta:
       description: |-
@@ -1737,13 +1737,13 @@ components:
         Fields:
           type: array
           items:
-            $ref: '#/definitions/FieldDiff'
+            $ref: '#/components/schemas/FieldDiff'
         Name:
           type: string
         Objects:
           type: array
           items:
-            $ref: '#/definitions/ObjectDiff'
+            $ref: '#/components/schemas/ObjectDiff'
         Type:
           type: string
       x-go-package: github.com/hashicorp/nomad/api
@@ -1798,11 +1798,11 @@ components:
         DesiredTGUpdates:
           type: object
           additionalProperties:
-            $ref: '#/definitions/DesiredUpdates'
+            $ref: '#/components/schemas/DesiredUpdates'
         PreemptedAllocs:
           type: array
           items:
-            $ref: '#/definitions/AllocationListStub'
+            $ref: '#/components/schemas/AllocationListStub'
       x-go-package: github.com/hashicorp/nomad/api
     PlanOptions:
       description: PlanOptions is used to pass through job planning parameters
@@ -1823,7 +1823,7 @@ components:
         - Settings
       properties:
         Config:
-          $ref: '#/definitions/PluginConfig'
+          $ref: '#/components/schemas/PluginConfig'
         Enabled:
           description: 'True if the plugin is running. False if the plugin is not running, only installed.'
           type: boolean
@@ -1838,7 +1838,7 @@ components:
           description: plugin remote reference used to push/pull the plugin
           type: string
         Settings:
-          $ref: '#/definitions/PluginSettings'
+          $ref: '#/components/schemas/PluginSettings'
       x-go-package: github.com/docker/docker/api/types
     PluginConfig:
       type: object
@@ -1859,7 +1859,7 @@ components:
         - WorkDir
       properties:
         Args:
-          $ref: '#/definitions/PluginConfigArgs'
+          $ref: '#/components/schemas/PluginConfigArgs'
         Description:
           description: description
           type: string
@@ -1878,21 +1878,21 @@ components:
           description: env
           type: array
           items:
-            $ref: '#/definitions/PluginEnv'
+            $ref: '#/components/schemas/PluginEnv'
         Interface:
-          $ref: '#/definitions/PluginConfigInterface'
+          $ref: '#/components/schemas/PluginConfigInterface'
         IpcHost:
           description: ipc host
           type: boolean
         Linux:
-          $ref: '#/definitions/PluginConfigLinux'
+          $ref: '#/components/schemas/PluginConfigLinux'
         Mounts:
           description: mounts
           type: array
           items:
-            $ref: '#/definitions/PluginMount'
+            $ref: '#/components/schemas/PluginMount'
         Network:
-          $ref: '#/definitions/PluginConfigNetwork'
+          $ref: '#/components/schemas/PluginConfigNetwork'
         PidHost:
           description: pid host
           type: boolean
@@ -1900,12 +1900,12 @@ components:
           description: propagated mount
           type: string
         User:
-          $ref: '#/definitions/PluginConfigUser'
+          $ref: '#/components/schemas/PluginConfigUser'
         WorkDir:
           description: work dir
           type: string
         rootfs:
-          $ref: '#/definitions/PluginConfigRootfs'
+          $ref: '#/components/schemas/PluginConfigRootfs'
       x-go-package: github.com/docker/docker/api/types
     PluginConfigArgs:
       description: PluginConfigArgs plugin config args
@@ -1950,7 +1950,7 @@ components:
           description: types
           type: array
           items:
-            $ref: '#/definitions/PluginInterfaceType'
+            $ref: '#/components/schemas/PluginInterfaceType'
       x-go-package: github.com/docker/docker/api/types
     PluginConfigLinux:
       description: PluginConfigLinux plugin config linux
@@ -1972,7 +1972,7 @@ components:
           description: devices
           type: array
           items:
-            $ref: '#/definitions/PluginDevice'
+            $ref: '#/components/schemas/PluginDevice'
       x-go-package: github.com/docker/docker/api/types
     PluginConfigNetwork:
       description: PluginConfigNetwork plugin config network
@@ -2134,7 +2134,7 @@ components:
           description: devices
           type: array
           items:
-            $ref: '#/definitions/PluginDevice'
+            $ref: '#/components/schemas/PluginDevice'
         Env:
           description: env
           type: array
@@ -2144,7 +2144,7 @@ components:
           description: mounts
           type: array
           items:
-            $ref: '#/definitions/PluginMount'
+            $ref: '#/components/schemas/PluginMount'
       x-go-package: github.com/docker/docker/api/types
     Port:
       description: Port An open port on a container
@@ -2198,7 +2198,7 @@ components:
           description: Is there a known leader
           type: boolean
         LastContact:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         LastIndex:
           description: |-
             LastIndex. This can be used as a WaitIndex to perform
@@ -2206,7 +2206,7 @@ components:
           type: integer
           format: uint64
         RequestTime:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
       x-go-package: github.com/hashicorp/nomad/api
     RegisterOptions:
       description: RegisterOptions is used to pass through job registration parameters
@@ -2232,14 +2232,14 @@ components:
             to use.
           type: array
           items:
-            $ref: '#/definitions/Affinity'
+            $ref: '#/components/schemas/Affinity'
         Constraints:
           description: |-
             Constraints are a set of constraints to apply when selecting the device
             to use.
           type: array
           items:
-            $ref: '#/definitions/Constraint'
+            $ref: '#/components/schemas/Constraint'
         Count:
           description: Count is the number of requested devices
           type: integer
@@ -2262,7 +2262,7 @@ components:
       type: object
       properties:
         Delay:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         PrevAllocID:
           description: PrevAllocID is the ID of the previous allocation being restarted
           type: string
@@ -2283,16 +2283,16 @@ components:
           type: integer
           format: int64
         Delay:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         DelayFunction:
           description: |-
             DelayFunction determines how the delay progressively changes on subsequent reschedule
             attempts. Valid values are "exponential", "constant", and "fibonacci".
           type: string
         Interval:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         MaxDelay:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         Unlimited:
           description: Unlimited allows rescheduling attempts until they succeed
           type: boolean
@@ -2304,7 +2304,7 @@ components:
         Events:
           type: array
           items:
-            $ref: '#/definitions/RescheduleEvent'
+            $ref: '#/components/schemas/RescheduleEvent'
       x-go-package: github.com/hashicorp/nomad/nomad/structs
     Resources:
       description: |-
@@ -2321,7 +2321,7 @@ components:
         Devices:
           type: array
           items:
-            $ref: '#/definitions/RequestedDevice'
+            $ref: '#/components/schemas/RequestedDevice'
         DiskMB:
           type: integer
           format: int64
@@ -2342,7 +2342,7 @@ components:
         Networks:
           type: array
           items:
-            $ref: '#/definitions/NetworkResource'
+            $ref: '#/components/schemas/NetworkResource'
       x-go-package: github.com/hashicorp/nomad/api
     RestartPolicy:
       description: |-
@@ -2354,9 +2354,9 @@ components:
           type: integer
           format: int64
         Delay:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         Interval:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         Mode:
           type: string
       x-go-package: github.com/hashicorp/nomad/api
@@ -2408,13 +2408,13 @@ components:
           items:
             type: string
         CheckRestart:
-          $ref: '#/definitions/CheckRestart'
+          $ref: '#/components/schemas/CheckRestart'
         Checks:
           type: array
           items:
-            $ref: '#/definitions/ServiceCheck'
+            $ref: '#/components/schemas/ServiceCheck'
         Connect:
-          $ref: '#/definitions/ConsulConnect'
+          $ref: '#/components/schemas/ConsulConnect'
         EnableTagOverride:
           type: boolean
         Id:
@@ -2450,7 +2450,7 @@ components:
         Body:
           type: string
         CheckRestart:
-          $ref: '#/definitions/CheckRestart'
+          $ref: '#/components/schemas/CheckRestart'
         Command:
           type: string
         Expose:
@@ -2474,7 +2474,7 @@ components:
         InitialStatus:
           type: string
         Interval:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         Method:
           type: string
         Name:
@@ -2495,7 +2495,7 @@ components:
         TaskName:
           type: string
         Timeout:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         Type:
           type: string
       x-go-package: github.com/hashicorp/nomad/api
@@ -2528,9 +2528,9 @@ components:
         KillSignal:
           type: string
         KillTimeout:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         LogConfig:
-          $ref: '#/definitions/LogConfig'
+          $ref: '#/components/schemas/LogConfig'
         Meta:
           type: object
           additionalProperties:
@@ -2538,9 +2538,9 @@ components:
         Name:
           type: string
         Resources:
-          $ref: '#/definitions/Resources'
+          $ref: '#/components/schemas/Resources'
         ShutdownDelay:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         User:
           type: string
       x-go-package: github.com/hashicorp/nomad/api
@@ -2553,7 +2553,7 @@ components:
         SpreadTarget:
           type: array
           items:
-            $ref: '#/definitions/SpreadTarget'
+            $ref: '#/components/schemas/SpreadTarget'
         Weight:
           type: integer
           format: int8
@@ -2575,13 +2575,13 @@ components:
         Affinities:
           type: array
           items:
-            $ref: '#/definitions/Affinity'
+            $ref: '#/components/schemas/Affinity'
         Artifacts:
           type: array
           items:
-            $ref: '#/definitions/TaskArtifact'
+            $ref: '#/components/schemas/TaskArtifact'
         CSIPluginConfig:
-          $ref: '#/definitions/TaskCSIPluginConfig'
+          $ref: '#/components/schemas/TaskCSIPluginConfig'
         Config:
           type: object
           additionalProperties:
@@ -2589,9 +2589,9 @@ components:
         Constraints:
           type: array
           items:
-            $ref: '#/definitions/Constraint'
+            $ref: '#/components/schemas/Constraint'
         DispatchPayload:
-          $ref: '#/definitions/DispatchPayloadConfig'
+          $ref: '#/components/schemas/DispatchPayloadConfig'
         Driver:
           type: string
         Env:
@@ -2601,15 +2601,15 @@ components:
         KillSignal:
           type: string
         KillTimeout:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         Kind:
           type: string
         Leader:
           type: boolean
         Lifecycle:
-          $ref: '#/definitions/TaskLifecycle'
+          $ref: '#/components/schemas/TaskLifecycle'
         LogConfig:
-          $ref: '#/definitions/LogConfig'
+          $ref: '#/components/schemas/LogConfig'
         Meta:
           type: object
           additionalProperties:
@@ -2617,31 +2617,31 @@ components:
         Name:
           type: string
         Resources:
-          $ref: '#/definitions/Resources'
+          $ref: '#/components/schemas/Resources'
         RestartPolicy:
-          $ref: '#/definitions/RestartPolicy'
+          $ref: '#/components/schemas/RestartPolicy'
         ScalingPolicies:
           type: array
           items:
-            $ref: '#/definitions/ScalingPolicy'
+            $ref: '#/components/schemas/ScalingPolicy'
         Services:
           type: array
           items:
-            $ref: '#/definitions/Service'
+            $ref: '#/components/schemas/Service'
         ShutdownDelay:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         Templates:
           type: array
           items:
-            $ref: '#/definitions/Template'
+            $ref: '#/components/schemas/Template'
         User:
           type: string
         Vault:
-          $ref: '#/definitions/Vault'
+          $ref: '#/components/schemas/Vault'
         VolumeMounts:
           type: array
           items:
-            $ref: '#/definitions/VolumeMount'
+            $ref: '#/components/schemas/VolumeMount'
       x-go-package: github.com/hashicorp/nomad/api
     TaskArtifact:
       type: object
@@ -2684,7 +2684,7 @@ components:
             Default is /csi.
           type: string
         Type:
-          $ref: '#/definitions/CSIPluginType'
+          $ref: '#/components/schemas/CSIPluginType'
       x-go-package: github.com/hashicorp/nomad/api
     TaskDiff:
       description: TaskDiff details the differences between two Task specs
@@ -2697,13 +2697,13 @@ components:
         Fields:
           type: array
           items:
-            $ref: '#/definitions/FieldDiff'
+            $ref: '#/components/schemas/FieldDiff'
         Name:
           type: string
         Objects:
           type: array
           items:
-            $ref: '#/definitions/ObjectDiff'
+            $ref: '#/components/schemas/ObjectDiff'
         Type:
           type: string
       x-go-package: github.com/hashicorp/nomad/api
@@ -2773,7 +2773,7 @@ components:
             Deprecated, use Details["kill_reason"] to access this.
           type: string
         KillTimeout:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         Message:
           type: string
         RestartReason:
@@ -2829,58 +2829,58 @@ components:
         Affinities:
           type: array
           items:
-            $ref: '#/definitions/Affinity'
+            $ref: '#/components/schemas/Affinity'
         Constraints:
           type: array
           items:
-            $ref: '#/definitions/Constraint'
+            $ref: '#/components/schemas/Constraint'
         Consul:
-          $ref: '#/definitions/Consul'
+          $ref: '#/components/schemas/Consul'
         Count:
           type: integer
           format: int64
         EphemeralDisk:
-          $ref: '#/definitions/EphemeralDisk'
+          $ref: '#/components/schemas/EphemeralDisk'
         Meta:
           type: object
           additionalProperties:
             type: string
         Migrate:
-          $ref: '#/definitions/MigrateStrategy'
+          $ref: '#/components/schemas/MigrateStrategy'
         Name:
           type: string
         Networks:
           type: array
           items:
-            $ref: '#/definitions/NetworkResource'
+            $ref: '#/components/schemas/NetworkResource'
         ReschedulePolicy:
-          $ref: '#/definitions/ReschedulePolicy'
+          $ref: '#/components/schemas/ReschedulePolicy'
         RestartPolicy:
-          $ref: '#/definitions/RestartPolicy'
+          $ref: '#/components/schemas/RestartPolicy'
         Scaling:
-          $ref: '#/definitions/ScalingPolicy'
+          $ref: '#/components/schemas/ScalingPolicy'
         Services:
           type: array
           items:
-            $ref: '#/definitions/Service'
+            $ref: '#/components/schemas/Service'
         ShutdownDelay:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         Spreads:
           type: array
           items:
-            $ref: '#/definitions/Spread'
+            $ref: '#/components/schemas/Spread'
         StopAfterClientDisconnect:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         Tasks:
           type: array
           items:
-            $ref: '#/definitions/Task'
+            $ref: '#/components/schemas/Task'
         Update:
-          $ref: '#/definitions/UpdateStrategy'
+          $ref: '#/components/schemas/UpdateStrategy'
         Volumes:
           type: object
           additionalProperties:
-            $ref: '#/definitions/VolumeRequest'
+            $ref: '#/components/schemas/VolumeRequest'
       x-go-package: github.com/hashicorp/nomad/api
     TaskGroupDiff:
       description: TaskGroupDiff details the differences between two TaskGroup specs
@@ -2889,17 +2889,17 @@ components:
         Fields:
           type: array
           items:
-            $ref: '#/definitions/FieldDiff'
+            $ref: '#/components/schemas/FieldDiff'
         Name:
           type: string
         Objects:
           type: array
           items:
-            $ref: '#/definitions/ObjectDiff'
+            $ref: '#/components/schemas/ObjectDiff'
         Tasks:
           type: array
           items:
-            $ref: '#/definitions/TaskDiff'
+            $ref: '#/components/schemas/TaskDiff'
         Type:
           type: string
         Updates:
@@ -2981,7 +2981,7 @@ components:
           description: Series of task events that transition the state of the task.
           type: array
           items:
-            $ref: '#/definitions/TaskEvent'
+            $ref: '#/components/schemas/TaskEvent'
         Failed:
           description: Failed marks a task as having failed
           type: boolean
@@ -3011,7 +3011,7 @@ components:
           description: The current state of the task.
           type: string
         TaskHandle:
-          $ref: '#/definitions/TaskHandle'
+          $ref: '#/components/schemas/TaskHandle'
       x-go-package: github.com/hashicorp/nomad/nomad/structs
     Template:
       type: object
@@ -3035,9 +3035,9 @@ components:
         SourcePath:
           type: string
         Splay:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         VaultGrace:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
       x-go-package: github.com/hashicorp/nomad/api
     UpdateStrategy:
       type: object
@@ -3053,16 +3053,16 @@ components:
         HealthCheck:
           type: string
         HealthyDeadline:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         MaxParallel:
           type: integer
           format: int64
         MinHealthyTime:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         ProgressDeadline:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
         Stagger:
-          $ref: '#/definitions/Duration'
+          $ref: '#/components/schemas/Duration'
       x-go-package: github.com/hashicorp/nomad/api
     Vault:
       type: object
@@ -3128,7 +3128,7 @@ components:
           additionalProperties:
             type: object
         UsageData:
-          $ref: '#/definitions/VolumeUsageData'
+          $ref: '#/components/schemas/VolumeUsageData'
       x-go-package: github.com/docker/docker/api/types
     VolumeMount:
       description: |-
@@ -3154,7 +3154,7 @@ components:
         AttachmentMode:
           type: string
         MountOptions:
-          $ref: '#/definitions/CSIMountOptions'
+          $ref: '#/components/schemas/CSIMountOptions'
         Name:
           type: string
         PerAlloc:
@@ -3434,7 +3434,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schema/PeriodicForceResponse'
+                $ref: '#/components/schemas/PeriodicForceResponse'
           headers:
             X-Nomad-Index:
               $ref: '#/components/headers/X-Nomad-Index'
@@ -3463,7 +3463,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schema/JobListStub'
+                  $ref: '#/components/schemas/JobListStub'
           headers:
             X-Nomad-Index:
               $ref: '#/components/headers/X-Nomad-Index'
@@ -3491,7 +3491,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schema/Job'
+                $ref: '#/components/schemas/Job'
         '400':
           description: (empty)
         '403':
