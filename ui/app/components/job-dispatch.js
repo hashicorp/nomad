@@ -8,7 +8,6 @@ import { noCase } from 'no-case';
 import { titleCase } from 'title-case';
 
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
-import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 @classic
 export default class JobDispatch extends Component {

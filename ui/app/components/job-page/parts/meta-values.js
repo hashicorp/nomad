@@ -1,9 +1,6 @@
 import Component from '@ember/component';
 import { computed } from '@ember/object';
-import { alias } from '@ember/object/computed';
 import classic from 'ember-classic-decorator';
-
-import Sortable from 'nomad-ui/mixins/sortable';
 
 @classic
 export default class MetaValues extends Component {
