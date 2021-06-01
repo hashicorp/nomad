@@ -253,6 +253,10 @@ export default class Job extends Model {
     return this.store.adapterFor('job').scale(this, group, count, message);
   }
 
+  dispatch(meta, payload) {
+    return this.store.adapterFor('job').dispatch(this, meta, payload);
+  }
+
   setIdByPayload(payload) {
     const namespace = payload.Namespace || 'default';
     const id = payload.Name;

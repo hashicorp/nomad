@@ -1,0 +1,50 @@
+{{#if this.dispatchError}}
+  <div data-test-dispatch-error class="notification is-danger">
+    <h3 class="title is-4" data-test-parse-error-title>Dispatch Error</h3>
+    <p data-test-dispatch-error-message>{{this.dispatchError}}</p>
+  </div>
+{{/if}}
+
+<form action="#" onsubmit="return false">
+  <div class="rows">
+    {{#each this.params as |meta|}}
+      <div class="columns">
+        <div class="column is-4">
+          <h2 class="title is-4">{{meta.title}} {{#if meta.isRequired}}*{{/if}}</h2>
+          <input
+            id="{{meta.name}}"
+            style="width: 100%;"
+            value={{this.paramValues.[meta.name]}}
+            oninput={{action "updateParamValue" meta.name}}
+            placeholder={{meta.placeholder}}
+            required={{meta.isRequired}} >
+          <small>{{#if meta.isRequired}}Required{{else}}Optional{{/if}} Meta Param</small>
+        </div>
+      </div>
+    {{/each}}
+
+    {{#if this.hasPayload}}
+      <div>
+        <h2 class="title is-4">Payload {{#if this.isPayloadRequired}}*{{/if}}</h2>
+        <IvyCodemirror
+          data-test-editor
+          aria-label="Payload definition"
+          @valueUpdated={{action (mut this.payload)}}
+          @options={{hash
+            mode="javascript"
+            theme="hashi"
+            screenReaderLabel="Payload definition editor"
+            tabSize=2
+            lineNumbers=true
+          }} />
+      </div>
+    {{else}}
+      <pre>Payload is disabled</pre>
+    {{/if}}
+
+    <div class="bumper-top">
+      <button class="button is-success" type="button" onclick={{perform this.submit}}>Dispatch</button>
+      <button class="button is-white" type="button" onclick={{action "cancel"}}>Cancel</button>
+    </div>
+  </div>
+</form>

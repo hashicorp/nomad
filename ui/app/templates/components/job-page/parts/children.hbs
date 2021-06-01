@@ -1,5 +1,8 @@
 <div class="boxed-section-head">
   Job Launches
+  {{#if (can "dispatch job")}}
+    <LinkTo @route="jobs.job.dispatch" data-test-run-job class="button is-primary pull-right">Dispatch Job</LinkTo>
+  {{/if}}
 </div>
 <div class="boxed-section-body {{if this.sortedChildren.length "is-full-bleed"}}">
   {{#if this.sortedChildren}}
