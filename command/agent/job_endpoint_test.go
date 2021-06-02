@@ -1,9 +1,12 @@
 package agent
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	v1 "github.com/hashicorp/nomad/openapiv1"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1104,6 +1108,54 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		}
 		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
+		}
+
+		cfg := v1.NewConfiguration()
+		cfg.OperationServers["JobsApiService.GetJobAllocations"] = v1.ServerConfigurations{
+			{
+				URL: cfg.Servers[0].URL,
+				Variables: map[string]v1.ServerVariable{
+					"protocol": v1.ServerVariable{
+						DefaultValue: "http",
+					},
+					"port": v1.ServerVariable{
+						DefaultValue: fmt.Sprintf("%d", s.Config.Ports.HTTP),
+					},
+				},
+			},
+		}
+		oac := v1.NewAPIClient(cfg)
+		endpointMap := make(map[string]map[string]string)
+		variables := make(map[string]string)
+		variables["port"] = strconv.Itoa(s.Config.Ports.HTTP)
+		endpointMap["JobsApiService.GetJobAllocations"] = variables
+		jobAllocReq := oac.JobsApi.GetJobAllocations(
+			context.WithValue(context.Background(), v1.ContextOperationServerVariables, endpointMap),
+			alloc1.Job.ID)
+		allocations, apiResponse, err := oac.JobsApi.GetJobAllocationsExecute(jobAllocReq)
+		if err != nil {
+			t.Fatalf("OpenAPI client error: %s", err)
+		}
+
+		// Check the response
+		if len(allocations) != 1 || *allocations[0].ID != alloc1.ID {
+			t.Fatalf("OpenAPI bad response: %v", allocs)
+		}
+
+		taskStates := *allocations[0].TaskStates
+		e := *taskStates["test"].Events
+		displayMsg = *e[0].DisplayMessage
+		assert.Equal(t, expectedDisplayMsg, displayMsg)
+
+		// Check for the index
+		if apiResponse.Header.Get("X-Nomad-Index") == "" {
+			t.Fatalf("OpenAPI response missing index")
+		}
+		if apiResponse.Header.Get("X-Nomad-KnownLeader") != "true" {
+			t.Fatalf("OpenAPI response missing known leader")
+		}
+		if apiResponse.Header.Get("X-Nomad-LastContact") == "" {
+			t.Fatalf("OpenAPI response missing last contact")
 		}
 	})
 }

@@ -106,7 +106,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
 	go install gotest.tools/gotestsum@v0.4.2
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@v2.5.1
-	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+	go install github.com/golang/protobuf/protoc-gen-go@v1.4.3
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 
