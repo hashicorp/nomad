@@ -1530,6 +1530,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 	if err != nil {
 		return nil, fmt.Errorf("failed to create exec object: %v", err)
 	}
+	d.logger.Info("starter exec sessions", "id", exec.ID)
 
 	go func() {
 		for {

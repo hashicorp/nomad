@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -299,9 +300,14 @@ type execStream struct {
 	frameCodec *codec.Encoder
 }
 
+func toJson(v interface{}) string {
+	b, _ := json.Marshal(v)
+	return string(b)
+}
+
 // Send sends driver output response across RPC mechanism using cstructs.StreamErrWrapper
 func (s *execStream) Send(m *drivers.ExecTaskStreamingResponseMsg) error {
-	s.logger.Info("alloc_exec: sending event", "message", fmt.Sprintf("%#+v", m))
+	s.logger.Info("alloc_exec: sending event", "message", toJson(m))
 	s.buf.Reset()
 	s.frameCodec.Reset(s.buf)
 
@@ -315,5 +321,8 @@ func (s *execStream) Send(m *drivers.ExecTaskStreamingResponseMsg) error {
 func (s *execStream) Recv() (*drivers.ExecTaskStreamingRequestMsg, error) {
 	req := drivers.ExecTaskStreamingRequestMsg{}
 	err := s.decoder.Decode(&req)
+
+	s.logger.Info("alloc_exec: received event", "message", toJson(req), "error", err)
+
 	return &req, err
 }

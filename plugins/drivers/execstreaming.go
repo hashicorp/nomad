@@ -6,6 +6,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 )
 
@@ -17,6 +18,8 @@ func StreamToExecOptions(
 	tty bool,
 	stream ExecTaskStream) (*ExecOptions, <-chan error) {
 
+	logger := hclog.L().Named("streaming")
+
 	inReader, inWriter := io.Pipe()
 	outReader, outWriter := io.Pipe()
 	errReader, errWriter := io.Pipe()
@@ -26,11 +29,15 @@ func StreamToExecOptions(
 
 	// handle input
 	go func() {
+		logger.Info("alloc_exec streaming: started input handling")
+		defer logger.Info("alloc_exec streaming: stopped input handling")
 		for {
 			msg, err := stream.Recv()
 			if err == io.EOF {
+				logger.Info("alloc_exec streaming: input: recv EOF")
 				return
 			} else if err != nil {
+				logger.Info("alloc_exec streaming: input: recv error", "error", err)
 				errCh <- err
 				return
 			}
@@ -38,6 +45,7 @@ func StreamToExecOptions(
 			if msg.Stdin != nil && !msg.Stdin.Close {
 				_, err := inWriter.Write(msg.Stdin.Data)
 				if err != nil {
+					logger.Info("alloc_exec streaming: input: failed to write data", "error", err)
 					errCh <- err
 					return
 				}
@@ -50,12 +58,14 @@ func StreamToExecOptions(
 					Width:  int(msg.TtySize.Width),
 				}:
 				case <-ctx.Done():
+					logger.Info("alloc_exec streaming: input: ctx expired 1")
 					// process terminated before resize is processed
 					return
 				}
 			} else if isHeartbeat(msg) {
 				// do nothing
 			} else {
+				logger.Info("alloc_exec streaming: input: unexpected message type: %#v", msg)
 				errCh <- fmt.Errorf("unexpected message type: %#v", msg)
 			}
 		}
@@ -75,6 +85,9 @@ func StreamToExecOptions(
 	go func() {
 		defer outWg.Done()
 
+		logger.Info("alloc_exec streaming: started stdout handling")
+		defer logger.Info("alloc_exec streaming: stopped stdout handling")
+
 		reader := outReader
 		bytes := make([]byte, 1024)
 		msg := &ExecTaskStreamingResponseMsg{Stdout: &proto.ExecTaskStreamingIOOperation{}}
@@ -85,6 +98,7 @@ func StreamToExecOptions(
 			if n != 0 {
 				msg.Stdout.Data = bytes[:n]
 				if err := send(msg); err != nil {
+					logger.Info("alloc_exec streaming: stdout: failed to write data", "error", err)
 					errCh <- err
 					break
 				}
@@ -96,12 +110,14 @@ func StreamToExecOptions(
 				msg.Stdout.Close = true
 
 				if err := send(msg); err != nil {
+					logger.Info("alloc_exec streaming: stdout: failed to send data", "error", err)
 					errCh <- err
 				}
 				break
 			}
 
 			if err != nil {
+				logger.Info("alloc_exec streaming: stdout: failed at something", "error", err)
 				errCh <- err
 				break
 			}
@@ -111,6 +127,8 @@ func StreamToExecOptions(
 	// handle Stderr
 	go func() {
 		defer outWg.Done()
+
+		logger.Info("alloc_exec streaming: started stderr handling")
 
 		reader := errReader
 		bytes := make([]byte, 1024)
@@ -122,6 +140,7 @@ func StreamToExecOptions(
 			if n != 0 {
 				msg.Stderr.Data = bytes[:n]
 				if err := send(msg); err != nil {
+					logger.Info("alloc_exec streaming: stderr: failed to write data", "error", err)
 					errCh <- err
 					break
 				}
@@ -133,12 +152,14 @@ func StreamToExecOptions(
 				msg.Stderr.Close = true
 
 				if err := send(msg); err != nil {
+					logger.Info("alloc_exec streaming: stderr: failed to send data", "error", err)
 					errCh <- err
 				}
 				break
 			}
 
 			if err != nil {
+				logger.Info("alloc_exec streaming: stderr: failed at something", "error", err)
 				errCh <- err
 				break
 			}
@@ -152,6 +173,7 @@ func StreamToExecOptions(
 
 		select {
 		case err := <-errCh:
+			logger.Info("alloc_exec streaming: aggregate: failed at something", "error", err)
 			doneCh <- err
 		default:
 		}
