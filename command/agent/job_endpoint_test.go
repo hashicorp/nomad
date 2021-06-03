@@ -1,8 +1,7 @@
 package agent
 
 import (
-	"context"
-	"fmt"
+	"github.com/hashicorp/nomad/testutil"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -16,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	v1 "github.com/hashicorp/nomad/openapiv1"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1110,28 +1108,10 @@ func TestHTTP_JobAllocations(t *testing.T) {
 			t.Fatalf("missing last contact")
 		}
 
-		cfg := v1.NewConfiguration()
-		cfg.OperationServers["JobsApiService.GetJobAllocations"] = v1.ServerConfigurations{
-			{
-				URL: cfg.Servers[0].URL,
-				Variables: map[string]v1.ServerVariable{
-					"protocol": v1.ServerVariable{
-						DefaultValue: "http",
-					},
-					"port": v1.ServerVariable{
-						DefaultValue: fmt.Sprintf("%d", s.Config.Ports.HTTP),
-					},
-				},
-			},
-		}
-		oac := v1.NewAPIClient(cfg)
-		endpointMap := make(map[string]map[string]string)
-		variables := make(map[string]string)
-		variables["port"] = strconv.Itoa(s.Config.Ports.HTTP)
-		endpointMap["JobsApiService.GetJobAllocations"] = variables
-		jobAllocReq := oac.JobsApi.GetJobAllocations(
-			context.WithValue(context.Background(), v1.ContextOperationServerVariables, endpointMap),
-			alloc1.Job.ID)
+		// Begin OpenAPI Client test
+		oac, ctx := testutil.NewOpenAPIClientAndContext("http", strconv.Itoa(s.Config.Ports.HTTP))
+		jobAllocReq := oac.JobsApi.GetJobAllocations(ctx, alloc1.Job.ID).All(1)
+
 		allocations, apiResponse, err := oac.JobsApi.GetJobAllocationsExecute(jobAllocReq)
 		if err != nil {
 			t.Fatalf("OpenAPI client error: %s", err)

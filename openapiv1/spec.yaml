@@ -3362,6 +3362,8 @@ paths:
           $ref: '#/components/responses/InternalServerError'
   /job/{jobName}/evaluate:
     put:
+      tags:
+        - Jobs
       summary: 'Creates a new evaluation for the given job. This can be used to force run the scheduling logic if necessary. See https://www.nomadproject.io/api-docs/jobs#create-job-evaluation.'
       operationId: evaluateJob
       parameters:
@@ -3387,6 +3389,8 @@ paths:
           $ref: '#/components/responses/InternalServerError'
   /job/{jobName}/evaluations:
     get:
+      tags:
+        - Jobs
       summary: >
         Gets information about a single job's evaluations.
         See [documentation](https://www.nomadproject.io/api-docs/evaluations#list-evaluations).
@@ -3423,6 +3427,8 @@ paths:
           $ref: '#/components/responses/InternalServerError'
   /job/{jobName}/periodic/force:
     put:
+      tags:
+        - Jobs
       summary: 'Forces a new instance of the periodic job. A new instance will be created even if it violates the job''s prohibit_overlap settings. As such, this should be only used to immediately run a periodic job. See [documentation](https://www.nomadproject.io/docs/commands/job/periodic-force).'
       operationId: putJobForceRequest
       parameters:
@@ -3448,6 +3454,8 @@ paths:
           $ref: '#/components/responses/InternalServerError'
   /jobs:
     get:
+      tags:
+        - Jobs
       summary: 'List all known jobs registered with Nomad. See https://www.nomadproject.io/api-docs/jobs#list-jobs.'
       operationId: getJobs
       parameters:
@@ -3479,6 +3487,8 @@ paths:
           $ref: '#/components/responses/InternalServerError'
   /jobs/parse:
     put:
+      tags:
+        - Jobs
       summary: 'Parses a HCL jobspec and produce the equivalent JSON encoded job. See https://www.nomadproject.io/api-docs/jobs#parse-job.'
       operationId: parseJobSpec
       requestBody:
