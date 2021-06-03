@@ -349,7 +349,7 @@ func NewControllerCapabilitySet(resp *csipbv1.ControllerGetCapabilitiesResponse)
 type ControllerValidateVolumeRequest struct {
 	ExternalID   string
 	Secrets      structs.CSISecrets
-	Capabilities *VolumeCapability
+	Capabilities []*VolumeCapability
 	Parameters   map[string]string
 	Context      map[string]string
 }
@@ -359,14 +359,17 @@ func (r *ControllerValidateVolumeRequest) ToCSIRepresentation() *csipbv1.Validat
 		return nil
 	}
 
+	caps := make([]*csipbv1.VolumeCapability, 0, len(r.Capabilities))
+	for _, cap := range r.Capabilities {
+		caps = append(caps, cap.ToCSIRepresentation())
+	}
+
 	return &csipbv1.ValidateVolumeCapabilitiesRequest{
-		VolumeId:      r.ExternalID,
-		VolumeContext: r.Context,
-		VolumeCapabilities: []*csipbv1.VolumeCapability{
-			r.Capabilities.ToCSIRepresentation(),
-		},
-		Parameters: r.Parameters,
-		Secrets:    r.Secrets,
+		VolumeId:           r.ExternalID,
+		VolumeContext:      r.Context,
+		VolumeCapabilities: caps,
+		Parameters:         r.Parameters,
+		Secrets:            r.Secrets,
 	}
 }
 
