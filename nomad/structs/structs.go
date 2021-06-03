@@ -8234,7 +8234,7 @@ const (
 	ConstraintAttributeIsNotSet = "is_not_set"
 )
 
-// Constraints are used to restrict placement options.
+// A Constraint is used to restrict placement options.
 type Constraint struct {
 	LTarget string // Left-hand target
 	RTarget string // Right-hand target
@@ -8242,7 +8242,7 @@ type Constraint struct {
 	str     string // Memoized string
 }
 
-// Equal checks if two constraints are equal
+// Equals checks if two constraints are equal
 func (c *Constraint) Equals(o *Constraint) bool {
 	return c == o ||
 		c.LTarget == o.LTarget &&
