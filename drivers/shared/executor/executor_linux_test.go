@@ -465,6 +465,62 @@ func TestExecutor_EscapeContainer(t *testing.T) {
 	require.NoError(err)
 }
 
+// TestExecutor_DoesNotInheritOomScoreAdj asserts that the exec processes do not
+// inherit the oom_score_adj value of Nomad agent/executor process
+func TestExecutor_DoesNotInheritOomScoreAdj(t *testing.T) {
+	t.Parallel()
+	testutil.ExecCompatible(t)
+
+	oomPath := "/proc/self/oom_score_adj"
+	origValue, err := os.ReadFile(oomPath)
+	require.NoError(t, err, "reading oom_score_adj")
+
+	err = os.WriteFile(oomPath, []byte("-100"), 0644)
+	require.NoError(t, err, "setting temporary oom_score_adj")
+
+	defer func() {
+		err := os.WriteFile(oomPath, origValue, 0644)
+		require.NoError(t, err, "restoring oom_score_adj")
+	}()
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	defer allocDir.Destroy()
+
+	execCmd.ResourceLimits = true
+	execCmd.Cmd = "/bin/bash"
+	execCmd.Args = []string{"-c", "cat /proc/self/oom_score_adj"}
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	defer executor.Shutdown("SIGKILL", 0)
+
+	_, err = executor.Launch(execCmd)
+	require.NoError(t, err)
+
+	ch := make(chan interface{})
+	go func() {
+		executor.Wait(context.Background())
+		close(ch)
+	}()
+
+	select {
+	case <-ch:
+		// all good
+	case <-time.After(5 * time.Second):
+		require.Fail(t, "timeout waiting for exec to shutdown")
+	}
+
+	expected := "0"
+	tu.WaitForResult(func() (bool, error) {
+		output := strings.TrimSpace(testExecCmd.stdout.String())
+		if output != expected {
+			return false, fmt.Errorf("oom_score_adj didn't match: want\n%v\n; got:\n%v\n", expected, output)
+		}
+		return true, nil
+	}, func(err error) { require.NoError(t, err) })
+
+}
+
 func TestExecutor_Capabilities(t *testing.T) {
 	t.Parallel()
 	testutil.ExecCompatible(t)
