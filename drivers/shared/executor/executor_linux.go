@@ -747,6 +747,11 @@ func newLibcontainerConfig(command *ExecCommand) (*lconfigs.Config, error) {
 	if err := configureCapabilities(cfg, command); err != nil {
 		return nil, err
 	}
+
+	// children should not inherit Nomad agent oom_score_adj value
+	oomScoreAdj := 0
+	cfg.OomScoreAdj = &oomScoreAdj
+
 	if err := configureIsolation(cfg, command); err != nil {
 		return nil, err
 	}
