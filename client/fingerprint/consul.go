@@ -101,13 +101,16 @@ func (f *ConsulFingerprint) initialize(req *FingerprintRequest) error {
 		}
 
 		f.extractors = map[string]consulExtractor{
-			"consul.server":      f.server,
-			"consul.version":     f.version,
-			"consul.sku":         f.sku,
-			"consul.revision":    f.revision,
-			"unique.consul.name": f.name,
-			"consul.datacenter":  f.dc,
-			"consul.segment":     f.segment,
+			"consul.server":        f.server,
+			"consul.version":       f.version,
+			"consul.sku":           f.sku,
+			"consul.revision":      f.revision,
+			"unique.consul.name":   f.name,
+			"consul.datacenter":    f.dc,
+			"consul.segment":       f.segment,
+			"consul.connect":       f.connect,
+			"consul.grpc":          f.grpc,
+			"consul.ft.namespaces": f.namespaces,
 		}
 	}
 
@@ -189,4 +192,40 @@ func (f *ConsulFingerprint) segment(info consulInfo) (string, bool) {
 	}
 	s, ok := tags["segment"].(string)
 	return s, ok
+}
+
+func (f *ConsulFingerprint) connect(info consulInfo) (string, bool) {
+	c, ok := info["DebugConfig"]["ConnectEnabled"].(bool)
+	return strconv.FormatBool(c), ok
+}
+
+func (f *ConsulFingerprint) grpc(info consulInfo) (string, bool) {
+	p, ok := info["DebugConfig"]["GRPCPort"].(float64)
+	return fmt.Sprintf("%d", int(p)), ok
+}
+
+func (f *ConsulFingerprint) namespaces(info consulInfo) (string, bool) {
+	return f.feature("Namespaces", info)
+}
+
+// possible values as of v1.9.5+ent:
+//   Automated Backups, Automated Upgrades, Enhanced Read Scalability,
+//   Network Segments, Redundancy Zone, Advanced Network Federation,
+//   Namespaces, SSO, Audit Logging
+func (f *ConsulFingerprint) feature(name string, info consulInfo) (string, bool) {
+	lic, licOK := info["Stats"]["license"].(map[string]interface{})
+	if !licOK {
+		return "", false
+	}
+
+	features, exists := lic["features"].(string)
+	if !exists {
+		return "", false
+	}
+
+	if !strings.Contains(features, name) {
+		return "", false
+	}
+
+	return "true", true
 }

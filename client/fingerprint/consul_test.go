@@ -260,10 +260,105 @@ func TestConsulFingerprint_segment(t *testing.T) {
 	})
 }
 
-func TestConsulFingerprint_Fingerprint(t *testing.T) {
+func TestConsulFingerprint_connect(t *testing.T) {
+	t.Parallel()
+
+	fp := newConsulFingerPrint(t)
+
+	t.Run("connect enabled", func(t *testing.T) {
+		s, ok := fp.connect(consulInfo{
+			"DebugConfig": {"ConnectEnabled": true},
+		})
+		require.True(t, ok)
+		require.Equal(t, "true", s)
+	})
+
+	t.Run("connect not enabled", func(t *testing.T) {
+		s, ok := fp.connect(consulInfo{
+			"DebugConfig": {"ConnectEnabled": false},
+		})
+		require.True(t, ok)
+		require.Equal(t, "false", s)
+	})
+
+	t.Run("connect missing", func(t *testing.T) {
+		_, ok := fp.connect(consulInfo{
+			"DebugConfig": {},
+		})
+		require.False(t, ok)
+	})
+}
+
+func TestConsulFingerprint_grpc(t *testing.T) {
+	t.Parallel()
+
+	fp := newConsulFingerPrint(t)
+
+	t.Run("grpc set", func(t *testing.T) {
+		s, ok := fp.grpc(consulInfo{
+			"DebugConfig": {"GRPCPort": 8502.0}, // JSON numbers are floats
+		})
+		require.True(t, ok)
+		require.Equal(t, "8502", s)
+	})
+
+	t.Run("grpc disabled", func(t *testing.T) {
+		s, ok := fp.grpc(consulInfo{
+			"DebugConfig": {"GRPCPort": -1.0}, // JSON numbers are floats
+		})
+		require.True(t, ok)
+		require.Equal(t, "-1", s)
+	})
+
+	t.Run("grpc missing", func(t *testing.T) {
+		_, ok := fp.grpc(consulInfo{
+			"DebugConfig": {},
+		})
+		require.False(t, ok)
+	})
+
+}
+
+func TestConsulFingerprint_namespaces(t *testing.T) {
+	t.Parallel()
+
+	fp := newConsulFingerPrint(t)
+
+	t.Run("supports namespaces", func(t *testing.T) {
+		s, ok := fp.namespaces(consulInfo{
+			"Stats": {"license": map[string]interface{}{"features": "Automated Backups, Automated Upgrades, Enhanced Read Scalability, Network Segments, Redundancy Zone, Advanced Network Federation, Namespaces, SSO, Audit Logging"}},
+		})
+		require.True(t, ok)
+		require.Equal(t, "true", s)
+	})
+
+	t.Run("no namespaces", func(t *testing.T) {
+		_, ok := fp.namespaces(consulInfo{
+			"Stats": {"license": map[string]interface{}{"features": "Automated Backups, Automated Upgrades, Enhanced Read Scalability, Network Segments, Redundancy Zone, Advanced Network Federation, SSO, Audit Logging"}},
+		})
+		require.False(t, ok)
+	})
+
+	t.Run("stats missing", func(t *testing.T) {
+		_, ok := fp.namespaces(consulInfo{})
+		require.False(t, ok)
+	})
+
+	t.Run("license missing", func(t *testing.T) {
+		_, ok := fp.namespaces(consulInfo{"Stats": {}})
+		require.False(t, ok)
+	})
+
+	t.Run("features missing", func(t *testing.T) {
+		_, ok := fp.namespaces(consulInfo{"Stats": {"license": map[string]interface{}{}}})
+		require.False(t, ok)
+	})
+}
+
+func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 	cf := newConsulFingerPrint(t)
 
-	ts, cfg := fakeConsul(fakeConsulPayload(t, "test_fixtures/consul/agent_self.json"))
+	ts, cfg := fakeConsul(fakeConsulPayload(t, "test_fixtures/consul/agent_self_oss.json"))
 	defer ts.Close()
 
 	node := &structs.Node{Attributes: make(map[string]string)}
@@ -282,6 +377,8 @@ func TestConsulFingerprint_Fingerprint(t *testing.T) {
 		"consul.server":      "true",
 		"consul.sku":         "oss",
 		"consul.version":     "1.9.5",
+		"consul.connect":     "true",
+		"consul.grpc":        "8502",
 		"unique.consul.name": "HAL9000",
 	}, resp.Attributes)
 	require.True(t, resp.Detected)
@@ -298,19 +395,24 @@ func TestConsulFingerprint_Fingerprint(t *testing.T) {
 	node.Attributes["consul.server"] = "foo"
 	node.Attributes["consul.sku"] = "foo"
 	node.Attributes["consul.version"] = "foo"
+	node.Attributes["consul.connect"] = "foo"
+	node.Attributes["connect.grpc"] = "foo"
 	node.Attributes["unique.consul.name"] = "foo"
 
 	// execute second query with error
 	err2 := cf.Fingerprint(&FingerprintRequest{Config: cfg, Node: node}, &resp2)
 	require.NoError(t, err2)            // does not return error
 	require.Equal(t, map[string]string{ // attributes set empty
-		"consul.datacenter":  "",
-		"consul.revision":    "",
-		"consul.segment":     "",
-		"consul.server":      "",
-		"consul.sku":         "",
-		"consul.version":     "",
-		"unique.consul.name": "",
+		"consul.datacenter":    "",
+		"consul.revision":      "",
+		"consul.segment":       "",
+		"consul.server":        "",
+		"consul.sku":           "",
+		"consul.version":       "",
+		"unique.consul.name":   "",
+		"consul.connect":       "",
+		"consul.grpc":          "",
+		"consul.ft.namespaces": "",
 	}, resp2.Attributes)
 	require.True(t, resp.Detected) // never downgrade
 
@@ -328,7 +430,97 @@ func TestConsulFingerprint_Fingerprint(t *testing.T) {
 		"consul.server":      "true",
 		"consul.sku":         "oss",
 		"consul.version":     "1.9.5",
+		"consul.connect":     "true",
+		"consul.grpc":        "8502",
 		"unique.consul.name": "HAL9000",
+	}, resp3.Attributes)
+
+	// consul now available again
+	require.Equal(t, consulAvailable, cf.lastState)
+	require.True(t, resp.Detected)
+}
+
+func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
+	cf := newConsulFingerPrint(t)
+
+	ts, cfg := fakeConsul(fakeConsulPayload(t, "test_fixtures/consul/agent_self_ent.json"))
+	defer ts.Close()
+
+	node := &structs.Node{Attributes: make(map[string]string)}
+
+	// consul not available before first run
+	require.Equal(t, consulUnavailable, cf.lastState)
+
+	// execute first query with good response
+	var resp FingerprintResponse
+	err := cf.Fingerprint(&FingerprintRequest{Config: cfg, Node: node}, &resp)
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{
+		"consul.datacenter":    "dc1",
+		"consul.revision":      "22ce6c6ad",
+		"consul.segment":       "seg1",
+		"consul.server":        "true",
+		"consul.sku":           "ent",
+		"consul.version":       "1.9.5+ent",
+		"consul.ft.namespaces": "true",
+		"consul.connect":       "true",
+		"consul.grpc":          "8502",
+		"unique.consul.name":   "HAL9000",
+	}, resp.Attributes)
+	require.True(t, resp.Detected)
+
+	// consul now available
+	require.Equal(t, consulAvailable, cf.lastState)
+
+	var resp2 FingerprintResponse
+
+	// pretend attributes set for failing request
+	node.Attributes["consul.datacenter"] = "foo"
+	node.Attributes["consul.revision"] = "foo"
+	node.Attributes["consul.segment"] = "foo"
+	node.Attributes["consul.server"] = "foo"
+	node.Attributes["consul.sku"] = "foo"
+	node.Attributes["consul.version"] = "foo"
+	node.Attributes["consul.ft.namespaces"] = "foo"
+	node.Attributes["consul.connect"] = "foo"
+	node.Attributes["connect.grpc"] = "foo"
+	node.Attributes["unique.consul.name"] = "foo"
+
+	// execute second query with error
+	err2 := cf.Fingerprint(&FingerprintRequest{Config: cfg, Node: node}, &resp2)
+	require.NoError(t, err2)            // does not return error
+	require.Equal(t, map[string]string{ // attributes set empty
+		"consul.datacenter":    "",
+		"consul.revision":      "",
+		"consul.segment":       "",
+		"consul.server":        "",
+		"consul.sku":           "",
+		"consul.version":       "",
+		"consul.ft.namespaces": "",
+		"consul.connect":       "",
+		"consul.grpc":          "",
+		"unique.consul.name":   "",
+	}, resp2.Attributes)
+	require.True(t, resp.Detected) // never downgrade
+
+	// consul no longer available
+	require.Equal(t, consulUnavailable, cf.lastState)
+
+	// execute third query no error
+	var resp3 FingerprintResponse
+	err3 := cf.Fingerprint(&FingerprintRequest{Config: cfg, Node: node}, &resp3)
+	require.NoError(t, err3)
+	require.Equal(t, map[string]string{
+		"consul.datacenter":    "dc1",
+		"consul.revision":      "22ce6c6ad",
+		"consul.segment":       "seg1",
+		"consul.server":        "true",
+		"consul.sku":           "ent",
+		"consul.version":       "1.9.5+ent",
+		"consul.ft.namespaces": "true",
+		"consul.connect":       "true",
+		"consul.grpc":          "8502",
+		"unique.consul.name":   "HAL9000",
 	}, resp3.Attributes)
 
 	// consul now available again
