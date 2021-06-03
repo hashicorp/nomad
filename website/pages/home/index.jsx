@@ -423,7 +423,8 @@ export default function Homepage() {
             linkUrl: '/docs/integrations/vault-integration',
           },
           {
-            slug: 'gitlab',
+            url: require('./img/partner-logos/gitlab-logo-gray-stacked-rgb.svg?url'),
+            alt: 'Gitlab',
             linkUrl:
               'https://www.hashicorp.com/resources/nomad-ci-cd-developer-workflows-and-integrations',
           },
