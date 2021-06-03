@@ -4,11 +4,15 @@ IMPROVEMENTS:
 * cli: Added success confirmation message for `nomad volume delete` and `nomad volume deregister`. [[GH-10591](https://github.com/hashicorp/nomad/issues/10591)]
 * cli: Cross-namespace `nomad job` commands will now select exact matches if the selection is unambiguous. [[GH-10648](https://github.com/hashicorp/nomad/issues/10648)]
 * client/fingerprint: Consul fingerprinter probes for additional enterprise and connect related attributes [[GH-10699](https://github.com/hashicorp/nomad/pull/10699)]
+* csi: Validate that `volume` blocks for CSI volumes include the required `attachment_mode` and `access_mode` fields. [[GH-10651](https://github.com/hashicorp/nomad/issues/10651)]
 
 BUG FIXES:
 * api: Fixed event stream connection initialization when there are no events to send [[GH-10637](https://github.com/hashicorp/nomad/issues/10637)]
 * cli: Fixed a bug where `quota status` and `namespace status` commands may panic if the CLI targets a pre-1.1.0 cluster [[GH-10620](https://github.com/hashicorp/nomad/pull/10620)]
+* cli: Fixed a bug where `alloc exec` may fail with "unexpected EOF" without returning the exit code after a command [[GH-10657](https://github.com/hashicorp/nomad/issues/10657)]
 * csi: Fixed a bug where `mount_options` were not passed to CSI controller plugins for validation during volume creation and mounting. [[GH-10643](https://github.com/hashicorp/nomad/issues/10643)]
+* drivers/exec: Fixed a bug where `exec` and `java` tasks inherit the Nomad agent's `oom_score_adj` value [[GH-10698](https://github.com/hashicorp/nomad/issues/10698)]
+* quotas (Enterprise): Fixed a bug where stopped allocations for a failed deployment can be double-credited to quota limits, resulting in a quota limit bypass. [[GH-10694](https://github.com/hashicorp/nomad/issues/10694)]
 * ui: Fixed a bug where exec would not work across regions. [[GH-10539](https://github.com/hashicorp/nomad/issues/10539)]
 
 ## 1.1.0 (May 18, 2021)
@@ -91,6 +95,15 @@ BUG FIXES:
  * server: Fixed a bug where jobs may not run if submitted with ParentID field set [[GH-10424](https://github.com/hashicorp/nomad/issues/10424)]
  * server: Fixed a panic that may arise on submission of jobs containing invalid service checks [[GH-10154](https://github.com/hashicorp/nomad/issues/10154)]
  * ui: Fixed the rendering of interstitial components shown after processing a dynamic application sizing recommendation. [[GH-10094](https://github.com/hashicorp/nomad/pull/10094)]
+
+## 1.0.7 (Unreleased)
+
+BUG FIXES:
+* api: Fixed event stream connection initialization when there are no events to send [[GH-10637](https://github.com/hashicorp/nomad/issues/10637)]
+* cli: Fixed a bug where `alloc exec` may fail with "unexpected EOF" without returning the exit code after a command [[GH-10657](https://github.com/hashicorp/nomad/issues/10657)]
+* quotas (Enterprise): Fixed a bug where stopped allocations for a failed deployment can be double-credited to quota limits, resulting in a quota limit bypass. [[GH-10694](https://github.com/hashicorp/nomad/issues/10694)]
+* drivers/exec: Fixed a bug where `exec` and `java` tasks inherit the Nomad agent's `oom_score_adj` value [[GH-10698](https://github.com/hashicorp/nomad/issues/10698)]
+* ui: Fixed a bug where exec would not work across regions. [[GH-10539](https://github.com/hashicorp/nomad/issues/10539)]
 
 ## 1.0.6 (May 18, 2021)
 
