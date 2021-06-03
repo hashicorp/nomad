@@ -229,9 +229,10 @@ scripts.
 - `grpc_use_tls` `(bool: false)` - Use TLS to perform a gRPC health check. May
   be used with `tls_skip_verify` to use TLS but skip certificate verification.
 
-- `initial_status` `(string: <enum>)` - Specifies the originating status of the
-  service. Valid options are the empty string, `passing`, `warning`, and
-  `critical`.
+- `initial_status` `(string: <enum>)` - Specifies the starting status of the
+  service. Valid options are `passing`, `warning`, and `critical`. Omitting
+  this field (or submitting an empty string) will result in the Consul default
+  behavior, which is `critical`.
 
 - `success_before_passing` `(int:0)` - The number of consecutive successful checks
   required before Consul will transition the service status to [`passing`][consul_passfail].
