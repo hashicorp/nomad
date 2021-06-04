@@ -214,18 +214,6 @@ func TestService_Connect_ConsulProxy_Canonicalize(t *testing.T) {
 		require.Nil(t, cp.Upstreams)
 		require.Nil(t, cp.Config)
 	})
-
-	t.Run("fix upstream mesh_gateway", func(t *testing.T) {
-		cp := &ConsulProxy{
-			Upstreams: []*ConsulUpstream{{
-				MeshGateway: &ConsulMeshGateway{
-					Mode: "",
-				}},
-			},
-		}
-		cp.Canonicalize()
-		require.Equal(t, "none", cp.Upstreams[0].MeshGateway.Mode)
-	})
 }
 
 func TestService_Connect_ConsulUpstream_Copy(t *testing.T) {
@@ -259,7 +247,7 @@ func TestService_Connect_ConsulUpstream_Canonicalize(t *testing.T) {
 		require.Nil(t, cu)
 	})
 
-	t.Run("fix mesh_gateway", func(t *testing.T) {
+	t.Run("complete", func(t *testing.T) {
 		cu := &ConsulUpstream{
 			DestinationName:  "dest1",
 			Datacenter:       "dc2",
@@ -273,7 +261,7 @@ func TestService_Connect_ConsulUpstream_Canonicalize(t *testing.T) {
 			Datacenter:       "dc2",
 			LocalBindPort:    2000,
 			LocalBindAddress: "10.0.0.1",
-			MeshGateway:      &ConsulMeshGateway{Mode: "none"},
+			MeshGateway:      &ConsulMeshGateway{Mode: ""},
 		}, cu)
 	})
 }
