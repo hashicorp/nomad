@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/scheduler"
@@ -452,6 +453,7 @@ func DefaultConfig() *Config {
 				ServiceSchedulerEnabled: false,
 			},
 		},
+		DeploymentQueryRateLimit: deploymentwatcher.LimitStateQueriesPerSecond,
 	}
 
 	// Enable all known schedulers by default
