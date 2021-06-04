@@ -58,30 +58,6 @@ resource "aws_security_group" "primary" {
     cidr_blocks = [local.ingress_cidr]
   }
 
-  # HDFS NameNode UI
-  ingress {
-    from_port   = 50070
-    to_port     = 50070
-    protocol    = "tcp"
-    cidr_blocks = [local.ingress_cidr]
-  }
-
-  # HDFS DataNode UI
-  ingress {
-    from_port   = 50075
-    to_port     = 50075
-    protocol    = "tcp"
-    cidr_blocks = [local.ingress_cidr]
-  }
-
-  # Spark history server UI
-  ingress {
-    from_port   = 18080
-    to_port     = 18080
-    protocol    = "tcp"
-    cidr_blocks = [local.ingress_cidr]
-  }
-
   ingress {
     from_port = 0
     to_port   = 0
