@@ -94,8 +94,8 @@ job "countdash" {
 
 ### `mesh_gateway` Parameters
 
-- `mode` `(string: "default")` - The mode of operation in which to use [Connect Mesh Gateways][mesh_gateways]
-Defaults to the mode as determined by the Consul [service-defaults][service_defaults_mode]
+- `mode` `(string: "")` - The mode of operation in which to use [Connect Mesh Gateways][mesh_gateways].
+  If left unset, the mode will default to the mode as determined by the Consul [service-defaults][service_defaults_mode]
   configuration for the service. Can be configured with the following modes:
   - `local` - In this mode the Connect proxy makes its outbound connection to a
   gateway running in the same datacenter. That gateway is then responsible for

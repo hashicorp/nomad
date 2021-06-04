@@ -613,13 +613,15 @@ func TestService_ConsulMeshGateway_Canonicalize(t *testing.T) {
 	})
 
 	t.Run("unset mode", func(t *testing.T) {
-		c := &ConsulMeshGateway{
-			Mode: "",
-		}
+		c := &ConsulMeshGateway{Mode: ""}
 		c.Canonicalize()
-		require.Equal(t, &ConsulMeshGateway{
-			Mode: "none",
-		}, c)
+		require.Equal(t, "", c.Mode)
+	})
+
+	t.Run("set mode", func(t *testing.T) {
+		c := &ConsulMeshGateway{Mode: "remote"}
+		c.Canonicalize()
+		require.Equal(t, "remote", c.Mode)
 	})
 }
 

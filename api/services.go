@@ -310,13 +310,9 @@ type ConsulMeshGateway struct {
 }
 
 func (c *ConsulMeshGateway) Canonicalize() {
-	if c == nil {
-		return
-	}
-
-	if c.Mode == "" {
-		c.Mode = "none"
-	}
+	// Mode may be empty string, indicating behavior will defer to Consul
+	// service-defaults config entry.
+	return
 }
 
 func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
