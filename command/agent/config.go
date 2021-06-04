@@ -496,6 +496,10 @@ type ServerConfig struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	// DeploymentQueryRateLimit is in queries per second and is used by the
+	// DeploymentWatcher to throttle the amount of simultaneously deployments
+	DeploymentQueryRateLimit float64 `hcl:"deploy_query_rate_limit"`
 }
 
 // ServerJoin is used in both clients and servers to bootstrap connections to
@@ -1422,6 +1426,10 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.DefaultSchedulerConfig != nil {
 		c := *b.DefaultSchedulerConfig
 		result.DefaultSchedulerConfig = &c
+	}
+
+	if b.DeploymentQueryRateLimit != 0 {
+		result.DeploymentQueryRateLimit = b.DeploymentQueryRateLimit
 	}
 
 	// Add the schedulers
