@@ -519,7 +519,7 @@ type ServerConfig struct {
 
 	// DeploymentRateLimit is in queries per second and is used by the
 	// DeploymentWatcher to throttle the amount of simultaneously deployments
-	DeploymentRateLimit float64
+	DeploymentQueryRateLimit float64 `hcl:"deploy_query_rate_limt"`
 }
 
 // Search is used in servers to configure search API options.
