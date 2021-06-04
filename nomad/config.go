@@ -364,9 +364,9 @@ type Config struct {
 	// It is used primarily for licensing
 	AgentShutdown func() error
 
-	// DeploymentRateLimit is in queries per second and is used by the
+	// DeploymentQueryRateLimit is in queries per second and is used by the
 	// DeploymentWatcher to throttle the amount of simultaneously deployments
-	DeploymentRateLimit float64
+	DeploymentQueryRateLimit float64
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid

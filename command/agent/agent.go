@@ -422,12 +422,12 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	}
 
 	// Set deployment rate limit
-	if rate := agentConfig.Server.DeploymentRateLimit; rate == 0 {
-		conf.DeploymentRateLimit = deploymentwatcher.LimitStateQueriesPerSecond
+	if rate := agentConfig.Server.DeploymentQueryRateLimit; rate == 0 {
+		conf.DeploymentQueryRateLimit = deploymentwatcher.LimitStateQueriesPerSecond
 	} else if rate > 0 {
-		conf.DeploymentRateLimit = rate
+		conf.DeploymentQueryRateLimit = rate
 	} else {
-		return nil, fmt.Errorf("deployment-rate-limit must be greater than 0")
+		return nil, fmt.Errorf("deployment_query_rate_limit must be greater than 0")
 	}
 
 	// Add Enterprise license configs

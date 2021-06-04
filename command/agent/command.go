@@ -98,7 +98,6 @@ func (c *Command) readConfig() *Config {
 		cmdConfig.Server.ServerJoin.RetryInterval = d
 		return nil
 	}), "retry-interval", "")
-	flags.Float64Var(&cmdConfig.Server.DeploymentRateLimit, "deployment-rate-limit", 0, "")
 
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
