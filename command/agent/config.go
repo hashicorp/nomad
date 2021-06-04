@@ -1526,6 +1526,10 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.DefaultSchedulerConfig = &c
 	}
 
+	if b.DeploymentQueryRateLimit != 0 {
+		result.DeploymentQueryRateLimit = b.DeploymentQueryRateLimit
+	}
+
 	if b.Search != nil {
 		result.Search = &Search{FuzzyEnabled: b.Search.FuzzyEnabled}
 		if b.Search.LimitQuery > 0 {

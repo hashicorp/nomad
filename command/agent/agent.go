@@ -427,7 +427,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	} else if rate > 0 {
 		conf.DeploymentQueryRateLimit = rate
 	} else {
-		return nil, fmt.Errorf("deployment_query_rate_limit must be greater than 0")
+		return nil, fmt.Errorf("deploy_query_rate_limit must be greater than 0")
 	}
 
 	// Add Enterprise license configs
