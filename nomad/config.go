@@ -363,6 +363,10 @@ type Config struct {
 	// AgentShutdown is used to call agent.Shutdown from the context of a Server
 	// It is used primarily for licensing
 	AgentShutdown func() error
+
+	// DeploymentRateLimit is in queries per second and is used by the
+	// DeploymentWatcher to throttle the amount of simultaneously deployments
+	DeploymentRateLimit float64
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid

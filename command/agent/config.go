@@ -516,6 +516,10 @@ type ServerConfig struct {
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 
 	Search *Search `hcl:"search"`
+
+	// DeploymentRateLimit is in queries per second and is used by the
+	// DeploymentWatcher to throttle the amount of simultaneously deployments
+	DeploymentRateLimit float64
 }
 
 // Search is used in servers to configure search API options.

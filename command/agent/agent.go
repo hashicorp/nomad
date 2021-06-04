@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"io"
 	"io/ioutil"
 	golog "log"
@@ -418,6 +419,15 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		return nil, fmt.Errorf("rpc_max_conns_per_client must be > %d; found: %d", minLimit, limit)
 	} else {
 		conf.RPCMaxConnsPerClient = limit
+	}
+
+	// Set deployment rate limit
+	if rate := agentConfig.Server.DeploymentRateLimit; rate == 0 {
+		conf.DeploymentRateLimit = deploymentwatcher.LimitStateQueriesPerSecond
+	} else if rate > 0 {
+		conf.DeploymentRateLimit = rate
+	} else {
+		return nil, fmt.Errorf("deployment-rate-limit must be greater than 0")
 	}
 
 	// Add Enterprise license configs
