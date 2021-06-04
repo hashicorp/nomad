@@ -1,3 +1,7 @@
+## 1.0.2-backport (Unreleased)
+
+* server: Make deployment rate limiting configurable for high volume loads [[GH-10706](https://github.com/hashicorp/nomad/pull/10706)]
+
 ## 1.0.2 (January 14, 2020)
 
 IMPROVEMENTS:

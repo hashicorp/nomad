@@ -1017,7 +1017,7 @@ func (s *Server) setupDeploymentWatcher() error {
 		raftShim,
 		s.staticEndpoints.Deployment,
 		s.staticEndpoints.Job,
-		deploymentwatcher.LimitStateQueriesPerSecond,
+		s.config.DeploymentQueryRateLimit,
 		deploymentwatcher.CrossDeploymentUpdateBatchDuration,
 	)
 
