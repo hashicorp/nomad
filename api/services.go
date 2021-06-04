@@ -281,8 +281,8 @@ func (cp *ConsulProxy) Canonicalize() {
 		cp.Upstreams = nil
 	}
 
-	for i := 0; i < len(cp.Upstreams); i++ {
-		cp.Upstreams[i].Canonicalize()
+	for _, upstream := range cp.Upstreams {
+		upstream.Canonicalize()
 	}
 
 	if len(cp.Config) == 0 {
