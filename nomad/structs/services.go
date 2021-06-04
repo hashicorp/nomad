@@ -829,7 +829,9 @@ func (c *ConsulConnect) IsTerminating() bool {
 	return c.IsGateway() && c.Gateway.Terminating != nil
 }
 
-// also mesh
+func (c *ConsulConnect) IsMesh() bool {
+	return c.IsGateway() && c.Gateway.Mesh != nil
+}
 
 // Validate that the Connect block represents exactly one of:
 // - Connect non-native service sidecar proxy
@@ -1221,6 +1223,56 @@ func (p *ConsulProxy) Equals(o *ConsulProxy) bool {
 	return true
 }
 
+// ConsulMeshGateway is used to configure mesh gateway usage when connecting to
+// a connect upstream in another datacenter.
+type ConsulMeshGateway struct {
+	// Mode configures how an upstream should be accessed with regard to using
+	// mesh gateways.
+	//
+	// local - the connect proxy makes outbound connections through mesh gateway
+	// originating in the same datacenter.
+	//
+	// remote - the connect proxy makes outbound connections to a mesh gateway
+	// in the destination datacenter.
+	//
+	// none (default) - no mesh gateway is used, the proxy makes outbound connections
+	// directly to destination services.
+	//
+	// https://www.consul.io/docs/connect/gateways/mesh-gateway#modes-of-operation
+	Mode string
+}
+
+func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
+	if c == nil {
+		return nil
+	}
+
+	return &ConsulMeshGateway{
+		Mode: c.Mode,
+	}
+}
+
+func (c *ConsulMeshGateway) Equals(o *ConsulMeshGateway) bool {
+	if c == nil || o == nil {
+		return c == o
+	}
+
+	return c.Mode == o.Mode
+}
+
+func (c *ConsulMeshGateway) Validate() error {
+	if c == nil {
+		return nil
+	}
+
+	switch c.Mode {
+	case "local", "remote", "none":
+		return nil
+	default:
+		return fmt.Errorf("Connect mesh_gateway mode %q not supported", c.Mode)
+	}
+}
+
 // ConsulUpstream represents a Consul Connect upstream jobspec stanza.
 type ConsulUpstream struct {
 	// DestinationName is the name of the upstream service.
@@ -1236,6 +1288,10 @@ type ConsulUpstream struct {
 	// LocalBindAddress is the address the proxy will receive connections for the
 	// upstream on.
 	LocalBindAddress string
+
+	// MeshGateway is the optional configuration of the mesh gateway for this
+	// upstream to use.
+	MeshGateway *ConsulMeshGateway
 }
 
 func upstreamsEquals(a, b []ConsulUpstream) bool {
@@ -1266,6 +1322,7 @@ func (u *ConsulUpstream) Copy() *ConsulUpstream {
 		LocalBindPort:    u.LocalBindPort,
 		Datacenter:       u.Datacenter,
 		LocalBindAddress: u.LocalBindAddress,
+		MeshGateway:      u.MeshGateway.Copy(),
 	}
 }
 
@@ -1275,10 +1332,23 @@ func (u *ConsulUpstream) Equals(o *ConsulUpstream) bool {
 		return u == o
 	}
 
-	return (*u) == (*o)
+	switch {
+	case u.DestinationName != o.DestinationName:
+		return false
+	case u.LocalBindPort != o.LocalBindPort:
+		return false
+	case u.Datacenter != o.Datacenter:
+		return false
+	case u.LocalBindAddress != o.LocalBindAddress:
+		return false
+	case !u.MeshGateway.Equals(o.MeshGateway):
+		return false
+	}
+
+	return true
 }
 
-// ExposeConfig represents a Consul Connect expose jobspec stanza.
+// ConsulExposeConfig represents a Consul Connect expose jobspec stanza.
 type ConsulExposeConfig struct {
 	// Use json tag to match with field name in api/
 	Paths []ConsulExposePath `json:"Path"`
@@ -1341,18 +1411,19 @@ type ConsulGateway struct {
 	// Terminating represents the Consul Configuration Entry for a Terminating Gateway.
 	Terminating *ConsulTerminatingConfigEntry
 
-	// Mesh is not yet supported.
-	// Mesh *ConsulMeshConfigEntry
+	// Mesh indicates the Consul service should be a Mesh Gateway.
+	Mesh *ConsulMeshConfigEntry
 }
 
 func (g *ConsulGateway) Prefix() string {
 	switch {
+	case g.Mesh != nil:
+		return ConnectMeshPrefix
 	case g.Ingress != nil:
 		return ConnectIngressPrefix
 	default:
 		return ConnectTerminatingPrefix
 	}
-	// also mesh
 }
 
 func (g *ConsulGateway) Copy() *ConsulGateway {
@@ -1364,6 +1435,7 @@ func (g *ConsulGateway) Copy() *ConsulGateway {
 		Proxy:       g.Proxy.Copy(),
 		Ingress:     g.Ingress.Copy(),
 		Terminating: g.Terminating.Copy(),
+		Mesh:        g.Mesh.Copy(),
 	}
 }
 
@@ -1381,6 +1453,10 @@ func (g *ConsulGateway) Equals(o *ConsulGateway) bool {
 	}
 
 	if !g.Terminating.Equals(o.Terminating) {
+		return false
+	}
+
+	if !g.Mesh.Equals(o.Mesh) {
 		return false
 	}
 
@@ -1404,7 +1480,11 @@ func (g *ConsulGateway) Validate() error {
 		return err
 	}
 
-	// Exactly 1 of ingress/terminating/mesh(soon) must be set.
+	if err := g.Mesh.Validate(); err != nil {
+		return err
+	}
+
+	// Exactly 1 of ingress/terminating/mesh must be set.
 	count := 0
 	if g.Ingress != nil {
 		count++
@@ -1412,8 +1492,11 @@ func (g *ConsulGateway) Validate() error {
 	if g.Terminating != nil {
 		count++
 	}
+	if g.Mesh != nil {
+		count++
+	}
 	if count != 1 {
-		return fmt.Errorf("One Consul Gateway Configuration Entry must be set")
+		return fmt.Errorf("One Consul Gateway Configuration must be set")
 	}
 	return nil
 }
@@ -1612,11 +1695,7 @@ func (c *ConsulGatewayTLSConfig) Equals(o *ConsulGatewayTLSConfig) bool {
 
 // ConsulIngressService is used to configure a service fronted by the ingress gateway.
 type ConsulIngressService struct {
-	// Namespace is not yet supported.
-	// Namespace string
-
-	Name string
-
+	Name  string
 	Hosts []string
 }
 
@@ -1776,9 +1855,6 @@ COMPARE: // order does not matter
 //
 // https://www.consul.io/docs/agent/config-entries/ingress-gateway#available-fields
 type ConsulIngressConfigEntry struct {
-	// Namespace is not yet supported.
-	// Namespace string
-
 	TLS       *ConsulGatewayTLSConfig
 	Listeners []*ConsulIngressListener
 }
@@ -1939,9 +2015,6 @@ COMPARE: // order does not matter
 }
 
 type ConsulTerminatingConfigEntry struct {
-	// Namespace is not yet supported.
-	// Namespace string
-
 	Services []*ConsulLinkedService
 }
 
@@ -1986,5 +2059,32 @@ func (e *ConsulTerminatingConfigEntry) Validate() error {
 		}
 	}
 
+	return nil
+}
+
+// ConsulMeshConfigEntry is a stub used to represent that the gateway service
+// type should be for a Mesh Gateway. Unlike Ingress and Terminating, there is no
+// dedicated Consul Config Entry type for "mesh-gateway", for now. We still
+// create a type for future proofing, and to keep underlying job-spec marshaling
+// consistent with the other types.
+type ConsulMeshConfigEntry struct {
+	// nothing in here
+}
+
+func (e *ConsulMeshConfigEntry) Copy() *ConsulMeshConfigEntry {
+	if e == nil {
+		return nil
+	}
+	return new(ConsulMeshConfigEntry)
+}
+
+func (e *ConsulMeshConfigEntry) Equals(o *ConsulMeshConfigEntry) bool {
+	if e == nil || o == nil {
+		return e == o
+	}
+	return true
+}
+
+func (e *ConsulMeshConfigEntry) Validate() error {
 	return nil
 }

@@ -522,6 +522,12 @@ func TestConsulUpstream_upstreamEquals(t *testing.T) {
 		require.False(t, upstreamsEquals(a, b))
 	})
 
+	t.Run("different mesh_gateway", func(t *testing.T) {
+		a := []ConsulUpstream{{DestinationName: "foo", MeshGateway: &ConsulMeshGateway{Mode: "local"}}}
+		b := []ConsulUpstream{{DestinationName: "foo", MeshGateway: &ConsulMeshGateway{Mode: "remote"}}}
+		require.False(t, upstreamsEquals(a, b))
+	})
+
 	t.Run("identical", func(t *testing.T) {
 		a := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
 		b := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
@@ -682,6 +688,15 @@ var (
 			}},
 		},
 	}
+
+	consulMeshGateway1 = &ConsulGateway{
+		Proxy: &ConsulGatewayProxy{
+			ConnectTimeout: helper.TimeToPtr(1 * time.Second),
+		},
+		Mesh: &ConsulMeshConfigEntry{
+			// nothing
+		},
+	}
 )
 
 func TestConsulGateway_Prefix(t *testing.T) {
@@ -695,7 +710,10 @@ func TestConsulGateway_Prefix(t *testing.T) {
 		require.Equal(t, ConnectTerminatingPrefix, result)
 	})
 
-	// also mesh
+	t.Run("mesh", func(t *testing.T) {
+		result := (&ConsulGateway{Mesh: new(ConsulMeshConfigEntry)}).Prefix()
+		require.Equal(t, ConnectMeshPrefix, result)
+	})
 }
 
 func TestConsulGateway_Copy(t *testing.T) {
@@ -719,6 +737,29 @@ func TestConsulGateway_Copy(t *testing.T) {
 		require.Equal(t, consulTerminatingGateway1, result)
 		require.True(t, result.Equals(consulTerminatingGateway1))
 		require.True(t, consulTerminatingGateway1.Equals(result))
+	})
+
+	t.Run("as mesh", func(t *testing.T) {
+		result := consulMeshGateway1.Copy()
+		require.Equal(t, consulMeshGateway1, result)
+		require.True(t, result.Equals(consulMeshGateway1))
+		require.True(t, consulMeshGateway1.Equals(result))
+	})
+}
+
+func TestConsulGateway_Equals_mesh(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		a := (*ConsulGateway)(nil)
+		b := (*ConsulGateway)(nil)
+		require.True(t, a.Equals(b))
+		require.False(t, a.Equals(consulMeshGateway1))
+		require.False(t, consulMeshGateway1.Equals(a))
+	})
+
+	t.Run("reflexive", func(t *testing.T) {
+		require.True(t, consulMeshGateway1.Equals(consulMeshGateway1))
 	})
 }
 
@@ -962,8 +1003,9 @@ func TestConsulGateway_Validate(t *testing.T) {
 		err := (&ConsulGateway{
 			Ingress:     nil,
 			Terminating: nil,
+			Mesh:        nil,
 		}).Validate()
-		require.EqualError(t, err, "One Consul Gateway Configuration Entry must be set")
+		require.EqualError(t, err, "One Consul Gateway Configuration must be set")
 	})
 
 	t.Run("multiple config entries set", func(t *testing.T) {
@@ -983,7 +1025,14 @@ func TestConsulGateway_Validate(t *testing.T) {
 				}},
 			},
 		}).Validate()
-		require.EqualError(t, err, "One Consul Gateway Configuration Entry must be set")
+		require.EqualError(t, err, "One Consul Gateway Configuration must be set")
+	})
+
+	t.Run("ok mesh", func(t *testing.T) {
+		err := (&ConsulGateway{
+			Mesh: new(ConsulMeshConfigEntry),
+		}).Validate()
+		require.NoError(t, err)
 	})
 }
 
@@ -1227,7 +1276,7 @@ func TestConsulLinkedService_Validate(t *testing.T) {
 		require.EqualError(t, err, "Consul Linked Service requires Name")
 	})
 
-	t.Run("missing cafile", func(t *testing.T) {
+	t.Run("missing ca_file", func(t *testing.T) {
 		err := (&ConsulLinkedService{
 			Name:     "linked-service1",
 			CertFile: "cert_file.pem",
@@ -1245,7 +1294,7 @@ func TestConsulLinkedService_Validate(t *testing.T) {
 		require.EqualError(t, err, "Consul Linked Service TLS Cert and Key must both be set")
 	})
 
-	t.Run("sni without cafile", func(t *testing.T) {
+	t.Run("sni without ca_file", func(t *testing.T) {
 		err := (&ConsulLinkedService{
 			Name: "linked-service1",
 			SNI:  "service.consul",
@@ -1339,7 +1388,7 @@ func TestConsulLinkedService_linkedServicesEqual(t *testing.T) {
 	require.True(t, linkedServicesEqual(services, reversed))
 
 	different := []*ConsulLinkedService{
-		services[0], &ConsulLinkedService{
+		services[0], {
 			Name:   "service2",
 			CAFile: "ca.pem",
 			SNI:    "service2.consul",
@@ -1379,6 +1428,47 @@ func TestConsulTerminatingConfigEntry_Validate(t *testing.T) {
 				Name: "service1",
 			}},
 		}).Validate()
+		require.NoError(t, err)
+	})
+}
+
+func TestConsulMeshGateway_Copy(t *testing.T) {
+	t.Parallel()
+
+	require.Nil(t, (*ConsulMeshGateway)(nil))
+	require.Equal(t, &ConsulMeshGateway{
+		Mode: "remote",
+	}, &ConsulMeshGateway{
+		Mode: "remote",
+	})
+}
+
+func TestConsulMeshGateway_Equals(t *testing.T) {
+	t.Parallel()
+
+	c := &ConsulMeshGateway{Mode: "local"}
+	require.False(t, c.Equals(nil))
+	require.True(t, c.Equals(c))
+
+	o := &ConsulMeshGateway{Mode: "remote"}
+	require.False(t, c.Equals(o))
+}
+
+func TestConsulMeshGateway_Validate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		err := (*ConsulMeshGateway)(nil).Validate()
+		require.NoError(t, err)
+	})
+
+	t.Run("mode invalid", func(t *testing.T) {
+		err := (&ConsulMeshGateway{Mode: "banana"}).Validate()
+		require.EqualError(t, err, `Connect mesh_gateway mode "banana" not supported`)
+	})
+
+	t.Run("ok", func(t *testing.T) {
+		err := (&ConsulMeshGateway{Mode: "local"}).Validate()
 		require.NoError(t, err)
 	})
 }

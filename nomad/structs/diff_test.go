@@ -2742,6 +2742,9 @@ func TestTaskGroupDiff(t *testing.T) {
 										SNI:      "linked1.consul",
 									}},
 								},
+								Mesh: &ConsulMeshConfigEntry{
+									// nothing
+								},
 							},
 						},
 					},
@@ -2785,6 +2788,9 @@ func TestTaskGroupDiff(t *testing.T) {
 											LocalBindPort:    8000,
 											Datacenter:       "dc2",
 											LocalBindAddress: "127.0.0.2",
+											MeshGateway: &ConsulMeshGateway{
+												Mode: "remote",
+											},
 										},
 									},
 									Config: map[string]interface{}{
@@ -2829,6 +2835,9 @@ func TestTaskGroupDiff(t *testing.T) {
 										KeyFile:  "key2.pem",
 										SNI:      "linked2.consul",
 									}},
+								},
+								Mesh: &ConsulMeshConfigEntry{
+									// nothing
 								},
 							},
 						},
@@ -3102,6 +3111,20 @@ func TestTaskGroupDiff(t *testing.T) {
 																Name: "LocalBindPort",
 																Old:  "",
 																New:  "8000",
+															},
+														},
+														Objects: []*ObjectDiff{
+															{
+																Type: DiffTypeAdded,
+																Name: "MeshGateway",
+																Fields: []*FieldDiff{
+																	{
+																		Type: DiffTypeAdded,
+																		Name: "Mode",
+																		Old:  "",
+																		New:  "remote",
+																	},
+																},
 															},
 														},
 													},

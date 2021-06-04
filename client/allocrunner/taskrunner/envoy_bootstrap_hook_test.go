@@ -193,6 +193,25 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-ig-ig-8080",
 		}, result)
 	})
+
+	t.Run("mesh gateway", func(t *testing.T) {
+		ebArgs := envoyBootstrapArgs{
+			consulConfig:   consulPlainConfig,
+			grpcAddr:       "1.1.1.1",
+			envoyAdminBind: "localhost:3333",
+			gateway:        "my-mesh-gateway",
+			proxyID:        "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-mesh-mesh-8080",
+		}
+		result := ebArgs.args()
+		require.Equal(t, []string{"connect", "envoy",
+			"-grpc-addr", "1.1.1.1",
+			"-http-addr", "2.2.2.2",
+			"-admin-bind", "localhost:3333",
+			"-bootstrap",
+			"-gateway", "my-mesh-gateway",
+			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-mesh-mesh-8080",
+		}, result)
+	})
 }
 
 func TestEnvoyBootstrapHook_envoyBootstrapEnv(t *testing.T) {
@@ -808,4 +827,13 @@ func TestTaskRunner_EnvoyBootstrapHook_grpcAddress(t *testing.T) {
 		require.Equal(t, "unix://alloc/tmp/consul_grpc.sock", bridgeH.grpcAddress(nil))
 		require.Equal(t, "127.0.0.1:8502", hostH.grpcAddress(nil))
 	})
+}
+
+func TestTaskRunner_EnvoyBootstrapHook_isConnectKind(t *testing.T) {
+	require.True(t, isConnectKind(structs.ConnectProxyPrefix))
+	require.True(t, isConnectKind(structs.ConnectIngressPrefix))
+	require.True(t, isConnectKind(structs.ConnectTerminatingPrefix))
+	require.True(t, isConnectKind(structs.ConnectMeshPrefix))
+	require.False(t, isConnectKind(""))
+	require.False(t, isConnectKind("something"))
 }
