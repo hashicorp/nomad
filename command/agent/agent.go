@@ -29,6 +29,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
@@ -418,6 +419,15 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		return nil, fmt.Errorf("rpc_max_conns_per_client must be > %d; found: %d", minLimit, limit)
 	} else {
 		conf.RPCMaxConnsPerClient = limit
+	}
+
+	// Set deployment rate limit
+	if rate := agentConfig.Server.DeploymentQueryRateLimit; rate == 0 {
+		conf.DeploymentQueryRateLimit = deploymentwatcher.LimitStateQueriesPerSecond
+	} else if rate > 0 {
+		conf.DeploymentQueryRateLimit = rate
+	} else {
+		return nil, fmt.Errorf("deploy_query_rate_limit must be greater than 0")
 	}
 
 	// Add Enterprise license configs
