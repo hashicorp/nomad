@@ -11,7 +11,7 @@ volumes                          = false
 
 nomad_version      = "" # default version for deployment
 nomad_local_binary = ""      # overrides nomad_version if set
-nomad_url = "https://158404-36653430-gh.circle-artifacts.com/0/builds/linux_amd64.zip"
+nomad_url = "https://158626-36653430-gh.circle-artifacts.com/0/builds/linux_amd64.zip"
 
 # Example overrides:
 # nomad_local_binary = "../../pkg/linux_amd64/nomad"
