@@ -7,6 +7,14 @@ data "aws_subnet" "default" {
   vpc_id            = data.aws_vpc.default.id
 }
 
+data "http" "my_public_ipv4" {
+  url = "https://ipv4.icanhazip.com"
+}
+
+locals {
+  ingress_cidr = var.restrict_ingress_cidrblock ? "${chomp(data.http.my_public_ipv4.body)}/32" : "0.0.0.0/0"
+}
+
 resource "aws_security_group" "primary" {
   name   = local.random_name
   vpc_id = data.aws_vpc.default.id
@@ -15,7 +23,7 @@ resource "aws_security_group" "primary" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [local.ingress_cidr]
   }
 
   # Nomad
@@ -23,7 +31,7 @@ resource "aws_security_group" "primary" {
     from_port   = 4646
     to_port     = 4646
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [local.ingress_cidr]
   }
 
   # Fabio
@@ -31,7 +39,7 @@ resource "aws_security_group" "primary" {
     from_port   = 9998
     to_port     = 9999
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [local.ingress_cidr]
   }
 
   # Consul
@@ -39,7 +47,7 @@ resource "aws_security_group" "primary" {
     from_port   = 8500
     to_port     = 8500
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [local.ingress_cidr]
   }
 
   # Vault
@@ -47,31 +55,7 @@ resource "aws_security_group" "primary" {
     from_port   = 8200
     to_port     = 8200
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # HDFS NameNode UI
-  ingress {
-    from_port   = 50070
-    to_port     = 50070
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # HDFS DataNode UI
-  ingress {
-    from_port   = 50075
-    to_port     = 50075
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Spark history server UI
-  ingress {
-    from_port   = 18080
-    to_port     = 18080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [local.ingress_cidr]
   }
 
   ingress {

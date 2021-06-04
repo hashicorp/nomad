@@ -54,6 +54,12 @@ variable "profile" {
   default     = ""
 }
 
+variable "restrict_ingress_cidrblock" {
+  description = "Restrict ingress traffic to cluster to invoker ip address"
+  type        = bool
+  default     = true
+}
+
 # ----------------------------------------
 # The specific version of Nomad deployed will default to whichever one of
 # nomad_sha, nomad_version, or nomad_local_binary is set

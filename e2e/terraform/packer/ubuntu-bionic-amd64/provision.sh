@@ -11,6 +11,7 @@ Options (use one of the following):
  --nomad_sha SHA          full git sha to install from S3
  --nomad_version VERSION  release version number (ex. 0.12.4+ent)
  --nomad_binary FILEPATH  path to file on host
+ --nomad_url URL          url to nomad binary archive
 
 Options for configuration:
  --config_profile FILEPATH  path to config profile directory
@@ -76,12 +77,6 @@ install_from_release() {
 }
 
 install_from_url() {
-    # check that we don't already have this version
-    if [ "$(command -v nomad)" ]; then
-        nomad -version | grep -v 'dev' | grep -q "${NOMAD_VERSION}" \
-            && echo "$NOMAD_VERSION already installed" && return
-    fi
-
     case "${NOMAD_URL}" in
         *.zip*)
             curl -sL --fail -o /tmp/nomad.zip "$NOMAD_URL"

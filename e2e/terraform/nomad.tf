@@ -19,6 +19,8 @@ module "nomad_server" {
 
   nomad_local_binary = count.index < length(var.nomad_local_binary_server) ? var.nomad_local_binary_server[count.index] : var.nomad_local_binary
 
+  nomad_url = count.index < length(var.nomad_url_server) ? var.nomad_url_server[count.index] : var.nomad_url
+
   nomad_enterprise = var.nomad_enterprise
   nomad_license    = var.nomad_license
   nomad_acls       = var.nomad_acls
@@ -55,6 +57,8 @@ module "nomad_client_ubuntu_bionic_amd64" {
   nomad_sha = count.index < length(var.nomad_sha_client_ubuntu_bionic_amd64) ? var.nomad_sha_client_ubuntu_bionic_amd64[count.index] : var.nomad_sha
 
   nomad_local_binary = count.index < length(var.nomad_local_binary_client_ubuntu_bionic_amd64) ? var.nomad_local_binary_client_ubuntu_bionic_amd64[count.index] : var.nomad_local_binary
+
+  nomad_url = count.index < length(var.nomad_url_client_ubuntu_bionic_amd64) ? var.nomad_url_client_ubuntu_bionic_amd64[count.index] : var.nomad_url
 
   nomad_enterprise = var.nomad_enterprise
   nomad_acls       = false
