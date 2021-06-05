@@ -3,6 +3,7 @@ package yamux
 import (
 	"bytes"
 	"io"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -54,6 +55,9 @@ type Stream struct {
 // newStream is used to construct a new stream within
 // a given session for an ID
 func newStream(session *Session, id uint32, state streamState) *Stream {
+	session.logger.Printf("[INFO] yamux: starting a new stream id=%v", id)
+	debug.PrintStack()
+
 	s := &Stream{
 		id:           id,
 		session:      session,
@@ -272,6 +276,9 @@ func (s *Stream) sendWindowUpdate() error {
 
 // sendClose is used to send a FIN
 func (s *Stream) sendClose() error {
+	s.session.logger.Printf("[INFO] yamux: sendClose called id=%v", s.id)
+	debug.PrintStack()
+
 	s.controlHdrLock.Lock()
 	defer s.controlHdrLock.Unlock()
 
@@ -286,6 +293,9 @@ func (s *Stream) sendClose() error {
 
 // Close is used to close the stream
 func (s *Stream) Close() error {
+	s.session.logger.Printf("[INFO] yamux: Closed called id=%v", s.id)
+	debug.PrintStack()
+
 	closeStream := false
 	s.stateLock.Lock()
 	switch s.state {
