@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/rpc"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -63,6 +64,8 @@ func (c *Conn) markForUse() {
 }
 
 func (c *Conn) Close() error {
+	hclog.L().Info("pool yamux: closing connection", "remote_addr", c.session.RemoteAddr(), "local_addr", c.session.LocalAddr())
+	debug.PrintStack()
 	return c.session.Close()
 }
 
@@ -364,6 +367,7 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr, version int) (*Conn,
 		version:  version,
 		pool:     p,
 	}
+	hclog.L().Info("pool yamux: opened connection", "remote_addr", c.session.RemoteAddr(), "local_addr", c.session.LocalAddr())
 	return c, nil
 }
 

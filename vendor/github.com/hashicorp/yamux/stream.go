@@ -55,7 +55,7 @@ type Stream struct {
 // newStream is used to construct a new stream within
 // a given session for an ID
 func newStream(session *Session, id uint32, state streamState) *Stream {
-	session.logger.Printf("[INFO] yamux: starting a new stream id=%v", id)
+	session.logger.Printf("[INFO] yamux: starting a new stream id=%v target=%v", id, session.RemoteAddr())
 	debug.PrintStack()
 
 	s := &Stream{
