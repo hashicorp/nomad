@@ -63,6 +63,13 @@ func (c *Conn) markForUse() {
 	atomic.AddInt32(&c.refCount, 1)
 }
 
+func (c *Conn) releaseUse() {
+	refCount := atomic.AddInt32(&c.refCount, -1)
+	if refCount == 0 && atomic.LoadInt32(&c.shouldClose) == 1 {
+		c.Close()
+	}
+}
+
 func (c *Conn) Close() error {
 	hclog.L().Info("pool yamux: closing connection", "remote_addr", c.session.RemoteAddr(), "local_addr", c.session.LocalAddr())
 	debug.PrintStack()
@@ -125,6 +132,35 @@ func (c *Conn) returnClient(client *StreamClient) {
 	}
 }
 
+func (c *Conn) IsClosed() bool {
+	return c.session.IsClosed()
+}
+
+func (c *Conn) Accept() (net.Conn, error) {
+	s, err := c.session.AcceptStream()
+	if err != nil {
+		return nil, err
+	}
+
+	c.markForUse()
+	return &receivedStream{
+		Stream: s,
+		parent: c,
+	}, nil
+}
+
+type receivedStream struct {
+	*yamux.Stream
+
+	parent *Conn
+}
+
+func (s *receivedStream) Close() error {
+	err := s.Stream.Close()
+	s.parent.releaseUse()
+	return err
+}
+
 // ConnPool is used to maintain a connection pool to other
 // Nomad servers. This is used to reduce the latency of
 // RPC requests between servers. It is only used to pool
@@ -160,7 +196,7 @@ type ConnPool struct {
 
 	// connListener is used to notify a potential listener of a new connection
 	// being made.
-	connListener chan<- *yamux.Session
+	connListener chan<- *Conn
 }
 
 // NewPool is used to make a new connection pool
@@ -223,7 +259,7 @@ func (p *ConnPool) ReloadTLS(tlsWrap tlsutil.RegionWrapper) {
 
 // SetConnListener is used to listen to new connections being made. The
 // channel will be closed when the conn pool is closed or a new listener is set.
-func (p *ConnPool) SetConnListener(l chan<- *yamux.Session) {
+func (p *ConnPool) SetConnListener(l chan<- *Conn) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -279,7 +315,7 @@ func (p *ConnPool) acquire(region string, addr net.Addr, version int) (*Conn, er
 		// If there is a connection listener, notify them of the new connection.
 		if p.connListener != nil {
 			select {
-			case p.connListener <- c.session:
+			case p.connListener <- c:
 			default:
 			}
 		}
@@ -390,14 +426,6 @@ func (p *ConnPool) clearConn(conn *Conn) {
 	}
 }
 
-// releaseConn is invoked when we are done with a conn to reduce the ref count
-func (p *ConnPool) releaseConn(conn *Conn) {
-	refCount := atomic.AddInt32(&conn.refCount, -1)
-	if refCount == 0 && atomic.LoadInt32(&conn.shouldClose) == 1 {
-		conn.Close()
-	}
-}
-
 // getClient is used to get a usable client for an address and protocol version
 func (p *ConnPool) getRPCClient(region string, addr net.Addr, version int) (*Conn, *StreamClient, error) {
 	retries := 0
@@ -412,7 +440,7 @@ START:
 	client, err := conn.getRPCClient()
 	if err != nil {
 		p.clearConn(conn)
-		p.releaseConn(conn)
+		conn.releaseUse()
 
 		// Try to redial, possible that the TCP session closed due to timeout
 		if retries == 0 {
@@ -465,7 +493,7 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 			p.clearConn(conn)
 		}
 
-		p.releaseConn(conn)
+		conn.releaseUse()
 
 		// If the error is an RPC Coded error
 		// return the coded error without wrapping
@@ -479,7 +507,7 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 
 	// Done with the connection
 	conn.returnClient(sc)
-	p.releaseConn(conn)
+	conn.releaseUse()
 	return nil
 }
 
