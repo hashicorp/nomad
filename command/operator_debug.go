@@ -674,6 +674,12 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 		}
 	}
 
+	err = c.savePprofProfile(path, "heap", opts, client)
+	err = c.savePprofProfile(path, "allocs", opts, client)
+	err = c.savePprofProfile(path, "threadcreate", opts, client)
+	err = c.savePprofProfile(path, "block", opts, client)
+	err = c.savePprofProfile(path, "mutex", opts, client)
+
 	// Gather goroutine text output - debug type 1
 	// debug type 1 writes the legacy text format for human readable output
 	opts.Debug = 1
@@ -700,6 +706,19 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 			c.Ui.Error(err.Error())
 		}
 	}
+}
+
+// savePprofProfile collects a pprof profile from the client API and writes to disk
+func (c *OperatorDebugCommand) savePprofProfile(path string, profile string, opts api.PprofOptions, client *api.Client) error {
+	bs, err := client.Agent().Lookup(profile, opts, nil)
+	if err != nil {
+		return fmt.Errorf("%s: Failed to retrieve pprof profile %s, err: %v", path, profile, err)
+	}
+
+	fileName := fmt.Sprintf("%s.prof", profile)
+	err = c.writeBytes(path, fileName, bs)
+
+	return err
 }
 
 // collectPeriodic runs for duration, capturing the cluster state every interval. It flushes and stops
