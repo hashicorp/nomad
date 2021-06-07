@@ -8,7 +8,7 @@ data "aws_subnet" "default" {
 }
 
 data "http" "my_public_ipv4" {
-  url = "https://ipv4.icanhazip.com"
+  url = "https://api.ipify.org"
 }
 
 locals {
