@@ -27,6 +27,14 @@ func TestPluginStatusCommand_Fails(t *testing.T) {
 	out := ui.ErrorWriter.String()
 	require.Contains(t, out, commandErrorText(cmd))
 	ui.ErrorWriter.Reset()
+
+	// Test an unsupported plugin type.
+	code = cmd.Run([]string{"-type=not-a-plugin"})
+	require.Equal(t, 1, code)
+
+	out = ui.ErrorWriter.String()
+	require.Contains(t, out, "Unsupported plugin type: not-a-plugin")
+	ui.ErrorWriter.Reset()
 }
 
 func TestPluginStatusCommand_AutocompleteArgs(t *testing.T) {

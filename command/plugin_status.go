@@ -110,13 +110,22 @@ func (c *PluginStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	typeArg = strings.ToLower(typeArg)
-
 	// Check that we either got no arguments or exactly one.
 	args = flags.Args()
 	if len(args) > 1 {
 		c.Ui.Error("This command takes either no arguments or one: <plugin>")
 		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+
+	typeArg = strings.ToLower(typeArg)
+
+	// Check that the plugin type flag is supported. Empty implies we are
+	// querying all plugins, otherwise we currently only support "csi".
+	switch typeArg {
+	case "", "csi":
+	default:
+		c.Ui.Error(fmt.Sprintf("Unsupported plugin type: %s", typeArg))
 		return 1
 	}
 
