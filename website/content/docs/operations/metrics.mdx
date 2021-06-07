@@ -389,13 +389,13 @@ those listed in [Key Metrics](#key-metrics) above.
 | `nomad.nomad.plan.evaluate`                          | Time elapsed to evaluate a plan                                   | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.plan.queue_depth`                       | Count of evals in the plan queue                                  | Integer              | Gauge   | host                         |
 | `nomad.nomad.plan.submit`                            | Time elapsed for `Plan.Submit` RPC call                           | Nanoseconds          | Summary | host                         |
-| `nomad.nomad.plan.wait_for_index`                    | Time elapsed for the planner to obtain a snapshot                 | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.plugin.delete`                          | Time elapsed for `CSIPlugin.Delete` RPC call                      | Nanoseconds          | Summary | Host                         |
 | `nomad.nomad.plugin.get`                             | Time elapsed for `CSIPlugin.Get` RPC call                         | Nanoseconds          | Summary | Host                         |
 | `nomad.nomad.plugin.list`                            | Time elapsed for `CSIPlugin.List` RPC call                        | Nanoseconds          | Summary | Host                         |
 | `nomad.nomad.scaling.get_policy`                     | Time elapsed for `Scaling.GetPolicy` RPC call                     | Nanoseconds          | Summary | Host                         |
 | `nomad.nomad.scaling.list_policies`                  | Time elapsed for `Scaling.ListPolicies` RPC call                  | Nanoseconds          | Summary | Host                         |
 | `nomad.nomad.search.prefix_search`                   | Time elapsed for `Search.PrefixSearch` RPC call                   | Nanoseconds          | Summary | Host                         |
+| `nomad.nomad.plan.wait_for_index`                    | Time elapsed that planner waits for the raft index of the plan to be processed | Nanoseconds | Summary | host                     |
 | `nomad.nomad.vault.create_token`                     | Time elapsed to create Vault token                                | Nanoseconds          | Gauge   | host                         |
 | `nomad.nomad.vault.distributed_tokens_revoked`       | Count of revoked tokens                                           | Integer              | Gauge   | host                         |
 | `nomad.nomad.vault.lookup_token`                     | Time elapsed to lookup Vault token                                | Nanoseconds          | Gauge   | host                         |
@@ -416,7 +416,7 @@ those listed in [Key Metrics](#key-metrics) above.
 | `nomad.nomad.worker.send_ack`                        | Time elapsed for worker to send acknowledgement                   | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.worker.submit_plan`                     | Time elapsed for worker to submit plan                            | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.worker.update_eval`                     | Time elapsed for worker to submit updated eval                    | Nanoseconds          | Summary | host                         |
-| `nomad.nomad.worker.wait_for_index`                  | Time elapsed for worker get snapshot                              | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.worker.wait_for_index`                  | Time elapsed that worker waits for the raft index of the eval to be processed | Nanoseconds | Summary | host                      |
 | `nomad.raft.appliedIndex`                            | Current index applied to FSM                                      | Integer              | Gauge   | host                         |
 | `nomad.raft.barrier`                                 | Count of blocking raft API calls                                  | Integer              | Counter | host                         |
 | `nomad.raft.commitNumLogs`                           | Count of logs enqueued                                            | Integer              | Gauge   | host                         |
