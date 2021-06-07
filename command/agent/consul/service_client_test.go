@@ -336,8 +336,8 @@ func TestSyncLogic_maybeTweakTags_emptySC(t *testing.T) {
 func TestServiceRegistration_CheckOnUpdate(t *testing.T) {
 	t.Parallel()
 
-	mockAgent := NewMockAgent()
-	namespacesClient := NewNamespacesClient(NewMockNamespaces(nil))
+	mockAgent := NewMockAgent(ossFeatures)
+	namespacesClient := NewNamespacesClient(NewMockNamespaces(nil), mockAgent)
 	logger := testlog.HCLogger(t)
 	sc := NewServiceClient(mockAgent, namespacesClient, logger, true)
 

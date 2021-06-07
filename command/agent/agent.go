@@ -1197,7 +1197,7 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	}
 	// Create Consul Agent client for looking info about the agent.
 	consulAgentClient := consulClient.Agent()
-	namespacesClient := consul.NewNamespacesClient(consulClient.Namespaces())
+	namespacesClient := consul.NewNamespacesClient(consulClient.Namespaces(), consulAgentClient)
 	a.consulService = consul.NewServiceClient(consulAgentClient, namespacesClient, a.logger, isClient)
 	a.consulProxies = consul.NewConnectProxiesClient(consulAgentClient)
 

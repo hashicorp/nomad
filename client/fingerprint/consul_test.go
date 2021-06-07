@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
+	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
@@ -51,7 +52,7 @@ func TestConsulFingerprint_server(t *testing.T) {
 	fp := newConsulFingerPrint(t)
 
 	t.Run("is server", func(t *testing.T) {
-		s, ok := fp.server(consulInfo{
+		s, ok := fp.server(agentconsul.Self{
 			"Config": {"Server": true},
 		})
 		require.True(t, ok)
@@ -59,7 +60,7 @@ func TestConsulFingerprint_server(t *testing.T) {
 	})
 
 	t.Run("is not server", func(t *testing.T) {
-		s, ok := fp.server(consulInfo{
+		s, ok := fp.server(agentconsul.Self{
 			"Config": {"Server": false},
 		})
 		require.True(t, ok)
@@ -67,14 +68,14 @@ func TestConsulFingerprint_server(t *testing.T) {
 	})
 
 	t.Run("missing", func(t *testing.T) {
-		_, ok := fp.server(consulInfo{
+		_, ok := fp.server(agentconsul.Self{
 			"Config": {},
 		})
 		require.False(t, ok)
 	})
 
 	t.Run("malformed", func(t *testing.T) {
-		_, ok := fp.server(consulInfo{
+		_, ok := fp.server(agentconsul.Self{
 			"Config": {"Server": 9000},
 		})
 		require.False(t, ok)
@@ -87,7 +88,7 @@ func TestConsulFingerprint_version(t *testing.T) {
 	fp := newConsulFingerPrint(t)
 
 	t.Run("oss", func(t *testing.T) {
-		v, ok := fp.version(consulInfo{
+		v, ok := fp.version(agentconsul.Self{
 			"Config": {"Version": "v1.9.5"},
 		})
 		require.True(t, ok)
@@ -95,7 +96,7 @@ func TestConsulFingerprint_version(t *testing.T) {
 	})
 
 	t.Run("ent", func(t *testing.T) {
-		v, ok := fp.version(consulInfo{
+		v, ok := fp.version(agentconsul.Self{
 			"Config": {"Version": "v1.9.5+ent"},
 		})
 		require.True(t, ok)
@@ -103,14 +104,14 @@ func TestConsulFingerprint_version(t *testing.T) {
 	})
 
 	t.Run("missing", func(t *testing.T) {
-		_, ok := fp.version(consulInfo{
+		_, ok := fp.version(agentconsul.Self{
 			"Config": {},
 		})
 		require.False(t, ok)
 	})
 
 	t.Run("malformed", func(t *testing.T) {
-		_, ok := fp.version(consulInfo{
+		_, ok := fp.version(agentconsul.Self{
 			"Config": {"Version": 9000},
 		})
 		require.False(t, ok)
@@ -123,7 +124,7 @@ func TestConsulFingerprint_sku(t *testing.T) {
 	fp := newConsulFingerPrint(t)
 
 	t.Run("oss", func(t *testing.T) {
-		s, ok := fp.sku(consulInfo{
+		s, ok := fp.sku(agentconsul.Self{
 			"Config": {"Version": "v1.9.5"},
 		})
 		require.True(t, ok)
@@ -131,7 +132,7 @@ func TestConsulFingerprint_sku(t *testing.T) {
 	})
 
 	t.Run("oss dev", func(t *testing.T) {
-		s, ok := fp.sku(consulInfo{
+		s, ok := fp.sku(agentconsul.Self{
 			"Config": {"Version": "v1.9.5-dev"},
 		})
 		require.True(t, ok)
@@ -139,7 +140,7 @@ func TestConsulFingerprint_sku(t *testing.T) {
 	})
 
 	t.Run("ent", func(t *testing.T) {
-		s, ok := fp.sku(consulInfo{
+		s, ok := fp.sku(agentconsul.Self{
 			"Config": {"Version": "v1.9.5+ent"},
 		})
 		require.True(t, ok)
@@ -147,7 +148,7 @@ func TestConsulFingerprint_sku(t *testing.T) {
 	})
 
 	t.Run("ent dev", func(t *testing.T) {
-		s, ok := fp.sku(consulInfo{
+		s, ok := fp.sku(agentconsul.Self{
 			"Config": {"Version": "v1.9.5+ent-dev"},
 		})
 		require.True(t, ok)
@@ -155,14 +156,14 @@ func TestConsulFingerprint_sku(t *testing.T) {
 	})
 
 	t.Run("missing", func(t *testing.T) {
-		_, ok := fp.sku(consulInfo{
+		_, ok := fp.sku(agentconsul.Self{
 			"Config": {},
 		})
 		require.False(t, ok)
 	})
 
 	t.Run("malformed", func(t *testing.T) {
-		_, ok := fp.sku(consulInfo{
+		_, ok := fp.sku(agentconsul.Self{
 			"Config": {"Version": "***"},
 		})
 		require.False(t, ok)
@@ -175,7 +176,7 @@ func TestConsulFingerprint_revision(t *testing.T) {
 	fp := newConsulFingerPrint(t)
 
 	t.Run("ok", func(t *testing.T) {
-		r, ok := fp.revision(consulInfo{
+		r, ok := fp.revision(agentconsul.Self{
 			"Config": {"Revision": "3c1c22679"},
 		})
 		require.True(t, ok)
@@ -183,14 +184,14 @@ func TestConsulFingerprint_revision(t *testing.T) {
 	})
 
 	t.Run("malformed", func(t *testing.T) {
-		_, ok := fp.revision(consulInfo{
+		_, ok := fp.revision(agentconsul.Self{
 			"Config": {"Revision": 9000},
 		})
 		require.False(t, ok)
 	})
 
 	t.Run("missing", func(t *testing.T) {
-		_, ok := fp.revision(consulInfo{
+		_, ok := fp.revision(agentconsul.Self{
 			"Config": {},
 		})
 		require.False(t, ok)
@@ -203,7 +204,7 @@ func TestConsulFingerprint_dc(t *testing.T) {
 	fp := newConsulFingerPrint(t)
 
 	t.Run("ok", func(t *testing.T) {
-		dc, ok := fp.dc(consulInfo{
+		dc, ok := fp.dc(agentconsul.Self{
 			"Config": {"Datacenter": "dc1"},
 		})
 		require.True(t, ok)
@@ -211,14 +212,14 @@ func TestConsulFingerprint_dc(t *testing.T) {
 	})
 
 	t.Run("malformed", func(t *testing.T) {
-		_, ok := fp.dc(consulInfo{
+		_, ok := fp.dc(agentconsul.Self{
 			"Config": {"Datacenter": 9000},
 		})
 		require.False(t, ok)
 	})
 
 	t.Run("missing", func(t *testing.T) {
-		_, ok := fp.dc(consulInfo{
+		_, ok := fp.dc(agentconsul.Self{
 			"Config": {},
 		})
 		require.False(t, ok)
@@ -231,7 +232,7 @@ func TestConsulFingerprint_segment(t *testing.T) {
 	fp := newConsulFingerPrint(t)
 
 	t.Run("ok", func(t *testing.T) {
-		s, ok := fp.segment(consulInfo{
+		s, ok := fp.segment(agentconsul.Self{
 			"Member": {"Tags": map[string]interface{}{"segment": "seg1"}},
 		})
 		require.True(t, ok)
@@ -239,21 +240,21 @@ func TestConsulFingerprint_segment(t *testing.T) {
 	})
 
 	t.Run("segment missing", func(t *testing.T) {
-		_, ok := fp.segment(consulInfo{
+		_, ok := fp.segment(agentconsul.Self{
 			"Member": {"Tags": map[string]interface{}{}},
 		})
 		require.False(t, ok)
 	})
 
 	t.Run("tags missing", func(t *testing.T) {
-		_, ok := fp.segment(consulInfo{
+		_, ok := fp.segment(agentconsul.Self{
 			"Member": {},
 		})
 		require.False(t, ok)
 	})
 
 	t.Run("malformed", func(t *testing.T) {
-		_, ok := fp.segment(consulInfo{
+		_, ok := fp.segment(agentconsul.Self{
 			"Member": {"Tags": map[string]interface{}{"segment": 9000}},
 		})
 		require.False(t, ok)
@@ -266,7 +267,7 @@ func TestConsulFingerprint_connect(t *testing.T) {
 	fp := newConsulFingerPrint(t)
 
 	t.Run("connect enabled", func(t *testing.T) {
-		s, ok := fp.connect(consulInfo{
+		s, ok := fp.connect(agentconsul.Self{
 			"DebugConfig": {"ConnectEnabled": true},
 		})
 		require.True(t, ok)
@@ -274,7 +275,7 @@ func TestConsulFingerprint_connect(t *testing.T) {
 	})
 
 	t.Run("connect not enabled", func(t *testing.T) {
-		s, ok := fp.connect(consulInfo{
+		s, ok := fp.connect(agentconsul.Self{
 			"DebugConfig": {"ConnectEnabled": false},
 		})
 		require.True(t, ok)
@@ -282,7 +283,7 @@ func TestConsulFingerprint_connect(t *testing.T) {
 	})
 
 	t.Run("connect missing", func(t *testing.T) {
-		_, ok := fp.connect(consulInfo{
+		_, ok := fp.connect(agentconsul.Self{
 			"DebugConfig": {},
 		})
 		require.False(t, ok)
@@ -295,7 +296,7 @@ func TestConsulFingerprint_grpc(t *testing.T) {
 	fp := newConsulFingerPrint(t)
 
 	t.Run("grpc set", func(t *testing.T) {
-		s, ok := fp.grpc(consulInfo{
+		s, ok := fp.grpc(agentconsul.Self{
 			"DebugConfig": {"GRPCPort": 8502.0}, // JSON numbers are floats
 		})
 		require.True(t, ok)
@@ -303,7 +304,7 @@ func TestConsulFingerprint_grpc(t *testing.T) {
 	})
 
 	t.Run("grpc disabled", func(t *testing.T) {
-		s, ok := fp.grpc(consulInfo{
+		s, ok := fp.grpc(agentconsul.Self{
 			"DebugConfig": {"GRPCPort": -1.0}, // JSON numbers are floats
 		})
 		require.True(t, ok)
@@ -311,7 +312,7 @@ func TestConsulFingerprint_grpc(t *testing.T) {
 	})
 
 	t.Run("grpc missing", func(t *testing.T) {
-		_, ok := fp.grpc(consulInfo{
+		_, ok := fp.grpc(agentconsul.Self{
 			"DebugConfig": {},
 		})
 		require.False(t, ok)
@@ -325,33 +326,38 @@ func TestConsulFingerprint_namespaces(t *testing.T) {
 	fp := newConsulFingerPrint(t)
 
 	t.Run("supports namespaces", func(t *testing.T) {
-		s, ok := fp.namespaces(consulInfo{
+		value, ok := fp.namespaces(agentconsul.Self{
 			"Stats": {"license": map[string]interface{}{"features": "Automated Backups, Automated Upgrades, Enhanced Read Scalability, Network Segments, Redundancy Zone, Advanced Network Federation, Namespaces, SSO, Audit Logging"}},
 		})
 		require.True(t, ok)
-		require.Equal(t, "true", s)
+		require.Equal(t, "true", value)
 	})
 
 	t.Run("no namespaces", func(t *testing.T) {
-		_, ok := fp.namespaces(consulInfo{
+		value, ok := fp.namespaces(agentconsul.Self{
 			"Stats": {"license": map[string]interface{}{"features": "Automated Backups, Automated Upgrades, Enhanced Read Scalability, Network Segments, Redundancy Zone, Advanced Network Federation, SSO, Audit Logging"}},
 		})
-		require.False(t, ok)
+		require.True(t, ok)
+		require.Equal(t, "false", value)
+
 	})
 
 	t.Run("stats missing", func(t *testing.T) {
-		_, ok := fp.namespaces(consulInfo{})
-		require.False(t, ok)
+		value, ok := fp.namespaces(agentconsul.Self{})
+		require.True(t, ok)
+		require.Equal(t, "false", value)
 	})
 
 	t.Run("license missing", func(t *testing.T) {
-		_, ok := fp.namespaces(consulInfo{"Stats": {}})
-		require.False(t, ok)
+		value, ok := fp.namespaces(agentconsul.Self{"Stats": {}})
+		require.True(t, ok)
+		require.Equal(t, "false", value)
 	})
 
 	t.Run("features missing", func(t *testing.T) {
-		_, ok := fp.namespaces(consulInfo{"Stats": {"license": map[string]interface{}{}}})
-		require.False(t, ok)
+		value, ok := fp.namespaces(agentconsul.Self{"Stats": {"license": map[string]interface{}{}}})
+		require.True(t, ok)
+		require.Equal(t, "false", value)
 	})
 }
 
@@ -371,15 +377,16 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 	err := cf.Fingerprint(&FingerprintRequest{Config: cfg, Node: node}, &resp)
 	require.NoError(t, err)
 	require.Equal(t, map[string]string{
-		"consul.datacenter":  "dc1",
-		"consul.revision":    "3c1c22679",
-		"consul.segment":     "seg1",
-		"consul.server":      "true",
-		"consul.sku":         "oss",
-		"consul.version":     "1.9.5",
-		"consul.connect":     "true",
-		"consul.grpc":        "8502",
-		"unique.consul.name": "HAL9000",
+		"consul.datacenter":    "dc1",
+		"consul.revision":      "3c1c22679",
+		"consul.segment":       "seg1",
+		"consul.server":        "true",
+		"consul.sku":           "oss",
+		"consul.version":       "1.9.5",
+		"consul.connect":       "true",
+		"consul.grpc":          "8502",
+		"consul.ft.namespaces": "false",
+		"unique.consul.name":   "HAL9000",
 	}, resp.Attributes)
 	require.True(t, resp.Detected)
 
@@ -424,15 +431,16 @@ func TestConsulFingerprint_Fingerprint_oss(t *testing.T) {
 	err3 := cf.Fingerprint(&FingerprintRequest{Config: cfg, Node: node}, &resp3)
 	require.NoError(t, err3)
 	require.Equal(t, map[string]string{
-		"consul.datacenter":  "dc1",
-		"consul.revision":    "3c1c22679",
-		"consul.segment":     "seg1",
-		"consul.server":      "true",
-		"consul.sku":         "oss",
-		"consul.version":     "1.9.5",
-		"consul.connect":     "true",
-		"consul.grpc":        "8502",
-		"unique.consul.name": "HAL9000",
+		"consul.datacenter":    "dc1",
+		"consul.revision":      "3c1c22679",
+		"consul.segment":       "seg1",
+		"consul.server":        "true",
+		"consul.sku":           "oss",
+		"consul.version":       "1.9.5",
+		"consul.connect":       "true",
+		"consul.grpc":          "8502",
+		"consul.ft.namespaces": "false",
+		"unique.consul.name":   "HAL9000",
 	}, resp3.Attributes)
 
 	// consul now available again

@@ -3,12 +3,11 @@ package fingerprint
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
-	consul "github.com/hashicorp/consul/api"
+	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-version"
+	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 )
 
 const (
@@ -19,17 +18,14 @@ const (
 // ConsulFingerprint is used to fingerprint for Consul
 type ConsulFingerprint struct {
 	logger     log.Logger
-	client     *consul.Client
+	client     *consulapi.Client
 	lastState  string
 	extractors map[string]consulExtractor
 }
 
-// consulInfo aliases the type returned from the Consul agent self endpoint.
-type consulInfo = map[string]map[string]interface{}
-
 // consulExtractor is used to parse out one attribute from consulInfo. Returns
 // the value of the attribute, and whether the attribute exists.
-type consulExtractor func(consulInfo) (string, bool)
+type consulExtractor func(agentconsul.Self) (string, bool)
 
 // NewConsulFingerprint is used to create a Consul fingerprint
 func NewConsulFingerprint(logger log.Logger) Fingerprint {
@@ -95,7 +91,7 @@ func (f *ConsulFingerprint) initialize(req *FingerprintRequest) error {
 			return fmt.Errorf("failed to initialize Consul client config: %v", err)
 		}
 
-		f.client, err = consul.NewClient(consulConfig)
+		f.client, err = consulapi.NewClient(consulConfig)
 		if err != nil {
 			return fmt.Errorf("failed to initialize Consul client: %s", err)
 		}
@@ -117,7 +113,7 @@ func (f *ConsulFingerprint) initialize(req *FingerprintRequest) error {
 	return nil
 }
 
-func (f *ConsulFingerprint) query(resp *FingerprintResponse) consulInfo {
+func (f *ConsulFingerprint) query(resp *FingerprintResponse) agentconsul.Self {
 	// We'll try to detect consul by making a query to to the agent's self API.
 	// If we can't hit this URL consul is probably not running on this machine.
 	info, err := f.client.Agent().Self()
@@ -144,48 +140,36 @@ func (f *ConsulFingerprint) link(resp *FingerprintResponse) {
 	}
 }
 
-func (f *ConsulFingerprint) server(info consulInfo) (string, bool) {
+func (f *ConsulFingerprint) server(info agentconsul.Self) (string, bool) {
 	s, ok := info["Config"]["Server"].(bool)
 	return strconv.FormatBool(s), ok
 }
 
-func (f *ConsulFingerprint) version(info consulInfo) (string, bool) {
+func (f *ConsulFingerprint) version(info agentconsul.Self) (string, bool) {
 	v, ok := info["Config"]["Version"].(string)
 	return v, ok
 }
 
-func (f *ConsulFingerprint) sku(info consulInfo) (string, bool) {
-	v, ok := info["Config"]["Version"].(string)
-	if !ok {
-		return "", ok
-	}
-
-	ver, vErr := version.NewVersion(v)
-	if vErr != nil {
-		return "", false
-	}
-	if strings.Contains(ver.Metadata(), "ent") {
-		return "ent", true
-	}
-	return "oss", true
+func (f *ConsulFingerprint) sku(info agentconsul.Self) (string, bool) {
+	return agentconsul.SKU(info)
 }
 
-func (f *ConsulFingerprint) revision(info consulInfo) (string, bool) {
+func (f *ConsulFingerprint) revision(info agentconsul.Self) (string, bool) {
 	r, ok := info["Config"]["Revision"].(string)
 	return r, ok
 }
 
-func (f *ConsulFingerprint) name(info consulInfo) (string, bool) {
+func (f *ConsulFingerprint) name(info agentconsul.Self) (string, bool) {
 	n, ok := info["Config"]["NodeName"].(string)
 	return n, ok
 }
 
-func (f *ConsulFingerprint) dc(info consulInfo) (string, bool) {
+func (f *ConsulFingerprint) dc(info agentconsul.Self) (string, bool) {
 	d, ok := info["Config"]["Datacenter"].(string)
 	return d, ok
 }
 
-func (f *ConsulFingerprint) segment(info consulInfo) (string, bool) {
+func (f *ConsulFingerprint) segment(info agentconsul.Self) (string, bool) {
 	tags, tagsOK := info["Member"]["Tags"].(map[string]interface{})
 	if !tagsOK {
 		return "", false
@@ -194,38 +178,16 @@ func (f *ConsulFingerprint) segment(info consulInfo) (string, bool) {
 	return s, ok
 }
 
-func (f *ConsulFingerprint) connect(info consulInfo) (string, bool) {
+func (f *ConsulFingerprint) connect(info agentconsul.Self) (string, bool) {
 	c, ok := info["DebugConfig"]["ConnectEnabled"].(bool)
 	return strconv.FormatBool(c), ok
 }
 
-func (f *ConsulFingerprint) grpc(info consulInfo) (string, bool) {
+func (f *ConsulFingerprint) grpc(info agentconsul.Self) (string, bool) {
 	p, ok := info["DebugConfig"]["GRPCPort"].(float64)
 	return fmt.Sprintf("%d", int(p)), ok
 }
 
-func (f *ConsulFingerprint) namespaces(info consulInfo) (string, bool) {
-	return f.feature("Namespaces", info)
-}
-
-// possible values as of v1.9.5+ent:
-//   Automated Backups, Automated Upgrades, Enhanced Read Scalability,
-//   Network Segments, Redundancy Zone, Advanced Network Federation,
-//   Namespaces, SSO, Audit Logging
-func (f *ConsulFingerprint) feature(name string, info consulInfo) (string, bool) {
-	lic, licOK := info["Stats"]["license"].(map[string]interface{})
-	if !licOK {
-		return "", false
-	}
-
-	features, exists := lic["features"].(string)
-	if !exists {
-		return "", false
-	}
-
-	if !strings.Contains(features, name) {
-		return "", false
-	}
-
-	return "true", true
+func (f *ConsulFingerprint) namespaces(info agentconsul.Self) (string, bool) {
+	return strconv.FormatBool(agentconsul.Namespaces(info)), true
 }

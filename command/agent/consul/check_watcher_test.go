@@ -151,7 +151,7 @@ func (c *fakeChecksAPI) ChecksWithFilterOpts(filter string, opts *api.QueryOptio
 func testWatcherSetup(t *testing.T) (*fakeChecksAPI, *checkWatcher) {
 	logger := testlog.HCLogger(t)
 	checksAPI := newFakeChecksAPI()
-	namespacesClient := NewNamespacesClient(NewMockNamespaces(nil))
+	namespacesClient := NewNamespacesClient(NewMockNamespaces(nil), NewMockAgent(ossFeatures))
 	cw := newCheckWatcher(logger, checksAPI, namespacesClient)
 	cw.pollFreq = 10 * time.Millisecond
 	return checksAPI, cw
@@ -180,7 +180,7 @@ func TestCheckWatcher_Skip(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 	checksAPI := newFakeChecksAPI()
-	namespacesClient := NewNamespacesClient(NewMockNamespaces(nil))
+	namespacesClient := NewNamespacesClient(NewMockNamespaces(nil), NewMockAgent(ossFeatures))
 
 	cw := newCheckWatcher(logger, checksAPI, namespacesClient)
 	restarter1 := newFakeCheckRestarter(cw, "testalloc1", "testtask1", "testcheck1", check)

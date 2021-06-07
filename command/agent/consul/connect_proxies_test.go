@@ -7,8 +7,7 @@ import (
 )
 
 func TestConnectProxies_Proxies(t *testing.T) {
-	agentAPI := NewMockAgent()
-	pc := NewConnectProxiesClient(agentAPI)
+	pc := NewConnectProxiesClient(NewMockAgent(ossFeatures))
 
 	proxies, err := pc.Proxies()
 	require.NoError(t, err)
