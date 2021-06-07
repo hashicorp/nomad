@@ -18,6 +18,7 @@ BUG FIXES:
 * drivers/exec: Fixed a bug where `exec` and `java` tasks inherit the Nomad agent's `oom_score_adj` value [[GH-10698](https://github.com/hashicorp/nomad/issues/10698)]
 * quotas (Enterprise): Fixed a bug where stopped allocations for a failed deployment can be double-credited to quota limits, resulting in a quota limit bypass. [[GH-10694](https://github.com/hashicorp/nomad/issues/10694)]
 * ui: Fixed a bug where exec would not work across regions. [[GH-10539](https://github.com/hashicorp/nomad/issues/10539)]
+* ui: Fixed global-search shortcut for non-english keyboards. [[GH-10714](https://github.com/hashicorp/nomad/issues/10714)]
 
 ## 1.1.0 (May 18, 2021)
 
