@@ -325,7 +325,7 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	consulConfig.Address = testConsul.HTTPAddr
 	consulAPIClient, err := consulapi.NewClient(consulConfig)
 	require.NoError(t, err)
-	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces())
+	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
 
 	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 	go consulClient.Run()
@@ -426,7 +426,7 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	consulConfig.Address = testConsul.HTTPAddr
 	consulAPIClient, err := consulapi.NewClient(consulConfig)
 	require.NoError(t, err)
-	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces())
+	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
 
 	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 	go consulClient.Run()
@@ -491,7 +491,7 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	consulConfig.Address = testConsul.HTTPAddr
 	consulAPIClient, err := consulapi.NewClient(consulConfig)
 	require.NoError(t, err)
-	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces())
+	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
 
 	// Register Group Services
 	serviceClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)

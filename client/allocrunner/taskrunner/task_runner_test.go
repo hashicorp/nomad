@@ -1155,9 +1155,12 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 
 	// Replace mock Consul ServiceClient, with the real ServiceClient
 	// backed by a mock consul whose checks are always unhealthy.
-	consulAgent := agentconsul.NewMockAgent()
+	consulAgent := agentconsul.NewMockAgent(agentconsul.Features{
+		Enterprise: false,
+		Namespaces: false,
+	})
 	consulAgent.SetStatus("critical")
-	namespacesClient := agentconsul.NewNamespacesClient(agentconsul.NewMockNamespaces(nil))
+	namespacesClient := agentconsul.NewNamespacesClient(agentconsul.NewMockNamespaces(nil), consulAgent)
 	consulClient := agentconsul.NewServiceClient(consulAgent, namespacesClient, conf.Logger, true)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
@@ -1835,8 +1838,11 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 	defer cleanup()
 
 	// Use a mock agent to test for services
-	consulAgent := agentconsul.NewMockAgent()
-	namespacesClient := agentconsul.NewNamespacesClient(agentconsul.NewMockNamespaces(nil))
+	consulAgent := agentconsul.NewMockAgent(agentconsul.Features{
+		Enterprise: false,
+		Namespaces: false,
+	})
+	namespacesClient := agentconsul.NewNamespacesClient(agentconsul.NewMockNamespaces(nil), consulAgent)
 	consulClient := agentconsul.NewServiceClient(consulAgent, namespacesClient, conf.Logger, true)
 	defer consulClient.Shutdown()
 	go consulClient.Run()

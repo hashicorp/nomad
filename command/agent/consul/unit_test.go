@@ -105,18 +105,18 @@ func (t *testFakeCtx) syncOnce(reason syncReason) error {
 // setupFake creates a testFakeCtx with a ServiceClient backed by a fakeConsul.
 // A test Workload is also provided.
 func setupFake(t *testing.T) *testFakeCtx {
-	fc := NewMockAgent()
-	nsc := NewNamespacesClient(NewMockNamespaces(nil))
-	tw := testWorkload()
+	agentClient := NewMockAgent(ossFeatures)
+	nsClient := NewNamespacesClient(NewMockNamespaces(nil), agentClient)
+	workload := testWorkload()
 
 	// by default start fake client being out of probation
-	sc := NewServiceClient(fc, nsc, testlog.HCLogger(t), true)
-	sc.deregisterProbationExpiry = time.Now().Add(-1 * time.Minute)
+	serviceClient := NewServiceClient(agentClient, nsClient, testlog.HCLogger(t), true)
+	serviceClient.deregisterProbationExpiry = time.Now().Add(-1 * time.Minute)
 
 	return &testFakeCtx{
-		ServiceClient: sc,
-		FakeConsul:    fc,
-		Workload:      tw,
+		ServiceClient: serviceClient,
+		FakeConsul:    agentClient,
+		Workload:      workload,
 	}
 }
 

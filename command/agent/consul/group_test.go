@@ -32,7 +32,7 @@ func TestConsul_Connect(t *testing.T) {
 	consulConfig.Address = testconsul.HTTPAddr
 	consulClient, err := consulapi.NewClient(consulConfig)
 	require.NoError(t, err)
-	namespacesClient := NewNamespacesClient(consulClient.Namespaces())
+	namespacesClient := NewNamespacesClient(consulClient.Namespaces(), consulClient.Agent())
 	serviceClient := NewServiceClient(consulClient.Agent(), namespacesClient, testlog.HCLogger(t), true)
 
 	// Lower periodicInterval to ensure periodic syncing doesn't improperly

@@ -1,0 +1,98 @@
+package consul
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+var (
+	ossFeatures = Features{
+		Enterprise: false,
+		Namespaces: false,
+	}
+)
+
+func TestSelf_SKU(t *testing.T) {
+	t.Parallel()
+
+	t.Run("oss", func(t *testing.T) {
+		s, ok := SKU(Self{
+			"Config": {"Version": "v1.9.5"},
+		})
+		require.True(t, ok)
+		require.Equal(t, "oss", s)
+	})
+
+	t.Run("oss dev", func(t *testing.T) {
+		s, ok := SKU(Self{
+			"Config": {"Version": "v1.9.5-dev"},
+		})
+		require.True(t, ok)
+		require.Equal(t, "oss", s)
+	})
+
+	t.Run("ent", func(t *testing.T) {
+		s, ok := SKU(Self{
+			"Config": {"Version": "v1.9.5+ent"},
+		})
+		require.True(t, ok)
+		require.Equal(t, "ent", s)
+	})
+
+	t.Run("ent dev", func(t *testing.T) {
+		s, ok := SKU(Self{
+			"Config": {"Version": "v1.9.5+ent-dev"},
+		})
+		require.True(t, ok)
+		require.Equal(t, "ent", s)
+	})
+
+	t.Run("missing", func(t *testing.T) {
+		_, ok := SKU(Self{
+			"Config": {},
+		})
+		require.False(t, ok)
+	})
+
+	t.Run("malformed", func(t *testing.T) {
+		_, ok := SKU(Self{
+			"Config": {"Version": "***"},
+		})
+		require.False(t, ok)
+	})
+}
+
+func TestSelf_Namespaces(t *testing.T) {
+	t.Parallel()
+
+	t.Run("supports namespaces", func(t *testing.T) {
+		s, ok := Namespaces(Self{
+			"Stats": {"license": map[string]interface{}{"features": "Automated Backups, Automated Upgrades, Enhanced Read Scalability, Network Segments, Redundancy Zone, Advanced Network Federation, Namespaces, SSO, Audit Logging"}},
+		})
+		require.True(t, ok)
+		require.Equal(t, "true", s)
+	})
+
+	t.Run("no namespaces", func(t *testing.T) {
+		_, ok := Namespaces(Self{
+			"Stats": {"license": map[string]interface{}{"features": "Automated Backups, Automated Upgrades, Enhanced Read Scalability, Network Segments, Redundancy Zone, Advanced Network Federation, SSO, Audit Logging"}},
+		})
+		require.False(t, ok)
+	})
+
+	t.Run("stats missing", func(t *testing.T) {
+		_, ok := Namespaces(Self{})
+		require.False(t, ok)
+	})
+
+	t.Run("license missing", func(t *testing.T) {
+		_, ok := Namespaces(Self{"Stats": {}})
+		require.False(t, ok)
+	})
+
+	t.Run("features missing", func(t *testing.T) {
+		_, ok := Namespaces(Self{"Stats": {"license": map[string]interface{}{}}})
+		require.False(t, ok)
+	})
+}
