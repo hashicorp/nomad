@@ -215,13 +215,6 @@ func (c *consulACLsAPI) CheckPermissions(ctx context.Context, namespace string, 
 		return nil
 	}
 
-	// If namespace is not declared on nomad jobs, assume default consul namespace
-	// when comparing with the consul ACL token. This maintains backwards compatibility
-	// with existing connect jobs, which may already be authorized with Consul tokens.
-	if namespace == "" {
-		namespace = "default"
-	}
-
 	// lookup the token from consul
 	token, readErr := c.readToken(ctx, secretID)
 	if readErr != nil {

@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -701,95 +700,6 @@ func TestJobEndpoint_Register_Connect_ValidatesWithoutSidecarTask(t *testing.T) 
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "exposed_no_sidecar requires use of sidecar_proxy")
-}
-
-// TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse asserts that a job
-// submission fails allow_unauthenticated is false, and either an invalid or no
-// operator Consul token is provided.
-func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse(t *testing.T) {
-	t.Parallel()
-
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 0 // Prevent automatic dequeue
-		c.ConsulConfig.AllowUnauthenticated = helper.BoolToPtr(false)
-	})
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create the register request
-	job := mock.Job()
-	job.TaskGroups[0].Networks[0].Mode = "bridge"
-	job.TaskGroups[0].Services = []*structs.Service{
-		{
-			Name:      "service1", // matches consul.ExamplePolicyID1
-			PortLabel: "8080",
-			Connect: &structs.ConsulConnect{
-				SidecarService: &structs.ConsulSidecarService{},
-			},
-		},
-	}
-
-	// For this test we only care about authorizing the connect service
-	job.TaskGroups[0].Tasks[0].Services = nil
-
-	newRequest := func(job *structs.Job) *structs.JobRegisterRequest {
-		return &structs.JobRegisterRequest{
-			Job: job,
-			WriteRequest: structs.WriteRequest{
-				Region:    "global",
-				Namespace: job.Namespace,
-			},
-		}
-	}
-
-	noTokenOnJob := func(t *testing.T) {
-		fsmState := s1.State()
-		ws := memdb.NewWatchSet()
-		storedJob, err := fsmState.JobByID(ws, job.Namespace, job.ID)
-		require.NoError(t, err)
-		require.NotNil(t, storedJob)
-		require.Empty(t, storedJob.ConsulToken)
-	}
-
-	// Each variation of the provided Consul operator token
-	noOpToken := ""
-	unrecognizedOpToken := uuid.Generate()
-	unauthorizedOpToken := consul.ExampleOperatorTokenID3
-	authorizedOpToken := consul.ExampleOperatorTokenID1
-
-	t.Run("no token provided", func(t *testing.T) {
-		request := newRequest(job)
-		request.Job.ConsulToken = noOpToken
-		var response structs.JobRegisterResponse
-		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
-		require.EqualError(t, err, "job-submitter consul token denied: missing consul token")
-	})
-
-	t.Run("unknown token provided", func(t *testing.T) {
-		request := newRequest(job)
-		request.Job.ConsulToken = unrecognizedOpToken
-		var response structs.JobRegisterResponse
-		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
-		require.EqualError(t, err, "job-submitter consul token denied: unable to read consul token: no such token")
-	})
-
-	t.Run("unauthorized token provided", func(t *testing.T) {
-		request := newRequest(job)
-		request.Job.ConsulToken = unauthorizedOpToken
-		var response structs.JobRegisterResponse
-		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
-		require.EqualError(t, err, `job-submitter consul token denied: insufficient Consul ACL permissions to write service "service1"`)
-	})
-
-	t.Run("authorized token provided", func(t *testing.T) {
-		request := newRequest(job)
-		request.Job.ConsulToken = authorizedOpToken
-		var response structs.JobRegisterResponse
-		err := msgpackrpc.CallWithCodec(codec, "Job.Register", request, &response)
-		require.NoError(t, err)
-		noTokenOnJob(t)
-	})
 }
 
 func TestJobEndpoint_Register_ACL(t *testing.T) {

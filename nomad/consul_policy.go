@@ -67,17 +67,42 @@ func (c *consulACLsAPI) isManagementToken(token *api.ACLToken) bool {
 	return false
 }
 
-// namespaceCheck is used to verify the namespace of the object matches the
-// namespace of the ACL token provided.
+// namespaceCheck is used to fail the request if the namespace of the object does
+// not match the namespace of the ACL token provided.
 //
-// exception: iff token is in the default namespace, it may contain policies
+// *exception*: if token is in the default namespace, it may contain policies
 // that extend into other namespaces using namespace_prefix, which must bypass
 // this early check and validate in the service/keystore helpers
+//
+// *exception*: if token is not in a namespace, consul namespaces are not enabled
+// and there is nothing to validate
+//
+// If the namespaces match, whether the token is allowed to perform an operation
+// is checked later.
 func namespaceCheck(namespace string, token *api.ACLToken) error {
-	if token.Namespace != "default" && token.Namespace != namespace {
+
+	switch {
+	case namespace == token.Namespace:
+		// ACLs enabled, namespaces are the same
+		return nil
+
+	case token.Namespace == "default":
+		// ACLs enabled, must defer to per-object checking, since the token could
+		// have namespace or namespace_prefix blocks with extended policies that
+		// allow an operation. Using namespace or namespace_prefix blocks is only
+		// applicable to tokens in the "default" namespace.
+		//
+		// https://www.consul.io/docs/security/acl/acl-rules#namespace-rules
+		return nil
+
+	case namespace == "" && token.Namespace != "default":
+		// ACLs enabled with non-default token, but namespace on job not set, so
+		// provide a more informative error message.
+		return errors.Errorf("consul ACL token requires using namespace %q", token.Namespace)
+
+	default:
 		return errors.Errorf("consul ACL token cannot use namespace %q", namespace)
 	}
-	return nil
 }
 
 func (c *consulACLsAPI) canReadKeystore(namespace string, token *api.ACLToken) (bool, error) {
@@ -87,7 +112,10 @@ func (c *consulACLsAPI) canReadKeystore(namespace string, token *api.ACLToken) (
 	}
 
 	// determines whether a top-level ACL policy will be applicable
-	matches := namespace == token.Namespace
+	//
+	// if the namespace is not set in the job and the token is in the default namespace,
+	// treat that like an exact match to preserve backwards compatibility
+	matches := (namespace == token.Namespace) || (namespace == "" && token.Namespace == "default")
 
 	// check each policy directly attached to the token
 	for _, policyRef := range token.Policies {
@@ -127,7 +155,10 @@ func (c *consulACLsAPI) canWriteService(namespace, service string, token *api.AC
 	}
 
 	// determines whether a top-level ACL policy will be applicable
-	matches := namespace == token.Namespace
+	//
+	// if the namespace is not set in the job and the token is in the default namespace,
+	// treat that like an exact match to preserve backwards compatibility
+	matches := (namespace == token.Namespace) || (namespace == "" && token.Namespace == "default")
 
 	// check each policy directly attached to the token
 	for _, policyRef := range token.Policies {
@@ -179,6 +210,7 @@ func (c *consulACLsAPI) policyAllowsServiceWrite(matches bool, namespace, servic
 	if cp.allowsServiceWrite(matches, namespace, service) {
 		return true, nil
 	}
+
 	return false, nil
 }
 
