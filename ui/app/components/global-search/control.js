@@ -5,7 +5,7 @@ import { action, set } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { debounce, run } from '@ember/runloop';
 
-const SLASH_KEY = 191;
+const SLASH_KEY = '/';
 const MAXIMUM_RESULTS = 10;
 
 @classNames('global-search-container')
@@ -24,7 +24,7 @@ export default class GlobalSearchControl extends Component {
     const targetElementName = e.target.nodeName.toLowerCase();
 
     if (targetElementName != 'input' && targetElementName != 'textarea') {
-      if (e.keyCode === SLASH_KEY) {
+      if (e.key === SLASH_KEY) {
         e.preventDefault();
         this.open();
       }
