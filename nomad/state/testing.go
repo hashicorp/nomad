@@ -1,7 +1,7 @@
 package state
 
 import (
-	testing "github.com/mitchellh/go-testing-interface"
+	"testing"
 
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func TestStateStore(t testing.T) *StateStore {
+func TestStateStore(t testing.TB) *StateStore {
 	config := &StateStoreConfig{
 		Logger: testlog.HCLogger(t),
 		Region: "global",
@@ -24,14 +24,14 @@ func TestStateStore(t testing.T) *StateStore {
 	return state
 }
 
-func TestStateStorePublisher(t testing.T) *StateStoreConfig {
+func TestStateStorePublisher(t testing.TB) *StateStoreConfig {
 	return &StateStoreConfig{
 		Logger:          testlog.HCLogger(t),
 		Region:          "global",
 		EnablePublisher: true,
 	}
 }
-func TestStateStoreCfg(t testing.T, cfg *StateStoreConfig) *StateStore {
+func TestStateStoreCfg(t testing.TB, cfg *StateStoreConfig) *StateStore {
 	state, err := NewStateStore(cfg)
 	if err != nil {
 		t.Fatalf("err: %v", err)
