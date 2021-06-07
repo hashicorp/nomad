@@ -27,30 +27,29 @@ func SKU(info Self) (string, bool) {
 	return "oss", true
 }
 
-func Namespaces(info Self) (string, bool) {
+// Namespaces returns true if the "Namespaces" feature is enabled in Consul, and
+// false otherwise. Consul OSS will always return false, and Consul ENT will return
+// false if the license file does not contain the necessary feature.
+func Namespaces(info Self) bool {
 	return feature("Namespaces", info)
 }
 
-// Feature returns whether the indicated feature is enabled by Consul and the
+// feature returns whether the indicated feature is enabled by Consul and the
 // associated License.
 // possible values as of v1.9.5+ent:
 //   Automated Backups, Automated Upgrades, Enhanced Read Scalability,
 //   Network Segments, Redundancy Zone, Advanced Network Federation,
 //   Namespaces, SSO, Audit Logging
-func feature(name string, info Self) (string, bool) {
+func feature(name string, info Self) bool {
 	lic, licOK := info["Stats"]["license"].(map[string]interface{})
 	if !licOK {
-		return "", false
+		return false
 	}
 
 	features, exists := lic["features"].(string)
 	if !exists {
-		return "", false
+		return false
 	}
 
-	if !strings.Contains(features, name) {
-		return "", false
-	}
-
-	return "true", true
+	return strings.Contains(features, name)
 }

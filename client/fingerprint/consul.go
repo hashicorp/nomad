@@ -189,5 +189,5 @@ func (f *ConsulFingerprint) grpc(info agentconsul.Self) (string, bool) {
 }
 
 func (f *ConsulFingerprint) namespaces(info agentconsul.Self) (string, bool) {
-	return agentconsul.Namespaces(info)
+	return strconv.FormatBool(agentconsul.Namespaces(info)), true
 }

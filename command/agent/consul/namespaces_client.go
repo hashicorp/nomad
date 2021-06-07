@@ -60,12 +60,7 @@ func (ns *NamespacesClient) allowable(now time.Time) bool {
 		return ns.enabled
 	}
 
-	enabledStr, ok := Namespaces(self)
-	if !ok {
-		return ns.enabled
-	}
-
-	ns.enabled = enabledStr == "true"
+	ns.enabled = Namespaces(self)
 	ns.updated = now
 	return ns.enabled
 }

@@ -67,32 +67,31 @@ func TestSelf_Namespaces(t *testing.T) {
 	t.Parallel()
 
 	t.Run("supports namespaces", func(t *testing.T) {
-		s, ok := Namespaces(Self{
+		enabled := Namespaces(Self{
 			"Stats": {"license": map[string]interface{}{"features": "Automated Backups, Automated Upgrades, Enhanced Read Scalability, Network Segments, Redundancy Zone, Advanced Network Federation, Namespaces, SSO, Audit Logging"}},
 		})
-		require.True(t, ok)
-		require.Equal(t, "true", s)
+		require.True(t, enabled)
 	})
 
 	t.Run("no namespaces", func(t *testing.T) {
-		_, ok := Namespaces(Self{
+		enabled := Namespaces(Self{
 			"Stats": {"license": map[string]interface{}{"features": "Automated Backups, Automated Upgrades, Enhanced Read Scalability, Network Segments, Redundancy Zone, Advanced Network Federation, SSO, Audit Logging"}},
 		})
-		require.False(t, ok)
+		require.False(t, enabled)
 	})
 
 	t.Run("stats missing", func(t *testing.T) {
-		_, ok := Namespaces(Self{})
-		require.False(t, ok)
+		enabled := Namespaces(Self{})
+		require.False(t, enabled)
 	})
 
 	t.Run("license missing", func(t *testing.T) {
-		_, ok := Namespaces(Self{"Stats": {}})
-		require.False(t, ok)
+		enabled := Namespaces(Self{"Stats": {}})
+		require.False(t, enabled)
 	})
 
 	t.Run("features missing", func(t *testing.T) {
-		_, ok := Namespaces(Self{"Stats": {"license": map[string]interface{}{}}})
-		require.False(t, ok)
+		enabled := Namespaces(Self{"Stats": {"license": map[string]interface{}{}}})
+		require.False(t, enabled)
 	})
 }
