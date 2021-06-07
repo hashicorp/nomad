@@ -288,23 +288,23 @@ func (c *Client) rpcConnListener() {
 		select {
 		case <-c.shutdownCh:
 			return
-		case session, ok := <-conns:
+		case conn, ok := <-conns:
 			if !ok {
 				continue
 			}
 
-			go c.listenConn(session)
+			go c.listenConn(conn)
 		}
 	}
 }
 
 // listenConn is used to listen for connections being made from the server on
 // pre-existing connection. This should be called in a goroutine.
-func (c *Client) listenConn(s *pool.Conn) {
+func (c *Client) listenConn(conn *pool.Conn) {
 	for {
-		conn, err := s.Accept()
+		stream, err := conn.AcceptStream()
 		if err != nil {
-			if s.IsClosed() {
+			if conn.IsClosed() {
 				return
 			}
 
@@ -312,7 +312,7 @@ func (c *Client) listenConn(s *pool.Conn) {
 			continue
 		}
 
-		go c.handleConn(conn)
+		go c.handleConn(stream)
 		metrics.IncrCounter([]string{"client", "rpc", "accept_conn"}, 1)
 	}
 }

@@ -135,7 +135,7 @@ func (c *Conn) IsClosed() bool {
 	return c.session.IsClosed()
 }
 
-func (c *Conn) Accept() (net.Conn, error) {
+func (c *Conn) AcceptStream() (net.Conn, error) {
 	s, err := c.session.AcceptStream()
 	if err != nil {
 		return nil, err
@@ -483,6 +483,7 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 	if err != nil {
 		return fmt.Errorf("rpc error: %w", err)
 	}
+	defer conn.releaseUse()
 
 	// Make the RPC call
 	err = msgpackrpc.CallWithCodec(sc.codec, method, args, reply)
@@ -496,8 +497,6 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 			p.clearConn(conn)
 		}
 
-		conn.releaseUse()
-
 		// If the error is an RPC Coded error
 		// return the coded error without wrapping
 		if structs.IsErrRPCCoded(err) {
@@ -510,7 +509,6 @@ func (p *ConnPool) RPC(region string, addr net.Addr, version int, method string,
 
 	// Done with the connection
 	conn.returnClient(sc)
-	conn.releaseUse()
 	return nil
 }
 
