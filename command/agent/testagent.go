@@ -10,9 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 	"time"
-
-	testing "github.com/mitchellh/go-testing-interface"
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
@@ -39,7 +38,7 @@ var TempDir = os.TempDir()
 // is removed after shutdown.
 type TestAgent struct {
 	// T is the testing object
-	T testing.T
+	T testing.TB
 
 	// Name is an optional name of the agent.
 	Name string
@@ -92,7 +91,7 @@ type TestAgent struct {
 // NewTestAgent returns a started agent with the given name and
 // configuration. The caller should call Shutdown() to stop the agent and
 // remove temporary directories.
-func NewTestAgent(t testing.T, name string, configCallback func(*Config)) *TestAgent {
+func NewTestAgent(t testing.TB, name string, configCallback func(*Config)) *TestAgent {
 	a := &TestAgent{
 		T:              t,
 		Name:           name,
