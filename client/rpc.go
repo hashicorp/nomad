@@ -15,7 +15,6 @@ import (
 	inmem "github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/yamux"
 )
 
 // rpcEndpoints holds the RPC endpoints
@@ -282,30 +281,30 @@ func (c *Client) setupClientRpcServer(server *rpc.Server) {
 // connection.
 func (c *Client) rpcConnListener() {
 	// Make a channel for new connections.
-	conns := make(chan *yamux.Session, 4)
+	conns := make(chan *pool.Conn, 4)
 	c.connPool.SetConnListener(conns)
 
 	for {
 		select {
 		case <-c.shutdownCh:
 			return
-		case session, ok := <-conns:
+		case conn, ok := <-conns:
 			if !ok {
 				continue
 			}
 
-			go c.listenConn(session)
+			go c.listenConn(conn)
 		}
 	}
 }
 
 // listenConn is used to listen for connections being made from the server on
 // pre-existing connection. This should be called in a goroutine.
-func (c *Client) listenConn(s *yamux.Session) {
+func (c *Client) listenConn(conn *pool.Conn) {
 	for {
-		conn, err := s.Accept()
+		stream, err := conn.AcceptStream()
 		if err != nil {
-			if s.IsClosed() {
+			if conn.IsClosed() {
 				return
 			}
 
@@ -313,7 +312,7 @@ func (c *Client) listenConn(s *yamux.Session) {
 			continue
 		}
 
-		go c.handleConn(conn)
+		go c.handleConn(stream)
 		metrics.IncrCounter([]string{"client", "rpc", "accept_conn"}, 1)
 	}
 }
