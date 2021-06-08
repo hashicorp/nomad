@@ -239,6 +239,11 @@ config {
   configuration on the host (which is outside the scope of Nomad). Valid values
   pre-docker 1.9 are `default`, `bridge`, `host`, `none`, or `container:name`.
 
+  The default `network_mode` for tasks that use [Connect] will be
+  `container:<name>`, where the name is the container name of the parent
+  container used to share network namespaces between tasks. You should not set
+  `network_mode` for Connect-enabled tasks.
+
 - `pid_mode` - (Optional) `host` or not set (default). Set to `host` to share
   the PID namespace with the host. Note that this also requires the Nomad agent
   to be configured to allow privileged containers.
@@ -1143,3 +1148,4 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [no_net_raw]: /docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
 [allow_caps]: /docs/drivers/docker#allow_caps
+[Connect]: /docs/job-specification/connect
