@@ -146,6 +146,10 @@ const (
 const (
 	ExampleOperatorTokenID20 = "937b3287-557c-5af8-beb0-d62191988719"
 	ExampleOperatorTokenID21 = "067fd927-abfb-d98f-b693-bb05dccea565"
+	ExampleOperatorTokenID22 = "71f8030f-f6bd-6157-6614-ba6a0bbfba9f"
+	ExampleOperatorTokenID23 = "1dfd2982-b7a1-89ec-09b4-74712983d13c"
+	ExampleOperatorTokenID24 = "d26dbc2a-d5d8-e3d9-8a38-e05dec499124"
+	ExampleOperatorTokenID25 = "dd5a8eef-554c-a1f9-fdb8-f25eb77258bc"
 )
 
 var (
@@ -291,6 +295,48 @@ var (
 		// Should still be able to register jobs where no namespace was set
 		Namespace: "default",
 	}
+
+	ExampleOperatorToken22 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID22,
+		AccessorID:  "894f2c5c-b285-71bf-4acb-6344cecf71f3",
+		Description: "Operator Token 2",
+		Policies: []*api.ACLTokenPolicyLink{{
+			ID: ExamplePolicyID2,
+		}},
+		Namespace: "default",
+	}
+
+	ExampleOperatorToken23 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID23,
+		AccessorID:  "2a81ec0b-692e-845e-f5b8-c33c05e5af22",
+		Description: "Operator Token 3",
+		Policies: []*api.ACLTokenPolicyLink{{
+			ID: ExamplePolicyID3,
+		}},
+		Namespace: "default",
+	}
+
+	ExampleOperatorToken24 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID24,
+		AccessorID:  "4273f1cc-5626-7a77-dc65-1f24af035ed5d",
+		Description: "Operator Token 4",
+		Policies:    nil, // no direct policy, only roles
+		Roles: []*api.ACLTokenRoleLink{{
+			ID:   ExampleRoleID1,
+			Name: "example-role-1",
+		}},
+		Namespace: "default",
+	}
+
+	ExampleOperatorToken25 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID25,
+		AccessorID:  "5b78e186-87d8-c1ad-966f-f5fa87b05c9a",
+		Description: "Operator Token 5",
+		Policies: []*api.ACLTokenPolicyLink{{
+			ID: ExamplePolicyID4,
+		}},
+		Namespace: "default",
+	}
 )
 
 func (m *MockACLsAPI) TokenReadSelf(q *api.QueryOptions) (*api.ACLToken, *api.QueryMeta, error) {
@@ -334,6 +380,18 @@ func (m *MockACLsAPI) TokenReadSelf(q *api.QueryOptions) (*api.ACLToken, *api.Qu
 
 	case ExampleOperatorTokenID21:
 		return ExampleOperatorToken21, nil, nil
+
+	case ExampleOperatorTokenID22:
+		return ExampleOperatorToken22, nil, nil
+
+	case ExampleOperatorTokenID23:
+		return ExampleOperatorToken23, nil, nil
+
+	case ExampleOperatorTokenID24:
+		return ExampleOperatorToken24, nil, nil
+
+	case ExampleOperatorTokenID25:
+		return ExampleOperatorToken25, nil, nil
 
 	default:
 		return nil, nil, errors.New("no such token")

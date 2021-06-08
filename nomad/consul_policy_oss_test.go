@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestConsulACLsAPI_hasSufficientPolicy(t *testing.T) {
+func TestConsulACLsAPI_hasSufficientPolicy_oss(t *testing.T) {
 	t.Parallel()
 
 	try := func(t *testing.T, namespace, task string, token *api.ACLToken, exp bool) {
