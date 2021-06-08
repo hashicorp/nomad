@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -343,74 +341,116 @@ func TestConsulACLsAPI_allowsServiceWrite(t *testing.T) {
 	})
 }
 
-func TestConsulACLsAPI_hasSufficientPolicy(t *testing.T) {
-	t.Parallel()
+func TestConsulPolicy_isManagementToken(t *testing.T) {
+	aclsAPI := new(consulACLsAPI)
 
-	try := func(t *testing.T, namespace, task string, token *api.ACLToken, exp bool) {
-		logger := testlog.HCLogger(t)
-		cAPI := &consulACLsAPI{
-			aclClient: consul.NewMockACLsAPI(logger),
-			logger:    logger,
+	t.Run("nil", func(t *testing.T) {
+		token := (*api.ACLToken)(nil)
+		result := aclsAPI.isManagementToken(token)
+		require.False(t, result)
+	})
+
+	t.Run("no policies", func(t *testing.T) {
+		token := &api.ACLToken{
+			Policies: []*api.ACLTokenPolicyLink{},
 		}
-		result, err := cAPI.canWriteService(namespace, task, token)
+		result := aclsAPI.isManagementToken(token)
+		require.False(t, result)
+	})
+
+	t.Run("management policy", func(t *testing.T) {
+		token := &api.ACLToken{
+			Policies: []*api.ACLTokenPolicyLink{{
+				ID: consulGlobalManagementPolicyID,
+			}},
+		}
+		result := aclsAPI.isManagementToken(token)
+		require.True(t, result)
+	})
+
+	t.Run("other policy", func(t *testing.T) {
+		token := &api.ACLToken{
+			Policies: []*api.ACLTokenPolicyLink{{
+				ID: uuid.Generate(),
+			}},
+		}
+		result := aclsAPI.isManagementToken(token)
+		require.False(t, result)
+	})
+
+	t.Run("mixed policies", func(t *testing.T) {
+		token := &api.ACLToken{
+			Policies: []*api.ACLTokenPolicyLink{{
+				ID: uuid.Generate(),
+			}, {
+				ID: consulGlobalManagementPolicyID,
+			}, {
+				ID: uuid.Generate(),
+			}},
+		}
+		result := aclsAPI.isManagementToken(token)
+		require.True(t, result)
+	})
+}
+
+func TestConsulPolicy_namespaceCheck(t *testing.T) {
+	withoutNS := &api.ACLToken{Namespace: ""}
+	withDefault := &api.ACLToken{Namespace: "default"}
+	withOther := &api.ACLToken{Namespace: "other"}
+
+	// ACLs not enabled
+
+	t.Run("acl:disable ns:unset", func(t *testing.T) {
+		err := namespaceCheck("", withoutNS)
 		require.NoError(t, err)
-		require.Equal(t, exp, result)
-	}
-
-	t.Run("default namespace with default token", func(t *testing.T) {
-		t.Run("no useful policy or role", func(t *testing.T) {
-			try(t, "default", "service1", consul.ExampleOperatorToken0, false)
-		})
-
-		t.Run("working policy only", func(t *testing.T) {
-			try(t, "default", "service1", consul.ExampleOperatorToken1, true)
-		})
-
-		t.Run("working role only", func(t *testing.T) {
-			try(t, "default", "service1", consul.ExampleOperatorToken4, true)
-		})
 	})
 
-	t.Run("other namespace with default token", func(t *testing.T) {
-		t.Run("no useful policy or role", func(t *testing.T) {
-			try(t, "other", "service1", consul.ExampleOperatorToken0, false)
-		})
-
-		t.Run("working policy only", func(t *testing.T) {
-			try(t, "other", "service1", consul.ExampleOperatorToken1, false)
-		})
-
-		t.Run("working role only", func(t *testing.T) {
-			try(t, "other", "service1", consul.ExampleOperatorToken4, false)
-		})
+	t.Run("acl:disable ns:default", func(t *testing.T) {
+		err := namespaceCheck("default", withoutNS)
+		require.EqualError(t, err, `consul ACL token cannot use namespace "default"`)
 	})
 
-	t.Run("default namespace with banana token", func(t *testing.T) {
-		t.Run("no useful policy or role", func(t *testing.T) {
-			try(t, "default", "service1", consul.ExampleOperatorToken10, false)
-		})
-
-		t.Run("working policy only", func(t *testing.T) {
-			try(t, "default", "service1", consul.ExampleOperatorToken11, false)
-		})
-
-		t.Run("working role only", func(t *testing.T) {
-			try(t, "default", "service1", consul.ExampleOperatorToken14, false)
-		})
+	t.Run("acl:disable ns:other", func(t *testing.T) {
+		err := namespaceCheck("other", withoutNS)
+		require.EqualError(t, err, `consul ACL token cannot use namespace "other"`)
 	})
 
-	t.Run("banana namespace with banana token", func(t *testing.T) {
-		t.Run("no useful policy or role", func(t *testing.T) {
-			try(t, "banana", "service1", consul.ExampleOperatorToken10, false)
-		})
+	// ACLs with "default" token
 
-		t.Run("working policy only", func(t *testing.T) {
-			try(t, "banana", "service1", consul.ExampleOperatorToken11, true)
-		})
+	t.Run("acl:enable token:default ns:unset", func(t *testing.T) {
+		// the bypass case where a legacy job (with no namespace set) should work
+		// with the a token in the "default" consul namespace
+		err := namespaceCheck("", withDefault)
+		require.NoError(t, err)
+	})
 
-		t.Run("working role only", func(t *testing.T) {
-			try(t, "banana", "service1", consul.ExampleOperatorToken14, true)
-		})
+	t.Run("acl:enable token:default ns:default", func(t *testing.T) {
+		err := namespaceCheck("default", withDefault)
+		require.NoError(t, err)
+	})
+
+	t.Run("acl:enable token:default ns:other", func(t *testing.T) {
+		// the bypass case where a default token could have namespace_prefix
+		// blocks
+		err := namespaceCheck("other", withDefault)
+		require.NoError(t, err)
+	})
+
+	// ACLs with non-"default" token
+
+	t.Run("acl:enable token:other ns:unset", func(t *testing.T) {
+		err := namespaceCheck("", withOther)
+		require.EqualError(t, err, `consul ACL token requires using namespace "other"`)
+	})
+
+	t.Run("acl:enable token:other ns:default", func(t *testing.T) {
+		err := namespaceCheck("default", withOther)
+		require.EqualError(t, err, `consul ACL token cannot use namespace "default"`)
+	})
+
+	t.Run("acl:enable token:other ns:other", func(t *testing.T) {
+		err := namespaceCheck("other", withOther)
+		require.NoError(t, err)
 	})
 }
 
@@ -598,57 +638,5 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 		}
 		require.False(t, policy.allowsKeystoreRead(true, "default"))
 		require.False(t, policy.allowsKeystoreRead(true, "apple"))
-	})
-}
-
-func TestConsulPolicy_isManagementToken(t *testing.T) {
-	aclsAPI := new(consulACLsAPI)
-
-	t.Run("nil", func(t *testing.T) {
-		token := (*api.ACLToken)(nil)
-		result := aclsAPI.isManagementToken(token)
-		require.False(t, result)
-	})
-
-	t.Run("no policies", func(t *testing.T) {
-		token := &api.ACLToken{
-			Policies: []*api.ACLTokenPolicyLink{},
-		}
-		result := aclsAPI.isManagementToken(token)
-		require.False(t, result)
-	})
-
-	t.Run("management policy", func(t *testing.T) {
-		token := &api.ACLToken{
-			Policies: []*api.ACLTokenPolicyLink{{
-				ID: consulGlobalManagementPolicyID,
-			}},
-		}
-		result := aclsAPI.isManagementToken(token)
-		require.True(t, result)
-	})
-
-	t.Run("other policy", func(t *testing.T) {
-		token := &api.ACLToken{
-			Policies: []*api.ACLTokenPolicyLink{{
-				ID: uuid.Generate(),
-			}},
-		}
-		result := aclsAPI.isManagementToken(token)
-		require.False(t, result)
-	})
-
-	t.Run("mixed policies", func(t *testing.T) {
-		token := &api.ACLToken{
-			Policies: []*api.ACLTokenPolicyLink{{
-				ID: uuid.Generate(),
-			}, {
-				ID: consulGlobalManagementPolicyID,
-			}, {
-				ID: uuid.Generate(),
-			}},
-		}
-		result := aclsAPI.isManagementToken(token)
-		require.True(t, result)
 	})
 }
