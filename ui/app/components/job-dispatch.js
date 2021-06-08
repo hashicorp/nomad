@@ -16,19 +16,22 @@ export default class JobDispatch extends Component {
   @service config;
   @service router;
 
-  job = null;
+  model = null;
   dispatchError = null;
   paramValues = {};
   payload = null;
 
-  @computed('job.definition.Meta', 'job.definition.ParameterizedJob.{MetaOptional,MetaRequired}')
+  @computed(
+    'model.definition.Meta',
+    'model.definition.ParameterizedJob.{MetaOptional,MetaRequired}'
+  )
   get params() {
     // Helper for mapping the params into a useable form
     let mapper = (values, isRequired) =>
       values.map(x => {
         let emptyPlaceholder = '';
         let placeholder =
-          this.job.definition.Meta != null ? this.job.definition.Meta[x] : emptyPlaceholder;
+          this.model.definition.Meta != null ? this.model.definition.Meta[x] : emptyPlaceholder;
 
         return {
           isRequired: isRequired,
@@ -41,21 +44,21 @@ export default class JobDispatch extends Component {
       });
 
     // Fetch the different types of parameters
-    let required = mapper(this.job.definition.ParameterizedJob.MetaRequired || [], true);
-    let optional = mapper(this.job.definition.ParameterizedJob.MetaOptional || [], false);
+    let required = mapper(this.model.definition.ParameterizedJob.MetaRequired || [], true);
+    let optional = mapper(this.model.definition.ParameterizedJob.MetaOptional || [], false);
 
     // Return them, required before optional
     return required.concat(optional);
   }
 
-  @computed('job.definition.ParameterizedJob.Payload')
+  @computed('model.definition.ParameterizedJob.Payload')
   get hasPayload() {
-    return this.job.definition.ParameterizedJob.Payload != 'forbidden';
+    return this.model.definition.ParameterizedJob.Payload != 'forbidden';
   }
 
-  @computed('job.definition.ParameterizedJob.Payload')
+  @computed('model.definition.ParameterizedJob.Payload')
   get isPayloadRequired() {
-    return this.job.definition.ParameterizedJob.Payload == 'required';
+    return this.model.definition.ParameterizedJob.Payload == 'required';
   }
 
   @action
@@ -66,7 +69,7 @@ export default class JobDispatch extends Component {
   @task(function*() {
     // Make sure that we have all of the fields that we need
     let isValid = true;
-    let required = this.job.definition.ParameterizedJob.MetaRequired || [];
+    let required = this.model.definition.ParameterizedJob.MetaRequired || [];
     required.forEach(required => {
       let input = document.getElementById(required);
       isValid &= input.checkValidity();
@@ -77,13 +80,14 @@ export default class JobDispatch extends Component {
 
     // Try to create the dispatch
     try {
-      const dispatch = yield this.job.rawJob.dispatch(this.paramValues, this.payload);
+      const dispatch = yield this.model.job.dispatch(this.paramValues, this.payload);
 
       // Navigate to the newly created instance
       this.router.transitionTo('jobs.job', dispatch.toJSON().dispatchedJobID);
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not dispatch job';
       this.set('dispatchError', error);
+      this.scrollToError();
     }
   })
   submit;

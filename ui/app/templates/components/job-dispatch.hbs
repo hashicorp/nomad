@@ -6,6 +6,7 @@
 {{/if}}
 
 <form action="#" onsubmit="return false">
+  <h1 class="title">Dispatch an instance of '{{ this.model.job.name }}'</h1>
   <div class="rows">
     {{#each this.params as |meta|}}
       <div class="columns">
@@ -18,29 +19,38 @@
             oninput={{action "updateParamValue" meta.name}}
             placeholder={{meta.placeholder}}
             required={{meta.isRequired}} >
-          <small>{{#if meta.isRequired}}Required{{else}}Optional{{/if}} Meta Param</small>
+          <small>{{#if meta.isRequired}}Required{{else}}Optional{{/if}} Meta Param ({{ meta.name }})</small>
         </div>
       </div>
     {{/each}}
 
-    {{#if this.hasPayload}}
-      <div>
-        <h2 class="title is-4">Payload {{#if this.isPayloadRequired}}*{{/if}}</h2>
-        <IvyCodemirror
-          data-test-editor
-          aria-label="Payload definition"
-          @valueUpdated={{action (mut this.payload)}}
-          @options={{hash
-            mode="javascript"
-            theme="hashi"
-            screenReaderLabel="Payload definition editor"
-            tabSize=2
-            lineNumbers=true
-          }} />
+    <div class="boxed-section">
+      <div class="boxed-section-head">
+        Payload {{#if this.isPayloadRequired}}*{{/if}}
       </div>
-    {{else}}
-      <pre>Payload is disabled</pre>
-    {{/if}}
+      {{#if this.hasPayload}}
+        <div class="boxed-section-body is-full-bleed">
+          <IvyCodemirror
+            data-test-editor
+            aria-label="Payload definition"
+            @valueUpdated={{action (mut this.payload)}}
+            @options={{hash
+              mode="javascript"
+              theme="hashi"
+              screenReaderLabel="Payload definition editor"
+              tabSize=2
+              lineNumbers=true
+            }} />
+        </div>
+      {{else}}
+        <div class="boxed-section-body">
+          <div data-test-empty-meta-message class="empty-message">
+            <h3 class="empty-message-headline">Payload Disabled</h3>
+            <p class="empty-message-body">Payload is disabled for this job.</p>
+          </div>
+        </div>
+      {{/if}}
+    </div>
 
     <div class="bumper-top">
       <button class="button is-success" type="button" onclick={{perform this.submit}}>Dispatch</button>

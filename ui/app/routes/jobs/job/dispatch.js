@@ -22,7 +22,7 @@ export default class DispatchRoute extends Route {
     if (!job) return this.transitionTo('jobs.job');
 
     return job.fetchRawDefinition().then(definition => ({
-      rawJob: job,
+      job,
       definition,
     }));
   }
