@@ -27,8 +27,8 @@ downloaded and read from URL specified. Nomad downloads the job file using
 
 By default, on successful job submission the run command will enter an
 interactive monitor and display log information detailing the scheduling
-decisions and placement information for the provided job. The monitor will
-exit after scheduling has finished or failed.
+decisions, placement information, and [deployment status] for the provided job. 
+The monitor will exit after scheduling and deployment have finished or failed.
 
 On successful job submission and scheduling, exit code 0 will be returned. If
 there are job placement issues encountered (unsatisfiable constraints, resource
@@ -108,17 +108,32 @@ that volume.
 
 ## Examples
 
-Schedule the job contained in the file `job1.nomad`, monitoring placement:
+Schedule the job contained in the file `job1.nomad`, monitoring placement and deployment:
 
 ```shell-session
 $ nomad job run job1.nomad
-==> Monitoring evaluation "52dee78a"
-    Evaluation triggered by job "example"
-    Evaluation within deployment: "62eb607c"
-    Allocation "5e0b39f0" created: node "3e84d3d2", group "group1"
-    Allocation "5e0b39f0" status changed: "pending" -> "running"
-    Evaluation status changed: "pending" -> "complete"
-==> Evaluation "52dee78a" finished with status "complete"
+==> 2021-06-09T15:22:58-07:00: Monitoring evaluation "52dee78a"
+    2021-06-09T15:22:58-07:00: Evaluation triggered by job "example"
+    2021-06-09T15:22:58-07:00: Allocation "5e0b39f0" created: node "3e84d3d2", group "group1"
+==> 2021-06-09T15:22:59-07:00: Monitoring evaluation "52dee78a"
+    2021-06-09T15:22:59-07:00: Evaluation within deployment: "62eb607c"
+    2021-06-09T15:22:59-07:00: Allocation "5e0b39f0" status changed: "pending" -> "running"
+    2021-06-09T15:22:59-07:00: Evaluation status changed: "pending" -> "complete"
+==> 2021-06-09T15:22:59-07:00: Evaluation "52dee78a" finished with status "complete"
+==> 2021-06-09T15:22:59-07:00: Monitoring deployment "62eb607c"
+  ⠦ Deployment "62eb607c" in progress...
+
+    2021-06-09T15:22:59-07:00
+    ID          = 62eb607c
+    Job ID      = example
+    Job Version = 0
+    Status      = running
+    Description = Deployment is running
+
+    Deployed
+    Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+    cache       2        2       1        0          2021-06-09T15:32:58-07:00 
+    web         1        1       1        0          2021-06-09T15:32:58-07:00
 ```
 
 <a id="check-index"></a> Update the job using `check-index`:
@@ -129,12 +144,26 @@ Enforcing job modify index 5: job exists with conflicting job modify index: 6
 Job not updated
 
 $ nomad job run -check-index 6 example.nomad
-==> Monitoring evaluation "5ef16dff"
-    Evaluation triggered by job "example"
-    Evaluation within deployment: "62eb607c"
-    Allocation "6ec7d16f" modified: node "6e1f9bf6", group "cache"
-    Evaluation status changed: "pending" -> "complete"
-==> Evaluation "5ef16dff" finished with status "complete"
+==> 2021-06-09T16:57:29-07:00: Monitoring evaluation "5ef16dff"
+    2021-06-09T16:57:29-07:00: Evaluation triggered by job "example"
+    2021-06-09T16:57:29-07:00: Allocation "6ec7d16f" modified: node "6e1f9bf6", group "cache"
+==> 2021-06-09T16:57:30-07:00: Monitoring evaluation "5ef16dff"
+    2021-06-09T16:57:30-07:00: Evaluation within deployment: "62eb607c"
+    2021-06-09T16:57:30-07:00: Evaluation status changed: "pending" -> "complete"
+==> 2021-06-09T16:57:30-07:00: Evaluation "5ef16dff" finished with status "complete"
+==> 2021-06-09T16:57:30-07:00: Monitoring deployment "62eb607c"
+  ⠙ Deployment "62eb607c" successful
+    
+    2021-06-09T16:57:30-07:00
+    ID          = 62eb607c
+    Job ID      = example
+    Job Version = 2
+    Status      = successful
+    Description = Deployment completed successfully
+
+    Deployed
+    Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+    cache       1        1       1        0          2021-06-09T17:07:00-07:00
 ```
 
 Schedule the job contained in `job1.nomad` and return immediately:
@@ -150,17 +179,33 @@ failure and the specifics of the placement are printed:
 
 ```shell-session
 $ nomad job run failing.nomad
-==> Monitoring evaluation "2ae0e6a5"
-    Evaluation triggered by job "example"
-    Evaluation status changed: "pending" -> "complete"
-==> Evaluation "2ae0e6a5" finished with status "complete" but failed to place all allocations:
-    Task Group "cache" (failed to place 1 allocation):
+==> 2021-06-09T16:49:00-07:00: Monitoring evaluation "2ae0e6a5"
+    2021-06-09T16:49:00-07:00: Evaluation triggered by job "example"
+==> 2021-06-09T16:49:01-07:00: Monitoring evaluation "2ae0e6a5"
+    2021-06-09T16:49:01-07:00: Evaluation within deployment: "db0c5e57"
+    2021-06-09T16:49:01-07:00: Evaluation status changed: "pending" -> "complete"
+==> 2021-06-09T16:49:01-07:00: Evaluation "2ae0e6a5" finished with status "complete" but failed to place all allocations:
+    2021-06-09T16:49:01-07:00: Task Group "cache" (failed to place 1 allocation):
       * Class "foo" filtered 1 nodes
       * Constraint "${attr.kernel.name} = linux" filtered 1 nodes
-    Evaluation "67493a64" waiting for additional capacity to place remainder
+    2021-06-09T16:49:01-07:00: Evaluation "67493a64" waiting for additional capacity to place remainder
+==> 2021-06-09T16:49:01-07:00: Monitoring deployment "db0c5e57"
+  ⠧ Deployment "db0c5e57" in progress...
+
+    2021-06-09T16:49:03-07:00
+    ID          = db0c5e57
+    Job ID      = example
+    Job Version = 8
+    Status      = running
+    Description = Deployment is running
+
+    Deployed
+    Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+    cache       1        0       0        0          N/A
 ```
 
 [`go-getter`]: https://github.com/hashicorp/go-getter
+[deployment status]: /docs/commands/deployment#status 
 [`job plan` command]: /docs/commands/job/plan
 [eval status]: /docs/commands/eval-status
 [job specification]: /docs/job-specification
