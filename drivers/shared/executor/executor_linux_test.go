@@ -470,14 +470,14 @@ func TestExecutor_DoesNotInheritOomScoreAdj(t *testing.T) {
 	testutil.ExecCompatible(t)
 
 	oomPath := "/proc/self/oom_score_adj"
-	origValue, err := os.ReadFile(oomPath)
+	origValue, err := ioutil.ReadFile(oomPath)
 	require.NoError(t, err, "reading oom_score_adj")
 
-	err = os.WriteFile(oomPath, []byte("-100"), 0644)
+	err = ioutil.WriteFile(oomPath, []byte("-100"), 0644)
 	require.NoError(t, err, "setting temporary oom_score_adj")
 
 	defer func() {
-		err := os.WriteFile(oomPath, origValue, 0644)
+		err := ioutil.WriteFile(oomPath, origValue, 0644)
 		require.NoError(t, err, "restoring oom_score_adj")
 	}()
 
