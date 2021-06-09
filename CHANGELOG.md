@@ -4,6 +4,7 @@ FEATURES:
  * **Connect Mesh Gateways**: Adds built-in support for running Consul Connect Mesh Gateways [[GH-10658](https://github.com/hashicorp/nomad/pull/10658)]
 
 IMPROVEMENTS:
+* build: Updated to Go 1.16.5 [[GH-10733](https://github.com/hashicorp/nomad/issues/10733)]
 * cli: Added success confirmation message for `nomad volume delete` and `nomad volume deregister`. [[GH-10591](https://github.com/hashicorp/nomad/issues/10591)]
 * cli: Cross-namespace `nomad job` commands will now select exact matches if the selection is unambiguous. [[GH-10648](https://github.com/hashicorp/nomad/issues/10648)]
 * client/fingerprint: Consul fingerprinter probes for additional enterprise and connect related attributes [[GH-10699](https://github.com/hashicorp/nomad/pull/10699)]
