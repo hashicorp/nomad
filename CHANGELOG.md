@@ -1,4 +1,4 @@
-## 1.1.1 (Unreleased)
+## 1.1.1 (June 9, 2021)
 
 FEATURES:
  * **Connect Mesh Gateways**: Adds built-in support for running Consul Connect Mesh Gateways [[GH-10658](https://github.com/hashicorp/nomad/pull/10658)]
@@ -109,7 +109,7 @@ BUG FIXES:
  * server: Fixed a panic that may arise on submission of jobs containing invalid service checks [[GH-10154](https://github.com/hashicorp/nomad/issues/10154)]
  * ui: Fixed the rendering of interstitial components shown after processing a dynamic application sizing recommendation. [[GH-10094](https://github.com/hashicorp/nomad/pull/10094)]
 
-## 1.0.7 (Unreleased)
+## 1.0.7 (June 9, 2021)
 
 BUG FIXES:
 * api: Fixed event stream connection initialization when there are no events to send [[GH-10637](https://github.com/hashicorp/nomad/issues/10637)]
