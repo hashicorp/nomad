@@ -113,6 +113,8 @@ config {
 }
 ```
 
+- `auth` - (Optional) Provide authentication for a private registry (See [Authentication] below).
+
 - `entrypoint` - (Optional) A string list overriding the image's entrypoint.
 
 - `cwd` - (Optional) Specify the current working directory (cwd) for your container process.
@@ -184,6 +186,10 @@ config {
 
 - `extra_hosts` - (Optional) A list of hosts, given as host:IP, to be added to
   `/etc/hosts`.
+
+- `hostname` - (Optional) The hostname to assign to the container. When
+  launching more than one of a task (using `count`) with this option set, every
+  container the task starts will have the same hostname.
 
 - `cap_add` - (Optional) Add individual capabilities.
 
@@ -349,6 +355,23 @@ A [`service`] block can be added to your job spec, to enable service discovery.
 
 The service stanza instructs Nomad to register a service with Consul.
 
+## Authentication ((#authentication))
+
+If you want to pull from a private repository e.g. docker hub, you can specify `username`
+and `password` in the `auth` stanza. See example below.
+
+**NOTE**: In the below example, `user` and `pass` are just placeholder values which need to be
+replaced by actual `username` and `password`, when specifying the credentials.
+
+```hcl
+config {
+  auth {
+    username = "user"
+    password = "pass"
+  }
+}
+```
+
 ## Plugin Options ((#plugin_options))
 
 - `enabled` - (Optional) The `containerd` driver may be disabled on hosts by
@@ -384,6 +407,7 @@ the external driver in the [plugin_dir][plugin_dir] directory.
 [plugin]: /docs/configuration/plugin
 [plugin_dir]: /docs/configuration#plugin_dir
 [plugin-options]: #plugin_options
+[authentication]: #authentication
 [host-network]: #host_network
 [`mount options`]: https://github.com/containerd/containerd/blob/9561d9389d3dd87ff6030bf1da4e705bbc024130/mount/mount_linux.go#L198-L222
 [moby repository]: https://github.com/moby/moby/blob/master/profiles/seccomp/default.json
