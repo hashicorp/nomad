@@ -1,3 +1,5 @@
+## 1.1.2 (Unreleased)
+
 ## 1.1.1 (June 9, 2021)
 
 FEATURES:
