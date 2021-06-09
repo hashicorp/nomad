@@ -1,5 +1,8 @@
 ## 1.1.1 (Unreleased)
 
+FEATURES:
+ * **Connect Mesh Gateways**: Adds built-in support for running Consul Connect Mesh Gateways [[GH-10658](https://github.com/hashicorp/nomad/pull/10658)]
+
 IMPROVEMENTS:
 * cli: Added success confirmation message for `nomad volume delete` and `nomad volume deregister`. [[GH-10591](https://github.com/hashicorp/nomad/issues/10591)]
 * cli: Cross-namespace `nomad job` commands will now select exact matches if the selection is unambiguous. [[GH-10648](https://github.com/hashicorp/nomad/issues/10648)]
@@ -14,6 +17,7 @@ BUG FIXES:
 * cli: Fixed a bug where `quota status` and `namespace status` commands may panic if the CLI targets a pre-1.1.0 cluster [[GH-10620](https://github.com/hashicorp/nomad/pull/10620)]
 * cli: Fixed a bug where `alloc exec` may fail with "unexpected EOF" without returning the exit code after a command [[GH-10657](https://github.com/hashicorp/nomad/issues/10657)]
 * consul: Fixed a bug where consul namespace API would be queried even when consul namespaces were not enabled [[GH-10715](https://github.com/hashicorp/nomad/pull/10715)]
+* consul: Fixed a bug where connect jobs would always fail job submission when allow_unauthenticated was set to false [[GH-10718](https://github.com/hashicorp/nomad/issues/10718)]
 * csi: Fixed a bug where `mount_options` were not passed to CSI controller plugins for validation during volume creation and mounting. [[GH-10643](https://github.com/hashicorp/nomad/issues/10643)]
 * csi: Fixed a bug where `capability` blocks were not passed to CSI controller plugins for validation for `nomad volume register` commands. [[GH-10703](https://github.com/hashicorp/nomad/issues/10703)]
 * client: Fixed a bug where `alloc exec` sessions may terminate abruptly after a few minutes [[GH-10710](https://github.com/hashicorp/nomad/issues/10710)]
