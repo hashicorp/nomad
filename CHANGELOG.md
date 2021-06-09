@@ -1,5 +1,8 @@
 ## 1.0.7 (June 9, 2021)
 
+IMPROVEMENTS:
+* build: Updated to Go 1.15.13 [[GH-10734](https://github.com/hashicorp/nomad/issues/10734)]
+
 BUG FIXES:
 * api: Fixed event stream connection initialization when there are no events to send [[GH-10637](https://github.com/hashicorp/nomad/issues/10637)]
 * cli: Fixed a bug where `plugin status` did not validate the passed `type` flag correctly [[GH-10712](https://github.com/hashicorp/nomad/pull/10712)]
