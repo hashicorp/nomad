@@ -1,5 +1,8 @@
 ## 1.1.2 (Unreleased)
 
+IMPROVEMENTS:
+* cli: Added `-monitor` flag to `deployment status` command and automatically monitor deployments from `job run` command. [[GH-10661](https://github.com/hashicorp/nomad/pull/10661)]
+
 ## 1.1.1 (June 9, 2021)
 
 FEATURES:

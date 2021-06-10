@@ -20,6 +20,11 @@ nomad deployment status [options] <deployment id>
 The `deployment status` command requires a single argument, a deployment ID or
 prefix.
 
+A `-monitor` flag can be used to update the current deployment status until completion. 
+When combined with `-verbose`, it will also display the allocations for the given 
+deployment. If the deployment fails and [`auto_revert`] is set to `true`, it will monitor
+the entire process, showing the failure and then monitoring the deployment of the rollback.
+
 When ACLs are enabled, this command requires a token with the 'read-job'
 capability for the deployment's namespace.
 
@@ -32,6 +37,7 @@ capability for the deployment's namespace.
 - `-json` : Output the deployment in its JSON format.
 - `-t` : Format and display the deployment using a Go template.
 - `-verbose`: Show full information.
+- `-monitor`: Enter monitor mode to poll for updates to the deployment status.
 
 ## Examples
 
@@ -46,9 +52,9 @@ Status      = successful
 Description = Deployment completed successfully
 
 Deployed
-Task Group  Desired  Placed  Healthy  Unhealthy
-cache       2        2       2        0
-web         2        2       2        0
+Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+cache       2        2       2        0          2021-06-09T15:20:27-07:00
+web         2        2       2        0          2021-06-09T15:20:27-07:00
 ```
 
 Inspect the status of a deployment that is waiting for canary promotion:
@@ -62,7 +68,73 @@ Status      = running
 Description = Deployment is running but requires manual promotion
 
 Deployed
-Task Group  Promoted  Desired  Canaries  Placed  Healthy  Unhealthy
-cache       false     2        1         1       0        0
-web         N/A       2        0         2       2        0
+Task Group  Promoted  Desired  Canaries  Placed  Healthy  Unhealthy  Progress Deadline
+cache       false     2        1         1       0        0          2021-06-09T15:20:27-07:00
+web         N/A       2        0         2       2        0          2021-06-09T15:20:27-07:00
 ```
+
+Monitor the status of a deployment and its allocations:
+
+```shell-session
+$ nomad deployment status -monitor -verbose dab
+2021-06-09T15:10:38-07:00: Monitoring deployment "da9bfc23-576f-be32-61c9-0f9997fe70a6"
+  ⠙ Deployment "da9bfc23-576f-be32-61c9-0f9997fe70a6" in progress...
+
+    2021-06-09T15:10:40-07:00
+    ID          = da9bfc23-576f-be32-61c9-0f9997fe70a6
+    Job ID      = example
+    Job Version = 0
+    Status      = running
+    Description = Deployment is running
+
+    Deployed
+    Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+    cache       2        2       1        0          2021-06-09T15:20:27-07:00
+    web         1        1       1        0          2021-06-09T15:20:27-07:00
+
+    Allocations
+    ID                                    Eval ID                               Node ID                               Node Name  Task Group  Version  Desired  Status   Created                    Modified
+    9e1b4cb9-35c4-49f3-3ccb-1cb10a5a5aa6  e337d747-f59e-329e-4718-46edcc293695  70279742-b106-c487-315f-fb583e13178e  mbp.local  cache       0        run      running  2021-06-09T15:10:17-07:00  2021-06-09T15:10:31-07:00
+    bd0a8773-0d37-bca6-6ca1-2d9c8473bdf8  e337d747-f59e-329e-4718-46edcc293695  70279742-b106-c487-315f-fb583e13178e  mbp.local  cache       0        run      running  2021-06-09T15:10:17-07:00  2021-06-09T15:10:29-07:00
+    ee873095-8e76-7d4f-095f-b80ce5712d9b  e337d747-f59e-329e-4718-46edcc293695  70279742-b106-c487-315f-fb583e13178e  mbp.local  web         0        run      running  2021-06-09T15:10:17-07:00  2021-06-09T15:10:27-07:00
+```
+
+Monitor the status of a deployment that fails and has `auto_revert` set to `true`:
+
+```shell-session
+$ nomad deployment status -monitor e45
+2021-06-09T15:49:19-07:00: Monitoring deployment "e45cc3c1"
+  ⠦ Deployment "e45cc3c1" failed
+
+    2021-06-09T15:49:48-07:00
+    ID          = e45cc3c1
+    Job ID      = example
+    Job Version = 1
+    Status      = failed
+    Description = Failed due to progress deadline - rolling back to job version 0
+
+    Deployed
+    Task Group  Auto Revert  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+    cache       true         2        1       0        1          2021-06-09T15:49:48-07:00
+    web         false        1        1       1        0          2021-06-09T15:59:28-07:00
+
+  ⠙ Deployment "e094a0be" in progress...
+
+    2021-06-09T15:50:02-07:00
+    ID          = e094a0be
+    Job ID      = example
+    Job Version = 2
+    Status      = running
+    Description = Deployment is running
+
+    Deployed
+    Task Group  Auto Revert  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+    cache       true         2        2       1        0          2021-06-09T15:52:00-07:00
+    web         false        1        1       1        0          2021-06-09T15:59:58-07:00
+```
+
+**Please note**: The library used for updating terminal output in place currently isn't fully 
+Windows compatible so there may be some formatting differences (different margins, no spinner 
+indicating deployment is in progress).
+
+[`auto_revert`]: /docs/job-specification/update#auto_revert
