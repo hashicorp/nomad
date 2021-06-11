@@ -285,7 +285,7 @@ type Client struct {
 	batchNodeUpdates *batchNodeUpdates
 
 	// fpInitialized chan is closed when the first batch of fingerprints are
-	// applied to the node and the server is updated
+	// applied to the node
 	fpInitialized chan struct{}
 
 	// serversContactedCh is closed when GetClientAllocs and runAllocs have
@@ -514,7 +514,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 
 	// wait until drivers are healthy before restoring or registering with servers
 	select {
-	case <-c.Ready():
+	case <-c.fpInitialized:
 	case <-time.After(batchFirstFingerprintsProcessingGrace):
 		logger.Warn("batch fingerprint operation timed out; proceeding to register with fingerprinted plugins so far")
 	}
@@ -556,7 +556,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 
 // Ready returns a chan that is closed when the client is fully initialized
 func (c *Client) Ready() <-chan struct{} {
-	return c.fpInitialized
+	return c.serversContactedCh
 }
 
 // init is used to initialize the client and perform any setup
