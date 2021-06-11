@@ -244,8 +244,7 @@ export default function Homepage() {
             person: {
               firstName: 'Dhasharath',
               lastName: 'Shrivathsa',
-              photo:
-                'https://www.datocms-assets.com/2885/1594233068-dharsharathshrivathsa.jpg',
+              photo: 'https://www.datocms-assets.com/2885/1623450501-dhasharath-shrivathsa.jpg',
               title: 'CEO',
             },
             company: {
