@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,6 +32,23 @@ func WaitForResultRetries(retries int64, test testFn, error errorFn) {
 			error(err)
 		}
 	}
+}
+
+// WaitForResultUntil waits the duration for the test to pass.
+// Otherwise error is called after the deadline expires.
+func WaitForResultUntil(until time.Duration, test testFn, errorFunc errorFn) {
+	var success bool
+	var err error
+	deadline := time.Now().Add(until)
+	for time.Now().Before(deadline) {
+		success, err = test()
+		if success {
+			return
+		}
+		// Sleep some arbitrary fraction of the deadline
+		time.Sleep(until / 30)
+	}
+	errorFunc(err)
 }
 
 // AssertUntil asserts the test function passes throughout the given duration.
@@ -217,16 +233,28 @@ func WaitForRunning(t testing.TB, rpc rpcFn, job *structs.Job) []*structs.AllocL
 
 // WaitForFiles blocks until all the files in the slice are present
 func WaitForFiles(t testing.TB, files []string) {
-	assert := assert.New(t)
 	WaitForResult(func() (bool, error) {
-		for _, f := range files {
-			exists := assert.FileExists(f)
-			if !exists {
-				return false, fmt.Errorf("expected file to exist %s", f)
-			}
-		}
-		return true, nil
+		return FilesExist(files), nil
 	}, func(err error) {
 		t.Fatalf("missing expected files: %v", err)
 	})
+}
+
+// WaitForFilesUntil blocks until duration or all the files in the slice are present
+func WaitForFilesUntil(t testing.TB, files []string, until time.Duration) {
+	WaitForResultUntil(until, func() (bool, error) {
+		return FilesExist(files), nil
+	}, func(err error) {
+		t.Fatalf("missing expected files: %v", err)
+	})
+}
+
+// FilesExist verifies all files in the slice are present
+func FilesExist(files []string) bool {
+	for _, f := range files {
+		if _, err := os.Stat(f); os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
 }

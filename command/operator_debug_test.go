@@ -387,7 +387,7 @@ func TestDebug_CapturedFiles(t *testing.T) {
 		filepath.Join(path, "nomad", "0001", "metrics.json"),
 	}
 
-	testutil.WaitForFiles(t, serverFiles)
+	testutil.WaitForFilesUntil(t, serverFiles, 2*time.Minute)
 }
 
 func TestDebug_ExistingOutput(t *testing.T) {
