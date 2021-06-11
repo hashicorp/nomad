@@ -8,15 +8,19 @@ job "connect_gateway_terminating" {
           proxy {
             connect_timeout                     = "3s"
             envoy_gateway_bind_tagged_addresses = true
+
             envoy_gateway_bind_addresses "listener1" {
               address = "10.0.0.1"
               port    = 8888
             }
+
             envoy_gateway_bind_addresses "listener2" {
               address = "10.0.0.2"
               port    = 8889
             }
+
             envoy_gateway_no_default_bind = true
+
             config {
               foo = "bar"
             }
@@ -31,8 +35,8 @@ job "connect_gateway_terminating" {
             }
 
             service {
-              name      = "service2"
-              sni       = "myhost"
+              name = "service2"
+              sni  = "myhost"
             }
           }
         }
