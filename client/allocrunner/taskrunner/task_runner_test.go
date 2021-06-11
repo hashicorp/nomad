@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/consul"
 	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
@@ -935,7 +934,7 @@ func TestTaskRunner_ShutdownDelay(t *testing.T) {
 	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
 	defer cleanup()
 
-	mockConsul := conf.Consul.(*consul.MockConsulServiceClient)
+	mockConsul := conf.Consul.(*consulapi.MockConsulServiceClient)
 
 	// Wait for the task to start
 	testWaitForTaskToStart(t, tr)

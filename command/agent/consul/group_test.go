@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/api"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -79,7 +78,7 @@ func TestConsul_Connect(t *testing.T) {
 	}
 
 	// required by isNomadSidecar assertion below
-	serviceRegMap := map[string]*api.AgentServiceRegistration{
+	serviceRegMap := map[string]*consulapi.AgentServiceRegistration{
 		MakeAllocServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0]): nil,
 	}
 
