@@ -342,6 +342,13 @@ export default function() {
   this.get('/agent/self', function({ agents }) {
     return {
       member: this.serialize(agents.first()),
+      config: {
+        Version: {
+          Version: '1.1.0',
+          VersionMetadata: 'ent',
+          VersionPrerelease: 'dev',
+        },
+      },
     };
   });
 
@@ -579,7 +586,10 @@ export default function() {
     });
   });
 
-  this.post('/search/fuzzy', function( { allocations, jobs, nodes, taskGroups, csiPlugins }, { requestBody }) {
+  this.post('/search/fuzzy', function(
+    { allocations, jobs, nodes, taskGroups, csiPlugins },
+    { requestBody }
+  ) {
     const { Text } = JSON.parse(requestBody);
 
     const matchedAllocs = allocations.where(allocation => allocation.name.includes(Text));
@@ -590,33 +600,22 @@ export default function() {
 
     const transformedAllocs = matchedAllocs.models.map(alloc => ({
       ID: alloc.name,
-      Scope: [
-        (alloc.namespace || {}).id,
-        alloc.id,
-      ],
+      Scope: [(alloc.namespace || {}).id, alloc.id],
     }));
 
     const transformedGroups = matchedGroups.models.map(group => ({
       ID: group.name,
-      Scope: [
-        group.job.namespace,
-        group.job.id,
-      ],
+      Scope: [group.job.namespace, group.job.id],
     }));
 
     const transformedJobs = matchedJobs.models.map(job => ({
       ID: job.name,
-      Scope: [
-        job.namespace,
-        job.id,
-      ]
+      Scope: [job.namespace, job.id],
     }));
 
     const transformedNodes = matchedNodes.models.map(node => ({
       ID: node.name,
-      Scope: [
-        node.id,
-      ],
+      Scope: [node.id],
     }));
 
     const transformedPlugins = matchedPlugins.models.map(plugin => ({
@@ -644,7 +643,7 @@ export default function() {
         nodes: truncatedNodes.length < transformedNodes.length,
         plugins: truncatedPlugins.length < transformedPlugins.length,
       },
-    }
+    };
   });
 
   this.get('/recommendations', function(

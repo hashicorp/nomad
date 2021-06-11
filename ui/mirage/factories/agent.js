@@ -17,6 +17,8 @@ export default Factory.extend({
     return this.name.split('@')[1];
   },
 
+  config: makeConfig,
+
   tags() {
     const rpcPortCandidate = faker.random.number({ min: 4000, max: 4999 });
     return {
@@ -25,3 +27,13 @@ export default Factory.extend({
     };
   },
 });
+
+function makeConfig() {
+  return {
+    Version: {
+      Version: '1.1.0',
+      VersionMetadata: 'ent',
+      VersionPrerelease: 'dev',
+    },
+  };
+}
