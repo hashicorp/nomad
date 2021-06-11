@@ -3565,6 +3565,7 @@ paths:
       summary: 'This endpoint reads summary information about a job. https://www.nomadproject.io/api-docs/jobs#read-job-summary.'
       operationId: getJobSummary
       parameters:
+        - $ref: '#/components/parameters/JobNameParam'
         - $ref: '#/components/parameters/RegionParam'
         - $ref: '#/components/parameters/StaleParam'
         - $ref: '#/components/parameters/PrefixParam'
