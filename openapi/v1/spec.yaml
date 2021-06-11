@@ -1,0 +1,3596 @@
+openapi: '3.0.3'
+info:
+  description: Documentation of the Nomad v1 API.
+  title: nomad
+  contact:
+    email: support@hashicorp.com
+  license:
+    name: MIT 2
+    url: 'https://github.com/hashicorp/nomad/blob/main/LICENSE'
+  version: 1.0.0
+servers:
+  - url: '{protocol}://127.0.0.1:{port}/v1'
+    description: Default localhost url.
+    variables:
+      protocol:
+        enum:
+          - http
+          - https
+        default: http
+      port:
+        default: "4646"
+security:
+  - ApiKeyAuth: []
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Nomad-Token
+  schemas:
+    Affinity:
+      description: Affinity is used to serialize task group affinities
+      type: object
+      properties:
+        LTarget:
+          type: string
+        Operand:
+          type: string
+        RTarget:
+          type: string
+        Weight:
+          type: integer
+          format: int8
+      x-go-package: github.com/hashicorp/nomad/api
+    AllocDeploymentStatus:
+      description: |-
+        AllocDeploymentStatus captures the status of the allocation as part of the
+        deployment. This can include things like if the allocation has been marked as
+        healthy.
+      type: object
+      properties:
+        Canary:
+          description: |-
+            Canary marks whether the allocation is a canary or not. A canary that has
+            been promoted will have this field set to false.
+          type: boolean
+        Healthy:
+          description: |-
+            Healthy marks whether the allocation has been marked healthy or unhealthy
+            as part of a deployment. It can be unset if it has neither been marked
+            healthy or unhealthy.
+          type: boolean
+        ModifyIndex:
+          description: |-
+            ModifyIndex is the raft index in which the deployment status was last
+            changed.
+          type: integer
+          format: uint64
+        Timestamp:
+          description: Timestamp is the time at which the health status was set.
+          type: string
+          format: date-time
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    AllocListStub:
+      description: AllocListStub is used to return a subset of alloc information
+      type: object
+      properties:
+        AllocatedResources:
+          $ref: '#/components/schemas/AllocatedResources'
+        ClientDescription:
+          type: string
+        ClientStatus:
+          type: string
+        CreateIndex:
+          type: integer
+          format: uint64
+        CreateTime:
+          type: integer
+          format: int64
+        DeploymentStatus:
+          $ref: '#/components/schemas/AllocDeploymentStatus'
+        DesiredDescription:
+          type: string
+        DesiredStatus:
+          type: string
+        DesiredTransition:
+          $ref: '#/components/schemas/DesiredTransition'
+        EvalID:
+          type: string
+        FollowupEvalID:
+          type: string
+        ID:
+          type: string
+        JobID:
+          type: string
+        JobType:
+          type: string
+        JobVersion:
+          type: integer
+          format: uint64
+        ModifyIndex:
+          type: integer
+          format: uint64
+        ModifyTime:
+          type: integer
+          format: int64
+        Name:
+          type: string
+        Namespace:
+          type: string
+        NodeID:
+          type: string
+        NodeName:
+          type: string
+        PreemptedAllocations:
+          type: array
+          items:
+            type: string
+        PreemptedByAllocation:
+          type: string
+        RescheduleTracker:
+          $ref: '#/components/schemas/RescheduleTracker'
+        TaskGroup:
+          type: string
+        TaskStates:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/TaskState'
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    AllocatedCpuResources:
+      type: object
+      title: AllocatedCpuResources captures the allocated CPU resources.
+      properties:
+        CpuShares:
+          type: integer
+          format: int64
+        ReservedCores:
+          type: array
+          items:
+            type: integer
+            format: uint16
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    AllocatedDeviceResource:
+      type: object
+      title: AllocatedDeviceResource captures a set of allocated devices.
+      properties:
+        DeviceIDs:
+          description: DeviceIDs is the set of allocated devices
+          type: array
+          items:
+            type: string
+        Name:
+          type: string
+        Type:
+          type: string
+        Vendor:
+          description: |-
+            Vendor, Type, and Name are used to select the plugin to request the
+            device IDs from.
+          type: string
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    AllocatedMemoryResources:
+      type: object
+      title: AllocatedMemoryResources captures the allocated memory resources.
+      properties:
+        MemoryMB:
+          type: integer
+          format: int64
+        MemoryMaxMB:
+          type: integer
+          format: int64
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    AllocatedPortMapping:
+      type: object
+      properties:
+        HostIP:
+          type: string
+        Label:
+          type: string
+        To:
+          type: integer
+          format: int64
+        Value:
+          type: integer
+          format: int64
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    AllocatedPorts:
+      type: array
+      items:
+        $ref: '#/components/schemas/AllocatedPortMapping'
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    AllocatedResources:
+      type: object
+      title: AllocatedResources is the set of resources to be used by an allocation.
+      properties:
+        Shared:
+          $ref: '#/components/schemas/AllocatedSharedResources'
+        TaskLifecycles:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/TaskLifecycleConfig'
+        Tasks:
+          description: Tasks is a mapping of task name to the resources for the task.
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/AllocatedTaskResources'
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    AllocatedSharedResources:
+      type: object
+      title: AllocatedSharedResources are the set of resources allocated to a task group.
+      properties:
+        DiskMB:
+          type: integer
+          format: int64
+        Networks:
+          $ref: '#/components/schemas/Networks'
+        Ports:
+          $ref: '#/components/schemas/AllocatedPorts'
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    AllocatedTaskResources:
+      type: object
+      title: AllocatedTaskResources are the set of resources allocated to a task.
+      properties:
+        Cpu:
+          $ref: '#/components/schemas/AllocatedCpuResources'
+        Devices:
+          type: array
+          items:
+            $ref: '#/components/schemas/AllocatedDeviceResource'
+        Memory:
+          $ref: '#/components/schemas/AllocatedMemoryResources'
+        Networks:
+          $ref: '#/components/schemas/Networks'
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    AllocationListStub:
+      description: |-
+        AllocationListStub is used to return a subset of an allocation
+        during list operations.
+      type: object
+      properties:
+        AllocatedResources:
+          $ref: '#/components/schemas/AllocatedResources'
+        ClientDescription:
+          type: string
+        ClientStatus:
+          type: string
+        CreateIndex:
+          type: integer
+          format: uint64
+        CreateTime:
+          type: integer
+          format: int64
+        DeploymentStatus:
+          $ref: '#/components/schemas/AllocDeploymentStatus'
+        DesiredDescription:
+          type: string
+        DesiredStatus:
+          type: string
+        EvalID:
+          type: string
+        FollowupEvalID:
+          type: string
+        ID:
+          type: string
+        JobID:
+          type: string
+        JobType:
+          type: string
+        JobVersion:
+          type: integer
+          format: uint64
+        ModifyIndex:
+          type: integer
+          format: uint64
+        ModifyTime:
+          type: integer
+          format: int64
+        Name:
+          type: string
+        Namespace:
+          type: string
+        NodeID:
+          type: string
+        NodeName:
+          type: string
+        PreemptedAllocations:
+          type: array
+          items:
+            type: string
+        PreemptedByAllocation:
+          type: string
+        RescheduleTracker:
+          $ref: '#/components/schemas/RescheduleTracker'
+        TaskGroup:
+          type: string
+        TaskStates:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/TaskState'
+      x-go-package: github.com/hashicorp/nomad/api
+    AllocationMetric:
+      type: object
+      title: AllocationMetric is used to deserialize allocation metrics.
+      properties:
+        AllocationTime:
+          $ref: '#/components/schemas/Duration'
+        ClassExhausted:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        ClassFiltered:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        CoalescedFailures:
+          type: integer
+          format: int64
+        ConstraintFiltered:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        DimensionExhausted:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        NodesAvailable:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        NodesEvaluated:
+          type: integer
+          format: int64
+        NodesExhausted:
+          type: integer
+          format: int64
+        NodesFiltered:
+          type: integer
+          format: int64
+        QuotaExhausted:
+          type: array
+          items:
+            type: string
+        ResourcesExhausted:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/Resources'
+        ScoreMetaData:
+          type: array
+          items:
+            $ref: '#/components/schemas/NodeScoreMeta'
+        Scores:
+          description: 'Deprecated, replaced with ScoreMetaData'
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+      x-go-package: github.com/hashicorp/nomad/api
+    AuthenticateOKBody:
+      description: AuthenticateOKBody authenticate o k body
+      type: object
+      required:
+        - IdentityToken
+        - Status
+      properties:
+        IdentityToken:
+          description: An opaque token used to authenticate a user after a successful login
+          type: string
+        Status:
+          description: The status of the authentication
+          type: string
+      x-go-package: github.com/docker/docker/api/types/registry
+    CSIMountOptions:
+      description: |-
+        CSIMountOptions contain optional additional configuration that can be used
+        when specifying that a Volume should be used with VolumeAccessTypeMount.
+      type: object
+      properties:
+        FSType:
+          description: |-
+            FSType is an optional field that allows an operator to specify the type
+            of the filesystem.
+          type: string
+        MountFlags:
+          description: |-
+            MountFlags contains additional options that may be used when mounting the
+            volume by the plugin. This may contain sensitive data and should not be
+            leaked.
+          type: array
+          items:
+            type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    CSIPluginType:
+      description: |-
+        CSIPluginType is an enum string that encapsulates the valid options for a
+        CSIPlugin stanza's Type. These modes will allow the plugin to be used in
+        different ways by the client.
+      type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    CheckRestart:
+      description: |-
+        CheckRestart describes if and when a task should be restarted based on
+        failing health checks.
+      type: object
+      properties:
+        Grace:
+          $ref: '#/components/schemas/Duration'
+        IgnoreWarnings:
+          type: boolean
+        Limit:
+          type: integer
+          format: int64
+      x-go-package: github.com/hashicorp/nomad/api
+    Constraint:
+      type: object
+      title: Constraint is used to serialize a job placement constraint.
+      properties:
+        LTarget:
+          type: string
+        Operand:
+          type: string
+        RTarget:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    Consul:
+      type: object
+      title: Consul represents configuration related to consul.
+      properties:
+        Namespace:
+          description: (Enterprise-only) Namespace represents a Consul namespace.
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulConnect:
+      type: object
+      title: ConsulConnect represents a Consul Connect jobspec stanza.
+      properties:
+        Gateway:
+          $ref: '#/components/schemas/ConsulGateway'
+        Native:
+          type: boolean
+        SidecarService:
+          $ref: '#/components/schemas/ConsulSidecarService'
+        SidecarTask:
+          $ref: '#/components/schemas/SidecarTask'
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulExposeConfig:
+      type: object
+      properties:
+        Path:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsulExposePath'
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulExposePath:
+      type: object
+      properties:
+        ListenerPort:
+          type: string
+        LocalPathPort:
+          type: integer
+          format: int64
+        Path:
+          type: string
+        Protocol:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulGateway:
+      type: object
+      title: ConsulGateway is used to configure one of the Consul Connect Gateway types.
+      properties:
+        Ingress:
+          $ref: '#/components/schemas/ConsulIngressConfigEntry'
+        Proxy:
+          $ref: '#/components/schemas/ConsulGatewayProxy'
+        Terminating:
+          $ref: '#/components/schemas/ConsulTerminatingConfigEntry'
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulGatewayBindAddress:
+      type: object
+      properties:
+        Address:
+          type: string
+        Name:
+          type: string
+        Port:
+          type: integer
+          format: int64
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulGatewayProxy:
+      description: 'https://www.consul.io/docs/connect/proxies/envoy#gateway-options'
+      type: object
+      title: |-
+        ConsulGatewayProxy is used to tune parameters of the proxy instance acting as
+        one of the forms of Connect gateways that Consul supports.
+      properties:
+        Config:
+          type: object
+          additionalProperties:
+            type: object
+        ConnectTimeout:
+          $ref: '#/components/schemas/Duration'
+        EnvoyDNSDiscoveryType:
+          type: string
+        EnvoyGatewayBindAddresses:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ConsulGatewayBindAddress'
+        EnvoyGatewayBindTaggedAddresses:
+          type: boolean
+        EnvoyGatewayNoDefaultBind:
+          type: boolean
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulGatewayTLSConfig:
+      type: object
+      title: ConsulGatewayTLSConfig is used to configure TLS for a gateway.
+      properties:
+        Enabled:
+          type: boolean
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulIngressConfigEntry:
+      description: 'https://www.consul.io/docs/agent/config-entries/ingress-gateway#available-fields'
+      type: object
+      title: |-
+        ConsulIngressConfigEntry represents the Consul Configuration Entry type for
+        an Ingress Gateway.
+      properties:
+        Listeners:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsulIngressListener'
+        TLS:
+          $ref: '#/components/schemas/ConsulGatewayTLSConfig'
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulIngressListener:
+      description: |-
+        ConsulIngressListener is used to configure a listener on a Consul Ingress
+        Gateway.
+      type: object
+      properties:
+        Port:
+          type: integer
+          format: int64
+        Protocol:
+          type: string
+        Services:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsulIngressService'
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulIngressService:
+      type: object
+      title: ConsulIngressService is used to configure a service fronted by the ingress gateway.
+      properties:
+        Hosts:
+          type: array
+          items:
+            type: string
+        Name:
+          description: |-
+            Namespace is not yet supported.
+            Namespace string
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulLinkedService:
+      type: object
+      properties:
+        CAFile:
+          type: string
+        CertFile:
+          type: string
+        KeyFile:
+          type: string
+        Name:
+          type: string
+        SNI:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulProxy:
+      type: object
+      title: ConsulProxy represents a Consul Connect sidecar proxy jobspec stanza.
+      properties:
+        Config:
+          type: object
+          additionalProperties:
+            type: object
+        ExposeConfig:
+          $ref: '#/components/schemas/ConsulExposeConfig'
+        LocalServiceAddress:
+          type: string
+        LocalServicePort:
+          type: integer
+          format: int64
+        Upstreams:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsulUpstream'
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulSidecarService:
+      description: |-
+        ConsulSidecarService represents a Consul Connect SidecarService jobspec
+        stanza.
+      type: object
+      properties:
+        DisableDefaultTCPCheck:
+          type: boolean
+        Port:
+          type: string
+        Proxy:
+          $ref: '#/components/schemas/ConsulProxy'
+        Tags:
+          type: array
+          items:
+            type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulTerminatingConfigEntry:
+      description: 'https://www.consul.io/docs/agent/config-entries/terminating-gateway#available-fields'
+      type: object
+      title: |-
+        ConsulTerminatingConfigEntry represents the Consul Configuration Entry type
+        for a Terminating Gateway.
+      properties:
+        Services:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsulLinkedService'
+      x-go-package: github.com/hashicorp/nomad/api
+    ConsulUpstream:
+      type: object
+      title: ConsulUpstream represents a Consul Connect upstream jobspec stanza.
+      properties:
+        Datacenter:
+          type: string
+        DestinationName:
+          type: string
+        LocalBindAddress:
+          type: string
+        LocalBindPort:
+          type: integer
+          format: int64
+      x-go-package: github.com/hashicorp/nomad/api
+    ContainerChangeResponseItem:
+      description: ContainerChangeResponseItem change item in response to ContainerChanges operation
+      type: object
+      required:
+        - Kind
+        - Path
+      properties:
+        Kind:
+          description: Kind of change
+          type: integer
+          format: uint8
+        Path:
+          description: Path to file that has changed
+          type: string
+      x-go-package: github.com/docker/docker/api/types/container
+    ContainerCreateCreatedBody:
+      description: ContainerCreateCreatedBody OK response to ContainerCreate operation
+      type: object
+      required:
+        - Id
+        - Warnings
+      properties:
+        Id:
+          description: The ID of the created container
+          type: string
+          x-go-name: ID
+        Warnings:
+          description: Warnings encountered when creating the container
+          type: array
+          items:
+            type: string
+      x-go-package: github.com/docker/docker/api/types/container
+    ContainerTopOKBody:
+      description: ContainerTopOKBody OK response to ContainerTop operation
+      type: object
+      required:
+        - Processes
+        - Titles
+      properties:
+        Processes:
+          description: 'Each process running in the container, where each is process is an array of values corresponding to the titles'
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+        Titles:
+          description: The ps column titles
+          type: array
+          items:
+            type: string
+      x-go-package: github.com/docker/docker/api/types/container
+    ContainerUpdateOKBody:
+      description: ContainerUpdateOKBody OK response to ContainerUpdate operation
+      type: object
+      required:
+        - Warnings
+      properties:
+        Warnings:
+          description: warnings
+          type: array
+          items:
+            type: string
+      x-go-package: github.com/docker/docker/api/types/container
+    ContainerWaitOKBody:
+      description: ContainerWaitOKBody OK response to ContainerWait operation
+      type: object
+      required:
+        - Error
+        - StatusCode
+      properties:
+        Error:
+          $ref: '#/components/schemas/ContainerWaitOKBodyError'
+        StatusCode:
+          description: Exit code of the container
+          type: integer
+          format: int64
+      x-go-package: github.com/docker/docker/api/types/container
+    ContainerWaitOKBodyError:
+      description: 'ContainerWaitOKBodyError container waiting error, if any'
+      type: object
+      properties:
+        Message:
+          description: Details of an error
+          type: string
+      x-go-package: github.com/docker/docker/api/types/container
+    DNSConfig:
+      type: object
+      properties:
+        Options:
+          type: array
+          items:
+            type: string
+        Searches:
+          type: array
+          items:
+            type: string
+        Servers:
+          type: array
+          items:
+            type: string
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    DeregisterOptions:
+      description: DeregisterOptions is used to pass through job deregistration parameters
+      type: object
+      properties:
+        Global:
+          description: |-
+            If Global is set to true, all regions of a multiregion job will be
+            stopped.
+          type: boolean
+        Purge:
+          description: |-
+            If Purge is set to true, the job is deregistered and purged from the
+            system versus still being queryable and eventually GC'ed from the
+            system. Most callers should not specify purge.
+          type: boolean
+      x-go-package: github.com/hashicorp/nomad/api
+    DesiredTransition:
+      description: |-
+        DesiredTransition is used to mark an allocation as having a desired state
+        transition. This information can be used by the scheduler to make the
+        correct decision.
+      type: object
+      properties:
+        ForceReschedule:
+          description: |-
+            ForceReschedule is used to indicate that this allocation must be rescheduled.
+            This field is only used when operators want to force a placement even if
+            a failed allocation is not eligible to be rescheduled
+          type: boolean
+        Migrate:
+          description: |-
+            Migrate is used to indicate that this allocation should be stopped and
+            migrated to another node.
+          type: boolean
+        Reschedule:
+          description: |-
+            Reschedule is used to indicate that this allocation is eligible to be
+            rescheduled. Most allocations are automatically eligible for
+            rescheduling, so this field is only required when an allocation is not
+            automatically eligible. An example is an allocation that is part of a
+            deployment.
+          type: boolean
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    DesiredUpdates:
+      description: DesiredUpdates contains the desired change set for a TaskGroup update operation
+      type: object
+      properties:
+        Canary:
+          type: integer
+          format: uint64
+        DestructiveUpdate:
+          type: integer
+          format: uint64
+        Ignore:
+          type: integer
+          format: uint64
+        InPlaceUpdate:
+          type: integer
+          format: uint64
+        Migrate:
+          type: integer
+          format: uint64
+        Place:
+          type: integer
+          format: uint64
+        Preemptions:
+          type: integer
+          format: uint64
+        Stop:
+          type: integer
+          format: uint64
+      x-go-package: github.com/hashicorp/nomad/api
+    DispatchPayloadConfig:
+      description: DispatchPayloadConfig configures how a task gets its input from a job dispatch
+      type: object
+      properties:
+        File:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    Duration:
+      description: |-
+        A Duration represents the elapsed time between two instants
+        as an int64 nanosecond count. The representation limits the
+        largest representable duration to approximately 290 years.
+      type: integer
+      format: int64
+      x-go-package: time
+    EphemeralDisk:
+      description: EphemeralDisk is an ephemeral disk object
+      type: object
+      properties:
+        Migrate:
+          type: boolean
+        SizeMB:
+          type: integer
+          format: int64
+        Sticky:
+          type: boolean
+      x-go-package: github.com/hashicorp/nomad/api
+    ErrorResponse:
+      type: object
+      title: ErrorResponse Represents an error.
+      required:
+        - message
+      properties:
+        message:
+          description: The error message.
+          type: string
+          x-go-name: Message
+      x-go-package: github.com/docker/docker/api/types
+    EvalOptions:
+      description: EvalOptions is used to encapsulate options when forcing a job evaluation
+      type: object
+      properties:
+        ForceReschedule:
+          type: boolean
+      x-go-package: github.com/hashicorp/nomad/api
+    Evaluation:
+      type: object
+      title: Evaluation is used to serialize an evaluation.
+      properties:
+        AnnotatePlan:
+          type: boolean
+        BlockedEval:
+          type: string
+        ClassEligibility:
+          type: object
+          additionalProperties:
+            type: boolean
+        CreateIndex:
+          type: integer
+          format: uint64
+        CreateTime:
+          type: integer
+          format: int64
+        DeploymentID:
+          type: string
+        EscapedComputedClass:
+          type: boolean
+        FailedTGAllocs:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/AllocationMetric'
+        ID:
+          type: string
+        JobID:
+          type: string
+        JobModifyIndex:
+          type: integer
+          format: uint64
+        ModifyIndex:
+          type: integer
+          format: uint64
+        ModifyTime:
+          type: integer
+          format: int64
+        Namespace:
+          type: string
+        NextEval:
+          type: string
+        NodeID:
+          type: string
+        NodeModifyIndex:
+          type: integer
+          format: uint64
+        PreviousEval:
+          type: string
+        Priority:
+          type: integer
+          format: int64
+        QueuedAllocations:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        QuotaLimitReached:
+          type: string
+        SnapshotIndex:
+          type: integer
+          format: uint64
+        Status:
+          type: string
+        StatusDescription:
+          type: string
+        TriggeredBy:
+          type: string
+        Type:
+          type: string
+        Wait:
+          $ref: '#/components/schemas/Duration'
+        WaitUntil:
+          type: string
+          format: date-time
+      x-go-package: github.com/hashicorp/nomad/api
+    FieldDiff:
+      description: FieldDiff details the differences between to struct fields
+      type: object
+      properties:
+        Annotations:
+          type: array
+          items:
+            type: string
+        Name:
+          type: string
+        Old:
+          type: string
+          x-go-name: New
+        Type:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    GraphDriverData:
+      type: object
+      title: GraphDriverData Information about a container's graph driver.
+      required:
+        - Data
+        - Name
+      properties:
+        Data:
+          description: data
+          type: object
+          additionalProperties:
+            type: string
+        Name:
+          description: name
+          type: string
+      x-go-package: github.com/docker/docker/api/types
+    IdResponse:
+      description: IDResponse Response to an API call that returns just an Id
+      type: object
+      required:
+        - Id
+      properties:
+        Id:
+          description: The id of the newly created object.
+          type: string
+          x-go-name: ID
+      x-go-name: IDResponse
+      x-go-package: github.com/docker/docker/api/types
+    ImageDeleteResponseItem:
+      description: ImageDeleteResponseItem image delete response item
+      type: object
+      properties:
+        Deleted:
+          description: The image ID of an image that was deleted
+          type: string
+        Untagged:
+          description: The image ID of an image that was untagged
+          type: string
+      x-go-package: github.com/docker/docker/api/types
+    ImageSummary:
+      description: ImageSummary image summary
+      type: object
+      required:
+        - Containers
+        - Created
+        - Id
+        - Labels
+        - ParentId
+        - RepoDigests
+        - RepoTags
+        - SharedSize
+        - Size
+        - VirtualSize
+      properties:
+        Containers:
+          description: containers
+          type: integer
+          format: int64
+        Created:
+          description: created
+          type: integer
+          format: int64
+        Id:
+          description: Id
+          type: string
+          x-go-name: ID
+        Labels:
+          description: labels
+          type: object
+          additionalProperties:
+            type: string
+        ParentId:
+          description: parent Id
+          type: string
+          x-go-name: ParentID
+        RepoDigests:
+          description: repo digests
+          type: array
+          items:
+            type: string
+        RepoTags:
+          description: repo tags
+          type: array
+          items:
+            type: string
+        SharedSize:
+          description: shared size
+          type: integer
+          format: int64
+        Size:
+          description: size
+          type: integer
+          format: int64
+        VirtualSize:
+          description: virtual size
+          type: integer
+          format: int64
+      x-go-package: github.com/docker/docker/api/types
+    Job:
+      type: object
+      title: Job is used to serialize a job.
+      properties:
+        Affinities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Affinity'
+        AllAtOnce:
+          type: boolean
+        Constraints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Constraint'
+        ConsulNamespace:
+          type: string
+        ConsulToken:
+          type: string
+        CreateIndex:
+          type: integer
+          format: uint64
+        Datacenters:
+          type: array
+          items:
+            type: string
+        Dispatched:
+          type: boolean
+        ID:
+          type: string
+        JobModifyIndex:
+          type: integer
+          format: uint64
+        Meta:
+          type: object
+          additionalProperties:
+            type: string
+        Migrate:
+          $ref: '#/components/schemas/MigrateStrategy'
+        ModifyIndex:
+          type: integer
+          format: uint64
+        Multiregion:
+          $ref: '#/components/schemas/Multiregion'
+        Name:
+          type: string
+        Namespace:
+          type: string
+        NomadTokenID:
+          type: string
+        ParameterizedJob:
+          $ref: '#/components/schemas/ParameterizedJobConfig'
+        ParentID:
+          type: string
+        Payload:
+          type: array
+          items:
+            type: integer
+            format: uint8
+        Periodic:
+          $ref: '#/components/schemas/PeriodicConfig'
+        Priority:
+          type: integer
+          format: int64
+        Region:
+          type: string
+        Reschedule:
+          $ref: '#/components/schemas/ReschedulePolicy'
+        Spreads:
+          type: array
+          items:
+            $ref: '#/components/schemas/Spread'
+        Stable:
+          type: boolean
+        Status:
+          type: string
+        StatusDescription:
+          type: string
+        Stop:
+          type: boolean
+        SubmitTime:
+          type: integer
+          format: int64
+        TaskGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskGroup'
+        Type:
+          type: string
+        Update:
+          $ref: '#/components/schemas/UpdateStrategy'
+        VaultNamespace:
+          type: string
+        VaultToken:
+          type: string
+        Version:
+          type: integer
+          format: uint64
+      x-go-package: github.com/hashicorp/nomad/api
+    JobChildrenSummary:
+      description: JobChildrenSummary contains the summary of children job status
+      type: object
+      properties:
+        Dead:
+          type: integer
+          format: int64
+        Pending:
+          type: integer
+          format: int64
+        Running:
+          type: integer
+          format: int64
+      x-go-package: github.com/hashicorp/nomad/api
+    JobDeregisterResponse:
+      description: JobDeregisterResponse is used to respond to a job de-registration
+      type: object
+      properties:
+        EvalCreateIndex:
+          type: integer
+          format: uint64
+        EvalID:
+          type: string
+        JobModifyIndex:
+          type: integer
+          format: uint64
+        KnownLeader:
+          description: Is there a known leader
+          type: boolean
+        LastContact:
+          $ref: '#/components/schemas/Duration'
+        LastIndex:
+          description: |-
+            LastIndex. This can be used as a WaitIndex to perform
+            a blocking query
+          type: integer
+          format: uint64
+        RequestTime:
+          $ref: '#/components/schemas/Duration'
+      x-go-package: github.com/hashicorp/nomad/api
+    JobDiff:
+      description: JobDiff details the differences between two Job specs
+      type: object
+      properties:
+        Fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldDiff'
+        ID:
+          type: string
+        Objects:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObjectDiff'
+        TaskGroups:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskGroupDiff'
+        Type:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    JobDispatchRequest:
+      description: JobDispatch request targets a Job for dispatch
+      type: object
+      properties:
+        JobID:
+          type: string
+        Meta:
+          type: object
+          additionalProperties:
+            type: string
+        Payload:
+          type: array
+          items:
+            type: integer
+            format: uint8
+      x-go-package: github.com/hashicorp/nomad/api
+    JobDispatchResponse:
+      description: JobDispatchResponse contains the result of JobDispatchRequest
+      type: object
+      properties:
+        DispatchedJobID:
+          type: string
+        EvalCreateIndex:
+          type: integer
+          format: uint64
+        EvalID:
+          type: string
+        JobCreateIndex:
+          type: integer
+          format: uint64
+        LastIndex:
+          description: |-
+            LastIndex. This can be used as a WaitIndex to perform
+            a blocking query
+          type: integer
+          format: uint64
+        RequestTime:
+          $ref: '#/components/schemas/Duration'
+      x-go-package: github.com/hashicorp/nomad/api
+    JobEvaluateRequest:
+      description: JobEvaluateRequest is used when we just need to re-evaluate a target job
+      type: object
+      properties:
+        EvalOptions:
+          $ref: '#/components/schemas/EvalOptions'
+        JobID:
+          type: string
+        Namespace:
+          description: Namespace is the target namespace for this write
+          type: string
+        Region:
+          description: The target region for this write
+          type: string
+        SecretID:
+          description: SecretID is the secret ID of an ACL token
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    JobListStub:
+      description: |-
+        JobListStub is used to return a subset of information about
+        jobs during list operations.
+      type: object
+      properties:
+        CreateIndex:
+          type: integer
+          format: uint64
+        Datacenters:
+          type: array
+          items:
+            type: string
+        ID:
+          type: string
+        JobModifyIndex:
+          type: integer
+          format: uint64
+        JobSummary:
+          $ref: '#/components/schemas/JobSummary'
+        ModifyIndex:
+          type: integer
+          format: uint64
+        Name:
+          type: string
+        Namespace:
+          type: string
+        ParameterizedJob:
+          type: boolean
+        ParentID:
+          type: string
+        Periodic:
+          type: boolean
+        Priority:
+          type: integer
+          format: int64
+        Status:
+          type: string
+        StatusDescription:
+          type: string
+        Stop:
+          type: boolean
+        SubmitTime:
+          type: integer
+          format: int64
+        Type:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    JobPlanRequest:
+      description: JobPlanRequest is used to write a Job plan
+      type: object
+      properties:
+        Diff:
+          type: boolean
+        Job:
+          $ref: '#/components/schemas/Job'
+        Namespace:
+          description: Namespace is the target namespace for this write
+          type: string
+        PolicyOverride:
+          type: boolean
+        Region:
+          description: The target region for this write
+          type: string
+        SecretID:
+          description: SecretID is the secret ID of an ACL token
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    JobPlanResponse:
+      description: JobPlanResponse details the results of a Job plan write operation
+      type: object
+      properties:
+        Annotations:
+          $ref: '#/components/schemas/PlanAnnotations'
+        CreatedEvals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Evaluation'
+        Diff:
+          $ref: '#/components/schemas/JobDiff'
+        FailedTGAllocs:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/AllocationMetric'
+        JobModifyIndex:
+          type: integer
+          format: uint64
+        NextPeriodicLaunch:
+          type: string
+          format: date-time
+        Warnings:
+          description: |-
+            Warnings contains any warnings about the given job. These may include
+            deprecation warnings.
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    JobRegisterRequest:
+      description: JobRegisterRequest is used to update a job
+      type: object
+      properties:
+        EnforceIndex:
+          description: |-
+            If EnforceIndex is set then the job will only be registered if the passed
+            JobModifyIndex matches the current Jobs index. If the index is zero, the
+            register only occurs if the job is new.
+          type: boolean
+        Job:
+          $ref: '#/components/schemas/Job'
+        JobModifyIndex:
+          type: integer
+          format: uint64
+        Namespace:
+          description: Namespace is the target namespace for this write
+          type: string
+        PolicyOverride:
+          type: boolean
+        PreserveCounts:
+          type: boolean
+        Region:
+          description: The target region for this write
+          type: string
+        SecretID:
+          description: SecretID is the secret ID of an ACL token
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    JobRegisterResponse:
+      description: JobRegisterResponse is used to respond to a job registration
+      type: object
+      properties:
+        EvalCreateIndex:
+          type: integer
+          format: uint64
+        EvalID:
+          type: string
+        JobModifyIndex:
+          type: integer
+          format: uint64
+        KnownLeader:
+          description: Is there a known leader
+          type: boolean
+        LastContact:
+          $ref: '#/components/schemas/Duration'
+        LastIndex:
+          description: |-
+            LastIndex. This can be used as a WaitIndex to perform
+            a blocking query
+          type: integer
+          format: uint64
+        RequestTime:
+          $ref: '#/components/schemas/Duration'
+        Warnings:
+          description: |-
+            Warnings contains any warnings about the given job. These may include
+            deprecation warnings.
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    JobRevertRequest:
+      type: object
+      title: JobRevertRequest is used to revert a job to a prior version.
+      properties:
+        ConsulToken:
+          description: |-
+            ConsulToken is the Consul token that proves the submitter of the job revert
+            has access to the Service Identity policies associated with the job's
+            Consul Connect enabled services. This field is only used to transfer the
+            token and is not stored after the Job revert.
+          type: string
+        EnforcePriorVersion:
+          description: |-
+            EnforcePriorVersion if set will enforce that the job is at the given
+            version before reverting.
+          type: integer
+          format: uint64
+        JobID:
+          description: JobID is the ID of the job  being reverted
+          type: string
+        JobVersion:
+          description: JobVersion the version to revert to.
+          type: integer
+          format: uint64
+        Namespace:
+          description: Namespace is the target namespace for this write
+          type: string
+        Region:
+          description: The target region for this write
+          type: string
+        SecretID:
+          description: SecretID is the secret ID of an ACL token
+          type: string
+        VaultToken:
+          description: |-
+            VaultToken is the Vault token that proves the submitter of the job revert
+            has access to any Vault policies specified in the targeted job version. This
+            field is only used to authorize the revert and is not stored after the Job
+            revert.
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    JobStabilityRequest:
+      type: object
+      title: JobStabilityRequest is used to marked a job as stable.
+      properties:
+        JobID:
+          description: Job to set the stability on
+          type: string
+        JobVersion:
+          type: integer
+          format: uint64
+        Namespace:
+          description: Namespace is the target namespace for this write
+          type: string
+        Region:
+          description: The target region for this write
+          type: string
+        SecretID:
+          description: SecretID is the secret ID of an ACL token
+          type: string
+        Stable:
+          description: Set the stability
+          type: boolean
+      x-go-package: github.com/hashicorp/nomad/api
+    JobStabilityResponse:
+      type: object
+      title: JobStabilityResponse is the response when marking a job as stable.
+      properties:
+        JobModifyIndex:
+          type: integer
+          format: uint64
+        LastIndex:
+          description: |-
+            LastIndex. This can be used as a WaitIndex to perform
+            a blocking query
+          type: integer
+          format: uint64
+        RequestTime:
+          $ref: '#/components/schemas/Duration'
+      x-go-package: github.com/hashicorp/nomad/api
+    JobSummary:
+      description: JobSummary summarizes the state of the allocations of a job
+      type: object
+      properties:
+        Children:
+          $ref: '#/components/schemas/JobChildrenSummary'
+        CreateIndex:
+          description: Raft Indexes
+          type: integer
+          format: uint64
+        JobID:
+          type: string
+        ModifyIndex:
+          type: integer
+          format: uint64
+        Namespace:
+          type: string
+        Summary:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/TaskGroupSummary'
+      x-go-package: github.com/hashicorp/nomad/api
+    JobValidateRequest:
+      description: JobValidateRequest is used to validate a job
+      type: object
+      properties:
+        Job:
+          $ref: '#/components/schemas/Job'
+        Namespace:
+          description: Namespace is the target namespace for this write
+          type: string
+        Region:
+          description: The target region for this write
+          type: string
+        SecretID:
+          description: SecretID is the secret ID of an ACL token
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    JobValidateResponse:
+      description: JobValidateResponse is the response from validate request
+      type: object
+      properties:
+        DriverConfigValidated:
+          description: |-
+            DriverConfigValidated indicates whether the agent validated the driver
+            config
+          type: boolean
+        Error:
+          description: Error is a string version of any error that may have occurred
+          type: string
+        ValidationErrors:
+          description: ValidationErrors is a list of validation errors
+          type: array
+          items:
+            type: string
+        Warnings:
+          description: |-
+            Warnings contains any warnings about the given job. These may include
+            deprecation warnings.
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    JobVersionsResponse:
+      description: JobVersionsResponse is used for a job get versions request
+      type: object
+      properties:
+        Diffs:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobDiff'
+        KnownLeader:
+          description: Is there a known leader
+          type: boolean
+        LastContact:
+          $ref: '#/components/schemas/Duration'
+        LastIndex:
+          description: |-
+            LastIndex. This can be used as a WaitIndex to perform
+            a blocking query
+          type: integer
+          format: uint64
+        RequestTime:
+          $ref: '#/components/schemas/Duration'
+        Versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Job'
+      x-go-package: github.com/hashicorp/nomad/api
+    JobsParseRequest:
+      description: JobsParseRequest is used for arguments of the /v1/jobs/parse endpoint
+      type: object
+      properties:
+        Canonicalize:
+          description: |-
+            Canonicalize is a flag as to if the server should return default values
+            for unset fields
+          type: boolean
+        JobHCL:
+          description: JobHCL is an hcl jobspec
+          type: string
+        hclv1:
+          description: HCLv1 indicates whether the JobHCL should be parsed with the hcl v1 parser
+          type: boolean
+          x-go-name: HCLv1
+      x-go-package: github.com/hashicorp/nomad/api
+    LogConfig:
+      description: LogConfig provides configuration for log rotation
+      type: object
+      properties:
+        MaxFileSizeMB:
+          type: integer
+          format: int64
+        MaxFiles:
+          type: integer
+          format: int64
+      x-go-package: github.com/hashicorp/nomad/api
+    MigrateStrategy:
+      description: |-
+        MigrateStrategy describes how allocations for a task group should be
+        migrated between nodes (eg when draining).
+      type: object
+      properties:
+        HealthCheck:
+          type: string
+        HealthyDeadline:
+          $ref: '#/components/schemas/Duration'
+        MaxParallel:
+          type: integer
+          format: int64
+        MinHealthyTime:
+          $ref: '#/components/schemas/Duration'
+      x-go-package: github.com/hashicorp/nomad/api
+    Multiregion:
+      type: object
+      properties:
+        Regions:
+          type: array
+          items:
+            $ref: '#/components/schemas/MultiregionRegion'
+        Strategy:
+          $ref: '#/components/schemas/MultiregionStrategy'
+      x-go-package: github.com/hashicorp/nomad/api
+    MultiregionRegion:
+      type: object
+      properties:
+        Count:
+          type: integer
+          format: int64
+        Datacenters:
+          type: array
+          items:
+            type: string
+        Meta:
+          type: object
+          additionalProperties:
+            type: string
+        Name:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    MultiregionStrategy:
+      type: object
+      properties:
+        MaxParallel:
+          type: integer
+          format: int64
+        OnFailure:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    NetworkResource:
+      description: |-
+        NetworkResource is used to represent available network
+        resources
+      type: object
+      properties:
+        CIDR:
+          type: string
+        DNS:
+          $ref: '#/components/schemas/DNSConfig'
+        Device:
+          type: string
+        DynamicPorts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Port'
+        IP:
+          type: string
+        MBits:
+          type: integer
+          format: int64
+        Mode:
+          type: string
+        ReservedPorts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Port'
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    Networks:
+      type: array
+      title: Networks defined for a task on the Resources struct.
+      items:
+        $ref: '#/components/schemas/NetworkResource'
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    NodeScoreMeta:
+      description: |-
+        NodeScoreMeta is used to serialize node scoring metadata
+        displayed in the CLI during verbose mode
+      type: object
+      properties:
+        NodeID:
+          type: string
+        NormScore:
+          type: number
+          format: double
+        Scores:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+      x-go-package: github.com/hashicorp/nomad/api
+    ObjectDiff:
+      description: ObjectDiff details the differences between two objects
+      type: object
+      properties:
+        Fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldDiff'
+        Name:
+          type: string
+        Objects:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObjectDiff'
+        Type:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    ParameterizedJobConfig:
+      type: object
+      title: ParameterizedJobConfig is used to configure the parameterized job.
+      properties:
+        MetaOptional:
+          type: array
+          items:
+            type: string
+        MetaRequired:
+          type: array
+          items:
+            type: string
+        Payload:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    PeriodicConfig:
+      type: object
+      title: PeriodicConfig is for serializing periodic config for a job.
+      properties:
+        Enabled:
+          type: boolean
+        ProhibitOverlap:
+          type: boolean
+        Spec:
+          type: string
+        SpecType:
+          type: string
+        TimeZone:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    PeriodicForceResponse:
+      description: PeriodicForceResponse is used to respond to a periodic job force launch
+      type: object
+      properties:
+        EvalCreateIndex:
+          type: integer
+          format: uint64
+        EvalID:
+          type: string
+        Index:
+          description: This is the index associated with the write
+          type: integer
+          format: uint64
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    PlanAnnotations:
+      description: PlanAnnotations contains annotation details for a JobResponse
+      type: object
+      properties:
+        DesiredTGUpdates:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/DesiredUpdates'
+        PreemptedAllocs:
+          type: array
+          items:
+            $ref: '#/components/schemas/AllocationListStub'
+      x-go-package: github.com/hashicorp/nomad/api
+    PlanOptions:
+      description: PlanOptions is used to pass through job planning parameters
+      type: object
+      properties:
+        Diff:
+          type: boolean
+        PolicyOverride:
+          type: boolean
+      x-go-package: github.com/hashicorp/nomad/api
+    Plugin:
+      description: Plugin A plugin for the Engine API
+      type: object
+      required:
+        - Config
+        - Enabled
+        - Name
+        - Settings
+      properties:
+        Config:
+          $ref: '#/components/schemas/PluginConfig'
+        Enabled:
+          description: 'True if the plugin is running. False if the plugin is not running, only installed.'
+          type: boolean
+        Id:
+          description: Id
+          type: string
+          x-go-name: ID
+        Name:
+          description: name
+          type: string
+        PluginReference:
+          description: plugin remote reference used to push/pull the plugin
+          type: string
+        Settings:
+          $ref: '#/components/schemas/PluginSettings'
+      x-go-package: github.com/docker/docker/api/types
+    PluginConfig:
+      type: object
+      title: PluginConfig The config of a plugin.
+      required:
+        - Args
+        - Description
+        - Documentation
+        - Entrypoint
+        - Env
+        - Interface
+        - IpcHost
+        - Linux
+        - Mounts
+        - Network
+        - PidHost
+        - PropagatedMount
+        - WorkDir
+      properties:
+        Args:
+          $ref: '#/components/schemas/PluginConfigArgs'
+        Description:
+          description: description
+          type: string
+        DockerVersion:
+          description: Docker Version used to create the plugin
+          type: string
+        Documentation:
+          description: documentation
+          type: string
+        Entrypoint:
+          description: entrypoint
+          type: array
+          items:
+            type: string
+        Env:
+          description: env
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginEnv'
+        Interface:
+          $ref: '#/components/schemas/PluginConfigInterface'
+        IpcHost:
+          description: ipc host
+          type: boolean
+        Linux:
+          $ref: '#/components/schemas/PluginConfigLinux'
+        Mounts:
+          description: mounts
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginMount'
+        Network:
+          $ref: '#/components/schemas/PluginConfigNetwork'
+        PidHost:
+          description: pid host
+          type: boolean
+        PropagatedMount:
+          description: propagated mount
+          type: string
+        User:
+          $ref: '#/components/schemas/PluginConfigUser'
+        WorkDir:
+          description: work dir
+          type: string
+        rootfs:
+          $ref: '#/components/schemas/PluginConfigRootfs'
+      x-go-package: github.com/docker/docker/api/types
+    PluginConfigArgs:
+      description: PluginConfigArgs plugin config args
+      type: object
+      required:
+        - Description
+        - Name
+        - Settable
+        - Value
+      properties:
+        Description:
+          description: description
+          type: string
+        Name:
+          description: name
+          type: string
+        Settable:
+          description: settable
+          type: array
+          items:
+            type: string
+        Value:
+          description: value
+          type: array
+          items:
+            type: string
+      x-go-package: github.com/docker/docker/api/types
+    PluginConfigInterface:
+      description: PluginConfigInterface The interface between Docker and the plugin
+      type: object
+      required:
+        - Socket
+        - Types
+      properties:
+        ProtocolScheme:
+          description: Protocol to use for clients connecting to the plugin.
+          type: string
+        Socket:
+          description: socket
+          type: string
+        Types:
+          description: types
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginInterfaceType'
+      x-go-package: github.com/docker/docker/api/types
+    PluginConfigLinux:
+      description: PluginConfigLinux plugin config linux
+      type: object
+      required:
+        - AllowAllDevices
+        - Capabilities
+        - Devices
+      properties:
+        AllowAllDevices:
+          description: allow all devices
+          type: boolean
+        Capabilities:
+          description: capabilities
+          type: array
+          items:
+            type: string
+        Devices:
+          description: devices
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginDevice'
+      x-go-package: github.com/docker/docker/api/types
+    PluginConfigNetwork:
+      description: PluginConfigNetwork plugin config network
+      type: object
+      required:
+        - Type
+      properties:
+        Type:
+          description: type
+          type: string
+      x-go-package: github.com/docker/docker/api/types
+    PluginConfigRootfs:
+      description: PluginConfigRootfs plugin config rootfs
+      type: object
+      properties:
+        diff_ids:
+          description: diff ids
+          type: array
+          items:
+            type: string
+          x-go-name: DiffIds
+        type:
+          description: type
+          type: string
+          x-go-name: Type
+      x-go-package: github.com/docker/docker/api/types
+    PluginConfigUser:
+      description: PluginConfigUser plugin config user
+      type: object
+      properties:
+        GID:
+          description: g ID
+          type: integer
+          format: uint32
+        UID:
+          description: UID
+          type: integer
+          format: uint32
+      x-go-package: github.com/docker/docker/api/types
+    PluginDevice:
+      description: PluginDevice plugin device
+      type: object
+      required:
+        - Description
+        - Name
+        - Path
+        - Settable
+      properties:
+        Description:
+          description: description
+          type: string
+        Name:
+          description: name
+          type: string
+        Path:
+          description: path
+          type: string
+        Settable:
+          description: settable
+          type: array
+          items:
+            type: string
+      x-go-package: github.com/docker/docker/api/types
+    PluginEnv:
+      description: PluginEnv plugin env
+      type: object
+      required:
+        - Description
+        - Name
+        - Settable
+        - Value
+      properties:
+        Description:
+          description: description
+          type: string
+        Name:
+          description: name
+          type: string
+        Settable:
+          description: settable
+          type: array
+          items:
+            type: string
+        Value:
+          description: value
+          type: string
+      x-go-package: github.com/docker/docker/api/types
+    PluginInterfaceType:
+      description: PluginInterfaceType plugin interface type
+      type: object
+      required:
+        - Capability
+        - Prefix
+        - Version
+      properties:
+        Capability:
+          description: capability
+          type: string
+        Prefix:
+          description: prefix
+          type: string
+        Version:
+          description: version
+          type: string
+      x-go-package: github.com/docker/docker/api/types
+    PluginMount:
+      description: PluginMount plugin mount
+      type: object
+      required:
+        - Description
+        - Destination
+        - Name
+        - Options
+        - Settable
+        - Source
+        - Type
+      properties:
+        Description:
+          description: description
+          type: string
+        Destination:
+          description: destination
+          type: string
+        Name:
+          description: name
+          type: string
+        Options:
+          description: options
+          type: array
+          items:
+            type: string
+        Settable:
+          description: settable
+          type: array
+          items:
+            type: string
+        Source:
+          description: source
+          type: string
+        Type:
+          description: type
+          type: string
+      x-go-package: github.com/docker/docker/api/types
+    PluginSettings:
+      type: object
+      title: PluginSettings Settings that can be modified by users.
+      required:
+        - Args
+        - Devices
+        - Env
+        - Mounts
+      properties:
+        Args:
+          description: args
+          type: array
+          items:
+            type: string
+        Devices:
+          description: devices
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginDevice'
+        Env:
+          description: env
+          type: array
+          items:
+            type: string
+        Mounts:
+          description: mounts
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginMount'
+      x-go-package: github.com/docker/docker/api/types
+    Port:
+      description: Port An open port on a container
+      type: object
+      required:
+        - PrivatePort
+        - Type
+      properties:
+        HostNetwork:
+          description: |-
+            HostNetwork is the name of the network this port should be assigned
+            to. Jobs with a HostNetwork set can only be placed on nodes with
+            that host network available.
+          type: string
+        Label:
+          description: 'Label is the key for HCL port stanzas: port "foo" {}'
+          type: string
+        To:
+          description: |-
+            To is the port inside a network namespace where this port is
+            forwarded. -1 is an internal sentinel value used by Consul Connect
+            to mean "same as the host port."
+          type: integer
+          format: int64
+        Value:
+          description: |-
+            Value is the static or dynamic port value. For dynamic ports this
+            will be 0 in the jobspec and set by the scheduler.
+          type: integer
+          format: int64
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    PortMapping:
+      type: object
+      properties:
+        HostIP:
+          type: string
+        Label:
+          type: string
+        To:
+          type: integer
+          format: int64
+        Value:
+          type: integer
+          format: int64
+      x-go-package: github.com/hashicorp/nomad/api
+    QueryMeta:
+      description: QueryMeta is used to return meta data about a query
+      type: object
+      properties:
+        KnownLeader:
+          description: Is there a known leader
+          type: boolean
+        LastContact:
+          $ref: '#/components/schemas/Duration'
+        LastIndex:
+          description: |-
+            LastIndex. This can be used as a WaitIndex to perform
+            a blocking query
+          type: integer
+          format: uint64
+        RequestTime:
+          $ref: '#/components/schemas/Duration'
+      x-go-package: github.com/hashicorp/nomad/api
+    RegisterOptions:
+      description: RegisterOptions is used to pass through job registration parameters
+      type: object
+      properties:
+        EnforceIndex:
+          type: boolean
+        ModifyIndex:
+          type: integer
+          format: uint64
+        PolicyOverride:
+          type: boolean
+        PreserveCounts:
+          type: boolean
+      x-go-package: github.com/hashicorp/nomad/api
+    RequestedDevice:
+      type: object
+      title: RequestedDevice is used to request a device for a task.
+      properties:
+        Affinities:
+          description: |-
+            Affinities are a set of affinites to apply when selecting the device
+            to use.
+          type: array
+          items:
+            $ref: '#/components/schemas/Affinity'
+        Constraints:
+          description: |-
+            Constraints are a set of constraints to apply when selecting the device
+            to use.
+          type: array
+          items:
+            $ref: '#/components/schemas/Constraint'
+        Count:
+          description: Count is the number of requested devices
+          type: integer
+          format: uint64
+        Name:
+          description: |-
+            Name is the request name. The possible values are as follows:
+            <type>: A single value only specifies the type of request.
+            <vendor>/<type>: A single slash delimiter assumes the vendor and type of device is specified.
+            <vendor>/<type>/<name>: Two slash delimiters assume vendor, type and specific model are specified.
+
+            Examples are as follows:
+            "gpu"
+            "nvidia/gpu"
+            "nvidia/gpu/GTX2080Ti"
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    RescheduleEvent:
+      description: RescheduleEvent is used to keep track of previous attempts at rescheduling an allocation
+      type: object
+      properties:
+        Delay:
+          $ref: '#/components/schemas/Duration'
+        PrevAllocID:
+          description: PrevAllocID is the ID of the previous allocation being restarted
+          type: string
+        PrevNodeID:
+          description: PrevNodeID is the node ID of the previous allocation
+          type: string
+        RescheduleTime:
+          description: RescheduleTime is the timestamp of a reschedule attempt
+          type: integer
+          format: int64
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    ReschedulePolicy:
+      type: object
+      title: Reschedule configures how Tasks are rescheduled  when they crash or fail.
+      properties:
+        Attempts:
+          description: Attempts limits the number of rescheduling attempts that can occur in an interval.
+          type: integer
+          format: int64
+        Delay:
+          $ref: '#/components/schemas/Duration'
+        DelayFunction:
+          description: |-
+            DelayFunction determines how the delay progressively changes on subsequent reschedule
+            attempts. Valid values are "exponential", "constant", and "fibonacci".
+          type: string
+        Interval:
+          $ref: '#/components/schemas/Duration'
+        MaxDelay:
+          $ref: '#/components/schemas/Duration'
+        Unlimited:
+          description: Unlimited allows rescheduling attempts until they succeed
+          type: boolean
+      x-go-package: github.com/hashicorp/nomad/api
+    RescheduleTracker:
+      description: RescheduleTracker encapsulates previous reschedule events
+      type: object
+      properties:
+        Events:
+          type: array
+          items:
+            $ref: '#/components/schemas/RescheduleEvent'
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    Resources:
+      description: |-
+        Resources encapsulates the required resources of
+        a given task or task group.
+      type: object
+      properties:
+        CPU:
+          type: integer
+          format: int64
+        Cores:
+          type: integer
+          format: int64
+        Devices:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequestedDevice'
+        DiskMB:
+          type: integer
+          format: int64
+        IOPS:
+          description: |-
+            COMPAT(0.10)
+            XXX Deprecated. Please do not use. The field will be removed in Nomad
+            0.10 and is only being kept to allow any references to be removed before
+            then.
+          type: integer
+          format: int64
+        MemoryMB:
+          type: integer
+          format: int64
+        MemoryMaxMB:
+          type: integer
+          format: int64
+        Networks:
+          type: array
+          items:
+            $ref: '#/components/schemas/NetworkResource'
+      x-go-package: github.com/hashicorp/nomad/api
+    RestartPolicy:
+      description: |-
+        RestartPolicy defines how the Nomad client restarts
+        tasks in a taskgroup when they fail
+      type: object
+      properties:
+        Attempts:
+          type: integer
+          format: int64
+        Delay:
+          $ref: '#/components/schemas/Duration'
+        Interval:
+          $ref: '#/components/schemas/Duration'
+        Mode:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    ScalingPolicy:
+      description: ScalingPolicy is the user-specified API object for an autoscaling policy
+      type: object
+      properties:
+        CreateIndex:
+          type: integer
+          format: uint64
+        Enabled:
+          type: boolean
+        ID:
+          type: string
+        Max:
+          type: integer
+          format: int64
+        Min:
+          type: integer
+          format: int64
+        ModifyIndex:
+          type: integer
+          format: uint64
+        Namespace:
+          type: string
+        Policy:
+          type: object
+          additionalProperties:
+            type: object
+        Target:
+          type: object
+          additionalProperties:
+            type: string
+        Type:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    Service:
+      type: object
+      title: Service represents a Consul service definition.
+      properties:
+        AddressMode:
+          type: string
+        CanaryMeta:
+          type: object
+          additionalProperties:
+            type: string
+        CanaryTags:
+          type: array
+          items:
+            type: string
+        CheckRestart:
+          $ref: '#/components/schemas/CheckRestart'
+        Checks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceCheck'
+        Connect:
+          $ref: '#/components/schemas/ConsulConnect'
+        EnableTagOverride:
+          type: boolean
+        Id:
+          description: FIXME Id is unused. Remove?
+          type: string
+        Meta:
+          type: object
+          additionalProperties:
+            type: string
+        Name:
+          type: string
+        OnUpdate:
+          type: string
+        PortLabel:
+          type: string
+        Tags:
+          type: array
+          items:
+            type: string
+        TaskName:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    ServiceCheck:
+      type: object
+      title: ServiceCheck represents the consul health check that Nomad registers.
+      properties:
+        AddressMode:
+          type: string
+        Args:
+          type: array
+          items:
+            type: string
+        Body:
+          type: string
+        CheckRestart:
+          $ref: '#/components/schemas/CheckRestart'
+        Command:
+          type: string
+        Expose:
+          type: boolean
+        FailuresBeforeCritical:
+          type: integer
+          format: int64
+        GRPCService:
+          type: string
+        GRPCUseTLS:
+          type: boolean
+        Header:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        Id:
+          description: FIXME Id is unused. Remove?
+          type: string
+        InitialStatus:
+          type: string
+        Interval:
+          $ref: '#/components/schemas/Duration'
+        Method:
+          type: string
+        Name:
+          type: string
+        OnUpdate:
+          type: string
+        Path:
+          type: string
+        PortLabel:
+          type: string
+        Protocol:
+          type: string
+        SuccessBeforePassing:
+          type: integer
+          format: int64
+        TLSSkipVerify:
+          type: boolean
+        TaskName:
+          type: string
+        Timeout:
+          $ref: '#/components/schemas/Duration'
+        Type:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    ServiceUpdateResponse:
+      description: ServiceUpdateResponse service update response
+      type: object
+      properties:
+        Warnings:
+          description: Optional warning messages
+          type: array
+          items:
+            type: string
+      x-go-package: github.com/docker/docker/api/types
+    SidecarTask:
+      description: |-
+        SidecarTask represents a subset of Task fields that can be set to override
+        the fields of the Task generated for the sidecar
+      type: object
+      properties:
+        Config:
+          type: object
+          additionalProperties:
+            type: object
+        Driver:
+          type: string
+        Env:
+          type: object
+          additionalProperties:
+            type: string
+        KillSignal:
+          type: string
+        KillTimeout:
+          $ref: '#/components/schemas/Duration'
+        LogConfig:
+          $ref: '#/components/schemas/LogConfig'
+        Meta:
+          type: object
+          additionalProperties:
+            type: string
+        Name:
+          type: string
+        Resources:
+          $ref: '#/components/schemas/Resources'
+        ShutdownDelay:
+          $ref: '#/components/schemas/Duration'
+        User:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    Spread:
+      description: Spread is used to serialize task group allocation spread preferences
+      type: object
+      properties:
+        Attribute:
+          type: string
+        SpreadTarget:
+          type: array
+          items:
+            $ref: '#/components/schemas/SpreadTarget'
+        Weight:
+          type: integer
+          format: int8
+      x-go-package: github.com/hashicorp/nomad/api
+    SpreadTarget:
+      description: SpreadTarget is used to serialize target allocation spread percentages
+      type: object
+      properties:
+        Percent:
+          type: integer
+          format: uint8
+        Value:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    Task:
+      type: object
+      title: Task is a single process in a task group.
+      properties:
+        Affinities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Affinity'
+        Artifacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskArtifact'
+        CSIPluginConfig:
+          $ref: '#/components/schemas/TaskCSIPluginConfig'
+        Config:
+          type: object
+          additionalProperties:
+            type: object
+        Constraints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Constraint'
+        DispatchPayload:
+          $ref: '#/components/schemas/DispatchPayloadConfig'
+        Driver:
+          type: string
+        Env:
+          type: object
+          additionalProperties:
+            type: string
+        KillSignal:
+          type: string
+        KillTimeout:
+          $ref: '#/components/schemas/Duration'
+        Kind:
+          type: string
+        Leader:
+          type: boolean
+        Lifecycle:
+          $ref: '#/components/schemas/TaskLifecycle'
+        LogConfig:
+          $ref: '#/components/schemas/LogConfig'
+        Meta:
+          type: object
+          additionalProperties:
+            type: string
+        Name:
+          type: string
+        Resources:
+          $ref: '#/components/schemas/Resources'
+        RestartPolicy:
+          $ref: '#/components/schemas/RestartPolicy'
+        ScalingPolicies:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScalingPolicy'
+        Services:
+          type: array
+          items:
+            $ref: '#/components/schemas/Service'
+        ShutdownDelay:
+          $ref: '#/components/schemas/Duration'
+        Templates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Template'
+        User:
+          type: string
+        Vault:
+          $ref: '#/components/schemas/Vault'
+        VolumeMounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/VolumeMount'
+      x-go-package: github.com/hashicorp/nomad/api
+    TaskArtifact:
+      type: object
+      title: TaskArtifact is used to download artifacts before running a task.
+      properties:
+        GetterHeaders:
+          type: object
+          additionalProperties:
+            type: string
+        GetterMode:
+          type: string
+        GetterOptions:
+          type: object
+          additionalProperties:
+            type: string
+        GetterSource:
+          type: string
+        RelativeDest:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    TaskCSIPluginConfig:
+      description: |-
+        TaskCSIPluginConfig contains the data that is required to setup a task as a
+        CSI plugin. This will be used by the csi_plugin_supervisor_hook to configure
+        mounts for the plugin and initiate the connection to the plugin catalog.
+      type: object
+      properties:
+        ID:
+          description: |-
+            ID is the identifier of the plugin.
+            Ideally this should be the FQDN of the plugin.
+          type: string
+        MountDir:
+          description: |-
+            MountDir is the destination that nomad should mount in its CSI
+            directory for the plugin. It will then expect a file called CSISocketName
+            to be created by the plugin, and will provide references into
+            "MountDir/CSIIntermediaryDirname/VolumeName/AllocID for mounts.
+
+            Default is /csi.
+          type: string
+        Type:
+          $ref: '#/components/schemas/CSIPluginType'
+      x-go-package: github.com/hashicorp/nomad/api
+    TaskDiff:
+      description: TaskDiff details the differences between two Task specs
+      type: object
+      properties:
+        Annotations:
+          type: array
+          items:
+            type: string
+        Fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldDiff'
+        Name:
+          type: string
+        Objects:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObjectDiff'
+        Type:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    TaskEvent:
+      description: |-
+        TaskEvent is an event that effects the state of a task and contains meta-data
+        appropriate to the events type.
+      type: object
+      properties:
+        Details:
+          description: Details is a map with annotated info about the event
+          type: object
+          additionalProperties:
+            type: string
+        DiskLimit:
+          description: |-
+            The maximum allowed task disk size.
+            Deprecated, use Details["disk_limit"] to access this.
+          type: integer
+          format: int64
+        DisplayMessage:
+          description: DisplayMessage is a human friendly message about the event
+          type: string
+        DownloadError:
+          description: |-
+            Artifact Download fields
+            Deprecated, use Details["download_error"] to access this.
+          type: string
+        DriverError:
+          description: |-
+            Driver Failure fields.
+            Deprecated, use Details["driver_error"] to access this.
+          type: string
+        DriverMessage:
+          description: |-
+            DriverMessage indicates a driver action being taken.
+            Deprecated, use Details["driver_message"] to access this.
+          type: string
+        ExitCode:
+          description: 'Deprecated, use Details["exit_code"] to access this.'
+          type: integer
+          format: int64
+        FailedSibling:
+          description: |-
+            Name of the sibling task that caused termination of the task that
+            the TaskEvent refers to.
+            Deprecated, use Details["failed_sibling"] to access this.
+          type: string
+        FailsTask:
+          description: |-
+            FailsTask marks whether this event fails the task.
+            Deprecated, use Details["fails_task"] to access this.
+          type: boolean
+        GenericSource:
+          description: |-
+            GenericSource is the source of a message.
+            Deprecated, is redundant with event type.
+          type: string
+        KillError:
+          description: |-
+            Task Killed Fields.
+            Deprecated, use Details["kill_error"] to access this.
+          type: string
+        KillReason:
+          description: |-
+            KillReason is the reason the task was killed
+            Deprecated, use Details["kill_reason"] to access this.
+          type: string
+        KillTimeout:
+          $ref: '#/components/schemas/Duration'
+        Message:
+          type: string
+        RestartReason:
+          description: |-
+            Restart fields.
+            Deprecated, use Details["restart_reason"] to access this.
+          type: string
+        SetupError:
+          description: |-
+            Setup Failure fields.
+            Deprecated, use Details["setup_error"] to access this.
+          type: string
+        Signal:
+          description: 'Deprecated, use Details["signal"] to access this.'
+          type: integer
+          format: int64
+        StartDelay:
+          description: |-
+            TaskRestarting fields.
+            Deprecated, use Details["start_delay"] to access this.
+          type: integer
+          format: int64
+        TaskSignal:
+          description: |-
+            TaskSignal is the signal that was sent to the task
+            Deprecated, use Details["task_signal"] to access this.
+          type: string
+        TaskSignalReason:
+          description: |-
+            TaskSignalReason indicates the reason the task is being signalled.
+            Deprecated, use Details["task_signal_reason"] to access this.
+          type: string
+        Time:
+          type: integer
+          format: int64
+        Type:
+          type: string
+        ValidationError:
+          description: |-
+            Validation fields
+            Deprecated, use Details["validation_error"] to access this.
+          type: string
+        VaultError:
+          description: |-
+            VaultError is the error from token renewal
+            Deprecated, use Details["vault_renewal_error"] to access this.
+          type: string
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    TaskGroup:
+      type: object
+      title: TaskGroup is the unit of scheduling.
+      properties:
+        Affinities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Affinity'
+        Constraints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Constraint'
+        Consul:
+          $ref: '#/components/schemas/Consul'
+        Count:
+          type: integer
+          format: int64
+        EphemeralDisk:
+          $ref: '#/components/schemas/EphemeralDisk'
+        Meta:
+          type: object
+          additionalProperties:
+            type: string
+        Migrate:
+          $ref: '#/components/schemas/MigrateStrategy'
+        Name:
+          type: string
+        Networks:
+          type: array
+          items:
+            $ref: '#/components/schemas/NetworkResource'
+        ReschedulePolicy:
+          $ref: '#/components/schemas/ReschedulePolicy'
+        RestartPolicy:
+          $ref: '#/components/schemas/RestartPolicy'
+        Scaling:
+          $ref: '#/components/schemas/ScalingPolicy'
+        Services:
+          type: array
+          items:
+            $ref: '#/components/schemas/Service'
+        ShutdownDelay:
+          $ref: '#/components/schemas/Duration'
+        Spreads:
+          type: array
+          items:
+            $ref: '#/components/schemas/Spread'
+        StopAfterClientDisconnect:
+          $ref: '#/components/schemas/Duration'
+        Tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        Update:
+          $ref: '#/components/schemas/UpdateStrategy'
+        Volumes:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/VolumeRequest'
+      x-go-package: github.com/hashicorp/nomad/api
+    TaskGroupDiff:
+      description: TaskGroupDiff details the differences between two TaskGroup specs
+      type: object
+      properties:
+        Fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldDiff'
+        Name:
+          type: string
+        Objects:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObjectDiff'
+        Tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskDiff'
+        Type:
+          type: string
+        Updates:
+          type: object
+          additionalProperties:
+            type: integer
+            format: uint64
+      x-go-package: github.com/hashicorp/nomad/api
+    TaskGroupSummary:
+      description: |-
+        TaskGroup summarizes the state of all the allocations of a particular
+        TaskGroup
+      type: object
+      properties:
+        Complete:
+          type: integer
+          format: int64
+        Failed:
+          type: integer
+          format: int64
+        Lost:
+          type: integer
+          format: int64
+        Queued:
+          type: integer
+          format: int64
+        Running:
+          type: integer
+          format: int64
+        Starting:
+          type: integer
+          format: int64
+      x-go-package: github.com/hashicorp/nomad/api
+    TaskHandle:
+      description: 'Minimal set of fields from plugins/drivers/task_handle.go:TaskHandle'
+      type: object
+      title: |-
+        TaskHandle is  optional handle to a task propogated to the servers for use
+        by remote tasks. Since remote tasks are not implicitly lost when the node
+        they are assigned to is down, their state is migrated to the replacement
+        allocation.
+      properties:
+        DriverState:
+          description: Driver-specific state containing a handle to the remote task.
+          type: array
+          items:
+            type: integer
+            format: uint8
+        Version:
+          description: |-
+            Version of driver state. Used by the driver to gracefully handle
+            plugin upgrades.
+          type: integer
+          format: int64
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    TaskLifecycle:
+      type: object
+      properties:
+        Hook:
+          type: string
+        Sidecar:
+          type: boolean
+      x-go-package: github.com/hashicorp/nomad/api
+    TaskLifecycleConfig:
+      type: object
+      properties:
+        Hook:
+          type: string
+        Sidecar:
+          type: boolean
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    TaskState:
+      description: |-
+        TaskState tracks the current state of a task and events that caused state
+        transitions.
+      type: object
+      properties:
+        Events:
+          description: Series of task events that transition the state of the task.
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskEvent'
+        Failed:
+          description: Failed marks a task as having failed
+          type: boolean
+        FinishedAt:
+          description: |-
+            FinishedAt is the time at which the task transitioned to dead and will
+            not be started again.
+          type: string
+          format: date-time
+        LastRestart:
+          description: |-
+            LastRestart is the time the task last restarted. It is updated each time the
+            task restarts
+          type: string
+          format: date-time
+        Restarts:
+          description: Restarts is the number of times the task has restarted
+          type: integer
+          format: uint64
+        StartedAt:
+          description: |-
+            StartedAt is the time the task is started. It is updated each time the
+            task starts
+          type: string
+          format: date-time
+        State:
+          description: The current state of the task.
+          type: string
+        TaskHandle:
+          $ref: '#/components/schemas/TaskHandle'
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    Template:
+      type: object
+      properties:
+        ChangeMode:
+          type: string
+        ChangeSignal:
+          type: string
+        DestPath:
+          type: string
+        EmbeddedTmpl:
+          type: string
+        Envvars:
+          type: boolean
+        LeftDelim:
+          type: string
+        Perms:
+          type: string
+        RightDelim:
+          type: string
+        SourcePath:
+          type: string
+        Splay:
+          $ref: '#/components/schemas/Duration'
+        VaultGrace:
+          $ref: '#/components/schemas/Duration'
+      x-go-package: github.com/hashicorp/nomad/api
+    UpdateStrategy:
+      type: object
+      title: UpdateStrategy defines a task groups update strategy.
+      properties:
+        AutoPromote:
+          type: boolean
+        AutoRevert:
+          type: boolean
+        Canary:
+          type: integer
+          format: int64
+        HealthCheck:
+          type: string
+        HealthyDeadline:
+          $ref: '#/components/schemas/Duration'
+        MaxParallel:
+          type: integer
+          format: int64
+        MinHealthyTime:
+          $ref: '#/components/schemas/Duration'
+        ProgressDeadline:
+          $ref: '#/components/schemas/Duration'
+        Stagger:
+          $ref: '#/components/schemas/Duration'
+      x-go-package: github.com/hashicorp/nomad/api
+    Vault:
+      type: object
+      properties:
+        ChangeMode:
+          type: string
+        ChangeSignal:
+          type: string
+        Env:
+          type: boolean
+        Namespace:
+          type: string
+        Policies:
+          type: array
+          items:
+            type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    Volume:
+      description: Volume volume
+      type: object
+      required:
+        - Driver
+        - Labels
+        - Mountpoint
+        - Name
+        - Options
+        - Scope
+      properties:
+        CreatedAt:
+          description: Date/Time the volume was created.
+          type: string
+        Driver:
+          description: Name of the volume driver used by the volume.
+          type: string
+        Labels:
+          description: User-defined key/value metadata.
+          type: object
+          additionalProperties:
+            type: string
+        Mountpoint:
+          description: Mount path of the volume on the host.
+          type: string
+        Name:
+          description: Name of the volume.
+          type: string
+        Options:
+          description: The driver specific options used when creating the volume.
+          type: object
+          additionalProperties:
+            type: string
+        Scope:
+          description: 'The level at which the volume exists. Either `global` for cluster-wide, or `local` for machine level.'
+          type: string
+        Status:
+          description: |-
+            Low-level details about the volume, provided by the volume driver.
+            Details are returned as a map with key/value pairs:
+            `{"key":"value","key2":"value2"}`.
+
+            The `Status` field is optional, and is omitted if the volume driver
+            does not support this feature.
+          type: object
+          additionalProperties:
+            type: object
+        UsageData:
+          $ref: '#/components/schemas/VolumeUsageData'
+      x-go-package: github.com/docker/docker/api/types
+    VolumeMount:
+      description: |-
+        VolumeMount represents the relationship between a destination path in a task
+        and the task group volume that should be mounted there.
+      type: object
+      properties:
+        Destination:
+          type: string
+        PropagationMode:
+          type: string
+        ReadOnly:
+          type: boolean
+        Volume:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    VolumeRequest:
+      type: object
+      title: VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
+      properties:
+        AccessMode:
+          type: string
+        AttachmentMode:
+          type: string
+        MountOptions:
+          $ref: '#/components/schemas/CSIMountOptions'
+        Name:
+          type: string
+        PerAlloc:
+          type: boolean
+        ReadOnly:
+          type: boolean
+        Source:
+          type: string
+        Type:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    VolumeUsageData:
+      description: |-
+        VolumeUsageData Usage details about the volume. This information is used by the
+        `GET /system/df` endpoint, and omitted in other endpoints.
+      type: object
+      required:
+        - RefCount
+        - Size
+      properties:
+        RefCount:
+          description: |-
+            The number of containers referencing this volume. This field
+            is set to `-1` if the reference-count is not available.
+          type: integer
+          format: int64
+        Size:
+          description: |-
+            Amount of disk space used by the volume (in bytes). This information
+            is only available for volumes created with the `"local"` volume
+            driver. For volumes created with other volume drivers, this field
+            is set to `-1` ("not available")
+          type: integer
+          format: int64
+      x-go-package: github.com/docker/docker/api/types
+    WriteMeta:
+      description: |-
+        WriteMeta allows a write response to include potentially
+        useful metadata about the write
+      type: object
+      properties:
+        Index:
+          description: This is the index associated with the write
+          type: integer
+          format: uint64
+      x-go-package: github.com/hashicorp/nomad/nomad/structs
+    WriteRequest:
+      description: WriteRequest is used to scope and authorize a write operation
+      type: object
+      properties:
+        Namespace:
+          description: Namespace is the target namespace for this write
+          type: string
+        Region:
+          description: The target region for this write
+          type: string
+        SecretID:
+          description: SecretID is the secret ID of an ACL token
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+    periodicForceResponse:
+      description: periodicForceResponse is used to deserialize a force response
+      type: object
+      properties:
+        EvalID:
+          type: string
+      x-go-package: github.com/hashicorp/nomad/api
+  parameters:
+    AllParam:
+      schema:
+        type: integer
+      description: Flag indicating whether to constrain by job creation index or not.
+      name: all
+      in: query
+    IndexParam:
+      schema:
+        type: integer
+      description: 'If set, wait until query exceeds given index. Must be provided with WaitParam.'
+      name: index
+      in: query
+    JobNameParam:
+      schema:
+        type: string
+      description: The job identifier.
+      name: jobName
+      in: path
+      required: true
+    NamespaceParam:
+      schema:
+        type: string
+      description: Filters results based on the specified namespace
+      name: namespace
+      in: query
+    NextTokenParam:
+      schema:
+        type: string
+      description: Indicates where to start paging for queries that support pagination
+      name: next_token
+      in: query
+    PerPageParam:
+      schema:
+        type: integer
+      description: Maximum number of results to return
+      name: per_page
+      in: query
+    PrefixParam:
+      schema:
+        type: string
+      description: Constrains results to jobs that start with the defined prefix
+      name: prefix
+      in: query
+    RegionParam:
+      schema:
+        type: string
+      description: Filters results based on the specified region
+      name: region
+      in: query
+    StaleParam:
+      schema:
+        type: string
+      description: 'If present, results will include stale reads'
+      name: stale
+      in: query
+    WaitParam:
+      schema:
+        type: integer
+      description: Provided with IndexParam to wait for change
+      name: wait
+      in: query
+    NomadTokenHeader:
+      schema:
+        type: string
+      description: A Nomad ACL token
+      name: X-Nomad-Token
+      in: header
+  headers:
+    X-Nomad-Index:
+      schema:
+        type: integer
+      description: >
+        Endpoints that support blocking queries return an HTTP header named set
+        this unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+    X-Nomad-Known-Leader:
+      schema:
+        type: boolean
+      description: >
+        Flag indicating the agent that fulfilled the request had known Raft leader
+        at the time of the operation.
+    X-Nomad-Last-Contact:
+      schema:
+        type: integer
+      description: >
+        If AllowStale is used, this is time elapsed since last contact between
+        the follower and leader. This can be used to gauge staleness.
+  responses:
+    Forbidden:
+      description: Forbidden
+    InternalServerError:
+      description: Internal server error
+    MethodNotAllowed:
+      description: Method not allowed
+    NotFound:
+      description: Not found
+paths:
+  /jobs:
+    get:
+      tags:
+        - Jobs
+      summary: 'List all known jobs registered with Nomad. See https://www.nomadproject.io/api-docs/jobs#list-jobs.'
+      operationId: getJobs
+      parameters:
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StaleParam'
+        - $ref: '#/components/parameters/PrefixParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/NextTokenParam'
+        - $ref: '#/components/parameters/IndexParam'
+        - $ref: '#/components/parameters/WaitParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      responses:
+        '200':
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JobListStub'
+          headers:
+            X-Nomad-Index:
+              $ref: '#/components/headers/X-Nomad-Index'
+            X-Nomad-Known-Leader:
+              $ref: '#/components/headers/X-Nomad-Known-Leader'
+            X-Nomad-Last-Contact:
+              $ref: '#/components/headers/X-Nomad-Last-Contact'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /jobs/parse:
+    post:
+      tags:
+        - Jobs
+      summary: 'Parses a HCL jobspec and produce the equivalent JSON encoded job. See https://www.nomadproject.io/api-docs/jobs#parse-job.'
+      operationId: postJobsParseRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobsParseRequest'
+      responses:
+        '200':
+          description: 'Parsed HCL job spec in JSON format.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          description: (empty)
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /job/{jobName}/allocations:
+    get:
+      tags:
+        - Jobs
+      summary: >
+        Gets information about a single job's allocations.
+        See https://www.nomadproject.io/api-docs/allocations#list-allocations.
+      operationId: getJobAllocations
+      parameters:
+        - $ref: '#/components/parameters/JobNameParam'
+        - $ref: '#/components/parameters/AllParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StaleParam'
+        - $ref: '#/components/parameters/PrefixParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/NextTokenParam'
+        - $ref: '#/components/parameters/IndexParam'
+        - $ref: '#/components/parameters/WaitParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      responses:
+        '200':
+          description: List of allocations for the specified job.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AllocListStub'
+          headers:
+            X-Nomad-Index:
+              $ref: '#/components/headers/X-Nomad-Index'
+            X-Nomad-Known-Leader:
+              $ref: '#/components/headers/X-Nomad-Known-Leader'
+            X-Nomad-Last-Contact:
+              $ref: '#/components/headers/X-Nomad-Last-Contact'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /job/{jobName}/evaluate:
+    post:
+      tags:
+        - Jobs
+      summary: 'Creates a new evaluation for the given job. This can be used to force run the scheduling logic if necessary. See https://www.nomadproject.io/api-docs/jobs#create-job-evaluation.'
+      operationId: postJobEvaluateRequest
+      parameters:
+        - $ref: '#/components/parameters/JobNameParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobEvaluateRequest'
+      responses:
+        '200':
+          description: Contains relevant query response metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRegisterResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /job/{jobName}/evaluations:
+    get:
+      tags:
+        - Jobs
+      summary: >
+        Gets information about a single job's evaluations.
+        See [documentation](https://www.nomadproject.io/api-docs/evaluations#list-evaluations).
+      operationId: getJobEvaluations
+      parameters:
+        - $ref: '#/components/parameters/JobNameParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StaleParam'
+        - $ref: '#/components/parameters/PrefixParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/NextTokenParam'
+        - $ref: '#/components/parameters/IndexParam'
+        - $ref: '#/components/parameters/WaitParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      responses:
+        '200':
+          description: A list of job evaluations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Evaluation'
+          headers:
+            X-Nomad-Index:
+              $ref: '#/components/headers/X-Nomad-Index'
+            X-Nomad-Known-Leader:
+              $ref: '#/components/headers/X-Nomad-Known-Leader'
+            X-Nomad-Last-Contact:
+              $ref: '#/components/headers/X-Nomad-Last-Contact'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /job/{jobName}/periodic/force:
+    post:
+      tags:
+        - Jobs
+      summary: 'Forces a new instance of the periodic job. A new instance will be created even if it violates the job''s prohibit_overlap settings. As such, this should be only used to immediately run a periodic job. See [documentation](https://www.nomadproject.io/docs/commands/job/periodic-force).'
+      operationId: putJobForceRequest
+      parameters:
+        - $ref: '#/components/parameters/JobNameParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      responses:
+        '200':
+          description: Returns a type containing relevant write operation metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodicForceResponse'
+          headers:
+            X-Nomad-Index:
+              $ref: '#/components/headers/X-Nomad-Index'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /job/{jobName}/plan:
+    post:
+      tags:
+        - Jobs
+      summary: 'This endpoint invokes a dry-run of the scheduler for the job. See https://www.nomadproject.io/api-docs/jobs#create-job-plan'
+      operationId: postJobPlanRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobPlanRequest'
+      parameters:
+        - $ref: '#/components/parameters/JobNameParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      responses:
+        '200':
+          description: Returns a payload detailing what would have happened had
+            the job been run.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobPlanResponse'
+          headers:
+            X-Nomad-Index:
+              $ref: '#/components/headers/X-Nomad-Index'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /job/{jobName}/summary:
+    get:
+      tags:
+        - Jobs
+      summary: 'This endpoint reads summary information about a job. https://www.nomadproject.io/api-docs/jobs#read-job-summary.'
+      operationId: getJobSummary
+      parameters:
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StaleParam'
+        - $ref: '#/components/parameters/PrefixParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/NextTokenParam'
+        - $ref: '#/components/parameters/IndexParam'
+        - $ref: '#/components/parameters/WaitParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      responses:
+        '200':
+          description: Returns a summary of the job including status and children.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobSummary'
+          headers:
+            X-Nomad-Index:
+              $ref: '#/components/headers/X-Nomad-Index'
+            X-Nomad-Known-Leader:
+              $ref: '#/components/headers/X-Nomad-Known-Leader'
+            X-Nomad-Last-Contact:
+              $ref: '#/components/headers/X-Nomad-Last-Contact'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'

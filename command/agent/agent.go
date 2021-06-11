@@ -479,7 +479,7 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 }
 
 // finalizeClientConfig sets configuration fields on the client config that are
-// not staticly convertable and are from the agent.
+// not statically convertable and are from the agent.
 func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 	// Setup the logging
 	c.Logger = a.logger

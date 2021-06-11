@@ -52,22 +52,29 @@ func TestHTTP_JobsList(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
-			t.Fatalf("missing index")
-		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
-			t.Fatalf("missing known leader")
-		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
-			t.Fatalf("missing last contact")
-		}
+		testutil.ValidateMetaResponseHeaders(respW, t)
 
 		// Check the job
 		j := obj.([]*structs.JobListStub)
 		if len(j) != 3 {
 			t.Fatalf("bad: %#v", j)
 		}
+
+		oac, ctx := testutil.OpenAPIV1.NewClientAndContext("http", strconv.Itoa(s.Config.Ports.HTTP))
+
+		jobsRequest := oac.JobsApi.GetJobs(ctx)
+
+		jobs, apiResponse, err := oac.JobsApi.GetJobsExecute(jobsRequest)
+		if err != nil {
+			t.Fatalf("OpenAPI client error getJobs: %s", err)
+		}
+
+		// Check the response
+		if len(jobs) != 3 {
+			t.Fatalf("OpenAPI bad response getJobs: %v", jobs)
+		}
+
+		testutil.OpenAPIV1.ValidateMetaHeaders(apiResponse, t)
 	})
 }
 
@@ -1109,7 +1116,7 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		}
 
 		// Begin OpenAPI Client test
-		oac, ctx := testutil.NewOpenAPIClientAndContext("http", strconv.Itoa(s.Config.Ports.HTTP))
+		oac, ctx := testutil.OpenAPIV1.NewClientAndContext("http", strconv.Itoa(s.Config.Ports.HTTP))
 		jobAllocReq := oac.JobsApi.GetJobAllocations(ctx, alloc1.Job.ID).All(1)
 
 		allocations, apiResponse, err := oac.JobsApi.GetJobAllocationsExecute(jobAllocReq)
@@ -1127,16 +1134,7 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		displayMsg = *e[0].DisplayMessage
 		assert.Equal(t, expectedDisplayMsg, displayMsg)
 
-		// Check for the index
-		if apiResponse.Header.Get("X-Nomad-Index") == "" {
-			t.Fatalf("OpenAPI response missing index")
-		}
-		if apiResponse.Header.Get("X-Nomad-KnownLeader") != "true" {
-			t.Fatalf("OpenAPI response missing known leader")
-		}
-		if apiResponse.Header.Get("X-Nomad-LastContact") == "" {
-			t.Fatalf("OpenAPI response missing last contact")
-		}
+		testutil.OpenAPIV1.ValidateMetaHeaders(apiResponse, t)
 	})
 }
 
