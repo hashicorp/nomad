@@ -208,10 +208,6 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// have to evaluate on all nodes.
 	s.source = NewStaticIterator(ctx, nil)
 
-	// Create the quota iterator to determine if placements would result in the
-	// quota attached to the namespace of the job to go over.
-	s.quota = NewQuotaIterator(ctx, s.source)
-
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintChecker(ctx, nil)
 
@@ -243,13 +239,20 @@ func NewSystemStack(ctx Context) *SystemStack {
 		s.taskGroupDevices,
 		s.taskGroupNetwork}
 	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
-	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs, avail)
+	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs, avail)
 
 	// Filter on distinct property constraints.
 	s.distinctPropertyConstraint = NewDistinctPropertyIterator(ctx, s.wrappedChecks)
 
+	// Create the quota iterator to determine if placements would result in
+	// the quota attached to the namespace of the job to go over.
+	// Note: the quota iterator must be the last feasibility iterator before
+	// we upgrade to ranking, or our quota usage will include ineligible
+	// nodes!
+	s.quota = NewQuotaIterator(ctx, s.distinctPropertyConstraint)
+
 	// Upgrade from feasible to rank iterator
-	rankSource := NewFeasibleRankIterator(ctx, s.distinctPropertyConstraint)
+	rankSource := NewFeasibleRankIterator(ctx, s.quota)
 
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group. Enable eviction as system jobs are high
@@ -330,10 +333,6 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// balancing across eligible nodes.
 	s.source = NewRandomIterator(ctx, nil)
 
-	// Create the quota iterator to determine if placements would result in the
-	// quota attached to the namespace of the job to go over.
-	s.quota = NewQuotaIterator(ctx, s.source)
-
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintChecker(ctx, nil)
 
@@ -366,7 +365,7 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 		s.taskGroupDevices,
 		s.taskGroupNetwork}
 	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
-	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs, avail)
+	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs, avail)
 
 	// Filter on distinct host constraints.
 	s.distinctHostsConstraint = NewDistinctHostsIterator(ctx, s.wrappedChecks)
@@ -374,8 +373,15 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Filter on distinct property constraints.
 	s.distinctPropertyConstraint = NewDistinctPropertyIterator(ctx, s.distinctHostsConstraint)
 
+	// Create the quota iterator to determine if placements would result in
+	// the quota attached to the namespace of the job to go over.
+	// Note: the quota iterator must be the last feasibility iterator before
+	// we upgrade to ranking, or our quota usage will include ineligible
+	// nodes!
+	s.quota = NewQuotaIterator(ctx, s.distinctPropertyConstraint)
+
 	// Upgrade from feasible to rank iterator
-	rankSource := NewFeasibleRankIterator(ctx, s.distinctPropertyConstraint)
+	rankSource := NewFeasibleRankIterator(ctx, s.quota)
 
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group.
