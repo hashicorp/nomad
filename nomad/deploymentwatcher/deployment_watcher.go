@@ -416,6 +416,7 @@ func (w *deploymentWatcher) watch() {
 	}
 
 	allocIndex := uint64(1)
+	allocsCh := w.getAllocsCh(allocIndex)
 	var updates *allocUpdates
 
 	rollback, deadlineHit := false, false
@@ -483,7 +484,7 @@ FAIL:
 				break FAIL
 			}
 
-		case updates = <-w.getAllocsCh(allocIndex):
+		case updates = <-allocsCh:
 			if err := updates.err; err != nil {
 				if err == context.Canceled || w.ctx.Err() == context.Canceled {
 					return
@@ -527,6 +528,8 @@ FAIL:
 			if res.createEval || len(res.allowReplacements) != 0 {
 				w.createBatchedUpdate(res.allowReplacements, allocIndex)
 			}
+
+			allocsCh = w.getAllocsCh(allocIndex)
 		}
 	}
 
