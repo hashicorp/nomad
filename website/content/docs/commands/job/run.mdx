@@ -27,8 +27,9 @@ downloaded and read from URL specified. Nomad downloads the job file using
 
 By default, on successful job submission the run command will enter an
 interactive monitor and display log information detailing the scheduling
-decisions, placement information, and [deployment status] for the provided job. 
-The monitor will exit after scheduling and deployment have finished or failed.
+decisions, placement information, and [deployment status] for the provided job 
+if applicable ([`batch`] and [`system`] jobs don't create deployments). The monitor will 
+exit after scheduling and deployment have finished or failed.
 
 On successful job submission and scheduling, exit code 0 will be returned. If
 there are job placement issues encountered (unsatisfiable constraints, resource
@@ -204,8 +205,22 @@ $ nomad job run failing.nomad
     cache       1        0       0        0          N/A
 ```
 
+Sample output when scheduling a system job, which doesn't create a deployment:
+
+```shell-session
+$ nomad job run example.nomad
+==> 2021-06-14T09:25:08-07:00: Monitoring evaluation "88a91284"
+    2021-06-14T09:25:08-07:00: Evaluation triggered by job "example"
+    2021-06-14T09:25:08-07:00: Allocation "03501797" created: node "7849439f", group "cache"
+==> 2021-06-14T09:25:09-07:00: Monitoring evaluation "88a91284"
+    2021-06-14T09:25:09-07:00: Evaluation status changed: "pending" -> "complete"
+==> 2021-06-14T09:25:09-07:00: Evaluation "88a91284" finished with status "complete"
+```
+
 [`go-getter`]: https://github.com/hashicorp/go-getter
 [deployment status]: /docs/commands/deployment#status 
+[`batch`]: /docs/schedulers#batch
+[`system`]: /docs/schedulers#system
 [`job plan` command]: /docs/commands/job/plan
 [eval status]: /docs/commands/eval-status
 [job specification]: /docs/job-specification

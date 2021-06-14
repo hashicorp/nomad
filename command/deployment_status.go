@@ -231,10 +231,10 @@ UPDATE:
 	for {
 		deploy, meta, err := client.Deployments().Info(deployID, &q)
 		if err != nil {
-			d.Append(glint.Style(
+			d.Append(glint.Layout(glint.Style(
 				glint.Text(fmt.Sprintf("%s: Error fetching deployment", formatTime(time.Now()))),
 				glint.Color("red"),
-			))
+			)).MarginLeft(4), glint.Text(""))
 			d.RenderFrame()
 			return
 		}
@@ -291,7 +291,7 @@ UPDATE:
 				d.Set(
 					endSpinner,
 					statusComponent,
-					glint.Layout(glint.Text("")),
+					glint.Text(""),
 				)
 
 				// Wait for rollback to launch
@@ -299,10 +299,10 @@ UPDATE:
 				rollback, _, err := client.Jobs().LatestDeployment(deploy.JobID, nil)
 
 				if err != nil {
-					d.Append(glint.Style(
+					d.Append(glint.Layout(glint.Style(
 						glint.Text(fmt.Sprintf("%s: Error fetching rollback deployment", formatTime(time.Now()))),
-						glint.Color("red")),
-					)
+						glint.Color("red"),
+					)).MarginLeft(4), glint.Text(""))
 					d.RenderFrame()
 					return
 				}
@@ -329,7 +329,7 @@ UPDATE:
 		}
 	}
 	// Render one final time with completion message
-	d.Set(endSpinner, statusComponent)
+	d.Set(endSpinner, statusComponent, glint.Text(""))
 	d.RenderFrame()
 }
 

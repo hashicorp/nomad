@@ -285,21 +285,23 @@ func (m *monitor) monitor(evalID string) int {
 		break
 	}
 
-	// Monitor the deployment
+	// Monitor the deployment if it exists
 	dID := m.state.deployment
-	m.ui.Info(fmt.Sprintf("%s: Monitoring deployment %q", formatTime(time.Now()), limit(dID, m.length)))
+	if dID != "" {
+		m.ui.Info(fmt.Sprintf("%s: Monitoring deployment %q", formatTime(time.Now()), limit(dID, m.length)))
 
-	var verbose bool
-	if m.length == fullId {
-		verbose = true
-	} else {
-		verbose = false
+		var verbose bool
+		if m.length == fullId {
+			verbose = true
+		} else {
+			verbose = false
+		}
+
+		meta := new(Meta)
+		meta.Ui = m.ui
+		cmd := &DeploymentStatusCommand{Meta: *meta}
+		cmd.monitor(m.client, dID, 0, verbose)
 	}
-
-	meta := new(Meta)
-	meta.Ui = m.ui
-	cmd := &DeploymentStatusCommand{Meta: *meta}
-	cmd.monitor(m.client, dID, 0, verbose)
 
 	// Treat scheduling failures specially using a dedicated exit code.
 	// This makes it easier to detect failures from the CLI.
