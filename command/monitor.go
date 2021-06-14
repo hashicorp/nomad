@@ -287,7 +287,7 @@ func (m *monitor) monitor(evalID string) int {
 
 	// Monitor the deployment if it exists
 	dID := m.state.deployment
-	if len(dID) > 0 {
+	if dID != "" {
 		m.ui.Info(fmt.Sprintf("%s: Monitoring deployment %q", formatTime(time.Now()), limit(dID, m.length)))
 
 		var verbose bool
