@@ -195,7 +195,6 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_CustomTask(t *testin
 			KillSignal:    "SIGHUP",
 			Constraints: structs.Constraints{
 				connectGatewayVersionConstraint(),
-				connectEnabledConstraint(),
 				connectListenerConstraint(),
 			},
 		},

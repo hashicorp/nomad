@@ -89,14 +89,6 @@ func connectGatewayVersionConstraint() *structs.Constraint {
 	}
 }
 
-func connectEnabledConstraint() *structs.Constraint {
-	return &structs.Constraint{
-		LTarget: "${attr.consul.connect}",
-		RTarget: "true",
-		Operand: "=",
-	}
-}
-
 func connectListenerConstraint() *structs.Constraint {
 	return &structs.Constraint{
 		LTarget: "${attr.consul.grpc}",
@@ -459,7 +451,6 @@ func newConnectGatewayTask(prefix, service string, netHost bool) *structs.Task {
 		Resources: connectSidecarResources(),
 		Constraints: structs.Constraints{
 			connectGatewayVersionConstraint(),
-			connectEnabledConstraint(),
 			connectListenerConstraint(),
 		},
 	}
@@ -484,7 +475,6 @@ func newConnectSidecarTask(service string) *structs.Task {
 		},
 		Constraints: structs.Constraints{
 			connectSidecarVersionConstraint(),
-			connectEnabledConstraint(),
 			connectListenerConstraint(),
 		},
 	}
