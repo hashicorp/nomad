@@ -533,6 +533,7 @@ FAIL:
 				w.createBatchedUpdate(res.allowReplacements, allocIndex)
 			}
 
+			// only start a new blocking query if we haven't returned early
 			allocsCh = w.getAllocsCh(allocIndex)
 		}
 	}
