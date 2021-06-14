@@ -1,0 +1,275 @@
+paths:
+  /jobs:
+    get:
+      tags:
+        - Jobs
+      summary: 'List all known jobs registered with Nomad. See https://www.nomadproject.io/api-docs/jobs#list-jobs.'
+      operationId: getJobs
+      parameters:
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StaleParam'
+        - $ref: '#/components/parameters/PrefixParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/NextTokenParam'
+        - $ref: '#/components/parameters/IndexParam'
+        - $ref: '#/components/parameters/WaitParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      responses:
+        '200':
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JobListStub'
+          headers:
+            X-Nomad-Index:
+              $ref: '#/components/headers/X-Nomad-Index'
+            X-Nomad-Known-Leader:
+              $ref: '#/components/headers/X-Nomad-Known-Leader'
+            X-Nomad-Last-Contact:
+              $ref: '#/components/headers/X-Nomad-Last-Contact'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /jobs/parse:
+    post:
+      tags:
+        - Jobs
+      summary: 'Parses a HCL jobspec and produce the equivalent JSON encoded job. See https://www.nomadproject.io/api-docs/jobs#parse-job.'
+      operationId: postJobsParseRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobsParseRequest'
+      responses:
+        '200':
+          description: 'Parsed HCL job spec in JSON format.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          description: (empty)
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /job/{jobName}/allocations:
+    get:
+      tags:
+        - Jobs
+      summary: >
+        Gets information about a single job's allocations.
+        See https://www.nomadproject.io/api-docs/allocations#list-allocations.
+      operationId: getJobAllocations
+      parameters:
+        - $ref: '#/components/parameters/JobNameParam'
+        - $ref: '#/components/parameters/AllParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StaleParam'
+        - $ref: '#/components/parameters/PrefixParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/NextTokenParam'
+        - $ref: '#/components/parameters/IndexParam'
+        - $ref: '#/components/parameters/WaitParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      responses:
+        '200':
+          description: List of allocations for the specified job.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AllocListStub'
+          headers:
+            X-Nomad-Index:
+              $ref: '#/components/headers/X-Nomad-Index'
+            X-Nomad-Known-Leader:
+              $ref: '#/components/headers/X-Nomad-Known-Leader'
+            X-Nomad-Last-Contact:
+              $ref: '#/components/headers/X-Nomad-Last-Contact'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /job/{jobName}/evaluate:
+    post:
+      tags:
+        - Jobs
+      summary: 'Creates a new evaluation for the given job. This can be used to force run the scheduling logic if necessary. See https://www.nomadproject.io/api-docs/jobs#create-job-evaluation.'
+      operationId: postJobEvaluateRequest
+      parameters:
+        - $ref: '#/components/parameters/JobNameParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobEvaluateRequest'
+      responses:
+        '200':
+          description: Contains relevant query response metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRegisterResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /job/{jobName}/evaluations:
+    get:
+      tags:
+        - Jobs
+      summary: >
+        Gets information about a single job's evaluations.
+        See [documentation](https://www.nomadproject.io/api-docs/evaluations#list-evaluations).
+      operationId: getJobEvaluations
+      parameters:
+        - $ref: '#/components/parameters/JobNameParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StaleParam'
+        - $ref: '#/components/parameters/PrefixParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/NextTokenParam'
+        - $ref: '#/components/parameters/IndexParam'
+        - $ref: '#/components/parameters/WaitParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      responses:
+        '200':
+          description: A list of job evaluations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Evaluation'
+          headers:
+            X-Nomad-Index:
+              $ref: '#/components/headers/X-Nomad-Index'
+            X-Nomad-Known-Leader:
+              $ref: '#/components/headers/X-Nomad-Known-Leader'
+            X-Nomad-Last-Contact:
+              $ref: '#/components/headers/X-Nomad-Last-Contact'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /job/{jobName}/periodic/force:
+    post:
+      tags:
+        - Jobs
+      summary: 'Forces a new instance of the periodic job. A new instance will be created even if it violates the job''s prohibit_overlap settings. As such, this should be only used to immediately run a periodic job. See [documentation](https://www.nomadproject.io/docs/commands/job/periodic-force).'
+      operationId: putJobForceRequest
+      parameters:
+        - $ref: '#/components/parameters/JobNameParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      responses:
+        '200':
+          description: Returns a type containing relevant write operation metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodicForceResponse'
+          headers:
+            X-Nomad-Index:
+              $ref: '#/components/headers/X-Nomad-Index'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /job/{jobName}/plan:
+    post:
+      tags:
+        - Jobs
+      summary: 'This endpoint invokes a dry-run of the scheduler for the job. See https://www.nomadproject.io/api-docs/jobs#create-job-plan'
+      operationId: postJobPlanRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobPlanRequest'
+      parameters:
+        - $ref: '#/components/parameters/JobNameParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      responses:
+        '200':
+          description: Returns a payload detailing what would have happened had
+            the job been run.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobPlanResponse'
+          headers:
+            X-Nomad-Index:
+              $ref: '#/components/headers/X-Nomad-Index'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /job/{jobName}/summary:
+    get:
+      tags:
+        - Jobs
+      summary: 'This endpoint reads summary information about a job. https://www.nomadproject.io/api-docs/jobs#read-job-summary.'
+      operationId: getJobSummary
+      parameters:
+        - $ref: '#/components/parameters/JobNameParam'
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/StaleParam'
+        - $ref: '#/components/parameters/PrefixParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/NextTokenParam'
+        - $ref: '#/components/parameters/IndexParam'
+        - $ref: '#/components/parameters/WaitParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      responses:
+        '200':
+          description: Returns a summary of the job including status and children.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobSummary'
+          headers:
+            X-Nomad-Index:
+              $ref: '#/components/headers/X-Nomad-Index'
+            X-Nomad-Known-Leader:
+              $ref: '#/components/headers/X-Nomad-Known-Leader'
+            X-Nomad-Last-Contact:
+              $ref: '#/components/headers/X-Nomad-Last-Contact'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'

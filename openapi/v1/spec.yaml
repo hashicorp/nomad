@@ -3325,7 +3325,82 @@ paths:
     get:
       tags:
         - Jobs
-      summary: 'List all known jobs registered with Nomad. See https://www.nomadproject.io/api-docs/jobs#list-jobs.'
+      summary: >
+        This endpoint lists all known jobs in the system registered with Nomad.
+
+        | Method | Path       | Produces           |
+        | ------ | ---------- | ------------------ |
+        | `GET`  | `/v1/jobs` | `application/json` |
+
+        The table below shows this endpoint's support for
+        [blocking queries](/api-docs#blocking-queries) and
+        [required ACLs](/api-docs#acls).
+
+        | Blocking Queries | ACL Required          |
+        | ---------------- | --------------------- |
+        | `YES`            | `namespace:list-jobs` |
+
+        ### Parameters
+
+        - `prefix` `(string: "")` - Specifies a string to filter jobs on based on
+          an index prefix. This is specified as a query string parameter.
+
+        - `namespace` `(string: "default")` - Specifies the target namespace. Specifying
+          `*` would return all jobs across all the authorized namespaces.
+
+        ### Sample Request
+
+        ```shell-session
+        $ curl https://localhost:4646/v1/jobs
+        ```
+
+        ```shell-session
+        $ curl https://localhost:4646/v1/jobs?prefix=team
+        ```
+
+        ```shell-session
+        $ curl https://localhost:4646/v1/jobs?namespace=*&prefix=team
+        ```
+
+        ### Sample Response
+
+        ```json
+        [
+          {
+            "ID": "example",
+            "ParentID": "",
+            "Name": "example",
+            "Type": "service",
+            "Priority": 50,
+            "Status": "pending",
+            "StatusDescription": "",
+            "JobSummary": {
+              "JobID": "example",
+              "Namespace": "default",
+              "Summary": {
+                "cache": {
+                  "Queued": 1,
+                  "Complete": 1,
+                  "Failed": 0,
+                  "Running": 0,
+                  "Starting": 0,
+                  "Lost": 0
+                }
+              },
+              "Children": {
+                "Pending": 0,
+                "Running": 0,
+                "Dead": 0
+              },
+              "CreateIndex": 52,
+              "ModifyIndex": 96
+            },
+            "CreateIndex": 52,
+            "ModifyIndex": 93,
+            "JobModifyIndex": 52
+          }
+        ]
+        ```
       operationId: getJobs
       parameters:
         - $ref: '#/components/parameters/RegionParam'

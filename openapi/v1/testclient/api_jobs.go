@@ -421,6 +421,7 @@ func (a *JobsApiService) GetJobEvaluationsExecute(r ApiGetJobEvaluationsRequest)
 type ApiGetJobSummaryRequest struct {
 	ctx _context.Context
 	ApiService *JobsApiService
+	jobName string
 	region *string
 	stale *string
 	prefix *string
@@ -476,12 +477,14 @@ func (r ApiGetJobSummaryRequest) Execute() (JobSummary, *_nethttp.Response, erro
 /*
  * GetJobSummary This endpoint reads summary information about a job. https://www.nomadproject.io/api-docs/jobs#read-job-summary.
  * @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ * @param jobName The job identifier.
  * @return ApiGetJobSummaryRequest
  */
-func (a *JobsApiService) GetJobSummary(ctx _context.Context) ApiGetJobSummaryRequest {
+func (a *JobsApiService) GetJobSummary(ctx _context.Context, jobName string) ApiGetJobSummaryRequest {
 	return ApiGetJobSummaryRequest{
 		ApiService: a,
 		ctx: ctx,
+		jobName: jobName,
 	}
 }
 
@@ -505,6 +508,7 @@ func (a *JobsApiService) GetJobSummaryExecute(r ApiGetJobSummaryRequest) (JobSum
 	}
 
 	localVarPath := localBasePath + "/job/{jobName}/summary"
+	localVarPath = strings.Replace(localVarPath, "{"+"jobName"+"}", _neturl.PathEscape(parameterToString(r.jobName, "")), -1)
 
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := _neturl.Values{}
@@ -661,7 +665,7 @@ func (r ApiGetJobsRequest) Execute() ([]JobListStub, *_nethttp.Response, error) 
 }
 
 /*
- * GetJobs # Jobs HTTP API The `/jobs` endpoints are used to query for and interact with jobs. ## List Jobs This endpoint lists all known jobs in the system registered with Nomad. | Method | Path       | Produces           | | ------ | ---------- | ------------------ | | `GET`  | `/v1/jobs` | `application/json` | The table below shows this endpoint's support for [blocking queries](/api-docs#blocking-queries) and [required ACLs](/api-docs#acls). | Blocking Queries | ACL Required          | | ---------------- | --------------------- | | `YES`            | `namespace:list-jobs` | ### Parameters - `prefix` `(string: \"\")` - Specifies a string to filter jobs on based on   an index prefix. This is specified as a query string parameter.  - `namespace` `(string: \"default\")` - Specifies the target namespace. Specifying   `*` would return all jobs across all the authorized namespaces.  ### Sample Request ```shell-session $ curl https://localhost:4646/v1/jobs ``` ```shell-session $ curl https://localhost:4646/v1/jobs?prefix=team ``` ```shell-session $ curl https://localhost:4646/v1/jobs?namespace=*&prefix=team ``` ### Sample Response ```json [   {     \"ID\": \"example\",     \"ParentID\": \"\",     \"Name\": \"example\",     \"Type\": \"service\",     \"Priority\": 50,     \"Status\": \"pending\",     \"StatusDescription\": \"\",     \"JobSummary\": {       \"JobID\": \"example\",       \"Namespace\": \"default\",       \"Summary\": {         \"cache\": {           \"Queued\": 1,           \"Complete\": 1,           \"Failed\": 0,           \"Running\": 0,           \"Starting\": 0,           \"Lost\": 0         }       },       \"Children\": {         \"Pending\": 0,         \"Running\": 0,         \"Dead\": 0       },       \"CreateIndex\": 52,       \"ModifyIndex\": 96     },     \"CreateIndex\": 52,     \"ModifyIndex\": 93,     \"JobModifyIndex\": 52   } ] ``` 
+ * GetJobs List all known jobs registered with Nomad. See https://www.nomadproject.io/api-docs/jobs#list-jobs.
  * @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  * @return ApiGetJobsRequest
  */
