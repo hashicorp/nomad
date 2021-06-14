@@ -3325,82 +3325,91 @@ paths:
     get:
       tags:
         - Jobs
-      summary: >
-        This endpoint lists all known jobs in the system registered with Nomad.
-
-        | Method | Path       | Produces           |
-        | ------ | ---------- | ------------------ |
-        | `GET`  | `/v1/jobs` | `application/json` |
-
-        The table below shows this endpoint's support for
-        [blocking queries](/api-docs#blocking-queries) and
-        [required ACLs](/api-docs#acls).
-
-        | Blocking Queries | ACL Required          |
-        | ---------------- | --------------------- |
-        | `YES`            | `namespace:list-jobs` |
-
-        ### Parameters
-
-        - `prefix` `(string: "")` - Specifies a string to filter jobs on based on
-          an index prefix. This is specified as a query string parameter.
-
-        - `namespace` `(string: "default")` - Specifies the target namespace. Specifying
-          `*` would return all jobs across all the authorized namespaces.
-
-        ### Sample Request
-
-        ```shell-session
-        $ curl https://localhost:4646/v1/jobs
-        ```
-
-        ```shell-session
-        $ curl https://localhost:4646/v1/jobs?prefix=team
-        ```
-
-        ```shell-session
-        $ curl https://localhost:4646/v1/jobs?namespace=*&prefix=team
-        ```
-
-        ### Sample Response
-
-        ```json
-        [
+      summary: 'This endpoint lists all known jobs in the system registered with Nomad.'
+      description: >
+        <p>This endpoint lists all known jobs in the system registered with Nomad.</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Method</th>
+        <th>Path</th>
+        <th>Produces</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><code>GET</code></td>
+        <td><code>/v1/jobs</code></td>
+        <td><code>application/json</code></td>
+        </tr>
+        </tbody></table>
+        <p>The table below shows this endpoint&#39;s support for
+        <a href="/api-docs#blocking-queries">blocking queries</a> and
+        <a href="/api-docs#acls">required ACLs</a>.</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Blocking Queries</th>
+        <th>ACL Required</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><code>YES</code></td>
+        <td><code>namespace:list-jobs</code></td>
+        </tr>
+        </tbody></table>
+        <h3 id="parameters">Parameters</h3>
+        <ul>
+        <li><p><code>prefix</code> <code>(string: &quot;&quot;)</code> - Specifies a string to filter jobs on based on
+        an index prefix. This is specified as a query string parameter.</p>
+        </li>
+        <li><p><code>namespace</code> <code>(string: &quot;default&quot;)</code> - Specifies the target namespace. Specifying
+        <code>*</code> would return all jobs across all the authorized namespaces.</p>
+        </li>
+        </ul>
+        <h3 id="sample-request">Sample Request</h3>
+        <pre><code class="language-shell-session">$ curl https://localhost:4646/v1/jobs
+        </code></pre>
+        <pre><code class="language-shell-session">$ curl https://localhost:4646/v1/jobs?prefix=team
+        </code></pre>
+        <pre><code class="language-shell-session">$ curl https://localhost:4646/v1/jobs?namespace=*&amp;prefix=team
+        </code></pre>
+        <h3 id="sample-response">Sample Response</h3>
+        <pre><code class="language-json">[
           {
-            "ID": "example",
-            "ParentID": "",
-            "Name": "example",
-            "Type": "service",
-            "Priority": 50,
-            "Status": "pending",
-            "StatusDescription": "",
-            "JobSummary": {
-              "JobID": "example",
-              "Namespace": "default",
-              "Summary": {
-                "cache": {
-                  "Queued": 1,
-                  "Complete": 1,
-                  "Failed": 0,
-                  "Running": 0,
-                  "Starting": 0,
-                  "Lost": 0
+            &quot;ID&quot;: &quot;example&quot;,
+            &quot;ParentID&quot;: &quot;&quot;,
+            &quot;Name&quot;: &quot;example&quot;,
+            &quot;Type&quot;: &quot;service&quot;,
+            &quot;Priority&quot;: 50,
+            &quot;Status&quot;: &quot;pending&quot;,
+            &quot;StatusDescription&quot;: &quot;&quot;,
+            &quot;JobSummary&quot;: {
+              &quot;JobID&quot;: &quot;example&quot;,
+              &quot;Namespace&quot;: &quot;default&quot;,
+              &quot;Summary&quot;: {
+                &quot;cache&quot;: {
+                  &quot;Queued&quot;: 1,
+                  &quot;Complete&quot;: 1,
+                  &quot;Failed&quot;: 0,
+                  &quot;Running&quot;: 0,
+                  &quot;Starting&quot;: 0,
+                  &quot;Lost&quot;: 0
                 }
               },
-              "Children": {
-                "Pending": 0,
-                "Running": 0,
-                "Dead": 0
+              &quot;Children&quot;: {
+                &quot;Pending&quot;: 0,
+                &quot;Running&quot;: 0,
+                &quot;Dead&quot;: 0
               },
-              "CreateIndex": 52,
-              "ModifyIndex": 96
+              &quot;CreateIndex&quot;: 52,
+              &quot;ModifyIndex&quot;: 96
             },
-            "CreateIndex": 52,
-            "ModifyIndex": 93,
-            "JobModifyIndex": 52
+            &quot;CreateIndex&quot;: 52,
+            &quot;ModifyIndex&quot;: 93,
+            &quot;JobModifyIndex&quot;: 52
           }
         ]
-        ```
+        </code></pre>
       operationId: getJobs
       parameters:
         - $ref: '#/components/parameters/RegionParam'
@@ -3437,6 +3446,8 @@ paths:
       tags:
         - Jobs
       summary: 'Parses a HCL jobspec and produce the equivalent JSON encoded job. See https://www.nomadproject.io/api-docs/jobs#parse-job.'
+      description: >
+
       operationId: postJobsParseRequest
       requestBody:
         required: true
