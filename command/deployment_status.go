@@ -231,10 +231,10 @@ UPDATE:
 	for {
 		deploy, meta, err := client.Deployments().Info(deployID, &q)
 		if err != nil {
-			d.Append(glint.Style(
+			d.Append(glint.Layout(glint.Style(
 				glint.Text(fmt.Sprintf("%s: Error fetching deployment", formatTime(time.Now()))),
 				glint.Color("red"),
-			))
+			)).MarginLeft(4))
 			d.RenderFrame()
 			return
 		}
