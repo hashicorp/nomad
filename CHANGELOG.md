@@ -4,6 +4,7 @@ IMPROVEMENTS:
 * cli: Added `-monitor` flag to `deployment status` command and automatically monitor deployments from `job run` command. [[GH-10661](https://github.com/hashicorp/nomad/pull/10661)]
 
 BUG FIXES:
+* consul: Fixed a bug where consul check parameters missing in group services [[GH-10764](https://github.com/hashicorp/nomad/pull/10764)]
 * consul/connect: Fixed an overly restrictive connect constraint [[GH-10754](https://github.com/hashicorp/nomad/pull/10754)]
 * quotas (Enterprise): Fixed a bug where quotas were evaluated before constraints, resulting in quota capacity being used up by filtered nodes. [[GH-10753](https://github.com/hashicorp/nomad/issues/10753)]
 
