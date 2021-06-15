@@ -8,11 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const oracleJDKOutput = `java version "1.7.0_80"
-Java(TM) SE Runtime Environment (build 1.7.0_80-b15)
-Java HotSpot(TM) 64-Bit Server VM (build 24.80-b11, mixed mode)
-`
-
 func TestDriver_parseJavaVersionOutput(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -23,7 +18,9 @@ func TestDriver_parseJavaVersionOutput(t *testing.T) {
 	}{
 		{
 			"OracleJDK",
-			oracleJDKOutput,
+			`java version "1.7.0_80"
+			Java(TM) SE Runtime Environment (build 1.7.0_80-b15)
+			Java HotSpot(TM) 64-Bit Server VM (build 24.80-b11, mixed mode)`,
 			"1.7.0_80",
 			"Java(TM) SE Runtime Environment (build 1.7.0_80-b15)",
 			"Java HotSpot(TM) 64-Bit Server VM (build 24.80-b11, mixed mode)",
@@ -69,14 +66,22 @@ func TestDriver_parseJavaVersionOutput(t *testing.T) {
 			"OpenJDK Runtime Environment (build 1.8.0_192-b12_openj9)",
 			"Eclipse OpenJ9 VM (build openj9-0.11.0, JRE 1.8.0 Linux amd64-64-Bit Compressed References",
 		},
+		{
+			"OpenJDK on CentOS 7",
+			`openjdk 11.0.11 2021-04-20 LTS
+			OpenJDK Runtime Environment 18.9 (build 11.0.11+9-LTS)
+			OpenJDK 64-Bit Server VM 18.9 (build 11.0.11+9-LTS, mixed mode, sharing)`,
+			`11.0.11`,
+			`OpenJDK Runtime Environment 18.9 (build 11.0.11+9-LTS)`,
+			`OpenJDK 64-Bit Server VM 18.9 (build 11.0.11+9-LTS, mixed mode, sharing)`,
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			version, runtime, vm := parseJavaVersionOutput(c.output)
-
-			require.Equal(t, c.version, version)
-			require.Equal(t, c.runtime, runtime)
+			jdkVersion, jdkJRE, vm := parseJavaVersionOutput(c.output)
+			require.Equal(t, c.version, jdkVersion)
+			require.Equal(t, c.runtime, jdkJRE)
 			require.Equal(t, c.vm, vm)
 		})
 	}
@@ -94,13 +99,16 @@ func TestDriver_javaVersionInfo(t *testing.T) {
 
 	javaVersionCommand = []string{
 		"/bin/sh", "-c",
-		fmt.Sprintf("printf '%%s\n' '%s' >/dev/stderr", oracleJDKOutput),
+		fmt.Sprintf("printf '%%s\n' '%s' >/dev/stderr",
+			`java version "1.7.0_80"
+			Java(TM) SE Runtime Environment (build 1.7.0_80-b15)
+			Java HotSpot(TM) 64-Bit Server VM (build 24.80-b11, mixed mode)`),
 	}
 
-	version, runtime, vm, err := javaVersionInfo()
+	version, jdkJRE, vm, err := javaVersionInfo()
 	require.NoError(t, err)
 	require.Equal(t, "1.7.0_80", version)
-	require.Equal(t, "Java(TM) SE Runtime Environment (build 1.7.0_80-b15)", runtime)
+	require.Equal(t, "Java(TM) SE Runtime Environment (build 1.7.0_80-b15)", jdkJRE)
 	require.Equal(t, "Java HotSpot(TM) 64-Bit Server VM (build 24.80-b11, mixed mode)", vm)
 
 }
@@ -120,10 +128,10 @@ func TestDriver_javaVersionInfo_UnexpectedOutput(t *testing.T) {
 		fmt.Sprintf("printf '%%s\n' '%s' >/dev/stderr", "unexpected java -version output"),
 	}
 
-	version, runtime, vm, err := javaVersionInfo()
+	version, jdkJRE, vm, err := javaVersionInfo()
 	require.NoError(t, err)
 	require.Equal(t, "", version)
-	require.Equal(t, "", runtime)
+	require.Equal(t, "", jdkJRE)
 	require.Equal(t, "", vm)
 }
 
@@ -142,11 +150,11 @@ func TestDriver_javaVersionInfo_JavaVersionFails(t *testing.T) {
 		"exit 127",
 	}
 
-	version, runtime, vm, err := javaVersionInfo()
+	version, jdkJRE, vm, err := javaVersionInfo()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to check java version")
 
 	require.Equal(t, "", version)
-	require.Equal(t, "", runtime)
+	require.Equal(t, "", jdkJRE)
 	require.Equal(t, "", vm)
 }

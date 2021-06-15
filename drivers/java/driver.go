@@ -308,7 +308,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		}
 	}
 
-	version, runtime, vm, err := javaVersionInfo()
+	version, jdkJRE, vm, err := javaVersionInfo()
 	if err != nil {
 		// return no error, as it isn't an error to not find java, it just means we
 		// can't use it.
@@ -319,7 +319,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 	fp.Attributes[driverAttr] = pstructs.NewBoolAttribute(true)
 	fp.Attributes[driverVersionAttr] = pstructs.NewStringAttribute(version)
-	fp.Attributes["driver.java.runtime"] = pstructs.NewStringAttribute(runtime)
+	fp.Attributes["driver.java.runtime"] = pstructs.NewStringAttribute(jdkJRE)
 	fp.Attributes["driver.java.vm"] = pstructs.NewStringAttribute(vm)
 
 	return fp
