@@ -120,6 +120,9 @@ BUG FIXES:
  * ui: Fixed the rendering of interstitial components shown after processing a dynamic application sizing recommendation. [[GH-10094](https://github.com/hashicorp/nomad/pull/10094)]
 
 ## 1.0.8 (Unreleased)
+
+BUG FIXES:
+* consul: Fixed a bug where consul check parameters missing in group services [[GH-10764](https://github.com/hashicorp/nomad/pull/10764)]
 * quotas (Enterprise): Fixed a bug where quotas were evaluated before constraints, resulting in quota capacity being used up by filtered nodes. [[GH-10753](https://github.com/hashicorp/nomad/issues/10753)]
 * quotas (Enterprise): Fixed a bug where stopped allocations for a failed deployment can be double-credited to quota limits, resulting in a quota limit bypass. [[GH-10694](https://github.com/hashicorp/nomad/issues/10694)
 
