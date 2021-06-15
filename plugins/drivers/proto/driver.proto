@@ -400,6 +400,13 @@ message NetworkIsolationSpec {
   string path = 2;
 
   map<string,string> labels = 3;
+
+  HostsConfig hostsConfig = 4;
+}
+
+message HostsConfig {
+  string hostname = 1;
+  string address  = 2;
 }
 
 message DNSConfig {
