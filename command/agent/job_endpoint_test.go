@@ -2024,7 +2024,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Limit:          3,
 									IgnoreWarnings: true,
 								},
-								TaskName: "task1",
+								TaskName:               "task1",
+								SuccessBeforePassing:   2,
+								FailuresBeforeCritical: 3,
 							},
 						},
 						Connect: &api.ConsulConnect{
@@ -2396,7 +2398,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Limit:          3,
 									IgnoreWarnings: true,
 								},
-								TaskName: "task1",
+								TaskName:               "task1",
+								SuccessBeforePassing:   2,
+								FailuresBeforeCritical: 3,
 							},
 						},
 						Connect: &structs.ConsulConnect{

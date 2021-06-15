@@ -1041,60 +1041,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		}
 	}
 
-	if l := len(apiTask.Services); l != 0 {
-		structsTask.Services = make([]*structs.Service, l)
-		for i, service := range apiTask.Services {
-			structsTask.Services[i] = &structs.Service{
-				Name:              service.Name,
-				PortLabel:         service.PortLabel,
-				Tags:              service.Tags,
-				CanaryTags:        service.CanaryTags,
-				EnableTagOverride: service.EnableTagOverride,
-				AddressMode:       service.AddressMode,
-				Meta:              helper.CopyMapStringString(service.Meta),
-				CanaryMeta:        helper.CopyMapStringString(service.CanaryMeta),
-			}
-
-			if l := len(service.Checks); l != 0 {
-				structsTask.Services[i].Checks = make([]*structs.ServiceCheck, l)
-				for j, check := range service.Checks {
-					structsTask.Services[i].Checks[j] = &structs.ServiceCheck{
-						Name:                   check.Name,
-						Type:                   check.Type,
-						Command:                check.Command,
-						Args:                   check.Args,
-						Path:                   check.Path,
-						Protocol:               check.Protocol,
-						PortLabel:              check.PortLabel,
-						AddressMode:            check.AddressMode,
-						Interval:               check.Interval,
-						Timeout:                check.Timeout,
-						InitialStatus:          check.InitialStatus,
-						TLSSkipVerify:          check.TLSSkipVerify,
-						Header:                 check.Header,
-						Method:                 check.Method,
-						GRPCService:            check.GRPCService,
-						GRPCUseTLS:             check.GRPCUseTLS,
-						SuccessBeforePassing:   check.SuccessBeforePassing,
-						FailuresBeforeCritical: check.FailuresBeforeCritical,
-					}
-					if check.CheckRestart != nil {
-						structsTask.Services[i].Checks[j].CheckRestart = &structs.CheckRestart{
-							Limit:          check.CheckRestart.Limit,
-							Grace:          *check.CheckRestart.Grace,
-							IgnoreWarnings: check.CheckRestart.IgnoreWarnings,
-						}
-					}
-				}
-			}
-
-			// Task services can't have a connect block. We still convert it so that
-			// we can later return a validation error.
-			if service.Connect != nil {
-				structsTask.Services[i].Connect = ApiConsulConnectToStructs(service.Connect)
-			}
-		}
-	}
+	structsTask.Services = ApiServicesToStructs(apiTask.Services)
 
 	structsTask.Resources = ApiResourcesToStructs(apiTask.Resources)
 
@@ -1254,7 +1201,6 @@ func ApiPortToStructs(in api.Port) structs.Port {
 	}
 }
 
-//TODO(schmichael) refactor and reuse in service parsing above
 func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 	if len(in) == 0 {
 		return nil
@@ -1278,24 +1224,26 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 			out[i].Checks = make([]*structs.ServiceCheck, l)
 			for j, check := range s.Checks {
 				out[i].Checks[j] = &structs.ServiceCheck{
-					Name:          check.Name,
-					Type:          check.Type,
-					Command:       check.Command,
-					Args:          check.Args,
-					Path:          check.Path,
-					Protocol:      check.Protocol,
-					PortLabel:     check.PortLabel,
-					Expose:        check.Expose,
-					AddressMode:   check.AddressMode,
-					Interval:      check.Interval,
-					Timeout:       check.Timeout,
-					InitialStatus: check.InitialStatus,
-					TLSSkipVerify: check.TLSSkipVerify,
-					Header:        check.Header,
-					Method:        check.Method,
-					GRPCService:   check.GRPCService,
-					GRPCUseTLS:    check.GRPCUseTLS,
-					TaskName:      check.TaskName,
+					Name:                   check.Name,
+					Type:                   check.Type,
+					Command:                check.Command,
+					Args:                   check.Args,
+					Path:                   check.Path,
+					Protocol:               check.Protocol,
+					PortLabel:              check.PortLabel,
+					Expose:                 check.Expose,
+					AddressMode:            check.AddressMode,
+					Interval:               check.Interval,
+					Timeout:                check.Timeout,
+					InitialStatus:          check.InitialStatus,
+					TLSSkipVerify:          check.TLSSkipVerify,
+					Header:                 check.Header,
+					Method:                 check.Method,
+					GRPCService:            check.GRPCService,
+					GRPCUseTLS:             check.GRPCUseTLS,
+					TaskName:               check.TaskName,
+					SuccessBeforePassing:   check.SuccessBeforePassing,
+					FailuresBeforeCritical: check.FailuresBeforeCritical,
 				}
 				if check.CheckRestart != nil {
 					out[i].Checks[j].CheckRestart = &structs.CheckRestart{
