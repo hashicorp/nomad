@@ -198,8 +198,10 @@ generate-examples: command/job_init.bindata_assetfs.go
 
 .PHONY: openapi
 openapi:
-	@echo "--> Syncing OpenAPI Specification with API Docs"
-	@node openapi/v1/sync-docs.js
+	@echo "--> Building OpenAPI Specification and testclient"
+	@node openapi/v1/build-spec.js
+    @docker run --rm -v "${PWD}:/local" openapitools/openapi-generator-cli batch /local/openapi/v1/config.yaml
+
 
 command/job_init.bindata_assetfs.go: command/assets/*
 	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...

@@ -1,4 +1,4 @@
 generatorName: go
-inputSpec: /local/spec.yaml
-outputDir: /local/testclient
+inputSpec: /local/openapi/v1/spec.yaml
+outputDir: /local/internal/testing/openapi/v1/testclient
 packageName: testclient

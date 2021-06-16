@@ -2,7 +2,7 @@ package testutil
 
 import (
 	"context"
-	v1 "github.com/hashicorp/nomad/openapi/v1/testclient"
+	v1 "github.com/hashicorp/nomad/internal/testing/openapi/v1/testclient"
 	"net/http"
 	"testing"
 )

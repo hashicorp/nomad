@@ -501,9 +501,9 @@ github.com/hashicorp/net-rpc-msgpackrpc
 ## explicit
 github.com/hashicorp/nomad/api
 github.com/hashicorp/nomad/api/contexts
-# github.com/hashicorp/nomad/openapi/v1/testclient v0.0.0-00010101000000-000000000000 => ./openapi/v1/testclient
+# github.com/hashicorp/nomad/internal/testing/openapi/v1/testclient v0.0.0-00010101000000-000000000000 => ./internal/testing/openapi/v1/testclient
 ## explicit
-github.com/hashicorp/nomad/openapi/v1/testclient
+github.com/hashicorp/nomad/internal/testing/openapi/v1/testclient
 # github.com/hashicorp/raft v1.1.3-0.20200211192230-365023de17e6
 ## explicit
 github.com/hashicorp/raft
@@ -1056,5 +1056,5 @@ gopkg.in/yaml.v3
 # github.com/hashicorp/go-discover => github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 # github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 # github.com/hashicorp/nomad/api => ./api
-# github.com/hashicorp/nomad/openapi/v1/testclient => ./openapi/v1/testclient
+# github.com/hashicorp/nomad/internal/testing/openapi/v1/testclient => ./internal/testing/openapi/v1/testclient
 # github.com/kr/pty => github.com/kr/pty v1.1.5
