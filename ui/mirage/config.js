@@ -335,21 +335,12 @@ export default function() {
     const firstRegion = regions.first();
     return {
       ServerRegion: firstRegion ? firstRegion.id : null,
-      Members: this.serialize(agents.all()),
+      Members: this.serialize(agents.all()).map(({ member }) => ({ ...member })),
     };
   });
 
   this.get('/agent/self', function({ agents }) {
-    return {
-      member: this.serialize(agents.first()),
-      config: {
-        Version: {
-          Version: '1.1.0',
-          VersionMetadata: 'ent',
-          VersionPrerelease: 'dev',
-        },
-      },
-    };
+    return agents.first();
   });
 
   this.get('/agent/monitor', function({ agents, nodes }, { queryParams }) {
