@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
+	"github.com/hashicorp/nomad/drivers/shared/hostnames"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -952,6 +953,33 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			return c, err
 		}
 		hostConfig.Mounts = append(hostConfig.Mounts, *hm)
+	}
+
+	// Setup /etc/hosts
+	// If the task's network_mode is unset our hostname and IP will come from
+	// the Nomad-owned network (if in use), so we need to generate an
+	// /etc/hosts file that matches the network rather than the default one
+	// that comes from the pause container
+	if task.NetworkIsolation != nil && driverConfig.NetworkMode == "" {
+		etcHostMount, err := hostnames.GenerateEtcHostsMount(
+			task.TaskDir().Dir, task.NetworkIsolation, driverConfig.ExtraHosts)
+		if err != nil {
+			return c, fmt.Errorf("failed to build mount for /etc/hosts: %v", err)
+		}
+		if etcHostMount != nil {
+			// erase the extra_hosts field if we have a mount so we don't get
+			// conflicting options error from dockerd
+			driverConfig.ExtraHosts = nil
+			hostConfig.Mounts = append(hostConfig.Mounts, docker.HostMount{
+				Target:   etcHostMount.TaskPath,
+				Source:   etcHostMount.HostPath,
+				Type:     "bind",
+				ReadOnly: etcHostMount.Readonly,
+				BindOptions: &docker.BindOptions{
+					Propagation: etcHostMount.PropagationMode,
+				},
+			})
+		}
 	}
 
 	// Setup DNS
