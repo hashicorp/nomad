@@ -51,3 +51,9 @@ Guides are available on [HashiCorp Learn](https://learn.hashicorp.com/nomad).
 Contributing
 --------------------
 See the [`contributing`](contributing/) directory for more developer documentation.
+
+End-User License Agreement & Terms of Evaluation (Nomad Enterprise)
+--------------------------------------------------------------------
+The following shall apply unless your organization has a separately signed Enterprise License Agreement or Evaluation Agreement governing your use of the software:
+
+Software in this repository is subject to the license terms located in the software, copies of which are also available at [EULA](https://eula.hashicorp.com/ClickThruELA-Global.pdf) or [Terms Of Evaluation](https://www.hashicorp.com/terms-of-evaluation) as applicable. Please read the license terms prior to using the software. Your installation and use of the software constitutes your acceptance of these terms. If you do not accept the terms, do not use the software.
