@@ -180,7 +180,7 @@ checkproto: ## Lint protobuf files
 	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
 
 .PHONY: generate-all
-generate-all: generate-structs proto generate-examples
+generate-all: generate-structs proto openapi generate-examples
 
 .PHONY: generate-structs
 generate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
@@ -195,6 +195,11 @@ proto:
 
 .PHONY: generate-examples
 generate-examples: command/job_init.bindata_assetfs.go
+
+.PHONY: openapi
+openapi:
+	@echo "--> Syncing OpenAPI Specification with API Docs"
+	@node openapi/v1/sync-docs.js
 
 command/job_init.bindata_assetfs.go: command/assets/*
 	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
