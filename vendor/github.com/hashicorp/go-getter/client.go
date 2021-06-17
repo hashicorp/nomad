@@ -67,6 +67,15 @@ type Client struct {
 	// By default a no op progress listener is used.
 	ProgressListener ProgressTracker
 
+	// Insecure controls whether a client verifies the server's
+	// certificate chain and host name. If Insecure is true, crypto/tls
+	// accepts any certificate presented by the server and any host name in that
+	// certificate. In this mode, TLS is susceptible to machine-in-the-middle
+	// attacks unless custom verification is used. This should be used only for
+	// testing or in combination with VerifyConnection or VerifyPeerCertificate.
+	// This is identical to tls.Config.InsecureSkipVerify.
+	Insecure bool
+
 	Options []ClientOption
 }
 
@@ -289,7 +298,7 @@ func (c *Client) Get() error {
 		// if we're specifying a subdir.
 		err := g.Get(dst, u)
 		if err != nil {
-			err = fmt.Errorf("error downloading '%s': %s", src, err)
+			err = fmt.Errorf("error downloading '%s': %s", u.Redacted(), err)
 			return err
 		}
 	}

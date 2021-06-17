@@ -380,7 +380,7 @@ github.com/hashicorp/errwrap
 # github.com/hashicorp/go-checkpoint v0.0.0-20171009173528-1545e56e46de
 ## explicit
 github.com/hashicorp/go-checkpoint
-# github.com/hashicorp/go-cleanhttp v0.5.1
+# github.com/hashicorp/go-cleanhttp v0.5.2
 ## explicit
 github.com/hashicorp/go-cleanhttp
 # github.com/hashicorp/go-connlimit v0.3.0
@@ -413,7 +413,7 @@ github.com/hashicorp/go-discover/provider/vsphere
 # github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
 ## explicit
 github.com/hashicorp/go-envparse
-# github.com/hashicorp/go-getter v1.5.2
+# github.com/hashicorp/go-getter v1.5.4
 ## explicit
 github.com/hashicorp/go-getter
 github.com/hashicorp/go-getter/helper/url
