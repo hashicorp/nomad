@@ -248,9 +248,74 @@ func sidecarTagsDifferent(parent, wanted, sidecar []string) bool {
 	return tagsDifferent(wanted, sidecar)
 }
 
+// proxyUpstreamsDifferent determines if the sidecar_service.proxy.upstreams
+// configurations are different between the desired sidecar service state, and
+// the actual sidecar service state currently registered in Consul.
+func proxyUpstreamsDifferent(wanted *api.AgentServiceConnect, sidecar *api.AgentServiceConnectProxyConfig) bool {
+	// There is similar code that already does this in Nomad's API package,
+	// however here we are operating on Consul API package structs, and they do not
+	// provide such helper functions.
+
+	getProxyUpstreams := func(pc *api.AgentServiceConnectProxyConfig) []api.Upstream {
+		switch {
+		case pc == nil:
+			return nil
+		case len(pc.Upstreams) == 0:
+			return nil
+		default:
+			return pc.Upstreams
+		}
+	}
+
+	getConnectUpstreams := func(sc *api.AgentServiceConnect) []api.Upstream {
+		switch {
+		case sc.SidecarService.Proxy == nil:
+			return nil
+		case len(sc.SidecarService.Proxy.Upstreams) == 0:
+			return nil
+		default:
+			return sc.SidecarService.Proxy.Upstreams
+		}
+	}
+
+	upstreamsDifferent := func(a, b []api.Upstream) bool {
+		if len(a) != len(b) {
+			return true
+		}
+
+		for i := 0; i < len(a); i++ {
+			A := a[i]
+			B := b[i]
+			switch {
+			case A.Datacenter != B.Datacenter:
+				return true
+			case A.DestinationName != B.DestinationName:
+				return true
+			case A.LocalBindAddress != B.LocalBindAddress:
+				return true
+			case A.LocalBindPort != B.LocalBindPort:
+				return true
+			case A.MeshGateway.Mode != B.MeshGateway.Mode:
+				return true
+			case !reflect.DeepEqual(A.Config, B.Config):
+				return true
+			}
+		}
+		return false
+	}
+
+	return upstreamsDifferent(
+		getConnectUpstreams(wanted),
+		getProxyUpstreams(sidecar),
+	)
+}
+
 // connectSidecarDifferent returns true if Nomad expects there to be a sidecar
 // hanging off the desired parent service definition on the Consul side, and does
 // not match with what Consul has.
+//
+// This is used to determine if the connect sidecar service registration should be
+// updated - potentially (but not necessarily) in-place.
 func connectSidecarDifferent(wanted *api.AgentServiceRegistration, sidecar *api.AgentService) bool {
 	if wanted.Connect != nil && wanted.Connect.SidecarService != nil {
 		if sidecar == nil {
@@ -260,6 +325,11 @@ func connectSidecarDifferent(wanted *api.AgentServiceRegistration, sidecar *api.
 
 		if sidecarTagsDifferent(wanted.Tags, wanted.Connect.SidecarService.Tags, sidecar.Tags) {
 			// tags on the nomad definition have been modified
+			return true
+		}
+
+		if proxyUpstreamsDifferent(wanted.Connect, sidecar.Proxy) {
+			// proxy upstreams on the nomad definition have been modified
 			return true
 		}
 	}
