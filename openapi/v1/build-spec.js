@@ -24,11 +24,9 @@ let baseFile = './openapi/v1/base.yaml';
 let baseDoc = yaml.load(fs.readFileSync(baseFile, 'utf8'));
 baseDoc.info.description = indexHtml;
 
-let indexStr = yaml.dump(baseDoc, {
+fs.writeFileSync(baseFile, yaml.dump(baseDoc, {
     noRefs: true
-});
-
-fs.writeFileSync(baseFile, indexStr, 'utf8');
+}), 'utf8');
 
 // Next sync documentation in the document map with the path descriptions.
 // Iterates of docMap and ensures documentation consistency between API docs on
@@ -105,4 +103,4 @@ let specDump = yaml.dump(specDoc, {
     noRefs: true
 });
 
-fs.writeFileSync('./openapi/v1/spec.yaml', specDump, 'utf8');
+fs.writeFileSync('./openapi/v1/openapi.yaml', specDump, 'utf8');

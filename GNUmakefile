@@ -198,7 +198,7 @@ generate-examples: command/job_init.bindata_assetfs.go
 
 .PHONY: openapi
 openapi:
-	@echo "--> Building OpenAPI Specification and testclient"
+	@echo "--> Building OpenAPI Specification and test client"
 	@node openapi/v1/build-spec.js
     @docker run --rm -v "${PWD}:/local" openapitools/openapi-generator-cli batch /local/openapi/v1/config.yaml
 

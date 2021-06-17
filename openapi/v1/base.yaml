@@ -346,6 +346,8 @@ components:
         If AllowStale is used, this is time elapsed since last contact between
         the follower and leader. This can be used to gauge staleness.
   responses:
+    BadRequest:
+      description: Bad request
     Forbidden:
       description: Forbidden
     InternalServerError:
