@@ -435,10 +435,10 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 func TestDebug_Utils(t *testing.T) {
 	t.Parallel()
 
-	xs := argNodes("foo, bar")
+	xs := splitArgumentList("foo, bar")
 	require.Equal(t, []string{"foo", "bar"}, xs)
 
-	xs = argNodes("")
+	xs = splitArgumentList("")
 	require.Len(t, xs, 0)
 	require.Empty(t, xs)
 

@@ -329,7 +329,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	nodeLookupFailCount := 0
 	nodeCaptureCount := 0
 
-	for _, id := range argNodes(nodeIDs) {
+	for _, id := range splitArgumentList(nodeIDs) {
 		if id == "all" {
 			// Capture from all nodes using empty prefix filter
 			id = ""
@@ -390,7 +390,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 			c.serverIDs = append(c.serverIDs, member.Name)
 		}
 	} else {
-		c.serverIDs = append(c.serverIDs, argNodes(serverIDs)...)
+		c.serverIDs = append(c.serverIDs, splitArgumentList(serverIDs)...)
 	}
 
 	serversFound := 0
@@ -1072,8 +1072,8 @@ func TarCZF(archive string, src, target string) error {
 	})
 }
 
-// argNodes splits node ids from the command line by ","
-func argNodes(input string) []string {
+// splitArgumentList splits comma delimited string into slice
+func splitArgumentList(input string) []string {
 	ns := strings.Split(input, ",")
 	var out []string
 	for _, n := range ns {
