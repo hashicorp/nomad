@@ -874,7 +874,7 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 	tg.Constraints = ApiConstraintsToStructs(taskGroup.Constraints)
 	tg.Affinities = ApiAffinitiesToStructs(taskGroup.Affinities)
 	tg.Networks = ApiNetworkResourceToStructs(taskGroup.Networks)
-	tg.Services = ApiServicesToStructs(taskGroup.Services)
+	tg.Services = ApiServicesToStructs(taskGroup.Services, true)
 	tg.Consul = apiConsulToStructs(taskGroup.Consul)
 
 	tg.RestartPolicy = &structs.RestartPolicy{
@@ -1044,7 +1044,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		}
 	}
 
-	structsTask.Services = ApiServicesToStructs(apiTask.Services)
+	structsTask.Services = ApiServicesToStructs(apiTask.Services, false)
 
 	structsTask.Resources = ApiResourcesToStructs(apiTask.Resources)
 
@@ -1212,7 +1212,7 @@ func ApiPortToStructs(in api.Port) structs.Port {
 	}
 }
 
-func ApiServicesToStructs(in []*api.Service) []*structs.Service {
+func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 	if len(in) == 0 {
 		return nil
 	}
@@ -1258,11 +1258,16 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 					Body:                   check.Body,
 					GRPCService:            check.GRPCService,
 					GRPCUseTLS:             check.GRPCUseTLS,
-					TaskName:               check.TaskName,
 					SuccessBeforePassing:   check.SuccessBeforePassing,
 					FailuresBeforeCritical: check.FailuresBeforeCritical,
 					OnUpdate:               onUpdate,
 				}
+
+				if group {
+					// only copy over task name for group level checks
+					out[i].Checks[j].TaskName = check.TaskName
+				}
+
 				if check.CheckRestart != nil {
 					out[i].Checks[j].CheckRestart = &structs.CheckRestart{
 						Limit:          check.CheckRestart.Limit,

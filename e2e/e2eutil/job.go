@@ -12,7 +12,7 @@ import (
 // Register registers a jobspec from a file but with a unique ID.
 // The caller is responsible for recording that ID for later cleanup.
 func Register(jobID, jobFilePath string) error {
-	cmd := exec.Command("nomad", "job", "run", "-")
+	cmd := exec.Command("nomad", "job", "run", "-detach", "-")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("could not open stdin?: %w", err)
