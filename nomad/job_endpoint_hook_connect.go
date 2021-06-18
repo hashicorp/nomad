@@ -127,10 +127,8 @@ func (jobConnectHook) Validate(job *structs.Job) ([]error, error) {
 	var warnings []error
 
 	for _, g := range job.TaskGroups {
-		if w, err := groupConnectValidate(g); err != nil {
+		if err := groupConnectValidate(g); err != nil {
 			return nil, err
-		} else if w != nil {
-			warnings = append(warnings, w...)
 		}
 	}
 
@@ -480,24 +478,49 @@ func newConnectSidecarTask(service string) *structs.Task {
 	}
 }
 
-func groupConnectValidate(g *structs.TaskGroup) (warnings []error, err error) {
+func groupConnectValidate(g *structs.TaskGroup) error {
 	for _, s := range g.Services {
 		switch {
 		case s.Connect.HasSidecar():
 			if err := groupConnectSidecarValidate(g, s); err != nil {
-				return nil, err
+				return err
 			}
 		case s.Connect.IsNative():
 			if err := groupConnectNativeValidate(g, s); err != nil {
-				return nil, err
+				return err
 			}
 		case s.Connect.IsGateway():
 			if err := groupConnectGatewayValidate(g); err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
-	return nil, nil
+
+	if err := groupConnectUpstreamsValidate(g.Name, g.Services); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func groupConnectUpstreamsValidate(group string, services []*structs.Service) error {
+	listeners := make(map[string]string) // address -> service
+
+	for _, service := range services {
+		if service.Connect.HasSidecar() && service.Connect.SidecarService.Proxy != nil {
+			for _, up := range service.Connect.SidecarService.Proxy.Upstreams {
+				listener := fmt.Sprintf("%s:%d", up.LocalBindAddress, up.LocalBindPort)
+				if s, exists := listeners[listener]; exists {
+					return fmt.Errorf(
+						"Consul Connect services %q and %q in group %q using same address for upstreams (%s)",
+						service.Name, s, group, listener,
+					)
+				}
+				listeners[listener] = service.Name
+			}
+		}
+	}
+	return nil
 }
 
 func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) error {

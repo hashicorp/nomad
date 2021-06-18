@@ -348,7 +348,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 	// group and service name validation
 
 	t.Run("non-connect service contains uppercase characters", func(t *testing.T) {
-		_, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
@@ -359,7 +359,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 	})
 
 	t.Run("connect service contains uppercase characters", func(t *testing.T) {
-		_, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
@@ -370,7 +370,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 	})
 
 	t.Run("non-connect group contains uppercase characters", func(t *testing.T) {
-		_, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "Other-Group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
@@ -381,7 +381,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 	})
 
 	t.Run("connect-group contains uppercase characters", func(t *testing.T) {
-		_, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "Connect-Group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
@@ -392,7 +392,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 	})
 
 	t.Run("connect group and service lowercase", func(t *testing.T) {
-		_, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "connect-group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
@@ -400,6 +400,113 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 			}, makeService("connect-service")},
 		})
 		require.NoError(t, err)
+	})
+
+	t.Run("connect group overlap upstreams", func(t *testing.T) {
+		s1 := makeService("s1")
+		s2 := makeService("s2")
+		s1.Connect.SidecarService.Proxy = &structs.ConsulProxy{
+			Upstreams: []structs.ConsulUpstream{{
+				LocalBindPort: 8999,
+			}},
+		}
+		s2.Connect.SidecarService.Proxy = &structs.ConsulProxy{
+			Upstreams: []structs.ConsulUpstream{{
+				LocalBindPort: 8999,
+			}},
+		}
+		err := groupConnectValidate(&structs.TaskGroup{
+			Name:     "connect-group",
+			Networks: structs.Networks{{Mode: "bridge"}},
+			Services: []*structs.Service{s1, s2},
+		})
+		require.EqualError(t, err, `Consul Connect services "s2" and "s1" in group "connect-group" using same address for upstreams (:8999)`)
+	})
+}
+
+func TestJobEndpointConnect_groupConnectUpstreamsValidate(t *testing.T) {
+	t.Run("no connect services", func(t *testing.T) {
+		err := groupConnectUpstreamsValidate("group",
+			[]*structs.Service{{Name: "s1"}, {Name: "s2"}})
+		require.NoError(t, err)
+	})
+
+	t.Run("connect services no overlap", func(t *testing.T) {
+		err := groupConnectUpstreamsValidate("group",
+			[]*structs.Service{
+				{
+					Name: "s1",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{
+							Proxy: &structs.ConsulProxy{
+								Upstreams: []structs.ConsulUpstream{{
+									LocalBindAddress: "127.0.0.1",
+									LocalBindPort:    9001,
+								}, {
+									LocalBindAddress: "127.0.0.1",
+									LocalBindPort:    9002,
+								}},
+							},
+						},
+					},
+				},
+				{
+					Name: "s2",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{
+							Proxy: &structs.ConsulProxy{
+								Upstreams: []structs.ConsulUpstream{{
+									LocalBindAddress: "10.0.0.1",
+									LocalBindPort:    9001,
+								}, {
+									LocalBindAddress: "127.0.0.1",
+									LocalBindPort:    9003,
+								}},
+							},
+						},
+					},
+				},
+			})
+		require.NoError(t, err)
+	})
+
+	t.Run("connect services overlap port", func(t *testing.T) {
+		err := groupConnectUpstreamsValidate("group",
+			[]*structs.Service{
+				{
+					Name: "s1",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{
+							Proxy: &structs.ConsulProxy{
+								Upstreams: []structs.ConsulUpstream{{
+									LocalBindAddress: "127.0.0.1",
+									LocalBindPort:    9001,
+								}, {
+									LocalBindAddress: "127.0.0.1",
+									LocalBindPort:    9002,
+								}},
+							},
+						},
+					},
+				},
+				{
+					Name: "s2",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{
+							Proxy: &structs.ConsulProxy{
+								Upstreams: []structs.ConsulUpstream{{
+									LocalBindAddress: "127.0.0.1",
+									LocalBindPort:    9002,
+								}, {
+									LocalBindAddress: "127.0.0.1",
+									LocalBindPort:    9003,
+								}},
+							},
+						},
+					},
+				},
+			})
+		require.EqualError(t, err, `Consul Connect services "s2" and "s1" in group "group" using same address for upstreams (127.0.0.1:9002)`)
 	})
 }
 
