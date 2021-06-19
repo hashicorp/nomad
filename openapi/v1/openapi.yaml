@@ -3853,6 +3853,41 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - TODO
+      summary: TODO. See https://www.nomadproject.io/api-docs/TODO.
+      operationId: TODO
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TODO'
+      parameters:
+        - $ref: '#/components/parameters/RegionParam'
+        - $ref: '#/components/parameters/NamespaceParam'
+        - $ref: '#/components/parameters/NomadTokenHeader'
+      responses:
+        '200':
+          description: TODO
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TODO'
+          headers:
+            X-Nomad-Index:
+              $ref: '#/components/headers/X-Nomad-Index'
+            X-Nomad-Known-Leader:
+              $ref: '#/components/headers/X-Nomad-Known-Leader'
+            X-Nomad-Last-Contact:
+              $ref: '#/components/headers/X-Nomad-Last-Contact'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /jobs/parse:
     post:
       tags:

@@ -1,5 +1,5 @@
 openapi: 3.0.3
-info:
+info: null
 paths:
   /jobs:
     get:
@@ -151,14 +151,14 @@ paths:
     post:
       tags:
         - TODO
-      summary: 'TODO. See https://www.nomadproject.io/api-docs/TODO.'
+      summary: TODO. See https://www.nomadproject.io/api-docs/TODO.
       operationId: TODO
       requestBody:
-          required: true
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TODO'
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TODO'
       parameters:
         - $ref: '#/components/parameters/RegionParam'
         - $ref: '#/components/parameters/NamespaceParam'
@@ -170,10 +170,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TODO'
-              # schema:
-                # type: array
-                # items:
-                #  $ref: '#/components/schemas/TODO'
           headers:
             X-Nomad-Index:
               $ref: '#/components/headers/X-Nomad-Index'
