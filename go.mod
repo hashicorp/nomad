@@ -118,12 +118,11 @@ require (
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 	github.com/seccomp/libseccomp-golang v0.9.2-0.20200314001724-bdab42bd5128 // indirect
-	github.com/shirou/gopsutil/v3 v3.21.2
+	github.com/shirou/gopsutil/v3 v3.21.6-0.20210619153009-7ea8062810b6
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
-	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/zclconf/go-cty v1.8.0
 	github.com/zclconf/go-cty-yaml v1.0.2
 	go.opencensus.io v0.22.1-0.20190713072201-b4a14686f0a9 // indirect
