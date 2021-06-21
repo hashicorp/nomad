@@ -15,7 +15,7 @@ type ConsulServiceAPI interface {
 	RegisterWorkload(*consul.WorkloadServices) error
 
 	// RemoveWorkload from Consul. Removes all service entries and checks.
-	RemoveWorkload(*consul.WorkloadServices)
+	RemoveWorkload(string, *consul.WorkloadServices)
 
 	// UpdateWorkload in Consul. Does not alter the service if only checks have
 	// changed.

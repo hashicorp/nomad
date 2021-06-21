@@ -157,7 +157,7 @@ func (h *serviceHook) PreKilling(ctx context.Context, req *interfaces.TaskPreKil
 	defer h.mu.Unlock()
 
 	// Deregister before killing task
-	h.deregister()
+	h.deregister("serviceHook.PreKilling")
 
 	return nil
 }
@@ -165,30 +165,42 @@ func (h *serviceHook) PreKilling(ctx context.Context, req *interfaces.TaskPreKil
 func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *interfaces.TaskExitedResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.deregister()
+
+	h.deregister("serviceHook.Exited")
+
 	return nil
 }
 
 // deregister services from Consul.
-func (h *serviceHook) deregister() {
+func (h *serviceHook) deregister(from string) {
+	fmt.Println("serviceHook.deregister from:", from)
+
 	workloadServices := h.getWorkloadServices()
-	h.consulServices.RemoveWorkload(workloadServices)
+	h.consulServices.RemoveWorkload("serviceHook.deregister (noCanary)", workloadServices)
 
 	// Canary flag may be getting flipped when the alloc is being
 	// destroyed, so remove both variations of the service
 	workloadServices.Canary = !workloadServices.Canary
-	h.consulServices.RemoveWorkload(workloadServices)
+	h.consulServices.RemoveWorkload("serviceHook.deregister (canary)", workloadServices)
 	h.initialRegistration = false
 }
 
 func (h *serviceHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.deregister()
+
+	h.deregister("serviceHook.Stop")
+
 	return nil
 }
 
 func (h *serviceHook) getWorkloadServices() *agentconsul.WorkloadServices {
+
+	names := make([]string, 0, len(h.services))
+	for _, service := range h.services {
+		names = append(names, service.Name)
+	}
+	fmt.Println("serviceHook.getWorkloadService, services:", names)
 	// Interpolate with the task's environment
 	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, h.services)
 

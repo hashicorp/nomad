@@ -1,6 +1,7 @@
 package allocrunner
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -164,13 +165,18 @@ func (h *groupServiceHook) PreTaskRestart() error {
 		h.mu.Unlock()
 	}()
 
+	fmt.Println("calling groupServiceHook.PreTaskRestart()")
 	h.preKillLocked()
+
 	return h.prerunLocked()
 }
 
 func (h *groupServiceHook) PreKill() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	fmt.Println("calling groupServiceHook.PreKill()")
+
 	h.preKillLocked()
 }
 
@@ -197,6 +203,8 @@ func (h *groupServiceHook) Postrun() error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	fmt.Println("calling groupServiceHook.Postrun()")
+
 	if !h.deregistered {
 		h.deregister()
 	}
@@ -207,12 +215,12 @@ func (h *groupServiceHook) Postrun() error {
 func (h *groupServiceHook) deregister() {
 	if len(h.services) > 0 {
 		workloadServices := h.getWorkloadServices()
-		h.consulClient.RemoveWorkload(workloadServices)
+		h.consulClient.RemoveWorkload("groupServiceHook.dereigster (noCanary)", workloadServices)
 
 		// Canary flag may be getting flipped when the alloc is being
 		// destroyed, so remove both variations of the service
 		workloadServices.Canary = !workloadServices.Canary
-		h.consulClient.RemoveWorkload(workloadServices)
+		h.consulClient.RemoveWorkload("groupServiceHook.deregister (canary)", workloadServices)
 	}
 }
 

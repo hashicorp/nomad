@@ -348,6 +348,21 @@ type operations struct {
 	deregChecks   []string
 }
 
+func (o operations) empty() bool {
+	switch {
+	case len(o.regServices) > 0:
+		return false
+	case len(o.regChecks) > 0:
+		return false
+	case len(o.deregServices) > 0:
+		return false
+	case len(o.deregChecks) > 0:
+		return false
+	default:
+		return true
+	}
+}
+
 // AllocRegistration holds the status of services registered for a particular
 // allocations by task.
 type AllocRegistration struct {
@@ -565,6 +580,19 @@ const (
 	syncNewOps
 )
 
+func (sr syncReason) String() string {
+	switch sr {
+	case syncPeriodic:
+		return "periodic"
+	case syncShutdown:
+		return "shutdown"
+	case syncNewOps:
+		return "operations"
+	default:
+		panic("sync reason")
+	}
+}
+
 // Run the Consul main loop which retries operations against Consul. It should
 // be called exactly once.
 func (c *ServiceClient) Run() {
@@ -679,7 +707,8 @@ INIT:
 }
 
 // commit operations unless already shutting down.
-func (c *ServiceClient) commit(ops *operations) {
+func (c *ServiceClient) commit(from string, ops *operations) {
+	fmt.Println("commit ops, from:", from)
 	select {
 	case c.opCh <- ops:
 	case <-c.shutdownCh:
@@ -713,6 +742,10 @@ func (c *ServiceClient) merge(ops *operations) {
 
 // sync enqueued operations.
 func (c *ServiceClient) sync(reason syncReason) error {
+
+	fmt.Printf("SYNC(%s) @ %s...\n", reason, time.Now())
+	defer fmt.Printf("END SYNC(%s)\n", reason)
+
 	sreg, creg, sdereg, cdereg := 0, 0, 0, 0
 	var err error
 
@@ -742,8 +775,10 @@ func (c *ServiceClient) sync(reason syncReason) error {
 
 	// Remove Nomad services in Consul but unknown to Nomad.
 	for id := range servicesInConsul {
+		fmt.Println(" maybe remove service id:", id)
 		if _, ok := c.services[id]; ok {
 			// Known service, skip
+			fmt.Println("  -> skip A")
 			continue
 		}
 
@@ -753,22 +788,27 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		// registered by client agents
 		if !isNomadService(id) || !c.isClientAgent {
 			// Not managed by Nomad, skip
+			fmt.Println("  -> skip B")
 			continue
 		}
 
 		// Ignore unknown services during probation
 		if inProbation && !c.explicitlyDeregisteredServices[id] {
+			fmt.Println("  -> skip C")
 			continue
 		}
 
 		// Ignore if this is a service for a Nomad managed sidecar proxy.
 		if isNomadSidecar(id, c.services) {
+			fmt.Println("  -> skip D")
 			continue
 		}
 
 		// Unknown Nomad managed service; kill
 		ns := servicesInConsul[id].Namespace
+		fmt.Printf("  -> killing service %s/%s\n", ns, id)
 		if err := c.agentAPI.ServiceDeregisterOpts(id, &api.QueryOptions{Namespace: ns}); err != nil {
+			fmt.Println("   kill service err:", err)
 			if isOldNomadService(id) {
 				// Don't hard-fail on old entries. See #3620
 				continue
@@ -777,6 +817,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
 		}
+		fmt.Printf("   killed service %s/%s\n", ns, id)
 		sdereg++
 		metrics.IncrCounter([]string{"client", "consul", "service_deregistrations"}, 1)
 	}
@@ -810,10 +851,12 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		}
 	}
 
-	// Remove Nomad checks in Consul but unknown locally
+	// Remove Nomad checks in Consul but unknown to Nomad.
 	for id, check := range checksInConsul {
+		fmt.Println(" maybe remove check id:", id)
 		if _, ok := c.checks[id]; ok {
 			// Known check, leave it
+			fmt.Println("  -> skip A")
 			continue
 		}
 
@@ -823,21 +866,26 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		// registered by client agents
 		if !isNomadService(check.ServiceID) || !c.isClientAgent || !isNomadCheck(check.CheckID) {
 			// Service not managed by Nomad, skip
+			fmt.Println("  -> skip B")
 			continue
 		}
 
 		// Ignore unknown services during probation
 		if inProbation && !c.explicitlyDeregisteredChecks[id] {
+			fmt.Println("  -> skip C")
 			continue
 		}
 
 		// Ignore if this is a check for a Nomad managed sidecar proxy.
 		if isNomadSidecar(check.ServiceID, c.services) {
+			fmt.Println("  -> skip D")
 			continue
 		}
 
 		// Unknown Nomad managed check; remove
+		fmt.Printf("  -> killing check %s/%s\n", check.Namespace, id)
 		if err := c.agentAPI.CheckDeregisterOpts(id, &api.QueryOptions{Namespace: check.Namespace}); err != nil {
+			fmt.Println("   kill check err:", err)
 			if isOldNomadService(check.ServiceID) {
 				// Don't hard-fail on old entries.
 				continue
@@ -846,6 +894,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return err
 		}
+		fmt.Printf("   killed check %s/%s\n", check.Namespace, id)
 		cdereg++
 		metrics.IncrCounter([]string{"client", "consul", "check_deregistrations"}, 1)
 	}
@@ -948,7 +997,7 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 	}
 
 	// Now add them to the registration queue
-	c.commit(&ops)
+	c.commit("register agent", &ops)
 
 	// Record IDs for deregistering on shutdown
 	for _, id := range ops.regServices {
@@ -1070,6 +1119,8 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 
+	fmt.Println("SH, register service:", serviceReg.Name, serviceReg.ID, serviceReg.Kind)
+
 	// Build the check registrations
 	checkRegs, err := c.checkRegs(id, service, workload, sreg)
 	if err != nil {
@@ -1078,6 +1129,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	for _, registration := range checkRegs {
 		sreg.checkIDs[registration.ID] = struct{}{}
 		ops.regChecks = append(ops.regChecks, registration)
+		fmt.Println("  -> register check:", registration.ID)
 	}
 
 	return sreg, nil
@@ -1151,7 +1203,7 @@ func (c *ServiceClient) RegisterWorkload(workload *WorkloadServices) error {
 	// Add the workload to the allocation's registration
 	c.addRegistrations(workload.AllocID, workload.Name(), t)
 
-	c.commit(ops)
+	c.commit("register-workload", ops)
 
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
@@ -1275,7 +1327,7 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 	// Add the task to the allocation's registration
 	c.addRegistrations(newWorkload.AllocID, newWorkload.Name(), regs)
 
-	c.commit(ops)
+	c.commit("update-workload", ops)
 
 	// Start watching checks. Done after service registrations are built
 	// since an error building them could leak watches.
@@ -1294,16 +1346,20 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 // RemoveWorkload from Consul. Removes all service entries and checks.
 //
 // Actual communication with Consul is done asynchronously (see Run).
-func (c *ServiceClient) RemoveWorkload(workload *WorkloadServices) {
+func (c *ServiceClient) RemoveWorkload(from string, workload *WorkloadServices) {
 	ops := operations{}
+
+	fmt.Println("ServiceClient.RemoveWorkload from:", from)
 
 	for _, service := range workload.Services {
 		id := MakeAllocServiceID(workload.AllocID, workload.Name(), service)
 		ops.deregServices = append(ops.deregServices, id)
+		fmt.Println("SH Remove service:", id)
 
 		for _, check := range service.Checks {
 			cid := MakeCheckID(id, check)
 			ops.deregChecks = append(ops.deregChecks, cid)
+			fmt.Println(" -> remove check:", cid)
 
 			if check.TriggersRestarts() {
 				c.checkWatcher.Unwatch(cid)
@@ -1315,7 +1371,9 @@ func (c *ServiceClient) RemoveWorkload(workload *WorkloadServices) {
 	c.removeRegistration(workload.AllocID, workload.Name())
 
 	// Now add them to the deregistration fields; main Run loop will update
-	c.commit(&ops)
+
+	c.commit("remove-workload", &ops)
+
 }
 
 // normalizeNamespace will turn the "default" namespace into the empty string,

@@ -75,7 +75,7 @@ func (m *MockConsulServiceClient) RegisterWorkload(svcs *consul.WorkloadServices
 	return nil
 }
 
-func (m *MockConsulServiceClient) RemoveWorkload(svcs *consul.WorkloadServices) {
+func (m *MockConsulServiceClient) RemoveWorkload(from string, svcs *consul.WorkloadServices) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.logger.Trace("RemoveWorkload", "alloc_id", svcs.AllocID, "name", svcs.Name(),

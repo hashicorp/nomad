@@ -1,6 +1,8 @@
 package consul
 
 import (
+	"strings"
+
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -102,4 +104,15 @@ func (ws *WorkloadServices) Name() string {
 	}
 
 	return "group-" + ws.Group
+}
+
+func (ws *WorkloadServices) String() string {
+	var sb strings.Builder
+	sb.WriteString("ws[")
+	sb.WriteString(ws.Name())
+	for _, service := range ws.Services {
+		sb.WriteString(" " + service.Name)
+	}
+	sb.WriteString("]")
+	return sb.String()
 }
