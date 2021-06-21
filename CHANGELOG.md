@@ -2,6 +2,7 @@
 
 IMPROVEMENTS:
 * cli: Added `-monitor` flag to `deployment status` command and automatically monitor deployments from `job run` command. [[GH-10661](https://github.com/hashicorp/nomad/pull/10661)]
+* cli: Added remainder of available pprof profiles to `nomad operator debug` capture. [[GH-10748](https://github.com/hashicorp/nomad/issues/10748)]
 * consul/connect: Validate Connect service upstream address uniqueness within task group [[GH-7833](https://github.com/hashicorp/nomad/issues/7833)]
 * deps: Update gopsutil for multisocket cpuinfo detection performance fix [[GH-10761](https://github.com/hashicorp/nomad/pull/10790)]
 * docker: Tasks using `network.mode = "bridge"` that don't set their `network_mode` will receive a `/etc/hosts` file that includes the pause container's hostname and any `extra_hosts`. [[GH-10766](https://github.com/hashicorp/nomad/issues/10766)]
