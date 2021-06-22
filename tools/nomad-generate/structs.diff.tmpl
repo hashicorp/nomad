@@ -1,0 +1,11 @@
+package structs
+
+import (
+"github.com/hashicorp/nomad/helper"
+)
+
+{{ range $targetType := .Targets -}}
+{{ if $targetType.IsDiff -}}
+
+{{- end}}
+{{- end}}

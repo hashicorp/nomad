@@ -1,0 +1,82 @@
+package structs
+
+import (
+       "github.com/hashicorp/nomad/helper"
+)
+
+{{ range $targetType := .Targets -}}
+{{ if $targetType.IsCopy -}}
+{{ $old := $targetType.Abbr }}
+func ({{$old}} *{{$targetType.Name}}) Copy() *{{$targetType.Name}} {
+
+	if {{ $old }} == nil {
+		return nil
+	}
+	xx := new({{$targetType.Name}})
+	*xx = *{{$old}}
+
+{{- range $field := .Fields }}
+
+    {{ $nf := printf "xx.%s" $field.Name }}
+    {{ $of := printf "%s.%s" $old $field.Name }}
+
+    {{- if $field.IsPointer }}
+      {{ $nf }} = {{ $of }}.Copy()
+    {{- end}}
+
+    {{- if $field.IsStruct }}
+      {{ if $field.IsCopier }}
+        {{ $nf }} = {{ $of }}.Copy()
+      {{ else }}
+        if {{ $of }} == nil {
+            {{ $nf }} = nil
+        } else {
+            {{ $nf }} = new({{$field.TypeName}})
+            *{{ $nf }} = *{{ $of }}
+        }
+      {{- end}}
+    {{- end}}
+
+    {{- if $field.IsMap }}
+      {{ if $field.ValueType.IsCopier }}
+      {{ $nf }} = map[{{$field.KeyType}}]{{$field.ValueType}}{}
+        for k, v := range {{ $of }} {
+            {{ $nf }}[k] = v.Copy()
+        }
+      {{ else if and (eq $field.KeyType.TypeName "string") (eq $field.ValueType.TypeName "string") }}
+        {{ $nf }} = helper.CopyMapStringString({{ $of }})
+      {{ else if and (eq $field.KeyType "string") (eq $field.ValueType "int") }}
+        {{ $nf }} = helper.CopyMapStringInt({{ $of }})
+      {{ else if $field.KeyType eq "string" and $field.ValueType eq "float64" }}
+        {{ $nf }} = helper.CopyMapStringFloat64({{ $of }})
+      {{ else }}
+        {{ $nf }} = map[{{$field.KeyType}}]{{$field.ValueType}}{}
+        for k, v := range {{ $of }} {
+            {{ $nf }}[k] = v
+        }
+      {{ end }}
+    {{- end}}
+
+    {{- if $field.IsArray }}
+      {{ if and $field.ValueType $field.ValueType.IsCopier }}
+        {{ $nf }} = make([]{{$field.ValueType.TypeName}}, len({{ $of }}))
+        for _, v := range {{ $of }} {
+            {{ $nf }} = append({{ $nf }}, v.Copy())
+        }
+      {{ else if eq $field.ValueType.TypeName "string" }}
+        {{ $nf }} = helper.CopySliceString({{ $of }})
+      {{ else if eq $field.ValueType.TypeName "int" }}
+        {{ $nf }} = helper.CopySliceInt({{ $of }})
+      {{ else }}
+        {{ $nf }} = make([]{{$field.ValueType.TypeName}}, len({{ $of }}))
+        for _, v := range {{ $of }} {
+            {{ $nf }} = append({{ $nf }}, v)
+        }
+      {{- end}}
+    {{- end}}
+
+{{- end }}
+	return xx
+}
+{{- end}}
+{{- end}}

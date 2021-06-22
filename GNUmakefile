@@ -137,6 +137,7 @@ deps:  ## Install build and development dependencies
 	go install golang.org/x/tools/cmd/stringer@v0.18.0
 	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.6.1
 	go install github.com/shoenig/go-modtool@v0.2.0
+	cd ./tools/nomad-generate && go install .
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -216,6 +217,13 @@ generate-structs: LOCAL_PACKAGES = $(shell go list ./...)
 generate-structs: ## Update generated code
 	@echo "==> Running go generate..."
 	@go generate $(LOCAL_PACKAGES)
+
+# this is run by generate-structs but is available here so that developers can
+# generate struct methods without generating all the serialization code as
+# well.
+.PHONY: generate-struct-methods
+generate-struct-methods:
+	go generate -run "nomad-generate" ./nomad/structs
 
 .PHONY: proto
 proto: ## Generate protobuf bindings
