@@ -49,15 +49,30 @@ host. With the Docker task driver, you can use the `privileged = true`
 configuration, but no other default task drivers currently have this
 option.
 
-~> **Note:** During node drains, jobs that claim volumes must be moved before
-the `node` or `monolith` plugin for those volumes. You should run `node` or
-`monolith` plugins as [`system`][system] jobs and use the `-ignore-system`
-flag on `nomad node drain` to ensure that the plugins are running while the
-node is being drained.
+## Recommendations for Deploying CSI Plugins
 
-~> **Note:** Only one plugin instance of a given plugin ID and type
-(controller or node) should be deployed on any given client node. Use a
-constraint as shown below.
+CSI plugins run as Nomad jobs but after mounting the volume are not in the
+data path for the volume. Jobs that mount volumes write and read directly to
+the volume via a bind-mount and there is no communication between the job and
+the CSI plugin. But when an allocation that mounts a volume stops, Nomad will
+need to communicate with the plugin on that allocation's node to unmount the
+volume. This has implications on how to deploy CSI plugins:
+
+* During node drains, jobs that claim volumes must be moved before the `node`
+  or `monolith` plugin for those volumes. You should run `node` or `monolith`
+  plugins as [`system`][system] jobs and use the `-ignore-system` flag on
+  `nomad node drain` to ensure that the plugins are running while the node is
+  being drained.
+
+* Only one plugin instance of a given plugin ID and type (controller or node)
+  should be deployed on any given client node. Use a constraint as shown
+  below.
+
+* Some plugins will create volumes only in the same location as the
+  plugin. For example, the AWS EBS plugin will create and mount volumes only
+  within the same Availability Zone. You should deploy these plugins with a
+  unique-per-AZ `plugin_id` to allow Nomad to place allocations in the correct
+  AZ.
 
 ## `csi_plugin` Examples
 
