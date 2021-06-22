@@ -449,20 +449,6 @@ func parseConsulLinkedService(o *ast.ObjectItem) (*api.ConsulLinkedService, erro
 		return nil, err
 	}
 
-	// For some reason, this decoder thinks the 3 cert fields are unused,
-	// but it does parse the name & sni fields properly.
-	if v, ok := m["ca_file"]; ok {
-		service.CAFile = v.(string)
-	}
-
-	if v, ok := m["cert_file"]; ok {
-		service.CertFile = v.(string)
-	}
-
-	if v, ok := m["key_file"]; ok {
-		service.KeyFile = v.(string)
-	}
-
 	return &service, nil
 }
 
@@ -611,12 +597,6 @@ func parseTerminatingConfigEntry(o *ast.ObjectItem) (*api.ConsulTerminatingConfi
 	}
 
 	var terminating api.ConsulTerminatingConfigEntry
-	var m map[string]interface{}
-	if err := hcl.DecodeObject(&m, o.Val); err != nil {
-		return nil, err
-	}
-
-	delete(m, "service")
 
 	// Parse service(s)
 
