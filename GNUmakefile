@@ -109,6 +109,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+	cd ./tools/nomad-generate && go install .
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -187,6 +188,13 @@ generate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
 generate-structs: ## Update generated code
 	@echo "--> Running go generate..."
 	@go generate $(LOCAL_PACKAGES)
+
+# this is run by generate-structs but is available here so that developers can
+# generate struct methods without generating all the serialization code as
+# well.
+.PHONY: generate-struct-methods
+generate-struct-methods:
+	go generate -run "nomad-generate" ./nomad/structs
 
 .PHONY: proto
 proto:
