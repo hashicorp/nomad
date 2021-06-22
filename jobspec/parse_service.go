@@ -225,6 +225,7 @@ func parseGateway(o *ast.ObjectItem) (*api.ConsulGateway, error) {
 	valid := []string{
 		"proxy",
 		"ingress",
+		"terminating",
 	}
 
 	if err := checkHCLKeys(o.Val, valid); err != nil {
@@ -239,6 +240,7 @@ func parseGateway(o *ast.ObjectItem) (*api.ConsulGateway, error) {
 
 	delete(m, "proxy")
 	delete(m, "ingress")
+	delete(m, "terminating")
 
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
@@ -273,15 +275,30 @@ func parseGateway(o *ast.ObjectItem) (*api.ConsulGateway, error) {
 
 	// extract and parse the ingress block
 	io := listVal.Filter("ingress")
-	if len(io.Items) != 1 {
-		// in the future, may be terminating or mesh block instead
-		return nil, fmt.Errorf("must have one 'ingress' block")
+	if len(io.Items) == 1 {
+		ingress, err := parseIngressConfigEntry(io.Items[0])
+		if err != nil {
+			return nil, fmt.Errorf("ingress, %v", err)
+		}
+		gateway.Ingress = ingress
 	}
-	ingress, err := parseIngressConfigEntry(io.Items[0])
-	if err != nil {
-		return nil, fmt.Errorf("ingress, %v", err)
+
+	if len(io.Items) > 1 {
+		return nil, fmt.Errorf("ingress, %s", "multiple ingress stanzas not allowed")
 	}
-	gateway.Ingress = ingress
+
+	to := listVal.Filter("terminating")
+	if len(to.Items) == 1 {
+		terminating, err := parseTerminatingConfigEntry(to.Items[0])
+		if err != nil {
+			return nil, fmt.Errorf("terminating, %v", err)
+		}
+		gateway.Terminating = terminating
+	}
+
+	if len(to.Items) > 1 {
+		return nil, fmt.Errorf("terminating, %s", "multiple terminating stanzas not allowed")
+	}
 
 	return &gateway, nil
 }
@@ -391,6 +408,39 @@ func parseConsulIngressService(o *ast.ObjectItem) (*api.ConsulIngressService, er
 	}
 
 	var service api.ConsulIngressService
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, o.Val); err != nil {
+		return nil, err
+	}
+
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result: &service,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := dec.Decode(m); err != nil {
+		return nil, err
+	}
+
+	return &service, nil
+}
+
+func parseConsulLinkedService(o *ast.ObjectItem) (*api.ConsulLinkedService, error) {
+	valid := []string{
+		"name",
+		"ca_file",
+		"cert_file",
+		"key_file",
+		"sni",
+	}
+
+	if err := checkHCLKeys(o.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "service ->")
+	}
+
+	var service api.ConsulLinkedService
 	var m map[string]interface{}
 	if err := hcl.DecodeObject(&m, o.Val); err != nil {
 		return nil, err
@@ -543,6 +593,41 @@ func parseIngressConfigEntry(o *ast.ObjectItem) (*api.ConsulIngressConfigEntry, 
 	}
 
 	return &ingress, nil
+}
+
+func parseTerminatingConfigEntry(o *ast.ObjectItem) (*api.ConsulTerminatingConfigEntry, error) {
+	valid := []string{
+		"service",
+	}
+
+	if err := checkHCLKeys(o.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "terminating ->")
+	}
+
+	var terminating api.ConsulTerminatingConfigEntry
+
+	// Parse service(s)
+
+	var listVal *ast.ObjectList
+	if ot, ok := o.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return nil, fmt.Errorf("terminating: should be an object")
+	}
+
+	lo := listVal.Filter("service")
+	if len(lo.Items) > 0 {
+		terminating.Services = make([]*api.ConsulLinkedService, len(lo.Items))
+		for i := range lo.Items {
+			service, err := parseConsulLinkedService(lo.Items[i])
+			if err != nil {
+				return nil, err
+			}
+			terminating.Services[i] = service
+		}
+	}
+
+	return &terminating, nil
 }
 
 func parseSidecarService(o *ast.ObjectItem) (*api.ConsulSidecarService, error) {
