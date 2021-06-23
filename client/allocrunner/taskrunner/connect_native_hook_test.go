@@ -165,21 +165,45 @@ func TestConnectNativeHook_tlsEnv(t *testing.T) {
 func TestConnectNativeHook_bridgeEnv_bridge(t *testing.T) {
 	t.Parallel()
 
-	hook := new(connectNativeHook)
-	hook.alloc = mock.ConnectNativeAlloc("bridge")
+	t.Run("without tls", func(t *testing.T) {
+		hook := new(connectNativeHook)
+		hook.alloc = mock.ConnectNativeAlloc("bridge")
 
-	t.Run("consul address env not preconfigured", func(t *testing.T) {
-		result := hook.bridgeEnv(nil)
-		require.Equal(t, map[string]string{
-			"CONSUL_HTTP_ADDR": "unix:///alloc/tmp/consul_http.sock",
-		}, result)
+		t.Run("consul address env not preconfigured", func(t *testing.T) {
+			result := hook.bridgeEnv(nil)
+			require.Equal(t, map[string]string{
+				"CONSUL_HTTP_ADDR": "unix:///alloc/tmp/consul_http.sock",
+			}, result)
+		})
+
+		t.Run("consul address env is preconfigured", func(t *testing.T) {
+			result := hook.bridgeEnv(map[string]string{
+				"CONSUL_HTTP_ADDR": "10.1.1.1",
+			})
+			require.Empty(t, result)
+		})
 	})
 
-	t.Run("consul address env is preconfigured", func(t *testing.T) {
-		result := hook.bridgeEnv(map[string]string{
-			"CONSUL_HTTP_ADDR": "10.1.1.1",
+	t.Run("with tls", func(t *testing.T) {
+		hook := new(connectNativeHook)
+		hook.alloc = mock.ConnectNativeAlloc("bridge")
+		hook.consulConfig.SSL = "true"
+
+		t.Run("consul tls server name not preconfigured", func(t *testing.T) {
+			result := hook.bridgeEnv(nil)
+			require.Equal(t, map[string]string{
+				"CONSUL_HTTP_ADDR":       "unix:///alloc/tmp/consul_http.sock",
+				"CONSUL_TLS_SERVER_NAME": "localhost",
+			}, result)
 		})
-		require.Empty(t, result)
+
+		t.Run("consul tls server name preconfigured", func(t *testing.T) {
+			result := hook.bridgeEnv(map[string]string{
+				"CONSUL_HTTP_ADDR":       "10.1.1.1",
+				"CONSUL_TLS_SERVER_NAME": "consul.local",
+			})
+			require.Empty(t, result)
+		})
 	})
 }
 
