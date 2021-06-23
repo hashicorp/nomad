@@ -329,6 +329,10 @@
         ]
       },
       {
+        "title": "curl",
+        "path": "commands/curl"
+      },
+      {
         "title": "deployment",
         "routes": [
           {

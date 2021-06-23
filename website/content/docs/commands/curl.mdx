@@ -1,0 +1,54 @@
+---
+layout: docs
+page_title: 'Commands: curl'
+description: |
+  curl is a utility command for accessing Nomad's HTTP API similar to the
+  popular open source program of the same name.
+---
+
+# Command: curl
+
+The curl command allows easy access to Nomad's HTTP API similar to the popular
+[curl] program. Nomad's curl command reads [environment variables][envvars] to
+dramatically ease HTTP API access compared to trying to manually write the same
+command with the third party `curl` command.
+
+For example for the following environment:
+
+```
+NOMAD_TOKEN=d4434353-c797-19e4-a14d-4068241f86a4
+NOMAD_CACERT=$HOME/.nomad/ca.pem
+NOMAD_CLIENT_CERT=$HOME/.nomad/cli.pem
+NOMAD_CLIENT_KEY=$HOME/.nomad/client-key.pem
+NOMAD_TLS_SERVER_NAME=client.global.nomad
+NOMAD_ADDR=https://remote.client123.internal:4646
+```
+
+Accessing Nomad's [`/v1/metrics`][metrics] HTTP endpoint with `nomad curl`
+would require:
+
+```
+nomad curl /v1/metrics
+```
+
+Performing the same request using the external `curl` tool would require:
+
+```
+curl \
+  --cacert "$HOME/.nomad/ca.pem" \
+  --cert "$HOME/.nomad/client.pem" \
+  --key "$HOME/.nomad/client-key.pem" \
+  --connect-to "client.global.nomad:4646:remote.client123.internal:4646" \
+  -H "X-Nomad-Token: ${NOMAD_TOKEN}" \
+  https://client.global.nomad:4646/v1/metrics
+```
+
+The `-dryrun` flag for `nomad curl` will output a curl command instead of
+performing the HTTP request immediately. Note that you do *not* need the 3rd
+party `curl` command installed to use `nomad curl`. The `curl` output from
+`-dryrun` is intended for use in scripts or running in locations without a
+Nomad binary present.
+
+[curl]: https://curl.se/
+[envvars]: /docs/commands#environment-variables
+[metrics]: /api-docs/metrics#metrics-http-api
