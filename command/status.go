@@ -30,7 +30,7 @@ General Options:
 
 Status Options:
 
-  -verbose
+  --verbose, -v
     Display full information.
 `
 
@@ -44,7 +44,7 @@ func (c *StatusCommand) Synopsis() string {
 func (c *StatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-verbose": complete.PredictNothing,
+			"--verbose": complete.PredictNothing,
 		})
 }
 
@@ -77,7 +77,7 @@ func (c *StatusCommand) AutocompleteArgs() complete.Predictor {
 func (c *StatusCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet("status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&c.verbose, "verbose", false, "")
+	flags.BoolVarP(&c.verbose, "verbose", "v", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments: %q", err))

@@ -1,7 +1,6 @@
 package command
 
 import (
-	"flag"
 	"os"
 	"strings"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 	"github.com/posener/complete"
+	flag "github.com/spf13/pflag"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -66,9 +66,9 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 	// FlagSetClient is used to enable the settings for specifying
 	// client connectivity options.
 	if fs&FlagSetClient != 0 {
-		f.StringVar(&m.flagAddress, "address", "", "")
-		f.StringVar(&m.region, "region", "", "")
-		f.StringVar(&m.namespace, "namespace", "", "")
+		f.StringVarP(&m.flagAddress, "address", "a", "", "")
+		f.StringVarP(&m.region, "region", "r", "", "")
+		f.StringVarP(&m.namespace, "namespace", "n", "", "")
 		f.BoolVar(&m.noColor, "no-color", false, "")
 		f.StringVar(&m.caCert, "ca-cert", "", "")
 		f.StringVar(&m.caPath, "ca-path", "", "")
@@ -78,7 +78,6 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 		f.StringVar(&m.tlsServerName, "tls-server-name", "", "")
 		f.BoolVar(&m.insecure, "tls-skip-verify", false, "")
 		f.StringVar(&m.token, "token", "", "")
-
 	}
 
 	f.SetOutput(&uiErrorWriter{ui: m.Ui})
@@ -93,18 +92,18 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 	}
 
 	return complete.Flags{
-		"-address":         complete.PredictAnything,
-		"-region":          complete.PredictAnything,
-		"-namespace":       NamespacePredictor(m.Client, nil),
-		"-no-color":        complete.PredictNothing,
-		"-ca-cert":         complete.PredictFiles("*"),
-		"-ca-path":         complete.PredictDirs("*"),
-		"-client-cert":     complete.PredictFiles("*"),
-		"-client-key":      complete.PredictFiles("*"),
-		"-insecure":        complete.PredictNothing,
-		"-tls-server-name": complete.PredictNothing,
-		"-tls-skip-verify": complete.PredictNothing,
-		"-token":           complete.PredictAnything,
+		"--address":         complete.PredictAnything,
+		"--region":          complete.PredictAnything,
+		"--namespace":       NamespacePredictor(m.Client, nil),
+		"--no-color":        complete.PredictNothing,
+		"--ca-cert":         complete.PredictFiles("*"),
+		"--ca-path":         complete.PredictDirs("*"),
+		"--client-cert":     complete.PredictFiles("*"),
+		"--client-key":      complete.PredictFiles("*"),
+		"--insecure":        complete.PredictNothing,
+		"--tls-server-name": complete.PredictNothing,
+		"--tls-skip-verify": complete.PredictNothing,
+		"--token":           complete.PredictAnything,
 	}
 }
 
@@ -172,19 +171,19 @@ const (
 func generalOptionsUsage(usageOpts usageOptsFlags) string {
 
 	helpText := `
-  -address=<addr>
+  --address=<addr>, -a <addr>
     The address of the Nomad server.
     Overrides the NOMAD_ADDR environment variable if set.
     Default = http://127.0.0.1:4646
 
-  -region=<region>
+  --region=<region>, -r <region>
     The region of the Nomad servers to forward commands to.
     Overrides the NOMAD_REGION environment variable if set.
     Defaults to the Agent's local region.
 `
 
 	namespaceText := `
-  -namespace=<namespace>
+  --namespace=<namespace>, -n <namespace>
     The target namespace for queries and actions bound to a namespace.
     Overrides the NOMAD_NAMESPACE environment variable if set.
     If set to '*', job and alloc subcommands query all namespaces authorized
@@ -196,40 +195,40 @@ func generalOptionsUsage(usageOpts usageOptsFlags) string {
 	// return red-colored text on error so we don't want to make this
 	// configurable
 	remainingText := `
-  -no-color
+  --no-color
     Disables colored command output. Alternatively, NOMAD_CLI_NO_COLOR may be
     set.
 
-  -ca-cert=<path>
+  --ca-cert=<path>
     Path to a PEM encoded CA cert file to use to verify the
     Nomad server SSL certificate. Overrides the NOMAD_CACERT
     environment variable if set.
 
-  -ca-path=<path>
+  --ca-path=<path>
     Path to a directory of PEM encoded CA cert files to verify
     the Nomad server SSL certificate. If both -ca-cert and
     -ca-path are specified, -ca-cert is used. Overrides the
     NOMAD_CAPATH environment variable if set.
 
-  -client-cert=<path>
+  --client-cert=<path>
     Path to a PEM encoded client certificate for TLS authentication
     to the Nomad server. Must also specify -client-key. Overrides
     the NOMAD_CLIENT_CERT environment variable if set.
 
-  -client-key=<path>
+  --client-key=<path>
     Path to an unencrypted PEM encoded private key matching the
     client certificate from -client-cert. Overrides the
     NOMAD_CLIENT_KEY environment variable if set.
 
-  -tls-server-name=<value>
+  --tls-server-name=<value>
     The server name to use as the SNI host when connecting via
     TLS. Overrides the NOMAD_TLS_SERVER_NAME environment variable if set.
 
-  -tls-skip-verify
+  --tls-skip-verify
     Do not verify TLS certificate. This is highly not recommended. Verification
     will also be skipped if NOMAD_SKIP_VERIFY is set.
 
-  -token
+  --token
     The SecretID of an ACL token to use to authenticate API requests with.
     Overrides the NOMAD_TOKEN environment variable if set.
 `
@@ -248,4 +247,5 @@ type funcVar func(s string) error
 
 func (f funcVar) Set(s string) error { return f(s) }
 func (f funcVar) String() string     { return "" }
+func (f funcVar) Type() string       { return "string" }
 func (f funcVar) IsBoolFlag() bool   { return false }

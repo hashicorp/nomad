@@ -28,7 +28,7 @@ General Options:
 
 Pause Options:
 
-  -verbose
+  --verbose, -v
     Display full information.
 `
 	return strings.TrimSpace(helpText)
@@ -41,7 +41,7 @@ func (c *DeploymentPauseCommand) Synopsis() string {
 func (c *DeploymentPauseCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-verbose": complete.PredictNothing,
+			"--verbose": complete.PredictNothing,
 		})
 }
 
@@ -67,7 +67,7 @@ func (c *DeploymentPauseCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

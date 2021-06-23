@@ -1,10 +1,11 @@
 package command
 
 import (
-	"flag"
 	"reflect"
 	"sort"
 	"testing"
+
+	flag "github.com/spf13/pflag"
 )
 
 func TestMeta_FlagSet(t *testing.T) {

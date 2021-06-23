@@ -23,16 +23,16 @@ General Options:
 
 Update Options:
 
-  -name=""
+  --name=""
     Sets the human readable name for the ACL token.
 
-  -type="client"
+  --type="client"
     Sets the type of token. Must be one of "client" (default), or "management".
 
-  -global=false
+  --global=false
     Toggles the global mode of the token. Global tokens are replicated to all regions.
 
-  -policy=""
+  --policy=""
     Specifies a policy to associate with the token. Can be specified multiple times,
     but only with client type tokens.
 `
@@ -43,10 +43,10 @@ Update Options:
 func (c *ACLTokenUpdateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"name":   complete.PredictAnything,
-			"type":   complete.PredictAnything,
-			"global": complete.PredictNothing,
-			"policy": complete.PredictAnything,
+			"--name":   complete.PredictAnything,
+			"--type":   complete.PredictAnything,
+			"--global": complete.PredictNothing,
+			"--policy": complete.PredictAnything,
 		})
 }
 

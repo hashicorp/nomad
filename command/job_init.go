@@ -31,10 +31,10 @@ Alias: nomad init <filename>
 
 Init Options:
 
-  -short
+  --short
     If the short flag is set, a minimal jobspec without comments is emitted.
 
-  -connect
+  --connect
     If the connect flag is set, the jobspec includes Consul Connect integration.
 `
 	return strings.TrimSpace(helpText)
@@ -47,7 +47,7 @@ func (c *JobInitCommand) Synopsis() string {
 func (c *JobInitCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-short": complete.PredictNothing,
+			"--short": complete.PredictNothing,
 		})
 }
 
@@ -63,8 +63,8 @@ func (c *JobInitCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&short, "short", false, "")
-	flags.BoolVar(&connect, "connect", false, "")
+	flags.BoolVarP(&short, "short", "s", false, "")
+	flags.BoolVarP(&connect, "connect", "c", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

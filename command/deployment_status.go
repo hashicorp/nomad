@@ -40,16 +40,16 @@ General Options:
 
 Status Options:
 
-  -verbose
+  --verbose, -v
     Display full information.
 
-  -json
+  --json, -j
     Output the deployment in its JSON format.
 
-  -monitor
+  --monitor, -m
     Enter monitor mode to poll for updates to the deployment status.
 
-  -t
+  --template, -t
     Format and display deployment using a Go template.
 `
 	return strings.TrimSpace(helpText)
@@ -62,10 +62,10 @@ func (c *DeploymentStatusCommand) Synopsis() string {
 func (c *DeploymentStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-verbose": complete.PredictNothing,
-			"-json":    complete.PredictNothing,
-			"-monitor": complete.PredictNothing,
-			"-t":       complete.PredictAnything,
+			"--verbose":  complete.PredictNothing,
+			"--json":     complete.PredictNothing,
+			"--monitor":  complete.PredictNothing,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -92,10 +92,10 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.BoolVar(&json, "json", false, "")
-	flags.BoolVar(&monitor, "monitor", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
+	flags.BoolVarP(&json, "json", "j", false, "")
+	flags.BoolVarP(&monitor, "monitor", "m", false, "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

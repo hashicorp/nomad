@@ -40,6 +40,10 @@ func (b *BoolValue) String() string {
 	return fmt.Sprintf("%v", current)
 }
 
+func (b *BoolValue) Type() string {
+	return "bool"
+}
+
 // DurationValue provides a flag value that's aware if it has been set.
 type DurationValue struct {
 	v *time.Duration
@@ -71,6 +75,10 @@ func (d *DurationValue) String() string {
 	return current.String()
 }
 
+func (d *DurationValue) Type() string {
+	return "duration"
+}
+
 // UintValue provides a flag value that's aware if it has been set.
 type UintValue struct {
 	v *uint
@@ -100,4 +108,8 @@ func (u *UintValue) String() string {
 		current = *(u.v)
 	}
 	return fmt.Sprintf("%v", current)
+}
+
+func (u *UintValue) Type() string {
+	return "uint"
 }

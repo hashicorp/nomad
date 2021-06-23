@@ -29,7 +29,7 @@ General Options:
 
 Apply Options:
 
-  -description
+  --description
     Specifies a human readable description for the policy.
 
 `

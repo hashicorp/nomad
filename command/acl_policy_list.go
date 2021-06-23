@@ -27,10 +27,10 @@ General Options:
 
 List Options:
 
-  -json
+  --json, -j
     Output the ACL policies in a JSON format.
 
-  -t
+  --template, -t
     Format and display the ACL policies using a Go template.
 `
 
@@ -40,8 +40,8 @@ List Options:
 func (c *ACLPolicyListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json": complete.PredictNothing,
-			"-t":    complete.PredictAnything,
+			"--json":     complete.PredictNothing,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -61,8 +61,8 @@ func (c *ACLPolicyListCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVarP(&json, "json", "j", false, "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

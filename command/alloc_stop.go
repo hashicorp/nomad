@@ -32,13 +32,13 @@ General Options:
 
 Stop Specific Options:
 
-  -detach
+  --detach, -d
     Return immediately instead of entering monitor mode. After the
     stop command is submitted, a new evaluation ID is printed to the
     screen, which can be used to examine the rescheduling evaluation using the
     eval-status command.
 
-  -verbose
+  --verbose, -v
     Show full information.
 `
 	return strings.TrimSpace(helpText)
@@ -51,8 +51,8 @@ func (c *AllocStopCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&detach, "detach", false, "")
-	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVarP(&detach, "detach", "d", false, "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

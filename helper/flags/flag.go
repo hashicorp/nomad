@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// StringFlag implements the flag.Value interface and allows multiple
+// StringFlag implements the pflag.Value interface and allows multiple
 // calls to the same variable to append a list.
 type StringFlag []string
 
@@ -19,6 +19,10 @@ func (s *StringFlag) Set(value string) error {
 	return nil
 }
 
+func (s *StringFlag) Type() string {
+	return "string"
+}
+
 // FuncVar is a type of flag that accepts a function that is the string
 // given
 // by the user.
@@ -26,6 +30,7 @@ type FuncVar func(s string) error
 
 func (f FuncVar) Set(s string) error { return f(s) }
 func (f FuncVar) String() string     { return "" }
+func (f FuncVar) Type() string       { return "string" }
 func (f FuncVar) IsBoolFlag() bool   { return false }
 
 // FuncBoolVar is a type of flag that accepts a function, converts the
@@ -41,6 +46,7 @@ func (f FuncBoolVar) Set(s string) error {
 	return f(v)
 }
 func (f FuncBoolVar) String() string   { return "" }
+func (f FuncBoolVar) Type() string     { return "bool" }
 func (f FuncBoolVar) IsBoolFlag() bool { return true }
 
 // FuncDurationVar is a type of flag that
@@ -57,6 +63,7 @@ func (f FuncDurationVar) Set(s string) error {
 	return f(v)
 }
 func (f FuncDurationVar) String() string   { return "" }
+func (f FuncDurationVar) Type() string     { return "duration" }
 func (f FuncDurationVar) IsBoolFlag() bool { return false }
 
 // FuncOptionalStringVar is a flag that accepts a function which it
@@ -65,4 +72,5 @@ type FuncOptionalStringVar func(s string) error
 
 func (f FuncOptionalStringVar) Set(s string) error { return f(s) }
 func (f FuncOptionalStringVar) String() string     { return "" }
+func (f FuncOptionalStringVar) Type() string       { return "string" }
 func (f FuncOptionalStringVar) IsBoolFlag() bool   { return true }

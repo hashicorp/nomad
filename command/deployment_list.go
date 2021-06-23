@@ -27,13 +27,13 @@ General Options:
 
 List Options:
 
-  -json
+  --json, -j
     Output the deployments in a JSON format.
 
-  -t
+  --template, -t
     Format and display the deployments using a Go template.
 
-  -verbose
+  --verbose, -v
     Display full information.
 `
 	return strings.TrimSpace(helpText)
@@ -42,9 +42,9 @@ List Options:
 func (c *DeploymentListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json":    complete.PredictNothing,
-			"-t":       complete.PredictAnything,
-			"-verbose": complete.PredictNothing,
+			"--json":    complete.PredictNothing,
+			"--t":       complete.PredictAnything,
+			"--verbose": complete.PredictNothing,
 		})
 }
 
@@ -64,9 +64,9 @@ func (c *DeploymentListCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
+	flags.BoolVarP(&json, "json", "j", false, "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

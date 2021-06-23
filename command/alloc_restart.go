@@ -31,11 +31,11 @@ General Options:
 
 Restart Specific Options:
 
-  -task <task-name>
+  --task <task-name>
 	Specify the individual task to restart. If task name is given with both an 
 	argument and the '-task' option, preference is given to the '-task' option.
 
-  -verbose
+  --verbose, -v
     Show full information.
 `
 	return strings.TrimSpace(helpText)
@@ -49,8 +49,12 @@ func (c *AllocRestartCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+<<<<<<< HEAD
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.StringVar(&task, "task", "", "")
+=======
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
+>>>>>>> 61150a4b8... Switch to posix style flags
 
 	if err := flags.Parse(args); err != nil {
 		return 1

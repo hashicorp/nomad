@@ -40,19 +40,19 @@ General Options:
 
 Alloc Status Options:
 
-  -short
+  --short
     Display short output. Shows only the most recent task event.
 
-  -stats
+  --stats
     Display detailed resource usage statistics.
 
-  -verbose
+  --verbose, -v
     Show full information.
 
-  -json
+  --json, -j
     Output the allocation in its JSON format.
 
-  -t
+  --template, -t
     Format and display allocation using a Go template.
 `
 
@@ -66,10 +66,10 @@ func (c *AllocStatusCommand) Synopsis() string {
 func (c *AllocStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-short":   complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
-			"-json":    complete.PredictNothing,
-			"-t":       complete.PredictAnything,
+			"--short":    complete.PredictNothing,
+			"--verbose":  complete.PredictNothing,
+			"--json":     complete.PredictNothing,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -97,10 +97,10 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&short, "short", false, "")
-	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
 	flags.BoolVar(&displayStats, "stats", false, "")
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVarP(&json, "json", "j", false, "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

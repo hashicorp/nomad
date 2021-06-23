@@ -36,16 +36,16 @@ General Options:
 
 Monitor Specific Options:
 
-  -log-level <level>
+  --log-level <level>
     Sets the log level to monitor (default: INFO)
 
-  -node-id <node-id>
+  --node-id <node-id>
     Sets the specific node to monitor
 
-  -server-id <server-id>
+  --server-id <server-id>
     Sets the specific server to monitor
 
-  -json
+  --json, -j
     Sets log output to JSON format
   `
 	return strings.TrimSpace(helpText)
@@ -75,7 +75,7 @@ func (c *MonitorCommand) Run(args []string) int {
 	flags.StringVar(&logLevel, "log-level", "", "")
 	flags.StringVar(&nodeID, "node-id", "", "")
 	flags.StringVar(&serverID, "server-id", "", "")
-	flags.BoolVar(&logJSON, "json", false, "")
+	flags.BoolVarP(&logJSON, "json", "j", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

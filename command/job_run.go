@@ -73,7 +73,7 @@ General Options:
 
 Run Options:
 
-  -check-index
+  --check-index
     If set, the job is only registered or updated if the passed
     job modify index matches the server side version. If a check-index value of
     zero is passed, the job is only registered if it does not yet exist. If a
@@ -81,47 +81,47 @@ Run Options:
     known state. The use of this flag is most common in conjunction with plan
     command.
 
-  -detach
+  --detach, -d
     Return immediately instead of entering monitor mode. After job submission,
     the evaluation ID will be printed to the screen, which can be used to
     examine the evaluation using the eval-status command.
 
-  -hcl1
+  --hcl1
     Parses the job file as HCLv1.
 
-  -output
+  --output, -o
     Output the JSON that would be submitted to the HTTP API without submitting
     the job.
 
-  -policy-override
+  --policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
 
-  -preserve-counts
+  --preserve-counts
     If set, the existing task group counts will be preserved when updating a job.
 
-  -consul-token
+  --consul-token
     If set, the passed Consul token is stored in the job before sending to the
     Nomad servers. This allows passing the Consul token without storing it in
     the job file. This overrides the token found in $CONSUL_HTTP_TOKEN environment
     variable and that found in the job.
 
-  -vault-token
+  --vault-token
     If set, the passed Vault token is stored in the job before sending to the
     Nomad servers. This allows passing the Vault token without storing it in
     the job file. This overrides the token found in $VAULT_TOKEN environment
     variable and that found in the job.
 
-  -vault-namespace
+  --vault-namespace
     If set, the passed Vault namespace is stored in the job before sending to the
     Nomad servers.
 
-  -var 'key=value'
+  --var 'key=value'
     Variable for template, can be used multiple times.
 
-  -var-file=path
+  --var-file=path
     Path to HCL2 file containing user variables.
 
-  -verbose
+  --verbose, -v
     Display full information.
 `
 	return strings.TrimSpace(helpText)
@@ -134,18 +134,18 @@ func (c *JobRunCommand) Synopsis() string {
 func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-check-index":     complete.PredictNothing,
-			"-detach":          complete.PredictNothing,
-			"-verbose":         complete.PredictNothing,
-			"-consul-token":    complete.PredictNothing,
-			"-vault-token":     complete.PredictAnything,
-			"-vault-namespace": complete.PredictAnything,
-			"-output":          complete.PredictNothing,
-			"-policy-override": complete.PredictNothing,
-			"-preserve-counts": complete.PredictNothing,
-			"-hcl1":            complete.PredictNothing,
-			"-var":             complete.PredictAnything,
-			"-var-file":        complete.PredictFiles("*.var"),
+			"--check-index":     complete.PredictNothing,
+			"--detach":          complete.PredictNothing,
+			"--verbose":         complete.PredictNothing,
+			"--consul-token":    complete.PredictNothing,
+			"--vault-token":     complete.PredictAnything,
+			"--vault-namespace": complete.PredictAnything,
+			"--output":          complete.PredictNothing,
+			"--policy-override": complete.PredictNothing,
+			"--preserve-counts": complete.PredictNothing,
+			"--hcl1":            complete.PredictNothing,
+			"--var":             complete.PredictAnything,
+			"--var-file":        complete.PredictFiles("*.var"),
 		})
 }
 
@@ -162,9 +162,9 @@ func (c *JobRunCommand) Run(args []string) int {
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
-	flagSet.BoolVar(&detach, "detach", false, "")
-	flagSet.BoolVar(&verbose, "verbose", false, "")
-	flagSet.BoolVar(&output, "output", false, "")
+	flagSet.BoolVarP(&detach, "detach", "d", false, "")
+	flagSet.BoolVarP(&verbose, "verbose", "v", false, "")
+	flagSet.BoolVarP(&output, "output", "o", false, "")
 	flagSet.BoolVar(&override, "policy-override", false, "")
 	flagSet.BoolVar(&preserveCounts, "preserve-counts", false, "")
 	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")

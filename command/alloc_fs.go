@@ -49,31 +49,31 @@ General Options:
 
 FS Specific Options:
 
-  -H
+  --placeholder, -H
     Machine friendly output.
 
-  -verbose
+  --verbose, -v
     Show full information.
 
-  -job <job-id>
+  --job <job-id>
     Use a random allocation from the specified job ID.
 
-  -stat
+  --stat
     Show file stat information instead of displaying the file, or listing the directory.
 
-  -f
+  --follow, -f
     Causes the output to not stop when the end of the file is reached, but rather to
     wait for additional output.
 
-  -tail
+  --tail
     Show the files contents with offsets relative to the end of the file. If no
     offset is given, -n is defaulted to 10.
 
-  -n
+  --lines, -n
     Sets the tail location in best-efforted number of lines relative to the end
     of the file.
 
-  -c
+  --bytes, -c
     Sets the tail location in number of bytes relative to the end of the file.
 `
 	return strings.TrimSpace(helpText)
@@ -86,14 +86,14 @@ func (f *AllocFSCommand) Synopsis() string {
 func (c *AllocFSCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-H":       complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
-			"-job":     complete.PredictAnything,
-			"-stat":    complete.PredictNothing,
-			"-f":       complete.PredictNothing,
-			"-tail":    complete.PredictNothing,
-			"-n":       complete.PredictAnything,
-			"-c":       complete.PredictAnything,
+			"--placeholder": complete.PredictNothing, // TODO actually fill in: dereference-command-line?
+			"--verbose":     complete.PredictNothing,
+			"--job":         complete.PredictAnything,
+			"--stat":        complete.PredictNothing,
+			"--follow":      complete.PredictNothing,
+			"--tail":        complete.PredictNothing,
+			"--lines":       complete.PredictAnything,
+			"--bytes":       complete.PredictAnything,
 		})
 }
 
@@ -120,14 +120,14 @@ func (f *AllocFSCommand) Run(args []string) int {
 
 	flags := f.Meta.FlagSet(f.Name(), FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
-	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.BoolVar(&machine, "H", false, "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
+	flags.BoolVarP(&machine, "placeholder", "H", false, "")
 	flags.BoolVar(&job, "job", false, "")
 	flags.BoolVar(&stat, "stat", false, "")
-	flags.BoolVar(&follow, "f", false, "")
+	flags.BoolVarP(&follow, "follow", "f", false, "")
 	flags.BoolVar(&tail, "tail", false, "")
-	flags.Int64Var(&numLines, "n", -1, "")
-	flags.Int64Var(&numBytes, "c", -1, "")
+	flags.Int64VarP(&numLines, "lines", "n", -1, "")
+	flags.Int64VarP(&numBytes, "bytes", "c", -1, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

@@ -27,10 +27,10 @@ General Options:
 
 Agent Info Options:
 
-  -json
+  --json, -j
     Output the node in its JSON format.
 
-  -t
+  --template, -t
     Format and display node using a Go template.
 `
 	return strings.TrimSpace(helpText)
@@ -43,8 +43,8 @@ func (c *AgentInfoCommand) Synopsis() string {
 func (c *AgentInfoCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json": complete.PredictNothing,
-			"-t":    complete.PredictAnything,
+			"--json":     complete.PredictNothing,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -60,8 +60,8 @@ func (c *AgentInfoCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVarP(&json, "json", "j", false, "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing flags: %s", err))

@@ -44,20 +44,20 @@ General Options:
 
 Exec Specific Options:
 
-  -task <task-name>
+  --task <task-name>
     Sets the task to exec command in
 
-  -job
+  --job
     Use a random allocation from the specified job ID.
 
-  -i
+  --interactive, -i
     Pass stdin to the container, defaults to true.  Pass -i=false to disable.
 
-  -t
+  --tty, -t
     Allocate a pseudo-tty, defaults to true if stdin is detected to be a tty session.
     Pass -t=false to disable explicitly.
 
-  -e <escape_char>
+  --escape <escape_char>
     Sets the escape character for sessions with a pty (default: '~').  The escape
     character is only recognized at the beginning of a line.  The escape character
     followed by a dot ('.') closes the connection.  Setting the character to
@@ -73,11 +73,11 @@ func (l *AllocExecCommand) Synopsis() string {
 func (c *AllocExecCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"--task": complete.PredictAnything,
-			"-job":   complete.PredictAnything,
-			"-i":     complete.PredictNothing,
-			"-t":     complete.PredictNothing,
-			"-e":     complete.PredictSet("none", "~"),
+			"--task":        complete.PredictAnything,
+			"--job":         complete.PredictAnything,
+			"--interactive": complete.PredictNothing,
+			"--tty":         complete.PredictNothing,
+			"--escape":      complete.PredictSet("none", "~"),
 		})
 }
 
@@ -105,9 +105,9 @@ func (l *AllocExecCommand) Run(args []string) int {
 	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
 	flags.BoolVar(&job, "job", false, "")
-	flags.BoolVar(&stdinOpt, "i", true, "")
-	flags.BoolVar(&ttyOpt, "t", isTty(), "")
-	flags.StringVar(&escapeChar, "e", "~", "")
+	flags.BoolVarP(&stdinOpt, "interactive", "i", true, "")
+	flags.BoolVarP(&ttyOpt, "tty", "t", isTty(), "")
+	flags.StringVarP(&escapeChar, "escape", "e", "~", "")
 	flags.StringVar(&task, "task", "", "")
 
 	if err := flags.Parse(args); err != nil {

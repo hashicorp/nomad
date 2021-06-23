@@ -42,18 +42,18 @@ General Options:
 
 Status Options:
 
-  -short
+  --short
     Display short output. Used only when a single job is being
     queried, and drops verbose information about allocations.
 
-  -evals
+  --evals
     Display the evaluations associated with the job.
 
-  -all-allocs
+  --all-allocs
     Display all allocations matching the job ID, including those from an older
     instance of the job.
 
-  -verbose
+  --verbose, -v
     Display full information.
 `
 	return strings.TrimSpace(helpText)
@@ -66,10 +66,10 @@ func (c *JobStatusCommand) Synopsis() string {
 func (c *JobStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-all-allocs": complete.PredictNothing,
-			"-evals":      complete.PredictNothing,
-			"-short":      complete.PredictNothing,
-			"-verbose":    complete.PredictNothing,
+			"--all-allocs": complete.PredictNothing,
+			"--evals":      complete.PredictNothing,
+			"--short":      complete.PredictNothing,
+			"--verbose":    complete.PredictNothing,
 		})
 }
 
@@ -98,7 +98,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 	flags.BoolVar(&short, "short", false, "")
 	flags.BoolVar(&c.evals, "evals", false, "")
 	flags.BoolVar(&c.allAllocs, "all-allocs", false, "")
-	flags.BoolVar(&c.verbose, "verbose", false, "")
+	flags.BoolVarP(&c.verbose, "verbose", "v", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

@@ -33,10 +33,10 @@ General Options:
 
 Agent Check Options:
 
-  -min-peers
+  --min-peers
      Minimum number of peers that a server is expected to know.
 
-  -min-servers
+  --min-servers
      Minimum number of servers that a client is expected to know.
 `
 
@@ -142,8 +142,8 @@ func (c *AgentCheckCommand) checkClientHealth(clientStats map[string]string, min
 func (c *AgentCheckCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-min-peers":   complete.PredictAnything,
-			"-min-servers": complete.PredictAnything,
+			"--min-peers":   complete.PredictAnything,
+			"--min-servers": complete.PredictAnything,
 		})
 }
 

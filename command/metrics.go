@@ -24,16 +24,16 @@ General Options:
 
 Metrics Specific Options
 
-  -pretty
+  --pretty
     Pretty prints the JSON output
 
-  -format <format>
+  --format <format>
     Specify output format (prometheus)
 
-  -json
+  --json, -j
     Output the allocation in its JSON format.
 
-  -t
+  --template, -t
     Format and display allocation using a Go template.
 
 `
@@ -48,10 +48,10 @@ func (c *OperatorMetricsCommand) Synopsis() string {
 func (c *OperatorMetricsCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-pretty": complete.PredictAnything,
-			"-format": complete.PredictAnything,
-			"-json":   complete.PredictNothing,
-			"-t":      complete.PredictAnything,
+			"--pretty":   complete.PredictAnything,
+			"--format":   complete.PredictAnything,
+			"--json":     complete.PredictNothing,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -65,8 +65,8 @@ func (c *OperatorMetricsCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&pretty, "pretty", false, "")
 	flags.StringVar(&format, "format", "", "")
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVarP(&json, "json", "j", false, "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing flags: %s", err))

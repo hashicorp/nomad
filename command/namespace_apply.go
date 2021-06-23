@@ -28,10 +28,10 @@ General Options:
 
 Apply Options:
 
-  -quota
+  --quota, -q
     The quota to attach to the namespace.
 
-  -description
+  --description, -d
     An optional description for the namespace.
 `
 	return strings.TrimSpace(helpText)
@@ -40,8 +40,8 @@ Apply Options:
 func (c *NamespaceApplyCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-description": complete.PredictAnything,
-			"-quota":       QuotaPredictor(c.Meta.Client),
+			"--description": complete.PredictAnything,
+			"--quota":       QuotaPredictor(c.Meta.Client),
 		})
 }
 
@@ -60,14 +60,14 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.Var((flaghelper.FuncVar)(func(s string) error {
+	flags.VarP((flaghelper.FuncVar)(func(s string) error {
 		description = &s
 		return nil
-	}), "description", "")
-	flags.Var((flaghelper.FuncVar)(func(s string) error {
+	}), "description", "d", "")
+	flags.VarP((flaghelper.FuncVar)(func(s string) error {
 		quota = &s
 		return nil
-	}), "quota", "")
+	}), "quota", "q", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1

@@ -35,16 +35,16 @@ General Options:
 
 Promote Options:
 
-  -group
+  --group
     Group may be specified many times and is used to promote that particular
     group. If no specific groups are specified, all groups are promoted.
 
-  -detach
+  --detach, -d
     Return immediately instead of entering monitor mode. After deployment
     resume, the evaluation ID will be printed to the screen, which can be used
     to examine the evaluation using the eval-status command.
 
-  -verbose
+  --verbose, -v
     Display full information.
 `
 	return strings.TrimSpace(helpText)
@@ -57,9 +57,9 @@ func (c *DeploymentPromoteCommand) Synopsis() string {
 func (c *DeploymentPromoteCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-group":   complete.PredictAnything,
-			"-detach":  complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
+			"--group":   complete.PredictAnything,
+			"--detach":  complete.PredictNothing,
+			"--verbose": complete.PredictNothing,
 		})
 }
 
@@ -86,8 +86,8 @@ func (c *DeploymentPromoteCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&detach, "detach", false, "")
-	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVarP(&detach, "detach", "d", false, "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
 	flags.Var((*flaghelper.StringFlag)(&groups), "group", "")
 
 	if err := flags.Parse(args); err != nil {
