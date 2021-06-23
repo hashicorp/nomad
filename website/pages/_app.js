@@ -31,10 +31,10 @@ export default function App({ Component, pageProps }) {
         siteName="Nomad by HashiCorp"
         description="Nomad is a highly available, distributed, data-center aware cluster and application scheduler designed to support the modern datacenter with support for long-running services, batch jobs, and much more."
         image="https://www.nomadproject.io/img/og-image.png"
-        icon={[{ href: '/favicon.ico' }]}
+        icon={[{ href: '/_favicon.ico' }]}
       />
       {ALERT_BANNER_ACTIVE && (
-        <AlertBanner {...alertBannerData} theme="nomad" />
+        <AlertBanner {...alertBannerData} product="nomad" />
       )}
       <HashiStackMenu />
       <ProductSubnav />

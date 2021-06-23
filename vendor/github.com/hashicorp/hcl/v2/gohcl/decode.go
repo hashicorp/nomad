@@ -118,6 +118,19 @@ func (d *Decoder) decodeBodyToStruct(body hcl.Body, ctx *hcl.EvalContext, val re
 
 	tags := getFieldTags(val.Type())
 
+	if tags.Body != nil {
+		fieldIdx := *tags.Body
+		field := val.Type().Field(fieldIdx)
+		fieldV := val.Field(fieldIdx)
+		switch {
+		case bodyType.AssignableTo(field.Type):
+			fieldV.Set(reflect.ValueOf(body))
+
+		default:
+			diags = append(diags, d.decodeBodyToValue(body, ctx, fieldV)...)
+		}
+	}
+
 	if tags.Remain != nil {
 		fieldIdx := *tags.Remain
 		field := val.Type().Field(fieldIdx)
@@ -242,6 +255,9 @@ func (d *Decoder) decodeBodyToStruct(body hcl.Body, ctx *hcl.EvalContext, val re
 					diags = append(diags, d.decodeBlockToValue(block, ctx, v.Elem())...)
 					sli.Index(i).Set(v)
 				} else {
+					if i >= sli.Len() {
+						sli = reflect.Append(sli, reflect.Indirect(reflect.New(ty)))
+					}
 					diags = append(diags, d.decodeBlockToValue(block, ctx, sli.Index(i))...)
 				}
 			}

@@ -3,6 +3,8 @@ package fingerprint
 import (
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/cgutil"
+
 	log "github.com/hashicorp/go-hclog"
 )
 
@@ -30,7 +32,7 @@ type DefaultMountPointDetector struct {
 
 // Call out to the default cgroup library
 func (b *DefaultMountPointDetector) MountPoint() (string, error) {
-	return FindCgroupMountpointDir()
+	return cgutil.FindCgroupMountpointDir()
 }
 
 // NewCGroupFingerprint returns a new cgroup fingerprinter

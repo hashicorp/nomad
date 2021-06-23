@@ -30,7 +30,7 @@ A development environment is supplied via Vagrant to make getting started easier
 
 Developing without Vagrant
 ---
-1. Install [Go 1.16+](https://golang.org/) *(Note: `gcc-go` is not supported)*
+1. Install [Go 1.16.5+](https://golang.org/) *(Note: `gcc-go` is not supported)*
 1. Clone this repo
    ```sh
    $ git clone https://github.com/hashicorp/nomad.git
@@ -71,7 +71,8 @@ Compiling Protobufs
 ---
 If in the course of your development you change a Protobuf file (those ending in .proto), you'll need to recompile the protos.
 
-1. Install [Buf v0.30.1](https://github.com/bufbuild/buf/releases/tag/v0.30.1)
+1. Run `make boostrap` to install the [`buf`](https://github.com/bufbuild/buf)
+   command.
 1. Compile Protobufs
     ```sh
     $ make proto

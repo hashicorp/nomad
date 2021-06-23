@@ -35,9 +35,17 @@ func getEnterpriseResourceIter(context structs.Context, _ *acl.ACL, namespace, p
 	return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
 }
 
-// anySearchPerms returns true if the provided ACL has access to any
-// capabilities required for prefix searching. Returns true if aclObj is nil.
-func anySearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) bool {
+// getEnterpriseFuzzyResourceIter is used to retrieve an iterator over an enterprise
+// only table.
+func getEnterpriseFuzzyResourceIter(context structs.Context, _ *acl.ACL, _ string, _ memdb.WatchSet, _ *state.StateStore) (memdb.ResultIterator, error) {
+	return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
+}
+
+// sufficientSearchPerms returns true if the provided ACL has access to each
+// capability required for prefix searching for the given context.
+//
+// Returns true if aclObj is nil.
+func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) bool {
 	if aclObj == nil {
 		return true
 	}
@@ -78,22 +86,16 @@ func anySearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) 
 	return true
 }
 
-// searchContexts returns the contexts the aclObj is valid for. If aclObj is
-// nil all contexts are returned.
-func searchContexts(aclObj *acl.ACL, namespace string, context structs.Context) []structs.Context {
-	var all []structs.Context
-
-	switch context {
-	case structs.All:
-		all = make([]structs.Context, len(allContexts))
-		copy(all, allContexts)
-	default:
-		all = []structs.Context{context}
-	}
+// filteredSearchContexts returns the expanded set of contexts, filtered down
+// to the subset of contexts the aclObj is valid for.
+//
+// If aclObj is nil, no contexts are filtered out.
+func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.Context) []structs.Context {
+	desired := expandContext(context)
 
 	// If ACLs aren't enabled return all contexts
 	if aclObj == nil {
-		return all
+		return desired
 	}
 
 	jobRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob)
@@ -105,8 +107,8 @@ func searchContexts(aclObj *acl.ACL, namespace string, context structs.Context) 
 	policyRead := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityListScalingPolicies)
 
 	// Filter contexts down to those the ACL grants access to
-	available := make([]structs.Context, 0, len(all))
-	for _, c := range all {
+	available := make([]structs.Context, 0, len(desired))
+	for _, c := range desired {
 		switch c {
 		case structs.Allocs, structs.Jobs, structs.Evals, structs.Deployments:
 			if jobRead {

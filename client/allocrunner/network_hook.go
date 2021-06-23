@@ -9,6 +9,11 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
+// We create a pause container to own the network namespace, and the
+// NetworkIsolationSpec we get back from CreateNetwork has this label set as
+// the container ID. We'll use this to generate a hostname for the task.
+const dockerNetSpecLabelKey = "docker_sandbox_container_id"
+
 type networkIsolationSetter interface {
 	SetNetworkIsolation(*drivers.NetworkIsolationSpec)
 }
@@ -106,7 +111,18 @@ func (h *networkHook) Prerun() error {
 		if err != nil {
 			return fmt.Errorf("failed to configure networking for alloc: %v", err)
 		}
-
+		if hostname, ok := spec.Labels[dockerNetSpecLabelKey]; ok {
+			if len(hostname) > 12 {
+				// the docker_sandbox_container_id is the full ID of the pause
+				// container, whereas we want the shortened name that dockerd
+				// sets as the pause container's hostname
+				hostname = hostname[:12]
+			}
+			h.spec.HostsConfig = &drivers.HostsConfig{
+				Address:  status.Address,
+				Hostname: hostname,
+			}
+		}
 		h.networkStatusSetter.SetNetworkStatus(status)
 	}
 	return nil

@@ -142,8 +142,8 @@ func ResourcesFromProto(pb *proto.Resources) *Resources {
 			CPUShares:        pb.LinuxResources.CpuShares,
 			MemoryLimitBytes: pb.LinuxResources.MemoryLimitBytes,
 			OOMScoreAdj:      pb.LinuxResources.OomScoreAdj,
-			CpusetCPUs:       pb.LinuxResources.CpusetCpus,
-			CpusetMems:       pb.LinuxResources.CpusetMems,
+			CpusetCpus:       pb.LinuxResources.CpusetCpus,
+			CpusetCgroupPath: pb.LinuxResources.CpusetCgroup,
 			PercentTicks:     pb.LinuxResources.PercentTicks,
 		}
 	}
@@ -212,8 +212,8 @@ func ResourcesToProto(r *Resources) *proto.Resources {
 			CpuShares:        r.LinuxResources.CPUShares,
 			MemoryLimitBytes: r.LinuxResources.MemoryLimitBytes,
 			OomScoreAdj:      r.LinuxResources.OOMScoreAdj,
-			CpusetCpus:       r.LinuxResources.CpusetCPUs,
-			CpusetMems:       r.LinuxResources.CpusetMems,
+			CpusetCpus:       r.LinuxResources.CpusetCpus,
+			CpusetCgroup:     r.LinuxResources.CpusetCgroupPath,
 			PercentTicks:     r.LinuxResources.PercentTicks,
 		}
 	}
@@ -640,9 +640,10 @@ func NetworkIsolationSpecToProto(spec *NetworkIsolationSpec) *proto.NetworkIsola
 		return nil
 	}
 	return &proto.NetworkIsolationSpec{
-		Path:   spec.Path,
-		Labels: spec.Labels,
-		Mode:   netIsolationModeToProto(spec.Mode),
+		Path:        spec.Path,
+		Labels:      spec.Labels,
+		Mode:        netIsolationModeToProto(spec.Mode),
+		HostsConfig: hostsConfigToProto(spec.HostsConfig),
 	}
 }
 
@@ -651,9 +652,32 @@ func NetworkIsolationSpecFromProto(pb *proto.NetworkIsolationSpec) *NetworkIsola
 		return nil
 	}
 	return &NetworkIsolationSpec{
-		Path:   pb.Path,
-		Labels: pb.Labels,
-		Mode:   netIsolationModeFromProto(pb.Mode),
+		Path:        pb.Path,
+		Labels:      pb.Labels,
+		Mode:        netIsolationModeFromProto(pb.Mode),
+		HostsConfig: hostsConfigFromProto(pb.HostsConfig),
+	}
+}
+
+func hostsConfigToProto(cfg *HostsConfig) *proto.HostsConfig {
+	if cfg == nil {
+		return nil
+	}
+
+	return &proto.HostsConfig{
+		Hostname: cfg.Hostname,
+		Address:  cfg.Address,
+	}
+}
+
+func hostsConfigFromProto(pb *proto.HostsConfig) *HostsConfig {
+	if pb == nil {
+		return nil
+	}
+
+	return &HostsConfig{
+		Hostname: pb.Hostname,
+		Address:  pb.Address,
 	}
 }
 

@@ -45,14 +45,20 @@ name            = "database"
 type            = "csi"
 external_id     = "vol-23452345"
 plugin_id       = "ebs-prod"
-snapshot_id     = "snap-12345" # or clone_id, see below
-capacity        = "100G"
-access_mode     = "single-node-writer"
-attachment_mode = "file-system"
+
+capability {
+  access_mode     = "single-node-reader-only"
+  attachment_mode = "file-system"
+}
+
+capability {
+  access_mode     = "single-node-writer"
+  attachment_mode = "file-system"
+}
 
 mount_options {
   fs_type     = "ext4"
-  mount_flags = ["ro"]
+  mount_flags = "noatime"
 }
 
 secrets {
@@ -86,23 +92,33 @@ context {
 - `plugin_id` `(string: <required>)` - The ID of the [CSI plugin][csi_plugin]
   that manages this volume.
 
-- `snapshot_id` - This field is only used during volume creation, and is
-  ignored during volume registration. See [`volume create`].
+- `capability` `(Capability: <required>)` - Option for validating the
+  capability of a volume. You must provide at least one `capability` block, and
+  you must provide a block for each capability you intend to use in a job's
+  [`volume`] block. Each `capability` block must have the following fields:
 
-- `clone_id` - This field is only used during volume creation, and is ignored
-  during volume registration. See [`volume create`].
+  - `access_mode` `(string: <required>)` - Defines whether a volume should be
+    available concurrently. Can be one of `"single-node-reader-only"`,
+    `"single-node-writer"`, `"multi-node-reader-only"`,
+    `"multi-node-single-writer"`, or `"multi-node-multi-writer"`. Most CSI
+    plugins support only single-node modes. Consult the documentation of the
+    storage provider and CSI plugin.
 
-- `capacity_min` - This field is only used during volume creation, and is
-  ignored during volume registration. See [`volume create`].
+  - `attachment_mode` `(string: <required>)` - The storage API that will be used
+    by the volume. Most storage providers will support `"file-system"`, to mount
+    volumes using the CSI filesystem API. Some storage providers will support
+    `"block-device"`, which will mount the volume with the CSI block device API
+    within the container.
 
-- `capacity_max` - This field is only used during volume creation, and is
-  ignored during volume registration. See [`volume create`].
+- `mount_options` - Options for mounting `file-system` volumes that don't
+  already have a pre-formatted file system. This block will be validated
+  during volume creation against the `capability` field. The `mount_options`
+  provided in a job specification's [`volume`] block will override this
+  block. Consult the documentation for your storage provider and CSI plugin as
+  to whether these options are required or necessary.
 
-- `capability` - This field is only used during volume creation, and is
-  ignored during volume registration. See [`volume create`].
-
-- `mount_options` - This field is only used during volume creation, and is
-  ignored during volume registration. See [`volume create`].
+  - `fs_type`: file system type (ex. `"ext4"`)
+  - `mount_flags`: the flags passed to `mount` (ex. `"ro,noatime"`)
 
 - `secrets` <code>(map<string|string>:nil)</code> - An optional
   key-value map of strings used as credentials for publishing and
@@ -120,9 +136,17 @@ context {
   each storage provider, so please see the specific plugin
   documentation for more information.
 
+### Unused Fields
+
+Note that several fields used in the [`volume create`] command are set
+automatically by the plugin when `volume create` is successful and cannot be
+set on a pre-existing volume. You should not set the `snapshot_id`,
+`clone_id`, `capacity_min`, or `capacity_max` fields described on that page.
+
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugins_internals]: /docs/internals/plugins/csi#csi-plugins
 [volume_specification]: #volume-specification
 [csi_plugin]: /docs/job-specification/csi_plugin
 [csi_volume_source]: /docs/job-specification/volume#source
+[`volume`]: /docs/job-specification/volume
 [`volume create`]: /docs/commands/volume/create

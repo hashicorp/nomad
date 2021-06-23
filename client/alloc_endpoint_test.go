@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -758,7 +757,7 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
 
-	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, "",
+	policyGood := mock.NamespacePolicy(nstructs.DefaultNamespace, "",
 		[]string{acl.NamespaceCapabilityAllocExec, acl.NamespaceCapabilityReadFS})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
@@ -779,7 +778,7 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "good token",
@@ -873,11 +872,11 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
 
-	policyAllocExec := mock.NamespacePolicy(structs.DefaultNamespace, "",
+	policyAllocExec := mock.NamespacePolicy(nstructs.DefaultNamespace, "",
 		[]string{acl.NamespaceCapabilityAllocExec})
 	tokenAllocExec := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyAllocExec)
 
-	policyAllocNodeExec := mock.NamespacePolicy(structs.DefaultNamespace, "",
+	policyAllocNodeExec := mock.NamespacePolicy(nstructs.DefaultNamespace, "",
 		[]string{acl.NamespaceCapabilityAllocExec, acl.NamespaceCapabilityAllocNodeExec})
 	tokenAllocNodeExec := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyAllocNodeExec)
 
@@ -912,7 +911,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "alloc-exec token",
@@ -1022,11 +1021,11 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
 
-	policyAllocExec := mock.NamespacePolicy(structs.DefaultNamespace, "",
+	policyAllocExec := mock.NamespacePolicy(nstructs.DefaultNamespace, "",
 		[]string{acl.NamespaceCapabilityAllocExec})
 	tokenAllocExec := mock.CreatePolicyAndToken(t, s.State(), 1009, "alloc-exec", policyAllocExec)
 
-	policyAllocNodeExec := mock.NamespacePolicy(structs.DefaultNamespace, "",
+	policyAllocNodeExec := mock.NamespacePolicy(nstructs.DefaultNamespace, "",
 		[]string{acl.NamespaceCapabilityAllocExec, acl.NamespaceCapabilityAllocNodeExec})
 	tokenAllocNodeExec := mock.CreatePolicyAndToken(t, s.State(), 1009, "alloc-node-exec", policyAllocNodeExec)
 
@@ -1061,7 +1060,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "alloc-exec token",
@@ -1166,11 +1165,11 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityDeny})
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
 
-	policyAllocExec := mock.NamespacePolicy(structs.DefaultNamespace, "",
+	policyAllocExec := mock.NamespacePolicy(nstructs.DefaultNamespace, "",
 		[]string{acl.NamespaceCapabilityAllocExec})
 	tokenAllocExec := mock.CreatePolicyAndToken(t, s.State(), 1009, "alloc-exec", policyAllocExec)
 
-	policyAllocNodeExec := mock.NamespacePolicy(structs.DefaultNamespace, "",
+	policyAllocNodeExec := mock.NamespacePolicy(nstructs.DefaultNamespace, "",
 		[]string{acl.NamespaceCapabilityAllocExec, acl.NamespaceCapabilityAllocNodeExec})
 	tokenAllocNodeExec := mock.CreatePolicyAndToken(t, s.State(), 1009, "alloc-node-exec", policyAllocNodeExec)
 
@@ -1205,12 +1204,12 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "alloc-exec token",
 			Token:         tokenAllocExec.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "alloc-node-exec token",

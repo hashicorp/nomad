@@ -243,6 +243,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
 				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
@@ -287,6 +288,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(30 * time.Second),
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
+						},
+						Consul: &Consul{
+							Namespace: "",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          timeToPtr(30 * time.Second),
@@ -334,6 +338,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
 				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
@@ -367,6 +372,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(5 * time.Second),
 							MaxDelay:      timeToPtr(0),
 							Unlimited:     boolToPtr(false),
+						},
+						Consul: &Consul{
+							Namespace: "",
 						},
 						Tasks: []*Task{
 							{
@@ -408,6 +416,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
 				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
@@ -452,6 +461,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(30 * time.Second),
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
+						},
+						Consul: &Consul{
+							Namespace: "",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          timeToPtr(30 * time.Second),
@@ -575,6 +587,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Type:              stringToPtr("service"),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
 				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
@@ -621,7 +634,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Migrate: boolToPtr(false),
 							SizeMB:  intToPtr(300),
 						},
-
+						Consul: &Consul{
+							Namespace: "",
+						},
 						Update: &UpdateStrategy{
 							Stagger:          timeToPtr(30 * time.Second),
 							MaxParallel:      intToPtr(1),
@@ -737,6 +752,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
 				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
@@ -789,6 +805,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				TaskGroups: []*TaskGroup{
 					{
 						Name: stringToPtr("bar"),
+						Consul: &Consul{
+							Namespace: "",
+						},
 						Update: &UpdateStrategy{
 							Stagger:        timeToPtr(2 * time.Second),
 							MaxParallel:    intToPtr(2),
@@ -824,6 +843,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
 				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
@@ -869,6 +889,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
 						},
+						Consul: &Consul{
+							Namespace: "",
+						},
 						Update: &UpdateStrategy{
 							Stagger:          timeToPtr(2 * time.Second),
 							MaxParallel:      intToPtr(2),
@@ -912,6 +935,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(30 * time.Second),
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
+						},
+						Consul: &Consul{
+							Namespace: "",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          timeToPtr(1 * time.Second),
@@ -972,6 +998,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Interval: timeToPtr(30 * time.Minute),
 							Mode:     stringToPtr("fail"),
 						},
+						Consul: &Consul{
+							Namespace: "",
+						},
 						Tasks: []*Task{
 							{
 								Name: "task1",
@@ -990,6 +1019,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
 				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),
@@ -1034,6 +1064,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(30 * time.Second),
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
+						},
+						Consul: &Consul{
+							Namespace: "",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          timeToPtr(30 * time.Second),
@@ -1083,6 +1116,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 							Delay:         timeToPtr(30 * time.Second),
 							MaxDelay:      timeToPtr(1 * time.Hour),
 							Unlimited:     boolToPtr(true),
+						},
+						Consul: &Consul{
+							Namespace: "",
 						},
 						Update: &UpdateStrategy{
 							Stagger:          timeToPtr(30 * time.Second),
@@ -1154,6 +1190,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				Priority:          intToPtr(50),
 				AllAtOnce:         boolToPtr(false),
 				ConsulToken:       stringToPtr(""),
+				ConsulNamespace:   stringToPtr(""),
 				VaultToken:        stringToPtr(""),
 				VaultNamespace:    stringToPtr(""),
 				NomadTokenID:      stringToPtr(""),

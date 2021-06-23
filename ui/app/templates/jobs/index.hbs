@@ -1,77 +1,88 @@
 {{page-title "Jobs"}}
 <section class="section">
+  <div class="toolbar">
+    <div class="toolbar-item">
+      {{#if this.visibleJobs.length}}
+        <SearchBox
+          data-test-jobs-search
+          @searchTerm={{mut this.searchTerm}}
+          @onChange={{action this.resetPagination}}
+          @placeholder="Search jobs..." />
+      {{/if}}
+    </div>
+    {{#if (media "isMobile")}}
+      <div class="toolbar-item is-right-aligned">
+        {{#if (can "run job")}}
+          <LinkTo @route="jobs.run" data-test-run-job class="button is-primary">Run Job</LinkTo>
+        {{else}}
+          <button
+            data-test-run-job
+            class="button is-primary is-disabled tooltip is-right-aligned"
+            aria-label="You don’t have permission to run jobs"
+            disabled
+            type="button"
+          >Run Job</button>
+        {{/if}}
+      </div>
+    {{/if}}
+    <div class="toolbar-item is-right-aligned is-mobile-full-width">
+      <div class="button-bar">
+        {{#if this.system.shouldShowNamespaces}}
+          <SingleSelectDropdown
+            data-test-namespace-facet
+            @label="Namespace"
+            @options={{this.optionsNamespaces}}
+            @selection={{this.qpNamespace}}
+            @onSelect={{action (queue
+              (action this.cacheNamespace)
+              (action this.setFacetQueryParam "qpNamespace")
+            )}} />
+        {{/if}}
+        <MultiSelectDropdown
+          data-test-type-facet
+          @label="Type"
+          @options={{this.optionsType}}
+          @selection={{this.selectionType}}
+          @onSelect={{action this.setFacetQueryParam "qpType"}} />
+        <MultiSelectDropdown
+          data-test-status-facet
+          @label="Status"
+          @options={{this.optionsStatus}}
+          @selection={{this.selectionStatus}}
+          @onSelect={{action this.setFacetQueryParam "qpStatus"}} />
+        <MultiSelectDropdown
+          data-test-datacenter-facet
+          @label="Datacenter"
+          @options={{this.optionsDatacenter}}
+          @selection={{this.selectionDatacenter}}
+          @onSelect={{action this.setFacetQueryParam "qpDatacenter"}} />
+        <MultiSelectDropdown
+          data-test-prefix-facet
+          @label="Prefix"
+          @options={{this.optionsPrefix}}
+          @selection={{this.selectionPrefix}}
+          @onSelect={{action this.setFacetQueryParam "qpPrefix"}} />
+      </div>
+    </div>
+    {{#if (not (media "isMobile"))}}
+      <div class="toolbar-item is-right-aligned">
+        {{#if (can "run job")}}
+          <LinkTo @route="jobs.run" data-test-run-job class="button is-primary">Run Job</LinkTo>
+        {{else}}
+          <button
+            data-test-run-job
+            class="button is-primary is-disabled tooltip is-right-aligned"
+            aria-label="You don’t have permission to run jobs"
+            disabled
+            type="button"
+          >Run Job</button>
+        {{/if}}
+      </div>
+    {{/if}}
+  </div>
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
-    <div class="toolbar">
-      <div class="toolbar-item">
-        {{#if this.visibleJobs.length}}
-          <SearchBox
-            data-test-jobs-search
-            @searchTerm={{mut this.searchTerm}}
-            @onChange={{action this.resetPagination}}
-            @placeholder="Search jobs..." />
-        {{/if}}
-      </div>
-      {{#if (media "isMobile")}}
-        <div class="toolbar-item is-right-aligned">
-          {{#if (can "run job")}}
-            <LinkTo @route="jobs.run" data-test-run-job class="button is-primary">Run Job</LinkTo>
-          {{else}}
-            <button
-              data-test-run-job
-              class="button is-primary is-disabled tooltip is-right-aligned"
-              aria-label="You don’t have permission to run jobs"
-              disabled
-              type="button"
-            >Run Job</button>
-          {{/if}}
-        </div>
-      {{/if}}
-      <div class="toolbar-item is-right-aligned is-mobile-full-width">
-        <div class="button-bar">
-          <MultiSelectDropdown
-            data-test-type-facet
-            @label="Type"
-            @options={{this.optionsType}}
-            @selection={{this.selectionType}}
-            @onSelect={{action this.setFacetQueryParam "qpType"}} />
-          <MultiSelectDropdown
-            data-test-status-facet
-            @label="Status"
-            @options={{this.optionsStatus}}
-            @selection={{this.selectionStatus}}
-            @onSelect={{action this.setFacetQueryParam "qpStatus"}} />
-          <MultiSelectDropdown
-            data-test-datacenter-facet
-            @label="Datacenter"
-            @options={{this.optionsDatacenter}}
-            @selection={{this.selectionDatacenter}}
-            @onSelect={{action this.setFacetQueryParam "qpDatacenter"}} />
-          <MultiSelectDropdown
-            data-test-prefix-facet
-            @label="Prefix"
-            @options={{this.optionsPrefix}}
-            @selection={{this.selectionPrefix}}
-            @onSelect={{action this.setFacetQueryParam "qpPrefix"}} />
-        </div>
-      </div>
-      {{#if (not (media "isMobile"))}}
-        <div class="toolbar-item is-right-aligned">
-          {{#if (can "run job")}}
-            <LinkTo @route="jobs.run" data-test-run-job class="button is-primary">Run Job</LinkTo>
-          {{else}}
-            <button
-              data-test-run-job
-              class="button is-primary is-disabled tooltip is-right-aligned"
-              aria-label="You don’t have permission to run jobs"
-              disabled
-              type="button"
-            >Run Job</button>
-          {{/if}}
-        </div>
-      {{/if}}
-    </div>
     {{#if this.sortedJobs}}
       <ListPagination
         @source={{this.sortedJobs}}
@@ -84,6 +95,9 @@
           @class="with-foot" as |t|>
           <t.head>
             <t.sort-by @prop="name">Name</t.sort-by>
+            {{#if this.system.shouldShowNamespaces}}
+              <t.sort-by @prop="namespace.name">Namespace</t.sort-by>
+            {{/if}}
             <t.sort-by @prop="status">Status</t.sort-by>
             <t.sort-by @prop="type">Type</t.sort-by>
             <t.sort-by @prop="priority">Priority</t.sort-by>

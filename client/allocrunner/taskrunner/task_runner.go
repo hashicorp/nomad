@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/cgutil"
+
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
@@ -27,6 +29,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -200,6 +203,9 @@ type TaskRunner struct {
 	// statistics
 	devicemanager devicemanager.Manager
 
+	// cpusetCgroupPathGetter is used to lookup the cgroup path if supported by the platform
+	cpusetCgroupPathGetter cgutil.CgroupPathGetter
+
 	// driverManager is used to dispense driver plugins and register event
 	// handlers
 	driverManager drivermanager.Manager
@@ -264,6 +270,9 @@ type Config struct {
 	// CSIManager is used to manage the mounting of CSI volumes into tasks
 	CSIManager csimanager.Manager
 
+	// CpusetCgroupPathGetter is used to lookup the cgroup path if supported by the platform
+	CpusetCgroupPathGetter cgutil.CgroupPathGetter
+
 	// DeviceManager is used to mount devices as well as lookup device
 	// statistics
 	DeviceManager devicemanager.Manager
@@ -302,36 +311,37 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	}
 
 	tr := &TaskRunner{
-		alloc:                config.Alloc,
-		allocID:              config.Alloc.ID,
-		clientConfig:         config.ClientConfig,
-		task:                 config.Task,
-		taskDir:              config.TaskDir,
-		taskName:             config.Task.Name,
-		taskLeader:           config.Task.Leader,
-		envBuilder:           envBuilder,
-		dynamicRegistry:      config.DynamicRegistry,
-		consulServiceClient:  config.Consul,
-		consulProxiesClient:  config.ConsulProxies,
-		siClient:             config.ConsulSI,
-		vaultClient:          config.Vault,
-		state:                tstate,
-		localState:           state.NewLocalState(),
-		stateDB:              config.StateDB,
-		stateUpdater:         config.StateUpdater,
-		deviceStatsReporter:  config.DeviceStatsReporter,
-		killCtx:              killCtx,
-		killCtxCancel:        killCancel,
-		shutdownCtx:          trCtx,
-		shutdownCtxCancel:    trCancel,
-		triggerUpdateCh:      make(chan struct{}, triggerUpdateChCap),
-		waitCh:               make(chan struct{}),
-		csiManager:           config.CSIManager,
-		devicemanager:        config.DeviceManager,
-		driverManager:        config.DriverManager,
-		maxEvents:            defaultMaxEvents,
-		serversContactedCh:   config.ServersContactedCh,
-		startConditionMetCtx: config.StartConditionMetCtx,
+		alloc:                  config.Alloc,
+		allocID:                config.Alloc.ID,
+		clientConfig:           config.ClientConfig,
+		task:                   config.Task,
+		taskDir:                config.TaskDir,
+		taskName:               config.Task.Name,
+		taskLeader:             config.Task.Leader,
+		envBuilder:             envBuilder,
+		dynamicRegistry:        config.DynamicRegistry,
+		consulServiceClient:    config.Consul,
+		consulProxiesClient:    config.ConsulProxies,
+		siClient:               config.ConsulSI,
+		vaultClient:            config.Vault,
+		state:                  tstate,
+		localState:             state.NewLocalState(),
+		stateDB:                config.StateDB,
+		stateUpdater:           config.StateUpdater,
+		deviceStatsReporter:    config.DeviceStatsReporter,
+		killCtx:                killCtx,
+		killCtxCancel:          killCancel,
+		shutdownCtx:            trCtx,
+		shutdownCtxCancel:      trCancel,
+		triggerUpdateCh:        make(chan struct{}, triggerUpdateChCap),
+		waitCh:                 make(chan struct{}),
+		csiManager:             config.CSIManager,
+		cpusetCgroupPathGetter: config.CpusetCgroupPathGetter,
+		devicemanager:          config.DeviceManager,
+		driverManager:          config.DriverManager,
+		maxEvents:              defaultMaxEvents,
+		serversContactedCh:     config.ServersContactedCh,
+		startConditionMetCtx:   config.StartConditionMetCtx,
 	}
 
 	// Create the logger based on the allocation ID
@@ -367,7 +377,8 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		return nil, err
 	}
 
-	// Initialize the runners hooks.
+	// Initialize the runners hooks. Must come after initDriver so hooks
+	// can use tr.driverCapabilities
 	tr.initHooks()
 
 	// Initialize base labels
@@ -486,6 +497,7 @@ func (tr *TaskRunner) Run() {
 		tr.logger.Info("task failed to restore; waiting to contact server before restarting")
 		select {
 		case <-tr.killCtx.Done():
+			tr.logger.Info("task killed while waiting for server contact")
 		case <-tr.shutdownCtx.Done():
 			return
 		case <-tr.serversContactedCh:
@@ -557,7 +569,7 @@ MAIN:
 				case <-tr.killCtx.Done():
 					// We can go through the normal should restart check since
 					// the restart tracker knowns it is killed
-					result = tr.handleKill()
+					result = tr.handleKill(resultCh)
 				case <-tr.shutdownCtx.Done():
 					// TaskRunner was told to exit immediately
 					return
@@ -604,7 +616,7 @@ MAIN:
 	// that should be terminal, so if the handle still exists we should
 	// kill it here.
 	if tr.getDriverHandle() != nil {
-		if result = tr.handleKill(); result != nil {
+		if result = tr.handleKill(nil); result != nil {
 			tr.emitExitResultEvent(result)
 		}
 
@@ -627,11 +639,12 @@ MAIN:
 }
 
 func (tr *TaskRunner) shouldShutdown() bool {
-	if tr.alloc.ClientTerminalStatus() {
+	alloc := tr.Alloc()
+	if alloc.ClientTerminalStatus() {
 		return true
 	}
 
-	if !tr.IsPoststopTask() && tr.alloc.ServerTerminalStatus() {
+	if !tr.IsPoststopTask() && alloc.ServerTerminalStatus() {
 		return true
 	}
 
@@ -740,6 +753,13 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 func (tr *TaskRunner) runDriver() error {
 
 	taskConfig := tr.buildTaskConfig()
+	if tr.cpusetCgroupPathGetter != nil {
+		cpusetCgroupPath, err := tr.cpusetCgroupPathGetter(tr.killCtx)
+		if err != nil {
+			return err
+		}
+		taskConfig.Resources.LinuxResources.CpusetCgroupPath = cpusetCgroupPath
+	}
 
 	// Build hcl context variables
 	vars, errs, err := tr.envBuilder.Build().AllValues()
@@ -863,7 +883,7 @@ func (tr *TaskRunner) initDriver() error {
 // handleKill is used to handle the a request to kill a task. It will return
 // the handle exit result if one is available and store any error in the task
 // runner killErr value.
-func (tr *TaskRunner) handleKill() *drivers.ExitResult {
+func (tr *TaskRunner) handleKill(resultCh <-chan *drivers.ExitResult) *drivers.ExitResult {
 	// Run the pre killing hooks
 	tr.preKill()
 
@@ -872,7 +892,12 @@ func (tr *TaskRunner) handleKill() *drivers.ExitResult {
 	// before waiting to kill task
 	if delay := tr.Task().ShutdownDelay; delay != 0 {
 		tr.logger.Debug("waiting before killing task", "shutdown_delay", delay)
-		time.Sleep(delay)
+
+		select {
+		case result := <-resultCh:
+			return result
+		case <-time.After(delay):
+		}
 	}
 
 	// Tell the restart tracker that the task has been killed so it doesn't
@@ -880,35 +905,48 @@ func (tr *TaskRunner) handleKill() *drivers.ExitResult {
 	tr.restartTracker.SetKilled()
 
 	// Check it is running
+	select {
+	case result := <-resultCh:
+		return result
+	default:
+	}
+
 	handle := tr.getDriverHandle()
 	if handle == nil {
 		return nil
 	}
 
 	// Kill the task using an exponential backoff in-case of failures.
-	killErr := tr.killTask(handle)
+	result, killErr := tr.killTask(handle, resultCh)
 	if killErr != nil {
 		// We couldn't successfully destroy the resource created.
 		tr.logger.Error("failed to kill task. Resources may have been leaked", "error", killErr)
 		tr.setKillErr(killErr)
 	}
 
-	// Block until task has exited.
-	waitCh, err := handle.WaitCh(tr.shutdownCtx)
+	if result != nil {
+		return result
+	}
 
-	// The error should be nil or TaskNotFound, if it's something else then a
-	// failure in the driver or transport layer occurred
-	if err != nil {
-		if err == drivers.ErrTaskNotFound {
+	// Block until task has exited.
+	if resultCh == nil {
+		var err error
+		resultCh, err = handle.WaitCh(tr.shutdownCtx)
+
+		// The error should be nil or TaskNotFound, if it's something else then a
+		// failure in the driver or transport layer occurred
+		if err != nil {
+			if err == drivers.ErrTaskNotFound {
+				return nil
+			}
+			tr.logger.Error("failed to wait on task. Resources may have been leaked", "error", err)
+			tr.setKillErr(killErr)
 			return nil
 		}
-		tr.logger.Error("failed to wait on task. Resources may have been leaked", "error", err)
-		tr.setKillErr(killErr)
-		return nil
 	}
 
 	select {
-	case result := <-waitCh:
+	case result := <-resultCh:
 		return result
 	case <-tr.shutdownCtx.Done():
 		return nil
@@ -918,14 +956,14 @@ func (tr *TaskRunner) handleKill() *drivers.ExitResult {
 // killTask kills the task handle. In the case that killing fails,
 // killTask will retry with an exponential backoff and will give up at a
 // given limit. Returns an error if the task could not be killed.
-func (tr *TaskRunner) killTask(handle *DriverHandle) error {
+func (tr *TaskRunner) killTask(handle *DriverHandle, resultCh <-chan *drivers.ExitResult) (*drivers.ExitResult, error) {
 	// Cap the number of times we attempt to kill the task.
 	var err error
 	for i := 0; i < killFailureLimit; i++ {
 		if err = handle.Kill(); err != nil {
 			if err == drivers.ErrTaskNotFound {
 				tr.logger.Warn("couldn't find task to kill", "task_id", handle.ID())
-				return nil
+				return nil, nil
 			}
 			// Calculate the new backoff
 			backoff := (1 << (2 * uint64(i))) * killBackoffBaseline
@@ -934,13 +972,17 @@ func (tr *TaskRunner) killTask(handle *DriverHandle) error {
 			}
 
 			tr.logger.Error("failed to kill task", "backoff", backoff, "error", err)
-			time.Sleep(backoff)
+			select {
+			case result := <-resultCh:
+				return result, nil
+			case <-time.After(backoff):
+			}
 		} else {
 			// Kill was successful
-			return nil
+			return nil, nil
 		}
 	}
-	return err
+	return nil, err
 }
 
 // persistLocalState persists local state to disk synchronously.
@@ -981,6 +1023,11 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		memoryLimit = max
 	}
 
+	cpusetCpus := make([]string, len(taskResources.Cpu.ReservedCores))
+	for i, v := range taskResources.Cpu.ReservedCores {
+		cpusetCpus[i] = fmt.Sprintf("%d", v)
+	}
+
 	return &drivers.TaskConfig{
 		ID:            fmt.Sprintf("%s/%s/%s", alloc.ID, task.Name, invocationid),
 		Name:          task.Name,
@@ -995,6 +1042,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 			LinuxResources: &drivers.LinuxResources{
 				MemoryLimitBytes: memoryLimit * 1024 * 1024,
 				CPUShares:        taskResources.Cpu.CpuShares,
+				CpusetCpus:       strings.Join(cpusetCpus, ","),
 				PercentTicks:     float64(taskResources.Cpu.CpuShares) / float64(tr.clientConfig.Node.NodeResources.Cpu.CpuShares),
 			},
 			Ports: &ports,
@@ -1117,6 +1165,12 @@ func (tr *TaskRunner) UpdateState(state string, event *structs.TaskEvent) {
 		// Only log the error as we persistence errors should not
 		// affect task state.
 		tr.logger.Error("error persisting task state", "error", err, "event", event, "state", state)
+	}
+
+	// Store task handle for remote tasks
+	if tr.driverCapabilities != nil && tr.driverCapabilities.RemoteTasks {
+		tr.logger.Trace("storing remote task handle state")
+		tr.localState.TaskHandle.Store(tr.state)
 	}
 
 	// Notify the alloc runner of the transition
@@ -1324,20 +1378,22 @@ func (tr *TaskRunner) setGaugeForMemory(ru *cstructs.TaskResourceUsage) {
 		allocatedMem = float32(taskRes.Memory.MemoryMB) * 1024 * 1024
 	}
 
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "rss"},
-		float32(ru.ResourceUsage.MemoryStats.RSS), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "cache"},
-		float32(ru.ResourceUsage.MemoryStats.Cache), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "swap"},
-		float32(ru.ResourceUsage.MemoryStats.Swap), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "usage"},
-		float32(ru.ResourceUsage.MemoryStats.Usage), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "max_usage"},
-		float32(ru.ResourceUsage.MemoryStats.MaxUsage), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_usage"},
-		float32(ru.ResourceUsage.MemoryStats.KernelUsage), tr.baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "kernel_max_usage"},
-		float32(ru.ResourceUsage.MemoryStats.KernelMaxUsage), tr.baseLabels)
+	ms := ru.ResourceUsage.MemoryStats
+
+	publishMetric := func(v uint64, reported, measured string) {
+		if v != 0 || helper.SliceStringContains(ms.Measured, measured) {
+			metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", reported},
+				float32(v), tr.baseLabels)
+		}
+	}
+
+	publishMetric(ms.RSS, "rss", "RSS")
+	publishMetric(ms.Cache, "cache", "Cache")
+	publishMetric(ms.Swap, "swap", "Swap")
+	publishMetric(ms.Usage, "usage", "Usage")
+	publishMetric(ms.MaxUsage, "max_usage", "Max Usage")
+	publishMetric(ms.KernelUsage, "kernel_usage", "Kernel Usage")
+	publishMetric(ms.KernelMaxUsage, "kernel_max_usage", "Kernel Max Usage")
 	if allocatedMem > 0 {
 		metrics.SetGaugeWithLabels([]string{"client", "allocs", "memory", "allocated"},
 			allocatedMem, tr.baseLabels)

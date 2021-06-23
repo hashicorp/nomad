@@ -218,7 +218,7 @@ func (r *TestReport) Summary() string {
 				fmt.Fprintf(w, "[%s]\t\t↳\t%s\t (%vs)\n", status, tname, test.Elapsed)
 				if test.Failed {
 					for _, line := range test.Output[2:] {
-						fmt.Fprintf(w, "\t\t\t%s\n", strings.Replace(strings.TrimSpace(line), "\t", "  ", -1))
+						fmt.Fprintf(w, "\t\t\t%s\n", strings.ReplaceAll(strings.TrimSpace(line), "\t", "  "))
 					}
 					fmt.Fprintln(w, "\t\t\t----------")
 				}

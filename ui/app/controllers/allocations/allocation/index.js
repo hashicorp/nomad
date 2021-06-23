@@ -47,7 +47,7 @@ export default class IndexController extends Controller.extend(Sortable) {
 
   @computed('model.taskGroup.services.@each.name')
   get services() {
-    return this.get('model.taskGroup.services').sortBy('name');
+    return (this.get('model.taskGroup.services') || []).sortBy('name');
   }
 
   onDismiss() {

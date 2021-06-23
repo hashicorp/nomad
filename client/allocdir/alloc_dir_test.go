@@ -493,6 +493,7 @@ func TestAllocDir_DetectContentType(t *testing.T) {
 		"input/test.json": "application/json",
 		"input/test.txt":  "text/plain; charset=utf-8",
 		"input/test.go":   "text/plain; charset=utf-8",
+		"input/test.hcl":  "text/plain; charset=utf-8",
 	}
 	for _, file := range testFiles {
 		fileInfo, err := os.Stat(file)

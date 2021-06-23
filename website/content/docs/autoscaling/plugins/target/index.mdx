@@ -1,0 +1,22 @@
+---
+layout: docs
+page_title: 'Autoscaling Plugins: Target'
+description: Target plugins determine where the resource to be autoscaled is located.
+---
+
+# Target Plugins
+
+Target plugins determine where the resource to be autoscaled is located and
+execute the scaling actions determined by the Autoscaler.
+
+The target can be a group of a Nomad job (in which case, the scaling type is
+called horizontal application scaling), the number of Nomad clients (horizontal
+cluster scaling), or the amount of resources assigned to a task of a Nomad job
+(vertical application scaling).
+
+## Common Policy Configuration Options
+
+All target plugins support the following policy config parameters.
+
+- `dry-run` `(bool: false)` - If set to `true`, the target will not be scaled
+  and the proposed scaling action will only be logged.

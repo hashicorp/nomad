@@ -36,6 +36,13 @@ export default class TaskGroup extends Fragment {
   @sumAggregation('tasks', 'reservedMemory') reservedMemory;
   @sumAggregation('tasks', 'reservedDisk') reservedDisk;
 
+  @computed('tasks.@each.{reservedMemory,reservedMemoryMax}')
+  get reservedMemoryMax() {
+    return this.get('tasks')
+      .map(t => t.get('reservedMemoryMax') || t.get('reservedMemory'))
+      .reduce((sum, count) => sum + count, 0);
+  }
+
   @attr('number') reservedEphemeralDisk;
 
   @computed('job.latestFailureEvaluation.failedTGAllocs.[]', 'name')

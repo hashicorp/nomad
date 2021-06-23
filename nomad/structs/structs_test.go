@@ -1088,7 +1088,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 		},
 	}
 	err = tg.Validate(&Job{})
-	require.Contains(t, err.Error(), `Volume foo has unrecognised type nothost`)
+	require.Contains(t, err.Error(), `volume has unrecognized type nothost`)
 
 	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{
@@ -1104,7 +1104,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 		},
 	}
 	err = tg.Validate(&Job{})
-	require.Contains(t, err.Error(), `Volume foo has an empty source`)
+	require.Contains(t, err.Error(), `volume has an empty source`)
 
 	tg = &TaskGroup{
 		Name: "group-a",
@@ -1125,8 +1125,10 @@ func TestTaskGroup_Validate(t *testing.T) {
 		},
 	}
 	err = tg.Validate(&Job{})
-	require.Contains(t, err.Error(), `Volume foo has an empty source`)
-	require.Contains(t, err.Error(), `Volume foo cannot be per_alloc when canaries are in use`)
+	require.Contains(t, err.Error(), `volume has an empty source`)
+	require.Contains(t, err.Error(), `volume cannot be per_alloc when canaries are in use`)
+	require.Contains(t, err.Error(), `CSI volumes must have an attachment mode`)
+	require.Contains(t, err.Error(), `CSI volumes must have an access mode`)
 
 	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{

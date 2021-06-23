@@ -2,14 +2,13 @@ package jobspec
 
 import (
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
-	"github.com/kr/pretty"
+	"github.com/stretchr/testify/require"
 )
 
 // consts copied from nomad/structs package to keep jobspec isolated from rest of nomad
@@ -1254,6 +1253,27 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"tg-service-connect-sidecar_disablecheck.hcl",
+			&api.Job{
+				ID:   stringToPtr("sidecar_disablecheck"),
+				Name: stringToPtr("sidecar_disablecheck"),
+				Type: stringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: stringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							Native: false,
+							SidecarService: &api.ConsulSidecarService{
+								DisableDefaultTCPCheck: true,
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"tg-service-connect-proxy.hcl",
 			&api.Job{
 				ID:   stringToPtr("service-connect-proxy"),
@@ -1608,26 +1628,20 @@ func TestParse(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Logf("Testing parse: %s", tc.File)
+		t.Run(tc.File, func(t *testing.T) {
+			t.Logf("Testing parse: %s", tc.File)
 
-		path, err := filepath.Abs(filepath.Join("./test-fixtures", tc.File))
-		if err != nil {
-			t.Fatalf("file: %s\n\n%s", tc.File, err)
-			continue
-		}
+			path, err := filepath.Abs(filepath.Join("./test-fixtures", tc.File))
+			require.NoError(t, err)
 
-		actual, err := ParseFile(path)
-		if (err != nil) != tc.Err {
-			t.Fatalf("file: %s\n\n%s", tc.File, err)
-			continue
-		}
-
-		if !reflect.DeepEqual(actual, tc.Result) {
-			for _, d := range pretty.Diff(actual, tc.Result) {
-				t.Logf(d)
+			actual, err := ParseFile(path)
+			if tc.Err {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.Result, actual)
 			}
-			t.Fatalf("file: %s", tc.File)
-		}
+		})
 	}
 }
 

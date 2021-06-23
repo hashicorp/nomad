@@ -193,25 +193,6 @@ var (
 	validNamespaceName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
 
-// Context defines the scope in which a search for Nomad object operates, and
-// is also used to query the matching index value for this context
-type Context string
-
-const (
-	Allocs          Context = "allocs"
-	Deployments     Context = "deployment"
-	Evals           Context = "evals"
-	Jobs            Context = "jobs"
-	Nodes           Context = "nodes"
-	Namespaces      Context = "namespaces"
-	Quotas          Context = "quotas"
-	Recommendations Context = "recommendations"
-	ScalingPolicies Context = "scaling_policy"
-	All             Context = "all"
-	Plugins         Context = "plugins"
-	Volumes         Context = "volumes"
-)
-
 // NamespacedID is a tuple of an ID and a namespace
 type NamespacedID struct {
 	ID        string
@@ -527,6 +508,9 @@ type NodeUpdateDrainRequest struct {
 	// UpdatedAt represents server time of receiving request
 	UpdatedAt int64
 
+	// Meta is user-provided metadata relating to the drain operation
+	Meta map[string]string
+
 	WriteRequest
 }
 
@@ -578,35 +562,6 @@ type NodeEvaluateRequest struct {
 type NodeSpecificRequest struct {
 	NodeID   string
 	SecretID string
-	QueryOptions
-}
-
-// SearchResponse is used to return matches and information about whether
-// the match list is truncated specific to each type of context.
-type SearchResponse struct {
-	// Map of context types to ids which match a specified prefix
-	Matches map[Context][]string
-
-	// Truncations indicates whether the matches for a particular context have
-	// been truncated
-	Truncations map[Context]bool
-
-	QueryMeta
-}
-
-// SearchRequest is used to parameterize a request, and returns a
-// list of matches made up of jobs, allocations, evaluations, and/or nodes,
-// along with whether or not the information returned is truncated.
-type SearchRequest struct {
-	// Prefix is what ids are matched to. I.e, if the given prefix were
-	// "a", potential matches might be "abcd" or "aabb"
-	Prefix string
-
-	// Context is the type that can be matched against. A context can be a job,
-	// node, evaluation, allocation, or empty (indicated every context should be
-	// matched)
-	Context Context
-
 	QueryOptions
 }
 
@@ -1811,6 +1766,45 @@ func (d *DrainStrategy) Equal(o *DrainStrategy) bool {
 	return true
 }
 
+const (
+	// DrainStatuses are the various states a drain can be in, as reflect in DrainMetadata
+	DrainStatusDraining DrainStatus = "draining"
+	DrainStatusComplete DrainStatus = "complete"
+	DrainStatusCanceled DrainStatus = "canceled"
+)
+
+type DrainStatus string
+
+// DrainMetadata contains information about the most recent drain operation for a given Node.
+type DrainMetadata struct {
+	// StartedAt is the time that the drain operation started. This is equal to Node.DrainStrategy.StartedAt,
+	// if it exists
+	StartedAt time.Time
+
+	// UpdatedAt is the time that that this struct was most recently updated, either via API action
+	// or drain completion
+	UpdatedAt time.Time
+
+	// Status reflects the status of the drain operation.
+	Status DrainStatus
+
+	// AccessorID is the accessor ID of the ACL token used in the most recent API operation against this drain
+	AccessorID string
+
+	// Meta includes the operator-submitted metadata about this drain operation
+	Meta map[string]string
+}
+
+func (m *DrainMetadata) Copy() *DrainMetadata {
+	if m == nil {
+		return nil
+	}
+	c := new(DrainMetadata)
+	*c = *m
+	c.Meta = helper.CopyMapStringString(m.Meta)
+	return c
+}
+
 // Node is a representation of a schedulable client node
 type Node struct {
 	// ID is a unique identifier for the node. It can be constructed
@@ -1821,7 +1815,7 @@ type Node struct {
 	// SecretID is an ID that is only known by the Node and the set of Servers.
 	// It is not accessible via the API and is used to authenticate nodes
 	// conducting privileged activities.
-	SecretID string `json:"-"`
+	SecretID string
 
 	// Datacenter for this node
 	Datacenter string
@@ -1912,6 +1906,9 @@ type Node struct {
 	// HostVolumes is a map of host volume names to their configuration
 	HostVolumes map[string]*ClientHostVolumeConfig
 
+	// LastDrain contains metadata about the most recent drain operation
+	LastDrain *DrainMetadata
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -1989,6 +1986,7 @@ func (n *Node) Copy() *Node {
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
 	nn.Events = copyNodeEvents(n.Events)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
+	nn.LastDrain = nn.LastDrain.Copy()
 	nn.CSIControllerPlugins = copyNodeCSI(nn.CSIControllerPlugins)
 	nn.CSINodePlugins = copyNodeCSI(nn.CSINodePlugins)
 	nn.Drivers = copyNodeDrivers(n.Drivers)
@@ -2141,6 +2139,7 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 		StatusDescription:     n.StatusDescription,
 		Drivers:               n.Drivers,
 		HostVolumes:           n.HostVolumes,
+		LastDrain:             n.LastDrain,
 		CreateIndex:           n.CreateIndex,
 		ModifyIndex:           n.ModifyIndex,
 	}
@@ -2172,6 +2171,7 @@ type NodeListStub struct {
 	HostVolumes           map[string]*ClientHostVolumeConfig
 	NodeResources         *NodeResources         `json:",omitempty"`
 	ReservedResources     *NodeReservedResources `json:",omitempty"`
+	LastDrain             *DrainMetadata
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }
@@ -4029,12 +4029,15 @@ type Job struct {
 	// token and is not stored after Job submission.
 	ConsulToken string
 
+	// ConsulNamespace is the Consul namespace
+	ConsulNamespace string
+
 	// VaultToken is the Vault token that proves the submitter of the job has
 	// access to the specified Vault policies. This field is only used to
 	// transfer the token and is not stored after Job submission.
 	VaultToken string
 
-	// VaultNamespace is the Vault namepace
+	// VaultNamespace is the Vault namespace
 	VaultNamespace string
 
 	// NomadTokenID is the Accessor ID of the ACL token (if any)
@@ -4379,6 +4382,7 @@ func (j *Job) HasUpdateStrategy() bool {
 func (j *Job) Stub(summary *JobSummary) *JobListStub {
 	return &JobListStub{
 		ID:                j.ID,
+		Namespace:         j.Namespace,
 		ParentID:          j.ParentID,
 		Name:              j.Name,
 		Datacenters:       j.Datacenters,
@@ -5941,6 +5945,9 @@ type TaskGroup struct {
 	// overridden in the task.
 	Networks Networks
 
+	// Consul configuration specific to this task group
+	Consul *Consul
+
 	// Services this group provides
 	Services []*Service
 
@@ -5970,6 +5977,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
 	ntg.Volumes = CopyMapVolumeRequest(ntg.Volumes)
 	ntg.Scaling = ntg.Scaling.Copy()
+	ntg.Consul = ntg.Consul.Copy()
 
 	// Copy the network objects
 	if tg.Networks != nil {
@@ -6182,20 +6190,14 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	}
 
 	// Validate the volume requests
-	for name, decl := range tg.Volumes {
-		if !(decl.Type == VolumeTypeHost ||
-			decl.Type == VolumeTypeCSI) {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unrecognised type %s", name, decl.Type))
-			continue
-		}
-
-		if decl.PerAlloc && tg.Update != nil && tg.Update.Canary > 0 {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Volume %s cannot be per_alloc when canaries are in use", name))
-		}
-
-		if decl.Source == "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has an empty source", name))
+	var canaries int
+	if tg.Update != nil {
+		canaries = tg.Update.Canary
+	}
+	for name, volReq := range tg.Volumes {
+		if err := volReq.Validate(canaries); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf(
+				"Task group volume validation for %s failed: %v", name, err))
 		}
 	}
 
@@ -7207,19 +7209,30 @@ func (k TaskKind) IsConnectNative() bool {
 	return k.hasPrefix(ConnectNativePrefix)
 }
 
+// IsConnectIngress returns true if the TaskKind is connect-ingress.
 func (k TaskKind) IsConnectIngress() bool {
 	return k.hasPrefix(ConnectIngressPrefix)
 }
 
+// IsConnectTerminating returns true if the TaskKind is connect-terminating.
 func (k TaskKind) IsConnectTerminating() bool {
 	return k.hasPrefix(ConnectTerminatingPrefix)
 }
 
+// IsConnectMesh returns true if the TaskKind is connect-mesh.
+func (k TaskKind) IsConnectMesh() bool {
+	return k.hasPrefix(ConnectMeshPrefix)
+}
+
+// IsAnyConnectGateway returns true if the TaskKind represents any one of the
+// supported connect gateway types.
 func (k TaskKind) IsAnyConnectGateway() bool {
 	switch {
 	case k.IsConnectIngress():
 		return true
 	case k.IsConnectTerminating():
+		return true
+	case k.IsConnectMesh():
 		return true
 	default:
 		return false
@@ -7241,14 +7254,11 @@ const (
 
 	// ConnectTerminatingPrefix is the prefix used for fields referencing a Consul
 	// Connect Terminating Gateway Proxy.
-	//
 	ConnectTerminatingPrefix = "connect-terminating"
 
 	// ConnectMeshPrefix is the prefix used for fields referencing a Consul Connect
 	// Mesh Gateway Proxy.
-	//
-	// Not yet supported.
-	// ConnectMeshPrefix = "connect-mesh"
+	ConnectMeshPrefix = "connect-mesh"
 )
 
 // ValidateConnectProxyService checks that the service that is being
@@ -7452,6 +7462,34 @@ type AllocState struct {
 	Time  time.Time
 }
 
+// TaskHandle is  optional handle to a task propogated to the servers for use
+// by remote tasks. Since remote tasks are not implicitly lost when the node
+// they are assigned to is down, their state is migrated to the replacement
+// allocation.
+//
+//  Minimal set of fields from plugins/drivers/task_handle.go:TaskHandle
+type TaskHandle struct {
+	// Version of driver state. Used by the driver to gracefully handle
+	// plugin upgrades.
+	Version int
+
+	// Driver-specific state containing a handle to the remote task.
+	DriverState []byte
+}
+
+func (h *TaskHandle) Copy() *TaskHandle {
+	if h == nil {
+		return nil
+	}
+
+	newTH := TaskHandle{
+		Version:     h.Version,
+		DriverState: make([]byte, len(h.DriverState)),
+	}
+	copy(newTH.DriverState, h.DriverState)
+	return &newTH
+}
+
 // Set of possible states for a task.
 const (
 	TaskStatePending = "pending" // The task is waiting to be run.
@@ -7485,6 +7523,10 @@ type TaskState struct {
 
 	// Series of task events that transition the state of the task.
 	Events []*TaskEvent
+
+	// Experimental -  TaskHandle is based on drivers.TaskHandle and used
+	// by remote task drivers to migrate task handles between allocations.
+	TaskHandle *TaskHandle
 }
 
 // NewTaskState returns a TaskState initialized in the Pending state.
@@ -7506,16 +7548,18 @@ func (ts *TaskState) Copy() *TaskState {
 	if ts == nil {
 		return nil
 	}
-	copy := new(TaskState)
-	*copy = *ts
+	newTS := new(TaskState)
+	*newTS = *ts
 
 	if ts.Events != nil {
-		copy.Events = make([]*TaskEvent, len(ts.Events))
+		newTS.Events = make([]*TaskEvent, len(ts.Events))
 		for i, e := range ts.Events {
-			copy.Events[i] = e.Copy()
+			newTS.Events[i] = e.Copy()
 		}
 	}
-	return copy
+
+	newTS.TaskHandle = ts.TaskHandle.Copy()
+	return newTS
 }
 
 // Successful returns whether a task finished successfully. This doesn't really
@@ -8198,7 +8242,7 @@ const (
 	ConstraintAttributeIsNotSet = "is_not_set"
 )
 
-// Constraints are used to restrict placement options.
+// A Constraint is used to restrict placement options.
 type Constraint struct {
 	LTarget string // Left-hand target
 	RTarget string // Right-hand target
@@ -8206,7 +8250,7 @@ type Constraint struct {
 	str     string // Memoized string
 }
 
-// Equal checks if two constraints are equal
+// Equals checks if two constraints are equal
 func (c *Constraint) Equals(o *Constraint) bool {
 	return c == o ||
 		c.LTarget == o.LTarget &&
@@ -9177,6 +9221,16 @@ type Allocation struct {
 	ModifyTime int64
 }
 
+// ConsulNamespace returns the Consul namespace of the task group associated
+// with this allocation.
+func (a *Allocation) ConsulNamespace() string {
+	return a.Job.LookupTaskGroup(a.TaskGroup).Consul.GetNamespace()
+}
+
+func (a *Allocation) JobNamespacedID() NamespacedID {
+	return NewNamespacedID(a.JobID, a.Namespace)
+}
+
 // Index returns the index of the allocation. If the allocation is from a task
 // group with count greater than 1, there will be multiple allocations for it.
 func (a *Allocation) Index() uint {
@@ -9785,6 +9839,10 @@ type AllocMetric struct {
 	// QuotaExhausted provides the exhausted dimensions
 	QuotaExhausted []string
 
+	// ResourcesExhausted provides the amount of resources exhausted by task
+	// during the allocation placement
+	ResourcesExhausted map[string]*Resources
+
 	// Scores is the scores of the final few nodes remaining
 	// for placement. The top score is typically selected.
 	// Deprecated: Replaced by ScoreMetaData in Nomad 0.9
@@ -9871,6 +9929,35 @@ func (a *AllocMetric) ExhaustQuota(dimensions []string) {
 	}
 
 	a.QuotaExhausted = append(a.QuotaExhausted, dimensions...)
+}
+
+// ExhaustResources updates the amount of resources exhausted for the
+// allocation because of the given task group.
+func (a *AllocMetric) ExhaustResources(tg *TaskGroup) {
+	if a.DimensionExhausted == nil {
+		return
+	}
+
+	if a.ResourcesExhausted == nil {
+		a.ResourcesExhausted = make(map[string]*Resources)
+	}
+
+	for _, t := range tg.Tasks {
+		exhaustedResources := a.ResourcesExhausted[t.Name]
+		if exhaustedResources == nil {
+			exhaustedResources = &Resources{}
+		}
+
+		if a.DimensionExhausted["memory"] > 0 {
+			exhaustedResources.MemoryMB += t.Resources.MemoryMB
+		}
+
+		if a.DimensionExhausted["cpu"] > 0 {
+			exhaustedResources.CPU += t.Resources.CPU
+		}
+
+		a.ResourcesExhausted[t.Name] = exhaustedResources
+	}
 }
 
 // ScoreNode is used to gather top K scoring nodes in a heap
@@ -10344,7 +10431,7 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 // ineligible, whether the job has escaped computed node classes and whether the
 // quota limit was reached.
 func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
-	escaped bool, quotaReached string) *Evaluation {
+	escaped bool, quotaReached string, failedTGAllocs map[string]*AllocMetric) *Evaluation {
 	now := time.Now().UTC().UnixNano()
 	return &Evaluation{
 		ID:                   uuid.Generate(),
@@ -10356,6 +10443,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
 		JobModifyIndex:       e.JobModifyIndex,
 		Status:               EvalStatusBlocked,
 		PreviousEval:         e.ID,
+		FailedTGAllocs:       failedTGAllocs,
 		ClassEligibility:     classEligibility,
 		EscapedComputedClass: escaped,
 		QuotaLimitReached:    quotaReached,
@@ -10459,6 +10547,67 @@ type Plan struct {
 	// Plan. The leader will wait to evaluate the plan until its StateStore
 	// has reached at least this index.
 	SnapshotIndex uint64
+}
+
+func (p *Plan) GoString() string {
+	out := fmt.Sprintf("(eval %s", p.EvalID[:8])
+	out += fmt.Sprintf(", job %s", p.Job.ID)
+	if p.Deployment != nil {
+		out += fmt.Sprintf(", deploy %s", p.Deployment.ID[:8])
+	}
+	if len(p.NodeUpdate) > 0 {
+		out += ", NodeUpdates: "
+		for node, allocs := range p.NodeUpdate {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s stop/evict)", alloc.ID[:8])
+			}
+			out += ")"
+		}
+	}
+	if len(p.NodeAllocation) > 0 {
+		out += ", NodeAllocations: "
+		for node, allocs := range p.NodeAllocation {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s %s %s)",
+					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
+				)
+			}
+			out += ")"
+		}
+	}
+	if len(p.NodePreemptions) > 0 {
+		out += ", NodePreemptions: "
+		for node, allocs := range p.NodePreemptions {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s %s %s)",
+					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
+				)
+			}
+			out += ")"
+		}
+	}
+	if len(p.DeploymentUpdates) > 0 {
+		out += ", DeploymentUpdates: "
+		for _, dupdate := range p.DeploymentUpdates {
+			out += fmt.Sprintf("(%s %s)",
+				dupdate.DeploymentID[:8], dupdate.Status)
+		}
+	}
+	if p.Annotations != nil {
+		out += ", Annotations: "
+		for tg, updates := range p.Annotations.DesiredTGUpdates {
+			out += fmt.Sprintf("(update[%s] %v)", tg, updates)
+		}
+		for _, preempted := range p.Annotations.PreemptedAllocs {
+			out += fmt.Sprintf("(preempt %s)", preempted.ID[:8])
+		}
+	}
+
+	out += ")"
+	return out
 }
 
 // AppendStoppedAlloc marks an allocation to be stopped. The clientStatus of the

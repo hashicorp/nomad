@@ -308,8 +308,40 @@ func (c *jobConfig) EvalContext() *hcl.EvalContext {
 			inputVariablesAccessor: cty.ObjectVal(vars),
 			localsAccessor:         cty.ObjectVal(locals),
 		},
-		UnknownVariable: func(expr string) (cty.Value, error) {
-			v := "${" + expr + "}"
+		UndefinedVariable: func(t hcl.Traversal) (cty.Value, hcl.Diagnostics) {
+			body := c.ParseConfig.Body
+			start := t.SourceRange().Start.Byte
+			end := t.SourceRange().End.Byte
+
+			v := string(body[start:end])
+
+			// find the start of inclusing "${..}" if it's inclused in one; otherwise, wrap it in one
+			isBracketed := false
+			for i := start - 1; i >= 1; i-- {
+				if body[i] == '{' && body[i-1] == '$' {
+					isBracketed = true
+					v = string(body[i-1:start]) + v
+					break
+				} else if body[i] != ' ' {
+					break
+				}
+			}
+
+			if isBracketed {
+				for i := end + 1; i < len(body); i++ {
+					if body[i] == '}' {
+						v += string(body[end:i])
+					} else if body[i] != ' ' {
+						// unexpected!
+						v += "}"
+						break
+					}
+				}
+
+			} else {
+				v = "${" + v + "}"
+			}
+
 			return cty.StringVal(v), nil
 		},
 	}

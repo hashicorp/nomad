@@ -1,5 +1,19 @@
 {{page-title "Job " this.job.name " versions"}}
 <JobSubnav @job={{this.job}} />
 <section class="section">
-  <JobVersionsStream @versions={{this.model.versions}} @verbose={{true}} />
+  {{#if this.error}}
+    <div data-test-inline-error class="notification {{this.errorLevelClass}}">
+      <div class="columns">
+        <div class="column">
+          <h3 data-test-inline-error-title class="title is-4">{{this.error.title}}</h3>
+          <p data-test-inline-error-body>{{this.error.description}}</p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button data-test-inline-error-close class="button {{this.errorLevelClass}}" onclick={{action this.onDismiss}} type="button">Okay</button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+
+  <JobVersionsStream @versions={{this.model.versions}} @verbose={{true}} @handleError={{action this.handleError}} />
 </section>

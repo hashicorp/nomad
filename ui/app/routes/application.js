@@ -1,5 +1,5 @@
 import { inject as service } from '@ember/service';
-import { next } from '@ember/runloop';
+import { later, next } from '@ember/runloop';
 import Route from '@ember/routing/route';
 import { AbortError } from '@ember-data/adapter/error';
 import RSVP from 'rsvp';
@@ -26,34 +26,48 @@ export default class ApplicationRoute extends Route {
   }
 
   async beforeModel(transition) {
-    let exchangeOneTimeToken;
+    let promises;
 
-    if (transition.to.queryParams.ott) {
-      exchangeOneTimeToken = this.get('token').exchangeOneTimeToken(transition.to.queryParams.ott);
+    // service:router#transitionTo can cause this to rerun because of refreshModel on
+    // the region query parameter, this skips rerunning the detection/loading queries.
+    if (transition.queryParamsOnly) {
+      promises = Promise.resolve(true);
     } else {
-      exchangeOneTimeToken = Promise.resolve(true);
+
+      let exchangeOneTimeToken;
+
+      if (transition.to.queryParams.ott) {
+        exchangeOneTimeToken = this.get('token').exchangeOneTimeToken(transition.to.queryParams.ott);
+      } else {
+        exchangeOneTimeToken = Promise.resolve(true);
+      }
+
+      try {
+        await exchangeOneTimeToken;
+      } catch (e) {
+        this.controllerFor('application').set('error', e);
+      }
+
+      const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
+        .perform()
+        .catch();
+
+      const fetchLicense = this.get('system.fetchLicense')
+        .perform()
+        .catch();
+
+      const checkFuzzySearchPresence = this.get('system.checkFuzzySearchPresence')
+        .perform()
+        .catch();
+
+      promises = await RSVP.all([
+        this.get('system.regions'),
+        this.get('system.defaultRegion'),
+        fetchLicense,
+        fetchSelfTokenAndPolicies,
+        checkFuzzySearchPresence,
+      ]);
     }
-
-    try {
-      await exchangeOneTimeToken;
-    } catch (e) {
-      this.controllerFor('application').set('error', e);
-    }
-
-    const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
-      .perform()
-      .catch();
-
-    const fetchLicense = this.get('system.fetchLicense')
-      .perform()
-      .catch();
-
-    const promises = await RSVP.all([
-      this.get('system.regions'),
-      this.get('system.defaultRegion'),
-      fetchLicense,
-      fetchSelfTokenAndPolicies,
-    ]);
 
     if (!this.get('system.shouldShowRegions')) return promises;
 
@@ -66,7 +80,6 @@ export default class ApplicationRoute extends Route {
       (queryParam && queryParam !== currentRegion) ||
       (!queryParam && currentRegion !== defaultRegion)
     ) {
-      this.system.reset();
       this.store.unloadAll();
     }
 
@@ -75,22 +88,37 @@ export default class ApplicationRoute extends Route {
     return promises;
   }
 
-  // Model is being used as a way to transfer the provided region
-  // query param to update the controller state.
-  model(params) {
-    return params.region;
+  // Model is being used as a way to propagate the region and
+  // one time token query parameters for use in setupController.
+  model(
+    { region },
+    {
+      to: {
+        queryParams: { ott },
+      },
+    }
+  ) {
+    return {
+      region,
+      hasOneTimeToken: ott,
+    };
   }
 
-  setupController(controller, model) {
-    const queryParam = model;
-
-    if (queryParam === this.get('system.defaultRegion.region')) {
+  setupController(controller, { region, hasOneTimeToken }) {
+    if (region === this.get('system.defaultRegion.region')) {
       next(() => {
         controller.set('region', null);
       });
     }
 
-    return super.setupController(...arguments);
+    super.setupController(...arguments);
+
+    if (hasOneTimeToken) {
+      // Hack to force clear the OTT query parameter
+      later(() => {
+        controller.set('oneTimeToken', '');
+      }, 500);
+    }
   }
 
   @action

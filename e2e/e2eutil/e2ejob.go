@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/api"
+	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/uuid"

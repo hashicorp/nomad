@@ -1,0 +1,93 @@
+---
+layout: docs
+page_title: Nomad Enterprise License FAQ
+description: >-
+  Frequently Asked Questions pertaining to Nomad Enterprise Licensing.
+---
+
+# Frequently Asked Questions (FAQ)
+
+This FAQ is for the license changes introduced in Nomad Enterprise version v1.1.0+ent. 
+Nomad Enterprise automatically load Nomad licenses when a Nomad server agent starts using Nomad Enterprise.
+
+## Q: Can I get a quick summary of the Nomad changes?
+
+Starting with Nomad Enterprise v1.1.0, the license enablement process is different.
+
+HashiCorp Enterprise servers will no longer start without a license. When the server instance initializes the license watcher, the server reads from either an environment variable or file. If the license is missing, invalid, or expired, the server will immediately exit. 
+This check is part of the server boot-up process.
+
+In previous versions of HashiCorp enterprise products, one server could distribute a license to other servers via the Raft protocol. 
+This will no longer work since each server must be able to find a valid license during the startup process.
+
+
+## Q: What resources are available?
+
+The list below is a great starting point for learning more about the license changes introduced in Nomad Enterprise v1.1.0
+
+- [v1.1.0 Upgrade Guide](https://www.nomadproject.io/docs/upgrade/upgrade-specific#enterprise-licenses)
+
+- [Nomad License Documentation](https://www.nomadproject.io/docs/enterprise/license)
+
+- [License configuration values documentation](https://www.nomadproject.io/docs/configuration/server#license_path)
+
+- [Install a HashiCorp Enterprise License Tutorial](https://learn.hashicorp.com/tutorials/nomad/hashicorp-enterprise-license)
+
+## Q: Does this affect Nomad or older versions of Nomad?
+
+This change only affects Nomad Enterprise version v1.1.0+ent and later.
+
+## Q: Does the license have to be present on Nomad client nodes?
+
+Only Nomad server nodes need to have the license present.
+Nomad agents running with the `-dev` flag will also need a license.
+
+## Q: What are some pitfalls that could be experienced during an upgrade because of the license changes?
+
+If you follow the steps in the [upgrade guide](https://www.nomadproject.io/docs/upgrade/upgrade-specific#enterprise-licenses), but have misconfigured the licensing steps, the server instances will stop during boot-up sequence. 
+
+If you do not check cluster health after adding new servers, and verify that the new servers have joined properly, then you may accidentally take down old servers without replacing them.
+
+If you are using a trial license in production, this could cause issues as the cluster will fail to start once the trial expires.
+
+If you have built automation around `nomad license put`, this command will fail as it has been removed from Nomad v1.1.0+.
+
+## Q: What are some other gotchas?
+
+You might not have access to your organization's Nomad license. 
+The  6-hour temporary license window is now removed, and a license is required for proper boot-up.
+Running `nomad agent -dev` without a license will fail.
+
+
+## Q: How can a user get their existing license to put on disk for an upgrade?
+
+If you are an existing HashiCorp enterprise customer you may contact your organization's customer success manager (CSM) or email support-softwaredelivery@hashicorp.com for information on how to get your organization's enterprise license.
+You can use `nomad license get` to retrieve information about the license, but not the license itself. 
+
+## Q: What happens when a license expires?
+If a license expires after a server node joins the cluster, the existing Enterprise features will continue to operate until a grace period expires. 
+The grace period duration is 1 day, and upon the end of the grace period the Nomad servers will shut down. 
+
+## Q: Will on-prem binaries with “baked-in” licenses work?
+
+There is no impact to baked-in licensed binaries.
+
+## Q: Are licenses cluster-specific? node-specific?
+
+Licenses can be reused on different nodes and different clusters.
+
+## Q: Where can users get a trial license for Nomad?
+
+Visit https://nomadproject.io/trial for a free 30-day trial license.
+
+## Q: When a Nomad client agent restarts, will it still need a license file?
+
+Every time `nomad agent` runs as a server (or in `-dev`), it requires a license.
+
+## Q: May I downgrade Nomad Enterprise from v1.1.0 to an earlier version?
+
+Nomad cannot safely be rolled back to an earlier version. 
+This is not a supported operation due to the Nomad state store not having forward compatibility. The end result could be a crash loop.
+
+## Q: Is there a tutorial available for the license configuration steps?
+Please visit the [Enterprise License Tutorial](https://learn.hashicorp.com/tutorials/nomad/hashicorp-enterprise-license).

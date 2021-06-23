@@ -23,6 +23,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/kr/pty"
+	"github.com/syndtr/gocapability/capability"
 
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
@@ -91,6 +92,10 @@ type Executor interface {
 
 // ExecCommand holds the user command, args, and other isolation related
 // settings.
+//
+// Important (!): when adding fields, make sure to update the RPC methods in
+// grpcExecutorClient.Launch and grpcExecutorServer.Launch. Number of hours
+// spent tracking this down: too many.
 type ExecCommand struct {
 	// Cmd is the command that the user wants to run.
 	Cmd string
@@ -146,6 +151,9 @@ type ExecCommand struct {
 
 	// ModeIPC is the IPC isolation mode (private or host).
 	ModeIPC string
+
+	// Capabilities are the linux capabilities to be enabled by the task driver.
+	Capabilities []string
 }
 
 // SetWriters sets the writer for the process stdout and stderr. This should
@@ -683,4 +691,24 @@ func makeExecutable(binPath string) error {
 		}
 	}
 	return nil
+}
+
+// SupportedCaps returns a list of all supported capabilities in kernel.
+func SupportedCaps(allowNetRaw bool) []string {
+	var allCaps []string
+	last := capability.CAP_LAST_CAP
+	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
+	if last == capability.Cap(63) {
+		last = capability.CAP_BLOCK_SUSPEND
+	}
+	for _, cap := range capability.List() {
+		if cap > last {
+			continue
+		}
+		if !allowNetRaw && cap == capability.CAP_NET_RAW {
+			continue
+		}
+		allCaps = append(allCaps, fmt.Sprintf("CAP_%s", strings.ToUpper(cap.String())))
+	}
+	return allCaps
 }

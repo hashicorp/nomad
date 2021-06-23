@@ -24,7 +24,7 @@ export default function NonContainerizedApplicationOrchestrationPage() {
           ],
         }}
         image={{
-          url: require('./img/non-containerized-orchestration.png'),
+          url: require('./img/non-containerized-orch.png'),
           alt: 'Non-Containerized Orchestration',
         }}
       />
@@ -37,7 +37,7 @@ export default function NonContainerizedApplicationOrchestrationPage() {
           textSide: 'left',
         }}
         image={{
-          url: require('./img/bin-packing.svg'),
+          url: require('./img/resource-utilization.png'),
           alt: 'Bin Packing',
         }}
       />
@@ -57,7 +57,7 @@ export default function NonContainerizedApplicationOrchestrationPage() {
           ],
         }}
         image={{
-          url: require('./img/zero-downtime-deployments.png'),
+          url: require('./img/zero-downtime.png'),
           alt: '',
         }}
       />
@@ -70,37 +70,34 @@ export default function NonContainerizedApplicationOrchestrationPage() {
             'Install and run Nomad easily on bare metal as a single binary and with the same ease as on cloud.',
         }}
         image={{
-          url: require('./img/on-prem-with-ease.svg'),
+          url: require('./img/run-on-prem-with-ease.png'),
           alt: '',
         }}
       />
 
-      <div className="with-border">
-        <TextSplitWithImage
-          textSplit={{
-            heading: 'High Performance Batch Workloads',
-            content:
-              'Run batch jobs with proven scalability of thousands of deployments per second via the batch scheduler.',
-            textSide: 'right',
-            links: [
-              {
-                text: 'Watch GrayMeta tech presentation',
-                url:
-                  'https://www.hashicorp.com/resources/backend-batch-processing-nomad',
-                type: 'outbound',
-              },
-            ],
-          }}
-          image={{
-            url: require('./img/high-performance-batch-workloads.png'),
-            alt: '',
-          }}
-        />
-      </div>
+      <TextSplitWithImage
+        textSplit={{
+          heading: 'High Performance Batch Workloads',
+          content:
+            'Run batch jobs with proven scalability of thousands of deployments per second via the batch scheduler.',
+          textSide: 'right',
+          links: [
+            {
+              text: 'Watch GrayMeta tech presentation',
+              url:
+                'https://www.hashicorp.com/resources/backend-batch-processing-nomad',
+              type: 'outbound',
+            },
+          ],
+        }}
+        image={{
+          url: require('./img/batch-workloads@3x.png'),
+          alt: '',
+        }}
+      />
 
       <FeaturedSlider
         heading="Case Study"
-        product="nomad"
         theme="dark"
         features={[
           {

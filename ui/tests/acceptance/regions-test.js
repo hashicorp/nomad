@@ -164,8 +164,10 @@ module('Acceptance | regions (many)', function(hooks) {
     const [
       ,
       ,
+      ,
       // License request
       // Token/policies request
+      // Search feature detection
       regionsRequest,
       defaultRegionRequest,
       ...appRequests

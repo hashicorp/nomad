@@ -95,6 +95,7 @@ type ServiceCheck struct {
 	TaskName               string              `mapstructure:"task" hcl:"task,optional"`
 	SuccessBeforePassing   int                 `mapstructure:"success_before_passing" hcl:"success_before_passing,optional"`
 	FailuresBeforeCritical int                 `mapstructure:"failures_before_critical" hcl:"failures_before_critical,optional"`
+	Body                   string              `hcl:"body,optional"`
 	OnUpdate               string              `mapstructure:"on_update" hcl:"on_update,optional"`
 }
 
@@ -188,9 +189,10 @@ func (cc *ConsulConnect) Canonicalize() {
 // ConsulSidecarService represents a Consul Connect SidecarService jobspec
 // stanza.
 type ConsulSidecarService struct {
-	Tags  []string     `hcl:"tags,optional"`
-	Port  string       `hcl:"port,optional"`
-	Proxy *ConsulProxy `hcl:"proxy,block"`
+	Tags                   []string     `hcl:"tags,optional"`
+	Port                   string       `hcl:"port,optional"`
+	Proxy                  *ConsulProxy `hcl:"proxy,block"`
+	DisableDefaultTCPCheck bool         `mapstructure:"disable_default_tcp_check" hcl:"disable_default_tcp_check,optional"`
 }
 
 func (css *ConsulSidecarService) Canonicalize() {
@@ -279,17 +281,77 @@ func (cp *ConsulProxy) Canonicalize() {
 		cp.Upstreams = nil
 	}
 
+	for _, upstream := range cp.Upstreams {
+		upstream.Canonicalize()
+	}
+
 	if len(cp.Config) == 0 {
 		cp.Config = nil
 	}
 }
 
+// ConsulMeshGateway is used to configure mesh gateway usage when connecting to
+// a connect upstream in another datacenter.
+type ConsulMeshGateway struct {
+	// Mode configures how an upstream should be accessed with regard to using
+	// mesh gateways.
+	//
+	// local - the connect proxy makes outbound connections through mesh gateway
+	// originating in the same datacenter.
+	//
+	// remote - the connect proxy makes outbound connections to a mesh gateway
+	// in the destination datacenter.
+	//
+	// none (default) - no mesh gateway is used, the proxy makes outbound connections
+	// directly to destination services.
+	//
+	// https://www.consul.io/docs/connect/gateways/mesh-gateway#modes-of-operation
+	Mode string `mapstructure:"mode" hcl:"mode,optional"`
+}
+
+func (c *ConsulMeshGateway) Canonicalize() {
+	// Mode may be empty string, indicating behavior will defer to Consul
+	// service-defaults config entry.
+	return
+}
+
+func (c *ConsulMeshGateway) Copy() *ConsulMeshGateway {
+	if c == nil {
+		return nil
+	}
+
+	return &ConsulMeshGateway{
+		Mode: c.Mode,
+	}
+}
+
 // ConsulUpstream represents a Consul Connect upstream jobspec stanza.
 type ConsulUpstream struct {
-	DestinationName  string `mapstructure:"destination_name" hcl:"destination_name,optional"`
-	LocalBindPort    int    `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
-	Datacenter       string `mapstructure:"datacenter" hcl:"datacenter,optional"`
-	LocalBindAddress string `mapstructure:"local_bind_address" hcl:"local_bind_address,optional"`
+	DestinationName  string             `mapstructure:"destination_name" hcl:"destination_name,optional"`
+	LocalBindPort    int                `mapstructure:"local_bind_port" hcl:"local_bind_port,optional"`
+	Datacenter       string             `mapstructure:"datacenter" hcl:"datacenter,optional"`
+	LocalBindAddress string             `mapstructure:"local_bind_address" hcl:"local_bind_address,optional"`
+	MeshGateway      *ConsulMeshGateway `mapstructure:"mesh_gateway" hcl:"mesh_gateway,block"`
+}
+
+func (cu *ConsulUpstream) Copy() *ConsulUpstream {
+	if cu == nil {
+		return nil
+	}
+	return &ConsulUpstream{
+		DestinationName:  cu.DestinationName,
+		LocalBindPort:    cu.LocalBindPort,
+		Datacenter:       cu.Datacenter,
+		LocalBindAddress: cu.LocalBindAddress,
+		MeshGateway:      cu.MeshGateway.Copy(),
+	}
+}
+
+func (cu *ConsulUpstream) Canonicalize() {
+	if cu == nil {
+		return
+	}
+	cu.MeshGateway.Canonicalize()
 }
 
 type ConsulExposeConfig struct {
@@ -324,8 +386,8 @@ type ConsulGateway struct {
 	// Terminating represents the Consul Configuration Entry for a Terminating Gateway.
 	Terminating *ConsulTerminatingConfigEntry `hcl:"terminating,block"`
 
-	// Mesh is not yet supported.
-	// Mesh *ConsulMeshConfigEntry
+	// Mesh indicates the Consul service should be a Mesh Gateway.
+	Mesh *ConsulMeshConfigEntry `hcl:"mesh,block"`
 }
 
 func (g *ConsulGateway) Canonicalize() {
@@ -641,6 +703,21 @@ func (e *ConsulTerminatingConfigEntry) Copy() *ConsulTerminatingConfigEntry {
 	}
 }
 
-// ConsulMeshConfigEntry is not yet supported.
-// type ConsulMeshConfigEntry struct {
-// }
+// ConsulMeshConfigEntry is a stub used to represent that the gateway service type
+// should be for a Mesh Gateway. Unlike Ingress and Terminating, there is no
+// actual Consul Config Entry type for mesh-gateway, at least for now. We still
+// create a type for future proofing, instead just using a bool for example.
+type ConsulMeshConfigEntry struct {
+	// nothing in here
+}
+
+func (e *ConsulMeshConfigEntry) Canonicalize() {
+	return
+}
+
+func (e *ConsulMeshConfigEntry) Copy() *ConsulMeshConfigEntry {
+	if e == nil {
+		return nil
+	}
+	return new(ConsulMeshConfigEntry)
+}

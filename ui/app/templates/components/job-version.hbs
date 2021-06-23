@@ -8,11 +8,42 @@
     <span class="term">Submitted</span>
     <span data-test-version-submit-time class="submit-date">{{format-ts this.version.submitTime}}</span>
   </span>
-  {{#if this.version.diff}}
-    <button class="button is-light is-compact pull-right" {{action "toggleDiff"}} type="button">{{this.changeCount}} {{pluralize "Change" this.changeCount}}</button>
-  {{else}}
-    <span class="pull-right">No Changes</span>
-  {{/if}}
+  <div class="pull-right">
+    {{#unless this.isCurrent}}
+      {{#if (can "run job")}}
+        <TwoStepButton
+          data-test-revert-to
+          @classes={{hash
+            idleButton="is-warning is-outlined"
+            confirmButton="is-warning"}}
+          @alignRight={{true}}
+          @idleText="Revert"
+          @cancelText="Cancel"
+          @confirmText="Yes, Revert"
+          @confirmationMessage="Are you sure you want to revert to this version?"
+          @inlineText={{true}}
+          @fadingBackground={{true}}
+          @awaitingConfirmation={{this.revertTo.isRunning}}
+          @onConfirm={{perform this.revertTo}} />
+      {{else}}
+        <button
+          data-test-revert-to
+          type="button"
+          class="button is-warning is-outlined is-small tooltip"
+          disabled
+          aria-label="You don’t have permission to revert"
+        >
+          Revert
+        </button>
+      {{/if}}
+    {{/unless}}
+
+    {{#if this.version.diff}}
+      <button class="button is-light is-small is-fixed-width" {{action "toggleDiff"}} type="button">{{this.changeCount}} {{pluralize "Change" this.changeCount}}</button>
+    {{else}}
+      <div class="is-fixed-width is-size-7 has-text-centered">No Changes</div>
+    {{/if}}
+  </div>
 </div>
 {{#if this.isOpen}}
   <div class="boxed-section-body is-dark">

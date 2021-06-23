@@ -45,36 +45,32 @@ plugin][baseplugin] documentation.
 Capabilities define what features the driver implements. Example:
 
 ```go
-Capabilities {
-    // Does the driver support sending OS signals to the task? This capability
-    // is used by 'nomad alloc signal'.
-    SendSignals: true,
+type Capabilities struct {
+    // SendSignals marks the driver as being able to send signals
+    SendSignals bool
 
-    // Does the driver support executing a command within the task execution
-    // environment? This capability is used by 'nomad alloc exec'.
-    Exec:        true,
+    // Exec marks the driver as being able to execute arbitrary commands
+    // such as health checks. Used by the ScriptExecutor interface.
+    Exec bool
 
-    // What filesystem isolation is supported by the driver. Options include
-    // FSIsolationImage, FSIsolationChroot, and FSIsolationNone. See below for
-    // more details.
-    FSIsolation: FSIsolationImage,
+    //FSIsolation indicates what kind of filesystem isolation the driver supports.
+    FSIsolation FSIsolation
 
-    // NetIsolationModes lists the set of isolation modes supported by the
-    // driver.  Options include NetIsolationModeHost, NetIsolationModeGroup,
-    // NetIsolationModeTask, and NetIsolationModeNone. See below for more
-    // details.
+    //NetIsolationModes lists the set of isolation modes supported by the driver
     NetIsolationModes []NetIsolationMode
 
     // MustInitiateNetwork tells Nomad that the driver must create the network
-    // namespace and that the CreateNetwork and DestroyNetwork RPCs are
-    // implemented.
+    // namespace and that the CreateNetwork and DestroyNetwork RPCs are implemented.
     MustInitiateNetwork bool
 
-    // MountConfigs tells Nomad which mounting config options the driver
-    // supports. This is used to check whether mounting host volumes or CSI
-    // volumes is allowed. Options include MountConfigSupportAll (default), or
-    // MountConfigSupportNone.
+    // MountConfigs tells Nomad which mounting config options the driver supports.
     MountConfigs MountConfigSupport
+
+    // RemoteTasks indicates this driver runs tasks on remote systems
+    // instead of locally. The Nomad client can use this information to
+    // adjust behavior such as propogating task handles between allocations
+    // to avoid downtime when a client is lost.
+    RemoteTasks bool
 }
 ```
 
@@ -95,6 +91,30 @@ The network isolation modes are:
   just the task.
 - `NetIsolationModeNone`: There is no network to isolate. This is used for
   task that the client manages remotely.
+
+#### Remote Task Drivers
+
+[Remote Task Drivers][rtd] should set `RemoteTasks` to `true`. Remote Task
+Drivers are task driver plugins that execute tasks on a different system than
+the Nomad client. This means the tasks lifecycle is distinct from the Nomad
+client's.
+
+For task driver plugin authors there are 2 important new behaviors when
+`RemoteTasks` is `true`:
+
+1. The `TaskHandle` returned by `StartTask` will be propagated to replacement
+   allocations if the Nomad client is drained or down. Nomad will call
+   `RecoverTask` instead of `StartTask` for remote tasks in replacement
+   allocations when a `TaskHandle` has been propagated from the previous
+   allocation.
+2. If the Nomad client managing a remote task is drained or if the allocation
+   was `lost`, the remote task is sent a special `DETACH` kill signal. This
+   indicates the plugin should stop managing the remote task, but *not* stop
+   it.
+
+These behaviors are meant to keep remote tasks running even when the Nomad
+client managing them is shutdown. Remote tasks are stopped when the job is
+explicitly stopped like traditional tasks.
 
 ### `Fingerprint(context.Context) (<-chan *Fingerprint, error)`
 
@@ -233,3 +253,4 @@ inside the running container. `ExecTask` is called for Consul script checks.
 [taskconfig]: https://godoc.org/github.com/hashicorp/nomad/plugins/drivers#TaskConfig
 [taskhandle]: https://godoc.org/github.com/hashicorp/nomad/plugins/drivers#TaskHandle
 [fifopackage]: https://godoc.org/github.com/hashicorp/nomad/client/lib/fifo
+[rtd]: /docs/drivers/remote

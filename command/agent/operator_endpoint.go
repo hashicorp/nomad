@@ -259,7 +259,8 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 	}
 
 	args.Config = structs.SchedulerConfiguration{
-		SchedulerAlgorithm: structs.SchedulerAlgorithm(conf.SchedulerAlgorithm),
+		SchedulerAlgorithm:            structs.SchedulerAlgorithm(conf.SchedulerAlgorithm),
+		MemoryOversubscriptionEnabled: conf.MemoryOversubscriptionEnabled,
 		PreemptionConfig: structs.PreemptionConfig{
 			SystemSchedulerEnabled:  conf.PreemptionConfig.SystemSchedulerEnabled,
 			BatchSchedulerEnabled:   conf.PreemptionConfig.BatchSchedulerEnabled,

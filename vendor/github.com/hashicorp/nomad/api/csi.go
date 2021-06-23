@@ -115,21 +115,24 @@ func (v *CSIVolumes) Detach(volID, nodeID string, w *WriteOptions) error {
 }
 
 // CreateSnapshot snapshots an external storage volume.
-func (v *CSIVolumes) CreateSnapshot(snap *CSISnapshot, w *WriteOptions) ([]*CSISnapshot, *WriteMeta, error) {
+func (v *CSIVolumes) CreateSnapshot(snap *CSISnapshot, w *WriteOptions) (*CSISnapshotCreateResponse, *WriteMeta, error) {
 	req := &CSISnapshotCreateRequest{
 		Snapshots: []*CSISnapshot{snap},
 	}
 	resp := &CSISnapshotCreateResponse{}
-	meta, err := v.client.write(fmt.Sprintf("/v1/volumes/snapshot"), req, resp, w)
-	return resp.Snapshots, meta, err
+	meta, err := v.client.write("/v1/volumes/snapshot", req, resp, w)
+	return resp, meta, err
 }
 
 // DeleteSnapshot deletes an external storage volume snapshot.
 func (v *CSIVolumes) DeleteSnapshot(snap *CSISnapshot, w *WriteOptions) error {
-	req := &CSISnapshotDeleteRequest{
-		Snapshots: []*CSISnapshot{snap},
+	qp := url.Values{}
+	qp.Set("snapshot_id", snap.ID)
+	qp.Set("plugin_id", snap.PluginID)
+	for k, v := range snap.Secrets {
+		qp.Set("secret", fmt.Sprintf("%v=%v", k, v))
 	}
-	_, err := v.client.delete(fmt.Sprintf("/v1/volumes/snapshot"), req, w)
+	_, err := v.client.delete("/v1/volumes/snapshot?"+qp.Encode(), nil, w)
 	return err
 }
 
@@ -148,7 +151,7 @@ func (v *CSIVolumes) ListSnapshots(pluginID string, q *QueryOptions) (*CSISnapsh
 		qp.Set("per_page", fmt.Sprint(q.PerPage))
 	}
 
-	qm, err := v.client.query("/v1/volumes/snapshots?"+qp.Encode(), &resp, q)
+	qm, err := v.client.query("/v1/volumes/snapshot?"+qp.Encode(), &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -395,11 +398,6 @@ type CSISnapshotCreateRequest struct {
 type CSISnapshotCreateResponse struct {
 	Snapshots []*CSISnapshot
 	QueryMeta
-}
-
-type CSISnapshotDeleteRequest struct {
-	Snapshots []*CSISnapshot
-	WriteRequest
 }
 
 // CSISnapshotListRequest is a request to a controller plugin to list all the

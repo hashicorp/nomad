@@ -18,9 +18,9 @@ export default class JobRoute extends Route {
   }
 
   model(params, transition) {
-    const namespace = transition.to.queryParams.namespace || this.get('system.activeNamespace.id');
+    const namespace = transition.to.queryParams.namespace || 'default';
     const name = params.job_name;
-    const fullId = JSON.stringify([name, namespace || 'default']);
+    const fullId = JSON.stringify([name, namespace]);
 
     return this.store
       .findRecord('job', fullId, { reload: true })
@@ -28,6 +28,8 @@ export default class JobRoute extends Route {
         const relatedModelsQueries = [
           job.get('allocations'),
           job.get('evaluations'),
+          this.store.query('job', { namespace }),
+          this.store.findAll('namespace'),
         ];
 
         if (this.can.can('accept recommendation')) {

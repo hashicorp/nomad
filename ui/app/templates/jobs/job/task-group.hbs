@@ -31,7 +31,13 @@
 
       <span class="pair" data-test-task-group-tasks><span class="term"># Tasks</span> {{this.model.tasks.length}}</span>
       <span class="pair" data-test-task-group-cpu><span class="term">Reserved CPU</span> {{format-scheduled-hertz this.model.reservedCPU}}</span>
-      <span class="pair" data-test-task-group-mem><span class="term">Reserved Memory</span> {{format-scheduled-bytes this.model.reservedMemory start="MiB"}}</span>
+      <span class="pair" data-test-task-group-mem>
+        <span class="term">Reserved Memory</span>
+        {{format-scheduled-bytes this.model.reservedMemory start="MiB"}}
+        {{#if (gt this.model.reservedMemoryMax this.model.reservedMemory)}}
+          ({{format-scheduled-bytes this.model.reservedMemoryMax start="MiB"}} Max)
+        {{/if}}
+      </span>
       <span class="pair" data-test-task-group-disk><span class="term">Reserved Disk</span> {{format-scheduled-bytes this.model.reservedEphemeralDisk start="MiB"}}</span>
       {{#if this.model.scaling}}
         <span class="pair" data-test-task-group-min><span class="term">Count Range</span>

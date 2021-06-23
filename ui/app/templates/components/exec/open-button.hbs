@@ -1,4 +1,4 @@
-{{#let (cannot "exec allocation") as |cannotExec|}}
+{{#let (cannot "exec allocation" namespace=this.job.namespace) as |cannotExec|}}
   <button
     data-test-exec-button
     type="button"
@@ -10,3 +10,4 @@
     <span>Exec</span>
   </button>
 {{/let}}
+

@@ -935,7 +935,7 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 	updatedAt := time.Now()
 	event := &structs.NodeEvent{}
 
-	require.NoError(t, s.updateNodeDrainImpl(tx, 100, node.ID, strat, markEligible, updatedAt.UnixNano(), event))
+	require.NoError(t, s.updateNodeDrainImpl(tx, 100, node.ID, strat, markEligible, updatedAt.UnixNano(), event, nil, "", false))
 	changes := Changes{Changes: tx.Changes(), Index: 100, MsgType: structs.NodeUpdateDrainRequestType}
 	got := eventsFromChanges(tx, changes)
 

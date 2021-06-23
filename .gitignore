@@ -112,3 +112,12 @@ e2e/terraform/keys/
 
 # debug bundles
 nomad-debug-*
+
+# locally compiled ecs driver for e2e testing
+e2e/terraform/packer/ubuntu-bionic-amd64/nomad-driver-ecs
+
+# generated variables for e2e tests
+e2e/remotetasks/input/ecs.vars
+
+# local terraform overrides
+*.auto.tfvars

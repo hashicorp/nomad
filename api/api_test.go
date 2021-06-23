@@ -13,9 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/nomad/api/internal/testutil"
 )
 
 type configCallback func(c *Config)
@@ -537,4 +538,29 @@ func TestCloneHttpClient(t *testing.T) {
 		require.Equal(t, client, clone)
 	})
 
+}
+
+func TestClient_HeaderRaceCondition(t *testing.T) {
+	require := require.New(t)
+
+	conf := DefaultConfig()
+	conf.Headers = map[string][]string{
+		"test-header": {"a"},
+	}
+	client, err := NewClient(conf)
+	require.NoError(err)
+
+	c := make(chan int)
+
+	go func() {
+		req, _ := client.newRequest("GET", "/any/path/will/do")
+		r, _ := req.toHTTP()
+		c <- len(r.Header)
+	}()
+	req, _ := client.newRequest("GET", "/any/path/will/do")
+	r, _ := req.toHTTP()
+
+	require.Len(r.Header, 2, "local request should have two headers")
+	require.Equal(2, <-c, "goroutine  request should have two headers")
+	require.Len(conf.Headers, 1, "config headers should not mutate")
 }

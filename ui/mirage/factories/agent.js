@@ -8,7 +8,7 @@ const AGENT_STATUSES = ['alive', 'leaving', 'left', 'failed'];
 
 export default Factory.extend({
   id: i => (i / 100 >= 1 ? `${UUIDS[i]}-${i}` : UUIDS[i]),
-  name: () => `nomad@${faker.internet.ip()}`,
+  name: () => `nomad@${faker.random.boolean() ? faker.internet.ip() : faker.internet.ipv6()}`,
 
   status: () => faker.helpers.randomize(AGENT_STATUSES),
   serfPort: () => faker.random.number({ min: 4000, max: 4999 }),

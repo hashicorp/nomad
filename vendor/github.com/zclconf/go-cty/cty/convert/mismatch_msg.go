@@ -78,8 +78,14 @@ func mismatchMessageObjects(got, want cty.Type) string {
 	for name, wantAty := range wantAtys {
 		gotAty, exists := gotAtys[name]
 		if !exists {
-			missingAttrs = append(missingAttrs, name)
+			if !want.AttributeOptional(name) {
+				missingAttrs = append(missingAttrs, name)
+			}
 			continue
+		}
+
+		if gotAty.Equals(wantAty) {
+			continue // exact match, so no problem
 		}
 
 		// We'll now try to convert these attributes in isolation and

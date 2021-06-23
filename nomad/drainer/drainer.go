@@ -392,25 +392,25 @@ func (n *NodeDrainer) batchDrainAllocs(allocs []*structs.Allocation) (uint64, er
 // affected jobs.
 func (n *NodeDrainer) drainAllocs(future *structs.BatchFuture, allocs []*structs.Allocation) {
 	// Compute the effected jobs and make the transition map
-	jobs := make(map[string]*structs.Allocation, 4)
+	jobs := make(map[structs.NamespacedID]*structs.Allocation, 4)
 	transitions := make(map[string]*structs.DesiredTransition, len(allocs))
 	for _, alloc := range allocs {
 		transitions[alloc.ID] = &structs.DesiredTransition{
 			Migrate: helper.BoolToPtr(true),
 		}
-		jobs[alloc.JobID] = alloc
+		jobs[alloc.JobNamespacedID()] = alloc
 	}
 
 	evals := make([]*structs.Evaluation, 0, len(jobs))
 	now := time.Now().UTC().UnixNano()
-	for job, alloc := range jobs {
+	for _, alloc := range jobs {
 		evals = append(evals, &structs.Evaluation{
 			ID:          uuid.Generate(),
 			Namespace:   alloc.Namespace,
 			Priority:    alloc.Job.Priority,
 			Type:        alloc.Job.Type,
 			TriggeredBy: structs.EvalTriggerNodeDrain,
-			JobID:       job,
+			JobID:       alloc.JobID,
 			Status:      structs.EvalStatusPending,
 			CreateTime:  now,
 			ModifyTime:  now,

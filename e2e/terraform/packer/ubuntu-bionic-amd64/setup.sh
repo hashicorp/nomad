@@ -6,7 +6,7 @@ set -e
 
 # Will be overwritten at test time with the version specified
 NOMADVERSION=0.12.7
-CONSULVERSION=1.9.0
+CONSULVERSION=1.9.4+ent
 VAULTVERSION=1.5.4
 
 NOMAD_PLUGIN_DIR=/opt/nomad/plugins/
@@ -130,6 +130,13 @@ sudo chmod +x "${NOMAD_PLUGIN_DIR}/nomad-driver-podman"
 # enable varlink socket (not included in ubuntu package)
 sudo mv /tmp/linux/io.podman.service /etc/systemd/system/io.podman.service
 sudo mv /tmp/linux/io.podman.socket /etc/systemd/system/io.podman.socket
+
+if [ -a "/tmp/linux/nomad-driver-ecs" ]; then
+    echo "Installing nomad-driver-ecs"
+    sudo install --mode=0755 --owner=ubuntu /tmp/linux/nomad-driver-ecs "$NOMAD_PLUGIN_DIR"
+else
+    echo "nomad-driver-ecs not found: skipping install"
+fi
 
 echo "Configuring dnsmasq"
 

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/cgutil"
+
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/helper"
@@ -265,6 +267,13 @@ type Config struct {
 	//
 	// This configuration is only considered if no host networks are defined.
 	BindWildcardDefaultHostNetwork bool
+
+	// CgroupParent is the parent cgroup Nomad should use when managing any cgroup subsystems.
+	// Currently this only includes the 'cpuset' cgroup subsystem.
+	CgroupParent string
+
+	// ReservableCores if set overrides the set of reservable cores reported in fingerprinting.
+	ReservableCores []uint16
 }
 
 type ClientTemplateConfig struct {
@@ -293,6 +302,10 @@ func (c *Config) Copy() *Config {
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
 	nc.TemplateConfig = c.TemplateConfig.Copy()
+	if c.ReservableCores != nil {
+		nc.ReservableCores = make([]uint16, len(c.ReservableCores))
+		copy(nc.ReservableCores, c.ReservableCores)
+	}
 	return nc
 }
 
@@ -323,6 +336,7 @@ func DefaultConfig() *Config {
 		CNIConfigDir:       "/opt/cni/config",
 		CNIInterfacePrefix: "eth",
 		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
+		CgroupParent:       cgutil.DefaultCgroupParent,
 	}
 }
 

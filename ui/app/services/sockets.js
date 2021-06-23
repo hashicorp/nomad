@@ -1,8 +1,11 @@
 import Service from '@ember/service';
 import config from 'nomad-ui/config/environment';
 import { getOwner } from '@ember/application';
+import { inject as service } from '@ember/service';
 
 export default class SocketsService extends Service {
+  @service system;
+
   getTaskStateSocket(taskState, command) {
     const mirageEnabled =
       config.environment !== 'production' &&
@@ -27,10 +30,12 @@ export default class SocketsService extends Service {
       const applicationAdapter = getOwner(this).lookup('adapter:application');
       const prefix = `${applicationAdapter.host ||
         window.location.host}/${applicationAdapter.urlPrefix()}`;
+      const region = this.system.activeRegion;
 
       return new WebSocket(
         `${protocol}//${prefix}/client/allocation/${taskState.allocation.id}` +
           `/exec?task=${taskState.name}&tty=true&ws_handshake=true` +
+          (region ? `&region=${region}` : '') +
           `&command=${encodeURIComponent(`["${command}"]`)}`
       );
     }

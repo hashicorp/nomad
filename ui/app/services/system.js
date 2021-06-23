@@ -1,5 +1,6 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { tracked } from '@glimmer/tracking';
 import { alias } from '@ember/object/computed';
 import PromiseObject from '../utils/classes/promise-object';
 import PromiseArray from '../utils/classes/promise-array';
@@ -113,36 +114,11 @@ export default class SystemService extends Service {
     return namespaces.length && namespaces.some(namespace => namespace.get('id') !== 'default');
   }
 
-  @computed('namespaces.[]')
-  get activeNamespace() {
-    const namespaceId = window.localStorage.nomadActiveNamespace || 'default';
-    const namespace = this.namespaces.findBy('id', namespaceId);
-
-    if (namespace) {
-      return namespace;
-    }
-
-    // If the namespace in localStorage is no longer in the cluster, it needs to
-    // be cleared from localStorage
-    window.localStorage.removeItem('nomadActiveNamespace');
-    return this.namespaces.findBy('id', 'default');
-  }
-
-  set activeNamespace(value) {
-    if (value == null) {
-      window.localStorage.removeItem('nomadActiveNamespace');
-      return;
-    } else if (typeof value === 'string') {
-      window.localStorage.nomadActiveNamespace = value;
-    } else {
-      window.localStorage.nomadActiveNamespace = value.get('name');
-    }
-  }
-
-  reset() {
-    this.set('activeNamespace', null);
-    this.notifyPropertyChange('namespaces');
-  }
+  // The cachedNamespace is set on pages that have a namespaces filter.
+  // It is set so other pages that have a namespaces filter can default to
+  // what the previous namespaces filter page used rather than defaulting
+  // to 'default' or '*'.
+  @tracked cachedNamespace = null;
 
   @task(function*() {
     const emptyLicense = { License: { Features: [] } };
@@ -157,7 +133,25 @@ export default class SystemService extends Service {
   })
   fetchLicense;
 
+  @task(function*() {
+    try {
+      const request = yield this.token.authorizedRequest('/v1/search/fuzzy', {
+        method: 'POST',
+        body: JSON.stringify({
+          Text: 'feature-detection-query',
+          Context: 'namespaces',
+        }),
+      });
+
+      return request.ok;
+    } catch (e) {
+      return false;
+    }
+  })
+  checkFuzzySearchPresence;
+
   @alias('fetchLicense.lastSuccessful.value') license;
+  @alias('checkFuzzySearchPresence.last.value') fuzzySearchEnabled;
 
   @computed('license.License.Features.[]')
   get features() {

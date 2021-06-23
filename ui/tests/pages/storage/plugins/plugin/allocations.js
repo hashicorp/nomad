@@ -1,7 +1,7 @@
 import { clickable, create, isPresent, text, visitable } from 'ember-cli-page-object';
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
-import facet from 'nomad-ui/tests/pages/components/facet';
+import { multiFacet } from 'nomad-ui/tests/pages/components/facet';
 import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
@@ -22,7 +22,7 @@ export default create({
   pageSizeSelect: pageSizeSelect(),
 
   facets: {
-    health: facet('[data-test-health-facet]'),
-    type: facet('[data-test-type-facet]'),
+    health: multiFacet('[data-test-health-facet]'),
+    type: multiFacet('[data-test-type-facet]'),
   },
 });

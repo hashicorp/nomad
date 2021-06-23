@@ -14,6 +14,7 @@ export default function CommunityPage() {
         use_h1={true}
       />
       <VerticalTextBlockList
+        product="nomad"
         data={[
           {
             header: 'Community Forum',

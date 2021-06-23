@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/golang/snappy"
-	"github.com/hashicorp/nomad/api"
+	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -218,6 +218,68 @@ func TestHTTP_JobsRegister(t *testing.T) {
 		if getResp.Job == nil {
 			t.Fatalf("job does not exist")
 		}
+	})
+}
+
+func TestHTTP_JobsRegister_IgnoresParentID(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the job
+		job := MockJob()
+		parentID := "somebadparentid"
+		job.ParentID = &parentID
+		args := api.JobRegisterRequest{
+			Job:          job,
+			WriteRequest: api.WriteRequest{Region: "global"},
+		}
+		buf := encodeReq(args)
+
+		// Make the HTTP request
+		req, err := http.NewRequest("PUT", "/v1/jobs", buf)
+		require.NoError(t, err)
+		respW := httptest.NewRecorder()
+
+		// Make the request
+		obj, err := s.Server.JobsRequest(respW, req)
+		require.NoError(t, err)
+
+		// Check the response
+		reg := obj.(structs.JobRegisterResponse)
+		require.NotEmpty(t, reg.EvalID)
+
+		// Check for the index
+		require.NotEmpty(t, respW.HeaderMap.Get("X-Nomad-Index"))
+
+		// Check the job is registered
+		getReq := structs.JobSpecificRequest{
+			JobID: *job.ID,
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var getResp structs.SingleJobResponse
+		err = s.Agent.RPC("Job.GetJob", &getReq, &getResp)
+		require.NoError(t, err)
+
+		require.NotNil(t, getResp.Job)
+		require.Equal(t, *job.ID, getResp.Job.ID)
+		require.Empty(t, getResp.Job.ParentID)
+
+		// check the eval exists
+		evalReq := structs.EvalSpecificRequest{
+			EvalID: reg.EvalID,
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+			},
+		}
+		var evalResp structs.SingleEvalResponse
+		err = s.Agent.RPC("Eval.GetEval", &evalReq, &evalResp)
+		require.NoError(t, err)
+
+		require.NotNil(t, evalResp.Eval)
+		require.Equal(t, reg.EvalID, evalResp.Eval.ID)
 	})
 }
 
@@ -1928,6 +1990,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Meta: map[string]string{
 					"key": "value",
 				},
+				Consul: &api.Consul{
+					Namespace: "team-foo",
+				},
 				Services: []*api.Service{
 					{
 						Name:              "groupserviceA",
@@ -1951,6 +2016,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Args:          []string{"a", "b"},
 								Path:          "/check",
 								Protocol:      "http",
+								Method:        "POST",
+								Body:          "{\"check\":\"mem\"}",
 								PortLabel:     "foo",
 								AddressMode:   "driver",
 								GRPCService:   "foo.Bar",
@@ -1962,14 +2029,17 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Limit:          3,
 									IgnoreWarnings: true,
 								},
-								TaskName: "task1",
+								TaskName:               "task1",
+								SuccessBeforePassing:   2,
+								FailuresBeforeCritical: 3,
 							},
 						},
 						Connect: &api.ConsulConnect{
 							Native: false,
 							SidecarService: &api.ConsulSidecarService{
-								Tags: []string{"f", "g"},
-								Port: "9000",
+								Tags:                   []string{"f", "g"},
+								Port:                   "9000",
+								DisableDefaultTCPCheck: true,
 							},
 						},
 					},
@@ -2167,7 +2237,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Namespace:      "foo",
 		VaultNamespace: "ghi789",
 		ID:             "foo",
-		ParentID:       "lol",
 		Name:           "name",
 		Type:           "service",
 		Priority:       50,
@@ -2304,6 +2373,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Meta: map[string]string{
 					"key": "value",
 				},
+				Consul: &structs.Consul{
+					Namespace: "team-foo",
+				},
 				Services: []*structs.Service{
 					{
 						Name:              "groupserviceA",
@@ -2324,6 +2396,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Args:          []string{"a", "b"},
 								Path:          "/check",
 								Protocol:      "http",
+								Method:        "POST",
+								Body:          "{\"check\":\"mem\"}",
 								PortLabel:     "foo",
 								AddressMode:   "driver",
 								GRPCService:   "foo.Bar",
@@ -2336,15 +2410,18 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Limit:          3,
 									IgnoreWarnings: true,
 								},
-								TaskName: "task1",
-								OnUpdate: "require_healthy",
+								TaskName:               "task1",
+								OnUpdate:               "require_healthy",
+								SuccessBeforePassing:   2,
+								FailuresBeforeCritical: 3,
 							},
 						},
 						Connect: &structs.ConsulConnect{
 							Native: false,
 							SidecarService: &structs.ConsulSidecarService{
-								Tags: []string{"f", "g"},
-								Port: "9000",
+								Tags:                   []string{"f", "g"},
+								Port:                   "9000",
+								DisableDefaultTCPCheck: true,
 							},
 						},
 					},
@@ -2581,6 +2658,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Meta: map[string]string{
 					"key": "value",
 				},
+				Consul: &api.Consul{
+					Namespace: "foo",
+				},
 				Tasks: []*api.Task{
 					{
 						Name:   "task1",
@@ -2660,7 +2740,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Region:      "global",
 		Namespace:   "foo",
 		ID:          "foo",
-		ParentID:    "lol",
 		Name:        "name",
 		Type:        "system",
 		Priority:    50,
@@ -2697,6 +2776,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 				Meta: map[string]string{
 					"key": "value",
+				},
+				Consul: &structs.Consul{
+					Namespace: "foo",
 				},
 				Tasks: []*structs.Task{
 					{
@@ -3060,12 +3142,21 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 		LocalBindPort:    8000,
 		Datacenter:       "dc2",
 		LocalBindAddress: "127.0.0.2",
+		MeshGateway:      &structs.ConsulMeshGateway{Mode: "local"},
 	}}, apiUpstreamsToStructs([]*api.ConsulUpstream{{
 		DestinationName:  "upstream",
 		LocalBindPort:    8000,
 		Datacenter:       "dc2",
 		LocalBindAddress: "127.0.0.2",
+		MeshGateway:      &api.ConsulMeshGateway{Mode: "local"},
 	}}))
+}
+
+func TestConversion_apiConsulMeshGatewayToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiMeshGatewayToStructs(nil))
+	require.Equal(t, &structs.ConsulMeshGateway{Mode: "remote"},
+		apiMeshGatewayToStructs(&api.ConsulMeshGateway{Mode: "remote"}))
 }
 
 func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
@@ -3230,6 +3321,22 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 						KeyFile:  "key.pem",
 						SNI:      "linked.consul",
 					}},
+				},
+			},
+		}))
+	})
+
+	t.Run("gateway mesh", func(t *testing.T) {
+		require.Equal(t, &structs.ConsulConnect{
+			Gateway: &structs.ConsulGateway{
+				Mesh: &structs.ConsulMeshConfigEntry{
+					// nothing
+				},
+			},
+		}, ApiConsulConnectToStructs(&api.ConsulConnect{
+			Gateway: &api.ConsulGateway{
+				Mesh: &api.ConsulMeshConfigEntry{
+					// nothing
 				},
 			},
 		}))

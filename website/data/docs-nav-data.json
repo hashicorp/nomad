@@ -181,6 +181,10 @@
         "path": "configuration/sentinel"
       },
       {
+        "title": "search",
+        "path": "configuration/search"
+      },
+      {
         "title": "server",
         "path": "configuration/server"
       },
@@ -431,10 +435,6 @@
           {
             "title": "get",
             "path": "commands/license/get"
-          },
-          {
-            "title": "put",
-            "path": "commands/license/put"
           }
         ]
       },
@@ -1414,6 +1414,19 @@
             "path": "drivers/external/iis"
           }
         ]
+      },
+      {
+        "title": "Remote",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "drivers/remote"
+          },
+          {
+            "title": "ECS",
+            "path": "drivers/remote/ecs"
+          }
+        ]
       }
     ]
   },
@@ -1473,7 +1486,48 @@
       },
       {
         "title": "Agent",
-        "path": "autoscaling/agent"
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "autoscaling/agent"
+          },
+          {
+            "title": "apm",
+            "path": "autoscaling/agent/apm"
+          },
+          {
+            "title": "dynamic_application_sizing",
+            "path": "autoscaling/agent/dynamic_application_sizing"
+          },
+          {
+            "title": "http",
+            "path": "autoscaling/agent/http"
+          },
+          {
+            "title": "nomad",
+            "path": "autoscaling/agent/nomad"
+          },
+          {
+            "title": "policy",
+            "path": "autoscaling/agent/policy"
+          },
+          {
+            "title": "policy_eval",
+            "path": "autoscaling/agent/policy_eval"
+          },
+          {
+            "title": "strategy",
+            "path": "autoscaling/agent/strategy"
+          },
+          {
+            "title": "target",
+            "path": "autoscaling/agent/target"
+          },
+          {
+            "title": "telemetry",
+            "path": "autoscaling/agent/telemetry"
+          }
+        ]
       },
       {
         "title": "API",
@@ -1500,24 +1554,94 @@
           },
           {
             "title": "APM",
-            "path": "autoscaling/plugins/apm"
-          },
-          {
-            "title": "Strategy",
-            "path": "autoscaling/plugins/strategy"
-          },
-          {
-            "title": "Target",
-            "path": "autoscaling/plugins/target"
-          },
-          {
-            "title": "Community",
             "routes": [
               {
                 "title": "Overview",
-                "path": "autoscaling/plugins/external"
+                "path": "autoscaling/plugins/apm"
+              },
+              {
+                "title": "Datadog",
+                "path": "autoscaling/plugins/apm/datadog"
+              },
+              {
+                "title": "Nomad API",
+                "path": "autoscaling/plugins/apm/nomad"
+              },
+              {
+                "title": "Prometheus",
+                "path": "autoscaling/plugins/apm/prometheus"
               }
             ]
+          },
+          {
+            "title": "Strategy",
+            "routes": [
+              {
+                "title": "Overview",
+                "path": "autoscaling/plugins/strategy"
+              },
+              {
+                "title": "Dynamic Application Sizing Average",
+                "path": "autoscaling/plugins/strategy/app-sizing-avg"
+              },
+              {
+                "title": "Dynamic Application Sizing Max",
+                "path": "autoscaling/plugins/strategy/app-sizing-max"
+              },
+              {
+                "title": "Dynamic Application Sizing Percentile",
+                "path": "autoscaling/plugins/strategy/app-sizing-percentile"
+              },
+              {
+                "title": "Fixed Value",
+                "path": "autoscaling/plugins/strategy/fixed-value"
+              },
+              {
+                "title": "Pass-Through",
+                "path": "autoscaling/plugins/strategy/pass-through"
+              },
+              {
+                "title": "Target Value",
+                "path": "autoscaling/plugins/strategy/target-value"
+              },
+              {
+                "title": "Threshold",
+                "path": "autoscaling/plugins/strategy/threshold"
+              }
+            ]
+          },
+          {
+            "title": "Target",
+            "routes": [
+              {
+                "title": "Overview",
+                "path": "autoscaling/plugins/target"
+              },
+              {
+                "title": "Amazon Web Services Autoscaling Group",
+                "path": "autoscaling/plugins/target/aws-asg"
+              },
+              {
+                "title": "Azure Virtual Machine Scale Set",
+                "path": "autoscaling/plugins/target/azure-vmss"
+              },
+              {
+                "title": "Dynamic Application Sizing",
+                "path": "autoscaling/plugins/target/app-sizing-nomad"
+              },
+              {
+                "title": "Google Cloud Engine Managed Instance Group",
+                "path": "autoscaling/plugins/target/gce-mig"
+              },
+              {
+                "title": "Nomad Task Group",
+                "path": "autoscaling/plugins/target/nomad"
+              }
+            ]
+          },
+          {
+            "title": "Community",
+            "path": "autoscaling/plugins/external"
           }
         ]
       },
@@ -1623,6 +1747,10 @@
     "path": "ecosystem"
   },
   {
+    "title": "Nomad Partnerships",
+    "path": "partnerships"
+  },
+  {
     "title": "Who Uses Nomad",
     "path": "who-uses-nomad"
   },
@@ -1632,10 +1760,20 @@
       {
         "title": "Overview",
         "path": "enterprise"
-      },
+      }, 
       {
-        "title":"License",
-        "path": "enterprise/license"
+        "title": "License",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "enterprise/license"
+
+          },
+          {
+            "title": "FAQ",
+            "path": "enterprise/license/faq"
+          }
+        ]
       }
     ]
   },

@@ -14,7 +14,7 @@ output "message" {
   value = <<EOM
 Your cluster has been provisioned! To prepare your environment, run:
 
-   $(terraform output environment)
+   $(terraform output --raw environment)
 
 Then you can run tests from the e2e directory with:
 

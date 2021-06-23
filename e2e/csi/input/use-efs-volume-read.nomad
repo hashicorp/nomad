@@ -9,9 +9,12 @@ job "use-efs-volume" {
   }
 
   group "group" {
+
     volume "test" {
-      type   = "csi"
-      source = "efs-vol0"
+      type            = "csi"
+      source          = "efs-vol0"
+      attachment_mode = "file-system"
+      access_mode     = "single-node-writer"
     }
 
     task "task" {

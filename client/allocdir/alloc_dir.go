@@ -426,9 +426,9 @@ func detectContentType(fileInfo os.FileInfo, path string) string {
 		// We ignore errors because this is optional information
 		if err == nil {
 			fileBytes := make([]byte, 512)
-			_, err := f.Read(fileBytes)
+			n, err := f.Read(fileBytes)
 			if err == nil {
-				contentType = http.DetectContentType(fileBytes)
+				contentType = http.DetectContentType(fileBytes[:n])
 			}
 			f.Close()
 		}

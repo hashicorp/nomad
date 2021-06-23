@@ -264,8 +264,6 @@ If not set the "default" host network is used which is commonly the address with
 
 When Nomad does port mapping for ports with a defined `host_network`, the port mapping rule will use the host address as the destination address.
 
-~> Note: `host_network` does not currently support task-based mapped ports such as the Docker driver's `port_map` configuration.
-
 ```hcl
 network {
   mode = "bridge"

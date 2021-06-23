@@ -8,6 +8,8 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
+
 	"github.com/posener/complete"
 )
 
@@ -71,6 +73,13 @@ Node Drain Options:
     the drain is being disabled. This is useful when an existing drain is being
     cancelled but additional scheduling on the node is not desired.
 
+  -m 
+    Message for the drain update operation. Registered in drain metadata as
+    "message" during drain enable and "cancel_message" during drain disable.
+
+  -meta <key>=<value>
+    Custom metadata to store on the drain operation, can be used multiple times.
+
   -self
     Set the drain status of the local node.
 
@@ -95,6 +104,8 @@ func (c *NodeDrainCommand) AutocompleteFlags() complete.Flags {
 			"-no-deadline":     complete.PredictNothing,
 			"-ignore-system":   complete.PredictNothing,
 			"-keep-ineligible": complete.PredictNothing,
+			"-m":               complete.PredictNothing,
+			"-meta":            complete.PredictNothing,
 			"-self":            complete.PredictNothing,
 			"-yes":             complete.PredictNothing,
 		})
@@ -121,7 +132,8 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	var enable, disable, detach, force,
 		noDeadline, ignoreSystem, keepIneligible,
 		self, autoYes, monitor bool
-	var deadline string
+	var deadline, message string
+	var metaVars flaghelper.StringFlag
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -136,6 +148,8 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	flags.BoolVar(&self, "self", false, "")
 	flags.BoolVar(&autoYes, "yes", false, "Automatic yes to prompts.")
 	flags.BoolVar(&monitor, "monitor", false, "Monitor drain status.")
+	flags.StringVar(&message, "m", "", "Drain message")
+	flags.Var(&metaVars, "meta", "Drain metadata")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -251,7 +265,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		return 1
 	}
 
-	// If monitoring the drain start the montior and return when done
+	// If monitoring the drain start the monitor and return when done
 	if monitor {
 		if node.DrainStrategy == nil {
 			c.Ui.Warn("No drain strategy set")
@@ -297,8 +311,37 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		}
 	}
 
+	// propagate drain metadata if cancelling
+	drainMeta := make(map[string]string)
+	if disable && node.LastDrain != nil && node.LastDrain.Meta != nil {
+		drainMeta = node.LastDrain.Meta
+	}
+	if message != "" {
+		if enable {
+			drainMeta["message"] = message
+		} else {
+			drainMeta["cancel_message"] = message
+		}
+	}
+	for _, m := range metaVars {
+		if len(m) == 0 {
+			continue
+		}
+		kv := strings.SplitN(m, "=", 2)
+		if len(kv) == 2 {
+			drainMeta[kv[0]] = kv[1]
+		} else {
+			drainMeta[kv[0]] = ""
+		}
+	}
+
 	// Toggle node draining
-	updateMeta, err := client.Nodes().UpdateDrain(node.ID, spec, !keepIneligible, nil)
+	drainResponse, err := client.Nodes().UpdateDrainOpts(node.ID,
+		&api.DrainOptions{
+			DrainSpec:    spec,
+			MarkEligible: !keepIneligible,
+			Meta:         drainMeta,
+		}, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error updating drain specification: %s", err))
 		return 1
@@ -316,7 +359,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		now := time.Now()
 		c.Ui.Info(fmt.Sprintf("%s: Ctrl-C to stop monitoring: will not cancel the node drain", formatTime(now)))
 		c.Ui.Output(fmt.Sprintf("%s: Node %q drain strategy set", formatTime(now), node.ID))
-		c.monitorDrain(client, context.Background(), node, updateMeta.LastIndex, ignoreSystem)
+		c.monitorDrain(client, context.Background(), node, drainResponse.LastIndex, ignoreSystem)
 	}
 	return 0
 }

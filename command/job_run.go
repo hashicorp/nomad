@@ -157,7 +157,7 @@ func (c *JobRunCommand) Name() string { return "job run" }
 
 func (c *JobRunCommand) Run(args []string) int {
 	var detach, verbose, output, override, preserveCounts bool
-	var checkIndexStr, consulToken, vaultToken, vaultNamespace string
+	var checkIndexStr, consulToken, consulNamespace, vaultToken, vaultNamespace string
 	var varArgs, varFiles flaghelper.StringFlag
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -170,6 +170,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
 	flagSet.StringVar(&checkIndexStr, "check-index", "", "")
 	flagSet.StringVar(&consulToken, "consul-token", "", "")
+	flagSet.StringVar(&consulNamespace, "consul-namespace", "", "")
 	flagSet.StringVar(&vaultToken, "vault-token", "", "")
 	flagSet.StringVar(&vaultNamespace, "vault-namespace", "", "")
 	flagSet.Var(&varArgs, "var", "")
@@ -230,6 +231,10 @@ func (c *JobRunCommand) Run(args []string) int {
 
 	if consulToken != "" {
 		job.ConsulToken = helper.StringToPtr(consulToken)
+	}
+
+	if consulNamespace != "" {
+		job.ConsulNamespace = helper.StringToPtr(consulNamespace)
 	}
 
 	// Parse the Vault token

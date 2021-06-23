@@ -1,7 +1,10 @@
 import { computed } from '@ember/object';
 
 // An unattractive but robust way to encode query params
-export const serialize = arr => (arr.length ? JSON.stringify(arr) : '');
+export const serialize = val => {
+  if (typeof val === 'string' || typeof val === 'number') return val;
+  return val.length ? JSON.stringify(val) : '';
+};
 
 export const deserialize = str => {
   try {

@@ -4,6 +4,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import ServerDetail from 'nomad-ui/tests/pages/servers/detail';
+import formatHost from 'nomad-ui/utils/format-host';
 
 let agent;
 
@@ -33,7 +34,7 @@ module('Acceptance | server detail', function(hooks) {
 
   test('the details ribbon displays basic information about the server', async function(assert) {
     assert.ok(ServerDetail.serverStatus.includes(agent.status));
-    assert.ok(ServerDetail.address.includes(`${agent.address}:${agent.tags.port}`));
+    assert.ok(ServerDetail.address.includes(formatHost(agent.address, agent.tags.port)));
     assert.ok(ServerDetail.datacenter.includes(agent.tags.dc));
   });
 

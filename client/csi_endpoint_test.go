@@ -206,9 +206,11 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 				CSIControllerQuery: structs.CSIControllerQuery{
 					PluginID: fakePlugin.Name,
 				},
-				VolumeID:       "1234-4321-1234-4321",
-				AttachmentMode: nstructs.CSIVolumeAttachmentMode("bar"),
-				AccessMode:     nstructs.CSIVolumeAccessModeMultiNodeReader,
+				VolumeID: "1234-4321-1234-4321",
+				VolumeCapabilities: []*nstructs.CSIVolumeCapability{{
+					AttachmentMode: nstructs.CSIVolumeAttachmentMode("bar"),
+					AccessMode:     nstructs.CSIVolumeAccessModeMultiNodeReader,
+				}},
 			},
 			ExpectedErr: errors.New("CSI.ControllerValidateVolume: unknown volume attachment mode: bar"),
 		},
@@ -218,9 +220,11 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 				CSIControllerQuery: structs.CSIControllerQuery{
 					PluginID: fakePlugin.Name,
 				},
-				VolumeID:       "1234-4321-1234-4321",
-				AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
-				AccessMode:     nstructs.CSIVolumeAccessMode("foo"),
+				VolumeID: "1234-4321-1234-4321",
+				VolumeCapabilities: []*nstructs.CSIVolumeCapability{{
+					AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
+					AccessMode:     nstructs.CSIVolumeAccessMode("foo"),
+				}},
 			},
 			ExpectedErr: errors.New("CSI.ControllerValidateVolume: unknown volume access mode: foo"),
 		},

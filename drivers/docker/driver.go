@@ -22,7 +22,9 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
+	"github.com/hashicorp/nomad/drivers/shared/hostnames"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -346,6 +348,12 @@ CREATE:
 	} else {
 		d.logger.Debug("re-attaching to container", "container_id",
 			container.ID, "container_state", container.State.String())
+	}
+
+	if containerCfg.HostConfig.CPUSet == "" && cfg.Resources.LinuxResources.CpusetCgroupPath != "" {
+		if err := setCPUSetCgroup(cfg.Resources.LinuxResources.CpusetCgroupPath, container.State.Pid); err != nil {
+			return nil, nil, fmt.Errorf("failed to set the cpuset cgroup for container: %v", err)
+		}
 	}
 
 	collectingLogs := !d.config.DisableLogCollection
@@ -839,6 +847,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	// This translates to docker create/run --cpuset-cpus option.
 	// --cpuset-cpus limit the specific CPUs or cores a container can use.
+	// Nomad natively manages cpusets, setting this option will override
+	// Nomad managed cpusets.
 	if driverConfig.CPUSetCPUs != "" {
 		hostConfig.CPUSetCPUs = driverConfig.CPUSetCPUs
 	}
@@ -901,37 +911,12 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 	hostConfig.Privileged = driverConfig.Privileged
 
-	// set capabilities
-	hostCapsWhitelistConfig := d.config.AllowCaps
-	hostCapsWhitelist := make(map[string]struct{})
-	for _, cap := range hostCapsWhitelistConfig {
-		cap = strings.ToLower(strings.TrimSpace(cap))
-		hostCapsWhitelist[cap] = struct{}{}
+	// set add/drop capabilities
+	if hostConfig.CapAdd, hostConfig.CapDrop, err = capabilities.Delta(
+		capabilities.DockerDefaults(), d.config.AllowCaps, driverConfig.CapAdd, driverConfig.CapDrop,
+	); err != nil {
+		return c, err
 	}
-
-	if _, ok := hostCapsWhitelist["all"]; !ok {
-		effectiveCaps, err := tweakCapabilities(
-			strings.Split(dockerBasicCaps, ","),
-			driverConfig.CapAdd,
-			driverConfig.CapDrop,
-		)
-		if err != nil {
-			return c, err
-		}
-		var missingCaps []string
-		for _, cap := range effectiveCaps {
-			cap = strings.ToLower(cap)
-			if _, ok := hostCapsWhitelist[cap]; !ok {
-				missingCaps = append(missingCaps, cap)
-			}
-		}
-		if len(missingCaps) > 0 {
-			return c, fmt.Errorf("Docker driver doesn't have the following caps allowlisted on this Nomad agent: %s", missingCaps)
-		}
-	}
-
-	hostConfig.CapAdd = driverConfig.CapAdd
-	hostConfig.CapDrop = driverConfig.CapDrop
 
 	// set SHM size
 	if driverConfig.ShmSize != 0 {
@@ -968,6 +953,33 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			return c, err
 		}
 		hostConfig.Mounts = append(hostConfig.Mounts, *hm)
+	}
+
+	// Setup /etc/hosts
+	// If the task's network_mode is unset our hostname and IP will come from
+	// the Nomad-owned network (if in use), so we need to generate an
+	// /etc/hosts file that matches the network rather than the default one
+	// that comes from the pause container
+	if task.NetworkIsolation != nil && driverConfig.NetworkMode == "" {
+		etcHostMount, err := hostnames.GenerateEtcHostsMount(
+			task.TaskDir().Dir, task.NetworkIsolation, driverConfig.ExtraHosts)
+		if err != nil {
+			return c, fmt.Errorf("failed to build mount for /etc/hosts: %v", err)
+		}
+		if etcHostMount != nil {
+			// erase the extra_hosts field if we have a mount so we don't get
+			// conflicting options error from dockerd
+			driverConfig.ExtraHosts = nil
+			hostConfig.Mounts = append(hostConfig.Mounts, docker.HostMount{
+				Target:   etcHostMount.TaskPath,
+				Source:   etcHostMount.HostPath,
+				Type:     "bind",
+				ReadOnly: etcHostMount.Readonly,
+				BindOptions: &docker.BindOptions{
+					Propagation: etcHostMount.PropagationMode,
+				},
+			})
+		}
 	}
 
 	// Setup DNS
@@ -1159,7 +1171,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	config.Env = task.EnvList()
 
-	containerName := fmt.Sprintf("%s-%s", strings.Replace(task.Name, "/", "_", -1), task.AllocID)
+	containerName := fmt.Sprintf("%s-%s", strings.ReplaceAll(task.Name, "/", "_"), task.AllocID)
 	logger.Debug("setting container name", "container_name", containerName)
 
 	var networkingConfig *docker.NetworkingConfig
@@ -1367,40 +1379,13 @@ func (d *Driver) handleWait(ctx context.Context, ch chan *drivers.ExitResult, h 
 	}
 }
 
-// parseSignal interprets the signal name into an os.Signal. If no name is
-// provided, the docker driver defaults to SIGTERM. If the OS is Windows and
-// SIGINT is provided, the signal is converted to SIGTERM.
-func (d *Driver) parseSignal(os, signal string) (os.Signal, error) {
-	// Unlike other drivers, docker defaults to SIGTERM, aiming for consistency
-	// with the 'docker stop' command.
-	// https://docs.docker.com/engine/reference/commandline/stop/#extended-description
-	if signal == "" {
-		signal = "SIGTERM"
-	}
-
-	// Windows Docker daemon does not support SIGINT, SIGTERM is the semantic equivalent that
-	// allows for graceful shutdown before being followed up by a SIGKILL.
-	// Supported signals:
-	//   https://github.com/moby/moby/blob/0111ee70874a4947d93f64b672f66a2a35071ee2/pkg/signal/signal_windows.go#L17-L26
-	if os == "windows" && signal == "SIGINT" {
-		signal = "SIGTERM"
-	}
-
-	return signals.Parse(signal)
-}
-
 func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) error {
 	h, ok := d.tasks.Get(taskID)
 	if !ok {
 		return drivers.ErrTaskNotFound
 	}
 
-	sig, err := d.parseSignal(runtime.GOOS, signal)
-	if err != nil {
-		return fmt.Errorf("failed to parse signal: %v", err)
-	}
-
-	return h.Kill(timeout, sig)
+	return h.Kill(timeout, signal)
 }
 
 func (d *Driver) DestroyTask(taskID string, force bool) error {

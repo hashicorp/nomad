@@ -3,8 +3,7 @@ import EnterpriseInfo from './index.jsx'
 const technicalComplexity = {
   title: 'Technical Complexity',
   label: 'Open Source',
-  imageUrl:
-    'https://www.datocms-assets.com/2885/1579883486-complexity-basic.png',
+  imageUrl: require('./img/basic.svg?url'),
   description:
     'Nomad Open Source addresses the technical complexity of workload orchestration across the cloud, on-prem, and hybrid infrastructure.',
   link: {
@@ -17,8 +16,7 @@ const technicalComplexity = {
 const organizationalComplexity = {
   title: 'Organizational Complexity',
   label: 'Enterprise',
-  imageUrl:
-    'https://www.datocms-assets.com/2885/1579883488-complexity-advanced.png',
+  imageUrl: require('./img/complex.svg?url'),
   description:
     'Nomad Enterprise addresses the complexity of collaboration and governance across multi-team and multi-cluster deployments.',
   link: {

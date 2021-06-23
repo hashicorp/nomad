@@ -11,6 +11,7 @@ Options (use one of the following):
  --nomad_sha SHA          full git sha to install from S3
  --nomad_version VERSION  release version number (ex. 0.12.4+ent)
  --nomad_binary FILEPATH  path to file on host
+ --nomad_url URL          url to nomad binary archive
 
 Options for configuration:
  --config_profile FILEPATH  path to config profile directory
@@ -72,6 +73,20 @@ install_from_release() {
     RELEASE_URL="https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_${PLATFORM}.zip"
     curl -sL --fail -o /tmp/nomad.zip "$RELEASE_URL"
     sudo unzip -o /tmp/nomad.zip -d "$INSTALL_DIR"
+    set_ownership
+}
+
+install_from_url() {
+    case "${NOMAD_URL}" in
+        *.zip*)
+            curl -sL --fail -o /tmp/nomad.zip "$NOMAD_URL"
+            sudo unzip -o /tmp/nomad.zip -d "$INSTALL_DIR"
+            ;;
+        *.tar.gz*)
+            curl -sL --fail -o /tmp/nomad.zip "$NOMAD_URL"
+            sudo tar -zxvf nomad.tar.gz -C "$INSTALL_DIR"
+            ;;
+    esac
     set_ownership
 }
 
@@ -146,6 +161,12 @@ opt="$1"
             if [ -z "$2" ]; then echo "Missing file parameter"; usage; fi
             NOMAD_UPLOADED_BINARY="$2"
             install_fn=install_from_uploaded_binary
+            shift 2
+            ;;
+        --nomad_url)
+            if [ -z "$2" ]; then echo "Missing URL parameter"; usage; fi
+            NOMAD_URL="$2"
+            install_fn=install_from_url
             shift 2
             ;;
         --config_profile)

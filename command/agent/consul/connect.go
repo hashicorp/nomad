@@ -105,22 +105,27 @@ func connectSidecarRegistration(serviceId string, css *structs.ConsulSidecarServ
 		return nil, err
 	}
 
+	// if the service has a TCP check that's failing, we need an alias to
+	// ensure service discovery excludes this sidecar from queries
+	// (ex. in the case of Connect upstreams)
+	checks := api.AgentServiceChecks{{
+		Name:         "Connect Sidecar Aliasing " + serviceId,
+		AliasService: serviceId,
+	}}
+	if !css.DisableDefaultTCPCheck {
+		checks = append(checks, &api.AgentServiceCheck{
+			Name:     "Connect Sidecar Listening",
+			TCP:      net.JoinHostPort(cMapping.HostIP, strconv.Itoa(cMapping.Value)),
+			Interval: "10s",
+		})
+	}
+
 	return &api.AgentServiceRegistration{
 		Tags:    helper.CopySliceString(css.Tags),
 		Port:    cMapping.Value,
 		Address: cMapping.HostIP,
 		Proxy:   proxy,
-		Checks: api.AgentServiceChecks{
-			{
-				Name:     "Connect Sidecar Listening",
-				TCP:      net.JoinHostPort(cMapping.HostIP, strconv.Itoa(cMapping.Value)),
-				Interval: "10s",
-			},
-			{
-				Name:         "Connect Sidecar Aliasing " + serviceId,
-				AliasService: serviceId,
-			},
-		},
+		Checks:  checks,
 	}, nil
 }
 
@@ -193,9 +198,34 @@ func connectUpstreams(in []structs.ConsulUpstream) []api.Upstream {
 			LocalBindPort:    upstream.LocalBindPort,
 			Datacenter:       upstream.Datacenter,
 			LocalBindAddress: upstream.LocalBindAddress,
+			MeshGateway:      connectMeshGateway(upstream.MeshGateway),
 		}
 	}
 	return upstreams
+}
+
+// connectMeshGateway creates an api.MeshGatewayConfig from the nomad upstream
+// block. A non-existent config or unsupported gateway mode will default to the
+// Consul default mode.
+func connectMeshGateway(in *structs.ConsulMeshGateway) api.MeshGatewayConfig {
+	gw := api.MeshGatewayConfig{
+		Mode: api.MeshGatewayModeDefault,
+	}
+
+	if in == nil {
+		return gw
+	}
+
+	switch in.Mode {
+	case "local":
+		gw.Mode = api.MeshGatewayModeLocal
+	case "remote":
+		gw.Mode = api.MeshGatewayModeRemote
+	case "none":
+		gw.Mode = api.MeshGatewayModeNone
+	}
+
+	return gw
 }
 
 func connectProxyConfig(cfg map[string]interface{}, port int) map[string]interface{} {

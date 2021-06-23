@@ -24,7 +24,7 @@ export const HOSTS = provide(100, () => {
 export const STORAGE_PROVIDERS = ['ebs', 'zfs', 'nfs', 'cow', 'moo'];
 
 export function generateResources(options = {}) {
-  return {
+  const resources = {
     Cpu: {
       CpuShares: options.CPU || faker.helpers.randomize(CPU_RESERVATIONS),
     },
@@ -37,6 +37,15 @@ export function generateResources(options = {}) {
     Networks: generateNetworks(options.networks),
     Ports: generatePorts(options.networks),
   };
+
+  if (faker.random.boolean()) {
+    const higherMemoryReservations = MEMORY_RESERVATIONS.filter(mb => mb > resources.Memory.MemoryMB);
+    resources.Memory.MemoryMaxMB = faker.helpers.randomize(higherMemoryReservations) || resources.Memory.MemoryMB + 1;
+  } else {
+    resources.Memory.MemoryMaxMB = 0;
+  }
+
+  return resources;
 }
 
 export function generateNetworks(options = {}) {

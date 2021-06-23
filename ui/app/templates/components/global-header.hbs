@@ -7,9 +7,11 @@
       <NomadLogo />
     </LinkTo>
   </div>
-  {{#unless (media "isMobile")}}
-    <GlobalSearch::Control />
-  {{/unless}}
+  {{#if this.system.fuzzySearchEnabled}}
+    {{#unless (media "isMobile")}}
+      <GlobalSearch::Control />
+    {{/unless}}
+  {{/if}}
   <div class="navbar-end">
     {{#if this.config.APP.showStorybookLink}}
       <a href="/storybook/" class="navbar-item">Storybook</a>

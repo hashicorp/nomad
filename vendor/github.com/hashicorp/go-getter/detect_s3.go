@@ -34,6 +34,8 @@ func (d *S3Detector) detectHTTP(src string) (string, bool, error) {
 		return d.detectPathStyle(hostParts[0], parts[1:])
 	} else if len(hostParts) == 4 {
 		return d.detectVhostStyle(hostParts[1], hostParts[0], parts[1:])
+	} else if len(hostParts) == 5 && hostParts[1] == "s3" {
+		return d.detectNewVhostStyle(hostParts[2], hostParts[0], parts[1:])
 	} else {
 		return "", false, fmt.Errorf(
 			"URL is not a valid S3 URL")
@@ -52,6 +54,16 @@ func (d *S3Detector) detectPathStyle(region string, parts []string) (string, boo
 
 func (d *S3Detector) detectVhostStyle(region, bucket string, parts []string) (string, bool, error) {
 	urlStr := fmt.Sprintf("https://%s.amazonaws.com/%s/%s", region, bucket, strings.Join(parts, "/"))
+	url, err := url.Parse(urlStr)
+	if err != nil {
+		return "", false, fmt.Errorf("error parsing S3 URL: %s", err)
+	}
+
+	return "s3::" + url.String(), true, nil
+}
+
+func (d *S3Detector) detectNewVhostStyle(region, bucket string, parts []string) (string, bool, error) {
+	urlStr := fmt.Sprintf("https://s3.%s.amazonaws.com/%s/%s", region, bucket, strings.Join(parts, "/"))
 	url, err := url.Parse(urlStr)
 	if err != nil {
 		return "", false, fmt.Errorf("error parsing S3 URL: %s", err)

@@ -43,13 +43,13 @@ func TestHTTP_NodesList(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Header().Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Header().Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Header().Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -100,13 +100,13 @@ func TestHTTP_NodesPrefixList(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Header().Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Header().Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Header().Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -158,7 +158,7 @@ func TestHTTP_NodeForceEval(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Header().Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -218,13 +218,13 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Header().Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Header().Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Header().Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 
@@ -257,7 +257,12 @@ func TestHTTP_NodeDrain(t *testing.T) {
 			DrainSpec: &api.DrainSpec{
 				Deadline: 10 * time.Second,
 			},
+			Meta: map[string]string{
+				"reason": "drain",
+			},
 		}
+
+		beforeDrain := time.Unix(time.Now().Unix(), 0)
 
 		// Make the HTTP request
 		buf := encodeReq(drainReq)
@@ -270,13 +275,13 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		require.Nil(err)
 
 		// Check for the index
-		require.NotZero(respW.HeaderMap.Get("X-Nomad-Index"))
+		require.NotEmpty(respW.Header().Get("X-Nomad-Index"))
 
 		// Check the response
 		dresp, ok := obj.(structs.NodeDrainUpdateResponse)
 		require.True(ok)
 
-		t.Logf("response index=%v node_update_index=0x%x", respW.HeaderMap.Get("X-Nomad-Index"),
+		t.Logf("response index=%v node_update_index=0x%x", respW.Header().Get("X-Nomad-Index"),
 			dresp.NodeModifyIndex)
 
 		// Check that the node has been updated
@@ -292,8 +297,16 @@ func TestHTTP_NodeDrain(t *testing.T) {
 			require.Equal(structs.NodeSchedulingIneligible, out.SchedulingEligibility)
 		}
 
+		require.NotNil(out.LastDrain)
+		require.Equal(map[string]string{
+			"reason": "drain",
+		}, out.LastDrain.Meta)
+
 		// Make the HTTP request to unset drain
 		drainReq.DrainSpec = nil
+		drainReq.Meta = map[string]string{
+			"cancel_reason": "changed my mind",
+		}
 		buf = encodeReq(drainReq)
 		req, err = http.NewRequest("POST", "/v1/node/"+node.ID+"/drain", buf)
 		require.Nil(err)
@@ -306,6 +319,19 @@ func TestHTTP_NodeDrain(t *testing.T) {
 		out, err = state.NodeByID(nil, node.ID)
 		require.Nil(err)
 		require.Nil(out.DrainStrategy)
+		require.NotNil(out.LastDrain)
+		require.False(out.LastDrain.StartedAt.Before(beforeDrain))
+		require.False(out.LastDrain.UpdatedAt.Before(out.LastDrain.StartedAt))
+		require.Contains([]structs.DrainStatus{structs.DrainStatusCanceled, structs.DrainStatusComplete}, out.LastDrain.Status)
+		if out.LastDrain.Status == structs.DrainStatusComplete {
+			require.Equal(map[string]string{
+				"reason": "drain",
+			}, out.LastDrain.Meta)
+		} else if out.LastDrain.Status == structs.DrainStatusCanceled {
+			require.Equal(map[string]string{
+				"cancel_reason": "changed my mind",
+			}, out.LastDrain.Meta)
+		}
 	})
 }
 
@@ -337,7 +363,7 @@ func TestHTTP_NodeEligible(t *testing.T) {
 		require.Nil(err)
 
 		// Check for the index
-		require.NotZero(respW.HeaderMap.Get("X-Nomad-Index"))
+		require.NotZero(respW.Header().Get("X-Nomad-Index"))
 
 		// Check the response
 		_, ok := obj.(structs.NodeEligibilityUpdateResponse)
@@ -403,7 +429,7 @@ func TestHTTP_NodePurge(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Header().Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
 
@@ -456,13 +482,13 @@ func TestHTTP_NodeQuery(t *testing.T) {
 		}
 
 		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
+		if respW.Header().Get("X-Nomad-Index") == "" {
 			t.Fatalf("missing index")
 		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
+		if respW.Header().Get("X-Nomad-KnownLeader") != "true" {
 			t.Fatalf("missing known leader")
 		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
+		if respW.Header().Get("X-Nomad-LastContact") == "" {
 			t.Fatalf("missing last contact")
 		}
 

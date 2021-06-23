@@ -664,14 +664,14 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 			_, cc, _, client := newTestClient()
 			defer client.Close()
 
-			requestedCaps := &VolumeCapability{
+			requestedCaps := []*VolumeCapability{{
 				AccessType: tc.AccessType,
 				AccessMode: tc.AccessMode,
 				MountVolume: &structs.CSIMountOptions{ // should be ignored
 					FSType:     "ext4",
 					MountFlags: []string{"noatime", "errors=remount-ro"},
 				},
-			}
+			}}
 			req := &ControllerValidateVolumeRequest{
 				ExternalID:   "volumeID",
 				Secrets:      structs.CSISecrets{},

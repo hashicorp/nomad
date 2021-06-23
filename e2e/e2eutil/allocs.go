@@ -7,10 +7,25 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/api"
+	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 )
+
+// AllocsByName sorts allocs by Name
+type AllocsByName []*api.AllocationListStub
+
+func (a AllocsByName) Len() int {
+	return len(a)
+}
+
+func (a AllocsByName) Less(i, j int) bool {
+	return a[i].Name < a[j].Name
+}
+
+func (a AllocsByName) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
 
 // WaitForAllocStatusExpected polls 'nomad job status' and exactly compares
 // the status of all allocations (including any previous versions) against the

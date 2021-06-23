@@ -1,14 +1,13 @@
 .g-homepage-hero {
   background-repeat: no-repeat;
-  background-color: var(--gray-7);
-  background-image: url(/img/nomad-hero-pattern.svg);
+  background-color: var(--nomad-secondary);
   width: 100%;
   background-size: cover;
   background-position: center;
   padding: 88px 0;
 
-  @media (max-width: 758px) {
-    background-image: url(/img/pattern.svg);
+  @media (--medium-up) {
+    background-image: url(/img/nomad-bg-pattern.svg);
   }
 
   & h1 {

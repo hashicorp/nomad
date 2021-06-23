@@ -1,7 +1,7 @@
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
-import Controller, { inject as controller } from '@ember/controller';
+import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
@@ -14,9 +14,8 @@ import classic from 'ember-classic-decorator';
 export default class IndexController extends Controller.extend(Sortable, Searchable) {
   @service system;
   @service userSettings;
-  @controller('jobs') jobsController;
 
-  @alias('jobsController.isForbidden') isForbidden;
+  isForbidden = false;
 
   queryParams = [
     {
@@ -42,6 +41,9 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
     },
     {
       qpPrefix: 'prefix',
+    },
+    {
+      qpNamespace: 'namespace',
     },
   ];
 
@@ -150,21 +152,39 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
     }));
   }
 
+  @computed('qpNamespace', 'model.namespaces.[]', 'system.cachedNamespace')
+  get optionsNamespaces() {
+    const availableNamespaces = this.model.namespaces.map(namespace => ({
+      key: namespace.name,
+      label: namespace.name,
+    }));
+
+    availableNamespaces.unshift({
+      key: '*',
+      label: 'All (*)',
+    });
+
+    // Unset the namespace selection if it was server-side deleted
+    if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
+      scheduleOnce('actions', () => {
+        // eslint-disable-next-line ember/no-side-effects
+        this.set('qpNamespace', this.system.cachedNamespace || 'default');
+      });
+    }
+
+    return availableNamespaces;
+  }
+
   /**
     Visible jobs are those that match the selected namespace and aren't children
     of periodic or parameterized jobs.
   */
-  @computed('model.@each.parent', 'system.{activeNamespace.id,namespaces.length}')
+  @computed('model.jobs.@each.parent')
   get visibleJobs() {
-    // Namespace related properties are ommitted from the dependent keys
-    // due to a prop invalidation bug caused by region switching.
-    const hasNamespaces = this.get('system.namespaces.length');
-    const activeNamespace = this.get('system.activeNamespace.id') || 'default';
-
-    return this.model
+    if (!this.model || !this.model.jobs) return [];
+    return this.model.jobs
       .compact()
       .filter(job => !job.isNew)
-      .filter(job => !hasNamespaces || job.get('namespace.id') === activeNamespace)
       .filter(job => !job.get('parent.content'));
   }
 
@@ -213,12 +233,19 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
 
   isShowingDeploymentDetails = false;
 
+  @action
+  cacheNamespace(namespace) {
+    this.system.cachedNamespace = namespace;
+  }
+
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }
 
   @action
   gotoJob(job) {
-    this.transitionToRoute('jobs.job', job.get('plainId'));
+    this.transitionToRoute('jobs.job', job.get('plainId'), {
+      queryParams: { namespace: job.get('namespace.name') },
+    });
   }
 }

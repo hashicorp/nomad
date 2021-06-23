@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/interfaces"
+	"github.com/hashicorp/nomad/client/lib/cgutil"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	cstate "github.com/hashicorp/nomad/client/state"
@@ -68,6 +69,9 @@ type Config struct {
 
 	// DriverManager handles dispensing of driver plugins
 	DriverManager drivermanager.Manager
+
+	// CpusetManager configures the cpuset cgroup if supported by the platform
+	CpusetManager cgutil.CpusetManager
 
 	// ServersContactedCh is closed when the first GetClientAllocs call to
 	// servers succeeds and allocs are synced.

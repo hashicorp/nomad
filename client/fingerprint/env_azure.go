@@ -162,7 +162,7 @@ func (f *EnvAzureFingerprint) Fingerprint(request *FingerprintRequest, response 
 		}
 
 		// assume we want blank entries
-		key := "platform.azure." + strings.Replace(k, "/", ".", -1)
+		key := "platform.azure." + strings.ReplaceAll(k, "/", ".")
 		if attr.unique {
 			key = structs.UniqueNamespace(key)
 		}

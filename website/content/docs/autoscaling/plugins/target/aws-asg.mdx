@@ -1,0 +1,132 @@
+---
+layout: docs
+page_title: 'Autoscaling Plugins: AWS ASG'
+description: The "aws-asg" target plugin scales an Amazon Web Services Autoscaling Group.
+---
+
+# AWS AutoScaling Group Target
+
+The `aws-asg` target plugin allows for the scaling of the Nomad cluster clients
+via manipulating [AWS AutoScaling Groups][aws_autoscaling].
+
+## Agent Configuration Options
+
+To use the `aws-asg` target plugin, the agent configuration needs to be
+populated with the appropriate target block. Authentication to the AWS API can
+be supplied in a number of ways including EC2 instance roles.
+
+It is recommended, if possible to use the [Vault AWS Secrets
+engine][vault_aws_backend] for supplying access credentials to the plugin.
+
+Credentials should be injected into the configuration via a template rather
+than as environment variables. This ensures the credentials are passed only to
+the plugin, rather than being available for all plugins and the agent process.
+
+The IAM policy required for the AWS ASG plugin to function properly is detailed
+below.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "",
+      "Effect": "Allow",
+      "Action": [
+        "autoscaling:UpdateAutoScalingGroup",
+        "autoscaling:DescribeScalingActivities",
+        "autoscaling:DescribeAutoScalingGroups",
+        "autoscaling:CreateOrUpdateTags",
+        "autoscaling:TerminateInstanceInAutoScalingGroup"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+```hcl
+target "aws-asg" {
+  driver = "aws-asg"
+  config = {
+    aws_region            = "eu-west-3"
+    aws_access_key_id     = "AKIAIOSFODNN7EXAMPLE"
+    aws_secret_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  }
+}
+```
+
+- `aws_region` `(string: "us-east-1")` - The [AWS region][aws_region] identifier
+  to connect to and where resources should be managed.
+
+- `aws_access_key_id` `(string: "")` - The AWS access key ID used to authenticate
+  with the AWS API.
+
+- `aws_secret_access_key` `(string: "")` - The AWS secret key ID used to authenticate
+  with the AWS API.
+
+- `aws_session_token` `(string: "")` - The AWS session token used to authenticate
+  with the AWS API.
+
+### Nomad ACL
+
+When using a Nomad cluster with ACLs enabled, the plugin will require an ACL
+token which provides the following permissions:
+
+```hcl
+node {
+  policy = "write"
+}
+```
+
+## Policy Configuration Options
+
+```hcl
+check "hashistack-allocated-cpu" {
+  # ...
+  target "aws-asg" {
+    aws_asg_name        = "hashistack-client-asg"
+    node_class          = "hashistack"
+    node_drain_deadline = "5m"
+    node_purge          = "true"
+  }
+  # ...
+}
+```
+
+- `aws_asg_name` `(string: <required>)` - The name of the AWS AutoScaling Group to
+  interact with when performing scaling actions.
+
+- `datacenter` `(string: "")` - The Nomad client [datacenter][nomad_datacenter]
+  identifier used to group nodes into a pool of resource. Conflicts with
+  `node_class`.
+
+- `node_class` `(string: "")` - The Nomad [client node class][nomad_node_class]
+  identifier used to group nodes into a pool of resource. Conflicts with
+  `datacenter`.
+
+- `node_drain_deadline` `(duration: "15m")` The Nomad [drain
+  deadline][nomad_node_drain_deadline] to use when performing node draining
+  actions. **Note that the default value for this setting differs from Nomad's
+  default of 1h.**
+
+- `node_drain_ignore_system_jobs` `(bool: "false")` A boolean flag used to
+  control if system jobs should be stopped when performing node draining
+  actions.
+
+- `node_purge` `(bool: "false")` A boolean flag to determine whether Nomad
+  clients should be [purged][nomad_node_purge] when performing scale in
+  actions.
+
+- `node_selector_strategy` `(string: "least_busy")` The strategy to use when
+  selecting nodes for termination. Refer to the [node selector
+  strategy][node_selector_strategy] documentation for more information.
+
+[aws_autoscaling]: https://aws.amazon.com/autoscaling/
+[aws_region]: https://aws.amazon.com/about-aws/global-infrastructure/regions_az/
+[nomad_datacenter]: /docs/configuration#datacenter
+[nomad_node_class]: /docs/configuration/client#node_class
+[nomad_node_drain_deadline]: /api-docs/nodes#deadline
+[nomad_node_purge]: /api-docs/nodes#purge-node
+[node_selector_strategy]: /docs/autoscaling/internals/node-selector-strategy
+[vault_aws_backend]: https://www.vaultproject.io/docs/secrets/aws

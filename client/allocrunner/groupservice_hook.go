@@ -12,6 +12,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	groupServiceHookName = "group_services"
+)
+
 type networkStatusGetter interface {
 	NetworkStatus() *structs.AllocNetworkStatus
 }
@@ -23,6 +27,7 @@ type groupServiceHook struct {
 	group               string
 	restarter           agentconsul.WorkloadRestarter
 	consulClient        consul.ConsulServiceAPI
+	consulNamespace     string
 	prerun              bool
 	delay               time.Duration
 	deregistered        bool
@@ -45,6 +50,7 @@ type groupServiceHook struct {
 type groupServiceHookConfig struct {
 	alloc               *structs.Allocation
 	consul              consul.ConsulServiceAPI
+	consulNamespace     string
 	restarter           agentconsul.WorkloadRestarter
 	taskEnvBuilder      *taskenv.Builder
 	networkStatusGetter networkStatusGetter
@@ -64,12 +70,13 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 		group:               cfg.alloc.TaskGroup,
 		restarter:           cfg.restarter,
 		consulClient:        cfg.consul,
+		consulNamespace:     cfg.consulNamespace,
 		taskEnvBuilder:      cfg.taskEnvBuilder,
 		delay:               shutdownDelay,
 		networkStatusGetter: cfg.networkStatusGetter,
+		logger:              cfg.logger.Named(groupServiceHookName),
+		services:            cfg.alloc.Job.LookupTaskGroup(cfg.alloc.TaskGroup).Services,
 	}
-	h.logger = cfg.logger.Named(h.Name())
-	h.services = cfg.alloc.Job.LookupTaskGroup(h.group).Services
 
 	if cfg.alloc.AllocatedResources != nil {
 		h.networks = cfg.alloc.AllocatedResources.Shared.Networks
@@ -84,7 +91,7 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 }
 
 func (*groupServiceHook) Name() string {
-	return "group_services"
+	return groupServiceHookName
 }
 
 func (h *groupServiceHook) Prerun() error {
@@ -220,13 +227,14 @@ func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 
 	// Create task services struct with request's driver metadata
 	return &agentconsul.WorkloadServices{
-		AllocID:       h.allocID,
-		Group:         h.group,
-		Restarter:     h.restarter,
-		Services:      interpolatedServices,
-		Networks:      h.networks,
-		NetworkStatus: netStatus,
-		Ports:         h.ports,
-		Canary:        h.canary,
+		AllocID:         h.allocID,
+		Group:           h.group,
+		ConsulNamespace: h.consulNamespace,
+		Restarter:       h.restarter,
+		Services:        interpolatedServices,
+		Networks:        h.networks,
+		NetworkStatus:   netStatus,
+		Ports:           h.ports,
+		Canary:          h.canary,
 	}
 }

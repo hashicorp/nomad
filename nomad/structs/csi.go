@@ -224,6 +224,8 @@ type CSIVolumeClaim struct {
 	NodeID         string
 	ExternalNodeID string
 	Mode           CSIVolumeClaimMode
+	AccessMode     CSIVolumeAccessMode
+	AttachmentMode CSIVolumeAttachmentMode
 	State          CSIVolumeClaimState
 }
 
@@ -247,13 +249,14 @@ type CSIVolume struct {
 	ExternalID     string
 	Namespace      string
 	Topologies     []*CSITopology
-	AccessMode     CSIVolumeAccessMode
-	AttachmentMode CSIVolumeAttachmentMode
+	AccessMode     CSIVolumeAccessMode     // *current* access mode
+	AttachmentMode CSIVolumeAttachmentMode // *current* attachment mode
 	MountOptions   *CSIMountOptions
-	Secrets        CSISecrets
-	Parameters     map[string]string
-	Context        map[string]string
-	Capacity       int64 // bytes
+
+	Secrets    CSISecrets
+	Parameters map[string]string
+	Context    map[string]string
+	Capacity   int64 // bytes
 
 	// These values are used only on volume creation but we record them
 	// so that we can diff the volume later
@@ -376,19 +379,32 @@ func (v *CSIVolume) ReadSchedulable() bool {
 	return v.ResourceExhausted == time.Time{}
 }
 
-// WriteSchedulable determines if the volume is schedulable for writes, considering only
-// volume health
+// WriteSchedulable determines if the volume is schedulable for writes,
+// considering only volume capabilities and plugin health
 func (v *CSIVolume) WriteSchedulable() bool {
 	if !v.Schedulable {
 		return false
 	}
 
 	switch v.AccessMode {
-	case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter, CSIVolumeAccessModeMultiNodeMultiWriter:
+	case CSIVolumeAccessModeSingleNodeWriter,
+		CSIVolumeAccessModeMultiNodeSingleWriter,
+		CSIVolumeAccessModeMultiNodeMultiWriter:
 		return v.ResourceExhausted == time.Time{}
-	default:
-		return false
+
+	case CSIVolumeAccessModeUnknown:
+		// this volume was created but not currently claimed, so we check what
+		// it's capable of, not what it's been previously assigned
+		for _, cap := range v.RequestedCapabilities {
+			switch cap.AccessMode {
+			case CSIVolumeAccessModeSingleNodeWriter,
+				CSIVolumeAccessModeMultiNodeSingleWriter,
+				CSIVolumeAccessModeMultiNodeMultiWriter:
+				return v.ResourceExhausted == time.Time{}
+			}
+		}
 	}
+	return false
 }
 
 // WriteFreeClaims determines if there are any free write claims available
@@ -401,9 +417,25 @@ func (v *CSIVolume) WriteFreeClaims() bool {
 		// we track node resource exhaustion through v.ResourceExhausted
 		// which is checked in WriteSchedulable
 		return true
-	default:
-		return false
+	case CSIVolumeAccessModeUnknown:
+		// this volume was created but not yet claimed, so we check what it's
+		// capable of, not what it's been assigned
+		if len(v.RequestedCapabilities) == 0 {
+			// COMPAT: a volume that was registered before 1.1.0 and has not
+			// had a change in claims could have no requested caps. It will
+			// get corrected on the first claim.
+			return true
+		}
+		for _, cap := range v.RequestedCapabilities {
+			switch cap.AccessMode {
+			case CSIVolumeAccessModeSingleNodeWriter, CSIVolumeAccessModeMultiNodeSingleWriter:
+				return len(v.WriteClaims) == 0
+			case CSIVolumeAccessModeMultiNodeMultiWriter:
+				return true
+			}
+		}
 	}
+	return false
 }
 
 // InUse tests whether any allocations are actively using the volume
@@ -459,21 +491,38 @@ func (v *CSIVolume) Copy() *CSIVolume {
 
 // Claim updates the allocations and changes the volume state
 func (v *CSIVolume) Claim(claim *CSIVolumeClaim, alloc *Allocation) error {
+	// COMPAT: volumes registered prior to 1.1.0 will be missing caps for the
+	// volume on any claim. Correct this when we make the first change to a
+	// claim by setting its currently claimed capability as the only requested
+	// capability
+	if len(v.RequestedCapabilities) == 0 && v.AccessMode != "" && v.AttachmentMode != "" {
+		v.RequestedCapabilities = []*CSIVolumeCapability{
+			{
+				AccessMode:     v.AccessMode,
+				AttachmentMode: v.AttachmentMode,
+			},
+		}
+	}
+	if v.AttachmentMode != CSIVolumeAttachmentModeUnknown &&
+		claim.AttachmentMode != CSIVolumeAttachmentModeUnknown &&
+		v.AttachmentMode != claim.AttachmentMode {
+		return fmt.Errorf("cannot change attachment mode of claimed volume")
+	}
 
 	if claim.State == CSIVolumeClaimStateTaken {
 		switch claim.Mode {
 		case CSIVolumeClaimRead:
-			return v.ClaimRead(claim, alloc)
+			return v.claimRead(claim, alloc)
 		case CSIVolumeClaimWrite:
-			return v.ClaimWrite(claim, alloc)
+			return v.claimWrite(claim, alloc)
 		}
 	}
 	// either GC or a Unpublish checkpoint
-	return v.ClaimRelease(claim)
+	return v.claimRelease(claim)
 }
 
-// ClaimRead marks an allocation as using a volume read-only
-func (v *CSIVolume) ClaimRead(claim *CSIVolumeClaim, alloc *Allocation) error {
+// claimRead marks an allocation as using a volume read-only
+func (v *CSIVolume) claimRead(claim *CSIVolumeClaim, alloc *Allocation) error {
 	if _, ok := v.ReadAllocs[claim.AllocationID]; ok {
 		return nil
 	}
@@ -494,11 +543,12 @@ func (v *CSIVolume) ClaimRead(claim *CSIVolumeClaim, alloc *Allocation) error {
 	delete(v.WriteClaims, claim.AllocationID)
 	delete(v.PastClaims, claim.AllocationID)
 
+	v.setModesFromClaim(claim)
 	return nil
 }
 
-// ClaimWrite marks an allocation as using a volume as a writer
-func (v *CSIVolume) ClaimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
+// claimWrite marks an allocation as using a volume as a writer
+func (v *CSIVolume) claimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
 	if _, ok := v.WriteAllocs[claim.AllocationID]; ok {
 		return nil
 	}
@@ -528,18 +578,39 @@ func (v *CSIVolume) ClaimWrite(claim *CSIVolumeClaim, alloc *Allocation) error {
 	delete(v.ReadClaims, alloc.ID)
 	delete(v.PastClaims, alloc.ID)
 
+	v.setModesFromClaim(claim)
 	return nil
 }
 
-// ClaimRelease is called when the allocation has terminated and
+// setModesFromClaim sets the volume AttachmentMode and AccessMode based on
+// the first claim we make.  Originally the volume AccessMode and
+// AttachmentMode were set during registration, but this is incorrect once we
+// started creating volumes ourselves. But we still want these values for CLI
+// and UI status.
+func (v *CSIVolume) setModesFromClaim(claim *CSIVolumeClaim) {
+	if v.AttachmentMode == CSIVolumeAttachmentModeUnknown {
+		v.AttachmentMode = claim.AttachmentMode
+	}
+	if v.AccessMode == CSIVolumeAccessModeUnknown {
+		v.AccessMode = claim.AccessMode
+	}
+}
+
+// claimRelease is called when the allocation has terminated and
 // already stopped using the volume
-func (v *CSIVolume) ClaimRelease(claim *CSIVolumeClaim) error {
+func (v *CSIVolume) claimRelease(claim *CSIVolumeClaim) error {
 	if claim.State == CSIVolumeClaimStateReadyToFree {
 		delete(v.ReadAllocs, claim.AllocationID)
 		delete(v.WriteAllocs, claim.AllocationID)
 		delete(v.ReadClaims, claim.AllocationID)
 		delete(v.WriteClaims, claim.AllocationID)
 		delete(v.PastClaims, claim.AllocationID)
+
+		// remove AccessMode/AttachmentMode if this is the last claim
+		if len(v.ReadClaims) == 0 && len(v.WriteClaims) == 0 && len(v.PastClaims) == 0 {
+			v.AccessMode = CSIVolumeAccessModeUnknown
+			v.AttachmentMode = CSIVolumeAttachmentModeUnknown
+		}
 	} else {
 		v.PastClaims[claim.AllocationID] = claim
 	}
@@ -592,6 +663,9 @@ func (v *CSIVolume) Validate() error {
 	}
 	if v.SnapshotID != "" && v.CloneID != "" {
 		errs = append(errs, "only one of snapshot_id and clone_id is allowed")
+	}
+	if len(v.RequestedCapabilities) == 0 {
+		errs = append(errs, "must include at least one capability block")
 	}
 
 	// TODO: Volume Topologies are optional - We should check to see if the plugin
@@ -674,6 +748,8 @@ type CSIVolumeClaimRequest struct {
 	NodeID         string
 	ExternalNodeID string
 	Claim          CSIVolumeClaimMode
+	AccessMode     CSIVolumeAccessMode
+	AttachmentMode CSIVolumeAttachmentMode
 	State          CSIVolumeClaimState
 	WriteRequest
 }
@@ -684,6 +760,8 @@ func (req *CSIVolumeClaimRequest) ToClaim() *CSIVolumeClaim {
 		NodeID:         req.NodeID,
 		ExternalNodeID: req.ExternalNodeID,
 		Mode:           req.Claim,
+		AccessMode:     req.AccessMode,
+		AttachmentMode: req.AttachmentMode,
 		State:          req.State,
 	}
 }

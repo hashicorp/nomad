@@ -150,7 +150,7 @@ func (v *Variable) Value() (cty.Value, hcl.Diagnostics) {
 			Severity: hcl.DiagError,
 			Summary:  fmt.Sprintf("Unset variable %q", v.Name),
 			Detail: "A used variable must be set or have a default value; see " +
-				"https://packer.io/docs/configuration/from-1.5/syntax for " +
+				"https://www.nomadproject.io/docs/job-specification/hcl2/variables for " +
 				"details.",
 			Context: v.Range.Ptr(),
 		}}

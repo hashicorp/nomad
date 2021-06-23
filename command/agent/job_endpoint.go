@@ -7,8 +7,7 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
-
-	"github.com/hashicorp/nomad/api"
+	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
@@ -783,7 +782,6 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Region:         *job.Region,
 		Namespace:      *job.Namespace,
 		ID:             *job.ID,
-		ParentID:       *job.ParentID,
 		Name:           *job.Name,
 		Type:           *job.Type,
 		Priority:       *job.Priority,
@@ -876,7 +874,8 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 	tg.Constraints = ApiConstraintsToStructs(taskGroup.Constraints)
 	tg.Affinities = ApiAffinitiesToStructs(taskGroup.Affinities)
 	tg.Networks = ApiNetworkResourceToStructs(taskGroup.Networks)
-	tg.Services = ApiServicesToStructs(taskGroup.Services)
+	tg.Services = ApiServicesToStructs(taskGroup.Services, true)
+	tg.Consul = apiConsulToStructs(taskGroup.Consul)
 
 	tg.RestartPolicy = &structs.RestartPolicy{
 		Attempts: *taskGroup.RestartPolicy.Attempts,
@@ -940,11 +939,13 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 			}
 
 			vol := &structs.VolumeRequest{
-				Name:     v.Name,
-				Type:     v.Type,
-				ReadOnly: v.ReadOnly,
-				Source:   v.Source,
-				PerAlloc: v.PerAlloc,
+				Name:           v.Name,
+				Type:           v.Type,
+				ReadOnly:       v.ReadOnly,
+				Source:         v.Source,
+				AttachmentMode: structs.CSIVolumeAttachmentMode(v.AttachmentMode),
+				AccessMode:     structs.CSIVolumeAccessMode(v.AccessMode),
+				PerAlloc:       v.PerAlloc,
 			}
 
 			if v.MountOptions != nil {
@@ -1043,66 +1044,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		}
 	}
 
-	if l := len(apiTask.Services); l != 0 {
-		structsTask.Services = make([]*structs.Service, l)
-		for i, service := range apiTask.Services {
-			structsTask.Services[i] = &structs.Service{
-				Name:              service.Name,
-				PortLabel:         service.PortLabel,
-				Tags:              service.Tags,
-				CanaryTags:        service.CanaryTags,
-				EnableTagOverride: service.EnableTagOverride,
-				AddressMode:       service.AddressMode,
-				Meta:              helper.CopyMapStringString(service.Meta),
-				CanaryMeta:        helper.CopyMapStringString(service.CanaryMeta),
-				OnUpdate:          service.OnUpdate,
-			}
-
-			if l := len(service.Checks); l != 0 {
-				structsTask.Services[i].Checks = make([]*structs.ServiceCheck, l)
-				for j, check := range service.Checks {
-					onUpdate := service.OnUpdate // Inherit from service as default
-					if check.OnUpdate != "" {
-						onUpdate = check.OnUpdate
-					}
-					structsTask.Services[i].Checks[j] = &structs.ServiceCheck{
-						Name:                   check.Name,
-						Type:                   check.Type,
-						Command:                check.Command,
-						Args:                   check.Args,
-						Path:                   check.Path,
-						Protocol:               check.Protocol,
-						PortLabel:              check.PortLabel,
-						AddressMode:            check.AddressMode,
-						Interval:               check.Interval,
-						Timeout:                check.Timeout,
-						InitialStatus:          check.InitialStatus,
-						TLSSkipVerify:          check.TLSSkipVerify,
-						Header:                 check.Header,
-						Method:                 check.Method,
-						GRPCService:            check.GRPCService,
-						GRPCUseTLS:             check.GRPCUseTLS,
-						SuccessBeforePassing:   check.SuccessBeforePassing,
-						FailuresBeforeCritical: check.FailuresBeforeCritical,
-						OnUpdate:               onUpdate,
-					}
-					if check.CheckRestart != nil {
-						structsTask.Services[i].Checks[j].CheckRestart = &structs.CheckRestart{
-							Limit:          check.CheckRestart.Limit,
-							Grace:          *check.CheckRestart.Grace,
-							IgnoreWarnings: check.CheckRestart.IgnoreWarnings,
-						}
-					}
-				}
-			}
-
-			// Task services can't have a connect block. We still convert it so that
-			// we can later return a validation error.
-			if service.Connect != nil {
-				structsTask.Services[i].Connect = ApiConsulConnectToStructs(service.Connect)
-			}
-		}
-	}
+	structsTask.Services = ApiServicesToStructs(apiTask.Services, false)
 
 	structsTask.Resources = ApiResourcesToStructs(apiTask.Resources)
 
@@ -1270,8 +1212,7 @@ func ApiPortToStructs(in api.Port) structs.Port {
 	}
 }
 
-//TODO(schmichael) refactor and reuse in service parsing above
-func ApiServicesToStructs(in []*api.Service) []*structs.Service {
+func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 	if len(in) == 0 {
 		return nil
 	}
@@ -1299,26 +1240,34 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 					onUpdate = check.OnUpdate
 				}
 				out[i].Checks[j] = &structs.ServiceCheck{
-					Name:          check.Name,
-					Type:          check.Type,
-					Command:       check.Command,
-					Args:          check.Args,
-					Path:          check.Path,
-					Protocol:      check.Protocol,
-					PortLabel:     check.PortLabel,
-					Expose:        check.Expose,
-					AddressMode:   check.AddressMode,
-					Interval:      check.Interval,
-					Timeout:       check.Timeout,
-					InitialStatus: check.InitialStatus,
-					TLSSkipVerify: check.TLSSkipVerify,
-					Header:        check.Header,
-					Method:        check.Method,
-					GRPCService:   check.GRPCService,
-					GRPCUseTLS:    check.GRPCUseTLS,
-					TaskName:      check.TaskName,
-					OnUpdate:      onUpdate,
+					Name:                   check.Name,
+					Type:                   check.Type,
+					Command:                check.Command,
+					Args:                   check.Args,
+					Path:                   check.Path,
+					Protocol:               check.Protocol,
+					PortLabel:              check.PortLabel,
+					Expose:                 check.Expose,
+					AddressMode:            check.AddressMode,
+					Interval:               check.Interval,
+					Timeout:                check.Timeout,
+					InitialStatus:          check.InitialStatus,
+					TLSSkipVerify:          check.TLSSkipVerify,
+					Header:                 check.Header,
+					Method:                 check.Method,
+					Body:                   check.Body,
+					GRPCService:            check.GRPCService,
+					GRPCUseTLS:             check.GRPCUseTLS,
+					SuccessBeforePassing:   check.SuccessBeforePassing,
+					FailuresBeforeCritical: check.FailuresBeforeCritical,
+					OnUpdate:               onUpdate,
 				}
+
+				if group {
+					// only copy over task name for group level checks
+					out[i].Checks[j].TaskName = check.TaskName
+				}
+
 				if check.CheckRestart != nil {
 					out[i].Checks[j].CheckRestart = &structs.CheckRestart{
 						Limit:          check.CheckRestart.Limit,
@@ -1359,6 +1308,7 @@ func apiConnectGatewayToStructs(in *api.ConsulGateway) *structs.ConsulGateway {
 		Proxy:       apiConnectGatewayProxyToStructs(in.Proxy),
 		Ingress:     apiConnectIngressGatewayToStructs(in.Ingress),
 		Terminating: apiConnectTerminatingGatewayToStructs(in.Terminating),
+		Mesh:        apiConnectMeshGatewayToStructs(in.Mesh),
 	}
 }
 
@@ -1491,14 +1441,22 @@ func apiConnectTerminatingServiceToStructs(in *api.ConsulLinkedService) *structs
 	}
 }
 
+func apiConnectMeshGatewayToStructs(in *api.ConsulMeshConfigEntry) *structs.ConsulMeshConfigEntry {
+	if in == nil {
+		return nil
+	}
+	return new(structs.ConsulMeshConfigEntry)
+}
+
 func apiConnectSidecarServiceToStructs(in *api.ConsulSidecarService) *structs.ConsulSidecarService {
 	if in == nil {
 		return nil
 	}
 	return &structs.ConsulSidecarService{
-		Port:  in.Port,
-		Tags:  helper.CopySliceString(in.Tags),
-		Proxy: apiConnectSidecarServiceProxyToStructs(in.Proxy),
+		Port:                   in.Port,
+		Tags:                   helper.CopySliceString(in.Tags),
+		Proxy:                  apiConnectSidecarServiceProxyToStructs(in.Proxy),
+		DisableDefaultTCPCheck: in.DisableDefaultTCPCheck,
 	}
 }
 
@@ -1526,9 +1484,19 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 			LocalBindPort:    upstream.LocalBindPort,
 			Datacenter:       upstream.Datacenter,
 			LocalBindAddress: upstream.LocalBindAddress,
+			MeshGateway:      apiMeshGatewayToStructs(upstream.MeshGateway),
 		}
 	}
 	return upstreams
+}
+
+func apiMeshGatewayToStructs(in *api.ConsulMeshGateway) *structs.ConsulMeshGateway {
+	if in == nil {
+		return nil
+	}
+	return &structs.ConsulMeshGateway{
+		Mode: in.Mode,
+	}
 }
 
 func apiConsulExposeConfigToStructs(in *api.ConsulExposeConfig) *structs.ConsulExposeConfig {
@@ -1572,6 +1540,15 @@ func apiConnectSidecarTaskToStructs(in *api.SidecarTask) *structs.SidecarTask {
 		KillSignal:    in.KillSignal,
 		KillTimeout:   in.KillTimeout,
 		LogConfig:     apiLogConfigToStructs(in.LogConfig),
+	}
+}
+
+func apiConsulToStructs(in *api.Consul) *structs.Consul {
+	if in == nil {
+		return nil
+	}
+	return &structs.Consul{
+		Namespace: in.Namespace,
 	}
 }
 

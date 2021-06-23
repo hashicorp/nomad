@@ -18,23 +18,6 @@ func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Reque
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	// Tokenize the suffix of the path to get the volume id
-	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/volumes")
-	tokens := strings.Split(reqSuffix, "/")
-	if len(tokens) == 2 {
-		if tokens[1] == "external" {
-			return s.csiVolumesListExternal(resp, req)
-		}
-		return nil, CodedError(404, resourceNotFoundErr)
-	} else if len(tokens) > 2 {
-		return nil, CodedError(404, resourceNotFoundErr)
-	}
-
-	return s.csiVolumesList(resp, req)
-}
-
-func (s *HTTPServer) csiVolumesList(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-
 	// Type filters volume lists to a specific type. When support for non-CSI volumes is
 	// introduced, we'll need to dispatch here
 	query := req.URL.Query()
@@ -64,7 +47,10 @@ func (s *HTTPServer) csiVolumesList(resp http.ResponseWriter, req *http.Request)
 	return out.Volumes, nil
 }
 
-func (s *HTTPServer) csiVolumesListExternal(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) CSIExternalVolumesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
 
 	args := structs.CSIVolumeExternalListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
@@ -80,7 +66,7 @@ func (s *HTTPServer) csiVolumesListExternal(resp http.ResponseWriter, req *http.
 	}
 
 	setMeta(resp, &out.QueryMeta)
-	return out.Volumes, nil
+	return out, nil
 }
 
 // CSIVolumeSpecificRequest dispatches GET and PUT
@@ -306,16 +292,28 @@ func (s *HTTPServer) csiSnapshotCreate(resp http.ResponseWriter, req *http.Reque
 	}
 
 	setMeta(resp, &out.QueryMeta)
-	return out.Snapshots, nil
+	return out, nil
 }
 
 func (s *HTTPServer) csiSnapshotDelete(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 
 	args := structs.CSISnapshotDeleteRequest{}
-	if err := decodeBody(req, &args); err != nil {
-		return err, CodedError(400, err.Error())
-	}
 	s.parseWriteRequest(req, &args.WriteRequest)
+
+	snap := &structs.CSISnapshot{Secrets: structs.CSISecrets{}}
+
+	query := req.URL.Query()
+	snap.PluginID = query.Get("plugin_id")
+	snap.ID = query.Get("snapshot_id")
+	secrets := query["secret"]
+	for _, raw := range secrets {
+		secret := strings.Split(raw, "=")
+		if len(secret) == 2 {
+			snap.Secrets[secret[0]] = secret[1]
+		}
+	}
+
+	args.Snapshots = []*structs.CSISnapshot{snap}
 
 	var out structs.CSISnapshotDeleteResponse
 	if err := s.agent.RPC("CSIVolume.DeleteSnapshot", &args, &out); err != nil {
@@ -337,12 +335,12 @@ func (s *HTTPServer) csiSnapshotList(resp http.ResponseWriter, req *http.Request
 	args.PluginID = query.Get("plugin_id")
 
 	var out structs.CSISnapshotListResponse
-	if err := s.agent.RPC("CSIVolume.SnapshotList", &args, &out); err != nil {
+	if err := s.agent.RPC("CSIVolume.ListSnapshots", &args, &out); err != nil {
 		return nil, err
 	}
 
 	setMeta(resp, &out.QueryMeta)
-	return out.Snapshots, nil
+	return out, nil
 }
 
 // CSIPluginsRequest lists CSI plugins

@@ -400,6 +400,8 @@ func (p *planner) asyncPlanWait(indexCh chan<- uint64, future raft.ApplyFuture,
 func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.Plan, logger log.Logger) (*structs.PlanResult, error) {
 	defer metrics.MeasureSince([]string{"nomad", "plan", "evaluate"}, time.Now())
 
+	logger.Trace("evaluating plan", "plan", log.Fmt("%#v", plan))
+
 	// Denormalize without the job
 	err := snap.DenormalizeAllocationsMap(plan.NodeUpdate)
 	if err != nil {

@@ -17,7 +17,6 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/testutil"
@@ -48,19 +47,19 @@ func TestClientAllocations_GarbageCollectAll_Local(t *testing.T) {
 	})
 
 	// Make the request without having a node-id
-	req := &structs.NodeSpecificRequest{
-		QueryOptions: structs.QueryOptions{Region: "global"},
+	req := &nstructs.NodeSpecificRequest{
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
 	}
 
 	// Fetch the response
-	var resp structs.GenericResponse
+	var resp nstructs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollectAll", req, &resp)
 	require.NotNil(err)
 	require.Contains(err.Error(), "missing")
 
 	// Fetch the response setting the node id
 	req.NodeID = c.NodeID()
-	var resp2 structs.GenericResponse
+	var resp2 nstructs.GenericResponse
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollectAll", req, &resp2)
 	require.Nil(err)
 }
@@ -90,7 +89,7 @@ func TestClientAllocations_GarbageCollectAll_Local_ACL(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "good token",
@@ -108,16 +107,16 @@ func TestClientAllocations_GarbageCollectAll_Local_ACL(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 
 			// Make the request without having a node-id
-			req := &structs.NodeSpecificRequest{
+			req := &nstructs.NodeSpecificRequest{
 				NodeID: uuid.Generate(),
-				QueryOptions: structs.QueryOptions{
+				QueryOptions: nstructs.QueryOptions{
 					AuthToken: c.Token,
 					Region:    "global",
 				},
 			}
 
 			// Fetch the response
-			var resp structs.GenericResponse
+			var resp nstructs.GenericResponse
 			err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollectAll", req, &resp)
 			require.NotNil(err)
 			require.Contains(err.Error(), c.ExpectedError)
@@ -136,13 +135,13 @@ func TestClientAllocations_GarbageCollectAll_NoNode(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	// Make the request without having a node-id
-	req := &structs.NodeSpecificRequest{
+	req := &nstructs.NodeSpecificRequest{
 		NodeID:       uuid.Generate(),
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
 	}
 
 	// Fetch the response
-	var resp structs.GenericResponse
+	var resp nstructs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollectAll", req, &resp)
 	require.NotNil(err)
 	require.Contains(err.Error(), "Unknown node")
@@ -164,21 +163,21 @@ func TestClientAllocations_GarbageCollectAll_OldNode(t *testing.T) {
 	node.Attributes["nomad.version"] = "0.7.1"
 	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1005, node))
 
-	req := &structs.NodeSpecificRequest{
+	req := &nstructs.NodeSpecificRequest{
 		NodeID:       node.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
 	}
 
-	var resp structs.GenericResponse
+	var resp nstructs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollectAll", req, &resp)
-	require.True(structs.IsErrNodeLacksRpc(err))
+	require.True(nstructs.IsErrNodeLacksRpc(err))
 
 	// Test for a missing version error
 	delete(node.Attributes, "nomad.version")
 	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1006, node))
 
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollectAll", req, &resp)
-	require.True(structs.IsErrUnknownNomadVersion(err))
+	require.True(nstructs.IsErrUnknownNomadVersion(err))
 }
 
 func TestClientAllocations_GarbageCollectAll_Remote(t *testing.T) {
@@ -210,15 +209,15 @@ func TestClientAllocations_GarbageCollectAll_Remote(t *testing.T) {
 		if len(nodes) != 1 {
 			return false, fmt.Errorf("should have 1 client. found %d", len(nodes))
 		}
-		req := &structs.NodeSpecificRequest{
+		req := &nstructs.NodeSpecificRequest{
 			NodeID:       c.NodeID(),
-			QueryOptions: structs.QueryOptions{Region: "global"},
+			QueryOptions: nstructs.QueryOptions{Region: "global"},
 		}
-		resp := structs.SingleNodeResponse{}
+		resp := nstructs.SingleNodeResponse{}
 		if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp); err != nil {
 			return false, err
 		}
-		return resp.Node != nil && resp.Node.Status == structs.NodeStatusReady, fmt.Errorf(
+		return resp.Node != nil && resp.Node.Status == nstructs.NodeStatusReady, fmt.Errorf(
 			"expected ready but found %s", pretty.Sprint(resp.Node))
 	}, func(err error) {
 		t.Fatalf("should have a clients")
@@ -230,9 +229,9 @@ func TestClientAllocations_GarbageCollectAll_Remote(t *testing.T) {
 	s1.nodeConnsLock.Unlock()
 
 	// Make the request
-	req := &structs.NodeSpecificRequest{
+	req := &nstructs.NodeSpecificRequest{
 		NodeID:       c.NodeID(),
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
 	}
 
 	// Fetch the response
@@ -259,26 +258,26 @@ func TestClientAllocations_GarbageCollect_OldNode(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1006, []*structs.Allocation{alloc}))
+	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1006, []*nstructs.Allocation{alloc}))
 
-	req := &structs.AllocSpecificRequest{
+	req := &nstructs.AllocSpecificRequest{
 		AllocID: alloc.ID,
-		QueryOptions: structs.QueryOptions{
+		QueryOptions: nstructs.QueryOptions{
 			Region:    "global",
-			Namespace: structs.DefaultNamespace,
+			Namespace: nstructs.DefaultNamespace,
 		},
 	}
 
-	var resp structs.GenericResponse
+	var resp nstructs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollect", req, &resp)
-	require.True(structs.IsErrNodeLacksRpc(err), err.Error())
+	require.True(nstructs.IsErrNodeLacksRpc(err), err.Error())
 
 	// Test for a missing version error
 	delete(node.Attributes, "nomad.version")
 	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1007, node))
 
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollect", req, &resp)
-	require.True(structs.IsErrUnknownNomadVersion(err), err.Error())
+	require.True(nstructs.IsErrUnknownNomadVersion(err), err.Error())
 }
 
 func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
@@ -299,17 +298,17 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
-	a.Job.Type = structs.JobTypeBatch
+	a.Job.Type = nstructs.JobTypeBatch
 	a.NodeID = c.NodeID()
 	a.Job.TaskGroups[0].Count = 1
-	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
+	a.Job.TaskGroups[0].Tasks[0] = &nstructs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
 			"run_for": "2s",
 		},
-		LogConfig: structs.DefaultLogConfig(),
-		Resources: &structs.Resources{
+		LogConfig: nstructs.DefaultLogConfig(),
+		Resources: &nstructs.Resources{
 			CPU:      500,
 			MemoryMB: 256,
 		},
@@ -325,7 +324,7 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 	// Upsert the allocation
 	state := s.State()
 	require.Nil(state.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
-	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
+	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -336,7 +335,7 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 		if alloc == nil {
 			return false, fmt.Errorf("unknown alloc")
 		}
-		if alloc.ClientStatus != structs.AllocClientStatusComplete {
+		if alloc.ClientStatus != nstructs.AllocClientStatusComplete {
 			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
 		}
 
@@ -346,19 +345,19 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 	})
 
 	// Make the request without having an alloc id
-	req := &structs.AllocSpecificRequest{
-		QueryOptions: structs.QueryOptions{Region: "global"},
+	req := &nstructs.AllocSpecificRequest{
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
 	}
 
 	// Fetch the response
-	var resp structs.GenericResponse
+	var resp nstructs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollect", req, &resp)
 	require.NotNil(err)
 	require.Contains(err.Error(), "missing")
 
 	// Fetch the response setting the node id
 	req.AllocID = a.ID
-	var resp2 structs.GenericResponse
+	var resp2 nstructs.GenericResponse
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollect", req, &resp2)
 	require.Nil(err)
 }
@@ -376,14 +375,14 @@ func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
 
-	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob})
+	policyGood := mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
 	// Upsert the allocation
 	state := s.State()
 	alloc := mock.Alloc()
 	require.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1010, alloc.Job))
-	require.NoError(t, state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1011, []*nstructs.Allocation{alloc}))
 
 	cases := []struct {
 		Name          string
@@ -393,17 +392,17 @@ func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: structs.ErrUnknownNodePrefix,
+			ExpectedError: nstructs.ErrUnknownNodePrefix,
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: structs.ErrUnknownNodePrefix,
+			ExpectedError: nstructs.ErrUnknownNodePrefix,
 		},
 	}
 
@@ -411,17 +410,17 @@ func TestClientAllocations_GarbageCollect_Local_ACL(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 
 			// Make the request without having a node-id
-			req := &structs.AllocSpecificRequest{
+			req := &nstructs.AllocSpecificRequest{
 				AllocID: alloc.ID,
-				QueryOptions: structs.QueryOptions{
+				QueryOptions: nstructs.QueryOptions{
 					AuthToken: c.Token,
 					Region:    "global",
-					Namespace: structs.DefaultNamespace,
+					Namespace: nstructs.DefaultNamespace,
 				},
 			}
 
 			// Fetch the response
-			var resp structs.GenericResponse
+			var resp nstructs.GenericResponse
 			err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.GarbageCollect", req, &resp)
 			require.NotNil(t, err)
 			require.Contains(t, err.Error(), c.ExpectedError)
@@ -455,17 +454,17 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
-	a.Job.Type = structs.JobTypeBatch
+	a.Job.Type = nstructs.JobTypeBatch
 	a.NodeID = c.NodeID()
 	a.Job.TaskGroups[0].Count = 1
-	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
+	a.Job.TaskGroups[0].Tasks[0] = &nstructs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
 			"run_for": "2s",
 		},
-		LogConfig: structs.DefaultLogConfig(),
-		Resources: &structs.Resources{
+		LogConfig: nstructs.DefaultLogConfig(),
+		Resources: &nstructs.Resources{
 			CPU:      500,
 			MemoryMB: 256,
 		},
@@ -475,15 +474,15 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 		if len(nodes) != 1 {
 			return false, fmt.Errorf("should have 1 client. found %d", len(nodes))
 		}
-		req := &structs.NodeSpecificRequest{
+		req := &nstructs.NodeSpecificRequest{
 			NodeID:       c.NodeID(),
-			QueryOptions: structs.QueryOptions{Region: "global"},
+			QueryOptions: nstructs.QueryOptions{Region: "global"},
 		}
-		resp := structs.SingleNodeResponse{}
+		resp := nstructs.SingleNodeResponse{}
 		if err := msgpackrpc.CallWithCodec(codec, "Node.GetNode", req, &resp); err != nil {
 			return false, err
 		}
-		return resp.Node != nil && resp.Node.Status == structs.NodeStatusReady, fmt.Errorf(
+		return resp.Node != nil && resp.Node.Status == nstructs.NodeStatusReady, fmt.Errorf(
 			"expected ready but found %s", pretty.Sprint(resp.Node))
 	}, func(err error) {
 		t.Fatalf("should have a clients")
@@ -493,9 +492,9 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 	state1 := s1.State()
 	state2 := s2.State()
 	require.Nil(state1.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
-	require.Nil(state1.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
+	require.Nil(state1.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 	require.Nil(state2.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
-	require.Nil(state2.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
+	require.Nil(state2.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -506,7 +505,7 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 		if alloc == nil {
 			return false, fmt.Errorf("unknown alloc")
 		}
-		if alloc.ClientStatus != structs.AllocClientStatusComplete {
+		if alloc.ClientStatus != nstructs.AllocClientStatusComplete {
 			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
 		}
 
@@ -521,9 +520,9 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 	s1.nodeConnsLock.Unlock()
 
 	// Make the request
-	req := &structs.AllocSpecificRequest{
+	req := &nstructs.AllocSpecificRequest{
 		AllocID:      a.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
 	}
 
 	// Fetch the response
@@ -550,25 +549,25 @@ func TestClientAllocations_Stats_OldNode(t *testing.T) {
 
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
-	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1006, []*structs.Allocation{alloc}))
+	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1006, []*nstructs.Allocation{alloc}))
 
-	req := &structs.AllocSpecificRequest{
+	req := &nstructs.AllocSpecificRequest{
 		AllocID: alloc.ID,
-		QueryOptions: structs.QueryOptions{
+		QueryOptions: nstructs.QueryOptions{
 			Region: "global",
 		},
 	}
 
-	var resp structs.GenericResponse
+	var resp nstructs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.Stats", req, &resp)
-	require.True(structs.IsErrNodeLacksRpc(err), err.Error())
+	require.True(nstructs.IsErrNodeLacksRpc(err), err.Error())
 
 	// Test for a missing version error
 	delete(node.Attributes, "nomad.version")
 	require.Nil(state.UpsertNode(nstructs.MsgTypeTestSetup, 1007, node))
 
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.Stats", req, &resp)
-	require.True(structs.IsErrUnknownNomadVersion(err), err.Error())
+	require.True(nstructs.IsErrUnknownNomadVersion(err), err.Error())
 }
 
 func TestClientAllocations_Stats_Local(t *testing.T) {
@@ -588,17 +587,17 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
-	a.Job.Type = structs.JobTypeBatch
+	a.Job.Type = nstructs.JobTypeBatch
 	a.NodeID = c.NodeID()
 	a.Job.TaskGroups[0].Count = 1
-	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
+	a.Job.TaskGroups[0].Tasks[0] = &nstructs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
 			"run_for": "2s",
 		},
-		LogConfig: structs.DefaultLogConfig(),
-		Resources: &structs.Resources{
+		LogConfig: nstructs.DefaultLogConfig(),
+		Resources: &nstructs.Resources{
 			CPU:      500,
 			MemoryMB: 256,
 		},
@@ -614,7 +613,7 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 	// Upsert the allocation
 	state := s.State()
 	require.Nil(state.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
-	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
+	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -625,7 +624,7 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 		if alloc == nil {
 			return false, fmt.Errorf("unknown alloc")
 		}
-		if alloc.ClientStatus != structs.AllocClientStatusComplete {
+		if alloc.ClientStatus != nstructs.AllocClientStatusComplete {
 			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
 		}
 
@@ -635,15 +634,15 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 	})
 
 	// Make the request without having an alloc id
-	req := &structs.AllocSpecificRequest{
-		QueryOptions: structs.QueryOptions{Region: "global"},
+	req := &nstructs.AllocSpecificRequest{
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
 	}
 
 	// Fetch the response
 	var resp cstructs.AllocStatsResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.Stats", req, &resp)
 	require.NotNil(err)
-	require.EqualError(err, structs.ErrMissingAllocID.Error(), "(%T) %v")
+	require.EqualError(err, nstructs.ErrMissingAllocID.Error(), "(%T) %v")
 
 	// Fetch the response setting the node id
 	req.AllocID = a.ID
@@ -666,14 +665,14 @@ func TestClientAllocations_Stats_Local_ACL(t *testing.T) {
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
 
-	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})
+	policyGood := mock.NamespacePolicy(nstructs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
 	// Upsert the allocation
 	state := s.State()
 	alloc := mock.Alloc()
 	require.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1010, alloc.Job))
-	require.NoError(t, state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1011, []*nstructs.Allocation{alloc}))
 
 	cases := []struct {
 		Name          string
@@ -683,17 +682,17 @@ func TestClientAllocations_Stats_Local_ACL(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "good token",
 			Token:         tokenGood.SecretID,
-			ExpectedError: structs.ErrUnknownNodePrefix,
+			ExpectedError: nstructs.ErrUnknownNodePrefix,
 		},
 		{
 			Name:          "root token",
 			Token:         root.SecretID,
-			ExpectedError: structs.ErrUnknownNodePrefix,
+			ExpectedError: nstructs.ErrUnknownNodePrefix,
 		},
 	}
 
@@ -701,12 +700,12 @@ func TestClientAllocations_Stats_Local_ACL(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 
 			// Make the request without having a node-id
-			req := &structs.AllocSpecificRequest{
+			req := &nstructs.AllocSpecificRequest{
 				AllocID: alloc.ID,
-				QueryOptions: structs.QueryOptions{
+				QueryOptions: nstructs.QueryOptions{
 					AuthToken: c.Token,
 					Region:    "global",
-					Namespace: structs.DefaultNamespace,
+					Namespace: nstructs.DefaultNamespace,
 				},
 			}
 
@@ -744,17 +743,17 @@ func TestClientAllocations_Stats_Remote(t *testing.T) {
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
-	a.Job.Type = structs.JobTypeBatch
+	a.Job.Type = nstructs.JobTypeBatch
 	a.NodeID = c.NodeID()
 	a.Job.TaskGroups[0].Count = 1
-	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
+	a.Job.TaskGroups[0].Tasks[0] = &nstructs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
 			"run_for": "2s",
 		},
-		LogConfig: structs.DefaultLogConfig(),
-		Resources: &structs.Resources{
+		LogConfig: nstructs.DefaultLogConfig(),
+		Resources: &nstructs.Resources{
 			CPU:      500,
 			MemoryMB: 256,
 		},
@@ -770,9 +769,9 @@ func TestClientAllocations_Stats_Remote(t *testing.T) {
 	state1 := s1.State()
 	state2 := s2.State()
 	require.Nil(state1.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
-	require.Nil(state1.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
+	require.Nil(state1.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 	require.Nil(state2.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
-	require.Nil(state2.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
+	require.Nil(state2.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -783,7 +782,7 @@ func TestClientAllocations_Stats_Remote(t *testing.T) {
 		if alloc == nil {
 			return false, fmt.Errorf("unknown alloc")
 		}
-		if alloc.ClientStatus != structs.AllocClientStatusComplete {
+		if alloc.ClientStatus != nstructs.AllocClientStatusComplete {
 			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
 		}
 
@@ -798,9 +797,9 @@ func TestClientAllocations_Stats_Remote(t *testing.T) {
 	s1.nodeConnsLock.Unlock()
 
 	// Make the request
-	req := &structs.AllocSpecificRequest{
+	req := &nstructs.AllocSpecificRequest{
 		AllocID:      a.ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
 	}
 
 	// Fetch the response
@@ -828,17 +827,17 @@ func TestClientAllocations_Restart_Local(t *testing.T) {
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
-	a.Job.Type = structs.JobTypeService
+	a.Job.Type = nstructs.JobTypeService
 	a.NodeID = c.NodeID()
 	a.Job.TaskGroups[0].Count = 1
-	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
+	a.Job.TaskGroups[0].Tasks[0] = &nstructs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
 			"run_for": "10s",
 		},
-		LogConfig: structs.DefaultLogConfig(),
-		Resources: &structs.Resources{
+		LogConfig: nstructs.DefaultLogConfig(),
+		Resources: &nstructs.Resources{
 			CPU:      500,
 			MemoryMB: 256,
 		},
@@ -854,7 +853,7 @@ func TestClientAllocations_Restart_Local(t *testing.T) {
 	// Upsert the allocation
 	state := s.State()
 	require.Nil(state.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
-	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
+	require.Nil(state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -865,7 +864,7 @@ func TestClientAllocations_Restart_Local(t *testing.T) {
 		if alloc == nil {
 			return false, fmt.Errorf("unknown alloc")
 		}
-		if alloc.ClientStatus != structs.AllocClientStatusRunning {
+		if alloc.ClientStatus != nstructs.AllocClientStatusRunning {
 			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
 		}
 
@@ -875,20 +874,20 @@ func TestClientAllocations_Restart_Local(t *testing.T) {
 	})
 
 	// Make the request without having an alloc id
-	req := &structs.AllocRestartRequest{
-		QueryOptions: structs.QueryOptions{Region: "global"},
+	req := &nstructs.AllocRestartRequest{
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
 	}
 
 	// Fetch the response
-	var resp structs.GenericResponse
+	var resp nstructs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.Restart", req, &resp)
 	require.NotNil(err)
-	require.EqualError(err, structs.ErrMissingAllocID.Error(), "(%T) %v")
+	require.EqualError(err, nstructs.ErrMissingAllocID.Error(), "(%T) %v")
 
 	// Fetch the response setting the alloc id - This should not error because the
 	// alloc is running.
 	req.AllocID = a.ID
-	var resp2 structs.GenericResponse
+	var resp2 nstructs.GenericResponse
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.Restart", req, &resp2)
 	require.Nil(err)
 
@@ -941,17 +940,17 @@ func TestClientAllocations_Restart_Remote(t *testing.T) {
 
 	// Force an allocation onto the node
 	a := mock.Alloc()
-	a.Job.Type = structs.JobTypeService
+	a.Job.Type = nstructs.JobTypeService
 	a.NodeID = c.NodeID()
 	a.Job.TaskGroups[0].Count = 1
-	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
+	a.Job.TaskGroups[0].Tasks[0] = &nstructs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
 		Config: map[string]interface{}{
 			"run_for": "10s",
 		},
-		LogConfig: structs.DefaultLogConfig(),
-		Resources: &structs.Resources{
+		LogConfig: nstructs.DefaultLogConfig(),
+		Resources: &nstructs.Resources{
 			CPU:      500,
 			MemoryMB: 256,
 		},
@@ -968,9 +967,9 @@ func TestClientAllocations_Restart_Remote(t *testing.T) {
 	state1 := s1.State()
 	state2 := s2.State()
 	require.Nil(state1.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
-	require.Nil(state1.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
+	require.Nil(state1.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 	require.Nil(state2.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
-	require.Nil(state2.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
+	require.Nil(state2.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -981,7 +980,7 @@ func TestClientAllocations_Restart_Remote(t *testing.T) {
 		if alloc == nil {
 			return false, fmt.Errorf("unknown alloc")
 		}
-		if alloc.ClientStatus != structs.AllocClientStatusRunning {
+		if alloc.ClientStatus != nstructs.AllocClientStatusRunning {
 			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
 		}
 
@@ -991,20 +990,20 @@ func TestClientAllocations_Restart_Remote(t *testing.T) {
 	})
 
 	// Make the request without having an alloc id
-	req := &structs.AllocRestartRequest{
-		QueryOptions: structs.QueryOptions{Region: "global"},
+	req := &nstructs.AllocRestartRequest{
+		QueryOptions: nstructs.QueryOptions{Region: "global"},
 	}
 
 	// Fetch the response
-	var resp structs.GenericResponse
+	var resp nstructs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.Restart", req, &resp)
 	require.NotNil(err)
-	require.EqualError(err, structs.ErrMissingAllocID.Error(), "(%T) %v")
+	require.EqualError(err, nstructs.ErrMissingAllocID.Error(), "(%T) %v")
 
 	// Fetch the response setting the alloc id - This should succeed because the
 	// alloc is running
 	req.AllocID = a.ID
-	var resp2 structs.GenericResponse
+	var resp2 nstructs.GenericResponse
 	err = msgpackrpc.CallWithCodec(codec, "ClientAllocations.Restart", req, &resp2)
 	require.NoError(err)
 }
@@ -1020,14 +1019,14 @@ func TestClientAllocations_Restart_ACL(t *testing.T) {
 	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
 	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
 
-	policyGood := mock.NamespacePolicy(structs.DefaultNamespace, acl.PolicyWrite, nil)
+	policyGood := mock.NamespacePolicy(nstructs.DefaultNamespace, acl.PolicyWrite, nil)
 	tokenGood := mock.CreatePolicyAndToken(t, s.State(), 1009, "valid2", policyGood)
 
 	// Upsert the allocation
 	state := s.State()
 	alloc := mock.Alloc()
 	require.NoError(t, state.UpsertJob(nstructs.MsgTypeTestSetup, 1010, alloc.Job))
-	require.NoError(t, state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1011, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(nstructs.MsgTypeTestSetup, 1011, []*nstructs.Allocation{alloc}))
 
 	cases := []struct {
 		Name          string
@@ -1037,7 +1036,7 @@ func TestClientAllocations_Restart_ACL(t *testing.T) {
 		{
 			Name:          "bad token",
 			Token:         tokenBad.SecretID,
-			ExpectedError: structs.ErrPermissionDenied.Error(),
+			ExpectedError: nstructs.ErrPermissionDenied.Error(),
 		},
 		{
 			Name:          "good token",
@@ -1055,17 +1054,17 @@ func TestClientAllocations_Restart_ACL(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 
 			// Make the request without having a node-id
-			req := &structs.AllocRestartRequest{
+			req := &nstructs.AllocRestartRequest{
 				AllocID: alloc.ID,
-				QueryOptions: structs.QueryOptions{
-					Namespace: structs.DefaultNamespace,
+				QueryOptions: nstructs.QueryOptions{
+					Namespace: nstructs.DefaultNamespace,
 					AuthToken: c.Token,
 					Region:    "global",
 				},
 			}
 
 			// Fetch the response
-			var resp structs.GenericResponse
+			var resp nstructs.GenericResponse
 			err := msgpackrpc.CallWithCodec(codec, "ClientAllocations.Restart", req, &resp)
 			require.NotNil(t, err)
 			require.Contains(t, err.Error(), c.ExpectedError)
@@ -1121,7 +1120,7 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 	///// Start task
 	a := mock.BatchAlloc()
 	a.NodeID = c.NodeID()
-	a.Job.Type = structs.JobTypeBatch
+	a.Job.Type = nstructs.JobTypeBatch
 	a.Job.TaskGroups[0].Count = 1
 	a.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 		"run_for": "20s",
@@ -1135,10 +1134,10 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 	// Upsert the allocation
 	localState := localServer.State()
 	require.Nil(t, localState.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
-	require.Nil(t, localState.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
+	require.Nil(t, localState.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 	remoteState := remoteServer.State()
 	require.Nil(t, remoteState.UpsertJob(nstructs.MsgTypeTestSetup, 999, a.Job))
-	require.Nil(t, remoteState.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
+	require.Nil(t, remoteState.UpsertAllocs(nstructs.MsgTypeTestSetup, 1003, []*nstructs.Allocation{a}))
 
 	// Wait for the client to run the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -1149,7 +1148,7 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 		if alloc == nil {
 			return false, fmt.Errorf("unknown alloc")
 		}
-		if alloc.ClientStatus != structs.AllocClientStatusRunning {
+		if alloc.ClientStatus != nstructs.AllocClientStatusRunning {
 			return false, fmt.Errorf("alloc client status: %v", alloc.ClientStatus)
 		}
 
@@ -1161,7 +1160,7 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 	/////////  Actually run query now
 	cases := []struct {
 		name string
-		rpc  func(string) (structs.StreamingRpcHandler, error)
+		rpc  func(string) (nstructs.StreamingRpcHandler, error)
 	}{
 		{"client", c.StreamingRpcHandler},
 		{"local_server", localServer.StreamingRpcHandler},

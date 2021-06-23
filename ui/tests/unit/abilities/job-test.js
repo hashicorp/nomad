@@ -32,9 +32,6 @@ module('Unit | Ability | job', function(hooks) {
   test('it permits job run for client tokens with a policy that has namespace submit-job', function(assert) {
     const mockSystem = Service.extend({
       aclEnabled: true,
-      activeNamespace: {
-        name: 'aNamespace',
-      },
     });
 
     const mockToken = Service.extend({
@@ -57,15 +54,12 @@ module('Unit | Ability | job', function(hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    assert.ok(this.ability.canRun);
+    assert.ok(this.can.can('run job', null, { namespace: 'aNamespace' }));
   });
 
   test('it permits job run for client tokens with a policy that has default namespace submit-job and no capabilities for active namespace', function(assert) {
     const mockSystem = Service.extend({
       aclEnabled: true,
-      activeNamespace: {
-        name: 'anotherNamespace',
-      },
     });
 
     const mockToken = Service.extend({
@@ -92,15 +86,12 @@ module('Unit | Ability | job', function(hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    assert.ok(this.ability.canRun);
+    assert.ok(this.can.can('run job', null, { namespace: 'anotherNamespace' }));
   });
 
   test('it blocks job run for client tokens with a policy that has no submit-job capability', function(assert) {
     const mockSystem = Service.extend({
       aclEnabled: true,
-      activeNamespace: {
-        name: 'aNamespace',
-      },
     });
 
     const mockToken = Service.extend({
@@ -123,7 +114,7 @@ module('Unit | Ability | job', function(hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    assert.notOk(this.ability.canRun);
+    assert.ok(this.can.cannot('run job', null, { namespace: 'aNamespace' }));
   });
 
   test('job scale requires a client token with the submit-job or scale-job capability', function(assert) {
@@ -142,9 +133,6 @@ module('Unit | Ability | job', function(hooks) {
 
     const mockSystem = Service.extend({
       aclEnabled: true,
-      activeNamespace: {
-        name: 'aNamespace',
-      },
     });
 
     const mockToken = Service.extend({
@@ -157,24 +145,21 @@ module('Unit | Ability | job', function(hooks) {
     this.owner.register('service:token', mockToken);
     const tokenService = this.owner.lookup('service:token');
 
-    assert.notOk(this.ability.canScale);
+    assert.ok(this.can.cannot('scale job', null, { namespace: 'aNamespace' }));
 
     tokenService.set('selfTokenPolicies', makePolicies('aNamespace', 'scale-job'));
-    assert.ok(this.ability.canScale);
+    assert.ok(this.can.can('scale job', null, { namespace: 'aNamespace' }));
 
     tokenService.set('selfTokenPolicies', makePolicies('aNamespace', 'submit-job'));
-    assert.ok(this.ability.canScale);
+    assert.ok(this.can.can('scale job', null, { namespace: 'aNamespace' }));
 
     tokenService.set('selfTokenPolicies', makePolicies('bNamespace', 'scale-job'));
-    assert.notOk(this.ability.canScale);
+    assert.ok(this.can.cannot('scale job', null, { namespace: 'aNamespace' }));
   });
 
   test('it handles globs in namespace names', function(assert) {
     const mockSystem = Service.extend({
       aclEnabled: true,
-      activeNamespace: {
-        name: 'aNamespace',
-      },
     });
 
     const mockToken = Service.extend({
@@ -217,27 +202,17 @@ module('Unit | Ability | job', function(hooks) {
     this.owner.register('service:system', mockSystem);
     this.owner.register('service:token', mockToken);
 
-    const systemService = this.owner.lookup('service:system');
-
-    systemService.set('activeNamespace.name', 'production-web');
-    assert.notOk(this.ability.canRun);
-
-    systemService.set('activeNamespace.name', 'production-api');
-    assert.ok(this.ability.canRun);
-
-    systemService.set('activeNamespace.name', 'production-other');
-    assert.ok(this.ability.canRun);
-
-    systemService.set('activeNamespace.name', 'something-suffixed');
-    assert.ok(this.ability.canRun);
-
-    systemService.set('activeNamespace.name', 'something-more-suffixed');
-    assert.notOk(
-      this.ability.canRun,
+    assert.ok(this.can.cannot('run job', null, { namespace: 'production-web' }));
+    assert.ok(this.can.can('run job', null, { namespace: 'production-api' }));
+    assert.ok(this.can.can('run job', null, { namespace: 'production-other' }));
+    assert.ok(this.can.can('run job', null, { namespace: 'something-suffixed' }));
+    assert.ok(
+      this.can.cannot('run job', null, { namespace: 'something-more-suffixed' }),
       'expected the namespace with the greatest number of matched characters to be chosen'
     );
-
-    systemService.set('activeNamespace.name', '000-abc-999');
-    assert.ok(this.ability.canRun, 'expected to be able to match against more than one wildcard');
+    assert.ok(
+      this.can.can('run job', null, { namespace: '000-abc-999' }),
+      'expected to be able to match against more than one wildcard'
+    );
   });
 });

@@ -219,6 +219,9 @@ type ClientConfig struct {
 	// MemoryMB is used to override any detected or default total memory.
 	MemoryMB int `hcl:"memory_total_mb"`
 
+	// ReservableCores is used to override detected reservable cpu cores.
+	ReserveableCores string `hcl:"reservable_cores"`
+
 	// MaxKillTimeout allows capping the user-specifiable KillTimeout.
 	MaxKillTimeout string `hcl:"max_kill_timeout"`
 
@@ -298,6 +301,10 @@ type ClientConfig struct {
 	// should the port mapping rules match the default network address (false) or
 	// matching any destination address (true). Defaults to true
 	BindWildcardDefaultHostNetwork bool `hcl:"bind_wildcard_default_host_network"`
+
+	// CgroupParent sets the parent cgroup for subsystems managed by Nomad. If the cgroup
+	// doest not exist Nomad will attempt to create it during startup. Defaults to '/nomad'
+	CgroupParent string `hcl:"cgroup_parent"`
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
@@ -501,8 +508,54 @@ type ServerConfig struct {
 	// is set, LicenseEnv will be set to the value at startup.
 	LicenseEnv string
 
+	// licenseAdditionalPublicKeys is an internal-only field used to
+	// setup test licenses.
+	licenseAdditionalPublicKeys []string
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	Search *Search `hcl:"search"`
+
+	// DeploymentQueryRateLimit is in queries per second and is used by the
+	// DeploymentWatcher to throttle the amount of simultaneously deployments
+	DeploymentQueryRateLimit float64 `hcl:"deploy_query_rate_limit"`
+}
+
+// Search is used in servers to configure search API options.
+type Search struct {
+	// FuzzyEnabled toggles whether the FuzzySearch API is enabled. If not
+	// enabled, requests to /v1/search/fuzzy will reply with a 404 response code.
+	//
+	// Default: enabled.
+	FuzzyEnabled bool `hcl:"fuzzy_enabled"`
+
+	// LimitQuery limits the number of objects searched in the FuzzySearch API.
+	// The results are indicated as truncated if the limit is reached.
+	//
+	// Lowering this value can reduce resource consumption of Nomad server when
+	// the FuzzySearch API is enabled.
+	//
+	// Default value: 20.
+	LimitQuery int `hcl:"limit_query"`
+
+	// LimitResults limits the number of results provided by the FuzzySearch API.
+	// The results are indicated as truncate if the limit is reached.
+	//
+	// Lowering this value can reduce resource consumption of Nomad server per
+	// fuzzy search request when the FuzzySearch API is enabled.
+	//
+	// Default value: 100.
+	LimitResults int `hcl:"limit_results"`
+
+	// MinTermLength is the minimum length of Text required before the FuzzySearch
+	// API will return results.
+	//
+	// Increasing this value can avoid resource consumption on Nomad server by
+	// reducing searches with less meaningful results.
+	//
+	// Default value: 2.
+	MinTermLength int `hcl:"min_term_length"`
 }
 
 // ServerJoin is used in both clients and servers to bootstrap connections to
@@ -720,16 +773,9 @@ type Resources struct {
 	MemoryMB      int    `hcl:"memory"`
 	DiskMB        int    `hcl:"disk"`
 	ReservedPorts string `hcl:"reserved_ports"`
+	Cores         string `hcl:"cores"`
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
-}
-
-// CanParseReserved returns if the reserved ports specification is parsable.
-// The supported syntax is comma separated integers or ranges separated by
-// hyphens. For example, "80,120-150,160"
-func (r *Resources) CanParseReserved() error {
-	_, err := structs.ParsePortRanges(r.ReservedPorts)
-	return err
 }
 
 // devModeConfig holds the config for the -dev and -dev-connect flags
@@ -801,7 +847,7 @@ func (mode *devModeConfig) networkConfig() error {
 			return fmt.Errorf(errMsg, err)
 		}
 		if len(ifAddrs) < 1 {
-			return fmt.Errorf(errMsg, "could not find public network inteface")
+			return fmt.Errorf(errMsg, "could not find public network interface")
 		}
 		iface := ifAddrs[0].Name
 		mode.iface = iface
@@ -899,6 +945,12 @@ func DefaultConfig() *Config {
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
 				RetryMaxAttempts: 0,
+			},
+			Search: &Search{
+				FuzzyEnabled:  true,
+				LimitQuery:    20,
+				LimitResults:  100,
+				MinTermLength: 2,
 			},
 		},
 		ACL: &ACLConfig{
@@ -1136,7 +1188,7 @@ func (c *Config) Merge(b *Config) *Config {
 }
 
 // normalizeAddrs normalizes Addresses and AdvertiseAddrs to always be
-// initialized and have sane defaults.
+// initialized and have reasonable defaults.
 func (c *Config) normalizeAddrs() error {
 	if c.BindAddr != "" {
 		ipStr, err := parseSingleIPTemplate(c.BindAddr)
@@ -1191,7 +1243,47 @@ func (c *Config) normalizeAddrs() error {
 		c.AdvertiseAddrs.Serf = addr
 	}
 
+	// Skip network_interface evaluation if not a client
+	if c.Client != nil && c.Client.Enabled && c.Client.NetworkInterface != "" {
+		parsed, err := parseSingleInterfaceTemplate(c.Client.NetworkInterface)
+		if err != nil {
+			return fmt.Errorf("Failed to parse network-interface: %v", err)
+		}
+
+		c.Client.NetworkInterface = parsed
+	}
+
 	return nil
+}
+
+// parseSingleInterfaceTemplate parses a go-sockaddr template and returns an
+// error if it doesn't result in a single value.
+func parseSingleInterfaceTemplate(tpl string) (string, error) {
+	out, err := template.Parse(tpl)
+	if err != nil {
+		// Typically something like:
+		// unable to parse template "{{printfl \"en50\"}}": template: sockaddr.Parse:1: function "printfl" not defined
+		return "", err
+	}
+
+	// Remove any extra empty space around the rendered result and check if the
+	// result is also not empty if the user provided a template.
+	out = strings.TrimSpace(out)
+	if tpl != "" && out == "" {
+		return "", fmt.Errorf("template %q evaluated to empty result", tpl)
+	}
+
+	// `template.Parse` returns a space-separated list of results, but on
+	// Windows network interfaces are allowed to have spaces, so there is no
+	// guaranteed separators that we can use to test if the template returned
+	// multiple interfaces.
+	// The test below checks if the template results to a single valid interface.
+	_, err = net.InterfaceByName(out)
+	if err != nil {
+		return "", fmt.Errorf("invalid interface name %q", out)
+	}
+
+	return out, nil
 }
 
 // parseSingleIPTemplate is used as a helper function to parse out a single IP
@@ -1432,6 +1524,23 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.DefaultSchedulerConfig != nil {
 		c := *b.DefaultSchedulerConfig
 		result.DefaultSchedulerConfig = &c
+	}
+
+	if b.DeploymentQueryRateLimit != 0 {
+		result.DeploymentQueryRateLimit = b.DeploymentQueryRateLimit
+	}
+
+	if b.Search != nil {
+		result.Search = &Search{FuzzyEnabled: b.Search.FuzzyEnabled}
+		if b.Search.LimitQuery > 0 {
+			result.Search.LimitQuery = b.Search.LimitQuery
+		}
+		if b.Search.LimitResults > 0 {
+			result.Search.LimitResults = b.Search.LimitResults
+		}
+		if b.Search.MinTermLength > 0 {
+			result.Search.MinTermLength = b.Search.MinTermLength
+		}
 	}
 
 	// Add the schedulers
@@ -1740,6 +1849,9 @@ func (r *Resources) Merge(b *Resources) *Resources {
 	}
 	if b.ReservedPorts != "" {
 		result.ReservedPorts = b.ReservedPorts
+	}
+	if b.Cores != "" {
+		result.Cores = b.Cores
 	}
 	return &result
 }

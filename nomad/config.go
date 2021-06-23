@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/scheduler"
@@ -354,13 +355,19 @@ type Config struct {
 
 	// LicenseConfig is a tunable knob for enterprise license testing.
 	LicenseConfig *LicenseConfig
+	LicenseEnv    string
+	LicensePath   string
 
-	LicenseEnv  string
-	LicensePath string
+	// SearchConfig provides knobs for Search API.
+	SearchConfig *structs.SearchConfig
 
 	// AgentShutdown is used to call agent.Shutdown from the context of a Server
 	// It is used primarily for licensing
 	AgentShutdown func() error
+
+	// DeploymentQueryRateLimit is in queries per second and is used by the
+	// DeploymentWatcher to throttle the amount of simultaneously deployments
+	DeploymentQueryRateLimit float64
 }
 
 // CheckVersion is used to check if the ProtocolVersion is valid
@@ -446,6 +453,7 @@ func DefaultConfig() *Config {
 				ServiceSchedulerEnabled: false,
 			},
 		},
+		DeploymentQueryRateLimit: deploymentwatcher.LimitStateQueriesPerSecond,
 	}
 
 	// Enable all known schedulers by default

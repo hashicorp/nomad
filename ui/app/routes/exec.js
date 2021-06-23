@@ -16,7 +16,7 @@ export default class ExecRoute extends Route.extend(WithWatchers) {
   }
 
   model(params, transition) {
-    const namespace = transition.to.queryParams.namespace || this.get('system.activeNamespace.id');
+    const namespace = transition.to.queryParams.namespace;
     const name = params.job_name;
     const fullId = JSON.stringify([name, namespace || 'default']);
 

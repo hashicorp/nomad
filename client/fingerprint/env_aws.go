@@ -121,7 +121,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		}
 
 		// assume we want blank entries
-		key := "platform.aws." + strings.Replace(k, "/", ".", -1)
+		key := "platform.aws." + strings.ReplaceAll(k, "/", ".")
 		if unique {
 			key = structs.UniqueNamespace(key)
 		}

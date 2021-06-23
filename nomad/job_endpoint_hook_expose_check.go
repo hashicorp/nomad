@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/pkg/errors"
 )
@@ -22,7 +21,7 @@ func (jobExposeCheckHook) Name() string {
 func (jobExposeCheckHook) Mutate(job *structs.Job) (_ *structs.Job, warnings []error, err error) {
 	for _, tg := range job.TaskGroups {
 		for _, s := range tg.Services {
-			for _, c := range s.Checks {
+			for i, c := range s.Checks {
 				if c.Expose {
 					// TG isn't validated yet, but validation
 					// may depend on mutation results.
@@ -33,7 +32,7 @@ func (jobExposeCheckHook) Mutate(job *structs.Job) (_ *structs.Job, warnings []e
 						continue
 					}
 
-					if exposePath, err := exposePathForCheck(tg, s, c); err != nil {
+					if exposePath, err := exposePathForCheck(tg, s, c, i); err != nil {
 						return nil, nil, err
 					} else if exposePath != nil {
 						serviceExposeConfig := serviceExposeConfig(s)
@@ -180,7 +179,7 @@ func checkIsExposable(check *structs.ServiceCheck) bool {
 // exposePathForCheck extrapolates the necessary expose path configuration for
 // the given consul service check. If the check is not compatible, nil is
 // returned.
-func exposePathForCheck(tg *structs.TaskGroup, s *structs.Service, check *structs.ServiceCheck) (*structs.ConsulExposePath, error) {
+func exposePathForCheck(tg *structs.TaskGroup, s *structs.Service, check *structs.ServiceCheck, i int) (*structs.ConsulExposePath, error) {
 	if !checkIsExposable(check) {
 		return nil, nil
 	}
@@ -197,9 +196,16 @@ func exposePathForCheck(tg *structs.TaskGroup, s *structs.Service, check *struct
 	//
 	// This lets PortLabel be optional for any exposed check.
 	if check.PortLabel == "" {
+
+		// Note: because the check label is not set yet, and we want to create a
+		// deterministic label based on the check itself, use the index of the check
+		// on the service as part of the service name as input into Hash, ensuring
+		// the hash for the check is unique.
+		suffix := check.Hash(fmt.Sprintf("%s_%d", s.Name, i))[:6]
 		port := structs.Port{
-			Label: fmt.Sprintf("svc_%s_ck_%s", s.Name, uuid.Generate()[:6]),
-			To:    -1,
+			HostNetwork: "default",
+			Label:       fmt.Sprintf("svc_%s_ck_%s", s.Name, suffix),
+			To:          -1,
 		}
 
 		tg.Networks[0].DynamicPorts = append(tg.Networks[0].DynamicPorts, port)

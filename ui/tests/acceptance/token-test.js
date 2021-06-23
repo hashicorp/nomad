@@ -1,4 +1,4 @@
-import { find, visit } from '@ember/test-helpers';
+import { currentURL, find, visit } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -148,27 +148,13 @@ module('Acceptance | tokens', function(hooks) {
     assert.notOk(find('[data-test-job-row]'), 'No jobs found');
   });
 
-  test('when namespaces are enabled, setting or clearing a token refetches namespaces available with new permissions', async function(assert) {
-    const { secretId } = clientToken;
-
-    server.createList('namespace', 2);
-    await Tokens.visit();
-
-    const requests = server.pretender.handledRequests;
-
-    assert.equal(requests.filter(req => req.url === '/v1/namespaces').length, 1);
-
-    await Tokens.secret(secretId).submit();
-    assert.equal(requests.filter(req => req.url === '/v1/namespaces').length, 2);
-
-    await Tokens.clear();
-    assert.equal(requests.filter(req => req.url === '/v1/namespaces').length, 3);
-  });
-
   test('when the ott query parameter is present upon application load it’s exchanged for a token', async function(assert) {
     const { oneTimeSecret, secretId } = managementToken;
 
     await JobDetail.visit({ id: job.id, ott: oneTimeSecret });
+
+    assert.notOk(currentURL().includes(oneTimeSecret), 'OTT is cleared from the URL after loading');
+
     await Tokens.visit();
 
     assert.equal(window.localStorage.nomadTokenSecret, secretId, 'Token secret was set');

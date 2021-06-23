@@ -1,7 +1,9 @@
 package command
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 
@@ -96,38 +98,42 @@ func (c *VolumeStatusCommand) listVolumes(client *api.Client) int {
 	var code int
 	q := &api.QueryOptions{PerPage: 30} // TODO: tune page size
 
+NEXT_PLUGIN:
 	for _, plugin := range plugins {
 		if !plugin.ControllerRequired || plugin.ControllersHealthy < 1 {
 			continue // only controller plugins can support this query
 		}
 		for {
 			externalList, _, err := client.CSIVolumes().ListExternal(plugin.ID, q)
-			if err != nil {
+			if err != nil && !errors.Is(err, io.EOF) {
 				c.Ui.Error(fmt.Sprintf(
 					"Error querying CSI external volumes for plugin %q: %s", plugin.ID, err))
 				// we'll stop querying this plugin, but there may be more to
 				// query, so report and set the error code but move on to the
 				// next plugin
 				code = 1
-				continue
+				continue NEXT_PLUGIN
+			}
+			if externalList == nil || len(externalList.Volumes) == 0 {
+				// several plugins return EOF once you hit the end of the page,
+				// rather than an empty list
+				continue NEXT_PLUGIN
 			}
 			rows := []string{}
-			if len(externalList.Volumes) > 0 {
-				rows[0] = "External ID|Condition|Nodes"
-				for i, v := range externalList.Volumes {
-					condition := "OK"
-					if v.IsAbnormal {
-						condition = fmt.Sprintf("Abnormal (%v)", v.Status)
-					}
-
-					rows[i+1] = fmt.Sprintf("%s|%s|%s",
-						limit(v.ExternalID, c.length),
-						limit(condition, 20),
-						strings.Join(v.PublishedExternalNodeIDs, ","),
-					)
+			rows[0] = "External ID|Condition|Nodes"
+			for i, v := range externalList.Volumes {
+				condition := "OK"
+				if v.IsAbnormal {
+					condition = fmt.Sprintf("Abnormal (%v)", v.Status)
 				}
-				c.Ui.Output(formatList(rows))
+
+				rows[i+1] = fmt.Sprintf("%s|%s|%s",
+					limit(v.ExternalID, c.length),
+					limit(condition, 20),
+					strings.Join(v.PublishedExternalNodeIDs, ","),
+				)
 			}
+			c.Ui.Output(formatList(rows))
 
 			q.NextToken = externalList.NextToken
 			if q.NextToken == "" {

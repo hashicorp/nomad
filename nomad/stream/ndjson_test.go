@@ -1,7 +1,6 @@
 package stream
 
 import (
-	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -24,12 +23,12 @@ func TestJsonStream(t *testing.T) {
 
 	require.NoError(t, s.Send(testObj{Name: "test"}))
 
-	out1 := <-out
+	initialHeartbeat := <-out
+	require.Equal(t, []byte(`{}`), initialHeartbeat.Data)
 
-	var expected bytes.Buffer
-	expected.Write([]byte(`{"name":"test"}`))
+	testMessage1 := <-out
+	require.Equal(t, []byte(`{"name":"test"}`), testMessage1.Data)
 
-	require.Equal(t, expected.Bytes(), out1.Data)
 	select {
 	case msg := <-out:
 		require.Failf(t, "Did not expect another message", "%#v", msg)
@@ -38,12 +37,8 @@ func TestJsonStream(t *testing.T) {
 
 	require.NoError(t, s.Send(testObj{Name: "test2"}))
 
-	out2 := <-out
-	expected.Reset()
-
-	expected.Write([]byte(`{"name":"test2"}`))
-	require.Equal(t, expected.Bytes(), out2.Data)
-
+	testMessage2 := <-out
+	require.Equal(t, []byte(`{"name":"test2"}`), testMessage2.Data)
 }
 
 func TestJson_Send_After_Stop(t *testing.T) {

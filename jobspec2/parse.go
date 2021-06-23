@@ -88,6 +88,10 @@ func decode(c *jobConfig) error {
 
 	for _, varFile := range config.VarFiles {
 		parsedVarFile, ds := parseFile(varFile)
+		if parsedVarFile == nil || ds.HasErrors() {
+			return fmt.Errorf("unable to parse var file: %v", ds.Error())
+		}
+
 		config.parsedVarFiles = append(config.parsedVarFiles, parsedVarFile)
 		diags = append(diags, ds...)
 	}
