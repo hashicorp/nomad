@@ -1,6 +1,7 @@
 package command
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 
@@ -56,6 +57,7 @@ func (c *NamespaceApplyCommand) Synopsis() string {
 func (c *NamespaceApplyCommand) Name() string { return "namespace apply" }
 
 func (c *NamespaceApplyCommand) Run(args []string) int {
+	oldFlags := false
 	var description, quota *string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -69,12 +71,32 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 		return nil
 	}), "quota", "q", "")
 
+	var oldFlagSet *flag.FlagSet
 	if err := flags.Parse(args); err != nil {
-		return 1
+		// Check whether the old single-dash flags are used
+		oldFlagSet = c.Meta.OldFlagSet(c.Name(), FlagSetClient)
+		oldFlagSet.Var((flaghelper.FuncVar)(func(s string) error {
+			description = &s
+			return nil
+		}), "description", "")
+		oldFlagSet.Var((flaghelper.FuncVar)(func(s string) error {
+			quota = &s
+			return nil
+		}), "quota", "")
+
+		if e := oldFlagSet.Parse(args); e != nil {
+			return 1
+		}
+		oldFlags = true
+		c.Ui.Warn("Parsing error, falling back to non-posix flags")
 	}
 
 	// Check that we get exactly one argument
-	args = flags.Args()
+	if oldFlags {
+		args = oldFlagSet.Args()
+	} else {
+		args = flags.Args()
+	}
 	if l := len(args); l != 1 {
 		c.Ui.Error("This command takes one argument: <namespace>")
 		c.Ui.Error(commandErrorText(c))

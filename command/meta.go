@@ -1,6 +1,7 @@
 package command
 
 import (
+	goflag "flag"
 	"os"
 	"strings"
 
@@ -69,6 +70,33 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 		f.StringVarP(&m.flagAddress, "address", "a", "", "")
 		f.StringVarP(&m.region, "region", "r", "", "")
 		f.StringVarP(&m.namespace, "namespace", "n", "", "")
+		f.BoolVar(&m.noColor, "no-color", false, "")
+		f.StringVar(&m.caCert, "ca-cert", "", "")
+		f.StringVar(&m.caPath, "ca-path", "", "")
+		f.StringVar(&m.clientCert, "client-cert", "", "")
+		f.StringVar(&m.clientKey, "client-key", "", "")
+		f.BoolVar(&m.insecure, "insecure", false, "")
+		f.StringVar(&m.tlsServerName, "tls-server-name", "", "")
+		f.BoolVar(&m.insecure, "tls-skip-verify", false, "")
+		f.StringVar(&m.token, "token", "", "")
+	}
+
+	f.SetOutput(&uiErrorWriter{ui: m.Ui})
+
+	return f
+}
+
+// Same as FlagSet, but uses the go flag library instead of pflag
+// Used to maintain backwards compatibility
+func (m *Meta) OldFlagSet(n string, fs FlagSetFlags) *goflag.FlagSet {
+	f := goflag.NewFlagSet(n, goflag.ContinueOnError)
+
+	// FlagSetClient is used to enable the settings for specifying
+	// client connectivity options.
+	if fs&FlagSetClient != 0 {
+		f.StringVar(&m.flagAddress, "address", "", "")
+		f.StringVar(&m.region, "region", "", "")
+		f.StringVar(&m.namespace, "namespace", "", "")
 		f.BoolVar(&m.noColor, "no-color", false, "")
 		f.StringVar(&m.caCert, "ca-cert", "", "")
 		f.StringVar(&m.caPath, "ca-path", "", "")

@@ -2,6 +2,7 @@ package command
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"regexp"
@@ -156,6 +157,8 @@ func (c *JobRunCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobRunCommand) Name() string { return "job run" }
 
 func (c *JobRunCommand) Run(args []string) int {
+	oldFlags := false
+
 	var detach, verbose, output, override, preserveCounts bool
 	var checkIndexStr, consulToken, consulNamespace, vaultToken, vaultNamespace string
 	var varArgs, varFiles flaghelper.StringFlag
@@ -176,8 +179,30 @@ func (c *JobRunCommand) Run(args []string) int {
 	flagSet.Var(&varArgs, "var", "")
 	flagSet.Var(&varFiles, "var-file", "")
 
+	var oldFlagSet *flag.FlagSet
 	if err := flagSet.Parse(args); err != nil {
-		return 1
+		// Check whether the old single-dash flags are used
+		oldFlagSet := c.Meta.OldFlagSet(c.Name(), FlagSetClient)
+		oldFlagSet.BoolVar(&detach, "detach", false, "")
+		oldFlagSet.BoolVar(&verbose, "verbose", false, "")
+		oldFlagSet.BoolVar(&output, "output", false, "")
+		oldFlagSet.BoolVar(&override, "policy-override", false, "")
+		oldFlagSet.BoolVar(&preserveCounts, "preserve-counts", false, "")
+		oldFlagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
+		oldFlagSet.StringVar(&checkIndexStr, "check-index", "", "")
+		oldFlagSet.StringVar(&consulToken, "consul-token", "", "")
+		oldFlagSet.StringVar(&consulNamespace, "consul-namespace", "", "")
+		oldFlagSet.StringVar(&vaultToken, "vault-token", "", "")
+		oldFlagSet.StringVar(&vaultNamespace, "vault-namespace", "", "")
+		oldFlagSet.Var(&varArgs, "var", "")
+		oldFlagSet.Var(&varFiles, "var-file", "")
+
+		if e := oldFlagSet.Parse(args); e != nil {
+			return 1
+		}
+
+		oldFlags = true
+		c.Ui.Warn("Parsing error, falling back to non-posix flags")
 	}
 
 	// Truncate the id unless full length is requested
@@ -187,7 +212,11 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	// Check that we got exactly one argument
-	args = flagSet.Args()
+	if oldFlags {
+		args = oldFlagSet.Args()
+	} else {
+		args = flagSet.Args()
+	}
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <path>")
 		c.Ui.Error(commandErrorText(c))
