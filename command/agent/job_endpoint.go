@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -363,6 +364,10 @@ func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
+	ctx := req.Context()
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("received job update request")
+
 	var args api.JobRegisterRequest
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())

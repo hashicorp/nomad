@@ -5,6 +5,7 @@ package fs2
 import (
 	"bufio"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
@@ -12,36 +13,15 @@ import (
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
-func isCpuSet(cgroup *configs.Cgroup) bool {
-	return cgroup.Resources.CpuWeight != 0 || cgroup.Resources.CpuQuota != 0 || cgroup.Resources.CpuPeriod != 0
-}
-
 func setCpu(dirPath string, cgroup *configs.Cgroup) error {
-	if !isCpuSet(cgroup) {
-		return nil
-	}
-	r := cgroup.Resources
-
-	// NOTE: .CpuShares is not used here. Conversion is the caller's responsibility.
-	if r.CpuWeight != 0 {
-		if err := fscommon.WriteFile(dirPath, "cpu.weight", strconv.FormatUint(r.CpuWeight, 10)); err != nil {
+	if cgroup.Resources.CpuWeight != 0 {
+		if err := fscommon.WriteFile(dirPath, "cpu.weight", strconv.FormatUint(cgroup.Resources.CpuWeight, 10)); err != nil {
 			return err
 		}
 	}
 
-	if r.CpuQuota != 0 || r.CpuPeriod != 0 {
-		str := "max"
-		if r.CpuQuota > 0 {
-			str = strconv.FormatInt(r.CpuQuota, 10)
-		}
-		period := r.CpuPeriod
-		if period == 0 {
-			// This default value is documented in
-			// https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html
-			period = 100000
-		}
-		str += " " + strconv.FormatUint(period, 10)
-		if err := fscommon.WriteFile(dirPath, "cpu.max", str); err != nil {
+	if cgroup.Resources.CpuMax != "" {
+		if err := fscommon.WriteFile(dirPath, "cpu.max", cgroup.Resources.CpuMax); err != nil {
 			return err
 		}
 	}
@@ -49,7 +29,7 @@ func setCpu(dirPath string, cgroup *configs.Cgroup) error {
 	return nil
 }
 func statCpu(dirPath string, stats *cgroups.Stats) error {
-	f, err := fscommon.OpenFile(dirPath, "cpu.stat", os.O_RDONLY)
+	f, err := os.Open(filepath.Join(dirPath, "cpu.stat"))
 	if err != nil {
 		return err
 	}

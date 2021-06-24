@@ -1,13 +1,6 @@
-// SPDX-License-Identifier: Apache-2.0 OR LGPL-2.1-or-later
 /*
  * Copyright (C) 2019 Aleksa Sarai <cyphar@cyphar.com>
  * Copyright (C) 2019 SUSE LLC
- *
- * This work is dual licensed under the following licenses. You may use,
- * redistribute, and/or modify the work under the conditions of either (or
- * both) licenses.
- *
- * === Apache-2.0 ===
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,23 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * === LGPL-2.1-or-later ===
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library. If not, see
- * <https://www.gnu.org/licenses/>.
- *
  */
 
 #define _GNU_SOURCE
@@ -59,38 +35,14 @@
 #include <sys/syscall.h>
 
 /* Use our own wrapper for memfd_create. */
-#ifndef SYS_memfd_create
-#  ifdef __NR_memfd_create
-#    define SYS_memfd_create __NR_memfd_create
-#  else
-/* These values come from <https://fedora.juszkiewicz.com.pl/syscalls.html>. */
-#    warning "libc is outdated -- using hard-coded SYS_memfd_create"
-#    if defined(__x86_64__) // x86_64
-#      define SYS_memfd_create 319
-#    elif defined(__i386__) // i386
-#      define SYS_memfd_create 356
-#    elif defined(__ia64__) // ia64
-#      define SYS_memfd_create 1340
-#    elif defined(__arm__) // arm
-#      define SYS_memfd_create 385
-#    elif defined(__aarch64__) // arm64
-#      define SYS_memfd_create 279
-#    elif defined(__ppc__) || defined(__ppc64__) // ppc + ppc64
-#      define SYS_memfd_create 360
-#    elif defined(__s390__) || defined(__s390x__) // s390(x)
-#      define SYS_memfd_create 350
-#    else
-#      error "unknown architecture -- cannot hard-code SYS_memfd_create"
-#    endif
-#  endif
+#if !defined(SYS_memfd_create) && defined(__NR_memfd_create)
+#  define SYS_memfd_create __NR_memfd_create
 #endif
-
 /* memfd_create(2) flags -- copied from <linux/memfd.h>. */
 #ifndef MFD_CLOEXEC
 #  define MFD_CLOEXEC       0x0001U
 #  define MFD_ALLOW_SEALING 0x0002U
 #endif
-
 int memfd_create(const char *name, unsigned int flags)
 {
 #ifdef SYS_memfd_create
@@ -143,10 +95,8 @@ static int is_self_cloned(void)
 	struct statfs fsbuf = {};
 
 	fd = open("/proc/self/exe", O_RDONLY|O_CLOEXEC);
-	if (fd < 0) {
-		fprintf(stderr, "you have no read access to runc binary file\n");
+	if (fd < 0)
 		return -ENOTRECOVERABLE;
-	}
 
 	/*
 	 * Is the binary a fully-sealed memfd? We don't need CLONED_BINARY_ENV for

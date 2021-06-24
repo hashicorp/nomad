@@ -3,9 +3,8 @@
 package fs
 
 import (
-	"bufio"
 	"fmt"
-	"os"
+	"io/ioutil"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -13,24 +12,15 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fscommon"
 	"github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/system"
 )
 
 const (
-	cgroupCpuacctStat     = "cpuacct.stat"
-	cgroupCpuacctUsageAll = "cpuacct.usage_all"
-
+	cgroupCpuacctStat   = "cpuacct.stat"
 	nanosecondsInSecond = 1000000000
-
-	userModeColumn              = 1
-	kernelModeColumn            = 2
-	cuacctUsageAllColumnsNumber = 3
-
-	// The value comes from `C.sysconf(C._SC_CLK_TCK)`, and
-	// on Linux it's a constant which is safe to be hard coded,
-	// so we can avoid using cgo here. For details, see:
-	// https://github.com/containerd/cgroups/pull/12
-	clockTicks uint64 = 100
 )
+
+var clockTicks = uint64(system.GetClockTicks())
 
 type CpuacctGroup struct {
 }
@@ -39,18 +29,24 @@ func (s *CpuacctGroup) Name() string {
 	return "cpuacct"
 }
 
-func (s *CpuacctGroup) Apply(path string, d *cgroupData) error {
-	return join(path, d.pid)
+func (s *CpuacctGroup) Apply(d *cgroupData) error {
+	// we just want to join this group even though we don't set anything
+	if _, err := d.join("cpuacct"); err != nil && !cgroups.IsNotFound(err) {
+		return err
+	}
+
+	return nil
 }
 
 func (s *CpuacctGroup) Set(path string, cgroup *configs.Cgroup) error {
 	return nil
 }
 
+func (s *CpuacctGroup) Remove(d *cgroupData) error {
+	return removePath(d.path("cpuacct"))
+}
+
 func (s *CpuacctGroup) GetStats(path string, stats *cgroups.Stats) error {
-	if !cgroups.PathExists(path) {
-		return nil
-	}
 	userModeUsage, kernelModeUsage, err := getCpuUsageBreakdown(path)
 	if err != nil {
 		return err
@@ -66,15 +62,8 @@ func (s *CpuacctGroup) GetStats(path string, stats *cgroups.Stats) error {
 		return err
 	}
 
-	percpuUsageInKernelmode, percpuUsageInUsermode, err := getPercpuUsageInModes(path)
-	if err != nil {
-		return err
-	}
-
 	stats.CpuStats.CpuUsage.TotalUsage = totalUsage
 	stats.CpuStats.CpuUsage.PercpuUsage = percpuUsage
-	stats.CpuStats.CpuUsage.PercpuUsageInKernelmode = percpuUsageInKernelmode
-	stats.CpuStats.CpuUsage.PercpuUsageInUsermode = percpuUsageInUsermode
 	stats.CpuStats.CpuUsage.UsageInUsermode = userModeUsage
 	stats.CpuStats.CpuUsage.UsageInKernelmode = kernelModeUsage
 	return nil
@@ -82,7 +71,8 @@ func (s *CpuacctGroup) GetStats(path string, stats *cgroups.Stats) error {
 
 // Returns user and kernel usage breakdown in nanoseconds.
 func getCpuUsageBreakdown(path string) (uint64, uint64, error) {
-	var userModeUsage, kernelModeUsage uint64
+	userModeUsage := uint64(0)
+	kernelModeUsage := uint64(0)
 	const (
 		userField   = "user"
 		systemField = "system"
@@ -91,11 +81,11 @@ func getCpuUsageBreakdown(path string) (uint64, uint64, error) {
 	// Expected format:
 	// user <usage in ticks>
 	// system <usage in ticks>
-	data, err := fscommon.ReadFile(path, cgroupCpuacctStat)
+	data, err := ioutil.ReadFile(filepath.Join(path, cgroupCpuacctStat))
 	if err != nil {
 		return 0, 0, err
 	}
-	fields := strings.Fields(data)
+	fields := strings.Fields(string(data))
 	if len(fields) < 4 {
 		return 0, 0, fmt.Errorf("failure - %s is expected to have at least 4 fields", filepath.Join(path, cgroupCpuacctStat))
 	}
@@ -117,11 +107,11 @@ func getCpuUsageBreakdown(path string) (uint64, uint64, error) {
 
 func getPercpuUsage(path string) ([]uint64, error) {
 	percpuUsage := []uint64{}
-	data, err := fscommon.ReadFile(path, "cpuacct.usage_percpu")
+	data, err := ioutil.ReadFile(filepath.Join(path, "cpuacct.usage_percpu"))
 	if err != nil {
 		return percpuUsage, err
 	}
-	for _, value := range strings.Fields(data) {
+	for _, value := range strings.Fields(string(data)) {
 		value, err := strconv.ParseUint(value, 10, 64)
 		if err != nil {
 			return percpuUsage, fmt.Errorf("Unable to convert param value to uint64: %s", err)
@@ -129,45 +119,4 @@ func getPercpuUsage(path string) ([]uint64, error) {
 		percpuUsage = append(percpuUsage, value)
 	}
 	return percpuUsage, nil
-}
-
-func getPercpuUsageInModes(path string) ([]uint64, []uint64, error) {
-	usageKernelMode := []uint64{}
-	usageUserMode := []uint64{}
-
-	file, err := fscommon.OpenFile(path, cgroupCpuacctUsageAll, os.O_RDONLY)
-	if os.IsNotExist(err) {
-		return usageKernelMode, usageUserMode, nil
-	} else if err != nil {
-		return nil, nil, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	scanner.Scan() //skipping header line
-
-	for scanner.Scan() {
-		lineFields := strings.SplitN(scanner.Text(), " ", cuacctUsageAllColumnsNumber+1)
-		if len(lineFields) != cuacctUsageAllColumnsNumber {
-			continue
-		}
-
-		usageInKernelMode, err := strconv.ParseUint(lineFields[kernelModeColumn], 10, 64)
-		if err != nil {
-			return nil, nil, fmt.Errorf("Unable to convert CPU usage in kernel mode to uint64: %s", err)
-		}
-		usageKernelMode = append(usageKernelMode, usageInKernelMode)
-
-		usageInUserMode, err := strconv.ParseUint(lineFields[userModeColumn], 10, 64)
-		if err != nil {
-			return nil, nil, fmt.Errorf("Unable to convert CPU usage in user mode to uint64: %s", err)
-		}
-		usageUserMode = append(usageUserMode, usageInUserMode)
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, nil, fmt.Errorf("Problem in reading %s line by line, %s", cgroupCpuacctUsageAll, err)
-	}
-
-	return usageKernelMode, usageUserMode, nil
 }

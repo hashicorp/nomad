@@ -44,10 +44,14 @@ func defaultDirPath(c *configs.Cgroup) (string, error) {
 	cgParent := libcontainerUtils.CleanPath(c.Parent)
 	cgName := libcontainerUtils.CleanPath(c.Name)
 
-	return _defaultDirPath(UnifiedMountpoint, cgPath, cgParent, cgName)
+	ownCgroup, err := parseCgroupFile("/proc/self/cgroup")
+	if err != nil {
+		return "", err
+	}
+	return _defaultDirPath(UnifiedMountpoint, cgPath, cgParent, cgName, ownCgroup)
 }
 
-func _defaultDirPath(root, cgPath, cgParent, cgName string) (string, error) {
+func _defaultDirPath(root, cgPath, cgParent, cgName, ownCgroup string) (string, error) {
 	if (cgName != "" || cgParent != "") && cgPath != "" {
 		return "", errors.New("cgroup: either Path or Name and Parent should be used")
 	}
@@ -58,16 +62,6 @@ func _defaultDirPath(root, cgPath, cgParent, cgName string) (string, error) {
 	if filepath.IsAbs(innerPath) {
 		return filepath.Join(root, innerPath), nil
 	}
-
-	ownCgroup, err := parseCgroupFile("/proc/self/cgroup")
-	if err != nil {
-		return "", err
-	}
-	// The current user scope most probably has tasks in it already,
-	// making it impossible to enable controllers for its sub-cgroup.
-	// A parent cgroup (with no tasks in it) is what we need.
-	ownCgroup = filepath.Dir(ownCgroup)
-
 	return filepath.Join(root, ownCgroup, innerPath), nil
 }
 
@@ -86,6 +80,9 @@ func parseCgroupFromReader(r io.Reader) (string, error) {
 		s = bufio.NewScanner(r)
 	)
 	for s.Scan() {
+		if err := s.Err(); err != nil {
+			return "", err
+		}
 		var (
 			text  = s.Text()
 			parts = strings.SplitN(text, ":", 3)
@@ -97,9 +94,6 @@ func parseCgroupFromReader(r io.Reader) (string, error) {
 		if parts[0] == "0" && parts[1] == "" {
 			return parts[2], nil
 		}
-	}
-	if err := s.Err(); err != nil {
-		return "", err
 	}
 	return "", errors.New("cgroup path not found")
 }

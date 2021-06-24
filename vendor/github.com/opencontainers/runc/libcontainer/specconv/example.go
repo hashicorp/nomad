@@ -4,14 +4,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Example returns an example spec file, with many options set so a user can
 // see what a standard spec file looks like.
 func Example() *specs.Spec {
-	spec := &specs.Spec{
+	return &specs.Spec{
 		Version: specs.Version,
 		Root: &specs.Root{
 			Path:     "rootfs",
@@ -139,29 +138,23 @@ func Example() *specs.Spec {
 			},
 			Namespaces: []specs.LinuxNamespace{
 				{
-					Type: specs.PIDNamespace,
+					Type: "pid",
 				},
 				{
-					Type: specs.NetworkNamespace,
+					Type: "network",
 				},
 				{
-					Type: specs.IPCNamespace,
+					Type: "ipc",
 				},
 				{
-					Type: specs.UTSNamespace,
+					Type: "uts",
 				},
 				{
-					Type: specs.MountNamespace,
+					Type: "mount",
 				},
 			},
 		},
 	}
-	if cgroups.IsCgroup2UnifiedMode() {
-		spec.Linux.Namespaces = append(spec.Linux.Namespaces, specs.LinuxNamespace{
-			Type: specs.CgroupNamespace,
-		})
-	}
-	return spec
 }
 
 // ToRootless converts the given spec file into one that should work with

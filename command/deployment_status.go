@@ -18,6 +18,9 @@ import (
 	"github.com/mitchellh/go-glint"
 	"github.com/mitchellh/go-glint/components"
 	"github.com/posener/complete"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type DeploymentStatusCommand struct {
@@ -182,12 +185,22 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 }
 
 func (c *DeploymentStatusCommand) monitor(client *api.Client, deployID string, index uint64, verbose bool) {
+	c.monitorWithContext(context.Background(), client, deployID, index, verbose)
+}
+func (c *DeploymentStatusCommand) monitorWithContext(ctx context.Context, client *api.Client, deployID string, index uint64, verbose bool) {
+	tracer := otel.Tracer("nomad")
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "monitor deployment")
+	defer span.End()
+	span.AddEvent("Monitoring deployment")
+	span.SetAttributes(attribute.String("deployment_id", deployID))
+
 	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
 	// TODO if/when glint offers full Windows support take out the runtime check
 	if isStdoutTerminal && runtime.GOOS != "windows" {
-		c.ttyMonitor(client, deployID, index, verbose)
+		c.ttyMonitor(ctx, client, deployID, index, verbose)
 	} else {
-		c.defaultMonitor(client, deployID, index, verbose)
+		c.defaultMonitor(ctx, client, deployID, index, verbose)
 	}
 }
 
@@ -195,7 +208,7 @@ func (c *DeploymentStatusCommand) monitor(client *api.Client, deployID string, i
 // but only used for tty and non-Windows machines since glint doesn't work with
 // cmd/PowerShell and non-interactive interfaces
 // Margins are used to match the text alignment from job run
-func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string, index uint64, verbose bool) {
+func (c *DeploymentStatusCommand) ttyMonitor(ctx context.Context, client *api.Client, deployID string, index uint64, verbose bool) {
 	var length int
 	if verbose {
 		length = fullId
@@ -213,23 +226,24 @@ func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string
 	d.SetRefreshRate(refreshRate)
 	d.Set(spinner)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	go d.Render(ctx)
 	defer cancel()
 
-	q := api.QueryOptions{
+	q := &api.QueryOptions{
 		AllowStale: true,
 		WaitIndex:  index,
 		WaitTime:   2 * time.Second,
 	}
+	q = q.WithContext(ctx)
 
 	var statusComponent *glint.LayoutComponent
 	var endSpinner *glint.LayoutComponent
 
 UPDATE:
 	for {
-		deploy, meta, err := client.Deployments().Info(deployID, &q)
+		deploy, meta, err := client.Deployments().Info(deployID, q)
 		if err != nil {
 			d.Append(glint.Layout(glint.Style(
 				glint.Text(fmt.Sprintf("%s: Error fetching deployment", formatTime(time.Now()))),
@@ -253,7 +267,9 @@ UPDATE:
 				glint.Bold(),
 			))
 
-			allocs, _, err := client.Deployments().Allocations(deployID, nil)
+			allocQ := &api.QueryOptions{}
+			allocQ = allocQ.WithContext(ctx)
+			allocs, _, err := client.Deployments().Allocations(deployID, allocQ)
 			if err != nil {
 				allocComponent = glint.Layout(
 					allocComponent,
@@ -296,7 +312,9 @@ UPDATE:
 
 				// Wait for rollback to launch
 				time.Sleep(1 * time.Second)
-				rollback, _, err := client.Jobs().LatestDeployment(deploy.JobID, nil)
+				rollbackQ := &api.QueryOptions{}
+				rollbackQ = rollbackQ.WithContext(ctx)
+				rollback, _, err := client.Jobs().LatestDeployment(deploy.JobID, rollbackQ)
 
 				if err != nil {
 					d.Append(glint.Layout(glint.Style(
@@ -316,7 +334,7 @@ UPDATE:
 				}
 
 				d.Close()
-				c.ttyMonitor(client, rollback.ID, index, verbose)
+				c.ttyMonitor(ctx, client, rollback.ID, index, verbose)
 				return
 			} else {
 				break UPDATE
@@ -334,7 +352,7 @@ UPDATE:
 }
 
 // Used for Windows and non-tty
-func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID string, index uint64, verbose bool) {
+func (c *DeploymentStatusCommand) defaultMonitor(ctx context.Context, client *api.Client, deployID string, index uint64, verbose bool) {
 	writer := uilive.New()
 	writer.Start()
 	defer writer.Stop()
@@ -346,14 +364,15 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 		length = shortId
 	}
 
-	q := api.QueryOptions{
+	q := &api.QueryOptions{
 		AllowStale: true,
 		WaitIndex:  index,
 		WaitTime:   2 * time.Second,
 	}
+	q = q.WithContext(ctx)
 
 	for {
-		deploy, meta, err := client.Deployments().Info(deployID, &q)
+		deploy, meta, err := client.Deployments().Info(deployID, q)
 		if err != nil {
 			c.Ui.Error(c.Colorize().Color(fmt.Sprintf("%s: Error fetching deployment", formatTime(time.Now()))))
 			return
@@ -365,7 +384,9 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 
 		if verbose {
 			info += "\n\n[bold]Allocations[reset]\n"
-			allocs, _, err := client.Deployments().Allocations(deployID, nil)
+			allocQ := &api.QueryOptions{}
+			allocQ = allocQ.WithContext(ctx)
+			allocs, _, err := client.Deployments().Allocations(deployID, allocQ)
 			if err != nil {
 				info += "Error fetching allocations"
 			} else {
@@ -389,7 +410,9 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 			if hasAutoRevert(deploy) {
 				// Wait for rollback to launch
 				time.Sleep(1 * time.Second)
-				rollback, _, err := client.Jobs().LatestDeployment(deploy.JobID, nil)
+				rollbackQ := &api.QueryOptions{}
+				rollbackQ = rollbackQ.WithContext(ctx)
+				rollback, _, err := client.Jobs().LatestDeployment(deploy.JobID, rollbackQ)
 
 				// Separate rollback monitoring from failed deployment
 				// Needs to be after time.Sleep or it messes up the formatting
@@ -408,7 +431,7 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 				if rollback.ID == deploy.ID {
 					return
 				}
-				c.defaultMonitor(client, rollback.ID, index, verbose)
+				c.defaultMonitor(ctx, client, rollback.ID, index, verbose)
 			}
 			return
 

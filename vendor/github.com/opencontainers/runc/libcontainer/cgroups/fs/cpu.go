@@ -4,8 +4,8 @@ package fs
 
 import (
 	"bufio"
-	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
@@ -20,7 +20,17 @@ func (s *CpuGroup) Name() string {
 	return "cpu"
 }
 
-func (s *CpuGroup) Apply(path string, d *cgroupData) error {
+func (s *CpuGroup) Apply(d *cgroupData) error {
+	// We always want to join the cpu group, to allow fair cpu scheduling
+	// on a container basis
+	path, err := d.path("cpu")
+	if err != nil && !cgroups.IsNotFound(err) {
+		return err
+	}
+	return s.ApplyDir(path, d.config, d.pid)
+}
+
+func (s *CpuGroup) ApplyDir(path string, cgroup *configs.Cgroup, pid int) error {
 	// This might happen if we have no cpu cgroup mounted.
 	// Just do nothing and don't fail.
 	if path == "" {
@@ -32,12 +42,12 @@ func (s *CpuGroup) Apply(path string, d *cgroupData) error {
 	// We should set the real-Time group scheduling settings before moving
 	// in the process because if the process is already in SCHED_RR mode
 	// and no RT bandwidth is set, adding it will fail.
-	if err := s.SetRtSched(path, d.config); err != nil {
+	if err := s.SetRtSched(path, cgroup); err != nil {
 		return err
 	}
-	// Since we are not using join(), we need to place the pid
-	// into the procs file unlike other subsystems.
-	return cgroups.WriteCgroupProc(path, d.pid)
+	// because we are not using d.join we need to place the pid into the procs file
+	// unlike the other subsystems
+	return cgroups.WriteCgroupProc(path, pid)
 }
 
 func (s *CpuGroup) SetRtSched(path string, cgroup *configs.Cgroup) error {
@@ -56,20 +66,8 @@ func (s *CpuGroup) SetRtSched(path string, cgroup *configs.Cgroup) error {
 
 func (s *CpuGroup) Set(path string, cgroup *configs.Cgroup) error {
 	if cgroup.Resources.CpuShares != 0 {
-		shares := cgroup.Resources.CpuShares
-		if err := fscommon.WriteFile(path, "cpu.shares", strconv.FormatUint(shares, 10)); err != nil {
+		if err := fscommon.WriteFile(path, "cpu.shares", strconv.FormatUint(cgroup.Resources.CpuShares, 10)); err != nil {
 			return err
-		}
-		// read it back
-		sharesRead, err := fscommon.GetCgroupParamUint(path, "cpu.shares")
-		if err != nil {
-			return err
-		}
-		// ... and check
-		if shares > sharesRead {
-			return fmt.Errorf("the maximum allowed cpu-shares is %d", sharesRead)
-		} else if shares < sharesRead {
-			return fmt.Errorf("the minimum allowed cpu-shares is %d", sharesRead)
 		}
 	}
 	if cgroup.Resources.CpuPeriod != 0 {
@@ -85,8 +83,12 @@ func (s *CpuGroup) Set(path string, cgroup *configs.Cgroup) error {
 	return s.SetRtSched(path, cgroup)
 }
 
+func (s *CpuGroup) Remove(d *cgroupData) error {
+	return removePath(d.path("cpu"))
+}
+
 func (s *CpuGroup) GetStats(path string, stats *cgroups.Stats) error {
-	f, err := fscommon.OpenFile(path, "cpu.stat", os.O_RDONLY)
+	f, err := os.Open(filepath.Join(path, "cpu.stat"))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil

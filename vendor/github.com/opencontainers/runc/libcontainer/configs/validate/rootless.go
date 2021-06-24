@@ -1,7 +1,6 @@
 package validate
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -36,14 +35,14 @@ func hasIDMapping(id int, mappings []configs.IDMap) bool {
 
 func rootlessEUIDMappings(config *configs.Config) error {
 	if !config.Namespaces.Contains(configs.NEWUSER) {
-		return errors.New("rootless container requires user namespaces")
+		return fmt.Errorf("rootless container requires user namespaces")
 	}
 
 	if len(config.UidMappings) == 0 {
-		return errors.New("rootless containers requires at least one UID mapping")
+		return fmt.Errorf("rootless containers requires at least one UID mapping")
 	}
 	if len(config.GidMappings) == 0 {
-		return errors.New("rootless containers requires at least one GID mapping")
+		return fmt.Errorf("rootless containers requires at least one GID mapping")
 	}
 	return nil
 }
@@ -68,7 +67,7 @@ func rootlessEUIDMount(config *configs.Config) error {
 					continue
 				}
 				if !hasIDMapping(uid, config.UidMappings) {
-					return errors.New("cannot specify uid= mount options for unmapped uid in rootless containers")
+					return fmt.Errorf("cannot specify uid= mount options for unmapped uid in rootless containers")
 				}
 			}
 
@@ -80,7 +79,7 @@ func rootlessEUIDMount(config *configs.Config) error {
 					continue
 				}
 				if !hasIDMapping(gid, config.GidMappings) {
-					return errors.New("cannot specify gid= mount options for unmapped gid in rootless containers")
+					return fmt.Errorf("cannot specify gid= mount options for unmapped gid in rootless containers")
 				}
 			}
 		}

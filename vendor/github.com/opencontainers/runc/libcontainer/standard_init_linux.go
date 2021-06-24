@@ -3,19 +3,20 @@
 package libcontainer
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
-	"strconv"
+	"syscall" //only for Exec
 
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/keys"
 	"github.com/opencontainers/runc/libcontainer/seccomp"
 	"github.com/opencontainers/runc/libcontainer/system"
-	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
+
 	"golang.org/x/sys/unix"
 )
 
@@ -40,17 +41,17 @@ func (l *linuxStandardInit) getSessionRingParams() (string, uint32, uint32) {
 
 	// Create a unique per session container name that we can join in setns;
 	// However, other containers can also join it.
-	return "_ses." + l.config.ContainerId, 0xffffffff, newperms
+	return fmt.Sprintf("_ses.%s", l.config.ContainerId), 0xffffffff, newperms
 }
 
 func (l *linuxStandardInit) Init() error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	if !l.config.Config.NoNewKeyring {
-		if err := selinux.SetKeyLabel(l.config.ProcessLabel); err != nil {
+		if err := label.SetKeyLabel(l.config.ProcessLabel); err != nil {
 			return err
 		}
-		defer selinux.SetKeyLabel("")
+		defer label.SetKeyLabel("")
 		ringname, keepperms, newperms := l.getSessionRingParams()
 
 		// Do not inherit the parent's session keyring.
@@ -83,8 +84,7 @@ func (l *linuxStandardInit) Init() error {
 		return err
 	}
 
-	// initialises the labeling system
-	selinux.GetEnabled()
+	label.Init()
 	if err := prepareRootfs(l.pipe, l.config); err != nil {
 		return err
 	}
@@ -146,10 +146,10 @@ func (l *linuxStandardInit) Init() error {
 	if err := syncParentReady(l.pipe); err != nil {
 		return errors.Wrap(err, "sync ready")
 	}
-	if err := selinux.SetExecLabel(l.config.ProcessLabel); err != nil {
+	if err := label.SetProcessLabel(l.config.ProcessLabel); err != nil {
 		return errors.Wrap(err, "set process label")
 	}
-	defer selinux.SetExecLabel("")
+	defer label.SetProcessLabel("")
 	// Without NoNewPrivileges seccomp is a privileged operation, so we need to
 	// do this before dropping capabilities; otherwise do it as late as possible
 	// just before execve so as few syscalls take place after it as possible.
@@ -185,7 +185,7 @@ func (l *linuxStandardInit) Init() error {
 	// user process. We open it through /proc/self/fd/$fd, because the fd that
 	// was given to us was an O_PATH fd to the fifo itself. Linux allows us to
 	// re-open an O_PATH fd through /proc.
-	fd, err := unix.Open("/proc/self/fd/"+strconv.Itoa(l.fifoFd), unix.O_WRONLY|unix.O_CLOEXEC, 0)
+	fd, err := unix.Open(fmt.Sprintf("/proc/self/fd/%d", l.fifoFd), unix.O_WRONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return newSystemErrorWithCause(err, "open exec fifo")
 	}
@@ -207,15 +207,7 @@ func (l *linuxStandardInit) Init() error {
 			return newSystemErrorWithCause(err, "init seccomp")
 		}
 	}
-
-	s := l.config.SpecState
-	s.Pid = unix.Getpid()
-	s.Status = specs.StateCreated
-	if err := l.config.Config.Hooks[configs.StartContainer].RunHooks(s); err != nil {
-		return err
-	}
-
-	if err := unix.Exec(name, l.config.Args[0:], os.Environ()); err != nil {
+	if err := syscall.Exec(name, l.config.Args[0:], os.Environ()); err != nil {
 		return newSystemErrorWithCause(err, "exec user process")
 	}
 	return nil

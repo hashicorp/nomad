@@ -2,12 +2,20 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"sort"
 	"strings"
 	"text/tabwriter"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
 	// These packages have init() funcs which check os.Args and drop directly
 	// into their command logic. This is because they are run as separate
@@ -80,7 +88,38 @@ func init() {
 }
 
 func main() {
-	os.Exit(Run(os.Args[1:]))
+	ctx := context.Background()
+
+	otelAgentAddr, ok := os.LookupEnv("OTEL_AGENT_ENDPOINT")
+	if !ok {
+		otelAgentAddr = "0.0.0.0:4317"
+	}
+
+	res, err := resource.New(ctx,
+		resource.WithAttributes(
+			// the service name used to display traces in backends
+			semconv.ServiceNameKey.String("nomad"),
+		),
+	)
+
+	traceExporter, err := otlptracegrpc.New(
+		ctx,
+		otlptracegrpc.WithInsecure(),
+		otlptracegrpc.WithEndpoint(otelAgentAddr))
+	if err != nil {
+		os.Exit(1)
+	}
+	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(bsp), sdktrace.WithResource(res))
+
+	otel.SetTracerProvider(tp)
+	propagator := propagation.NewCompositeTextMapPropagator(propagation.Baggage{}, propagation.TraceContext{})
+	otel.SetTextMapPropagator(propagator)
+
+	exitCode := Run(os.Args[1:])
+	_ = tp.Shutdown(ctx)
+
+	os.Exit(exitCode)
 }
 
 func Run(args []string) int {

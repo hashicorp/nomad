@@ -60,7 +60,7 @@ type Group struct {
 
 // groupFromOS converts an os/user.(*Group) to local Group
 //
-// (This does not include Pass or List)
+// (This does not include Pass, Shell or Gecos)
 func groupFromOS(g *user.Group) (Group, error) {
 	newGroup := Group{
 		Name: g.Name,
@@ -162,6 +162,10 @@ func ParsePasswdFilter(r io.Reader, filter func(User) bool) ([]User, error) {
 	)
 
 	for s.Scan() {
+		if err := s.Err(); err != nil {
+			return nil, err
+		}
+
 		line := strings.TrimSpace(s.Text())
 		if line == "" {
 			continue
@@ -178,9 +182,6 @@ func ParsePasswdFilter(r io.Reader, filter func(User) bool) ([]User, error) {
 		if filter == nil || filter(p) {
 			out = append(out, p)
 		}
-	}
-	if err := s.Err(); err != nil {
-		return nil, err
 	}
 
 	return out, nil
@@ -220,6 +221,10 @@ func ParseGroupFilter(r io.Reader, filter func(Group) bool) ([]Group, error) {
 	)
 
 	for s.Scan() {
+		if err := s.Err(); err != nil {
+			return nil, err
+		}
+
 		text := s.Text()
 		if text == "" {
 			continue
@@ -236,9 +241,6 @@ func ParseGroupFilter(r io.Reader, filter func(Group) bool) ([]Group, error) {
 		if filter == nil || filter(p) {
 			out = append(out, p)
 		}
-	}
-	if err := s.Err(); err != nil {
-		return nil, err
 	}
 
 	return out, nil
@@ -466,7 +468,7 @@ func GetAdditionalGroups(additionalGroups []string, group io.Reader) ([]int, err
 		// we asked for a group but didn't find it. let's check to see
 		// if we wanted a numeric group
 		if !found {
-			gid, err := strconv.ParseInt(ag, 10, 64)
+			gid, err := strconv.Atoi(ag)
 			if err != nil {
 				return nil, fmt.Errorf("Unable to find group %s", ag)
 			}
@@ -474,7 +476,7 @@ func GetAdditionalGroups(additionalGroups []string, group io.Reader) ([]int, err
 			if gid < minId || gid > maxId {
 				return nil, ErrRange
 			}
-			gidMap[int(gid)] = struct{}{}
+			gidMap[gid] = struct{}{}
 		}
 	}
 	gids := []int{}
@@ -530,6 +532,10 @@ func ParseSubIDFilter(r io.Reader, filter func(SubID) bool) ([]SubID, error) {
 	)
 
 	for s.Scan() {
+		if err := s.Err(); err != nil {
+			return nil, err
+		}
+
 		line := strings.TrimSpace(s.Text())
 		if line == "" {
 			continue
@@ -542,9 +548,6 @@ func ParseSubIDFilter(r io.Reader, filter func(SubID) bool) ([]SubID, error) {
 		if filter == nil || filter(p) {
 			out = append(out, p)
 		}
-	}
-	if err := s.Err(); err != nil {
-		return nil, err
 	}
 
 	return out, nil
@@ -583,6 +586,10 @@ func ParseIDMapFilter(r io.Reader, filter func(IDMap) bool) ([]IDMap, error) {
 	)
 
 	for s.Scan() {
+		if err := s.Err(); err != nil {
+			return nil, err
+		}
+
 		line := strings.TrimSpace(s.Text())
 		if line == "" {
 			continue
@@ -595,9 +602,6 @@ func ParseIDMapFilter(r io.Reader, filter func(IDMap) bool) ([]IDMap, error) {
 		if filter == nil || filter(p) {
 			out = append(out, p)
 		}
-	}
-	if err := s.Err(); err != nil {
-		return nil, err
 	}
 
 	return out, nil

@@ -1,6 +1,7 @@
 package command
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,6 +14,8 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 var (
@@ -274,6 +277,14 @@ func (c *JobRunCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Start a span
+	tracer := otel.Tracer("command/job/run")
+	ctx, span := tracer.Start(context.Background(), "job run")
+	defer span.End()
+
+	span.AddEvent("Start nomad job run")
+	span.SetAttributes(attribute.String("job_id", *job.ID))
+
 	// Set the register options
 	opts := &api.RegisterOptions{}
 	if enforce {
@@ -283,8 +294,11 @@ func (c *JobRunCommand) Run(args []string) int {
 	opts.PolicyOverride = override
 	opts.PreserveCounts = preserveCounts
 
+	w := &api.WriteOptions{}
+	w = w.WithContext(ctx)
+
 	// Submit the job
-	resp, _, err := client.Jobs().RegisterOpts(job, opts, nil)
+	resp, _, err := client.Jobs().RegisterOpts(job, opts, w)
 	if err != nil {
 		if strings.Contains(err.Error(), api.RegisterEnforceIndexErrPrefix) {
 			// Format the error specially if the error is due to index
@@ -333,7 +347,7 @@ func (c *JobRunCommand) Run(args []string) int {
 
 	// Detach was not specified, so start monitoring
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(evalID)
+	return mon.monitorWithContext(ctx, evalID)
 
 }
 

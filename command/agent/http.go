@@ -21,6 +21,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/rs/cors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -102,6 +103,7 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 
 	// Create the mux
 	mux := http.NewServeMux()
+	otelMux := otelhttp.NewHandler(mux, "op")
 
 	wsUpgrader := &websocket.Upgrader{
 		ReadBufferSize:  2048,
@@ -146,7 +148,7 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	// Create HTTP server with timeouts
 	httpServer := http.Server{
 		Addr:      srv.Addr,
-		Handler:   gzip(mux),
+		Handler:   gzip(otelMux),
 		ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
 		ErrorLog:  newHTTPServerLogger(srv.logger),
 	}

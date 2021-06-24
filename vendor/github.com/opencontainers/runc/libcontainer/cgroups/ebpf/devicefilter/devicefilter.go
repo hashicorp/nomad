@@ -1,4 +1,4 @@
-// Package devicefilter contains eBPF device filter program
+// Package devicefilter containes eBPF device filter program
 //
 // The implementation is based on https://github.com/containers/crun/blob/0.10.2/src/libcrun/ebpf.c
 //
@@ -7,11 +7,11 @@
 package devicefilter
 
 import (
+	"fmt"
 	"math"
-	"strconv"
 
 	"github.com/cilium/ebpf/asm"
-	"github.com/opencontainers/runc/libcontainer/devices"
+	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
@@ -22,7 +22,7 @@ const (
 )
 
 // DeviceFilter returns eBPF device filter program and its license string
-func DeviceFilter(devices []*devices.Rule) (asm.Instructions, string, error) {
+func DeviceFilter(devices []*configs.Device) (asm.Instructions, string, error) {
 	p := &program{}
 	p.init()
 	for i := len(devices) - 1; i >= 0; i-- {
@@ -49,8 +49,7 @@ func (p *program) init() {
 	*/
 	// R2 <- type (lower 16 bit of u32 access_type at R1[0])
 	p.insts = append(p.insts,
-		asm.LoadMem(asm.R2, asm.R1, 0, asm.Word),
-		asm.And.Imm32(asm.R2, 0xFFFF))
+		asm.LoadMem(asm.R2, asm.R1, 0, asm.Half))
 
 	// R3 <- access (upper 16 bit of u32 access_type at R1[0])
 	p.insts = append(p.insts,
@@ -68,7 +67,7 @@ func (p *program) init() {
 }
 
 // appendDevice needs to be called from the last element of OCI linux.resources.devices to the head element.
-func (p *program) appendDevice(dev *devices.Rule) error {
+func (p *program) appendDevice(dev *configs.Device) error {
 	if p.blockID < 0 {
 		return errors.New("the program is finalized")
 	}
@@ -88,7 +87,7 @@ func (p *program) appendDevice(dev *devices.Rule) error {
 		hasType = false
 	default:
 		// if not specified in OCI json, typ is set to DeviceTypeAll
-		return errors.Errorf("invalid Type %q", string(dev.Type))
+		return errors.Errorf("invalid DeviceType %q", string(dev.Type))
 	}
 	if dev.Major > math.MaxUint32 {
 		return errors.Errorf("invalid major %d", dev.Major)
@@ -114,11 +113,9 @@ func (p *program) appendDevice(dev *devices.Rule) error {
 	// If the access is rwm, skip the check.
 	hasAccess := bpfAccess != (unix.BPF_DEVCG_ACC_READ | unix.BPF_DEVCG_ACC_WRITE | unix.BPF_DEVCG_ACC_MKNOD)
 
-	var (
-		blockSym         = "block-" + strconv.Itoa(p.blockID)
-		nextBlockSym     = "block-" + strconv.Itoa(p.blockID+1)
-		prevBlockLastIdx = len(p.insts) - 1
-	)
+	blockSym := fmt.Sprintf("block-%d", p.blockID)
+	nextBlockSym := fmt.Sprintf("block-%d", p.blockID+1)
+	prevBlockLastIdx := len(p.insts) - 1
 	if hasType {
 		p.insts = append(p.insts,
 			// if (R2 != bpfType) goto next
@@ -160,7 +157,7 @@ func (p *program) finalize() (asm.Instructions, error) {
 		// acceptBlock with asm.Return() is already inserted
 		return p.insts, nil
 	}
-	blockSym := "block-" + strconv.Itoa(p.blockID)
+	blockSym := fmt.Sprintf("block-%d", p.blockID)
 	p.insts = append(p.insts,
 		// R0 <- 0
 		asm.Mov.Imm32(asm.R0, 0).Sym(blockSym),

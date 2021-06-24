@@ -1,6 +1,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -10,6 +11,9 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -178,6 +182,17 @@ func (m *monitor) update(update *evalState) {
 // failures (API connectivity, internal errors, etc), the return code
 // will be 1.
 func (m *monitor) monitor(evalID string) int {
+	return m.monitorWithContext(context.Background(), evalID)
+}
+
+func (m *monitor) monitorWithContext(ctx context.Context, evalID string) int {
+	tracer := otel.Tracer("nomad")
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "monitor eval")
+	defer span.End()
+	span.AddEvent("Monitoring eval")
+	span.SetAttributes(attribute.String("eval_id", evalID))
+
 	// Track if we encounter a scheduling failure. This can only be
 	// detected while querying allocations, so we use this bool to
 	// carry that status into the return code.
@@ -188,7 +203,9 @@ func (m *monitor) monitor(evalID string) int {
 
 	for {
 		// Query the evaluation
-		eval, _, err := m.client.Evaluations().Info(evalID, nil)
+		q := &api.QueryOptions{}
+		q = q.WithContext(ctx)
+		eval, _, err := m.client.Evaluations().Info(evalID, q)
 		if err != nil {
 			m.ui.Error(fmt.Sprintf("No evaluation with id %q found", evalID))
 			return 1
@@ -208,7 +225,7 @@ func (m *monitor) monitor(evalID string) int {
 		state.index = eval.CreateIndex
 
 		// Query the allocations associated with the evaluation
-		allocs, _, err := m.client.Evaluations().Allocations(eval.ID, nil)
+		allocs, _, err := m.client.Evaluations().Allocations(eval.ID, q)
 		if err != nil {
 			m.ui.Error(fmt.Sprintf("%s: Error reading allocations: %s", formatTime(time.Now()), err))
 			return 1
@@ -280,10 +297,12 @@ func (m *monitor) monitor(evalID string) int {
 
 			// Reset the state and monitor the new eval
 			m.state = newEvalState()
-			return m.monitor(eval.NextEval)
+			return m.monitorWithContext(ctx, eval.NextEval)
 		}
 		break
 	}
+
+	span.End()
 
 	// Monitor the deployment if it exists
 	dID := m.state.deployment
@@ -300,7 +319,7 @@ func (m *monitor) monitor(evalID string) int {
 		meta := new(Meta)
 		meta.Ui = m.ui
 		cmd := &DeploymentStatusCommand{Meta: *meta}
-		cmd.monitor(m.client, dID, 0, verbose)
+		cmd.monitorWithContext(ctx, m.client, dID, 0, verbose)
 	}
 
 	// Treat scheduling failures specially using a dedicated exit code.

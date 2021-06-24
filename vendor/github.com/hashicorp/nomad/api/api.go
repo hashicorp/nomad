@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/websocket"
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	rootcerts "github.com/hashicorp/go-rootcerts"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 var (
@@ -438,6 +439,7 @@ func NewClient(config *Config) (*Client, error) {
 		if err := ConfigureTLS(httpClient, config.TLSConfig); err != nil {
 			return nil, err
 		}
+		httpClient.Transport = otelhttp.NewTransport(httpClient.Transport)
 	}
 
 	client := &Client{

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runtime-spec/specs-go"
+
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -38,8 +38,7 @@ type containerState interface {
 }
 
 func destroy(c *linuxContainer) error {
-	if !c.config.Namespaces.Contains(configs.NEWPID) ||
-		c.config.Namespaces.PathOf(configs.NEWPID) != "" {
+	if !c.config.Namespaces.Contains(configs.NEWPID) {
 		if err := signalAllProcesses(c.cgroupManager, unix.SIGKILL); err != nil {
 			logrus.Warn(err)
 		}
@@ -62,21 +61,17 @@ func destroy(c *linuxContainer) error {
 }
 
 func runPoststopHooks(c *linuxContainer) error {
-	hooks := c.config.Hooks
-	if hooks == nil {
-		return nil
+	if c.config.Hooks != nil {
+		s, err := c.currentOCIState()
+		if err != nil {
+			return err
+		}
+		for _, hook := range c.config.Hooks.Poststop {
+			if err := hook.Run(s); err != nil {
+				return err
+			}
+		}
 	}
-
-	s, err := c.currentOCIState()
-	if err != nil {
-		return err
-	}
-	s.Status = specs.StateStopped
-
-	if err := hooks[configs.Poststop].RunHooks(s); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -116,7 +111,11 @@ func (r *runningState) status() Status {
 func (r *runningState) transition(s containerState) error {
 	switch s.(type) {
 	case *stoppedState:
-		if r.c.runType() == Running {
+		t, err := r.c.runType()
+		if err != nil {
+			return err
+		}
+		if t == Running {
 			return newGenericError(fmt.Errorf("container still running"), ContainerNotStopped)
 		}
 		r.c.state = s
@@ -131,7 +130,11 @@ func (r *runningState) transition(s containerState) error {
 }
 
 func (r *runningState) destroy() error {
-	if r.c.runType() == Running {
+	t, err := r.c.runType()
+	if err != nil {
+		return err
+	}
+	if t == Running {
 		return newGenericError(fmt.Errorf("container is not destroyed"), ContainerNotStopped)
 	}
 	return destroy(r.c)
@@ -183,7 +186,10 @@ func (p *pausedState) transition(s containerState) error {
 }
 
 func (p *pausedState) destroy() error {
-	t := p.c.runType()
+	t, err := p.c.runType()
+	if err != nil {
+		return err
+	}
 	if t != Running && t != Created {
 		if err := p.c.cgroupManager.Freeze(configs.Thawed); err != nil {
 			return err
