@@ -29,7 +29,7 @@ General Options:
 
 Snapshot Options:
 
-  -secret
+  --secret
     Secrets to pass to the plugin to create the snapshot. Accepts multiple
     flags in the form -secret key=value
 
@@ -40,7 +40,7 @@ Snapshot Options:
 func (c *VolumeSnapshotDeleteCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-secret": complete.PredictNothing,
+			"--secret": complete.PredictNothing,
 		})
 }
 
@@ -71,12 +71,12 @@ func (c *VolumeSnapshotDeleteCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.Var(&secretsArgs, "secret", "secrets for snapshot, ex. -secret key=value")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
 		return 1
 	}
 	// Check that we get exactly two arguments
-	args = flags.Args()
 	if l := len(args); l != 2 {
 		c.Ui.Error("This command takes two arguments: <plugin id> <snapshot id>")
 		c.Ui.Error(commandErrorText(c))

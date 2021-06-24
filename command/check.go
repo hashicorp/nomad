@@ -57,11 +57,11 @@ func (c *AgentCheckCommand) Run(args []string) int {
 	flags.IntVar(&minPeers, "min-peers", 0, "")
 	flags.IntVar(&minServers, "min-servers", 1, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
-	args = flags.Args()
 	if len(args) > 0 {
 		c.Ui.Error("This command takes no arguments")
 		c.Ui.Error(commandErrorText(c))

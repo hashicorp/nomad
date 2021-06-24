@@ -44,12 +44,13 @@ func (c *ServerJoinCommand) Name() string { return "server join" }
 func (c *ServerJoinCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	if err := flags.Parse(args); err != nil {
+
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got at least one node
-	args = flags.Args()
 	if len(args) < 1 {
 		c.Ui.Error("One or more node addresses must be given as arguments")
 		c.Ui.Error(commandErrorText(c))

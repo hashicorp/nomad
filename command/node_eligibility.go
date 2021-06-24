@@ -32,13 +32,13 @@ General Options:
 
 Node Eligibility Options:
 
-  -disable
+  --disable
     Mark the specified node as ineligible for new allocations.
 
-  -enable
+  --enable
     Mark the specified node as eligible for new allocations.
 
-  -self
+  --self
     Set the eligibility of the local node.
 `
 	return strings.TrimSpace(helpText)
@@ -51,9 +51,9 @@ func (c *NodeEligibilityCommand) Synopsis() string {
 func (c *NodeEligibilityCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-disable": complete.PredictNothing,
-			"-enable":  complete.PredictNothing,
-			"-self":    complete.PredictNothing,
+			"--disable": complete.PredictNothing,
+			"--enable":  complete.PredictNothing,
+			"--self":    complete.PredictNothing,
 		})
 }
 
@@ -83,7 +83,8 @@ func (c *NodeEligibilityCommand) Run(args []string) int {
 	flags.BoolVar(&disable, "disable", false, "Mark node as ineligibile for scheduling")
 	flags.BoolVar(&self, "self", false, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
@@ -95,7 +96,6 @@ func (c *NodeEligibilityCommand) Run(args []string) int {
 	}
 
 	// Check that we got a node ID
-	args = flags.Args()
 	if l := len(args); self && l != 0 || !self && l != 1 {
 		c.Ui.Error("Node ID must be specified if -self isn't being used")
 		c.Ui.Error(commandErrorText(c))

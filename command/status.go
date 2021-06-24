@@ -74,21 +74,21 @@ func (c *StatusCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
+func (*StatusCommand) Name() string { return "status" }
+
 func (c *StatusCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet("status", FlagSetClient)
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVarP(&c.verbose, "verbose", "v", false, "")
-
-	if err := flags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing arguments: %q", err))
-		return 1
-	}
 
 	// Store the original arguments so we can pass them to the routed command
 	argsCopy := args
 
-	// Check that we got exactly one evaluation ID
-	args = flags.Args()
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing arguments: %q", err))
+		return 1
+	}
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()

@@ -66,13 +66,13 @@ func (c *JobInitCommand) Run(args []string) int {
 	flags.BoolVarP(&short, "short", "s", false, "")
 	flags.BoolVarP(&connect, "connect", "c", false, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check for misuse
 	// Check that we either got no filename or exactly one.
-	args = flags.Args()
 	if len(args) > 1 {
 		c.Ui.Error("This command takes either no arguments or one: <filename>")
 		c.Ui.Error(commandErrorText(c))
@@ -85,7 +85,7 @@ func (c *JobInitCommand) Run(args []string) int {
 	}
 
 	// Check if the file already exists
-	_, err := os.Stat(filename)
+	_, err = os.Stat(filename)
 	if err != nil && !os.IsNotExist(err) {
 		c.Ui.Error(fmt.Sprintf("Failed to stat '%s': %v", filename, err))
 		return 1

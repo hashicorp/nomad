@@ -29,7 +29,7 @@ General Options:
 
 Apply Options:
 
-  --description
+  --description, -d
     Specifies a human readable description for the policy.
 
 `
@@ -55,13 +55,14 @@ func (c *ACLPolicyApplyCommand) Run(args []string) int {
 	var description string
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.StringVar(&description, "description", "", "")
-	if err := flags.Parse(args); err != nil {
+	flags.StringVarP(&description, "description", "d", "", "")
+
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got two arguments
-	args = flags.Args()
 	if l := len(args); l != 2 {
 		c.Ui.Error("This command takes two arguments: <name> and <path>")
 		c.Ui.Error(commandErrorText(c))
@@ -74,7 +75,7 @@ func (c *ACLPolicyApplyCommand) Run(args []string) int {
 	// Read the file contents
 	file := args[1]
 	var rawPolicy []byte
-	var err error
+	// var err error
 	if file == "-" {
 		rawPolicy, err = ioutil.ReadAll(os.Stdin)
 		if err != nil {

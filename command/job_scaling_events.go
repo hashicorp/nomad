@@ -36,7 +36,7 @@ General Options:
 
 Scaling-Events Options:
 
-  -verbose
+  --verbose, -v
     Display full information.
 `
 	return strings.TrimSpace(helpText)
@@ -50,7 +50,7 @@ func (j *JobScalingEventsCommand) Synopsis() string {
 func (j *JobScalingEventsCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(j.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-verbose": complete.PredictNothing,
+			"--verbose": complete.PredictNothing,
 		})
 }
 
@@ -64,12 +64,13 @@ func (j *JobScalingEventsCommand) Run(args []string) int {
 
 	flags := j.Meta.FlagSet(j.Name(), FlagSetClient)
 	flags.Usage = func() { j.Ui.Output(j.Help()) }
-	flags.BoolVar(&verbose, "verbose", false, "")
-	if err := flags.Parse(args); err != nil {
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
+
+	args, err := ParseFlags(args, flags, &j.Meta, j.Name())
+	if err != nil {
 		return 1
 	}
 
-	args = flags.Args()
 	if len(args) != 1 {
 		j.Ui.Error("This command takes one argument: <job_id>")
 		j.Ui.Error(commandErrorText(j))

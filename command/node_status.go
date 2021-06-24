@@ -58,26 +58,26 @@ General Options:
 
 Node Status Options:
 
-  -self
+  --self
     Query the status of the local node.
 
-  -stats
+  --stats
     Display detailed resource usage statistics.
 
-  -allocs
+  --allocs
     Display a count of running allocations for each node.
 
-  -short
+  --short
     Display short output. Used only when a single node is being
     queried, and drops verbose output about node allocations.
 
-  -verbose
+  --verbose, -v
     Display full information.
 
-  -json
+  --json, -j
     Output the node in its JSON format.
 
-  -t
+  --template, -t
     Format and display node using a Go template.
 `
 	return strings.TrimSpace(helpText)
@@ -90,13 +90,13 @@ func (c *NodeStatusCommand) Synopsis() string {
 func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-allocs":  complete.PredictNothing,
-			"-json":    complete.PredictNothing,
-			"-self":    complete.PredictNothing,
-			"-short":   complete.PredictNothing,
-			"-stats":   complete.PredictNothing,
-			"-t":       complete.PredictAnything,
-			"-verbose": complete.PredictNothing,
+			"--allocs":   complete.PredictNothing,
+			"--json":     complete.PredictNothing,
+			"--self":     complete.PredictNothing,
+			"--short":    complete.PredictNothing,
+			"--stats":    complete.PredictNothing,
+			"--template": complete.PredictAnything,
+			"--verbose":  complete.PredictNothing,
 		})
 }
 
@@ -122,19 +122,19 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&c.short, "short", false, "")
-	flags.BoolVar(&c.verbose, "verbose", false, "")
+	flags.BoolVarP(&c.verbose, "verbose", "v", false, "")
 	flags.BoolVar(&c.list_allocs, "allocs", false, "")
 	flags.BoolVar(&c.self, "self", false, "")
 	flags.BoolVar(&c.stats, "stats", false, "")
-	flags.BoolVar(&c.json, "json", false, "")
-	flags.StringVar(&c.tmpl, "t", "", "")
+	flags.BoolVarP(&c.json, "json", "j", false, "")
+	flags.StringVarP(&c.tmpl, "template", "t", "", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got either a single node or none
-	args = flags.Args()
 	if len(args) > 1 {
 		c.Ui.Error("This command takes either one or no arguments")
 		c.Ui.Error(commandErrorText(c))

@@ -69,12 +69,12 @@ func (c *DeploymentPauseCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVarP(&verbose, "verbose", "v", false, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got exactly 1 argument
-	args = flags.Args()
 	if l := len(args); l != 1 {
 		c.Ui.Error("This command takes one argument: <deployment id>")
 		c.Ui.Error(commandErrorText(c))

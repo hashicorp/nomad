@@ -34,13 +34,13 @@ Alias: nomad validate
 
 Validate Options:
 
-  -hcl1
+  --hcl1
     Parses the job file as HCLv1.
 
-  -var 'key=value'
+  --var 'key=value'
     Variable for template, can be used multiple times.
 
-  -var-file=path
+  --var-file=path
     Path to HCL2 file containing user variables.
 
 `
@@ -53,9 +53,9 @@ func (c *JobValidateCommand) Synopsis() string {
 
 func (c *JobValidateCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-hcl1":     complete.PredictNothing,
-		"-var":      complete.PredictAnything,
-		"-var-file": complete.PredictFiles("*.var"),
+		"--hcl1":     complete.PredictNothing,
+		"--var":      complete.PredictAnything,
+		"--var-file": complete.PredictFiles("*.var"),
 	}
 }
 
@@ -74,12 +74,12 @@ func (c *JobValidateCommand) Run(args []string) int {
 	flagSet.Var(&varArgs, "var", "")
 	flagSet.Var(&varFiles, "var-file", "")
 
-	if err := flagSet.Parse(args); err != nil {
+	args, err := ParseFlags(args, flagSet, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got exactly one node
-	args = flagSet.Args()
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <path>")
 		c.Ui.Error(commandErrorText(c))

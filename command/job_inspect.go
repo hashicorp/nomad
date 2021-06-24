@@ -29,13 +29,13 @@ General Options:
 
 Inspect Options:
 
-  -version <job version>
+  --version <job version>
     Display the job at the given job version.
 
-  -json
+  --json, -j
     Output the job in its JSON format.
 
-  -t
+  --template, -t
     Format and display job using a Go template.
 `
 	return strings.TrimSpace(helpText)
@@ -48,9 +48,9 @@ func (c *JobInspectCommand) Synopsis() string {
 func (c *JobInspectCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-version": complete.PredictAnything,
-			"-json":    complete.PredictNothing,
-			"-t":       complete.PredictAnything,
+			"--version":  complete.PredictAnything,
+			"--json":     complete.PredictNothing,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -77,14 +77,14 @@ func (c *JobInspectCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVarP(&json, "json", "j", false, "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
 	flags.StringVar(&versionStr, "version", "", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
-	args = flags.Args()
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()

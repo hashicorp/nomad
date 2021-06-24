@@ -33,10 +33,10 @@ General Options:
 
 Recommendation Info Options:
 
-  -json
+  --json, -j
     Output the recommendation in its JSON format.
 
-  -t
+  --template, -t
     Format and display the recommendation using a Go template.
 `
 	return strings.TrimSpace(helpText)
@@ -50,8 +50,8 @@ func (r *RecommendationInfoCommand) Synopsis() string {
 func (r *RecommendationInfoCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(r.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json": complete.PredictNothing,
-			"-t":    complete.PredictAnything,
+			"--json":     complete.PredictNothing,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -65,13 +65,15 @@ func (r *RecommendationInfoCommand) Run(args []string) int {
 
 	flags := r.Meta.FlagSet(r.Name(), FlagSetClient)
 	flags.Usage = func() { r.Ui.Output(r.Help()) }
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
-	if err := flags.Parse(args); err != nil {
+	flags.BoolVarP(&json, "json", "j", false, "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
+
+	args, err := ParseFlags(args, flags, &r.Meta, r.Name())
+	if err != nil {
 		return 1
 	}
 
-	if args = flags.Args(); len(args) != 1 {
+	if len(args) != 1 {
 		r.Ui.Error("This command takes one argument: <recommendation_id>")
 		r.Ui.Error(commandErrorText(r))
 		return 1

@@ -29,7 +29,7 @@ General Options:
 
 Volume Deregister Options:
 
-  -force
+  --force
     Force deregistration of the volume and immediately drop claims for
     terminal allocations. Returns an error if the volume has running
     allocations. This does not detach the volume from client nodes.
@@ -40,7 +40,7 @@ Volume Deregister Options:
 func (c *VolumeDeregisterCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-force": complete.PredictNothing,
+			"--force": complete.PredictNothing,
 		})
 }
 
@@ -72,13 +72,13 @@ func (c *VolumeDeregisterCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&force, "force", false, "Force deregister and drop claims")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
 		return 1
 	}
 
 	// Check that we get exactly one argument
-	args = flags.Args()
 	if l := len(args); l != 1 {
 		c.Ui.Error("This command takes one argument: <id>")
 		c.Ui.Error(commandErrorText(c))

@@ -54,15 +54,15 @@ func (c *AllocSignalCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVarP(&verbose, "verbose", "v", false, "")
-	flags.StringVarP(&signal, "signal", "s", "SIGKILL", "")
+	flags.StringVar(&signal, "signal", "SIGKILL", "")
 	flags.StringVar(&task, "task", "", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got exactly one alloc
-	args = flags.Args()
 	if len(args) < 1 || len(args) > 2 {
 		c.Ui.Error("This command takes up to two arguments: <alloc-id> <task>")
 		c.Ui.Error(commandErrorText(c))

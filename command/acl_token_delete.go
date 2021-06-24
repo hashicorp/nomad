@@ -43,13 +43,13 @@ func (c *ACLTokenDeleteCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that the last argument is the token to delete. Return error if no
 	// such token was provided.
-	args = flags.Args()
 	if l := len(args); l != 1 {
 		c.Ui.Error("This command takes one argument: <token_accessor_id>")
 		c.Ui.Error(commandErrorText(c))

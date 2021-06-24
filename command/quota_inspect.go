@@ -33,7 +33,7 @@ General Options:
 
 Inspect Options:
 
-  -t
+  --template, -t
     Format and display the namespaces using a Go template.
 `
 
@@ -43,7 +43,7 @@ Inspect Options:
 func (c *QuotaInspectCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-t": complete.PredictAnything,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -61,14 +61,14 @@ func (c *QuotaInspectCommand) Run(args []string) int {
 	var tmpl string
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got one arguments
-	args = flags.Args()
 	if l := len(args); l != 1 {
 		c.Ui.Error("This command takes one argument: <quota>")
 		c.Ui.Error(commandErrorText(c))

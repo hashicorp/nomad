@@ -40,13 +40,13 @@ General Options:
 
 Keyring Options:
 
-  -install=<key>            Install a new encryption key. This will broadcast
+  --install=<key>            Install a new encryption key. This will broadcast
                             the new key to all members in the cluster.
-  -list                     List all keys currently in use within the cluster.
-  -remove=<key>             Remove the given key from the cluster. This
+  --list                     List all keys currently in use within the cluster.
+  --remove=<key>             Remove the given key from the cluster. This
                             operation may only be performed on keys which are
                             not currently the primary key.
-  -use=<key>                Change the primary encryption key, which is used to
+  --use=<key>                Change the primary encryption key, which is used to
                             encrypt messages. The key must already be installed
                             before this operation can succeed.
 `
@@ -60,10 +60,10 @@ func (c *OperatorKeyringCommand) Synopsis() string {
 func (c *OperatorKeyringCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-install": complete.PredictAnything,
-			"-list":    complete.PredictNothing,
-			"-remove":  complete.PredictAnything,
-			"-use":     complete.PredictAnything,
+			"--install": complete.PredictAnything,
+			"--list":    complete.PredictNothing,
+			"--remove":  complete.PredictAnything,
+			"--use":     complete.PredictAnything,
 		})
 }
 func (c *OperatorKeyringCommand) AutocompleteArgs() complete.Predictor {
@@ -84,7 +84,8 @@ func (c *OperatorKeyringCommand) Run(args []string) int {
 	flags.StringVar(&removeKey, "remove", "", "remove key")
 	flags.BoolVar(&listKeys, "list", false, "list keys")
 
-	if err := flags.Parse(args); err != nil {
+	_, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 

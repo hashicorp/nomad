@@ -35,19 +35,19 @@ General Options:
 
 History Options:
 
-  -p
+  --diff, -p
     Display the difference between each job and its predecessor.
 
-  -full
+  --full
     Display the full job definition for each version.
 
-  -version <job version>
+  --version <job version>
     Display only the history for the given job version.
 
-  -json
+  --json
     Output the job versions in a JSON format.
 
-  -t
+  --template, -t
     Format and display the job versions using a Go template.
 `
 	return strings.TrimSpace(helpText)
@@ -60,11 +60,11 @@ func (c *JobHistoryCommand) Synopsis() string {
 func (c *JobHistoryCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-p":       complete.PredictNothing,
-			"-full":    complete.PredictNothing,
-			"-version": complete.PredictAnything,
-			"-json":    complete.PredictNothing,
-			"-t":       complete.PredictAnything,
+			"--diff":     complete.PredictNothing,
+			"--full":     complete.PredictNothing,
+			"--version":  complete.PredictAnything,
+			"--json":     complete.PredictNothing,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -91,18 +91,18 @@ func (c *JobHistoryCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&diff, "p", false, "")
+	flags.BoolVarP(&diff, "diff", "p", false, "")
 	flags.BoolVar(&full, "full", false, "")
-	flags.BoolVar(&json, "json", false, "")
+	flags.BoolVarP(&json, "json", "j", false, "")
 	flags.StringVar(&versionStr, "version", "", "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got exactly one node
-	args = flags.Args()
 	if l := len(args); l < 1 || l > 2 {
 		c.Ui.Error("This command takes one argument: <job>")
 		c.Ui.Error(commandErrorText(c))

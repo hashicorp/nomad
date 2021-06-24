@@ -46,7 +46,7 @@ Status Options:
   --json, -j
     Output the deployment in its JSON format.
 
-  --monitor, -m
+  --monitor
     Enter monitor mode to poll for updates to the deployment status.
 
   --template, -t
@@ -94,10 +94,11 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVarP(&verbose, "verbose", "v", false, "")
 	flags.BoolVarP(&json, "json", "j", false, "")
-	flags.BoolVarP(&monitor, "monitor", "m", false, "")
+	flags.BoolVar(&monitor, "monitor", false, "")
 	flags.StringVarP(&tmpl, "template", "t", "", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
@@ -108,7 +109,6 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 	}
 
 	// Check that we got exactly one argument
-	args = flags.Args()
 	if l := len(args); l > 1 {
 		c.Ui.Error("This command takes one argument: <deployment id>")
 		c.Ui.Error(commandErrorText(c))

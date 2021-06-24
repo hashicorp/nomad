@@ -33,19 +33,19 @@ General Options:
 
 Status Options:
 
-  -type <type>
+  --type <type>
     List only plugins of type <type>.
 
-  -short
+  --short
     Display short output.
 
-  -verbose
+  --verbose, -v
     Display full information.
 
-  -json
+  --json, -j
     Output the allocation in its JSON format.
 
-  -t
+  --template, -t
     Format and display allocation using a Go template.
 `
 	return helpText
@@ -69,11 +69,11 @@ var predictVolumeType = complete.PredictFunc(func(a complete.Args) []string {
 func (c *PluginStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-type":    predictVolumeType,
-			"-short":   complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
-			"-json":    complete.PredictNothing,
-			"-t":       complete.PredictAnything,
+			"--type":     predictVolumeType,
+			"--short":    complete.PredictNothing,
+			"--verbose":  complete.PredictNothing,
+			"--json":     complete.PredictNothing,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -101,17 +101,17 @@ func (c *PluginStatusCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&typeArg, "type", "", "")
 	flags.BoolVar(&c.short, "short", false, "")
-	flags.BoolVar(&c.verbose, "verbose", false, "")
-	flags.BoolVar(&c.json, "json", false, "")
-	flags.StringVar(&c.template, "t", "", "")
+	flags.BoolVarP(&c.verbose, "verbose", "v", false, "")
+	flags.BoolVarP(&c.json, "json", "j", false, "")
+	flags.StringVarP(&c.template, "template", "t", "", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
 		return 1
 	}
 
 	// Check that we either got no arguments or exactly one.
-	args = flags.Args()
 	if len(args) > 1 {
 		c.Ui.Error("This command takes either no arguments or one: <plugin>")
 		c.Ui.Error(commandErrorText(c))

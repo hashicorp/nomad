@@ -102,12 +102,10 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	flags.BoolVarP(&json, "json", "j", false, "")
 	flags.StringVarP(&tmpl, "template", "t", "", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
-
-	// Check that we got exactly one allocation ID
-	args = flags.Args()
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -134,6 +132,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		return 0
 	}
 
+	// Check that we got exactly one allocation ID
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one of the following argument conditions:")
 		c.Ui.Error(" * A single <allocation>")

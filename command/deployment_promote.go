@@ -90,12 +90,12 @@ func (c *DeploymentPromoteCommand) Run(args []string) int {
 	flags.BoolVarP(&verbose, "verbose", "v", false, "")
 	flags.Var((*flaghelper.StringFlag)(&groups), "group", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got exactly one argument
-	args = flags.Args()
 	if l := len(args); l != 1 {
 		c.Ui.Error("This command takes one argument: <deployment id>")
 		c.Ui.Error(commandErrorText(c))

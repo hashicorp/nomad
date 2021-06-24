@@ -70,15 +70,15 @@ func (c *VolumeSnapshotCreateCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	var verbose bool
-	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
 		return 1
 	}
 
 	// Check that we at least one argument
-	args = flags.Args()
 	if l := len(args); l == 0 {
 		c.Ui.Error("This command takes at least one argument: <vol id> [snapshot name]")
 		c.Ui.Error(commandErrorText(c))

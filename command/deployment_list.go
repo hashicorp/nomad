@@ -68,12 +68,9 @@ func (c *DeploymentListCommand) Run(args []string) int {
 	flags.BoolVarP(&json, "json", "j", false, "")
 	flags.StringVarP(&tmpl, "template", "t", "", "")
 
-	if err := flags.Parse(args); err != nil {
-		return 1
-	}
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
 
 	// Check that we got no arguments
-	args = flags.Args()
 	if l := len(args); l != 0 {
 		c.Ui.Error("This command takes no arguments")
 		c.Ui.Error(commandErrorText(c))

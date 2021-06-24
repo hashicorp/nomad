@@ -41,12 +41,12 @@ General Options:
 
 Scale Options:
 
-  -detach
+  --detach, -d
     Return immediately instead of entering monitor mode. After job scaling,
     the evaluation ID will be printed to the screen, which can be used to
     examine the evaluation using the eval-status command.
 
-  -verbose
+  --verbose, -v
     Display full information.
 `
 	return strings.TrimSpace(helpText)
@@ -60,8 +60,8 @@ func (j *JobScaleCommand) Synopsis() string {
 func (j *JobScaleCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(j.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-detach":  complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
+			"--detach":  complete.PredictNothing,
+			"--verbose": complete.PredictNothing,
 		})
 }
 
@@ -74,14 +74,15 @@ func (j *JobScaleCommand) Run(args []string) int {
 
 	flags := j.Meta.FlagSet(j.Name(), FlagSetClient)
 	flags.Usage = func() { j.Ui.Output(j.Help()) }
-	flags.BoolVar(&detach, "detach", false, "")
-	flags.BoolVar(&verbose, "verbose", false, "")
-	if err := flags.Parse(args); err != nil {
+	flags.BoolVarP(&detach, "detach", "d", false, "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
+
+	args, err := ParseFlags(args, flags, &j.Meta, j.Name())
+	if err != nil {
 		return 1
 	}
 
 	var jobString, countString, groupString string
-	args = flags.Args()
 
 	// It is possible to specify either 2 or 3 arguments. Check and assign the
 	// args so they can be validate later on.

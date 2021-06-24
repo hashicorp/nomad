@@ -29,10 +29,10 @@ General Options:
 
 List Options:
 
-  -json
+  --json, -j
     Output the namespaces in a JSON format.
 
-  -t
+  --template, -t
     Format and display the namespaces using a Go template.
 `
 	return strings.TrimSpace(helpText)
@@ -41,8 +41,8 @@ List Options:
 func (c *NamespaceListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json": complete.PredictNothing,
-			"-t":    complete.PredictAnything,
+			"--json":     complete.PredictNothing,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -62,15 +62,15 @@ func (c *NamespaceListCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVarP(&json, "json", "j", false, "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got no arguments
-	args = flags.Args()
 	if l := len(args); l != 0 {
 		c.Ui.Error("This command takes no arguments")
 		c.Ui.Error(commandErrorText(c))

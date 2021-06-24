@@ -46,12 +46,13 @@ func (c *ServerForceLeaveCommand) Name() string { return "server force-leave" }
 func (c *ServerForceLeaveCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	if err := flags.Parse(args); err != nil {
+
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got exactly one node
-	args = flags.Args()
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <node>")
 		c.Ui.Error(commandErrorText(c))

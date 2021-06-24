@@ -33,10 +33,10 @@ General Options:
 
 Remove Peer Options:
 
-  -peer-address="IP:port"
+  --peer-address="IP:port"
 	Remove a Nomad server with given address from the Raft configuration.
 
-  -peer-id="id"
+  --peer-id="id"
 	Remove a Nomad server with the given ID from the Raft configuration.
 `
 	return strings.TrimSpace(helpText)
@@ -45,8 +45,8 @@ Remove Peer Options:
 func (c *OperatorRaftRemoveCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-peer-address": complete.PredictAnything,
-			"-peer-id":      complete.PredictAnything,
+			"--peer-address": complete.PredictAnything,
+			"--peer-id":      complete.PredictAnything,
 		})
 }
 
@@ -69,7 +69,9 @@ func (c *OperatorRaftRemoveCommand) Run(args []string) int {
 
 	flags.StringVar(&peerAddress, "peer-address", "", "")
 	flags.StringVar(&peerID, "peer-id", "", "")
-	if err := flags.Parse(args); err != nil {
+
+	_, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse args: %v", err))
 		return 1
 	}

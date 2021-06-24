@@ -72,77 +72,77 @@ General Options:
 
 Consul Options:
 
-  -consul-http-addr=<addr>
+  --consul-http-addr=<addr>
     The address and port of the Consul HTTP agent. Overrides the
     CONSUL_HTTP_ADDR environment variable.
 
-  -consul-token=<token>
+  --consul-token=<token>
     Token used to query Consul. Overrides the CONSUL_HTTP_TOKEN environment
     variable and the Consul token file.
 
-  -consul-token-file=<path>
+  --consul-token-file=<path>
     Path to the Consul token file. Overrides the CONSUL_HTTP_TOKEN_FILE
     environment variable.
 
-  -consul-client-cert=<path>
+  --consul-client-cert=<path>
     Path to the Consul client cert file. Overrides the CONSUL_CLIENT_CERT
     environment variable.
 
-  -consul-client-key=<path>
+  --consul-client-key=<path>
     Path to the Consul client key file. Overrides the CONSUL_CLIENT_KEY
     environment variable.
 
-  -consul-ca-cert=<path>
+  --consul-ca-cert=<path>
     Path to a CA file to use with Consul. Overrides the CONSUL_CACERT
     environment variable and the Consul CA path.
 
-  -consul-ca-path=<path>
+  --consul-ca-path=<path>
     Path to a directory of PEM encoded CA cert files to verify the Consul
     certificate. Overrides the CONSUL_CAPATH environment variable.
 
 Vault Options:
 
-  -vault-address=<addr>
+  --vault-address=<addr>
     The address and port of the Vault HTTP agent. Overrides the VAULT_ADDR
     environment variable.
 
-  -vault-token=<token>
+  --vault-token=<token>
     Token used to query Vault. Overrides the VAULT_TOKEN environment
     variable.
 
-  -vault-client-cert=<path>
+  --vault-client-cert=<path>
     Path to the Vault client cert file. Overrides the VAULT_CLIENT_CERT
     environment variable.
 
-  -vault-client-key=<path>
+  --vault-client-key=<path>
     Path to the Vault client key file. Overrides the VAULT_CLIENT_KEY
     environment variable.
 
-  -vault-ca-cert=<path>
+  --vault-ca-cert=<path>
     Path to a CA file to use with Vault. Overrides the VAULT_CACERT
     environment variable and the Vault CA path.
 
-  -vault-ca-path=<path>
+  --vault-ca-path=<path>
     Path to a directory of PEM encoded CA cert files to verify the Vault
     certificate. Overrides the VAULT_CAPATH environment variable.
 
 Debug Options:
 
-  -duration=<duration>
+  --duration=<duration>
     The duration of the log monitor command. Defaults to 2m.
 
-  -interval=<interval>
+  --interval=<interval>
     The interval between snapshots of the Nomad state. Set interval equal to 
     duration to capture a single snapshot. Defaults to 30s.
 
-  -log-level=<level>
+  --log-level=<level>
     The log level to monitor. Defaults to DEBUG.
 
-  -max-nodes=<count>
+  --max-nodes=<count>
     Cap the maximum number of client nodes included in the capture. Defaults
     to 10, set to 0 for unlimited.
 
-  -node-id=<node>,<node>
+  --node-id=<node>,<node>
     Comma separated list of Nomad client node ids to monitor for logs, API
     outputs, and pprof profiles. Accepts id prefixes, and "all" to select all
     nodes (up to count = max-nodes). Defaults to "all".
@@ -150,20 +150,20 @@ Debug Options:
   -node-class=<node-class>
     Filter client nodes based on node class.
 
-  -pprof-duration=<duration>
+  --pprof-duration=<duration>
     Duration for pprof collection. Defaults to 1s.
 
-  -server-id=<server>,<server>
+  --server-id=<server>,<server>
     Comma separated list of Nomad server names to monitor for logs, API
     outputs, and pprof profiles. Accepts server names, "leader", or "all".
     Defaults to "all".
 
-  -stale=<true|false>
+  --stale=<true|false>
     If "false", the default, get membership data from the cluster leader. If
     the cluster is in an outage unable to establish leadership, it may be
     necessary to get the configuration from a non-leader server.
 
-  -output=<path>
+  --output=<path>
     Path to the parent directory of the output directory. If not specified, an
     archive is built in the current directory.
 `
@@ -177,17 +177,17 @@ func (c *OperatorDebugCommand) Synopsis() string {
 func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-duration":       complete.PredictAnything,
-			"-interval":       complete.PredictAnything,
-			"-log-level":      complete.PredictAnything,
-			"-max-nodes":      complete.PredictAnything,
-			"-node-class":     complete.PredictAnything,
-			"-node-id":        complete.PredictAnything,
-			"-server-id":      complete.PredictAnything,
-			"-output":         complete.PredictAnything,
-			"-pprof-duration": complete.PredictAnything,
-			"-consul-token":   complete.PredictAnything,
-			"-vault-token":    complete.PredictAnything,
+			"--duration":       complete.PredictAnything,
+			"--interval":       complete.PredictAnything,
+			"--log-level":      complete.PredictAnything,
+			"--max-nodes":      complete.PredictAnything,
+			"--node-class":     complete.PredictAnything,
+			"--node-id":        complete.PredictAnything,
+			"--server-id":      complete.PredictAnything,
+			"--output":         complete.PredictAnything,
+			"--pprof-duration": complete.PredictAnything,
+			"--consul-token":   complete.PredictAnything,
+			"--vault-token":    complete.PredictAnything,
 		})
 }
 
@@ -235,7 +235,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.StringVar(&c.vault.tls.ClientCert, "vault-client-cert", os.Getenv("VAULT_CLIENT_CERT"), "")
 	flags.StringVar(&c.vault.tls.ClientKey, "vault-client-key", os.Getenv("VAULT_CLIENT_KEY"), "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments: %q", err))
 		return 1
 	}
@@ -271,7 +272,6 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	c.pprofDuration = pd
 
 	// Verify there are no extra arguments
-	args = flags.Args()
 	if l := len(args); l != 0 {
 		c.Ui.Error("This command takes no arguments")
 		c.Ui.Error(commandErrorText(c))

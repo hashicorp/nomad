@@ -122,10 +122,10 @@ func (l *AllocLogsCommand) Run(args []string) int {
 	flags.Int64VarP(&numBytes, "bytes", "c", -1, "")
 	flags.StringVar(&task, "task", "", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &l.Meta, l.Name())
+	if err != nil {
 		return 1
 	}
-	args = flags.Args()
 
 	if numArgs := len(args); numArgs < 1 {
 		if job {

@@ -74,11 +74,13 @@ func (r *RecommendationDismissCommand) Run(args []string) int {
 
 	flags := r.Meta.FlagSet(r.Name(), FlagSetClient)
 	flags.Usage = func() { r.Ui.Output(r.Help()) }
-	if err := flags.Parse(args); err != nil {
+
+	args, err := ParseFlags(args, flags, &r.Meta, r.Name())
+	if err != nil {
 		return 1
 	}
 
-	if args = flags.Args(); len(args) < 1 {
+	if len(args) < 1 {
 		r.Ui.Error("This command takes at least one argument: <recommendation_id>")
 		r.Ui.Error(commandErrorText(r))
 		return 1

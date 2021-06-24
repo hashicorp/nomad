@@ -28,7 +28,7 @@ General Options:
 
 Client Config Options:
 
-  -servers
+  --servers
     List the known server addresses of the client node. Client nodes do not
     participate in the gossip pool, and instead register with these servers
     periodically over the network.
@@ -36,7 +36,7 @@ Client Config Options:
     If ACLs are enabled, this option requires a token with the 'agent:read'
     capability.
 
-  -update-servers
+  --update-servers
     Updates the client's server list using the provided arguments. Multiple
     server addresses may be passed using multiple arguments. IMPORTANT: When
     updating the servers list, you must specify ALL of the server nodes you
@@ -65,10 +65,10 @@ func (c *NodeConfigCommand) Run(args []string) int {
 	flags.BoolVar(&listServers, "servers", false, "")
 	flags.BoolVar(&updateServers, "update-servers", false, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
-	args = flags.Args()
 
 	// Check the flags for misuse
 	if !listServers && !updateServers {

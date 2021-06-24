@@ -38,7 +38,7 @@ General Options:
 
 Apply Options:
 
-  -json
+  --json, -j
     Parse the input as a JSON quota specification.
 `
 
@@ -48,7 +48,7 @@ Apply Options:
 func (c *QuotaApplyCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json": complete.PredictNothing,
+			"--json": complete.PredictNothing,
 		})
 }
 
@@ -66,14 +66,14 @@ func (c *QuotaApplyCommand) Run(args []string) int {
 	var jsonInput bool
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&jsonInput, "json", false, "")
+	flags.BoolVarP(&jsonInput, "json", "j", false, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we get exactly one argument
-	args = flags.Args()
 	if l := len(args); l != 1 {
 		c.Ui.Error("This command takes one argument: <input>")
 		c.Ui.Error(commandErrorText(c))
@@ -83,7 +83,6 @@ func (c *QuotaApplyCommand) Run(args []string) int {
 	// Read the file contents
 	file := args[0]
 	var rawQuota []byte
-	var err error
 	if file == "-" {
 		rawQuota, err = ioutil.ReadAll(os.Stdin)
 		if err != nil {

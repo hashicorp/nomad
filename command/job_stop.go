@@ -33,24 +33,24 @@ General Options:
 
 Stop Options:
 
-  -detach
+  --detach, -d
     Return immediately instead of entering monitor mode. After the
     deregister command is submitted, a new evaluation ID is printed to the
     screen, which can be used to examine the evaluation using the eval-status
     command.
 
-  -purge
+  -0purge
     Purge is used to stop the job and purge it from the system. If not set, the
     job will still be queryable and will be purged by the garbage collector.
 
-  -global
+  --global
     Stop a multi-region job in all its regions. By default job stop will stop
     only a single region at a time. Ignored for single-region jobs.
 
-  -yes
+  --yes
     Automatic yes to prompts.
 
-  -verbose
+  --verbose, -v
     Display full information.
 `
 	return strings.TrimSpace(helpText)
@@ -63,11 +63,11 @@ func (c *JobStopCommand) Synopsis() string {
 func (c *JobStopCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-detach":  complete.PredictNothing,
-			"-purge":   complete.PredictNothing,
-			"-global":  complete.PredictNothing,
-			"-yes":     complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
+			"--detach":  complete.PredictNothing,
+			"--purge":   complete.PredictNothing,
+			"--global":  complete.PredictNothing,
+			"--yes":     complete.PredictNothing,
+			"--verbose": complete.PredictNothing,
 		})
 }
 
@@ -93,13 +93,14 @@ func (c *JobStopCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&detach, "detach", false, "")
-	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVarP(&detach, "detach", "d", false, "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
 	flags.BoolVar(&global, "global", false, "")
 	flags.BoolVar(&autoYes, "yes", false, "")
 	flags.BoolVar(&purge, "purge", false, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
@@ -110,7 +111,6 @@ func (c *JobStopCommand) Run(args []string) int {
 	}
 
 	// Check that we got exactly one job
-	args = flags.Args()
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <job>")
 		c.Ui.Error(commandErrorText(c))

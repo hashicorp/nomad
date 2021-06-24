@@ -35,17 +35,17 @@ General Options:
 
 Recommendation Apply Options:
 
-  -detach
+  --detach, -d
     Return immediately instead of entering monitor mode. After applying a
     recommendation, the evaluation ID will be printed to the screen, which can
     be used to examine the evaluation using the eval-status command. If applying
     recommendations for multiple jobs, this value will always be true.
 
-  -policy-override
+  --policy-override
     If set, any soft mandatory Sentinel policies will be overridden. This allows
     a recommendation to be applied when it would be denied by a policy.
 
-  -verbose
+  --verbose, -v
     Display full information.
 `
 	return strings.TrimSpace(helpText)
@@ -59,9 +59,9 @@ func (r *RecommendationApplyCommand) Synopsis() string {
 func (r *RecommendationApplyCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(r.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-detach":          complete.PredictNothing,
-			"-policy-override": complete.PredictNothing,
-			"-verbose":         complete.PredictNothing,
+			"--detach":          complete.PredictNothing,
+			"--policy-override": complete.PredictNothing,
+			"--verbose":         complete.PredictNothing,
 		})
 }
 
@@ -75,13 +75,15 @@ func (r *RecommendationApplyCommand) Run(args []string) int {
 	flags := r.Meta.FlagSet(r.Name(), FlagSetClient)
 	flags.Usage = func() { r.Ui.Output(r.Help()) }
 	flags.BoolVar(&override, "policy-override", false, "")
-	flags.BoolVar(&detach, "detach", false, "")
-	flags.BoolVar(&verbose, "verbose", false, "")
-	if err := flags.Parse(args); err != nil {
+	flags.BoolVarP(&detach, "detach", "d", false, "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
+
+	args, err := ParseFlags(args, flags, &r.Meta, r.Name())
+	if err != nil {
 		return 1
 	}
 
-	if args = flags.Args(); len(args) < 1 {
+	if len(args) < 1 {
 		r.Ui.Error("This command takes at least one argument: <recommendation_id>")
 		r.Ui.Error(commandErrorText(r))
 		return 1

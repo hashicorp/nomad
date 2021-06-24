@@ -32,7 +32,7 @@ General Options:
 
 Server Members Options:
 
-  -detailed
+  --detailed
     Show detailed information about each member. This dumps
     a raw set of tags which shows more information than the
     default output format.
@@ -43,7 +43,7 @@ Server Members Options:
 func (c *ServerMembersCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-detailed": complete.PredictNothing,
+			"--detailed": complete.PredictNothing,
 		})
 }
 
@@ -64,12 +64,12 @@ func (c *ServerMembersCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detailed, "detailed", false, "Show detailed output")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check for extra arguments
-	args = flags.Args()
 	if len(args) != 0 {
 		c.Ui.Error("This command takes no arguments")
 		c.Ui.Error(commandErrorText(c))

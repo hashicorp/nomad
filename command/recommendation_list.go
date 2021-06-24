@@ -35,21 +35,21 @@ General Options:
 
 Recommendation List Options:
 
-  -job
+  --job
     Specifies the job ID to filter the recommendations list by.
 
-  -group
+  --group
     Specifies the task group name to filter within a job. If specified, the -job
     flag must also be specified.
 
-  -task
+  --task
     Specifies the task name to filter within a job and task group. If specified,
     the -job and -group flags must also be specified.
 
-  -json
+  --json, -j
     Output the recommendations in JSON format.
 
-  -t
+  --template, -t
     Format and display the recommendations using a Go template.
 `
 	return strings.TrimSpace(helpText)
@@ -63,11 +63,11 @@ func (r *RecommendationListCommand) Synopsis() string {
 func (r *RecommendationListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(r.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-job":   complete.PredictNothing,
-			"-group": complete.PredictNothing,
-			"-task":  complete.PredictNothing,
-			"-json":  complete.PredictNothing,
-			"-t":     complete.PredictAnything,
+			"--job":      complete.PredictNothing,
+			"--group":    complete.PredictNothing,
+			"--task":     complete.PredictNothing,
+			"--json":     complete.PredictNothing,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -81,16 +81,18 @@ func (r *RecommendationListCommand) Run(args []string) int {
 
 	flags := r.Meta.FlagSet(r.Name(), FlagSetClient)
 	flags.Usage = func() { r.Ui.Output(r.Help()) }
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVarP(&json, "json", "j", false, "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
 	flags.StringVar(&job, "job", "", "")
 	flags.StringVar(&group, "group", "", "")
 	flags.StringVar(&task, "task", "", "")
-	if err := flags.Parse(args); err != nil {
+
+	args, err := ParseFlags(args, flags, &r.Meta, r.Name())
+	if err != nil {
 		return 1
 	}
 
-	if args = flags.Args(); len(args) > 0 {
+	if len(args) > 0 {
 		r.Ui.Error("This command takes no arguments")
 		r.Ui.Error(commandErrorText(r))
 	}

@@ -40,50 +40,50 @@ General Options:
 
 Node Drain Options:
 
-  -disable
+  --disable
     Disable draining for the specified node.
 
-  -enable
+  --enable
     Enable draining for the specified node.
 
-  -deadline <duration>
+  --deadline <duration>
     Set the deadline by which all allocations must be moved off the node.
     Remaining allocations after the deadline are forced removed from the node.
     If unspecified, a default deadline of one hour is applied.
 
-  -detach
+  --detach, -d
     Return immediately instead of entering monitor mode.
 
-  -monitor
+  --monitor
     Enter monitor mode directly without modifying the drain status.
 
-  -force
+  --force
     Force remove allocations off the node immediately.
 
-  -no-deadline
+  --no-deadline
     No deadline allows the allocations to drain off the node without being force
     stopped after a certain deadline.
 
-  -ignore-system
+  --ignore-system
     Ignore system allows the drain to complete without stopping system job
     allocations. By default system jobs are stopped last.
 
-  -keep-ineligible
+  --keep-ineligible
     Keep ineligible will maintain the node's scheduling ineligibility even if
     the drain is being disabled. This is useful when an existing drain is being
     cancelled but additional scheduling on the node is not desired.
 
-  -m 
+  --message, -m 
     Message for the drain update operation. Registered in drain metadata as
     "message" during drain enable and "cancel_message" during drain disable.
 
-  -meta <key>=<value>
+  --meta <key>=<value>
     Custom metadata to store on the drain operation, can be used multiple times.
 
-  -self
+  --self
     Set the drain status of the local node.
 
-  -yes
+  --yes
     Automatic yes to prompts.
 `
 	return strings.TrimSpace(helpText)
@@ -96,18 +96,18 @@ func (c *NodeDrainCommand) Synopsis() string {
 func (c *NodeDrainCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-disable":         complete.PredictNothing,
-			"-enable":          complete.PredictNothing,
-			"-deadline":        complete.PredictAnything,
-			"-detach":          complete.PredictNothing,
-			"-force":           complete.PredictNothing,
-			"-no-deadline":     complete.PredictNothing,
-			"-ignore-system":   complete.PredictNothing,
-			"-keep-ineligible": complete.PredictNothing,
-			"-m":               complete.PredictNothing,
-			"-meta":            complete.PredictNothing,
-			"-self":            complete.PredictNothing,
-			"-yes":             complete.PredictNothing,
+			"--disable":         complete.PredictNothing,
+			"--enable":          complete.PredictNothing,
+			"--deadline":        complete.PredictAnything,
+			"--detach":          complete.PredictNothing,
+			"--force":           complete.PredictNothing,
+			"--no-deadline":     complete.PredictNothing,
+			"--ignore-system":   complete.PredictNothing,
+			"--keep-ineligible": complete.PredictNothing,
+			"--message":         complete.PredictNothing,
+			"--meta":            complete.PredictNothing,
+			"--self":            complete.PredictNothing,
+			"--yes":             complete.PredictNothing,
 		})
 }
 
@@ -140,7 +140,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	flags.BoolVar(&enable, "enable", false, "Enable drain mode")
 	flags.BoolVar(&disable, "disable", false, "Disable drain mode")
 	flags.StringVar(&deadline, "deadline", "", "Deadline after which allocations are force stopped")
-	flags.BoolVar(&detach, "detach", false, "")
+	flags.BoolVarP(&detach, "detach", "d", false, "")
 	flags.BoolVar(&force, "force", false, "Force immediate drain")
 	flags.BoolVar(&noDeadline, "no-deadline", false, "Drain node with no deadline")
 	flags.BoolVar(&ignoreSystem, "ignore-system", false, "Do not drain system job allocations from the node")
@@ -148,10 +148,11 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	flags.BoolVar(&self, "self", false, "")
 	flags.BoolVar(&autoYes, "yes", false, "Automatic yes to prompts.")
 	flags.BoolVar(&monitor, "monitor", false, "Monitor drain status.")
-	flags.StringVar(&message, "m", "", "Drain message")
+	flags.StringVarP(&message, "message", "m", "", "Drain message")
 	flags.Var(&metaVars, "meta", "Drain metadata")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
@@ -170,7 +171,6 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	}
 
 	// Check that we got a node ID
-	args = flags.Args()
 	if l := len(args); self && l != 0 || !self && l != 1 {
 		c.Ui.Error("Node ID must be specified if -self isn't being used")
 		c.Ui.Error(commandErrorText(c))

@@ -34,20 +34,20 @@ General Options:
 
 Status Options:
 
-  -type <type>
+  --type <type>
     List only volumes of type <type>.
 
-  -short
+  --short
     Display short output. Used only when a single volume is being
     queried, and drops verbose information about allocations.
 
-  -verbose
+  --verbose, v
     Display full allocation information.
 
-  -json
+  --json, -j
     Output the allocation in its JSON format.
 
-  -t
+  --template, -t
     Format and display allocation using a Go template.
 `
 	return strings.TrimSpace(helpText)
@@ -60,11 +60,11 @@ func (c *VolumeStatusCommand) Synopsis() string {
 func (c *VolumeStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-type":    predictVolumeType,
-			"-short":   complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
-			"-json":    complete.PredictNothing,
-			"-t":       complete.PredictAnything,
+			"--type":     predictVolumeType,
+			"--short":    complete.PredictNothing,
+			"--verbose":  complete.PredictNothing,
+			"--json":     complete.PredictNothing,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -92,17 +92,17 @@ func (c *VolumeStatusCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&typeArg, "type", "", "")
 	flags.BoolVar(&c.short, "short", false, "")
-	flags.BoolVar(&c.verbose, "verbose", false, "")
-	flags.BoolVar(&c.json, "json", false, "")
-	flags.StringVar(&c.template, "t", "", "")
+	flags.BoolVarP(&c.verbose, "verbose", "v", false, "")
+	flags.BoolVarP(&c.json, "json", "j", false, "")
+	flags.StringVarP(&c.template, "template", "t", "", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
 		return 1
 	}
 
 	// Check that we either got no arguments or exactly one
-	args = flags.Args()
 	if len(args) > 1 {
 		c.Ui.Error("This command takes either no arguments or one: <id>")
 		c.Ui.Error(commandErrorText(c))

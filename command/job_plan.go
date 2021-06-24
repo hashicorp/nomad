@@ -72,23 +72,23 @@ General Options:
 
 Plan Options:
 
-  -diff
+  --diff
     Determines whether the diff between the remote job and planned job is shown.
     Defaults to true.
 
-  -hcl1
+  --hcl1
     Parses the job file as HCLv1.
 
-  -policy-override
+  --policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
 
-  -var 'key=value'
+  --var 'key=value'
     Variable for template, can be used multiple times.
 
-  -var-file=path
+  --var-file=path
     Path to HCL2 file containing user variables.
 
-  -verbose
+  --verbose, -v
     Increase diff verbosity.
 `
 	return strings.TrimSpace(helpText)
@@ -101,12 +101,12 @@ func (c *JobPlanCommand) Synopsis() string {
 func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-diff":            complete.PredictNothing,
-			"-policy-override": complete.PredictNothing,
-			"-verbose":         complete.PredictNothing,
-			"-hcl1":            complete.PredictNothing,
-			"-var":             complete.PredictAnything,
-			"-var-file":        complete.PredictFiles("*.var"),
+			"--diff":            complete.PredictNothing,
+			"--policy-override": complete.PredictNothing,
+			"--verbose":         complete.PredictNothing,
+			"--hcl1":            complete.PredictNothing,
+			"--var":             complete.PredictAnything,
+			"--var-file":        complete.PredictFiles("*.var"),
 		})
 }
 
@@ -123,17 +123,17 @@ func (c *JobPlanCommand) Run(args []string) int {
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
 	flagSet.BoolVar(&diff, "diff", true, "")
 	flagSet.BoolVar(&policyOverride, "policy-override", false, "")
-	flagSet.BoolVar(&verbose, "verbose", false, "")
+	flagSet.BoolVarP(&verbose, "verbose", "v", false, "")
 	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
 	flagSet.Var(&varArgs, "var", "")
 	flagSet.Var(&varFiles, "var-file", "")
 
-	if err := flagSet.Parse(args); err != nil {
+	args, err := ParseFlags(args, flagSet, &c.Meta, c.Name())
+	if err != nil {
 		return 255
 	}
 
 	// Check that we got exactly one job
-	args = flagSet.Args()
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <path>")
 		c.Ui.Error(commandErrorText(c))

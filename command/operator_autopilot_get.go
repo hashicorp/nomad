@@ -24,7 +24,8 @@ func (c *OperatorAutopilotGetCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet("autopilot", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse args: %v", err))
 		return 1
 	}

@@ -32,16 +32,16 @@ General Options:
 
 Eval Options:
 
-  -force-reschedule
+  --force-reschedule
     Force reschedule failed allocations even if they are not currently
     eligible for rescheduling.
 
-  -detach
+  --detach, -d
     Return immediately instead of entering monitor mode. The ID
     of the evaluation created will be printed to the screen, which can be
     used to examine the evaluation using the eval-status command.
 
-  -verbose
+  --verbose, -v
     Display full information.
 `
 	return strings.TrimSpace(helpText)
@@ -54,9 +54,9 @@ func (c *JobEvalCommand) Synopsis() string {
 func (c *JobEvalCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-force-reschedule": complete.PredictNothing,
-			"-detach":           complete.PredictNothing,
-			"-verbose":          complete.PredictNothing,
+			"--force-reschedule": complete.PredictNothing,
+			"--detach":           complete.PredictNothing,
+			"--verbose":          complete.PredictNothing,
 		})
 }
 
@@ -83,15 +83,15 @@ func (c *JobEvalCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&c.forceRescheduling, "force-reschedule", false, "")
-	flags.BoolVar(&detach, "detach", false, "")
-	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVarP(&detach, "detach", "d", false, "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we either got no jobs or exactly one.
-	args = flags.Args()
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <job>")
 		c.Ui.Error(commandErrorText(c))

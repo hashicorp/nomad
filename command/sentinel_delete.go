@@ -46,12 +46,13 @@ func (c *SentinelDeleteCommand) Name() string { return "sentinel delete" }
 func (c *SentinelDeleteCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	if err := flags.Parse(args); err != nil {
+
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got exactly one arguments
-	args = flags.Args()
 	if l := len(args); l != 1 {
 		c.Ui.Error("This command takes one argument: <name>")
 		c.Ui.Error(commandErrorText(c))

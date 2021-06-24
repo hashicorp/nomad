@@ -2,6 +2,7 @@ package command
 
 import (
 	goflag "flag"
+	"fmt"
 	"os"
 	"strings"
 
@@ -69,7 +70,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 	if fs&FlagSetClient != 0 {
 		f.StringVarP(&m.flagAddress, "address", "a", "", "")
 		f.StringVarP(&m.region, "region", "r", "", "")
-		f.StringVarP(&m.namespace, "namespace", "n", "", "")
+		f.StringVar(&m.namespace, "namespace", "", "")
 		f.BoolVar(&m.noColor, "no-color", false, "")
 		f.StringVar(&m.caCert, "ca-cert", "", "")
 		f.StringVar(&m.caPath, "ca-path", "", "")
@@ -88,7 +89,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 
 // Same as FlagSet, but uses the go flag library instead of pflag
 // Used to maintain backwards compatibility
-func (m *Meta) OldFlagSet(n string, fs FlagSetFlags) *goflag.FlagSet {
+func (m *Meta) GoFlagSet(n string, fs FlagSetFlags) *goflag.FlagSet {
 	f := goflag.NewFlagSet(n, goflag.ContinueOnError)
 
 	// FlagSetClient is used to enable the settings for specifying
@@ -211,7 +212,7 @@ func generalOptionsUsage(usageOpts usageOptsFlags) string {
 `
 
 	namespaceText := `
-  --namespace=<namespace>, -n <namespace>
+  --namespace=<namespace>
     The target namespace for queries and actions bound to a namespace.
     Overrides the NOMAD_NAMESPACE environment variable if set.
     If set to '*', job and alloc subcommands query all namespaces authorized
@@ -269,11 +270,20 @@ func generalOptionsUsage(usageOpts usageOptsFlags) string {
 	return strings.TrimSpace(helpText)
 }
 
-// funcVar is a type of flag that accepts a function that is the string given
-// by the user.
-type funcVar func(s string) error
+func ParseFlags(args []string, flags *flag.FlagSet, meta *Meta, name string) ([]string, error) {
+	if err := flags.Parse(args); err != nil {
+		goflags := meta.GoFlagSet(name, FlagSetClient)
 
-func (f funcVar) Set(s string) error { return f(s) }
-func (f funcVar) String() string     { return "" }
-func (f funcVar) Type() string       { return "string" }
-func (f funcVar) IsBoolFlag() bool   { return false }
+		flags.Visit(func(f *flag.Flag) {
+			goflags.Var(f.Value, f.Name, f.Usage)
+		})
+
+		fmt.Println("NEXT UP PARSING")
+		if e := goflags.Parse(args); e != nil {
+			return nil, err
+		}
+		meta.Ui.Warn("Parsing error, falling back to non-posix flags")
+		return goflags.Args(), nil
+	}
+	return flags.Args(), nil
+}

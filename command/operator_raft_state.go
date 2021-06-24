@@ -27,7 +27,7 @@ Usage: nomad operator raft _state <path to nomad data dir>
 
 Options:
 
-  -last-index=<last_index>
+  --last-index=<last_index>
     Set the last log index to be applied, to drop spurious log entries not
     properly committed. If passed last_index is zero or negative, it's perceived
     as an offset from the last index seen in raft.
@@ -56,11 +56,11 @@ func (c *OperatorRaftStateCommand) Run(args []string) int {
 	flags.Usage = func() { fmt.Println(c.Help()) }
 	flags.Int64Var(&fLastIdx, "last-index", 0, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse args: %v", err))
 		return 1
 	}
-	args = flags.Args()
 
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <path>")

@@ -56,13 +56,13 @@ func (c *OperatorSnapshotRestoreCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse args: %v", err))
 		return 1
 	}
 
 	// Check for misuse
-	args = flags.Args()
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <filename>")
 		c.Ui.Error(commandErrorText(c))

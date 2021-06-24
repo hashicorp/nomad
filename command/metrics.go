@@ -68,12 +68,12 @@ func (c *OperatorMetricsCommand) Run(args []string) int {
 	flags.BoolVarP(&json, "json", "j", false, "")
 	flags.StringVarP(&tmpl, "template", "t", "", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing flags: %s", err))
 		return 1
 	}
 
-	args = flags.Args()
 	if l := len(args); l != 0 {
 		c.Ui.Error("This command takes no arguments")
 		c.Ui.Error(commandErrorText(c))

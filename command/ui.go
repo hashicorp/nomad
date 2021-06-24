@@ -33,7 +33,7 @@ General Options:
 
 UI Options
 
-  -authenticate: Exchange your Nomad ACL token for a one-time token in the
+  --authenticate: Exchange your Nomad ACL token for a one-time token in the
     web UI, if ACLs are enabled.
 `
 
@@ -87,12 +87,12 @@ func (c *UiCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&authenticate, "authenticate", false, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got no more than one argument
-	args = flags.Args()
 	if l := len(args); l > 1 {
 		c.Ui.Error("This command takes no or one optional argument, [<identifier>]")
 		c.Ui.Error(commandErrorText(c))

@@ -35,13 +35,13 @@ General Options:
 
 Policy Info Options:
 
-  -verbose
+  --verbose, -v
     Display full information.
 
-  -json
+  --json, -j
     Output the scaling policy in its JSON format.
 
-  -t
+  --template, -t
     Format and display the scaling policy using a Go template.
 `
 	return strings.TrimSpace(helpText)
@@ -55,9 +55,9 @@ func (s *ScalingPolicyInfoCommand) Synopsis() string {
 func (s *ScalingPolicyInfoCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(s.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-verbose": complete.PredictNothing,
-			"-json":    complete.PredictNothing,
-			"-t":       complete.PredictAnything,
+			"--verbose":  complete.PredictNothing,
+			"--json":     complete.PredictNothing,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -86,10 +86,12 @@ func (s *ScalingPolicyInfoCommand) Run(args []string) int {
 
 	flags := s.Meta.FlagSet(s.Name(), FlagSetClient)
 	flags.Usage = func() { s.Ui.Output(s.Help()) }
-	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
-	if err := flags.Parse(args); err != nil {
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
+	flags.BoolVarP(&json, "json", "j", false, "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
+
+	args, err := ParseFlags(args, flags, &s.Meta, s.Name())
+	if err != nil {
 		return 1
 	}
 
@@ -105,8 +107,6 @@ func (s *ScalingPolicyInfoCommand) Run(args []string) int {
 		s.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
 	}
-
-	args = flags.Args()
 
 	// Formatted list mode if no policy ID
 	if len(args) == 0 && (json || len(tmpl) > 0) {

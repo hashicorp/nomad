@@ -46,11 +46,13 @@ func (c *SentinelListCommand) Name() string { return "sentinel list" }
 func (c *SentinelListCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	if err := flags.Parse(args); err != nil {
+
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
-	if args = flags.Args(); len(args) > 0 {
+	if len(args) > 0 {
 		c.Ui.Error("This command takes no arguments")
 		c.Ui.Error(commandErrorText(c))
 	}

@@ -45,7 +45,7 @@ General Options:
 
 Snapshot Save Options:
 
-  -stale=[true|false]
+  --stale=[true|false]
     The -stale argument defaults to "false" which means the leader provides the
     result. If the cluster is in an outage state without a leader, you may need
     to set -stale to "true" to get the configuration from a non-leader server.
@@ -56,7 +56,7 @@ Snapshot Save Options:
 func (c *OperatorSnapshotSaveCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-stale": complete.PredictAnything,
+			"--stale": complete.PredictAnything,
 		})
 }
 
@@ -77,14 +77,14 @@ func (c *OperatorSnapshotSaveCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	flags.BoolVar(&stale, "stale", false, "")
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse args: %v", err))
 		return 1
 	}
 
 	// Check for misuse
 	// Check that we either got no filename or exactly one.
-	args = flags.Args()
 	if len(args) > 1 {
 		c.Ui.Error("This command takes either no arguments or one: <filename>")
 		c.Ui.Error(commandErrorText(c))

@@ -35,7 +35,7 @@ Usage: nomad volume init <filename>
 
 Init Options:
 
-  -json
+  --json, -j
     Create an example JSON volume specification.
 `
 	return strings.TrimSpace(helpText)
@@ -47,7 +47,7 @@ func (c *VolumeInitCommand) Synopsis() string {
 
 func (c *VolumeInitCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-json": complete.PredictNothing,
+		"--json": complete.PredictNothing,
 	}
 }
 
@@ -61,14 +61,14 @@ func (c *VolumeInitCommand) Run(args []string) int {
 	var jsonOutput bool
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&jsonOutput, "json", false, "")
+	flags.BoolVarP(&jsonOutput, "json", "j", false, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we get no arguments
-	args = flags.Args()
 	if l := len(args); l > 1 {
 		c.Ui.Error("This command takes no arguments or one: <filename>")
 		c.Ui.Error(commandErrorText(c))
@@ -86,7 +86,7 @@ func (c *VolumeInitCommand) Run(args []string) int {
 	}
 
 	// Check if the file already exists
-	_, err := os.Stat(fileName)
+	_, err = os.Stat(fileName)
 	if err != nil && !os.IsNotExist(err) {
 		c.Ui.Error(fmt.Sprintf("Failed to stat %q: %v", fileName, err))
 		return 1

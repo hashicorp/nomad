@@ -33,7 +33,7 @@ General Options:
 
 List Options:
 
-  -plugin: Display only snapshots managed by a particular plugin. By default
+  --plugin: Display only snapshots managed by a particular plugin. By default
    this command will query all plugins for their snapshots.
 `
 	return strings.TrimSpace(helpText)
@@ -72,14 +72,14 @@ func (c *VolumeSnapshotListCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&pluginID, "plugin", "", "")
-	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
 		return 1
 	}
 
-	args = flags.Args()
 	if len(args) > 0 {
 		c.Ui.Error("This command takes no arguments")
 		c.Ui.Error(commandErrorText(c))

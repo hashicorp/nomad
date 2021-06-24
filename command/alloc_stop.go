@@ -54,12 +54,12 @@ func (c *AllocStopCommand) Run(args []string) int {
 	flags.BoolVarP(&detach, "detach", "d", false, "")
 	flags.BoolVarP(&verbose, "verbose", "v", false, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got exactly one alloc
-	args = flags.Args()
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <alloc-id>")
 		c.Ui.Error(commandErrorText(c))

@@ -110,11 +110,10 @@ func (l *AllocExecCommand) Run(args []string) int {
 	flags.StringVarP(&escapeChar, "escape", "e", "~", "")
 	flags.StringVar(&task, "task", "", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &l.Meta, l.Name())
+	if err != nil {
 		return 1
 	}
-
-	args = flags.Args()
 
 	if len(args) < 1 {
 		if job {

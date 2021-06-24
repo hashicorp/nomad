@@ -37,19 +37,19 @@ General Options:
 
 Dispatch Options:
 
-  -meta <key>=<value>
+  --meta <key>=<value>
     Meta takes a key/value pair separated by "=". The metadata key will be
     merged into the job's metadata. The job may define a default value for the
     key which is overridden when dispatching. The flag can be provided more than
     once to inject multiple metadata key/value pairs. Arbitrary keys are not
     allowed. The parameterized job must allow the key to be merged.
 
-  -detach
+  --detach, -d
     Return immediately instead of entering monitor mode. After job dispatch,
     the evaluation ID will be printed to the screen, which can be used to
     examine the evaluation using the eval-status command.
 
-  -verbose
+  --verbose, -v
     Display full information.
 `
 	return strings.TrimSpace(helpText)
@@ -62,9 +62,9 @@ func (c *JobDispatchCommand) Synopsis() string {
 func (c *JobDispatchCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-meta":    complete.PredictAnything,
-			"-detach":  complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
+			"--meta":    complete.PredictAnything,
+			"--detach":  complete.PredictNothing,
+			"--verbose": complete.PredictNothing,
 		})
 }
 
@@ -91,11 +91,12 @@ func (c *JobDispatchCommand) Run(args []string) int {
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&detach, "detach", false, "")
-	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVarP(&detach, "detach", "d", false, "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
@@ -106,7 +107,6 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	}
 
 	// Check that we got one or two arguments
-	args = flags.Args()
 	if l := len(args); l < 1 || l > 2 {
 		c.Ui.Error("This command takes one or two argument: <parameterized job> [input source]")
 		c.Ui.Error(commandErrorText(c))

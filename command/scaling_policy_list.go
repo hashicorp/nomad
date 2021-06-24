@@ -36,19 +36,19 @@ General Options:
 
 Policy Info Options:
 
-  -job
+  --job
     Specifies the job ID to filter the scaling policies list by.
 
-  -type
+  --type
     Filter scaling policies by type.
 
-  -verbose
+  --verbose, -v
     Display full information.
 
-  -json
+  --json, -j
     Output the scaling policy in its JSON format.
 
-  -t
+  --template, -t
     Format and display the scaling policy using a Go template.
 `
 	return strings.TrimSpace(helpText)
@@ -62,11 +62,11 @@ func (s *ScalingPolicyListCommand) Synopsis() string {
 func (s *ScalingPolicyListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(s.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-verbose": complete.PredictNothing,
-			"-job":     complete.PredictNothing,
-			"-type":    complete.PredictNothing,
-			"-json":    complete.PredictNothing,
-			"-t":       complete.PredictAnything,
+			"--verbose":  complete.PredictNothing,
+			"--job":      complete.PredictNothing,
+			"--type":     complete.PredictNothing,
+			"--json":     complete.PredictNothing,
+			"--template": complete.PredictAnything,
 		})
 }
 
@@ -80,16 +80,18 @@ func (s *ScalingPolicyListCommand) Run(args []string) int {
 
 	flags := s.Meta.FlagSet(s.Name(), FlagSetClient)
 	flags.Usage = func() { s.Ui.Output(s.Help()) }
-	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
+	flags.BoolVarP(&json, "json", "j", false, "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
 	flags.StringVar(&policyType, "type", "", "")
 	flags.StringVar(&job, "job", "", "")
-	if err := flags.Parse(args); err != nil {
+
+	args, err := ParseFlags(args, flags, &s.Meta, s.Name())
+	if err != nil {
 		return 1
 	}
 
-	if args = flags.Args(); len(args) > 0 {
+	if len(args) > 0 {
 		s.Ui.Error("This command takes no arguments")
 		s.Ui.Error(commandErrorText(s))
 		return 1

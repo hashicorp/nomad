@@ -29,16 +29,16 @@ General Options:
 
 Eval Status Options:
 
-  -monitor
+  --monitor
     Monitor an outstanding evaluation
 
-  -verbose
+  --verbose, -v
     Show full information.
 
-  -json
+  --json, -j
     Output the evaluation in its JSON format.
 
-  -t
+  --template, -t
     Format and display evaluation using a Go template.
 `
 
@@ -52,10 +52,10 @@ func (c *EvalStatusCommand) Synopsis() string {
 func (c *EvalStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json":    complete.PredictNothing,
-			"-monitor": complete.PredictNothing,
-			"-t":       complete.PredictAnything,
-			"-verbose": complete.PredictNothing,
+			"--json":     complete.PredictNothing,
+			"--monitor":  complete.PredictNothing,
+			"--template": complete.PredictAnything,
+			"--verbose":  complete.PredictNothing,
 		})
 }
 
@@ -83,20 +83,17 @@ func (c *EvalStatusCommand) Name() string { return "eval status" }
 func (c *EvalStatusCommand) Run(args []string) int {
 	var monitor, verbose, json bool
 	var tmpl string
-
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&monitor, "monitor", false, "")
-	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.BoolVar(&json, "json", false, "")
-	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVarP(&verbose, "verbose", "v", false, "")
+	flags.BoolVarP(&json, "json", "j", false, "")
+	flags.StringVarP(&tmpl, "template", "t", "", "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
-
-	// Check that we got exactly one evaluation ID
-	args = flags.Args()
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()

@@ -49,7 +49,7 @@ General Options:
 
 FS Specific Options:
 
-  --placeholder, -H
+  --dereference-command-line, -H
     Machine friendly output.
 
   --verbose, -v
@@ -86,14 +86,14 @@ func (f *AllocFSCommand) Synopsis() string {
 func (c *AllocFSCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"--placeholder": complete.PredictNothing, // TODO actually fill in: dereference-command-line?
-			"--verbose":     complete.PredictNothing,
-			"--job":         complete.PredictAnything,
-			"--stat":        complete.PredictNothing,
-			"--follow":      complete.PredictNothing,
-			"--tail":        complete.PredictNothing,
-			"--lines":       complete.PredictAnything,
-			"--bytes":       complete.PredictAnything,
+			"--dereference-command-line": complete.PredictNothing, // TODO double check this
+			"--verbose":                  complete.PredictNothing,
+			"--job":                      complete.PredictAnything,
+			"--stat":                     complete.PredictNothing,
+			"--follow":                   complete.PredictNothing,
+			"--tail":                     complete.PredictNothing,
+			"--lines":                    complete.PredictAnything,
+			"--bytes":                    complete.PredictAnything,
 		})
 }
 
@@ -121,7 +121,7 @@ func (f *AllocFSCommand) Run(args []string) int {
 	flags := f.Meta.FlagSet(f.Name(), FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
 	flags.BoolVarP(&verbose, "verbose", "v", false, "")
-	flags.BoolVarP(&machine, "placeholder", "H", false, "")
+	flags.BoolVarP(&machine, "dereference-command-line", "H", false, "")
 	flags.BoolVar(&job, "job", false, "")
 	flags.BoolVar(&stat, "stat", false, "")
 	flags.BoolVarP(&follow, "follow", "f", false, "")
@@ -129,10 +129,10 @@ func (f *AllocFSCommand) Run(args []string) int {
 	flags.Int64VarP(&numLines, "lines", "n", -1, "")
 	flags.Int64VarP(&numBytes, "bytes", "c", -1, "")
 
-	if err := flags.Parse(args); err != nil {
+	args, err := ParseFlags(args, flags, &f.Meta, f.Name())
+	if err != nil {
 		return 1
 	}
-	args = flags.Args()
 
 	if len(args) < 1 {
 		if job {

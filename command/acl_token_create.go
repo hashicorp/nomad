@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
 )
 
@@ -69,16 +70,17 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 	flags.StringVar(&name, "name", "", "")
 	flags.StringVar(&tokenType, "type", "client", "")
 	flags.BoolVar(&global, "global", false, "")
-	flags.Var((funcVar)(func(s string) error {
+	flags.Var((flaghelper.FuncVar)(func(s string) error {
 		policies = append(policies, s)
 		return nil
 	}), "policy", "")
-	if err := flags.Parse(args); err != nil {
+
+	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
 		return 1
 	}
 
 	// Check that we got no arguments
-	args = flags.Args()
 	if l := len(args); l != 0 {
 		c.Ui.Error("This command takes no arguments")
 		c.Ui.Error(commandErrorText(c))
