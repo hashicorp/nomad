@@ -12,6 +12,8 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/stream"
@@ -1858,6 +1860,14 @@ func (s *StateStore) upsertJobVersion(index uint64, job *structs.Job, txn *txn) 
 func (s *StateStore) JobByID(ws memdb.WatchSet, namespace, id string) (*structs.Job, error) {
 	txn := s.db.ReadTxn()
 	return s.JobByIDTxn(ws, namespace, id, txn)
+}
+
+func (s *StateStore) JobByIDWithContext(ctx context.Context, ws memdb.WatchSet, namespace, id string) (*structs.Job, error) {
+	tracer := otel.Tracer("nomad/state/state_store")
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "Job by ID")
+	defer span.End()
+	return s.JobByID(ws, namespace, id)
 }
 
 // JobByIDTxn is used to lookup a job by its ID, like  JobByID. JobByID returns the job version

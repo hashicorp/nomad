@@ -11,6 +11,8 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul/lib"
@@ -51,6 +53,8 @@ type Job struct {
 	srv    *Server
 	logger log.Logger
 
+	tracer trace.Tracer
+
 	// builtin admission controllers
 	mutators   []jobMutator
 	validators []jobValidator
@@ -67,6 +71,7 @@ func NewJobEndpoints(s *Server) *Job {
 			jobExposeCheckHook{},
 			jobImpliedConstraints{},
 		},
+		tracer: otel.Tracer("JobEndpoint"),
 		validators: []jobValidator{
 			jobConnectHook{},
 			jobExposeCheckHook{},
@@ -78,6 +83,11 @@ func NewJobEndpoints(s *Server) *Job {
 
 // Register is used to upsert a job for scheduling
 func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegisterResponse) error {
+	spanCtx := trace.ContextWithSpanContext(context.Background(), args.InternalRpcInfo.ParentSpan.ToOTEL())
+	spanCtx, span := j.tracer.Start(spanCtx, "Register")
+	args.InternalRpcInfo.ParentSpan = structs.NewSpanContext(span.SpanContext())
+	defer span.End()
+
 	if done, err := j.srv.forward("Job.Register", args, args, reply); done {
 		return err
 	}
@@ -94,7 +104,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Run admission controllers
-	job, warnings, err := j.admissionControllers(args.Job)
+	span.AddEvent("Running admission controllers")
+	job, warnings, err := j.admissionControllersWithContext(spanCtx, args.Job)
 	if err != nil {
 		return err
 	}
@@ -102,6 +113,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Attach the Nomad token's accessor ID so that deploymentwatcher
 	// can reference the token later
+	span.AddEvent("Resolving secret token")
 	tokenID, err := j.srv.ResolveSecretToken(args.AuthToken)
 	if err != nil {
 		return err
@@ -114,6 +126,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
 
 	// Check job submission permissions
+	span.AddEvent("Checking ACLs")
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil {
@@ -176,12 +189,13 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Lookup the job
+	span.AddEvent("Lookup job")
 	snap, err := j.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
 	ws := memdb.NewWatchSet()
-	existingJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
+	existingJob, err := snap.JobByIDWithContext(spanCtx, ws, args.RequestNamespace(), args.Job.ID)
 	if err != nil {
 		return err
 	}
@@ -202,16 +216,19 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Validate job transitions if its an update
+	span.AddEvent("Validating job transition")
 	if err := validateJobUpdate(existingJob, args.Job); err != nil {
 		return err
 	}
 
 	// Ensure that all scaling policies have an appropriate ID
+	span.AddEvent("Propagating sclaing policies")
 	if err := propagateScalingPolicyIDs(existingJob, args.Job); err != nil {
 		return err
 	}
 
 	// Ensure that the job has permissions for the requested Vault tokens
+	span.AddEvent("Validate Vault permissions")
 	policies := args.Job.VaultPolicies()
 	if len(policies) != 0 {
 		vconf := j.srv.config.VaultConfig
@@ -277,6 +294,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	// Enforce the job-submitter has a Consul token with necessary ACL permissions.
+	span.AddEvent("Validating Consul permissions")
 	if err := checkConsulToken(args.Job.ConsulUsages()); err != nil {
 		return err
 	}
@@ -308,6 +326,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 
 	// Enforce Sentinel policies. Pass a copy of the job to prevent
 	// sentinel from altering it.
+	span.AddEvent("Enforcing Sentinel policies")
 	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job.Copy())
 	if err != nil {
 		return err
@@ -382,7 +401,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		}
 
 		// Commit this update via Raft
-		fsmErr, index, err := j.srv.raftApply(structs.JobRegisterRequestType, args)
+		span.AddEvent("Registering job")
+		fsmErr, index, err := j.srv.raftApplyWithContext(spanCtx, structs.JobRegisterRequestType, args)
 		if err, ok := fsmErr.(error); ok && err != nil {
 			j.logger.Error("registering job failed", "error", err, "fsm", true)
 			return err
@@ -418,6 +438,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	}
 
 	if eval != nil && !submittedEval {
+		span.AddEvent("Update eval")
 		eval.JobModifyIndex = reply.JobModifyIndex
 		update := &structs.EvalUpdateRequest{
 			Evals:        []*structs.Evaluation{eval},
@@ -427,7 +448,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		// Commit this evaluation via Raft
 		// There is a risk of partial failure where the JobRegister succeeds
 		// but that the EvalUpdate does not, before 0.12.1
-		_, evalIndex, err := j.srv.raftApply(structs.EvalUpdateRequestType, update)
+		_, evalIndex, err := j.srv.raftApplyWithContext(spanCtx, structs.EvalUpdateRequestType, update)
 		if err != nil {
 			j.logger.Error("eval create failed", "error", err, "method", "register")
 			return err
@@ -453,6 +474,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		}
 	}
 
+	span.AddEvent("Done")
 	return nil
 }
 

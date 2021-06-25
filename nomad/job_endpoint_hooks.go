@@ -1,11 +1,14 @@
 package nomad
 
 import (
+	"context"
 	"fmt"
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -40,14 +43,22 @@ type jobValidator interface {
 }
 
 func (j *Job) admissionControllers(job *structs.Job) (out *structs.Job, warnings []error, err error) {
+	return j.admissionControllersWithContext(context.Background(), job)
+}
+func (j *Job) admissionControllersWithContext(ctx context.Context, job *structs.Job) (out *structs.Job, warnings []error, err error) {
+	tracer := otel.Tracer("nomad/job_endpoint_hooks")
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "Admission Controllers")
+	defer span.End()
+
 	// Mutators run first before validators, so validators view the final rendered job.
 	// So, mutators must handle invalid jobs.
-	out, warnings, err = j.admissionMutators(job)
+	out, warnings, err = j.admissionMutatorsWithContext(ctx, job)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	validateWarnings, err := j.admissionValidators(job)
+	validateWarnings, err := j.admissionValidatorsWithContext(ctx, job)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -56,11 +67,25 @@ func (j *Job) admissionControllers(job *structs.Job) (out *structs.Job, warnings
 	return out, warnings, nil
 }
 
-// admissionMutator returns an updated job as well as warnings or an error.
 func (j *Job) admissionMutators(job *structs.Job) (_ *structs.Job, warnings []error, err error) {
+	return j.admissionMutatorsWithContext(context.Background(), job)
+}
+
+// admissionMutator returns an updated job as well as warnings or an error.
+func (j *Job) admissionMutatorsWithContext(ctx context.Context, job *structs.Job) (_ *structs.Job, warnings []error, err error) {
 	var w []error
+
+	tracer := otel.Tracer("nomad/job_endpoint_hooks")
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "Mutators")
+	defer span.End()
+
+	mutatorCtx := ctx
 	for _, mutator := range j.mutators {
+		mutatorCtx, span = tracer.Start(mutatorCtx, mutator.Name())
 		job, w, err = mutator.Mutate(job)
+		span.End()
+
 		j.logger.Trace("job mutate results", "mutator", mutator.Name(), "warnings", w, "error", err)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error in job mutator %s: %v", mutator.Name(), err)
@@ -70,17 +95,30 @@ func (j *Job) admissionMutators(job *structs.Job) (_ *structs.Job, warnings []er
 	return job, warnings, err
 }
 
+func (j *Job) admissionValidators(origJob *structs.Job) ([]error, error) {
+	return j.admissionValidatorsWithContext(context.Background(), origJob)
+}
+
 // admissionValidators returns a slice of validation warnings and a multierror
 // of validation failures.
-func (j *Job) admissionValidators(origJob *structs.Job) ([]error, error) {
+func (j *Job) admissionValidatorsWithContext(ctx context.Context, origJob *structs.Job) ([]error, error) {
 	// ensure job is not mutated
 	job := origJob.Copy()
 
 	var warnings []error
 	var errs error
 
+	tracer := otel.Tracer("nomad/job_endpoint_hooks")
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "Validators")
+	defer span.End()
+
+	validatorCtx := ctx
 	for _, validator := range j.validators {
+		validatorCtx, span = tracer.Start(validatorCtx, validator.Name())
 		w, err := validator.Validate(job)
+		span.End()
+
 		j.logger.Trace("job validate results", "validator", validator.Name(), "warnings", w, "error", err)
 		if err != nil {
 			errs = multierror.Append(errs, err)

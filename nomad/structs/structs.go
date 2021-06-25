@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/lib/cpuset"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
@@ -219,10 +220,51 @@ type RPCInfo interface {
 	IsForwarded() bool
 	SetForwarded()
 	TimeToBlock() time.Duration
+	SetParentSpan(SpanContext)
 	// TimeToBlock sets how long this request can block. The requested time may not be possible,
 	// so Callers should readback TimeToBlock. E.g. you cannot set time to block at all on WriteRequests
 	// and it cannot exceed MaxBlockingRPCQueryTime
 	SetTimeToBlock(t time.Duration)
+}
+
+type SpanContext struct {
+	TraceID    string
+	SpanID     string
+	TraceFlags string
+	TraceState string
+	Remote     bool
+}
+
+func NewSpanContext(s trace.SpanContext) SpanContext {
+	return SpanContext{
+		TraceID:    s.TraceID().String(),
+		SpanID:     s.SpanID().String(),
+		TraceFlags: s.TraceFlags().String(),
+		TraceState: s.TraceState().String(),
+		Remote:     s.IsRemote(),
+	}
+}
+
+func (s SpanContext) ToOTEL() trace.SpanContext {
+	config := trace.SpanContextConfig{}
+	traceID, err := trace.TraceIDFromHex(s.TraceID)
+	spanID, err := trace.SpanIDFromHex(s.SpanID)
+	traceFlags, err := hex.DecodeString(s.TraceFlags)
+	traceState, err := trace.ParseTraceState(s.TraceState)
+
+	if err == nil {
+		config.TraceID = traceID
+		config.SpanID = spanID
+		if len(traceFlags) > 0 {
+			config.TraceFlags = trace.TraceFlags(traceFlags[0])
+		}
+		config.TraceState = traceState
+		config.Remote = s.Remote
+	} else {
+		fmt.Printf("failed to OTEL: %v\n", err)
+	}
+
+	return trace.NewSpanContext(config)
 }
 
 // InternalRpcInfo allows adding internal RPC metadata to an RPC. This struct
@@ -230,6 +272,8 @@ type RPCInfo interface {
 type InternalRpcInfo struct {
 	// Forwarded marks whether the RPC has been forwarded.
 	Forwarded bool
+
+	ParentSpan SpanContext
 }
 
 // IsForwarded returns whether the RPC is forwarded from another server.
@@ -240,6 +284,10 @@ func (i *InternalRpcInfo) IsForwarded() bool {
 // SetForwarded marks that the RPC is being forwarded from another server.
 func (i *InternalRpcInfo) SetForwarded() {
 	i.Forwarded = true
+}
+
+func (i *InternalRpcInfo) SetParentSpan(s SpanContext) {
+	i.ParentSpan = s
 }
 
 // QueryOptions is used to specify various flags for read queries
@@ -434,6 +482,8 @@ type QueryMeta struct {
 
 	// Used to indicate if there is a known leader node
 	KnownLeader bool
+
+	InternalRpcInfo
 }
 
 // WriteMeta allows a write response to include potentially

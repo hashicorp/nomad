@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
+	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -103,7 +105,6 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 
 	// Create the mux
 	mux := http.NewServeMux()
-	otelMux := otelhttp.NewHandler(mux, "op")
 
 	wsUpgrader := &websocket.Upgrader{
 		ReadBufferSize:  2048,
@@ -148,7 +149,7 @@ func NewHTTPServer(agent *Agent, config *Config) (*HTTPServer, error) {
 	// Create HTTP server with timeouts
 	httpServer := http.Server{
 		Addr:      srv.Addr,
-		Handler:   gzip(otelMux),
+		Handler:   gzip(mux),
 		ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
 		ErrorLog:  newHTTPServerLogger(srv.logger),
 	}
@@ -251,92 +252,92 @@ func (s *HTTPServer) Shutdown() {
 
 // registerHandlers is used to attach our handlers to the mux
 func (s *HTTPServer) registerHandlers(enableDebug bool) {
-	s.mux.HandleFunc("/v1/jobs", s.wrap(s.JobsRequest))
-	s.mux.HandleFunc("/v1/jobs/parse", s.wrap(s.JobsParseRequest))
-	s.mux.HandleFunc("/v1/job/", s.wrap(s.JobSpecificRequest))
+	s.mux.Handle("/v1/jobs", s.wrapOpenTelemetry(s.JobsRequest))
+	s.mux.Handle("/v1/jobs/parse", s.wrapOpenTelemetry(s.JobsParseRequest))
+	s.mux.Handle("/v1/job/", s.wrapOpenTelemetry(s.JobSpecificRequest))
 
-	s.mux.HandleFunc("/v1/nodes", s.wrap(s.NodesRequest))
-	s.mux.HandleFunc("/v1/node/", s.wrap(s.NodeSpecificRequest))
+	s.mux.Handle("/v1/nodes", s.wrapOpenTelemetry(s.NodesRequest))
+	s.mux.Handle("/v1/node/", s.wrapOpenTelemetry(s.NodeSpecificRequest))
 
-	s.mux.HandleFunc("/v1/allocations", s.wrap(s.AllocsRequest))
-	s.mux.HandleFunc("/v1/allocation/", s.wrap(s.AllocSpecificRequest))
+	s.mux.Handle("/v1/allocations", s.wrapOpenTelemetry(s.AllocsRequest))
+	s.mux.Handle("/v1/allocation/", s.wrapOpenTelemetry(s.AllocSpecificRequest))
 
-	s.mux.HandleFunc("/v1/evaluations", s.wrap(s.EvalsRequest))
-	s.mux.HandleFunc("/v1/evaluation/", s.wrap(s.EvalSpecificRequest))
+	s.mux.Handle("/v1/evaluations", s.wrapOpenTelemetry(s.EvalsRequest))
+	s.mux.Handle("/v1/evaluation/", s.wrapOpenTelemetry(s.EvalSpecificRequest))
 
-	s.mux.HandleFunc("/v1/deployments", s.wrap(s.DeploymentsRequest))
-	s.mux.HandleFunc("/v1/deployment/", s.wrap(s.DeploymentSpecificRequest))
+	s.mux.Handle("/v1/deployments", s.wrapOpenTelemetry(s.DeploymentsRequest))
+	s.mux.Handle("/v1/deployment/", s.wrapOpenTelemetry(s.DeploymentSpecificRequest))
 
-	s.mux.HandleFunc("/v1/volumes", s.wrap(s.CSIVolumesRequest))
-	s.mux.HandleFunc("/v1/volumes/external", s.wrap(s.CSIExternalVolumesRequest))
-	s.mux.HandleFunc("/v1/volumes/snapshot", s.wrap(s.CSISnapshotsRequest))
-	s.mux.HandleFunc("/v1/volume/csi/", s.wrap(s.CSIVolumeSpecificRequest))
-	s.mux.HandleFunc("/v1/plugins", s.wrap(s.CSIPluginsRequest))
-	s.mux.HandleFunc("/v1/plugin/csi/", s.wrap(s.CSIPluginSpecificRequest))
+	s.mux.Handle("/v1/volumes", s.wrapOpenTelemetry(s.CSIVolumesRequest))
+	s.mux.Handle("/v1/volumes/external", s.wrapOpenTelemetry(s.CSIExternalVolumesRequest))
+	s.mux.Handle("/v1/volumes/snapshot", s.wrapOpenTelemetry(s.CSISnapshotsRequest))
+	s.mux.Handle("/v1/volume/csi/", s.wrapOpenTelemetry(s.CSIVolumeSpecificRequest))
+	s.mux.Handle("/v1/plugins", s.wrapOpenTelemetry(s.CSIPluginsRequest))
+	s.mux.Handle("/v1/plugin/csi/", s.wrapOpenTelemetry(s.CSIPluginSpecificRequest))
 
-	s.mux.HandleFunc("/v1/acl/policies", s.wrap(s.ACLPoliciesRequest))
-	s.mux.HandleFunc("/v1/acl/policy/", s.wrap(s.ACLPolicySpecificRequest))
+	s.mux.Handle("/v1/acl/policies", s.wrapOpenTelemetry(s.ACLPoliciesRequest))
+	s.mux.Handle("/v1/acl/policy/", s.wrapOpenTelemetry(s.ACLPolicySpecificRequest))
 
-	s.mux.HandleFunc("/v1/acl/token/onetime", s.wrap(s.UpsertOneTimeToken))
-	s.mux.HandleFunc("/v1/acl/token/onetime/exchange", s.wrap(s.ExchangeOneTimeToken))
-	s.mux.HandleFunc("/v1/acl/bootstrap", s.wrap(s.ACLTokenBootstrap))
-	s.mux.HandleFunc("/v1/acl/tokens", s.wrap(s.ACLTokensRequest))
-	s.mux.HandleFunc("/v1/acl/token", s.wrap(s.ACLTokenSpecificRequest))
-	s.mux.HandleFunc("/v1/acl/token/", s.wrap(s.ACLTokenSpecificRequest))
+	s.mux.Handle("/v1/acl/token/onetime", s.wrapOpenTelemetry(s.UpsertOneTimeToken))
+	s.mux.Handle("/v1/acl/token/onetime/exchange", s.wrapOpenTelemetry(s.ExchangeOneTimeToken))
+	s.mux.Handle("/v1/acl/bootstrap", s.wrapOpenTelemetry(s.ACLTokenBootstrap))
+	s.mux.Handle("/v1/acl/tokens", s.wrapOpenTelemetry(s.ACLTokensRequest))
+	s.mux.Handle("/v1/acl/token", s.wrapOpenTelemetry(s.ACLTokenSpecificRequest))
+	s.mux.Handle("/v1/acl/token/", s.wrapOpenTelemetry(s.ACLTokenSpecificRequest))
 
 	s.mux.Handle("/v1/client/fs/", wrapCORS(s.wrap(s.FsRequest)))
-	s.mux.HandleFunc("/v1/client/gc", s.wrap(s.ClientGCRequest))
+	s.mux.Handle("/v1/client/gc", s.wrapOpenTelemetry(s.ClientGCRequest))
 	s.mux.Handle("/v1/client/stats", wrapCORS(s.wrap(s.ClientStatsRequest)))
 	s.mux.Handle("/v1/client/allocation/", wrapCORS(s.wrap(s.ClientAllocRequest)))
 
-	s.mux.HandleFunc("/v1/agent/self", s.wrap(s.AgentSelfRequest))
-	s.mux.HandleFunc("/v1/agent/join", s.wrap(s.AgentJoinRequest))
-	s.mux.HandleFunc("/v1/agent/members", s.wrap(s.AgentMembersRequest))
-	s.mux.HandleFunc("/v1/agent/force-leave", s.wrap(s.AgentForceLeaveRequest))
-	s.mux.HandleFunc("/v1/agent/servers", s.wrap(s.AgentServersRequest))
-	s.mux.HandleFunc("/v1/agent/keyring/", s.wrap(s.KeyringOperationRequest))
-	s.mux.HandleFunc("/v1/agent/health", s.wrap(s.HealthRequest))
-	s.mux.HandleFunc("/v1/agent/host", s.wrap(s.AgentHostRequest))
+	s.mux.Handle("/v1/agent/self", s.wrapOpenTelemetry(s.AgentSelfRequest))
+	s.mux.Handle("/v1/agent/join", s.wrapOpenTelemetry(s.AgentJoinRequest))
+	s.mux.Handle("/v1/agent/members", s.wrapOpenTelemetry(s.AgentMembersRequest))
+	s.mux.Handle("/v1/agent/force-leave", s.wrapOpenTelemetry(s.AgentForceLeaveRequest))
+	s.mux.Handle("/v1/agent/servers", s.wrapOpenTelemetry(s.AgentServersRequest))
+	s.mux.Handle("/v1/agent/keyring/", s.wrapOpenTelemetry(s.KeyringOperationRequest))
+	s.mux.Handle("/v1/agent/health", s.wrapOpenTelemetry(s.HealthRequest))
+	s.mux.Handle("/v1/agent/host", s.wrapOpenTelemetry(s.AgentHostRequest))
 
 	// Monitor is *not* an untrusted endpoint despite the log contents
 	// potentially containing unsanitized user input. Monitor, like
 	// "/v1/client/fs/logs", explicitly sets a "text/plain" or
 	// "application/json" Content-Type depending on the ?plain= query
 	// parameter.
-	s.mux.HandleFunc("/v1/agent/monitor", s.wrap(s.AgentMonitor))
+	s.mux.Handle("/v1/agent/monitor", s.wrapOpenTelemetry(s.AgentMonitor))
 
 	s.mux.HandleFunc("/v1/agent/pprof/", s.wrapNonJSON(s.AgentPprofRequest))
 
-	s.mux.HandleFunc("/v1/metrics", s.wrap(s.MetricsRequest))
+	s.mux.Handle("/v1/metrics", s.wrapOpenTelemetry(s.MetricsRequest))
 
-	s.mux.HandleFunc("/v1/validate/job", s.wrap(s.ValidateJobRequest))
+	s.mux.Handle("/v1/validate/job", s.wrapOpenTelemetry(s.ValidateJobRequest))
 
-	s.mux.HandleFunc("/v1/regions", s.wrap(s.RegionListRequest))
+	s.mux.Handle("/v1/regions", s.wrapOpenTelemetry(s.RegionListRequest))
 
-	s.mux.HandleFunc("/v1/scaling/policies", s.wrap(s.ScalingPoliciesRequest))
-	s.mux.HandleFunc("/v1/scaling/policy/", s.wrap(s.ScalingPolicySpecificRequest))
+	s.mux.Handle("/v1/scaling/policies", s.wrapOpenTelemetry(s.ScalingPoliciesRequest))
+	s.mux.Handle("/v1/scaling/policy/", s.wrapOpenTelemetry(s.ScalingPolicySpecificRequest))
 
-	s.mux.HandleFunc("/v1/status/leader", s.wrap(s.StatusLeaderRequest))
-	s.mux.HandleFunc("/v1/status/peers", s.wrap(s.StatusPeersRequest))
+	s.mux.Handle("/v1/status/leader", s.wrapOpenTelemetry(s.StatusLeaderRequest))
+	s.mux.Handle("/v1/status/peers", s.wrapOpenTelemetry(s.StatusPeersRequest))
 
-	s.mux.HandleFunc("/v1/search/fuzzy", s.wrap(s.FuzzySearchRequest))
-	s.mux.HandleFunc("/v1/search", s.wrap(s.SearchRequest))
+	s.mux.Handle("/v1/search/fuzzy", s.wrapOpenTelemetry(s.FuzzySearchRequest))
+	s.mux.Handle("/v1/search", s.wrapOpenTelemetry(s.SearchRequest))
 
-	s.mux.HandleFunc("/v1/operator/license", s.wrap(s.LicenseRequest))
-	s.mux.HandleFunc("/v1/operator/raft/", s.wrap(s.OperatorRequest))
-	s.mux.HandleFunc("/v1/operator/autopilot/configuration", s.wrap(s.OperatorAutopilotConfiguration))
-	s.mux.HandleFunc("/v1/operator/autopilot/health", s.wrap(s.OperatorServerHealth))
-	s.mux.HandleFunc("/v1/operator/snapshot", s.wrap(s.SnapshotRequest))
+	s.mux.Handle("/v1/operator/license", s.wrapOpenTelemetry(s.LicenseRequest))
+	s.mux.Handle("/v1/operator/raft/", s.wrapOpenTelemetry(s.OperatorRequest))
+	s.mux.Handle("/v1/operator/autopilot/configuration", s.wrapOpenTelemetry(s.OperatorAutopilotConfiguration))
+	s.mux.Handle("/v1/operator/autopilot/health", s.wrapOpenTelemetry(s.OperatorServerHealth))
+	s.mux.Handle("/v1/operator/snapshot", s.wrapOpenTelemetry(s.SnapshotRequest))
 
-	s.mux.HandleFunc("/v1/system/gc", s.wrap(s.GarbageCollectRequest))
-	s.mux.HandleFunc("/v1/system/reconcile/summaries", s.wrap(s.ReconcileJobSummaries))
+	s.mux.Handle("/v1/system/gc", s.wrapOpenTelemetry(s.GarbageCollectRequest))
+	s.mux.Handle("/v1/system/reconcile/summaries", s.wrapOpenTelemetry(s.ReconcileJobSummaries))
 
-	s.mux.HandleFunc("/v1/operator/scheduler/configuration", s.wrap(s.OperatorSchedulerConfiguration))
+	s.mux.Handle("/v1/operator/scheduler/configuration", s.wrapOpenTelemetry(s.OperatorSchedulerConfiguration))
 
-	s.mux.HandleFunc("/v1/event/stream", s.wrap(s.EventStream))
-	s.mux.HandleFunc("/v1/namespaces", s.wrap(s.NamespacesRequest))
-	s.mux.HandleFunc("/v1/namespace", s.wrap(s.NamespaceCreateRequest))
-	s.mux.HandleFunc("/v1/namespace/", s.wrap(s.NamespaceSpecificRequest))
+	s.mux.Handle("/v1/event/stream", s.wrapOpenTelemetry(s.EventStream))
+	s.mux.Handle("/v1/namespaces", s.wrapOpenTelemetry(s.NamespacesRequest))
+	s.mux.Handle("/v1/namespace", s.wrapOpenTelemetry(s.NamespaceCreateRequest))
+	s.mux.Handle("/v1/namespace/", s.wrapOpenTelemetry(s.NamespaceSpecificRequest))
 
 	if uiEnabled {
 		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
@@ -521,6 +522,12 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		}
 	}
 	return f
+}
+
+func (s *HTTPServer) wrapOpenTelemetry(f func(http.ResponseWriter, *http.Request) (interface{}, error)) http.Handler {
+	fName := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
+	parts := strings.Split(fName, ".")
+	return otelhttp.NewHandler(http.HandlerFunc(s.wrap(f)), parts[3])
 }
 
 // wrapNonJSON is used to wrap functions returning non JSON

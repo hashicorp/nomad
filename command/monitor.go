@@ -13,7 +13,6 @@ import (
 	"github.com/mitchellh/cli"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -187,11 +186,10 @@ func (m *monitor) monitor(evalID string) int {
 
 func (m *monitor) monitorWithContext(ctx context.Context, evalID string) int {
 	tracer := otel.Tracer("nomad")
-	var span trace.Span
-	ctx, span = tracer.Start(ctx, "monitor eval")
-	defer span.End()
-	span.AddEvent("Monitoring eval")
-	span.SetAttributes(attribute.String("eval_id", evalID))
+	monitorEvalCtx, monitorEvalSpan := tracer.Start(ctx, "monitor eval")
+	defer monitorEvalSpan.End()
+	monitorEvalSpan.AddEvent("Monitoring eval")
+	monitorEvalSpan.SetAttributes(attribute.String("eval_id", evalID))
 
 	// Track if we encounter a scheduling failure. This can only be
 	// detected while querying allocations, so we use this bool to
@@ -204,7 +202,7 @@ func (m *monitor) monitorWithContext(ctx context.Context, evalID string) int {
 	for {
 		// Query the evaluation
 		q := &api.QueryOptions{}
-		q = q.WithContext(ctx)
+		q = q.WithContext(monitorEvalCtx)
 		eval, _, err := m.client.Evaluations().Info(evalID, q)
 		if err != nil {
 			m.ui.Error(fmt.Sprintf("No evaluation with id %q found", evalID))
@@ -280,7 +278,10 @@ func (m *monitor) monitorWithContext(ctx context.Context, evalID string) int {
 			}
 		default:
 			// Wait for the next update
+			_, sleepSpan := tracer.Start(monitorEvalCtx, "sleep")
+			sleepSpan.AddEvent(fmt.Sprintf("Sleeping for %v", updateWait))
 			time.Sleep(updateWait)
+			sleepSpan.End()
 			continue
 		}
 
@@ -297,12 +298,12 @@ func (m *monitor) monitorWithContext(ctx context.Context, evalID string) int {
 
 			// Reset the state and monitor the new eval
 			m.state = newEvalState()
-			return m.monitorWithContext(ctx, eval.NextEval)
+			return m.monitorWithContext(monitorEvalCtx, eval.NextEval)
 		}
 		break
 	}
 
-	span.End()
+	monitorEvalSpan.End()
 
 	// Monitor the deployment if it exists
 	dID := m.state.deployment

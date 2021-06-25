@@ -715,6 +715,11 @@ type Telemetry struct {
 	// Default: none
 	CirconusBrokerSelectTag string `hcl:"circonus_broker_select_tag"`
 
+	OpenTelemetryGRPCEndpoint string `hcl:"open_telemetry_grpc_endpoint"`
+	OpenTelemetryGRPCInsecure bool   `hcl:"open_telemetry_grpc_insecure"`
+	OpenTelemetryGRPCCertFile string `hcl:"open_telemetry_grpc_cert_file"`
+	OpenTelemetryGRPCKeyFile  string `hcl:"open_telemetry_grpc_key_file"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -1771,6 +1776,19 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.CirconusBrokerSelectTag != "" {
 		result.CirconusBrokerSelectTag = b.CirconusBrokerSelectTag
+	}
+
+	if b.OpenTelemetryGRPCEndpoint != "" {
+		result.OpenTelemetryGRPCEndpoint = b.OpenTelemetryGRPCEndpoint
+	}
+	if b.OpenTelemetryGRPCInsecure {
+		result.OpenTelemetryGRPCInsecure = b.OpenTelemetryGRPCInsecure
+	}
+	if b.OpenTelemetryGRPCCertFile != "" {
+		result.OpenTelemetryGRPCCertFile = b.OpenTelemetryGRPCCertFile
+	}
+	if b.OpenTelemetryGRPCKeyFile != "" {
+		result.OpenTelemetryGRPCKeyFile = b.OpenTelemetryGRPCKeyFile
 	}
 
 	if b.PrefixFilter != nil {

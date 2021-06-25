@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -34,6 +35,11 @@ import (
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
 // gracefulTimeout controls how long we wait before forcefully terminating
@@ -668,6 +674,13 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
+	// Initialize OpenTelemetry
+	err = c.setupOpenTelemetry(config)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error initializing Open Telemetry: %s", err))
+		return 1
+	}
+
 	// Create the agent
 	if err := c.setupAgent(config, logger, logOutput, inmem); err != nil {
 		logGate.Flush()
@@ -863,6 +876,20 @@ WAIT:
 			return
 		}
 		close(gracefulCh)
+	}()
+
+	// Attempt a graceful OpenTelemetry tracer provider shutdown
+	otelTracerShutdownCh := make(chan struct{})
+	go func() {
+		tp, ok := otel.GetTracerProvider().(*sdktrace.TracerProvider)
+		if !ok {
+			return
+		}
+
+		if err := tp.Shutdown(context.Background()); err != nil {
+			return
+		}
+		close(otelTracerShutdownCh)
 	}()
 
 	// Wait for leave or another signal
@@ -1099,6 +1126,44 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 	}
 
 	return inm, nil
+}
+
+func (c *Command) setupOpenTelemetry(config *Config) error {
+	ctx := context.Background()
+
+	// Setup OTLP trace exporter from agent config
+	opts := []otlptracegrpc.Option{}
+
+	if config.Telemetry.OpenTelemetryGRPCEndpoint != "" {
+		opts = append(opts, otlptracegrpc.WithEndpoint(config.Telemetry.OpenTelemetryGRPCEndpoint))
+	}
+
+	if config.Telemetry.OpenTelemetryGRPCInsecure {
+		opts = append(opts, otlptracegrpc.WithInsecure())
+	}
+
+	exp, err := otlptracegrpc.New(ctx, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to setup OpenTelemetry exporter: %v", err)
+	}
+
+	res, err := resource.New(ctx,
+		resource.WithAttributes(
+			semconv.ServiceNameKey.String("nomad-agent"),
+			semconv.ServiceVersionKey.String(version.GetVersion().FullVersionNumber(true)),
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to setup OpenTelemetry resource: %v", err)
+	}
+
+	bsp := sdktrace.NewBatchSpanProcessor(exp)
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(bsp), sdktrace.WithResource(res))
+
+	// Set global trace provider
+	otel.SetTracerProvider(tp)
+
+	return nil
 }
 
 func (c *Command) startupJoin(config *Config) error {

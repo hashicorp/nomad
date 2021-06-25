@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"reflect"
@@ -17,6 +18,8 @@ import (
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -96,6 +99,8 @@ type nomadFSM struct {
 	// new state store). Everything internal here is synchronized by the
 	// Raft side, so doesn't need to lock this.
 	stateLock sync.RWMutex
+
+	tracer trace.Tracer
 }
 
 // nomadSnapshot is used to provide a snapshot of the current
@@ -161,6 +166,7 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 		timetable:           NewTimeTable(timeTableGranularity, timeTableLimit),
 		enterpriseAppliers:  make(map[structs.MessageType]LogApplier, 8),
 		enterpriseRestorers: make(map[SnapshotType]SnapshotRestorer, 8),
+		tracer:              otel.Tracer("nomad/fms"),
 	}
 
 	// Register all the log applier functions
@@ -502,6 +508,10 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	spanCtx := trace.ContextWithSpanContext(context.Background(), req.InternalRpcInfo.ParentSpan.ToOTEL())
+	spanCtx, span := n.tracer.Start(spanCtx, "applyUpsertJob")
+	defer span.End()
+
 	/* Handle upgrade paths:
 	 * - Empty maps and slices should be treated as nil to avoid
 	 *   un-intended destructive updates in scheduler since we use
@@ -589,7 +599,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	// so this may be nil during server upgrades.
 	if req.Eval != nil {
 		req.Eval.JobModifyIndex = index
-		if err := n.upsertEvals(msgType, index, []*structs.Evaluation{req.Eval}); err != nil {
+		if err := n.upsertEvalsWithContext(spanCtx, msgType, index, []*structs.Evaluation{req.Eval}); err != nil {
 			return err
 		}
 	}
@@ -715,35 +725,55 @@ func (n *nomadFSM) applyUpdateEval(msgType structs.MessageType, buf []byte, inde
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	spanCtx := trace.ContextWithSpanContext(context.Background(), req.InternalRpcInfo.ParentSpan.ToOTEL())
+	spanCtx, span := n.tracer.Start(spanCtx, "applyUpdateEval")
+	defer span.End()
+
 	return n.upsertEvals(msgType, index, req.Evals)
 }
 
 func (n *nomadFSM) upsertEvals(msgType structs.MessageType, index uint64, evals []*structs.Evaluation) error {
+	return n.upsertEvalsWithContext(context.Background(), msgType, index, evals)
+}
+
+func (n *nomadFSM) upsertEvalsWithContext(ctx context.Context, msgType structs.MessageType, index uint64, evals []*structs.Evaluation) error {
+	ctx, span := n.tracer.Start(ctx, "upsertEvals")
+	defer span.End()
+
+	span.AddEvent("Upserting eval in state store")
 	if err := n.state.UpsertEvals(msgType, index, evals); err != nil {
 		n.logger.Error("UpsertEvals failed", "error", err)
 		return err
 	}
 
-	n.handleUpsertedEvals(evals)
+	n.handleUpsertedEvalsWithContext(ctx, evals)
 	return nil
+}
+
+func (n *nomadFSM) handleUpsertedEvals(evals []*structs.Evaluation) {
+	n.handleUpsertedEvalsWithContext(context.Background(), evals)
 }
 
 // handleUpsertingEval is a helper for taking action after upserting
 // evaluations.
-func (n *nomadFSM) handleUpsertedEvals(evals []*structs.Evaluation) {
+func (n *nomadFSM) handleUpsertedEvalsWithContext(ctx context.Context, evals []*structs.Evaluation) {
 	for _, eval := range evals {
-		n.handleUpsertedEval(eval)
+		n.handleUpsertedEvalWithContext(ctx, eval)
 	}
 }
 
-// handleUpsertingEval is a helper for taking action after upserting an eval.
 func (n *nomadFSM) handleUpsertedEval(eval *structs.Evaluation) {
+	n.handleUpsertedEvalWithContext(context.Background(), eval)
+}
+
+// handleUpsertingEval is a helper for taking action after upserting an eval.
+func (n *nomadFSM) handleUpsertedEvalWithContext(ctx context.Context, eval *structs.Evaluation) {
 	if eval == nil {
 		return
 	}
 
 	if eval.ShouldEnqueue() {
-		n.evalBroker.Enqueue(eval)
+		n.evalBroker.EnqueueWithContext(ctx, eval)
 	} else if eval.ShouldBlock() {
 		n.blockedEvals.Block(eval)
 	} else if eval.Status == structs.EvalStatusComplete &&

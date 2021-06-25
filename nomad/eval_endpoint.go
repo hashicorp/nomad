@@ -8,6 +8,8 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -104,13 +106,18 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 	}
 
 	// Attempt the dequeue
-	eval, token, err := e.srv.evalBroker.Dequeue(args.Schedulers, args.Timeout)
+	ctx, eval, token, err := e.srv.evalBroker.DequeueWithContextResult(args.Schedulers, args.Timeout)
 	if err != nil {
 		return err
 	}
 
+	_, span := otel.Tracer("nomad/eval_endpoint").Start(ctx, "Dequeue")
+	defer span.End()
+
 	// Provide the output if any
 	if eval != nil {
+		span.SetAttributes(attribute.String("eval_id", eval.ID))
+
 		// Get the index that the worker should wait until before scheduling.
 		waitIndex, err := e.getWaitIndex(eval.Namespace, eval.JobID, eval.ModifyIndex)
 		if err != nil {
@@ -129,6 +136,7 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 		reply.Eval = eval
 		reply.Token = token
 		reply.WaitIndex = waitIndex
+		reply.SetParentSpan(structs.NewSpanContext(span.SpanContext()))
 	}
 
 	// Set the query response

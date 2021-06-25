@@ -14,6 +14,9 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/delayheap"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -55,6 +58,8 @@ type EvalBroker struct {
 	// The counter is the number of times we've attempted delivery,
 	// and is used to eventually fail an evaluation.
 	evals map[string]int
+
+	evalsCtx map[string]context.Context
 
 	// jobEvals tracks queued evaluations by a job's ID and namespace to serialize them
 	jobEvals map[structs.NamespacedID]string
@@ -102,6 +107,8 @@ type EvalBroker struct {
 	subsequentNackDelay time.Duration
 
 	l sync.RWMutex
+
+	tracer trace.Tracer
 }
 
 // unackEval tracks an unacknowledged evaluation along with the Nack timer
@@ -133,6 +140,7 @@ func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration,
 		enabled:              false,
 		stats:                new(BrokerStats),
 		evals:                make(map[string]int),
+		evalsCtx:             make(map[string]context.Context),
 		jobEvals:             make(map[structs.NamespacedID]string),
 		blocked:              make(map[structs.NamespacedID]PendingEvaluations),
 		ready:                make(map[string]PendingEvaluations),
@@ -144,6 +152,7 @@ func NewEvalBroker(timeout, initialNackDelay, subsequentNackDelay time.Duration,
 		subsequentNackDelay:  subsequentNackDelay,
 		delayHeap:            delayheap.NewDelayHeap(),
 		delayedEvalsUpdateCh: make(chan struct{}, 1),
+		tracer:               otel.Tracer("nomad/eval_broker"),
 	}
 	b.stats.ByScheduler = make(map[string]*SchedulerStats)
 
@@ -177,11 +186,19 @@ func (b *EvalBroker) SetEnabled(enabled bool) {
 	}
 }
 
-// Enqueue is used to enqueue a new evaluation
 func (b *EvalBroker) Enqueue(eval *structs.Evaluation) {
+	b.EnqueueWithContext(context.Background(), eval)
+}
+
+// Enqueue is used to enqueue a new evaluation
+func (b *EvalBroker) EnqueueWithContext(ctx context.Context, eval *structs.Evaluation) {
 	b.l.Lock()
 	defer b.l.Unlock()
-	b.processEnqueue(eval, "")
+
+	ctx, span := b.tracer.Start(ctx, "Enqueue")
+	defer span.End()
+
+	b.processEnqueueWithContext(ctx, eval, "")
 }
 
 // EnqueueAll is used to enqueue many evaluations. The map allows evaluations
@@ -205,11 +222,15 @@ func (b *EvalBroker) EnqueueAll(evals map[*structs.Evaluation]string) {
 	}
 }
 
+func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
+	b.processEnqueueWithContext(context.Background(), eval, token)
+}
+
 // processEnqueue deduplicates evals and either enqueue immediately or enforce
 // the evals wait time. If the token is passed, and the evaluation ID is
 // outstanding, the evaluation is blocked until an Ack/Nack is received.
 // processEnqueue must be called with the lock held.
-func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
+func (b *EvalBroker) processEnqueueWithContext(ctx context.Context, eval *structs.Evaluation, token string) {
 	// If we're not enabled, don't enable more queuing.
 	if !b.enabled {
 		return
@@ -230,6 +251,7 @@ func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
 		return
 	} else if b.enabled {
 		b.evals[eval.ID] = 0
+		b.evalsCtx[eval.ID] = ctx
 	}
 
 	// Check if we need to enforce a wait
@@ -249,7 +271,7 @@ func (b *EvalBroker) processEnqueue(eval *structs.Evaluation, token string) {
 		return
 	}
 
-	b.enqueueLocked(eval, eval.Type)
+	b.enqueueLockedWithContext(ctx, eval, eval.Type)
 }
 
 // processWaitingEnqueue waits the given duration on the evaluation before
@@ -273,8 +295,12 @@ func (b *EvalBroker) enqueueWaiting(eval *structs.Evaluation) {
 	b.enqueueLocked(eval, eval.Type)
 }
 
-// enqueueLocked is used to enqueue with the lock held
 func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, queue string) {
+	b.enqueueLockedWithContext(context.Background(), eval, queue)
+}
+
+// enqueueLocked is used to enqueue with the lock held
+func (b *EvalBroker) enqueueLockedWithContext(ctx context.Context, eval *structs.Evaluation, queue string) {
 	// Do nothing if not enabled
 	if !b.enabled {
 		return
@@ -325,18 +351,24 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, queue string) {
 	}
 }
 
-// Dequeue is used to perform a blocking dequeue
 func (b *EvalBroker) Dequeue(schedulers []string, timeout time.Duration) (*structs.Evaluation, string, error) {
+	_, a, b2, c := b.DequeueWithContextResult(schedulers, timeout)
+	return a, b2, c
+}
+
+// Dequeue is used to perform a blocking dequeue
+func (b *EvalBroker) DequeueWithContextResult(schedulers []string, timeout time.Duration) (context.Context, *structs.Evaluation, string, error) {
 	var timeoutTimer *time.Timer
 	var timeoutCh <-chan time.Time
+	ctx := context.Background()
 SCAN:
 	// Scan for work
-	eval, token, err := b.scanForSchedulers(schedulers)
+	ctx, eval, token, err := b.scanForSchedulers(schedulers)
 	if err != nil {
 		if timeoutTimer != nil {
 			timeoutTimer.Stop()
 		}
-		return nil, "", err
+		return ctx, nil, "", err
 	}
 
 	// Check if we have something
@@ -344,7 +376,7 @@ SCAN:
 		if timeoutTimer != nil {
 			timeoutTimer.Stop()
 		}
-		return eval, token, nil
+		return ctx, eval, token, nil
 	}
 
 	// Setup the timeout channel the first time around
@@ -358,18 +390,18 @@ SCAN:
 	if scan {
 		goto SCAN
 	}
-	return nil, "", nil
+	return ctx, nil, "", nil
 }
 
 // scanForSchedulers scans for work on any of the schedulers. The highest priority work
 // is dequeued first. This may return nothing if there is no work waiting.
-func (b *EvalBroker) scanForSchedulers(schedulers []string) (*structs.Evaluation, string, error) {
+func (b *EvalBroker) scanForSchedulers(schedulers []string) (context.Context, *structs.Evaluation, string, error) {
 	b.l.Lock()
 	defer b.l.Unlock()
 
 	// Do nothing if not enabled
 	if !b.enabled {
-		return nil, "", fmt.Errorf("eval broker disabled")
+		return context.Background(), nil, "", fmt.Errorf("eval broker disabled")
 	}
 
 	// Scan for eligible work
@@ -405,7 +437,7 @@ func (b *EvalBroker) scanForSchedulers(schedulers []string) (*structs.Evaluation
 	switch n := len(eligibleSched); n {
 	case 0:
 		// No work to do!
-		return nil, "", nil
+		return context.Background(), nil, "", nil
 
 	case 1:
 		// Only a single task, dequeue
@@ -421,12 +453,21 @@ func (b *EvalBroker) scanForSchedulers(schedulers []string) (*structs.Evaluation
 
 // dequeueForSched is used to dequeue the next work item for a given scheduler.
 // This assumes locks are held and that this scheduler has work
-func (b *EvalBroker) dequeueForSched(sched string) (*structs.Evaluation, string, error) {
+func (b *EvalBroker) dequeueForSched(sched string) (context.Context, *structs.Evaluation, string, error) {
 	// Get the pending queue
 	pending := b.ready[sched]
 	raw := heap.Pop(&pending)
 	b.ready[sched] = pending
 	eval := raw.(*structs.Evaluation)
+	ctx := context.Background()
+
+	if evalCtx, ok := b.evalsCtx[eval.ID]; ok {
+		evalCtx, span := b.tracer.Start(evalCtx, "dequeueForSched")
+		b.evalsCtx[eval.ID] = evalCtx
+		ctx = evalCtx
+		span.SetAttributes(attribute.String("eval_id", eval.ID))
+		defer span.End()
+	}
 
 	// Generate a UUID for the token
 	token := uuid.Generate()
@@ -453,7 +494,7 @@ func (b *EvalBroker) dequeueForSched(sched string) (*structs.Evaluation, string,
 	bySched.Ready -= 1
 	bySched.Unacked += 1
 
-	return eval, token, nil
+	return ctx, eval, token, nil
 }
 
 // waitForSchedulers is used to wait for work on any of the scheduler or until a timeout.

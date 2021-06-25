@@ -97,8 +97,8 @@ func main() {
 
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
-			// the service name used to display traces in backends
-			semconv.ServiceNameKey.String("nomad"),
+			semconv.ServiceNameKey.String("nomad-cli"),
+			semconv.ServiceVersionKey.String(version.GetVersion().FullVersionNumber(true)),
 		),
 	)
 

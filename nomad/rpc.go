@@ -19,6 +19,8 @@ import (
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-msgpack/codec"
@@ -741,6 +743,19 @@ func (s *Server) raftApply(t structs.MessageType, msg interface{}) (interface{},
 		return nil, 0, err
 	}
 	return future.Response(), future.Index(), nil
+}
+
+func (s *Server) raftApplyWithContext(ctx context.Context, t structs.MessageType, msg interface{}) (interface{}, uint64, error) {
+	tracer := otel.Tracer("nomad/rpc")
+	ctx, span := tracer.Start(ctx, "raftApply")
+	span.SetAttributes(attribute.String("message_type", fmt.Sprintf("%v", t)))
+	defer span.End()
+
+	if i, ok := msg.(structs.RPCInfo); ok {
+		i.SetParentSpan(structs.NewSpanContext(span.SpanContext()))
+	}
+
+	return s.raftApply(t, msg)
 }
 
 // setQueryMeta is used to populate the QueryMeta data for an RPC call

@@ -396,6 +396,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request,
 	}
 
 	sJob, writeReq := s.apiJobAndRequestToStructs(args.Job, req, args.WriteRequest)
+	writeReq.InternalRpcInfo.ParentSpan = structs.NewSpanContext(span.SpanContext().WithRemote(true))
 	regReq := structs.JobRegisterRequest{
 		Job:            sJob,
 		EnforceIndex:   args.EnforceIndex,
