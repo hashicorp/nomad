@@ -119,19 +119,17 @@ NEXT_PLUGIN:
 				// rather than an empty list
 				continue NEXT_PLUGIN
 			}
-			rows := []string{}
-			rows[0] = "External ID|Condition|Nodes"
-			for i, v := range externalList.Volumes {
+			rows := []string{"External ID|Condition|Nodes"}
+			for _, v := range externalList.Volumes {
 				condition := "OK"
 				if v.IsAbnormal {
 					condition = fmt.Sprintf("Abnormal (%v)", v.Status)
 				}
-
-				rows[i+1] = fmt.Sprintf("%s|%s|%s",
+				rows = append(rows, fmt.Sprintf("%s|%s|%s",
 					limit(v.ExternalID, c.length),
 					limit(condition, 20),
 					strings.Join(v.PublishedExternalNodeIDs, ","),
-				)
+				))
 			}
 			c.Ui.Output(formatList(rows))
 
