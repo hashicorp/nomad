@@ -1,0 +1,35 @@
+openapi: {{ .SpecVersion }}
+info:
+  description: {{ .Description }}
+  title: {{ .Title }}
+  contact:
+    email: {{ .Email }}
+  license:
+    name: {{ .LicenseName }}
+    url: {{ .LicenceURL }}
+  version: {{ .APIVersion }}
+servers:
+{{- range .Servers }}
+  {{ template "server" }}
+{{- end }}
+components:
+  securitySchemes:
+{{- range .SecuritySchemes }}
+    {{ template "securityScheme" }}
+{{- end }}
+  parameters:
+{{- range .Parameters }}
+    {{ template "param" }}
+{{- end }}
+  headers:
+{{- range .Headers }}
+    {{ template "header" }}
+{{- end }}
+  schemas:
+{{- range .Schemas }}
+    {{ template "schema" }}
+{{- end }}
+paths:
+{{- range .Paths }}
+  {{ template "path" }}
+{{- end }}
