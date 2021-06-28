@@ -363,6 +363,10 @@ func (o operations) empty() bool {
 	}
 }
 
+func (o operations) String() string {
+	return fmt.Sprintf("<%d, %d, %d, %d>", len(o.regServices), len(o.regChecks), len(o.deregServices), len(o.deregChecks))
+}
+
 // AllocRegistration holds the status of services registered for a particular
 // allocations by task.
 type AllocRegistration struct {
@@ -709,6 +713,15 @@ INIT:
 // commit operations unless already shutting down.
 func (c *ServiceClient) commit(from string, ops *operations) {
 	fmt.Println("commit ops, from:", from)
+
+	// todo: we should not even commit empty opts, why are we
+
+	if ops.empty() {
+		fmt.Println(" ... ops is empty, ignoring")
+		return
+	}
+	fmt.Println(" ... ops not empty, accepting:", ops)
+
 	select {
 	case c.opCh <- ops:
 	case <-c.shutdownCh:
