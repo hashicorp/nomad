@@ -96,10 +96,9 @@ job "plugin-efs" {
       driver = "docker"
 
       config {
-        image = "amazon/aws-efs-csi-driver:latest"
+        image = "amazon/aws-efs-csi-driver:v.1.3.2"
 
         args = [
-          "node",
           "--endpoint=unix://csi/csi.sock",
           "--logtostderr",
           "--v=5",
