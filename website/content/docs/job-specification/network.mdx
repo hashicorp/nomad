@@ -72,9 +72,10 @@ job "docs" {
   dynamic port is chosen. We **do not recommend** using static ports, except
   for `system` or specialized jobs like load balancers.
 - `to` `(string:nil)` - Applicable when using "bridge" mode to configure port
-  to map to inside the task's network namespace. `-1` sets the mapped port equal to the
-  dynamic port allocated by the scheduler. The `NOMAD_PORT_<label>` environment variable
-  will contain the `to` value.
+  to map to inside the task's network namespace. Omitting this field or
+  setting it to `-1` sets the mapped port equal to the dynamic port allocated
+  by the scheduler. The `NOMAD_PORT_<label>` environment variable will contain
+  the `to` value.
 - `host_network` `(string:nil)` - Designates the host network name to use when allocating
   the port. When port mapping the host port will only forward traffic to the matched host
   network address.
