@@ -13,6 +13,16 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.1.3
+
+#### Docker Driver
+
+Starting in Nomad 1.1.2, task groups with `network.mode = "bridge"` generated
+a hosts file in Docker containers. This generated hosts file was bind-mounted
+from the task directory to `/etc/hosts` within the task. In Nomad 1.1.3 the
+source for the bind mount was moved to the allocation directory so that it is
+shared between all tasks in an allocation.
+
 ## Nomad 1.1.0
 
 #### Enterprise licenses
