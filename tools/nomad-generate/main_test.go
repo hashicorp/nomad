@@ -8,55 +8,54 @@ import (
 )
 
 func TestGenerate_Equals(t *testing.T) {
-	require := require.New(t)
+	req := require.New(t)
 
 	g := &Generator{
 		typeNames:  []string{"Service"},
 		packageDir: "../../nomad/structs",
 		methods:    []string{"Service.Equals"},
-		// excludedFields: []string{"Job.Payload", "Job.Stop", "Job.CreateIndex"},
-		typeSpecs: map[string]*TypeSpecNode{},
+		typeSpecs:  map[string]*TypeSpecNode{},
 	}
 	pkgs, err := g.loadPackages()
-	require.NoError(err)
+	req.NoError(err)
 
 	err = g.parsePackages(pkgs)
-	require.NoError(err)
+	req.NoError(err)
 
 	err = g.analyze()
-	require.NoError(err)
+	req.NoError(err)
 
 	// this is g.render without writing to disk
 	var buf bytes.Buffer
-	err = g.write(&buf, equalsTmpl)
-	require.NoError(err)
+	err = g.execTemplate(&buf, equalsTmpl)
+	req.NoError(err)
 
 	formatted := g.format(buf.Bytes())
 	got := string(formatted)
 
-	require.Contains(got, "if s.Name != other.Name {")
-	require.Contains(got, "if s.TaskName != other.TaskName {")
+	req.Contains(got, "if s.Name != other.Name {")
+	req.Contains(got, "if s.TaskName != other.TaskName {")
 
-	require.Contains(got, "if !s.Connect.Equals(other.Connect) {")
+	req.Contains(got, "if !s.Connect.Equals(other.Connect) {")
 
 	// TODO: need a struct member
 	// require.Contains(got, "if !s.Foo.Equals(other.Foo) {")
 
-	require.Contains(got, `
+	req.Contains(got, `
 	for i, v := range s.Tags {
 		if v != other.Tags[i] {
 			return false
 		}
 	}`)
 
-	require.Contains(got, `
+	req.Contains(got, `
 	for i, v := range s.Checks {
 		if !v.Equals(other.Checks[i]) {
 			return false
 		}
 	}`)
 
-	require.Contains(got, `
+	req.Contains(got, `
 	for k, v := range s.Meta {
 		v2, ok := other.Meta[k]
 		if !ok {
@@ -69,7 +68,7 @@ func TestGenerate_Equals(t *testing.T) {
 }
 
 func TestGenerate_Copy(t *testing.T) {
-	require := require.New(t)
+	req := require.New(t)
 
 	g := &Generator{
 		typeNames:      []string{"Job"},
@@ -80,25 +79,25 @@ func TestGenerate_Copy(t *testing.T) {
 	}
 
 	pkgs, err := g.loadPackages()
-	require.NoError(err)
+	req.NoError(err)
 
 	err = g.parsePackages(pkgs)
-	require.NoError(err)
+	req.NoError(err)
 
 	err = g.analyze()
-	require.NoError(err)
+	req.NoError(err)
 
 	// this is g.render without writing to disk
 	var buf bytes.Buffer
-	err = g.write(&buf, copyTmpl)
-	require.NoError(err)
+	err = g.execTemplate(&buf, copyTmpl)
+	req.NoError(err)
 
 	formatted := g.format(buf.Bytes())
 	got := string(formatted)
 
-	require.Contains(got, "xx.Multiregion = j.Multiregion.Copy()")
-	require.Contains(got, "xx.Meta = helper.CopyMapStringString(j.Meta)")
-	require.Contains(got, `
+	req.Contains(got, "xx.Multiregion = j.Multiregion.Copy()")
+	req.Contains(got, "xx.Meta = helper.CopyMapStringString(j.Meta)")
+	req.Contains(got, `
 	xx.Affinities = make([]*Affinity, len(j.Affinities))
 	for _, v := range j.Affinities {
 		xx.Affinities = append(xx.Affinities, v.Copy())
@@ -108,7 +107,7 @@ func TestGenerate_Copy(t *testing.T) {
 }
 
 func TestAnalyze_Copy(t *testing.T) {
-	require := require.New(t)
+	req := require.New(t)
 
 	g := &Generator{
 		packageDir:     "../../nomad/structs",
@@ -119,24 +118,24 @@ func TestAnalyze_Copy(t *testing.T) {
 	}
 
 	pkgs, err := g.loadPackages()
-	require.NoError(err)
+	req.NoError(err)
 
 	err = g.parsePackages(pkgs)
-	require.NoError(err)
+	req.NoError(err)
 
-	g.analyze()
+	err = g.analyze()
+	req.NoError(err)
 
-	require.True(g.typeSpecs["Job"].isCopier())
-	require.Len(g.typeSpecs["Job"].fields, 3) // 3 pointer fields
+	req.True(g.typeSpecs["Job"].isCopier())
+	req.Len(g.typeSpecs["Job"].fields, 3) // 3 pointer fields
 
 	got := func(typespec string) bool {
 		return g.typeSpecs[typespec].isCopier()
 	}
 
-	require.True(got("Multiregion"), "Multiregion has pointer and array fields")
-	require.True(got("PeriodicConfig"), "PeriodicConfig has a pointer field")
-	require.True(got("ParameterizedJobConfig"), "ParameterizedJobConfig has array fields")
-	require.True(got("UpdateStrategy"), "UpdateStrategy has a Copy method")
-
-	require.False(got("TaskGroupSummary"), "TaskGroupSummary has only primitive fields")
+	req.True(got("Multiregion"), "Multiregion has pointer and array fields")
+	req.True(got("PeriodicConfig"), "PeriodicConfig has a pointer field")
+	req.True(got("ParameterizedJobConfig"), "ParameterizedJobConfig has array fields")
+	req.True(got("UpdateStrategy"), "UpdateStrategy has a Copy method")
+	req.False(got("TaskGroupSummary"), "TaskGroupSummary has only primitive fields")
 }

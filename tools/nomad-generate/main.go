@@ -200,40 +200,31 @@ func (g *Generator) analyze() error {
 	return nil
 }
 
+// makeGraph is a visitor function used by ast.Inspect to find all struct
+// types within a tree node and its children, and then register a TypeSpecNode
+// instance with the generator.
 func (g *Generator) makeGraph(node ast.Node) bool {
 	switch t := node.(type) {
 	case *ast.TypeSpec:
 		expr, ok := t.Type.(*ast.StructType)
+		// if it's not a struct exit
 		if !ok {
 			return true
 		}
 		var ts *TypeSpecNode
 		typeName := t.Name.Name
-		ts, ok = g.typeSpecs[typeName]
-		if !ok {
-			ts = &TypeSpecNode{
-				name:    typeName,
-				fields:  map[string]*TypeSpecNode{},
-				parents: map[string]*TypeSpecNode{},
-			}
-			g.typeSpecs[typeName] = ts
-		}
+		ts = g.getOrCreateTypeSpec(typeName)
+		// Check each of the types fields to see if it is a pointer to a type.
 		for _, field := range expr.Fields.List {
 			switch expr := field.Type.(type) {
 			case *ast.StarExpr:
+				// If it is a pointer, figure out the underlying type.
 				ident, ok := expr.X.(*ast.Ident)
 				if ok {
-					fieldTs, ok := g.typeSpecs[ident.Name]
-					if !ok {
-						fieldTs = &TypeSpecNode{
-							name:    ident.Name,
-							fields:  map[string]*TypeSpecNode{},
-							parents: map[string]*TypeSpecNode{},
-						}
-					}
-					ts.fields[ident.Name] = fieldTs
-					fieldTs.parents[typeName] = ts
-					g.typeSpecs[ident.Name] = fieldTs
+					// check to see if it's been registered already
+					fieldTypeSpec := g.getOrCreateTypeSpec(ident.Name)
+					ts.fields[ident.Name] = fieldTypeSpec
+					fieldTypeSpec.parents[typeName] = ts
 				}
 			}
 		}
@@ -242,6 +233,26 @@ func (g *Generator) makeGraph(node ast.Node) bool {
 	return true
 }
 
+// getOrCreateTypSpec gets a TypeSpecNode by name or creates a new one if not found.
+func (g *Generator) getOrCreateTypeSpec(typeName string) *TypeSpecNode {
+	var ts *TypeSpecNode
+	// Check to see if it's been registered already
+	ts, ok := g.typeSpecs[typeName]
+	// if not create a new TypeSpecNode
+	if !ok {
+		ts = &TypeSpecNode{
+			name:    typeName,
+			fields:  map[string]*TypeSpecNode{},
+			parents: map[string]*TypeSpecNode{},
+		}
+		// register the instance
+		g.typeSpecs[typeName] = ts
+	}
+	return ts
+}
+
+// analyzeDecl visits a tree node and ensures that graph members that need a copy
+// method are appropriately marked.
 func (g *Generator) analyzeDecl(node ast.Node) bool {
 	switch t := node.(type) {
 	case *ast.TypeSpec:
@@ -249,12 +260,14 @@ func (g *Generator) analyzeDecl(node ast.Node) bool {
 	case *ast.FuncDecl:
 		// if we find a Copy method, cache it as one we've seen
 		if t.Recv != nil && t.Name.Name == "Copy" {
+			// extract the name of the type of the receiver for this Copy method
 			var methodRecv string
 			if stex, ok := t.Recv.List[0].Type.(*ast.StarExpr); ok {
 				methodRecv = stex.X.(*ast.Ident).Name
 			} else if id, ok := t.Recv.List[0].Type.(*ast.Ident); ok {
 				methodRecv = id.Name
 			}
+			// Check if registered, and set isCopier if found
 			ts, ok := g.typeSpecs[methodRecv]
 			if ok {
 				ts.setIsCopier()
@@ -264,18 +277,22 @@ func (g *Generator) analyzeDecl(node ast.Node) bool {
 	return true
 }
 
+// needsCopyMethod evaluates whether a type needs a copy method.
 func (g *Generator) needsCopyMethod(t *ast.TypeSpec) bool {
 	name := t.Name.Name
 
 	ts, ok := g.typeSpecs[name]
+	// if not registered return
 	if !ok {
 		return false // ignore interfaces TODO?
 	}
 
-	// check if this has been set by one of its children previously
+	// Return true if this has been set by one of its children previously.
 	if ts.isCopier() {
 		return true
 	}
+
+	// If any child is a copier, set and return true
 	for _, field := range ts.fields {
 		if field.isCopier() {
 			ts.setIsCopier()
@@ -283,10 +300,13 @@ func (g *Generator) needsCopyMethod(t *ast.TypeSpec) bool {
 		}
 	}
 
+	// if type is not a struct return false
 	expr, ok := t.Type.(*ast.StructType)
 	if !ok {
 		return false
 	}
+
+	// if any of its fields are pointers, maps, or array types set and return true.
 	for _, field := range expr.Fields.List {
 		switch field.Type.(type) {
 		case *ast.StarExpr, *ast.MapType, *ast.ArrayType:
@@ -302,21 +322,17 @@ func (g *Generator) needsCopyMethod(t *ast.TypeSpec) bool {
 }
 
 // evaluateTarget traverses a generic declaration node to determine if it is a
-// struct, and if so whether it is a struct we are targeting. If the struct is
-// targeted, we start invoke the Visitor pattern with the call ast.Inspect which
-// will visit each child node via the visitFields method. visitFields is responsible
-// for analyzing and aggregating the fields of the target struct so that they
-// can be rendered by the template.
+// struct, and if so whether it is a struct we are targeting.
 func (g *Generator) evaluateTarget(node ast.Decl, file *ast.File) {
 	genDecl := node.(*ast.GenDecl)
 	for _, spec := range genDecl.Specs {
 		switch spec.(type) {
 		case *ast.TypeSpec:
 			typeSpec := spec.(*ast.TypeSpec)
-
 			switch typeSpec.Type.(type) {
 			case *ast.StructType:
 				if g.isTarget(typeSpec.Name.Name) {
+					// If the struct is targeted, add a new Target and visit its fields
 					t := &TargetType{Name: typeSpec.Name.Name, g: g}
 					g.Targets = append(g.Targets, t)
 					ast.Inspect(file, t.visitFields)
@@ -326,6 +342,7 @@ func (g *Generator) evaluateTarget(node ast.Decl, file *ast.File) {
 	}
 }
 
+// isTarget checks to see if a type's name was passed as a -type argument to the generator
 func (g *Generator) isTarget(name string) bool {
 	for _, typeName := range g.typeNames {
 		if name == typeName {
@@ -374,7 +391,7 @@ func (g *Generator) render(targetFunc string) error {
 	}
 
 	var buf bytes.Buffer
-	err = g.write(&buf, templateFile)
+	err = g.execTemplate(&buf, templateFile)
 	if err != nil {
 		return err
 	}
@@ -389,13 +406,13 @@ func (g *Generator) render(targetFunc string) error {
 	return nil
 }
 
-func (g *Generator) write(w io.Writer, file embed.FS) error {
+func (g *Generator) execTemplate(w io.Writer, file embed.FS) error {
 	if len(g.Targets) < 1 {
-		return errors.New("generate.render.write: no targets found")
+		return errors.New("generate.render.execTemplate: no targets found")
 	}
 	tmpl, err := template.ParseFS(file, "*")
 	if err != nil {
-		return errors.New(fmt.Sprintf("generate.render.write: %v", err))
+		return errors.New(fmt.Sprintf("generate.render.execTemplate: %v", err))
 	}
 	return tmpl.Execute(w, g)
 }
