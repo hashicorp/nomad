@@ -331,6 +331,9 @@ dashes (`-`) are converted to underscores (`_`) in environment variables so
 - Consul Connect using network namespaces is only supported on Linux.
 - Prior to Consul 1.9, the Envoy sidecar proxy will drop and stop accepting
   connections while the Nomad agent is restarting.
+- Currently, there are no edge proxy available that can route traffic to a
+  connect enabled service. This means that you cannot route traffic from
+  the internet to private connect services.
 
 [count-dashboard]: /img/count-dashboard.png
 [gh-9907]: https://github.com/hashicorp/nomad/issues/9907
