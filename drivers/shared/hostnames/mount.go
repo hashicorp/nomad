@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -56,9 +57,14 @@ ff02::3 ip6-allhosts
 	}
 
 	path := filepath.Join(taskDir, "hosts")
-	err := ioutil.WriteFile(path, []byte(content.String()), 0644)
-	if err != nil {
-		return nil, err
+
+	// tasks within an alloc should be able to share and modify the file, so
+	// only write to it if it doesn't exist
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		err := ioutil.WriteFile(path, []byte(content.String()), 0644)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Note that we're not setting readonly. The file is in the task dir

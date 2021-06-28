@@ -962,7 +962,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	// that comes from the pause container
 	if task.NetworkIsolation != nil && driverConfig.NetworkMode == "" {
 		etcHostMount, err := hostnames.GenerateEtcHostsMount(
-			task.TaskDir().Dir, task.NetworkIsolation, driverConfig.ExtraHosts)
+			task.AllocDir, task.NetworkIsolation, driverConfig.ExtraHosts)
 		if err != nil {
 			return c, fmt.Errorf("failed to build mount for /etc/hosts: %v", err)
 		}
