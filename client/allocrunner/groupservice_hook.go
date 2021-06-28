@@ -217,10 +217,10 @@ func (h *groupServiceHook) deregister() {
 		workloadServices := h.getWorkloadServices()
 		h.consulClient.RemoveWorkload("groupServiceHook.dereigster (noCanary)", workloadServices)
 
-		// Canary flag may be getting flipped when the alloc is being
-		// destroyed, so remove both variations of the service
-		workloadServices.Canary = !workloadServices.Canary
-		h.consulClient.RemoveWorkload("groupServiceHook.deregister (canary)", workloadServices)
+		//// Canary flag may be getting flipped when the alloc is being
+		//// destroyed, so remove both variations of the service
+		//workloadServices.Canary = !workloadServices.Canary
+		//h.consulClient.RemoveWorkload("groupServiceHook.deregister (canary)", workloadServices)
 	}
 }
 

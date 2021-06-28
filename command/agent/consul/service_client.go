@@ -641,6 +641,9 @@ INIT:
 		select {
 		case <-retryTimer.C:
 			reasonForSync = syncPeriodic
+
+			fmt.Println("periodic sync skipped today")
+			continue
 		case <-c.shutdownCh:
 			reasonForSync = syncShutdown
 			// Cancel check watcher but sync one last time
@@ -817,8 +820,24 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			continue
 		}
 
-		// Unknown Nomad managed service; kill
+		// Get the Consul namespace this service is in.
 		ns := servicesInConsul[id].Namespace
+
+		// If this service has a sidecar, we need to remove the sidecar first,
+		// otherwise Consul will get mad at us.
+		if sidecar := getNomadSidecar(id, servicesInConsul); sidecar != nil {
+			fmt.Printf("  -> kill sidecar service %s/%s\n", ns, sidecar.ID)
+			if err := c.agentAPI.ServiceDeregisterOpts(id, &api.QueryOptions{Namespace: ns}); err != nil {
+				metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
+				return err
+			}
+			fmt.Printf("   killed sidecar service %s/%s\n", ns, sidecar.ID)
+			fmt.Println("sleep 3 seconds")
+			time.Sleep(3)
+		}
+		// Kill any other unmanaged Nomad service. (i.e. do not manually kill the
+		// parent of a sidecar service, that gets removed when we remove the
+		// sidecar for some reason)
 		fmt.Printf("  -> killing service %s/%s\n", ns, id)
 		if err := c.agentAPI.ServiceDeregisterOpts(id, &api.QueryOptions{Namespace: ns}); err != nil {
 			fmt.Println("   kill service err:", err)
@@ -831,6 +850,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			return err
 		}
 		fmt.Printf("   killed service %s/%s\n", ns, id)
+
 		sdereg++
 		metrics.IncrCounter([]string{"client", "consul", "service_deregistrations"}, 1)
 	}
@@ -1365,6 +1385,7 @@ func (c *ServiceClient) RemoveWorkload(from string, workload *WorkloadServices) 
 	fmt.Println("ServiceClient.RemoveWorkload from:", from)
 
 	for _, service := range workload.Services {
+
 		id := MakeAllocServiceID(workload.AllocID, workload.Name(), service)
 		ops.deregServices = append(ops.deregServices, id)
 		fmt.Println("SH Remove service:", id)
