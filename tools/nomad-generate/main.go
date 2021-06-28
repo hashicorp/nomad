@@ -12,7 +12,6 @@ import (
 	"go/token"
 	"io"
 	"os"
-	"strings"
 	"text/template"
 
 	"golang.org/x/tools/go/packages"
@@ -41,8 +40,19 @@ func (s *stringSliceFlag) Set(value string) error {
 	return nil
 }
 
-func main() {
+// Generator holds the state of the analysis. Used as the data model and executor
+// to render templates.
+type Generator struct {
+	packageDir     string
+	files          []*ast.File
+	Targets        []*TargetType
+	typeSpecs      map[string]*TypeSpecNode
+	typeNames      []string
+	methods        []string
+	excludedFields []string
+}
 
+func main() {
 	var excludedFieldFlags stringSliceFlag
 	var typeNameFlags stringSliceFlag
 	var methodFlags stringSliceFlag
@@ -74,9 +84,9 @@ func main() {
 }
 
 func run(g *Generator) error {
-
 	var err error
 	var pkgs []*packages.Package
+
 	if pkgs, err = g.loadPackages(); err != nil {
 		return fmt.Errorf("error loading packages: %v", err)
 	}
@@ -84,6 +94,7 @@ func run(g *Generator) error {
 	if err = g.parsePackages(pkgs); err != nil {
 		return fmt.Errorf("error parsing packages: %v", err)
 	}
+
 	if len(pkgs) == 0 {
 		return fmt.Errorf("did not parse any packages")
 	}
@@ -91,6 +102,7 @@ func run(g *Generator) error {
 	if err = g.analyze(); err != nil {
 		return fmt.Errorf("error analyzing: %v", err)
 	}
+
 	if len(g.typeSpecs) == 0 {
 		return fmt.Errorf("did not analyze any types")
 	}
@@ -98,10 +110,13 @@ func run(g *Generator) error {
 	if err = g.generate(); err != nil {
 		return fmt.Errorf("error generating: %v", err)
 	}
+
 	return nil
 }
 
+// loadPackages loads the source code for analysis
 func (g *Generator) loadPackages() ([]*packages.Package, error) {
+	// TODO: See which of these we really need
 	const loadMode = packages.NeedName |
 		packages.NeedFiles |
 		packages.NeedCompiledGoFiles |
@@ -123,6 +138,7 @@ func (g *Generator) loadPackages() ([]*packages.Package, error) {
 	return pkgs, err
 }
 
+// parsePackages iterates over the package source and ensures each go file is processed.
 func (g *Generator) parsePackages(pkgs []*packages.Package) error {
 	for _, pkg := range pkgs {
 
@@ -131,19 +147,183 @@ func (g *Generator) parsePackages(pkgs []*packages.Package) error {
 		}
 
 		for _, goFile := range pkg.GoFiles {
-			// Create the AST by parsing src.
-			fileSet := token.NewFileSet() // positions are relative to fset
-			file, err := parser.ParseFile(fileSet, goFile, nil, 0)
-			if err != nil {
-				fmt.Printf("could not parse file: %v\n", err)
-				os.Exit(2)
+			if err := g.parseGoFile(goFile); err != nil {
+				return err
 			}
-
-			g.files = append(g.files, file)
 		}
 	}
 
 	return nil
+}
+
+// parseGoFile parses an individual go file and adds it to the generator's files member
+func (g *Generator) parseGoFile(goFile string) error {
+	// Create the AST by parsing src.
+	fileSet := token.NewFileSet() // positions are relative to fset
+	file, err := parser.ParseFile(fileSet, goFile, nil, 0)
+	if err != nil {
+		return fmt.Errorf("could not parse file: %v\n", err)
+	}
+
+	g.files = append(g.files, file)
+	return nil
+}
+
+// analyze processes the full graph to know which types are already Copy/Equal
+// and then evaluates the targets.
+func (g *Generator) analyze() error {
+	// need to generate the graph so that we know if *any* types are
+	// Copy/Equal *before* we create the TargetTypes
+	for _, file := range g.files {
+		ast.Inspect(file, g.makeGraph)
+		ast.Inspect(file, g.analyzeDecl)
+	}
+
+	// TODO: Do we still need this?
+	for _, typeName := range g.typeNames {
+		// we already know these types need Copy to be copied, because the
+		// user asked us to generate their Copy methods!
+		g.typeSpecs[typeName].setIsCopier()
+	}
+
+	// Now that we've analyzed the full graph, we can build the Targets
+	for _, file := range g.files {
+		for _, node := range file.Decls {
+			switch node.(type) {
+			case *ast.GenDecl:
+				g.evaluateTarget(node, file)
+			}
+		}
+	}
+
+	// TODO: Is there err handling we can do or should we change signature.
+	return nil
+}
+
+func (g *Generator) makeGraph(node ast.Node) bool {
+	switch t := node.(type) {
+	case *ast.TypeSpec:
+		expr, ok := t.Type.(*ast.StructType)
+		if !ok {
+			return true
+		}
+		var ts *TypeSpecNode
+		typeName := t.Name.Name
+		ts, ok = g.typeSpecs[typeName]
+		if !ok {
+			ts = &TypeSpecNode{
+				name:    typeName,
+				fields:  map[string]*TypeSpecNode{},
+				parents: map[string]*TypeSpecNode{},
+			}
+			g.typeSpecs[typeName] = ts
+		}
+		for _, field := range expr.Fields.List {
+			switch expr := field.Type.(type) {
+			case *ast.StarExpr:
+				ident, ok := expr.X.(*ast.Ident)
+				if ok {
+					fieldTs, ok := g.typeSpecs[ident.Name]
+					if !ok {
+						fieldTs = &TypeSpecNode{
+							name:    ident.Name,
+							fields:  map[string]*TypeSpecNode{},
+							parents: map[string]*TypeSpecNode{},
+						}
+					}
+					ts.fields[ident.Name] = fieldTs
+					fieldTs.parents[typeName] = ts
+					g.typeSpecs[ident.Name] = fieldTs
+				}
+			}
+		}
+
+	}
+	return true
+}
+
+func (g *Generator) analyzeDecl(node ast.Node) bool {
+	switch t := node.(type) {
+	case *ast.TypeSpec:
+		g.needsCopyMethod(t)
+	case *ast.FuncDecl:
+		// if we find a Copy method, cache it as one we've seen
+		if t.Recv != nil && t.Name.Name == "Copy" {
+			var methodRecv string
+			if stex, ok := t.Recv.List[0].Type.(*ast.StarExpr); ok {
+				methodRecv = stex.X.(*ast.Ident).Name
+			} else if id, ok := t.Recv.List[0].Type.(*ast.Ident); ok {
+				methodRecv = id.Name
+			}
+			ts, ok := g.typeSpecs[methodRecv]
+			if ok {
+				ts.setIsCopier()
+			}
+		}
+	}
+	return true
+}
+
+func (g *Generator) needsCopyMethod(t *ast.TypeSpec) bool {
+	name := t.Name.Name
+
+	ts, ok := g.typeSpecs[name]
+	if !ok {
+		return false // ignore interfaces TODO?
+	}
+
+	// check if this has been set by one of its children previously
+	if ts.isCopier() {
+		return true
+	}
+	for _, field := range ts.fields {
+		if field.isCopier() {
+			ts.setIsCopier()
+			return true
+		}
+	}
+
+	expr, ok := t.Type.(*ast.StructType)
+	if !ok {
+		return false
+	}
+	for _, field := range expr.Fields.List {
+		switch field.Type.(type) {
+		case *ast.StarExpr, *ast.MapType, *ast.ArrayType:
+			ts.setIsCopier()
+			return true
+		default:
+			// primitives are never Copier, and struct values will be marked
+			// as Copier when we hit needsCopyMethod on that struct value's
+			// type spec
+		}
+	}
+	return false
+}
+
+// evaluateTarget traverses a generic declaration node to determine if it is a
+// struct, and if so whether it is a struct we are targeting. If the struct is
+// targeted, we start invoke the Visitor pattern with the call ast.Inspect which
+// will visit each child node via the visitFields method. visitFields is responsible
+// for analyzing and aggregating the fields of the target struct so that they
+// can be rendered by the template.
+func (g *Generator) evaluateTarget(node ast.Decl, file *ast.File) {
+	genDecl := node.(*ast.GenDecl)
+	for _, spec := range genDecl.Specs {
+		switch spec.(type) {
+		case *ast.TypeSpec:
+			typeSpec := spec.(*ast.TypeSpec)
+
+			switch typeSpec.Type.(type) {
+			case *ast.StructType:
+				if g.isTarget(typeSpec.Name.Name) {
+					t := &TargetType{Name: typeSpec.Name.Name, g: g}
+					g.Targets = append(g.Targets, t)
+					ast.Inspect(file, t.visitFields)
+				}
+			}
+		}
+	}
 }
 
 func (g *Generator) isTarget(name string) bool {
@@ -153,19 +333,6 @@ func (g *Generator) isTarget(name string) bool {
 		}
 	}
 	return false
-}
-
-// Generator holds the state of the analysis. Primarily used to buffer
-// the output for format.Source.
-type Generator struct {
-	packageDir string
-	files      []*ast.File
-	Targets    []*TargetType
-	typeSpecs  map[string]*TypeSpecNode
-
-	typeNames      []string
-	methods        []string
-	excludedFields []string
 }
 
 func (g *Generator) generate() error {
@@ -240,238 +407,4 @@ func (g *Generator) format(buf []byte) []byte {
 		return buf
 	}
 	return src
-}
-
-type TargetField struct {
-	Name     string
-	Field    *ast.Field
-	TypeName string
-	Kind     string
-
-	KeyType   *TargetField // the type of a map key
-	ValueType *TargetField // the type of a map or array value
-
-	isCopier bool // does this type implement Copy
-	g        *Generator
-}
-
-func (f *TargetField) IsPrimitive() bool {
-	return !(f.IsPointer() || f.IsStruct() || f.IsArray() || f.IsMap())
-}
-
-func (f *TargetField) IsArray() bool {
-	return f.Kind == "array"
-}
-
-func (f *TargetField) IsStruct() bool {
-	return f.Kind == "struct"
-}
-
-func (f *TargetField) IsPointer() bool {
-	return f.Kind == "pointer"
-}
-
-func (f *TargetField) IsMap() bool {
-	return f.Kind == "map"
-}
-
-func (f *TargetField) IsCopier() bool {
-	return f.isCopier
-}
-
-func (f *TargetField) resolveType(node ast.Node) bool {
-	if len(f.TypeName) < 1 {
-		switch node.(type) {
-		case *ast.Field:
-			if node.(*ast.Field).Names[0].Name == f.Name {
-				switch t := node.(*ast.Field).Type.(type) {
-				case *ast.Ident:
-					f.TypeName = node.(*ast.Field).Type.(*ast.Ident).Name
-					f.Kind = f.TypeName
-					// For direct struct references (not pointers) the type
-					// Name will be returned so we correct it here.
-					if !f.IsPrimitive() {
-						f.Kind = "struct"
-					}
-				case *ast.ArrayType:
-					f.Kind = "array"
-
-					var elemTypeName string
-					var ident string
-					var kind string
-					expr, ok := t.Elt.(*ast.StarExpr)
-					if ok {
-						ident = expr.X.(*ast.Ident).Name
-						elemTypeName = "*" + ident
-						kind = "pointer"
-					} else {
-						ident = t.Elt.(*ast.Ident).Name
-						elemTypeName = ident
-						kind = ident
-					}
-
-					ts := f.g.typeSpecs[ident]
-
-					f.ValueType = &TargetField{
-						Kind:     kind,
-						TypeName: elemTypeName,
-						isCopier: ts != nil && ts.isCopier(),
-						g:        f.g,
-					}
-
-				case *ast.MapType:
-					f.Kind = "map"
-					var valueTypeName string
-					var ident string
-					var kind string
-
-					expr, ok := t.Value.(*ast.StarExpr)
-					if ok {
-						ident = expr.X.(*ast.Ident).Name
-						valueTypeName = "*" + ident
-						kind = "pointer"
-					} else {
-						ident = t.Value.(*ast.Ident).Name
-						valueTypeName = ident
-						kind = ident
-					}
-
-					ts := f.g.typeSpecs[ident]
-					f.ValueType = &TargetField{
-						Kind:     kind,
-						TypeName: valueTypeName,
-						isCopier: ts != nil && ts.isCopier(),
-						g:        f.g,
-					}
-					f.KeyType = &TargetField{
-						TypeName: t.Key.(*ast.Ident).Name,
-						g:        f.g,
-					}
-
-				case *ast.StructType:
-					f.Kind = "struct"
-					// TODO: where can we get the Ident from?
-					//ts := f.g.typeSpecs[ident]
-					//f.isCopier = ts != nil && ts.isCopier()
-
-				case *ast.StarExpr:
-					f.Kind = "pointer"
-					ident := t.X.(*ast.Ident).Name
-					ts := f.g.typeSpecs[ident]
-					f.isCopier = ts != nil && ts.isCopier()
-				}
-			}
-		default:
-			f.TypeName = fmt.Sprintf("%+v", node)
-		}
-	}
-	return true
-}
-
-type TargetType struct {
-	Name           string // Name of the type we're generating methods for
-	methods        []string
-	excludedFields []string
-	Fields         []*TargetField
-	g              *Generator
-}
-
-func (t *TargetType) Abbr() string {
-	return strings.ToLower(string(t.Name[0]))
-}
-
-func (t *TargetType) hasMethod(methodName string) bool {
-	for _, method := range t.Methods() {
-		if strings.ToLower(method) == "all" {
-			return true
-		}
-		if strings.ToLower(methodName) == strings.ToLower(method) {
-			return true
-		}
-	}
-	return false
-}
-
-func (t *TargetType) IsCopy() bool {
-	return t.hasMethod("copy")
-}
-
-func (t *TargetType) IsEquals() bool {
-	return t.hasMethod("equals")
-}
-
-func (t *TargetType) IsDiff() bool {
-	return t.hasMethod("diff")
-}
-
-func (t *TargetType) IsMerge() bool {
-	return t.hasMethod("merge")
-}
-
-func (t *TargetType) Methods() []string {
-	if t.methods == nil {
-		var m []string
-		for _, method := range t.g.methods {
-			if strings.Contains(method, t.Name) {
-				md := strings.TrimPrefix(method, fmt.Sprintf("%s.", t.Name))
-				m = append(m, md)
-			}
-		}
-
-		if len(m) > 0 {
-			t.methods = m
-		} else {
-			t.methods = make([]string, 0)
-		}
-
-	}
-	return t.methods
-}
-
-func (t *TargetType) ExcludedFields() []string {
-	if t.excludedFields == nil {
-		var e []string
-		for _, excludedField := range t.g.excludedFields {
-			if strings.Index(excludedField, t.Name) > -1 {
-				e = append(e, strings.TrimPrefix(excludedField, fmt.Sprintf("%s.", t.Name)))
-			}
-		}
-
-		if len(e) > 0 {
-			t.excludedFields = e
-		} else {
-			t.excludedFields = make([]string, 0)
-		}
-
-	}
-	return t.excludedFields
-}
-
-func (t *TargetType) visitFields(node ast.Node) bool {
-	switch node.(type) {
-	case *ast.TypeSpec:
-		typeSpec := node.(*ast.TypeSpec)
-		if typeSpec.Name.Name == t.Name {
-			expr := typeSpec.Type.(*ast.StructType)
-			for _, field := range expr.Fields.List {
-				if t.fieldIsExcluded(field.Names[0].Name) {
-					continue
-				}
-
-				targetField := &TargetField{Name: field.Names[0].Name, Field: field, g: t.g}
-				t.Fields = append(t.Fields, targetField)
-				ast.Inspect(field, targetField.resolveType)
-			}
-		}
-	}
-	return true
-}
-
-func (t *TargetType) fieldIsExcluded(name string) bool {
-	for _, exclude := range t.ExcludedFields() {
-		if exclude == name {
-			return true
-		}
-	}
-	return false
 }
