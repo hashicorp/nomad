@@ -277,8 +277,9 @@
         <code>CONSUL_HTTP_ADDR</code>
       </td>
       <td>
-        Specifies the address to the local Consul agent, will be a unix domain
-        socket in bridge mode and a tcp address in host networking.
+        Specifies the address to the local Consul agent. Will be automatically
+        set to a unix domain socket in bridge networking mode, or a tcp address in
+        host networking mode.
       </td>
     </tr>
     <tr>
@@ -286,7 +287,9 @@
         <code>CONSUL_HTTP_TOKEN</code>
       </td>
       <td>
-        The token to authenticate against consul.
+        Specifies the Consul ACL token used to authorize with Consul. Will be
+        automatically set to a generated Connect service identity token specific
+        to the service instance if Consul ACLs are enabled.
       </td>
     </tr>
     <tr>
@@ -294,7 +297,9 @@
         <code>CONSUL_HTTP_SSL</code>
       </td>
       <td>
-        Specifies whether HTTPS should be used when communicating with consul.
+        Specifies whether HTTPS should be used when communicating with consul. Will
+        be automatically set to true if Nomad is configured to communicate with
+        Consul using TLS.
       </td>
     </tr>
     <tr>
@@ -302,7 +307,9 @@
         <code>CONSUL_HTTP_SSL_VERIFY</code>
       </td>
       <td>
-        Specifies whether the HTTPS connection should be verified.
+        Specifies whether the HTTPS connection with Consul should be mutually
+        verified. Will be automatically set to true if Nomad is configured to
+        verify TLS certificates.
       </td>
     </tr>
     <tr>
@@ -311,6 +318,8 @@
       </td>
       <td>
         Specifies the path to the CA certificate used for Consul communication.
+        Will be automatically set if Nomad is configured with the <code>consul.share_ssl</code>
+        option.
       </td>
     </tr>
     <tr>
@@ -318,7 +327,9 @@
         <code>CONSUL_CLIENT_CERT</code>
       </td>
       <td>
-        The client certificate to use when communicating with Consul.
+        Specifies the path to the Client certificate used for Consul communication.
+        Will be automatically set if Nomad is configured with the <code>consul.share_ssl</code>
+        option.
       </td>
     </tr>
     <tr>
@@ -326,7 +337,19 @@
         <code>CONSUL_CLIENT_KEY</code>
       </td>
       <td>
-        The client key to use when communicating with Consul.
+        Specifies the path to the CLient Key certificate used for Consul communication.
+        Will be automatically set if Nomad is configured with the <code>consul.share_ssl</code>
+        option.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_TLS_SERVER_NAME</code>
+      </td>
+      <td>
+        Specifies the server name to use as the SNI host for Consul communication.
+        Will be automatically set if Consul is configured to use TLS and the task
+        is in a group using bridge networking mode.
       </td>
     </tr>
   </tbody>
