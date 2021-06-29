@@ -728,9 +728,10 @@ type JobScaleStatusRequest struct {
 
 // JobDispatchRequest is used to dispatch a job based on a parameterized job
 type JobDispatchRequest struct {
-	JobID   string
-	Payload []byte
-	Meta    map[string]string
+	JobID            string
+	Payload          []byte
+	Meta             map[string]string
+	IdempotencyToken string
 	WriteRequest
 }
 
@@ -4015,6 +4016,10 @@ type Job struct {
 	// Dispatched is used to identify if the Job has been dispatched from a
 	// parameterized job.
 	Dispatched bool
+
+	// DispatchIdempotencyToken is optionally used to ensure that a dispatched job does not have any
+	// non-terminal siblings which have the same token value.
+	DispatchIdempotencyToken string
 
 	// Payload is the payload supplied when the job was dispatched.
 	Payload []byte

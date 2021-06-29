@@ -6133,10 +6133,8 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 	reqInputDataTooLarge := &structs.JobDispatchRequest{
 		Payload: make([]byte, DispatchPayloadSizeLimit+100),
 	}
-	reqIdempotentMeta := &structs.JobDispatchRequest{
-		Meta: map[string]string{
-			MetaDispatchIdempotencyKey: "foo",
-		},
+	reqIdempotentToken := &structs.JobDispatchRequest{
+		IdempotencyToken: "foo",
 	}
 
 	type existingIdempotentChildJob struct {
@@ -6244,26 +6242,26 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			errStr:           "stopped",
 		},
 		{
-			name:                  "idempotent meta key, no existing child job",
+			name:                  "idempotency token, no existing child job",
 			parameterizedJob:      d1,
-			dispatchReq:           reqIdempotentMeta,
+			dispatchReq:           reqIdempotentToken,
 			err:                   false,
 			existingIdempotentJob: nil,
 		},
 		{
-			name:             "idempotent meta key, w/ existing non-terminal child job",
+			name:             "idempotency token, w/ existing non-terminal child job",
 			parameterizedJob: d1,
-			dispatchReq:      reqIdempotentMeta,
+			dispatchReq:      reqIdempotentToken,
 			err:              true,
-			errStr:           "dispatch violates idempotency key of non-terminal child job",
+			errStr:           "dispatch violates idempotency token of non-terminal child job",
 			existingIdempotentJob: &existingIdempotentChildJob{
 				isTerminal: false,
 			},
 		},
 		{
-			name:             "idempotent meta key, w/ existing terminal job",
+			name:             "idempotency token, w/ existing terminal job",
 			parameterizedJob: d1,
-			dispatchReq:      reqIdempotentMeta,
+			dispatchReq:      reqIdempotentToken,
 			err:              false,
 			existingIdempotentJob: &existingIdempotentChildJob{
 				isTerminal: true,

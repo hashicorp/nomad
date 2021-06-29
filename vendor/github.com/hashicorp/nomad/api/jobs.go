@@ -397,6 +397,22 @@ func (j *Jobs) Dispatch(jobID string, meta map[string]string,
 	return &resp, wm, nil
 }
 
+func (j *Jobs) DispatchIdempotent(jobID string, meta map[string]string,
+	payload []byte, idempotencyToken string, q *WriteOptions) (*JobDispatchResponse, *WriteMeta, error) {
+	var resp JobDispatchResponse
+	req := &JobDispatchRequest{
+		JobID:            jobID,
+		Meta:             meta,
+		Payload:          payload,
+		IdempotencyToken: idempotencyToken,
+	}
+	wm, err := j.client.write("/v1/job/"+url.PathEscape(jobID)+"/dispatch", req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
 // Revert is used to revert the given job to the passed version. If
 // enforceVersion is set, the job is only reverted if the current version is at
 // the passed version.
@@ -1262,9 +1278,10 @@ type DesiredUpdates struct {
 }
 
 type JobDispatchRequest struct {
-	JobID   string
-	Payload []byte
-	Meta    map[string]string
+	JobID            string
+	Payload          []byte
+	Meta             map[string]string
+	IdempotencyToken string
 }
 
 type JobDispatchResponse struct {

@@ -32,11 +32,6 @@ const (
 	// DispatchPayloadSizeLimit is the maximum size of the uncompressed input
 	// data payload.
 	DispatchPayloadSizeLimit = 16 * 1024
-
-	// MetaDispatchIdempotencyKey is the meta key that when provided, is used
-	// to perform an idempotency check to ensure only 1 child of a parameterized job
-	// with the supplied key may be running (or pending) at a time.
-	MetaDispatchIdempotencyKey = "nomad_dispatch_idempotency_key"
 )
 
 // ErrMultipleNamespaces is send when multiple namespaces are used in the OSS setup
@@ -1904,6 +1899,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	dispatchJob.Dispatched = true
 	dispatchJob.Status = ""
 	dispatchJob.StatusDescription = ""
+	dispatchJob.DispatchIdempotencyToken = args.IdempotencyToken
 
 	// Merge in the meta data
 	for k, v := range args.Meta {
@@ -1913,8 +1909,8 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		dispatchJob.Meta[k] = v
 	}
 
-	// Check to see if an idempotency key was provided on the meta
-	if idempotencyKey, ok := dispatchJob.Meta[MetaDispatchIdempotencyKey]; ok {
+	// Check to see if an idempotency token was specified on the request
+	if args.IdempotencyToken != "" {
 		// Fetch all jobs that match the parameterized job ID prefix
 		iter, err := snap.JobsByIDPrefix(ws, parameterizedJob.Namespace, parameterizedJob.ID)
 		if err != nil {
@@ -1934,12 +1930,12 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 				continue
 			}
 
-			// Idempotency keys match. Ensure existing job is not currently running.
-			if ik, ok := existingJob.Meta[MetaDispatchIdempotencyKey]; ok && ik == idempotencyKey {
+			// Idempotency tokens match. Ensure existing job is terminal.
+			if existingJob.DispatchIdempotencyToken == args.IdempotencyToken {
 				// The existing job is either pending or running.
-				// Registering a new job would violate the idempotency key.
+				// Registering a new job would violate the idempotency token.
 				if existingJob.Status != structs.JobStatusDead {
-					return fmt.Errorf("dispatch violates idempotency key of non-terminal child job: %s", existingJob.ID)
+					return fmt.Errorf("dispatch violates idempotency token of non-terminal child job: %s", existingJob.ID)
 				}
 			}
 		}
@@ -2039,8 +2035,7 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 	for k := range req.Meta {
 		_, req := required[k]
 		_, opt := optional[k]
-		// Always allow the idempotency key
-		if !req && !opt && k != MetaDispatchIdempotencyKey {
+		if !req && !opt {
 			unpermitted[k] = struct{}{}
 		}
 	}
