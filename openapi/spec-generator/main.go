@@ -36,7 +36,7 @@ var response.tmpl
 //go:embed schema.tmpl
 var schemaTmpl embed.FS
 
-//go:embed paths.tmpl
+//go:embed path.tmpl
 var pathTmpl embed.FS
 
 //go:embed get.tmpl

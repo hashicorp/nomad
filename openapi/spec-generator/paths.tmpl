@@ -1,0 +1,80 @@
+{{ define "operation"}}
+      tags:
+      {{ range $tag := .Tags }}
+        - {{ $tag }}
+      {{ end }}
+      summary: {{ .Summary }}
+      operationId: {{ .OperationID }}
+      description: >-
+        {{ .Description }}
+      {{- if .RequestBody }}
+      requestBody:
+        {{- if .RequestBody.Value.Description }}
+        description: {{ .RequestBody.Value.Description }}
+        {{- end }}
+        required: {{ .RequestBody.Value.Required }}
+        content:
+        {{- range $encoding, $mediaType := .RequestBody.Content }}
+          {{ $encoding }}:
+            schema:
+            {{- if $mediaType.Schema.Ref }}
+              {{ $mediaType.Schema.Ref }}
+            {{- else }}
+              NOT_IMPLEMENTED_ERROR: requestBodies must be Refs
+            {{- end }}
+        {{- end}}
+      {{- end }}
+      {{- if .Parameters }}
+      parameters:
+        {{- range $parameter := .Parameters }}
+        - {{ $parameter.Ref }}
+        {{- end }}
+      {{- end }}
+      responses:
+      {{- range $statusCode, $response := .Responses }}
+        '{{$statusCode}}':
+        {{- if $response.Ref }}
+          {{ $response.Ref}}'
+        {{- else }}
+          description: {{ $response.Value.Description }}
+          content:
+          {{- range $encoding, $mediaType := $response.Value.Content }}
+            {{ $encoding }}:
+              schema:
+              {{- if $mediaType.Schema.Ref }}
+                {{ $mediaType.Schema.Ref }}'
+              {{- else if eq $mediaType.Schema.Value.Type "array" }}
+                type: {{ $mediaType.Schema.Value.Type }}
+                items:
+                  {{ $mediaType.Schema.Value.Items.Ref }}'
+              {{- else }}
+                NOT_IMPLEMENTED_ERROR
+              {{- end }}
+          {{- end }}
+          {{- if .Headers }}
+          headers:
+          {{- range $name, $header := .Headers }}
+            {{ $name }}:
+              {{ $header.Ref }}
+          {{- end }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+
+{{ define "paths" }}
+{{- range $path, $item := . -}}
+  {{- if $item.Get }}
+  get:
+    {{ template "operation" $item.Get }}
+  {{- end }}
+  {{- if $item.Post }}
+  post:
+    {{ template "operation" $item.Post }}
+  {{- end }}
+  {{- if $item.Delete }}
+  delete:
+    {{ template "operation" $item.Delete }}
+  {{- end }}
+{{- end }}
+{{ end }}

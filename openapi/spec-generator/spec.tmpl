@@ -1,35 +1,35 @@
 openapi: {{ .SpecVersion }}
 info:
-  description: {{ .Description }}
-  title: {{ .Title }}
+  title: {{ .Model.Info.Title }}
+  version: {{ .Model.Info.Version }}
+  description: {{ .Model.Info.Description }}
+  termsOfService: {{ .Model.Info.TermsOfService }}
   contact:
-    email: {{ .Email }}
+    name: {{ .Model.Contact.Name }}
+    url: {{ .Model.Contact.URL }}
+    email: {{ .Model.Contact.Email }}
   license:
-    name: {{ .LicenseName }}
-    url: {{ .LicenceURL }}
-  version: {{ .APIVersion }}
+    name: {{ .Model.License.Name }}
+    url: {{ .Model.Licence.URL }}
 servers:
-{{- range .Servers }}
+{{- range .Model.Servers }}
   {{ template "server" }}
 {{- end }}
 components:
   securitySchemes:
-{{- range .SecuritySchemes }}
+{{- range .Model.Components.SecuritySchemes }}
     {{ template "securityScheme" }}
 {{- end }}
   parameters:
-{{- range .Parameters }}
+{{- range .Model.Components.Parameters }}
     {{ template "param" }}
 {{- end }}
   headers:
-{{- range .Headers }}
+{{- range .Model.Components.Headers }}
     {{ template "header" }}
 {{- end }}
   schemas:
-{{- range .Schemas }}
+{{- range .Model.Components.Schemas }}
     {{ template "schema" }}
 {{- end }}
-paths:
-{{- range .Paths }}
-  {{ template "path" }}
-{{- end }}
+{{ template "paths" .Model.Components.Paths }}
