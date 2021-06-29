@@ -2039,7 +2039,8 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 	for k := range req.Meta {
 		_, req := required[k]
 		_, opt := optional[k]
-		if !req && !opt {
+		// Always allow the idempotency key
+		if !req && !opt && k != MetaDispatchIdempotencyKey {
 			unpermitted[k] = struct{}{}
 		}
 	}

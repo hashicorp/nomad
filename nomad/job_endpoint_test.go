@@ -6133,14 +6133,24 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 	reqInputDataTooLarge := &structs.JobDispatchRequest{
 		Payload: make([]byte, DispatchPayloadSizeLimit+100),
 	}
+	reqIdempotentMeta := &structs.JobDispatchRequest{
+		Meta: map[string]string{
+			MetaDispatchIdempotencyKey: "foo",
+		},
+	}
+
+	type existingIdempotentChildJob struct {
+		isTerminal bool
+	}
 
 	type testCase struct {
-		name             string
-		parameterizedJob *structs.Job
-		dispatchReq      *structs.JobDispatchRequest
-		noEval           bool
-		err              bool
-		errStr           string
+		name                  string
+		parameterizedJob      *structs.Job
+		dispatchReq           *structs.JobDispatchRequest
+		noEval                bool
+		err                   bool
+		errStr                string
+		existingIdempotentJob *existingIdempotentChildJob
 	}
 	cases := []testCase{
 		{
@@ -6233,6 +6243,32 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			err:              true,
 			errStr:           "stopped",
 		},
+		{
+			name:                  "idempotent meta key, no existing child job",
+			parameterizedJob:      d1,
+			dispatchReq:           reqIdempotentMeta,
+			err:                   false,
+			existingIdempotentJob: nil,
+		},
+		{
+			name:             "idempotent meta key, w/ existing non-terminal child job",
+			parameterizedJob: d1,
+			dispatchReq:      reqIdempotentMeta,
+			err:              true,
+			errStr:           "dispatch violates idempotency key of non-terminal child job",
+			existingIdempotentJob: &existingIdempotentChildJob{
+				isTerminal: false,
+			},
+		},
+		{
+			name:             "idempotent meta key, w/ existing terminal job",
+			parameterizedJob: d1,
+			dispatchReq:      reqIdempotentMeta,
+			err:              false,
+			existingIdempotentJob: &existingIdempotentChildJob{
+				isTerminal: true,
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -6264,6 +6300,27 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			tc.dispatchReq.WriteRequest = structs.WriteRequest{
 				Region:    "global",
 				Namespace: tc.parameterizedJob.Namespace,
+			}
+
+			// Dispatch with the same request so a child job w/ the idempotency key exists
+			if tc.existingIdempotentJob != nil {
+				var initialDispatchResp structs.JobDispatchResponse
+				if err := msgpackrpc.CallWithCodec(codec, "Job.Dispatch", tc.dispatchReq, &initialDispatchResp); err != nil {
+					t.Fatalf("Unexpected error dispatching initial idempotent job: %v", err)
+				}
+
+				if tc.existingIdempotentJob.isTerminal {
+					eval, err := s1.State().EvalByID(nil, initialDispatchResp.EvalID)
+					if err != nil {
+						t.Fatalf("Unexpected error fetching eval %v", err)
+					}
+					eval = eval.Copy()
+					eval.Status = structs.EvalStatusComplete
+					err = s1.State().UpsertEvals(structs.MsgTypeTestSetup, initialDispatchResp.Index+1, []*structs.Evaluation{eval})
+					if err != nil {
+						t.Fatalf("Unexpected error completing eval %v", err)
+					}
+				}
 			}
 
 			var dispatchResp structs.JobDispatchResponse
