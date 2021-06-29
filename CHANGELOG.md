@@ -1,7 +1,8 @@
 ## 1.1.3 (Unreleased)
 
 BUG FIXES:
-csi: fixed a CLI panic when formatting `volume status` with `-verbose` flag [[GH-10818](https://github.com/hashicorp/nomad/issues/10818)]
+* cli: Fixed system commands, so they correctly use passed flags. [[GH-10822](https://github.com/hashicorp/nomad/pull/10822)]
+* csi: Fixed a CLI panic when formatting `volume status` with `-verbose` flag. [[GH-10818](https://github.com/hashicorp/nomad/issues/10818)]
 
 ## 1.1.2 (June 22, 2021)
 
