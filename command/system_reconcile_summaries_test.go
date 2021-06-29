@@ -19,7 +19,7 @@ func TestSystemReconcileSummariesCommand_Good(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
-	cmd := &SystemReconcileSummariesCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+	cmd := &SystemReconcileSummariesCommand{Meta: Meta{Ui: ui}}
 
 	if code := cmd.Run([]string{"-address=" + url}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d; %v", code, ui.ErrorWriter.String())
