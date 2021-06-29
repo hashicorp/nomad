@@ -18,71 +18,14 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-//go:embed spec.tmpl
-var specTmpl embed.FS
-
-//go:embed components.tmpl
-var componentsTmpl embed.FS
-
-//go:embed param.tmpl
-var paramTmpl embed.FS
-
-//go:embed header.tmpl
-var headerTmpl embed.FS
-
-//go:embed response.tmpl
-var response.tmpl
-
-//go:embed schema.tmpl
-var schemaTmpl embed.FS
-
-//go:embed path.tmpl
-var pathTmpl embed.FS
-
-//go:embed get.tmpl
-var getTmpl embed.FS
-
-//go:embed post.tmpl
-var postTmpl embed.FS
-
-//go:embed delete.tmpl
-var deleteTmpl embed.FS
-
-type stringSliceFlag []string
-
-func (s *stringSliceFlag) String() string {
-	return fmt.Sprintf("%s", *s)
-}
-
-func (s *stringSliceFlag) Set(value string) error {
-	*s = append(*s, value)
-	return nil
-}
-
 func main() {
+	var outDir string
 
-	var excludedFieldFlags stringSliceFlag
-	var typeNameFlags stringSliceFlag
-	var methodFlags stringSliceFlag
-	var packageDir string
-
-	flag.Var(&excludedFieldFlags, "exclude", "list of Fields to exclude from Copy")
-	flag.Var(&typeNameFlags, "type", "types for which to generate Copy methodFlags")
-	flag.Var(&methodFlags, "method", "methodFlags to generate - defaults to all")
-	flag.StringVar(&packageDir, "packageDir", "./", "The source dir to target")
+	flag.StringVar(&outDir, "outDir", "./", "The output dir to save spec to")
 	flag.Parse()
 
-	if len(typeNameFlags) == 0 {
-		fmt.Println("at least one -type flag needed to generate Copy")
-		os.Exit(2)
-	}
-
 	g := &Generator{
-		packageDir:     packageDir,
-		typeNames:      typeNameFlags,
-		methods:        methodFlags,
-		excludedFields: excludedFieldFlags,
-		typeSpecs:      map[string]*TypeSpecNode{},
+		Builder: NomadSpecBuilder{},
 	}
 	err := run(g)
 	if err != nil {
@@ -92,7 +35,6 @@ func main() {
 }
 
 func run(g *Generator) error {
-
 	var err error
 	var pkgs []*packages.Package
 	if pkgs, err = g.loadPackages(); err != nil {

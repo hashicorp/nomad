@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	openapi3 "github.com/getkin/kin-openapi/openapi3"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -10,9 +11,13 @@ func TestRenderSchema(t *testing.T) {
 	req := require.New(t)
 
 	spec := Spec{
-		Components: Components{
-			Schemas: []Schema{
-				Schema{Name: "Service"},
+		Model: openapi3.T{
+			Components: openapi3.Components{
+				Schemas: openapi3.Schemas{
+					"Service": &openapi3.SchemaRef{
+						Ref: "#/components/schemas/Service",
+					},
+				},
 			},
 		},
 	}
