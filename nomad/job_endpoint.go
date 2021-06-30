@@ -1935,7 +1935,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 				// The existing job is either pending or running.
 				// Registering a new job would violate the idempotency token.
 				if existingJob.Status != structs.JobStatusDead {
-					return fmt.Errorf("dispatch violates idempotency token of non-terminal child job: %s", existingJob.ID)
+					return fmt.Errorf("idempotent dispatch failed: another child job with this token is running or pending: %s", existingJob.ID)
 				}
 			}
 		}
