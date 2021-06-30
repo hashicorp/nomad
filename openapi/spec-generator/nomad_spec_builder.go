@@ -1,69 +1,49 @@
 package main
 
 import (
-	"context"
-	"github.com/getkin/kin-openapi/openapi3"
+	"errors"
+	"golang.org/x/tools/go/packages"
 )
 
-type NomadSpecBuilder struct {
-	spec *Spec
+func NewNomadSpecBuilder() *SpecBuilder {
+	return &SpecBuilder{
+		PathAdapters: []*SourceAdapter{
+			{
+				Parser: &PackageParser{
+					Config: packages.Config{
+						Dir:  "../../command/agent/",
+						Mode: loadMode,
+					},
+					Pattern: ".",
+				},
+				Adapt: NomadPathAdapterFunc,
+			},
+		},
+	}
 }
 
-func (nsb *NomadSpecBuilder) Build() (*Spec, error) {
-	nsb.spec = &Spec{
-		ValidationContext: context.Background(),
-		OpenAPIVersion:    "3.0.3",
-		Model:             openapi3.T{},
+func NomadPathAdapterFunc(spec *Spec, result *ParseResult) error {
+	httpHandlers := GetHttpHandlers(result.Package)
+
+	if len(httpHandlers) < 1 {
+		return errors.New("NomadSpecBuilder.NomadPathAdapterFunc: no handlers found")
 	}
 
-	if err := nsb.BuildSecurity(); err != nil {
-		return nil, err
+	for key, httpHandler := range httpHandlers {
+		spec.Model.AddOperation(GetPath(key, httpHandler), "TODO", nil)
 	}
-
-	if err := nsb.BuildServers(); err != nil {
-		return nil, err
-	}
-
-	if err := nsb.BuildTags(); err != nil {
-		return nil, err
-	}
-
-	if err := nsb.BuildComponents(); err != nil {
-		return nil, err
-	}
-
-	if err := nsb.BuildPaths(); err != nil {
-		return nil, err
-	}
-
-	if err := nsb.spec.Model.Validate(nsb.spec.ValidationContext); err != nil {
-		return nil, err
-	}
-
-	return nsb.spec, nil
-}
-
-func (nsb *NomadSpecBuilder) BuildComponents() error {
 
 	return nil
 }
 
-func (nsb *NomadSpecBuilder) BuildPaths() error {
-
-	return nil
-}
-
-func (nsb *NomadSpecBuilder) BuildSecurity() error {
-
-	return nil
-}
-
-func (nsb *NomadSpecBuilder) BuildServers() error {
-
-	return nil
-}
-
-func (nsb *NomadSpecBuilder) BuildTags() error {
-
-	return nil
-}
+const loadMode = packages.NeedName |
+	packages.NeedFiles |
+	packages.NeedCompiledGoFiles |
+	packages.NeedImports |
+	packages.NeedDeps |
+	packages.NeedExportsFile |
+	packages.NeedTypes |
+	packages.NeedSyntax |
+	packages.NeedTypesInfo |
+	packages.NeedTypesSizes |
+	packages.NeedModule

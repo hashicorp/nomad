@@ -236,7 +236,7 @@ info:
   contact:
     email: support@hashicorp.com
   license:
-    name: MIT 2
+    name: MPL 2
     url: https://github.com/hashicorp/nomad/blob/main/LICENSE
   version: 1.1.0
 servers:
