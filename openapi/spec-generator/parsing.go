@@ -10,9 +10,9 @@ import (
 
 // ParseResult encapsulate the output of a parse operation.
 type ParseResult struct {
-	Package *packages.Package
-	File    *ast.File
-	FileSet *token.FileSet
+	Package  *packages.Package
+	Files    []*ast.File
+	FileSets []*token.FileSet
 }
 
 // PackageParser encapsulates the necessary configuration and logic to load and parse
@@ -25,16 +25,16 @@ type PackageParser struct {
 	Pattern string
 }
 
-func (p *PackageParser) Parse() ([]*ParseResult, error) {
+func (p *PackageParser) Parse() (*[]*ParseResult, error) {
 	var err error
 	var pkgs []*packages.Package
-	var results []*ParseResult
 
 	if pkgs, err = packages.Load(&p.Config, p.Pattern); err != nil {
 		return nil, fmt.Errorf("PackageParser.Parse.packages.Load: %v", err)
 	}
 
-	if err = p.parsePackages(pkgs, results); err != nil {
+	var results *[]*ParseResult
+	if results, err = p.parsePackages(pkgs); err != nil {
 		return nil, err
 	}
 
@@ -42,11 +42,12 @@ func (p *PackageParser) Parse() ([]*ParseResult, error) {
 }
 
 // parsePackages iterates over the package source and ensures each go file is processed.
-func (p *PackageParser) parsePackages(pkgs []*packages.Package, results []*ParseResult) error {
+func (p *PackageParser) parsePackages(pkgs []*packages.Package) (*[]*ParseResult, error) {
+	var results []*ParseResult
 	for _, pkg := range pkgs {
 
 		if len(pkg.Errors) > 0 {
-			return fmt.Errorf("PackageParser.parsePackages.pkg.Errors: %v\n", pkg.Errors[0])
+			return nil, fmt.Errorf("PackageParser.parsePackages.pkg.Errors: %v\n", pkg.Errors[0])
 		}
 
 		result := &ParseResult{
@@ -55,14 +56,14 @@ func (p *PackageParser) parsePackages(pkgs []*packages.Package, results []*Parse
 
 		for _, goFile := range pkg.GoFiles {
 			if err := p.parseGoFile(goFile, result); err != nil {
-				return err
+				return nil, err
 			}
 		}
 
 		results = append(results, result)
 	}
 
-	return nil
+	return &results, nil
 }
 
 // parseGoFile parses an individual go file and adds both the file and the fileSet
@@ -75,7 +76,7 @@ func (p *PackageParser) parseGoFile(goFile string, result *ParseResult) error {
 		return fmt.Errorf("PackageParser.parseGoFile: %v\n", err)
 	}
 
-	result.File = file
-	result.FileSet = fileSet
+	result.Files = append(result.Files, file)
+	result.FileSets = append(result.FileSets, fileSet)
 	return nil
 }

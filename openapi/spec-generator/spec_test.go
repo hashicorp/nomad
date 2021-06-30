@@ -7,10 +7,33 @@ import (
 	"testing"
 )
 
+func TestNomadPathAdapterFunc(t *testing.T) {
+	req := require.New(t)
+
+	nsb := NewNomadSpecBuilder()
+	nsb.spec = &Spec{}
+
+	for _, adapter := range nsb.PathAdapters {
+		results, err := adapter.Parser.Parse()
+		req.NoError(err, "TestNomadPathAdapterFunc.nsb.PathAdapter.Parser.Parse")
+
+		for _, result := range *results {
+			err := NomadPathAdapterFunc(nsb.spec, result)
+			req.NoError(err, "TestNomadPathAdapterFunc")
+		}
+	}
+
+	for key, _ := range nsb.spec.Model.Paths {
+		t.Log(key)
+	}
+	t.Log(nsb)
+}
+
 func TestRenderSchema(t *testing.T) {
 	req := require.New(t)
 
 	spec := Spec{
+		OpenAPIVersion: "3.0.3",
 		Model: openapi3.T{
 			Components: openapi3.Components{
 				Schemas: openapi3.Schemas{
@@ -25,10 +48,15 @@ func TestRenderSchema(t *testing.T) {
 	var formatted []byte
 	var err error
 	var buf bytes.Buffer
-	err = spec.execTemplate(&buf, specTmpl)
+	var generator = Generator{
+		OutputFile: "./",
+		spec:       &spec,
+	}
+
+	err = generator.execTemplate(&buf, specTmpl)
 	req.NoError(err, "TestRenderSchema.spec.execTemplate failed")
 
-	formatted, err = spec.format(buf.Bytes())
+	formatted, err = generator.format(buf.Bytes())
 	req.NoError(err, "TestRenderSchema.spec.format failed")
 
 	req.Contains(formatted, serviceSchema)

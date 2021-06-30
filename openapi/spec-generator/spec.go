@@ -9,6 +9,8 @@ import (
 // Spec wraps a kin-openapi document object model with a little bit of extra
 // metadata so that the template can be entirely data driven
 type Spec struct {
+	// TODO: Find a better solution to making this functionality available.
+	analyzer          *Analyzer
 	ValidationContext context.Context
 	OpenAPIVersion    string
 	Model             openapi3.T
@@ -97,17 +99,13 @@ func (b *SpecBuilder) BuildPaths() error {
 }
 
 func (b *SpecBuilder) processAdapters(adapters []*SourceAdapter, caller string) error {
-	var results []*ParseResult
-
 	for _, adapter := range adapters {
-		r, err := adapter.Parser.Parse()
+		results, err := adapter.Parser.Parse()
 		if err != nil {
 			return fmt.Errorf("SpecBuilder.%s.Parser.Parse: %v\n", caller, err)
 		}
 
-		results = append(results, r...)
-
-		for _, result := range results {
+		for _, result := range *results {
 			if err := adapter.Adapt(b.spec, result); err != nil {
 				return fmt.Errorf("SpecBuilder.%s.adapter.AdapterFunc: %v\n", caller, err)
 			}

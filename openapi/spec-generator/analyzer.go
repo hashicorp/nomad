@@ -12,7 +12,10 @@ type HTTPProfile struct {
 	IsHandler        bool // net/http.Handler
 }
 
-func analyzeHTTPProfile(tup *types.Tuple, result *HTTPProfile) *HTTPProfile {
+// Analyzer provides a number of static analysis helper functions.
+type Analyzer struct{}
+
+func (a *Analyzer) analyzeHTTPProfile(tup *types.Tuple, result *HTTPProfile) *HTTPProfile {
 	if tup == nil {
 		return result
 	}
@@ -45,20 +48,20 @@ func analyzeHTTPProfile(tup *types.Tuple, result *HTTPProfile) *HTTPProfile {
 	return result
 }
 
-func GetHttpHandlers(pkg *packages.Package) map[string]*types.Func {
+func (a *Analyzer) GetHttpHandlers(pkg *packages.Package) map[string]*types.Func {
 	httpHandlers := make(map[string]*types.Func)
 
 	for _, typeDef := range pkg.TypesInfo.Defs {
 		if typeDef != nil {
-			if typesFunc, ok := typeDef.(*types.Func); ok {
-				if funcSignature, ok := typesFunc.Type().(*types.Signature); ok {
+			if typeDefFunc, ok := typeDef.(*types.Func); ok {
+				if funcSignature, ok := typeDefFunc.Type().(*types.Signature); ok {
 					result := HTTPProfile{}
 
-					analyzeHTTPProfile(funcSignature.Params(), &result)
-					analyzeHTTPProfile(funcSignature.Results(), &result)
+					a.analyzeHTTPProfile(funcSignature.Params(), &result)
+					a.analyzeHTTPProfile(funcSignature.Results(), &result)
 
 					if result.IsHandler || (result.IsResponseWriter && result.IsRequest) {
-						httpHandlers[typeDef.String()] = typesFunc
+						httpHandlers[typeDefFunc.Name()] = typeDefFunc
 					}
 				}
 			}
@@ -68,8 +71,20 @@ func GetHttpHandlers(pkg *packages.Package) map[string]*types.Func {
 	return httpHandlers
 }
 
-func GetPath(key string, httpHandler *types.Func) (string, error) {
-	path := "unknown"
-
+func (a *Analyzer) GetPath(key string, httpHandler *types.Func, result *ParseResult) (string, error) {
+	path := key
+	// TODO:
 	return path, nil
+}
+
+func (a *Analyzer) GetMethods(key string, httpHandler *types.Func, result *ParseResult) ([]string, error) {
+	// TODO:
+
+	return make([]string, 0), nil
+}
+
+func (a *Analyzer) GetParameters(key string, httpHandler *types.Func, result *ParseResult) (map[string]*types.Type, error) {
+	// TODO:
+
+	return make(map[string]*types.Type), nil
 }
