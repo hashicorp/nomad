@@ -16,8 +16,9 @@ The changelog entry should include the affected component (e.g. `driver/docker`,
 
 Use the PR number as the file name. Enterprise private changes should have an entry in the OSS repository referencing a public GitHub issues detailing the change and impact.
 
-Below are some examples of how to generate a CHANGELOG entry with your pull
-request.
+The `.txt` files have a markdown-like syntax, with a tag signifying the entry type.
+
+Below are some examples of how to generate a CHANGELOG entry with your pull request.
 
 ### Improvement
 
