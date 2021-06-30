@@ -5,7 +5,7 @@ Nomad uses [`go-changelog`](https://github.com/hashicorp/go-changelog) to genera
 To install, run the following command:
 
 ```
-go get github.com/hashicorp/go-changelog/cmd/changelog-build
+go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 ```
 
 ## Developer Guide

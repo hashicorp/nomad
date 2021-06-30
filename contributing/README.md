@@ -134,6 +134,12 @@ developers and reviewers confidence that the proper changes have been made:
 * [New CLI command](checklist-command.md)
 * [New RPC endpoint](checklist-rpc-endpoint.md)
 
+Changelog management
+---
+
+See [the Changelog README.md](../.changelog/README.md#developer-guide) for details.
+
+
 Tooling
 ---
 
