@@ -1909,7 +1909,8 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		dispatchJob.Meta[k] = v
 	}
 
-	// Check to see if an idempotency token was specified on the request
+	// Ensure that we have only one dispatched version of this job running concurrently
+	// by comparing the idempotency token against any non-terminal versions.
 	if args.IdempotencyToken != "" {
 		// Fetch all jobs that match the parameterized job ID prefix
 		iter, err := snap.JobsByIDPrefix(ws, parameterizedJob.Namespace, parameterizedJob.ID)
