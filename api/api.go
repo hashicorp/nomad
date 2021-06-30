@@ -93,6 +93,9 @@ type WriteOptions struct {
 	// ctx is an optional context pass through to the underlying HTTP
 	// request layer. Use Context() and WithContext() to manage this.
 	ctx context.Context
+
+	// IdempotencyToken can be used to ensure the write is idempotent.
+	IdempotencyToken string
 }
 
 // QueryMeta is used to return meta data about a query
