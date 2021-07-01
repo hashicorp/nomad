@@ -173,6 +173,8 @@ func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *in
 
 // deregister services from Consul.
 func (h *serviceHook) deregister(from string) {
+	fmt.Println("serviceHook.deregister (skip)")
+
 	fmt.Println("serviceHook.deregister from:", from)
 
 	workloadServices := h.getWorkloadServices()

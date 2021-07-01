@@ -77,10 +77,10 @@ func TestConsul_Connect(t *testing.T) {
 		},
 	}
 
-	// required by isNomadSidecar assertion below
-	serviceRegMap := map[string]*consulapi.AgentServiceRegistration{
-		MakeAllocServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0]): nil,
-	}
+	//// required by isNomadSidecar assertion below
+	//serviceRegMap := map[string]*consulapi.AgentServiceRegistration{
+	//	MakeAllocServiceID(alloc.ID, "group-"+alloc.TaskGroup, tg.Services[0]): nil,
+	//}
 
 	require.NoError(t, serviceClient.RegisterWorkload(BuildAllocServices(mock.Node(), alloc, NoopRestarter())))
 
@@ -102,7 +102,7 @@ func TestConsul_Connect(t *testing.T) {
 
 		require.Contains(t, services, serviceID)
 		require.True(t, isNomadService(serviceID))
-		require.False(t, isNomadSidecar(serviceID, serviceRegMap))
+		require.False(t, maybeSidecarProxy(serviceID))
 		agentService := services[serviceID]
 		require.Equal(t, agentService.Service, "testconnect")
 		require.Equal(t, agentService.Address, "10.0.0.1")
@@ -112,7 +112,7 @@ func TestConsul_Connect(t *testing.T) {
 
 		require.Contains(t, services, connectID)
 		require.True(t, isNomadService(connectID))
-		require.True(t, isNomadSidecar(connectID, serviceRegMap))
+		require.True(t, maybeSidecarProxyCheck(connectID))
 		connectService := services[connectID]
 		require.Equal(t, connectService.Service, "testconnect-sidecar-proxy")
 		require.Equal(t, connectService.Address, "10.0.0.1")

@@ -175,8 +175,8 @@ func (h *groupServiceHook) PreKill() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	// fmt.Println("calling groupServiceHook.PreKill()")
-	// h.preKillLocked()
+	fmt.Println("calling groupServiceHook.PreKill()")
+	h.preKillLocked()
 }
 
 // implements the PreKill hook but requires the caller hold the lock
@@ -199,14 +199,16 @@ func (h *groupServiceHook) preKillLocked() {
 }
 
 func (h *groupServiceHook) Postrun() error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	fmt.Println("groupServiceHook.PostRun() skipping de-register")
 
-	fmt.Println("calling groupServiceHook.Postrun()")
-
-	if !h.deregistered {
-		h.deregister()
-	}
+	//h.mu.Lock()
+	//defer h.mu.Unlock()
+	//
+	//fmt.Println("calling groupServiceHook.Postrun()")
+	//
+	//if !h.deregistered {
+	//	h.deregister()
+	//}
 	return nil
 }
 

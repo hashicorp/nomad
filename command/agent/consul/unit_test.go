@@ -666,7 +666,7 @@ func TestConsul_RegServices(t *testing.T) {
 	}
 
 	// Remove the new task
-	ctx.ServiceClient.RemoveWorkload(ctx.Workload)
+	ctx.ServiceClient.RemoveWorkload("test", ctx.Workload)
 	if err := ctx.syncOnce(syncNewOps); err != nil {
 		t.Fatalf("unexpected error syncing task: %v", err)
 	}
@@ -1100,7 +1100,7 @@ func TestConsul_CanaryTags(t *testing.T) {
 		require.NotEqual(canaryTags, service.Tags)
 	}
 
-	ctx.ServiceClient.RemoveWorkload(ctx.Workload)
+	ctx.ServiceClient.RemoveWorkload("test", ctx.Workload)
 	require.NoError(ctx.syncOnce(syncNewOps))
 	require.Len(ctx.FakeConsul.services["default"], 0)
 }
@@ -1133,7 +1133,7 @@ func TestConsul_CanaryTags_NoTags(t *testing.T) {
 		require.Equal(tags, service.Tags)
 	}
 
-	ctx.ServiceClient.RemoveWorkload(ctx.Workload)
+	ctx.ServiceClient.RemoveWorkload("test", ctx.Workload)
 	require.NoError(ctx.syncOnce(syncNewOps))
 	require.Len(ctx.FakeConsul.services["default"], 0)
 }
@@ -1166,7 +1166,7 @@ func TestConsul_CanaryMeta(t *testing.T) {
 		require.NotEqual(canaryMeta, service.Meta)
 	}
 
-	ctx.ServiceClient.RemoveWorkload(ctx.Workload)
+	ctx.ServiceClient.RemoveWorkload("test", ctx.Workload)
 	require.NoError(ctx.syncOnce(syncNewOps))
 	require.Len(ctx.FakeConsul.services["default"], 0)
 }
@@ -1200,7 +1200,7 @@ func TestConsul_CanaryMeta_NoMeta(t *testing.T) {
 		require.Equal(meta, service.Meta)
 	}
 
-	ctx.ServiceClient.RemoveWorkload(ctx.Workload)
+	ctx.ServiceClient.RemoveWorkload("test", ctx.Workload)
 	require.NoError(ctx.syncOnce(syncNewOps))
 	require.Len(ctx.FakeConsul.services["default"], 0)
 }
@@ -1857,7 +1857,7 @@ func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {
 
 	// Sync and ensure that explicitly removed service as well as outofbandWorkload were removed
 
-	ctx.ServiceClient.RemoveWorkload(explicitlyRemovedWorkload)
+	ctx.ServiceClient.RemoveWorkload("test", explicitlyRemovedWorkload)
 	require.NoError(ctx.syncOnce(syncNewOps))
 	require.NoError(ctx.ServiceClient.sync(syncNewOps))
 	require.Len(ctx.FakeConsul.services["default"], 1)
@@ -1966,7 +1966,7 @@ func TestConsul_ServiceDeregistration_InProbation(t *testing.T) {
 
 	// Sync and ensure that explicitly removed service was removed, but outofbandWorkload remains
 
-	ctx.ServiceClient.RemoveWorkload(explicitlyRemovedWorkload)
+	ctx.ServiceClient.RemoveWorkload("test", explicitlyRemovedWorkload)
 	require.NoError(ctx.syncOnce(syncNewOps))
 	require.NoError(ctx.ServiceClient.sync(syncNewOps))
 	require.Len(ctx.FakeConsul.services["default"], 2)
