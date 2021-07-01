@@ -6133,9 +6133,6 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 	reqInputDataTooLarge := &structs.JobDispatchRequest{
 		Payload: make([]byte, DispatchPayloadSizeLimit+100),
 	}
-	reqIdempotentToken := &structs.JobDispatchRequest{
-		IdempotencyToken: "foo",
-	}
 
 	type existingIdempotentChildJob struct {
 		isTerminal bool
@@ -6148,6 +6145,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 		noEval                bool
 		err                   bool
 		errStr                string
+		idempotencyToken      string
 		existingIdempotentJob *existingIdempotentChildJob
 	}
 	cases := []testCase{
@@ -6244,16 +6242,18 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 		{
 			name:                  "idempotency token, no existing child job",
 			parameterizedJob:      d1,
-			dispatchReq:           reqIdempotentToken,
+			dispatchReq:           reqInputDataNoMeta,
 			err:                   false,
+			idempotencyToken:      "foo",
 			existingIdempotentJob: nil,
 		},
 		{
 			name:             "idempotency token, w/ existing non-terminal child job",
 			parameterizedJob: d1,
-			dispatchReq:      reqIdempotentToken,
+			dispatchReq:      reqInputDataNoMeta,
 			err:              true,
-			errStr:           "dispatch violates idempotency token of non-terminal child job",
+			errStr:           "idempotent dispatch failed: another child job with this token is running or pending",
+			idempotencyToken: "foo",
 			existingIdempotentJob: &existingIdempotentChildJob{
 				isTerminal: false,
 			},
@@ -6261,8 +6261,9 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 		{
 			name:             "idempotency token, w/ existing terminal job",
 			parameterizedJob: d1,
-			dispatchReq:      reqIdempotentToken,
+			dispatchReq:      reqInputDataNoMeta,
 			err:              false,
+			idempotencyToken: "foo",
 			existingIdempotentJob: &existingIdempotentChildJob{
 				isTerminal: true,
 			},
@@ -6296,8 +6297,9 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			// Now try to dispatch
 			tc.dispatchReq.JobID = tc.parameterizedJob.ID
 			tc.dispatchReq.WriteRequest = structs.WriteRequest{
-				Region:    "global",
-				Namespace: tc.parameterizedJob.Namespace,
+				Region:           "global",
+				Namespace:        tc.parameterizedJob.Namespace,
+				IdempotencyToken: tc.idempotencyToken,
 			}
 
 			// Dispatch with the same request so a child job w/ the idempotency key exists
