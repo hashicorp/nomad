@@ -175,9 +175,8 @@ func (h *groupServiceHook) PreKill() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	fmt.Println("calling groupServiceHook.PreKill()")
-
-	h.preKillLocked()
+	// fmt.Println("calling groupServiceHook.PreKill()")
+	// h.preKillLocked()
 }
 
 // implements the PreKill hook but requires the caller hold the lock

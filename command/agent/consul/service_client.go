@@ -826,18 +826,16 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		// If this service has a sidecar, we need to remove the sidecar first,
 		// otherwise Consul will get mad at us.
 		if sidecar := getNomadSidecar(id, servicesInConsul); sidecar != nil {
-			fmt.Printf("  -> kill sidecar service %s/%s\n", ns, sidecar.ID)
-			if err := c.agentAPI.ServiceDeregisterOpts(id, &api.QueryOptions{Namespace: ns}); err != nil {
+			sID := sidecar.ID
+			fmt.Printf("  -> kill sidecar service %s/%s\n", ns, sID)
+			if err := c.agentAPI.ServiceDeregisterOpts(sID, &api.QueryOptions{Namespace: ns}); err != nil {
 				metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 				return err
 			}
 			fmt.Printf("   killed sidecar service %s/%s\n", ns, sidecar.ID)
-			fmt.Println("sleep 3 seconds")
-			time.Sleep(3)
 		}
-		// Kill any other unmanaged Nomad service. (i.e. do not manually kill the
-		// parent of a sidecar service, that gets removed when we remove the
-		// sidecar for some reason)
+
+		// Kill any other unmanaged Nomad service.
 		fmt.Printf("  -> killing service %s/%s\n", ns, id)
 		if err := c.agentAPI.ServiceDeregisterOpts(id, &api.QueryOptions{Namespace: ns}); err != nil {
 			fmt.Println("   kill service err:", err)
