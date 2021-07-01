@@ -1124,7 +1124,7 @@ func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply
 		cReq := &cstructs.ClientCSIControllerCreateSnapshotRequest{
 			ExternalSourceVolumeID: vol.ExternalID,
 			Name:                   snap.Name,
-			Secrets:                snap.Secrets,
+			Secrets:                vol.Secrets,
 			Parameters:             snap.Parameters,
 		}
 		cReq.PluginID = plugin.ID
