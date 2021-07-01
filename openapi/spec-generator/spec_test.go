@@ -18,7 +18,7 @@ func TestNomadPathAdapterFunc(t *testing.T) {
 		req.NoError(err, "TestNomadPathAdapterFunc.nsb.PathAdapter.Parser.Parse")
 
 		for _, result := range *results {
-			err := NomadPathAdapterFunc(nsb.spec, result)
+			err := nomadPathAdapterFunc(nsb, result)
 			req.NoError(err, "TestNomadPathAdapterFunc")
 		}
 	}

@@ -8,6 +8,15 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+type NodeVisitor interface {
+	VisitNode(node ast.Node) bool
+	GetActiveFileSet() *token.FileSet // LIFO accessor for FilesSets
+	SetActiveFileSet(*token.FileSet)  // LIFO accesor for Files
+	Files() []*ast.File
+	FileSets() []*token.FileSet
+	DebugPrint()
+}
+
 // ParseResult encapsulate the output of a parse operation.
 type ParseResult struct {
 	Package  *packages.Package
@@ -21,8 +30,12 @@ type ParseResult struct {
 // elements of the package to load. To load everything, past ".". See full docs at
 // https://pkg.go.dev/golang.org/x/tools/go/packages#section-documentation
 type PackageParser struct {
-	Config  packages.Config
-	Pattern string
+	Config         packages.Config
+	Pattern        string
+	Debug          bool
+	Visitor        NodeVisitor
+	CurrentFile    *ast.File
+	CurrentFileSet *token.FileSet
 }
 
 func (p *PackageParser) Parse() (*[]*ParseResult, error) {
@@ -78,5 +91,14 @@ func (p *PackageParser) parseGoFile(goFile string, result *ParseResult) error {
 
 	result.Files = append(result.Files, file)
 	result.FileSets = append(result.FileSets, fileSet)
+
+	p.CurrentFile = file
+	p.CurrentFileSet = fileSet
+
+	p.Visitor.SetActiveFileSet(fileSet)
+	ast.Inspect(file, p.Visitor.VisitNode)
+
+	p.Visitor.DebugPrint()
+
 	return nil
 }

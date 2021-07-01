@@ -9,28 +9,43 @@ import (
 // Spec wraps a kin-openapi document object model with a little bit of extra
 // metadata so that the template can be entirely data driven
 type Spec struct {
-	// TODO: Find a better solution to making this functionality available.
-	analyzer          *Analyzer
-	ValidationContext context.Context
-	OpenAPIVersion    string
-	Model             openapi3.T
+	ValidationContext context.Context // Required parameter for validation functions
+	OpenAPIVersion    string          // Required for template rendering
+	Model             openapi3.T      // Document object model we are building
 }
 
-type AdapterFunc func(*Spec, *ParseResult) error
+// AdapterFunc is an injectable behavior that is responsible for adapting the
+// results of a parsing operation to a kin-openapi document object model.
+type AdapterFunc func(*SpecBuilder, *ParseResult) error
 
+// SourceAdapter allows the coupling of a PackageParser with a specific
+// Adapt function that knows how to process the results of that parsing operation.
 type SourceAdapter struct {
 	Parser *PackageParser
 	Adapt  AdapterFunc
 }
 
+// SpecBuilderExt allows the injection of implementation specific helper methods
+// and behaviors.
+type SpecBuilderExt interface {
+	SpecBuilder() *SpecBuilder // Not strictly required but seems like a good practice
+}
+
 // SpecBuilder allows specifying different static analysis behaviors to that the
 // framework can target any extant API.
 type SpecBuilder struct {
-	spec              *Spec
-	PathAdapters      []*SourceAdapter // Used parse and adapt all code related to path handling
-	ComponentAdapters []*SourceAdapter // Used parse and adapt all code related to components
+	spec *Spec
+	Ext  SpecBuilderExt // Allows injection of variable behavior per implementation.
+	// PathAdapters are used to parse and adapt all code related to path handling.
+	// They are represented as a slice since adapter logic may vary by package.
+	PathAdapters []*SourceAdapter
+	// ComponentAdapters are used to parse and adapt all code related to components.
+	// They are represented as a slice since adapter logic may vary by package.
+	ComponentAdapters []*SourceAdapter
 }
 
+// Build runs a default implementation to build and OpenAPI spec. Derived types
+// may choose to override if they don't need to execute this full pipeline.
 func (b *SpecBuilder) Build() (*Spec, error) {
 	// TODO: Eventually may need to support multiple OpenAPI versions, but pushing
 	// that off for now.
@@ -67,21 +82,35 @@ func (b *SpecBuilder) Build() (*Spec, error) {
 	return b.spec, nil
 }
 
+// BuildSecurity builds the Security field
+// TODO: Might be useful for interface, but might not need this for Nomad
 func (b *SpecBuilder) BuildSecurity() error {
-
+	if b.spec.Model.Security == nil {
+		b.spec.Model.Security = openapi3.SecurityRequirements{}
+	}
 	return nil
 }
 
+// BuildServers builds the Servers field
+// TODO: Might be useful for interface, but might not need this for Nomad
 func (b *SpecBuilder) BuildServers() error {
-
+	if b.spec.Model.Servers == nil {
+		b.spec.Model.Servers = openapi3.Servers{}
+	}
 	return nil
 }
 
+// BuildTags builds the Tags field
+// TODO: Might be useful for interface, but might not need this for Nomad
 func (b *SpecBuilder) BuildTags() error {
-
+	if b.spec.Model.Tags == nil {
+		b.spec.Model.Tags = openapi3.Tags{}
+	}
 	return nil
 }
 
+// BuildComponents builds the Components field
+// TODO: Might be useful for interface, but might not need this for Nomad
 func (b *SpecBuilder) BuildComponents() error {
 	if err := b.processAdapters(b.ComponentAdapters, "BuildComponents"); err != nil {
 		return err
@@ -90,6 +119,7 @@ func (b *SpecBuilder) BuildComponents() error {
 	return nil
 }
 
+// BuildPaths builds the Paths field
 func (b *SpecBuilder) BuildPaths() error {
 	if err := b.processAdapters(b.PathAdapters, "BuildPaths"); err != nil {
 		return err
@@ -98,6 +128,7 @@ func (b *SpecBuilder) BuildPaths() error {
 	return nil
 }
 
+// Template method for parsing and adapting source code
 func (b *SpecBuilder) processAdapters(adapters []*SourceAdapter, caller string) error {
 	for _, adapter := range adapters {
 		results, err := adapter.Parser.Parse()
@@ -106,7 +137,7 @@ func (b *SpecBuilder) processAdapters(adapters []*SourceAdapter, caller string) 
 		}
 
 		for _, result := range *results {
-			if err := adapter.Adapt(b.spec, result); err != nil {
+			if err := adapter.Adapt(b, result); err != nil {
 				return fmt.Errorf("SpecBuilder.%s.adapter.AdapterFunc: %v\n", caller, err)
 			}
 		}
