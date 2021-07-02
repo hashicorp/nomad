@@ -42,7 +42,8 @@ Logs Specific Options:
     Show full information.
 
   -task <task-name>
-    Sets the task to view the logs.
+    Sets the task to view the logs. If task name is given with both an argument 
+	and the '-task' option, preference is given to the '-task' option.
 
   -job <job-id>
     Use a random allocation from the specified job ID.

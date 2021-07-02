@@ -20,6 +20,10 @@ This command accepts a single allocation ID and a task name. The task name must
 be part of the allocation and the task must be currently running. The task name
 is optional and if omitted every task in the allocation will be signaled.
 
+Task name may also be specified using the `-task`  option rather than a command 
+argument. If task name is given with both an argument and the `-task` option, 
+preference is given to the `-task` option.
+
 When ACLs are enabled, this command requires a token with the
 `alloc-lifecycle`, `read-job`, and `list-jobs` capabilities for the
 allocation's namespace.
@@ -31,6 +35,9 @@ allocation's namespace.
 ## Signal Options
 
 - `-s`: Signal to send to the tasks. Valid options depend on the driver.
+
+- `-task`: Specify the individual task that will receive the signal.
+
 - `-verbose`: Display verbose output.
 
 ## Examples
@@ -38,8 +45,21 @@ allocation's namespace.
 ```shell-session
 $ nomad alloc signal eb17e557
 
-$ nomad alloc signal eb17e557 foo
-Could not find task named: foo, found:
+$ nomad alloc signal eb17e557 redis
+Could not find task named: redis, found:
 * test
 <blocking>
+```
+
+Specifying task name with the `-task` option:
+
+```shell-session
+$ nomad alloc signal -task redis eb17e557
+```
+
+If task name is specified using both options, the command argument is ignored.
+The following will signal the "redis" task only, not the "api" task:
+
+```shell-session
+$ nomad alloc signal -task redis eb17e557 api
 ```
