@@ -291,7 +291,7 @@ func proxyConn(ctx context.Context, logger hclog.Logger, destAddr string, conn n
 	}
 
 	dialer := &net.Dialer{}
-	dest, err := dialer.DialContext(ctx, network, destAddr)
+	dest, err := dialer.DialContext(context.TODO(), network, destAddr)
 	if err == context.Canceled || err == context.DeadlineExceeded {
 		logger.Trace("proxy exiting gracefully", "error", err, "dest", destAddr,
 			"src_local", conn.LocalAddr(), "src_remote", conn.RemoteAddr())
