@@ -64,8 +64,20 @@ func (v *NomadNodeVisitor) loadHandlers(pkg *packages.Package) error {
 }
 
 func (v *NomadNodeVisitor) DebugPrint() {
+	typesToFuncs := make(map[string]string)
+	for _, fn := range v.HandlerFuncs {
+		existing, _ := typesToFuncs[fn.ResponseType]
+		typesToFuncs[fn.ResponseType] = existing + "|" + fn.Name() + "\n"
+	}
+	v.logger(fmt.Sprintf("typesToFuncs: %v", typesToFuncs))
+
 	for key, fn := range v.HandlerFuncs {
-		v.logger(fmt.Sprintf("%s: %s\n\n", key, fn.Source))
+		//// DEBUG
+		//responseSource, err := fn.analyzer.GetSource(fn.ResponseExpr, fn.fileSet)
+		//if err != nil {
+		//	v.logger(fmt.Errorf("DebugPrint.analyzer.GetSource: cannot render ResponseType source for %s\n", fn.Name()))
+		//}
+		v.logger(fmt.Sprintf("%s: Response Type: %s - Params/Source: %s\n", key, fn.ResponseType, fn.Source))
 	}
 }
 
@@ -182,7 +194,8 @@ type HandlerFuncInfo struct {
 	Func             *types.Func
 	FuncDecl         *ast.FuncDecl
 	Params           []*ParamInfo
-	ResponseSchema   *ast.Expr
+	ResponseExpr     *ast.Expr
+	ResponseType     string
 	ResponseHeaders  []*HeaderInfo
 	logger           loggerFunc
 	analyzer         *Analyzer
@@ -211,51 +224,56 @@ func (f *HandlerFuncInfo) visitFunc(node ast.Node) bool {
 }
 
 func (f *HandlerFuncInfo) processVisitResults() error {
-	if err := f.resolveResponseSchema(); err != nil {
+	if err := f.resolveResponseType(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (f *HandlerFuncInfo) resolveResponseSchema() error {
+func (f *HandlerFuncInfo) resolveResponseType() error {
 	if len(f.returnStatements) < 1 {
-		return fmt.Errorf("HandlerFuncInfo.resolveResponseSchema: no return statement found")
+		return fmt.Errorf("HandlerFuncInfo.resolveResponseType: no return statement found")
 	}
 
-	// If more than one return statement returns a non-nil value then this is a
+	// If return statement returns nil  as first value then this is a
 	// FooSpecificRequest Handlers. Happy Accident!!!
-	var responseSchema ast.Expr
+	// TODO: Vet this idea
+	var responseExpr ast.Expr
+	var responseTypeName string
 	var err error
-	if responseSchema, err = f.getFinalReturnType(); err != nil {
+	if responseTypeName, err = f.resolveTypeName(); err != nil {
 		return err
 	}
 
-	if responseSchema == nil {
+	if responseTypeName == "nil" {
 		if err = f.moveToPathSwitchHandler(); err != nil {
 			return err
 		}
 		return nil
 	}
 
-	f.ResponseSchema = &responseSchema
-
-	// DEBUG
-	src, err := f.analyzer.GetSource(responseSchema, f.fileSet)
-	if err != nil {
-		return fmt.Errorf("HandlerFuncInfo.resolveResponseSchema: cannot render source")
-	}
-	f.logger(fmt.Sprintf("%s.finalReturn.source: %s", f.Name(), src))
+	f.ResponseExpr = &responseExpr
+	f.ResponseType = responseTypeName
 
 	return nil
 }
 
-func (f *HandlerFuncInfo) getFinalReturnType() (ast.Expr, error) {
+func (f *HandlerFuncInfo) resolveTypeName() (string, error) {
+	responseTypeName := "unknown"
+
 	finalReturn := f.returnStatements[len(f.returnStatements)-1]
 	if finalReturn == nil {
-		return nil, fmt.Errorf("HandlerFuncInfo.getFinalReturnType: finalReturn does not exist")
+		return responseTypeName, fmt.Errorf("HandlerFuncInfo.resolveTypeName: finalReturn does not exist")
 	}
 
-	return finalReturn.Results[0], nil
+	result := finalReturn.Results[0]
+
+	responseTypeName = f.analyzer.ResolveExprTypeName(ExprLink{
+		Current: result,
+		Last:    nil,
+	})
+
+	return responseTypeName, nil
 }
 
 func (f *HandlerFuncInfo) moveToPathSwitchHandler() error {
@@ -286,38 +304,6 @@ func (a *Analyzer) GetSource(elem interface{}, fileSet *token.FileSet) (string, 
 	} else {
 		return buf.String(), nil
 	}
-
-	switch elem.(type) {
-	case *ast.SelectorExpr:
-		selector := elem.(*ast.SelectorExpr)
-		switch selector.X.(type) {
-		case *ast.Ident:
-			ident := selector.X.(*ast.Ident)
-			if ident.Name == "out" {
-				valueSpecSelector := ident.Obj.Decl.(*ast.ValueSpec).Type.(*ast.SelectorExpr)
-				packageName := valueSpecSelector.X.(*ast.Ident).Name
-				structName := valueSpecSelector.Sel.Name
-				return fmt.Sprintf("%s.%s", packageName, structName), nil
-			}
-		}
-	case *ast.Expr:
-		expr := elem.(*ast.Expr)
-		fmt.Println(expr)
-		return "unknown", nil
-		//switch expr.(type) {
-		//case *ast.Ident:
-		//	ident := selector.X.(*ast.Ident)
-		//	if ident.Name == "out" {
-		//		valueSpecSelector := ident.Obj.Decl.(*ast.ValueSpec).Type.(*ast.SelectorExpr)
-		//		packageName := valueSpecSelector.X.(*ast.Ident).Name
-		//		structName := valueSpecSelector.Sel.Name
-		//		return fmt.Sprintf("%s.%s", packageName, structName), nil
-		//	}
-		//	panic("Unhandled SelectorExpr")
-		//}
-	}
-
-	return "unhandled", nil
 }
 
 func (a *Analyzer) IsHttpHandler(typeDefFunc *types.Func) bool {
@@ -402,4 +388,46 @@ func (a *Analyzer) GetParameters(key string, httpHandler *types.Func, result *Pa
 
 func (a *Analyzer) GetResponseModel(httpHandler *types.Func, result *ParseResult) (string, error) {
 	return httpHandler.Name(), nil
+}
+
+// ExprLink allows us to reach back to the last expression so we can retrieve
+// the typename from the SelectorExpr that provided us the final identity.
+type ExprLink struct {
+	Current ast.Expr
+	Last    ast.Expr
+}
+
+func (a *Analyzer) ResolveExprTypeName(link ExprLink) string {
+	receiver := "unknown"
+
+	switch switchType := link.Current.(type) {
+	case *ast.Ident:
+		// If we've hit the end of the tree return the name - May not work.
+		if switchType.Obj == nil {
+			receiver = fmt.Sprintf("%s.%s", switchType.Name, link.Last.(*ast.SelectorExpr).Sel.Name)
+		} else {
+			receiver = a.ResolveExprTypeName(ExprLink{
+				Current: switchType.Obj.Decl.(type),
+				Last:    link.Current,
+			})
+		}
+	//case *ast.ValueSpec:
+	//	receiver = fmt.Sprintf("%s.%s", switchType.Type.(*ast.SelectorExpr).X.(*ast.Ident).Name, switchType.Type.(*ast.SelectorExpr).Sel.Name)
+	case *ast.SelectorExpr:
+		receiver = a.ResolveExprTypeName(ExprLink{
+			Current: switchType.X,
+			Last:    switchType,
+		})
+	//case *ast.Field:
+	//	receiver = a.ResolveExprTypeName(switchType.Type)
+	case *ast.StarExpr:
+		receiver = a.ResolveExprTypeName(ExprLink{
+			Current: switchType.X,
+			Last:    switchType,
+		})
+	default:
+		panic("ResolveExprTypeName: unhandled typed")
+	}
+
+	return receiver
 }
