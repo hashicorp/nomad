@@ -182,7 +182,7 @@ type HandlerFuncInfo struct {
 	Func             *types.Func
 	FuncDecl         *ast.FuncDecl
 	Params           []*ParamInfo
-	ResponseSchema   interface{}
+	ResponseSchema   *ast.Expr
 	ResponseHeaders  []*HeaderInfo
 	logger           loggerFunc
 	analyzer         *Analyzer
@@ -222,15 +222,50 @@ func (f *HandlerFuncInfo) resolveResponseSchema() error {
 		return fmt.Errorf("HandlerFuncInfo.resolveResponseSchema: no return statement found")
 	}
 
-	finalReturn := f.returnStatements[len(f.returnStatements)-1]
-	if finalReturn == nil {
-		return fmt.Errorf("HandlerFuncInfo.resolveResponseSchema: finalReturn is nil")
+	// If more than one return statement returns a non-nil value then this is a
+	// FooSpecificRequest Handlers. Happy Accident!!!
+	var responseSchema ast.Expr
+	var err error
+	if responseSchema, err = f.getFinalReturnType(); err != nil {
+		return err
 	}
-	src, err := f.analyzer.GetSource(finalReturn, f.fileSet)
+
+	if responseSchema == nil {
+		if err = f.moveToPathSwitchHandler(); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	f.ResponseSchema = &responseSchema
+
+	// DEBUG
+	src, err := f.analyzer.GetSource(responseSchema, f.fileSet)
 	if err != nil {
 		return fmt.Errorf("HandlerFuncInfo.resolveResponseSchema: cannot render source")
 	}
 	f.logger(fmt.Sprintf("%s.finalReturn.source: %s", f.Name(), src))
+
+	return nil
+}
+
+func (f *HandlerFuncInfo) getFinalReturnType() (ast.Expr, error) {
+	finalReturn := f.returnStatements[len(f.returnStatements)-1]
+	if finalReturn == nil {
+		return nil, fmt.Errorf("HandlerFuncInfo.getFinalReturnType: finalReturn does not exist")
+	}
+
+	return finalReturn.Results[0], nil
+}
+
+func (f *HandlerFuncInfo) moveToPathSwitchHandler() error {
+	for _, retStmt := range f.returnStatements {
+		src, err := f.analyzer.GetSource(&retStmt, f.fileSet)
+		if err != nil {
+			return fmt.Errorf("HandlerFuncInfo.moveToPathSwitchHandler: cannot render source")
+		}
+		f.logger(fmt.Sprintf("%s.moveToPathSwitchHandler.finalReturn.source: %s", f.Name(), src))
+	}
 	return nil
 }
 
@@ -244,11 +279,45 @@ type HTTPProfile struct {
 type Analyzer struct{}
 
 func (a *Analyzer) GetSource(elem interface{}, fileSet *token.FileSet) (string, error) {
+	// Try the happy path first
 	var buf bytes.Buffer
 	if err := printer.Fprint(&buf, fileSet, elem); err != nil {
 		return "", err
+	} else {
+		return buf.String(), nil
 	}
-	return buf.String(), nil
+
+	switch elem.(type) {
+	case *ast.SelectorExpr:
+		selector := elem.(*ast.SelectorExpr)
+		switch selector.X.(type) {
+		case *ast.Ident:
+			ident := selector.X.(*ast.Ident)
+			if ident.Name == "out" {
+				valueSpecSelector := ident.Obj.Decl.(*ast.ValueSpec).Type.(*ast.SelectorExpr)
+				packageName := valueSpecSelector.X.(*ast.Ident).Name
+				structName := valueSpecSelector.Sel.Name
+				return fmt.Sprintf("%s.%s", packageName, structName), nil
+			}
+		}
+	case *ast.Expr:
+		expr := elem.(*ast.Expr)
+		fmt.Println(expr)
+		return "unknown", nil
+		//switch expr.(type) {
+		//case *ast.Ident:
+		//	ident := selector.X.(*ast.Ident)
+		//	if ident.Name == "out" {
+		//		valueSpecSelector := ident.Obj.Decl.(*ast.ValueSpec).Type.(*ast.SelectorExpr)
+		//		packageName := valueSpecSelector.X.(*ast.Ident).Name
+		//		structName := valueSpecSelector.Sel.Name
+		//		return fmt.Sprintf("%s.%s", packageName, structName), nil
+		//	}
+		//	panic("Unhandled SelectorExpr")
+		//}
+	}
+
+	return "unhandled", nil
 }
 
 func (a *Analyzer) IsHttpHandler(typeDefFunc *types.Func) bool {
