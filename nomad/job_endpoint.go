@@ -1914,13 +1914,16 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 				continue
 			}
 
-			// Idempotency tokens match. Ensure existing job is terminal.
+			// Idempotency tokens match
 			if existingJob.DispatchIdempotencyToken == args.IdempotencyToken {
-				// The existing job is either pending or running.
+				// The existing job has not yet been garbage collected.
 				// Registering a new job would violate the idempotency token.
-				if existingJob.Status != structs.JobStatusDead {
-					return fmt.Errorf("idempotent dispatch failed: another child job with this token is running or pending: %s", existingJob.ID)
-				}
+				// Return the existing job.
+				reply.JobCreateIndex = existingJob.CreateIndex
+				reply.DispatchedJobID = existingJob.ID
+				reply.Index = existingJob.ModifyIndex
+
+				return nil
 			}
 		}
 	}

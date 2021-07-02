@@ -6251,12 +6251,12 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			name:             "idempotency token, w/ existing non-terminal child job",
 			parameterizedJob: d1,
 			dispatchReq:      reqInputDataNoMeta,
-			err:              true,
-			errStr:           "idempotent dispatch failed: another child job with this token is running or pending",
+			err:              false,
 			idempotencyToken: "foo",
 			existingIdempotentJob: &existingIdempotentChildJob{
 				isTerminal: false,
 			},
+			noEval: true,
 		},
 		{
 			name:             "idempotency token, w/ existing terminal job",
@@ -6267,6 +6267,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			existingIdempotentJob: &existingIdempotentChildJob{
 				isTerminal: true,
 			},
+			noEval: true,
 		},
 	}
 
@@ -6303,20 +6304,20 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			}
 
 			// Dispatch with the same request so a child job w/ the idempotency key exists
+			var initialIdempotentDispatchResp structs.JobDispatchResponse
 			if tc.existingIdempotentJob != nil {
-				var initialDispatchResp structs.JobDispatchResponse
-				if err := msgpackrpc.CallWithCodec(codec, "Job.Dispatch", tc.dispatchReq, &initialDispatchResp); err != nil {
+				if err := msgpackrpc.CallWithCodec(codec, "Job.Dispatch", tc.dispatchReq, &initialIdempotentDispatchResp); err != nil {
 					t.Fatalf("Unexpected error dispatching initial idempotent job: %v", err)
 				}
 
 				if tc.existingIdempotentJob.isTerminal {
-					eval, err := s1.State().EvalByID(nil, initialDispatchResp.EvalID)
+					eval, err := s1.State().EvalByID(nil, initialIdempotentDispatchResp.EvalID)
 					if err != nil {
 						t.Fatalf("Unexpected error fetching eval %v", err)
 					}
 					eval = eval.Copy()
 					eval.Status = structs.EvalStatusComplete
-					err = s1.State().UpsertEvals(structs.MsgTypeTestSetup, initialDispatchResp.Index+1, []*structs.Evaluation{eval})
+					err = s1.State().UpsertEvals(structs.MsgTypeTestSetup, initialIdempotentDispatchResp.Index+1, []*structs.Evaluation{eval})
 					if err != nil {
 						t.Fatalf("Unexpected error completing eval %v", err)
 					}
@@ -6370,6 +6371,17 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 				}
 				if out.ParameterizedJob == nil {
 					t.Fatal("parameter job config should exist")
+				}
+
+				// Check that the existing job is returned in the case of a supplied idempotency token
+				if tc.idempotencyToken != "" && tc.existingIdempotentJob != nil {
+					if dispatchResp.DispatchedJobID != initialIdempotentDispatchResp.DispatchedJobID {
+						t.Fatal("dispatched job id should match initial dispatch")
+					}
+
+					if dispatchResp.JobCreateIndex != initialIdempotentDispatchResp.JobCreateIndex {
+						t.Fatal("dispatched job create index should match initial dispatch")
+					}
 				}
 
 				if tc.noEval {
