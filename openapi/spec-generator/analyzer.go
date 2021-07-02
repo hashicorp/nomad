@@ -14,14 +14,57 @@ import (
 type loggerFunc func(args ...interface{})
 
 type NomadNodeVisitor struct {
-	logger   loggerFunc
-	Funcs    map[string]*FuncInfo
-	files    []*ast.File
-	fileSets []*token.FileSet
+	HandlerFuncs map[string]*HandlerFuncInfo
+	packages     map[string]*packages.Package
+	analyzer     *Analyzer
+	logger       loggerFunc
+	files        []*ast.File
+	fileSets     []*token.FileSet
+}
+
+func (v *NomadNodeVisitor) SetPackages(pkgs []*packages.Package) error {
+	if v.packages == nil {
+		v.packages = make(map[string]*packages.Package)
+	}
+
+	if v.HandlerFuncs == nil {
+		v.HandlerFuncs = make(map[string]*HandlerFuncInfo)
+	}
+
+	for _, pkg := range pkgs {
+		if _, ok := v.packages[pkg.Name]; ok {
+			return fmt.Errorf(fmt.Sprintf("NomadVisitor.SetPackages: Package %s alread exists", pkg.Name))
+		}
+
+		v.packages[pkg.Name] = pkg
+		v.SetActiveFileSet(pkg.Fset)
+
+		if err := v.loadHandlers(pkg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (v *NomadNodeVisitor) loadHandlers(pkg *packages.Package) error {
+	handlers := v.analyzer.GetHttpHandlers(pkg)
+	for key, handler := range handlers {
+		if _, ok := v.HandlerFuncs[v.getTypesFuncNameWithReceiver(handler)]; ok {
+			return fmt.Errorf("NomadVisitor.loadHandlers package %s alread exists", key)
+		}
+
+		v.HandlerFuncs[v.getTypesFuncNameWithReceiver(handler)] = &HandlerFuncInfo{
+			Func:     handler,
+			logger:   v.logger,
+			analyzer: v.analyzer,
+			fileSet:  v.GetActiveFileSet(),
+		}
+	}
+	return nil
 }
 
 func (v *NomadNodeVisitor) DebugPrint() {
-	for key, fn := range v.Funcs {
+	for key, fn := range v.HandlerFuncs {
 		v.logger(fmt.Sprintf("%s: %s\n\n", key, fn.Source))
 	}
 }
@@ -48,70 +91,147 @@ func (v *NomadNodeVisitor) GetActiveFileSet() *token.FileSet {
 func (v *NomadNodeVisitor) VisitNode(node ast.Node) bool {
 	switch t := node.(type) {
 	case *ast.FuncDecl:
-		// TODO: Do I want to constrain only on HTTP Handlers and/or functions
-		// that either call the Handler or get called by the handler.
 		var src string
 		var err error
-		if src, err = v.getSource(t); err != nil {
+		if src, err = v.analyzer.GetSource(t.Body, v.GetActiveFileSet()); err != nil {
 			v.logger(fmt.Errorf("VisitNode.getSourceL %v\n", err))
 			return true
 		}
-		if v.Funcs == nil {
-			v.Funcs = make(map[string]*FuncInfo)
-		}
-
-		// TODO: Handle receiver
-		if _, ok := v.Funcs[t.Name.Name]; !ok {
-			v.Funcs[t.Name.Name] = &FuncInfo{
-				Fn:     t,
-				Source: src,
-			}
-		} else {
-			v.logger(fmt.Sprintf("unexpected duplicate function name: %s", t.Name.Name))
+		name := v.getFuncDeclNameWithReceiver(t)
+		// If not a handler then don't add the func
+		if _, ok := v.HandlerFuncs[name]; !ok {
 			return true
 		}
-	case *ast.ReturnStmt:
-		for _, result := range t.Results {
-			switch r := result.(type) {
-			case *ast.Ident:
-				if r != nil && r.Obj != nil {
-					v.logger(r.Name)
-				}
-			case *ast.CallExpr:
-				for _, a := range r.Args {
-					switch at := a.(type) {
-					case *ast.BasicLit:
-						v.logger(at.Value)
-					case *ast.Ident:
-						v.logger(at.Name)
-					}
-				}
-			default:
-				v.logger(r)
+
+		// v.logger(fmt.Sprintf("Found HandlerFuncInfo for %s", name))
+
+		params := ""
+		for _, param := range t.Type.Params.List {
+			params = fmt.Sprintf("%s|%s ", param.Names[0].Name, param.Type)
+		}
+		src = fmt.Sprintf("%s - %s", params, src)
+
+		if _, ok := v.HandlerFuncs[name]; !ok {
+			panic(fmt.Sprintf(fmt.Sprintf("VisitNode failed to resolve HandlerFuncInfo for %s", name)))
+		} else {
+			funcInfo := v.HandlerFuncs[name]
+			funcInfo.FuncDecl = t
+			funcInfo.Source = src
+			ast.Inspect(t, funcInfo.visitFunc)
+			if err = funcInfo.processVisitResults(); err != nil {
+				panic(fmt.Errorf(fmt.Sprintf("FuncInfo.processVisitResults failed for %s", name), err))
 			}
 		}
-	case *ast.BlockStmt:
-		for _, stmt := range t.List {
-			v.logger(stmt)
-		}
-	case *ast.BranchStmt:
-		v.logger(t.Tok.String())
 	}
 	return true
 }
 
-func (v *NomadNodeVisitor) getSource(t *ast.FuncDecl) (string, error) {
-	var buf bytes.Buffer
-	if err := printer.Fprint(&buf, v.GetActiveFileSet(), t.Body); err != nil {
-		return "", err
+func (v *NomadNodeVisitor) getFuncDeclNameWithReceiver(t *ast.FuncDecl) string {
+	name := t.Name.Name
+
+	if t.Recv != nil {
+		var recv string
+		if stex, ok := t.Recv.List[0].Type.(*ast.StarExpr); ok {
+			recv = stex.X.(*ast.Ident).Name
+		} else if id, ok := t.Recv.List[0].Type.(*ast.Ident); ok {
+			recv = id.Name
+		}
+
+		name = fmt.Sprintf("%s.%s", recv, name)
 	}
-	return buf.String(), nil
+	return name
 }
 
-type FuncInfo struct {
-	Callers *ast.Node
-	Fn      *ast.FuncDecl
-	Source  string
+func (v *NomadNodeVisitor) getTypesFuncNameWithReceiver(handler *types.Func) string {
+	name := handler.Name()
+	signature := handler.Type().(*types.Signature)
+	if recv := signature.Recv(); recv != nil {
+		recvSegments := strings.Split(recv.Type().String(), "/")
+		recvName := recvSegments[len(recvSegments)-1]
+		runes := []rune(recvName)
+		recvName = string(runes[strings.Index(recvName, ".")+1:])
+		name = fmt.Sprintf("%s.%s", recvName, name)
+	}
+	return name
+}
+
+type ParamLocation string
+
+const (
+	inHeader ParamLocation = "header"
+	inPath   ParamLocation = "path"
+	inQuery  ParamLocation = "query"
+)
+
+type ParamInfo struct {
+	Name        string
+	Description string
+	Type        string
+	Location    ParamLocation
+}
+
+type HeaderInfo struct {
+	Name        string
+	Description string
+	Type        string
+}
+
+type HandlerFuncInfo struct {
+	Path             string
+	Source           string
+	Func             *types.Func
+	FuncDecl         *ast.FuncDecl
+	Params           []*ParamInfo
+	ResponseSchema   interface{}
+	ResponseHeaders  []*HeaderInfo
+	logger           loggerFunc
+	analyzer         *Analyzer
+	fileSet          *token.FileSet
+	returnStatements []*ast.ReturnStmt
+}
+
+func (h *HandlerFuncInfo) Name() string {
+	return h.Func.Name()
+}
+
+func (f *HandlerFuncInfo) visitFunc(node ast.Node) bool {
+	switch t := node.(type) {
+	case *ast.ReturnStmt:
+		f.returnStatements = append(f.returnStatements, t)
+		// TODO: This is where I'll have to come back and handle nutty things like JobSpecificRequest
+		//case *ast.BlockStmt:
+		//	for _, stmt := range t.List {
+		//		f.logger(f.analyzer.GetSource(stmt, f.fileSet))
+		//	}
+		//case *ast.BranchStmt:
+		//	f.logger(f.analyzer.GetSource(t, f.fileSet))
+		//
+	}
+	return true
+}
+
+func (f *HandlerFuncInfo) processVisitResults() error {
+	if err := f.resolveResponseSchema(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (f *HandlerFuncInfo) resolveResponseSchema() error {
+	if len(f.returnStatements) < 1 {
+		return fmt.Errorf("HandlerFuncInfo.resolveResponseSchema: no return statement found")
+	}
+
+	finalReturn := f.returnStatements[len(f.returnStatements)-1]
+	if finalReturn == nil {
+		return fmt.Errorf("HandlerFuncInfo.resolveResponseSchema: finalReturn is nil")
+	}
+	src, err := f.analyzer.GetSource(finalReturn, f.fileSet)
+	if err != nil {
+		return fmt.Errorf("HandlerFuncInfo.resolveResponseSchema: cannot render source")
+	}
+	f.logger(fmt.Sprintf("%s.finalReturn.source: %s", f.Name(), src))
+	return nil
 }
 
 type HTTPProfile struct {
@@ -123,14 +243,31 @@ type HTTPProfile struct {
 // Analyzer provides a number of static analysis helper functions.
 type Analyzer struct{}
 
-func (a *Analyzer) GetFuncInfo(funcNames []string, pkg packages.Package) ([]*FuncInfo, error) {
-
-	return nil, nil
+func (a *Analyzer) GetSource(elem interface{}, fileSet *token.FileSet) (string, error) {
+	var buf bytes.Buffer
+	if err := printer.Fprint(&buf, fileSet, elem); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
-func (a *Analyzer) analyzeHTTPProfile(tup *types.Tuple, result *HTTPProfile) *HTTPProfile {
+func (a *Analyzer) IsHttpHandler(typeDefFunc *types.Func) bool {
+	if funcSignature, ok := typeDefFunc.Type().(*types.Signature); ok {
+		// typeDefFunc.
+		profile := HTTPProfile{}
+
+		a.setHTTPProfile(funcSignature.Params(), &profile)
+		a.setHTTPProfile(funcSignature.Results(), &profile)
+
+		return profile.IsHandler || (profile.IsResponseWriter && profile.IsRequest)
+	}
+
+	return false
+}
+
+func (a *Analyzer) setHTTPProfile(tup *types.Tuple, result *HTTPProfile) {
 	if tup == nil {
-		return result
+		return
 	}
 
 	for i := 0; i < tup.Len(); i++ {
@@ -158,7 +295,7 @@ func (a *Analyzer) analyzeHTTPProfile(tup *types.Tuple, result *HTTPProfile) *HT
 		}
 	}
 
-	return result
+	return
 }
 
 func (a *Analyzer) GetHttpHandlers(pkg *packages.Package) map[string]*types.Func {
@@ -166,16 +303,8 @@ func (a *Analyzer) GetHttpHandlers(pkg *packages.Package) map[string]*types.Func
 	for _, typeDef := range pkg.TypesInfo.Defs {
 		if typeDef != nil {
 			if typeDefFunc, ok := typeDef.(*types.Func); ok {
-				if funcSignature, ok := typeDefFunc.Type().(*types.Signature); ok {
-					// typeDefFunc.
-					result := HTTPProfile{}
-
-					a.analyzeHTTPProfile(funcSignature.Params(), &result)
-					a.analyzeHTTPProfile(funcSignature.Results(), &result)
-
-					if result.IsHandler || (result.IsResponseWriter && result.IsRequest) {
-						httpHandlers[typeDefFunc.Name()] = typeDefFunc
-					}
+				if a.IsHttpHandler(typeDefFunc) {
+					httpHandlers[typeDefFunc.Name()] = typeDefFunc
 				}
 			}
 		}

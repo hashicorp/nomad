@@ -10,6 +10,7 @@ import (
 
 type NodeVisitor interface {
 	VisitNode(node ast.Node) bool
+	SetPackages([]*packages.Package) error
 	GetActiveFileSet() *token.FileSet // LIFO accessor for FilesSets
 	SetActiveFileSet(*token.FileSet)  // LIFO accesor for Files
 	Files() []*ast.File
@@ -46,10 +47,16 @@ func (p *PackageParser) Parse() (*[]*ParseResult, error) {
 		return nil, fmt.Errorf("PackageParser.Parse.packages.Load: %v", err)
 	}
 
+	if err = p.Visitor.SetPackages(pkgs); err != nil {
+		return nil, err
+	}
+
 	var results *[]*ParseResult
 	if results, err = p.parsePackages(pkgs); err != nil {
 		return nil, err
 	}
+
+	p.Visitor.DebugPrint()
 
 	return results, nil
 }
@@ -95,10 +102,7 @@ func (p *PackageParser) parseGoFile(goFile string, result *ParseResult) error {
 	p.CurrentFile = file
 	p.CurrentFileSet = fileSet
 
-	p.Visitor.SetActiveFileSet(fileSet)
 	ast.Inspect(file, p.Visitor.VisitNode)
-
-	p.Visitor.DebugPrint()
 
 	return nil
 }
