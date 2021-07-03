@@ -1280,6 +1280,9 @@ func TestCSIVolumeEndpoint_ListSnapshots(t *testing.T) {
 	// List snapshots
 
 	req := &structs.CSISnapshotListRequest{
+		Secrets: structs.CSISecrets{
+			"secret-key-1": "secret-val-1",
+		},
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
 			Namespace: structs.DefaultNamespace,

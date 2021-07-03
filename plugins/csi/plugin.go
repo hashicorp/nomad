@@ -756,12 +756,14 @@ func (r *ControllerDeleteSnapshotRequest) Validate() error {
 type ControllerListSnapshotsRequest struct {
 	MaxEntries    int32
 	StartingToken string
+	Secrets       structs.CSISecrets
 }
 
 func (r *ControllerListSnapshotsRequest) ToCSIRepresentation() *csipbv1.ListSnapshotsRequest {
 	return &csipbv1.ListSnapshotsRequest{
 		MaxEntries:    r.MaxEntries,
 		StartingToken: r.StartingToken,
+		Secrets:       r.Secrets,
 	}
 }
 

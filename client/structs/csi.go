@@ -362,6 +362,7 @@ type ClientCSIControllerListSnapshotsRequest struct {
 	// not Nomad's own fields, for clarity when mapping between the two RPCs
 	MaxEntries    int32
 	StartingToken string
+	Secrets       structs.CSISecrets
 
 	CSIControllerQuery
 }
@@ -370,6 +371,7 @@ func (req *ClientCSIControllerListSnapshotsRequest) ToCSIRequest() *csi.Controll
 	return &csi.ControllerListSnapshotsRequest{
 		MaxEntries:    req.MaxEntries,
 		StartingToken: req.StartingToken,
+		Secrets:       req.Secrets,
 	}
 }
 

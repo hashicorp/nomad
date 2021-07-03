@@ -333,6 +333,19 @@ func (s *HTTPServer) csiSnapshotList(resp http.ResponseWriter, req *http.Request
 
 	query := req.URL.Query()
 	args.PluginID = query.Get("plugin_id")
+	querySecrets := query["secrets"]
+
+	// Parse comma separated secrets only when provided
+	if len(querySecrets) >= 1 {
+		secrets := strings.Split(querySecrets[0], ",")
+		args.Secrets = make(structs.CSISecrets)
+		for _, raw := range secrets {
+			secret := strings.Split(raw, "=")
+			if len(secret) == 2 {
+				args.Secrets[secret[0]] = secret[1]
+			}
+		}
+	}
 
 	var out structs.CSISnapshotListResponse
 	if err := s.agent.RPC("CSIVolume.ListSnapshots", &args, &out); err != nil {
