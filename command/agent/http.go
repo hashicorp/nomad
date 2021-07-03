@@ -724,7 +724,7 @@ func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteReques
 }
 
 // wrapUntrustedContent wraps handlers in a http.ResponseWriter that prevents
-// setting Content-Types that a browser may render (eg text/html). Any API that
+// setting Content-Structs that a browser may render (eg text/html). Any API that
 // returns service-generated content (eg /v1/client/fs/cat) must be wrapped.
 func (s *HTTPServer) wrapUntrustedContent(handler handlerFn) handlerFn {
 	return func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {

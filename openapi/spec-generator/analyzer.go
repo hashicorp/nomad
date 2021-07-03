@@ -4,168 +4,14 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/parser"
 	"go/printer"
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/refactor/satisfy"
 	"strings"
 )
-
-type loggerFunc func(args ...interface{})
-
-type NomadNodeVisitor struct {
-	HandlerFuncs map[string]*HandlerFuncInfo
-	packages     map[string]*packages.Package
-	analyzer     *Analyzer
-	logger       loggerFunc
-	files        []*ast.File
-	fileSets     []*token.FileSet
-}
-
-func (v *NomadNodeVisitor) SetPackages(pkgs []*packages.Package) error {
-	if v.packages == nil {
-		v.packages = make(map[string]*packages.Package)
-	}
-
-	if v.HandlerFuncs == nil {
-		v.HandlerFuncs = make(map[string]*HandlerFuncInfo)
-	}
-
-	for _, pkg := range pkgs {
-		if _, ok := v.packages[pkg.Name]; ok {
-			return fmt.Errorf(fmt.Sprintf("NomadVisitor.SetPackages: Package %s alread exists", pkg.Name))
-		}
-
-		v.packages[pkg.Name] = pkg
-		v.SetActiveFileSet(pkg.Fset)
-
-		if err := v.loadHandlers(pkg); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (v *NomadNodeVisitor) loadHandlers(pkg *packages.Package) error {
-	handlers := v.analyzer.GetHttpHandlers(pkg)
-	for key, handler := range handlers {
-		if _, ok := v.HandlerFuncs[v.getTypesFuncNameWithReceiver(handler)]; ok {
-			return fmt.Errorf("NomadVisitor.loadHandlers package %s alread exists", key)
-		}
-
-		v.HandlerFuncs[v.getTypesFuncNameWithReceiver(handler)] = &HandlerFuncInfo{
-			Func:     handler,
-			logger:   v.logger,
-			analyzer: v.analyzer,
-			fileSet:  v.GetActiveFileSet(),
-		}
-	}
-	return nil
-}
-
-func (v *NomadNodeVisitor) DebugPrint() {
-	typesToFuncs := make(map[string]string)
-	for _, fn := range v.HandlerFuncs {
-		existing, _ := typesToFuncs[fn.ResponseType]
-		typesToFuncs[fn.ResponseType] = existing + "|" + fn.Name() + "\n"
-	}
-	v.logger(fmt.Sprintf("typesToFuncs: %v", typesToFuncs))
-
-	for key, fn := range v.HandlerFuncs {
-		//// DEBUG
-		//responseSource, err := fn.analyzer.GetSource(fn.ResponseExpr, fn.fileSet)
-		//if err != nil {
-		//	v.logger(fmt.Errorf("DebugPrint.analyzer.GetSource: cannot render ResponseType source for %s\n", fn.Name()))
-		//}
-		v.logger(fmt.Sprintf("%s: Response Type: %s - Params/Source: %s\n", key, fn.ResponseType, fn.Source))
-	}
-}
-
-func (v *NomadNodeVisitor) Files() []*ast.File {
-	return v.files
-}
-
-func (v *NomadNodeVisitor) FileSets() []*token.FileSet {
-	return v.fileSets
-}
-
-func (v *NomadNodeVisitor) SetActiveFileSet(fileSet *token.FileSet) {
-	v.fileSets = append(v.fileSets, fileSet)
-}
-
-func (v *NomadNodeVisitor) GetActiveFileSet() *token.FileSet {
-	if len(v.fileSets) < 1 {
-		return nil
-	}
-	return v.fileSets[len(v.fileSets)-1]
-}
-
-func (v *NomadNodeVisitor) VisitNode(node ast.Node) bool {
-	switch t := node.(type) {
-	case *ast.FuncDecl:
-		var src string
-		var err error
-		if src, err = v.analyzer.GetSource(t.Body, v.GetActiveFileSet()); err != nil {
-			v.logger(fmt.Errorf("VisitNode.getSourceL %v\n", err))
-			return true
-		}
-		name := v.getFuncDeclNameWithReceiver(t)
-		// If not a handler then don't add the func
-		if _, ok := v.HandlerFuncs[name]; !ok {
-			return true
-		}
-
-		// v.logger(fmt.Sprintf("Found HandlerFuncInfo for %s", name))
-
-		params := ""
-		for _, param := range t.Type.Params.List {
-			params = fmt.Sprintf("%s|%s ", param.Names[0].Name, param.Type)
-		}
-		src = fmt.Sprintf("%s - %s", params, src)
-
-		if _, ok := v.HandlerFuncs[name]; !ok {
-			panic(fmt.Sprintf(fmt.Sprintf("VisitNode failed to resolve HandlerFuncInfo for %s", name)))
-		} else {
-			funcInfo := v.HandlerFuncs[name]
-			funcInfo.FuncDecl = t
-			funcInfo.Source = src
-			ast.Inspect(t, funcInfo.visitFunc)
-			if err = funcInfo.processVisitResults(); err != nil {
-				panic(fmt.Errorf(fmt.Sprintf("FuncInfo.processVisitResults failed for %s", name), err))
-			}
-		}
-	}
-	return true
-}
-
-func (v *NomadNodeVisitor) getFuncDeclNameWithReceiver(t *ast.FuncDecl) string {
-	name := t.Name.Name
-
-	if t.Recv != nil {
-		var recv string
-		if stex, ok := t.Recv.List[0].Type.(*ast.StarExpr); ok {
-			recv = stex.X.(*ast.Ident).Name
-		} else if id, ok := t.Recv.List[0].Type.(*ast.Ident); ok {
-			recv = id.Name
-		}
-
-		name = fmt.Sprintf("%s.%s", recv, name)
-	}
-	return name
-}
-
-func (v *NomadNodeVisitor) getTypesFuncNameWithReceiver(handler *types.Func) string {
-	name := handler.Name()
-	signature := handler.Type().(*types.Signature)
-	if recv := signature.Recv(); recv != nil {
-		recvSegments := strings.Split(recv.Type().String(), "/")
-		recvName := recvSegments[len(recvSegments)-1]
-		runes := []rune(recvName)
-		recvName = string(runes[strings.Index(recvName, ".")+1:])
-		name = fmt.Sprintf("%s.%s", recvName, name)
-	}
-	return name
-}
 
 type ParamLocation string
 
@@ -193,9 +39,10 @@ type HandlerFuncInfo struct {
 	Source           string
 	Func             *types.Func
 	FuncDecl         *ast.FuncDecl
+	Structs          map[string]*ast.TypeSpec
 	Params           []*ParamInfo
 	ResponseExpr     *ast.Expr
-	ResponseType     string
+	ResponseType     *ast.TypeSpec
 	ResponseHeaders  []*HeaderInfo
 	logger           loggerFunc
 	analyzer         *Analyzer
@@ -239,13 +86,14 @@ func (f *HandlerFuncInfo) resolveResponseType() error {
 	// FooSpecificRequest Handlers. Happy Accident!!!
 	// TODO: Vet this idea
 	var responseExpr ast.Expr
-	var responseTypeName string
+	var responseType *ast.TypeSpec
 	var err error
-	if responseTypeName, err = f.resolveTypeName(); err != nil {
+	if responseType, err = f.ResolveReturnType(); err != nil {
 		return err
 	}
 
-	if responseTypeName == "nil" {
+	// TODO: prove this is still true
+	if responseType == nil {
 		if err = f.moveToPathSwitchHandler(); err != nil {
 			return err
 		}
@@ -253,32 +101,66 @@ func (f *HandlerFuncInfo) resolveResponseType() error {
 	}
 
 	f.ResponseExpr = &responseExpr
-	f.ResponseType = responseTypeName
+	f.ResponseType = responseType
 
 	return nil
 }
 
-func (f *HandlerFuncInfo) resolveTypeName() (string, error) {
-	responseTypeName := "unknown"
+func (f *HandlerFuncInfo) ResolveReturnType() (*ast.TypeSpec, error) {
+	var returnType *ast.TypeSpec
 
 	finalReturn := f.returnStatements[len(f.returnStatements)-1]
 	if finalReturn == nil {
-		return responseTypeName, fmt.Errorf("HandlerFuncInfo.resolveTypeName: finalReturn does not exist")
+		return returnType, fmt.Errorf("HandlerFuncInfo.ResolveReturnType: finalReturn does not exist")
 	}
 
 	result := finalReturn.Results[0]
+	returnParamName, err := f.analyzer.GetSource(result, f.fileSet)
+	if err != nil {
+		return returnType, err
+	}
 
-	responseTypeName = f.analyzer.ResolveExprTypeName(ExprLink{
-		Current: result,
-		Last:    nil,
-	})
+	// gets the out type from the source string. Heavily dependent on the convention
+	// of the out parameter being named out.
+	sourceParts := strings.Split(f.Source, "var out ")
+	outTypeName := strings.Split(sourceParts[1], " ")[0]
 
-	return responseTypeName, nil
+	var ok bool
+
+	// If it returns nil, it should be a Foo specific handler
+	if returnParamName == "nil" {
+		return nil, nil
+	} else if strings.Index(returnParamName, "out.") > -1 { // handle return of out type field
+		var outType *ast.TypeSpec
+		if outType, ok = f.Structs[outTypeName]; !ok {
+			return returnType, fmt.Errorf("HandlerFuncInfo.ResolveReturnType: cannot resolve type for name %s", outTypeName)
+		}
+		returnTypeFieldName := strings.Split(returnParamName, "out.")[1]
+		for _, field := range outType.Type.(*ast.StructType).Fields.List {
+			for _, ident := range field.Names {
+				i := field.Type.(*ast.Ident)
+				fieldType := i.Name
+				if ident.Name == returnTypeFieldName {
+					returnType = f.Structs[fieldType]
+				}
+			}
+		}
+
+	} else if returnParamName == "out" { // handle direct return of out type
+		if returnType, ok = f.Structs[outTypeName]; !ok {
+			return returnType, fmt.Errorf("HandlerFuncInfo.ResolveReturnType: cannot resolve type for name %s", outTypeName)
+		}
+	} else {
+		// handle things not named out
+		return returnType, fmt.Errorf("ResolveReturnTypeName.Unhandled %s", returnParamName)
+	}
+
+	return returnType, nil
 }
 
 func (f *HandlerFuncInfo) moveToPathSwitchHandler() error {
 	for _, retStmt := range f.returnStatements {
-		src, err := f.analyzer.GetSource(&retStmt, f.fileSet)
+		src, err := f.analyzer.GetSource(retStmt, f.fileSet)
 		if err != nil {
 			return fmt.Errorf("HandlerFuncInfo.moveToPathSwitchHandler: cannot render source")
 		}
@@ -294,7 +176,16 @@ type HTTPProfile struct {
 }
 
 // Analyzer provides a number of static analysis helper functions.
-type Analyzer struct{}
+type Analyzer struct {
+	finder *satisfy.Finder
+}
+
+func (a *Analyzer) Finder() *satisfy.Finder {
+	if a.finder == nil {
+		a.finder = &satisfy.Finder{}
+	}
+	return a.finder
+}
 
 func (a *Analyzer) GetSource(elem interface{}, fileSet *token.FileSet) (string, error) {
 	// Try the happy path first
@@ -368,6 +259,35 @@ func (a *Analyzer) GetHttpHandlers(pkg *packages.Package) map[string]*types.Func
 	return httpHandlers
 }
 
+func (a *Analyzer) GetStructs(pkg *packages.Package) (map[string]*ast.TypeSpec, error) {
+	var structMap = make(map[string]*ast.TypeSpec)
+	fmtString := pkg.Name + ".%s"
+
+	visitFunc := func(node ast.Node) bool {
+		switch node.(type) {
+		case *ast.TypeSpec:
+			typeSpec := node.(*ast.TypeSpec)
+			switch typeSpec.Type.(type) {
+			case *ast.StructType:
+				structMap[fmt.Sprintf(fmtString, typeSpec.Name)] = typeSpec
+			}
+		}
+		return true
+	}
+
+	for _, goFile := range pkg.GoFiles {
+		fileSet := token.NewFileSet() // positions are relative to fset
+		file, err := parser.ParseFile(fileSet, goFile, nil, 0)
+		if err != nil {
+			return nil, fmt.Errorf("Analyzer.GetStructs.parser.ParseFile: %v\n", err)
+		}
+
+		ast.Inspect(file, visitFunc)
+	}
+
+	return structMap, nil
+}
+
 func (a *Analyzer) GetPath(key string, httpHandler *types.Func, result *ParseResult) (string, error) {
 	path := key
 	// TODO:
@@ -388,46 +308,4 @@ func (a *Analyzer) GetParameters(key string, httpHandler *types.Func, result *Pa
 
 func (a *Analyzer) GetResponseModel(httpHandler *types.Func, result *ParseResult) (string, error) {
 	return httpHandler.Name(), nil
-}
-
-// ExprLink allows us to reach back to the last expression so we can retrieve
-// the typename from the SelectorExpr that provided us the final identity.
-type ExprLink struct {
-	Current ast.Expr
-	Last    ast.Expr
-}
-
-func (a *Analyzer) ResolveExprTypeName(link ExprLink) string {
-	receiver := "unknown"
-
-	switch switchType := link.Current.(type) {
-	case *ast.Ident:
-		// If we've hit the end of the tree return the name - May not work.
-		if switchType.Obj == nil {
-			receiver = fmt.Sprintf("%s.%s", switchType.Name, link.Last.(*ast.SelectorExpr).Sel.Name)
-		} else {
-			receiver = a.ResolveExprTypeName(ExprLink{
-				Current: switchType.Obj.Decl.(type),
-				Last:    link.Current,
-			})
-		}
-	//case *ast.ValueSpec:
-	//	receiver = fmt.Sprintf("%s.%s", switchType.Type.(*ast.SelectorExpr).X.(*ast.Ident).Name, switchType.Type.(*ast.SelectorExpr).Sel.Name)
-	case *ast.SelectorExpr:
-		receiver = a.ResolveExprTypeName(ExprLink{
-			Current: switchType.X,
-			Last:    switchType,
-		})
-	//case *ast.Field:
-	//	receiver = a.ResolveExprTypeName(switchType.Type)
-	case *ast.StarExpr:
-		receiver = a.ResolveExprTypeName(ExprLink{
-			Current: switchType.X,
-			Last:    switchType,
-		})
-	default:
-		panic("ResolveExprTypeName: unhandled typed")
-	}
-
-	return receiver
 }

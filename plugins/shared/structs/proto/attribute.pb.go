@@ -23,7 +23,7 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 // Attribute is used to describe the value of an attribute, optionally
 // specifying units
 type Attribute struct {
-	// Types that are valid to be assigned to Value:
+	// Structs that are valid to be assigned to Value:
 	//	*Attribute_FloatVal
 	//	*Attribute_IntVal
 	//	*Attribute_StringVal

@@ -22,7 +22,7 @@ type PluginConfigInterface struct {
 	// socket
 	Socket string `json:"Socket"`
 	// types
-	Types []PluginInterfaceType `json:"Types"`
+	Types []PluginInterfaceType `json:"Structs"`
 }
 
 // NewPluginConfigInterface instantiates a new PluginConfigInterface object
@@ -89,7 +89,7 @@ func (o *PluginConfigInterface) GetSocket() string {
 // GetSocketOk returns a tuple with the Socket field value
 // and a boolean to check if the value has been set.
 func (o *PluginConfigInterface) GetSocketOk() (*string, bool) {
-	if o == nil  {
+	if o == nil {
 		return nil, false
 	}
 	return &o.Socket, true
@@ -113,7 +113,7 @@ func (o *PluginConfigInterface) GetTypes() []PluginInterfaceType {
 // GetTypesOk returns a tuple with the Types field value
 // and a boolean to check if the value has been set.
 func (o *PluginConfigInterface) GetTypesOk() (*[]PluginInterfaceType, bool) {
-	if o == nil  {
+	if o == nil {
 		return nil, false
 	}
 	return &o.Types, true
@@ -133,7 +133,7 @@ func (o PluginConfigInterface) MarshalJSON() ([]byte, error) {
 		toSerialize["Socket"] = o.Socket
 	}
 	if true {
-		toSerialize["Types"] = o.Types
+		toSerialize["Structs"] = o.Types
 	}
 	return json.Marshal(toSerialize)
 }
@@ -173,5 +173,3 @@ func (v *NullablePluginConfigInterface) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-
