@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/stretchr/testify/require"
-	"golang.org/x/tools/go/packages"
 	"testing"
 )
 
@@ -13,14 +12,10 @@ func TestParser(t *testing.T) {
 		logger: t.Log,
 	}
 	parser := PackageParser{
-		Config: packages.Config{
-			Dir:  "../../command/agent/",
-			Mode: loadMode,
-		},
-		Pattern: ".",
-		Visitor: visitor,
+		Packages: nomadPackages,
+		Visitor:  visitor,
 	}
 
-	_, err := parser.Parse()
+	err := parser.Parse()
 	req.NoError(err, "TestParser.parser.Parse")
 }

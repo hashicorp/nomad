@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	openapi3 "github.com/getkin/kin-openapi/openapi3"
 )
 
@@ -16,7 +15,7 @@ type Spec struct {
 
 // AdapterFunc is an injectable behavior that is responsible for adapting the
 // results of a parsing operation to a kin-openapi document object model.
-type AdapterFunc func(*SpecBuilder, *ParseResult) error
+type AdapterFunc func(*SpecBuilder) error
 
 // SourceAdapter allows the coupling of a PackageParser with a specific
 // Adapt function that knows how to process the results of that parsing operation.
@@ -131,15 +130,8 @@ func (b *SpecBuilder) BuildPaths() error {
 // Template method for parsing and adapting source code
 func (b *SpecBuilder) processAdapters(adapters []*SourceAdapter, caller string) error {
 	for _, adapter := range adapters {
-		results, err := adapter.Parser.Parse()
-		if err != nil {
-			return fmt.Errorf("SpecBuilder.%s.Parser.Parse: %v\n", caller, err)
-		}
-
-		for _, result := range *results {
-			if err := adapter.Adapt(b, result); err != nil {
-				return fmt.Errorf("SpecBuilder.%s.adapter.AdapterFunc: %v\n", caller, err)
-			}
+		if err := adapter.Adapt(b); err != nil {
+			return err
 		}
 	}
 

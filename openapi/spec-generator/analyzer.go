@@ -34,15 +34,25 @@ type HeaderInfo struct {
 	Type        string
 }
 
+//type HandlerFuncInfo interface {
+//	GetPath() string
+//	GetSource() string
+//	GetMethodInfos() []*MethodInfo
+//}
+
+//type MethodInfo interface {
+//
+//}
+
 type HandlerFuncInfo struct {
 	Path             string
 	Source           string
+	PackageName      string
 	Func             *types.Func
 	FuncDecl         *ast.FuncDecl
+	ResponseType     *ast.TypeSpec
 	Structs          map[string]*ast.TypeSpec
 	Params           []*ParamInfo
-	ResponseExpr     *ast.Expr
-	ResponseType     *ast.TypeSpec
 	ResponseHeaders  []*HeaderInfo
 	logger           loggerFunc
 	analyzer         *Analyzer
@@ -52,6 +62,10 @@ type HandlerFuncInfo struct {
 
 func (h *HandlerFuncInfo) Name() string {
 	return h.Func.Name()
+}
+
+func (h *HandlerFuncInfo) IsSwitchHandler() bool {
+	return h.ResponseType == nil
 }
 
 func (f *HandlerFuncInfo) visitFunc(node ast.Node) bool {
@@ -71,102 +85,141 @@ func (f *HandlerFuncInfo) visitFunc(node ast.Node) bool {
 }
 
 func (f *HandlerFuncInfo) processVisitResults() error {
-	if err := f.resolveResponseType(); err != nil {
+	if err := f.ResolveReturnType(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (f *HandlerFuncInfo) resolveResponseType() error {
+func (f *HandlerFuncInfo) ResolveReturnType() error {
 	if len(f.returnStatements) < 1 {
 		return fmt.Errorf("HandlerFuncInfo.resolveResponseType: no return statement found")
 	}
 
-	// If return statement returns nil  as first value then this is a
-	// FooSpecificRequest Handlers. Happy Accident!!!
-	// TODO: Vet this idea
-	var responseExpr ast.Expr
-	var responseType *ast.TypeSpec
-	var err error
-	if responseType, err = f.ResolveReturnType(); err != nil {
-		return err
-	}
+	outTypeName := ""
 
-	// TODO: prove this is still true
-	if responseType == nil {
-		if err = f.moveToPathSwitchHandler(); err != nil {
-			return err
+	outVisitor := func(node ast.Node) bool {
+		switch t := node.(type) {
+		case *ast.GenDecl:
+			if t.Tok != token.VAR {
+				return true
+			}
+			for _, spec := range t.Specs {
+				if value, ok := spec.(*ast.ValueSpec); ok {
+					for _, name := range value.Names {
+						if name.Name == "out" {
+							selExpr := value.Type.(*ast.SelectorExpr)
+							outTypeName = fmt.Sprintf("%s.%s", selExpr.X.(*ast.Ident).Name, selExpr.Sel.Name)
+							return true
+						}
+					}
+				}
+			}
 		}
-		return nil
+		return true
 	}
 
-	f.ResponseExpr = &responseExpr
-	f.ResponseType = responseType
+	ast.Inspect(f.FuncDecl, outVisitor)
 
-	return nil
-}
-
-func (f *HandlerFuncInfo) ResolveReturnType() (*ast.TypeSpec, error) {
-	var returnType *ast.TypeSpec
+	if len(outTypeName) > 0 {
+		var ok bool
+		if f.ResponseType, ok = f.Structs[outTypeName]; ok {
+			return nil
+		}
+	}
 
 	finalReturn := f.returnStatements[len(f.returnStatements)-1]
 	if finalReturn == nil {
-		return returnType, fmt.Errorf("HandlerFuncInfo.ResolveReturnType: finalReturn does not exist")
+		return fmt.Errorf("HandlerFuncInfo.ResolveReturnType: finalReturn does not exist")
 	}
 
 	result := finalReturn.Results[0]
 	returnParamName, err := f.analyzer.GetSource(result, f.fileSet)
 	if err != nil {
-		return returnType, err
+		return err
 	}
 
 	// gets the out type from the source string. Heavily dependent on the convention
 	// of the out parameter being named out.
+	// Find the variable name
 	sourceParts := strings.Split(f.Source, "var out ")
-	outTypeName := strings.Split(sourceParts[1], " ")[0]
+
+	// This is a handler switch, so return nil
+	// TODO: handy way to find and parse handler switches
+	if len(sourceParts) < 2 {
+		return nil
+	}
+
+	// find the type of the variable
+	outTypeName = strings.Split(sourceParts[1], " ")[0]
+	// strip off everything after the variable declaration
+	outTypeName = strings.Split(outTypeName, "\n")[0]
 
 	var ok bool
 
 	// If it returns nil, it should be a Foo specific handler
 	if returnParamName == "nil" {
-		return nil, nil
+		return nil
 	} else if strings.Index(returnParamName, "out.") > -1 { // handle return of out type field
 		var outType *ast.TypeSpec
+		pkgName := ""
+		// if the outTypeName includes a package name get it so we can prepend later.
+		if strings.Index(outTypeName, ".") > -1 {
+			pkgName = strings.Split(outTypeName, ".")[0]
+		}
 		if outType, ok = f.Structs[outTypeName]; !ok {
-			return returnType, fmt.Errorf("HandlerFuncInfo.ResolveReturnType: cannot resolve type for name %s", outTypeName)
+
+			return fmt.Errorf("HandlerFuncInfo.ResolveReturnType: cannot resolve type for name %s", outTypeName)
 		}
 		returnTypeFieldName := strings.Split(returnParamName, "out.")[1]
 		for _, field := range outType.Type.(*ast.StructType).Fields.List {
-			for _, ident := range field.Names {
-				i := field.Type.(*ast.Ident)
-				fieldType := i.Name
-				if ident.Name == returnTypeFieldName {
-					returnType = f.Structs[fieldType]
+			fieldTypeName := "unknown"
+			switch t := field.Type.(type) {
+			case *ast.Ident:
+				fieldTypeName = field.Type.(*ast.Ident).Name
+			case *ast.ArrayType:
+				expr, ok := t.Elt.(*ast.StarExpr)
+				if ok {
+					fieldTypeName = expr.X.(*ast.Ident).Name
+				} else {
+					fieldTypeName = t.Elt.(*ast.Ident).Name
 				}
+			case *ast.MapType:
+				expr, ok := t.Value.(*ast.StarExpr)
+				if ok {
+					fieldTypeName = expr.X.(*ast.Ident).Name
+				} else {
+					fieldTypeName = t.Value.(*ast.Ident).Name
+				}
+			case *ast.StructType:
+				fieldTypeName = field.Names[0].Name
+
+			case *ast.StarExpr:
+				fieldTypeName = t.X.(*ast.Ident).Name
+			}
+
+			if fieldTypeName == returnTypeFieldName {
+				if len(pkgName) > 0 {
+					fieldTypeName = fmt.Sprintf("%s.%s", pkgName, fieldTypeName)
+				}
+				f.ResponseType = f.Structs[fieldTypeName]
 			}
 		}
 
 	} else if returnParamName == "out" { // handle direct return of out type
-		if returnType, ok = f.Structs[outTypeName]; !ok {
-			return returnType, fmt.Errorf("HandlerFuncInfo.ResolveReturnType: cannot resolve type for name %s", outTypeName)
+		if f.ResponseType, ok = f.Structs[outTypeName]; !ok {
+			return fmt.Errorf("HandlerFuncInfo.ResolveReturnType: cannot resolve type for name %s", outTypeName)
 		}
 	} else {
 		// handle things not named out
-		return returnType, fmt.Errorf("ResolveReturnTypeName.Unhandled %s", returnParamName)
+		return fmt.Errorf("ResolveReturnTypeName.Unhandled %s", returnParamName)
 	}
 
-	return returnType, nil
+	return nil
 }
 
-func (f *HandlerFuncInfo) moveToPathSwitchHandler() error {
-	for _, retStmt := range f.returnStatements {
-		src, err := f.analyzer.GetSource(retStmt, f.fileSet)
-		if err != nil {
-			return fmt.Errorf("HandlerFuncInfo.moveToPathSwitchHandler: cannot render source")
-		}
-		f.logger(fmt.Sprintf("%s.moveToPathSwitchHandler.finalReturn.source: %s", f.Name(), src))
-	}
-	return nil
+func (h *HandlerFuncInfo) FullName() string {
+	return fmt.Sprintf("%s.%s", h.PackageName, h.ResponseType.Name)
 }
 
 type HTTPProfile struct {
@@ -269,7 +322,7 @@ func (a *Analyzer) GetStructs(pkg *packages.Package) (map[string]*ast.TypeSpec, 
 			typeSpec := node.(*ast.TypeSpec)
 			switch typeSpec.Type.(type) {
 			case *ast.StructType:
-				structMap[fmt.Sprintf(fmtString, typeSpec.Name)] = typeSpec
+				structMap[fmt.Sprintf(fmtString, typeSpec.Name.Name)] = typeSpec
 			}
 		}
 		return true
@@ -286,26 +339,4 @@ func (a *Analyzer) GetStructs(pkg *packages.Package) (map[string]*ast.TypeSpec, 
 	}
 
 	return structMap, nil
-}
-
-func (a *Analyzer) GetPath(key string, httpHandler *types.Func, result *ParseResult) (string, error) {
-	path := key
-	// TODO:
-	return path, nil
-}
-
-func (a *Analyzer) GetMethods(key string, httpHandler *types.Func, result *ParseResult) ([]string, error) {
-	// TODO:
-
-	return make([]string, 0), nil
-}
-
-func (a *Analyzer) GetParameters(key string, httpHandler *types.Func, result *ParseResult) (map[string]*types.Type, error) {
-	// TODO:
-
-	return make(map[string]*types.Type), nil
-}
-
-func (a *Analyzer) GetResponseModel(httpHandler *types.Func, result *ParseResult) (string, error) {
-	return httpHandler.Name(), nil
 }

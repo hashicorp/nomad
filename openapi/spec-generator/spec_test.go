@@ -14,13 +14,8 @@ func TestNomadPathAdapterFunc(t *testing.T) {
 	nsb.spec = &Spec{}
 
 	for _, adapter := range nsb.PathAdapters {
-		results, err := adapter.Parser.Parse()
+		err := adapter.Parser.Parse()
 		req.NoError(err, "TestNomadPathAdapterFunc.nsb.PathAdapter.Parser.Parse")
-
-		for _, result := range *results {
-			err := nomadPathAdapterFunc(nsb, result)
-			req.NoError(err, "TestNomadPathAdapterFunc")
-		}
 	}
 
 	for key, _ := range nsb.spec.Model.Paths {

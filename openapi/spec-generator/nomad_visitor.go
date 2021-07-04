@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/parser"
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/packages"
@@ -12,80 +13,98 @@ import (
 type loggerFunc func(args ...interface{})
 
 type NomadNodeVisitor struct {
-	HandlerFuncs map[string]*HandlerFuncInfo
-	Structs      map[string]*ast.TypeSpec
-	packages     map[string]*packages.Package
-	analyzer     *Analyzer
-	logger       loggerFunc
-	files        []*ast.File
-	fileSets     []*token.FileSet
+	HandlerAdapters map[string]*HandlerFuncInfo
+	Structs         map[string]*ast.TypeSpec
+	packages        map[string]*packages.Package
+	activePackage   *packages.Package
+	analyzer        *Analyzer
+	logger          loggerFunc
+	fileSets        []*token.FileSet
 }
 
-func (v *NomadNodeVisitor) SetPackages(pkgs []*packages.Package) error {
+func (v *NomadNodeVisitor) GetHandlerInfos() map[string]*HandlerFuncInfo {
+	return v.HandlerAdapters
+}
+
+func (v *NomadNodeVisitor) VisitPackages(pkgs []*packages.Package) error {
 	if v.packages == nil {
 		v.packages = make(map[string]*packages.Package)
 	}
 
+	// Must load all structs from all packages BEFORE loading Handlers.
 	if v.Structs == nil {
 		v.Structs = make(map[string]*ast.TypeSpec)
 	}
 
-	if v.HandlerFuncs == nil {
-		v.HandlerFuncs = make(map[string]*HandlerFuncInfo)
-	}
-
-	// Must load all structs from all packages BEFORE loading Handlers.
 	for _, pkg := range pkgs {
+		v.activePackage = pkg
 		if err := v.loadStructs(pkg); err != nil {
 			return err
 		}
 	}
 
+	// Now load all handlers
+	if v.HandlerAdapters == nil {
+		v.HandlerAdapters = make(map[string]*HandlerFuncInfo)
+	}
+
 	for _, pkg := range pkgs {
 		if _, ok := v.packages[pkg.Name]; ok {
-			return fmt.Errorf(fmt.Sprintf("NomadVisitor.SetPackages: Package %s alread exists", pkg.Name))
+			return fmt.Errorf(fmt.Sprintf("NomadVisitor.VisitPackages: Package %s alread exists", pkg.Name))
 		}
 
 		v.packages[pkg.Name] = pkg
+		v.activePackage = pkg
 		v.SetActiveFileSet(pkg.Fset)
 
-		if err := v.loadHandlers(pkg); err != nil {
+		if err := v.loadHandlers(); err != nil {
 			return err
+		}
+	}
+
+	for _, pkg := range pkgs {
+		for _, goFile := range pkg.GoFiles {
+			fileSet := token.NewFileSet() // positions are relative to fset
+			file, err := parser.ParseFile(fileSet, goFile, nil, 0)
+			if err != nil {
+				return fmt.Errorf("PackageParser.parseGoFile: %v\n", err)
+			}
+
+			ast.Inspect(file, v.VisitNode)
 		}
 	}
 	return nil
 }
 
-func (v *NomadNodeVisitor) loadHandlers(pkg *packages.Package) error {
-	handlers := v.analyzer.GetHttpHandlers(pkg)
+func (v *NomadNodeVisitor) loadHandlers() error {
+	handlers := v.analyzer.GetHttpHandlers(v.activePackage)
 	for key, handler := range handlers {
-		if _, ok := v.HandlerFuncs[v.getTypesFuncNameWithReceiver(handler)]; ok {
+		if _, ok := v.HandlerAdapters[v.getTypesFuncNameWithReceiver(handler)]; ok {
 			return fmt.Errorf("NomadVisitor.loadHandlers package %s alread exists", key)
 		}
 
-		v.HandlerFuncs[v.getTypesFuncNameWithReceiver(handler)] = &HandlerFuncInfo{
-			Func:     handler,
-			Structs:  v.Structs,
-			logger:   v.logger,
-			analyzer: v.analyzer,
-			fileSet:  v.GetActiveFileSet(),
+		v.HandlerAdapters[v.getTypesFuncNameWithReceiver(handler)] = &HandlerFuncInfo{
+			PackageName: v.activePackage.Name,
+			Func:        handler,
+			Structs:     v.Structs,
+			logger:      v.logger,
+			analyzer:    v.analyzer,
+			fileSet:     v.GetActiveFileSet(),
 		}
 	}
 	return nil
 }
 
 func (v *NomadNodeVisitor) DebugPrint() {
-	for key, fn := range v.HandlerFuncs {
-		v.logger(fmt.Sprintf("%s: Response Type: %s\n - Params/Source: %s\n", key, fn.ResponseType.Name, fn.Source))
+	// TODO: Add comprehensive debug switches
+	for key, fn := range v.HandlerAdapters {
+		if fn.IsSwitchHandler() {
+			v.logger(fmt.Sprintf("%s: is a path switch handler", key))
+			v.logger(fmt.Sprintf("%s: Response Type: %s\n - Params/Source: %s", key, "unknown", fn.Source))
+		} else {
+			v.logger(fmt.Sprintf("%s: Response Type: %s\n - Params/Source: %s", key, fn.FullName(), fn.Source))
+		}
 	}
-}
-
-func (v *NomadNodeVisitor) Files() []*ast.File {
-	return v.files
-}
-
-func (v *NomadNodeVisitor) FileSets() []*token.FileSet {
-	return v.fileSets
 }
 
 func (v *NomadNodeVisitor) SetActiveFileSet(fileSet *token.FileSet) {
@@ -105,16 +124,14 @@ func (v *NomadNodeVisitor) VisitNode(node ast.Node) bool {
 		var src string
 		var err error
 		if src, err = v.analyzer.GetSource(t.Body, v.GetActiveFileSet()); err != nil {
-			v.logger(fmt.Errorf("VisitNode.getSourceL %v\n", err))
+			v.logger(fmt.Errorf("VisitNode.analayzer.GetSource %v\n", err))
 			return true
 		}
 		name := v.getFuncDeclNameWithReceiver(t)
 		// If not a handler then don't add the func
-		if _, ok := v.HandlerFuncs[name]; !ok {
+		if _, ok := v.HandlerAdapters[name]; !ok {
 			return true
 		}
-
-		// v.logger(fmt.Sprintf("Found HandlerFuncInfo for %s", name))
 
 		params := ""
 		for _, param := range t.Type.Params.List {
@@ -122,10 +139,10 @@ func (v *NomadNodeVisitor) VisitNode(node ast.Node) bool {
 		}
 		src = fmt.Sprintf("%s - %s", params, src)
 
-		if _, ok := v.HandlerFuncs[name]; !ok {
+		if _, ok := v.HandlerAdapters[name]; !ok {
 			panic(fmt.Sprintf(fmt.Sprintf("VisitNode failed to resolve HandlerFuncInfo for %s", name)))
 		} else {
-			funcInfo := v.HandlerFuncs[name]
+			funcInfo := v.HandlerAdapters[name]
 			funcInfo.FuncDecl = t
 			funcInfo.Source = src
 			ast.Inspect(t, funcInfo.visitFunc)
@@ -148,7 +165,9 @@ func (v *NomadNodeVisitor) getFuncDeclNameWithReceiver(t *ast.FuncDecl) string {
 			recv = id.Name
 		}
 
-		name = fmt.Sprintf("%s.%s", recv, name)
+		name = fmt.Sprintf("%s.%s.%s", v.activePackage.Name, recv, name)
+	} else {
+		name = fmt.Sprintf("%s.%s", v.activePackage.Name, name)
 	}
 	return name
 }
@@ -161,7 +180,9 @@ func (v *NomadNodeVisitor) getTypesFuncNameWithReceiver(handler *types.Func) str
 		recvName := recvSegments[len(recvSegments)-1]
 		runes := []rune(recvName)
 		recvName = string(runes[strings.Index(recvName, ".")+1:])
-		name = fmt.Sprintf("%s.%s", recvName, name)
+		name = fmt.Sprintf("%s.%s.%s", v.activePackage.Name, recvName, name)
+	} else {
+		name = fmt.Sprintf("%s.%s", v.activePackage.Name, name)
 	}
 	return name
 }
