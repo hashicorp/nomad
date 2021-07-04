@@ -45,26 +45,27 @@ type HeaderInfo struct {
 //}
 
 type HandlerFuncInfo struct {
-	Path             string
-	Source           string
-	PackageName      string
-	Func             *types.Func
-	FuncDecl         *ast.FuncDecl
-	ResponseType     *ast.TypeSpec
-	Structs          map[string]*ast.TypeSpec
-	Params           []*ParamInfo
-	ResponseHeaders  []*HeaderInfo
-	logger           loggerFunc
-	analyzer         *Analyzer
-	fileSet          *token.FileSet
-	returnStatements []*ast.ReturnStmt
+	Path                 string
+	Source               string
+	PackageName          string
+	Func                 *types.Func
+	FuncDecl             *ast.FuncDecl
+	ResponseTypeFullName string
+	ResponseType         *ast.TypeSpec
+	Structs              map[string]*ast.TypeSpec
+	Params               []*ParamInfo
+	ResponseHeaders      []*HeaderInfo
+	logger               loggerFunc
+	analyzer             *Analyzer
+	fileSet              *token.FileSet
+	returnStatements     []*ast.ReturnStmt
 }
 
 func (h *HandlerFuncInfo) Name() string {
 	return h.Func.Name()
 }
 
-func (h *HandlerFuncInfo) IsSwitchHandler() bool {
+func (h *HandlerFuncInfo) IsHelperFunction() bool {
 	return h.ResponseType == nil
 }
 
@@ -124,6 +125,7 @@ func (f *HandlerFuncInfo) ResolveReturnType() error {
 	if len(outTypeName) > 0 {
 		var ok bool
 		if f.ResponseType, ok = f.Structs[outTypeName]; ok {
+			f.ResponseTypeFullName = outTypeName
 			return nil
 		}
 	}
@@ -216,10 +218,6 @@ func (f *HandlerFuncInfo) ResolveReturnType() error {
 	}
 
 	return nil
-}
-
-func (h *HandlerFuncInfo) FullName() string {
-	return fmt.Sprintf("%s.%s", h.PackageName, h.ResponseType.Name)
 }
 
 type HTTPProfile struct {

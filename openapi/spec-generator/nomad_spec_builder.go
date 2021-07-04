@@ -4,30 +4,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-var nomadPackages = []*PackageConfig{
-	{
-		Config: packages.Config{
-			Dir:  "../../api/",
-			Mode: loadMode,
-		},
-		Pattern: ".",
-	},
-	{
-		Config: packages.Config{
-			Dir:  "../../nomad/structs/",
-			Mode: loadMode,
-		},
-		Pattern: ".",
-	},
-	{
-		Config: packages.Config{
-			Dir:  "../../command/agent/",
-			Mode: loadMode,
-		},
-		Pattern: ".",
-	},
-}
-
 // NewNomadSpecBuilder is a factory method for the NomadSpecBuilder struct
 func NewNomadSpecBuilder() *SpecBuilder {
 	builder := &SpecBuilder{
@@ -195,3 +171,27 @@ const loadMode = packages.NeedName |
 	packages.NeedTypesInfo |
 	packages.NeedTypesSizes |
 	packages.NeedModule
+
+var nomadPackages = []*PackageConfig{
+	{
+		Config: packages.Config{
+			Dir:  "../../api/",
+			Mode: loadMode,
+		},
+		Pattern: ".",
+	},
+	{
+		Config: packages.Config{
+			Dir:  "../../nomad/structs/",
+			Mode: loadMode,
+		},
+		Pattern: ".",
+	},
+	{
+		Config: packages.Config{
+			Dir:  "../../command/agent/",
+			Mode: loadMode,
+		},
+		Pattern: ".",
+	},
+}

@@ -96,13 +96,26 @@ func (v *NomadNodeVisitor) loadHandlers() error {
 }
 
 func (v *NomadNodeVisitor) DebugPrint() {
+	// setting up debug options for extraction.
+	showSource := false
+	showHelpers := false
+	showHandlers := true
 	// TODO: Add comprehensive debug switches
 	for key, fn := range v.HandlerAdapters {
-		if fn.IsSwitchHandler() {
-			v.logger(fmt.Sprintf("%s: is a path switch handler", key))
-			v.logger(fmt.Sprintf("%s: Response Type: %s\n - Params/Source: %s", key, "unknown", fn.Source))
-		} else {
-			v.logger(fmt.Sprintf("%s: Response Type: %s\n - Params/Source: %s", key, fn.FullName(), fn.Source))
+		if fn.IsHelperFunction() && showHelpers {
+			if showSource {
+				v.logger(fmt.Sprintf("%s: is a helper function - Response Type: %s\n - Params/Source: %s", key, "unknown", fn.Source))
+			} else {
+
+				v.logger(fmt.Sprintf("%s: is a helper function - Response Type: %s", key, "unknown"))
+			}
+		} else if showHandlers {
+			if showSource {
+				v.logger(fmt.Sprintf("%s: Response Type: %s\n - Params/Source: %s", key, fn.ResponseTypeFullName, fn.Source))
+			} else {
+
+				v.logger(fmt.Sprintf("%s: Response Type: %s", key, fn.ResponseTypeFullName))
+			}
 		}
 	}
 }
