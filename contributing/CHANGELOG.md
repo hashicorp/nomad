@@ -98,6 +98,7 @@ make changelog
 You can also call `changelog-build` binary directly. For more information as to what each flag does, make sure to run `changelog-build -help`.
 
 ```
+cd .changelog
 changelog-build -last-release v1.1.2 -this-release HEAD \
                 -entries-dir . -changelog-template changelog.tmpl -note-template note.tmpl
 ```
