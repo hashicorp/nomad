@@ -1,12 +1,5 @@
 ## 1.1.3 (Unreleased)
 
-BUG FIXES:
-* cli: Fixed system commands, so they correctly use passed flags. [[GH-10822](https://github.com/hashicorp/nomad/pull/10822)]
-* csi: Fixed a CLI panic when formatting `volume status` with `-verbose` flag. [[GH-10818](https://github.com/hashicorp/nomad/issues/10818)]
-
-IMPROVEMENTS:
-* consul/connect: automatically set CONSUL_TLS_SERVER_NAME for connect native tasks [[GH-10804](https://github.com/hashicorp/nomad/issues/10804)]
-
 ## 1.1.2 (June 22, 2021)
 
 IMPROVEMENTS:
