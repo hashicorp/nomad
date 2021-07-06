@@ -810,10 +810,10 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 	}
 
-	if l := len(job.Spreads); l != 0 {
-		j.Spreads = make([]*structs.Spread, l)
-		for i, apiSpread := range job.Spreads {
-			j.Spreads[i] = ApiSpreadToStructs(apiSpread)
+	if len(job.Spreads) > 0 {
+		j.Spreads = []*structs.Spread{}
+		for _, apiSpread := range job.Spreads {
+			j.Spreads = append(j.Spreads, ApiSpreadToStructs(apiSpread))
 		}
 	}
 
@@ -855,12 +855,12 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 	}
 
-	if l := len(job.TaskGroups); l != 0 {
-		j.TaskGroups = make([]*structs.TaskGroup, l)
-		for i, taskGroup := range job.TaskGroups {
+	if len(job.TaskGroups) > 0 {
+		j.TaskGroups = []*structs.TaskGroup{}
+		for _, taskGroup := range job.TaskGroups {
 			tg := &structs.TaskGroup{}
 			ApiTgToStructsTG(j, taskGroup, tg)
-			j.TaskGroups[i] = tg
+			j.TaskGroups = append(j.TaskGroups, tg)
 		}
 	}
 
@@ -922,17 +922,17 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		Migrate: *taskGroup.EphemeralDisk.Migrate,
 	}
 
-	if l := len(taskGroup.Spreads); l != 0 {
-		tg.Spreads = make([]*structs.Spread, l)
-		for k, spread := range taskGroup.Spreads {
-			tg.Spreads[k] = ApiSpreadToStructs(spread)
+	if len(taskGroup.Spreads) > 0 {
+		tg.Spreads = []*structs.Spread{}
+		for _, spread := range taskGroup.Spreads {
+			tg.Spreads = append(tg.Spreads, ApiSpreadToStructs(spread))
 		}
 	}
 
-	if l := len(taskGroup.Volumes); l != 0 {
-		tg.Volumes = make(map[string]*structs.VolumeRequest, l)
+	if len(taskGroup.Volumes) > 0 {
+		tg.Volumes = map[string]*structs.VolumeRequest{}
 		for k, v := range taskGroup.Volumes {
-			if v.Type != structs.VolumeTypeHost && v.Type != structs.VolumeTypeCSI {
+			if v == nil || (v.Type != structs.VolumeTypeHost && v.Type != structs.VolumeTypeCSI) {
 				// Ignore volumes we don't understand in this iteration currently.
 				// - This is because we don't currently have a way to return errors here.
 				continue
@@ -980,9 +980,9 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		}
 	}
 
-	if l := len(taskGroup.Tasks); l != 0 {
-		tg.Tasks = make([]*structs.Task, l)
-		for l, task := range taskGroup.Tasks {
+	if len(taskGroup.Tasks) > 0 {
+		tg.Tasks = []*structs.Task{}
+		for _, task := range taskGroup.Tasks {
 			t := &structs.Task{}
 			ApiTaskToStructsTask(job, tg, task, t)
 
@@ -991,7 +991,7 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 			if t.Vault != nil && t.Vault.Namespace == "" && job.VaultNamespace != "" {
 				t.Vault.Namespace = job.VaultNamespace
 			}
-			tg.Tasks[l] = t
+			tg.Tasks = append(tg.Tasks, t)
 		}
 	}
 }
@@ -1025,22 +1025,25 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		}
 	}
 
-	if l := len(apiTask.VolumeMounts); l != 0 {
-		structsTask.VolumeMounts = make([]*structs.VolumeMount, l)
-		for i, mount := range apiTask.VolumeMounts {
-			structsTask.VolumeMounts[i] = &structs.VolumeMount{
-				Volume:          *mount.Volume,
-				Destination:     *mount.Destination,
-				ReadOnly:        *mount.ReadOnly,
-				PropagationMode: *mount.PropagationMode,
-			}
+	structsTask.VolumeMounts = []*structs.VolumeMount{}
+	for _, mount := range apiTask.VolumeMounts {
+		if mount != nil && mount.Volume != nil {
+			structsTask.VolumeMounts = append(structsTask.VolumeMounts,
+				&structs.VolumeMount{
+					Volume:          *mount.Volume,
+					Destination:     *mount.Destination,
+					ReadOnly:        *mount.ReadOnly,
+					PropagationMode: *mount.PropagationMode,
+				})
 		}
 	}
 
-	if l := len(apiTask.ScalingPolicies); l != 0 {
-		structsTask.ScalingPolicies = make([]*structs.ScalingPolicy, l)
-		for i, policy := range apiTask.ScalingPolicies {
-			structsTask.ScalingPolicies[i] = ApiScalingPolicyToStructs(0, policy).TargetTask(job, group, structsTask)
+	if len(apiTask.ScalingPolicies) > 0 {
+		structsTask.ScalingPolicies = []*structs.ScalingPolicy{}
+		for _, policy := range apiTask.ScalingPolicies {
+			structsTask.ScalingPolicies = append(
+				structsTask.ScalingPolicies,
+				ApiScalingPolicyToStructs(0, policy).TargetTask(job, group, structsTask))
 		}
 	}
 
@@ -1053,16 +1056,17 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		MaxFileSizeMB: *apiTask.LogConfig.MaxFileSizeMB,
 	}
 
-	if l := len(apiTask.Artifacts); l != 0 {
-		structsTask.Artifacts = make([]*structs.TaskArtifact, l)
-		for k, ta := range apiTask.Artifacts {
-			structsTask.Artifacts[k] = &structs.TaskArtifact{
-				GetterSource:  *ta.GetterSource,
-				GetterOptions: helper.CopyMapStringString(ta.GetterOptions),
-				GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
-				GetterMode:    *ta.GetterMode,
-				RelativeDest:  *ta.RelativeDest,
-			}
+	if len(apiTask.Artifacts) > 0 {
+		structsTask.Artifacts = []*structs.TaskArtifact{}
+		for _, ta := range apiTask.Artifacts {
+			structsTask.Artifacts = append(structsTask.Artifacts,
+				&structs.TaskArtifact{
+					GetterSource:  *ta.GetterSource,
+					GetterOptions: helper.CopyMapStringString(ta.GetterOptions),
+					GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
+					GetterMode:    *ta.GetterMode,
+					RelativeDest:  *ta.RelativeDest,
+				})
 		}
 	}
 
@@ -1076,22 +1080,23 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		}
 	}
 
-	if l := len(apiTask.Templates); l != 0 {
-		structsTask.Templates = make([]*structs.Template, l)
-		for i, template := range apiTask.Templates {
-			structsTask.Templates[i] = &structs.Template{
-				SourcePath:   *template.SourcePath,
-				DestPath:     *template.DestPath,
-				EmbeddedTmpl: *template.EmbeddedTmpl,
-				ChangeMode:   *template.ChangeMode,
-				ChangeSignal: *template.ChangeSignal,
-				Splay:        *template.Splay,
-				Perms:        *template.Perms,
-				LeftDelim:    *template.LeftDelim,
-				RightDelim:   *template.RightDelim,
-				Envvars:      *template.Envvars,
-				VaultGrace:   *template.VaultGrace,
-			}
+	if len(apiTask.Templates) > 0 {
+		structsTask.Templates = []*structs.Template{}
+		for _, template := range apiTask.Templates {
+			structsTask.Templates = append(structsTask.Templates,
+				&structs.Template{
+					SourcePath:   *template.SourcePath,
+					DestPath:     *template.DestPath,
+					EmbeddedTmpl: *template.EmbeddedTmpl,
+					ChangeMode:   *template.ChangeMode,
+					ChangeSignal: *template.ChangeSignal,
+					Splay:        *template.Splay,
+					Perms:        *template.Perms,
+					LeftDelim:    *template.LeftDelim,
+					RightDelim:   *template.RightDelim,
+					Envvars:      *template.Envvars,
+					VaultGrace:   *template.VaultGrace,
+				})
 		}
 	}
 
@@ -1148,15 +1153,15 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		out.Networks = ApiNetworkResourceToStructs(in.Networks)
 	}
 
-	if l := len(in.Devices); l != 0 {
-		out.Devices = make([]*structs.RequestedDevice, l)
-		for i, d := range in.Devices {
-			out.Devices[i] = &structs.RequestedDevice{
+	if len(in.Devices) > 0 {
+		out.Devices = []*structs.RequestedDevice{}
+		for _, d := range in.Devices {
+			out.Devices = append(out.Devices, &structs.RequestedDevice{
 				Name:        d.Name,
 				Count:       *d.Count,
 				Constraints: ApiConstraintsToStructs(d.Constraints),
 				Affinities:  ApiAffinitiesToStructs(d.Affinities),
-			}
+			})
 		}
 	}
 
