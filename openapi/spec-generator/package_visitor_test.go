@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-func TestParser(t *testing.T) {
+func TestPackageVisitorParse(t *testing.T) {
 	req := require.New(t)
 
-	visitor := &NomadNodeVisitor{
+	visitor := &NomadPackageVisitor{
 		logger: t.Log,
 	}
 	parser := PackageParser{
@@ -17,5 +17,5 @@ func TestParser(t *testing.T) {
 	}
 
 	err := parser.Parse()
-	req.NoError(err, "TestParser.parser.Parse")
+	req.NoError(err, "TestPackageVisitor.parser.Parse")
 }

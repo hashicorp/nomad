@@ -7,20 +7,12 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-type NodeVisitor interface {
+type PackageVisitor interface {
 	VisitNode(node ast.Node) bool
 	VisitPackages([]*packages.Package) error
 	GetActiveFileSet() *token.FileSet
-	//GetHandlerInfos() []*HandlerFuncInfo
 	DebugPrint()
 }
-
-//// ParseResult encapsulate the output of a parse operation.
-//type ParseResult struct {
-//	Package  *packages.Package
-//	Files    []*ast.File
-//	FileSets []*token.FileSet
-//}
 
 type PackageConfig struct {
 	Config  packages.Config
@@ -34,7 +26,7 @@ type PackageConfig struct {
 // https://pkg.go.dev/golang.org/x/tools/go/packages#section-documentation
 type PackageParser struct {
 	Packages      []*PackageConfig
-	Visitor       NodeVisitor
+	Visitor       PackageVisitor
 	activeFileSet *token.FileSet
 }
 

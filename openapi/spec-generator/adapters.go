@@ -1,0 +1,175 @@
+package main
+
+import (
+	"fmt"
+	"github.com/getkin/kin-openapi/openapi3"
+	"go/ast"
+	"go/token"
+	"go/types"
+	"golang.org/x/tools/go/packages"
+	"net/http"
+)
+
+type PathItemAdapter struct {
+	method           string // GET, PUT etc.
+	Package          *packages.Package
+	Source           string
+	Func             *types.Func
+	FuncDecl         *ast.FuncDecl
+	SchemaName       string
+	SchemaTypeSpec   *ast.TypeSpec
+	structs          map[string]*ast.TypeSpec
+	logger           loggerFunc
+	analyzer         *Analyzer
+	fileSet          *token.FileSet
+	returnStatements []*ast.ReturnStmt
+}
+
+// GetMethod returns a string that maps to the net/http method this PathItemAdapter
+// represents e.g. GET, POST, PUT
+func (pia *PathItemAdapter) GetMethod() string {
+	method := "unknown"
+
+	return method
+}
+
+// GetInputParameterRefs creates an ParameterRef slice by inspecting the source code
+func (pia *PathItemAdapter) GetInputParameterRefs() []*openapi3.ParameterRef {
+	var refs []*openapi3.ParameterRef
+
+	//for _, param := range t.Type.Params.List {
+	//	params = fmt.Sprintf("%s|%s ", param.Names[0].Name, param.Type)
+	//}
+
+	return refs
+}
+
+// GetRequestBodyRef creates a RequestBodyRef by inspecting the source code
+func (pia *PathItemAdapter) GetRequestBodyRef() *openapi3.RequestBodyRef {
+	ref := &openapi3.RequestBodyRef{}
+
+	return ref
+}
+
+// GetResponseSchemaRef creates a SchemaRef by inspecting the source code. This
+// is intended as a debug function. Use GetResponseRefs to generate a spec.
+func (pia *PathItemAdapter) GetResponseSchemaRef() *openapi3.SchemaRef {
+	ref := &openapi3.SchemaRef{}
+
+	return ref
+}
+
+// GetResponseRefs creates a slice of ResponseRefs by inspecting the source code
+func (pia *PathItemAdapter) GetResponseRefs() []*openapi3.ResponseRef {
+	var refs []*openapi3.ResponseRef
+
+	return refs
+}
+
+type HandlerFuncAdapter struct {
+	Path        string
+	Source      string
+	PackageName string
+	Package     *packages.Package
+	Func        *types.Func
+	FuncDecl    *ast.FuncDecl
+	Structs     map[string]*ast.TypeSpec
+
+	logger           loggerFunc
+	analyzer         *Analyzer
+	fileSet          *token.FileSet
+	returnStatements []*ast.ReturnStmt
+
+	ResponseType *ast.TypeSpec
+}
+
+// TODO: Find a way to make this injectable
+var supportedMethods = []string{http.MethodGet, http.MethodDelete, http.MethodPut, http.MethodPost}
+
+func (h *HandlerFuncAdapter) newPathItemAdapter(method string) (*PathItemAdapter, error) {
+	isSupportedMethod := false
+	for _, supportedMethod := range supportedMethods {
+		if supportedMethod == method {
+			isSupportedMethod = true
+		}
+	}
+	if !isSupportedMethod {
+		return nil, fmt.Errorf("HandlerFuncAdapter.newPathItemAdapter: method %s not supported", method)
+	}
+
+	return &PathItemAdapter{method: method}, nil
+}
+
+func (h *HandlerFuncAdapter) Name() string {
+	return h.Func.Name()
+}
+
+func (h *HandlerFuncAdapter) IsHelperFunction() bool {
+	return h.ResponseType == nil
+}
+
+func (f *HandlerFuncAdapter) visitFunc(node ast.Node) bool {
+	switch t := node.(type) {
+	case *ast.ReturnStmt:
+		f.returnStatements = append(f.returnStatements, t)
+		// TODO: This is where I'll have to come back and handle nutty things like JobSpecificRequest
+		//case *ast.BlockStmt:
+		//	for _, stmt := range t.List {
+		//		f.logger(f.analyzer.GetSource(stmt, f.fileSet))
+		//	}
+		//case *ast.BranchStmt:
+		//	f.logger(f.analyzer.GetSource(t, f.fileSet))
+		//
+	}
+	return true
+}
+
+func (f *HandlerFuncAdapter) processVisitResults() error {
+	if err := f.ResolveReturnType(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (f *HandlerFuncAdapter) ResolveReturnType() error {
+	if len(f.returnStatements) < 1 {
+		return fmt.Errorf("HandlerFuncAdapter.resolveResponseType: no return statement found")
+	}
+
+	finalReturn := f.returnStatements[len(f.returnStatements)-1]
+	if finalReturn == nil {
+		return fmt.Errorf("HandlerFuncAdapter.ResolveReturnType: finalReturn does not exist")
+	}
+
+	if len(finalReturn.Results) < 1 {
+		return fmt.Errorf("HandlerFuncAdapterResolverReturnType: finalReturn returns no results")
+	}
+
+	var outTypeName string
+
+	outVisitor := func(node ast.Node) bool {
+		switch t := node.(type) {
+		case *ast.SelectorExpr:
+			switch xt := t.X.(type) {
+			case *ast.Ident:
+				if xt.Name == "out" {
+					outTypeName = xt.Obj.Decl.(*ast.ValueSpec).Type.(*ast.SelectorExpr).Sel.Name
+					return true
+				}
+			}
+		}
+		return true
+	}
+
+	ast.Inspect(finalReturn.Results[0], outVisitor)
+
+	if len(outTypeName) > 0 {
+		f.logger("outTypeName: " + outTypeName)
+		var ok bool
+		if f.ResponseType, ok = f.Structs[f.Package.Name+"."+outTypeName]; ok {
+			return nil
+		}
+	}
+
+	return nil
+}

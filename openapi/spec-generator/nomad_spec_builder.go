@@ -52,7 +52,7 @@ func nomadPathAdapterFunc(b *SpecBuilder) error {
 type NomadSpecBuilderExt interface {
 	SpecBuilder() *SpecBuilder
 	Analyzer() *Analyzer
-	AdaptHTTPHandler(key string, info *HandlerFuncInfo) error
+	AdaptHTTPHandler(key string, info *HandlerFuncAdapter) error
 }
 
 // NomadSpecBuilderExtImpl implements the NomadSpecBuilderExt interface consumed
@@ -74,8 +74,8 @@ func (e *NomadSpecBuilderExtImpl) Analyzer() *Analyzer {
 
 // AdaptHTTPHandler analyzes the source code for an HTTP Handler and builds an
 // Path/PathItem.
-func (e *NomadSpecBuilderExtImpl) AdaptHTTPHandler(key string, adapter *HandlerFuncInfo) error {
-	//path, err := info.GetPath()
+func (e *NomadSpecBuilderExtImpl) AdaptHTTPHandler(key string, adapter *HandlerFuncAdapter) error {
+	//path, err := TypesInfo.GetPath()
 	//if err != nil {
 	//	return fmt.Errorf("NomadSpecBuilderExtImpl.AdaptHTTPHandler.analyzer.GetPath: %v\n", err)
 	//}
@@ -176,13 +176,6 @@ var nomadPackages = []*PackageConfig{
 	{
 		Config: packages.Config{
 			Dir:  "../../api/",
-			Mode: loadMode,
-		},
-		Pattern: ".",
-	},
-	{
-		Config: packages.Config{
-			Dir:  "../../nomad/structs/",
 			Mode: loadMode,
 		},
 		Pattern: ".",
