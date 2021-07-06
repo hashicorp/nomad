@@ -39,16 +39,15 @@ func TestUpdate_beforePoststart(t *testing.T) {
 	// so Update should again wait on Poststart.
 
 	require.NoError(t, hook.Exited(context.Background(), &interfaces.TaskExitedRequest{}, &interfaces.TaskExitedResponse{}))
+	require.Len(t, c.GetOps(), 3)
+	require.NoError(t, hook.Update(context.Background(), &interfaces.TaskUpdateRequest{Alloc: alloc}, &interfaces.TaskUpdateResponse{}))
+	require.Len(t, c.GetOps(), 3)
+	require.NoError(t, hook.Poststart(context.Background(), &interfaces.TaskPoststartRequest{}, &interfaces.TaskPoststartResponse{}))
 	require.Len(t, c.GetOps(), 4)
 	require.NoError(t, hook.Update(context.Background(), &interfaces.TaskUpdateRequest{Alloc: alloc}, &interfaces.TaskUpdateResponse{}))
-	require.Len(t, c.GetOps(), 4)
-	require.NoError(t, hook.Poststart(context.Background(), &interfaces.TaskPoststartRequest{}, &interfaces.TaskPoststartResponse{}))
 	require.Len(t, c.GetOps(), 5)
+	require.NoError(t, hook.PreKilling(context.Background(), &interfaces.TaskPreKillRequest{}, &interfaces.TaskPreKillResponse{}))
+	require.Len(t, c.GetOps(), 6)
 	require.NoError(t, hook.Update(context.Background(), &interfaces.TaskUpdateRequest{Alloc: alloc}, &interfaces.TaskUpdateResponse{}))
 	require.Len(t, c.GetOps(), 6)
-	require.NoError(t, hook.PreKilling(context.Background(), &interfaces.TaskPreKillRequest{}, &interfaces.TaskPreKillResponse{}))
-	require.Len(t, c.GetOps(), 8)
-	require.NoError(t, hook.Update(context.Background(), &interfaces.TaskUpdateRequest{Alloc: alloc}, &interfaces.TaskUpdateResponse{}))
-	require.Len(t, c.GetOps(), 8)
-
 }

@@ -957,17 +957,16 @@ func TestTaskRunner_ShutdownDelay(t *testing.T) {
 		assert.NoError(t, tr.Kill(context.Background(), structs.NewTaskEvent("test")))
 	}()
 
-	// Wait for *2* deregistration calls (due to needing to remove both
-	// canary tag variants)
+	// Wait for *1* de-registration calls (all [non-]canary variants removed).
+
 WAIT:
 	for {
 		ops := mockConsul.GetOps()
 		switch n := len(ops); n {
-		case 1, 2:
-			// Waiting for both deregistration calls
-		case 3:
+		case 1:
+			// Waiting for single de-registration call.
+		case 2:
 			require.Equalf(t, "remove", ops[1].Op, "expected deregistration but found: %#v", ops[1])
-			require.Equalf(t, "remove", ops[2].Op, "expected deregistration but found: %#v", ops[2])
 			break WAIT
 		default:
 			// ?!
@@ -2401,25 +2400,22 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 
 	consul := conf.Consul.(*consulapi.MockConsulServiceClient)
 	consulOps := consul.GetOps()
-	require.Len(t, consulOps, 8)
+	require.Len(t, consulOps, 5)
 
 	// Initial add
 	require.Equal(t, "add", consulOps[0].Op)
 
-	// Removing canary and non-canary entries on first exit
+	// Removing entries on first exit
 	require.Equal(t, "remove", consulOps[1].Op)
-	require.Equal(t, "remove", consulOps[2].Op)
 
 	// Second add on retry
-	require.Equal(t, "add", consulOps[3].Op)
+	require.Equal(t, "add", consulOps[2].Op)
 
-	// Removing canary and non-canary entries on retry
+	// Removing entries on retry
+	require.Equal(t, "remove", consulOps[3].Op)
+
+	// Removing entries on stop
 	require.Equal(t, "remove", consulOps[4].Op)
-	require.Equal(t, "remove", consulOps[5].Op)
-
-	// Removing canary and non-canary entries on stop
-	require.Equal(t, "remove", consulOps[6].Op)
-	require.Equal(t, "remove", consulOps[7].Op)
 }
 
 // testWaitForTaskToStart waits for the task to be running or fails the test
