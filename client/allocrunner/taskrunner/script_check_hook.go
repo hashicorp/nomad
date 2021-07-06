@@ -3,6 +3,7 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -317,7 +318,6 @@ func newScriptCheck(config *scriptCheckConfig) *scriptCheck {
 	sc.Timeout = config.check.Timeout
 	sc.exec = config.driverExec
 	sc.callback = newScriptCheckCallback(sc)
-	sc.logger = config.logger
 	sc.shutdownCh = config.shutdownCh
 	sc.check.Command = sc.Command
 	sc.check.Args = sc.Args
@@ -332,6 +332,10 @@ func newScriptCheck(config *scriptCheckConfig) *scriptCheck {
 		sc.id = agentconsul.MakeCheckID(config.serviceID, sc.check)
 	}
 	sc.consulNamespace = config.consulNamespace
+
+	// Add script id to logger's context
+	logger := config.logger.With("check_id", sc.id)
+	sc.logger = logger
 	return sc
 }
 
@@ -364,6 +368,11 @@ func newScriptCheckCallback(s *scriptCheck) taskletCallback {
 			outputMsg = err.Error()
 		} else {
 			outputMsg = string(output)
+		}
+
+		// If the check is unhealthy, log the output
+		if state == api.HealthCritical || state == api.HealthWarning {
+			s.logger.Warn("unhealthy script check", "health", state, "output", strconv.Quote(outputMsg))
 		}
 
 		// heartbeat the check to Consul
