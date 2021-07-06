@@ -1062,7 +1062,7 @@ Here is an example of using these properties in a job file:
 job "docs" {
   # Require docker version higher than 1.2.
   constraint {
-    attribute = "${driver.docker.version}"
+    attribute = "${attr.driver.docker.version}"
     operator  = ">"
     version   = "1.2"
   }
