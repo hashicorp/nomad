@@ -171,13 +171,10 @@ func (h *serviceHook) Exited(context.Context, *interfaces.TaskExitedRequest, *in
 
 // deregister services from Consul.
 func (h *serviceHook) deregister() {
-	workloadServices := h.getWorkloadServices()
-	h.consulServices.RemoveWorkload(workloadServices)
-
-	// Canary flag may be getting flipped when the alloc is being
-	// destroyed, so remove both variations of the service
-	workloadServices.Canary = !workloadServices.Canary
-	h.consulServices.RemoveWorkload(workloadServices)
+	if len(h.services) > 0 {
+		workloadServices := h.getWorkloadServices()
+		h.consulServices.RemoveWorkload(workloadServices)
+	}
 	h.initialRegistration = false
 }
 
