@@ -12,6 +12,7 @@ func TestPackageVisitorParse(t *testing.T) {
 	debugOptions.showSource = false
 	debugOptions.showHelpers = true
 	debugOptions.showReturnSource = true
+
 	visitor := &NomadPackageVisitor{
 		logger:       t.Log,
 		debugOptions: debugOptions,

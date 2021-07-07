@@ -166,16 +166,14 @@ func (v *NomadPackageVisitor) VisitFile(node ast.Node) bool {
 			return true
 		}
 
-		if _, ok := v.HandlerAdapters[name]; !ok {
-			panic(fmt.Sprintf(fmt.Sprintf("VisitFile failed to resolve HandlerFuncAdapter for %s", name)))
-		} else {
-			adapter := v.HandlerAdapters[name]
-			adapter.FuncDecl = t
-			ast.Inspect(t, adapter.visitFunc)
-			if err := adapter.processVisitResults(); err != nil {
-				panic(fmt.Errorf(fmt.Sprintf("FuncInfo.processVisitResults failed for %s", name), err))
-			}
+		adapter := v.HandlerAdapters[name]
+		adapter.FuncDecl = t
+		adapter.Cfg = v.analyzer.GetControlFlowGraph(v.packages, adapter.Func, adapter.FuncDecl)
+		ast.Inspect(t, adapter.visitFunc)
+		if err := adapter.processVisitResults(); err != nil {
+			panic(fmt.Errorf(fmt.Sprintf("FuncInfo.processVisitResults failed for %s", name), err))
 		}
+
 	}
 	return true
 }

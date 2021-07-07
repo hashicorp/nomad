@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"golang.org/x/tools/go/cfg"
 	"golang.org/x/tools/go/packages"
 	"net/http"
 	"strings"
@@ -68,12 +69,19 @@ func (pia *PathItemAdapter) GetResponseRefs() []*openapi3.ResponseRef {
 }
 
 type HandlerFuncAdapter struct {
-	Path        string
-	PackageName string
-	Package     *packages.Package
-	Func        *types.Func
-	FuncDecl    *ast.FuncDecl
-	Structs     map[string]*ast.TypeSpec
+	Path     string
+	Package  *packages.Package
+	Func     *types.Func
+	FuncDecl *ast.FuncDecl
+
+	// The CFG does contain Return statements; even implicit returns are materialized
+	// (at the position of the function's closing brace).
+
+	// CFG does not record conditions associated with conditional branch edges,
+	//nor the short-circuit semantics of the && and || operators, nor abnormal
+	//control flow caused by panic. If you need this information, use golang.org/x/tools/go/ssa instead.
+	Cfg     *cfg.CFG
+	Structs map[string]*ast.TypeSpec
 
 	logger           loggerFunc
 	analyzer         *Analyzer
@@ -137,16 +145,16 @@ func (f *HandlerFuncAdapter) visitFunc(node ast.Node) bool {
 }
 
 func (f *HandlerFuncAdapter) processVisitResults() error {
-	if err := f.ResolveReturnType(); err != nil {
+	if _, err := f.GetReturnSchema(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (f *HandlerFuncAdapter) ResolveReturnType() error {
+func (f *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 	result, err := f.GetResultByIndex(0)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var outTypeName string
@@ -156,6 +164,8 @@ func (f *HandlerFuncAdapter) ResolveReturnType() error {
 		case *ast.SelectorExpr:
 			switch xt := t.X.(type) {
 			case *ast.Ident:
+				foo := f.analyzer.Defs(xt)
+				f.logger(fmt.Sprintf("%v", foo))
 				if xt.Name == "out" {
 					outTypeName = xt.Obj.Decl.(*ast.ValueSpec).Type.(*ast.SelectorExpr).Sel.Name
 				} else {
@@ -189,14 +199,18 @@ func (f *HandlerFuncAdapter) ResolveReturnType() error {
 		f.logger(fmt.Sprintf("Func: %s outTypeName: %s", f.Name(), outTypeName))
 		var ok bool
 		if f.ResponseType, ok = f.Structs["api."+outTypeName]; ok {
-			return nil
+			return &openapi3.SchemaRef{}, nil
 		}
 	}
 
-	return nil
+	return &openapi3.SchemaRef{}, nil
 }
 
 func (f *HandlerFuncAdapter) GetResultByIndex(idx int) (ast.Expr, error) {
+	//for _, block := range f.Cfg.Blocks {
+	//	//TODO: Left off here
+	//}
+
 	if len(f.returnStatements) < 1 {
 		return nil, fmt.Errorf("HandlerFuncAdapter.GetResultByIndex: no return statement found")
 	}

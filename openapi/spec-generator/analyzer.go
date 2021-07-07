@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/go/cfg"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/typeutil"
 	"strings"
@@ -213,6 +214,41 @@ func (a *Analyzer) GetFuncVariable(variableName string, decl *ast.FuncDecl) inte
 	}
 	ast.Inspect(decl, variableVisitor)
 	return variable
+}
+
+func (a *Analyzer) GetControlFlowGraph(pkgs map[string]*packages.Package, fn *types.Func, decl *ast.FuncDecl) *cfg.CFG {
+	for _, pkg := range pkgs {
+		c := cfg.New(decl.Body, a.callMayReturn(pkg, fn, decl))
+		if c != nil {
+			return c
+		}
+	}
+	return nil
+}
+
+var panicBuiltin = types.Universe.Lookup("panic").(*types.Builtin)
+
+func (a *Analyzer) callMayReturn(pkg *packages.Package, fn *types.Func, decl *ast.FuncDecl) func(call *ast.CallExpr) bool {
+	return func(call *ast.CallExpr) bool {
+		if id, ok := call.Fun.(*ast.Ident); ok && pkg.TypesInfo.Uses[id] == panicBuiltin {
+			return false // panic never returns
+		}
+
+		// Is this a static call?
+		fn := typeutil.StaticCallee(pkg.TypesInfo, call)
+		if fn == nil {
+			return true // callee not statically known; be conservative
+		}
+
+		return !isIntrinsicNoReturn(fn)
+	}
+}
+
+func isIntrinsicNoReturn(fn *types.Func) bool {
+	// Add functions here as the need arises, but don't allocate memory.
+	path, name := fn.Pkg().Path(), fn.Name()
+	return path == "syscall" && (name == "Exit" || name == "ExitProcess" || name == "ExitThread") ||
+		path == "runtime" && name == "Goexit"
 }
 
 func NewTypeProvider(analyzer *Analyzer) *TypeProvider {
