@@ -348,6 +348,27 @@ type operations struct {
 	deregChecks   []string
 }
 
+func (o *operations) empty() bool {
+	switch {
+	case o == nil:
+		return true
+	case len(o.regServices) > 0:
+		return false
+	case len(o.regChecks) > 0:
+		return false
+	case len(o.deregServices) > 0:
+		return false
+	case len(o.deregChecks) > 0:
+		return false
+	default:
+		return true
+	}
+}
+
+func (o operations) String() string {
+	return fmt.Sprintf("<%d, %d, %d, %d>", len(o.regServices), len(o.regChecks), len(o.deregServices), len(o.deregChecks))
+}
+
 // AllocRegistration holds the status of services registered for a particular
 // allocations by task.
 type AllocRegistration struct {
@@ -560,10 +581,23 @@ func (c *ServiceClient) hasSeen() bool {
 type syncReason byte
 
 const (
-	syncPeriodic = iota
+	syncPeriodic syncReason = iota
 	syncShutdown
 	syncNewOps
 )
+
+func (sr syncReason) String() string {
+	switch sr {
+	case syncPeriodic:
+		return "periodic"
+	case syncShutdown:
+		return "shutdown"
+	case syncNewOps:
+		return "operations"
+	default:
+		return "unexpected"
+	}
+}
 
 // Run the Consul main loop which retries operations against Consul. It should
 // be called exactly once.
@@ -680,6 +714,24 @@ INIT:
 
 // commit operations unless already shutting down.
 func (c *ServiceClient) commit(ops *operations) {
+	c.logger.Trace("commit sync operations", "ops", ops)
+
+	// Ignore empty operations - ideally callers will optimize out syncs with
+	// nothing to do, but be defensive anyway. Sending an empty ops on the chan
+	// will trigger an unnecessary sync with Consul.
+	if ops.empty() {
+		return
+	}
+
+	// Prioritize doing nothing if we are being signaled to shutdown.
+	select {
+	case <-c.shutdownCh:
+		return
+	default:
+	}
+
+	// Send the ops down the ops chan, triggering a sync with Consul. Unless we
+	// receive a signal to shutdown.
 	select {
 	case c.opCh <- ops:
 	case <-c.shutdownCh:
@@ -713,6 +765,8 @@ func (c *ServiceClient) merge(ops *operations) {
 
 // sync enqueued operations.
 func (c *ServiceClient) sync(reason syncReason) error {
+	c.logger.Trace("execute sync", "reason", reason)
+
 	sreg, creg, sdereg, cdereg := 0, 0, 0, 0
 	var err error
 
