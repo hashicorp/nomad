@@ -1035,6 +1035,13 @@ func NewBatchJob(id, name, region string, pri int) *Job {
 	return newJob(id, name, region, JobTypeBatch, pri)
 }
 
+// NewSystemJob creates and returns a new system-style job for processes
+// designed to run on all clients, using the provided name and ID along with
+// the relative job priority.
+func NewSystemJob(id, name, region string, pri int) *Job {
+	return newJob(id, name, region, JobTypeSystem, pri)
+}
+
 // newJob is used to create a new Job struct.
 func newJob(id, name, region, typ string, pri int) *Job {
 	return &Job{
