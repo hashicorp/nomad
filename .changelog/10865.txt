@@ -1,0 +1,3 @@
+```release-note:bug
+consul: avoid extra sync operations when no action required
+```
