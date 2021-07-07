@@ -152,6 +152,9 @@ func (f *HandlerFuncAdapter) processVisitResults() error {
 }
 
 func (f *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
+	returnType := f.analyzer.GetReturnTypeByHandlerName(f.Name())
+
+	f.logger(returnType)
 	result, err := f.GetResultByIndex(0)
 	if err != nil {
 		return nil, err

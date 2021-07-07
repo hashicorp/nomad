@@ -24,12 +24,20 @@ var defaultDebugOptions = DebugOptions{
 	showReturnSource: false,
 }
 
+func NewNomadPackageVisitor(analyzer *Analyzer, logger loggerFunc, options DebugOptions) *NomadPackageVisitor {
+	return &NomadPackageVisitor{
+		analyzer:     analyzer,
+		logger:       logger,
+		debugOptions: options,
+	}
+}
+
 type NomadPackageVisitor struct {
+	analyzer        *Analyzer
 	HandlerAdapters map[string]*HandlerFuncAdapter
 	Structs         map[string]*ast.TypeSpec
 	packages        map[string]*packages.Package
 	activePackage   *packages.Package
-	analyzer        *Analyzer
 	logger          loggerFunc
 	fileSets        []*token.FileSet
 	debugOptions    DebugOptions
@@ -41,9 +49,6 @@ func (v *NomadPackageVisitor) GetHandlerAdapters() map[string]*HandlerFuncAdapte
 
 func (v *NomadPackageVisitor) VisitPackages(pkgs []*packages.Package) error {
 	var err error
-	if v.analyzer == nil {
-		v.analyzer = &Analyzer{}
-	}
 
 	if v.packages == nil {
 		v.packages = make(map[string]*packages.Package)

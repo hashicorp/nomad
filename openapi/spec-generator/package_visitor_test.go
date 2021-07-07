@@ -13,16 +13,15 @@ func TestPackageVisitorParse(t *testing.T) {
 	debugOptions.showHelpers = true
 	debugOptions.showReturnSource = true
 
-	visitor := &NomadPackageVisitor{
-		logger:       t.Log,
-		debugOptions: debugOptions,
-	}
+	analyzer, err := NewAnalyzer(nomadPackages, t.Log, debugOptions)
+	req.NoError(err)
+	visitor := NewNomadPackageVisitor(analyzer, t.Log, debugOptions)
 
 	parser := PackageParser{
 		Packages: nomadPackages,
 		Visitor:  visitor,
 	}
 
-	err := parser.Parse()
+	err = parser.Parse()
 	req.NoError(err, "TestPackageVisitor.parser.Parse")
 }

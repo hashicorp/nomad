@@ -11,6 +11,8 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/cfg"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/ssa/ssautil"
 	"golang.org/x/tools/go/types/typeutil"
 	"strings"
 )
@@ -21,9 +23,80 @@ type HTTPProfile struct {
 	IsHandler        bool // net/http.Handler
 }
 
-// Analyzer provides a number of static analysis helper functions.
+func NewAnalyzer(packages []*PackageConfig, logger loggerFunc, debugOptions DebugOptions) (*Analyzer, error) {
+	analyzer := &Analyzer{
+		Packages:     packages,
+		Logger:       logger,
+		debugOptions: debugOptions,
+	}
+
+	if err := analyzer.buildProgram(); err != nil {
+		return nil, err
+	}
+	return analyzer, nil
+}
+
+// Analyzer holds the SSA && AST state and provides a number of static analysis helper functions
 type Analyzer struct {
-	typesInfos []*types.Info
+	Packages     []*PackageConfig
+	Logger       loggerFunc
+	debugOptions DebugOptions
+	prog         *ssa.Program
+	runtimeTypes map[string]*types.Type
+	typesInfos   []*types.Info
+}
+
+func (a *Analyzer) buildProgram() error {
+	loadedPkgs := make([]*packages.Package, 0)
+
+	for i := 0; i < len(a.Packages); i++ {
+		pkgs, err := packages.Load(&nomadPackages[i].Config, nomadPackages[i].Pattern)
+		if err != nil {
+			return err
+		}
+		for _, pkg := range pkgs {
+			loadedPkgs = append(loadedPkgs, pkg)
+		}
+	}
+
+	a.prog, _ = ssautil.AllPackages(loadedPkgs, ssa.NaiveForm) // to dump full program summary to stdout pass ssa.PrintPackages
+	a.prog.Build()
+	a.FilterRuntimeTypes()
+
+	return nil
+}
+
+func (a *Analyzer) GetMethodSets(runtimeType types.Type) *types.MethodSet {
+	return a.prog.MethodSets.MethodSet(runtimeType)
+}
+
+func (a *Analyzer) GetReturnTypeByHandlerName(funcName string) interface{} {
+	for key, runtimeType := range a.runtimeTypes {
+		if !strings.Contains(key, "/api") {
+			continue
+		}
+		a.prog.LookupMethod()
+		a.prog.MethodValue()
+		a.Logger(funcName, ": ", key)
+		methodSet := a.GetMethodSets(*runtimeType)
+		for i := 0; i < methodSet.Len(); i++ {
+			method := methodSet.At(i)
+			methodString := method.String()
+			a.Logger(methodString)
+			if strings.Contains(methodString, "nomad") {
+				a.Logger(methodString)
+			}
+			if strings.Contains(types.SelectionString(method, nil), funcName) {
+				a.Logger("found ", funcName, "in", method.String())
+				if method.Type().(*types.Signature).Results().Len() > 0 {
+					resultType := method.Type().(*types.Signature).Results().At(0)
+					a.Logger(resultType.Name())
+					return runtimeType
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (a *Analyzer) Types(expr ast.Expr) *types.TypeAndValue {
@@ -241,6 +314,18 @@ func (a *Analyzer) callMayReturn(pkg *packages.Package, fn *types.Func, decl *as
 		}
 
 		return !isIntrinsicNoReturn(fn)
+	}
+}
+
+func (a *Analyzer) FilterRuntimeTypes() {
+	a.runtimeTypes = make(map[string]*types.Type)
+	for _, runtimeType := range a.prog.RuntimeTypes() {
+		if strings.Contains(runtimeType.String(), "github.com/hashicorp/nomad") && !strings.Contains(runtimeType.String(), "testclient") {
+			if _, ok := a.runtimeTypes[runtimeType.String()]; !ok {
+				a.runtimeTypes[runtimeType.String()] = &runtimeType
+
+			}
+		}
 	}
 }
 
