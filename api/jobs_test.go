@@ -1861,6 +1861,21 @@ func TestJobs_NewServiceJob(t *testing.T) {
 	}
 }
 
+func TestJobs_NewSystemJob(t *testing.T) {
+	t.Parallel()
+	job := NewSystemJob("job1", "myjob", "global", 5)
+	expect := &Job{
+		Region:   stringToPtr("global"),
+		ID:       stringToPtr("job1"),
+		Name:     stringToPtr("myjob"),
+		Type:     stringToPtr(JobTypeSystem),
+		Priority: intToPtr(5),
+	}
+	if !reflect.DeepEqual(job, expect) {
+		t.Fatalf("expect: %#v, got: %#v", expect, job)
+	}
+}
+
 func TestJobs_SetMeta(t *testing.T) {
 	t.Parallel()
 	job := &Job{Meta: nil}
