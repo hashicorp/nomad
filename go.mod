@@ -44,7 +44,7 @@ require (
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20200612180813-9e99af28df21
 	github.com/dustin/go-humanize v1.0.0
 	github.com/elazarl/go-bindata-assetfs v1.0.1-0.20200509193318-234c15e7648f
-	github.com/fatih/color v1.9.0
+	github.com/fatih/color v1.12.0
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/fsouza/go-dockerclient v1.6.5
 	github.com/golang/protobuf v1.4.3
@@ -65,7 +65,7 @@ require (
 	github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 	github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
 	github.com/hashicorp/go-getter v1.5.4
-	github.com/hashicorp/go-hclog v0.14.1
+	github.com/hashicorp/go-hclog v0.16.2
 	github.com/hashicorp/go-immutable-radix v1.3.0
 	github.com/hashicorp/go-memdb v1.3.0
 	github.com/hashicorp/go-msgpack v1.1.5
@@ -94,7 +94,8 @@ require (
 	github.com/kr/pretty v0.2.0
 	github.com/kr/pty v1.1.5
 	github.com/kr/text v0.2.0
-	github.com/mattn/go-colorable v0.1.6
+	github.com/mattn/go-colorable v0.1.8
+	github.com/mattn/go-isatty v0.0.13 // indirect
 	github.com/mitchellh/cli v1.1.0
 	github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286
 	github.com/mitchellh/copystructure v1.0.0
@@ -132,7 +133,7 @@ require (
 	golang.org/x/mod v0.3.0 // indirect
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
-	golang.org/x/sys v0.0.0-20210316164454-77fc1eacc6aa
+	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	golang.org/x/tools v0.0.0-20200522201501-cb1345f3a375 // indirect
 	google.golang.org/api v0.13.0 // indirect

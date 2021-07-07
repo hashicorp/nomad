@@ -3,11 +3,11 @@ package taskrunner
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	hclog "github.com/hashicorp/go-hclog"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
@@ -372,7 +372,7 @@ func newScriptCheckCallback(s *scriptCheck) taskletCallback {
 
 		// If the check is unhealthy, log the output
 		if state == api.HealthCritical || state == api.HealthWarning {
-			s.logger.Warn("unhealthy script check", "health", state, "output", strconv.Quote(outputMsg))
+			s.logger.Warn("unhealthy script check", "health", state, "output", hclog.Quote(outputMsg))
 		}
 
 		// heartbeat the check to Consul
