@@ -551,3 +551,14 @@ func PathEscapesSandbox(sandboxDir, path string) bool {
 	}
 	return false
 }
+
+// TruncateString ensures a string is below max characters. If not the string
+// is truncated to "max-3" and "..." are appended.
+//
+// Max must be > 3
+func TruncateString(s string, max int) string {
+	if len(s) > max {
+		return s[:max-3] + "..."
+	}
+	return s
+}

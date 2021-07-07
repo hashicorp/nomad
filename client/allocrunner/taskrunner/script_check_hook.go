@@ -3,6 +3,7 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -21,8 +23,14 @@ var _ interfaces.TaskPoststartHook = &scriptCheckHook{}
 var _ interfaces.TaskUpdateHook = &scriptCheckHook{}
 var _ interfaces.TaskStopHook = &scriptCheckHook{}
 
-// default max amount of time to wait for all scripts on shutdown.
-const defaultShutdownWait = time.Minute
+const (
+	// default max amount of time to wait for all scripts on shutdown.
+	defaultShutdownWait = time.Minute
+
+	// maxOutputMsgSize is the max length of script check output that will
+	// be logged
+	maxOutputMsgSize = 200
+)
 
 type scriptCheckHookConfig struct {
 	alloc        *structs.Allocation
@@ -372,7 +380,8 @@ func newScriptCheckCallback(s *scriptCheck) taskletCallback {
 
 		// If the check is unhealthy, log the output
 		if state == api.HealthCritical || state == api.HealthWarning {
-			s.logger.Warn("unhealthy script check", "health", state, "output", hclog.Quote(outputMsg))
+			trimmed := helper.TruncateString(strings.TrimSpace(outputMsg), maxOutputMsgSize)
+			s.logger.Warn("unhealthy script check", "health", state, "output", hclog.Quote(trimmed))
 		}
 
 		// heartbeat the check to Consul
