@@ -23,7 +23,46 @@ type HTTPProfile struct {
 // Analyzer provides a number of static analysis helper functions.
 type Analyzer struct {
 	typesInfos []*types.Info
-	TypesInfo  *types.Info
+}
+
+func (a *Analyzer) Types(expr ast.Expr) *types.TypeAndValue {
+	for _, typesInfo := range a.typesInfos {
+		if tv, ok := typesInfo.Types[expr]; ok {
+			return &tv
+		}
+	}
+
+	return nil
+}
+
+func (a *Analyzer) Uses(ident *ast.Ident) types.Object {
+	for _, typesInfo := range a.typesInfos {
+		if tv, ok := typesInfo.Uses[ident]; ok {
+			return tv
+		}
+	}
+
+	return nil
+}
+
+func (a *Analyzer) Selections(expr *ast.SelectorExpr) *types.Selection {
+	for _, typesInfo := range a.typesInfos {
+		if sel, ok := typesInfo.Selections[expr]; ok {
+			return sel
+		}
+	}
+
+	return nil
+}
+
+func (a *Analyzer) Defs(ident *ast.Ident) types.Object {
+	for _, typesInfo := range a.typesInfos {
+		if def, ok := typesInfo.Defs[ident]; ok {
+			return def
+		}
+	}
+
+	return nil
 }
 
 // GetSource returns the source code for an ast.Node
@@ -103,12 +142,35 @@ func (a *Analyzer) GetStructs(pkg *packages.Package) (map[string]*ast.TypeSpec, 
 	fmtString := pkg.Name + ".%s"
 
 	visitFunc := func(node ast.Node) bool {
-		switch node.(type) {
+		switch typeSpec := node.(type) {
 		case *ast.TypeSpec:
-			typeSpec := node.(*ast.TypeSpec)
 			switch typeSpec.Type.(type) {
 			case *ast.StructType:
 				structMap[fmt.Sprintf(fmtString, typeSpec.Name.Name)] = typeSpec
+				structSpec, _ := typeSpec.Type.(*ast.StructType)
+				// Check each of the types fields to see if it is a pointer to a type.
+				for _, field := range structSpec.Fields.List {
+					switch fieldType := field.Type.(type) {
+					case *ast.StructType:
+						fmt.Println(fmt.Sprintf("%v", field))
+						//structMap[fmt.Sprintf(fmtString)] = typeSpec
+					case *ast.MapType:
+					case *ast.ArrayType:
+					case *ast.StarExpr:
+						// If it is a pointer, figure out the underlying type.
+						ident, ok := fieldType.X.(*ast.Ident)
+						if ok {
+							// check to see if it's been registered already
+							if _, ok = structMap[fmt.Sprintf(fmtString, ident.Name)]; !ok && ident.Obj != nil {
+								var objTypeSpec *ast.TypeSpec
+								if objTypeSpec, ok = ident.Obj.Decl.(*ast.TypeSpec); ok {
+									structMap[fmt.Sprintf(fmtString, ident.Name)] = objTypeSpec
+								}
+							}
+						}
+					}
+				}
+
 			}
 		}
 		return true
@@ -125,6 +187,32 @@ func (a *Analyzer) GetStructs(pkg *packages.Package) (map[string]*ast.TypeSpec, 
 	}
 
 	return structMap, nil
+}
+
+func (a *Analyzer) GetFuncVariable(variableName string, decl *ast.FuncDecl) interface{} {
+	var variable ast.Node
+	variableName = strings.Replace(variableName, "\n", "", -1)
+	variableName = strings.Replace(variableName, "\t", "", -1)
+	variableVisitor := func(node ast.Node) bool {
+		switch t := node.(type) {
+		case *ast.GenDecl:
+			if t.Tok == token.VAR {
+				for _, spec := range t.Specs {
+					switch st := spec.(type) {
+					case *ast.ValueSpec:
+						for _, ident := range st.Names {
+							if ident.Name == variableName {
+								variable = node
+							}
+						}
+					}
+				}
+			}
+		}
+		return true
+	}
+	ast.Inspect(decl, variableVisitor)
+	return variable
 }
 
 func NewTypeProvider(analyzer *Analyzer) *TypeProvider {
@@ -161,12 +249,12 @@ func (p *TypeProvider) GetExprType(e ast.Expr) types.Type {
 		panic("TypeProvider.Result cannot be nil - use NewTypeProvider factory method to construct a valid instance")
 	}
 
-	if p.analyzer.TypesInfo == nil {
-		panic("TypeProvider.analyzer.TypesInfo cannot be nil - use NewTypeProvider factory method to construct a valid instance")
+	if p.analyzer.typesInfos == nil {
+		panic("TypeProvider.analyzer.typesInfos cannot be nil - use NewTypeProvider factory method to construct a valid instance")
 	}
 
-	tv := p.analyzer.TypesInfo.Types[e]
-	if tv.Value != nil {
+	tv := p.analyzer.Types(e)
+	if tv != nil && tv.Value != nil {
 		return tv.Type // prune the descent for constants
 	}
 
@@ -178,13 +266,27 @@ func (p *TypeProvider) GetExprType(e ast.Expr) types.Type {
 
 	case *ast.Ident:
 		// (referring idents only)
-		if obj, ok := p.analyzer.TypesInfo.Uses[e]; ok {
+		if obj := p.analyzer.Uses(e); obj != nil {
 			return obj.Type()
+		} else {
+			if e.Obj.Type != nil {
+				switch t := e.Obj.Type.(type) {
+				case ast.Expr:
+					return p.GetExprType(t)
+				default:
+					return tInvalid
+				}
+			} else if e.Obj.Decl != nil {
+				valueSpec := e.Obj.Decl.(*ast.ValueSpec)
+				return p.valueSpec(valueSpec)
+			} else {
+				return tInvalid
+			}
 		}
-		if e.Name == "_" { // e.g. "for _ = range x"
-			return tInvalid
-		}
-		panic("undefined ident: " + e.Name)
+		//if e.Name == "_" { // e.g. "for _ = range x"
+		//	return tInvalid
+		//}
+		//panic("undefined ident: " + e.Name)
 
 	case *ast.Ellipsis:
 		if e.Elt != nil {
@@ -202,7 +304,10 @@ func (p *TypeProvider) GetExprType(e ast.Expr) types.Type {
 		case *types.Struct:
 			for i, elem := range e.Elts {
 				if kv, ok := elem.(*ast.KeyValueExpr); ok {
-					p.assign(p.analyzer.TypesInfo.Uses[kv.Key.(*ast.Ident)].Type(), p.GetExprType(kv.Value))
+					used := p.analyzer.Uses(kv.Key.(*ast.Ident))
+					if used != nil {
+						p.assign(used.Type(), p.GetExprType(kv.Value))
+					}
 				} else {
 					p.assign(T.Field(i).Type(), p.GetExprType(elem))
 				}
@@ -236,10 +341,15 @@ func (p *TypeProvider) GetExprType(e ast.Expr) types.Type {
 		p.GetExprType(e.X)
 
 	case *ast.SelectorExpr:
-		if _, ok := p.analyzer.TypesInfo.Selections[e]; ok {
+		if sel := p.analyzer.Selections(e); sel != nil {
 			p.GetExprType(e.X) // selection
 		} else {
-			return p.analyzer.TypesInfo.Uses[e.Sel].Type() // qualified identifier
+			if uses := p.analyzer.Uses(e.Sel); uses != nil {
+				return uses.Type() // qualified identifier
+			} else {
+				return p.GetExprType(e.X)
+				// return p.analyzer.typesInfos[0].TypeOf(e.Sel)
+			}
 		}
 
 	case *ast.IndexExpr:
@@ -263,19 +373,24 @@ func (p *TypeProvider) GetExprType(e ast.Expr) types.Type {
 
 	case *ast.TypeAssertExpr:
 		x := p.GetExprType(e.X)
-		p.typeAssert(x, p.analyzer.TypesInfo.Types[e.Type].Type)
+		if t := p.analyzer.Types(e.Type); t != nil {
+			p.typeAssert(x, t.Type)
+		}
 
 	case *ast.CallExpr:
-		if tvFun := p.analyzer.TypesInfo.Types[e.Fun]; tvFun.IsType() {
+		if tvFun := p.analyzer.Types(e.Fun); tvFun != nil && tvFun.IsType() {
 			// conversion
 			arg0 := p.GetExprType(e.Args[0])
 			p.assign(tvFun.Type, arg0)
 		} else {
 			// function call
 			if id, ok := astutil.Unparen(e.Fun).(*ast.Ident); ok {
-				if obj, ok := p.analyzer.TypesInfo.Uses[id].(*types.Builtin); ok {
-					sig := p.analyzer.TypesInfo.Types[id].Type.(*types.Signature)
-					return p.builtin(obj, sig, e.Args, tv.Type)
+				if uses := p.analyzer.Uses(id); uses != nil {
+					builtIn := uses.(*types.Builtin)
+					if idType := p.analyzer.Types(id); idType != nil {
+						sig := idType.Type.(*types.Signature)
+						return p.builtin(builtIn, sig, e.Args, tv.Type)
+					}
 				}
 			}
 			// ordinary call
@@ -419,7 +534,7 @@ func (p *TypeProvider) stmt(s ast.Stmt) {
 
 				if id, ok := s.Lhs[i].(*ast.Ident); ok {
 					if id.Name != "_" {
-						if obj, ok := p.analyzer.TypesInfo.Defs[id]; ok {
+						if obj := p.analyzer.Defs(id); obj != nil {
 							lhs = obj.Type() // definition
 						}
 					}
@@ -486,7 +601,10 @@ func (p *TypeProvider) stmt(s ast.Stmt) {
 		for _, cc := range s.Body.List {
 			cc := cc.(*ast.CaseClause)
 			for _, cond := range cc.List {
-				p.compare(tag, p.analyzer.TypesInfo.Types[cond].Type)
+				if t := p.analyzer.Types(cond); t != nil {
+					tag = t.Type
+					p.compare(tag, t.Type)
+				}
 			}
 			for _, s := range cc.Body {
 				p.stmt(s)
@@ -507,9 +625,10 @@ func (p *TypeProvider) stmt(s ast.Stmt) {
 		for _, cc := range s.Body.List {
 			cc := cc.(*ast.CaseClause)
 			for _, cond := range cc.List {
-				tCase := p.analyzer.TypesInfo.Types[cond].Type
-				if tCase != tUntypedNil {
-					p.typeAssert(I, tCase)
+				if tCase := p.analyzer.Types(cond); tCase != nil {
+					if tCase.Type != tUntypedNil {
+						p.typeAssert(I, tCase.Type)
+					}
 				}
 			}
 			for _, s := range cc.Body {
@@ -634,7 +753,8 @@ func (p *TypeProvider) call(sig *types.Signature, args []ast.Expr) {
 	var argtypes []types.Type
 
 	// Gather the effective actual parameter types.
-	if tuple, ok := p.analyzer.TypesInfo.Types[args[0]].Type.(*types.Tuple); ok {
+	if t := p.analyzer.Types(args[0]); t != nil {
+		tuple := t.Type.(*types.Tuple)
 		// p(g()) call where g has multiple results?
 		p.GetExprType(args[0])
 		// unpack the tuple
@@ -676,7 +796,8 @@ func (p *TypeProvider) compare(x, y types.Type) {
 
 // exprN visits an expression in a multi-value context.
 func (p *TypeProvider) exprN(e ast.Expr) types.Type {
-	typ := p.analyzer.TypesInfo.Types[e].Type.(*types.Tuple)
+	// TODO: This seems awefully confident
+	typ := p.analyzer.Types(e).Type.(*types.Tuple)
 	switch e := e.(type) {
 	case *ast.ParenExpr:
 		return p.exprN(e.X)
@@ -712,10 +833,12 @@ func (p *TypeProvider) extract(tuple types.Type, i int) types.Type {
 	return tInvalid
 }
 
-func (p *TypeProvider) valueSpec(spec *ast.ValueSpec) {
+func (p *TypeProvider) valueSpec(spec *ast.ValueSpec) types.Type {
 	var T types.Type
 	if spec.Type != nil {
-		T = p.analyzer.TypesInfo.Types[spec.Type].Type
+		if specType := p.analyzer.Types(spec.Type); specType != nil {
+			T = specType.Type
+		}
 	}
 	switch len(spec.Values) {
 	case len(spec.Names): // e.g. var x, y = f(), g()
@@ -734,4 +857,6 @@ func (p *TypeProvider) valueSpec(spec *ast.ValueSpec) {
 			}
 		}
 	}
+
+	return T
 }

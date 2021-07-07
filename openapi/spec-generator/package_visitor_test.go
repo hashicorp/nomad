@@ -8,9 +8,15 @@ import (
 func TestPackageVisitorParse(t *testing.T) {
 	req := require.New(t)
 
+	debugOptions := defaultDebugOptions
+	debugOptions.showSource = false
+	debugOptions.showHelpers = true
+	debugOptions.showReturnSource = true
 	visitor := &NomadPackageVisitor{
-		logger: t.Log,
+		logger:       t.Log,
+		debugOptions: debugOptions,
 	}
+
 	parser := PackageParser{
 		Packages: nomadPackages,
 		Visitor:  visitor,

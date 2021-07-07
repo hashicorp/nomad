@@ -8,8 +8,9 @@ import (
 )
 
 type PackageVisitor interface {
-	VisitNode(node ast.Node) bool
+	VisitFile(ast.Node) bool
 	VisitPackages([]*packages.Package) error
+	SetActiveFileSet(*token.FileSet)
 	GetActiveFileSet() *token.FileSet
 	DebugPrint()
 }

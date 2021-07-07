@@ -8,6 +8,7 @@ import (
 	"go/types"
 	"golang.org/x/tools/go/packages"
 	"net/http"
+	"strings"
 )
 
 type PathItemAdapter struct {
@@ -68,7 +69,6 @@ func (pia *PathItemAdapter) GetResponseRefs() []*openapi3.ResponseRef {
 
 type HandlerFuncAdapter struct {
 	Path        string
-	Source      string
 	PackageName string
 	Package     *packages.Package
 	Func        *types.Func
@@ -104,6 +104,18 @@ func (h *HandlerFuncAdapter) Name() string {
 	return h.Func.Name()
 }
 
+func (h *HandlerFuncAdapter) GetSource() (string, error) {
+	return h.analyzer.GetSource(h.FuncDecl.Body, h.fileSet)
+}
+
+func (h *HandlerFuncAdapter) debugReturnSource(idx int) string {
+	result, _ := h.GetResultByIndex(idx)
+	src, _ := h.analyzer.GetSource(result, h.fileSet)
+	src = strings.Replace(src, "\n", "", -1)
+	src = strings.Replace(src, "\t", "", -1)
+	return src
+}
+
 func (h *HandlerFuncAdapter) IsHelperFunction() bool {
 	return h.ResponseType == nil
 }
@@ -132,17 +144,9 @@ func (f *HandlerFuncAdapter) processVisitResults() error {
 }
 
 func (f *HandlerFuncAdapter) ResolveReturnType() error {
-	if len(f.returnStatements) < 1 {
-		return fmt.Errorf("HandlerFuncAdapter.resolveResponseType: no return statement found")
-	}
-
-	finalReturn := f.returnStatements[len(f.returnStatements)-1]
-	if finalReturn == nil {
-		return fmt.Errorf("HandlerFuncAdapter.ResolveReturnType: finalReturn does not exist")
-	}
-
-	if len(finalReturn.Results) < 1 {
-		return fmt.Errorf("HandlerFuncAdapterResolverReturnType: finalReturn returns no results")
+	result, err := f.GetResultByIndex(0)
+	if err != nil {
+		return err
 	}
 
 	var outTypeName string
@@ -154,22 +158,56 @@ func (f *HandlerFuncAdapter) ResolveReturnType() error {
 			case *ast.Ident:
 				if xt.Name == "out" {
 					outTypeName = xt.Obj.Decl.(*ast.ValueSpec).Type.(*ast.SelectorExpr).Sel.Name
-					return true
+				} else {
+					f.logger("Ident name: " + xt.Name)
 				}
+			}
+		default:
+			returnSrc := f.debugReturnSource(0)
+			if returnSrc != "nil" {
+				variable := f.analyzer.GetFuncVariable(returnSrc, f.FuncDecl)
+				variableSrc, _ := f.analyzer.GetSource(variable, f.fileSet)
+				f.logger(fmt.Sprintf("returnSrc: %s - variableSrc: %s", returnSrc, variableSrc))
+			} else {
+				f.logger(fmt.Sprintf("%s: out var name: %s type: %v", f.Name(), returnSrc, t))
 			}
 		}
 		return true
 	}
 
-	ast.Inspect(finalReturn.Results[0], outVisitor)
+	ast.Inspect(result, outVisitor)
 
 	if len(outTypeName) > 0 {
-		f.logger("outTypeName: " + outTypeName)
+		// DEBUG
+		//if outTypeName == "JobSummaryResponse" {
+		//	for k, _ := range f.Structs {
+		//		if strings.Index(k, "Job") > -1 {
+		//			f.logger("Found Key: %s", k)
+		//		}
+		//	}
+		//}
+		f.logger(fmt.Sprintf("Func: %s outTypeName: %s", f.Name(), outTypeName))
 		var ok bool
-		if f.ResponseType, ok = f.Structs[f.Package.Name+"."+outTypeName]; ok {
+		if f.ResponseType, ok = f.Structs["api."+outTypeName]; ok {
 			return nil
 		}
 	}
 
 	return nil
+}
+
+func (f *HandlerFuncAdapter) GetResultByIndex(idx int) (ast.Expr, error) {
+	if len(f.returnStatements) < 1 {
+		return nil, fmt.Errorf("HandlerFuncAdapter.GetResultByIndex: no return statement found")
+	}
+
+	finalReturn := f.returnStatements[len(f.returnStatements)-1]
+	if finalReturn == nil {
+		return nil, fmt.Errorf("HandlerFuncAdapter.GetResultByIndex: finalReturn does not exist")
+	}
+
+	if len(finalReturn.Results) < idx+1 {
+		return nil, fmt.Errorf("HandlerFuncAdapter.GetResultByIndex: invalid index")
+	}
+	return finalReturn.Results[idx].(ast.Expr), nil
 }

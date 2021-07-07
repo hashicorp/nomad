@@ -10,6 +10,20 @@ import (
 
 type loggerFunc func(args ...interface{})
 
+type DebugOptions struct {
+	showSource       bool
+	showHelpers      bool
+	showHandlers     bool
+	showReturnSource bool
+}
+
+var defaultDebugOptions = DebugOptions{
+	showHandlers:     true,
+	showSource:       true,
+	showHelpers:      false,
+	showReturnSource: false,
+}
+
 type NomadPackageVisitor struct {
 	HandlerAdapters map[string]*HandlerFuncAdapter
 	Structs         map[string]*ast.TypeSpec
@@ -18,6 +32,7 @@ type NomadPackageVisitor struct {
 	analyzer        *Analyzer
 	logger          loggerFunc
 	fileSets        []*token.FileSet
+	debugOptions    DebugOptions
 }
 
 func (v *NomadPackageVisitor) GetHandlerAdapters() map[string]*HandlerFuncAdapter {
@@ -41,9 +56,8 @@ func (v *NomadPackageVisitor) VisitPackages(pkgs []*packages.Package) error {
 
 	for _, pkg := range pkgs {
 		v.activePackage = pkg
-		if err = v.mergeTypesInfo(pkg); err != nil {
-			return err
-		}
+		v.analyzer.typesInfos = append(v.analyzer.typesInfos, pkg.TypesInfo)
+
 		// TODO: Can we stop this now that we are using TypesInfo?
 		if err = v.loadStructs(pkg); err != nil {
 			return err
@@ -77,52 +91,7 @@ func (v *NomadPackageVisitor) VisitPackages(pkgs []*packages.Package) error {
 				return fmt.Errorf("PackageParser.parseGoFile: %v\n", err)
 			}
 
-			ast.Inspect(file, v.VisitNode)
-		}
-	}
-	return nil
-}
-
-func (v *NomadPackageVisitor) mergeTypesInfo(pkg *packages.Package) error {
-	if v.analyzer.TypesInfo == nil {
-		v.analyzer.TypesInfo = pkg.TypesInfo
-	} else {
-		// TODO: Can this be genericized to helper func with map[iface]iface?
-		for key, value := range pkg.TypesInfo.Types {
-			if _, ok := v.analyzer.TypesInfo.Types[key]; ok {
-				return fmt.Errorf("NomadPackageVisitor.VisitPackages.mergeTypesInfo.TypesInfo: key %s already exists", key)
-			}
-			v.analyzer.TypesInfo.Types[key] = value
-		}
-		for key, value := range pkg.TypesInfo.Defs {
-			if _, ok := v.analyzer.TypesInfo.Defs[key]; ok {
-				return fmt.Errorf("NomadPackageVisitor.VisitPackages.mergeTypesInfo.Defs: key %s already exists", key)
-			}
-			v.analyzer.TypesInfo.Defs[key] = value
-		}
-		for key, value := range pkg.TypesInfo.Implicits {
-			if _, ok := v.analyzer.TypesInfo.Implicits[key]; ok {
-				return fmt.Errorf("NomadPackageVisitor.VisitPackages.mergeTypesInfo.Implicits: key %s already exists", key)
-			}
-			v.analyzer.TypesInfo.Implicits[key] = value
-		}
-		for key, value := range pkg.TypesInfo.Scopes {
-			if _, ok := v.analyzer.TypesInfo.Scopes[key]; ok {
-				return fmt.Errorf("NomadPackageVisitor.VisitPackages.mergeTypesInfo: key %s already exists", key)
-			}
-			v.analyzer.TypesInfo.Scopes[key] = value
-		}
-		for key, value := range pkg.TypesInfo.Uses {
-			if _, ok := v.analyzer.TypesInfo.Uses[key]; ok {
-				return fmt.Errorf("NomadPackageVisitor.VisitPackages.mergeTypesInfo: key %s already exists", key)
-			}
-			v.analyzer.TypesInfo.Uses[key] = value
-		}
-		for key, value := range pkg.TypesInfo.Selections {
-			if _, ok := v.analyzer.TypesInfo.Selections[key]; ok {
-				return fmt.Errorf("NomadPackageVisitor.VisitPackages.mergeTypesInfo: key %s already exists", key)
-			}
-			v.analyzer.TypesInfo.Selections[key] = value
+			ast.Inspect(file, v.VisitFile)
 		}
 	}
 	return nil
@@ -148,22 +117,24 @@ func (v *NomadPackageVisitor) loadHandlers() error {
 }
 
 func (v *NomadPackageVisitor) DebugPrint() {
-	// setting up debug options for extraction.
-	showSource := false
-	showHelpers := false
-	showHandlers := true
+
 	// TODO: Add comprehensive debug switches
 	for key, fn := range v.HandlerAdapters {
-		if fn.IsHelperFunction() && showHelpers {
-			if showSource {
-				v.logger(fmt.Sprintf("%s: is a helper function - Response Type: %s\n - Params/Source: %s", key, "unknown", fn.Source))
+		src, err := fn.GetSource()
+		if err != nil {
+			continue
+		}
+		if v.debugOptions.showHelpers && fn.IsHelperFunction() {
+			if v.debugOptions.showSource {
+				v.logger(fmt.Sprintf("%s: may be a helper function - Response Type: %s\n - Params/Source: %s", key, "unknown", src))
+			} else if v.debugOptions.showReturnSource {
+				v.logger(fmt.Sprintf("%s: may be a helper function - return source: %s", key, fn.debugReturnSource(0)))
 			} else {
-
-				v.logger(fmt.Sprintf("%s: is a helper function - Response Type: %s", key, "unknown"))
+				v.logger(fmt.Sprintf("%s: may be a helper function - Response Type: %s", key, "unknown"))
 			}
-		} else if showHandlers {
-			if showSource {
-				v.logger(fmt.Sprintf("%s: Response Type: %s\n - Params/Source: %s", key, fn.Path, fn.Source))
+		} else if v.debugOptions.showHandlers {
+			if v.debugOptions.showSource {
+				v.logger(fmt.Sprintf("%s: Response Type: %s\n - Params/Source: %s", key, fn.Path, src))
 			} else {
 				if fn.ResponseType == nil {
 					// v.logger(fmt.Sprintf("%s: Response Type: %s", key, "unknown"))
@@ -186,7 +157,7 @@ func (v *NomadPackageVisitor) GetActiveFileSet() *token.FileSet {
 	return v.fileSets[len(v.fileSets)-1]
 }
 
-func (v *NomadPackageVisitor) VisitNode(node ast.Node) bool {
+func (v *NomadPackageVisitor) VisitFile(node ast.Node) bool {
 	switch t := node.(type) {
 	case *ast.FuncDecl:
 		name := fmt.Sprintf("%s.%s", v.activePackage.Name, t.Name.Name)
@@ -195,21 +166,13 @@ func (v *NomadPackageVisitor) VisitNode(node ast.Node) bool {
 			return true
 		}
 
-		var err error
-		var src string
-		if src, err = v.analyzer.GetSource(t.Body, v.GetActiveFileSet()); err != nil {
-			v.logger(fmt.Errorf("VisitNode.analayzer.GetSource %v\n", err))
-			return true
-		}
-
 		if _, ok := v.HandlerAdapters[name]; !ok {
-			panic(fmt.Sprintf(fmt.Sprintf("VisitNode failed to resolve HandlerFuncAdapter for %s", name)))
+			panic(fmt.Sprintf(fmt.Sprintf("VisitFile failed to resolve HandlerFuncAdapter for %s", name)))
 		} else {
 			adapter := v.HandlerAdapters[name]
 			adapter.FuncDecl = t
-			adapter.Source = src
 			ast.Inspect(t, adapter.visitFunc)
-			if err = adapter.processVisitResults(); err != nil {
+			if err := adapter.processVisitResults(); err != nil {
 				panic(fmt.Errorf(fmt.Sprintf("FuncInfo.processVisitResults failed for %s", name), err))
 			}
 		}
