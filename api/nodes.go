@@ -42,6 +42,22 @@ func (n *Nodes) List(q *QueryOptions) ([]*NodeListStub, *QueryMeta, error) {
 		return nil, nil, err
 	}
 	sort.Sort(resp)
+
+	// Populate NodeResources and ReservedResources if nil to maintain
+	// backwards compatibility when querying agents older than v1.0.0.
+	if resp.Len() > 0 && resp[0].NodeResources == nil {
+		for _, node := range resp {
+			if node.NodeResources == nil {
+				nodeInfo, _, err := n.Info(node.ID, nil)
+				if err != nil {
+					return nil, nil, err
+				}
+				node.NodeResources = nodeInfo.NodeResources
+				node.ReservedResources = nodeInfo.ReservedResources
+			}
+		}
+	}
+
 	return resp, qm, nil
 }
 
