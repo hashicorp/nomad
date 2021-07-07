@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/golang/snappy"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestHTTP_JobsList(t *testing.T) {
@@ -1454,8 +1455,9 @@ func TestHTTP_JobDispatch(t *testing.T) {
 		respW := httptest.NewRecorder()
 		args2 := structs.JobDispatchRequest{
 			WriteRequest: structs.WriteRequest{
-				Region:    "global",
-				Namespace: structs.DefaultNamespace,
+				Region:           "global",
+				Namespace:        structs.DefaultNamespace,
+				IdempotencyToken: "foo",
 			},
 		}
 		buf := encodeReq(args2)

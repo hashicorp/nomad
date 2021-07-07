@@ -596,6 +596,9 @@ func (r *request) setWriteOptions(q *WriteOptions) {
 	if q.AuthToken != "" {
 		r.token = q.AuthToken
 	}
+	if q.IdempotencyToken != "" {
+		r.params.Set("idempotency_token", q.IdempotencyToken)
+	}
 	r.ctx = q.Context()
 }
 

@@ -666,6 +666,13 @@ func parseNamespace(req *http.Request, n *string) {
 	}
 }
 
+// parseIdempotencyToken is used to parse the ?idempotency_token parameter
+func parseIdempotencyToken(req *http.Request, n *string) {
+	if idempotencyToken := req.URL.Query().Get("idempotency_token"); idempotencyToken != "" {
+		*n = idempotencyToken
+	}
+}
+
 // parseBool parses a query parameter to a boolean or returns (nil, nil) if the
 // parameter is not present.
 func parseBool(req *http.Request, field string) (*bool, error) {
@@ -721,6 +728,7 @@ func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteReques
 	parseNamespace(req, &w.Namespace)
 	s.parseToken(req, &w.AuthToken)
 	s.parseRegion(req, &w.Region)
+	parseIdempotencyToken(req, &w.IdempotencyToken)
 }
 
 // wrapUntrustedContent wraps handlers in a http.ResponseWriter that prevents
