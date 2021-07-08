@@ -1704,7 +1704,7 @@ func maybeConnectSidecar(id string) bool {
 }
 
 var (
-	sidecarProxyCheckRe = regexp.MustCompile(`service:_nomad-.+-sidecar-proxy(:[\d]+)?`)
+	sidecarProxyCheckRe = regexp.MustCompile(`^service:_nomad-.+-sidecar-proxy(:[\d]+)?$`)
 )
 
 // maybeSidecarProxyCheck returns true if the ID likely matches a Nomad generated
