@@ -1,6 +1,6 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import { alias } from '@ember/object/computed';
+import { alias, reads } from '@ember/object/computed';
 import { getOwner } from '@ember/application';
 import { assign } from '@ember/polyfills';
 import { task } from 'ember-concurrency';
@@ -14,6 +14,8 @@ export default class TokenService extends Service {
   @service system;
 
   aclEnabled = true;
+
+  @reads('fetchSelfToken.lastSuccessful.value') selfToken;
 
   @computed
   get secret() {
@@ -47,11 +49,6 @@ export default class TokenService extends Service {
 
     const token = await TokenAdapter.exchangeOneTimeToken(oneTimeToken);
     this.secret = token.secret;
-  }
-
-  @computed('fetchSelfToken.lastSuccessful.value')
-  get selfToken() {
-    return this.get('fetchSelfToken.lastSuccessful.value');
   }
 
   @task(function*() {
