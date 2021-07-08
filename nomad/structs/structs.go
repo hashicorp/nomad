@@ -385,6 +385,9 @@ type WriteRequest struct {
 	// AuthToken is secret portion of the ACL token used for the request
 	AuthToken string
 
+	// IdempotencyToken can be used to ensure the write is idempotent.
+	IdempotencyToken string
+
 	InternalRpcInfo
 }
 
@@ -4015,6 +4018,10 @@ type Job struct {
 	// Dispatched is used to identify if the Job has been dispatched from a
 	// parameterized job.
 	Dispatched bool
+
+	// DispatchIdempotencyToken is optionally used to ensure that a dispatched job does not have any
+	// non-terminal siblings which have the same token value.
+	DispatchIdempotencyToken string
 
 	// Payload is the payload supplied when the job was dispatched.
 	Payload []byte

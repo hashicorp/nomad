@@ -6134,13 +6134,19 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 		Payload: make([]byte, DispatchPayloadSizeLimit+100),
 	}
 
+	type existingIdempotentChildJob struct {
+		isTerminal bool
+	}
+
 	type testCase struct {
-		name             string
-		parameterizedJob *structs.Job
-		dispatchReq      *structs.JobDispatchRequest
-		noEval           bool
-		err              bool
-		errStr           string
+		name                  string
+		parameterizedJob      *structs.Job
+		dispatchReq           *structs.JobDispatchRequest
+		noEval                bool
+		err                   bool
+		errStr                string
+		idempotencyToken      string
+		existingIdempotentJob *existingIdempotentChildJob
 	}
 	cases := []testCase{
 		{
@@ -6233,6 +6239,36 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			err:              true,
 			errStr:           "stopped",
 		},
+		{
+			name:                  "idempotency token, no existing child job",
+			parameterizedJob:      d1,
+			dispatchReq:           reqInputDataNoMeta,
+			err:                   false,
+			idempotencyToken:      "foo",
+			existingIdempotentJob: nil,
+		},
+		{
+			name:             "idempotency token, w/ existing non-terminal child job",
+			parameterizedJob: d1,
+			dispatchReq:      reqInputDataNoMeta,
+			err:              false,
+			idempotencyToken: "foo",
+			existingIdempotentJob: &existingIdempotentChildJob{
+				isTerminal: false,
+			},
+			noEval: true,
+		},
+		{
+			name:             "idempotency token, w/ existing terminal job",
+			parameterizedJob: d1,
+			dispatchReq:      reqInputDataNoMeta,
+			err:              false,
+			idempotencyToken: "foo",
+			existingIdempotentJob: &existingIdempotentChildJob{
+				isTerminal: true,
+			},
+			noEval: true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -6262,8 +6298,30 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			// Now try to dispatch
 			tc.dispatchReq.JobID = tc.parameterizedJob.ID
 			tc.dispatchReq.WriteRequest = structs.WriteRequest{
-				Region:    "global",
-				Namespace: tc.parameterizedJob.Namespace,
+				Region:           "global",
+				Namespace:        tc.parameterizedJob.Namespace,
+				IdempotencyToken: tc.idempotencyToken,
+			}
+
+			// Dispatch with the same request so a child job w/ the idempotency key exists
+			var initialIdempotentDispatchResp structs.JobDispatchResponse
+			if tc.existingIdempotentJob != nil {
+				if err := msgpackrpc.CallWithCodec(codec, "Job.Dispatch", tc.dispatchReq, &initialIdempotentDispatchResp); err != nil {
+					t.Fatalf("Unexpected error dispatching initial idempotent job: %v", err)
+				}
+
+				if tc.existingIdempotentJob.isTerminal {
+					eval, err := s1.State().EvalByID(nil, initialIdempotentDispatchResp.EvalID)
+					if err != nil {
+						t.Fatalf("Unexpected error fetching eval %v", err)
+					}
+					eval = eval.Copy()
+					eval.Status = structs.EvalStatusComplete
+					err = s1.State().UpsertEvals(structs.MsgTypeTestSetup, initialIdempotentDispatchResp.Index+1, []*structs.Evaluation{eval})
+					if err != nil {
+						t.Fatalf("Unexpected error completing eval %v", err)
+					}
+				}
 			}
 
 			var dispatchResp structs.JobDispatchResponse
@@ -6313,6 +6371,17 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 				}
 				if out.ParameterizedJob == nil {
 					t.Fatal("parameter job config should exist")
+				}
+
+				// Check that the existing job is returned in the case of a supplied idempotency token
+				if tc.idempotencyToken != "" && tc.existingIdempotentJob != nil {
+					if dispatchResp.DispatchedJobID != initialIdempotentDispatchResp.DispatchedJobID {
+						t.Fatal("dispatched job id should match initial dispatch")
+					}
+
+					if dispatchResp.JobCreateIndex != initialIdempotentDispatchResp.JobCreateIndex {
+						t.Fatal("dispatched job create index should match initial dispatch")
+					}
 				}
 
 				if tc.noEval {

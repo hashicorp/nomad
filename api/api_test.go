@@ -255,9 +255,10 @@ func TestSetWriteOptions(t *testing.T) {
 
 	r, _ := c.newRequest("GET", "/v1/jobs")
 	q := &WriteOptions{
-		Region:    "foo",
-		Namespace: "bar",
-		AuthToken: "foobar",
+		Region:           "foo",
+		Namespace:        "bar",
+		AuthToken:        "foobar",
+		IdempotencyToken: "idempotent",
 	}
 	r.setWriteOptions(q)
 
@@ -265,6 +266,9 @@ func TestSetWriteOptions(t *testing.T) {
 		t.Fatalf("bad: %v", r.params)
 	}
 	if r.params.Get("namespace") != "bar" {
+		t.Fatalf("bad: %v", r.params)
+	}
+	if r.params.Get("idempotency_token") != "idempotent" {
 		t.Fatalf("bad: %v", r.params)
 	}
 	if r.token != "foobar" {
