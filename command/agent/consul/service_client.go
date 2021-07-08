@@ -821,8 +821,23 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			continue
 		}
 
-		// Unknown Nomad managed service; kill
+		// Get the Consul namespace this service is in.
 		ns := servicesInConsul[id].Namespace
+
+		// If this service has a sidecar, we need to remove the sidecar first,
+		// otherwise Consul will produce a warning and an error when removing
+		// the parent service.
+		//
+		// The sidecar is not tracked on the Nomad side; it was registered
+		// implicitly through the parent service.
+		if sidecar := getNomadSidecar(id, servicesInConsul); sidecar != nil {
+			if err := c.agentAPI.ServiceDeregisterOpts(sidecar.ID, &api.QueryOptions{Namespace: ns}); err != nil {
+				metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
+				return err
+			}
+		}
+
+		// Remove the unwanted service.
 		if err := c.agentAPI.ServiceDeregisterOpts(id, &api.QueryOptions{Namespace: ns}); err != nil {
 			if isOldNomadService(id) {
 				// Don't hard-fail on old entries. See #3620
