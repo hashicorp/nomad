@@ -706,10 +706,9 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 		AuthToken: apiReq.SecretID,
 	}
 
-	queryRegion := req.URL.Query().Get("region")
 	s.parseToken(req, &writeReq.AuthToken)
-	parseNamespace(req, &writeReq.Namespace)
 
+	queryRegion := req.URL.Query().Get("region")
 	requestRegion, jobRegion := regionForJob(
 		job, queryRegion, writeReq.Region, s.agent.config.Region,
 	)
@@ -717,7 +716,11 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 	sJob := ApiJobToStructJob(job)
 	sJob.Region = jobRegion
 	writeReq.Region = requestRegion
-	writeReq.Namespace = sJob.Namespace
+
+	queryNamespace := req.URL.Query().Get("namespace")
+	namespace := namespaceForJob(job.Namespace, queryNamespace, writeReq.Namespace)
+	sJob.Namespace = namespace
+	writeReq.Namespace = namespace
 
 	return sJob, writeReq
 }
@@ -772,6 +775,25 @@ func regionForJob(job *api.Job, queryRegion, apiRegion, agentRegion string) (str
 	}
 
 	return requestRegion, jobRegion
+}
+
+func namespaceForJob(jobNamespace *string, queryNamespace, apiNamespace string) string {
+
+	// Namespace in query param (-namespace flag) takes precedence.
+	if queryNamespace != "" {
+		return queryNamespace
+	}
+
+	// Next the request body...
+	if apiNamespace != "" {
+		return apiNamespace
+	}
+
+	if jobNamespace != nil && *jobNamespace != "" {
+		return *jobNamespace
+	}
+
+	return structs.DefaultNamespace
 }
 
 func ApiJobToStructJob(job *api.Job) *structs.Job {
