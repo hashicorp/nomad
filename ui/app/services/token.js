@@ -15,8 +15,6 @@ export default class TokenService extends Service {
 
   aclEnabled = true;
 
-  @reads('fetchSelfToken.lastSuccessful.value') selfToken;
-
   @computed
   get secret() {
     return window.localStorage.nomadTokenSecret;
@@ -43,6 +41,8 @@ export default class TokenService extends Service {
     }
   })
   fetchSelfToken;
+
+  @reads('fetchSelfToken.lastSuccessful.value') selfToken;
 
   async exchangeOneTimeToken(oneTimeToken) {
     const TokenAdapter = getOwner(this).lookup('adapter:token');
