@@ -935,6 +935,8 @@ func DefaultConfig() *Config {
 				DisableSandbox:   false,
 			},
 			BindWildcardDefaultHostNetwork: true,
+			CNIPath:                        "/opt/cni/bin",
+			CNIConfigDir:                   "/opt/cni/config",
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
