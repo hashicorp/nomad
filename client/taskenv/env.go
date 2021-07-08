@@ -546,9 +546,9 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 		envMap[VaultNamespace] = b.vaultNamespace
 	}
 
-	// Copy task meta
+	// Copy and interpolate task meta
 	for k, v := range b.taskMeta {
-		envMap[k] = v
+		envMap[hargs.ReplaceEnv(k, nodeAttrs, envMap)] = hargs.ReplaceEnv(v, nodeAttrs, envMap)
 	}
 
 	// Interpolate and add environment variables
