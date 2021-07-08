@@ -176,9 +176,8 @@ func (h *groupServiceHook) PreKill() {
 
 // implements the PreKill hook but requires the caller hold the lock
 func (h *groupServiceHook) preKillLocked() {
-	// If we have a shutdown delay deregister
-	// group services and then wait
-	// before continuing to kill tasks
+	// If we have a shutdown delay deregister group services and then wait
+	// before continuing to kill tasks.
 	h.deregister()
 	h.deregistered = true
 
@@ -186,10 +185,10 @@ func (h *groupServiceHook) preKillLocked() {
 		return
 	}
 
-	h.logger.Debug("waiting before removing group service", "shutdown_delay", h.delay)
+	h.logger.Debug("delay before killing tasks", "group", h.group, "shutdown_delay", h.delay)
 
 	// Wait for specified shutdown_delay
-	// this will block an agent from shutting down
+	// This will block an agent from shutting down.
 	<-time.After(h.delay)
 }
 
