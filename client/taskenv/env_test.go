@@ -399,6 +399,10 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"b.":                "b",
 		".":                 "c",
 	}
+	task.Meta = map[string]string{
+		"taskMetaKey-${NOMAD_TASK_NAME}": "taskMetaVal-${node.unique.id}",
+		"foo":                            "bar",
+	}
 	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
 		&drivers.DriverNetwork{PortMap: map[string]int{"https": 443}},
 	)
@@ -469,6 +473,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_META_elb_check_type":                 "http",
 		"NOMAD_META_foo":                            "bar",
 		"NOMAD_META_owner":                          "armon",
+		"NOMAD_META_taskMetaKey_web":                "taskMetaVal-" + n.ID,
 		"NOMAD_JOB_ID":                              a.Job.ID,
 		"NOMAD_JOB_NAME":                            "my-job",
 		"NOMAD_JOB_PARENT_ID":                       a.Job.ParentID,
@@ -513,7 +518,8 @@ func TestEnvironment_AllValues(t *testing.T) {
 			out := ""
 			diag = gohcl.DecodeExpression(expr, evalCtx, &out)
 			require.Empty(t, diag)
-			require.Equal(t, out, expectedVal)
+			require.Equal(t, expectedVal, out,
+				fmt.Sprintf("expected %q got %q", expectedVal, out))
 		})
 	}
 }
