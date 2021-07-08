@@ -1,3 +1,3 @@
 ```release-note:bug
-service: Removed duplicate name checking for `service` and `task` to prevent sprurious validation failures for services using interpolation or using tags for differentiating versions of a service.
+consul: Fixed a bug where services may incorrectly fail conflicting name validation
 ```
