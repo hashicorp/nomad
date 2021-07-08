@@ -15,7 +15,7 @@ module('Acceptance | server detail', function(hooks) {
   hooks.beforeEach(async function() {
     server.createList('agent', 3);
     agent = server.db.agents[0];
-    await ServerDetail.visit({ name: agent.name });
+    await ServerDetail.visit({ name: agent.member.Name });
   });
 
   test('it passes an accessibility audit', async function(assert) {
@@ -23,24 +23,27 @@ module('Acceptance | server detail', function(hooks) {
   });
 
   test('visiting /servers/:server_name', async function(assert) {
-    assert.equal(currentURL(), `/servers/${encodeURIComponent(agent.name)}`);
-    assert.equal(document.title, `Server ${agent.name} - Nomad`);
+    console.log('agent:  ', agent);
+    assert.equal(currentURL(), `/servers/${encodeURIComponent(agent.member.Name)}`);
+    assert.equal(document.title, `Server ${agent.member.Name} - Nomad`);
   });
 
   test('when the server is the leader, the title shows a leader badge', async function(assert) {
-    assert.ok(ServerDetail.title.includes(agent.name));
+    assert.ok(ServerDetail.title.includes(agent.member.Name));
     assert.ok(ServerDetail.hasLeaderBadge);
   });
 
   test('the details ribbon displays basic information about the server', async function(assert) {
-    assert.ok(ServerDetail.serverStatus.includes(agent.status));
-    assert.ok(ServerDetail.address.includes(formatHost(agent.address, agent.tags.port)));
-    assert.ok(ServerDetail.datacenter.includes(agent.tags.dc));
+    assert.ok(ServerDetail.serverStatus.includes(agent.member.Status));
+    assert.ok(
+      ServerDetail.address.includes(formatHost(agent.member.Address, agent.member.Tags.port))
+    );
+    assert.ok(ServerDetail.datacenter.includes(agent.member.Tags.dc));
   });
 
   test('the server detail page should list all tags for the server', async function(assert) {
-    const tags = Object.keys(agent.tags)
-      .map(name => ({ name, value: agent.tags[name] }))
+    const tags = Object.keys(agent.member.Tags)
+      .map(name => ({ name, value: agent.member.Tags[name] }))
       .sortBy('name');
 
     assert.equal(ServerDetail.tags.length, tags.length, '# of tags');
@@ -52,7 +55,7 @@ module('Acceptance | server detail', function(hooks) {
   });
 
   test('when the server is not the leader, there is no leader badge', async function(assert) {
-    await ServerDetail.visit({ name: server.db.agents[1].name });
+    await ServerDetail.visit({ name: server.db.agents[1].member.Name });
     assert.notOk(ServerDetail.hasLeaderBadge);
   });
 
