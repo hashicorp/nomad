@@ -6331,13 +6331,11 @@ func (tg *TaskGroup) validateNetworks() error {
 	return mErr.ErrorOrNil()
 }
 
-// validateServices runs Service.Validate() on group-level services,
-// checks that group services do not conflict with task services and that
+// validateServices runs Service.Validate() on group-level services, checks
 // group service checks that refer to tasks only refer to tasks that exist.
 func (tg *TaskGroup) validateServices() error {
 	var mErr multierror.Error
 	knownTasks := make(map[string]struct{})
-	knownServices := make(map[string]struct{})
 
 	// Create a map of known tasks and their services so we can compare
 	// vs the group-level services and checks
@@ -6347,15 +6345,11 @@ func (tg *TaskGroup) validateServices() error {
 			continue
 		}
 		for _, service := range task.Services {
-			if _, ok := knownServices[service.Name+service.PortLabel]; ok {
-				mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is duplicate", service.Name))
-			}
 			for _, check := range service.Checks {
 				if check.TaskName != "" {
 					mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s is invalid: only task group service checks can be assigned tasks", check.Name))
 				}
 			}
-			knownServices[service.Name+service.PortLabel] = struct{}{}
 		}
 	}
 	for i, service := range tg.Services {
@@ -6370,10 +6364,7 @@ func (tg *TaskGroup) validateServices() error {
 		if service.AddressMode == AddressModeDriver {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q cannot use address_mode=\"driver\", only services defined in a \"task\" block can use this mode", service.Name))
 		}
-		if _, ok := knownServices[service.Name+service.PortLabel]; ok {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is duplicate", service.Name))
-		}
-		knownServices[service.Name+service.PortLabel] = struct{}{}
+
 		for _, check := range service.Checks {
 			if check.TaskName != "" {
 				if check.Type != ServiceCheckScript && check.Type != ServiceCheckGRPC {
