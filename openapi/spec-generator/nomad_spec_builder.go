@@ -5,12 +5,12 @@ import (
 )
 
 // NewNomadSpecBuilder is a factory method for the NomadSpecBuilder struct
-func NewNomadSpecBuilder() *SpecBuilder {
+func NewNomadSpecBuilder(analyzer *Analyzer) *SpecBuilder {
 	builder := &SpecBuilder{
 		PathAdapters: []*SourceAdapter{
 			{
 				Parser: &PackageParser{
-					Packages: nomadPackages,
+					Analyzer: analyzer,
 				},
 				Adapt: nomadPathAdapterFunc,
 			},

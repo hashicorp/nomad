@@ -10,7 +10,10 @@ import (
 func TestNomadPathAdapterFunc(t *testing.T) {
 	req := require.New(t)
 
-	nsb := NewNomadSpecBuilder()
+	analyzer, err := NewAnalyzer(nomadPackages, t.Log, defaultDebugOptions)
+	req.NoError(err)
+
+	nsb := NewNomadSpecBuilder(analyzer)
 	nsb.spec = &Spec{}
 
 	for _, adapter := range nsb.PathAdapters {

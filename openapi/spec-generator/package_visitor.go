@@ -1,15 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"go/ast"
 	"go/token"
 	"golang.org/x/tools/go/packages"
 )
 
 type PackageVisitor interface {
+	Analyzer() *Analyzer
 	VisitFile(ast.Node) bool
-	VisitPackages([]*packages.Package) error
+	VisitPackages() error
 	SetActiveFileSet(*token.FileSet)
 	GetActiveFileSet() *token.FileSet
 	DebugPrint()
@@ -26,25 +26,15 @@ type PackageConfig struct {
 // elements of the package to load. To load everything, past ".". See full docs at
 // https://pkg.go.dev/golang.org/x/tools/go/packages#section-documentation
 type PackageParser struct {
-	Packages      []*PackageConfig
+	Analyzer      *Analyzer
 	Visitor       PackageVisitor
 	activeFileSet *token.FileSet
 }
 
 func (p *PackageParser) Parse() error {
 	var err error
-	var pkgs []*packages.Package
 
-	for _, pkgConfig := range p.Packages {
-		var ps []*packages.Package
-		if ps, err = packages.Load(&pkgConfig.Config, pkgConfig.Pattern); err != nil {
-			return fmt.Errorf("PackageParser.Parse.packages.Load: %v", err)
-		}
-
-		pkgs = append(pkgs, ps...)
-	}
-
-	if err = p.Visitor.VisitPackages(pkgs); err != nil {
+	if err = p.Visitor.VisitPackages(); err != nil {
 		return err
 	}
 

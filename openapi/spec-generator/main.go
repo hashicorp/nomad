@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/hashicorp/go-hclog"
 )
 
 func main() {
@@ -23,8 +25,23 @@ func main() {
 	}
 }
 
+func logWrapper(logger hclog.Logger) loggerFunc {
+	return func(args ...interface{}) {
+		logger.Log(hclog.Info, "", args)
+	}
+}
+
 func run(g *Generator) error {
-	spec, err := NewNomadSpecBuilder().Build()
+	var err error
+	var analyzer *Analyzer
+
+	logger := hclog.Default().(hclog.Logger)
+	analyzer, err = NewAnalyzer(nomadPackages, logWrapper(logger), defaultDebugOptions)
+	if err != nil {
+		return err
+	}
+
+	spec, err := NewNomadSpecBuilder(analyzer).Build()
 	if err != nil {
 		return fmt.Errorf("Generator.run.NomadSpecBuilder.Build: ")
 	}

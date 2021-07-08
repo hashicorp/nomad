@@ -12,19 +12,37 @@ import (
 	"strings"
 )
 
+func NewVarAdapter(spec *ast.ValueSpec, analyzer *Analyzer) *VarAdapter {
+	return &VarAdapter{
+		spec,
+		analyzer,
+	}
+}
+
+type VarAdapter struct {
+	spec     *ast.ValueSpec
+	analyzer *Analyzer
+}
+
+func (v *VarAdapter) Name() string {
+	return v.spec.Names[0].Name
+}
+
+func (v *VarAdapter) TypeName() string {
+	return v.analyzer.FormatTypeName(v.expr().X.(*ast.Ident).Name, v.expr().Sel.Name)
+}
+
+func (v *VarAdapter) expr() *ast.SelectorExpr {
+	return v.spec.Type.(*ast.SelectorExpr)
+}
+
+func (v *VarAdapter) Type() types.Object {
+	return v.analyzer.GetTypeByName(v.TypeName())
+}
+
 type PathItemAdapter struct {
-	method           string // GET, PUT etc.
-	Package          *packages.Package
-	Source           string
-	Func             *types.Func
-	FuncDecl         *ast.FuncDecl
-	SchemaName       string
-	SchemaTypeSpec   *ast.TypeSpec
-	structs          map[string]*ast.TypeSpec
-	logger           loggerFunc
-	analyzer         *Analyzer
-	fileSet          *token.FileSet
-	returnStatements []*ast.ReturnStmt
+	method  string // GET, PUT etc.
+	Handler *HandlerFuncAdapter
 }
 
 // GetMethod returns a string that maps to the net/http method this PathItemAdapter
@@ -69,26 +87,26 @@ func (pia *PathItemAdapter) GetResponseRefs() []*openapi3.ResponseRef {
 }
 
 type HandlerFuncAdapter struct {
-	Path     string
 	Package  *packages.Package
 	Func     *types.Func
 	FuncDecl *ast.FuncDecl
 
+	logger   loggerFunc
+	analyzer *Analyzer
+	fileSet  *token.FileSet
+
+	Variables map[string]*VarAdapter
 	// The CFG does contain Return statements; even implicit returns are materialized
 	// (at the position of the function's closing brace).
-
 	// CFG does not record conditions associated with conditional branch edges,
 	//nor the short-circuit semantics of the && and || operators, nor abnormal
 	//control flow caused by panic. If you need this information, use golang.org/x/tools/go/ssa instead.
-	Cfg     *cfg.CFG
-	Structs map[string]*ast.TypeSpec
+	Cfg *cfg.CFG
+}
 
-	logger           loggerFunc
-	analyzer         *Analyzer
-	fileSet          *token.FileSet
-	returnStatements []*ast.ReturnStmt
-
-	ResponseType *ast.TypeSpec
+func (h *HandlerFuncAdapter) GetPath() string {
+	// TODO: Resolve the path
+	return h.Name()
 }
 
 // TODO: Find a way to make this injectable
@@ -124,101 +142,136 @@ func (h *HandlerFuncAdapter) debugReturnSource(idx int) string {
 	return src
 }
 
-func (h *HandlerFuncAdapter) IsHelperFunction() bool {
-	return h.ResponseType == nil
+// IsIntermediateFunc is used to determine if an HTTP Handler is actually
+// an intermediate function that in turn calls other functions to handle
+// different HTTP methods, path parameters, etc.
+func (h *HandlerFuncAdapter) IsIntermediateFunc() bool {
+	// TODO: Find a way to detect that this is a FooSpecificRequestFunc
+	return false
 }
 
-func (f *HandlerFuncAdapter) visitFunc(node ast.Node) bool {
-	switch t := node.(type) {
-	case *ast.ReturnStmt:
-		f.returnStatements = append(f.returnStatements, t)
-		// TODO: This is where I'll have to come back and handle nutty things like JobSpecificRequest
-		//case *ast.BlockStmt:
-		//	for _, stmt := range t.List {
-		//		f.logger(f.analyzer.GetSource(stmt, f.fileSet))
-		//	}
-		//case *ast.BranchStmt:
-		//	f.logger(f.analyzer.GetSource(t, f.fileSet))
-		//
-	}
-	return true
-}
-
-func (f *HandlerFuncAdapter) processVisitResults() error {
-	if _, err := f.GetReturnSchema(); err != nil {
+// visitHandlerFunc makes several passes over the Handler FuncDecl. Order matters
+// and trying to this all in one pass is likely not an option.
+func (h *HandlerFuncAdapter) visitHandlerFunc() error {
+	if err := h.FindVariables(); err != nil {
 		return err
 	}
+	if _, err := h.GetReturnSchema(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (f *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
-	returnType := f.analyzer.GetReturnTypeByHandlerName(f.Name())
+func (h *HandlerFuncAdapter) FindVariables() error {
+	if h.Variables == nil {
+		h.Variables = make(map[string]*VarAdapter)
+	}
+	var variableVisitor = func(node ast.Node) bool {
+		switch node.(type) {
+		case *ast.GenDecl:
+			if node.(*ast.GenDecl).Tok != token.VAR {
+				return true
+			}
 
-	f.logger(returnType)
-	result, err := f.GetResultByIndex(0)
+			for i, spec := range node.(*ast.GenDecl).Specs {
+				switch spec.(type) {
+				case *ast.ValueSpec:
+					varAdapter := NewVarAdapter(spec.(*ast.ValueSpec), h.analyzer)
+					// @@@@ DEBUG
+					if varAdapter.Type() == nil {
+						panic(fmt.Sprintf("ValueSpecType: %v", node.(*ast.GenDecl).Specs[i].(*ast.ValueSpec).Type))
+					}
+
+					if _, ok := h.Variables[varAdapter.Name()]; !ok {
+						h.Variables[varAdapter.Name()] = varAdapter
+					}
+				}
+			}
+		}
+		return true
+	}
+
+	ast.Inspect(h.FuncDecl, variableVisitor)
+
+	if h.analyzer.debugOptions.printVariables {
+		for k, v := range h.Variables {
+			h.analyzer.Logger(h.Func.Name(), "variable", k, "has TypeName:", v.TypeName(), "with type signature", v.Type().String())
+		}
+	}
+
+	return nil
+}
+
+func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
+	result, err := h.GetResultByIndex(0)
 	if err != nil {
 		return nil, err
 	}
 
-	var outTypeName string
+	var outType types.Object
 
 	outVisitor := func(node ast.Node) bool {
 		switch t := node.(type) {
+		case *ast.Ident:
+			var v *VarAdapter
+			var ok bool
+			// @@@@ Debug should never happen if all loading is done correctly.
+			if v, ok = h.Variables[t.Name]; !ok {
+				panic("HandlerFuncAdapter.GetReturnSchema failed to find variable " + t.Name)
+			}
+			outType = v.Type()
 		case *ast.SelectorExpr:
 			switch xt := t.X.(type) {
 			case *ast.Ident:
-				foo := f.analyzer.Defs(xt)
-				f.logger(fmt.Sprintf("%v", foo))
-				if xt.Name == "out" {
-					outTypeName = xt.Obj.Decl.(*ast.ValueSpec).Type.(*ast.SelectorExpr).Sel.Name
-				} else {
-					f.logger("Ident name: " + xt.Name)
+				var v *VarAdapter
+				var ok bool
+				varName := h.analyzer.FormatTypeName(xt.Name, t.Sel.Name)
+				// @@@@ Debug should never happen if all loading is done correctly.
+
+				// Left off here - I've got to solve the indirection problem e.g. out.Jobs
+
+				if v, ok = h.Variables[varName]; !ok {
+					panic("HandlerFuncAdapter.GetReturnSchema failed to find variable " + xt.Name)
 				}
+				outType = v.Type()
+			default:
+				panic(fmt.Sprintf("HandlerFuncAdapter.GetReturnSchema: unhandled type %v", xt))
 			}
 		default:
-			returnSrc := f.debugReturnSource(0)
-			if returnSrc != "nil" {
-				variable := f.analyzer.GetFuncVariable(returnSrc, f.FuncDecl)
-				variableSrc, _ := f.analyzer.GetSource(variable, f.fileSet)
-				f.logger(fmt.Sprintf("returnSrc: %s - variableSrc: %s", returnSrc, variableSrc))
-			} else {
-				f.logger(fmt.Sprintf("%s: out var name: %s type: %v", f.Name(), returnSrc, t))
-			}
+			panic(fmt.Sprintf("HandlerFuncAdapter.GetReturnSchema: unhandled type %v", t))
 		}
 		return true
 	}
 
 	ast.Inspect(result, outVisitor)
 
-	if len(outTypeName) > 0 {
-		// DEBUG
-		//if outTypeName == "JobSummaryResponse" {
-		//	for k, _ := range f.Structs {
-		//		if strings.Index(k, "Job") > -1 {
-		//			f.logger("Found Key: %s", k)
-		//		}
-		//	}
-		//}
-		f.logger(fmt.Sprintf("Func: %s outTypeName: %s", f.Name(), outTypeName))
-		var ok bool
-		if f.ResponseType, ok = f.Structs["api."+outTypeName]; ok {
-			return &openapi3.SchemaRef{}, nil
-		}
-	}
-
-	return &openapi3.SchemaRef{}, nil
+	return h.toSchemaRef(outType), nil
 }
 
-func (f *HandlerFuncAdapter) GetResultByIndex(idx int) (ast.Expr, error) {
-	//for _, block := range f.Cfg.Blocks {
-	//	//TODO: Left off here
-	//}
+func (h *HandlerFuncAdapter) GetReturnStmts() []*ast.ReturnStmt {
+	var returnStmts []*ast.ReturnStmt
 
-	if len(f.returnStatements) < 1 {
+	returnVisitor := func(node ast.Node) bool {
+		switch t := node.(type) {
+		case *ast.ReturnStmt:
+			returnStmts = append(returnStmts, t)
+		}
+		return true
+	}
+
+	ast.Inspect(h.FuncDecl, returnVisitor)
+
+	return returnStmts
+}
+
+func (h *HandlerFuncAdapter) GetResultByIndex(idx int) (ast.Expr, error) {
+	returnStmts := h.GetReturnStmts()
+	if len(returnStmts) < 1 {
 		return nil, fmt.Errorf("HandlerFuncAdapter.GetResultByIndex: no return statement found")
 	}
 
-	finalReturn := f.returnStatements[len(f.returnStatements)-1]
+	finalReturn := returnStmts[len(returnStmts)-1]
 	if finalReturn == nil {
 		return nil, fmt.Errorf("HandlerFuncAdapter.GetResultByIndex: finalReturn does not exist")
 	}
@@ -227,4 +280,21 @@ func (f *HandlerFuncAdapter) GetResultByIndex(idx int) (ast.Expr, error) {
 		return nil, fmt.Errorf("HandlerFuncAdapter.GetResultByIndex: invalid index")
 	}
 	return finalReturn.Results[idx].(ast.Expr), nil
+}
+
+func (h *HandlerFuncAdapter) toSchemaRef(schemaType types.Object) *openapi3.SchemaRef {
+	if schemaType == nil {
+		return nil
+	}
+
+	schemaRef := &openapi3.SchemaRef{
+		Ref: fmt.Sprintf("#/components/schemas/%s", schemaType.Name()),
+		Value: &openapi3.Schema{
+			Type: schemaType.Name(),
+		},
+	}
+
+	// TODO: need to read up on how to actually build one!
+
+	return schemaRef
 }

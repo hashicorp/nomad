@@ -9,17 +9,17 @@ func TestPackageVisitorParse(t *testing.T) {
 	req := require.New(t)
 
 	debugOptions := defaultDebugOptions
-	debugOptions.showSource = false
-	debugOptions.showHelpers = true
-	debugOptions.showReturnSource = true
+	debugOptions.printSource = false
+	debugOptions.printHelpers = true
+	debugOptions.printReturnSource = true
+	debugOptions.filterByMethods = []string{"agent.jobListRequest"}
 
 	analyzer, err := NewAnalyzer(nomadPackages, t.Log, debugOptions)
 	req.NoError(err)
 	visitor := NewNomadPackageVisitor(analyzer, t.Log, debugOptions)
 
 	parser := PackageParser{
-		Packages: nomadPackages,
-		Visitor:  visitor,
+		Visitor: visitor,
 	}
 
 	err = parser.Parse()
