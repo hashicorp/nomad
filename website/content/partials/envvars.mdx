@@ -264,11 +264,23 @@
         <code>NOMAD_ENVOY_ADMIN_ADDR_&lt;service&gt;</code>
       </td>
       <td>
-        Local address <code>localhost:Port</code> for the admin port of the
+        Local address <code>127.0.0.2:Port</code> for the admin port of the
         envoy sidecar for the given <code>service</code> when defined as a
-        Consul Connect enabled service.
+        Consul Connect enabled service. Envoy runs inside the group network
+        namespace unless configured for host networking.
       </td>
     </tr>
+      <tr>
+        <td>
+          <code>NOMAD_ENVOY_READY_ADDR_&lt;service&gt;</code>
+        </td>
+        <td>
+          Local address <code>127.0.0.1:Port</code> for the ready port of the
+          envoy sidecar for the given <code>service</code> when defined as a
+          Consul Connect enabled service. Envoy runs inside the group network
+          namespace unless configured for host networking.
+        </td>
+      </tr>
     <tr>
       <th colspan="2">Consul-related Variables (only set for connect native tasks)</th>
     </tr>
