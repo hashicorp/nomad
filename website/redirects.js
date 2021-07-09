@@ -661,11 +661,6 @@ module.exports = [
     destination: '/docs/schedulers',
     permanent: true,
   },
-  {
-    source: '/docs/internals/scheduling',
-    destination: '/docs/internals/scheduling/scheduling',
-    permanent: true,
-  },
 
   // Sometimes code names are too good not to mention
   {
