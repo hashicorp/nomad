@@ -244,7 +244,7 @@ UPDATE:
 			glint.Text(""),
 			glint.Text(formatTime(time.Now())),
 			// Use colorize to render bold text in formatDeployment function
-			glint.Text(c.Colorize().Color(formatDeployment(client, deploy, length))),
+			glint.Text(c.Colorize().Color(formatDeployment(client, deploy, length)+"\n")),
 		)
 
 		if verbose {
@@ -361,7 +361,7 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 
 		status := deploy.Status
 		info := formatTime(time.Now())
-		info += fmt.Sprintf("\n%s", formatDeployment(client, deploy, length))
+		info += fmt.Sprintf("\n%s\n", formatDeployment(client, deploy, length))
 
 		if verbose {
 			info += "\n\n[bold]Allocations[reset]\n"
