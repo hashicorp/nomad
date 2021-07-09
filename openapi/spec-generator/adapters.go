@@ -3,12 +3,14 @@ package main
 import (
 	"fmt"
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/getkin/kin-openapi/openapi3gen"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/cfg"
 	"golang.org/x/tools/go/packages"
 	"net/http"
+	"reflect"
 	"strings"
 )
 
@@ -91,9 +93,10 @@ type HandlerFuncAdapter struct {
 	Func     *types.Func
 	FuncDecl *ast.FuncDecl
 
-	logger   loggerFunc
-	analyzer *Analyzer
-	fileSet  *token.FileSet
+	logger    loggerFunc
+	analyzer  *Analyzer
+	generator *openapi3gen.Generator
+	fileSet   *token.FileSet
 
 	Variables map[string]*VarAdapter
 	// The CFG does contain Return statements; even implicit returns are materialized
@@ -131,7 +134,15 @@ func (h *HandlerFuncAdapter) Name() string {
 }
 
 func (h *HandlerFuncAdapter) GetSource() (string, error) {
-	return h.analyzer.GetSource(h.FuncDecl.Body, h.fileSet)
+	if h.FuncDecl == nil {
+		h.analyzer.Logger("FuncDecl nil for", h.Name())
+		return "", nil
+	}
+	src, err := h.analyzer.GetSource(h.FuncDecl.Body, h.fileSet)
+	if err != nil {
+		return "", err
+	}
+	return src, nil
 }
 
 func (h *HandlerFuncAdapter) debugReturnSource(idx int) string {
@@ -209,9 +220,13 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 		return nil, err
 	}
 
-	var outType types.Object
+	var outObject types.Object
 
 	outVisitor := func(node ast.Node) bool {
+		// if node is nil or outObject has been resolved exit
+		if node == nil || outObject != nil {
+			return true
+		}
 		switch t := node.(type) {
 		case *ast.Ident:
 			var v *VarAdapter
@@ -220,21 +235,19 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 			if v, ok = h.Variables[t.Name]; !ok {
 				panic("HandlerFuncAdapter.GetReturnSchema failed to find variable " + t.Name)
 			}
-			outType = v.Type()
+			outObject = v.Type()
 		case *ast.SelectorExpr:
+			// in this case we are returning a field of a variable
+			// X should be an Ident and X.Name will have the variable.
+			// Sel.Name should have the field name.
 			switch xt := t.X.(type) {
 			case *ast.Ident:
 				var v *VarAdapter
 				var ok bool
-				varName := h.analyzer.FormatTypeName(xt.Name, t.Sel.Name)
-				// @@@@ Debug should never happen if all loading is done correctly.
-
-				// Left off here - I've got to solve the indirection problem e.g. out.Jobs
-
-				if v, ok = h.Variables[varName]; !ok {
+				if v, ok = h.Variables[xt.Name]; !ok {
 					panic("HandlerFuncAdapter.GetReturnSchema failed to find variable " + xt.Name)
 				}
-				outType = v.Type()
+				outObject = h.analyzer.GetFieldType(t.Sel.Name, v.Type())
 			default:
 				panic(fmt.Sprintf("HandlerFuncAdapter.GetReturnSchema: unhandled type %v", xt))
 			}
@@ -246,7 +259,21 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 
 	ast.Inspect(result, outVisitor)
 
-	return h.toSchemaRef(outType), nil
+	instance, err := h.analyzer.ToReflectType(outObject.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	iface := reflect.New(instance).Elem().Addr().Interface()
+	schemaRef, referencedSchemaRefs, err := openapi3gen.NewSchemaRefForValue(iface, openapi3gen.UseAllExportedFields())
+	if err != nil {
+		return nil, err
+	}
+
+	h.analyzer.Logger(referencedSchemaRefs)
+	// h.analyzer.RegisterSchemaRefs(outObject, schemaRef, referencedSchemaRefs)
+
+	return schemaRef, nil
 }
 
 func (h *HandlerFuncAdapter) GetReturnStmts() []*ast.ReturnStmt {
@@ -280,21 +307,4 @@ func (h *HandlerFuncAdapter) GetResultByIndex(idx int) (ast.Expr, error) {
 		return nil, fmt.Errorf("HandlerFuncAdapter.GetResultByIndex: invalid index")
 	}
 	return finalReturn.Results[idx].(ast.Expr), nil
-}
-
-func (h *HandlerFuncAdapter) toSchemaRef(schemaType types.Object) *openapi3.SchemaRef {
-	if schemaType == nil {
-		return nil
-	}
-
-	schemaRef := &openapi3.SchemaRef{
-		Ref: fmt.Sprintf("#/components/schemas/%s", schemaType.Name()),
-		Value: &openapi3.Schema{
-			Type: schemaType.Name(),
-		},
-	}
-
-	// TODO: need to read up on how to actually build one!
-
-	return schemaRef
 }

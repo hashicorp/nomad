@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/types/typeutil"
+	"reflect"
 	"strings"
 )
 
@@ -317,4 +318,156 @@ func isIntrinsicNoReturn(fn *types.Func) bool {
 	path, name := fn.Pkg().Path(), fn.Name()
 	return path == "syscall" && (name == "Exit" || name == "ExitProcess" || name == "ExitThread") ||
 		path == "runtime" && name == "Goexit"
+}
+
+func (a *Analyzer) GetFieldType(fieldName string, obj types.Object) types.Object {
+	objType := obj.Type()
+	a.Logger("obj is of type ", objType)
+	if s, ok := obj.Type().(*types.Named); ok {
+		if orig, ok := s.Underlying().(*types.Struct); ok {
+			for i := 0; i < orig.NumFields(); i++ {
+				field := orig.Field(i)
+				if field.Name() == fieldName {
+					return field
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (a *Analyzer) GetSliceElemType(obj types.Object) types.Object {
+	sliceType, ok := obj.Type().(*types.Slice)
+	if !ok {
+		panic(fmt.Sprintf("Analyzer.GetSliceElemType invalid type %v", obj.Type()))
+	}
+
+	switch elemType := sliceType.Elem().(type) {
+	case *types.Pointer:
+		if obj, ok := elemType.Elem().(types.Object); !ok {
+			panic("Analyzer.GetSliceElemType invalid cast")
+		} else {
+			return obj
+		}
+	}
+
+	return nil
+}
+
+func (a *Analyzer) IsSlice(obj types.Object) bool {
+	_, ok := obj.Type().(*types.Slice)
+	return ok
+}
+
+func (a *Analyzer) ToStructInstance(obj *types.Struct) (interface{}, error) {
+
+	fields := make([]reflect.StructField, 0)
+
+	for i := 0; i < obj.NumFields(); i++ {
+		field, err := a.ToStructField(obj.Field(i))
+		if err != nil {
+			return nil, err
+		}
+		fields = append(fields, field)
+	}
+
+	n := reflect.New(reflect.StructOf(fields))
+	elem := reflect.New(reflect.StructOf(fields)).Elem()
+	a.Logger(elem)
+	addr := reflect.New(reflect.StructOf(fields)).Elem().Addr()
+	a.Logger(addr)
+	return n, nil
+}
+
+func (a *Analyzer) ToStructField(varField *types.Var) (reflect.StructField, error) {
+	fieldType, err := a.ToReflectType(varField.Type())
+	if err != nil {
+		return reflect.StructField{}, err
+	}
+
+	field := reflect.StructField{
+		Name: varField.Name(),
+		Tag:  reflect.StructTag(fmt.Sprintf(`json:"%s"`, varField.Name())),
+		Type: fieldType,
+	}
+
+	return field, nil
+}
+
+func (a *Analyzer) ToReflectType(t types.Type) (reflect.Type, error) {
+
+	if basic, ok := t.(*types.Basic); ok {
+		switch basic.Kind() {
+		case types.Bool, types.UntypedBool:
+			return reflect.TypeOf(true), nil
+		case types.Int, types.Int8, types.Int16, types.Int32, types.Int64, types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64, types.UntypedInt, types.UntypedRune:
+			return reflect.TypeOf(0), nil
+		case types.Float32, types.Float64, types.UntypedFloat:
+			return reflect.TypeOf(0.0), nil
+		case types.Complex64, types.UntypedComplex:
+			return reflect.TypeOf(complex64(1)), nil
+		case types.Complex128:
+			return reflect.TypeOf(complex128(4)), nil
+		case types.String, types.UntypedString:
+			return reflect.TypeOf("str"), nil
+		default:
+			return nil, fmt.Errorf("Anazlyzer.ToReflectType unhandled basic kind %v", basic)
+		}
+	}
+
+	switch typesType := t.(type) {
+	case *types.Named:
+		instance, err := a.ToReflectType(typesType.Underlying())
+		if err != nil {
+			return nil, err
+		}
+		return reflect.TypeOf(instance), nil
+	case *types.Struct:
+		instance, err := a.ToStructInstance(typesType)
+		if err != nil {
+			return nil, err
+		}
+		return reflect.TypeOf(instance), nil
+	case *types.Slice:
+		var err error
+		var elem types.Type
+		var elemType reflect.Type
+		elem = typesType.Elem()
+		switch switchType := elem.(type) {
+		case *types.Pointer:
+			elemType, err = a.ToReflectType(switchType.Elem())
+			if err != nil {
+				return nil, err
+			}
+		}
+		elemType, err = a.ToReflectType(elem)
+		if err != nil {
+			return nil, err
+		}
+		slice := reflect.SliceOf(elemType)
+		return reflect.TypeOf(slice), nil
+	case *types.Array:
+		elem, err := a.ToReflectType(typesType.Elem())
+		if err != nil {
+			return nil, err
+		}
+		arrayType := reflect.ArrayOf(0, elem)
+		return reflect.TypeOf(arrayType), nil
+	case *types.Map:
+		keyType, err := a.ToReflectType(typesType.Key())
+		if err != nil {
+			return nil, err
+		}
+		elemType, err := a.ToReflectType(typesType.Elem())
+		if err != nil {
+			return nil, err
+		}
+		mapType := reflect.MapOf(keyType, elemType)
+		return reflect.TypeOf(reflect.MakeMap(mapType)), nil
+	case *types.Pointer:
+		return a.ToReflectType(typesType.Elem())
+	}
+
+	return nil, fmt.Errorf(fmt.Sprintf("Analyzer.ToReflectType unhandled type %v", t))
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/getkin/kin-openapi/openapi3gen"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -30,11 +31,13 @@ func NewNomadPackageVisitor(analyzer *Analyzer, logger loggerFunc, options Debug
 		analyzer:     analyzer,
 		logger:       logger,
 		debugOptions: options,
+		generator:    openapi3gen.NewGenerator(openapi3gen.UseAllExportedFields()),
 	}
 }
 
 type NomadPackageVisitor struct {
 	HandlerAdapters map[string]*HandlerFuncAdapter
+	generator       *openapi3gen.Generator
 	analyzer        *Analyzer
 	activePackage   *packages.Package
 	logger          loggerFunc
@@ -153,6 +156,9 @@ func (v *NomadPackageVisitor) VisitFile(node ast.Node) bool {
 		}
 
 		adapter := v.HandlerAdapters[name]
+		if t == nil {
+			panic("t is nil for " + name)
+		}
 		adapter.FuncDecl = t
 		adapter.Cfg = v.analyzer.GetControlFlowGraph(adapter.Func, adapter.FuncDecl)
 
