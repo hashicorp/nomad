@@ -133,6 +133,9 @@ config {
 - `pids_limit` - (Optional) An integer value that specifies the pid limit for
   the container. Defaults to unlimited.
 
+- `pid_mode` - (Optional) `host` or not set (default). Set to `host` to share
+  the PID namespace with the host.
+
 - `host_dns` - (Optional) `true` (default) or `false` By default, a container
   launched using `containerd-driver` will use host `/etc/resolv.conf`. This is
   similar to [Docker's behavior]. However, if you don't want to use
@@ -153,6 +156,8 @@ config {
   seccomp_profile = "/opt/seccomp/seccomp.json"
 }
 ```
+
+- `shm_size` - (Optional) Size of /dev/shm e.g. `128M` if you want 128 MB of /dev/shm.
 
 - `sysctl` - (Optional) A key-value map of sysctl configurations to set to the
   containers on start.
@@ -357,18 +362,19 @@ The service stanza instructs Nomad to register a service with Consul.
 
 ## Authentication ((#authentication))
 
-If you want to pull from a private repository e.g. docker hub, you can specify `username`
-and `password` in the `auth` stanza. See example below.
+`auth` stanza allow you to set credentials for your private registry e.g. if you want
+to pull an image from a private repository in docker hub.
+`auth` stanza can be set either in `Driver Config` or `Task Config` or both.
+If set at both places, `Task Config` auth will take precedence over `Driver Config` auth.
 
 **NOTE**: In the below example, `user` and `pass` are just placeholder values which need to be
-replaced by actual `username` and `password`, when specifying the credentials.
+replaced by actual `username` and `password`, when specifying the credentials. Below `auth`
+stanza can be used for both `Driver Config` and `Task Config`.
 
 ```hcl
-config {
-  auth {
-    username = "user"
-    password = "pass"
-  }
+auth {
+  username = "user"
+  password = "pass"
 }
 ```
 
