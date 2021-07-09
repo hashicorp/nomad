@@ -61,6 +61,10 @@ While it is possible to upgrade Nomad client nodes before servers, this guide
 recommends upgrading servers first as many new client features will not work
 until servers are upgraded.
 
+In a [federated cluster](https://learn.hashicorp.com/tutorials/nomad/federation),
+new features are not guaranteed to work until all agents in a region and the
+server nodes in the authoritative region are upgraded.
+
 Whether you are replacing Nomad in place on existing systems or bringing up new
 servers you should make changes incrementally, verifying cluster health at each
 step of the upgrade.
