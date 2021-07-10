@@ -321,8 +321,6 @@ func isIntrinsicNoReturn(fn *types.Func) bool {
 }
 
 func (a *Analyzer) GetFieldType(fieldName string, obj types.Object) types.Object {
-	objType := obj.Type()
-	a.Logger("obj is of type ", objType)
 	if s, ok := obj.Type().(*types.Named); ok {
 		if orig, ok := s.Underlying().(*types.Struct); ok {
 			for i := 0; i < orig.NumFields(); i++ {
@@ -360,7 +358,17 @@ func (a *Analyzer) IsSlice(obj types.Object) bool {
 	return ok
 }
 
-func (a *Analyzer) ToStructInstance(obj *types.Struct) (interface{}, error) {
+func (a *Analyzer) NewFromTypeObj(outObject types.Object) (interface{}, error) {
+	reflectType, err := a.ToReflectType(outObject.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	iface := reflect.New(reflectType).Elem().Addr().Interface()
+	return iface, nil
+}
+
+func (a *Analyzer) ToStruct(obj *types.Struct) (interface{}, error) {
 
 	fields := make([]reflect.StructField, 0)
 
@@ -372,12 +380,10 @@ func (a *Analyzer) ToStructInstance(obj *types.Struct) (interface{}, error) {
 		fields = append(fields, field)
 	}
 
-	n := reflect.New(reflect.StructOf(fields))
-	elem := reflect.New(reflect.StructOf(fields)).Elem()
-	a.Logger(elem)
-	addr := reflect.New(reflect.StructOf(fields)).Elem().Addr()
-	a.Logger(addr)
-	return n, nil
+	typ := reflect.StructOf(fields)
+	v := reflect.New(typ).Elem()
+
+	return v.Addr().Interface(), nil
 }
 
 func (a *Analyzer) ToStructField(varField *types.Var) (reflect.StructField, error) {
@@ -396,7 +402,6 @@ func (a *Analyzer) ToStructField(varField *types.Var) (reflect.StructField, erro
 }
 
 func (a *Analyzer) ToReflectType(t types.Type) (reflect.Type, error) {
-
 	if basic, ok := t.(*types.Basic); ok {
 		switch basic.Kind() {
 		case types.Bool, types.UntypedBool:
@@ -418,13 +423,13 @@ func (a *Analyzer) ToReflectType(t types.Type) (reflect.Type, error) {
 
 	switch typesType := t.(type) {
 	case *types.Named:
-		instance, err := a.ToReflectType(typesType.Underlying())
+		typ, err := a.ToReflectType(typesType.Underlying())
 		if err != nil {
 			return nil, err
 		}
-		return reflect.TypeOf(instance), nil
+		return typ, nil
 	case *types.Struct:
-		instance, err := a.ToStructInstance(typesType)
+		instance, err := a.ToStruct(typesType)
 		if err != nil {
 			return nil, err
 		}
@@ -445,15 +450,13 @@ func (a *Analyzer) ToReflectType(t types.Type) (reflect.Type, error) {
 		if err != nil {
 			return nil, err
 		}
-		slice := reflect.SliceOf(elemType)
-		return reflect.TypeOf(slice), nil
+		return reflect.SliceOf(elemType), nil
 	case *types.Array:
 		elem, err := a.ToReflectType(typesType.Elem())
 		if err != nil {
 			return nil, err
 		}
-		arrayType := reflect.ArrayOf(0, elem)
-		return reflect.TypeOf(arrayType), nil
+		return reflect.ArrayOf(0, elem), nil
 	case *types.Map:
 		keyType, err := a.ToReflectType(typesType.Key())
 		if err != nil {
@@ -463,8 +466,7 @@ func (a *Analyzer) ToReflectType(t types.Type) (reflect.Type, error) {
 		if err != nil {
 			return nil, err
 		}
-		mapType := reflect.MapOf(keyType, elemType)
-		return reflect.TypeOf(reflect.MakeMap(mapType)), nil
+		return reflect.MapOf(keyType, elemType), nil
 	case *types.Pointer:
 		return a.ToReflectType(typesType.Elem())
 	}

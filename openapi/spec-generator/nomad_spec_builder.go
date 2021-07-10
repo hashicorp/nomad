@@ -6,16 +6,7 @@ import (
 
 // NewNomadSpecBuilder is a factory method for the NomadSpecBuilder struct
 func NewNomadSpecBuilder(analyzer *Analyzer) *SpecBuilder {
-	builder := &SpecBuilder{
-		PathAdapters: []*SourceAdapter{
-			{
-				Parser: &PackageParser{
-					Analyzer: analyzer,
-				},
-				Adapt: nomadPathAdapterFunc,
-			},
-		},
-	}
+	builder := &SpecBuilder{}
 
 	ext := &NomadSpecBuilderExtImpl{
 		builder:  builder,

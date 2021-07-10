@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	openapi3 "github.com/getkin/kin-openapi/openapi3"
+	"github.com/ghodss/yaml"
 )
 
 // Spec wraps a kin-openapi document object model with a little bit of extra
@@ -13,15 +14,13 @@ type Spec struct {
 	Model             openapi3.T      // Document object model we are building
 }
 
-// AdapterFunc is an injectable behavior that is responsible for adapting the
-// results of a parsing operation to a kin-openapi document object model.
-type AdapterFunc func(*SpecBuilder) error
+func (s *Spec) ToYAML() (string, error) {
+	data, err := yaml.Marshal(s)
+	if err != nil {
+		return "", err
+	}
 
-// SourceAdapter allows the coupling of a PackageParser with a specific
-// Adapt function that knows how to process the results of that parsing operation.
-type SourceAdapter struct {
-	Parser *PackageParser
-	Adapt  AdapterFunc
+	return string(data), nil
 }
 
 // SpecBuilderExt allows the injection of implementation specific helper methods
@@ -33,14 +32,9 @@ type SpecBuilderExt interface {
 // SpecBuilder allows specifying different static analysis behaviors to that the
 // framework can target any extant API.
 type SpecBuilder struct {
-	spec *Spec
-	Ext  SpecBuilderExt // Allows injection of variable behavior per implementation.
-	// PathAdapters are used to parse and adapt all code related to path handling.
-	// They are represented as a slice since adapter logic may vary by package.
-	PathAdapters []*SourceAdapter
-	// ComponentAdapters are used to parse and adapt all code related to components.
-	// They are represented as a slice since adapter logic may vary by package.
-	ComponentAdapters []*SourceAdapter
+	spec    *Spec
+	Visitor PackageVisitor
+	Ext     SpecBuilderExt // Allows injection of variable behavior per implementation.
 }
 
 // Build runs a default implementation to build and OpenAPI spec. Derived types
@@ -85,7 +79,7 @@ func (b *SpecBuilder) Build() (*Spec, error) {
 // TODO: Might be useful for interface, but might not need this for Nomad
 func (b *SpecBuilder) BuildSecurity() error {
 	if b.spec.Model.Security == nil {
-		b.spec.Model.Security = openapi3.SecurityRequirements{}
+		b.spec.Model.Security = *openapi3.NewSecurityRequirements()
 	}
 	return nil
 }
@@ -111,28 +105,29 @@ func (b *SpecBuilder) BuildTags() error {
 // BuildComponents builds the Components field
 // TODO: Might be useful for interface, but might not need this for Nomad
 func (b *SpecBuilder) BuildComponents() error {
-	if err := b.processAdapters(b.ComponentAdapters, "BuildComponents"); err != nil {
-		return err
-	}
+	b.spec.Model.Components = openapi3.NewComponents()
+
+	b.spec.Model.Components.Schemas = b.Visitor.SchemaRefs()
+	b.spec.Model.Components.Parameters = b.Visitor.ParameterRefs()
+	b.spec.Model.Components.Headers = b.Visitor.HeaderRefs()
+	b.spec.Model.Components.RequestBodies = b.Visitor.RequestBodyRefs()
+	b.spec.Model.Components.Callbacks = b.Visitor.CallbackRefs()
+	b.spec.Model.Components.Responses = b.Visitor.ResponseRefs()
+	b.spec.Model.Components.SecuritySchemes = openapi3.SecuritySchemes{}
 
 	return nil
 }
 
 // BuildPaths builds the Paths field
 func (b *SpecBuilder) BuildPaths() error {
-	if err := b.processAdapters(b.PathAdapters, "BuildPaths"); err != nil {
-		return err
+	if b.spec.Model.Paths == nil {
+		b.spec.Model.Paths = openapi3.Paths{}
 	}
 
-	return nil
-}
+	for _, adapter := range b.Visitor.HandlerAdapters() {
+		pathItem := &openapi3.PathItem{}
 
-// Template method for parsing and adapting source code
-func (b *SpecBuilder) processAdapters(adapters []*SourceAdapter, caller string) error {
-	for _, adapter := range adapters {
-		if err := adapter.Adapt(b); err != nil {
-			return err
-		}
+		b.spec.Model.Paths[adapter.GetPath()] = pathItem
 	}
 
 	return nil

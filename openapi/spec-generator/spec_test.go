@@ -16,11 +16,6 @@ func TestNomadPathAdapterFunc(t *testing.T) {
 	nsb := NewNomadSpecBuilder(analyzer)
 	nsb.spec = &Spec{}
 
-	for _, adapter := range nsb.PathAdapters {
-		err := adapter.Parser.Parse()
-		req.NoError(err, "TestNomadPathAdapterFunc.nsb.PathAdapter.Parser.Parse")
-	}
-
 	for key, _ := range nsb.spec.Model.Paths {
 		t.Log(key)
 	}

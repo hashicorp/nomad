@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3gen"
 	"go/ast"
 	"go/parser"
@@ -36,7 +37,8 @@ func NewNomadPackageVisitor(analyzer *Analyzer, logger loggerFunc, options Debug
 }
 
 type NomadPackageVisitor struct {
-	HandlerAdapters map[string]*HandlerFuncAdapter
+	handlerAdapters map[string]*HandlerFuncAdapter
+	schemaRefs      map[string]*openapi3.SchemaRef
 	generator       *openapi3gen.Generator
 	analyzer        *Analyzer
 	activePackage   *packages.Package
@@ -45,18 +47,52 @@ type NomadPackageVisitor struct {
 	debugOptions    DebugOptions
 }
 
+func (v *NomadPackageVisitor) SchemaRefs() map[string]*openapi3.SchemaRef {
+	if v.schemaRefs == nil {
+		v.schemaRefs = make(map[string]*openapi3.SchemaRef)
+		for k, _ := range v.generator.SchemaRefs {
+			v.schemaRefs[k.Ref] = k
+		}
+	}
+	return v.schemaRefs
+}
+
+func (v *NomadPackageVisitor) ParameterRefs() map[string]*openapi3.ParameterRef {
+	return nil
+}
+
+func (v *NomadPackageVisitor) HeaderRefs() map[string]*openapi3.HeaderRef {
+	return nil
+}
+
+func (v *NomadPackageVisitor) RequestBodyRefs() map[string]*openapi3.RequestBodyRef {
+	return nil
+}
+
+func (v *NomadPackageVisitor) CallbackRefs() map[string]*openapi3.CallbackRef {
+	return nil
+}
+
+func (v *NomadPackageVisitor) ResponseRefs() map[string]*openapi3.ResponseRef {
+	return nil
+}
+
+func (v *NomadPackageVisitor) HandlerAdapters() map[string]*HandlerFuncAdapter {
+	return v.handlerAdapters
+}
+
 func (v *NomadPackageVisitor) Analyzer() *Analyzer {
 	return v.analyzer
 }
 
 func (v *NomadPackageVisitor) GetHandlerAdapters() map[string]*HandlerFuncAdapter {
-	return v.HandlerAdapters
+	return v.handlerAdapters
 }
 
 func (v *NomadPackageVisitor) VisitPackages() error {
 	// Load all handlers
-	if v.HandlerAdapters == nil {
-		v.HandlerAdapters = make(map[string]*HandlerFuncAdapter)
+	if v.handlerAdapters == nil {
+		v.handlerAdapters = make(map[string]*HandlerFuncAdapter)
 	}
 
 	for _, pkg := range v.analyzer.Packages {
@@ -97,11 +133,11 @@ func (v *NomadPackageVisitor) loadHandlers() error {
 			continue
 		}
 
-		if _, ok := v.HandlerAdapters[key]; ok {
+		if _, ok := v.handlerAdapters[key]; ok {
 			return fmt.Errorf("NomadVisitor.loadHandlers package %s already exists", key)
 		}
 
-		v.HandlerAdapters[key] = &HandlerFuncAdapter{
+		v.handlerAdapters[key] = &HandlerFuncAdapter{
 			Package:  v.activePackage,
 			Func:     handler,
 			logger:   v.logger,
@@ -115,7 +151,11 @@ func (v *NomadPackageVisitor) loadHandlers() error {
 func (v *NomadPackageVisitor) DebugPrint() {
 
 	// TODO: Add comprehensive debug switches
-	for key, fn := range v.HandlerAdapters {
+	for key, fn := range v.handlerAdapters {
+		// TODO: figure out why this is ever possible. Feels like a race condition.
+		if fn.FuncDecl == nil {
+			continue
+		}
 		src, err := fn.GetSource()
 		if err != nil {
 			continue
@@ -128,7 +168,7 @@ func (v *NomadPackageVisitor) DebugPrint() {
 				if retSchema == nil {
 					// v.logger(fmt.Sprintf("%s: Response Type: %s", key, "unknown"))
 				} else {
-					v.logger(fmt.Sprintf("%s: Response Type: %s", key, retSchema.Value.Type))
+					v.logger(fmt.Sprintf("%s: Response Type: %v", key, retSchema.Value))
 				}
 			}
 		}
@@ -151,11 +191,11 @@ func (v *NomadPackageVisitor) VisitFile(node ast.Node) bool {
 	case *ast.FuncDecl:
 		name := v.analyzer.FormatTypeName(v.activePackage.Name, t.Name.Name)
 		// If not a handler then don't add the func
-		if _, ok := v.HandlerAdapters[name]; !ok {
+		if _, ok := v.handlerAdapters[name]; !ok {
 			return true
 		}
 
-		adapter := v.HandlerAdapters[name]
+		adapter := v.handlerAdapters[name]
 		if t == nil {
 			panic("t is nil for " + name)
 		}

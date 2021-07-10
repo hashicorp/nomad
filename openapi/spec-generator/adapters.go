@@ -10,7 +10,6 @@ import (
 	"golang.org/x/tools/go/cfg"
 	"golang.org/x/tools/go/packages"
 	"net/http"
-	"reflect"
 	"strings"
 )
 
@@ -259,17 +258,16 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 
 	ast.Inspect(result, outVisitor)
 
-	instance, err := h.analyzer.ToReflectType(outObject.Type())
+	iface, err := h.analyzer.NewFromTypeObj(outObject)
 	if err != nil {
 		return nil, err
 	}
-
-	iface := reflect.New(instance).Elem().Addr().Interface()
 	schemaRef, referencedSchemaRefs, err := openapi3gen.NewSchemaRefForValue(iface, openapi3gen.UseAllExportedFields())
 	if err != nil {
 		return nil, err
 	}
 
+	h.analyzer.Logger(schemaRef)
 	h.analyzer.Logger(referencedSchemaRefs)
 	// h.analyzer.RegisterSchemaRefs(outObject, schemaRef, referencedSchemaRefs)
 
