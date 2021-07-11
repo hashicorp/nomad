@@ -43,7 +43,7 @@ module('Acceptance | servers list', function(hooks) {
     assert.equal(ServersList.servers.length, ServersList.pageSize, 'List is stopped at pageSize');
 
     ServersList.servers.forEach((server, index) => {
-      assert.equal(server.name, sortedAgents[index].member.Name, 'Servers are ordered');
+      assert.equal(server.name, sortedAgents[index].name, 'Servers are ordered');
     });
 
     assert.equal(document.title, 'Servers - Nomad');
@@ -57,7 +57,7 @@ module('Acceptance | servers list', function(hooks) {
 
     const agentRow = ServersList.servers.objectAt(0);
 
-    assert.equal(agentRow.name, agent.member.Name, 'Name');
+    assert.equal(agentRow.name, agent.name, 'Name');
     assert.equal(agentRow.status, agent.member.Status, 'Status');
     assert.equal(agentRow.leader, 'True', 'Leader?');
     assert.equal(agentRow.address, agent.member.Address, 'Address');
@@ -72,7 +72,7 @@ module('Acceptance | servers list', function(hooks) {
     await ServersList.visit();
     await ServersList.servers.objectAt(0).clickRow();
 
-    assert.equal(currentURL(), `/servers/${agent.member.Name}`, 'Now at the server detail page');
+    assert.equal(currentURL(), `/servers/${agent.name}`, 'Now at the server detail page');
   });
 
   test('when accessing servers is forbidden, show a message with a link to the tokens page', async function(assert) {

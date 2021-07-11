@@ -9,7 +9,7 @@ import formatHost from 'nomad-ui/utils/format-host';
 
 export function findLeader(schema) {
   const agent = schema.agents.first();
-  return formatHost(agent.member.Address, agent.member.Tags.port); // do we need to change this?
+  return formatHost(agent.member.Address, agent.member.Tags.port);
 }
 
 export function filesForPath(allocFiles, filterPath) {

@@ -15,7 +15,7 @@ module('Acceptance | server detail', function(hooks) {
   hooks.beforeEach(async function() {
     server.createList('agent', 3);
     agent = server.db.agents[0];
-    await ServerDetail.visit({ name: agent.member.Name });
+    await ServerDetail.visit({ name: agent.name });
   });
 
   test('it passes an accessibility audit', async function(assert) {
@@ -23,13 +23,12 @@ module('Acceptance | server detail', function(hooks) {
   });
 
   test('visiting /servers/:server_name', async function(assert) {
-    console.log('agent:  ', agent);
-    assert.equal(currentURL(), `/servers/${encodeURIComponent(agent.member.Name)}`);
-    assert.equal(document.title, `Server ${agent.member.Name} - Nomad`);
+    assert.equal(currentURL(), `/servers/${encodeURIComponent(agent.name)}`);
+    assert.equal(document.title, `Server ${agent.name} - Nomad`);
   });
 
   test('when the server is the leader, the title shows a leader badge', async function(assert) {
-    assert.ok(ServerDetail.title.includes(agent.member.Name));
+    assert.ok(ServerDetail.title.includes(agent.name));
     assert.ok(ServerDetail.hasLeaderBadge);
   });
 
@@ -55,7 +54,7 @@ module('Acceptance | server detail', function(hooks) {
   });
 
   test('when the server is not the leader, there is no leader badge', async function(assert) {
-    await ServerDetail.visit({ name: server.db.agents[1].member.Name });
+    await ServerDetail.visit({ name: server.db.agents[1].name });
     assert.notOk(ServerDetail.hasLeaderBadge);
   });
 

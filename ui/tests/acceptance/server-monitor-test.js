@@ -27,22 +27,22 @@ module('Acceptance | server monitor', function(hooks) {
   });
 
   test('it passes an accessibility audit', async function(assert) {
-    await ServerMonitor.visit({ name: agent.member.Name });
+    await ServerMonitor.visit({ name: agent.name });
     await a11yAudit(assert);
   });
 
   test('/servers/:id/monitor should have a breadcrumb trail linking back to servers', async function(assert) {
-    await ServerMonitor.visit({ name: agent.member.Name });
+    await ServerMonitor.visit({ name: agent.name });
 
     assert.equal(Layout.breadcrumbFor('servers.index').text, 'Servers');
-    assert.equal(Layout.breadcrumbFor('servers.server').text, agent.member.name);
+    assert.equal(Layout.breadcrumbFor('servers.server').text, agent.name);
 
     await Layout.breadcrumbFor('servers.index').visit();
     assert.equal(currentURL(), '/servers');
   });
 
   test('the monitor page immediately streams agent monitor output at the info level', async function(assert) {
-    await ServerMonitor.visit({ name: agent.member.Name });
+    await ServerMonitor.visit({ name: agent.name });
 
     const logRequest = server.pretender.handledRequests.find(req =>
       req.url.startsWith('/v1/agent/monitor')
@@ -53,16 +53,15 @@ module('Acceptance | server monitor', function(hooks) {
   });
 
   test('switching the log level persists the new log level as a query param', async function(assert) {
-    const name = agent.member.Name;
-    await ServerMonitor.visit({ name: agent.member.Name });
+    await ServerMonitor.visit({ name: agent.name });
     await ServerMonitor.selectLogLevel('Debug');
-    assert.equal(currentURL(), `/servers/${name}/monitor?level=debug`);
+    assert.equal(currentURL(), `/servers/${agent.name}/monitor?level=debug`);
   });
 
   test('when the current access token does not include the agent:read rule, a descriptive error message is shown', async function(assert) {
     window.localStorage.nomadTokenSecret = clientToken.secretId;
 
-    await ServerMonitor.visit({ name: agent.member.Name });
+    await ServerMonitor.visit({ name: agent.name });
     assert.notOk(ServerMonitor.logsArePresent);
     assert.ok(ServerMonitor.error.isShown);
     assert.equal(ServerMonitor.error.title, 'Not Authorized');
