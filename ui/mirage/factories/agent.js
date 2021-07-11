@@ -8,20 +8,41 @@ const AGENT_STATUSES = ['alive', 'leaving', 'left', 'failed'];
 
 export default Factory.extend({
   id: i => (i / 100 >= 1 ? `${UUIDS[i]}-${i}` : UUIDS[i]),
-  name: () => `nomad@${faker.random.boolean() ? faker.internet.ip() : faker.internet.ipv6()}`,
 
-  status: () => faker.helpers.randomize(AGENT_STATUSES),
-  serfPort: () => faker.random.number({ min: 4000, max: 4999 }),
+  name: () => generateName(),
 
-  address() {
-    return this.name.split('@')[1];
+  config: {
+    Version: {
+      Version: '1.1.0',
+      VersionMetadata: 'ent',
+      VersionPrerelease: 'dev',
+    },
   },
 
-  tags() {
-    const rpcPortCandidate = faker.random.number({ min: 4000, max: 4999 });
+  member() {
+    const serfPort = faker.random.number({ min: 4000, max: 4999 });
     return {
-      port: rpcPortCandidate === this.serfPort ? rpcPortCandidate + 1 : rpcPortCandidate,
-      dc: faker.helpers.randomize(DATACENTERS),
+      Name: this.name,
+      Port: serfPort,
+      Status: faker.helpers.randomize(AGENT_STATUSES),
+      Address: generateAddress(this.name),
+      Tags: generateTags(serfPort),
     };
   },
 });
+
+function generateName() {
+  return `nomad@${faker.random.boolean() ? faker.internet.ip() : faker.internet.ipv6()}`;
+}
+
+function generateAddress(name) {
+  return name.split('@')[1];
+}
+
+function generateTags(serfPort) {
+  const rpcPortCandidate = faker.random.number({ min: 4000, max: 4999 });
+  return {
+    port: rpcPortCandidate === serfPort ? rpcPortCandidate + 1 : rpcPortCandidate,
+    dc: faker.helpers.randomize(DATACENTERS),
+  };
+}

@@ -13,9 +13,9 @@ const minimumSetup = () => {
 };
 
 const agentSort = leader => (a, b) => {
-  if (formatHost(a.address, a.tags.port) === leader) {
+  if (formatHost(a.member.Address, a.member.Tags.port) === leader) {
     return 1;
-  } else if (formatHost(b.address, b.tags.port) === leader) {
+  } else if (formatHost(b.member.Address, b.member.Tags.port) === leader) {
     return -1;
   }
   return 0;
@@ -58,11 +58,11 @@ module('Acceptance | servers list', function(hooks) {
     const agentRow = ServersList.servers.objectAt(0);
 
     assert.equal(agentRow.name, agent.name, 'Name');
-    assert.equal(agentRow.status, agent.status, 'Status');
+    assert.equal(agentRow.status, agent.member.Status, 'Status');
     assert.equal(agentRow.leader, 'True', 'Leader?');
-    assert.equal(agentRow.address, agent.address, 'Address');
-    assert.equal(agentRow.serfPort, agent.serfPort, 'Serf Port');
-    assert.equal(agentRow.datacenter, agent.tags.dc, 'Datacenter');
+    assert.equal(agentRow.address, agent.member.Address, 'Address');
+    assert.equal(agentRow.serfPort, agent.member.Port, 'Serf Port');
+    assert.equal(agentRow.datacenter, agent.member.Tags.dc, 'Datacenter');
   });
 
   test('each server should link to the server detail page', async function(assert) {

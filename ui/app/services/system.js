@@ -39,7 +39,12 @@ export default class SystemService extends Service {
         .authorizedRawRequest(`/${namespace}/agent/self`)
         .then(jsonWithDefault({}))
         .then(agent => {
-          agent.version = agent.member?.Tags?.build || 'Unknown';
+          if (agent?.config?.Version) {
+            const { Version, VersionPrerelease, VersionMetadata } = agent.config.Version;
+            agent.version = Version;
+            if (VersionPrerelease) agent.version = `${agent.version}-${VersionPrerelease}`;
+            if (VersionMetadata) agent.version = `${agent.version}+${VersionMetadata}`;
+          }
           return agent;
         }),
     });
