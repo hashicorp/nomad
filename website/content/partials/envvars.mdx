@@ -11,10 +11,7 @@
         <code>NOMAD_ALLOC_DIR</code>
       </td>
       <td>
-        The path to the shared <code>alloc/</code> directory. See
-        <a href="/docs/runtime/environment#task-directories">
-          here for more
-        </a> information.
+        The path to the shared <code>alloc/</code> directory. See <a href="/docs/runtime/environment#task-directories">here</a> for more information.
       </td>
     </tr>
     <tr>
@@ -22,8 +19,7 @@
         <code>NOMAD_TASK_DIR</code>
       </td>
       <td>
-        The path to the task <code>local/</code> directory. See
-        <a href="/docs/runtime/environment#task-directories">here</a> for more information.
+        The path to the task <code>local/</code> directory. See <a href="/docs/runtime/environment#task-directories">here</a> for more information.
       </td>
     </tr>
     <tr>
@@ -31,8 +27,7 @@
         <code>NOMAD_SECRETS_DIR</code>
       </td>
       <td>
-        Path to the task's secrets directory. See
-        <a href="/docs/runtime/environment#task-directories">here</a> for more information.
+        Path to the task's secrets directory. See <a href="/docs/runtime/environment#task-directories">here</a> for more information.
       </td>
     </tr>
     <tr>
@@ -96,7 +91,7 @@
       </td>
       <td>
         Job's ID, which is equal to the Job name when submitted through
-        CLI but can be different when using the API
+        command-line tool but can be different when using the API
       </td>
     </tr>
     <tr>
@@ -135,11 +130,7 @@
       </td>
       <td>
         The metadata value given by <code>key</code> on the task's
-        metadata. Note that this is different from
-        <a href="/docs/runtime/interpolation#node-variables-">
-          <code>$&#123;meta.&lt;key&gt;&#125;</code>
-        </a>
-        which are keys in the node's metadata.
+        metadata. Note that this is different from <a href="/docs/runtime/interpolation#node-variables-"><code>$&#123;meta.&lt;key&gt;&#125;</code></a> which are keys in the node's metadata.
       </td>
     </tr>
     <tr>
@@ -147,9 +138,7 @@
         <code>VAULT_TOKEN</code>
       </td>
       <td>
-        The task's Vault token. See
-        <a href="/docs/vault-integration">Vault Integration</a>
-        for more details
+        The task's Vault token. See <a href="/docs/vault-integration">Vault Integration</a> for more details
       </td>
     </tr>
     <tr>
@@ -160,8 +149,7 @@
         <code>NOMAD_IP_&lt;label&gt;</code>
       </td>
       <td>
-        Host IP for the given port <code>label</code>. See
-        <a href="/docs/job-specification/network">here for more</a> information.
+        Host IP for the given port <code>label</code>. See <a href="/docs/job-specification/network">here</a> for more information.
       </td>
     </tr>
     <tr>
@@ -169,10 +157,7 @@
         <code>NOMAD_PORT_&lt;label&gt;</code>
       </td>
       <td>
-        Port for the given port <code>label</code>. Driver-specified port when a
-        port map is used, otherwise the host's static or dynamic port
-        allocation. Services should bind to this port. See
-        <a href="/docs/job-specification/network">here for more</a> information.
+        Port for the given port <code>label</code>. Driver-specified port when a port map is used, otherwise the host's static or dynamic port allocation. Services should bind to this port. See <a href="/docs/job-specification/network">here</a> for more information.
       </td>
     </tr>
     <tr>
@@ -188,9 +173,7 @@
         <code>NOMAD_HOST_PORT_&lt;label&gt;</code>
       </td>
       <td>
-        Port on the host for the port <code>label</code>. See
-        <a href="/docs/job-specification/network#mapped-ports">here</a> for more
-        information.
+        Port on the host for the port <code>label</code>. See <a href="/docs/job-specification/network#mapped-ports">here</a> for more information.
       </td>
     </tr>
     <tr>
@@ -236,8 +219,7 @@
         <code>NOMAD_UPSTREAM_IP_&lt;service&gt;</code>
       </td>
       <td>
-        IP for the given <code>service</code> when defined as a Consul Connect
-        <a href="/docs/job-specification/upstreams">upstream</a>.
+        IP for the given <code>service</code> when defined as a Consul service mesh <a href="/docs/job-specification/upstreams"> upstream</a>.
       </td>
     </tr>
     <tr>
@@ -245,8 +227,7 @@
         <code>NOMAD_UPSTREAM_PORT_&lt;service&gt;</code>
       </td>
       <td>
-        Port for the given <code>service</code> when defined as a Consul Connect
-        <a href="/docs/job-specification/upstreams">upstream</a>.
+        Port for the given <code>service</code> when defined as a Consul service mesh <a href="/docs/job-specification/upstreams"> upstream</a>.
       </td>
     </tr>
     <tr>
@@ -254,9 +235,7 @@
         <code>NOMAD_UPSTREAM_ADDR_&lt;service&gt;</code>
       </td>
       <td>
-        Host <code>IP:Port</code> for the given <code>service</code> when
-        defined as a Consul Connect
-        <a href="/docs/job-specification/upstreams">upstream</a>.
+        Host <code>IP:Port</code> for the given <code>service</code> when defined as a Consul service mesh <a href="/docs/job-specification/upstreams"> upstream</a>.
       </td>
     </tr>
     <tr>
@@ -266,7 +245,7 @@
       <td>
         Local address <code>localhost:Port</code> for the admin port of the
         envoy sidecar for the given <code>service</code> when defined as a
-        Consul Connect enabled service.
+        Consul service mesh enabled service.
       </td>
     </tr>
     <tr>
@@ -278,8 +257,8 @@
       </td>
       <td>
         Specifies the address to the local Consul agent. Will be automatically
-        set to a unix domain socket in bridge networking mode, or a tcp address in
-        host networking mode.
+        set to a UNIX domain socket in bridge networking mode, or a TCP address
+        in host networking mode.
       </td>
     </tr>
     <tr>
@@ -297,9 +276,9 @@
         <code>CONSUL_HTTP_SSL</code>
       </td>
       <td>
-        Specifies whether HTTPS should be used when communicating with consul. Will
-        be automatically set to true if Nomad is configured to communicate with
-        Consul using TLS.
+        Specifies whether HTTPS should be used when communicating with Consul.
+        Will be automatically set to true if Nomad is configured to communicate
+        with Consul using TLS.
       </td>
     </tr>
     <tr>

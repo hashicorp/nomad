@@ -6,14 +6,19 @@ description: Learn about the Nomad's interpolation and interpreted variables.
 
 # Variable Interpolation
 
-Nomad supports interpreting two classes of variables: node attributes and
-runtime environment variables. Node attributes are interpretable in constraints,
-task environment variables, and certain driver fields. Runtime environment
-variables are not interpretable in constraints because they are only defined
-once the scheduler has placed them on a particular node.
+Nomad supports interpreting two classes of variables: [node
+attributes](#interpreted_node_vars) and [runtime environment
+variables](#interpreted_env_vars). Node attributes are interpretable in
+constraints, task environment variables, and certain driver fields. Runtime
+environment variables are not interpretable in constraints because they are only
+defined once the scheduler has placed them on a particular node.
 
-The syntax for interpreting variables is `${variable}`. An example and a
-comprehensive list of interpretable fields can be seen below:
+## Syntax
+
+The syntax for interpreting variables in the Nomad job specification is
+`${variable_name}`. The [`template` stanza](/docs/job-specification/template)
+uses the `env` function to retrieve these variables from the environment, using
+`{{env "variable_name"}}` instead. Examples can be seen below:
 
 ```hcl
 task "docs" {
@@ -43,6 +48,17 @@ task "docs" {
     value     = "linux"
   }
 
+  template {
+    destination = "template.txt"
+    data = <<EOT
+{{- /*
+      Environment variables are available to templates via the env function,
+      rather than the ${...} syntax.
+*/ -}}
+Running on {{env "attr.unique.hostname"}}.
+EOT
+  }
+
   # Environment variables are interpreted and can contain both runtime and
   # node attributes. These environment variables are passed into the task.
   env {
@@ -57,7 +73,7 @@ task "docs" {
 }
 ```
 
-## Node Variables ((#interpreted_node_vars, #node-variables-))
+## Node Attributes ((#interpreted_node_vars, #node-variables-))
 
 Below is a full listing of node attributes that are interpretable. These
 attributes are interpreted by **both** constraints and within the task and
@@ -300,29 +316,17 @@ the task is running in. These are only defined once the task has been placed on
 a particular node and as such can not be used in constraints.
 
 Environment variables should be enclosed in brackets `${...}` for
-interpolation.
+interpolation or accessed using the `env` function inside of the template stanza—`{{env "..."}}`
 
 ### Dots in Variables ((#dots_in_vars))
 
-Starting in Nomad 0.9, task configuration interpolation requires variables to
-be valid identifiers. While this does not affect default variables or common
-custom variables, it is possible to define a variable that is not a valid
-identifier:
+Nomad interprets dots in names as object notation. So names that have multiple
+consecutive dots are invalid. For example, an environment variable named
+`invalid...name` cannot be interpolated using the standard `"${invalid...name}"`
+syntax.
 
-```hcl
-env {
-  "valid.name"     = "ok"
-  "invalid...name" = "not a valid identifier"
-}
-```
-
-The environment variable `invalid...name` cannot be interpolated using the
-standard `"${invalid...name}"` syntax. The dots will be interpreted as object
-notation so multiple consecutive dots are invalid.
-
-To continue supporting all user environment variables Nomad 0.9 added a new
-`env` variable which allows accessing any environment variable through index
-syntax:
+Nomad provides a variable—`env`—that can be used to access any environment
+variable regardless of name using index syntax. For example: 
 
 ```hcl
 task "redis" {
