@@ -123,13 +123,15 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			sidecarFor:     "s1",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulPlainConfig,
-			envoyAdminBind: "localhost:3333",
+			envoyAdminBind: "127.0.0.2:19000",
+			envoyReadyBind: "127.0.0.1:19100",
 		}
 		result := ebArgs.args()
 		require.Equal(t, []string{"connect", "envoy",
 			"-grpc-addr", "1.1.1.1",
 			"-http-addr", "2.2.2.2",
-			"-admin-bind", "localhost:3333",
+			"-admin-bind", "127.0.0.2:19000",
+			"-address", "127.0.0.1:19100",
 			"-bootstrap",
 			"-sidecar-for", "s1",
 		}, result)
@@ -141,14 +143,16 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			sidecarFor:     "s1",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulPlainConfig,
-			envoyAdminBind: "localhost:3333",
+			envoyAdminBind: "127.0.0.2:19000",
+			envoyReadyBind: "127.0.0.1:19100",
 			siToken:        token,
 		}
 		result := ebArgs.args()
 		require.Equal(t, []string{"connect", "envoy",
 			"-grpc-addr", "1.1.1.1",
 			"-http-addr", "2.2.2.2",
-			"-admin-bind", "localhost:3333",
+			"-admin-bind", "127.0.0.2:19000",
+			"-address", "127.0.0.1:19100",
 			"-bootstrap",
 			"-sidecar-for", "s1",
 			"-token", token,
@@ -160,13 +164,15 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			sidecarFor:     "s1",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulTLSConfig,
-			envoyAdminBind: "localhost:3333",
+			envoyAdminBind: "127.0.0.2:19000",
+			envoyReadyBind: "127.0.0.1:19100",
 		}
 		result := ebArgs.args()
 		require.Equal(t, []string{"connect", "envoy",
 			"-grpc-addr", "1.1.1.1",
 			"-http-addr", "2.2.2.2",
-			"-admin-bind", "localhost:3333",
+			"-admin-bind", "127.0.0.2:19000",
+			"-address", "127.0.0.1:19100",
 			"-bootstrap",
 			"-sidecar-for", "s1",
 			"-ca-file", "/etc/tls/ca-file",
@@ -179,7 +185,8 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 		ebArgs := envoyBootstrapArgs{
 			consulConfig:   consulPlainConfig,
 			grpcAddr:       "1.1.1.1",
-			envoyAdminBind: "localhost:3333",
+			envoyAdminBind: "127.0.0.2:19000",
+			envoyReadyBind: "127.0.0.1:19100",
 			gateway:        "my-ingress-gateway",
 			proxyID:        "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-ig-ig-8080",
 		}
@@ -187,7 +194,8 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 		require.Equal(t, []string{"connect", "envoy",
 			"-grpc-addr", "1.1.1.1",
 			"-http-addr", "2.2.2.2",
-			"-admin-bind", "localhost:3333",
+			"-admin-bind", "127.0.0.2:19000",
+			"-address", "127.0.0.1:19100",
 			"-bootstrap",
 			"-gateway", "my-ingress-gateway",
 			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-ig-ig-8080",
@@ -198,7 +206,8 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 		ebArgs := envoyBootstrapArgs{
 			consulConfig:   consulPlainConfig,
 			grpcAddr:       "1.1.1.1",
-			envoyAdminBind: "localhost:3333",
+			envoyAdminBind: "127.0.0.2:19000",
+			envoyReadyBind: "127.0.0.1:19100",
 			gateway:        "my-mesh-gateway",
 			proxyID:        "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-mesh-mesh-8080",
 		}
@@ -206,7 +215,8 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 		require.Equal(t, []string{"connect", "envoy",
 			"-grpc-addr", "1.1.1.1",
 			"-http-addr", "2.2.2.2",
-			"-admin-bind", "localhost:3333",
+			"-admin-bind", "127.0.0.2:19000",
+			"-address", "127.0.0.1:19100",
 			"-bootstrap",
 			"-gateway", "my-mesh-gateway",
 			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-mesh-mesh-8080",
@@ -453,7 +463,7 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	require.True(t, resp.Done)
 
 	require.NotNil(t, resp.Env)
-	require.Equal(t, "localhost:19001", resp.Env[envoyAdminBindEnvPrefix+"foo"])
+	require.Equal(t, "127.0.0.2:19001", resp.Env[envoyAdminBindEnvPrefix+"foo"])
 
 	// Ensure the default path matches
 	env := map[string]string{

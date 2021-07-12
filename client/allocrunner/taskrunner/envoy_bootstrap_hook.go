@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -92,8 +94,10 @@ func newEnvoyBootstrapHookConfig(alloc *structs.Allocation, consul *config.Consu
 }
 
 const (
-	envoyBaseAdminPort      = 19000
+	envoyBaseAdminPort      = 19000 // Consul default (bridge only)
+	envoyBaseReadyPort      = 19100 // Consul default (bridge only)
 	envoyAdminBindEnvPrefix = "NOMAD_ENVOY_ADMIN_ADDR_"
+	envoyReadyBindEnvPrefix = "NOMAD_ENVOY_READY_ADDR_"
 )
 
 const (
@@ -240,12 +244,17 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 
 	h.logger.Debug("bootstrapping Consul "+serviceKind, "task", req.Task.Name, "service", serviceName)
 
-	// Envoy runs an administrative API on the loopback interface. There is no
-	// way to turn this feature off.
+	// Envoy runs an administrative listener. There is no way to turn this feature off.
 	// https://github.com/envoyproxy/envoy/issues/1297
 	envoyAdminBind := buildEnvoyAdminBind(h.alloc, serviceName, req.Task.Name, req.TaskEnv)
+
+	// Consul configures a ready listener. There is no way to turn this feature off.
+	envoyReadyBind := buildEnvoyReadyBind(h.alloc, serviceName, req.Task.Name, req.TaskEnv)
+
+	// Set runtime environment variables for the envoy admin and ready listeners.
 	resp.Env = map[string]string{
 		helper.CleanEnvVar(envoyAdminBindEnvPrefix+serviceName, '_'): envoyAdminBind,
+		helper.CleanEnvVar(envoyReadyBindEnvPrefix+serviceName, '_'): envoyReadyBind,
 	}
 
 	// Envoy bootstrap configuration may contain a Consul token, so write
@@ -259,7 +268,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	}
 	h.logger.Debug("check for SI token for task", "task", req.Task.Name, "exists", siToken != "")
 
-	bootstrap := h.newEnvoyBootstrapArgs(h.alloc.TaskGroup, service, grpcAddr, envoyAdminBind, siToken, bootstrapFilePath)
+	bootstrap := h.newEnvoyBootstrapArgs(h.alloc.TaskGroup, service, grpcAddr, envoyAdminBind, envoyReadyBind, siToken, bootstrapFilePath)
 	bootstrapArgs := bootstrap.args()
 	bootstrapEnv := bootstrap.env(os.Environ())
 
@@ -331,37 +340,50 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	return nil
 }
 
-// buildEnvoyAdminBind determines a unique port for use by the envoy admin
-// listener.
+// buildEnvoyAdminBind determines a unique port for use by the envoy admin listener.
+//
+// This listener will be bound to 127.0.0.2.
+func buildEnvoyAdminBind(alloc *structs.Allocation, service, task string, env *taskenv.TaskEnv) string {
+	return buildEnvoyBind(alloc, "127.0.0.2", service, task, env, envoyBaseAdminPort)
+}
+
+// buildEnvoyAdminBind determines a unique port for use by the envoy ready listener.
+//
+// This listener will be bound to 127.0.0.1.
+func buildEnvoyReadyBind(alloc *structs.Allocation, service, task string, env *taskenv.TaskEnv) string {
+	return buildEnvoyBind(alloc, "127.0.0.1", service, task, env, envoyBaseReadyPort)
+}
+
+// buildEnvoyBind is used to determine a unique port for an envoy listener.
 //
 // In bridge mode, if multiple sidecars are running, the bind addresses need
-// to be unique within the namespace, so we simply start at 19000 and increment
+// to be unique within the namespace, so we simply start at basePort and increment
 // by the index of the task.
 //
 // In host mode, use the port provided through the service definition, which can
 // be a port chosen by Nomad.
-func buildEnvoyAdminBind(alloc *structs.Allocation, serviceName, taskName string, taskEnv *taskenv.TaskEnv) string {
+func buildEnvoyBind(alloc *structs.Allocation, ifce, service, task string, taskEnv *taskenv.TaskEnv, basePort int) string {
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	port := envoyBaseAdminPort
+	port := basePort
 	switch tg.Networks[0].Mode {
 	case "host":
 		interpolatedServices := taskenv.InterpolateServices(taskEnv, tg.Services)
-		for _, service := range interpolatedServices {
-			if service.Name == serviceName {
-				mapping := tg.Networks.Port(service.PortLabel)
+		for _, svc := range interpolatedServices {
+			if svc.Name == service {
+				mapping := tg.Networks.Port(svc.PortLabel)
 				port = mapping.Value
 				break
 			}
 		}
 	default:
-		for idx, task := range tg.Tasks {
-			if task.Name == taskName {
+		for idx, tgTask := range tg.Tasks {
+			if tgTask.Name == task {
 				port += idx
 				break
 			}
 		}
 	}
-	return fmt.Sprintf("localhost:%d", port)
+	return net.JoinHostPort(ifce, strconv.Itoa(port))
 }
 
 func (h *envoyBootstrapHook) writeConfig(filename, config string) error {
@@ -421,7 +443,7 @@ func (h *envoyBootstrapHook) proxyServiceID(group string, service *structs.Servi
 // https://www.consul.io/commands/connect/envoy#consul-connect-envoy
 func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
 	group string, service *structs.Service,
-	grpcAddr, envoyAdminBind, siToken, filepath string,
+	grpcAddr, envoyAdminBind, envoyReadyBind, siToken, filepath string,
 ) envoyBootstrapArgs {
 	var (
 		sidecarForID string // sidecar only
@@ -450,8 +472,8 @@ func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
 	h.logger.Info("bootstrapping envoy",
 		"sidecar_for", service.Name, "bootstrap_file", filepath,
 		"sidecar_for_id", sidecarForID, "grpc_addr", grpcAddr,
-		"admin_bind", envoyAdminBind, "gateway", gateway,
-		"proxy_id", proxyID, "namespace", namespace,
+		"admin_bind", envoyAdminBind, "ready_bind", envoyReadyBind,
+		"gateway", gateway, "proxy_id", proxyID, "namespace", namespace,
 	)
 
 	return envoyBootstrapArgs{
@@ -459,6 +481,7 @@ func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
 		sidecarFor:     sidecarForID,
 		grpcAddr:       grpcAddr,
 		envoyAdminBind: envoyAdminBind,
+		envoyReadyBind: envoyReadyBind,
 		siToken:        siToken,
 		gateway:        gateway,
 		proxyID:        proxyID,
@@ -474,6 +497,7 @@ type envoyBootstrapArgs struct {
 	sidecarFor     string // sidecars only
 	grpcAddr       string
 	envoyAdminBind string
+	envoyReadyBind string
 	siToken        string
 	gateway        string // gateways only
 	proxyID        string // gateways only
@@ -489,6 +513,7 @@ func (e envoyBootstrapArgs) args() []string {
 		"-grpc-addr", e.grpcAddr,
 		"-http-addr", e.consulConfig.HTTPAddr,
 		"-admin-bind", e.envoyAdminBind,
+		"-address", e.envoyReadyBind,
 		"-bootstrap",
 	}
 
