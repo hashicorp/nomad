@@ -17,6 +17,10 @@ type allocTuple struct {
 	Alloc     *structs.Allocation
 }
 
+func (at allocTuple) String() string {
+	return fmt.Sprintf("<%s:%s>", at.Name, at.TaskGroup.Name)
+}
+
 // materializeTaskGroups is used to materialize all the task groups
 // a job requires. This is used to do the count expansion.
 func materializeTaskGroups(job *structs.Job) map[string]*structs.TaskGroup {
@@ -655,8 +659,14 @@ func setStatus(logger log.Logger, planner Planner,
 
 // inplaceUpdate attempts to update allocations in-place where possible. It
 // returns the allocs that couldn't be done inplace and then those that could.
-func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
-	stack Stack, updates []allocTuple) (destructive, inplace []allocTuple) {
+func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job, stack Stack, updates []allocTuple) (destructive, inplace []allocTuple) {
+	fmt.Println("enter inplaceUpdate")
+	defer fmt.Println("exit inplaceUpdate")
+
+	fmt.Printf("iU job: %s\n", job.ID)
+	for _, up := range updates {
+		fmt.Printf("  update: %s\n", up)
+	}
 
 	// doInplace manipulates the updates map to make the current allocation
 	// an inplace update.
@@ -670,14 +680,17 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 	ws := memdb.NewWatchSet()
 	n := len(updates)
 	inplaceCount := 0
+
 	for i := 0; i < n; i++ {
 		// Get the update
 		update := updates[i]
+		fmt.Printf("iU update[%d], name: %s, group: %s\n", i, update.Name, update.TaskGroup.Name)
 
 		// Check if the task drivers or config has changed, requires
 		// a rolling upgrade since that cannot be done in-place.
 		existing := update.Alloc.Job
 		if tasksUpdated(job, existing, update.TaskGroup.Name) {
+			fmt.Println(" skip tasks updated")
 			continue
 		}
 
@@ -686,6 +699,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// the case that it is an in-place update to avoid both additional data
 		// in the plan and work for the clients.
 		if update.Alloc.TerminalStatus() {
+			fmt.Println(" skip terminal status")
 			doInplace(&i, &n, &inplaceCount)
 			continue
 		}
@@ -693,10 +707,12 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// Get the existing node
 		node, err := ctx.State().NodeByID(ws, update.Alloc.NodeID)
 		if err != nil {
+			fmt.Println(" skip failed to get node, err:", err)
 			ctx.Logger().Error("failed to get node", "node_id", update.Alloc.NodeID, "error", err)
 			continue
 		}
 		if node == nil {
+			fmt.Println(" skip node is nil")
 			continue
 		}
 
@@ -718,6 +734,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 
 		// Skip if we could not do an in-place update
 		if option == nil {
+			fmt.Println(" skip option is nil")
 			continue
 		}
 
@@ -762,13 +779,18 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		newAlloc.Metrics = ctx.Metrics()
 		ctx.Plan().AppendAlloc(newAlloc, nil)
 
+		fmt.Println(" did in place")
 		// Remove this allocation from the slice
 		doInplace(&i, &n, &inplaceCount)
 	}
 
 	if len(updates) > 0 {
+		fmt.Printf("make %d in-place updates\n", len(updates))
 		ctx.Logger().Debug("made in-place updates", "in-place", inplaceCount, "total_updates", len(updates))
+	} else {
+		fmt.Printf("made zero in-place updates\n")
 	}
+
 	return updates[:n], updates[n:]
 }
 
