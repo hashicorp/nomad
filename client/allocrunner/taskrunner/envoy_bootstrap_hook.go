@@ -381,7 +381,7 @@ func buildEnvoyBind(alloc *structs.Allocation, ifce, service, task string, taskE
 			}
 		}
 	}
-	return fmt.Sprintf("%s:%d", ifce, port)
+	return net.JoinHostPort(ifce, strconv.Itoa(port))
 }
 
 func (h *envoyBootstrapHook) writeConfig(filename, config string) error {
