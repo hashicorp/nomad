@@ -1,3 +1,4 @@
+/* eslint-disable ember-a11y-testing/a11y-audit-called */ // Tests for non-UI behaviour.
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
