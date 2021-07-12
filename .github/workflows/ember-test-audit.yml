@@ -10,7 +10,7 @@ defaults:
 
 # There’s currently no way to share steps between jobs so there’s a lot of duplication
 # for running the audit for the base and PR.
-  
+
 jobs:
   time-base:
     runs-on: ubuntu-latest
@@ -68,7 +68,6 @@ jobs:
           flakiness-output-path: flakiness-report.md
       - uses: marocchino/sticky-pull-request-comment@v2.0.0
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           path: audit-diff.md
       - name: Check for existence of flakiness report
         id: check_file
