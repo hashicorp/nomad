@@ -116,7 +116,7 @@ type HandlerFuncAdapter struct {
 
 func (h *HandlerFuncAdapter) GetPath() string {
 	// TODO: Resolve the path
-	return h.Name()
+	return "/" + h.Name()
 }
 
 // TODO: Find a way to make this injectable
@@ -299,7 +299,7 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 	//h.analyzer.Logger(string(j))
 
 	//schemaRef, err := h.schemaRefAdapter.GenerateSchemaRefs(iface, outTypeName)
-	schemaRef, err := h.schemaRefAdapter.GenerateWithoutSaving(nil, &outObject)
+	schemaRef, err := h.schemaRefAdapter.GetOrCreateSchemaRef(nil, &outObject)
 	if err != nil {
 		return nil, err
 	}
@@ -374,169 +374,7 @@ func NewSchemaRefAdapter(analyzer *Analyzer) *SchemaRefAdapter {
 	}
 }
 
-//func (s *SchemaRefAdapter) GenerateSchemaRef(t reflect.Object, typeName string) (*openapi3.SchemaRef, error) {
-//	//check generatorOpt consistency here
-//	return s.generateSchemaRefFor(nil, t, typeName)
-//}
-//
-//func (s *SchemaRefAdapter) generateSchemaRefFor(parents []*TypeInfo, t reflect.Object, typeName string) (*openapi3.SchemaRef, error) {
-//	if ref := s.SchemaRefs[typeName]; ref != nil {
-//		return ref, nil
-//	}
-//	ref, err := s.generateWithoutSaving(parents, t, typeName)
-//	if ref != nil {
-//		if _, ok := s.SchemaRefs[typeName]; !ok {
-//			s.SchemaRefs[typeName] = ref
-//		}
-//	}
-//	return ref, err
-//}
-//
-//func (s *SchemaRefAdapter) generateWithoutSaving(parents []*TypeInfo, t reflect.Object, typeName string) (*openapi3.SchemaRef, error) {
-//	for t.Kind() == reflect.Ptr {
-//		t = t.Elem()
-//	}
-//
-//	schema := &openapi3.Schema{}
-//
-//	switch t.Kind() {
-//	case reflect.Func, reflect.Chan:
-//		return nil, nil // ignore
-//	case reflect.Bool:
-//		schema.Object = "boolean"
-//	case reflect.Int:
-//		schema.Object = "integer"
-//	case reflect.Int8:
-//		schema.Object = "integer"
-//		schema.Min = &minInt8
-//		schema.Max = &maxInt8
-//	case reflect.Int16:
-//		schema.Object = "integer"
-//		schema.Min = &minInt16
-//		schema.Max = &maxInt16
-//	case reflect.Int32:
-//		schema.Object = "integer"
-//		schema.Format = "int32"
-//	case reflect.Int64:
-//		schema.Object = "integer"
-//		schema.Format = "int64"
-//	case reflect.Uint:
-//		schema.Object = "integer"
-//		schema.Min = &zeroInt
-//	case reflect.Uint8:
-//		schema.Object = "integer"
-//		schema.Min = &zeroInt
-//		schema.Max = &maxUint8
-//	case reflect.Uint16:
-//		schema.Object = "integer"
-//		schema.Min = &zeroInt
-//		schema.Max = &maxUint16
-//	case reflect.Uint32:
-//		schema.Object = "integer"
-//		schema.Min = &zeroInt
-//		schema.Max = &maxUint32
-//	case reflect.Uint64:
-//		schema.Object = "integer"
-//		schema.Min = &zeroInt
-//		schema.Max = &maxUint64
-//
-//	case reflect.Float32:
-//		schema.Object = "number"
-//		schema.Format = "float"
-//	case reflect.Float64:
-//		schema.Object = "number"
-//		schema.Format = "double"
-//
-//	case reflect.String:
-//		schema.Object = "string"
-//
-//	case reflect.Slice:
-//		if t.Elem().Kind() == reflect.Uint8 {
-//			if t == rawMessageType {
-//				return &openapi3.SchemaRef{Value: schema}, nil
-//			}
-//			schema.Object = "string"
-//			schema.Format = "byte"
-//		} else {
-//			schema.Object = "array"
-//			items, err := s.generateSchemaRefFor(parents, t.Elem(), typeName)
-//			if err != nil {
-//				return nil, err
-//			}
-//			if items != nil {
-//				if _, ok := s.SchemaRefs[typeName]; !ok {
-//					s.SchemaRefs[typeName] = items
-//				}
-//				schema.Items = items
-//			}
-//			typeName = typeName + "Array"
-//		}
-//
-//	case reflect.Map:
-//		schema.Object = "object"
-//		additionalProperties, err := s.generateSchemaRefFor(parents, t.Elem(), typeName)
-//		if err != nil {
-//			return nil, err
-//		}
-//		if additionalProperties != nil {
-//			if _, ok := s.SchemaRefs[typeName]; !ok {
-//				s.SchemaRefs[typeName] = additionalProperties
-//			}
-//			schema.AdditionalProperties = additionalProperties
-//		}
-//
-//		typeName = typeName + "Map"
-//	case reflect.Struct:
-//		if t == timeType {
-//			schema.Object = "string"
-//			schema.Format = "date-time"
-//		} else {
-//			typeInfo := s.GetTypeInfo(t, typeName)
-//			for _, parent := range parents {
-//				if parent == typeInfo {
-//					return nil, &openapi3gen.CycleError{}
-//				}
-//			}
-//
-//			if cap(parents) == 0 {
-//				parents = make([]*TypeInfo, 0, 4)
-//			}
-//			parents = append(parents, typeInfo)
-//
-//			for _, fieldInfo := range typeInfo.Fields {
-//				var ref *openapi3.SchemaRef
-//				var err error
-//				if len(fieldInfo.Object.Name()) < 1 {
-//					// TODO: resolve type for embedded anonymous struct
-//					//ref, err = s.generateSchemaRefFor(parents, fieldInfo.Object, s.analyzer.GetTypeNameForField(typeName, fieldInfo.JSONName))
-//				} else {
-//					ref, err = s.generateSchemaRefFor(parents, fieldInfo.Object, fieldInfo.Object.Name())
-//				}
-//				if err != nil {
-//					return nil, err
-//				}
-//				if ref != nil {
-//					// @@@@ Debug
-//					fieldTypeName := fieldInfo.Object.Name()
-//					fmt.Println(fieldTypeName)
-//					if _, ok := s.SchemaRefs[fieldInfo.Object.Name()]; !ok {
-//						s.SchemaRefs[fieldInfo.Object.Name()] = ref
-//					}
-//					schema.WithPropertyRef(fieldInfo.JSONName, ref)
-//				}
-//			}
-//
-//			// Object only if it has properties
-//			if schema.Properties != nil {
-//				schema.Object = "object"
-//			}
-//		}
-//	}
-//
-//	return openapi3.NewSchemaRef(typeName, schema), nil
-//}
-
-func (s *SchemaRefAdapter) GenerateWithoutSaving(parents []*types.Object, objPtr *types.Object) (*openapi3.SchemaRef, error) {
+func (s *SchemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr *types.Object) (*openapi3.SchemaRef, error) {
 	obj := *objPtr
 	if t, ok := obj.Type().(*types.Pointer); ok {
 		obj = s.analyzer.GetPointerElem(t)
@@ -605,7 +443,7 @@ func (s *SchemaRefAdapter) GenerateWithoutSaving(parents []*types.Object, objPtr
 			} else {
 				schema.Type = "array"
 				elemObj := s.analyzer.GetSliceElemObj(obj)
-				items, err := s.GenerateWithoutSaving(parents, &elemObj)
+				items, err := s.GetOrCreateSchemaRef(parents, &elemObj)
 				if err != nil {
 					return nil, err
 				}
@@ -622,9 +460,9 @@ func (s *SchemaRefAdapter) GenerateWithoutSaving(parents []*types.Object, objPtr
 			schema.Type = "object"
 			var elemObj types.Object
 			if elemObj, ok = objType.Elem().(types.Object); !ok {
-				panic(fmt.Sprintf("SchemaRefAdapter.GenerateWithoutSaving: invalid map type %#v", objType))
+				panic(fmt.Sprintf("SchemaRefAdapter.GetOrCreateSchemaRef: invalid map type %#v", objType))
 			}
-			additionalProperties, err := s.GenerateWithoutSaving(parents, &elemObj)
+			additionalProperties, err := s.GetOrCreateSchemaRef(parents, &elemObj)
 			if err != nil {
 				return nil, err
 			}
@@ -636,51 +474,85 @@ func (s *SchemaRefAdapter) GenerateWithoutSaving(parents []*types.Object, objPtr
 			}
 
 			typeName = elemObj.Name() + "Map"
+		case *types.Named:
+			typeName = objType.Obj().Name()
+			switch underlyingType := objType.Underlying().(type) {
+			case *types.Struct:
+				err := s.adaptStruct(parents, objPtr, schema, underlyingType)
+				if err != nil {
+					return nil, err
+				}
+			default:
+				panic("SchemaRefAdapter.GetOrCreateSchemaRef failed to handle types.Named")
+			}
 		case *types.Struct:
-			if obj.(types.Object).Name() == "Time" {
-				schema.Type = "string"
-				schema.Format = "date-time"
-			} else {
-				objPtr = s.GetTypesObject(objPtr)
-				for _, parent := range parents {
-					if parent == objPtr {
-						return nil, &openapi3gen.CycleError{}
-					}
-				}
-				if cap(parents) == 0 {
-					parents = make([]*types.Object, 0, 4)
-				}
-				parents = append(parents, objPtr)
-
-				for i := 0; i < objType.NumFields(); i++ {
-					field := objType.Field(i)
-					var ref *openapi3.SchemaRef
-					var err error
-					fieldTypeName := "unknown"
-					switch fieldObj := field.Type().(type) {
-					case types.Object:
-						ref, err = s.GenerateWithoutSaving(parents, &fieldObj)
-						if err != nil {
-							return nil, err
-						}
-					}
-					if ref != nil {
-						if _, ok = s.SchemaRefs[fieldTypeName]; !ok {
-							s.SchemaRefs[fieldTypeName] = ref
-						}
-						schema.WithPropertyRef(field.Name(), ref)
-					}
-				}
-
-				// Object only if it has properties
-				if schema.Properties != nil {
-					schema.Type = "object"
-				}
+			typeName = obj.(types.Object).Name()
+			err := s.adaptStruct(parents, objPtr, schema, objType)
+			if err != nil {
+				return nil, err
 			}
 		}
 	}
 
-	return openapi3.NewSchemaRef(typeName, schema), nil
+	if existing, ok := s.SchemaRefs[typeName]; ok {
+		return existing, nil
+	}
+
+	ref := openapi3.NewSchemaRef(typeName, schema)
+	s.SchemaRefs[typeName] = ref
+	return ref, nil
+}
+
+func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Object, schema *openapi3.Schema, objType *types.Struct) error {
+	obj := *objPtr
+	if obj.Name() == "Time" {
+		schema.Type = "string"
+		schema.Format = "date-time"
+		return nil
+	}
+
+	// Check for circular reference
+	objPtr = s.GetTypesObject(objPtr)
+	for _, parent := range parents {
+		if parent == objPtr {
+			return &openapi3gen.CycleError{}
+		}
+	}
+	if cap(parents) == 0 {
+		parents = make([]*types.Object, 0, 4)
+	}
+	parents = append(parents, objPtr)
+
+	for i := 0; i < objType.NumFields(); i++ {
+		field := objType.Field(i)
+		fieldTypeName := "unknown"
+		var ref *openapi3.SchemaRef
+		var err error
+		switch fieldObj := field.Type().(type) {
+		case types.Object:
+			fieldTypeName = fieldObj.Name()
+			ref, err = s.GetOrCreateSchemaRef(parents, &fieldObj)
+			if err != nil {
+				return err
+			}
+		}
+		if ref != nil {
+			if fieldTypeName == "unknown" {
+				panic(fmt.Sprintf("SchemaRefAdapter.adaptStruct failed to resolve fieldTypeName for %#v", field))
+			}
+			if _, ok := s.SchemaRefs[fieldTypeName]; !ok {
+				s.SchemaRefs[fieldTypeName] = ref
+			}
+			schema.WithPropertyRef(field.Name(), ref)
+		}
+	}
+
+	// Object only if it has properties
+	if schema.Properties != nil {
+		schema.Type = "object"
+	}
+
+	return nil
 }
 
 // GetTypesObject ensures one and only one instance of a typesObject is used during processing.
@@ -708,28 +580,6 @@ func (s *SchemaRefAdapter) GetTypesObject(objPtr *types.Object) *types.Object {
 
 	return objPtr
 }
-
-// TypeInfo contains information about JSON serialization of a type
-//type TypeInfo struct {
-//	Name   string
-//	Object   types.Object
-//	Fields []types.Object
-//}
-
-//type sortableFieldInfos []jsoninfo.FieldInfo
-//
-//func (list sortableFieldInfos) Len() int {
-//	return len(list)
-//}
-//
-//func (list sortableFieldInfos) Less(i, j int) bool {
-//	return list[i].JSONName < list[j].JSONName
-//}
-//
-//func (list sortableFieldInfos) Swap(i, j int) {
-//	a, b := list[i], list[j]
-//	list[i], list[j] = b, a
-//}
 
 var (
 	zeroInt   = float64(0)

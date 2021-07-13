@@ -339,8 +339,6 @@ func (a *Analyzer) GetFieldType(fieldName string, obj types.Object) types.Object
 
 func (a *Analyzer) GetPointerElem(t *types.Pointer) types.Object {
 	var obj types.Object
-	elem := t.Elem()
-	a.Logger(fmt.Sprintf("%#v", elem))
 
 	switch objType := t.Elem().(type) {
 	case types.Object:

@@ -145,7 +145,6 @@ func (v *NomadPackageVisitor) loadHandlers() error {
 }
 
 func (v *NomadPackageVisitor) DebugPrint() {
-
 	// TODO: Add comprehensive debug switches
 	for key, fn := range v.handlerAdapters {
 		// TODO: figure out why this is ever possible. Feels like a race condition.
@@ -157,15 +156,9 @@ func (v *NomadPackageVisitor) DebugPrint() {
 			continue
 		}
 		if v.debugOptions.printHandlers {
+			v.logger(fmt.Sprintf("%s: %#v", key, v))
 			if v.debugOptions.printSource {
-				v.logger(fmt.Sprintf("%s: Response Type: %s\n - Params/Source: %s", key, fn.GetPath(), src))
-			} else {
-				retSchema, _ := fn.GetReturnSchema()
-				if retSchema == nil {
-					// v.logger(fmt.Sprintf("%s: Response Type: %s", key, "unknown"))
-				} else {
-					v.logger(fmt.Sprintf("%s: Response Type: %#v", key, retSchema.Value))
-				}
+				v.logger(fmt.Sprintf("%s: Path: %s\nSource: %s", key, fn.GetPath(), src))
 			}
 		}
 	}

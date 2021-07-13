@@ -14,7 +14,7 @@ type Spec struct {
 }
 
 func (s *Spec) ToYAML() (string, error) {
-	data, err := yaml.Marshal(s)
+	data, err := yaml.Marshal(s.Model)
 	if err != nil {
 		return "", err
 	}
@@ -48,6 +48,10 @@ func (b *SpecBuilder) Build() (*Spec, error) {
 		},
 	}
 
+	if err := b.BuildInfo(); err != nil {
+		return nil, err
+	}
+
 	if err := b.BuildSecurity(); err != nil {
 		return nil, err
 	}
@@ -73,6 +77,24 @@ func (b *SpecBuilder) Build() (*Spec, error) {
 	}
 
 	return b.spec, nil
+}
+
+// BuildInfo builds the Info field
+func (b *SpecBuilder) BuildInfo() error {
+	if b.spec.Model.Info == nil {
+		b.spec.Model.Info = &openapi3.Info{
+			Version: "1.1.0", // TODO: Schlep this dynamically from VersionInfo
+			Title:   "Nomad",
+			Contact: &openapi3.Contact{
+				Email: "support@hashicorp.com",
+			},
+			License: &openapi3.License{
+				Name: "MPL 2",
+				URL:  "https://github.com/hashicorp/nomad/blob/main/LICENSE",
+			},
+		}
+	}
+	return nil
 }
 
 // BuildSecurity builds the Security field
