@@ -182,6 +182,21 @@ export default function() {
     return okEmpty();
   });
 
+  this.post('/job/:id/dispatch', function(schema, { params }) {
+    // Create the child job
+    const parent = schema.jobs.find(params.id);
+
+    // Use the server instead of the schema to leverage the job factory
+    server.create('job', 'parameterizedChild', {
+      parentId: parent.id,
+      namespaceId: parent.namespaceId,
+      namespace: parent.namespace,
+      createAllocations: parent.createAllocations,
+    });
+
+    return okEmpty();
+  });
+
   this.post('/job/:id/revert', function({ jobs }, { requestBody }) {
     const { JobID, JobVersion } = JSON.parse(requestBody);
     const job = jobs.find(JobID);
@@ -579,7 +594,10 @@ export default function() {
     });
   });
 
-  this.post('/search/fuzzy', function( { allocations, jobs, nodes, taskGroups, csiPlugins }, { requestBody }) {
+  this.post('/search/fuzzy', function(
+    { allocations, jobs, nodes, taskGroups, csiPlugins },
+    { requestBody }
+  ) {
     const { Text } = JSON.parse(requestBody);
 
     const matchedAllocs = allocations.where(allocation => allocation.name.includes(Text));
@@ -590,33 +608,22 @@ export default function() {
 
     const transformedAllocs = matchedAllocs.models.map(alloc => ({
       ID: alloc.name,
-      Scope: [
-        (alloc.namespace || {}).id,
-        alloc.id,
-      ],
+      Scope: [(alloc.namespace || {}).id, alloc.id],
     }));
 
     const transformedGroups = matchedGroups.models.map(group => ({
       ID: group.name,
-      Scope: [
-        group.job.namespace,
-        group.job.id,
-      ],
+      Scope: [group.job.namespace, group.job.id],
     }));
 
     const transformedJobs = matchedJobs.models.map(job => ({
       ID: job.name,
-      Scope: [
-        job.namespace,
-        job.id,
-      ]
+      Scope: [job.namespace, job.id],
     }));
 
     const transformedNodes = matchedNodes.models.map(node => ({
       ID: node.name,
-      Scope: [
-        node.id,
-      ],
+      Scope: [node.id],
     }));
 
     const transformedPlugins = matchedPlugins.models.map(plugin => ({
@@ -644,7 +651,7 @@ export default function() {
         nodes: truncatedNodes.length < transformedNodes.length,
         plugins: truncatedPlugins.length < transformedPlugins.length,
       },
-    }
+    };
   });
 
   this.get('/recommendations', function(

@@ -63,7 +63,7 @@ export default class JobDispatch extends Component {
 
   @action
   updateParamValue(name, input) {
-    this.paramValues[name] = input.originalTarget.value;
+    this.paramValues[name] = input.target.value;
   }
 
   @task(function*() {

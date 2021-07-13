@@ -63,9 +63,9 @@ export default Factory.extend({
   parameterized: trait({
     type: 'batch',
     parameterized: true,
-    // parameterized details object
+    // parameterized job object
     // serializer update for bool vs details object
-    parameterizedDetails: () => ({
+    parameterizedJob: () => ({
       MetaOptional: null,
       MetaRequired: null,
       Payload: faker.random.boolean() ? 'required' : null,
