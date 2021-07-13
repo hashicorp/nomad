@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -230,6 +232,60 @@ func TestDebug_SingleServer(t *testing.T) {
 		{
 			name:         "address=api, server-id=all",
 			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Servers: (1/1)",
+				"Clients: (0/0)",
+				"Created debug archive",
+			},
+			expectedError: "",
+		},
+	}
+
+	runTestCases(t, cases)
+}
+
+func TestDebug_DefaultTargets(t *testing.T) {
+	// targetDefaults should be the same as all targets except autopilot/license
+
+	t1 := targetDefaults()
+	t2 := getSupportedTargets()
+	t2["autopilot"] = false
+	t2["license"] = false
+
+	optsIgnore := cmpopts.IgnoreMapEntries(func(k string, v bool) bool {
+		// Ignore disabled targets
+		if v == false {
+			return true
+		}
+		return false
+	})
+
+	diff := cmp.Diff(t1, t2, optsIgnore)
+	require.Empty(t, diff)
+}
+
+func TestDebug_Targets(t *testing.T) {
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	var cases = testCases{
+		{
+			name:         "enable targets",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-targets", "agentself"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Servers: (1/1)",
+				"Clients: (0/0)",
+				"Created debug archive",
+				"Targets: agentself",
+			},
+			expectedError: "",
+		},
+		{
+			name:         "disable targets",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-targets", "-agentself"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Servers: (1/1)",
