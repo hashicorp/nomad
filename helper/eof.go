@@ -1,4 +1,5 @@
-package lib
+// These functions are coming from consul/lib/eof.go
+package helper
 
 import (
 	"io"

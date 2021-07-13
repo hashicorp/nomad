@@ -365,10 +365,7 @@ github.com/grpc-ecosystem/go-grpc-middleware/util/metautils
 # github.com/hashicorp/consul v1.7.8
 ## explicit
 github.com/hashicorp/consul/agent/consul/autopilot
-github.com/hashicorp/consul/ipaddr
-github.com/hashicorp/consul/lib
 github.com/hashicorp/consul/logging
-github.com/hashicorp/consul/version
 # github.com/hashicorp/consul-template v0.25.1
 ## explicit
 github.com/hashicorp/consul-template/child

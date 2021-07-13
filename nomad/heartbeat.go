@@ -9,7 +9,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 
-	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -101,8 +101,8 @@ func (h *nodeHeartbeater) resetHeartbeatTimer(id string) (time.Duration, error) 
 
 	// Compute the target TTL value
 	n := len(h.heartbeatTimers)
-	ttl := lib.RateScaledInterval(h.config.MaxHeartbeatsPerSecond, h.config.MinHeartbeatTTL, n)
-	ttl += lib.RandomStagger(ttl)
+	ttl := helper.RateScaledInterval(h.config.MaxHeartbeatsPerSecond, h.config.MinHeartbeatTTL, n)
+	ttl += helper.RandomStagger(ttl)
 
 	// Reset the TTL
 	h.resetHeartbeatTimerLocked(id, ttl+h.config.HeartbeatGrace)

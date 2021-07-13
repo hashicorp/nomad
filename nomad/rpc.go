@@ -20,8 +20,8 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 
-	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -559,8 +559,9 @@ CHECK_LEADER:
 	if firstCheck.IsZero() {
 		firstCheck = time.Now()
 	}
+
 	if time.Since(firstCheck) < r.config.RPCHoldTimeout {
-		jitter := lib.RandomStagger(r.config.RPCHoldTimeout / structs.JitterFraction)
+		jitter := helper.RandomStagger(r.config.RPCHoldTimeout / structs.JitterFraction)
 		select {
 		case <-time.After(jitter):
 			goto CHECK_LEADER
@@ -783,7 +784,7 @@ func (r *rpcHandler) blockingRPC(opts *blockingOptions) error {
 	opts.queryOpts.MaxQueryTime = opts.queryOpts.TimeToBlock()
 
 	// Apply a small amount of jitter to the request
-	opts.queryOpts.MaxQueryTime += lib.RandomStagger(opts.queryOpts.MaxQueryTime / structs.JitterFraction)
+	opts.queryOpts.MaxQueryTime += helper.RandomStagger(opts.queryOpts.MaxQueryTime / structs.JitterFraction)
 
 	// Setup a query timeout
 	ctx, cancel = context.WithTimeout(context.Background(), opts.queryOpts.MaxQueryTime)

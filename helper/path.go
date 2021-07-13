@@ -1,4 +1,5 @@
-package lib
+// These functions are coming from consul/lib/path.go
+package helper
 
 import (
 	"os"
