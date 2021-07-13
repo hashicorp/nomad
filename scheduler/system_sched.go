@@ -112,7 +112,9 @@ func (s *SystemScheduler) process() (bool, error) {
 	}
 
 	// Create a plan
+	fmt.Println("ss.process before MakePlan, s.job.ID:", s.job.ID, "s.Job.jmidx:", s.job.JobModifyIndex)
 	s.plan = s.eval.MakePlan(s.job)
+	fmt.Println("ss.process, after MakePlan, s.plan.Job.ID:", s.plan.Job.ID, "s.plan.Job.jmidx:", s.plan.Job.JobModifyIndex)
 
 	// Reset the failed allocations
 	s.failedTGAllocs = nil

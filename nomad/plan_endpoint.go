@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"fmt"
 	"time"
 
 	metrics "github.com/armon/go-metrics"
@@ -28,6 +29,9 @@ func (p *Plan) Submit(args *structs.PlanRequest, reply *structs.PlanResponse) er
 	plan := args.Plan
 	id := plan.EvalID
 	token := plan.EvalToken
+
+	fmt.Println("Plan.Submit enqueue plan.job.id:", plan.Job.ID, "plan.job.jmidx:", plan.Job.JobModifyIndex, "plan.job.midx:", plan.Job.ModifyIndex, "plan.eval.id:", id)
+
 	if err := p.srv.evalBroker.PauseNackTimeout(id, token); err != nil {
 		return err
 	}
@@ -43,6 +47,14 @@ func (p *Plan) Submit(args *structs.PlanRequest, reply *structs.PlanResponse) er
 	result, err := future.Wait()
 	if err != nil {
 		return err
+	}
+
+	fmt.Println("Plan.Submit result", "refresh:", result.RefreshIndex, result.NodeUpdate)
+	for node, allocs := range result.NodeUpdate {
+		fmt.Println(" -> node:", node)
+		for _, alloc := range allocs {
+			fmt.Println(" --> alloc:", alloc.ID)
+		}
 	}
 
 	// Package the result

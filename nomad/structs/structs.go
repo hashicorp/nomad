@@ -10760,6 +10760,20 @@ type PlanResult struct {
 	AllocIndex uint64
 }
 
+func (p *PlanResult) Dump() {
+	fmt.Println("PlanResult AllocIndex:", p.AllocIndex, "RefreshIndex:", p.RefreshIndex)
+	for node, allocs := range p.NodeUpdate {
+		for _, alloc := range allocs {
+			fmt.Println(" node-update:", node, "alloc:", alloc.Name)
+		}
+	}
+	for node, allocs := range p.NodeAllocation {
+		for _, alloc := range allocs {
+			fmt.Println(" node-allocation:", node, "alloc:", alloc.Name)
+		}
+	}
+}
+
 // IsNoOp checks if this plan result would do nothing
 func (p *PlanResult) IsNoOp() bool {
 	return len(p.NodeUpdate) == 0 && len(p.NodeAllocation) == 0 &&

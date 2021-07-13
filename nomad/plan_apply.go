@@ -100,13 +100,17 @@ func (p *planner) planApply() {
 			return
 		}
 
+		fmt.Println("planner.planApply, dequeue pending jmidx:", pending.plan.Job.JobModifyIndex)
+
 		// If last plan has completed get a new snapshot
 		select {
 		case idx := <-planIndexCh:
+			fmt.Println("planner.planApply previous plan committed, ensure future snapshots include this plan")
 			// Previous plan committed. Discard snapshot and ensure
 			// future snapshots include this plan. idx may be 0 if
 			// plan failed to apply, so use max(prev, idx)
 			prevPlanResultIndex = max(prevPlanResultIndex, idx)
+			fmt.Println("planner.planApply setting prevPlanResultIndex:", prevPlanResultIndex)
 			planIndexCh = nil
 			snap = nil
 		default:
@@ -117,8 +121,12 @@ func (p *planner) planApply() {
 			// result's index and the current plan's snapshot it,
 			// discard it and get a new one below.
 			minIndex := max(prevPlanResultIndex, pending.plan.SnapshotIndex)
+			fmt.Println("planner.planApply snap != nil, minIndex:", minIndex)
 			if idx, err := snap.LatestIndex(); err != nil || idx < minIndex {
 				snap = nil
+				fmt.Println("planner.planApply setting snap = nil")
+			} else {
+				fmt.Println("planner.planApply not setting snap to nil")
 			}
 		}
 
@@ -129,6 +137,7 @@ func (p *planner) planApply() {
 		//  - snap will be nil if its index < max(prevIndex, curIndex)
 		if planIndexCh == nil || snap == nil {
 			snap, err = p.snapshotMinIndex(prevPlanResultIndex, pending.plan.SnapshotIndex)
+			fmt.Println("planner.planApply got snapshot @ prevPlanResultIndex:", prevPlanResultIndex, "pending.plan.SnapshotIndex:", pending.plan.SnapshotIndex)
 			if err != nil {
 				p.logger.Error("failed to snapshot state", "error", err)
 				pending.respond(nil, err)
@@ -136,6 +145,7 @@ func (p *planner) planApply() {
 			}
 		}
 
+		fmt.Println("planner.Apply will now evaluate the plan")
 		// Evaluate the plan
 		result, err := evaluatePlan(pool, snap, pending.plan, p.logger)
 		if err != nil {
@@ -144,11 +154,16 @@ func (p *planner) planApply() {
 			continue
 		}
 
+		fmt.Println("planner.Apply got plan result...")
+		result.Dump()
+
 		// Fast-path the response if there is nothing to do
 		if result.IsNoOp() {
+			fmt.Println("planner.Apply plan is no-op, nothing to do")
 			pending.respond(result, nil)
 			continue
 		}
+		fmt.Println("planner.Apply plan is NOT no-op!")
 
 		// Ensure any parallel apply is complete before starting the next one.
 		// This also limits how out of date our snapshot can be.
@@ -170,6 +185,8 @@ func (p *planner) planApply() {
 			pending.respond(nil, err)
 			continue
 		}
+
+		fmt.Println("planner.Apply applyPlan future.Index:", future.Index())
 
 		// Respond to the plan in async; receive plan's committed index via chan
 		planIndexCh = make(chan uint64, 1)
@@ -202,6 +219,9 @@ func (p *planner) snapshotMinIndex(prevPlanResultIndex, planSnapshotIndex uint64
 
 // applyPlan is used to apply the plan result and to return the alloc index
 func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap *state.StateSnapshot) (raft.ApplyFuture, error) {
+
+	fmt.Println("planner.applyPlan plan.jmidx:", plan.Job.JobModifyIndex)
+
 	// Setup the update request
 	req := structs.ApplyPlanResultsRequest{
 		AllocUpdateRequest: structs.AllocUpdateRequest{
@@ -231,6 +251,7 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 
 		for _, allocList := range result.NodeAllocation {
 			req.AllocsUpdated = append(req.AllocsUpdated, allocList...)
+			fmt.Println("planner.applyPlan, appending allocsUpdated with:", allocList)
 		}
 
 		// Set the time the alloc was applied for the first time. This can be used
@@ -310,9 +331,12 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	// Optimistically apply to our state view
 	if snap != nil {
 		nextIdx := p.raft.AppliedIndex() + 1
+		fmt.Println("planner.applyPlan nextIdx:", nextIdx)
 		if err := snap.UpsertPlanResults(structs.ApplyPlanResultsRequestType, nextIdx, &req); err != nil {
 			return future, err
 		}
+	} else {
+		fmt.Println("planner.applyPlan, snap was not nil, did not upsert plan results")
 	}
 	return future, nil
 }

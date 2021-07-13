@@ -77,6 +77,8 @@ func diffSystemAllocsForNode(job *structs.Job, nodeID string,
 	terminalAllocs map[string]*structs.Allocation) *diffResult {
 	result := &diffResult{}
 
+	fmt.Println("diffSFN job.jmidx:", job.JobModifyIndex, "nodeid:", nodeID)
+
 	// Scan the existing updates
 	existing := make(map[string]struct{})
 	for _, exist := range allocs {
@@ -138,7 +140,9 @@ func diffSystemAllocsForNode(job *structs.Job, nodeID string,
 		}
 
 		// If the definition is updated we need to update
+		fmt.Println("diffSFN job.midx:", job.JobModifyIndex, "exist.jmidx:", exist.Job.JobModifyIndex)
 		if job.JobModifyIndex != exist.Job.JobModifyIndex {
+			fmt.Println(" -> inserting update, name:", name, "tg:", tg.Name, "alloc:", exist.ID)
 			result.update = append(result.update, allocTuple{
 				Name:      name,
 				TaskGroup: tg,
@@ -784,8 +788,12 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job, stac
 		doInplace(&i, &n, &inplaceCount)
 	}
 
+	fmt.Printf("iU job: %s\n", job.ID)
 	if len(updates) > 0 {
-		fmt.Printf("make %d in-place updates\n", len(updates))
+		fmt.Printf("make %d updates, %d in-place\n", len(updates), inplaceCount)
+		for _, up := range updates {
+			fmt.Printf("  update: %s\n", up)
+		}
 		ctx.Logger().Debug("made in-place updates", "in-place", inplaceCount, "total_updates", len(updates))
 	} else {
 		fmt.Printf("made zero in-place updates\n")
