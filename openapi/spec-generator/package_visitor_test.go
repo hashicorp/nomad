@@ -19,7 +19,7 @@ func TestPackageVisitorParse(t *testing.T) {
 	visitor := NewNomadPackageVisitor(analyzer, t.Log, debugOptions)
 
 	parser := PackageParser{
-		Visitor: visitor,
+		Visitor: &visitor,
 	}
 
 	err = parser.Parse()

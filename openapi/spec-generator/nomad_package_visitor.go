@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/openapi3gen"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -20,6 +19,7 @@ type DebugOptions struct {
 	filterByMethods   []string
 	printDefs         bool
 	printVariables    bool
+	printSchemaRefs   bool
 }
 
 var defaultDebugOptions = DebugOptions{
@@ -27,34 +27,29 @@ var defaultDebugOptions = DebugOptions{
 	printVariables: true,
 }
 
-func NewNomadPackageVisitor(analyzer *Analyzer, logger loggerFunc, options DebugOptions) *NomadPackageVisitor {
-	return &NomadPackageVisitor{
-		analyzer:     analyzer,
-		logger:       logger,
-		debugOptions: options,
-		generator:    openapi3gen.NewGenerator(openapi3gen.UseAllExportedFields()),
+func NewNomadPackageVisitor(analyzer *Analyzer, logger loggerFunc, options DebugOptions) PackageVisitor {
+	visitor := &NomadPackageVisitor{
+		analyzer:         analyzer,
+		logger:           logger,
+		debugOptions:     options,
+		schemaRefAdapter: NewSchemaRefAdapter(analyzer),
 	}
+
+	return visitor
 }
 
 type NomadPackageVisitor struct {
-	handlerAdapters map[string]*HandlerFuncAdapter
-	schemaRefs      map[string]*openapi3.SchemaRef
-	generator       *openapi3gen.Generator
-	analyzer        *Analyzer
-	activePackage   *packages.Package
-	logger          loggerFunc
-	fileSets        []*token.FileSet
-	debugOptions    DebugOptions
+	handlerAdapters  map[string]*HandlerFuncAdapter
+	schemaRefAdapter *SchemaRefAdapter
+	analyzer         *Analyzer
+	activePackage    *packages.Package
+	logger           loggerFunc
+	fileSets         []*token.FileSet
+	debugOptions     DebugOptions
 }
 
 func (v *NomadPackageVisitor) SchemaRefs() map[string]*openapi3.SchemaRef {
-	if v.schemaRefs == nil {
-		v.schemaRefs = make(map[string]*openapi3.SchemaRef)
-		for k, _ := range v.generator.SchemaRefs {
-			v.schemaRefs[k.Ref] = k
-		}
-	}
-	return v.schemaRefs
+	return v.schemaRefAdapter.SchemaRefs
 }
 
 func (v *NomadPackageVisitor) ParameterRefs() map[string]*openapi3.ParameterRef {
@@ -138,11 +133,12 @@ func (v *NomadPackageVisitor) loadHandlers() error {
 		}
 
 		v.handlerAdapters[key] = &HandlerFuncAdapter{
-			Package:  v.activePackage,
-			Func:     handler,
-			logger:   v.logger,
-			analyzer: v.analyzer,
-			fileSet:  v.GetActiveFileSet(),
+			Package:          v.activePackage,
+			Func:             handler,
+			logger:           v.logger,
+			analyzer:         v.analyzer,
+			schemaRefAdapter: v.schemaRefAdapter,
+			fileSet:          v.GetActiveFileSet(),
 		}
 	}
 	return nil
@@ -168,7 +164,7 @@ func (v *NomadPackageVisitor) DebugPrint() {
 				if retSchema == nil {
 					// v.logger(fmt.Sprintf("%s: Response Type: %s", key, "unknown"))
 				} else {
-					v.logger(fmt.Sprintf("%s: Response Type: %v", key, retSchema.Value))
+					v.logger(fmt.Sprintf("%s: Response Type: %#v", key, retSchema.Value))
 				}
 			}
 		}

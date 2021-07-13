@@ -1,58 +1,60 @@
 package main
 
 import (
-	"bytes"
-	openapi3 "github.com/getkin/kin-openapi/openapi3"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
-func TestNomadPathAdapterFunc(t *testing.T) {
-	req := require.New(t)
-
-	analyzer, err := NewAnalyzer(nomadPackages, t.Log, defaultDebugOptions)
-	req.NoError(err)
-
-	nsb := NewNomadSpecBuilder(analyzer)
-	nsb.spec = &Spec{}
-
-	for key, _ := range nsb.spec.Model.Paths {
-		t.Log(key)
-	}
-	t.Log(nsb)
-}
+//func TestNomadPathAdapterFunc(t *testing.T) {
+//	req := require.New(t)
+//
+//	analyzer, err := NewAnalyzer(nomadPackages, t.Log, defaultDebugOptions)
+//	req.NoError(err)
+//
+//	nsb := NewNomadSpecBuilder(analyzer)
+//	nsb.spec = &Spec{}
+//
+//	for key, _ := range nsb.spec.Model.Paths {
+//		t.Log(key)
+//	}
+//	t.Log(nsb)
+//}
 
 func TestRenderSchema(t *testing.T) {
 	req := require.New(t)
 
-	spec := Spec{
-		OpenAPIVersion: "3.0.3",
-		Model: openapi3.T{
-			Components: openapi3.Components{
-				Schemas: openapi3.Schemas{
-					"Service": &openapi3.SchemaRef{
-						Ref: "#/components/schemas/Service",
-					},
-				},
-			},
-		},
-	}
-
-	var formatted []byte
+	debugOptions := defaultDebugOptions
+	debugOptions.printSource = false
+	debugOptions.printHelpers = true
+	debugOptions.printReturnSource = true
+	debugOptions.printSchemaRefs = true
+	debugOptions.filterByMethods = []string{"agent.jobListRequest"}
+	var analyzer *Analyzer
 	var err error
-	var buf bytes.Buffer
-	var generator = Generator{
-		OutputFile: "./",
-		spec:       &spec,
+
+	analyzer, err = NewAnalyzer(nomadPackages, t.Log, debugOptions)
+	req.NoError(err)
+
+	visitor := NewNomadPackageVisitor(analyzer, t.Log, debugOptions)
+
+	parser := PackageParser{
+		Visitor: &visitor,
 	}
 
-	err = generator.execTemplate(&buf, specTmpl)
-	req.NoError(err, "TestRenderSchema.spec.execTemplate failed")
+	err = parser.Parse()
+	req.NoError(err, "TestPackageVisitor.parser.Parse")
 
-	formatted, err = generator.format(buf.Bytes())
-	req.NoError(err, "TestRenderSchema.spec.format failed")
+	builder := NewNomadSpecBuilder(analyzer, &visitor)
+	var spec *Spec
+	spec, err = builder.Build()
+	req.NoError(err)
+	req.NotNil(spec)
 
-	req.Contains(formatted, serviceSchema)
+	var yaml string
+	yaml, err = spec.ToYAML()
+	t.Log(yaml)
+	req.NotEmpty(yaml)
+	//req.Contains(yaml, serviceSchema)
 }
 
 var serviceSchema = `

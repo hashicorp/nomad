@@ -5,8 +5,10 @@ import (
 )
 
 // NewNomadSpecBuilder is a factory method for the NomadSpecBuilder struct
-func NewNomadSpecBuilder(analyzer *Analyzer) *SpecBuilder {
-	builder := &SpecBuilder{}
+func NewNomadSpecBuilder(analyzer *Analyzer, visitor *PackageVisitor) *SpecBuilder {
+	builder := &SpecBuilder{
+		Visitor: visitor,
+	}
 
 	ext := &NomadSpecBuilderExtImpl{
 		builder:  builder,

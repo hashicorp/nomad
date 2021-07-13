@@ -10,7 +10,6 @@ import (
 // metadata so that the template can be entirely data driven
 type Spec struct {
 	ValidationContext context.Context // Required parameter for validation functions
-	OpenAPIVersion    string          // Required for template rendering
 	Model             openapi3.T      // Document object model we are building
 }
 
@@ -33,7 +32,7 @@ type SpecBuilderExt interface {
 // framework can target any extant API.
 type SpecBuilder struct {
 	spec    *Spec
-	Visitor PackageVisitor
+	Visitor *PackageVisitor
 	Ext     SpecBuilderExt // Allows injection of variable behavior per implementation.
 }
 
@@ -44,8 +43,9 @@ func (b *SpecBuilder) Build() (*Spec, error) {
 	// that off for now.
 	b.spec = &Spec{
 		ValidationContext: context.Background(),
-		OpenAPIVersion:    "3.0.3",
-		Model:             openapi3.T{},
+		Model: openapi3.T{
+			OpenAPI: "3.0.3",
+		},
 	}
 
 	if err := b.BuildSecurity(); err != nil {
@@ -107,12 +107,14 @@ func (b *SpecBuilder) BuildTags() error {
 func (b *SpecBuilder) BuildComponents() error {
 	b.spec.Model.Components = openapi3.NewComponents()
 
-	b.spec.Model.Components.Schemas = b.Visitor.SchemaRefs()
-	b.spec.Model.Components.Parameters = b.Visitor.ParameterRefs()
-	b.spec.Model.Components.Headers = b.Visitor.HeaderRefs()
-	b.spec.Model.Components.RequestBodies = b.Visitor.RequestBodyRefs()
-	b.spec.Model.Components.Callbacks = b.Visitor.CallbackRefs()
-	b.spec.Model.Components.Responses = b.Visitor.ResponseRefs()
+	visitor := *b.Visitor
+
+	b.spec.Model.Components.Schemas = visitor.SchemaRefs()
+	b.spec.Model.Components.Parameters = visitor.ParameterRefs()
+	b.spec.Model.Components.Headers = visitor.HeaderRefs()
+	b.spec.Model.Components.RequestBodies = visitor.RequestBodyRefs()
+	b.spec.Model.Components.Callbacks = visitor.CallbackRefs()
+	b.spec.Model.Components.Responses = visitor.ResponseRefs()
 	b.spec.Model.Components.SecuritySchemes = openapi3.SecuritySchemes{}
 
 	return nil
@@ -124,7 +126,8 @@ func (b *SpecBuilder) BuildPaths() error {
 		b.spec.Model.Paths = openapi3.Paths{}
 	}
 
-	for _, adapter := range b.Visitor.HandlerAdapters() {
+	visitor := *b.Visitor
+	for _, adapter := range visitor.HandlerAdapters() {
 		pathItem := &openapi3.PathItem{}
 
 		b.spec.Model.Paths[adapter.GetPath()] = pathItem

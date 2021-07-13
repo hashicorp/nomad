@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/getkin/kin-openapi/openapi3"
 	"go/ast"
 	"go/parser"
 	"go/printer"
@@ -58,6 +59,7 @@ type Analyzer struct {
 	PackageConfigs []*PackageConfig
 	Logger         loggerFunc
 	Packages       map[string]*packages.Package
+	SchemaRefs     map[string]*openapi3.SchemaRef
 	debugOptions   DebugOptions
 	prog           *ssa.Program
 	typesInfos     []*types.Info
@@ -335,19 +337,36 @@ func (a *Analyzer) GetFieldType(fieldName string, obj types.Object) types.Object
 	return nil
 }
 
-func (a *Analyzer) GetSliceElemType(obj types.Object) types.Object {
+func (a *Analyzer) GetPointerElem(t *types.Pointer) types.Object {
+	var obj types.Object
+	elem := t.Elem()
+	a.Logger(fmt.Sprintf("%#v", elem))
+
+	switch objType := t.Elem().(type) {
+	case types.Object:
+		obj = objType
+	case *types.Named:
+		obj = objType.Obj()
+	default:
+		panic("Analyzer.GetPointerElem invalid cast")
+	}
+
+	return obj
+}
+
+func (a *Analyzer) GetSliceElemObj(obj types.Object) types.Object {
 	sliceType, ok := obj.Type().(*types.Slice)
 	if !ok {
-		panic(fmt.Sprintf("Analyzer.GetSliceElemType invalid type %v", obj.Type()))
+		panic(fmt.Sprintf("Analyzer.GetSliceElemObj invalid type %v", obj.Type()))
 	}
 
 	switch elemType := sliceType.Elem().(type) {
 	case *types.Pointer:
-		if obj, ok := elemType.Elem().(types.Object); !ok {
-			panic("Analyzer.GetSliceElemType invalid cast")
-		} else {
-			return obj
-		}
+		return a.GetPointerElem(elemType)
+	case types.Object:
+		return sliceType.Elem().(types.Object)
+	default:
+		panic("Analyzer.GetSliceElemObj unhandled slice Elem")
 	}
 
 	return nil
@@ -369,7 +388,6 @@ func (a *Analyzer) NewFromTypeObj(outObject types.Object) (interface{}, error) {
 }
 
 func (a *Analyzer) ToStruct(obj *types.Struct) (interface{}, error) {
-
 	fields := make([]reflect.StructField, 0)
 
 	for i := 0; i < obj.NumFields(); i++ {

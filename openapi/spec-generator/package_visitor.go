@@ -35,18 +35,18 @@ type PackageConfig struct {
 // https://pkg.go.dev/golang.org/x/tools/go/packages#section-documentation
 type PackageParser struct {
 	Analyzer      *Analyzer
-	Visitor       PackageVisitor
+	Visitor       *PackageVisitor
 	activeFileSet *token.FileSet
 }
 
 func (p *PackageParser) Parse() error {
 	var err error
-
-	if err = p.Visitor.VisitPackages(); err != nil {
+	visitor := *p.Visitor
+	if err = visitor.VisitPackages(); err != nil {
 		return err
 	}
 
-	p.Visitor.DebugPrint()
+	visitor.DebugPrint()
 
 	return nil
 }

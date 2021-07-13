@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3gen"
+	"github.com/ghodss/yaml"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/cfg"
 	"golang.org/x/tools/go/packages"
+	"math"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 func NewVarAdapter(spec *ast.ValueSpec, analyzer *Analyzer) *VarAdapter {
@@ -58,8 +61,8 @@ func (pia *PathItemAdapter) GetMethod() string {
 func (pia *PathItemAdapter) GetInputParameterRefs() []*openapi3.ParameterRef {
 	var refs []*openapi3.ParameterRef
 
-	//for _, param := range t.Type.Params.List {
-	//	params = fmt.Sprintf("%s|%s ", param.Names[0].Name, param.Type)
+	//for _, param := range t.Object.Params.List {
+	//	params = fmt.Sprintf("%s|%s ", param.Names[0].Name, param.Object)
 	//}
 
 	return refs
@@ -92,10 +95,15 @@ type HandlerFuncAdapter struct {
 	Func     *types.Func
 	FuncDecl *ast.FuncDecl
 
-	logger    loggerFunc
-	analyzer  *Analyzer
-	generator *openapi3gen.Generator
-	fileSet   *token.FileSet
+	logger loggerFunc
+	// TODO: Figure out the right model and naming. Analyzer is a loaded term.
+	// Having 2 stateful things feels weird, yet the Analyzer shouldn't be aware
+	// of OpenAPI.
+	// This is stateful and needs to be shared everywhere
+	analyzer *Analyzer
+	// This is stateful and needs to be shared everywhere
+	schemaRefAdapter *SchemaRefAdapter
+	fileSet          *token.FileSet
 
 	Variables map[string]*VarAdapter
 	// The CFG does contain Return statements; even implicit returns are materialized
@@ -220,7 +228,7 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 	}
 
 	var outObject types.Object
-
+	// var outTypeName string
 	outVisitor := func(node ast.Node) bool {
 		// if node is nil or outObject has been resolved exit
 		if node == nil || outObject != nil {
@@ -235,6 +243,7 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 				panic("HandlerFuncAdapter.GetReturnSchema failed to find variable " + t.Name)
 			}
 			outObject = v.Type()
+			// outTypeName = v.TypeName()
 		case *ast.SelectorExpr:
 			// in this case we are returning a field of a variable
 			// X should be an Ident and X.Name will have the variable.
@@ -247,6 +256,7 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 					panic("HandlerFuncAdapter.GetReturnSchema failed to find variable " + xt.Name)
 				}
 				outObject = h.analyzer.GetFieldType(t.Sel.Name, v.Type())
+				// outTypeName = v.TypeName()
 			default:
 				panic(fmt.Sprintf("HandlerFuncAdapter.GetReturnSchema: unhandled type %v", xt))
 			}
@@ -258,19 +268,46 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 
 	ast.Inspect(result, outVisitor)
 
-	iface, err := h.analyzer.NewFromTypeObj(outObject)
-	if err != nil {
-		return nil, err
-	}
-	schemaRef, referencedSchemaRefs, err := openapi3gen.NewSchemaRefForValue(iface, openapi3gen.UseAllExportedFields())
+	//iface, err := h.analyzer.NewFromTypeObj(outObject)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	// @@@@ Debug
+	// h.analyzer.Logger(fmt.Sprintf("%#v", iface))
+
+	//type EmbeddedTester struct {
+	//	EID string
+	//}
+	//
+	//type Tester struct {
+	//	ID       string
+	//	Embedded EmbeddedTester
+	//}
+	//
+	//tester := []*Tester{
+	//	&Tester{
+	//		ID: "foo",
+	//		Embedded: EmbeddedTester{
+	//			"bar",
+	//		},
+	//	},
+	//}
+	//
+	//h.analyzer.Logger(fmt.Sprintf("%#v", tester))
+	//j, _ := json.Marshal(tester)
+	//h.analyzer.Logger(string(j))
+
+	//schemaRef, err := h.schemaRefAdapter.GenerateSchemaRefs(iface, outTypeName)
+	schemaRef, err := h.schemaRefAdapter.GenerateWithoutSaving(nil, &outObject)
 	if err != nil {
 		return nil, err
 	}
 
-	h.analyzer.Logger(schemaRef)
-	h.analyzer.Logger(referencedSchemaRefs)
-	// h.analyzer.RegisterSchemaRefs(outObject, schemaRef, referencedSchemaRefs)
-
+	if h.analyzer.debugOptions.printSchemaRefs {
+		data, _ := yaml.Marshal(schemaRef)
+		h.analyzer.Logger(string(data))
+	}
 	return schemaRef, nil
 }
 
@@ -306,3 +343,402 @@ func (h *HandlerFuncAdapter) GetResultByIndex(idx int) (ast.Expr, error) {
 	}
 	return finalReturn.Results[idx].(ast.Expr), nil
 }
+
+// SchemaRefAdapter converts interfaces to SchemaRefs, ensuring the same type is
+// not registered twice. This is adapted from kin-openapi/openapi3gen. Because our
+// struct types are hydrated generically, we won't have type names available in
+// in the reflect info. So we have to maintain our own type registry based on the
+// typeName we have resolved already.
+type SchemaRefAdapter struct {
+	SchemaRefs       map[string]*openapi3.SchemaRef
+	typeObjects      map[string]*types.Object
+	typeObjectsMutex sync.RWMutex
+	analyzer         *Analyzer
+}
+
+//func (s *SchemaRefAdapter) GenerateSchemaRefs(iface interface{}, typeName string) (*openapi3.SchemaRef, error) {
+//	ref, err := s.GenerateSchemaRef(reflect.TypeOf(iface), typeName)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return ref, err
+//}
+
+func NewSchemaRefAdapter(analyzer *Analyzer) *SchemaRefAdapter {
+	return &SchemaRefAdapter{
+		SchemaRefs:       make(map[string]*openapi3.SchemaRef),
+		typeObjects:      make(map[string]*types.Object),
+		typeObjectsMutex: sync.RWMutex{},
+		analyzer:         analyzer,
+	}
+}
+
+//func (s *SchemaRefAdapter) GenerateSchemaRef(t reflect.Object, typeName string) (*openapi3.SchemaRef, error) {
+//	//check generatorOpt consistency here
+//	return s.generateSchemaRefFor(nil, t, typeName)
+//}
+//
+//func (s *SchemaRefAdapter) generateSchemaRefFor(parents []*TypeInfo, t reflect.Object, typeName string) (*openapi3.SchemaRef, error) {
+//	if ref := s.SchemaRefs[typeName]; ref != nil {
+//		return ref, nil
+//	}
+//	ref, err := s.generateWithoutSaving(parents, t, typeName)
+//	if ref != nil {
+//		if _, ok := s.SchemaRefs[typeName]; !ok {
+//			s.SchemaRefs[typeName] = ref
+//		}
+//	}
+//	return ref, err
+//}
+//
+//func (s *SchemaRefAdapter) generateWithoutSaving(parents []*TypeInfo, t reflect.Object, typeName string) (*openapi3.SchemaRef, error) {
+//	for t.Kind() == reflect.Ptr {
+//		t = t.Elem()
+//	}
+//
+//	schema := &openapi3.Schema{}
+//
+//	switch t.Kind() {
+//	case reflect.Func, reflect.Chan:
+//		return nil, nil // ignore
+//	case reflect.Bool:
+//		schema.Object = "boolean"
+//	case reflect.Int:
+//		schema.Object = "integer"
+//	case reflect.Int8:
+//		schema.Object = "integer"
+//		schema.Min = &minInt8
+//		schema.Max = &maxInt8
+//	case reflect.Int16:
+//		schema.Object = "integer"
+//		schema.Min = &minInt16
+//		schema.Max = &maxInt16
+//	case reflect.Int32:
+//		schema.Object = "integer"
+//		schema.Format = "int32"
+//	case reflect.Int64:
+//		schema.Object = "integer"
+//		schema.Format = "int64"
+//	case reflect.Uint:
+//		schema.Object = "integer"
+//		schema.Min = &zeroInt
+//	case reflect.Uint8:
+//		schema.Object = "integer"
+//		schema.Min = &zeroInt
+//		schema.Max = &maxUint8
+//	case reflect.Uint16:
+//		schema.Object = "integer"
+//		schema.Min = &zeroInt
+//		schema.Max = &maxUint16
+//	case reflect.Uint32:
+//		schema.Object = "integer"
+//		schema.Min = &zeroInt
+//		schema.Max = &maxUint32
+//	case reflect.Uint64:
+//		schema.Object = "integer"
+//		schema.Min = &zeroInt
+//		schema.Max = &maxUint64
+//
+//	case reflect.Float32:
+//		schema.Object = "number"
+//		schema.Format = "float"
+//	case reflect.Float64:
+//		schema.Object = "number"
+//		schema.Format = "double"
+//
+//	case reflect.String:
+//		schema.Object = "string"
+//
+//	case reflect.Slice:
+//		if t.Elem().Kind() == reflect.Uint8 {
+//			if t == rawMessageType {
+//				return &openapi3.SchemaRef{Value: schema}, nil
+//			}
+//			schema.Object = "string"
+//			schema.Format = "byte"
+//		} else {
+//			schema.Object = "array"
+//			items, err := s.generateSchemaRefFor(parents, t.Elem(), typeName)
+//			if err != nil {
+//				return nil, err
+//			}
+//			if items != nil {
+//				if _, ok := s.SchemaRefs[typeName]; !ok {
+//					s.SchemaRefs[typeName] = items
+//				}
+//				schema.Items = items
+//			}
+//			typeName = typeName + "Array"
+//		}
+//
+//	case reflect.Map:
+//		schema.Object = "object"
+//		additionalProperties, err := s.generateSchemaRefFor(parents, t.Elem(), typeName)
+//		if err != nil {
+//			return nil, err
+//		}
+//		if additionalProperties != nil {
+//			if _, ok := s.SchemaRefs[typeName]; !ok {
+//				s.SchemaRefs[typeName] = additionalProperties
+//			}
+//			schema.AdditionalProperties = additionalProperties
+//		}
+//
+//		typeName = typeName + "Map"
+//	case reflect.Struct:
+//		if t == timeType {
+//			schema.Object = "string"
+//			schema.Format = "date-time"
+//		} else {
+//			typeInfo := s.GetTypeInfo(t, typeName)
+//			for _, parent := range parents {
+//				if parent == typeInfo {
+//					return nil, &openapi3gen.CycleError{}
+//				}
+//			}
+//
+//			if cap(parents) == 0 {
+//				parents = make([]*TypeInfo, 0, 4)
+//			}
+//			parents = append(parents, typeInfo)
+//
+//			for _, fieldInfo := range typeInfo.Fields {
+//				var ref *openapi3.SchemaRef
+//				var err error
+//				if len(fieldInfo.Object.Name()) < 1 {
+//					// TODO: resolve type for embedded anonymous struct
+//					//ref, err = s.generateSchemaRefFor(parents, fieldInfo.Object, s.analyzer.GetTypeNameForField(typeName, fieldInfo.JSONName))
+//				} else {
+//					ref, err = s.generateSchemaRefFor(parents, fieldInfo.Object, fieldInfo.Object.Name())
+//				}
+//				if err != nil {
+//					return nil, err
+//				}
+//				if ref != nil {
+//					// @@@@ Debug
+//					fieldTypeName := fieldInfo.Object.Name()
+//					fmt.Println(fieldTypeName)
+//					if _, ok := s.SchemaRefs[fieldInfo.Object.Name()]; !ok {
+//						s.SchemaRefs[fieldInfo.Object.Name()] = ref
+//					}
+//					schema.WithPropertyRef(fieldInfo.JSONName, ref)
+//				}
+//			}
+//
+//			// Object only if it has properties
+//			if schema.Properties != nil {
+//				schema.Object = "object"
+//			}
+//		}
+//	}
+//
+//	return openapi3.NewSchemaRef(typeName, schema), nil
+//}
+
+func (s *SchemaRefAdapter) GenerateWithoutSaving(parents []*types.Object, objPtr *types.Object) (*openapi3.SchemaRef, error) {
+	obj := *objPtr
+	if t, ok := obj.Type().(*types.Pointer); ok {
+		obj = s.analyzer.GetPointerElem(t)
+	}
+
+	typeName := "unknown"
+	schema := &openapi3.Schema{}
+
+	// TODO: Can I just ignore basic kinds?
+	if basic, ok := obj.Type().(*types.Basic); ok {
+		switch basic.Kind() {
+		case types.Bool:
+			schema.Type = "boolean"
+		case types.Int:
+			schema.Type = "integer"
+		case types.Int8:
+			schema.Type = "integer"
+			schema.Min = &minInt8
+			schema.Max = &maxInt8
+		case types.Int16:
+			schema.Type = "integer"
+			schema.Min = &minInt16
+			schema.Max = &maxInt16
+		case types.Int32:
+			schema.Type = "integer"
+			schema.Format = "int32"
+		case types.Int64:
+			schema.Type = "integer"
+			schema.Format = "int64"
+		case types.Uint:
+			schema.Type = "integer"
+			schema.Min = &zeroInt
+		case types.Uint8:
+			schema.Type = "integer"
+			schema.Min = &zeroInt
+			schema.Max = &maxUint8
+		case types.Uint16:
+			schema.Type = "integer"
+			schema.Min = &zeroInt
+			schema.Max = &maxUint16
+		case types.Uint32:
+			schema.Type = "integer"
+			schema.Min = &zeroInt
+			schema.Max = &maxUint32
+		case types.Uint64:
+			schema.Type = "integer"
+			schema.Min = &zeroInt
+			schema.Max = &maxUint64
+		case types.Float32:
+			schema.Type = "number"
+			schema.Format = "float"
+		case types.Float64:
+			schema.Type = "number"
+			schema.Format = "double"
+		case types.String:
+			schema.Type = "string"
+		}
+		// default to schema.Object for basic kinds
+		typeName = schema.Type
+	} else {
+		switch objType := obj.Type().(type) {
+		case *types.Slice:
+			if _, ok = objType.Elem().(*types.Basic); ok {
+				schema.Type = "string"
+				schema.Format = "byte"
+			} else {
+				schema.Type = "array"
+				elemObj := s.analyzer.GetSliceElemObj(obj)
+				items, err := s.GenerateWithoutSaving(parents, &elemObj)
+				if err != nil {
+					return nil, err
+				}
+				if items != nil {
+					if _, ok = s.SchemaRefs[elemObj.Name()]; !ok {
+						s.SchemaRefs[elemObj.Name()] = items
+					}
+					schema.Items = items
+				}
+				typeName = elemObj.Name() + "Array"
+			}
+
+		case *types.Map:
+			schema.Type = "object"
+			var elemObj types.Object
+			if elemObj, ok = objType.Elem().(types.Object); !ok {
+				panic(fmt.Sprintf("SchemaRefAdapter.GenerateWithoutSaving: invalid map type %#v", objType))
+			}
+			additionalProperties, err := s.GenerateWithoutSaving(parents, &elemObj)
+			if err != nil {
+				return nil, err
+			}
+			if additionalProperties != nil {
+				if _, ok := s.SchemaRefs[elemObj.Name()]; !ok {
+					s.SchemaRefs[elemObj.Name()] = additionalProperties
+				}
+				schema.AdditionalProperties = additionalProperties
+			}
+
+			typeName = elemObj.Name() + "Map"
+		case *types.Struct:
+			if obj.(types.Object).Name() == "Time" {
+				schema.Type = "string"
+				schema.Format = "date-time"
+			} else {
+				objPtr = s.GetTypesObject(objPtr)
+				for _, parent := range parents {
+					if parent == objPtr {
+						return nil, &openapi3gen.CycleError{}
+					}
+				}
+				if cap(parents) == 0 {
+					parents = make([]*types.Object, 0, 4)
+				}
+				parents = append(parents, objPtr)
+
+				for i := 0; i < objType.NumFields(); i++ {
+					field := objType.Field(i)
+					var ref *openapi3.SchemaRef
+					var err error
+					fieldTypeName := "unknown"
+					switch fieldObj := field.Type().(type) {
+					case types.Object:
+						ref, err = s.GenerateWithoutSaving(parents, &fieldObj)
+						if err != nil {
+							return nil, err
+						}
+					}
+					if ref != nil {
+						if _, ok = s.SchemaRefs[fieldTypeName]; !ok {
+							s.SchemaRefs[fieldTypeName] = ref
+						}
+						schema.WithPropertyRef(field.Name(), ref)
+					}
+				}
+
+				// Object only if it has properties
+				if schema.Properties != nil {
+					schema.Type = "object"
+				}
+			}
+		}
+	}
+
+	return openapi3.NewSchemaRef(typeName, schema), nil
+}
+
+// GetTypesObject ensures one and only one instance of a typesObject is used during processing.
+func (s *SchemaRefAdapter) GetTypesObject(objPtr *types.Object) *types.Object {
+	obj := *objPtr
+	switch elemType := obj.Type().(type) {
+	case *types.Pointer:
+		var ok bool
+		if obj, ok = elemType.Elem().(types.Object); !ok {
+			panic(fmt.Sprintf("SchemaRefAdapter.GetTypeInfo invalid cast %#v", obj))
+		}
+	}
+
+	s.typeObjectsMutex.RLock()
+	typeObject, exists := s.typeObjects[obj.Name()]
+	s.typeObjectsMutex.RUnlock()
+	if exists {
+		return typeObject
+	}
+
+	// Publish
+	s.typeObjectsMutex.Lock()
+	s.typeObjects[obj.Name()] = objPtr
+	s.typeObjectsMutex.Unlock()
+
+	return objPtr
+}
+
+// TypeInfo contains information about JSON serialization of a type
+//type TypeInfo struct {
+//	Name   string
+//	Object   types.Object
+//	Fields []types.Object
+//}
+
+//type sortableFieldInfos []jsoninfo.FieldInfo
+//
+//func (list sortableFieldInfos) Len() int {
+//	return len(list)
+//}
+//
+//func (list sortableFieldInfos) Less(i, j int) bool {
+//	return list[i].JSONName < list[j].JSONName
+//}
+//
+//func (list sortableFieldInfos) Swap(i, j int) {
+//	a, b := list[i], list[j]
+//	list[i], list[j] = b, a
+//}
+
+var (
+	zeroInt   = float64(0)
+	maxInt8   = float64(math.MaxInt8)
+	minInt8   = float64(math.MinInt8)
+	maxInt16  = float64(math.MaxInt16)
+	minInt16  = float64(math.MinInt16)
+	maxUint8  = float64(math.MaxUint8)
+	maxUint16 = float64(math.MaxUint16)
+	maxUint32 = float64(math.MaxUint32)
+	maxUint64 = float64(math.MaxUint64)
+)
