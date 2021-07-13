@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"math"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -268,38 +269,7 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 
 	ast.Inspect(result, outVisitor)
 
-	//iface, err := h.analyzer.NewFromTypeObj(outObject)
-	//if err != nil {
-	//	return nil, err
-	//}
-
-	// @@@@ Debug
-	// h.analyzer.Logger(fmt.Sprintf("%#v", iface))
-
-	//type EmbeddedTester struct {
-	//	EID string
-	//}
-	//
-	//type Tester struct {
-	//	ID       string
-	//	Embedded EmbeddedTester
-	//}
-	//
-	//tester := []*Tester{
-	//	&Tester{
-	//		ID: "foo",
-	//		Embedded: EmbeddedTester{
-	//			"bar",
-	//		},
-	//	},
-	//}
-	//
-	//h.analyzer.Logger(fmt.Sprintf("%#v", tester))
-	//j, _ := json.Marshal(tester)
-	//h.analyzer.Logger(string(j))
-
-	//schemaRef, err := h.schemaRefAdapter.GenerateSchemaRefs(iface, outTypeName)
-	schemaRef, err := h.schemaRefAdapter.GetOrCreateSchemaRef(nil, &outObject)
+	schemaRef, err := h.schemaRefAdapter.GetOrCreateSchemaRef(nil, &outObject, "schemas")
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +344,7 @@ func NewSchemaRefAdapter(analyzer *Analyzer) *SchemaRefAdapter {
 	}
 }
 
-func (s *SchemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr *types.Object) (*openapi3.SchemaRef, error) {
+func (s *SchemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr *types.Object, componentType string) (*openapi3.SchemaRef, error) {
 	obj := *objPtr
 	if t, ok := obj.Type().(*types.Pointer); ok {
 		obj = s.analyzer.GetPointerElem(t)
@@ -383,91 +353,39 @@ func (s *SchemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr 
 	typeName := "unknown"
 	schema := &openapi3.Schema{}
 
-	// TODO: Can I just ignore basic kinds?
 	if basic, ok := obj.Type().(*types.Basic); ok {
-		switch basic.Kind() {
-		case types.Bool:
-			schema.Type = "boolean"
-		case types.Int:
-			schema.Type = "integer"
-		case types.Int8:
-			schema.Type = "integer"
-			schema.Min = &minInt8
-			schema.Max = &maxInt8
-		case types.Int16:
-			schema.Type = "integer"
-			schema.Min = &minInt16
-			schema.Max = &maxInt16
-		case types.Int32:
-			schema.Type = "integer"
-			schema.Format = "int32"
-		case types.Int64:
-			schema.Type = "integer"
-			schema.Format = "int64"
-		case types.Uint:
-			schema.Type = "integer"
-			schema.Min = &zeroInt
-		case types.Uint8:
-			schema.Type = "integer"
-			schema.Min = &zeroInt
-			schema.Max = &maxUint8
-		case types.Uint16:
-			schema.Type = "integer"
-			schema.Min = &zeroInt
-			schema.Max = &maxUint16
-		case types.Uint32:
-			schema.Type = "integer"
-			schema.Min = &zeroInt
-			schema.Max = &maxUint32
-		case types.Uint64:
-			schema.Type = "integer"
-			schema.Min = &zeroInt
-			schema.Max = &maxUint64
-		case types.Float32:
-			schema.Type = "number"
-			schema.Format = "float"
-		case types.Float64:
-			schema.Type = "number"
-			schema.Format = "double"
-		case types.String:
-			schema.Type = "string"
-		}
+		s.adaptBasic(basic, schema)
 		// default to schema.Object for basic kinds
+		// TODO: is this ok, or does it need to be based on format
 		typeName = schema.Type
 	} else {
 		switch objType := obj.Type().(type) {
 		case *types.Slice:
-			if _, ok = objType.Elem().(*types.Basic); ok {
-				schema.Type = "string"
-				schema.Format = "byte"
-			} else {
-				schema.Type = "array"
-				elemObj := s.analyzer.GetSliceElemObj(obj)
-				items, err := s.GetOrCreateSchemaRef(parents, &elemObj)
-				if err != nil {
-					return nil, err
-				}
-				if items != nil {
-					if _, ok = s.SchemaRefs[elemObj.Name()]; !ok {
-						s.SchemaRefs[elemObj.Name()] = items
-					}
-					schema.Items = items
-				}
-				typeName = elemObj.Name() + "Array"
+			schema.Type = "array"
+			elemObj := s.analyzer.GetSliceElemObj(obj)
+			typeName = elemObj.Name() + "Array"
+			items, err := s.GetOrCreateSchemaRef(parents, &elemObj, componentType)
+			if err != nil {
+				return nil, err
 			}
-
+			if items != nil {
+				if _, ok = s.SchemaRefs[elemObj.Name()]; !ok {
+					s.SchemaRefs[elemObj.Name()] = items
+				}
+				schema.Items = items
+			}
 		case *types.Map:
 			schema.Type = "object"
 			var elemObj types.Object
 			if elemObj, ok = objType.Elem().(types.Object); !ok {
 				panic(fmt.Sprintf("SchemaRefAdapter.GetOrCreateSchemaRef: invalid map type %#v", objType))
 			}
-			additionalProperties, err := s.GetOrCreateSchemaRef(parents, &elemObj)
+			additionalProperties, err := s.GetOrCreateSchemaRef(parents, &elemObj, componentType)
 			if err != nil {
 				return nil, err
 			}
 			if additionalProperties != nil {
-				if _, ok := s.SchemaRefs[elemObj.Name()]; !ok {
+				if _, ok = s.SchemaRefs[elemObj.Name()]; !ok {
 					s.SchemaRefs[elemObj.Name()] = additionalProperties
 				}
 				schema.AdditionalProperties = additionalProperties
@@ -478,7 +396,7 @@ func (s *SchemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr 
 			typeName = objType.Obj().Name()
 			switch underlyingType := objType.Underlying().(type) {
 			case *types.Struct:
-				err := s.adaptStruct(parents, objPtr, schema, underlyingType)
+				err := s.adaptStruct(parents, objPtr, schema, underlyingType, componentType)
 				if err != nil {
 					return nil, err
 				}
@@ -487,7 +405,7 @@ func (s *SchemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr 
 			}
 		case *types.Struct:
 			typeName = obj.(types.Object).Name()
-			err := s.adaptStruct(parents, objPtr, schema, objType)
+			err := s.adaptStruct(parents, objPtr, schema, objType, componentType)
 			if err != nil {
 				return nil, err
 			}
@@ -498,12 +416,63 @@ func (s *SchemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr 
 		return existing, nil
 	}
 
-	ref := openapi3.NewSchemaRef(typeName, schema)
+	// Don't set the Ref value if you want the serializer to dump the full schema.
+	ref := openapi3.NewSchemaRef("", schema)
 	s.SchemaRefs[typeName] = ref
 	return ref, nil
 }
 
-func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Object, schema *openapi3.Schema, objType *types.Struct) error {
+func (s *SchemaRefAdapter) adaptBasic(basic *types.Basic, schema *openapi3.Schema) {
+	switch basic.Kind() {
+	case types.Bool:
+		schema.Type = "boolean"
+	case types.Int:
+		schema.Type = "integer"
+	case types.Int8:
+		schema.Type = "integer"
+		schema.Min = &minInt8
+		schema.Max = &maxInt8
+	case types.Int16:
+		schema.Type = "integer"
+		schema.Min = &minInt16
+		schema.Max = &maxInt16
+	case types.Int32:
+		schema.Type = "integer"
+		schema.Format = "int32"
+	case types.Int64:
+		schema.Type = "integer"
+		schema.Format = "int64"
+	case types.Uint:
+		schema.Type = "integer"
+		schema.Min = &zeroInt
+	case types.Uint8:
+		schema.Type = "integer"
+		schema.Min = &zeroInt
+		schema.Max = &maxUint8
+	case types.Uint16:
+		schema.Type = "integer"
+		schema.Min = &zeroInt
+		schema.Max = &maxUint16
+	case types.Uint32:
+		schema.Type = "integer"
+		schema.Min = &zeroInt
+		schema.Max = &maxUint32
+	case types.Uint64:
+		schema.Type = "integer"
+		schema.Min = &zeroInt
+		schema.Max = &maxUint64
+	case types.Float32:
+		schema.Type = "number"
+		schema.Format = "float"
+	case types.Float64:
+		schema.Type = "number"
+		schema.Format = "double"
+	case types.String:
+		schema.Type = "string"
+	}
+}
+
+func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Object, schema *openapi3.Schema, structType *types.Struct, componentType string) error {
 	obj := *objPtr
 	if obj.Name() == "Time" {
 		schema.Type = "string"
@@ -511,8 +480,13 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 		return nil
 	}
 
+	packagePropertySchema := &openapi3.Schema{
+		N
+	}
+	schema.WithAdditionalProperties()
+
 	// Check for circular reference
-	objPtr = s.GetTypesObject(objPtr)
+	objPtr = s.getTypesObject(objPtr)
 	for _, parent := range parents {
 		if parent == objPtr {
 			return &openapi3gen.CycleError{}
@@ -523,15 +497,27 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 	}
 	parents = append(parents, objPtr)
 
-	for i := 0; i < objType.NumFields(); i++ {
-		field := objType.Field(i)
-		fieldTypeName := "unknown"
+	// Sort the fields for easier debugging and unit tests
+	var fields []*types.Var
+	for i := 0; i < structType.NumFields(); i++ {
+		fields = append(fields, structType.Field(i))
+	}
+	sort.Slice(fields, func(i, j int) bool {
+		return fields[i].Name() > fields[j].Name()
+	})
+
+	for _, field := range fields {
+		fieldTypeName := "unknown" // make sure this string never shows up in tests.
 		var ref *openapi3.SchemaRef
 		var err error
 		switch fieldObj := field.Type().(type) {
+		case *types.Basic:
+			propertySchema := &openapi3.Schema{}
+			s.adaptBasic(fieldObj, propertySchema)
+			schema.WithProperty(field.Name(), propertySchema)
 		case types.Object:
 			fieldTypeName = fieldObj.Name()
-			ref, err = s.GetOrCreateSchemaRef(parents, &fieldObj)
+			ref, err = s.GetOrCreateSchemaRef(parents, &fieldObj, componentType)
 			if err != nil {
 				return err
 			}
@@ -555,8 +541,8 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 	return nil
 }
 
-// GetTypesObject ensures one and only one instance of a typesObject is used during processing.
-func (s *SchemaRefAdapter) GetTypesObject(objPtr *types.Object) *types.Object {
+// getTypesObject ensures one and only one instance of a typesObject is used during processing.
+func (s *SchemaRefAdapter) getTypesObject(objPtr *types.Object) *types.Object {
 	obj := *objPtr
 	switch elemType := obj.Type().(type) {
 	case *types.Pointer:

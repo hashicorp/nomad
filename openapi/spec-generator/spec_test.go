@@ -25,9 +25,9 @@ func TestRenderSchema(t *testing.T) {
 
 	debugOptions := defaultDebugOptions
 	debugOptions.printSource = false
-	debugOptions.printHelpers = true
-	debugOptions.printReturnSource = true
-	debugOptions.printSchemaRefs = true
+	// debugOptions.printHelpers = true
+	// debugOptions.printReturnSource = true
+	// debugOptions.printSchemaRefs = true
 	debugOptions.filterByMethods = []string{"agent.jobListRequest"}
 	var analyzer *Analyzer
 	var err error
@@ -54,8 +54,56 @@ func TestRenderSchema(t *testing.T) {
 	yaml, err = spec.ToYAML()
 	t.Log(yaml)
 	req.NotEmpty(yaml)
-	//req.Contains(yaml, serviceSchema)
+	req.Contains(yaml, jobListStubSchema)
 }
+
+var jobListStubSchema = `
+    JobListStub:
+      properties:
+        CreateIndex:
+          type: integer
+          format: uint64
+        Datacenters:
+          type: array
+          items:
+            type: string
+        ID:
+          type: string
+        JobModifyIndex:
+          type: integer
+          format: uint64
+        JobSummary:
+          $ref: '#/components/schemas/JobSummary'
+        ModifyIndex:
+          type: integer
+          format: uint64
+        Name:
+          type: string
+        Namespace:
+          type: string
+        ParameterizedJob:
+          type: boolean
+        ParentID:
+          type: string
+        Periodic:
+          type: boolean
+        Priority:
+          type: integer
+          format: int64
+        Status:
+          type: string
+        StatusDescription:
+          type: string
+        Stop:
+          type: boolean
+        SubmitTime:
+          type: integer
+          format: int64
+        Type:
+          type: string
+      type: object
+      x-go-package: github.com/hashicorp/nomad/api
+`
 
 var serviceSchema = `
 Service:
