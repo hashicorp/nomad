@@ -52,9 +52,6 @@ github.com/Microsoft/go-winio/pkg/guid
 # github.com/Microsoft/hcsshim v0.8.8-0.20200312192636-fd0797d766b1
 ## explicit
 github.com/Microsoft/hcsshim/osversion
-# github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20180829222009-86f2a9fac6c5
-## explicit
-github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml
 # github.com/NYTimes/gziphandler v1.0.1 => github.com/NYTimes/gziphandler v1.0.0
 ## explicit
 github.com/NYTimes/gziphandler

@@ -23,7 +23,6 @@ require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
 	github.com/Microsoft/go-winio v0.4.15-0.20200113171025-3fe6c5262873
 	github.com/Microsoft/hcsshim v0.8.8-0.20200312192636-fd0797d766b1 // indirect
-	github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20180829222009-86f2a9fac6c5
 	github.com/NYTimes/gziphandler v1.0.1
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.3.4

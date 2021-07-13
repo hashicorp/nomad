@@ -620,13 +620,9 @@ workflows:
           test_module: "api"
           filters: *backend_test_branches_filter
           enable_race_testing: true
-      - test-container:
-          name: "test-devices"
-          test_packages: "./devices/..."
-          filters: *backend_test_branches_filter
       - test-machine:
           name: "test-other"
-          exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices|./e2e"
+          exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./e2e"
           filters: *backend_test_branches_filter
       - test-machine:
           name: "test-docker"
