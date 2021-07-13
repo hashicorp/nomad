@@ -480,10 +480,11 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 		return nil
 	}
 
-	packagePropertySchema := &openapi3.Schema{
-		N
+	if schema.Extensions == nil {
+		schema.Extensions = make(map[string]interface{})
 	}
-	schema.WithAdditionalProperties()
+
+	schema.Extensions["x-go-package"] = obj.Pkg().Path()
 
 	// Check for circular reference
 	objPtr = s.getTypesObject(objPtr)
@@ -510,6 +511,7 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 		fieldTypeName := "unknown" // make sure this string never shows up in tests.
 		var ref *openapi3.SchemaRef
 		var err error
+
 		switch fieldObj := field.Type().(type) {
 		case *types.Basic:
 			propertySchema := &openapi3.Schema{}
@@ -521,7 +523,37 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 			if err != nil {
 				return err
 			}
+		case *types.Slice:
+			propertySchema := &openapi3.Schema{
+				Type: "array",
+			}
+			itemsSchema := &openapi3.Schema{}
+			switch elemType := fieldObj.Elem().(type) {
+			case *types.Basic:
+				s.adaptBasic(elemType, itemsSchema)
+				propertySchema.Items = openapi3.NewSchemaRef(elemType.Name(), itemsSchema)
+			case *types.Pointer:
+				itemsSchema.Type = "object"
+				itemsObj := s.analyzer.GetPointerElem(elemType)
+				ref, err = s.GetOrCreateSchemaRef(nil, &itemsObj, componentType)
+				if err != nil {
+					return err
+				}
+				itemsSchema.Items = ref
+			case *types.Struct:
+				itemsSchema.Type = "object"
+				underlying := elemType.Underlying().(types.Object)
+				ref, err = s.GetOrCreateSchemaRef(nil, &underlying, componentType)
+				if err != nil {
+					return err
+				}
+				itemsSchema.Items = ref
+			}
+			schema.WithProperty(field.Name(), propertySchema)
+		case *types.Map:
+			panic("SchemaRefAdapter.adaptStruct unhandled type: Map")
 		}
+
 		if ref != nil {
 			if fieldTypeName == "unknown" {
 				panic(fmt.Sprintf("SchemaRefAdapter.adaptStruct failed to resolve fieldTypeName for %#v", field))
