@@ -3,16 +3,19 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	hclog "github.com/hashicorp/go-hclog"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -20,8 +23,14 @@ var _ interfaces.TaskPoststartHook = &scriptCheckHook{}
 var _ interfaces.TaskUpdateHook = &scriptCheckHook{}
 var _ interfaces.TaskStopHook = &scriptCheckHook{}
 
-// default max amount of time to wait for all scripts on shutdown.
-const defaultShutdownWait = time.Minute
+const (
+	// default max amount of time to wait for all scripts on shutdown.
+	defaultShutdownWait = time.Minute
+
+	// maxOutputMsgSize is the max length of script check output that will
+	// be logged
+	maxOutputMsgSize = 200
+)
 
 type scriptCheckHookConfig struct {
 	alloc        *structs.Allocation
@@ -317,7 +326,6 @@ func newScriptCheck(config *scriptCheckConfig) *scriptCheck {
 	sc.Timeout = config.check.Timeout
 	sc.exec = config.driverExec
 	sc.callback = newScriptCheckCallback(sc)
-	sc.logger = config.logger
 	sc.shutdownCh = config.shutdownCh
 	sc.check.Command = sc.Command
 	sc.check.Args = sc.Args
@@ -332,6 +340,10 @@ func newScriptCheck(config *scriptCheckConfig) *scriptCheck {
 		sc.id = agentconsul.MakeCheckID(config.serviceID, sc.check)
 	}
 	sc.consulNamespace = config.consulNamespace
+
+	// Add script id to logger's context
+	logger := config.logger.With("check_id", sc.id)
+	sc.logger = logger
 	return sc
 }
 
@@ -364,6 +376,12 @@ func newScriptCheckCallback(s *scriptCheck) taskletCallback {
 			outputMsg = err.Error()
 		} else {
 			outputMsg = string(output)
+		}
+
+		// If the check is unhealthy, log the output
+		if state == api.HealthCritical || state == api.HealthWarning {
+			trimmed := helper.TruncateString(strings.TrimSpace(outputMsg), maxOutputMsgSize)
+			s.logger.Warn("unhealthy script check", "health", state, "output", hclog.Quote(trimmed))
 		}
 
 		// heartbeat the check to Consul

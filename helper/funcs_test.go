@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -400,6 +401,57 @@ func TestPathEscapesSandbox(t *testing.T) {
 			caseMsg := fmt.Sprintf("path: %v\ndir: %v", tc.path, tc.dir)
 			escapes := PathEscapesSandbox(tc.dir, tc.path)
 			require.Equal(t, tc.expected, escapes, caseMsg)
+		})
+	}
+}
+
+func TestTruncateString(t *testing.T) {
+	cases := []struct {
+		In  string
+		Max int
+		Out string
+	}{
+		{
+			In:  "Hello World!",
+			Max: 3,
+			Out: "...",
+		},
+		{
+			In:  "Hello World!",
+			Max: 4,
+			Out: "H...",
+		},
+		{
+			In:  "Hello World!",
+			Max: 5,
+			Out: "He...",
+		},
+		{
+			In:  "Hello World!",
+			Max: 11,
+			Out: "Hello Wo...",
+		},
+		{
+			In:  "Hello World!",
+			Max: 12,
+			Out: "Hello World!",
+		},
+		{
+			In:  "Hello World!",
+			Max: 13,
+			Out: "Hello World!",
+		},
+		{
+			In:  "",
+			Max: 3,
+			Out: "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%s-%d-%s", tc.In, tc.Max, tc.Out), func(t *testing.T) {
+			out := TruncateString(tc.In, tc.Max)
+			assert.Equal(t, tc.Out, out)
 		})
 	}
 }

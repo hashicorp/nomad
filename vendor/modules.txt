@@ -287,7 +287,7 @@ github.com/dustin/go-humanize
 # github.com/elazarl/go-bindata-assetfs v1.0.1-0.20200509193318-234c15e7648f
 ## explicit
 github.com/elazarl/go-bindata-assetfs
-# github.com/fatih/color v1.9.0
+# github.com/fatih/color v1.12.0
 ## explicit
 github.com/fatih/color
 # github.com/fsnotify/fsnotify v1.4.9
@@ -433,7 +433,7 @@ github.com/hashicorp/go-envparse
 ## explicit
 github.com/hashicorp/go-getter
 github.com/hashicorp/go-getter/helper/url
-# github.com/hashicorp/go-hclog v0.14.1
+# github.com/hashicorp/go-hclog v0.16.2
 ## explicit
 github.com/hashicorp/go-hclog
 # github.com/hashicorp/go-immutable-radix v1.3.0
@@ -576,10 +576,11 @@ github.com/kr/pty
 github.com/kr/text
 # github.com/linode/linodego v0.7.1
 github.com/linode/linodego
-# github.com/mattn/go-colorable v0.1.6
+# github.com/mattn/go-colorable v0.1.8
 ## explicit
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.12
+# github.com/mattn/go-isatty v0.0.13
+## explicit
 github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.7
 github.com/mattn/go-runewidth
@@ -895,7 +896,7 @@ golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 ## explicit
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20210316164454-77fc1eacc6aa
+# golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
 ## explicit
 golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
