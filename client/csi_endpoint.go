@@ -402,6 +402,7 @@ func (c *CSI) ControllerListSnapshots(req *structs.ClientCSIControllerListSnapsh
 	defer plugin.Close()
 
 	csiReq := req.ToCSIRequest()
+	fmt.Println("CSI REQ", *csiReq)
 
 	ctx, cancelFn := c.requestContext()
 	defer cancelFn()

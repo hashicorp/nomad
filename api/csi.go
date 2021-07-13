@@ -137,7 +137,7 @@ func (v *CSIVolumes) DeleteSnapshot(snap *CSISnapshot, w *WriteOptions) error {
 }
 
 // ListSnapshots lists external storage volume snapshots.
-func (v *CSIVolumes) ListSnapshots(pluginID string, q *QueryOptions) (*CSISnapshotListResponse, *QueryMeta, error) {
+func (v *CSIVolumes) ListSnapshots(pluginID string, secrets string, q *QueryOptions) (*CSISnapshotListResponse, *QueryMeta, error) {
 	var resp *CSISnapshotListResponse
 
 	qp := url.Values{}
@@ -149,6 +149,9 @@ func (v *CSIVolumes) ListSnapshots(pluginID string, q *QueryOptions) (*CSISnapsh
 	}
 	if q.PerPage != 0 {
 		qp.Set("per_page", fmt.Sprint(q.PerPage))
+	}
+	if secrets != "" {
+		qp.Set("secrets", secrets)
 	}
 
 	qm, err := v.client.query("/v1/volumes/snapshot?"+qp.Encode(), &resp, q)
@@ -406,6 +409,7 @@ type CSISnapshotCreateResponse struct {
 // fields
 type CSISnapshotListRequest struct {
 	PluginID string
+	Secrets  CSISecrets
 	QueryOptions
 }
 
