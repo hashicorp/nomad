@@ -3,10 +3,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobDispatch from 'nomad-ui/tests/pages/jobs/dispatch';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
-import { pauseTest } from '@ember/test-helpers';
-
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
-import { setup } from 'qunit-dom';
 
 let job, managementToken, clientToken;
 
