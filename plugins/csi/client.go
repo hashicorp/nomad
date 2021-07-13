@@ -71,6 +71,7 @@ type CSIControllerClient interface {
 	CreateVolume(ctx context.Context, in *csipbv1.CreateVolumeRequest, opts ...grpc.CallOption) (*csipbv1.CreateVolumeResponse, error)
 	ListVolumes(ctx context.Context, in *csipbv1.ListVolumesRequest, opts ...grpc.CallOption) (*csipbv1.ListVolumesResponse, error)
 	DeleteVolume(ctx context.Context, in *csipbv1.DeleteVolumeRequest, opts ...grpc.CallOption) (*csipbv1.DeleteVolumeResponse, error)
+	ControllerExpandVolume(ctx context.Context, in *csipbv1.ControllerExpandVolumeRequest, opts ...grpc.CallOption) (*csipbv1.ControllerExpandVolumeResponse, error)
 	CreateSnapshot(ctx context.Context, in *csipbv1.CreateSnapshotRequest, opts ...grpc.CallOption) (*csipbv1.CreateSnapshotResponse, error)
 	DeleteSnapshot(ctx context.Context, in *csipbv1.DeleteSnapshotRequest, opts ...grpc.CallOption) (*csipbv1.DeleteSnapshotResponse, error)
 	ListSnapshots(ctx context.Context, in *csipbv1.ListSnapshotsRequest, opts ...grpc.CallOption) (*csipbv1.ListSnapshotsResponse, error)
@@ -85,6 +86,7 @@ type CSINodeClient interface {
 	NodeUnstageVolume(ctx context.Context, in *csipbv1.NodeUnstageVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeUnstageVolumeResponse, error)
 	NodePublishVolume(ctx context.Context, in *csipbv1.NodePublishVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodePublishVolumeResponse, error)
 	NodeUnpublishVolume(ctx context.Context, in *csipbv1.NodeUnpublishVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeUnpublishVolumeResponse, error)
+	NodeExpandVolume(ctx context.Context, in *csipbv1.NodeExpandVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeExpandVolumeResponse, error)
 }
 
 type client struct {
@@ -474,6 +476,40 @@ func (c *client) ControllerDeleteVolume(ctx context.Context, req *ControllerDele
 	return err
 }
 
+func (c *client) ControllerExpandVolume(ctx context.Context, req *ControllerExpandVolumeRequest, opts ...grpc.CallOption) (*ControllerExpandVolumeResponse, error) {
+	err := req.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	exReq := req.ToCSIRepresentation()
+	resp, err := c.controllerClient.ControllerExpandVolume(ctx, exReq, opts...)
+	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.InvalidArgument:
+			return nil, fmt.Errorf(
+				"requested capabilities not compatible with volume %q: %v",
+				req.ExternalVolumeID, err)
+		case codes.NotFound:
+			err = fmt.Errorf("volume %q could not be found: %v", req.ExternalVolumeID, err)
+		case codes.FailedPrecondition:
+			err = fmt.Errorf("volume %q cannot be resized online", req.ExternalVolumeID)
+		case codes.OutOfRange:
+			return nil, fmt.Errorf(
+				"unsupported capacity_range for volume %q: %v", req.ExternalVolumeID, err)
+		case codes.Internal:
+			err = fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+		}
+		return nil, err
+	}
+
+	return &ControllerExpandVolumeResponse{
+		Capacity:              resp.GetCapacityBytes(),
+		NodeExpansionRequired: resp.GetNodeExpansionRequired(),
+	}, nil
+}
+
 // compareCapabilities returns an error if the 'got' capabilities aren't found
 // within the 'expected' capability.
 //
@@ -849,4 +885,8 @@ func (c *client) NodeUnpublishVolume(ctx context.Context, volumeID, targetPath s
 	}
 
 	return err
+}
+
+func (c *client) NodeExpandVolume(ctx context.Context, req *NodeExpandVolumeRequest, opts ...grpc.CallOption) (*NodeExpandVolumeResponse, error) {
+	return nil, nil
 }

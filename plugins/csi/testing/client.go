@@ -53,6 +53,7 @@ type ControllerClient struct {
 	NextCreateVolumeResponse               *csipbv1.CreateVolumeResponse
 	NextDeleteVolumeResponse               *csipbv1.DeleteVolumeResponse
 	NextListVolumesResponse                *csipbv1.ListVolumesResponse
+	NextControllerExpandVolumeResponse     *csipbv1.ControllerExpandVolumeResponse
 	NextCreateSnapshotResponse             *csipbv1.CreateSnapshotResponse
 	NextDeleteSnapshotResponse             *csipbv1.DeleteSnapshotResponse
 	NextListSnapshotsResponse              *csipbv1.ListSnapshotsResponse
@@ -72,6 +73,7 @@ func (f *ControllerClient) Reset() {
 	f.NextCreateVolumeResponse = nil
 	f.NextDeleteVolumeResponse = nil
 	f.NextListVolumesResponse = nil
+	f.NextControllerExpandVolumeResponse = nil
 	f.NextCreateSnapshotResponse = nil
 	f.NextDeleteSnapshotResponse = nil
 	f.NextListSnapshotsResponse = nil
@@ -116,6 +118,10 @@ func (c *ControllerClient) ListVolumes(ctx context.Context, in *csipbv1.ListVolu
 	return c.NextListVolumesResponse, c.NextErr
 }
 
+func (c *ControllerClient) ControllerExpandVolume(ctx context.Context, in *csipbv1.ControllerExpandVolumeRequest, opts ...grpc.CallOption) (*csipbv1.ControllerExpandVolumeResponse, error) {
+	return c.NextControllerExpandVolumeResponse, c.NextErr
+}
+
 func (c *ControllerClient) CreateSnapshot(ctx context.Context, in *csipbv1.CreateSnapshotRequest, opts ...grpc.CallOption) (*csipbv1.CreateSnapshotResponse, error) {
 	return c.NextCreateSnapshotResponse, c.NextErr
 }
@@ -130,13 +136,14 @@ func (c *ControllerClient) ListSnapshots(ctx context.Context, in *csipbv1.ListSn
 
 // NodeClient is a CSI Node client used for testing
 type NodeClient struct {
-	NextErr                     error
-	NextCapabilitiesResponse    *csipbv1.NodeGetCapabilitiesResponse
-	NextGetInfoResponse         *csipbv1.NodeGetInfoResponse
-	NextStageVolumeResponse     *csipbv1.NodeStageVolumeResponse
-	NextUnstageVolumeResponse   *csipbv1.NodeUnstageVolumeResponse
-	NextPublishVolumeResponse   *csipbv1.NodePublishVolumeResponse
-	NextUnpublishVolumeResponse *csipbv1.NodeUnpublishVolumeResponse
+	NextErr                      error
+	NextCapabilitiesResponse     *csipbv1.NodeGetCapabilitiesResponse
+	NextGetInfoResponse          *csipbv1.NodeGetInfoResponse
+	NextStageVolumeResponse      *csipbv1.NodeStageVolumeResponse
+	NextUnstageVolumeResponse    *csipbv1.NodeUnstageVolumeResponse
+	NextPublishVolumeResponse    *csipbv1.NodePublishVolumeResponse
+	NextUnpublishVolumeResponse  *csipbv1.NodeUnpublishVolumeResponse
+	NextNodeExpandVolumeResponse *csipbv1.NodeExpandVolumeResponse
 }
 
 // NewNodeClient returns a new stub NodeClient
@@ -152,6 +159,7 @@ func (f *NodeClient) Reset() {
 	f.NextUnstageVolumeResponse = nil
 	f.NextPublishVolumeResponse = nil
 	f.NextUnpublishVolumeResponse = nil
+	f.NextNodeExpandVolumeResponse = nil
 }
 
 func (c *NodeClient) NodeGetCapabilities(ctx context.Context, in *csipbv1.NodeGetCapabilitiesRequest, opts ...grpc.CallOption) (*csipbv1.NodeGetCapabilitiesResponse, error) {
@@ -176,4 +184,8 @@ func (c *NodeClient) NodePublishVolume(ctx context.Context, in *csipbv1.NodePubl
 
 func (c *NodeClient) NodeUnpublishVolume(ctx context.Context, in *csipbv1.NodeUnpublishVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeUnpublishVolumeResponse, error) {
 	return c.NextUnpublishVolumeResponse, c.NextErr
+}
+
+func (c *NodeClient) NodeExpandVolume(ctx context.Context, in *csipbv1.NodeExpandVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeExpandVolumeResponse, error) {
+	return c.NextNodeExpandVolumeResponse, c.NextErr
 }
