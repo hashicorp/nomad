@@ -1508,6 +1508,83 @@ func TestServiceSched_JobModify(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestServiceSched_JobModify_Datacenters(t *testing.T) {
+	h := NewHarness(t)
+
+	require := require.New(t)
+
+	// Create some nodes in 3 DCs
+	var nodes []*structs.Node
+	for i := 1; i < 4; i++ {
+		node := mock.Node()
+		node.Datacenter = fmt.Sprintf("dc%d", i)
+		nodes = append(nodes, node)
+		h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node)
+	}
+
+	// Generate a fake job with allocations
+	job := mock.Job()
+	job.TaskGroups[0].Count = 3
+	job.Datacenters = []string{"dc1", "dc2", "dc3"}
+	require.NoError(h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for i := 0; i < 3; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		allocs = append(allocs, alloc)
+	}
+	require.NoError(h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+	// Update the job to 2 DCs
+	job2 := job.Copy()
+	job2.TaskGroups[0].Count = 4
+	job2.Datacenters = []string{"dc1", "dc2"}
+	require.NoError(h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job2))
+
+	// Create a mock evaluation to deal with drain
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.NoError(h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	require.NoError(err)
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+
+	// Ensure a single plan
+	require.Len(h.Plans, 1)
+	plan := h.Plans[0]
+
+	require.Len(plan.NodeUpdate, 1) // alloc in DC3 gets destructive update
+	require.Len(plan.NodeUpdate[nodes[2].ID], 1)
+	require.Equal(allocs[2].ID, plan.NodeUpdate[nodes[2].ID][0].ID)
+
+	require.Len(plan.NodeAllocation, 2) // only 2 eligible nodes
+	placed := map[string]*structs.Allocation{}
+	for node, placedAllocs := range plan.NodeAllocation {
+		require.True(
+			helper.SliceStringContains([]string{nodes[0].ID, nodes[1].ID}, node),
+			"allocation placed on ineligible node",
+		)
+		for _, alloc := range placedAllocs {
+			placed[alloc.ID] = alloc
+		}
+	}
+	require.Len(placed, 4)
+	require.Equal(nodes[0].ID, placed[allocs[0].ID].NodeID, "alloc should not have moved")
+	require.Equal(nodes[1].ID, placed[allocs[1].ID].NodeID, "alloc should not have moved")
+}
+
 // Have a single node and submit a job. Increment the count such that all fit
 // on the node but the node doesn't have enough resources to fit the new count +
 // 1. This tests that we properly discount the resources of existing allocs.
