@@ -278,6 +278,12 @@ func TestJob_SpecChanged(t *testing.T) {
 			Original: base,
 			New:      change,
 		},
+		{
+			Name:     "With Constraints",
+			Changed:  false,
+			Original: &Job{Constraints: []*Constraint{{"A", "B", "="}}},
+			New:      &Job{Constraints: []*Constraint{{"A", "B", "="}}},
+		},
 	}
 
 	for _, c := range cases {
