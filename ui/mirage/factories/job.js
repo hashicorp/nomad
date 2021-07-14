@@ -10,10 +10,17 @@ const JOB_TYPES = ['service', 'batch', 'system'];
 const JOB_STATUSES = ['pending', 'running', 'dead'];
 
 export default Factory.extend({
-  id: i =>
-    `${faker.helpers.randomize(
+  id(i) {
+    if (this.parameterized && this.parentId) {
+      const shortUUID = faker.random.uuid().split('-')[0];
+      const dispatchId = `dispatch-${this.submitTime / 1000}-${shortUUID}`;
+      return `${this.parentId}/${dispatchId}`;
+    }
+
+    return `${faker.helpers.randomize(
       JOB_PREFIXES
-    )}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase(),
+    )}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase();
+  },
 
   name() {
     return this.id;
