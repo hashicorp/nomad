@@ -7,7 +7,7 @@ export default class DispatchRoute extends Route {
   breadcrumbs = [
     {
       label: 'Dispatch',
-      args: ['jobs.run'],
+      args: ['jobs.job.dispatch'],
     },
   ];
 
