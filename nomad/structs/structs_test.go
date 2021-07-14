@@ -278,6 +278,12 @@ func TestJob_SpecChanged(t *testing.T) {
 			Original: base,
 			New:      change,
 		},
+		{
+			Name:     "With Constraints",
+			Changed:  false,
+			Original: &Job{Constraints: []*Constraint{{"A", "B", "="}}},
+			New:      &Job{Constraints: []*Constraint{{"A", "B", "="}}},
+		},
 	}
 
 	for _, c := range cases {
@@ -797,14 +803,14 @@ func TestJob_PartEqual(t *testing.T) {
 	}))
 
 	cs := &Constraints{
-		&Constraint{"left0", "right0", "=", ""},
-		&Constraint{"left1", "right1", "=", ""},
-		&Constraint{"left2", "right2", "=", ""},
+		&Constraint{"left0", "right0", "="},
+		&Constraint{"left1", "right1", "="},
+		&Constraint{"left2", "right2", "="},
 	}
 	require.True(t, cs.Equals(&Constraints{
-		&Constraint{"left0", "right0", "=", ""},
-		&Constraint{"left2", "right2", "=", ""},
-		&Constraint{"left1", "right1", "=", ""},
+		&Constraint{"left0", "right0", "="},
+		&Constraint{"left2", "right2", "="},
+		&Constraint{"left1", "right1", "="},
 	}))
 
 	as := &Affinities{
