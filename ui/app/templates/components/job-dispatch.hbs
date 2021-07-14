@@ -9,14 +9,15 @@
   <h1 class="title">Dispatch an instance of '{{ this.model.job.name }}'</h1>
 
   {{#each this.params as |meta|}}
-    <div data-test-meta-fields class="columns">
+    <div class="columns">
         <div class="column is-6">
-          <div class="field">
-            <label class="label" for="{{meta.name}}">
+          <div data-test-meta-field class="field">
+            <label data-test-meta-field-label class="label" for="{{meta.name}}">
               {{meta.title}} {{#if meta.isRequired}}*{{/if}}
             </label>
             <div class="control">
               <input
+                data-test-meta-field-input
                 id="{{meta.name}}"
                 class="input"
                 type="text"
@@ -43,7 +44,7 @@
     {{#if this.hasPayload}}
       <div class="boxed-section-body is-full-bleed">
         <IvyCodemirror
-          data-test-editor
+          data-test-payload-editor
           aria-label="Payload definition"
           @valueUpdated={{action (mut this.payload)}}
           @options={{hash
@@ -56,7 +57,7 @@
       </div>
     {{else}}
       <div class="boxed-section-body">
-        <div data-test-empty-meta-message class="empty-message">
+        <div data-test-empty-payload-message class="empty-message">
           <h3 class="empty-message-headline">Payload Disabled</h3>
           <p class="empty-message-body">Payload is disabled for this job.</p>
         </div>

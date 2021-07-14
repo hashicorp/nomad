@@ -66,9 +66,21 @@ export default Factory.extend({
     // parameterized job object
     // serializer update for bool vs details object
     parameterizedJob: () => ({
-      MetaOptional: null,
-      MetaRequired: null,
+      MetaOptional: generateMetaArray(faker.random.number(10), 'optional'),
+      MetaRequired: generateMetaArray(faker.random.number(10), 'required'),
       Payload: faker.random.boolean() ? 'required' : null,
+    }),
+  }),
+
+  parameterizedWithoutPayload: trait({
+    type: 'batch',
+    parameterized: true,
+    // parameterized job object
+    // serializer update for bool vs details object
+    parameterizedJob: () => ({
+      MetaOptional: generateMetaArray(faker.random.number(10), 'optional'),
+      MetaRequired: generateMetaArray(faker.random.number(10), 'required'),
+      Payload: 'forbidden',
     }),
   }),
 
@@ -263,3 +275,7 @@ export default Factory.extend({
     }
   },
 });
+
+function generateMetaArray(num, prefix = '') {
+  return Array.from({ length: num }).map(() => `${prefix}-${faker.hacker.noun()}`);
+}
