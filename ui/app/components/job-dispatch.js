@@ -1,111 +1,138 @@
-import Component from '@ember/component';
+import Component from '@glimmer/component';
+import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
-import { action, computed } from '@ember/object';
+import { action } from '@ember/object';
+import { A } from '@ember/array';
 import { task } from 'ember-concurrency';
-import classic from 'ember-classic-decorator';
-
 import { noCase } from 'no-case';
 import { titleCase } from 'title-case';
-
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
-@classic
+class MetaField {
+  @tracked value;
+  @tracked error;
+
+  name;
+  required;
+  title;
+
+  constructor(meta) {
+    this.name = meta.name;
+    this.required = meta.required;
+    this.title = meta.title;
+    this.value = meta.value;
+    this.error = meta.error;
+  }
+
+  validate() {
+    this.error = '';
+
+    if (this.required && !this.value) {
+      this.error = `Missing required meta parameter "${this.name}".`;
+    }
+  }
+}
+
 export default class JobDispatch extends Component {
-  @service can;
-  @service store;
-  @service config;
   @service router;
+  @service config;
 
-  model = null;
-  dispatchError = null;
-  paramValues = {};
-  payload = null;
+  @tracked metaFields = [];
+  @tracked payload = '';
+  @tracked payloadMissing = false;
 
-  @computed(
-    'model.definition.Meta',
-    'model.definition.ParameterizedJob.{MetaOptional,MetaRequired}'
-  )
-  get params() {
-    // Helper for mapping the params into a useable form
-    let mapper = (values, isRequired) =>
-      values.map(x => {
-        let emptyPlaceholder = '';
-        let placeholder =
-          this.model.definition.Meta != null ? this.model.definition.Meta[x] : emptyPlaceholder;
+  errors = A([]);
 
-        return {
-          isRequired: isRequired,
-          name: x,
-          title: titleCase(noCase(x)),
+  constructor() {
+    super(...arguments);
 
-          // Only show the placeholder on fields that aren't mandatory
-          placeholder: isRequired ? emptyPlaceholder : placeholder,
-        };
-      });
+    // Helper for mapping the params into a useable form.
+    const mapper = (values, required) =>
+      values.map(
+        x =>
+          new MetaField({
+            name: x,
+            required: required,
+            title: titleCase(noCase(x)),
+            value: this.args.job.definition.Meta[x],
+          })
+      );
 
-    // Fetch the different types of parameters
-    let required = mapper(this.model.definition.ParameterizedJob.MetaRequired || [], true);
-    let optional = mapper(this.model.definition.ParameterizedJob.MetaOptional || [], false);
+    // Fetch the different types of parameters.
+    const required = mapper(this.args.job.definition.ParameterizedJob.MetaRequired || [], true);
+    const optional = mapper(this.args.job.definition.ParameterizedJob.MetaOptional || [], false);
 
-    // Return them, required before optional
-    return required.concat(optional);
+    // Merge them, required before optional.
+    this.metaFields = required.concat(optional);
   }
 
-  @computed('model.definition.ParameterizedJob.Payload')
   get hasPayload() {
-    return this.model.definition.ParameterizedJob.Payload != 'forbidden';
+    return this.args.job.definition.ParameterizedJob.Payload !== 'forbidden';
   }
 
-  @computed('model.definition.ParameterizedJob.Payload')
-  get isPayloadRequired() {
-    return this.model.definition.ParameterizedJob.Payload == 'required';
+  get payloadRequired() {
+    return this.args.job.definition.ParameterizedJob.Payload === 'required';
   }
 
   @action
-  updateParamValue(name, input) {
-    this.paramValues[name] = input.target.value;
-  }
-
-  @task(function*() {
-    // Make sure that we have all of the fields that we need
-    let isValid = true;
-    let required = this.model.definition.ParameterizedJob.MetaRequired || [];
-    required.forEach(required => {
-      let input = document.getElementById(required);
-      isValid &= input.checkValidity();
-    });
-
-    // Short out if we are missing fields
-    if (!isValid) yield;
-
-    // Try to create the dispatch
-    try {
-      const dispatch = yield this.model.job.dispatch(this.paramValues, this.payload);
-
-      // Navigate to the newly created instance
-      this.router.transitionTo('jobs.job', dispatch.toJSON().dispatchedJobID);
-    } catch (err) {
-      const error = messageFromAdapterError(err) || 'Could not dispatch job';
-      this.set('dispatchError', error);
+  dispatch() {
+    this.validateForm();
+    if (this.errors.length > 0) {
       this.scrollToError();
+      return;
     }
-  })
-  submit;
+
+    this.onDispatched.perform();
+  }
 
   @action
   cancel() {
     this.router.transitionTo('jobs.job');
   }
 
-  reset() {
-    this.set('dispatchError', null);
-    this.set('paramValues', {});
-    this.set('payload', null);
-  }
+  @(task(function*() {
+    // Try to create the dispatch.
+    try {
+      let paramValues = {};
+      this.metaFields.forEach(m => (paramValues[m.name] = m.value));
+      const dispatch = yield this.args.job.dispatch(paramValues, this.payload);
+
+      // Navigate to the newly created instance.
+      this.router.transitionTo('jobs.job', dispatch.toJSON().dispatchedJobID);
+    } catch (err) {
+      const error = messageFromAdapterError(err) || 'Could not dispatch job';
+      this.errors.pushObject(error);
+      this.scrollToError();
+    }
+  }).drop())
+  onDispatched;
 
   scrollToError() {
-    if (!this.get('config.isTest')) {
+    if (!this.config.isTest) {
       window.scrollTo(0, 0);
+    }
+  }
+
+  resetErrors() {
+    this.payloadMissing = false;
+    this.errors.clear();
+  }
+
+  validateForm() {
+    this.resetErrors();
+
+    // Make sure that we have all of the meta fields that we need.
+    this.metaFields.forEach(f => {
+      f.validate();
+      if (f.error) {
+        this.errors.pushObject(f.error);
+      }
+    });
+
+    // Validate payload.
+    if (this.payloadRequired && !this.payload) {
+      this.errors.pushObject('Missing required payload.');
+      this.payloadMissing = true;
     }
   }
 }

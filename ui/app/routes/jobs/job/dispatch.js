@@ -20,10 +20,6 @@ export default class DispatchRoute extends Route {
   model() {
     const job = this.modelFor('jobs.job');
     if (!job) return this.transitionTo('jobs.job');
-
-    return job.fetchRawDefinition().then(definition => ({
-      job,
-      definition,
-    }));
+    return job;
   }
 }

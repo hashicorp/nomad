@@ -1,7 +1,5 @@
-{{page-title "Dispatch new " this.model.job.name}}
-<JobSubnav @job={{this.model.job}} />
+{{page-title "Dispatch new " this.model.name}}
+<JobSubnav @job={{this.model}} />
 <section class="section">
-  <JobDispatch
-    @model={{this.model}}
-  />
+  <JobDispatch @job={{this.model}}/>
 </section>
