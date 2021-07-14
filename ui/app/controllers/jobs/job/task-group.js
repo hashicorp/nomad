@@ -66,9 +66,10 @@ export default class TaskGroupController extends Controller.extend(
   })
   shouldShowScaleEventTimeline;
 
-  @computed('model.job.runningDeployment')
+  @computed('model.job.{namespace,runningDeployment}')
   get tooltipText() {
-    if (this.can.cannot('scale job')) return "You aren't allowed to scale task groups";
+    if (this.can.cannot('scale job', null, { namespace: this.model.job.namespace.get('name') }))
+      return "You aren't allowed to scale task groups";
     if (this.model.job.runningDeployment) return 'You cannot scale task groups during a deployment';
     return undefined;
   }
