@@ -512,26 +512,45 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 		var ref *openapi3.SchemaRef
 		var err error
 
-		switch fieldObj := field.Type().(type) {
+		if field.Name() == "JobSummary" {
+			s.analyzer.Logger(fmt.Sprintf("%#v", field))
+		}
+
+		var propertySchema *openapi3.Schema
+		switch fieldType := field.Type().(type) {
 		case *types.Basic:
-			propertySchema := &openapi3.Schema{}
-			s.adaptBasic(fieldObj, propertySchema)
-			schema.WithProperty(field.Name(), propertySchema)
-		case types.Object:
-			fieldTypeName = fieldObj.Name()
-			ref, err = s.GetOrCreateSchemaRef(parents, &fieldObj, componentType)
+			propertySchema = &openapi3.Schema{}
+			s.adaptBasic(fieldType, propertySchema)
+		case *types.Pointer:
+			elemType := s.analyzer.GetPointerElem(fieldType)
+			fieldTypeName = elemType.Name()
+			ref, err = s.GetOrCreateSchemaRef(parents, &elemType, componentType)
+			if err != nil {
+				return err
+			}
+		case *types.Struct:
+			underlying := fieldType.Underlying().(types.Object)
+			fieldTypeName = underlying.Name()
+			ref, err = s.GetOrCreateSchemaRef(parents, &underlying, componentType)
+			if err != nil {
+				return err
+			}
+		case *types.Named:
+			fieldTypeName = fieldType.Obj().Name()
+			var indirectObj types.Object
+			indirectObj = fieldType.Obj()
+			ref, err = s.GetOrCreateSchemaRef(parents, &indirectObj, componentType)
 			if err != nil {
 				return err
 			}
 		case *types.Slice:
-			propertySchema := &openapi3.Schema{
+			propertySchema = &openapi3.Schema{
 				Type: "array",
 			}
 			itemsSchema := &openapi3.Schema{}
-			switch elemType := fieldObj.Elem().(type) {
+			switch elemType := fieldType.Elem().(type) {
 			case *types.Basic:
 				s.adaptBasic(elemType, itemsSchema)
-				propertySchema.Items = openapi3.NewSchemaRef(elemType.Name(), itemsSchema)
 			case *types.Pointer:
 				itemsSchema.Type = "object"
 				itemsObj := s.analyzer.GetPointerElem(elemType)
@@ -548,10 +567,94 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 					return err
 				}
 				itemsSchema.Items = ref
+			case *types.Named:
+				itemsSchema.Type = "object"
+				underlying := elemType.Underlying().(*types.Struct).Underlying().(types.Object)
+				ref, err = s.GetOrCreateSchemaRef(nil, &underlying, componentType)
+				if err != nil {
+					return err
+				}
+				itemsSchema.Items = ref
+			}
+			propertySchema.Items = openapi3.NewSchemaRef("", itemsSchema)
+		case *types.Map:
+			propertySchema = &openapi3.Schema{
+				Type: "object",
+			}
+			itemsSchema := &openapi3.Schema{}
+			switch elemType := fieldType.Elem().(type) {
+			case *types.Basic:
+				basicSchema := &openapi3.Schema{}
+				s.adaptBasic(elemType, basicSchema)
+				propertySchema.AdditionalProperties = openapi3.NewSchemaRef("", basicSchema)
+			case *types.Pointer:
+				itemsSchema.Type = "object"
+				itemsObj := s.analyzer.GetPointerElem(elemType)
+				ref, err = s.GetOrCreateSchemaRef(nil, &itemsObj, componentType)
+				if err != nil {
+					return err
+				}
+				itemsSchema.Items = ref
+			case *types.Struct:
+				itemsSchema.Type = "object"
+				underlying := elemType.Underlying().(types.Object)
+				ref, err = s.GetOrCreateSchemaRef(nil, &underlying, componentType)
+				if err != nil {
+					return err
+				}
+				itemsSchema.Items = ref
+			case *types.Named:
+				itemsSchema.Type = "object"
+				var indirectObj types.Object
+				indirectObj = elemType.Obj()
+				ref, err = s.GetOrCreateSchemaRef(nil, &indirectObj, componentType)
+				if err != nil {
+					return err
+				}
+				itemsSchema.Items = ref
+			case *types.Map:
+				// TODO: Is there a way to genericize and recursify this
+				itemsSchema.Type = "object"
+				switch itemsType := elemType.Elem().(type) {
+				case *types.Basic:
+					basicSchema := &openapi3.Schema{}
+					s.adaptBasic(itemsType, basicSchema)
+					itemsSchema.Items = openapi3.NewSchemaRef("", basicSchema)
+				case *types.Pointer:
+					itemsObj := s.analyzer.GetPointerElem(itemsType)
+					ref, err = s.GetOrCreateSchemaRef(nil, &itemsObj, componentType)
+					if err != nil {
+						return err
+					}
+					itemsSchema.Items = ref
+				case *types.Struct:
+					underlying := itemsType.Underlying().(types.Object)
+					ref, err = s.GetOrCreateSchemaRef(nil, &underlying, componentType)
+					if err != nil {
+						return err
+					}
+					itemsSchema.Items = ref
+					propertySchema.Items = openapi3.NewSchemaRef("", itemsSchema)
+				case *types.Named:
+					var indirectObj types.Object
+					indirectObj = itemsType.Obj()
+					ref, err = s.GetOrCreateSchemaRef(nil, &indirectObj, componentType)
+					if err != nil {
+						return err
+					}
+					itemsSchema.Items = ref
+					propertySchema.Items = openapi3.NewSchemaRef("", itemsSchema)
+				}
+			default:
+				panic(fmt.Sprintf("SchemaRefAdapter.adaptStruct: struct %s has unhandled field %s of Type %#v", obj.Name(), field.Name(), fieldType))
+			}
+		}
+
+		if propertySchema != nil {
+			if fieldTypeName == "unknown" {
+				fieldTypeName = propertySchema.Type
 			}
 			schema.WithProperty(field.Name(), propertySchema)
-		case *types.Map:
-			panic("SchemaRefAdapter.adaptStruct unhandled type: Map")
 		}
 
 		if ref != nil {
@@ -561,13 +664,9 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 			if _, ok := s.SchemaRefs[fieldTypeName]; !ok {
 				s.SchemaRefs[fieldTypeName] = ref
 			}
+
 			schema.WithPropertyRef(field.Name(), ref)
 		}
-	}
-
-	// Object only if it has properties
-	if schema.Properties != nil {
-		schema.Type = "object"
 	}
 
 	return nil
