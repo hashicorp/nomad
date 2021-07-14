@@ -116,16 +116,18 @@ func (v *NomadPackageVisitor) VisitPackages() error {
 func (v *NomadPackageVisitor) loadHandlers() error {
 	handlers := v.analyzer.GetHttpHandlers(v.activePackage)
 	for key, handler := range handlers {
-		// Useful for Debug and Tests
-		isTarget := false
-		for _, h := range v.debugOptions.filterByMethods {
-			if key == h {
-				isTarget = true
+		if v.debugOptions.filterByMethods != nil {
+			// Useful for Debug and Tests
+			isTarget := false
+			for _, h := range v.debugOptions.filterByMethods {
+				if key == h {
+					isTarget = true
+				}
 			}
-		}
 
-		if !isTarget {
-			continue
+			if !isTarget {
+				continue
+			}
 		}
 
 		if _, ok := v.handlerAdapters[key]; ok {
@@ -135,6 +137,7 @@ func (v *NomadPackageVisitor) loadHandlers() error {
 		v.handlerAdapters[key] = &HandlerFuncAdapter{
 			Package:          v.activePackage,
 			Func:             handler,
+			handlerName:      key,
 			logger:           v.logger,
 			analyzer:         v.analyzer,
 			schemaRefAdapter: v.schemaRefAdapter,
@@ -192,7 +195,7 @@ func (v *NomadPackageVisitor) VisitFile(node ast.Node) bool {
 		adapter.Cfg = v.analyzer.GetControlFlowGraph(adapter.Func, adapter.FuncDecl)
 
 		if err := adapter.visitHandlerFunc(); err != nil {
-			panic(fmt.Errorf(fmt.Sprintf("FuncInfo.visitHandlerFunc failed for %s", name), err))
+			v.logger(name, "FuncInfo.visitHandlerFunc failed with err", err)
 		}
 	}
 	return true

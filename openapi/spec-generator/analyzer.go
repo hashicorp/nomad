@@ -163,6 +163,27 @@ func (a *Analyzer) printDefs() {
 	}
 }
 
+func (a *Analyzer) GetTypeByName(name string) types.Object {
+	if obj, ok := a.typeObjects[name]; ok {
+		return obj
+	}
+
+	//var match types.Object
+	//for k, v := range a.typeObjects {
+	//	if strings.Contains(k, name) {
+	//		a.Logger("Found possible match", k)
+	//		match = v
+	//	}
+	//}
+	//return match
+
+	return nil
+}
+
+func (a *Analyzer) FormatTypeName(pkgName, typeName string) string {
+	return fmt.Sprintf("%s.%s", pkgName, typeName)
+}
+
 // GetSource returns the source code for an ast.Node
 func (a *Analyzer) GetSource(elem interface{}, fileSet *token.FileSet) (string, error) {
 	var buf bytes.Buffer
@@ -323,6 +344,9 @@ func isIntrinsicNoReturn(fn *types.Func) bool {
 }
 
 func (a *Analyzer) GetFieldType(fieldName string, obj types.Object) types.Object {
+	if obj == nil {
+		return nil
+	}
 	if s, ok := obj.Type().(*types.Named); ok {
 		if orig, ok := s.Underlying().(*types.Struct); ok {
 			for i := 0; i < orig.NumFields(); i++ {
@@ -340,13 +364,13 @@ func (a *Analyzer) GetFieldType(fieldName string, obj types.Object) types.Object
 func (a *Analyzer) GetPointerElem(t *types.Pointer) types.Object {
 	var obj types.Object
 
-	switch objType := t.Elem().(type) {
+	switch elemType := t.Elem().(type) {
 	case types.Object:
-		obj = objType
+		obj = elemType
 	case *types.Named:
-		obj = objType.Obj()
+		obj = elemType.Obj()
 	default:
-		panic("Analyzer.GetPointerElem invalid cast")
+		a.Logger(fmt.Sprintf("Analyzer.GetPointerElem invalid cast: %#v", elemType))
 	}
 
 	return obj
@@ -355,7 +379,7 @@ func (a *Analyzer) GetPointerElem(t *types.Pointer) types.Object {
 func (a *Analyzer) GetSliceElemObj(obj types.Object) types.Object {
 	sliceType, ok := obj.Type().(*types.Slice)
 	if !ok {
-		panic(fmt.Sprintf("Analyzer.GetSliceElemObj invalid type %v", obj.Type()))
+		a.Logger(fmt.Sprintf("Analyzer.GetSliceElemObj invalid type %v", obj.Type()))
 	}
 
 	switch elemType := sliceType.Elem().(type) {
@@ -364,7 +388,7 @@ func (a *Analyzer) GetSliceElemObj(obj types.Object) types.Object {
 	case types.Object:
 		return sliceType.Elem().(types.Object)
 	default:
-		panic("Analyzer.GetSliceElemObj unhandled slice Elem")
+		a.Logger(fmt.Sprintf("Analyzer.GetSliceElemObj unhandled slice Elem Type: %#v", elemType))
 	}
 
 	return nil

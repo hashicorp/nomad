@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"go/types"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
@@ -138,6 +137,7 @@ func (s *SSAnalyzer) GetReturnTypeByHandlerName(funcName string) interface{} {
 	return nil
 }
 
+// FilterRuntimeTypes gets the runtime types during SSA base analysis
 // TODO: Leaving for now
 func (s *SSAnalyzer) FilterRuntimeTypes() {
 	if s.RuntimeTypes == nil {
@@ -151,15 +151,4 @@ func (s *SSAnalyzer) FilterRuntimeTypes() {
 			}
 		}
 	}
-}
-
-func (a *Analyzer) GetTypeByName(name string) types.Object {
-	if obj, ok := a.typeObjects[name]; ok {
-		return obj
-	}
-	return nil
-}
-
-func (a *Analyzer) FormatTypeName(pkgName, typeName string) string {
-	return fmt.Sprintf("%s.%s", pkgName, typeName)
 }

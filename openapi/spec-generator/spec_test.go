@@ -25,10 +25,12 @@ func TestRenderSchema(t *testing.T) {
 
 	debugOptions := defaultDebugOptions
 	debugOptions.printSource = false
+	debugOptions.printHandlers = false
+	debugOptions.printVariables = false
 	// debugOptions.printHelpers = true
 	// debugOptions.printReturnSource = true
 	// debugOptions.printSchemaRefs = true
-	debugOptions.filterByMethods = []string{"agent.jobListRequest"}
+	// debugOptions.filterByMethods = []string{"agent.jobListRequest"}
 	var analyzer *Analyzer
 	var err error
 

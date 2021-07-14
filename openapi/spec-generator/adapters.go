@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3gen"
@@ -34,10 +35,31 @@ func (v *VarAdapter) Name() string {
 }
 
 func (v *VarAdapter) TypeName() string {
-	return v.analyzer.FormatTypeName(v.expr().X.(*ast.Ident).Name, v.expr().Sel.Name)
+	switch specType := v.spec.Type.(type) {
+	case *ast.Ident:
+		return specType.Name
+	case *ast.StarExpr:
+		switch xType := specType.X.(type) {
+		case *ast.Ident:
+			return v.starExpr().X.(*ast.Ident).Name
+		case *ast.SelectorExpr:
+			return v.analyzer.FormatTypeName(xType.X.(*ast.Ident).Name, xType.Sel.Name)
+		}
+	case *ast.SelectorExpr:
+		return v.analyzer.FormatTypeName(v.selectorExpr().X.(*ast.Ident).Name, v.selectorExpr().Sel.Name)
+	//case *ast.ArrayType:
+	default:
+		v.analyzer.Logger(fmt.Sprintf("VarAdapter.TypeName: unhandled spec type: %#v", specType))
+	}
+
+	return "unknown"
 }
 
-func (v *VarAdapter) expr() *ast.SelectorExpr {
+func (v *VarAdapter) starExpr() *ast.StarExpr {
+	return v.spec.Type.(*ast.StarExpr)
+}
+
+func (v *VarAdapter) selectorExpr() *ast.SelectorExpr {
 	return v.spec.Type.(*ast.SelectorExpr)
 }
 
@@ -96,7 +118,8 @@ type HandlerFuncAdapter struct {
 	Func     *types.Func
 	FuncDecl *ast.FuncDecl
 
-	logger loggerFunc
+	handlerName string
+	logger      loggerFunc
 	// TODO: Figure out the right model and naming. Analyzer is a loaded term.
 	// Having 2 stateful things feels weird, yet the Analyzer shouldn't be aware
 	// of OpenAPI.
@@ -199,7 +222,7 @@ func (h *HandlerFuncAdapter) FindVariables() error {
 					varAdapter := NewVarAdapter(spec.(*ast.ValueSpec), h.analyzer)
 					// @@@@ DEBUG
 					if varAdapter.Type() == nil {
-						panic(fmt.Sprintf("ValueSpecType: %v", node.(*ast.GenDecl).Specs[i].(*ast.ValueSpec).Type))
+						h.logger(h.handlerName, "varAdapter.Type() nil for ValueSpecType:", node.(*ast.GenDecl).Specs[i].(*ast.ValueSpec).Type)
 					}
 
 					if _, ok := h.Variables[varAdapter.Name()]; !ok {
@@ -215,7 +238,7 @@ func (h *HandlerFuncAdapter) FindVariables() error {
 
 	if h.analyzer.debugOptions.printVariables {
 		for k, v := range h.Variables {
-			h.analyzer.Logger(h.Func.Name(), "variable", k, "has TypeName:", v.TypeName(), "with type signature", v.Type().String())
+			h.analyzer.Logger(h.handlerName, "variable", k, "has TypeName:", v.TypeName(), "with type signature", v.Type())
 		}
 	}
 
@@ -237,11 +260,17 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 		}
 		switch t := node.(type) {
 		case *ast.Ident:
+			if t.Name == "nil" {
+				outObject = nil
+				return true
+			}
 			var v *VarAdapter
 			var ok bool
 			// @@@@ Debug should never happen if all loading is done correctly.
 			if v, ok = h.Variables[t.Name]; !ok {
-				panic("HandlerFuncAdapter.GetReturnSchema failed to find variable " + t.Name)
+				h.analyzer.Logger(fmt.Sprintf("%s.HandlerFuncAdapter.GetReturnSchema failed to find variable %s", h.handlerName, t.Name))
+				// @@@@ Debug
+				return true
 			}
 			outObject = v.Type()
 			// outTypeName = v.TypeName()
@@ -254,15 +283,32 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 				var v *VarAdapter
 				var ok bool
 				if v, ok = h.Variables[xt.Name]; !ok {
-					panic("HandlerFuncAdapter.GetReturnSchema failed to find variable " + xt.Name)
+					h.analyzer.Logger(fmt.Sprintf("%s.HandlerFuncAdapter.GetReturnSchema failed to find variable %s", h.handlerName, xt.Name))
+					// @@@@ Debug
+					return true
 				}
 				outObject = h.analyzer.GetFieldType(t.Sel.Name, v.Type())
 				// outTypeName = v.TypeName()
 			default:
-				panic(fmt.Sprintf("HandlerFuncAdapter.GetReturnSchema: unhandled type %v", xt))
+				h.analyzer.Logger(fmt.Sprintf("%s.HandlerFuncAdapter.GetReturnSchema: unhandled type %#v", h.handlerName, xt))
 			}
+		//case *ast.UnaryExpr:
+		//case *ast.CompositeLit:
+		//case *ast.KeyValueExpr:
+		//case *ast.CallExpr:
+		//case *ast.BasicLit:
+		//case *ast.FuncLit:
+		//case *ast.FuncType:
+		//case *ast.FieldList:
+		//case *ast.Field:
+		//case *ast.BlockStmt:
+		//case *ast.AssignStmt:
+		//case *ast.StarExpr:
+		//case *ast.ExprStmt:
+		//case *ast.IfStmt:
+		//case *ast.BinaryExpr:
 		default:
-			panic(fmt.Sprintf("HandlerFuncAdapter.GetReturnSchema: unhandled type %v", t))
+			h.analyzer.Logger(h.handlerName, fmt.Sprintf("HandlerFuncAdapter.GetReturnSchema: unhandled node type %#v", t))
 		}
 		return true
 	}
@@ -345,7 +391,15 @@ func NewSchemaRefAdapter(analyzer *Analyzer) *SchemaRefAdapter {
 }
 
 func (s *SchemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr *types.Object, componentType string) (*openapi3.SchemaRef, error) {
+	if objPtr == nil {
+		return nil, fmt.Errorf("SchemaRefAdapter.GetOrCreateSchemaRef: objPtr cannot be nil")
+	}
+
 	obj := *objPtr
+	if obj == nil {
+		return nil, fmt.Errorf("SchemaRefAdapter.GetOrCreateSchemaRef: obj cannot be nil")
+	}
+
 	if t, ok := obj.Type().(*types.Pointer); ok {
 		obj = s.analyzer.GetPointerElem(t)
 	}
@@ -362,6 +416,16 @@ func (s *SchemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr 
 		switch objType := obj.Type().(type) {
 		case *types.Slice:
 			schema.Type = "array"
+			if elemType, ok := objType.Elem().(*types.Basic); ok {
+				basicSchema := &openapi3.Schema{}
+				s.adaptBasic(elemType, basicSchema)
+				items := &openapi3.SchemaRef{
+					Ref:   "",
+					Value: basicSchema,
+				}
+				schema.Items = items
+				break
+			}
 			elemObj := s.analyzer.GetSliceElemObj(obj)
 			typeName = elemObj.Name() + "Array"
 			items, err := s.GetOrCreateSchemaRef(parents, &elemObj, componentType)
@@ -378,7 +442,9 @@ func (s *SchemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr 
 			schema.Type = "object"
 			var elemObj types.Object
 			if elemObj, ok = objType.Elem().(types.Object); !ok {
-				panic(fmt.Sprintf("SchemaRefAdapter.GetOrCreateSchemaRef: invalid map type %#v", objType))
+				err := errors.New(fmt.Sprintf("SchemaRefAdapter.GetOrCreateSchemaRef: invalid map type %#v", objType))
+				s.analyzer.Logger(err)
+				return nil, err
 			}
 			additionalProperties, err := s.GetOrCreateSchemaRef(parents, &elemObj, componentType)
 			if err != nil {
@@ -401,7 +467,8 @@ func (s *SchemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr 
 					return nil, err
 				}
 			default:
-				panic("SchemaRefAdapter.GetOrCreateSchemaRef failed to handle types.Named")
+				err := errors.New(fmt.Sprintf("SchemaRefAdapter.GetOrCreateSchemaRef failed to handle type: %#v", underlyingType))
+				return nil, err
 			}
 		case *types.Struct:
 			typeName = obj.(types.Object).Name()
@@ -522,6 +589,11 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 			propertySchema = &openapi3.Schema{}
 			s.adaptBasic(fieldType, propertySchema)
 		case *types.Pointer:
+			if elemType, ok := fieldType.Elem().(*types.Basic); ok {
+				propertySchema = &openapi3.Schema{}
+				s.adaptBasic(elemType, propertySchema)
+				break
+			}
 			elemType := s.analyzer.GetPointerElem(fieldType)
 			fieldTypeName = elemType.Name()
 			ref, err = s.GetOrCreateSchemaRef(parents, &elemType, componentType)
@@ -569,10 +641,16 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 				itemsSchema.Items = ref
 			case *types.Named:
 				itemsSchema.Type = "object"
-				underlying := elemType.Underlying().(*types.Struct).Underlying().(types.Object)
-				ref, err = s.GetOrCreateSchemaRef(nil, &underlying, componentType)
-				if err != nil {
-					return err
+				switch elemType.Underlying().(type) {
+				case *types.Interface:
+					s.analyzer.Logger("SchemaRefAdapter.adaptStruct unhandled interface", elemType)
+				case *types.Struct:
+					var indirectObj types.Object
+					indirectObj = elemType.Obj()
+					ref, err = s.GetOrCreateSchemaRef(nil, &indirectObj, componentType)
+					if err != nil {
+						return err
+					}
 				}
 				itemsSchema.Items = ref
 			}
@@ -646,7 +724,7 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 					propertySchema.Items = openapi3.NewSchemaRef("", itemsSchema)
 				}
 			default:
-				panic(fmt.Sprintf("SchemaRefAdapter.adaptStruct: struct %s has unhandled field %s of Type %#v", obj.Name(), field.Name(), fieldType))
+				s.analyzer.Logger(fmt.Sprintf("SchemaRefAdapter.adaptStruct: struct %s has unhandled field %s of Type %#v", obj.Name(), field.Name(), fieldType))
 			}
 		}
 
@@ -659,7 +737,7 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 
 		if ref != nil {
 			if fieldTypeName == "unknown" {
-				panic(fmt.Sprintf("SchemaRefAdapter.adaptStruct failed to resolve fieldTypeName for %#v", field))
+				return fmt.Errorf("SchemaRefAdapter.adaptStruct failed to resolve fieldTypeName for %#v", field)
 			}
 			if _, ok := s.SchemaRefs[fieldTypeName]; !ok {
 				s.SchemaRefs[fieldTypeName] = ref
@@ -675,11 +753,20 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 // getTypesObject ensures one and only one instance of a typesObject is used during processing.
 func (s *SchemaRefAdapter) getTypesObject(objPtr *types.Object) *types.Object {
 	obj := *objPtr
+	if obj == nil {
+		return nil
+	}
+
 	switch elemType := obj.Type().(type) {
+	case *types.Named:
+		var indirectObj types.Object
+		indirectObj = elemType.Obj()
+		return &indirectObj
 	case *types.Pointer:
 		var ok bool
 		if obj, ok = elemType.Elem().(types.Object); !ok {
-			panic(fmt.Sprintf("SchemaRefAdapter.GetTypeInfo invalid cast %#v", obj))
+			s.analyzer.Logger(fmt.Sprintf("SchemaRefAdapter.GetTypeInfo invalid cast %#v", elemType.Elem()))
+			return nil
 		}
 	}
 
