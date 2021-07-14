@@ -4549,6 +4549,12 @@ func (j *Job) SpecChanged(new *Job) bool {
 
 	// cgbaker: FINISH: probably need some consideration of scaling policy ID here
 
+	//fmt.Println("Job.SpecChanged (j) =============")
+	//spew.Dump(j)
+	//fmt.Println("Job.SpecChanged (c) =========")
+	//spew.Dump(c)
+	//fmt.Println("end ===========")
+
 	// Deep equals the jobs
 	return !reflect.DeepEqual(j, c)
 }
@@ -8245,7 +8251,6 @@ type Constraint struct {
 	LTarget string // Left-hand target
 	RTarget string // Right-hand target
 	Operand string // Constraint operand (<=, <, =, !=, >, >=), contains, near
-	str     string // Memoized string
 }
 
 // Equals checks if two constraints are equal
@@ -8256,6 +8261,7 @@ func (c *Constraint) Equals(o *Constraint) bool {
 			c.Operand == o.Operand
 }
 
+// Equal is the same as Equals, but without the trailing s.
 func (c *Constraint) Equal(o *Constraint) bool {
 	return c.Equals(o)
 }
@@ -8264,17 +8270,15 @@ func (c *Constraint) Copy() *Constraint {
 	if c == nil {
 		return nil
 	}
-	nc := new(Constraint)
-	*nc = *c
-	return nc
+	return &Constraint{
+		LTarget: c.LTarget,
+		RTarget: c.RTarget,
+		Operand: c.Operand,
+	}
 }
 
 func (c *Constraint) String() string {
-	if c.str != "" {
-		return c.str
-	}
-	c.str = fmt.Sprintf("%s %s %s", c.LTarget, c.Operand, c.RTarget)
-	return c.str
+	return fmt.Sprintf("%s %s %s", c.LTarget, c.Operand, c.RTarget)
 }
 
 func (c *Constraint) Validate() error {

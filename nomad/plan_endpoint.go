@@ -31,6 +31,7 @@ func (p *Plan) Submit(args *structs.PlanRequest, reply *structs.PlanResponse) er
 	token := plan.EvalToken
 
 	fmt.Println("Plan.Submit enqueue plan.job.id:", plan.Job.ID, "plan.job.jmidx:", plan.Job.JobModifyIndex, "plan.job.midx:", plan.Job.ModifyIndex, "plan.eval.id:", id)
+	fmt.Println("Plan.Submit enqueue plan.job.id:", plan.Job.ID, "plan.job.jmidx:", plan.Job.JobModifyIndex, "plan.job.midx:", plan.Job.ModifyIndex)
 
 	if err := p.srv.evalBroker.PauseNackTimeout(id, token); err != nil {
 		return err

@@ -1527,6 +1527,9 @@ func (s *StateStore) UpsertJobTxn(index uint64, job *structs.Job, txn Txn) error
 
 // upsertJobImpl is the implementation for registering a job or updating a job definition
 func (s *StateStore) upsertJobImpl(index uint64, job *structs.Job, keepVersion bool, txn *txn) error {
+
+	fmt.Println("ss.upsertJob index:", index, "job:", job.ID, "jmidx:", job.JobModifyIndex, "keepVer:", keepVersion)
+
 	// Assert the namespace exists
 	if exists, err := s.namespaceExists(txn, job.Namespace); err != nil {
 		return err

@@ -97,6 +97,10 @@ func (s *SystemScheduler) process() (bool, error) {
 		return false, fmt.Errorf("failed to get job '%s': %v",
 			s.eval.JobID, err)
 	}
+
+	fmt.Println("ss.process ns:", s.eval.Namespace, "eval.jobid:", s.eval.JobID, "eval.jmidx:", s.eval.JobModifyIndex)
+	fmt.Println("ss.process jobid:", s.job.ID, "job.midx:", s.job.JobModifyIndex)
+
 	numTaskGroups := 0
 	if !s.job.Stopped() {
 		numTaskGroups = len(s.job.TaskGroups)

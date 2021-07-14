@@ -1720,12 +1720,16 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		if oldJob.SpecChanged(args.Job) {
 			// Insert the updated Job into the snapshot
 			updatedIndex = oldJob.JobModifyIndex + 1
+			fmt.Println("Job.Plan spec changed!, upIndex:", updatedIndex)
 			if err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, updatedIndex, args.Job); err != nil {
 				return err
 			}
+		} else {
+			fmt.Println("Job.Plan spec NOT changed, jmidx:", oldJob.JobModifyIndex)
 		}
 	} else if oldJob == nil {
 		// Insert the updated Job into the snapshot
+		fmt.Println("Job.Plan oldJob is nil, inserting job:", args.Job.Name, "jmidx:", args.Job.JobModifyIndex)
 		err := snap.UpsertJob(structs.IgnoreUnknownTypeFlag, 100, args.Job)
 		if err != nil {
 			return err
