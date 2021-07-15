@@ -12,7 +12,7 @@ export default class Task extends Fragment {
 
   @attr() meta;
 
-  @computed('taskGroup.mergedMeta')
+  @computed('taskGroup.mergedMeta', 'meta')
   get mergedMeta() {
     return {
       ...this.taskGroup.mergedMeta,

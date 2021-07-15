@@ -24,7 +24,7 @@ export default class TaskGroup extends Fragment {
 
   @attr() meta;
 
-  @computed('job.meta')
+  @computed('job.meta', 'meta')
   get mergedMeta() {
     return {
       ...this.job.meta,
