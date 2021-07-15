@@ -39,7 +39,7 @@ export default class JobDispatch extends Component {
 
   @tracked metaFields = [];
   @tracked payload = '';
-  @tracked payloadMissing = false;
+  @tracked payloadHasError = false;
 
   errors = A([]);
 
@@ -114,7 +114,7 @@ export default class JobDispatch extends Component {
   }
 
   resetErrors() {
-    this.payloadMissing = false;
+    this.payloadHasError = false;
     this.errors.clear();
   }
 
@@ -132,7 +132,7 @@ export default class JobDispatch extends Component {
     // Validate payload.
     if (this.payloadRequired && !this.payload) {
       this.errors.pushObject('Missing required payload.');
-      this.payloadMissing = true;
+      this.payloadHasError = true;
     }
   }
 }

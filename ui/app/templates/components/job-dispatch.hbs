@@ -42,7 +42,7 @@
     </div>
   {{/each}}
 
-  <div class="boxed-section {{if this.payloadMissing "is-danger"}}">
+  <div class="boxed-section {{if this.payloadHasError "is-danger"}}">
     <div class="boxed-section-head">
       Payload {{#if this.payloadRequired}}*{{/if}}
     </div>
