@@ -12,7 +12,9 @@ export default class DispatchRoute extends Route {
   ];
 
   beforeModel() {
-    if (this.can.cannot('dispatch job')) {
+    const job = this.modelFor('jobs.job');
+    const namespace = job.namespace.get('name');
+    if (this.can.cannot('dispatch job', null, { namespace })) {
       this.transitionTo('jobs.job');
     }
   }

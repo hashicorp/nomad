@@ -1,6 +1,6 @@
 <div class="boxed-section-head">
   Job Launches
-  {{#if (can "dispatch job")}}
+  {{#if (can "dispatch job" namespace=this.job.namespace)}}
     <LinkTo
       data-test-dispatch-button
       @route="jobs.job.dispatch"
@@ -10,7 +10,7 @@
   {{else}}
     <button
       data-test-dispatch-button
-      class="button is-disabled is-primary is-compact pull-right tooltip"
+      class="button is-disabled is-primary is-compact pull-right tooltip multiline"
       aria-label="You don’t have permission to dispatch jobs"
       disabled
       type="button">
