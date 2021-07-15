@@ -319,6 +319,9 @@ UPDATE:
 				c.ttyMonitor(client, rollback.ID, index, verbose)
 				return
 			} else {
+				endSpinner = glint.Layout(
+					glint.Text(fmt.Sprintf("! Deployment %q %s", limit(deployID, length), status)),
+				).Row().MarginLeft(2)
 				break UPDATE
 			}
 		case structs.DeploymentStatusSuccessful:
