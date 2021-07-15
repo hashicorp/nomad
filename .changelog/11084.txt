@@ -1,0 +1,3 @@
+```release-note:security
+Restricted access to the Raft RPC layer, so only servers within the region can issue Raft RPC requests. Previously, local clients and federated servers can issue Raft RPC requests directly. CVE-2021-37218
+```
