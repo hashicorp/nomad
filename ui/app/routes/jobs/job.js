@@ -32,13 +32,6 @@ export default class JobRoute extends Route {
           this.store.findAll('namespace'),
         ];
 
-        // Only add the definition as needed (for parameterized jobs)
-        if (job.parameterized) {
-          relatedModelsQueries.push(
-            job.fetchRawDefinition().then(definition => (job.definition = definition))
-          );
-        }
-
         if (this.can.can('accept recommendation')) {
           relatedModelsQueries.push(job.get('recommendationSummaries'));
         }

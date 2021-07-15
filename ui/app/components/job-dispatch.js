@@ -54,24 +54,24 @@ export default class JobDispatch extends Component {
             name: x,
             required: required,
             title: titleCase(noCase(x)),
-            value: this.args.job.definition.Meta[x],
+            value: this.args.job.meta[x],
           })
       );
 
     // Fetch the different types of parameters.
-    const required = mapper(this.args.job.definition.ParameterizedJob.MetaRequired || [], true);
-    const optional = mapper(this.args.job.definition.ParameterizedJob.MetaOptional || [], false);
+    const required = mapper(this.args.job.parameterizedDetails.MetaRequired || [], true);
+    const optional = mapper(this.args.job.parameterizedDetails.MetaOptional || [], false);
 
     // Merge them, required before optional.
     this.metaFields = required.concat(optional);
   }
 
   get hasPayload() {
-    return this.args.job.definition.ParameterizedJob.Payload !== 'forbidden';
+    return this.args.job.parameterizedDetails.Payload !== 'forbidden';
   }
 
   get payloadRequired() {
-    return this.args.job.definition.ParameterizedJob.Payload === 'required';
+    return this.args.job.parameterizedDetails.Payload === 'required';
   }
 
   @action
