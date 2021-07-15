@@ -11,7 +11,7 @@ import (
 
 type loggerFunc func(args ...interface{})
 
-type DebugOptions struct {
+type debugOptions struct {
 	printSource       bool
 	printHelpers      bool
 	printHandlers     bool
@@ -22,30 +22,41 @@ type DebugOptions struct {
 	printSchemaRefs   bool
 }
 
-var defaultDebugOptions = DebugOptions{
+var defaultDebugOptions = debugOptions{
 	printHandlers:  true,
 	printVariables: true,
 }
 
-func NewNomadPackageVisitor(analyzer *Analyzer, logger loggerFunc, options DebugOptions) PackageVisitor {
+func newNomadPackageVisitor(analyzer *Analyzer, logger loggerFunc, options debugOptions) PackageVisitor {
 	visitor := &NomadPackageVisitor{
 		analyzer:         analyzer,
 		logger:           logger,
 		debugOptions:     options,
-		schemaRefAdapter: NewSchemaRefAdapter(analyzer),
+		schemaRefAdapter: newSchemaRefAdapter(analyzer),
 	}
 
 	return visitor
 }
 
 type NomadPackageVisitor struct {
-	handlerAdapters  map[string]*HandlerFuncAdapter
-	schemaRefAdapter *SchemaRefAdapter
+	handlerAdapters  map[string]*handlerFuncAdapter
+	schemaRefAdapter *schemaRefAdapter
 	analyzer         *Analyzer
 	activePackage    *packages.Package
 	logger           loggerFunc
 	fileSets         []*token.FileSet
-	debugOptions     DebugOptions
+	debugOptions     debugOptions
+}
+
+func (v *NomadPackageVisitor) Parse() error {
+	var err error
+	if err = v.VisitPackages(); err != nil {
+		return err
+	}
+
+	v.DebugPrint()
+
+	return nil
 }
 
 func (v *NomadPackageVisitor) SchemaRefs() map[string]*openapi3.SchemaRef {
@@ -72,7 +83,7 @@ func (v *NomadPackageVisitor) ResponseRefs() map[string]*openapi3.ResponseRef {
 	return nil
 }
 
-func (v *NomadPackageVisitor) HandlerAdapters() map[string]*HandlerFuncAdapter {
+func (v *NomadPackageVisitor) HandlerAdapters() map[string]*handlerFuncAdapter {
 	return v.handlerAdapters
 }
 
@@ -80,26 +91,33 @@ func (v *NomadPackageVisitor) Analyzer() *Analyzer {
 	return v.analyzer
 }
 
-func (v *NomadPackageVisitor) GetHandlerAdapters() map[string]*HandlerFuncAdapter {
+func (v *NomadPackageVisitor) GetHandlerAdapters() map[string]*handlerFuncAdapter {
 	return v.handlerAdapters
 }
 
 func (v *NomadPackageVisitor) VisitPackages() error {
 	// Load all handlers
 	if v.handlerAdapters == nil {
-		v.handlerAdapters = make(map[string]*HandlerFuncAdapter)
+		v.handlerAdapters = make(map[string]*handlerFuncAdapter)
 	}
 
 	for _, pkg := range v.analyzer.Packages {
 		v.activePackage = pkg
 		v.SetActiveFileSet(pkg.Fset)
-
+		// DO NOT Load API Handlers since they just call agent methods.
+		if pkg.Name == "api" {
+			continue
+		}
 		if err := v.loadHandlers(); err != nil {
 			return err
 		}
 	}
 
 	for _, pkg := range v.analyzer.Packages {
+		// DO NOT Load API Handlers since they just call agent methods.
+		if pkg.Name == "api" {
+			continue
+		}
 		for _, goFile := range pkg.GoFiles {
 			fileSet := token.NewFileSet() // positions are relative to fset
 			file, err := parser.ParseFile(fileSet, goFile, nil, 0)
@@ -134,7 +152,7 @@ func (v *NomadPackageVisitor) loadHandlers() error {
 			return fmt.Errorf("NomadVisitor.loadHandlers package %s already exists", key)
 		}
 
-		v.handlerAdapters[key] = &HandlerFuncAdapter{
+		v.handlerAdapters[key] = &handlerFuncAdapter{
 			Package:          v.activePackage,
 			Func:             handler,
 			handlerName:      key,

@@ -45,7 +45,7 @@ func nomadPathAdapterFunc(b *SpecBuilder) error {
 type NomadSpecBuilderExt interface {
 	SpecBuilder() *SpecBuilder
 	Analyzer() *Analyzer
-	AdaptHTTPHandler(key string, info *HandlerFuncAdapter) error
+	AdaptHTTPHandler(key string, info *handlerFuncAdapter) error
 }
 
 // NomadSpecBuilderExtImpl implements the NomadSpecBuilderExt interface consumed
@@ -67,7 +67,7 @@ func (e *NomadSpecBuilderExtImpl) Analyzer() *Analyzer {
 
 // AdaptHTTPHandler analyzes the source code for an HTTP Handler and builds an
 // Path/PathItem.
-func (e *NomadSpecBuilderExtImpl) AdaptHTTPHandler(key string, adapter *HandlerFuncAdapter) error {
+func (e *NomadSpecBuilderExtImpl) AdaptHTTPHandler(key string, adapter *handlerFuncAdapter) error {
 	//path, err := TypesInfo.GetPath()
 	//if err != nil {
 	//	return fmt.Errorf("NomadSpecBuilderExtImpl.AdaptHTTPHandler.analyzer.GetPath: %v\n", err)

@@ -18,35 +18,53 @@ import (
 	"sync"
 )
 
-func NewVarAdapter(spec *ast.ValueSpec, analyzer *Analyzer) *VarAdapter {
-	return &VarAdapter{
+func newVarAdapter(spec *ast.ValueSpec, analyzer *Analyzer, source string) *varAdapter {
+	return &varAdapter{
 		spec,
 		analyzer,
+		source,
 	}
 }
 
-type VarAdapter struct {
+type varAdapter struct {
 	spec     *ast.ValueSpec
 	analyzer *Analyzer
+	source   string
 }
 
-func (v *VarAdapter) Name() string {
+func (v *varAdapter) getPackageName() string {
+	if strings.Contains(v.Name(), ".") {
+		return ""
+	}
+
+	charAfterIndex := strings.Index(v.source, v.Name()) + len(v.Name()) + 1
+
+	splitSource := strings.Split(v.source[charAfterIndex:], " ")
+	return splitSource[0]
+}
+
+func (v *varAdapter) Name() string {
 	return v.spec.Names[0].Name
 }
 
-func (v *VarAdapter) TypeName() string {
+func (v *varAdapter) TypeName() string {
+	return v.GetTypeNameFromSpec()
+	// return v.analyzer.FormatTypeName(v.getPackageName(), v.GetTypeNameFromSpec())
+}
+
+func (v *varAdapter) GetTypeNameFromSpec() string {
 	switch specType := v.spec.Type.(type) {
 	case *ast.Ident:
 		return specType.Name
 	case *ast.StarExpr:
 		switch xType := specType.X.(type) {
 		case *ast.Ident:
-			return v.starExpr().X.(*ast.Ident).Name
+			return xType.Name
 		case *ast.SelectorExpr:
 			return v.analyzer.FormatTypeName(xType.X.(*ast.Ident).Name, xType.Sel.Name)
 		}
 	case *ast.SelectorExpr:
-		return v.analyzer.FormatTypeName(v.selectorExpr().X.(*ast.Ident).Name, v.selectorExpr().Sel.Name)
+		return v.analyzer.FormatTypeName(specType.X.(*ast.Ident).Name, specType.Sel.Name)
 	//case *ast.ArrayType:
 	default:
 		v.analyzer.Logger(fmt.Sprintf("VarAdapter.TypeName: unhandled spec type: %#v", specType))
@@ -55,33 +73,25 @@ func (v *VarAdapter) TypeName() string {
 	return "unknown"
 }
 
-func (v *VarAdapter) starExpr() *ast.StarExpr {
-	return v.spec.Type.(*ast.StarExpr)
-}
-
-func (v *VarAdapter) selectorExpr() *ast.SelectorExpr {
-	return v.spec.Type.(*ast.SelectorExpr)
-}
-
-func (v *VarAdapter) Type() types.Object {
+func (v *varAdapter) Type() types.Object {
 	return v.analyzer.GetTypeByName(v.TypeName())
 }
 
-type PathItemAdapter struct {
+type pathItemAdapter struct {
 	method  string // GET, PUT etc.
-	Handler *HandlerFuncAdapter
+	Handler *handlerFuncAdapter
 }
 
-// GetMethod returns a string that maps to the net/http method this PathItemAdapter
+// GetMethod returns a string that maps to the net/http method this pathItemAdapter
 // represents e.g. GET, POST, PUT
-func (pia *PathItemAdapter) GetMethod() string {
+func (pia *pathItemAdapter) GetMethod() string {
 	method := "unknown"
 
 	return method
 }
 
 // GetInputParameterRefs creates an ParameterRef slice by inspecting the source code
-func (pia *PathItemAdapter) GetInputParameterRefs() []*openapi3.ParameterRef {
+func (pia *pathItemAdapter) GetInputParameterRefs() []*openapi3.ParameterRef {
 	var refs []*openapi3.ParameterRef
 
 	//for _, param := range t.Object.Params.List {
@@ -92,7 +102,7 @@ func (pia *PathItemAdapter) GetInputParameterRefs() []*openapi3.ParameterRef {
 }
 
 // GetRequestBodyRef creates a RequestBodyRef by inspecting the source code
-func (pia *PathItemAdapter) GetRequestBodyRef() *openapi3.RequestBodyRef {
+func (pia *pathItemAdapter) GetRequestBodyRef() *openapi3.RequestBodyRef {
 	ref := &openapi3.RequestBodyRef{}
 
 	return ref
@@ -100,20 +110,20 @@ func (pia *PathItemAdapter) GetRequestBodyRef() *openapi3.RequestBodyRef {
 
 // GetResponseSchemaRef creates a SchemaRef by inspecting the source code. This
 // is intended as a debug function. Use GetResponseRefs to generate a spec.
-func (pia *PathItemAdapter) GetResponseSchemaRef() *openapi3.SchemaRef {
+func (pia *pathItemAdapter) GetResponseSchemaRef() *openapi3.SchemaRef {
 	ref := &openapi3.SchemaRef{}
 
 	return ref
 }
 
 // GetResponseRefs creates a slice of ResponseRefs by inspecting the source code
-func (pia *PathItemAdapter) GetResponseRefs() []*openapi3.ResponseRef {
+func (pia *pathItemAdapter) GetResponseRefs() []*openapi3.ResponseRef {
 	var refs []*openapi3.ResponseRef
 
 	return refs
 }
 
-type HandlerFuncAdapter struct {
+type handlerFuncAdapter struct {
 	Package  *packages.Package
 	Func     *types.Func
 	FuncDecl *ast.FuncDecl
@@ -126,10 +136,10 @@ type HandlerFuncAdapter struct {
 	// This is stateful and needs to be shared everywhere
 	analyzer *Analyzer
 	// This is stateful and needs to be shared everywhere
-	schemaRefAdapter *SchemaRefAdapter
+	schemaRefAdapter *schemaRefAdapter
 	fileSet          *token.FileSet
 
-	Variables map[string]*VarAdapter
+	Variables map[string]*varAdapter
 	// The CFG does contain Return statements; even implicit returns are materialized
 	// (at the position of the function's closing brace).
 	// CFG does not record conditions associated with conditional branch edges,
@@ -138,7 +148,7 @@ type HandlerFuncAdapter struct {
 	Cfg *cfg.CFG
 }
 
-func (h *HandlerFuncAdapter) GetPath() string {
+func (h *handlerFuncAdapter) GetPath() string {
 	// TODO: Resolve the path
 	return "/" + h.Name()
 }
@@ -146,7 +156,7 @@ func (h *HandlerFuncAdapter) GetPath() string {
 // TODO: Find a way to make this injectable
 var supportedMethods = []string{http.MethodGet, http.MethodDelete, http.MethodPut, http.MethodPost}
 
-func (h *HandlerFuncAdapter) newPathItemAdapter(method string) (*PathItemAdapter, error) {
+func (h *handlerFuncAdapter) newPathItemAdapter(method string) (*pathItemAdapter, error) {
 	isSupportedMethod := false
 	for _, supportedMethod := range supportedMethods {
 		if supportedMethod == method {
@@ -157,14 +167,14 @@ func (h *HandlerFuncAdapter) newPathItemAdapter(method string) (*PathItemAdapter
 		return nil, fmt.Errorf("HandlerFuncAdapter.newPathItemAdapter: method %s not supported", method)
 	}
 
-	return &PathItemAdapter{method: method}, nil
+	return &pathItemAdapter{method: method}, nil
 }
 
-func (h *HandlerFuncAdapter) Name() string {
+func (h *handlerFuncAdapter) Name() string {
 	return h.Func.Name()
 }
 
-func (h *HandlerFuncAdapter) GetSource() (string, error) {
+func (h *handlerFuncAdapter) GetSource() (string, error) {
 	if h.FuncDecl == nil {
 		h.analyzer.Logger("FuncDecl nil for", h.Name())
 		return "", nil
@@ -176,7 +186,7 @@ func (h *HandlerFuncAdapter) GetSource() (string, error) {
 	return src, nil
 }
 
-func (h *HandlerFuncAdapter) debugReturnSource(idx int) string {
+func (h *handlerFuncAdapter) debugReturnSource(idx int) string {
 	result, _ := h.GetResultByIndex(idx)
 	src, _ := h.analyzer.GetSource(result, h.fileSet)
 	src = strings.Replace(src, "\n", "", -1)
@@ -187,14 +197,14 @@ func (h *HandlerFuncAdapter) debugReturnSource(idx int) string {
 // IsIntermediateFunc is used to determine if an HTTP Handler is actually
 // an intermediate function that in turn calls other functions to handle
 // different HTTP methods, path parameters, etc.
-func (h *HandlerFuncAdapter) IsIntermediateFunc() bool {
+func (h *handlerFuncAdapter) IsIntermediateFunc() bool {
 	// TODO: Find a way to detect that this is a FooSpecificRequestFunc
 	return false
 }
 
 // visitHandlerFunc makes several passes over the Handler FuncDecl. Order matters
 // and trying to this all in one pass is likely not an option.
-func (h *HandlerFuncAdapter) visitHandlerFunc() error {
+func (h *handlerFuncAdapter) visitHandlerFunc() error {
 	if err := h.FindVariables(); err != nil {
 		return err
 	}
@@ -205,21 +215,30 @@ func (h *HandlerFuncAdapter) visitHandlerFunc() error {
 	return nil
 }
 
-func (h *HandlerFuncAdapter) FindVariables() error {
+func (h *handlerFuncAdapter) FindVariables() error {
 	if h.Variables == nil {
-		h.Variables = make(map[string]*VarAdapter)
+		h.Variables = make(map[string]*varAdapter)
 	}
+
+	source, err := h.GetSource()
+	if err != nil {
+		return fmt.Errorf("%s.HandlerFuncAdapter.FindVariables could not get source: %#v", h.handlerName, err)
+	}
+
 	var variableVisitor = func(node ast.Node) bool {
-		switch node.(type) {
+		switch genDecl := node.(type) {
 		case *ast.GenDecl:
-			if node.(*ast.GenDecl).Tok != token.VAR {
+			if genDecl.Tok != token.VAR {
 				return true
 			}
-
-			for i, spec := range node.(*ast.GenDecl).Specs {
+			// @@@@ DEBUG
+			if h.handlerName == "agent.UpsertOneTimeToken" {
+				h.analyzer.Logger(fmt.Sprintf("DEBUG: %#v", h))
+			}
+			for i, spec := range genDecl.Specs {
 				switch spec.(type) {
 				case *ast.ValueSpec:
-					varAdapter := NewVarAdapter(spec.(*ast.ValueSpec), h.analyzer)
+					varAdapter := newVarAdapter(spec.(*ast.ValueSpec), h.analyzer, source)
 					// @@@@ DEBUG
 					if varAdapter.Type() == nil {
 						h.logger(h.handlerName, "varAdapter.Type() nil for ValueSpecType:", node.(*ast.GenDecl).Specs[i].(*ast.ValueSpec).Type)
@@ -245,14 +264,14 @@ func (h *HandlerFuncAdapter) FindVariables() error {
 	return nil
 }
 
-func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
+func (h *handlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 	result, err := h.GetResultByIndex(0)
 	if err != nil {
 		return nil, err
 	}
 
 	var outObject types.Object
-	// var outTypeName string
+
 	outVisitor := func(node ast.Node) bool {
 		// if node is nil or outObject has been resolved exit
 		if node == nil || outObject != nil {
@@ -264,23 +283,23 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 				outObject = nil
 				return true
 			}
-			var v *VarAdapter
+			// @@@@ DEBUG
+			if h.handlerName == "agent.UpsertOneTimeToken" {
+				h.analyzer.Logger(fmt.Sprintf("DEBUG: %#v", t))
+			}
+			var v *varAdapter
 			var ok bool
 			// @@@@ Debug should never happen if all loading is done correctly.
-			if v, ok = h.Variables[t.Name]; !ok {
-				h.analyzer.Logger(fmt.Sprintf("%s.HandlerFuncAdapter.GetReturnSchema failed to find variable %s", h.handlerName, t.Name))
-				// @@@@ Debug
-				return true
+			if v, ok = h.Variables[t.Name]; ok {
+				outObject = v.Type()
 			}
-			outObject = v.Type()
-			// outTypeName = v.TypeName()
 		case *ast.SelectorExpr:
 			// in this case we are returning a field of a variable
 			// X should be an Ident and X.Name will have the variable.
 			// Sel.Name should have the field name.
 			switch xt := t.X.(type) {
 			case *ast.Ident:
-				var v *VarAdapter
+				var v *varAdapter
 				var ok bool
 				if v, ok = h.Variables[xt.Name]; !ok {
 					h.analyzer.Logger(fmt.Sprintf("%s.HandlerFuncAdapter.GetReturnSchema failed to find variable %s", h.handlerName, xt.Name))
@@ -288,7 +307,6 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 					return true
 				}
 				outObject = h.analyzer.GetFieldType(t.Sel.Name, v.Type())
-				// outTypeName = v.TypeName()
 			default:
 				h.analyzer.Logger(fmt.Sprintf("%s.HandlerFuncAdapter.GetReturnSchema: unhandled type %#v", h.handlerName, xt))
 			}
@@ -315,6 +333,11 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 
 	ast.Inspect(result, outVisitor)
 
+	if outObject == nil && result != nil {
+		h.analyzer.Logger(h.handlerName, "handlerFuncAdapter.GetReturnSchema evaluated nil for result", result)
+		return nil, nil
+	}
+
 	schemaRef, err := h.schemaRefAdapter.GetOrCreateSchemaRef(nil, &outObject, "schemas")
 	if err != nil {
 		return nil, err
@@ -327,7 +350,7 @@ func (h *HandlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 	return schemaRef, nil
 }
 
-func (h *HandlerFuncAdapter) GetReturnStmts() []*ast.ReturnStmt {
+func (h *handlerFuncAdapter) getReturnStmts() []*ast.ReturnStmt {
 	var returnStmts []*ast.ReturnStmt
 
 	returnVisitor := func(node ast.Node) bool {
@@ -343,8 +366,8 @@ func (h *HandlerFuncAdapter) GetReturnStmts() []*ast.ReturnStmt {
 	return returnStmts
 }
 
-func (h *HandlerFuncAdapter) GetResultByIndex(idx int) (ast.Expr, error) {
-	returnStmts := h.GetReturnStmts()
+func (h *handlerFuncAdapter) GetResultByIndex(idx int) (ast.Expr, error) {
+	returnStmts := h.getReturnStmts()
 	if len(returnStmts) < 1 {
 		return nil, fmt.Errorf("HandlerFuncAdapter.GetResultByIndex: no return statement found")
 	}
@@ -360,12 +383,12 @@ func (h *HandlerFuncAdapter) GetResultByIndex(idx int) (ast.Expr, error) {
 	return finalReturn.Results[idx].(ast.Expr), nil
 }
 
-// SchemaRefAdapter converts interfaces to SchemaRefs, ensuring the same type is
+// schemaRefAdapter converts interfaces to SchemaRefs, ensuring the same type is
 // not registered twice. This is adapted from kin-openapi/openapi3gen. Because our
 // struct types are hydrated generically, we won't have type names available in
 // in the reflect info. So we have to maintain our own type registry based on the
 // typeName we have resolved already.
-type SchemaRefAdapter struct {
+type schemaRefAdapter struct {
 	SchemaRefs       map[string]*openapi3.SchemaRef
 	typeObjects      map[string]*types.Object
 	typeObjectsMutex sync.RWMutex
@@ -381,8 +404,8 @@ type SchemaRefAdapter struct {
 //	return ref, err
 //}
 
-func NewSchemaRefAdapter(analyzer *Analyzer) *SchemaRefAdapter {
-	return &SchemaRefAdapter{
+func newSchemaRefAdapter(analyzer *Analyzer) *schemaRefAdapter {
+	return &schemaRefAdapter{
 		SchemaRefs:       make(map[string]*openapi3.SchemaRef),
 		typeObjects:      make(map[string]*types.Object),
 		typeObjectsMutex: sync.RWMutex{},
@@ -390,7 +413,7 @@ func NewSchemaRefAdapter(analyzer *Analyzer) *SchemaRefAdapter {
 	}
 }
 
-func (s *SchemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr *types.Object, componentType string) (*openapi3.SchemaRef, error) {
+func (s *schemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr *types.Object, componentType string) (*openapi3.SchemaRef, error) {
 	if objPtr == nil {
 		return nil, fmt.Errorf("SchemaRefAdapter.GetOrCreateSchemaRef: objPtr cannot be nil")
 	}
@@ -489,7 +512,7 @@ func (s *SchemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr 
 	return ref, nil
 }
 
-func (s *SchemaRefAdapter) adaptBasic(basic *types.Basic, schema *openapi3.Schema) {
+func (s *schemaRefAdapter) adaptBasic(basic *types.Basic, schema *openapi3.Schema) {
 	switch basic.Kind() {
 	case types.Bool:
 		schema.Type = "boolean"
@@ -539,7 +562,7 @@ func (s *SchemaRefAdapter) adaptBasic(basic *types.Basic, schema *openapi3.Schem
 	}
 }
 
-func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Object, schema *openapi3.Schema, structType *types.Struct, componentType string) error {
+func (s *schemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Object, schema *openapi3.Schema, structType *types.Struct, componentType string) error {
 	obj := *objPtr
 	if obj.Name() == "Time" {
 		schema.Type = "string"
@@ -722,6 +745,7 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 					}
 					itemsSchema.Items = ref
 					propertySchema.Items = openapi3.NewSchemaRef("", itemsSchema)
+					// case *types.Map:
 				}
 			default:
 				s.analyzer.Logger(fmt.Sprintf("SchemaRefAdapter.adaptStruct: struct %s has unhandled field %s of Type %#v", obj.Name(), field.Name(), fieldType))
@@ -751,7 +775,7 @@ func (s *SchemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Ob
 }
 
 // getTypesObject ensures one and only one instance of a typesObject is used during processing.
-func (s *SchemaRefAdapter) getTypesObject(objPtr *types.Object) *types.Object {
+func (s *schemaRefAdapter) getTypesObject(objPtr *types.Object) *types.Object {
 	obj := *objPtr
 	if obj == nil {
 		return nil

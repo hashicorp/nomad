@@ -37,13 +37,9 @@ func TestRenderSchema(t *testing.T) {
 	analyzer, err = NewAnalyzer(nomadPackages, t.Log, debugOptions)
 	req.NoError(err)
 
-	visitor := NewNomadPackageVisitor(analyzer, t.Log, debugOptions)
+	visitor := newNomadPackageVisitor(analyzer, t.Log, debugOptions)
 
-	parser := PackageParser{
-		Visitor: &visitor,
-	}
-
-	err = parser.Parse()
+	err = visitor.Parse()
 	req.NoError(err, "TestPackageVisitor.parser.Parse")
 
 	builder := NewNomadSpecBuilder(analyzer, &visitor)

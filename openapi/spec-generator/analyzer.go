@@ -23,7 +23,7 @@ type HTTPProfile struct {
 	IsHandler        bool // net/http.Handler
 }
 
-func NewAnalyzer(configs []*PackageConfig, logger loggerFunc, debugOptions DebugOptions) (*Analyzer, error) {
+func NewAnalyzer(configs []*PackageConfig, logger loggerFunc, debugOptions debugOptions) (*Analyzer, error) {
 	var err error
 	analyzer := &Analyzer{
 		PackageConfigs: configs,
@@ -60,7 +60,7 @@ type Analyzer struct {
 	Logger         loggerFunc
 	Packages       map[string]*packages.Package
 	SchemaRefs     map[string]*openapi3.SchemaRef
-	debugOptions   DebugOptions
+	debugOptions   debugOptions
 	prog           *ssa.Program
 	typesInfos     []*types.Info
 	typeObjects    map[string]types.Object
