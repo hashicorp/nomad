@@ -1,0 +1,3 @@
+```release-note:bug
+drivers: Fixed bug where Nomad incorrectly reported tasks as recovered successfully even when they were not.
+```
