@@ -22,6 +22,16 @@ export default class TaskGroup extends Fragment {
 
   @fragment('group-scaling') scaling;
 
+  @attr() meta;
+
+  @computed('job.meta', 'meta')
+  get mergedMeta() {
+    return {
+      ...this.job.meta,
+      ...this.meta,
+    };
+  }
+
   @computed('tasks.@each.driver')
   get drivers() {
     return this.tasks.mapBy('driver').uniq();

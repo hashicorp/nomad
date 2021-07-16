@@ -20,6 +20,7 @@ Router.map(function() {
       this.route('definition');
       this.route('versions');
       this.route('deployments');
+      this.route('dispatch');
       this.route('evaluations');
       this.route('allocations');
     });

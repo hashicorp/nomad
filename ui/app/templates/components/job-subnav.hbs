@@ -1,6 +1,6 @@
 <div data-test-subnav="job" class="tabs is-subnav">
   <ul>
-    <li data-test-tab="overview"><LinkTo @route="jobs.job.index" @model={{@job}} @activeClass="is-active">Overview</LinkTo></li>
+    <li data-test-tab="overview"><LinkTo @route="jobs.job.index" @model={{@job}} @activeClass="is-active" @current-when="jobs.job.index jobs.job.dispatch">Overview</LinkTo></li>
     <li data-test-tab="definition"><LinkTo @route="jobs.job.definition" @model={{@job}} @activeClass="is-active">Definition</LinkTo></li>
     <li data-test-tab="versions"><LinkTo @route="jobs.job.versions" @model={{@job}} @activeClass="is-active">Versions</LinkTo></li>
     {{#if this.job.supportsDeployments}}

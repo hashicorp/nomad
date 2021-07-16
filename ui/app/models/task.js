@@ -10,6 +10,16 @@ export default class Task extends Fragment {
   @attr('string') driver;
   @attr('string') kind;
 
+  @attr() meta;
+
+  @computed('taskGroup.mergedMeta', 'meta')
+  get mergedMeta() {
+    return {
+      ...this.taskGroup.mergedMeta,
+      ...this.meta,
+    };
+  }
+
   @fragment('lifecycle') lifecycle;
 
   @computed('lifecycle', 'lifecycle.sidecar')

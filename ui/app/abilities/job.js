@@ -20,6 +20,9 @@ export default class Job extends AbstractAbility {
   @or('bypassAuthorization', 'selfTokenIsManagement')
   canListAll;
 
+  @or('bypassAuthorization', 'selfTokenIsManagement', 'policiesSupportDispatching')
+  canDispatch;
+
   @computed('rulesForNamespace.@each.capabilities')
   get policiesSupportRunning() {
     return this.namespaceIncludesCapability('submit-job');
@@ -28,5 +31,10 @@ export default class Job extends AbstractAbility {
   @computed('rulesForNamespace.@each.capabilities')
   get policiesSupportScaling() {
     return this.namespaceIncludesCapability('scale-job');
+  }
+
+  @computed('rulesForNamespace.@each.capabilities')
+  get policiesSupportDispatching() {
+    return this.namespaceIncludesCapability('dispatch-job');
   }
 }

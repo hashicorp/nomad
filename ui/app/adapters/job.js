@@ -1,5 +1,6 @@
 import WatchableNamespaceIDs from './watchable-namespace-ids';
 import addToPath from 'nomad-ui/utils/add-to-path';
+import { base64EncodeString } from 'nomad-ui/utils/encode';
 
 export default class JobAdapter extends WatchableNamespaceIDs {
   relationshipFallbackLinks = {
@@ -82,6 +83,23 @@ export default class JobAdapter extends WatchableNamespaceIDs {
           Source: 'nomad-ui',
         },
       },
+    });
+  }
+
+  dispatch(job, meta, payload) {
+    const jobId = job.get('id');
+    const store = this.store;
+    const url = addToPath(this.urlForFindRecord(jobId, 'job'), '/dispatch');
+
+    return this.ajax(url, 'POST', {
+      data: {
+        Payload: base64EncodeString(payload),
+        Meta: meta,
+      },
+    }).then(json => {
+      json.ID = jobId;
+      store.pushPayload('job-dispatch', { jobDispatches: [json] });
+      return store.peekRecord('job-dispatch', jobId);
     });
   }
 }

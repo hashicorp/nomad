@@ -10,10 +10,17 @@ const JOB_TYPES = ['service', 'batch', 'system'];
 const JOB_STATUSES = ['pending', 'running', 'dead'];
 
 export default Factory.extend({
-  id: i =>
-    `${faker.helpers.randomize(
+  id(i) {
+    if (this.parameterized && this.parentId) {
+      const shortUUID = faker.random.uuid().split('-')[0];
+      const dispatchId = `dispatch-${this.submitTime / 1000}-${shortUUID}`;
+      return `${this.parentId}/${dispatchId}`;
+    }
+
+    return `${faker.helpers.randomize(
       JOB_PREFIXES
-    )}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase(),
+    )}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase();
+  },
 
   name() {
     return this.id;
@@ -63,12 +70,24 @@ export default Factory.extend({
   parameterized: trait({
     type: 'batch',
     parameterized: true,
-    // parameterized details object
+    // parameterized job object
     // serializer update for bool vs details object
-    parameterizedDetails: () => ({
-      MetaOptional: null,
-      MetaRequired: null,
+    parameterizedJob: () => ({
+      MetaOptional: generateMetaArray(faker.random.number(10), 'optional'),
+      MetaRequired: generateMetaArray(faker.random.number(10), 'required'),
       Payload: faker.random.boolean() ? 'required' : null,
+    }),
+  }),
+
+  parameterizedWithoutPayload: trait({
+    type: 'batch',
+    parameterized: true,
+    // parameterized job object
+    // serializer update for bool vs details object
+    parameterizedJob: () => ({
+      MetaOptional: generateMetaArray(faker.random.number(10), 'optional'),
+      MetaRequired: generateMetaArray(faker.random.number(10), 'required'),
+      Payload: 'forbidden',
     }),
   }),
 
@@ -263,3 +282,7 @@ export default Factory.extend({
     }
   },
 });
+
+function generateMetaArray(num, prefix = '') {
+  return Array.from({ length: num }).map(() => `${prefix}-${faker.hacker.noun()}`);
+}

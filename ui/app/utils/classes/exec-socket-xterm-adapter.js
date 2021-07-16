@@ -1,7 +1,6 @@
 const ANSI_UI_GRAY_400 = '\x1b[38;2;142;150;163m';
 
-import base64js from 'base64-js';
-import { TextDecoderLite, TextEncoderLite } from 'text-encoder-lite';
+import { base64DecodeString, base64EncodeString } from 'nomad-ui/utils/encode';
 
 export const HEARTBEAT_INTERVAL = 10000; // ten seconds
 
@@ -26,7 +25,7 @@ export default class ExecSocketXtermAdapter {
 
       // stderr messages will not be produced as the socket is opened with the tty flag
       if (json.stdout && json.stdout.data) {
-        terminal.write(decodeString(json.stdout.data));
+        terminal.write(base64DecodeString(json.stdout.data));
       }
     };
 
@@ -64,16 +63,6 @@ export default class ExecSocketXtermAdapter {
   }
 
   handleData(data) {
-    this.socket.send(JSON.stringify({ stdin: { data: encodeString(data) } }));
+    this.socket.send(JSON.stringify({ stdin: { data: base64EncodeString(data) } }));
   }
-}
-
-function encodeString(string) {
-  let encoded = new TextEncoderLite('utf-8').encode(string);
-  return base64js.fromByteArray(encoded);
-}
-
-function decodeString(b64String) {
-  let uint8array = base64js.toByteArray(b64String);
-  return new TextDecoderLite('utf-8').decode(uint8array);
 }

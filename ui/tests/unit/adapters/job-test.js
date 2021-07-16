@@ -5,6 +5,8 @@ import { setupTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { AbortController } from 'fetch';
+import { TextEncoderLite } from 'text-encoder-lite';
+import base64js from 'base64-js';
 
 module('Unit | Adapter | Job', function(hooks) {
   setupTest(hooks);
@@ -387,6 +389,27 @@ module('Unit | Adapter | Job', function(hooks) {
     assert.notOk(xhr2.aborted, 'Request two was not aborted');
   });
 
+  test('dispatch job encodes payload as base64', async function(assert) {
+    const job = await this.initializeWithJob();
+    job.set('parameterized', true);
+
+    const payload = "I'm a payload 🙂";
+
+    // Base64 encode payload.
+    const Encoder = new TextEncoderLite('utf-8');
+    const encodedPayload = base64js.fromByteArray(Encoder.encode(payload));
+
+    await this.subject().dispatch(job, {}, payload);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}/dispatch`);
+    assert.equal(request.method, 'POST');
+    assert.deepEqual(JSON.parse(request.requestBody), {
+      Payload: encodedPayload,
+      Meta: {},
+    });
+  });
+
   test('when there is no region set, requests are made without the region query param', async function(assert) {
     await this.initializeUI();
 
@@ -542,6 +565,18 @@ module('Unit | Adapter | Job', function(hooks) {
 
     const request = this.server.pretender.handledRequests[0];
     assert.equal(request.url, `/v1/job/${job.plainId}/scale?region=${region}`);
+    assert.equal(request.method, 'POST');
+  });
+
+  test('dispatch requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+    job.set('parameterized', true);
+
+    await this.subject().dispatch(job, {}, '');
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}/dispatch?region=${region}`);
     assert.equal(request.method, 'POST');
   });
 });
