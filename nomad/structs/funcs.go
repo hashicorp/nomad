@@ -205,7 +205,7 @@ func ScoreFitBinPack(node *Node, util *ComparableResources) float64 {
 	return score
 }
 
-// ScoreFitBinSpread computes a fit score to achieve spread behavior.
+// ScoreFitSpread computes a fit score to achieve spread behavior.
 // Score is in [0, 18]
 //
 // This is equivalent to Worst Fit of
