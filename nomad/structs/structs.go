@@ -1872,6 +1872,8 @@ type Node struct {
 	// together for the purpose of determining scheduling pressure.
 	NodeClass string
 
+	Namespaces []string
+
 	// ComputedClass is a unique id that identifies nodes with a common set of
 	// attributes and capabilities.
 	ComputedClass string
