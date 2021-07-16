@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -404,6 +405,10 @@ func (tr *TaskRunner) initLabels() {
 		{
 			Name:  "alloc_id",
 			Value: tr.allocID,
+		},
+		{
+			Name:  "alloc_index",
+			Value: strconv.Itoa(int(tr.alloc.Index())),
 		},
 		{
 			Name:  "task",
