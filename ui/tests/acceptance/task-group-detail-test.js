@@ -82,7 +82,9 @@ module('Acceptance | task group detail', function(hooks) {
   test('/jobs/:id/:task-group should list high-level metrics for the allocation', async function(assert) {
     const totalCPU = tasks.mapBy('resources.CPU').reduce(sum, 0);
     const totalMemory = tasks.mapBy('resources.MemoryMB').reduce(sum, 0);
-    const totalMemoryMax = tasks.map(t => t.resources.MemoryMaxMB || t.resources.MemoryMB).reduce(sum, 0);
+    const totalMemoryMax = tasks
+      .map(t => t.resources.MemoryMaxMB || t.resources.MemoryMB)
+      .reduce(sum, 0);
     const totalDisk = taskGroup.ephemeralDisk.SizeMB;
 
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
@@ -146,6 +148,48 @@ module('Acceptance | task group detail', function(hooks) {
       `/jobs/${job.id}`,
       'Second breadcrumb links back to the job for the task group'
     );
+  });
+
+  test('when the user has a client token that has a namespace with a policy to run and scale a job the autoscaler options should be available', async function(assert) {
+    window.localStorage.clear();
+
+    const SCALE_AND_WRITE_NAMESPACE = 'read-and-write-namespace';
+    const READ_ONLY_NAMESPACE = 'read-only-namespace';
+    const clientToken = server.create('token');
+
+    server.create('namespace', { id: SCALE_AND_WRITE_NAMESPACE });
+    server.create('namespace', { id: READ_ONLY_NAMESPACE });
+    job = server.create('job', { namespaceId: SCALE_AND_WRITE_NAMESPACE });
+
+    const policy = server.create('policy', {
+      id: 'something',
+      name: 'something',
+      rulesJSON: {
+        Namespaces: [
+          {
+            Name: SCALE_AND_WRITE_NAMESPACE,
+            Capabilities: ['scale-job', 'submit-job'],
+          },
+          {
+            Name: READ_ONLY_NAMESPACE,
+            Capabilities: ['list-job'],
+          },
+        ],
+      },
+    });
+
+    clientToken.policyIds = [policy.id];
+    clientToken.save();
+
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    await TaskGroup.visit({
+      id: job.id,
+      name: taskGroup.name,
+      job: { namespace: SCALE_AND_WRITE_NAMESPACE },
+    });
+
+    await this.pauseTest();
   });
 
   test('/jobs/:id/:task-group should list one page of allocations for the task group', async function(assert) {
