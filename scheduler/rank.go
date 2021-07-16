@@ -3,6 +3,7 @@ package scheduler
 import (
 	"fmt"
 	"math"
+	"sync"
 
 	"github.com/hashicorp/nomad/lib/cpuset"
 
@@ -207,13 +208,21 @@ OUTER:
 		}
 
 		// Index the existing network usage
-		netIdx := structs.NewNetworkIndex()
-		netIdx.SetNode(option.Node)
-		netIdx.AddAllocs(proposed)
+		var netIdx *structs.NetworkIndex
+		initNetIdx := func() {
+			netIdx = structs.NewNetworkIndex()
+			netIdx.SetNode(option.Node)
+			netIdx.AddAllocs(proposed)
+		}
+		var initNetIdxOnce sync.Once
 
 		// Create a device allocator
-		devAllocator := newDeviceAllocator(iter.ctx, option.Node)
-		devAllocator.AddAllocs(proposed)
+		var devAllocator *deviceAllocator
+		initDevAllocator := func() {
+			devAllocator = newDeviceAllocator(iter.ctx, option.Node)
+			devAllocator.AddAllocs(proposed)
+		}
+		var initDevAllocatorOnce sync.Once
 
 		// Track the affinities of the devices
 		totalDeviceAffinityWeight := 0.0
@@ -246,6 +255,7 @@ OUTER:
 
 		// Check if we need task group network resource
 		if len(iter.taskGroup.Networks) > 0 {
+			initNetIdxOnce.Do(initNetIdx)
 			ask := iter.taskGroup.Networks[0].Copy()
 			for i, port := range ask.DynamicPorts {
 				if port.HostNetwork != "" {
@@ -338,6 +348,7 @@ OUTER:
 
 			// Check if we need a network resource
 			if len(task.Resources.Networks) > 0 {
+				initNetIdxOnce.Do(initNetIdx)
 				ask := task.Resources.Networks[0].Copy()
 				offer, err := netIdx.AssignNetwork(ask)
 				if offer == nil {
@@ -386,6 +397,7 @@ OUTER:
 
 			// Check if we need to assign devices
 			for _, req := range task.Resources.Devices {
+				initDevAllocatorOnce.Do(initDevAllocator)
 				offer, sumAffinities, err := devAllocator.AssignDevice(req)
 				if offer == nil {
 					// If eviction is not enabled, mark this node as exhausted and continue
