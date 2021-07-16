@@ -104,8 +104,8 @@ func (v *NomadPackageVisitor) VisitPackages() error {
 	for _, pkg := range v.analyzer.Packages {
 		v.activePackage = pkg
 		v.SetActiveFileSet(pkg.Fset)
-		// DO NOT Load API Handlers since they just call agent methods.
-		if pkg.Name == "api" {
+		// DO NOT Load Handlers outside agent since they just call agent methods.
+		if pkg.Name != "agent" {
 			continue
 		}
 		if err := v.loadHandlers(); err != nil {
@@ -213,7 +213,9 @@ func (v *NomadPackageVisitor) VisitFile(node ast.Node) bool {
 		adapter.Cfg = v.analyzer.GetControlFlowGraph(adapter.Func, adapter.FuncDecl)
 
 		if err := adapter.visitHandlerFunc(); err != nil {
-			v.logger(name, "FuncInfo.visitHandlerFunc failed with err", err)
+			if v.debugOptions.printHandlers {
+				v.logger(name, "FuncInfo.visitHandlerFunc failed with err", err)
+			}
 		}
 	}
 	return true

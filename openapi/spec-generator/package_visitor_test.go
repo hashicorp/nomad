@@ -14,7 +14,7 @@ func TestPackageVisitorParse(t *testing.T) {
 	debugOptions.printReturnSource = true
 	debugOptions.filterByMethods = []string{"agent.jobListRequest"}
 
-	analyzer, err := NewAnalyzer(nomadPackages, t.Log, debugOptions)
+	analyzer, err := newAnalyzer(nomadPackages, t.Log, debugOptions)
 	req.NoError(err)
 	visitor := newNomadPackageVisitor(analyzer, t.Log, debugOptions)
 

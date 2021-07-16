@@ -34,19 +34,24 @@ func TestRenderSchema(t *testing.T) {
 	var analyzer *Analyzer
 	var err error
 
-	analyzer, err = NewAnalyzer(nomadPackages, t.Log, debugOptions)
+	analyzer, err = newAnalyzer(nomadPackages, t.Log, debugOptions)
 	req.NoError(err)
 
 	visitor := newNomadPackageVisitor(analyzer, t.Log, debugOptions)
 
 	err = visitor.Parse()
 	req.NoError(err, "TestPackageVisitor.parser.Parse")
+	adapterCount := len(visitor.HandlerAdapters())
+	t.Log("adapterCount", adapterCount)
+	req.NotEqual(0, adapterCount)
 
-	builder := NewNomadSpecBuilder(analyzer, &visitor)
+	builder := newNomadSpecBuilder(analyzer, &visitor)
 	var spec *Spec
 	spec, err = builder.Build()
 	req.NoError(err)
 	req.NotNil(spec)
+	req.NotNil(spec.Model)
+	req.NotNil(spec.Model.Components)
 
 	var yaml string
 	yaml, err = spec.ToYAML()

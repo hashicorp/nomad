@@ -4,8 +4,8 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// NewNomadSpecBuilder is a factory method for the NomadSpecBuilder struct
-func NewNomadSpecBuilder(analyzer *Analyzer, visitor *PackageVisitor) *SpecBuilder {
+// newNomadSpecBuilder is a factory method for the NomadSpecBuilder struct
+func newNomadSpecBuilder(analyzer *Analyzer, visitor *PackageVisitor) *SpecBuilder {
 	builder := &SpecBuilder{
 		Visitor: visitor,
 	}
@@ -18,24 +18,6 @@ func NewNomadSpecBuilder(analyzer *Analyzer, visitor *PackageVisitor) *SpecBuild
 	builder.Ext = ext
 
 	return builder
-}
-
-// nomadPathAdapterFunc is an injectable behavior that handles parsing Nomad http
-// handler source code and adapting it to the kin-openapi Path/PathItem model.
-func nomadPathAdapterFunc(b *SpecBuilder) error {
-	//ext := b.Ext.(NomadSpecBuilderExt)
-	//
-	//if len(adpaters) < 1 {
-	//	return errors.New("NomadSpecBuilder.nomadPathAdapterFunc: no handlers found")
-	//}
-	//
-	//for key, adapter := range adpaters {
-	//	if err := ext.AdaptHTTPHandler(key, adapter); err != nil {
-	//		return err
-	//	}
-	//}
-
-	return nil
 }
 
 // NomadSpecBuilderExt defines the interface of extension methods that are exposed
@@ -180,4 +162,12 @@ var nomadPackages = []*PackageConfig{
 		},
 		Pattern: ".",
 	},
+	//{
+	//	Config: packages.Config{
+	//		Dir:  "../../client/structs/",
+	//		Mode: loadMode,
+	//	},
+	//	Pattern: ".",
+	//	Alias: "cstructs",
+	//},
 }

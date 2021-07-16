@@ -25,6 +25,8 @@ type PackageVisitor interface {
 }
 
 type PackageConfig struct {
-	Config  packages.Config
-	Pattern string
+	Config   packages.Config
+	Pattern  string
+	Alias    string
+	FileName string
 }

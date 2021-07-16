@@ -36,14 +36,14 @@ func run(g *Generator) error {
 	var analyzer *Analyzer
 
 	logger := hclog.Default().(hclog.Logger)
-	analyzer, err = NewAnalyzer(nomadPackages, logWrapper(logger), defaultDebugOptions)
+	analyzer, err = newAnalyzer(nomadPackages, logWrapper(logger), defaultDebugOptions)
 	if err != nil {
 		return err
 	}
 
 	visitor := newNomadPackageVisitor(analyzer, logWrapper(logger), defaultDebugOptions)
 
-	spec, err := NewNomadSpecBuilder(analyzer, &visitor).Build()
+	spec, err := newNomadSpecBuilder(analyzer, &visitor).Build()
 	if err != nil {
 		return fmt.Errorf("Generator.run.NomadSpecBuilder.Build: ")
 	}

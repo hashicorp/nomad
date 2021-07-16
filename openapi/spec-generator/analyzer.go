@@ -23,7 +23,7 @@ type HTTPProfile struct {
 	IsHandler        bool // net/http.Handler
 }
 
-func NewAnalyzer(configs []*PackageConfig, logger loggerFunc, debugOptions debugOptions) (*Analyzer, error) {
+func newAnalyzer(configs []*PackageConfig, logger loggerFunc, debugOptions debugOptions) (*Analyzer, error) {
 	var err error
 	analyzer := &Analyzer{
 		PackageConfigs: configs,
@@ -91,6 +91,8 @@ func (a *Analyzer) loadIdentMapTypeObjects(identMap map[*ast.Ident]types.Object)
 func (a *Analyzer) FormatTypeObjectKey(typesObj types.Object, typeNameDef types.Object) string {
 	typeKey := typesObj.Id()
 	if typeNameDef.Pkg() != nil {
+		// TODO: would using Pkg().Path() here blow up the world, because it seems like
+		// that might be better since structs is overloaded
 		typeKey = a.FormatTypeName(typeNameDef.Pkg().Name(), typeKey)
 	}
 	return typeKey
@@ -161,23 +163,6 @@ func (a *Analyzer) printDefs() {
 			}
 		}
 	}
-}
-
-func (a *Analyzer) GetTypeByName(name string) types.Object {
-	if obj, ok := a.typeObjects[name]; ok {
-		return obj
-	}
-
-	//var match types.Object
-	//for k, v := range a.typeObjects {
-	//	if strings.Contains(k, name) {
-	//		a.Logger("Found possible match", k)
-	//		match = v
-	//	}
-	//}
-	//return match
-
-	return nil
 }
 
 func (a *Analyzer) FormatTypeName(pkgName, typeName string) string {
@@ -320,6 +305,7 @@ func (a *Analyzer) GetControlFlowGraph(fn *types.Func, decl *ast.FuncDecl) *cfg.
 
 var panicBuiltin = types.Universe.Lookup("panic").(*types.Builtin)
 
+// TODO: See if this and related functionality needs to move to the SSAAnalyzer.
 func (a *Analyzer) callMayReturn(pkg *packages.Package, fn *types.Func, decl *ast.FuncDecl) func(call *ast.CallExpr) bool {
 	return func(call *ast.CallExpr) bool {
 		if id, ok := call.Fun.(*ast.Ident); ok && pkg.TypesInfo.Uses[id] == panicBuiltin {
@@ -512,4 +498,98 @@ func (a *Analyzer) ToReflectType(t types.Type) (reflect.Type, error) {
 	}
 
 	return nil, fmt.Errorf(fmt.Sprintf("Analyzer.ToReflectType unhandled type %v", t))
+}
+
+func (a *Analyzer) GetTypeByName(name string, pos token.Pos) types.Object {
+	if obj, ok := a.typeObjects[name]; ok {
+		return obj
+	}
+
+	return a.GetBasicType(name, pos)
+}
+
+func (a *Analyzer) GetBasicType(name string, pos token.Pos) types.Object {
+	for _, typ := range types.Typ {
+		if typ.Name() == name {
+			return newBasicKindObject(typ, pos)
+		}
+	}
+	return nil
+}
+
+func newBasicKindType(basic *types.Basic) *basicKindType {
+	return &basicKindType{
+		basic,
+	}
+
+}
+
+// basicKindType provides a types.Type for a *types.Basic
+type basicKindType struct {
+	basic *types.Basic
+}
+
+// Underlying returns the underlying type of a type.
+func (b *basicKindType) Underlying() types.Type {
+	return nil
+}
+
+// String returns a string representation of a type.
+func (b *basicKindType) String() string {
+	return b.basic.Name()
+}
+
+func newBasicKindObject(basic *types.Basic, pos token.Pos) *basicKindObject {
+	return &basicKindObject{
+		kind: basic,
+		pos:  pos,
+	}
+}
+
+// basicKindObject allows returning a *types.Basic
+type basicKindObject struct {
+	kind *types.Basic
+	pos  token.Pos
+	types.Object
+}
+
+// Parent returns the scope in which this object is declared; nil for methods and struct fields
+func (b *basicKindObject) Parent() *types.Scope {
+	// Should be ok because this is the an Ident field of a ValueSpec struct.
+	return nil
+}
+
+// Pos returns the position of object identifier in declaration
+func (b *basicKindObject) Pos() token.Pos {
+	return b.pos
+}
+
+// Pkg returns the package to which this object belongs; nil for labels and objects in the Universe scope
+func (b *basicKindObject) Pkg() *types.Package {
+	return nil
+}
+
+// Name returns package local object name
+func (b *basicKindObject) Name() string {
+	return b.kind.Name()
+}
+
+// Type of object
+func (b *basicKindObject) Type() types.Type {
+	return newBasicKindType(b.kind)
+}
+
+// Exported reports whether the name starts with a capital letter
+func (b *basicKindObject) Exported() bool {
+	return false
+}
+
+// Id returns object name if exported, qualified name if not exported (see func Id)
+func (b *basicKindObject) Id() string {
+	return b.kind.Name()
+}
+
+// String returns a human-readable string of the object.
+func (b *basicKindObject) String() string {
+	return b.kind.String()
 }
