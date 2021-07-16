@@ -413,6 +413,7 @@ func LifecycleJob() *structs.Job {
 					Delay:    1 * time.Minute,
 					Mode:     structs.RestartPolicyModeFail,
 				},
+				Migrate: structs.DefaultMigrateStrategy(),
 				Tasks: []*structs.Task{
 					{
 						Name:   "web",
@@ -538,183 +539,47 @@ func LifecycleAlloc() *structs.Allocation {
 	return alloc
 }
 
-func LifecycleJobWithPoststopDeploy() *structs.Job {
-	job := &structs.Job{
-		Region:      "global",
-		ID:          fmt.Sprintf("mock-service-%s", uuid.Generate()),
-		Name:        "my-job",
-		Namespace:   structs.DefaultNamespace,
-		Type:        structs.JobTypeBatch,
-		Priority:    50,
-		AllAtOnce:   false,
-		Datacenters: []string{"dc1"},
-		Constraints: []*structs.Constraint{
-			{
-				LTarget: "${attr.kernel.name}",
-				RTarget: "linux",
-				Operand: "=",
-			},
-		},
-		TaskGroups: []*structs.TaskGroup{
-			{
-				Name:    "web",
-				Count:   1,
-				Migrate: structs.DefaultMigrateStrategy(),
-				RestartPolicy: &structs.RestartPolicy{
-					Attempts: 0,
-					Interval: 10 * time.Minute,
-					Delay:    1 * time.Minute,
-					Mode:     structs.RestartPolicyModeFail,
-				},
-				Tasks: []*structs.Task{
-					{
-						Name:   "web",
-						Driver: "mock_driver",
-						Config: map[string]interface{}{
-							"run_for": "1s",
-						},
-						LogConfig: structs.DefaultLogConfig(),
-						Resources: &structs.Resources{
-							CPU:      1000,
-							MemoryMB: 256,
-						},
-					},
-					{
-						Name:   "side",
-						Driver: "mock_driver",
-						Config: map[string]interface{}{
-							"run_for": "1s",
-						},
-						Lifecycle: &structs.TaskLifecycleConfig{
-							Hook:    structs.TaskLifecycleHookPrestart,
-							Sidecar: true,
-						},
-						LogConfig: structs.DefaultLogConfig(),
-						Resources: &structs.Resources{
-							CPU:      1000,
-							MemoryMB: 256,
-						},
-					},
-					{
-						Name:   "post",
-						Driver: "mock_driver",
-						Config: map[string]interface{}{
-							"run_for": "1s",
-						},
-						Lifecycle: &structs.TaskLifecycleConfig{
-							Hook: structs.TaskLifecycleHookPoststop,
-						},
-						LogConfig: structs.DefaultLogConfig(),
-						Resources: &structs.Resources{
-							CPU:      1000,
-							MemoryMB: 256,
-						},
-					},
-					{
-						Name:   "init",
-						Driver: "mock_driver",
-						Config: map[string]interface{}{
-							"run_for": "1s",
-						},
-						Lifecycle: &structs.TaskLifecycleConfig{
-							Hook:    structs.TaskLifecycleHookPrestart,
-							Sidecar: false,
-						},
-						LogConfig: structs.DefaultLogConfig(),
-						Resources: &structs.Resources{
-							CPU:      1000,
-							MemoryMB: 256,
-						},
-					},
-				},
-			},
-		},
-		Meta: map[string]string{
-			"owner": "armon",
-		},
-		Status:         structs.JobStatusPending,
-		Version:        0,
-		CreateIndex:    42,
-		ModifyIndex:    99,
-		JobModifyIndex: 99,
-	}
-	job.Canonicalize()
-	return job
+type LifecycleTaskDef struct {
+	Name      string
+	RunFor    string
+	ExitCode  int
+	Hook      string
+	IsSidecar bool
 }
 
-func LifecycleAllocWithPoststopDeploy() *structs.Allocation {
-	alloc := &structs.Allocation{
-		ID:        uuid.Generate(),
-		EvalID:    uuid.Generate(),
-		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
-		Namespace: structs.DefaultNamespace,
-		TaskGroup: "web",
+// LifecycleAllocFromTasks generates an Allocation with mock tasks that have
+// the provided lifecycles.
+func LifecycleAllocFromTasks(tasks []LifecycleTaskDef) *structs.Allocation {
+	alloc := LifecycleAlloc()
+	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{}
+	for _, task := range tasks {
+		var lc *structs.TaskLifecycleConfig
+		if task.Hook != "" {
+			// TODO: task coordinator doesn't treat nil and empty structs the same
+			lc = &structs.TaskLifecycleConfig{
+				Hook:    task.Hook,
+				Sidecar: task.IsSidecar,
+			}
+		}
 
-		// TODO Remove once clientv2 gets merged
-		Resources: &structs.Resources{
-			CPU:      500,
-			MemoryMB: 256,
-		},
-		TaskResources: map[string]*structs.Resources{
-			"web": {
-				CPU:      1000,
-				MemoryMB: 256,
+		alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks,
+			&structs.Task{
+				Name:   task.Name,
+				Driver: "mock_driver",
+				Config: map[string]interface{}{
+					"run_for":   task.RunFor,
+					"exit_code": task.ExitCode},
+				Lifecycle: lc,
+				LogConfig: structs.DefaultLogConfig(),
+				Resources: &structs.Resources{CPU: 100, MemoryMB: 256},
 			},
-			"init": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-			"side": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-			"post": {
-				CPU:      1000,
-				MemoryMB: 256,
-			},
-		},
-
-		AllocatedResources: &structs.AllocatedResources{
-			Tasks: map[string]*structs.AllocatedTaskResources{
-				"web": {
-					Cpu: structs.AllocatedCpuResources{
-						CpuShares: 1000,
-					},
-					Memory: structs.AllocatedMemoryResources{
-						MemoryMB: 256,
-					},
-				},
-				"init": {
-					Cpu: structs.AllocatedCpuResources{
-						CpuShares: 1000,
-					},
-					Memory: structs.AllocatedMemoryResources{
-						MemoryMB: 256,
-					},
-				},
-				"side": {
-					Cpu: structs.AllocatedCpuResources{
-						CpuShares: 1000,
-					},
-					Memory: structs.AllocatedMemoryResources{
-						MemoryMB: 256,
-					},
-				},
-				"post": {
-					Cpu: structs.AllocatedCpuResources{
-						CpuShares: 1000,
-					},
-					Memory: structs.AllocatedMemoryResources{
-						MemoryMB: 256,
-					},
-				},
-			},
-		},
-		Job:           LifecycleJobWithPoststopDeploy(),
-		DesiredStatus: structs.AllocDesiredStatusRun,
-		ClientStatus:  structs.AllocClientStatusPending,
+		)
+		alloc.TaskResources[task.Name] = &structs.Resources{CPU: 100, MemoryMB: 256}
+		alloc.AllocatedResources.Tasks[task.Name] = &structs.AllocatedTaskResources{
+			Cpu:    structs.AllocatedCpuResources{CpuShares: 100},
+			Memory: structs.AllocatedMemoryResources{MemoryMB: 256},
+		}
 	}
-	alloc.JobID = alloc.Job.ID
 	return alloc
 }
 
