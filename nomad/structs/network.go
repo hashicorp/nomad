@@ -45,9 +45,7 @@ type NetworkIndex struct {
 func NewNetworkIndex() *NetworkIndex {
 	return &NetworkIndex{
 		AvailAddresses: make(map[string][]NodeNetworkAddress),
-		AvailBandwidth: make(map[string]int),
 		UsedPorts:      make(map[string]Bitmap),
-		UsedBandwidth:  make(map[string]int),
 	}
 }
 
@@ -75,18 +73,6 @@ func (idx *NetworkIndex) Release() {
 	}
 }
 
-// Overcommitted checks if the network is overcommitted
-func (idx *NetworkIndex) Overcommitted() bool {
-	// TODO remove since bandwidth is deprecated
-	/*for device, used := range idx.UsedBandwidth {
-		avail := idx.AvailBandwidth[device]
-		if used > avail {
-			return true
-		}
-	}*/
-	return false
-}
-
 // SetNode is used to setup the available network resources. Returns
 // true if there is a collision
 func (idx *NetworkIndex) SetNode(node *Node) (collide bool) {
@@ -109,7 +95,6 @@ func (idx *NetworkIndex) SetNode(node *Node) (collide bool) {
 	for _, n := range networks {
 		if n.Device != "" {
 			idx.AvailNetworks = append(idx.AvailNetworks, n)
-			idx.AvailBandwidth[n.Device] = n.MBits
 		}
 	}
 
@@ -211,8 +196,6 @@ func (idx *NetworkIndex) AddReserved(n *NetworkResource) (collide bool) {
 		}
 	}
 
-	// Add the bandwidth
-	idx.UsedBandwidth[n.Device] += n.MBits
 	return
 }
 

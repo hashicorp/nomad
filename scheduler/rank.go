@@ -479,8 +479,10 @@ OUTER:
 		// Add the resources we are trying to fit
 		proposed = append(proposed, &structs.Allocation{AllocatedResources: total})
 
-		// Check if these allocations fit, if they do not, simply skip this node
-		fit, dim, util, _ := structs.AllocsFit(option.Node, proposed, netIdx, false)
+		// Check if these allocations fit, skipping network and device
+		// checks as they're done elsewhere. If they do not, simply
+		// skip this node.
+		fit, dim, util, _ := structs.AllocsFit(option.Node, proposed, false, false)
 		netIdx.Release()
 		if !fit {
 			// Skip the node if evictions are not enabled

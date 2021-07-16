@@ -9,49 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNetworkIndex_Overcommitted(t *testing.T) {
-	t.Skip()
-	idx := NewNetworkIndex()
-
-	// Consume some network
-	reserved := &NetworkResource{
-		Device:        "eth0",
-		IP:            "192.168.0.100",
-		MBits:         505,
-		ReservedPorts: []Port{{"one", 8000, 0, ""}, {"two", 9000, 0, ""}},
-	}
-	collide := idx.AddReserved(reserved)
-	if collide {
-		t.Fatalf("bad")
-	}
-	if !idx.Overcommitted() {
-		t.Fatalf("have no resources")
-	}
-
-	// Add resources
-	n := &Node{
-		NodeResources: &NodeResources{
-			Networks: []*NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "192.168.0.100/32",
-					MBits:  1000,
-				},
-			},
-		},
-	}
-	idx.SetNode(n)
-	if idx.Overcommitted() {
-		t.Fatalf("have resources")
-	}
-
-	// Double up our usage
-	idx.AddReserved(reserved)
-	if !idx.Overcommitted() {
-		t.Fatalf("should be overcommitted")
-	}
-}
-
 func TestNetworkIndex_SetNode(t *testing.T) {
 	idx := NewNetworkIndex()
 	n := &Node{
