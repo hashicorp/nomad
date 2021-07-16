@@ -8366,10 +8366,9 @@ type Affinity struct {
 	RTarget string // Right-hand target
 	Operand string // Affinity operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
 	Weight  int8   // Weight applied to nodes that match the affinity. Can be negative
-	str     string // Memoized string
 }
 
-// Equal checks if two affinities are equal
+// Equals checks if two affinities are equal.
 func (a *Affinity) Equals(o *Affinity) bool {
 	return a == o ||
 		a.LTarget == o.LTarget &&
@@ -8386,17 +8385,16 @@ func (a *Affinity) Copy() *Affinity {
 	if a == nil {
 		return nil
 	}
-	na := new(Affinity)
-	*na = *a
-	return na
+	return &Affinity{
+		LTarget: a.LTarget,
+		RTarget: a.RTarget,
+		Operand: a.Operand,
+		Weight:  a.Weight,
+	}
 }
 
 func (a *Affinity) String() string {
-	if a.str != "" {
-		return a.str
-	}
-	a.str = fmt.Sprintf("%s %s %s %v", a.LTarget, a.Operand, a.RTarget, a.Weight)
-	return a.str
+	return fmt.Sprintf("%s %s %s %v", a.LTarget, a.Operand, a.RTarget, a.Weight)
 }
 
 func (a *Affinity) Validate() error {
