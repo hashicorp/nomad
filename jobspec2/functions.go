@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/go-cty-funcs/uuid"
 	"github.com/hashicorp/hcl/v2/ext/tryfunc"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
+	"github.com/hashicorp/nomad/jobspec2/vault"
 	ctyyaml "github.com/zclconf/go-cty-yaml"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -96,6 +97,7 @@ func Functions(basedir string, allowFS bool) map[string]function.Function {
 		"uuidv4":          uuid.V4Func,
 		"uuidv5":          uuid.V5Func,
 		"values":          stdlib.ValuesFunc,
+		"vault":           vault.GenVaultFunc,
 		"yamldecode":      ctyyaml.YAMLDecodeFunc,
 		"yamlencode":      ctyyaml.YAMLEncodeFunc,
 		"zipmap":          stdlib.ZipmapFunc,
