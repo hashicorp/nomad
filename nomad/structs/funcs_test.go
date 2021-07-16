@@ -256,6 +256,7 @@ func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
 	// Should fit second allocation since it is terminal
 	a2 := a1.Copy()
 	a2.DesiredStatus = AllocDesiredStatusStop
+	a2.ClientStatus = AllocClientStatusComplete
 	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
 	require.NoError(err)
 	require.True(fit)
@@ -479,6 +480,7 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	// Should fit second allocation since it is terminal
 	a2 := a1.Copy()
 	a2.DesiredStatus = AllocDesiredStatusStop
+	a2.ClientStatus = AllocClientStatusComplete
 	fit, dim, used, err := AllocsFit(n, []*Allocation{a1, a2}, nil, false)
 	require.NoError(err)
 	require.True(fit, dim)
