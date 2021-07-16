@@ -52,7 +52,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
     this.memory.pushObject({
       timestamp,
       used: memoryUsed,
-      percent: percent(memoryUsed / 1024 / 1024, this.reservedMemory),
+      percent: percent(memoryUsed / 1024 / 1024, this.reservedMemoryMax),
     });
 
     let aggregateCpu = 0;
@@ -77,11 +77,11 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
       });
 
       const taskMemoryUsed = taskFrame.ResourceUsage.MemoryStats.RSS;
-      const percentMemoryTotal = percent(taskMemoryUsed / 1024 / 1024, this.reservedMemory);
+      const percentMemoryTotal = percent(taskMemoryUsed / 1024 / 1024, this.reservedMemoryMax);
       stats.memory.pushObject({
         timestamp: frameTimestamp,
         used: taskMemoryUsed,
-        percent: percent(taskMemoryUsed / 1024 / 1024, stats.reservedMemory),
+        percent: percent(taskMemoryUsed / 1024 / 1024, stats.reservedMemoryMax),
         percentTotal: percentMemoryTotal,
         percentStack: percentMemoryTotal + aggregateMemory,
       });
@@ -104,6 +104,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   // Static figures, denominators for stats
   @alias('allocation.taskGroup.reservedCPU') reservedCPU;
   @alias('allocation.taskGroup.reservedMemory') reservedMemory;
+  @alias('allocation.taskGroup.reservedMemoryMax') reservedMemoryMax;
 
   // Dynamic figures, collected over time
   // []{ timestamp: Date, used: Number, percent: Number }
@@ -117,25 +118,36 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
     return RollingArray(this.bufferSize);
   }
 
-  @computed('allocation.taskGroup.tasks', 'bufferSize')
+  @computed('allocation.{states.[],taskGroup.tasks}', 'bufferSize')
   get tasks() {
     const bufferSize = this.bufferSize;
     const tasks = this.get('allocation.taskGroup.tasks') || [];
+    const states = this.get('allocation.states') || [];
+
     return tasks
       .slice()
       .sort(taskPrioritySort)
-      .map(task => ({
-        task: get(task, 'name'),
+      .map(task => {
+        const taskName = get(task, 'name');
+        const taskState = states.findBy('name', taskName) || {};
 
-        // Static figures, denominators for stats
-        reservedCPU: get(task, 'reservedCPU'),
-        reservedMemory: get(task, 'reservedMemory'),
+        return {
+          task: taskName,
 
-        // Dynamic figures, collected over time
-        // []{ timestamp: Date, used: Number, percent: Number }
-        cpu: RollingArray(bufferSize),
-        memory: RollingArray(bufferSize),
-      }));
+          // Static figures, denominators for stats
+          reservedCPU: get(task, 'reservedCPU'),
+          reservedMemory: get(task, 'reservedMemory'),
+          reservedMemoryMax: get(task, 'reservedMemoryMax'),
+
+          allocatedReservedMemory: get(taskState, 'resources.memory'),
+          allocatedReservedMemoryMax: get(taskState, 'resources.memoryMax'),
+
+          // Dynamic figures, collected over time
+          // []{ timestamp: Date, used: Number, percent: Number }
+          cpu: RollingArray(bufferSize),
+          memory: RollingArray(bufferSize),
+        };
+      });
   }
 }
 
