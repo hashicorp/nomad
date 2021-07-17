@@ -2002,8 +2002,15 @@ func (c *Client) watchAllocations(updates chan *allocUpdates) {
 		NodeID:   c.NodeID(),
 		SecretID: c.secretNodeID(),
 		QueryOptions: structs.QueryOptions{
-			Region:     c.Region(),
-			AllowStale: true,
+			Region: c.Region(),
+
+			// Make a consistent read query when the client starts
+			// to avoid acting on stale data that predates this
+			// client state before a client restart.
+			//
+			// After the first request, only require monotonically
+			// increasing state.
+			AllowStale: false,
 		},
 	}
 	var resp structs.NodeClientAllocsResponse
@@ -2153,7 +2160,8 @@ OUTER:
 		c.logger.Debug("updated allocations", "index", resp.Index,
 			"total", len(resp.Allocs), "pulled", len(allocsResp.Allocs), "filtered", len(filtered))
 
-		// Update the query index.
+		// After the first request, only require monotonically increasing state.
+		req.AllowStale = true
 		if resp.Index > req.MinQueryIndex {
 			req.MinQueryIndex = resp.Index
 		}
