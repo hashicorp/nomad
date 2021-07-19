@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
@@ -40,6 +41,10 @@ type StartOpts struct {
 	// from
 	StartTime int64
 
+	// GracePeriod is the time in which we can attempt to collect logs from a stopped
+	// container, if none have been read yet.
+	GracePeriod time.Duration
+
 	// TLS settings for docker client
 	TLSCert string
 	TLSKey  string
@@ -56,28 +61,72 @@ func NewDockerLogger(logger hclog.Logger) DockerLogger {
 
 // dockerLogger implements the DockerLogger interface
 type dockerLogger struct {
-	logger hclog.Logger
+	logger      hclog.Logger
+	containerID string
 
 	stdout  io.WriteCloser
 	stderr  io.WriteCloser
 	stdLock sync.Mutex
 
-	cancelCtx context.CancelFunc
-	doneCh    chan interface{}
+	// containerDoneCtx is called when the container dies, indicating that there will be no
+	// more logs to be read.
+	containerDoneCtx context.CancelFunc
+
+	// read indicates whether we have read anything from the logs.  This is manipulated
+	// using the sync package via multiple goroutines.
+	read int64
+
+	doneCh chan interface{}
+	// readDelay is used in testing to delay reads, simulating race conditions between
+	// container exits and reading
+	readDelay *time.Duration
 }
 
 // Start log monitoring
 func (d *dockerLogger) Start(opts *StartOpts) error {
+	d.containerID = opts.ContainerID
+
 	client, err := d.getDockerClient(opts)
 	if err != nil {
 		return fmt.Errorf("failed to open docker client: %v", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	d.cancelCtx = cancel
+	// Set up a ctx which is called when the container quits.
+	containerDoneCtx, cancel := context.WithCancel(context.Background())
+	d.containerDoneCtx = cancel
+
+	// Set up a ctx which will be cancelled when we stop reading logs.  This
+	// grace period allows us to collect logs from stopped containers if none
+	// have yet been read.
+	ctx, cancelStreams := context.WithCancel(context.Background())
+	go func() {
+		<-containerDoneCtx.Done()
+
+		// Wait until we've read from the logs to exit.
+		timeout := time.After(opts.GracePeriod)
+		for {
+			select {
+			case <-time.After(time.Second):
+				if d.read > 0 {
+					cancelStreams()
+					return
+				}
+			case <-timeout:
+				cancelStreams()
+				return
+			}
+		}
+
+	}()
 
 	go func() {
 		defer close(d.doneCh)
+		defer d.cleanup()
+
+		if d.readDelay != nil {
+			// Allows us to simulate reading from stopped containers in testing.
+			<-time.After(*d.readDelay)
+		}
 
 		stdout, stderr, err := d.openStreams(ctx, opts)
 		if err != nil {
@@ -106,7 +155,11 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 			}
 
 			err := client.Logs(logOpts)
-			if ctx.Err() != nil {
+			// If we've been reading logs and the container is done we can safely break
+			// the loop
+			if containerDoneCtx.Err() != nil && d.read != 0 {
+				return
+			} else if ctx.Err() != nil {
 				// If context is terminated then we can safely break the loop
 				return
 			} else if err == nil {
@@ -123,7 +176,7 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 
 			sinceTime = time.Now()
 
-			container, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+			_, err = client.InspectContainerWithOptions(docker.InspectContainerOptions{
 				ID: opts.ContainerID,
 			})
 			if err != nil {
@@ -131,8 +184,6 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 				if !notFoundOk {
 					return
 				}
-			} else if !container.State.Running {
-				return
 			}
 		}
 	}()
@@ -169,25 +220,45 @@ func (d *dockerLogger) openStreams(ctx context.Context, opts *StartOpts) (stdout
 		}
 	}
 
-	if ctx.Err() != nil {
-		// Stop was called and don't need files anymore
-		stdoutF.Close()
-		stderrF.Close()
-		return nil, nil, ctx.Err()
-	}
-
 	d.stdLock.Lock()
 	d.stdout, d.stderr = stdoutF, stderrF
 	d.stdLock.Unlock()
 
-	return stdoutF, stderrF, nil
+	return d.streamCopier(stdoutF), d.streamCopier(stderrF), nil
+}
+
+// streamCopier copies into the given writer and sets a flag indicating that
+// we have read some logs.
+func (d *dockerLogger) streamCopier(to io.WriteCloser) io.WriteCloser {
+	return &copier{read: &d.read, writer: to}
+}
+
+type copier struct {
+	read   *int64
+	writer io.WriteCloser
+}
+
+func (c *copier) Write(p []byte) (n int, err error) {
+	if *c.read == 0 {
+		atomic.AddInt64(c.read, int64(len(p)))
+	}
+	return c.writer.Write(p)
+}
+
+func (c *copier) Close() error {
+	return c.writer.Close()
 }
 
 // Stop log monitoring
 func (d *dockerLogger) Stop() error {
-	if d.cancelCtx != nil {
-		d.cancelCtx()
+	if d.containerDoneCtx != nil {
+		d.containerDoneCtx()
 	}
+	return nil
+}
+
+func (d *dockerLogger) cleanup() error {
+	d.logger.Debug("cleaning up", "container_id", d.containerID)
 
 	d.stdLock.Lock()
 	stdout, stderr := d.stdout, d.stderr

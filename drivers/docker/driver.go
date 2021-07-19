@@ -172,6 +172,7 @@ func (d *Driver) setupNewDockerLogger(container *docker.Container, cfg *drivers.
 		TLSKey:      d.config.TLS.Key,
 		TLSCA:       d.config.TLS.CA,
 		StartTime:   startTime.Unix(),
+		GracePeriod: d.config.containerLogGracePeriodDuration,
 	}); err != nil {
 		pluginClient.Kill()
 		return nil, nil, fmt.Errorf("failed to launch docker logger process %s: %v", container.ID, err)
@@ -203,16 +204,17 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	}
 
 	h := &taskHandle{
-		client:                client,
-		waitClient:            waitClient,
-		logger:                d.logger.With("container_id", container.ID),
-		task:                  handle.Config,
-		containerID:           container.ID,
-		containerImage:        container.Image,
-		doneCh:                make(chan bool),
-		waitCh:                make(chan struct{}),
-		removeContainerOnExit: d.config.GC.Container,
-		net:                   handleState.DriverNetwork,
+		client:                  client,
+		waitClient:              waitClient,
+		logger:                  d.logger.With("container_id", container.ID),
+		task:                    handle.Config,
+		containerID:             container.ID,
+		containerImage:          container.Image,
+		doneCh:                  make(chan bool),
+		waitCh:                  make(chan struct{}),
+		removeContainerOnExit:   d.config.GC.Container,
+		net:                     handleState.DriverNetwork,
+		containerLogGracePeriod: d.config.containerLogGracePeriodDuration,
 	}
 
 	if !d.config.DisableLogCollection {
@@ -383,18 +385,19 @@ CREATE:
 
 	// Return a driver handle
 	h := &taskHandle{
-		client:                client,
-		waitClient:            waitClient,
-		dlogger:               dlogger,
-		dloggerPluginClient:   pluginClient,
-		logger:                d.logger.With("container_id", container.ID),
-		task:                  cfg,
-		containerID:           container.ID,
-		containerImage:        container.Image,
-		doneCh:                make(chan bool),
-		waitCh:                make(chan struct{}),
-		removeContainerOnExit: d.config.GC.Container,
-		net:                   net,
+		client:                  client,
+		waitClient:              waitClient,
+		dlogger:                 dlogger,
+		dloggerPluginClient:     pluginClient,
+		logger:                  d.logger.With("container_id", container.ID),
+		task:                    cfg,
+		containerID:             container.ID,
+		containerImage:          container.Image,
+		doneCh:                  make(chan bool),
+		waitCh:                  make(chan struct{}),
+		removeContainerOnExit:   d.config.GC.Container,
+		net:                     net,
+		containerLogGracePeriod: d.config.containerLogGracePeriodDuration,
 	}
 
 	if err := handle.SetDriverState(h.buildState()); err != nil {

@@ -21,18 +21,19 @@ import (
 )
 
 type taskHandle struct {
-	client                *docker.Client
-	waitClient            *docker.Client
-	logger                hclog.Logger
-	dlogger               docklog.DockerLogger
-	dloggerPluginClient   *plugin.Client
-	task                  *drivers.TaskConfig
-	containerID           string
-	containerImage        string
-	doneCh                chan bool
-	waitCh                chan struct{}
-	removeContainerOnExit bool
-	net                   *drivers.DriverNetwork
+	client                  *docker.Client
+	waitClient              *docker.Client
+	logger                  hclog.Logger
+	dlogger                 docklog.DockerLogger
+	dloggerPluginClient     *plugin.Client
+	task                    *drivers.TaskConfig
+	containerID             string
+	containerImage          string
+	doneCh                  chan bool
+	waitCh                  chan struct{}
+	removeContainerOnExit   bool
+	containerLogGracePeriod time.Duration
+	net                     *drivers.DriverNetwork
 
 	exitResult     *drivers.ExitResult
 	exitResultLock sync.Mutex
@@ -216,11 +217,15 @@ func (h *taskHandle) shutdownLogger() {
 		return
 	}
 
-	if err := h.dlogger.Stop(); err != nil {
-		h.logger.Error("failed to stop docker logger process during StopTask",
-			"error", err, "logger_pid", h.dloggerPluginClient.ReattachConfig().Pid)
-	}
-	h.dloggerPluginClient.Kill()
+	go func() {
+		h.logger.Info("sending stop signal to logger", "job_id", h.task.JobID, "container_id", h.containerID)
+		if err := h.dlogger.Stop(); err != nil {
+			h.logger.Error("failed to stop docker logger process during StopTask",
+				"error", err, "logger_pid", h.dloggerPluginClient.ReattachConfig().Pid)
+		}
+		<-time.After(h.containerLogGracePeriod)
+		h.dloggerPluginClient.Kill()
+	}()
 }
 
 func (h *taskHandle) run() {

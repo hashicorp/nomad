@@ -293,6 +293,13 @@ var (
 		// disable_log_collection indicates whether docker driver should collect logs of docker
 		// task containers.  If true, nomad doesn't start docker_logger/logmon processes
 		"disable_log_collection": hclspec.NewAttr("disable_log_collection", "bool", false),
+
+		// container_log_grace_period is the period in which the docker logger remains active if the
+		// container exits and no logs have been read yet.
+		"container_log_grace_period": hclspec.NewDefault(
+			hclspec.NewAttr("container_log_grace_period", "string", false),
+			hclspec.NewLiteral(`"10s"`),
+		),
 	})
 
 	// mountBodySpec is the hcl specification for the `mount` block
@@ -611,23 +618,25 @@ type ContainerGCConfig struct {
 }
 
 type DriverConfig struct {
-	Endpoint                      string        `codec:"endpoint"`
-	Auth                          AuthConfig    `codec:"auth"`
-	TLS                           TLSConfig     `codec:"tls"`
-	GC                            GCConfig      `codec:"gc"`
-	Volumes                       VolumeConfig  `codec:"volumes"`
-	AllowPrivileged               bool          `codec:"allow_privileged"`
-	AllowCaps                     []string      `codec:"allow_caps"`
-	GPURuntimeName                string        `codec:"nvidia_runtime"`
-	InfraImage                    string        `codec:"infra_image"`
-	InfraImagePullTimeout         string        `codec:"infra_image_pull_timeout"`
-	infraImagePullTimeoutDuration time.Duration `codec:"-"`
-	DisableLogCollection          bool          `codec:"disable_log_collection"`
-	PullActivityTimeout           string        `codec:"pull_activity_timeout"`
-	PidsLimit                     int64         `codec:"pids_limit"`
-	pullActivityTimeoutDuration   time.Duration `codec:"-"`
-	ExtraLabels                   []string      `codec:"extra_labels"`
-	Logging                       LoggingConfig `codec:"logging"`
+	Endpoint                        string        `codec:"endpoint"`
+	Auth                            AuthConfig    `codec:"auth"`
+	TLS                             TLSConfig     `codec:"tls"`
+	GC                              GCConfig      `codec:"gc"`
+	Volumes                         VolumeConfig  `codec:"volumes"`
+	AllowPrivileged                 bool          `codec:"allow_privileged"`
+	AllowCaps                       []string      `codec:"allow_caps"`
+	GPURuntimeName                  string        `codec:"nvidia_runtime"`
+	InfraImage                      string        `codec:"infra_image"`
+	InfraImagePullTimeout           string        `codec:"infra_image_pull_timeout"`
+	infraImagePullTimeoutDuration   time.Duration `codec:"-"`
+	DisableLogCollection            bool          `codec:"disable_log_collection"`
+	ContainerLogGracePeriod         string        `codec:"container_log_grace_period"`
+	containerLogGracePeriodDuration time.Duration `codec:"-"`
+	PullActivityTimeout             string        `codec:"pull_activity_timeout"`
+	PidsLimit                       int64         `codec:"pids_limit"`
+	pullActivityTimeoutDuration     time.Duration `codec:"-"`
+	ExtraLabels                     []string      `codec:"extra_labels"`
+	Logging                         LoggingConfig `codec:"logging"`
 
 	AllowRuntimesList []string            `codec:"allow_runtimes"`
 	allowRuntimes     map[string]struct{} `codec:"-"`
@@ -673,6 +682,7 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 
 const danglingContainersCreationGraceMinimum = 1 * time.Minute
 const pullActivityTimeoutMinimum = 1 * time.Minute
+const containerLogGracePeriodMinimum = 2 * time.Second
 
 func (d *Driver) SetConfig(c *base.Config) error {
 	var config DriverConfig
@@ -721,6 +731,17 @@ func (d *Driver) SetConfig(c *base.Config) error {
 			return fmt.Errorf("pull_activity_timeout is less than minimum, %v", pullActivityTimeoutMinimum)
 		}
 		d.config.pullActivityTimeoutDuration = dur
+	}
+
+	if len(d.config.ContainerLogGracePeriod) > 0 {
+		dur, err := time.ParseDuration(d.config.ContainerLogGracePeriod)
+		if err != nil {
+			return fmt.Errorf("failed to parse 'container_log_grace_period' duaration: %v", err)
+		}
+		if dur < containerLogGracePeriodMinimum {
+			return fmt.Errorf("container_log_grace_period is less than minimum, %v", containerLogGracePeriodMinimum)
+		}
+		d.config.containerLogGracePeriodDuration = dur
 	}
 
 	if d.config.InfraImagePullTimeout != "" {
