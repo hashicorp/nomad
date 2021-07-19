@@ -1,5 +1,5 @@
 module.exports = {
-  ...require('@hashicorp/nextjs-scripts/.stylelintrc.js'),
+  ...require('@hashicorp/platform-cli/config/.stylelintrc'),
   rules: {
     'selector-pseudo-class-no-unknown': [
       true,
