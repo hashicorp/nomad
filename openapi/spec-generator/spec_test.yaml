@@ -29,9 +29,9 @@ components:
                   type: string
               type: object
             HostVolumes:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/HostVolumePolicy'
             Namespaces:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/NamespacePolicy'
             Node:
               properties:
                 Policy:
@@ -221,7 +221,7 @@ components:
                         type: array
                     type: object
                   Devices:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/AllocatedDeviceResource'
                   Memory:
                     properties:
                       MemoryMB:
@@ -309,7 +309,7 @@ components:
         RescheduleTracker:
           properties:
             Events:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/RescheduleEvent'
           type: object
         TaskGroup:
           type: string
@@ -317,7 +317,7 @@ components:
           additionalProperties:
             properties:
               Events:
-                $ref: '#/components/schemas/array'
+                $ref: '#/components/schemas/TaskEvent'
               Failed:
                 type: boolean
               Restarts:
@@ -395,7 +395,7 @@ components:
             type: object
           type: object
         ScoreMetaData:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/NodeScoreMeta'
         Scores:
           additionalProperties:
             format: double
@@ -419,7 +419,7 @@ components:
             capacity:
               type: integer
             items:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/HeapItem'
           type: object
       type: object
     AllocNetworkStatus:
@@ -564,7 +564,7 @@ components:
                     type: array
                 type: object
               Devices:
-                $ref: '#/components/schemas/array'
+                $ref: '#/components/schemas/AllocatedDeviceResource'
               Memory:
                 properties:
                   MemoryMB:
@@ -604,7 +604,7 @@ components:
               type: array
           type: object
         Devices:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/AllocatedDeviceResource'
         Memory:
           properties:
             MemoryMB:
@@ -626,7 +626,7 @@ components:
           minimum: 0
           type: integer
         AllocStates:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/AllocState'
         AllocatedResources:
           properties:
             Shared:
@@ -664,7 +664,7 @@ components:
                         type: array
                     type: object
                   Devices:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/AllocatedDeviceResource'
                   Memory:
                     properties:
                       MemoryMB:
@@ -725,11 +725,11 @@ components:
         Job:
           properties:
             Affinities:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/Affinity'
             AllAtOnce:
               type: boolean
             Constraints:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/Constraint'
             ConsulNamespace:
               type: string
             ConsulToken:
@@ -761,7 +761,7 @@ components:
             Multiregion:
               properties:
                 Regions:
-                  $ref: '#/components/schemas/array'
+                  $ref: '#/components/schemas/MultiregionRegion'
                 Strategy:
                   properties:
                     MaxParallel:
@@ -814,7 +814,7 @@ components:
             Region:
               type: string
             Spreads:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/Spread'
             Stable:
               type: boolean
             Status:
@@ -827,7 +827,7 @@ components:
               format: int64
               type: integer
             TaskGroups:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/TaskGroup'
             Type:
               type: string
             Update:
@@ -910,7 +910,7 @@ components:
                 type: object
               type: object
             ScoreMetaData:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/NodeScoreMeta'
             Scores:
               additionalProperties:
                 format: double
@@ -934,7 +934,7 @@ components:
                 capacity:
                   type: integer
                 items:
-                  $ref: '#/components/schemas/array'
+                  $ref: '#/components/schemas/HeapItem'
               type: object
           type: object
         ModifyIndex:
@@ -987,7 +987,7 @@ components:
         RescheduleTracker:
           properties:
             Events:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/RescheduleEvent'
           type: object
         Resources:
           properties:
@@ -1054,7 +1054,7 @@ components:
           additionalProperties:
             properties:
               Events:
-                $ref: '#/components/schemas/array'
+                $ref: '#/components/schemas/TaskEvent'
               Failed:
                 type: boolean
               Restarts:
@@ -1222,7 +1222,7 @@ components:
     CSIPlugin:
       properties:
         Allocations:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/AllocListStub'
         ControllerJobs:
           additionalProperties:
             additionalProperties:
@@ -1488,7 +1488,7 @@ components:
               type: boolean
           type: object
         Snapshots:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/CSISnapshot'
       type: object
     CSISnapshotListResponse:
       properties:
@@ -1504,7 +1504,7 @@ components:
               type: boolean
           type: object
         Snapshots:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/CSISnapshot'
       type: object
     CSITopology:
       properties:
@@ -1554,7 +1554,7 @@ components:
         Schedulable:
           type: boolean
         Topologies:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/CSITopology'
       type: object
     CSIVolume:
       properties:
@@ -1645,7 +1645,7 @@ components:
                 minimum: 0
                 type: integer
               AllocStates:
-                $ref: '#/components/schemas/array'
+                $ref: '#/components/schemas/AllocState'
               AllocatedResources:
                 properties:
                   Shared:
@@ -1683,7 +1683,7 @@ components:
                               type: array
                           type: object
                         Devices:
-                          $ref: '#/components/schemas/array'
+                          $ref: '#/components/schemas/AllocatedDeviceResource'
                         Memory:
                           properties:
                             MemoryMB:
@@ -1744,11 +1744,11 @@ components:
               Job:
                 properties:
                   Affinities:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/Affinity'
                   AllAtOnce:
                     type: boolean
                   Constraints:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/Constraint'
                   ConsulNamespace:
                     type: string
                   ConsulToken:
@@ -1780,7 +1780,7 @@ components:
                   Multiregion:
                     properties:
                       Regions:
-                        $ref: '#/components/schemas/array'
+                        $ref: '#/components/schemas/MultiregionRegion'
                       Strategy:
                         properties:
                           MaxParallel:
@@ -1833,7 +1833,7 @@ components:
                   Region:
                     type: string
                   Spreads:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/Spread'
                   Stable:
                     type: boolean
                   Status:
@@ -1846,7 +1846,7 @@ components:
                     format: int64
                     type: integer
                   TaskGroups:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/TaskGroup'
                   Type:
                     type: string
                   Update:
@@ -1929,7 +1929,7 @@ components:
                       type: object
                     type: object
                   ScoreMetaData:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/NodeScoreMeta'
                   Scores:
                     additionalProperties:
                       format: double
@@ -1953,7 +1953,7 @@ components:
                       capacity:
                         type: integer
                       items:
-                        $ref: '#/components/schemas/array'
+                        $ref: '#/components/schemas/HeapItem'
                     type: object
                 type: object
               ModifyIndex:
@@ -2006,7 +2006,7 @@ components:
               RescheduleTracker:
                 properties:
                   Events:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/RescheduleEvent'
                 type: object
               Resources:
                 properties:
@@ -2073,7 +2073,7 @@ components:
                 additionalProperties:
                   properties:
                     Events:
-                      $ref: '#/components/schemas/array'
+                      $ref: '#/components/schemas/TaskEvent'
                     Failed:
                       type: boolean
                     Restarts:
@@ -2116,7 +2116,7 @@ components:
             type: object
           type: object
         RequestedCapabilities:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/CSIVolumeCapability'
         RequestedCapacityMax:
           format: int64
           type: integer
@@ -2132,7 +2132,7 @@ components:
         SnapshotID:
           type: string
         Topologies:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/CSITopology'
         WriteAllocs:
           additionalProperties:
             properties:
@@ -2143,7 +2143,7 @@ components:
                 minimum: 0
                 type: integer
               AllocStates:
-                $ref: '#/components/schemas/array'
+                $ref: '#/components/schemas/AllocState'
               AllocatedResources:
                 properties:
                   Shared:
@@ -2181,7 +2181,7 @@ components:
                               type: array
                           type: object
                         Devices:
-                          $ref: '#/components/schemas/array'
+                          $ref: '#/components/schemas/AllocatedDeviceResource'
                         Memory:
                           properties:
                             MemoryMB:
@@ -2242,11 +2242,11 @@ components:
               Job:
                 properties:
                   Affinities:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/Affinity'
                   AllAtOnce:
                     type: boolean
                   Constraints:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/Constraint'
                   ConsulNamespace:
                     type: string
                   ConsulToken:
@@ -2278,7 +2278,7 @@ components:
                   Multiregion:
                     properties:
                       Regions:
-                        $ref: '#/components/schemas/array'
+                        $ref: '#/components/schemas/MultiregionRegion'
                       Strategy:
                         properties:
                           MaxParallel:
@@ -2331,7 +2331,7 @@ components:
                   Region:
                     type: string
                   Spreads:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/Spread'
                   Stable:
                     type: boolean
                   Status:
@@ -2344,7 +2344,7 @@ components:
                     format: int64
                     type: integer
                   TaskGroups:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/TaskGroup'
                   Type:
                     type: string
                   Update:
@@ -2427,7 +2427,7 @@ components:
                       type: object
                     type: object
                   ScoreMetaData:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/NodeScoreMeta'
                   Scores:
                     additionalProperties:
                       format: double
@@ -2451,7 +2451,7 @@ components:
                       capacity:
                         type: integer
                       items:
-                        $ref: '#/components/schemas/array'
+                        $ref: '#/components/schemas/HeapItem'
                     type: object
                 type: object
               ModifyIndex:
@@ -2504,7 +2504,7 @@ components:
               RescheduleTracker:
                 properties:
                   Events:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/RescheduleEvent'
                 type: object
               Resources:
                 properties:
@@ -2571,7 +2571,7 @@ components:
                 additionalProperties:
                   properties:
                     Events:
-                      $ref: '#/components/schemas/array'
+                      $ref: '#/components/schemas/TaskEvent'
                     Failed:
                       type: boolean
                     Restarts:
@@ -2658,7 +2658,7 @@ components:
               type: boolean
           type: object
         Volumes:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/CSIVolume'
       type: object
     CSIVolumeExternalListResponse:
       properties:
@@ -2674,7 +2674,7 @@ components:
               type: boolean
           type: object
         Volumes:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/CSIVolumeExternalStub'
       type: object
     CSIVolumeExternalStub:
       properties:
@@ -2752,7 +2752,7 @@ components:
             Ingress:
               properties:
                 Listeners:
-                  $ref: '#/components/schemas/array'
+                  $ref: '#/components/schemas/ConsulIngressListener'
                 TLS:
                   properties:
                     Enabled:
@@ -2785,7 +2785,7 @@ components:
             Terminating:
               properties:
                 Services:
-                  $ref: '#/components/schemas/array'
+                  $ref: '#/components/schemas/ConsulLinkedService'
               type: object
           type: object
         Native:
@@ -2804,14 +2804,14 @@ components:
                 Expose:
                   properties:
                     Paths:
-                      $ref: '#/components/schemas/array'
+                      $ref: '#/components/schemas/ConsulExposePath'
                   type: object
                 LocalServiceAddress:
                   type: string
                 LocalServicePort:
                   type: integer
                 Upstreams:
-                  $ref: '#/components/schemas/array'
+                  $ref: '#/components/schemas/ConsulUpstream'
               type: object
             Tags:
               items:
@@ -2870,7 +2870,7 @@ components:
     ConsulExposeConfig:
       properties:
         Paths:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/ConsulExposePath'
       type: object
     ConsulExposePath:
       properties:
@@ -2888,7 +2888,7 @@ components:
         Ingress:
           properties:
             Listeners:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/ConsulIngressListener'
             TLS:
               properties:
                 Enabled:
@@ -2921,7 +2921,7 @@ components:
         Terminating:
           properties:
             Services:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/ConsulLinkedService'
           type: object
       type: object
     ConsulGatewayBindAddress:
@@ -2960,7 +2960,7 @@ components:
     ConsulIngressConfigEntry:
       properties:
         Listeners:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/ConsulIngressListener'
         TLS:
           properties:
             Enabled:
@@ -2974,7 +2974,7 @@ components:
         Protocol:
           type: string
         Services:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/ConsulIngressService'
       type: object
     ConsulIngressService:
       properties:
@@ -3012,14 +3012,14 @@ components:
         Expose:
           properties:
             Paths:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/ConsulExposePath'
           type: object
         LocalServiceAddress:
           type: string
         LocalServicePort:
           type: integer
         Upstreams:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/ConsulUpstream'
       type: object
     ConsulSidecarService:
       properties:
@@ -3035,14 +3035,14 @@ components:
             Expose:
               properties:
                 Paths:
-                  $ref: '#/components/schemas/array'
+                  $ref: '#/components/schemas/ConsulExposePath'
               type: object
             LocalServiceAddress:
               type: string
             LocalServicePort:
               type: integer
             Upstreams:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/ConsulUpstream'
           type: object
         Tags:
           items:
@@ -3052,7 +3052,7 @@ components:
     ConsulTerminatingConfigEntry:
       properties:
         Services:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/ConsulLinkedService'
       type: object
     ConsulUpstream:
       properties:
@@ -3384,7 +3384,7 @@ components:
                   type: object
                 type: object
               ScoreMetaData:
-                $ref: '#/components/schemas/array'
+                $ref: '#/components/schemas/NodeScoreMeta'
               Scores:
                 additionalProperties:
                   format: double
@@ -3408,7 +3408,7 @@ components:
                   capacity:
                     type: integer
                   items:
-                    $ref: '#/components/schemas/array'
+                    $ref: '#/components/schemas/HeapItem'
                 type: object
             type: object
           type: object
@@ -3602,11 +3602,11 @@ components:
     Job:
       properties:
         Affinities:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/Affinity'
         AllAtOnce:
           type: boolean
         Constraints:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/Constraint'
         ConsulNamespace:
           type: string
         ConsulToken:
@@ -3638,7 +3638,7 @@ components:
         Multiregion:
           properties:
             Regions:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/MultiregionRegion'
             Strategy:
               properties:
                 MaxParallel:
@@ -3691,7 +3691,7 @@ components:
         Region:
           type: string
         Spreads:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/Spread'
         Stable:
           type: boolean
         Status:
@@ -3704,7 +3704,7 @@ components:
           format: int64
           type: integer
         TaskGroups:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/TaskGroup'
         Type:
           type: string
         Update:
@@ -3880,7 +3880,7 @@ components:
         Multiregion:
           properties:
             Regions:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/MultiregionRegion'
             Strategy:
               properties:
                 MaxParallel:
@@ -3970,7 +3970,7 @@ components:
               Desired:
                 type: integer
               Events:
-                $ref: '#/components/schemas/array'
+                $ref: '#/components/schemas/ScalingEvent'
               Healthy:
                 type: integer
               Placed:
@@ -4066,7 +4066,7 @@ components:
     Multiregion:
       properties:
         Regions:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/MultiregionRegion'
         Strategy:
           properties:
             MaxParallel:
@@ -4152,7 +4152,7 @@ components:
         Device:
           type: string
         DynamicPorts:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/Port'
         IP:
           type: string
         MBits:
@@ -4160,7 +4160,7 @@ components:
         Mode:
           type: string
         ReservedPorts:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/Port'
       type: object
     Networks:
       items:
@@ -4185,7 +4185,7 @@ components:
           Device:
             type: string
           DynamicPorts:
-            $ref: '#/components/schemas/array'
+            $ref: '#/components/schemas/Port'
           IP:
             type: string
           MBits:
@@ -4193,7 +4193,7 @@ components:
           Mode:
             type: string
           ReservedPorts:
-            $ref: '#/components/schemas/array'
+            $ref: '#/components/schemas/Port'
         type: object
       type: array
     Node:
@@ -4376,7 +4376,7 @@ components:
             type: object
           type: object
         Events:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/NodeEvent'
         HTTPAddr:
           type: string
         HostVolumes:
@@ -4438,7 +4438,7 @@ components:
                   type: integer
               type: object
             Devices:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/NodeDeviceResource'
             Disk:
               properties:
                 DiskMB:
@@ -4454,7 +4454,7 @@ components:
             Networks:
               $ref: '#/components/schemas/Networks'
             NodeNetworks:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/NodeNetworkResource'
           type: object
         Reserved:
           properties:
@@ -4595,7 +4595,7 @@ components:
             type: object
           type: object
         Instances:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/NodeDevice'
         Name:
           type: string
         Type:
@@ -4746,7 +4746,7 @@ components:
                   type: integer
               type: object
             Devices:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/NodeDeviceResource'
             Disk:
               properties:
                 DiskMB:
@@ -4762,7 +4762,7 @@ components:
             Networks:
               $ref: '#/components/schemas/Networks'
             NodeNetworks:
-              $ref: '#/components/schemas/array'
+              $ref: '#/components/schemas/NodeNetworkResource'
           type: object
         ReservedResources:
           properties:
@@ -4829,7 +4829,7 @@ components:
     NodeNetworkResource:
       properties:
         Addresses:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/NodeNetworkAddress'
         Device:
           type: string
         MacAddress:
@@ -4924,7 +4924,7 @@ components:
               type: integer
           type: object
         Devices:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/NodeDeviceResource'
         Disk:
           properties:
             DiskMB:
@@ -4940,7 +4940,7 @@ components:
         Networks:
           $ref: '#/components/schemas/Networks'
         NodeNetworks:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/NodeNetworkResource'
       type: object
     NodeScoreMeta:
       properties:
@@ -5001,7 +5001,7 @@ components:
               type: boolean
           type: object
         Servers:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/NodeServerInfo'
       type: object
     OneTimeToken:
       properties:
@@ -5170,7 +5170,7 @@ components:
             type: object
           type: object
         PreemptedAllocs:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/AllocListStub'
       type: object
     PluginPolicy:
       properties:
@@ -5185,9 +5185,9 @@ components:
               type: string
           type: object
         HostVolumes:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/HostVolumePolicy'
         Namespaces:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/NamespacePolicy'
         Node:
           properties:
             Policy:
@@ -5252,7 +5252,7 @@ components:
           minimum: 0
           type: integer
         Servers:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/RaftServer'
       type: object
     RaftServer:
       properties:
@@ -5304,7 +5304,7 @@ components:
     RescheduleTracker:
       properties:
         Events:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/RescheduleEvent'
       type: object
     ResourceDevices:
       items:
@@ -5502,7 +5502,7 @@ components:
         capacity:
           type: integer
         items:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/HeapItem'
       type: object
     SearchResponse:
       properties:
@@ -5577,7 +5577,7 @@ components:
     ServerMembersResponse:
       properties:
         Members:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/ServerMember'
         ServerDC:
           type: string
         ServerName:
@@ -5598,7 +5598,7 @@ components:
             type: string
           type: array
         Checks:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/ServiceCheck'
         Connect:
           properties:
             Gateway:
@@ -5606,7 +5606,7 @@ components:
                 Ingress:
                   properties:
                     Listeners:
-                      $ref: '#/components/schemas/array'
+                      $ref: '#/components/schemas/ConsulIngressListener'
                     TLS:
                       properties:
                         Enabled:
@@ -5639,7 +5639,7 @@ components:
                 Terminating:
                   properties:
                     Services:
-                      $ref: '#/components/schemas/array'
+                      $ref: '#/components/schemas/ConsulLinkedService'
                   type: object
               type: object
             Native:
@@ -5658,14 +5658,14 @@ components:
                     Expose:
                       properties:
                         Paths:
-                          $ref: '#/components/schemas/array'
+                          $ref: '#/components/schemas/ConsulExposePath'
                       type: object
                     LocalServiceAddress:
                       type: string
                     LocalServicePort:
                       type: integer
                     Upstreams:
-                      $ref: '#/components/schemas/array'
+                      $ref: '#/components/schemas/ConsulUpstream'
                   type: object
                 Tags:
                   items:
@@ -5851,7 +5851,7 @@ components:
         Attribute:
           type: string
         SpreadTarget:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/SpreadTarget'
         Weight:
           maximum: 127
           minimum: -128
@@ -5873,9 +5873,9 @@ components:
     Task:
       properties:
         Affinities:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/Affinity'
         Artifacts:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/TaskArtifact'
         CSIPluginConfig:
           properties:
             ID:
@@ -5889,7 +5889,7 @@ components:
           additionalProperties: {}
           type: object
         Constraints:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/Constraint'
         DispatchPayload:
           properties:
             File:
@@ -5954,11 +5954,11 @@ components:
               type: string
           type: object
         ScalingPolicies:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/ScalingPolicy'
         Services:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/Service'
         Templates:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/Template'
         User:
           type: string
         Vault:
@@ -5977,7 +5977,7 @@ components:
               type: array
           type: object
         VolumeMounts:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/VolumeMount'
       type: object
     TaskArtifact:
       properties:
@@ -6062,9 +6062,9 @@ components:
     TaskGroup:
       properties:
         Affinities:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/Affinity'
         Constraints:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/Constraint'
         Consul:
           properties:
             Namespace:
@@ -6143,11 +6143,11 @@ components:
               type: string
           type: object
         Services:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/Service'
         Spreads:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/Spread'
         Tasks:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/Task'
         Update:
           properties:
             AutoPromote:
@@ -6195,7 +6195,7 @@ components:
         Desired:
           type: integer
         Events:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/ScalingEvent'
         Healthy:
           type: integer
         Placed:
@@ -6249,7 +6249,7 @@ components:
     TaskState:
       properties:
         Events:
-          $ref: '#/components/schemas/array'
+          $ref: '#/components/schemas/TaskEvent'
         Failed:
           type: boolean
         Restarts:

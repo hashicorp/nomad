@@ -1024,7 +1024,12 @@ func (s *schemaRefAdapter) generateWithoutSaving(parents []*types.Type, typ type
 					if s.isBasic(ref.Value.Type) {
 						schema.WithPropertyRef(fieldInfo.Name(), ref)
 					} else if ref.Value.Type == "array" {
-						propertyRef := openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", s.getSchemaName(fieldInfo.Type())), ref.Value)
+						targetType := fieldInfo.Type()
+						switch sliceType := fieldInfo.Type().(type) {
+						case *types.Slice:
+							targetType = sliceType.Elem()
+						}
+						propertyRef := openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", s.getSchemaName(targetType)), ref.Value)
 						if s.isBasic(ref.Value.Items.Value.Type) {
 							propertyRef.Ref = ""
 						}
