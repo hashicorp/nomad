@@ -8,7 +8,7 @@ export default {
 export let Standard = () => {
   return {
     template: hbs`
-      <h5 class="title is-5">Accordion</h5>
+      <h5 class="title is-5">Accordion, Hi Amy</h5>
       <ListAccordion @source={{products}} @key="name" as |ac|>
         <ac.head @buttonLabel="details">
           <div class="columns inline-definitions">
@@ -19,9 +19,9 @@ export let Standard = () => {
           </div>
         </ac.head>
         <ac.body>
-          <h1 class="title is-4">{{ac.item.name}}</h1>
-          <p>{{ac.item.desc}}</p>
-          <p><a href="{{ac.item.link}}" target="_parent">Learn more...</a></p>
+          <h1 class="title is-4">hi1 {{ac.item.name}}</h1>
+          <p>hi2 {{ac.item.desc}}</p>
+          <p>hi3 <a href="{{ac.item.link}}" target="_parent">Learn more...</a></p>
         </ac.body>
       </ListAccordion>
       `,
