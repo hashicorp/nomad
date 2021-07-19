@@ -122,11 +122,9 @@ func (a TerminalByNodeByName) Set(allocation *Allocation) {
 
 	if previous, exists := a[node][name]; !exists {
 		a[node][name] = allocation
-	} else {
+	} else if previous.CreateIndex < allocation.CreateIndex {
 		// keep the newest version of the terminal alloc for the coordinate
-		if previous.CreateIndex < allocation.CreateIndex {
-			a[node][name] = allocation
-		}
+		a[node][name] = allocation
 	}
 }
 

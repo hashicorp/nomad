@@ -566,8 +566,7 @@ func TestSysBatch_NodeDrain_Down(t *testing.T) {
 	h := NewHarness(t)
 
 	// Register a draining node
-	node := mock.Node()
-	node.Drain = true
+	node := mock.DrainNode()
 	node.Status = structs.NodeStatusDown
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
@@ -619,8 +618,7 @@ func TestSysBatch_NodeDrain(t *testing.T) {
 	h := NewHarness(t)
 
 	// Register a draining node
-	node := mock.Node()
-	node.Drain = true
+	node := mock.DrainNode()
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Generate a sysbatch job allocated on that node.
@@ -1182,9 +1180,8 @@ func TestSysBatch_PlanWithDrainedNode(t *testing.T) {
 	h := NewHarness(t)
 
 	// Register two nodes with two different classes
-	node := mock.Node()
+	node := mock.DrainNode()
 	node.NodeClass = "green"
-	node.Drain = true
 	require.NoError(t, node.ComputeClass())
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
