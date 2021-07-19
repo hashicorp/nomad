@@ -340,7 +340,12 @@ func (h *handlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 		}
 	}
 
-	schemaRef, err := h.schemaRefAdapter.GetOrCreateSchemaRef(nil, &outObject, "schemas")
+	//schemaRef, err := h.schemaRefAdapter.GetOrCreateSchemaRef(nil, &outObject, "schemas")
+	if outObject == nil {
+		return nil, nil
+	}
+
+	schemaRef, err := h.schemaRefAdapter.generateWithoutSaving(nil, outObject.Type())
 	if err != nil {
 		return nil, err
 	}
@@ -394,6 +399,8 @@ type schemaRefAdapter struct {
 	SchemaRefs       map[string]*openapi3.SchemaRef
 	typeObjects      map[string]*types.Object
 	typeObjectsMutex sync.RWMutex
+	types            map[string]*types.Type
+	typesMutex       sync.RWMutex
 	analyzer         *Analyzer
 }
 
@@ -411,6 +418,8 @@ func newSchemaRefAdapter(analyzer *Analyzer) *schemaRefAdapter {
 		SchemaRefs:       make(map[string]*openapi3.SchemaRef),
 		typeObjects:      make(map[string]*types.Object),
 		typeObjectsMutex: sync.RWMutex{},
+		types:            make(map[string]*types.Type),
+		typesMutex:       sync.RWMutex{},
 		analyzer:         analyzer,
 	}
 }
@@ -567,9 +576,14 @@ func (s *schemaRefAdapter) adaptBasic(basic *types.Basic, schema *openapi3.Schem
 		schema.Type = "integer"
 		schema.Min = &zeroInt
 	case types.Uint8:
-		schema.Type = "integer"
-		schema.Min = &zeroInt
-		schema.Max = &maxUint8
+		if strings.Contains(basic.String(), "byte") {
+			schema.Type = "string"
+			schema.Format = "byte"
+		} else {
+			schema.Type = "integer"
+			schema.Min = &zeroInt
+			schema.Max = &maxUint8
+		}
 	case types.Uint16:
 		schema.Type = "integer"
 		schema.Min = &zeroInt
@@ -869,6 +883,197 @@ func (s *schemaRefAdapter) getTypesObject(objPtr *types.Object) *types.Object {
 	s.typeObjectsMutex.Unlock()
 
 	return objPtr
+}
+
+// getTypesObject ensures one and only one instance of a typesObject is used during processing.
+func (s *schemaRefAdapter) getType(typ types.Type) *types.Type {
+	s.typesMutex.RLock()
+	exists, ok := s.types[typ.String()]
+	s.typesMutex.RUnlock()
+	if ok {
+		return exists
+	}
+
+	// Publish
+	s.typesMutex.Lock()
+	s.types[typ.String()] = &typ
+	s.typesMutex.Unlock()
+
+	return &typ
+}
+
+func (s *schemaRefAdapter) getSchemaName(typ types.Type) string {
+	schemaName := typ.String()
+	if strings.Contains(typ.String(), "map") {
+		return "object"
+	}
+
+	suffix := ""
+	// Figure out if this is an array - TODO: may not want to do this actually.
+	if strings.HasPrefix(typ.String(), "[]") {
+		return "array"
+	}
+
+	replace := func(r string) string {
+		return strings.Replace(strings.Replace(r, "*", "", -1), "[]", "", -1)
+	}
+
+	segments := strings.Split(typ.String(), ".")
+	// Handle basic types
+	if len(segments) < 2 {
+		// s.analyzer.Logger("primitive", typ.String())
+		if strings.Contains(typ.String(), "byte") {
+			schemaName = "string"
+		} else if typ.String() == "interface{}" || strings.Contains(typ.String(), "map") {
+			schemaName = "object"
+		} else if strings.Contains(typ.String(), "int") {
+			schemaName = "integer"
+		} else if strings.Contains(typ.String(), "float") || strings.Contains(typ.String(), "double") {
+			schemaName = "number"
+		} else if strings.Contains(typ.String(), "bool") {
+			schemaName = "boolean"
+		}
+		return replace(schemaName) + suffix
+	}
+
+	// if not a basic type, strip * and [] characters
+	// s.analyzer.Logger("segmented", schemaName)
+	schemaName = replace(segments[len(segments)-1]) + suffix
+	// s.analyzer.Logger("clean", schemaName)
+	return schemaName
+}
+
+func (s *schemaRefAdapter) generateWithoutSaving(parents []*types.Type, typ types.Type) (*openapi3.SchemaRef, error) {
+	typeInfo := s.getType(typ)
+
+	for _, parent := range parents {
+		if parent == typeInfo {
+			return nil, &openapi3gen.CycleError{}
+		}
+	}
+
+	if cap(parents) == 0 {
+		parents = make([]*types.Type, 0, 4)
+	}
+	parents = append(parents, typeInfo)
+
+	switch pointerType := typ.(type) {
+	case *types.Pointer:
+		typ = pointerType.Elem()
+	}
+
+	schema := &openapi3.Schema{}
+
+	switch typType := typ.(type) {
+	case *types.Basic:
+		s.adaptBasic(typType, schema)
+	case *types.Slice:
+		schema.Type = "array"
+		items, err := s.generateWithoutSaving(parents, typType.Elem())
+		if err != nil {
+			return nil, err
+		}
+		if items != nil {
+			if _, ok := s.SchemaRefs[s.getSchemaName(typType.Elem())]; !ok {
+				s.SchemaRefs[s.getSchemaName(typType.Elem())] = items
+			}
+			schema.Items = items
+		}
+	case *types.Map:
+		schema.Type = "object"
+		additionalProperties, err := s.generateWithoutSaving(parents, typType.Elem())
+		if err != nil {
+			return nil, err
+		}
+		if additionalProperties != nil {
+			if _, ok := s.SchemaRefs[s.getSchemaName(typType.Elem())]; !ok {
+				s.SchemaRefs[s.getSchemaName(typType.Elem())] = additionalProperties
+			}
+			schema.AdditionalProperties = additionalProperties
+		}
+	case *types.Pointer:
+		ref, err := s.generateWithoutSaving(parents, typType.Elem())
+		if err != nil {
+			return nil, err
+		}
+		if ref != nil {
+			if _, ok := s.SchemaRefs[s.getSchemaName(typType)]; !ok {
+				s.SchemaRefs[s.getSchemaName(typType)] = ref
+			}
+		}
+	case *types.Named:
+		if typType.Obj().Pkg().Name() == "time" {
+			return nil, nil
+		}
+		switch underlying := typType.Underlying().(type) {
+		case *types.Struct:
+			for i := 0; i < underlying.NumFields(); i++ {
+				fieldInfo := underlying.Field(i)
+				if fieldInfo.Name() == "TaskStates" {
+					s.analyzer.Logger("Got here")
+				}
+				ref, err := s.generateWithoutSaving(parents, fieldInfo.Type())
+				if err != nil {
+					return nil, err
+				}
+				if ref != nil {
+					// Add referenced schema if not added already
+					if _, ok := s.SchemaRefs[s.getSchemaName(fieldInfo.Type())]; !ok {
+						s.SchemaRefs[s.getSchemaName(fieldInfo.Type())] = ref
+					}
+					if s.isBasic(ref.Value.Type) {
+						schema.WithPropertyRef(fieldInfo.Name(), ref)
+					} else if ref.Value.Type == "array" {
+						propertyRef := openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", s.getSchemaName(fieldInfo.Type())), ref.Value)
+						if s.isBasic(ref.Value.Items.Value.Type) {
+							propertyRef.Ref = ""
+						}
+						schema.WithPropertyRef(fieldInfo.Name(), propertyRef)
+					} else if ref.Value.Type == "object" {
+						targetType := fieldInfo.Type()
+						switch mapType := fieldInfo.Type().(type) {
+						case *types.Map:
+							targetType = mapType.Elem()
+						}
+						propertyRef := openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", s.getSchemaName(targetType)), ref.Value)
+						if s.isBasic(s.getSchemaName(targetType)) {
+							propertyRef.Ref = ""
+						}
+						schema.WithPropertyRef(fieldInfo.Name(), ref)
+					} else {
+						propertyRef := openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", s.getSchemaName(fieldInfo.Type())), ref.Value)
+						schema.WithPropertyRef(fieldInfo.Name(), propertyRef)
+					}
+				}
+			}
+		default:
+			// If it's not a struct, then recurse
+			ref, err := s.generateWithoutSaving(parents, underlying)
+			if err != nil {
+				return nil, err
+			}
+			schema = ref.Value
+		}
+
+		// Object only if it has properties
+		if schema.Properties != nil {
+			schema.Type = "object"
+		}
+	}
+
+	ref := openapi3.NewSchemaRef("", schema)
+	if _, ok := s.SchemaRefs[s.getSchemaName(typ)]; !ok {
+		s.SchemaRefs[s.getSchemaName(typ)] = ref
+	}
+	return ref, nil
+}
+
+func (s *schemaRefAdapter) isBasic(typ string) bool {
+	if typ == "string" || typ == "boolean" || typ == "number" || typ == "integer" {
+		return true
+	}
+
+	return false
 }
 
 var (

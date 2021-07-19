@@ -380,8 +380,8 @@ func (a *Analyzer) GetSliceElemObj(obj types.Object) types.Object {
 	return nil
 }
 
-func (a *Analyzer) IsSlice(obj types.Object) bool {
-	_, ok := obj.Type().(*types.Slice)
+func (a *Analyzer) IsSlice(typ types.Type) bool {
+	_, ok := typ.(*types.Slice)
 	return ok
 }
 

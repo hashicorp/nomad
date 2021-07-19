@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/stretchr/testify/require"
+	"os"
 	"testing"
 )
 
@@ -55,6 +56,7 @@ func TestRenderSchema(t *testing.T) {
 
 	var yaml string
 	yaml, err = spec.ToYAML()
+	_ = os.WriteFile("spec_test.yaml", []byte(yaml), 0666)
 	t.Log(yaml)
 	req.NotEmpty(yaml)
 	req.Contains(yaml, jobListStubSchema)

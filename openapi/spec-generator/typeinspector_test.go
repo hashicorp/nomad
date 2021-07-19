@@ -28,4 +28,9 @@ func TestTypeInspector(t *testing.T) {
 
 	err = typeInspector.Inspect("ServerMember")
 	req.NoError(err)
+
+	err = typeInspector.Inspect("JobSummary")
+	req.NoError(err)
+
+	typeInspector.printSchemaRefs()
 }
