@@ -87,19 +87,12 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   }
 
   dispatch(job, meta, payload) {
-    const jobId = job.get('id');
-    const store = this.store;
-    const url = addToPath(this.urlForFindRecord(jobId, 'job'), '/dispatch');
-
+    const url = addToPath(this.urlForFindRecord(job.get('id'), 'job'), '/dispatch');
     return this.ajax(url, 'POST', {
       data: {
         Payload: base64EncodeString(payload),
         Meta: meta,
       },
-    }).then(json => {
-      json.ID = jobId;
-      store.pushPayload('job-dispatch', { jobDispatches: [json] });
-      return store.peekRecord('job-dispatch', jobId);
     });
   }
 }
