@@ -187,14 +187,20 @@ export default function() {
     const parent = schema.jobs.find(params.id);
 
     // Use the server instead of the schema to leverage the job factory
-    server.create('job', 'parameterizedChild', {
+    let dispatched = server.create('job', 'parameterizedChild', {
       parentId: parent.id,
       namespaceId: parent.namespaceId,
       namespace: parent.namespace,
       createAllocations: parent.createAllocations,
     });
 
-    return okEmpty();
+    return new Response(
+      200,
+      {},
+      JSON.stringify({
+        DispatchedJobID: dispatched.id,
+      })
+    );
   });
 
   this.post('/job/:id/revert', function({ jobs }, { requestBody }) {

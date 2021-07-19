@@ -15,7 +15,7 @@
   {{#each this.metaFields as |meta|}}
     <div class="columns">
         <div class="column is-6">
-          <div data-test-meta-field class="field">
+          <div data-test-meta-field="{{ if meta.required "required" "optional" }}" class="field">
             <label data-test-meta-field-label class="label {{if meta.error "has-text-danger"}}" for="{{meta.name}}">
               {{meta.title}} {{#if meta.required}}*{{/if}}
             </label>
@@ -43,7 +43,7 @@
   {{/each}}
 
   <div class="boxed-section {{if this.payloadHasError "is-danger"}}">
-    <div class="boxed-section-head">
+    <div data-test-payload-head class="boxed-section-head">
       Payload {{#if this.payloadRequired}}*{{/if}}
     </div>
     {{#if this.hasPayload}}

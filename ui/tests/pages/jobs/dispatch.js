@@ -4,6 +4,7 @@ import {
   create,
   fillable,
   isPresent,
+  isVisible,
   property,
   text,
   visitable,
@@ -19,6 +20,8 @@ export default create({
     click: clickable(),
   },
 
+  hasError: isVisible('[data-test-dispatch-error]'),
+
   metaFields: collection('[data-test-meta-field]', {
     field: {
       scope: '[data-test-meta-field-input]',
@@ -28,7 +31,17 @@ export default create({
     label: text('[data-test-meta-field-label]'),
   }),
 
+  optionalMetaFields: collection('[data-test-meta-field="optional"]', {
+    field: {
+      scope: '[data-test-meta-field-input]',
+      input: fillable(),
+      id: property('id'),
+    },
+    label: text('[data-test-meta-field-label]'),
+  }),
+
   payload: {
+    title: text('[data-test-payload-head]'),
     editor: {
       scope: '[data-test-payload-editor]',
       isPresent: isPresent(),

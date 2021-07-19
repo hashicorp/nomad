@@ -73,21 +73,9 @@ export default Factory.extend({
     // parameterized job object
     // serializer update for bool vs details object
     parameterizedJob: () => ({
-      MetaOptional: generateMetaArray(faker.random.number(10), 'optional'),
-      MetaRequired: generateMetaArray(faker.random.number(10), 'required'),
+      MetaOptional: generateMetaFields(faker.random.number(10), 'optional'),
+      MetaRequired: generateMetaFields(faker.random.number(10), 'required'),
       Payload: faker.random.boolean() ? 'required' : null,
-    }),
-  }),
-
-  parameterizedWithoutPayload: trait({
-    type: 'batch',
-    parameterized: true,
-    // parameterized job object
-    // serializer update for bool vs details object
-    parameterizedJob: () => ({
-      MetaOptional: generateMetaArray(faker.random.number(10), 'optional'),
-      MetaRequired: generateMetaArray(faker.random.number(10), 'required'),
-      Payload: 'forbidden',
     }),
   }),
 
@@ -283,6 +271,13 @@ export default Factory.extend({
   },
 });
 
-function generateMetaArray(num, prefix = '') {
-  return Array.from({ length: num }).map(() => `${prefix}-${faker.hacker.noun()}`);
+function generateMetaFields(num, prefix = '') {
+  // Use an object to avoid duplicate meta fields.
+  // The prefix param helps to avoid duplicate entries across function calls.
+  let meta = {};
+  for (let i = 0; i < num; i++) {
+    const field = `${prefix}-${faker.hacker.noun()}`;
+    meta[field] = true;
+  }
+  return Object.keys(meta);
 }
