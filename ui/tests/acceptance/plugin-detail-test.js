@@ -96,7 +96,7 @@ module('Acceptance | plugin detail', function(hooks) {
 
     const tasks = taskGroup.taskIds.map(id => server.db.tasks.find(id));
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
-    const memoryUsed = tasks.reduce((sum, task) => sum + task.resources.MemoryMB, 0);
+    const memoryUsed = tasks.reduce((sum, task) => sum + (task.resources.MemoryMaxMB || task.resources.MemoryMB), 0);
 
     await PluginDetail.visit({ id: plugin.id });
 

@@ -1,6 +1,6 @@
 import { setupRenderingTest } from 'ember-qunit';
 import { module, test } from 'qunit';
-import { render } from '@ember/test-helpers';
+import { find, render } from '@ember/test-helpers';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import hbs from 'htmlbars-inline-precompile';
 import { setupPrimaryMetricMocks, primaryMetric } from './primary-metric';
@@ -8,9 +8,9 @@ import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 
 const mockTasks = [
-  { task: 'One', reservedCPU: 200, reservedMemory: 500, cpu: [], memory: [] },
-  { task: 'Two', reservedCPU: 100, reservedMemory: 200, cpu: [], memory: [] },
-  { task: 'Three', reservedCPU: 300, reservedMemory: 100, cpu: [], memory: [] },
+  { task: 'One', reservedCPU: 200, reservedMemory: 500, allocatedReservedMemory: 500, reservedMemoryMax: 600, allocatedReservedMemoryMax: 600, cpu: [], memory: [] },
+  { task: 'Two', reservedCPU: 100, reservedMemory: 200, reservedMemoryMax: 300, cpu: [], memory: [] },
+  { task: 'Three', reservedCPU: 300, reservedMemory: 100, reservedMemoryMax: 200, cpu: [], memory: [] },
 ];
 
 module('Integration | Component | PrimaryMetric::Task', function(hooks) {
@@ -61,6 +61,21 @@ module('Integration | Component | PrimaryMetric::Task', function(hooks) {
 
     await render(template);
     await componentA11yAudit(this.element, assert);
+  });
+
+  test('The soft memory limit shows as an annotation', async function(assert) {
+    await preload(this.store);
+
+    const resource = findResource(this.store);
+    this.setProperties({ resource, metric: 'memory' });
+
+    await render(template);
+
+    assert.ok(find('[data-test-annotation]'));
+    assert.equal(
+      find('[data-test-annotation]').textContent.trim(),
+      '500 MiB soft limit'
+    );
   });
 
   primaryMetric({

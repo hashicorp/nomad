@@ -5,6 +5,7 @@ import { task, timeout } from 'ember-concurrency';
 import { assert } from '@ember/debug';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
+import { formatScheduledBytes } from 'nomad-ui/utils/units';
 
 export default class TaskPrimaryMetric extends Component {
   @service('stats-trackers-registry') statsTrackersRegistry;
@@ -36,10 +37,34 @@ export default class TaskPrimaryMetric extends Component {
     return null;
   }
 
+  get maximumAmount() {
+    if (!this.tracker) return null;
+    const task = this.tracker.tasks.findBy('task', this.taskState.name);
+    if (this.metric === 'memory') return task.allocatedReservedMemoryMax;
+    return null;
+  }
+
   get chartClass() {
     if (this.metric === 'cpu') return 'is-info';
     if (this.metric === 'memory') return 'is-danger';
     return 'is-primary';
+  }
+
+  get softLimitAnnotations() {
+    const task = this.tracker.tasks.findBy('task', this.taskState.name);
+
+    if (this.metric === 'memory' && (task.allocatedReservedMemoryMax > task.allocatedReservedMemory)) {
+      const memory = task.allocatedReservedMemory;
+
+      return [
+        {
+          label: `${formatScheduledBytes(memory, 'MiB')} soft limit`,
+          percent: memory / task.allocatedReservedMemoryMax,
+        },
+      ];
+    }
+
+    return [];
   }
 
   @task(function*() {
