@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3gen"
@@ -13,7 +12,6 @@ import (
 	"golang.org/x/tools/go/packages"
 	"math"
 	"net/http"
-	"sort"
 	"strings"
 	"sync"
 )
@@ -345,7 +343,7 @@ func (h *handlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 		return nil, nil
 	}
 
-	schemaRef, err := h.schemaRefAdapter.generateWithoutSaving(nil, outObject.Type())
+	schemaRef, err := h.schemaRefAdapter.GetOrCreateSchemaRef(nil, outObject.Type())
 	if err != nil {
 		return nil, err
 	}
@@ -390,166 +388,172 @@ func (h *handlerFuncAdapter) GetResultByIndex(idx int) (ast.Expr, error) {
 	return finalReturn.Results[idx].(ast.Expr), nil
 }
 
-// schemaRefAdapter converts interfaces to SchemaRefs, ensuring the same type is
-// not registered twice. This is adapted from kin-openapi/openapi3gen. Because our
-// struct types are hydrated generically, we won't have type names available in
-// in the reflect info. So we have to maintain our own type registry based on the
-// typeName we have resolved already.
+// schemaRefAdapter converts types.Types to SchemaRefs, ensuring the same type is
+// not registered twice.
 type schemaRefAdapter struct {
-	SchemaRefs       map[string]*openapi3.SchemaRef
-	typeObjects      map[string]*types.Object
-	typeObjectsMutex sync.RWMutex
-	types            map[string]*types.Type
-	typesMutex       sync.RWMutex
-	analyzer         *Analyzer
+	SchemaRefs map[string]*openapi3.SchemaRef
+	types      map[string]*types.Type
+	typesMutex sync.RWMutex
+	analyzer   *Analyzer
 }
-
-//func (s *SchemaRefAdapter) GenerateSchemaRefs(iface interface{}, typeName string) (*openapi3.SchemaRef, error) {
-//	ref, err := s.GenerateSchemaRef(reflect.TypeOf(iface), typeName)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	return ref, err
-//}
 
 func newSchemaRefAdapter(analyzer *Analyzer) *schemaRefAdapter {
 	return &schemaRefAdapter{
-		SchemaRefs:       make(map[string]*openapi3.SchemaRef),
-		typeObjects:      make(map[string]*types.Object),
-		typeObjectsMutex: sync.RWMutex{},
-		types:            make(map[string]*types.Type),
-		typesMutex:       sync.RWMutex{},
-		analyzer:         analyzer,
+		SchemaRefs: make(map[string]*openapi3.SchemaRef),
+		types:      make(map[string]*types.Type),
+		typesMutex: sync.RWMutex{},
+		analyzer:   analyzer,
 	}
 }
 
-func (s *schemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Object, objPtr *types.Object, componentType string) (*openapi3.SchemaRef, error) {
-	if objPtr == nil {
-		return nil, fmt.Errorf("SchemaRefAdapter.GetOrCreateSchemaRef: objPtr cannot be nil")
-	}
+func (s *schemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Type, typ types.Type) (*openapi3.SchemaRef, error) {
+	typeInfo := s.getType(typ)
 
-	obj := *objPtr
-	if obj == nil {
-		return nil, fmt.Errorf("SchemaRefAdapter.GetOrCreateSchemaRef: obj cannot be nil")
-	}
-
-	if t, ok := obj.Type().(*types.Pointer); ok {
-		obj = s.analyzer.GetPointerElem(t)
-	}
-
-	typeName := "unknown"
-	schema := &openapi3.Schema{}
-
-	if basic, ok := obj.Type().(*types.Basic); ok {
-		s.adaptBasic(basic, schema)
-		// default to schema.Object for basic kinds
-		// TODO: is this ok, or does it need to be based on format
-		typeName = schema.Type
-	} else {
-		switch objType := obj.Type().(type) {
-		case *basicKindType:
-			s.adaptBasic(objType.basic, schema)
-			typeName = schema.Type
-		case *types.Slice:
-			schema.Type = "array"
-			switch elemType := objType.Elem().(type) {
-			case *types.Basic:
-				basicSchema := &openapi3.Schema{}
-				s.adaptBasic(elemType, basicSchema)
-				items := &openapi3.SchemaRef{
-					Ref:   "",
-					Value: basicSchema,
-				}
-				schema.Items = items
-			default:
-				itemsElemObj := s.analyzer.GetSliceElemObj(obj)
-				typeName = itemsElemObj.Name() + "Array"
-				items, err := s.GetOrCreateSchemaRef(parents, &itemsElemObj, componentType)
-				if err != nil {
-					s.analyzer.Logger("schemaRefAdapter.GetOrCreateSchema failed for slice item", itemsElemObj.Name())
-					return nil, err
-				}
-				if items != nil {
-					if !s.addSchemaRef(typeName, items) {
-						return nil, fmt.Errorf("schemaRefAdapter.GetOrCreateScheam unable to add schemaRef for slice elem" + typeName)
-					}
-					schema.Items = items
-				}
-			}
-		case *types.Map:
-			schema.Type = "object"
-			var elemObj types.Object
-			if elemObj, ok = objType.Elem().(types.Object); !ok {
-				err := errors.New(fmt.Sprintf("SchemaRefAdapter.GetOrCreateSchemaRef: invalid map type %#v", objType))
-				s.analyzer.Logger(err)
-				return nil, err
-			}
-			additionalProperties, err := s.GetOrCreateSchemaRef(parents, &elemObj, componentType)
-			if err != nil {
-				s.analyzer.Logger("schemaRefAdapter.GetOrCreateSchema failed for map item", elemObj.Name())
-				return nil, err
-			}
-			if additionalProperties != nil {
-				if !s.addSchemaRef(elemObj.Name(), additionalProperties) {
-					return nil, fmt.Errorf("schemaRefAdapter.GetOrCreateSchema unable to add schemaRef for additionalProperties " + elemObj.Name())
-				}
-				schema.AdditionalProperties = additionalProperties
-			}
-
-			typeName = elemObj.Name() + "Map"
-		case *types.Named:
-			typeName = objType.Obj().Name()
-			switch underlyingType := objType.Underlying().(type) {
-			case *types.Basic:
-				// Do nothing, don't look for
-				typeName = ""
-			case *types.Struct:
-				err := s.adaptStruct(parents, objPtr, schema, underlyingType, componentType)
-				if err != nil {
-					return nil, err
-				}
-			//case *types.Slice:
-			//	err := s.adaptStruct(parents, objPtr, schema, underlyingType.Elem(), componentType)
-			//	if err != nil {
-			//		return nil, err
-			//	}
-			default:
-				err := errors.New(fmt.Sprintf("SchemaRefAdapter.GetOrCreateSchemaRef map.Named.Underlying failed to handle type: %#v", underlyingType))
-				return nil, err
-			}
-		case *types.Struct:
-			typeName = obj.(types.Object).Name()
-			err := s.adaptStruct(parents, objPtr, schema, objType, componentType)
-			if err != nil {
-				return nil, err
-			}
-		default:
-			s.analyzer.Logger("schemaRefAdapter.GetOrCreateSchema unhandled type", objType)
+	for _, parent := range parents {
+		if parent == typeInfo {
+			return nil, &openapi3gen.CycleError{}
 		}
 	}
 
-	if existing, ok := s.SchemaRefs[typeName]; ok {
-		return existing, nil
+	if cap(parents) == 0 {
+		parents = make([]*types.Type, 0, 4)
+	}
+	parents = append(parents, typeInfo)
+
+	switch pointerType := typ.(type) {
+	case *types.Pointer:
+		typ = pointerType.Elem()
 	}
 
-	// Don't set the Ref value if you want the serializer to dump the full schema.
+	schema := &openapi3.Schema{}
+
+	switch typType := typ.(type) {
+	case *types.Basic:
+		s.adaptBasic(typType, schema)
+	case *types.Slice:
+		if s.getSchemaName(typType.Elem()) == "ScalingEvent" {
+			s.analyzer.Logger("Got here")
+		}
+		schema.Type = "array"
+		items, err := s.GetOrCreateSchemaRef(parents, typType.Elem())
+		if err != nil {
+			return nil, err
+		}
+		if items != nil {
+			if !s.addSchemaRef(s.getSchemaName(typType.Elem()), items) {
+				return nil, fmt.Errorf("unable to add schemaRef for type " + typType.Elem().String())
+			}
+			items.Ref = fmt.Sprintf("#/components/schemas/%s", s.getSchemaName(typType.Elem()))
+			if s.isBasic(s.getSchemaName(typType.Elem())) {
+				items.Ref = ""
+			}
+			schema.Items = items
+		}
+	case *types.Map:
+		if s.getSchemaName(typType.Elem()) == "TaskGroupScaleStatus" {
+			s.analyzer.Logger("Got here")
+		}
+		schema.Type = "object"
+		elemRef, err := s.GetOrCreateSchemaRef(parents, typType.Elem())
+		if err != nil {
+			return nil, err
+		}
+		if elemRef != nil {
+			if !s.addSchemaRef(s.getSchemaName(typType.Elem()), elemRef) {
+				return nil, fmt.Errorf("unable to add schemaRef for type " + typType.Elem().String())
+			}
+			schema.AdditionalProperties = &openapi3.SchemaRef{
+				Ref:   s.resolveRef(typType.Elem()),
+				Value: elemRef.Value,
+			}
+		}
+	case *types.Pointer:
+		ref, err := s.GetOrCreateSchemaRef(parents, typType.Elem())
+		if err != nil {
+			return nil, err
+		}
+		if ref != nil {
+			if !s.addSchemaRef(s.getSchemaName(typType.Elem()), ref) {
+				return nil, fmt.Errorf("unable to add schemaRef for type " + typType.Elem().String())
+			}
+		}
+	case *types.Named:
+		if typType.Obj().Pkg().Name() == "time" {
+			return nil, nil
+		}
+		if typType.Obj().Name() == "TaskGroupScaleStatus" {
+			s.analyzer.Logger("Got here")
+		}
+		switch underlying := typType.Underlying().(type) {
+		case *types.Struct:
+			for i := 0; i < underlying.NumFields(); i++ {
+				fieldInfo := underlying.Field(i)
+				if fieldInfo.Name() == "Events" {
+					s.analyzer.Logger("Got here")
+				}
+				ref, err := s.GetOrCreateSchemaRef(parents, fieldInfo.Type())
+				if err != nil {
+					return nil, err
+				}
+				if ref != nil {
+					// Add referenced schema if not added already
+					if !s.addSchemaRef(s.getSchemaName(fieldInfo.Type()), ref) {
+						return nil, fmt.Errorf("unable to add schemaRef for type " + fieldInfo.Type().String())
+					}
+
+					if s.isBasic(ref.Value.Type) {
+						schema.WithPropertyRef(fieldInfo.Name(), ref)
+					} else if ref.Value.Type == "array" {
+						targetType := fieldInfo.Type()
+						switch sliceType := fieldInfo.Type().(type) {
+						case *types.Slice:
+							targetType = sliceType.Elem()
+						}
+						itemsRef := openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", s.getSchemaName(targetType)), ref.Value)
+						if s.isBasic(ref.Value.Items.Value.Type) {
+							itemsRef.Ref = ""
+						}
+						schema.WithPropertyRef(fieldInfo.Name(), openapi3.NewSchemaRef("", &openapi3.Schema{
+							Items: itemsRef.Value.Items,
+							Type:  "array",
+						}))
+					} else if ref.Value.Type == "object" {
+						targetType := fieldInfo.Type()
+						switch mapType := fieldInfo.Type().(type) {
+						case *types.Map:
+							targetType = mapType.Elem()
+						}
+						propertyRef := openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", s.getSchemaName(targetType)), ref.Value)
+						if s.isBasic(s.getSchemaName(targetType)) {
+							propertyRef.Ref = ""
+						}
+						schema.WithPropertyRef(fieldInfo.Name(), ref)
+					} else {
+						propertyRef := openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", s.getSchemaName(fieldInfo.Type())), ref.Value)
+						schema.WithPropertyRef(fieldInfo.Name(), propertyRef)
+					}
+				}
+			}
+		default:
+			// If it's not a struct, then recurse
+			ref, err := s.GetOrCreateSchemaRef(parents, underlying)
+			if err != nil {
+				return nil, err
+			}
+			schema = ref.Value
+		}
+
+		// Object only if it has properties
+		if schema.Properties != nil {
+			schema.Type = "object"
+		}
+	}
+
 	ref := openapi3.NewSchemaRef("", schema)
-	if !s.addSchemaRef(typeName, ref) {
-		return nil, fmt.Errorf("schemaRefAdapter unable to add schemaRef for " + typeName)
+	if !s.addSchemaRef(s.getSchemaName(typ), ref) {
+		return nil, fmt.Errorf("unable to add schemaRef for type " + typ.String())
 	}
 	return ref, nil
-}
-
-func (s *schemaRefAdapter) addSchemaRef(key string, items *openapi3.SchemaRef) bool {
-	var ok bool
-	if len(key) < 1 {
-		return false
-	}
-	if _, ok = s.SchemaRefs[key]; !ok {
-		s.SchemaRefs[key] = items
-	}
-	return true
 }
 
 func (s *schemaRefAdapter) adaptBasic(basic *types.Basic, schema *openapi3.Schema) {
@@ -609,282 +613,6 @@ func (s *schemaRefAdapter) adaptBasic(basic *types.Basic, schema *openapi3.Schem
 	}
 }
 
-func (s *schemaRefAdapter) adaptStruct(parents []*types.Object, objPtr *types.Object, schema *openapi3.Schema, structType *types.Struct, componentType string) error {
-	obj := *objPtr
-	if obj.Name() == "Time" {
-		schema.Type = "string"
-		schema.Format = "date-time"
-		return nil
-	}
-
-	if schema.Extensions == nil {
-		schema.Extensions = make(map[string]interface{})
-	}
-
-	schema.Extensions["x-go-package"] = obj.Pkg().Path()
-
-	// Check for circular reference
-	objPtr = s.getTypesObject(objPtr)
-	for _, parent := range parents {
-		if parent == objPtr {
-			return &openapi3gen.CycleError{}
-		}
-	}
-	if cap(parents) == 0 {
-		parents = make([]*types.Object, 0, 4)
-	}
-	parents = append(parents, objPtr)
-
-	// Sort the fields for easier debugging and unit tests
-	var fields []*types.Var
-	for i := 0; i < structType.NumFields(); i++ {
-		fields = append(fields, structType.Field(i))
-	}
-	sort.Slice(fields, func(i, j int) bool {
-		return fields[i].Name() > fields[j].Name()
-	})
-
-	for _, field := range fields {
-		fieldTypeName := "unknown" // make sure this string never shows up in tests.
-		var ref *openapi3.SchemaRef
-		var err error
-
-		var propertySchema *openapi3.Schema
-		switch fieldType := field.Type().(type) {
-		case *types.Basic:
-			propertySchema = &openapi3.Schema{}
-			s.adaptBasic(fieldType, propertySchema)
-		case *types.Pointer:
-			if elemType, ok := fieldType.Elem().(*types.Basic); ok {
-				propertySchema = &openapi3.Schema{}
-				s.adaptBasic(elemType, propertySchema)
-				break
-			}
-			elemType := s.analyzer.GetPointerElem(fieldType)
-			fieldTypeName = elemType.Name()
-			ref, err = s.GetOrCreateSchemaRef(parents, &elemType, componentType)
-			if err != nil {
-				s.analyzer.Logger("schemaRefAdapter.adaptStruct case *types.Pointer failed for", obj.Name(), field.Name())
-				return err
-			}
-		case *types.Struct:
-			underlying := fieldType.Underlying().(types.Object)
-			fieldTypeName = underlying.Name()
-			ref, err = s.GetOrCreateSchemaRef(parents, &underlying, componentType)
-			if err != nil {
-				s.analyzer.Logger("schemaRefAdapter.adaptStruct case *types.Struct failed for", obj.Name(), field.Name())
-				return err
-			}
-		case *types.Named:
-			fieldTypeName = fieldType.Obj().Name()
-			var indirectObj types.Object
-			indirectObj = fieldType.Obj()
-			ref, err = s.GetOrCreateSchemaRef(parents, &indirectObj, componentType)
-			if err != nil {
-				s.analyzer.Logger("schemaRefAdapter.adaptStruct case *types.Named failed for", obj.Name(), field.Name())
-				return err
-			}
-		case *types.Slice:
-			propertySchema = &openapi3.Schema{
-				Type: "array",
-			}
-			itemsSchema := &openapi3.Schema{}
-			var refPath string
-			switch elemType := fieldType.Elem().(type) {
-			case *types.Basic:
-				s.adaptBasic(elemType, itemsSchema)
-				refPath = ""
-			case *types.Pointer:
-				itemsSchema.Type = "object"
-				itemsObj := s.analyzer.GetPointerElem(elemType)
-				if itemsObj.Name() == "ServerMember" {
-					s.analyzer.Logger("Blick")
-				}
-				refPath = fmt.Sprintf("#/components/%s/%s", componentType, itemsObj.Name())
-				ref, err = s.GetOrCreateSchemaRef(nil, &itemsObj, componentType)
-				if err != nil {
-					s.analyzer.Logger("schemaRefAdapter.adaptStruct case *types.Slice.Pointer failed for", obj.Name(), field.Name())
-					return err
-				}
-				itemsSchema.Items = ref
-			case *types.Struct:
-				itemsSchema.Type = "object"
-				underlying := elemType.Underlying().(types.Object)
-				ref, err = s.GetOrCreateSchemaRef(nil, &underlying, componentType)
-				if err != nil {
-					s.analyzer.Logger("schemaRefAdapter.adaptStruct case *types.Slice.Struct failed for", obj.Name(), field.Name())
-					return err
-				}
-				itemsSchema.Items = ref
-			case *types.Named:
-				itemsSchema.Type = "object"
-				switch elemType.Underlying().(type) {
-				case *types.Interface:
-					s.analyzer.Logger("SchemaRefAdapter.adaptStruct unhandled interface", elemType)
-				case *types.Struct:
-					var indirectObj types.Object
-					indirectObj = elemType.Obj()
-					ref, err = s.GetOrCreateSchemaRef(nil, &indirectObj, componentType)
-					if err != nil {
-						s.analyzer.Logger("schemaRefAdapter.adaptStruct case *types.Slice.Named failed for", obj.Name(), field.Name())
-						return err
-					}
-				default:
-					s.analyzer.Logger("schemaRefAdapter.adaptStruct: unhandled type slice.Named", elemType.Underlying())
-				}
-				itemsSchema.Items = ref
-			case *types.Map:
-				s.analyzer.Logger("schemaRefAdapter.adaptStruct: unhandled type", elemType, "for", obj.Name(), field.Name())
-			default:
-				s.analyzer.Logger("schemaRefAdapter.adaptStruct *types.Sliced unhandled type", elemType, "for", obj.Name(), field.Name())
-			}
-			propertySchema.Items = openapi3.NewSchemaRef(refPath, itemsSchema)
-		case *types.Map:
-			propertySchema = &openapi3.Schema{
-				Type: "object",
-			}
-			itemsSchema := &openapi3.Schema{}
-			switch elemType := fieldType.Elem().(type) {
-			case *types.Basic:
-				basicSchema := &openapi3.Schema{}
-				s.adaptBasic(elemType, basicSchema)
-				propertySchema.AdditionalProperties = openapi3.NewSchemaRef("", basicSchema)
-			case *types.Pointer:
-				itemsSchema.Type = "object"
-				itemsObj := s.analyzer.GetPointerElem(elemType)
-				ref, err = s.GetOrCreateSchemaRef(nil, &itemsObj, componentType)
-				if err != nil {
-					s.analyzer.Logger("schemaRefAdapter.adaptStruct case *types.Map.Pointer failed for", obj.Name(), field.Name())
-					return err
-				}
-				itemsSchema.Items = ref
-			case *types.Struct:
-				itemsSchema.Type = "object"
-				underlying := elemType.Underlying().(types.Object)
-				ref, err = s.GetOrCreateSchemaRef(nil, &underlying, componentType)
-				if err != nil {
-					s.analyzer.Logger("schemaRefAdapter.adaptStruct case *types.Map.Struct failed for", obj.Name(), field.Name())
-					return err
-				}
-				itemsSchema.Items = ref
-			case *types.Named:
-				itemsSchema.Type = "object"
-				var indirectObj types.Object
-				indirectObj = elemType.Obj()
-				ref, err = s.GetOrCreateSchemaRef(nil, &indirectObj, componentType)
-				if err != nil {
-					s.analyzer.Logger("schemaRefAdapter.adaptStruct case *types.Map.Named failed for", obj.Name(), field.Name())
-					return err
-				}
-				itemsSchema.Items = ref
-			case *types.Map:
-				// TODO: Is there a way to genericize and recursify this
-				itemsSchema.Type = "object"
-				switch itemsType := elemType.Elem().(type) {
-				case *types.Basic:
-					basicSchema := &openapi3.Schema{}
-					s.adaptBasic(itemsType, basicSchema)
-					itemsSchema.Items = openapi3.NewSchemaRef("", basicSchema)
-				case *types.Pointer:
-					itemsObj := s.analyzer.GetPointerElem(itemsType)
-					ref, err = s.GetOrCreateSchemaRef(nil, &itemsObj, componentType)
-					if err != nil {
-						s.analyzer.Logger("schemaRefAdapter.adaptStruct case *types.Map.Map.Pointer failed for", obj.Name(), field.Name(), itemsObj.Name())
-						return err
-					}
-					itemsSchema.Items = ref
-				case *types.Struct:
-					underlying := itemsType.Underlying().(types.Object)
-					ref, err = s.GetOrCreateSchemaRef(nil, &underlying, componentType)
-					if err != nil {
-						s.analyzer.Logger("schemaRefAdapter.adaptStruct case *types.Map.Map.Struct failed for", obj.Name(), field.Name(), underlying.Name())
-						return err
-					}
-					itemsSchema.Items = ref
-					propertySchema.Items = openapi3.NewSchemaRef("", itemsSchema)
-				case *types.Named:
-					var indirectObj types.Object
-					indirectObj = itemsType.Obj()
-					ref, err = s.GetOrCreateSchemaRef(nil, &indirectObj, componentType)
-					if err != nil {
-						s.analyzer.Logger("schemaRefAdapter.adaptStruct case *types.Map.Map.Named failed for", obj.Name(), field.Name(), indirectObj.Name())
-						return err
-					}
-					itemsSchema.Items = ref
-					propertySchema.Items = openapi3.NewSchemaRef("", itemsSchema)
-				// case *types.Map:
-				default:
-					s.analyzer.Logger("schemaRefAdapter.adaptStruct case *types.Map unhandled type", itemsType, "for", obj.Name(), field.Name())
-				}
-			default:
-				s.analyzer.Logger(fmt.Sprintf("SchemaRefAdapter.adaptStruct: struct %s has unhandled field %s of Type %#v", obj.Name(), field.Name(), fieldType))
-			}
-		}
-
-		if propertySchema != nil {
-			if fieldTypeName == "unknown" {
-				fieldTypeName = propertySchema.Type
-			}
-			schema.WithProperty(field.Name(), propertySchema)
-		}
-
-		if ref != nil {
-			if fieldTypeName == "unknown" {
-				return fmt.Errorf("SchemaRefAdapter.adaptStruct failed to resolve fieldTypeName for %#v", field)
-			}
-
-			if !s.addSchemaRef(fieldTypeName, ref) {
-				return fmt.Errorf("schemaRefAdapter.adaptStruct unable to add schemaRef for field type " + fieldTypeName)
-			}
-
-			schema.WithPropertyRef(field.Name(), ref)
-		}
-	}
-
-	return nil
-}
-
-// getTypesObject ensures one and only one instance of a typesObject is used during processing.
-func (s *schemaRefAdapter) getTypesObject(objPtr *types.Object) *types.Object {
-	obj := *objPtr
-	if obj == nil {
-		return nil
-	}
-
-	switch elemType := obj.Type().(type) {
-	case *types.Named:
-		var indirectObj types.Object
-		indirectObj = elemType.Obj()
-		return &indirectObj
-	case *types.Pointer:
-		switch pointerType := elemType.Elem().(type) {
-		case *types.Named:
-			var indirectObj types.Object
-			indirectObj = pointerType.Obj()
-			return &indirectObj
-		default:
-			s.analyzer.Logger(fmt.Sprintf("SchemaRefAdapter.GetTypeInfo unhandled type %#v", pointerType))
-			return nil
-		}
-	default:
-		s.analyzer.Logger("schemaRefAdapter.getTypesObject unhandled type", elemType)
-	}
-
-	s.typeObjectsMutex.RLock()
-	typeObject, exists := s.typeObjects[obj.Name()]
-	s.typeObjectsMutex.RUnlock()
-	if exists {
-		return typeObject
-	}
-
-	// Publish
-	s.typeObjectsMutex.Lock()
-	s.typeObjects[obj.Name()] = objPtr
-	s.typeObjectsMutex.Unlock()
-
-	return objPtr
-}
-
 // getTypesObject ensures one and only one instance of a typesObject is used during processing.
 func (s *schemaRefAdapter) getType(typ types.Type) *types.Type {
 	s.typesMutex.RLock()
@@ -902,6 +630,25 @@ func (s *schemaRefAdapter) getType(typ types.Type) *types.Type {
 	return &typ
 }
 
+func (s *schemaRefAdapter) addSchemaRef(key string, ref *openapi3.SchemaRef) bool {
+	// Don't add builtin types to schema refs
+	if s.isBasic(key) || key == "array" || key == "object" {
+		return true
+	}
+
+	var ok bool
+	if len(key) < 1 {
+		return false
+	}
+
+	if _, ok = s.SchemaRefs[key]; !ok {
+		s.SchemaRefs[key] = ref
+	}
+
+	return true
+}
+
+// TODO: This feel horribly brittle.  Ok for debugging but needs more elegance/less footgun.
 func (s *schemaRefAdapter) getSchemaName(typ types.Type) string {
 	schemaName := typ.String()
 	if strings.Contains(typ.String(), "map") {
@@ -936,141 +683,16 @@ func (s *schemaRefAdapter) getSchemaName(typ types.Type) string {
 		return replace(schemaName) + suffix
 	}
 
-	// if not a basic type, strip * and [] characters
-	// s.analyzer.Logger("segmented", schemaName)
+	// Else full path.
 	schemaName = replace(segments[len(segments)-1]) + suffix
-	// s.analyzer.Logger("clean", schemaName)
 	return schemaName
 }
 
-func (s *schemaRefAdapter) generateWithoutSaving(parents []*types.Type, typ types.Type) (*openapi3.SchemaRef, error) {
-	typeInfo := s.getType(typ)
-
-	for _, parent := range parents {
-		if parent == typeInfo {
-			return nil, &openapi3gen.CycleError{}
-		}
+func (s *schemaRefAdapter) resolveRef(typType types.Type) string {
+	if s.isBasic(typType.String()) {
+		return ""
 	}
-
-	if cap(parents) == 0 {
-		parents = make([]*types.Type, 0, 4)
-	}
-	parents = append(parents, typeInfo)
-
-	switch pointerType := typ.(type) {
-	case *types.Pointer:
-		typ = pointerType.Elem()
-	}
-
-	schema := &openapi3.Schema{}
-
-	switch typType := typ.(type) {
-	case *types.Basic:
-		s.adaptBasic(typType, schema)
-	case *types.Slice:
-		schema.Type = "array"
-		items, err := s.generateWithoutSaving(parents, typType.Elem())
-		if err != nil {
-			return nil, err
-		}
-		if items != nil {
-			if _, ok := s.SchemaRefs[s.getSchemaName(typType.Elem())]; !ok {
-				s.SchemaRefs[s.getSchemaName(typType.Elem())] = items
-			}
-			schema.Items = items
-		}
-	case *types.Map:
-		schema.Type = "object"
-		additionalProperties, err := s.generateWithoutSaving(parents, typType.Elem())
-		if err != nil {
-			return nil, err
-		}
-		if additionalProperties != nil {
-			if _, ok := s.SchemaRefs[s.getSchemaName(typType.Elem())]; !ok {
-				s.SchemaRefs[s.getSchemaName(typType.Elem())] = additionalProperties
-			}
-			schema.AdditionalProperties = additionalProperties
-		}
-	case *types.Pointer:
-		ref, err := s.generateWithoutSaving(parents, typType.Elem())
-		if err != nil {
-			return nil, err
-		}
-		if ref != nil {
-			if _, ok := s.SchemaRefs[s.getSchemaName(typType)]; !ok {
-				s.SchemaRefs[s.getSchemaName(typType)] = ref
-			}
-		}
-	case *types.Named:
-		if typType.Obj().Pkg().Name() == "time" {
-			return nil, nil
-		}
-		switch underlying := typType.Underlying().(type) {
-		case *types.Struct:
-			for i := 0; i < underlying.NumFields(); i++ {
-				fieldInfo := underlying.Field(i)
-				if fieldInfo.Name() == "TaskStates" {
-					s.analyzer.Logger("Got here")
-				}
-				ref, err := s.generateWithoutSaving(parents, fieldInfo.Type())
-				if err != nil {
-					return nil, err
-				}
-				if ref != nil {
-					// Add referenced schema if not added already
-					if _, ok := s.SchemaRefs[s.getSchemaName(fieldInfo.Type())]; !ok {
-						s.SchemaRefs[s.getSchemaName(fieldInfo.Type())] = ref
-					}
-					if s.isBasic(ref.Value.Type) {
-						schema.WithPropertyRef(fieldInfo.Name(), ref)
-					} else if ref.Value.Type == "array" {
-						targetType := fieldInfo.Type()
-						switch sliceType := fieldInfo.Type().(type) {
-						case *types.Slice:
-							targetType = sliceType.Elem()
-						}
-						propertyRef := openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", s.getSchemaName(targetType)), ref.Value)
-						if s.isBasic(ref.Value.Items.Value.Type) {
-							propertyRef.Ref = ""
-						}
-						schema.WithPropertyRef(fieldInfo.Name(), propertyRef)
-					} else if ref.Value.Type == "object" {
-						targetType := fieldInfo.Type()
-						switch mapType := fieldInfo.Type().(type) {
-						case *types.Map:
-							targetType = mapType.Elem()
-						}
-						propertyRef := openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", s.getSchemaName(targetType)), ref.Value)
-						if s.isBasic(s.getSchemaName(targetType)) {
-							propertyRef.Ref = ""
-						}
-						schema.WithPropertyRef(fieldInfo.Name(), ref)
-					} else {
-						propertyRef := openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", s.getSchemaName(fieldInfo.Type())), ref.Value)
-						schema.WithPropertyRef(fieldInfo.Name(), propertyRef)
-					}
-				}
-			}
-		default:
-			// If it's not a struct, then recurse
-			ref, err := s.generateWithoutSaving(parents, underlying)
-			if err != nil {
-				return nil, err
-			}
-			schema = ref.Value
-		}
-
-		// Object only if it has properties
-		if schema.Properties != nil {
-			schema.Type = "object"
-		}
-	}
-
-	ref := openapi3.NewSchemaRef("", schema)
-	if _, ok := s.SchemaRefs[s.getSchemaName(typ)]; !ok {
-		s.SchemaRefs[s.getSchemaName(typ)] = ref
-	}
-	return ref, nil
+	return s.getSchemaName(typType)
 }
 
 func (s *schemaRefAdapter) isBasic(typ string) bool {

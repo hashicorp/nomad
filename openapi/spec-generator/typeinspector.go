@@ -99,7 +99,7 @@ func (t *TypeInspector) Inspect(typeName string) error {
 
 	t.inspectFields(entry)
 
-	ref, err := t.schemaRefAdapter.generateWithoutSaving(nil, typ)
+	ref, err := t.schemaRefAdapter.GetOrCreateSchemaRef(nil, typ)
 	if err != nil {
 		return err
 	}
