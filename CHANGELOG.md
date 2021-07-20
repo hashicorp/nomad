@@ -3,6 +3,9 @@
 IMPROVEMENTS:
 * dispatch jobs: Added optional idempotency token to `WriteOptions` which prevents Nomad from creating new dispatched jobs for retried requests. [[GH-10806](https://github.com/hashicorp/nomad/pull/10806)]
 
+BUG FIXES:
+* client: Fixed deletion of archive log files based on `log_rotate_max_files`. [[GH-10913](https://github.com/hashicorp/nomad/issues/10913)]
+
 ## 1.1.2 (June 22, 2021)
 
 IMPROVEMENTS:

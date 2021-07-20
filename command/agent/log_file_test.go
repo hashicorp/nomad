@@ -144,6 +144,50 @@ func TestLogFile_deleteArchives(t *testing.T) {
 	}
 }
 
+func TestLogFile_deleteArchivesOnStart(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	tempDir, err := ioutil.TempDir("", "LogWriterDeleteArchivesOnStartTest")
+	require.NoError(err)
+	defer os.Remove(tempDir)
+
+	startNewAgentAndWrite := func(log string) {
+		filt := LevelFilter()
+		filt.MinLevel = "INFO"
+		firstRun := logFile{
+			logFilter: filt,
+			fileName:  testFileName,
+			logPath:   tempDir,
+			MaxBytes:  1024,
+			duration:  24 * time.Hour,
+			MaxFiles:  1,
+		}
+		firstRun.Write([]byte(log))
+	}
+
+	startNewAgentAndWrite("[INFO] Hello World")
+	startNewAgentAndWrite("[INFO] Second File")
+	startNewAgentAndWrite("[INFO] Third File")
+
+	want := 2
+	tempFiles, _ := ioutil.ReadDir(tempDir)
+	require.Equal(want, len(tempFiles))
+
+	for _, tempFile := range tempFiles {
+		var bytes []byte
+		var err error
+		path := filepath.Join(tempDir, tempFile.Name())
+		if bytes, err = ioutil.ReadFile(path); err != nil {
+			t.Errorf(err.Error())
+			return
+		}
+		contents := string(bytes)
+
+		require.NotEqual("[INFO] Hello World", contents, "oldest log should have been deleted")
+	}
+}
+
 func TestLogFile_deleteArchivesDisabled(t *testing.T) {
 	t.Parallel()
 

@@ -131,6 +131,9 @@ func (l *logFile) Write(b []byte) (int, error) {
 	defer l.acquire.Unlock()
 	//Create a new file if we have no file to write to
 	if l.FileInfo == nil {
+		if err := l.pruneFiles(); err != nil {
+			return 0, err
+		}
 		if err := l.openNew(); err != nil {
 			return 0, err
 		}
