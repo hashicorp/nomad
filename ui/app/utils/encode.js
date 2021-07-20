@@ -8,7 +8,7 @@ function base64EncodeString(string) {
     string = '';
   }
 
-  let encoded = new TextEncoderLite('utf-8').encode(string);
+  const encoded = new TextEncoderLite('utf-8').encode(string);
   return base64js.fromByteArray(encoded);
 }
 
@@ -17,6 +17,6 @@ function base64DecodeString(b64String) {
     b64String = base64EncodeString('');
   }
 
-  let uint8array = base64js.toByteArray(b64String);
+  const uint8array = base64js.toByteArray(b64String);
   return new TextDecoderLite('utf-8').decode(uint8array);
 }

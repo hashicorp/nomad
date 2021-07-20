@@ -47,20 +47,20 @@ export default class JobDispatch extends Component {
     super(...arguments);
 
     // Helper for mapping the params into a useable form.
-    const mapper = (values, required) =>
+    const mapper = (values = [], required) =>
       values.map(
         x =>
           new MetaField({
             name: x,
-            required: required,
+            required,
             title: titleCase(noCase(x)),
             value: this.args.job.meta ? this.args.job.meta[x] : '',
           })
       );
 
     // Fetch the different types of parameters.
-    const required = mapper(this.args.job.parameterizedDetails.MetaRequired || [], true);
-    const optional = mapper(this.args.job.parameterizedDetails.MetaOptional || [], false);
+    const required = mapper(this.args.job.parameterizedDetails.MetaRequired, true);
+    const optional = mapper(this.args.job.parameterizedDetails.MetaOptional, false);
 
     // Merge them, required before optional.
     this.metaFields = required.concat(optional);
@@ -90,7 +90,7 @@ export default class JobDispatch extends Component {
     this.router.transitionTo('jobs.job');
   }
 
-  @(task(function*() {
+  @task({ drop: true }) *onDispatched() {
     // Try to create the dispatch.
     try {
       let paramValues = {};
@@ -104,8 +104,7 @@ export default class JobDispatch extends Component {
       this.errors.pushObject(error);
       this.scrollToError();
     }
-  }).drop())
-  onDispatched;
+  }
 
   scrollToError() {
     if (!this.config.isTest) {
