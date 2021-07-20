@@ -22,43 +22,7 @@ components:
         Rules:
           type: string
         RulesJSON:
-          properties:
-            Agent:
-              properties:
-                Policy:
-                  type: string
-              type: object
-            HostVolumes:
-              items:
-                $ref: '#/components/schemas/HostVolumePolicy'
-              type: array
-            Namespaces:
-              items:
-                $ref: '#/components/schemas/NamespacePolicy'
-              type: array
-            Node:
-              properties:
-                Policy:
-                  type: string
-              type: object
-            Operator:
-              properties:
-                Policy:
-                  type: string
-              type: object
-            Plugin:
-              properties:
-                Policy:
-                  type: string
-              type: object
-            Quota:
-              properties:
-                Policy:
-                  type: string
-              type: object
-            Raw:
-              type: string
-          type: object
+          $ref: '#/components/schemas/Policy'
       type: object
     ACLPolicyListStub:
       $ref: '#/components/schemas/ACLPolicyListStub'
@@ -153,9 +117,7 @@ components:
             type: string
           type: array
         ResourcesExhausted:
-          additionalProperties:
-            $ref: Resources
-          type: object
+          $ref: '#/components/schemas/Resources'
         ScoreMetaData:
           items:
             $ref: '#/components/schemas/NodeScoreMeta'
@@ -165,46 +127,16 @@ components:
             $ref: number
           type: object
         nodeScoreMeta:
-          properties:
-            NodeID:
-              type: string
-            NormScore:
-              format: double
-              type: number
-            Scores:
-              additionalProperties:
-                $ref: number
-              type: object
-          type: object
+          $ref: '#/components/schemas/NodeScoreMeta'
         topScores:
-          properties:
-            capacity:
-              type: integer
-            items:
-              items:
-                $ref: '#/components/schemas/HeapItem'
-              type: array
-          type: object
+          $ref: '#/components/schemas/ScoreHeap'
       type: object
     AllocNetworkStatus:
       properties:
         Address:
           type: string
         DNS:
-          properties:
-            Options:
-              items:
-                type: string
-              type: array
-            Searches:
-              items:
-                type: string
-              type: array
-            Servers:
-              items:
-                type: string
-              type: array
-          type: object
+          $ref: '#/components/schemas/DNSConfig'
         InterfaceName:
           type: string
       type: object
@@ -219,12 +151,7 @@ components:
         EvalID:
           type: string
         WriteMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-          type: object
+          $ref: '#/components/schemas/WriteMeta'
       type: object
     AllocatedCpuResources:
       properties:
@@ -258,27 +185,11 @@ components:
     AllocatedResources:
       properties:
         Shared:
-          properties:
-            DiskMB:
-              format: int64
-              type: integer
-            Networks:
-              items:
-                $ref: '#/components/schemas/NetworkResource'
-              type: array
-            Ports:
-              items:
-                $ref: '#/components/schemas/AllocatedPortMapping'
-              type: array
-          type: object
+          $ref: '#/components/schemas/AllocatedSharedResources'
         TaskLifecycles:
-          additionalProperties:
-            $ref: TaskLifecycleConfig
-          type: object
+          $ref: '#/components/schemas/TaskLifecycleConfig'
         Tasks:
-          additionalProperties:
-            $ref: AllocatedTaskResources
-          type: object
+          $ref: '#/components/schemas/AllocatedTaskResources'
       type: object
     AllocatedSharedResources:
       properties:
@@ -297,30 +208,13 @@ components:
     AllocatedTaskResources:
       properties:
         Cpu:
-          properties:
-            CpuShares:
-              format: int64
-              type: integer
-            ReservedCores:
-              items:
-                maximum: 65535
-                minimum: 0
-                type: integer
-              type: array
-          type: object
+          $ref: '#/components/schemas/AllocatedCpuResources'
         Devices:
           items:
             $ref: '#/components/schemas/AllocatedDeviceResource'
           type: array
         Memory:
-          properties:
-            MemoryMB:
-              format: int64
-              type: integer
-            MemoryMaxMB:
-              format: int64
-              type: integer
-          type: object
+          $ref: '#/components/schemas/AllocatedMemoryResources'
         Networks:
           items:
             $ref: '#/components/schemas/NetworkResource'
@@ -339,30 +233,7 @@ components:
             $ref: '#/components/schemas/AllocState'
           type: array
         AllocatedResources:
-          properties:
-            Shared:
-              properties:
-                DiskMB:
-                  format: int64
-                  type: integer
-                Networks:
-                  items:
-                    $ref: '#/components/schemas/NetworkResource'
-                  type: array
-                Ports:
-                  items:
-                    $ref: '#/components/schemas/AllocatedPortMapping'
-                  type: array
-              type: object
-            TaskLifecycles:
-              additionalProperties:
-                $ref: TaskLifecycleConfig
-              type: object
-            Tasks:
-              additionalProperties:
-                $ref: AllocatedTaskResources
-              type: object
-          type: object
+          $ref: '#/components/schemas/AllocatedResources'
         ClientDescription:
           type: string
         ClientStatus:
@@ -377,29 +248,13 @@ components:
         DeploymentID:
           type: string
         DeploymentStatus:
-          properties:
-            Canary:
-              type: boolean
-            Healthy:
-              type: boolean
-            ModifyIndex:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-          type: object
+          $ref: '#/components/schemas/AllocDeploymentStatus'
         DesiredDescription:
           type: string
         DesiredStatus:
           type: string
         DesiredTransition:
-          properties:
-            ForceReschedule:
-              type: boolean
-            Migrate:
-              type: boolean
-            Reschedule:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/DesiredTransition'
         EvalID:
           type: string
         FollowupEvalID:
@@ -407,215 +262,11 @@ components:
         ID:
           type: string
         Job:
-          properties:
-            Affinities:
-              items:
-                $ref: '#/components/schemas/Affinity'
-              type: array
-            AllAtOnce:
-              type: boolean
-            Constraints:
-              items:
-                $ref: '#/components/schemas/Constraint'
-              type: array
-            ConsulNamespace:
-              type: string
-            ConsulToken:
-              type: string
-            CreateIndex:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            Datacenters:
-              items:
-                type: string
-              type: array
-            Dispatched:
-              type: boolean
-            ID:
-              type: string
-            JobModifyIndex:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            Meta:
-              additionalProperties:
-                type: string
-              type: object
-            ModifyIndex:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            Multiregion:
-              properties:
-                Regions:
-                  items:
-                    $ref: '#/components/schemas/MultiregionRegion'
-                  type: array
-                Strategy:
-                  properties:
-                    MaxParallel:
-                      type: integer
-                    OnFailure:
-                      type: string
-                  type: object
-              type: object
-            Name:
-              type: string
-            Namespace:
-              type: string
-            NomadTokenID:
-              type: string
-            ParameterizedJob:
-              properties:
-                MetaOptional:
-                  items:
-                    type: string
-                  type: array
-                MetaRequired:
-                  items:
-                    type: string
-                  type: array
-                Payload:
-                  type: string
-              type: object
-            ParentID:
-              type: string
-            Payload:
-              items:
-                format: byte
-                type: string
-              type: array
-            Periodic:
-              properties:
-                Enabled:
-                  type: boolean
-                ProhibitOverlap:
-                  type: boolean
-                Spec:
-                  type: string
-                SpecType:
-                  type: string
-                TimeZone:
-                  type: string
-              type: object
-            Priority:
-              type: integer
-            Region:
-              type: string
-            Spreads:
-              items:
-                $ref: '#/components/schemas/Spread'
-              type: array
-            Stable:
-              type: boolean
-            Status:
-              type: string
-            StatusDescription:
-              type: string
-            Stop:
-              type: boolean
-            SubmitTime:
-              format: int64
-              type: integer
-            TaskGroups:
-              items:
-                $ref: '#/components/schemas/TaskGroup'
-              type: array
-            Type:
-              type: string
-            Update:
-              properties:
-                AutoPromote:
-                  type: boolean
-                AutoRevert:
-                  type: boolean
-                Canary:
-                  type: integer
-                HealthCheck:
-                  type: string
-                MaxParallel:
-                  type: integer
-              type: object
-            VaultNamespace:
-              type: string
-            VaultToken:
-              type: string
-            Version:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-          type: object
+          $ref: '#/components/schemas/Job'
         JobID:
           type: string
         Metrics:
-          properties:
-            ClassExhausted:
-              additionalProperties:
-                $ref: integer
-              type: object
-            ClassFiltered:
-              additionalProperties:
-                $ref: integer
-              type: object
-            CoalescedFailures:
-              type: integer
-            ConstraintFiltered:
-              additionalProperties:
-                $ref: integer
-              type: object
-            DimensionExhausted:
-              additionalProperties:
-                $ref: integer
-              type: object
-            NodesAvailable:
-              additionalProperties:
-                $ref: integer
-              type: object
-            NodesEvaluated:
-              type: integer
-            NodesExhausted:
-              type: integer
-            NodesFiltered:
-              type: integer
-            QuotaExhausted:
-              items:
-                type: string
-              type: array
-            ResourcesExhausted:
-              additionalProperties:
-                $ref: Resources
-              type: object
-            ScoreMetaData:
-              items:
-                $ref: '#/components/schemas/NodeScoreMeta'
-              type: array
-            Scores:
-              additionalProperties:
-                $ref: number
-              type: object
-            nodeScoreMeta:
-              properties:
-                NodeID:
-                  type: string
-                NormScore:
-                  format: double
-                  type: number
-                Scores:
-                  additionalProperties:
-                    $ref: number
-                  type: object
-              type: object
-            topScores:
-              properties:
-                capacity:
-                  type: integer
-                items:
-                  items:
-                    $ref: '#/components/schemas/HeapItem'
-                  type: array
-              type: object
-          type: object
+          $ref: '#/components/schemas/AllocMetric'
         ModifyIndex:
           maximum: 1.8446744073709552e+19
           minimum: 0
@@ -628,27 +279,7 @@ components:
         Namespace:
           type: string
         NetworkStatus:
-          properties:
-            Address:
-              type: string
-            DNS:
-              properties:
-                Options:
-                  items:
-                    type: string
-                  type: array
-                Searches:
-                  items:
-                    type: string
-                  type: array
-                Servers:
-                  items:
-                    type: string
-                  type: array
-              type: object
-            InterfaceName:
-              type: string
-          type: object
+          $ref: '#/components/schemas/AllocNetworkStatus'
         NextAllocation:
           type: string
         NodeID:
@@ -664,68 +295,17 @@ components:
         PreviousAllocation:
           type: string
         RescheduleTracker:
-          properties:
-            Events:
-              items:
-                $ref: '#/components/schemas/RescheduleEvent'
-              type: array
-          type: object
+          $ref: '#/components/schemas/RescheduleTracker'
         Resources:
-          properties:
-            CPU:
-              type: integer
-            Cores:
-              type: integer
-            Devices:
-              items:
-                $ref: '#/components/schemas/RequestedDevice'
-              type: array
-            DiskMB:
-              type: integer
-            IOPS:
-              type: integer
-            MemoryMB:
-              type: integer
-            MemoryMaxMB:
-              type: integer
-            Networks:
-              items:
-                $ref: '#/components/schemas/NetworkResource'
-              type: array
-          type: object
+          $ref: '#/components/schemas/Resources'
         SharedResources:
-          properties:
-            CPU:
-              type: integer
-            Cores:
-              type: integer
-            Devices:
-              items:
-                $ref: '#/components/schemas/RequestedDevice'
-              type: array
-            DiskMB:
-              type: integer
-            IOPS:
-              type: integer
-            MemoryMB:
-              type: integer
-            MemoryMaxMB:
-              type: integer
-            Networks:
-              items:
-                $ref: '#/components/schemas/NetworkResource'
-              type: array
-          type: object
+          $ref: '#/components/schemas/Resources'
         TaskGroup:
           type: string
         TaskResources:
-          additionalProperties:
-            $ref: Resources
-          type: object
+          $ref: '#/components/schemas/Resources'
         TaskStates:
-          additionalProperties:
-            $ref: TaskState
-          type: object
+          $ref: '#/components/schemas/TaskState'
       type: object
     Attribute:
       properties:
@@ -774,59 +354,13 @@ components:
         AllocID:
           type: string
         ControllerInfo:
-          properties:
-            SupportsAttachDetach:
-              type: boolean
-            SupportsClone:
-              type: boolean
-            SupportsCondition:
-              type: boolean
-            SupportsCreateDelete:
-              type: boolean
-            SupportsCreateDeleteSnapshot:
-              type: boolean
-            SupportsExpand:
-              type: boolean
-            SupportsGet:
-              type: boolean
-            SupportsGetCapacity:
-              type: boolean
-            SupportsListSnapshots:
-              type: boolean
-            SupportsListVolumes:
-              type: boolean
-            SupportsListVolumesAttachedNodes:
-              type: boolean
-            SupportsReadOnlyAttach:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/CSIControllerInfo'
         HealthDescription:
           type: string
         Healthy:
           type: boolean
         NodeInfo:
-          properties:
-            AccessibleTopology:
-              properties:
-                Segments:
-                  additionalProperties:
-                    type: string
-                  type: object
-              type: object
-            ID:
-              type: string
-            MaxVolumes:
-              format: int64
-              type: integer
-            RequiresNodeStageVolume:
-              type: boolean
-            SupportsCondition:
-              type: boolean
-            SupportsExpand:
-              type: boolean
-            SupportsStats:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/CSINodeInfo'
         PluginID:
           type: string
         Provider:
@@ -850,12 +384,7 @@ components:
     CSINodeInfo:
       properties:
         AccessibleTopology:
-          properties:
-            Segments:
-              additionalProperties:
-                type: string
-              type: object
-          type: object
+          $ref: '#/components/schemas/CSITopology'
         ID:
           type: string
         MaxVolumes:
@@ -877,15 +406,11 @@ components:
             $ref: '#/components/schemas/AllocListStub'
           type: array
         ControllerJobs:
-          additionalProperties:
-            $ref: JobNamespacedDescriptions
-          type: object
+          $ref: '#/components/schemas/JobDescriptions'
         ControllerRequired:
           type: boolean
         Controllers:
-          additionalProperties:
-            $ref: CSIInfo
-          type: object
+          $ref: '#/components/schemas/CSIInfo'
         ControllersExpected:
           type: integer
         ControllersHealthy:
@@ -901,13 +426,9 @@ components:
           minimum: 0
           type: integer
         NodeJobs:
-          additionalProperties:
-            $ref: JobNamespacedDescriptions
-          type: object
+          $ref: '#/components/schemas/JobDescriptions'
         Nodes:
-          additionalProperties:
-            $ref: CSIInfo
-          type: object
+          $ref: '#/components/schemas/CSIInfo'
         NodesExpected:
           type: integer
         NodesHealthy:
@@ -930,14 +451,7 @@ components:
     CSISnapshotCreateResponse:
       properties:
         QueryMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            KnownLeader:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/QueryMeta'
         Snapshots:
           items:
             $ref: '#/components/schemas/CSISnapshot'
@@ -948,14 +462,7 @@ components:
         NextToken:
           type: string
         QueryMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            KnownLeader:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/QueryMeta'
         Snapshots:
           items:
             $ref: '#/components/schemas/CSISnapshot'
@@ -997,14 +504,7 @@ components:
     CSIVolumeCreateResponse:
       properties:
         QueryMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            KnownLeader:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/QueryMeta'
         Volumes:
           items:
             $ref: '#/components/schemas/CSIVolume'
@@ -1015,14 +515,7 @@ components:
         NextToken:
           type: string
         QueryMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            KnownLeader:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/QueryMeta'
         Volumes:
           items:
             $ref: '#/components/schemas/CSIVolumeExternalStub'
@@ -1060,134 +553,13 @@ components:
     ConsulConnect:
       properties:
         Gateway:
-          properties:
-            Ingress:
-              properties:
-                Listeners:
-                  items:
-                    $ref: '#/components/schemas/ConsulIngressListener'
-                  type: array
-                TLS:
-                  properties:
-                    Enabled:
-                      type: boolean
-                  type: object
-              type: object
-            Mesh:
-              $ref: '#/components/schemas/ConsulMeshConfigEntry'
-            Proxy:
-              properties:
-                Config:
-                  additionalProperties:
-                    $ref: object
-                  type: object
-                EnvoyDNSDiscoveryType:
-                  type: string
-                EnvoyGatewayBindAddresses:
-                  additionalProperties:
-                    $ref: ConsulGatewayBindAddress
-                  type: object
-                EnvoyGatewayBindTaggedAddresses:
-                  type: boolean
-                EnvoyGatewayNoDefaultBind:
-                  type: boolean
-              type: object
-            Terminating:
-              properties:
-                Services:
-                  items:
-                    $ref: '#/components/schemas/ConsulLinkedService'
-                  type: array
-              type: object
-          type: object
+          $ref: '#/components/schemas/ConsulGateway'
         Native:
           type: boolean
         SidecarService:
-          properties:
-            DisableDefaultTCPCheck:
-              type: boolean
-            Port:
-              type: string
-            Proxy:
-              properties:
-                Config:
-                  additionalProperties:
-                    $ref: object
-                  type: object
-                Expose:
-                  properties:
-                    Paths:
-                      items:
-                        $ref: '#/components/schemas/ConsulExposePath'
-                      type: array
-                  type: object
-                LocalServiceAddress:
-                  type: string
-                LocalServicePort:
-                  type: integer
-                Upstreams:
-                  items:
-                    $ref: '#/components/schemas/ConsulUpstream'
-                  type: array
-              type: object
-            Tags:
-              items:
-                type: string
-              type: array
-          type: object
+          $ref: '#/components/schemas/ConsulSidecarService'
         SidecarTask:
-          properties:
-            Config:
-              additionalProperties:
-                $ref: object
-              type: object
-            Driver:
-              type: string
-            Env:
-              additionalProperties:
-                type: string
-              type: object
-            KillSignal:
-              type: string
-            LogConfig:
-              properties:
-                MaxFileSizeMB:
-                  type: integer
-                MaxFiles:
-                  type: integer
-              type: object
-            Meta:
-              additionalProperties:
-                type: string
-              type: object
-            Name:
-              type: string
-            Resources:
-              properties:
-                CPU:
-                  type: integer
-                Cores:
-                  type: integer
-                Devices:
-                  items:
-                    $ref: '#/components/schemas/RequestedDevice'
-                  type: array
-                DiskMB:
-                  type: integer
-                IOPS:
-                  type: integer
-                MemoryMB:
-                  type: integer
-                MemoryMaxMB:
-                  type: integer
-                Networks:
-                  items:
-                    $ref: '#/components/schemas/NetworkResource'
-                  type: array
-              type: object
-            User:
-              type: string
-          type: object
+          $ref: '#/components/schemas/SidecarTask'
       type: object
     ConsulExposeConfig:
       properties:
@@ -1201,43 +573,13 @@ components:
     ConsulGateway:
       properties:
         Ingress:
-          properties:
-            Listeners:
-              items:
-                $ref: '#/components/schemas/ConsulIngressListener'
-              type: array
-            TLS:
-              properties:
-                Enabled:
-                  type: boolean
-              type: object
-          type: object
+          $ref: '#/components/schemas/ConsulIngressConfigEntry'
         Mesh:
           $ref: '#/components/schemas/ConsulMeshConfigEntry'
         Proxy:
-          properties:
-            Config:
-              additionalProperties:
-                $ref: object
-              type: object
-            EnvoyDNSDiscoveryType:
-              type: string
-            EnvoyGatewayBindAddresses:
-              additionalProperties:
-                $ref: ConsulGatewayBindAddress
-              type: object
-            EnvoyGatewayBindTaggedAddresses:
-              type: boolean
-            EnvoyGatewayNoDefaultBind:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/ConsulGatewayProxy'
         Terminating:
-          properties:
-            Services:
-              items:
-                $ref: '#/components/schemas/ConsulLinkedService'
-              type: array
-          type: object
+          $ref: '#/components/schemas/ConsulTerminatingConfigEntry'
       type: object
     ConsulGatewayBindAddress:
       properties:
@@ -1249,15 +591,11 @@ components:
     ConsulGatewayProxy:
       properties:
         Config:
-          additionalProperties:
-            $ref: object
-          type: object
+          $ref: '#/components/schemas/object'
         EnvoyDNSDiscoveryType:
           type: string
         EnvoyGatewayBindAddresses:
-          additionalProperties:
-            $ref: ConsulGatewayBindAddress
-          type: object
+          $ref: '#/components/schemas/ConsulGatewayBindAddress'
         EnvoyGatewayBindTaggedAddresses:
           type: boolean
         EnvoyGatewayNoDefaultBind:
@@ -1275,10 +613,7 @@ components:
             $ref: '#/components/schemas/ConsulIngressListener'
           type: array
         TLS:
-          properties:
-            Enabled:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/ConsulGatewayTLSConfig'
       type: object
     ConsulIngressListener:
       $ref: '#/components/schemas/ConsulIngressListener'
@@ -1295,16 +630,9 @@ components:
     ConsulProxy:
       properties:
         Config:
-          additionalProperties:
-            $ref: object
-          type: object
+          $ref: '#/components/schemas/object'
         Expose:
-          properties:
-            Paths:
-              items:
-                $ref: '#/components/schemas/ConsulExposePath'
-              type: array
-          type: object
+          $ref: '#/components/schemas/ConsulExposeConfig'
         LocalServiceAddress:
           type: string
         LocalServicePort:
@@ -1321,27 +649,7 @@ components:
         Port:
           type: string
         Proxy:
-          properties:
-            Config:
-              additionalProperties:
-                $ref: object
-              type: object
-            Expose:
-              properties:
-                Paths:
-                  items:
-                    $ref: '#/components/schemas/ConsulExposePath'
-                  type: array
-              type: object
-            LocalServiceAddress:
-              type: string
-            LocalServicePort:
-              type: integer
-            Upstreams:
-              items:
-                $ref: '#/components/schemas/ConsulUpstream'
-              type: array
-          type: object
+          $ref: '#/components/schemas/ConsulProxy'
         Tags:
           items:
             type: string
@@ -1413,12 +721,7 @@ components:
           minimum: 0
           type: integer
         WriteMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-          type: object
+          $ref: '#/components/schemas/WriteMeta'
       type: object
     DesiredTransition:
       properties:
@@ -1501,10 +804,7 @@ components:
     DrainStrategy:
       properties:
         DrainSpec:
-          properties:
-            IgnoreSystemJobs:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/DrainSpec'
       type: object
     DriverInfo:
       properties:
@@ -1537,18 +837,9 @@ components:
     FuzzySearchResponse:
       properties:
         Matches:
-          additionalProperties:
-            $ref: array
-          type: object
+          $ref: '#/components/schemas/array'
         QueryMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            KnownLeader:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/QueryMeta'
         Truncations:
           additionalProperties:
             $ref: boolean
@@ -1557,21 +848,14 @@ components:
     GenericResponse:
       properties:
         WriteMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-          type: object
+          $ref: '#/components/schemas/WriteMeta'
       type: object
     HeapItem:
       $ref: '#/components/schemas/HeapItem'
     HostData:
       properties:
         Disk:
-          additionalProperties:
-            $ref: DiskUsage
-          type: object
+          $ref: '#/components/schemas/DiskUsage'
         Environment:
           additionalProperties:
             type: string
@@ -1592,26 +876,7 @@ components:
         AgentID:
           type: string
         HostData:
-          properties:
-            Disk:
-              additionalProperties:
-                $ref: DiskUsage
-              type: object
-            Environment:
-              additionalProperties:
-                type: string
-              type: object
-            Hosts:
-              type: string
-            Network:
-              items:
-                $ref: '#/components/schemas/object'
-              type: array
-            OS:
-              type: string
-            ResolvConf:
-              type: string
-          type: object
+          $ref: '#/components/schemas/HostData'
       type: object
     HostVolumePolicy:
       $ref: '#/components/schemas/HostVolumePolicy'
@@ -1661,19 +926,7 @@ components:
           minimum: 0
           type: integer
         Multiregion:
-          properties:
-            Regions:
-              items:
-                $ref: '#/components/schemas/MultiregionRegion'
-              type: array
-            Strategy:
-              properties:
-                MaxParallel:
-                  type: integer
-                OnFailure:
-                  type: string
-              type: object
-          type: object
+          $ref: '#/components/schemas/Multiregion'
         Name:
           type: string
         Namespace:
@@ -1681,18 +934,7 @@ components:
         NomadTokenID:
           type: string
         ParameterizedJob:
-          properties:
-            MetaOptional:
-              items:
-                type: string
-              type: array
-            MetaRequired:
-              items:
-                type: string
-              type: array
-            Payload:
-              type: string
-          type: object
+          $ref: '#/components/schemas/ParameterizedJobConfig'
         ParentID:
           type: string
         Payload:
@@ -1701,18 +943,7 @@ components:
             type: string
           type: array
         Periodic:
-          properties:
-            Enabled:
-              type: boolean
-            ProhibitOverlap:
-              type: boolean
-            Spec:
-              type: string
-            SpecType:
-              type: string
-            TimeZone:
-              type: string
-          type: object
+          $ref: '#/components/schemas/PeriodicConfig'
         Priority:
           type: integer
         Region:
@@ -1739,18 +970,7 @@ components:
         Type:
           type: string
         Update:
-          properties:
-            AutoPromote:
-              type: boolean
-            AutoRevert:
-              type: boolean
-            Canary:
-              type: integer
-            HealthCheck:
-              type: string
-            MaxParallel:
-              type: integer
-          type: object
+          $ref: '#/components/schemas/UpdateStrategy'
         VaultNamespace:
           type: string
         VaultToken:
@@ -1785,14 +1005,7 @@ components:
           minimum: 0
           type: integer
         QueryMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            KnownLeader:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/QueryMeta'
         VolumeEvalID:
           type: string
         VolumeEvalIndex:
@@ -1828,12 +1041,7 @@ components:
           minimum: 0
           type: integer
         WriteMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-          type: object
+          $ref: '#/components/schemas/WriteMeta'
       type: object
     JobListStub:
       $ref: '#/components/schemas/JobListStub'
@@ -1854,14 +1062,7 @@ components:
           minimum: 0
           type: integer
         QueryMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            KnownLeader:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/QueryMeta'
         Warnings:
           type: string
       type: object
@@ -1882,34 +1083,17 @@ components:
         Namespace:
           type: string
         TaskGroups:
-          additionalProperties:
-            $ref: TaskGroupScaleStatus
-          type: object
+          $ref: '#/components/schemas/TaskGroupScaleStatus'
       type: object
     JobStabilityResponse:
       properties:
         WriteMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-          type: object
+          $ref: '#/components/schemas/WriteMeta'
       type: object
     JobSummary:
       properties:
         Children:
-          properties:
-            Dead:
-              format: int64
-              type: integer
-            Pending:
-              format: int64
-              type: integer
-            Running:
-              format: int64
-              type: integer
-          type: object
+          $ref: '#/components/schemas/JobChildrenSummary'
         CreateIndex:
           maximum: 1.8446744073709552e+19
           minimum: 0
@@ -1923,9 +1107,7 @@ components:
         Namespace:
           type: string
         Summary:
-          additionalProperties:
-            $ref: TaskGroupSummary
-          type: object
+          $ref: '#/components/schemas/TaskGroupSummary'
       type: object
     JobValidateResponse:
       properties:
@@ -1961,12 +1143,7 @@ components:
             $ref: '#/components/schemas/MultiregionRegion'
           type: array
         Strategy:
-          properties:
-            MaxParallel:
-              type: integer
-            OnFailure:
-              type: string
-          type: object
+          $ref: '#/components/schemas/MultiregionStrategy'
       type: object
     MultiregionRegion:
       $ref: '#/components/schemas/MultiregionRegion'
@@ -1994,13 +1171,9 @@ components:
             type: string
           type: object
         CSIControllerPlugins:
-          additionalProperties:
-            $ref: CSIInfo
-          type: object
+          $ref: '#/components/schemas/CSIInfo'
         CSINodePlugins:
-          additionalProperties:
-            $ref: CSIInfo
-          type: object
+          $ref: '#/components/schemas/CSIInfo'
         ComputedClass:
           type: string
         CreateIndex:
@@ -2010,17 +1183,9 @@ components:
         Datacenter:
           type: string
         DrainStrategy:
-          properties:
-            DrainSpec:
-              properties:
-                IgnoreSystemJobs:
-                  type: boolean
-              type: object
-          type: object
+          $ref: '#/components/schemas/DrainStrategy'
         Drivers:
-          additionalProperties:
-            $ref: DriverInfo
-          type: object
+          $ref: '#/components/schemas/DriverInfo'
         Events:
           items:
             $ref: '#/components/schemas/NodeEvent'
@@ -2028,22 +1193,11 @@ components:
         HTTPAddr:
           type: string
         HostVolumes:
-          additionalProperties:
-            $ref: ClientHostVolumeConfig
-          type: object
+          $ref: '#/components/schemas/ClientHostVolumeConfig'
         ID:
           type: string
         LastDrain:
-          properties:
-            AccessorID:
-              type: string
-            Meta:
-              additionalProperties:
-                type: string
-              type: object
-            Status:
-              type: string
-          type: object
+          $ref: '#/components/schemas/DrainMetadata'
         Links:
           additionalProperties:
             type: string
@@ -2061,126 +1215,13 @@ components:
         NodeClass:
           type: string
         NodeResources:
-          properties:
-            Cpu:
-              properties:
-                CpuShares:
-                  format: int64
-                  type: integer
-                ReservableCpuCores:
-                  items:
-                    maximum: 65535
-                    minimum: 0
-                    type: integer
-                  type: array
-                TotalCpuCores:
-                  maximum: 65535
-                  minimum: 0
-                  type: integer
-              type: object
-            Devices:
-              items:
-                $ref: '#/components/schemas/NodeDeviceResource'
-              type: array
-            Disk:
-              properties:
-                DiskMB:
-                  format: int64
-                  type: integer
-              type: object
-            Memory:
-              properties:
-                MemoryMB:
-                  format: int64
-                  type: integer
-              type: object
-            Networks:
-              items:
-                $ref: '#/components/schemas/NetworkResource'
-              type: array
-            NodeNetworks:
-              items:
-                $ref: '#/components/schemas/NodeNetworkResource'
-              type: array
-          type: object
+          $ref: '#/components/schemas/NodeResources'
         Reserved:
-          properties:
-            CPU:
-              type: integer
-            Cores:
-              type: integer
-            Devices:
-              items:
-                $ref: '#/components/schemas/RequestedDevice'
-              type: array
-            DiskMB:
-              type: integer
-            IOPS:
-              type: integer
-            MemoryMB:
-              type: integer
-            MemoryMaxMB:
-              type: integer
-            Networks:
-              items:
-                $ref: '#/components/schemas/NetworkResource'
-              type: array
-          type: object
+          $ref: '#/components/schemas/Resources'
         ReservedResources:
-          properties:
-            Cpu:
-              properties:
-                CpuShares:
-                  format: int64
-                  type: integer
-                ReservedCpuCores:
-                  items:
-                    maximum: 65535
-                    minimum: 0
-                    type: integer
-                  type: array
-              type: object
-            Disk:
-              properties:
-                DiskMB:
-                  format: int64
-                  type: integer
-              type: object
-            Memory:
-              properties:
-                MemoryMB:
-                  format: int64
-                  type: integer
-              type: object
-            Networks:
-              properties:
-                ReservedHostPorts:
-                  type: string
-              type: object
-          type: object
+          $ref: '#/components/schemas/NodeReservedResources'
         Resources:
-          properties:
-            CPU:
-              type: integer
-            Cores:
-              type: integer
-            Devices:
-              items:
-                $ref: '#/components/schemas/RequestedDevice'
-              type: array
-            DiskMB:
-              type: integer
-            IOPS:
-              type: integer
-            MemoryMB:
-              type: integer
-            MemoryMaxMB:
-              type: integer
-            Networks:
-              items:
-                $ref: '#/components/schemas/NetworkResource'
-              type: array
-          type: object
+          $ref: '#/components/schemas/Resources'
         SchedulingEligibility:
           type: string
         SecretID:
@@ -2241,12 +1282,7 @@ components:
           minimum: 0
           type: integer
         WriteMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-          type: object
+          $ref: '#/components/schemas/WriteMeta'
       type: object
     NodeEligibilityUpdateResponse:
       properties:
@@ -2263,12 +1299,7 @@ components:
           minimum: 0
           type: integer
         WriteMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-          type: object
+          $ref: '#/components/schemas/WriteMeta'
       type: object
     NodeEvent:
       $ref: '#/components/schemas/NodeEvent'
@@ -2323,69 +1354,26 @@ components:
     NodeReservedResources:
       properties:
         Cpu:
-          properties:
-            CpuShares:
-              format: int64
-              type: integer
-            ReservedCpuCores:
-              items:
-                maximum: 65535
-                minimum: 0
-                type: integer
-              type: array
-          type: object
+          $ref: '#/components/schemas/NodeReservedCpuResources'
         Disk:
-          properties:
-            DiskMB:
-              format: int64
-              type: integer
-          type: object
+          $ref: '#/components/schemas/NodeReservedDiskResources'
         Memory:
-          properties:
-            MemoryMB:
-              format: int64
-              type: integer
-          type: object
+          $ref: '#/components/schemas/NodeReservedMemoryResources'
         Networks:
-          properties:
-            ReservedHostPorts:
-              type: string
-          type: object
+          $ref: '#/components/schemas/NodeReservedNetworkResources'
       type: object
     NodeResources:
       properties:
         Cpu:
-          properties:
-            CpuShares:
-              format: int64
-              type: integer
-            ReservableCpuCores:
-              items:
-                maximum: 65535
-                minimum: 0
-                type: integer
-              type: array
-            TotalCpuCores:
-              maximum: 65535
-              minimum: 0
-              type: integer
-          type: object
+          $ref: '#/components/schemas/NodeCpuResources'
         Devices:
           items:
             $ref: '#/components/schemas/NodeDeviceResource'
           type: array
         Disk:
-          properties:
-            DiskMB:
-              format: int64
-              type: integer
-          type: object
+          $ref: '#/components/schemas/NodeDiskResources'
         Memory:
-          properties:
-            MemoryMB:
-              format: int64
-              type: integer
-          type: object
+          $ref: '#/components/schemas/NodeMemoryResources'
         Networks:
           items:
             $ref: '#/components/schemas/NetworkResource'
@@ -2423,14 +1411,7 @@ components:
           format: int32
           type: integer
         QueryMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            KnownLeader:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/QueryMeta'
         Servers:
           items:
             $ref: '#/components/schemas/NodeServerInfo'
@@ -2454,67 +1435,16 @@ components:
     OneTimeTokenExchangeResponse:
       properties:
         Token:
-          properties:
-            AccessorID:
-              type: string
-            CreateIndex:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            Global:
-              type: boolean
-            Hash:
-              items:
-                format: byte
-                type: string
-              type: array
-            ModifyIndex:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            Name:
-              type: string
-            Policies:
-              items:
-                type: string
-              type: array
-            SecretID:
-              type: string
-            Type:
-              type: string
-          type: object
+          $ref: '#/components/schemas/ACLToken'
         WriteMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-          type: object
+          $ref: '#/components/schemas/WriteMeta'
       type: object
     OneTimeTokenUpsertResponse:
       properties:
         OneTimeToken:
-          properties:
-            AccessorID:
-              type: string
-            CreateIndex:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            ModifyIndex:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            OneTimeSecretID:
-              type: string
-          type: object
+          $ref: '#/components/schemas/OneTimeToken'
         WriteMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-          type: object
+          $ref: '#/components/schemas/WriteMeta'
       type: object
     OperatorPolicy:
       properties:
@@ -2556,19 +1486,12 @@ components:
         EvalID:
           type: string
         WriteMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-          type: object
+          $ref: '#/components/schemas/WriteMeta'
       type: object
     PlanAnnotations:
       properties:
         DesiredTGUpdates:
-          additionalProperties:
-            $ref: DesiredUpdates
-          type: object
+          $ref: '#/components/schemas/DesiredUpdates'
         PreemptedAllocs:
           items:
             $ref: '#/components/schemas/AllocListStub'
@@ -2582,10 +1505,7 @@ components:
     Policy:
       properties:
         Agent:
-          properties:
-            Policy:
-              type: string
-          type: object
+          $ref: '#/components/schemas/AgentPolicy'
         HostVolumes:
           items:
             $ref: '#/components/schemas/HostVolumePolicy'
@@ -2595,25 +1515,13 @@ components:
             $ref: '#/components/schemas/NamespacePolicy'
           type: array
         Node:
-          properties:
-            Policy:
-              type: string
-          type: object
+          $ref: '#/components/schemas/NodePolicy'
         Operator:
-          properties:
-            Policy:
-              type: string
-          type: object
+          $ref: '#/components/schemas/OperatorPolicy'
         Plugin:
-          properties:
-            Policy:
-              type: string
-          type: object
+          $ref: '#/components/schemas/PluginPolicy'
         Quota:
-          properties:
-            Policy:
-              type: string
-          type: object
+          $ref: '#/components/schemas/QuotaPolicy'
         Raw:
           type: string
       type: object
@@ -2732,9 +1640,7 @@ components:
           minimum: 0
           type: integer
         Policy:
-          additionalProperties:
-            $ref: object
-          type: object
+          $ref: '#/components/schemas/object'
         Target:
           additionalProperties:
             type: string
@@ -2759,64 +1665,23 @@ components:
           minimum: 0
           type: integer
         PreemptionConfig:
-          properties:
-            BatchSchedulerEnabled:
-              type: boolean
-            ServiceSchedulerEnabled:
-              type: boolean
-            SystemSchedulerEnabled:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/PreemptionConfig'
         SchedulerAlgorithm:
           type: string
       type: object
     SchedulerConfigurationResponse:
       properties:
         QueryMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            KnownLeader:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/QueryMeta'
         SchedulerConfig:
-          properties:
-            CreateIndex:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            MemoryOversubscriptionEnabled:
-              type: boolean
-            ModifyIndex:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            PreemptionConfig:
-              properties:
-                BatchSchedulerEnabled:
-                  type: boolean
-                ServiceSchedulerEnabled:
-                  type: boolean
-                SystemSchedulerEnabled:
-                  type: boolean
-              type: object
-            SchedulerAlgorithm:
-              type: string
-          type: object
+          $ref: '#/components/schemas/SchedulerConfiguration'
       type: object
     SchedulerSetConfigurationResponse:
       properties:
         Updated:
           type: boolean
         WriteMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-          type: object
+          $ref: '#/components/schemas/WriteMeta'
       type: object
     ScoreHeap:
       properties:
@@ -2830,18 +1695,9 @@ components:
     SearchResponse:
       properties:
         Matches:
-          additionalProperties:
-            $ref: array
-          type: object
+          $ref: '#/components/schemas/array'
         QueryMeta:
-          properties:
-            Index:
-              maximum: 1.8446744073709552e+19
-              minimum: 0
-              type: integer
-            KnownLeader:
-              type: boolean
-          type: object
+          $ref: '#/components/schemas/QueryMeta'
         Truncations:
           additionalProperties:
             $ref: boolean
@@ -2873,9 +1729,7 @@ components:
     SidecarTask:
       properties:
         Config:
-          additionalProperties:
-            $ref: object
-          type: object
+          $ref: '#/components/schemas/object'
         Driver:
           type: string
         Env:
@@ -2885,12 +1739,7 @@ components:
         KillSignal:
           type: string
         LogConfig:
-          properties:
-            MaxFileSizeMB:
-              type: integer
-            MaxFiles:
-              type: integer
-          type: object
+          $ref: '#/components/schemas/LogConfig'
         Meta:
           additionalProperties:
             type: string
@@ -2898,28 +1747,7 @@ components:
         Name:
           type: string
         Resources:
-          properties:
-            CPU:
-              type: integer
-            Cores:
-              type: integer
-            Devices:
-              items:
-                $ref: '#/components/schemas/RequestedDevice'
-              type: array
-            DiskMB:
-              type: integer
-            IOPS:
-              type: integer
-            MemoryMB:
-              type: integer
-            MemoryMaxMB:
-              type: integer
-            Networks:
-              items:
-                $ref: '#/components/schemas/NetworkResource'
-              type: array
-          type: object
+          $ref: '#/components/schemas/Resources'
         User:
           type: string
       type: object
@@ -3017,15 +1845,7 @@ components:
         State:
           type: string
         TaskHandle:
-          properties:
-            DriverState:
-              items:
-                format: byte
-                type: string
-              type: array
-            Version:
-              type: integer
-          type: object
+          $ref: '#/components/schemas/TaskHandle'
       type: object
     Template:
       $ref: '#/components/schemas/Template'
@@ -3066,14 +1886,7 @@ components:
         AttachmentMode:
           type: string
         MountOptions:
-          properties:
-            FSType:
-              type: string
-            MountFlags:
-              items:
-                type: string
-              type: array
-          type: object
+          $ref: '#/components/schemas/CSIMountOptions'
         Name:
           type: string
         PerAlloc:

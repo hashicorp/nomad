@@ -431,9 +431,6 @@ func (s *schemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Type, typ types
 	case *types.Basic:
 		s.adaptBasic(typType, schema)
 	case *types.Slice:
-		if s.getSchemaName(typType.Elem()) == "ScalingEvent" {
-			s.analyzer.Logger("Got here")
-		}
 		schema.Type = "array"
 		items, err := s.GetOrCreateSchemaRef(parents, typType.Elem())
 		if err != nil {
@@ -450,9 +447,6 @@ func (s *schemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Type, typ types
 			schema.Items = items
 		}
 	case *types.Map:
-		if s.getSchemaName(typType.Elem()) == "TaskGroupScaleStatus" {
-			s.analyzer.Logger("Got here")
-		}
 		schema.Type = "object"
 		elemRef, err := s.GetOrCreateSchemaRef(parents, typType.Elem())
 		if err != nil {
@@ -465,6 +459,10 @@ func (s *schemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Type, typ types
 			schema.AdditionalProperties = &openapi3.SchemaRef{
 				Ref:   s.resolveRef(typType.Elem()),
 				Value: elemRef.Value,
+			}
+
+			if s.isBasic(typType.Elem().String()) {
+				schema.AdditionalProperties.Value.Type = typType.Elem().String()
 			}
 		}
 	case *types.Pointer:
@@ -481,23 +479,17 @@ func (s *schemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Type, typ types
 		if typType.Obj().Pkg().Name() == "time" {
 			return nil, nil
 		}
-		if typType.Obj().Name() == "TaskGroupScaleStatus" {
-			s.analyzer.Logger("Got here")
-		}
 		switch underlying := typType.Underlying().(type) {
 		case *types.Struct:
 			for i := 0; i < underlying.NumFields(); i++ {
 				fieldInfo := underlying.Field(i)
-				if fieldInfo.Name() == "Events" {
-					s.analyzer.Logger("Got here")
-				}
 				ref, err := s.GetOrCreateSchemaRef(parents, fieldInfo.Type())
 				if err != nil {
 					return nil, err
 				}
 				if ref != nil {
 					// Add referenced schema if not added already
-					if !s.addSchemaRef(s.getSchemaName(fieldInfo.Type()), ref) {
+					if !s.isBasic(fieldInfo.Type().String()) && !s.addSchemaRef(s.getSchemaName(fieldInfo.Type()), ref) {
 						return nil, fmt.Errorf("unable to add schemaRef for type " + fieldInfo.Type().String())
 					}
 
@@ -527,7 +519,7 @@ func (s *schemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Type, typ types
 						if s.isBasic(s.getSchemaName(targetType)) {
 							propertyRef.Ref = ""
 						}
-						schema.WithPropertyRef(fieldInfo.Name(), ref)
+						schema.WithPropertyRef(fieldInfo.Name(), propertyRef)
 					} else {
 						propertyRef := openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", s.getSchemaName(fieldInfo.Type())), ref.Value)
 						schema.WithPropertyRef(fieldInfo.Name(), propertyRef)

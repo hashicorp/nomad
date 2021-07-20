@@ -6,21 +6,6 @@ import (
 	"testing"
 )
 
-//func TestNomadPathAdapterFunc(t *testing.T) {
-//	req := require.New(t)
-//
-//	analyzer, err := NewAnalyzer(nomadPackages, t.Log, defaultDebugOptions)
-//	req.NoError(err)
-//
-//	nsb := NewNomadSpecBuilder(analyzer)
-//	nsb.spec = &Spec{}
-//
-//	for key, _ := range nsb.spec.Model.Paths {
-//		t.Log(key)
-//	}
-//	t.Log(nsb)
-//}
-
 func TestRenderSchema(t *testing.T) {
 	req := require.New(t)
 
@@ -28,10 +13,7 @@ func TestRenderSchema(t *testing.T) {
 	debugOptions.printSource = false
 	debugOptions.printHandlers = false
 	debugOptions.printVariables = false
-	// debugOptions.printHelpers = true
-	// debugOptions.printReturnSource = true
-	// debugOptions.printSchemaRefs = true
-	// debugOptions.filterByMethods = []string{"agent.jobListRequest"}
+
 	var analyzer *Analyzer
 	var err error
 
