@@ -1,5 +1,22 @@
 <div class="boxed-section-head">
   Job Launches
+  {{#if (can "dispatch job" namespace=this.job.namespace)}}
+    <LinkTo
+      data-test-dispatch-button
+      @route="jobs.job.dispatch"
+      class="button is-primary is-compact pull-right">
+      Dispatch Job
+    </LinkTo>
+  {{else}}
+    <button
+      data-test-dispatch-button
+      class="button is-disabled is-primary is-compact pull-right tooltip multiline"
+      aria-label="You don’t have permission to dispatch jobs"
+      disabled
+      type="button">
+      Dispatch Job
+    </button>
+  {{/if}}
 </div>
 <div class="boxed-section-body {{if this.sortedChildren.length "is-full-bleed"}}">
   {{#if this.sortedChildren}}
