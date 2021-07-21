@@ -483,13 +483,16 @@ func (s *schemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Type, typ types
 		case *types.Struct:
 			for i := 0; i < underlying.NumFields(); i++ {
 				fieldInfo := underlying.Field(i)
+				if fieldInfo.Name() == "ClassExhausted" {
+					s.analyzer.Logger("Got here")
+				}
 				ref, err := s.GetOrCreateSchemaRef(parents, fieldInfo.Type())
 				if err != nil {
 					return nil, err
 				}
 				if ref != nil {
 					// Add referenced schema if not added already
-					if !s.isBasic(fieldInfo.Type().String()) && !s.addSchemaRef(s.getSchemaName(fieldInfo.Type()), ref) {
+					if !s.addSchemaRef(s.getSchemaName(fieldInfo.Type()), ref) {
 						return nil, fmt.Errorf("unable to add schemaRef for type " + fieldInfo.Type().String())
 					}
 
@@ -518,6 +521,7 @@ func (s *schemaRefAdapter) GetOrCreateSchemaRef(parents []*types.Type, typ types
 						propertyRef := openapi3.NewSchemaRef(fmt.Sprintf("#/components/schemas/%s", s.getSchemaName(targetType)), ref.Value)
 						if s.isBasic(s.getSchemaName(targetType)) {
 							propertyRef.Ref = ""
+							propertyRef.Value.AdditionalProperties.Ref = ""
 						}
 						schema.WithPropertyRef(fieldInfo.Name(), propertyRef)
 					} else {

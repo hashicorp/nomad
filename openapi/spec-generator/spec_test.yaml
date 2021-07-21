@@ -86,25 +86,25 @@ components:
       properties:
         ClassExhausted:
           additionalProperties:
-            $ref: integer
+            type: integer
           type: object
         ClassFiltered:
           additionalProperties:
-            $ref: integer
+            type: integer
           type: object
         CoalescedFailures:
           type: integer
         ConstraintFiltered:
           additionalProperties:
-            $ref: integer
+            type: integer
           type: object
         DimensionExhausted:
           additionalProperties:
-            $ref: integer
+            type: integer
           type: object
         NodesAvailable:
           additionalProperties:
-            $ref: integer
+            type: integer
           type: object
         NodesEvaluated:
           type: integer
@@ -124,7 +124,8 @@ components:
           type: array
         Scores:
           additionalProperties:
-            $ref: number
+            format: double
+            type: number
           type: object
         nodeScoreMeta:
           $ref: '#/components/schemas/NodeScoreMeta'
@@ -842,7 +843,7 @@ components:
           $ref: '#/components/schemas/QueryMeta'
         Truncations:
           additionalProperties:
-            $ref: boolean
+            type: boolean
           type: object
       type: object
     GenericResponse:
@@ -1700,7 +1701,7 @@ components:
           $ref: '#/components/schemas/QueryMeta'
         Truncations:
           additionalProperties:
-            $ref: boolean
+            type: boolean
           type: object
       type: object
     ServerAddress:
