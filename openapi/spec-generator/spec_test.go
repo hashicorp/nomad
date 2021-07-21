@@ -1,10 +1,23 @@
 package main
 
 import (
+	"context"
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 )
+
+func TestLoadSpec(t *testing.T) {
+	req := require.New(t)
+	loader := openapi3.Loader{}
+	spec, err := loader.LoadFromFile("job-run.yaml")
+	req.NoError(err)
+	req.NotNil(spec)
+
+	err = spec.Validate(context.Background())
+	req.NoError(err)
+}
 
 func TestRenderSchema(t *testing.T) {
 	req := require.New(t)
@@ -43,6 +56,66 @@ func TestRenderSchema(t *testing.T) {
 	req.NotEmpty(yaml)
 	req.Contains(yaml, jobListStubSchema)
 }
+
+func TestJobRequest(t *testing.T) {
+	req := require.New(t)
+
+	debugOptions := defaultDebugOptions
+	debugOptions.printSource = false
+	debugOptions.printHandlers = false
+	debugOptions.printVariables = false
+	debugOptions.filterByMethods = []string{"agent.jobUpdate"}
+	debugOptions.additionalSchemas = []string{"api.JobRegisterRequest"}
+
+	var analyzer *Analyzer
+	var err error
+
+	analyzer, err = newAnalyzer(nomadPackages, t.Log, debugOptions)
+	req.NoError(err)
+
+	visitor := newNomadPackageVisitor(analyzer, t.Log, debugOptions)
+
+	err = visitor.Parse()
+	req.NoError(err, "TestJobRequest.parser.Parse")
+	adapterCount := len(visitor.HandlerAdapters())
+	t.Log("adapterCount", adapterCount)
+	req.NotEqual(0, adapterCount)
+
+	builder := newNomadSpecBuilder(analyzer, &visitor)
+	var spec *Spec
+	spec, err = builder.Build()
+	req.NoError(err)
+	req.NotNil(spec)
+	req.NotNil(spec.Model)
+	req.NotNil(spec.Model.Components)
+
+	var yaml string
+	yaml, err = spec.ToYAML()
+	_ = os.WriteFile("jobRequest.yaml", []byte(yaml), 0666)
+	t.Log(yaml)
+	req.NotEmpty(yaml)
+	req.Contains(yaml, jobResponseSchema)
+}
+
+var jobResponseSchema = `
+    JobRegisterResponse:
+      properties:
+        EvalCreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        EvalID:
+          type: string
+        JobModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        QueryMeta:
+          $ref: '#/components/schemas/QueryMeta'
+        Warnings:
+          type: string
+      type: object
+`
 
 var jobListStubSchema = `
     JobListStub:

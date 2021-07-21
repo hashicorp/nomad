@@ -338,7 +338,6 @@ func (h *handlerFuncAdapter) GetReturnSchema() (*openapi3.SchemaRef, error) {
 		}
 	}
 
-	//schemaRef, err := h.schemaRefAdapter.GetOrCreateSchemaRef(nil, &outObject, "schemas")
 	if outObject == nil {
 		return nil, nil
 	}

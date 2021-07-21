@@ -16,10 +16,11 @@ type debugOptions struct {
 	printHelpers      bool
 	printHandlers     bool
 	printReturnSource bool
-	filterByMethods   []string
 	printDefs         bool
 	printVariables    bool
 	printSchemaRefs   bool
+	filterByMethods   []string
+	additionalSchemas []string
 }
 
 var defaultDebugOptions = debugOptions{
@@ -52,6 +53,13 @@ func (v *NomadPackageVisitor) Parse() error {
 	var err error
 	if err = v.VisitPackages(); err != nil {
 		return err
+	}
+
+	for _, schemaName := range v.debugOptions.additionalSchemas {
+		typ := v.analyzer.GetTypeByName(schemaName, token.NoPos)
+		if _, err = v.schemaRefAdapter.GetOrCreateSchemaRef(nil, typ.Type()); err != nil {
+			return err
+		}
 	}
 
 	v.DebugPrint()

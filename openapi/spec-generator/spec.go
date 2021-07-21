@@ -22,18 +22,11 @@ func (s *Spec) ToYAML() (string, error) {
 	return string(data), nil
 }
 
-// SpecBuilderExt allows the injection of implementation specific helper methods
-// and behaviors.
-type SpecBuilderExt interface {
-	SpecBuilder() *SpecBuilder // Not strictly required but seems like a good practice
-}
-
 // SpecBuilder allows specifying different static analysis behaviors to that the
 // framework can target any extant API.
 type SpecBuilder struct {
 	spec    *Spec
 	Visitor *PackageVisitor
-	Ext     SpecBuilderExt // Allows injection of variable behavior per implementation.
 }
 
 // Build runs a default implementation to build and OpenAPI spec. Derived types
