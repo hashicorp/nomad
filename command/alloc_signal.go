@@ -15,9 +15,9 @@ type AllocSignalCommand struct {
 
 func (a *AllocSignalCommand) Help() string {
 	helpText := `
-Usage: nomad alloc signal [options] <signal> <allocation> <task>
+Usage: nomad alloc signal [options] <allocation> <task>
 
-  signal an existing allocation. This command is used to signal a specific alloc
+  Signal an existing allocation. This command is used to signal a specific alloc
   and its subtasks. If no task is provided then all of the allocations subtasks
   will receive the signal.
 
@@ -32,11 +32,11 @@ General Options:
 Signal Specific Options:
 
   -s
-    Specify the signal that the selected tasks should receive.
+    Specify the signal that the selected tasks should receive. Defaults to SIGKILL.
 
   -task <task-name>
-	Specify the individual task that will receive the signal. If task name is given 
-	with both an argument and the '-task' option, preference is given to the '-task' 
+	Specify the individual task that will receive the signal. If task name is given
+	with both an argument and the '-task' option, preference is given to the '-task'
 	option.
 
   -verbose
