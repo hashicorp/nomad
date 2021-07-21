@@ -319,9 +319,20 @@ UPDATE:
 				c.ttyMonitor(client, rollback.ID, index, verbose)
 				return
 			} else {
+				endSpinner = glint.Layout(
+					glint.Text(fmt.Sprintf("! Deployment %q %s", limit(deployID, length), status)),
+				).Row().MarginLeft(2)
 				break UPDATE
 			}
-		case structs.DeploymentStatusSuccessful, structs.DeploymentStatusCancelled, structs.DeploymentStatusDescriptionBlocked:
+		case structs.DeploymentStatusSuccessful:
+			endSpinner = glint.Layout(
+				glint.Text(fmt.Sprintf("✓ Deployment %q %s", limit(deployID, length), status)),
+			).Row().MarginLeft(2)
+			break UPDATE
+		case structs.DeploymentStatusCancelled, structs.DeploymentStatusDescriptionBlocked:
+			endSpinner = glint.Layout(
+				glint.Text(fmt.Sprintf("! Deployment %q %s", limit(deployID, length), status)),
+			).Row().MarginLeft(2)
 			break UPDATE
 		default:
 			q.WaitIndex = meta.LastIndex

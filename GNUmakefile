@@ -152,18 +152,14 @@ check: ## Lint the source code
 	@if (git status -s | grep -q -e '\.hcl$$' -e '\.nomad$$'); then echo the following HCL files are out of sync; git status -s | grep -e '\.hcl$$' -e '\.nomad$$'; exit 1; fi
 
 	@echo "==> Check API package is isolated from rest"
-	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
+	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
 
 	@echo "==> Checking Go mod.."
-	@GO111MODULE=on $(MAKE) sync
+	@GO111MODULE=on $(MAKE) tidy
 	@if (git status --porcelain | grep -Eq "go\.(mod|sum)"); then \
 		echo go.mod or go.sum needs updating; \
 		git --no-pager diff go.mod; \
 		git --no-pager diff go.sum; \
-		exit 1; fi
-	@if (git status --porcelain | grep -Eq "vendor/github.com/hashicorp/nomad/.*\.go"); then \
-		echo "nomad go submodules are out of sync, try 'make sync':"; \
-		git status -s | grep -E "vendor/github.com/hashicorp/nomad/.*\.go"; \
 		exit 1; fi
 
 	@echo "==> Check raft util msg type mapping are in-sync..."
@@ -187,7 +183,7 @@ checkproto: ## Lint protobuf files
 generate-all: generate-structs proto generate-examples
 
 .PHONY: generate-structs
-generate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
+generate-structs: LOCAL_PACKAGES = $(shell go list ./...)
 generate-structs: ## Update generated code
 	@echo "--> Running go generate..."
 	@go generate $(LOCAL_PACKAGES)
@@ -206,7 +202,6 @@ command/job_init.bindata_assetfs.go: command/assets/*
 changelog:
 	@changelog-build -last-release $(LAST_RELEASE) -this-release HEAD \
 		-entries-dir .changelog/ -changelog-template ./.changelog/changelog.tmpl -note-template ./.changelog/note.tmpl
-	
 
 ## We skip the terraform directory as there are templated hcl configurations
 ## that do not successfully compile without rendering
@@ -223,11 +218,6 @@ tidy:
 	@cd api && go mod tidy
 	@echo "--> Tidy nomad module"
 	@go mod tidy
-
-.PHONY: sync
-sync: tidy
-	@echo "--> Sync vendor directory"
-	@go mod vendor
 
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
