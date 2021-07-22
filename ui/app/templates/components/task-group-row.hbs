@@ -8,24 +8,25 @@
   {{#if this.taskGroup.scaling}}
   <div
     data-test-scale-controls
-    class="button-bar is-shadowless is-text bumper-left {{if (or this.runningDeployment (cannot "scale job")) "tooltip multiline"}}"
+    class="button-bar is-shadowless is-text bumper-left {{if (or this.runningDeployment (cannot "scale job" namespace=this.namespace)) "tooltip multiline"}}"
     aria-label={{this.tooltipText}}>
       <button
         data-test-scale="decrement"
         role="button"
         aria-label="decrement"
         class="button is-xsmall is-light"
-        disabled={{or this.isMinimum this.runningDeployment (cannot "scale job")}}
+        disabled={{or this.isMinimum this.runningDeployment (cannot "scale job" namespace=this.namespace)}}
         onclick={{action "countDown"}}
         type="button">
         {{x-icon "minus-plain" class="is-text"}}
       </button>
       <button
+        data-test-scale-controls-increment
         data-test-scale="increment"
         role="button"
         aria-label="increment"
         class="button is-xsmall is-light"
-        disabled={{or this.isMaximum this.runningDeployment (cannot "scale job")}}
+        disabled={{or this.isMaximum this.runningDeployment (cannot "scale job" namespace=this.namespace)}}
         onclick={{action "countUp"}}
         type="button">
         {{x-icon "plus-plain" class="is-text"}}

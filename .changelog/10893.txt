@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixes bug where UI was not detecting namespace-specific capabilities.
+```

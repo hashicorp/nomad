@@ -38,6 +38,11 @@ export default create({
     tooltipText: attribute('aria-label'),
   },
 
+  incrementButton: {
+    scope: '[data-test-scale-controls-increment]',
+    isDisabled: property('disabled'),
+  },
+
   dispatchButton: {
     scope: '[data-test-dispatch-button]',
     isDisabled: property('disabled'),

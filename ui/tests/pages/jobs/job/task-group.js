@@ -22,6 +22,7 @@ export default create({
   search: fillable('.search-box input'),
 
   countStepper: stepperInput('[data-test-task-group-count-stepper]'),
+  incrementButton: { scope: '[data-test-stepper-increment]' },
 
   tasksCount: text('[data-test-task-group-tasks]'),
   cpu: text('[data-test-task-group-cpu]'),

@@ -356,6 +356,42 @@ module('Acceptance | jobs list', function(hooks) {
     assert.equal(currentURL(), `/csi/volumes?namespace=${namespace.id}`);
   });
 
+  test('when the user has a client token that has a namespace with a policy to run a job', async function(assert) {
+    const READ_AND_WRITE_NAMESPACE = 'read-and-write-namespace';
+    const READ_ONLY_NAMESPACE = 'read-only-namespace';
+
+    server.create('namespace', { id: READ_AND_WRITE_NAMESPACE });
+    server.create('namespace', { id: READ_ONLY_NAMESPACE });
+
+    const policy = server.create('policy', {
+      id: 'something',
+      name: 'something',
+      rulesJSON: {
+        Namespaces: [
+          {
+            Name: READ_AND_WRITE_NAMESPACE,
+            Capabilities: ['submit-job'],
+          },
+          {
+            Name: READ_ONLY_NAMESPACE,
+            Capabilities: ['list-job'],
+          },
+        ],
+      },
+    });
+
+    clientToken.policyIds = [policy.id];
+    clientToken.save();
+
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    await JobsList.visit({ namespace: READ_AND_WRITE_NAMESPACE });
+    assert.notOk(JobsList.runJobButton.isDisabled);
+
+    await JobsList.visit({ namespace: READ_ONLY_NAMESPACE });
+    assert.ok(JobsList.runJobButton.isDisabled);
+  });
+
   pageSizeSelect({
     resourceName: 'job',
     pageObject: JobsList,

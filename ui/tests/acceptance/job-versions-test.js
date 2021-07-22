@@ -52,7 +52,7 @@ module('Acceptance | job versions', function(hooks) {
   test('all versions but the current one have a button to revert to that version', async function(assert) {
     let versionRowToRevertTo;
 
-    Versions.versions.forEach((versionRow) => {
+    Versions.versions.forEach(versionRow => {
       if (versionRow.number === job.version) {
         assert.ok(versionRow.revertToButton.isHidden);
       } else {
@@ -67,7 +67,9 @@ module('Acceptance | job versions', function(hooks) {
       await versionRowToRevertTo.revertToButton.idle();
       await versionRowToRevertTo.revertToButton.confirm();
 
-      const revertRequest = this.server.pretender.handledRequests.find(request => request.url.includes('revert'));
+      const revertRequest = this.server.pretender.handledRequests.find(request =>
+        request.url.includes('revert')
+      );
 
       assert.equal(revertRequest.url, `/v1/job/${job.id}/revert?namespace=${namespace.id}`);
 
@@ -81,7 +83,9 @@ module('Acceptance | job versions', function(hooks) {
   });
 
   test('when reversion fails, the error message from the API is piped through to the alert', async function(assert) {
-    const versionRowToRevertTo = Versions.versions.filter(versionRow => versionRow.revertToButton.isPresent)[0];
+    const versionRowToRevertTo = Versions.versions.filter(
+      versionRow => versionRow.revertToButton.isPresent
+    )[0];
 
     if (versionRowToRevertTo) {
       const message = 'A plaintext error message';
@@ -104,7 +108,9 @@ module('Acceptance | job versions', function(hooks) {
   });
 
   test('when reversion has no effect, the error message explains', async function(assert) {
-    const versionRowToRevertTo = Versions.versions.filter(versionRow => versionRow.revertToButton.isPresent)[0];
+    const versionRowToRevertTo = Versions.versions.filter(
+      versionRow => versionRow.revertToButton.isPresent
+    )[0];
 
     if (versionRowToRevertTo) {
       // The default Mirage implementation updates the job version as passed in, this does nothing
@@ -116,7 +122,10 @@ module('Acceptance | job versions', function(hooks) {
       assert.ok(Layout.inlineError.isShown);
       assert.ok(Layout.inlineError.isWarning);
       assert.ok(Layout.inlineError.title.includes('Reversion Had No Effect'));
-      assert.equal(Layout.inlineError.message, 'Reverting to an identical older version doesn’t produce a new version');
+      assert.equal(
+        Layout.inlineError.message,
+        'Reverting to an identical older version doesn’t produce a new version'
+      );
     } else {
       assert.expect(0);
     }
@@ -154,7 +163,9 @@ module('Acceptance | job versions (with client token)', function(hooks) {
   });
 
   test('reversion buttons are disabled when the token lacks permissions', async function(assert) {
-    const versionRowWithReversion = Versions.versions.filter(versionRow => versionRow.revertToButton.isPresent)[0];
+    const versionRowWithReversion = Versions.versions.filter(
+      versionRow => versionRow.revertToButton.isPresent
+    )[0];
 
     if (versionRowWithReversion) {
       assert.ok(versionRowWithReversion.revertToButtonIsDisabled);
@@ -163,5 +174,51 @@ module('Acceptance | job versions (with client token)', function(hooks) {
     }
 
     window.localStorage.clear();
+  });
+
+  test('reversion buttons are available when the client token has permissions', async function(assert) {
+    const REVERT_NAMESPACE = 'revert-namespace';
+    window.localStorage.clear();
+    const clientToken = server.create('token');
+
+    server.create('namespace', { id: REVERT_NAMESPACE });
+
+    const job = server.create('job', {
+      groupCount: 0,
+      createAllocations: false,
+      shallow: true,
+      noActiveDeployment: true,
+      namespaceId: REVERT_NAMESPACE,
+    });
+
+    const policy = server.create('policy', {
+      id: 'something',
+      name: 'something',
+      rulesJSON: {
+        Namespaces: [
+          {
+            Name: REVERT_NAMESPACE,
+            Capabilities: ['submit-job'],
+          },
+        ],
+      },
+    });
+
+    clientToken.policyIds = [policy.id];
+    clientToken.save();
+
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    versions = server.db.jobVersions.where({ jobId: job.id });
+    await Versions.visit({ id: job.id, namespace: REVERT_NAMESPACE });
+    const versionRowWithReversion = Versions.versions.filter(
+      versionRow => versionRow.revertToButton.isPresent
+    )[0];
+
+    if (versionRowWithReversion) {
+      assert.ok(versionRowWithReversion.revertToButtonIsDisabled);
+    } else {
+      assert.expect(0);
+    }
   });
 });
