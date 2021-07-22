@@ -540,8 +540,8 @@ github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286 h1:KHyL+3mQO
 github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286/go.mod h1:l0dey0ia/Uv7NcFFVbCLtqEBQbrT4OCwCSKTEv6enCw=
 github.com/mitchellh/copystructure v1.0.0 h1:Laisrj+bAB6b/yJwB5Bt3ITZhGJdqmxquMKeZ+mmkFQ=
 github.com/mitchellh/copystructure v1.0.0/go.mod h1:SNtv71yrdKgLRyLFxmLdkAbkKEFWgYaq1OVrnRcwhnw=
-github.com/mitchellh/go-glint v0.0.0-20201119015200-53f6eb3bf4d2 h1:p6jvEJYVtY05cbttwUhvxzV1j/e/40musLqs18vkv+E=
-github.com/mitchellh/go-glint v0.0.0-20201119015200-53f6eb3bf4d2/go.mod h1:9X3rpO+I3yuihb6p8ktF8qWxROGwij9DBW/czUsMlhk=
+github.com/mitchellh/go-glint v0.0.0-20210722152315-6515ceb4a127 h1:/EdGXMUGYFdp0+cmGjVLl/Qbx3G10csqgj22ZkrPFEA=
+github.com/mitchellh/go-glint v0.0.0-20210722152315-6515ceb4a127/go.mod h1:9X3rpO+I3yuihb6p8ktF8qWxROGwij9DBW/czUsMlhk=
 github.com/mitchellh/go-homedir v1.0.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
 github.com/mitchellh/go-homedir v1.1.0 h1:lukF9ziXFxDFPkA1vsr5zpc1XuPDn/wFntq5mG+4E0Y=
 github.com/mitchellh/go-homedir v1.1.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
