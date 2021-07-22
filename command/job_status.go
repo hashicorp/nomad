@@ -189,6 +189,10 @@ func (c *JobStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Parameterized|%v", parameterized),
 	}
 
+	if job.DispatchIdempotencyToken != nil && *job.DispatchIdempotencyToken != "" {
+		basic = append(basic, fmt.Sprintf("Idempotency Token|%v", *job.DispatchIdempotencyToken))
+	}
+
 	if periodic && !parameterized {
 		if *job.Stop {
 			basic = append(basic, "Next Periodic Launch|none (job stopped)")
@@ -302,7 +306,7 @@ func (c *JobStatusCommand) outputParameterizedInfo(client *api.Client, job *api.
 	}
 
 	out := make([]string, 1)
-	out[0] = "ID|Status"
+	out[0] = "ID|Status|Idempotency Token"
 	for _, child := range children {
 		// Ensure that we are only showing jobs whose parent is the requested
 		// job.
@@ -310,9 +314,10 @@ func (c *JobStatusCommand) outputParameterizedInfo(client *api.Client, job *api.
 			continue
 		}
 
-		out = append(out, fmt.Sprintf("%s|%s",
+		out = append(out, fmt.Sprintf("%s|%s|%s",
 			child.ID,
-			child.Status))
+			child.Status,
+			child.DispatchIdempotencyToken))
 	}
 
 	c.Ui.Output(c.Colorize().Color("\n[bold]Dispatched Jobs[reset]"))

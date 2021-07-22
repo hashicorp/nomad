@@ -4409,24 +4409,25 @@ func (j *Job) HasUpdateStrategy() bool {
 // Stub is used to return a summary of the job
 func (j *Job) Stub(summary *JobSummary) *JobListStub {
 	return &JobListStub{
-		ID:                j.ID,
-		Namespace:         j.Namespace,
-		ParentID:          j.ParentID,
-		Name:              j.Name,
-		Datacenters:       j.Datacenters,
-		Multiregion:       j.Multiregion,
-		Type:              j.Type,
-		Priority:          j.Priority,
-		Periodic:          j.IsPeriodic(),
-		ParameterizedJob:  j.IsParameterized(),
-		Stop:              j.Stop,
-		Status:            j.Status,
-		StatusDescription: j.StatusDescription,
-		CreateIndex:       j.CreateIndex,
-		ModifyIndex:       j.ModifyIndex,
-		JobModifyIndex:    j.JobModifyIndex,
-		SubmitTime:        j.SubmitTime,
-		JobSummary:        summary,
+		ID:                       j.ID,
+		Namespace:                j.Namespace,
+		ParentID:                 j.ParentID,
+		Name:                     j.Name,
+		Datacenters:              j.Datacenters,
+		Multiregion:              j.Multiregion,
+		Type:                     j.Type,
+		Priority:                 j.Priority,
+		Periodic:                 j.IsPeriodic(),
+		ParameterizedJob:         j.IsParameterized(),
+		DispatchIdempotencyToken: j.DispatchIdempotencyToken,
+		Stop:                     j.Stop,
+		Status:                   j.Status,
+		StatusDescription:        j.StatusDescription,
+		CreateIndex:              j.CreateIndex,
+		ModifyIndex:              j.ModifyIndex,
+		JobModifyIndex:           j.JobModifyIndex,
+		SubmitTime:               j.SubmitTime,
+		JobSummary:               summary,
 	}
 }
 
@@ -4581,24 +4582,25 @@ func (j *Job) SetSubmitTime() {
 // JobListStub is used to return a subset of job information
 // for the job list
 type JobListStub struct {
-	ID                string
-	ParentID          string
-	Name              string
-	Namespace         string `json:",omitempty"`
-	Datacenters       []string
-	Multiregion       *Multiregion
-	Type              string
-	Priority          int
-	Periodic          bool
-	ParameterizedJob  bool
-	Stop              bool
-	Status            string
-	StatusDescription string
-	JobSummary        *JobSummary
-	CreateIndex       uint64
-	ModifyIndex       uint64
-	JobModifyIndex    uint64
-	SubmitTime        int64
+	ID                       string
+	ParentID                 string
+	Name                     string
+	Namespace                string `json:",omitempty"`
+	Datacenters              []string
+	Multiregion              *Multiregion
+	Type                     string
+	Priority                 int
+	Periodic                 bool
+	ParameterizedJob         bool
+	DispatchIdempotencyToken string
+	Stop                     bool
+	Status                   string
+	StatusDescription        string
+	JobSummary               *JobSummary
+	CreateIndex              uint64
+	ModifyIndex              uint64
+	JobModifyIndex           uint64
+	SubmitTime               int64
 }
 
 // JobSummary summarizes the state of the allocations of a job
