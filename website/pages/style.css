@@ -8,7 +8,6 @@
 }
 
 /* Global Transpiled Components */
-@import '~@hashicorp/react-alert/dist/style.css';
 @import '~@hashicorp/react-alert-banner/style.css';
 @import '~@hashicorp/react-button/styles/index.css';
 @import '~@hashicorp/react-call-to-action/style.css';
