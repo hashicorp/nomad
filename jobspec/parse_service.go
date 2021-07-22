@@ -227,6 +227,7 @@ func parseGateway(o *ast.ObjectItem) (*api.ConsulGateway, error) {
 		"proxy",
 		"ingress",
 		"terminating",
+		"mesh",
 	}
 
 	if err := checkHCLKeys(o.Val, valid); err != nil {
@@ -242,6 +243,7 @@ func parseGateway(o *ast.ObjectItem) (*api.ConsulGateway, error) {
 	delete(m, "proxy")
 	delete(m, "ingress")
 	delete(m, "terminating")
+	delete(m, "mesh")
 
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
@@ -275,8 +277,11 @@ func parseGateway(o *ast.ObjectItem) (*api.ConsulGateway, error) {
 	gateway.Proxy = proxy
 
 	// extract and parse the ingress block
-	io := listVal.Filter("ingress")
-	if len(io.Items) == 1 {
+	if io := listVal.Filter("ingress"); len(io.Items) > 0 {
+		if len(io.Items) > 1 {
+			return nil, fmt.Errorf("ingress, %s", "multiple ingress stanzas not allowed")
+		}
+
 		ingress, err := parseIngressConfigEntry(io.Items[0])
 		if err != nil {
 			return nil, fmt.Errorf("ingress, %v", err)
@@ -284,12 +289,11 @@ func parseGateway(o *ast.ObjectItem) (*api.ConsulGateway, error) {
 		gateway.Ingress = ingress
 	}
 
-	if len(io.Items) > 1 {
-		return nil, fmt.Errorf("ingress, %s", "multiple ingress stanzas not allowed")
-	}
+	if to := listVal.Filter("terminating"); len(to.Items) > 0 {
+		if len(to.Items) > 1 {
+			return nil, fmt.Errorf("terminating, %s", "multiple terminating stanzas not allowed")
+		}
 
-	to := listVal.Filter("terminating")
-	if len(to.Items) == 1 {
 		terminating, err := parseTerminatingConfigEntry(to.Items[0])
 		if err != nil {
 			return nil, fmt.Errorf("terminating, %v", err)
@@ -297,8 +301,17 @@ func parseGateway(o *ast.ObjectItem) (*api.ConsulGateway, error) {
 		gateway.Terminating = terminating
 	}
 
-	if len(to.Items) > 1 {
-		return nil, fmt.Errorf("terminating, %s", "multiple terminating stanzas not allowed")
+	if mo := listVal.Filter("mesh"); len(mo.Items) > 0 {
+		if len(mo.Items) > 1 {
+			return nil, fmt.Errorf("mesh, %s", "multiple mesh stanzas not allowed")
+		}
+
+		// mesh should have no keys
+		if err := checkHCLKeys(mo.Items[0].Val, []string{}); err != nil {
+			return nil, fmt.Errorf("mesh, %s", err)
+		}
+
+		gateway.Mesh = &api.ConsulMeshConfigEntry{}
 	}
 
 	return &gateway, nil

@@ -1585,6 +1585,28 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"tg-service-connect-gateway-mesh.hcl",
+			&api.Job{
+				ID:   stringToPtr("connect_gateway_mesh"),
+				Name: stringToPtr("connect_gateway_mesh"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: stringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "mesh-gateway-service",
+						Connect: &api.ConsulConnect{
+							Gateway: &api.ConsulGateway{
+								Proxy: &api.ConsulGatewayProxy{
+									Config: map[string]interface{}{"foo": "bar"},
+								},
+								Mesh: &api.ConsulMeshConfigEntry{},
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"tg-scaling-policy-minimal.hcl",
 			&api.Job{
 				ID:   stringToPtr("elastic"),
