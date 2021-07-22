@@ -1198,6 +1198,7 @@ func TestParse(t *testing.T) {
 										InitialStatus: "passing",
 										TaskName:      "foo",
 										OnUpdate:      "ignore",
+										Body:          "post body",
 									},
 								},
 							},

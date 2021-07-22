@@ -25,6 +25,7 @@ job "group_service_check_script" {
         initial_status = "passing"
         task           = "foo"
         on_update      = "ignore"
+        body           = "post body"
       }
     }
 
