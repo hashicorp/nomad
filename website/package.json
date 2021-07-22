@@ -9,7 +9,6 @@
   "dependencies": {
     "@hashicorp/mktg-global-styles": "^3.1.0",
     "@hashicorp/mktg-logos": "^1.2.0",
-    "@hashicorp/nextjs-scripts": "^19.0.3",
     "@hashicorp/platform-code-highlighting": "^0.1.1",
     "@hashicorp/platform-runtime-error-monitoring": "^0.1.0",
     "@hashicorp/platform-util": "^0.1.0",
@@ -48,10 +47,12 @@
   "devDependencies": {
     "@hashicorp/platform-cli": "^0.2.0",
     "@hashicorp/platform-nextjs-plugin": "^0.1.0",
+    "@hashicorp/platform-types": "^0.1.0",
     "@types/react": "^17.0.3",
     "dart-linkcheck": "2.0.15",
     "husky": "^6.0.0",
-    "prettier": "2.2.1"
+    "prettier": "2.2.1",
+    "typescript": "^4.3.5"
   },
   "husky": {
     "hooks": {
