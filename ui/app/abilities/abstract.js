@@ -1,4 +1,5 @@
 import { Ability } from 'ember-can';
+import { assert } from '@ember/debug';
 import { inject as service } from '@ember/service';
 import { computed, get } from '@ember/object';
 import { equal, not } from '@ember/object/computed';
@@ -14,10 +15,9 @@ export default class Abstract extends Ability {
 
   // Pass in a namespace to `can` or `cannot` calls to override
   // https://github.com/minutebase/ember-can#additional-attributes
-  namespace = 'default';
+  namespace = null;
 
   get _namespace() {
-    if (!this.namespace) return 'default';
     if (typeof this.namespace === 'string') return this.namespace;
     return get(this.namespace, 'name');
   }
@@ -26,6 +26,15 @@ export default class Abstract extends Ability {
   get rulesForNamespace() {
     let namespace = this._namespace;
 
+    // Assertion to prevent folks from not passing bound properties
+    if (namespace === null) {
+      assert(
+        'Must pass a bound property to handle cases for client token ACLs',
+        namespace === null
+      );
+      /* eslint-disable-next-line ember/no-side-effects */
+      this._namespace = null;
+    }
     return (this.get('token.selfTokenPolicies') || []).toArray().reduce((rules, policy) => {
       let policyNamespaces = get(policy, 'rulesJSON.Namespaces') || [];
 
