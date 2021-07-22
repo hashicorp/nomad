@@ -20,6 +20,7 @@ job "connect_gateway_terminating" {
             }
 
             envoy_gateway_no_default_bind = true
+            envoy_dns_discovery_type      = "LOGICAL_DNS"
 
             config {
               foo = "bar"
