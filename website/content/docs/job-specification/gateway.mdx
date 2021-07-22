@@ -43,6 +43,8 @@ Exactly one of `ingress` or `terminating` must be configured.
   that will be associated with the service.
 - `terminating` <code>([terminating]: nil)</code> - Configuration Entry of type `terminating-gateway`
   that will be associated with the service.
+- `mesh` <code>([mesh]: nil)</code> - Indicates a mesh gateway will be associated
+  with the service.
 
 ### `proxy` Parameters
 
@@ -165,6 +167,10 @@ envoy_gateway_bind_addresses "<service>" {
   to verify the gateway's authenticity. It must be provided if a `cert_file` is provided.
 - `sni` `(string: <optional>)` - An optional hostname or domain name to specify during
   the TLS handshake.
+
+### `mesh` Parameters
+
+  The `mesh` block currently does not have any configurable parameters.
 
 ### Gateway with host networking
 
@@ -433,6 +439,201 @@ job "countdash-terminating" {
 }
 ```
 
+#### mesh gateway
+
+Mesh gateways are useful when Connect services need to make cross-datacenter
+requests where not all nodes in each datacenter have full connectivity. This example
+demonstrates using mesh gateways to enable making requests between datacenters
+`one` and `two`, where each mesh gateway will bind to the `public` host network
+configured on at least one Nomad client in each datacenter.
+
+Job running where Nomad and Consul are in datacenter `one`.
+
+```hcl
+job "countdash-mesh-one" {
+  datacenters = ["one"]
+
+  group "mesh-gateway-one" {
+    network {
+      mode = "bridge"
+
+      # A mesh gateway will require a host_network configured on at least one
+      # Nomad client that can establish cross-datacenter connections. Nomad will
+      # automatically schedule the mesh gateway task on compatible Nomad clients.
+      port "mesh_wan" {
+        host_network = "public"
+      }
+    }
+
+    service {
+      name = "mesh-gateway"
+
+      # The mesh gateway connect service should be configured to use a port from
+      # the host_network capable of cross-datacenter connections.
+      port = "mesh_wan"
+
+      connect {
+        gateway {
+          mesh {
+            # No configuration options in the mesh block.
+          }
+
+          # Consul gateway [envoy] proxy options.
+          proxy {
+            # The following options are automatically set by Nomad if not explicitly
+            # configured with using bridge networking.
+            #
+            # envoy_gateway_no_default_bind = true
+            # envoy_gateway_bind_addresses "lan" {
+            #   address = "0.0.0.0"
+            #   port    = <generated dynamic port>
+            # }
+            # envoy_gateway_bind_addresses "wan" {
+            #   address = "0.0.0.0"
+            #   port    = <configured service port>
+            # }
+            # Additional options are documented at
+            # https://www.nomadproject.io/docs/job-specification/gateway#proxy-parameters
+          }
+        }
+      }
+    }
+  }
+
+  group "dashboard" {
+    network {
+      mode = "bridge"
+
+      port "http" {
+        static = 9002
+        to     = 9002
+      }
+    }
+
+    service {
+      name = "count-dashboard"
+      port = "9002"
+
+      connect {
+        sidecar_service {
+          proxy {
+            upstreams {
+              destination_name = "count-api"
+              local_bind_port  = 8080
+
+              # This dashboard service is running in datacenter "one", and will
+              # make requests to the "count-api" service running in datacenter
+              # "two", by going through the mesh gateway in each datacenter.
+              datacenter       = "two"
+
+              mesh_gateway {
+                # Using "local" mode indicates requests should exit this datacenter
+                # through the mesh gateway, and enter the destination datacenter
+                # through a mesh gateway in that datacenter.
+                # Using "remote" mode indicates requests should bypass the local
+                # mesh gateway, instead directly connecting to the mesh gateway
+                # in the destination datacenter.
+                mode = "local"
+              }
+            }
+          }
+        }
+      }
+    }
+
+    task "dashboard" {
+      driver = "docker"
+
+      env {
+        COUNTING_SERVICE_URL = "http://${NOMAD_UPSTREAM_ADDR_count_api}"
+      }
+
+      config {
+        image = "hashicorpnomad/counter-dashboard:v3"
+      }
+    }
+  }
+}
+```
+
+Job running where Nomad and Consul are in datacenter `two`.
+
+```hcl
+job "countdash-mesh-two" {
+  datacenters = ["two"]
+
+  group "mesh-gateway-two" {
+    network {
+      mode = "bridge"
+
+      # A mesh gateway will require a host_network configured for at least one
+      # Nomad client that can establish cross-datacenter connections. Nomad will
+      # automatically schedule the mesh gateway task on compatible Nomad clients.
+      port "mesh_wan" {
+        host_network = "public"
+      }
+    }
+
+    service {
+      name = "mesh-gateway"
+
+      # The mesh gateway connect service should be configured to use a port from
+      # the host_network capable of cross-datacenter connections.
+      port = "mesh_wan"
+
+      connect {
+        gateway {
+          mesh {
+            # No configuration options in the mesh block.
+          }
+
+          # Consul gateway [envoy] proxy options.
+          proxy {
+            # The following options are automatically set by Nomad if not explicitly
+            # configured with using bridge networking.
+            #
+            # envoy_gateway_no_default_bind = true
+            # envoy_gateway_bind_addresses "lan" {
+            #   address = "0.0.0.0"
+            #   port    = <generated dynamic port>
+            # }
+            # envoy_gateway_bind_addresses "wan" {
+            #   address = "0.0.0.0"
+            #   port    = <configured service port>
+            # }
+            # Additional options are documented at
+            # https://www.nomadproject.io/docs/job-specification/gateway#proxy-parameters
+          }
+        }
+      }
+    }
+  }
+
+  group "api" {
+    network {
+      mode = "bridge"
+    }
+
+    service {
+      name = "count-api"
+      port = "9001"
+      connect {
+        sidecar_service {}
+      }
+    }
+
+    task "api" {
+      driver = "docker"
+
+      config {
+        image = "hashicorpnomad/counter-api:v3"
+      }
+    }
+  }
+}
+```
+
+
 [address]: /docs/job-specification/gateway#address-parameters
 [advanced configuration]: https://www.consul.io/docs/connect/proxies/envoy#advanced-configuration
 [connect_timeout_ms]: https://www.consul.io/docs/agent/config-entries/service-resolver#connecttimeout
@@ -446,3 +647,4 @@ job "countdash-terminating" {
 [sidecar_task]: /docs/job-specification/sidecar_task
 [terminating]: /docs/job-specification/gateway#terminating-parameters
 [tls]: /docs/job-specification/gateway#tls-parameters
+[mesh]: /docs/job-specification/gateway#mesh-parameters

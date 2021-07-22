@@ -1533,6 +1533,45 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"tg-service-connect-gateway-terminating.hcl",
+			&api.Job{
+				ID:   stringToPtr("connect_gateway_terminating"),
+				Name: stringToPtr("connect_gateway_terminating"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: stringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "terminating-gateway-service",
+						Connect: &api.ConsulConnect{
+							Gateway: &api.ConsulGateway{
+								Proxy: &api.ConsulGatewayProxy{
+									ConnectTimeout:                  timeToPtr(3 * time.Second),
+									EnvoyGatewayBindTaggedAddresses: true,
+									EnvoyGatewayBindAddresses: map[string]*api.ConsulGatewayBindAddress{
+										"listener1": {Name: "listener1", Address: "10.0.0.1", Port: 8888},
+										"listener2": {Name: "listener2", Address: "10.0.0.2", Port: 8889},
+									},
+									EnvoyGatewayNoDefaultBind: true,
+									Config:                    map[string]interface{}{"foo": "bar"},
+								},
+								Terminating: &api.ConsulTerminatingConfigEntry{
+									Services: []*api.ConsulLinkedService{{
+										Name:     "service1",
+										CAFile:   "ca.pem",
+										CertFile: "cert.pem",
+										KeyFile:  "key.pem",
+									}, {
+										Name: "service2",
+										SNI:  "myhost",
+									}},
+								},
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"tg-scaling-policy-minimal.hcl",
 			&api.Job{
 				ID:   stringToPtr("elastic"),

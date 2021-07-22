@@ -365,11 +365,16 @@ func TestDebug_CapturedFiles(t *testing.T) {
 
 		// Monitor files are only created when selected
 		filepath.Join(path, "server", "leader", "monitor.log"),
+
+		// Pprof profiles
 		filepath.Join(path, "server", "leader", "profile.prof"),
 		filepath.Join(path, "server", "leader", "trace.prof"),
 		filepath.Join(path, "server", "leader", "goroutine.prof"),
 		filepath.Join(path, "server", "leader", "goroutine-debug1.txt"),
 		filepath.Join(path, "server", "leader", "goroutine-debug2.txt"),
+		filepath.Join(path, "server", "leader", "heap.prof"),
+		filepath.Join(path, "server", "leader", "allocs.prof"),
+		filepath.Join(path, "server", "leader", "threadcreate.prof"),
 
 		// Multiple snapshots are collected, 00 is always created
 		filepath.Join(path, "nomad", "0000", "jobs.json"),
@@ -382,7 +387,7 @@ func TestDebug_CapturedFiles(t *testing.T) {
 		filepath.Join(path, "nomad", "0001", "metrics.json"),
 	}
 
-	testutil.WaitForFiles(t, serverFiles)
+	testutil.WaitForFilesUntil(t, serverFiles, 2*time.Minute)
 }
 
 func TestDebug_ExistingOutput(t *testing.T) {

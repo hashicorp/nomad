@@ -30,7 +30,7 @@ Agent Info Options:
   -json
     Output the node in its JSON format.
 
--t
+  -t
     Format and display node using a Go template.
 `
 	return strings.TrimSpace(helpText)

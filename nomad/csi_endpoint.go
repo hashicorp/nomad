@@ -249,12 +249,11 @@ func (v *CSIVolume) controllerValidateVolume(req *structs.CSIVolumeRegisterReque
 
 	method := "ClientCSI.ControllerValidateVolume"
 	cReq := &cstructs.ClientCSIControllerValidateVolumeRequest{
-		VolumeID:       vol.RemoteID(),
-		AttachmentMode: vol.AttachmentMode,
-		AccessMode:     vol.AccessMode,
-		Secrets:        vol.Secrets,
-		Parameters:     vol.Parameters,
-		Context:        vol.Context,
+		VolumeID:           vol.RemoteID(),
+		VolumeCapabilities: vol.RequestedCapabilities,
+		Secrets:            vol.Secrets,
+		Parameters:         vol.Parameters,
+		Context:            vol.Context,
 	}
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerValidateVolumeResponse{}
@@ -417,6 +416,17 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	return nil
 }
 
+func csiVolumeMountOptions(c *structs.CSIMountOptions) *cstructs.CSIVolumeMountOptions {
+	if c == nil {
+		return nil
+	}
+
+	return &cstructs.CSIVolumeMountOptions{
+		Filesystem: c.FSType,
+		MountFlags: c.MountFlags,
+	}
+}
+
 // controllerPublishVolume sends publish request to the CSI controller
 // plugin associated with a volume, if any.
 func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, resp *structs.CSIVolumeClaimResponse) error {
@@ -471,6 +481,7 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 		ClientCSINodeID: externalNodeID,
 		AttachmentMode:  req.AttachmentMode,
 		AccessMode:      req.AccessMode,
+		MountOptions:    csiVolumeMountOptions(vol.MountOptions),
 		ReadOnly:        req.Claim == structs.CSIVolumeClaimRead,
 		Secrets:         vol.Secrets,
 		VolumeContext:   vol.Context,
@@ -901,6 +912,7 @@ func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 	cReq := &cstructs.ClientCSIControllerCreateVolumeRequest{
 		Name:               vol.Name,
 		VolumeCapabilities: vol.RequestedCapabilities,
+		MountOptions:       vol.MountOptions,
 		Parameters:         vol.Parameters,
 		Secrets:            vol.Secrets,
 		CapacityMin:        vol.RequestedCapacityMin,
@@ -1112,7 +1124,7 @@ func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply
 		cReq := &cstructs.ClientCSIControllerCreateSnapshotRequest{
 			ExternalSourceVolumeID: vol.ExternalID,
 			Name:                   snap.Name,
-			Secrets:                snap.Secrets,
+			Secrets:                vol.Secrets,
 			Parameters:             snap.Parameters,
 		}
 		cReq.PluginID = plugin.ID

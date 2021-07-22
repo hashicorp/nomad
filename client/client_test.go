@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
@@ -1600,7 +1599,7 @@ func TestClient_hasLocalState(t *testing.T) {
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
 
-	c.stateDB = state.NewMemDB(c.logger)
+	c.stateDB = cstate.NewMemDB(c.logger)
 
 	t.Run("plain alloc", func(t *testing.T) {
 		alloc := mock.BatchAlloc()

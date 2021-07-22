@@ -654,52 +654,60 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 		}
 	}
 
-	bs, err = client.Agent().Trace(opts, nil)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof trace.prof, err: %v", path, err))
-	} else {
-		err := c.writeBytes(path, "trace.prof", bs)
-		if err != nil {
-			c.Ui.Error(err.Error())
-		}
-	}
-
-	bs, err = client.Agent().Lookup("goroutine", opts, nil)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine.prof, err: %v", path, err))
-	} else {
-		err := c.writeBytes(path, "goroutine.prof", bs)
-		if err != nil {
-			c.Ui.Error(err.Error())
-		}
-	}
-
-	// Gather goroutine text output - debug type 1
-	// debug type 1 writes the legacy text format for human readable output
+	// goroutine debug type 1 = legacy text format for human readable output
 	opts.Debug = 1
-	bs, err = client.Agent().Lookup("goroutine", opts, nil)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug1.txt, err: %v", path, err))
-	} else {
-		err := c.writeBytes(path, "goroutine-debug1.txt", bs)
-		if err != nil {
-			c.Ui.Error(err.Error())
-		}
+	c.savePprofProfile(path, "goroutine", opts, client)
+
+	// goroutine debug type 2 = goroutine stacks in panic format
+	opts.Debug = 2
+	c.savePprofProfile(path, "goroutine", opts, client)
+
+	// Reset to pprof binary format
+	opts.Debug = 0
+
+	c.savePprofProfile(path, "goroutine", opts, client)    // Stack traces of all current goroutines
+	c.savePprofProfile(path, "trace", opts, client)        // A trace of execution of the current program
+	c.savePprofProfile(path, "heap", opts, client)         // A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.
+	c.savePprofProfile(path, "allocs", opts, client)       // A sampling of all past memory allocations
+	c.savePprofProfile(path, "threadcreate", opts, client) // Stack traces that led to the creation of new OS threads
+
+	// This profile is disabled by default -- Requires runtime.SetBlockProfileRate to enable
+	// c.savePprofProfile(path, "block", opts, client)        // Stack traces that led to blocking on synchronization primitives
+
+	// This profile is disabled by default -- Requires runtime.SetMutexProfileFraction to enable
+	// c.savePprofProfile(path, "mutex", opts, client)        // Stack traces of holders of contended mutexes
+}
+
+// savePprofProfile retrieves a pprof profile and writes to disk
+func (c *OperatorDebugCommand) savePprofProfile(path string, profile string, opts api.PprofOptions, client *api.Client) {
+	fileName := fmt.Sprintf("%s.prof", profile)
+	if opts.Debug > 0 {
+		fileName = fmt.Sprintf("%s-debug%d.txt", profile, opts.Debug)
 	}
 
-	// Gather goroutine text output - debug type 2
-	// When printing the "goroutine" profile, debug=2 means to print the goroutine
-	// stacks in the same form that a Go program uses when dying due to an unrecovered panic.
-	opts.Debug = 2
-	bs, err = client.Agent().Lookup("goroutine", opts, nil)
+	bs, err := retrievePprofProfile(profile, opts, client)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug2.txt, err: %v", path, err))
-	} else {
-		err := c.writeBytes(path, "goroutine-debug2.txt", bs)
-		if err != nil {
-			c.Ui.Error(err.Error())
-		}
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof %s, err: %s", path, fileName, err.Error()))
 	}
+
+	err = c.writeBytes(path, fileName, bs)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("%s: Failed to write file %s, err: %s", path, fileName, err.Error()))
+	}
+}
+
+// retrievePprofProfile gets a pprof profile from the node specified in opts using the API client
+func retrievePprofProfile(profile string, opts api.PprofOptions, client *api.Client) (bs []byte, err error) {
+	switch profile {
+	case "cpuprofile":
+		bs, err = client.Agent().CPUProfile(opts, nil)
+	case "trace":
+		bs, err = client.Agent().Trace(opts, nil)
+	default:
+		bs, err = client.Agent().Lookup(profile, opts, nil)
+	}
+
+	return bs, err
 }
 
 // collectPeriodic runs for duration, capturing the cluster state every interval. It flushes and stops

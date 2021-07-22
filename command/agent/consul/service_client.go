@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/pkg/errors"
 
 	"github.com/hashicorp/consul/api"
@@ -247,9 +249,74 @@ func sidecarTagsDifferent(parent, wanted, sidecar []string) bool {
 	return tagsDifferent(wanted, sidecar)
 }
 
+// proxyUpstreamsDifferent determines if the sidecar_service.proxy.upstreams
+// configurations are different between the desired sidecar service state, and
+// the actual sidecar service state currently registered in Consul.
+func proxyUpstreamsDifferent(wanted *api.AgentServiceConnect, sidecar *api.AgentServiceConnectProxyConfig) bool {
+	// There is similar code that already does this in Nomad's API package,
+	// however here we are operating on Consul API package structs, and they do not
+	// provide such helper functions.
+
+	getProxyUpstreams := func(pc *api.AgentServiceConnectProxyConfig) []api.Upstream {
+		switch {
+		case pc == nil:
+			return nil
+		case len(pc.Upstreams) == 0:
+			return nil
+		default:
+			return pc.Upstreams
+		}
+	}
+
+	getConnectUpstreams := func(sc *api.AgentServiceConnect) []api.Upstream {
+		switch {
+		case sc.SidecarService.Proxy == nil:
+			return nil
+		case len(sc.SidecarService.Proxy.Upstreams) == 0:
+			return nil
+		default:
+			return sc.SidecarService.Proxy.Upstreams
+		}
+	}
+
+	upstreamsDifferent := func(a, b []api.Upstream) bool {
+		if len(a) != len(b) {
+			return true
+		}
+
+		for i := 0; i < len(a); i++ {
+			A := a[i]
+			B := b[i]
+			switch {
+			case A.Datacenter != B.Datacenter:
+				return true
+			case A.DestinationName != B.DestinationName:
+				return true
+			case A.LocalBindAddress != B.LocalBindAddress:
+				return true
+			case A.LocalBindPort != B.LocalBindPort:
+				return true
+			case A.MeshGateway.Mode != B.MeshGateway.Mode:
+				return true
+			case !reflect.DeepEqual(A.Config, B.Config):
+				return true
+			}
+		}
+		return false
+	}
+
+	return upstreamsDifferent(
+		getConnectUpstreams(wanted),
+		getProxyUpstreams(sidecar),
+	)
+}
+
 // connectSidecarDifferent returns true if Nomad expects there to be a sidecar
 // hanging off the desired parent service definition on the Consul side, and does
 // not match with what Consul has.
+//
+// This is used to determine if the connect sidecar service registration should be
+// updated - potentially (but not necessarily) in-place.
 func connectSidecarDifferent(wanted *api.AgentServiceRegistration, sidecar *api.AgentService) bool {
 	if wanted.Connect != nil && wanted.Connect.SidecarService != nil {
 		if sidecar == nil {
@@ -259,6 +326,11 @@ func connectSidecarDifferent(wanted *api.AgentServiceRegistration, sidecar *api.
 
 		if sidecarTagsDifferent(wanted.Tags, wanted.Connect.SidecarService.Tags, sidecar.Tags) {
 			// tags on the nomad definition have been modified
+			return true
+		}
+
+		if proxyUpstreamsDifferent(wanted.Connect, sidecar.Proxy) {
+			// proxy upstreams on the nomad definition have been modified
 			return true
 		}
 	}
@@ -275,6 +347,27 @@ type operations struct {
 	regChecks     []*api.AgentCheckRegistration
 	deregServices []string
 	deregChecks   []string
+}
+
+func (o *operations) empty() bool {
+	switch {
+	case o == nil:
+		return true
+	case len(o.regServices) > 0:
+		return false
+	case len(o.regChecks) > 0:
+		return false
+	case len(o.deregServices) > 0:
+		return false
+	case len(o.deregChecks) > 0:
+		return false
+	default:
+		return true
+	}
+}
+
+func (o operations) String() string {
+	return fmt.Sprintf("<%d, %d, %d, %d>", len(o.regServices), len(o.regChecks), len(o.deregServices), len(o.deregChecks))
 }
 
 // AllocRegistration holds the status of services registered for a particular
@@ -489,10 +582,23 @@ func (c *ServiceClient) hasSeen() bool {
 type syncReason byte
 
 const (
-	syncPeriodic = iota
+	syncPeriodic syncReason = iota
 	syncShutdown
 	syncNewOps
 )
+
+func (sr syncReason) String() string {
+	switch sr {
+	case syncPeriodic:
+		return "periodic"
+	case syncShutdown:
+		return "shutdown"
+	case syncNewOps:
+		return "operations"
+	default:
+		return "unexpected"
+	}
+}
 
 // Run the Consul main loop which retries operations against Consul. It should
 // be called exactly once.
@@ -609,6 +715,24 @@ INIT:
 
 // commit operations unless already shutting down.
 func (c *ServiceClient) commit(ops *operations) {
+	c.logger.Trace("commit sync operations", "ops", ops)
+
+	// Ignore empty operations - ideally callers will optimize out syncs with
+	// nothing to do, but be defensive anyway. Sending an empty ops on the chan
+	// will trigger an unnecessary sync with Consul.
+	if ops.empty() {
+		return
+	}
+
+	// Prioritize doing nothing if we are being signaled to shutdown.
+	select {
+	case <-c.shutdownCh:
+		return
+	default:
+	}
+
+	// Send the ops down the ops chan, triggering a sync with Consul. Unless we
+	// receive a signal to shutdown.
 	select {
 	case c.opCh <- ops:
 	case <-c.shutdownCh:
@@ -642,6 +766,8 @@ func (c *ServiceClient) merge(ops *operations) {
 
 // sync enqueued operations.
 func (c *ServiceClient) sync(reason syncReason) error {
+	c.logger.Trace("execute sync", "reason", reason)
+
 	sreg, creg, sdereg, cdereg := 0, 0, 0, 0
 	var err error
 
@@ -691,12 +817,27 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		}
 
 		// Ignore if this is a service for a Nomad managed sidecar proxy.
-		if isNomadSidecar(id, c.services) {
+		if maybeConnectSidecar(id) {
 			continue
 		}
 
-		// Unknown Nomad managed service; kill
+		// Get the Consul namespace this service is in.
 		ns := servicesInConsul[id].Namespace
+
+		// If this service has a sidecar, we need to remove the sidecar first,
+		// otherwise Consul will produce a warning and an error when removing
+		// the parent service.
+		//
+		// The sidecar is not tracked on the Nomad side; it was registered
+		// implicitly through the parent service.
+		if sidecar := getNomadSidecar(id, servicesInConsul); sidecar != nil {
+			if err := c.agentAPI.ServiceDeregisterOpts(sidecar.ID, &api.QueryOptions{Namespace: ns}); err != nil {
+				metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
+				return err
+			}
+		}
+
+		// Remove the unwanted service.
 		if err := c.agentAPI.ServiceDeregisterOpts(id, &api.QueryOptions{Namespace: ns}); err != nil {
 			if isOldNomadService(id) {
 				// Don't hard-fail on old entries. See #3620
@@ -761,7 +902,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		}
 
 		// Ignore if this is a check for a Nomad managed sidecar proxy.
-		if isNomadSidecar(check.ServiceID, c.services) {
+		if maybeSidecarProxyCheck(id) {
 			continue
 		}
 
@@ -961,9 +1102,24 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		kind = api.ServiceKindTerminatingGateway
 		// set the default port if bridge / default listener set
 		if defaultBind, exists := service.Connect.Gateway.Proxy.EnvoyGatewayBindAddresses["default"]; exists {
-			portLabel := fmt.Sprintf("%s-%s", structs.ConnectTerminatingPrefix, service.Name)
+			portLabel := envoy.PortLabel(structs.ConnectTerminatingPrefix, service.Name, "")
 			if dynPort, ok := workload.Ports.Get(portLabel); ok {
 				defaultBind.Port = dynPort.Value
+			}
+		}
+	case service.Connect.IsMesh():
+		kind = api.ServiceKindMeshGateway
+		// wan uses the service port label, which is typically on a discrete host_network
+		if wanBind, exists := service.Connect.Gateway.Proxy.EnvoyGatewayBindAddresses["wan"]; exists {
+			if wanPort, ok := workload.Ports.Get(service.PortLabel); ok {
+				wanBind.Port = wanPort.Value
+			}
+		}
+		// lan uses a nomad generated dynamic port on the default network
+		if lanBind, exists := service.Connect.Gateway.Proxy.EnvoyGatewayBindAddresses["lan"]; exists {
+			portLabel := envoy.PortLabel(structs.ConnectMeshPrefix, service.Name, "lan")
+			if dynPort, ok := workload.Ports.Get(portLabel); ok {
+				lanBind.Port = dynPort.Value
 			}
 		}
 	}
@@ -1541,8 +1697,14 @@ const (
 	sidecarSuffix = "-sidecar-proxy"
 )
 
-// isNomadSidecar returns true if the ID matches a sidecar proxy for a Nomad
-// managed service.
+// maybeConnectSidecar returns true if the ID is likely of a Connect sidecar proxy.
+// This function should only be used to determine if Nomad should skip managing
+// service id; it could produce false negatives for non-Nomad managed services
+// (i.e. someone set the ID manually), but Nomad does not manage those anyway.
+//
+// It is important not to reference the parent service, which may or may not still
+// be tracked by Nomad internally.
+//
 //
 // For example if you have a Connect enabled service with the ID:
 //
@@ -1552,14 +1714,39 @@ const (
 //
 //	_nomad-task-5229c7f8-376b-3ccc-edd9-981e238f7033-cache-redis-cache-db-sidecar-proxy
 //
-func isNomadSidecar(id string, services map[string]*api.AgentServiceRegistration) bool {
-	if !strings.HasSuffix(id, sidecarSuffix) {
-		return false
-	}
+func maybeConnectSidecar(id string) bool {
+	return strings.HasSuffix(id, sidecarSuffix)
+}
 
-	// Make sure the Nomad managed service for this proxy still exists.
-	_, ok := services[id[:len(id)-len(sidecarSuffix)]]
-	return ok
+var (
+	sidecarProxyCheckRe = regexp.MustCompile(`^service:_nomad-.+-sidecar-proxy(:[\d]+)?$`)
+)
+
+// maybeSidecarProxyCheck returns true if the ID likely matches a Nomad generated
+// check ID used in the context of a Nomad managed Connect sidecar proxy. This function
+// should only be used to determine if Nomad should skip managing a check; it can
+// produce false negatives for non-Nomad managed Connect sidecar proxy checks (i.e.
+// someone set the ID manually), but Nomad does not manage those anyway.
+//
+// For example if you have a Connect enabled service with the ID:
+//
+//	_nomad-task-5229c7f8-376b-3ccc-edd9-981e238f7033-cache-redis-cache-db
+//
+// Nomad will create a Connect sidecar proxy of ID:
+//
+// _nomad-task-5229c7f8-376b-3ccc-edd9-981e238f7033-cache-redis-cache-db-sidecar-proxy
+//
+// With default checks like:
+//
+// service:_nomad-task-2f5fb517-57d4-44ee-7780-dc1cb6e103cd-group-api-count-api-9001-sidecar-proxy:1
+// service:_nomad-task-2f5fb517-57d4-44ee-7780-dc1cb6e103cd-group-api-count-api-9001-sidecar-proxy:2
+//
+// Unless sidecar_service.disable_default_tcp_check is set, in which case the
+// default check is:
+//
+// service:_nomad-task-322616db-2680-35d8-0d10-b50a0a0aa4cd-group-api-count-api-9001-sidecar-proxy
+func maybeSidecarProxyCheck(id string) bool {
+	return sidecarProxyCheckRe.MatchString(id)
 }
 
 // getNomadSidecar returns the service registration of the sidecar for the managed

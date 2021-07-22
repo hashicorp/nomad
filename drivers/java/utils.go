@@ -50,6 +50,10 @@ func javaVersionInfo() (version, runtime, vm string, err error) {
 	return
 }
 
+var (
+	javaVersionRe = regexp.MustCompile(`([.\d_]+)`)
+)
+
 func parseJavaVersionOutput(infoString string) (version, runtime, vm string) {
 	infoString = strings.TrimSpace(infoString)
 
@@ -65,8 +69,7 @@ func parseJavaVersionOutput(infoString string) (version, runtime, vm string) {
 
 	versionString := strings.TrimSpace(lines[0])
 
-	re := regexp.MustCompile(`version "([^"]*)"`)
-	if match := re.FindStringSubmatch(lines[0]); len(match) == 2 {
+	if match := javaVersionRe.FindStringSubmatch(versionString); len(match) == 2 {
 		versionString = match[1]
 	}
 

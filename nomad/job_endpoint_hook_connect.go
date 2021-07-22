@@ -89,6 +89,14 @@ func connectGatewayVersionConstraint() *structs.Constraint {
 	}
 }
 
+func connectListenerConstraint() *structs.Constraint {
+	return &structs.Constraint{
+		LTarget: "${attr.consul.grpc}",
+		RTarget: "0",
+		Operand: ">",
+	}
+}
+
 // jobConnectHook implements a job Mutating and Validating admission controller
 type jobConnectHook struct{}
 
@@ -119,10 +127,8 @@ func (jobConnectHook) Validate(job *structs.Job) ([]error, error) {
 	var warnings []error
 
 	for _, g := range job.TaskGroups {
-		if w, err := groupConnectValidate(g); err != nil {
+		if err := groupConnectValidate(g); err != nil {
 			return nil, err
-		} else if w != nil {
-			warnings = append(warnings, w...)
 		}
 	}
 
@@ -140,19 +146,20 @@ func getSidecarTaskForService(tg *structs.TaskGroup, svc string) *structs.Task {
 	return nil
 }
 
-func isSidecarForService(t *structs.Task, svc string) bool {
-	return t.Kind == structs.NewTaskKind(structs.ConnectProxyPrefix, svc)
+func isSidecarForService(t *structs.Task, service string) bool {
+	return t.Kind == structs.NewTaskKind(structs.ConnectProxyPrefix, service)
 }
 
-func hasGatewayTaskForService(tg *structs.TaskGroup, svc string) bool {
+func hasGatewayTaskForService(tg *structs.TaskGroup, service string) bool {
 	for _, t := range tg.Tasks {
 		switch {
-		case isIngressGatewayForService(t, svc):
+		case isIngressGatewayForService(t, service):
 			return true
-		case isTerminatingGatewayForService(t, svc):
+		case isTerminatingGatewayForService(t, service):
+			return true
+		case isMeshGatewayForService(t, service):
 			return true
 		}
-		// mesh later
 	}
 	return false
 }
@@ -163,6 +170,10 @@ func isIngressGatewayForService(t *structs.Task, svc string) bool {
 
 func isTerminatingGatewayForService(t *structs.Task, svc string) bool {
 	return t.Kind == structs.NewTaskKind(structs.ConnectTerminatingPrefix, svc)
+}
+
+func isMeshGatewayForService(t *structs.Task, svc string) bool {
+	return t.Kind == structs.NewTaskKind(structs.ConnectMeshPrefix, svc)
 }
 
 // getNamedTaskForNativeService retrieves the Task with the name specified in the
@@ -202,8 +213,6 @@ func injectPort(group *structs.TaskGroup, label string) {
 	})
 }
 
-// probably need to hack this up to look for checks on the service, and if they
-// qualify, configure a port for envoy to use to expose their paths.
 func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 	// Create an environment interpolator with what we have at submission time.
 	// This should only be used to interpolate connect service names which are
@@ -251,7 +260,7 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 			// create a port for the sidecar task's proxy port
 			portLabel := service.Connect.SidecarService.Port
 			if portLabel == "" {
-				portLabel = fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, service.Name)
+				portLabel = envoy.PortLabel(structs.ConnectProxyPrefix, service.Name, "")
 			}
 			injectPort(g, portLabel)
 
@@ -286,9 +295,23 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 			// reasonable to keep the magic alive here.
 			if service.Connect.IsTerminating() && service.PortLabel == "" {
 				// Inject a dynamic port for the terminating gateway.
-				portLabel := fmt.Sprintf("%s-%s", structs.ConnectTerminatingPrefix, service.Name)
+				portLabel := envoy.PortLabel(structs.ConnectTerminatingPrefix, service.Name, "")
 				service.PortLabel = portLabel
 				injectPort(g, portLabel)
+			}
+
+			// A mesh Gateway will need 2 ports (lan and wan).
+			if service.Connect.IsMesh() {
+
+				// service port is used for mesh gateway wan address - it should
+				// come from a configured host_network to make sense
+				if service.PortLabel == "" {
+					return errors.New("service.port must be set for mesh gateway service")
+				}
+
+				// Inject a dynamic port for mesh gateway LAN address.
+				lanPortLabel := envoy.PortLabel(structs.ConnectMeshPrefix, service.Name, "lan")
+				injectPort(g, lanPortLabel)
 			}
 
 			// inject the gateway task only if it does not yet already exist
@@ -375,8 +398,20 @@ func gatewayProxyForBridge(gateway *structs.ConsulGateway) *structs.ConsulGatewa
 				Address: "0.0.0.0",
 				Port:    -1, // filled in later with dynamic port
 			}}
+	case gateway.Mesh != nil:
+		proxy.EnvoyGatewayNoDefaultBind = true
+		proxy.EnvoyGatewayBindTaggedAddresses = false
+		proxy.EnvoyGatewayBindAddresses = map[string]*structs.ConsulGatewayBindAddress{
+			"wan": {
+				Address: "0.0.0.0",
+				Port:    -1, // filled in later with configured port
+			},
+			"lan": {
+				Address: "0.0.0.0",
+				Port:    -1, // filled in later with generated port
+			},
+		}
 	}
-	// later: mesh
 
 	return proxy
 }
@@ -414,6 +449,7 @@ func newConnectGatewayTask(prefix, service string, netHost bool) *structs.Task {
 		Resources: connectSidecarResources(),
 		Constraints: structs.Constraints{
 			connectGatewayVersionConstraint(),
+			connectListenerConstraint(),
 		},
 	}
 }
@@ -437,28 +473,54 @@ func newConnectSidecarTask(service string) *structs.Task {
 		},
 		Constraints: structs.Constraints{
 			connectSidecarVersionConstraint(),
+			connectListenerConstraint(),
 		},
 	}
 }
 
-func groupConnectValidate(g *structs.TaskGroup) (warnings []error, err error) {
+func groupConnectValidate(g *structs.TaskGroup) error {
 	for _, s := range g.Services {
 		switch {
 		case s.Connect.HasSidecar():
 			if err := groupConnectSidecarValidate(g, s); err != nil {
-				return nil, err
+				return err
 			}
 		case s.Connect.IsNative():
 			if err := groupConnectNativeValidate(g, s); err != nil {
-				return nil, err
+				return err
 			}
 		case s.Connect.IsGateway():
 			if err := groupConnectGatewayValidate(g); err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
-	return nil, nil
+
+	if err := groupConnectUpstreamsValidate(g.Name, g.Services); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func groupConnectUpstreamsValidate(group string, services []*structs.Service) error {
+	listeners := make(map[string]string) // address -> service
+
+	for _, service := range services {
+		if service.Connect.HasSidecar() && service.Connect.SidecarService.Proxy != nil {
+			for _, up := range service.Connect.SidecarService.Proxy.Upstreams {
+				listener := fmt.Sprintf("%s:%d", up.LocalBindAddress, up.LocalBindPort)
+				if s, exists := listeners[listener]; exists {
+					return fmt.Errorf(
+						"Consul Connect services %q and %q in group %q using same address for upstreams (%s)",
+						service.Name, s, group, listener,
+					)
+				}
+				listeners[listener] = service.Name
+			}
+		}
+	}
+	return nil
 }
 
 func groupConnectSidecarValidate(g *structs.TaskGroup, s *structs.Service) error {

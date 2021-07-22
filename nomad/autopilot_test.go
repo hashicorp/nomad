@@ -151,7 +151,7 @@ func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 
 	// Join the servers to s1, and wait until they are all promoted to
 	// voters.
-	TestJoin(t, s1, servers[1:]...)
+	TestJoin(t, servers...)
 	retry.Run(t, func(r *retry.R) {
 		r.Check(wantRaft(servers))
 		for _, s := range servers {

@@ -7,6 +7,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -700,6 +701,11 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 			continue
 		}
 
+		// The alloc is on a node that's now in an ineligible DC
+		if !helper.SliceStringContains(job.Datacenters, node.Datacenter) {
+			continue
+		}
+
 		// Set the existing node as the base set
 		stack.SetNodes([]*structs.Node{node})
 
@@ -980,6 +986,11 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 			return true, false, nil
 		}
 		if node == nil {
+			return false, true, nil
+		}
+
+		// The alloc is on a node that's now in an ineligible DC
+		if !helper.SliceStringContains(newJob.Datacenters, node.Datacenter) {
 			return false, true, nil
 		}
 

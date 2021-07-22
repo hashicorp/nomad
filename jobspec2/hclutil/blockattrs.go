@@ -2,7 +2,6 @@ package hclutil
 
 import (
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcls "github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
@@ -133,7 +132,7 @@ func expandBlocks(blocks hcl.Blocks) hcl.Blocks {
 }
 
 func blocksByType(blocks hcls.Blocks) map[string]hcls.Blocks {
-	r := map[string]hclsyntax.Blocks{}
+	r := map[string]hcls.Blocks{}
 	for _, b := range blocks {
 		r[b.Type] = append(r[b.Type], b)
 	}

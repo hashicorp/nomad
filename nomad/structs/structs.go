@@ -385,6 +385,9 @@ type WriteRequest struct {
 	// AuthToken is secret portion of the ACL token used for the request
 	AuthToken string
 
+	// IdempotencyToken can be used to ensure the write is idempotent.
+	IdempotencyToken string
+
 	InternalRpcInfo
 }
 
@@ -4016,6 +4019,10 @@ type Job struct {
 	// parameterized job.
 	Dispatched bool
 
+	// DispatchIdempotencyToken is optionally used to ensure that a dispatched job does not have any
+	// non-terminal siblings which have the same token value.
+	DispatchIdempotencyToken string
+
 	// Payload is the payload supplied when the job was dispatched.
 	Payload []byte
 
@@ -6331,13 +6338,11 @@ func (tg *TaskGroup) validateNetworks() error {
 	return mErr.ErrorOrNil()
 }
 
-// validateServices runs Service.Validate() on group-level services,
-// checks that group services do not conflict with task services and that
+// validateServices runs Service.Validate() on group-level services, checks
 // group service checks that refer to tasks only refer to tasks that exist.
 func (tg *TaskGroup) validateServices() error {
 	var mErr multierror.Error
 	knownTasks := make(map[string]struct{})
-	knownServices := make(map[string]struct{})
 
 	// Create a map of known tasks and their services so we can compare
 	// vs the group-level services and checks
@@ -6347,15 +6352,11 @@ func (tg *TaskGroup) validateServices() error {
 			continue
 		}
 		for _, service := range task.Services {
-			if _, ok := knownServices[service.Name+service.PortLabel]; ok {
-				mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is duplicate", service.Name))
-			}
 			for _, check := range service.Checks {
 				if check.TaskName != "" {
 					mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s is invalid: only task group service checks can be assigned tasks", check.Name))
 				}
 			}
-			knownServices[service.Name+service.PortLabel] = struct{}{}
 		}
 	}
 	for i, service := range tg.Services {
@@ -6370,10 +6371,7 @@ func (tg *TaskGroup) validateServices() error {
 		if service.AddressMode == AddressModeDriver {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q cannot use address_mode=\"driver\", only services defined in a \"task\" block can use this mode", service.Name))
 		}
-		if _, ok := knownServices[service.Name+service.PortLabel]; ok {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is duplicate", service.Name))
-		}
-		knownServices[service.Name+service.PortLabel] = struct{}{}
+
 		for _, check := range service.Checks {
 			if check.TaskName != "" {
 				if check.Type != ServiceCheckScript && check.Type != ServiceCheckGRPC {
@@ -7209,19 +7207,30 @@ func (k TaskKind) IsConnectNative() bool {
 	return k.hasPrefix(ConnectNativePrefix)
 }
 
+// IsConnectIngress returns true if the TaskKind is connect-ingress.
 func (k TaskKind) IsConnectIngress() bool {
 	return k.hasPrefix(ConnectIngressPrefix)
 }
 
+// IsConnectTerminating returns true if the TaskKind is connect-terminating.
 func (k TaskKind) IsConnectTerminating() bool {
 	return k.hasPrefix(ConnectTerminatingPrefix)
 }
 
+// IsConnectMesh returns true if the TaskKind is connect-mesh.
+func (k TaskKind) IsConnectMesh() bool {
+	return k.hasPrefix(ConnectMeshPrefix)
+}
+
+// IsAnyConnectGateway returns true if the TaskKind represents any one of the
+// supported connect gateway types.
 func (k TaskKind) IsAnyConnectGateway() bool {
 	switch {
 	case k.IsConnectIngress():
 		return true
 	case k.IsConnectTerminating():
+		return true
+	case k.IsConnectMesh():
 		return true
 	default:
 		return false
@@ -7243,14 +7252,11 @@ const (
 
 	// ConnectTerminatingPrefix is the prefix used for fields referencing a Consul
 	// Connect Terminating Gateway Proxy.
-	//
 	ConnectTerminatingPrefix = "connect-terminating"
 
 	// ConnectMeshPrefix is the prefix used for fields referencing a Consul Connect
 	// Mesh Gateway Proxy.
-	//
-	// Not yet supported.
-	// ConnectMeshPrefix = "connect-mesh"
+	ConnectMeshPrefix = "connect-mesh"
 )
 
 // ValidateConnectProxyService checks that the service that is being
@@ -8234,15 +8240,14 @@ const (
 	ConstraintAttributeIsNotSet = "is_not_set"
 )
 
-// Constraints are used to restrict placement options.
+// A Constraint is used to restrict placement options.
 type Constraint struct {
 	LTarget string // Left-hand target
 	RTarget string // Right-hand target
 	Operand string // Constraint operand (<=, <, =, !=, >, >=), contains, near
-	str     string // Memoized string
 }
 
-// Equal checks if two constraints are equal
+// Equals checks if two constraints are equal.
 func (c *Constraint) Equals(o *Constraint) bool {
 	return c == o ||
 		c.LTarget == o.LTarget &&
@@ -8250,6 +8255,7 @@ func (c *Constraint) Equals(o *Constraint) bool {
 			c.Operand == o.Operand
 }
 
+// Equal is like Equals but with one less s.
 func (c *Constraint) Equal(o *Constraint) bool {
 	return c.Equals(o)
 }
@@ -8258,17 +8264,15 @@ func (c *Constraint) Copy() *Constraint {
 	if c == nil {
 		return nil
 	}
-	nc := new(Constraint)
-	*nc = *c
-	return nc
+	return &Constraint{
+		LTarget: c.LTarget,
+		RTarget: c.RTarget,
+		Operand: c.Operand,
+	}
 }
 
 func (c *Constraint) String() string {
-	if c.str != "" {
-		return c.str
-	}
-	c.str = fmt.Sprintf("%s %s %s", c.LTarget, c.Operand, c.RTarget)
-	return c.str
+	return fmt.Sprintf("%s %s %s", c.LTarget, c.Operand, c.RTarget)
 }
 
 func (c *Constraint) Validate() error {
@@ -8362,10 +8366,9 @@ type Affinity struct {
 	RTarget string // Right-hand target
 	Operand string // Affinity operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
 	Weight  int8   // Weight applied to nodes that match the affinity. Can be negative
-	str     string // Memoized string
 }
 
-// Equal checks if two affinities are equal
+// Equals checks if two affinities are equal.
 func (a *Affinity) Equals(o *Affinity) bool {
 	return a == o ||
 		a.LTarget == o.LTarget &&
@@ -8382,17 +8385,16 @@ func (a *Affinity) Copy() *Affinity {
 	if a == nil {
 		return nil
 	}
-	na := new(Affinity)
-	*na = *a
-	return na
+	return &Affinity{
+		LTarget: a.LTarget,
+		RTarget: a.RTarget,
+		Operand: a.Operand,
+		Weight:  a.Weight,
+	}
 }
 
 func (a *Affinity) String() string {
-	if a.str != "" {
-		return a.str
-	}
-	a.str = fmt.Sprintf("%s %s %s %v", a.LTarget, a.Operand, a.RTarget, a.Weight)
-	return a.str
+	return fmt.Sprintf("%s %s %s %v", a.LTarget, a.Operand, a.RTarget, a.Weight)
 }
 
 func (a *Affinity) Validate() error {
@@ -10539,6 +10541,67 @@ type Plan struct {
 	// Plan. The leader will wait to evaluate the plan until its StateStore
 	// has reached at least this index.
 	SnapshotIndex uint64
+}
+
+func (p *Plan) GoString() string {
+	out := fmt.Sprintf("(eval %s", p.EvalID[:8])
+	out += fmt.Sprintf(", job %s", p.Job.ID)
+	if p.Deployment != nil {
+		out += fmt.Sprintf(", deploy %s", p.Deployment.ID[:8])
+	}
+	if len(p.NodeUpdate) > 0 {
+		out += ", NodeUpdates: "
+		for node, allocs := range p.NodeUpdate {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s stop/evict)", alloc.ID[:8])
+			}
+			out += ")"
+		}
+	}
+	if len(p.NodeAllocation) > 0 {
+		out += ", NodeAllocations: "
+		for node, allocs := range p.NodeAllocation {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s %s %s)",
+					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
+				)
+			}
+			out += ")"
+		}
+	}
+	if len(p.NodePreemptions) > 0 {
+		out += ", NodePreemptions: "
+		for node, allocs := range p.NodePreemptions {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s %s %s)",
+					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
+				)
+			}
+			out += ")"
+		}
+	}
+	if len(p.DeploymentUpdates) > 0 {
+		out += ", DeploymentUpdates: "
+		for _, dupdate := range p.DeploymentUpdates {
+			out += fmt.Sprintf("(%s %s)",
+				dupdate.DeploymentID[:8], dupdate.Status)
+		}
+	}
+	if p.Annotations != nil {
+		out += ", Annotations: "
+		for tg, updates := range p.Annotations.DesiredTGUpdates {
+			out += fmt.Sprintf("(update[%s] %v)", tg, updates)
+		}
+		for _, preempted := range p.Annotations.PreemptedAllocs {
+			out += fmt.Sprintf("(preempt %s)", preempted.ID[:8])
+		}
+	}
+
+	out += ")"
+	return out
 }
 
 // AppendStoppedAlloc marks an allocation to be stopped. The clientStatus of the

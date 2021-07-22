@@ -1,0 +1,3 @@
+```release-note:bug
+consul: remove ineffective edge case handling on service deregistration
+```

@@ -45,6 +45,8 @@ message LaunchRequest {
     string default_pid_mode = 15;
     string default_ipc_mode = 16;
     string cpuset_cgroup = 17;
+    repeated string allow_caps = 18;
+    repeated string capabilities = 19;
 }
 
 message LaunchResponse {

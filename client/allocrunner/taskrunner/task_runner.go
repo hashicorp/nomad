@@ -1136,10 +1136,9 @@ func (tr *TaskRunner) restoreHandle(taskHandle *drivers.TaskHandle, net *drivers
 					"error", err, "task_id", taskHandle.Config.ID)
 			}
 
-			return false
 		}
 
-		return true
+		return false
 	}
 
 	// Update driver handle on task runner

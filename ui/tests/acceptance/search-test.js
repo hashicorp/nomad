@@ -171,9 +171,7 @@ module('Acceptance | search', function(hooks) {
 
     assert.notOk(Layout.navbar.search.field.isPresent);
 
-    await triggerEvent('.page-layout', 'keydown', {
-      keyCode: 191, // slash
-    });
+    await triggerEvent('.page-layout', 'keydown', { key: '/' });
 
     assert.ok(Layout.navbar.search.field.isPresent);
   });
@@ -187,7 +185,7 @@ module('Acceptance | search', function(hooks) {
     assert.notOk(Layout.navbar.search.field.isPresent);
 
     await JobsList.search.click();
-    await JobsList.search.keydown({ keyCode: 191 });
+    await JobsList.search.keydown({ key: '/' });
 
     assert.notOk(Layout.navbar.search.field.isPresent);
   });

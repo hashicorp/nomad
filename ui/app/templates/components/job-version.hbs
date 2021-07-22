@@ -10,7 +10,7 @@
   </span>
   <div class="pull-right">
     {{#unless this.isCurrent}}
-      {{#if (can "run job")}}
+      {{#if (can "run job" namespace=this.version.job.namespace)}}
         <TwoStepButton
           data-test-revert-to
           @classes={{hash

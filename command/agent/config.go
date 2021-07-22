@@ -516,6 +516,10 @@ type ServerConfig struct {
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 
 	Search *Search `hcl:"search"`
+
+	// DeploymentQueryRateLimit is in queries per second and is used by the
+	// DeploymentWatcher to throttle the amount of simultaneously deployments
+	DeploymentQueryRateLimit float64 `hcl:"deploy_query_rate_limit"`
 }
 
 // Search is used in servers to configure search API options.
@@ -931,6 +935,8 @@ func DefaultConfig() *Config {
 				DisableSandbox:   false,
 			},
 			BindWildcardDefaultHostNetwork: true,
+			CNIPath:                        "/opt/cni/bin",
+			CNIConfigDir:                   "/opt/cni/config",
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
@@ -1520,6 +1526,10 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.DefaultSchedulerConfig != nil {
 		c := *b.DefaultSchedulerConfig
 		result.DefaultSchedulerConfig = &c
+	}
+
+	if b.DeploymentQueryRateLimit != 0 {
+		result.DeploymentQueryRateLimit = b.DeploymentQueryRateLimit
 	}
 
 	if b.Search != nil {

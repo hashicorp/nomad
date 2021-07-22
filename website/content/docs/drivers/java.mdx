@@ -61,6 +61,27 @@ be able to access sensitive process information like environment variables.
 !> **Warning:** If set to `"host"`, other processes running as the same user will be
 able to make use of IPC features, like sending unexpected POSIX signals.
 
+- `cap_add` - (Optional) A list of Linux capabilities to enable for the task.
+  Effective capabilities (computed from `cap_add` and `cap_drop`) must be a subset
+  of the allowed capabilities configured with [`allow_caps`][allow_caps].
+
+```hcl
+config {
+  cap_add = ["net_raw", "sys_time"]
+}
+```
+
+- `cap_drop` - (Optional) A list of Linux capabilities to disable for the task.
+  Effective capabilities (computed from `cap_add` and `cap_drop`) must be a subset
+  of the allowed capabilities configured with [`allow_caps`][allow_caps].
+
+```hcl
+config {
+  cap_drop = ["all"]
+  cap_add  = ["chown", "sys_chroot", "mknod"]
+}
+```
+
 ## Examples
 
 A simple config block to run a Java Jar:
@@ -138,6 +159,23 @@ be able to access sensitive process information like environment variables.
 !> **Warning:** If set to `"host"`, other processes running as the same user will be
 able to make use of IPC features, like sending unexpected POSIX signals.
 
+- `allow_caps` - A list of allowed Linux capabilities. Defaults to
+
+```hcl
+["audit_write", "chown", "dac_override", "fowner", "fsetid", "kill", "mknod",
+ "net_bind_service", "setfcap", "setgid", "setpcap", "setuid", "sys_chroot"]
+```
+
+  which is modeled after the capabilities allowed by [docker by default][docker_caps]
+  (without [`NET_RAW`][no_net_raw]). Allows the operator to control which capabilities
+  can be obtained by tasks using [`cap_add`][cap_add] and [`cap_drop`][cap_drop] options.
+  Supports the value `"all"` as a shortcut for allow-listing all capabilities supported
+  by the operating system.
+
+!> **Warning:** Allowing more capabilities beyond the default may lead to
+undesirable consequences, including untrusted tasks being able to compromise the
+host system.
+
 ## Client Requirements
 
 The `java` driver requires Java to be installed and in your system's `$PATH`. On
@@ -208,3 +246,8 @@ This list is configurable through the agent client
 
 [default_pid_mode]: /docs/drivers/java#default_pid_mode
 [default_ipc_mode]: /docs/drivers/java#default_ipc_mode
+[cap_add]: /docs/drivers/java#cap_add
+[cap_drop]: /docs/drivers/java#cap_drop
+[no_net_raw]: /docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+[allow_caps]: /docs/drivers/java#allow_caps
+[docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities

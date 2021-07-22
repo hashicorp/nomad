@@ -38,6 +38,16 @@ export default create({
     tooltipText: attribute('aria-label'),
   },
 
+  incrementButton: {
+    scope: '[data-test-scale-controls-increment]',
+    isDisabled: property('disabled'),
+  },
+
+  dispatchButton: {
+    scope: '[data-test-dispatch-button]',
+    isDisabled: property('disabled'),
+  },
+
   stats: collection('[data-test-job-stat]', {
     id: attribute('data-test-job-stat'),
     text: text(),

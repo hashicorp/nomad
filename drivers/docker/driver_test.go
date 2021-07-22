@@ -1395,7 +1395,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 		},
 		{
 			Name:    "default-allowlist-drop-existing",
-			CapDrop: []string{"fowner", "mknod"},
+			CapDrop: []string{"fowner", "mknod", "net_raw"},
 		},
 		{
 			Name:      "restrictive-allowlist-drop-all",
@@ -1406,7 +1406,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 			Name:      "restrictive-allowlist-add-allowed",
 			CapAdd:    []string{"fowner", "mknod"},
 			CapDrop:   []string{"all"},
-			Allowlist: "fowner,mknod",
+			Allowlist: "mknod,fowner",
 		},
 		{
 			Name:       "restrictive-allowlist-add-forbidden",
@@ -1417,7 +1417,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 		},
 		{
 			Name:      "permissive-allowlist",
-			CapAdd:    []string{"net_admin", "mknod"},
+			CapAdd:    []string{"mknod", "net_admin"},
 			Allowlist: "all",
 		},
 		{
@@ -3032,7 +3032,7 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
 
-			stopErr := make(chan error)
+			stopErr := make(chan error, 1)
 			go func() {
 				err := d.StopTask(task.ID, 1*time.Second, c.jobKillSignal)
 				stopErr <- err
@@ -3054,8 +3054,7 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 						}
 					}
 				case err := <-stopErr:
-					t.Errorf("stop task failed: %v", err)
-					break WAIT
+					require.NoError(t, err, "stop task failed")
 				case <-timeout:
 					// timeout waiting for signals
 					require.Equal(t, c.expectedSignals, receivedSignals, "timed out waiting for expected signals")

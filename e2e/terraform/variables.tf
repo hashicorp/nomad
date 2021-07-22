@@ -54,12 +54,18 @@ variable "profile" {
   default     = ""
 }
 
+variable "restrict_ingress_cidrblock" {
+  description = "Restrict ingress traffic to cluster to invoker ip address"
+  type        = bool
+  default     = true
+}
+
 # ----------------------------------------
 # The specific version of Nomad deployed will default to whichever one of
 # nomad_sha, nomad_version, or nomad_local_binary is set
 
 variable "nomad_sha" {
-  description = "The sha of Nomad to provision"
+  description = "The sha of Nomad to provision; only used for automated nightly testing"
   default     = ""
 }
 
@@ -70,6 +76,11 @@ variable "nomad_version" {
 
 variable "nomad_local_binary" {
   description = "The path to a local binary to provision"
+  default     = ""
+}
+
+variable "nomad_url" {
+  description = "the URL to Nomad binary archives e.g. CircleCI artifacts"
   default     = ""
 }
 
@@ -121,7 +132,13 @@ variable "nomad_sha_server" {
 }
 
 variable "nomad_local_binary_server" {
-  description = "A list of Nomad SHAs to deploy to servers, to override nomad_sha"
+  description = "A list of nomad local binary paths to deploy to servers, to override nomad_local_binary"
+  type        = list(string)
+  default     = []
+}
+
+variable "nomad_url_server" {
+  description = "A list of Nomad binary archive URLs to deploy to servers, to override nomad_url"
   type        = list(string)
   default     = []
 }
@@ -139,7 +156,13 @@ variable "nomad_sha_client_ubuntu_bionic_amd64" {
 }
 
 variable "nomad_local_binary_client_ubuntu_bionic_amd64" {
-  description = "A list of Nomad SHAs to deploy to Ubuntu Bionic clients, to override nomad_sha"
+  description = "A list of nomad local binary paths to deploy to Ubuntu Bionic clients, to override nomad_local_binary"
+  type        = list(string)
+  default     = []
+}
+
+variable "nomad_url_client_ubuntu_bionic_amd64" {
+  description = "A list of Nomad binary archive URLs to deploy to Ubuntu Bionic clients, to override nomad_url"
   type        = list(string)
   default     = []
 }
@@ -157,7 +180,13 @@ variable "nomad_sha_client_windows_2016_amd64" {
 }
 
 variable "nomad_local_binary_client_windows_2016_amd64" {
-  description = "A list of Nomad SHAs to deploy to Windows 2016 clients, to override nomad_sha"
+  description = "A list of nomad local binary paths to deploy to Windows 2016 clients, to override nomad_local_binary"
+  type        = list(string)
+  default     = []
+}
+
+variable "nomad_url_client_windows_2016_amd64" {
+  description = "A list of Nomad binary archive URLs to deploy to Windows 2016 clients, to override nomad_url"
   type        = list(string)
   default     = []
 }

@@ -168,14 +168,19 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 	return nil, nil
 }
 
-func TestJoin(t testing.T, s1 *Server, other ...*Server) {
-	addr := fmt.Sprintf("127.0.0.1:%d",
-		s1.config.SerfConfig.MemberlistConfig.BindPort)
-	for _, s2 := range other {
-		if num, err := s2.Join([]string{addr}); err != nil {
-			t.Fatalf("err: %v", err)
-		} else if num != 1 {
-			t.Fatalf("bad: %d", num)
+func TestJoin(t testing.T, servers ...*Server) {
+	for i := 0; i < len(servers)-1; i++ {
+		addr := fmt.Sprintf("127.0.0.1:%d",
+			servers[i].config.SerfConfig.MemberlistConfig.BindPort)
+
+		for j := i + 1; j < len(servers); j++ {
+			num, err := servers[j].Join([]string{addr})
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+			if num != 1 {
+				t.Fatalf("bad: %d", num)
+			}
 		}
 	}
 }

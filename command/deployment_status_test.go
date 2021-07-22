@@ -39,6 +39,15 @@ func TestDeploymentStatusCommand_Fails(t *testing.T) {
 	// "deployments" indicates that we attempted to list all deployments
 	require.Contains(t, out, "Error retrieving deployments")
 	ui.ErrorWriter.Reset()
+
+	// Fails if monitor passed with json or tmpl flags
+	for _, flag := range []string{"-json", "-t"} {
+		code = cmd.Run([]string{"-monitor", flag, "12"})
+		require.Equal(t, 1, code)
+		out = ui.ErrorWriter.String()
+		require.Contains(t, out, "The monitor flag cannot be used with the '-json' or '-t' flags")
+		ui.ErrorWriter.Reset()
+	}
 }
 
 func TestDeploymentStatusCommand_AutocompleteArgs(t *testing.T) {

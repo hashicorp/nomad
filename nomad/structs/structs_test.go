@@ -278,6 +278,18 @@ func TestJob_SpecChanged(t *testing.T) {
 			Original: base,
 			New:      change,
 		},
+		{
+			Name:     "With Constraints",
+			Changed:  false,
+			Original: &Job{Constraints: []*Constraint{{"A", "B", "="}}},
+			New:      &Job{Constraints: []*Constraint{{"A", "B", "="}}},
+		},
+		{
+			Name:     "With Affinities",
+			Changed:  false,
+			Original: &Job{Affinities: []*Affinity{{"A", "B", "=", 1}}},
+			New:      &Job{Affinities: []*Affinity{{"A", "B", "=", 1}}},
+		},
 	}
 
 	for _, c := range cases {
@@ -797,25 +809,25 @@ func TestJob_PartEqual(t *testing.T) {
 	}))
 
 	cs := &Constraints{
-		&Constraint{"left0", "right0", "=", ""},
-		&Constraint{"left1", "right1", "=", ""},
-		&Constraint{"left2", "right2", "=", ""},
+		&Constraint{"left0", "right0", "="},
+		&Constraint{"left1", "right1", "="},
+		&Constraint{"left2", "right2", "="},
 	}
 	require.True(t, cs.Equals(&Constraints{
-		&Constraint{"left0", "right0", "=", ""},
-		&Constraint{"left2", "right2", "=", ""},
-		&Constraint{"left1", "right1", "=", ""},
+		&Constraint{"left0", "right0", "="},
+		&Constraint{"left2", "right2", "="},
+		&Constraint{"left1", "right1", "="},
 	}))
 
 	as := &Affinities{
-		&Affinity{"left0", "right0", "=", 0, ""},
-		&Affinity{"left1", "right1", "=", 0, ""},
-		&Affinity{"left2", "right2", "=", 0, ""},
+		&Affinity{"left0", "right0", "=", 0},
+		&Affinity{"left1", "right1", "=", 0},
+		&Affinity{"left2", "right2", "=", 0},
 	}
 	require.True(t, as.Equals(&Affinities{
-		&Affinity{"left0", "right0", "=", 0, ""},
-		&Affinity{"left2", "right2", "=", 0, ""},
-		&Affinity{"left1", "right1", "=", 0, ""},
+		&Affinity{"left0", "right0", "=", 0},
+		&Affinity{"left2", "right2", "=", 0},
+		&Affinity{"left1", "right1", "=", 0},
 	}))
 }
 
@@ -1127,6 +1139,8 @@ func TestTaskGroup_Validate(t *testing.T) {
 	err = tg.Validate(&Job{})
 	require.Contains(t, err.Error(), `volume has an empty source`)
 	require.Contains(t, err.Error(), `volume cannot be per_alloc when canaries are in use`)
+	require.Contains(t, err.Error(), `CSI volumes must have an attachment mode`)
+	require.Contains(t, err.Error(), `CSI volumes must have an access mode`)
 
 	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{

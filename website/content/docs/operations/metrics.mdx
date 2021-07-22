@@ -231,24 +231,24 @@ those listed in [Key Metrics](#key-metrics) above.
 | Metric                                               | Description                                                       | Unit                 | Type    | Labels                       |
 | ---------------------------------------------------- | ----------------------------------------------------------------- | -------------------- | ------- | ---------------------------- |
 | `nomad.memberlist.gossip`                            | Time elapsed to broadcast gossip messages                         | Nanoseconds          | Summary | host                         |
-| `nomad.nomad.acl.bootstrap`                          | Time elapsed for `ACL.Bootstrap` RPC call                         | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.acl.delete_policies`                    | Time elapsed for `ACL.DeletePolicies` RPC call                    | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.acl.delete_tokens`                      | Time elapsed for `ACL.DeleteTokens` RPC call                      | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.acl.get_policies`                       | Time elapsed for `ACL.GetPolicies` RPC call                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.acl.get_policy`                         | Time elapsed for `ACL.GetPolicy` RPC call                         | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.acl.get_token`                          | Time elapsed for `ACL.GetToken` RPC call                          | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.acl.get_tokens`                         | Time elapsed for `ACL.GetTokens` RPC call                         | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.acl.list_policies`                      | Time elapsed for `ACL.ListPolicies` RPC call                      | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.acl.list_tokens`                        | Time elapsed for `ACL.ListTokens` RPC call                        | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.acl.resolve_token`                      | Time elapsed for `ACL.ResolveToken` RPC call                      | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.acl.upsert_policies`                    | Time elapsed for `ACL.UpsertPolicies` RPC call                    | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.acl.upsert_tokens`                      | Time elapsed for `ACL.UpsertTokens` RPC call                      | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.alloc.exec`                             | Time elapsed to establish alloc exec                              | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.alloc.get_alloc`                        | Time elapsed for `Alloc.GetAlloc` RPC call                        | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.alloc.get_allocs`                       | Time elapsed for `Alloc.GetAllocs` RPC call                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.alloc.list`                             | Time elapsed for `Alloc.List` RPC call                            | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.alloc.stop`                             | Time elapsed for `Alloc.Stop` RPC call                            | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.alloc.update_desired_transition`        | Time elapsed for `Alloc.UpdateDesiredTransition` RPC call         | Nanoseconds          | Summary | Host                         |
+| `nomad.nomad.acl.bootstrap`                          | Time elapsed for `ACL.Bootstrap` RPC call                         | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.acl.delete_policies`                    | Time elapsed for `ACL.DeletePolicies` RPC call                    | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.acl.delete_tokens`                      | Time elapsed for `ACL.DeleteTokens` RPC call                      | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.acl.get_policies`                       | Time elapsed for `ACL.GetPolicies` RPC call                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.acl.get_policy`                         | Time elapsed for `ACL.GetPolicy` RPC call                         | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.acl.get_token`                          | Time elapsed for `ACL.GetToken` RPC call                          | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.acl.get_tokens`                         | Time elapsed for `ACL.GetTokens` RPC call                         | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.acl.list_policies`                      | Time elapsed for `ACL.ListPolicies` RPC call                      | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.acl.list_tokens`                        | Time elapsed for `ACL.ListTokens` RPC call                        | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.acl.resolve_token`                      | Time elapsed for `ACL.ResolveToken` RPC call                      | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.acl.upsert_policies`                    | Time elapsed for `ACL.UpsertPolicies` RPC call                    | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.acl.upsert_tokens`                      | Time elapsed for `ACL.UpsertTokens` RPC call                      | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.alloc.exec`                             | Time elapsed to establish alloc exec                              | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.alloc.get_alloc`                        | Time elapsed for `Alloc.GetAlloc` RPC call                        | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.alloc.get_allocs`                       | Time elapsed for `Alloc.GetAllocs` RPC call                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.alloc.list`                             | Time elapsed for `Alloc.List` RPC call                            | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.alloc.stop`                             | Time elapsed for `Alloc.Stop` RPC call                            | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.alloc.update_desired_transition`        | Time elapsed for `Alloc.UpdateDesiredTransition` RPC call         | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.blocked_evals.cpu`                      | Amount of CPU shares requested by blocked evals                   | Integer              | Gauge   | datacenter, host, node_class |
 | `nomad.nomad.blocked_evals.memory`                   | Amount of memory requested by blocked evals                       | Integer              | Gauge   | datacenter, host, node_class |
 | `nomad.nomad.blocked_evals.job.cpu`                  | Amount of CPU shares requested by blocked evals of a job          | Integer              | Gauge   | host, job, namespace         |
@@ -264,138 +264,138 @@ those listed in [Key Metrics](#key-metrics) above.
 | `nomad.nomad.broker.system_unacked`                  | Count of unacknowledged system evals                              | Integer              | Gauge   | host                         |
 | `nomad.nomad.broker.total_ready`                     | Count of evals in the ready state                                 | Integer              | Gauge   | host                         |
 | `nomad.nomad.broker.total_waiting`                   | Count of evals in the waiting state                               | Integer              | Gauge   | host                         |
-| `nomad.nomad.client.batch_deregister`                | Time elapsed for `Node.BatchDeregister` RPC call                  | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.deregister`                      | Time elapsed for `Node.Deregister` RPC call                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.derive_si_token`                 | Time elapsed for `Node.DeriveSIToken` RPC call                    | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.derive_vault_token`              | Time elapsed for `Node.DeriveVaultToken` RPC call                 | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.emit_events`                     | Time elapsed for `Node.EmitEvents` RPC call                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.evaluate`                        | Time elapsed for `Node.Evaluate` RPC call                         | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.get_allocs`                      | Time elapsed for `Node.GetAllocs` RPC call                        | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.get_client_allocs`               | Time elapsed for `Node.GetClientAllocs` RPC call                  | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.get_node`                        | Time elapsed for `Node.GetNode` RPC call                          | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.list`                            | Time elapsed for `Node.List` RPC call                             | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.register`                        | Time elapsed for `Node.Register` RPC call                         | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.stats`                           | Time elapsed for `Client.Stats` RPC call                          | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.update_alloc`                    | Time elapsed for `Node.UpdateAlloc` RPC call                      | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.update_drain`                    | Time elapsed for `Node.UpdateDrain` RPC call                      | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.update_eligibility`              | Time elapsed for `Node.UpdateEligibility` RPC call                | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client.update_status`                   | Time elapsed for `Node.UpdateStatus` RPC call                     | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client_allocations.garbage_collect_all` | Time elapsed for `ClientAllocations.GarbageCollectAll` RPC call   | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client_allocations.garbage_collect`     | Time elapsed for `ClientAllocations.GarbageCollect` RPC call      | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client_allocations.restart`             | Time elapsed for `ClientAllocations.Restart` RPC call             | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client_allocations.signal`              | Time elapsed for `ClientAllocations.Signal` RPC call              | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client_allocations.stats`               | Time elapsed for `ClientAllocations.Stats` RPC call               | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client_csi_controller.attach_volume`    | Time elapsed for `Controller.AttachVolume` RPC call               | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client_csi_controller.detach_volume`    | Time elapsed for `Controller.DetachVolume` RPC call               | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client_csi_controller.validate_volume`  | Time elapsed for `Controller.ValidateVolume` RPC call             | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.client_csi_node.detach_volume`          | Time elapsed for `Node.DetachVolume` RPC call                     | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.deployment.allocations`                 | Time elapsed for `Deployment.Allocations` RPC call                | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.deployment.cancel`                      | Time elapsed for `Deployment.Cancel` RPC call                     | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.deployment.fail`                        | Time elapsed for `Deployment.Fail` RPC call                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.deployment.get_deployment`              | Time elapsed for `Deployment.GetDeployment` RPC call              | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.deployment.list`                        | Time elapsed for `Deployment.List` RPC call                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.deployment.pause`                       | Time elapsed for `Deployment.Pause` RPC call                      | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.deployment.promote`                     | Time elapsed for `Deployment.Promote` RPC call                    | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.deployment.reap`                        | Time elapsed for `Deployment.Reap` RPC call                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.deployment.run`                         | Time elapsed for `Deployment.Run` RPC call                        | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.deployment.set_alloc_health`            | Time elapsed for `Deployment.SetAllocHealth` RPC call             | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.deployment.unblock`                     | Time elapsed for `Deployment.Unblock` RPC call                    | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.eval.ack`                               | Time elapsed for `Eval.Ack` RPC call                              | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.eval.allocations`                       | Time elapsed for `Eval.Allocations` RPC call                      | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.eval.create`                            | Time elapsed for `Eval.Create` RPC call                           | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.eval.dequeue`                           | Time elapsed for `Eval.Dequeue` RPC call                          | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.eval.get_eval`                          | Time elapsed for `Eval.GetEval` RPC call                          | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.eval.list`                              | Time elapsed for `Eval.List` RPC call                             | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.eval.nack`                              | Time elapsed for `Eval.Nack` RPC call                             | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.eval.reap`                              | Time elapsed for `Eval.Reap` RPC call                             | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.eval.reblock`                           | Time elapsed for `Eval.Reblock` RPC call                          | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.eval.update`                            | Time elapsed for `Eval.Update` RPC call                           | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.file_system.list`                       | Time elapsed for `FileSystem.List` RPC call                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.file_system.logs`                       | Time elapsed to establish `FileSystem.Logs` RPC                   | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.file_system.stat`                       | Time elapsed for `FileSystem.Stat` RPC call                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.file_system.stream`                     | Time elapsed to establish `FileSystem.Stream` RPC                 | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.alloc_client_update`                | Time elapsed to apply `AllocClientUpdate` raft entry              | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.alloc_update_desired_transition`    | Time elapsed to apply `AllocUpdateDesiredTransition` raft entry   | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.alloc_update`                       | Time elapsed to apply `AllocUpdate` raft entry                    | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_acl_policy_delete`            | Time elapsed to apply `ApplyACLPolicyDelete` raft entry           | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_acl_policy_upsert`            | Time elapsed to apply `ApplyACLPolicyUpsert` raft entry           | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_acl_token_bootstrap`          | Time elapsed to apply `ApplyACLTokenBootstrap` raft entry         | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_acl_token_delete`             | Time elapsed to apply `ApplyACLTokenDelete` raft entry            | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_acl_token_upsert`             | Time elapsed to apply `ApplyACLTokenUpsert` raft entry            | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_csi_plugin_delete`            | Time elapsed to apply `ApplyCSIPluginDelete` raft entry           | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_csi_volume_batch_claim`       | Time elapsed to apply `ApplyCSIVolumeBatchClaim` raft entry       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_csi_volume_claim`             | Time elapsed to apply `ApplyCSIVolumeClaim` raft entry            | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_csi_volume_deregister`        | Time elapsed to apply `ApplyCSIVolumeDeregister` raft entry       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_csi_volume_register`          | Time elapsed to apply `ApplyCSIVolumeRegister` raft entry         | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_deployment_alloc_health`      | Time elapsed to apply `ApplyDeploymentAllocHealth` raft entry     | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_deployment_delete`            | Time elapsed to apply `ApplyDeploymentDelete` raft entry          | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_deployment_promotion`         | Time elapsed to apply `ApplyDeploymentPromotion` raft entry       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_deployment_status_update`     | Time elapsed to apply `ApplyDeploymentStatusUpdate` raft entry    | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_job_stability`                | Time elapsed to apply `ApplyJobStability` raft entry              | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_namespace_delete`             | Time elapsed to apply `ApplyNamespaceDelete` raft entry           | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_namespace_upsert`             | Time elapsed to apply `ApplyNamespaceUpsert` raft entry           | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_plan_results`                 | Time elapsed to apply `ApplyPlanResults` raft entry               | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.apply_scheduler_config`             | Time elapsed to apply `ApplySchedulerConfig` raft entry           | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.autopilot`                          | Time elapsed to apply `Autopilot` raft entry                      | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.batch_deregister_job`               | Time elapsed to apply `BatchDeregisterJob` raft entry             | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.batch_deregister_node`              | Time elapsed to apply `BatchDeregisterNode` raft entry            | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.batch_node_drain_update`            | Time elapsed to apply `BatchNodeDrainUpdate` raft entry           | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.cluster_meta`                       | Time elapsed to apply `ClusterMeta` raft entry                    | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.delete_eval`                        | Time elapsed to apply `DeleteEval` raft entry                     | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.deregister_job`                     | Time elapsed to apply `DeregisterJob` raft entry                  | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.deregister_node`                    | Time elapsed to apply `DeregisterNode` raft entry                 | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.deregister_si_accessor`             | Time elapsed to apply `DeregisterSITokenAccessor` raft entry      | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.deregister_vault_accessor`          | Time elapsed to apply `DeregisterVaultAccessor` raft entry        | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.node_drain_update`                  | Time elapsed to apply `NodeDrainUpdate` raft entry                | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.node_eligibility_update`            | Time elapsed to apply `NodeEligibilityUpdate` raft entry          | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.node_status_update`                 | Time elapsed to apply `NodeStatusUpdate` raft entry               | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.persist`                            | Time elapsed to apply `Persist` raft entry                        | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.register_job`                       | Time elapsed to apply `RegisterJob` raft entry                    | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.register_node`                      | Time elapsed to apply `RegisterNode` raft entry                   | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.update_eval`                        | Time elapsed to apply `UpdateEval` raft entry                     | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.upsert_node_events`                 | Time elapsed to apply `UpsertNodeEvents` raft entry               | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.upsert_scaling_event`               | Time elapsed to apply `UpsertScalingEvent` raft entry             | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.upsert_si_accessor`                 | Time elapsed to apply `UpsertSITokenAccessors` raft entry         | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.fsm.upsert_vault_accessor`              | Time elapsed to apply `UpsertVaultAccessor` raft entry            | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.allocations`                        | Time elapsed for `Job.Allocations` RPC call                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.batch_deregister`                   | Time elapsed for `Job.BatchDeregister` RPC call                   | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.deployments`                        | Time elapsed for `Job.Deployments` RPC call                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.deregister`                         | Time elapsed for `Job.Deregister` RPC call                        | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.dispatch`                           | Time elapsed for `Job.Dispatch` RPC call                          | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.evaluate`                           | Time elapsed for `Job.Evaluate` RPC call                          | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.evaluations`                        | Time elapsed for `Job.Evaluations` RPC call                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.get_job_versions`                   | Time elapsed for `Job.GetJobVersions` RPC call                    | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.get_job`                            | Time elapsed for `Job.GetJob` RPC call                            | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.latest_deployment`                  | Time elapsed for `Job.LatestDeployment` RPC call                  | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.list`                               | Time elapsed for `Job.List` RPC call                              | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.plan`                               | Time elapsed for `Job.Plan` RPC call                              | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.register`                           | Time elapsed for `Job.Register` RPC call                          | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.revert`                             | Time elapsed for `Job.Revert` RPC call                            | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.scale_status`                       | Time elapsed for `Job.ScaleStatus` RPC call                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.scale`                              | Time elapsed for `Job.Scale` RPC call                             | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.stable`                             | Time elapsed for `Job.Stable` RPC call                            | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job.validate`                           | Time elapsed for `Job.Validate` RPC call                          | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.job_summary.get_job_summary`            | Time elapsed for `Job.Summary` RPC call                           | Nanoseconds          | Summary | Host                         |
+| `nomad.nomad.client.batch_deregister`                | Time elapsed for `Node.BatchDeregister` RPC call                  | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.deregister`                      | Time elapsed for `Node.Deregister` RPC call                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.derive_si_token`                 | Time elapsed for `Node.DeriveSIToken` RPC call                    | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.derive_vault_token`              | Time elapsed for `Node.DeriveVaultToken` RPC call                 | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.emit_events`                     | Time elapsed for `Node.EmitEvents` RPC call                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.evaluate`                        | Time elapsed for `Node.Evaluate` RPC call                         | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.get_allocs`                      | Time elapsed for `Node.GetAllocs` RPC call                        | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.get_client_allocs`               | Time elapsed for `Node.GetClientAllocs` RPC call                  | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.get_node`                        | Time elapsed for `Node.GetNode` RPC call                          | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.list`                            | Time elapsed for `Node.List` RPC call                             | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.register`                        | Time elapsed for `Node.Register` RPC call                         | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.stats`                           | Time elapsed for `Client.Stats` RPC call                          | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.update_alloc`                    | Time elapsed for `Node.UpdateAlloc` RPC call                      | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.update_drain`                    | Time elapsed for `Node.UpdateDrain` RPC call                      | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.update_eligibility`              | Time elapsed for `Node.UpdateEligibility` RPC call                | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client.update_status`                   | Time elapsed for `Node.UpdateStatus` RPC call                     | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client_allocations.garbage_collect_all` | Time elapsed for `ClientAllocations.GarbageCollectAll` RPC call   | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client_allocations.garbage_collect`     | Time elapsed for `ClientAllocations.GarbageCollect` RPC call      | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client_allocations.restart`             | Time elapsed for `ClientAllocations.Restart` RPC call             | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client_allocations.signal`              | Time elapsed for `ClientAllocations.Signal` RPC call              | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client_allocations.stats`               | Time elapsed for `ClientAllocations.Stats` RPC call               | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client_csi_controller.attach_volume`    | Time elapsed for `Controller.AttachVolume` RPC call               | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client_csi_controller.detach_volume`    | Time elapsed for `Controller.DetachVolume` RPC call               | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client_csi_controller.validate_volume`  | Time elapsed for `Controller.ValidateVolume` RPC call             | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.client_csi_node.detach_volume`          | Time elapsed for `Node.DetachVolume` RPC call                     | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.deployment.allocations`                 | Time elapsed for `Deployment.Allocations` RPC call                | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.deployment.cancel`                      | Time elapsed for `Deployment.Cancel` RPC call                     | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.deployment.fail`                        | Time elapsed for `Deployment.Fail` RPC call                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.deployment.get_deployment`              | Time elapsed for `Deployment.GetDeployment` RPC call              | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.deployment.list`                        | Time elapsed for `Deployment.List` RPC call                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.deployment.pause`                       | Time elapsed for `Deployment.Pause` RPC call                      | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.deployment.promote`                     | Time elapsed for `Deployment.Promote` RPC call                    | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.deployment.reap`                        | Time elapsed for `Deployment.Reap` RPC call                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.deployment.run`                         | Time elapsed for `Deployment.Run` RPC call                        | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.deployment.set_alloc_health`            | Time elapsed for `Deployment.SetAllocHealth` RPC call             | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.deployment.unblock`                     | Time elapsed for `Deployment.Unblock` RPC call                    | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.eval.ack`                               | Time elapsed for `Eval.Ack` RPC call                              | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.eval.allocations`                       | Time elapsed for `Eval.Allocations` RPC call                      | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.eval.create`                            | Time elapsed for `Eval.Create` RPC call                           | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.eval.dequeue`                           | Time elapsed for `Eval.Dequeue` RPC call                          | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.eval.get_eval`                          | Time elapsed for `Eval.GetEval` RPC call                          | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.eval.list`                              | Time elapsed for `Eval.List` RPC call                             | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.eval.nack`                              | Time elapsed for `Eval.Nack` RPC call                             | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.eval.reap`                              | Time elapsed for `Eval.Reap` RPC call                             | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.eval.reblock`                           | Time elapsed for `Eval.Reblock` RPC call                          | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.eval.update`                            | Time elapsed for `Eval.Update` RPC call                           | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.file_system.list`                       | Time elapsed for `FileSystem.List` RPC call                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.file_system.logs`                       | Time elapsed to establish `FileSystem.Logs` RPC                   | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.file_system.stat`                       | Time elapsed for `FileSystem.Stat` RPC call                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.file_system.stream`                     | Time elapsed to establish `FileSystem.Stream` RPC                 | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.alloc_client_update`                | Time elapsed to apply `AllocClientUpdate` raft entry              | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.alloc_update_desired_transition`    | Time elapsed to apply `AllocUpdateDesiredTransition` raft entry   | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.alloc_update`                       | Time elapsed to apply `AllocUpdate` raft entry                    | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_acl_policy_delete`            | Time elapsed to apply `ApplyACLPolicyDelete` raft entry           | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_acl_policy_upsert`            | Time elapsed to apply `ApplyACLPolicyUpsert` raft entry           | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_acl_token_bootstrap`          | Time elapsed to apply `ApplyACLTokenBootstrap` raft entry         | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_acl_token_delete`             | Time elapsed to apply `ApplyACLTokenDelete` raft entry            | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_acl_token_upsert`             | Time elapsed to apply `ApplyACLTokenUpsert` raft entry            | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_csi_plugin_delete`            | Time elapsed to apply `ApplyCSIPluginDelete` raft entry           | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_csi_volume_batch_claim`       | Time elapsed to apply `ApplyCSIVolumeBatchClaim` raft entry       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_csi_volume_claim`             | Time elapsed to apply `ApplyCSIVolumeClaim` raft entry            | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_csi_volume_deregister`        | Time elapsed to apply `ApplyCSIVolumeDeregister` raft entry       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_csi_volume_register`          | Time elapsed to apply `ApplyCSIVolumeRegister` raft entry         | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_deployment_alloc_health`      | Time elapsed to apply `ApplyDeploymentAllocHealth` raft entry     | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_deployment_delete`            | Time elapsed to apply `ApplyDeploymentDelete` raft entry          | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_deployment_promotion`         | Time elapsed to apply `ApplyDeploymentPromotion` raft entry       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_deployment_status_update`     | Time elapsed to apply `ApplyDeploymentStatusUpdate` raft entry    | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_job_stability`                | Time elapsed to apply `ApplyJobStability` raft entry              | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_namespace_delete`             | Time elapsed to apply `ApplyNamespaceDelete` raft entry           | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_namespace_upsert`             | Time elapsed to apply `ApplyNamespaceUpsert` raft entry           | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_plan_results`                 | Time elapsed to apply `ApplyPlanResults` raft entry               | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.apply_scheduler_config`             | Time elapsed to apply `ApplySchedulerConfig` raft entry           | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.autopilot`                          | Time elapsed to apply `Autopilot` raft entry                      | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.batch_deregister_job`               | Time elapsed to apply `BatchDeregisterJob` raft entry             | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.batch_deregister_node`              | Time elapsed to apply `BatchDeregisterNode` raft entry            | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.batch_node_drain_update`            | Time elapsed to apply `BatchNodeDrainUpdate` raft entry           | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.cluster_meta`                       | Time elapsed to apply `ClusterMeta` raft entry                    | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.delete_eval`                        | Time elapsed to apply `DeleteEval` raft entry                     | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.deregister_job`                     | Time elapsed to apply `DeregisterJob` raft entry                  | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.deregister_node`                    | Time elapsed to apply `DeregisterNode` raft entry                 | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.deregister_si_accessor`             | Time elapsed to apply `DeregisterSITokenAccessor` raft entry      | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.deregister_vault_accessor`          | Time elapsed to apply `DeregisterVaultAccessor` raft entry        | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.node_drain_update`                  | Time elapsed to apply `NodeDrainUpdate` raft entry                | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.node_eligibility_update`            | Time elapsed to apply `NodeEligibilityUpdate` raft entry          | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.node_status_update`                 | Time elapsed to apply `NodeStatusUpdate` raft entry               | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.persist`                            | Time elapsed to apply `Persist` raft entry                        | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.register_job`                       | Time elapsed to apply `RegisterJob` raft entry                    | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.register_node`                      | Time elapsed to apply `RegisterNode` raft entry                   | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.update_eval`                        | Time elapsed to apply `UpdateEval` raft entry                     | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.upsert_node_events`                 | Time elapsed to apply `UpsertNodeEvents` raft entry               | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.upsert_scaling_event`               | Time elapsed to apply `UpsertScalingEvent` raft entry             | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.upsert_si_accessor`                 | Time elapsed to apply `UpsertSITokenAccessors` raft entry         | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.fsm.upsert_vault_accessor`              | Time elapsed to apply `UpsertVaultAccessor` raft entry            | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.allocations`                        | Time elapsed for `Job.Allocations` RPC call                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.batch_deregister`                   | Time elapsed for `Job.BatchDeregister` RPC call                   | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.deployments`                        | Time elapsed for `Job.Deployments` RPC call                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.deregister`                         | Time elapsed for `Job.Deregister` RPC call                        | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.dispatch`                           | Time elapsed for `Job.Dispatch` RPC call                          | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.evaluate`                           | Time elapsed for `Job.Evaluate` RPC call                          | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.evaluations`                        | Time elapsed for `Job.Evaluations` RPC call                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.get_job_versions`                   | Time elapsed for `Job.GetJobVersions` RPC call                    | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.get_job`                            | Time elapsed for `Job.GetJob` RPC call                            | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.latest_deployment`                  | Time elapsed for `Job.LatestDeployment` RPC call                  | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.list`                               | Time elapsed for `Job.List` RPC call                              | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.plan`                               | Time elapsed for `Job.Plan` RPC call                              | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.register`                           | Time elapsed for `Job.Register` RPC call                          | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.revert`                             | Time elapsed for `Job.Revert` RPC call                            | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.scale_status`                       | Time elapsed for `Job.ScaleStatus` RPC call                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.scale`                              | Time elapsed for `Job.Scale` RPC call                             | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.stable`                             | Time elapsed for `Job.Stable` RPC call                            | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job.validate`                           | Time elapsed for `Job.Validate` RPC call                          | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.job_summary.get_job_summary`            | Time elapsed for `Job.Summary` RPC call                           | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.leader.barrier`                         | Time elapsed to establish a raft barrier during leader transition | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.leader.reconcileMember`                 | Time elapsed to reconcile a serf peer with state store            | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.leader.reconcile`                       | Time elapsed to reconcile all serf peers with state store         | Nanoseconds          | Summary | host                         |
-| `nomad.nomad.namespace.delete_namespaces`            | Time elapsed for `Namespace.DeleteNamespaces`                     | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.namespace.get_namespace`                | Time elapsed for `Namespace.GetNamespace`                         | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.namespace.get_namespaces`               | Time elapsed for `Namespace.GetNamespaces`                        | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.namespace.list_namespace`               | Time elapsed for `Namespace.ListNamespaces`                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.namespace.upsert_namespaces`            | Time elapsed for `Namespace.UpsertNamespaces`                     | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.periodic.force`                         | Time elapsed for `Periodic.Force` RPC call                        | Nanoseconds          | Summary | Host                         |
+| `nomad.nomad.namespace.delete_namespaces`            | Time elapsed for `Namespace.DeleteNamespaces`                     | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.namespace.get_namespace`                | Time elapsed for `Namespace.GetNamespace`                         | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.namespace.get_namespaces`               | Time elapsed for `Namespace.GetNamespaces`                        | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.namespace.list_namespace`               | Time elapsed for `Namespace.ListNamespaces`                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.namespace.upsert_namespaces`            | Time elapsed for `Namespace.UpsertNamespaces`                     | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.periodic.force`                         | Time elapsed for `Periodic.Force` RPC call                        | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.plan.apply`                             | Time elapsed to apply a plan                                      | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.plan.evaluate`                          | Time elapsed to evaluate a plan                                   | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.plan.queue_depth`                       | Count of evals in the plan queue                                  | Integer              | Gauge   | host                         |
 | `nomad.nomad.plan.submit`                            | Time elapsed for `Plan.Submit` RPC call                           | Nanoseconds          | Summary | host                         |
-| `nomad.nomad.plan.wait_for_index`                    | Time elapsed for the planner to obtain a snapshot                 | Nanoseconds          | Summary | host                         |
-| `nomad.nomad.plugin.delete`                          | Time elapsed for `CSIPlugin.Delete` RPC call                      | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.plugin.get`                             | Time elapsed for `CSIPlugin.Get` RPC call                         | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.plugin.list`                            | Time elapsed for `CSIPlugin.List` RPC call                        | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.scaling.get_policy`                     | Time elapsed for `Scaling.GetPolicy` RPC call                     | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.scaling.list_policies`                  | Time elapsed for `Scaling.ListPolicies` RPC call                  | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.search.prefix_search`                   | Time elapsed for `Search.PrefixSearch` RPC call                   | Nanoseconds          | Summary | Host                         |
+| `nomad.nomad.plan.wait_for_index`                    | Time elapsed that planner waits for the raft index of the plan to be processed | Nanoseconds | Summary | host                     |
+| `nomad.nomad.plugin.delete`                          | Time elapsed for `CSIPlugin.Delete` RPC call                      | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.plugin.get`                             | Time elapsed for `CSIPlugin.Get` RPC call                         | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.plugin.list`                            | Time elapsed for `CSIPlugin.List` RPC call                        | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.scaling.get_policy`                     | Time elapsed for `Scaling.GetPolicy` RPC call                     | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.scaling.list_policies`                  | Time elapsed for `Scaling.ListPolicies` RPC call                  | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.search.prefix_search`                   | Time elapsed for `Search.PrefixSearch` RPC call                   | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.vault.create_token`                     | Time elapsed to create Vault token                                | Nanoseconds          | Gauge   | host                         |
 | `nomad.nomad.vault.distributed_tokens_revoked`       | Count of revoked tokens                                           | Integer              | Gauge   | host                         |
 | `nomad.nomad.vault.lookup_token`                     | Time elapsed to lookup Vault token                                | Nanoseconds          | Gauge   | host                         |
@@ -404,19 +404,19 @@ those listed in [Key Metrics](#key-metrics) above.
 | `nomad.nomad.vault.revoke_tokens`                    | Time elapsed to revoke Vault tokens                               | Nanoseconds          | Gauge   | host                         |
 | `nomad.nomad.vault.token_ttl`                        | Time to live for Vault token                                      | Integer              | Gauge   | host                         |
 | `nomad.nomad.vault.undistributed_tokens_abandoned`   | Count of abandoned tokens                                         | Integer              | Gauge   | host                         |
-| `nomad.nomad.volume.claim`                           | Time elapsed for `CSIVolume.Claim` RPC call                       | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.volume.deregister`                      | Time elapsed for `CSIVolume.Deregister` RPC call                  | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.volume.get`                             | Time elapsed for `CSIVolume.Get` RPC call                         | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.volume.list`                            | Time elapsed for `CSIVolume.List` RPC call                        | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.volume.register`                        | Time elapsed for `CSIVolume.Register` RPC call                    | Nanoseconds          | Summary | Host                         |
-| `nomad.nomad.volume.unpublish`                       | Time elapsed for `CSIVolume.Unpublish` RPC call                   | Nanoseconds          | Summary | Host                         |
+| `nomad.nomad.volume.claim`                           | Time elapsed for `CSIVolume.Claim` RPC call                       | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.volume.deregister`                      | Time elapsed for `CSIVolume.Deregister` RPC call                  | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.volume.get`                             | Time elapsed for `CSIVolume.Get` RPC call                         | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.volume.list`                            | Time elapsed for `CSIVolume.List` RPC call                        | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.volume.register`                        | Time elapsed for `CSIVolume.Register` RPC call                    | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.volume.unpublish`                       | Time elapsed for `CSIVolume.Unpublish` RPC call                   | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.worker.create_eval`                     | Time elapsed for worker to create an eval                         | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.worker.dequeue_eval`                    | Time elapsed for worker to dequeue an eval                        | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.worker.invoke_scheduler_service`        | Time elapsed for worker to invoke the scheduler                   | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.worker.send_ack`                        | Time elapsed for worker to send acknowledgement                   | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.worker.submit_plan`                     | Time elapsed for worker to submit plan                            | Nanoseconds          | Summary | host                         |
 | `nomad.nomad.worker.update_eval`                     | Time elapsed for worker to submit updated eval                    | Nanoseconds          | Summary | host                         |
-| `nomad.nomad.worker.wait_for_index`                  | Time elapsed for worker get snapshot                              | Nanoseconds          | Summary | host                         |
+| `nomad.nomad.worker.wait_for_index`                  | Time elapsed that worker waits for the raft index of the eval to be processed | Nanoseconds | Summary | host                      |
 | `nomad.raft.appliedIndex`                            | Current index applied to FSM                                      | Integer              | Gauge   | host                         |
 | `nomad.raft.barrier`                                 | Count of blocking raft API calls                                  | Integer              | Counter | host                         |
 | `nomad.raft.commitNumLogs`                           | Count of logs enqueued                                            | Integer              | Gauge   | host                         |

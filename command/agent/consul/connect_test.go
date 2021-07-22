@@ -514,7 +514,7 @@ func TestConnect_newConnectGateway(t *testing.T) {
 					ConnectTimeout:                  helper.TimeToPtr(1 * time.Second),
 					EnvoyGatewayBindTaggedAddresses: true,
 					EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
-						"service1": &structs.ConsulGatewayBindAddress{
+						"service1": {
 							Address: "10.0.0.1",
 							Port:    2000,
 						},
@@ -532,7 +532,7 @@ func TestConnect_newConnectGateway(t *testing.T) {
 				"connect_timeout_ms":                  int64(1000),
 				"envoy_gateway_bind_tagged_addresses": true,
 				"envoy_gateway_bind_addresses": map[string]*structs.ConsulGatewayBindAddress{
-					"service1": &structs.ConsulGatewayBindAddress{
+					"service1": {
 						Address: "10.0.0.1",
 						Port:    2000,
 					},
@@ -542,5 +542,34 @@ func TestConnect_newConnectGateway(t *testing.T) {
 				"foo":                           1,
 			},
 		}, result)
+	})
+}
+
+func Test_connectMeshGateway(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		result := connectMeshGateway(nil)
+		require.Equal(t, api.MeshGatewayConfig{Mode: api.MeshGatewayModeDefault}, result)
+	})
+
+	t.Run("local", func(t *testing.T) {
+		result := connectMeshGateway(&structs.ConsulMeshGateway{Mode: "local"})
+		require.Equal(t, api.MeshGatewayConfig{Mode: api.MeshGatewayModeLocal}, result)
+	})
+
+	t.Run("remote", func(t *testing.T) {
+		result := connectMeshGateway(&structs.ConsulMeshGateway{Mode: "remote"})
+		require.Equal(t, api.MeshGatewayConfig{Mode: api.MeshGatewayModeRemote}, result)
+	})
+
+	t.Run("none", func(t *testing.T) {
+		result := connectMeshGateway(&structs.ConsulMeshGateway{Mode: "none"})
+		require.Equal(t, api.MeshGatewayConfig{Mode: api.MeshGatewayModeNone}, result)
+	})
+
+	t.Run("nonsense", func(t *testing.T) {
+		result := connectMeshGateway(nil)
+		require.Equal(t, api.MeshGatewayConfig{Mode: api.MeshGatewayModeDefault}, result)
 	})
 }

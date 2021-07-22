@@ -200,9 +200,15 @@ var (
 )
 
 type NetworkIsolationSpec struct {
-	Mode   NetIsolationMode
-	Path   string
-	Labels map[string]string
+	Mode        NetIsolationMode
+	Path        string
+	Labels      map[string]string
+	HostsConfig *HostsConfig
+}
+
+type HostsConfig struct {
+	Hostname string
+	Address  string
 }
 
 // MountConfigSupport is an enum that defaults to "all" for backwards

@@ -31,7 +31,8 @@ locals {
 }
 
 # Local values can be interpolated elsewhere using the "local." prefix.
-job "${local.name_prefix}_loadbalancer" {
+job "example_loadbalancer" {
+  name = "${local.name_prefix}_loadbalancer"
   # ...
 }
 ```

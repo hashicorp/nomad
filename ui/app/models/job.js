@@ -23,6 +23,7 @@ export default class Job extends Model {
   @attr('number') createIndex;
   @attr('number') modifyIndex;
   @attr('date') submitTime;
+  @attr() meta;
 
   // True when the job is the parent periodic or parameterized jobs
   // Instances of periodic or parameterized jobs are false for both properties
@@ -251,6 +252,10 @@ export default class Job extends Model {
   scale(group, count, message) {
     if (message == null) message = `Manually scaled to ${count} from the Nomad UI`;
     return this.store.adapterFor('job').scale(this, group, count, message);
+  }
+
+  dispatch(meta, payload) {
+    return this.store.adapterFor('job').dispatch(this, meta, payload);
   }
 
   setIdByPayload(payload) {

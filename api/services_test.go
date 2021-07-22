@@ -216,6 +216,56 @@ func TestService_Connect_ConsulProxy_Canonicalize(t *testing.T) {
 	})
 }
 
+func TestService_Connect_ConsulUpstream_Copy(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil upstream", func(t *testing.T) {
+		cu := (*ConsulUpstream)(nil)
+		result := cu.Copy()
+		require.Nil(t, result)
+	})
+
+	t.Run("complete upstream", func(t *testing.T) {
+		cu := &ConsulUpstream{
+			DestinationName:  "dest1",
+			Datacenter:       "dc2",
+			LocalBindPort:    2000,
+			LocalBindAddress: "10.0.0.1",
+			MeshGateway:      &ConsulMeshGateway{Mode: "remote"},
+		}
+		result := cu.Copy()
+		require.Equal(t, cu, result)
+	})
+}
+
+func TestService_Connect_ConsulUpstream_Canonicalize(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil upstream", func(t *testing.T) {
+		cu := (*ConsulUpstream)(nil)
+		cu.Canonicalize()
+		require.Nil(t, cu)
+	})
+
+	t.Run("complete", func(t *testing.T) {
+		cu := &ConsulUpstream{
+			DestinationName:  "dest1",
+			Datacenter:       "dc2",
+			LocalBindPort:    2000,
+			LocalBindAddress: "10.0.0.1",
+			MeshGateway:      &ConsulMeshGateway{Mode: ""},
+		}
+		cu.Canonicalize()
+		require.Equal(t, &ConsulUpstream{
+			DestinationName:  "dest1",
+			Datacenter:       "dc2",
+			LocalBindPort:    2000,
+			LocalBindAddress: "10.0.0.1",
+			MeshGateway:      &ConsulMeshGateway{Mode: ""},
+		}, cu)
+	})
+}
+
 func TestService_Connect_proxy_settings(t *testing.T) {
 	t.Parallel()
 
@@ -506,5 +556,77 @@ func TestService_ConsulTerminatingConfigEntry_Copy(t *testing.T) {
 	t.Run("complete", func(t *testing.T) {
 		result := entry.Copy()
 		require.Equal(t, entry, result)
+	})
+}
+
+func TestService_ConsulMeshConfigEntry_Canonicalize(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		ce := (*ConsulMeshConfigEntry)(nil)
+		ce.Canonicalize()
+		require.Nil(t, ce)
+	})
+
+	t.Run("instantiated", func(t *testing.T) {
+		ce := new(ConsulMeshConfigEntry)
+		ce.Canonicalize()
+		require.NotNil(t, ce)
+	})
+}
+
+func TestService_ConsulMeshConfigEntry_Copy(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		ce := (*ConsulMeshConfigEntry)(nil)
+		ce2 := ce.Copy()
+		require.Nil(t, ce2)
+	})
+
+	t.Run("instantiated", func(t *testing.T) {
+		ce := new(ConsulMeshConfigEntry)
+		ce2 := ce.Copy()
+		require.NotNil(t, ce2)
+	})
+}
+
+func TestService_ConsulMeshGateway_Canonicalize(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		c := (*ConsulMeshGateway)(nil)
+		c.Canonicalize()
+		require.Nil(t, c)
+	})
+
+	t.Run("unset mode", func(t *testing.T) {
+		c := &ConsulMeshGateway{Mode: ""}
+		c.Canonicalize()
+		require.Equal(t, "", c.Mode)
+	})
+
+	t.Run("set mode", func(t *testing.T) {
+		c := &ConsulMeshGateway{Mode: "remote"}
+		c.Canonicalize()
+		require.Equal(t, "remote", c.Mode)
+	})
+}
+
+func TestService_ConsulMeshGateway_Copy(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		c := (*ConsulMeshGateway)(nil)
+		result := c.Copy()
+		require.Nil(t, result)
+	})
+
+	t.Run("instantiated", func(t *testing.T) {
+		c := &ConsulMeshGateway{
+			Mode: "local",
+		}
+		result := c.Copy()
+		require.Equal(t, c, result)
 	})
 }

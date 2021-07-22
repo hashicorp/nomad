@@ -614,8 +614,17 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 
 	// Start the deployment
 	w.SetEnabled(true, m.state)
-	testutil.WaitForResult(func() (bool, error) { return 1 == len(w.watchers), nil },
-		func(err error) { require.Equal(t, 1, len(w.watchers), "Should have 1 deployment") })
+	testutil.WaitForResult(func() (bool, error) {
+		w.l.RLock()
+		defer w.l.RUnlock()
+		return 1 == len(w.watchers), nil
+	},
+		func(err error) {
+			w.l.RLock()
+			defer w.l.RUnlock()
+			require.Equal(t, 1, len(w.watchers), "Should have 1 deployment")
+		},
+	)
 
 	// Mark the canaries healthy
 	req := &structs.DeploymentAllocHealthRequest{

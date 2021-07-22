@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
-	e2e "github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
@@ -97,7 +96,7 @@ func (tc *OnUpdateChecksTest) TestOnUpdate_CheckRestart(f *framework.F) {
 	// Wait for and ensure that allocation restarted
 	testutil.WaitForResultRetries(wc.Retries, func() (bool, error) {
 		time.Sleep(wc.Interval)
-		allocs, err := e2e.AllocTaskEventsForJob(jobID, "")
+		allocs, err := e2eutil.AllocTaskEventsForJob(jobID, "")
 		if err != nil {
 			return false, err
 		}

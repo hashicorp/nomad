@@ -640,9 +640,10 @@ func NetworkIsolationSpecToProto(spec *NetworkIsolationSpec) *proto.NetworkIsola
 		return nil
 	}
 	return &proto.NetworkIsolationSpec{
-		Path:   spec.Path,
-		Labels: spec.Labels,
-		Mode:   netIsolationModeToProto(spec.Mode),
+		Path:        spec.Path,
+		Labels:      spec.Labels,
+		Mode:        netIsolationModeToProto(spec.Mode),
+		HostsConfig: hostsConfigToProto(spec.HostsConfig),
 	}
 }
 
@@ -651,9 +652,32 @@ func NetworkIsolationSpecFromProto(pb *proto.NetworkIsolationSpec) *NetworkIsola
 		return nil
 	}
 	return &NetworkIsolationSpec{
-		Path:   pb.Path,
-		Labels: pb.Labels,
-		Mode:   netIsolationModeFromProto(pb.Mode),
+		Path:        pb.Path,
+		Labels:      pb.Labels,
+		Mode:        netIsolationModeFromProto(pb.Mode),
+		HostsConfig: hostsConfigFromProto(pb.HostsConfig),
+	}
+}
+
+func hostsConfigToProto(cfg *HostsConfig) *proto.HostsConfig {
+	if cfg == nil {
+		return nil
+	}
+
+	return &proto.HostsConfig{
+		Hostname: cfg.Hostname,
+		Address:  cfg.Address,
+	}
+}
+
+func hostsConfigFromProto(pb *proto.HostsConfig) *HostsConfig {
+	if pb == nil {
+		return nil
+	}
+
+	return &HostsConfig{
+		Hostname: pb.Hostname,
+		Address:  pb.Address,
 	}
 }
 

@@ -52,8 +52,11 @@ job "countdash" {
             upstreams {
               destination_name = "count-api"
               local_bind_port  = 8080
-              datacenter = "dc1"
+              datacenter = "dc2"
               local_bind_address = "127.0.0.1"
+              mesh_gateway {
+                mode = "local"
+              }
             }
           }
         }
@@ -86,6 +89,22 @@ job "countdash" {
   local Consul datacenter.
 - `local_bind_address` - `(string: "")` - The address the proxy will receive
   connections for the upstream on.
+- `mesh_gateway` <code>([mesh_gateway][mesh_gateway_param]: nil)</code> - Configures the mesh gateway
+  behavior for connecting to this upstream.
+
+### `mesh_gateway` Parameters
+
+- `mode` `(string: "")` - The mode of operation in which to use [Connect Mesh Gateways][mesh_gateways].
+  If left unset, the mode will default to the mode as determined by the Consul [service-defaults][service_defaults_mode]
+  configuration for the service. Can be configured with the following modes:
+  - `local` - In this mode the Connect proxy makes its outbound connection to a
+  gateway running in the same datacenter. That gateway is then responsible for
+  ensuring the data gets forwarded along to gateways in the destination datacenter.
+  - `remote` - In this mode the Connect proxy makes its outbound connection to a
+  gateway running in the destination datacenter. That gateway will then forward
+  the data to the final destination service.
+  - `none` - In this mode, no gateway is used and a Connect proxy makes its
+  outbound connections directly to the destination services.
 
 The `NOMAD_UPSTREAM_ADDR_<destination_name>` environment variables may be used
 to interpolate the upstream's `host:port` address.
@@ -113,3 +132,6 @@ and a local bind port.
 [interpolation]: /docs/runtime/interpolation 'Nomad interpolation'
 [sidecar_service]: /docs/job-specification/sidecar_service 'Nomad sidecar service Specification'
 [upstreams]: /docs/job-specification/upstreams 'Nomad upstream config Specification'
+[service_defaults_mode]: https://www.consul.io/docs/connect/config-entries/service-defaults#meshgateway
+[mesh_gateway_param]: /docs/job-specification/upstreams#mesh_gateway-parameters
+[mesh_gateways]: https://www.consul.io/docs/connect/gateways/mesh-gateway#mesh-gateways

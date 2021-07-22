@@ -9,7 +9,6 @@ replace (
 	github.com/godbus/dbus => github.com/godbus/dbus v5.0.1+incompatible
 	github.com/golang/protobuf => github.com/golang/protobuf v1.3.4
 
-	github.com/hashicorp/consul/api => github.com/hashicorp/consul/api v1.4.1-0.20210419202301-f265dd635f89
 	github.com/hashicorp/go-discover => github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 	github.com/hashicorp/nomad/api => ./api
@@ -48,22 +47,23 @@ require (
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/fsouza/go-dockerclient v1.6.5
 	github.com/golang/protobuf v1.4.3
-	github.com/golang/snappy v0.0.1
+	github.com/golang/snappy v0.0.2
 	github.com/google/go-cmp v0.5.2
 	github.com/gorilla/websocket v1.4.2
+	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.1-0.20200228141219-3ce3d519df39
 	github.com/hashicorp/consul v1.7.8
-	github.com/hashicorp/consul-template v0.25.1
-	github.com/hashicorp/consul/api v1.8.1
-	github.com/hashicorp/consul/sdk v0.7.0
+	github.com/hashicorp/consul-template v0.25.2
+	github.com/hashicorp/consul/api v1.9.1
+	github.com/hashicorp/consul/sdk v0.8.0
 	github.com/hashicorp/cronexpr v1.1.1
 	github.com/hashicorp/go-checkpoint v0.0.0-20171009173528-1545e56e46de
-	github.com/hashicorp/go-cleanhttp v0.5.1
+	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/go-connlimit v0.3.0
 	github.com/hashicorp/go-cty-funcs v0.0.0-20200930094925-2721b1e36840
 	github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 	github.com/hashicorp/go-envparse v0.0.0-20180119215841-310ca1881b22
-	github.com/hashicorp/go-getter v1.5.2
+	github.com/hashicorp/go-getter v1.5.4
 	github.com/hashicorp/go-hclog v0.14.1
 	github.com/hashicorp/go-immutable-radix v1.3.0
 	github.com/hashicorp/go-memdb v1.3.0
@@ -93,12 +93,13 @@ require (
 	github.com/kr/pretty v0.2.0
 	github.com/kr/pty v1.1.5
 	github.com/kr/text v0.2.0
-	github.com/mattn/go-colorable v0.1.6
+	github.com/mattn/go-colorable v0.1.7
 	github.com/mitchellh/cli v1.1.0
 	github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286
 	github.com/mitchellh/copystructure v1.0.0
+	github.com/mitchellh/go-glint v0.0.0-20201119015200-53f6eb3bf4d2
 	github.com/mitchellh/go-ps v0.0.0-20190716172923-621e5597135b
-	github.com/mitchellh/go-testing-interface v1.0.3
+	github.com/mitchellh/go-testing-interface v1.14.1
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/mitchellh/reflectwalk v1.0.1
@@ -116,32 +117,29 @@ require (
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529
 	github.com/seccomp/libseccomp-golang v0.9.2-0.20200314001724-bdab42bd5128 // indirect
-	github.com/shirou/gopsutil/v3 v3.21.2
+	github.com/shirou/gopsutil/v3 v3.21.6-0.20210619153009-7ea8062810b6
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
-	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/zclconf/go-cty v1.8.0
 	github.com/zclconf/go-cty-yaml v1.0.2
 	go.opencensus.io v0.22.1-0.20190713072201-b4a14686f0a9 // indirect
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
 	golang.org/x/exp v0.0.0-20191030013958-a1ab85dbe136 // indirect
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/mod v0.3.0 // indirect
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
 	golang.org/x/sys v0.0.0-20210316164454-77fc1eacc6aa
-	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
+	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
 	golang.org/x/tools v0.0.0-20200522201501-cb1345f3a375 // indirect
 	google.golang.org/api v0.13.0 // indirect
 	google.golang.org/genproto v0.0.0-20200302123026-7795fca6ccb1 // indirect
 	google.golang.org/grpc v1.27.1
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
-	gopkg.in/square/go-jose.v2 v2.4.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	gopkg.in/tomb.v2 v2.0.0-20140626144623-14b3d72120e8
-	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gotest.tools/v3 v3.0.2 // indirect
 	honnef.co/go/tools v0.0.1-2020.1.4 // indirect
 )

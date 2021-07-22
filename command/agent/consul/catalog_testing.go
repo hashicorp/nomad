@@ -78,6 +78,13 @@ type MockAgent struct {
 	// hits is the total number of times agent methods have been called
 	hits int
 
+	// ent indicates whether the agent is mocking an enterprise consul
+	ent bool
+
+	// namespaces indicates whether the agent is mocking consul with namespaces
+	// feature enabled
+	namespaces bool
+
 	// mu guards above fields
 	mu sync.Mutex
 
@@ -90,13 +97,21 @@ type MockAgent struct {
 
 var _ AgentAPI = (*MockAgent)(nil)
 
+type Features struct {
+	Enterprise bool
+	Namespaces bool
+}
+
 // NewMockAgent that returns all checks as passing.
-func NewMockAgent() *MockAgent {
+func NewMockAgent(f Features) *MockAgent {
 	return &MockAgent{
 		services:    make(map[string]map[string]*api.AgentServiceRegistration),
 		checks:      make(map[string]map[string]*api.AgentCheckRegistration),
 		checkTTLs:   make(map[string]map[string]int),
 		checkStatus: api.HealthPassing,
+
+		ent:        f.Enterprise,
+		namespaces: f.Namespaces,
 	}
 }
 
@@ -121,7 +136,34 @@ func (c *MockAgent) Self() (map[string]map[string]interface{}, error) {
 	defer c.mu.Unlock()
 	c.hits++
 
-	s := map[string]map[string]interface{}{
+	version := "1.9.5"
+	build := "1.9.5:22ce6c6a"
+	if c.ent {
+		version = "1.9.5+ent"
+		build = "1.9.5+ent:22ce6c6a"
+	}
+
+	stats := make(map[string]interface{})
+	if c.ent {
+		if c.namespaces {
+			stats = map[string]interface{}{
+				"license": map[string]interface{}{
+					"features": "Namespaces,",
+				},
+			}
+		}
+	}
+
+	return map[string]map[string]interface{}{
+		"Config": {
+			"Datacenter": "dc1",
+			"NodeName":   "x52",
+			"NodeID":     "9e7bf42e-a0b4-61b7-24f9-66dead411f0f",
+			"Revision":   "22ce6c6ad",
+			"Server":     true,
+			"Version":    version,
+		},
+		"Stats": stats,
 		"Member": {
 			"Addr":        "127.0.0.1",
 			"DelegateCur": 4,
@@ -134,7 +176,7 @@ func (c *MockAgent) Self() (map[string]map[string]interface{}, error) {
 			"ProtocolMin": 1,
 			"Status":      1,
 			"Tags": map[string]interface{}{
-				"build": "0.8.1:'e9ca44d",
+				"build": build,
 			},
 		},
 		"xDS": {
@@ -147,8 +189,7 @@ func (c *MockAgent) Self() (map[string]map[string]interface{}, error) {
 				},
 			},
 		},
-	}
-	return s, nil
+	}, nil
 }
 
 func getNamespace(q *api.QueryOptions) string {

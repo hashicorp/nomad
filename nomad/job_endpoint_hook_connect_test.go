@@ -16,9 +16,9 @@ func TestJobEndpointConnect_isSidecarForService(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		t *structs.Task // task
-		s string        // service
-		r bool          // result
+		task    *structs.Task
+		sidecar string
+		exp     bool
 	}{
 		{
 			&structs.Task{},
@@ -49,7 +49,7 @@ func TestJobEndpointConnect_isSidecarForService(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		require.Equal(t, c.r, isSidecarForService(c.t, c.s))
+		require.Equal(t, c.exp, isSidecarForService(c.task, c.sidecar))
 	}
 }
 
@@ -115,17 +115,16 @@ func TestJobEndpointConnect_groupConnectHook(t *testing.T) {
 func TestJobEndpointConnect_groupConnectHook_IngressGateway(t *testing.T) {
 	t.Parallel()
 
-	// Test that the connect gateway task is inserted if a gateway service exists
-	// and since this is a bridge network, will rewrite the default gateway proxy
+	// Test that the connect ingress gateway task is inserted if a gateway service
+	// exists and since this is a bridge network, will rewrite the default gateway proxy
 	// block with correct configuration.
 	job := mock.ConnectIngressGatewayJob("bridge", false)
-
 	job.Meta = map[string]string{
 		"gateway_name": "my-gateway",
 	}
-
 	job.TaskGroups[0].Services[0].Name = "${NOMAD_META_gateway_name}"
 
+	// setup expectations
 	expTG := job.TaskGroups[0].Copy()
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
@@ -153,11 +152,9 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_CustomTask(t *testin
 	// and since this is a bridge network, will rewrite the default gateway proxy
 	// block with correct configuration.
 	job := mock.ConnectIngressGatewayJob("bridge", false)
-
 	job.Meta = map[string]string{
 		"gateway_name": "my-gateway",
 	}
-
 	job.TaskGroups[0].Services[0].Name = "${NOMAD_META_gateway_name}"
 	job.TaskGroups[0].Services[0].Connect.SidecarTask = &structs.SidecarTask{
 		Driver: "raw_exec",
@@ -173,6 +170,7 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_CustomTask(t *testin
 		KillSignal: "SIGHUP",
 	}
 
+	// setup expectations
 	expTG := job.TaskGroups[0].Copy()
 	expTG.Tasks = []*structs.Task{
 		// inject merged gateway task
@@ -197,10 +195,85 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_CustomTask(t *testin
 			KillSignal:    "SIGHUP",
 			Constraints: structs.Constraints{
 				connectGatewayVersionConstraint(),
+				connectListenerConstraint(),
 			},
 		},
 	}
 	expTG.Services[0].Name = "my-gateway"
+	expTG.Tasks[0].Canonicalize(job, expTG)
+	expTG.Networks[0].Canonicalize()
+
+	// rewrite the service gateway proxy configuration
+	expTG.Services[0].Connect.Gateway.Proxy = gatewayProxyForBridge(expTG.Services[0].Connect.Gateway)
+
+	require.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
+	require.Exactly(t, expTG, job.TaskGroups[0])
+
+	// Test that the hook is idempotent
+	require.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
+	require.Exactly(t, expTG, job.TaskGroups[0])
+}
+
+func TestJobEndpointConnect_groupConnectHook_TerminatingGateway(t *testing.T) {
+	t.Parallel()
+
+	// Tests that the connect terminating gateway task is inserted if a gateway
+	// service exists and since this is a bridge network, will rewrite the default
+	// gateway proxy block with correct configuration.
+	job := mock.ConnectTerminatingGatewayJob("bridge", false)
+	job.Meta = map[string]string{
+		"gateway_name": "my-gateway",
+	}
+	job.TaskGroups[0].Services[0].Name = "${NOMAD_META_gateway_name}"
+
+	// setup expectations
+	expTG := job.TaskGroups[0].Copy()
+	expTG.Tasks = []*structs.Task{
+		// inject the gateway task
+		newConnectGatewayTask(structs.ConnectTerminatingPrefix, "my-gateway", false),
+	}
+	expTG.Services[0].Name = "my-gateway"
+	expTG.Tasks[0].Canonicalize(job, expTG)
+	expTG.Networks[0].Canonicalize()
+
+	// rewrite the service gateway proxy configuration
+	expTG.Services[0].Connect.Gateway.Proxy = gatewayProxyForBridge(expTG.Services[0].Connect.Gateway)
+
+	require.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
+	require.Exactly(t, expTG, job.TaskGroups[0])
+
+	// Test that the hook is idempotent
+	require.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
+	require.Exactly(t, expTG, job.TaskGroups[0])
+}
+
+func TestJobEndpointConnect_groupConnectHook_MeshGateway(t *testing.T) {
+	t.Parallel()
+
+	// Test that the connect mesh gateway task is inserted if a gateway service
+	// exists and since this is a bridge network, will rewrite the default gateway
+	// proxy block with correct configuration, injecting a dynamic port for use
+	// by the envoy lan listener.
+	job := mock.ConnectMeshGatewayJob("bridge", false)
+	job.Meta = map[string]string{
+		"gateway_name": "my-gateway",
+	}
+	job.TaskGroups[0].Services[0].Name = "${NOMAD_META_gateway_name}"
+
+	// setup expectations
+	expTG := job.TaskGroups[0].Copy()
+	expTG.Tasks = []*structs.Task{
+		// inject the gateway task
+		newConnectGatewayTask(structs.ConnectMeshPrefix, "my-gateway", false),
+	}
+	expTG.Services[0].Name = "my-gateway"
+	expTG.Services[0].PortLabel = "public_port"
+	expTG.Networks[0].DynamicPorts = []structs.Port{{
+		Label:       "connect-mesh-my-gateway-lan",
+		Value:       0,
+		To:          -1,
+		HostNetwork: "default",
+	}}
 	expTG.Tasks[0].Canonicalize(job, expTG)
 	expTG.Networks[0].Canonicalize()
 
@@ -275,7 +348,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 	// group and service name validation
 
 	t.Run("non-connect service contains uppercase characters", func(t *testing.T) {
-		_, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
@@ -286,7 +359,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 	})
 
 	t.Run("connect service contains uppercase characters", func(t *testing.T) {
-		_, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
@@ -297,7 +370,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 	})
 
 	t.Run("non-connect group contains uppercase characters", func(t *testing.T) {
-		_, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "Other-Group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
@@ -308,7 +381,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 	})
 
 	t.Run("connect-group contains uppercase characters", func(t *testing.T) {
-		_, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "Connect-Group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
@@ -319,7 +392,7 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 	})
 
 	t.Run("connect group and service lowercase", func(t *testing.T) {
-		_, err := groupConnectValidate(&structs.TaskGroup{
+		err := groupConnectValidate(&structs.TaskGroup{
 			Name:     "connect-group",
 			Networks: structs.Networks{{Mode: "bridge"}},
 			Services: []*structs.Service{{
@@ -327,6 +400,113 @@ func TestJobEndpointConnect_groupConnectSidecarValidate(t *testing.T) {
 			}, makeService("connect-service")},
 		})
 		require.NoError(t, err)
+	})
+
+	t.Run("connect group overlap upstreams", func(t *testing.T) {
+		s1 := makeService("s1")
+		s2 := makeService("s2")
+		s1.Connect.SidecarService.Proxy = &structs.ConsulProxy{
+			Upstreams: []structs.ConsulUpstream{{
+				LocalBindPort: 8999,
+			}},
+		}
+		s2.Connect.SidecarService.Proxy = &structs.ConsulProxy{
+			Upstreams: []structs.ConsulUpstream{{
+				LocalBindPort: 8999,
+			}},
+		}
+		err := groupConnectValidate(&structs.TaskGroup{
+			Name:     "connect-group",
+			Networks: structs.Networks{{Mode: "bridge"}},
+			Services: []*structs.Service{s1, s2},
+		})
+		require.EqualError(t, err, `Consul Connect services "s2" and "s1" in group "connect-group" using same address for upstreams (:8999)`)
+	})
+}
+
+func TestJobEndpointConnect_groupConnectUpstreamsValidate(t *testing.T) {
+	t.Run("no connect services", func(t *testing.T) {
+		err := groupConnectUpstreamsValidate("group",
+			[]*structs.Service{{Name: "s1"}, {Name: "s2"}})
+		require.NoError(t, err)
+	})
+
+	t.Run("connect services no overlap", func(t *testing.T) {
+		err := groupConnectUpstreamsValidate("group",
+			[]*structs.Service{
+				{
+					Name: "s1",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{
+							Proxy: &structs.ConsulProxy{
+								Upstreams: []structs.ConsulUpstream{{
+									LocalBindAddress: "127.0.0.1",
+									LocalBindPort:    9001,
+								}, {
+									LocalBindAddress: "127.0.0.1",
+									LocalBindPort:    9002,
+								}},
+							},
+						},
+					},
+				},
+				{
+					Name: "s2",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{
+							Proxy: &structs.ConsulProxy{
+								Upstreams: []structs.ConsulUpstream{{
+									LocalBindAddress: "10.0.0.1",
+									LocalBindPort:    9001,
+								}, {
+									LocalBindAddress: "127.0.0.1",
+									LocalBindPort:    9003,
+								}},
+							},
+						},
+					},
+				},
+			})
+		require.NoError(t, err)
+	})
+
+	t.Run("connect services overlap port", func(t *testing.T) {
+		err := groupConnectUpstreamsValidate("group",
+			[]*structs.Service{
+				{
+					Name: "s1",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{
+							Proxy: &structs.ConsulProxy{
+								Upstreams: []structs.ConsulUpstream{{
+									LocalBindAddress: "127.0.0.1",
+									LocalBindPort:    9001,
+								}, {
+									LocalBindAddress: "127.0.0.1",
+									LocalBindPort:    9002,
+								}},
+							},
+						},
+					},
+				},
+				{
+					Name: "s2",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{
+							Proxy: &structs.ConsulProxy{
+								Upstreams: []structs.ConsulUpstream{{
+									LocalBindAddress: "127.0.0.1",
+									LocalBindPort:    9002,
+								}, {
+									LocalBindAddress: "127.0.0.1",
+									LocalBindPort:    9003,
+								}},
+							},
+						},
+					},
+				},
+			})
+		require.EqualError(t, err, `Consul Connect services "s2" and "s1" in group "group" using same address for upstreams (127.0.0.1:9002)`)
 	})
 }
 
@@ -393,6 +573,8 @@ func TestJobEndpointConnect_groupConnectGatewayValidate(t *testing.T) {
 }
 
 func TestJobEndpointConnect_newConnectGatewayTask_host(t *testing.T) {
+	t.Parallel()
+
 	t.Run("ingress", func(t *testing.T) {
 		task := newConnectGatewayTask(structs.ConnectIngressPrefix, "foo", true)
 		require.Equal(t, "connect-ingress-foo", task.Name)
@@ -413,11 +595,15 @@ func TestJobEndpointConnect_newConnectGatewayTask_host(t *testing.T) {
 }
 
 func TestJobEndpointConnect_newConnectGatewayTask_bridge(t *testing.T) {
+	t.Parallel()
+
 	task := newConnectGatewayTask(structs.ConnectIngressPrefix, "service1", false)
 	require.NotContains(t, task.Config, "network_mode")
 }
 
 func TestJobEndpointConnect_hasGatewayTaskForService(t *testing.T) {
+	t.Parallel()
+
 	t.Run("no gateway task", func(t *testing.T) {
 		result := hasGatewayTaskForService(&structs.TaskGroup{
 			Name: "group",
@@ -450,9 +636,22 @@ func TestJobEndpointConnect_hasGatewayTaskForService(t *testing.T) {
 		}, "my-service")
 		require.True(t, result)
 	})
+
+	t.Run("has mesh task", func(t *testing.T) {
+		result := hasGatewayTaskForService(&structs.TaskGroup{
+			Name: "group",
+			Tasks: []*structs.Task{{
+				Name: "mesh-gateway-my-service",
+				Kind: structs.NewTaskKind(structs.ConnectMeshPrefix, "my-service"),
+			}},
+		}, "my-service")
+		require.True(t, result)
+	})
 }
 
 func TestJobEndpointConnect_gatewayProxyIsDefault(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil", func(t *testing.T) {
 		result := gatewayProxyIsDefault(nil)
 		require.True(t, result)
@@ -494,6 +693,8 @@ func TestJobEndpointConnect_gatewayProxyIsDefault(t *testing.T) {
 }
 
 func TestJobEndpointConnect_gatewayBindAddresses(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil", func(t *testing.T) {
 
 		result := gatewayBindAddressesIngress(nil)
@@ -559,6 +760,8 @@ func TestJobEndpointConnect_gatewayBindAddresses(t *testing.T) {
 }
 
 func TestJobEndpointConnect_gatewayProxyForBridge(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil", func(t *testing.T) {
 		result := gatewayProxyForBridge(nil)
 		require.Nil(t, result)
@@ -634,6 +837,7 @@ func TestJobEndpointConnect_gatewayProxyForBridge(t *testing.T) {
 			},
 		})
 		require.Equal(t, &structs.ConsulGatewayProxy{
+			ConnectTimeout:                  nil,
 			Config:                          map[string]interface{}{"foo": 1},
 			EnvoyGatewayNoDefaultBind:       false,
 			EnvoyGatewayBindTaggedAddresses: true,
@@ -672,6 +876,69 @@ func TestJobEndpointConnect_gatewayProxyForBridge(t *testing.T) {
 	})
 
 	t.Run("terminating leave as-is", func(t *testing.T) {
-		//
+		result := gatewayProxyForBridge(&structs.ConsulGateway{
+			Proxy: &structs.ConsulGatewayProxy{
+				Config:                          map[string]interface{}{"foo": 1},
+				EnvoyGatewayBindTaggedAddresses: true,
+			},
+			Terminating: &structs.ConsulTerminatingConfigEntry{
+				Services: []*structs.ConsulLinkedService{{
+					Name: "service1",
+				}},
+			},
+		})
+		require.Equal(t, &structs.ConsulGatewayProxy{
+			ConnectTimeout:                  nil,
+			Config:                          map[string]interface{}{"foo": 1},
+			EnvoyGatewayNoDefaultBind:       false,
+			EnvoyGatewayBindTaggedAddresses: true,
+			EnvoyGatewayBindAddresses:       nil,
+		}, result)
 	})
+
+	t.Run("mesh set defaults", func(t *testing.T) {
+		result := gatewayProxyForBridge(&structs.ConsulGateway{
+			Proxy: &structs.ConsulGatewayProxy{
+				ConnectTimeout: helper.TimeToPtr(2 * time.Second),
+			},
+			Mesh: &structs.ConsulMeshConfigEntry{
+				// nothing
+			},
+		})
+		require.Equal(t, &structs.ConsulGatewayProxy{
+			ConnectTimeout:                  helper.TimeToPtr(2 * time.Second),
+			EnvoyGatewayNoDefaultBind:       true,
+			EnvoyGatewayBindTaggedAddresses: false,
+			EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
+				"lan": {
+					Address: "0.0.0.0",
+					Port:    -1,
+				},
+				"wan": {
+					Address: "0.0.0.0",
+					Port:    -1,
+				},
+			},
+		}, result)
+	})
+
+	t.Run("mesh leave as-is", func(t *testing.T) {
+		result := gatewayProxyForBridge(&structs.ConsulGateway{
+			Proxy: &structs.ConsulGatewayProxy{
+				Config:                          map[string]interface{}{"foo": 1},
+				EnvoyGatewayBindTaggedAddresses: true,
+			},
+			Mesh: &structs.ConsulMeshConfigEntry{
+				// nothing
+			},
+		})
+		require.Equal(t, &structs.ConsulGatewayProxy{
+			ConnectTimeout:                  nil,
+			Config:                          map[string]interface{}{"foo": 1},
+			EnvoyGatewayNoDefaultBind:       false,
+			EnvoyGatewayBindTaggedAddresses: true,
+			EnvoyGatewayBindAddresses:       nil,
+		}, result)
+	})
+
 }

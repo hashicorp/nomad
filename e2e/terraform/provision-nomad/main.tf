@@ -43,15 +43,19 @@ resource "null_resource" "provision_nomad" {
 }
 
 data "template_file" "provision_script" {
-  template = "${local.provision_script}${data.template_file.arg_nomad_sha.rendered}${data.template_file.arg_nomad_version.rendered}${data.template_file.arg_nomad_binary.rendered}${data.template_file.arg_nomad_enterprise.rendered}${data.template_file.arg_nomad_license.rendered}${data.template_file.arg_nomad_acls.rendered}${data.template_file.arg_profile.rendered}${data.template_file.arg_role.rendered}${data.template_file.arg_index.rendered}${data.template_file.autojoin_tag.rendered}"
+  template = "${local.provision_script}${data.template_file.arg_nomad_url.rendered}${data.template_file.arg_nomad_sha.rendered}${data.template_file.arg_nomad_version.rendered}${data.template_file.arg_nomad_binary.rendered}${data.template_file.arg_nomad_enterprise.rendered}${data.template_file.arg_nomad_license.rendered}${data.template_file.arg_nomad_acls.rendered}${data.template_file.arg_profile.rendered}${data.template_file.arg_role.rendered}${data.template_file.arg_index.rendered}${data.template_file.autojoin_tag.rendered}"
 }
 
 data "template_file" "arg_nomad_sha" {
-  template = var.nomad_sha != "" && var.nomad_local_binary == "" ? " ${local._arg}nomad_sha ${var.nomad_sha}" : ""
+  template = var.nomad_sha != "" && var.nomad_local_binary == "" && var.nomad_url == "" ? " ${local._arg}nomad_sha ${var.nomad_sha}" : ""
 }
 
 data "template_file" "arg_nomad_version" {
-  template = var.nomad_version != "" && var.nomad_sha == "" && var.nomad_local_binary == "" ? " ${local._arg}nomad_version ${var.nomad_version}" : ""
+  template = var.nomad_version != "" && var.nomad_sha == "" && var.nomad_url == "" && var.nomad_local_binary == "" ? " ${local._arg}nomad_version ${var.nomad_version}" : ""
+}
+
+data "template_file" "arg_nomad_url" {
+  template = var.nomad_url != "" && var.nomad_local_binary == "" ? " ${local._arg}nomad_url ${var.nomad_url}" : ""
 }
 
 data "template_file" "arg_nomad_binary" {

@@ -22,7 +22,9 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
+	"github.com/hashicorp/nomad/drivers/shared/hostnames"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -909,37 +911,12 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 	hostConfig.Privileged = driverConfig.Privileged
 
-	// set capabilities
-	hostCapsWhitelistConfig := d.config.AllowCaps
-	hostCapsWhitelist := make(map[string]struct{})
-	for _, cap := range hostCapsWhitelistConfig {
-		cap = strings.ToLower(strings.TrimSpace(cap))
-		hostCapsWhitelist[cap] = struct{}{}
+	// set add/drop capabilities
+	if hostConfig.CapAdd, hostConfig.CapDrop, err = capabilities.Delta(
+		capabilities.DockerDefaults(), d.config.AllowCaps, driverConfig.CapAdd, driverConfig.CapDrop,
+	); err != nil {
+		return c, err
 	}
-
-	if _, ok := hostCapsWhitelist["all"]; !ok {
-		effectiveCaps, err := tweakCapabilities(
-			strings.Split(dockerBasicCaps, ","),
-			driverConfig.CapAdd,
-			driverConfig.CapDrop,
-		)
-		if err != nil {
-			return c, err
-		}
-		var missingCaps []string
-		for _, cap := range effectiveCaps {
-			cap = strings.ToLower(cap)
-			if _, ok := hostCapsWhitelist[cap]; !ok {
-				missingCaps = append(missingCaps, cap)
-			}
-		}
-		if len(missingCaps) > 0 {
-			return c, fmt.Errorf("Docker driver doesn't have the following caps allowlisted on this Nomad agent: %s", missingCaps)
-		}
-	}
-
-	hostConfig.CapAdd = driverConfig.CapAdd
-	hostConfig.CapDrop = driverConfig.CapDrop
 
 	// set SHM size
 	if driverConfig.ShmSize != 0 {
@@ -976,6 +953,33 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			return c, err
 		}
 		hostConfig.Mounts = append(hostConfig.Mounts, *hm)
+	}
+
+	// Setup /etc/hosts
+	// If the task's network_mode is unset our hostname and IP will come from
+	// the Nomad-owned network (if in use), so we need to generate an
+	// /etc/hosts file that matches the network rather than the default one
+	// that comes from the pause container
+	if task.NetworkIsolation != nil && driverConfig.NetworkMode == "" {
+		etcHostMount, err := hostnames.GenerateEtcHostsMount(
+			task.AllocDir, task.NetworkIsolation, driverConfig.ExtraHosts)
+		if err != nil {
+			return c, fmt.Errorf("failed to build mount for /etc/hosts: %v", err)
+		}
+		if etcHostMount != nil {
+			// erase the extra_hosts field if we have a mount so we don't get
+			// conflicting options error from dockerd
+			driverConfig.ExtraHosts = nil
+			hostConfig.Mounts = append(hostConfig.Mounts, docker.HostMount{
+				Target:   etcHostMount.TaskPath,
+				Source:   etcHostMount.HostPath,
+				Type:     "bind",
+				ReadOnly: etcHostMount.Readonly,
+				BindOptions: &docker.BindOptions{
+					Propagation: etcHostMount.PropagationMode,
+				},
+			})
+		}
 	}
 
 	// Setup DNS

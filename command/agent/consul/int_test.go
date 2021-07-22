@@ -135,7 +135,7 @@ func TestConsul_Integration(t *testing.T) {
 	consulClient, err := consulapi.NewClient(consulConfig)
 	r.Nil(err)
 
-	namespacesClient := consul.NewNamespacesClient(consulClient.Namespaces())
+	namespacesClient := consul.NewNamespacesClient(consulClient.Namespaces(), consulClient.Agent())
 	serviceClient := consul.NewServiceClient(consulClient.Agent(), namespacesClient, testlog.HCLogger(t), true)
 	defer serviceClient.Shutdown() // just-in-case cleanup
 	consulRan := make(chan struct{})

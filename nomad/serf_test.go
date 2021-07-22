@@ -1,7 +1,6 @@
 package nomad
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 	"github.com/stretchr/testify/require"
 )
@@ -107,6 +107,7 @@ func TestNomad_ReapPeer(t *testing.T) {
 		c.NodeName = "node1"
 		c.BootstrapExpect = 3
 		c.DevMode = false
+		c.RaftConfig = raft.DefaultConfig()
 		c.DataDir = path.Join(dir, "node1")
 	})
 	defer cleanupS1()
@@ -114,6 +115,7 @@ func TestNomad_ReapPeer(t *testing.T) {
 		c.NodeName = "node2"
 		c.BootstrapExpect = 3
 		c.DevMode = false
+		c.RaftConfig = raft.DefaultConfig()
 		c.DataDir = path.Join(dir, "node2")
 	})
 	defer cleanupS2()
@@ -121,6 +123,7 @@ func TestNomad_ReapPeer(t *testing.T) {
 		c.NodeName = "node3"
 		c.BootstrapExpect = 3
 		c.DevMode = false
+		c.RaftConfig = raft.DefaultConfig()
 		c.DataDir = path.Join(dir, "node3")
 	})
 	defer cleanupS3()
@@ -199,104 +202,72 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
+		c.RaftConfig = raft.DefaultConfig()
 		c.DataDir = path.Join(dir, "node1")
 	})
 	defer cleanupS1()
 	s2, cleanupS2 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
+		c.RaftConfig = raft.DefaultConfig()
 		c.DataDir = path.Join(dir, "node2")
 	})
 	defer cleanupS2()
 	s3, cleanupS3 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
+		c.RaftConfig = raft.DefaultConfig()
 		c.DataDir = path.Join(dir, "node3")
 	})
 	defer cleanupS3()
 	TestJoin(t, s1, s2, s3)
-
-	testutil.WaitForResult(func() (bool, error) {
-		// Retry the join to decrease flakiness
-		TestJoin(t, s1, s2, s3)
-		peers, err := s1.numPeers()
-		if err != nil {
-			return false, err
-		}
-		if peers != 3 {
-			return false, fmt.Errorf("bad: %#v", peers)
-		}
-		peers, err = s2.numPeers()
-		if err != nil {
-			return false, err
-		}
-		if peers != 3 {
-			return false, fmt.Errorf("bad: %#v", peers)
-		}
-		peers, err = s3.numPeers()
-		if err != nil {
-			return false, err
-		}
-		if peers != 3 {
-			return false, fmt.Errorf("bad: %#v", peers)
-		}
-		if len(s1.localPeers) != 3 {
-			return false, fmt.Errorf("bad: %#v", s1.localPeers)
-		}
-		if len(s2.localPeers) != 3 {
-			return false, fmt.Errorf("bad: %#v", s2.localPeers)
-		}
-		if len(s3.localPeers) != 3 {
-			return false, fmt.Errorf("bad: %#v", s3.localPeers)
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
 
 	// Join a fourth server after quorum has already been formed and ensure
 	// there is no election
 	s4, cleanupS4 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3
 		c.DevMode = false
+		c.RaftConfig = raft.DefaultConfig()
 		c.DataDir = path.Join(dir, "node4")
 	})
 	defer cleanupS4()
 
 	// Make sure a leader is elected, grab the current term and then add in
 	// the fourth server.
-	testutil.WaitForLeader(t, s1.RPC)
-	termBefore := s1.raft.Stats()["last_log_term"]
+	t.Logf("waiting for stable leadership and up to date leadership")
+	leader := waitForStableLeadership(t, []*Server{s1, s2, s3})
+	require.NoError(t, leader.raft.Barrier(10*time.Second).Error())
+
+	termBefore := leader.raft.Stats()["last_log_term"]
+	t.Logf("got term: %v\n%#+v", termBefore, leader.raft.Stats())
 
 	var addresses []string
 	for _, s := range []*Server{s1, s2, s3} {
 		addr := fmt.Sprintf("127.0.0.1:%d", s.config.SerfConfig.MemberlistConfig.BindPort)
 		addresses = append(addresses, addr)
 	}
-	if _, err := s4.Join(addresses); err != nil {
-		t.Fatalf("err: %v", err)
-	}
 
 	// Wait for the new server to see itself added to the cluster.
-	var p4 int
 	testutil.WaitForResult(func() (bool, error) {
 		// Retry join to reduce flakiness
 		if _, err := s4.Join(addresses); err != nil {
-			t.Fatalf("err: %v", err)
+			return false, fmt.Errorf("failed to to join addresses: %v", err)
 		}
-		p4, _ = s4.numPeers()
-		return p4 == 4, errors.New(fmt.Sprintf("%d", p4))
+		p4, _ := s4.numPeers()
+		if p4 != 4 {
+			return false, fmt.Errorf("expected %d peers found %d", 4, p4)
+		}
+		return true, nil
 	}, func(err error) {
-		t.Fatalf("should have 4 peers: %v", err)
+		require.NoError(t, err)
 	})
 
 	// Make sure there's still a leader and that the term didn't change,
 	// so we know an election didn't occur.
-	testutil.WaitForLeader(t, s1.RPC)
-	termAfter := s1.raft.Stats()["last_log_term"]
-	if termAfter != termBefore {
-		t.Fatalf("looks like an election took place")
-	}
+	leader = waitForStableLeadership(t, []*Server{s1, s2, s3, s4})
+	require.NoError(t, leader.raft.Barrier(10*time.Second).Error())
+	termAfter := leader.raft.Stats()["last_log_term"]
+	require.Equal(t, termBefore, termAfter, "expected no election")
 }
 
 func TestNomad_BootstrapExpect_NonVoter(t *testing.T) {

@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/golang/snappy"
-	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	api "github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func TestHTTP_JobsList(t *testing.T) {
@@ -1454,8 +1455,9 @@ func TestHTTP_JobDispatch(t *testing.T) {
 		respW := httptest.NewRecorder()
 		args2 := structs.JobDispatchRequest{
 			WriteRequest: structs.WriteRequest{
-				Region:    "global",
-				Namespace: structs.DefaultNamespace,
+				Region:           "global",
+				Namespace:        structs.DefaultNamespace,
+				IdempotencyToken: "foo",
 			},
 		}
 		buf := encodeReq(args2)
@@ -1845,6 +1847,77 @@ func TestJobs_RegionForJob(t *testing.T) {
 	}
 }
 
+func TestJobs_NamespaceForJob(t *testing.T) {
+	t.Parallel()
+
+	// test namespace for pointer inputs
+	ns := "dev"
+
+	cases := []struct {
+		name           string
+		job            *api.Job
+		queryNamespace string
+		apiNamespace   string
+		expected       string
+	}{
+		{
+			name:     "no namespace provided",
+			job:      &api.Job{},
+			expected: structs.DefaultNamespace,
+		},
+
+		{
+			name:     "jobspec has namespace",
+			job:      &api.Job{Namespace: &ns},
+			expected: "dev",
+		},
+
+		{
+			name:           "-namespace flag overrides empty job namespace",
+			job:            &api.Job{},
+			queryNamespace: "prod",
+			expected:       "prod",
+		},
+
+		{
+			name:           "-namespace flag overrides job namespace",
+			job:            &api.Job{Namespace: &ns},
+			queryNamespace: "prod",
+			expected:       "prod",
+		},
+
+		{
+			name:           "-namespace flag overrides job namespace even if default",
+			job:            &api.Job{Namespace: &ns},
+			queryNamespace: structs.DefaultNamespace,
+			expected:       structs.DefaultNamespace,
+		},
+
+		{
+			name:         "API param overrides empty job namespace",
+			job:          &api.Job{},
+			apiNamespace: "prod",
+			expected:     "prod",
+		},
+
+		{
+			name:           "-namespace flag overrides API param",
+			job:            &api.Job{Namespace: &ns},
+			queryNamespace: "prod",
+			apiNamespace:   "whatever",
+			expected:       "prod",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected,
+				namespaceForJob(tc.job.Namespace, tc.queryNamespace, tc.apiNamespace),
+			)
+		})
+	}
+}
+
 func TestJobs_ApiJobToStructsJob(t *testing.T) {
 	apiJob := &api.Job{
 		Stop:        helper.BoolToPtr(true),
@@ -2029,7 +2102,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Limit:          3,
 									IgnoreWarnings: true,
 								},
-								TaskName: "task1",
+								TaskName:               "task1",
+								SuccessBeforePassing:   2,
+								FailuresBeforeCritical: 3,
 							},
 						},
 						Connect: &api.ConsulConnect{
@@ -2408,8 +2483,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 									Limit:          3,
 									IgnoreWarnings: true,
 								},
-								TaskName: "task1",
-								OnUpdate: "require_healthy",
+								TaskName:               "task1",
+								OnUpdate:               "require_healthy",
+								SuccessBeforePassing:   2,
+								FailuresBeforeCritical: 3,
 							},
 						},
 						Connect: &structs.ConsulConnect{
@@ -3138,12 +3215,21 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 		LocalBindPort:    8000,
 		Datacenter:       "dc2",
 		LocalBindAddress: "127.0.0.2",
+		MeshGateway:      &structs.ConsulMeshGateway{Mode: "local"},
 	}}, apiUpstreamsToStructs([]*api.ConsulUpstream{{
 		DestinationName:  "upstream",
 		LocalBindPort:    8000,
 		Datacenter:       "dc2",
 		LocalBindAddress: "127.0.0.2",
+		MeshGateway:      &api.ConsulMeshGateway{Mode: "local"},
 	}}))
+}
+
+func TestConversion_apiConsulMeshGatewayToStructs(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, apiMeshGatewayToStructs(nil))
+	require.Equal(t, &structs.ConsulMeshGateway{Mode: "remote"},
+		apiMeshGatewayToStructs(&api.ConsulMeshGateway{Mode: "remote"}))
 }
 
 func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
@@ -3308,6 +3394,22 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 						KeyFile:  "key.pem",
 						SNI:      "linked.consul",
 					}},
+				},
+			},
+		}))
+	})
+
+	t.Run("gateway mesh", func(t *testing.T) {
+		require.Equal(t, &structs.ConsulConnect{
+			Gateway: &structs.ConsulGateway{
+				Mesh: &structs.ConsulMeshConfigEntry{
+					// nothing
+				},
+			},
+		}, ApiConsulConnectToStructs(&api.ConsulConnect{
+			Gateway: &api.ConsulGateway{
+				Mesh: &api.ConsulMeshConfigEntry{
+					// nothing
 				},
 			},
 		}))

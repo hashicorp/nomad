@@ -25,6 +25,10 @@ endif
 # tag corresponding to latest release we maintain backward compatibility with
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
+# LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
+# published release, but backport branches should point to the parent tag (e.g. 1.0.8 in release-1.0.9 after 1.1.0 is cut).
+LAST_RELEASE ?= v1.1.2
+
 default: help
 
 ifeq ($(CI),true)
@@ -99,7 +103,6 @@ bootstrap: deps lint-deps git-hooks # Install all dependencies
 
 .PHONY: deps
 deps:  ## Install build and development dependencies
-## Keep versions in sync with tools/go.mod for now (see https://github.com/golang/go/issues/30515)
 	@echo "==> Updating build dependencies..."
 	go install github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
 	go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
@@ -109,6 +112,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -148,18 +152,14 @@ check: ## Lint the source code
 	@if (git status -s | grep -q -e '\.hcl$$' -e '\.nomad$$'); then echo the following HCL files are out of sync; git status -s | grep -e '\.hcl$$' -e '\.nomad$$'; exit 1; fi
 
 	@echo "==> Check API package is isolated from rest"
-	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
+	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
 
 	@echo "==> Checking Go mod.."
-	@GO111MODULE=on $(MAKE) sync
+	@GO111MODULE=on $(MAKE) tidy
 	@if (git status --porcelain | grep -Eq "go\.(mod|sum)"); then \
 		echo go.mod or go.sum needs updating; \
 		git --no-pager diff go.mod; \
 		git --no-pager diff go.sum; \
-		exit 1; fi
-	@if (git status --porcelain | grep -Eq "vendor/github.com/hashicorp/nomad/.*\.go"); then \
-		echo "nomad go submodules are out of sync, try 'make sync':"; \
-		git status -s | grep -E "vendor/github.com/hashicorp/nomad/.*\.go"; \
 		exit 1; fi
 
 	@echo "==> Check raft util msg type mapping are in-sync..."
@@ -183,7 +183,7 @@ checkproto: ## Lint protobuf files
 generate-all: generate-structs proto generate-examples
 
 .PHONY: generate-structs
-generate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
+generate-structs: LOCAL_PACKAGES = $(shell go list ./...)
 generate-structs: ## Update generated code
 	@echo "--> Running go generate..."
 	@go generate $(LOCAL_PACKAGES)
@@ -199,10 +199,9 @@ generate-examples: command/job_init.bindata_assetfs.go
 command/job_init.bindata_assetfs.go: command/assets/*
 	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
 
-.PHONY: changelogfmt
-changelogfmt:
-	@echo "--> Making [GH-xxxx] references clickable..."
-	@sed -E 's|([^\[])\[GH-([0-9]+)\]|\1[[GH-\2](https://github.com/hashicorp/nomad/issues/\2)]|g' CHANGELOG.md > changelog.tmp && mv changelog.tmp CHANGELOG.md
+changelog:
+	@changelog-build -last-release $(LAST_RELEASE) -this-release HEAD \
+		-entries-dir .changelog/ -changelog-template ./.changelog/changelog.tmpl -note-template ./.changelog/note.tmpl
 
 ## We skip the terraform directory as there are templated hcl configurations
 ## that do not successfully compile without rendering
@@ -220,17 +219,12 @@ tidy:
 	@echo "--> Tidy nomad module"
 	@go mod tidy
 
-.PHONY: sync
-sync: tidy
-	@echo "--> Sync vendor directory"
-	@go mod vendor
-
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
-dev: changelogfmt hclfmt ## Build for the current development platform
+dev: hclfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad

@@ -12,8 +12,8 @@
     </div>
     {{#if (media "isMobile")}}
       <div class="toolbar-item is-right-aligned">
-        {{#if (can "run job")}}
-          <LinkTo @route="jobs.run" data-test-run-job class="button is-primary">Run Job</LinkTo>
+        {{#if (can "run job" namespace=this.qpNamespace)}}
+          <LinkTo @route="jobs.run" @query={{hash namespace=this.qpNamespace}} data-test-run-job class="button is-primary">Run Job</LinkTo>
         {{else}}
           <button
             data-test-run-job
@@ -66,8 +66,8 @@
     </div>
     {{#if (not (media "isMobile"))}}
       <div class="toolbar-item is-right-aligned">
-        {{#if (can "run job")}}
-          <LinkTo @route="jobs.run" data-test-run-job class="button is-primary">Run Job</LinkTo>
+        {{#if (can "run job" namespace=this.qpNamespace)}}
+          <LinkTo @route="jobs.run" @query={{hash namespace=this.qpNamespace}} data-test-run-job class="button is-primary">Run Job</LinkTo>
         {{else}}
           <button
             data-test-run-job

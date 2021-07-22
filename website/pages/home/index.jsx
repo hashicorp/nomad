@@ -244,8 +244,7 @@ export default function Homepage() {
             person: {
               firstName: 'Dhasharath',
               lastName: 'Shrivathsa',
-              photo:
-                'https://www.datocms-assets.com/2885/1594233068-dharsharathshrivathsa.jpg',
+              photo: 'https://www.datocms-assets.com/2885/1623450501-dhasharath-shrivathsa.jpg',
               title: 'CEO',
             },
             company: {
@@ -423,7 +422,8 @@ export default function Homepage() {
             linkUrl: '/docs/integrations/vault-integration',
           },
           {
-            slug: 'gitlab',
+            url: require('./img/partner-logos/gitlab-logo-gray-stacked-rgb.svg?url'),
+            alt: 'Gitlab',
             linkUrl:
               'https://www.hashicorp.com/resources/nomad-ci-cd-developer-workflows-and-integrations',
           },

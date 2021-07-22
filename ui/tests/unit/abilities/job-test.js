@@ -157,6 +157,40 @@ module('Unit | Ability | job', function(hooks) {
     assert.ok(this.can.cannot('scale job', null, { namespace: 'aNamespace' }));
   });
 
+  test('job dispatch requires a client token with the dispatch-job capability', function(assert) {
+    const makePolicies = (namespace, ...capabilities) => [
+      {
+        rulesJSON: {
+          Namespaces: [
+            {
+              Name: namespace,
+              Capabilities: capabilities,
+            },
+          ],
+        },
+      },
+    ];
+
+    const mockSystem = Service.extend({
+      aclEnabled: true,
+    });
+
+    const mockToken = Service.extend({
+      aclEnabled: true,
+      selfToken: { type: 'client' },
+      selfTokenPolicies: makePolicies('aNamespace'),
+    });
+
+    this.owner.register('service:system', mockSystem);
+    this.owner.register('service:token', mockToken);
+    const tokenService = this.owner.lookup('service:token');
+
+    assert.ok(this.can.cannot('dispatch job', null, { namespace: 'aNamespace' }));
+
+    tokenService.set('selfTokenPolicies', makePolicies('aNamespace', 'dispatch-job'));
+    assert.ok(this.can.can('dispatch job', null, { namespace: 'aNamespace' }));
+  });
+
   test('it handles globs in namespace names', function(assert) {
     const mockSystem = Service.extend({
       aclEnabled: true,
