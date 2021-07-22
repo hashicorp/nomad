@@ -1115,8 +1115,14 @@ func TestParse(t *testing.T) {
 											LocalServicePort: 8080,
 											Upstreams: []*api.ConsulUpstream{
 												{
-													DestinationName: "other-service",
-													LocalBindPort:   4567,
+													DestinationName:  "other-service",
+													LocalBindPort:    4567,
+													LocalBindAddress: "0.0.0.0",
+													Datacenter:       "dc1",
+
+													MeshGateway: &api.ConsulMeshGateway{
+														Mode: "local",
+													},
 												},
 											},
 										},

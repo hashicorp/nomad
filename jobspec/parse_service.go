@@ -891,6 +891,9 @@ func parseUpstream(uo *ast.ObjectItem) (*api.ConsulUpstream, error) {
 	valid := []string{
 		"destination_name",
 		"local_bind_port",
+		"local_bind_address",
+		"datacenter",
+		"mesh_gateway",
 	}
 
 	if err := checkHCLKeys(uo.Val, valid); err != nil {
@@ -902,6 +905,8 @@ func parseUpstream(uo *ast.ObjectItem) (*api.ConsulUpstream, error) {
 	if err := hcl.DecodeObject(&m, uo.Val); err != nil {
 		return nil, err
 	}
+
+	delete(m, "mesh_gateway")
 
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
@@ -916,7 +921,49 @@ func parseUpstream(uo *ast.ObjectItem) (*api.ConsulUpstream, error) {
 		return nil, err
 	}
 
+	var listVal *ast.ObjectList
+	if ot, ok := uo.Val.(*ast.ObjectType); ok {
+		listVal = ot.List
+	} else {
+		return nil, fmt.Errorf("'%s': should be an object", upstream.DestinationName)
+	}
+
+	if mgO := listVal.Filter("mesh_gateway"); len(mgO.Items) > 0 {
+		if len(mgO.Items) > 1 {
+			return nil, fmt.Errorf("upstream '%s': cannot have more than 1 mesh_gateway", upstream.DestinationName)
+		}
+
+		mgw, err := parseMeshGateway(mgO.Items[0])
+		if err != nil {
+			return nil, multierror.Prefix(err, fmt.Sprintf("'%s',", upstream.DestinationName))
+		}
+
+		upstream.MeshGateway = mgw
+
+	}
 	return &upstream, nil
+}
+
+func parseMeshGateway(gwo *ast.ObjectItem) (*api.ConsulMeshGateway, error) {
+	valid := []string{
+		"mode",
+	}
+
+	if err := checkHCLKeys(gwo.Val, valid); err != nil {
+		return nil, multierror.Prefix(err, "mesh_gateway ->")
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, gwo.Val); err != nil {
+		return nil, err
+	}
+
+	var mgw api.ConsulMeshGateway
+	if err := mapstructure.WeakDecode(m, &mgw); err != nil {
+		return nil, err
+	}
+
+	return &mgw, nil
 }
 
 func parseChecks(service *api.Service, checkObjs *ast.ObjectList) error {
