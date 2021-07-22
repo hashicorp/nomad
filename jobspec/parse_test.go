@@ -1187,6 +1187,7 @@ func TestParse(t *testing.T) {
 							{
 								Name:      "foo-service",
 								PortLabel: "http",
+								OnUpdate:  "ignore",
 								Checks: []api.ServiceCheck{
 									{
 										Name:          "check-name",
@@ -1196,6 +1197,7 @@ func TestParse(t *testing.T) {
 										Timeout:       time.Duration(2 * time.Second),
 										InitialStatus: "passing",
 										TaskName:      "foo",
+										OnUpdate:      "ignore",
 									},
 								},
 							},
