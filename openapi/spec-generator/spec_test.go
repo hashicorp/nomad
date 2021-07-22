@@ -97,6 +97,33 @@ func TestJobRequest(t *testing.T) {
 	req.Contains(yaml, jobResponseSchema)
 }
 
+func TestBuildFromSchema(t *testing.T) {
+	req := require.New(t)
+
+	var analyzer *Analyzer
+	var err error
+
+	analyzer, err = newAnalyzer(nomadPackages, t.Log, defaultDebugOptions)
+	req.NoError(err)
+
+	visitor := newNomadPackageVisitor(analyzer, t.Log, defaultDebugOptions)
+
+	builder := newNomadSpecBuilder(analyzer, &visitor)
+	var spec *Spec
+	spec, err = builder.BuildFromModel()
+	req.NoError(err)
+	req.NotNil(spec)
+	req.NotNil(spec.Model)
+	req.NotNil(spec.Model.Components)
+
+	var yaml string
+	yaml, err = spec.ToYAML()
+	_ = os.WriteFile("from-model.yaml", []byte(yaml), 0666)
+	t.Log(yaml)
+	req.NotEmpty(yaml)
+	req.Contains(yaml, jobResponseSchema)
+}
+
 var jobResponseSchema = `
     JobRegisterResponse:
       properties:

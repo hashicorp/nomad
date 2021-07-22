@@ -2,6 +2,10 @@ module github.com/hashicorp/nomad/openapi/spec-generator
 
 go 1.16
 
+replace (
+	github.com/getkin/kin-openapi => ../../../kin-openapi
+)
+
 require (
 	github.com/getkin/kin-openapi v0.66.0
 	github.com/ghodss/yaml v1.0.0
