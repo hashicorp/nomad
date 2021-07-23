@@ -229,7 +229,6 @@ func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d.RenderFrame()
 	go d.Render(ctx)
 
 	q := api.QueryOptions{
