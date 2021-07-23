@@ -8,6 +8,7 @@ import (
 	"github.com/ghodss/yaml"
 	"net/http"
 	"reflect"
+	"strconv"
 )
 
 // Spec wraps a kin-openapi document object model with a little bit of extra
@@ -305,11 +306,15 @@ func (b *SpecBuilder) AdaptRequestBody(requestBody *RequestBody) (*openapi3.Requ
 		return nil, err
 	}
 
+	if _, ok := b.spec.Model.Components.Schemas[requestBody.Model.Name()]; !ok {
+		b.spec.Model.Components.Schemas[requestBody.Model.Name()] = schemaRef
+	}
+
 	ref.Required = true
 	ref.Content = openapi3.NewContentWithSchemaRef(schemaRef, []string{"application/json"})
 
 	return &openapi3.RequestBodyRef{
-		Ref:   fmt.Sprintf("#/components/schemas/%s", requestBody.Model.Name()),
+		Ref:   "",
 		Value: ref,
 	}, nil
 }
@@ -343,7 +348,7 @@ func (b *SpecBuilder) AdaptResponses(configs []*ResponseConfig) (openapi3.Respon
 			b.spec.Model.Components.Responses[cfg.Response.Id] = response
 		}
 		// Now just add a ref for the path
-		responses[cfg.Response.Id] = &openapi3.ResponseRef{
+		responses[strconv.Itoa(cfg.Code)] = &openapi3.ResponseRef{
 			Ref:   fmt.Sprintf("#/components/responses/%s", cfg.Response.Id),
 			Value: response.Value,
 		}
@@ -383,6 +388,14 @@ func (b *SpecBuilder) GetOrCreateSchemaRef(model reflect.Type) (*openapi3.Schema
 		return nil, err
 	}
 
+	for schemaRef, _ := range b.Generator.SchemaRefs {
+		if _, ok := b.spec.Model.Components.Schemas[schemaRef.Ref]; !ok {
+			if len(schemaRef.Ref) > 0 {
+				b.spec.Model.Components.Schemas[schemaRef.Ref] = openapi3.NewSchemaRef("", schemaRef.Value)
+			}
+		}
+	}
+
 	if _, ok := b.spec.Model.Components.Schemas[model.Name()]; !ok {
 		b.spec.Model.Components.Schemas[model.Name()] = &openapi3.SchemaRef{
 			Ref:   "",
@@ -394,4 +407,8 @@ func (b *SpecBuilder) GetOrCreateSchemaRef(model reflect.Type) (*openapi3.Schema
 		Ref:   fmt.Sprintf("#/components/schemas/%s", model.Name()),
 		Value: ref.Value,
 	}, nil
+}
+
+func (b *SpecBuilder) isBasic(ref *openapi3.SchemaRef) bool {
+	return ref.Ref == "integer" || ref.Ref == "number" || ref.Ref == "string" || ref.Ref == "boolean" || ref.Ref == "array" || ref.Ref == "object"
 }

@@ -41,7 +41,7 @@ func TestRenderSchema(t *testing.T) {
 	t.Log("adapterCount", adapterCount)
 	req.NotEqual(0, adapterCount)
 
-	builder := newNomadSpecBuilder(analyzer, &visitor)
+	builder := newNomadSpecBuilder(analyzer, &visitor, t.Log)
 	var spec *Spec
 	spec, err = builder.Build()
 	req.NoError(err)
@@ -81,7 +81,7 @@ func TestJobRequest(t *testing.T) {
 	t.Log("adapterCount", adapterCount)
 	req.NotEqual(0, adapterCount)
 
-	builder := newNomadSpecBuilder(analyzer, &visitor)
+	builder := newNomadSpecBuilder(analyzer, &visitor, t.Log)
 	var spec *Spec
 	spec, err = builder.Build()
 	req.NoError(err)
@@ -108,7 +108,7 @@ func TestBuildFromSchema(t *testing.T) {
 
 	visitor := newNomadPackageVisitor(analyzer, t.Log, defaultDebugOptions)
 
-	builder := newNomadSpecBuilder(analyzer, &visitor)
+	builder := newNomadSpecBuilder(analyzer, &visitor, t.Log)
 	var spec *Spec
 	spec, err = builder.BuildFromModel()
 	req.NoError(err)

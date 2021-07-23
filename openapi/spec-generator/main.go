@@ -43,7 +43,7 @@ func run(g *Generator) error {
 
 	visitor := newNomadPackageVisitor(analyzer, logWrapper(logger), defaultDebugOptions)
 
-	spec, err := newNomadSpecBuilder(analyzer, &visitor).Build()
+	spec, err := newNomadSpecBuilder(analyzer, &visitor, logWrapper(logger)).Build()
 	if err != nil {
 		return fmt.Errorf("Generator.run.NomadSpecBuilder.Build: ")
 	}

@@ -103,6 +103,252 @@ components:
     default:
       description: ""
   schemas:
+    Affinity:
+      properties:
+        LTarget:
+          $ref: string
+        Operand:
+          $ref: string
+        RTarget:
+          $ref: string
+        Weight:
+          $ref: int8
+      type: object
+    CSIMountOptions:
+      properties:
+        FSType:
+          $ref: string
+        MountFlags:
+          items:
+            $ref: string
+          type: array
+      type: object
+    CSIPluginType:
+      type: string
+    CheckRestart:
+      properties:
+        Grace:
+          $ref: Duration
+        IgnoreWarnings:
+          $ref: bool
+        Limit:
+          $ref: int
+      type: object
+    Constraint:
+      properties:
+        LTarget:
+          $ref: string
+        Operand:
+          $ref: string
+        RTarget:
+          $ref: string
+      type: object
+    Consul:
+      properties:
+        Namespace:
+          $ref: string
+      type: object
+    ConsulConnect:
+      properties:
+        Gateway:
+          $ref: ConsulGateway
+        Native:
+          $ref: bool
+        SidecarService:
+          $ref: ConsulSidecarService
+        SidecarTask:
+          $ref: SidecarTask
+      type: object
+    ConsulExposeConfig:
+      properties:
+        Path:
+          items:
+            $ref: ConsulExposePath
+          type: array
+      type: object
+    ConsulExposePath:
+      properties:
+        ListenerPort:
+          $ref: string
+        LocalPathPort:
+          $ref: int
+        Path:
+          $ref: string
+        Protocol:
+          $ref: string
+      type: object
+    ConsulGateway:
+      properties:
+        Ingress:
+          $ref: ConsulIngressConfigEntry
+        Mesh:
+          $ref: ConsulMeshConfigEntry
+        Proxy:
+          $ref: ConsulGatewayProxy
+        Terminating:
+          $ref: ConsulTerminatingConfigEntry
+      type: object
+    ConsulGatewayBindAddress:
+      properties:
+        Address:
+          $ref: string
+        Name:
+          $ref: string
+        Port:
+          $ref: int
+      type: object
+    ConsulGatewayProxy:
+      properties:
+        Config:
+          additionalProperties: {}
+          type: object
+        ConnectTimeout:
+          $ref: Duration
+        EnvoyDNSDiscoveryType:
+          $ref: string
+        EnvoyGatewayBindAddresses:
+          additionalProperties:
+            $ref: ConsulGatewayBindAddress
+          type: object
+        EnvoyGatewayBindTaggedAddresses:
+          $ref: bool
+        EnvoyGatewayNoDefaultBind:
+          $ref: bool
+      type: object
+    ConsulGatewayTLSConfig:
+      properties:
+        Enabled:
+          $ref: bool
+      type: object
+    ConsulIngressConfigEntry:
+      properties:
+        Listeners:
+          items:
+            $ref: ConsulIngressListener
+          type: array
+        TLS:
+          $ref: ConsulGatewayTLSConfig
+      type: object
+    ConsulIngressListener:
+      properties:
+        Port:
+          $ref: int
+        Protocol:
+          $ref: string
+        Services:
+          items:
+            $ref: ConsulIngressService
+          type: array
+      type: object
+    ConsulIngressService:
+      properties:
+        Hosts:
+          items:
+            $ref: string
+          type: array
+        Name:
+          $ref: string
+      type: object
+    ConsulLinkedService:
+      properties:
+        CAFile:
+          $ref: string
+        CertFile:
+          $ref: string
+        KeyFile:
+          $ref: string
+        Name:
+          $ref: string
+        SNI:
+          $ref: string
+      type: object
+    ConsulMeshConfigEntry: {}
+    ConsulMeshGateway:
+      properties:
+        Mode:
+          $ref: string
+      type: object
+    ConsulProxy:
+      properties:
+        Config:
+          additionalProperties: {}
+          type: object
+        ExposeConfig:
+          $ref: ConsulExposeConfig
+        LocalServiceAddress:
+          $ref: string
+        LocalServicePort:
+          $ref: int
+        Upstreams:
+          items:
+            $ref: ConsulUpstream
+          type: array
+      type: object
+    ConsulSidecarService:
+      properties:
+        DisableDefaultTCPCheck:
+          $ref: bool
+        Port:
+          $ref: string
+        Proxy:
+          $ref: ConsulProxy
+        Tags:
+          items:
+            $ref: string
+          type: array
+      type: object
+    ConsulTerminatingConfigEntry:
+      properties:
+        Services:
+          items:
+            $ref: ConsulLinkedService
+          type: array
+      type: object
+    ConsulUpstream:
+      properties:
+        Datacenter:
+          $ref: string
+        DestinationName:
+          $ref: string
+        LocalBindAddress:
+          $ref: string
+        LocalBindPort:
+          $ref: int
+        MeshGateway:
+          $ref: ConsulMeshGateway
+      type: object
+    DNSConfig:
+      properties:
+        Options:
+          items:
+            $ref: string
+          type: array
+        Searches:
+          items:
+            $ref: string
+          type: array
+        Servers:
+          items:
+            $ref: string
+          type: array
+      type: object
+    DispatchPayloadConfig:
+      properties:
+        File:
+          $ref: string
+      type: object
+    Duration:
+      format: int64
+      type: integer
+    EphemeralDisk:
+      properties:
+        Migrate:
+          $ref: bool
+        SizeMB:
+          $ref: int
+        Sticky:
+          $ref: bool
+      type: object
     Job:
       properties:
         Affinities:
@@ -210,6 +456,625 @@ components:
         SecretID:
           $ref: string
       type: object
+    LogConfig:
+      properties:
+        MaxFileSizeMB:
+          $ref: int
+        MaxFiles:
+          $ref: int
+      type: object
+    MigrateStrategy:
+      properties:
+        HealthCheck:
+          $ref: string
+        HealthyDeadline:
+          $ref: Duration
+        MaxParallel:
+          $ref: int
+        MinHealthyTime:
+          $ref: Duration
+      type: object
+    Multiregion:
+      properties:
+        Regions:
+          items:
+            $ref: MultiregionRegion
+          type: array
+        Strategy:
+          $ref: MultiregionStrategy
+      type: object
+    MultiregionRegion:
+      properties:
+        Count:
+          $ref: int
+        Datacenters:
+          items:
+            $ref: string
+          type: array
+        Meta:
+          additionalProperties:
+            $ref: string
+          type: object
+        Name:
+          $ref: string
+      type: object
+    MultiregionStrategy:
+      properties:
+        MaxParallel:
+          $ref: int
+        OnFailure:
+          $ref: string
+      type: object
+    NetworkResource:
+      properties:
+        CIDR:
+          $ref: string
+        DNS:
+          $ref: DNSConfig
+        Device:
+          $ref: string
+        DynamicPorts:
+          items:
+            $ref: Port
+          type: array
+        IP:
+          $ref: string
+        MBits:
+          $ref: int
+        Mode:
+          $ref: string
+        ReservedPorts:
+          items:
+            $ref: Port
+          type: array
+      type: object
+    ParameterizedJobConfig:
+      properties:
+        MetaOptional:
+          items:
+            $ref: string
+          type: array
+        MetaRequired:
+          items:
+            $ref: string
+          type: array
+        Payload:
+          $ref: string
+      type: object
+    PeriodicConfig:
+      properties:
+        Enabled:
+          $ref: bool
+        ProhibitOverlap:
+          $ref: bool
+        Spec:
+          $ref: string
+        SpecType:
+          $ref: string
+        TimeZone:
+          $ref: string
+      type: object
+    Port:
+      properties:
+        HostNetwork:
+          $ref: string
+        Label:
+          $ref: string
+        To:
+          $ref: int
+        Value:
+          $ref: int
+      type: object
+    RequestedDevice:
+      properties:
+        Affinities:
+          items:
+            $ref: Affinity
+          type: array
+        Constraints:
+          items:
+            $ref: Constraint
+          type: array
+        Count:
+          $ref: uint64
+        Name:
+          $ref: string
+      type: object
+    ReschedulePolicy:
+      properties:
+        Attempts:
+          $ref: int
+        Delay:
+          $ref: Duration
+        DelayFunction:
+          $ref: string
+        Interval:
+          $ref: Duration
+        MaxDelay:
+          $ref: Duration
+        Unlimited:
+          $ref: bool
+      type: object
+    Resources:
+      properties:
+        CPU:
+          $ref: int
+        Cores:
+          $ref: int
+        Devices:
+          items:
+            $ref: RequestedDevice
+          type: array
+        DiskMB:
+          $ref: int
+        IOPS:
+          $ref: int
+        MemoryMB:
+          $ref: int
+        MemoryMaxMB:
+          $ref: int
+        Networks:
+          items:
+            $ref: NetworkResource
+          type: array
+      type: object
+    RestartPolicy:
+      properties:
+        Attempts:
+          $ref: int
+        Delay:
+          $ref: Duration
+        Interval:
+          $ref: Duration
+        Mode:
+          $ref: string
+      type: object
+    ScalingPolicy:
+      properties:
+        CreateIndex:
+          $ref: uint64
+        Enabled:
+          $ref: bool
+        ID:
+          $ref: string
+        Max:
+          $ref: int64
+        Min:
+          $ref: int64
+        ModifyIndex:
+          $ref: uint64
+        Namespace:
+          $ref: string
+        Policy:
+          additionalProperties: {}
+          type: object
+        Target:
+          additionalProperties:
+            $ref: string
+          type: object
+        Type:
+          $ref: string
+      type: object
+    Service:
+      properties:
+        AddressMode:
+          $ref: string
+        CanaryMeta:
+          additionalProperties:
+            $ref: string
+          type: object
+        CanaryTags:
+          items:
+            $ref: string
+          type: array
+        CheckRestart:
+          $ref: CheckRestart
+        Checks:
+          items:
+            $ref: ServiceCheck
+          type: array
+        Connect:
+          $ref: ConsulConnect
+        EnableTagOverride:
+          $ref: bool
+        Id:
+          $ref: string
+        Meta:
+          additionalProperties:
+            $ref: string
+          type: object
+        Name:
+          $ref: string
+        OnUpdate:
+          $ref: string
+        PortLabel:
+          $ref: string
+        Tags:
+          items:
+            $ref: string
+          type: array
+        TaskName:
+          $ref: string
+      type: object
+    ServiceCheck:
+      properties:
+        AddressMode:
+          $ref: string
+        Args:
+          items:
+            $ref: string
+          type: array
+        Body:
+          $ref: string
+        CheckRestart:
+          $ref: CheckRestart
+        Command:
+          $ref: string
+        Expose:
+          $ref: bool
+        FailuresBeforeCritical:
+          $ref: int
+        GRPCService:
+          $ref: string
+        GRPCUseTLS:
+          $ref: bool
+        Header:
+          additionalProperties:
+            items:
+              $ref: string
+            type: array
+          type: object
+        Id:
+          $ref: string
+        InitialStatus:
+          $ref: string
+        Interval:
+          $ref: Duration
+        Method:
+          $ref: string
+        Name:
+          $ref: string
+        OnUpdate:
+          $ref: string
+        Path:
+          $ref: string
+        PortLabel:
+          $ref: string
+        Protocol:
+          $ref: string
+        SuccessBeforePassing:
+          $ref: int
+        TLSSkipVerify:
+          $ref: bool
+        TaskName:
+          $ref: string
+        Timeout:
+          $ref: Duration
+        Type:
+          $ref: string
+      type: object
+    SidecarTask:
+      properties:
+        Config:
+          additionalProperties: {}
+          type: object
+        Driver:
+          $ref: string
+        Env:
+          additionalProperties:
+            $ref: string
+          type: object
+        KillSignal:
+          $ref: string
+        KillTimeout:
+          $ref: Duration
+        LogConfig:
+          $ref: LogConfig
+        Meta:
+          additionalProperties:
+            $ref: string
+          type: object
+        Name:
+          $ref: string
+        Resources:
+          $ref: Resources
+        ShutdownDelay:
+          $ref: Duration
+        User:
+          $ref: string
+      type: object
+    Spread:
+      properties:
+        Attribute:
+          $ref: string
+        SpreadTarget:
+          items:
+            $ref: SpreadTarget
+          type: array
+        Weight:
+          $ref: int8
+      type: object
+    SpreadTarget:
+      properties:
+        Percent:
+          $ref: uint8
+        Value:
+          $ref: string
+      type: object
+    Task:
+      properties:
+        Affinities:
+          items:
+            $ref: Affinity
+          type: array
+        Artifacts:
+          items:
+            $ref: TaskArtifact
+          type: array
+        CSIPluginConfig:
+          $ref: TaskCSIPluginConfig
+        Config:
+          additionalProperties: {}
+          type: object
+        Constraints:
+          items:
+            $ref: Constraint
+          type: array
+        DispatchPayload:
+          $ref: DispatchPayloadConfig
+        Driver:
+          $ref: string
+        Env:
+          additionalProperties:
+            $ref: string
+          type: object
+        KillSignal:
+          $ref: string
+        KillTimeout:
+          $ref: Duration
+        Kind:
+          $ref: string
+        Leader:
+          $ref: bool
+        Lifecycle:
+          $ref: TaskLifecycle
+        LogConfig:
+          $ref: LogConfig
+        Meta:
+          additionalProperties:
+            $ref: string
+          type: object
+        Name:
+          $ref: string
+        Resources:
+          $ref: Resources
+        RestartPolicy:
+          $ref: RestartPolicy
+        ScalingPolicies:
+          items:
+            $ref: ScalingPolicy
+          type: array
+        Services:
+          items:
+            $ref: Service
+          type: array
+        ShutdownDelay:
+          $ref: Duration
+        Templates:
+          items:
+            $ref: Template
+          type: array
+        User:
+          $ref: string
+        Vault:
+          $ref: Vault
+        VolumeMounts:
+          items:
+            $ref: VolumeMount
+          type: array
+      type: object
+    TaskArtifact:
+      properties:
+        GetterHeaders:
+          additionalProperties:
+            $ref: string
+          type: object
+        GetterMode:
+          $ref: string
+        GetterOptions:
+          additionalProperties:
+            $ref: string
+          type: object
+        GetterSource:
+          $ref: string
+        RelativeDest:
+          $ref: string
+      type: object
+    TaskCSIPluginConfig:
+      properties:
+        ID:
+          $ref: string
+        MountDir:
+          $ref: string
+        Type:
+          $ref: CSIPluginType
+      type: object
+    TaskGroup:
+      properties:
+        Affinities:
+          items:
+            $ref: Affinity
+          type: array
+        Constraints:
+          items:
+            $ref: Constraint
+          type: array
+        Consul:
+          $ref: Consul
+        Count:
+          $ref: int
+        EphemeralDisk:
+          $ref: EphemeralDisk
+        Meta:
+          additionalProperties:
+            $ref: string
+          type: object
+        Migrate:
+          $ref: MigrateStrategy
+        Name:
+          $ref: string
+        Networks:
+          items:
+            $ref: NetworkResource
+          type: array
+        ReschedulePolicy:
+          $ref: ReschedulePolicy
+        RestartPolicy:
+          $ref: RestartPolicy
+        Scaling:
+          $ref: ScalingPolicy
+        Services:
+          items:
+            $ref: Service
+          type: array
+        ShutdownDelay:
+          $ref: Duration
+        Spreads:
+          items:
+            $ref: Spread
+          type: array
+        StopAfterClientDisconnect:
+          $ref: Duration
+        Tasks:
+          items:
+            $ref: Task
+          type: array
+        Update:
+          $ref: UpdateStrategy
+        Volumes:
+          additionalProperties:
+            $ref: VolumeRequest
+          type: object
+      type: object
+    TaskLifecycle:
+      properties:
+        Hook:
+          $ref: string
+        Sidecar:
+          $ref: bool
+      type: object
+    Template:
+      properties:
+        ChangeMode:
+          $ref: string
+        ChangeSignal:
+          $ref: string
+        DestPath:
+          $ref: string
+        EmbeddedTmpl:
+          $ref: string
+        Envvars:
+          $ref: bool
+        LeftDelim:
+          $ref: string
+        Perms:
+          $ref: string
+        RightDelim:
+          $ref: string
+        SourcePath:
+          $ref: string
+        Splay:
+          $ref: Duration
+        VaultGrace:
+          $ref: Duration
+      type: object
+    UpdateStrategy:
+      properties:
+        AutoPromote:
+          $ref: bool
+        AutoRevert:
+          $ref: bool
+        Canary:
+          $ref: int
+        HealthCheck:
+          $ref: string
+        HealthyDeadline:
+          $ref: Duration
+        MaxParallel:
+          $ref: int
+        MinHealthyTime:
+          $ref: Duration
+        ProgressDeadline:
+          $ref: Duration
+        Stagger:
+          $ref: Duration
+      type: object
+    Vault:
+      properties:
+        ChangeMode:
+          $ref: string
+        ChangeSignal:
+          $ref: string
+        Env:
+          $ref: bool
+        Namespace:
+          $ref: string
+        Policies:
+          items:
+            $ref: string
+          type: array
+      type: object
+    VolumeMount:
+      properties:
+        Destination:
+          $ref: string
+        PropagationMode:
+          $ref: string
+        ReadOnly:
+          $ref: bool
+        Volume:
+          $ref: string
+      type: object
+    VolumeRequest:
+      properties:
+        AccessMode:
+          $ref: string
+        AttachmentMode:
+          $ref: string
+        MountOptions:
+          $ref: CSIMountOptions
+        Name:
+          $ref: string
+        PerAlloc:
+          $ref: bool
+        ReadOnly:
+          $ref: bool
+        Source:
+          $ref: string
+        Type:
+          $ref: string
+      type: object
+    bool:
+      type: boolean
+    int:
+      type: integer
+    int8:
+      maximum: 127
+      minimum: -128
+      type: integer
+    int64:
+      format: int64
+      type: integer
+    string:
+      type: string
+    uint8:
+      maximum: 255
+      minimum: 0
+      type: integer
+    uint64:
+      maximum: 1.8446744073709552e+19
+      minimum: 0
+      type: integer
 info:
   contact:
     email: support@hashicorp.com
@@ -223,16 +1088,20 @@ paths:
   /v1/jobs:
     post:
       requestBody:
-        $ref: '#/components/schemas/JobRegisterRequest'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobRegisterRequest'
+        required: true
       responses:
-        ForbiddenResponse:
-          $ref: '#/components/responses/ForbiddenResponse'
-        InternalServerErrorResponse:
-          $ref: '#/components/responses/InternalServerErrorResponse'
-        MethodNotAllowedResponse:
-          $ref: '#/components/responses/MethodNotAllowedResponse'
-        PostJobResponse:
+        "200":
           $ref: '#/components/responses/PostJobResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
       tags:
       - Jobs
   /v1/jobs/{jobName}:
@@ -253,13 +1122,13 @@ paths:
       - $ref: '#/components/parameters/NextTokenParam'
       - $ref: '#/components/parameters/JobNameParam'
       responses:
-        ForbiddenResponse:
-          $ref: '#/components/responses/ForbiddenResponse'
-        GetJobResponse:
+        "200":
           $ref: '#/components/responses/GetJobResponse'
-        InternalServerErrorResponse:
-          $ref: '#/components/responses/InternalServerErrorResponse'
-        MethodNotAllowedResponse:
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
           $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
       tags:
       - Jobs
