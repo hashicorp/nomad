@@ -199,7 +199,12 @@ func (b *SpecBuilder) BuildComponentsFromModel() error {
 	v1API := V1API{}
 	b.spec.Model.Components = openapi3.NewComponents()
 
+	b.spec.Model.Components.Parameters = openapi3.ParametersMap{}
+	b.spec.Model.Components.Responses = openapi3.NewResponses()
+	b.spec.Model.Components.Schemas = openapi3.Schemas{}
+	b.spec.Model.Components.Headers = openapi3.Headers{}
 	b.spec.Model.Components.SecuritySchemes = openapi3.SecuritySchemes{}
+
 	b.spec.Model.Paths = b.BuildPathsFromModel(v1API)
 
 	return nil
@@ -241,6 +246,7 @@ func (b *SpecBuilder) BuildPathsFromModel(api V1API) openapi3.Paths {
 				RequestBody: requestBodyRef,
 				Responses:   responses,
 			}
+
 			switch op.Method {
 			case http.MethodGet:
 				pathItem.Get = operation
@@ -260,7 +266,7 @@ func (b *SpecBuilder) AdaptParameters(params []*Parameter) openapi3.Parameters {
 	parameters := openapi3.Parameters{}
 
 	for _, param := range params {
-		if existing, ok := b.spec.Model.Components.Parameters[param.Name]; ok {
+		if existing, ok := b.spec.Model.Components.Parameters[param.Id]; ok {
 			parameters = append(parameters, existing)
 		} else {
 			parameter := b.AddParameter(param)
@@ -280,12 +286,16 @@ func (b *SpecBuilder) AddParameter(param *Parameter) *openapi3.ParameterRef {
 			Schema: openapi3.NewSchemaRef("", &openapi3.Schema{
 				Type: param.SchemaType,
 			}),
-			In: param.In,
+			In:       param.In,
+			Required: param.Required,
 		},
 	}
 
-	b.spec.Model.Components.Parameters[param.Name] = parameter
-	return parameter
+	b.spec.Model.Components.Parameters[param.Id] = parameter
+	return &openapi3.ParameterRef{
+		Ref:   fmt.Sprintf("#/components/parameters/%s", param.Id),
+		Value: parameter.Value,
+	}
 }
 
 func (b *SpecBuilder) AdaptRequestBody(requestBody *RequestBody) (*openapi3.RequestBodyRef, error) {
@@ -299,41 +309,44 @@ func (b *SpecBuilder) AdaptRequestBody(requestBody *RequestBody) (*openapi3.Requ
 	ref.Content = openapi3.NewContentWithSchemaRef(schemaRef, []string{"application/json"})
 
 	return &openapi3.RequestBodyRef{
-		Ref:   "",
+		Ref:   fmt.Sprintf("#/components/schemas/%s", requestBody.Model.Name()),
 		Value: ref,
 	}, nil
 }
 
 func (b *SpecBuilder) AdaptResponses(configs []*ResponseConfig) (openapi3.Responses, error) {
 	responses := openapi3.Responses{}
-	var err error
 	var response *openapi3.ResponseRef
 	var ok bool
 	for _, cfg := range configs {
-		if response, ok = b.spec.Model.Components.Responses[string(rune(cfg.Code))]; !ok {
-			var schemaRef *openapi3.SchemaRef
-
-			if cfg.Content == nil {
-				b.logger("invalid ResponseConfig", cfg)
-				return nil, fmt.Errorf("invalid ResponseConfig %#v", cfg)
-			}
-
-			schemaRef, err = b.GetOrCreateSchemaRef(cfg.Content.Model)
-			if err != nil {
-				b.logger("unable to AdaptResponse for", cfg)
-				return nil, err
-			}
-
+		// if it isn't the global map, add it
+		if response, ok = b.spec.Model.Components.Responses[cfg.Response.Id]; !ok {
 			response = &openapi3.ResponseRef{
 				Ref: "",
 				Value: &openapi3.Response{
 					Description: &cfg.Response.Description,
 					Headers:     b.AdaptHeaders(cfg.Headers),
-					Content:     openapi3.NewContentWithSchemaRef(schemaRef, []string{"application/json"}),
 				},
 			}
+
+			if cfg.Content != nil {
+				schemaRef, err := b.GetOrCreateSchemaRef(cfg.Content.Model)
+				if err != nil {
+					b.logger("unable to AdaptResponse for", cfg)
+					return nil, err
+				}
+
+				response.Value.Content = openapi3.NewContentWithSchemaRef(schemaRef,
+					[]string{"application/json"})
+			}
+			// Now add to the global response map
+			b.spec.Model.Components.Responses[cfg.Response.Id] = response
 		}
-		responses[string(rune(cfg.Code))] = response
+		// Now just add a ref for the path
+		responses[cfg.Response.Id] = &openapi3.ResponseRef{
+			Ref:   fmt.Sprintf("#/components/responses/%s", cfg.Response.Id),
+			Value: response.Value,
+		}
 	}
 
 	return responses, nil
@@ -345,30 +358,40 @@ func (b *SpecBuilder) AdaptHeaders(hdrs []*Parameter) openapi3.Headers {
 	headers := openapi3.Headers{}
 
 	for _, hdr := range hdrs {
-		if headerRef, ok = b.spec.Model.Components.Headers[hdr.Name]; !ok {
+		if headerRef, ok = b.spec.Model.Components.Headers[hdr.Id]; !ok {
 			var param *openapi3.ParameterRef
-			if param, ok = b.spec.Model.Components.Parameters[hdr.Name]; !ok {
+			if param, ok = b.spec.Model.Components.Parameters[hdr.Id]; !ok {
 				param = b.AddParameter(hdr)
 			}
 			headerRef = &openapi3.HeaderRef{
-				Ref: "",
+				Ref: fmt.Sprintf("#/components/parameters/%s", hdr.Id),
 				Value: &openapi3.Header{
 					Parameter: *param.Value,
 				},
 			}
 		}
 
-		headers[hdr.Name] = headerRef
+		headers[hdr.Id] = headerRef
 	}
 
 	return headers
 }
 
 func (b *SpecBuilder) GetOrCreateSchemaRef(model reflect.Type) (*openapi3.SchemaRef, error) {
-
 	ref, err := b.Generator.GenerateSchemaRef(model)
 	if err != nil {
 		return nil, err
 	}
-	return ref, nil
+
+	if _, ok := b.spec.Model.Components.Schemas[model.Name()]; !ok {
+		b.spec.Model.Components.Schemas[model.Name()] = &openapi3.SchemaRef{
+			Ref:   "",
+			Value: ref.Value,
+		}
+	}
+
+	return &openapi3.SchemaRef{
+		Ref:   fmt.Sprintf("#/components/schemas/%s", model.Name()),
+		Value: ref.Value,
+	}, nil
 }

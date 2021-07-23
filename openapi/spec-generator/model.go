@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"net/http"
 	"reflect"
 )
@@ -17,10 +16,12 @@ var (
 )
 
 type Parameter struct {
+	Id          string
 	Name        string
 	SchemaType  string
 	In          string
 	Description string
+	Required    bool
 }
 
 var (
@@ -32,78 +33,92 @@ var (
 
 var (
 	AllParam = Parameter{
+		Id:          "AllParam",
 		SchemaType:  intSchema,
 		Description: "Flag indicating whether to constrain by job creation index or not.",
 		Name:        "all",
 		In:          inQuery,
 	}
-	IndexParam = Parameter{
+	IndexHeader = Parameter{
+		Id:          "IndexHeader",
 		SchemaType:  intSchema,
 		Description: "If set, wait until query exceeds given index. Must be provided with WaitParam.",
 		Name:        "index",
 		In:          inHeader,
 	}
 	JobNameParam = Parameter{
+		Id:          "JobNameParam",
 		SchemaType:  stringSchema,
 		Description: "The job identifier.",
 		Name:        "jobName",
 		In:          inPath,
+		Required:    true,
 	}
 	NamespaceParam = Parameter{
+		Id:          "NamespaceParam",
 		SchemaType:  stringSchema,
 		Description: "Filters results based on the specified namespace.",
 		Name:        "namespace",
 		In:          inQuery,
 	}
 	NextTokenParam = Parameter{
+		Id:          "NextTokenParam",
 		SchemaType:  stringSchema,
 		Description: "Indicates where to start paging for queries that support pagination.",
 		Name:        "next_token",
 		In:          inQuery,
 	}
 	PerPageParam = Parameter{
+		Id:          "PerPageParam",
 		SchemaType:  intSchema,
 		Description: "Maximum number of results to return.",
 		Name:        "per_page",
 		In:          inQuery,
 	}
 	PrefixParam = Parameter{
+		Id:          "PrefixParam",
 		SchemaType:  stringSchema,
 		Description: "Constrains results to jobs that start with the defined prefix",
 		Name:        "prefix",
 		In:          inQuery,
 	}
 	RegionParam = Parameter{
+		Id:          "RegionParam",
 		SchemaType:  stringSchema,
 		Description: "Filters results based on the specified region.",
 		Name:        "region",
 		In:          inQuery,
 	}
 	StaleParam = Parameter{
+		Id:          "StaleParam",
 		SchemaType:  stringSchema,
 		Description: "If present, results will include stale reads.",
 		Name:        "stale",
 		In:          inQuery,
 	}
 	WaitParam = Parameter{
+		Id:          "WaitParam",
 		SchemaType:  intSchema,
 		Description: "Provided with IndexParam to wait for change.",
 		Name:        "wait",
 		In:          inQuery,
 	}
-	NomadTokenParam = Parameter{
+	NomadTokenHeader = Parameter{
+		Id:          "NextTokenHeader",
 		SchemaType:  stringSchema,
 		Description: "A Nomad ACL token.",
 		Name:        "X-Nomad-Token",
 		In:          inHeader,
 	}
-	KnownLeaderParam = Parameter{
+	KnownLeaderHeader = Parameter{
+		Id:          "KnownLeaderHeader",
 		Name:        "X-Nomad-Known-Leader",
 		SchemaType:  boolSchema,
 		Description: "",
 		In:          inHeader,
 	}
-	LastContactParam = Parameter{
+	LastContactHeader = Parameter{
+		Id:          "LastContactHeader",
 		Name:        "X-Nomad-Last-Contact",
 		SchemaType:  intSchema,
 		Description: "",
@@ -112,23 +127,23 @@ var (
 )
 
 var queryMeta = []*Parameter{
-	&IndexParam,
-	&KnownLeaderParam,
-	&LastContactParam,
+	&IndexHeader,
+	&KnownLeaderHeader,
+	&LastContactHeader,
 }
 
 var writeMeta = []*Parameter{
-	&IndexParam,
+	&IndexHeader,
 }
 
 var queryOptions = []*Parameter{
 	&RegionParam,
 	&NamespaceParam,
-	&IndexParam,
+	&IndexHeader,
 	&WaitParam,
 	&StaleParam,
 	&PrefixParam,
-	&NomadTokenParam,
+	&NomadTokenHeader,
 	&PerPageParam,
 	&NextTokenParam,
 }
@@ -143,29 +158,29 @@ type ResponseContent struct {
 }
 
 type Response struct {
-	Name        string
+	Id          string
 	Description string
 }
 
 var (
 	BadRequestRespnse = Response{
-		Name:        "BadRequest",
+		Id:          "BadRequestResponse",
 		Description: "Bad request",
 	}
 	ForbiddenResponse = Response{
-		Name:        "Forbidden",
+		Id:          "ForbiddenResponse",
 		Description: "Forbidden",
 	}
 	InternalServerErrorResponse = Response{
-		Name:        "InternalServerError",
+		Id:          "InternalServerErrorResponse",
 		Description: "Internal server error",
 	}
 	MethodNotAllowedResponse = Response{
-		Name:        "MethodNotAllowed",
+		Id:          "MethodNotAllowedResponse",
 		Description: "EMethod not allowed",
 	}
 	NotFoundResponse = Response{
-		Name:        "NotFound",
+		Id:          "NotFoundResponse",
 		Description: "Not found",
 	}
 )
@@ -192,7 +207,7 @@ type ResponseConfig struct {
 	Headers  []*Parameter
 }
 
-type PathOperation struct {
+type Operation struct {
 	Method      string
 	Tags        []string
 	OperationId string
@@ -206,7 +221,7 @@ type PathOperation struct {
 
 type Path struct {
 	Key        string
-	Operations []*PathOperation
+	Operations []*Operation
 }
 
 type V1API struct{}
@@ -214,28 +229,30 @@ type V1API struct{}
 func (v *V1API) GetPaths() []*Path {
 	return []*Path{
 		{
-			Key: "/v1/jobs",
-			Operations: []*PathOperation{
-				NewPathItem(http.MethodGet, []string{"Jobs"}, "getJob",
-					&RequestBody{
-						SchemaType: objectSchema,
-						Model:      reflect.TypeOf(structs.JobSpecificRequest{}),
-					},
-					queryOptions,
+			Key: "/v1/jobs/{jobName}",
+			Operations: []*Operation{
+				NewOperation(http.MethodGet, []string{"Jobs"}, "getJob",
+					nil,
+					append(queryOptions, &JobNameParam),
 					&ResponseConfig{
-						Code: 200,
-						Content: &ResponseContent{
-							SchemaType: objectSchema,
-							Model:      reflect.TypeOf(api.Job{}),
-						},
+						Code:    200,
+						Content: nil,
 						Headers: queryMeta,
+						Response: &Response{
+							Id: "GetJobResponse",
+						},
 					}),
-				NewPathItem(http.MethodPost, []string{"Jobs"}, "postJob",
+			},
+		},
+		{
+			Key: "/v1/jobs",
+			Operations: []*Operation{
+				NewOperation(http.MethodPost, []string{"Jobs"}, "postJob",
 					&RequestBody{
 						SchemaType: objectSchema,
 						Model:      reflect.TypeOf(api.JobRegisterRequest{}),
 					},
-					[]*Parameter{&JobNameParam},
+					nil,
 					&ResponseConfig{
 						Code: 200,
 						Content: &ResponseContent{
@@ -243,14 +260,17 @@ func (v *V1API) GetPaths() []*Path {
 							Model:      reflect.TypeOf(api.Job{}),
 						},
 						Headers: queryMeta,
+						Response: &Response{
+							Id: "PostJobResponse",
+						},
 					}),
 			},
 		},
 	}
 }
 
-func NewPathItem(method string, tags []string, operationId string, requestBody *RequestBody, params []*Parameter, responses ...*ResponseConfig) *PathOperation {
-	return &PathOperation{
+func NewOperation(method string, tags []string, operationId string, requestBody *RequestBody, params []*Parameter, responses ...*ResponseConfig) *Operation {
+	return &Operation{
 		Method:      method,
 		Tags:        tags,
 		OperationId: operationId,
@@ -261,5 +281,6 @@ func NewPathItem(method string, tags []string, operationId string, requestBody *
 }
 
 func getResponses(configs ...*ResponseConfig) []*ResponseConfig {
-	return append(standardResponses, configs...)
+	responses := append(standardResponses, configs...)
+	return responses
 }

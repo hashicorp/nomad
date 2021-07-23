@@ -1,0 +1,265 @@
+components:
+  parameters:
+    IndexHeader:
+      description: If set, wait until query exceeds given index. Must be provided with WaitParam.
+      in: header
+      name: index
+      schema:
+        type: integer
+    JobNameParam:
+      description: The job identifier.
+      in: path
+      name: jobName
+      required: true
+      schema:
+        type: string
+    KnownLeaderHeader:
+      in: header
+      name: X-Nomad-Known-Leader
+      schema:
+        type: boolean
+    LastContactHeader:
+      in: header
+      name: X-Nomad-Last-Contact
+      schema:
+        type: integer
+    NamespaceParam:
+      description: Filters results based on the specified namespace.
+      in: query
+      name: namespace
+      schema:
+        type: string
+    NextTokenHeader:
+      description: A Nomad ACL token.
+      in: header
+      name: X-Nomad-Token
+      schema:
+        type: string
+    NextTokenParam:
+      description: Indicates where to start paging for queries that support pagination.
+      in: query
+      name: next_token
+      schema:
+        type: string
+    PerPageParam:
+      description: Maximum number of results to return.
+      in: query
+      name: per_page
+      schema:
+        type: integer
+    PrefixParam:
+      description: Constrains results to jobs that start with the defined prefix
+      in: query
+      name: prefix
+      schema:
+        type: string
+    RegionParam:
+      description: Filters results based on the specified region.
+      in: query
+      name: region
+      schema:
+        type: string
+    StaleParam:
+      description: If present, results will include stale reads.
+      in: query
+      name: stale
+      schema:
+        type: string
+    WaitParam:
+      description: Provided with IndexParam to wait for change.
+      in: query
+      name: wait
+      schema:
+        type: integer
+  responses:
+    ForbiddenResponse:
+      description: Forbidden
+    GetJobResponse:
+      description: ""
+      headers:
+        IndexHeader:
+          $ref: '#/components/parameters/IndexHeader'
+        KnownLeaderHeader:
+          $ref: '#/components/parameters/KnownLeaderHeader'
+        LastContactHeader:
+          $ref: '#/components/parameters/LastContactHeader'
+    InternalServerErrorResponse:
+      description: Internal server error
+    MethodNotAllowedResponse:
+      description: EMethod not allowed
+    PostJobResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Job'
+      description: ""
+      headers:
+        IndexHeader:
+          $ref: '#/components/parameters/IndexHeader'
+        KnownLeaderHeader:
+          $ref: '#/components/parameters/KnownLeaderHeader'
+        LastContactHeader:
+          $ref: '#/components/parameters/LastContactHeader'
+    default:
+      description: ""
+  schemas:
+    Job:
+      properties:
+        Affinities:
+          items:
+            $ref: Affinity
+          type: array
+        AllAtOnce:
+          $ref: bool
+        Constraints:
+          items:
+            $ref: Constraint
+          type: array
+        ConsulNamespace:
+          $ref: string
+        ConsulToken:
+          $ref: string
+        CreateIndex:
+          $ref: uint64
+        Datacenters:
+          items:
+            $ref: string
+          type: array
+        Dispatched:
+          $ref: bool
+        ID:
+          $ref: string
+        JobModifyIndex:
+          $ref: uint64
+        Meta:
+          additionalProperties:
+            $ref: string
+          type: object
+        Migrate:
+          $ref: MigrateStrategy
+        ModifyIndex:
+          $ref: uint64
+        Multiregion:
+          $ref: Multiregion
+        Name:
+          $ref: string
+        Namespace:
+          $ref: string
+        NomadTokenID:
+          $ref: string
+        ParameterizedJob:
+          $ref: ParameterizedJobConfig
+        ParentID:
+          $ref: string
+        Payload:
+          format: byte
+          type: string
+        Periodic:
+          $ref: PeriodicConfig
+        Priority:
+          $ref: int
+        Region:
+          $ref: string
+        Reschedule:
+          $ref: ReschedulePolicy
+        Spreads:
+          items:
+            $ref: Spread
+          type: array
+        Stable:
+          $ref: bool
+        Status:
+          $ref: string
+        StatusDescription:
+          $ref: string
+        Stop:
+          $ref: bool
+        SubmitTime:
+          $ref: int64
+        TaskGroups:
+          items:
+            $ref: TaskGroup
+          type: array
+        Type:
+          $ref: string
+        Update:
+          $ref: UpdateStrategy
+        VaultNamespace:
+          $ref: string
+        VaultToken:
+          $ref: string
+        Version:
+          $ref: uint64
+      type: object
+    JobRegisterRequest:
+      properties:
+        EnforceIndex:
+          $ref: bool
+        Job:
+          $ref: Job
+        JobModifyIndex:
+          $ref: uint64
+        Namespace:
+          $ref: string
+        PolicyOverride:
+          $ref: bool
+        PreserveCounts:
+          $ref: bool
+        Region:
+          $ref: string
+        SecretID:
+          $ref: string
+      type: object
+info:
+  contact:
+    email: support@hashicorp.com
+  license:
+    name: MPL 2
+    url: https://github.com/hashicorp/nomad/blob/main/LICENSE
+  title: Nomad
+  version: 1.1.0
+openapi: 3.0.3
+paths:
+  /v1/jobs:
+    post:
+      requestBody:
+        $ref: '#/components/schemas/JobRegisterRequest'
+      responses:
+        ForbiddenResponse:
+          $ref: '#/components/responses/ForbiddenResponse'
+        InternalServerErrorResponse:
+          $ref: '#/components/responses/InternalServerErrorResponse'
+        MethodNotAllowedResponse:
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        PostJobResponse:
+          $ref: '#/components/responses/PostJobResponse'
+      tags:
+      - Jobs
+  /v1/jobs/{jobName}:
+    get:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - description: If set, wait until query exceeds given index. Must be provided with WaitParam.
+        in: header
+        name: index
+        schema:
+          type: integer
+      - $ref: '#/components/parameters/WaitParam'
+      - $ref: '#/components/parameters/StaleParam'
+      - $ref: '#/components/parameters/PrefixParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/PerPageParam'
+      - $ref: '#/components/parameters/NextTokenParam'
+      - $ref: '#/components/parameters/JobNameParam'
+      responses:
+        ForbiddenResponse:
+          $ref: '#/components/responses/ForbiddenResponse'
+        GetJobResponse:
+          $ref: '#/components/responses/GetJobResponse'
+        InternalServerErrorResponse:
+          $ref: '#/components/responses/InternalServerErrorResponse'
+        MethodNotAllowedResponse:
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+      tags:
+      - Jobs
