@@ -182,13 +182,26 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 }
 
 func (c *DeploymentStatusCommand) monitor(client *api.Client, deployID string, index uint64, verbose bool) {
-	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
-	// TODO if/when glint offers full Windows support take out the runtime check
-	if isStdoutTerminal && runtime.GOOS != "windows" {
+	if isStdoutTerminal() {
 		c.ttyMonitor(client, deployID, index, verbose)
 	} else {
 		c.defaultMonitor(client, deployID, index, verbose)
 	}
+}
+
+func isStdoutTerminal() bool {
+	// TODO if/when glint offers full Windows support take out the runtime check
+	if runtime.GOOS == "windows" {
+		return false
+	}
+
+	// glint checks if the writer is a tty with additional
+	// checks (e.g. terminal has non-0 size)
+	r := &glint.TerminalRenderer{
+		Output: os.Stdout,
+	}
+
+	return r.LayoutRoot() != nil
 }
 
 // Uses glint for printing in place. Same logic as the defaultMonitor function
@@ -214,9 +227,9 @@ func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string
 	d.Set(spinner)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	go d.Render(ctx)
-	defer cancel()
 
 	q := api.QueryOptions{
 		AllowStale: true,
