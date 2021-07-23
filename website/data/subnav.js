@@ -4,12 +4,12 @@ export default [
     text: 'Use Cases',
     submenu: [
       {
-        text: 'Simple Container Orchestration',
-        url: '/use-cases/simple-container-orchestration',
+        text: 'Heterogenous Application Orchestration',
+        url: '/use-cases/heterogenous-application-orchestration',
       },
       {
-        text: 'Non-Containerized Application Orchestration',
-        url: '/use-cases/non-containerized-application-orchestration',
+        text: 'Simple Container Orchestration',
+        url: '/use-cases/simple-container-orchestration',
       },
       {
         text: 'Automated Service Networking with Consul',

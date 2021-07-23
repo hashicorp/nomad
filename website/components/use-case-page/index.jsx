@@ -24,8 +24,10 @@ export default function UseCaseLayout({ title, description, children }) {
       <div className="g-grid-container">
         <h2 className="g-type-display-2 features-header">Features</h2>
       </div>
+
       {children}
-      <NomadEnterpriseInfo />
+      {/* <NomadEnterpriseInfo /> */}
+
       <CallToAction
         variant="compact"
         heading="Ready to get started?"
