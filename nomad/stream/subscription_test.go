@@ -147,6 +147,29 @@ func TestFilter_Namespace(t *testing.T) {
 	require.Equal(t, 2, cap(actual))
 }
 
+func TestFilter_NamespaceAll(t *testing.T) {
+	events := make([]structs.Event, 0, 5)
+	events = append(events,
+		structs.Event{Topic: "Test", Key: "One", Namespace: "foo"},
+		structs.Event{Topic: "Test", Key: "Two", Namespace: "bar"},
+		structs.Event{Topic: "Test", Key: "Three", Namespace: "default"},
+	)
+
+	req := &SubscribeRequest{
+		Topics: map[structs.Topic][]string{
+			"*": {"*"},
+		},
+		Namespace: "*",
+	}
+	actual := filter(req, events)
+	expected := []structs.Event{
+		{Topic: "Test", Key: "One", Namespace: "foo"},
+		{Topic: "Test", Key: "Two", Namespace: "bar"},
+		{Topic: "Test", Key: "Three", Namespace: "default"},
+	}
+	require.Equal(t, expected, actual)
+}
+
 func TestFilter_FilterKeys(t *testing.T) {
 	events := make([]structs.Event, 0, 5)
 	events = append(events, structs.Event{Topic: "Test", Key: "One", FilterKeys: []string{"extra-key"}}, structs.Event{Topic: "Test", Key: "Two"}, structs.Event{Topic: "Test", Key: "Two"})

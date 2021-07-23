@@ -43,7 +43,8 @@ by default, requiring a management token.
 
 - `namespace` `(string: "default")` - Specifies the target namespace to filter
   on. Specifying `*` includes all namespaces for event types that support
-  namespaces.
+  namespaces. If you specify all namespaces (`*`) you'll either need a management 
+  token, or an ACL Policy that explicitly applies to all namespaces (`*`).
 
 - `topic` `(topic:filter_key: "*:*")` - Specifies a topic to subscribe to and
   filter on. The default is to subscribe to all topics. Multiple topics may be
@@ -96,8 +97,13 @@ by default, requiring a management token.
 ### Sample Request
 
 ```shell-session
-# Subscribe to all events and topics
+# Subscribe to all events and topics in the default namespace
 $ curl -s -v -N http://127.0.0.1:4646/v1/event/stream
+```
+
+```shell-session
+# Subscribe to all events and topics in all namespaces
+$ curl -s -v -N http://127.0.0.1:4646/v1/event/stream?namespace=*
 ```
 
 ```shell-session
