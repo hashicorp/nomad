@@ -1,6 +1,23 @@
 const subnavData = [
   { text: 'Overview', url: '/', type: 'inbound' },
   {
+    text: 'Use Cases',
+    submenu: [
+      {
+        text: 'Heterogenous Application Orchestration',
+        url: '/use-cases/heterogenous-application-orchestration',
+      },
+      {
+        text: 'Simple Container Orchestration',
+        url: '/use-cases/simple-container-orchestration',
+      },
+      {
+        text: 'Automated Service Networking with Consul',
+        url: '/use-cases/automated-service-networking-with-consul',
+      },
+    ],
+  },
+  {
     text: 'Enterprise',
     url: 'https://www.hashicorp.com/products/nomad/',
     type: 'outbound',
