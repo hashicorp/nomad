@@ -551,6 +551,7 @@ func parseResources(result *api.Resources, list *ast.ObjectList) error {
 		"memory_max",
 		"network",
 		"device",
+		"cores",
 	}
 	if err := checkHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "resources ->")

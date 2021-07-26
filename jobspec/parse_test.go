@@ -1699,6 +1699,30 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"resources-cores.hcl",
+			&api.Job{
+				ID:   stringToPtr("cores-test"),
+				Name: stringToPtr("cores-test"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Count: intToPtr(5),
+						Name:  stringToPtr("group"),
+						Tasks: []*api.Task{
+							{
+								Name:   "task",
+								Driver: "docker",
+								Resources: &api.Resources{
+									Cores:    intToPtr(4),
+									MemoryMB: intToPtr(128),
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {
