@@ -703,7 +703,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 	taskMetaSize := len(combined) * 2
 
 	// if job is parameterized initialize optional meta to empty strings
-	if alloc.Job.Dispatched {
+	if alloc.Job.Dispatched && alloc.Job.ParameterizedJob != nil {
 		optionalMetaCount := len(alloc.Job.ParameterizedJob.MetaOptional)
 		b.taskMeta = make(map[string]string, taskMetaSize+optionalMetaCount*2)
 

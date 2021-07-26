@@ -1814,6 +1814,10 @@ func validateJobUpdate(old, new *structs.Job) error {
 		if new.Dispatched {
 			return fmt.Errorf("job can't be submitted with 'Dispatched' set")
 		}
+		// Ensure that ParentID is ignored when creating a new job (#10422)
+		if new.ParentID != "" {
+			new.ParentID = ""
+		}
 		return nil
 	}
 
@@ -1840,6 +1844,10 @@ func validateJobUpdate(old, new *structs.Job) error {
 
 	if old.Dispatched != new.Dispatched {
 		return fmt.Errorf("field 'Dispatched' is read-only")
+	}
+
+	if old.ParentID != new.ParentID {
+		return fmt.Errorf("field 'ParentID' is read-only")
 	}
 
 	return nil

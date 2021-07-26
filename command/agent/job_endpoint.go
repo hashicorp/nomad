@@ -816,6 +816,8 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		VaultNamespace: *job.VaultNamespace,
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),
+		Dispatched:     job.Dispatched,
+		ParentID:       *job.ParentID,
 	}
 
 	// Update has been pushed into the task groups. stagger and max_parallel are

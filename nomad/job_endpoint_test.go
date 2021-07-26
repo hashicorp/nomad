@@ -5943,6 +5943,14 @@ func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
 	}
 
 	new = mock.Job()
+	new.ParentID = "1234"
+	if err := validateJobUpdate(old, new); err == nil {
+		t.Errorf("expected err when modifying ParentID")
+	} else {
+		t.Log(err)
+	}
+
+	new = mock.Job()
 	new.Dispatched = true
 	require.Error(validateJobUpdate(old, new),
 		"expected err when setting new job to dispatched")
