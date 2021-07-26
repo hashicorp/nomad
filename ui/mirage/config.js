@@ -612,7 +612,7 @@ export default function() {
 
     const transformedAllocs = matchedAllocs.models.map(alloc => ({
       ID: alloc.name,
-      Scope: [(alloc.namespace || {}).id, alloc.id],
+      Scope: [alloc.namespace || 'default', alloc.id],
     }));
 
     const transformedGroups = matchedGroups.models.map(group => ({
@@ -622,7 +622,7 @@ export default function() {
 
     const transformedJobs = matchedJobs.models.map(job => ({
       ID: job.name,
-      Scope: [job.namespace, job.id],
+      Scope: [job.namespace || 'default', job.id],
     }));
 
     const transformedNodes = matchedNodes.models.map(node => ({

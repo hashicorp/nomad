@@ -16,8 +16,19 @@ module('Acceptance | search', function(hooks) {
     server.create('node', { name: 'xyz' });
     const otherNode = server.create('node', { name: 'ghi' });
 
-    server.create('job', { id: 'vwxyz', namespaceId: 'default', groupsCount: 1, groupTaskCount: 1 });
-    server.create('job', { id: 'xyz', name: 'xyz job', namespaceId: 'default', groupsCount: 1, groupTaskCount: 1 });
+    server.create('job', {
+      id: 'vwxyz',
+      namespaceId: 'default',
+      groupsCount: 1,
+      groupTaskCount: 1,
+    });
+    server.create('job', {
+      id: 'xyz',
+      name: 'xyz job',
+      namespaceId: 'default',
+      groupsCount: 1,
+      groupTaskCount: 1,
+    });
     server.create('job', { id: 'abc', namespaceId: 'default', groupsCount: 1, groupTaskCount: 1 });
 
     const firstAllocation = server.schema.allocations.all().models[0];
@@ -35,8 +46,8 @@ module('Acceptance | search', function(hooks) {
       search.groups[0].as(jobs => {
         assert.equal(jobs.name, 'Jobs (2)');
         assert.equal(jobs.options.length, 2);
-        assert.equal(jobs.options[0].text, 'vwxyz @ default');
-        assert.equal(jobs.options[1].text, 'xyz job @ default');
+        assert.equal(jobs.options[0].text, 'vwxyz > default');
+        assert.equal(jobs.options[1].text, 'xyz job > default');
       });
 
       search.groups[1].as(clients => {
@@ -70,7 +81,10 @@ module('Acceptance | search', function(hooks) {
     assert.equal(currentURL(), `/clients/${otherNode.id}`);
 
     await selectSearch(Layout.navbar.search.scope, firstAllocation.name);
-    assert.equal(Layout.navbar.search.groups[2].options[0].text, `${firstAllocation.name} @ ${firstAllocation.namespace}`);
+    assert.equal(
+      Layout.navbar.search.groups[2].options[0].text,
+      `${firstAllocation.name} > ${firstAllocation.namespace}`
+    );
     await Layout.navbar.search.groups[2].options[0].click();
     assert.equal(currentURL(), `/allocations/${firstAllocation.id}`);
 
@@ -83,20 +97,24 @@ module('Acceptance | search', function(hooks) {
     await Layout.navbar.search.groups[4].options[0].click();
     assert.equal(currentURL(), '/csi/plugins/xyz-plugin');
 
-    const fuzzySearchQueries = server.pretender.handledRequests
-      .filterBy('url', '/v1/search/fuzzy');
+    const fuzzySearchQueries = server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy');
 
-    const featureDetectionQueries = fuzzySearchQueries
-      .filter(request => request.requestBody.includes('feature-detection-query'));
+    const featureDetectionQueries = fuzzySearchQueries.filter(request =>
+      request.requestBody.includes('feature-detection-query')
+    );
 
-    assert.ok(featureDetectionQueries.length, 1, 'expect the feature detection query to only run once');
+    assert.ok(
+      featureDetectionQueries.length,
+      1,
+      'expect the feature detection query to only run once'
+    );
 
     const realFuzzySearchQuery = fuzzySearchQueries[1];
 
     assert.deepEqual(JSON.parse(realFuzzySearchQuery.requestBody), {
-      'Context': 'all',
-      'Namespace': '*',
-      'Text': 'xy'
+      Context: 'all',
+      Namespace: '*',
+      Text: 'xy',
     });
   });
 
@@ -106,7 +124,11 @@ module('Acceptance | search', function(hooks) {
     await selectSearch(Layout.navbar.search.scope, 'q');
 
     assert.ok(Layout.navbar.search.noOptionsShown);
-    assert.equal(server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy').length, 1, 'expect the feature detection query');
+    assert.equal(
+      server.pretender.handledRequests.filterBy('url', '/v1/search/fuzzy').length,
+      1,
+      'expect the feature detection query'
+    );
   });
 
   test('when fuzzy search is disabled on the server, the search control is hidden', async function(assert) {
