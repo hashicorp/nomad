@@ -18,6 +18,7 @@ export default function NomadSubnav() {
       menuItemsAlign="right"
       menuItems={subnavItems}
       constrainWidth
+      matchOnBasePath
     />
   )
 }

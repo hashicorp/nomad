@@ -3,7 +3,7 @@ import TextSplitWithCode from '@hashicorp/react-text-split-with-code'
 import TextSplitWithImage from '@hashicorp/react-text-split-with-image'
 import FeaturedSlider from '@hashicorp/react-featured-slider'
 // Imports below are used in getStaticProps only
-import highlightData from '@hashicorp/nextjs-scripts/prism/highlight-data'
+import highlightData from '@hashicorp/platform-code-highlighting/highlight-data'
 
 export async function getStaticProps() {
   const codeBlocksRaw = {
