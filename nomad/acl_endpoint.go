@@ -851,6 +851,10 @@ func (a *ACL) UpsertOneTimeToken(args *structs.OneTimeTokenUpsertRequest, reply 
 	defer metrics.MeasureSince(
 		[]string{"nomad", "acl", "upsert_one_time_token"}, time.Now())
 
+	if !ServersMeetMinimumVersion(a.srv.Members(), minOneTimeAuthenticationTokenVersion, false) {
+		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minAutopilotVersion)
+	}
+
 	// Snapshot the state
 	state, err := a.srv.State().Snapshot()
 	if err != nil {
@@ -898,6 +902,10 @@ func (a *ACL) ExchangeOneTimeToken(args *structs.OneTimeTokenExchangeRequest, re
 	}
 	defer metrics.MeasureSince(
 		[]string{"nomad", "acl", "exchange_one_time_token"}, time.Now())
+
+	if !ServersMeetMinimumVersion(a.srv.Members(), minOneTimeAuthenticationTokenVersion, false) {
+		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minAutopilotVersion)
+	}
 
 	// Snapshot the state
 	state, err := a.srv.State().Snapshot()
@@ -951,6 +959,10 @@ func (a *ACL) ExpireOneTimeTokens(args *structs.OneTimeTokenExpireRequest, reply
 	}
 	defer metrics.MeasureSince(
 		[]string{"nomad", "acl", "expire_one_time_tokens"}, time.Now())
+
+	if !ServersMeetMinimumVersion(a.srv.Members(), minOneTimeAuthenticationTokenVersion, false) {
+		return fmt.Errorf("All servers should be running version %v or later to use one-time authentication tokens", minAutopilotVersion)
+	}
 
 	// Check management level permissions
 	if a.srv.config.ACLEnabled {
