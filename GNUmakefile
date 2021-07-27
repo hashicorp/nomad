@@ -111,7 +111,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@v2.5.1
 	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
-	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+	go install github.com/bufbuild/buf/cmd/buf@v0.46.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 
 .PHONY: lint-deps
@@ -174,10 +174,10 @@ checkscripts: ## Lint shell scripts
 .PHONY: checkproto
 checkproto: ## Lint protobuf files
 	@echo "==> Lint proto files..."
-	@buf check lint --config tools/buf/buf.yaml
+	@buf lint --config tools/buf/buf.yaml
 
 	@echo "==> Checking for breaking changes in protos..."
-	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
+	@buf breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
 
 .PHONY: generate-all
 generate-all: generate-structs proto generate-examples

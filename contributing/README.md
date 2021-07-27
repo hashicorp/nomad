@@ -71,7 +71,7 @@ Compiling Protobufs
 ---
 If in the course of your development you change a Protobuf file (those ending in .proto), you'll need to recompile the protos.
 
-1. Run `make boostrap` to install the [`buf`](https://github.com/bufbuild/buf)
+1. Run `make bootstrap` to install the [`buf`](https://github.com/bufbuild/buf)
    command.
 1. Compile Protobufs
     ```sh

@@ -658,7 +658,7 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 
 	// Lower the allowable wait time for testing
 	h.envoyBootstrapWaitTime = 1 * time.Second
-	h.envoyBoostrapInitialGap = 100 * time.Millisecond
+	h.envoyBootstrapInitialGap = 100 * time.Millisecond
 
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
@@ -741,7 +741,7 @@ func TestTaskRunner_EnvoyBootstrapHook_retryTimeout(t *testing.T) {
 
 	// Lower the allowable wait time for testing
 	h.envoyBootstrapWaitTime = 3 * time.Second
-	h.envoyBoostrapInitialGap = 1 * time.Second
+	h.envoyBootstrapInitialGap = 1 * time.Second
 	h.envoyBootstrapExpSleep = func(d time.Duration) {
 		iterations++
 		time.Sleep(d)

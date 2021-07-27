@@ -34,7 +34,7 @@ const (
 	// envoyBootstrapInitialGap is the initial amount of time the envoy bootstrap
 	// retry loop will wait, exponentially increasing each iteration, not including
 	// jitter.
-	envoyBoostrapInitialGap = 1 * time.Second
+	envoyBootstrapInitialGap = 1 * time.Second
 
 	// envoyBootstrapMaxJitter is the maximum amount of jitter applied to the
 	// wait gap each iteration of the envoy bootstrap retry loop.
@@ -124,7 +124,7 @@ type envoyBootstrapHook struct {
 	envoyBootstrapWaitTime time.Duration
 
 	// envoyBootstrapInitialGap is the initial wait gap when retyring
-	envoyBoostrapInitialGap time.Duration
+	envoyBootstrapInitialGap time.Duration
 
 	// envoyBootstrapMaxJitter is the maximum amount of jitter applied to retries
 	envoyBootstrapMaxJitter time.Duration
@@ -138,14 +138,14 @@ type envoyBootstrapHook struct {
 
 func newEnvoyBootstrapHook(c *envoyBootstrapHookConfig) *envoyBootstrapHook {
 	return &envoyBootstrapHook{
-		alloc:                   c.alloc,
-		consulConfig:            c.consul,
-		consulNamespace:         c.consulNamespace,
-		envoyBootstrapWaitTime:  envoyBootstrapWaitTime,
-		envoyBoostrapInitialGap: envoyBoostrapInitialGap,
-		envoyBootstrapMaxJitter: envoyBootstrapMaxJitter,
-		envoyBootstrapExpSleep:  time.Sleep,
-		logger:                  c.logger.Named(envoyBootstrapHookName),
+		alloc:                    c.alloc,
+		consulConfig:             c.consul,
+		consulNamespace:          c.consulNamespace,
+		envoyBootstrapWaitTime:   envoyBootstrapWaitTime,
+		envoyBootstrapInitialGap: envoyBootstrapInitialGap,
+		envoyBootstrapMaxJitter:  envoyBootstrapMaxJitter,
+		envoyBootstrapExpSleep:   time.Sleep,
+		logger:                   c.logger.Named(envoyBootstrapHookName),
 	}
 }
 
@@ -326,7 +326,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 		return true, cmdErr
 	}, exptime.BackoffOptions{
 		MaxSleepTime:   h.envoyBootstrapWaitTime,
-		InitialGapSize: h.envoyBoostrapInitialGap,
+		InitialGapSize: h.envoyBootstrapInitialGap,
 		MaxJitterSize:  h.envoyBootstrapMaxJitter,
 	}); backoffErr != nil {
 		// Wrap the last error from Consul and set that as our status.
