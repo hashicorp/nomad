@@ -76,26 +76,7 @@ components:
       content:
         application/json:
           schema:
-            properties:
-              EnforceIndex:
-                type: boolean
-              Job:
-                $ref: '#/components/schemas/Job'
-              JobModifyIndex:
-                maximum: 1.8446744073709552e+19
-                minimum: 0
-                type: integer
-              Namespace:
-                type: string
-              PolicyOverride:
-                type: boolean
-              PreserveCounts:
-                type: boolean
-              Region:
-                type: string
-              SecretID:
-                type: string
-            type: object
+            $ref: '#/components/schemas/JobRegisterRequest'
       required: true
   responses:
     ForbiddenResponse:
@@ -257,6 +238,15 @@ components:
           type: boolean
         Limit:
           type: integer
+      type: object
+    Constraint:
+      properties:
+        LTarget:
+          type: string
+        Operand:
+          type: string
+        RTarget:
+          type: string
       type: object
     Consul:
       properties:
@@ -562,7 +552,26 @@ components:
           type: integer
       type: object
     JobRegisterRequest:
-      $ref: JobRegisterRequest
+      properties:
+        EnforceIndex:
+          type: boolean
+        Job:
+          $ref: '#/components/schemas/Job'
+        JobModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Namespace:
+          type: string
+        PolicyOverride:
+          type: boolean
+        PreserveCounts:
+          type: boolean
+        Region:
+          type: string
+        SecretID:
+          type: string
+      type: object
     LogConfig:
       properties:
         MaxFileSizeMB:
@@ -1194,6 +1203,25 @@ components:
         Type:
           type: string
       type: object
+    bool:
+      type: boolean
+    int:
+      type: integer
+    int8:
+      maximum: 127
+      minimum: -128
+      type: integer
+    int64:
+      format: int64
+      type: integer
+    uint8:
+      maximum: 255
+      minimum: 0
+      type: integer
+    uint64:
+      maximum: 1.8446744073709552e+19
+      minimum: 0
+      type: integer
 info:
   contact:
     email: support@hashicorp.com
@@ -1210,26 +1238,7 @@ paths:
         content:
           application/json:
             schema:
-              properties:
-                EnforceIndex:
-                  type: boolean
-                Job:
-                  $ref: '#/components/schemas/Job'
-                JobModifyIndex:
-                  maximum: 1.8446744073709552e+19
-                  minimum: 0
-                  type: integer
-                Namespace:
-                  type: string
-                PolicyOverride:
-                  type: boolean
-                PreserveCounts:
-                  type: boolean
-                Region:
-                  type: string
-                SecretID:
-                  type: string
-              type: object
+              $ref: '#/components/schemas/JobRegisterRequest'
         required: true
       responses:
         "200":

@@ -235,11 +235,18 @@ func (b *SpecBuilder) BuildPathsFromModel(api V1API) openapi3.Paths {
 				if err != nil {
 					b.logger("unable to adapt request body for", op.RequestBody)
 				}
+				if requestBodyRef != nil {
+					requestBodyRef = &openapi3.RequestBodyRef{
+						Ref:   "",
+						Value: requestBodyRef.Value,
+					}
+				}
 			}
 			if responses, err = b.AdaptResponses(op.Responses); err != nil {
 				b.logger("unable to adapt Operation responses", path, op)
 				continue
 			}
+
 			operation := &openapi3.Operation{
 				Tags: op.Tags,
 				// Optional short summary.
@@ -310,7 +317,10 @@ func (b *SpecBuilder) AdaptRequestBody(requestBodyModel *RequestBody) (*openapi3
 	}
 
 	requestBody.Required = true
-	requestBody.Content = openapi3.NewContentWithSchema(schemaRef.Value, []string{"application/json"})
+	requestBody.Content = openapi3.NewContentWithSchemaRef(&openapi3.SchemaRef{
+		Ref:   fmt.Sprintf("#/components/schemas/%s", requestBodyModel.Model.Name()),
+		Value: schemaRef.Value,
+	}, []string{"application/json"})
 
 	if _, ok := b.spec.Model.Components.RequestBodies[requestBodyModel.Model.Name()]; !ok {
 		b.spec.Model.Components.RequestBodies[requestBodyModel.Model.Name()] = &openapi3.RequestBodyRef{
@@ -319,10 +329,7 @@ func (b *SpecBuilder) AdaptRequestBody(requestBodyModel *RequestBody) (*openapi3
 		}
 	}
 
-	return &openapi3.RequestBodyRef{
-		Ref:   "",
-		Value: requestBody,
-	}, nil
+	return b.spec.Model.Components.RequestBodies[requestBodyModel.Model.Name()], nil
 }
 
 func (b *SpecBuilder) AdaptResponses(configs []*ResponseConfig) (openapi3.Responses, error) {
@@ -347,13 +354,14 @@ func (b *SpecBuilder) AdaptResponses(configs []*ResponseConfig) (openapi3.Respon
 					return nil, err
 				}
 
-				response.Value.Content = openapi3.NewContentWithSchemaRef(schemaRef,
-					[]string{"application/json"})
+				response.Value.Content = openapi3.NewContentWithSchema(schemaRef.Value, []string{"application/json"})
 			}
 			// Now add to the global response map
-			b.spec.Model.Components.Responses[cfg.Response.Id] = response
+			if _, ok = b.spec.Model.Components.Responses[cfg.Response.Id]; !ok {
+				b.spec.Model.Components.Responses[cfg.Response.Id] = response
+			}
 		}
-		// Now just add a ref for the path
+		// Now add a ref for the path
 		responses[strconv.Itoa(cfg.Code)] = &openapi3.ResponseRef{
 			Ref:   fmt.Sprintf("#/components/responses/%s", cfg.Response.Id),
 			Value: response.Value,
@@ -388,31 +396,30 @@ func (b *SpecBuilder) AdaptHeaders(hdrs []*Parameter) openapi3.Headers {
 	return headers
 }
 
+// GetOrCreateSchemaRef creates a SchemaRef for a Request or Response content. It
+// adds all referenced schemas to the schemas map, but DOES NOT add the request
+// or response schema. The callers are responsible for adding the root to the
+// correct map.
 func (b *SpecBuilder) GetOrCreateSchemaRef(model reflect.Type) (*openapi3.SchemaRef, error) {
 	var ok bool
 	var err error
 	var ref *openapi3.SchemaRef
-	// if it doesn't exist generate and add it
+	// if it doesn't exist generate
 	if ref, ok = b.spec.Model.Components.Schemas[model.Name()]; !ok {
 		ref, err = b.Generator.GenerateSchemaRef(model)
 		if err != nil {
 			return nil, err
 		}
-		if !b.isBasic(ref.Ref) {
-			b.spec.Model.Components.Schemas[ref.Ref] = ref
-		}
 	}
 
-	// if adding the new ref generated new schemaRefs, add those
+	// Add all generated schema refs if not already added
 	for schemaRef, _ := range b.Generator.SchemaRefs {
-		if len(schemaRef.Ref) > 0 && schemaRef.Ref != ref.Ref && !strings.Contains(schemaRef.Ref, "#/components/schemas") {
-			if !b.isBasic(schemaRef.Ref) {
-				if _, ok := b.spec.Model.Components.Schemas[schemaRef.Ref]; !ok {
-					b.spec.Model.Components.Schemas[schemaRef.Ref] = openapi3.NewSchemaRef("", schemaRef.Value)
-					if schemaRef.Value.Type == "array" {
-
-					}
-				}
+		if b.isBasic(schemaRef.Ref) {
+			continue
+		}
+		if len(schemaRef.Ref) > 0 && !strings.Contains(schemaRef.Ref, "#/components/schemas") {
+			if _, ok = b.spec.Model.Components.Schemas[schemaRef.Ref]; !ok {
+				b.spec.Model.Components.Schemas[schemaRef.Ref] = openapi3.NewSchemaRef("", schemaRef.Value)
 			}
 		}
 	}
@@ -421,11 +428,14 @@ func (b *SpecBuilder) GetOrCreateSchemaRef(model reflect.Type) (*openapi3.Schema
 }
 
 func (b *SpecBuilder) isBasic(typ string) bool {
-	return typ == "" || strings.Contains(typ, "int") || typ == "number" || typ == "string" || strings.Contains(typ, "bool")
+	return typ == "" || typ == "integer" || typ == "number" || typ == "string" || typ == "boolean"
 }
 
 func (b *SpecBuilder) resolveRefPaths() {
 	for _, schemaRef := range b.spec.Model.Components.Schemas {
+		if schemaRef.Ref == "JobRegisterRequest" {
+			b.logger("got here")
+		}
 		// Next make sure the refs point to other schemas, if not already done.
 		for _, property := range schemaRef.Value.Properties {
 			if b.isBasic(property.Value.Type) {
