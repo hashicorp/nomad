@@ -354,7 +354,10 @@ func (b *SpecBuilder) AdaptResponses(configs []*ResponseConfig) (openapi3.Respon
 					return nil, err
 				}
 
-				response.Value.Content = openapi3.NewContentWithSchema(schemaRef.Value, []string{"application/json"})
+				response.Value.Content = openapi3.NewContentWithSchemaRef(&openapi3.SchemaRef{
+					Ref:   fmt.Sprintf("#/components/schemas/%s", cfg.Content.Model.Name()),
+					Value: schemaRef.Value,
+				}, []string{"application/json"})
 			}
 			// Now add to the global response map
 			if _, ok = b.spec.Model.Components.Responses[cfg.Response.Id]; !ok {

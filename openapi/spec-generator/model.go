@@ -177,7 +177,7 @@ var (
 	}
 	MethodNotAllowedResponse = Response{
 		Id:          "MethodNotAllowedResponse",
-		Description: "EMethod not allowed",
+		Description: "Method not allowed",
 	}
 	NotFoundResponse = Response{
 		Id:          "NotFoundResponse",
@@ -235,8 +235,11 @@ func (v *V1API) GetPaths() []*Path {
 					nil,
 					append(queryOptions, &JobNameParam),
 					&ResponseConfig{
-						Code:    200,
-						Content: nil,
+						Code: 200,
+						Content: &ResponseContent{
+							SchemaType: objectSchema,
+							Model:      reflect.TypeOf(api.Job{}),
+						},
 						Headers: queryMeta,
 						Response: &Response{
 							Id: "GetJobResponse",
@@ -257,7 +260,7 @@ func (v *V1API) GetPaths() []*Path {
 						Code: 200,
 						Content: &ResponseContent{
 							SchemaType: objectSchema,
-							Model:      reflect.TypeOf(api.Job{}),
+							Model:      reflect.TypeOf(api.JobRegisterResponse{}),
 						},
 						Headers: queryMeta,
 						Response: &Response{

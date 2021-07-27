@@ -82,6 +82,10 @@ components:
     ForbiddenResponse:
       description: Forbidden
     GetJobResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Job'
       description: ""
       headers:
         IndexHeader:
@@ -93,107 +97,12 @@ components:
     InternalServerErrorResponse:
       description: Internal server error
     MethodNotAllowedResponse:
-      description: EMethod not allowed
+      description: Method not allowed
     PostJobResponse:
       content:
         application/json:
           schema:
-            properties:
-              Affinities:
-                items:
-                  $ref: '#/components/schemas/Affinity'
-                type: array
-              AllAtOnce:
-                type: boolean
-              Constraints:
-                items:
-                  $ref: '#/components/schemas/Constraint'
-                type: array
-              ConsulNamespace:
-                type: string
-              ConsulToken:
-                type: string
-              CreateIndex:
-                maximum: 1.8446744073709552e+19
-                minimum: 0
-                type: integer
-              Datacenters:
-                items:
-                  type: string
-                type: array
-              Dispatched:
-                type: boolean
-              ID:
-                type: string
-              JobModifyIndex:
-                maximum: 1.8446744073709552e+19
-                minimum: 0
-                type: integer
-              Meta:
-                additionalProperties:
-                  type: string
-                type: object
-              Migrate:
-                $ref: '#/components/schemas/MigrateStrategy'
-              ModifyIndex:
-                maximum: 1.8446744073709552e+19
-                minimum: 0
-                type: integer
-              Multiregion:
-                $ref: '#/components/schemas/Multiregion'
-              Name:
-                type: string
-              Namespace:
-                type: string
-              NomadTokenID:
-                type: string
-              ParameterizedJob:
-                $ref: '#/components/schemas/ParameterizedJobConfig'
-              ParentID:
-                type: string
-              Payload:
-                format: byte
-                type: string
-              Periodic:
-                $ref: '#/components/schemas/PeriodicConfig'
-              Priority:
-                type: integer
-              Region:
-                type: string
-              Reschedule:
-                $ref: '#/components/schemas/ReschedulePolicy'
-              Spreads:
-                items:
-                  $ref: '#/components/schemas/Spread'
-                type: array
-              Stable:
-                type: boolean
-              Status:
-                type: string
-              StatusDescription:
-                type: string
-              Stop:
-                type: boolean
-              SubmitTime:
-                format: int64
-                type: integer
-              TaskGroups:
-                items:
-                  $ref: '#/components/schemas/TaskGroup'
-                type: array
-              Type:
-                type: string
-              Update:
-                $ref: '#/components/schemas/UpdateStrategy'
-              VaultNamespace:
-                type: string
-              VaultToken:
-                type: string
-              Version:
-                maximum: 1.8446744073709552e+19
-                minimum: 0
-                type: integer
-            type: object
+            $ref: '#/components/schemas/JobRegisterResponse'
       description: ""
       headers:
         IndexHeader:
@@ -570,6 +479,33 @@ components:
         Region:
           type: string
         SecretID:
+          type: string
+      type: object
+    JobRegisterResponse:
+      properties:
+        EvalCreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        EvalID:
+          type: string
+        JobModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        KnownLeader:
+          type: boolean
+        LastContact:
+          format: int64
+          type: integer
+        LastIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        RequestTime:
+          format: int64
+          type: integer
+        Warnings:
           type: string
       type: object
     LogConfig:
