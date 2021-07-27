@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 // Spec wraps a kin-openapi document object model with a little bit of extra
@@ -200,6 +201,7 @@ func (b *SpecBuilder) BuildComponentsFromModel() error {
 	v1API := V1API{}
 	b.spec.Model.Components = openapi3.NewComponents()
 
+	b.spec.Model.Components.RequestBodies = openapi3.RequestBodies{}
 	b.spec.Model.Components.Parameters = openapi3.ParametersMap{}
 	b.spec.Model.Components.Responses = openapi3.NewResponses()
 	b.spec.Model.Components.Schemas = openapi3.Schemas{}
@@ -207,6 +209,7 @@ func (b *SpecBuilder) BuildComponentsFromModel() error {
 	b.spec.Model.Components.SecuritySchemes = openapi3.SecuritySchemes{}
 
 	b.spec.Model.Paths = b.BuildPathsFromModel(v1API)
+	b.resolveRefPaths()
 
 	return nil
 }
@@ -299,23 +302,26 @@ func (b *SpecBuilder) AddParameter(param *Parameter) *openapi3.ParameterRef {
 	}
 }
 
-func (b *SpecBuilder) AdaptRequestBody(requestBody *RequestBody) (*openapi3.RequestBodyRef, error) {
-	ref := openapi3.NewRequestBody()
-	schemaRef, err := b.GetOrCreateSchemaRef(requestBody.Model)
+func (b *SpecBuilder) AdaptRequestBody(requestBodyModel *RequestBody) (*openapi3.RequestBodyRef, error) {
+	requestBody := openapi3.NewRequestBody()
+	schemaRef, err := b.GetOrCreateSchemaRef(requestBodyModel.Model)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, ok := b.spec.Model.Components.Schemas[requestBody.Model.Name()]; !ok {
-		b.spec.Model.Components.Schemas[requestBody.Model.Name()] = schemaRef
-	}
+	requestBody.Required = true
+	requestBody.Content = openapi3.NewContentWithSchema(schemaRef.Value, []string{"application/json"})
 
-	ref.Required = true
-	ref.Content = openapi3.NewContentWithSchemaRef(schemaRef, []string{"application/json"})
+	if _, ok := b.spec.Model.Components.RequestBodies[requestBodyModel.Model.Name()]; !ok {
+		b.spec.Model.Components.RequestBodies[requestBodyModel.Model.Name()] = &openapi3.RequestBodyRef{
+			Ref:   "",
+			Value: requestBody,
+		}
+	}
 
 	return &openapi3.RequestBodyRef{
 		Ref:   "",
-		Value: ref,
+		Value: requestBody,
 	}, nil
 }
 
@@ -383,32 +389,69 @@ func (b *SpecBuilder) AdaptHeaders(hdrs []*Parameter) openapi3.Headers {
 }
 
 func (b *SpecBuilder) GetOrCreateSchemaRef(model reflect.Type) (*openapi3.SchemaRef, error) {
-	ref, err := b.Generator.GenerateSchemaRef(model)
-	if err != nil {
-		return nil, err
+	var ok bool
+	var err error
+	var ref *openapi3.SchemaRef
+	// if it doesn't exist generate and add it
+	if ref, ok = b.spec.Model.Components.Schemas[model.Name()]; !ok {
+		ref, err = b.Generator.GenerateSchemaRef(model)
+		if err != nil {
+			return nil, err
+		}
+		if !b.isBasic(ref.Ref) {
+			b.spec.Model.Components.Schemas[ref.Ref] = ref
+		}
 	}
 
+	// if adding the new ref generated new schemaRefs, add those
 	for schemaRef, _ := range b.Generator.SchemaRefs {
-		if _, ok := b.spec.Model.Components.Schemas[schemaRef.Ref]; !ok {
-			if len(schemaRef.Ref) > 0 {
-				b.spec.Model.Components.Schemas[schemaRef.Ref] = openapi3.NewSchemaRef("", schemaRef.Value)
+		if len(schemaRef.Ref) > 0 && schemaRef.Ref != ref.Ref && !strings.Contains(schemaRef.Ref, "#/components/schemas") {
+			if !b.isBasic(schemaRef.Ref) {
+				if _, ok := b.spec.Model.Components.Schemas[schemaRef.Ref]; !ok {
+					b.spec.Model.Components.Schemas[schemaRef.Ref] = openapi3.NewSchemaRef("", schemaRef.Value)
+					if schemaRef.Value.Type == "array" {
+
+					}
+				}
 			}
 		}
 	}
 
-	if _, ok := b.spec.Model.Components.Schemas[model.Name()]; !ok {
-		b.spec.Model.Components.Schemas[model.Name()] = &openapi3.SchemaRef{
-			Ref:   "",
-			Value: ref.Value,
-		}
-	}
-
-	return &openapi3.SchemaRef{
-		Ref:   fmt.Sprintf("#/components/schemas/%s", model.Name()),
-		Value: ref.Value,
-	}, nil
+	return ref, nil
 }
 
-func (b *SpecBuilder) isBasic(ref *openapi3.SchemaRef) bool {
-	return ref.Ref == "integer" || ref.Ref == "number" || ref.Ref == "string" || ref.Ref == "boolean" || ref.Ref == "array" || ref.Ref == "object"
+func (b *SpecBuilder) isBasic(typ string) bool {
+	return typ == "" || strings.Contains(typ, "int") || typ == "number" || typ == "string" || strings.Contains(typ, "bool")
+}
+
+func (b *SpecBuilder) resolveRefPaths() {
+	for _, schemaRef := range b.spec.Model.Components.Schemas {
+		// Next make sure the refs point to other schemas, if not already done.
+		for _, property := range schemaRef.Value.Properties {
+			if b.isBasic(property.Value.Type) {
+				property.Ref = ""
+			} else if property.Value.Type == "array" {
+				if b.isBasic(property.Value.Items.Value.Type) {
+					property.Value.Items.Ref = ""
+				} else {
+					if !strings.Contains(property.Value.Items.Ref, "#/components/schemas") {
+						property.Value.Items.Ref = fmt.Sprintf("#/components/schemas/%s", property.Value.Items.Ref)
+					}
+				}
+			} else if property.Value.AdditionalProperties != nil {
+				property.Ref = ""
+				if !b.isBasic(property.Value.AdditionalProperties.Value.Type) {
+					if len(property.Value.AdditionalProperties.Ref) > 1 {
+						if !strings.Contains(property.Value.AdditionalProperties.Ref, "#/components/schemas") {
+							property.Value.AdditionalProperties.Ref = fmt.Sprintf("#/components/schemas/%s", property.Value.AdditionalProperties.Ref)
+						}
+					}
+				}
+			} else {
+				if !strings.Contains(property.Ref, "#/components/schemas") {
+					property.Ref = fmt.Sprintf("#/components/schemas/%s", property.Ref)
+				}
+			}
+		}
+	}
 }

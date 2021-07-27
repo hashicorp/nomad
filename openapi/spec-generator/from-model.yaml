@@ -71,6 +71,32 @@ components:
       name: wait
       schema:
         type: integer
+  requestBodies:
+    JobRegisterRequest:
+      content:
+        application/json:
+          schema:
+            properties:
+              EnforceIndex:
+                type: boolean
+              Job:
+                $ref: '#/components/schemas/Job'
+              JobModifyIndex:
+                maximum: 1.8446744073709552e+19
+                minimum: 0
+                type: integer
+              Namespace:
+                type: string
+              PolicyOverride:
+                type: boolean
+              PreserveCounts:
+                type: boolean
+              Region:
+                type: string
+              SecretID:
+                type: string
+            type: object
+      required: true
   responses:
     ForbiddenResponse:
       description: Forbidden
@@ -91,7 +117,102 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Job'
+            properties:
+              Affinities:
+                items:
+                  $ref: '#/components/schemas/Affinity'
+                type: array
+              AllAtOnce:
+                type: boolean
+              Constraints:
+                items:
+                  $ref: '#/components/schemas/Constraint'
+                type: array
+              ConsulNamespace:
+                type: string
+              ConsulToken:
+                type: string
+              CreateIndex:
+                maximum: 1.8446744073709552e+19
+                minimum: 0
+                type: integer
+              Datacenters:
+                items:
+                  type: string
+                type: array
+              Dispatched:
+                type: boolean
+              ID:
+                type: string
+              JobModifyIndex:
+                maximum: 1.8446744073709552e+19
+                minimum: 0
+                type: integer
+              Meta:
+                additionalProperties:
+                  type: string
+                type: object
+              Migrate:
+                $ref: '#/components/schemas/MigrateStrategy'
+              ModifyIndex:
+                maximum: 1.8446744073709552e+19
+                minimum: 0
+                type: integer
+              Multiregion:
+                $ref: '#/components/schemas/Multiregion'
+              Name:
+                type: string
+              Namespace:
+                type: string
+              NomadTokenID:
+                type: string
+              ParameterizedJob:
+                $ref: '#/components/schemas/ParameterizedJobConfig'
+              ParentID:
+                type: string
+              Payload:
+                format: byte
+                type: string
+              Periodic:
+                $ref: '#/components/schemas/PeriodicConfig'
+              Priority:
+                type: integer
+              Region:
+                type: string
+              Reschedule:
+                $ref: '#/components/schemas/ReschedulePolicy'
+              Spreads:
+                items:
+                  $ref: '#/components/schemas/Spread'
+                type: array
+              Stable:
+                type: boolean
+              Status:
+                type: string
+              StatusDescription:
+                type: string
+              Stop:
+                type: boolean
+              SubmitTime:
+                format: int64
+                type: integer
+              TaskGroups:
+                items:
+                  $ref: '#/components/schemas/TaskGroup'
+                type: array
+              Type:
+                type: string
+              Update:
+                $ref: '#/components/schemas/UpdateStrategy'
+              VaultNamespace:
+                type: string
+              VaultToken:
+                type: string
+              Version:
+                maximum: 1.8446744073709552e+19
+                minimum: 0
+                type: integer
+            type: object
       description: ""
       headers:
         IndexHeader:
@@ -106,21 +227,23 @@ components:
     Affinity:
       properties:
         LTarget:
-          $ref: string
+          type: string
         Operand:
-          $ref: string
+          type: string
         RTarget:
-          $ref: string
+          type: string
         Weight:
-          $ref: int8
+          maximum: 127
+          minimum: -128
+          type: integer
       type: object
     CSIMountOptions:
       properties:
         FSType:
-          $ref: string
+          type: string
         MountFlags:
           items:
-            $ref: string
+            type: string
           type: array
       type: object
     CSIPluginType:
@@ -128,74 +251,65 @@ components:
     CheckRestart:
       properties:
         Grace:
-          $ref: Duration
+          format: int64
+          type: integer
         IgnoreWarnings:
-          $ref: bool
+          type: boolean
         Limit:
-          $ref: int
-      type: object
-    Constraint:
-      properties:
-        LTarget:
-          $ref: string
-        Operand:
-          $ref: string
-        RTarget:
-          $ref: string
+          type: integer
       type: object
     Consul:
       properties:
         Namespace:
-          $ref: string
+          type: string
       type: object
     ConsulConnect:
       properties:
         Gateway:
-          $ref: ConsulGateway
+          $ref: '#/components/schemas/ConsulGateway'
         Native:
-          $ref: bool
+          type: boolean
         SidecarService:
-          $ref: ConsulSidecarService
+          $ref: '#/components/schemas/ConsulSidecarService'
         SidecarTask:
-          $ref: SidecarTask
+          $ref: '#/components/schemas/SidecarTask'
       type: object
     ConsulExposeConfig:
       properties:
         Path:
           items:
-            $ref: ConsulExposePath
+            $ref: '#/components/schemas/ConsulExposePath'
           type: array
       type: object
     ConsulExposePath:
       properties:
         ListenerPort:
-          $ref: string
+          type: string
         LocalPathPort:
-          $ref: int
+          type: integer
         Path:
-          $ref: string
+          type: string
         Protocol:
-          $ref: string
+          type: string
       type: object
     ConsulGateway:
       properties:
         Ingress:
-          $ref: ConsulIngressConfigEntry
-        Mesh:
-          $ref: ConsulMeshConfigEntry
+          $ref: '#/components/schemas/ConsulIngressConfigEntry'
+        Mesh: {}
         Proxy:
-          $ref: ConsulGatewayProxy
+          $ref: '#/components/schemas/ConsulGatewayProxy'
         Terminating:
-          $ref: ConsulTerminatingConfigEntry
+          $ref: '#/components/schemas/ConsulTerminatingConfigEntry'
       type: object
     ConsulGatewayBindAddress:
       properties:
         Address:
-          $ref: string
+          type: string
         Name:
-          $ref: string
+          type: string
         Port:
-          $ref: int
+          type: integer
       type: object
     ConsulGatewayProxy:
       properties:
@@ -203,70 +317,71 @@ components:
           additionalProperties: {}
           type: object
         ConnectTimeout:
-          $ref: Duration
+          format: int64
+          type: integer
         EnvoyDNSDiscoveryType:
-          $ref: string
+          type: string
         EnvoyGatewayBindAddresses:
           additionalProperties:
-            $ref: ConsulGatewayBindAddress
+            $ref: '#/components/schemas/ConsulGatewayBindAddress'
           type: object
         EnvoyGatewayBindTaggedAddresses:
-          $ref: bool
+          type: boolean
         EnvoyGatewayNoDefaultBind:
-          $ref: bool
+          type: boolean
       type: object
     ConsulGatewayTLSConfig:
       properties:
         Enabled:
-          $ref: bool
+          type: boolean
       type: object
     ConsulIngressConfigEntry:
       properties:
         Listeners:
           items:
-            $ref: ConsulIngressListener
+            $ref: '#/components/schemas/ConsulIngressListener'
           type: array
         TLS:
-          $ref: ConsulGatewayTLSConfig
+          $ref: '#/components/schemas/ConsulGatewayTLSConfig'
       type: object
     ConsulIngressListener:
       properties:
         Port:
-          $ref: int
+          type: integer
         Protocol:
-          $ref: string
+          type: string
         Services:
           items:
-            $ref: ConsulIngressService
+            $ref: '#/components/schemas/ConsulIngressService'
           type: array
       type: object
     ConsulIngressService:
       properties:
         Hosts:
           items:
-            $ref: string
+            type: string
           type: array
         Name:
-          $ref: string
+          type: string
       type: object
     ConsulLinkedService:
       properties:
         CAFile:
-          $ref: string
+          type: string
         CertFile:
-          $ref: string
+          type: string
         KeyFile:
-          $ref: string
+          type: string
         Name:
-          $ref: string
+          type: string
         SNI:
-          $ref: string
+          type: string
       type: object
     ConsulMeshConfigEntry: {}
     ConsulMeshGateway:
       properties:
         Mode:
-          $ref: string
+          type: string
       type: object
     ConsulProxy:
       properties:
@@ -274,68 +389,68 @@ components:
           additionalProperties: {}
           type: object
         ExposeConfig:
-          $ref: ConsulExposeConfig
+          $ref: '#/components/schemas/ConsulExposeConfig'
         LocalServiceAddress:
-          $ref: string
+          type: string
         LocalServicePort:
-          $ref: int
+          type: integer
         Upstreams:
           items:
-            $ref: ConsulUpstream
+            $ref: '#/components/schemas/ConsulUpstream'
           type: array
       type: object
     ConsulSidecarService:
       properties:
         DisableDefaultTCPCheck:
-          $ref: bool
+          type: boolean
         Port:
-          $ref: string
+          type: string
         Proxy:
-          $ref: ConsulProxy
+          $ref: '#/components/schemas/ConsulProxy'
         Tags:
           items:
-            $ref: string
+            type: string
           type: array
       type: object
     ConsulTerminatingConfigEntry:
       properties:
         Services:
           items:
-            $ref: ConsulLinkedService
+            $ref: '#/components/schemas/ConsulLinkedService'
           type: array
       type: object
     ConsulUpstream:
       properties:
         Datacenter:
-          $ref: string
+          type: string
         DestinationName:
-          $ref: string
+          type: string
         LocalBindAddress:
-          $ref: string
+          type: string
         LocalBindPort:
-          $ref: int
+          type: integer
         MeshGateway:
-          $ref: ConsulMeshGateway
+          $ref: '#/components/schemas/ConsulMeshGateway'
       type: object
     DNSConfig:
       properties:
         Options:
           items:
-            $ref: string
+            type: string
           type: array
         Searches:
           items:
-            $ref: string
+            type: string
           type: array
         Servers:
           items:
-            $ref: string
+            type: string
           type: array
       type: object
     DispatchPayloadConfig:
       properties:
         File:
-          $ref: string
+          type: string
       type: object
     Duration:
       format: int64
@@ -343,415 +458,424 @@ components:
     EphemeralDisk:
       properties:
         Migrate:
-          $ref: bool
+          type: boolean
         SizeMB:
-          $ref: int
+          type: integer
         Sticky:
-          $ref: bool
+          type: boolean
       type: object
     Job:
       properties:
         Affinities:
           items:
-            $ref: Affinity
+            $ref: '#/components/schemas/Affinity'
           type: array
         AllAtOnce:
-          $ref: bool
+          type: boolean
         Constraints:
           items:
-            $ref: Constraint
+            $ref: '#/components/schemas/Constraint'
           type: array
         ConsulNamespace:
-          $ref: string
+          type: string
         ConsulToken:
-          $ref: string
+          type: string
         CreateIndex:
-          $ref: uint64
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
         Datacenters:
           items:
-            $ref: string
+            type: string
           type: array
         Dispatched:
-          $ref: bool
+          type: boolean
         ID:
-          $ref: string
+          type: string
         JobModifyIndex:
-          $ref: uint64
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
         Meta:
           additionalProperties:
-            $ref: string
+            type: string
           type: object
         Migrate:
-          $ref: MigrateStrategy
+          $ref: '#/components/schemas/MigrateStrategy'
         ModifyIndex:
-          $ref: uint64
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
         Multiregion:
-          $ref: Multiregion
+          $ref: '#/components/schemas/Multiregion'
         Name:
-          $ref: string
+          type: string
         Namespace:
-          $ref: string
+          type: string
         NomadTokenID:
-          $ref: string
+          type: string
         ParameterizedJob:
-          $ref: ParameterizedJobConfig
+          $ref: '#/components/schemas/ParameterizedJobConfig'
         ParentID:
-          $ref: string
+          type: string
         Payload:
           format: byte
           type: string
         Periodic:
-          $ref: PeriodicConfig
+          $ref: '#/components/schemas/PeriodicConfig'
         Priority:
-          $ref: int
+          type: integer
         Region:
-          $ref: string
+          type: string
         Reschedule:
-          $ref: ReschedulePolicy
+          $ref: '#/components/schemas/ReschedulePolicy'
         Spreads:
           items:
-            $ref: Spread
+            $ref: '#/components/schemas/Spread'
           type: array
         Stable:
-          $ref: bool
+          type: boolean
         Status:
-          $ref: string
+          type: string
         StatusDescription:
-          $ref: string
+          type: string
         Stop:
-          $ref: bool
+          type: boolean
         SubmitTime:
-          $ref: int64
+          format: int64
+          type: integer
         TaskGroups:
           items:
-            $ref: TaskGroup
+            $ref: '#/components/schemas/TaskGroup'
           type: array
         Type:
-          $ref: string
+          type: string
         Update:
-          $ref: UpdateStrategy
+          $ref: '#/components/schemas/UpdateStrategy'
         VaultNamespace:
-          $ref: string
+          type: string
         VaultToken:
-          $ref: string
+          type: string
         Version:
-          $ref: uint64
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
       type: object
     JobRegisterRequest:
-      properties:
-        EnforceIndex:
-          $ref: bool
-        Job:
-          $ref: Job
-        JobModifyIndex:
-          $ref: uint64
-        Namespace:
-          $ref: string
-        PolicyOverride:
-          $ref: bool
-        PreserveCounts:
-          $ref: bool
-        Region:
-          $ref: string
-        SecretID:
-          $ref: string
-      type: object
+      $ref: JobRegisterRequest
     LogConfig:
       properties:
         MaxFileSizeMB:
-          $ref: int
+          type: integer
         MaxFiles:
-          $ref: int
+          type: integer
       type: object
     MigrateStrategy:
       properties:
         HealthCheck:
-          $ref: string
+          type: string
         HealthyDeadline:
-          $ref: Duration
+          format: int64
+          type: integer
         MaxParallel:
-          $ref: int
+          type: integer
         MinHealthyTime:
-          $ref: Duration
+          format: int64
+          type: integer
       type: object
     Multiregion:
       properties:
         Regions:
           items:
-            $ref: MultiregionRegion
+            $ref: '#/components/schemas/MultiregionRegion'
           type: array
         Strategy:
-          $ref: MultiregionStrategy
+          $ref: '#/components/schemas/MultiregionStrategy'
       type: object
     MultiregionRegion:
       properties:
         Count:
-          $ref: int
+          type: integer
         Datacenters:
           items:
-            $ref: string
+            type: string
           type: array
         Meta:
           additionalProperties:
-            $ref: string
+            type: string
           type: object
         Name:
-          $ref: string
+          type: string
       type: object
     MultiregionStrategy:
       properties:
         MaxParallel:
-          $ref: int
+          type: integer
         OnFailure:
-          $ref: string
+          type: string
       type: object
     NetworkResource:
       properties:
         CIDR:
-          $ref: string
+          type: string
         DNS:
-          $ref: DNSConfig
+          $ref: '#/components/schemas/DNSConfig'
         Device:
-          $ref: string
+          type: string
         DynamicPorts:
           items:
-            $ref: Port
+            $ref: '#/components/schemas/Port'
           type: array
         IP:
-          $ref: string
+          type: string
         MBits:
-          $ref: int
+          type: integer
         Mode:
-          $ref: string
+          type: string
         ReservedPorts:
           items:
-            $ref: Port
+            $ref: '#/components/schemas/Port'
           type: array
       type: object
     ParameterizedJobConfig:
       properties:
         MetaOptional:
           items:
-            $ref: string
+            type: string
           type: array
         MetaRequired:
           items:
-            $ref: string
+            type: string
           type: array
         Payload:
-          $ref: string
+          type: string
       type: object
     PeriodicConfig:
       properties:
         Enabled:
-          $ref: bool
+          type: boolean
         ProhibitOverlap:
-          $ref: bool
+          type: boolean
         Spec:
-          $ref: string
+          type: string
         SpecType:
-          $ref: string
+          type: string
         TimeZone:
-          $ref: string
+          type: string
       type: object
     Port:
       properties:
         HostNetwork:
-          $ref: string
+          type: string
         Label:
-          $ref: string
+          type: string
         To:
-          $ref: int
+          type: integer
         Value:
-          $ref: int
+          type: integer
       type: object
     RequestedDevice:
       properties:
         Affinities:
           items:
-            $ref: Affinity
+            $ref: '#/components/schemas/Affinity'
           type: array
         Constraints:
           items:
-            $ref: Constraint
+            $ref: '#/components/schemas/Constraint'
           type: array
         Count:
-          $ref: uint64
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
         Name:
-          $ref: string
+          type: string
       type: object
     ReschedulePolicy:
       properties:
         Attempts:
-          $ref: int
+          type: integer
         Delay:
-          $ref: Duration
+          format: int64
+          type: integer
         DelayFunction:
-          $ref: string
+          type: string
         Interval:
-          $ref: Duration
+          format: int64
+          type: integer
         MaxDelay:
-          $ref: Duration
+          format: int64
+          type: integer
         Unlimited:
-          $ref: bool
+          type: boolean
       type: object
     Resources:
       properties:
         CPU:
-          $ref: int
+          type: integer
         Cores:
-          $ref: int
+          type: integer
         Devices:
           items:
-            $ref: RequestedDevice
+            $ref: '#/components/schemas/RequestedDevice'
           type: array
         DiskMB:
-          $ref: int
+          type: integer
         IOPS:
-          $ref: int
+          type: integer
         MemoryMB:
-          $ref: int
+          type: integer
         MemoryMaxMB:
-          $ref: int
+          type: integer
         Networks:
           items:
-            $ref: NetworkResource
+            $ref: '#/components/schemas/NetworkResource'
           type: array
       type: object
     RestartPolicy:
       properties:
         Attempts:
-          $ref: int
+          type: integer
         Delay:
-          $ref: Duration
+          format: int64
+          type: integer
         Interval:
-          $ref: Duration
+          format: int64
+          type: integer
         Mode:
-          $ref: string
+          type: string
       type: object
     ScalingPolicy:
       properties:
         CreateIndex:
-          $ref: uint64
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
         Enabled:
-          $ref: bool
+          type: boolean
         ID:
-          $ref: string
+          type: string
         Max:
-          $ref: int64
+          format: int64
+          type: integer
         Min:
-          $ref: int64
+          format: int64
+          type: integer
         ModifyIndex:
-          $ref: uint64
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
         Namespace:
-          $ref: string
+          type: string
         Policy:
           additionalProperties: {}
           type: object
         Target:
           additionalProperties:
-            $ref: string
+            type: string
           type: object
         Type:
-          $ref: string
+          type: string
       type: object
     Service:
       properties:
         AddressMode:
-          $ref: string
+          type: string
         CanaryMeta:
           additionalProperties:
-            $ref: string
+            type: string
           type: object
         CanaryTags:
           items:
-            $ref: string
+            type: string
           type: array
         CheckRestart:
-          $ref: CheckRestart
+          $ref: '#/components/schemas/CheckRestart'
         Checks:
           items:
-            $ref: ServiceCheck
+            $ref: '#/components/schemas/ServiceCheck'
           type: array
         Connect:
-          $ref: ConsulConnect
+          $ref: '#/components/schemas/ConsulConnect'
         EnableTagOverride:
-          $ref: bool
+          type: boolean
         Id:
-          $ref: string
+          type: string
         Meta:
           additionalProperties:
-            $ref: string
+            type: string
           type: object
         Name:
-          $ref: string
+          type: string
         OnUpdate:
-          $ref: string
+          type: string
         PortLabel:
-          $ref: string
+          type: string
         Tags:
           items:
-            $ref: string
+            type: string
           type: array
         TaskName:
-          $ref: string
+          type: string
       type: object
     ServiceCheck:
       properties:
         AddressMode:
-          $ref: string
+          type: string
         Args:
           items:
-            $ref: string
+            type: string
           type: array
         Body:
-          $ref: string
+          type: string
         CheckRestart:
-          $ref: CheckRestart
+          $ref: '#/components/schemas/CheckRestart'
         Command:
-          $ref: string
+          type: string
         Expose:
-          $ref: bool
+          type: boolean
         FailuresBeforeCritical:
-          $ref: int
+          type: integer
         GRPCService:
-          $ref: string
+          type: string
         GRPCUseTLS:
-          $ref: bool
+          type: boolean
         Header:
           additionalProperties:
             items:
-              $ref: string
+              type: string
             type: array
           type: object
         Id:
-          $ref: string
+          type: string
         InitialStatus:
-          $ref: string
+          type: string
         Interval:
-          $ref: Duration
+          format: int64
+          type: integer
         Method:
-          $ref: string
+          type: string
         Name:
-          $ref: string
+          type: string
         OnUpdate:
-          $ref: string
+          type: string
         Path:
-          $ref: string
+          type: string
         PortLabel:
-          $ref: string
+          type: string
         Protocol:
-          $ref: string
+          type: string
         SuccessBeforePassing:
-          $ref: int
+          type: integer
         TLSSkipVerify:
-          $ref: bool
+          type: boolean
         TaskName:
-          $ref: string
+          type: string
         Timeout:
-          $ref: Duration
+          format: int64
+          type: integer
         Type:
-          $ref: string
+          type: string
       type: object
     SidecarTask:
       properties:
@@ -759,322 +883,317 @@ components:
           additionalProperties: {}
           type: object
         Driver:
-          $ref: string
+          type: string
         Env:
           additionalProperties:
-            $ref: string
+            type: string
           type: object
         KillSignal:
-          $ref: string
+          type: string
         KillTimeout:
-          $ref: Duration
+          format: int64
+          type: integer
         LogConfig:
-          $ref: LogConfig
+          $ref: '#/components/schemas/LogConfig'
         Meta:
           additionalProperties:
-            $ref: string
+            type: string
           type: object
         Name:
-          $ref: string
+          type: string
         Resources:
-          $ref: Resources
+          $ref: '#/components/schemas/Resources'
         ShutdownDelay:
-          $ref: Duration
+          format: int64
+          type: integer
         User:
-          $ref: string
+          type: string
       type: object
     Spread:
       properties:
         Attribute:
-          $ref: string
+          type: string
         SpreadTarget:
           items:
-            $ref: SpreadTarget
+            $ref: '#/components/schemas/SpreadTarget'
           type: array
         Weight:
-          $ref: int8
+          maximum: 127
+          minimum: -128
+          type: integer
       type: object
     SpreadTarget:
       properties:
         Percent:
-          $ref: uint8
+          maximum: 255
+          minimum: 0
+          type: integer
         Value:
-          $ref: string
+          type: string
       type: object
     Task:
       properties:
         Affinities:
           items:
-            $ref: Affinity
+            $ref: '#/components/schemas/Affinity'
           type: array
         Artifacts:
           items:
-            $ref: TaskArtifact
+            $ref: '#/components/schemas/TaskArtifact'
           type: array
         CSIPluginConfig:
-          $ref: TaskCSIPluginConfig
+          $ref: '#/components/schemas/TaskCSIPluginConfig'
         Config:
           additionalProperties: {}
           type: object
         Constraints:
           items:
-            $ref: Constraint
+            $ref: '#/components/schemas/Constraint'
           type: array
         DispatchPayload:
-          $ref: DispatchPayloadConfig
+          $ref: '#/components/schemas/DispatchPayloadConfig'
         Driver:
-          $ref: string
+          type: string
         Env:
           additionalProperties:
-            $ref: string
+            type: string
           type: object
         KillSignal:
-          $ref: string
+          type: string
         KillTimeout:
-          $ref: Duration
+          format: int64
+          type: integer
         Kind:
-          $ref: string
+          type: string
         Leader:
-          $ref: bool
+          type: boolean
         Lifecycle:
-          $ref: TaskLifecycle
+          $ref: '#/components/schemas/TaskLifecycle'
         LogConfig:
-          $ref: LogConfig
+          $ref: '#/components/schemas/LogConfig'
         Meta:
           additionalProperties:
-            $ref: string
+            type: string
           type: object
         Name:
-          $ref: string
+          type: string
         Resources:
-          $ref: Resources
+          $ref: '#/components/schemas/Resources'
         RestartPolicy:
-          $ref: RestartPolicy
+          $ref: '#/components/schemas/RestartPolicy'
         ScalingPolicies:
           items:
-            $ref: ScalingPolicy
+            $ref: '#/components/schemas/ScalingPolicy'
           type: array
         Services:
           items:
-            $ref: Service
+            $ref: '#/components/schemas/Service'
           type: array
         ShutdownDelay:
-          $ref: Duration
+          format: int64
+          type: integer
         Templates:
           items:
-            $ref: Template
+            $ref: '#/components/schemas/Template'
           type: array
         User:
-          $ref: string
+          type: string
         Vault:
-          $ref: Vault
+          $ref: '#/components/schemas/Vault'
         VolumeMounts:
           items:
-            $ref: VolumeMount
+            $ref: '#/components/schemas/VolumeMount'
           type: array
       type: object
     TaskArtifact:
       properties:
         GetterHeaders:
           additionalProperties:
-            $ref: string
+            type: string
           type: object
         GetterMode:
-          $ref: string
+          type: string
         GetterOptions:
           additionalProperties:
-            $ref: string
+            type: string
           type: object
         GetterSource:
-          $ref: string
+          type: string
         RelativeDest:
-          $ref: string
+          type: string
       type: object
     TaskCSIPluginConfig:
       properties:
         ID:
-          $ref: string
+          type: string
         MountDir:
-          $ref: string
+          type: string
         Type:
-          $ref: CSIPluginType
+          type: string
       type: object
     TaskGroup:
       properties:
         Affinities:
           items:
-            $ref: Affinity
+            $ref: '#/components/schemas/Affinity'
           type: array
         Constraints:
           items:
-            $ref: Constraint
+            $ref: '#/components/schemas/Constraint'
           type: array
         Consul:
-          $ref: Consul
+          $ref: '#/components/schemas/Consul'
         Count:
-          $ref: int
+          type: integer
         EphemeralDisk:
-          $ref: EphemeralDisk
+          $ref: '#/components/schemas/EphemeralDisk'
         Meta:
           additionalProperties:
-            $ref: string
+            type: string
           type: object
         Migrate:
-          $ref: MigrateStrategy
+          $ref: '#/components/schemas/MigrateStrategy'
         Name:
-          $ref: string
+          type: string
         Networks:
           items:
-            $ref: NetworkResource
+            $ref: '#/components/schemas/NetworkResource'
           type: array
         ReschedulePolicy:
-          $ref: ReschedulePolicy
+          $ref: '#/components/schemas/ReschedulePolicy'
         RestartPolicy:
-          $ref: RestartPolicy
+          $ref: '#/components/schemas/RestartPolicy'
         Scaling:
-          $ref: ScalingPolicy
+          $ref: '#/components/schemas/ScalingPolicy'
         Services:
           items:
-            $ref: Service
+            $ref: '#/components/schemas/Service'
           type: array
         ShutdownDelay:
-          $ref: Duration
+          format: int64
+          type: integer
         Spreads:
           items:
-            $ref: Spread
+            $ref: '#/components/schemas/Spread'
           type: array
         StopAfterClientDisconnect:
-          $ref: Duration
+          format: int64
+          type: integer
         Tasks:
           items:
-            $ref: Task
+            $ref: '#/components/schemas/Task'
           type: array
         Update:
-          $ref: UpdateStrategy
+          $ref: '#/components/schemas/UpdateStrategy'
         Volumes:
           additionalProperties:
-            $ref: VolumeRequest
+            $ref: '#/components/schemas/VolumeRequest'
           type: object
       type: object
     TaskLifecycle:
       properties:
         Hook:
-          $ref: string
+          type: string
         Sidecar:
-          $ref: bool
+          type: boolean
       type: object
     Template:
       properties:
         ChangeMode:
-          $ref: string
+          type: string
         ChangeSignal:
-          $ref: string
+          type: string
         DestPath:
-          $ref: string
+          type: string
         EmbeddedTmpl:
-          $ref: string
+          type: string
         Envvars:
-          $ref: bool
+          type: boolean
         LeftDelim:
-          $ref: string
+          type: string
         Perms:
-          $ref: string
+          type: string
         RightDelim:
-          $ref: string
+          type: string
         SourcePath:
-          $ref: string
+          type: string
         Splay:
-          $ref: Duration
+          format: int64
+          type: integer
         VaultGrace:
-          $ref: Duration
+          format: int64
+          type: integer
       type: object
     UpdateStrategy:
       properties:
         AutoPromote:
-          $ref: bool
+          type: boolean
         AutoRevert:
-          $ref: bool
+          type: boolean
         Canary:
-          $ref: int
+          type: integer
         HealthCheck:
-          $ref: string
+          type: string
         HealthyDeadline:
-          $ref: Duration
+          format: int64
+          type: integer
         MaxParallel:
-          $ref: int
+          type: integer
         MinHealthyTime:
-          $ref: Duration
+          format: int64
+          type: integer
         ProgressDeadline:
-          $ref: Duration
+          format: int64
+          type: integer
         Stagger:
-          $ref: Duration
+          format: int64
+          type: integer
       type: object
     Vault:
       properties:
         ChangeMode:
-          $ref: string
+          type: string
         ChangeSignal:
-          $ref: string
+          type: string
         Env:
-          $ref: bool
+          type: boolean
         Namespace:
-          $ref: string
+          type: string
         Policies:
           items:
-            $ref: string
+            type: string
           type: array
       type: object
     VolumeMount:
       properties:
         Destination:
-          $ref: string
+          type: string
         PropagationMode:
-          $ref: string
+          type: string
         ReadOnly:
-          $ref: bool
+          type: boolean
         Volume:
-          $ref: string
+          type: string
       type: object
     VolumeRequest:
       properties:
         AccessMode:
-          $ref: string
+          type: string
         AttachmentMode:
-          $ref: string
+          type: string
         MountOptions:
-          $ref: CSIMountOptions
+          $ref: '#/components/schemas/CSIMountOptions'
         Name:
-          $ref: string
+          type: string
         PerAlloc:
-          $ref: bool
+          type: boolean
         ReadOnly:
-          $ref: bool
+          type: boolean
         Source:
-          $ref: string
+          type: string
         Type:
-          $ref: string
+          type: string
       type: object
-    bool:
-      type: boolean
-    int:
-      type: integer
-    int8:
-      maximum: 127
-      minimum: -128
-      type: integer
-    int64:
-      format: int64
-      type: integer
-    string:
-      type: string
-    uint8:
-      maximum: 255
-      minimum: 0
-      type: integer
-    uint64:
-      maximum: 1.8446744073709552e+19
-      minimum: 0
-      type: integer
 info:
   contact:
     email: support@hashicorp.com
@@ -1091,7 +1210,26 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/JobRegisterRequest'
+              properties:
+                EnforceIndex:
+                  type: boolean
+                Job:
+                  $ref: '#/components/schemas/Job'
+                JobModifyIndex:
+                  maximum: 1.8446744073709552e+19
+                  minimum: 0
+                  type: integer
+                Namespace:
+                  type: string
+                PolicyOverride:
+                  type: boolean
+                PreserveCounts:
+                  type: boolean
+                Region:
+                  type: string
+                SecretID:
+                  type: string
+              type: object
         required: true
       responses:
         "200":
