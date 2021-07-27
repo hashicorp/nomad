@@ -249,6 +249,10 @@ func defaultHttpClient() *http.Client {
 		MinVersion: tls.VersionTLS12,
 	}
 
+	// Default to http/1: alloc exec/websocket aren't supported in http/2
+	// well yet: https://github.com/gorilla/websocket/issues/417
+	transport.ForceAttemptHTTP2 = false
+
 	return httpClient
 }
 
