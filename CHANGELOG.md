@@ -1,8 +1,5 @@
 ## 1.1.3 (Unreleased)
 
-IMPROVEMENTS:
-* dispatch jobs: Added optional idempotency token to `WriteOptions` which prevents Nomad from creating new dispatched jobs for retried requests. [[GH-10806](https://github.com/hashicorp/nomad/pull/10806)]
-
 ## 1.1.2 (June 22, 2021)
 
 IMPROVEMENTS:
