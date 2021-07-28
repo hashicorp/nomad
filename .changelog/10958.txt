@@ -1,0 +1,4 @@
+
+```release-note:bug
+api: Reverted to using http/1 to fix a 1.1.2 regression in `alloc exec` sessions
+```
