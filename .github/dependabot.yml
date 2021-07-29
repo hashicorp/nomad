@@ -8,3 +8,7 @@ updates:
   directory: "/ui"
   schedule:
     interval: daily
+- package-ecosystem: npm 
+  directory: "/website"
+  schedule:
+    interval: daily
