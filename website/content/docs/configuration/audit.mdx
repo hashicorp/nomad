@@ -78,6 +78,7 @@ audit {
     rotate_bytes       = 100
     rotate_duration    = "24h"
     rotate_max_files   = 10
+    mode               = "0600"
   }
 }
 ```
@@ -96,6 +97,9 @@ audit {
 
 - `format` `(string: "json", required)` - Specifies the output format to be
   sent to a sink. Currently only `"json"` format is supported.
+
+- `mode` `(string: "0600")` - Specifies the permissions mode for the audit log
+   files using octal notation.
 
 - `path` `(string: "[data_dir]/audit/audit.log")` - Specifies the path and file
   name to use for the audit log. By default Nomad will use its configured
