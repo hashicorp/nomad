@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 const ns = ""
@@ -435,6 +436,13 @@ func (tc *RescheduleE2ETest) TestRescheduleProgressDeadlineFail(f *framework.F) 
 	jobID := "test-reschedule-deadline-fail" + uuid.Generate()[0:8]
 	f.NoError(e2e.Register(jobID, "rescheduling/input/rescheduling_progressdeadline_fail.nomad"))
 	tc.jobIds = append(tc.jobIds, jobID)
+
+	testutil.WaitForResult(func() (bool, error) {
+		_, err := e2e.LastDeploymentID(jobID, ns)
+		return err == nil, err
+	}, func(err error) {
+		f.NoError(err, "deployment wasn't created yet")
+	})
 
 	deploymentID, err := e2e.LastDeploymentID(jobID, ns)
 	f.NoError(err, "couldn't look up deployment")

@@ -180,6 +180,8 @@ func (tc *NodeDrainE2ETest) TestNodeDrainIgnoreSystem(f *framework.F) {
 	f.NoError(e2e.Register(serviceJobID, "nodedrain/input/drain_simple.nomad"))
 	tc.jobIDs = append(tc.jobIDs, serviceJobID)
 
+	f.NoError(e2e.WaitForAllocStatusExpected(serviceJobID, ns, []string{"running"}))
+
 	allocs, err := e2e.AllocsForJob(serviceJobID, ns)
 	f.NoError(err, "could not get allocs for service job")
 	f.Len(allocs, 1, "could not get allocs for service job")
