@@ -5,7 +5,7 @@ import FeaturedSlider from '@hashicorp/react-featured-slider'
 export default function HeterogenousApplicationOrchestrationPage() {
   return (
     <UseCasesLayout
-      title="Nomad embraces the Post-Container World"
+      title="The Post-Container Orchestrator"
       description="Nomad allows you to write and ship your business logic, not YAML config and Dockerfiles."
     >
       <TextSplitWithImage
