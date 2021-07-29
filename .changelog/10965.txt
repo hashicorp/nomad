@@ -1,0 +1,3 @@
+```release-note:bug
+plan: Handle multiple services with the same name.
+```

@@ -640,31 +640,73 @@ func serviceDiff(old, new *Service, contextual bool) *ObjectDiff {
 	return diff
 }
 
-// serviceDiffs diffs a set of services. If contextual diff is enabled, unchanged
-// fields within objects nested in the tasks will be returned.
-func serviceDiffs(old, new []*Service, contextual bool) []*ObjectDiff {
+// serviceDiffsInternal diffs a set of services with the same name.
+func serviceDiffsInternal(old, new []*Service, contextual bool) []*ObjectDiff {
 	oldMap := make(map[string]*Service, len(old))
 	newMap := make(map[string]*Service, len(new))
 	for _, o := range old {
-		oldMap[o.Name] = o
+		oldMap[o.PortLabel] = o
 	}
 	for _, n := range new {
-		newMap[n.Name] = n
+		newMap[n.PortLabel] = n
 	}
 
 	var diffs []*ObjectDiff
-	for name, oldService := range oldMap {
+	for portLabel, oldService := range oldMap {
 		// Diff the same, deleted and edited
-		if diff := serviceDiff(oldService, newMap[name], contextual); diff != nil {
+		if diff := serviceDiff(oldService, newMap[portLabel], contextual); diff != nil {
 			diffs = append(diffs, diff)
 		}
 	}
 
-	for name, newService := range newMap {
+	for portLabel, newService := range newMap {
 		// Diff the added
-		if old, ok := oldMap[name]; !ok {
+		if old, ok := oldMap[portLabel]; !ok {
 			if diff := serviceDiff(old, newService, contextual); diff != nil {
 				diffs = append(diffs, diff)
+			}
+		}
+	}
+
+	return diffs
+}
+
+// serviceDiffs diffs a set of services. If contextual diff is enabled, unchanged
+// fields within objects nested in the tasks will be returned.
+func serviceDiffs(old, new []*Service, contextual bool) []*ObjectDiff {
+	oldMap := make(map[string][]*Service, len(old))
+	newMap := make(map[string][]*Service, len(new))
+	for _, o := range old {
+		oldMap[o.Name] = append(oldMap[o.Name], o)
+	}
+	for _, n := range new {
+		newMap[n.Name] = append(newMap[n.Name], n)
+	}
+
+	var diffs []*ObjectDiff
+	for name, oldServices := range oldMap {
+		// services were deleted
+		if newServices, ok := newMap[name]; !ok {
+			for _, oldService := range oldServices {
+				diffs = append(diffs, serviceDiff(oldService, nil, contextual))
+			}
+		} else { // services where changed
+			// Handle the case of a "simple" change
+			if len(newServices) == 1 && len(oldServices) == 1 {
+				if diff := serviceDiff(oldServices[0], newServices[0], contextual); diff != nil {
+					diffs = append(diffs, diff)
+				}
+			} else { // More complex changes
+				diffs = append(diffs, serviceDiffsInternal(oldServices, newServices, contextual)...)
+			}
+		}
+	}
+
+	for name, newServices := range newMap {
+		// services where added
+		if _, ok := oldMap[name]; !ok {
+			for _, newService := range newServices {
+				diffs = append(diffs, serviceDiff(nil, newService, contextual))
 			}
 		}
 	}

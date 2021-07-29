@@ -3885,6 +3885,74 @@ func TestTaskGroupDiff(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			TestCase:   "TaskGroup service added with same name",
+			Contextual: true,
+			Old: &TaskGroup{
+				Services: []*Service{
+					{
+						Name:      "foo",
+						PortLabel: "label1",
+					},
+				},
+			},
+
+			New: &TaskGroup{
+				Services: []*Service{
+					{
+						Name:      "foo",
+						PortLabel: "label1",
+					},
+					{
+						Name:      "foo",
+						PortLabel: "label2",
+					},
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Service",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeNone,
+								Name: "AddressMode",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "EnableTagOverride",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Name",
+								New:  "foo",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Namespace",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "OnUpdate",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "PortLabel",
+								New:  "label2",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "TaskName",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for i, c := range cases {
