@@ -12,8 +12,8 @@ const subnavData = [
         url: '/use-cases/simple-container-orchestration',
       },
       {
-        text: 'Automated Service Networking with Consul',
-        url: '/use-cases/automated-service-networking-with-consul',
+        text: 'Edge Compute',
+        url: '/use-cases/edge-compute',
       },
     ],
   },
