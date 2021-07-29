@@ -1,9 +1,7 @@
-import Component from '@ember/component';
+import Component from '@glimmer/component';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
-import classic from 'ember-classic-decorator';
 
-@classic
 export default class Abstract extends Component {
   @service system;
 
