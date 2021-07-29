@@ -42,5 +42,14 @@ ENV GOPATH="/opt/gopath" \
 
 RUN mkdir -p /opt/gopath/src/github.com/hashicorp/nomad
 RUN mkdir -p /home/vagrant/bin \
+    && mkdir -p /home/vagrant/bin /home/vagrant/.ssh \
     && git config --global user.email "nomad@hashicorp.com" \
     && git config --global user.name "Nomad Release Bot"
+
+## Prepare vagrant user for private github.com deps fetching
+RUN git config --global url."ssh://git@github.com".insteadOf "https://github.com" || true
+RUN echo 'github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==' > /home/vagrant/.ssh/known_hosts
+
+ARG SSH_KEY
+RUN echo "$SSH_KEY" > /home/vagrant/.ssh/id_rsa \
+    && chmod 600 /home/vagrant/.ssh/id_rsa
