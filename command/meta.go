@@ -2,14 +2,12 @@ package command
 
 import (
 	"flag"
-	"os"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 	"github.com/posener/complete"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -38,6 +36,9 @@ type Meta struct {
 
 	// Whether to not-colorize output
 	noColor bool
+
+	// Whether to force colorized output
+	forceColor bool
 
 	// The region to send API requests
 	region string
@@ -70,6 +71,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 		f.StringVar(&m.region, "region", "", "")
 		f.StringVar(&m.namespace, "namespace", "", "")
 		f.BoolVar(&m.noColor, "no-color", false, "")
+		f.BoolVar(&m.forceColor, "force-color", false, "")
 		f.StringVar(&m.caCert, "ca-cert", "", "")
 		f.StringVar(&m.caPath, "ca-path", "", "")
 		f.StringVar(&m.clientCert, "client-cert", "", "")
@@ -97,6 +99,7 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 		"-region":          complete.PredictAnything,
 		"-namespace":       NamespacePredictor(m.Client, nil),
 		"-no-color":        complete.PredictNothing,
+		"-force-color":     complete.PredictNothing,
 		"-ca-cert":         complete.PredictFiles("*"),
 		"-ca-path":         complete.PredictDirs("*"),
 		"-client-cert":     complete.PredictFiles("*"),
@@ -155,11 +158,10 @@ func (m *Meta) allNamespaces() bool {
 
 func (m *Meta) Colorize() *colorstring.Colorize {
 	_, coloredUi := m.Ui.(*cli.ColoredUi)
-	noColor := m.noColor || !coloredUi || !terminal.IsTerminal(int(os.Stdout.Fd()))
 
 	return &colorstring.Colorize{
 		Colors:  colorstring.DefaultColors,
-		Disable: noColor,
+		Disable: !coloredUi,
 		Reset:   true,
 	}
 }
@@ -202,6 +204,10 @@ func generalOptionsUsage(usageOpts usageOptsFlags) string {
   -no-color
     Disables colored command output. Alternatively, NOMAD_CLI_NO_COLOR may be
     set.
+
+  -force-color
+    Forces colored command output. This can be used in cases where the usual
+    terminal detection fails. Alternatively, NOMAD_CLI_FORCE_COLOR may be set.
 
   -ca-cert=<path>
     Path to a PEM encoded CA cert file to use to verify the

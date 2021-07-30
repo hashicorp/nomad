@@ -27,6 +27,7 @@ func TestMeta_FlagSet(t *testing.T) {
 			[]string{
 				"address",
 				"no-color",
+				"force-color",
 				"region",
 				"namespace",
 				"ca-cert",

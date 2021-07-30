@@ -99,6 +99,11 @@ func RunCustom(args []string) int {
 	if os.Getenv(command.EnvNomadCLINoColor) != "" {
 		color = false
 	}
+	// but override if forced
+	forceColor := false
+	if os.Getenv(command.EnvNomadCLIForceColor) != "" {
+		forceColor = true
+	}
 
 	isTerminal := terminal.IsTerminal(int(os.Stdout.Fd()))
 	metaPtr.Ui = &cli.BasicUi{
@@ -115,7 +120,7 @@ func RunCustom(args []string) int {
 	}
 
 	// Only use colored UI if stdout is a tty, and not disabled
-	if isTerminal && color {
+	if forceColor || (isTerminal && color) {
 		metaPtr.Ui = &cli.ColoredUi{
 			ErrorColor: cli.UiColorRed,
 			WarnColor:  cli.UiColorYellow,
@@ -208,16 +213,22 @@ func printCommand(w io.Writer, name string, cmdFn cli.CommandFactory) {
 // values based on format options
 func setupEnv(args []string) []string {
 	noColor := false
+	forceColor := false
 	for _, arg := range args {
 		// Check if color is set
 		if arg == "-no-color" || arg == "--no-color" {
 			noColor = true
+		} else if arg == "-force-color" || arg == "--force-color" {
+			forceColor = true
 		}
 	}
 
 	// Put back into the env for later
 	if noColor {
 		os.Setenv(command.EnvNomadCLINoColor, "true")
+	}
+	if forceColor {
+		os.Setenv(command.EnvNomadCLIForceColor, "true")
 	}
 
 	return args

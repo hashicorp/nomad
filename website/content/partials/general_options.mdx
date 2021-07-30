@@ -13,6 +13,9 @@
 - `-no-color`: Disables colored command output. Alternatively,
   `NOMAD_CLI_NO_COLOR` may be set.
 
+-`-force-color`: Forces colored command output. This can be used in cases where
+  the usual terminal detection fails. Alternatively, NOMAD_CLI_FORCE_COLOR may be set.
+
 - `-ca-cert=<path>`: Path to a PEM encoded CA cert file to use to verify the
   Nomad server SSL certificate. Overrides the `NOMAD_CACERT` environment
   variable if set.
