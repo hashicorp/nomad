@@ -1,4 +1,44 @@
-## 1.1.3 (Unreleased)
+## 1.1.3 (July 29, 2021)
+
+IMPROVEMENTS:
+
+* api: Added `NewSystemJob` helper function to create base system job object. [[GH-10861](https://github.com/hashicorp/nomad/issues/10861)]
+* audit (Enterprise): allow configuring file mode for audit logs [[GH-10916](https://github.com/hashicorp/nomad/issues/10916)]
+* build: no longer use vendor directory [[GH-10898](https://github.com/hashicorp/nomad/issues/10898)]
+* cli: Added a `-task` flag to `alloc restart` and `alloc signal` for consistent UX with `alloc exec` and `alloc logs` [[GH-10859](https://github.com/hashicorp/nomad/issues/10859)]
+* cli: Support recent job spec construct in the HCLv1 parser [[GH-10931](https://github.com/hashicorp/nomad/issues/10931)]
+* consul/connect: automatically set CONSUL_TLS_SERVER_NAME for connect native tasks [[GH-10804](https://github.com/hashicorp/nomad/issues/10804)]
+* dispatch jobs: Added optional idempotency token to `WriteOptions` which prevents Nomad from creating new dispatched jobs for retried requests. [[GH-10806](https://github.com/hashicorp/nomad/issues/10806)]
+* ui: Added new screen to dispatch a parameterized batch job [[GH-10675](https://github.com/hashicorp/nomad/issues/10675)]
+* ui: Handle ACL token when running behind a reverse proxy [[GH-10563](https://github.com/hashicorp/nomad/issues/10563)]
+
+BUG FIXES:
+
+* api: Reverted to using http/1 to fix a 1.1.2 regression in `alloc exec` sessions [[GH-10958](https://github.com/hashicorp/nomad/issues/10958)]
+* cli: Fixed a bug where `-namespace` flag was not respected for `job run` and `job plan` commands. [[GH-10875](https://github.com/hashicorp/nomad/issues/10875)]
+* cli: Fixed a panic when deployment monitor is invoked in some CI environments [[GH-10926](https://github.com/hashicorp/nomad/issues/10926)]
+* cli: Fixed system commands, so they correctly use passed flags [[GH-10822](https://github.com/hashicorp/nomad/issues/10822)]
+* cli: Fixed the help message for the `nomad alloc signal` command [[GH-10917](https://github.com/hashicorp/nomad/issues/10917)]
+* client: Fixed a bug where a restarted client may start an already completed tasks in rare conditions [[GH-10907](https://github.com/hashicorp/nomad/issues/10907)]
+* client: Fixed bug where meta blocks were not interpolated with task environment [[GH-10876](https://github.com/hashicorp/nomad/issues/10876)]
+* cni: Fixed a bug where fingerprinting of CNI configuration failed with default `cni_config_dir` and `cni_path` [[GH-10870](https://github.com/hashicorp/nomad/issues/10870)]
+* consul/connect: Avoid assumption of parent service when syncing connect proxies [[GH-10872](https://github.com/hashicorp/nomad/issues/10872)]
+* consul/connect: Fixed a bug causing high CPU with multiple connect sidecars in one group [[GH-10883](https://github.com/hashicorp/nomad/issues/10883)]
+* consul/connect: Fixed a bug where service deregistered before connect sidecar [[GH-10873](https://github.com/hashicorp/nomad/issues/10873)]
+* consul: Fixed a bug where services may incorrectly fail conflicting name validation [[GH-10868](https://github.com/hashicorp/nomad/issues/10868)]
+* consul: avoid extra sync operations when no action required [[GH-10865](https://github.com/hashicorp/nomad/issues/10865)]
+* consul: remove ineffective edge case handling on service deregistration [[GH-10842](https://github.com/hashicorp/nomad/issues/10842)]
+* core: Fixed a bug where affinity memoization may cause planning problems [[GH-10897](https://github.com/hashicorp/nomad/issues/10897)]
+* core: Fixed a bug where internalized constraint strings broke job plan [[GH-10896](https://github.com/hashicorp/nomad/issues/10896)]
+* core: Fixed a panic that may arise when upgrading pre-1.1.0 cluster to 1.1.x and may cause cluster outage [[GH-10952](https://github.com/hashicorp/nomad/issues/10952)]
+* csi: Fixed a bug where volume secrets were not used for creating snapshots. [[GH-10840](https://github.com/hashicorp/nomad/issues/10840)]
+* csi: fixed a CLI panic when formatting `volume status` with `-verbose` flag [[GH-10818](https://github.com/hashicorp/nomad/issues/10818)]
+* deps: Update `hashicorp/consul-template` to v0.25.2 to fix panic reading Vault secrets [[GH-10892](https://github.com/hashicorp/nomad/issues/10892)]
+* driver/docker: Moved the generated `/etc/hosts` file's mount source to the allocation directory so that it can be shared between tasks of an allocation. [[GH-10823](https://github.com/hashicorp/nomad/issues/10823)]
+* drivers: Fixed bug where Nomad incorrectly reported tasks as recovered successfully even when they were not. [[GH-10849](https://github.com/hashicorp/nomad/issues/10849)]
+* scheduler: Fixed a bug where updates to the `datacenters` field were not destructive. [[GH-10864](https://github.com/hashicorp/nomad/issues/10864)]
+* ui: Fixes bug where UI was not detecting namespace-specific capabilities. [[GH-10893](https://github.com/hashicorp/nomad/issues/10893)]
+* volumes: Fix a bug where the HTTP server would crash if a `volume_mount` block was empty [[GH-10855](https://github.com/hashicorp/nomad/issues/10855)]
 
 ## 1.1.2 (June 22, 2021)
 
@@ -129,6 +169,22 @@ BUG FIXES:
  * server: Fixed a bug where jobs may not run if submitted with ParentID field set [[GH-10424](https://github.com/hashicorp/nomad/issues/10424)]
  * server: Fixed a panic that may arise on submission of jobs containing invalid service checks [[GH-10154](https://github.com/hashicorp/nomad/issues/10154)]
  * ui: Fixed the rendering of interstitial components shown after processing a dynamic application sizing recommendation. [[GH-10094](https://github.com/hashicorp/nomad/pull/10094)]
+
+## 1.0.9 (July 29, 2021)
+
+BUG FIXES:
+
+* core: Fixed a bug where internalized constraint strings broke job plan [[GH-10896](https://github.com/hashicorp/nomad/issues/10896)]
+* core: Fixed a bug where affinity memoization may cause planning problems [[GH-10897](https://github.com/hashicorp/nomad/issues/10897)]
+* cli: Fixed a bug where `-namespace` flag was not respected for `job run` and `job plan` commands. [[GH-10875](https://github.com/hashicorp/nomad/issues/10875)]
+* client: Fixed a bug where a restarted client may start an already completed tasks in rare conditions [[GH-10907](https://github.com/hashicorp/nomad/issues/10907)]
+* client: Fixed bug where meta blocks were not interpolated with task environment [[GH-10876](https://github.com/hashicorp/nomad/issues/10876)]
+* cni: Fixed a bug where fingerprinting of CNI configuration failed with default `cni_config_dir` and `cni_path` [[GH-10870](https://github.com/hashicorp/nomad/issues/10870)]
+* consul: Fixed a bug where services may incorrectly fail conflicting name validation [[GH-10868](https://github.com/hashicorp/nomad/issues/10868)]
+* deps: Update `hashicorp/consul-template` to v0.25.2 to fix panic reading Vault secrets [[GH-10892](https://github.com/hashicorp/nomad/issues/10892)]
+* drivers: Fixed bug where Nomad incorrectly reported tasks as recovered successfully even when they were not. [[GH-10849](https://github.com/hashicorp/nomad/issues/10849)]
+* scheduler: Fixed a bug where updates to the `datacenters` field were not destructive. [[GH-10864](https://github.com/hashicorp/nomad/issues/10864)]
+* volumes: Fix a bug where the HTTP server would crash if a `volume_mount` block was empty [[GH-10855](https://github.com/hashicorp/nomad/issues/10855)]
 
 ## 1.0.8 (June 22, 2021)
 
