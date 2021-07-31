@@ -97,7 +97,7 @@ func TestJobRequest(t *testing.T) {
 	req.Contains(yaml, jobResponseSchema)
 }
 
-func TestBuildFromSchema(t *testing.T) {
+func TestBuildFromModel(t *testing.T) {
 	req := require.New(t)
 
 	var analyzer *Analyzer

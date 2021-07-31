@@ -126,14 +126,38 @@ var (
 	}
 )
 
-var queryMeta = []*Parameter{
-	&IndexHeader,
-	&KnownLeaderHeader,
-	&LastContactHeader,
+type ResponseHeader struct {
+	Name        string
+	SchemaType  string
+	Description string
 }
 
-var writeMeta = []*Parameter{
-	&IndexHeader,
+var (
+	XNomadIndexHeader = ResponseHeader{
+		Name:        "X-Nomad-Index",
+		SchemaType:  intSchema,
+		Description: "A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.",
+	}
+	XNomadKnownLeaderHeader = ResponseHeader{
+		Name:        "X-Nomad-KnownLeader",
+		SchemaType:  boolSchema,
+		Description: "Boolean indicating if there is a known cluster leader.",
+	}
+	XNomadLastContactHeader = ResponseHeader{
+		Name:        "X-Nomad-LastContact",
+		SchemaType:  intSchema,
+		Description: "The time in milliseconds that a server was last contacted by the leader node.",
+	}
+)
+
+var queryMeta = []*ResponseHeader{
+	&XNomadIndexHeader,
+	&XNomadKnownLeaderHeader,
+	&XNomadLastContactHeader,
+}
+
+var writeMeta = []*ResponseHeader{
+	&XNomadIndexHeader,
 }
 
 var queryOptions = []*Parameter{
@@ -204,7 +228,7 @@ type ResponseConfig struct {
 	Code     int
 	Response *Response
 	Content  *ResponseContent
-	Headers  []*Parameter
+	Headers  []*ResponseHeader
 }
 
 type Operation struct {
@@ -214,7 +238,6 @@ type Operation struct {
 	Summary     string
 	Description string
 	RequestBody *RequestBody
-	Headers     []*Parameter
 	Parameters  []*Parameter
 	Responses   []*ResponseConfig
 }
@@ -229,44 +252,33 @@ type V1API struct{}
 func (v *V1API) GetPaths() []*Path {
 	return []*Path{
 		{
-			Key: "/v1/jobs/{jobName}",
+			Key: "/jobs/{jobName}",
 			Operations: []*Operation{
 				NewOperation(http.MethodGet, []string{"Jobs"}, "getJob",
 					nil,
 					append(queryOptions, &JobNameParam),
-					&ResponseConfig{
-						Code: 200,
-						Content: &ResponseContent{
-							SchemaType: objectSchema,
-							Model:      reflect.TypeOf(api.Job{}),
-						},
-						Headers: queryMeta,
-						Response: &Response{
-							Id: "GetJobResponse",
-						},
-					}),
+					NewResponseConfig(200, objectSchema, api.Job{}, queryMeta, "GetJobResponse"),
+				),
 			},
 		},
 		{
-			Key: "/v1/jobs",
+			Key: "/jobs",
 			Operations: []*Operation{
 				NewOperation(http.MethodPost, []string{"Jobs"}, "postJob",
-					&RequestBody{
-						SchemaType: objectSchema,
-						Model:      reflect.TypeOf(api.JobRegisterRequest{}),
-					},
+					NewRequestBody(objectSchema, api.JobRegisterRequest{}),
 					nil,
-					&ResponseConfig{
-						Code: 200,
-						Content: &ResponseContent{
-							SchemaType: objectSchema,
-							Model:      reflect.TypeOf(api.JobRegisterResponse{}),
-						},
-						Headers: queryMeta,
-						Response: &Response{
-							Id: "PostJobResponse",
-						},
-					}),
+					NewResponseConfig(200, objectSchema, api.JobRegisterResponse{}, queryMeta, "PostJobResponse"),
+				),
+			},
+		},
+		{
+			Key: "/job/{jobName}/plan",
+			Operations: []*Operation{
+				NewOperation(http.MethodPost, []string{"Jobs"}, "postJobPlan",
+					NewRequestBody(objectSchema, api.JobPlanRequest{}),
+					append(queryOptions, &JobNameParam),
+					NewResponseConfig(200, objectSchema, api.JobPlanResponse{}, queryMeta, "PostJobPlanResponse"),
+				),
 			},
 		},
 	}
@@ -280,6 +292,27 @@ func NewOperation(method string, tags []string, operationId string, requestBody 
 		RequestBody: requestBody,
 		Parameters:  params,
 		Responses:   getResponses(responses...),
+	}
+}
+
+func NewRequestBody(schemaType string, model interface{}) *RequestBody {
+	return &RequestBody{
+		SchemaType: schemaType,
+		Model:      reflect.TypeOf(model),
+	}
+}
+
+func NewResponseConfig(statusCode int, schemaType string, model interface{}, headers []*ResponseHeader, id string) *ResponseConfig {
+	return &ResponseConfig{
+		Code: statusCode,
+		Content: &ResponseContent{
+			SchemaType: schemaType,
+			Model:      reflect.TypeOf(model),
+		},
+		Headers: headers,
+		Response: &Response{
+			Id: id,
+		},
 	}
 }
 

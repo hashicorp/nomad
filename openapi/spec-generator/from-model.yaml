@@ -13,16 +13,6 @@ components:
       required: true
       schema:
         type: string
-    KnownLeaderHeader:
-      in: header
-      name: X-Nomad-Known-Leader
-      schema:
-        type: boolean
-    LastContactHeader:
-      in: header
-      name: X-Nomad-Last-Contact
-      schema:
-        type: integer
     NamespaceParam:
       description: Filters results based on the specified namespace.
       in: query
@@ -72,6 +62,12 @@ components:
       schema:
         type: integer
   requestBodies:
+    JobPlanRequest:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/JobPlanRequest'
+      required: true
     JobRegisterRequest:
       content:
         application/json:
@@ -88,16 +84,47 @@ components:
             $ref: '#/components/schemas/Job'
       description: ""
       headers:
-        IndexHeader:
-          $ref: '#/components/parameters/IndexHeader'
-        KnownLeaderHeader:
-          $ref: '#/components/parameters/KnownLeaderHeader'
-        LastContactHeader:
-          $ref: '#/components/parameters/LastContactHeader'
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
     InternalServerErrorResponse:
       description: Internal server error
     MethodNotAllowedResponse:
       description: Method not allowed
+    PostJobPlanResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/JobPlanResponse'
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
     PostJobResponse:
       content:
         application/json:
@@ -105,12 +132,21 @@ components:
             $ref: '#/components/schemas/JobRegisterResponse'
       description: ""
       headers:
-        IndexHeader:
-          $ref: '#/components/parameters/IndexHeader'
-        KnownLeaderHeader:
-          $ref: '#/components/parameters/KnownLeaderHeader'
-        LastContactHeader:
-          $ref: '#/components/parameters/LastContactHeader'
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
     default:
       description: ""
   schemas:
@@ -126,6 +162,202 @@ components:
           maximum: 127
           minimum: -128
           type: integer
+      type: object
+    AllocDeploymentStatus:
+      properties:
+        Canary:
+          type: boolean
+        Healthy:
+          type: boolean
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Timestamp:
+          format: date-time
+          type: string
+      type: object
+    AllocatedCpuResources:
+      properties:
+        CpuShares:
+          format: int64
+          type: integer
+      type: object
+    AllocatedDeviceResource:
+      properties:
+        DeviceIDs:
+          items:
+            type: string
+          type: array
+        Name:
+          type: string
+        Type:
+          type: string
+        Vendor:
+          type: string
+      type: object
+    AllocatedMemoryResources:
+      properties:
+        MemoryMB:
+          format: int64
+          type: integer
+        MemoryMaxMB:
+          format: int64
+          type: integer
+      type: object
+    AllocatedResources:
+      properties:
+        Shared:
+          $ref: '#/components/schemas/AllocatedSharedResources'
+        Tasks:
+          additionalProperties:
+            $ref: '#/components/schemas/AllocatedTaskResources'
+          type: object
+      type: object
+    AllocatedSharedResources:
+      properties:
+        DiskMB:
+          format: int64
+          type: integer
+        Networks:
+          items:
+            $ref: '#/components/schemas/NetworkResource'
+          type: array
+        Ports:
+          items:
+            $ref: '#/components/schemas/PortMapping'
+          type: array
+      type: object
+    AllocatedTaskResources:
+      properties:
+        Cpu:
+          $ref: '#/components/schemas/AllocatedCpuResources'
+        Devices:
+          items:
+            $ref: '#/components/schemas/AllocatedDeviceResource'
+          type: array
+        Memory:
+          $ref: '#/components/schemas/AllocatedMemoryResources'
+        Networks:
+          items:
+            $ref: '#/components/schemas/NetworkResource'
+          type: array
+      type: object
+    AllocationListStub:
+      properties:
+        AllocatedResources:
+          $ref: '#/components/schemas/AllocatedResources'
+        ClientDescription:
+          type: string
+        ClientStatus:
+          type: string
+        CreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        CreateTime:
+          format: int64
+          type: integer
+        DeploymentStatus:
+          $ref: '#/components/schemas/AllocDeploymentStatus'
+        DesiredDescription:
+          type: string
+        DesiredStatus:
+          type: string
+        EvalID:
+          type: string
+        FollowupEvalID:
+          type: string
+        ID:
+          type: string
+        JobID:
+          type: string
+        JobType:
+          type: string
+        JobVersion:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        ModifyTime:
+          format: int64
+          type: integer
+        Name:
+          type: string
+        Namespace:
+          type: string
+        NodeID:
+          type: string
+        NodeName:
+          type: string
+        PreemptedAllocations:
+          items:
+            type: string
+          type: array
+        PreemptedByAllocation:
+          type: string
+        RescheduleTracker:
+          $ref: '#/components/schemas/RescheduleTracker'
+        TaskGroup:
+          type: string
+        TaskStates:
+          additionalProperties:
+            $ref: '#/components/schemas/TaskState'
+          type: object
+      type: object
+    AllocationMetric:
+      properties:
+        AllocationTime:
+          format: int64
+          type: integer
+        ClassExhausted:
+          additionalProperties:
+            type: integer
+          type: object
+        ClassFiltered:
+          additionalProperties:
+            type: integer
+          type: object
+        CoalescedFailures:
+          type: integer
+        ConstraintFiltered:
+          additionalProperties:
+            type: integer
+          type: object
+        DimensionExhausted:
+          additionalProperties:
+            type: integer
+          type: object
+        NodesAvailable:
+          additionalProperties:
+            type: integer
+          type: object
+        NodesEvaluated:
+          type: integer
+        NodesExhausted:
+          type: integer
+        NodesFiltered:
+          type: integer
+        QuotaExhausted:
+          items:
+            type: string
+          type: array
+        ResourcesExhausted:
+          additionalProperties:
+            $ref: '#/components/schemas/Resources'
+          type: object
+        ScoreMetaData:
+          items:
+            $ref: '#/components/schemas/NodeScoreMeta'
+          type: array
+        Scores:
+          additionalProperties:
+            format: double
+            type: number
+          type: object
       type: object
     CSIMountOptions:
       properties:
@@ -346,6 +578,41 @@ components:
             type: string
           type: array
       type: object
+    DesiredUpdates:
+      properties:
+        Canary:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        DestructiveUpdate:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Ignore:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        InPlaceUpdate:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Migrate:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Place:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Preemptions:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Stop:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+      type: object
     DispatchPayloadConfig:
       properties:
         File:
@@ -362,6 +629,100 @@ components:
           type: integer
         Sticky:
           type: boolean
+      type: object
+    Evaluation:
+      properties:
+        AnnotatePlan:
+          type: boolean
+        BlockedEval:
+          type: string
+        ClassEligibility:
+          additionalProperties:
+            type: boolean
+          type: object
+        CreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        CreateTime:
+          format: int64
+          type: integer
+        DeploymentID:
+          type: string
+        EscapedComputedClass:
+          type: boolean
+        FailedTGAllocs:
+          additionalProperties:
+            $ref: '#/components/schemas/AllocationMetric'
+          type: object
+        ID:
+          type: string
+        JobID:
+          type: string
+        JobModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        ModifyTime:
+          format: int64
+          type: integer
+        Namespace:
+          type: string
+        NextEval:
+          type: string
+        NodeID:
+          type: string
+        NodeModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        PreviousEval:
+          type: string
+        Priority:
+          type: integer
+        QueuedAllocations:
+          additionalProperties:
+            type: integer
+          type: object
+        QuotaLimitReached:
+          type: string
+        SnapshotIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Status:
+          type: string
+        StatusDescription:
+          type: string
+        TriggeredBy:
+          type: string
+        Type:
+          type: string
+        Wait:
+          format: int64
+          type: integer
+        WaitUntil:
+          format: date-time
+          type: string
+      type: object
+    FieldDiff:
+      properties:
+        Annotations:
+          items:
+            type: string
+          type: array
+        Name:
+          type: string
+        New:
+          type: string
+        Old:
+          type: string
+        Type:
+          type: string
       type: object
     Job:
       properties:
@@ -459,6 +820,64 @@ components:
           maximum: 1.8446744073709552e+19
           minimum: 0
           type: integer
+      type: object
+    JobDiff:
+      properties:
+        Fields:
+          items:
+            $ref: '#/components/schemas/FieldDiff'
+          type: array
+        ID:
+          type: string
+        Objects:
+          items:
+            $ref: '#/components/schemas/ObjectDiff'
+          type: array
+        TaskGroups:
+          items:
+            $ref: '#/components/schemas/TaskGroupDiff'
+          type: array
+        Type:
+          type: string
+      type: object
+    JobPlanRequest:
+      properties:
+        Diff:
+          type: boolean
+        Job:
+          $ref: '#/components/schemas/Job'
+        Namespace:
+          type: string
+        PolicyOverride:
+          type: boolean
+        Region:
+          type: string
+        SecretID:
+          type: string
+      type: object
+    JobPlanResponse:
+      properties:
+        Annotations:
+          $ref: '#/components/schemas/PlanAnnotations'
+        CreatedEvals:
+          items:
+            $ref: '#/components/schemas/Evaluation'
+          type: array
+        Diff:
+          $ref: '#/components/schemas/JobDiff'
+        FailedTGAllocs:
+          additionalProperties:
+            $ref: '#/components/schemas/AllocationMetric'
+          type: object
+        JobModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        NextPeriodicLaunch:
+          format: date-time
+          type: string
+        Warnings:
+          type: string
       type: object
     JobRegisterRequest:
       properties:
@@ -582,6 +1001,34 @@ components:
             $ref: '#/components/schemas/Port'
           type: array
       type: object
+    NodeScoreMeta:
+      properties:
+        NodeID:
+          type: string
+        NormScore:
+          format: double
+          type: number
+        Scores:
+          additionalProperties:
+            format: double
+            type: number
+          type: object
+      type: object
+    ObjectDiff:
+      properties:
+        Fields:
+          items:
+            $ref: '#/components/schemas/FieldDiff'
+          type: array
+        Name:
+          type: string
+        Objects:
+          items:
+            $ref: '#/components/schemas/ObjectDiff'
+          type: array
+        Type:
+          type: string
+      type: object
     ParameterizedJobConfig:
       properties:
         MetaOptional:
@@ -608,9 +1055,31 @@ components:
         TimeZone:
           type: string
       type: object
+    PlanAnnotations:
+      properties:
+        DesiredTGUpdates:
+          additionalProperties:
+            $ref: '#/components/schemas/DesiredUpdates'
+          type: object
+        PreemptedAllocs:
+          items:
+            $ref: '#/components/schemas/AllocationListStub'
+          type: array
+      type: object
     Port:
       properties:
         HostNetwork:
+          type: string
+        Label:
+          type: string
+        To:
+          type: integer
+        Value:
+          type: integer
+      type: object
+    PortMapping:
+      properties:
+        HostIP:
           type: string
         Label:
           type: string
@@ -636,6 +1105,16 @@ components:
         Name:
           type: string
       type: object
+    RescheduleEvent:
+      properties:
+        PrevAllocID:
+          type: string
+        PrevNodeID:
+          type: string
+        RescheduleTime:
+          format: int64
+          type: integer
+      type: object
     ReschedulePolicy:
       properties:
         Attempts:
@@ -653,6 +1132,13 @@ components:
           type: integer
         Unlimited:
           type: boolean
+      type: object
+    RescheduleTracker:
+      properties:
+        Events:
+          items:
+            $ref: '#/components/schemas/RescheduleEvent'
+          type: array
       type: object
     Resources:
       properties:
@@ -976,6 +1462,85 @@ components:
         Type:
           type: string
       type: object
+    TaskDiff:
+      properties:
+        Annotations:
+          items:
+            type: string
+          type: array
+        Fields:
+          items:
+            $ref: '#/components/schemas/FieldDiff'
+          type: array
+        Name:
+          type: string
+        Objects:
+          items:
+            $ref: '#/components/schemas/ObjectDiff'
+          type: array
+        Type:
+          type: string
+      type: object
+    TaskEvent:
+      properties:
+        Details:
+          additionalProperties:
+            type: string
+          type: object
+        DiskLimit:
+          format: int64
+          type: integer
+        DiskSize:
+          format: int64
+          type: integer
+        DisplayMessage:
+          type: string
+        DownloadError:
+          type: string
+        DriverError:
+          type: string
+        DriverMessage:
+          type: string
+        ExitCode:
+          type: integer
+        FailedSibling:
+          type: string
+        FailsTask:
+          type: boolean
+        GenericSource:
+          type: string
+        KillError:
+          type: string
+        KillReason:
+          type: string
+        KillTimeout:
+          format: int64
+          type: integer
+        Message:
+          type: string
+        RestartReason:
+          type: string
+        SetupError:
+          type: string
+        Signal:
+          type: integer
+        StartDelay:
+          format: int64
+          type: integer
+        TaskSignal:
+          type: string
+        TaskSignalReason:
+          type: string
+        Time:
+          format: int64
+          type: integer
+        Type:
+          type: string
+        ValidationError:
+          type: string
+        VaultError:
+          type: string
+      type: object
     TaskGroup:
       properties:
         Affinities:
@@ -1035,12 +1600,71 @@ components:
             $ref: '#/components/schemas/VolumeRequest'
           type: object
       type: object
+    TaskGroupDiff:
+      properties:
+        Fields:
+          items:
+            $ref: '#/components/schemas/FieldDiff'
+          type: array
+        Name:
+          type: string
+        Objects:
+          items:
+            $ref: '#/components/schemas/ObjectDiff'
+          type: array
+        Tasks:
+          items:
+            $ref: '#/components/schemas/TaskDiff'
+          type: array
+        Type:
+          type: string
+        Updates:
+          additionalProperties:
+            maximum: 1.8446744073709552e+19
+            minimum: 0
+            type: integer
+          type: object
+      type: object
+    TaskHandle:
+      properties:
+        DriverState:
+          format: byte
+          type: string
+        Version:
+          type: integer
+      type: object
     TaskLifecycle:
       properties:
         Hook:
           type: string
         Sidecar:
           type: boolean
+      type: object
+    TaskState:
+      properties:
+        Events:
+          items:
+            $ref: '#/components/schemas/TaskEvent'
+          type: array
+        Failed:
+          type: boolean
+        FinishedAt:
+          format: date-time
+          type: string
+        LastRestart:
+          format: date-time
+          type: string
+        Restarts:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        StartedAt:
+          format: date-time
+          type: string
+        State:
+          type: string
+        TaskHandle:
+          $ref: '#/components/schemas/TaskHandle'
       type: object
     Template:
       properties:
@@ -1069,6 +1693,9 @@ components:
           format: int64
           type: integer
       type: object
+    Time:
+      format: date-time
+      type: string
     UpdateStrategy:
       properties:
         AutoPromote:
@@ -1141,6 +1768,9 @@ components:
       type: object
     bool:
       type: boolean
+    float64:
+      format: double
+      type: number
     int:
       type: integer
     int8:
@@ -1168,7 +1798,78 @@ info:
   version: 1.1.0
 openapi: 3.0.3
 paths:
-  /v1/jobs:
+  /job/{jobName}/plan:
+    post:
+      parameters:
+      - description: Filters results based on the specified region.
+        in: query
+        name: region
+        schema:
+          type: string
+      - description: Filters results based on the specified namespace.
+        in: query
+        name: namespace
+        schema:
+          type: string
+      - description: If set, wait until query exceeds given index. Must be provided with WaitParam.
+        in: header
+        name: index
+        schema:
+          type: integer
+      - description: Provided with IndexParam to wait for change.
+        in: query
+        name: wait
+        schema:
+          type: integer
+      - description: If present, results will include stale reads.
+        in: query
+        name: stale
+        schema:
+          type: string
+      - description: Constrains results to jobs that start with the defined prefix
+        in: query
+        name: prefix
+        schema:
+          type: string
+      - description: A Nomad ACL token.
+        in: header
+        name: X-Nomad-Token
+        schema:
+          type: string
+      - description: Maximum number of results to return.
+        in: query
+        name: per_page
+        schema:
+          type: integer
+      - description: Indicates where to start paging for queries that support pagination.
+        in: query
+        name: next_token
+        schema:
+          type: string
+      - description: The job identifier.
+        in: path
+        name: jobName
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobPlanRequest'
+        required: true
+      responses:
+        "200":
+          $ref: '#/components/responses/PostJobPlanResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      tags:
+      - Jobs
+  /jobs:
     post:
       requestBody:
         content:
@@ -1187,16 +1888,12 @@ paths:
           $ref: '#/components/responses/InternalServerErrorResponse'
       tags:
       - Jobs
-  /v1/jobs/{jobName}:
+  /jobs/{jobName}:
     get:
       parameters:
       - $ref: '#/components/parameters/RegionParam'
       - $ref: '#/components/parameters/NamespaceParam'
-      - description: If set, wait until query exceeds given index. Must be provided with WaitParam.
-        in: header
-        name: index
-        schema:
-          type: integer
+      - $ref: '#/components/parameters/IndexHeader'
       - $ref: '#/components/parameters/WaitParam'
       - $ref: '#/components/parameters/StaleParam'
       - $ref: '#/components/parameters/PrefixParam'

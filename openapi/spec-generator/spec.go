@@ -243,7 +243,7 @@ func (b *SpecBuilder) BuildPathsFromModel(api V1API) openapi3.Paths {
 				}
 			}
 			if responses, err = b.AdaptResponses(op.Responses); err != nil {
-				b.logger("unable to adapt Operation responses", path, op)
+				b.logger("unable to adapt Operation responses", err, path, op)
 				continue
 			}
 
@@ -350,7 +350,7 @@ func (b *SpecBuilder) AdaptResponses(configs []*ResponseConfig) (openapi3.Respon
 			if cfg.Content != nil {
 				schemaRef, err := b.GetOrCreateSchemaRef(cfg.Content.Model)
 				if err != nil {
-					b.logger("unable to AdaptResponse for", cfg)
+					b.logger("unable to AdaptResponse for", cfg, err)
 					return nil, err
 				}
 
@@ -374,29 +374,29 @@ func (b *SpecBuilder) AdaptResponses(configs []*ResponseConfig) (openapi3.Respon
 	return responses, nil
 }
 
-func (b *SpecBuilder) AdaptHeaders(hdrs []*Parameter) openapi3.Headers {
+func (b *SpecBuilder) AdaptHeaders(headers []*ResponseHeader) openapi3.Headers {
 	var ok bool
 	var headerRef *openapi3.HeaderRef
-	headers := openapi3.Headers{}
+	headerRefs := openapi3.Headers{}
 
-	for _, hdr := range hdrs {
-		if headerRef, ok = b.spec.Model.Components.Headers[hdr.Id]; !ok {
-			var param *openapi3.ParameterRef
-			if param, ok = b.spec.Model.Components.Parameters[hdr.Id]; !ok {
-				param = b.AddParameter(hdr)
-			}
+	for _, header := range headers {
+		if headerRef, ok = b.spec.Model.Components.Headers[header.Name]; !ok {
 			headerRef = &openapi3.HeaderRef{
-				Ref: fmt.Sprintf("#/components/parameters/%s", hdr.Id),
+				Ref: "", //fmt.Sprintf("#/components/parameters/%s", header.Name),
 				Value: &openapi3.Header{
-					Parameter: *param.Value,
+					Parameter: openapi3.Parameter{
+						Name:        header.Name,
+						Description: header.Description,
+						Schema:      openapi3.NewSchemaRef("", &openapi3.Schema{Type: header.SchemaType}),
+					},
 				},
 			}
 		}
 
-		headers[hdr.Id] = headerRef
+		headerRefs[header.Name] = headerRef
 	}
 
-	return headers
+	return headerRefs
 }
 
 // GetOrCreateSchemaRef creates a SchemaRef for a Request or Response content. It
@@ -409,6 +409,9 @@ func (b *SpecBuilder) GetOrCreateSchemaRef(model reflect.Type) (*openapi3.Schema
 	var ref *openapi3.SchemaRef
 	// if it doesn't exist generate
 	if ref, ok = b.spec.Model.Components.Schemas[model.Name()]; !ok {
+		if model.Name() == "JobPlanResponse" {
+			b.logger("blah")
+		}
 		ref, err = b.Generator.GenerateSchemaRef(model)
 		if err != nil {
 			return nil, err
@@ -436,12 +439,11 @@ func (b *SpecBuilder) isBasic(typ string) bool {
 
 func (b *SpecBuilder) resolveRefPaths() {
 	for _, schemaRef := range b.spec.Model.Components.Schemas {
-		if schemaRef.Ref == "JobRegisterRequest" {
-			b.logger("got here")
-		}
 		// Next make sure the refs point to other schemas, if not already done.
 		for _, property := range schemaRef.Value.Properties {
-			if b.isBasic(property.Value.Type) {
+			if strings.Contains(property.Ref, "#/components/schemas/") {
+				continue
+			} else if b.isBasic(property.Value.Type) {
 				property.Ref = ""
 			} else if property.Value.Type == "array" {
 				if b.isBasic(property.Value.Items.Value.Type) {
