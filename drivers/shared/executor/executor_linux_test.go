@@ -53,6 +53,7 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 		"/lib64":            "/lib64",
 		"/usr/lib":          "/usr/lib",
 		"/bin/ls":           "/bin/ls",
+		"/bin/pwd":          "/bin/pwd",
 		"/bin/cat":          "/bin/cat",
 		"/bin/echo":         "/bin/echo",
 		"/bin/bash":         "/bin/bash",
@@ -407,7 +408,7 @@ func TestUniversalExecutor_LookupTaskBin(t *testing.T) {
 	err = ioutil.WriteFile(filePath, []byte{1, 2}, os.ModeAppend)
 	require.NoError(err)
 
-	// Lookout with an absolute path to the binary
+	// Lookup with an absolute path to the binary
 	cmd.Cmd = "/foo/tmp.txt"
 	_, err = lookupTaskBin(cmd)
 	require.NoError(err)
@@ -711,6 +712,40 @@ func TestExecutor_cmdMounts(t *testing.T) {
 	}
 
 	require.EqualValues(t, expected, cmdMounts(input))
+}
+
+func TestExecutor_WorkDir(t *testing.T) {
+	t.Parallel()
+	testutil.ExecCompatible(t)
+	require := require.New(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	defer allocDir.Destroy()
+
+	workDir := "/etc"
+	execCmd.WorkDir = workDir
+	execCmd.Cmd = "/bin/pwd"
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	defer executor.Shutdown("SIGKILL", 0)
+
+	ps, err := executor.Launch(execCmd)
+	require.NoError(err)
+	require.NotZero(ps.Pid)
+
+	state, err := executor.Wait(context.Background())
+	require.NoError(err)
+	require.Zero(state.ExitCode)
+
+	tu.WaitForResult(func() (bool, error) {
+		output := strings.TrimSpace(testExecCmd.stdout.String())
+		// Verify that we got some cgroups
+		if output != workDir {
+			return false, fmt.Errorf("working directory not set properly: expected %q but got %q", workDir, output)
+		}
+		return true, nil
+	}, func(err error) { t.Error(err) })
 }
 
 // TestUniversalExecutor_NoCgroup asserts that commands are executed in the

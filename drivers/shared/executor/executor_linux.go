@@ -163,6 +163,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	process := &libcontainer.Process{
 		Args:   combined,
 		Env:    command.Env,
+		Cwd:    command.WorkDir,
 		Stdout: stdout,
 		Stderr: stderr,
 		Init:   true,
