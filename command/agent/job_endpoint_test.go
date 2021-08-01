@@ -4,12 +4,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/golang/snappy"
-	"github.com/kr/pretty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -2144,6 +2142,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Weight:  helper.Int8ToPtr(50),
 							},
 						},
+						VolumeMounts: []*api.VolumeMount{
+							{
+								Volume:          helper.StringToPtr("vol"),
+								Destination:     helper.StringToPtr("dest"),
+								ReadOnly:        helper.BoolToPtr(false),
+								PropagationMode: helper.StringToPtr("a"),
+							},
+						},
 						RestartPolicy: &api.RestartPolicy{
 							Interval: helper.TimeToPtr(2 * time.Second),
 							Attempts: helper.IntToPtr(10),
@@ -2526,6 +2532,14 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Env: map[string]string{
 							"hello": "world",
 						},
+						VolumeMounts: []*structs.VolumeMount{
+							{
+								Volume:          "vol",
+								Destination:     "dest",
+								ReadOnly:        false,
+								PropagationMode: "a",
+							},
+						},
 						RestartPolicy: &structs.RestartPolicy{
 							Interval: 2 * time.Second,
 							Attempts: 10,
@@ -2684,9 +2698,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 
 	structsJob := ApiJobToStructJob(apiJob)
 
-	if diff := pretty.Diff(expected, structsJob); len(diff) > 0 {
-		t.Fatalf("bad:\n%s", strings.Join(diff, "\n"))
-	}
+	require.Equal(t, expected, structsJob)
 
 	systemAPIJob := &api.Job{
 		Stop:        helper.BoolToPtr(true),
@@ -2928,10 +2940,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 	}
 
 	systemStructsJob := ApiJobToStructJob(systemAPIJob)
-
-	if diff := pretty.Diff(expectedSystemJob, systemStructsJob); len(diff) > 0 {
-		t.Fatalf("bad:\n%s", strings.Join(diff, "\n"))
-	}
+	require.Equal(t, expectedSystemJob, systemStructsJob)
 }
 
 func TestJobs_ApiJobToStructsJobUpdate(t *testing.T) {
