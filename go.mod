@@ -13,7 +13,6 @@ replace (
 	github.com/hashicorp/go-discover => github.com/hashicorp/go-discover v0.0.0-20200812215701-c4b85f6ed31f
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 	github.com/hashicorp/nomad/api => ./api
-	github.com/hashicorp/nomad/internal/testing/openapi/v1/testclient => ./internal/testing/openapi/v1/testclient
 	github.com/kr/pty => github.com/kr/pty v1.1.5
 )
 
@@ -82,7 +81,6 @@ require (
 	github.com/hashicorp/memberlist v0.2.2
 	github.com/hashicorp/net-rpc-msgpackrpc v0.0.0-20151116020338-a14192a58a69
 	github.com/hashicorp/nomad/api v0.0.0-20200529203653-c4416b26d3eb
-	github.com/hashicorp/nomad/internal/testing/openapi/v1/testclient v0.0.0-00010101000000-000000000000
 	github.com/hashicorp/raft v1.1.3-0.20200211192230-365023de17e6
 	github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea
 	github.com/hashicorp/serf v0.9.5

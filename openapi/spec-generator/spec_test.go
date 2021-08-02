@@ -24,7 +24,6 @@ func TestBuildFromModel(t *testing.T) {
 	yaml := string(yamlBytes)
 
 	_ = os.WriteFile("test-build-from-model.yaml", yamlBytes, 0644)
-	t.Log(yaml)
 	req.NotEmpty(yaml)
 	req.Contains(yaml, jobResponseSchema)
 }
