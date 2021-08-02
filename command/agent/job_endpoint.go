@@ -1044,16 +1044,18 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		}
 	}
 
-	structsTask.VolumeMounts = []*structs.VolumeMount{}
-	for _, mount := range apiTask.VolumeMounts {
-		if mount != nil && mount.Volume != nil {
-			structsTask.VolumeMounts = append(structsTask.VolumeMounts,
-				&structs.VolumeMount{
-					Volume:          *mount.Volume,
-					Destination:     *mount.Destination,
-					ReadOnly:        *mount.ReadOnly,
-					PropagationMode: *mount.PropagationMode,
-				})
+	if len(apiTask.VolumeMounts) > 0 {
+		structsTask.VolumeMounts = []*structs.VolumeMount{}
+		for _, mount := range apiTask.VolumeMounts {
+			if mount != nil && mount.Volume != nil {
+				structsTask.VolumeMounts = append(structsTask.VolumeMounts,
+					&structs.VolumeMount{
+						Volume:          *mount.Volume,
+						Destination:     *mount.Destination,
+						ReadOnly:        *mount.ReadOnly,
+						PropagationMode: *mount.PropagationMode,
+					})
+			}
 		}
 	}
 
