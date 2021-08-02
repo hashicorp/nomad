@@ -1,0 +1,51 @@
+---
+layout: docs
+page_title: 'Drivers: Rookout'
+description: The Rookout driver is used to run your Java app with Rookout.
+---
+
+# Rookout Driver
+
+Name: `java-rookout`
+
+The Rookout Nomad driver is used to execute Java applications packaged into a Java Jar file and automatically add the Rookout SDK to them.
+
+[Rookout](https://rookout.com) is a developer solution for Cloud Native debugging and live-data collection. Rookout’s Non-Breaking Breakpoints let you collect any type of data on the fly with no extra coding, redeployments, or restarts.
+
+More info about the Rookout SDK is available in the [Rookout docs](https://docs.rookout.com).
+
+## Prerequisites
+
+Using this driver requires you to have a Rookout token which you can get by [signing up](http://rookout.com).
+
+This driver is based on the Nomad [Java driver](https://www.nomadproject.io/docs/drivers/java).
+
+1. Clone the driver's repo: `git clone https://github.com/rookout/rookout-nomad-driver`
+2. Change to the cloned dir: `cd rookout-nomad-driver`
+3. Create a plugin dir (unless you already have one for your Nomad installation): `mkdir plugins`
+4. Copy the corresponding binary from the `bin` folder, for example: `cp ./bin/java-rookout-linux-x64 plugins/java-rookout`
+5. Make sure that the driver has execution permission: `chmod +x ./plugins/java-rookout`
+6. When running the Nomad agent, be sure to set the plugins dir accordingly, for example: `nomad agent -dev -plugin-dir=/home/user/rookout-nomad-driver/plugins`
+
+## Task Configuration
+
+The `java-rookout` driver accepts all configuration options of the [`java`](https://www.nomadproject.io/docs/drivers/java) driver.
+
+In addition, it possible to set `rookout_token` with your Rookout token.
+
+```hcl
+task "run-with-rookout" {
+  driver = "java-rookout"
+
+  config {
+    rookout_token = "ea15c38c4e05cf4549b..."
+  }
+}
+```
+
+Additional Rookout configuration can be passed as environment variables like so:
+```hcl
+env {
+    ROOKOUT_REMOTE_ORIGIN="https://github.com/Rookout/tutorial-java"
+}
+```
