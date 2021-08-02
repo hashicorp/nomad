@@ -31,8 +31,9 @@ This driver is based on the Nomad [Java driver](https://www.nomadproject.io/docs
 
 The `java-rookout` driver accepts all configuration options of the [`java`](https://www.nomadproject.io/docs/drivers/java) driver.
 
-In addition, it possible to set `rookout_token` with your Rookout token.
+Set the `rookout_token` config key to your Rookout token, or define it as a variable and pass it as a parameter.
 
+For example:
 ```hcl
 task "run-with-rookout" {
   driver = "java-rookout"
