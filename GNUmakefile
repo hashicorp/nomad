@@ -200,20 +200,12 @@ proto:
 .PHONY: generate-examples
 generate-examples: command/job_init.bindata_assetfs.go
 
-.PHONY: openapi
-openapi:
-	@echo "--> Building OpenAPI Specification and test client"
-	@node openapi/v1/build-spec.js
-    @docker run --rm -v "${PWD}:/local" openapitools/openapi-generator-cli batch /local/openapi/v1/config.yaml
-
-
 command/job_init.bindata_assetfs.go: command/assets/*
 	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
 
 changelog:
 	@changelog-build -last-release $(LAST_RELEASE) -this-release HEAD \
 		-entries-dir .changelog/ -changelog-template ./.changelog/changelog.tmpl -note-template ./.changelog/note.tmpl
-	
 
 ## We skip the terraform directory as there are templated hcl configurations
 ## that do not successfully compile without rendering
@@ -397,3 +389,12 @@ ui-screenshots:
 ui-screenshots-local:
 	@echo "==> Collecting UI screenshots (local)..."
 	@cd scripts/screenshots/src && SCREENSHOTS_DIR="../screenshots" node index.js
+
+.PHONY: openapi
+openapi:
+	@echo "==> Building OpenAPI Specification and test client..."
+	@docker run \
+		--rm \
+		--volume "$(shell pwd):/local" \
+		openapitools/openapi-generator-cli batch /local/openapi/v1/config.yaml
+

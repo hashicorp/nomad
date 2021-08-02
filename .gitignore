@@ -121,3 +121,7 @@ e2e/remotetasks/input/ecs.vars
 
 # local terraform overrides
 *.auto.tfvars
+
+# openapi generator test output
+openapi/spec-generator/*.yaml
+testutil/openapi/v1/testclient/.travis.yml

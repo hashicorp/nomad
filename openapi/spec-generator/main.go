@@ -1,22 +1,12 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
-
-	"github.com/hashicorp/go-hclog"
 )
 
 func main() {
-	var outputFile string
-
-	flag.StringVar(&outputFile, "outputFile", "./", "The output file to save spec to")
-	flag.Parse()
-
-	g := &Generator{
-		OutputFile: outputFile,
-	}
+	g := &Generator{}
 
 	err := run(g)
 	if err != nil {
@@ -25,33 +15,9 @@ func main() {
 	}
 }
 
-func logWrapper(logger hclog.Logger) loggerFunc {
-	return func(args ...interface{}) {
-		logger.Log(hclog.Info, "", args)
-	}
-}
-
 func run(g *Generator) error {
-	var err error
-	var analyzer *Analyzer
-
-	logger := hclog.Default().(hclog.Logger)
-	analyzer, err = newAnalyzer(nomadPackages, logWrapper(logger), defaultDebugOptions)
-	if err != nil {
-		return err
-	}
-
-	visitor := newNomadPackageVisitor(analyzer, logWrapper(logger), defaultDebugOptions)
-
-	spec, err := newNomadSpecBuilder(analyzer, &visitor, logWrapper(logger)).Build()
-	if err != nil {
-		return fmt.Errorf("Generator.run.NomadSpecBuilder.Build: ")
-	}
-
-	g.spec = spec
-
-	if err = g.RenderTemplate(); err != nil {
-		return fmt.Errorf("Generator.run.RenderTemplate: %v", err)
+	if err := g.run(); err != nil {
+		return fmt.Errorf("spec-generator.init: %v", err)
 	}
 
 	return nil
