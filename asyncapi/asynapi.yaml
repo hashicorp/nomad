@@ -1,0 +1,46 @@
+# look at examples here https://github.com/asyncapi/spec/blob/master/examples/slack-rtm.yml
+asyncapi: 2.1.0
+info:
+  title: Nomad Event Stream
+  version: 1.1.2
+servers:
+  dev-agent:
+    url: http://127.0.0.1:4646
+    description: Local dev agent
+    protocol: http
+    protocolVersion: 2.0
+channels:
+  /event/stream:
+    subscribe:
+      operationId: emitDeploymentStatusUpdate
+      message:
+        properties:
+          Topic:
+            $ref: '#/components/schemas/TopicDeployment'
+          Type:
+            $ref: '#/components/schemas/TypeDeploymentUpdate'
+          Payload:
+            $ref: '#/components/schemas/DeploymentEvent'
+components:
+  messages:
+    event-msg:
+      payload:
+        type: object
+        properties:
+          topic:
+            type: string
+          type:
+            type: string
+          key:
+            type: string
+          namespace:
+            type: string
+          filterKeys:
+            type: array
+            items:
+              type: string
+          index:
+            type: integer
+          payload:
+            type: object
+            oneof
