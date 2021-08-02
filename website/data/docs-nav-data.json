@@ -1402,6 +1402,10 @@
             "path": "drivers/external/rkt"
           },
           {
+            "title": "Rookout",
+            "path": "drivers/external/rookout"
+          },
+          {
             "title": "Singularity",
             "path": "drivers/external/singularity"
           },
@@ -1760,7 +1764,7 @@
       {
         "title": "Overview",
         "path": "enterprise"
-      }, 
+      },
       {
         "title": "License",
         "routes": [
