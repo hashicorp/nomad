@@ -41,6 +41,7 @@ acl {
 
 - `replication_token` `(string: "")` - Specifies the Secret ID of the ACL token
   to use for replicating policies and tokens. This is used by servers in non-authoritative
-  region to mirror the policies and tokens into the local region.
+  region to mirror the policies and tokens into the local region from [authoritative_region][authoritative-region].
 
 [secure-guide]: https://learn.hashicorp.com/collections/nomad/access-control
+[authoritative-region]: /docs/configuration/server#authoritative_region
