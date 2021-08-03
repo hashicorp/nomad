@@ -23,9 +23,9 @@ job "system_job" {
       driver = "docker"
 
       config {
-        image = "bash:latest"
+        image = "busybox:1"
 
-        command = "bash"
+        command = "/bin/sh"
         args    = ["-c", "sleep 15000"]
       }
 

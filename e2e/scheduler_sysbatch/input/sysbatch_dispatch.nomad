@@ -20,10 +20,10 @@ job "sysbatchjob" {
       driver = "docker"
 
       config {
-        image = "bash:5"
+        image = "busybox:1"
 
-        command = "bash"
-        args    = ["-c", "ping -c 10 example.com"]
+        command = "/bin/sh"
+        args    = ["-c", "echo hi; sleep 1"]
       }
     }
   }
