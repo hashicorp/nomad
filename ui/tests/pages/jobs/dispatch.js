@@ -18,6 +18,7 @@ export default create({
     scope: '[data-test-dispatch-button]',
     isDisabled: property('disabled'),
     click: clickable(),
+    isPresent: isPresent(),
   },
 
   hasError: isVisible('[data-test-dispatch-error]'),

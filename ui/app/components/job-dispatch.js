@@ -47,7 +47,7 @@ export default class JobDispatch extends Component {
     super(...arguments);
 
     // Helper for mapping the params into a useable form.
-    const mapper = (values = [], required) =>
+    const mapper = (values, required) =>
       values.map(
         x =>
           new MetaField({
@@ -59,8 +59,8 @@ export default class JobDispatch extends Component {
       );
 
     // Fetch the different types of parameters.
-    const required = mapper(this.args.job.parameterizedDetails.MetaRequired, true);
-    const optional = mapper(this.args.job.parameterizedDetails.MetaOptional, false);
+    const required = mapper(this.args.job.parameterizedDetails.MetaRequired || [], true);
+    const optional = mapper(this.args.job.parameterizedDetails.MetaOptional || [], false);
 
     // Merge them, required before optional.
     this.metaFields = required.concat(optional);

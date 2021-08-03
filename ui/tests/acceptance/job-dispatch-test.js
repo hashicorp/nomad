@@ -100,6 +100,20 @@ module('Acceptance | job dispatch', function(hooks) {
     });
   });
 
+  test('job without meta fields', async function(assert) {
+    const jobWithoutMeta = server.create('job', 'parameterized', {
+      status: 'running',
+      namespaceId: namespace.name,
+      parameterizedJob: {
+        MetaRequired: null,
+        MetaOptional: null,
+      },
+    });
+
+    await JobDispatch.visit({ id: jobWithoutMeta.id, namespace: namespace.name });
+    assert.ok(JobDispatch.dispatchButton.isPresent);
+  });
+
   test('payload text area is hidden when forbidden', async function(assert) {
     job.parameterizedJob.Payload = 'forbidden';
     job.save();
