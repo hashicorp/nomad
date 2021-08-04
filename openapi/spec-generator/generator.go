@@ -10,6 +10,7 @@ import (
 // data model a that can be used to render an openapi from the template.
 type Generator struct {
 	logger loggerFunc
+	outputPath string
 }
 
 type loggerFunc func(args ...interface{})
@@ -24,6 +25,10 @@ func (g *Generator) run() error {
 		g.logger = g.log
 	}
 
+	if len(g.outputPath) < 1 {
+		g.outputPath = "../v1/openapi.yaml"
+	}
+
 	builder := SpecBuilder{}
 	spec, err := builder.BuildFromModel(g.logger)
 	if err != nil {
@@ -33,7 +38,7 @@ func (g *Generator) run() error {
 	var yaml []byte
 	yaml, err = spec.ToBytes()
 
-	if err = os.WriteFile("../v1/openapi.yaml", yaml, 0644); err != nil {
+	if err = os.WriteFile(g.outputPath, yaml, 0644); err != nil {
 		return fmt.Errorf("Generator.run.os.WriteFile: %s\n", err)
 	}
 
