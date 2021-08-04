@@ -63,6 +63,10 @@ vault {
   [tls_require_and_verify_client_cert](https://www.vaultproject.io/docs/configuration/listener/tcp#tls_require_and_verify_client_cert)
   is enabled in Vault.
 
+- `entity_alias` `(string: "")` - Specifies the entity alias to use when creating
+  Vault tokens. This allows multiple tokens to be created as a single Vault client.
+  This value can be overriden by the `entity_alias` value in [vault job configuration](/docs/job-specification/vault#entity_alias).
+
 - `key_file` `(string: "")` - Specifies the path to the private key used for
   Vault communication. If this is set then you need to also set
   `cert_file`. This must be set if

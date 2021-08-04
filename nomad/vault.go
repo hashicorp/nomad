@@ -1007,6 +1007,17 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		DisplayName: fmt.Sprintf("%s-%s", a.ID, task),
 	}
 
+	// If set in the server config, use an entity_alias
+	if v.config.EntityAlias != "" {
+		req.EntityAlias = v.config.EntityAlias
+	}
+
+	// If set at the task level, use the task-specific alias
+	// even if the server config has an entity_alias as well
+	if taskVault.EntityAlias != "" {
+		req.EntityAlias = taskVault.EntityAlias
+	}
+
 	// Ensure we are under our rate limit
 	if err := v.limiter.Wait(ctx); err != nil {
 		return nil, err
@@ -1024,7 +1035,14 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		return nil, err
 	}
 
-	if v.tokenData.Root && role == "" {
+	noRole := v.tokenData.Root && role == ""
+
+	if noRole && req.EntityAlias != "" {
+		err = fmt.Errorf("Entity Alias must be used with a Vault token that has a role")
+		return nil, err
+	}
+
+	if noRole {
 		req.Period = v.childTTL
 		secret, err = taskClient.Auth().Token().Create(req)
 	} else {

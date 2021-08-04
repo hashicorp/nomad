@@ -146,7 +146,8 @@ An example token role definition is given below:
   "name": "nomad-cluster",
   "orphan": true,
   "token_period": 259200,
-  "renewable": true
+  "renewable": true,
+  "allowed_entity_aliases": ["nomad-cluster"]
 }
 ```
 
@@ -206,6 +207,11 @@ documentation for all possible fields and more complete documentation.
 
 - `renewable` - Specifies whether created tokens are renewable. **Must be set to
   `true`**. This allows Nomad to renew tokens for tasks.
+
+- `allowed_entity_aliases` - Specifies the entity aliases that can be used by
+  this token. These aliases can be set in the (Nomad server config)[/docs/configuration/vault#nomad-server]
+  to be used across all tasks, or on a task-by-task basis in (Nomad job config)[/docs/job-specification/vault#entity_alias].
+  This value is only required if using entity aliases.
 
 The above [`nomad-cluster` token role](/data/vault/nomad-cluster-role.json) is
 available for download. Below is an example of writing this role to Vault:

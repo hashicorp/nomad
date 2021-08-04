@@ -71,9 +71,9 @@ path "secret/*" {
 `
 )
 
-// defaultTestVaultWhitelistRoleAndToken creates a test Vault role and returns a token
+// defaultTestVaultAllowlistRoleAndToken creates a test Vault role and returns a token
 // created in that role
-func defaultTestVaultWhitelistRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
+func defaultTestVaultAllowlistRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
 	vaultPolicies := map[string]string{
 		"nomad-role-create":     nomadRoleCreatePolicy,
 		"nomad-role-management": nomadRoleManagementPolicy,
@@ -81,13 +81,14 @@ func defaultTestVaultWhitelistRoleAndToken(v *testutil.TestVault, t *testing.T, 
 	d := make(map[string]interface{}, 2)
 	d["allowed_policies"] = "nomad-role-create,nomad-role-management"
 	d["period"] = rolePeriod
+	d["allowed_entity_aliases"] = []string{"valid-entity-alias"}
 	return testVaultRoleAndToken(v, t, vaultPolicies, d,
 		[]string{"nomad-role-create", "nomad-role-management"})
 }
 
-// defaultTestVaultBlacklistRoleAndToken creates a test Vault role using
+// defaultTestVaultDenylistRoleAndToken creates a test Vault role using
 // disallowed_policies and returns a token created in that role
-func defaultTestVaultBlacklistRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
+func defaultTestVaultDenylistRoleAndToken(v *testutil.TestVault, t *testing.T, rolePeriod int) string {
 	vaultPolicies := map[string]string{
 		"nomad-role-create":     nomadRoleCreatePolicy,
 		"nomad-role-management": nomadRoleManagementPolicy,
@@ -429,7 +430,7 @@ func TestVaultClient_ValidateRole_NonExistent(t *testing.T) {
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
 
-	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
 	v.Config.Token = v.RootToken
 	logger := testlog.HCLogger(t)
 	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
@@ -557,7 +558,7 @@ func TestVaultClient_SetConfig(t *testing.T) {
 	defer v2.Stop()
 
 	// Set the configs token in a new test role
-	v2.Config.Token = defaultTestVaultWhitelistRoleAndToken(v2, t, 20)
+	v2.Config.Token = defaultTestVaultAllowlistRoleAndToken(v2, t, 20)
 
 	logger := testlog.HCLogger(t)
 	client, err := NewVaultClient(v.Config, logger, nil, nil)
@@ -620,7 +621,7 @@ func TestVaultClient_SetConfig_Deadlock(t *testing.T) {
 	defer v2.Stop()
 
 	// Set the configs token in a new test role
-	v2.Config.Token = defaultTestVaultWhitelistRoleAndToken(v2, t, 20)
+	v2.Config.Token = defaultTestVaultAllowlistRoleAndToken(v2, t, 20)
 
 	logger := testlog.HCLogger(t)
 	client, err := NewVaultClient(v.Config, logger, nil, nil)
@@ -682,7 +683,7 @@ func TestVaultClient_RenewalLoop(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
 
 	// Start the client
 	logger := testlog.HCLogger(t)
@@ -718,7 +719,7 @@ func TestVaultClientRenewUpdatesExpiration(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
 
 	// Start the client
 	logger := testlog.HCLogger(t)
@@ -757,7 +758,7 @@ func TestVaultClient_StopsAfterPermissionError(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 2)
+	v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 2)
 
 	// Start the client
 	logger := testlog.HCLogger(t)
@@ -791,7 +792,7 @@ func TestVaultClient_LoopsUntilCannotRenew(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
 
 	// Start the client
 	logger := testlog.HCLogger(t)
@@ -938,7 +939,7 @@ func TestVaultClient_LookupToken_Role(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
 
 	logger := testlog.HCLogger(t)
 	client, err := NewVaultClient(v.Config, logger, nil, nil)
@@ -1102,13 +1103,13 @@ func TestVaultClient_CreateToken_Root(t *testing.T) {
 	}
 }
 
-func TestVaultClient_CreateToken_Whitelist_Role(t *testing.T) {
+func TestVaultClient_CreateToken_Allowlist_Role(t *testing.T) {
 	t.Parallel()
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
 
 	// Start the client
 	logger := testlog.HCLogger(t)
@@ -1156,7 +1157,7 @@ func TestVaultClient_CreateToken_Root_Target_Role(t *testing.T) {
 	defer v.Stop()
 
 	// Create the test role
-	defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+	defaultTestVaultAllowlistRoleAndToken(v, t, 5)
 
 	// Target the test role
 	v.Config.Role = "test"
@@ -1201,7 +1202,7 @@ func TestVaultClient_CreateToken_Root_Target_Role(t *testing.T) {
 	}
 }
 
-func TestVaultClient_CreateToken_Blacklist_Role(t *testing.T) {
+func TestVaultClient_CreateToken_Denylist_Role(t *testing.T) {
 	t.Parallel()
 	// Need to skip if test is 0.6.4
 	version, err := testutil.VaultVersion()
@@ -1217,7 +1218,7 @@ func TestVaultClient_CreateToken_Blacklist_Role(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultBlacklistRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultDenylistRoleAndToken(v, t, 5)
 	v.Config.Role = "test"
 
 	// Start the client
@@ -1266,7 +1267,7 @@ func TestVaultClient_CreateToken_Role_InvalidToken(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+	defaultTestVaultAllowlistRoleAndToken(v, t, 5)
 	v.Config.Token = "foo-bar"
 
 	// Start the client
@@ -1305,7 +1306,7 @@ func TestVaultClient_CreateToken_Role_Unrecoverable(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
 
 	// Start the client
 	logger := testlog.HCLogger(t)
@@ -1438,6 +1439,105 @@ func TestVaultClient_RevokeTokens_PreEstablishs(t *testing.T) {
 	}
 }
 
+func TestVaultClient_CreateToken_EntityAlias(t *testing.T) {
+	t.Parallel()
+	logger := testlog.HCLogger(t)
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	var entityAliasTestValues = []struct {
+		agentConfigEntityAlias string
+		taskConfigEntityAlias  string
+	}{
+		{"valid-entity-alias", ""}, // agent config alias works
+		{"", "valid-entity-alias"}, // task config alias works
+		{"invalid-entity-alias-but-its-overwritten-so-nbd", "valid-entity-alias"}, // task config overwrites agent
+	}
+
+	for _, testVals := range entityAliasTestValues {
+		v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
+		if testVals.agentConfigEntityAlias != "" {
+			v.Config.EntityAlias = testVals.agentConfigEntityAlias
+		}
+
+		client, err := NewVaultClient(v.Config, logger, nil, nil)
+		if err != nil {
+			t.Fatalf("failed to build vault client: %v", err)
+		}
+
+		client.SetActive(true)
+		defer client.Stop()
+
+		waitForConnection(client, t)
+
+		// Create an allocation that requires a Vault policy
+		a := mock.Alloc()
+		task := a.Job.TaskGroups[0].Tasks[0]
+
+		if testVals.taskConfigEntityAlias != "" {
+			task.Vault = &structs.Vault{Policies: []string{"default"}}
+		} else {
+			task.Vault = &structs.Vault{
+				Policies:    []string{"default"},
+				EntityAlias: testVals.taskConfigEntityAlias,
+			}
+		}
+
+		client.CreateToken(context.Background(), a, task.Name)
+	}
+}
+
+func TestVaultClient_CreateToken_EntityAliasFailures(t *testing.T) {
+	t.Parallel()
+	logger := testlog.HCLogger(t)
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	var entityAliasTestValues = []struct {
+		agentConfigEntityAlias string
+		errorSubstring         string
+		useRole                bool
+	}{
+		{"valid-entity-alias", "Entity Alias must be used with a Vault token that has a role", false}, // using entity-alias without a role errors
+		{"invalid-entity-alias-not-overwritten", "invalid 'entity_alias' value", true},                // invalid alias errors
+	}
+
+	for _, testVals := range entityAliasTestValues {
+
+		if testVals.useRole {
+			v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
+		}
+
+		v.Config.EntityAlias = testVals.agentConfigEntityAlias
+
+		client, err := NewVaultClient(v.Config, logger, nil, nil)
+		if err != nil {
+			t.Fatalf("failed to build vault client: %v", err)
+		}
+
+		client.SetActive(true)
+		defer client.Stop()
+
+		waitForConnection(client, t)
+
+		// Create an allocation that requires a Vault policy
+		a := mock.Alloc()
+		task := a.Job.TaskGroups[0].Tasks[0]
+
+		task.Vault = &structs.Vault{Policies: []string{"default"}}
+
+		_, err = client.CreateToken(context.Background(), a, task.Name)
+
+		if err == nil {
+			t.Fatalf("CreateToken expected to error")
+		}
+
+		if !strings.Contains(err.Error(), testVals.errorSubstring) {
+			t.Fatalf("CreateToken error expected to include: %v, got %v", testVals.errorSubstring, err.Error())
+		}
+	}
+}
+
 // TestVaultClient_RevokeTokens_Failures_TTL asserts that
 // the registered TTL doesn't get extended on retries
 func TestVaultClient_RevokeTokens_Failures_TTL(t *testing.T) {
@@ -1555,7 +1655,7 @@ func TestVaultClient_RevokeTokens_Role(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
 
 	purged := 0
 	purge := func(accessors []*structs.VaultAccessor) error {
@@ -1624,7 +1724,7 @@ func TestVaultClient_RevokeTokens_Idempotent(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
 
 	purged := map[string]struct{}{}
 	purge := func(accessors []*structs.VaultAccessor) error {
@@ -1704,7 +1804,7 @@ func TestVaultClient_RevokeDaemon_Bounded(t *testing.T) {
 	defer v.Stop()
 
 	// Set the configs token in a new test role
-	v.Config.Token = defaultTestVaultWhitelistRoleAndToken(v, t, 5)
+	v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
 
 	// Disable client until we can change settings for testing
 	conf := v.Config.Copy()

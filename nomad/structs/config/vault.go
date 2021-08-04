@@ -60,6 +60,10 @@ type VaultConfig struct {
 	// connect to Vault.
 	ConnectionRetryIntv time.Duration
 
+	// EntityAlias is passed to Vault when creating a token to associate that
+	// token with an entity.
+	EntityAlias string `hcl:"entity_alias"`
+
 	// TLSCaFile is the path to a PEM-encoded CA cert file to use to verify the
 	// Vault server SSL certificate.
 	TLSCaFile string `hcl:"ca_file"`
