@@ -380,3 +380,12 @@ ui-screenshots:
 ui-screenshots-local:
 	@echo "==> Collecting UI screenshots (local)..."
 	@cd scripts/screenshots/src && SCREENSHOTS_DIR="../screenshots" node index.js
+
+.PHONY: openapi
+openapi:
+	@echo "==> Building OpenAPI Specification and test client..."
+	@docker run \
+		--rm \
+		--volume "$(shell pwd):/local" \
+		openapitools/openapi-generator-cli batch /local/openapi/v1/config.yaml
+	@goimports -local "github.com/testutil/openapi/v1/testclient" -w .
