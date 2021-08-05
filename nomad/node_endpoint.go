@@ -3,6 +3,7 @@ package nomad
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -169,12 +170,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	reply.NodeModifyIndex = index
 
 	// Check if we should trigger evaluations
-	originalStatus := structs.NodeStatusInit
-	if originalNode != nil {
-		originalStatus = originalNode.Status
-	}
-	transitionToReady := transitionedToReady(args.Node.Status, originalStatus)
-	if structs.ShouldDrainNode(args.Node.Status) || transitionToReady {
+	if shouldCreateNodeEval(originalNode, args.Node) {
 		evalIDs, evalIndex, err := n.createNodeEvals(args.Node.ID, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)
@@ -209,6 +205,36 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	}
 
 	return nil
+}
+
+// shouldCreateNodeEval returns true if the node update may result into
+// allocation updates, so the node should be re-evaluating.
+//
+// Such cases might be:
+// * node health/drain status changes that may result into alloc rescheduling
+// * node drivers or attributes changing that may cause system job placement changes
+func shouldCreateNodeEval(original, updated *structs.Node) bool {
+	if structs.ShouldDrainNode(updated.Status) {
+		return true
+	}
+
+	if original == nil {
+		return transitionedToReady(updated.Status, structs.NodeStatusInit)
+	}
+
+	if transitionedToReady(updated.Status, original.Status) {
+		return true
+	}
+
+	// check fields used by the feasability checkers, through direct
+	// or interpolated constraints.
+	return !(original.ID == updated.ID &&
+		original.Datacenter == updated.Datacenter &&
+		original.Name == updated.Name &&
+		original.NodeClass == updated.NodeClass &&
+		reflect.DeepEqual(original.Attributes, updated.Attributes) &&
+		reflect.DeepEqual(original.Meta, updated.Meta) &&
+		reflect.DeepEqual(original.Drivers, updated.Drivers))
 }
 
 // updateNodeUpdateResponse assumes the n.srv.peerLock is held for reading.
