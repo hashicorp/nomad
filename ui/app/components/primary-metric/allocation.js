@@ -47,8 +47,9 @@ export default class AllocationPrimaryMetric extends Component {
   }
 
   get reservedAmount() {
-    if (this.metric === 'cpu') return this.tracker.reservedCPU;
-    if (this.metric === 'memory') return this.tracker.reservedMemory;
+    const { cpu, memory } = this.allocation.allocatedResources;
+    if (this.metric === 'cpu') return cpu;
+    if (this.metric === 'memory') return memory;
     return null;
   }
 
