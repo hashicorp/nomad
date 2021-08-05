@@ -6,7 +6,6 @@ Before getting started, full documentation for using Portworx with Nomad can be 
 * Portworx 2.8.0 or higher is required for using the Portworx CSI Driver on Nomad
 * Nomad 1.1.0 or higher is recommended for the full suite of volume operations
 * A minimum of 3 nodes is required for running Portworx on Nomad
-* Connection to consul cluster is required
 
 ## Configure your Nomad clients
 
