@@ -1,5 +1,9 @@
 ## 1.1.3 (July 29, 2021)
 
+__BACKWARDS INCOMPATIBILITIES:__
+
+* api: The Job Run and Plan APIs now use the `?namespace=` query parameter before the namespace from the job. This matches region's behavior. Users of `api.Client` should ensure their `Config.Namespace` is unset if they want to use the namespace in the job. [[GH-10875](https://github.com/hashicorp/nomad/issues/10875)]
+
 IMPROVEMENTS:
 
 * api: Added `NewSystemJob` helper function to create base system job object. [[GH-10861](https://github.com/hashicorp/nomad/issues/10861)]
@@ -171,6 +175,10 @@ BUG FIXES:
  * ui: Fixed the rendering of interstitial components shown after processing a dynamic application sizing recommendation. [[GH-10094](https://github.com/hashicorp/nomad/pull/10094)]
 
 ## 1.0.9 (July 29, 2021)
+
+__BACKWARDS INCOMPATIBILITIES:__
+
+* api: The Job Run and Plan APIs now use the `?namespace=` query parameter before the namespace from the job. This matches region's behavior. Users of `api.Client` should ensure their `Config.Namespace` is unset if they want to use the namespace in the job. [[GH-10875](https://github.com/hashicorp/nomad/issues/10875)]
 
 BUG FIXES:
 
