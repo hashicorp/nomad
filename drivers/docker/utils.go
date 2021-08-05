@@ -125,6 +125,8 @@ func authFromDockerConfig(file string) authBackend {
 					Password:      dockerAuthConfig.Password,
 					Email:         dockerAuthConfig.Email,
 					ServerAddress: dockerAuthConfig.ServerAddress,
+					IdentityToken: dockerAuthConfig.IdentityToken,
+					RegistryToken: dockerAuthConfig.RegistryToken,
 				}
 				if authIsEmpty(auth) {
 					return nil, nil
