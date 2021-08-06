@@ -20,7 +20,6 @@ func (v *v1api) GetPaths() []*Path {
 	paths = append(paths, v.getNamespacePaths()...)
 	paths = append(paths, v.getNodePaths()...)
 	paths = append(paths, v.getOperatorPaths()...)
-	paths = append(paths, v.getPPROFPaths()...)
 	paths = append(paths, v.getPluginsPaths()...)
 	paths = append(paths, v.getRegionsPaths()...)
 	paths = append(paths, v.getScalingPaths()...)
@@ -62,6 +61,14 @@ var (
 		Name:        "namespaceName",
 		In:          inPath,
 		Required:    true,
+	}
+	MetricsSummaryFormatParam = Parameter{
+		Id:          "MetricsFormatParam",
+		SchemaType:  stringSchema,
+		Description: "The format the user requested for the metrics summary (e.g. prometheus)",
+		Name:        "format",
+		In:          inQuery,
+		Required:    false,
 	}
 	QuotaSpecNameParam = Parameter{
 		Id:          "QuotaSpecNameParam",
@@ -222,16 +229,20 @@ var (
 
 var standardResponses = []*ResponseConfig{
 	{
+		Code:     400,
+		Response: &BadRequestResponse,
+	},
+	{
 		Code:     403,
 		Response: &ForbiddenResponse,
 	},
 	{
-		Code:     500,
-		Response: &InternalServerErrorResponse,
-	},
-	{
 		Code:     405,
 		Response: &MethodNotAllowedResponse,
+	},
+	{
+		Code:     500,
+		Response: &InternalServerErrorResponse,
 	},
 }
 

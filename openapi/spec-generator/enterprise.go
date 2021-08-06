@@ -9,6 +9,7 @@ import (
 func (v *v1api) getEnterprisePaths() []*Path {
 	tags := []string{"Enterprise"}
 
+	// TODO: add to nomad-enterprise repo
 	return []*Path{
 		//s.mux.HandleFunc("/v1/sentinel/policies", s.wrap(s.entOnly))
 		//s.mux.HandleFunc("/v1/sentinel/policy/", s.wrap(s.entOnly))

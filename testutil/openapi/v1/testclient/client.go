@@ -53,7 +53,13 @@ type APIClient struct {
 
 	JobsApi *JobsApiService
 
+	MetricsApi *MetricsApiService
+
 	NamespacesApi *NamespacesApiService
+
+	RegionsApi *RegionsApiService
+
+	SearchApi *SearchApiService
 }
 
 type service struct {
@@ -74,7 +80,10 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	// API Services
 	c.EnterpriseApi = (*EnterpriseApiService)(&c.common)
 	c.JobsApi = (*JobsApiService)(&c.common)
+	c.MetricsApi = (*MetricsApiService)(&c.common)
 	c.NamespacesApi = (*NamespacesApiService)(&c.common)
+	c.RegionsApi = (*RegionsApiService)(&c.common)
+	c.SearchApi = (*SearchApiService)(&c.common)
 
 	return c
 }

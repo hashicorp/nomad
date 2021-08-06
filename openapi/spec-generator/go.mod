@@ -6,6 +6,7 @@ replace (
 	github.com/hashicorp/nomad => ../..
 	github.com/hashicorp/nomad/api => ../../api
 	github.com/hashicorp/nomad/testutil/openapi/v1/testclient => ../../testutil/openapi/v1/testclient
+	github.com/getkin/kin-openapi => ../../../kin-openapi
 )
 
 require (

@@ -86,11 +86,15 @@ Class | Method | HTTP request | Description
 *JobsApi* | [**JobJobNamePlanPost**](docs/JobsApi.md#jobjobnameplanpost) | **Post** /job/{jobName}/plan | 
 *JobsApi* | [**JobsGet**](docs/JobsApi.md#jobsget) | **Get** /jobs | 
 *JobsApi* | [**JobsPost**](docs/JobsApi.md#jobspost) | **Post** /jobs | 
+*MetricsApi* | [**MetricsGet**](docs/MetricsApi.md#metricsget) | **Get** /metrics | 
 *NamespacesApi* | [**NamespaceNamespaceNameDelete**](docs/NamespacesApi.md#namespacenamespacenamedelete) | **Delete** /namespace/{namespaceName} | 
 *NamespacesApi* | [**NamespaceNamespaceNameGet**](docs/NamespacesApi.md#namespacenamespacenameget) | **Get** /namespace/{namespaceName} | 
 *NamespacesApi* | [**NamespaceNamespaceNamePost**](docs/NamespacesApi.md#namespacenamespacenamepost) | **Post** /namespace/{namespaceName} | 
 *NamespacesApi* | [**NamespacePost**](docs/NamespacesApi.md#namespacepost) | **Post** /namespace | 
 *NamespacesApi* | [**NamespacesGet**](docs/NamespacesApi.md#namespacesget) | **Get** /namespaces | 
+*RegionsApi* | [**RegionsGet**](docs/RegionsApi.md#regionsget) | **Get** /regions | 
+*SearchApi* | [**SearchFuzzyPost**](docs/SearchApi.md#searchfuzzypost) | **Post** /search/fuzzy | 
+*SearchApi* | [**SearchPost**](docs/SearchApi.md#searchpost) | **Post** /search | 
 
 
 ## Documentation For Models
@@ -131,6 +135,10 @@ Class | Method | HTTP request | Description
  - [EphemeralDisk](docs/EphemeralDisk.md)
  - [Evaluation](docs/Evaluation.md)
  - [FieldDiff](docs/FieldDiff.md)
+ - [FuzzyMatch](docs/FuzzyMatch.md)
+ - [FuzzySearchRequest](docs/FuzzySearchRequest.md)
+ - [FuzzySearchResponse](docs/FuzzySearchResponse.md)
+ - [GaugeValue](docs/GaugeValue.md)
  - [Job](docs/Job.md)
  - [JobChildrenSummary](docs/JobChildrenSummary.md)
  - [JobDiff](docs/JobDiff.md)
@@ -141,19 +149,20 @@ Class | Method | HTTP request | Description
  - [JobRegisterResponse](docs/JobRegisterResponse.md)
  - [JobSummary](docs/JobSummary.md)
  - [LogConfig](docs/LogConfig.md)
+ - [MetricsSummary](docs/MetricsSummary.md)
  - [MigrateStrategy](docs/MigrateStrategy.md)
  - [Multiregion](docs/Multiregion.md)
  - [MultiregionRegion](docs/MultiregionRegion.md)
  - [MultiregionStrategy](docs/MultiregionStrategy.md)
  - [Namespace](docs/Namespace.md)
  - [NamespaceListRequest](docs/NamespaceListRequest.md)
- - [NamespaceSpecificRequest](docs/NamespaceSpecificRequest.md)
  - [NetworkResource](docs/NetworkResource.md)
  - [NodeScoreMeta](docs/NodeScoreMeta.md)
  - [ObjectDiff](docs/ObjectDiff.md)
  - [ParameterizedJobConfig](docs/ParameterizedJobConfig.md)
  - [PeriodicConfig](docs/PeriodicConfig.md)
  - [PlanAnnotations](docs/PlanAnnotations.md)
+ - [PointValue](docs/PointValue.md)
  - [Port](docs/Port.md)
  - [PortMapping](docs/PortMapping.md)
  - [QuotaLimit](docs/QuotaLimit.md)
@@ -164,7 +173,10 @@ Class | Method | HTTP request | Description
  - [RescheduleTracker](docs/RescheduleTracker.md)
  - [Resources](docs/Resources.md)
  - [RestartPolicy](docs/RestartPolicy.md)
+ - [SampledValue](docs/SampledValue.md)
  - [ScalingPolicy](docs/ScalingPolicy.md)
+ - [SearchRequest](docs/SearchRequest.md)
+ - [SearchResponse](docs/SearchResponse.md)
  - [Service](docs/Service.md)
  - [ServiceCheck](docs/ServiceCheck.md)
  - [SidecarTask](docs/SidecarTask.md)

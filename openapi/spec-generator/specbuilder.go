@@ -13,6 +13,8 @@ import (
 	"github.com/ghodss/yaml"
 )
 
+const schemaPath = "#/components/schemas"
+
 // Spec wraps a kin-openapi document object model with extra
 // metadata so that the template can be entirely data driven
 type Spec struct {
@@ -295,7 +297,7 @@ func (b *SpecBuilder) adaptRequestBody(requestBodyModel *RequestBody) (*openapi3
 
 	requestBody.Required = true
 	requestBody.Content = openapi3.NewContentWithSchemaRef(&openapi3.SchemaRef{
-		Ref:   fmt.Sprintf("#/components/schemas/%s", requestBodyModel.Model.Name()),
+		Ref:   b.formatSchemaRefPath(schemaRef, requestBodyModel.Model.Name()),
 		Value: schemaRef.Value,
 	}, []string{"application/json"})
 
@@ -332,14 +334,14 @@ func (b *SpecBuilder) adaptResponses(configs []*ResponseConfig) (openapi3.Respon
 				switch cfg.Content.SchemaType {
 				case objectSchema:
 					response.Value.Content = openapi3.NewContentWithSchemaRef(&openapi3.SchemaRef{
-						Ref:   fmt.Sprintf("#/components/schemas/%s", cfg.Content.Model.Name()),
+						Ref:   b.formatSchemaRefPath(schemaRef, cfg.Content.Model.Name()),
 						Value: schemaRef.Value,
 					}, []string{"application/json"})
 				case arraySchema:
 					response.Value.Content = openapi3.NewContentWithSchemaRef(openapi3.NewSchemaRef("", &openapi3.Schema{
 						Type: arraySchema,
 						Items: &openapi3.SchemaRef{
-							Ref:   fmt.Sprintf("#/components/schemas/%s", cfg.Content.Model.Name()),
+							Ref:   b.formatSchemaRefPath(schemaRef, cfg.Content.Model.Name()),
 							Value: schemaRef.Value,
 						},
 					}), []string{"application/json"})
@@ -406,7 +408,7 @@ func (b *SpecBuilder) getOrCreateSchemaRef(model reflect.Type) (*openapi3.Schema
 		if b.isBasic(schemaRef.Ref) {
 			continue
 		}
-		if len(schemaRef.Ref) > 0 && !strings.Contains(schemaRef.Ref, "#/components/schemas") {
+		if len(schemaRef.Ref) > 0 && !strings.Contains(schemaRef.Ref, schemaPath) {
 			if _, ok = b.spec.Model.Components.Schemas[schemaRef.Ref]; !ok {
 				b.spec.Model.Components.Schemas[schemaRef.Ref] = openapi3.NewSchemaRef("", schemaRef.Value)
 			}
@@ -423,32 +425,24 @@ func (b *SpecBuilder) isBasic(typ string) bool {
 func (b *SpecBuilder) resolveRefPaths() {
 	for _, schemaRef := range b.spec.Model.Components.Schemas {
 		// Next make sure the refs point to other schemas, if not already done.
-		for _, property := range schemaRef.Value.Properties {
-			if strings.Contains(property.Ref, "#/components/schemas/") {
+		for _, propertyRef := range schemaRef.Value.Properties {
+			if strings.Contains(propertyRef.Ref, schemaPath) {
 				continue
-			} else if b.isBasic(property.Value.Type) {
-				property.Ref = ""
-			} else if property.Value.Type == "array" {
-				if b.isBasic(property.Value.Items.Value.Type) {
-					property.Value.Items.Ref = ""
-				} else {
-					if !strings.Contains(property.Value.Items.Ref, "#/components/schemas") {
-						property.Value.Items.Ref = fmt.Sprintf("#/components/schemas/%s", property.Value.Items.Ref)
-					}
-				}
-			} else if property.Value.AdditionalProperties != nil {
-				property.Ref = ""
-				if !b.isBasic(property.Value.AdditionalProperties.Value.Type) {
-					if len(property.Value.AdditionalProperties.Ref) > 1 {
-						if !strings.Contains(property.Value.AdditionalProperties.Ref, "#/components/schemas") {
-							property.Value.AdditionalProperties.Ref = fmt.Sprintf("#/components/schemas/%s", property.Value.AdditionalProperties.Ref)
-						}
-					}
+			}
+
+			if b.isBasic(propertyRef.Value.Type) {
+				propertyRef.Ref = ""
+			} else if propertyRef.Value.Type == "array" {
+				propertyRef.Value.Items.Ref = b.formatSchemaRefPath(propertyRef.Value.Items, propertyRef.Value.Items.Ref)
+			} else if propertyRef.Value.AdditionalProperties != nil {
+				// This handles maps
+				if len(propertyRef.Value.AdditionalProperties.Ref) > 1 {
+					propertyRef.Value.AdditionalProperties.Ref = b.formatSchemaRefPath(propertyRef.Value.AdditionalProperties, propertyRef.Value.AdditionalProperties.Ref)
+				} else if propertyRef.Value.AdditionalProperties.Value.Type == "array" {
+					propertyRef.Value.AdditionalProperties.Value.Items.Ref = b.formatSchemaRefPath(propertyRef.Value.AdditionalProperties, propertyRef.Value.AdditionalProperties.Value.Items.Ref)
 				}
 			} else {
-				if !strings.Contains(property.Ref, "#/components/schemas") {
-					property.Ref = fmt.Sprintf("#/components/schemas/%s", property.Ref)
-				}
+				propertyRef.Ref = b.formatSchemaRefPath(propertyRef, propertyRef.Ref)
 			}
 		}
 	}
@@ -487,4 +481,18 @@ func (b *SpecBuilder) adaptSecurityRequirements(parameters []*Parameter) *openap
 			tokenParam.Name: {},
 		},
 	}
+}
+
+func (b *SpecBuilder) formatSchemaRefPath(ref *openapi3.SchemaRef, modelName string) string {
+	// If basic, return empty
+	if b.isBasic(ref.Value.Type) {
+		return ""
+	}
+
+	// If already formatted return that
+	if strings.Contains(ref.Ref, schemaPath) {
+		return ref.Ref
+	}
+
+	return fmt.Sprintf("#/components/schemas/%s", modelName)
 }

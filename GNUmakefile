@@ -388,4 +388,4 @@ openapi:
 		--rm \
 		--volume "$(shell pwd):/local" \
 		openapitools/openapi-generator-cli batch /local/openapi/v1/config.yaml
-	@goimports -local "github.com/testutil/openapi/v1/testclient" -w .
+	@goimports -local "github.com/nomad/testutil/openapi/v1/testclient" -w ./testutil/openapi/v1/testclient

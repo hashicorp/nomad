@@ -153,6 +153,8 @@ paths:
               schema:
                 type: integer
               style: simple
+        "400":
+          description: Bad request
         "403":
           description: Forbidden
         "405":
@@ -269,6 +271,8 @@ paths:
               schema:
                 type: integer
               style: simple
+        "400":
+          description: Bad request
         "403":
           description: Forbidden
         "405":
@@ -314,6 +318,8 @@ paths:
               schema:
                 type: integer
               style: simple
+        "400":
+          description: Bad request
         "403":
           description: Forbidden
         "405":
@@ -322,6 +328,33 @@ paths:
           description: Internal server error
       tags:
       - Jobs
+  /metrics:
+    get:
+      parameters:
+      - description: The format the user requested for the metrics summary (e.g. prometheus)
+        explode: true
+        in: query
+        name: format
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsSummary'
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal server error
+      tags:
+      - Metrics
   /namespace:
     post:
       parameters:
@@ -357,12 +390,6 @@ paths:
         schema:
           type: string
         style: form
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Namespace'
-        required: true
       responses:
         "200":
           headers:
@@ -374,6 +401,8 @@ paths:
               schema:
                 type: integer
               style: simple
+        "400":
+          description: Bad request
         "403":
           description: Forbidden
         "405":
@@ -438,6 +467,8 @@ paths:
               schema:
                 type: integer
               style: simple
+        "400":
+          description: Bad request
         "403":
           description: Forbidden
         "405":
@@ -531,12 +562,6 @@ paths:
         schema:
           type: string
         style: simple
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NamespaceSpecificRequest'
-        required: true
       responses:
         "200":
           content:
@@ -565,6 +590,8 @@ paths:
               schema:
                 type: integer
               style: simple
+        "400":
+          description: Bad request
         "403":
           description: Forbidden
         "405":
@@ -634,6 +661,8 @@ paths:
               schema:
                 type: integer
               style: simple
+        "400":
+          description: Bad request
         "403":
           description: Forbidden
         "405":
@@ -756,6 +785,8 @@ paths:
               schema:
                 type: integer
               style: simple
+        "400":
+          description: Bad request
         "403":
           description: Forbidden
         "405":
@@ -818,6 +849,8 @@ paths:
               schema:
                 type: integer
               style: simple
+        "400":
+          description: Bad request
         "403":
           description: Forbidden
         "405":
@@ -882,6 +915,8 @@ paths:
               schema:
                 type: integer
               style: simple
+        "400":
+          description: Bad request
         "403":
           description: Forbidden
         "405":
@@ -1003,6 +1038,8 @@ paths:
               schema:
                 type: integer
               style: simple
+        "400":
+          description: Bad request
         "403":
           description: Forbidden
         "405":
@@ -1072,6 +1109,8 @@ paths:
               schema:
                 type: integer
               style: simple
+        "400":
+          description: Bad request
         "403":
           description: Forbidden
         "405":
@@ -1163,8 +1202,7 @@ paths:
           content:
             application/json:
               schema:
-                items:
-                  $ref: '#/components/schemas/Quotas'
+                items: {}
                 type: array
           headers:
             X-Nomad-Index:
@@ -1188,6 +1226,8 @@ paths:
               schema:
                 type: integer
               style: simple
+        "400":
+          description: Bad request
         "403":
           description: Forbidden
         "405":
@@ -1198,6 +1238,270 @@ paths:
       - X-Nomad-Token: []
       tags:
       - Enterprise
+  /regions:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  type: string
+                type: array
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal server error
+      tags:
+      - Regions
+  /search:
+    post:
+      parameters:
+      - description: Filters results based on the specified region.
+        explode: true
+        in: query
+        name: region
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Filters results based on the specified namespace.
+        explode: true
+        in: query
+        name: namespace
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: If set, wait until query exceeds given index. Must be provided
+          with WaitParam.
+        explode: false
+        in: header
+        name: index
+        required: false
+        schema:
+          type: integer
+        style: simple
+      - description: Provided with IndexParam to wait for change.
+        explode: true
+        in: query
+        name: wait
+        required: false
+        schema:
+          type: integer
+        style: form
+      - description: If present, results will include stale reads.
+        explode: true
+        in: query
+        name: stale
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Constrains results to jobs that start with the defined prefix
+        explode: true
+        in: query
+        name: prefix
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: A Nomad ACL token.
+        explode: false
+        in: header
+        name: X-Nomad-Token
+        required: false
+        schema:
+          type: string
+        style: simple
+      - description: Maximum number of results to return.
+        explode: true
+        in: query
+        name: per_page
+        required: false
+        schema:
+          type: integer
+        style: form
+      - description: Indicates where to start paging for queries that support pagination.
+        explode: true
+        in: query
+        name: next_token
+        required: false
+        schema:
+          type: string
+        style: form
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+          headers:
+            X-Nomad-Index:
+              description: A unique identifier representing the current state of the
+                requested resource. On a new Nomad cluster the value of this index
+                starts at 1.
+              explode: false
+              schema:
+                type: integer
+              style: simple
+            X-Nomad-KnownLeader:
+              description: Boolean indicating if there is a known cluster leader.
+              explode: false
+              schema:
+                type: boolean
+              style: simple
+            X-Nomad-LastContact:
+              description: The time in milliseconds that a server was last contacted
+                by the leader node.
+              explode: false
+              schema:
+                type: integer
+              style: simple
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal server error
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Search
+  /search/fuzzy:
+    post:
+      parameters:
+      - description: Filters results based on the specified region.
+        explode: true
+        in: query
+        name: region
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Filters results based on the specified namespace.
+        explode: true
+        in: query
+        name: namespace
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: If set, wait until query exceeds given index. Must be provided
+          with WaitParam.
+        explode: false
+        in: header
+        name: index
+        required: false
+        schema:
+          type: integer
+        style: simple
+      - description: Provided with IndexParam to wait for change.
+        explode: true
+        in: query
+        name: wait
+        required: false
+        schema:
+          type: integer
+        style: form
+      - description: If present, results will include stale reads.
+        explode: true
+        in: query
+        name: stale
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Constrains results to jobs that start with the defined prefix
+        explode: true
+        in: query
+        name: prefix
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: A Nomad ACL token.
+        explode: false
+        in: header
+        name: X-Nomad-Token
+        required: false
+        schema:
+          type: string
+        style: simple
+      - description: Maximum number of results to return.
+        explode: true
+        in: query
+        name: per_page
+        required: false
+        schema:
+          type: integer
+        style: form
+      - description: Indicates where to start paging for queries that support pagination.
+        explode: true
+        in: query
+        name: next_token
+        required: false
+        schema:
+          type: string
+        style: form
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FuzzySearchRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FuzzySearchResponse'
+          headers:
+            X-Nomad-Index:
+              description: A unique identifier representing the current state of the
+                requested resource. On a new Nomad cluster the value of this index
+                starts at 1.
+              explode: false
+              schema:
+                type: integer
+              style: simple
+            X-Nomad-KnownLeader:
+              description: Boolean indicating if there is a known cluster leader.
+              explode: false
+              schema:
+                type: boolean
+              style: simple
+            X-Nomad-LastContact:
+              description: The time in milliseconds that a server was last contacted
+                by the leader node.
+              explode: false
+              schema:
+                type: integer
+              style: simple
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "405":
+          description: Method not allowed
+        "500":
+          description: Internal server error
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Search
 components:
   parameters:
     IdempotencyTokenParam:
@@ -1228,6 +1532,15 @@ components:
       schema:
         type: string
       style: simple
+    MetricsFormatParam:
+      description: The format the user requested for the metrics summary (e.g. prometheus)
+      explode: true
+      in: query
+      name: format
+      required: false
+      schema:
+        type: string
+      style: form
     NamespaceNameParam:
       description: The namespace identifier.
       explode: false
@@ -1319,6 +1632,12 @@ components:
         type: integer
       style: form
   requestBodies:
+    FuzzySearchRequest:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FuzzySearchRequest'
+      required: true
     JobPlanRequest:
       content:
         application/json:
@@ -1343,19 +1662,21 @@ components:
           schema:
             $ref: '#/components/schemas/NamespaceListRequest'
       required: true
-    NamespaceSpecificRequest:
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/NamespaceSpecificRequest'
-      required: true
     QuotaSpec:
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/QuotaSpec'
       required: true
+    SearchRequest:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SearchRequest'
+      required: true
   responses:
+    BadRequestResponse:
+      description: Bad request
     CreateNamespaceResponse:
       headers:
         X-Nomad-Index:
@@ -1385,6 +1706,32 @@ components:
           style: simple
     ForbiddenResponse:
       description: Forbidden
+    GetFuzzySearchResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FuzzySearchResponse'
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested
+            resource. On a new Nomad cluster the value of this index starts at 1.
+          explode: false
+          schema:
+            type: integer
+          style: simple
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          explode: false
+          schema:
+            type: boolean
+          style: simple
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by
+            the leader node.
+          explode: false
+          schema:
+            type: integer
+          style: simple
     GetJobsResponse:
       content:
         application/json:
@@ -1413,6 +1760,11 @@ components:
           schema:
             type: integer
           style: simple
+    GetMetricsSummaryResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MetricsSummary'
     GetNamespaceResponse:
       content:
         application/json:
@@ -1497,9 +1849,41 @@ components:
       content:
         application/json:
           schema:
-            items:
-              $ref: '#/components/schemas/Quotas'
+            items: {}
             type: array
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested
+            resource. On a new Nomad cluster the value of this index starts at 1.
+          explode: false
+          schema:
+            type: integer
+          style: simple
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          explode: false
+          schema:
+            type: boolean
+          style: simple
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by
+            the leader node.
+          explode: false
+          schema:
+            type: integer
+          style: simple
+    GetRegionsResponse:
+      content:
+        application/json:
+          schema:
+            items:
+              type: string
+            type: array
+    GetSearchResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SearchResponse'
       headers:
         X-Nomad-Index:
           description: A unique identifier representing the current state of the requested
@@ -3218,6 +3602,8 @@ components:
         MeshGateway:
           $ref: '#/components/schemas/ConsulMeshGateway'
       type: object
+    Context:
+      type: string
     DNSConfig:
       example:
         Options:
@@ -3584,6 +3970,126 @@ components:
           type: string
         Type:
           type: string
+      type: object
+    FuzzyMatch:
+      example:
+        Scope:
+        - Scope
+        - Scope
+        ID: ID
+      properties:
+        ID:
+          type: string
+        Scope:
+          items:
+            type: string
+          type: array
+      type: object
+    FuzzySearchRequest:
+      example:
+        Context: Context
+        WaitIndex: 2147483647
+        NextToken: NextToken
+        PerPage: 0
+        AuthToken: AuthToken
+        Params:
+          key: Params
+        Region: Region
+        Text: Text
+        Prefix: Prefix
+        WaitTime: 1
+        Namespace: Namespace
+        AllowStale: true
+      properties:
+        AllowStale:
+          type: boolean
+        AuthToken:
+          type: string
+        Context:
+          type: string
+        Namespace:
+          type: string
+        NextToken:
+          type: string
+        Params:
+          additionalProperties:
+            type: string
+          type: object
+        PerPage:
+          format: int32
+          type: integer
+        Prefix:
+          type: string
+        Region:
+          type: string
+        Text:
+          type: string
+        WaitIndex:
+          maximum: 1.8446744073709552E+19
+          minimum: 0
+          type: integer
+        WaitTime:
+          format: int64
+          type: integer
+      type: object
+    FuzzySearchResponse:
+      example:
+        Truncations:
+          key: true
+        LastContact: 0
+        Matches:
+          key:
+          - Scope:
+            - Scope
+            - Scope
+            ID: ID
+          - Scope:
+            - Scope
+            - Scope
+            ID: ID
+        LastIndex: 2147483647
+        RequestTime: 1
+        KnownLeader: true
+      properties:
+        KnownLeader:
+          type: boolean
+        LastContact:
+          format: int64
+          type: integer
+        LastIndex:
+          maximum: 1.8446744073709552E+19
+          minimum: 0
+          type: integer
+        Matches:
+          additionalProperties:
+            items:
+              $ref: '#/components/schemas/FuzzyMatch'
+            type: array
+          type: object
+        RequestTime:
+          format: int64
+          type: integer
+        Truncations:
+          additionalProperties:
+            type: boolean
+          type: object
+      type: object
+    GaugeValue:
+      example:
+        Value: 9.301444
+        Labels:
+          key: Labels
+        Name: Name
+      properties:
+        Labels:
+          additionalProperties:
+            type: string
+          type: object
+        Name:
+          type: string
+        Value:
+          format: float
+          type: number
       type: object
     Job:
       example:
@@ -20896,6 +21402,89 @@ components:
         MaxFiles:
           type: integer
       type: object
+    MetricsSummary:
+      example:
+        Points:
+        - Points:
+          - 3.6160767
+          - 3.6160767
+          Name: Name
+        - Points:
+          - 3.6160767
+          - 3.6160767
+          Name: Name
+        Samples:
+        - Mean: 1.4658129805029452
+          Stddev: 2.3021358869347655
+          Min: 5.962133916683182
+          Max: 6.027456183070403
+          Rate: 5.637376656633329
+          Labels:
+            key: Labels
+          Sum: 7.061401241503109
+          Count: 0
+          Name: Name
+        - Mean: 1.4658129805029452
+          Stddev: 2.3021358869347655
+          Min: 5.962133916683182
+          Max: 6.027456183070403
+          Rate: 5.637376656633329
+          Labels:
+            key: Labels
+          Sum: 7.061401241503109
+          Count: 0
+          Name: Name
+        Counters:
+        - Mean: 1.4658129805029452
+          Stddev: 2.3021358869347655
+          Min: 5.962133916683182
+          Max: 6.027456183070403
+          Rate: 5.637376656633329
+          Labels:
+            key: Labels
+          Sum: 7.061401241503109
+          Count: 0
+          Name: Name
+        - Mean: 1.4658129805029452
+          Stddev: 2.3021358869347655
+          Min: 5.962133916683182
+          Max: 6.027456183070403
+          Rate: 5.637376656633329
+          Labels:
+            key: Labels
+          Sum: 7.061401241503109
+          Count: 0
+          Name: Name
+        Timestamp: Timestamp
+        Gauges:
+        - Value: 9.301444
+          Labels:
+            key: Labels
+          Name: Name
+        - Value: 9.301444
+          Labels:
+            key: Labels
+          Name: Name
+      properties:
+        Counters:
+          items:
+            $ref: '#/components/schemas/SampledValue'
+          type: array
+        Gauges:
+          items:
+            $ref: '#/components/schemas/GaugeValue'
+          type: array
+        Points:
+          items:
+            $ref: '#/components/schemas/PointValue'
+          type: array
+        Samples:
+          items:
+            $ref: '#/components/schemas/SampledValue'
+          type: array
+        Timestamp:
+          type: string
+      type: object
     MigrateStrategy:
       example:
         MaxParallel: 5
@@ -21024,47 +21613,6 @@ components:
           maximum: 1.8446744073709552E+19
           minimum: 0
           type: integer
-        Namespace:
-          type: string
-        NextToken:
-          type: string
-        PerPage:
-          format: int32
-          type: integer
-        Prefix:
-          type: string
-        Region:
-          type: string
-      type: object
-    NamespaceSpecificRequest:
-      example:
-        MinQueryIndex: 2147483647
-        MaxQueryTime: 0
-        NextToken: NextToken
-        PerPage: 1
-        Forwarded: true
-        AuthToken: AuthToken
-        Region: Region
-        Prefix: Prefix
-        Namespace: Namespace
-        AllowStale: true
-        Name: Name
-      properties:
-        AllowStale:
-          type: boolean
-        AuthToken:
-          type: string
-        Forwarded:
-          type: boolean
-        MaxQueryTime:
-          format: int64
-          type: integer
-        MinQueryIndex:
-          maximum: 1.8446744073709552E+19
-          minimum: 0
-          type: integer
-        Name:
-          type: string
         Namespace:
           type: string
         NextToken:
@@ -21783,6 +22331,21 @@ components:
             $ref: '#/components/schemas/AllocationListStub'
           type: array
       type: object
+    PointValue:
+      example:
+        Points:
+        - 3.6160767
+        - 3.6160767
+        Name: Name
+      properties:
+        Name:
+          type: string
+        Points:
+          items:
+            format: float
+            type: number
+          type: array
+      type: object
     Port:
       example:
         Label: Label
@@ -22433,6 +22996,46 @@ components:
         Mode:
           type: string
       type: object
+    SampledValue:
+      example:
+        Mean: 1.4658129805029452
+        Stddev: 2.3021358869347655
+        Min: 5.962133916683182
+        Max: 6.027456183070403
+        Rate: 5.637376656633329
+        Labels:
+          key: Labels
+        Sum: 7.061401241503109
+        Count: 0
+        Name: Name
+      properties:
+        Count:
+          type: integer
+        Labels:
+          additionalProperties:
+            type: string
+          type: object
+        Max:
+          format: double
+          type: number
+        Mean:
+          format: double
+          type: number
+        Min:
+          format: double
+          type: number
+        Name:
+          type: string
+        Rate:
+          format: double
+          type: number
+        Stddev:
+          format: double
+          type: number
+        Sum:
+          format: double
+          type: number
+      type: object
     ScalingPolicy:
       example:
         Policy:
@@ -22477,6 +23080,86 @@ components:
           type: object
         Type:
           type: string
+      type: object
+    SearchRequest:
+      example:
+        Context: Context
+        WaitIndex: 2147483647
+        NextToken: NextToken
+        PerPage: 0
+        AuthToken: AuthToken
+        Params:
+          key: Params
+        Region: Region
+        Prefix: Prefix
+        WaitTime: 1
+        Namespace: Namespace
+        AllowStale: true
+      properties:
+        AllowStale:
+          type: boolean
+        AuthToken:
+          type: string
+        Context:
+          type: string
+        Namespace:
+          type: string
+        NextToken:
+          type: string
+        Params:
+          additionalProperties:
+            type: string
+          type: object
+        PerPage:
+          format: int32
+          type: integer
+        Prefix:
+          type: string
+        Region:
+          type: string
+        WaitIndex:
+          maximum: 1.8446744073709552E+19
+          minimum: 0
+          type: integer
+        WaitTime:
+          format: int64
+          type: integer
+      type: object
+    SearchResponse:
+      example:
+        Truncations:
+          key: true
+        LastContact: 0
+        Matches:
+          key:
+          - Matches
+          - Matches
+        LastIndex: 2147483647
+        RequestTime: 1
+        KnownLeader: true
+      properties:
+        KnownLeader:
+          type: boolean
+        LastContact:
+          format: int64
+          type: integer
+        LastIndex:
+          maximum: 1.8446744073709552E+19
+          minimum: 0
+          type: integer
+        Matches:
+          additionalProperties:
+            items:
+              type: string
+            type: array
+          type: object
+        RequestTime:
+          format: int64
+          type: integer
+        Truncations:
+          additionalProperties:
+            type: boolean
+          type: object
       type: object
     Service:
       example:
@@ -27228,6 +27911,9 @@ components:
       type: object
     bool:
       type: boolean
+    float32:
+      format: float
+      type: number
     float64:
       format: double
       type: number

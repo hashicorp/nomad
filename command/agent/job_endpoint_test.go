@@ -64,9 +64,7 @@ func TestHTTP_JobsList(t *testing.T) {
 		}
 
 		client, ctx := v1api.NewClientAndContext(s.Config.BindAddr, strconv.Itoa(s.Config.Ports.HTTP))
-
 		jobsRequest := client.JobsApi.JobsGet(ctx)
-
 		jobs, apiResponse, err := client.JobsApi.JobsGetExecute(jobsRequest)
 		if err != nil {
 			v1api.Fatalf("getJobs", err, t)

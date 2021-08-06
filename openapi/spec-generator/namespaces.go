@@ -10,6 +10,7 @@ import (
 func (v *v1api) getNamespacePaths() []*Path {
 	tags := []string{"Namespaces"}
 
+	// TODO: add to nomad-enterprise repo
 	return []*Path{
 		//s.mux.HandleFunc("/v1/namespaces", s.wrap(s.NamespacesRequest))
 		{
@@ -28,13 +29,13 @@ func (v *v1api) getNamespacePaths() []*Path {
 			Template: "/namespace/{namespaceName}",
 			Operations: []*Operation{
 				newOperation(http.MethodGet, "namespaceQuery", tags, "GetNamespace",
-					newRequestBody(objectSchema, structs.NamespaceSpecificRequest{}),
+					nil,
 					append(queryOptions, &NamespaceNameParam),
 					newResponseConfig(200, objectSchema, api.Namespace{}, queryMeta,
 						"GetNamespaceResponse"),
 				),
 				newOperation(http.MethodPost, "namespaceUpdate", tags, "PostNamespace",
-					newRequestBody(objectSchema, structs.Namespace{}),
+					newRequestBody(objectSchema, api.Namespace{}),
 					append(writeOptions, &NamespaceNameParam),
 					newResponseConfig(200, "", nil, writeMeta,
 						"PostNamespaceResponse"),
@@ -52,7 +53,7 @@ func (v *v1api) getNamespacePaths() []*Path {
 			Template: "/namespace",
 			Operations: []*Operation{
 				newOperation(http.MethodPost, "namespaceUpdate", tags, "CreateNamespace",
-					newRequestBody(objectSchema, structs.Namespace{}),
+					nil,
 					writeOptions,
 					newResponseConfig(200, "", nil, writeMeta,
 						"CreateNamespaceResponse"),

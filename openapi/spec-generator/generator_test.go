@@ -19,7 +19,7 @@ func TestGenSchema(t *testing.T) {
 
 	// TODO: This is currently only here for manual spec generation. It will
 	// be removed as we move to CI based generation.
-	// generator.outputPath = "../v1/openapi.yaml"
+	generator.outputPath = "../v1/openapi.yaml"
 
 	err := generator.run()
 	req.NoError(err, "Generator.run failed")
@@ -36,6 +36,6 @@ func TestGenSchema(t *testing.T) {
 	req.NoError(err, "Model Validation failed")
 
 	// Comment these lines when manually generating a spec prior to CI based generation.
-	err = os.Remove(generator.outputPath)
-	req.NoError(err)
+	//err = os.Remove(generator.outputPath)
+	//req.NoError(err)
 }

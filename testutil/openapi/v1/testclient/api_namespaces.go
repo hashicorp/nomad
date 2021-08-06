@@ -169,25 +169,20 @@ func (a *NamespacesApiService) NamespaceNamespaceNameDeleteExecute(r ApiNamespac
 }
 
 type ApiNamespaceNamespaceNameGetRequest struct {
-	ctx                      _context.Context
-	ApiService               *NamespacesApiService
-	namespaceName            string
-	namespaceSpecificRequest *NamespaceSpecificRequest
-	region                   *string
-	namespace                *string
-	index                    *int32
-	wait                     *int32
-	stale                    *string
-	prefix                   *string
-	xNomadToken              *string
-	perPage                  *int32
-	nextToken                *string
+	ctx           _context.Context
+	ApiService    *NamespacesApiService
+	namespaceName string
+	region        *string
+	namespace     *string
+	index         *int32
+	wait          *int32
+	stale         *string
+	prefix        *string
+	xNomadToken   *string
+	perPage       *int32
+	nextToken     *string
 }
 
-func (r ApiNamespaceNamespaceNameGetRequest) NamespaceSpecificRequest(namespaceSpecificRequest NamespaceSpecificRequest) ApiNamespaceNamespaceNameGetRequest {
-	r.namespaceSpecificRequest = &namespaceSpecificRequest
-	return r
-}
 func (r ApiNamespaceNamespaceNameGetRequest) Region(region string) ApiNamespaceNamespaceNameGetRequest {
 	r.region = &region
 	return r
@@ -268,9 +263,6 @@ func (a *NamespacesApiService) NamespaceNamespaceNameGetExecute(r ApiNamespaceNa
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := _neturl.Values{}
 	localVarFormParams := _neturl.Values{}
-	if r.namespaceSpecificRequest == nil {
-		return localVarReturnValue, nil, reportError("namespaceSpecificRequest is required and must be specified")
-	}
 
 	if r.region != nil {
 		localVarQueryParams.Add("region", parameterToString(*r.region, ""))
@@ -294,7 +286,7 @@ func (a *NamespacesApiService) NamespaceNamespaceNameGetExecute(r ApiNamespaceNa
 		localVarQueryParams.Add("next_token", parameterToString(*r.nextToken, ""))
 	}
 	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{"application/json"}
+	localVarHTTPContentTypes := []string{}
 
 	// set Content-Type header
 	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
@@ -316,8 +308,6 @@ func (a *NamespacesApiService) NamespaceNamespaceNameGetExecute(r ApiNamespaceNa
 	if r.xNomadToken != nil {
 		localVarHeaderParams["X-Nomad-Token"] = parameterToString(*r.xNomadToken, "")
 	}
-	// body params
-	localVarPostBody = r.namespaceSpecificRequest
 	if r.ctx != nil {
 		// API Key Authentication
 		if auth, ok := r.ctx.Value(ContextAPIKeys).(map[string]APIKey); ok {
@@ -522,17 +512,12 @@ func (a *NamespacesApiService) NamespaceNamespaceNamePostExecute(r ApiNamespaceN
 type ApiNamespacePostRequest struct {
 	ctx              _context.Context
 	ApiService       *NamespacesApiService
-	namespace2       *Namespace
 	region           *string
 	namespace        *string
 	xNomadToken      *string
 	idempotencyToken *string
 }
 
-func (r ApiNamespacePostRequest) Namespace2(namespace2 Namespace) ApiNamespacePostRequest {
-	r.namespace2 = &namespace2
-	return r
-}
 func (r ApiNamespacePostRequest) Region(region string) ApiNamespacePostRequest {
 	r.region = &region
 	return r
@@ -588,9 +573,6 @@ func (a *NamespacesApiService) NamespacePostExecute(r ApiNamespacePostRequest) (
 	localVarHeaderParams := make(map[string]string)
 	localVarQueryParams := _neturl.Values{}
 	localVarFormParams := _neturl.Values{}
-	if r.namespace2 == nil {
-		return nil, reportError("namespace2 is required and must be specified")
-	}
 
 	if r.region != nil {
 		localVarQueryParams.Add("region", parameterToString(*r.region, ""))
@@ -602,7 +584,7 @@ func (a *NamespacesApiService) NamespacePostExecute(r ApiNamespacePostRequest) (
 		localVarQueryParams.Add("idempotency_token", parameterToString(*r.idempotencyToken, ""))
 	}
 	// to determine the Content-Type header
-	localVarHTTPContentTypes := []string{"application/json"}
+	localVarHTTPContentTypes := []string{}
 
 	// set Content-Type header
 	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
@@ -621,8 +603,6 @@ func (a *NamespacesApiService) NamespacePostExecute(r ApiNamespacePostRequest) (
 	if r.xNomadToken != nil {
 		localVarHeaderParams["X-Nomad-Token"] = parameterToString(*r.xNomadToken, "")
 	}
-	// body params
-	localVarPostBody = r.namespace2
 	if r.ctx != nil {
 		// API Key Authentication
 		if auth, ok := r.ctx.Value(ContextAPIKeys).(map[string]APIKey); ok {
