@@ -8877,7 +8877,7 @@ func (d *Deployment) HasAutoPromote() bool {
 		return false
 	}
 	for _, group := range d.TaskGroups {
-		if !group.AutoPromote {
+		if group.DesiredCanaries > 0 && !group.AutoPromote {
 			return false
 		}
 	}
