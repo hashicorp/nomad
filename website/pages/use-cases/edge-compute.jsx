@@ -12,6 +12,11 @@ export async function getStaticProps() {
         'task "webservice" {\n  driver = "docker"\n\n  config {\n    image = "redis:3.2"\n    labels {\n      group = "webservice-cache"\n    }\n  }\n}',
       language: 'hcl',
     },
+    nonContainer: {
+      code:
+        'task "service" {\n  driver = "exec"\n\n  config {\n    command = "run-binary"\n    args = [\"-port\", 4000 ]\n  }\n}',
+      language: 'hcl',
+    },
     windowsSupport: {
       code:
         'sc.exe start "Nomad"\n\nSERVICE_NAME: Nomad\n      TYPE               : 10  WIN32_OWN_PROCESS\n      STATE              : 4  RUNNING\n                              (STOPPABLE, NOT_PAUSABLE, ACCEPTS_SHUTDOWN)\n      WIN32_EXIT_CODE    : 0  (0x0)\n      SERVICE_EXIT_CODE  : 0  (0x0)\n      CHECKPOINT         : 0x0\n      WAIT_HINT          : 0x0\n      PID                : 8008\n      FLAGS              :',
@@ -23,8 +28,6 @@ export async function getStaticProps() {
   const codeBlocks = await highlightData(codeBlocksRaw)
   return { props: { codeBlocks } }
 }
-
-// Docker not needed? Exec?
 
 export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
   return (
@@ -45,12 +48,12 @@ export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
         }}
       />
 
-      <TextSplitWithCode
+      <TextSplitWithImage
         textSplit={{
           heading: 'Run Anywhere, from Raspberry Pis to Supercomputers',
           textSide: 'right',
           content:
-            'Nomad runs on a wide variety of architectures: Linux, ARM, Windows, Darwin. It\'s small resource footprint allows it to efficiently run on a IOT Devices with plenty of cycles to spare.',
+            'Nomad runs on a wide variety of architectures: ARM, AMD, Windows, Darwin. It\'s small memory and CPU footprint allows it to efficiently run on a IOT Devices with plenty of cycles to spare.',
           links: [
             {
               text: 'Read More',
@@ -59,44 +62,16 @@ export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
             },
           ],
         }}
-        codeBlock={codeBlocks.containerOrchestration}
-      />
-
-      <TextSplitWithImage
-        textSplit={{
-          heading: 'High Latency? No Problem.',
-          textSide: 'left',
-          content:
-            'Nomad is built to handle high latency environments. Even if your clients disconnect for minutes (or hours!) regularly, Nomad can gracefully handle reschedules and reconnections.',
-        }}
         image={{
-          url: require('./img/run-on-prem-with-ease.png'),
+          url: require('./img/anywhere.png'),
           alt: '',
         }}
       />
 
-      <TextSplitWithCode
+    <TextSplitWithCode
         textSplit={{
-          heading: 'Get the most out of your devices',
-          textSide: 'right',
-          content:
-            '',
-          links: [
-            {
-              text: 'Watch Jet.com use case',
-              url:
-                'https://www.hashicorp.com/resources/running-windows-microservices-on-nomad-at-jet-com',
-              type: 'outbound',
-            },
-          ],
-        }}
-        codeBlock={codeBlocks.windowsSupport}
-      />
-
-      <TextSplitWithCode
-        textSplit={{
-          heading: 'Docker not needed? Exec?',
-          content: 'Low overhead',
+          heading: 'Containers not required',
+          content: 'Nomad workloads can take any form, from Docker containers, to Firecracker VMs, to simple binaries only kilobytes in size.',
           textSide: 'left',
           links: [
             {
@@ -106,7 +81,40 @@ export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
             },
           ],
         }}
-        codeBlock={codeBlocks.multiRegionFederation}
+        codeBlock={codeBlocks.nonContainer}
+      />
+
+
+      <TextSplitWithImage
+        textSplit={{
+          heading: 'High Latency? No Problem.',
+          textSide: 'right',
+          content:
+            'Nomad is built to handle high latency environments. Even if your clients disconnect for hours at a time, Nomad can gracefully handle reschedules and reconnections.',
+        }}
+        image={{
+          url: require('./img/high-latency.png'),
+          alt: '',
+        }}
+      />
+
+      <TextSplitWithImage
+        textSplit={{
+          heading: 'Get the most out of your hardware',
+          textSide: 'left',
+          content: 'Run pecialized workloads using Nomad’s device plugins. Whether you are taking advantage of high performance GPUs or IOT sensors, Nomad can handle it.',
+          links: [
+            {
+              text: 'Read more',
+              url: '/docs/devices',
+              type: 'inbound',
+            },
+          ],
+        }}
+        image={{
+          url: require('./img/specialized-hardware.png'),
+          alt: 'Specialized Hardware',
+        }}
       />
 
       <FeaturedSlider
