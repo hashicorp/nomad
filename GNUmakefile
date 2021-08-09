@@ -14,6 +14,11 @@ ifeq ($(CI),true)
 GO_TAGS := codegen_generated $(GO_TAGS)
 endif
 
+# Don't embed the Nomad UI when the NOMAD_NO_UI env var is set.
+ifndef NOMAD_NO_UI
+GO_TAGS := ui $(GO_TAGS)
+endif
+
 GO_TEST_CMD = $(if $(shell command -v gotestsum 2>/dev/null),gotestsum --,go test)
 
 ifeq ($(origin GOTEST_PKGS_EXCLUDE), undefined)
