@@ -25,14 +25,15 @@ This driver is based on the Nomad [Java driver](https://www.nomadproject.io/docs
 3. Create a plugin dir (unless you already have one for your Nomad installation): `mkdir plugins`
 4. Copy the corresponding binary from the `bin` folder, for example: `cp ./bin/java-rookout-linux-x64 plugins/java-rookout`
 5. Make sure that the driver has execution permission: `chmod +x ./plugins/java-rookout`
-6. When running the Nomad agent, be sure to set the plugins dir accordingly, for example: `nomad agent -dev -plugin-dir=/home/user/rookout-nomad-driver/plugins`
+6. When running the Nomad agent, be sure to set the plugins dir accordingly, for example: `sudo nomad agent -dev -plugin-dir=/home/user/rookout-nomad-driver/plugins`
 
 ## Task Configuration
 
 The `java-rookout` driver accepts all configuration options of the [`java`](https://www.nomadproject.io/docs/drivers/java) driver.
 
-In addition, it possible to set `rookout_token` with your Rookout token.
+Set the `rookout_token` config key to your Rookout token, or define it as a variable and pass it as a parameter.
 
+For example:
 ```hcl
 task "run-with-rookout" {
   driver = "java-rookout"
