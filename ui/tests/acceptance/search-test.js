@@ -46,8 +46,8 @@ module('Acceptance | search', function(hooks) {
       search.groups[0].as(jobs => {
         assert.equal(jobs.name, 'Jobs (2)');
         assert.equal(jobs.options.length, 2);
-        assert.equal(jobs.options[0].text, 'vwxyz > default');
-        assert.equal(jobs.options[1].text, 'xyz job > default');
+        assert.equal(jobs.options[0].text, 'default > vwxyz');
+        assert.equal(jobs.options[1].text, 'default > xyz job');
       });
 
       search.groups[1].as(clients => {
@@ -83,13 +83,16 @@ module('Acceptance | search', function(hooks) {
     await selectSearch(Layout.navbar.search.scope, firstAllocation.name);
     assert.equal(
       Layout.navbar.search.groups[2].options[0].text,
-      `${firstAllocation.name} > ${firstAllocation.namespace}`
+      `${firstAllocation.namespace} > ${firstAllocation.name}`
     );
     await Layout.navbar.search.groups[2].options[0].click();
     assert.equal(currentURL(), `/allocations/${firstAllocation.id}`);
 
     await selectSearch(Layout.navbar.search.scope, firstTaskGroup.name);
-    assert.equal(Layout.navbar.search.groups[3].options[0].text, firstTaskGroup.name);
+    assert.equal(
+      Layout.navbar.search.groups[3].options[0].text,
+      `default > vwxyz > ${firstTaskGroup.name}`
+    );
     await Layout.navbar.search.groups[3].options[0].click();
     assert.equal(currentURL(), `/jobs/vwxyz/${firstTaskGroup.name}`);
 
