@@ -2,7 +2,6 @@ package command
 
 import (
 	goflag "flag"
-	"fmt"
 	"os"
 	"strings"
 
@@ -68,7 +67,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 	// FlagSetClient is used to enable the settings for specifying
 	// client connectivity options.
 	if fs&FlagSetClient != 0 {
-		f.StringVarP(&m.flagAddress, "address", "a", "", "")
+		f.StringVar(&m.flagAddress, "address", "", "")
 		f.StringVarP(&m.region, "region", "r", "", "")
 		f.StringVar(&m.namespace, "namespace", "", "")
 		f.BoolVar(&m.noColor, "no-color", false, "")
@@ -200,7 +199,7 @@ const (
 func generalOptionsUsage(usageOpts usageOptsFlags) string {
 
 	helpText := `
-  --address=<addr>, -a <addr>
+  --address=<addr>
     The address of the Nomad server.
     Overrides the NOMAD_ADDR environment variable if set.
     Default = http://127.0.0.1:4646
@@ -278,7 +277,6 @@ func ParseFlags(args []string, flags *flag.FlagSet, meta *Meta, name string) ([]
 			goflags.Var(f.Value, f.Name, f.Usage)
 		})
 
-		fmt.Println("NEXT UP PARSING")
 		if e := goflags.Parse(args); e != nil {
 			return nil, err
 		}
