@@ -26,7 +26,7 @@ export default function UseCaseLayout({ title, description, children }) {
       </div>
 
       {children}
-      {/* <NomadEnterpriseInfo /> */}
+      <NomadEnterpriseInfo />
 
       <CallToAction
         variant="compact"

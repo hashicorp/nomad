@@ -4,16 +4,16 @@ export default [
     text: 'Use Cases',
     submenu: [
       {
-        text: 'Heterogenous Application Orchestration',
-        url: '/use-cases/heterogenous-application-orchestration',
+        text: 'Edge Compute',
+        url: '/use-cases/edge-compute',
       },
       {
         text: 'Simple Container Orchestration',
         url: '/use-cases/simple-container-orchestration',
       },
       {
-        text: 'Edge Compute',
-        url: '/use-cases/edge-compute',
+        text: 'Non-Containerized Application Orchestration',
+        url: '/use-cases/non-containerized-application-orchestration',
       },
     ],
   },
