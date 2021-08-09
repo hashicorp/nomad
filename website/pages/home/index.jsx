@@ -41,9 +41,8 @@ export default function Homepage() {
             icon: require('./img/why-nomad/simple-and-lightweight.svg'),
           },
           {
-            title: 'Edge Workloads',
-            content:
-              'Single command for multi-region, multi-cloud federation. Deploy applications globally to any region using Nomad as a single unified control plane.',
+            title: 'Easy Edge Compute',
+            content: 'Deploy edge workloads with the same ease as a cloud. Scale globally without complexity.',
             icon: require('./img/why-nomad/federation.svg'),
           },
           {
