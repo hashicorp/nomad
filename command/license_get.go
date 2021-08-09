@@ -47,7 +47,7 @@ func (c *LicenseGetCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	_, err := ParseFlags(args, flags, &c.Meta, c.Name())
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing flags: %s", err))
 		return 1

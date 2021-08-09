@@ -69,6 +69,9 @@ func (c *DeploymentListCommand) Run(args []string) int {
 	flags.StringVarP(&tmpl, "template", "t", "", "")
 
 	args, err := ParseFlags(args, flags, &c.Meta, c.Name())
+	if err != nil {
+		return 1
+	}
 
 	// Check that we got no arguments
 	if l := len(args); l != 0 {
