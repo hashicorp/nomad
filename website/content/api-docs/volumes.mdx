@@ -714,12 +714,15 @@ The table below shows this endpoint's support for
   return for this request. The response will include a `NextToken` field that
   can be passed to the next request to fetch additional pages.
 
+- `secrets` `(string: "")` - Specifies a list of key/value secrets for listing snapshots.
+  These key/value pairs are comma-separated and are passed directly to the CSI plugin.
 
 ### Sample Request
 
 ```shell-session
 $ curl \
-    https://localhost:4646/v1/volumes/snapshot?&plugin_id=plugin-id1&per_page=2
+    https://localhost:4646/v1/volumes/snapshot?plugin_id=plugin-id1&per_page=2& \
+    secrets=secret-key-1=secret-value-1,secret-key-2=secret-value-2
 ```
 
 ### Sample Response

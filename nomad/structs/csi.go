@@ -897,6 +897,7 @@ type CSISnapshotDeleteResponse struct {
 // fields
 type CSISnapshotListRequest struct {
 	PluginID string
+	Secrets  CSISecrets
 	QueryOptions
 }
 

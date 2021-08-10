@@ -840,6 +840,10 @@ func TestCSIController_ListSnapshots(t *testing.T) {
 				CSIControllerQuery: structs.CSIControllerQuery{
 					PluginID: fakePlugin.Name,
 				},
+				Secrets: map[string]string{
+					"secret-key-1": "secret-val-1",
+					"secret-key-2": "secret-val-2",
+				},
 				StartingToken: "1",
 				MaxEntries:    100,
 			},
