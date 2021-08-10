@@ -80,6 +80,10 @@ const (
 	// devModeRetryIntv is the retry interval used for development
 	devModeRetryIntv = time.Second
 
+	// noServerRetryIntv is the retry interval used when client has not
+	// connected to server yet
+	noServerRetryIntv = time.Second
+
 	// stateSnapshotIntv is how often the client snapshots state
 	stateSnapshotIntv = 60 * time.Second
 
@@ -1772,15 +1776,17 @@ func (c *Client) retryRegisterNode() {
 			return
 		}
 
+		retryIntv := registerRetryIntv
 		if err == noServersErr {
 			c.logger.Debug("registration waiting on servers")
 			c.triggerDiscovery()
+			retryIntv = noServerRetryIntv
 		} else {
 			c.logger.Error("error registering", "error", err)
 		}
 		select {
 		case <-c.rpcRetryWatcher():
-		case <-time.After(c.retryIntv(registerRetryIntv)):
+		case <-time.After(c.retryIntv(retryIntv)):
 		case <-c.shutdownCh:
 			return
 		}
