@@ -226,7 +226,7 @@ func shouldCreateNodeEval(original, updated *structs.Node) bool {
 		return true
 	}
 
-	// check fields used by the feasability checks in ../scheduler/feasible.go,
+	// check fields used by the feasibility checks in ../scheduler/feasible.go,
 	// whether through a Constraint explicitly added by user or an implicit constraint
 	// added through a driver/volume check.
 	//
@@ -251,7 +251,7 @@ func equalDevices(n1, n2 *structs.Node) bool {
 
 	// treat nil and empty value as equal
 	if len(n1.NodeResources.Devices) == 0 {
-		return len(n1.NodeResources.Devices) == len(n2.NodeResources.Devices) {
+		return len(n1.NodeResources.Devices) == len(n2.NodeResources.Devices)
 	}
 
 	return reflect.DeepEqual(n1.NodeResources.Devices, n2.NodeResources.Devices)
