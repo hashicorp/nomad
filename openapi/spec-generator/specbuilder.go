@@ -16,8 +16,7 @@ import (
 // Spec wraps a kin-openapi document object model with extra
 // metadata so that the template can be entirely data driven
 type Spec struct {
-	ValidationContext context.Context // Required parameter for validation functions
-	Model             openapi3.T      // Document object model we are building
+	Model openapi3.T // Document object model we are building
 }
 
 func (s *Spec) ToBytes() ([]byte, error) {
@@ -38,115 +37,70 @@ func (s *Spec) ToYAML() (string, error) {
 	return string(data), nil
 }
 
-// SpecBuilder allows specifying different static analysis behaviors to that the
-// framework can target any extant API.
-type SpecBuilder struct {
-	spec      *Spec
-	logger    loggerFunc
-	Generator *openapi3gen.Generator
-}
-
-func (b *SpecBuilder) BuildFromModel(logger loggerFunc) (*Spec, error) {
-	b.logger = logger
-	b.Generator = openapi3gen.NewGenerator(openapi3gen.UseAllExportedFields())
+func buildSpec() (*Spec, error) {
+	generator := openapi3gen.NewGenerator(openapi3gen.UseAllExportedFields())
 	// TODO: Eventually may need to support multiple OpenAPI versions, but pushing
 	// that off for now.
-	b.spec = &Spec{
-		ValidationContext: context.Background(),
-		Model: openapi3.T{
-			OpenAPI: "3.0.3",
-		},
-	}
-
-	if err := b.buildInfo(); err != nil {
-		return nil, err
-	}
-
-	if err := b.buildSecurity(); err != nil {
-		return nil, err
-	}
-
-	if err := b.buildServers(); err != nil {
-		return nil, err
-	}
-
-	if err := b.buildTags(); err != nil {
-		return nil, err
+	model := openapi3.T{
+		OpenAPI:  "3.0.3",
+		Info:     modelInfo,
+		Security: modelSecurity,
+		Server:   modelServer,
+		Tags:     openapi3.Tags{},
 	}
 
 	if err := b.buildComponentsAndPaths(); err != nil {
 		return nil, err
 	}
 
-	if err := b.spec.Model.Validate(b.spec.ValidationContext); err != nil {
+	if err := model.Validate(context.Background()); err != nil {
 		return nil, err
 	}
 
-	return b.spec, nil
+	return Spec{
+		Model: model,
+	}, nil
 }
 
 // buildInfo builds the Info field
-func (b *SpecBuilder) buildInfo() error {
-	if b.spec.Model.Info == nil {
-		b.spec.Model.Info = &openapi3.Info{
-			Version: "1.1.3", // TODO: Schlep this dynamically from VersionInfo
-			Title:   "Nomad",
-			Contact: &openapi3.Contact{
-				Email: "support@hashicorp.com",
-			},
-			License: &openapi3.License{
-				Name: "MPL 2",
-				URL:  "https://github.com/hashicorp/nomad/blob/main/LICENSE",
-			},
-		}
-	}
-	return nil
+var modelInfo = &openapi3.Info{
+	Version: "1.1.3", // TODO: Schlep this dynamically from VersionInfo
+	Title:   "Nomad",
+	Contact: &openapi3.Contact{
+		Email: "support@hashicorp.com",
+	},
+	License: &openapi3.License{
+		Name: "MPL 2",
+		URL:  "https://github.com/hashicorp/nomad/blob/main/LICENSE",
+	},
 }
 
 // buildSecurity builds the Security field
-func (b *SpecBuilder) buildSecurity() error {
-	if b.spec.Model.Security == nil {
-		b.spec.Model.Security = *openapi3.NewSecurityRequirements()
-		b.spec.Model.Security.With(openapi3.SecurityRequirement{
-			"X-Nomad-Token": {},
-		})
-	}
-	return nil
-}
+var modelSecurity = openapi3.NewSecurityRequirements().
+	With(openapi3.SecurityRequirement{
+		"X-Nomad-Token": {},
+	})
 
 // buildServers builds the Servers field
-func (b *SpecBuilder) buildServers() error {
-	if b.spec.Model.Servers == nil {
-		b.spec.Model.Servers = openapi3.Servers{
-			{
-				Description: "dev-agent",
-				URL:         "{scheme}://{address}:{port}/v1",
-				Variables: map[string]*openapi3.ServerVariable{
-					"address": {Default: "127.0.0.1"},
-					"port":    {Default: "4646"},
-					"scheme":  {Default: "https", Enum: []string{"https", "http"}},
-				},
-			},
-			{
-				Description: "agent",
-				URL:         "{scheme}://{address}:{port}/v1",
-				Variables: map[string]*openapi3.ServerVariable{
-					"address": {Default: "127.0.0.1"},
-					"port":    {Default: "4646"},
-					"scheme":  {Default: "https", Enum: []string{"https", "http"}},
-				},
-			},
-		}
-	}
-	return nil
-}
-
-// buildTags builds the Tags field
-func (b *SpecBuilder) buildTags() error {
-	if b.spec.Model.Tags == nil {
-		b.spec.Model.Tags = openapi3.Tags{}
-	}
-	return nil
+var modelServers = openapi3.Servers{
+	{
+		Description: "dev-agent",
+		URL:         "{scheme}://{address}:{port}/v1",
+		Variables: map[string]*openapi3.ServerVariable{
+			"address": {Default: "127.0.0.1"},
+			"port":    {Default: "4646"},
+			"scheme":  {Default: "https", Enum: []string{"https", "http"}},
+		},
+	},
+	{
+		Description: "agent",
+		URL:         "{scheme}://{address}:{port}/v1",
+		Variables: map[string]*openapi3.ServerVariable{
+			"address": {Default: "127.0.0.1"},
+			"port":    {Default: "4646"},
+			"scheme":  {Default: "https", Enum: []string{"https", "http"}},
+		},
+	},
 }
 
 // buildComponentsAndPaths builds the Components object graph by parsing the model.
@@ -258,11 +212,15 @@ func (b *SpecBuilder) adaptParameters(params []*Parameter) openapi3.Parameters {
 
 func (b *SpecBuilder) addParameter(param *Parameter) *openapi3.ParameterRef {
 	if existing, ok := b.spec.Model.Components.Parameters[param.Id]; ok {
-		return existing
+		return &openapi3.ParameterRef{
+			Ref:   fmt.Sprintf("#/components/parameters/%s", param.Id),
+			Value: existing.Value,
+		}
 	}
 
 	parameter := &openapi3.ParameterRef{
 		Ref: "",
+		Ref: fmt.Sprintf("#/components/parameters/%s", param.Id),
 		Value: &openapi3.Parameter{
 			Name:        param.Name,
 			Description: param.Description,
@@ -282,8 +240,8 @@ func (b *SpecBuilder) addParameter(param *Parameter) *openapi3.ParameterRef {
 	}
 }
 
-func (b *SpecBuilder) adaptRequestBody(requestBodyModel *RequestBody) (*openapi3.RequestBodyRef, error) {
-	if existing, ok := b.spec.Model.Components.RequestBodies[requestBodyModel.Model.Name()]; ok {
+func (b *SpecBuilder) adaptRequestBody(components requestBody, Model *RequestBody) (*openapi3.RequestBodyRef, error) {
+	if existing, ok := components.RequestBodies[requestBodyModel.Model.Name()]; ok {
 		return existing, nil
 	}
 
@@ -299,12 +257,12 @@ func (b *SpecBuilder) adaptRequestBody(requestBodyModel *RequestBody) (*openapi3
 		Value: schemaRef.Value,
 	}, []string{"application/json"})
 
-	b.spec.Model.Components.RequestBodies[requestBodyModel.Model.Name()] = &openapi3.RequestBodyRef{
+	ref := &openapi3.RequestBodyRef{
 		Ref:   "",
 		Value: requestBody,
 	}
-
-	return b.spec.Model.Components.RequestBodies[requestBodyModel.Model.Name()], nil
+	b.spec.Model.Components.RequestBodies[requestBodyModel.Model.Name()] = ref
+	return ref, nil
 }
 
 func (b *SpecBuilder) adaptResponses(configs []*ResponseConfig) (openapi3.Responses, error) {
@@ -390,12 +348,12 @@ func (b *SpecBuilder) adaptHeaders(headers []*ResponseHeader) openapi3.Headers {
 // or response schema. The callers are responsible for adding the root to the
 // correct map.
 func (b *SpecBuilder) getOrCreateSchemaRef(model reflect.Type) (*openapi3.SchemaRef, error) {
-	var ok bool
 	var err error
-	var ref *openapi3.SchemaRef
+
 	// if it doesn't exist generate
-	if ref, ok = b.spec.Model.Components.Schemas[model.Name()]; !ok {
-		ref, err = b.Generator.GenerateSchemaRef(model)
+	ref, ok := b.spec.Model.Components.Schemas[model.Name()]
+	if !ok {
+		lref, err = b.Generator.GenerateSchemaRef(model)
 		if err != nil {
 			return nil, err
 		}

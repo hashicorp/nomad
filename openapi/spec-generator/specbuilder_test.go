@@ -1,11 +1,22 @@
 package spec
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/stretchr/testify/require"
 )
+
+func TestSecurity(t *testing.T) {
+	security := openapi3.NewSecurityRequirements()
+	security.With(openapi3.SecurityRequirement{
+		"X-Nomad-Token": {},
+	})
+	fmt.Println(security)
+
+}
 
 func TestBuildFromModel(t *testing.T) {
 	req := require.New(t)

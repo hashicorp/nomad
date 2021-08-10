@@ -10,8 +10,6 @@ import (
 )
 
 func TestGenSchema(t *testing.T) {
-	req := require.New(t)
-
 	generator := Generator{
 		logger:     t.Log,
 		outputPath: "./test-gen-schema.yaml",
@@ -22,20 +20,24 @@ func TestGenSchema(t *testing.T) {
 	// generator.outputPath = "../v1/openapi.yaml"
 
 	err := generator.run()
-	req.NoError(err, "Generator.run failed")
+	require.NoError(t, err, "Generator.run failed")
 	_, err = os.Stat(generator.outputPath)
-	req.NoError(err)
+	require.NoError(t, err)
 
 	loader := openapi3.NewLoader()
 	var model *openapi3.T
 	model, err = loader.LoadFromFile(generator.outputPath)
-	req.NoError(err, "LoadFromFile failed")
-	req.NotNil(model)
+	require.NoError(t, err, "LoadFromFile failed")
+	require.NotNil(t, model)
+
+	t.Run("nested", func(t *testing.T) {
+		require.NoError(t, err)
+	})
 
 	err = model.Validate(context.Background())
-	req.NoError(err, "Model Validation failed")
+	require.NoError(err, "Model Validation failed")
 
 	// Comment these lines when manually generating a spec prior to CI based generation.
 	err = os.Remove(generator.outputPath)
-	req.NoError(err)
+	require.NoError(err)
 }

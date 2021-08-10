@@ -254,7 +254,7 @@ func newRequestBody(schemaType string, model interface{}) *RequestBody {
 	}
 }
 
-func newResponseConfig(statusCode int, schemaType string, model interface{}, headers []*ResponseHeader, name string) *ResponseConfig {
+func newResponseConfig(statusCode int, schemaType schemaType, model interface{}, headers []*ResponseHeader, name string) *ResponseConfig {
 	cfg := &ResponseConfig{
 		Code:    statusCode,
 		Headers: headers,

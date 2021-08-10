@@ -143,8 +143,6 @@ components:
           name: X-Nomad-Index
           schema:
             type: integer
-    ForbiddenResponse:
-      description: Forbidden
     GetJobsResponse:
       content:
         application/json:
@@ -261,10 +259,6 @@ components:
           name: X-Nomad-LastContact
           schema:
             type: integer
-    InternalServerErrorResponse:
-      description: Internal server error
-    MethodNotAllowedResponse:
-      description: Method not allowed
     PostJobPlanResponse:
       content:
         application/json:
@@ -2239,12 +2233,6 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PostJobPlanResponse'
-        "403":
-          $ref: '#/components/responses/ForbiddenResponse'
-        "405":
-          $ref: '#/components/responses/MethodNotAllowedResponse'
-        "500":
-          $ref: '#/components/responses/InternalServerErrorResponse'
       security:
       - X-Nomad-Token: []
       tags:
@@ -2264,12 +2252,6 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/GetJobsResponse'
-        "403":
-          $ref: '#/components/responses/ForbiddenResponse'
-        "405":
-          $ref: '#/components/responses/MethodNotAllowedResponse'
-        "500":
-          $ref: '#/components/responses/InternalServerErrorResponse'
       security:
       - X-Nomad-Token: []
       tags:
@@ -2284,12 +2266,6 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PostJobResponse'
-        "403":
-          $ref: '#/components/responses/ForbiddenResponse'
-        "405":
-          $ref: '#/components/responses/MethodNotAllowedResponse'
-        "500":
-          $ref: '#/components/responses/InternalServerErrorResponse'
       tags:
       - Jobs
   /namespace:
@@ -2324,12 +2300,6 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/CreateNamespaceResponse'
-        "403":
-          $ref: '#/components/responses/ForbiddenResponse'
-        "405":
-          $ref: '#/components/responses/MethodNotAllowedResponse'
-        "500":
-          $ref: '#/components/responses/InternalServerErrorResponse'
       security:
       - X-Nomad-Token: []
       tags:
@@ -2366,12 +2336,6 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/DeleteNamespaceResponse'
-        "403":
-          $ref: '#/components/responses/ForbiddenResponse'
-        "405":
-          $ref: '#/components/responses/MethodNotAllowedResponse'
-        "500":
-          $ref: '#/components/responses/InternalServerErrorResponse'
       security:
       - X-Nomad-Token: []
       tags:
@@ -2433,12 +2397,6 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/GetNamespaceResponse'
-        "403":
-          $ref: '#/components/responses/ForbiddenResponse'
-        "405":
-          $ref: '#/components/responses/MethodNotAllowedResponse'
-        "500":
-          $ref: '#/components/responses/InternalServerErrorResponse'
       security:
       - X-Nomad-Token: []
       tags:
@@ -2480,12 +2438,6 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PostNamespaceResponse'
-        "403":
-          $ref: '#/components/responses/ForbiddenResponse'
-        "405":
-          $ref: '#/components/responses/MethodNotAllowedResponse'
-        "500":
-          $ref: '#/components/responses/InternalServerErrorResponse'
       security:
       - X-Nomad-Token: []
       tags:
@@ -2547,12 +2499,6 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/GetNamespacesResponse'
-        "403":
-          $ref: '#/components/responses/ForbiddenResponse'
-        "405":
-          $ref: '#/components/responses/MethodNotAllowedResponse'
-        "500":
-          $ref: '#/components/responses/InternalServerErrorResponse'
       security:
       - X-Nomad-Token: []
       tags:
@@ -2589,12 +2535,6 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/CreateQuotaSpecResponse'
-        "403":
-          $ref: '#/components/responses/ForbiddenResponse'
-        "405":
-          $ref: '#/components/responses/MethodNotAllowedResponse'
-        "500":
-          $ref: '#/components/responses/InternalServerErrorResponse'
       security:
       - X-Nomad-Token: []
       tags:
@@ -2631,12 +2571,6 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/DeleteNamespaceResponse'
-        "403":
-          $ref: '#/components/responses/ForbiddenResponse'
-        "405":
-          $ref: '#/components/responses/MethodNotAllowedResponse'
-        "500":
-          $ref: '#/components/responses/InternalServerErrorResponse'
       security:
       - X-Nomad-Token: []
       tags:
@@ -2692,12 +2626,6 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/GetQuotaSpecResponse'
-        "403":
-          $ref: '#/components/responses/ForbiddenResponse'
-        "405":
-          $ref: '#/components/responses/MethodNotAllowedResponse'
-        "500":
-          $ref: '#/components/responses/InternalServerErrorResponse'
       security:
       - X-Nomad-Token: []
       tags:
@@ -2735,12 +2663,6 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PostQuotaSpecResponse'
-        "403":
-          $ref: '#/components/responses/ForbiddenResponse'
-        "405":
-          $ref: '#/components/responses/MethodNotAllowedResponse'
-        "500":
-          $ref: '#/components/responses/InternalServerErrorResponse'
       security:
       - X-Nomad-Token: []
       tags:
@@ -2796,12 +2718,6 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/GetQuotasResponse'
-        "403":
-          $ref: '#/components/responses/ForbiddenResponse'
-        "405":
-          $ref: '#/components/responses/MethodNotAllowedResponse'
-        "500":
-          $ref: '#/components/responses/InternalServerErrorResponse'
       security:
       - X-Nomad-Token: []
       tags:
