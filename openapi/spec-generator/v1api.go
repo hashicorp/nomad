@@ -113,11 +113,39 @@ var (
 		Name:        "region",
 		In:          inQuery,
 	}
+	SnapshotIDParam = Parameter{
+		Id:          "SnapshotIDParam",
+		SchemaType:  stringSchema,
+		Description: "The ID of the snapshot to target.",
+		Name:        "snapshot_id",
+		In:          inQuery,
+	}
 	StaleParam = Parameter{
 		Id:          "StaleParam",
 		SchemaType:  stringSchema,
 		Description: "If present, results will include stale reads.",
 		Name:        "stale",
+		In:          inQuery,
+	}
+	VolumeNodeIDParam = Parameter{
+		Id:          "VolumeNodeIDParam",
+		SchemaType:  stringSchema,
+		Description: "Filters volume lists by node ID.",
+		Name:        "node_id",
+		In:          inQuery,
+	}
+	VolumePluginIDParam = Parameter{
+		Id:          "VolumePluginIDParam",
+		SchemaType:  stringSchema,
+		Description: "Filters volume lists by plugin ID.",
+		Name:        "plugin_id",
+		In:          inQuery,
+	}
+	VolumeTypeParam = Parameter{
+		Id:          "VolumeTypeParam",
+		SchemaType:  stringSchema,
+		Description: "Filters volume lists to a specific type.",
+		Name:        "type",
 		In:          inQuery,
 	}
 	WaitParam = Parameter{
