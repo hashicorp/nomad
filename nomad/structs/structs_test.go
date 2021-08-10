@@ -200,6 +200,27 @@ func TestJob_Warnings(t *testing.T) {
 					{
 						Update: &UpdateStrategy{
 							AutoPromote: false,
+							Canary:      1,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "no error for mixed but implied AutoPromote",
+			Expected: []string{},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Update: &UpdateStrategy{
+							AutoPromote: true,
+						},
+					},
+					{
+						Update: &UpdateStrategy{
+							AutoPromote: false,
+							Canary:      0,
 						},
 					},
 				},
