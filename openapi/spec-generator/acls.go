@@ -1,4 +1,4 @@
-package main
+package spec
 
 func (v *v1api) getACLPaths() []*Path {
 	// tags := []string{"ACLs"}

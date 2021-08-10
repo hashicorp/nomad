@@ -1,4 +1,4 @@
-package main
+package spec
 
 func (v *v1api) getStatusPaths() []*Path {
 	// tags := []string{"Status"}

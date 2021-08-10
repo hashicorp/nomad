@@ -1,4 +1,4 @@
-package main
+package spec
 
 func (v *v1api) getScalingPaths() []*Path {
 	// tags := []string{"Scaling"}
