@@ -3602,3 +3602,56 @@ func TestClientEndpoint_EmitEvents(t *testing.T) {
 	require.Nil(err)
 	require.False(len(out.Events) < 2)
 }
+
+func TestClientEndpoint_ShouldCreateNodeEval(t *testing.T) {
+	t.Run("spurious changes don't require eval", func(t *testing.T) {
+		n1 := mock.Node()
+		n2 := n1.Copy()
+		n2.SecretID = uuid.Generate()
+		n2.Links["vault"] = "links don't get interpolated"
+		n2.ModifyIndex++
+
+		require.False(t, shouldCreateNodeEval(n1, n2))
+	})
+
+	positiveCases := []struct {
+		name     string
+		updateFn func(n *structs.Node)
+	}{
+		{
+			"data center changes",
+			func(n *structs.Node) { n.Datacenter += "u" },
+		},
+		{
+			"attribute change",
+			func(n *structs.Node) { n.Attributes["test.attribute"] = "something" },
+		},
+		{
+			"meta change",
+			func(n *structs.Node) { n.Meta["test.meta"] = "something" },
+		},
+		{
+			"drivers health changed",
+			func(n *structs.Node) { n.Drivers["exec"].Detected = false },
+		},
+		{
+			"new drivers",
+			func(n *structs.Node) {
+				n.Drivers["newdriver"] = &structs.DriverInfo{
+					Detected: true,
+					Healthy:  true,
+				}
+			},
+		},
+	}
+
+	for _, c := range positiveCases {
+		t.Run(c.name, func(t *testing.T) {
+			n1 := mock.Node()
+			n2 := n1.Copy()
+			c.updateFn(n2)
+
+			require.Truef(t, shouldCreateNodeEval(n1, n2), "node changed but without node eval: %v", pretty.Diff(n1, n2))
+		})
+	}
+}
