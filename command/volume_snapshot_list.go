@@ -35,6 +35,8 @@ List Options:
 
   -plugin: Display only snapshots managed by a particular plugin. By default
    this command will query all plugins for their snapshots.
+
+  -secrets: A set of key/value secrets to be used when listing snapshots.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -68,11 +70,13 @@ func (c *VolumeSnapshotListCommand) Name() string { return "volume snapshot list
 func (c *VolumeSnapshotListCommand) Run(args []string) int {
 	var pluginID string
 	var verbose bool
+	var secrets string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&pluginID, "plugin", "", "")
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.StringVar(&secrets, "secrets", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
@@ -121,7 +125,7 @@ func (c *VolumeSnapshotListCommand) Run(args []string) int {
 	q := &api.QueryOptions{PerPage: 30} // TODO: tune page size
 
 	for {
-		resp, _, err := client.CSIVolumes().ListSnapshots(pluginID, q)
+		resp, _, err := client.CSIVolumes().ListSnapshots(pluginID, secrets, q)
 		if err != nil && !errors.Is(err, io.EOF) {
 			c.Ui.Error(fmt.Sprintf(
 				"Error querying CSI external snapshots for plugin %q: %s", pluginID, err))

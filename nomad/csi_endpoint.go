@@ -1247,6 +1247,7 @@ func (v *CSIVolume) ListSnapshots(args *structs.CSISnapshotListRequest, reply *s
 	cReq := &cstructs.ClientCSIControllerListSnapshotsRequest{
 		MaxEntries:    args.PerPage,
 		StartingToken: args.NextToken,
+		Secrets:       args.Secrets,
 	}
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerListSnapshotsResponse{}
