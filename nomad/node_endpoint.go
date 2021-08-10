@@ -226,15 +226,35 @@ func shouldCreateNodeEval(original, updated *structs.Node) bool {
 		return true
 	}
 
-	// check fields used by the feasability checkers, through direct
-	// or interpolated constraints.
+	// check fields used by the feasability checks in ../scheduler/feasible.go,
+	// whether through a Constraint explicitly added by user or an implicit constraint
+	// added through a driver/volume check.
+	//
+	// Node Resources (e.g. CPU/Memory) are handled differently, using blocked evals,
+	// and not relevant in this check.
 	return !(original.ID == updated.ID &&
 		original.Datacenter == updated.Datacenter &&
 		original.Name == updated.Name &&
 		original.NodeClass == updated.NodeClass &&
 		reflect.DeepEqual(original.Attributes, updated.Attributes) &&
 		reflect.DeepEqual(original.Meta, updated.Meta) &&
-		reflect.DeepEqual(original.Drivers, updated.Drivers))
+		reflect.DeepEqual(original.Drivers, updated.Drivers) &&
+		reflect.DeepEqual(original.HostVolumes, updated.HostVolumes) &&
+		equalDevices(original, updated))
+}
+
+func equalDevices(n1, n2 *structs.Node) bool {
+	// ignore super old nodes, mostly to avoid nil dereferencing
+	if n1.NodeResources == nil || n2.NodeResources == nil {
+		return n1.NodeResources == n2.NodeResources
+	}
+
+	// treat nil and empty value as equal
+	if len(n1.NodeResources.Devices) == 0 {
+		return len(n1.NodeResources.Devices) == len(n2.NodeResources.Devices) {
+	}
+
+	return reflect.DeepEqual(n1.NodeResources.Devices, n2.NodeResources.Devices)
 }
 
 // updateNodeUpdateResponse assumes the n.srv.peerLock is held for reading.
