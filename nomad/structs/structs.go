@@ -4312,6 +4312,8 @@ func (j *Job) Warnings() error {
 
 		if u := tg.Update; u != nil {
 			hasAutoPromote = hasAutoPromote || u.AutoPromote
+
+			// Having no canaries implies auto-promotion since there are no canaries to promote.
 			allAutoPromote = allAutoPromote && (u.Canary == 0 || u.AutoPromote)
 		}
 	}
