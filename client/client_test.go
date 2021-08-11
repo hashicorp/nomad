@@ -1236,9 +1236,16 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	})
 	require.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
 	// only the configured device is kept
-	require.Equal(t, 2, len(client.config.Node.NodeResources.Networks))
-	require.Equal(t, dev, client.config.Node.NodeResources.Networks[0].Device)
-	require.Equal(t, "bridge", client.config.Node.NodeResources.Networks[1].Mode)
+	if networks := client.config.Node.NodeResources.Networks; len(networks) == 2 {
+		// in Linux environments with CNI plugins present, we expect to see bridge network
+		require.Len(t, 2, networks)
+		require.Equal(t, dev, networks[0].Device)
+		require.Equal(t, "bridge", networks[1].Mode)
+	} else {
+		// otherwise, should only see the configured device
+		require.Len(t, 1, networks)
+		require.Equal(t, dev, networks[0].Device)
+	}
 
 	// Network speed is applied to all NetworkResources
 	client.config.NetworkInterface = ""

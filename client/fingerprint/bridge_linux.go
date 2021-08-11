@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 
 	"github.com/hashicorp/go-multierror"
@@ -20,8 +21,8 @@ const (
 )
 
 func (f *BridgeFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
-	if err := f.detect(bridgeKernelModuleName); err != nil {
-		f.logger.Warn("failed to detect bridge kernel module, bridge network mode disabled", "error", err)
+	if err := f.detect(req); err != nil {
+		f.logger.Warn("failed to dtect bridge network setup, bridge network mode disabled", "error", err)
 		return nil
 	}
 
@@ -43,7 +44,34 @@ func (f *BridgeFingerprint) regexp(pattern, module string) *regexp.Regexp {
 	return regexp.MustCompile(fmt.Sprintf(pattern, module))
 }
 
-func (f *BridgeFingerprint) detect(module string) error {
+func (f BridgeFingerprint) detect(req *FingerprintRequest) error {
+	if err := f.detectKernelModule(bridgeKernelModuleName); err != nil {
+		return fmt.Errorf("failed to detect bridge kernel module: %v", err)
+	}
+
+	return f.detectCNIPluginBinary(req.Config.CNIPath)
+}
+
+func (f *BridgeFingerprint) detectCNIPluginBinary(cniPath string) error {
+	if cniPath == "" {
+		return fmt.Errorf("cni is not configured")
+	}
+
+	path := filepath.Join(cniPath, "bridge")
+	fi, err := os.Stat(filepath.Join(cniPath, "bridge"))
+	if err != nil {
+		return fmt.Errorf("failed to find the bridge CNI plugin in %v: %v", path, err)
+	}
+
+	if !fi.Mode().IsRegular() {
+		return fmt.Errorf("the bridge CNI plugin is not a regular file: %v", path)
+
+	}
+
+	return nil
+}
+
+func (f *BridgeFingerprint) detectKernelModule(module string) error {
 	// accumulate errors from every place we might find the module
 	var errs error
 

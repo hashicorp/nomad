@@ -14,9 +14,9 @@ import (
 
 func TestBridgeFingerprint_detect(t *testing.T) {
 	f := &BridgeFingerprint{logger: testlog.HCLogger(t)}
-	require.NoError(t, f.detect("ip_tables"))
+	require.NoError(t, f.detectKernelModule("ip_tables"))
 
-	err := f.detect("nonexistentmodule")
+	err := f.detectKernelModule("nonexistentmodule")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "3 errors occurred")
 }
