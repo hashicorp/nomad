@@ -18,11 +18,8 @@ export default function NotFound() {
 
   return (
     <div className={s.root}>
-      <h1>Page Not Found</h1>
-      <p>
-        We're sorry but we can't find the page you're looking
-        for.
-      </p>
+      <h1 className="g-type-display-1">Page Not Found</h1>
+      <p>We're sorry but we can't find the page you're looking for.</p>
       <p>
         <Link href="/">
           <a>Back to Home</a>

@@ -26,6 +26,7 @@
     "@hashicorp/react-image": "^4.0.2",
     "@hashicorp/react-inline-svg": "^6.0.2",
     "@hashicorp/react-learn-callout": "^1.1.2",
+    "@hashicorp/react-markdown-page": "^1.4.1",
     "@hashicorp/react-product-downloads-page": "2.3.2",
     "@hashicorp/react-section-header": "^5.0.3",
     "@hashicorp/react-subnav": "^8.4.0",
