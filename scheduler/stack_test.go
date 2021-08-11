@@ -201,6 +201,59 @@ func TestServiceStack_Select_MetricsReset(t *testing.T) {
 	}
 }
 
+func TestServiceStack_Select_Namepsace(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+	}
+	zero := nodes[0]
+
+	job := mock.Job()
+	job.Namespace = "dev-tenant1"
+
+	// Jobs should schedule by default if no config is done (backwards compat)
+	stack := NewGenericStack(false, ctx)
+	stack.SetNodes(nodes)
+	stack.SetJob(job)
+
+	selectOptions := &SelectOptions{}
+	node := stack.Select(job.TaskGroups[0], selectOptions)
+	if node == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+
+	if node.Node != zero {
+		t.Fatalf("bad")
+	}
+
+	// Jobs should schedule if namespaces match
+	zero.Namespaces = []string{"test", "dev-*"}
+
+	stack = NewGenericStack(false, ctx)
+	stack.SetNodes(nodes)
+	stack.SetJob(job)
+
+	node = stack.Select(job.TaskGroups[0], selectOptions)
+	if node == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+
+	if node.Node != zero {
+		t.Fatalf("bad")
+	}
+
+	// Job should get filtered if namespaces do not match
+	zero.Namespaces = []string{"infra"}
+
+	stack = NewGenericStack(false, ctx)
+	stack.SetNodes(nodes)
+	stack.SetJob(job)
+	node = stack.Select(job.TaskGroups[0], selectOptions)
+	if node != nil {
+		t.Fatalf("node not filtered %#v", node)
+	}
+}
+
 func TestServiceStack_Select_DriverFilter(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{
@@ -515,6 +568,59 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 	if err := zero.ComputeClass(); err != nil {
 		t.Fatalf("ComputedClass() failed: %v", err)
 	}
+
+	stack = NewSystemStack(ctx)
+	stack.SetNodes(nodes)
+	stack.SetJob(job)
+	node = stack.Select(job.TaskGroups[0], selectOptions)
+	if node != nil {
+		t.Fatalf("node not filtered %#v", node)
+	}
+}
+
+func TestSystemStack_Select_Namepsace(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*structs.Node{
+		mock.Node(),
+	}
+	zero := nodes[0]
+
+	job := mock.Job()
+	job.Namespace = "dev-tenant1"
+
+	// Jobs should schedule by default if no config is done (backwards compat)
+	stack := NewSystemStack(ctx)
+	stack.SetNodes(nodes)
+	stack.SetJob(job)
+
+	selectOptions := &SelectOptions{}
+	node := stack.Select(job.TaskGroups[0], selectOptions)
+	if node == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+
+	if node.Node != zero {
+		t.Fatalf("bad")
+	}
+
+	// Jobs should schedule if namespaces match
+	zero.Namespaces = []string{"test", "dev-*"}
+
+	stack = NewSystemStack(ctx)
+	stack.SetNodes(nodes)
+	stack.SetJob(job)
+
+	node = stack.Select(job.TaskGroups[0], selectOptions)
+	if node == nil {
+		t.Fatalf("missing node %#v", ctx.Metrics())
+	}
+
+	if node.Node != zero {
+		t.Fatalf("bad")
+	}
+
+	// Job should get filtered if namespaces do not match
+	zero.Namespaces = []string{"infra"}
 
 	stack = NewSystemStack(ctx)
 	stack.SetNodes(nodes)

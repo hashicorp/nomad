@@ -193,6 +193,9 @@ type ClientConfig struct {
 	// NodeClass is used to group the node by class
 	NodeClass string `hcl:"node_class"`
 
+	// Namespaces is used to limit the node to certain namespaces
+	Namespaces []string `hcl:"namespaces"`
+
 	// Options is used for configuration of nomad internals,
 	// like fingerprinters and drivers. The format is:
 	//
@@ -1637,6 +1640,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 
 	// Add the servers
 	result.Servers = append(result.Servers, b.Servers...)
+
+	// Add the namespaces
+	result.Namespaces = append(result.Namespaces, b.Namespaces...)
 
 	// Add the options map values
 	if result.Options == nil {

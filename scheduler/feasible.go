@@ -12,9 +12,11 @@ import (
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/ryanuber/go-glob"
 )
 
 const (
+	FilterConstraintNamespace                   = "missing required namespace"
 	FilterConstraintHostVolumes                 = "missing compatible host volumes"
 	FilterConstraintCSIPluginTemplate           = "CSI plugin %s is missing from client %s"
 	FilterConstraintCSIPluginUnhealthyTemplate  = "CSI plugin %s is unhealthy on client %s"
@@ -125,6 +127,40 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 
 	// Create a static iterator
 	return NewStaticIterator(ctx, nodes)
+}
+
+// NamespaceChecker is a FeasibilityChecker which returns whether a node is
+// part of the namespace necessary to schedule a task group.
+type NamespaceChecker struct {
+	ctx Context
+
+	// namespace is the job namespace
+	namespace string
+}
+
+// NewNamespaceChecker creates a NamespaceChecker
+func NewNamespaceChecker(ctx Context) *NamespaceChecker {
+	return &NamespaceChecker{
+		ctx: ctx,
+	}
+}
+
+// SetNamespace takes the namespace required by a taskgroup and updated the checker.
+func (n *NamespaceChecker) SetNamespace(namespace string) {
+	n.namespace = namespace
+}
+
+func (n *NamespaceChecker) Feasible(candidate *structs.Node) bool {
+	if len(candidate.Namespaces) == 0 {
+		return true
+	}
+	for _, namespace := range candidate.Namespaces {
+		if glob.Glob(namespace, n.namespace) {
+			return true
+		}
+	}
+	n.ctx.Metrics().FilterNode(candidate, FilterConstraintNamespace)
+	return false
 }
 
 // HostVolumeChecker is a FeasibilityChecker which returns whether a node has
