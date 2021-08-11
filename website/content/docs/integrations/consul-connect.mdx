@@ -115,9 +115,9 @@ must have CNI plugins installed.
 The following commands install CNI plugins:
 
 ```shell-session
-$ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v0.9.0/cni-plugins-linux-$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)"-v0.9.0.tgz
-$ sudo mkdir -p /opt/cni/bin
-$ sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
+curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)"-v1.0.0.tgz
+sudo mkdir -p /opt/cni/bin
+sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 ```
 
 Ensure the your Linux operating system distribution has been configured to allow
@@ -125,9 +125,9 @@ container traffic through the bridge network to be routed via iptables. These
 tunables can be set as follows:
 
 ```shell-session
-$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-arptables
-$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
-$ echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
+echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-arptables
+echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-ip6tables
+echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables
 ```
 
 To preserve these settings on startup of a client node, add a file including the
