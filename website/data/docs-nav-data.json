@@ -1759,6 +1759,10 @@
     "path": "who-uses-nomad"
   },
   {
+    "title": "Nomad Tools and Plugins",
+    "path": "tools-and-plugins"
+  },
+  {
     "title": "Nomad Enterprise",
     "routes": [
       {
