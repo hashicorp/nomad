@@ -1,0 +1,3809 @@
+components:
+  parameters:
+    IdempotencyTokenParam:
+      description: Can be used to ensure operations are only run once.
+      in: query
+      name: idempotency_token
+      schema:
+        type: string
+    IndexHeader:
+      description: If set, wait until query exceeds given index. Must be provided with WaitParam.
+      in: header
+      name: index
+      schema:
+        type: integer
+    JobNameParam:
+      description: The job identifier.
+      in: path
+      name: jobName
+      required: true
+      schema:
+        type: string
+    MetricsFormatParam:
+      description: The format the user requested for the metrics summary (e.g. prometheus)
+      in: query
+      name: format
+      schema:
+        type: string
+    NamespaceNameParam:
+      description: The namespace identifier.
+      in: path
+      name: namespaceName
+      required: true
+      schema:
+        type: string
+    NamespaceParam:
+      description: Filters results based on the specified namespace.
+      in: query
+      name: namespace
+      schema:
+        type: string
+    NextTokenHeader:
+      description: A Nomad ACL token.
+      in: header
+      name: X-Nomad-Token
+      schema:
+        type: string
+    NextTokenParam:
+      description: Indicates where to start paging for queries that support pagination.
+      in: query
+      name: next_token
+      schema:
+        type: string
+    PerPageParam:
+      description: Maximum number of results to return.
+      in: query
+      name: per_page
+      schema:
+        type: integer
+    PrefixParam:
+      description: Constrains results to jobs that start with the defined prefix
+      in: query
+      name: prefix
+      schema:
+        type: string
+    QuotaSpecNameParam:
+      description: The quota spec identifier.
+      in: path
+      name: specName
+      required: true
+      schema:
+        type: string
+    RegionParam:
+      description: Filters results based on the specified region.
+      in: query
+      name: region
+      schema:
+        type: string
+    SnapshotIDParam:
+      description: The ID of the snapshot to target.
+      in: query
+      name: snapshot_id
+      schema:
+        type: string
+    StaleParam:
+      description: If present, results will include stale reads.
+      in: query
+      name: stale
+      schema:
+        type: string
+    VolumeActionParam:
+      description: The action to perform on the Volume (create, detach, delete).
+      in: path
+      name: action
+      required: true
+      schema:
+        type: string
+    VolumeForceParam:
+      description: Used to force the de-registration of a volume.
+      in: query
+      name: force
+      schema:
+        type: string
+    VolumeIDParam:
+      description: Volume unique identifier.
+      in: path
+      name: volumeId
+      required: true
+      schema:
+        type: string
+    VolumeNodeIDParam:
+      description: Filters volume lists by node ID.
+      in: query
+      name: node_id
+      schema:
+        type: string
+    VolumeNodeParam:
+      description: Specifies node to target volume operation for.
+      in: query
+      name: node
+      schema:
+        type: string
+    VolumePluginIDParam:
+      description: Filters volume lists by plugin ID.
+      in: query
+      name: plugin_id
+      schema:
+        type: string
+    VolumeTypeParam:
+      description: Filters volume lists to a specific type.
+      in: query
+      name: type
+      schema:
+        type: string
+    WaitParam:
+      description: Provided with IndexParam to wait for change.
+      in: query
+      name: wait
+      schema:
+        type: integer
+  requestBodies:
+    CSISnapshotCreateRequest:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CSISnapshotCreateRequest'
+      required: true
+    CSIVolumeCreateRequest:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CSIVolumeCreateRequest'
+      required: true
+    CSIVolumeRegisterRequest:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CSIVolumeRegisterRequest'
+      required: true
+    FuzzySearchRequest:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FuzzySearchRequest'
+      required: true
+    JobPlanRequest:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/JobPlanRequest'
+      required: true
+    JobRegisterRequest:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/JobRegisterRequest'
+      required: true
+    Namespace:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Namespace'
+      required: true
+    NamespaceListRequest:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NamespaceListRequest'
+      required: true
+    QuotaSpec:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/QuotaSpec'
+      required: true
+    SearchRequest:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SearchRequest'
+      required: true
+  responses:
+    BadRequestResponse:
+      description: Bad request
+    CreateNamespaceResponse:
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+    CreateQuotaSpecResponse:
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+    DeleteNamespaceResponse:
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+    DeleteSnapshotResponse:
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+    DeleteVolumeRegistrationResponse:
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+    DetachOrDeleteVolumeResponse:
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    ForbiddenResponse:
+      description: Forbidden
+    GetExternalVolumesResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CSIVolumeListExternalResponse'
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    GetFuzzySearchResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FuzzySearchResponse'
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    GetJobsResponse:
+      content:
+        application/json:
+          schema:
+            items:
+              $ref: '#/components/schemas/JobListStub'
+            type: array
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    GetMetricsSummaryResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MetricsSummary'
+      description: ""
+    GetNamespaceResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Namespace'
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    GetNamespacesResponse:
+      content:
+        application/json:
+          schema:
+            items:
+              $ref: '#/components/schemas/Namespace'
+            type: array
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    GetQuotaSpecResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/QuotaSpec'
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    GetQuotasResponse:
+      content:
+        application/json:
+          schema:
+            items: {}
+            type: array
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    GetRegionsResponse:
+      content:
+        application/json:
+          schema:
+            items:
+              type: string
+            type: array
+      description: ""
+    GetSearchResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SearchResponse'
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    GetSnapshotsResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CSISnapshotListResponse'
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    GetVolumeResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CSIVolume'
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    GetVolumesResponse:
+      content:
+        application/json:
+          schema:
+            items:
+              $ref: '#/components/schemas/CSIVolumeListStub'
+            type: array
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    InternalServerErrorResponse:
+      description: Internal server error
+    MethodNotAllowedResponse:
+      description: Method not allowed
+    PostJobPlanResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/JobPlanResponse'
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    PostJobResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/JobRegisterResponse'
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    PostNamespaceResponse:
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+    PostQuotaSpecResponse:
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+    PostSnapshotResponse:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CSISnapshotCreateResponse'
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+    PostVolumeRegistrationResponse:
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+    PostVolumeResponse:
+      description: ""
+      headers:
+        X-Nomad-Index:
+          description: A unique identifier representing the current state of the requested resource. On a new Nomad cluster the value of this index starts at 1.
+          name: X-Nomad-Index
+          schema:
+            type: integer
+        X-Nomad-KnownLeader:
+          description: Boolean indicating if there is a known cluster leader.
+          name: X-Nomad-KnownLeader
+          schema:
+            type: boolean
+        X-Nomad-LastContact:
+          description: The time in milliseconds that a server was last contacted by the leader node.
+          name: X-Nomad-LastContact
+          schema:
+            type: integer
+    default:
+      description: ""
+  schemas:
+    Affinity:
+      properties:
+        LTarget:
+          type: string
+        Operand:
+          type: string
+        RTarget:
+          type: string
+        Weight:
+          maximum: 127
+          minimum: -128
+          type: integer
+      type: object
+    AllocDeploymentStatus:
+      properties:
+        Canary:
+          type: boolean
+        Healthy:
+          type: boolean
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Timestamp:
+          format: date-time
+          type: string
+      type: object
+    AllocatedCpuResources:
+      properties:
+        CpuShares:
+          format: int64
+          type: integer
+      type: object
+    AllocatedDeviceResource:
+      properties:
+        DeviceIDs:
+          items:
+            type: string
+          type: array
+        Name:
+          type: string
+        Type:
+          type: string
+        Vendor:
+          type: string
+      type: object
+    AllocatedMemoryResources:
+      properties:
+        MemoryMB:
+          format: int64
+          type: integer
+        MemoryMaxMB:
+          format: int64
+          type: integer
+      type: object
+    AllocatedResources:
+      properties:
+        Shared:
+          $ref: '#/components/schemas/AllocatedSharedResources'
+        Tasks:
+          additionalProperties:
+            $ref: '#/components/schemas/AllocatedTaskResources'
+          type: object
+      type: object
+    AllocatedSharedResources:
+      properties:
+        DiskMB:
+          format: int64
+          type: integer
+        Networks:
+          items:
+            $ref: '#/components/schemas/NetworkResource'
+          type: array
+        Ports:
+          items:
+            $ref: '#/components/schemas/PortMapping'
+          type: array
+      type: object
+    AllocatedTaskResources:
+      properties:
+        Cpu:
+          $ref: '#/components/schemas/AllocatedCpuResources'
+        Devices:
+          items:
+            $ref: '#/components/schemas/AllocatedDeviceResource'
+          type: array
+        Memory:
+          $ref: '#/components/schemas/AllocatedMemoryResources'
+        Networks:
+          items:
+            $ref: '#/components/schemas/NetworkResource'
+          type: array
+      type: object
+    Allocation:
+      properties:
+        AllocModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        AllocatedResources:
+          $ref: '#/components/schemas/AllocatedResources'
+        ClientDescription:
+          type: string
+        ClientStatus:
+          type: string
+        CreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        CreateTime:
+          format: int64
+          type: integer
+        DeploymentID:
+          type: string
+        DeploymentStatus:
+          $ref: '#/components/schemas/AllocDeploymentStatus'
+        DesiredDescription:
+          type: string
+        DesiredStatus:
+          type: string
+        DesiredTransition:
+          $ref: '#/components/schemas/DesiredTransition'
+        EvalID:
+          type: string
+        FollowupEvalID:
+          type: string
+        ID:
+          type: string
+        Job:
+          $ref: '#/components/schemas/Job'
+        JobID:
+          type: string
+        Metrics:
+          $ref: '#/components/schemas/AllocationMetric'
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        ModifyTime:
+          format: int64
+          type: integer
+        Name:
+          type: string
+        Namespace:
+          type: string
+        NextAllocation:
+          type: string
+        NodeID:
+          type: string
+        NodeName:
+          type: string
+        PreemptedAllocations:
+          items:
+            type: string
+          type: array
+        PreemptedByAllocation:
+          type: string
+        PreviousAllocation:
+          type: string
+        RescheduleTracker:
+          $ref: '#/components/schemas/RescheduleTracker'
+        Resources:
+          $ref: '#/components/schemas/Resources'
+        Services:
+          additionalProperties:
+            type: string
+          type: object
+        TaskGroup:
+          type: string
+        TaskResources:
+          additionalProperties:
+            $ref: '#/components/schemas/Resources'
+          type: object
+        TaskStates:
+          additionalProperties:
+            $ref: '#/components/schemas/TaskState'
+          type: object
+      type: object
+    AllocationListStub:
+      properties:
+        AllocatedResources:
+          $ref: '#/components/schemas/AllocatedResources'
+        ClientDescription:
+          type: string
+        ClientStatus:
+          type: string
+        CreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        CreateTime:
+          format: int64
+          type: integer
+        DeploymentStatus:
+          $ref: '#/components/schemas/AllocDeploymentStatus'
+        DesiredDescription:
+          type: string
+        DesiredStatus:
+          type: string
+        EvalID:
+          type: string
+        FollowupEvalID:
+          type: string
+        ID:
+          type: string
+        JobID:
+          type: string
+        JobType:
+          type: string
+        JobVersion:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        ModifyTime:
+          format: int64
+          type: integer
+        Name:
+          type: string
+        Namespace:
+          type: string
+        NodeID:
+          type: string
+        NodeName:
+          type: string
+        PreemptedAllocations:
+          items:
+            type: string
+          type: array
+        PreemptedByAllocation:
+          type: string
+        RescheduleTracker:
+          $ref: '#/components/schemas/RescheduleTracker'
+        TaskGroup:
+          type: string
+        TaskStates:
+          additionalProperties:
+            $ref: '#/components/schemas/TaskState'
+          type: object
+      type: object
+    AllocationMetric:
+      properties:
+        AllocationTime:
+          format: int64
+          type: integer
+        ClassExhausted:
+          additionalProperties:
+            type: integer
+          type: object
+        ClassFiltered:
+          additionalProperties:
+            type: integer
+          type: object
+        CoalescedFailures:
+          type: integer
+        ConstraintFiltered:
+          additionalProperties:
+            type: integer
+          type: object
+        DimensionExhausted:
+          additionalProperties:
+            type: integer
+          type: object
+        NodesAvailable:
+          additionalProperties:
+            type: integer
+          type: object
+        NodesEvaluated:
+          type: integer
+        NodesExhausted:
+          type: integer
+        NodesFiltered:
+          type: integer
+        QuotaExhausted:
+          items:
+            type: string
+          type: array
+        ResourcesExhausted:
+          additionalProperties:
+            $ref: '#/components/schemas/Resources'
+          type: object
+        ScoreMetaData:
+          items:
+            $ref: '#/components/schemas/NodeScoreMeta'
+          type: array
+        Scores:
+          additionalProperties:
+            format: double
+            type: number
+          type: object
+      type: object
+    CSIMountOptions:
+      properties:
+        FSType:
+          type: string
+        MountFlags:
+          items:
+            type: string
+          type: array
+      type: object
+    CSIPluginType:
+      type: string
+    CSISecrets:
+      additionalProperties:
+        type: string
+      type: object
+    CSISnapshot:
+      properties:
+        CreateTime:
+          format: int64
+          type: integer
+        ExternalSourceVolumeID:
+          type: string
+        ID:
+          type: string
+        IsReady:
+          type: boolean
+        Name:
+          type: string
+        Parameters:
+          additionalProperties:
+            type: string
+          type: object
+        PluginID:
+          type: string
+        Secrets:
+          $ref: '#/components/schemas/CSISecrets'
+        SizeBytes:
+          format: int64
+          type: integer
+        SourceVolumeID:
+          type: string
+      type: object
+    CSISnapshotCreateRequest:
+      properties:
+        Namespace:
+          type: string
+        Region:
+          type: string
+        SecretID:
+          type: string
+        Snapshots:
+          items:
+            $ref: '#/components/schemas/CSISnapshot'
+          type: array
+      type: object
+    CSISnapshotCreateResponse:
+      properties:
+        KnownLeader:
+          type: boolean
+        LastContact:
+          format: int64
+          type: integer
+        LastIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        RequestTime:
+          format: int64
+          type: integer
+        Snapshots:
+          items:
+            $ref: '#/components/schemas/CSISnapshot'
+          type: array
+      type: object
+    CSISnapshotListResponse:
+      properties:
+        KnownLeader:
+          type: boolean
+        LastContact:
+          format: int64
+          type: integer
+        LastIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        NextToken:
+          type: string
+        RequestTime:
+          format: int64
+          type: integer
+        Snapshots:
+          items:
+            $ref: '#/components/schemas/CSISnapshot'
+          type: array
+      type: object
+    CSITopology:
+      properties:
+        Segments:
+          additionalProperties:
+            type: string
+          type: object
+      type: object
+    CSIVolume:
+      properties:
+        AccessMode:
+          type: string
+        Allocations:
+          items:
+            $ref: '#/components/schemas/AllocationListStub'
+          type: array
+        AttachmentMode:
+          type: string
+        Capacity:
+          format: int64
+          type: integer
+        CloneID:
+          type: string
+        Context:
+          additionalProperties:
+            type: string
+          type: object
+        ControllerRequired:
+          type: boolean
+        ControllersExpected:
+          type: integer
+        ControllersHealthy:
+          type: integer
+        CreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        ExternalID:
+          type: string
+        ID:
+          type: string
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        MountOptions:
+          $ref: '#/components/schemas/CSIMountOptions'
+        Name:
+          type: string
+        Namespace:
+          type: string
+        NodesExpected:
+          type: integer
+        NodesHealthy:
+          type: integer
+        Parameters:
+          additionalProperties:
+            type: string
+          type: object
+        PluginID:
+          type: string
+        Provider:
+          type: string
+        ProviderVersion:
+          type: string
+        ReadAllocs:
+          additionalProperties:
+            $ref: '#/components/schemas/Allocation'
+          type: object
+        RequestedCapabilities:
+          items:
+            $ref: '#/components/schemas/CSIVolumeCapability'
+          type: array
+        RequestedCapacityMax:
+          format: int64
+          type: integer
+        RequestedCapacityMin:
+          format: int64
+          type: integer
+        ResourceExhausted:
+          format: date-time
+          type: string
+        Schedulable:
+          type: boolean
+        Secrets:
+          $ref: '#/components/schemas/CSISecrets'
+        SnapshotID:
+          type: string
+        Topologies:
+          items:
+            $ref: '#/components/schemas/CSITopology'
+          type: array
+        WriteAllocs:
+          additionalProperties:
+            $ref: '#/components/schemas/Allocation'
+          type: object
+      type: object
+    CSIVolumeAccessMode:
+      type: string
+    CSIVolumeAttachmentMode:
+      type: string
+    CSIVolumeCapability:
+      properties:
+        AccessMode:
+          type: string
+        AttachmentMode:
+          type: string
+      type: object
+    CSIVolumeCreateRequest:
+      properties:
+        Namespace:
+          type: string
+        Region:
+          type: string
+        SecretID:
+          type: string
+        Volumes:
+          items:
+            $ref: '#/components/schemas/CSIVolume'
+          type: array
+      type: object
+    CSIVolumeExternalStub:
+      properties:
+        CapacityBytes:
+          format: int64
+          type: integer
+        CloneID:
+          type: string
+        ExternalID:
+          type: string
+        IsAbnormal:
+          type: boolean
+        PublishedExternalNodeIDs:
+          items:
+            type: string
+          type: array
+        SnapshotID:
+          type: string
+        Status:
+          type: string
+        VolumeContext:
+          additionalProperties:
+            type: string
+          type: object
+      type: object
+    CSIVolumeListExternalResponse:
+      properties:
+        NextToken:
+          type: string
+        Volumes:
+          items:
+            $ref: '#/components/schemas/CSIVolumeExternalStub'
+          type: array
+      type: object
+    CSIVolumeListStub:
+      properties:
+        AccessMode:
+          type: string
+        AttachmentMode:
+          type: string
+        ControllerRequired:
+          type: boolean
+        ControllersExpected:
+          type: integer
+        ControllersHealthy:
+          type: integer
+        CreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        ExternalID:
+          type: string
+        ID:
+          type: string
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Name:
+          type: string
+        Namespace:
+          type: string
+        NodesExpected:
+          type: integer
+        NodesHealthy:
+          type: integer
+        PluginID:
+          type: string
+        Provider:
+          type: string
+        ResourceExhausted:
+          format: date-time
+          type: string
+        Schedulable:
+          type: boolean
+        Topologies:
+          items:
+            $ref: '#/components/schemas/CSITopology'
+          type: array
+      type: object
+    CSIVolumeRegisterRequest:
+      properties:
+        Namespace:
+          type: string
+        Region:
+          type: string
+        SecretID:
+          type: string
+        Volumes:
+          items:
+            $ref: '#/components/schemas/CSIVolume'
+          type: array
+      type: object
+    CheckRestart:
+      properties:
+        Grace:
+          format: int64
+          type: integer
+        IgnoreWarnings:
+          type: boolean
+        Limit:
+          type: integer
+      type: object
+    Constraint:
+      properties:
+        LTarget:
+          type: string
+        Operand:
+          type: string
+        RTarget:
+          type: string
+      type: object
+    Consul:
+      properties:
+        Namespace:
+          type: string
+      type: object
+    ConsulConnect:
+      properties:
+        Gateway:
+          $ref: '#/components/schemas/ConsulGateway'
+        Native:
+          type: boolean
+        SidecarService:
+          $ref: '#/components/schemas/ConsulSidecarService'
+        SidecarTask:
+          $ref: '#/components/schemas/SidecarTask'
+      type: object
+    ConsulExposeConfig:
+      properties:
+        Path:
+          items:
+            $ref: '#/components/schemas/ConsulExposePath'
+          type: array
+      type: object
+    ConsulExposePath:
+      properties:
+        ListenerPort:
+          type: string
+        LocalPathPort:
+          type: integer
+        Path:
+          type: string
+        Protocol:
+          type: string
+      type: object
+    ConsulGateway:
+      properties:
+        Ingress:
+          $ref: '#/components/schemas/ConsulIngressConfigEntry'
+        Mesh: {}
+        Proxy:
+          $ref: '#/components/schemas/ConsulGatewayProxy'
+        Terminating:
+          $ref: '#/components/schemas/ConsulTerminatingConfigEntry'
+      type: object
+    ConsulGatewayBindAddress:
+      properties:
+        Address:
+          type: string
+        Name:
+          type: string
+        Port:
+          type: integer
+      type: object
+    ConsulGatewayProxy:
+      properties:
+        Config:
+          additionalProperties: {}
+          type: object
+        ConnectTimeout:
+          format: int64
+          type: integer
+        EnvoyDNSDiscoveryType:
+          type: string
+        EnvoyGatewayBindAddresses:
+          additionalProperties:
+            $ref: '#/components/schemas/ConsulGatewayBindAddress'
+          type: object
+        EnvoyGatewayBindTaggedAddresses:
+          type: boolean
+        EnvoyGatewayNoDefaultBind:
+          type: boolean
+      type: object
+    ConsulGatewayTLSConfig:
+      properties:
+        Enabled:
+          type: boolean
+      type: object
+    ConsulIngressConfigEntry:
+      properties:
+        Listeners:
+          items:
+            $ref: '#/components/schemas/ConsulIngressListener'
+          type: array
+        TLS:
+          $ref: '#/components/schemas/ConsulGatewayTLSConfig'
+      type: object
+    ConsulIngressListener:
+      properties:
+        Port:
+          type: integer
+        Protocol:
+          type: string
+        Services:
+          items:
+            $ref: '#/components/schemas/ConsulIngressService'
+          type: array
+      type: object
+    ConsulIngressService:
+      properties:
+        Hosts:
+          items:
+            type: string
+          type: array
+        Name:
+          type: string
+      type: object
+    ConsulLinkedService:
+      properties:
+        CAFile:
+          type: string
+        CertFile:
+          type: string
+        KeyFile:
+          type: string
+        Name:
+          type: string
+        SNI:
+          type: string
+      type: object
+    ConsulMeshConfigEntry: {}
+    ConsulMeshGateway:
+      properties:
+        Mode:
+          type: string
+      type: object
+    ConsulProxy:
+      properties:
+        Config:
+          additionalProperties: {}
+          type: object
+        ExposeConfig:
+          $ref: '#/components/schemas/ConsulExposeConfig'
+        LocalServiceAddress:
+          type: string
+        LocalServicePort:
+          type: integer
+        Upstreams:
+          items:
+            $ref: '#/components/schemas/ConsulUpstream'
+          type: array
+      type: object
+    ConsulSidecarService:
+      properties:
+        DisableDefaultTCPCheck:
+          type: boolean
+        Port:
+          type: string
+        Proxy:
+          $ref: '#/components/schemas/ConsulProxy'
+        Tags:
+          items:
+            type: string
+          type: array
+      type: object
+    ConsulTerminatingConfigEntry:
+      properties:
+        Services:
+          items:
+            $ref: '#/components/schemas/ConsulLinkedService'
+          type: array
+      type: object
+    ConsulUpstream:
+      properties:
+        Datacenter:
+          type: string
+        DestinationName:
+          type: string
+        LocalBindAddress:
+          type: string
+        LocalBindPort:
+          type: integer
+        MeshGateway:
+          $ref: '#/components/schemas/ConsulMeshGateway'
+      type: object
+    Context:
+      type: string
+    DNSConfig:
+      properties:
+        Options:
+          items:
+            type: string
+          type: array
+        Searches:
+          items:
+            type: string
+          type: array
+        Servers:
+          items:
+            type: string
+          type: array
+      type: object
+    DesiredTransition:
+      properties:
+        Migrate:
+          type: boolean
+        Reschedule:
+          type: boolean
+      type: object
+    DesiredUpdates:
+      properties:
+        Canary:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        DestructiveUpdate:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Ignore:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        InPlaceUpdate:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Migrate:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Place:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Preemptions:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Stop:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+      type: object
+    DispatchPayloadConfig:
+      properties:
+        File:
+          type: string
+      type: object
+    Duration:
+      format: int64
+      type: integer
+    EphemeralDisk:
+      properties:
+        Migrate:
+          type: boolean
+        SizeMB:
+          type: integer
+        Sticky:
+          type: boolean
+      type: object
+    Evaluation:
+      properties:
+        AnnotatePlan:
+          type: boolean
+        BlockedEval:
+          type: string
+        ClassEligibility:
+          additionalProperties:
+            type: boolean
+          type: object
+        CreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        CreateTime:
+          format: int64
+          type: integer
+        DeploymentID:
+          type: string
+        EscapedComputedClass:
+          type: boolean
+        FailedTGAllocs:
+          additionalProperties:
+            $ref: '#/components/schemas/AllocationMetric'
+          type: object
+        ID:
+          type: string
+        JobID:
+          type: string
+        JobModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        ModifyTime:
+          format: int64
+          type: integer
+        Namespace:
+          type: string
+        NextEval:
+          type: string
+        NodeID:
+          type: string
+        NodeModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        PreviousEval:
+          type: string
+        Priority:
+          type: integer
+        QueuedAllocations:
+          additionalProperties:
+            type: integer
+          type: object
+        QuotaLimitReached:
+          type: string
+        SnapshotIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Status:
+          type: string
+        StatusDescription:
+          type: string
+        TriggeredBy:
+          type: string
+        Type:
+          type: string
+        Wait:
+          format: int64
+          type: integer
+        WaitUntil:
+          format: date-time
+          type: string
+      type: object
+    FieldDiff:
+      properties:
+        Annotations:
+          items:
+            type: string
+          type: array
+        Name:
+          type: string
+        New:
+          type: string
+        Old:
+          type: string
+        Type:
+          type: string
+      type: object
+    FuzzyMatch:
+      properties:
+        ID:
+          type: string
+        Scope:
+          items:
+            type: string
+          type: array
+      type: object
+    FuzzySearchRequest:
+      properties:
+        AllowStale:
+          type: boolean
+        AuthToken:
+          type: string
+        Context:
+          type: string
+        Namespace:
+          type: string
+        NextToken:
+          type: string
+        Params:
+          additionalProperties:
+            type: string
+          type: object
+        PerPage:
+          format: int32
+          type: integer
+        Prefix:
+          type: string
+        Region:
+          type: string
+        Text:
+          type: string
+        WaitIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        WaitTime:
+          format: int64
+          type: integer
+      type: object
+    FuzzySearchResponse:
+      properties:
+        KnownLeader:
+          type: boolean
+        LastContact:
+          format: int64
+          type: integer
+        LastIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Matches:
+          additionalProperties:
+            items:
+              $ref: '#/components/schemas/FuzzyMatch'
+            type: array
+          type: object
+        RequestTime:
+          format: int64
+          type: integer
+        Truncations:
+          additionalProperties:
+            type: boolean
+          type: object
+      type: object
+    GaugeValue:
+      properties:
+        Labels:
+          additionalProperties:
+            type: string
+          type: object
+        Name:
+          type: string
+        Value:
+          format: float
+          type: number
+      type: object
+    Job:
+      properties:
+        Affinities:
+          items:
+            $ref: '#/components/schemas/Affinity'
+          type: array
+        AllAtOnce:
+          type: boolean
+        Constraints:
+          items:
+            $ref: '#/components/schemas/Constraint'
+          type: array
+        ConsulNamespace:
+          type: string
+        ConsulToken:
+          type: string
+        CreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Datacenters:
+          items:
+            type: string
+          type: array
+        Dispatched:
+          type: boolean
+        ID:
+          type: string
+        JobModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Meta:
+          additionalProperties:
+            type: string
+          type: object
+        Migrate:
+          $ref: '#/components/schemas/MigrateStrategy'
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Multiregion:
+          $ref: '#/components/schemas/Multiregion'
+        Name:
+          type: string
+        Namespace:
+          type: string
+        NomadTokenID:
+          type: string
+        ParameterizedJob:
+          $ref: '#/components/schemas/ParameterizedJobConfig'
+        ParentID:
+          type: string
+        Payload:
+          format: byte
+          type: string
+        Periodic:
+          $ref: '#/components/schemas/PeriodicConfig'
+        Priority:
+          type: integer
+        Region:
+          type: string
+        Reschedule:
+          $ref: '#/components/schemas/ReschedulePolicy'
+        Spreads:
+          items:
+            $ref: '#/components/schemas/Spread'
+          type: array
+        Stable:
+          type: boolean
+        Status:
+          type: string
+        StatusDescription:
+          type: string
+        Stop:
+          type: boolean
+        SubmitTime:
+          format: int64
+          type: integer
+        TaskGroups:
+          items:
+            $ref: '#/components/schemas/TaskGroup'
+          type: array
+        Type:
+          type: string
+        Update:
+          $ref: '#/components/schemas/UpdateStrategy'
+        VaultNamespace:
+          type: string
+        VaultToken:
+          type: string
+        Version:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+      type: object
+    JobChildrenSummary:
+      properties:
+        Dead:
+          format: int64
+          type: integer
+        Pending:
+          format: int64
+          type: integer
+        Running:
+          format: int64
+          type: integer
+      type: object
+    JobDiff:
+      properties:
+        Fields:
+          items:
+            $ref: '#/components/schemas/FieldDiff'
+          type: array
+        ID:
+          type: string
+        Objects:
+          items:
+            $ref: '#/components/schemas/ObjectDiff'
+          type: array
+        TaskGroups:
+          items:
+            $ref: '#/components/schemas/TaskGroupDiff'
+          type: array
+        Type:
+          type: string
+      type: object
+    JobListStub:
+      properties:
+        CreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Datacenters:
+          items:
+            type: string
+          type: array
+        ID:
+          type: string
+        JobModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        JobSummary:
+          $ref: '#/components/schemas/JobSummary'
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Name:
+          type: string
+        Namespace:
+          type: string
+        ParameterizedJob:
+          type: boolean
+        ParentID:
+          type: string
+        Periodic:
+          type: boolean
+        Priority:
+          type: integer
+        Status:
+          type: string
+        StatusDescription:
+          type: string
+        Stop:
+          type: boolean
+        SubmitTime:
+          format: int64
+          type: integer
+        Type:
+          type: string
+      type: object
+    JobPlanRequest:
+      properties:
+        Diff:
+          type: boolean
+        Job:
+          $ref: '#/components/schemas/Job'
+        Namespace:
+          type: string
+        PolicyOverride:
+          type: boolean
+        Region:
+          type: string
+        SecretID:
+          type: string
+      type: object
+    JobPlanResponse:
+      properties:
+        Annotations:
+          $ref: '#/components/schemas/PlanAnnotations'
+        CreatedEvals:
+          items:
+            $ref: '#/components/schemas/Evaluation'
+          type: array
+        Diff:
+          $ref: '#/components/schemas/JobDiff'
+        FailedTGAllocs:
+          additionalProperties:
+            $ref: '#/components/schemas/AllocationMetric'
+          type: object
+        JobModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        NextPeriodicLaunch:
+          format: date-time
+          type: string
+        Warnings:
+          type: string
+      type: object
+    JobRegisterRequest:
+      properties:
+        EnforceIndex:
+          type: boolean
+        Job:
+          $ref: '#/components/schemas/Job'
+        JobModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Namespace:
+          type: string
+        PolicyOverride:
+          type: boolean
+        PreserveCounts:
+          type: boolean
+        Region:
+          type: string
+        SecretID:
+          type: string
+      type: object
+    JobRegisterResponse:
+      properties:
+        EvalCreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        EvalID:
+          type: string
+        JobModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        KnownLeader:
+          type: boolean
+        LastContact:
+          format: int64
+          type: integer
+        LastIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        RequestTime:
+          format: int64
+          type: integer
+        Warnings:
+          type: string
+      type: object
+    JobSummary:
+      properties:
+        Children:
+          $ref: '#/components/schemas/JobChildrenSummary'
+        CreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        JobID:
+          type: string
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Namespace:
+          type: string
+        Summary:
+          additionalProperties:
+            $ref: '#/components/schemas/TaskGroupSummary'
+          type: object
+      type: object
+    LogConfig:
+      properties:
+        MaxFileSizeMB:
+          type: integer
+        MaxFiles:
+          type: integer
+      type: object
+    MetricsSummary:
+      properties:
+        Counters:
+          items:
+            $ref: '#/components/schemas/SampledValue'
+          type: array
+        Gauges:
+          items:
+            $ref: '#/components/schemas/GaugeValue'
+          type: array
+        Points:
+          items:
+            $ref: '#/components/schemas/PointValue'
+          type: array
+        Samples:
+          items:
+            $ref: '#/components/schemas/SampledValue'
+          type: array
+        Timestamp:
+          type: string
+      type: object
+    MigrateStrategy:
+      properties:
+        HealthCheck:
+          type: string
+        HealthyDeadline:
+          format: int64
+          type: integer
+        MaxParallel:
+          type: integer
+        MinHealthyTime:
+          format: int64
+          type: integer
+      type: object
+    Multiregion:
+      properties:
+        Regions:
+          items:
+            $ref: '#/components/schemas/MultiregionRegion'
+          type: array
+        Strategy:
+          $ref: '#/components/schemas/MultiregionStrategy'
+      type: object
+    MultiregionRegion:
+      properties:
+        Count:
+          type: integer
+        Datacenters:
+          items:
+            type: string
+          type: array
+        Meta:
+          additionalProperties:
+            type: string
+          type: object
+        Name:
+          type: string
+      type: object
+    MultiregionStrategy:
+      properties:
+        MaxParallel:
+          type: integer
+        OnFailure:
+          type: string
+      type: object
+    Namespace:
+      properties:
+        CreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Description:
+          type: string
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Name:
+          type: string
+        Quota:
+          type: string
+      type: object
+    NamespaceListRequest:
+      properties:
+        AllowStale:
+          type: boolean
+        AuthToken:
+          type: string
+        Forwarded:
+          type: boolean
+        MaxQueryTime:
+          format: int64
+          type: integer
+        MinQueryIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Namespace:
+          type: string
+        NextToken:
+          type: string
+        PerPage:
+          format: int32
+          type: integer
+        Prefix:
+          type: string
+        Region:
+          type: string
+      type: object
+    NetworkResource:
+      properties:
+        CIDR:
+          type: string
+        DNS:
+          $ref: '#/components/schemas/DNSConfig'
+        Device:
+          type: string
+        DynamicPorts:
+          items:
+            $ref: '#/components/schemas/Port'
+          type: array
+        IP:
+          type: string
+        MBits:
+          type: integer
+        Mode:
+          type: string
+        ReservedPorts:
+          items:
+            $ref: '#/components/schemas/Port'
+          type: array
+      type: object
+    NodeScoreMeta:
+      properties:
+        NodeID:
+          type: string
+        NormScore:
+          format: double
+          type: number
+        Scores:
+          additionalProperties:
+            format: double
+            type: number
+          type: object
+      type: object
+    ObjectDiff:
+      properties:
+        Fields:
+          items:
+            $ref: '#/components/schemas/FieldDiff'
+          type: array
+        Name:
+          type: string
+        Objects:
+          items:
+            $ref: '#/components/schemas/ObjectDiff'
+          type: array
+        Type:
+          type: string
+      type: object
+    ParameterizedJobConfig:
+      properties:
+        MetaOptional:
+          items:
+            type: string
+          type: array
+        MetaRequired:
+          items:
+            type: string
+          type: array
+        Payload:
+          type: string
+      type: object
+    PeriodicConfig:
+      properties:
+        Enabled:
+          type: boolean
+        ProhibitOverlap:
+          type: boolean
+        Spec:
+          type: string
+        SpecType:
+          type: string
+        TimeZone:
+          type: string
+      type: object
+    PlanAnnotations:
+      properties:
+        DesiredTGUpdates:
+          additionalProperties:
+            $ref: '#/components/schemas/DesiredUpdates'
+          type: object
+        PreemptedAllocs:
+          items:
+            $ref: '#/components/schemas/AllocationListStub'
+          type: array
+      type: object
+    PointValue:
+      properties:
+        Name:
+          type: string
+        Points:
+          items:
+            format: float
+            type: number
+          type: array
+      type: object
+    Port:
+      properties:
+        HostNetwork:
+          type: string
+        Label:
+          type: string
+        To:
+          type: integer
+        Value:
+          type: integer
+      type: object
+    PortMapping:
+      properties:
+        HostIP:
+          type: string
+        Label:
+          type: string
+        To:
+          type: integer
+        Value:
+          type: integer
+      type: object
+    QuotaLimit:
+      properties:
+        Hash:
+          format: byte
+          type: string
+        Region:
+          type: string
+        RegionLimit:
+          $ref: '#/components/schemas/Resources'
+      type: object
+    QuotaSpec:
+      properties:
+        CreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Description:
+          type: string
+        Limits:
+          items:
+            $ref: '#/components/schemas/QuotaLimit'
+          type: array
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Name:
+          type: string
+      type: object
+    Quotas: {}
+    RequestedDevice:
+      properties:
+        Affinities:
+          items:
+            $ref: '#/components/schemas/Affinity'
+          type: array
+        Constraints:
+          items:
+            $ref: '#/components/schemas/Constraint'
+          type: array
+        Count:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Name:
+          type: string
+      type: object
+    RescheduleEvent:
+      properties:
+        PrevAllocID:
+          type: string
+        PrevNodeID:
+          type: string
+        RescheduleTime:
+          format: int64
+          type: integer
+      type: object
+    ReschedulePolicy:
+      properties:
+        Attempts:
+          type: integer
+        Delay:
+          format: int64
+          type: integer
+        DelayFunction:
+          type: string
+        Interval:
+          format: int64
+          type: integer
+        MaxDelay:
+          format: int64
+          type: integer
+        Unlimited:
+          type: boolean
+      type: object
+    RescheduleTracker:
+      properties:
+        Events:
+          items:
+            $ref: '#/components/schemas/RescheduleEvent'
+          type: array
+      type: object
+    Resources:
+      properties:
+        CPU:
+          type: integer
+        Cores:
+          type: integer
+        Devices:
+          items:
+            $ref: '#/components/schemas/RequestedDevice'
+          type: array
+        DiskMB:
+          type: integer
+        IOPS:
+          type: integer
+        MemoryMB:
+          type: integer
+        MemoryMaxMB:
+          type: integer
+        Networks:
+          items:
+            $ref: '#/components/schemas/NetworkResource'
+          type: array
+      type: object
+    RestartPolicy:
+      properties:
+        Attempts:
+          type: integer
+        Delay:
+          format: int64
+          type: integer
+        Interval:
+          format: int64
+          type: integer
+        Mode:
+          type: string
+      type: object
+    SampledValue:
+      properties:
+        Count:
+          type: integer
+        Labels:
+          additionalProperties:
+            type: string
+          type: object
+        Max:
+          format: double
+          type: number
+        Mean:
+          format: double
+          type: number
+        Min:
+          format: double
+          type: number
+        Name:
+          type: string
+        Rate:
+          format: double
+          type: number
+        Stddev:
+          format: double
+          type: number
+        Sum:
+          format: double
+          type: number
+      type: object
+    ScalingPolicy:
+      properties:
+        CreateIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Enabled:
+          type: boolean
+        ID:
+          type: string
+        Max:
+          format: int64
+          type: integer
+        Min:
+          format: int64
+          type: integer
+        ModifyIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Namespace:
+          type: string
+        Policy:
+          additionalProperties: {}
+          type: object
+        Target:
+          additionalProperties:
+            type: string
+          type: object
+        Type:
+          type: string
+      type: object
+    SearchRequest:
+      properties:
+        AllowStale:
+          type: boolean
+        AuthToken:
+          type: string
+        Context:
+          type: string
+        Namespace:
+          type: string
+        NextToken:
+          type: string
+        Params:
+          additionalProperties:
+            type: string
+          type: object
+        PerPage:
+          format: int32
+          type: integer
+        Prefix:
+          type: string
+        Region:
+          type: string
+        WaitIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        WaitTime:
+          format: int64
+          type: integer
+      type: object
+    SearchResponse:
+      properties:
+        KnownLeader:
+          type: boolean
+        LastContact:
+          format: int64
+          type: integer
+        LastIndex:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        Matches:
+          additionalProperties:
+            items:
+              type: string
+            type: array
+          type: object
+        RequestTime:
+          format: int64
+          type: integer
+        Truncations:
+          additionalProperties:
+            type: boolean
+          type: object
+      type: object
+    Service:
+      properties:
+        AddressMode:
+          type: string
+        CanaryMeta:
+          additionalProperties:
+            type: string
+          type: object
+        CanaryTags:
+          items:
+            type: string
+          type: array
+        CheckRestart:
+          $ref: '#/components/schemas/CheckRestart'
+        Checks:
+          items:
+            $ref: '#/components/schemas/ServiceCheck'
+          type: array
+        Connect:
+          $ref: '#/components/schemas/ConsulConnect'
+        EnableTagOverride:
+          type: boolean
+        Id:
+          type: string
+        Meta:
+          additionalProperties:
+            type: string
+          type: object
+        Name:
+          type: string
+        OnUpdate:
+          type: string
+        PortLabel:
+          type: string
+        Tags:
+          items:
+            type: string
+          type: array
+        TaskName:
+          type: string
+      type: object
+    ServiceCheck:
+      properties:
+        AddressMode:
+          type: string
+        Args:
+          items:
+            type: string
+          type: array
+        Body:
+          type: string
+        CheckRestart:
+          $ref: '#/components/schemas/CheckRestart'
+        Command:
+          type: string
+        Expose:
+          type: boolean
+        FailuresBeforeCritical:
+          type: integer
+        GRPCService:
+          type: string
+        GRPCUseTLS:
+          type: boolean
+        Header:
+          additionalProperties:
+            items:
+              type: string
+            type: array
+          type: object
+        Id:
+          type: string
+        InitialStatus:
+          type: string
+        Interval:
+          format: int64
+          type: integer
+        Method:
+          type: string
+        Name:
+          type: string
+        OnUpdate:
+          type: string
+        Path:
+          type: string
+        PortLabel:
+          type: string
+        Protocol:
+          type: string
+        SuccessBeforePassing:
+          type: integer
+        TLSSkipVerify:
+          type: boolean
+        TaskName:
+          type: string
+        Timeout:
+          format: int64
+          type: integer
+        Type:
+          type: string
+      type: object
+    SidecarTask:
+      properties:
+        Config:
+          additionalProperties: {}
+          type: object
+        Driver:
+          type: string
+        Env:
+          additionalProperties:
+            type: string
+          type: object
+        KillSignal:
+          type: string
+        KillTimeout:
+          format: int64
+          type: integer
+        LogConfig:
+          $ref: '#/components/schemas/LogConfig'
+        Meta:
+          additionalProperties:
+            type: string
+          type: object
+        Name:
+          type: string
+        Resources:
+          $ref: '#/components/schemas/Resources'
+        ShutdownDelay:
+          format: int64
+          type: integer
+        User:
+          type: string
+      type: object
+    Spread:
+      properties:
+        Attribute:
+          type: string
+        SpreadTarget:
+          items:
+            $ref: '#/components/schemas/SpreadTarget'
+          type: array
+        Weight:
+          maximum: 127
+          minimum: -128
+          type: integer
+      type: object
+    SpreadTarget:
+      properties:
+        Percent:
+          maximum: 255
+          minimum: 0
+          type: integer
+        Value:
+          type: string
+      type: object
+    Task:
+      properties:
+        Affinities:
+          items:
+            $ref: '#/components/schemas/Affinity'
+          type: array
+        Artifacts:
+          items:
+            $ref: '#/components/schemas/TaskArtifact'
+          type: array
+        CSIPluginConfig:
+          $ref: '#/components/schemas/TaskCSIPluginConfig'
+        Config:
+          additionalProperties: {}
+          type: object
+        Constraints:
+          items:
+            $ref: '#/components/schemas/Constraint'
+          type: array
+        DispatchPayload:
+          $ref: '#/components/schemas/DispatchPayloadConfig'
+        Driver:
+          type: string
+        Env:
+          additionalProperties:
+            type: string
+          type: object
+        KillSignal:
+          type: string
+        KillTimeout:
+          format: int64
+          type: integer
+        Kind:
+          type: string
+        Leader:
+          type: boolean
+        Lifecycle:
+          $ref: '#/components/schemas/TaskLifecycle'
+        LogConfig:
+          $ref: '#/components/schemas/LogConfig'
+        Meta:
+          additionalProperties:
+            type: string
+          type: object
+        Name:
+          type: string
+        Resources:
+          $ref: '#/components/schemas/Resources'
+        RestartPolicy:
+          $ref: '#/components/schemas/RestartPolicy'
+        ScalingPolicies:
+          items:
+            $ref: '#/components/schemas/ScalingPolicy'
+          type: array
+        Services:
+          items:
+            $ref: '#/components/schemas/Service'
+          type: array
+        ShutdownDelay:
+          format: int64
+          type: integer
+        Templates:
+          items:
+            $ref: '#/components/schemas/Template'
+          type: array
+        User:
+          type: string
+        Vault:
+          $ref: '#/components/schemas/Vault'
+        VolumeMounts:
+          items:
+            $ref: '#/components/schemas/VolumeMount'
+          type: array
+      type: object
+    TaskArtifact:
+      properties:
+        GetterHeaders:
+          additionalProperties:
+            type: string
+          type: object
+        GetterMode:
+          type: string
+        GetterOptions:
+          additionalProperties:
+            type: string
+          type: object
+        GetterSource:
+          type: string
+        RelativeDest:
+          type: string
+      type: object
+    TaskCSIPluginConfig:
+      properties:
+        ID:
+          type: string
+        MountDir:
+          type: string
+        Type:
+          type: string
+      type: object
+    TaskDiff:
+      properties:
+        Annotations:
+          items:
+            type: string
+          type: array
+        Fields:
+          items:
+            $ref: '#/components/schemas/FieldDiff'
+          type: array
+        Name:
+          type: string
+        Objects:
+          items:
+            $ref: '#/components/schemas/ObjectDiff'
+          type: array
+        Type:
+          type: string
+      type: object
+    TaskEvent:
+      properties:
+        Details:
+          additionalProperties:
+            type: string
+          type: object
+        DiskLimit:
+          format: int64
+          type: integer
+        DiskSize:
+          format: int64
+          type: integer
+        DisplayMessage:
+          type: string
+        DownloadError:
+          type: string
+        DriverError:
+          type: string
+        DriverMessage:
+          type: string
+        ExitCode:
+          type: integer
+        FailedSibling:
+          type: string
+        FailsTask:
+          type: boolean
+        GenericSource:
+          type: string
+        KillError:
+          type: string
+        KillReason:
+          type: string
+        KillTimeout:
+          format: int64
+          type: integer
+        Message:
+          type: string
+        RestartReason:
+          type: string
+        SetupError:
+          type: string
+        Signal:
+          type: integer
+        StartDelay:
+          format: int64
+          type: integer
+        TaskSignal:
+          type: string
+        TaskSignalReason:
+          type: string
+        Time:
+          format: int64
+          type: integer
+        Type:
+          type: string
+        ValidationError:
+          type: string
+        VaultError:
+          type: string
+      type: object
+    TaskGroup:
+      properties:
+        Affinities:
+          items:
+            $ref: '#/components/schemas/Affinity'
+          type: array
+        Constraints:
+          items:
+            $ref: '#/components/schemas/Constraint'
+          type: array
+        Consul:
+          $ref: '#/components/schemas/Consul'
+        Count:
+          type: integer
+        EphemeralDisk:
+          $ref: '#/components/schemas/EphemeralDisk'
+        Meta:
+          additionalProperties:
+            type: string
+          type: object
+        Migrate:
+          $ref: '#/components/schemas/MigrateStrategy'
+        Name:
+          type: string
+        Networks:
+          items:
+            $ref: '#/components/schemas/NetworkResource'
+          type: array
+        ReschedulePolicy:
+          $ref: '#/components/schemas/ReschedulePolicy'
+        RestartPolicy:
+          $ref: '#/components/schemas/RestartPolicy'
+        Scaling:
+          $ref: '#/components/schemas/ScalingPolicy'
+        Services:
+          items:
+            $ref: '#/components/schemas/Service'
+          type: array
+        ShutdownDelay:
+          format: int64
+          type: integer
+        Spreads:
+          items:
+            $ref: '#/components/schemas/Spread'
+          type: array
+        StopAfterClientDisconnect:
+          format: int64
+          type: integer
+        Tasks:
+          items:
+            $ref: '#/components/schemas/Task'
+          type: array
+        Update:
+          $ref: '#/components/schemas/UpdateStrategy'
+        Volumes:
+          additionalProperties:
+            $ref: '#/components/schemas/VolumeRequest'
+          type: object
+      type: object
+    TaskGroupDiff:
+      properties:
+        Fields:
+          items:
+            $ref: '#/components/schemas/FieldDiff'
+          type: array
+        Name:
+          type: string
+        Objects:
+          items:
+            $ref: '#/components/schemas/ObjectDiff'
+          type: array
+        Tasks:
+          items:
+            $ref: '#/components/schemas/TaskDiff'
+          type: array
+        Type:
+          type: string
+        Updates:
+          additionalProperties:
+            maximum: 1.8446744073709552e+19
+            minimum: 0
+            type: integer
+          type: object
+      type: object
+    TaskGroupSummary:
+      properties:
+        Complete:
+          type: integer
+        Failed:
+          type: integer
+        Lost:
+          type: integer
+        Queued:
+          type: integer
+        Running:
+          type: integer
+        Starting:
+          type: integer
+      type: object
+    TaskHandle:
+      properties:
+        DriverState:
+          format: byte
+          type: string
+        Version:
+          type: integer
+      type: object
+    TaskLifecycle:
+      properties:
+        Hook:
+          type: string
+        Sidecar:
+          type: boolean
+      type: object
+    TaskState:
+      properties:
+        Events:
+          items:
+            $ref: '#/components/schemas/TaskEvent'
+          type: array
+        Failed:
+          type: boolean
+        FinishedAt:
+          format: date-time
+          type: string
+        LastRestart:
+          format: date-time
+          type: string
+        Restarts:
+          maximum: 1.8446744073709552e+19
+          minimum: 0
+          type: integer
+        StartedAt:
+          format: date-time
+          type: string
+        State:
+          type: string
+        TaskHandle:
+          $ref: '#/components/schemas/TaskHandle'
+      type: object
+    Template:
+      properties:
+        ChangeMode:
+          type: string
+        ChangeSignal:
+          type: string
+        DestPath:
+          type: string
+        EmbeddedTmpl:
+          type: string
+        Envvars:
+          type: boolean
+        LeftDelim:
+          type: string
+        Perms:
+          type: string
+        RightDelim:
+          type: string
+        SourcePath:
+          type: string
+        Splay:
+          format: int64
+          type: integer
+        VaultGrace:
+          format: int64
+          type: integer
+      type: object
+    Time:
+      format: date-time
+      type: string
+    UpdateStrategy:
+      properties:
+        AutoPromote:
+          type: boolean
+        AutoRevert:
+          type: boolean
+        Canary:
+          type: integer
+        HealthCheck:
+          type: string
+        HealthyDeadline:
+          format: int64
+          type: integer
+        MaxParallel:
+          type: integer
+        MinHealthyTime:
+          format: int64
+          type: integer
+        ProgressDeadline:
+          format: int64
+          type: integer
+        Stagger:
+          format: int64
+          type: integer
+      type: object
+    Vault:
+      properties:
+        ChangeMode:
+          type: string
+        ChangeSignal:
+          type: string
+        Env:
+          type: boolean
+        Namespace:
+          type: string
+        Policies:
+          items:
+            type: string
+          type: array
+      type: object
+    VolumeMount:
+      properties:
+        Destination:
+          type: string
+        PropagationMode:
+          type: string
+        ReadOnly:
+          type: boolean
+        Volume:
+          type: string
+      type: object
+    VolumeRequest:
+      properties:
+        AccessMode:
+          type: string
+        AttachmentMode:
+          type: string
+        MountOptions:
+          $ref: '#/components/schemas/CSIMountOptions'
+        Name:
+          type: string
+        PerAlloc:
+          type: boolean
+        ReadOnly:
+          type: boolean
+        Source:
+          type: string
+        Type:
+          type: string
+      type: object
+    float32:
+      format: float
+      type: number
+    float64:
+      format: double
+      type: number
+    int:
+      type: integer
+    int8:
+      maximum: 127
+      minimum: -128
+      type: integer
+    int32:
+      format: int32
+      type: integer
+    int64:
+      format: int64
+      type: integer
+    uint8:
+      maximum: 255
+      minimum: 0
+      type: integer
+    uint64:
+      maximum: 1.8446744073709552e+19
+      minimum: 0
+      type: integer
+  securitySchemes:
+    X-Nomad-Token:
+      in: header
+      name: X-Nomad-Token
+      type: apiKey
+info:
+  contact:
+    email: support@hashicorp.com
+  license:
+    name: MPL 2
+    url: https://github.com/hashicorp/nomad/blob/main/LICENSE
+  title: Nomad
+  version: 1.1.3
+openapi: 3.0.3
+paths:
+  /job/{jobName}/plan:
+    post:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/IndexHeader'
+      - $ref: '#/components/parameters/WaitParam'
+      - $ref: '#/components/parameters/StaleParam'
+      - $ref: '#/components/parameters/PrefixParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/PerPageParam'
+      - $ref: '#/components/parameters/NextTokenParam'
+      - $ref: '#/components/parameters/JobNameParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobPlanRequest'
+        required: true
+      responses:
+        "200":
+          $ref: '#/components/responses/PostJobPlanResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Jobs
+  /jobs:
+    get:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/IndexHeader'
+      - $ref: '#/components/parameters/WaitParam'
+      - $ref: '#/components/parameters/StaleParam'
+      - $ref: '#/components/parameters/PrefixParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/PerPageParam'
+      - $ref: '#/components/parameters/NextTokenParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/GetJobsResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Jobs
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobRegisterRequest'
+        required: true
+      responses:
+        "200":
+          $ref: '#/components/responses/PostJobResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      tags:
+      - Jobs
+  /metrics:
+    get:
+      parameters:
+      - $ref: '#/components/parameters/MetricsFormatParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/GetMetricsSummaryResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      tags:
+      - Metrics
+  /namespace:
+    post:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/IdempotencyTokenParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/CreateNamespaceResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Namespaces
+  /namespace/{namespaceName}:
+    delete:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/IdempotencyTokenParam'
+      - $ref: '#/components/parameters/NamespaceNameParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/DeleteNamespaceResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Namespaces
+    get:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/IndexHeader'
+      - $ref: '#/components/parameters/WaitParam'
+      - $ref: '#/components/parameters/StaleParam'
+      - $ref: '#/components/parameters/PrefixParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/PerPageParam'
+      - $ref: '#/components/parameters/NextTokenParam'
+      - $ref: '#/components/parameters/NamespaceNameParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/GetNamespaceResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Namespaces
+    post:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/IdempotencyTokenParam'
+      - $ref: '#/components/parameters/NamespaceNameParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Namespace'
+        required: true
+      responses:
+        "200":
+          $ref: '#/components/responses/PostNamespaceResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Namespaces
+  /namespaces:
+    get:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/IndexHeader'
+      - $ref: '#/components/parameters/WaitParam'
+      - $ref: '#/components/parameters/StaleParam'
+      - $ref: '#/components/parameters/PrefixParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/PerPageParam'
+      - $ref: '#/components/parameters/NextTokenParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NamespaceListRequest'
+        required: true
+      responses:
+        "200":
+          $ref: '#/components/responses/GetNamespacesResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Namespaces
+  /quota:
+    post:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/IdempotencyTokenParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuotaSpec'
+        required: true
+      responses:
+        "200":
+          $ref: '#/components/responses/CreateQuotaSpecResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Enterprise
+  /quota/{specName}:
+    delete:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/IdempotencyTokenParam'
+      - $ref: '#/components/parameters/QuotaSpecNameParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/DeleteNamespaceResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Enterprise
+    get:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/IndexHeader'
+      - $ref: '#/components/parameters/WaitParam'
+      - $ref: '#/components/parameters/StaleParam'
+      - $ref: '#/components/parameters/PrefixParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/PerPageParam'
+      - $ref: '#/components/parameters/NextTokenParam'
+      - $ref: '#/components/parameters/QuotaSpecNameParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/GetQuotaSpecResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Enterprise
+    post:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/IdempotencyTokenParam'
+      - $ref: '#/components/parameters/QuotaSpecNameParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuotaSpec'
+        required: true
+      responses:
+        "200":
+          $ref: '#/components/responses/PostQuotaSpecResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Enterprise
+  /quotas:
+    get:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/IndexHeader'
+      - $ref: '#/components/parameters/WaitParam'
+      - $ref: '#/components/parameters/StaleParam'
+      - $ref: '#/components/parameters/PrefixParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/PerPageParam'
+      - $ref: '#/components/parameters/NextTokenParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/GetQuotasResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Enterprise
+  /regions:
+    get:
+      responses:
+        "200":
+          $ref: '#/components/responses/GetRegionsResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      tags:
+      - Regions
+  /search:
+    post:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/IndexHeader'
+      - $ref: '#/components/parameters/WaitParam'
+      - $ref: '#/components/parameters/StaleParam'
+      - $ref: '#/components/parameters/PrefixParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/PerPageParam'
+      - $ref: '#/components/parameters/NextTokenParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+        required: true
+      responses:
+        "200":
+          $ref: '#/components/responses/GetSearchResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Search
+  /search/fuzzy:
+    post:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/IndexHeader'
+      - $ref: '#/components/parameters/WaitParam'
+      - $ref: '#/components/parameters/StaleParam'
+      - $ref: '#/components/parameters/PrefixParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/PerPageParam'
+      - $ref: '#/components/parameters/NextTokenParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FuzzySearchRequest'
+        required: true
+      responses:
+        "200":
+          $ref: '#/components/responses/GetFuzzySearchResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Search
+  /volume/csi/{volumeId}:
+    delete:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/IdempotencyTokenParam'
+      - $ref: '#/components/parameters/VolumeIDParam'
+      - $ref: '#/components/parameters/VolumeForceParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/DeleteVolumeRegistrationResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Volumes
+    get:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/IndexHeader'
+      - $ref: '#/components/parameters/WaitParam'
+      - $ref: '#/components/parameters/StaleParam'
+      - $ref: '#/components/parameters/PrefixParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/PerPageParam'
+      - $ref: '#/components/parameters/NextTokenParam'
+      - $ref: '#/components/parameters/VolumeIDParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/GetVolumeResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Volumes
+    post:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/IdempotencyTokenParam'
+      - $ref: '#/components/parameters/VolumeIDParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CSIVolumeRegisterRequest'
+        required: true
+      responses:
+        "200":
+          $ref: '#/components/responses/PostVolumeRegistrationResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Volumes
+  /volume/csi/{volumeId}/{action}:
+    delete:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/IdempotencyTokenParam'
+      - $ref: '#/components/parameters/VolumeIDParam'
+      - $ref: '#/components/parameters/VolumeNodeParam'
+      - $ref: '#/components/parameters/VolumeActionParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/DetachOrDeleteVolumeResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Volumes
+    post:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/IdempotencyTokenParam'
+      - $ref: '#/components/parameters/VolumeIDParam'
+      - $ref: '#/components/parameters/VolumeActionParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CSIVolumeCreateRequest'
+        required: true
+      responses:
+        "200":
+          $ref: '#/components/responses/PostVolumeResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Volumes
+  /volumes:
+    get:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/IndexHeader'
+      - $ref: '#/components/parameters/WaitParam'
+      - $ref: '#/components/parameters/StaleParam'
+      - $ref: '#/components/parameters/PrefixParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/PerPageParam'
+      - $ref: '#/components/parameters/NextTokenParam'
+      - $ref: '#/components/parameters/VolumeNodeIDParam'
+      - $ref: '#/components/parameters/VolumePluginIDParam'
+      - $ref: '#/components/parameters/VolumeTypeParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/GetVolumesResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Volumes
+    post:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/IdempotencyTokenParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CSIVolumeRegisterRequest'
+        required: true
+      responses:
+        "200":
+          $ref: '#/components/responses/PostVolumeResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Volumes
+  /volumes/external:
+    get:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/IndexHeader'
+      - $ref: '#/components/parameters/WaitParam'
+      - $ref: '#/components/parameters/StaleParam'
+      - $ref: '#/components/parameters/PrefixParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/PerPageParam'
+      - $ref: '#/components/parameters/NextTokenParam'
+      - $ref: '#/components/parameters/VolumePluginIDParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/GetExternalVolumesResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Volumes
+  /volumes/snapshot:
+    delete:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/IdempotencyTokenParam'
+      - $ref: '#/components/parameters/VolumePluginIDParam'
+      - $ref: '#/components/parameters/SnapshotIDParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/DeleteSnapshotResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Volumes
+    get:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/IndexHeader'
+      - $ref: '#/components/parameters/WaitParam'
+      - $ref: '#/components/parameters/StaleParam'
+      - $ref: '#/components/parameters/PrefixParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/PerPageParam'
+      - $ref: '#/components/parameters/NextTokenParam'
+      - $ref: '#/components/parameters/VolumePluginIDParam'
+      responses:
+        "200":
+          $ref: '#/components/responses/GetSnapshotsResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Volumes
+    post:
+      parameters:
+      - $ref: '#/components/parameters/RegionParam'
+      - $ref: '#/components/parameters/NamespaceParam'
+      - $ref: '#/components/parameters/NextTokenHeader'
+      - $ref: '#/components/parameters/IdempotencyTokenParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CSISnapshotCreateRequest'
+        required: true
+      responses:
+        "200":
+          $ref: '#/components/responses/PostSnapshotResponse'
+        "400":
+          $ref: '#/components/responses/BadRequestResponse'
+        "403":
+          $ref: '#/components/responses/ForbiddenResponse'
+        "405":
+          $ref: '#/components/responses/MethodNotAllowedResponse'
+        "500":
+          $ref: '#/components/responses/InternalServerErrorResponse'
+      security:
+      - X-Nomad-Token: []
+      tags:
+      - Volumes
+security:
+- X-Nomad-Token: []
+servers:
+- description: dev-agent
+  url: '{scheme}://{address}:{port}/v1'
+  variables:
+    address:
+      default: 127.0.0.1
+    port:
+      default: "4646"
+    scheme:
+      default: https
+      enum:
+      - https
+      - http
+- description: agent
+  url: '{scheme}://{address}:{port}/v1'
+  variables:
+    address:
+      default: 127.0.0.1
+    port:
+      default: "4646"
+    scheme:
+      default: https
+      enum:
+      - https
+      - http

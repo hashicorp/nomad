@@ -1,0 +1,7 @@
+# File is used by the openapi-generator cli to generate a test client for unit tests.
+generatorName: go
+inputSpec: /local/openapi/v1/openapi.yaml
+outputDir: /local/testutil/openapi/v1/testclient
+packageName: testclient
+packageVersion: 1.1.3
+isGoSubmodule: true
