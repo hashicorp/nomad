@@ -2,13 +2,16 @@ package agent
 
 import (
 	"fmt"
+	"github.com/hashicorp/nomad/testutil/openapi"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	models "github.com/hashicorp/nomad/testutil/openapi/v1/testclient"
 	"github.com/stretchr/testify/require"
 )
 
@@ -89,6 +92,25 @@ func TestHTTP_PrefixSearch_POST(t *testing.T) {
 
 		require.False(t, res.Truncations[structs.Jobs])
 		require.NotEqual(t, "0", header(respW, "X-Nomad-Index"))
+
+		client, ctx := openapi.NewClientAndContext(s.Config.BindAddr, strconv.Itoa(s.Config.Ports.HTTP))
+		searchRequest := client.SearchApi.SearchPost(ctx)
+		jobsCtx := string(structs.Jobs)
+		searchRequest = searchRequest.SearchRequest(models.SearchRequest{
+			Prefix:  &testJobPrefix,
+			Context: &jobsCtx,
+		})
+
+		searchResponse, apiResponse, err := client.SearchApi.SearchPostExecute(searchRequest)
+		require.NoError(t, err)
+
+		matches := *searchResponse.Matches
+		require.Len(t, matches[jobsCtx], 1)
+		require.Equal(t, testJob, matches[jobsCtx][0])
+
+		truncations := *searchResponse.Truncations
+		require.False(t, truncations[jobsCtx])
+		require.NotEqual(t, "0", apiResponse.Header["X-Nomad-Index"])
 	})
 }
 

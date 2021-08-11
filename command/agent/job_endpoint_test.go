@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/testutil/openapi"
 )
 
 func TestHTTP_JobsList(t *testing.T) {
@@ -49,22 +52,22 @@ func TestHTTP_JobsList(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		// Check for the index
-		if respW.HeaderMap.Get("X-Nomad-Index") == "" {
-			t.Fatalf("missing index")
-		}
-		if respW.HeaderMap.Get("X-Nomad-KnownLeader") != "true" {
-			t.Fatalf("missing known leader")
-		}
-		if respW.HeaderMap.Get("X-Nomad-LastContact") == "" {
-			t.Fatalf("missing last contact")
-		}
+		testutil.ValidateMetaResponseHeaders(respW, t)
 
 		// Check the job
 		j := obj.([]*structs.JobListStub)
 		if len(j) != 3 {
 			t.Fatalf("bad: %#v", j)
 		}
+
+		client, ctx := openapi.NewClientAndContext(s.Config.BindAddr, strconv.Itoa(s.Config.Ports.HTTP))
+		jobsRequest := client.JobsApi.JobsGet(ctx)
+		jobs, apiResponse, err := client.JobsApi.JobsGetExecute(jobsRequest)
+
+		require.NoError(t, err)
+		require.Len(t, jobs, 3)
+
+		openapi.ValidateMetaHeaders(t, apiResponse)
 	})
 }
 
