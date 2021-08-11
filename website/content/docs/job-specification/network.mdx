@@ -24,6 +24,12 @@ network namespace are not visible to applications outside the namespace on the s
 This allows [Connect][]-enabled applications to bind only to localhost within the shared network stack,
 and use the proxy for ingress and egress traffic.
 
+To use `bridge` mode, you must have the [reference CNI
+plugins](https://github.com/containernetworking/plugins/releases/latest)
+installed at the location specified by the client's [`cni_path`]
+configuration. These plugins are used to create the bridge network and
+configure the appropriate iptables rules.
+
 Note that this document only applies to services that want to _listen_ on a
 port. Batch jobs or services that only make outbound connections do not need to
 allocate ports, since they will use any available interface to make an outbound
@@ -292,3 +298,4 @@ network {
 [docker-driver]: /docs/drivers/docker 'Nomad Docker Driver'
 [qemu-driver]: /docs/drivers/qemu 'Nomad QEMU Driver'
 [connect]: /docs/job-specification/connect 'Nomad Consul Connect Integration'
+[`cni_path`]: /docs/configuration/client#cni_path
