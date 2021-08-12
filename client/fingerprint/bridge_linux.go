@@ -49,22 +49,36 @@ func (f BridgeFingerprint) detect(req *FingerprintRequest) error {
 		return fmt.Errorf("failed to detect bridge kernel module: %v", err)
 	}
 
-	return f.detectCNIPluginBinary(req.Config.CNIPath)
+	return f.detectCNIBinaries(req.Config.CNIPath)
 }
 
-func (f *BridgeFingerprint) detectCNIPluginBinary(cniPath string) error {
+func (f *BridgeFingerprint) detectCNIBinaries(cniPath string) error {
 	if cniPath == "" {
 		return fmt.Errorf("cni is not configured")
 	}
 
-	path := filepath.Join(cniPath, "bridge")
-	fi, err := os.Stat(filepath.Join(cniPath, "bridge"))
+	var errs error
+
+	// plugins required by in client/allocrunner/networking_bridge_linux.go
+	plugins := []string{"bridge", "firewall", "portmap"}
+	for _, plugin := range plugins {
+		if err := f.checkCNIPluginBinary(cniPath, plugin); err != nil {
+			err = multierror.Append(errs, err)
+		}
+	}
+
+	return errs
+}
+
+func (f *BridgeFingerprint) checkCNIPluginBinary(cniPath, plugin string) error {
+	path := filepath.Join(cniPath, plugin)
+	fi, err := os.Stat(path)
 	if err != nil {
-		return fmt.Errorf("failed to find the bridge CNI plugin in %v: %v", path, err)
+		return fmt.Errorf("failed to find the %v CNI plugin in %v: %v", plugin, path, err)
 	}
 
 	if !fi.Mode().IsRegular() {
-		return fmt.Errorf("the bridge CNI plugin is not a regular file: %v", path)
+		return fmt.Errorf("the %v CNI plugin is not a regular file: %v", plugin, path)
 
 	}
 
