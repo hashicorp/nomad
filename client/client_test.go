@@ -1238,12 +1238,12 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	// only the configured device is kept
 	if networks := client.config.Node.NodeResources.Networks; len(networks) == 2 {
 		// in Linux environments with CNI plugins present, we expect to see bridge network
-		require.Len(t, 2, networks)
+		require.Len(t, networks, 2)
 		require.Equal(t, dev, networks[0].Device)
 		require.Equal(t, "bridge", networks[1].Mode)
 	} else {
 		// otherwise, should only see the configured device
-		require.Len(t, 1, networks)
+		require.Len(t, networks, 1)
 		require.Equal(t, dev, networks[0].Device)
 	}
 
@@ -1261,10 +1261,11 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 			CPU: 80,
 		},
 	})
-	assert.Equal(t, 3, len(client.config.Node.NodeResources.Networks))
-	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[2].Device)
-	assert.Equal(t, 100, client.config.Node.NodeResources.Networks[2].MBits)
-	assert.Equal(t, 0, client.config.Node.NodeResources.Networks[1].MBits)
+	networks := client.config.Node.NodeResources.Networks
+	require.NotEmpty(t, networks)
+	anyIfNet := networks[len(networks)-1]
+	assert.Equal(t, "any-interface", anyIfNet.Device)
+	assert.Equal(t, 100, anyIfNet.MBits)
 }
 
 // Support multiple IP addresses (ipv4 vs. 6, e.g.) on the configured network interface
