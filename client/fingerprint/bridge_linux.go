@@ -59,11 +59,11 @@ func (f *BridgeFingerprint) detectCNIBinaries(cniPath string) error {
 
 	var errs error
 
-	// plugins required by in client/allocrunner/networking_bridge_linux.go
-	plugins := []string{"bridge", "firewall", "portmap"}
+	// plugins required by in client/allocrunner/networking_bridge_linux.go.
+	plugins := []string{"bridge", "firewall", "portmap", "host-local"}
 	for _, plugin := range plugins {
 		if err := f.checkCNIPluginBinary(cniPath, plugin); err != nil {
-			err = multierror.Append(errs, err)
+			errs = multierror.Append(errs, err)
 		}
 	}
 
