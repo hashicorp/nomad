@@ -47,6 +47,7 @@ message LaunchRequest {
     string cpuset_cgroup = 17;
     repeated string allow_caps = 18;
     repeated string capabilities = 19;
+    string work_dir = 20;
 }
 
 message LaunchResponse {

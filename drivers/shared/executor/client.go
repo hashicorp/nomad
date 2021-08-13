@@ -39,6 +39,7 @@ func (c *grpcExecutorClient) Launch(cmd *ExecCommand) (*ProcessState, error) {
 		Env:                cmd.Env,
 		User:               cmd.User,
 		TaskDir:            cmd.TaskDir,
+		WorkDir:            cmd.WorkDir,
 		ResourceLimits:     cmd.ResourceLimits,
 		BasicProcessCgroup: cmd.BasicProcessCgroup,
 		NoPivotRoot:        cmd.NoPivotRoot,

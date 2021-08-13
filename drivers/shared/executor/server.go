@@ -29,6 +29,7 @@ func (s *grpcExecutorServer) Launch(ctx context.Context, req *proto.LaunchReques
 		Env:                req.Env,
 		User:               req.User,
 		TaskDir:            req.TaskDir,
+		WorkDir:            req.WorkDir,
 		ResourceLimits:     req.ResourceLimits,
 		BasicProcessCgroup: req.BasicProcessCgroup,
 		NoPivotRoot:        req.NoPivotRoot,
