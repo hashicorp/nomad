@@ -164,9 +164,10 @@ const (
 
 // PreemptionConfig specifies whether preemption is enabled based on scheduler type
 type PreemptionConfig struct {
-	SystemSchedulerEnabled  bool
-	BatchSchedulerEnabled   bool
-	ServiceSchedulerEnabled bool
+	SystemSchedulerEnabled   bool
+	SysBatchSchedulerEnabled bool
+	BatchSchedulerEnabled    bool
+	ServiceSchedulerEnabled  bool
 }
 
 // SchedulerGetConfiguration is used to query the current Scheduler configuration.

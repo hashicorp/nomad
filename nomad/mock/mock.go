@@ -189,6 +189,46 @@ func HCL() string {
 `
 }
 
+func SystemBatchJob() *structs.Job {
+	job := &structs.Job{
+		Region:      "global",
+		ID:          fmt.Sprintf("mock-sysbatch-%s", uuid.Short()),
+		Name:        "my-sysbatch",
+		Namespace:   structs.DefaultNamespace,
+		Type:        structs.JobTypeSysBatch,
+		Priority:    10,
+		Datacenters: []string{"dc1"},
+		Constraints: []*structs.Constraint{
+			{
+				LTarget: "${attr.kernel.name}",
+				RTarget: "linux",
+				Operand: "=",
+			},
+		},
+		TaskGroups: []*structs.TaskGroup{{
+			Count: 1,
+			Name:  "pinger",
+			Tasks: []*structs.Task{{
+				Name:   "ping-example",
+				Driver: "exec",
+				Config: map[string]interface{}{
+					"command": "/usr/bin/ping",
+					"args":    []string{"-c", "5", "example.com"},
+				},
+				LogConfig: structs.DefaultLogConfig(),
+			}},
+		}},
+
+		Status:         structs.JobStatusPending,
+		Version:        0,
+		CreateIndex:    42,
+		ModifyIndex:    99,
+		JobModifyIndex: 99,
+	}
+	job.Canonicalize()
+	return job
+}
+
 func Job() *structs.Job {
 	job := &structs.Job{
 		Region:      "global",
@@ -1209,7 +1249,7 @@ func BlockedEval() *structs.Evaluation {
 }
 
 func JobSummary(jobID string) *structs.JobSummary {
-	js := &structs.JobSummary{
+	return &structs.JobSummary{
 		JobID:     jobID,
 		Namespace: structs.DefaultNamespace,
 		Summary: map[string]structs.TaskGroupSummary{
@@ -1219,7 +1259,19 @@ func JobSummary(jobID string) *structs.JobSummary {
 			},
 		},
 	}
-	return js
+}
+
+func JobSysBatchSummary(jobID string) *structs.JobSummary {
+	return &structs.JobSummary{
+		JobID:     jobID,
+		Namespace: structs.DefaultNamespace,
+		Summary: map[string]structs.TaskGroupSummary{
+			"pinger": {
+				Queued:   0,
+				Starting: 0,
+			},
+		},
+	}
 }
 
 func Alloc() *structs.Allocation {
@@ -1502,6 +1554,34 @@ func BatchAlloc() *structs.Allocation {
 	}
 	alloc.JobID = alloc.Job.ID
 	return alloc
+}
+
+func SysBatchAlloc() *structs.Allocation {
+	job := SystemBatchJob()
+	return &structs.Allocation{
+		ID:        uuid.Generate(),
+		EvalID:    uuid.Generate(),
+		NodeID:    "12345678-abcd-efab-cdef-123456789abc",
+		Namespace: structs.DefaultNamespace,
+		TaskGroup: "pinger",
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"ping-example": {
+					Cpu:    structs.AllocatedCpuResources{CpuShares: 500},
+					Memory: structs.AllocatedMemoryResources{MemoryMB: 256},
+					Networks: []*structs.NetworkResource{{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+					}},
+				},
+			},
+			Shared: structs.AllocatedSharedResources{DiskMB: 150},
+		},
+		Job:           job,
+		JobID:         job.ID,
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusPending,
+	}
 }
 
 func SystemAlloc() *structs.Allocation {

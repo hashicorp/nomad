@@ -199,8 +199,12 @@ type SystemStack struct {
 	scoreNorm                  *ScoreNormalizationIterator
 }
 
-// NewSystemStack constructs a stack used for selecting system job placements.
-func NewSystemStack(ctx Context) *SystemStack {
+// NewSystemStack constructs a stack used for selecting system and sysbatch
+// job placements.
+//
+// sysbatch is used to determine which scheduler config option is used to
+// control the use of preemption.
+func NewSystemStack(sysbatch bool, ctx Context) *SystemStack {
 	// Create a new stack
 	s := &SystemStack{ctx: ctx}
 
@@ -234,10 +238,13 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
-	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint,
+	tgs := []FeasibilityChecker{
+		s.taskGroupDrivers,
+		s.taskGroupConstraint,
 		s.taskGroupHostVolumes,
 		s.taskGroupDevices,
-		s.taskGroupNetwork}
+		s.taskGroupNetwork,
+	}
 	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs, avail)
 
@@ -260,9 +267,14 @@ func NewSystemStack(ctx Context) *SystemStack {
 	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
 	enablePreemption := true
 	if schedConfig != nil {
-		enablePreemption = schedConfig.PreemptionConfig.SystemSchedulerEnabled
+		if sysbatch {
+			enablePreemption = schedConfig.PreemptionConfig.SysBatchSchedulerEnabled
+		} else {
+			enablePreemption = schedConfig.PreemptionConfig.SystemSchedulerEnabled
+		}
 	}
 
+	// Create binpack iterator
 	s.binPack = NewBinPackIterator(ctx, rankSource, enablePreemption, 0, schedConfig)
 
 	// Apply score normalization
@@ -359,11 +371,13 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
-	tgs := []FeasibilityChecker{s.taskGroupDrivers,
+	tgs := []FeasibilityChecker{
+		s.taskGroupDrivers,
 		s.taskGroupConstraint,
 		s.taskGroupHostVolumes,
 		s.taskGroupDevices,
-		s.taskGroupNetwork}
+		s.taskGroupNetwork,
+	}
 	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs, avail)
 

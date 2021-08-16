@@ -1,4 +1,4 @@
-package systemsched
+package scheduler_system
 
 import (
 	"github.com/hashicorp/nomad/api"
@@ -35,16 +35,14 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 
 	jobID := "system_deployment"
 	tc.jobIDs = append(tc.jobIDs, jobID)
-	e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "systemsched/input/system_job0.nomad", jobID, "")
+	e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "scheduler_system/input/system_job0.nomad", jobID, "")
 
 	jobs := nomadClient.Jobs()
 	allocs, _, err := jobs.Allocations(jobID, true, nil)
 	require.NoError(t, err)
+	require.True(t, len(allocs) >= 3)
 
-	var allocIDs []string
-	for _, alloc := range allocs {
-		allocIDs = append(allocIDs, alloc.ID)
-	}
+	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
 
 	// Wait for allocations to get past initial pending state
 	e2eutil.WaitForAllocsNotPending(t, nomadClient, allocIDs)
@@ -58,13 +56,9 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 	// Assert all jobs still running
 	jobs = nomadClient.Jobs()
 	allocs, _, err = jobs.Allocations(jobID, true, nil)
-
-	allocIDs = nil
-	for _, alloc := range allocs {
-		allocIDs = append(allocIDs, alloc.ID)
-	}
-
 	require.NoError(t, err)
+
+	allocIDs = e2eutil.AllocIDsFromAllocationListStubs(allocs)
 	allocForDisabledNode := make(map[string]*api.AllocationListStub)
 
 	// Wait for allocs to run and collect allocs on ineligible node
@@ -89,19 +83,15 @@ func (tc *SystemSchedTest) TestJobUpdateOnIneligbleNode(f *framework.F) {
 	require.Len(t, allocForDisabledNode, 1)
 
 	// Update job
-	e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "systemsched/input/system_job1.nomad", jobID, "")
+	e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "scheduler_system/input/system_job1.nomad", jobID, "")
 
 	// Get updated allocations
 	jobs = nomadClient.Jobs()
 	allocs, _, err = jobs.Allocations(jobID, false, nil)
 	require.NoError(t, err)
 
-	allocIDs = nil
-	for _, alloc := range allocs {
-		allocIDs = append(allocIDs, alloc.ID)
-	}
-
 	// Wait for allocs to start
+	allocIDs = e2eutil.AllocIDsFromAllocationListStubs(allocs)
 	e2eutil.WaitForAllocsNotPending(t, nomadClient, allocIDs)
 
 	// Get latest alloc status now that they are no longer pending

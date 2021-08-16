@@ -392,7 +392,7 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 
 func TestSystemStack_SetNodes(t *testing.T) {
 	_, ctx := testContext(t)
-	stack := NewSystemStack(ctx)
+	stack := NewSystemStack(false, ctx)
 
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -414,7 +414,7 @@ func TestSystemStack_SetNodes(t *testing.T) {
 
 func TestSystemStack_SetJob(t *testing.T) {
 	_, ctx := testContext(t)
-	stack := NewSystemStack(ctx)
+	stack := NewSystemStack(false, ctx)
 
 	job := mock.Job()
 	stack.SetJob(job)
@@ -430,7 +430,7 @@ func TestSystemStack_SetJob(t *testing.T) {
 func TestSystemStack_Select_Size(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{mock.Node()}
-	stack := NewSystemStack(ctx)
+	stack := NewSystemStack(false, ctx)
 	stack.SetNodes(nodes)
 
 	job := mock.Job()
@@ -458,7 +458,7 @@ func TestSystemStack_Select_MetricsReset(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 	}
-	stack := NewSystemStack(ctx)
+	stack := NewSystemStack(false, ctx)
 	stack.SetNodes(nodes)
 
 	job := mock.Job()
@@ -494,7 +494,7 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 	zero := nodes[0]
 	zero.Attributes["driver.foo"] = "1"
 
-	stack := NewSystemStack(ctx)
+	stack := NewSystemStack(false, ctx)
 	stack.SetNodes(nodes)
 
 	job := mock.Job()
@@ -516,7 +516,7 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 		t.Fatalf("ComputedClass() failed: %v", err)
 	}
 
-	stack = NewSystemStack(ctx)
+	stack = NewSystemStack(false, ctx)
 	stack.SetNodes(nodes)
 	stack.SetJob(job)
 	node = stack.Select(job.TaskGroups[0], selectOptions)
@@ -537,7 +537,7 @@ func TestSystemStack_Select_ConstraintFilter(t *testing.T) {
 		t.Fatalf("ComputedClass() failed: %v", err)
 	}
 
-	stack := NewSystemStack(ctx)
+	stack := NewSystemStack(false, ctx)
 	stack.SetNodes(nodes)
 
 	job := mock.Job()
@@ -580,7 +580,7 @@ func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
 	}
 	one := nodes[1]
 
-	stack := NewSystemStack(ctx)
+	stack := NewSystemStack(false, ctx)
 	stack.SetNodes(nodes)
 
 	job := mock.Job()
