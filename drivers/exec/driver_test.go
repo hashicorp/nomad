@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/client/allocdir"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -118,7 +119,7 @@ func TestExecDriver_WorkDir(t *testing.T) {
 	require.NoError(ioutil.WriteFile(task.StdoutPath, []byte{}, 660))
 	require.NoError(ioutil.WriteFile(task.StderrPath, []byte{}, 660))
 
-	workDir := "/etc"
+	workDir := filepath.Join("/", allocdir.TaskLocal)
 	tc := &TaskConfig{
 		Command: "/bin/pwd",
 		WorkDir: workDir,

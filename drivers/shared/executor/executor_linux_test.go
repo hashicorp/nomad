@@ -740,7 +740,6 @@ func TestExecutor_WorkDir(t *testing.T) {
 
 	tu.WaitForResult(func() (bool, error) {
 		output := strings.TrimSpace(testExecCmd.stdout.String())
-		// Verify that we got some cgroups
 		if output != workDir {
 			return false, fmt.Errorf("working directory not set properly: expected %q but got %q", workDir, output)
 		}
