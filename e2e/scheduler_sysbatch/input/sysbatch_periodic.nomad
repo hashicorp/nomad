@@ -1,5 +1,5 @@
 job "sysbatchjob" {
-  datacenters = ["dc1"]
+  datacenters = ["dc1", "dc2"]
 
   type = "sysbatch"
 

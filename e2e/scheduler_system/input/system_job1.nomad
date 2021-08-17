@@ -1,5 +1,5 @@
 job "system_job" {
-  datacenters = ["dc1"]
+  datacenters = ["dc1", "dc2"]
 
   type = "system"
 
