@@ -4081,8 +4081,8 @@ type Job struct {
 }
 
 // NamespacedID returns the namespaced id useful for logging
-func (j *Job) NamespacedID() *NamespacedID {
-	return &NamespacedID{
+func (j *Job) NamespacedID() NamespacedID {
+	return NamespacedID{
 		ID:        j.ID,
 		Namespace: j.Namespace,
 	}
