@@ -113,16 +113,8 @@ func TestLeader_LeftLeader(t *testing.T) {
 	}
 
 	// Kill the leader!
-	var leader *Server
-	for _, s := range servers {
-		if s.IsLeader() {
-			leader = s
-			break
-		}
-	}
-	if leader == nil {
-		t.Fatalf("Should have a leader")
-	}
+	leader := waitForStableLeadership(t, servers)
+
 	leader.Leave()
 	leader.Shutdown()
 
