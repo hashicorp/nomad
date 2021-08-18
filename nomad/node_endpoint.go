@@ -1418,10 +1418,10 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 	// Create an evaluation for each system job.
 	for _, job := range sysJobs {
 		// Still dedup on JobID as the node may already have the system job.
-		if _, ok := jobIDs[*job.NamespacedID()]; ok {
+		if _, ok := jobIDs[job.NamespacedID()]; ok {
 			continue
 		}
-		jobIDs[*job.NamespacedID()] = struct{}{}
+		jobIDs[job.NamespacedID()] = struct{}{}
 
 		// Create a new eval
 		eval := &structs.Evaluation{
