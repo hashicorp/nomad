@@ -1352,15 +1352,15 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 	// Create an eval for each JobID affected
 	var evals []*structs.Evaluation
 	var evalIDs []string
-	jobIDs := make(map[string]struct{})
+	jobIDs := map[structs.NamespacedID]struct{}{}
 	now := time.Now().UTC().UnixNano()
 
 	for _, alloc := range allocs {
 		// Deduplicate on JobID
-		if _, ok := jobIDs[alloc.JobID]; ok {
+		if _, ok := jobIDs[alloc.JobNamespacedID()]; ok {
 			continue
 		}
-		jobIDs[alloc.JobID] = struct{}{}
+		jobIDs[alloc.JobNamespacedID()] = struct{}{}
 
 		// Create a new eval
 		eval := &structs.Evaluation{
@@ -1383,10 +1383,10 @@ func (n *Node) createNodeEvals(nodeID string, nodeIndex uint64) ([]string, uint6
 	// Create an evaluation for each system job.
 	for _, job := range sysJobs {
 		// Still dedup on JobID as the node may already have the system job.
-		if _, ok := jobIDs[job.ID]; ok {
+		if _, ok := jobIDs[job.NamespacedID()]; ok {
 			continue
 		}
-		jobIDs[job.ID] = struct{}{}
+		jobIDs[job.NamespacedID()] = struct{}{}
 
 		// Create a new eval
 		eval := &structs.Evaluation{

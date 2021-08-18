@@ -2492,6 +2492,67 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	}
 }
 
+// TestClientEndpoint_CreateNodeEvals_MultipleNSes asserts that evals are made
+// for all jobs across namespaces
+func TestClientEndpoint_CreateNodeEvals_MultipleNSes(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	state := s1.fsm.State()
+
+	idx := uint64(3)
+	ns1 := mock.Namespace()
+	err := state.UpsertNamespaces(idx, []*structs.Namespace{ns1})
+	require.NoError(t, err)
+	idx++
+
+	node := mock.Node()
+	err = state.UpsertNode(structs.MsgTypeTestSetup, idx, node)
+	require.NoError(t, err)
+	idx++
+
+	// Inject a fake system job.
+	defaultJob := mock.SystemJob()
+	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, defaultJob)
+	require.NoError(t, err)
+	idx++
+
+	nsJob := mock.SystemJob()
+	nsJob.ID = defaultJob.ID
+	nsJob.Namespace = ns1.Name
+	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nsJob)
+	require.NoError(t, err)
+	idx++
+
+	// Create some evaluations
+	evalIDs, index, err := s1.staticEndpoints.Node.createNodeEvals(node.ID, 1)
+	require.NoError(t, err)
+	require.NotZero(t, index)
+	require.Len(t, evalIDs, 2)
+
+	byNS := map[string]*structs.Evaluation{}
+	for _, evalID := range evalIDs {
+		eval, err := state.EvalByID(nil, evalID)
+		require.NoError(t, err)
+		byNS[eval.Namespace] = eval
+	}
+
+	require.Len(t, byNS, 2)
+
+	defaultNSEval := byNS[defaultJob.Namespace]
+	require.NotNil(t, defaultNSEval)
+	require.Equal(t, defaultJob.ID, defaultNSEval.JobID)
+	require.Equal(t, defaultJob.Namespace, defaultNSEval.Namespace)
+
+	otherNSEval := byNS[nsJob.Namespace]
+	require.NotNil(t, otherNSEval)
+	require.Equal(t, nsJob.ID, otherNSEval.JobID)
+	require.Equal(t, nsJob.Namespace, otherNSEval.Namespace)
+}
+
 func TestClientEndpoint_Evaluate(t *testing.T) {
 	t.Parallel()
 

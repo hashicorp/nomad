@@ -151,7 +151,7 @@ type BinPackIterator struct {
 	source    RankIterator
 	evict     bool
 	priority  int
-	jobId     *structs.NamespacedID
+	jobId     structs.NamespacedID
 	taskGroup *structs.TaskGroup
 	scoreFit  func(*structs.Node, *structs.ComparableResources) float64
 }
@@ -228,7 +228,7 @@ OUTER:
 		var allocsToPreempt []*structs.Allocation
 
 		// Initialize preemptor with node
-		preemptor := NewPreemptor(iter.priority, iter.ctx, iter.jobId)
+		preemptor := NewPreemptor(iter.priority, iter.ctx, &iter.jobId)
 		preemptor.SetNode(option.Node)
 
 		// Count the number of existing preemptions
