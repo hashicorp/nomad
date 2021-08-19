@@ -23,7 +23,7 @@ func wantPeers(s *Server, peers int) error {
 
 	n := autopilot.NumPeers(future.Configuration())
 	if got, want := n, peers; got != want {
-		return fmt.Errorf("got %d peers want %d", got, want)
+		return fmt.Errorf("server %v: got %d peers want %d\n\tservers: %#+v", s.config.NodeName, got, want, future.Configuration().Servers)
 	}
 	return nil
 }
@@ -69,7 +69,9 @@ func wantRaft(servers []*Server) error {
 func TestAutopilot_CleanupDeadServer(t *testing.T) {
 	t.Parallel()
 	for i := 1; i <= 3; i++ {
-		testCleanupDeadServer(t, i)
+		t.Run(fmt.Sprintf("raft version: %v", i), func(t *testing.T) {
+			testCleanupDeadServer(t, i)
+		})
 	}
 }
 
@@ -102,7 +104,11 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 	defer cleanupS4()
 
 	// Kill a non-leader server
+	if leader := waitForStableLeadership(t, servers); leader == s3 {
+		s3, s1 = s1, s3
+	}
 	s3.Shutdown()
+
 	retry.Run(t, func(r *retry.R) {
 		alive := 0
 		for _, m := range s1.Members() {
@@ -111,13 +117,15 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 			}
 		}
 		if alive != 2 {
-			r.Fatal(nil)
+			r.Fatalf("expected 2 alive servers but found %v", alive)
 		}
 	})
 
 	// Join the new server
-	TestJoin(t, s1, s4)
+	TestJoin(t, s1, s2, s4)
 	servers[2] = s4
+
+	waitForStableLeadership(t, servers)
 
 	// Make sure the dead server is removed and we're back to 3 total peers
 	for _, s := range servers {
@@ -160,6 +168,9 @@ func TestAutopilot_CleanupDeadServerPeriodic(t *testing.T) {
 	})
 
 	// Kill a non-leader server
+	if leader := waitForStableLeadership(t, servers); leader == s4 {
+		s1, s4 = s4, s1
+	}
 	s4.Shutdown()
 
 	// Should be removed from the peers automatically
