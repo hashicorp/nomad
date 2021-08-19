@@ -228,8 +228,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.StringVar(&nodeIDs, "node-id", "", "")
 	flags.StringVar(&serverIDs, "server-id", "all", "")
 	flags.BoolVar(&c.stale, "stale", false, "")
-	flags.StringVar(&targets, "targets", "", "")
-	flags.StringVar(&intervalTargets, "interval-targets", "", "")
+	flags.StringVar(&targets, "targets", "all", "")
+	flags.StringVar(&intervalTargets, "interval-targets", "all", "")
 	flags.StringVar(&output, "output", "", "")
 	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
 
