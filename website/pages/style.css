@@ -1,7 +1,5 @@
 /* Global Component Styles */
 @import '~@hashicorp/mktg-global-styles/style.css';
-@import '~@hashicorp/mktg-global-styles/_temporary-to-remove/layout.css';
-@import '~@hashicorp/mktg-global-styles/_temporary-to-remove/tables.css';
 
 :root {
   --highlight-color: var(--nomad);
@@ -13,8 +11,6 @@
 @import '~@hashicorp/react-call-to-action/style.css';
 @import '~@hashicorp/react-consent-manager/style.css';
 @import '~@hashicorp/react-toggle/style.css';
-@import '~@hashicorp/react-content/style.css';
-@import '~@hashicorp/react-docs-page/style.css';
 @import '~@hashicorp/react-featured-slider/style.css';
 @import '~@hashicorp/react-hero/style.css';
 @import '~@hashicorp/react-learn-callout/style.css';
@@ -38,8 +34,6 @@
 
 /* Local Pages */
 @import './home/style.css';
-@import './security/style.css';
-@import './community/style.css';
 
 /* Print Styles */
 @import './print.css';
@@ -68,10 +62,4 @@
  */
 .g-subnav ~ * :target {
   scroll-margin-top: calc(64px + 0.5em);
-}
-
-/* overrides */
-
-.g-content pre code {
-  background: none;
 }
