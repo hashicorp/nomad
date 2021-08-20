@@ -31,8 +31,8 @@ job "example" {
 
     scaling {
       enabled = true
-      min = 0
-      max = 10
+      min     = 0
+      max     = 10
 
       policy {
         # ...
@@ -61,14 +61,15 @@ job "example" {
       }
 
       resources {
-        cpu = 100
+        cpu    = 100
         memory = 256
       }
 
       scaling "cpu" {
         enabled = true
-        min = 100
-        max = 500
+        min     = 100
+        max     = 500
+
         policy {
           # ...
         }
@@ -76,8 +77,9 @@ job "example" {
 
       scaling "mem" {
         enabled = true
-        min = 100
-        max = 500
+        min     = 64
+        max     = 512
+
         policy {
           # ...
         }
