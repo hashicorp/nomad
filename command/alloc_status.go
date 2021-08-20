@@ -228,6 +228,14 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	if verbose {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Placement Metrics[reset]"))
 		c.Ui.Output(formatAllocMetrics(alloc.Metrics, true, "  "))
+
+		if len(alloc.Metrics.Trace) > 0 {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Scheduler Trace[reset]"))
+			for _, mt := range alloc.Metrics.Trace {
+				c.Ui.Output("  " + mt)
+			}
+		}
+
 	}
 
 	return 0

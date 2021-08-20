@@ -114,7 +114,11 @@ func (e *EvalContext) SetState(s State) {
 }
 
 func (e *EvalContext) Reset() {
+	trace := e.metrics.Trace != nil
 	e.metrics = new(structs.AllocMetric)
+	if trace {
+		e.metrics.StartTracing()
+	}
 }
 
 func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, error) {

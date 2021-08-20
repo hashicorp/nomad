@@ -201,6 +201,7 @@ type AllocationMetric struct {
 	AllocationTime    time.Duration
 	CoalescedFailures int
 	ScoreMetaData     []*NodeScoreMeta
+	Trace             []string
 }
 
 // NodeScoreMeta is used to serialize node scoring metadata

@@ -136,6 +136,9 @@ func (s *SystemScheduler) process() (bool, error) {
 
 	// Create an evaluation context
 	s.ctx = NewEvalContext(s.state, s.plan, s.logger)
+	if s.eval.Trace {
+		s.ctx.Metrics().StartTracing()
+	}
 
 	// Construct the placement stack
 	s.stack = NewSystemStack(s.sysbatch, s.ctx)
