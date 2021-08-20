@@ -499,6 +499,7 @@ func (m targetMap) IsValid(value string) bool {
 func parseTargets(targets string) targetMap {
 	ret := make(targetMap)
 
+	// Build starting target map
 	switch {
 	case targets == "":
 		return ret
@@ -508,11 +509,14 @@ func parseTargets(targets string) targetMap {
 		ret = targetDefaults()
 	}
 
+	// Enable or disable targets in map
 	ts := splitArgumentList(targets)
 	for _, t := range ts {
-		ret[t] = true
 		if strings.HasPrefix(t, "-") {
+			t = strings.TrimPrefix(t, "-")
 			ret[t] = false
+		} else {
+			ret[t] = true
 		}
 	}
 	return ret
@@ -522,6 +526,7 @@ func parseTargets(targets string) targetMap {
 func parseIntervalTargets(intervalTargets string) targetMap {
 	ret := make(targetMap)
 
+	// Build starting interval target map
 	switch {
 	case intervalTargets == "":
 		return ret
@@ -531,11 +536,14 @@ func parseIntervalTargets(intervalTargets string) targetMap {
 		ret = intervalTargetDefaults()
 	}
 
+	// Enable or disable interval targets in map
 	ts := splitArgumentList(intervalTargets)
 	for _, t := range ts {
-		ret[t] = true
 		if strings.HasPrefix(t, "-") {
+			t = strings.TrimPrefix(t, "-")
 			ret[t] = false
+		} else {
+			ret[t] = true
 		}
 	}
 	return ret

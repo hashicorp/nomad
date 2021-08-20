@@ -21,11 +21,12 @@ import (
 // NOTE: most of these tests cannot be run in parallel
 
 type testCase struct {
-	name            string
-	args            []string
-	expectedCode    int
-	expectedOutputs []string
-	expectedError   string
+	name              string
+	args              []string
+	expectedCode      int
+	expectedOutputs   []string
+	unexpectedOutputs []string
+	expectedError     string
 }
 
 type testCases []testCase
@@ -47,6 +48,9 @@ func runTestCases(t *testing.T, cases testCases) {
 			require.Equalf(t, code, c.expectedCode, "expected exit code %d, got: %d: %s", c.expectedCode, code, outerr)
 			for _, expectedOutput := range c.expectedOutputs {
 				require.Contains(t, out, expectedOutput, "expected output %q, got %q", expectedOutput, out)
+			}
+			for _, unexpectedOutput := range c.unexpectedOutputs {
+				require.Contains(t, out, unexpectedOutput, "unexpected output %q, got %q", unexpectedOutput, out)
 			}
 			require.Containsf(t, outerr, c.expectedError, "expected error %q, got %q", c.expectedError, outerr)
 		})
@@ -285,14 +289,29 @@ func TestDebug_Targets(t *testing.T) {
 		},
 		{
 			name:         "disable targets",
-			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-targets", "-agentself"},
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-targets", "-agentself,-consul"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Servers: (1/1)",
 				"Clients: (0/0)",
 				"Created debug archive",
 			},
+			unexpectedOutputs: []string{
+				"agentself",
+				"consul",
+			},
 			expectedError: "",
+		},
+		{
+			name:         "invalid targets",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-targets", "-foo,bar"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Servers: (1/1)",
+				"Clients: (0/0)",
+				"Created debug archive",
+			},
+			expectedError: "invalid target",
 		},
 	}
 
