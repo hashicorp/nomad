@@ -13,6 +13,27 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.1.4 and 1.2.0
+
+#### Log file names
+
+The [`log_file`] configuration option was not being fully respected, as the
+generated filename would include a timestamp. After upgrade, the active log
+file will always be the value defined in `log_file`, with timestamped files
+being created during log rotation.
+
+## Nomad 1.0.9 and 1.1.3
+
+#### Namespace in Job Run and Plan APIs
+
+The Job Run and Plan APIs now respect the `?namespace=...` query parameter over
+the namespace specified in the job itself. This matches the precedence of
+region and [fixes a bug where the `-namespace` flag was not respected for the
+`nomad run` and `nomad apply` commands.][gh-10875]
+
+For users of [`api.Client`][go-client] who want their job namespace respected,
+you must ensure the `Config.Namespace` field is unset.
+
 ## Nomad 1.1.3
 
 #### Docker Driver
@@ -1159,3 +1180,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [allow_caps_java]: /docs/drivers/java#allow_caps
 [cap_add_exec]: /docs/drivers/exec#cap_add
 [cap_drop_exec]: /docs/drivers/exec#cap_drop
+[`log_file`]: /docs/configuration#log_file

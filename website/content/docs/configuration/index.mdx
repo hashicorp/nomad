@@ -241,9 +241,9 @@ testing.
 - `log_json` `(bool: false)` - Output logs in a JSON format.
 
 - `log_file` `(string: "")` - Specifies the path for logging. If the path
-  does not includes a filename, the filename defaults to "nomad-{timestamp}.log".
-  This setting can be combined with `log_rotate_bytes` and `log_rotate_duration`
-  for a fine-grained log rotation control.
+  does not includes a filename, the filename defaults to `nomad.log`. This
+  setting can be combined with `log_rotate_bytes` and `log_rotate_duration` for
+  a fine-grained log rotation control.
 
 - `log_rotate_bytes` `(int: 0)` - Specifies the number of bytes that should be
   written to a log before it needs to be rotated. Unless specified, there is no

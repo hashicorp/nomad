@@ -62,11 +62,8 @@ func (l *logFile) fileNamePattern() string {
 }
 
 func (l *logFile) openNew() error {
-	fileNamePattern := l.fileNamePattern()
-	// New file name has the format : filename-timestamp.extension
 	createTime := now()
-	newfileName := fmt.Sprintf(fileNamePattern, strconv.FormatInt(createTime.UnixNano(), 10))
-	newfilePath := filepath.Join(l.logPath, newfileName)
+	newfilePath := filepath.Join(l.logPath, l.fileName)
 	// Try creating a file. We truncate the file because we are the only authority to write the logs
 	filePointer, err := os.OpenFile(newfilePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0640)
 	if err != nil {
@@ -86,8 +83,18 @@ func (l *logFile) rotate() error {
 	// Rotate if we hit the byte file limit or the time limit
 	if (l.BytesWritten >= int64(l.MaxBytes) && (l.MaxBytes > 0)) || timeElapsed >= l.duration {
 		l.FileInfo.Close()
+
+		// Move current log file to a timestamped file.
+		rotateTime := now()
+		rotatefileName := fmt.Sprintf(l.fileNamePattern(), strconv.FormatInt(rotateTime.UnixNano(), 10))
+		oldPath := l.FileInfo.Name()
+		newPath := filepath.Join(l.logPath, rotatefileName)
+		if err := os.Rename(oldPath, newPath); err != nil {
+			return fmt.Errorf("failed to rotate log files: %v", err)
+		}
+
 		if err := l.pruneFiles(); err != nil {
-			return err
+			return fmt.Errorf("failed to prune log files: %v", err)
 		}
 		return l.openNew()
 	}
