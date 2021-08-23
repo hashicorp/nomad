@@ -15,10 +15,14 @@ import (
 
 func TestGenerateEtcHostsMount(t *testing.T) {
 
+	type task struct {
+		spec       *drivers.NetworkIsolationSpec
+		extraHosts []string
+	}
+
 	testCases := []struct {
 		name        string
-		spec        *drivers.NetworkIsolationSpec
-		extraHosts  []string
+		tasks       map[string]task
 		expected    []string
 		expectedErr string
 	}{
@@ -27,15 +31,23 @@ func TestGenerateEtcHostsMount(t *testing.T) {
 		},
 		{
 			name: "no-hosts-config",
-			spec: &drivers.NetworkIsolationSpec{Mode: drivers.NetIsolationModeGroup},
+			tasks: map[string]task{
+				"test": {
+					spec: &drivers.NetworkIsolationSpec{Mode: drivers.NetIsolationModeGroup},
+				},
+			},
 		},
 		{
 			name: "base-case",
-			spec: &drivers.NetworkIsolationSpec{
-				Mode: drivers.NetIsolationModeGroup,
-				HostsConfig: &drivers.HostsConfig{
-					Address:  "192.168.1.1",
-					Hostname: "xyzzy",
+			tasks: map[string]task{
+				"test": {
+					spec: &drivers.NetworkIsolationSpec{
+						Mode: drivers.NetIsolationModeGroup,
+						HostsConfig: &drivers.HostsConfig{
+							Address:  "192.168.1.1",
+							Hostname: "xyzzy",
+						},
+					},
 				},
 			},
 			expected: []string{
@@ -44,16 +56,20 @@ func TestGenerateEtcHostsMount(t *testing.T) {
 		},
 		{
 			name: "with-valid-extra-hosts",
-			spec: &drivers.NetworkIsolationSpec{
-				Mode: drivers.NetIsolationModeGroup,
-				HostsConfig: &drivers.HostsConfig{
-					Address:  "192.168.1.1",
-					Hostname: "xyzzy",
+			tasks: map[string]task{
+				"test": {
+					spec: &drivers.NetworkIsolationSpec{
+						Mode: drivers.NetIsolationModeGroup,
+						HostsConfig: &drivers.HostsConfig{
+							Address:  "192.168.1.1",
+							Hostname: "xyzzy",
+						},
+					},
+					extraHosts: []string{
+						"apple:192.168.1.2",
+						"banana:2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+					},
 				},
-			},
-			extraHosts: []string{
-				"apple:192.168.1.2",
-				"banana:2001:0db8:85a3:0000:0000:8a2e:0370:7334",
 			},
 			expected: []string{
 				"192.168.1.1 xyzzy",
@@ -62,27 +78,71 @@ func TestGenerateEtcHostsMount(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid-extra-hosts-syntax",
-			spec: &drivers.NetworkIsolationSpec{
-				Mode: drivers.NetIsolationModeGroup,
-				HostsConfig: &drivers.HostsConfig{
-					Address:  "192.168.1.1",
-					Hostname: "xyzzy",
+			name: "multiple-tasks-with-valid-extra-hosts",
+			tasks: map[string]task{
+				"test-1": {
+					spec: &drivers.NetworkIsolationSpec{
+						Mode: drivers.NetIsolationModeGroup,
+						HostsConfig: &drivers.HostsConfig{
+							Address:  "192.168.1.1",
+							Hostname: "xyzzy",
+						},
+					},
+					extraHosts: []string{
+						"apple:192.168.1.2",
+						"banana:2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+					},
+				},
+				"test-2": {
+					spec: &drivers.NetworkIsolationSpec{
+						Mode: drivers.NetIsolationModeGroup,
+						HostsConfig: &drivers.HostsConfig{
+							Address:  "192.168.1.1",
+							Hostname: "xyzzy",
+						},
+					},
+					extraHosts: []string{
+						"cherry:192.168.1.3",
+					},
 				},
 			},
-			extraHosts:  []string{"apple192.168.1.2"},
+			expected: []string{
+				"192.168.1.1 xyzzy",
+				"192.168.1.2 apple",
+				"2001:0db8:85a3:0000:0000:8a2e:0370:7334 banana",
+				"192.168.1.3 cherry",
+			},
+		},
+		{
+			name: "invalid-extra-hosts-syntax",
+			tasks: map[string]task{
+				"test": {
+					spec: &drivers.NetworkIsolationSpec{
+						Mode: drivers.NetIsolationModeGroup,
+						HostsConfig: &drivers.HostsConfig{
+							Address:  "192.168.1.1",
+							Hostname: "xyzzy",
+						},
+					},
+					extraHosts: []string{"apple192.168.1.2"},
+				},
+			},
 			expectedErr: "invalid hosts entry \"apple192.168.1.2\"",
 		},
 		{
 			name: "invalid-extra-hosts-bad-ip",
-			spec: &drivers.NetworkIsolationSpec{
-				Mode: drivers.NetIsolationModeGroup,
-				HostsConfig: &drivers.HostsConfig{
-					Address:  "192.168.1.1",
-					Hostname: "xyzzy",
+			tasks: map[string]task{
+				"test": {
+					spec: &drivers.NetworkIsolationSpec{
+						Mode: drivers.NetIsolationModeGroup,
+						HostsConfig: &drivers.HostsConfig{
+							Address:  "192.168.1.1",
+							Hostname: "xyzzy",
+						},
+					},
+					extraHosts: []string{"apple:192.168.1.256"},
 				},
 			},
-			extraHosts:  []string{"apple:192.168.1.256"},
 			expectedErr: "invalid IP address \"apple:192.168.1.256\"",
 		},
 	}
@@ -97,7 +157,10 @@ func TestGenerateEtcHostsMount(t *testing.T) {
 			require.NoError(err)
 			dest := filepath.Join(taskDir, "hosts")
 
-			got, err := GenerateEtcHostsMount(taskDir, tc.spec, tc.extraHosts)
+			var got *drivers.MountConfig
+			for taskName, taskConfig := range tc.tasks {
+				got, err = GenerateEtcHostsMount(taskName, taskDir, taskConfig.spec, taskConfig.extraHosts)
+			}
 
 			if tc.expectedErr != "" {
 				require.EqualError(err, tc.expectedErr)
