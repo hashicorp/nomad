@@ -55,6 +55,8 @@ func TestLogFile_openNew(t *testing.T) {
 
 	_, err = ioutil.ReadFile(logFile.FileInfo.Name())
 	require.NoError(err)
+
+	require.Equal(logFile.FileInfo.Name(), filepath.Join(tempDir, testFileName))
 }
 
 func TestLogFile_byteRotation(t *testing.T) {
