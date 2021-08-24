@@ -24,39 +24,40 @@ export default class ClientStatusBar extends DistributionBar {
       failed: 0,
       lost: 0,
     };
-    for (const node of this.nodes) {
-      const concatenatedAllocationStatuses = [].concat(...Object.values(node));
-      console.log(concatenatedAllocationStatuses);
-      // there is a bug that counts nodes multiple times in this part of the loop
-      for (const status of concatenatedAllocationStatuses) {
-        const val = str => str;
-        const statusCount = countBy(concatenatedAllocationStatuses, val);
-        if (Object.keys(statusCount).length === 1) {
-          if (statusCount.running > 0) {
-            statuses.running++;
-          }
-          if (statusCount.failed > 0) {
-            statuses.failed++;
-          }
-          if (statusCount.lost > 0) {
-            statuses.lost++;
-          }
-          if (statusCount.complete > 0) {
-            statuses.complete++;
-          }
-        } else if (Object.keys(statusCount).length !== 1 && !!statusCount.running) {
-          if (!!statusCount.failed || !!statusCount.lost) {
-            statuses.degraded++;
-          }
-        } else if (Object.keys(statusCount).length !== 1 && !!statusCount.pending) {
-          statuses.starting++;
-        } else {
-          statuses.queued++;
+    const formattedNodes = this.nodes.map(node => {
+      const [[_, allocs]] = Object.entries(node);
+      return allocs.map(alloc => alloc.clientStatus);
+    });
+    for (const node of formattedNodes) {
+      const statusCount = countBy(node, status => status);
+      const hasOnly1Status = Object.keys(statusCount).length === 1;
+
+      if (hasOnly1Status) {
+        if (statusCount.running > 0) {
+          statuses.running++;
         }
+        if (statusCount.failed > 0) {
+          statuses.failed++;
+        }
+        if (statusCount.lost > 0) {
+          statuses.lost++;
+        }
+        if (statusCount.complete > 0) {
+          statuses.complete++;
+        }
+      } else if (!hasOnly1Status && !!statusCount.running) {
+        if (!!statusCount.failed || !!statusCount.lost) {
+          statuses.degraded++;
+        } else if (statusCount.pending) {
+          statuses.starting++;
+        }
+      } else {
+        // if no allocations then queued -- job registered, hasn't been assigned clients to run -- no allocations
+        // may only have this state for a few milliseconds
+        statuses.queued++;
       }
     }
 
-    console.log('statuses\n\n', statuses);
     return [
       { label: 'Not Scheduled', value: statuses['not scheduled'], className: 'not-scheduled' },
       { label: 'Queued', value: statuses.queued, className: 'queued' },

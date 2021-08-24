@@ -17,15 +17,16 @@ export default class IndexController extends Controller.extend(WithNamespaceRese
     const allocs = this.job.allocations;
     const nodes = allocs.mapBy('node');
     const uniqueNodes = nodes.uniqBy('id').toArray();
-    return uniqueNodes.map(nodeId => {
+    const result = uniqueNodes.map(nodeId => {
       return {
         [nodeId.get('id')]: allocs
           .toArray()
           .filter(alloc => nodeId.get('id') === alloc.get('node.id'))
-          .map(alloc => alloc.getProperties('clientStatus'))
-          .map(alloc => alloc.clientStatus),
+          .map(alloc => alloc.getProperties('clientStatus', 'name', 'createTime', 'modifyTime')),
       };
     });
+    console.log('result\n\n', result);
+    return result;
   }
 
   @computed('node')
