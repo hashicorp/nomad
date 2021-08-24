@@ -25,7 +25,7 @@
                 <em class="is-faded">No Children</em>
               {{/if}}
             {{else}}
-              <ClientStatusBar @jobClientStatus={{this.jobClientStatus}} @nodes={{this.nodes}} @allocationContainer={{a.item}} @isNarrow={{true}} />
+              <ClientStatusBar @jobClientStatus={{this.jobClientStatus}} @isNarrow={{true}} />
             {{/if}}
           </div>
         </div>
@@ -34,10 +34,6 @@
   </a.head>
   <a.body>
     {{#component (if a.item.hasChildren "children-status-bar" "client-status-bar")
-    allocationContainer=a.item.summary
-    job=a.item.summary
-    nodes=this.nodes
-    totalNodes=this.totalNodes
     jobClientStatus=this.jobClientStatus
     class="split-view" as |chart|}}
     <ol data-test-legend class="legend">

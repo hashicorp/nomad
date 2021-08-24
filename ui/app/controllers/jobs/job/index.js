@@ -1,6 +1,5 @@
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
-import { computed } from '@ember/object';
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import { action } from '@ember/object';
@@ -12,31 +11,9 @@ export default class IndexController extends Controller.extend(WithNamespaceRese
   @service system;
   @service store;
 
-  @jobClientStatus('nodes', 'job.status', 'job.allocations') jobClientStatus;
+  @jobClientStatus('nodes', 'job') jobClientStatus;
 
-  @computed('job')
-  get uniqueNodes() {
-    // add datacenter filter
-    const allocs = this.job.allocations;
-    const nodes = allocs.mapBy('node');
-    const uniqueNodes = nodes.uniqBy('id').toArray();
-    const result = uniqueNodes.map(nodeId => {
-      return {
-        [nodeId.get('id')]: allocs
-          .toArray()
-          .filter(alloc => nodeId.get('id') === alloc.get('node.id'))
-          .map(alloc => alloc.getProperties('clientStatus', 'name', 'createTime', 'modifyTime')),
-      };
-    });
-    console.log('result\n\n', result);
-    return result;
-  }
-
-  @computed('node')
-  get totalNodes() {
-    return this.store.peekAll('node').toArray().length;
-  }
-
+  // TODO: use watch
   get nodes() {
     return this.store.peekAll('node');
   }
