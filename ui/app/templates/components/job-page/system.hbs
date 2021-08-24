@@ -19,7 +19,7 @@
     {{/each}}
   {{/if}}
 
-  <JobPage::Parts::Summary @job={{this.job}} />
+  <JobPage::Parts::Summary @job={{this.job}} @nodes={{this.nodes}} />
 
   <JobPage::Parts::PlacementFailures @job={{this.job}} />
 

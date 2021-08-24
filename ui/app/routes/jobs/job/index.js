@@ -4,6 +4,12 @@ import { watchRecord, watchRelationship, watchAll } from 'nomad-ui/utils/propert
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
 export default class IndexRoute extends Route.extend(WithWatchers) {
+  async model() {
+    // Optimizing future node look ups by preemptively loading everything
+    await this.store.findAll('node');
+    return this.modelFor('jobs.job');
+  }
+
   startWatchers(controller, model) {
     if (!model) {
       return;
@@ -16,6 +22,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
       latestDeployment:
         model.get('supportsDeployments') && this.watchLatestDeployment.perform(model),
       list: model.get('hasChildren') && this.watchAll.perform(),
+      nodes: /*model.type === 'sysbatch' && */ this.watchNodes.perform(),
     });
   }
 
@@ -33,6 +40,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
 
   @watchRecord('job') watch;
   @watchAll('job') watchAll;
+  @watchAll('node') watchNodes;
   @watchRecord('job-summary') watchSummary;
   @watchRelationship('allocations') watchAllocations;
   @watchRelationship('evaluations') watchEvaluations;
@@ -41,6 +49,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
   @collect(
     'watch',
     'watchAll',
+    'watchNodes',
     'watchSummary',
     'watchAllocations',
     'watchEvaluations',

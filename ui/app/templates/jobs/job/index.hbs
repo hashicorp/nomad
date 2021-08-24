@@ -1,6 +1,8 @@
 {{page-title "Job " this.model.name}}
 {{component (concat "job-page/" this.model.templateType)
   job=this.model
+  nodes=this.uniqueNodes
+  totalNodes=this.totalNodes
   sortProperty=this.sortProperty
   sortDescending=this.sortDescending
   currentPage=this.currentPage
