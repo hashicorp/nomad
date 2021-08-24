@@ -25,7 +25,7 @@
                 <em class="is-faded">No Children</em>
               {{/if}}
             {{else}}
-              <ClientStatusBar @nodes={{this.nodes}} @allocationContainer={{a.item}} @isNarrow={{true}} />
+              <ClientStatusBar @jobClientStatus={{this.jobClientStatus}} @nodes={{this.nodes}} @allocationContainer={{a.item}} @isNarrow={{true}} />
             {{/if}}
           </div>
         </div>
@@ -38,6 +38,7 @@
     job=a.item.summary
     nodes=this.nodes
     totalNodes=this.totalNodes
+    jobClientStatus=this.jobClientStatus
     class="split-view" as |chart|}}
     <ol data-test-legend class="legend">
       {{#each chart.data as |datum index|}}
@@ -109,4 +110,3 @@
   {{/component}}
   </a.body>
 </ListAccordion>
-

@@ -6,7 +6,7 @@ import { DATACENTERS } from '../common';
 
 const REF_TIME = new Date();
 const JOB_PREFIXES = provide(5, faker.hacker.abbreviation);
-const JOB_TYPES = ['service', 'batch', 'system'];
+const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 const JOB_STATUSES = ['pending', 'running', 'dead'];
 
 export default Factory.extend({

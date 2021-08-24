@@ -5,11 +5,14 @@ import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import { action } from '@ember/object';
 import classic from 'ember-classic-decorator';
+import jobClientStatus from 'nomad-ui/utils/properties/job-client-status';
 
 @classic
 export default class IndexController extends Controller.extend(WithNamespaceResetting) {
   @service system;
   @service store;
+
+  @jobClientStatus('nodes', 'job.status', 'job.allocations') jobClientStatus;
 
   @computed('job')
   get uniqueNodes() {
@@ -32,6 +35,10 @@ export default class IndexController extends Controller.extend(WithNamespaceRese
   @computed('node')
   get totalNodes() {
     return this.store.peekAll('node').toArray().length;
+  }
+
+  get nodes() {
+    return this.store.peekAll('node');
   }
 
   queryParams = [
