@@ -26,7 +26,7 @@ type testCase struct {
 	expectedCode      int
 	expectedOutputs   []string
 	unexpectedOutputs []string
-	expectedError     string
+	expectedErrors    []string
 }
 
 type testCases []testCase
@@ -50,9 +50,16 @@ func runTestCases(t *testing.T, cases testCases) {
 				require.Contains(t, out, expectedOutput, "expected output %q, got %q", expectedOutput, out)
 			}
 			for _, unexpectedOutput := range c.unexpectedOutputs {
-				require.Contains(t, out, unexpectedOutput, "unexpected output %q, got %q", unexpectedOutput, out)
+				require.NotContains(t, out, unexpectedOutput, "unexpected output %q, got %q", unexpectedOutput, out)
 			}
-			require.Containsf(t, outerr, c.expectedError, "expected error %q, got %q", c.expectedError, outerr)
+			// Expect no errors unless specified
+			if len(c.expectedErrors) == 0 {
+				require.Empty(t, outerr, "expected no errors, got %q", outerr)
+			} else {
+				for _, expectedError := range c.expectedErrors {
+					require.Contains(t, outerr, expectedError, "expected error %q, got %q", expectedError, outerr)
+				}
+			}
 		})
 	}
 }
@@ -134,7 +141,6 @@ func TestDebug_NodeClass(t *testing.T) {
 				"Node Class: clienta",
 				"Created debug archive",
 			},
-			expectedError: "",
 		},
 		{
 			name:         "address=api, node-class=clientb, max-nodes=2",
@@ -146,7 +152,6 @@ func TestDebug_NodeClass(t *testing.T) {
 				"Node Class: clientb",
 				"Created debug archive",
 			},
-			expectedError: "",
 		},
 	}
 
@@ -231,7 +236,6 @@ func TestDebug_SingleServer(t *testing.T) {
 				"Clients: (0/0)",
 				"Created debug archive",
 			},
-			expectedError: "",
 		},
 		{
 			name:         "address=api, server-id=all",
@@ -242,7 +246,6 @@ func TestDebug_SingleServer(t *testing.T) {
 				"Clients: (0/0)",
 				"Created debug archive",
 			},
-			expectedError: "",
 		},
 	}
 
@@ -344,7 +347,6 @@ func TestDebug_Targets(t *testing.T) {
 				"agentself",
 				"consul",
 			},
-			expectedError: "",
 		},
 		{
 			name:         "invalid targets",
@@ -355,7 +357,14 @@ func TestDebug_Targets(t *testing.T) {
 				"Clients: (0/0)",
 				"Created debug archive",
 			},
-			expectedError: "invalid target",
+			unexpectedOutputs: []string{
+				"foo",
+				"bar",
+			},
+			expectedErrors: []string{
+				"Invalid target foo",
+				"Invalid target bar",
+			},
 		},
 	}
 
@@ -369,40 +378,46 @@ func TestDebug_Failures(t *testing.T) {
 
 	var cases = testCases{
 		{
-			name:         "fails incorrect args",
-			args:         []string{"some", "bad", "args"},
-			expectedCode: 1,
+			name:           "fails incorrect args",
+			args:           []string{"some", "bad", "args"},
+			expectedCode:   1,
+			expectedErrors: []string{"This command takes no arguments"},
 		},
 		{
-			name:         "Fails illegal node ids",
-			args:         []string{"-node-id", "foo:bar"},
-			expectedCode: 1,
+			name:           "Fails illegal node ids",
+			args:           []string{"-node-id", "foo:bar"},
+			expectedCode:   1,
+			expectedErrors: []string{"Error querying node info", "connection refused"},
 		},
 		{
-			name:         "Fails missing node ids",
-			args:         []string{"-node-id", "abc,def", "-duration", "250ms", "-interval", "250ms"},
-			expectedCode: 1,
+			name:           "Fails missing node ids",
+			args:           []string{"-node-id", "abc,def", "-duration", "250ms", "-interval", "250ms"},
+			expectedCode:   1,
+			expectedErrors: []string{"Error querying node info", "connection refused"},
 		},
 		{
-			name:         "Fails bad durations",
-			args:         []string{"-duration", "foo"},
-			expectedCode: 1,
+			name:           "Fails bad durations",
+			args:           []string{"-duration", "foo"},
+			expectedCode:   1,
+			expectedErrors: []string{"invalid duration \"foo\""},
 		},
 		{
-			name:         "Fails bad intervals",
-			args:         []string{"-interval", "bar"},
-			expectedCode: 1,
+			name:           "Fails bad intervals",
+			args:           []string{"-interval", "bar"},
+			expectedCode:   1,
+			expectedErrors: []string{"invalid duration \"bar\""},
 		},
 		{
-			name:         "Fails intervals greater than duration",
-			args:         []string{"-duration", "5m", "-interval", "10m"},
-			expectedCode: 1,
+			name:           "Fails intervals greater than duration",
+			args:           []string{"-duration", "5m", "-interval", "10m"},
+			expectedCode:   1,
+			expectedErrors: []string{"Error parsing interval", "10m is greater than duration 5m"},
 		},
 		{
-			name:          "Fails bad address",
-			args:          []string{"-address", url + "bogus"},
-			expectedCode:  1,
-			expectedError: "invalid address",
+			name:           "Fails bad address",
+			args:           []string{"-address", url + "bogus"},
+			expectedCode:   1,
+			expectedErrors: []string{"invalid address", "invalid port"},
 		},
 	}
 

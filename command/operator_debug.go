@@ -289,8 +289,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	c.pprofDuration = pd
 
 	// Parse initial and interval capture targets
-	c.targets = parseTargets(targets)
-	c.intervalTargets = parseIntervalTargets(intervalTargets)
+	c.targets = c.parseTargets(targets)
+	c.intervalTargets = c.parseIntervalTargets(intervalTargets)
 
 	// Verify there are no extra arguments
 	args = flags.Args()
@@ -509,12 +509,15 @@ func (t targetMap) String() string {
 
 // IsValid checks whether the key exists in the map
 func (m targetMap) IsValid(value string) bool {
+	if value == "all" {
+		return true
+	}
 	_, ok := m[value]
 	return ok
 }
 
 // parseTargets parses a comma delimited target string into a targetMap
-func parseTargets(targets string) targetMap {
+func (c *OperatorDebugCommand) parseTargets(targets string) targetMap {
 	ret := make(targetMap)
 
 	// Build starting target map
@@ -527,21 +530,31 @@ func parseTargets(targets string) targetMap {
 		ret = targetDefaults()
 	}
 
-	// Enable or disable targets in map
+	// Enable or disable targets in map based on user input CSV
+	var enabled bool
 	ts := splitArgumentList(targets)
 	for _, t := range ts {
+		// These meta-targets should not appear in the map
+		if t == "all" || t == "none" {
+			continue
+		}
+
+		enabled = true
 		if strings.HasPrefix(t, "-") {
 			t = strings.TrimPrefix(t, "-")
-			ret[t] = false
-		} else {
-			ret[t] = true
+			enabled = false
 		}
+		if !ret.IsValid(t) {
+			c.Ui.Error(fmt.Sprintf("Invalid target %s", t))
+			continue
+		}
+		ret[t] = enabled
 	}
 	return ret
 }
 
 // parseTargets parses a comma delimited target string into a targetMap
-func parseIntervalTargets(intervalTargets string) targetMap {
+func (c *OperatorDebugCommand) parseIntervalTargets(intervalTargets string) targetMap {
 	ret := make(targetMap)
 
 	// Build starting interval target map
@@ -555,14 +568,24 @@ func parseIntervalTargets(intervalTargets string) targetMap {
 	}
 
 	// Enable or disable interval targets in map
+	var enabled bool
 	ts := splitArgumentList(intervalTargets)
 	for _, t := range ts {
+		// These meta-targets should not appear in the map
+		if t == "all" || t == "none" {
+			continue
+		}
+
+		enabled = true
 		if strings.HasPrefix(t, "-") {
 			t = strings.TrimPrefix(t, "-")
-			ret[t] = false
-		} else {
-			ret[t] = true
+			enabled = false
 		}
+		if !ret.IsValid(t) {
+			c.Ui.Error(fmt.Sprintf("Invalid target %s", t))
+			continue
+		}
+		ret[t] = enabled
 	}
 	return ret
 }
