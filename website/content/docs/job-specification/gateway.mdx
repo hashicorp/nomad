@@ -132,13 +132,6 @@ envoy_gateway_bind_addresses "<service>" {
   hosts are valid DNS records. For example, `*.example.com` is valid while `example.*`
   and `*-suffix.example.com` are not.
 
-  ~> **Note:** If a well-known port is not used, i.e. a port other than 80 (http) or 443 (https),
-  then the port must be appended to the host to correctly match traffic. This is
-  defined in the [HTTP/1.1 RFC](https://tools.ietf.org/html/rfc2616#section-14.23).
-  If TLS is enabled, then the host **without** the port must be added to the `hosts`
-  field as well. TLS verification only matches against the hostname of the incoming
-  connection, and does not take into account the port.
-
 ### `terminating` Parameters
 
 - `service` <code>(array<[linked-service]>: required)</code> - One or more services to be
