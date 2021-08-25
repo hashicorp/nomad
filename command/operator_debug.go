@@ -619,11 +619,6 @@ func getSupportedTargets() targetMap {
 	}
 }
 
-// isSupportedTarget returns true if this target exists
-func isSupportedTarget(value string) bool {
-	return getSupportedTargets().IsValid(value)
-}
-
 // targetDefaults enables the default set of targets
 func targetDefaults() targetMap {
 	ts := make(targetMap)
@@ -650,21 +645,6 @@ func targetDefaults() targetMap {
 	ts["jobs"] = true
 	ts["metrics"] = true
 	ts["nodes"] = true
-
-	return ts
-}
-
-// targetDefaultsEnterprise enables enterprise targets
-func targetDefaultsEnterprise() targetMap {
-	ts := targetDefaults()
-	ts["license"] = true
-	ts["autopilot"] = true
-
-	// not implemented yet
-	// ts["quotas"] = false
-	// ts["recommendations"] = false
-	// consider aliasing recommendations to das
-	// ts["das"] = false
 
 	return ts
 }
