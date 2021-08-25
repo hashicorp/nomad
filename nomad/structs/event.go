@@ -49,7 +49,7 @@ const (
 
 // Event represents a change in Nomads state.
 type Event struct {
-	// Topic represeents the primary object for the event
+	// Topic represents the primary object for the event
 	Topic Topic
 
 	// Type is a short string representing the reason for the event
