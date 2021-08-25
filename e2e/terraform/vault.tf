@@ -1,3 +1,8 @@
+locals {
+
+  vault_env = var.tls ? "VAULT_ADDR=https://${aws_instance.server.0.public_ip}:8200 VAULT_CACERT=keys/tls_ca.crt VAULT_CLIENT_CERT=keys/tls_api_client.crt VAULT_CLIENT_KEY=keys/tls_api_client.key" : "VAULT_ADDR=http://${aws_instance.server.0.public_ip}:8200"
+}
+
 resource "null_resource" "bootstrap_vault" {
   depends_on = [
     aws_instance.server,
@@ -16,7 +21,7 @@ resource "null_resource" "bootstrap_vault" {
 # so that we can read it into the data.local_file later. If not set,
 # ensure that it's empty.
 data "template_file" "bootstrap_vault_script" {
-  template = var.vault ? "VAULT_ADDR=http://${aws_instance.server.0.public_ip}:8200 ./scripts/bootstrap-vault.sh" : "mkdir -p ${path.root}/keys; echo > ${path.root}/keys/vault_root_token"
+  template = var.vault ? "${local.vault_env} ./scripts/bootstrap-vault.sh" : "mkdir -p ${path.root}/keys; echo > ${path.root}/keys/vault_root_token; echo ${path.root}/keys/nomad_vault.hcl"
 }
 
 data "local_file" "vault_token" {
