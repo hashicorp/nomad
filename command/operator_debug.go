@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,7 +25,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/kr/pretty"
 	"github.com/posener/complete"
 )
 
@@ -451,8 +451,10 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		c.Ui.Output(fmt.Sprintf("   pprof Duration: %s", c.pprofDuration))
 	}
 	if len(c.targets) > 0 {
-		c.Ui.Output(fmt.Sprintf("         Targets: %s", targets))
-		pretty.Print(c.targets)
+		c.Ui.Output(fmt.Sprintf("          Targets: %s", c.targets.String()))
+	}
+	if len(c.intervalTargets) > 0 {
+		c.Ui.Output(fmt.Sprintf(" Interval Targets: %s", c.intervalTargets.String()))
 	}
 	c.Ui.Output("")
 	c.Ui.Output("Capturing cluster data...")
@@ -488,6 +490,22 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 // targetMap generic map for targets
 type targetMap map[string]bool
+
+// String returns a CSV of valid enabled targets
+func (t targetMap) String() string {
+	var targets []string
+	var targetString string
+
+	for target, enabled := range t {
+		if enabled && target != "all" {
+			targets = append(targets, target)
+		}
+	}
+	sort.Strings(targets)
+	targetString = strings.Join(targets, ",")
+
+	return targetString
+}
 
 // IsValid checks whether the key exists in the map
 func (m targetMap) IsValid(value string) bool {

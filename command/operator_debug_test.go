@@ -276,6 +276,50 @@ func TestDebug_Targets(t *testing.T) {
 
 	var cases = testCases{
 		{
+			name:         "all targets",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-targets", "all"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Servers: (1/1)",
+				"Clients: (0/0)",
+				"Created debug archive",
+				"Targets: agenthost,agentself",
+			},
+			unexpectedOutputs: []string{
+				"Targets: all\n",
+			},
+		},
+		{
+			name:         "no targets",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-targets", "none"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Servers: (1/1)",
+				"Clients: (0/0)",
+				"Created debug archive",
+				"Targets: \n",
+				"Interval Targets: allocations,csiplugins",
+			},
+			unexpectedOutputs: []string{
+				"Targets: none\n",
+			},
+		},
+		{
+			name:         "no interval targets",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-interval-targets", "none"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Servers: (1/1)",
+				"Clients: (0/0)",
+				"Created debug archive",
+				"Targets: agenthost,agentself",
+				"Interval Targets: \n",
+			},
+			unexpectedOutputs: []string{
+				"Interval Targets: none\n",
+			},
+		},
+		{
 			name:         "enable targets",
 			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-targets", "agentself"},
 			expectedCode: 0,
@@ -283,9 +327,8 @@ func TestDebug_Targets(t *testing.T) {
 				"Servers: (1/1)",
 				"Clients: (0/0)",
 				"Created debug archive",
-				"Targets: agentself",
+				"Targets: agenthost,agentself",
 			},
-			expectedError: "",
 		},
 		{
 			name:         "disable targets",
@@ -295,6 +338,7 @@ func TestDebug_Targets(t *testing.T) {
 				"Servers: (1/1)",
 				"Clients: (0/0)",
 				"Created debug archive",
+				"Targets: agenthost,allocations",
 			},
 			unexpectedOutputs: []string{
 				"agentself",
