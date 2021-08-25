@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,6 +28,7 @@ type testCase struct {
 	expectedOutputs   []string
 	unexpectedOutputs []string
 	expectedErrors    []string
+	debug             bool
 }
 
 type testCases []testCase
@@ -39,10 +41,26 @@ func runTestCases(t *testing.T, cases testCases) {
 			ui := cli.NewMockUi()
 			cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
+			if c.debug {
+				fmt.Print("\n\nDebug breakpoint -- before test run\n\n")
+				pretty.Print(c)
+				fmt.Print("\n")
+			}
+
 			// Run test case
 			code := cmd.Run(c.args)
 			out := ui.OutputWriter.String()
 			outerr := ui.ErrorWriter.String()
+
+			if c.debug {
+				fmt.Print("\n\nDebug breakpoint -- after test run\n")
+				pretty.Print(c)
+				fmt.Print("\n\nui.OutputWriter.String() contents:\n")
+				pretty.Print(out)
+				fmt.Print("\n\nui.ErrorWriter.String() contents:\n")
+				pretty.Print(outerr)
+				fmt.Print("\n")
+			}
 
 			// Verify case expectations
 			require.Equalf(t, code, c.expectedCode, "expected exit code %d, got: %d: %s", c.expectedCode, code, outerr)
