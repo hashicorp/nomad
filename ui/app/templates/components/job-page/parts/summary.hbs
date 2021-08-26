@@ -10,7 +10,7 @@
         {{else}}
           Client Status
           <span class="badge {{if a.isOpen "is-white" "is-light"}}">
-            {{a.item.summary.totalAllocs}}
+            {{this.jobClientStatus.totalNodes}}
           </span>
         {{/if}}
       </div>

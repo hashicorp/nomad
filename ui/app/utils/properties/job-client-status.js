@@ -1,10 +1,5 @@
 import { computed } from '@ember/object';
 
-// An Ember.Computed property that computes the aggregated status of a job in a
-// client based on the desiredStatus of each allocation placed in the client.
-//
-// ex. clientStaus: jobClientStatus('nodes', 'job'),
-
 const STATUS = [
   'queued',
   'notScheduled',
@@ -16,6 +11,10 @@ const STATUS = [
   'lost',
 ];
 
+// An Ember.Computed property that computes the aggregated status of a job in a
+// client based on the desiredStatus of each allocation placed in the client.
+//
+// ex. clientStaus: jobClientStatus('nodes', 'job'),
 export default function jobClientStatus(nodesKey, jobKey) {
   return computed(nodesKey, `${jobKey}.{datacenters,status,allocations,taskGroups}`, function() {
     const job = this.get(jobKey);
@@ -42,6 +41,7 @@ export default function jobClientStatus(nodesKey, jobKey) {
     const result = {
       byNode: {},
       byStatus: {},
+      totalNodes: nodes.length,
     };
     nodes.forEach(n => {
       const status = jobStatus(allocsByNodeID[n.id], job.taskGroups.length);
@@ -62,6 +62,7 @@ function allQueued(nodes) {
   return {
     byNode: Object.fromEntries(nodeIDs.map(id => [id, 'queued'])),
     byStatus: canonicalizeStatus({ queued: nodeIDs }),
+    totalNodes: nodes.length,
   };
 }
 

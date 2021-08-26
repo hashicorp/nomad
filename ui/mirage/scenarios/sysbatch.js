@@ -53,7 +53,7 @@ export function sysbatchSmall(server) {
     createAllocations: false,
   });
   clients.forEach((c, i) => {
-    if (i > 9) return;
+    if (i > clients.length - 3) return;
     server.create('allocation', { jobId: jobNotScheduled.id, nodeId: c.id });
   });
 }
