@@ -1,8 +1,31 @@
+## 1.1.4 (August 26, 2021)
+
+SECURITY:
+
+* Restricted access to the Raft RPC layer, so only servers within the region can issue Raft RPC requests. Previously, local clients and federated servers can issue Raft RPC requests directly. CVE-2021-37218 [[GH-11084](https://github.com/hashicorp/nomad/issues/11084)]
+
+IMPROVEMENTS:
+
+* build: Updated to Go 1.16.7 [[GH-11083](https://github.com/hashicorp/nomad/issues/11083)]
+* client: Speed up client startup time [[GH-11005](https://github.com/hashicorp/nomad/issues/11005)]
+* consul/connect: Reduced the noise of log messages emitted for connect native tasks [[GH-10951](https://github.com/hashicorp/nomad/issues/10951)]
+* csi: add flag for providing secrets as a set of key/value pairs to list snapshots [[GH-10848](https://github.com/hashicorp/nomad/issues/10848)]
+* deps: Updated `x/sys` to `20210818153620-00dd8d7831e7` [[GH-11065](https://github.com/hashicorp/nomad/issues/11065)]
+* scheduler: Re-evaluate nodes for system jobs after attributes changes [[GH-11007](https://github.com/hashicorp/nomad/issues/11007)]
+* ui: Add header separator between a child job priority and its parent [[GH-11020](https://github.com/hashicorp/nomad/issues/11020)]
+
+BUG FIXES:
+
+* core: Fixed a bug where system jobs with non-unique IDs may not be placed on new nodes [[GH-11054](https://github.com/hashicorp/nomad/issues/11054)]
+* agent: Don't timestamp active log file. [[GH-11070](https://github.com/hashicorp/nomad/issues/11070)]
+* deployments: Fixed a bug where multi-group deployments don't get auto-promoted when one group has no canaries. [[GH-11013](https://github.com/hashicorp/nomad/issues/11013)]
+* driver/docker: Fixed a bug in the authentication config where not all fields were set [[GH-10929](https://github.com/hashicorp/nomad/issues/10929)]
+* server: Fixed a bug where planning job update reports spurious in-place updates even if the update includes no changes [[GH-10990](https://github.com/hashicorp/nomad/issues/10990)]
+* ui: Add ability to search across all namespaces [[GH-10666](https://github.com/hashicorp/nomad/issues/10666)]
+* ui: Fixed a bug where the "Dispatch Job" button was displayed for non-parameterized jobs [[GH-11019](https://github.com/hashicorp/nomad/issues/11019)]
+* ui: Fixed a bug where the job dispatch form is not displayed when the job doesn't have meta fields [[GH-10934](https://github.com/hashicorp/nomad/issues/10934)]
+
 ## 1.1.3 (July 29, 2021)
-
-__BACKWARDS INCOMPATIBILITIES:__
-
-* api: The Job Run and Plan APIs now use the `?namespace=` query parameter before the namespace from the job. This matches region's behavior. Users of `api.Client` should ensure their `Config.Namespace` is unset if they want to use the namespace in the job. [[GH-10875](https://github.com/hashicorp/nomad/issues/10875)]
 
 IMPROVEMENTS:
 
@@ -174,11 +197,21 @@ BUG FIXES:
  * server: Fixed a panic that may arise on submission of jobs containing invalid service checks [[GH-10154](https://github.com/hashicorp/nomad/issues/10154)]
  * ui: Fixed the rendering of interstitial components shown after processing a dynamic application sizing recommendation. [[GH-10094](https://github.com/hashicorp/nomad/pull/10094)]
 
+## 1.0.10 (August 26, 2021)
+
+SECURITY:
+
+* Restricted access to the Raft RPC layer, so only servers within the region can issue Raft RPC requests. Previously, local clients and federated servers can issue Raft RPC requests directly. CVE-2021-37218 [[GH-11084](https://github.com/hashicorp/nomad/issues/11084)]
+
+BUG FIXES:
+
+* core: Fixed a bug where system jobs with non-unique IDs may not be placed on new nodes [[GH-11054](https://github.com/hashicorp/nomad/issues/11054)]
+* agent: Don't timestamp active log file. [[GH-11070](https://github.com/hashicorp/nomad/issues/11070)]
+* deployments: Fixed a bug where multi-group deployments don't get auto-promoted when one group has no canaries. [[GH-11013](https://github.com/hashicorp/nomad/issues/11013)]
+* driver/docker: Fixed a bug in the authentication config where not all fields were set [[GH-10929](https://github.com/hashicorp/nomad/issues/10929)]
+* server: Fixed a bug where planning job update reports spurious in-place updates even if the update includes no changes [[GH-10990](https://github.com/hashicorp/nomad/issues/10990)]
+
 ## 1.0.9 (July 29, 2021)
-
-__BACKWARDS INCOMPATIBILITIES:__
-
-* api: The Job Run and Plan APIs now use the `?namespace=` query parameter before the namespace from the job. This matches region's behavior. Users of `api.Client` should ensure their `Config.Namespace` is unset if they want to use the namespace in the job. [[GH-10875](https://github.com/hashicorp/nomad/issues/10875)]
 
 BUG FIXES:
 
