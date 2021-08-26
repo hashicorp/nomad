@@ -21,6 +21,7 @@ export default class ClientStatusBar extends DistributionBar {
         label: 'Starting',
         value: this.jobClientStatus.byStatus.starting.length,
         className: 'starting',
+        layers: 2,
       },
       {
         label: 'Running',

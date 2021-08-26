@@ -1,10 +1,9 @@
 import { computed } from '@ember/object';
 
-// An Ember.Computed property that persists set values in localStorage
-// and will attempt to get its initial value from localStorage before
-// falling back to a default.
+// An Ember.Computed property that computes the aggregated status of a job in a
+// client based on the desiredStatus of each allocation placed in the client.
 //
-// ex. showTutorial: localStorageProperty('nomadTutorial', true),
+// ex. clientStaus: jobClientStatus('nodes', 'job'),
 
 const STATUS = [
   'queued',
@@ -12,15 +11,16 @@ const STATUS = [
   'starting',
   'running',
   'complete',
-  'partial',
   'degraded',
   'failed',
   'lost',
 ];
 
 export default function jobClientStatus(nodesKey, jobKey) {
-  return computed(nodesKey, jobKey, function() {
+  return computed(nodesKey, `${jobKey}.{datacenters,status,allocations,taskGroups}`, function() {
     const job = this.get(jobKey);
+
+    // Filter nodes by the datacenters defined in the job.
     const nodes = this.get(nodesKey).filter(n => {
       return job.datacenters.indexOf(n.datacenter) >= 0;
     });
@@ -29,10 +29,11 @@ export default function jobClientStatus(nodesKey, jobKey) {
       return allQueued(nodes);
     }
 
+    // Group the job allocations by the ID of the client that is running them.
     const allocsByNodeID = {};
     job.allocations.forEach(a => {
       const nodeId = a.node.get('id');
-      if (!(nodeId in allocsByNodeID)) {
+      if (!allocsByNodeID[nodeId]) {
         allocsByNodeID[nodeId] = [];
       }
       allocsByNodeID[nodeId].push(a);
@@ -46,7 +47,7 @@ export default function jobClientStatus(nodesKey, jobKey) {
       const status = jobStatus(allocsByNodeID[n.id], job.taskGroups.length);
       result.byNode[n.id] = status;
 
-      if (!(status in result.byStatus)) {
+      if (!result.byStatus[status]) {
         result.byStatus[status] = [];
       }
       result.byStatus[status].push(n.id);
@@ -64,42 +65,62 @@ function allQueued(nodes) {
   };
 }
 
+// canonicalizeStatus makes sure all possible statuses are present in the final
+// returned object. Statuses missing from the input will be assigned an emtpy
+// array.
 function canonicalizeStatus(status) {
   for (let i = 0; i < STATUS.length; i++) {
     const s = STATUS[i];
-    if (!(s in status)) {
+    if (!status[s]) {
       status[s] = [];
     }
   }
   return status;
 }
 
+// jobStatus computes the aggregated status of a job in a client.
+//
+// `allocs` are the list of allocations for a job that are placed in a specific
+// client.
+// `expected` is the number of allocations the client should have.
 function jobStatus(allocs, expected) {
+  // The `pending` status has already been checked, so if at this point the
+  // client doesn't have any allocations we assume that it was not considered
+  // for scheduling for some reason.
   if (!allocs) {
     return 'notScheduled';
   }
 
+  // If there are some allocations, but not how many we expected, the job is
+  // considered `degraded` since it did fully run in this client.
   if (allocs.length < expected) {
-    return 'partial';
+    return 'degraded';
   }
 
+  // Count how many allocations are in each `clientStatus` value.
   const summary = allocs.reduce((acc, a) => {
     const status = a.clientStatus;
-    if (!(status in acc)) {
+    if (!acc[status]) {
       acc[status] = 0;
     }
     acc[status]++;
     return acc;
   }, {});
 
-  const terminalStatus = ['failed', 'lost', 'complete'];
-  for (let i = 0; i < terminalStatus.length; i++) {
-    const s = terminalStatus[i];
+  // Theses statuses are considered terminal, i.e., an allocation will never
+  // move from this status to another.
+  // If all of the expected allocations are in one of these statuses, the job
+  // as a whole is considered to be in the same status.
+  const terminalStatuses = ['failed', 'lost', 'complete'];
+  for (let i = 0; i < terminalStatuses.length; i++) {
+    const s = terminalStatuses[i];
     if (summary[s] === expected) {
       return s;
     }
   }
 
+  // It only takes one allocation to be in one of these statuses for the
+  // entire job to be considered in a given status.
   if (summary['failed'] > 0 || summary['lost'] > 0) {
     return 'degraded';
   }
