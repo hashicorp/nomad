@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -1098,33 +1097,15 @@ func TestRPC_TLS_Enforcement(t *testing.T) {
 		return msgpackrpc.CallWithCodec(codec, "Status.Ping", arg, &out)
 	}
 
-	parseCert := func(t *testing.T, path string) *x509.Certificate {
-		bytes, err := ioutil.ReadFile(path)
-		require.NoError(t, err)
-		block, _ := pem.Decode([]byte(bytes))
-		require.NoError(t, err)
-		cert, err := x509.ParseCertificate(block.Bytes)
-		require.NoError(t, err)
-
-		return cert
-	}
-
 	raftRPC := func(t *testing.T, s *Server, c *config.TLSConfig) error {
-		// TODO: Actually make an RPC Call
-		// Raft Layer requires a wellformed RPC, otherwise, the connection
-		// is closed immediately - similar to the RaftTLS failure
+		conn := connect(t, s, c)
+		defer conn.Close()
 
-		clientCert := parseCert(t, c.CertFile)
-		rootCert := parseCert(t, c.CAFile)
+		_, err := conn.Write([]byte{byte(pool.RpcRaft)})
+		require.NoError(t, err)
 
-		rpcCtx := &RPCContext{
-			TLS: true,
-			VerifiedChains: [][]*x509.Certificate{
-				{clientCert, rootCert},
-			},
-		}
-
-		return s.validateRaftTLS(rpcCtx)
+		_, err = doRaftRPC(conn, s.config.NodeName)
+		return err
 	}
 
 	// generate server cert
@@ -1229,11 +1210,17 @@ func TestRPC_TLS_Enforcement(t *testing.T) {
 			t.Run("Raft RPC: verify_hostname=true", func(t *testing.T) {
 				err := raftRPC(t, mtlsS, cfg)
 
+				// the expected error depends on location of failure.
+				// We expect "bad certificate" if connection fails during handshake,
+				// or EOF when connection is closed after RaftRPC byte.
 				if tc.canRaft {
 					require.NoError(t, err)
+				} else if !tc.canRPC {
+					require.Error(t, err)
+					require.Contains(t, err.Error(), "bad certificate")
 				} else {
 					require.Error(t, err)
-					require.Contains(t, err.Error(), "invalid for expected role or region")
+					require.Contains(t, err.Error(), "EOF")
 				}
 			})
 			t.Run("Raft RPC: verify_hostname=false", func(t *testing.T) {
@@ -1242,4 +1229,41 @@ func TestRPC_TLS_Enforcement(t *testing.T) {
 			})
 		})
 	}
+}
+
+func doRaftRPC(conn net.Conn, leader string) (*raft.AppendEntriesResponse, error) {
+	req := raft.AppendEntriesRequest{
+		RPCHeader:         raft.RPCHeader{ProtocolVersion: 3},
+		Term:              0,
+		Leader:            []byte(leader),
+		PrevLogEntry:      0,
+		PrevLogTerm:       0xc,
+		LeaderCommitIndex: 50,
+	}
+
+	enc := codec.NewEncoder(conn, &codec.MsgpackHandle{})
+	dec := codec.NewDecoder(conn, &codec.MsgpackHandle{})
+
+	const rpcAppendEntries = 0
+	if _, err := conn.Write([]byte{rpcAppendEntries}); err != nil {
+		return nil, fmt.Errorf("failed to write raft-RPC byte: %w", err)
+	}
+
+	if err := enc.Encode(req); err != nil {
+		return nil, fmt.Errorf("failed to send append entries RPC: %w", err)
+	}
+
+	var rpcError string
+	var resp raft.AppendEntriesResponse
+	if err := dec.Decode(&rpcError); err != nil {
+		return nil, fmt.Errorf("failed to decode response error: %w", err)
+	}
+	if rpcError != "" {
+		return nil, fmt.Errorf("rpc error: %v", rpcError)
+	}
+	if err := dec.Decode(&resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &resp, nil
 }

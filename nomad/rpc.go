@@ -862,6 +862,6 @@ func (r *rpcHandler) validateRaftTLS(rpcCtx *RPCContext) error {
 		return nil
 	}
 
-	r.logger.Warn("unauthorized connection", "required_hostname", expected, "found", cert.DNSNames)
+	r.logger.Warn("unauthorized raft connection", "remote_addr", rpcCtx.Conn.RemoteAddr(), "required_hostname", expected, "found", cert.DNSNames)
 	return fmt.Errorf("certificate is invalid for expected role or region: %q", expected)
 }
