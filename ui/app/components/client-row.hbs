@@ -1,0 +1,27 @@
+<tr>
+                <th class="is-narrow"></th>
+
+<td data-test-short-id>
+  <LinkTo @route="clients.client" @model={{this.id}} class="is-primary">
+    {{this.id}}
+  </LinkTo>
+</td>
+<td data-test-short-id>
+  {{this.name}}
+</td>
+<td data-test-create-time>{{moment-from-now this.eldestCreateTime}}</td>
+<td data-test-modify-time>
+  <span class="tooltip" aria-label="{{format-month-ts this.node.modifyTime}}">
+    {{moment-from-now this.allocation.modifyTime}}
+  </span>
+</td>
+<td data-test-client-status class="is-one-line">
+  <span class="color-swatch">{{this.status}}</span>
+</td>
+<td data-test-client-allocations class="is-one-line">
+    <div class="inline-chart">
+        <AllocationStatusBar @allocationContainer={{this.allocationContainer}}  @isNarrow={{true}} />
+    </div>
+</td>
+</tr>
+

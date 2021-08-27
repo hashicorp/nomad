@@ -1,0 +1,71 @@
+{{page-title "Job " this.job.name " clients"}}
+<JobSubnav @job={{this.job}} />
+<section class="section">
+  {{#if this.uniqueNodes.length}}
+    <div class="content">
+      <div>
+        <SearchBox
+          data-test-clients-search
+          @searchTerm={{mut this.searchTerm}}
+          @onChange={{action this.resetPagination}}
+          @placeholder="Search clients..." />
+      </div>
+    </div>
+    {{#if this.sortedClients}}
+      <ListPagination
+        @source={{this.sortedClients}}
+        @size={{this.pageSize}}
+        @page={{this.currentPage}}
+        @class="clients" as |p|>
+        <ListTable
+          @source={{p.list}}
+          @sortProperty={{this.sortProperty}}
+          @sortDescending={{this.sortDescending}}
+          @class="with-foot" as |t|>
+          <t.head>
+            <th class="is-narrow"></th>
+            <t.sort-by @prop="id">ID</t.sort-by>
+            <t.sort-by @prop="name">Name</t.sort-by>
+            <t.sort-by @prop="createIndex" @title="Create Index">Created</t.sort-by>
+            <t.sort-by @prop="modifyIndex" @title="Modify Index">Modified</t.sort-by>
+            <t.sort-by @prop="statusIndex">Status</t.sort-by>
+            <th class="is-3">Allocation Summary</th>
+          </t.head>
+          <t.body as |row|>
+              {{!-- {{log this.sortedClients.length}} --}}
+              <ClientRow
+                @data-test-client={{'sdf'}}
+                @jobClientStatus={{this.jobClientStatus}}
+                @node={{row}}
+                @context="job"
+                @onClick={{action "gotoClient" row }} />
+          </t.body>
+        </ListTable>
+        <div class="table-foot">
+          <nav class="pagination">
+            <div class="pagination-numbers">
+              {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedClients.length}}
+            </div>
+            <p.prev @class="pagination-previous"> &lt; </p.prev>
+            <p.next @class="pagination-next"> &gt; </p.next>
+            <ul class="pagination-list"></ul>
+          </nav>
+        </div>
+      </ListPagination>
+    {{else}}
+      <div class="boxed-section-body">
+        <div class="empty-message" data-test-empty-clients-list>
+          <h3 class="empty-message-headline" data-test-empty-clients-list-headline>No Matches</h3>
+          <p class="empty-message-body">No clients match the term <strong>{{this.searchTerm}}</strong></p>
+        </div>
+      </div>
+    {{/if}}
+  {{else}}
+    <div class="boxed-section-body">
+      <div class="empty-message" data-test-empty-clients-list>
+        <h3 class="empty-message-headline" data-test-empty-clients-list-headline>No Clients</h3>
+        <p class="empty-message-body">No clients have been placed.</p>
+      </div>
+    </div>
+  {{/if}}
+</section>

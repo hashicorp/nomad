@@ -23,6 +23,7 @@ Router.map(function() {
       this.route('dispatch');
       this.route('evaluations');
       this.route('allocations');
+      this.route('clients');
     });
   });
 
