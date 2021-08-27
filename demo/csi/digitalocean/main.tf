@@ -29,8 +29,8 @@ resource "nomad_volume" "test_volume" {
   deregister_on_destroy = true
 
   capability {
-    access_mode           = "single-node-writer"
-    attachment_mode       = "block-device"
+    access_mode     = "single-node-writer"
+    attachment_mode = "block-device"
   }
 }
 
