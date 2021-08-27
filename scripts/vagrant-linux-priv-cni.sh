@@ -2,7 +2,7 @@
 
 set -o errexit
 
-VERSION="v0.8.6"
+VERSION="v1.0.0"
 DOWNLOAD=https://github.com/containernetworking/plugins/releases/download/${VERSION}/cni-plugins-linux-amd64-${VERSION}.tgz
 TARGET_DIR=/opt/cni/bin
 
