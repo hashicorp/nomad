@@ -4,7 +4,7 @@ import { inject as service } from '@ember/service';
 import jobClientStatus from 'nomad-ui/utils/properties/job-client-status';
 
 @classic
-export default class System extends AbstractJobPage {
+export default class Sysbatch extends AbstractJobPage {
   @service store;
 
   @jobClientStatus('nodes', 'job') jobClientStatus;
