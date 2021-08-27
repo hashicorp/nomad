@@ -5,6 +5,8 @@ job "example" {
     volume "test" {
       type   = "csi"
       source = "${volume_id}"
+      access_mode     = "single-node-writer"
+      attachment_mode = "block-device"
     }
 
     task "redis" {
