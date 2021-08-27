@@ -28,7 +28,6 @@ export default class IndexController extends Controller.extend(WithNamespaceRese
           .map(alloc => alloc.getProperties('clientStatus', 'name', 'createTime', 'modifyTime')),
       };
     });
-    console.log('result\n\n', result);
     return result;
   }
 
