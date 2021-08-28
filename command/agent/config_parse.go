@@ -55,6 +55,7 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"client.server_join.retry_interval", &c.Client.ServerJoin.RetryInterval, &c.Client.ServerJoin.RetryIntervalHCL},
 		{"server.heartbeat_grace", &c.Server.HeartbeatGrace, &c.Server.HeartbeatGraceHCL},
 		{"server.min_heartbeat_ttl", &c.Server.MinHeartbeatTTL, &c.Server.MinHeartbeatTTLHCL},
+		{"server.failover_heartbeat_ttl", &c.Server.FailoverHeartbeatTTL, &c.Server.FailoverHeartbeatTTLHCL},
 		{"server.retry_interval", &c.Server.RetryInterval, &c.Server.RetryIntervalHCL},
 		{"server.server_join.retry_interval", &c.Server.ServerJoin.RetryInterval, &c.Server.ServerJoin.RetryIntervalHCL},
 		{"consul.timeout", &c.Consul.Timeout, &c.Consul.TimeoutHCL},

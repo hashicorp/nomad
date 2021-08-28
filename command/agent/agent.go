@@ -380,6 +380,9 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if maxHPS := agentConfig.Server.MaxHeartbeatsPerSecond; maxHPS != 0 {
 		conf.MaxHeartbeatsPerSecond = maxHPS
 	}
+	if failoverTTL := agentConfig.Server.FailoverHeartbeatTTL; failoverTTL != 0 {
+		conf.FailoverHeartbeatTTL = failoverTTL
+	}
 
 	if *agentConfig.Consul.AutoAdvertise && agentConfig.Consul.ServerServiceName == "" {
 		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")

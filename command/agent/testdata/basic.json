@@ -273,6 +273,7 @@
       "job_gc_threshold": "12h",
       "max_heartbeats_per_second": 11,
       "min_heartbeat_ttl": "33s",
+      "failover_heartbeat_ttl": "330s",
       "node_gc_threshold": "12h",
       "non_voting_server": true,
       "num_schedulers": 2,

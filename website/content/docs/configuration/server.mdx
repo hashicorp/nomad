@@ -137,6 +137,12 @@ server {
   second is a tradeoff as it lowers failure detection time of nodes at the
   tradeoff of false positives and increased load on the leader.
 
+- `failover_heartbeat_ttl` `(string: "5m")` - Specifies the TTL applied to
+	heartbeats after a new leader is elected, since we no longer know the status
+	of all the heartbeats. This is specified using a label suffix like "30s" or
+	"1h". Lowering the failover TTL is a tradeoff as it lowers failure detection
+	time of nodes at the tradeoff of false positives.
+
 - `non_voting_server` `(bool: false)` - (Enterprise-only) Specifies whether
   this server will act as a non-voting member of the cluster to help provide
   read scalability.
