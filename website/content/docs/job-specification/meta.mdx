@@ -79,6 +79,16 @@ meta {
 }
 ```
 
+### Meta keys with dots
+
+Meta keys that aren't valid HCLv2 identifiers, like ones containing `.`, require an alternative map assignment syntax.
+
+```hcl
+meta = {
+  "project.team" = "sre"
+}
+```
+
 [job]: /docs/job-specification/job 'Nomad job Job Specification'
 [group]: /docs/job-specification/group 'Nomad group Job Specification'
 [task]: /docs/job-specification/task 'Nomad task Job Specification'
