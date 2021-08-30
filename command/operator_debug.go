@@ -141,12 +141,14 @@ Debug Options:
     duration to capture a single snapshot. Defaults to 30s.
 
   -targets=<metrics,-metrics,...,all,none>
-    Comma separated list of targets to capture.  Defaults to "all".
-    "-<target>" disables capture for that target.
+    Comma separated list of targets to capture. Defaults to "all". Note that
+    prefixing a target name with the '-' operator (e.g. "-metrics") disables
+    capture for that target.
 
   -interval-targets=<metrics,-metrics,...,all,none>
-    Comma separated list of targets to capture during each interval.  Defaults
-    to "all".  "-<target>" disables capture for that target.
+    Comma separated list of targets to capture during each interval. Defaults to
+    "all". Note that prefixing a target name with the '-' operator (e.g.
+    "-metrics") disables capture for that target.
 
   -log-level=<level>
     The log level to monitor. Defaults to DEBUG.
