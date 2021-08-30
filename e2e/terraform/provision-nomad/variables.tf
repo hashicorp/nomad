@@ -90,11 +90,11 @@ variable "cluster_name" {
 
 variable "instance" {
   type = object({
-    id = string
-    public_dns = string
-    public_ip = string
+    id          = string
+    public_dns  = string
+    public_ip   = string
     private_dns = string
-    private_ip = string
+    private_ip  = string
   })
 }
 

@@ -41,7 +41,7 @@ EOM
 output "environment" {
   description = "get connection config by running: $(terraform output environment)"
   value       = <<EOM
-%{ if var.tls }
+%{if var.tls}
 export NOMAD_ADDR=https://${aws_instance.server[0].public_ip}:4646
 export CONSUL_HTTP_ADDR=https://${aws_instance.server[0].public_ip}:8501
 export VAULT_ADDR=https://${aws_instance.server[0].public_ip}:8200
@@ -57,11 +57,11 @@ export VAULT_CLIENT_CERT=${path.root}/keys/tls_api_client.crt
 export NOMAD_CLIENT_KEY=${path.root}/keys/tls_api_client.key
 export CONSUL_CLIENT_KEY=${path.root}/keys/tls_api_client.key
 export VAULT_CLIENT_KEY=${path.root}/keys/tls_api_client.key
-%{ else }
+%{else}
 export NOMAD_ADDR=http://${aws_instance.server[0].public_ip}:4646
 export CONSUL_HTTP_ADDR=http://${aws_instance.server[0].public_ip}:8500
 export VAULT_ADDR=http://${aws_instance.server[0].public_ip}:8200
-%{ endif }
+%{endif}
 
 export NOMAD_E2E=1
 export NOMAD_TOKEN=${data.local_file.nomad_token.content}

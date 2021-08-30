@@ -2,7 +2,7 @@
 
 set -o errexit
 set -o nounset
-set -x
+set +x
 
 usage() {
     cat <<EOF

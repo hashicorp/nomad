@@ -73,7 +73,7 @@ module "nomad_client_ubuntu_bionic_amd64" {
   tls_ca_key  = tls_private_key.ca.private_key_pem
   tls_ca_cert = tls_self_signed_cert.ca.cert_pem
 
-  instance        = aws_instance.client_ubuntu_bionic_amd64[count.index]
+  instance = aws_instance.client_ubuntu_bionic_amd64[count.index]
 
   connection = {
     type        = "ssh"
@@ -119,7 +119,7 @@ module "nomad_client_windows_2016_amd64" {
   tls_ca_key  = tls_private_key.ca.private_key_pem
   tls_ca_cert = tls_self_signed_cert.ca.cert_pem
 
-  instance        = aws_instance.client_windows_2016_amd64[count.index]
+  instance = aws_instance.client_windows_2016_amd64[count.index]
 
   connection = {
     type        = "ssh"

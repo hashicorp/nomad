@@ -149,7 +149,7 @@ resource "null_resource" "upload_configs" {
 }
 
 resource "null_resource" "generate_instance_tls_certs" {
-  count = var.tls ? 1 : 0
+  count      = var.tls ? 1 : 0
   depends_on = [null_resource.upload_configs]
 
   connection {
@@ -203,8 +203,8 @@ EOF
       "mkdir -p /tmp/nomad-tls",
     ]
   }
-  provisioner "file"{
-    source = "keys/ca.crt"
+  provisioner "file" {
+    source      = "keys/ca.crt"
     destination = "/tmp/nomad-tls/ca.crt"
   }
   provisioner "file" {
@@ -217,11 +217,11 @@ EOF
   }
   # workaround to avoid updating packer
   provisioner "file" {
-    source = "packer/ubuntu-bionic-amd64/provision.sh"
+    source      = "packer/ubuntu-bionic-amd64/provision.sh"
     destination = "/opt/provision.sh"
   }
   provisioner "file" {
-    source = "config"
+    source      = "config"
     destination = "/tmp/config"
   }
 
