@@ -46,6 +46,24 @@ variable "nomad_acls" {
   default     = false
 }
 
+variable "tls" {
+  type        = bool
+  description = "Bootstrap TLS"
+  default     = false
+}
+
+variable "tls_ca_key" {
+  type        = string
+  description = "Cluster TLS CA private key"
+  default     = ""
+}
+
+variable "tls_ca_cert" {
+  type        = string
+  description = "Cluster TLS CA cert"
+  default     = ""
+}
+
 variable "profile" {
   type        = string
   description = "The name of the configuration profile (ex. 'full-cluster')"
@@ -70,11 +88,19 @@ variable "cluster_name" {
   default     = ""
 }
 
+variable "instance" {
+  type = object({
+    id          = string
+    public_dns  = string
+    public_ip   = string
+    private_dns = string
+    private_ip  = string
+  })
+}
+
 variable "connection" {
   type = object({
-    type        = string
     user        = string
-    host        = string
     port        = number
     private_key = string
   })

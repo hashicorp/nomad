@@ -26,10 +26,15 @@ module "nomad_server" {
   nomad_acls       = var.nomad_acls
   cluster_name     = local.random_name
 
+  tls         = var.tls
+  tls_ca_key  = tls_private_key.ca.private_key_pem
+  tls_ca_cert = tls_self_signed_cert.ca.cert_pem
+
+  instance = aws_instance.server[count.index]
+
   connection = {
     type        = "ssh"
     user        = "ubuntu"
-    host        = aws_instance.server[count.index].public_ip
     port        = 22
     private_key = "${path.root}/keys/${local.random_name}.pem"
   }
@@ -64,10 +69,15 @@ module "nomad_client_ubuntu_bionic_amd64" {
   nomad_acls       = false
   cluster_name     = local.random_name
 
+  tls         = var.tls
+  tls_ca_key  = tls_private_key.ca.private_key_pem
+  tls_ca_cert = tls_self_signed_cert.ca.cert_pem
+
+  instance = aws_instance.client_ubuntu_bionic_amd64[count.index]
+
   connection = {
     type        = "ssh"
     user        = "ubuntu"
-    host        = aws_instance.client_ubuntu_bionic_amd64[count.index].public_ip
     port        = 22
     private_key = "${path.root}/keys/${local.random_name}.pem"
   }
@@ -105,10 +115,15 @@ module "nomad_client_windows_2016_amd64" {
   cluster_name     = local.random_name
 
 
+  tls         = var.tls
+  tls_ca_key  = tls_private_key.ca.private_key_pem
+  tls_ca_cert = tls_self_signed_cert.ca.cert_pem
+
+  instance = aws_instance.client_windows_2016_amd64[count.index]
+
   connection = {
     type        = "ssh"
     user        = "Administrator"
-    host        = aws_instance.client_windows_2016_amd64[count.index].public_ip
     port        = 22
     private_key = "${path.root}/keys/${local.random_name}.pem"
   }

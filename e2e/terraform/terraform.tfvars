@@ -8,6 +8,7 @@ nomad_acls                       = false
 nomad_enterprise                 = false
 vault                            = true
 volumes                          = false
+tls                              = true
 
 nomad_version      = "1.0.1" # default version for deployment
 nomad_local_binary = ""      # overrides nomad_version if set
