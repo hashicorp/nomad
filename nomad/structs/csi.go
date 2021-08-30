@@ -133,7 +133,7 @@ func ValidCSIVolumeAccessMode(accessMode CSIVolumeAccessMode) bool {
 	}
 }
 
-// ValidCSIVolumeAccessMode checks for a writable access mode
+// ValidCSIVolumeWriteAccessMode checks for a writable access mode.
 func ValidCSIVolumeWriteAccessMode(accessMode CSIVolumeAccessMode) bool {
 	switch accessMode {
 	case CSIVolumeAccessModeSingleNodeWriter,
@@ -617,7 +617,7 @@ func (v *CSIVolume) claimRelease(claim *CSIVolumeClaim) error {
 	return nil
 }
 
-// Equality by value
+// Equal checks equality by value.
 func (v *CSIVolume) Equal(o *CSIVolume) bool {
 	if v == nil || o == nil {
 		return v == o

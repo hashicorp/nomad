@@ -264,7 +264,8 @@ func (idx *NetworkIndex) AddReservedPortRange(ports string) (collide bool) {
 	return
 }
 
-// AddReservedPortsForIP
+// AddReservedPortsForIP checks whether any reserved ports collide with those
+// in use for the IP address.
 func (idx *NetworkIndex) AddReservedPortsForIP(ports string, ip string) (collide bool) {
 	// Convert the ports into a slice of ints
 	resPorts, err := ParsePortRanges(ports)
@@ -566,7 +567,8 @@ func isPortReserved(haystack []int, needle int) bool {
 	return false
 }
 
-// COMPAT(1.0) remove when NetworkResource is no longer used for materialized client view of ports
+// AllocatedPortsToNetworkResouce is a COMPAT(1.0) remove when NetworkResource
+// is no longer used for materialized client view of ports.
 func AllocatedPortsToNetworkResouce(ask *NetworkResource, ports AllocatedPorts, node *NodeResources) *NetworkResource {
 	out := ask.Copy()
 

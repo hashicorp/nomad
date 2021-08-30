@@ -86,7 +86,7 @@ func NewEventBroker(ctx context.Context, aclDelegate ACLDelegate, cfg EventBroke
 	return e, nil
 }
 
-// Returns the current length of the event buffer
+// Len returns the current length of the event buffer.
 func (e *EventBroker) Len() int {
 	return e.eventBuf.Len()
 }

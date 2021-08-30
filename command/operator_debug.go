@@ -987,8 +987,9 @@ func (c *OperatorDebugCommand) trap() {
 	}()
 }
 
-// TarCZF, like the tar command, recursively builds a gzip compressed tar archive from a
-// directory. If not empty, all files in the bundle are prefixed with the target path
+// TarCZF like the tar command, recursively builds a gzip compressed tar
+// archive from a directory. If not empty, all files in the bundle are prefixed
+// with the target path.
 func TarCZF(archive string, src, target string) error {
 	// ensure the src actually exists before trying to tar it
 	if _, err := os.Stat(src); err != nil {

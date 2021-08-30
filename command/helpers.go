@@ -386,7 +386,7 @@ type JobGetter struct {
 	testStdin io.Reader
 }
 
-// StructJob returns the Job struct from jobfile.
+// ApiJob returns the Job struct from jobfile.
 func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
 	return j.ApiJobWithArgs(jpath, nil, nil)
 }

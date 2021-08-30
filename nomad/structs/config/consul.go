@@ -127,7 +127,7 @@ type ConsulConfig struct {
 	Namespace string `hcl:"namespace"`
 }
 
-// DefaultConsulConfig() returns the canonical defaults for the Nomad
+// DefaultConsulConfig returns the canonical defaults for the Nomad
 // `consul` configuration. Uses Consul's default configuration which reads
 // environment variables.
 func DefaultConsulConfig() *ConsulConfig {

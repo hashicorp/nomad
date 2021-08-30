@@ -1349,7 +1349,7 @@ func Alloc() *structs.Allocation {
 	return alloc
 }
 
-// ConnectJob adds a Connect proxy sidecar group service to mock.Alloc.
+// ConnectAlloc adds a Connect proxy sidecar group service to mock.Alloc.
 func ConnectAlloc() *structs.Allocation {
 	alloc := Alloc()
 	alloc.Job = ConnectJob()

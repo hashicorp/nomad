@@ -777,8 +777,8 @@ type PreemptionScoringIterator struct {
 	source RankIterator
 }
 
-// PreemptionScoringIterator is used to create a score based on net aggregate priority
-// of preempted allocations
+// NewPreemptionScoringIterator is used to create a score based on net
+// aggregate priority of preempted allocations.
 func NewPreemptionScoringIterator(ctx Context, source RankIterator) RankIterator {
 	return &PreemptionScoringIterator{
 		ctx:    ctx,

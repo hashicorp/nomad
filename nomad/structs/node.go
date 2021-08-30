@@ -283,15 +283,15 @@ func (di *DriverInfo) MergeHealthCheck(other *DriverInfo) {
 	di.UpdateTime = other.UpdateTime
 }
 
-// MergeFingerprint merges information from fingerprinting a node for a driver
-// into a node's driver info for that driver.
+// MergeFingerprintInfo merges information from fingerprinting a node for a
+// driver into a node's driver info for that driver.
 func (di *DriverInfo) MergeFingerprintInfo(other *DriverInfo) {
 	di.Detected = other.Detected
 	di.Attributes = other.Attributes
 }
 
-// DriverInfo determines if two driver info objects are equal..As this is used
-// in the process of health checking, we only check the fields that are
+// HealthCheckEquals determines if two driver info objects are equal. As this
+// is used in the process of health checking, we only check the fields that are
 // computed by the health checker. In the future, this will be merged.
 func (di *DriverInfo) HealthCheckEquals(other *DriverInfo) bool {
 	if di == nil && other == nil {

@@ -45,8 +45,8 @@ func (m *PluginGroup) RegisterAndRun(manager PluginManager) error {
 	return nil
 }
 
-// Ready returns a channel which will be closed once all plugin managers are ready.
-// A timeout for waiting on each manager is given
+// WaitForFirstFingerprint returns a channel which will be closed once all
+// plugin managers are ready. A timeout for waiting on each manager is given
 func (m *PluginGroup) WaitForFirstFingerprint(ctx context.Context) (<-chan struct{}, error) {
 	m.mLock.Lock()
 	defer m.mLock.Unlock()

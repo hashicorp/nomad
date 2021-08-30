@@ -264,7 +264,7 @@ func (s *StateStore) Abandon() {
 	close(s.abandonCh)
 }
 
-// StopStopEventBroker calls the cancel func for the state stores event
+// StopEventBroker calls the cancel func for the state stores event
 // publisher. It should be called during server shutdown.
 func (s *StateStore) StopEventBroker() {
 	s.stopEventBroker()
@@ -2051,7 +2051,7 @@ func (s *StateStore) JobsByGC(ws memdb.WatchSet, gc bool) (memdb.ResultIterator,
 	return iter, nil
 }
 
-// JobSummary returns a job summary object which matches a specific id.
+// JobSummaryByID returns a job summary object which matches a specific id.
 func (s *StateStore) JobSummaryByID(ws memdb.WatchSet, namespace, jobID string) (*structs.JobSummary, error) {
 	txn := s.db.ReadTxn()
 
@@ -2197,8 +2197,8 @@ func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*st
 	return s.CSIVolumeDenormalizePluginsTxn(txn, vol.Copy())
 }
 
-// CSIVolumes looks up csi_volumes by pluginID. Caller should snapshot if it
-// wants to also denormalize the plugins.
+// CSIVolumesByPluginID looks up csi_volumes by pluginID. Caller should
+// snapshot if it wants to also denormalize the plugins.
 func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, prefix, pluginID string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
@@ -2811,8 +2811,8 @@ func (s *StateStore) UpsertEvals(msgType structs.MessageType, index uint64, eval
 	return err
 }
 
-// UpsertEvals is used to upsert a set of evaluations, like UpsertEvals
-// but in a transaction.  Useful for when making multiple modifications atomically
+// UpsertEvalsTxn is used to upsert a set of evaluations, like UpsertEvals but
+// in a transaction.  Useful for when making multiple modifications atomically.
 func (s *StateStore) UpsertEvalsTxn(index uint64, evals []*structs.Evaluation, txn Txn) error {
 	// Do a nested upsert
 	jobs := make(map[structs.NamespacedID]string, len(evals))
@@ -3478,7 +3478,7 @@ func allocNamespaceFilter(namespace string) func(interface{}) bool {
 	}
 }
 
-// AllocsByIDPrefix is used to lookup allocs by prefix
+// AllocsByIDPrefixAllNSs is used to lookup allocs by prefix.
 func (s *StateStore) AllocsByIDPrefixAllNSs(ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
@@ -3520,7 +3520,8 @@ func allocsByNodeTxn(txn ReadTxn, ws memdb.WatchSet, node string) ([]*structs.Al
 	return out, nil
 }
 
-// AllocsByNode returns all the allocations by node and terminal status
+// AllocsByNodeTerminal returns all the allocations by node and terminal
+// status.
 func (s *StateStore) AllocsByNodeTerminal(ws memdb.WatchSet, node string, terminal bool) ([]*structs.Allocation, error) {
 	txn := s.db.ReadTxn()
 
@@ -3666,7 +3667,7 @@ func (s *StateStore) allocsByNamespaceImpl(ws memdb.WatchSet, txn *txn, namespac
 	return iter, nil
 }
 
-// UpsertVaultAccessors is used to register a set of Vault Accessors
+// UpsertVaultAccessor is used to register a set of Vault Accessors.
 func (s *StateStore) UpsertVaultAccessor(index uint64, accessors []*structs.VaultAccessor) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
@@ -4258,7 +4259,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, in
 	return txn.Commit()
 }
 
-// LastIndex returns the greatest index value for all indexes
+// LatestIndex returns the greatest index value for all indexes.
 func (s *StateStore) LatestIndex() (uint64, error) {
 	indexes, err := s.Indexes()
 	if err != nil {
@@ -5369,7 +5370,7 @@ func (s *StateStore) CanBootstrapACLToken() (bool, uint64, error) {
 	return false, out.(*IndexEntry).Value, nil
 }
 
-// BootstrapACLToken is used to create an initial ACL token
+// BootstrapACLTokens is used to create an initial ACL token.
 func (s *StateStore) BootstrapACLTokens(msgType structs.MessageType, index uint64, resetIndex uint64, token *structs.ACLToken) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
@@ -5681,7 +5682,7 @@ func (s *StateStore) setClusterMetadata(txn *txn, meta *structs.ClusterMetadata)
 	return nil
 }
 
-// UpsertScalingPolicy is used to insert a new scaling policy.
+// UpsertScalingPolicies is used to insert a new scaling policy.
 func (s *StateStore) UpsertScalingPolicies(index uint64, scalingPolicies []*structs.ScalingPolicy) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
@@ -5693,7 +5694,7 @@ func (s *StateStore) UpsertScalingPolicies(index uint64, scalingPolicies []*stru
 	return txn.Commit()
 }
 
-// upsertScalingPolicy is used to insert a new scaling policy.
+// UpsertScalingPoliciesTxn is used to insert a new scaling policy.
 func (s *StateStore) UpsertScalingPoliciesTxn(index uint64, scalingPolicies []*structs.ScalingPolicy,
 	txn *txn) error {
 
@@ -5831,7 +5832,7 @@ func (s *StateStore) NamespaceNames() ([]string, error) {
 	return nses, nil
 }
 
-// UpsertNamespace is used to register or update a set of namespaces
+// UpsertNamespaces is used to register or update a set of namespaces.
 func (s *StateStore) UpsertNamespaces(index uint64, namespaces []*structs.Namespace) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
@@ -5962,7 +5963,7 @@ func (s *StateStore) DeleteScalingPolicies(index uint64, ids []string) error {
 	return err
 }
 
-// DeleteScalingPolicies is used to delete a set of scaling policies by ID
+// DeleteScalingPoliciesTxn is used to delete a set of scaling policies by ID.
 func (s *StateStore) DeleteScalingPoliciesTxn(index uint64, ids []string, txn *txn) error {
 	if len(ids) == 0 {
 		return nil
