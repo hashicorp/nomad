@@ -4,7 +4,7 @@ $running: $primary;
 $complete: $nomad-green-dark;
 $failed: $danger;
 $lost: $dark;
-$not-scheduled: $grey-darker;
+$not-scheduled: $blue-200;
 $degraded: $warning;
 
 .chart {
@@ -113,11 +113,11 @@ $degraded: $warning;
   }
 
   &.not-scheduled {
-    fill: $not-scheduled;
+    background: $not-scheduled;
   }
 
   &.degraded {
-    fill: $degraded;
+    background: $degraded;
   }
 
   @each $name, $pair in $colors {

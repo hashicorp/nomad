@@ -153,7 +153,6 @@
     ]
   },
   "dependencies": {
-    "lodash": "^4.17.21",
     "lru_map": "^0.3.3",
     "no-case": "^3.0.4",
     "title-case": "^3.0.3"

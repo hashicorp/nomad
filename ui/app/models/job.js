@@ -7,7 +7,7 @@ import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
 import classic from 'ember-classic-decorator';
 
-const JOB_TYPES = ['service', 'batch', 'system'];
+const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 
 @classic
 export default class Job extends Model {

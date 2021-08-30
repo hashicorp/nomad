@@ -33,7 +33,7 @@ export default class ClientsController extends Controller.extend(
   sortDescending = true;
 
   @alias('model') job;
-  @jobClientStatus('nodes', 'job.status', 'job.allocations') jobClientStatus;
+  @jobClientStatus('nodes', 'job') jobClientStatus;
 
   @alias('uniqueNodes') listToSort;
   @alias('listSorted') listToSearch;
@@ -57,6 +57,10 @@ export default class ClientsController extends Controller.extend(
       };
     });
     return result;
+  }
+
+  get nodes() {
+    return this.store.peekAll('node');
   }
 
   @action

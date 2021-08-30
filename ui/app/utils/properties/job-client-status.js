@@ -1,31 +1,134 @@
 import { computed } from '@ember/object';
 
-// An Ember.Computed property that persists set values in localStorage
-// and will attempt to get its initial value from localStorage before
-// falling back to a default.
-//
-// ex. showTutorial: localStorageProperty('nomadTutorial', true),
-export default function jobClientStatus(nodesKey, jobStatusKey, jobAllocsKey) {
-  return computed(nodesKey, jobStatusKey, jobAllocsKey, function() {
-    const allocs = this.get(jobAllocsKey);
-    const jobStatus = this.get(jobStatusKey);
-    const nodes = this.get(nodesKey);
+const STATUS = [
+  'queued',
+  'notScheduled',
+  'starting',
+  'running',
+  'complete',
+  'degraded',
+  'failed',
+  'lost',
+];
 
-    return {
-      byNode: {
-        '123': 'running',
-        '14b8ff31-8310-4877-b3e9-ba6ebcbf37a2': 'running',
-        '193538ac-30d7-48eb-9a31-b89a83abae1d': 'degraded',
-        '0cdce07c-6c50-4364-9ffd-e08c419f93aa': 'lost',
-        'a07563e7-fdc6-4df4-bfd7-82b97a3605ab': 'failed',
-        '6c32bb4d-6fda-4c0d-a7be-008f857d9f0e': 'queued',
-        '75930e1c-15f2-4411-8dbd-1016e3d54c12': 'running',
-        '8f834f8f-75cc-4da7-96f2-3665bd9bf774': 'running',
-        '386a8b5f-68ab-4baf-a5ca-597d1bed8589': 'running',
-      },
-      byStatus: {
-        running: ['123'],
-      },
+// An Ember.Computed property that computes the aggregated status of a job in a
+// client based on the desiredStatus of each allocation placed in the client.
+//
+// ex. clientStaus: jobClientStatus('nodes', 'job'),
+export default function jobClientStatus(nodesKey, jobKey) {
+  return computed(nodesKey, `${jobKey}.{datacenters,status,allocations,taskGroups}`, function() {
+    const job = this.get(jobKey);
+
+    // Filter nodes by the datacenters defined in the job.
+    const nodes = this.get(nodesKey).filter(n => {
+      return job.datacenters.indexOf(n.datacenter) >= 0;
+    });
+
+    if (job.status === 'pending') {
+      return allQueued(nodes);
+    }
+
+    // Group the job allocations by the ID of the client that is running them.
+    const allocsByNodeID = {};
+    job.allocations.forEach(a => {
+      const nodeId = a.node.get('id');
+      if (!allocsByNodeID[nodeId]) {
+        allocsByNodeID[nodeId] = [];
+      }
+      allocsByNodeID[nodeId].push(a);
+    });
+
+    const result = {
+      byNode: {},
+      byStatus: {},
+      totalNodes: nodes.length,
     };
+    nodes.forEach(n => {
+      const status = jobStatus(allocsByNodeID[n.id], job.taskGroups.length);
+      result.byNode[n.id] = status;
+
+      if (!result.byStatus[status]) {
+        result.byStatus[status] = [];
+      }
+      result.byStatus[status].push(n.id);
+    });
+    result.byStatus = canonicalizeStatus(result.byStatus);
+    return result;
   });
+}
+
+function allQueued(nodes) {
+  const nodeIDs = nodes.map(n => n.id);
+  return {
+    byNode: Object.fromEntries(nodeIDs.map(id => [id, 'queued'])),
+    byStatus: canonicalizeStatus({ queued: nodeIDs }),
+    totalNodes: nodes.length,
+  };
+}
+
+// canonicalizeStatus makes sure all possible statuses are present in the final
+// returned object. Statuses missing from the input will be assigned an emtpy
+// array.
+function canonicalizeStatus(status) {
+  for (let i = 0; i < STATUS.length; i++) {
+    const s = STATUS[i];
+    if (!status[s]) {
+      status[s] = [];
+    }
+  }
+  return status;
+}
+
+// jobStatus computes the aggregated status of a job in a client.
+//
+// `allocs` are the list of allocations for a job that are placed in a specific
+// client.
+// `expected` is the number of allocations the client should have.
+function jobStatus(allocs, expected) {
+  // The `pending` status has already been checked, so if at this point the
+  // client doesn't have any allocations we assume that it was not considered
+  // for scheduling for some reason.
+  if (!allocs) {
+    return 'notScheduled';
+  }
+
+  // If there are some allocations, but not how many we expected, the job is
+  // considered `degraded` since it did fully run in this client.
+  if (allocs.length < expected) {
+    return 'degraded';
+  }
+
+  // Count how many allocations are in each `clientStatus` value.
+  const summary = allocs.reduce((acc, a) => {
+    const status = a.clientStatus;
+    if (!acc[status]) {
+      acc[status] = 0;
+    }
+    acc[status]++;
+    return acc;
+  }, {});
+
+  // Theses statuses are considered terminal, i.e., an allocation will never
+  // move from this status to another.
+  // If all of the expected allocations are in one of these statuses, the job
+  // as a whole is considered to be in the same status.
+  const terminalStatuses = ['failed', 'lost', 'complete'];
+  for (let i = 0; i < terminalStatuses.length; i++) {
+    const s = terminalStatuses[i];
+    if (summary[s] === expected) {
+      return s;
+    }
+  }
+
+  // It only takes one allocation to be in one of these statuses for the
+  // entire job to be considered in a given status.
+  if (summary['failed'] > 0 || summary['lost'] > 0) {
+    return 'degraded';
+  }
+
+  if (summary['running'] > 0) {
+    return 'running';
+  }
+
+  return 'starting';
 }
