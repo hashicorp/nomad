@@ -15,9 +15,9 @@ variable "credentials" {
 }
 
 variable "region" {
-    type        = string
-    default     = "us-east1"
-    description = "The GCP region to deploy resources in."
+  type        = string
+  default     = "us-east1"
+  description = "The GCP region to deploy resources in."
 }
 
 variable "vm_disk_size_gb" {
@@ -36,8 +36,8 @@ variable "client_count" {
 }
 
 provider "google" {
-    project     = var.project
-    credentials = file(var.credentials)
+  project     = var.project
+  credentials = file(var.credentials)
 }
 
 module "hashistack" {
