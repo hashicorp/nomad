@@ -39,7 +39,7 @@ type ConsulUsage struct {
 	KV       bool
 }
 
-// Unused returns true if Consul is used for registering services or reading from
+// Used returns true if Consul is used for registering services or reading from
 // the keystore.
 func (cu *ConsulUsage) Used() bool {
 	switch {

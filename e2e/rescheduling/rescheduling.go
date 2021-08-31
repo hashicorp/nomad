@@ -239,8 +239,8 @@ func (tc *RescheduleE2ETest) TestRescheduleWithCanary(f *framework.F) {
 		"deployment should be running")
 }
 
-// TestRescheduleWithCanary updates a running job to fail, and verifies that
-// the job gets reverted
+// TestRescheduleWithCanaryAutoRevert updates a running job to fail, and
+// verifies that the job gets reverted.
 func (tc *RescheduleE2ETest) TestRescheduleWithCanaryAutoRevert(f *framework.F) {
 
 	jobID := "test-reschedule-canary-revert-" + uuid.Generate()[0:8]

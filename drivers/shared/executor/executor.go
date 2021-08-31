@@ -505,8 +505,8 @@ var (
 	noSuchProcessErr = "no such process"
 )
 
-// Exit cleans up the alloc directory, destroys resource container and kills the
-// user process
+// Shutdown cleans up the alloc directory, destroys resource container and
+// kills the user process.
 func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 	e.logger.Debug("shutdown requested", "signal", signal, "grace_period_ms", grace.Round(time.Millisecond))
 	var merr multierror.Error

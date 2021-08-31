@@ -359,7 +359,7 @@ func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 	return flattened
 }
 
-// VaultNaVaultNamespaceSet takes the structure returned by VaultPolicies and
+// VaultNamespaceSet takes the structure returned by VaultPolicies and
 // returns a set of required namespaces
 func VaultNamespaceSet(policies map[string]map[string]*Vault) []string {
 	set := make(map[string]struct{})

@@ -441,8 +441,8 @@ func (c *Config) ReadStringListToMap(keys ...string) map[string]struct{} {
 	return splitValue(val)
 }
 
-// ReadStringListToMap tries to parse the specified option as a comma separated list.
-// If there is an error in parsing, an empty list is returned.
+// ReadStringListToMapDefault tries to parse the specified option as a comma
+// separated list. If there is an error in parsing, an empty list is returned.
 func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string]struct{} {
 	return c.ReadStringListAlternativeToMapDefault([]string{key}, defaultValue)
 }

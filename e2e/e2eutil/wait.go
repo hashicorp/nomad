@@ -10,7 +10,7 @@ type WaitConfig struct {
 	Retries  int64
 }
 
-// Return a default wait config of 10s
+// OrDefault returns a default wait config of 10s.
 func (wc *WaitConfig) OrDefault() (time.Duration, int64) {
 	if wc == nil {
 		return time.Millisecond * 100, 100

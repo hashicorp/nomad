@@ -113,7 +113,7 @@ func (s *Status) Members(args *structs.GenericRequest, reply *structs.ServerMemb
 	return nil
 }
 
-// Used by Autopilot to query the raft stats of the local server.
+// RaftStats is used by Autopilot to query the raft stats of the local server.
 func (s *Status) RaftStats(args struct{}, reply *autopilot.ServerStats) error {
 	stats := s.srv.raft.Stats()
 

@@ -287,8 +287,8 @@ func (tc *NodeDrainE2ETest) TestNodeDrainDeadline(f *framework.F) {
 	), "node did not drain immediately following deadline")
 }
 
-// TestNodeDrainDeadline tests the enforcement of the node drain -force flag
-// so that allocations are terminated immediately.
+// TestNodeDrainForce tests the enforcement of the node drain -force flag so
+// that allocations are terminated immediately.
 func (tc *NodeDrainE2ETest) TestNodeDrainForce(f *framework.F) {
 	f.T().Skip("The behavior is unclear and test assertions don't capture intent.  Issue 9902")
 

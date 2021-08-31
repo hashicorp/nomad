@@ -402,7 +402,7 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 	return true
 }
 
-// setupLoggers is used to setup the logGate, and our logOutput
+// SetupLoggers is used to set up the logGate, and our logOutput
 func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwriter.Writer, io.Writer) {
 	// Setup logging. First create the gated log writer, which will
 	// store logs until we're ready to show them. Then create the level

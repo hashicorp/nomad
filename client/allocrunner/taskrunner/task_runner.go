@@ -435,9 +435,8 @@ func (tr *TaskRunner) initLabels() {
 	}
 }
 
-// Mark a task as failed and not to run.  Aimed to be invoked when alloc runner
-// prestart hooks failed.
-// Should never be called with Run().
+// MarkFailedDead marks a task as failed and not to run. Aimed to be invoked
+// when alloc runner prestart hooks failed. Should never be called with Run().
 func (tr *TaskRunner) MarkFailedDead(reason string) {
 	defer close(tr.waitCh)
 

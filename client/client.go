@@ -904,7 +904,7 @@ func (c *Client) GetAllocStats(allocID string) (interfaces.AllocStatsReporter, e
 	return ar.StatsReporter(), nil
 }
 
-// HostStats returns all the stats related to a Nomad client
+// LatestHostStats returns all the stats related to a Nomad client.
 func (c *Client) LatestHostStats() *stats.HostStats {
 	return c.hostStatsCollector.Stats()
 }

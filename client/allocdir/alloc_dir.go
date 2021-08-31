@@ -276,7 +276,7 @@ func (d *AllocDir) Move(other *AllocDir, tasks []*structs.Task) error {
 	return nil
 }
 
-// Tears down previously build directory structure.
+// Destroy tears down previously build directory structure.
 func (d *AllocDir) Destroy() error {
 	// Unmount all mounted shared alloc dirs.
 	var mErr multierror.Error

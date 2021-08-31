@@ -30,7 +30,7 @@ type MountPointDetector interface {
 type DefaultMountPointDetector struct {
 }
 
-// Call out to the default cgroup library
+// MountPoint calls out to the default cgroup library.
 func (b *DefaultMountPointDetector) MountPoint() (string, error) {
 	return cgutil.FindCgroupMountpointDir()
 }

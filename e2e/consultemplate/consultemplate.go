@@ -291,7 +291,7 @@ func (tc *ConsulTemplateTest) TestTemplatePathInterpolation_Bad(f *framework.F) 
 	f.True(found, "alloc failed but NOT due to expected source path escape error")
 }
 
-// TestTemplatePathInterpolation_SharedAlloc asserts that NOMAD_ALLOC_DIR
+// TestTemplatePathInterpolation_SharedAllocDir asserts that NOMAD_ALLOC_DIR
 // is supported as a destination for artifact and template blocks, and
 // that it is properly interpolated for task drivers with varying
 // filesystem isolation
