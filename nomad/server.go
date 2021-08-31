@@ -1703,7 +1703,7 @@ this:
 [
   "10.1.0.1:4647",
   "10.1.0.2:4647",
-  "10.1.0.3:84647300"
+  "10.1.0.3:4647"
 ]
 For Raft protocol version 3 and later, this should be formatted as a JSON
 array containing the node ID, address:port, and suffrage information of each
