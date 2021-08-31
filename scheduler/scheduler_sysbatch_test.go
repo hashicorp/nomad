@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
 
@@ -758,13 +759,17 @@ func TestSysBatch_RetryLimit(t *testing.T) {
 func TestSysBatch_Queued_With_Constraints(t *testing.T) {
 	h := NewHarness(t)
 
-	// Register a node
-	node := mock.Node()
-	node.Attributes["kernel.name"] = "darwin"
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	nodes := createNodes(t, h, 3)
 
 	// Generate a sysbatch job which can't be placed on the node
 	job := mock.SystemBatchJob()
+	job.Constraints = []*structs.Constraint{
+		{
+			LTarget: "${attr.kernel.name}",
+			RTarget: "not_existing_os",
+			Operand: "=",
+		},
+	}
 	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
 
 	// Create a mock evaluation to deal with the node update
@@ -772,9 +777,8 @@ func TestSysBatch_Queued_With_Constraints(t *testing.T) {
 		Namespace:   structs.DefaultNamespace,
 		ID:          uuid.Generate(),
 		Priority:    50,
-		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		TriggeredBy: structs.EvalTriggerJobRegister,
 		JobID:       job.ID,
-		NodeID:      node.ID,
 		Status:      structs.EvalStatusPending,
 	}
 	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
@@ -787,6 +791,57 @@ func TestSysBatch_Queued_With_Constraints(t *testing.T) {
 	val, ok := h.Evals[0].QueuedAllocations["pinger"]
 	require.True(t, ok)
 	require.Zero(t, val)
+
+	failedTGAllocs := h.Evals[0].FailedTGAllocs
+	pretty.Println(failedTGAllocs)
+	require.NotNil(t, failedTGAllocs)
+	require.Contains(t, failedTGAllocs, "pinger")
+	require.Equal(t, len(nodes), failedTGAllocs["pinger"].NodesEvaluated)
+	require.Equal(t, len(nodes), failedTGAllocs["pinger"].NodesFiltered)
+
+}
+
+func TestSysBatch_Queued_With_Constraints_PartialMatch(t *testing.T) {
+	h := NewHarness(t)
+
+	// linux machines
+	linux := createNodes(t, h, 3)
+	for i := 0; i < 3; i++ {
+		node := mock.Node()
+		node.Attributes["kernel.name"] = "darwin"
+		node.ComputeClass()
+		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+
+	// Generate a sysbatch job which can't be placed on the node
+	job := mock.SystemBatchJob()
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+
+	// Create a mock evaluation to deal with the node update
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewSysBatchScheduler, eval)
+	require.NoError(t, err)
+
+	foundNodes := map[string]bool{}
+	for n := range h.Plans[0].NodeAllocation {
+		foundNodes[n] = true
+	}
+	expected := map[string]bool{}
+	for _, n := range linux {
+		expected[n.ID] = true
+	}
+
+	require.Equal(t, expected, foundNodes)
 }
 
 // This test ensures that the scheduler correctly ignores ineligible
