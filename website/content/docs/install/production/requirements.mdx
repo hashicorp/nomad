@@ -61,7 +61,8 @@ of having a single "global" region and many datacenter.
 
 Nomad requires 3 different ports to work properly on servers and 2 on clients,
 some on TCP, UDP, or both protocols. Below we document the requirements for each
-port.
+port. If you use a firewall of any type, you must ensure that it is configured to
+allow the following traffic.
 
 - HTTP API (Default 4646). This is used by clients and servers to serve the HTTP
   API. TCP only.
