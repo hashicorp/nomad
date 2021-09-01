@@ -31,9 +31,12 @@
         @sortProperty={{this.sortProperty}}
         @sortDescending={{this.sortDescending}}
         @class="with-foot" as |t|>
-        <t.head>
+        <t.head data-test-jobs-header>
           <t.sort-by @prop="name">Name</t.sort-by>
-          <t.sort-by @prop="submitTime">Submitted At</t.sort-by>
+          {{#if this.system.shouldShowNamespaces}}
+            <t.sort-by @prop="namespace.name" data-test-jobs-namespace-header>Namespace</t.sort-by>
+          {{/if}}
+          <t.sort-by @prop="submitTime" data-test-jobs-submit-time-header>Submitted At</t.sort-by>
           <t.sort-by @prop="status">Status</t.sort-by>
           <t.sort-by @prop="type">Type</t.sort-by>
           <t.sort-by @prop="priority">Priority</t.sort-by>

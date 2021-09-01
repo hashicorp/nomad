@@ -25,10 +25,30 @@ moduleForJob(
         .sortBy('submitTime')
         .reverse()[0];
 
+      assert.ok(JobDetail.jobsHeader.hasSubmitTime);
       assert.equal(
         JobDetail.jobs[0].submitTime,
         moment(mostRecentLaunch.submitTime / 1000000).format('MMM DD HH:mm:ss ZZ')
       );
+    },
+  }
+);
+
+moduleForJob(
+  'Acceptance | job detail (periodic in namespace)',
+  'children',
+  () => {
+    const namespace = server.create('namespace', { id: 'test' });
+    const parent = server.create('job', 'periodic', {
+      shallow: true,
+      namespaceId: namespace.name,
+    });
+    return parent;
+  },
+  {
+    'display namespace in children table': async function(job, assert) {
+      assert.ok(JobDetail.jobsHeader.hasNamespace);
+      assert.equal(JobDetail.jobs[0].namespace, job.namespace);
     },
   }
 );
@@ -44,10 +64,30 @@ moduleForJob(
         .sortBy('submitTime')
         .reverse()[0];
 
+      assert.ok(JobDetail.jobsHeader.hasSubmitTime);
       assert.equal(
         JobDetail.jobs[0].submitTime,
         moment(mostRecentLaunch.submitTime / 1000000).format('MMM DD HH:mm:ss ZZ')
       );
+    },
+  }
+);
+
+moduleForJob(
+  'Acceptance | job detail (parameterized in namespace)',
+  'children',
+  () => {
+    const namespace = server.create('namespace', { id: 'test' });
+    const parent = server.create('job', 'parameterized', {
+      shallow: true,
+      namespaceId: namespace.name,
+    });
+    return parent;
+  },
+  {
+    'display namespace in children table': async function(job, assert) {
+      assert.ok(JobDetail.jobsHeader.hasNamespace);
+      assert.equal(JobDetail.jobs[0].namespace, job.namespace);
     },
   }
 );
