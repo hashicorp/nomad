@@ -5,18 +5,16 @@ import Component from '@glimmer/component';
 @tagName('tr')
 @classNames('client-row', 'is-interactive')
 export default class ClientRowComponent extends Component {
-  get id() {
-    console.log('node arg', this.args.node);
-    return Object.keys(this.args.node.model)[0];
+  get shouldDisplayAllocationSummary() {
+    return this.status !== 'notScheduled';
   }
-
-  get name() {
-    return this.args.node.model[this.id][0].name;
+  get node() {
+    return this.args.node.model;
   }
 
   get eldestCreateTime() {
     let eldest = null;
-    for (const allocation of this.args.node.model[this.id]) {
+    for (const allocation of this.node.id) {
       if (!eldest || allocation.createTime < eldest) {
         eldest = allocation.createTime;
       }
@@ -26,7 +24,7 @@ export default class ClientRowComponent extends Component {
 
   get mostRecentModifyTime() {
     let mostRecent = null;
-    for (const allocation of this.args.node.model[this.id]) {
+    for (const allocation of this.node.id) {
       if (!mostRecent || allocation.modifyTime > mostRecent) {
         mostRecent = allocation.createTime;
       }
@@ -35,7 +33,7 @@ export default class ClientRowComponent extends Component {
   }
 
   get status() {
-    return this.args.jobClientStatus.byNode[this.id];
+    return this.args.jobClientStatus.byNode[this.node.id];
   }
 
   get allocationContainer() {
@@ -47,10 +45,29 @@ export default class ClientRowComponent extends Component {
       startingAllocs: 0,
       lostAllocs: 0,
     };
-    for (const allocation of this.args.node.model[this.id]) {
+    // query by allocations for job then group by node use the mapBy method
+    if (this.status === 'notScheduled') return EmberObject.create(...statusSummary);
+
+    const allocsByNodeID = {};
+    this.args.allocations.forEach(a => {
+      const nodeId = a.node.get('id');
+      if (!allocsByNodeID[nodeId]) {
+        allocsByNodeID[nodeId] = [];
+      }
+      allocsByNodeID[nodeId].push(a);
+    });
+    for (const allocation of allocsByNodeID[this.node.id]) {
+      if (this.status === 'queued') {
+        statusSummary.queuedAllocs = allocsByNodeID[this.node.id].length;
+        break;
+      } else if (this.status === 'starting') {
+        statusSummary.startingAllocs = allocsByNodeID[this.node.id].length;
+        break;
+      } else if (this.status === 'notScheduled') {
+        break;
+      }
       const { clientStatus } = allocation;
       switch (clientStatus) {
-        // add missing statuses
         case 'running':
           statusSummary.runningAllocs++;
           break;
@@ -60,8 +77,11 @@ export default class ClientRowComponent extends Component {
         case 'failed':
           statusSummary.failedAllocs++;
           break;
-        case 'completed':
+        case 'complete':
           statusSummary.completeAllocs++;
+          break;
+        case 'starting':
+          statusSummary.startingAllocs++;
           break;
       }
     }

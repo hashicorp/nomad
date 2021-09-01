@@ -1,27 +1,34 @@
 <tr>
-                <th class="is-narrow"></th>
-
-<td data-test-short-id>
-  <LinkTo @route="clients.client" @model={{this.id}} class="is-primary">
-    {{this.id}}
-  </LinkTo>
-</td>
-<td data-test-short-id>
-  {{this.name}}
-</td>
-<td data-test-create-time>{{moment-from-now this.eldestCreateTime}}</td>
-<td data-test-modify-time>
-  <span class="tooltip" aria-label="{{format-month-ts this.node.modifyTime}}">
-    {{moment-from-now this.allocation.modifyTime}}
-  </span>
-</td>
-<td data-test-client-status class="is-one-line">
-  <span class="color-swatch">{{this.status}}</span>
-</td>
-<td data-test-client-allocations class="is-one-line">
-    <div class="inline-chart">
-        <AllocationStatusBar @allocationContainer={{this.allocationContainer}}  @isNarrow={{true}} />
-    </div>
-</td>
+  <th class="is-narrow"></th>
+  <td data-test-short-id>
+    <LinkTo @route="clients.client" @model={{this.node.id}} class="is-primary">
+      {{this.node.shortId}}
+    </LinkTo>
+  </td>
+  <td data-test-short-id>
+    {{this.node.name}}
+  </td>
+  <td data-test-create-time>
+    <span class="tooltip" aria-label="{{format-month-ts this.eldestCreateTime}}">
+      {{moment-from-now this.eldestCreateTime}}
+    </span>
+  </td>
+  <td data-test-modify-time>
+    <span class="tooltip" aria-label="{{format-month-ts this.node.modifyTime}}">
+      {{moment-from-now this.allocation.modifyTime}}
+    </span>
+  </td>
+  <td data-test-client-status class="is-one-line">
+    <span class="color-swatch {{this.status}}"></span>
+    {{this.status}}
+  </td>
+  <td data-test-client-allocations class="is-one-line">
+    {{#if this.shouldDisplayAllocationSummary}}
+      <div class="inline-chart">
+        <AllocationStatusBar @allocationContainer={{this.allocationContainer}} @isNarrow={{true}} />
+      </div>
+    {{else}}
+      Not Scheduled
+    {{/if}}
+  </td>
 </tr>
-
