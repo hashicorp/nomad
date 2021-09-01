@@ -154,7 +154,7 @@ check: ## Lint the source code
 
 	@echo "==> Check format of jobspecs and HCL files..."
 	@$(MAKE) hclfmt
-	@if (git status -s | grep -q -e '\.hcl$$' -e '\.nomad$$'); then echo the following HCL files are out of sync; git status -s | grep -e '\.hcl$$' -e '\.nomad$$'; exit 1; fi
+	@if (git status -s | grep -q -e '\.hcl$$' -e '\.nomad$$' -e '\.tf$$'); then echo the following HCL files are out of sync; git status -s | grep -e '\.hcl$$' -e '\.nomad$$' -e '\.tf$$'; exit 1; fi
 
 	@echo "==> Check API package is isolated from rest"
 	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
@@ -213,8 +213,15 @@ changelog:
 .PHONY: hclfmt
 hclfmt:
 	@echo "--> Formatting HCL"
-	@find . -path ./terraform -prune -o -name 'upstart.nomad' -prune -o \( -name '*.nomad' -o -name '*.hcl' \) -exec \
-sh -c 'hclfmt -w {} || echo in path {}' ';'
+	@find . -name '.terraform' -prune \
+	        -o -name 'upstart.nomad' -prune \
+	        -o -name '.git' -prune \
+	        -o -name 'node_modules' -prune \
+	        -o -name '.next' -prune \
+	        -o -path './ui/dist' -prune \
+	        -o -path './website/out' -prune \
+	        -o \( -name '*.nomad' -o -name '*.hcl' -o -name '*.tf' \) \
+	      -print0 | xargs -0 hclfmt -w
 
 .PHONY: tidy
 tidy:
