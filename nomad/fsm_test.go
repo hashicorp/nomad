@@ -3398,6 +3398,7 @@ func TestFSM_ACLEvents(t *testing.T) {
 				Topics: map[structs.Topic][]string{
 					tc.reqTopic: {"*"},
 				},
+				Namespace: "default",
 			}
 
 			sub, err := broker.Subscribe(subReq)
@@ -3451,6 +3452,7 @@ func TestFSM_EventBroker_JobRegisterFSMEvents(t *testing.T) {
 		Topics: map[structs.Topic][]string{
 			structs.TopicJob: {"*"},
 		},
+		Namespace: "default",
 	}
 
 	sub, err := broker.Subscribe(subReq)
