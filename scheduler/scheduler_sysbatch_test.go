@@ -934,7 +934,7 @@ func TestSysBatch_JobConstraint_AddNode(t *testing.T) {
 	require.Equal(t, "complete", h.Evals[1].Status)
 
 	// Ensure no new plans
-	require.Equal(t, 1, len(h.Plans))
+	require.Len(t, h.Plans, 1)
 
 	// Ensure all NodeAllocations are from first Eval
 	for _, allocs := range h.Plans[0].NodeAllocation {
@@ -966,7 +966,7 @@ func TestSysBatch_JobConstraint_AddNode(t *testing.T) {
 	require.Equal(t, "complete", h.Evals[2].Status)
 
 	// Ensure `groupA` fails to be placed due to its constraint, but `groupB` doesn't
-	require.Equal(t, 1, len(h.Evals[2].FailedTGAllocs))
+	require.Len(t, h.Evals[2].FailedTGAllocs, 1)
 	require.Contains(t, h.Evals[2].FailedTGAllocs, "groupA")
 	require.NotContains(t, h.Evals[2].FailedTGAllocs, "groupB")
 
