@@ -5,8 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMonitor_Update_Eval(t *testing.T) {
@@ -214,5 +216,58 @@ func TestMonitor_Monitor(t *testing.T) {
 	}
 	if !strings.Contains(out, "finished with status") {
 		t.Fatalf("missing final status\n\n%s", out)
+	}
+}
+
+func TestMonitor_formatAllocMetric(t *testing.T) {
+	tests := []struct {
+		Name     string
+		Metrics  *api.AllocationMetric
+		Expected string
+	}{
+		{
+			Name: "display all possible scores",
+			Metrics: &api.AllocationMetric{
+				NodesEvaluated: 3,
+				ScoreMetaData: []*api.NodeScoreMeta{
+					{
+						NodeID: "node-1",
+						Scores: map[string]float64{
+							"score-1": 1,
+							"score-2": 2,
+						},
+						NormScore: 1,
+					},
+					{
+						NodeID: "node-2",
+						Scores: map[string]float64{
+							"score-1": 1,
+							"score-3": 3,
+						},
+						NormScore: 2,
+					},
+					{
+						NodeID: "node-3",
+						Scores: map[string]float64{
+							"score-4": 4,
+						},
+						NormScore: 3,
+					},
+				},
+			},
+			Expected: `
+Node    score-1  score-2  score-3  score-4  final score
+node-1  1        2        0        0        1
+node-2  1        0        3        0        2
+node-3  0        0        0        4        3
+`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			got := formatAllocMetrics(tc.Metrics, true, "")
+			require.Equal(t, strings.TrimSpace(tc.Expected), got)
+		})
 	}
 }
