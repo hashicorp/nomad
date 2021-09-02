@@ -46,17 +46,17 @@ export NOMAD_ADDR=https://${aws_instance.server[0].public_ip}:4646
 export CONSUL_HTTP_ADDR=https://${aws_instance.server[0].public_ip}:8501
 export VAULT_ADDR=https://${aws_instance.server[0].public_ip}:8200
 
-export NOMAD_CACERT=${path.root}/keys/tls_ca.crt
-export CONSUL_CACERT=${path.root}/keys/tls_ca.crt
-export VAULT_CACERT=${path.root}/keys/tls_ca.crt
+export NOMAD_CACERT=${abspath(path.root)}/keys/tls_ca.crt
+export CONSUL_CACERT=${abspath(path.root)}/keys/tls_ca.crt
+export VAULT_CACERT=${abspath(path.root)}/keys/tls_ca.crt
 
-export NOMAD_CLIENT_CERT=${path.root}/keys/tls_api_client.crt
-export CONSUL_CLIENT_CERT=${path.root}/keys/tls_api_client.crt
-export VAULT_CLIENT_CERT=${path.root}/keys/tls_api_client.crt
+export NOMAD_CLIENT_CERT=${abspath(path.root)}/keys/tls_api_client.crt
+export CONSUL_CLIENT_CERT=${abspath(path.root)}/keys/tls_api_client.crt
+export VAULT_CLIENT_CERT=${abspath(path.root)}/keys/tls_api_client.crt
 
-export NOMAD_CLIENT_KEY=${path.root}/keys/tls_api_client.key
-export CONSUL_CLIENT_KEY=${path.root}/keys/tls_api_client.key
-export VAULT_CLIENT_KEY=${path.root}/keys/tls_api_client.key
+export NOMAD_CLIENT_KEY=${abspath(path.root)}/keys/tls_api_client.key
+export CONSUL_CLIENT_KEY=${abspath(path.root)}/keys/tls_api_client.key
+export VAULT_CLIENT_KEY=${abspath(path.root)}/keys/tls_api_client.key
 %{else}
 export NOMAD_ADDR=http://${aws_instance.server[0].public_ip}:4646
 export CONSUL_HTTP_ADDR=http://${aws_instance.server[0].public_ip}:8500
