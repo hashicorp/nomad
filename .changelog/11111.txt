@@ -1,0 +1,3 @@
+```release-note:improvement
+scheduler: Keep track of system and sysbatch evaluations that fail to place an allocation
+```
