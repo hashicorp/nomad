@@ -123,14 +123,15 @@ func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 
 	allTopicKeys := req.Topics[structs.TopicAll]
 
-	if req.Namespace == "" && len(allTopicKeys) == 1 && allTopicKeys[0] == string(structs.TopicAll) {
+	// Return all events if subscribed to all namespaces and all topics
+	if req.Namespace == "*" && len(allTopicKeys) == 1 && allTopicKeys[0] == string(structs.TopicAll) {
 		return events
 	}
 
 	var result []structs.Event
 
 	for _, event := range events {
-		if req.Namespace != "" && event.Namespace != "" && event.Namespace != req.Namespace {
+		if req.Namespace != "*" && event.Namespace != "" && event.Namespace != req.Namespace {
 			continue
 		}
 
