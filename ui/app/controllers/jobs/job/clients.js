@@ -28,6 +28,9 @@ export default class ClientsController extends Controller.extend(
       qpDatacenter: 'dc',
     },
     {
+      qpNodeClass: 'nodeClass',
+    },
+    {
       sortProperty: 'sort',
     },
     {
@@ -48,9 +51,11 @@ export default class ClientsController extends Controller.extend(
 
   qpStatus = '';
   qpDatacenter = '';
+  qpNodeClass = '';
 
   @selection('qpStatus') selectionStatus;
   @selection('qpDatacenter') selectionDatacenter;
+  @selection('qpNodeClass') selectionNodeClass;
 
   @computed
   get optionsStatus() {
@@ -101,6 +106,18 @@ export default class ClientsController extends Controller.extend(
     });
 
     return this.job.datacenters.sort().map(dc => ({ key: dc, label: dc }));
+  }
+
+  @computed('selectionNodeClass', 'nodes')
+  get optionsNodeClass() {
+    const nodeClasses = Array.from(new Set(this.nodes.mapBy('nodeClass')));
+    // eslint-disable-next-line ember/no-incorrect-calls-with-inline-anonymous-functions
+    scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
+      this.set(this.qpNodeClass, serialize(intersection(nodeClasses, this.selectionNodeClassß)));
+    });
+
+    return nodeClasses.sort().map(nodeClass => ({ key: nodeClass, label: nodeClass }));
   }
 
   @action

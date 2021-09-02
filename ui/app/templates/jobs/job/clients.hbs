@@ -27,6 +27,13 @@
             @selection={{this.selectionDatacenter}}
             @onSelect={{action this.setFacetQueryParam "qpDatacenter"}}
           />
+          <MultiSelectDropdown
+            data-test-node-class-facet
+            @label="Node Class"
+            @options={{this.optionsNodeClass}}
+            @selection={{this.selectionNodeClass}}
+            @onSelect={{action this.setFacetQueryParam "qpNodeClass"}}
+          />
         </div>
       </div>
     </div>
