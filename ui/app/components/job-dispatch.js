@@ -98,7 +98,9 @@ export default class JobDispatch extends Component {
       const dispatch = yield this.args.job.dispatch(paramValues, this.payload);
 
       // Navigate to the newly created instance.
-      this.router.transitionTo('jobs.job', dispatch.DispatchedJobID);
+      this.router.transitionTo('jobs.job', dispatch.DispatchedJobID, {
+        queryParams: { namespace: this.args.job.get('namespace.name') },
+      });
     } catch (err) {
       const error = messageFromAdapterError(err) || 'Could not dispatch job';
       this.errors.pushObject(error);
