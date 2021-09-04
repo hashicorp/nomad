@@ -185,7 +185,7 @@ job "countdash" {
 
     service {
       name = "count-dashboard"
-      port = "9002"
+      port = "http"
 
       connect {
         sidecar_service {
@@ -292,7 +292,7 @@ The web frontend connects to the API service via Consul Connect:
 ```hcl
     service {
       name = "count-dashboard"
-      port = "9002"
+      port = "http"
 
       connect {
         sidecar_service {
