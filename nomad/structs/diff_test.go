@@ -3422,10 +3422,11 @@ func TestTaskGroupDiff(t *testing.T) {
 			Old: &TaskGroup{
 				Networks: Networks{
 					{
-						Device: "foo",
-						CIDR:   "foo",
-						IP:     "foo",
-						MBits:  100,
+						Device:   "foo",
+						CIDR:     "foo",
+						IP:       "foo",
+						MBits:    100,
+						Hostname: "foo",
 						ReservedPorts: []Port{
 							{
 								Label: "foo",
@@ -3438,10 +3439,11 @@ func TestTaskGroupDiff(t *testing.T) {
 			New: &TaskGroup{
 				Networks: Networks{
 					{
-						Device: "bar",
-						CIDR:   "bar",
-						IP:     "bar",
-						MBits:  200,
+						Device:   "bar",
+						CIDR:     "bar",
+						IP:       "bar",
+						MBits:    200,
+						Hostname: "bar",
 						DynamicPorts: []Port{
 							{
 								Label:       "bar",
@@ -3462,6 +3464,12 @@ func TestTaskGroupDiff(t *testing.T) {
 						Type: DiffTypeAdded,
 						Name: "Network",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Hostname",
+								Old:  "",
+								New:  "bar",
+							},
 							{
 								Type: DiffTypeAdded,
 								Name: "MBits",
@@ -3518,6 +3526,12 @@ func TestTaskGroupDiff(t *testing.T) {
 						Type: DiffTypeDeleted,
 						Name: "Network",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Hostname",
+								Old:  "foo",
+								New:  "",
+							},
 							{
 								Type: DiffTypeDeleted,
 								Name: "MBits",
