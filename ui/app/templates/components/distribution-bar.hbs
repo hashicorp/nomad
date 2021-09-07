@@ -1,13 +1,11 @@
-<LinkTo @route="jobs.job.clients" @query={{hash status="running"}}>
-  <svg>
-    <defs>
-      <clipPath>
-        <rect class="mask" x="0" y="0" width="100%" height="100%" rx="2px" ry="2px"></rect>
-      </clipPath>
-    </defs>
-    <g class="bars"></g>
-  </svg>
-</LinkTo>
+<svg>
+  <defs>
+    <clipPath>
+      <rect class="mask" x="0" y="0" width="100%" height="100%" rx="2px" ry="2px"></rect>
+    </clipPath>
+  </defs>
+  <g class="bars"></g>
+</svg>
 {{#if hasBlock}}
   {{yield (hash data=this._data activeDatum=this.activeDatum)}}
 {{else}}

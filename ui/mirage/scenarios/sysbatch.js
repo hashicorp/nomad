@@ -8,7 +8,7 @@ export function sysbatchSmall(server) {
   // Job with 1 task group.
   const job1 = server.create('job', {
     status: 'running',
-    datacenters: ['dc1'],
+    datacenters: ['dc1', 'dc2'],
     type: 'sysbatch',
     resourceSpec: ['M: 256, C: 500'],
     createAllocations: false,

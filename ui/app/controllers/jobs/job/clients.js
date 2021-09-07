@@ -8,7 +8,9 @@ import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import jobClientStatus from 'nomad-ui/utils/properties/job-client-status';
 import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
+import classic from 'ember-classic-decorator';
 
+@classic
 export default class ClientsController extends Controller.extend(
   Sortable,
   Searchable,
@@ -28,7 +30,7 @@ export default class ClientsController extends Controller.extend(
       qpDatacenter: 'dc',
     },
     {
-      qpNodeClass: 'nodeClass',
+      qpNodeClass: 'nodeclass',
     },
     {
       sortProperty: 'sort',
@@ -82,14 +84,25 @@ export default class ClientsController extends Controller.extend(
     return this.store.peekAll('node');
   }
 
-  @computed('nodes', 'selectionStatus')
+  @computed('nodes', 'selectionStatus', 'selectionDatacenter', 'selectionNodeClass')
   get filteredNodes() {
-    const { selectionStatus: statuses } = this;
+    const {
+      selectionStatus: statuses,
+      selectionDatacenter: datacenters,
+      selectionNodeClass: nodeclasses,
+    } = this;
 
     return this.nodes.filter(node => {
       if (statuses.length && !statuses.includes(this.jobClientStatus.byNode[node.id])) {
         return false;
       }
+      if (datacenters.length && !datacenters.includes(node.datacenter)) {
+        return false;
+      }
+      if (nodeclasses.length && !nodeclasses.includes(node.nodeClass)) {
+        return false;
+      }
+
       return true;
     });
   }
@@ -111,11 +124,11 @@ export default class ClientsController extends Controller.extend(
   @computed('selectionNodeClass', 'nodes')
   get optionsNodeClass() {
     const nodeClasses = Array.from(new Set(this.nodes.mapBy('nodeClass')));
-    // eslint-disable-next-line ember/no-incorrect-calls-with-inline-anonymous-functions
-    scheduleOnce('actions', () => {
-      // eslint-disable-next-line ember/no-side-effects
-      this.set(this.qpNodeClass, serialize(intersection(nodeClasses, this.selectionNodeClassß)));
-    });
+    // // eslint-disable-next-line ember/no-incorrect-calls-with-inline-anonymous-functions
+    // scheduleOnce('actions', () => {
+    //   // eslint-disable-next-line ember/no-side-effects
+    //   this.set(this.qpNodeClass, serialize(intersection(nodeClasses, this.selectionNodeClass)));
+    // });
 
     return nodeClasses.sort().map(nodeClass => ({ key: nodeClass, label: nodeClass }));
   }

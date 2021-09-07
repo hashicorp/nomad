@@ -39,4 +39,10 @@ export default class IndexController extends Controller.extend(WithNamespaceRese
       queryParams: { jobNamespace: job.get('namespace.name') },
     });
   }
+
+  @action
+  gotoClient(d) {
+    const encodeStatus = JSON.stringify([`${d.charAt(0).toLowerCase()}${d.slice(1)}`]);
+    this.transitionToRoute('jobs.job.clients', this.job, { queryParams: { status: encodeStatus } });
+  }
 }

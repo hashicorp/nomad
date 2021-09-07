@@ -8,6 +8,7 @@
     width: 100%;
 
     .bars {
+      cursor: pointer;
       rect {
         transition: opacity 0.3s ease-in-out;
         opacity: 1;

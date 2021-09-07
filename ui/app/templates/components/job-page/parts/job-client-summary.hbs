@@ -1,4 +1,10 @@
-<ListAccordion data-test-job-summary @source={{array this.job}} @key="id" @startExpanded={{this.isExpanded}} @onToggle={{action this.persist}} as |a|>
+<ListAccordion
+  data-test-job-summary
+  @source={{array this.job}}
+  @key="id"
+  @startExpanded={{this.isExpanded}}
+  @onToggle={{action this.persist}} as |a|
+>
   <a.head @buttonLabel={{if a.isOpen "collapse" "expand"}}>
     <div class="columns">
       <div class="column is-minimum nowrap">
@@ -7,7 +13,6 @@
           {{this.jobClientStatus.totalNodes}}
         </span>
       </div>
-
       {{#unless a.isOpen}}
         <div class="column">
           <div class="inline-chart bumper-left">
@@ -18,12 +23,26 @@
     </div>
   </a.head>
   <a.body>
-    <ClientStatusBar @jobClientStatus={{this.jobClientStatus}} class="split-view" as |chart|>
+    <ClientStatusBar
+      @gotoClient={{this.gotoClient}}
+      @jobClientStatus={{this.jobClientStatus}}
+      class="split-view" as |chart|
+    >
       <ol data-test-legend class="legend">
         {{#each chart.data as |datum index|}}
-          <li class="{{datum.className}} {{if (eq datum.label chart.activeDatum.label) "is-active"}} {{if (eq datum.value 0) "is-empty"}}">
-            <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
-            <span class="value" data-test-legend-value="{{datum.className}}">{{datum.value}}</span>
+          <li
+            class="{{datum.className}}
+
+              {{if (eq datum.label chart.activeDatum.label) "is-active"}}
+
+              {{if (eq datum.value 0) "is-empty"}}"
+          >
+            <span
+              class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}"
+            ></span>
+            <span class="value" data-test-legend-value="{{datum.className}}">
+              {{datum.value}}
+            </span>
             <span class="label">
               {{datum.label}}
             </span>
