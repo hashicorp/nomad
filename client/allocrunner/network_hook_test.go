@@ -56,8 +56,8 @@ func TestNetworkHook_Prerun_Postrun(t *testing.T) {
 	destroyCalled := false
 	nm := &testutils.MockDriver{
 		MockNetworkManager: testutils.MockNetworkManager{
-			CreateNetworkF: func(allocID string) (*drivers.NetworkIsolationSpec, bool, error) {
-				require.Equal(t, alloc.ID, allocID)
+			CreateNetworkF: func(req *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
+				require.Equal(t, alloc.ID, req.AllocID)
 				return spec, false, nil
 			},
 
