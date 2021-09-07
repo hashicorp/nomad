@@ -1959,11 +1959,11 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 
 	// Send a signal and restart
 	err = tr.Signal(structs.NewTaskEvent("don't panic"), "QUIT")
-	require.EqualError(t, err, ErrTaskNotRunning.Error())
+	require.EqualError(t, err, ErrTaskNotRunning(tr.taskName).Error())
 
 	// Send a restart
 	err = tr.Restart(context.Background(), structs.NewTaskEvent("don't panic"), false)
-	require.EqualError(t, err, ErrTaskNotRunning.Error())
+	require.EqualError(t, err, ErrTaskNotRunning(tr.taskName).Error())
 
 	// Unblock and let it finish
 	waitCh <- struct{}{}

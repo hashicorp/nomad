@@ -603,7 +603,7 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		taskEvent := structs.NewTaskEvent(structs.TaskKilling)
 		taskEvent.SetKillTimeout(tr.Task().KillTimeout)
 		err := tr.Kill(context.TODO(), taskEvent)
-		if err != nil && err != taskrunner.ErrTaskNotRunning {
+		if err != nil && err != taskrunner.ErrTaskNotRunning(tr.Task().Name) {
 			ar.logger.Warn("error stopping leader task", "error", err, "task_name", name)
 		}
 
@@ -626,7 +626,7 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 			taskEvent := structs.NewTaskEvent(structs.TaskKilling)
 			taskEvent.SetKillTimeout(tr.Task().KillTimeout)
 			err := tr.Kill(context.TODO(), taskEvent)
-			if err != nil && err != taskrunner.ErrTaskNotRunning {
+			if err != nil && err != taskrunner.ErrTaskNotRunning(tr.Task().Name) {
 				ar.logger.Warn("error stopping task", "error", err, "task_name", name)
 			}
 
@@ -1182,13 +1182,15 @@ func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, fa
 // Returns any errors in a concatenated form.
 func (ar *allocRunner) RestartAll(taskEvent *structs.TaskEvent) error {
 	var err *multierror.Error
-
+	fmt.Println("RESTARTING ALL")
 	// run alloc task restart hooks
 	ar.taskRestartHooks()
 
 	for tn := range ar.tasks {
+		fmt.Println("RESTARTING TASK", tn)
 		rerr := ar.RestartTask(tn, taskEvent.Copy())
 		if rerr != nil {
+			fmt.Println("UHOH RESTART TASK ERR", rerr)
 			err = multierror.Append(err, rerr)
 		}
 	}

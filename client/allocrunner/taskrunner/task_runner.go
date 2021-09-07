@@ -68,6 +68,8 @@ type TaskRunner struct {
 	allocID       string
 	taskName      string
 	taskLeader    bool
+	taskLifecycle string
+	taskSidecar   bool
 	taskResources *structs.AllocatedTaskResources
 
 	alloc     *structs.Allocation
@@ -310,6 +312,13 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		tstate = ts.Copy()
 	}
 
+	lifecycleHook := ""
+	isSidecar := false
+	if config.Task.Lifecycle != nil {
+		lifecycleHook = config.Task.Lifecycle.Hook
+		isSidecar = config.Task.Lifecycle.Sidecar
+	}
+
 	tr := &TaskRunner{
 		alloc:                  config.Alloc,
 		allocID:                config.Alloc.ID,
@@ -318,6 +327,8 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		taskDir:                config.TaskDir,
 		taskName:               config.Task.Name,
 		taskLeader:             config.Task.Leader,
+		taskLifecycle:          lifecycleHook,
+		taskSidecar:            isSidecar,
 		envBuilder:             envBuilder,
 		dynamicRegistry:        config.DynamicRegistry,
 		consulServiceClient:    config.Consul,
@@ -594,6 +605,7 @@ MAIN:
 
 	RESTART:
 		restart, restartDelay := tr.shouldRestart()
+		fmt.Println("SHOULD RESTART", restart)
 		if !restart {
 			break MAIN
 		}
@@ -725,6 +737,7 @@ func (tr *TaskRunner) shouldRestart() (bool, time.Duration) {
 	// Determine if we should restart
 	state, when := tr.restartTracker.GetState()
 	reason := tr.restartTracker.GetReason()
+	fmt.Println("TR RESTART", state, reason)
 	switch state {
 	case structs.TaskKilled:
 		// Never restart an explicitly killed task. Kill method handles

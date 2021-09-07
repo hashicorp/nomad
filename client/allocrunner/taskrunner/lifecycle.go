@@ -16,7 +16,13 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 
 	// Check it is running
 	if handle == nil {
-		return ErrTaskNotRunning
+		// If it's a one-shot lifecycle swallow the error since we don't want to restart these
+		if tr.taskLifecycle != "" && !tr.taskSidecar {
+			tr.logger.Trace("not restarting task", "reason", "Restart unnecessary as task terminated successfully")
+			return nil
+		}
+		return ErrTaskNotRunning(tr.taskName)
+		// return ErrTaskNotRunning
 	}
 
 	// Emit the event since it may take a long time to kill
@@ -56,7 +62,8 @@ func (tr *TaskRunner) Signal(event *structs.TaskEvent, s string) error {
 
 	// Check it is running
 	if handle == nil {
-		return ErrTaskNotRunning
+		return ErrTaskNotRunning(tr.taskName)
+		// return ErrTaskNotRunning
 	}
 
 	// Emit the event

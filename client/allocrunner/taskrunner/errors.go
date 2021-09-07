@@ -7,12 +7,16 @@ import (
 )
 
 const (
-	errTaskNotRunning = "Task not running"
+	errTaskNotRunning = "Task not running: "
 )
 
-var (
-	ErrTaskNotRunning = errors.New(errTaskNotRunning)
-)
+// var (
+// 	ErrTaskNotRunning = errors.New(errTaskNotRunning)
+// )
+
+func ErrTaskNotRunning(taskName string) error {
+	return errors.New(errTaskNotRunning + taskName)
+}
 
 // NewHookError contains an underlying err and a pre-formatted task event.
 func NewHookError(err error, taskEvent *structs.TaskEvent) error {

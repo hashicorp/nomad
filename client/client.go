@@ -865,7 +865,7 @@ func (c *Client) RestartAllocation(allocID, taskName string) error {
 	if taskName != "" {
 		return ar.RestartTask(taskName, event)
 	}
-
+	fmt.Println("RESTARTING ALLOC")
 	return ar.RestartAll(event)
 }
 
