@@ -17,6 +17,8 @@ import recommendationAccordion from 'nomad-ui/tests/pages/components/recommendat
 export default create({
   visit: visitable('/jobs/:id'),
 
+  jobName: text('[data-test-job-name]'),
+
   tabs: collection('[data-test-tab]', {
     id: attribute('data-test-tab'),
     visit: clickable('a'),

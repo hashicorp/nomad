@@ -1,5 +1,5 @@
 <h1 class="title with-flex">
-  <div>
+  <div data-test-job-name>
     {{or this.title this.job.name}}
     <span class="bumper-left tag {{this.job.statusClass}}" data-test-job-status>{{this.job.status}}</span>
     {{yield}}
