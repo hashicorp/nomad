@@ -635,6 +635,16 @@ func netIsolationModeFromProto(pb proto.NetworkIsolationSpec_NetworkIsolationMod
 	}
 }
 
+func networkCreateRequestFromProto(pb *proto.CreateNetworkRequest) *NetworkCreateRequest {
+	if pb == nil {
+		return nil
+	}
+	return &NetworkCreateRequest{
+		AllocID:  pb.GetAllocId(),
+		Hostname: pb.GetHostname(),
+	}
+}
+
 func NetworkIsolationSpecToProto(spec *NetworkIsolationSpec) *proto.NetworkIsolationSpec {
 	if spec == nil {
 		return nil
