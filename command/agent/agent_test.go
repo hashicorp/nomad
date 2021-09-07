@@ -1291,6 +1291,48 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 	}
 }
 
+func TestServer_ShouldReload_ReturnTrueForRPCUpgradeModeChanges(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	const (
+		cafile  = "../../helper/tlsutil/testdata/ca.pem"
+		foocert = "../../helper/tlsutil/testdata/nomad-foo.pem"
+		fookey  = "../../helper/tlsutil/testdata/nomad-foo-key.pem"
+	)
+	dir := tmpDir(t)
+	defer os.RemoveAll(dir)
+
+	sameAgentConfig := &Config{
+		TLSConfig: &config.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+			RPCUpgradeMode:       true,
+		},
+	}
+
+	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.TLSConfig = &config.TLSConfig{
+			EnableHTTP:           true,
+			EnableRPC:            true,
+			VerifyServerHostname: true,
+			CAFile:               cafile,
+			CertFile:             foocert,
+			KeyFile:              fookey,
+			RPCUpgradeMode:       false,
+		}
+	})
+	defer agent.Shutdown()
+
+	shouldReloadAgent, shouldReloadHTTP := agent.ShouldReload(sameAgentConfig)
+	assert.True(shouldReloadAgent)
+	assert.False(shouldReloadHTTP)
+}
+
 func TestAgent_ProxyRPC_Dev(t *testing.T) {
 	t.Parallel()
 	agent := NewTestAgent(t, t.Name(), nil)
