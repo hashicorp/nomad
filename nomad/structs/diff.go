@@ -708,7 +708,7 @@ func findServiceMatch(service *Service, serviceIndex int, services []*Service, m
 	// fewer (higher value) matches.
 	// More matches result in more Edited diffs, while fewer matches generate
 	// more Add/Delete diff pairs.
-	minScoreThreshold := 3
+	minScoreThreshold := 2
 
 	highestScore := 0
 	indexMatch := -1
