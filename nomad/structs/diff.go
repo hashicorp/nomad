@@ -671,7 +671,11 @@ func serviceDiffs(old, new []*Service, contextual bool) []*ObjectDiff {
 	var diffs []*ObjectDiff
 	for oldIndex, oldService := range old {
 		newIndex := findServiceMatch(oldService, oldIndex, new, newMatches)
+
+		// Old services that don't have a match were deleted.
 		if newIndex < 0 {
+			diff := serviceDiff(oldService, nil, contextual)
+			diffs = append(diffs, diff)
 			continue
 		}
 
@@ -693,22 +697,21 @@ func serviceDiffs(old, new []*Service, contextual bool) []*ObjectDiff {
 		}
 	}
 
-	// Old services without match were deleted.
-	for i, m := range oldMatches {
-		if m == -1 {
-			diff := serviceDiff(old[i], nil, contextual)
-			diffs = append(diffs, diff)
-		}
-	}
-
+	sort.Sort(ObjectDiffs(diffs))
 	return diffs
 }
 
 // findServiceMatch returns the index of the service in the input services list
 // that matches the provided input service.
 func findServiceMatch(service *Service, serviceIndex int, services []*Service, matches []int) int {
-	oldScore := -1
-	newIndex := -1
+	// minScoreThreshold can be adjusted to generate more (lower value) or
+	// fewer (higher value) matches.
+	// More matches result in more Edited diffs, while fewer matches generate
+	// more Add/Delete diff pairs.
+	minScoreThreshold := 3
+
+	highestScore := 0
+	indexMatch := -1
 
 	for i, s := range services {
 		// Skip service if it's already matched.
@@ -757,13 +760,13 @@ func findServiceMatch(service *Service, serviceIndex int, services []*Service, m
 			score += 3
 		}
 
-		if score > 2 && score > oldScore {
-			oldScore = score
-			newIndex = i
+		if score > minScoreThreshold && score > highestScore {
+			highestScore = score
+			indexMatch = i
 		}
 	}
 
-	return newIndex
+	return indexMatch
 }
 
 // serviceCheckDiff returns the diff of two service check objects. If contextual
