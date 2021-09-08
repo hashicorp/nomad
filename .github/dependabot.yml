@@ -1,18 +1,29 @@
 version: 2
 updates:
-- package-ecosystem: gomod
-  directory: "/"
-  schedule:
-    interval: daily
-- package-ecosystem: gomod
-  directory: "/api"
-  schedule:
-    interval: daily
-- package-ecosystem: npm 
-  directory: "/ui"
-  schedule:
-    interval: daily
-- package-ecosystem: npm 
-  directory: "/website"
-  schedule:
-    interval: daily
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: daily
+    labels:
+      - "theme/dependencies"
+  - package-ecosystem: gomod
+    directory: "/api"
+    schedule:
+      interval: daily
+    labels:
+      - "theme/dependencies"
+      - "theme/api"
+  - package-ecosystem: npm
+    directory: "/ui"
+    schedule:
+      interval: daily
+    labels:
+      - "theme/dependencies"
+      - "theme/ui"
+  - package-ecosystem: npm
+    directory: "/website"
+    schedule:
+      interval: daily
+    labels:
+      - "theme/dependencies"
+      - "theme/website"
