@@ -7370,11 +7370,11 @@ func TestServicesDiff(t *testing.T) {
 			New: []*Service{
 				{
 					Name:      "webapp",
-					PortLabel: "http",
+					PortLabel: "https",
 				},
 				{
 					Name:      "webapp",
-					PortLabel: "https",
+					PortLabel: "http",
 				},
 			},
 			Expected: []*ObjectDiff{

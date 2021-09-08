@@ -685,18 +685,18 @@ func serviceDiffs(old, new []*Service, contextual bool) []*ObjectDiff {
 		}
 	}
 
-	// Old services without match were deleted.
-	for i, m := range oldMatches {
-		if m == -1 {
-			diff := serviceDiff(old[i], nil, contextual)
-			diffs = append(diffs, diff)
-		}
-	}
-
 	// New services without match were added.
 	for i, m := range newMatches {
 		if m == -1 {
 			diff := serviceDiff(nil, new[i], contextual)
+			diffs = append(diffs, diff)
+		}
+	}
+
+	// Old services without match were deleted.
+	for i, m := range oldMatches {
+		if m == -1 {
+			diff := serviceDiff(old[i], nil, contextual)
 			diffs = append(diffs, diff)
 		}
 	}
@@ -707,6 +707,9 @@ func serviceDiffs(old, new []*Service, contextual bool) []*ObjectDiff {
 // findServiceMatch returns the index of the service in the input services list
 // that matches the provided input service.
 func findServiceMatch(service *Service, serviceIndex int, services []*Service, matches []int) int {
+	oldScore := -1
+	newIndex := -1
+
 	for i, s := range services {
 		// Skip service if it's already matched.
 		if matches[i] >= 0 {
@@ -739,27 +742,28 @@ func findServiceMatch(service *Service, serviceIndex int, services []*Service, m
 		// None of these values are enough on their own, but they are also too
 		// strong when considered all together.
 		//
-		// So we consider two services to match if at least 2 of these 3 values
-		// are equal.
+		// So we try to score services by their main candidates with a preference
+		// towards name + label over service position.
 		score := 0
 		if i == serviceIndex {
 			score += 1
 		}
 
-		if service.Name == s.Name {
-			score += 1
-		}
-
 		if service.PortLabel == s.PortLabel {
-			score += 1
+			score += 2
 		}
 
-		if score >= 2 {
-			return i
+		if service.Name == s.Name {
+			score += 3
+		}
+
+		if score > 2 && score > oldScore {
+			oldScore = score
+			newIndex = i
 		}
 	}
 
-	return -1
+	return newIndex
 }
 
 // serviceCheckDiff returns the diff of two service check objects. If contextual
