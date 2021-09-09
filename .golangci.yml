@@ -64,6 +64,10 @@ linters-settings:
     disabled-checks:
       - commentFormatting
       - deprecatedComment
+  staticcheck:
+    # Only enable a single check to start.
+    # I(jrasell) will work on enabling additional checks when possible.
+    checks: ["ST1020"]
 
 issues:
   exclude:
@@ -87,6 +91,7 @@ linters:
     - gofmt
     - gosimple
     - depguard
+    - staticcheck
     # Stretch Goal
     #- maligned
   fast: false
