@@ -15,11 +15,14 @@ func TestNomadFingerprint(t *testing.T) {
 	v := "foo"
 	r := "123"
 	h := "8.8.8.8:4646"
+	a := "/opt/nomad/data/alloc"
+
 	c := &config.Config{
 		Version: &version.VersionInfo{
 			Revision: r,
 			Version:  v,
 		},
+		AllocDir: a,
 	}
 	node := &structs.Node{
 		Attributes: make(map[string]string),
@@ -51,5 +54,8 @@ func TestNomadFingerprint(t *testing.T) {
 
 	if response.Attributes["nomad.advertise.address"] != h {
 		t.Fatalf("incorrect advertise address")
+	}
+	if response.Attributes["nomad.alloc_dir"] != a {
+		t.Fatalf("incorrect alloc_dir")
 	}
 }

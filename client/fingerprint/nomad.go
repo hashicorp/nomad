@@ -20,6 +20,7 @@ func (f *NomadFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerprin
 	resp.AddAttribute("nomad.advertise.address", req.Node.HTTPAddr)
 	resp.AddAttribute("nomad.version", req.Config.Version.VersionNumber())
 	resp.AddAttribute("nomad.revision", req.Config.Version.Revision)
+	resp.AddAttribute("nomad.alloc_dir", req.Config.AllocDir)
 	resp.Detected = true
 	return nil
 }
