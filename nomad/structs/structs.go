@@ -6318,11 +6318,13 @@ func (tg *TaskGroup) validateNetworks() error {
 			}
 		}
 
-		// Validate the hostname field to be a valid DNS name. It would be nice
-		// to validate additional parameters, but this isn't the right place.
-		if net.Hostname != "" {
+		// Validate the hostname field to be a valid DNS name. If the parameter
+		// looks like it includes an interpolation value, we skip this. It
+		// would be nice to validate additional parameters, but this isn't the
+		// right place.
+		if net.Hostname != "" && !strings.Contains(net.Hostname, "${") {
 			if !govalidator.IsDNSName(net.Hostname) {
-				mErr.Errors = append(mErr.Errors, errors.New("Hostname is invalid"))
+				mErr.Errors = append(mErr.Errors, errors.New("Hostname is not a valid DNS name"))
 			}
 		}
 	}

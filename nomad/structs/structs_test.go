@@ -1467,7 +1467,7 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 					},
 				},
 			},
-			ErrContains: "Hostname is invalid",
+			ErrContains: "Hostname is not a valid DNS name",
 		},
 	}
 

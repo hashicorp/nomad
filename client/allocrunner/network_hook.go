@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/asaskevich/govalidator"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -70,6 +72,10 @@ type networkHook struct {
 	// the alloc network has been created
 	networkConfigurator NetworkConfigurator
 
+	// taskEnvBuilder is used to perform interpolation within the network
+	// blocks.
+	taskEnvBuilder *taskenv.Builder
+
 	logger hclog.Logger
 }
 
@@ -78,13 +84,16 @@ func newNetworkHook(logger hclog.Logger,
 	alloc *structs.Allocation,
 	netManager drivers.DriverNetworkManager,
 	netConfigurator NetworkConfigurator,
-	networkStatusSetter networkStatusSetter) *networkHook {
+	networkStatusSetter networkStatusSetter,
+	envBuilder *taskenv.Builder,
+) *networkHook {
 	return &networkHook{
 		isolationSetter:     ns,
 		networkStatusSetter: networkStatusSetter,
 		alloc:               alloc,
 		manager:             netManager,
 		networkConfigurator: netConfigurator,
+		taskEnvBuilder:      envBuilder,
 		logger:              logger,
 	}
 }
@@ -104,10 +113,22 @@ func (h *networkHook) Prerun() error {
 		return nil
 	}
 
+	// Perform our networks block interpolation.
+	interpolatedNetworks := taskenv.InterpolateNetworks(h.taskEnvBuilder.Build(), tg.Networks)
+
+	// Interpolated values need to be validated. It is also possible a user
+	// supplied hostname avoids the validation on job registrations because it
+	// looks like it includes interpolation, when it doesn't.
+	if interpolatedNetworks[0].Hostname != "" {
+		if !govalidator.IsDNSName(interpolatedNetworks[0].Hostname) {
+			return fmt.Errorf("network hostname %q is not a valid DNS name", interpolatedNetworks[0].Hostname)
+		}
+	}
+
 	// Our network create request.
 	networkCreateReq := drivers.NetworkCreateRequest{
 		AllocID:  h.alloc.ID,
-		Hostname: tg.Networks[0].Hostname,
+		Hostname: interpolatedNetworks[0].Hostname,
 	}
 
 	spec, created, err := h.manager.CreateNetwork(&networkCreateReq)

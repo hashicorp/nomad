@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -79,8 +80,10 @@ func TestNetworkHook_Prerun_Postrun(t *testing.T) {
 	}
 	require := require.New(t)
 
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+
 	logger := testlog.HCLogger(t)
-	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter)
+	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder)
 	require.NoError(hook.Prerun())
 	require.True(setter.called)
 	require.False(destroyCalled)
@@ -91,11 +94,10 @@ func TestNetworkHook_Prerun_Postrun(t *testing.T) {
 	setter.called = false
 	destroyCalled = false
 	alloc.Job.TaskGroups[0].Networks[0].Mode = "host"
-	hook = newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter)
+	hook = newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder)
 	require.NoError(hook.Prerun())
 	require.False(setter.called)
 	require.False(destroyCalled)
 	require.NoError(hook.Postrun())
 	require.False(destroyCalled)
-
 }
