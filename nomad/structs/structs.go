@@ -2801,6 +2801,9 @@ type NodeResources struct {
 	Networks     Networks
 	NodeNetworks []*NodeNetworkResource
 	Devices      []*NodeDeviceResource
+
+	MinDynamicPort int
+	MaxDynamicPort int
 }
 
 func (n *NodeResources) Copy() *NodeResources {

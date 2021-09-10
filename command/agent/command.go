@@ -372,6 +372,12 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
+	if config.Client.MinDynamicPort > 0 && config.Client.MaxDynamicPort > 0 &&
+		config.Client.MinDynamicPort >= config.Client.MaxDynamicPort {
+		c.Ui.Error("Invalid dynamic port range")
+		return false
+	}
+
 	if !config.DevMode {
 		// Ensure that we have the directories we need to run.
 		if config.Server.Enabled && config.DataDir == "" {
