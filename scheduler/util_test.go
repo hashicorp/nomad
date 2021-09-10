@@ -585,11 +585,13 @@ func TestReadyNodesInDCsWildcard(t *testing.T) {
 	state := state.TestStateStore(t)
 	node1 := mock.Node()
 	node2 := mock.Node()
-	node2.Datacenter = "dc1"
+	node2.Datacenter = "dc2"
 	node3 := mock.Node()
 	node3.Datacenter = "dc2"
 	node3.Status = structs.NodeStatusDown
 	node4 := mock.DrainNode()
+	node5 := mock.Node()
+	node5.Datacenter = "other"
 
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2))
