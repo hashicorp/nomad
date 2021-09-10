@@ -1108,7 +1108,7 @@ func TestServiceSched_JobRegister_AllocFail(t *testing.T) {
 	}
 
 	// Check the available nodes
-	if count, ok := metrics.NodesAvailable["dc1"]; !ok || count != 0 {
+	if _, ok := metrics.NodesAvailable["dc1"]; ok {
 		t.Fatalf("bad: %#v", metrics)
 	}
 
