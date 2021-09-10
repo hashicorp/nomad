@@ -58,7 +58,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 	t.Run("current job", func(t *testing.T) {
 		terminal := structs.TerminalByNodeByName{
 			"node1": map[string]*structs.Allocation{
-				"my-sysbatch.pinger[0]": {
+				"my-sysbatch.pinger[0]": &structs.Allocation{
 					ID:           uuid.Generate(),
 					NodeID:       "node1",
 					Name:         "my-sysbatch.pinger[0]",
@@ -82,7 +82,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 		previousJob.JobModifyIndex -= 1
 		terminal := structs.TerminalByNodeByName{
 			"node1": map[string]*structs.Allocation{
-				"my-sysbatch.pinger[0]": {
+				"my-sysbatch.pinger[0]": &structs.Allocation{
 					ID:     uuid.Generate(),
 					NodeID: "node1",
 					Name:   "my-sysbatch.pinger[0]",
