@@ -581,6 +581,32 @@ func TestReadyNodesInDCs(t *testing.T) {
 	require.Contains(t, notReady, node4.ID)
 }
 
+func TestReadyNodesInDCsWildcard(t *testing.T) {
+	state := state.TestStateStore(t)
+	node1 := mock.Node()
+	node2 := mock.Node()
+	node2.Datacenter = "dc1"
+	node3 := mock.Node()
+	node3.Datacenter = "dc2"
+	node3.Status = structs.NodeStatusDown
+	node4 := mock.DrainNode()
+
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1002, node3))
+	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1003, node4))
+
+	nodes, dc, err := readyNodesInDCs(state, []string{"dc*"})
+	require.NoError(t, err)
+	require.Equal(t, 2, len(nodes))
+	require.True(t, nodes[0].ID != node3.ID && nodes[1].ID != node3.ID)
+
+	require.Contains(t, dc, "dc1")
+	require.Equal(t, 1, dc["dc1"])
+	require.Contains(t, dc, "dc2")
+	require.Equal(t, 1, dc["dc2"])
+}
+
 func TestRetryMax(t *testing.T) {
 	ci.Parallel(t)
 

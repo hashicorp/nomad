@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"reflect"
 	"time"
 
@@ -361,10 +362,7 @@ func diffSystemAllocs(
 // mapping of each data center to the count of ready nodes.
 func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]struct{}, map[string]int, error) {
 	// Index the DCs
-	dcMap := make(map[string]int, len(dcs))
-	for _, dc := range dcs {
-		dcMap[dc] = 0
-	}
+	dcMap := make(map[string]int)
 
 	// Scan the nodes
 	ws := memdb.NewWatchSet()
@@ -386,13 +384,35 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]str
 			notReady[node.ID] = struct{}{}
 			continue
 		}
-		if _, ok := dcMap[node.Datacenter]; !ok {
+
+		match, err := matchDcs(dcs, node)
+
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if !match {
 			continue
 		}
+
 		out = append(out, node)
 		dcMap[node.Datacenter]++
 	}
 	return out, notReady, dcMap, nil
+}
+
+func matchDcs(dcs []string, node *structs.Node) (bool, error) {
+	for _, dc := range dcs {
+		match, err := filepath.Match(dc, node.Datacenter)
+		if err != nil {
+			return false, err
+		}
+		if match {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // retryMax is used to retry a callback until it returns success or
