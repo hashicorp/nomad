@@ -281,8 +281,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
 	if acc == nil {
-		v := *curr
-		return &v
+		return curr.Copy()
 	}
 
 	acc.NodesEvaluated += curr.NodesEvaluated
@@ -328,12 +327,13 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			// If the task can't be placed on this node, update reporting data
 			// and continue to short circuit the loop
 
-			// If this node was filtered because of constraint mismatches and we
-			// couldn't create an allocation then decrementing queued for that
-			// task group
+			// If this node was filtered because of constraint
+			// mismatches and we couldn't create an allocation then
+			// decrement queuedAllocs for that task group.
 			if s.ctx.metrics.NodesFiltered > 0 {
 				queued := s.queuedAllocs[tgName] - 1
 				s.queuedAllocs[tgName] = queued
+
 				if filteredMetrics == nil {
 					filteredMetrics = map[string]*structs.AllocMetric{}
 				}
