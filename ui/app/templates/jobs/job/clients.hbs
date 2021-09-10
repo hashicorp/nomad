@@ -15,8 +15,8 @@
         <div class="button-bar">
           <MultiSelectDropdown
             data-test-status-facet
-            @label="Status"
-            @options={{this.optionsStatus}}
+            @label="Job Status"
+            @options={{this.optionsJobStatus}}
             @selection={{this.selectionStatus}}
             @onSelect={{action this.setFacetQueryParam "qpStatus"}}
           />
@@ -51,20 +51,19 @@
           @class="with-foot" as |t|
         >
           <t.head>
-            <th class="is-narrow"></th>
             <t.sort-by @prop="id">
               Client ID
             </t.sort-by>
-            <t.sort-by @prop="name">
+            <t.sort-by @prop="name" class="is-200px is-truncatable">
               Client Name
             </t.sort-by>
-            <t.sort-by @prop="createIndex" @title="Create Index">
+            <t.sort-by @prop="createTime" @title="Create Time">
               Created
             </t.sort-by>
-            <t.sort-by @prop="modifyIndex" @title="Modify Index">
+            <t.sort-by @prop="modifyTime" @title="Modify Time">
               Modified
             </t.sort-by>
-            <t.sort-by @prop="statusIndex">
+            <t.sort-by @prop="jobStatus">
               Job Status
             </t.sort-by>
             <th class="is-3">
@@ -74,11 +73,8 @@
           <t.body as |row|>
             <ClientRow
               @data-test-client={{"sdf"}}
-              @jobClientStatus={{this.jobClientStatus}}
-              @allocations={{this.job.allocations}}
-              @node={{row}}
-              @context="job"
-              @onClick={{action "gotoClient" row}}
+              @row={{row}}
+              @onClick={{this.gotoClient}}
             />
           </t.body>
         </ListTable>
