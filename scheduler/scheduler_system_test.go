@@ -1264,7 +1264,7 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 	require.Equal(t, "complete", h.Evals[1].Status)
 
 	// Ensure no new plans
-	require.Equal(t, 1, len(h.Plans))
+	require.Len(t, h.Plans, 1)
 
 	// Ensure all NodeAllocations are from first Eval
 	for _, allocs := range h.Plans[0].NodeAllocation {
@@ -1275,8 +1275,8 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 	// Add a new node Class-B
 	var nodeBTwo *structs.Node
 	nodeBTwo = mock.Node()
-	require.NoError(t, nodeBTwo.ComputeClass())
 	nodeBTwo.NodeClass = "Class-B"
+	require.NoError(t, nodeBTwo.ComputeClass())
 	require.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), nodeBTwo))
 
 	// Evaluate the new node
@@ -1295,8 +1295,10 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 	require.Nil(t, h.Process(NewSystemScheduler, eval3))
 	require.Equal(t, "complete", h.Evals[2].Status)
 
-	// Ensure no failed TG allocs
-	require.Equal(t, 0, len(h.Evals[2].FailedTGAllocs))
+	// Ensure `groupA` fails to be placed due to its constraint, but `groupB` doesn't
+	require.Len(t, h.Evals[2].FailedTGAllocs, 1)
+	require.Contains(t, h.Evals[2].FailedTGAllocs, "groupA")
+	require.NotContains(t, h.Evals[2].FailedTGAllocs, "groupB")
 
 	require.Len(t, h.Plans, 2)
 	require.Len(t, h.Plans[1].NodeAllocation, 1)
