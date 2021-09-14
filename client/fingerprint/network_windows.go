@@ -11,7 +11,8 @@ import (
 func (f *NetworkFingerprint) linkSpeed(device string) int {
 	command := fmt.Sprintf("Get-NetAdapter -IncludeHidden | Where name -eq '%s' | Select -ExpandProperty LinkSpeed", device)
 	path := "powershell.exe"
-	outBytes, err := exec.Command(path, command).Output()
+	powershellParams := "-NoProfile"
+	outBytes, err := exec.Command(path, powershellParams, command).Output()
 
 	if err != nil {
 		f.logger.Warn("failed to detect link speed", "device", device, "path", path, "command", command, "error", err)
