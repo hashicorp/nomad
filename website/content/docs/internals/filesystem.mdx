@@ -37,13 +37,7 @@ allocation directory like the one below.
     └── tmp
 ```
 
-- **alloc/**: This directory is shared across all tasks in an allocation and
-  can be used to store data that needs to be used by multiple tasks, such as a
-  log shipper. This is the directory that's provided to the task as the
-  `NOMAD_ALLOC_DIR`. Note that this `alloc/` directory is not the same as the
-  "allocation working directory", which is the top-level directory. All tasks
-  in a task group can read and write to the `alloc/` directory. Within the
-  `alloc/` directory are three standard directories:
+- **alloc/**: This directory is shared across all tasks in an allocation and can be used to store data that needs to be used by multiple tasks, such as a log shipper. This is the directory that's provided to the task as the `NOMAD_ALLOC_DIR`. Note that this alloc/ directory is not the same as the "allocation working directory", which is the top-level directory. All tasks in a task group can read and write to the alloc directory, but the path may differ depending on the task driver's [filesystem isolation mode](https://www.nomadproject.io/docs/internals/filesystem#task-drivers-and-filesystem-isolation-modes). Tasks with driver isolation of none may reference this directory using the `NOMAD_ALLOC_DIR` environment variable (see [here](https://www.nomadproject.io/docs/internals/filesystem#none-isolation)) or a relative path that traverses up into the allocation working directory (../alloc/). Other task drivers will have this directory provided within their working directory, and may access it via the alloc/ path (see [here](https://www.nomadproject.io/docs/internals/filesystem#image-isolation) and [here](https://www.nomadproject.io/docs/internals/filesystem#chroot-isolation)). Within the alloc/ directory are three standard directories:
 
   - **alloc/data/**: This directory is the location used by the
     [`ephemeral_disk`] stanza for shared data.
