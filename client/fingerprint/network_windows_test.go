@@ -23,6 +23,7 @@ func TestNetworkFingerPrint_linkspeed_parse(t *testing.T) {
 		{"2 2 Mbps", 0},
 		{"a Mbps", 0},
 		{"1 Tbps", 0},
+		{"866.7 Mbps", 866},
 	}
 
 	for _, ot := range outputTests {
