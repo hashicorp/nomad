@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/asaskevich/govalidator"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/miekg/dns"
 )
 
 const (
@@ -72,9 +72,8 @@ type networkHook struct {
 	// the alloc network has been created
 	networkConfigurator NetworkConfigurator
 
-	// taskEnvBuilder is used to perform interpolation within the network
-	// blocks.
-	taskEnvBuilder *taskenv.Builder
+	// taskEnv is used to perform interpolation within the network blocks.
+	taskEnv *taskenv.TaskEnv
 
 	logger hclog.Logger
 }
@@ -85,7 +84,7 @@ func newNetworkHook(logger hclog.Logger,
 	netManager drivers.DriverNetworkManager,
 	netConfigurator NetworkConfigurator,
 	networkStatusSetter networkStatusSetter,
-	envBuilder *taskenv.Builder,
+	taskEnv *taskenv.TaskEnv,
 ) *networkHook {
 	return &networkHook{
 		isolationSetter:     ns,
@@ -93,7 +92,7 @@ func newNetworkHook(logger hclog.Logger,
 		alloc:               alloc,
 		manager:             netManager,
 		networkConfigurator: netConfigurator,
-		taskEnvBuilder:      envBuilder,
+		taskEnv:             taskEnv,
 		logger:              logger,
 	}
 }
@@ -114,24 +113,23 @@ func (h *networkHook) Prerun() error {
 	}
 
 	// Perform our networks block interpolation.
-	interpolatedNetworks := taskenv.InterpolateNetworks(h.taskEnvBuilder.Build(), tg.Networks)
+	interpolatedNetworks := taskenv.InterpolateNetworks(h.taskEnv, tg.Networks)
 
 	// Interpolated values need to be validated. It is also possible a user
 	// supplied hostname avoids the validation on job registrations because it
 	// looks like it includes interpolation, when it doesn't.
 	if interpolatedNetworks[0].Hostname != "" {
-		if !govalidator.IsDNSName(interpolatedNetworks[0].Hostname) {
+		if _, ok := dns.IsDomainName(interpolatedNetworks[0].Hostname); !ok {
 			return fmt.Errorf("network hostname %q is not a valid DNS name", interpolatedNetworks[0].Hostname)
 		}
 	}
 
 	// Our network create request.
 	networkCreateReq := drivers.NetworkCreateRequest{
-		AllocID:  h.alloc.ID,
 		Hostname: interpolatedNetworks[0].Hostname,
 	}
 
-	spec, created, err := h.manager.CreateNetwork(&networkCreateReq)
+	spec, created, err := h.manager.CreateNetwork(h.alloc.ID, &networkCreateReq)
 	if err != nil {
 		return fmt.Errorf("failed to create network for alloc: %v", err)
 	}

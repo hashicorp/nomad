@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/asaskevich/govalidator"
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
@@ -40,6 +39,7 @@ import (
 	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
 	"golang.org/x/crypto/blake2b"
 )
@@ -6323,7 +6323,7 @@ func (tg *TaskGroup) validateNetworks() error {
 		// would be nice to validate additional parameters, but this isn't the
 		// right place.
 		if net.Hostname != "" && !strings.Contains(net.Hostname, "${") {
-			if !govalidator.IsDNSName(net.Hostname) {
+			if _, ok := dns.IsDomainName(net.Hostname); !ok {
 				mErr.Errors = append(mErr.Errors, errors.New("Hostname is not a valid DNS name"))
 			}
 		}

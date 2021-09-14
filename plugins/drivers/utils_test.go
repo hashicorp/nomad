@@ -123,7 +123,6 @@ func Test_networkCreateRequestFromProto(t *testing.T) {
 				Hostname: "foobar",
 			},
 			expectedOutput: &NetworkCreateRequest{
-				AllocID:  "59598b74-86e9-16ee-eb54-24c62935cc7c",
 				Hostname: "foobar",
 			},
 			name: "generic 1",

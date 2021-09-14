@@ -640,7 +640,6 @@ func networkCreateRequestFromProto(pb *proto.CreateNetworkRequest) *NetworkCreat
 		return nil
 	}
 	return &NetworkCreateRequest{
-		AllocID:  pb.GetAllocId(),
 		Hostname: pb.GetHostname(),
 	}
 }

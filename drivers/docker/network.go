@@ -21,7 +21,7 @@ const (
 	dockerNetSpecHostnameKey = "docker_sandbox_hostname"
 )
 
-func (d *Driver) CreateNetwork(createSpec *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
+func (d *Driver) CreateNetwork(allocID string, createSpec *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
 	// Initialize docker API clients
 	client, _, err := d.dockerClients()
 	if err != nil {
@@ -36,12 +36,12 @@ func (d *Driver) CreateNetwork(createSpec *drivers.NetworkCreateRequest) (*drive
 	if err != nil {
 		d.logger.Debug("auth failed for infra container image pull", "image", d.config.InfraImage, "error", err)
 	}
-	_, err = d.coordinator.PullImage(d.config.InfraImage, authOptions, createSpec.AllocID, noopLogEventFn, d.config.infraImagePullTimeoutDuration, d.config.pullActivityTimeoutDuration)
+	_, err = d.coordinator.PullImage(d.config.InfraImage, authOptions, allocID, noopLogEventFn, d.config.infraImagePullTimeoutDuration, d.config.pullActivityTimeoutDuration)
 	if err != nil {
 		return nil, false, err
 	}
 
-	config, err := d.createSandboxContainerConfig(createSpec)
+	config, err := d.createSandboxContainerConfig(allocID, createSpec)
 	if err != nil {
 		return nil, false, err
 	}
@@ -109,10 +109,10 @@ func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSp
 
 // createSandboxContainerConfig creates a docker container configuration which
 // starts a container with an empty network namespace.
-func (d *Driver) createSandboxContainerConfig(createSpec *drivers.NetworkCreateRequest) (*docker.CreateContainerOptions, error) {
+func (d *Driver) createSandboxContainerConfig(allocID string, createSpec *drivers.NetworkCreateRequest) (*docker.CreateContainerOptions, error) {
 
 	return &docker.CreateContainerOptions{
-		Name: fmt.Sprintf("nomad_init_%s", createSpec.AllocID),
+		Name: fmt.Sprintf("nomad_init_%s", allocID),
 		Config: &docker.Config{
 			Image:    d.config.InfraImage,
 			Hostname: createSpec.Hostname,

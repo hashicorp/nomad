@@ -96,6 +96,7 @@ func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Ma
 			//  indicates only Docker supports this, which is true unless a
 			//  custom driver can which means this check still holds as true as
 			//  we can tell.
+			//  Please see: https://github.com/hashicorp/nomad/issues/11180
 			return nil, fmt.Errorf("hostname is not currently supported on driver %s", task.Driver)
 		}
 
@@ -112,13 +113,13 @@ type defaultNetworkManager struct{}
 // CreateNetwork is the CreateNetwork implementation of the
 // drivers.DriverNetworkManager interface function. It does not currently
 // support setting the hostname of the network namespace.
-func (*defaultNetworkManager) CreateNetwork(createSpec *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
-	netns, err := nsutil.NewNS(createSpec.AllocID)
+func (*defaultNetworkManager) CreateNetwork(allocID string, _ *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
+	netns, err := nsutil.NewNS(allocID)
 	if err != nil {
 		// when a client restarts, the namespace will already exist and
 		// there will be a namespace file in use by the task process
 		if e, ok := err.(*os.PathError); ok && e.Err == syscall.EPERM {
-			nsPath := path.Join(nsutil.NetNSRunDir, createSpec.AllocID)
+			nsPath := path.Join(nsutil.NetNSRunDir, allocID)
 			_, err := os.Stat(nsPath)
 			if err == nil {
 				return nil, false, nil

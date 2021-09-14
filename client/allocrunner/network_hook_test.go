@@ -57,8 +57,8 @@ func TestNetworkHook_Prerun_Postrun(t *testing.T) {
 	destroyCalled := false
 	nm := &testutils.MockDriver{
 		MockNetworkManager: testutils.MockNetworkManager{
-			CreateNetworkF: func(req *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
-				require.Equal(t, alloc.ID, req.AllocID)
+			CreateNetworkF: func(allocID string, req *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
+				require.Equal(t, alloc.ID, allocID)
 				return spec, false, nil
 			},
 
@@ -83,7 +83,7 @@ func TestNetworkHook_Prerun_Postrun(t *testing.T) {
 	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
 
 	logger := testlog.HCLogger(t)
-	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder)
+	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder.Build())
 	require.NoError(hook.Prerun())
 	require.True(setter.called)
 	require.False(destroyCalled)
@@ -94,7 +94,7 @@ func TestNetworkHook_Prerun_Postrun(t *testing.T) {
 	setter.called = false
 	destroyCalled = false
 	alloc.Job.TaskGroups[0].Networks[0].Mode = "host"
-	hook = newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder)
+	hook = newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder.Build())
 	require.NoError(hook.Prerun())
 	require.False(setter.called)
 	require.False(destroyCalled)

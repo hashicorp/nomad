@@ -199,12 +199,12 @@ type MockDriver struct {
 }
 
 type MockNetworkManager struct {
-	CreateNetworkF  func(*drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error)
+	CreateNetworkF  func(string, *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error)
 	DestroyNetworkF func(string, *drivers.NetworkIsolationSpec) error
 }
 
-func (m *MockNetworkManager) CreateNetwork(req *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
-	return m.CreateNetworkF(req)
+func (m *MockNetworkManager) CreateNetwork(allocID string, req *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
+	return m.CreateNetworkF(allocID, req)
 }
 func (m *MockNetworkManager) DestroyNetwork(id string, spec *drivers.NetworkIsolationSpec) error {
 	return m.DestroyNetworkF(id, spec)

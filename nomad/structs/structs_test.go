@@ -1463,7 +1463,7 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 				Networks: []*NetworkResource{
 					{
 						Mode:     "bridge",
-						Hostname: "/t/n/t/!!?!?!?!",
+						Hostname: "............",
 					},
 				},
 			},
