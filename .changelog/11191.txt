@@ -1,0 +1,3 @@
+```release-note:improvement
+server: Log client node plan rejection at INFO instead of DEBUG
+```
