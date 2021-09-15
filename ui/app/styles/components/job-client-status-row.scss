@@ -1,0 +1,9 @@
+.job-client-status-row {
+  .allocation-summary {
+    .is-empty {
+      color: darken($grey-blue, 20%);
+      text-align: center;
+      font-style: italic;
+    }
+  }
+}

@@ -34,48 +34,58 @@ export default class ClientStatusBar extends DistributionBar {
       });
   }
 
-  @computed('jobClientStatus')
+  @computed('jobClientStatus.byStatus')
   get data() {
+    const {
+      queued,
+      starting,
+      running,
+      complete,
+      degraded,
+      failed,
+      lost,
+      notScheduled,
+    } = this.jobClientStatus.byStatus;
     return [
       {
         label: 'Queued',
-        value: this.jobClientStatus.byStatus.queued.length,
+        value: queued.length,
         className: 'queued',
       },
       {
         label: 'Starting',
-        value: this.jobClientStatus.byStatus.starting.length,
+        value: starting.length,
         className: 'starting',
         layers: 2,
       },
       {
         label: 'Running',
-        value: this.jobClientStatus.byStatus.running.length,
+        value: running.length,
         className: 'running',
       },
       {
         label: 'Complete',
-        value: this.jobClientStatus.byStatus.complete.length,
+        value: complete.length,
         className: 'complete',
       },
       {
         label: 'Degraded',
-        value: this.jobClientStatus.byStatus.degraded.length,
+        value: degraded.length,
         className: 'degraded',
       },
       {
         label: 'Failed',
-        value: this.jobClientStatus.byStatus.failed.length,
+        value: failed.length,
         className: 'failed',
       },
       {
         label: 'Lost',
-        value: this.jobClientStatus.byStatus.lost.length,
+        value: lost.length,
         className: 'lost',
       },
       {
         label: 'Not Scheduled',
-        value: this.jobClientStatus.byStatus.notScheduled.length,
+        value: notScheduled.length,
         className: 'not-scheduled',
       },
     ];

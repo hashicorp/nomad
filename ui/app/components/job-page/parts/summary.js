@@ -9,7 +9,7 @@ export default class Summary extends Component {
   job = null;
   forceCollapsed = false;
 
-  @computed
+  @computed('forceCollapsed')
   get isExpanded() {
     if (this.forceCollapsed) return false;
 

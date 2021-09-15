@@ -5,6 +5,12 @@ export function sysbatchSmall(server) {
     status: 'ready',
   });
 
+  // Create some clients not targeted by the sysbatch job.
+  server.createList('node', 3, {
+    datacenter: 'dc3',
+    status: 'ready',
+  });
+
   // Job with 1 task group.
   const job1 = server.create('job', {
     status: 'running',

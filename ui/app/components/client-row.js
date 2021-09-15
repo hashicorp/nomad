@@ -1,39 +1,43 @@
-import { classNames, tagName } from '@ember-decorators/component';
 import EmberObject from '@ember/object';
 import Component from '@glimmer/component';
 
-@tagName('tr')
-@classNames('client-row', 'is-interactive')
-export default class ClientRowComponent extends Component {
+export default class ClientRow extends Component {
+  // Attribute set in the template as @onClick.
+  onClick() {}
+
+  get row() {
+    return this.args.row.model;
+  }
+
   get shouldDisplayAllocationSummary() {
-    return this.status !== 'notScheduled';
-  }
-  get node() {
-    return this.args.node.model;
+    return this.args.row.model.jobStatus !== 'notScheduled';
   }
 
-  get eldestCreateTime() {
-    let eldest = null;
-    for (const allocation of this.node.id) {
-      if (!eldest || allocation.createTime < eldest) {
-        eldest = allocation.createTime;
-      }
+  get allocationSummaryPlaceholder() {
+    switch (this.args.row.model.jobStatus) {
+      case 'notScheduled':
+        return 'Not Scheduled';
+      default:
+        return '';
     }
-    return eldest;
   }
 
-  get mostRecentModifyTime() {
-    let mostRecent = null;
-    for (const allocation of this.node.id) {
-      if (!mostRecent || allocation.modifyTime > mostRecent) {
-        mostRecent = allocation.createTime;
-      }
+  get humanizedJobStatus() {
+    switch (this.args.row.model.jobStatus) {
+      case 'notScheduled':
+        return 'not scheduled';
+      default:
+        return this.args.row.model.jobStatus;
     }
-    return mostRecent;
   }
 
-  get status() {
-    return this.args.jobClientStatus.byNode[this.node.id];
+  get jobStatusClass() {
+    switch (this.args.row.model.jobStatus) {
+      case 'notScheduled':
+        return 'not-scheduled';
+      default:
+        return this.args.row.model.jobStatus;
+    }
   }
 
   get allocationContainer() {
@@ -45,46 +49,38 @@ export default class ClientRowComponent extends Component {
       startingAllocs: 0,
       lostAllocs: 0,
     };
-    // query by allocations for job then group by node use the mapBy method
-    if (this.status === 'notScheduled') return EmberObject.create(...statusSummary);
 
-    const allocsByNodeID = {};
-    this.args.allocations.forEach(a => {
-      const nodeId = a.node.get('id');
-      if (!allocsByNodeID[nodeId]) {
-        allocsByNodeID[nodeId] = [];
-      }
-      allocsByNodeID[nodeId].push(a);
-    });
-    for (const allocation of allocsByNodeID[this.node.id]) {
-      if (this.status === 'queued') {
-        statusSummary.queuedAllocs = allocsByNodeID[this.node.id].length;
+    switch (this.args.row.model.jobStatus) {
+      case 'notSchedule':
         break;
-      } else if (this.status === 'starting') {
-        statusSummary.startingAllocs = allocsByNodeID[this.node.id].length;
+      case 'queued':
+        statusSummary.queuedAllocs = this.args.row.model.allocations.length;
         break;
-      } else if (this.status === 'notScheduled') {
+      case 'starting':
+        statusSummary.startingAllocs = this.args.row.model.allocations.length;
         break;
-      }
-      const { clientStatus } = allocation;
-      switch (clientStatus) {
-        case 'running':
-          statusSummary.runningAllocs++;
-          break;
-        case 'lost':
-          statusSummary.lostAllocs++;
-          break;
-        case 'failed':
-          statusSummary.failedAllocs++;
-          break;
-        case 'complete':
-          statusSummary.completeAllocs++;
-          break;
-        case 'starting':
-          statusSummary.startingAllocs++;
-          break;
-      }
+      default:
+        for (const alloc of this.args.row.model.allocations) {
+          switch (alloc.clientStatus) {
+            case 'running':
+              statusSummary.runningAllocs++;
+              break;
+            case 'lost':
+              statusSummary.lostAllocs++;
+              break;
+            case 'failed':
+              statusSummary.failedAllocs++;
+              break;
+            case 'complete':
+              statusSummary.completeAllocs++;
+              break;
+            case 'starting':
+              statusSummary.startingAllocs++;
+              break;
+          }
+        }
     }
+
     const Allocations = EmberObject.extend({
       ...statusSummary,
     });
