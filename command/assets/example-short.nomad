@@ -14,6 +14,8 @@ job "example" {
       config {
         image = "redis:3.2"
 
+        auth_soft_fail = true
+
         ports = ["db"]
       }
 
