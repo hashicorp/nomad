@@ -1,6 +1,5 @@
 import { module, test } from 'qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
-import { jobClientStatus } from 'nomad-ui/utils/job-client-status';
 
 module('Unit | Util | jobclientstatus', function(hooks) {
   hooks.beforeEach(async function() {

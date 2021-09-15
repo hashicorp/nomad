@@ -62,12 +62,12 @@ export default class ClientsController extends Controller.extend(
   @alias('listSorted') listToSearch;
   @alias('listSearched') sortedClients;
 
-  @computed
+  @computed('store')
   get allNodes() {
     return this.store.peekAll('node');
   }
 
-  @computed('allNodes')
+  @computed('allNodes', 'jobClientStatus.byNode')
   get nodes() {
     return this.allNodes.filter(node => this.jobClientStatus.byNode[node.id]);
   }
