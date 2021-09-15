@@ -73,7 +73,7 @@ func backupDB(bdb *bolt.DB, dst string) error {
 	})
 }
 
-// UpgradeSchema upgrades the boltdb schema. Example 0.8 schema:
+// UpgradeAllocs upgrades the boltdb schema. Example 0.8 schema:
 //
 //	* allocations
 //	  * 15d83e8a-74a2-b4da-3f17-ed5c12895ea8

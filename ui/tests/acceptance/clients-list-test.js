@@ -46,7 +46,10 @@ module('Acceptance | clients list', function(hooks) {
   });
 
   test('each client record should show high-level info of the client', async function(assert) {
-    const node = server.create('node', 'draining');
+    const node = server.create('node', 'draining', {
+      status: 'ready',
+    });
+
     server.createList('agent', 1);
 
     await ClientsList.visit();
@@ -99,21 +102,27 @@ module('Acceptance | clients list', function(hooks) {
     server.createList('agent', 1);
 
     server.create('node', {
-      modifyIndex: 4,
+      modifyIndex: 5,
       status: 'ready',
       schedulingEligibility: 'eligible',
       drain: false,
     });
     server.create('node', {
-      modifyIndex: 3,
+      modifyIndex: 4,
       status: 'initializing',
+      schedulingEligibility: 'eligible',
+      drain: false,
+    });
+    server.create('node', {
+      modifyIndex: 3,
+      status: 'down',
       schedulingEligibility: 'eligible',
       drain: false,
     });
     server.create('node', {
       modifyIndex: 2,
       status: 'down',
-      schedulingEligibility: 'eligible',
+      schedulingEligibility: 'ineligible',
       drain: false,
     });
     server.create('node', {
@@ -137,12 +146,13 @@ module('Acceptance | clients list', function(hooks) {
 
     assert.equal(ClientsList.nodes[1].compositeStatus.text, 'initializing');
     assert.equal(ClientsList.nodes[2].compositeStatus.text, 'down');
+    assert.equal(ClientsList.nodes[2].compositeStatus.text, 'down', 'down takes priority over ineligible');
 
-    assert.equal(ClientsList.nodes[3].compositeStatus.text, 'ineligible');
-    assert.ok(ClientsList.nodes[3].compositeStatus.isWarning, 'expected warning class');
+    assert.equal(ClientsList.nodes[4].compositeStatus.text, 'ineligible');
+    assert.ok(ClientsList.nodes[4].compositeStatus.isWarning, 'expected warning class');
 
-    assert.equal(ClientsList.nodes[4].compositeStatus.text, 'draining');
-    assert.ok(ClientsList.nodes[4].compositeStatus.isInfo, 'expected info class');
+    assert.equal(ClientsList.nodes[5].compositeStatus.text, 'draining');
+    assert.ok(ClientsList.nodes[5].compositeStatus.isInfo, 'expected info class');
 
     await ClientsList.sortBy('compositeStatus');
 
@@ -152,13 +162,14 @@ module('Acceptance | clients list', function(hooks) {
       'ineligible',
       'draining',
       'down',
+      'down',
     ]);
 
     // Simulate a client state change arriving through polling
     let readyClient = this.owner
       .lookup('service:store')
       .peekAll('node')
-      .findBy('modifyIndex', 4);
+      .findBy('modifyIndex', 5);
     readyClient.set('schedulingEligibility', 'ineligible');
 
     await settled();
@@ -168,6 +179,7 @@ module('Acceptance | clients list', function(hooks) {
       'ineligible',
       'ineligible',
       'draining',
+      'down',
       'down',
     ]);
   });

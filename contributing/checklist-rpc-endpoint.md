@@ -30,7 +30,7 @@ Prefer adding a new message to changing any existing RPC messages.
 
 * [ ] `nomad/core_sched.go` sends many RPCs
   * `ServersMeetMinimumVersion` asserts that the server cluster is
-    upgraded, so use this to gaurd sending the new RPC, else send the old RPC
+    upgraded, so use this to guard sending the new RPC, else send the old RPC
   * Version must match the actual release version!
 
 ## Docs

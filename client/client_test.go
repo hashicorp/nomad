@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	consulApi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/fingerprint"
-	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
@@ -622,7 +621,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	c1.config.PluginLoader = catalog.TestPluginLoaderWithOptions(t, "", c1.config.Options, nil)
 	c1.config.PluginSingletonLoader = singleton.NewSingletonLoader(logger, c1.config.PluginLoader)
 
-	c2, err := NewClient(c1.config, consulCatalog, nil, mockService)
+	c2, err := NewClient(c1.config, consulCatalog, nil, mockService, nil)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1118,7 +1117,11 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 		Disk:         client.configCopy.Node.NodeResources.Disk,
 
 		// injected
-		Cpu:    structs.NodeCpuResources{CpuShares: 123},
+		Cpu: structs.NodeCpuResources{
+			CpuShares:          123,
+			ReservableCpuCores: client.configCopy.Node.NodeResources.Cpu.ReservableCpuCores,
+			TotalCpuCores:      client.configCopy.Node.NodeResources.Cpu.TotalCpuCores,
+		},
 		Memory: structs.NodeMemoryResources{MemoryMB: 1024},
 		Devices: []*structs.NodeDeviceResource{
 			{
@@ -1156,7 +1159,11 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 		Disk:         client.configCopy.Node.NodeResources.Disk,
 
 		// injected
-		Cpu:    structs.NodeCpuResources{CpuShares: 123},
+		Cpu: structs.NodeCpuResources{
+			CpuShares:          123,
+			ReservableCpuCores: client.configCopy.Node.NodeResources.Cpu.ReservableCpuCores,
+			TotalCpuCores:      client.configCopy.Node.NodeResources.Cpu.TotalCpuCores,
+		},
 		Memory: structs.NodeMemoryResources{MemoryMB: 2048},
 		Devices: []*structs.NodeDeviceResource{
 			{
@@ -1178,6 +1185,9 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 // network interfaces take precedence over fingerprinted ones.
 func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS != "linux" {
+		t.Skip("assertions assume linux platform")
+	}
 
 	// Client without network configured updates to match fingerprint
 	client, cleanup := TestClient(t, nil)
@@ -1483,10 +1493,12 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	expected := structs.ComparableResources{
 		Flattened: structs.AllocatedTaskResources{
 			Cpu: structs.AllocatedCpuResources{
-				CpuShares: 768,
+				CpuShares:     768,
+				ReservedCores: []uint16{},
 			},
 			Memory: structs.AllocatedMemoryResources{
-				MemoryMB: 768,
+				MemoryMB:    768,
+				MemoryMaxMB: 768,
 			},
 			Networks: nil,
 		},
@@ -1587,7 +1599,7 @@ func TestClient_hasLocalState(t *testing.T) {
 	c, cleanup := TestClient(t, nil)
 	defer cleanup()
 
-	c.stateDB = state.NewMemDB(c.logger)
+	c.stateDB = cstate.NewMemDB(c.logger)
 
 	t.Run("plain alloc", func(t *testing.T) {
 		alloc := mock.BatchAlloc()

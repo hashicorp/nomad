@@ -77,7 +77,7 @@ terraform --version
 
 **If you are using [Google Cloud](https://cloud.google.com/shell), you already have `gcloud` set up, and you can safely skip this step.**
 
-To install the GCP SDK Command Line Tools, follow the installation instructions for your specific operating system: 
+To install the GCP SDK Command Line Tools, follow the installation instructions for your specific operating system:
 
 * [Linux](https://cloud.google.com/sdk/docs/downloads-interactive#linux)
 * [MacOS](https://cloud.google.com/sdk/docs/downloads-interactive#mac)
@@ -177,7 +177,7 @@ Before moving onto the next steps, ensure the following environment variables ar
 
 ## Build HashiStack Golden Image with Packer
 
-[Packer](https://www.packer.io/intro/index.html) is HashiCorp's open source tool for creating identical machine images for multiple platforms from a single source configuration. The machine image created here can be customized through modifications to the [build configuration file](https://github.com/hashicorp/nomad/blob/master/terraform/gcp/packer.json) and the [shell script](https://github.com/hashicorp/nomad/blob/master/terraform/shared/scripts/setup.sh).
+[Packer](https://www.packer.io/intro/index.html) is HashiCorp's open source tool for creating identical machine images for multiple platforms from a single source configuration. The machine image created here can be customized through modifications to the [build configuration file](https://github.com/hashicorp/nomad/blob/main/terraform/gcp/packer.json) and the [shell script](https://github.com/hashicorp/nomad/blob/main/terraform/shared/scripts/setup.sh).
 
 Use the following command to build the machine image:
 
@@ -202,13 +202,13 @@ terraform init
 Plan infrastructure changes with Terraform:
 
 ```console
-terraform plan -var="project=${GOOGLE_PROJECT}" -var="credentials=${GOOGLE_APPLICATION_CREDENTIALS}" 
+terraform plan -var="project=${GOOGLE_PROJECT}" -var="credentials=${GOOGLE_APPLICATION_CREDENTIALS}"
 ```
 
 Apply infrastructure changes with Terraform:
 
 ```console
-terraform apply -auto-approve -var="project=${GOOGLE_PROJECT}" -var="credentials=${GOOGLE_APPLICATION_CREDENTIALS}" 
+terraform apply -auto-approve -var="project=${GOOGLE_PROJECT}" -var="credentials=${GOOGLE_APPLICATION_CREDENTIALS}"
 ```
 
 ## Access the Cluster
@@ -233,7 +233,7 @@ If you're **not** using Cloud Shell, you can use any of these links:
 * [Vault](http://127.0.0.1:8200)
 * [Consul](http://127.0.0.1:8500)
 
-In case you want to try out any of the optional steps with the Vault CLI later on, set this helper variable: 
+In case you want to try out any of the optional steps with the Vault CLI later on, set this helper variable:
 
 ```
 export VAULT_ADDR=http://localhost:8200
@@ -243,29 +243,28 @@ export VAULT_ADDR=http://localhost:8200
 
 You have deployed a Nomad cluster to GCP! 🎉
 
-Click [here](https://github.com/hashicorp/nomad/blob/master/terraform/README.md#test) for next steps.
+Click [here](https://github.com/hashicorp/nomad/blob/main/terraform/README.md#test) for next steps.
 
 > ### After You Finish
-> Come back here when you're done exploring Nomad and the HashiCorp stack. In the next section, you'll learn how to clean up, and will destroy the demo infrastructure you've created. 
+> Come back here when you're done exploring Nomad and the HashiCorp stack. In the next section, you'll learn how to clean up, and will destroy the demo infrastructure you've created.
 
 ## Conclusion
 
-You have deployed a Nomad cluster to GCP! 
+You have deployed a Nomad cluster to GCP!
 
 ### Destroy Infrastructure
 
-To destroy all the demo infrastructure: 
+To destroy all the demo infrastructure:
 
 ```console
-terraform destroy -force -var="project=${GOOGLE_PROJECT}" -var="credentials=${GOOGLE_APPLICATION_CREDENTIALS}" 
+terraform destroy -force -var="project=${GOOGLE_PROJECT}" -var="credentials=${GOOGLE_APPLICATION_CREDENTIALS}"
 ```
 ### Delete the Project
 
-Finally, to completely delete the project: 
+Finally, to completely delete the project:
 
 gcloud projects delete $GOOGLE_PROJECT
 
 > ### Alternative: Use the GUI
-> 
+>
 > If you prefer to delete the project using GCP's Cloud Console, follow this link to GCP's [Cloud Resource Manager](https://console.cloud.google.com/cloud-resource-manager).
-

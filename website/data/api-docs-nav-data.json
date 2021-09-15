@@ -1,0 +1,145 @@
+[
+  {
+    "title": "HTTP API Overview",
+    "path": "index"
+  },
+  {
+    "divider": true
+  },
+  {
+    "title": "Libraries &amp; SDKs",
+    "path": "libraries-and-sdks"
+  },
+  {
+    "title": "JSON Jobs",
+    "path": "json-jobs"
+  },
+  {
+    "divider": true
+  },
+  {
+    "title": "ACL Policies",
+    "path": "acl-policies"
+  },
+  {
+    "title": "ACL Tokens",
+    "path": "acl-tokens"
+  },
+  {
+    "title": "Agent",
+    "path": "agent"
+  },
+  {
+    "title": "Allocations",
+    "path": "allocations"
+  },
+  {
+    "title": "Client",
+    "path": "client"
+  },
+  {
+    "title": "Deployments",
+    "path": "deployments"
+  },
+  {
+    "title": "Evaluations",
+    "path": "evaluations"
+  },
+  {
+    "title": "Events",
+    "path": "events"
+  },
+  {
+    "title": "Jobs",
+    "path": "jobs"
+  },
+  {
+    "title": "Namespaces",
+    "path": "namespaces"
+  },
+  {
+    "title": "Nodes",
+    "path": "nodes"
+  },
+  {
+    "title": "Metrics",
+    "path": "metrics"
+  },
+  {
+    "title": "Operator",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "operator"
+      },
+      {
+        "title": "Autopilot",
+        "path": "operator/autopilot"
+      },
+      {
+        "title": "Raft",
+        "path": "operator/raft"
+      },
+      {
+        "title": "License",
+        "path": "operator/license"
+      },
+      {
+        "title": "Scheduler",
+        "path": "operator/scheduler"
+      },
+      {
+        "title": "Snapshot",
+        "path": "operator/snapshot"
+      }
+    ]
+  },
+  {
+    "title": "Plugins",
+    "path": "plugins"
+  },
+  {
+    "title": "Quotas",
+    "path": "quotas"
+  },
+  {
+    "title": "Recommendations",
+    "path": "recommendations"
+  },
+  {
+    "title": "Regions",
+    "path": "regions"
+  },
+  {
+    "title": "Scaling Policies",
+    "path": "scaling-policies"
+  },
+  {
+    "title": "Search",
+    "path": "search"
+  },
+  {
+    "title": "Sentinel Policies",
+    "path": "sentinel-policies"
+  },
+  {
+    "title": "Status",
+    "path": "status"
+  },
+  {
+    "title": "System",
+    "path": "system"
+  },
+  {
+    "title": "UI",
+    "path": "ui"
+  },
+  {
+    "title": "Validate",
+    "path": "validate"
+  },
+  {
+    "title": "Volumes",
+    "path": "volumes"
+  }
+]

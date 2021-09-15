@@ -1,6 +1,7 @@
 import { inject as service } from '@ember/service';
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
+import RSVP from 'rsvp';
 import notifyError from 'nomad-ui/utils/notify-error';
 import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 import { watchRecord } from 'nomad-ui/utils/properties/watch';
@@ -43,10 +44,15 @@ export default class VolumeRoute extends Route.extend(WithWatchers) {
   }
 
   model(params, transition) {
-    const namespace = transition.to.queryParams.namespace || this.get('system.activeNamespace.id');
+    const namespace = transition.to.queryParams.namespace;
     const name = params.volume_name;
     const fullId = JSON.stringify([`csi/${name}`, namespace || 'default']);
-    return this.store.findRecord('volume', fullId, { reload: true }).catch(notifyError(this));
+    return RSVP.hash({
+      volume: this.store.findRecord('volume', fullId, { reload: true }),
+      namespaces: this.store.findAll('namespace'),
+    })
+      .then(hash => hash.volume)
+      .catch(notifyError(this));
   }
 
   // Since volume includes embedded records for allocations,

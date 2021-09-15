@@ -19,9 +19,14 @@ export default class TaskGroupRow extends Component {
   @oneWay('taskGroup.count') count;
   @alias('taskGroup.job.runningDeployment') runningDeployment;
 
-  @computed('runningDeployment')
+  get namespace() {
+    return this.get('taskGroup.job.namespace.name');
+  }
+
+  @computed('runningDeployment', 'namespace')
   get tooltipText() {
-    if (this.can.cannot('scale job')) return "You aren't allowed to scale task groups";
+    if (this.can.cannot('scale job', null, { namespace: this.namespace }))
+      return "You aren't allowed to scale task groups";
     if (this.runningDeployment) return 'You cannot scale task groups during a deployment';
     return undefined;
   }

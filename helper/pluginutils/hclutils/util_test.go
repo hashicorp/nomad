@@ -473,7 +473,7 @@ func TestParseNullFields(t *testing.T) {
 			TaskConfig{BlockList: []Sub{}},
 		},
 		{
-			// for sanity checking that the fields are actually set
+			// for checking that the fields are actually set
 			"explicitly set to not null",
 			`{"Config": {
                             "array_field": ["a"],

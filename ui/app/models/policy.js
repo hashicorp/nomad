@@ -1,5 +1,5 @@
-import Model from 'ember-data/model';
-import attr from 'ember-data/attr';
+import Model from '@ember-data/model';
+import { attr } from '@ember-data/model';
 
 export default class Policy extends Model {
   @attr('string') name;

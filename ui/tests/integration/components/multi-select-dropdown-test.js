@@ -30,10 +30,10 @@ module('Integration | Component | multi-select dropdown', function(hooks) {
 
   const commonTemplate = hbs`
     <MultiSelectDropdown
-      @label={{label}}
-      @options={{options}}
-      @selection={{selection}}
-      @onSelect={{onSelect}} />
+      @label={{this.label}}
+      @options={{this.options}}
+      @selection={{this.selection}}
+      @onSelect={{this.onSelect}} />
   `;
 
   test('component is initially closed', async function(assert) {

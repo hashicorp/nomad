@@ -24,4 +24,16 @@ export default class LatestDeployment extends Component {
     }
   })
   promote;
+
+  @task(function*() {
+    try {
+      yield this.get('job.latestDeployment.content').fail();
+    } catch (err) {
+      this.handleError({
+        title: 'Could Not Fail Deployment',
+        description: messageFromAdapterError(err, 'fail deployments'),
+      });
+    }
+  })
+  fail;
 }

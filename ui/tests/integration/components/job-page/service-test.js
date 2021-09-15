@@ -226,4 +226,62 @@ module('Integration | Component | job-page/service', function(hooks) {
 
     assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
   });
+
+  test('Active deployment can be failed', async function(assert) {
+    this.server.create('node');
+    const mirageJob = makeMirageJob(this.server, { activeDeployment: true });
+
+    await this.store.findAll('job');
+
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    const deployment = await job.get('latestDeployment');
+
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
+
+    await click('[data-test-active-deployment] [data-test-idle-button]');
+    await click('[data-test-active-deployment] [data-test-confirm-button]');
+
+    const requests = this.server.pretender.handledRequests;
+
+    assert.ok(
+      requests
+        .filterBy('method', 'POST')
+        .findBy('url', `/v1/deployment/fail/${deployment.get('id')}`),
+      'A fail POST request was made'
+    );
+  });
+
+  test('When failing the active deployment fails, an error is shown', async function(assert) {
+    this.server.pretender.post('/v1/deployment/fail/:id', () => [403, {}, '']);
+
+    this.server.create('node');
+    const mirageJob = makeMirageJob(this.server, { activeDeployment: true });
+
+    await this.store.findAll('job');
+
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
+
+    await click('[data-test-active-deployment] [data-test-idle-button]');
+    await click('[data-test-active-deployment] [data-test-confirm-button]');
+
+    assert.equal(
+      find('[data-test-job-error-title]').textContent,
+      'Could Not Fail Deployment',
+      'Appropriate error is shown'
+    );
+    assert.ok(
+      find('[data-test-job-error-body]').textContent.includes('ACL'),
+      'The error message mentions ACLs'
+    );
+
+    await componentA11yAudit(this.element, assert);
+
+    await click('[data-test-job-error-close]');
+
+    assert.notOk(find('[data-test-job-error-title]'), 'Error message is dismissable');
+  });
 });

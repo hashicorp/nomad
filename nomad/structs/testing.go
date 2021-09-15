@@ -42,7 +42,7 @@ func MockNode() *Node {
 		Attributes: map[string]string{
 			"kernel.name":        "linux",
 			"arch":               "x86",
-			"nomad.version":      "0.5.0",
+			"nomad.version":      "1.0.0",
 			"driver.exec":        "1",
 			"driver.mock_driver": "1",
 		},
@@ -97,7 +97,7 @@ func MockNode() *Node {
 	return node
 }
 
-// NvidiaNode returns a node with two instances of an Nvidia GPU
+// MockNvidiaNode returns a node with two instances of an Nvidia GPU
 func MockNvidiaNode() *Node {
 	n := MockNode()
 	n.NodeResources.Devices = []*NodeDeviceResource{

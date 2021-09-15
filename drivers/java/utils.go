@@ -20,7 +20,7 @@ func checkForMacJVM() (ok bool, err error) {
 	cmd.Stderr = &out
 	err = cmd.Run()
 	if err != nil {
-		err = fmt.Errorf("failed check for macOS jvm: %v, out: %v", err, strings.Replace(strings.Replace(out.String(), "\n", " ", -1), `"`, `\"`, -1))
+		err = fmt.Errorf("failed check for macOS jvm: %v, out: %v", err, strings.ReplaceAll(strings.ReplaceAll(out.String(), "\n", " "), `"`, `\"`))
 		return false, err
 	}
 	return true, nil
@@ -50,6 +50,10 @@ func javaVersionInfo() (version, runtime, vm string, err error) {
 	return
 }
 
+var (
+	javaVersionRe = regexp.MustCompile(`([.\d_]+)`)
+)
+
 func parseJavaVersionOutput(infoString string) (version, runtime, vm string) {
 	infoString = strings.TrimSpace(infoString)
 
@@ -65,8 +69,7 @@ func parseJavaVersionOutput(infoString string) (version, runtime, vm string) {
 
 	versionString := strings.TrimSpace(lines[0])
 
-	re := regexp.MustCompile(`version "([^"]*)"`)
-	if match := re.FindStringSubmatch(lines[0]); len(match) == 2 {
+	if match := javaVersionRe.FindStringSubmatch(versionString); len(match) == 2 {
 		versionString = match[1]
 	}
 

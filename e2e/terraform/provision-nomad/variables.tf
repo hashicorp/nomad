@@ -22,16 +22,46 @@ variable "nomad_local_binary" {
   default     = ""
 }
 
+variable "nomad_url" {
+  type        = string
+  description = "URL to Nomad binary (ex. \"https://circleci.com/.../linux_amd64.zip\")"
+  default     = ""
+}
+
 variable "nomad_enterprise" {
   type        = bool
   description = "If nomad_sha is used, deploy Nomad Enterprise"
   default     = false
 }
 
+variable "nomad_license" {
+  type        = string
+  description = "The enterprise license to use. overrides Nomad temporary license"
+  default     = ""
+}
+
 variable "nomad_acls" {
   type        = bool
   description = "Bootstrap ACLs"
   default     = false
+}
+
+variable "tls" {
+  type        = bool
+  description = "Bootstrap TLS"
+  default     = false
+}
+
+variable "tls_ca_key" {
+  type        = string
+  description = "Cluster TLS CA private key"
+  default     = ""
+}
+
+variable "tls_ca_cert" {
+  type        = string
+  description = "Cluster TLS CA cert"
+  default     = ""
 }
 
 variable "profile" {
@@ -52,11 +82,25 @@ variable "index" {
   default     = ""
 }
 
+variable "cluster_name" {
+  type        = string
+  description = "The random name assigned to the cluster"
+  default     = ""
+}
+
+variable "instance" {
+  type = object({
+    id          = string
+    public_dns  = string
+    public_ip   = string
+    private_dns = string
+    private_ip  = string
+  })
+}
+
 variable "connection" {
   type = object({
-    type        = string
     user        = string
-    host        = string
     port        = number
     private_key = string
   })

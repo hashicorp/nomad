@@ -8,6 +8,7 @@ import classic from 'ember-classic-decorator';
 @tagName('tr')
 @classNames('job-row', 'is-interactive')
 export default class JobRow extends Component {
+  @service system;
   @service store;
 
   job = null;

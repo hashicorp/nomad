@@ -27,6 +27,14 @@ plugin "nomad-driver-podman" {
   }
 }
 
+plugin "nomad-driver-ecs" {
+  config {
+    enabled = true
+    cluster = "nomad-rtd-e2e"
+    region  = "us-east-1"
+  }
+}
+
 vault {
   enabled = true
   address = "http://active.vault.service.consul:8200"

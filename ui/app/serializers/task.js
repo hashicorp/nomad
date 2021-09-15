@@ -6,6 +6,7 @@ export default class Task extends ApplicationSerializer {
     const resources = hash.Resources;
     if (resources) {
       hash.ReservedMemory = resources.MemoryMB;
+      hash.ReservedMemoryMax = resources.MemoryMaxMB;
       hash.ReservedCPU = resources.CPU;
       hash.ReservedDisk = resources.DiskMB;
       hash.ReservedEphemeralDisk = hash.EphemeralDisk.SizeMB;

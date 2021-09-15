@@ -1,5 +1,5 @@
 import EmberRouter from '@ember/routing/router';
-import config from './config/environment';
+import config from 'nomad-ui/config/environment';
 
 export default class Router extends EmberRouter {
   location = config.locationType;
@@ -20,6 +20,7 @@ Router.map(function() {
       this.route('definition');
       this.route('versions');
       this.route('deployments');
+      this.route('dispatch');
       this.route('evaluations');
       this.route('allocations');
     });

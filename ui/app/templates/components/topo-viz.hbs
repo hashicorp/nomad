@@ -34,11 +34,11 @@
         {{/if}}
         <li>
           <span class="label">Memory</span>
-          <span class="value">{{allocation.memory}} MiB</span>
+          <span class="value">{{format-scheduled-bytes allocation.memory start="MiB"}}</span>
         </li>
         <li>
           <span class="label">CPU</span>
-          <span class="value">{{allocation.cpu}} MHz</span>
+          <span class="value">{{format-scheduled-hertz allocation.cpu}}</span>
         </li>
       </ol>
     {{/let}}

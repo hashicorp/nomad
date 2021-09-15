@@ -138,6 +138,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	alloc := ar.Alloc()
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newAllocDirHook(hookLogger, ar.allocDir),
+		newCgroupHook(ar.Alloc(), ar.cpusetManager),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, alloc, hs, ar.Listener(), ar.consulClient),
@@ -145,6 +146,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newGroupServiceHook(groupServiceHookConfig{
 			alloc:               alloc,
 			consul:              ar.consulClient,
+			consulNamespace:     alloc.ConsulNamespace(),
 			restarter:           ar,
 			taskEnvBuilder:      taskenv.NewBuilder(config.Node, ar.Alloc(), nil, config.Region).SetAllocDir(ar.allocDir.AllocDir),
 			networkStatusGetter: ar,

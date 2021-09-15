@@ -129,6 +129,8 @@ func TestJobStatusCommand_Run(t *testing.T) {
 	if allocs, _, err := client.Jobs().Allocations("job2_sfx", false, nil); err == nil {
 		if len(allocs) > 0 {
 			nodeName = allocs[0].NodeName
+		} else {
+			t.Fatalf("no running allocations")
 		}
 	}
 
@@ -150,8 +152,12 @@ func TestJobStatusCommand_Run(t *testing.T) {
 	}
 
 	// string calculations based on 1-byte chars, not using runes
-	allocationsTableName := "Allocations\n"
-	allocationsTableStr := strings.Split(out, allocationsTableName)[1]
+	allocationsTable := strings.Split(out, "Allocations\n")
+	if len(allocationsTable) == 1 {
+		t.Fatal("no running allocations")
+	}
+	allocationsTableStr := allocationsTable[1]
+
 	nodeNameHeaderStr := "Node Name"
 	nodeNameHeaderIndex := strings.Index(allocationsTableStr, nodeNameHeaderStr)
 	nodeNameRegexpStr := fmt.Sprintf(`.*%s.*\n.{%d}%s`, nodeNameHeaderStr, nodeNameHeaderIndex, regexp.QuoteMeta(nodeName))

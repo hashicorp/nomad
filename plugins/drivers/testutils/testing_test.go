@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -53,7 +54,9 @@ func TestBaseDriver_Fingerprint(t *testing.T) {
 		},
 	}
 
-	var complete bool
+	var complete atomic.Value
+	complete.Store(false)
+
 	impl := &MockDriver{
 		FingerprintF: func(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
 			ch := make(chan *drivers.Fingerprint)
@@ -62,7 +65,7 @@ func TestBaseDriver_Fingerprint(t *testing.T) {
 				ch <- fingerprints[0]
 				time.Sleep(500 * time.Millisecond)
 				ch <- fingerprints[1]
-				complete = true
+				complete.Store(true)
 			}()
 			return ch, nil
 		},
@@ -91,10 +94,9 @@ func TestBaseDriver_Fingerprint(t *testing.T) {
 			require.Fail("did not receive fingerprint[1]")
 		}
 	}()
-	require.False(complete)
+	require.False(complete.Load().(bool))
 	wg.Wait()
-	require.True(complete)
-
+	require.True(complete.Load().(bool))
 }
 
 func TestBaseDriver_RecoverTask(t *testing.T) {

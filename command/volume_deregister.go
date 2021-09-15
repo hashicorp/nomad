@@ -2,8 +2,10 @@ package command
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
@@ -91,6 +93,28 @@ func (c *VolumeDeregisterCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Prefix search for the volume
+	vols, _, err := client.CSIVolumes().List(&api.QueryOptions{Prefix: volID})
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
+		return 1
+	}
+	if len(vols) > 1 {
+		sort.Slice(vols, func(i, j int) bool { return vols[i].ID < vols[j].ID })
+		out, err := csiFormatSortedVolumes(vols, shortId)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
+			return 1
+		}
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple volumes\n\n%s", out))
+		return 1
+	}
+	if len(vols) == 0 {
+		c.Ui.Error(fmt.Sprintf("No volumes(s) with prefix or ID %q found", volID))
+		return 1
+	}
+	volID = vols[0].ID
+
 	// Confirm the -force flag
 	if force {
 		question := fmt.Sprintf("Are you sure you want to force deregister volume %q? [y/N]", volID)
@@ -122,5 +146,6 @@ func (c *VolumeDeregisterCommand) Run(args []string) int {
 		return 1
 	}
 
+	c.Ui.Output(fmt.Sprintf("Successfully deregistered volume %q!", volID))
 	return 0
 }

@@ -30,7 +30,7 @@ A development environment is supplied via Vagrant to make getting started easier
 
 Developing without Vagrant
 ---
-1. Install [Go 1.15.6+](https://golang.org/) *(Note: `gcc-go` is not supported)*
+1. Install [Go 1.16.7+](https://golang.org/) *(Note: `gcc-go` is not supported)*
 1. Clone this repo
    ```sh
    $ git clone https://github.com/hashicorp/nomad.git
@@ -51,7 +51,7 @@ Developing without Vagrant
 
 Running a development build
 ---
-1. Compile a development binary (see the [UI README](https://github.com/hashicorp/nomad/blob/master/ui/README.md) to include the web UI in the binary)
+1. Compile a development binary (see the [UI README](https://github.com/hashicorp/nomad/blob/main/ui/README.md) to include the web UI in the binary)
     ```sh
     $ make dev
     # find the built binary at ./bin/nomad
@@ -71,7 +71,8 @@ Compiling Protobufs
 ---
 If in the course of your development you change a Protobuf file (those ending in .proto), you'll need to recompile the protos.
 
-1. Install [Buf](https://docs.buf.build/installation)
+1. Run `make boostrap` to install the [`buf`](https://github.com/bufbuild/buf)
+   command.
 1. Compile Protobufs
     ```sh
     $ make proto
@@ -79,7 +80,7 @@ If in the course of your development you change a Protobuf file (those ending in
 
 Building the Web UI
 ---
-See the [UI README](https://github.com/hashicorp/nomad/blob/master/ui/README.md) for instructions.
+See the [UI README](https://github.com/hashicorp/nomad/blob/main/ui/README.md) for instructions.
 
 Create a release binary
 ---

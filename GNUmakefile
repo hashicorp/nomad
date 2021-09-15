@@ -7,7 +7,17 @@ GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
-GO_TAGS ?= codegen_generated
+
+GO_TAGS ?=
+
+ifeq ($(CI),true)
+GO_TAGS := codegen_generated $(GO_TAGS)
+endif
+
+# Don't embed the Nomad UI when the NOMAD_NO_UI env var is set.
+ifndef NOMAD_NO_UI
+GO_TAGS := ui $(GO_TAGS)
+endif
 
 GO_TEST_CMD = $(if $(shell command -v gotestsum 2>/dev/null),gotestsum --,go test)
 
@@ -18,7 +28,11 @@ GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | eg
 endif
 
 # tag corresponding to latest release we maintain backward compatibility with
-PROTO_COMPARE_TAG ?= v1.0.0$(if $(findstring ent,$(GO_TAGS)),+ent,)
+PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
+
+# LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
+# published release, but backport branches should point to the parent tag (e.g. 1.0.8 in release-1.0.9 after 1.1.0 is cut).
+LAST_RELEASE ?= v1.1.3
 
 default: help
 
@@ -67,8 +81,14 @@ endif
 		CC=$(CC) \
 		go build -trimpath -ldflags $(GO_LDFLAGS) -tags "$(GO_TAGS)" -o $(GO_OUT)
 
-pkg/linux_arm/nomad: CC = arm-linux-gnueabihf-gcc-5
-pkg/linux_arm64/nomad: CC = aarch64-linux-gnu-gcc-5
+ifneq (armv7l,$(THIS_ARCH))
+pkg/linux_arm/nomad: CC = arm-linux-gnueabihf-gcc
+endif
+
+ifneq (aarch64,$(THIS_ARCH))
+pkg/linux_arm64/nomad: CC = aarch64-linux-gnu-gcc
+endif
+
 pkg/windows_%/nomad: GO_OUT = $@.exe
 
 # Define package targets for each of the build targets we actually have on this system
@@ -88,23 +108,24 @@ bootstrap: deps lint-deps git-hooks # Install all dependencies
 
 .PHONY: deps
 deps:  ## Install build and development dependencies
-## Keep versions in sync with tools/go.mod for now (see https://github.com/golang/go/issues/30515)
 	@echo "==> Updating build dependencies..."
-	GO111MODULE=on cd tools && go get github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
-	GO111MODULE=on cd tools && go get github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
-	GO111MODULE=on cd tools && go get github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
-	GO111MODULE=on cd tools && go get gotest.tools/gotestsum@v0.4.2
-	GO111MODULE=on cd tools && go get github.com/hashicorp/hcl/v2/cmd/hclfmt@v2.5.1
-	GO111MODULE=on cd tools && go get github.com/golang/protobuf/protoc-gen-go@v1.3.4
-	GO111MODULE=on cd tools && go get github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+	go install github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
+	go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
+	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
+	go install gotest.tools/gotestsum@v0.4.2
+	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@v2.5.1
+	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 ## Keep versions in sync with tools/go.mod (see https://github.com/golang/go/issues/30515)
 	@echo "==> Updating linter dependencies..."
-	GO111MODULE=on cd tools && go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.24.0
-	GO111MODULE=on cd tools && go get github.com/client9/misspell/cmd/misspell@v0.3.4
-	GO111MODULE=on cd tools && go get github.com/hashicorp/go-hclog/hclogvet@v0.1.3
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
+	go install github.com/client9/misspell/cmd/misspell@v0.3.4
+	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.3
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
@@ -125,7 +146,7 @@ check: ## Lint the source code
 	@misspell -error -source=text website/pages/
 
 	@echo "==> Checking for breaking changes in protos..."
-	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
+	@buf breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
 
 	@echo "==> Check proto files are in-sync..."
 	@$(MAKE) proto
@@ -133,21 +154,17 @@ check: ## Lint the source code
 
 	@echo "==> Check format of jobspecs and HCL files..."
 	@$(MAKE) hclfmt
-	@if (git status -s | grep -q -e '\.hcl$$' -e '\.nomad$$'); then echo the following HCL files are out of sync; git status -s | grep -e '\.hcl$$' -e '\.nomad$$'; exit 1; fi
+	@if (git status -s | grep -q -e '\.hcl$$' -e '\.nomad$$' -e '\.tf$$'); then echo the following HCL files are out of sync; git status -s | grep -e '\.hcl$$' -e '\.nomad$$' -e '\.tf$$'; exit 1; fi
 
 	@echo "==> Check API package is isolated from rest"
-	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
+	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
 
 	@echo "==> Checking Go mod.."
-	@GO111MODULE=on $(MAKE) sync
+	@GO111MODULE=on $(MAKE) tidy
 	@if (git status --porcelain | grep -Eq "go\.(mod|sum)"); then \
 		echo go.mod or go.sum needs updating; \
 		git --no-pager diff go.mod; \
 		git --no-pager diff go.sum; \
-		exit 1; fi
-	@if (git status --porcelain | grep -Eq "vendor/github.com/hashicorp/nomad/.*\.go"); then \
-		echo "nomad go submodules are out of sync, try 'make sync':"; \
-		git status -s | grep -E "vendor/github.com/hashicorp/nomad/.*\.go"; \
 		exit 1; fi
 
 	@echo "==> Check raft util msg type mapping are in-sync..."
@@ -171,7 +188,7 @@ checkproto: ## Lint protobuf files
 generate-all: generate-structs proto generate-examples
 
 .PHONY: generate-structs
-generate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
+generate-structs: LOCAL_PACKAGES = $(shell go list ./...)
 generate-structs: ## Update generated code
 	@echo "--> Running go generate..."
 	@go generate $(LOCAL_PACKAGES)
@@ -187,18 +204,24 @@ generate-examples: command/job_init.bindata_assetfs.go
 command/job_init.bindata_assetfs.go: command/assets/*
 	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
 
-.PHONY: changelogfmt
-changelogfmt:
-	@echo "--> Making [GH-xxxx] references clickable..."
-	@sed -E 's|([^\[])\[GH-([0-9]+)\]|\1[[GH-\2](https://github.com/hashicorp/nomad/issues/\2)]|g' CHANGELOG.md > changelog.tmp && mv changelog.tmp CHANGELOG.md
+changelog:
+	@changelog-build -last-release $(LAST_RELEASE) -this-release HEAD \
+		-entries-dir .changelog/ -changelog-template ./.changelog/changelog.tmpl -note-template ./.changelog/note.tmpl
 
 ## We skip the terraform directory as there are templated hcl configurations
 ## that do not successfully compile without rendering
 .PHONY: hclfmt
 hclfmt:
 	@echo "--> Formatting HCL"
-	@find . -path ./terraform -prune -o -name 'upstart.nomad' -prune -o \( -name '*.nomad' -o -name '*.hcl' \) -exec \
-sh -c 'hclfmt -w {} || echo in path {}' ';'
+	@find . -name '.terraform' -prune \
+	        -o -name 'upstart.nomad' -prune \
+	        -o -name '.git' -prune \
+	        -o -name 'node_modules' -prune \
+	        -o -name '.next' -prune \
+	        -o -path './ui/dist' -prune \
+	        -o -path './website/out' -prune \
+	        -o \( -name '*.nomad' -o -name '*.hcl' -o -name '*.tf' \) \
+	      -print0 | xargs -0 hclfmt -w
 
 .PHONY: tidy
 tidy:
@@ -208,17 +231,12 @@ tidy:
 	@echo "--> Tidy nomad module"
 	@go mod tidy
 
-.PHONY: sync
-sync: tidy
-	@echo "--> Sync vendor directory"
-	@go mod vendor
-
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
-dev: changelogfmt hclfmt ## Build for the current development platform
+dev: hclfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad

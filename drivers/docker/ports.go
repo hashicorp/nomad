@@ -8,6 +8,9 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 )
 
+// publishedPorts is a utility struct to keep track of the port bindings to publish.
+// After calling add for each port, the publishedPorts and exposedPorts fields can be
+// used in the docker container and host configs
 type publishedPorts struct {
 	logger         hclog.Logger
 	publishedPorts map[docker.Port][]docker.PortBinding
@@ -22,7 +25,7 @@ func newPublishedPorts(logger hclog.Logger) *publishedPorts {
 	}
 }
 
-// adds the port to the structures the Docker API expects for declaring mapped ports
+// addMapped adds the port to the structures the Docker API expects for declaring mapped ports
 func (p *publishedPorts) addMapped(label, ip string, port int, portMap hclutils.MapStrInt) {
 	// By default we will map the allocated port 1:1 to the container
 	containerPortInt := port
@@ -35,18 +38,29 @@ func (p *publishedPorts) addMapped(label, ip string, port int, portMap hclutils.
 	p.add(label, ip, port, containerPortInt)
 }
 
+// add adds a port binding for the given port mapping
 func (p *publishedPorts) add(label, ip string, port, to int) {
+	// if to is not set, use the port value per default docker functionality
 	if to == 0 {
 		to = port
 	}
-	hostPortStr := strconv.Itoa(port)
-	containerPort := docker.Port(strconv.Itoa(to))
 
-	p.publishedPorts[containerPort+"/tcp"] = getPortBinding(ip, hostPortStr)
-	p.publishedPorts[containerPort+"/udp"] = getPortBinding(ip, hostPortStr)
-	p.logger.Debug("allocated static port", "ip", ip, "port", port)
+	// two docker port bindings are created for each port for tcp and udp
+	cPortTCP := docker.Port(strconv.Itoa(to) + "/tcp")
+	cPortUDP := docker.Port(strconv.Itoa(to) + "/udp")
+	binding := getPortBinding(ip, strconv.Itoa(port))
 
-	p.exposedPorts[containerPort+"/tcp"] = struct{}{}
-	p.exposedPorts[containerPort+"/udp"] = struct{}{}
-	p.logger.Debug("exposed port", "port", port)
+	if _, ok := p.publishedPorts[cPortTCP]; !ok {
+		// initialize both tcp and udp binding slices since they are always created together
+		p.publishedPorts[cPortTCP] = []docker.PortBinding{}
+		p.publishedPorts[cPortUDP] = []docker.PortBinding{}
+	}
+
+	p.publishedPorts[cPortTCP] = append(p.publishedPorts[cPortTCP], binding)
+	p.publishedPorts[cPortUDP] = append(p.publishedPorts[cPortUDP], binding)
+	p.logger.Debug("allocated static port", "ip", ip, "port", port, "label", label)
+
+	p.exposedPorts[cPortTCP] = struct{}{}
+	p.exposedPorts[cPortUDP] = struct{}{}
+	p.logger.Debug("exposed port", "port", port, "label", label)
 }

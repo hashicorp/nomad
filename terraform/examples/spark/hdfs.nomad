@@ -1,12 +1,12 @@
 job "hdfs" {
 
-  datacenters = [ "dc1" ]
+  datacenters = ["dc1"]
 
   group "NameNode" {
 
     constraint {
-      operator  = "distinct_hosts"
-      value     = "true"
+      operator = "distinct_hosts"
+      value    = "true"
     }
 
     task "NameNode" {
@@ -14,13 +14,13 @@ job "hdfs" {
       driver = "docker"
 
       config {
-        image = "rcgenova/hadoop-2.7.3"
-        command = "bash"
-        args = [ "-c", "hdfs namenode -format && exec hdfs namenode -D fs.defaultFS=hdfs://${NOMAD_ADDR_ipc}/ -D dfs.permissions.enabled=false" ]
+        image        = "rcgenova/hadoop-2.7.3"
+        command      = "bash"
+        args         = ["-c", "hdfs namenode -format && exec hdfs namenode -D fs.defaultFS=hdfs://${NOMAD_ADDR_ipc}/ -D dfs.permissions.enabled=false"]
         network_mode = "host"
         port_map {
           ipc = 8020
-          ui = 50070
+          ui  = 50070
         }
       }
 
@@ -48,25 +48,25 @@ job "hdfs" {
     count = 3
 
     constraint {
-      operator  = "distinct_hosts"
-      value     = "true"
+      operator = "distinct_hosts"
+      value    = "true"
     }
-    
+
     task "DataNode" {
 
       driver = "docker"
 
       config {
         network_mode = "host"
-        image = "rcgenova/hadoop-2.7.3"
-        args = [ "hdfs", "datanode"
+        image        = "rcgenova/hadoop-2.7.3"
+        args = ["hdfs", "datanode"
           , "-D", "fs.defaultFS=hdfs://hdfs.service.consul/"
           , "-D", "dfs.permissions.enabled=false"
         ]
         port_map {
           data = 50010
-          ipc = 50020
-          ui = 50075
+          ipc  = 50020
+          ui   = 50075
         }
       }
 

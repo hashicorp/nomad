@@ -3,9 +3,9 @@ package scheduler
 import (
 	"fmt"
 	"sync"
+	"testing"
 	"time"
 
-	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/go-memdb"
@@ -41,7 +41,7 @@ func (r *RejectPlan) ReblockEval(*structs.Evaluation) error {
 // store copy and provides the planner interface. It can be extended for various
 // testing uses or for invoking the scheduler without side effects.
 type Harness struct {
-	t     testing.T
+	t     testing.TB
 	State *state.StateStore
 
 	Planner  Planner
@@ -59,7 +59,7 @@ type Harness struct {
 }
 
 // NewHarness is used to make a new testing harness
-func NewHarness(t testing.T) *Harness {
+func NewHarness(t testing.TB) *Harness {
 	state := state.TestStateStore(t)
 	h := &Harness{
 		t:         t,
@@ -71,7 +71,7 @@ func NewHarness(t testing.T) *Harness {
 
 // NewHarnessWithState creates a new harness with the given state for testing
 // purposes.
-func NewHarnessWithState(t testing.T, state *state.StateStore) *Harness {
+func NewHarnessWithState(t testing.TB, state *state.StateStore) *Harness {
 	return &Harness{
 		t:         t,
 		State:     state,
@@ -272,7 +272,7 @@ func (h *Harness) Process(factory Factory, eval *structs.Evaluation) error {
 	return sched.Process(eval)
 }
 
-func (h *Harness) AssertEvalStatus(t testing.T, state string) {
+func (h *Harness) AssertEvalStatus(t testing.TB, state string) {
 	require.Len(t, h.Evals, 1)
 	update := h.Evals[0]
 	require.Equal(t, state, update.Status)

@@ -2,6 +2,9 @@ run:
   # timeout for analysis, e.g. 30s, 5m, default is 1m
   deadline: 10m
 
+  # Modules download mode. If not empty, passed as -mod=<mode> to go tools
+  module-download-mode: vendor
+
   tests: false
 
   # which dirs to skip: they won't be analyzed;
@@ -57,6 +60,14 @@ linters-settings:
     list-type: blacklist
     packages:
       - github.com/hashicorp/consul/command/flags
+  gocritic:
+    disabled-checks:
+      - commentFormatting
+      - deprecatedComment
+  staticcheck:
+    # Only enable a single check to start.
+    # I(jrasell) will work on enabling additional checks when possible.
+    checks: ["ST1020"]
 
 issues:
   exclude:
@@ -80,6 +91,7 @@ linters:
     - gofmt
     - gosimple
     - depguard
+    - staticcheck
     # Stretch Goal
     #- maligned
   fast: false

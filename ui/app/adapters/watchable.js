@@ -48,11 +48,12 @@ export default class Watchable extends ApplicationAdapter {
   }
 
   findRecord(store, type, id, snapshot, additionalParams = {}) {
-    let [url, params] = this.buildURL(type.modelName, id, snapshot, 'findRecord').split('?');
+    const originalUrl = this.buildURL(type.modelName, id, snapshot, 'findRecord');
+    let [url, params] = originalUrl.split('?');
     params = assign(queryString.parse(params) || {}, this.buildQuery(), additionalParams);
 
     if (get(snapshot || {}, 'adapterOptions.watch')) {
-      params.index = this.watchList.getIndexFor(url);
+      params.index = this.watchList.getIndexFor(originalUrl);
     }
 
     const signal = get(snapshot || {}, 'adapterOptions.abortController.signal');
@@ -60,7 +61,7 @@ export default class Watchable extends ApplicationAdapter {
       signal,
       data: params,
     }).catch(error => {
-      if (error instanceof AbortError) {
+      if (error instanceof AbortError || error.name == 'AbortError') {
         return;
       }
       throw error;
@@ -149,7 +150,7 @@ export default class Watchable extends ApplicationAdapter {
           store.push(normalizedData);
         },
         error => {
-          if (error instanceof AbortError) {
+          if (error instanceof AbortError || error.name === 'AbortError') {
             return relationship.kind === 'belongsTo' ? {} : [];
           }
           throw error;

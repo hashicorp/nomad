@@ -5,22 +5,41 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	ifs "github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/exptime"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/pkg/errors"
 )
 
 const envoyBootstrapHookName = "envoy_bootstrap"
+
+const (
+	// envoyBootstrapWaitTime is the amount of time this hook should wait on Consul
+	// objects to be created before giving up.
+	envoyBootstrapWaitTime = 60 * time.Second
+
+	// envoyBootstrapInitialGap is the initial amount of time the envoy bootstrap
+	// retry loop will wait, exponentially increasing each iteration, not including
+	// jitter.
+	envoyBoostrapInitialGap = 1 * time.Second
+
+	// envoyBootstrapMaxJitter is the maximum amount of jitter applied to the
+	// wait gap each iteration of the envoy bootstrap retry loop.
+	envoyBootstrapMaxJitter = 500 * time.Millisecond
+)
 
 type consulTransportConfig struct {
 	HTTPAddr  string // required
@@ -48,9 +67,10 @@ func newConsulTransportConfig(consul *config.ConsulConfig) consulTransportConfig
 }
 
 type envoyBootstrapHookConfig struct {
-	consul consulTransportConfig
-	alloc  *structs.Allocation
-	logger hclog.Logger
+	alloc           *structs.Allocation
+	consul          consulTransportConfig
+	consulNamespace string
+	logger          hclog.Logger
 }
 
 func decodeTriState(b *bool) string {
@@ -64,17 +84,20 @@ func decodeTriState(b *bool) string {
 	}
 }
 
-func newEnvoyBootstrapHookConfig(alloc *structs.Allocation, consul *config.ConsulConfig, logger hclog.Logger) *envoyBootstrapHookConfig {
+func newEnvoyBootstrapHookConfig(alloc *structs.Allocation, consul *config.ConsulConfig, consulNamespace string, logger hclog.Logger) *envoyBootstrapHookConfig {
 	return &envoyBootstrapHookConfig{
-		alloc:  alloc,
-		logger: logger,
-		consul: newConsulTransportConfig(consul),
+		alloc:           alloc,
+		consul:          newConsulTransportConfig(consul),
+		consulNamespace: consulNamespace,
+		logger:          logger,
 	}
 }
 
 const (
-	envoyBaseAdminPort      = 19000
+	envoyBaseAdminPort      = 19000 // Consul default (bridge only)
+	envoyBaseReadyPort      = 19100 // Consul default (bridge only)
 	envoyAdminBindEnvPrefix = "NOMAD_ENVOY_ADMIN_ADDR_"
+	envoyReadyBindEnvPrefix = "NOMAD_ENVOY_READY_ADDR_"
 )
 
 const (
@@ -94,16 +117,50 @@ type envoyBootstrapHook struct {
 	// before contacting Consul.
 	consulConfig consulTransportConfig
 
+	// consulNamespace is the Consul namespace as set by in the job
+	consulNamespace string
+
+	// envoyBootstrapWaitTime is the total amount of time hook will wait for Consul
+	envoyBootstrapWaitTime time.Duration
+
+	// envoyBootstrapInitialGap is the initial wait gap when retyring
+	envoyBoostrapInitialGap time.Duration
+
+	// envoyBootstrapMaxJitter is the maximum amount of jitter applied to retries
+	envoyBootstrapMaxJitter time.Duration
+
+	// envoyBootstrapExpSleep controls exponential waiting
+	envoyBootstrapExpSleep func(time.Duration)
+
 	// logger is used to log things
 	logger hclog.Logger
 }
 
 func newEnvoyBootstrapHook(c *envoyBootstrapHookConfig) *envoyBootstrapHook {
 	return &envoyBootstrapHook{
-		alloc:        c.alloc,
-		consulConfig: c.consul,
-		logger:       c.logger.Named(envoyBootstrapHookName),
+		alloc:                   c.alloc,
+		consulConfig:            c.consul,
+		consulNamespace:         c.consulNamespace,
+		envoyBootstrapWaitTime:  envoyBootstrapWaitTime,
+		envoyBoostrapInitialGap: envoyBoostrapInitialGap,
+		envoyBootstrapMaxJitter: envoyBootstrapMaxJitter,
+		envoyBootstrapExpSleep:  time.Sleep,
+		logger:                  c.logger.Named(envoyBootstrapHookName),
 	}
+}
+
+// getConsulNamespace will resolve the Consul namespace, choosing between
+//  - agent config (low precedence)
+//  - task group config (high precedence)
+func (h *envoyBootstrapHook) getConsulNamespace() string {
+	var namespace string
+	if h.consulConfig.Namespace != "" {
+		namespace = h.consulConfig.Namespace
+	}
+	if h.consulNamespace != "" {
+		namespace = h.consulNamespace
+	}
+	return namespace
 }
 
 func (envoyBootstrapHook) Name() string {
@@ -111,8 +168,18 @@ func (envoyBootstrapHook) Name() string {
 }
 
 func isConnectKind(kind string) bool {
-	kinds := []string{structs.ConnectProxyPrefix, structs.ConnectIngressPrefix, structs.ConnectTerminatingPrefix}
-	return helper.SliceStringContains(kinds, kind)
+	switch kind {
+	case structs.ConnectProxyPrefix:
+		return true
+	case structs.ConnectIngressPrefix:
+		return true
+	case structs.ConnectTerminatingPrefix:
+		return true
+	case structs.ConnectMeshPrefix:
+		return true
+	default:
+		return false
+	}
 }
 
 func (_ *envoyBootstrapHook) extractNameAndKind(kind structs.TaskKind) (string, string, error) {
@@ -130,11 +197,12 @@ func (_ *envoyBootstrapHook) extractNameAndKind(kind structs.TaskKind) (string, 
 	return serviceKind, serviceName, nil
 }
 
-func (h *envoyBootstrapHook) lookupService(svcKind, svcName, tgName string) (*structs.Service, error) {
+func (h *envoyBootstrapHook) lookupService(svcKind, svcName string, taskEnv *taskenv.TaskEnv) (*structs.Service, error) {
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
+	interpolatedServices := taskenv.InterpolateServices(taskEnv, tg.Services)
 
 	var service *structs.Service
-	for _, s := range tg.Services {
+	for _, s := range interpolatedServices {
 		if s.Name == svcName {
 			service = s
 			break
@@ -167,7 +235,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 		return err
 	}
 
-	service, err := h.lookupService(serviceKind, serviceName, h.alloc.TaskGroup)
+	service, err := h.lookupService(serviceKind, serviceName, req.TaskEnv)
 	if err != nil {
 		return err
 	}
@@ -176,12 +244,17 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 
 	h.logger.Debug("bootstrapping Consul "+serviceKind, "task", req.Task.Name, "service", serviceName)
 
-	// Envoy runs an administrative API on the loopback interface. There is no
-	// way to turn this feature off.
+	// Envoy runs an administrative listener. There is no way to turn this feature off.
 	// https://github.com/envoyproxy/envoy/issues/1297
-	envoyAdminBind := buildEnvoyAdminBind(h.alloc, serviceName, req.Task.Name)
+	envoyAdminBind := buildEnvoyAdminBind(h.alloc, serviceName, req.Task.Name, req.TaskEnv)
+
+	// Consul configures a ready listener. There is no way to turn this feature off.
+	envoyReadyBind := buildEnvoyReadyBind(h.alloc, serviceName, req.Task.Name, req.TaskEnv)
+
+	// Set runtime environment variables for the envoy admin and ready listeners.
 	resp.Env = map[string]string{
 		helper.CleanEnvVar(envoyAdminBindEnvPrefix+serviceName, '_'): envoyAdminBind,
+		helper.CleanEnvVar(envoyReadyBindEnvPrefix+serviceName, '_'): envoyReadyBind,
 	}
 
 	// Envoy bootstrap configuration may contain a Consul token, so write
@@ -195,102 +268,122 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	}
 	h.logger.Debug("check for SI token for task", "task", req.Task.Name, "exists", siToken != "")
 
-	bootstrap := h.newEnvoyBootstrapArgs(h.alloc.TaskGroup, service, grpcAddr, envoyAdminBind, siToken, bootstrapFilePath)
+	bootstrap := h.newEnvoyBootstrapArgs(h.alloc.TaskGroup, service, grpcAddr, envoyAdminBind, envoyReadyBind, siToken, bootstrapFilePath)
 	bootstrapArgs := bootstrap.args()
 	bootstrapEnv := bootstrap.env(os.Environ())
 
-	// Since Consul services are registered asynchronously with this task
-	// hook running, retry a small number of times with backoff.
-	for tries := 3; ; tries-- {
+	// keep track of latest error returned from exec-ing consul envoy bootstrap
+	var cmdErr error
 
+	// Since Consul services are registered asynchronously with this task
+	// hook running, retry until timeout or success.
+	if backoffErr := exptime.Backoff(func() (bool, error) {
+
+		// If hook is killed, just stop.
+		select {
+		case <-ctx.Done():
+			return false, nil
+		default:
+		}
+
+		// Prepare bootstrap command to run.
 		cmd := exec.CommandContext(ctx, "consul", bootstrapArgs...)
 		cmd.Env = bootstrapEnv
 
-		// Redirect output to secrets/envoy_bootstrap.json
-		fd, err := os.Create(bootstrapFilePath)
-		if err != nil {
-			return fmt.Errorf("error creating secrets/envoy_bootstrap.json for envoy: %v", err)
+		// Redirect stdout to secrets/envoy_bootstrap.json.
+		fd, fileErr := os.Create(bootstrapFilePath)
+		if fileErr != nil {
+			return false, fmt.Errorf("failed to create secrets/envoy_bootstrap.json for envoy: %w", fileErr)
 		}
 		cmd.Stdout = fd
 
+		// Redirect stderr into a buffer for later reading.
 		buf := bytes.NewBuffer(nil)
 		cmd.Stderr = buf
 
 		// Generate bootstrap
-		err = cmd.Run()
+		cmdErr = cmd.Run()
 
-		// Close bootstrap.json
-		fd.Close()
+		// Close bootstrap.json regardless of any command errors.
+		_ = fd.Close()
 
-		if err == nil {
-			// Happy path! Bootstrap was created, exit.
-			break
+		// Command succeeded, exit.
+		if cmdErr == nil {
+			// Bootstrap written. Mark as done and move on.
+			resp.Done = true
+			return false, nil
 		}
 
-		// Check for error from command
-		if tries == 0 {
-			h.logger.Error("error creating bootstrap configuration for Connect proxy sidecar", "error", err, "stderr", buf.String())
+		// Command failed, prepare for retry
+		//
+		// Cleanup the bootstrap file. An errors here is not
+		// important as (a) we test to ensure the deletion
+		// occurs, and (b) the file will either be rewritten on
+		// retry or eventually garbage collected if the task
+		// fails.
+		_ = os.Remove(bootstrapFilePath)
 
-			// Cleanup the bootstrap file. An errors here is not
-			// important as (a) we test to ensure the deletion
-			// occurs, and (b) the file will either be rewritten on
-			// retry or eventually garbage collected if the task
-			// fails.
-			os.Remove(bootstrapFilePath)
-
-			// ExitErrors are recoverable since they indicate the
-			// command was runnable but exited with a unsuccessful
-			// error code.
-			_, recoverable := err.(*exec.ExitError)
-			return structs.NewRecoverableError(
-				fmt.Errorf("error creating bootstrap configuration for Connect proxy sidecar: %v", err),
-				recoverable,
-			)
-		}
-
-		// Sleep before retrying to give Consul services time to register
-		select {
-		case <-time.After(2 * time.Second):
-		case <-ctx.Done():
-			// Killed before bootstrap, exit without setting Done
-			return nil
-		}
+		return true, cmdErr
+	}, exptime.BackoffOptions{
+		MaxSleepTime:   h.envoyBootstrapWaitTime,
+		InitialGapSize: h.envoyBoostrapInitialGap,
+		MaxJitterSize:  h.envoyBootstrapMaxJitter,
+	}); backoffErr != nil {
+		// Wrap the last error from Consul and set that as our status.
+		_, recoverable := cmdErr.(*exec.ExitError)
+		return structs.NewRecoverableError(
+			fmt.Errorf("error creating bootstrap configuration for Connect proxy sidecar: %v", cmdErr),
+			recoverable,
+		)
 	}
 
-	// Bootstrap written. Mark as done and move on.
-	resp.Done = true
 	return nil
 }
 
-// buildEnvoyAdminBind determines a unique port for use by the envoy admin
-// listener.
+// buildEnvoyAdminBind determines a unique port for use by the envoy admin listener.
+//
+// This listener will be bound to 127.0.0.2.
+func buildEnvoyAdminBind(alloc *structs.Allocation, service, task string, env *taskenv.TaskEnv) string {
+	return buildEnvoyBind(alloc, "127.0.0.2", service, task, env, envoyBaseAdminPort)
+}
+
+// buildEnvoyAdminBind determines a unique port for use by the envoy ready listener.
+//
+// This listener will be bound to 127.0.0.1.
+func buildEnvoyReadyBind(alloc *structs.Allocation, service, task string, env *taskenv.TaskEnv) string {
+	return buildEnvoyBind(alloc, "127.0.0.1", service, task, env, envoyBaseReadyPort)
+}
+
+// buildEnvoyBind is used to determine a unique port for an envoy listener.
 //
 // In bridge mode, if multiple sidecars are running, the bind addresses need
-// to be unique within the namespace, so we simply start at 19000 and increment
+// to be unique within the namespace, so we simply start at basePort and increment
 // by the index of the task.
 //
 // In host mode, use the port provided through the service definition, which can
 // be a port chosen by Nomad.
-func buildEnvoyAdminBind(alloc *structs.Allocation, serviceName, taskName string) string {
+func buildEnvoyBind(alloc *structs.Allocation, ifce, service, task string, taskEnv *taskenv.TaskEnv, basePort int) string {
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	port := envoyBaseAdminPort
+	port := basePort
 	switch tg.Networks[0].Mode {
 	case "host":
-		for _, service := range tg.Services {
-			if service.Name == serviceName {
-				_, port = tg.Networks.Port(service.PortLabel)
+		interpolatedServices := taskenv.InterpolateServices(taskEnv, tg.Services)
+		for _, svc := range interpolatedServices {
+			if svc.Name == service {
+				mapping := tg.Networks.Port(svc.PortLabel)
+				port = mapping.Value
 				break
 			}
 		}
 	default:
-		for idx, task := range tg.Tasks {
-			if task.Name == taskName {
+		for idx, tgTask := range tg.Tasks {
+			if tgTask.Name == task {
 				port += idx
 				break
 			}
 		}
 	}
-	return fmt.Sprintf("localhost:%d", port)
+	return net.JoinHostPort(ifce, strconv.Itoa(port))
 }
 
 func (h *envoyBootstrapHook) writeConfig(filename, config string) error {
@@ -343,32 +436,44 @@ func (h *envoyBootstrapHook) proxyServiceID(group string, service *structs.Servi
 	return agentconsul.MakeAllocServiceID(h.alloc.ID, "group-"+group, service)
 }
 
+// newEnvoyBootstrapArgs is used to prepare for the invocation of the
+// 'consul connect envoy' command with arguments which will bootstrap the connect
+// proxy or gateway.
+//
+// https://www.consul.io/commands/connect/envoy#consul-connect-envoy
 func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
 	group string, service *structs.Service,
-	grpcAddr, envoyAdminBind, siToken, filepath string,
+	grpcAddr, envoyAdminBind, envoyReadyBind, siToken, filepath string,
 ) envoyBootstrapArgs {
 	var (
 		sidecarForID string // sidecar only
 		gateway      string // gateway only
 		proxyID      string // gateway only
+		namespace    string
 	)
+
+	namespace = h.getConsulNamespace()
+	id := h.proxyServiceID(group, service)
 
 	switch {
 	case service.Connect.HasSidecar():
-		sidecarForID = h.proxyServiceID(group, service)
+		sidecarForID = id
 	case service.Connect.IsIngress():
-		proxyID = h.proxyServiceID(group, service)
+		proxyID = id
 		gateway = "ingress"
 	case service.Connect.IsTerminating():
-		proxyID = h.proxyServiceID(group, service)
+		proxyID = id
 		gateway = "terminating"
+	case service.Connect.IsMesh():
+		proxyID = id
+		gateway = "mesh"
 	}
 
-	h.logger.Debug("bootstrapping envoy",
+	h.logger.Info("bootstrapping envoy",
 		"sidecar_for", service.Name, "bootstrap_file", filepath,
 		"sidecar_for_id", sidecarForID, "grpc_addr", grpcAddr,
-		"admin_bind", envoyAdminBind, "gateway", gateway,
-		"proxy_id", proxyID,
+		"admin_bind", envoyAdminBind, "ready_bind", envoyReadyBind,
+		"gateway", gateway, "proxy_id", proxyID, "namespace", namespace,
 	)
 
 	return envoyBootstrapArgs{
@@ -376,9 +481,11 @@ func (h *envoyBootstrapHook) newEnvoyBootstrapArgs(
 		sidecarFor:     sidecarForID,
 		grpcAddr:       grpcAddr,
 		envoyAdminBind: envoyAdminBind,
+		envoyReadyBind: envoyReadyBind,
 		siToken:        siToken,
 		gateway:        gateway,
 		proxyID:        proxyID,
+		namespace:      namespace,
 	}
 }
 
@@ -390,9 +497,11 @@ type envoyBootstrapArgs struct {
 	sidecarFor     string // sidecars only
 	grpcAddr       string
 	envoyAdminBind string
+	envoyReadyBind string
 	siToken        string
 	gateway        string // gateways only
 	proxyID        string // gateways only
+	namespace      string
 }
 
 // args returns the CLI arguments consul needs in the correct order, with the
@@ -404,6 +513,7 @@ func (e envoyBootstrapArgs) args() []string {
 		"-grpc-addr", e.grpcAddr,
 		"-http-addr", e.consulConfig.HTTPAddr,
 		"-admin-bind", e.envoyAdminBind,
+		"-address", e.envoyReadyBind,
 		"-bootstrap",
 	}
 
@@ -435,7 +545,7 @@ func (e envoyBootstrapArgs) args() []string {
 		arguments = append(arguments, "-client-key", v)
 	}
 
-	if v := e.consulConfig.Namespace; v != "" {
+	if v := e.namespace; v != "" {
 		arguments = append(arguments, "-namespace", v)
 	}
 
@@ -458,7 +568,7 @@ func (e envoyBootstrapArgs) env(env []string) []string {
 	if v := e.consulConfig.VerifySSL; v != "" {
 		env = append(env, fmt.Sprintf("%s=%s", "CONSUL_HTTP_SSL_VERIFY", v))
 	}
-	if v := e.consulConfig.Namespace; v != "" {
+	if v := e.namespace; v != "" {
 		env = append(env, fmt.Sprintf("%s=%s", "CONSUL_NAMESPACE", v))
 	}
 	return env

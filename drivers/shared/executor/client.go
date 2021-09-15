@@ -45,6 +45,9 @@ func (c *grpcExecutorClient) Launch(cmd *ExecCommand) (*ProcessState, error) {
 		Mounts:             drivers.MountsToProto(cmd.Mounts),
 		Devices:            drivers.DevicesToProto(cmd.Devices),
 		NetworkIsolation:   drivers.NetworkIsolationSpecToProto(cmd.NetworkIsolation),
+		DefaultPidMode:     cmd.ModePID,
+		DefaultIpcMode:     cmd.ModeIPC,
+		Capabilities:       cmd.Capabilities,
 	}
 	resp, err := c.client.Launch(ctx, req)
 	if err != nil {

@@ -165,12 +165,12 @@ type Affinity struct {
 	Weight  *int8  `hcl:"weight,optional"`    // Weight applied to nodes that match the affinity. Can be negative
 }
 
-func NewAffinity(LTarget string, Operand string, RTarget string, Weight int8) *Affinity {
+func NewAffinity(lTarget string, operand string, rTarget string, weight int8) *Affinity {
 	return &Affinity{
-		LTarget: LTarget,
-		RTarget: RTarget,
-		Operand: Operand,
-		Weight:  int8ToPtr(Weight),
+		LTarget: lTarget,
+		RTarget: rTarget,
+		Operand: operand,
+		Weight:  int8ToPtr(weight),
 	}
 }
 
@@ -377,12 +377,15 @@ func (m *MigrateStrategy) Copy() *MigrateStrategy {
 
 // VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
 type VolumeRequest struct {
-	Name         string           `hcl:"name,label"`
-	Type         string           `hcl:"type,optional"`
-	Source       string           `hcl:"source,optional"`
-	ReadOnly     bool             `hcl:"read_only,optional"`
-	MountOptions *CSIMountOptions `hcl:"mount_options,block"`
-	ExtraKeysHCL []string         `hcl1:",unusedKeys,optional" json:"-"`
+	Name           string           `hcl:"name,label"`
+	Type           string           `hcl:"type,optional"`
+	Source         string           `hcl:"source,optional"`
+	ReadOnly       bool             `hcl:"read_only,optional"`
+	AccessMode     string           `hcl:"access_mode,optional"`
+	AttachmentMode string           `hcl:"attachment_mode,optional"`
+	MountOptions   *CSIMountOptions `hcl:"mount_options,block"`
+	PerAlloc       bool             `hcl:"per_alloc,optional"`
+	ExtraKeysHCL   []string         `hcl1:",unusedKeys,optional" json:"-"`
 }
 
 const (
@@ -429,6 +432,7 @@ type TaskGroup struct {
 	ShutdownDelay             *time.Duration            `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
 	StopAfterClientDisconnect *time.Duration            `mapstructure:"stop_after_client_disconnect" hcl:"stop_after_client_disconnect,optional"`
 	Scaling                   *ScalingPolicy            `hcl:"scaling,block"`
+	Consul                    *Consul                   `hcl:"consul,block"`
 }
 
 // NewTaskGroup creates a new TaskGroup.
@@ -460,6 +464,13 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	} else {
 		g.EphemeralDisk.Canonicalize()
 	}
+
+	// Merge job.consul onto group.consul
+	if g.Consul == nil {
+		g.Consul = new(Consul)
+	}
+	g.Consul.MergeNamespace(job.ConsulNamespace)
+	g.Consul.Canonicalize()
 
 	// Merge the update policy from the job
 	if ju, tu := job.Update != nil, g.Update != nil; ju && tu {
@@ -904,6 +915,17 @@ type TaskState struct {
 	StartedAt   time.Time
 	FinishedAt  time.Time
 	Events      []*TaskEvent
+
+	// Experimental -  TaskHandle is based on drivers.TaskHandle and used
+	// by remote task drivers to migrate task handles between allocations.
+	TaskHandle *TaskHandle
+}
+
+// Experimental - TaskHandle is based on drivers.TaskHandle and used by remote
+// task drivers to migrate task handles between allocations.
+type TaskHandle struct {
+	Version     int
+	DriverState []byte
 }
 
 const (

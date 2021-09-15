@@ -1,6 +1,6 @@
 import UseCasesLayout from 'components/use-case-page'
 import TextSplitWithImage from '@hashicorp/react-text-split-with-image'
-import FeaturedSliderSection from 'components/featured-slider-section'
+import FeaturedSlider from '@hashicorp/react-featured-slider'
 
 export default function AutomatedServiceNetworkingWithConsulPage() {
   return (
@@ -24,32 +24,30 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
           ],
         }}
         image={{
-          url: require('./img/auto-clustering-with-consul.svg'),
+          url: require('./img/automatic-clustering.png'),
           alt: '',
         }}
       />
 
-      <div className="with-border">
-        <TextSplitWithImage
-          textSplit={{
-            heading: 'Automated Service Discovery',
-            content:
-              'Built-in service discovery, registration, and health check monitoring for all applications deployed under Nomad.',
-            textSide: 'left',
-            links: [
-              {
-                text: 'Read More',
-                url: '/docs/integrations/consul-integration#service-discovery',
-                type: 'inbound',
-              },
-            ],
-          }}
-          image={{
-            url: require('./img/automated-service-discovery-with-consul.png'),
-            alt: '',
-          }}
-        />
-      </div>
+      <TextSplitWithImage
+        textSplit={{
+          heading: 'Automated Service Discovery',
+          content:
+            'Built-in service discovery, registration, and health check monitoring for all applications deployed under Nomad.',
+          textSide: 'left',
+          links: [
+            {
+              text: 'Read More',
+              url: '/docs/integrations/consul-integration#service-discovery',
+              type: 'inbound',
+            },
+          ],
+        }}
+        image={{
+          url: require('./img/consul-interface.png'),
+          alt: '',
+        }}
+      />
 
       <TextSplitWithImage
         textSplit={{
@@ -66,13 +64,14 @@ export default function AutomatedServiceNetworkingWithConsulPage() {
           ],
         }}
         image={{
-          url: require('./img/auto-service-to-service-communications.svg'),
+          url: require('./img/service-to-service.png'),
           alt: '',
         }}
       />
 
-      <FeaturedSliderSection
+      <FeaturedSlider
         heading="Case Studies"
+        theme="dark"
         features={[
           {
             logo: {

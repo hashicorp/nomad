@@ -316,6 +316,80 @@ func TestAllocations_ExecErrors(t *testing.T) {
 	require.Equal(t, err.Error(), fmt.Sprintf("Unknown allocation \"%s\"", allocID))
 }
 
+func TestAllocation_ServerTerminalStatus(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		inputAllocation *Allocation
+		expectedOutput  bool
+		name            string
+	}{
+		{
+			inputAllocation: &Allocation{DesiredStatus: AllocDesiredStatusEvict},
+			expectedOutput:  true,
+			name:            "alloc desired status evict",
+		},
+		{
+			inputAllocation: &Allocation{DesiredStatus: AllocDesiredStatusStop},
+			expectedOutput:  true,
+			name:            "alloc desired status stop",
+		},
+		{
+			inputAllocation: &Allocation{DesiredStatus: AllocDesiredStatusRun},
+			expectedOutput:  false,
+			name:            "alloc desired status run",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expectedOutput, tc.inputAllocation.ServerTerminalStatus(), tc.name)
+		})
+	}
+}
+
+func TestAllocation_ClientTerminalStatus(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		inputAllocation *Allocation
+		expectedOutput  bool
+		name            string
+	}{
+		{
+			inputAllocation: &Allocation{ClientStatus: AllocClientStatusLost},
+			expectedOutput:  true,
+			name:            "alloc client status lost",
+		},
+		{
+			inputAllocation: &Allocation{ClientStatus: AllocClientStatusFailed},
+			expectedOutput:  true,
+			name:            "alloc client status failed",
+		},
+		{
+			inputAllocation: &Allocation{ClientStatus: AllocClientStatusComplete},
+			expectedOutput:  true,
+			name:            "alloc client status complete",
+		},
+		{
+			inputAllocation: &Allocation{ClientStatus: AllocClientStatusRunning},
+			expectedOutput:  false,
+			name:            "alloc client status complete",
+		},
+		{
+			inputAllocation: &Allocation{ClientStatus: AllocClientStatusPending},
+			expectedOutput:  false,
+			name:            "alloc client status running",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expectedOutput, tc.inputAllocation.ClientTerminalStatus(), tc.name)
+		})
+	}
+}
+
 func TestAllocations_ShouldMigrate(t *testing.T) {
 	t.Parallel()
 	require.True(t, DesiredTransition{Migrate: boolToPtr(true)}.ShouldMigrate())

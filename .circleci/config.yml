@@ -293,11 +293,15 @@ jobs:
       goarch:
         type: string
         default: "amd64"
+      enable_race_testing:
+        type: boolean
+        default: false
     environment:
       GOTEST_PKGS_EXCLUDE: "<< parameters.exclude_packages >>"
       GOTEST_PKGS: "<< parameters.test_packages >>"
       GOTEST_MOD: "<< parameters.test_module >>"
       GOTESTARCH: "<< parameters.goarch >>"
+      ENABLE_RACE: "<<# parameters.enable_race_testing >>TRUE<</ parameters.enable_race_testing >>"
     steps:
       - checkout
       - install-golang
@@ -334,6 +338,11 @@ jobs:
             echo 'circleci ALL=NOPASSWD: ALL' >> /etc/sudoers.d/50-circleci
             echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep
             chown -R circleci:circleci /go
+
+            # configure git and ssh for the user
+            cp -r ~/.ssh /home/circleci/.ssh
+            chown -R circleci:circleci /home/circleci/.ssh
+            sudo -H -u circleci git config --global url."ssh://git@github.com".insteadOf "https://github.com"
 
       - run: sudo -E -H -u circleci PATH=${PATH} make deps
       - run: sudo -E -H -u circleci PATH=${PATH} make integration-test
@@ -389,7 +398,6 @@ jobs:
       - install-golang:
           target_directory: ~/goinstall
       - run: source ${BASH_ENV} && make deps
-      - run: brew install protobuf
       - run: PATH="$GOPATH/bin:${HOME}/goinstall/go/bin:$PATH" make generate-structs
 
       - run:
@@ -504,7 +512,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: docker.mirror.hashicorp.services/golang:1.15.6
+      - image: docker.mirror.hashicorp.services/golang:1.16.7
     environment:
       <<: *common_envs
       GOPATH: /go
@@ -516,7 +524,7 @@ executors:
     environment: &machine_env
       <<: *common_envs
       GOPATH: /home/circleci/go
-      GOLANG_VERSION: 1.15.6
+      GOLANG_VERSION: 1.16.7
 
   # uses a more recent image with unattended upgrades disabled properly
   # but seems to break docker builds
@@ -529,11 +537,11 @@ executors:
   go-macos:
     working_directory: ~/go/src/github.com/hashicorp/nomad
     macos:
-      xcode: 11.3.1
+      xcode: 12.4.0
     environment:
       <<: *common_envs
       GOPATH: /Users/distiller/go
-      GOLANG_VERSION: 1.15.6
+      GOLANG_VERSION: 1.16.7
 
   go-windows:
     machine:
@@ -545,7 +553,7 @@ executors:
       GOPATH: c:\gopath
       GOBIN: c:\gopath\bin
       GOTESTSUM_PATH: c:\tmp\test-reports
-      GOLANG_VERSION: 1.15.6
+      GOLANG_VERSION: 1.16.7
       GOTESTSUM_VERSION: 0.4.2
       VAULT_VERSION: 1.4.1
 
@@ -616,6 +624,7 @@ workflows:
           name: "test-api"
           test_module: "api"
           filters: *backend_test_branches_filter
+          enable_race_testing: true
       - test-container:
           name: "test-devices"
           test_packages: "./devices/..."
@@ -656,7 +665,7 @@ workflows:
           filters:
             branches:
               only:
-                - master
+                - main
 
       - algolia_index:
           context: static-sites

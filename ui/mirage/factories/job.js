@@ -10,10 +10,17 @@ const JOB_TYPES = ['service', 'batch', 'system'];
 const JOB_STATUSES = ['pending', 'running', 'dead'];
 
 export default Factory.extend({
-  id: i =>
-    `${faker.helpers.randomize(
+  id(i) {
+    if (this.parameterized && this.parentId) {
+      const shortUUID = faker.random.uuid().split('-')[0];
+      const dispatchId = `dispatch-${this.submitTime / 1000}-${shortUUID}`;
+      return `${this.parentId}/${dispatchId}`;
+    }
+
+    return `${faker.helpers.randomize(
       JOB_PREFIXES
-    )}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase(),
+    )}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase();
+  },
 
   name() {
     return this.id;
@@ -63,11 +70,11 @@ export default Factory.extend({
   parameterized: trait({
     type: 'batch',
     parameterized: true,
-    // parameterized details object
+    // parameterized job object
     // serializer update for bool vs details object
-    parameterizedDetails: () => ({
-      MetaOptional: null,
-      MetaRequired: null,
+    parameterizedJob: () => ({
+      MetaOptional: generateMetaFields(faker.random.number(10), 'optional'),
+      MetaRequired: generateMetaFields(faker.random.number(10), 'required'),
       Payload: faker.random.boolean() ? 'required' : null,
     }),
   }),
@@ -263,3 +270,14 @@ export default Factory.extend({
     }
   },
 });
+
+function generateMetaFields(num, prefix = '') {
+  // Use an object to avoid duplicate meta fields.
+  // The prefix param helps to avoid duplicate entries across function calls.
+  let meta = {};
+  for (let i = 0; i < num; i++) {
+    const field = `${prefix}-${faker.hacker.noun()}`;
+    meta[field] = true;
+  }
+  return Object.keys(meta);
+}

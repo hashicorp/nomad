@@ -11,6 +11,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/raft"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -19,10 +24,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/hashicorp/raft"
-	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type MockSink struct {
@@ -187,7 +188,7 @@ func TestFSM_UpsertNode_Canonicalize(t *testing.T) {
 	fsm := testFSM(t)
 	fsm.blockedEvals.SetEnabled(true)
 
-	// Setup a node without eligibility
+	// Setup a node without eligibility, ensure that upsert/canonicalize put it back
 	node := mock.Node()
 	node.SchedulingEligibility = ""
 
@@ -197,16 +198,41 @@ func TestFSM_UpsertNode_Canonicalize(t *testing.T) {
 	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
 	require.Nil(err)
 
-	resp := fsm.Apply(makeLog(buf))
-	require.Nil(resp)
+	require.Nil(fsm.Apply(makeLog(buf)))
 
 	// Verify we are registered
-	ws := memdb.NewWatchSet()
-	n, err := fsm.State().NodeByID(ws, req.Node.ID)
+	n, err := fsm.State().NodeByID(nil, req.Node.ID)
 	require.Nil(err)
 	require.NotNil(n)
 	require.EqualValues(1, n.CreateIndex)
 	require.Equal(structs.NodeSchedulingEligible, n.SchedulingEligibility)
+}
+
+func TestFSM_UpsertNode_Canonicalize_Ineligible(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	fsm := testFSM(t)
+	fsm.blockedEvals.SetEnabled(true)
+
+	// Setup a node without eligibility, ensure that upsert/canonicalize put it back
+	node := mock.DrainNode()
+	node.SchedulingEligibility = ""
+
+	req := structs.NodeRegisterRequest{
+		Node: node,
+	}
+	buf, err := structs.Encode(structs.NodeRegisterRequestType, req)
+	require.Nil(err)
+
+	require.Nil(fsm.Apply(makeLog(buf)))
+
+	// Verify we are registered
+	n, err := fsm.State().NodeByID(nil, req.Node.ID)
+	require.Nil(err)
+	require.NotNil(n)
+	require.EqualValues(1, n.CreateIndex)
+	require.Equal(structs.NodeSchedulingIneligible, n.SchedulingEligibility)
 }
 
 func TestFSM_DeregisterNode(t *testing.T) {
@@ -353,7 +379,6 @@ func TestFSM_BatchUpdateNodeDrain(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	node, err = fsm.State().NodeByID(ws, req.Node.ID)
 	require.Nil(err)
-	require.True(node.Drain)
 	require.Equal(node.DrainStrategy, strategy)
 	require.Len(node.Events, 2)
 }
@@ -397,44 +422,8 @@ func TestFSM_UpdateNodeDrain(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	node, err = fsm.State().NodeByID(ws, req.Node.ID)
 	require.Nil(err)
-	require.True(node.Drain)
 	require.Equal(node.DrainStrategy, strategy)
 	require.Len(node.Events, 2)
-}
-
-func TestFSM_UpdateNodeDrain_Pre08_Compatibility(t *testing.T) {
-	t.Parallel()
-	require := require.New(t)
-	fsm := testFSM(t)
-
-	// Force a node into the state store without eligiblity
-	node := mock.Node()
-	node.SchedulingEligibility = ""
-	require.Nil(fsm.State().UpsertNode(structs.MsgTypeTestSetup, 1, node))
-
-	// Do an old style drain
-	req := structs.NodeUpdateDrainRequest{
-		NodeID: node.ID,
-		Drain:  true,
-	}
-	buf, err := structs.Encode(structs.NodeUpdateDrainRequestType, req)
-	require.Nil(err)
-
-	resp := fsm.Apply(makeLog(buf))
-	require.Nil(resp)
-
-	// Verify we have upgraded to a force drain
-	ws := memdb.NewWatchSet()
-	node, err = fsm.State().NodeByID(ws, req.NodeID)
-	require.Nil(err)
-	require.True(node.Drain)
-
-	expected := &structs.DrainStrategy{
-		DrainSpec: structs.DrainSpec{
-			Deadline: -1 * time.Second,
-		},
-	}
-	require.Equal(expected, node.DrainStrategy)
 }
 
 func TestFSM_UpdateNodeEligibility(t *testing.T) {
@@ -1399,6 +1388,7 @@ func TestFSM_UpsertAllocs_StrippedResources(t *testing.T) {
 
 	// Resources should be recomputed
 	origResources.DiskMB = alloc.Job.TaskGroups[0].EphemeralDisk.SizeMB
+	origResources.MemoryMaxMB = origResources.MemoryMB
 	alloc.Resources = origResources
 	if !reflect.DeepEqual(alloc, out) {
 		t.Fatalf("not equal: % #v", pretty.Diff(alloc, out))
@@ -2495,25 +2485,15 @@ func TestFSM_SnapshotRestore_Nodes(t *testing.T) {
 	// Add some state
 	fsm := testFSM(t)
 	state := fsm.State()
-	node1 := mock.Node()
-	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)
-
-	// Upgrade this node
-	node2 := mock.Node()
-	node2.SchedulingEligibility = ""
-	state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2)
+	node := mock.Node()
+	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
 	state2 := fsm2.State()
-	out1, _ := state2.NodeByID(nil, node1.ID)
-	out2, _ := state2.NodeByID(nil, node2.ID)
-	node2.SchedulingEligibility = structs.NodeSchedulingEligible
-	if !reflect.DeepEqual(node1, out1) {
-		t.Fatalf("bad: \n%#v\n%#v", out1, node1)
-	}
-	if !reflect.DeepEqual(node2, out2) {
-		t.Fatalf("bad: \n%#v\n%#v", out2, node2)
+	out, _ := state2.NodeByID(nil, node.ID)
+	if !reflect.DeepEqual(node, out) {
+		t.Fatalf("bad: \n%#v\n%#v", out, node)
 	}
 }
 
@@ -3188,7 +3168,7 @@ func TestFSM_ClusterMetadata(t *testing.T) {
 	r.NoError(err)
 	r.Equal(clusterID, storedMetadata.ClusterID)
 
-	// Check that the sanity check prevents accidental UUID regeneration
+	// Assert cluster ID cannot be overwritten and is not regenerated
 	erroneous := structs.ClusterMetadata{
 		ClusterID: "99999999-9999-9999-9999-9999999999",
 	}
@@ -3398,6 +3378,7 @@ func TestFSM_ACLEvents(t *testing.T) {
 				Topics: map[structs.Topic][]string{
 					tc.reqTopic: {"*"},
 				},
+				Namespace: "default",
 			}
 
 			sub, err := broker.Subscribe(subReq)
@@ -3451,6 +3432,7 @@ func TestFSM_EventBroker_JobRegisterFSMEvents(t *testing.T) {
 		Topics: map[structs.Topic][]string{
 			structs.TopicJob: {"*"},
 		},
+		Namespace: "default",
 	}
 
 	sub, err := broker.Subscribe(subReq)

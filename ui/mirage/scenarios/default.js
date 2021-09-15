@@ -39,6 +39,7 @@ export default function(server) {
 // Scenarios
 
 function smallCluster(server) {
+  server.create('feature', { name: 'Dynamic Application Sizing' });
   server.createList('agent', 3);
   server.createList('node', 5);
   server.createList('job', 5, { createRecommendations: true });

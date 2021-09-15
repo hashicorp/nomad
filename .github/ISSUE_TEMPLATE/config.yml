@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a Question
+    url: https://discuss.hashicorp.com/c/nomad
+    about: If you have a question, or are looking for advice, please post on our Discuss forum.
+  - name: Nomad Learn Tracks
+    url: https://learn.hashicorp.com/nomad
+    about: Please check out our Learn Guides. These hands on guides deal with many of the tasks common to using Nomad.

@@ -15,6 +15,8 @@ export default class DasRecommendationCardComponent extends Component {
 
   @tracked activeTaskToggleRowIndex = 0;
 
+  element = null;
+
   @tracked cardHeight;
   @tracked interstitialComponent;
   @tracked error;
@@ -166,9 +168,13 @@ export default class DasRecommendationCardComponent extends Component {
 
   @action
   accept() {
+    this.storeCardHeight();
     this.args.summary
       .save()
-      .then(() => this.onApplied.perform(), e => this.onError.perform(e))
+      .then(
+        () => this.onApplied.perform(),
+        e => this.onError.perform(e)
+      )
       .catch(e => {
         if (!didCancel(e)) {
           throw e;
@@ -178,10 +184,14 @@ export default class DasRecommendationCardComponent extends Component {
 
   @action
   dismiss() {
+    this.storeCardHeight();
     this.args.summary.excludedRecommendations.pushObjects(this.args.summary.recommendations);
     this.args.summary
       .save()
-      .then(() => this.onDismissed.perform(), e => this.onError.perform(e))
+      .then(
+        () => this.onDismissed.perform(),
+        e => this.onError.perform(e)
+      )
       .catch(e => {
         if (!didCancel(e)) {
           throw e;
@@ -237,8 +247,12 @@ export default class DasRecommendationCardComponent extends Component {
   }
 
   @action
-  recommendationCardDestroying(element) {
-    this.cardHeight = element.clientHeight;
+  cardInserted(element) {
+    this.element = element;
+  }
+
+  storeCardHeight() {
+    this.cardHeight = this.element.clientHeight;
   }
 }
 

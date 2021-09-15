@@ -11,6 +11,7 @@ Options (use one of the following):
  --nomad_sha SHA          full git sha to install from S3
  --nomad_version VERSION  release version number (ex. 0.12.4+ent)
  --nomad_binary FILEPATH  path to file on host
+ --nomad_url URL          url to nomad binary archive
 
 Options for configuration:
  --config_profile FILEPATH  path to config profile directory
@@ -18,7 +19,12 @@ Options for configuration:
  --index INDEX              count of instance, for profiles with per-instance config
  --nostart                  do not start or restart Nomad
  --enterprise               if nomad_sha is passed, use the ENT version
+ --nomad_license            set the NOMAD_LICENSE environment variable
  --nomad_acls               write Nomad ACL configuration
+ --autojoin                 the AWS ConsulAutoJoin tag value
+ --tls
+ --cert FILEPATH
+ --key FILEPATH
 
 EOF
 
@@ -36,7 +42,10 @@ NOMAD_PROFILE=
 NOMAD_ROLE=
 NOMAD_INDEX=
 BUILD_FOLDER="builds-oss"
+CONSUL_AUTOJOIN=
 ACLS=0
+NOMAD_LICENSE=
+TLS=0
 
 install_from_s3() {
     # check that we don't already have this version
@@ -68,6 +77,20 @@ install_from_release() {
     RELEASE_URL="https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_${PLATFORM}.zip"
     curl -sL --fail -o /tmp/nomad.zip "$RELEASE_URL"
     sudo unzip -o /tmp/nomad.zip -d "$INSTALL_DIR"
+    set_ownership
+}
+
+install_from_url() {
+    case "${NOMAD_URL}" in
+        *.zip*)
+            curl -sL --fail -o /tmp/nomad.zip "$NOMAD_URL"
+            sudo unzip -o /tmp/nomad.zip -d "$INSTALL_DIR"
+            ;;
+        *.tar.gz*)
+            curl -sL --fail -o /tmp/nomad.zip "$NOMAD_URL"
+            sudo tar -zxvf nomad.tar.gz -C "$INSTALL_DIR"
+            ;;
+    esac
     set_ownership
 }
 
@@ -116,8 +139,21 @@ install_config_profile() {
     if [ $ACLS == "1" ]; then
         sudo ln -fs /opt/config/shared/nomad-acl.hcl /etc/nomad.d/acl.hcl
     fi
+
+    if [ $TLS == "1" ]; then
+        sudo ln -fs /opt/config/shared/nomad-tls.hcl /etc/nomad.d/tls.hcl
+        sudo ln -fs /opt/config/shared/consul-tls.json /etc/consul.d/tls.json
+        sudo cp /opt/config/shared/vault-tls.hcl /etc/vault.d/vault.hcl
+
+        sudo cp -r /tmp/nomad-tls /etc/nomad.d/tls
+        sudo cp -r /tmp/nomad-tls /etc/consul.d/tls
+        sudo cp -r /tmp/nomad-tls /etc/vault.d/tls
+    fi
 }
 
+update_consul_autojoin() {
+    sudo sed -i'' -e "s|tag_key=ConsulAutoJoin tag_value=auto-join|tag_key=ConsulAutoJoin tag_value=${CONSUL_AUTOJOIN}|g" /etc/consul.d/*.json
+}
 
 while [[ $# -gt 0 ]]
 do
@@ -141,6 +177,12 @@ opt="$1"
             install_fn=install_from_uploaded_binary
             shift 2
             ;;
+        --nomad_url)
+            if [ -z "$2" ]; then echo "Missing URL parameter"; usage; fi
+            NOMAD_URL="$2"
+            install_fn=install_from_url
+            shift 2
+            ;;
         --config_profile)
             if [ -z "$2" ]; then echo "Missing profile parameter"; usage; fi
             NOMAD_PROFILE="/opt/config/${2}"
@@ -156,6 +198,11 @@ opt="$1"
             NOMAD_INDEX="$2"
             shift 2
             ;;
+        --autojoin)
+            if [ -z "$2" ]; then ehco "Missing autojoin parameter"; usage; fi
+            CONSUL_AUTOJOIN="$2"
+            shift 2
+            ;;
         --nostart)
             # for initial packer builds, we don't want to start Nomad
             START=0
@@ -165,8 +212,17 @@ opt="$1"
             BUILD_FOLDER="builds-ent"
             shift
             ;;
+        --nomad_license)
+            if [ -z "$2" ]; then echo "Missing license parameter"; usage; fi
+            NOMAD_LICENSE="$2"
+            shift 2
+            ;;
         --nomad_acls)
             ACLS=1
+            shift
+            ;;
+        --tls)
+            TLS=1
             shift
             ;;
         *) usage ;;
@@ -179,6 +235,16 @@ if [ -n "$install_fn" ]; then
 fi
 if [ -n "$NOMAD_PROFILE" ]; then
     install_config_profile
+fi
+
+if [ -n "$CONSUL_AUTOJOIN" ]; then
+    update_consul_autojoin
+fi
+
+sudo touch /etc/nomad.d/.environment
+if [ -n "$NOMAD_LICENSE" ]; then
+  echo "NOMAD_LICENSE=${NOMAD_LICENSE}" > /tmp/.nomad-environment
+  sudo mv /tmp/.nomad-environment /etc/nomad.d/.environment
 fi
 
 if [ $START == "1" ]; then

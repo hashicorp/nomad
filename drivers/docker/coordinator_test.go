@@ -168,11 +168,15 @@ func TestDockerCoordinator_Pull_Remove(t *testing.T) {
 	})
 
 	// Make sure there is no future still
-	coordinator.imageLock.Lock()
-	if _, ok := coordinator.deleteFuture[id]; ok {
-		t.Fatal("Got delete future")
-	}
-	coordinator.imageLock.Unlock()
+	testutil.WaitForResult(func() (bool, error) {
+		coordinator.imageLock.Lock()
+		defer coordinator.imageLock.Unlock()
+		_, ok := coordinator.deleteFuture[id]
+		return !ok, fmt.Errorf("got delete future")
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
 }
 
 func TestDockerCoordinator_Remove_Cancel(t *testing.T) {

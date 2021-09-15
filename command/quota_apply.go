@@ -264,6 +264,7 @@ func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
 	valid := []string{
 		"cpu",
 		"memory",
+		"memory_max",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "resources ->")

@@ -7,11 +7,13 @@ import (
 // Resources encapsulates the required resources of
 // a given task or task group.
 type Resources struct {
-	CPU      *int               `hcl:"cpu,optional"`
-	MemoryMB *int               `mapstructure:"memory" hcl:"memory,optional"`
-	DiskMB   *int               `mapstructure:"disk" hcl:"disk,optional"`
-	Networks []*NetworkResource `hcl:"network,block"`
-	Devices  []*RequestedDevice `hcl:"device,block"`
+	CPU         *int               `hcl:"cpu,optional"`
+	Cores       *int               `hcl:"cores,optional"`
+	MemoryMB    *int               `mapstructure:"memory" hcl:"memory,optional"`
+	MemoryMaxMB *int               `mapstructure:"memory_max" hcl:"memory_max,optional"`
+	DiskMB      *int               `mapstructure:"disk" hcl:"disk,optional"`
+	Networks    []*NetworkResource `hcl:"network,block"`
+	Devices     []*RequestedDevice `hcl:"device,block"`
 
 	// COMPAT(0.10)
 	// XXX Deprecated. Please do not use. The field will be removed in Nomad
@@ -24,9 +26,21 @@ type Resources struct {
 // where they are not provided.
 func (r *Resources) Canonicalize() {
 	defaultResources := DefaultResources()
-	if r.CPU == nil {
-		r.CPU = defaultResources.CPU
+	if r.Cores == nil {
+		r.Cores = defaultResources.Cores
+
+		// only set cpu to the default value if it and cores is not defined
+		if r.CPU == nil {
+			r.CPU = defaultResources.CPU
+		}
 	}
+
+	// CPU will be set to the default if cores is nil above.
+	// If cpu is nil here then cores has been set and cpu should be 0
+	if r.CPU == nil {
+		r.CPU = intToPtr(0)
+	}
+
 	if r.MemoryMB == nil {
 		r.MemoryMB = defaultResources.MemoryMB
 	}
@@ -42,6 +56,7 @@ func (r *Resources) Canonicalize() {
 func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      intToPtr(100),
+		Cores:    intToPtr(0),
 		MemoryMB: intToPtr(300),
 	}
 }
@@ -54,6 +69,7 @@ func DefaultResources() *Resources {
 func MinResources() *Resources {
 	return &Resources{
 		CPU:      intToPtr(1),
+		Cores:    intToPtr(0),
 		MemoryMB: intToPtr(10),
 	}
 }

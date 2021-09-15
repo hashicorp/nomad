@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: Agent Configuration
-sidebar_title: Configuration
 description: Learn about the configuration options available for the Nomad agent.
 ---
 
@@ -242,9 +241,9 @@ testing.
 - `log_json` `(bool: false)` - Output logs in a JSON format.
 
 - `log_file` `(string: "")` - Specifies the path for logging. If the path
-  does not includes a filename, the filename defaults to "nomad-{timestamp}.log".
-  This setting can be combined with `log_rotate_bytes` and `log_rotate_duration`
-  for a fine-grained log rotation control.
+  does not includes a filename, the filename defaults to `nomad.log`. This
+  setting can be combined with `log_rotate_bytes` and `log_rotate_duration` for
+  a fine-grained log rotation control.
 
 - `log_rotate_bytes` `(int: 0)` - Specifies the number of bytes that should be
   written to a log before it needs to be rotated. Unless specified, there is no
@@ -254,8 +253,11 @@ testing.
   log should be written to before it needs to be rotated. Must be a duration
   value such as 30s.
 
-- `log_rotate_max_files` `(int: 0)` - Specifies the maximum number of older log
-  file archives to keep. If 0 no files are ever deleted.
+- `log_rotate_max_files` `(int: 0)` - Specifies the maximum number of older
+  log file archives to keep, not including the log file currently being
+  written. If set to 0 no files are ever deleted. Note that the total number
+  of log files, for each of `stderr` and `stdout`, will be 1 greater than the
+  `log_rotate_max_files` value.
 
 - `name` `(string: [hostname])` - Specifies the name of the local node. This
   value is used to identify individual agents. When specified on a server, the
@@ -329,6 +331,12 @@ its configuration. The fields that currently support reloading are:
 In order to reload any other configuration values, you must restart the Nomad
 agent.
 
+<EnterpriseAlert>
+Nomad Enterprise requires a license. If the server.license_path
+configuration or NOMAD_LICENSE_PATH environment variable are set, the
+license will be reloaded from the file on a configuration reload.
+</EnterpriseAlert>
+
 If the Nomad agent receives a `SIGHUP` during initialization, it may crash
 (see [GH-3885]). Ensure that the Nomad agent is able to receive RPC traffic
 before attempting to reload its configuration.
@@ -369,4 +377,4 @@ http_api_response_headers {
 [hcl]: https://github.com/hashicorp/hcl 'HashiCorp Configuration Language'
 [tls-reload]: /docs/configuration/tls#tls-configuration-reloads
 [vault-reload]: /docs/configuration/vault#vault-configuration-reloads
-[GH-3885]: https://github.com/hashicorp/nomad/issues/3885
+[gh-3885]: https://github.com/hashicorp/nomad/issues/3885

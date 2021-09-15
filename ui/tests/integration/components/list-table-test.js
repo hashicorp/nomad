@@ -60,7 +60,7 @@ module('Integration | Component | list table', function(hooks) {
 
     // list-table is not responsible for sorting, only dispatching sort events. The table is still
     // rendered in index-order.
-    this.get('source').forEach((item, index) => {
+    this.source.forEach((item, index) => {
       const $item = this.element.querySelectorAll('.item')[index];
       assert.equal($item.querySelectorAll('td')[0].innerHTML.trim(), item.firstName, 'First name');
       assert.equal($item.querySelectorAll('td')[1].innerHTML.trim(), item.lastName, 'Last name');

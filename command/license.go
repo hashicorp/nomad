@@ -18,18 +18,12 @@ type LicenseCommand struct {
 func (l *LicenseCommand) Help() string {
 	helpText := `
 Usage: nomad license <subcommand> [options] [args]
-	
+
 This command has subcommands for managing the Nomad Enterprise license.
 For more detailed examples see:
 https://www.nomadproject.io/docs/commands/license/
 
-Install a new license from a file:
-	$ nomad license put <path>
-
-Install a new license from stdin:
-	$ nomad license put -
-
-Retrieve the current license:
+Retrieve the server's license:
 
 	$ nomad license get
 
@@ -48,19 +42,16 @@ func (l *LicenseCommand) Run(args []string) int {
 }
 
 func OutputLicenseReply(ui cli.Ui, resp *api.LicenseReply) int {
-	var validity string
 	now := time.Now()
-	if resp.License.ExpirationTime.Before(now) {
-		validity = "expired!"
-		outputLicenseInfo(ui, resp.License, true, validity)
+	expired := resp.License.ExpirationTime.Before(now)
+	outputLicenseInfo(ui, resp.License, expired)
+	if expired {
 		return 1
 	}
-	validity = "valid"
-	outputLicenseInfo(ui, resp.License, false, validity)
 	return 0
 }
 
-func outputLicenseInfo(ui cli.Ui, lic *api.License, expired bool, validity string) {
+func outputLicenseInfo(ui cli.Ui, lic *api.License, expired bool) {
 	expStr := ""
 	if expired {
 		expStr = fmt.Sprintf("Expired At|%s", lic.ExpirationTime.String())
@@ -68,13 +59,17 @@ func outputLicenseInfo(ui cli.Ui, lic *api.License, expired bool, validity strin
 		expStr = fmt.Sprintf("Expires At|%s", lic.ExpirationTime.String())
 	}
 
+	validity := "valid"
+	if expired {
+		validity = "expired!"
+	}
 	output := []string{
 		fmt.Sprintf("Product|%s", lic.Product),
 		fmt.Sprintf("License Status|%s", validity),
 		fmt.Sprintf("License ID|%s", lic.LicenseID),
 		fmt.Sprintf("Customer ID|%s", lic.CustomerID),
+		fmt.Sprintf("Issued At|%s", lic.IssueTime),
 		expStr,
-		fmt.Sprintf("Terminates At|%s", lic.TerminationTime.String()),
 		fmt.Sprintf("Datacenter|%s", lic.InstallationID),
 	}
 	ui.Output(formatKV(output))

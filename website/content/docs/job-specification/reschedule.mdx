@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: reschedule Stanza - Job Specification
-sidebar_title: reschedule
 description: >-
   The "reschedule" stanza specifies the group's rescheduling strategy upon
 
@@ -47,8 +46,8 @@ job "docs" {
 }
 ```
 
-~> The reschedule stanza does not apply to `system` jobs because they run on
-every node.
+~> The reschedule stanza does not apply to `system` or `sysbatch` jobs because
+they run on every node.
 
 ## `reschedule` Parameters
 

@@ -27,7 +27,7 @@ export default class TaskRow extends Component {
   }
 
   // Since all tasks for an allocation share the same tracker, use the registry
-  @computed('task', 'task.isRunning')
+  @computed('task.{allocation,isRunning}')
   get stats() {
     if (!this.get('task.isRunning')) return undefined;
 

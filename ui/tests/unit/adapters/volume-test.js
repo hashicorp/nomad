@@ -58,20 +58,6 @@ module('Unit | Adapter | Volume', function(hooks) {
     assert.deepEqual(pretender.handledRequests.mapBy('url'), ['/v1/volumes?type=csi']);
   });
 
-  test('When a namespace is set in localStorage and the volume endpoint is queried, the namespace is in the query string', async function(assert) {
-    const { pretender } = this.server;
-
-    window.localStorage.nomadActiveNamespace = 'some-namespace';
-    await this.initializeUI();
-
-    this.subject().query(this.store, { modelName: 'volume' }, { type: 'csi' }, null, {});
-    await settled();
-
-    assert.deepEqual(pretender.handledRequests.mapBy('url'), [
-      '/v1/volumes?namespace=some-namespace&type=csi',
-    ]);
-  });
-
   test('When the volume has a namespace other than default, it is in the URL', async function(assert) {
     const { pretender } = this.server;
     const volumeName = 'csi/volume-1';

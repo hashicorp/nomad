@@ -1,8 +1,8 @@
 import { computed } from '@ember/object';
 import { equal } from '@ember/object/computed';
-import Model from 'ember-data/model';
-import attr from 'ember-data/attr';
-import { hasMany } from 'ember-data/relationships';
+import Model from '@ember-data/model';
+import { attr } from '@ember-data/model';
+import { hasMany } from '@ember-data/model';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import shortUUIDProperty from '../utils/properties/short-uuid';
@@ -102,7 +102,9 @@ export default class Node extends Model {
   // Useful for coloring and sorting nodes
   @computed('isDraining', 'isEligible', 'status')
   get compositeStatus() {
-    if (this.isDraining) {
+    if (this.status === 'down') {
+      return 'down';
+    } else if (this.isDraining) {
       return 'draining';
     } else if (!this.isEligible) {
       return 'ineligible';

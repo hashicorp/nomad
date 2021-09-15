@@ -1,7 +1,6 @@
 ---
 layout: api
 page_title: Scheduler - Operator - HTTP API
-sidebar_title: Scheduler
 description: |-
   The /operator/scheduler endpoints provide tools for management of Nomad server scheduler settings.
 ---
@@ -12,8 +11,7 @@ The `/operator/scheduler` endpoints provide tools for management of Nomad server
 
 ## Read Scheduler Configuration
 
-This endpoint retrieves the latest Scheduler configuration. This API was introduced in
-Nomad 0.9 and currently supports enabling/disabling preemption. More options may be added in
+This endpoint retrieves the latest Scheduler configuration. More options may be added in
 the future.
 
 | Method | Path                                   | Produces           |
@@ -46,6 +44,7 @@ $ curl \
     "CreateIndex": 5,
     "ModifyIndex": 5,
     "SchedulerAlgorithm": "spread",
+    "MemoryOversubscriptionEnabled": true,
     "PreemptionConfig": {
       "SystemSchedulerEnabled": true,
       "BatchSchedulerEnabled": false,
@@ -64,6 +63,8 @@ $ curl \
   settings mentioned below.
 
   - `SchedulerAlgorithm` `(string: "binpack")` - Specifies whether scheduler binpacks or spreads allocations on available nodes.
+
+  - `MemoryOversubscriptionEnabled` `(bool: false)` <sup>1.1 Beta</sup> - When `true`, tasks may exceed their reserved memory limit, if the client has excess memory capacity. Tasks must specify [`memory_max`](/docs/job-specification/resources#memory_max) to take advantage of memory oversubscription.
 
   - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
 
@@ -112,6 +113,7 @@ server state is authoritative.
 ```json
 {
   "SchedulerAlgorithm": "spread",
+  "MemoryOversubscriptionEnabled": false,
   "PreemptionConfig": {
     "SystemSchedulerEnabled": true,
     "BatchSchedulerEnabled": false,
@@ -123,6 +125,8 @@ server state is authoritative.
 - `SchedulerAlgorithm` `(string: "binpack")` - Specifies whether scheduler
   binpacks or spreads allocations on available nodes. Possible values are
   `"binpack"` and `"spread"`
+
+- `MemoryOversubscriptionEnabled` `(bool: false)` <sup>1.1 Beta</sup> - When `true`, tasks may exceed their reserved memory limit, if the client has excess memory capacity. Tasks must specify [`memory_max`](/docs/job-specification/resources#memory_max) to take advantage of memory oversubscription.
 
 - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for
   various schedulers.

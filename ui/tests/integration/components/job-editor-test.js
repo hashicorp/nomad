@@ -328,7 +328,7 @@ module('Integration | Component | job-editor', function(hooks) {
     await planJob(spec);
     await Editor.run();
     assert.ok(
-      this.get('onSubmit').calledWith(newJobName, 'default'),
+      this.onSubmit.calledWith(newJobName, 'default'),
       'The onSubmit hook was called with the correct arguments'
     );
   });
@@ -354,6 +354,6 @@ module('Integration | Component | job-editor', function(hooks) {
 
     await renderEditJob(this, job);
     await Editor.cancelEditing();
-    assert.ok(this.get('onCancel').calledOnce, 'The onCancel hook was called');
+    assert.ok(this.onCancel.calledOnce, 'The onCancel hook was called');
   });
 });

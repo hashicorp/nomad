@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: network Stanza - Job Specification
-sidebar_title: network
 description: |-
   The "network" stanza specifies the networking requirements for the task group,
   including networking mode and port allocations.
@@ -24,6 +23,12 @@ all tasks in the task group share the same network namespace. This is a prerequi
 network namespace are not visible to applications outside the namespace on the same host.
 This allows [Connect][]-enabled applications to bind only to localhost within the shared network stack,
 and use the proxy for ingress and egress traffic.
+
+To use `bridge` mode, you must have the [reference CNI
+plugins](https://github.com/containernetworking/plugins/releases/tag/v1.0.0)
+installed at the location specified by the client's [`cni_path`]
+configuration. These plugins are used to create the bridge network and
+configure the appropriate iptables rules.
 
 Note that this document only applies to services that want to _listen_ on a
 port. Batch jobs or services that only make outbound connections do not need to
@@ -73,9 +78,10 @@ job "docs" {
   dynamic port is chosen. We **do not recommend** using static ports, except
   for `system` or specialized jobs like load balancers.
 - `to` `(string:nil)` - Applicable when using "bridge" mode to configure port
-  to map to inside the task's network namespace. `-1` sets the mapped port equal to the
-  dynamic port allocated by the scheduler. The `NOMAD_PORT_<label>` environment variable
-  will contain the `to` value.
+  to map to inside the task's network namespace. Omitting this field or
+  setting it to `-1` sets the mapped port equal to the dynamic port allocated
+  by the scheduler. The `NOMAD_PORT_<label>` environment variable will contain
+  the `to` value.
 - `host_network` `(string:nil)` - Designates the host network name to use when allocating
   the port. When port mapping the host port will only forward traffic to the matched host
   network address.
@@ -265,8 +271,6 @@ If not set the "default" host network is used which is commonly the address with
 
 When Nomad does port mapping for ports with a defined `host_network`, the port mapping rule will use the host address as the destination address.
 
-~> Note: `host_network` does not currently support task-based mapped ports such as the Docker driver's `port_map` configuration.
-
 ```hcl
 network {
   mode = "bridge"
@@ -294,3 +298,4 @@ network {
 [docker-driver]: /docs/drivers/docker 'Nomad Docker Driver'
 [qemu-driver]: /docs/drivers/qemu 'Nomad QEMU Driver'
 [connect]: /docs/job-specification/connect 'Nomad Consul Connect Integration'
+[`cni_path`]: /docs/configuration/client#cni_path

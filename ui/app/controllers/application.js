@@ -7,6 +7,7 @@ import { computed } from '@ember/object';
 import Ember from 'ember';
 import codesForError from '../utils/codes-for-error';
 import NoLeaderError from '../utils/no-leader-error';
+import OTTExchangeError from '../utils/ott-exchange-error';
 import classic from 'ember-classic-decorator';
 
 @classic
@@ -18,9 +19,14 @@ export default class ApplicationController extends Controller {
     {
       region: 'region',
     },
+    {
+      oneTimeToken: 'ott',
+    },
   ];
 
   region = null;
+
+  oneTimeToken = '';
 
   error = null;
 
@@ -53,6 +59,12 @@ export default class ApplicationController extends Controller {
   get isNoLeader() {
     const error = this.error;
     return error instanceof NoLeaderError;
+  }
+
+  @computed('error')
+  get isOTTExchange() {
+    const error = this.error;
+    return error instanceof OTTExchangeError;
   }
 
   @observes('error')

@@ -5,7 +5,12 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Topology from 'nomad-ui/tests/pages/topology';
-import { reduceToLargestUnit } from 'nomad-ui/helpers/format-bytes';
+import {
+  formatBytes,
+  formatScheduledBytes,
+  formatHertz,
+  formatScheduledHertz,
+} from 'nomad-ui/utils/units';
 import queryString from 'query-string';
 
 const sumResources = (list, dimension) =>
@@ -60,17 +65,14 @@ module('Acceptance | topology', function(hooks) {
     assert.equal(Topology.clusterInfoPanel.memoryProgressValue, reservedMem / totalMem);
     assert.equal(Topology.clusterInfoPanel.cpuProgressValue, reservedCPU / totalCPU);
 
-    const [rNum, rUnit] = reduceToLargestUnit(reservedMem * 1024 * 1024);
-    const [tNum, tUnit] = reduceToLargestUnit(totalMem * 1024 * 1024);
-
     assert.equal(
       Topology.clusterInfoPanel.memoryAbsoluteValue,
-      `${Math.floor(rNum)} ${rUnit} / ${Math.floor(tNum)} ${tUnit} reserved`
+      `${formatBytes(reservedMem * 1024 * 1024)} / ${formatBytes(totalMem * 1024 * 1024)} reserved`
     );
 
     assert.equal(
       Topology.clusterInfoPanel.cpuAbsoluteValue,
-      `${reservedCPU} MHz / ${totalCPU} MHz reserved`
+      `${formatHertz(reservedCPU, 'MHz')} / ${formatHertz(totalCPU, 'MHz')} reserved`
     );
   });
 
@@ -156,6 +158,34 @@ module('Acceptance | topology', function(hooks) {
     assert.equal(currentURL(), `/clients/${node.id}`);
   });
 
+  test('changing which allocation is selected changes the metric charts', async function(assert) {
+    server.create('node');
+    const job1 = server.create('job', { createAllocations: false });
+    const taskGroup1 = server.schema.find('taskGroup', job1.taskGroupIds[0]).name;
+    server.create('allocation', {
+      forceRunningClientStatus: true,
+      jobId: job1.id,
+      taskGroup1,
+    });
+
+    const job2 = server.create('job', { createAllocations: false });
+    const taskGroup2 = server.schema.find('taskGroup', job2.taskGroupIds[0]).name;
+    server.create('allocation', {
+      forceRunningClientStatus: true,
+      jobId: job2.id,
+      taskGroup2,
+    });
+
+    await Topology.visit();
+    await Topology.viz.datacenters[0].nodes[0].memoryRects[0].select();
+    const firstAllocationTaskNames = Topology.allocInfoPanel.charts[0].areas.mapBy('taskName');
+
+    await Topology.viz.datacenters[0].nodes[0].memoryRects[1].select();
+    const secondAllocationTaskNames = Topology.allocInfoPanel.charts[0].areas.mapBy('taskName');
+
+    assert.notDeepEqual(firstAllocationTaskNames, secondAllocationTaskNames);
+  });
+
   test('when a node is selected, the info panel shows information on the node', async function(assert) {
     // A high node count is required for node selection
     const nodes = server.createList('node', 51);
@@ -199,17 +229,20 @@ module('Acceptance | topology', function(hooks) {
     assert.equal(Topology.nodeInfoPanel.memoryProgressValue, reservedMem / totalMem);
     assert.equal(Topology.nodeInfoPanel.cpuProgressValue, reservedCPU / totalCPU);
 
-    const [rNum, rUnit] = reduceToLargestUnit(reservedMem * 1024 * 1024);
-    const [tNum, tUnit] = reduceToLargestUnit(totalMem * 1024 * 1024);
-
     assert.equal(
       Topology.nodeInfoPanel.memoryAbsoluteValue,
-      `${Math.floor(rNum)} ${rUnit} / ${Math.floor(tNum)} ${tUnit} reserved`
+      `${formatScheduledBytes(reservedMem * 1024 * 1024)} / ${formatScheduledBytes(
+        totalMem,
+        'MiB'
+      )} reserved`
     );
 
     assert.equal(
       Topology.nodeInfoPanel.cpuAbsoluteValue,
-      `${reservedCPU} MHz / ${totalCPU} MHz reserved`
+      `${formatScheduledHertz(reservedCPU, 'MHz')} / ${formatScheduledHertz(
+        totalCPU,
+        'MHz'
+      )} reserved`
     );
 
     await Topology.nodeInfoPanel.visitNode();

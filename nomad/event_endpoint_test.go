@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -96,7 +97,7 @@ OUTER:
 			}
 
 			// ignore heartbeat
-			if msg.Event == stream.JsonHeartbeat {
+			if bytes.Equal(msg.Event.Data, stream.JsonHeartbeat.Data) {
 				continue
 			}
 
@@ -283,7 +284,7 @@ OUTER:
 				t.Fatalf("Got error: %v", msg.Error.Error())
 			}
 
-			if msg.Event == stream.JsonHeartbeat {
+			if bytes.Equal(msg.Event.Data, stream.JsonHeartbeat.Data) {
 				continue
 			}
 

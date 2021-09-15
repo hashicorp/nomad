@@ -1,6 +1,5 @@
-import Model from 'ember-data/model';
-import attr from 'ember-data/attr';
-import { belongsTo } from 'ember-data/relationships';
+import Model from '@ember-data/model';
+import { attr, belongsTo } from '@ember-data/model';
 
 export default class JobVersion extends Model {
   @belongsTo('job') job;
@@ -8,4 +7,8 @@ export default class JobVersion extends Model {
   @attr('date') submitTime;
   @attr('number') number;
   @attr() diff;
+
+  revertTo() {
+    return this.store.adapterFor('job-version').revertTo(this);
+  }
 }

@@ -119,7 +119,7 @@ func TestDebug_NodeClass(t *testing.T) {
 	cases := testCases{
 		{
 			name:         "address=api, node-class=clienta, max-nodes=2",
-			args:         []string{"-address", url, "-duration", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clienta", "-max-nodes", "2"},
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clienta", "-max-nodes", "2"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Servers: (1/1)",
@@ -132,7 +132,7 @@ func TestDebug_NodeClass(t *testing.T) {
 		},
 		{
 			name:         "address=api, node-class=clientb, max-nodes=2",
-			args:         []string{"-address", url, "-duration", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clientb", "-max-nodes", "2"},
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clientb", "-max-nodes", "2"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Servers: (1/1)",
@@ -189,19 +189,19 @@ func TestDebug_ClientToServer(t *testing.T) {
 	var cases = testCases{
 		{
 			name:            "testAgent api server",
-			args:            []string{"-address", url, "-duration", "250ms", "-server-id", "all", "-node-id", "all"},
+			args:            []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode:    0,
 			expectedOutputs: []string{"Created debug archive"},
 		},
 		{
 			name:            "server address",
-			args:            []string{"-address", addrServer, "-duration", "250ms", "-server-id", "all", "-node-id", "all"},
+			args:            []string{"-address", addrServer, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode:    0,
 			expectedOutputs: []string{"Created debug archive"},
 		},
 		{
 			name:            "client1 address - verify no SIGSEGV panic",
-			args:            []string{"-address", addrClient1, "-duration", "250ms", "-server-id", "all", "-node-id", "all"},
+			args:            []string{"-address", addrClient1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode:    0,
 			expectedOutputs: []string{"Created debug archive"},
 		},
@@ -218,7 +218,7 @@ func TestDebug_SingleServer(t *testing.T) {
 	var cases = testCases{
 		{
 			name:         "address=api, server-id=leader",
-			args:         []string{"-address", url, "-duration", "250ms", "-server-id", "leader"},
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Servers: (1/1)",
@@ -229,7 +229,7 @@ func TestDebug_SingleServer(t *testing.T) {
 		},
 		{
 			name:         "address=api, server-id=all",
-			args:         []string{"-address", url, "-duration", "250ms", "-server-id", "all"},
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Servers: (1/1)",
@@ -261,7 +261,7 @@ func TestDebug_Failures(t *testing.T) {
 		},
 		{
 			name:         "Fails missing node ids",
-			args:         []string{"-node-id", "abc,def", "-duration", "250ms"},
+			args:         []string{"-node-id", "abc,def", "-duration", "250ms", "-interval", "250ms"},
 			expectedCode: 1,
 		},
 		{
@@ -272,6 +272,11 @@ func TestDebug_Failures(t *testing.T) {
 		{
 			name:         "Fails bad intervals",
 			args:         []string{"-interval", "bar"},
+			expectedCode: 1,
+		},
+		{
+			name:         "Fails intervals greater than duration",
+			args:         []string{"-duration", "5m", "-interval", "10m"},
 			expectedCode: 1,
 		},
 		{
@@ -307,7 +312,7 @@ func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
 	// Debug on the leader and all client nodes
-	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "leader", "-node-id", "all", "-output", os.TempDir()})
+	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-node-id", "all", "-output", os.TempDir()})
 	assert.Equal(t, 0, code)
 
 	// Bad plugin name should be escaped before it reaches the sandbox test
@@ -360,11 +365,16 @@ func TestDebug_CapturedFiles(t *testing.T) {
 
 		// Monitor files are only created when selected
 		filepath.Join(path, "server", "leader", "monitor.log"),
+
+		// Pprof profiles
 		filepath.Join(path, "server", "leader", "profile.prof"),
 		filepath.Join(path, "server", "leader", "trace.prof"),
 		filepath.Join(path, "server", "leader", "goroutine.prof"),
 		filepath.Join(path, "server", "leader", "goroutine-debug1.txt"),
 		filepath.Join(path, "server", "leader", "goroutine-debug2.txt"),
+		filepath.Join(path, "server", "leader", "heap.prof"),
+		filepath.Join(path, "server", "leader", "allocs.prof"),
+		filepath.Join(path, "server", "leader", "threadcreate.prof"),
 
 		// Multiple snapshots are collected, 00 is always created
 		filepath.Join(path, "nomad", "0000", "jobs.json"),
@@ -377,7 +387,7 @@ func TestDebug_CapturedFiles(t *testing.T) {
 		filepath.Join(path, "nomad", "0001", "metrics.json"),
 	}
 
-	testutil.WaitForFiles(t, serverFiles)
+	testutil.WaitForFilesUntil(t, serverFiles, 2*time.Minute)
 }
 
 func TestDebug_ExistingOutput(t *testing.T) {
@@ -391,7 +401,7 @@ func TestDebug_ExistingOutput(t *testing.T) {
 	os.MkdirAll(path, 0755)
 	defer os.Remove(path)
 
-	code := cmd.Run([]string{"-output", os.TempDir(), "-duration", "50ms"})
+	code := cmd.Run([]string{"-output", os.TempDir(), "-duration", "50ms", "-interval", "50ms"})
 	require.Equal(t, 2, code)
 }
 
@@ -413,7 +423,7 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
 	// Debug on client - node class = "clienta"
-	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-server-id", "all"})
+	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all"})
 
 	assert.Equal(t, 0, code) // Pprof failure isn't fatal
 	require.Contains(t, ui.OutputWriter.String(), "Starting debugger")
@@ -433,17 +443,35 @@ func TestDebug_Utils(t *testing.T) {
 	require.Empty(t, xs)
 
 	// address calculation honors CONSUL_HTTP_SSL
-	e := &external{addrVal: "http://127.0.0.1:8500", ssl: true}
-	require.Equal(t, "https://127.0.0.1:8500", e.addr("foo"))
+	// ssl: true - Correct alignment
+	e := &external{addrVal: "https://127.0.0.1:8500", ssl: true}
+	addr := e.addr("foo")
+	require.Equal(t, "https://127.0.0.1:8500", addr)
 
-	e = &external{addrVal: "http://127.0.0.1:8500", ssl: false}
-	require.Equal(t, "http://127.0.0.1:8500", e.addr("foo"))
+	// ssl: true - protocol incorrect
+	e = &external{addrVal: "http://127.0.0.1:8500", ssl: true}
+	addr = e.addr("foo")
+	require.Equal(t, "https://127.0.0.1:8500", addr)
 
-	e = &external{addrVal: "127.0.0.1:8500", ssl: false}
-	require.Equal(t, "http://127.0.0.1:8500", e.addr("foo"))
-
+	// ssl: true - protocol missing
 	e = &external{addrVal: "127.0.0.1:8500", ssl: true}
-	require.Equal(t, "https://127.0.0.1:8500", e.addr("foo"))
+	addr = e.addr("foo")
+	require.Equal(t, "https://127.0.0.1:8500", addr)
+
+	// ssl: false - correct alignment
+	e = &external{addrVal: "http://127.0.0.1:8500", ssl: false}
+	addr = e.addr("foo")
+	require.Equal(t, "http://127.0.0.1:8500", addr)
+
+	// ssl: false - protocol incorrect
+	e = &external{addrVal: "https://127.0.0.1:8500", ssl: false}
+	addr = e.addr("foo")
+	require.Equal(t, "http://127.0.0.1:8500", addr)
+
+	// ssl: false - protocol missing
+	e = &external{addrVal: "127.0.0.1:8500", ssl: false}
+	addr = e.addr("foo")
+	require.Equal(t, "http://127.0.0.1:8500", addr)
 }
 
 func TestDebug_WriteBytes_Nil(t *testing.T) {

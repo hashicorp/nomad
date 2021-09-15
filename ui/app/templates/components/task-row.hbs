@@ -47,7 +47,7 @@
         {{x-icon "alert-triangle" class="is-warning"}}
       </span>
     {{else}}
-      <div class="inline-chart is-small tooltip" role="tooltip" aria-label="{{this.cpu.used}} / {{this.taskStats.reservedCPU}} MHz">
+      <div class="inline-chart is-small tooltip" role="tooltip" aria-label="{{format-hertz this.cpu.used}} / {{format-hertz this.taskStats.reservedCPU}}">
         <progress
           class="progress is-info is-small"
           value="{{this.cpu.percent}}"
@@ -67,7 +67,7 @@
         {{x-icon "alert-triangle" class="is-warning"}}
       </span>
     {{else}}
-      <div class="inline-chart tooltip" role="tooltip" aria-label="{{format-bytes this.memory.used}} / {{this.taskStats.reservedMemory}} MiB">
+      <div class="inline-chart tooltip" role="tooltip" aria-label="{{format-scheduled-bytes this.memory.used}} / {{format-scheduled-bytes this.taskStats.reservedMemory}}">
         <progress
           class="progress is-danger is-small"
           value="{{this.memory.percent}}"

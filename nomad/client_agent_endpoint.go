@@ -10,6 +10,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/host"

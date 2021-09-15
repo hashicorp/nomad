@@ -4,7 +4,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moment from 'moment';
-import { formatBytes } from 'nomad-ui/helpers/format-bytes';
+import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
 import PluginDetail from 'nomad-ui/tests/pages/storage/plugins/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
 
@@ -125,9 +125,10 @@ module('Acceptance | plugin detail', function(hooks) {
         Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
         'CPU %'
       );
+      const roundedTicks = Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks);
       assert.equal(
         allocationRow.cpuTooltip,
-        `${Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks)} / ${cpuUsed} MHz`,
+        `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
         'Detailed CPU information is in a tooltip'
       );
       assert.equal(
@@ -137,7 +138,10 @@ module('Acceptance | plugin detail', function(hooks) {
       );
       assert.equal(
         allocationRow.memTooltip,
-        `${formatBytes([allocStats.resourceUsage.MemoryStats.RSS])} / ${memoryUsed} MiB`,
+        `${formatBytes(allocStats.resourceUsage.MemoryStats.RSS)} / ${formatBytes(
+          memoryUsed,
+          'MiB'
+        )}`,
         'Detailed memory information is in a tooltip'
       );
     });

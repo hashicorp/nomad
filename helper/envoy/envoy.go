@@ -2,6 +2,10 @@
 // selecting an envoy version.
 package envoy
 
+import (
+	"fmt"
+)
+
 const (
 	// SidecarMetaParam is the parameter name used to configure the connect sidecar
 	// at the client level. Setting this option in client configuration takes the
@@ -27,7 +31,7 @@ const (
 	// gateway proxies, when they are injected in the job connect mutator.
 	GatewayConfigVar = "${meta." + GatewayMetaParam + "}"
 
-	// envoyImageFormat is the default format string used for official envoy Docker
+	// ImageFormat is the default format string used for official envoy Docker
 	// images with the tag being the semver of the version of envoy. Nomad fakes
 	// interpolation of ${NOMAD_envoy_version} by replacing it with the version
 	// string for envoy that Consul reports as preferred.
@@ -37,7 +41,7 @@ const (
 	// to something like: "custom/envoy:${NOMAD_envoy_version}".
 	ImageFormat = "envoyproxy/envoy:v" + VersionVar
 
-	// envoyVersionVar will be replaced with the Envoy version string when
+	// VersionVar will be replaced with the Envoy version string when
 	// used in the meta.connect.sidecar_image variable.
 	VersionVar = "${NOMAD_envoy_version}"
 
@@ -47,3 +51,13 @@ const (
 	// dynamic envoy versions.
 	FallbackImage = "envoyproxy/envoy:v1.11.2@sha256:a7769160c9c1a55bb8d07a3b71ce5d64f72b1f665f10d81aa1581bc3cf850d09"
 )
+
+// PortLabel creates a consistent port label using the inputs of a prefix,
+// service name, and optional suffix. The prefix should be the Kind part of
+// TaskKind the envoy is being configured for.
+func PortLabel(prefix, service, suffix string) string {
+	if suffix == "" {
+		return fmt.Sprintf("%s-%s", prefix, service)
+	}
+	return fmt.Sprintf("%s-%s-%s", prefix, service, suffix)
+}

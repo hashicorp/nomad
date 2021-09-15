@@ -1,11 +1,10 @@
 ---
 layout: docs
 page_title: update Stanza - Job Specification
-sidebar_title: update
 description: |-
   The "update" stanza specifies the group's update strategy. The update strategy
   is used to control things like rolling upgrades and canary deployments. If
-  omitted, rolling updates and canaries are disabled.
+  omitted, a default update strategy is applied.
 ---
 
 # `update` Stanza
@@ -19,7 +18,7 @@ description: |-
 
 The `update` stanza specifies the group's update strategy. The update strategy
 is used to control things like [rolling upgrades][rolling] and [canary
-deployments][canary]. If omitted, rolling updates and canaries are disabled. If
+deployments][canary]. If omitted, a default update strategy is applied. If
 specified at the job level, the configuration will apply to all groups within
 the job. If multiple `update` stanzas are specified, they are merged with the
 group stanza taking the highest precedence and then the job.
@@ -83,26 +82,30 @@ a future release.
 - `progress_deadline` `(string: "10m")` - Specifies the deadline in which an
   allocation must be marked as healthy. The deadline begins when the first
   allocation for the deployment is created and is reset whenever an allocation
-  as part of the deployment transitions to a healthy state. If no allocation
-  transitions to the healthy state before the progress deadline, the deployment
-  is marked as failed. If the `progress_deadline` is set to `0`, the first
-  allocation to be marked as unhealthy causes the deployment to fail. This is
-  specified using a label suffix like "2m" or "1h".
+  as part of the deployment transitions to a healthy state or when a
+  deployment is manually promoted. If no allocation transitions to the healthy
+  state before the progress deadline, the deployment is marked as failed. If
+  the `progress_deadline` is set to `0`, the first allocation to be marked as
+  unhealthy causes the deployment to fail. This is specified using a label
+  suffix like "2m" or "1h".
 
 - `auto_revert` `(bool: false)` - Specifies if the job should auto-revert to the
   last stable job on deployment failure. A job is marked as stable if all the
   allocations as part of its deployment were marked healthy.
 
-- `auto_promote` `(bool: false)` - Specifies if the job should auto-promote to the
-  canary version when all canaries become healthy during a deployment. Defaults to
-  false which means canaries must be manually updated with the `nomad deployment promote`
-  command.
+- `auto_promote` `(bool: false)` - Specifies if the job should auto-promote to
+  the canary version when all canaries become healthy during a
+  deployment. Defaults to false which means canaries must be manually updated
+  with the `nomad deployment promote` command. If a job has multiple task
+  groups, all must be set to `auto_promote = true` in order for the deployment
+  to be promoted automatically.
 
 - `canary` `(int: 0)` - Specifies that changes to the job that would result in
   destructive updates should create the specified number of canaries without
   stopping any previous allocations. Once the operator determines the canaries
   are healthy, they can be promoted which unblocks a rolling update of the
-  remaining allocations at a rate of `max_parallel`.
+  remaining allocations at a rate of `max_parallel`. Canary deployments cannot
+  be used with CSI volumes when `per_alloc = true`.
 
 - `stagger` `(string: "30s")` - Specifies the delay between each set of
   [`max_parallel`](#max_parallel) updates when updating system jobs. This

@@ -25,14 +25,18 @@ export default class OptimizeRoute extends Route {
   async model() {
     const summaries = await this.store.findAll('recommendation-summary');
     const jobs = await RSVP.all(summaries.mapBy('job'));
-    await RSVP.all(
-      jobs
+    const [namespaces] = await RSVP.all([
+      this.store.findAll('namespace'),
+      ...jobs
         .filter(job => job)
         .filterBy('isPartial')
-        .map(j => j.reload())
-    );
+        .map(j => j.reload()),
+    ]);
 
-    return summaries.sortBy('submitTime').reverse();
+    return {
+      summaries: summaries.sortBy('submitTime').reverse(),
+      namespaces,
+    };
   }
 
   @action

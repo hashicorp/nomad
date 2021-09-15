@@ -33,7 +33,7 @@ job "countdash" {
       driver = "docker"
 
       config {
-        image = "hashicorpnomad/counter-api:v2"
+        image = "hashicorpnomad/counter-api:v3"
       }
     }
   }
@@ -72,7 +72,7 @@ job "countdash" {
       }
 
       config {
-        image = "hashicorpnomad/counter-dashboard:v2"
+        image = "hashicorpnomad/counter-dashboard:v3"
       }
     }
   }

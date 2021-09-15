@@ -50,7 +50,7 @@ export default Mixin.create({
     }
   },
 
-  fuse: computed('listToSearch.[]', 'fuzzySearchProps.[]', function() {
+  fuse: computed('fuzzySearchProps.[]', 'includeFuzzySearchMatches', 'listToSearch.[]', function() {
     return new Fuse(this.listToSearch, {
       shouldSort: true,
       threshold: 0.4,
@@ -69,14 +69,16 @@ export default Mixin.create({
   }),
 
   listSearched: computed(
-    'searchTerm',
-    'listToSearch.[]',
     'exactMatchEnabled',
-    'fuzzySearchEnabled',
-    'regexEnabled',
     'exactMatchSearchProps.[]',
+    'fuse',
+    'fuzzySearchEnabled',
     'fuzzySearchProps.[]',
+    'includeFuzzySearchMatches',
+    'listToSearch.[]',
+    'regexEnabled',
     'regexSearchProps.[]',
+    'searchTerm',
     function() {
       const searchTerm = this.searchTerm.trim();
 

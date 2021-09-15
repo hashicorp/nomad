@@ -1,9 +1,8 @@
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import { equal, none } from '@ember/object/computed';
-import Model from 'ember-data/model';
-import attr from 'ember-data/attr';
-import { belongsTo, hasMany } from 'ember-data/relationships';
+import Model from '@ember-data/model';
+import { attr, belongsTo, hasMany } from '@ember-data/model';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import intersection from 'lodash.intersection';
 import shortUUIDProperty from '../utils/properties/short-uuid';
@@ -120,7 +119,7 @@ export default class Allocation extends Model {
     return this.get('rescheduleEvents.length') > 0 || this.nextAllocation;
   }
 
-  @computed('nextAllocation', 'clientStatus', 'followUpEvaluation.content')
+  @computed('clientStatus', 'followUpEvaluation.content', 'nextAllocation.content')
   get hasStoppedRescheduling() {
     return (
       !this.get('nextAllocation.content') &&

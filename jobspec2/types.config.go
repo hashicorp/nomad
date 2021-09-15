@@ -71,6 +71,13 @@ func (c *jobConfig) decodeBody(body hcl.Body) hcl.Diagnostics {
 	diags = append(diags, moreDiags...)
 	diags = append(diags, c.evaluateLocalVariables(c.LocalBlocks)...)
 
+	// Errors at this point are likely syntax errors which can result in
+	// invalid state when we try to decode the rest of the job. If we continue
+	// we may panic and that will obscure the error, so return early so the
+	// user can be told how to fix their jobspec.
+	if diags.HasErrors() {
+		return diags
+	}
 	nctx := c.EvalContext()
 
 	diags = append(diags, c.decodeJob(content, nctx)...)
@@ -261,6 +268,9 @@ func (c *jobConfig) decodeJob(content *hcl.BodyContent, ctx *hcl.EvalContext) hc
 
 		c.JobID = b.Labels[0]
 
+		metaAttr, body, mdiags := decodeAsAttribute(body, ctx, "meta")
+		diags = append(diags, mdiags...)
+
 		extra, remain, mdiags := body.PartialContent(&hcl.BodySchema{
 			Blocks: []hcl.BlockHeaderSchema{
 				{Type: "vault"},
@@ -271,6 +281,10 @@ func (c *jobConfig) decodeJob(content *hcl.BodyContent, ctx *hcl.EvalContext) hc
 		diags = append(diags, mdiags...)
 		diags = append(diags, c.decodeTopLevelExtras(extra, ctx)...)
 		diags = append(diags, hclDecoder.DecodeBody(remain, ctx, c.Job)...)
+
+		if metaAttr != nil {
+			c.Job.Meta = metaAttr
+		}
 	}
 
 	if found == nil {
@@ -294,8 +308,40 @@ func (c *jobConfig) EvalContext() *hcl.EvalContext {
 			inputVariablesAccessor: cty.ObjectVal(vars),
 			localsAccessor:         cty.ObjectVal(locals),
 		},
-		UnknownVariable: func(expr string) (cty.Value, error) {
-			v := "${" + expr + "}"
+		UndefinedVariable: func(t hcl.Traversal) (cty.Value, hcl.Diagnostics) {
+			body := c.ParseConfig.Body
+			start := t.SourceRange().Start.Byte
+			end := t.SourceRange().End.Byte
+
+			v := string(body[start:end])
+
+			// find the start of inclusing "${..}" if it's inclused in one; otherwise, wrap it in one
+			isBracketed := false
+			for i := start - 1; i >= 1; i-- {
+				if body[i] == '{' && body[i-1] == '$' {
+					isBracketed = true
+					v = string(body[i-1:start]) + v
+					break
+				} else if body[i] != ' ' {
+					break
+				}
+			}
+
+			if isBracketed {
+				for i := end + 1; i < len(body); i++ {
+					if body[i] == '}' {
+						v += string(body[end:i])
+					} else if body[i] != ' ' {
+						// unexpected!
+						v += "}"
+						break
+					}
+				}
+
+			} else {
+				v = "${" + v + "}"
+			}
+
 			return cty.StringVal(v), nil
 		},
 	}

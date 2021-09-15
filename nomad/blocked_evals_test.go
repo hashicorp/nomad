@@ -2,7 +2,6 @@ package nomad
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
@@ -23,108 +22,115 @@ func testBlockedEvals(t *testing.T) (*BlockedEvals, *EvalBroker) {
 
 func TestBlockedEvals_Block_Disabled(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, _ := testBlockedEvals(t)
 	blocked.SetEnabled(false)
 
 	// Create an escaped eval and add it to the blocked tracker.
-	e := mock.Eval()
-	e.Status = structs.EvalStatusBlocked
+	e := mock.BlockedEval()
 	e.EscapedComputedClass = true
 	blocked.Block(e)
 
-	// Verify block did nothing
-	bStats := blocked.Stats()
-	if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", bStats)
-	}
+	// Verify block did nothing.
+	blockedStats := blocked.Stats()
+	require.Equal(0, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 0)
 }
 
 func TestBlockedEvals_Block_SameJob(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, _ := testBlockedEvals(t)
 
 	// Create two blocked evals and add them to the blocked tracker.
-	e := mock.Eval()
-	e2 := mock.Eval()
+	e := mock.BlockedEval()
+	e2 := mock.BlockedEval()
 	e2.JobID = e.JobID
 	blocked.Block(e)
 	blocked.Block(e2)
 
-	// Verify block did track both
-	bStats := blocked.Stats()
-	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", bStats)
-	}
+	// Verify block didn't track duplicate.
+	blockedStats := blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 }
 
 func TestBlockedEvals_Block_Quota(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, _ := testBlockedEvals(t)
 
-	// Create a blocked evals on quota
-	e := mock.Eval()
+	// Create a blocked eval on quota.
+	e := mock.BlockedEval()
 	e.QuotaLimitReached = "foo"
 	blocked.Block(e)
 
-	// Verify block did track both
-	bs := blocked.Stats()
-	if bs.TotalBlocked != 1 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 1 {
-		t.Fatalf("bad: %#v", bs)
-	}
+	// Verify block did track eval.
+	blockedStats := blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Equal(1, blockedStats.TotalQuotaLimit)
 }
 
 func TestBlockedEvals_Block_PriorUnblocks(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, _ := testBlockedEvals(t)
 
-	// Do unblocks prior to blocking
+	// Do unblocks prior to blocking.
 	blocked.Unblock("v1:123", 1000)
 	blocked.Unblock("v1:123", 1001)
 
-	// Create two blocked evals and add them to the blocked tracker.
-	e := mock.Eval()
-	e.Status = structs.EvalStatusBlocked
+	// Create blocked eval with two classes ineligible.
+	e := mock.BlockedEval()
 	e.ClassEligibility = map[string]bool{"v1:123": false, "v1:456": false}
 	e.SnapshotIndex = 999
 	blocked.Block(e)
 
-	// Verify block did track both
-	bStats := blocked.Stats()
-	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", bStats)
-	}
+	// Verify block did track eval.
+	blockedStats := blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 }
 
 func TestBlockedEvals_GetDuplicates(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, _ := testBlockedEvals(t)
 
 	// Create duplicate blocked evals and add them to the blocked tracker.
-	e := mock.Eval()
+	e := mock.BlockedEval()
 	e.CreateIndex = 100
-	e2 := mock.Eval()
+	e2 := mock.BlockedEval()
 	e2.JobID = e.JobID
 	e2.CreateIndex = 101
-	e3 := mock.Eval()
+	e3 := mock.BlockedEval()
 	e3.JobID = e.JobID
 	e3.CreateIndex = 102
-	e4 := mock.Eval()
+	e4 := mock.BlockedEval()
 	e4.JobID = e.JobID
 	e4.CreateIndex = 100
 	blocked.Block(e)
 	blocked.Block(e2)
 
-	// Verify stats such that we are only tracking one
-	bStats := blocked.Stats()
-	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", bStats)
-	}
+	// Verify stats such that we are only tracking one.
+	blockedStats := blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 
 	// Get the duplicates.
 	out := blocked.GetDuplicates(0)
-	if len(out) != 1 || !reflect.DeepEqual(out[0], e) {
-		t.Fatalf("bad: %#v %#v", out, e)
-	}
+	require.Len(out, 1)
+	require.Equal(e, out[0])
 
 	// Call block again after a small sleep.
 	go func() {
@@ -134,45 +140,45 @@ func TestBlockedEvals_GetDuplicates(t *testing.T) {
 
 	// Get the duplicates.
 	out = blocked.GetDuplicates(1 * time.Second)
-	if len(out) != 1 || !reflect.DeepEqual(out[0], e2) {
-		t.Fatalf("bad: %#v %#v", out, e2)
-	}
+	require.Len(out, 1)
+	require.Equal(e2, out[0])
 
-	// Verify stats such that we are only tracking one
-	bStats = blocked.Stats()
-	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", bStats)
-	}
+	// Verify stats such that we are only tracking one.
+	blockedStats = blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 
-	// Add an older evaluation and assert it gets cancelled
+	// Add an older evaluation and assert it gets cancelled.
 	blocked.Block(e4)
 	out = blocked.GetDuplicates(0)
-	if len(out) != 1 || !reflect.DeepEqual(out[0], e4) {
-		t.Fatalf("bad: %#v %#v", out, e4)
-	}
+	require.Len(out, 1)
+	require.Equal(e4, out[0])
 
-	// Verify stats such that we are only tracking one
-	bStats = blocked.Stats()
-	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", bStats)
-	}
+	// Verify stats such that we are only tracking one.
+	blockedStats = blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 }
 
 func TestBlockedEvals_UnblockEscaped(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, broker := testBlockedEvals(t)
 
 	// Create an escaped eval and add it to the blocked tracker.
-	e := mock.Eval()
+	e := mock.BlockedEval()
 	e.Status = structs.EvalStatusBlocked
 	e.EscapedComputedClass = true
 	blocked.Block(e)
 
 	// Verify block caused the eval to be tracked
-	bStats := blocked.Stats()
-	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 1 {
-		t.Fatalf("bad: %#v", bStats)
-	}
+	blockedStats := blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(1, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 
 	blocked.Unblock("v1:123", 1000)
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
@@ -186,10 +192,16 @@ func requireBlockedEvalsEnqueued(t *testing.T, blocked *BlockedEvals, broker *Ev
 			return false, fmt.Errorf("missing enqueued evals: %#v", brokerStats)
 		}
 
+		// Prune old and empty metrics.
+		blocked.pruneStats(time.Now().UTC())
+
 		// Verify Unblock updates the stats
-		bStats := blocked.Stats()
-		if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
-			return false, fmt.Errorf("evals still blocked: %#v", bStats)
+		blockedStats := blocked.Stats()
+		ok := blockedStats.TotalBlocked == 0 &&
+			blockedStats.TotalEscaped == 0 &&
+			len(blockedStats.BlockedResources.ByJob) == 0
+		if !ok {
+			return false, fmt.Errorf("evals still blocked: %#v", blockedStats)
 		}
 		return true, nil
 	}, func(err error) {
@@ -199,20 +211,20 @@ func requireBlockedEvalsEnqueued(t *testing.T, blocked *BlockedEvals, broker *Ev
 
 func TestBlockedEvals_UnblockEligible(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, broker := testBlockedEvals(t)
 
 	// Create a blocked eval that is eligible on a specific node class and add
 	// it to the blocked tracker.
-	e := mock.Eval()
+	e := mock.BlockedEval()
 	e.Status = structs.EvalStatusBlocked
 	e.ClassEligibility = map[string]bool{"v1:123": true}
 	blocked.Block(e)
 
 	// Verify block caused the eval to be tracked
 	blockedStats := blocked.Stats()
-	if blockedStats.TotalBlocked != 1 {
-		t.Fatalf("bad: %#v", blockedStats)
-	}
+	require.Equal(1, blockedStats.TotalBlocked)
 
 	blocked.Unblock("v1:123", 1000)
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
@@ -220,20 +232,21 @@ func TestBlockedEvals_UnblockEligible(t *testing.T) {
 
 func TestBlockedEvals_UnblockIneligible(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, broker := testBlockedEvals(t)
 
 	// Create a blocked eval that is ineligible on a specific node class and add
 	// it to the blocked tracker.
-	e := mock.Eval()
-	e.Status = structs.EvalStatusBlocked
+	e := mock.BlockedEval()
 	e.ClassEligibility = map[string]bool{"v1:123": false}
 	blocked.Block(e)
 
 	// Verify block caused the eval to be tracked
 	blockedStats := blocked.Stats()
-	if blockedStats.TotalBlocked != 1 && blockedStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", blockedStats)
-	}
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 
 	// Should do nothing
 	blocked.Unblock("v1:123", 1000)
@@ -242,12 +255,18 @@ func TestBlockedEvals_UnblockIneligible(t *testing.T) {
 		// Verify Unblock didn't cause an enqueue
 		brokerStats := broker.Stats()
 		if brokerStats.TotalReady != 0 {
-			return false, fmt.Errorf("bad: %#v", brokerStats)
+			return false, fmt.Errorf("eval unblocked: %#v", brokerStats)
 		}
 
-		bStats := blocked.Stats()
-		if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
-			return false, fmt.Errorf("bad: %#v", bStats)
+		// Prune old and empty metrics.
+		blocked.pruneStats(time.Now().UTC())
+
+		blockedStats := blocked.Stats()
+		ok := blockedStats.TotalBlocked == 1 &&
+			blockedStats.TotalEscaped == 0 &&
+			len(blockedStats.BlockedResources.ByJob) == 1
+		if !ok {
+			return false, fmt.Errorf("eval unblocked: %#v", blockedStats)
 		}
 		return true, nil
 	}, func(err error) {
@@ -257,20 +276,21 @@ func TestBlockedEvals_UnblockIneligible(t *testing.T) {
 
 func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, broker := testBlockedEvals(t)
 
 	// Create a blocked eval that is ineligible on a specific node class and add
 	// it to the blocked tracker.
-	e := mock.Eval()
-	e.Status = structs.EvalStatusBlocked
+	e := mock.BlockedEval()
 	e.ClassEligibility = map[string]bool{"v1:123": true, "v1:456": false}
 	blocked.Block(e)
 
-	// Verify block caused the eval to be tracked
+	// Verify block caused the eval to be tracked.
 	blockedStats := blocked.Stats()
-	if blockedStats.TotalBlocked != 1 && blockedStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", blockedStats)
-	}
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 
 	// Should unblock because the eval hasn't seen this node class.
 	blocked.Unblock("v1:789", 1000)
@@ -279,19 +299,20 @@ func TestBlockedEvals_UnblockUnknown(t *testing.T) {
 
 func TestBlockedEvals_UnblockEligible_Quota(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, broker := testBlockedEvals(t)
 
-	// Create a blocked eval that is eligible for a particular quota
-	e := mock.Eval()
-	e.Status = structs.EvalStatusBlocked
+	// Create a blocked eval that is eligible for a particular quota.
+	e := mock.BlockedEval()
 	e.QuotaLimitReached = "foo"
 	blocked.Block(e)
 
-	// Verify block caused the eval to be tracked
-	bs := blocked.Stats()
-	if bs.TotalBlocked != 1 || bs.TotalQuotaLimit != 1 {
-		t.Fatalf("bad: %#v", bs)
-	}
+	// Verify block caused the eval to be tracked.
+	blockedStats := blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(1, blockedStats.TotalQuotaLimit)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 
 	blocked.UnblockQuota("foo", 1000)
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
@@ -299,33 +320,41 @@ func TestBlockedEvals_UnblockEligible_Quota(t *testing.T) {
 
 func TestBlockedEvals_UnblockIneligible_Quota(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, broker := testBlockedEvals(t)
 
-	// Create a blocked eval that is eligible on a specific quota
-	e := mock.Eval()
-	e.Status = structs.EvalStatusBlocked
+	// Create a blocked eval that is eligible on a specific quota.
+	e := mock.BlockedEval()
 	e.QuotaLimitReached = "foo"
 	blocked.Block(e)
 
-	// Verify block caused the eval to be tracked
-	bs := blocked.Stats()
-	if bs.TotalBlocked != 1 || bs.TotalQuotaLimit != 1 {
-		t.Fatalf("bad: %#v", bs)
-	}
+	// Verify block caused the eval to be tracked.
+	blockedStats := blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(1, blockedStats.TotalQuotaLimit)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 
-	// Should do nothing
+	// Should do nothing.
 	blocked.UnblockQuota("bar", 1000)
 
 	testutil.WaitForResult(func() (bool, error) {
 		// Verify Unblock didn't cause an enqueue
 		brokerStats := broker.Stats()
 		if brokerStats.TotalReady != 0 {
-			return false, fmt.Errorf("bad: %#v", brokerStats)
+			return false, fmt.Errorf("eval unblocked: %#v", brokerStats)
 		}
 
-		bs := blocked.Stats()
-		if bs.TotalBlocked != 1 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 1 {
-			return false, fmt.Errorf("bad: %#v", bs)
+		// Prune old and empty metrics.
+		blocked.pruneStats(time.Now().UTC())
+
+		blockedStats := blocked.Stats()
+		ok := blockedStats.TotalBlocked == 1 &&
+			blockedStats.TotalEscaped == 0 &&
+			blockedStats.TotalQuotaLimit == 1 &&
+			len(blockedStats.BlockedResources.ByJob) == 1
+		if !ok {
+			return false, fmt.Errorf("eval unblocked: %#v", blockedStats)
 		}
 		return true, nil
 	}, func(err error) {
@@ -335,42 +364,39 @@ func TestBlockedEvals_UnblockIneligible_Quota(t *testing.T) {
 
 func TestBlockedEvals_Reblock(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, broker := testBlockedEvals(t)
 
 	// Create an evaluation, Enqueue/Dequeue it to get a token
-	e := mock.Eval()
+	e := mock.BlockedEval()
 	e.SnapshotIndex = 500
-	e.Status = structs.EvalStatusBlocked
 	e.ClassEligibility = map[string]bool{"v1:123": true, "v1:456": false}
 	broker.Enqueue(e)
 
 	_, token, err := broker.Dequeue([]string{e.Type}, time.Second)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	require.NoError(err)
 
 	// Reblock the evaluation
 	blocked.Reblock(e, token)
 
 	// Verify block caused the eval to be tracked
 	blockedStats := blocked.Stats()
-	if blockedStats.TotalBlocked != 1 && blockedStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", blockedStats)
-	}
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 
 	// Should unblock because the eval
 	blocked.Unblock("v1:123", 1000)
 
 	brokerStats := broker.Stats()
-	if brokerStats.TotalReady != 0 && brokerStats.TotalUnacked != 1 {
-		t.Fatalf("bad: %#v", brokerStats)
-	}
+	require.Equal(0, brokerStats.TotalReady)
+	require.Equal(1, brokerStats.TotalUnacked)
 
 	// Ack the evaluation which should cause the reblocked eval to transition
 	// to ready
-	if err := broker.Ack(e.ID, token); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	err = broker.Ack(e.ID, token)
+	require.NoError(err)
 
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
@@ -379,6 +405,8 @@ func TestBlockedEvals_Reblock(t *testing.T) {
 // it is escaped and old
 func TestBlockedEvals_Block_ImmediateUnblock_Escaped(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, broker := testBlockedEvals(t)
 
 	// Do an unblock prior to blocking
@@ -386,17 +414,16 @@ func TestBlockedEvals_Block_ImmediateUnblock_Escaped(t *testing.T) {
 
 	// Create a blocked eval that is eligible on a specific node class and add
 	// it to the blocked tracker.
-	e := mock.Eval()
-	e.Status = structs.EvalStatusBlocked
+	e := mock.BlockedEval()
 	e.EscapedComputedClass = true
 	e.SnapshotIndex = 900
 	blocked.Block(e)
 
 	// Verify block caused the eval to be immediately unblocked
 	blockedStats := blocked.Stats()
-	if blockedStats.TotalBlocked != 0 && blockedStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", blockedStats)
-	}
+	require.Equal(0, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 0)
 
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
@@ -406,6 +433,8 @@ func TestBlockedEvals_Block_ImmediateUnblock_Escaped(t *testing.T) {
 // scheduler
 func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_After(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, broker := testBlockedEvals(t)
 
 	// Do an unblock prior to blocking
@@ -413,17 +442,16 @@ func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_After(t *testing.T) {
 
 	// Create a blocked eval that is eligible on a specific node class and add
 	// it to the blocked tracker.
-	e := mock.Eval()
-	e.Status = structs.EvalStatusBlocked
+	e := mock.BlockedEval()
 	e.EscapedComputedClass = false
 	e.SnapshotIndex = 900
 	blocked.Block(e)
 
 	// Verify block caused the eval to be immediately unblocked
 	blockedStats := blocked.Stats()
-	if blockedStats.TotalBlocked != 0 && blockedStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", blockedStats)
-	}
+	require.Equal(0, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 0)
 
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
@@ -433,6 +461,8 @@ func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_After(t *testing.T) {
 // scheduler
 func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_Before(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, _ := testBlockedEvals(t)
 
 	// Do an unblock prior to blocking
@@ -440,23 +470,24 @@ func TestBlockedEvals_Block_ImmediateUnblock_UnseenClass_Before(t *testing.T) {
 
 	// Create a blocked eval that is eligible on a specific node class and add
 	// it to the blocked tracker.
-	e := mock.Eval()
-	e.Status = structs.EvalStatusBlocked
+	e := mock.BlockedEval()
 	e.EscapedComputedClass = false
 	e.SnapshotIndex = 900
 	blocked.Block(e)
 
 	// Verify block caused the eval to be immediately unblocked
 	blockedStats := blocked.Stats()
-	if blockedStats.TotalBlocked != 1 && blockedStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", blockedStats)
-	}
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 }
 
 // Test the block case in which the eval should be immediately unblocked since
 // it a class it is eligible for has been unblocked
 func TestBlockedEvals_Block_ImmediateUnblock_SeenClass(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, broker := testBlockedEvals(t)
 
 	// Do an unblock prior to blocking
@@ -464,17 +495,16 @@ func TestBlockedEvals_Block_ImmediateUnblock_SeenClass(t *testing.T) {
 
 	// Create a blocked eval that is eligible on a specific node class and add
 	// it to the blocked tracker.
-	e := mock.Eval()
-	e.Status = structs.EvalStatusBlocked
+	e := mock.BlockedEval()
 	e.ClassEligibility = map[string]bool{"v1:123": true, "v1:456": false}
 	e.SnapshotIndex = 900
 	blocked.Block(e)
 
 	// Verify block caused the eval to be immediately unblocked
 	blockedStats := blocked.Stats()
-	if blockedStats.TotalBlocked != 0 && blockedStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", blockedStats)
-	}
+	require.Equal(0, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 0)
 
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
@@ -483,6 +513,8 @@ func TestBlockedEvals_Block_ImmediateUnblock_SeenClass(t *testing.T) {
 // it a quota has changed that it is using
 func TestBlockedEvals_Block_ImmediateUnblock_Quota(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, broker := testBlockedEvals(t)
 
 	// Do an unblock prior to blocking
@@ -490,40 +522,40 @@ func TestBlockedEvals_Block_ImmediateUnblock_Quota(t *testing.T) {
 
 	// Create a blocked eval that is eligible on a specific node class and add
 	// it to the blocked tracker.
-	e := mock.Eval()
-	e.Status = structs.EvalStatusBlocked
+	e := mock.BlockedEval()
 	e.QuotaLimitReached = "my-quota"
 	e.SnapshotIndex = 900
 	blocked.Block(e)
 
 	// Verify block caused the eval to be immediately unblocked
-	bs := blocked.Stats()
-	if bs.TotalBlocked != 0 && bs.TotalEscaped != 0 && bs.TotalQuotaLimit != 0 {
-		t.Fatalf("bad: %#v", bs)
-	}
+	blockedStats := blocked.Stats()
+	require.Equal(0, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Equal(0, blockedStats.TotalQuotaLimit)
+	require.Len(blockedStats.BlockedResources.ByJob, 0)
 
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }
 
 func TestBlockedEvals_UnblockFailed(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, broker := testBlockedEvals(t)
 
 	// Create blocked evals that are due to failures
-	e := mock.Eval()
-	e.Status = structs.EvalStatusBlocked
+	e := mock.BlockedEval()
 	e.TriggeredBy = structs.EvalTriggerMaxPlans
 	e.EscapedComputedClass = true
 	blocked.Block(e)
 
-	e2 := mock.Eval()
+	e2 := mock.BlockedEval()
 	e2.Status = structs.EvalStatusBlocked
 	e2.TriggeredBy = structs.EvalTriggerMaxPlans
 	e2.ClassEligibility = map[string]bool{"v1:123": true, "v1:456": false}
 	blocked.Block(e2)
 
-	e3 := mock.Eval()
-	e3.Status = structs.EvalStatusBlocked
+	e3 := mock.BlockedEval()
 	e3.TriggeredBy = structs.EvalTriggerMaxPlans
 	e3.QuotaLimitReached = "foo"
 	blocked.Block(e3)
@@ -531,98 +563,116 @@ func TestBlockedEvals_UnblockFailed(t *testing.T) {
 	// Trigger an unblock fail
 	blocked.UnblockFailed()
 
+	// Prune old and empty metrics.
+	blocked.pruneStats(time.Now().UTC())
+
 	// Verify UnblockFailed caused the eval to be immediately unblocked
-	bs := blocked.Stats()
-	if bs.TotalBlocked != 0 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 0 {
-		t.Fatalf("bad: %#v", bs)
-	}
+	blockedStats := blocked.Stats()
+	require.Equal(0, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Equal(0, blockedStats.TotalQuotaLimit)
+	require.Len(blockedStats.BlockedResources.ByJob, 0)
 
 	requireBlockedEvalsEnqueued(t, blocked, broker, 3)
 
 	// Reblock an eval for the same job and check that it gets tracked.
 	blocked.Block(e)
-	bs = blocked.Stats()
-	if bs.TotalBlocked != 1 || bs.TotalEscaped != 1 {
-		t.Fatalf("bad: %#v", bs)
-	}
+	blockedStats = blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(1, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 }
 
 func TestBlockedEvals_Untrack(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, _ := testBlockedEvals(t)
 
-	// Create two blocked evals and add them to the blocked tracker.
-	e := mock.Eval()
-	e.Status = structs.EvalStatusBlocked
+	// Create blocked eval and add to the blocked tracker.
+	e := mock.BlockedEval()
 	e.ClassEligibility = map[string]bool{"v1:123": false, "v1:456": false}
 	e.SnapshotIndex = 1000
 	blocked.Block(e)
 
 	// Verify block did track
-	bStats := blocked.Stats()
-	if bStats.TotalBlocked != 1 || bStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", bStats)
-	}
+	blockedStats := blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 
 	// Untrack and verify
 	blocked.Untrack(e.JobID, e.Namespace)
-	bStats = blocked.Stats()
-	if bStats.TotalBlocked != 0 || bStats.TotalEscaped != 0 {
-		t.Fatalf("bad: %#v", bStats)
-	}
+	blocked.pruneStats(time.Now().UTC())
+
+	blockedStats = blocked.Stats()
+	require.Equal(0, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 0)
 }
 
 func TestBlockedEvals_Untrack_Quota(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, _ := testBlockedEvals(t)
 
-	// Create a blocked evals and add it to the blocked tracker.
-	e := mock.Eval()
-	e.Status = structs.EvalStatusBlocked
+	// Create a blocked eval and add it to the blocked tracker.
+	e := mock.BlockedEval()
 	e.QuotaLimitReached = "foo"
 	e.SnapshotIndex = 1000
 	blocked.Block(e)
 
 	// Verify block did track
-	bs := blocked.Stats()
-	if bs.TotalBlocked != 1 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 1 {
-		t.Fatalf("bad: %#v", bs)
-	}
+	blockedStats := blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 
 	// Untrack and verify
 	blocked.Untrack(e.JobID, e.Namespace)
-	bs = blocked.Stats()
-	if bs.TotalBlocked != 0 || bs.TotalEscaped != 0 || bs.TotalQuotaLimit != 0 {
-		t.Fatalf("bad: %#v", bs)
-	}
+	blocked.pruneStats(time.Now().UTC())
+
+	blockedStats = blocked.Stats()
+	require.Equal(0, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Len(blockedStats.BlockedResources.ByJob, 0)
 }
 
 func TestBlockedEvals_UnblockNode(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, broker := testBlockedEvals(t)
 
 	require.NotNil(t, broker)
 
 	// Create a blocked evals and add it to the blocked tracker.
-	e := mock.Eval()
+	e := mock.BlockedEval()
 	e.Type = structs.JobTypeSystem
 	e.NodeID = "foo"
 	e.SnapshotIndex = 999
 	blocked.Block(e)
 
 	// Verify block did track
-	bs := blocked.Stats()
-	require.Equal(t, 1, bs.TotalBlocked)
+	blockedStats := blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 
 	blocked.UnblockNode("foo", 1000)
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
-	bs = blocked.Stats()
-	require.Empty(t, blocked.system.byNode)
-	require.Equal(t, 0, bs.TotalBlocked)
+
+	blocked.pruneStats(time.Now().UTC())
+	blockedStats = blocked.Stats()
+	require.Empty(blocked.system.byNode)
+	require.Equal(0, blockedStats.TotalBlocked)
+	require.Len(blockedStats.BlockedResources.ByJob, 0)
 }
 
 func TestBlockedEvals_SystemUntrack(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, _ := testBlockedEvals(t)
 
 	// Create a blocked evals and add it to the blocked tracker.
@@ -632,21 +682,26 @@ func TestBlockedEvals_SystemUntrack(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block did track
-	bs := blocked.Stats()
-	require.Equal(t, 1, bs.TotalBlocked)
-	require.Equal(t, 0, bs.TotalEscaped)
-	require.Equal(t, 0, bs.TotalQuotaLimit)
+	blockedStats := blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Equal(0, blockedStats.TotalQuotaLimit)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 
 	// Untrack and verify
 	blocked.Untrack(e.JobID, e.Namespace)
-	bs = blocked.Stats()
-	require.Equal(t, 0, bs.TotalBlocked)
-	require.Equal(t, 0, bs.TotalEscaped)
-	require.Equal(t, 0, bs.TotalQuotaLimit)
+	blocked.pruneStats(time.Now().UTC())
+	blockedStats = blocked.Stats()
+	require.Equal(0, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Equal(0, blockedStats.TotalQuotaLimit)
+	require.Len(blockedStats.BlockedResources.ByJob, 0)
 }
 
 func TestBlockedEvals_SystemDisableFlush(t *testing.T) {
 	t.Parallel()
+	require := require.New(t)
+
 	blocked, _ := testBlockedEvals(t)
 
 	// Create a blocked evals and add it to the blocked tracker.
@@ -656,18 +711,20 @@ func TestBlockedEvals_SystemDisableFlush(t *testing.T) {
 	blocked.Block(e)
 
 	// Verify block did track
-	bs := blocked.Stats()
-	require.Equal(t, 1, bs.TotalBlocked)
-	require.Equal(t, 0, bs.TotalEscaped)
-	require.Equal(t, 0, bs.TotalQuotaLimit)
+	blockedStats := blocked.Stats()
+	require.Equal(1, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Equal(0, blockedStats.TotalQuotaLimit)
+	require.Len(blockedStats.BlockedResources.ByJob, 1)
 
 	// Disable empties
 	blocked.SetEnabled(false)
-	bs = blocked.Stats()
-	require.Equal(t, 0, bs.TotalBlocked)
-	require.Equal(t, 0, bs.TotalEscaped)
-	require.Equal(t, 0, bs.TotalQuotaLimit)
-	require.Empty(t, blocked.system.evals)
-	require.Empty(t, blocked.system.byJob)
-	require.Empty(t, blocked.system.byNode)
+	blockedStats = blocked.Stats()
+	require.Equal(0, blockedStats.TotalBlocked)
+	require.Equal(0, blockedStats.TotalEscaped)
+	require.Equal(0, blockedStats.TotalQuotaLimit)
+	require.Len(blockedStats.BlockedResources.ByJob, 0)
+	require.Empty(blocked.system.evals)
+	require.Empty(blocked.system.byJob)
+	require.Empty(blocked.system.byNode)
 }

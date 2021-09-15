@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: job Stanza - Job Specification
-sidebar_title: job
 description: |-
   The "job" stanza is the top-most configuration option in the job
   specification. A job is a declarative specification of tasks that Nomad
@@ -114,10 +113,10 @@ job "docs" {
   node if any of its allocation statuses become "failed".
 
 - `type` `(string: "service")` - Specifies the [Nomad scheduler][scheduler] to
-  use. Nomad provides the `service`, `system` and `batch` schedulers.
+  use. Nomad provides the `service`, `system`, `batch`, and `sysbatch` schedulers.
 
 - `update` <code>([Update][update]: nil)</code> - Specifies the task's update
-  strategy. When omitted, rolling updates are disabled.
+  strategy. When omitted, a default update strategy is applied.
 
 - `vault` <code>([Vault][]: nil)</code> - Specifies the set of Vault policies
   required by all tasks in this job.

@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: client Stanza - Agent Configuration
-sidebar_title: client
 description: |-
   The "client" stanza configures the Nomad agent to accept jobs as assigned by
   the Nomad server, join the cluster, and specify driver-specific configuration.
@@ -49,7 +48,8 @@ client {
   to force network fingerprinting on. When run in dev mode, this defaults to the
   loopback interface. When not in dev mode, the interface attached to the
   default route is used. The scheduler chooses from these fingerprinted IP
-  addresses when allocating ports for tasks.
+  addresses when allocating ports for tasks. This value support [go-sockaddr/template
+  format][go-sockaddr/template].
 
   If no non-local IP addresses are found, Nomad could fingerprint link-local IPv6
   addresses depending on the client's
@@ -127,7 +127,7 @@ client {
   network configuration is located. The client will use this path when fingerprinting
   CNI networks. Filenames should use the `.conflist` extension.
 
-- `bridge_network name` `(string: "nomad")` - Sets the name of the bridge to be
+- `bridge_network_name` `(string: "nomad")` - Sets the name of the bridge to be
   created by nomad for allocations running with bridge networking mode on the
   client.
 
@@ -143,6 +143,10 @@ client {
 
 - `host_network` <code>([host_network](#host_network-stanza): nil)</code> - Registers
   additional host networks with the node that can be selected when port mapping.
+
+- `cgroup_parent` `(string: "/nomad")` - Specifies the cgroup parent for which cgroup
+  subsystems managed by Nomad will be mounted under. Currently this only applies to the
+  `cpuset` subsystems. This field is ignored on non Linux platforms.
 
 ### `chroot_env` Parameters
 
@@ -180,7 +184,7 @@ the full list.
 ### `options` Parameters
 
 ~> Note: In Nomad 0.9 client configuration options for drivers were deprecated.
-   See the [plugin stanza][plugin-stanza] documentation for more information.
+See the [plugin stanza][plugin-stanza] documentation for more information.
 
 The following is not an exhaustive list of options for only the Nomad
 client. To find the options supported by each individual Nomad driver, please
@@ -456,3 +460,4 @@ client {
 [server-join]: /docs/configuration/server_join 'Server Join'
 [metadata_constraint]: /docs/job-specification/constraint#user-specified-metadata 'Nomad User-Specified Metadata Constraint Example'
 [task working directory]: /docs/runtime/environment#task-directories 'Task directories'
+[go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template

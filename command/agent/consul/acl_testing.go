@@ -40,6 +40,7 @@ const (
 	ExamplePolicyID1 = "a7c86856-0af5-4ab5-8834-03f4517e5564"
 	ExamplePolicyID2 = "ffa1b66c-967d-4468-8775-c687b5cfc16e"
 	ExamplePolicyID3 = "f68f0c36-51f8-4343-97dd-f0d4816c915f"
+	ExamplePolicyID4 = "1087ff34-b8a0-9bb3-9430-d2f758f52bd3"
 )
 
 func (m *MockACLsAPI) PolicyRead(policyID string, _ *api.QueryOptions) (*api.ACLPolicy, *api.QueryMeta, error) {
@@ -64,6 +65,12 @@ func (m *MockACLsAPI) PolicyRead(policyID string, _ *api.QueryOptions) (*api.ACL
 			Rules: `
 service "service1" { policy = "read" }
 service "service2" { policy = "write" }`,
+		}, nil, nil
+
+	case ExamplePolicyID4:
+		return &api.ACLPolicy{
+			ID:    ExamplePolicyID4,
+			Rules: `key_prefix "" { policy = "read" }`,
 		}, nil, nil
 
 	default:
@@ -112,21 +119,47 @@ func (m *MockACLsAPI) RoleRead(roleID string, _ *api.QueryOptions) (*api.ACLRole
 	}
 }
 
-// Example Consul "operator" tokens for use in tests.
-
+// Example Consul ACL tokens for use in tests. These tokens belong to the
+// default Consul namespace.
 const (
 	ExampleOperatorTokenID0 = "de591604-86eb-1e6f-8b44-d4db752921ae"
 	ExampleOperatorTokenID1 = "59c219c2-47e4-43f3-bb45-258fd13f59d5"
 	ExampleOperatorTokenID2 = "868cc216-e123-4c2b-b362-f4d4c087de8e"
 	ExampleOperatorTokenID3 = "6177d1b9-c0f6-4118-b891-d818a3cb80b1"
 	ExampleOperatorTokenID4 = "754ae26c-f3cc-e088-d486-9c0d20f5eaea"
+	ExampleOperatorTokenID5 = "097cbb45-506b-c79c-ec38-82eb0dc0794a"
+)
+
+// Example Consul ACL tokens for use in tests that match the policies as the
+// tokens above, but these belong to the "banana" Consul namespace.
+const (
+	ExampleOperatorTokenID10 = "ddfe688f-655f-e8dd-1db5-5650eed00aeb"
+	ExampleOperatorTokenID11 = "46d09394-598c-1e55-b7fd-64cd2f409707"
+	ExampleOperatorTokenID12 = "a041cb88-0f4b-0314-89f6-10e1e093d2e5"
+	ExampleOperatorTokenID13 = "cc22a583-243f-3258-14ad-db0e56749657"
+	ExampleOperatorTokenID14 = "5b6d0508-13a6-4bc3-33a1-ba1941e1175b"
+	ExampleOperatorTokenID15 = "e9db1754-c075-d0fc-0a7e-de1e9e7bff98"
+)
+
+// Example Consul ACL tokens for use in tests that match the policies as the
+// tokens above, but these belong to the "default" Consul namespace.
+const (
+	ExampleOperatorTokenID20 = "937b3287-557c-5af8-beb0-d62191988719"
+	ExampleOperatorTokenID21 = "067fd927-abfb-d98f-b693-bb05dccea565"
+	ExampleOperatorTokenID22 = "71f8030f-f6bd-6157-6614-ba6a0bbfba9f"
+	ExampleOperatorTokenID23 = "1dfd2982-b7a1-89ec-09b4-74712983d13c"
+	ExampleOperatorTokenID24 = "d26dbc2a-d5d8-e3d9-8a38-e05dec499124"
+	ExampleOperatorTokenID25 = "dd5a8eef-554c-a1f9-fdb8-f25eb77258bc"
 )
 
 var (
+	// In no Consul namespace (OSS, ENT w/o Namespaces)
+
 	ExampleOperatorToken0 = &api.ACLToken{
 		SecretID:    ExampleOperatorTokenID0,
 		AccessorID:  "228865c6-3bf6-6683-df03-06dea2779088 ",
 		Description: "Operator Token 0",
+		Namespace:   "",
 	}
 
 	ExampleOperatorToken1 = &api.ACLToken{
@@ -136,6 +169,7 @@ var (
 		Policies: []*api.ACLTokenPolicyLink{{
 			ID: ExamplePolicyID1,
 		}},
+		Namespace: "",
 	}
 
 	ExampleOperatorToken2 = &api.ACLToken{
@@ -145,6 +179,7 @@ var (
 		Policies: []*api.ACLTokenPolicyLink{{
 			ID: ExamplePolicyID2,
 		}},
+		Namespace: "",
 	}
 
 	ExampleOperatorToken3 = &api.ACLToken{
@@ -154,6 +189,7 @@ var (
 		Policies: []*api.ACLTokenPolicyLink{{
 			ID: ExamplePolicyID3,
 		}},
+		Namespace: "",
 	}
 
 	ExampleOperatorToken4 = &api.ACLToken{
@@ -165,6 +201,141 @@ var (
 			ID:   ExampleRoleID1,
 			Name: "example-role-1",
 		}},
+		Namespace: "",
+	}
+
+	ExampleOperatorToken5 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID5,
+		AccessorID:  "cf39aad5-00c3-af23-cf0b-75d41e12f28d",
+		Description: "Operator Token 5",
+		Policies: []*api.ACLTokenPolicyLink{{
+			ID: ExamplePolicyID4,
+		}},
+		Namespace: "",
+	}
+
+	// In Consul namespace "banana"
+
+	ExampleOperatorToken10 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID10,
+		AccessorID:  "76a2c3b5-5d64-9089-f701-660eec2d3554",
+		Description: "Operator Token 0",
+		Namespace:   "banana",
+	}
+
+	ExampleOperatorToken11 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID11,
+		AccessorID:  "40f2a36a-0a65-1972-106c-b2e5dd46d6e8",
+		Description: "Operator Token 1",
+		Policies: []*api.ACLTokenPolicyLink{{
+			ID: ExamplePolicyID1,
+		}},
+		Namespace: "banana",
+	}
+
+	ExampleOperatorToken12 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID12,
+		AccessorID:  "894f2c5c-b285-71bf-4acb-6344cecf71f3",
+		Description: "Operator Token 2",
+		Policies: []*api.ACLTokenPolicyLink{{
+			ID: ExamplePolicyID2,
+		}},
+		Namespace: "banana",
+	}
+
+	ExampleOperatorToken13 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID13,
+		AccessorID:  "2a81ec0b-692e-845e-f5b8-c33c05e5af22",
+		Description: "Operator Token 3",
+		Policies: []*api.ACLTokenPolicyLink{{
+			ID: ExamplePolicyID3,
+		}},
+		Namespace: "banana",
+	}
+
+	ExampleOperatorToken14 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID14,
+		AccessorID:  "4273f1cc-5626-7a77-dc65-1f24af035ed5d",
+		Description: "Operator Token 4",
+		Policies:    nil, // no direct policy, only roles
+		Roles: []*api.ACLTokenRoleLink{{
+			ID:   ExampleRoleID1,
+			Name: "example-role-1",
+		}},
+		Namespace: "banana",
+	}
+
+	ExampleOperatorToken15 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID15,
+		AccessorID:  "5b78e186-87d8-c1ad-966f-f5fa87b05c9a",
+		Description: "Operator Token 5",
+		Policies: []*api.ACLTokenPolicyLink{{
+			ID: ExamplePolicyID4,
+		}},
+		Namespace: "banana",
+	}
+
+	// In Consul namespace "default"
+
+	ExampleOperatorToken20 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID20,
+		AccessorID:  "228865c6-3bf6-6683-df03-06dea2779088",
+		Description: "Operator Token 0",
+		// Should still be able to register jobs where no namespace was set
+		Namespace: "default",
+	}
+
+	ExampleOperatorToken21 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID21,
+		AccessorID:  "54d01af9-5036-31d3-296b-b15b941d7aa2",
+		Description: "Operator Token 1",
+		Policies: []*api.ACLTokenPolicyLink{{
+			ID: ExamplePolicyID1,
+		}},
+		// Should still be able to register jobs where no namespace was set
+		Namespace: "default",
+	}
+
+	ExampleOperatorToken22 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID22,
+		AccessorID:  "894f2c5c-b285-71bf-4acb-6344cecf71f3",
+		Description: "Operator Token 2",
+		Policies: []*api.ACLTokenPolicyLink{{
+			ID: ExamplePolicyID2,
+		}},
+		Namespace: "default",
+	}
+
+	ExampleOperatorToken23 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID23,
+		AccessorID:  "2a81ec0b-692e-845e-f5b8-c33c05e5af22",
+		Description: "Operator Token 3",
+		Policies: []*api.ACLTokenPolicyLink{{
+			ID: ExamplePolicyID3,
+		}},
+		Namespace: "default",
+	}
+
+	ExampleOperatorToken24 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID24,
+		AccessorID:  "4273f1cc-5626-7a77-dc65-1f24af035ed5d",
+		Description: "Operator Token 4",
+		Policies:    nil, // no direct policy, only roles
+		Roles: []*api.ACLTokenRoleLink{{
+			ID:   ExampleRoleID1,
+			Name: "example-role-1",
+		}},
+		Namespace: "default",
+	}
+
+	ExampleOperatorToken25 = &api.ACLToken{
+		SecretID:    ExampleOperatorTokenID25,
+		AccessorID:  "5b78e186-87d8-c1ad-966f-f5fa87b05c9a",
+		Description: "Operator Token 5",
+		Policies: []*api.ACLTokenPolicyLink{{
+			ID: ExamplePolicyID4,
+		}},
+		Namespace: "default",
 	}
 )
 
@@ -182,6 +353,45 @@ func (m *MockACLsAPI) TokenReadSelf(q *api.QueryOptions) (*api.ACLToken, *api.Qu
 
 	case ExampleOperatorTokenID4:
 		return ExampleOperatorToken4, nil, nil
+
+	case ExampleOperatorTokenID5:
+		return ExampleOperatorToken5, nil, nil
+
+	case ExampleOperatorTokenID10:
+		return ExampleOperatorToken10, nil, nil
+
+	case ExampleOperatorTokenID11:
+		return ExampleOperatorToken11, nil, nil
+
+	case ExampleOperatorTokenID12:
+		return ExampleOperatorToken12, nil, nil
+
+	case ExampleOperatorTokenID13:
+		return ExampleOperatorToken13, nil, nil
+
+	case ExampleOperatorTokenID14:
+		return ExampleOperatorToken14, nil, nil
+
+	case ExampleOperatorTokenID15:
+		return ExampleOperatorToken15, nil, nil
+
+	case ExampleOperatorTokenID20:
+		return ExampleOperatorToken20, nil, nil
+
+	case ExampleOperatorTokenID21:
+		return ExampleOperatorToken21, nil, nil
+
+	case ExampleOperatorTokenID22:
+		return ExampleOperatorToken22, nil, nil
+
+	case ExampleOperatorTokenID23:
+		return ExampleOperatorToken23, nil, nil
+
+	case ExampleOperatorTokenID24:
+		return ExampleOperatorToken24, nil, nil
+
+	case ExampleOperatorTokenID25:
+		return ExampleOperatorToken25, nil, nil
 
 	default:
 		return nil, nil, errors.New("no such token")
@@ -253,6 +463,7 @@ func (m *MockACLsAPI) tokenCreate(token *api.ACLToken, _ *api.WriteOptions) (uin
 		SecretID:          uuid.Generate(),
 		Description:       token.Description,
 		ServiceIdentities: token.ServiceIdentities,
+		Namespace:         token.Namespace,
 		CreateTime:        time.Now(),
 	}
 

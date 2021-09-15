@@ -58,7 +58,7 @@ func TestHTTP_CSIEndpointUtils(t *testing.T) {
 	require.Equal(t, "bar", tops[0].Segments["foo"])
 }
 
-func TestHTTP_CSIEndpointVolume(t *testing.T) {
+func TestHTTP_CSIEndpointRegisterVolume(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		server := s.Agent.Server()
@@ -67,34 +67,91 @@ func TestHTTP_CSIEndpointVolume(t *testing.T) {
 
 		args := structs.CSIVolumeRegisterRequest{
 			Volumes: []*structs.CSIVolume{{
-				ID:             "bar",
-				PluginID:       "foo",
-				AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
-				AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				ID:       "bar",
+				PluginID: "foo",
+				RequestedCapabilities: []*structs.CSIVolumeCapability{{
+					AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+					AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				}},
 			}},
 		}
 		body := encodeReq(args)
 		req, err := http.NewRequest("PUT", "/v1/volumes", body)
 		require.NoError(t, err)
-
 		resp := httptest.NewRecorder()
 		_, err = s.Server.CSIVolumesRequest(resp, req)
 		require.NoError(t, err, "put error")
-		require.Equal(t, 200, resp.Code)
 
 		req, err = http.NewRequest("GET", "/v1/volume/csi/bar", nil)
 		require.NoError(t, err)
-
 		resp = httptest.NewRecorder()
 		raw, err := s.Server.CSIVolumeSpecificRequest(resp, req)
 		require.NoError(t, err, "get error")
-		require.Equal(t, 200, resp.Code)
-
 		out, ok := raw.(*api.CSIVolume)
 		require.True(t, ok)
-
 		require.Equal(t, 1, out.ControllersHealthy)
 		require.Equal(t, 2, out.NodesHealthy)
+
+		req, err = http.NewRequest("DELETE", "/v1/volume/csi/bar/detach", nil)
+		require.NoError(t, err)
+		resp = httptest.NewRecorder()
+		_, err = s.Server.CSIVolumeSpecificRequest(resp, req)
+		require.Equal(t, CodedError(400, "detach requires node ID"), err)
+	})
+}
+
+func TestHTTP_CSIEndpointCreateVolume(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		server := s.Agent.Server()
+		cleanup := state.CreateTestCSIPlugin(server.State(), "foo")
+		defer cleanup()
+
+		args := structs.CSIVolumeCreateRequest{
+			Volumes: []*structs.CSIVolume{{
+				ID:       "baz",
+				PluginID: "foo",
+				RequestedCapabilities: []*structs.CSIVolumeCapability{{
+					AccessMode:     structs.CSIVolumeAccessModeMultiNodeSingleWriter,
+					AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+				}},
+			}},
+		}
+		body := encodeReq(args)
+		req, err := http.NewRequest("PUT", "/v1/volumes/create", body)
+		require.NoError(t, err)
+		resp := httptest.NewRecorder()
+		_, err = s.Server.CSIVolumesRequest(resp, req)
+		require.Error(t, err, "controller validate volume: No path to node")
+
+		req, err = http.NewRequest("DELETE", "/v1/volume/csi/baz", nil)
+		require.NoError(t, err)
+		resp = httptest.NewRecorder()
+		_, err = s.Server.CSIVolumeSpecificRequest(resp, req)
+		require.Error(t, err, "volume not found: baz")
+	})
+}
+
+func TestHTTP_CSIEndpointSnapshot(t *testing.T) {
+	t.Parallel()
+	httpTest(t, nil, func(s *TestAgent) {
+		server := s.Agent.Server()
+		cleanup := state.CreateTestCSIPlugin(server.State(), "foo")
+		defer cleanup()
+
+		args := &api.CSISnapshotCreateRequest{
+			Snapshots: []*api.CSISnapshot{{
+				Name:           "snap-*",
+				PluginID:       "foo",
+				SourceVolumeID: "bar",
+			}},
+		}
+		body := encodeReq(args)
+		req, err := http.NewRequest("PUT", "/v1/volumes/snapshot", body)
+		require.NoError(t, err)
+		resp := httptest.NewRecorder()
+		_, err = s.Server.CSISnapshotsRequest(resp, req)
+		require.Error(t, err, "no such volume: bar")
 	})
 }
 

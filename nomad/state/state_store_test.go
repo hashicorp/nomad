@@ -963,9 +963,10 @@ func TestStateStore_BatchUpdateNodeDrain(t *testing.T) {
 	for _, id := range []string{n1.ID, n2.ID} {
 		out, err := state.NodeByID(ws, id)
 		require.Nil(err)
-		require.True(out.Drain)
 		require.NotNil(out.DrainStrategy)
 		require.Equal(out.DrainStrategy, expectedDrain)
+		require.NotNil(out.LastDrain)
+		require.Equal(structs.DrainStatusDraining, out.LastDrain.Status)
 		require.Len(out.Events, 2)
 		require.EqualValues(1002, out.ModifyIndex)
 		require.EqualValues(7, out.StatusUpdatedAt)
@@ -1002,14 +1003,15 @@ func TestStateStore_UpdateNodeDrain_Node(t *testing.T) {
 		Subsystem: structs.NodeEventSubsystemDrain,
 		Timestamp: time.Now(),
 	}
-	require.Nil(state.UpdateNodeDrain(structs.MsgTypeTestSetup, 1001, node.ID, expectedDrain, false, 7, event))
+	require.Nil(state.UpdateNodeDrain(structs.MsgTypeTestSetup, 1001, node.ID, expectedDrain, false, 7, event, nil, ""))
 	require.True(watchFired(ws))
 
 	ws = memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
-	require.True(out.Drain)
 	require.NotNil(out.DrainStrategy)
+	require.NotNil(out.LastDrain)
+	require.Equal(structs.DrainStatusDraining, out.LastDrain.Status)
 	require.Equal(out.DrainStrategy, expectedDrain)
 	require.Len(out.Events, 2)
 	require.EqualValues(1001, out.ModifyIndex)
@@ -1138,7 +1140,7 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 		Subsystem: structs.NodeEventSubsystemDrain,
 		Timestamp: time.Now(),
 	}
-	require.Nil(state.UpdateNodeDrain(structs.MsgTypeTestSetup, 1001, node.ID, drain, false, 7, event1))
+	require.Nil(state.UpdateNodeDrain(structs.MsgTypeTestSetup, 1001, node.ID, drain, false, 7, event1, nil, ""))
 	require.True(watchFired(ws))
 
 	// Remove the drain
@@ -1147,14 +1149,17 @@ func TestStateStore_UpdateNodeDrain_ResetEligiblity(t *testing.T) {
 		Subsystem: structs.NodeEventSubsystemDrain,
 		Timestamp: time.Now(),
 	}
-	require.Nil(state.UpdateNodeDrain(structs.MsgTypeTestSetup, 1002, node.ID, nil, true, 9, event2))
+	require.Nil(state.UpdateNodeDrain(structs.MsgTypeTestSetup, 1002, node.ID, nil, true, 9, event2, nil, ""))
 
 	ws = memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
-	require.False(out.Drain)
 	require.Nil(out.DrainStrategy)
 	require.Equal(out.SchedulingEligibility, structs.NodeSchedulingEligible)
+	require.NotNil(out.LastDrain)
+	require.Equal(structs.DrainStatusCanceled, out.LastDrain.Status)
+	require.Equal(time.Unix(7, 0), out.LastDrain.StartedAt)
+	require.Equal(time.Unix(9, 0), out.LastDrain.UpdatedAt)
 	require.Len(out.Events, 3)
 	require.EqualValues(1002, out.ModifyIndex)
 	require.EqualValues(9, out.StatusUpdatedAt)
@@ -1213,7 +1218,7 @@ func TestStateStore_UpdateNodeEligibility(t *testing.T) {
 			Deadline: -1 * time.Second,
 		},
 	}
-	require.Nil(state.UpdateNodeDrain(structs.MsgTypeTestSetup, 1002, node.ID, expectedDrain, false, 7, nil))
+	require.Nil(state.UpdateNodeDrain(structs.MsgTypeTestSetup, 1002, node.ID, expectedDrain, false, 7, nil, nil, ""))
 
 	// Try to set the node to eligible
 	err = state.UpdateNodeEligibility(structs.MsgTypeTestSetup, 1003, node.ID, structs.NodeSchedulingEligible, 9, nil)
@@ -1893,7 +1898,7 @@ func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
 
 	ws := memdb.NewWatchSet()
 
-	// Sanity check that jobs are present in DB
+	// Check that jobs are present in DB
 	job, err := state.JobByID(ws, jobs[0].Namespace, jobs[0].ID)
 	require.NoError(t, err)
 	require.Equal(t, jobs[0].ID, job.ID)
@@ -2913,7 +2918,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Error(t, err, fmt.Sprintf("volume exists: %s", v0.ID))
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.CSIVolumesByNamespace(ws, ns)
+	iter, err := state.CSIVolumesByNamespace(ws, ns, "")
 	require.NoError(t, err)
 
 	slurp := func(iter memdb.ResultIterator) (vs []*structs.CSIVolume) {
@@ -2932,13 +2937,13 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.Equal(t, 2, len(vs))
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "", "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByNodeID(ws, node.ID)
+	iter, err = state.CSIVolumesByNodeID(ws, "", node.ID)
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
@@ -2973,7 +2978,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.NoError(t, err)
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "", "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.False(t, vs[0].WriteFreeClaims())
@@ -2982,7 +2987,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	err = state.CSIVolumeClaim(2, ns, vol0, claim0)
 	require.NoError(t, err)
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "", "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.True(t, vs[0].ReadSchedulable())
@@ -3018,13 +3023,13 @@ func TestStateStore_CSIVolume(t *testing.T) {
 
 	// List, now omitting the deregistered volume
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByPluginID(ws, ns, "minnie")
+	iter, err = state.CSIVolumesByPluginID(ws, ns, "", "minnie")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 0, len(vs))
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.CSIVolumesByNamespace(ws, ns)
+	iter, err = state.CSIVolumesByNamespace(ws, ns, "")
 	require.NoError(t, err)
 	vs = slurp(iter)
 	require.Equal(t, 1, len(vs))
@@ -8491,6 +8496,140 @@ func TestStateStore_RestoreACLToken(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	assert.Equal(t, token, out)
+}
+
+func TestStateStore_OneTimeTokens(t *testing.T) {
+	t.Parallel()
+	index := uint64(100)
+	state := testStateStore(t)
+
+	// create some ACL tokens
+
+	token1 := mock.ACLToken()
+	token2 := mock.ACLToken()
+	token3 := mock.ACLToken()
+	index++
+	require.Nil(t, state.UpsertACLTokens(
+		structs.MsgTypeTestSetup, index,
+		[]*structs.ACLToken{token1, token2, token3}))
+
+	otts := []*structs.OneTimeToken{
+		{
+			// expired OTT for token1
+			OneTimeSecretID: uuid.Generate(),
+			AccessorID:      token1.AccessorID,
+			ExpiresAt:       time.Now().Add(-1 * time.Minute),
+		},
+		{
+			// valid OTT for token2
+			OneTimeSecretID: uuid.Generate(),
+			AccessorID:      token2.AccessorID,
+			ExpiresAt:       time.Now().Add(10 * time.Minute),
+		},
+		{
+			// new but expired OTT for token2; this will be accepted even
+			// though it's expired and overwrite the other one
+			OneTimeSecretID: uuid.Generate(),
+			AccessorID:      token2.AccessorID,
+			ExpiresAt:       time.Now().Add(-10 * time.Minute),
+		},
+		{
+			// valid OTT for token3
+			AccessorID:      token3.AccessorID,
+			OneTimeSecretID: uuid.Generate(),
+			ExpiresAt:       time.Now().Add(10 * time.Minute),
+		},
+		{
+			// new valid OTT for token3
+			OneTimeSecretID: uuid.Generate(),
+			AccessorID:      token3.AccessorID,
+			ExpiresAt:       time.Now().Add(5 * time.Minute),
+		},
+	}
+
+	for _, ott := range otts {
+		index++
+		require.NoError(t, state.UpsertOneTimeToken(structs.MsgTypeTestSetup, index, ott))
+	}
+
+	// verify that we have exactly one OTT for each AccessorID
+
+	txn := state.db.ReadTxn()
+	iter, err := txn.Get("one_time_token", "id")
+	require.NoError(t, err)
+	results := []*structs.OneTimeToken{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		ott, ok := raw.(*structs.OneTimeToken)
+		require.True(t, ok)
+		results = append(results, ott)
+	}
+
+	// results aren't ordered but if we have 3 OTT and all 3 tokens, we know
+	// we have no duplicate accessors
+	require.Len(t, results, 3)
+	accessors := []string{
+		results[0].AccessorID, results[1].AccessorID, results[2].AccessorID}
+	require.Contains(t, accessors, token1.AccessorID)
+	require.Contains(t, accessors, token2.AccessorID)
+	require.Contains(t, accessors, token3.AccessorID)
+
+	// now verify expiration
+
+	getExpiredTokens := func() []*structs.OneTimeToken {
+		txn := state.db.ReadTxn()
+		iter, err := state.oneTimeTokensExpiredTxn(txn, nil)
+		require.NoError(t, err)
+
+		results := []*structs.OneTimeToken{}
+		for {
+			raw := iter.Next()
+			if raw == nil {
+				break
+			}
+			ott, ok := raw.(*structs.OneTimeToken)
+			require.True(t, ok)
+			results = append(results, ott)
+		}
+		return results
+	}
+
+	results = getExpiredTokens()
+	require.Len(t, results, 2)
+
+	// results aren't ordered
+	expiredAccessors := []string{results[0].AccessorID, results[1].AccessorID}
+	require.Contains(t, expiredAccessors, token1.AccessorID)
+	require.Contains(t, expiredAccessors, token2.AccessorID)
+	require.True(t, time.Now().After(results[0].ExpiresAt))
+	require.True(t, time.Now().After(results[1].ExpiresAt))
+
+	// clear the expired tokens and verify they're gone
+	index++
+	require.NoError(t,
+		state.ExpireOneTimeTokens(structs.MsgTypeTestSetup, index))
+
+	results = getExpiredTokens()
+	require.Len(t, results, 0)
+
+	// query the unexpired token
+	ott, err := state.OneTimeTokenBySecret(nil, otts[len(otts)-1].OneTimeSecretID)
+	require.NoError(t, err)
+	require.Equal(t, token3.AccessorID, ott.AccessorID)
+	require.True(t, time.Now().Before(ott.ExpiresAt))
+
+	restore, err := state.Restore()
+	require.NoError(t, err)
+	err = restore.OneTimeTokenRestore(ott)
+	require.NoError(t, err)
+	require.NoError(t, restore.Commit())
+
+	ott, err = state.OneTimeTokenBySecret(nil, otts[len(otts)-1].OneTimeSecretID)
+	require.NoError(t, err)
+	require.Equal(t, token3.AccessorID, ott.AccessorID)
 }
 
 func TestStateStore_SchedulerConfig(t *testing.T) {

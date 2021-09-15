@@ -2,6 +2,9 @@ package command
 
 import (
 	"fmt"
+
+	"github.com/hashicorp/nomad/api"
+	"github.com/posener/complete"
 )
 
 type LicenseGetCommand struct {
@@ -12,7 +15,9 @@ func (c *LicenseGetCommand) Help() string {
 	helpText := `
 Usage: nomad license get [options]
 
-  Gets a new license in Servers and Clients
+  Gets the license loaded by the server. The command is not forwarded to the
+  Nomad leader, and will return the license from the specific server being
+  contacted.
 
   When ACLs are enabled, this command requires a token with the
   'operator:read' capability.
@@ -22,6 +27,14 @@ General Options:
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 
 	return helpText
+}
+
+func (c *LicenseGetCommand) AutocompleteFlags() complete.Flags {
+	return complete.Flags{}
+}
+
+func (c *LicenseGetCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
 }
 
 func (c *LicenseGetCommand) Synopsis() string {
@@ -45,7 +58,7 @@ func (c *LicenseGetCommand) Run(args []string) int {
 		return 1
 	}
 
-	resp, _, err := client.Operator().LicenseGet(nil)
+	resp, _, err := client.Operator().LicenseGet(&api.QueryOptions{})
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting license: %v", err))
 		return 1

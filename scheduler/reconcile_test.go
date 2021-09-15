@@ -578,6 +578,74 @@ func TestReconciler_Inplace_ScaleDown(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(5, 9), stopResultsToNames(r.stop))
 }
 
+// TestReconciler_Inplace_Rollback tests that a rollback to a previous version
+// generates the expected placements for any already-running allocations of
+// that version.
+func TestReconciler_Inplace_Rollback(t *testing.T) {
+	job := mock.Job()
+	job.TaskGroups[0].Count = 4
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		DelayFunction: "exponential",
+		Interval:      time.Second * 30,
+		Delay:         time.Hour * 1,
+		Attempts:      3,
+		Unlimited:     true,
+	}
+
+	// Create 3 existing allocations
+	var allocs []*structs.Allocation
+	for i := 0; i < 3; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+	}
+	// allocs[0] is an allocation from version 0
+	allocs[0].ClientStatus = structs.AllocClientStatusRunning
+
+	// allocs[1] and allocs[2] are failed allocations for version 1 with
+	// different rescheduling states
+	allocs[1].ClientStatus = structs.AllocClientStatusFailed
+	allocs[1].TaskStates = map[string]*structs.TaskState{
+		"web": &structs.TaskState{FinishedAt: time.Now().Add(-10 * time.Minute)}}
+	allocs[2].ClientStatus = structs.AllocClientStatusFailed
+
+	// job is rolled back, we expect allocs[0] to be updated in-place
+	allocUpdateFn := allocUpdateFnMock(map[string]allocUpdateType{
+		allocs[0].ID: allocUpdateFnInplace,
+	}, allocUpdateFnDestructive)
+
+	reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFn,
+		false, job.ID, job, nil, allocs, nil, uuid.Generate())
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             2,
+		inplace:           1,
+		stop:              1,
+		destructive:       1,
+		attributeUpdates:  1,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Place:             2,
+				Stop:              1,
+				InPlaceUpdate:     1,
+				DestructiveUpdate: 1,
+			},
+		},
+	})
+
+	assert.Len(t, r.desiredFollowupEvals, 1, "expected 1 follow-up eval")
+	assertNamesHaveIndexes(t, intRange(0, 0), allocsToNames(r.inplaceUpdate))
+	assertNamesHaveIndexes(t, intRange(2, 2), stopResultsToNames(r.stop))
+	assertNamesHaveIndexes(t, intRange(2, 3), placeResultsToNames(r.place))
+}
+
 // Tests the reconciler properly handles destructive upgrading allocations
 func TestReconciler_Destructive(t *testing.T) {
 	job := mock.Job()
@@ -885,10 +953,9 @@ func TestReconciler_DrainNode(t *testing.T) {
 	// Build a map of tainted nodes
 	tainted := make(map[string]*structs.Node, 2)
 	for i := 0; i < 2; i++ {
-		n := mock.Node()
+		n := mock.DrainNode()
 		n.ID = allocs[i].NodeID
 		allocs[i].DesiredTransition.Migrate = helper.BoolToPtr(true)
-		n.Drain = true
 		tainted[n.ID] = n
 	}
 
@@ -938,10 +1005,9 @@ func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
 	// Build a map of tainted nodes
 	tainted := make(map[string]*structs.Node, 2)
 	for i := 0; i < 2; i++ {
-		n := mock.Node()
+		n := mock.DrainNode()
 		n.ID = allocs[i].NodeID
 		allocs[i].DesiredTransition.Migrate = helper.BoolToPtr(true)
-		n.Drain = true
 		tainted[n.ID] = n
 	}
 
@@ -992,10 +1058,9 @@ func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
 	// Build a map of tainted nodes
 	tainted := make(map[string]*structs.Node, 3)
 	for i := 0; i < 3; i++ {
-		n := mock.Node()
+		n := mock.DrainNode()
 		n.ID = allocs[i].NodeID
 		allocs[i].DesiredTransition.Migrate = helper.BoolToPtr(true)
-		n.Drain = true
 		tainted[n.ID] = n
 	}
 
@@ -2994,10 +3059,9 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 
 	// Build a map of tainted nodes that contains the last canary
 	tainted := make(map[string]*structs.Node, 1)
-	n := mock.Node()
+	n := mock.DrainNode()
 	n.ID = allocs[11].NodeID
 	allocs[11].DesiredTransition.Migrate = helper.BoolToPtr(true)
-	n.Drain = true
 	tainted[n.ID] = n
 
 	mockUpdateFn := allocUpdateFnMock(handled, allocUpdateFnDestructive)
@@ -3785,7 +3849,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 		if i == 0 {
 			n.Status = structs.NodeStatusDown
 		} else {
-			n.Drain = true
+			n.DrainStrategy = mock.DrainNode().DrainStrategy
 			allocs[2+i].DesiredTransition.Migrate = helper.BoolToPtr(true)
 		}
 		tainted[n.ID] = n
@@ -3870,7 +3934,7 @@ func TestReconciler_FailedDeployment_TaintedNodes(t *testing.T) {
 		if i == 0 {
 			n.Status = structs.NodeStatusDown
 		} else {
-			n.Drain = true
+			n.DrainStrategy = mock.DrainNode().DrainStrategy
 			allocs[6+i].DesiredTransition.Migrate = helper.BoolToPtr(true)
 		}
 		tainted[n.ID] = n

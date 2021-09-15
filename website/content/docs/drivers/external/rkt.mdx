@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: 'Drivers: Rkt'
-sidebar_title: 'Rkt <sup>Deprecated</sup> '
 description: The rkt task driver is used to run application containers using rkt.
 ---
 
@@ -152,7 +151,6 @@ task "redis" {
 
 	resources {
 		network {
-			mbits = 10
 			port "app" {
 			  static = 12345
 			}

@@ -382,6 +382,10 @@ message DriverCapabilities {
     }
     // MountConfigs indicates whether the driver supports mount configurations.
     MountConfigs mount_configs = 6;
+
+    // remote_tasks indicates whether the driver executes tasks remotely such
+    // on cloud runtimes like AWS ECS.
+    bool remote_tasks = 7;
 }
 
 message NetworkIsolationSpec {
@@ -396,6 +400,13 @@ message NetworkIsolationSpec {
   string path = 2;
 
   map<string,string> labels = 3;
+
+  HostsConfig hostsConfig = 4;
+}
+
+message HostsConfig {
+  string hostname = 1;
+  string address  = 2;
 }
 
 message DNSConfig {
@@ -489,6 +500,7 @@ message AllocatedCpuResources {
 
 message AllocatedMemoryResources {
     int64 memory_mb = 2;
+    int64 memory_max_mb = 3;
 }
 
 message NetworkResource {
@@ -524,10 +536,16 @@ message LinuxResources {
     int64 memory_limit_bytes = 4;
     // OOMScoreAdj adjusts the oom-killer score. Default: 0 (not specified)
     int64 oom_score_adj = 5;
+
     // CpusetCpus constrains the allowed set of logical CPUs. Default: "" (not specified)
+    // This field exists to support drivers which can't set a cgroup path.
     string cpuset_cpus = 6;
-    // CpusetMems constrains the allowed set of memory nodes. Default: "" (not specified)
-    string cpuset_mems = 7;
+    // Previously cpuset_mems fields never set by the Nomad client
+    reserved 7;
+    reserved "cpuset_mems";
+    // CpusetCgroup is the path to the cpuset cgroup managed by the client
+    string cpuset_cgroup = 9;
+
     // PercentTicks is a compatibility option for docker and should not be used
     // buf:lint:ignore FIELD_LOWER_SNAKE_CASE
     double PercentTicks = 8;

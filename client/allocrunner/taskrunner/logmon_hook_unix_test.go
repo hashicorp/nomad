@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/shirou/gopsutil/process"
+	"github.com/shirou/gopsutil/v3/process"
 	"github.com/stretchr/testify/require"
 )
 
@@ -144,9 +144,11 @@ func TestTaskRunner_LogmonHook_ShutdownMidStart(t *testing.T) {
 		if err != nil {
 			return false, err
 		}
-
-		if status != "T" && status != "T+" {
-			return false, fmt.Errorf("process is not asleep yet: %v", status)
+		if len(status) == 0 {
+			return false, fmt.Errorf("process status did not return value")
+		}
+		if status[0] != "stop" {
+			return false, fmt.Errorf("process is not stopped yet: %v", status)
 		}
 
 		return true, nil

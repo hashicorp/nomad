@@ -12,6 +12,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	groupServiceHookName = "group_services"
+)
+
 type networkStatusGetter interface {
 	NetworkStatus() *structs.AllocNetworkStatus
 }
@@ -23,6 +27,7 @@ type groupServiceHook struct {
 	group               string
 	restarter           agentconsul.WorkloadRestarter
 	consulClient        consul.ConsulServiceAPI
+	consulNamespace     string
 	prerun              bool
 	delay               time.Duration
 	deregistered        bool
@@ -45,6 +50,7 @@ type groupServiceHook struct {
 type groupServiceHookConfig struct {
 	alloc               *structs.Allocation
 	consul              consul.ConsulServiceAPI
+	consulNamespace     string
 	restarter           agentconsul.WorkloadRestarter
 	taskEnvBuilder      *taskenv.Builder
 	networkStatusGetter networkStatusGetter
@@ -64,12 +70,13 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 		group:               cfg.alloc.TaskGroup,
 		restarter:           cfg.restarter,
 		consulClient:        cfg.consul,
+		consulNamespace:     cfg.consulNamespace,
 		taskEnvBuilder:      cfg.taskEnvBuilder,
 		delay:               shutdownDelay,
 		networkStatusGetter: cfg.networkStatusGetter,
+		logger:              cfg.logger.Named(groupServiceHookName),
+		services:            cfg.alloc.Job.LookupTaskGroup(cfg.alloc.TaskGroup).Services,
 	}
-	h.logger = cfg.logger.Named(h.Name())
-	h.services = cfg.alloc.Job.LookupTaskGroup(h.group).Services
 
 	if cfg.alloc.AllocatedResources != nil {
 		h.networks = cfg.alloc.AllocatedResources.Shared.Networks
@@ -79,11 +86,12 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 	if cfg.alloc.DeploymentStatus != nil {
 		h.canary = cfg.alloc.DeploymentStatus.Canary
 	}
+
 	return h
 }
 
 func (*groupServiceHook) Name() string {
-	return "group_services"
+	return groupServiceHookName
 }
 
 func (h *groupServiceHook) Prerun() error {
@@ -168,9 +176,8 @@ func (h *groupServiceHook) PreKill() {
 
 // implements the PreKill hook but requires the caller hold the lock
 func (h *groupServiceHook) preKillLocked() {
-	// If we have a shutdown delay deregister
-	// group services and then wait
-	// before continuing to kill tasks
+	// If we have a shutdown delay deregister group services and then wait
+	// before continuing to kill tasks.
 	h.deregister()
 	h.deregistered = true
 
@@ -178,10 +185,10 @@ func (h *groupServiceHook) preKillLocked() {
 		return
 	}
 
-	h.logger.Debug("waiting before removing group service", "shutdown_delay", h.delay)
+	h.logger.Debug("delay before killing tasks", "group", h.group, "shutdown_delay", h.delay)
 
 	// Wait for specified shutdown_delay
-	// this will block an agent from shutting down
+	// This will block an agent from shutting down.
 	<-time.After(h.delay)
 }
 
@@ -200,11 +207,6 @@ func (h *groupServiceHook) deregister() {
 	if len(h.services) > 0 {
 		workloadServices := h.getWorkloadServices()
 		h.consulClient.RemoveWorkload(workloadServices)
-
-		// Canary flag may be getting flipped when the alloc is being
-		// destroyed, so remove both variations of the service
-		workloadServices.Canary = !workloadServices.Canary
-		h.consulClient.RemoveWorkload(workloadServices)
 	}
 }
 
@@ -219,13 +221,14 @@ func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 
 	// Create task services struct with request's driver metadata
 	return &agentconsul.WorkloadServices{
-		AllocID:       h.allocID,
-		Group:         h.group,
-		Restarter:     h.restarter,
-		Services:      interpolatedServices,
-		Networks:      h.networks,
-		NetworkStatus: netStatus,
-		Ports:         h.ports,
-		Canary:        h.canary,
+		AllocID:         h.allocID,
+		Group:           h.group,
+		ConsulNamespace: h.consulNamespace,
+		Restarter:       h.restarter,
+		Services:        interpolatedServices,
+		Networks:        h.networks,
+		NetworkStatus:   netStatus,
+		Ports:           h.ports,
+		Canary:          h.canary,
 	}
 }

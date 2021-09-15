@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: lifecycle Stanza - Job Specification
-sidebar_title: lifecycle
 description: |-
   The "lifecycle" stanza configures when a task is run within the lifecycle of a
   task group
@@ -17,9 +16,10 @@ configuring when a task is run within the lifecycle of a task group.
 Main tasks are tasks that do not have a `lifecycle` stanza. Lifecycle task hooks
 specify when other tasks are run in relation to the main tasks.
 There are three different lifecycle hooks, indicating when a task is started:
-* prestart tasks are started immediately
-* poststart tasks are started after the main tasks are running
-* poststop tasks are started after the main tasks are dead
+
+- prestart tasks are started immediately
+- poststart tasks are started after the main tasks are running
+- poststop tasks are started after the main tasks are dead
 
 Tasks can be run with an additional parameter indicating whether they are ephemeral
 tasks or "sidecar" tasks that are expected to run for the duration of the main tasks.
@@ -32,6 +32,7 @@ Learn more about Nomad's task dependencies on the [HashiCorp Learn website][lear
 
 - `hook` `(string: <required>)` - Specifies when a task should be run within
   the lifecycle of a group. The following hooks are available:
+
   - `prestart` - Will be started immediately. The main tasks will not start until
     all `prestart` tasks with `sidecar = false` have completed successfully.
   - `poststart` - Will be started once all main tasks are running.
@@ -59,6 +60,7 @@ or performing complex initialization.
 
 In the following example, the init task will block the main task from starting
 until the upstream database service is listening on the expected port:
+
 ```hcl
   task "wait-for-db" {
     lifecycle {
@@ -116,6 +118,7 @@ failures in the main tasks.
 
 The example below shows a chatbot which posts a notification when the main tasks
 have stopped:
+
 ```hcl
   task "main-app" {
     ...

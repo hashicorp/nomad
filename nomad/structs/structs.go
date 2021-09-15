@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/lib/cpuset"
+
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
@@ -100,6 +102,9 @@ const (
 	EventSinkUpsertRequestType                   MessageType = 41
 	EventSinkDeleteRequestType                   MessageType = 42
 	BatchEventSinkUpdateProgressType             MessageType = 43
+	OneTimeTokenUpsertRequestType                MessageType = 44
+	OneTimeTokenDeleteRequestType                MessageType = 45
+	OneTimeTokenExpireRequestType                MessageType = 46
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
@@ -188,24 +193,6 @@ var (
 	validNamespaceName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 )
 
-// Context defines the scope in which a search for Nomad object operates, and
-// is also used to query the matching index value for this context
-type Context string
-
-const (
-	Allocs          Context = "allocs"
-	Deployments     Context = "deployment"
-	Evals           Context = "evals"
-	Jobs            Context = "jobs"
-	Nodes           Context = "nodes"
-	Namespaces      Context = "namespaces"
-	Quotas          Context = "quotas"
-	Recommendations Context = "recommendations"
-	All             Context = "all"
-	Plugins         Context = "plugins"
-	Volumes         Context = "volumes"
-)
-
 // NamespacedID is a tuple of an ID and a namespace
 type NamespacedID struct {
 	ID        string
@@ -287,6 +274,14 @@ type QueryOptions struct {
 	// AuthToken is secret portion of the ACL token used for the request
 	AuthToken string
 
+	// PerPage is the number of entries to be returned in queries that support
+	// paginated lists.
+	PerPage int32
+
+	// NextToken is the token used indicate where to start paging for queries
+	// that support paginated lists.
+	NextToken string
+
 	InternalRpcInfo
 }
 
@@ -324,7 +319,7 @@ func (q QueryOptions) RequestNamespace() string {
 	return q.Namespace
 }
 
-// QueryOption only applies to reads, so always true
+// IsRead only applies to reads, so always true.
 func (q QueryOptions) IsRead() bool {
 	return true
 }
@@ -390,6 +385,9 @@ type WriteRequest struct {
 	// AuthToken is secret portion of the ACL token used for the request
 	AuthToken string
 
+	// IdempotencyToken can be used to ensure the write is idempotent.
+	IdempotencyToken string
+
 	InternalRpcInfo
 }
 
@@ -417,7 +415,7 @@ func (w WriteRequest) RequestNamespace() string {
 	return w.Namespace
 }
 
-// WriteRequest only applies to writes, always false
+// IsRead only applies to writes, always false.
 func (w WriteRequest) IsRead() bool {
 	return false
 }
@@ -504,12 +502,6 @@ type NodeUpdateDrainRequest struct {
 	NodeID        string
 	DrainStrategy *DrainStrategy
 
-	// COMPAT Remove in version 0.10
-	// As part of Nomad 0.8 we have deprecated the drain boolean in favor of a
-	// drain strategy but we need to handle the upgrade path where the Raft log
-	// contains drain updates with just the drain boolean being manipulated.
-	Drain bool
-
 	// MarkEligible marks the node as eligible if removing the drain strategy.
 	MarkEligible bool
 
@@ -518,6 +510,9 @@ type NodeUpdateDrainRequest struct {
 
 	// UpdatedAt represents server time of receiving request
 	UpdatedAt int64
+
+	// Meta is user-provided metadata relating to the drain operation
+	Meta map[string]string
 
 	WriteRequest
 }
@@ -570,35 +565,6 @@ type NodeEvaluateRequest struct {
 type NodeSpecificRequest struct {
 	NodeID   string
 	SecretID string
-	QueryOptions
-}
-
-// SearchResponse is used to return matches and information about whether
-// the match list is truncated specific to each type of context.
-type SearchResponse struct {
-	// Map of context types to ids which match a specified prefix
-	Matches map[Context][]string
-
-	// Truncations indicates whether the matches for a particular context have
-	// been truncated
-	Truncations map[Context]bool
-
-	QueryMeta
-}
-
-// SearchRequest is used to parameterize a request, and returns a
-// list of matches made up of jobs, allocations, evaluations, and/or nodes,
-// along with whether or not the information returned is truncated.
-type SearchRequest struct {
-	// Prefix is what ids are matched to. I.e, if the given prefix were
-	// "a", potential matches might be "abcd" or "aabb"
-	Prefix string
-
-	// Context is the type that can be matched against. A context can be a job,
-	// node, evaluation, allocation, or empty (indicated every context should be
-	// matched)
-	Context Context
-
 	QueryOptions
 }
 
@@ -1803,6 +1769,45 @@ func (d *DrainStrategy) Equal(o *DrainStrategy) bool {
 	return true
 }
 
+const (
+	// DrainStatuses are the various states a drain can be in, as reflect in DrainMetadata
+	DrainStatusDraining DrainStatus = "draining"
+	DrainStatusComplete DrainStatus = "complete"
+	DrainStatusCanceled DrainStatus = "canceled"
+)
+
+type DrainStatus string
+
+// DrainMetadata contains information about the most recent drain operation for a given Node.
+type DrainMetadata struct {
+	// StartedAt is the time that the drain operation started. This is equal to Node.DrainStrategy.StartedAt,
+	// if it exists
+	StartedAt time.Time
+
+	// UpdatedAt is the time that that this struct was most recently updated, either via API action
+	// or drain completion
+	UpdatedAt time.Time
+
+	// Status reflects the status of the drain operation.
+	Status DrainStatus
+
+	// AccessorID is the accessor ID of the ACL token used in the most recent API operation against this drain
+	AccessorID string
+
+	// Meta includes the operator-submitted metadata about this drain operation
+	Meta map[string]string
+}
+
+func (m *DrainMetadata) Copy() *DrainMetadata {
+	if m == nil {
+		return nil
+	}
+	c := new(DrainMetadata)
+	*c = *m
+	c.Meta = helper.CopyMapStringString(m.Meta)
+	return c
+}
+
 // Node is a representation of a schedulable client node
 type Node struct {
 	// ID is a unique identifier for the node. It can be constructed
@@ -1871,15 +1876,8 @@ type Node struct {
 	// attributes and capabilities.
 	ComputedClass string
 
-	// COMPAT: Remove in Nomad 0.9
-	// Drain is controlled by the servers, and not the client.
-	// If true, no jobs will be scheduled to this node, and existing
-	// allocations will be drained. Superseded by DrainStrategy in Nomad
-	// 0.8 but kept for backward compat.
-	Drain bool
-
-	// DrainStrategy determines the node's draining behavior. Will be nil
-	// when Drain=false.
+	// DrainStrategy determines the node's draining behavior.
+	// Will be non-nil only while draining.
 	DrainStrategy *DrainStrategy
 
 	// SchedulingEligibility determines whether this node will receive new
@@ -1911,15 +1909,31 @@ type Node struct {
 	// HostVolumes is a map of host volume names to their configuration
 	HostVolumes map[string]*ClientHostVolumeConfig
 
+	// LastDrain contains metadata about the most recent drain operation
+	LastDrain *DrainMetadata
+
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
 }
 
+// Sanitize returns a copy of the Node omitting confidential fields
+// It only returns a copy if the Node contains the confidential fields
+func (n *Node) Sanitize() *Node {
+	if n == nil {
+		return nil
+	}
+	if n.SecretID == "" {
+		return n
+	}
+	clean := n.Copy()
+	clean.SecretID = ""
+	return clean
+}
+
 // Ready returns true if the node is ready for running allocations
 func (n *Node) Ready() bool {
-	// Drain is checked directly to support pre-0.8 Node data
-	return n.Status == NodeStatusReady && !n.Drain && n.SchedulingEligibility == NodeSchedulingEligible
+	return n.Status == NodeStatusReady && n.DrainStrategy == nil && n.SchedulingEligibility == NodeSchedulingEligible
 }
 
 func (n *Node) Canonicalize() {
@@ -1927,15 +1941,12 @@ func (n *Node) Canonicalize() {
 		return
 	}
 
-	// COMPAT Remove in 0.10
-	// In v0.8.0 we introduced scheduling eligibility, so we need to set it for
-	// upgrading nodes
-	if n.SchedulingEligibility == "" {
-		if n.Drain {
-			n.SchedulingEligibility = NodeSchedulingIneligible
-		} else {
-			n.SchedulingEligibility = NodeSchedulingEligible
-		}
+	// Ensure SchedulingEligibility is correctly set whenever draining so the plan applier and other scheduling logic
+	// only need to check SchedulingEligibility when determining whether a placement is feasible on a node.
+	if n.DrainStrategy != nil {
+		n.SchedulingEligibility = NodeSchedulingIneligible
+	} else if n.SchedulingEligibility == "" {
+		n.SchedulingEligibility = NodeSchedulingEligible
 	}
 
 	// COMPAT remove in 1.0
@@ -1978,6 +1989,7 @@ func (n *Node) Copy() *Node {
 	nn.Meta = helper.CopyMapStringString(nn.Meta)
 	nn.Events = copyNodeEvents(n.Events)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
+	nn.LastDrain = nn.LastDrain.Copy()
 	nn.CSIControllerPlugins = copyNodeCSI(nn.CSIControllerPlugins)
 	nn.CSINodePlugins = copyNodeCSI(nn.CSINodePlugins)
 	nn.Drivers = copyNodeDrivers(n.Drivers)
@@ -2054,11 +2066,12 @@ func (n *Node) TerminalStatus() bool {
 	}
 }
 
-// COMPAT(0.11): Remove in 0.11
 // ComparableReservedResources returns the reserved resouces on the node
 // handling upgrade paths. Reserved networks must be handled separately. After
 // 0.11 calls to this should be replaced with:
 // node.ReservedResources.Comparable()
+//
+// COMPAT(0.11): Remove in 0.11
 func (n *Node) ComparableReservedResources() *ComparableResources {
 	// See if we can no-op
 	if n.Reserved == nil && n.ReservedResources == nil {
@@ -2086,10 +2099,11 @@ func (n *Node) ComparableReservedResources() *ComparableResources {
 	}
 }
 
-// COMPAT(0.11): Remove in 0.11
 // ComparableResources returns the resouces on the node
 // handling upgrade paths. Networking must be handled separately. After 0.11
 // calls to this should be replaced with: node.NodeResources.Comparable()
+//
+// // COMPAT(0.11): Remove in 0.11
 func (n *Node) ComparableResources() *ComparableResources {
 	// Node already has 0.9+ behavior
 	if n.NodeResources != nil {
@@ -2124,12 +2138,13 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 		Name:                  n.Name,
 		NodeClass:             n.NodeClass,
 		Version:               n.Attributes["nomad.version"],
-		Drain:                 n.Drain,
+		Drain:                 n.DrainStrategy != nil,
 		SchedulingEligibility: n.SchedulingEligibility,
 		Status:                n.Status,
 		StatusDescription:     n.StatusDescription,
 		Drivers:               n.Drivers,
 		HostVolumes:           n.HostVolumes,
+		LastDrain:             n.LastDrain,
 		CreateIndex:           n.CreateIndex,
 		ModifyIndex:           n.ModifyIndex,
 	}
@@ -2161,6 +2176,7 @@ type NodeListStub struct {
 	HostVolumes           map[string]*ClientHostVolumeConfig
 	NodeResources         *NodeResources         `json:",omitempty"`
 	ReservedResources     *NodeReservedResources `json:",omitempty"`
+	LastDrain             *DrainMetadata
 	CreateIndex           uint64
 	ModifyIndex           uint64
 }
@@ -2173,12 +2189,14 @@ type NodeStubFields struct {
 // Resources is used to define the resources available
 // on a client
 type Resources struct {
-	CPU      int
-	MemoryMB int
-	DiskMB   int
-	IOPS     int // COMPAT(0.10): Only being used to issue warnings
-	Networks Networks
-	Devices  ResourceDevices
+	CPU         int
+	Cores       int
+	MemoryMB    int
+	MemoryMaxMB int
+	DiskMB      int
+	IOPS        int // COMPAT(0.10): Only being used to issue warnings
+	Networks    Networks
+	Devices     ResourceDevices
 }
 
 const (
@@ -2192,6 +2210,7 @@ const (
 func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      100,
+		Cores:    0,
 		MemoryMB: 300,
 	}
 }
@@ -2204,6 +2223,7 @@ func DefaultResources() *Resources {
 func MinResources() *Resources {
 	return &Resources{
 		CPU:      1,
+		Cores:    0,
 		MemoryMB: 10,
 	}
 }
@@ -2215,6 +2235,11 @@ func (r *Resources) DiskInBytes() int64 {
 
 func (r *Resources) Validate() error {
 	var mErr multierror.Error
+
+	if r.Cores > 0 && r.CPU > 0 {
+		mErr.Errors = append(mErr.Errors, errors.New("Task can only ask for 'cpu' or 'cores' resource, not both."))
+	}
+
 	if err := r.MeetsMinResources(); err != nil {
 		mErr.Errors = append(mErr.Errors, err)
 	}
@@ -2230,6 +2255,10 @@ func (r *Resources) Validate() error {
 		}
 	}
 
+	if r.MemoryMaxMB != 0 && r.MemoryMaxMB < r.MemoryMB {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("MemoryMaxMB value (%d) should be larger than MemoryMB value (%d)", r.MemoryMaxMB, r.MemoryMB))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -2239,8 +2268,14 @@ func (r *Resources) Merge(other *Resources) {
 	if other.CPU != 0 {
 		r.CPU = other.CPU
 	}
+	if other.Cores != 0 {
+		r.Cores = other.Cores
+	}
 	if other.MemoryMB != 0 {
 		r.MemoryMB = other.MemoryMB
+	}
+	if other.MemoryMaxMB != 0 {
+		r.MemoryMaxMB = other.MemoryMaxMB
 	}
 	if other.DiskMB != 0 {
 		r.DiskMB = other.DiskMB
@@ -2253,6 +2288,8 @@ func (r *Resources) Merge(other *Resources) {
 	}
 }
 
+// Equals Resources.
+//
 // COMPAT(0.10): Remove in 0.10
 func (r *Resources) Equals(o *Resources) bool {
 	if r == o {
@@ -2262,19 +2299,23 @@ func (r *Resources) Equals(o *Resources) bool {
 		return false
 	}
 	return r.CPU == o.CPU &&
+		r.Cores == o.Cores &&
 		r.MemoryMB == o.MemoryMB &&
+		r.MemoryMaxMB == o.MemoryMaxMB &&
 		r.DiskMB == o.DiskMB &&
 		r.IOPS == o.IOPS &&
 		r.Networks.Equals(&o.Networks) &&
 		r.Devices.Equals(&o.Devices)
 }
 
-// COMPAT(0.10): Remove in 0.10
-// ResourceDevices are part of Resources
+// ResourceDevices are part of Resources.
+//
+// COMPAT(0.10): Remove in 0.10.
 type ResourceDevices []*RequestedDevice
 
+// Equals ResourceDevices as set keyed by Name.
+//
 // COMPAT(0.10): Remove in 0.10
-// Equals ResourceDevices as set keyed by Name
 func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
 	if d == o {
 		return true
@@ -2298,6 +2339,8 @@ func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
 	return true
 }
 
+// Canonicalize the Resources struct.
+//
 // COMPAT(0.10): Remove in 0.10
 func (r *Resources) Canonicalize() {
 	// Ensure that an empty and nil slices are treated the same to avoid scheduling
@@ -2321,7 +2364,7 @@ func (r *Resources) Canonicalize() {
 func (r *Resources) MeetsMinResources() error {
 	var mErr multierror.Error
 	minResources := MinResources()
-	if r.CPU < minResources.CPU {
+	if r.CPU < minResources.CPU && r.Cores == 0 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("minimum CPU value is %d; got %d", minResources.CPU, r.CPU))
 	}
 	if r.MemoryMB < minResources.MemoryMB {
@@ -2359,23 +2402,6 @@ func (r *Resources) NetIndex(n *NetworkResource) int {
 	return r.Networks.NetIndex(n)
 }
 
-// Superset checks if one set of resources is a superset
-// of another. This ignores network resources, and the NetworkIndex
-// should be used for that.
-// COMPAT(0.10): Remove in 0.10
-func (r *Resources) Superset(other *Resources) (bool, string) {
-	if r.CPU < other.CPU {
-		return false, "cpu"
-	}
-	if r.MemoryMB < other.MemoryMB {
-		return false, "memory"
-	}
-	if r.DiskMB < other.DiskMB {
-		return false, "disk"
-	}
-	return true, ""
-}
-
 // Add adds the resources of the delta to this, potentially
 // returning an error if not possible.
 // COMPAT(0.10): Remove in 0.10
@@ -2386,6 +2412,11 @@ func (r *Resources) Add(delta *Resources) {
 
 	r.CPU += delta.CPU
 	r.MemoryMB += delta.MemoryMB
+	if delta.MemoryMaxMB > 0 {
+		r.MemoryMaxMB += delta.MemoryMaxMB
+	} else {
+		r.MemoryMaxMB += delta.MemoryMB
+	}
 	r.DiskMB += delta.DiskMB
 
 	for _, n := range delta.Networks {
@@ -2399,6 +2430,8 @@ func (r *Resources) Add(delta *Resources) {
 	}
 }
 
+// GoString returns the string representation of the Resources struct.
+//
 // COMPAT(0.10): Remove in 0.10
 func (r *Resources) GoString() string {
 	return fmt.Sprintf("*%#v", *r)
@@ -2601,24 +2634,6 @@ func (n *NetworkResource) PortLabels() map[string]int {
 	return labelValues
 }
 
-// ConnectPort returns the Connect port for the given service. Returns false if
-// no port was found for a service with that name.
-func (n *NetworkResource) PortForService(serviceName string) (Port, bool) {
-	label := fmt.Sprintf("%s-%s", ConnectProxyPrefix, serviceName)
-	for _, port := range n.ReservedPorts {
-		if port.Label == label {
-			return port, true
-		}
-	}
-	for _, port := range n.DynamicPorts {
-		if port.Label == label {
-			return port, true
-		}
-	}
-
-	return Port{}, false
-}
-
 // Networks defined for a task on the Resources struct.
 type Networks []*NetworkResource
 
@@ -2635,20 +2650,30 @@ func (ns Networks) Copy() Networks {
 }
 
 // Port assignment and IP for the given label or empty values.
-func (ns Networks) Port(label string) (string, int) {
+func (ns Networks) Port(label string) AllocatedPortMapping {
 	for _, n := range ns {
 		for _, p := range n.ReservedPorts {
 			if p.Label == label {
-				return n.IP, p.Value
+				return AllocatedPortMapping{
+					Label:  label,
+					Value:  p.Value,
+					To:     p.To,
+					HostIP: n.IP,
+				}
 			}
 		}
 		for _, p := range n.DynamicPorts {
 			if p.Label == label {
-				return n.IP, p.Value
+				return AllocatedPortMapping{
+					Label:  label,
+					Value:  p.Value,
+					To:     p.To,
+					HostIP: n.IP,
+				}
 			}
 		}
 	}
-	return "", 0
+	return AllocatedPortMapping{}
 }
 
 func (ns Networks) NetIndex(n *NetworkResource) int {
@@ -2811,7 +2836,8 @@ func (n *NodeResources) Comparable() *ComparableResources {
 	c := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: n.Cpu.CpuShares,
+				CpuShares:     n.Cpu.CpuShares,
+				ReservedCores: n.Cpu.ReservableCpuCores,
 			},
 			Memory: AllocatedMemoryResources{
 				MemoryMB: n.Memory.MemoryMB,
@@ -2961,6 +2987,15 @@ type NodeCpuResources struct {
 	// CpuShares is the CPU shares available. This is calculated by number of
 	// cores multiplied by the core frequency.
 	CpuShares int64
+
+	// TotalCpuCores is the total number of cores on the machine. This includes cores not in
+	// the agent's cpuset if on a linux platform
+	TotalCpuCores uint16
+
+	// ReservableCpuCores is the set of cpus which are available to be reserved on the Node.
+	// This value is currently only reported on Linux platforms which support cgroups and is
+	// discovered by inspecting the cpuset of the agent's cgroup.
+	ReservableCpuCores []uint16
 }
 
 func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
@@ -2970,6 +3005,14 @@ func (n *NodeCpuResources) Merge(o *NodeCpuResources) {
 
 	if o.CpuShares != 0 {
 		n.CpuShares = o.CpuShares
+	}
+
+	if o.TotalCpuCores != 0 {
+		n.TotalCpuCores = o.TotalCpuCores
+	}
+
+	if len(o.ReservableCpuCores) != 0 {
+		n.ReservableCpuCores = o.ReservableCpuCores
 	}
 }
 
@@ -2986,7 +3029,23 @@ func (n *NodeCpuResources) Equals(o *NodeCpuResources) bool {
 		return false
 	}
 
+	if n.TotalCpuCores != o.TotalCpuCores {
+		return false
+	}
+
+	if len(n.ReservableCpuCores) != len(o.ReservableCpuCores) {
+		return false
+	}
+	for i := range n.ReservableCpuCores {
+		if n.ReservableCpuCores[i] != o.ReservableCpuCores[i] {
+			return false
+		}
+	}
 	return true
+}
+
+func (n *NodeCpuResources) SharesPerCore() int64 {
+	return n.CpuShares / int64(n.TotalCpuCores)
 }
 
 // NodeMemoryResources captures the memory resources of the node
@@ -3302,7 +3361,8 @@ func (n *NodeReservedResources) Comparable() *ComparableResources {
 	c := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: n.Cpu.CpuShares,
+				CpuShares:     n.Cpu.CpuShares,
+				ReservedCores: n.Cpu.ReservedCpuCores,
 			},
 			Memory: AllocatedMemoryResources{
 				MemoryMB: n.Memory.MemoryMB,
@@ -3317,7 +3377,8 @@ func (n *NodeReservedResources) Comparable() *ComparableResources {
 
 // NodeReservedCpuResources captures the reserved CPU resources of the node.
 type NodeReservedCpuResources struct {
-	CpuShares int64
+	CpuShares        int64
+	ReservedCpuCores []uint16
 }
 
 // NodeReservedMemoryResources captures the reserved memory resources of the node.
@@ -3338,7 +3399,7 @@ type NodeReservedNetworkResources struct {
 	ReservedHostPorts string
 }
 
-// ParsePortHostPorts returns the reserved host ports.
+// ParseReservedHostPorts returns the reserved host ports.
 func (n *NodeReservedNetworkResources) ParseReservedHostPorts() ([]uint64, error) {
 	return ParsePortRanges(n.ReservedHostPorts)
 }
@@ -3431,9 +3492,10 @@ func (a *AllocatedResources) OldTaskResources() map[string]*Resources {
 	m := make(map[string]*Resources, len(a.Tasks))
 	for name, res := range a.Tasks {
 		m[name] = &Resources{
-			CPU:      int(res.Cpu.CpuShares),
-			MemoryMB: int(res.Memory.MemoryMB),
-			Networks: res.Networks,
+			CPU:         int(res.Cpu.CpuShares),
+			MemoryMB:    int(res.Memory.MemoryMB),
+			MemoryMaxMB: int(res.Memory.MemoryMaxMB),
+			Networks:    res.Networks,
 		}
 	}
 
@@ -3556,10 +3618,12 @@ func (a *AllocatedTaskResources) Comparable() *ComparableResources {
 	ret := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: a.Cpu.CpuShares,
+				CpuShares:     a.Cpu.CpuShares,
+				ReservedCores: a.Cpu.ReservedCores,
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: a.Memory.MemoryMB,
+				MemoryMB:    a.Memory.MemoryMB,
+				MemoryMaxMB: a.Memory.MemoryMaxMB,
 			},
 		},
 	}
@@ -3640,7 +3704,8 @@ func (a *AllocatedSharedResources) Canonicalize() {
 
 // AllocatedCpuResources captures the allocated CPU resources.
 type AllocatedCpuResources struct {
-	CpuShares int64
+	CpuShares     int64
+	ReservedCores []uint16
 }
 
 func (a *AllocatedCpuResources) Add(delta *AllocatedCpuResources) {
@@ -3649,6 +3714,8 @@ func (a *AllocatedCpuResources) Add(delta *AllocatedCpuResources) {
 	}
 
 	a.CpuShares += delta.CpuShares
+
+	a.ReservedCores = cpuset.New(a.ReservedCores...).Union(cpuset.New(delta.ReservedCores...)).ToSlice()
 }
 
 func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
@@ -3657,6 +3724,7 @@ func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
 	}
 
 	a.CpuShares -= delta.CpuShares
+	a.ReservedCores = cpuset.New(a.ReservedCores...).Difference(cpuset.New(delta.ReservedCores...)).ToSlice()
 }
 
 func (a *AllocatedCpuResources) Max(other *AllocatedCpuResources) {
@@ -3667,11 +3735,16 @@ func (a *AllocatedCpuResources) Max(other *AllocatedCpuResources) {
 	if other.CpuShares > a.CpuShares {
 		a.CpuShares = other.CpuShares
 	}
+
+	if len(other.ReservedCores) > len(a.ReservedCores) {
+		a.ReservedCores = other.ReservedCores
+	}
 }
 
 // AllocatedMemoryResources captures the allocated memory resources.
 type AllocatedMemoryResources struct {
-	MemoryMB int64
+	MemoryMB    int64
+	MemoryMaxMB int64
 }
 
 func (a *AllocatedMemoryResources) Add(delta *AllocatedMemoryResources) {
@@ -3680,6 +3753,11 @@ func (a *AllocatedMemoryResources) Add(delta *AllocatedMemoryResources) {
 	}
 
 	a.MemoryMB += delta.MemoryMB
+	if delta.MemoryMaxMB != 0 {
+		a.MemoryMaxMB += delta.MemoryMaxMB
+	} else {
+		a.MemoryMaxMB += delta.MemoryMB
+	}
 }
 
 func (a *AllocatedMemoryResources) Subtract(delta *AllocatedMemoryResources) {
@@ -3688,6 +3766,11 @@ func (a *AllocatedMemoryResources) Subtract(delta *AllocatedMemoryResources) {
 	}
 
 	a.MemoryMB -= delta.MemoryMB
+	if delta.MemoryMaxMB != 0 {
+		a.MemoryMaxMB -= delta.MemoryMaxMB
+	} else {
+		a.MemoryMaxMB -= delta.MemoryMB
+	}
 }
 
 func (a *AllocatedMemoryResources) Max(other *AllocatedMemoryResources) {
@@ -3697,6 +3780,9 @@ func (a *AllocatedMemoryResources) Max(other *AllocatedMemoryResources) {
 
 	if other.MemoryMB > a.MemoryMB {
 		a.MemoryMB = other.MemoryMB
+	}
+	if other.MemoryMaxMB > a.MemoryMaxMB {
+		a.MemoryMaxMB = other.MemoryMaxMB
 	}
 }
 
@@ -3806,6 +3892,10 @@ func (c *ComparableResources) Superset(other *ComparableResources) (bool, string
 	if c.Flattened.Cpu.CpuShares < other.Flattened.Cpu.CpuShares {
 		return false, "cpu"
 	}
+
+	if len(c.Flattened.Cpu.ReservedCores) > 0 && !cpuset.New(c.Flattened.Cpu.ReservedCores...).IsSupersetOf(cpuset.New(other.Flattened.Cpu.ReservedCores...)) {
+		return false, "cores"
+	}
 	if c.Flattened.Memory.MemoryMB < other.Flattened.Memory.MemoryMB {
 		return false, "memory"
 	}
@@ -3815,18 +3905,19 @@ func (c *ComparableResources) Superset(other *ComparableResources) (bool, string
 	return true, ""
 }
 
-// allocated finds the matching net index using device name
+// NetIndex finds the matching net index using device name
 func (c *ComparableResources) NetIndex(n *NetworkResource) int {
 	return c.Flattened.Networks.NetIndex(n)
 }
 
 const (
-	// JobTypeNomad is reserved for internal system tasks and is
+	// JobTypeCore is reserved for internal system tasks and is
 	// always handled by the CoreScheduler.
-	JobTypeCore    = "_core"
-	JobTypeService = "service"
-	JobTypeBatch   = "batch"
-	JobTypeSystem  = "system"
+	JobTypeCore     = "_core"
+	JobTypeService  = "service"
+	JobTypeBatch    = "batch"
+	JobTypeSystem   = "system"
+	JobTypeSysBatch = "sysbatch"
 )
 
 const (
@@ -3846,7 +3937,7 @@ const (
 	// JobMaxPriority is the maximum allowed priority
 	JobMaxPriority = 100
 
-	// Ensure CoreJobPriority is higher than any user
+	// CoreJobPriority should be higher than any user
 	// specified job so that it gets priority. This is important
 	// for the system to remain healthy.
 	CoreJobPriority = JobMaxPriority * 2
@@ -3939,6 +4030,10 @@ type Job struct {
 	// parameterized job.
 	Dispatched bool
 
+	// DispatchIdempotencyToken is optionally used to ensure that a dispatched job does not have any
+	// non-terminal siblings which have the same token value.
+	DispatchIdempotencyToken string
+
 	// Payload is the payload supplied when the job was dispatched.
 	Payload []byte
 
@@ -3952,12 +4047,15 @@ type Job struct {
 	// token and is not stored after Job submission.
 	ConsulToken string
 
+	// ConsulNamespace is the Consul namespace
+	ConsulNamespace string
+
 	// VaultToken is the Vault token that proves the submitter of the job has
 	// access to the specified Vault policies. This field is only used to
 	// transfer the token and is not stored after Job submission.
 	VaultToken string
 
-	// VaultNamespace is the Vault namepace
+	// VaultNamespace is the Vault namespace
 	VaultNamespace string
 
 	// NomadTokenID is the Accessor ID of the ACL token (if any)
@@ -3993,8 +4091,8 @@ type Job struct {
 }
 
 // NamespacedID returns the namespaced id useful for logging
-func (j *Job) NamespacedID() *NamespacedID {
-	return &NamespacedID{
+func (j *Job) NamespacedID() NamespacedID {
+	return NamespacedID{
 		ID:        j.ID,
 		Namespace: j.Namespace,
 	}
@@ -4062,7 +4160,7 @@ func (j *Job) Copy() *Job {
 	return nj
 }
 
-// Validate is used to sanity check a job input
+// Validate is used to check a job for reasonable configuration
 func (j *Job) Validate() error {
 	var mErr multierror.Error
 
@@ -4085,7 +4183,7 @@ func (j *Job) Validate() error {
 		mErr.Errors = append(mErr.Errors, errors.New("Job must be in a namespace"))
 	}
 	switch j.Type {
-	case JobTypeCore, JobTypeService, JobTypeBatch, JobTypeSystem:
+	case JobTypeCore, JobTypeService, JobTypeBatch, JobTypeSystem, JobTypeSysBatch:
 	case "":
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job type"))
 	default:
@@ -4177,11 +4275,12 @@ func (j *Job) Validate() error {
 		}
 	}
 
-	// Validate periodic is only used with batch jobs.
+	// Validate periodic is only used with batch or sysbatch jobs.
 	if j.IsPeriodic() && j.Periodic.Enabled {
-		if j.Type != JobTypeBatch {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Periodic can only be used with %q scheduler", JobTypeBatch))
+		if j.Type != JobTypeBatch && j.Type != JobTypeSysBatch {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf(
+				"Periodic can only be used with %q or %q scheduler", JobTypeBatch, JobTypeSysBatch,
+			))
 		}
 
 		if err := j.Periodic.Validate(); err != nil {
@@ -4190,9 +4289,10 @@ func (j *Job) Validate() error {
 	}
 
 	if j.IsParameterized() {
-		if j.Type != JobTypeBatch {
-			mErr.Errors = append(mErr.Errors,
-				fmt.Errorf("Parameterized job can only be used with %q scheduler", JobTypeBatch))
+		if j.Type != JobTypeBatch && j.Type != JobTypeSysBatch {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf(
+				"Parameterized job can only be used with %q or %q scheduler", JobTypeBatch, JobTypeSysBatch,
+			))
 		}
 
 		if err := j.ParameterizedJob.Validate(); err != nil {
@@ -4215,19 +4315,24 @@ func (j *Job) Warnings() error {
 	var mErr multierror.Error
 
 	// Check the groups
-	ap := 0
+	hasAutoPromote, allAutoPromote := false, true
+
 	for _, tg := range j.TaskGroups {
 		if err := tg.Warnings(j); err != nil {
 			outer := fmt.Errorf("Group %q has warnings: %v", tg.Name, err)
 			mErr.Errors = append(mErr.Errors, outer)
 		}
-		if tg.Update != nil && tg.Update.AutoPromote {
-			ap += 1
+
+		if u := tg.Update; u != nil {
+			hasAutoPromote = hasAutoPromote || u.AutoPromote
+
+			// Having no canaries implies auto-promotion since there are no canaries to promote.
+			allAutoPromote = allAutoPromote && (u.Canary == 0 || u.AutoPromote)
 		}
 	}
 
 	// Check AutoPromote, should be all or none
-	if ap > 0 && ap < len(j.TaskGroups) {
+	if hasAutoPromote && !allAutoPromote {
 		err := fmt.Errorf("auto_promote must be true for all groups to enable automatic promotion")
 		mErr.Errors = append(mErr.Errors, err)
 	}
@@ -4302,6 +4407,7 @@ func (j *Job) HasUpdateStrategy() bool {
 func (j *Job) Stub(summary *JobSummary) *JobListStub {
 	return &JobListStub{
 		ID:                j.ID,
+		Namespace:         j.Namespace,
 		ParentID:          j.ParentID,
 		Name:              j.Name,
 		Datacenters:       j.Datacenters,
@@ -4688,8 +4794,8 @@ func (u *UpdateStrategy) IsEmpty() bool {
 	return u.MaxParallel == 0
 }
 
+// Rolling returns if a rolling strategy should be used.
 // TODO(alexdadgar): Remove once no longer used by the scheduler.
-// Rolling returns if a rolling strategy should be used
 func (u *UpdateStrategy) Rolling() bool {
 	return u.Stagger > 0 && u.MaxParallel > 0
 }
@@ -5227,7 +5333,7 @@ type JobScalingEvents struct {
 	ModifyIndex uint64
 }
 
-// Factory method for ScalingEvent objects
+// NewScalingEvent method for ScalingEvent objects.
 func NewScalingEvent(message string) *ScalingEvent {
 	return &ScalingEvent{
 		Time:    time.Now().Unix(),
@@ -5423,7 +5529,7 @@ func (p *ScalingPolicy) Diff(p2 *ScalingPolicy) bool {
 	return !reflect.DeepEqual(*p, copy)
 }
 
-// TarketTaskGroup updates a ScalingPolicy target to specify a given task group
+// TargetTaskGroup updates a ScalingPolicy target to specify a given task group
 func (p *ScalingPolicy) TargetTaskGroup(job *Job, tg *TaskGroup) *ScalingPolicy {
 	p.Target = map[string]string{
 		ScalingTargetNamespace: job.Namespace,
@@ -5864,6 +5970,9 @@ type TaskGroup struct {
 	// overridden in the task.
 	Networks Networks
 
+	// Consul configuration specific to this task group
+	Consul *Consul
+
 	// Services this group provides
 	Services []*Service
 
@@ -5893,6 +6002,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	ntg.Spreads = CopySliceSpreads(ntg.Spreads)
 	ntg.Volumes = CopyMapVolumeRequest(ntg.Volumes)
 	ntg.Scaling = ntg.Scaling.Copy()
+	ntg.Consul = ntg.Consul.Copy()
 
 	// Copy the network objects
 	if tg.Networks != nil {
@@ -5979,7 +6089,7 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 	}
 }
 
-// Validate is used to sanity check a task group
+// Validate is used to check a task group for reasonable configuration
 func (tg *TaskGroup) Validate(j *Job) error {
 	var mErr multierror.Error
 	if tg.Name == "" {
@@ -6104,16 +6214,15 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Only one task may be marked as leader"))
 	}
 
-	// Validate the Host Volumes
-	for name, decl := range tg.Volumes {
-		if !(decl.Type == VolumeTypeHost ||
-			decl.Type == VolumeTypeCSI) {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has unrecognised type %s", name, decl.Type))
-			continue
-		}
-
-		if decl.Source == "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Volume %s has an empty source", name))
+	// Validate the volume requests
+	var canaries int
+	if tg.Update != nil {
+		canaries = tg.Update.Canary
+	}
+	for name, volReq := range tg.Volumes {
+		if err := volReq.Validate(canaries); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf(
+				"Task group volume validation for %s failed: %v", name, err))
 		}
 	}
 
@@ -6167,7 +6276,8 @@ func (tg *TaskGroup) Validate(j *Job) error {
 func (tg *TaskGroup) validateNetworks() error {
 	var mErr multierror.Error
 	portLabels := make(map[string]string)
-	staticPorts := make(map[int]string)
+	// host_network -> static port tracking
+	staticPortsIndex := make(map[string]map[int]string)
 
 	for _, net := range tg.Networks {
 		for _, port := range append(net.ReservedPorts, net.DynamicPorts...) {
@@ -6178,6 +6288,14 @@ func (tg *TaskGroup) validateNetworks() error {
 			}
 
 			if port.Value != 0 {
+				hostNetwork := port.HostNetwork
+				if hostNetwork == "" {
+					hostNetwork = "default"
+				}
+				staticPorts, ok := staticPortsIndex[hostNetwork]
+				if !ok {
+					staticPorts = make(map[int]string)
+				}
 				// static port
 				if other, ok := staticPorts[port.Value]; ok {
 					err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
@@ -6187,6 +6305,7 @@ func (tg *TaskGroup) validateNetworks() error {
 					mErr.Errors = append(mErr.Errors, err)
 				} else {
 					staticPorts[port.Value] = fmt.Sprintf("taskgroup network:%s", port.Label)
+					staticPortsIndex[hostNetwork] = staticPorts
 				}
 			}
 
@@ -6212,6 +6331,14 @@ func (tg *TaskGroup) validateNetworks() error {
 				}
 
 				if port.Value != 0 {
+					hostNetwork := port.HostNetwork
+					if hostNetwork == "" {
+						hostNetwork = "default"
+					}
+					staticPorts, ok := staticPortsIndex[hostNetwork]
+					if !ok {
+						staticPorts = make(map[int]string)
+					}
 					if other, ok := staticPorts[port.Value]; ok {
 						err := fmt.Errorf("Static port %d already reserved by %s", port.Value, other)
 						mErr.Errors = append(mErr.Errors, err)
@@ -6220,6 +6347,7 @@ func (tg *TaskGroup) validateNetworks() error {
 						mErr.Errors = append(mErr.Errors, err)
 					} else {
 						staticPorts[port.Value] = fmt.Sprintf("%s:%s", task.Name, port.Label)
+						staticPortsIndex[hostNetwork] = staticPorts
 					}
 				}
 			}
@@ -6228,13 +6356,11 @@ func (tg *TaskGroup) validateNetworks() error {
 	return mErr.ErrorOrNil()
 }
 
-// validateServices runs Service.Validate() on group-level services,
-// checks that group services do not conflict with task services and that
+// validateServices runs Service.Validate() on group-level services, checks
 // group service checks that refer to tasks only refer to tasks that exist.
 func (tg *TaskGroup) validateServices() error {
 	var mErr multierror.Error
 	knownTasks := make(map[string]struct{})
-	knownServices := make(map[string]struct{})
 
 	// Create a map of known tasks and their services so we can compare
 	// vs the group-level services and checks
@@ -6244,15 +6370,11 @@ func (tg *TaskGroup) validateServices() error {
 			continue
 		}
 		for _, service := range task.Services {
-			if _, ok := knownServices[service.Name+service.PortLabel]; ok {
-				mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is duplicate", service.Name))
-			}
 			for _, check := range service.Checks {
 				if check.TaskName != "" {
 					mErr.Errors = append(mErr.Errors, fmt.Errorf("Check %s is invalid: only task group service checks can be assigned tasks", check.Name))
 				}
 			}
-			knownServices[service.Name+service.PortLabel] = struct{}{}
 		}
 	}
 	for i, service := range tg.Services {
@@ -6267,10 +6389,7 @@ func (tg *TaskGroup) validateServices() error {
 		if service.AddressMode == AddressModeDriver {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q cannot use address_mode=\"driver\", only services defined in a \"task\" block can use this mode", service.Name))
 		}
-		if _, ok := knownServices[service.Name+service.PortLabel]; ok {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is duplicate", service.Name))
-		}
-		knownServices[service.Name+service.PortLabel] = struct{}{}
+
 		for _, check := range service.Checks {
 			if check.TaskName != "" {
 				if check.Type != ServiceCheckScript && check.Type != ServiceCheckGRPC {
@@ -6730,7 +6849,7 @@ func (t *Task) GoString() string {
 	return fmt.Sprintf("*%#v", *t)
 }
 
-// Validate is used to sanity check a task
+// Validate is used to check a task for reasonable configuration
 func (t *Task) Validate(ephemeralDisk *EphemeralDisk, jobType string, tgServices []*Service, tgNetworks Networks) error {
 	var mErr multierror.Error
 	if t.Name == "" {
@@ -7106,19 +7225,30 @@ func (k TaskKind) IsConnectNative() bool {
 	return k.hasPrefix(ConnectNativePrefix)
 }
 
+// IsConnectIngress returns true if the TaskKind is connect-ingress.
 func (k TaskKind) IsConnectIngress() bool {
 	return k.hasPrefix(ConnectIngressPrefix)
 }
 
+// IsConnectTerminating returns true if the TaskKind is connect-terminating.
 func (k TaskKind) IsConnectTerminating() bool {
 	return k.hasPrefix(ConnectTerminatingPrefix)
 }
 
+// IsConnectMesh returns true if the TaskKind is connect-mesh.
+func (k TaskKind) IsConnectMesh() bool {
+	return k.hasPrefix(ConnectMeshPrefix)
+}
+
+// IsAnyConnectGateway returns true if the TaskKind represents any one of the
+// supported connect gateway types.
 func (k TaskKind) IsAnyConnectGateway() bool {
 	switch {
 	case k.IsConnectIngress():
 		return true
 	case k.IsConnectTerminating():
+		return true
+	case k.IsConnectMesh():
 		return true
 	default:
 		return false
@@ -7140,14 +7270,11 @@ const (
 
 	// ConnectTerminatingPrefix is the prefix used for fields referencing a Consul
 	// Connect Terminating Gateway Proxy.
-	//
 	ConnectTerminatingPrefix = "connect-terminating"
 
 	// ConnectMeshPrefix is the prefix used for fields referencing a Consul Connect
 	// Mesh Gateway Proxy.
-	//
-	// Not yet supported.
-	// ConnectMeshPrefix = "connect-mesh"
+	ConnectMeshPrefix = "connect-mesh"
 )
 
 // ValidateConnectProxyService checks that the service that is being
@@ -7351,6 +7478,34 @@ type AllocState struct {
 	Time  time.Time
 }
 
+// TaskHandle is  optional handle to a task propogated to the servers for use
+// by remote tasks. Since remote tasks are not implicitly lost when the node
+// they are assigned to is down, their state is migrated to the replacement
+// allocation.
+//
+//  Minimal set of fields from plugins/drivers/task_handle.go:TaskHandle
+type TaskHandle struct {
+	// Version of driver state. Used by the driver to gracefully handle
+	// plugin upgrades.
+	Version int
+
+	// Driver-specific state containing a handle to the remote task.
+	DriverState []byte
+}
+
+func (h *TaskHandle) Copy() *TaskHandle {
+	if h == nil {
+		return nil
+	}
+
+	newTH := TaskHandle{
+		Version:     h.Version,
+		DriverState: make([]byte, len(h.DriverState)),
+	}
+	copy(newTH.DriverState, h.DriverState)
+	return &newTH
+}
+
 // Set of possible states for a task.
 const (
 	TaskStatePending = "pending" // The task is waiting to be run.
@@ -7384,6 +7539,10 @@ type TaskState struct {
 
 	// Series of task events that transition the state of the task.
 	Events []*TaskEvent
+
+	// Experimental -  TaskHandle is based on drivers.TaskHandle and used
+	// by remote task drivers to migrate task handles between allocations.
+	TaskHandle *TaskHandle
 }
 
 // NewTaskState returns a TaskState initialized in the Pending state.
@@ -7405,16 +7564,18 @@ func (ts *TaskState) Copy() *TaskState {
 	if ts == nil {
 		return nil
 	}
-	copy := new(TaskState)
-	*copy = *ts
+	newTS := new(TaskState)
+	*newTS = *ts
 
 	if ts.Events != nil {
-		copy.Events = make([]*TaskEvent, len(ts.Events))
+		newTS.Events = make([]*TaskEvent, len(ts.Events))
 		for i, e := range ts.Events {
-			copy.Events[i] = e.Copy()
+			newTS.Events[i] = e.Copy()
 		}
 	}
-	return copy
+
+	newTS.TaskHandle = ts.TaskHandle.Copy()
+	return newTS
 }
 
 // Successful returns whether a task finished successfully. This doesn't really
@@ -8097,15 +8258,14 @@ const (
 	ConstraintAttributeIsNotSet = "is_not_set"
 )
 
-// Constraints are used to restrict placement options.
+// A Constraint is used to restrict placement options.
 type Constraint struct {
 	LTarget string // Left-hand target
 	RTarget string // Right-hand target
 	Operand string // Constraint operand (<=, <, =, !=, >, >=), contains, near
-	str     string // Memoized string
 }
 
-// Equal checks if two constraints are equal
+// Equals checks if two constraints are equal.
 func (c *Constraint) Equals(o *Constraint) bool {
 	return c == o ||
 		c.LTarget == o.LTarget &&
@@ -8113,6 +8273,7 @@ func (c *Constraint) Equals(o *Constraint) bool {
 			c.Operand == o.Operand
 }
 
+// Equal is like Equals but with one less s.
 func (c *Constraint) Equal(o *Constraint) bool {
 	return c.Equals(o)
 }
@@ -8121,17 +8282,15 @@ func (c *Constraint) Copy() *Constraint {
 	if c == nil {
 		return nil
 	}
-	nc := new(Constraint)
-	*nc = *c
-	return nc
+	return &Constraint{
+		LTarget: c.LTarget,
+		RTarget: c.RTarget,
+		Operand: c.Operand,
+	}
 }
 
 func (c *Constraint) String() string {
-	if c.str != "" {
-		return c.str
-	}
-	c.str = fmt.Sprintf("%s %s %s", c.LTarget, c.Operand, c.RTarget)
-	return c.str
+	return fmt.Sprintf("%s %s %s", c.LTarget, c.Operand, c.RTarget)
 }
 
 func (c *Constraint) Validate() error {
@@ -8225,10 +8384,9 @@ type Affinity struct {
 	RTarget string // Right-hand target
 	Operand string // Affinity operand (<=, <, =, !=, >, >=), set_contains_all, set_contains_any
 	Weight  int8   // Weight applied to nodes that match the affinity. Can be negative
-	str     string // Memoized string
 }
 
-// Equal checks if two affinities are equal
+// Equals checks if two affinities are equal.
 func (a *Affinity) Equals(o *Affinity) bool {
 	return a == o ||
 		a.LTarget == o.LTarget &&
@@ -8245,17 +8403,16 @@ func (a *Affinity) Copy() *Affinity {
 	if a == nil {
 		return nil
 	}
-	na := new(Affinity)
-	*na = *a
-	return na
+	return &Affinity{
+		LTarget: a.LTarget,
+		RTarget: a.RTarget,
+		Operand: a.Operand,
+		Weight:  a.Weight,
+	}
 }
 
 func (a *Affinity) String() string {
-	if a.str != "" {
-		return a.str
-	}
-	a.str = fmt.Sprintf("%s %s %s %v", a.LTarget, a.Operand, a.RTarget, a.Weight)
-	return a.str
+	return fmt.Sprintf("%s %s %s %v", a.LTarget, a.Operand, a.RTarget, a.Weight)
 }
 
 func (a *Affinity) Validate() error {
@@ -8738,7 +8895,7 @@ func (d *Deployment) HasAutoPromote() bool {
 		return false
 	}
 	for _, group := range d.TaskGroups {
-		if !group.AutoPromote {
+		if group.DesiredCanaries > 0 && !group.AutoPromote {
 			return false
 		}
 	}
@@ -8764,11 +8921,13 @@ type DeploymentState struct {
 	AutoPromote bool
 
 	// ProgressDeadline is the deadline by which an allocation must transition
-	// to healthy before the deployment is considered failed.
+	// to healthy before the deployment is considered failed. This value is set
+	// by the jobspec `update.progress_deadline` field.
 	ProgressDeadline time.Duration
 
-	// RequireProgressBy is the time by which an allocation must transition
-	// to healthy before the deployment is considered failed.
+	// RequireProgressBy is the time by which an allocation must transition to
+	// healthy before the deployment is considered failed. This value is reset
+	// to "now" + ProgressDeadline when an allocation updates the deployment.
 	RequireProgressBy time.Time
 
 	// Promoted marks whether the canaries have been promoted
@@ -9072,6 +9231,16 @@ type Allocation struct {
 
 	// ModifyTime is the time the allocation was last updated.
 	ModifyTime int64
+}
+
+// ConsulNamespace returns the Consul namespace of the task group associated
+// with this allocation.
+func (a *Allocation) ConsulNamespace() string {
+	return a.Job.LookupTaskGroup(a.TaskGroup).Consul.GetNamespace()
+}
+
+func (a *Allocation) JobNamespacedID() NamespacedID {
+	return NewNamespacedID(a.JobID, a.Namespace)
 }
 
 // Index returns the index of the allocation. If the allocation is from a task
@@ -9405,7 +9574,7 @@ func (a *Allocation) Terminated() bool {
 	return false
 }
 
-// SetStopped updates the allocation in place to a DesiredStatus stop, with the ClientStatus
+// SetStop updates the allocation in place to a DesiredStatus stop, with the ClientStatus
 func (a *Allocation) SetStop(clientStatus, clientDesc string) {
 	a.DesiredStatus = AllocDesiredStatusStop
 	a.ClientStatus = clientStatus
@@ -9472,17 +9641,18 @@ func (a *Allocation) ShouldMigrate() bool {
 	return true
 }
 
-// SetEventDisplayMessage populates the display message if its not already set,
+// SetEventDisplayMessages populates the display message if its not already set,
 // a temporary fix to handle old allocations that don't have it.
 // This method will be removed in a future release.
 func (a *Allocation) SetEventDisplayMessages() {
 	setDisplayMsg(a.TaskStates)
 }
 
-// COMPAT(0.11): Remove in 0.11
 // ComparableResources returns the resources on the allocation
 // handling upgrade paths. After 0.11 calls to this should be replaced with:
 // alloc.AllocatedResources.Comparable()
+//
+// COMPAT(0.11): Remove in 0.11
 func (a *Allocation) ComparableResources() *ComparableResources {
 	// ALloc already has 0.9+ behavior
 	if a.AllocatedResources != nil {
@@ -9617,9 +9787,9 @@ type AllocListStub struct {
 	ModifyTime            int64
 }
 
-// SetEventDisplayMessage populates the display message if its not already set,
-// a temporary fix to handle old allocations that don't have it.
-// This method will be removed in a future release.
+// SetEventDisplayMessages populates the display message if its not already
+// set, a temporary fix to handle old allocations that don't have it. This
+// method will be removed in a future release.
 func (a *AllocListStub) SetEventDisplayMessages() {
 	setDisplayMsg(a.TaskStates)
 }
@@ -9681,6 +9851,10 @@ type AllocMetric struct {
 
 	// QuotaExhausted provides the exhausted dimensions
 	QuotaExhausted []string
+
+	// ResourcesExhausted provides the amount of resources exhausted by task
+	// during the allocation placement
+	ResourcesExhausted map[string]*Resources
 
 	// Scores is the scores of the final few nodes remaining
 	// for placement. The top score is typically selected.
@@ -9768,6 +9942,35 @@ func (a *AllocMetric) ExhaustQuota(dimensions []string) {
 	}
 
 	a.QuotaExhausted = append(a.QuotaExhausted, dimensions...)
+}
+
+// ExhaustResources updates the amount of resources exhausted for the
+// allocation because of the given task group.
+func (a *AllocMetric) ExhaustResources(tg *TaskGroup) {
+	if a.DimensionExhausted == nil {
+		return
+	}
+
+	if a.ResourcesExhausted == nil {
+		a.ResourcesExhausted = make(map[string]*Resources)
+	}
+
+	for _, t := range tg.Tasks {
+		exhaustedResources := a.ResourcesExhausted[t.Name]
+		if exhaustedResources == nil {
+			exhaustedResources = &Resources{}
+		}
+
+		if a.DimensionExhausted["memory"] > 0 {
+			exhaustedResources.MemoryMB += t.Resources.MemoryMB
+		}
+
+		if a.DimensionExhausted["cpu"] > 0 {
+			exhaustedResources.CPU += t.Resources.CPU
+		}
+
+		a.ResourcesExhausted[t.Name] = exhaustedResources
+	}
 }
 
 // ScoreNode is used to gather top K scoring nodes in a heap
@@ -9991,6 +10194,10 @@ const (
 	// We periodically scan plugins to see if they have no associated volumes
 	// or allocs running them. If so, we delete the plugin.
 	CoreJobCSIPluginGC = "csi-plugin-gc"
+
+	// CoreJobOneTimeTokenGC is use for the garbage collection of one-time
+	// tokens. We periodically scan for expired tokens and delete them.
+	CoreJobOneTimeTokenGC = "one-time-token-gc"
 
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"
@@ -10237,7 +10444,7 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 // ineligible, whether the job has escaped computed node classes and whether the
 // quota limit was reached.
 func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
-	escaped bool, quotaReached string) *Evaluation {
+	escaped bool, quotaReached string, failedTGAllocs map[string]*AllocMetric) *Evaluation {
 	now := time.Now().UTC().UnixNano()
 	return &Evaluation{
 		ID:                   uuid.Generate(),
@@ -10249,6 +10456,7 @@ func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
 		JobModifyIndex:       e.JobModifyIndex,
 		Status:               EvalStatusBlocked,
 		PreviousEval:         e.ID,
+		FailedTGAllocs:       failedTGAllocs,
 		ClassEligibility:     classEligibility,
 		EscapedComputedClass: escaped,
 		QuotaLimitReached:    quotaReached,
@@ -10352,6 +10560,67 @@ type Plan struct {
 	// Plan. The leader will wait to evaluate the plan until its StateStore
 	// has reached at least this index.
 	SnapshotIndex uint64
+}
+
+func (p *Plan) GoString() string {
+	out := fmt.Sprintf("(eval %s", p.EvalID[:8])
+	out += fmt.Sprintf(", job %s", p.Job.ID)
+	if p.Deployment != nil {
+		out += fmt.Sprintf(", deploy %s", p.Deployment.ID[:8])
+	}
+	if len(p.NodeUpdate) > 0 {
+		out += ", NodeUpdates: "
+		for node, allocs := range p.NodeUpdate {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s stop/evict)", alloc.ID[:8])
+			}
+			out += ")"
+		}
+	}
+	if len(p.NodeAllocation) > 0 {
+		out += ", NodeAllocations: "
+		for node, allocs := range p.NodeAllocation {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s %s %s)",
+					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
+				)
+			}
+			out += ")"
+		}
+	}
+	if len(p.NodePreemptions) > 0 {
+		out += ", NodePreemptions: "
+		for node, allocs := range p.NodePreemptions {
+			out += fmt.Sprintf("(node[%s]", node[:8])
+			for _, alloc := range allocs {
+				out += fmt.Sprintf(" (%s %s %s)",
+					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
+				)
+			}
+			out += ")"
+		}
+	}
+	if len(p.DeploymentUpdates) > 0 {
+		out += ", DeploymentUpdates: "
+		for _, dupdate := range p.DeploymentUpdates {
+			out += fmt.Sprintf("(%s %s)",
+				dupdate.DeploymentID[:8], dupdate.Status)
+		}
+	}
+	if p.Annotations != nil {
+		out += ", Annotations: "
+		for tg, updates := range p.Annotations.DesiredTGUpdates {
+			out += fmt.Sprintf("(update[%s] %v)", tg, updates)
+		}
+		for _, preempted := range p.Annotations.PreemptedAllocs {
+			out += fmt.Sprintf("(preempt %s)", preempted.ID[:8])
+		}
+	}
+
+	out += ")"
+	return out
 }
 
 // AppendStoppedAlloc marks an allocation to be stopped. The clientStatus of the
@@ -10572,18 +10841,6 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 
 	return h
 }()
-
-var (
-	// JsonHandle and JsonHandlePretty are the codec handles to JSON encode
-	// structs. The pretty handle will add indents for easier human consumption.
-	JsonHandle = &codec.JsonHandle{
-		HTMLCharsAsIs: true,
-	}
-	JsonHandlePretty = &codec.JsonHandle{
-		HTMLCharsAsIs: true,
-		Indent:        4,
-	}
-)
 
 // Decode is used to decode a MsgPack encoded object
 func Decode(buf []byte, out interface{}) error {
@@ -10914,7 +11171,7 @@ func (a *ACLToken) Stub() *ACLTokenListStub {
 	}
 }
 
-// Validate is used to sanity check a token
+// Validate is used to check a token for reasonableness
 func (a *ACLToken) Validate() error {
 	var mErr multierror.Error
 	if len(a.Name) > maxTokenNameLength {
@@ -11024,6 +11281,52 @@ type ACLTokenUpsertRequest struct {
 type ACLTokenUpsertResponse struct {
 	Tokens []*ACLToken
 	WriteMeta
+}
+
+// OneTimeToken is used to log into the web UI using a token provided by the
+// command line.
+type OneTimeToken struct {
+	OneTimeSecretID string
+	AccessorID      string
+	ExpiresAt       time.Time
+	CreateIndex     uint64
+	ModifyIndex     uint64
+}
+
+// OneTimeTokenUpsertRequest is the request for a UpsertOneTimeToken RPC
+type OneTimeTokenUpsertRequest struct {
+	WriteRequest
+}
+
+// OneTimeTokenUpsertResponse is the response to a UpsertOneTimeToken RPC.
+type OneTimeTokenUpsertResponse struct {
+	OneTimeToken *OneTimeToken
+	WriteMeta
+}
+
+// OneTimeTokenExchangeRequest is a request to swap the one-time token with
+// the backing ACL token
+type OneTimeTokenExchangeRequest struct {
+	OneTimeSecretID string
+	WriteRequest
+}
+
+// OneTimeTokenExchangeResponse is the response to swapping the one-time token
+// with the backing ACL token
+type OneTimeTokenExchangeResponse struct {
+	Token *ACLToken
+	WriteMeta
+}
+
+// OneTimeTokenDeleteRequest is a request to delete a group of one-time tokens
+type OneTimeTokenDeleteRequest struct {
+	AccessorIDs []string
+	WriteRequest
+}
+
+// OneTimeTokenExpireRequest is a request to delete all expired one-time tokens
+type OneTimeTokenExpireRequest struct {
+	WriteRequest
 }
 
 // RpcError is used for serializing errors with a potential error code

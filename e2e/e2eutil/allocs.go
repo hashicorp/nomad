@@ -7,10 +7,25 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/api"
+	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
 )
+
+// AllocsByName sorts allocs by Name
+type AllocsByName []*api.AllocationListStub
+
+func (a AllocsByName) Len() int {
+	return len(a)
+}
+
+func (a AllocsByName) Less(i, j int) bool {
+	return a[i].Name < a[j].Name
+}
+
+func (a AllocsByName) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
 
 // WaitForAllocStatusExpected polls 'nomad job status' and exactly compares
 // the status of all allocations (including any previous versions) against the
@@ -77,6 +92,39 @@ func AllocsForJob(jobID, ns string) ([]map[string]string, error) {
 		return nil, fmt.Errorf("could not parse Allocations section: %w", err)
 	}
 	return allocs, nil
+}
+
+// AllocTaskEventsForJob returns a map of allocation IDs containing a map of
+// Task Event key value pairs
+func AllocTaskEventsForJob(jobID, ns string) (map[string][]map[string]string, error) {
+	allocs, err := AllocsForJob(jobID, ns)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make(map[string][]map[string]string)
+	for _, alloc := range allocs {
+		results[alloc["ID"]] = make([]map[string]string, 0)
+
+		cmd := []string{"nomad", "alloc", "status", alloc["ID"]}
+		out, err := Command(cmd[0], cmd[1:]...)
+		if err != nil {
+			return nil, fmt.Errorf("querying alloc status: %w", err)
+		}
+
+		section, err := GetSection(out, "Recent Events:")
+		if err != nil {
+			return nil, fmt.Errorf("could not find Recent Events section: %w", err)
+		}
+
+		events, err := ParseColumns(section)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse recent events section: %w", err)
+		}
+		results[alloc["ID"]] = events
+	}
+
+	return results, nil
 }
 
 // AllocsForNode returns a slice of key->value maps, each describing the values

@@ -2,11 +2,13 @@ param(
     [string]$nomad_sha,
     [string]$nomad_version,
     [string]$nomad_binary,
+    [string]$nomad_url,
     [switch]$enterprise = $false,
     [switch]$nomad_acls = $false,
     [string]$config_profile,
     [string]$role,
     [string]$index,
+    [string]$autojoin,
     [switch]$nostart = $false
 )
 
@@ -19,6 +21,7 @@ Options (use one of the following):
  -nomad_sha SHA          full git sha to install from S3
  -nomad_version VERSION  release version number (ex. 0.12.4+ent)
  -nomad_binary FILEPATH  path to file on host
+ -nomad_url URL          url path to nomad binary archive
 
 Options for configuration:
  -config_profile FILEPATH path to config profile directory
@@ -26,6 +29,7 @@ Options for configuration:
  -index INDEX             count of instance, for profiles with per-instance config
  -nostart                 do not start or restart Nomad
  -enterprise              if nomad_sha is passed, use the ENT version
+--autojoin                 the AWS ConsulAutoJoin tag value
 
 "@
 
@@ -49,18 +53,6 @@ function Usage {
 }
 
 function InstallFromS3 {
-
-    Try {
-        # check that we don't already have this version
-        if (C:\opt\nomad.exe -version `
-          | Select-String -Pattern $nomad_sha -SimpleMatch -Quiet) {
-              Write-Output "${nomad_sha} already installed"
-              return
-          }
-    } Catch {
-        Write-Output "${nomad_sha} not previously installed"
-    }
-
     Stop-Service -Name nomad -ErrorAction Ignore
 
     $build_folder = "builds-oss"
@@ -77,9 +69,6 @@ function InstallFromS3 {
 
         Remove-Item -Path $install_path -Force -ErrorAction Stop
         Expand-Archive ./nomad.zip ./ -Force -ErrorAction Stop
-        Move-Item `
-          -Path .\pkg\windows_amd64\nomad.exe `
-          -Destination $install_path -Force -ErrorAction Stop
         Remove-Item -Path nomad.zip -Force -ErrorAction Ignore
 
         New-Item -ItemType Directory -Force -Path C:\opt\nomad.d -ErrorAction Stop
@@ -156,6 +145,30 @@ function InstallFromRelease {
     Write-Output "Installed Nomad."
 }
 
+function InstallFromURL {
+    Stop-Service -Name nomad -ErrorAction Ignore
+
+    Write-Output "Downloading Nomad from: $nomad_url"
+    Try {
+        Remove-Item -Path ./nomad.zip -Force -ErrorAction Ignore
+        Invoke-WebRequest -Uri $nomad_url -Outfile nomad.zip -ErrorAction Stop
+
+        Remove-Item -Path $install_path -Force -ErrorAction Ignore
+        Expand-Archive .\nomad.zip .\ -ErrorAction Stop
+        Remove-Item -Path nomad.zip -Force -ErrorAction Ignore
+
+        New-Item -ItemType Directory -Force -Path C:\opt\nomad.d -ErrorAction Stop
+        New-Item -ItemType Directory -Force -Path C:\opt\nomad -ErrorAction Stop
+    } Catch {
+        Write-Output "Failed to install Nomad."
+        Write-Output $_
+        $host.SetShouldExit(-1)
+        throw
+    }
+
+    Write-Output "Installed Nomad."
+}
+
 
 function ConfigFiles($src, $dest) {
     Get-ChildItem -Path "$src" -Name -Attributes !Directory -ErrorAction Ignore`
@@ -187,6 +200,11 @@ function InstallConfigProfile {
         ConfigFiles "${cfg}\nomad\${role}\indexed\*${index}*" "C:\opt\nomad.d"
         ConfigFiles "${cfg}\consul\${role}\indexed\*${index}*" "C:\opt\consul.d"
     }
+}
+
+function UpdateConsulAutojoin {
+    (Get-Content C:\opt\consul.d\aws.json).replace("tag_key=ConsulAutoJoin tag_value=auto-join", "tag_key=ConsulAutoJoin tag_value=${autojoin}") | `
+      Set-Content C:\opt\consul.d\aws.json
 }
 
 function CreateConsulService {
@@ -226,8 +244,15 @@ if ( "" -ne $nomad_binary ) {
     InstallFromUploadedBinary
     CreateNomadService
 }
+if ( "" -ne $nomad_url ) {
+    InstallFromURL
+    CreateNomadService
+}
 if ( "" -ne $config_profile) {
     InstallConfigProfile
+}
+if ( "" -ne $autojoin) {
+    UpdateConsulAutojoin
 }
 
 if (!($nostart)) {

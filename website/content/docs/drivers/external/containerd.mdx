@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: 'Drivers: nomad-driver-containerd'
-sidebar_title: containerd
 description: >-
   The containerd driver is used
   for launching containers using containerd.
@@ -74,9 +73,6 @@ job "redis" {
       resources {
         cpu    = 500
         memory = 256
-        network {
-          mbits = 10
-        }
       }
     }
   }
@@ -93,6 +89,10 @@ config {
   image = "docker.io/library/redis:alpine"
 }
 ```
+
+- `image_pull_timeout` - (Optional) A time duration that controls how long
+  `containerd-driver` will wait before cancelling an in-progress pull of the
+  OCI image as specified in `image`. Defaults to `"5m"`.
 
 - `command` - (Optional) Command to override command defined in the image.
 
@@ -113,6 +113,10 @@ config {
 }
 ```
 
+- `auth` - (Optional) Provide authentication for a private registry (See [Authentication] below).
+
+- `entrypoint` - (Optional) A string list overriding the image's entrypoint.
+
 - `cwd` - (Optional) Specify the current working directory (cwd) for your container process.
   If the directory does not exist, one will be created for you.
 
@@ -125,6 +129,12 @@ config {
   privileged = true
 }
 ```
+
+- `pids_limit` - (Optional) An integer value that specifies the pid limit for
+  the container. Defaults to unlimited.
+
+- `pid_mode` - (Optional) `host` or not set (default). Set to `host` to share
+  the PID namespace with the host.
 
 - `host_dns` - (Optional) `true` (default) or `false` By default, a container
   launched using `containerd-driver` will use host `/etc/resolv.conf`. This is
@@ -147,6 +157,20 @@ config {
 }
 ```
 
+- `shm_size` - (Optional) Size of /dev/shm e.g. `128M` if you want 128 MB of /dev/shm.
+
+- `sysctl` - (Optional) A key-value map of sysctl configurations to set to the
+  containers on start.
+
+```hcl
+  config {
+    sysctl = {
+      "net.core.somaxconn"  = "16384"
+      "net.ipv4.ip_forward" = "1"
+    }
+  }
+```
+
 - `readonly_rootfs` - (Optional) `true` or `false` (default) Container root
   filesystem will be read-only.
 
@@ -164,6 +188,13 @@ config {
   host_network = true
 }
 ```
+
+- `extra_hosts` - (Optional) A list of hosts, given as host:IP, to be added to
+  `/etc/hosts`.
+
+- `hostname` - (Optional) The hostname to assign to the container. When
+  launching more than one of a task (using `count`) with this option set, every
+  container the task starts will have the same hostname.
 
 - `cap_add` - (Optional) Add individual capabilities.
 
@@ -253,7 +284,7 @@ before you can use `bridge` networks.
 **Instructions for installing CNI plugins.**
 
 ```hcl
- $ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v0.9.0/cni-plugins-linux-$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)"-v0.9.0.tgz
+ $ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)"-v1.0.0.tgz
  $ sudo mkdir -p /opt/cni/bin
  $ sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 ```
@@ -295,6 +326,7 @@ network {
   }
 }
 ```
+
 Here, `host` port `8889` is mapped to `container` port `8889`.<br/>
 **NOTE:** static ports are usually not recommended, except for
 `system` or specialized jobs like load balancers.
@@ -311,6 +343,7 @@ network {
   }
 }
 ```
+
 Here, nomad will allocate a dynamic port on the `host` and that port
 will be mapped to `8080` in the container.
 
@@ -327,6 +360,24 @@ A [`service`] block can be added to your job spec, to enable service discovery.
 
 The service stanza instructs Nomad to register a service with Consul.
 
+## Authentication ((#authentication))
+
+`auth` stanza allow you to set credentials for your private registry e.g. if you want
+to pull an image from a private repository in docker hub.
+`auth` stanza can be set either in `Driver Config` or `Task Config` or both.
+If set at both places, `Task Config` auth will take precedence over `Driver Config` auth.
+
+**NOTE**: In the below example, `user` and `pass` are just placeholder values which need to be
+replaced by actual `username` and `password`, when specifying the credentials. Below `auth`
+stanza can be used for both `Driver Config` and `Task Config`.
+
+```hcl
+auth {
+  username = "user"
+  password = "pass"
+}
+```
+
 ## Plugin Options ((#plugin_options))
 
 - `enabled` - (Optional) The `containerd` driver may be disabled on hosts by
@@ -337,6 +388,9 @@ The service stanza instructs Nomad to register a service with Consul.
 
 - `stats_interval` - (Optional) This value defines how frequently you want to
   send `TaskStats` to nomad client. (defaults to `1 second`).
+
+- `allow_privileged` - (Optional) If set to `false`, driver will deny running
+  privileged jobs. (defaults to `true`).
 
 An example of using these plugin options with the new [plugin syntax][plugin] is
 shown below:
@@ -359,10 +413,11 @@ the external driver in the [plugin_dir][plugin_dir] directory.
 [plugin]: /docs/configuration/plugin
 [plugin_dir]: /docs/configuration#plugin_dir
 [plugin-options]: #plugin_options
+[authentication]: #authentication
 [host-network]: #host_network
 [`mount options`]: https://github.com/containerd/containerd/blob/9561d9389d3dd87ff6030bf1da4e705bbc024130/mount/mount_linux.go#L198-L222
-[Moby repository]: https://github.com/moby/moby/blob/master/profiles/seccomp/default.json
-[Docker's behavior]: https://docs.docker.com/config/containers/container-networking/#dns-services
+[moby repository]: https://github.com/moby/moby/blob/master/profiles/seccomp/default.json
+[docker's behavior]: https://docs.docker.com/config/containers/container-networking/#dns-services
 [allowed syscalls]: https://github.com/containerd/containerd/blob/master/contrib/seccomp/seccomp_default.go#L51-L390
 [`network`]: /docs/job-specification/network
 [`service`]: /docs/job-specification/service

@@ -3,6 +3,8 @@ Description=Nomad
 Documentation=https://nomadproject.io/docs/
 Wants=network-online.target
 After=network-online.target
+StartLimitIntervalSec=10
+StartLimitBurst=3
 
 # If you are running Consul, please uncomment following Wants/After configs.
 # Assuming your Consul service unit name is "consul"
@@ -18,8 +20,6 @@ LimitNOFILE=infinity
 LimitNPROC=infinity
 Restart=on-failure
 RestartSec=2
-StartLimitBurst=3
-StartLimitIntervalSec=10
 TasksMax=infinity
 
 [Install]

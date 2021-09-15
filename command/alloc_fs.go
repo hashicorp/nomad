@@ -381,6 +381,9 @@ func (f *AllocFSCommand) followFile(client *api.Client, alloc *api.Allocation,
 func getRandomJobAlloc(client *api.Client, jobID string) (*api.AllocationListStub, error) {
 	var runningAllocs []*api.AllocationListStub
 	allocs, _, err := client.Jobs().Allocations(jobID, false, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error querying job %q: %w", jobID, err)
+	}
 
 	// Check that the job actually has allocations
 	if len(allocs) == 0 {

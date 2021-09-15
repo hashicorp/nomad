@@ -113,16 +113,8 @@ func TestLeader_LeftLeader(t *testing.T) {
 	}
 
 	// Kill the leader!
-	var leader *Server
-	for _, s := range servers {
-		if s.IsLeader() {
-			leader = s
-			break
-		}
-	}
-	if leader == nil {
-		t.Fatalf("Should have a leader")
-	}
+	leader := waitForStableLeadership(t, servers)
+
 	leader.Leave()
 	leader.Shutdown()
 
@@ -1547,7 +1539,11 @@ func waitForStableLeadership(t *testing.T, servers []*Server) *Server {
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
 			peers, _ := s.numPeers()
-			return peers == 3, fmt.Errorf("should find %d peers but found %d", nPeers, peers)
+			if peers != nPeers {
+				return false, fmt.Errorf("should find %d peers but found %d", nPeers, peers)
+			}
+
+			return true, nil
 		}, func(err error) {
 			require.NoError(t, err)
 		})

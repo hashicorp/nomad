@@ -5,6 +5,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import { findLeader } from '../../mirage/config';
 import ServersList from 'nomad-ui/tests/pages/servers/list';
+import formatHost from 'nomad-ui/utils/format-host';
 
 const minimumSetup = () => {
   server.createList('node', 1);
@@ -12,9 +13,9 @@ const minimumSetup = () => {
 };
 
 const agentSort = leader => (a, b) => {
-  if (`${a.address}:${a.tags.port}` === leader) {
+  if (formatHost(a.member.Address, a.member.Tags.port) === leader) {
     return 1;
-  } else if (`${b.address}:${b.tags.port}` === leader) {
+  } else if (formatHost(b.member.Address, b.member.Tags.port) === leader) {
     return -1;
   }
   return 0;
@@ -57,11 +58,11 @@ module('Acceptance | servers list', function(hooks) {
     const agentRow = ServersList.servers.objectAt(0);
 
     assert.equal(agentRow.name, agent.name, 'Name');
-    assert.equal(agentRow.status, agent.status, 'Status');
+    assert.equal(agentRow.status, agent.member.Status, 'Status');
     assert.equal(agentRow.leader, 'True', 'Leader?');
-    assert.equal(agentRow.address, agent.address, 'Address');
-    assert.equal(agentRow.serfPort, agent.serfPort, 'Serf Port');
-    assert.equal(agentRow.datacenter, agent.tags.dc, 'Datacenter');
+    assert.equal(agentRow.address, agent.member.Address, 'Address');
+    assert.equal(agentRow.serfPort, agent.member.Port, 'Serf Port');
+    assert.equal(agentRow.datacenter, agent.member.Tags.dc, 'Datacenter');
   });
 
   test('each server should link to the server detail page', async function(assert) {

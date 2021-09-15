@@ -12,9 +12,11 @@ export default ArrayProxy.extend({
   init(array) {
     this.set('content', A([]));
     this._super(...arguments);
+    this[Symbol.iterator] = this.content[Symbol.iterator];
 
     next(this, () => {
       this.set('content', A(array));
+      this[Symbol.iterator] = this.content[Symbol.iterator];
     });
   },
 });

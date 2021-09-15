@@ -26,6 +26,10 @@ export default class LifecycleChartRow extends Component {
 
   @computed('task.lifecycleName')
   get lifecycleLabel() {
+    if (!this.task) {
+      return '';
+    }
+
     const name = this.task.lifecycleName;
 
     if (name.includes('sidecar')) {

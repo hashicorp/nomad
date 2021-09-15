@@ -444,12 +444,14 @@ func (p *PeriodicDispatch) deriveJob(periodicJob *structs.Job, time time.Time) (
 	}()
 
 	// Create a copy of the periodic job, give it a derived ID/Name and make it
-	// non-periodic.
+	// non-periodic in initial status
 	derived = periodicJob.Copy()
 	derived.ParentID = periodicJob.ID
 	derived.ID = p.derivedJobID(periodicJob, time)
 	derived.Name = derived.ID
 	derived.Periodic = nil
+	derived.Status = ""
+	derived.StatusDescription = ""
 	return
 }
 

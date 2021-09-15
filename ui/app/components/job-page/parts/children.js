@@ -9,6 +9,7 @@ import classic from 'ember-classic-decorator';
 @classic
 @classNames('boxed-section')
 export default class Children extends Component.extend(Sortable) {
+  @service system;
   @service userSettings;
 
   job = null;

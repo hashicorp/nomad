@@ -49,6 +49,7 @@ func init() {
 		siTokenAccessorTableSchema,
 		aclPolicyTableSchema,
 		aclTokenTableSchema,
+		oneTimeTokenTableSchema,
 		autopilotConfigTableSchema,
 		schedulerConfigTableSchema,
 		clusterMetaTableSchema,
@@ -270,13 +271,16 @@ func jobIsGCable(obj interface{}) (bool, error) {
 		return true, nil
 	}
 
-	// Otherwise, only batch jobs are eligible because they complete on their
-	// own without a user stopping them.
-	if j.Type != structs.JobTypeBatch {
+	switch j.Type {
+	// Otherwise, batch and sysbatch jobs are eligible because they complete on
+	// their own without a user stopping them.
+	case structs.JobTypeBatch, structs.JobTypeSysBatch:
+		return true, nil
+
+	default:
+		// other job types may not be GC until stopped
 		return false, nil
 	}
-
-	return true, nil
 }
 
 // jobIsPeriodic satisfies the ConditionalIndexFunc interface and creates an index
@@ -645,6 +649,32 @@ func aclTokenTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.FieldSetIndex{
 					Field: "Global",
+				},
+			},
+		},
+	}
+}
+
+// oneTimeTokenTableSchema returns the MemDB schema for the tokens table.
+// This table is used to store one-time tokens for ACL tokens
+func oneTimeTokenTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "one_time_token",
+		Indexes: map[string]*memdb.IndexSchema{
+			"secret": {
+				Name:         "secret",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "OneTimeSecretID",
+				},
+			},
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "AccessorID",
 				},
 			},
 		},

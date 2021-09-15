@@ -714,8 +714,7 @@ func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
 func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
 	t.Parallel()
 	state := testStateStore(t)
-	node := mock.Node()
-	node.Drain = true
+	node := mock.DrainNode()
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 	snap, _ := state.Snapshot()
 

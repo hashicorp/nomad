@@ -2,8 +2,8 @@ import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 import ApplicationSerializer from 'nomad-ui/serializers/application';
 
-import Model from 'ember-data/model';
-import attr from 'ember-data/attr';
+import Model from '@ember-data/model';
+import { attr } from '@ember-data/model';
 
 class TestSerializer extends ApplicationSerializer {
   arrayNullOverrides = ['Things'];

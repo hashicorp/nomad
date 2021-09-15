@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: server_join Stanza - Agent Configuration
-sidebar_title: server_join
 description: >-
   The "server_join" stanza specifies how the Nomad agent will discover and
   connect to Nomad servers.
@@ -203,7 +202,7 @@ project which have the given `tag_value`.
 
 ```json
 {
-"retry_join": ["provider=gce project_name=... tag_value=..."]
+  "retry_join": ["provider=gce project_name=... tag_value=..."]
 }
 ```
 

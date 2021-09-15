@@ -180,6 +180,8 @@ func (tc *NodeDrainE2ETest) TestNodeDrainIgnoreSystem(f *framework.F) {
 	f.NoError(e2e.Register(serviceJobID, "nodedrain/input/drain_simple.nomad"))
 	tc.jobIDs = append(tc.jobIDs, serviceJobID)
 
+	f.NoError(e2e.WaitForAllocStatusExpected(serviceJobID, ns, []string{"running"}))
+
 	allocs, err := e2e.AllocsForJob(serviceJobID, ns)
 	f.NoError(err, "could not get allocs for service job")
 	f.Len(allocs, 1, "could not get allocs for service job")
@@ -285,8 +287,8 @@ func (tc *NodeDrainE2ETest) TestNodeDrainDeadline(f *framework.F) {
 	), "node did not drain immediately following deadline")
 }
 
-// TestNodeDrainDeadline tests the enforcement of the node drain -force flag
-// so that allocations are terminated immediately.
+// TestNodeDrainForce tests the enforcement of the node drain -force flag so
+// that allocations are terminated immediately.
 func (tc *NodeDrainE2ETest) TestNodeDrainForce(f *framework.F) {
 	f.T().Skip("The behavior is unclear and test assertions don't capture intent.  Issue 9902")
 

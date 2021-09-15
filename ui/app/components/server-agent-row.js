@@ -14,6 +14,7 @@ export default class ServerAgentRow extends Component {
   // TODO Switch back to the router service once the service behaves more like Route
   // https://github.com/emberjs/ember.js/issues/15801
   // router: inject.service('router'),
+  // eslint-disable-next-line ember/no-private-routing-service
   @service('-routing') _router;
   @alias('_router.router') router;
 

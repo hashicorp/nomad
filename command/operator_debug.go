@@ -55,59 +55,26 @@ func (c *OperatorDebugCommand) Help() string {
 	helpText := `
 Usage: nomad operator debug [options]
 
-  Build an archive containing Nomad cluster configuration and state, and Consul and Vault
-  status. Include logs and pprof profiles for selected servers and client nodes.
+  Build an archive containing Nomad cluster configuration and state, and Consul
+  and Vault status. Include logs and pprof profiles for selected servers and
+  client nodes.
 
   If ACLs are enabled, this command will require a token with the 'node:read'
   capability to run. In order to collect information, the token will also
   require the 'agent:read' and 'operator:read' capabilities, as well as the
   'list-jobs' capability for all namespaces. To collect pprof profiles the
-  token will also require 'agent:write', or enable_debug configuration set to true.
+  token will also require 'agent:write', or enable_debug configuration set to
+  true.
 
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
-Debug Options:
-
-  -duration=<duration>
-    The duration of the log monitor command. Defaults to 2m.
-
-  -interval=<interval>
-    The interval between snapshots of the Nomad state. If unspecified, only one snapshot is
-    captured.
-
-  -log-level=<level>
-    The log level to monitor. Defaults to DEBUG.
-
-  -max-nodes=<count>
-    Cap the maximum number of client nodes included in the capture.  Defaults to 10, set to 0 for unlimited.
-
-  -node-id=<node>,<node>
-    Comma separated list of Nomad client node ids, to monitor for logs and include pprof
-    profiles. Accepts id prefixes, and "all" to select all nodes (up to count = max-nodes).
-
-  -node-class=<node-class>
-    Filter client nodes based on node class.
-
-  -pprof-duration=<duration>
-    Duration for pprof collection. Defaults to 1s.
-
-  -server-id=<server>,<server>
-    Comma separated list of Nomad server names, "leader", or "all" to monitor for logs and include pprof
-    profiles.
-
-  -stale=<true|false>
-    If "false", the default, get membership data from the cluster leader. If the cluster is in
-    an outage unable to establish leadership, it may be necessary to get the configuration from
-    a non-leader server.
-
-  -output=<path>
-    Path to the parent directory of the output directory. If not specified, an archive is built
-    in the current directory.
+Consul Options:
 
   -consul-http-addr=<addr>
-    The address and port of the Consul HTTP agent. Overrides the CONSUL_HTTP_ADDR environment variable.
+    The address and port of the Consul HTTP agent. Overrides the
+    CONSUL_HTTP_ADDR environment variable.
 
   -consul-token=<token>
     Token used to query Consul. Overrides the CONSUL_HTTP_TOKEN environment
@@ -133,6 +100,8 @@ Debug Options:
     Path to a directory of PEM encoded CA cert files to verify the Consul
     certificate. Overrides the CONSUL_CAPATH environment variable.
 
+Vault Options:
+
   -vault-address=<addr>
     The address and port of the Vault HTTP agent. Overrides the VAULT_ADDR
     environment variable.
@@ -156,6 +125,47 @@ Debug Options:
   -vault-ca-path=<path>
     Path to a directory of PEM encoded CA cert files to verify the Vault
     certificate. Overrides the VAULT_CAPATH environment variable.
+
+Debug Options:
+
+  -duration=<duration>
+    The duration of the log monitor command. Defaults to 2m.
+
+  -interval=<interval>
+    The interval between snapshots of the Nomad state. Set interval equal to 
+    duration to capture a single snapshot. Defaults to 30s.
+
+  -log-level=<level>
+    The log level to monitor. Defaults to DEBUG.
+
+  -max-nodes=<count>
+    Cap the maximum number of client nodes included in the capture. Defaults
+    to 10, set to 0 for unlimited.
+
+  -node-id=<node>,<node>
+    Comma separated list of Nomad client node ids to monitor for logs, API
+    outputs, and pprof profiles. Accepts id prefixes, and "all" to select all
+    nodes (up to count = max-nodes). Defaults to "all".
+
+  -node-class=<node-class>
+    Filter client nodes based on node class.
+
+  -pprof-duration=<duration>
+    Duration for pprof collection. Defaults to 1s.
+
+  -server-id=<server>,<server>
+    Comma separated list of Nomad server names to monitor for logs, API
+    outputs, and pprof profiles. Accepts server names, "leader", or "all".
+    Defaults to "all".
+
+  -stale=<true|false>
+    If "false", the default, get membership data from the cluster leader. If
+    the cluster is in an outage unable to establish leadership, it may be
+    necessary to get the configuration from a non-leader server.
+
+  -output=<path>
+    Path to the parent directory of the output directory. If not specified, an
+    archive is built in the current directory.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -195,12 +205,12 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	var nodeIDs, serverIDs string
 
 	flags.StringVar(&duration, "duration", "2m", "")
-	flags.StringVar(&interval, "interval", "2m", "")
+	flags.StringVar(&interval, "interval", "30s", "")
 	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
 	flags.StringVar(&c.nodeClass, "node-class", "", "")
 	flags.StringVar(&nodeIDs, "node-id", "", "")
-	flags.StringVar(&serverIDs, "server-id", "", "")
+	flags.StringVar(&serverIDs, "server-id", "all", "")
 	flags.BoolVar(&c.stale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
 	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
@@ -245,6 +255,12 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 	c.interval = i
+
+	// Validate interval
+	if i.Seconds() > d.Seconds() {
+		c.Ui.Error(fmt.Sprintf("Error parsing interval: %s is greater than duration %s", interval, duration))
+		return 1
+	}
 
 	// Parse the pprof capture duration
 	pd, err := time.ParseDuration(pprofDuration)
@@ -551,7 +567,6 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 				continue
 			}
 			fh.Write(out.Data)
-			fh.WriteString("\n")
 
 		case err := <-errCh:
 			fh.WriteString(fmt.Sprintf("monitor: %s\n", err.Error()))
@@ -639,52 +654,60 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client)
 		}
 	}
 
-	bs, err = client.Agent().Trace(opts, nil)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof trace.prof, err: %v", path, err))
-	} else {
-		err := c.writeBytes(path, "trace.prof", bs)
-		if err != nil {
-			c.Ui.Error(err.Error())
-		}
-	}
-
-	bs, err = client.Agent().Lookup("goroutine", opts, nil)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine.prof, err: %v", path, err))
-	} else {
-		err := c.writeBytes(path, "goroutine.prof", bs)
-		if err != nil {
-			c.Ui.Error(err.Error())
-		}
-	}
-
-	// Gather goroutine text output - debug type 1
-	// debug type 1 writes the legacy text format for human readable output
+	// goroutine debug type 1 = legacy text format for human readable output
 	opts.Debug = 1
-	bs, err = client.Agent().Lookup("goroutine", opts, nil)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug1.txt, err: %v", path, err))
-	} else {
-		err := c.writeBytes(path, "goroutine-debug1.txt", bs)
-		if err != nil {
-			c.Ui.Error(err.Error())
-		}
+	c.savePprofProfile(path, "goroutine", opts, client)
+
+	// goroutine debug type 2 = goroutine stacks in panic format
+	opts.Debug = 2
+	c.savePprofProfile(path, "goroutine", opts, client)
+
+	// Reset to pprof binary format
+	opts.Debug = 0
+
+	c.savePprofProfile(path, "goroutine", opts, client)    // Stack traces of all current goroutines
+	c.savePprofProfile(path, "trace", opts, client)        // A trace of execution of the current program
+	c.savePprofProfile(path, "heap", opts, client)         // A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.
+	c.savePprofProfile(path, "allocs", opts, client)       // A sampling of all past memory allocations
+	c.savePprofProfile(path, "threadcreate", opts, client) // Stack traces that led to the creation of new OS threads
+
+	// This profile is disabled by default -- Requires runtime.SetBlockProfileRate to enable
+	// c.savePprofProfile(path, "block", opts, client)        // Stack traces that led to blocking on synchronization primitives
+
+	// This profile is disabled by default -- Requires runtime.SetMutexProfileFraction to enable
+	// c.savePprofProfile(path, "mutex", opts, client)        // Stack traces of holders of contended mutexes
+}
+
+// savePprofProfile retrieves a pprof profile and writes to disk
+func (c *OperatorDebugCommand) savePprofProfile(path string, profile string, opts api.PprofOptions, client *api.Client) {
+	fileName := fmt.Sprintf("%s.prof", profile)
+	if opts.Debug > 0 {
+		fileName = fmt.Sprintf("%s-debug%d.txt", profile, opts.Debug)
 	}
 
-	// Gather goroutine text output - debug type 2
-	// When printing the "goroutine" profile, debug=2 means to print the goroutine
-	// stacks in the same form that a Go program uses when dying due to an unrecovered panic.
-	opts.Debug = 2
-	bs, err = client.Agent().Lookup("goroutine", opts, nil)
+	bs, err := retrievePprofProfile(profile, opts, client)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof goroutine-debug2.txt, err: %v", path, err))
-	} else {
-		err := c.writeBytes(path, "goroutine-debug2.txt", bs)
-		if err != nil {
-			c.Ui.Error(err.Error())
-		}
+		c.Ui.Error(fmt.Sprintf("%s: Failed to retrieve pprof %s, err: %s", path, fileName, err.Error()))
 	}
+
+	err = c.writeBytes(path, fileName, bs)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("%s: Failed to write file %s, err: %s", path, fileName, err.Error()))
+	}
+}
+
+// retrievePprofProfile gets a pprof profile from the node specified in opts using the API client
+func retrievePprofProfile(profile string, opts api.PprofOptions, client *api.Client) (bs []byte, err error) {
+	switch profile {
+	case "cpuprofile":
+		bs, err = client.Agent().CPUProfile(opts, nil)
+	case "trace":
+		bs, err = client.Agent().Trace(opts, nil)
+	default:
+		bs, err = client.Agent().Lookup(profile, opts, nil)
+	}
+
+	return bs, err
 }
 
 // collectPeriodic runs for duration, capturing the cluster state every interval. It flushes and stops
@@ -964,8 +987,9 @@ func (c *OperatorDebugCommand) trap() {
 	}()
 }
 
-// TarCZF, like the tar command, recursively builds a gzip compressed tar archive from a
-// directory. If not empty, all files in the bundle are prefixed with the target path
+// TarCZF like the tar command, recursively builds a gzip compressed tar
+// archive from a directory. If not empty, all files in the bundle are prefixed
+// with the target path.
 func TarCZF(archive string, src, target string) error {
 	// ensure the src actually exists before trying to tar it
 	if _, err := os.Stat(src); err != nil {
@@ -1003,7 +1027,7 @@ func TarCZF(archive string, src, target string) error {
 		}
 
 		// remove leading path to the src, so files are relative to the archive
-		path := strings.Replace(file, src, "", -1)
+		path := strings.ReplaceAll(file, src, "")
 		if target != "" {
 			path = filepath.Join([]string{target, path}...)
 		}
@@ -1064,6 +1088,10 @@ func (e *external) addr(defaultAddr string) string {
 		if strings.HasPrefix(e.addrVal, "http:") {
 			return e.addrVal
 		}
+		if strings.HasPrefix(e.addrVal, "https:") {
+			// Mismatch: e.ssl=false but addrVal is https
+			return strings.ReplaceAll(e.addrVal, "https://", "http://")
+		}
 		return "http://" + e.addrVal
 	}
 
@@ -1072,7 +1100,8 @@ func (e *external) addr(defaultAddr string) string {
 	}
 
 	if strings.HasPrefix(e.addrVal, "http:") {
-		return "https:" + e.addrVal[5:]
+		// Mismatch: e.ssl=true but addrVal is http
+		return strings.ReplaceAll(e.addrVal, "http://", "https://")
 	}
 
 	return "https://" + e.addrVal

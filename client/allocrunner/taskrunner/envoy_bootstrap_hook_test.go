@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -31,6 +32,12 @@ import (
 )
 
 var _ interfaces.TaskPrestartHook = (*envoyBootstrapHook)(nil)
+
+const (
+	// consulNamespace is empty string in OSS, because Consul OSS does not like
+	// having even the default namespace set.
+	consulNamespace = ""
+)
 
 func writeTmp(t *testing.T, s string, fm os.FileMode) string {
 	dir, err := ioutil.TempDir("", "envoy-")
@@ -116,13 +123,15 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			sidecarFor:     "s1",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulPlainConfig,
-			envoyAdminBind: "localhost:3333",
+			envoyAdminBind: "127.0.0.2:19000",
+			envoyReadyBind: "127.0.0.1:19100",
 		}
 		result := ebArgs.args()
 		require.Equal(t, []string{"connect", "envoy",
 			"-grpc-addr", "1.1.1.1",
 			"-http-addr", "2.2.2.2",
-			"-admin-bind", "localhost:3333",
+			"-admin-bind", "127.0.0.2:19000",
+			"-address", "127.0.0.1:19100",
 			"-bootstrap",
 			"-sidecar-for", "s1",
 		}, result)
@@ -134,14 +143,16 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			sidecarFor:     "s1",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulPlainConfig,
-			envoyAdminBind: "localhost:3333",
+			envoyAdminBind: "127.0.0.2:19000",
+			envoyReadyBind: "127.0.0.1:19100",
 			siToken:        token,
 		}
 		result := ebArgs.args()
 		require.Equal(t, []string{"connect", "envoy",
 			"-grpc-addr", "1.1.1.1",
 			"-http-addr", "2.2.2.2",
-			"-admin-bind", "localhost:3333",
+			"-admin-bind", "127.0.0.2:19000",
+			"-address", "127.0.0.1:19100",
 			"-bootstrap",
 			"-sidecar-for", "s1",
 			"-token", token,
@@ -153,13 +164,15 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 			sidecarFor:     "s1",
 			grpcAddr:       "1.1.1.1",
 			consulConfig:   consulTLSConfig,
-			envoyAdminBind: "localhost:3333",
+			envoyAdminBind: "127.0.0.2:19000",
+			envoyReadyBind: "127.0.0.1:19100",
 		}
 		result := ebArgs.args()
 		require.Equal(t, []string{"connect", "envoy",
 			"-grpc-addr", "1.1.1.1",
 			"-http-addr", "2.2.2.2",
-			"-admin-bind", "localhost:3333",
+			"-admin-bind", "127.0.0.2:19000",
+			"-address", "127.0.0.1:19100",
 			"-bootstrap",
 			"-sidecar-for", "s1",
 			"-ca-file", "/etc/tls/ca-file",
@@ -172,7 +185,8 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 		ebArgs := envoyBootstrapArgs{
 			consulConfig:   consulPlainConfig,
 			grpcAddr:       "1.1.1.1",
-			envoyAdminBind: "localhost:3333",
+			envoyAdminBind: "127.0.0.2:19000",
+			envoyReadyBind: "127.0.0.1:19100",
 			gateway:        "my-ingress-gateway",
 			proxyID:        "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-ig-ig-8080",
 		}
@@ -180,10 +194,32 @@ func TestEnvoyBootstrapHook_envoyBootstrapArgs(t *testing.T) {
 		require.Equal(t, []string{"connect", "envoy",
 			"-grpc-addr", "1.1.1.1",
 			"-http-addr", "2.2.2.2",
-			"-admin-bind", "localhost:3333",
+			"-admin-bind", "127.0.0.2:19000",
+			"-address", "127.0.0.1:19100",
 			"-bootstrap",
 			"-gateway", "my-ingress-gateway",
 			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-ig-ig-8080",
+		}, result)
+	})
+
+	t.Run("mesh gateway", func(t *testing.T) {
+		ebArgs := envoyBootstrapArgs{
+			consulConfig:   consulPlainConfig,
+			grpcAddr:       "1.1.1.1",
+			envoyAdminBind: "127.0.0.2:19000",
+			envoyReadyBind: "127.0.0.1:19100",
+			gateway:        "my-mesh-gateway",
+			proxyID:        "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-mesh-mesh-8080",
+		}
+		result := ebArgs.args()
+		require.Equal(t, []string{"connect", "envoy",
+			"-grpc-addr", "1.1.1.1",
+			"-http-addr", "2.2.2.2",
+			"-admin-bind", "127.0.0.2:19000",
+			"-address", "127.0.0.1:19100",
+			"-bootstrap",
+			"-gateway", "my-mesh-gateway",
+			"-proxy-id", "_nomad-task-803cb569-881c-b0d8-9222-360bcc33157e-group-mesh-mesh-8080",
 		}, result)
 	})
 }
@@ -299,8 +335,9 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	consulConfig.Address = testConsul.HTTPAddr
 	consulAPIClient, err := consulapi.NewClient(consulConfig)
 	require.NoError(t, err)
+	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
 
-	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), logger, true)
+	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
 	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
@@ -308,7 +345,7 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: consulConfig.Address,
-	}, logger))
+	}, consulNamespace, logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
 		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
@@ -399,8 +436,9 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	consulConfig.Address = testConsul.HTTPAddr
 	consulAPIClient, err := consulapi.NewClient(consulConfig)
 	require.NoError(t, err)
+	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
 
-	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), logger, true)
+	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
 	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
@@ -408,7 +446,7 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: consulConfig.Address,
-	}, logger))
+	}, consulNamespace, logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
 		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
@@ -425,7 +463,7 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	require.True(t, resp.Done)
 
 	require.NotNil(t, resp.Env)
-	require.Equal(t, "localhost:19001", resp.Env[envoyAdminBindEnvPrefix+"foo"])
+	require.Equal(t, "127.0.0.2:19001", resp.Env[envoyAdminBindEnvPrefix+"foo"])
 
 	// Ensure the default path matches
 	env := map[string]string{
@@ -463,9 +501,10 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	consulConfig.Address = testConsul.HTTPAddr
 	consulAPIClient, err := consulapi.NewClient(consulConfig)
 	require.NoError(t, err)
+	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
 
 	// Register Group Services
-	serviceClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), logger, true)
+	serviceClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 	go serviceClient.Run()
 	defer serviceClient.Shutdown()
 	require.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
@@ -489,7 +528,7 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	// Run Connect bootstrap hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: consulConfig.Address,
-	}, logger))
+	}, consulNamespace, logger))
 
 	req := &interfaces.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
@@ -542,7 +581,7 @@ func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
 	// not get hit.
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: "http://127.0.0.2:1",
-	}, logger))
+	}, consulNamespace, logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    task,
 		TaskDir: allocDir.NewTaskDir(task.Name),
@@ -615,7 +654,12 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: testConsul.HTTPAddr,
-	}, logger))
+	}, consulNamespace, logger))
+
+	// Lower the allowable wait time for testing
+	h.envoyBootstrapWaitTime = 1 * time.Second
+	h.envoyBoostrapInitialGap = 100 * time.Millisecond
+
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
 		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
@@ -637,6 +681,99 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 	_, err = os.Open(filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json"))
 	require.Error(t, err)
 	require.True(t, os.IsNotExist(err))
+}
+
+func TestTaskRunner_EnvoyBootstrapHook_retryTimeout(t *testing.T) {
+	t.Parallel()
+	logger := testlog.HCLogger(t)
+
+	testConsul := getTestConsul(t)
+	defer testConsul.Stop()
+
+	begin := time.Now()
+
+	// Setup an Allocation
+	alloc := mock.ConnectAlloc()
+	alloc.AllocatedResources.Shared.Networks = []*structs.NetworkResource{
+		{
+			Mode: "bridge",
+			IP:   "10.0.0.1",
+			DynamicPorts: []structs.Port{
+				{
+					Label: "connect-proxy-foo",
+					Value: 9999,
+					To:    9999,
+				},
+			},
+		},
+	}
+	tg := alloc.Job.TaskGroups[0]
+	tg.Services = []*structs.Service{
+		{
+			Name:      "foo",
+			PortLabel: "9999", // Just need a valid port, nothing will bind to it
+			Connect: &structs.ConsulConnect{
+				SidecarService: &structs.ConsulSidecarService{},
+			},
+		},
+	}
+	sidecarTask := &structs.Task{
+		Name: "sidecar",
+		Kind: structs.NewTaskKind(structs.ConnectProxyPrefix, "foo"),
+	}
+	tg.Tasks = append(tg.Tasks, sidecarTask)
+	allocDir, cleanupAlloc := allocdir.TestAllocDir(t, logger, "EnvoyBootstrapRetryTimeout")
+	defer cleanupAlloc()
+
+	// Get a Consul client
+	consulConfig := consulapi.DefaultConfig()
+	consulConfig.Address = testConsul.HTTPAddr
+
+	// Do NOT register group services, causing the hook to retry until timeout
+
+	// Run Connect bootstrap hook
+	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
+		Addr: consulConfig.Address,
+	}, consulNamespace, logger))
+
+	// Keep track of the retry backoff iterations
+	iterations := 0
+
+	// Lower the allowable wait time for testing
+	h.envoyBootstrapWaitTime = 3 * time.Second
+	h.envoyBoostrapInitialGap = 1 * time.Second
+	h.envoyBootstrapExpSleep = func(d time.Duration) {
+		iterations++
+		time.Sleep(d)
+	}
+
+	// Create the prestart request
+	req := &interfaces.TaskPrestartRequest{
+		Task:    sidecarTask,
+		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
+		TaskEnv: taskenv.NewEmptyTaskEnv(),
+	}
+	require.NoError(t, req.TaskDir.Build(false, nil))
+
+	var resp interfaces.TaskPrestartResponse
+
+	// Run the hook and get the error
+	err := h.Prestart(context.Background(), req, &resp)
+	require.EqualError(t, err, "error creating bootstrap configuration for Connect proxy sidecar: exit status 1")
+
+	// Current time should be at least start time + total wait time
+	minimum := begin.Add(h.envoyBootstrapWaitTime)
+	require.True(t, time.Now().After(minimum))
+
+	// Should hit at least 2 iterations
+	require.Greater(t, 2, iterations)
+
+	// Make sure we captured the recoverable-ness of the error
+	_, ok := err.(*structs.RecoverableError)
+	require.True(t, ok)
+
+	// Assert the hook is not done (it failed)
+	require.False(t, resp.Done)
 }
 
 func TestTaskRunner_EnvoyBootstrapHook_extractNameAndKind(t *testing.T) {
@@ -677,12 +814,14 @@ func TestTaskRunner_EnvoyBootstrapHook_grpcAddress(t *testing.T) {
 	bridgeH := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(
 		mock.ConnectIngressGatewayAlloc("bridge"),
 		new(config.ConsulConfig),
+		consulNamespace,
 		testlog.HCLogger(t),
 	))
 
 	hostH := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(
 		mock.ConnectIngressGatewayAlloc("host"),
 		new(config.ConsulConfig),
+		consulNamespace,
 		testlog.HCLogger(t),
 	))
 
@@ -698,4 +837,13 @@ func TestTaskRunner_EnvoyBootstrapHook_grpcAddress(t *testing.T) {
 		require.Equal(t, "unix://alloc/tmp/consul_grpc.sock", bridgeH.grpcAddress(nil))
 		require.Equal(t, "127.0.0.1:8502", hostH.grpcAddress(nil))
 	})
+}
+
+func TestTaskRunner_EnvoyBootstrapHook_isConnectKind(t *testing.T) {
+	require.True(t, isConnectKind(structs.ConnectProxyPrefix))
+	require.True(t, isConnectKind(structs.ConnectIngressPrefix))
+	require.True(t, isConnectKind(structs.ConnectTerminatingPrefix))
+	require.True(t, isConnectKind(structs.ConnectMeshPrefix))
+	require.False(t, isConnectKind(""))
+	require.False(t, isConnectKind("something"))
 }

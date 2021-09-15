@@ -1,5 +1,5 @@
 import { inject as service } from '@ember/service';
-import { next } from '@ember/runloop';
+import { later, next } from '@ember/runloop';
 import Route from '@ember/routing/route';
 import { AbortError } from '@ember-data/adapter/error';
 import RSVP from 'rsvp';
@@ -25,58 +25,100 @@ export default class ApplicationRoute extends Route {
     }
   }
 
-  beforeModel(transition) {
-    const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
-      .perform()
-      .catch();
+  async beforeModel(transition) {
+    let promises;
 
-    const fetchLicense = this.get('system.fetchLicense')
-      .perform()
-      .catch();
+    // service:router#transitionTo can cause this to rerun because of refreshModel on
+    // the region query parameter, this skips rerunning the detection/loading queries.
+    if (transition.queryParamsOnly) {
+      promises = Promise.resolve(true);
+    } else {
 
-    return RSVP.all([
-      this.get('system.regions'),
-      this.get('system.defaultRegion'),
-      fetchLicense,
-      fetchSelfTokenAndPolicies,
-    ]).then(promises => {
-      if (!this.get('system.shouldShowRegions')) return promises;
+      let exchangeOneTimeToken;
 
-      const queryParam = transition.to.queryParams.region;
-      const defaultRegion = this.get('system.defaultRegion.region');
-      const currentRegion = this.get('system.activeRegion') || defaultRegion;
-
-      // Only reset the store if the region actually changed
-      if (
-        (queryParam && queryParam !== currentRegion) ||
-        (!queryParam && currentRegion !== defaultRegion)
-      ) {
-        this.system.reset();
-        this.store.unloadAll();
+      if (transition.to.queryParams.ott) {
+        exchangeOneTimeToken = this.get('token').exchangeOneTimeToken(transition.to.queryParams.ott);
+      } else {
+        exchangeOneTimeToken = Promise.resolve(true);
       }
 
-      this.set('system.activeRegion', queryParam || defaultRegion);
+      try {
+        await exchangeOneTimeToken;
+      } catch (e) {
+        this.controllerFor('application').set('error', e);
+      }
 
-      return promises;
-    });
+      const fetchSelfTokenAndPolicies = this.get('token.fetchSelfTokenAndPolicies')
+        .perform()
+        .catch();
+
+      const fetchLicense = this.get('system.fetchLicense')
+        .perform()
+        .catch();
+
+      const checkFuzzySearchPresence = this.get('system.checkFuzzySearchPresence')
+        .perform()
+        .catch();
+
+      promises = await RSVP.all([
+        this.get('system.regions'),
+        this.get('system.defaultRegion'),
+        fetchLicense,
+        fetchSelfTokenAndPolicies,
+        checkFuzzySearchPresence,
+      ]);
+    }
+
+    if (!this.get('system.shouldShowRegions')) return promises;
+
+    const queryParam = transition.to.queryParams.region;
+    const defaultRegion = this.get('system.defaultRegion.region');
+    const currentRegion = this.get('system.activeRegion') || defaultRegion;
+
+    // Only reset the store if the region actually changed
+    if (
+      (queryParam && queryParam !== currentRegion) ||
+      (!queryParam && currentRegion !== defaultRegion)
+    ) {
+      this.store.unloadAll();
+    }
+
+    this.set('system.activeRegion', queryParam || defaultRegion);
+
+    return promises;
   }
 
-  // Model is being used as a way to transfer the provided region
-  // query param to update the controller state.
-  model(params) {
-    return params.region;
+  // Model is being used as a way to propagate the region and
+  // one time token query parameters for use in setupController.
+  model(
+    { region },
+    {
+      to: {
+        queryParams: { ott },
+      },
+    }
+  ) {
+    return {
+      region,
+      hasOneTimeToken: ott,
+    };
   }
 
-  setupController(controller, model) {
-    const queryParam = model;
-
-    if (queryParam === this.get('system.defaultRegion.region')) {
+  setupController(controller, { region, hasOneTimeToken }) {
+    if (region === this.get('system.defaultRegion.region')) {
       next(() => {
         controller.set('region', null);
       });
     }
 
-    return super.setupController(...arguments);
+    super.setupController(...arguments);
+
+    if (hasOneTimeToken) {
+      // Hack to force clear the OTT query parameter
+      later(() => {
+        controller.set('oneTimeToken', '');
+      }, 500);
+    }
   }
 
   @action

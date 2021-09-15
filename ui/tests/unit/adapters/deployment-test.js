@@ -42,11 +42,13 @@ module('Unit | Adapter | Deployment', function(hooks) {
     {
       variation: '',
       region: null,
+      fail: id => `POST /v1/deployment/fail/${id}`,
       promote: id => `POST /v1/deployment/promote/${id}`,
     },
     {
       variation: 'with non-default region',
       region: 'region-2',
+      fail: id => `POST /v1/deployment/fail/${id}?region=region-2`,
       promote: id => `POST /v1/deployment/promote/${id}?region=region-2`,
     },
   ];
@@ -62,6 +64,18 @@ module('Unit | Adapter | Deployment', function(hooks) {
       assert.deepEqual(JSON.parse(request.requestBody), {
         DeploymentId: deployment.id,
         All: true,
+      });
+    });
+
+    test(`fail makes the correct API call ${testCase.variation}`, async function(assert) {
+      const deployment = await this.initialize({ region: testCase.region });
+      await this.subject().fail(deployment);
+
+      const request = this.server.pretender.handledRequests[0];
+
+      assert.equal(`${request.method} ${request.url}`, testCase.fail(deployment.id));
+      assert.deepEqual(JSON.parse(request.requestBody), {
+        DeploymentId: deployment.id,
       });
     });
   });

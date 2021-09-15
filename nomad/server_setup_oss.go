@@ -8,12 +8,18 @@ import (
 
 // LicenseConfig allows for tunable licensing config
 // primarily used for enterprise testing
-type LicenseConfig struct{}
+type LicenseConfig struct {
+	AdditionalPubKeys []string
+}
 
 type EnterpriseState struct{}
 
 func (es *EnterpriseState) Features() uint64 {
 	return 0
+}
+
+func (es *EnterpriseState) ReloadLicense(_ *Config) error {
+	return nil
 }
 
 func (s *Server) setupEnterprise(config *Config) error {

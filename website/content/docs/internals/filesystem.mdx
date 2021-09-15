@@ -1,7 +1,6 @@
 ---
 layout: docs
 page_title: Filesystem
-sidebar_title: Filesystem
 description: |-
   Nomad creates an allocation working directory for every allocation. Learn what
   goes into the working directory and how it interacts with Nomad task drivers.
@@ -67,7 +66,7 @@ allocation directory like the one below.
 
   - **«taskname»/secrets/**: This directory is the location provided to the task as
     `NOMAD_SECRETS_DIR`. The contents of files in this directory cannot be read
-    the the `nomad alloc fs` command. It can be used to store secret data that
+    by the `nomad alloc fs` command. It can be used to store secret data that
     should not be visible outside the task.
 
   - **«taskname»/tmp/**: A temporary directory used as scratch space by task drivers.
@@ -231,6 +230,11 @@ EOT
   }
 }
 ```
+
+Note that relative mount source path are relative to the task working
+directory, so to bind the `NOMAD_ALLOC_DIR` as a mount source, you will need
+to use a relative path that traverses up into the allocation working directory
+(ex. `source = "../alloc"`).
 
 ### `chroot` isolation
 

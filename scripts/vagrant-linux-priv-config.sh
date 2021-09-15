@@ -31,9 +31,9 @@ apt-get install -y \
 apt-get install -y \
 	binutils-aarch64-linux-gnu \
 	binutils-arm-linux-gnueabihf \
-	gcc-5-aarch64-linux-gnu \
-	gcc-5-arm-linux-gnueabihf \
-	gcc-5-multilib-arm-linux-gnueabihf
+	gcc-aarch64-linux-gnu \
+	gcc-arm-linux-gnueabihf \
+	gcc-multilib-arm-linux-gnueabihf
 
 # Install Windows build utilities
 apt-get install -y \

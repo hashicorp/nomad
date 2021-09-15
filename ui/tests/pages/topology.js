@@ -1,4 +1,4 @@
-import { attribute, clickable, create, hasClass, text, visitable } from 'ember-cli-page-object';
+import { attribute, clickable, collection, create, hasClass, text, visitable } from 'ember-cli-page-object';
 
 import TopoViz from 'nomad-ui/tests/pages/components/topo-viz';
 import notification from 'nomad-ui/tests/pages/components/notification';
@@ -59,5 +59,11 @@ export default create({
 
     client: text('[data-test-client]'),
     visitClient: clickable('[data-test-client]'),
+
+    charts: collection('[data-test-primary-metric]', {
+      areas: collection('[data-test-chart-area]', {
+        taskName: attribute('data-test-task-name'),
+      }),
+    }),
   },
 });

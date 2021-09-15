@@ -29,7 +29,13 @@ object. Supported identifiers are jobs, allocations and nodes.
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
+
+UI Options
+
+  -authenticate: Exchange your Nomad ACL token for a one-time token in the
+    web UI, if ACLs are enabled.
+`
 
 	return strings.TrimSpace(helpText)
 }
@@ -75,8 +81,11 @@ func (c *UiCommand) Synopsis() string {
 func (c *UiCommand) Name() string { return "ui" }
 
 func (c *UiCommand) Run(args []string) int {
+	var authenticate bool
+
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&authenticate, "authenticate", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -101,6 +110,16 @@ func (c *UiCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing Nomad address %q: %s", client.Address(), err))
 		return 1
+	}
+
+	var ottSecret string
+	if authenticate {
+		ott, _, err := client.ACLTokens().UpsertOneTimeToken(nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Could not get one-time token: %s", err))
+			return 1
+		}
+		ottSecret = ott.OneTimeSecretID
 	}
 
 	// We were given an id so look it up
@@ -159,7 +178,12 @@ func (c *UiCommand) Run(args []string) int {
 		}
 	}
 
-	c.Ui.Output(fmt.Sprintf("Opening URL %q", url.String()))
+	if authenticate && ottSecret != "" {
+		c.Ui.Output(fmt.Sprintf("Opening URL %q with one-time token", url.String()))
+		url.RawQuery = fmt.Sprintf("ott=%s", ottSecret)
+	} else {
+		c.Ui.Output(fmt.Sprintf("Opening URL %q", url.String()))
+	}
 	if err := open.Start(url.String()); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error opening URL: %s", err))
 		return 1

@@ -65,6 +65,14 @@ type QueryOptions struct {
 	// AuthToken is the secret ID of an ACL token
 	AuthToken string
 
+	// PerPage is the number of entries to be returned in queries that support
+	// paginated lists.
+	PerPage int32
+
+	// NextToken is the token used indicate where to start paging for queries
+	// that support paginated lists.
+	NextToken string
+
 	// ctx is an optional context pass through to the underlying HTTP
 	// request layer. Use Context() and WithContext() to manage this.
 	ctx context.Context
@@ -85,6 +93,9 @@ type WriteOptions struct {
 	// ctx is an optional context pass through to the underlying HTTP
 	// request layer. Use Context() and WithContext() to manage this.
 	ctx context.Context
+
+	// IdempotencyToken can be used to ensure the write is idempotent.
+	IdempotencyToken string
 }
 
 // QueryMeta is used to return meta data about a query
@@ -237,6 +248,10 @@ func defaultHttpClient() *http.Client {
 	transport.TLSClientConfig = &tls.Config{
 		MinVersion: tls.VersionTLS12,
 	}
+
+	// Default to http/1: alloc exec/websocket aren't supported in http/2
+	// well yet: https://github.com/gorilla/websocket/issues/417
+	transport.ForceAttemptHTTP2 = false
 
 	return httpClient
 }
@@ -585,6 +600,9 @@ func (r *request) setWriteOptions(q *WriteOptions) {
 	if q.AuthToken != "" {
 		r.token = q.AuthToken
 	}
+	if q.IdempotencyToken != "" {
+		r.params.Set("idempotency_token", q.IdempotencyToken)
+	}
 	r.ctx = q.Context()
 }
 
@@ -677,8 +695,8 @@ func (c *Client) newRequest(method, path string) (*request, error) {
 		}
 	}
 
-	if c.config.Headers != nil {
-		r.header = c.config.Headers
+	for key, values := range c.config.Headers {
+		r.header[key] = values
 	}
 
 	return r, nil
@@ -712,7 +730,7 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 	}
 	start := time.Now()
 	resp, err := c.httpClient.Do(req)
-	diff := time.Now().Sub(start)
+	diff := time.Since(start)
 
 	// If the response is compressed, we swap the body's reader.
 	if resp != nil && resp.Header != nil {

@@ -1,4 +1,4 @@
-import attr from 'ember-data/attr';
+import { attr } from '@ember-data/model';
 import Fragment from 'ember-data-model-fragments/fragment';
 import { fragment, fragmentArray, fragmentOwner } from 'ember-data-model-fragments/attributes';
 import { computed } from '@ember/object';
@@ -9,6 +9,16 @@ export default class Task extends Fragment {
   @attr('string') name;
   @attr('string') driver;
   @attr('string') kind;
+
+  @attr() meta;
+
+  @computed('taskGroup.mergedMeta', 'meta')
+  get mergedMeta() {
+    return {
+      ...this.taskGroup.mergedMeta,
+      ...this.meta,
+    };
+  }
 
   @fragment('lifecycle') lifecycle;
 
@@ -30,6 +40,7 @@ export default class Task extends Fragment {
   }
 
   @attr('number') reservedMemory;
+  @attr('number') reservedMemoryMax;
   @attr('number') reservedCPU;
   @attr('number') reservedDisk;
   @attr('number') reservedEphemeralDisk;

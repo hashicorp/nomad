@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/hashicorp/nomad/lib/cpuset"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -24,7 +26,7 @@ type RankedNode struct {
 	TaskLifecycles map[string]*structs.TaskLifecycleConfig
 	AllocResources *structs.AllocatedSharedResources
 
-	// Allocs is used to cache the proposed allocations on the
+	// Proposed is used to cache the proposed allocations on the
 	// node. This can be shared between iterators that require it.
 	Proposed []*structs.Allocation
 
@@ -60,7 +62,7 @@ func (r *RankedNode) SetTaskResources(task *structs.Task,
 	r.TaskLifecycles[task.Name] = task.Lifecycle
 }
 
-// RankFeasibleIterator is used to iteratively yield nodes along
+// RankIterator is used to iteratively yield nodes along
 // with ranking metadata. The iterators may manage some state for
 // performance optimizations.
 type RankIterator interface {
@@ -147,30 +149,33 @@ func (iter *StaticRankIterator) Reset() {
 // BinPackIterator is a RankIterator that scores potential options
 // based on a bin-packing algorithm.
 type BinPackIterator struct {
-	ctx       Context
-	source    RankIterator
-	evict     bool
-	priority  int
-	jobId     *structs.NamespacedID
-	taskGroup *structs.TaskGroup
-	scoreFit  func(*structs.Node, *structs.ComparableResources) float64
+	ctx                    Context
+	source                 RankIterator
+	evict                  bool
+	priority               int
+	jobId                  structs.NamespacedID
+	taskGroup              *structs.TaskGroup
+	memoryOversubscription bool
+	scoreFit               func(*structs.Node, *structs.ComparableResources) float64
 }
 
 // NewBinPackIterator returns a BinPackIterator which tries to fit tasks
 // potentially evicting other tasks based on a given priority.
-func NewBinPackIterator(ctx Context, source RankIterator, evict bool, priority int, algorithm structs.SchedulerAlgorithm) *BinPackIterator {
+func NewBinPackIterator(ctx Context, source RankIterator, evict bool, priority int, schedConfig *structs.SchedulerConfiguration) *BinPackIterator {
 
+	algorithm := schedConfig.EffectiveSchedulerAlgorithm()
 	scoreFn := structs.ScoreFitBinPack
 	if algorithm == structs.SchedulerAlgorithmSpread {
 		scoreFn = structs.ScoreFitSpread
 	}
 
 	iter := &BinPackIterator{
-		ctx:      ctx,
-		source:   source,
-		evict:    evict,
-		priority: priority,
-		scoreFit: scoreFn,
+		ctx:                    ctx,
+		source:                 source,
+		evict:                  evict,
+		priority:               priority,
+		memoryOversubscription: schedConfig != nil && schedConfig.MemoryOversubscriptionEnabled,
+		scoreFit:               scoreFn,
 	}
 	iter.ctx.Logger().Named("binpack").Trace("NewBinPackIterator created", "algorithm", algorithm)
 	return iter
@@ -228,7 +233,7 @@ OUTER:
 		var allocsToPreempt []*structs.Allocation
 
 		// Initialize preemptor with node
-		preemptor := NewPreemptor(iter.priority, iter.ctx, iter.jobId)
+		preemptor := NewPreemptor(iter.priority, iter.ctx, &iter.jobId)
 		preemptor.SetNode(option.Node)
 
 		// Count the number of existing preemptions
@@ -242,6 +247,28 @@ OUTER:
 		// Check if we need task group network resource
 		if len(iter.taskGroup.Networks) > 0 {
 			ask := iter.taskGroup.Networks[0].Copy()
+			for i, port := range ask.DynamicPorts {
+				if port.HostNetwork != "" {
+					if hostNetworkValue, hostNetworkOk := resolveTarget(port.HostNetwork, option.Node); hostNetworkOk {
+						ask.DynamicPorts[i].HostNetwork = hostNetworkValue.(string)
+					} else {
+						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("Invalid template for %s host network in port %s", port.HostNetwork, port.Label))
+						netIdx.Release()
+						continue OUTER
+					}
+				}
+			}
+			for i, port := range ask.ReservedPorts {
+				if port.HostNetwork != "" {
+					if hostNetworkValue, hostNetworkOk := resolveTarget(port.HostNetwork, option.Node); hostNetworkOk {
+						ask.ReservedPorts[i].HostNetwork = hostNetworkValue.(string)
+					} else {
+						iter.ctx.Logger().Named("binpack").Error(fmt.Sprintf("Invalid template for %s host network in port %s", port.HostNetwork, port.Label))
+						netIdx.Release()
+						continue OUTER
+					}
+				}
+			}
 			offer, err := netIdx.AssignPorts(ask)
 			if err != nil {
 				// If eviction is not enabled, mark this node as exhausted and continue
@@ -304,6 +331,9 @@ OUTER:
 				Memory: structs.AllocatedMemoryResources{
 					MemoryMB: int64(task.Resources.MemoryMB),
 				},
+			}
+			if iter.memoryOversubscription {
+				taskResources.Memory.MemoryMaxMB = int64(task.Resources.MemoryMaxMB)
 			}
 
 			// Check if we need a network resource
@@ -401,6 +431,38 @@ OUTER:
 					}
 					sumMatchingAffinities += sumAffinities
 				}
+			}
+
+			// Check if we need to allocate any reserved cores
+			if task.Resources.Cores > 0 {
+				// set of reservable CPUs for the node
+				nodeCPUSet := cpuset.New(option.Node.NodeResources.Cpu.ReservableCpuCores...)
+				// set of all reserved CPUs on the node
+				allocatedCPUSet := cpuset.New()
+				for _, alloc := range proposed {
+					allocatedCPUSet = allocatedCPUSet.Union(cpuset.New(alloc.ComparableResources().Flattened.Cpu.ReservedCores...))
+				}
+
+				// add any cores that were reserved for other tasks
+				for _, tr := range total.Tasks {
+					allocatedCPUSet = allocatedCPUSet.Union(cpuset.New(tr.Cpu.ReservedCores...))
+				}
+
+				// set of CPUs not yet reserved on the node
+				availableCPUSet := nodeCPUSet.Difference(allocatedCPUSet)
+
+				// If not enough cores are available mark the node as exhausted
+				if availableCPUSet.Size() < task.Resources.Cores {
+					// TODO preemption
+					iter.ctx.Metrics().ExhaustedNode(option.Node, "cores")
+					continue OUTER
+				}
+
+				// Set the task's reserved cores
+				taskResources.Cpu.ReservedCores = availableCPUSet.ToSlice()[0:task.Resources.Cores]
+				// Total CPU usage on the node is still tracked by CPUShares. Even though the task will have the entire
+				// core reserved, we still track overall usage by cpu shares.
+				taskResources.Cpu.CpuShares = option.Node.NodeResources.Cpu.SharesPerCore() * int64(task.Resources.Cores)
 			}
 
 			// Store the task resource
@@ -715,8 +777,8 @@ type PreemptionScoringIterator struct {
 	source RankIterator
 }
 
-// PreemptionScoringIterator is used to create a score based on net aggregate priority
-// of preempted allocations
+// NewPreemptionScoringIterator is used to create a score based on net
+// aggregate priority of preempted allocations.
 func NewPreemptionScoringIterator(ctx Context, source RankIterator) RankIterator {
 	return &PreemptionScoringIterator{
 		ctx:    ctx,

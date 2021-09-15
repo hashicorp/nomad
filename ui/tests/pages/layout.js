@@ -4,6 +4,7 @@ import {
   clickable,
   collection,
   hasClass,
+  isHidden,
   isPresent,
   text,
 } from 'ember-cli-page-object';
@@ -13,7 +14,7 @@ export default create({
     scope: '[data-test-global-header]',
 
     regionSwitcher: {
-      scope: '[data-test-region-switcher]',
+      scope: '[data-test-region-switcher-parent]',
       isPresent: isPresent(),
       open: clickable('.ember-power-select-trigger'),
       options: collection('.ember-power-select-option', {
@@ -22,7 +23,7 @@ export default create({
     },
 
     search: {
-      scope: '[data-test-search]',
+      scope: '[data-test-search-parent]',
 
       click: clickable('.ember-power-select-trigger'),
 
@@ -31,28 +32,12 @@ export default create({
         resetScope: true,
         name: text('.ember-power-select-group-name'),
 
-        options: collection(
-          '.ember-power-select-option',
-          create({
-            label: text(),
+        options: collection('.ember-power-select-option'),
+      }),
 
-            substrings: collection('[data-test-match-substring]', {
-              isHighlighted: hasClass('highlighted'),
-            }),
-
-            get formattedText() {
-              return this.substrings
-                .map(string => {
-                  if (string.isHighlighted) {
-                    return `*${string.text}*`;
-                  } else {
-                    return string.text;
-                  }
-                })
-                .join('');
-            },
-          })
-        ),
+      noOptionsShown: isHidden('.ember-power-select-options', {
+        testContainer: '.ember-basic-dropdown-content',
+        resetScope: true,
       }),
 
       field: {
@@ -65,14 +50,6 @@ export default create({
 
   gutter: {
     scope: '[data-test-gutter-menu]',
-    namespaceSwitcher: {
-      scope: '[data-test-namespace-switcher]',
-      isPresent: isPresent(),
-      open: clickable('.ember-power-select-trigger'),
-      options: collection('.ember-power-select-option', {
-        label: text(),
-      }),
-    },
     visitJobs: clickable('[data-test-gutter-link="jobs"]'),
 
     optimize: {
@@ -92,5 +69,21 @@ export default create({
 
   breadcrumbFor(id) {
     return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
+  },
+
+  error: {
+    isPresent: isPresent('[data-test-error]'),
+    title: text('[data-test-error-title]'),
+    message: text('[data-test-error-message]'),
+  },
+
+  inlineError: {
+    isShown: isPresent('[data-test-inline-error]'),
+    title: text('[data-test-inline-error-title]'),
+    message: text('[data-test-inline-error-body]'),
+    dismiss: clickable('[data-test-inline-error-close]'),
+
+    isDanger: hasClass('is-danger', '[data-test-inline-error]'),
+    isWarning: hasClass('is-warning', '[data-test-inline-error]'),
   },
 });

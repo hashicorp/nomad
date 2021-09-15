@@ -56,6 +56,8 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 		return c.csiVolumeClaimGC(eval)
 	case structs.CoreJobCSIPluginGC:
 		return c.csiPluginGC(eval)
+	case structs.CoreJobOneTimeTokenGC:
+		return c.expiredOneTimeTokenGC(eval)
 	case structs.CoreJobForceGC:
 		return c.forceGC(eval)
 	default:
@@ -80,7 +82,9 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 	if err := c.csiVolumeClaimGC(eval); err != nil {
 		return err
 	}
-
+	if err := c.expiredOneTimeTokenGC(eval); err != nil {
+		return err
+	}
 	// Node GC must occur after the others to ensure the allocations are
 	// cleared.
 	return c.nodeGC(eval)
@@ -136,9 +140,7 @@ OUTER:
 			gc, allocs, err := c.gcEval(eval, oldThreshold, true)
 			if err != nil {
 				continue OUTER
-			}
-
-			if gc {
+			} else if gc {
 				jobEval = append(jobEval, eval.ID)
 				jobAlloc = append(jobAlloc, allocs...)
 			} else {
@@ -160,6 +162,7 @@ OUTER:
 	if len(gcEval) == 0 && len(gcAlloc) == 0 && len(gcJob) == 0 {
 		return nil
 	}
+
 	c.logger.Debug("job GC found eligible objects",
 		"jobs", len(gcJob), "evals", len(gcEval), "allocs", len(gcAlloc))
 
@@ -869,4 +872,14 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
 		}
 	}
 	return nil
+}
+
+func (c *CoreScheduler) expiredOneTimeTokenGC(eval *structs.Evaluation) error {
+	req := &structs.OneTimeTokenExpireRequest{
+		WriteRequest: structs.WriteRequest{
+			Region:    c.srv.Region(),
+			AuthToken: eval.LeaderACL,
+		},
+	}
+	return c.srv.RPC("ACL.ExpireOneTimeTokens", req, &structs.GenericResponse{})
 }

@@ -1,6 +1,6 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import { alias } from '@ember/object/computed';
+import { alias, reads } from '@ember/object/computed';
 import { getOwner } from '@ember/application';
 import { assign } from '@ember/polyfills';
 import { task } from 'ember-concurrency';
@@ -26,8 +26,6 @@ export default class TokenService extends Service {
     } else {
       window.localStorage.nomadTokenSecret = value;
     }
-
-    return value;
   }
 
   @task(function*() {
@@ -44,10 +42,13 @@ export default class TokenService extends Service {
   })
   fetchSelfToken;
 
-  @computed('secret', 'fetchSelfToken.lastSuccessful.value')
-  get selfToken() {
-    if (this.secret) return this.get('fetchSelfToken.lastSuccessful.value');
-    return undefined;
+  @reads('fetchSelfToken.lastSuccessful.value') selfToken;
+
+  async exchangeOneTimeToken(oneTimeToken) {
+    const TokenAdapter = getOwner(this).lookup('adapter:token');
+
+    const token = await TokenAdapter.exchangeOneTimeToken(oneTimeToken);
+    this.secret = token.secret;
   }
 
   @task(function*() {
@@ -94,7 +95,7 @@ export default class TokenService extends Service {
   authorizedRequest(url, options) {
     if (this.get('system.shouldIncludeRegion')) {
       const region = this.get('system.activeRegion');
-      if (region) {
+      if (region && url.indexOf('region=') === -1) {
         url = addParams(url, { region });
       }
     }

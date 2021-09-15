@@ -1,11 +1,15 @@
-const withHashicorp = require('@hashicorp/nextjs-scripts')
+const withHashicorp = require('@hashicorp/platform-nextjs-plugin')
 const path = require('path')
 const redirects = require('./redirects')
 const rewrites = require('./rewrites')
 
 module.exports = withHashicorp({
   defaultLayout: true,
-  transpileModules: ['is-absolute-url', '@hashicorp/react-.*'],
+  transpileModules: [
+    'is-absolute-url',
+    '@hashicorp/react-.*',
+    '@hashicorp/versioned-docs',
+  ],
   mdx: { resolveIncludes: path.join(__dirname, 'pages/partials') },
 })({
   redirects() {

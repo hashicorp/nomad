@@ -202,7 +202,7 @@ func generalOptionsUsage(usageOpts usageOptsFlags) string {
 
   -ca-cert=<path>
     Path to a PEM encoded CA cert file to use to verify the
-    Nomad server SSL certificate.  Overrides the NOMAD_CACERT
+    Nomad server SSL certificate. Overrides the NOMAD_CACERT
     environment variable if set.
 
   -ca-path=<path>

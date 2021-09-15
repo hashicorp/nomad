@@ -400,6 +400,8 @@ func (p *planner) asyncPlanWait(indexCh chan<- uint64, future raft.ApplyFuture,
 func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.Plan, logger log.Logger) (*structs.PlanResult, error) {
 	defer metrics.MeasureSince([]string{"nomad", "plan", "evaluate"}, time.Now())
 
+	logger.Trace("evaluating plan", "plan", log.Fmt("%#v", plan))
+
 	// Denormalize without the job
 	err := snap.DenormalizeAllocationsMap(plan.NodeUpdate)
 	if err != nil {
@@ -647,10 +649,7 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	} else if node.Status != structs.NodeStatusReady {
 		return false, "node is not ready for placements", nil
 	} else if node.SchedulingEligibility == structs.NodeSchedulingIneligible {
-		return false, "node is not eligible for draining", nil
-	} else if node.Drain {
-		// Deprecate in favor of scheduling eligibility and remove post-0.8
-		return false, "node is draining", nil
+		return false, "node is not eligible", nil
 	}
 
 	// Get the existing allocations that are non-terminal

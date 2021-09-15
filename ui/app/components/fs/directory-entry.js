@@ -12,7 +12,7 @@ export default class DirectoryEntry extends Component {
 
   @computed('path', 'entry.Name')
   get pathToEntry() {
-    const pathWithNoLeadingSlash = this.get('path').replace(/^\//, '');
+    const pathWithNoLeadingSlash = this.path.replace(/^\//, '');
     const name = encodeURIComponent(this.get('entry.Name'));
 
     if (isEmpty(pathWithNoLeadingSlash)) {

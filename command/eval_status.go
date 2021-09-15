@@ -106,7 +106,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	}
 
 	// If args not specified but output format is specified, format and output the evaluations data list
-	if len(args) == 0 && json || len(tmpl) > 0 {
+	if len(args) == 0 && (json || len(tmpl) > 0) {
 		evals, _, err := client.Evaluations().List(nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying evaluations: %v", err))

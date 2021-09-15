@@ -8,41 +8,470 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestCSIVolumeClaim ensures that a volume claim workflows work as expected.
 func TestCSIVolumeClaim(t *testing.T) {
-	vol := NewCSIVolume("", 0)
-	vol.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
+	require := require.New(t)
+	vol := NewCSIVolume("vol0", 0)
 	vol.Schedulable = true
-
-	alloc := &Allocation{ID: "a1", Namespace: "n", JobID: "j"}
-	claim := &CSIVolumeClaim{
-		AllocationID: alloc.ID,
-		NodeID:       "foo",
-		Mode:         CSIVolumeClaimRead,
+	vol.AccessMode = CSIVolumeAccessModeUnknown
+	vol.AttachmentMode = CSIVolumeAttachmentModeUnknown
+	vol.RequestedCapabilities = []*CSIVolumeCapability{
+		{
+			AccessMode:     CSIVolumeAccessModeMultiNodeSingleWriter,
+			AttachmentMode: CSIVolumeAttachmentModeFilesystem,
+		},
+		{
+			AccessMode:     CSIVolumeAccessModeMultiNodeReader,
+			AttachmentMode: CSIVolumeAttachmentModeFilesystem,
+		},
 	}
 
-	require.NoError(t, vol.ClaimRead(claim, alloc))
-	require.True(t, vol.ReadSchedulable())
-	require.True(t, vol.WriteSchedulable())
-	require.NoError(t, vol.ClaimRead(claim, alloc))
+	alloc1 := &Allocation{ID: "a1", Namespace: "n", JobID: "j"}
+	alloc2 := &Allocation{ID: "a2", Namespace: "n", JobID: "j"}
+	alloc3 := &Allocation{ID: "a3", Namespace: "n", JobID: "j3"}
+	claim := &CSIVolumeClaim{
+		AllocationID: alloc1.ID,
+		NodeID:       "foo",
+		State:        CSIVolumeClaimStateTaken,
+	}
 
+	// claim a read and ensure we are still schedulable
+	claim.Mode = CSIVolumeClaimRead
+	claim.AccessMode = CSIVolumeAccessModeMultiNodeReader
+	claim.AttachmentMode = CSIVolumeAttachmentModeFilesystem
+	require.NoError(vol.Claim(claim, alloc1))
+	require.True(vol.ReadSchedulable())
+	require.False(vol.WriteSchedulable())
+	require.False(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 0)
+	require.Len(vol.PastClaims, 0)
+	require.Equal(CSIVolumeAccessModeMultiNodeReader, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+	require.Len(vol.RequestedCapabilities, 2)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter,
+		vol.RequestedCapabilities[0].AccessMode)
+	require.Equal(CSIVolumeAccessModeMultiNodeReader,
+		vol.RequestedCapabilities[1].AccessMode)
+
+	// claim a write and ensure we can't upgrade capabilities.
+	claim.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
 	claim.Mode = CSIVolumeClaimWrite
-	require.NoError(t, vol.ClaimWrite(claim, alloc))
-	require.True(t, vol.ReadSchedulable())
-	require.False(t, vol.WriteFreeClaims())
+	claim.AllocationID = alloc2.ID
+	require.EqualError(vol.Claim(claim, alloc2), "unschedulable")
+	require.True(vol.ReadSchedulable())
+	require.False(vol.WriteSchedulable())
+	require.False(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 0)
+	require.Len(vol.PastClaims, 0)
+	require.Equal(CSIVolumeAccessModeMultiNodeReader, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
 
-	vol.ClaimRelease(claim)
-	require.True(t, vol.ReadSchedulable())
-	require.False(t, vol.WriteFreeClaims())
-
+	// release our last claim, including unpublish workflow
+	claim.AllocationID = alloc1.ID
+	claim.Mode = CSIVolumeClaimRead
 	claim.State = CSIVolumeClaimStateReadyToFree
-	vol.ClaimRelease(claim)
-	require.True(t, vol.ReadSchedulable())
-	require.True(t, vol.WriteFreeClaims())
+	vol.Claim(claim, nil)
+	require.Len(vol.ReadClaims, 0)
+	require.Len(vol.WriteClaims, 0)
+	require.Equal(CSIVolumeAccessModeUnknown, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeUnknown, vol.AttachmentMode)
+	require.Len(vol.RequestedCapabilities, 2)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter,
+		vol.RequestedCapabilities[0].AccessMode)
+	require.Equal(CSIVolumeAccessModeMultiNodeReader,
+		vol.RequestedCapabilities[1].AccessMode)
 
-	vol.AccessMode = CSIVolumeAccessModeMultiNodeMultiWriter
-	require.NoError(t, vol.ClaimWrite(claim, alloc))
-	require.NoError(t, vol.ClaimWrite(claim, alloc))
-	require.True(t, vol.WriteFreeClaims())
+	// claim a write on the now-unclaimed volume and ensure we can upgrade
+	// capabilities so long as they're in our RequestedCapabilities.
+	claim.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
+	claim.Mode = CSIVolumeClaimWrite
+	claim.State = CSIVolumeClaimStateTaken
+	claim.AllocationID = alloc2.ID
+	require.NoError(vol.Claim(claim, alloc2))
+	require.Len(vol.ReadClaims, 0)
+	require.Len(vol.WriteClaims, 1)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+	require.Len(vol.RequestedCapabilities, 2)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter,
+		vol.RequestedCapabilities[0].AccessMode)
+	require.Equal(CSIVolumeAccessModeMultiNodeReader,
+		vol.RequestedCapabilities[1].AccessMode)
+
+	// make the claim again to ensure its idempotent, and that the volume's
+	// access mode is unchanged.
+	require.NoError(vol.Claim(claim, alloc2))
+	require.True(vol.ReadSchedulable())
+	require.True(vol.WriteSchedulable())
+	require.False(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 0)
+	require.Len(vol.WriteClaims, 1)
+	require.Len(vol.PastClaims, 0)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+
+	// claim a read. ensure we are still schedulable and that we haven't
+	// changed the access mode
+	claim.AllocationID = alloc1.ID
+	claim.Mode = CSIVolumeClaimRead
+	claim.AccessMode = CSIVolumeAccessModeMultiNodeReader
+	claim.AttachmentMode = CSIVolumeAttachmentModeFilesystem
+	require.NoError(vol.Claim(claim, alloc1))
+	require.True(vol.ReadSchedulable())
+	require.True(vol.WriteSchedulable())
+	require.False(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 1)
+	require.Len(vol.PastClaims, 0)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+
+	// ensure we can't change the attachment mode for a claimed volume
+	claim.AttachmentMode = CSIVolumeAttachmentModeBlockDevice
+	claim.AllocationID = alloc3.ID
+	require.EqualError(vol.Claim(claim, alloc3),
+		"cannot change attachment mode of claimed volume")
+	claim.AttachmentMode = CSIVolumeAttachmentModeFilesystem
+
+	// denormalize-on-read (simulating a volume we've gotten out of the state
+	// store) and then ensure we cannot claim another write
+	vol.WriteAllocs[alloc2.ID] = alloc2
+	claim.Mode = CSIVolumeClaimWrite
+	require.EqualError(vol.Claim(claim, alloc3), "volume max claim reached")
+
+	// release the write claim but ensure it doesn't free up write claims
+	// until after we've unpublished
+	claim.AllocationID = alloc2.ID
+	claim.State = CSIVolumeClaimStateUnpublishing
+	vol.Claim(claim, nil)
+	require.True(vol.ReadSchedulable())
+	require.True(vol.WriteSchedulable())
+	require.False(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 1) // claim still exists until we're done
+	require.Len(vol.PastClaims, 1)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+
+	// complete the unpublish workflow
+	claim.State = CSIVolumeClaimStateReadyToFree
+	vol.Claim(claim, nil)
+	require.True(vol.ReadSchedulable())
+	require.True(vol.WriteSchedulable())
+	require.True(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 0)
+	require.Len(vol.WriteAllocs, 0)
+	require.Len(vol.PastClaims, 0)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+
+	// release our last claim, including unpublish workflow
+	claim.AllocationID = alloc1.ID
+	claim.Mode = CSIVolumeClaimRead
+	vol.Claim(claim, nil)
+	require.Len(vol.ReadClaims, 0)
+	require.Len(vol.WriteClaims, 0)
+	require.Equal(CSIVolumeAccessModeUnknown, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeUnknown, vol.AttachmentMode)
+	require.Len(vol.RequestedCapabilities, 2)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter,
+		vol.RequestedCapabilities[0].AccessMode)
+	require.Equal(CSIVolumeAccessModeMultiNodeReader,
+		vol.RequestedCapabilities[1].AccessMode)
+}
+
+// TestCSIVolumeClaim_CompatOldClaims ensures that volume created before
+// v1.1.0 with claims that exist before v1.1.0 still work.
+//
+// COMPAT(1.3.0): safe to remove this test, but not the code, for 1.3.0
+func TestCSIVolumeClaim_CompatOldClaims(t *testing.T) {
+	require := require.New(t)
+	vol := NewCSIVolume("vol0", 0)
+	vol.Schedulable = true
+	vol.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
+	vol.AttachmentMode = CSIVolumeAttachmentModeFilesystem
+
+	alloc1 := &Allocation{ID: "a1", Namespace: "n", JobID: "j"}
+	alloc2 := &Allocation{ID: "a2", Namespace: "n", JobID: "j"}
+	alloc3 := &Allocation{ID: "a3", Namespace: "n", JobID: "j3"}
+	claim := &CSIVolumeClaim{
+		AllocationID: alloc1.ID,
+		NodeID:       "foo",
+		State:        CSIVolumeClaimStateTaken,
+	}
+
+	// claim a read and ensure we are still schedulable
+	claim.Mode = CSIVolumeClaimRead
+	require.NoError(vol.Claim(claim, alloc1))
+	require.True(vol.ReadSchedulable())
+	require.True(vol.WriteSchedulable())
+	require.True(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 0)
+	require.Len(vol.PastClaims, 0)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+	require.Len(vol.RequestedCapabilities, 1)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter,
+		vol.RequestedCapabilities[0].AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem,
+		vol.RequestedCapabilities[0].AttachmentMode)
+
+	// claim a write and ensure we no longer have free write claims
+	claim.Mode = CSIVolumeClaimWrite
+	claim.AllocationID = alloc2.ID
+	require.NoError(vol.Claim(claim, alloc2))
+	require.True(vol.ReadSchedulable())
+	require.True(vol.WriteSchedulable())
+	require.False(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 1)
+	require.Len(vol.PastClaims, 0)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+
+	// denormalize-on-read (simulating a volume we've gotten out of the state
+	// store) and then ensure we cannot claim another write
+	vol.WriteAllocs[alloc2.ID] = alloc2
+	claim.AllocationID = alloc3.ID
+	require.EqualError(vol.Claim(claim, alloc3), "volume max claim reached")
+
+	// release the write claim but ensure it doesn't free up write claims
+	// until after we've unpublished
+	claim.AllocationID = alloc2.ID
+	claim.State = CSIVolumeClaimStateUnpublishing
+	vol.Claim(claim, nil)
+	require.True(vol.ReadSchedulable())
+	require.True(vol.WriteSchedulable())
+	require.False(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 1) // claim still exists until we're done
+	require.Len(vol.PastClaims, 1)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+
+	// complete the unpublish workflow
+	claim.State = CSIVolumeClaimStateReadyToFree
+	vol.Claim(claim, nil)
+	require.True(vol.ReadSchedulable())
+	require.True(vol.WriteSchedulable())
+	require.True(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 0)
+	require.Len(vol.WriteAllocs, 0)
+	require.Len(vol.PastClaims, 0)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+
+	// release our last claim, including unpublish workflow
+	claim.AllocationID = alloc1.ID
+	claim.Mode = CSIVolumeClaimRead
+	vol.Claim(claim, nil)
+	require.Len(vol.ReadClaims, 0)
+	require.Len(vol.WriteClaims, 0)
+	require.Equal(CSIVolumeAccessModeUnknown, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeUnknown, vol.AttachmentMode)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter,
+		vol.RequestedCapabilities[0].AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem,
+		vol.RequestedCapabilities[0].AttachmentMode)
+}
+
+// TestCSIVolumeClaim_CompatNewClaimsOK ensures that a volume created
+// before v1.1.0 is compatible with new claims.
+//
+// COMPAT(1.3.0): safe to remove this test, but not the code, for 1.3.0
+func TestCSIVolumeClaim_CompatNewClaimsOK(t *testing.T) {
+	require := require.New(t)
+	vol := NewCSIVolume("vol0", 0)
+	vol.Schedulable = true
+	vol.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
+	vol.AttachmentMode = CSIVolumeAttachmentModeFilesystem
+
+	alloc1 := &Allocation{ID: "a1", Namespace: "n", JobID: "j"}
+	alloc2 := &Allocation{ID: "a2", Namespace: "n", JobID: "j"}
+	alloc3 := &Allocation{ID: "a3", Namespace: "n", JobID: "j3"}
+	claim := &CSIVolumeClaim{
+		AllocationID: alloc1.ID,
+		NodeID:       "foo",
+		State:        CSIVolumeClaimStateTaken,
+	}
+
+	// claim a read and ensure we are still schedulable
+	claim.Mode = CSIVolumeClaimRead
+	claim.AccessMode = CSIVolumeAccessModeMultiNodeReader
+	claim.AttachmentMode = CSIVolumeAttachmentModeFilesystem
+	require.NoError(vol.Claim(claim, alloc1))
+	require.True(vol.ReadSchedulable())
+	require.True(vol.WriteSchedulable())
+	require.True(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 0)
+	require.Len(vol.PastClaims, 0)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+	require.Len(vol.RequestedCapabilities, 1)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter,
+		vol.RequestedCapabilities[0].AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem,
+		vol.RequestedCapabilities[0].AttachmentMode)
+
+	// claim a write and ensure we no longer have free write claims
+	claim.Mode = CSIVolumeClaimWrite
+	claim.AllocationID = alloc2.ID
+	require.NoError(vol.Claim(claim, alloc2))
+	require.True(vol.ReadSchedulable())
+	require.True(vol.WriteSchedulable())
+	require.False(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 1)
+	require.Len(vol.PastClaims, 0)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+
+	// ensure we can't change the attachment mode for a claimed volume
+	claim.AttachmentMode = CSIVolumeAttachmentModeBlockDevice
+	require.EqualError(vol.Claim(claim, alloc2),
+		"cannot change attachment mode of claimed volume")
+	claim.AttachmentMode = CSIVolumeAttachmentModeFilesystem
+
+	// denormalize-on-read (simulating a volume we've gotten out of the state
+	// store) and then ensure we cannot claim another write
+	vol.WriteAllocs[alloc2.ID] = alloc2
+	claim.AllocationID = alloc3.ID
+	require.EqualError(vol.Claim(claim, alloc3), "volume max claim reached")
+
+	// release the write claim but ensure it doesn't free up write claims
+	// until after we've unpublished
+	claim.AllocationID = alloc2.ID
+	claim.State = CSIVolumeClaimStateUnpublishing
+	vol.Claim(claim, nil)
+	require.True(vol.ReadSchedulable())
+	require.True(vol.WriteSchedulable())
+	require.False(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 1) // claim still exists until we're done
+	require.Len(vol.PastClaims, 1)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+
+	// complete the unpublish workflow
+	claim.State = CSIVolumeClaimStateReadyToFree
+	vol.Claim(claim, nil)
+	require.True(vol.ReadSchedulable())
+	require.True(vol.WriteSchedulable())
+	require.True(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 0)
+	require.Len(vol.WriteAllocs, 0)
+	require.Len(vol.PastClaims, 0)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+
+	// release our last claim, including unpublish workflow
+	claim.AllocationID = alloc1.ID
+	claim.Mode = CSIVolumeClaimRead
+	vol.Claim(claim, nil)
+	require.Len(vol.ReadClaims, 0)
+	require.Len(vol.WriteClaims, 0)
+	require.Equal(CSIVolumeAccessModeUnknown, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeUnknown, vol.AttachmentMode)
+	require.Equal(CSIVolumeAccessModeMultiNodeSingleWriter,
+		vol.RequestedCapabilities[0].AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem,
+		vol.RequestedCapabilities[0].AttachmentMode)
+}
+
+// TestCSIVolumeClaim_CompatNewClaimsNoUpgrade ensures that a volume created
+// before v1.1.0 is compatible with new claims, but prevents unexpected
+// capability upgrades.
+//
+// COMPAT(1.3.0): safe to remove this test, but not the code, for 1.3.0
+func TestCSIVolumeClaim_CompatNewClaimsNoUpgrade(t *testing.T) {
+	require := require.New(t)
+	vol := NewCSIVolume("vol0", 0)
+	vol.Schedulable = true
+	vol.AccessMode = CSIVolumeAccessModeMultiNodeReader
+	vol.AttachmentMode = CSIVolumeAttachmentModeFilesystem
+
+	alloc1 := &Allocation{ID: "a1", Namespace: "n", JobID: "j"}
+	alloc2 := &Allocation{ID: "a2", Namespace: "n", JobID: "j"}
+	claim := &CSIVolumeClaim{
+		AllocationID: alloc1.ID,
+		NodeID:       "foo",
+		State:        CSIVolumeClaimStateTaken,
+	}
+
+	// claim a read and ensure we are still schedulable
+	claim.Mode = CSIVolumeClaimRead
+	claim.AccessMode = CSIVolumeAccessModeMultiNodeReader
+	claim.AttachmentMode = CSIVolumeAttachmentModeFilesystem
+	require.NoError(vol.Claim(claim, alloc1))
+	require.True(vol.ReadSchedulable())
+	require.False(vol.WriteSchedulable())
+	require.False(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 0)
+	require.Len(vol.PastClaims, 0)
+	require.Equal(CSIVolumeAccessModeMultiNodeReader, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+	require.Len(vol.RequestedCapabilities, 1)
+	require.Equal(CSIVolumeAccessModeMultiNodeReader,
+		vol.RequestedCapabilities[0].AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem,
+		vol.RequestedCapabilities[0].AttachmentMode)
+
+	// claim a write and ensure we can't upgrade capabilities.
+	claim.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
+	claim.Mode = CSIVolumeClaimWrite
+	claim.AllocationID = alloc2.ID
+	require.EqualError(vol.Claim(claim, alloc2), "unschedulable")
+	require.True(vol.ReadSchedulable())
+	require.False(vol.WriteSchedulable())
+	require.False(vol.WriteFreeClaims())
+	require.Len(vol.ReadClaims, 1)
+	require.Len(vol.WriteClaims, 0)
+	require.Len(vol.PastClaims, 0)
+	require.Equal(CSIVolumeAccessModeMultiNodeReader, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem, vol.AttachmentMode)
+	require.Len(vol.RequestedCapabilities, 1)
+	require.Equal(CSIVolumeAccessModeMultiNodeReader,
+		vol.RequestedCapabilities[0].AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem,
+		vol.RequestedCapabilities[0].AttachmentMode)
+
+	// release our last claim, including unpublish workflow
+	claim.AllocationID = alloc1.ID
+	claim.Mode = CSIVolumeClaimRead
+	claim.State = CSIVolumeClaimStateReadyToFree
+	vol.Claim(claim, nil)
+	require.Len(vol.ReadClaims, 0)
+	require.Len(vol.WriteClaims, 0)
+	require.Equal(CSIVolumeAccessModeUnknown, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeUnknown, vol.AttachmentMode)
+	require.Equal(CSIVolumeAccessModeMultiNodeReader,
+		vol.RequestedCapabilities[0].AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem,
+		vol.RequestedCapabilities[0].AttachmentMode)
+
+	// claim a write on the now-unclaimed volume and ensure we still can't
+	// upgrade capabilities.
+	claim.AccessMode = CSIVolumeAccessModeMultiNodeSingleWriter
+	claim.Mode = CSIVolumeClaimWrite
+	claim.State = CSIVolumeClaimStateTaken
+	claim.AllocationID = alloc2.ID
+	require.EqualError(vol.Claim(claim, alloc2), "unschedulable")
+	require.Len(vol.ReadClaims, 0)
+	require.Len(vol.WriteClaims, 0)
+	require.Equal(CSIVolumeAccessModeUnknown, vol.AccessMode)
+	require.Equal(CSIVolumeAttachmentModeUnknown, vol.AttachmentMode)
+	require.Equal(CSIVolumeAccessModeMultiNodeReader,
+		vol.RequestedCapabilities[0].AccessMode)
+	require.Equal(CSIVolumeAttachmentModeFilesystem,
+		vol.RequestedCapabilities[0].AttachmentMode)
 }
 
 func TestVolume_Copy(t *testing.T) {
