@@ -12,7 +12,13 @@ export default class ClientStatusBar extends DistributionBar {
   // Provide an action with access to the router
   gotoClient() {}
 
-  didUpdateAttrs() {
+  didRender() {
+    // append data-test attribute to test link to pre-filtered client tab view
+    this.element.querySelectorAll('.bars > g').forEach(g => {
+      g.setAttribute(`data-test-client-status-${g.className.baseVal}`, g.className.baseVal);
+    });
+
+    // append on click event to bar chart
     const { _data, chart } = this;
     const filteredData = _data.filter(d => d.value > 0);
     filteredData.forEach((d, index) => {

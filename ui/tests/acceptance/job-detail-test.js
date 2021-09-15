@@ -14,6 +14,10 @@ moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
 moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
   server.create('job', { type: 'system', shallow: true })
 );
+moduleForJob('Acceptance | job detail (sysbatch)', 'sysbatch', () =>
+  server.create('job', { type: 'sysbatch', shallow: true })
+);
+
 moduleForJob(
   'Acceptance | job detail (periodic)',
   'children',

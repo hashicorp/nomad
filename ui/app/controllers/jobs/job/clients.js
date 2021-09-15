@@ -81,7 +81,9 @@ export default class ClientsController extends Controller.extend(
   @alias('listSearched') sortedClients;
 
   get nodes() {
-    return this.store.peekAll('node');
+    return this.store.peekAll('node').length
+      ? this.store.peekAll('node')
+      : this.store.findAll('node');
   }
 
   @computed('nodes', 'selectionStatus', 'selectionDatacenter', 'selectionNodeClass')
