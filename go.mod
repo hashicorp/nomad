@@ -64,7 +64,7 @@ require (
 	github.com/hashicorp/go-getter v1.5.4
 	github.com/hashicorp/go-hclog v0.14.1
 	github.com/hashicorp/go-immutable-radix v1.3.0
-	github.com/hashicorp/go-memdb v1.3.0
+	github.com/hashicorp/go-memdb v1.3.2
 	github.com/hashicorp/go-msgpack v1.1.5
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hashicorp/go-plugin v1.0.2-0.20191004171845-809113480b55
