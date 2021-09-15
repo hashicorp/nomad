@@ -48,6 +48,8 @@ export default create({
     isDisabled: property('disabled'),
   },
 
+  barChart: isPresent('data-test-client-status-bar'),
+
   stats: collection('[data-test-job-stat]', {
     id: attribute('data-test-job-stat'),
     text: text(),
@@ -87,5 +89,13 @@ export default create({
 
   recentAllocationsEmptyState: {
     headline: text('[data-test-empty-recent-allocations-headline]'),
+  },
+
+  clientSummary: {
+    id: attribute('[data-test-client-status-bar]'),
+  },
+  visitClients: function(attr) {
+    console.log('runs\n\n', attr);
+    clickable(attr);
   },
 });
