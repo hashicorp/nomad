@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -11,8 +10,6 @@ module('Acceptance | job clients', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function() {
-    server.create('node');
-
     const clients = server.createList('node', 12, {
       datacenter: 'dc1',
       status: 'ready',
@@ -28,15 +25,10 @@ module('Acceptance | job clients', function(hooks) {
     clients.forEach(c => {
       server.create('allocation', { jobId: job.id, nodeId: c.id });
     });
-    console.log(
-      'mirage nodes\n\n\n',
-      clients.map(c => c.id)
-    );
   });
 
   test('it passes an accessibility audit', async function(assert) {
     await Clients.visit({ id: job.id });
-    await this.pauseTest();
     await a11yAudit(assert);
   });
 });

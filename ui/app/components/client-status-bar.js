@@ -10,14 +10,9 @@ export default class ClientStatusBar extends DistributionBar {
   jobClientStatus = null;
 
   // Provide an action with access to the router
-  gotoClient() {}
+  onBarClick() {}
 
   didRender() {
-    // append data-test attribute to test link to pre-filtered client tab view
-    this.element.querySelectorAll('.bars > g').forEach(g => {
-      g.setAttribute(`data-test-client-status-${g.className.baseVal}`, g.className.baseVal);
-    });
-
     // append on click event to bar chart
     const { _data, chart } = this;
     const filteredData = _data.filter(d => d.value > 0);
@@ -28,9 +23,10 @@ export default class ClientStatusBar extends DistributionBar {
       .select('.bars')
       .selectAll('g')
       .data(filteredData, d => d.label)
+      .attr('data-test-client-status', d => d.label.toLowerCase())
       .on('click', d => {
         let label = d.label === 'Not Scheduled' ? 'notScheduled' : d.label;
-        this.gotoClient(label);
+        this.onBarClick(label);
       });
   }
 
