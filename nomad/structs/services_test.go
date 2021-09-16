@@ -1122,29 +1122,29 @@ func TestConsulIngressService_Validate(t *testing.T) {
 	t.Run("invalid name", func(t *testing.T) {
 		err := (&ConsulIngressService{
 			Name: "",
-		}).Validate(true)
+		}).Validate("http")
 		require.EqualError(t, err, "Consul Ingress Service requires a name")
 	})
 
 	t.Run("http missing hosts", func(t *testing.T) {
 		err := (&ConsulIngressService{
 			Name: "service1",
-		}).Validate(true)
-		require.EqualError(t, err, "Consul Ingress Service requires one or more hosts when using HTTP protocol")
+		}).Validate("http")
+		require.EqualError(t, err, `Consul Ingress Service requires one or more hosts when using "http" protocol`)
 	})
 
 	t.Run("tcp extraneous hosts", func(t *testing.T) {
 		err := (&ConsulIngressService{
 			Name:  "service1",
 			Hosts: []string{"host1"},
-		}).Validate(false)
-		require.EqualError(t, err, "Consul Ingress Service supports hosts only when using HTTP protocol")
+		}).Validate("tcp")
+		require.EqualError(t, err, `Consul Ingress Service doesn't support associating hosts to a service for the "tcp" protocol`)
 	})
 
 	t.Run("ok tcp", func(t *testing.T) {
 		err := (&ConsulIngressService{
 			Name: "service1",
-		}).Validate(false)
+		}).Validate("tcp")
 		require.NoError(t, err)
 	})
 
@@ -1152,22 +1152,22 @@ func TestConsulIngressService_Validate(t *testing.T) {
 		err := (&ConsulIngressService{
 			Name:  "service1",
 			Hosts: []string{"host1"},
-		}).Validate(true)
+		}).Validate("http")
 		require.NoError(t, err)
 	})
 
 	t.Run("http with wildcard service", func(t *testing.T) {
 		err := (&ConsulIngressService{
 			Name: "*",
-		}).Validate(true)
+		}).Validate("http")
 		require.NoError(t, err)
 	})
 
 	t.Run("tcp with wildcard service", func(t *testing.T) {
 		err := (&ConsulIngressService{
 			Name: "*",
-		}).Validate(false)
-		require.EqualError(t, err, "Consul Ingress Service supports wildcard names only with HTTP protocol")
+		}).Validate("tcp")
+		require.EqualError(t, err, `Consul Ingress Service doesn't support wildcard name for "tcp" protocol`)
 	})
 }
 
@@ -1193,7 +1193,7 @@ func TestConsulIngressListener_Validate(t *testing.T) {
 				Name: "service1",
 			}},
 		}).Validate()
-		require.EqualError(t, err, `Consul Ingress Listener requires protocol of "http" or "tcp", got "gopher"`)
+		require.EqualError(t, err, `Consul Ingress Listener requires protocol of tcp, http, http2, grpc, got "gopher"`)
 	})
 
 	t.Run("no services", func(t *testing.T) {
