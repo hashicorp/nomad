@@ -62,6 +62,11 @@ job "docs" {
   - `cni/<cni network name>` - Task group will have an isolated network namespace
     with the network configured by CNI.
 
+- `hostname` `(string: "")` - The hostname assigned to the network namespace. This
+  is currently only supported using the [Docker driver][docker-driver] and when the
+  [mode](#mode) is set to [`bridge`](#bridge). This parameter supports
+  [interpolation](/docs/runtime/interpolation).
+
 - `dns` <code>([DNSConfig](#dns-parameters): nil)</code> - Sets the DNS configuration
   for the allocations. By default all DNS configuration is inherited from the client host.
   DNS configuration is only supported on Linux clients at this time.
