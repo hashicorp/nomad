@@ -887,6 +887,16 @@ func TestNetworkUpdated(t *testing.T) {
 			},
 			updated: true,
 		},
+		{
+			name: "hostname updated",
+			a: []*structs.NetworkResource{
+				{Hostname: "foo"},
+			},
+			b: []*structs.NetworkResource{
+				{Hostname: "bar"},
+			},
+			updated: true,
+		},
 	}
 
 	for i := range cases {
