@@ -2210,8 +2210,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							MemoryMB: helper.IntToPtr(10),
 							Networks: []*api.NetworkResource{
 								{
-									IP:    "10.10.11.1",
-									MBits: helper.IntToPtr(10),
+									IP:       "10.10.11.1",
+									MBits:    helper.IntToPtr(10),
+									Hostname: "foobar",
 									ReservedPorts: []api.Port{
 										{
 											Label: "http",
@@ -2602,8 +2603,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							MemoryMB: 10,
 							Networks: []*structs.NetworkResource{
 								{
-									IP:    "10.10.11.1",
-									MBits: 10,
+									IP:       "10.10.11.1",
+									MBits:    10,
+									Hostname: "foobar",
 									ReservedPorts: []structs.Port{
 										{
 											Label: "http",

@@ -538,6 +538,10 @@ func networkUpdated(netA, netB []*structs.NetworkResource) bool {
 			return true
 		}
 
+		if an.Hostname != bn.Hostname {
+			return true
+		}
+
 		if !reflect.DeepEqual(an.DNS, bn.DNS) {
 			return true
 		}

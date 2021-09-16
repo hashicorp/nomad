@@ -329,6 +329,9 @@ message CreateNetworkRequest {
 
     // AllocID of the allocation the network is associated with
     string alloc_id = 1;
+
+    // Hostname of the network namespace
+    string hostname = 2;
 }
 
 message CreateNetworkResponse {

@@ -25,15 +25,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/lib/cpuset"
-
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
-	"github.com/mitchellh/copystructure"
-	"golang.org/x/crypto/blake2b"
-
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
@@ -41,8 +36,12 @@ import (
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/miekg/dns"
+	"github.com/mitchellh/copystructure"
+	"golang.org/x/crypto/blake2b"
 )
 
 var (
@@ -2532,6 +2531,7 @@ type NetworkResource struct {
 	Device        string     // Name of the device
 	CIDR          string     // CIDR block of addresses
 	IP            string     // Host IP address
+	Hostname      string     `json:",omitempty"` // Hostname of the network namespace
 	MBits         int        // Throughput
 	DNS           *DNSConfig // DNS Configuration
 	ReservedPorts []Port     // Host Reserved ports
@@ -2540,7 +2540,7 @@ type NetworkResource struct {
 
 func (nr *NetworkResource) Hash() uint32 {
 	var data []byte
-	data = append(data, []byte(fmt.Sprintf("%s%s%s%s%d", nr.Mode, nr.Device, nr.CIDR, nr.IP, nr.MBits))...)
+	data = append(data, []byte(fmt.Sprintf("%s%s%s%s%s%d", nr.Mode, nr.Device, nr.CIDR, nr.IP, nr.Hostname, nr.MBits))...)
 
 	for i, port := range nr.ReservedPorts {
 		data = append(data, []byte(fmt.Sprintf("r%d%s%d%d", i, port.Label, port.Value, port.To))...)
@@ -6304,7 +6304,18 @@ func (tg *TaskGroup) validateNetworks() error {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
+
+		// Validate the hostname field to be a valid DNS name. If the parameter
+		// looks like it includes an interpolation value, we skip this. It
+		// would be nice to validate additional parameters, but this isn't the
+		// right place.
+		if net.Hostname != "" && !strings.Contains(net.Hostname, "${") {
+			if _, ok := dns.IsDomainName(net.Hostname); !ok {
+				mErr.Errors = append(mErr.Errors, errors.New("Hostname is not a valid DNS name"))
+			}
+		}
 	}
+
 	// Check for duplicate tasks or port labels, and no duplicated static ports
 	for _, task := range tg.Tasks {
 		if task.Resources == nil {
