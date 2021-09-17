@@ -1,0 +1,3 @@
+```release-note:bug
+audit (Enterprise): Don't timestamp active audit log file.
+```
