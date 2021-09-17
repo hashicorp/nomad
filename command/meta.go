@@ -154,11 +154,12 @@ func (m *Meta) allNamespaces() bool {
 }
 
 func (m *Meta) Colorize() *colorstring.Colorize {
-	noColor := m.noColor || os.Getenv(EnvNomadCLINoColor) != ""
+	_, coloredUi := m.Ui.(*cli.ColoredUi)
+	noColor := m.noColor || !coloredUi || !terminal.IsTerminal(int(os.Stdout.Fd()))
 
 	return &colorstring.Colorize{
 		Colors:  colorstring.DefaultColors,
-		Disable: noColor || !terminal.IsTerminal(int(os.Stdout.Fd())),
+		Disable: noColor,
 		Reset:   true,
 	}
 }
