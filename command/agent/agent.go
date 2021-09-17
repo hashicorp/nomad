@@ -1093,7 +1093,6 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 		agent = true
 	}
 
-	// Allow the ability to only reload HTTP connections
 	if a.config.TLSConfig.RPCUpgradeMode != newConfig.TLSConfig.RPCUpgradeMode {
 		agent = true
 	}
