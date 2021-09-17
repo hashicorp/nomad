@@ -5,6 +5,10 @@
 # So we run a bootstrapping script and write our management token into a file
 # that we read in for the output of $(terraform output environment) later.
 
+locals {
+  nomad_env = var.tls ? "NOMAD_ADDR=https://${aws_instance.server.0.public_ip}:4646 NOMAD_CACERT=keys/tls_ca.crt NOMAD_CLIENT_CERT=keys/tls_api_client.crt NOMAD_CLIENT_KEY=keys/tls_api_client.key" : "NOMAD_ADDR=http://${aws_instance.server.0.public_ip}:4646"
+}
+
 resource "null_resource" "bootstrap_nomad_acls" {
   depends_on = [module.nomad_server]
   triggers = {
@@ -20,7 +24,7 @@ resource "null_resource" "bootstrap_nomad_acls" {
 # so that we can read it into the data.local_file later. If not set,
 # ensure that it's empty.
 data "template_file" "bootstrap_nomad_script" {
-  template = var.nomad_acls ? "NOMAD_ADDR=http://${aws_instance.server.0.public_ip}:4646 ./scripts/bootstrap-nomad.sh" : "mkdir -p ${path.root}/keys; echo > ${path.root}/keys/nomad_root_token"
+  template = var.nomad_acls ? "${local.nomad_env} ./scripts/bootstrap-nomad.sh" : "mkdir -p ${path.root}/keys; echo > ${path.root}/keys/nomad_root_token"
 }
 
 data "local_file" "nomad_token" {
