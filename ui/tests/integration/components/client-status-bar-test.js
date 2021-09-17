@@ -52,4 +52,20 @@ module('Integration | Component | client-status-bar', function(hooks) {
     await ClientStatusBar.visitBar('starting');
     assert.ok(props.onBarClick.calledOnce);
   });
+
+  test('it handles an update to client status property', async function(assert) {
+    const props = commonProperties();
+    this.setProperties(props);
+    await render(commonTemplate);
+    const newProps = {
+      ...props,
+      jobClientStatus: {
+        ...props.jobClientStatus,
+        byStatus: { ...props.jobClientStatus.byStatus, starting: [], running: ['someNodeId'] },
+      },
+    };
+    this.setProperties(newProps);
+    await ClientStatusBar.visitBar('running');
+    assert.ok(props.onBarClick.calledOnce);
+  });
 });

@@ -9,21 +9,21 @@ import {
   visitable,
 } from 'ember-cli-page-object';
 
-// import clients from 'nomad-ui/tests/pages/components/clients';
+import clients from 'nomad-ui/tests/pages/components/clients';
 import error from 'nomad-ui/tests/pages/components/error';
 
 export default create({
   visit: visitable('/jobs/:id/clients'),
   pageSize: 25,
 
-  hasSearchBox: isPresent('[data-test-allocations-search]'),
-  search: fillable('[data-test-allocations-search] input'),
+  hasSearchBox: isPresent('[data-test-clients-search]'),
+  search: fillable('[data-test-clients-search] input'),
 
-  // ...clients(),
+  ...clients(),
 
-  isEmpty: isPresent('[data-test-empty-allocations-list]'),
+  isEmpty: isPresent('[data-test-empty-clients-list]'),
   emptyState: {
-    headline: text('[data-test-empty-allocations-list-headline]'),
+    headline: text('[data-test-empty-clients-list-headline]'),
   },
 
   sortOptions: collection('[data-test-sort-by]', {

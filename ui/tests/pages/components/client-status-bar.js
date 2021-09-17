@@ -10,7 +10,6 @@ export default scope => ({
 
   visitBar: async function(id) {
     const bar = this.bars.toArray().findBy('id', id);
-    console.log('this.bars\n\n', bar.id);
     await bar.visit();
   },
 });

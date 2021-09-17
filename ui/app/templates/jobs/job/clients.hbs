@@ -72,7 +72,7 @@
           </t.head>
           <t.body as |row|>
             <ClientRow
-              @data-test-client={{"sdf"}}
+              @data-test-client={{row.model.node.id}}
               @row={{row}}
               @onClick={{this.gotoClient}}
             />
