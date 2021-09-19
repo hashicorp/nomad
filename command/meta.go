@@ -2,12 +2,15 @@ package command
 
 import (
 	"flag"
+	"os"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	colorable "github.com/mattn/go-colorable"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 	"github.com/posener/complete"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -163,6 +166,37 @@ func (m *Meta) Colorize() *colorstring.Colorize {
 		Colors:  colorstring.DefaultColors,
 		Disable: !coloredUi,
 		Reset:   true,
+	}
+}
+
+func (m *Meta) SetupUi(args []string) {
+	noColor := os.Getenv(EnvNomadCLINoColor) != ""
+	forceColor := os.Getenv(EnvNomadCLIForceColor) != ""
+
+	for _, arg := range args {
+		// Check if color is set
+		if arg == "-no-color" || arg == "--no-color" {
+			noColor = true
+		} else if arg == "-force-color" || arg == "--force-color" {
+			forceColor = true
+		}
+	}
+	isTerminal := terminal.IsTerminal(int(os.Stdout.Fd()))
+
+	m.Ui = &cli.BasicUi{
+		Reader:      os.Stdin,
+		Writer:      colorable.NewColorableStdout(),
+		ErrorWriter: colorable.NewColorableStderr(),
+	}
+
+	// Only use colored UI if stdout is a tty, and not disabled
+	if forceColor || (isTerminal && !noColor) {
+		m.Ui = &cli.ColoredUi{
+			ErrorColor: cli.UiColorRed,
+			WarnColor:  cli.UiColorYellow,
+			InfoColor:  cli.UiColorGreen,
+			Ui:         m.Ui,
+		}
 	}
 }
 

@@ -82,13 +82,16 @@ func TestMeta_Colorize(t *testing.T) {
 		{
 			Name: "disable colors via CLI flag",
 			SetupFn: func(t *testing.T, m *Meta) {
-				m.Ui = &cli.ColoredUi{}
-
-				fs := m.FlagSet("colorize_test", FlagSetDefault)
-				err := fs.Parse([]string{"-no-color"})
-				assert.NoError(t, err)
+				m.SetupUi([]string{"-no-color"})
 			},
 			ExpectColor: false,
+		},
+		{
+			Name: "force colors via CLI flag",
+			SetupFn: func(t *testing.T, m *Meta) {
+				m.SetupUi([]string{"-no-color", "-force-color"})
+			},
+			ExpectColor: true,
 		},
 	}
 
