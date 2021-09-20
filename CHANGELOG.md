@@ -1,3 +1,19 @@
+## 1.1.5 (September 20, 2021)
+
+IMPROVEMENTS:
+
+* client: Allow Docker hostnames to be configured and interpolated in bridged networking mode [[GH-11173](https://github.com/hashicorp/nomad/issues/11173)]
+* deps: Updated `go-memdb` to `v1.3.2` [[GH-11185](https://github.com/hashicorp/nomad/issues/11185)]
+
+BUG FIXES:
+
+* audit (Enterprise): Don't timestamp active audit log file. [[GH-11198](https://github.com/hashicorp/nomad/issues/11198)]
+* cli: Display all possible scores in the allocation status table [[GH-11128](https://github.com/hashicorp/nomad/issues/11128)]
+* cli: Fixed a bug where the NOMAD_CLI_NO_COLOR environment variable was not always applied [[GH-11168](https://github.com/hashicorp/nomad/issues/11168)]
+* client: Task vars should take precedence over host vars when performing interpolation. [[GH-11206](https://github.com/hashicorp/nomad/issues/11206)]
+* ui: Fixed an issue that prevented periodic and dispatch jobs in a non-default namespace to be properly rendered [[GH-11110](https://github.com/hashicorp/nomad/issues/11110)]
+* ui: Fixed an issue when dispatching jobs from a non-default namespace [[GH-11141](https://github.com/hashicorp/nomad/issues/11141)]
+
 ## 1.1.4 (August 26, 2021)
 
 SECURITY:
@@ -196,6 +212,19 @@ BUG FIXES:
  * server: Fixed a bug where jobs may not run if submitted with ParentID field set [[GH-10424](https://github.com/hashicorp/nomad/issues/10424)]
  * server: Fixed a panic that may arise on submission of jobs containing invalid service checks [[GH-10154](https://github.com/hashicorp/nomad/issues/10154)]
  * ui: Fixed the rendering of interstitial components shown after processing a dynamic application sizing recommendation. [[GH-10094](https://github.com/hashicorp/nomad/pull/10094)]
+
+## 1.0.11 (September 20, 2021)
+
+IMPROVEMENTS:
+
+* deps: Updated `go-memdb` to `v1.3.2` [[GH-11185](https://github.com/hashicorp/nomad/issues/11185)]
+
+BUG FIXES:
+
+* audit (Enterprise): Don't timestamp active audit log file. [[GH-11198](https://github.com/hashicorp/nomad/issues/11198)]
+* cli: Display all possible scores in the allocation status table [[GH-11128](https://github.com/hashicorp/nomad/issues/11128)]
+* cli: Fixed a bug where the NOMAD_CLI_NO_COLOR environment variable was not always applied [[GH-11168](https://github.com/hashicorp/nomad/issues/11168)]
+* client: Task vars should take precedence over host vars when performing interpolation. [[GH-11206](https://github.com/hashicorp/nomad/issues/11206)]
 
 ## 1.0.10 (August 26, 2021)
 
