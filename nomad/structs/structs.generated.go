@@ -104856,9 +104856,9 @@ func (x *NetworkResource) CodecEncodeSelf(e *codec1978.Encoder) {
 			_, _ = yysep2, yy2arr2
 			const yyr2 bool = false // struct tag has 'toArray'
 			if yyr2 || yy2arr2 {
-				r.WriteArrayStart(8)
+				r.WriteArrayStart(9)
 			} else {
-				r.WriteMapStart(8)
+				r.WriteMapStart(9)
 			}
 			if yyr2 || yy2arr2 {
 				r.WriteArrayElem()
@@ -104972,6 +104972,33 @@ func (x *NetworkResource) CodecEncodeSelf(e *codec1978.Encoder) {
 				r.WriteArrayElem()
 				if false {
 				} else {
+					if z.EncBasicHandle().StringToRaw {
+						r.EncodeStringBytesRaw(z.BytesView(string(x.Hostname)))
+					} else {
+						r.EncodeStringEnc(codecSelferCcUTF8100, string(x.Hostname))
+					}
+				}
+			} else {
+				r.WriteMapElemKey()
+				if z.IsJSONHandle() {
+					z.WriteStr("\"Hostname\"")
+				} else {
+					r.EncodeStringEnc(codecSelferCcUTF8100, `Hostname`)
+				}
+				r.WriteMapElemValue()
+				if false {
+				} else {
+					if z.EncBasicHandle().StringToRaw {
+						r.EncodeStringBytesRaw(z.BytesView(string(x.Hostname)))
+					} else {
+						r.EncodeStringEnc(codecSelferCcUTF8100, string(x.Hostname))
+					}
+				}
+			}
+			if yyr2 || yy2arr2 {
+				r.WriteArrayElem()
+				if false {
+				} else {
 					r.EncodeInt(int64(x.MBits))
 				}
 			} else {
@@ -104987,14 +105014,14 @@ func (x *NetworkResource) CodecEncodeSelf(e *codec1978.Encoder) {
 					r.EncodeInt(int64(x.MBits))
 				}
 			}
-			var yyn18 bool
+			var yyn21 bool
 			if x.DNS == nil {
-				yyn18 = true
-				goto LABEL18
+				yyn21 = true
+				goto LABEL21
 			}
-		LABEL18:
+		LABEL21:
 			if yyr2 || yy2arr2 {
-				if yyn18 {
+				if yyn21 {
 					r.WriteArrayElem()
 					r.EncodeNil()
 				} else {
@@ -105013,7 +105040,7 @@ func (x *NetworkResource) CodecEncodeSelf(e *codec1978.Encoder) {
 					r.EncodeStringEnc(codecSelferCcUTF8100, `DNS`)
 				}
 				r.WriteMapElemValue()
-				if yyn18 {
+				if yyn21 {
 					r.EncodeNil()
 				} else {
 					if x.DNS == nil {
@@ -105158,6 +105185,12 @@ func (x *NetworkResource) codecDecodeSelfFromMap(l int, d *codec1978.Decoder) {
 			} else {
 				x.IP = (string)(r.DecodeString())
 			}
+		case "Hostname":
+			if r.TryDecodeAsNil() {
+				x.Hostname = ""
+			} else {
+				x.Hostname = (string)(r.DecodeString())
+			}
 		case "MBits":
 			if r.TryDecodeAsNil() {
 				x.MBits = 0
@@ -105205,16 +105238,16 @@ func (x *NetworkResource) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) 
 	var h codecSelfer100
 	z, r := codec1978.GenHelperDecoder(d)
 	_, _, _ = h, z, r
-	var yyj14 int
-	var yyb14 bool
-	var yyhl14 bool = l >= 0
-	yyj14++
-	if yyhl14 {
-		yyb14 = yyj14 > l
+	var yyj15 int
+	var yyb15 bool
+	var yyhl15 bool = l >= 0
+	yyj15++
+	if yyhl15 {
+		yyb15 = yyj15 > l
 	} else {
-		yyb14 = r.CheckBreak()
+		yyb15 = r.CheckBreak()
 	}
-	if yyb14 {
+	if yyb15 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -105224,13 +105257,13 @@ func (x *NetworkResource) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) 
 	} else {
 		x.Mode = (string)(r.DecodeString())
 	}
-	yyj14++
-	if yyhl14 {
-		yyb14 = yyj14 > l
+	yyj15++
+	if yyhl15 {
+		yyb15 = yyj15 > l
 	} else {
-		yyb14 = r.CheckBreak()
+		yyb15 = r.CheckBreak()
 	}
-	if yyb14 {
+	if yyb15 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -105240,13 +105273,13 @@ func (x *NetworkResource) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) 
 	} else {
 		x.Device = (string)(r.DecodeString())
 	}
-	yyj14++
-	if yyhl14 {
-		yyb14 = yyj14 > l
+	yyj15++
+	if yyhl15 {
+		yyb15 = yyj15 > l
 	} else {
-		yyb14 = r.CheckBreak()
+		yyb15 = r.CheckBreak()
 	}
-	if yyb14 {
+	if yyb15 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -105256,13 +105289,13 @@ func (x *NetworkResource) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) 
 	} else {
 		x.CIDR = (string)(r.DecodeString())
 	}
-	yyj14++
-	if yyhl14 {
-		yyb14 = yyj14 > l
+	yyj15++
+	if yyhl15 {
+		yyb15 = yyj15 > l
 	} else {
-		yyb14 = r.CheckBreak()
+		yyb15 = r.CheckBreak()
 	}
-	if yyb14 {
+	if yyb15 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -105272,13 +105305,29 @@ func (x *NetworkResource) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) 
 	} else {
 		x.IP = (string)(r.DecodeString())
 	}
-	yyj14++
-	if yyhl14 {
-		yyb14 = yyj14 > l
+	yyj15++
+	if yyhl15 {
+		yyb15 = yyj15 > l
 	} else {
-		yyb14 = r.CheckBreak()
+		yyb15 = r.CheckBreak()
 	}
-	if yyb14 {
+	if yyb15 {
+		r.ReadArrayEnd()
+		return
+	}
+	r.ReadArrayElem()
+	if r.TryDecodeAsNil() {
+		x.Hostname = ""
+	} else {
+		x.Hostname = (string)(r.DecodeString())
+	}
+	yyj15++
+	if yyhl15 {
+		yyb15 = yyj15 > l
+	} else {
+		yyb15 = r.CheckBreak()
+	}
+	if yyb15 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -105288,13 +105337,13 @@ func (x *NetworkResource) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) 
 	} else {
 		x.MBits = (int)(z.C.IntV(r.DecodeInt64(), codecSelferBitsize100))
 	}
-	yyj14++
-	if yyhl14 {
-		yyb14 = yyj14 > l
+	yyj15++
+	if yyhl15 {
+		yyb15 = yyj15 > l
 	} else {
-		yyb14 = r.CheckBreak()
+		yyb15 = r.CheckBreak()
 	}
-	if yyb14 {
+	if yyb15 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -105310,13 +105359,13 @@ func (x *NetworkResource) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) 
 
 		x.DNS.CodecDecodeSelf(d)
 	}
-	yyj14++
-	if yyhl14 {
-		yyb14 = yyj14 > l
+	yyj15++
+	if yyhl15 {
+		yyb15 = yyj15 > l
 	} else {
-		yyb14 = r.CheckBreak()
+		yyb15 = r.CheckBreak()
 	}
-	if yyb14 {
+	if yyb15 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -105329,13 +105378,13 @@ func (x *NetworkResource) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) 
 			h.decSlicePort((*[]Port)(&x.ReservedPorts), d)
 		}
 	}
-	yyj14++
-	if yyhl14 {
-		yyb14 = yyj14 > l
+	yyj15++
+	if yyhl15 {
+		yyb15 = yyj15 > l
 	} else {
-		yyb14 = r.CheckBreak()
+		yyb15 = r.CheckBreak()
 	}
-	if yyb14 {
+	if yyb15 {
 		r.ReadArrayEnd()
 		return
 	}
@@ -105349,17 +105398,17 @@ func (x *NetworkResource) codecDecodeSelfFromArray(l int, d *codec1978.Decoder) 
 		}
 	}
 	for {
-		yyj14++
-		if yyhl14 {
-			yyb14 = yyj14 > l
+		yyj15++
+		if yyhl15 {
+			yyb15 = yyj15 > l
 		} else {
-			yyb14 = r.CheckBreak()
+			yyb15 = r.CheckBreak()
 		}
-		if yyb14 {
+		if yyb15 {
 			break
 		}
 		r.ReadArrayElem()
-		z.DecStructFieldNotFound(yyj14-1, "")
+		z.DecStructFieldNotFound(yyj15-1, "")
 	}
 	r.ReadArrayEnd()
 }
