@@ -16,10 +16,10 @@ See [Lightrun documentation](https://docs.lightrun.com/) for more information ab
 
 ## Prerequisites
 
-1. Clone the driver's repository: `git clone https://github.com/lightrun-platform/lightrun-n-nomad`
-1. Find `lightrun-java-driver` driver on the root folder of the repository.
-1. Copy the driver to your Nomad plugins directory (or create one if not exists)
-1. Grant executable permissions to the driver file: `chmod +x ./plugins/lightrun-java-driver`
+1. Download or clone the [Lightrun driver repository](https://github.com/lightrun-platform/lightrun-n-nomad).
+1. Find the `lightrun-java-driver` driver in the repository's root folder.
+1. Copy the driver to your Nomad plugins directory (or create one if it doesn't exist).
+1. Grant executable permissions to the driver file: `chmod +x ./plugins/lightrun-java-driver`.
 1. When running the Nomad's agent, make sure to specify the path to your plugins directory:
 
     ```sh
@@ -50,7 +50,6 @@ task "run-with-lightrun" {
 }
 ```
 
-A full job file example can be found at `example/example.driver.nomad`
+A complete job file example can be found at `example/example.driver.nomad`
 
-Lightrun's driver will use the arguments given on the config and will automatically download the Lightrun's agent and use it.
-
+The Lightrun driver uses the arguments provided in the config section and automatically downloads and runs the Lightrun agent.
