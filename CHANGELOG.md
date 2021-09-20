@@ -1,3 +1,16 @@
+## 1.0.11 (September 20, 2021)
+
+IMPROVEMENTS:
+
+* deps: Updated `go-memdb` to `v1.3.2` [[GH-11185](https://github.com/hashicorp/nomad/issues/11185)]
+
+BUG FIXES:
+
+* audit (Enterprise): Don't timestamp active audit log file. [[GH-11198](https://github.com/hashicorp/nomad/issues/11198)]
+* cli: Display all possible scores in the allocation status table [[GH-11128](https://github.com/hashicorp/nomad/issues/11128)]
+* cli: Fixed a bug where the NOMAD_CLI_NO_COLOR environment variable was not always applied [[GH-11168](https://github.com/hashicorp/nomad/issues/11168)]
+* client: Task vars should take precedence over host vars when performing interpolation. [[GH-11206](https://github.com/hashicorp/nomad/issues/11206)]
+
 ## 1.0.10 (August 26, 2021)
 
 SECURITY:
