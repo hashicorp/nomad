@@ -20,6 +20,10 @@ endif
 # tag corresponding to latest release we maintain backward compatibility with
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
+# LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
+# published release, but backport branches should point to the parent tag (e.g. 1.0.8 in release-1.0.9 after 1.1.0 is cut).
+LAST_RELEASE ?= v1.0.10
+
 default: help
 
 ifeq ($(CI),true)
@@ -97,6 +101,7 @@ deps:  ## Install build and development dependencies
 	GO111MODULE=on cd tools && go get github.com/hashicorp/hcl/v2/cmd/hclfmt@v2.5.1
 	GO111MODULE=on cd tools && go get github.com/golang/protobuf/protoc-gen-go@v1.3.4
 	GO111MODULE=on cd tools && go get github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+	GO111MODULE=on cd tools && go get github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
@@ -187,10 +192,10 @@ generate-examples: command/job_init.bindata_assetfs.go
 command/job_init.bindata_assetfs.go: command/assets/*
 	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
 
-.PHONY: changelogfmt
-changelogfmt:
-	@echo "--> Making [GH-xxxx] references clickable..."
-	@sed -E 's|([^\[])\[GH-([0-9]+)\]|\1[[GH-\2](https://github.com/hashicorp/nomad/issues/\2)]|g' CHANGELOG.md > changelog.tmp && mv changelog.tmp CHANGELOG.md
+.PHONY: changelog
+changelog:
+	@changelog-build -last-release $(LAST_RELEASE) -this-release HEAD \
+		-entries-dir .changelog/ -changelog-template ./.changelog/changelog.tmpl -note-template ./.changelog/note.tmpl
 
 ## We skip the terraform directory as there are templated hcl configurations
 ## that do not successfully compile without rendering
@@ -218,7 +223,7 @@ dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
-dev: changelogfmt hclfmt ## Build for the current development platform
+dev: hclfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad
