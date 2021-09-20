@@ -551,9 +551,14 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 		envMap[hargs.ReplaceEnv(k, nodeAttrs, envMap)] = hargs.ReplaceEnv(v, nodeAttrs, envMap)
 	}
 
-	// Interpolate and add environment variables
+	// Interpolate and add environment variables from the host. Only do this if
+	// the variable is not present in the map; we do not want to override task
+	// variables in favour of the same variable found within the host OS env
+	// vars.
 	for k, v := range b.hostEnv {
-		envMap[k] = hargs.ReplaceEnv(v, nodeAttrs, envMap)
+		if _, ok := envMap[k]; !ok {
+			envMap[k] = hargs.ReplaceEnv(v, nodeAttrs, envMap)
+		}
 	}
 
 	// Copy interpolated task env vars second as they override host env vars
