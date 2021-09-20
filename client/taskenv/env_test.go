@@ -299,6 +299,17 @@ func TestEnvironment_AllValues(t *testing.T) {
 		&drivers.DriverNetwork{PortMap: map[string]int{"https": 443}},
 	)
 
+	// Add a host environment variable which matches a task variable. It means
+	// we can test to ensure the allocation ID variable from the task overrides
+	// that found on the host. The second entry tests to ensure other host env
+	// vars are added as expected.
+	env.mu.Lock()
+	env.hostEnv = map[string]string{
+		AllocID:    "94fa69a3-73a5-4099-85c3-7a1b6e228796",
+		"LC_CTYPE": "C.UTF-8",
+	}
+	env.mu.Unlock()
+
 	values, errs, err := env.Build().AllValues()
 	require.NoError(t, err)
 
@@ -384,6 +395,9 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_PORT_admin":                          "9000",
 		"NOMAD_ALLOC_PORT_admin":                    "9000",
 		"NOMAD_HOST_PORT_admin":                     "32000",
+
+		// Env vars from the host.
+		"LC_CTYPE": "C.UTF-8",
 
 		// 0.9 style env map
 		`env["taskEnvKey"]`:        "taskEnvVal",
