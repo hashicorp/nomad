@@ -126,7 +126,13 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
       const activeDatum = this.activeDatum;
       const isActive = activeDatum && activeDatum.label === d.label;
       const isInactive = activeDatum && activeDatum.label !== d.label;
-      return [ className, isActive && 'active', isInactive && 'inactive' ].compact().join(' ');
+      const isClickable = !!this.onSliceClick;
+      return [
+        className,
+        isActive && 'active',
+        isInactive && 'inactive',
+        isClickable && 'clickable'
+      ].compact().join(' ');
     });
 
     this.set('slices', slices);
