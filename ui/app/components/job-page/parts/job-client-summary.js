@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { classNames } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
@@ -11,11 +11,17 @@ export default class JobClientSummary extends Component {
 
   job = null;
   jobClientStatus = null;
+  gotoClients() {}
 
   @computed
   get isExpanded() {
     const storageValue = window.localStorage.nomadExpandJobClientSummary;
     return storageValue != null ? JSON.parse(storageValue) : true;
+  }
+
+  @action
+  onSliceClick(slice) {
+    this.gotoClients([slice.className.camelize()]);
   }
 
   persist(item, isOpen) {

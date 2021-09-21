@@ -22,6 +22,7 @@ const sumAggregate = (total, val) => total + val;
 export default class DistributionBar extends Component.extend(WindowResizable) {
   chart = null;
   @overridable(() => null) data;
+  @overridable(() => null) onSliceClick;
   activeDatum = null;
   isNarrow = false;
 
@@ -93,6 +94,10 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
     let sliceCount = filteredData.length;
 
     slices.exit().remove();
+
+    if (this.onSliceClick) {
+      slices.on('click', this.onSliceClick);
+    }
 
     let slicesEnter = slices.enter()
       .append('g')

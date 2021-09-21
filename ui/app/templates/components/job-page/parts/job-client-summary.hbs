@@ -16,7 +16,11 @@
       {{#unless a.isOpen}}
         <div class="column">
           <div class="inline-chart bumper-left">
-            <ClientStatusBar @jobClientStatus={{this.jobClientStatus}} @isNarrow={{true}} />
+            <ClientStatusBar
+              @onSliceClick={{this.onSliceClick}}
+              @jobClientStatus={{this.jobClientStatus}}
+              @isNarrow={{true}}
+            />
           </div>
         </div>
       {{/unless}}
@@ -24,7 +28,7 @@
   </a.head>
   <a.body>
     <ClientStatusBar
-      @onBarClick={{this.gotoClient}}
+      @onSliceClick={{this.onSliceClick}}
       @jobClientStatus={{this.jobClientStatus}}
       class="split-view" as |chart|
     >

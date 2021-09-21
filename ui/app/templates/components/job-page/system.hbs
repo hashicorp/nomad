@@ -19,7 +19,10 @@
     {{/each}}
   {{/if}}
 
-  <JobPage::Parts::JobClientSummary @job={{this.job}} @jobClientStatus={{this.jobClientStatus}} />
+  <JobPage::Parts::JobClientSummary
+    @job={{this.job}}
+    @jobClientStatus={{this.jobClientStatus}}
+    @gotoClients={{this.gotoClients}} />
 
   <JobPage::Parts::Summary @job={{this.job}} />
 

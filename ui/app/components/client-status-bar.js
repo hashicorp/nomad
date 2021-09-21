@@ -1,4 +1,4 @@
-import { computed, set } from '@ember/object';
+import { computed } from '@ember/object';
 import DistributionBar from './distribution-bar';
 import classic from 'ember-classic-decorator';
 
@@ -8,27 +8,7 @@ export default class ClientStatusBar extends DistributionBar {
 
   'data-test-client-status-bar' = true;
   jobClientStatus = null;
-
-  // Provide an action with access to the router
-  onBarClick() {}
-
-  didRender() {
-    // append on click event to bar chart
-    const { _data, chart } = this;
-    const filteredData = _data.filter(d => d.value > 0);
-    filteredData.forEach((d, index) => {
-      set(d, 'index', index);
-    });
-    chart
-      .select('.bars')
-      .selectAll('g')
-      .data(filteredData, d => d.label)
-      .attr('data-test-client-status', d => d.label.toLowerCase())
-      .on('click', d => {
-        let label = d.label === 'Not Scheduled' ? 'notScheduled' : d.label;
-        this.onBarClick(label);
-      });
-  }
+  onSliceClick() {}
 
   @computed('jobClientStatus.byStatus')
   get data() {
