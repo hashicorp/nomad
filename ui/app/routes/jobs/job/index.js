@@ -22,7 +22,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
       latestDeployment:
         model.get('supportsDeployments') && this.watchLatestDeployment.perform(model),
       list: model.get('hasChildren') && this.watchAll.perform(),
-      nodes: /*model.type === 'sysbatch' && */ this.watchNodes.perform(),
+      nodes: model.get('hasClientStatus') && this.watchNodes.perform(),
     });
   }
 

@@ -39,6 +39,11 @@ export default class Job extends Model {
     return this.periodic || (this.parameterized && !this.dispatched);
   }
 
+  @computed('type')
+  get hasClientStatus() {
+    return this.type === 'system' || this.type === 'sysbatch';
+  }
+
   @belongsTo('job', { inverse: 'children' }) parent;
   @hasMany('job', { inverse: 'parent' }) children;
 
