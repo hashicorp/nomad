@@ -6,16 +6,14 @@ import classic from 'ember-classic-decorator';
 
 @classic
 @classNames('boxed-section')
-export default class JobClientSummary extends Component {
-  @service store;
-
+export default class JobClientStatusSummary extends Component {
   job = null;
   jobClientStatus = null;
   gotoClients() {}
 
   @computed
   get isExpanded() {
-    const storageValue = window.localStorage.nomadExpandJobClientSummary;
+    const storageValue = window.localStorage.nomadExpandJobClientStatusSummary;
     return storageValue != null ? JSON.parse(storageValue) : true;
   }
 
@@ -25,7 +23,7 @@ export default class JobClientSummary extends Component {
   }
 
   persist(item, isOpen) {
-    window.localStorage.nomadExpandJobClientSummary = isOpen;
+    window.localStorage.nomadExpandJobClientStatusSummary = isOpen;
     this.notifyPropertyChange('isExpanded');
   }
 }

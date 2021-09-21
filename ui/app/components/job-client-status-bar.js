@@ -3,7 +3,7 @@ import DistributionBar from './distribution-bar';
 import classic from 'ember-classic-decorator';
 
 @classic
-export default class ClientStatusBar extends DistributionBar {
+export default class JobClientStatusBar extends DistributionBar {
   layoutName = 'components/distribution-bar';
 
   'data-test-client-status-bar' = true;

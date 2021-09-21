@@ -16,7 +16,7 @@
       {{#unless a.isOpen}}
         <div class="column">
           <div class="inline-chart bumper-left">
-            <ClientStatusBar
+            <JobClientStatusBar
               @onSliceClick={{this.onSliceClick}}
               @jobClientStatus={{this.jobClientStatus}}
               @isNarrow={{true}}
@@ -27,7 +27,7 @@
     </div>
   </a.head>
   <a.body>
-    <ClientStatusBar
+    <JobClientStatusBar
       @onSliceClick={{this.onSliceClick}}
       @jobClientStatus={{this.jobClientStatus}}
       class="split-view" as |chart|
@@ -53,6 +53,6 @@
           </li>
         {{/each}}
       </ol>
-    </ClientStatusBar>
+    </JobClientStatusBar>
   </a.body>
 </ListAccordion>

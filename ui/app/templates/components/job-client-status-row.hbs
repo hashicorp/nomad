@@ -7,18 +7,18 @@
   </td>
   <td data-test-create-time>
     {{#if this.row.createTime}}
-    <span class="tooltip" aria-label="{{format-month-ts this.row.createTime}}">
-      {{moment-from-now this.row.createTime}}
-    </span>
+      <span class="tooltip" aria-label="{{format-month-ts this.row.createTime}}">
+        {{moment-from-now this.row.createTime}}
+      </span>
     {{else}}
       -
     {{/if}}
   </td>
   <td data-test-modify-time>
     {{#if this.row.modifyTime}}
-    <span class="tooltip" aria-label="{{format-month-ts this.row.modifyTime}}">
-      {{moment-from-now this.row.modifyTime}}
-    </span>
+      <span class="tooltip" aria-label="{{format-month-ts this.row.modifyTime}}">
+        {{moment-from-now this.row.modifyTime}}
+      </span>
     {{else}}
       -
     {{/if}}

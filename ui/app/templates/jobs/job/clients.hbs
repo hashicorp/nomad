@@ -71,7 +71,7 @@
             </th>
           </t.head>
           <t.body as |row|>
-            <ClientRow
+            <JobClientStatusRow
               @data-test-client={{row.model.node.id}}
               @row={{row}}
               @onClick={{this.gotoClient}}
