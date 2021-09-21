@@ -41,6 +41,8 @@ Metadata is merged up the job specification, so metadata defined at the job
 level applies to all groups and tasks within that job. Metadata defined at the
 group layer applies to all tasks within that group.
 
+Meta values are made available inside tasks as [runtime environment variables][env_meta].
+
 ## `meta` Parameters
 
 The "parameters" for the `meta` stanza can be any key-value. The keys and values
@@ -93,3 +95,4 @@ meta = {
 [group]: /docs/job-specification/group 'Nomad group Job Specification'
 [task]: /docs/job-specification/task 'Nomad task Job Specification'
 [interpolation]: /docs/runtime/interpolation 'Nomad interpolation'
+[env_meta]: /docs/runtime/environment#meta
