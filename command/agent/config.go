@@ -174,6 +174,9 @@ type Config struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	// RegisterEventBroker exposes the event broker as a service reachable in cluster
+	RegisterEventBroker bool `hcl:"register_event_broker"`
 }
 
 // ClientConfig is configuration specific to the client mode

@@ -30,6 +30,7 @@ import (
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/helper/logging"
 	"github.com/hashicorp/nomad/helper/winsvc"
+	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
@@ -51,6 +52,7 @@ type Command struct {
 	args           []string
 	agent          *Agent
 	httpServer     *HTTPServer
+	eventBroker    *stream.EventBroker
 	logFilter      *logutils.LevelFilter
 	logOutput      io.Writer
 	retryJoinErrCh chan struct{}
@@ -118,6 +120,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
 	flags.BoolVar(&cmdConfig.LogJson, "log-json", false, "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
+	flags.BoolVar(&cmdConfig.RegisterEventBroker, "register-event-broker", false, "")
 
 	// Consul options
 	flags.StringVar(&cmdConfig.Consul.Auth, "consul-auth", "", "")
@@ -493,6 +496,16 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 	}
 	c.httpServer = http
 
+	// Register the Event Broker as a service
+	if config.RegisterEventBroker || config.DevMode {
+		err = stream.RegisterEventBrokerService(logger, logOutput, inmem)
+		if err != nil {
+			agent.Shutdown()
+			c.Ui.Error(fmt.Sprintf("Error registering event broker service: %s", err))
+			return err
+		}
+	}
+
 	// If DisableUpdateCheck is not enabled, set up update checking
 	// (DisableUpdateCheck is false by default)
 	if config.DisableUpdateCheck != nil && !*config.DisableUpdateCheck {
@@ -681,6 +694,10 @@ func (c *Command) Run(args []string) int {
 		// the agent takes long to shutdown
 		if c.httpServer != nil {
 			c.httpServer.Shutdown()
+		}
+
+		if c.eventBroker != nil {
+			c.eventBroker.CloseAll()
 		}
 	}()
 
