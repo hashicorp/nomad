@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/command/agent/host"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/state"
@@ -23,14 +24,7 @@ import (
 var (
 	// DefaultEnvDenylist is the default set of environment variables that are
 	// filtered when passing the environment variables of the host to a task.
-	// duplicated in command/agent/host, update that if this changes.
-	DefaultEnvDenylist = strings.Join([]string{
-		"CONSUL_TOKEN",
-		"CONSUL_HTTP_TOKEN",
-		"VAULT_TOKEN",
-		"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
-		"GOOGLE_APPLICATION_CREDENTIALS",
-	}, ",")
+	DefaultEnvDenylist = strings.Join(host.DefaultEnvDenyList, ",")
 
 	// DefaultUserDenylist is the default set of users that tasks are not
 	// allowed to run as when using a driver in "user.checked_drivers"
