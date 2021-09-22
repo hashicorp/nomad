@@ -76,8 +76,8 @@ client {
 - `reserved` <code>([Reserved](#reserved-parameters): nil)</code> - Specifies
   that Nomad should reserve a portion of the node's resources from receiving
   tasks. This can be used to target a certain capacity usage for the node. For
-  example, 20% of the node's CPU could be reserved to target a CPU utilization
-  of 80%.
+  example, a value equal to 20% of the node's CPU could be reserved to target
+  a CPU utilization of 80%.
 
 - `servers` `(array<string>: [])` - Specifies an array of addresses to the Nomad
   servers this client should join. This list is used to register the client with
