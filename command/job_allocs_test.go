@@ -18,23 +18,33 @@ func TestJobAllocsCommand_Implements(t *testing.T) {
 
 func TestJobAllocsCommand_Fails(t *testing.T) {
 	t.Parallel()
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
 	ui := cli.NewMockUi()
 	cmd := &JobAllocsCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	code := cmd.Run([]string{"some", "bad", "args"})
+	outerr := ui.ErrorWriter.String()
 	require.Equalf(t, 1, code, "expected exit code 1, got: %d", code)
-
-	out := ui.ErrorWriter.String()
-	require.Containsf(t, out, commandErrorText(cmd), "expected help output, got: %s", out)
+	require.Containsf(t, outerr, commandErrorText(cmd), "expected help output, got: %s", outerr)
 
 	ui.ErrorWriter.Reset()
 
+	// Bad address
 	code = cmd.Run([]string{"-address=nope", "foo"})
+	outerr = ui.ErrorWriter.String()
 	require.Equalf(t, 1, code, "expected exit code 1, got: %d", code)
+	require.Containsf(t, outerr, "Error listing jobs", "expected failed query error, got: %s", outerr)
 
-	out = ui.ErrorWriter.String()
-	require.Containsf(t, out, "Error listing jobs", "expected failed query error, got: %s", out)
+	ui.ErrorWriter.Reset()
+
+	// Bad job name
+	code = cmd.Run([]string{"-address=" + url, "foo"})
+	outerr = ui.ErrorWriter.String()
+	require.Equalf(t, 1, code, "expected exit 1, got: %d", code)
+	require.Containsf(t, outerr, "No job(s) with prefix or id \"foo\" found", "expected no job found, got: %s", outerr)
 
 	ui.ErrorWriter.Reset()
 }
@@ -47,20 +57,15 @@ func TestJobAllocsCommand_Run(t *testing.T) {
 	ui := cli.NewMockUi()
 	cmd := &JobAllocsCommand{Meta: Meta{Ui: ui}}
 
-	// Should return an error message for no job match
-	code := cmd.Run([]string{"-address=" + url, "foo"})
-	require.Equalf(t, 1, code, "expected exit 1, got: %d", code)
-
 	// Create a job without an allocation
 	job := mock.Job()
 	state := srv.Agent.Server().State()
 	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, job))
 
 	// Should display no match if the job doesn't have allocations
-	code = cmd.Run([]string{"-address=" + url, job.ID})
-	require.Equalf(t, 0, code, "expected exit 0, got: %d", code)
-
+	code := cmd.Run([]string{"-address=" + url, job.ID})
 	out := ui.OutputWriter.String()
+	require.Equalf(t, 0, code, "expected exit 0, got: %d", code)
 	require.Containsf(t, out, "No allocations placed", "expected no allocations placed, got: %s", out)
 
 	ui.OutputWriter.Reset()
@@ -77,8 +82,15 @@ func TestJobAllocsCommand_Run(t *testing.T) {
 
 	// Should now display the alloc
 	code = cmd.Run([]string{"-address=" + url, "-verbose", job.ID})
+	out = ui.OutputWriter.String()
+	outerr := ui.ErrorWriter.String()
 	require.Equalf(t, 0, code, "expected exit 0, got: %d", code)
+	require.Emptyf(t, outerr, "expected no error output, got: \n\n%s", outerr)
+	require.Containsf(t, out, a.ID, "expected alloc output, got: %s", out)
 
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
+}
 	out = ui.OutputWriter.String()
 	require.Containsf(t, out, a.ID, "expected alloc output, got: %s", out)
 
@@ -87,7 +99,6 @@ func TestJobAllocsCommand_Run(t *testing.T) {
 
 func TestJobAllocsCommand_AutocompleteArgs(t *testing.T) {
 	t.Parallel()
-
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
 
