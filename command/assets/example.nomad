@@ -302,8 +302,8 @@ job "example" {
       # are specific to each driver, so please see specific driver
       # documentation for more information.
       config {
-        image          = "redis:3.2"
-        ports          = ["db"]
+        image = "redis:3.2"
+        ports = ["db"]
 
         # if you have an "auth" section setup, with "auth.helper" confgured,
         # and if you mix private and public repositories, you will need this
