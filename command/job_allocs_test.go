@@ -91,10 +91,64 @@ func TestJobAllocsCommand_Run(t *testing.T) {
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
 }
-	out = ui.OutputWriter.String()
-	require.Containsf(t, out, a.ID, "expected alloc output, got: %s", out)
+
+func TestJobAllocsCommand_Template(t *testing.T) {
+	t.Parallel()
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &JobAllocsCommand{Meta: Meta{Ui: ui}}
+
+	// Create a job
+	job := mock.Job()
+	state := srv.Agent.Server().State()
+	require.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, job))
+
+	// Inject a running allocation
+	a := mock.Alloc()
+	a.Job = job
+	a.JobID = job.ID
+	a.TaskGroup = job.TaskGroups[0].Name
+	a.Metrics = &structs.AllocMetric{}
+	a.DesiredStatus = structs.AllocDesiredStatusRun
+	a.ClientStatus = structs.AllocClientStatusRunning
+	require.Nil(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{a}))
+
+	// Inject a pending allocation
+	b := mock.Alloc()
+	b.Job = job
+	b.JobID = job.ID
+	b.TaskGroup = job.TaskGroups[0].Name
+	b.Metrics = &structs.AllocMetric{}
+	b.DesiredStatus = structs.AllocDesiredStatusRun
+	b.ClientStatus = structs.AllocClientStatusPending
+	require.Nil(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 300, []*structs.Allocation{b}))
+
+	// Should display an AllocacitonListStub object
+	code := cmd.Run([]string{"-address=" + url, "-t", "'{{printf \"%#+v\" .}}'", job.ID})
+	out := ui.OutputWriter.String()
+	outerr := ui.ErrorWriter.String()
+
+	require.Equalf(t, 0, code, "expected exit 0, got: %d", code)
+	require.Emptyf(t, outerr, "expected no error output, got: \n\n%s", outerr)
+	require.Containsf(t, out, "api.AllocationListStub", "expected alloc output, got: %s", out)
 
 	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
+
+	// Should display only the running allocation ID
+	code = cmd.Run([]string{"-address=" + url, "-t", "'{{ range . }}{{ if eq .ClientStatus \"running\" }}{{ println .ID }}{{ end }}{{ end }}'", job.ID})
+	out = ui.OutputWriter.String()
+	outerr = ui.ErrorWriter.String()
+
+	require.Equalf(t, 0, code, "expected exit 0, got: %d", code)
+	require.Emptyf(t, outerr, "expected no error output, got: \n\n%s", outerr)
+	require.Containsf(t, out, a.ID, "expected ID of alloc a, got: %s", out)
+	require.NotContainsf(t, out, b.ID, "should not contain ID of alloc b, got: %s", out)
+
+	ui.OutputWriter.Reset()
+	ui.ErrorWriter.Reset()
 }
 
 func TestJobAllocsCommand_AutocompleteArgs(t *testing.T) {
