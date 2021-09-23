@@ -463,6 +463,11 @@ job "countdash" {
 
       config {
         image = "hashicorpnomad/counter-dashboard:v3"
+
+        # if you have an "auth" section setup, with "auth.helper" confgured,
+        # and if you mix private and public repositories, you will need this
+        # for the public images to be succesfully downloaded.
+        auth_soft_fail = true
       }
     }
   }
