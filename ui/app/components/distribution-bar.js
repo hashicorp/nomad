@@ -34,11 +34,12 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
     const data = copy(this.data, true);
     const sum = data.mapBy('value').reduce(sumAggregate, 0);
 
-    return data.map(({ label, value, className, layers }, index) => ({
+    return data.map(({ label, value, className, layers, queryParams }, index) => ({
       label,
       value,
       className,
       layers,
+      queryParams,
       index,
       percent: value / sum,
       offset:

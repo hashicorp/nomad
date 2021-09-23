@@ -77,6 +77,20 @@
           background-color: rgba($info, 0.1);
         }
 
+        &.is-clickable {
+          a {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+          }
+
+          &:not(.is-empty) {
+            &:hover {
+              background-color: rgba($info, 0.1);
+            }
+          }
+        }
+
         &.is-empty {
           color: darken($grey-blue, 20%);
           border: none;

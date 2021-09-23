@@ -34,22 +34,14 @@
     >
       <ol data-test-legend class="legend">
         {{#each chart.data as |datum index|}}
-          <li
-            class="{{datum.className}}
-
-              {{if (eq datum.label chart.activeDatum.label) "is-active"}}
-
-              {{if (eq datum.value 0) "is-empty"}}"
-          >
-            <span
-              class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}"
-            ></span>
-            <span class="value" data-test-legend-value="{{datum.className}}">
-              {{datum.value}}
-            </span>
-            <span class="label">
-              {{datum.label}}
-            </span>
+          <li class="{{datum.className}} {{if (eq datum.label chart.activeDatum.label) "is-active"}} {{if (eq datum.value 0) "is-empty" "is-clickable"}}">
+            {{#if (gt datum.value 0)}}
+              <LinkTo @route="jobs.job.clients" @model={{this.job}} @query={{datum.queryParams}}>
+                <JobPage::Parts::JobClientStatusSummaryLegendItem @datum={{datum}} />
+              </LinkTo>
+            {{else}}
+              <JobPage::Parts::JobClientStatusSummaryLegendItem @datum={{datum}} />
+            {{/if}}
           </li>
         {{/each}}
       </ol>

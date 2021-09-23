@@ -22,47 +22,56 @@ export default class JobClientStatusBar extends DistributionBar {
       lost,
       notScheduled,
     } = this.jobClientStatus.byStatus;
+
     return [
       {
         label: 'Queued',
         value: queued.length,
         className: 'queued',
+        queryParams: { status: JSON.stringify(['queued']) },
       },
       {
         label: 'Starting',
         value: starting.length,
         className: 'starting',
+        queryParams: { status: JSON.stringify(['starting']) },
         layers: 2,
       },
       {
         label: 'Running',
         value: running.length,
         className: 'running',
+        queryParams: { status: JSON.stringify(['running']) },
       },
       {
         label: 'Complete',
         value: complete.length,
         className: 'complete',
+        queryParams: { status: JSON.stringify(['complete']) },
       },
       {
         label: 'Degraded',
         value: degraded.length,
         className: 'degraded',
+        queryParams: { status: JSON.stringify(['degraded']) },
       },
       {
         label: 'Failed',
         value: failed.length,
         className: 'failed',
+        queryParams: { status: JSON.stringify(['failed']) },
       },
       {
         label: 'Lost',
         value: lost.length,
         className: 'lost',
+        queryParams: { status: JSON.stringify(['lost']) },
       },
       {
         label: 'Not Scheduled',
         value: notScheduled.length,
         className: 'not-scheduled',
+        queryParams: { status: JSON.stringify(['notScheduled']) },
       },
     ];
   }
