@@ -51,8 +51,8 @@
           @class="with-foot" as |t|
         >
           <t.head>
-            <t.sort-by @prop="id">Client ID</t.sort-by>
-            <t.sort-by @prop="name" class="is-200px is-truncatable">Client Name</t.sort-by>
+            <t.sort-by @prop="node.id">Client ID</t.sort-by>
+            <t.sort-by @prop="node.name" class="is-200px is-truncatable">Client Name</t.sort-by>
             <t.sort-by @prop="createTime" @title="Create Time">Created</t.sort-by>
             <t.sort-by @prop="modifyTime" @title="Modify Time">Modified</t.sort-by>
             <t.sort-by @prop="jobStatus">Job Status</t.sort-by>
