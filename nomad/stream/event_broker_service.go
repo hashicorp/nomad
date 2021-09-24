@@ -15,7 +15,27 @@ const SockAddr = "/var/run/nomad/event-broker-service.sock"
 
 func eventBrokerServer(c net.Conn) {
 	log.Printf("Client connected [%s]", c.RemoteAddr().Network())
-	io.Copy(c, c)
+	buf := make([]byte, 0, 4096) // big buffer
+	tmp := make([]byte, 256)     // using small tmo buffer for demonstrating
+	for {
+		n, err := c.Read(tmp)
+		if err != nil {
+			if err != io.EOF {
+				fmt.Println("read error:", err)
+			}
+			break
+		}
+		//fmt.Println("got", n, "bytes.")
+		buf = append(buf, tmp[:n]...)
+
+	}
+
+	cmd := string(buf)
+
+	c.Write([]byte(fmt.Sprintf("\ncmd: %s", cmd)))
+	c.Write([]byte("hello from the event broker service"))
+
+	// io.Copy(c, c)
 	c.Close()
 }
 
