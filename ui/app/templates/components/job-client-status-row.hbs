@@ -1,6 +1,8 @@
 <tr class="job-client-status-row is-interactive" {{on "click" (fn @onClick this.row.node)}}>
   <td data-test-short-id>
-    <strong>{{this.row.node.shortId}}</strong>
+    <LinkTo @route="allocations.allocation" @model={{this.allocation}} class="is-primary">
+      {{this.row.node.shortId}}
+    </LinkTo>
   </td>
   <td data-test-short-id class="is-200px is-truncatable">
     {{this.row.node.name}}
