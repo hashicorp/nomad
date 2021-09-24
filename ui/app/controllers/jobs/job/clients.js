@@ -13,10 +13,10 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class ClientsController extends Controller.extend(
-    SortableFactory(['id', 'name', 'jobStatus']),
-    Searchable,
-    WithNamespaceResetting
-  ) {
+  SortableFactory(['id', 'name', 'jobStatus']),
+  Searchable,
+  WithNamespaceResetting
+) {
   queryParams = [
     {
       currentPage: 'page',
@@ -31,7 +31,7 @@ export default class ClientsController extends Controller.extend(
       qpDatacenter: 'dc',
     },
     {
-      qpNodeClass: 'nodeclass',
+      qpClientClass: 'clientclass',
     },
     {
       sortProperty: 'sort',
@@ -43,7 +43,7 @@ export default class ClientsController extends Controller.extend(
 
   qpStatus = '';
   qpDatacenter = '';
-  qpNodeClass = '';
+  qpClientClass = '';
 
   currentPage = 1;
   pageSize = 25;
@@ -53,7 +53,7 @@ export default class ClientsController extends Controller.extend(
 
   @selection('qpStatus') selectionStatus;
   @selection('qpDatacenter') selectionDatacenter;
-  @selection('qpNodeClass') selectionNodeClass;
+  @selection('qpClientClass') selectionClientClass;
 
   @alias('model') job;
   @jobClientStatus('allNodes', 'job') jobClientStatus;
@@ -85,13 +85,13 @@ export default class ClientsController extends Controller.extend(
     'jobClientStatus.byNode',
     'selectionStatus',
     'selectionDatacenter',
-    'selectionNodeClass'
+    'selectionClientClass'
   )
   get filteredNodes() {
     const {
       selectionStatus: statuses,
       selectionDatacenter: datacenters,
-      selectionNodeClass: nodeclasses,
+      selectionClientClass: clientClasses,
     } = this;
 
     return this.nodes
@@ -102,7 +102,7 @@ export default class ClientsController extends Controller.extend(
         if (datacenters.length && !datacenters.includes(node.datacenter)) {
           return false;
         }
-        if (nodeclasses.length && !nodeclasses.includes(node.nodeClass)) {
+        if (clientClasses.length && !clientClasses.includes(node.nodeClass)) {
           return false;
         }
 
@@ -148,17 +148,17 @@ export default class ClientsController extends Controller.extend(
     return datacenters.sort().map(dc => ({ key: dc, label: dc }));
   }
 
-  @computed('selectionNodeClass', 'nodes')
-  get optionsNodeClass() {
-    const nodeClasses = Array.from(new Set(this.nodes.mapBy('nodeClass'))).compact();
+  @computed('selectionClientClass', 'nodes')
+  get optionsClientClass() {
+    const clientClasses = Array.from(new Set(this.nodes.mapBy('nodeClass'))).compact();
 
     // Update query param when the list of datacenters changes.
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
-      this.set('qpNodeClass', serialize(intersection(nodeClasses, this.selectionNodeClass)));
+      this.set('qpClientClass', serialize(intersection(clientClasses, this.selectionClientClass)));
     });
 
-    return nodeClasses.sort().map(nodeClass => ({ key: nodeClass, label: nodeClass }));
+    return clientClasses.sort().map(clientClass => ({ key: clientClass, label: clientClass }));
   }
 
   @action
