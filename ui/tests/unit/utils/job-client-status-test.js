@@ -35,7 +35,7 @@ class NodeMock {
   }
 }
 
-module('Unit | Util | JobClientStatus', function(hooks) {
+module('Unit | Util | JobClientStatus', function() {
   test('it handles the case where all nodes are running', async function(assert) {
     const node = new NodeMock('node-1', 'dc1');
     const nodes = [node];

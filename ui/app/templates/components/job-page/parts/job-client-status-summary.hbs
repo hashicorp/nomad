@@ -37,10 +37,10 @@
           <li class="{{datum.className}} {{if (eq datum.label chart.activeDatum.label) "is-active"}} {{if (eq datum.value 0) "is-empty" "is-clickable"}}">
             {{#if (gt datum.value 0)}}
               <LinkTo @route="jobs.job.clients" @model={{this.job}} @query={{datum.queryParams}}>
-                <JobPage::Parts::JobClientStatusSummaryLegendItem @datum={{datum}} />
+                <JobPage::Parts::JobClientStatusSummaryLegendItem @datum={{datum}} @index={{index}} />
               </LinkTo>
             {{else}}
-              <JobPage::Parts::JobClientStatusSummaryLegendItem @datum={{datum}} />
+              <JobPage::Parts::JobClientStatusSummaryLegendItem @datum={{datum}} @index={{index}} />
             {{/if}}
           </li>
         {{/each}}
