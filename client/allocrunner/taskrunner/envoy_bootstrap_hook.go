@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -263,7 +264,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	bootstrapArgs := bootstrap.args()
 	bootstrapEnv := bootstrap.env(os.Environ())
 
-	h.logger.Debug("envoy bootstrap command line", "args", bootstrapArgs, "env", bootstrapEnv)
+	h.logger.Debug("envoy bootstrap command line", "args", strings.Join(bootstrapArgs, " "), "env", bootstrapEnv)
 
 	// keep track of latest error returned from exec-ing consul envoy bootstrap
 	var cmdErr error
