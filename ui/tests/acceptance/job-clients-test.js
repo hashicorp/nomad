@@ -8,14 +8,16 @@ import Clients from 'nomad-ui/tests/pages/jobs/job/clients';
 let job;
 let clients;
 
-const makeSearchableClients = server => {
+const makeSearchableClients = (server, job) => {
   Array(10)
     .fill(null)
     .map((_, index) => {
-      server.create('node', {
+      const node = server.create('node', {
         id: index < 5 ? `ffffff-dddddd-${index}` : `111111-222222-${index}`,
-        shallow: true,
+        datacenter: 'dc1',
+        status: 'ready',
       });
+      server.create('allocation', { jobId: job.id, nodeId: node.id });
     });
 };
 
@@ -39,6 +41,15 @@ module('Acceptance | job clients', function(hooks) {
     clients.forEach(c => {
       server.create('allocation', { jobId: job.id, nodeId: c.id });
     });
+
+    // Create clients without allocations for test job so the jos status is
+    // 'not scheduled'.
+    clients = clients.concat(
+      server.createList('node', 3, {
+        datacenter: 'dc1',
+        status: 'ready',
+      })
+    );
   });
 
   test('it passes an accessibility audit', async function(assert) {
@@ -48,43 +59,58 @@ module('Acceptance | job clients', function(hooks) {
 
   test('lists all clients for the job', async function(assert) {
     await Clients.visit({ id: job.id });
-    assert.equal(Clients.clients.length, 12, 'Clients are shown in a table');
+    assert.equal(Clients.clients.length, 15, 'Clients are shown in a table');
 
-    const sortedClients = clients;
-
-    Clients.clients.forEach((client, index) => {
-      const shortId = sortedClients[index].id.split('-')[0];
-      console.log('client\n\n', client);
-      assert.equal(client.shortId, shortId, `Client ${index} is ${shortId}`);
-    });
+    const clientIDs = clients.sortBy('id').map(c => c.id);
+    const clientsInTable = Clients.clients.map(c => c.id).sort();
+    assert.deepEqual(clientsInTable, clientIDs);
 
     assert.equal(document.title, `Job ${job.name} clients - Nomad`);
   });
 
+  test('dates have tooltip', async function(assert) {
+    await Clients.visit({ id: job.id });
+
+    Clients.clients.forEach((clientRow, index) => {
+      const jobStatus = Clients.clientFor(clientRow.id).status;
+
+      ['createTime', 'modifyTime'].forEach(col => {
+        if (jobStatus === 'not scheduled') {
+          assert.equal(clientRow[col].text, '-', `row ${index} doesn't have ${col} tooltip`);
+          return;
+        }
+
+        const hasTooltip = clientRow[col].tooltip.isPresent;
+        const tooltipText = clientRow[col].tooltip.text;
+        assert.true(hasTooltip, `row ${index} has ${col} tooltip`);
+        assert.ok(tooltipText, `row ${index} has ${col} tooltip content ${tooltipText}`);
+      });
+    });
+  });
+
   test('clients table is sortable', async function(assert) {
     await Clients.visit({ id: job.id });
-    await Clients.sortBy('modifyTime');
+    await Clients.sortBy('node.name');
 
     assert.equal(
       currentURL(),
-      `/jobs/${job.id}/clients?desc=true&sort=modifyTime`,
+      `/jobs/${job.id}/clients?desc=true&sort=node.name`,
       'the URL persists the sort parameter'
     );
-    const sortedClients = clients.sortBy('modifyTime').reverse();
+
+    const sortedClients = clients.sortBy('name').reverse();
     Clients.clients.forEach((client, index) => {
       const shortId = sortedClients[index].id.split('-')[0];
       assert.equal(
         client.shortId,
         shortId,
-        `Client ${index} is ${shortId} with modify time ${sortedClients[index].modifyTime}`
+        `Client ${index} is ${shortId} with name ${sortedClients[index].name}`
       );
     });
   });
 
   test('clients table is searchable', async function(assert) {
-    makeSearchableClients(server);
-
-    clients = server.schema.nodes.where({ jobId: job.id }).models;
+    makeSearchableClients(server, job);
 
     await Clients.visit({ id: job.id });
     await Clients.search('ffffff');
@@ -93,9 +119,7 @@ module('Acceptance | job clients', function(hooks) {
   });
 
   test('when a search yields no results, the search box remains', async function(assert) {
-    makeSearchableClients(server);
-
-    clients = server.schema.nodes.where({ jobId: job.id }).models;
+    makeSearchableClients(server, job);
 
     await Clients.visit({ id: job.id });
     await Clients.search('^nothing will ever match this long regex$');
@@ -123,4 +147,129 @@ module('Acceptance | job clients', function(hooks) {
     assert.ok(Clients.error.isPresent, 'Error message is shown');
     assert.equal(Clients.error.title, 'Not Found', 'Error message is for 404');
   });
+
+  test('clicking row goes to client details', async function(assert) {
+    const client = clients[0];
+
+    await Clients.visit({ id: job.id });
+    await Clients.clientFor(client.id).click();
+    assert.equal(currentURL(), `/clients/${client.id}`);
+
+    await Clients.visit({ id: job.id });
+    await Clients.clientFor(client.id).visit();
+    assert.equal(currentURL(), `/clients/${client.id}`);
+
+    await Clients.visit({ id: job.id });
+    await Clients.clientFor(client.id).visitRow();
+    assert.equal(currentURL(), `/clients/${client.id}`);
+  });
+
+  testFacet('Job Status', {
+    facet: Clients.facets.jobStatus,
+    paramName: 'jobStatus',
+    expectedOptions: [
+      'Queued',
+      'Not Scheduled',
+      'Starting',
+      'Running',
+      'Complete',
+      'Degraded',
+      'Failed',
+      'Lost',
+    ],
+    async beforeEach() {
+      await Clients.visit({ id: job.id });
+    },
+  });
+
+  function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
+    test(`the ${label} facet has the correct options`, async function(assert) {
+      await beforeEach();
+      await facet.toggle();
+
+      let expectation;
+      if (typeof expectedOptions === 'function') {
+        expectation = expectedOptions();
+      } else {
+        expectation = expectedOptions;
+      }
+
+      assert.deepEqual(
+        facet.options.map(option => option.label.trim()),
+        expectation,
+        `Options for facet ${paramName} are as expected`
+      );
+    });
+
+    // test(`the ${label} facet filters the nodes list by ${label}`, async function(assert) {
+    //   let option;
+
+    //   await beforeEach();
+
+    //   await facet.toggle();
+    //   option = facet.options.objectAt(0);
+    //   await option.toggle();
+
+    //   const selection = [option.key];
+    //   const expectedNodes = server.db.nodes
+    //     .filter(node => filter(node, selection))
+    //     .sortBy('modifyIndex')
+    //     .reverse();
+
+    //   ClientsList.nodes.forEach((node, index) => {
+    //     assert.equal(
+    //       node.id,
+    //       expectedNodes[index].id.split('-')[0],
+    //       `Node at ${index} is ${expectedNodes[index].id}`
+    //     );
+    //   });
+    // });
+
+    // test(`selecting multiple options in the ${label} facet results in a broader search`, async function(assert) {
+    //   const selection = [];
+
+    //   await beforeEach();
+    //   await facet.toggle();
+
+    //   const option1 = facet.options.objectAt(0);
+    //   const option2 = facet.options.objectAt(1);
+    //   await option1.toggle();
+    //   selection.push(option1.key);
+    //   await option2.toggle();
+    //   selection.push(option2.key);
+
+    //   const expectedNodes = server.db.nodes
+    //     .filter(node => filter(node, selection))
+    //     .sortBy('modifyIndex')
+    //     .reverse();
+
+    //   ClientsList.nodes.forEach((node, index) => {
+    //     assert.equal(
+    //       node.id,
+    //       expectedNodes[index].id.split('-')[0],
+    //       `Node at ${index} is ${expectedNodes[index].id}`
+    //     );
+    //   });
+    // });
+
+    // test(`selecting options in the ${label} facet updates the ${paramName} query param`, async function(assert) {
+    //   const selection = [];
+
+    //   await beforeEach();
+    //   await facet.toggle();
+
+    //   const option1 = facet.options.objectAt(0);
+    //   const option2 = facet.options.objectAt(1);
+    //   await option1.toggle();
+    //   selection.push(option1.key);
+    //   await option2.toggle();
+    //   selection.push(option2.key);
+
+    //   assert.equal(
+    //     currentURL(),
+    //     `/clients?${paramName}=${encodeURIComponent(JSON.stringify(selection))}`,
+    //     'URL has the correct query param key and value'
+    //   );
+    // });
+  }
 });

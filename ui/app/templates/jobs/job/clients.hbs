@@ -14,7 +14,7 @@
       <div class="toolbar-item is-right-aligned">
         <div class="button-bar">
           <MultiSelectDropdown
-            data-test-status-facet
+            data-test-job-status-facet
             @label="Job Status"
             @options={{this.optionsJobStatus}}
             @selection={{this.selectionStatus}}
@@ -60,7 +60,6 @@
           </t.head>
           <t.body as |row|>
             <JobClientStatusRow
-              @data-test-client={{row.model.node.id}}
               @row={{row}}
               @onClick={{this.gotoClient}}
             />

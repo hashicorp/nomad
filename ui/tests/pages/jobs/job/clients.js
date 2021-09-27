@@ -8,6 +8,7 @@ import {
   text,
   visitable,
 } from 'ember-cli-page-object';
+import { multiFacet } from 'nomad-ui/tests/pages/components/facet';
 
 import clients from 'nomad-ui/tests/pages/components/clients';
 import error from 'nomad-ui/tests/pages/components/error';
@@ -36,6 +37,12 @@ export default create({
       .toArray()
       .findBy('id', id)
       .sort();
+  },
+
+  facets: {
+    jobStatus: multiFacet('[data-test-job-status-facet]'),
+    datacenter: multiFacet('[data-test-datacenter-facet]'),
+    clientClass: multiFacet('[data-test-class-facet]'),
   },
 
   error: error(),

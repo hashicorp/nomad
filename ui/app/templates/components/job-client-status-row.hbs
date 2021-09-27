@@ -1,10 +1,10 @@
-<tr class="job-client-status-row is-interactive" {{on "click" (fn @onClick this.row.node)}}>
+<tr data-test-client={{this.row.node.id}} class="job-client-status-row is-interactive" {{on "click" (fn @onClick this.row.node)}}>
   <td data-test-short-id>
     <LinkTo @route="allocations.allocation" @model={{this.allocation}} class="is-primary">
       {{this.row.node.shortId}}
     </LinkTo>
   </td>
-  <td data-test-short-id class="is-200px is-truncatable">
+  <td data-test-name class="is-200px is-truncatable">
     {{this.row.node.name}}
   </td>
   <td data-test-create-time>
@@ -25,11 +25,11 @@
       -
     {{/if}}
   </td>
-  <td data-test-client-status class="is-one-line">
+  <td data-test-job-status class="is-one-line">
     <span class="color-swatch {{this.jobStatusClass}}"></span>
     {{this.humanizedJobStatus}}
   </td>
-  <td data-test-client-allocations class="allocation-summary is-one-line">
+  <td data-test-job-alloc-summary class="allocation-summary is-one-line">
     {{#if this.shouldDisplayAllocationSummary}}
       <div class="inline-chart">
         <AllocationStatusBar @allocationContainer={{this.allocationContainer}} @isNarrow={{true}} />
