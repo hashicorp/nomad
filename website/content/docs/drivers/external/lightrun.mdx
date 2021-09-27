@@ -8,48 +8,62 @@ description: The Lightrun driver is used to run your Java application with Light
 
 Name: `lightrun-java`
 
-The Lightrun Nomad driver is used to execute Java applications packaged into a Java Jar file and automatically add the Lightrun agent to them.
+The Lightrun Nomad driver is used to execute Java applications packaged into a
+Java Jar file and automatically add the Lightrun agent to them.
 
-[Lightrun](https://www.lightrun.com) is a developer-native observability platform. With Lightrun you to add logs, snapshots (virtual breakpoints), and metrics to production applications without the need for redeployments or restarts. You can use Lightrun directly from your IDE or CLI to observe, understand and debug your application at runtime.
+[Lightrun][lightrun_website] is a developer-native observability platform. With
+Lightrun you can add logs, snapshots (virtual breakpoints), and metrics to
+production applications without the need for redeployments or restarts. You can
+use Lightrun directly from your IDE or CLI to observe, understand and debug
+your application at runtime.
 
-See [Lightrun documentation](https://docs.lightrun.com/) for more information about Lightrun.
+Refer to the [Lightrun documentation][lightrun_docs] for more information about
+Lightrun.
 
 ## Prerequisites
 
-1. Download or clone the [Lightrun driver repository](https://github.com/lightrun-platform/lightrun-n-nomad).
+1. Download or clone the [Lightrun driver repository][repo].
 1. Find the `lightrun-java-driver` driver in the repository's root folder.
-1. Copy the driver to your Nomad plugins directory (or create one if it doesn't exist).
-1. Grant executable permissions to the driver file: `chmod +x ./plugins/lightrun-java-driver`.
-1. When running the Nomad's agent, make sure to specify the path to your plugins directory:
+1. Copy the driver to your Nomad plugins directory (or create one if it doesn't
+  exist).
+1. Grant executable permissions to the driver file:
 
-    ```sh
-    sudo nomad agent -dev -bind 0.0.0.0 -log-level DEBUG -plugin-dir=<path_to_plugins_directory>
+    ```shell-session
+    $ chmod +x ./plugins/lightrun-java-driver
+    ```
+
+1. When running the Nomad agent, make sure to specify the path to your plugins
+  directory:
+
+    ```shell-session
+    $ sudo nomad agent -dev -bind 0.0.0.0 -log-level DEBUG -plugin-dir=<path_to_plugins_directory>
     ```
 
 ## Task Configuration
 
-The `lightrun-java` driver accepts all configuration options of the Nomad [`java`](https://www.nomadproject.io/docs/drivers/java) driver.
-
-1. Add `lightrun-java` as a driver to your job file.
-1. Set `lightrun_server`, `lightrun_secret` and `lightrun_certificate` as part of the config object.
-
-For example:
-
 ```hcl
 task "run-with-lightrun" {
-   driver = "lightrun-java"
+  driver = "lightrun-java"
 
-   ...
-
-   config {
-      ...
-      lightrun_server = "https://app.lightrun.com/company/<COMPANY-NAME>"
-      lightrun_secret = "<COMPANY-SECRET>"
-      lightrun_certificate = "ee80811b38e7e6c2dc4cc372cbea86bd86b446b012e427f2e19bf094afba5d12"
-   }
+  config {
+    lightrun_server = "https://app.lightrun.com/company/<COMPANY-NAME>"
+    lightrun_secret = "<COMPANY-SECRET>"
+    lightrun_certificate = "ee80811b38e7e6c2dc4cc372cbea86bd86b446b012e427f2e19bf094afba5d12"
+  }
 }
 ```
 
-A complete job file example can be found at `example/example.driver.nomad`
+The `lightrun-java` driver accepts all configuration options of the Nomad
+[`java`] driver.
 
-The Lightrun driver uses the arguments provided in the config section and automatically downloads and runs the Lightrun agent.
+Additionaly, the `lightrun-java` driver supports the following configuration in
+the job spec:
+
+- `lightrun_server` -
+- `lightrun_secret` -
+- `lightrun_certificate` -
+
+[lightrun_docs]: https://www.lightrun.com
+[lightrun_website]: https://www.lightrun.com
+[repo]: https://github.com/lightrun-platform/lightrun-n-nomad
+[`java`]: /docs/drivers/java
