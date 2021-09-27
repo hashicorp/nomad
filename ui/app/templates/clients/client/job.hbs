@@ -1,0 +1,76 @@
+<div class="boxed-section">
+  <div class="boxed-section-head">
+    <div>
+      System Jobs
+      <button role="button" class="badge is-white" data-test-filter-all type="button">
+        {{this.model.systemJobs.length}}
+      </button>
+    </div>
+    <SearchBox
+      @searchTerm={{mut this.clientSearchTerm}}
+      @onChange={{action this.resetPagination}}
+      @placeholder="Search clients..."
+      @class="is-inline pull-right"
+      @inputClass="is-compact"
+    />
+  </div>
+  <div class="boxed-section-body is-full-bleed">
+    <ListPagination
+      @source={{this.sortedJobs}}
+      @size={{this.pageSize}}
+      @page={{this.currentClientPage}} as |p|
+    >
+      <ListTable
+        @source={{p.list}}
+        @sortProperty={{this.clientSortProperty}}
+        @sortDescending={{this.clientSortDescending}}
+        @class="with-foot" as |t|
+      >
+        <t.head>
+          <th class="is-narrow"></th>
+          <t.sort-by @prop="shortId">
+            ID
+          </t.sort-by>
+          <t.sort-by @prop="createIndex" @title="Create Index">
+            Created
+          </t.sort-by>
+          <t.sort-by @prop="modifyIndex" @title="Modify Index">
+            Modified
+          </t.sort-by>
+          <t.sort-by @prop="statusIndex">
+            Status
+          </t.sort-by>
+          <t.sort-by @prop="job.name">
+            Job
+          </t.sort-by>
+          <t.sort-by @prop="jobVersion">
+            Version
+          </t.sort-by>
+        </t.head>
+        <t.body as |row|>
+          <JobRow
+            @data-test-job-row={{row.model.plainId}}
+            @job={{row.model}}
+            @onClick={{action "gotoJob" row.model}}
+          />
+        </t.body>
+      </ListTable>
+      <div class="table-foot">
+        <nav class="pagination">
+          <div class="pagination-numbers">
+            {{p.startsAt}}
+            –
+            {{p.endsAt}}
+            of
+            {{this.sortedJobs.length}}
+          </div>
+          <p.prev @class="pagination-previous" />
+          <p.next @class="pagination-next">
+            >
+          </p.next>
+          <ul class="pagination-list"></ul>
+        </nav>
+      </div>
+    </ListPagination>
+  </div>
+</div>
