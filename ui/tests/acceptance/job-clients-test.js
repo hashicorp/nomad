@@ -42,8 +42,7 @@ module('Acceptance | job clients', function(hooks) {
       server.create('allocation', { jobId: job.id, nodeId: c.id });
     });
 
-    // Create clients without allocations for test job so the jos status is
-    // 'not scheduled'.
+    // Create clients without allocations to have some 'not scheduled' job status.
     clients = clients.concat(
       server.createList('node', 3, {
         datacenter: 'dc1',
@@ -182,7 +181,7 @@ module('Acceptance | job clients', function(hooks) {
     },
   });
 
-  function testFacet(label, { facet, paramName, beforeEach, filter, expectedOptions }) {
+  function testFacet(label, { facet, paramName, beforeEach, expectedOptions }) {
     test(`the ${label} facet has the correct options`, async function(assert) {
       await beforeEach();
       await facet.toggle();
@@ -201,75 +200,6 @@ module('Acceptance | job clients', function(hooks) {
       );
     });
 
-    // test(`the ${label} facet filters the nodes list by ${label}`, async function(assert) {
-    //   let option;
-
-    //   await beforeEach();
-
-    //   await facet.toggle();
-    //   option = facet.options.objectAt(0);
-    //   await option.toggle();
-
-    //   const selection = [option.key];
-    //   const expectedNodes = server.db.nodes
-    //     .filter(node => filter(node, selection))
-    //     .sortBy('modifyIndex')
-    //     .reverse();
-
-    //   ClientsList.nodes.forEach((node, index) => {
-    //     assert.equal(
-    //       node.id,
-    //       expectedNodes[index].id.split('-')[0],
-    //       `Node at ${index} is ${expectedNodes[index].id}`
-    //     );
-    //   });
-    // });
-
-    // test(`selecting multiple options in the ${label} facet results in a broader search`, async function(assert) {
-    //   const selection = [];
-
-    //   await beforeEach();
-    //   await facet.toggle();
-
-    //   const option1 = facet.options.objectAt(0);
-    //   const option2 = facet.options.objectAt(1);
-    //   await option1.toggle();
-    //   selection.push(option1.key);
-    //   await option2.toggle();
-    //   selection.push(option2.key);
-
-    //   const expectedNodes = server.db.nodes
-    //     .filter(node => filter(node, selection))
-    //     .sortBy('modifyIndex')
-    //     .reverse();
-
-    //   ClientsList.nodes.forEach((node, index) => {
-    //     assert.equal(
-    //       node.id,
-    //       expectedNodes[index].id.split('-')[0],
-    //       `Node at ${index} is ${expectedNodes[index].id}`
-    //     );
-    //   });
-    // });
-
-    // test(`selecting options in the ${label} facet updates the ${paramName} query param`, async function(assert) {
-    //   const selection = [];
-
-    //   await beforeEach();
-    //   await facet.toggle();
-
-    //   const option1 = facet.options.objectAt(0);
-    //   const option2 = facet.options.objectAt(1);
-    //   await option1.toggle();
-    //   selection.push(option1.key);
-    //   await option2.toggle();
-    //   selection.push(option2.key);
-
-    //   assert.equal(
-    //     currentURL(),
-    //     `/clients?${paramName}=${encodeURIComponent(JSON.stringify(selection))}`,
-    //     'URL has the correct query param key and value'
-    //   );
-    // });
+    // TODO: add facet tests for actual list filtering
   }
 });
