@@ -1099,6 +1099,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			Policies:     apiTask.Vault.Policies,
 			Namespace:    *apiTask.Vault.Namespace,
 			Env:          *apiTask.Vault.Env,
+			EntityAlias:  *apiTask.Vault.EntityAlias,
 			ChangeMode:   *apiTask.Vault.ChangeMode,
 			ChangeSignal: *apiTask.Vault.ChangeSignal,
 		}
