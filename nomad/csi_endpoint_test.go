@@ -1183,6 +1183,9 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 			Region:    "global",
 			Namespace: ns,
 		},
+		Secrets: structs.CSISecrets{
+			"secret-key-1": "secret-val-1",
+		},
 	}
 	resp1 := &structs.CSIVolumeCreateResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Delete", req1, resp1)

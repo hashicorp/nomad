@@ -102,8 +102,13 @@ func (v *CSIVolumes) Create(vol *CSIVolume, w *WriteOptions) ([]*CSIVolume, *Wri
 // Delete deletes a CSI volume from an external storage provider. The ID
 // passed as an argument here is for the storage provider's ID, so a volume
 // that's already been deregistered can be deleted.
-func (v *CSIVolumes) Delete(externalVolID string, w *WriteOptions) error {
-	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete", url.PathEscape(externalVolID)), nil, w)
+func (v *CSIVolumes) Delete(externalVolID string, secrets string, w *WriteOptions) error {
+	qp := url.Values{}
+	if secrets != "" {
+		qp.Set("secrets", secrets)
+	}
+
+	_, err := v.client.delete(fmt.Sprintf("/v1/volume/csi/%v/delete?%s", url.PathEscape(externalVolID), qp.Encode()), nil, w)
 	return err
 }
 

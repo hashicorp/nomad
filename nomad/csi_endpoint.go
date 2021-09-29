@@ -1048,7 +1048,7 @@ func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.
 		// NOTE: deleting the volume in the external storage provider can't be
 		// made atomic with deregistration. We can't delete a volume that's
 		// not registered because we need to be able to lookup its plugin.
-		err = v.deleteVolume(vol, plugin)
+		err = v.deleteVolume(vol, plugin, args.Secrets)
 		if err != nil {
 			return err
 		}
@@ -1072,12 +1072,18 @@ func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.
 	return nil
 }
 
-func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin) error {
+func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin, querySecrets structs.CSISecrets) error {
+	// Combine volume and query secrets into one map.
+	// Query secrets override any secrets stored with the volume.
+	combinedSecrets := vol.Secrets
+	for k, v := range querySecrets {
+		combinedSecrets[k] = v
+	}
 
 	method := "ClientCSI.ControllerDeleteVolume"
 	cReq := &cstructs.ClientCSIControllerDeleteVolumeRequest{
 		ExternalVolumeID: vol.ExternalID,
-		Secrets:          vol.Secrets,
+		Secrets:          combinedSecrets,
 	}
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerDeleteVolumeResponse{}

@@ -16,7 +16,7 @@ deleted.
 ## Usage
 
 ```plaintext
-nomad volume delete [options] [volume]
+nomad volume delete [options] [volume] [-secrets key=value,key2=value2]
 ```
 
 The `volume delete` command requires a single argument, specifying the ID of
@@ -36,3 +36,8 @@ When ACLs are enabled, this command requires a token with the
 [csi_plugins_internals]: /docs/internals/plugins/csi#csi-plugins
 [deregistered]: /docs/commands/volume/deregister
 [registered]: /docs/commands/volume/register
+
+## Delete Options
+
+- `-secrets`: A list of comma separated secret key/value pairs to be passed 
+  to the CSI driver.

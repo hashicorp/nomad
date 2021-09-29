@@ -10,6 +10,7 @@ import (
 
 type VolumeDeleteCommand struct {
 	Meta
+	Secrets string
 }
 
 func (c *VolumeDeleteCommand) Help() string {
@@ -30,6 +31,9 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
 
+Delete Options:
+
+  -secrets: A set of key/value secrets to be used when deleting a volume.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -71,6 +75,8 @@ func (c *VolumeDeleteCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
+	flags.StringVar(&c.Secrets, "secrets", "", "")
+
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
 		return 1
@@ -78,8 +84,8 @@ func (c *VolumeDeleteCommand) Run(args []string) int {
 
 	// Check that we get exactly two arguments
 	args = flags.Args()
-	if l := len(args); l != 1 {
-		c.Ui.Error("This command takes one argument: <vol id>")
+	if l := len(args); l < 1 {
+		c.Ui.Error("This command takes at least one argument: <vol id>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -92,7 +98,7 @@ func (c *VolumeDeleteCommand) Run(args []string) int {
 		return 1
 	}
 
-	err = client.CSIVolumes().Delete(volID, nil)
+	err = client.CSIVolumes().Delete(volID, c.Secrets, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deleting volume: %s", err))
 		return 1
