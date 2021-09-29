@@ -1,5 +1,7 @@
 # Hostpath CSI Plugin
 
+Author: @hashicorp/nomad-eng
+
 This directory includes a demo using the [CSI host path
 driver](https://github.com/kubernetes-csi/csi-driver-host-path) to create
 local "host path" volumes that can be mounted via the Nomad CSI
