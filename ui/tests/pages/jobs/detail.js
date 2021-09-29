@@ -13,6 +13,7 @@ import {
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
 import recommendationAccordion from 'nomad-ui/tests/pages/components/recommendation-accordion';
+import jobClientStatusBar from 'nomad-ui/tests/pages/components/job-client-status-bar';
 
 export default create({
   visit: visitable('/jobs/:id'),
@@ -48,8 +49,6 @@ export default create({
     isDisabled: property('disabled'),
   },
 
-  barChart: isPresent('data-test-client-status-bar'),
-
   stats: collection('[data-test-job-stat]', {
     id: attribute('data-test-job-stat'),
     text: text(),
@@ -59,6 +58,7 @@ export default create({
     return this.stats.toArray().findBy('id', id);
   },
 
+  jobClientStatusSummary: jobClientStatusBar('[data-test-job-client-status-bar]'),
   childrenSummary: isPresent('[data-test-job-summary] [data-test-children-status-bar]'),
   allocationsSummary: isPresent('[data-test-job-summary] [data-test-allocation-status-bar]'),
 
@@ -89,13 +89,5 @@ export default create({
 
   recentAllocationsEmptyState: {
     headline: text('[data-test-empty-recent-allocations-headline]'),
-  },
-
-  clientSummary: {
-    id: attribute('[data-test-client-status-bar]'),
-  },
-  visitClients: function(attr) {
-    console.log('runs\n\n', attr);
-    clickable(attr);
   },
 });

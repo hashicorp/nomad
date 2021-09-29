@@ -134,7 +134,7 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
         isInactive && 'inactive',
         isClickable && 'clickable'
       ].compact().join(' ');
-    });
+    }).attr('data-test-slice-label', d => d.className);
 
     this.set('slices', slices);
 

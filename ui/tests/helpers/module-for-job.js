@@ -1,4 +1,4 @@
-import { click, currentURL } from '@ember/test-helpers';
+import { currentURL } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -12,36 +12,17 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
     setupApplicationTest(hooks);
     setupMirage(hooks);
     hooks.before(function() {
-      if (context !== 'allocations' && context !== 'children' && context !== 'sysbatch') {
+      if (context !== 'allocations' && context !== 'children') {
         throw new Error(
-          `Invalid context provided to moduleForJob, expected either "allocations", "sysbatch" or "children", got ${context}`
+          `Invalid context provided to moduleForJob, expected either "allocations" or "children", got ${context}`
         );
       }
     });
 
     hooks.beforeEach(async function() {
-      if (context === 'sysbatch') {
-        const clients = server.createList('node', 12, {
-          datacenter: 'dc1',
-          status: 'ready',
-        });
-        // Job with 1 task group.
-        job = server.create('job', {
-          status: 'running',
-          datacenters: ['dc1', 'dc2'],
-          type: 'sysbatch',
-          resourceSpec: ['M: 256, C: 500'],
-          createAllocations: false,
-        });
-        clients.forEach(c => {
-          server.create('allocation', { jobId: job.id, nodeId: c.id });
-        });
-        await JobDetail.visit({ id: job.id });
-      } else {
-        server.create('node');
-        job = jobFactory();
-        await JobDetail.visit({ id: job.id });
-      }
+      server.create('node');
+      job = jobFactory();
+      await JobDetail.visit({ id: job.id });
     });
 
     test('visiting /jobs/:job_id', async function(assert) {
@@ -81,26 +62,6 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
       }
     });
 
-    if (context === 'sysbatch') {
-      test('clients for the job are showing in the overview', async function(assert) {
-        assert.ok(
-          JobDetail.clientSummary.isPresent,
-          'Client Summary Status Bar Chart is displayed in summary section'
-        );
-      });
-      test('clicking a status bar in the chart takes you to a pre-filtered view of clients', async function(assert) {
-        const bars = document.querySelectorAll('[data-test-client-status-bar] > svg > g > g');
-        const status = bars[0].className.baseVal;
-        await click(`[data-test-client-status-${status}="${status}"]`);
-        const encodedStatus = statusList => encodeURIComponent(JSON.stringify(statusList));
-        assert.equal(
-          currentURL(),
-          `/jobs/${job.name}/clients?status=${encodedStatus([status])}`,
-          'Client Status Bar Chart links to client tab'
-        );
-      });
-    }
-
     if (context === 'allocations') {
       test('allocations for the job are shown in the overview', async function(assert) {
         assert.ok(JobDetail.allocationsSummary, 'Allocations are shown in the summary section');
@@ -130,6 +91,68 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
         );
       });
     }
+
+    for (var testName in additionalTests) {
+      test(testName, async function(assert) {
+        await additionalTests[testName].call(this, job, assert);
+      });
+    }
+  });
+}
+
+// eslint-disable-next-line ember/no-test-module-for
+export function moduleForJobWithClientStatus(title, jobFactory, additionalTests) {
+  let job;
+
+  module(title, function(hooks) {
+    setupApplicationTest(hooks);
+    setupMirage(hooks);
+
+    hooks.beforeEach(async function() {
+      const clients = server.createList('node', 3, {
+        datacenter: 'dc1',
+        status: 'ready',
+      });
+      job = jobFactory();
+      clients.forEach(c => {
+        server.create('allocation', { jobId: job.id, nodeId: c.id });
+      });
+      await JobDetail.visit({ id: job.id });
+    });
+
+    test('job status summary is shown in the overview', async function(assert) {
+      assert.ok(
+        JobDetail.jobClientStatusSummary.isPresent,
+        'Summary bar is displayed in the Job Status in Client summary section'
+      );
+    });
+
+    test('clicking legend item navigates to a pre-filtered clients table', async function(assert) {
+      const legendItem = JobDetail.jobClientStatusSummary.legend.clickableItems[0];
+      const encodedStatus = encodeURIComponent(JSON.stringify([legendItem.label]));
+      await legendItem.click();
+
+      // await this.pauseTest();
+
+      assert.equal(
+        currentURL(),
+        `/jobs/${job.name}/clients?status=${encodedStatus}`,
+        'Client Status Bar Chart legend links to client tab'
+      );
+    });
+
+    // TODO: fix click event on slices during tests
+    // test('clicking in a slice takes you to a pre-filtered view of clients', async function(assert) {
+    //   const slice = JobDetail.jobClientStatusSummary.slices[0];
+    //   await slice.click();
+    //
+    //   const encodedStatus = encodeURIComponent(JSON.stringify([slice.label]));
+    //   assert.equal(
+    //     currentURL(),
+    //     `/jobs/${job.name}/clients?status=${encodedStatus}`,
+    //     'Client Status Bar Chart links to client tab'
+    //   );
+    // });
 
     for (var testName in additionalTests) {
       test(testName, async function(assert) {

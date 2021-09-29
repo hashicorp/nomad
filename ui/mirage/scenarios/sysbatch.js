@@ -1,6 +1,14 @@
 export function sysbatchSmall(server) {
+  return sysbatchScenario(server, 15);
+}
+
+export function sysbatchLarge(server) {
+  return sysbatchScenario(server, 55);
+}
+
+function sysbatchScenario(server, clientCount) {
   server.createList('agent', 3);
-  const clients = server.createList('node', 12, {
+  const clients = server.createList('node', clientCount, {
     datacenter: 'dc1',
     status: 'ready',
   });

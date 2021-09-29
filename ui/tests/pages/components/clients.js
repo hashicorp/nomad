@@ -11,6 +11,8 @@ export default function(selector = '[data-test-client]', propKey = 'clients') {
       id: attribute(attr),
       shortId: text('[data-test-short-id]'),
       name: text('[data-test-name]'),
+      status: text('[data-test-job-status]'),
+
       createTime: {
         scope: '[data-test-create-time]',
         tooltip: {
@@ -18,6 +20,7 @@ export default function(selector = '[data-test-client]', propKey = 'clients') {
           text: attribute('aria-label'),
         },
       },
+
       modifyTime: {
         scope: '[data-test-modify-time]',
         tooltip: {
@@ -25,7 +28,6 @@ export default function(selector = '[data-test-client]', propKey = 'clients') {
           text: attribute('aria-label'),
         },
       },
-      status: text('[data-test-job-status]'),
 
       visit: clickable('[data-test-short-id] a'),
       visitRow: clickable(),

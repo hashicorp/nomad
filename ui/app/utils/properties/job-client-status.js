@@ -18,14 +18,15 @@ const STATUS = [
 export default function jobClientStatus(nodesKey, jobKey) {
   return computed(nodesKey, `${jobKey}.{datacenters,status,allocations,taskGroups}`, function() {
     const job = this.get(jobKey);
+    const nodes = this.get(nodesKey);
 
     // Filter nodes by the datacenters defined in the job.
-    const nodes = this.get(nodesKey).filter(n => {
+    const filteredNodes = nodes.filter(n => {
       return job.datacenters.indexOf(n.datacenter) >= 0;
     });
 
     if (job.status === 'pending') {
-      return allQueued(nodes);
+      return allQueued(filteredNodes);
     }
 
     // Group the job allocations by the ID of the client that is running them.
@@ -41,9 +42,9 @@ export default function jobClientStatus(nodesKey, jobKey) {
     const result = {
       byNode: {},
       byStatus: {},
-      totalNodes: nodes.length,
+      totalNodes: filteredNodes.length,
     };
-    nodes.forEach(n => {
+    filteredNodes.forEach(n => {
       const status = jobStatus(allocsByNodeID[n.id], job.taskGroups.length);
       result.byNode[n.id] = status;
 

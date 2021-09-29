@@ -34,7 +34,7 @@
     >
       <ol data-test-legend class="legend">
         {{#each chart.data as |datum index|}}
-          <li class="{{datum.className}} {{if (eq datum.label chart.activeDatum.label) "is-active"}} {{if (eq datum.value 0) "is-empty" "is-clickable"}}">
+          <li data-test-legent-label="{{datum.className}}" class="{{datum.className}} {{if (eq datum.label chart.activeDatum.label) "is-active"}} {{if (eq datum.value 0) "is-empty" "is-clickable"}}">
             {{#if (gt datum.value 0)}}
               <LinkTo @route="jobs.job.clients" @model={{this.job}} @query={{datum.queryParams}}>
                 <JobPage::Parts::JobClientStatusSummaryLegendItem @datum={{datum}} @index={{index}} />

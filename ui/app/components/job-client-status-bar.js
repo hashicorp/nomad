@@ -6,7 +6,7 @@ import classic from 'ember-classic-decorator';
 export default class JobClientStatusBar extends DistributionBar {
   layoutName = 'components/distribution-bar';
 
-  'data-test-client-status-bar' = true;
+  'data-test-job-client-status-bar' = true;
   jobClientStatus = null;
   onSliceClick() {}
 
