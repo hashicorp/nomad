@@ -1442,15 +1442,15 @@
         "path": "devices"
       },
       {
-        "title": "Nvidia",
-        "path": "devices/nvidia"
-      },
-      {
-        "title": "Community",
+        "title": "External",
         "routes": [
           {
             "title": "Overview",
             "path": "devices/external"
+          },
+          {
+            "title": "Nvidia",
+            "path": "devices/external/nvidia"
           },
           {
             "title": "USB <sup>Beta</sup>",
