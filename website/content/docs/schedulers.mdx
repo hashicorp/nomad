@@ -62,6 +62,8 @@ according to the job's [restart] stanza; system jobs do not have rescheduling.
 
 ## System Batch
 
+~> System Batch scheduling is new in Nomad 1.2.
+
 The `sysbatch` scheduler is used to register jobs that should be run to completion
 on all clients that meet the job's constraints. The `sysbatch` scheduler will
 schedule jobs similarly to the `system` scheduler, but like a `batch` job once a
