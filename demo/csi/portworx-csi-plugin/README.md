@@ -1,5 +1,7 @@
 ## Portworx CSI Plugin
 
+Author: @ggriffiths
+
 [Portworx](https://portworx.com/) is a software defined storage overlay which may be used via a CSI Plugin.
 
 ## Official documentation
