@@ -229,11 +229,7 @@ type ClientCSIControllerCreateVolumeRequest struct {
 func (req *ClientCSIControllerCreateVolumeRequest) ToCSIRequest() (*csi.ControllerCreateVolumeRequest, error) {
 
 	creq := &csi.ControllerCreateVolumeRequest{
-		Name: req.Name,
-		CapacityRange: &csi.CapacityRange{
-			RequiredBytes: req.CapacityMin,
-			LimitBytes:    req.CapacityMax,
-		},
+		Name:               req.Name,
 		VolumeCapabilities: []*csi.VolumeCapability{},
 		Parameters:         req.Parameters,
 		Secrets:            req.Secrets,
@@ -243,6 +239,12 @@ func (req *ClientCSIControllerCreateVolumeRequest) ToCSIRequest() (*csi.Controll
 		},
 		// TODO: topology is not yet supported
 		AccessibilityRequirements: &csi.TopologyRequirement{},
+	}
+	if req.CapacityMin != 0 || req.CapacityMax != 0 {
+		creq.CapacityRange = &csi.CapacityRange{
+			RequiredBytes: req.CapacityMin,
+			LimitBytes:    req.CapacityMax,
+		}
 	}
 	for _, cap := range req.VolumeCapabilities {
 		ccap, err := csi.VolumeCapabilityFromStructs(cap.AttachmentMode, cap.AccessMode, req.MountOptions)
