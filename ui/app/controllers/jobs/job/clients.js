@@ -13,10 +13,10 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class ClientsController extends Controller.extend(
-  SortableFactory(['id', 'name', 'jobStatus']),
-  Searchable,
-  WithNamespaceResetting
-) {
+    SortableFactory(['id', 'name', 'jobStatus']),
+    Searchable,
+    WithNamespaceResetting
+  ) {
   queryParams = [
     {
       currentPage: 'page',

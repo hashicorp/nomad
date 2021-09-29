@@ -1,4 +1,4 @@
-import { attribute, collection, clickable, hasClass, text } from 'ember-cli-page-object';
+import { attribute, collection, clickable, text } from 'ember-cli-page-object';
 import { singularize } from 'ember-inflector';
 
 export default function(selector = '[data-test-client]', propKey = 'clients') {
