@@ -79,7 +79,7 @@ func (c *JobDispatchCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
-		// filter this by periodic jobs
+		// filter by parameterized jobs
 		matches := make([]string, 0, len(resp))
 		for _, job := range resp {
 			if job.ParameterizedJob {
