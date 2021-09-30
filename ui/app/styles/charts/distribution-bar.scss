@@ -67,10 +67,28 @@
         // Ensure two columns, but don't use the full width
         width: 35%;
 
-        .label,
-        .value {
-          display: inline;
-          font-weight: $weight-normal;
+        .legend-item {
+          display: flex;
+          align-items: center;
+
+          .color-swatch {
+            margin-right: 0.5rem;
+          }
+
+          .text {
+            flex-grow: 1;
+
+            .label,
+            .value {
+              display: inline;
+              font-weight: $weight-normal;
+            }
+          }
+
+          .icon {
+            width: 1.2rem;
+            height: 1.2rem;
+          }
         }
 
         &.is-active {
