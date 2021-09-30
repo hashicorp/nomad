@@ -21,6 +21,7 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
+    gap: 16px;
 
     /*
      * Margins here compensate for extra 8px margin on buttons
@@ -28,20 +29,8 @@
      * buttons are wrapping to multiple lines or not.
      */
     margin-top: calc(32px - 8px);
-    margin-bottom: -8px;
     @media (--large) {
       margin-top: calc(40px - 8px);
-    }
-
-    & .g-btn {
-      /*
-       * This ensures 16px between buttons at all times, while maintaining proper centering
-       * when buttons wrap to multiple lines.
-       * There will be an extra 8px space on all sides of the button group.
-       * The top and bottom are accounted for by the -8px adjustment on `.action` margins.
-       * The left and right excess is left as is - it's needed for proper centering when wrapping.
-       */
-      margin: 8px;
     }
   }
 }
