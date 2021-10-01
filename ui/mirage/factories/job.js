@@ -53,6 +53,8 @@ export default Factory.extend({
 
   childrenCount: () => faker.random.number({ min: 1, max: 2 }),
 
+  meta: null,
+
   periodic: trait({
     type: 'batch',
     periodic: true,
@@ -137,6 +139,13 @@ export default Factory.extend({
     parameterized: true,
     dispatched: true,
     payload: window.btoa(faker.lorem.sentence()),
+  }),
+
+  pack: trait({
+    meta: () => ({
+      'pack.name': faker.hacker.noun(),
+      'pack.version': faker.system.semver(),
+    }),
   }),
 
   createIndex: i => i,

@@ -9,11 +9,11 @@ import { fragment } from 'ember-data-model-fragments/attributes';
 export default class NodeDriver extends Fragment {
   @fragmentOwner() node;
 
-  @fragment('node-attributes') attributes;
+  @fragment('structured-attributes') attributes;
 
-  @computed('name', 'attributes.attributesStructured')
+  @computed('name', 'attributes.structured')
   get attributesShort() {
-    const attributes = this.get('attributes.attributesStructured');
+    const attributes = this.get('attributes.structured');
     return get(attributes, `driver.${this.name}`);
   }
 

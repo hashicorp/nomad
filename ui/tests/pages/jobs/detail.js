@@ -34,6 +34,9 @@ export default create({
   stop: twoStepButton('[data-test-stop]'),
   start: twoStepButton('[data-test-start]'),
 
+  packTag: isPresent('[data-test-pack-tag]'),
+  metaTable: isPresent('[data-test-meta]'),
+
   execButton: {
     scope: '[data-test-exec-button]',
     isDisabled: property('disabled'),
@@ -58,6 +61,15 @@ export default create({
 
   statFor(id) {
     return this.stats.toArray().findBy('id', id);
+  },
+
+  packStats: collection('[data-test-pack-stat]', {
+    id: attribute('data-test-pack-stat'),
+    text: text(),
+  }),
+
+  packStatFor(id) {
+    return this.packStats.toArray().findBy('id', id);
   },
 
   jobClientStatusSummary: jobClientStatusBar('[data-test-job-client-status-bar]'),

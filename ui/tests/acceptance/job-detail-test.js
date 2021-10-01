@@ -296,6 +296,47 @@ module('Acceptance | job detail (with namespaces)', function(hooks) {
     assert.notOk(JobDetail.execButton.isDisabled);
   });
 
+  test('meta table is displayed if job has meta attributes', async function(assert) {
+    const jobWithMeta = server.create('job', {
+      status: 'running',
+      namespaceId: server.db.namespaces[1].id,
+      meta: {
+        'a.b': 'c',
+      },
+    });
+
+    await JobDetail.visit({ id: job.id, namespace: server.db.namespaces[1].name });
+    assert.notOk(JobDetail.metaTable, 'Meta table not present');
+
+    await JobDetail.visit({ id: jobWithMeta.id, namespace: server.db.namespaces[1].name });
+    assert.ok(JobDetail.metaTable, 'Meta table is present');
+  });
+
+  test('pack details are displayed', async function(assert) {
+    const namespace = server.db.namespaces[1].id;
+    const jobFromPack = server.create('job', {
+      status: 'running',
+      namespaceId: namespace,
+      meta: {
+        'pack.name': 'my-pack',
+        'pack.version': '1.0.0',
+      },
+    });
+
+    await JobDetail.visit({ id: jobFromPack.id, namespace });
+    assert.ok(JobDetail.packTag, 'Pack tag is present');
+    assert.equal(
+      JobDetail.packStatFor('name').text,
+      `Name ${jobFromPack.meta['pack.name']}`,
+      `Pack name is ${jobFromPack.meta['pack.name']}`
+    );
+    assert.equal(
+      JobDetail.packStatFor('version').text,
+      `Version ${jobFromPack.meta['pack.version']}`,
+      `Pack version is ${jobFromPack.meta['pack.version']}`
+    );
+  });
+
   test('resource recommendations show when they exist and can be expanded, collapsed, and processed', async function(assert) {
     server.create('feature', { name: 'Dynamic Application Sizing' });
 

@@ -1,0 +1,16 @@
+{{#if @job.metaStructured.pack}}
+  <div class="boxed-section is-small">
+    <div class="boxed-section-body inline-definitions">
+      <span class="label">Pack Details</span>
+      <span class="pair" data-test-pack-stat="name">
+        <span class="term">Name</span>
+        {{@job.metaStructured.pack.name}}
+      </span>
+      <span class="pair" data-test-pack-stat="version">
+        <span class="term">Version</span>
+        {{@job.metaStructured.pack.version}}
+      </span>
+      {{yield}}
+    </div>
+  </div>
+{{/if}}

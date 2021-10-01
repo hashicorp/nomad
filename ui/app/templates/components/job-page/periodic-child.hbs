@@ -3,21 +3,16 @@
 
   <JobPage::Parts::Title @job={{this.job}} @title={{this.job.trimmedName}} @handleError={{action "handleError"}} />
 
-  <div class="boxed-section job-stats">
-    <div class="boxed-section-body">
-      <span data-test-job-stat="type"><strong>Type:</strong> {{this.job.type}} | </span>
-      <span data-test-job-stat="priority"><strong>Priority:</strong> {{this.job.priority}} |</span>
-      <span data-test-job-stat="parent">
-        <strong>Parent:</strong>
+  <JobPage::Parts::StatsBox @job={{this.job}}>
+    <:before-namespace>
+      <span class="pair" data-test-job-stat="parent">
+        <span class="term">Parent</span>
         <LinkTo @route="jobs.job" @model={{this.job.parent}} @query={{hash namespace=this.job.parent.namespace.name}}>
           {{this.job.parent.name}}
         </LinkTo>
       </span>
-      {{#if (and this.job.namespace this.system.shouldShowNamespaces)}}
-        <span data-test-job-stat="namespace"> | <strong>Namespace:</strong> {{this.job.namespace.name}}</span>
-      {{/if}}
-    </div>
-  </div>
+    </:before-namespace>
+  </JobPage::Parts::StatsBox>
 
   {{#if this.job.hasClientStatus}}
     <JobPage::Parts::JobClientStatusSummary
@@ -38,4 +33,6 @@
     @gotoTaskGroup={{this.gotoTaskGroup}} />
 
   <JobPage::Parts::RecentAllocations @job={{this.job}} />
+
+  <JobPage::Parts::Meta @job={{this.job}} />
 </JobPage::Parts::Body>

@@ -1,6 +1,12 @@
 <h1 class="title with-flex">
   <div data-test-job-name>
     {{or this.title this.job.name}}
+    {{#if @job.meta.structured.pack}}
+      <span data-test-pack-tag class="tag is-hollow">
+        {{x-icon "box" class= "test"}}
+        <span>Pack</span>
+      </span>
+    {{/if}}
     <span class="bumper-left tag {{this.job.statusClass}}" data-test-job-status>{{this.job.status}}</span>
     {{yield}}
   </div>

@@ -1,0 +1,40 @@
+<div class="boxed-section is-small">
+  <div class="boxed-section-body inline-definitions">
+    <span class="label" style="width: 6.125rem;">Job Details</span>
+    <span class="pair" data-test-job-stat="type">
+      <span class="term">Type</span>
+      {{@job.type}}
+    </span>
+    <span class="pair" data-test-job-stat="priority">
+      <span class="term">Priority</span>
+      {{@job.priority}}
+    </span>
+    <span class="pair" data-test-job-stat="version">
+      <span class="term">Version</span>
+      {{@job.version}}
+    </span>
+    {{yield to="before-namespace"}}
+    {{#if (and @job.namespace this.system.shouldShowNamespaces)}}
+      <span class="pair" data-test-job-stat="namespace">
+        <span class="term">Namespace</span>
+        {{@job.namespace.name}}
+      </span>
+    {{/if}}
+    {{yield to="after-namespace"}}
+  </div>
+
+  {{#if @job.meta.structured.pack}}
+    <div class="boxed-section-body inline-definitions">
+      <span class="label" style="width: 6.125rem;">Pack Details</span>
+      <span class="pair" data-test-pack-stat="name">
+        <span class="term">Name</span>
+        {{@job.meta.structured.pack.name}}
+      </span>
+      <span class="pair" data-test-pack-stat="version">
+        <span class="term">Version</span>
+        {{@job.meta.structured.pack.version}}
+      </span>
+      {{yield}}
+    </div>
+  {{/if}}
+</div>
