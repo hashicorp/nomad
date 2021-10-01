@@ -102,39 +102,38 @@ func (e *UniversalExecutor) getAllPids() (map[int]*nomadPid, error) {
 // DestroyCgroup kills all processes in the cgroup and removes the cgroup
 // configuration from the host. This function is idempotent.
 func DestroyCgroup(groups *lconfigs.Cgroup, executorPid int) error {
-	mErrs := new(multierror.Error)
 	if groups == nil {
 		return fmt.Errorf("Can't destroy: cgroup configuration empty")
 	}
+
+	mErrs := new(multierror.Error)
 
 	// Move the executor into the global cgroup so that the task specific
 	// cgroup can be destroyed.
 	path, err := cgroups.GetInitCgroupPath("freezer")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to find freezer path: %w", err)
 	}
 
-	if err := cgroups.EnterPid(map[string]string{"freezer": path}, executorPid); err != nil {
-		return err
+	paths := map[string]string{"freezer": path}
+	if err := cgroups.EnterPid(paths, executorPid); err != nil {
+		return fmt.Errorf("failed to enter cgroup pid: %w", err)
 	}
 
 	// Freeze the Cgroup so that it can not continue to fork/exec.
-	groups.Resources.Freezer = lconfigs.Frozen
-	freezer := cgroupFs.FreezerGroup{}
-	if err := freezer.Set(groups.Paths[freezer.Name()], groups); err != nil {
-		return err
+	manager := cgroupFs.NewManager(groups, paths, false)
+	if err := manager.Freeze(lconfigs.Frozen); err != nil {
+		return fmt.Errorf("failed to freeze cgroup: %w", err)
 	}
 
 	var procs []*os.Process
 	pids, err := cgroups.GetAllPids(groups.Paths[freezer.Name()])
 	if err != nil {
-		multierror.Append(mErrs, fmt.Errorf("error getting pids: %v", err))
+		multierror.Append(mErrs, fmt.Errorf("error getting pids: %w", err))
 
 		// Unfreeze the cgroup.
-		groups.Resources.Freezer = lconfigs.Thawed
-		freezer := cgroupFs.FreezerGroup{}
-		if err := freezer.Set(groups.Paths[freezer.Name()], groups); err != nil {
-			multierror.Append(mErrs, fmt.Errorf("failed to unfreeze cgroup: %v", err))
+		if err := manager.Freeze(lconfigs.Thawed); err != nil {
+			multierror.Append(mErrs, fmt.Errorf("failed to unfreeze cgroup: %w", err))
 			return mErrs.ErrorOrNil()
 		}
 	}
@@ -143,20 +142,19 @@ func DestroyCgroup(groups *lconfigs.Cgroup, executorPid int) error {
 	for _, pid := range pids {
 		proc, err := os.FindProcess(pid)
 		if err != nil {
-			multierror.Append(mErrs, fmt.Errorf("error finding process %v: %v", pid, err))
+			multierror.Append(mErrs, fmt.Errorf("error finding process %v: %w", pid, err))
 			continue
 		}
 
 		procs = append(procs, proc)
 		if e := proc.Kill(); e != nil {
-			multierror.Append(mErrs, fmt.Errorf("error killing process %v: %v", pid, e))
+			multierror.Append(mErrs, fmt.Errorf("error killing process %v: %w", pid, e))
 		}
 	}
 
 	// Unfreeze the cgroug so we can wait.
-	groups.Resources.Freezer = lconfigs.Thawed
-	if err := freezer.Set(groups.Paths[freezer.Name()], groups); err != nil {
-		multierror.Append(mErrs, fmt.Errorf("failed to unfreeze cgroup: %v", err))
+	if err := manager.Freeze(lconfigs.Thawed); err != nil {
+		multierror.Append(mErrs, fmt.Errorf("failed to unfreeze cgroup: %w", err))
 		return mErrs.ErrorOrNil()
 	}
 
@@ -169,7 +167,7 @@ func DestroyCgroup(groups *lconfigs.Cgroup, executorPid int) error {
 
 	// Remove the cgroup.
 	if err := cgroups.RemovePaths(groups.Paths); err != nil {
-		multierror.Append(mErrs, fmt.Errorf("failed to delete the cgroup directories: %v", err))
+		multierror.Append(mErrs, fmt.Errorf("failed to delete the cgroup directories: %w", err))
 	}
 	return mErrs.ErrorOrNil()
 }
