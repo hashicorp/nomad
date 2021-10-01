@@ -643,7 +643,11 @@ func (c *Client) init() error {
 
 	c.logger.Info("using alloc directory", "alloc_dir", c.config.AllocDir)
 
-	c.logger.Info("using dynamic ports", "min", c.config.MinDynamicPort, "max", c.config.MaxDynamicPort)
+	c.logger.Info("using dynamic ports",
+		"min", c.config.MinDynamicPort,
+		"max", c.config.MaxDynamicPort,
+		"reserved", c.config.Node.ReservedResources.Networks.ReservedHostPorts,
+	)
 
 	// Ensure cgroups are created on linux platform
 	if runtime.GOOS == "linux" && c.cpusetManager != nil {
