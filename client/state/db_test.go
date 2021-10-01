@@ -196,7 +196,7 @@ func TestStateDB_Batch(t *testing.T) {
 		if getTxID != nil {
 			numTransactions := getTxID() - prevTxID
 			writeTime := time.Now().Sub(startTime)
-			expectedNumTransactions := ceilDiv(2 * numAllocs, batchSize) + ceilDiv(int(writeTime), int(batchDelay))
+			expectedNumTransactions := ceilDiv(2*numAllocs, batchSize) + ceilDiv(int(writeTime), int(batchDelay))
 			require.LessOrEqual(numTransactions, expectedNumTransactions)
 			prevTxID = getTxID()
 		}

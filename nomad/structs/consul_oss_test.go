@@ -1,3 +1,4 @@
+//go:build !ent
 // +build !ent
 
 package structs
@@ -73,7 +74,7 @@ func TestJob_ConfigEntries(t *testing.T) {
 
 	exp := map[string]*ConsulConfigEntries{
 		// in OSS, consul namespace is not supported
-		"": &ConsulConfigEntries{
+		"": {
 			Ingress: map[string]*ConsulIngressConfigEntry{
 				"group1-service1": new(ConsulIngressConfigEntry),
 				"group2-service1": new(ConsulIngressConfigEntry),

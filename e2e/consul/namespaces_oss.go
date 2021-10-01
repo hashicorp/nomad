@@ -1,3 +1,4 @@
+//go:build !ent
 // +build !ent
 
 // Nomad OSS ignores Consul Namespace configuration in jobs, these e2e tests

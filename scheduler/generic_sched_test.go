@@ -3452,7 +3452,7 @@ func TestServiceSched_NodeDrain_TaskHandle(t *testing.T) {
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		alloc.DesiredTransition.Migrate = helper.BoolToPtr(true)
 		alloc.TaskStates = map[string]*structs.TaskState{
-			"web": &structs.TaskState{
+			"web": {
 				TaskHandle: &structs.TaskHandle{
 					Version:     1,
 					DriverState: []byte("test-driver-state"),
@@ -6289,7 +6289,7 @@ func TestPropagateTaskState(t *testing.T) {
 				ClientStatus:      structs.AllocClientStatusRunning,
 				DesiredTransition: structs.DesiredTransition{},
 				TaskStates: map[string]*structs.TaskState{
-					taskName: &structs.TaskState{
+					taskName: {
 						TaskHandle: taskHandle,
 					},
 				},
@@ -6305,7 +6305,7 @@ func TestPropagateTaskState(t *testing.T) {
 					Migrate: helper.BoolToPtr(true),
 				},
 				TaskStates: map[string]*structs.TaskState{
-					taskName: &structs.TaskState{
+					taskName: {
 						TaskHandle: taskHandle,
 					},
 				},
@@ -6319,7 +6319,7 @@ func TestPropagateTaskState(t *testing.T) {
 				ClientStatus:      structs.AllocClientStatusRunning,
 				DesiredTransition: structs.DesiredTransition{},
 				TaskStates: map[string]*structs.TaskState{
-					taskName: &structs.TaskState{},
+					taskName: {},
 				},
 			},
 			prevLost: true,
@@ -6333,7 +6333,7 @@ func TestPropagateTaskState(t *testing.T) {
 					Migrate: helper.BoolToPtr(true),
 				},
 				TaskStates: map[string]*structs.TaskState{
-					taskName: &structs.TaskState{},
+					taskName: {},
 				},
 			},
 			prevLost: false,
@@ -6345,7 +6345,7 @@ func TestPropagateTaskState(t *testing.T) {
 				ClientStatus:      structs.AllocClientStatusComplete,
 				DesiredTransition: structs.DesiredTransition{},
 				TaskStates: map[string]*structs.TaskState{
-					taskName: &structs.TaskState{
+					taskName: {
 						TaskHandle: taskHandle,
 					},
 				},

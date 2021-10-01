@@ -479,7 +479,7 @@ func TestNetworkFingerPrint_MultipleAliases(t *testing.T) {
 		}
 	}
 	expected := []string{}
-	for alias, _ := range cfg.HostNetworks {
+	for alias := range cfg.HostNetworks {
 		expected = append(expected, alias)
 	}
 	sort.Strings(expected)
