@@ -15,11 +15,13 @@ import (
 // here. See eeaa95d commit message for more details.
 func init() {
 	if len(os.Args) > 1 && os.Args[1] == "logmon" {
+
 		logger := hclog.New(&hclog.LoggerOptions{
 			Level:      hclog.Trace,
 			JSONFormat: true,
 			Name:       "logmon",
 		})
+		installPProfHandler(logger)
 		plugin.Serve(&plugin.ServeConfig{
 			HandshakeConfig: base.Handshake,
 			Plugins: map[string]plugin.Plugin{
