@@ -168,6 +168,9 @@ func TestNodes_Info(t *testing.T) {
 			result.ID, result.Datacenter)
 	}
 
+	require.Equal(t, 20000, result.NodeResources.MinDynamicPort)
+	require.Equal(t, 32000, result.NodeResources.MaxDynamicPort)
+
 	// Check that the StatusUpdatedAt field is being populated correctly
 	if result.StatusUpdatedAt < startTime {
 		t.Fatalf("start time: %v, status updated: %v", startTime, result.StatusUpdatedAt)
