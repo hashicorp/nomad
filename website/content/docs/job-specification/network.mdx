@@ -17,19 +17,6 @@ and services. Because you don't know in advance what host your job will be
 provisioned on, Nomad will provide your tasks with network configuration when
 they start up.
 
-When the `network` stanza is defined with `bridge` as the networking mode,
-all tasks in the task group share the same network namespace. This is a prerequisite for
-[Consul Connect](/docs/integrations/consul-connect). Tasks running within a
-network namespace are not visible to applications outside the namespace on the same host.
-This allows [Connect][]-enabled applications to bind only to localhost within the shared network stack,
-and use the proxy for ingress and egress traffic.
-
-To use `bridge` mode, you must have the [reference CNI
-plugins](https://github.com/containernetworking/plugins/releases/tag/v1.0.0)
-installed at the location specified by the client's [`cni_path`]
-configuration. These plugins are used to create the bridge network and
-configure the appropriate iptables rules.
-
 Note that this document only applies to services that want to _listen_ on a
 port. Batch jobs or services that only make outbound connections do not need to
 allocate ports, since they will use any available interface to make an outbound
@@ -49,6 +36,24 @@ job "docs" {
 }
 ```
 
+### Network modes
+
+When the `network` stanza is defined with `bridge` as the networking mode,
+all tasks in the task group share the same network namespace. This is a prerequisite for
+[Consul Connect](/docs/integrations/consul-connect). Tasks running within a
+network namespace are not visible to applications outside the namespace on the same host.
+This allows [Connect][]-enabled applications to bind only to localhost within the shared network stack,
+and use the proxy for ingress and egress traffic.
+
+To use `bridge` mode, you must have the [reference CNI
+plugins](https://github.com/containernetworking/plugins/releases/tag/v1.0.0)
+installed at the location specified by the client's [`cni_path`]
+configuration. These plugins are used to create the bridge network and
+configure the appropriate iptables rules.
+
+Network modes are only supported in allocations running on Linux clients.
+All other operating systems use the `host` networking mode.
+
 ## `network` Parameters
 
 - `mbits` <code>([_deprecated_](/docs/upgrade/upgrade-specific#nomad-0-12-0) int: 10)</code> - Specifies the bandwidth required in MBits.
@@ -56,7 +61,8 @@ job "docs" {
 - `port` <code>([Port](#port-parameters): nil)</code> - Specifies a TCP/UDP port
   allocation and can be used to specify both dynamic ports and reserved ports.
 
-- `mode` `(string: "host")` - Mode of the network. The following modes are available:
+- `mode` `(string: "host")` - Mode of the network. This option is only supported
+  on Linux clients. The following modes are available:
 
   - `none` - Task group will have an isolated network without any network interfaces.
   - `bridge` - Task group will have an isolated network namespace with an interface
