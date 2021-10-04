@@ -87,6 +87,8 @@ function allJobTypes(server) {
   server.create('job', { type: 'system' });
   server.create('job', 'periodic');
   server.create('job', 'parameterized');
+  server.create('job', 'periodicSysbatch');
+  server.create('job', 'parameterizedSysbatch');
   server.create('job', { failedPlacements: true });
 }
 
