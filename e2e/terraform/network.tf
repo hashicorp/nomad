@@ -42,10 +42,10 @@ resource "aws_security_group" "primary" {
     cidr_blocks = [local.ingress_cidr]
   }
 
-  # Consul
+  # Consul: 8500 for HTTP, 8501 for HTTPS
   ingress {
     from_port   = 8500
-    to_port     = 8500
+    to_port     = 8501
     protocol    = "tcp"
     cidr_blocks = [local.ingress_cidr]
   }

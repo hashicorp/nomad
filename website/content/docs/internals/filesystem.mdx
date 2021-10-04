@@ -42,8 +42,12 @@ allocation directory like the one below.
   log shipper. This is the directory that's provided to the task as the
   `NOMAD_ALLOC_DIR`. Note that this `alloc/` directory is not the same as the
   "allocation working directory", which is the top-level directory. All tasks
-  in a task group can read and write to the `alloc/` directory. Within the
-  `alloc/` directory are three standard directories:
+  in a task group can read and write to the `alloc/` directory. But the full host 
+  path may differ depending on the task driver's [filesystem isolation mode], so
+  tasks should always used the `NOMAD_ALLOC_DIR` environment variable
+  to find this path rather than relying on the specific implementation of the 
+  [`none`](#none-isolation), [`chroot`](#chroot-isolation), or [`image`](#image-isolation) 
+  modes. Within the `alloc/` directory are three standard directories:
 
   - **alloc/data/**: This directory is the location used by the
     [`ephemeral_disk`] stanza for shared data.

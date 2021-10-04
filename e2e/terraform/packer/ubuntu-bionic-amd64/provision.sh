@@ -22,6 +22,9 @@ Options for configuration:
  --nomad_license            set the NOMAD_LICENSE environment variable
  --nomad_acls               write Nomad ACL configuration
  --autojoin                 the AWS ConsulAutoJoin tag value
+ --tls
+ --cert FILEPATH
+ --key FILEPATH
 
 EOF
 
@@ -42,6 +45,7 @@ BUILD_FOLDER="builds-oss"
 CONSUL_AUTOJOIN=
 ACLS=0
 NOMAD_LICENSE=
+TLS=0
 
 install_from_s3() {
     # check that we don't already have this version
@@ -135,6 +139,16 @@ install_config_profile() {
     if [ $ACLS == "1" ]; then
         sudo ln -fs /opt/config/shared/nomad-acl.hcl /etc/nomad.d/acl.hcl
     fi
+
+    if [ $TLS == "1" ]; then
+        sudo ln -fs /opt/config/shared/nomad-tls.hcl /etc/nomad.d/tls.hcl
+        sudo ln -fs /opt/config/shared/consul-tls.json /etc/consul.d/tls.json
+        sudo cp /opt/config/shared/vault-tls.hcl /etc/vault.d/vault.hcl
+
+        sudo cp -r /tmp/nomad-tls /etc/nomad.d/tls
+        sudo cp -r /tmp/nomad-tls /etc/consul.d/tls
+        sudo cp -r /tmp/nomad-tls /etc/vault.d/tls
+    fi
 }
 
 update_consul_autojoin() {
@@ -205,6 +219,10 @@ opt="$1"
             ;;
         --nomad_acls)
             ACLS=1
+            shift
+            ;;
+        --tls)
+            TLS=1
             shift
             ;;
         *) usage ;;

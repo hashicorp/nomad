@@ -1728,7 +1728,7 @@ func (s *ConsulIngressService) Equals(o *ConsulIngressService) bool {
 	return helper.CompareSliceSetString(s.Hosts, o.Hosts)
 }
 
-func (s *ConsulIngressService) Validate(isHTTP bool) error {
+func (s *ConsulIngressService) Validate(protocol string) error {
 	if s == nil {
 		return nil
 	}
@@ -1737,25 +1737,25 @@ func (s *ConsulIngressService) Validate(isHTTP bool) error {
 		return errors.New("Consul Ingress Service requires a name")
 	}
 
-	// Validation of wildcard service name and hosts varies on whether the protocol
-	// for the gateway is HTTP.
+	// Validation of wildcard service name and hosts varies depending on the
+	// protocol for the gateway.
 	// https://www.consul.io/docs/connect/config-entries/ingress-gateway#hosts
-	switch isHTTP {
-	case true:
+	switch protocol {
+	case "tcp":
+		if s.Name == "*" {
+			return errors.New(`Consul Ingress Service doesn't support wildcard name for "tcp" protocol`)
+		}
+
+		if len(s.Hosts) != 0 {
+			return errors.New(`Consul Ingress Service doesn't support associating hosts to a service for the "tcp" protocol`)
+		}
+	default:
 		if s.Name == "*" {
 			return nil
 		}
 
 		if len(s.Hosts) == 0 {
-			return errors.New("Consul Ingress Service requires one or more hosts when using HTTP protocol")
-		}
-	case false:
-		if s.Name == "*" {
-			return errors.New("Consul Ingress Service supports wildcard names only with HTTP protocol")
-		}
-
-		if len(s.Hosts) > 0 {
-			return errors.New("Consul Ingress Service supports hosts only when using HTTP protocol")
+			return fmt.Errorf("Consul Ingress Service requires one or more hosts when using %q protocol", protocol)
 		}
 	}
 
@@ -1815,9 +1815,9 @@ func (l *ConsulIngressListener) Validate() error {
 		return fmt.Errorf("Consul Ingress Listener requires valid Port")
 	}
 
-	protocols := []string{"http", "tcp"}
+	protocols := []string{"tcp", "http", "http2", "grpc"}
 	if !helper.SliceStringContains(protocols, l.Protocol) {
-		return fmt.Errorf(`Consul Ingress Listener requires protocol of "http" or "tcp", got %q`, l.Protocol)
+		return fmt.Errorf(`Consul Ingress Listener requires protocol of %s, got %q`, strings.Join(protocols, ", "), l.Protocol)
 	}
 
 	if len(l.Services) == 0 {
@@ -1825,7 +1825,7 @@ func (l *ConsulIngressListener) Validate() error {
 	}
 
 	for _, service := range l.Services {
-		if err := service.Validate(l.Protocol == "http"); err != nil {
+		if err := service.Validate(l.Protocol); err != nil {
 			return err
 		}
 	}

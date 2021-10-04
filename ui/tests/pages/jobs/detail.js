@@ -18,6 +18,8 @@ import jobClientStatusBar from 'nomad-ui/tests/pages/components/job-client-statu
 export default create({
   visit: visitable('/jobs/:id'),
 
+  jobName: text('[data-test-job-name]'),
+
   tabs: collection('[data-test-tab]', {
     id: attribute('data-test-tab'),
     visit: clickable('a'),
@@ -66,9 +68,16 @@ export default create({
 
   viewAllAllocations: text('[data-test-view-all-allocations]'),
 
+  jobsHeader: {
+    scope: '[data-test-jobs-header]',
+    hasSubmitTime: isPresent('[data-test-jobs-submit-time-header]'),
+    hasNamespace: isPresent('[data-test-jobs-namespace-header]'),
+  },
+
   jobs: collection('[data-test-job-row]', {
     id: attribute('data-test-job-row'),
     name: text('[data-test-job-name]'),
+    namespace: text('[data-test-job-namespace]'),
     link: attribute('href', '[data-test-job-name] a'),
     submitTime: text('[data-test-job-submit-time]'),
     status: text('[data-test-job-status]'),

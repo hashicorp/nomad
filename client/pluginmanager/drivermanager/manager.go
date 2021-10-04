@@ -258,7 +258,7 @@ func (m *manager) waitForFirstFingerprint(ctx context.Context, cancel context.Ca
 		mu.Lock()
 		defer mu.Unlock()
 
-		updated := append(driversByStatus[lastHeath], name)
+		updated := append(driversByStatus[lastHeath], name) //nolint:gocritic
 		driversByStatus[lastHeath] = updated
 	}
 

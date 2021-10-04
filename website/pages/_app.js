@@ -34,7 +34,7 @@ export default function App({ Component, pageProps }) {
         icon={[{ href: '/_favicon.ico' }]}
       />
       {ALERT_BANNER_ACTIVE && (
-        <AlertBanner {...alertBannerData} product="nomad" />
+        <AlertBanner {...alertBannerData} product="nomad" hideOnMobile />
       )}
       <HashiStackMenu />
       <ProductSubnav />

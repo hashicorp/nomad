@@ -1,4 +1,5 @@
-//+build !ent
+//go:build !ent
+// +build !ent
 
 package nomad
 

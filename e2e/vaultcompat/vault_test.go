@@ -70,7 +70,7 @@ func syncVault(t *testing.T) ([]*version.Version, map[string]string) {
 	}
 
 	binaries := make(map[string]string, len(versions))
-	for ver, _ := range versions {
+	for ver := range versions {
 		binaries[ver] = filepath.Join(binDir, ver)
 	}
 	return sorted, binaries

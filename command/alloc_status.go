@@ -556,7 +556,7 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 	c.Ui.Output("Task Resources")
 	var addr []string
 	for _, nw := range resource.Networks {
-		ports := append(nw.DynamicPorts, nw.ReservedPorts...)
+		ports := append(nw.DynamicPorts, nw.ReservedPorts...) //nolint:gocritic
 		for _, port := range ports {
 			addr = append(addr, fmt.Sprintf("%v: %v:%v\n", port.Label, nw.IP, port.Value))
 		}

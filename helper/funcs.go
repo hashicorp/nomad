@@ -68,7 +68,7 @@ func HashUUID(input string) (output string, hashed bool) {
 	return output, true
 }
 
-// boolToPtr returns the pointer to a boolean
+// BoolToPtr returns the pointer to a boolean.
 func BoolToPtr(b bool) *bool {
 	return &b
 }
@@ -278,7 +278,8 @@ func CompareMapStringString(a, b map[string]string) bool {
 	return true
 }
 
-// Helpers for copying generic structures.
+// Below is helpers for copying generic structures.
+
 func CopyMapStringString(m map[string]string) map[string]string {
 	l := len(m)
 	if l == 0 {

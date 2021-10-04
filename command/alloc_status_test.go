@@ -133,9 +133,9 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 	a.TaskResources["init_task"] = a.TaskResources["web"]
 	a.TaskResources["prestart_sidecar"] = a.TaskResources["web"]
 	a.TaskStates = map[string]*structs.TaskState{
-		"web":              &structs.TaskState{State: "pending"},
-		"init_task":        &structs.TaskState{State: "running"},
-		"prestart_sidecar": &structs.TaskState{State: "running"},
+		"web":              {State: "pending"},
+		"init_task":        {State: "running"},
+		"prestart_sidecar": {State: "running"},
 	}
 
 	require.Nil(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
@@ -429,7 +429,7 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 	// fakes the placement enough so that we have something to iterate
 	// on in 'nomad alloc status'
 	alloc.TaskStates = map[string]*structs.TaskState{
-		"web": &structs.TaskState{
+		"web": {
 			Events: []*structs.TaskEvent{
 				structs.NewTaskEvent("test event").SetMessage("test msg"),
 			},
@@ -504,7 +504,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 	}
 	// if we don't set a task state, there's nothing to iterate on alloc status
 	alloc.TaskStates = map[string]*structs.TaskState{
-		"web": &structs.TaskState{
+		"web": {
 			Events: []*structs.TaskEvent{
 				structs.NewTaskEvent("test event").SetMessage("test msg"),
 			},

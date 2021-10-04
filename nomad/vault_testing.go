@@ -46,7 +46,7 @@ func (v *TestVaultClient) LookupToken(ctx context.Context, token string) (*vapi.
 	return secret, err
 }
 
-// SetLookupTokenSecret sets the error that will be returned by the token
+// SetLookupTokenError sets the error that will be returned by the token
 // lookup
 func (v *TestVaultClient) SetLookupTokenError(token string, err error) {
 	if v.LookupTokenErrors == nil {

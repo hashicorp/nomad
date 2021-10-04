@@ -7,12 +7,21 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-// dockerNetSpecLabelKey is used when creating a parent container for
-// shared networking. It is a label whos value identifies the container ID of
-// the parent container so tasks can configure their network mode accordingly
-const dockerNetSpecLabelKey = "docker_sandbox_container_id"
+const (
+	// dockerNetSpecLabelKey is the label added when we create a pause
+	// container to own the network namespace, and the NetworkIsolationSpec we
+	// get back from CreateNetwork has this label set as the container ID.
+	// We'll use this to generate a hostname for the task in the event the user
+	// did not specify a custom one. Please see dockerNetSpecHostnameKey.
+	dockerNetSpecLabelKey = "docker_sandbox_container_id"
 
-func (d *Driver) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, bool, error) {
+	// dockerNetSpecHostnameKey is the label added when we create a pause
+	// container and the task group network include a user supplied hostname
+	// parameter.
+	dockerNetSpecHostnameKey = "docker_sandbox_hostname"
+)
+
+func (d *Driver) CreateNetwork(allocID string, createSpec *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
 	// Initialize docker API clients
 	client, _, err := d.dockerClients()
 	if err != nil {
@@ -32,19 +41,26 @@ func (d *Driver) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, b
 		return nil, false, err
 	}
 
-	config, err := d.createSandboxContainerConfig(allocID)
+	config, err := d.createSandboxContainerConfig(allocID, createSpec)
 	if err != nil {
 		return nil, false, err
 	}
 
-	specFromContainer := func(c *docker.Container) *drivers.NetworkIsolationSpec {
-		return &drivers.NetworkIsolationSpec{
+	specFromContainer := func(c *docker.Container, hostname string) *drivers.NetworkIsolationSpec {
+		spec := &drivers.NetworkIsolationSpec{
 			Mode: drivers.NetIsolationModeGroup,
 			Path: c.NetworkSettings.SandboxKey,
 			Labels: map[string]string{
 				dockerNetSpecLabelKey: c.ID,
 			},
 		}
+
+		// If the user supplied a hostname, set the label.
+		if hostname != "" {
+			spec.Labels[dockerNetSpecHostnameKey] = hostname
+		}
+
+		return spec
 	}
 
 	// We want to return a flag that tells us if the container already
@@ -55,7 +71,7 @@ func (d *Driver) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, b
 		return nil, false, err
 	}
 	if container != nil && container.State.Running {
-		return specFromContainer(container), false, nil
+		return specFromContainer(container, createSpec.Hostname), false, nil
 	}
 
 	container, err = d.createContainer(client, *config, d.config.InfraImage)
@@ -76,7 +92,7 @@ func (d *Driver) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, b
 		return nil, false, err
 	}
 
-	return specFromContainer(container), true, nil
+	return specFromContainer(container, createSpec.Hostname), true, nil
 }
 
 func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSpec) error {
@@ -92,17 +108,18 @@ func (d *Driver) DestroyNetwork(allocID string, spec *drivers.NetworkIsolationSp
 }
 
 // createSandboxContainerConfig creates a docker container configuration which
-// starts a container with an empty network namespace
-func (d *Driver) createSandboxContainerConfig(allocID string) (*docker.CreateContainerOptions, error) {
+// starts a container with an empty network namespace.
+func (d *Driver) createSandboxContainerConfig(allocID string, createSpec *drivers.NetworkCreateRequest) (*docker.CreateContainerOptions, error) {
 
 	return &docker.CreateContainerOptions{
 		Name: fmt.Sprintf("nomad_init_%s", allocID),
 		Config: &docker.Config{
-			Image: d.config.InfraImage,
+			Image:    d.config.InfraImage,
+			Hostname: createSpec.Hostname,
 		},
 		HostConfig: &docker.HostConfig{
-			// set the network mode to none which creates a network namespace with
-			// only a loopback interface
+			// Set the network mode to none which creates a network namespace
+			// with only a loopback interface.
 			NetworkMode: "none",
 		},
 	}, nil

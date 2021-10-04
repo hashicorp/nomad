@@ -512,7 +512,7 @@ executors:
   go:
     working_directory: /go/src/github.com/hashicorp/nomad
     docker:
-      - image: docker.mirror.hashicorp.services/golang:1.16.5
+      - image: docker.mirror.hashicorp.services/golang:1.17.1
     environment:
       <<: *common_envs
       GOPATH: /go
@@ -524,7 +524,7 @@ executors:
     environment: &machine_env
       <<: *common_envs
       GOPATH: /home/circleci/go
-      GOLANG_VERSION: 1.16.5
+      GOLANG_VERSION: 1.17.1
 
   # uses a more recent image with unattended upgrades disabled properly
   # but seems to break docker builds
@@ -541,7 +541,7 @@ executors:
     environment:
       <<: *common_envs
       GOPATH: /Users/distiller/go
-      GOLANG_VERSION: 1.16.5
+      GOLANG_VERSION: 1.17.1
 
   go-windows:
     machine:
@@ -553,7 +553,7 @@ executors:
       GOPATH: c:\gopath
       GOBIN: c:\gopath\bin
       GOTESTSUM_PATH: c:\tmp\test-reports
-      GOLANG_VERSION: 1.16.5
+      GOLANG_VERSION: 1.17.1
       GOTESTSUM_VERSION: 0.4.2
       VAULT_VERSION: 1.4.1
 
@@ -625,13 +625,9 @@ workflows:
           test_module: "api"
           filters: *backend_test_branches_filter
           enable_race_testing: true
-      - test-container:
-          name: "test-devices"
-          test_packages: "./devices/..."
-          filters: *backend_test_branches_filter
       - test-machine:
           name: "test-other"
-          exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./devices|./e2e"
+          exclude_packages: "./api|./client|./drivers/docker|./drivers/exec|./drivers/shared/executor|./nomad|./e2e"
           filters: *backend_test_branches_filter
       - test-machine:
           name: "test-docker"

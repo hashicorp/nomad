@@ -137,7 +137,7 @@ type FSMConfig struct {
 	EventBufferSize int64
 }
 
-// NewFSMPath is used to construct a new FSM with a blank state
+// NewFSM is used to construct a new FSM with a blank state.
 func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 	// Create a state store
 	sconfig := &state.StateStoreConfig{

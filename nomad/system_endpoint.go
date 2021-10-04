@@ -38,7 +38,7 @@ func (s *System) GarbageCollect(args *structs.GenericRequest, reply *structs.Gen
 	return nil
 }
 
-// ReconcileSummaries reconciles the summaries of all the jobs in the state
+// ReconcileJobSummaries reconciles the summaries of all the jobs in the state
 // store
 func (s *System) ReconcileJobSummaries(args *structs.GenericRequest, reply *structs.GenericResponse) error {
 	if done, err := s.srv.forward("System.ReconcileJobSummaries", args, args, reply); done {

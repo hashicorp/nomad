@@ -51,9 +51,9 @@ func (pq *ScoreHeap) Push(x interface{}) {
 	}
 }
 
-// Push implements heap.Interface and returns the top K scoring
-// elements in increasing order of Score. Callers must reverse the order
-// of returned elements to get the top K scoring elements in descending order
+// Pop implements heap.Interface and returns the top K scoring elements in
+// increasing order of Score. Callers must reverse the order of returned
+// elements to get the top K scoring elements in descending order.
 func (pq *ScoreHeap) Pop() interface{} {
 	old := pq.items
 	n := len(old)

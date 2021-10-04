@@ -62,7 +62,8 @@ horizontal application scaling or horizontal cluster scaling.
 - `strategy` - The strategy to use, and it's configuration when calculating the
   desired state based on the current count and the metric returned by the APM.
   Detailed information on the configuration options can be found on the
-  [Strategy Plugins][strategy_plugin_docs] page.
+  [Strategy Plugins][strategy_plugin_docs] page. Strategies for
+  [Dynamic Application Sizing][das] are not allowed in this case.
 
 ### Example in a Job
 
@@ -192,7 +193,8 @@ currently supports `cpu` and `mem` labels, examples of which can be seen below.
 - `strategy` - The strategy to use, and it's configuration when calculating the
   desired state based on the current value and the available historic data. Detailed
   information on the configuration options can be found on the
-  [Strategy Plugins][strategy_plugin_docs] page.
+  [Strategy Plugins][strategy_plugin_docs] page. Only [Dynamic Application Sizing][das]
+  strategies are allowed.
 
 ### Example
 
@@ -219,6 +221,7 @@ scaling "mem" {
 }
 ```
 
+[das]: /docs/autoscaling#dynamic-application-sizing
 [policy_default_cooldown_agent]: /docs/autoscaling/agent#default_cooldown
 [eval_interval_agent]: /docs/autoscaling/agent#default_evaluation_interval
 [target_plugin_docs]: /docs/autoscaling/plugins/target

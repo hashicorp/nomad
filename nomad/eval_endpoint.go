@@ -179,7 +179,7 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 	return nil
 }
 
-// NAck is used to negative acknowledge completion of a dequeued evaluation
+// Nack is used to negative acknowledge completion of a dequeued evaluation.
 func (e *Eval) Nack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
 	if done, err := e.srv.forward("Eval.Nack", args, args, reply); done {

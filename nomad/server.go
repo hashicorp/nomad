@@ -1694,34 +1694,34 @@ func (s *Server) isSingleServerCluster() bool {
 const peersInfoContent = `
 As of Nomad 0.5.5, the peers.json file is only used for recovery
 after an outage. The format of this file depends on what the server has
-configured for its Raft protocol version. Please see the agent configuration
-page at https://www.consul.io/docs/agent/options.html#_raft_protocol for more
+configured for its Raft protocol version. Please see the server configuration
+page at https://www.nomadproject.io/docs/configuration/server#raft_protocol for more
 details about this parameter.
 For Raft protocol version 2 and earlier, this should be formatted as a JSON
-array containing the address and port of each Consul server in the cluster, like
+array containing the address and port of each Nomad server in the cluster, like
 this:
 [
-  "10.1.0.1:8300",
-  "10.1.0.2:8300",
-  "10.1.0.3:8300"
+  "10.1.0.1:4647",
+  "10.1.0.2:4647",
+  "10.1.0.3:4647"
 ]
 For Raft protocol version 3 and later, this should be formatted as a JSON
 array containing the node ID, address:port, and suffrage information of each
-Consul server in the cluster, like this:
+Nomad server in the cluster, like this:
 [
   {
     "id": "adf4238a-882b-9ddc-4a9d-5b6758e4159e",
-    "address": "10.1.0.1:8300",
+    "address": "10.1.0.1:4647",
     "non_voter": false
   },
   {
     "id": "8b6dda82-3103-11e7-93ae-92361f002671",
-    "address": "10.1.0.2:8300",
+    "address": "10.1.0.2:4647",
     "non_voter": false
   },
   {
     "id": "97e17742-3103-11e7-93ae-92361f002671",
-    "address": "10.1.0.3:8300",
+    "address": "10.1.0.3:4647",
     "non_voter": false
   }
 ]

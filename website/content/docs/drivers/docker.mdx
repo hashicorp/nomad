@@ -111,7 +111,9 @@ config {
 - `entrypoint` - (Optional) A string list overriding the image's entrypoint.
 
 - `extra_hosts` - (Optional) A list of hosts, given as host:IP, to be added to
-  `/etc/hosts`.
+  `/etc/hosts`. This option may not work as expected in `bridge` network mode
+  when there is more than one task within the same group. Refer to the
+  [upgrade guide][upgrade_guide_extra_hosts] for more information.
 
 - `force_pull` - (Optional) `true` or `false` (default). Always pull most recent image
   instead of using existing local image. Should be set to `true` if repository tags
@@ -1149,6 +1151,7 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [cap_add]: /docs/drivers/docker#cap_add
 [cap_drop]: /docs/drivers/docker#cap_drop
 [no_net_raw]: /docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+[upgrade_guide_extra_hosts]: /docs/upgrade/upgrade-specific#docker-driver
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
 [allow_caps]: /docs/drivers/docker#allow_caps
 [Connect]: /docs/job-specification/connect

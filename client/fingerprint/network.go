@@ -78,18 +78,21 @@ func (f *NetworkFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 		return nil
 	}
 
+	// Create a sub-logger with common values to help with debugging
+	logger := f.logger.With("interface", intf.Name)
+
 	// Record the throughput of the interface
 	var mbits int
 	throughput := f.linkSpeed(intf.Name)
 	if cfg.NetworkSpeed != 0 {
 		mbits = cfg.NetworkSpeed
-		f.logger.Debug("setting link speed to user configured speed", "mbits", mbits)
+		logger.Debug("setting link speed to user configured speed", "mbits", mbits)
 	} else if throughput != 0 {
 		mbits = throughput
-		f.logger.Debug("link speed detected", "interface", intf.Name, "mbits", mbits)
+		logger.Debug("link speed detected", "mbits", mbits)
 	} else {
 		mbits = defaultNetworkSpeed
-		f.logger.Debug("link speed could not be detected and no speed specified by user, falling back to default speed", "mbits", defaultNetworkSpeed)
+		logger.Debug("link speed could not be detected and no speed specified by user, falling back to default speed", "mbits", defaultNetworkSpeed)
 	}
 
 	// Create the network resources from the interface
@@ -109,7 +112,7 @@ func (f *NetworkFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 	}
 
 	for _, nwResource := range nwResources {
-		f.logger.Debug("detected interface IP", "interface", intf.Name, "IP", nwResource.IP)
+		logger.Debug("detected interface IP", "IP", nwResource.IP)
 	}
 
 	// Deprecated, setting the first IP as unique IP for the node
@@ -138,7 +141,7 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 		speed := f.linkSpeed(iface.Name)
 		if speed == 0 {
 			speed = defaultNetworkSpeed
-			f.logger.Debug("link speed could not be detected, falling back to default speed", "mbits", defaultNetworkSpeed)
+			f.logger.Debug("link speed could not be detected, falling back to default speed", "interface", iface.Name, "mbits", defaultNetworkSpeed)
 		}
 
 		newNetwork := &structs.NodeNetworkResource{

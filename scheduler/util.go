@@ -238,7 +238,7 @@ func diffSystemAllocs(
 	// Build a mapping of nodes to all their allocs.
 	nodeAllocs := make(map[string][]*structs.Allocation, len(allocs))
 	for _, alloc := range allocs {
-		nallocs := append(nodeAllocs[alloc.NodeID], alloc)
+		nallocs := append(nodeAllocs[alloc.NodeID], alloc) //nolint:gocritic
 		nodeAllocs[alloc.NodeID] = nallocs
 	}
 
@@ -568,6 +568,10 @@ func networkUpdated(netA, netB []*structs.NetworkResource) bool {
 		}
 
 		if an.MBits != bn.MBits {
+			return true
+		}
+
+		if an.Hostname != bn.Hostname {
 			return true
 		}
 

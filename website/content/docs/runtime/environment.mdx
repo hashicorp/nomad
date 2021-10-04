@@ -105,6 +105,14 @@ Currently there is no enforcement that the meta keys be lowercase, but using
 multiple keys with the same uppercased representation will lead to undefined
 behavior.
 
+## Host environment variables
+
+Nomad passes the environment variables defined in the client host to tasks when
+using the `exec`, `raw_exec`, and `java` task drivers. The variables that are
+passed to the tasks can be controlled using the client configuration
+[`env.denylist`][].
+
 [jobspec]: /docs/job-specification 'Nomad Job Specification'
 [vault]: /docs/vault-integration 'Nomad Vault Integration'
 [filesystem internals]: /docs/internals/filesystem
+[`env.denylist`]: /docs/configuration/client#env-denylist

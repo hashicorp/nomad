@@ -102,6 +102,12 @@ variable "nomad_acls" {
   default     = false
 }
 
+variable "tls" {
+  type        = bool
+  description = "Bootstrap TLS"
+  default     = false
+}
+
 variable "vault" {
   type        = bool
   description = "Bootstrap Vault"

@@ -279,6 +279,23 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	return s.computePlacements(diff.place)
 }
 
+func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
+	if acc == nil {
+		return curr.Copy()
+	}
+
+	acc.NodesEvaluated += curr.NodesEvaluated
+	acc.NodesFiltered += curr.NodesFiltered
+	for k, v := range curr.ClassFiltered {
+		acc.ClassFiltered[k] += v
+	}
+	for k, v := range curr.ConstraintFiltered {
+		acc.ConstraintFiltered[k] += v
+	}
+	acc.AllocationTime += curr.AllocationTime
+	return acc
+}
+
 // computePlacements computes placements for allocations
 func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 	nodeByID := make(map[string]*structs.Node, len(s.nodes))
@@ -286,8 +303,13 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 		nodeByID[node.ID] = node
 	}
 
+	// track node filtering, to only report an error if all nodes have been filtered
+	var filteredMetrics map[string]*structs.AllocMetric
+
 	nodes := make([]*structs.Node, 1)
 	for _, missing := range place {
+		tgName := missing.TaskGroup.Name
+
 		node, ok := nodeByID[missing.Alloc.NodeID]
 		if !ok {
 			s.logger.Debug("could not find node %q", missing.Alloc.NodeID)
@@ -305,17 +327,30 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			// If the task can't be placed on this node, update reporting data
 			// and continue to short circuit the loop
 
-			// If this node was filtered because of constraint mismatches and we
-			// couldn't create an allocation then decrementing queued for that
-			// task group
+			// If this node was filtered because of constraint
+			// mismatches and we couldn't create an allocation then
+			// decrement queuedAllocs for that task group.
 			if s.ctx.metrics.NodesFiltered > 0 {
-				s.queuedAllocs[missing.TaskGroup.Name] -= 1
+				queued := s.queuedAllocs[tgName] - 1
+				s.queuedAllocs[tgName] = queued
+
+				if filteredMetrics == nil {
+					filteredMetrics = map[string]*structs.AllocMetric{}
+				}
+				filteredMetrics[tgName] = mergeNodeFiltered(filteredMetrics[tgName], s.ctx.Metrics())
+
+				if queued <= 0 {
+					if s.failedTGAllocs == nil {
+						s.failedTGAllocs = make(map[string]*structs.AllocMetric)
+					}
+					s.failedTGAllocs[tgName] = filteredMetrics[tgName]
+				}
 
 				// If we are annotating the plan, then decrement the desired
 				// placements based on whether the node meets the constraints
 				if s.eval.AnnotatePlan && s.plan.Annotations != nil &&
 					s.plan.Annotations.DesiredTGUpdates != nil {
-					desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup.Name]
+					desired := s.plan.Annotations.DesiredTGUpdates[tgName]
 					desired.Place -= 1
 				}
 
@@ -324,7 +359,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			}
 
 			// Check if this task group has already failed, reported to the user as a count
-			if metric, ok := s.failedTGAllocs[missing.TaskGroup.Name]; ok {
+			if metric, ok := s.failedTGAllocs[tgName]; ok {
 				metric.CoalescedFailures += 1
 				metric.ExhaustResources(missing.TaskGroup)
 				continue
@@ -345,7 +380,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			s.ctx.Metrics().ExhaustResources(missing.TaskGroup)
 
 			// Actual failure to start this task on this candidate node, report it individually
-			s.failedTGAllocs[missing.TaskGroup.Name] = s.ctx.Metrics()
+			s.failedTGAllocs[tgName] = s.ctx.Metrics()
 			s.addBlocked(node)
 
 			continue
@@ -378,7 +413,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 			EvalID:             s.eval.ID,
 			Name:               missing.Name,
 			JobID:              s.job.ID,
-			TaskGroup:          missing.TaskGroup.Name,
+			TaskGroup:          tgName,
 			Metrics:            s.ctx.Metrics(),
 			NodeID:             option.Node.ID,
 			NodeName:           option.Node.Name,
@@ -410,7 +445,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 				if s.eval.AnnotatePlan && s.plan.Annotations != nil {
 					s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub(nil))
 					if s.plan.Annotations.DesiredTGUpdates != nil {
-						desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup.Name]
+						desired := s.plan.Annotations.DesiredTGUpdates[tgName]
 						desired.Preemptions += 1
 					}
 				}

@@ -2,12 +2,13 @@
 
 set -o errexit
 
-VERSION="v0.8.6"
+VERSION="v1.0.0"
 DOWNLOAD=https://github.com/containernetworking/plugins/releases/download/${VERSION}/cni-plugins-linux-amd64-${VERSION}.tgz
 TARGET_DIR=/opt/cni/bin
+CONFIG_DIR=/opt/cni/config
 
 function install_cni() {
-	mkdir -p ${TARGET_DIR}
+	mkdir -p ${TARGET_DIR} ${CONFIG_DIR}
 	if [[ -e ${TARGET_DIR}/${VERSION} ]] ; then
 		return
 	fi

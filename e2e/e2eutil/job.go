@@ -89,8 +89,8 @@ func JobInspectTemplate(jobID, template string) (string, error) {
 	return outStr, nil
 }
 
-// Register registers a jobspec from a string, also with a unique ID.
-// The caller is responsible for recording that ID for later cleanup.
+// RegisterFromJobspec registers a jobspec from a string, also with a unique
+// ID. The caller is responsible for recording that ID for later cleanup.
 func RegisterFromJobspec(jobID, jobspec string) error {
 
 	cmd := exec.Command("nomad", "job", "run", "-detach", "-")

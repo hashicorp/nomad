@@ -271,6 +271,27 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			},
 		},
 		{
+			desc:              "subscribed to evals in all namespaces and removed access",
+			policyBeforeRules: mock.NamespacePolicy("*", "", []string{acl.NamespaceCapabilityReadJob}),
+			policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
+			shouldUnsubscribe: true,
+			event: structs.Event{
+				Topic:     structs.TopicEvaluation,
+				Type:      structs.TypeEvalUpdated,
+				Namespace: "foo",
+				Payload: structs.EvaluationEvent{
+					Evaluation: &structs.Evaluation{
+						ID: "some-id",
+					},
+				},
+			},
+			policyEvent: structs.Event{
+				Topic:   structs.TopicACLToken,
+				Type:    structs.TypeACLTokenUpserted,
+				Payload: structs.NewACLTokenEvent(&structs.ACLToken{SecretID: secretID}),
+			},
+		},
+		{
 			desc:              "subscribed to deployments and no access change",
 			policyBeforeRules: mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
 			policyAfterRules:  mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}),
@@ -467,11 +488,18 @@ func TestEventBroker_handleACLUpdates_policyupdated(t *testing.T) {
 			publisher, err := NewEventBroker(ctx, aclDelegate, EventBrokerCfg{})
 			require.NoError(t, err)
 
+			var ns string
+			if tc.event.Namespace != "" {
+				ns = tc.event.Namespace
+			} else {
+				ns = structs.DefaultNamespace
+			}
+
 			sub, err := publisher.SubscribeWithACLCheck(&SubscribeRequest{
 				Topics: map[structs.Topic][]string{
 					tc.event.Topic: {"*"},
 				},
-				Namespace: structs.DefaultNamespace,
+				Namespace: ns,
 				Token:     secretID,
 			})
 

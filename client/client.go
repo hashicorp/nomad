@@ -904,7 +904,7 @@ func (c *Client) GetAllocStats(allocID string) (interfaces.AllocStatsReporter, e
 	return ar.StatsReporter(), nil
 }
 
-// HostStats returns all the stats related to a Nomad client
+// LatestHostStats returns all the stats related to a Nomad client.
 func (c *Client) LatestHostStats() *stats.HostStats {
 	return c.hostStatsCollector.Stats()
 }
@@ -2833,8 +2833,12 @@ func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *stats.HostStats, 
 
 // setGaugeForCPUStats proxies metrics for CPU specific statistics
 func (c *Client) setGaugeForCPUStats(nodeID string, hStats *stats.HostStats, baseLabels []metrics.Label) {
+
+	labels := make([]metrics.Label, len(baseLabels))
+	copy(labels, baseLabels)
+
 	for _, cpu := range hStats.CPU {
-		labels := append(baseLabels, metrics.Label{
+		labels := append(labels, metrics.Label{
 			Name:  "cpu",
 			Value: cpu.CPU,
 		})
@@ -2848,8 +2852,12 @@ func (c *Client) setGaugeForCPUStats(nodeID string, hStats *stats.HostStats, bas
 
 // setGaugeForDiskStats proxies metrics for disk specific statistics
 func (c *Client) setGaugeForDiskStats(nodeID string, hStats *stats.HostStats, baseLabels []metrics.Label) {
+
+	labels := make([]metrics.Label, len(baseLabels))
+	copy(labels, baseLabels)
+
 	for _, disk := range hStats.DiskStats {
-		labels := append(baseLabels, metrics.Label{
+		labels := append(labels, metrics.Label{
 			Name:  "disk",
 			Value: disk.Device,
 		})
@@ -2877,7 +2885,7 @@ func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.
 	metrics.SetGaugeWithLabels([]string{"client", "allocated", "cpu"}, float32(allocated.Flattened.Cpu.CpuShares), baseLabels)
 
 	for _, n := range allocated.Flattened.Networks {
-		labels := append(baseLabels, metrics.Label{
+		labels := append(baseLabels, metrics.Label{ //nolint:gocritic
 			Name:  "device",
 			Value: n.Device,
 		})
@@ -2903,7 +2911,7 @@ func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.
 		}
 
 		unallocatedMbits := n.MBits - usedMbits
-		labels := append(baseLabels, metrics.Label{
+		labels := append(baseLabels, metrics.Label{ //nolint:gocritic
 			Name:  "device",
 			Value: n.Device,
 		})

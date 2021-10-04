@@ -25,15 +25,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/lib/cpuset"
-
 	"github.com/hashicorp/cronexpr"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
-	"github.com/mitchellh/copystructure"
-	"golang.org/x/crypto/blake2b"
-
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
@@ -41,8 +36,12 @@ import (
 	"github.com/hashicorp/nomad/helper/args"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib/cpuset"
 	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/miekg/dns"
+	"github.com/mitchellh/copystructure"
+	"golang.org/x/crypto/blake2b"
 )
 
 var (
@@ -319,7 +318,7 @@ func (q QueryOptions) RequestNamespace() string {
 	return q.Namespace
 }
 
-// QueryOption only applies to reads, so always true
+// IsRead only applies to reads, so always true.
 func (q QueryOptions) IsRead() bool {
 	return true
 }
@@ -415,7 +414,7 @@ func (w WriteRequest) RequestNamespace() string {
 	return w.Namespace
 }
 
-// WriteRequest only applies to writes, always false
+// IsRead only applies to writes, always false.
 func (w WriteRequest) IsRead() bool {
 	return false
 }
@@ -2066,11 +2065,12 @@ func (n *Node) TerminalStatus() bool {
 	}
 }
 
-// COMPAT(0.11): Remove in 0.11
 // ComparableReservedResources returns the reserved resouces on the node
 // handling upgrade paths. Reserved networks must be handled separately. After
 // 0.11 calls to this should be replaced with:
 // node.ReservedResources.Comparable()
+//
+// COMPAT(0.11): Remove in 0.11
 func (n *Node) ComparableReservedResources() *ComparableResources {
 	// See if we can no-op
 	if n.Reserved == nil && n.ReservedResources == nil {
@@ -2098,10 +2098,11 @@ func (n *Node) ComparableReservedResources() *ComparableResources {
 	}
 }
 
-// COMPAT(0.11): Remove in 0.11
 // ComparableResources returns the resouces on the node
 // handling upgrade paths. Networking must be handled separately. After 0.11
 // calls to this should be replaced with: node.NodeResources.Comparable()
+//
+// // COMPAT(0.11): Remove in 0.11
 func (n *Node) ComparableResources() *ComparableResources {
 	// Node already has 0.9+ behavior
 	if n.NodeResources != nil {
@@ -2286,6 +2287,8 @@ func (r *Resources) Merge(other *Resources) {
 	}
 }
 
+// Equals Resources.
+//
 // COMPAT(0.10): Remove in 0.10
 func (r *Resources) Equals(o *Resources) bool {
 	if r == o {
@@ -2304,12 +2307,14 @@ func (r *Resources) Equals(o *Resources) bool {
 		r.Devices.Equals(&o.Devices)
 }
 
-// COMPAT(0.10): Remove in 0.10
-// ResourceDevices are part of Resources
+// ResourceDevices are part of Resources.
+//
+// COMPAT(0.10): Remove in 0.10.
 type ResourceDevices []*RequestedDevice
 
+// Equals ResourceDevices as set keyed by Name.
+//
 // COMPAT(0.10): Remove in 0.10
-// Equals ResourceDevices as set keyed by Name
 func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
 	if d == o {
 		return true
@@ -2333,6 +2338,8 @@ func (d *ResourceDevices) Equals(o *ResourceDevices) bool {
 	return true
 }
 
+// Canonicalize the Resources struct.
+//
 // COMPAT(0.10): Remove in 0.10
 func (r *Resources) Canonicalize() {
 	// Ensure that an empty and nil slices are treated the same to avoid scheduling
@@ -2422,6 +2429,8 @@ func (r *Resources) Add(delta *Resources) {
 	}
 }
 
+// GoString returns the string representation of the Resources struct.
+//
 // COMPAT(0.10): Remove in 0.10
 func (r *Resources) GoString() string {
 	return fmt.Sprintf("*%#v", *r)
@@ -2532,6 +2541,7 @@ type NetworkResource struct {
 	Device        string     // Name of the device
 	CIDR          string     // CIDR block of addresses
 	IP            string     // Host IP address
+	Hostname      string     `json:",omitempty"` // Hostname of the network namespace
 	MBits         int        // Throughput
 	DNS           *DNSConfig // DNS Configuration
 	ReservedPorts []Port     // Host Reserved ports
@@ -2540,7 +2550,7 @@ type NetworkResource struct {
 
 func (nr *NetworkResource) Hash() uint32 {
 	var data []byte
-	data = append(data, []byte(fmt.Sprintf("%s%s%s%s%d", nr.Mode, nr.Device, nr.CIDR, nr.IP, nr.MBits))...)
+	data = append(data, []byte(fmt.Sprintf("%s%s%s%s%s%d", nr.Mode, nr.Device, nr.CIDR, nr.IP, nr.Hostname, nr.MBits))...)
 
 	for i, port := range nr.ReservedPorts {
 		data = append(data, []byte(fmt.Sprintf("r%d%s%d%d", i, port.Label, port.Value, port.To))...)
@@ -3389,7 +3399,7 @@ type NodeReservedNetworkResources struct {
 	ReservedHostPorts string
 }
 
-// ParsePortHostPorts returns the reserved host ports.
+// ParseReservedHostPorts returns the reserved host ports.
 func (n *NodeReservedNetworkResources) ParseReservedHostPorts() ([]uint64, error) {
 	return ParsePortRanges(n.ReservedHostPorts)
 }
@@ -3895,13 +3905,13 @@ func (c *ComparableResources) Superset(other *ComparableResources) (bool, string
 	return true, ""
 }
 
-// allocated finds the matching net index using device name
+// NetIndex finds the matching net index using device name
 func (c *ComparableResources) NetIndex(n *NetworkResource) int {
 	return c.Flattened.Networks.NetIndex(n)
 }
 
 const (
-	// JobTypeNomad is reserved for internal system tasks and is
+	// JobTypeCore is reserved for internal system tasks and is
 	// always handled by the CoreScheduler.
 	JobTypeCore     = "_core"
 	JobTypeService  = "service"
@@ -3927,7 +3937,7 @@ const (
 	// JobMaxPriority is the maximum allowed priority
 	JobMaxPriority = 100
 
-	// Ensure CoreJobPriority is higher than any user
+	// CoreJobPriority should be higher than any user
 	// specified job so that it gets priority. This is important
 	// for the system to remain healthy.
 	CoreJobPriority = JobMaxPriority * 2
@@ -4081,8 +4091,8 @@ type Job struct {
 }
 
 // NamespacedID returns the namespaced id useful for logging
-func (j *Job) NamespacedID() *NamespacedID {
-	return &NamespacedID{
+func (j *Job) NamespacedID() NamespacedID {
+	return NamespacedID{
 		ID:        j.ID,
 		Namespace: j.Namespace,
 	}
@@ -4784,8 +4794,8 @@ func (u *UpdateStrategy) IsEmpty() bool {
 	return u.MaxParallel == 0
 }
 
+// Rolling returns if a rolling strategy should be used.
 // TODO(alexdadgar): Remove once no longer used by the scheduler.
-// Rolling returns if a rolling strategy should be used
 func (u *UpdateStrategy) Rolling() bool {
 	return u.Stagger > 0 && u.MaxParallel > 0
 }
@@ -5323,7 +5333,7 @@ type JobScalingEvents struct {
 	ModifyIndex uint64
 }
 
-// Factory method for ScalingEvent objects
+// NewScalingEvent method for ScalingEvent objects.
 func NewScalingEvent(message string) *ScalingEvent {
 	return &ScalingEvent{
 		Time:    time.Now().Unix(),
@@ -5519,7 +5529,7 @@ func (p *ScalingPolicy) Diff(p2 *ScalingPolicy) bool {
 	return !reflect.DeepEqual(*p, copy)
 }
 
-// TarketTaskGroup updates a ScalingPolicy target to specify a given task group
+// TargetTaskGroup updates a ScalingPolicy target to specify a given task group
 func (p *ScalingPolicy) TargetTaskGroup(job *Job, tg *TaskGroup) *ScalingPolicy {
 	p.Target = map[string]string{
 		ScalingTargetNamespace: job.Namespace,
@@ -6307,7 +6317,18 @@ func (tg *TaskGroup) validateNetworks() error {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 		}
+
+		// Validate the hostname field to be a valid DNS name. If the parameter
+		// looks like it includes an interpolation value, we skip this. It
+		// would be nice to validate additional parameters, but this isn't the
+		// right place.
+		if net.Hostname != "" && !strings.Contains(net.Hostname, "${") {
+			if _, ok := dns.IsDomainName(net.Hostname); !ok {
+				mErr.Errors = append(mErr.Errors, errors.New("Hostname is not a valid DNS name"))
+			}
+		}
 	}
+
 	// Check for duplicate tasks or port labels, and no duplicated static ports
 	for _, task := range tg.Tasks {
 		if task.Resources == nil {
@@ -9564,7 +9585,7 @@ func (a *Allocation) Terminated() bool {
 	return false
 }
 
-// SetStopped updates the allocation in place to a DesiredStatus stop, with the ClientStatus
+// SetStop updates the allocation in place to a DesiredStatus stop, with the ClientStatus
 func (a *Allocation) SetStop(clientStatus, clientDesc string) {
 	a.DesiredStatus = AllocDesiredStatusStop
 	a.ClientStatus = clientStatus
@@ -9631,17 +9652,18 @@ func (a *Allocation) ShouldMigrate() bool {
 	return true
 }
 
-// SetEventDisplayMessage populates the display message if its not already set,
+// SetEventDisplayMessages populates the display message if its not already set,
 // a temporary fix to handle old allocations that don't have it.
 // This method will be removed in a future release.
 func (a *Allocation) SetEventDisplayMessages() {
 	setDisplayMsg(a.TaskStates)
 }
 
-// COMPAT(0.11): Remove in 0.11
 // ComparableResources returns the resources on the allocation
 // handling upgrade paths. After 0.11 calls to this should be replaced with:
 // alloc.AllocatedResources.Comparable()
+//
+// COMPAT(0.11): Remove in 0.11
 func (a *Allocation) ComparableResources() *ComparableResources {
 	// ALloc already has 0.9+ behavior
 	if a.AllocatedResources != nil {
@@ -9776,9 +9798,9 @@ type AllocListStub struct {
 	ModifyTime            int64
 }
 
-// SetEventDisplayMessage populates the display message if its not already set,
-// a temporary fix to handle old allocations that don't have it.
-// This method will be removed in a future release.
+// SetEventDisplayMessages populates the display message if its not already
+// set, a temporary fix to handle old allocations that don't have it. This
+// method will be removed in a future release.
 func (a *AllocListStub) SetEventDisplayMessages() {
 	setDisplayMsg(a.TaskStates)
 }

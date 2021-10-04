@@ -694,12 +694,12 @@ func TestConfig_DriverConfig_AllowRuntimes(t *testing.T) {
 		{
 			name:     "pure default",
 			config:   `{}`,
-			expected: map[string]struct{}{"runc": struct{}{}, "nvidia": struct{}{}},
+			expected: map[string]struct{}{"runc": {}, "nvidia": {}},
 		},
 		{
 			name:     "custom",
 			config:   `{ allow_runtimes = ["runc", "firecracker"]}`,
-			expected: map[string]struct{}{"runc": struct{}{}, "firecracker": struct{}{}},
+			expected: map[string]struct{}{"runc": {}, "firecracker": {}},
 		},
 	}
 

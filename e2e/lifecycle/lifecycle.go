@@ -25,8 +25,8 @@ func init() {
 	})
 }
 
-// Ensure cluster has leader and at least 1 client node
-// in a ready state before running tests
+// BeforeAll ensures the cluster has leader and at least 1 client node in a
+// ready state before running tests.
 func (tc *LifecycleE2ETest) BeforeAll(f *framework.F) {
 	e2eutil.WaitForLeader(f.T(), tc.Nomad())
 	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 1)

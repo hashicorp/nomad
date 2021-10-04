@@ -60,7 +60,7 @@ func Init() error {
 	return initErr
 }
 
-// CPUModelName returns the number of CPU cores available
+// CPUNumCores returns the number of CPU cores available
 func CPUNumCores() int {
 	return cpuNumCores
 }

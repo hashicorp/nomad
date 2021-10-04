@@ -1200,10 +1200,11 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 	out = make([]*structs.NetworkResource, len(in))
 	for i, nw := range in {
 		out[i] = &structs.NetworkResource{
-			Mode:  nw.Mode,
-			CIDR:  nw.CIDR,
-			IP:    nw.IP,
-			MBits: nw.Megabits(),
+			Mode:     nw.Mode,
+			CIDR:     nw.CIDR,
+			IP:       nw.IP,
+			Hostname: nw.Hostname,
+			MBits:    nw.Megabits(),
 		}
 
 		if nw.DNS != nil {

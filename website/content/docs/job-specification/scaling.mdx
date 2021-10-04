@@ -6,27 +6,83 @@ description: The "scaling" stanza allows specifying scaling policy for a task gr
 
 # `scaling` Stanza
 
-<Placement groups={['job', 'group']} />
+<Placement
+  groups={[
+    ['job', 'group'],
+    ['job', 'group', 'task'],
+  ]}
+/>
 
-The `scaling` stanza allows configuring scaling options for a task group, for the purpose
-of supporting external autoscalers like the [Nomad Autoscaler](https://github.com/hashicorp/nomad-autoscaler)
-and scaling via the Nomad UI. This stanza is not supported within jobs of type `system`.
+The `scaling` block allows configuring scaling options for a `task` or a
+`group`, for the purpose of supporting external autoscalers like the
+[Nomad Autoscaler](https://github.com/hashicorp/nomad-autoscaler) and scaling
+via the Nomad UI. This stanza is not supported within jobs of type `system`.
+
+When placed at the `group` level, the scaling policy will be of type
+[horizontal application scaling][horizontal_app_scaling], controlling the value
+of [`count`][] for the group.
 
 ```hcl
 job "example" {
   datacenters = ["dc1"]
+
+  group "cache" {
+    count = 1
+
+    scaling {
+      enabled = true
+      min     = 0
+      max     = 10
+
+      policy {
+        # ...
+      }
+    }
+    # ...
+  }
+}
+```
+
+When placed at the `task` level, the scaling policy will be of type
+[Dynamic Application Sizing][das], controlling the [`resources`][] values of
+the task. In this scenario, the `scaling` block must have a label indicating
+which resource will be controlled. Valid names are `cpu` and `mem`.
+
+```hcl
+job "example" {
+  datacenters = ["dc1"]
+
   group "cache" {
     task "redis" {
       driver = "docker"
+
       config {
         image = "redis:3.2"
       }
-    }
-    scaling {
-      enabled = true
-      min = 0
-      max = 10
-      policy {
+
+      resources {
+        cpu    = 100
+        memory = 256
+      }
+
+      scaling "cpu" {
+        enabled = true
+        min     = 100
+        max     = 500
+
+        policy {
+          # ...
+        }
+      }
+
+      scaling "mem" {
+        enabled = true
+        min     = 64
+        max     = 512
+
+        policy {
+          # ...
+        }
       }
     }
   }
@@ -37,7 +93,7 @@ job "example" {
 
 - `min` - <code>(int: nil)</code> - The minimum acceptable count for the task group.
   This should be honored by the external autoscaler. It will also be honored by Nomad
-  during job updates and scaling operations. Defaults to the specified task group [count][].
+  during job updates and scaling operations. Defaults to the specified task group [`count`][].
 
 - `max` - <code>(int: &lt;required&gt;)</code> - The maximum acceptable count for the task group.
   This should be honored by the external autoscaler. It will also be honored by Nomad
@@ -49,6 +105,11 @@ job "example" {
 
 - `policy` - <code>(map<string|...>: nil)</code> - The autoscaling policy. This is
   opaque to Nomad, consumed and parsed only by the external autoscaler. Therefore,
-  its contents are specific to the autoscaler; see autoscaler documentation.
+  its contents are specific to the autoscaler; consult the
+  [Nomad Autoscaler documentation][autoscaling_policy] for more details.
 
-[count]: /docs/job-specification/group#count 'Nomad Task Group specification'
+[autoscaling_policy]: /docs/autoscaling/policy
+[`count`]: /docs/job-specification/group#count 'Nomad Task Group specification'
+[`resources`]: /docs/job-specification/task#resources 'Nomad Task specification'
+[das]: /docs/autoscaling#dynamic-application-sizing
+[horizontal_app_scaling]: /docs/autoscaling#horizontal-application-autoscaling

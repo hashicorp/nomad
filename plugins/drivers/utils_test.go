@@ -5,6 +5,8 @@ import (
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers/proto"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -102,4 +104,35 @@ func TestTaskConfigRoundTrip(t *testing.T) {
 
 	require.EqualValues(t, input, parsed)
 
+}
+
+func Test_networkCreateRequestFromProto(t *testing.T) {
+	testCases := []struct {
+		inputPB        *proto.CreateNetworkRequest
+		expectedOutput *NetworkCreateRequest
+		name           string
+	}{
+		{
+			inputPB:        nil,
+			expectedOutput: nil,
+			name:           "nil safety",
+		},
+		{
+			inputPB: &proto.CreateNetworkRequest{
+				AllocId:  "59598b74-86e9-16ee-eb54-24c62935cc7c",
+				Hostname: "foobar",
+			},
+			expectedOutput: &NetworkCreateRequest{
+				Hostname: "foobar",
+			},
+			name: "generic 1",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := networkCreateRequestFromProto(tc.inputPB)
+			assert.Equal(t, tc.expectedOutput, actualOutput, tc.name)
+		})
+	}
 }

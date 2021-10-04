@@ -164,6 +164,92 @@ func TestNewNetworkManager(t *testing.T) {
 			err:         true,
 			errContains: "want to initiate networking but only one",
 		},
+		{
+			name: "hostname set in bridged mode",
+			alloc: &structs.Allocation{
+				TaskGroup: "group",
+				Job: &structs.Job{
+					TaskGroups: []*structs.TaskGroup{
+						{
+							Name: "group",
+							Networks: []*structs.NetworkResource{
+								{
+									Mode:     "bridge",
+									Hostname: "foobar",
+								},
+							},
+							Tasks: []*structs.Task{
+								{
+									Name:      "task1",
+									Driver:    "mustinit1",
+									Resources: &structs.Resources{},
+								},
+							},
+						},
+					},
+				},
+			},
+			mustInit: true,
+			err:      false,
+		},
+		{
+			name: "hostname set in host mode",
+			alloc: &structs.Allocation{
+				TaskGroup: "group",
+				Job: &structs.Job{
+					TaskGroups: []*structs.TaskGroup{
+						{
+							Name: "group",
+							Networks: []*structs.NetworkResource{
+								{
+									Mode:     "host",
+									Hostname: "foobar",
+								},
+							},
+							Tasks: []*structs.Task{
+								{
+									Name:      "task1",
+									Driver:    "group1",
+									Resources: &structs.Resources{},
+								},
+							},
+						},
+					},
+				},
+			},
+			mustInit:    false,
+			err:         true,
+			errContains: `hostname cannot be set on task group using "host" networking mode`,
+		},
+		{
+			name: "hostname set using exec driver",
+			alloc: &structs.Allocation{
+				TaskGroup: "group",
+				Job: &structs.Job{
+					TaskGroups: []*structs.TaskGroup{
+						{
+							Name: "group",
+							Networks: []*structs.NetworkResource{
+								{
+									Mode:     "bridge",
+									Hostname: "foobar",
+								},
+							},
+							Tasks: []*structs.Task{
+								{
+									Name:      "task1",
+									Driver:    "group1",
+									Resources: &structs.Resources{},
+								},
+							},
+						},
+					},
+				},
+			},
+			mustInit:    false,
+			err:         true,
+			errContains: "hostname is not currently supported on driver group1",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require := require.New(t)

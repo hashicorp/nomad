@@ -1,4 +1,6 @@
+//go:build !windows
 // +build !windows
+
 // todo(shoenig): Once Connect is supported on Windows, we'll need to make this
 //  set of tests work there too.
 
