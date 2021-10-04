@@ -1196,7 +1196,8 @@ func TestEvalBroker_AckAtDeliveryLimit(t *testing.T) {
 	}
 }
 
-// Ensure fairness between schedulers
+// TestEvalBroker_Wait asserts delayed evaluations cannot be dequeued until
+// their wait duration has elapsed.
 func TestEvalBroker_Wait(t *testing.T) {
 	t.Parallel()
 	b := testBroker(t, 0)
@@ -1204,7 +1205,7 @@ func TestEvalBroker_Wait(t *testing.T) {
 
 	// Create an eval that should wait
 	eval := mock.Eval()
-	eval.Wait = 10 * time.Millisecond
+	eval.Wait = 100 * time.Millisecond
 	b.Enqueue(eval)
 
 	// Verify waiting
@@ -1216,8 +1217,14 @@ func TestEvalBroker_Wait(t *testing.T) {
 		t.Fatalf("bad: %#v", stats)
 	}
 
+	// Dequeue should not return the eval until wait has elapsed
+	out, token, err := b.Dequeue(defaultSched, 1)
+	require.Nil(t, out)
+	require.Empty(t, token)
+	require.NoError(t, err)
+
 	// Let the wait elapse
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// Verify ready
 	stats = b.Stats()
@@ -1229,7 +1236,7 @@ func TestEvalBroker_Wait(t *testing.T) {
 	}
 
 	// Dequeue should work
-	out, _, err := b.Dequeue(defaultSched, time.Second)
+	out, _, err = b.Dequeue(defaultSched, time.Second)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
