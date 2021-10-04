@@ -279,16 +279,10 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 			// a name of an injected gateway task
 			service.Name = env.ReplaceEnv(service.Name)
 
-			// detect whether the group is in host networking mode, which will
-			// require tweaking the default gateway task config
-			netHost := g.Networks[0].Mode == "host"
-
-			if !netHost && service.Connect.IsGateway() {
-				// Modify the gateway proxy service configuration to automatically
-				// do the correct envoy bind address plumbing when inside a net
-				// namespace, but only if things are not explicitly configured.
-				service.Connect.Gateway.Proxy = gatewayProxyForBridge(service.Connect.Gateway)
-			}
+			// Generate a proxy configuration, if one is not provided, that is
+			// most appropriate for the network mode being used.
+			netMode := g.Networks[0].Mode
+			service.Connect.Gateway.Proxy = gatewayProxy(service.Connect.Gateway, netMode)
 
 			// Inject a port whether bridge or host network (if not already set).
 			// This port is accessed by the magic of Connect plumbing so it seems
@@ -317,6 +311,10 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 			// inject the gateway task only if it does not yet already exist
 			if !hasGatewayTaskForService(g, service.Name) {
 				prefix := service.Connect.Gateway.Prefix()
+
+				// detect whether the group is in host networking mode, which will
+				// require tweaking the default gateway task config
+				netHost := netMode == "host"
 				task := newConnectGatewayTask(prefix, service.Name, netHost)
 				g.Tasks = append(g.Tasks, task)
 
@@ -356,10 +354,10 @@ func gatewayProxyIsDefault(proxy *structs.ConsulGatewayProxy) bool {
 	return false
 }
 
-// gatewayProxyForBridge scans an existing gateway proxy configuration and tweaks
-// it given an associated configuration entry so that it works as intended from
-// inside a network namespace.
-func gatewayProxyForBridge(gateway *structs.ConsulGateway) *structs.ConsulGatewayProxy {
+// gatewayProxy scans an existing gateway proxy configuration and tweaks it
+// given an associated configuration entry so that it works as intended with
+// the network mode specified.
+func gatewayProxy(gateway *structs.ConsulGateway, mode string) *structs.ConsulGatewayProxy {
 	if gateway == nil {
 		return nil
 	}
@@ -383,40 +381,42 @@ func gatewayProxyForBridge(gateway *structs.ConsulGateway) *structs.ConsulGatewa
 		proxy.ConnectTimeout = helper.TimeToPtr(defaultConnectTimeout)
 	}
 
-	// magically configure bind address(es) for bridge networking, per gateway type
-	// non-default configuration is gated above
-	switch {
-	case gateway.Ingress != nil:
-		proxy.EnvoyGatewayNoDefaultBind = true
-		proxy.EnvoyGatewayBindTaggedAddresses = false
-		proxy.EnvoyGatewayBindAddresses = gatewayBindAddressesIngress(gateway.Ingress)
-	case gateway.Terminating != nil:
-		proxy.EnvoyGatewayNoDefaultBind = true
-		proxy.EnvoyGatewayBindTaggedAddresses = false
-		proxy.EnvoyGatewayBindAddresses = map[string]*structs.ConsulGatewayBindAddress{
-			"default": {
-				Address: "0.0.0.0",
-				Port:    -1, // filled in later with dynamic port
-			}}
-	case gateway.Mesh != nil:
-		proxy.EnvoyGatewayNoDefaultBind = true
-		proxy.EnvoyGatewayBindTaggedAddresses = false
-		proxy.EnvoyGatewayBindAddresses = map[string]*structs.ConsulGatewayBindAddress{
-			"wan": {
-				Address: "0.0.0.0",
-				Port:    -1, // filled in later with configured port
-			},
-			"lan": {
-				Address: "0.0.0.0",
-				Port:    -1, // filled in later with generated port
-			},
+	if mode == "bridge" {
+		// magically configure bind address(es) for bridge networking, per gateway type
+		// non-default configuration is gated above
+		switch {
+		case gateway.Ingress != nil:
+			proxy.EnvoyGatewayNoDefaultBind = true
+			proxy.EnvoyGatewayBindTaggedAddresses = false
+			proxy.EnvoyGatewayBindAddresses = gatewayBindAddressesIngressForBridge(gateway.Ingress)
+		case gateway.Terminating != nil:
+			proxy.EnvoyGatewayNoDefaultBind = true
+			proxy.EnvoyGatewayBindTaggedAddresses = false
+			proxy.EnvoyGatewayBindAddresses = map[string]*structs.ConsulGatewayBindAddress{
+				"default": {
+					Address: "0.0.0.0",
+					Port:    -1, // filled in later with dynamic port
+				}}
+		case gateway.Mesh != nil:
+			proxy.EnvoyGatewayNoDefaultBind = true
+			proxy.EnvoyGatewayBindTaggedAddresses = false
+			proxy.EnvoyGatewayBindAddresses = map[string]*structs.ConsulGatewayBindAddress{
+				"wan": {
+					Address: "0.0.0.0",
+					Port:    -1, // filled in later with configured port
+				},
+				"lan": {
+					Address: "0.0.0.0",
+					Port:    -1, // filled in later with generated port
+				},
+			}
 		}
 	}
 
 	return proxy
 }
 
-func gatewayBindAddressesIngress(ingress *structs.ConsulIngressConfigEntry) map[string]*structs.ConsulGatewayBindAddress {
+func gatewayBindAddressesIngressForBridge(ingress *structs.ConsulIngressConfigEntry) map[string]*structs.ConsulGatewayBindAddress {
 	if ingress == nil || len(ingress.Listeners) == 0 {
 		return make(map[string]*structs.ConsulGatewayBindAddress)
 	}
