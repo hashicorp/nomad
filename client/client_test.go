@@ -737,11 +737,15 @@ func TestClient_Init(t *testing.T) {
 	defer os.RemoveAll(dir)
 	allocDir := filepath.Join(dir, "alloc")
 
+	config := config.DefaultConfig()
+	config.AllocDir = allocDir
+	config.StateDBFactory = cstate.GetStateDBFactory(true)
+
+	// Node is always initialized in agent.go:convertClientConfig()
+	config.Node = mock.Node()
+
 	client := &Client{
-		config: &config.Config{
-			AllocDir:       allocDir,
-			StateDBFactory: cstate.GetStateDBFactory(true),
-		},
+		config: config,
 		logger: testlog.HCLogger(t),
 	}
 

@@ -643,10 +643,16 @@ func (c *Client) init() error {
 
 	c.logger.Info("using alloc directory", "alloc_dir", c.config.AllocDir)
 
+	reserved := "<none>"
+	if c.config.Node != nil && c.config.Node.ReservedResources != nil {
+		// Node should always be non-nil due to initialization in the
+		// agent package, but don't risk a panic just for a long line.
+		reserved = c.config.Node.ReservedResources.Networks.ReservedHostPorts
+	}
 	c.logger.Info("using dynamic ports",
 		"min", c.config.MinDynamicPort,
 		"max", c.config.MaxDynamicPort,
-		"reserved", c.config.Node.ReservedResources.Networks.ReservedHostPorts,
+		"reserved", reserved,
 	)
 
 	// Ensure cgroups are created on linux platform

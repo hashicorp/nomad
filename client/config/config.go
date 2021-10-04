@@ -343,6 +343,8 @@ func DefaultConfig() *Config {
 		CNIInterfacePrefix: "eth",
 		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
 		CgroupParent:       cgutil.DefaultCgroupParent,
+		MaxDynamicPort:     structs.DefaultMinDynamicPort,
+		MinDynamicPort:     structs.DefaultMaxDynamicPort,
 	}
 }
 
