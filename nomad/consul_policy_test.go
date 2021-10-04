@@ -521,7 +521,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv wild namespace prefix any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			NamespacePrefixes: map[string]*ConsulPolicy{
-				"": &ConsulPolicy{
+				"": {
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",
@@ -536,7 +536,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv apple namespace prefix any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			NamespacePrefixes: map[string]*ConsulPolicy{
-				"apple": &ConsulPolicy{
+				"apple": {
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",
@@ -551,7 +551,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv matching namespace prefix any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			NamespacePrefixes: map[string]*ConsulPolicy{
-				"app": &ConsulPolicy{
+				"app": {
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",
@@ -566,7 +566,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv other namespace prefix any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			NamespacePrefixes: map[string]*ConsulPolicy{
-				"other": &ConsulPolicy{
+				"other": {
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",
@@ -583,7 +583,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv match namespace any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			Namespaces: map[string]*ConsulPolicy{
-				"apple": &ConsulPolicy{
+				"apple": {
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",
@@ -598,7 +598,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv mismatch namespace any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			Namespaces: map[string]*ConsulPolicy{
-				"other": &ConsulPolicy{
+				"other": {
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",
@@ -613,7 +613,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv matching namespace prefix any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			Namespaces: map[string]*ConsulPolicy{
-				"apple": &ConsulPolicy{
+				"apple": {
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",
@@ -628,7 +628,7 @@ func TestConsulPolicy_allowKeystoreRead(t *testing.T) {
 	t.Run("kv mismatch namespace prefix any read", func(t *testing.T) {
 		policy := &ConsulPolicy{
 			Namespaces: map[string]*ConsulPolicy{
-				"other": &ConsulPolicy{
+				"other": {
 					KeyPrefixes: []*ConsulKeyRule{{
 						Name:   "",
 						Policy: "read",

@@ -1224,12 +1224,12 @@ func TestDockerDriver_CreateContainerConfig_Mounts(t *testing.T) {
 	defer freeport.Return(ports)
 
 	cfg.Mounts = []DockerMount{
-		DockerMount{
+		{
 			Type:   "bind",
 			Target: "/map-bind-target",
 			Source: "/map-source",
 		},
-		DockerMount{
+		{
 			Type:   "tmpfs",
 			Target: "/map-tmpfs-target",
 		},

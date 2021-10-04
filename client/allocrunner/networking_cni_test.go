@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package allocrunner
@@ -19,10 +20,10 @@ func TestCNI_cniToAllocNet_Fallback(t *testing.T) {
 	// following:
 	cniResult := &cni.CNIResult{
 		Interfaces: map[string]*cni.Config{
-			"cali39179aa3-74": &cni.Config{},
-			"eth0": &cni.Config{
+			"cali39179aa3-74": {},
+			"eth0": {
 				IPConfigs: []*cni.IPConfig{
-					&cni.IPConfig{
+					{
 						IP: net.IPv4(192, 168, 135, 232),
 					},
 				},
@@ -48,8 +49,8 @@ func TestCNI_cniToAllocNet_Fallback(t *testing.T) {
 func TestCNI_cniToAllocNet_Invalid(t *testing.T) {
 	cniResult := &cni.CNIResult{
 		Interfaces: map[string]*cni.Config{
-			"eth0": &cni.Config{},
-			"veth1": &cni.Config{
+			"eth0": {},
+			"veth1": {
 				IPConfigs: []*cni.IPConfig{},
 			},
 		},

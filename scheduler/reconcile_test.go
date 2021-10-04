@@ -609,7 +609,7 @@ func TestReconciler_Inplace_Rollback(t *testing.T) {
 	// different rescheduling states
 	allocs[1].ClientStatus = structs.AllocClientStatusFailed
 	allocs[1].TaskStates = map[string]*structs.TaskState{
-		"web": &structs.TaskState{FinishedAt: time.Now().Add(-10 * time.Minute)}}
+		"web": {FinishedAt: time.Now().Add(-10 * time.Minute)}}
 	allocs[2].ClientStatus = structs.AllocClientStatusFailed
 
 	// job is rolled back, we expect allocs[0] to be updated in-place

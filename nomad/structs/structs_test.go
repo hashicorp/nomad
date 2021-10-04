@@ -1390,7 +1390,7 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 					},
 				},
 				Tasks: []*Task{
-					&Task{
+					{
 						Name: "task1",
 						Resources: &Resources{
 							Networks: Networks{
@@ -1424,7 +1424,7 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 					},
 				},
 				Tasks: []*Task{
-					&Task{
+					{
 						Name: "task1",
 						Resources: &Resources{
 							Networks: Networks{
