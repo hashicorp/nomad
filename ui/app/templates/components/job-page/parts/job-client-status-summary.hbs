@@ -17,7 +17,7 @@
         <div class="column">
           <div class="inline-chart bumper-left">
             <JobClientStatusBar
-              @onSliceClick={{this.onSliceClick}}
+              @onSliceClick={{action this.onSliceClick}}
               @jobClientStatus={{this.jobClientStatus}}
               @isNarrow={{true}}
             />

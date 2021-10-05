@@ -8,7 +8,6 @@ export default class JobClientStatusBar extends DistributionBar {
 
   'data-test-job-client-status-bar' = true;
   jobClientStatus = null;
-  onSliceClick() {}
 
   @computed('jobClientStatus.byStatus')
   get data() {
