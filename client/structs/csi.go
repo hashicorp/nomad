@@ -240,12 +240,17 @@ func (req *ClientCSIControllerCreateVolumeRequest) ToCSIRequest() (*csi.Controll
 		// TODO: topology is not yet supported
 		AccessibilityRequirements: &csi.TopologyRequirement{},
 	}
+
+	// The CSI spec requires that at least one of the fields in CapacityRange
+	// must be defined. Fields set to 0 are considered unspecified and the
+	// CreateVolumeRequest should not send an invalid value.
 	if req.CapacityMin != 0 || req.CapacityMax != 0 {
 		creq.CapacityRange = &csi.CapacityRange{
 			RequiredBytes: req.CapacityMin,
 			LimitBytes:    req.CapacityMax,
 		}
 	}
+
 	for _, cap := range req.VolumeCapabilities {
 		ccap, err := csi.VolumeCapabilityFromStructs(cap.AttachmentMode, cap.AccessMode, req.MountOptions)
 		if err != nil {
