@@ -181,7 +181,6 @@ func (m *Meta) SetupUi(args []string) {
 			forceColor = true
 		}
 	}
-	isTerminal := terminal.IsTerminal(int(os.Stdout.Fd()))
 
 	m.Ui = &cli.BasicUi{
 		Reader:      os.Stdin,
@@ -189,8 +188,11 @@ func (m *Meta) SetupUi(args []string) {
 		ErrorWriter: colorable.NewColorableStderr(),
 	}
 
-	// Only use colored UI if stdout is a tty, and not disabled
-	if forceColor || (isTerminal && !noColor) {
+	// Only use colored UI if not disabled and stdout is a tty or colors are
+	// forced.
+	isTerminal := terminal.IsTerminal(int(os.Stdout.Fd()))
+	useColor := !noColor && (isTerminal || forceColor)
+	if useColor {
 		m.Ui = &cli.ColoredUi{
 			ErrorColor: cli.UiColorRed,
 			WarnColor:  cli.UiColorYellow,
@@ -232,16 +234,17 @@ func generalOptionsUsage(usageOpts usageOptsFlags) string {
 `
 
 	// note: that although very few commands use color explicitly, all of them
-	// return red-colored text on error so we don't want to make this
-	// configurable
+	// return red-colored text on error so we want the color flags to always be
+	// present in the help messages.
 	remainingText := `
   -no-color
     Disables colored command output. Alternatively, NOMAD_CLI_NO_COLOR may be
-    set.
+    set. This option takes precedence over -force-color.
 
   -force-color
     Forces colored command output. This can be used in cases where the usual
     terminal detection fails. Alternatively, NOMAD_CLI_FORCE_COLOR may be set.
+    This option has no effect if -no-color is also used.
 
   -ca-cert=<path>
     Path to a PEM encoded CA cert file to use to verify the

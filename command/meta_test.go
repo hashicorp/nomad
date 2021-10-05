@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/kr/pty"
@@ -87,11 +88,42 @@ func TestMeta_Colorize(t *testing.T) {
 			ExpectColor: false,
 		},
 		{
+			Name: "disable colors via env var",
+			SetupFn: func(t *testing.T, m *Meta) {
+				os.Setenv(EnvNomadCLINoColor, "1")
+				m.SetupUi([]string{})
+			},
+			ExpectColor: false,
+		},
+		{
 			Name: "force colors via CLI flag",
+			SetupFn: func(t *testing.T, m *Meta) {
+				m.SetupUi([]string{"-force-color"})
+			},
+			ExpectColor: true,
+		},
+		{
+			Name: "force colors via env var",
+			SetupFn: func(t *testing.T, m *Meta) {
+				os.Setenv(EnvNomadCLIForceColor, "1")
+				m.SetupUi([]string{})
+			},
+			ExpectColor: true,
+		},
+		{
+			Name: "no color take predecence over force color via CLI flag",
 			SetupFn: func(t *testing.T, m *Meta) {
 				m.SetupUi([]string{"-no-color", "-force-color"})
 			},
-			ExpectColor: true,
+			ExpectColor: false,
+		},
+		{
+			Name: "no color take predecence over force color via env var",
+			SetupFn: func(t *testing.T, m *Meta) {
+				os.Setenv(EnvNomadCLINoColor, "1")
+				m.SetupUi([]string{"-force-color"})
+			},
+			ExpectColor: false,
 		},
 	}
 
@@ -107,6 +139,14 @@ func TestMeta_Colorize(t *testing.T) {
 			oldStdout := os.Stdout
 			defer func() { os.Stdout = oldStdout }()
 			os.Stdout = tty
+
+			// Make sure Nomad environment variables are clean.
+			for _, envVar := range os.Environ() {
+				if strings.HasPrefix(envVar, "NOMAD") {
+					k := strings.SplitN(envVar, "=", 2)[0]
+					os.Unsetenv(k)
+				}
+			}
 
 			// Run test case.
 			m := &Meta{}
