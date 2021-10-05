@@ -1,3 +1,15 @@
+## 1.0.12 (October 5, 2021)
+
+
+IMPROVEMENTS:
+
+* build: Updated to Go 1.15.15 [[GH-11252](https://github.com/hashicorp/nomad/issues/11252)]
+
+BUG FIXES:
+
+* client: Fixed a memory leak in log collector when tasks restart [[GH-11261](https://github.com/hashicorp/nomad/issues/11261)]
+* events: Fixed wildcard namespace handling [[GH-10935](https://github.com/hashicorp/nomad/issues/10935)]
+
 ## 1.0.11 (September 20, 2021)
 
 IMPROVEMENTS:
