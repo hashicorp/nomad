@@ -1,3 +1,18 @@
+## 1.1.6 (October 5, 2021)
+
+SECURITY:
+
+* consul/connect: Fixed a bug causing the Nomad agent to panic if a mesh gateway was registered without a `proxy` block. [[GH-11257](https://github.com/hashicorp/nomad/issues/11257)]
+
+IMPROVEMENTS:
+
+* build: Updated to Go 1.16.8 [[GH-11253](https://github.com/hashicorp/nomad/issues/11253)]
+
+BUG FIXES:
+
+* client: Fixed a memory leak in log collector when tasks restart [[GH-11261](https://github.com/hashicorp/nomad/issues/11261)]
+* events: Fixed wildcard namespace handling [[GH-10935](https://github.com/hashicorp/nomad/issues/10935)]
+
 ## 1.1.5 (September 20, 2021)
 
 IMPROVEMENTS:
@@ -212,6 +227,17 @@ BUG FIXES:
  * server: Fixed a bug where jobs may not run if submitted with ParentID field set [[GH-10424](https://github.com/hashicorp/nomad/issues/10424)]
  * server: Fixed a panic that may arise on submission of jobs containing invalid service checks [[GH-10154](https://github.com/hashicorp/nomad/issues/10154)]
  * ui: Fixed the rendering of interstitial components shown after processing a dynamic application sizing recommendation. [[GH-10094](https://github.com/hashicorp/nomad/pull/10094)]
+
+## 1.0.12 (October 5, 2021)
+
+IMPROVEMENTS:
+
+* build: Updated to Go 1.15.15 [[GH-11252](https://github.com/hashicorp/nomad/issues/11252)]
+
+BUG FIXES:
+
+* client: Fixed a memory leak in log collector when tasks restart [[GH-11261](https://github.com/hashicorp/nomad/issues/11261)]
+* events: Fixed wildcard namespace handling [[GH-10935](https://github.com/hashicorp/nomad/issues/10935)]
 
 ## 1.0.11 (September 20, 2021)
 
