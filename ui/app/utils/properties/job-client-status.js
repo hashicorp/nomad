@@ -100,14 +100,16 @@ function jobStatus(allocs, expected) {
   }
 
   // Count how many allocations are in each `clientStatus` value.
-  const summary = allocs.reduce((acc, a) => {
-    const status = a.clientStatus;
-    if (!acc[status]) {
-      acc[status] = 0;
-    }
-    acc[status]++;
-    return acc;
-  }, {});
+  const summary = allocs
+    .filter(a => !a.isOld)
+    .reduce((acc, a) => {
+      const status = a.clientStatus;
+      if (!acc[status]) {
+        acc[status] = 0;
+      }
+      acc[status]++;
+      return acc;
+    }, {});
 
   // Theses statuses are considered terminal, i.e., an allocation will never
   // move from this status to another.
