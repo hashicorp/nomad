@@ -29,7 +29,6 @@ export default class JobClientStatusBar extends DistributionBar {
         value: queued.length,
         className: 'queued',
         queryParams: { status: JSON.stringify(['queued']) },
-        help: 'Job registered but waiting to be scheduled into these clients.',
       },
       {
         label: 'Starting',
@@ -37,21 +36,18 @@ export default class JobClientStatusBar extends DistributionBar {
         className: 'starting',
         queryParams: { status: JSON.stringify(['starting']) },
         layers: 2,
-        help: 'Job scheduled but all allocations are pending in these clients.',
       },
       {
         label: 'Running',
         value: running.length,
         className: 'running',
         queryParams: { status: JSON.stringify(['running']) },
-        help: 'At least one allocation for this job is running in these clients.',
       },
       {
         label: 'Complete',
         value: complete.length,
         className: 'complete',
         queryParams: { status: JSON.stringify(['complete']) },
-        help: 'All allocations for this job have completed successfully in these clients.',
       },
       {
         label: 'Degraded',
@@ -65,14 +61,12 @@ export default class JobClientStatusBar extends DistributionBar {
         value: failed.length,
         className: 'failed',
         queryParams: { status: JSON.stringify(['failed']) },
-        help: 'At least one allocation for this job has failed in these clients.',
       },
       {
         label: 'Lost',
         value: lost.length,
         className: 'lost',
         queryParams: { status: JSON.stringify(['lost']) },
-        help: 'At least one allocation for this job was lost in these clients.',
       },
       {
         label: 'Not Scheduled',
