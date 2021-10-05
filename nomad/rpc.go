@@ -238,6 +238,11 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 
 	case pool.RpcRaft:
 		metrics.IncrCounter([]string{"nomad", "rpc", "raft_handoff"}, 1)
+		// Ensure that when TLS is configured, only certificates from `server.<region>.nomad` are accepted for Raft connections.
+		if err := r.validateRaftTLS(rpcCtx); err != nil {
+			conn.Close()
+			return
+		}
 		r.raftLayer.Handoff(ctx, conn)
 
 	case pool.RpcMultiplex:
@@ -824,4 +829,39 @@ RUN_QUERY:
 		}
 	}
 	return err
+}
+
+func (r *rpcHandler) validateRaftTLS(rpcCtx *RPCContext) error {
+	// TLS is not configured or not to be enforced
+	tlsConf := r.config.TLSConfig
+	if !tlsConf.EnableRPC || !tlsConf.VerifyServerHostname || tlsConf.RPCUpgradeMode {
+		return nil
+	}
+
+	// defensive conditions: these should have already been enforced by handleConn
+	if rpcCtx == nil || !rpcCtx.TLS {
+		return errors.New("non-TLS connection attempted")
+	}
+	if len(rpcCtx.VerifiedChains) == 0 || len(rpcCtx.VerifiedChains[0]) == 0 {
+		// this should never happen, as rpcNameAndRegionValidate should have enforced it
+		return errors.New("missing cert info")
+	}
+
+	// check that `server.<region>.nomad` is present in cert
+	expected := "server." + r.Region() + ".nomad"
+
+	cert := rpcCtx.VerifiedChains[0][0]
+	for _, dnsName := range cert.DNSNames {
+		if dnsName == expected {
+			// Certificate is valid for the expected name
+			return nil
+		}
+	}
+	if cert.Subject.CommonName == expected {
+		// Certificate is valid for the expected name
+		return nil
+	}
+
+	r.logger.Warn("unauthorized raft connection", "remote_addr", rpcCtx.Conn.RemoteAddr(), "required_hostname", expected, "found", cert.DNSNames)
+	return fmt.Errorf("certificate is invalid for expected role or region: %q", expected)
 }
