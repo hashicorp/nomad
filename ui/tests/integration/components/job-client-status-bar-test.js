@@ -13,7 +13,7 @@ module('Integration | Component | job-client-status-bar', function(hooks) {
   setupRenderingTest(hooks);
 
   const commonProperties = () => ({
-    onBarClick: sinon.spy(),
+    onSliceClick: sinon.spy(),
     jobClientStatus: {
       byStatus: {
         queued: [],
@@ -31,7 +31,7 @@ module('Integration | Component | job-client-status-bar', function(hooks) {
 
   const commonTemplate = hbs`
     <JobClientStatusBar
-      @onBarClick={{onBarClick}}
+      @onSliceClick={{onSliceClick}}
       @jobClientStatus={{jobClientStatus}}
       @isNarrow={{isNarrow}}
     />`;
@@ -46,27 +46,27 @@ module('Integration | Component | job-client-status-bar', function(hooks) {
   });
 
   // TODO: fix tests for slice click
-  // test('it fires the onBarClick handler method when clicking a bar in the chart', async function(assert) {
-  //   const props = commonProperties();
-  //   this.setProperties(props);
-  //   await render(commonTemplate);
-  //   await JobClientStatusBar.slices[0].click();
-  //   assert.ok(props.onBarClick.calledOnce);
-  // });
-  //
-  // test('it handles an update to client status property', async function(assert) {
-  //   const props = commonProperties();
-  //   this.setProperties(props);
-  //   await render(commonTemplate);
-  //   const newProps = {
-  //     ...props,
-  //     jobClientStatus: {
-  //       ...props.jobClientStatus,
-  //       byStatus: { ...props.jobClientStatus.byStatus, starting: [], running: ['someNodeId'] },
-  //     },
-  //   };
-  //   this.setProperties(newProps);
-  //   await JobClientStatusBar.visitSlice('running');
-  //   assert.ok(props.onBarClick.calledOnce);
-  // });
+  test('it fires the onBarClick handler method when clicking a bar in the chart', async function(assert) {
+    const props = commonProperties();
+    this.setProperties(props);
+    await render(commonTemplate);
+    await JobClientStatusBar.slices[0].click();
+    assert.ok(props.onSliceClick.calledOnce);
+  });
+
+  test('it handles an update to client status property', async function(assert) {
+    const props = commonProperties();
+    this.setProperties(props);
+    await render(commonTemplate);
+    const newProps = {
+      ...props,
+      jobClientStatus: {
+        ...props.jobClientStatus,
+        byStatus: { ...props.jobClientStatus.byStatus, starting: [], running: ['someNodeId'] },
+      },
+    };
+    this.setProperties(newProps);
+    await JobClientStatusBar.visitSlice('running');
+    assert.ok(props.onSliceClick.calledOnce);
+  });
 });
