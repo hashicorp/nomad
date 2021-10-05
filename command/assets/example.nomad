@@ -305,9 +305,9 @@ job "example" {
         image = "redis:3.2"
         ports = ["db"]
 
-        # if you have an "auth" section setup, with "auth.helper" confgured,
-        # and if you mix private and public repositories, you will need this
-        # for the public images to be succesfully downloaded.
+        # The "auth_soft_fail" configuration instructs Nomad to try public
+        # repositories if the task fails to authenticate when pulling images
+        # and the Docker driver has an "auth" configuration block.
         auth_soft_fail = true
       }
 
