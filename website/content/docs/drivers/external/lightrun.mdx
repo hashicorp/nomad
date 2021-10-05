@@ -57,11 +57,16 @@ The `lightrun-java` driver accepts all configuration options of the Nomad
 [`java`] driver.
 
 Additionaly, the `lightrun-java` driver requires the following configuration in
-the job spec. To find these configurations, log into the [Lightrun Management Portal][lightrun_portal] 
-and look inside the **Download the Agent** section:
+the job spec. To find these configurations, log into the
+[Lightrun Management Portal][lightrun_portal] and refer to the **Download the
+Agent** section:
 
-- `lightrun_server` - The Lightrun server you are working against, including your company name.
-- `lightrun_secret` - Lightrun secret is used for authorization against the Lightrun server.
+- `lightrun_server` - The Lightrun server you are working against, including
+  your company name.
+
+- `lightrun_secret` - Lightrun secret is used for authorization against the
+  Lightrun server.
+
 - `lightrun_certificate` - Used for certificate pinning.
 
 A full job file example can be found in the repo at [`example/example.driver.nomad`][example-config].
