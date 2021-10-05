@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 var (
@@ -19,7 +20,7 @@ var (
 )
 
 func TestFileRotator_IncorrectPath(t *testing.T) {
-	t.Parallel()
+	defer goleak.VerifyNone(t)
 
 	_, err := NewFileRotator("/foo", baseFileName, 10, 10, testlog.HCLogger(t))
 	require.Error(t, err)
@@ -27,7 +28,7 @@ func TestFileRotator_IncorrectPath(t *testing.T) {
 }
 
 func TestFileRotator_CreateNewFile(t *testing.T) {
-	t.Parallel()
+	defer goleak.VerifyNone(t)
 
 	path, err := ioutil.TempDir("", pathPrefix)
 	require.NoError(t, err)
@@ -42,7 +43,7 @@ func TestFileRotator_CreateNewFile(t *testing.T) {
 }
 
 func TestFileRotator_OpenLastFile(t *testing.T) {
-	t.Parallel()
+	defer goleak.VerifyNone(t)
 
 	path, err := ioutil.TempDir("", pathPrefix)
 	require.NoError(t, err)
@@ -67,7 +68,7 @@ func TestFileRotator_OpenLastFile(t *testing.T) {
 }
 
 func TestFileRotator_WriteToCurrentFile(t *testing.T) {
-	t.Parallel()
+	defer goleak.VerifyNone(t)
 
 	path, err := ioutil.TempDir("", pathPrefix)
 	require.NoError(t, err)
@@ -101,7 +102,7 @@ func TestFileRotator_WriteToCurrentFile(t *testing.T) {
 }
 
 func TestFileRotator_RotateFiles(t *testing.T) {
-	t.Parallel()
+	defer goleak.VerifyNone(t)
 
 	path, err := ioutil.TempDir("", pathPrefix)
 	require.NoError(t, err)
@@ -146,7 +147,7 @@ func TestFileRotator_RotateFiles(t *testing.T) {
 }
 
 func TestFileRotator_RotateFiles_Boundary(t *testing.T) {
-	t.Parallel()
+	defer goleak.VerifyNone(t)
 
 	path, err := ioutil.TempDir("", pathPrefix)
 	require.NoError(t, err)
@@ -194,7 +195,7 @@ func TestFileRotator_RotateFiles_Boundary(t *testing.T) {
 }
 
 func TestFileRotator_WriteRemaining(t *testing.T) {
-	t.Parallel()
+	defer goleak.VerifyNone(t)
 
 	path, err := ioutil.TempDir("", pathPrefix)
 	require.NoError(t, err)
@@ -256,7 +257,7 @@ func TestFileRotator_WriteRemaining(t *testing.T) {
 }
 
 func TestFileRotator_PurgeOldFiles(t *testing.T) {
-	t.Parallel()
+	defer goleak.VerifyNone(t)
 
 	path, err := ioutil.TempDir("", pathPrefix)
 	require.NoError(t, err)
