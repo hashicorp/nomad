@@ -494,7 +494,7 @@ jobs:
           destination: /ui-assets
   algolia_index:
     docker:
-      - image: docker.mirror.hashicorp.services/node:12
+      - image: docker.mirror.hashicorp.services/node:14
     steps:
       - checkout
       - run:
