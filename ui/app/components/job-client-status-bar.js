@@ -10,7 +10,7 @@ export default class JobClientStatusBar extends DistributionBar {
   job = null;
   jobClientStatus = null;
 
-  @computed('jobClientStatus.byStatus')
+  @computed('job.namespace', 'jobClientStatus.byStatus')
   get data() {
     const {
       queued,
