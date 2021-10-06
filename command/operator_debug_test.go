@@ -218,6 +218,88 @@ func TestDebug_ClientToServer(t *testing.T) {
 	runTestCases(t, cases)
 }
 
+func TestDebug_ClientToServer_Region(t *testing.T) {
+	agentConfFunc := func(c *agent.Config) {
+		c.Region = "testregion"
+	}
+
+	// Start test server and API client
+	srv, _, url := testServer(t, false, agentConfFunc)
+	defer srv.Shutdown()
+
+	// Wait for leadership to establish
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	// Retrieve server RPC address to join client
+	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
+	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
+
+	// Setup client 1 (nodeclass = clienta)
+	agentConfFunc1 := func(c *agent.Config) {
+		c.Region = "testregion"
+		c.Server.Enabled = false
+		c.Client.NodeClass = "clienta"
+		c.Client.Enabled = true
+		c.Client.Servers = []string{srvRPCAddr}
+	}
+
+	// Start client 1
+	agent1 := agent.NewTestAgent(t, "client1", agentConfFunc1)
+	defer agent1.Shutdown()
+
+	// Wait for client 1 to connect
+	client1NodeID := agent1.Agent.Client().NodeID()
+	client1Region := agent1.Agent.Client().Region()
+	testutil.WaitForClient(t, srv.Agent.RPC, client1NodeID, client1Region)
+	t.Logf("[TEST] Client1 ready, id: %s, region: %s", client1NodeID, client1Region)
+
+	// Get API addresses
+	addrServer := srv.HTTPAddr()
+	addrClient1 := agent1.HTTPAddr()
+
+	t.Logf("[TEST] testAgent api address: %s", url)
+	t.Logf("[TEST] Server    api address: %s", addrServer)
+	t.Logf("[TEST] Client1   api address: %s", addrClient1)
+
+	// Setup test cases
+	var cases = testCases{
+		// Good
+		{
+			name:         "testAgent api server",
+			args:         []string{"-address", url, "-region", "testregion", "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Region: testregion\n",
+				"Servers: (1/1)",
+				"Clients: (1/1)",
+				"Created debug archive",
+			},
+		},
+		{
+			name:            "server address",
+			args:            []string{"-address", addrServer, "-region", "testregion", "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode:    0,
+			expectedOutputs: []string{"Created debug archive"},
+		},
+		{
+			name:            "client1 address - verify no SIGSEGV panic",
+			args:            []string{"-address", addrClient1, "-region", "testregion", "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode:    0,
+			expectedOutputs: []string{"Created debug archive"},
+		},
+
+		// Bad
+		{
+			name:          "invalid region - all servers, all clients",
+			args:          []string{"-address", url, "-region", "never", "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode:  1,
+			expectedError: "500 (No path to region)",
+		},
+	}
+
+	runTestCases(t, cases)
+}
+
 func TestDebug_SingleServer(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
