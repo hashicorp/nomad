@@ -1,0 +1,3 @@
+```release-note:improvement
+server: Allow tuning of node failover heartbeat TTL
+```
