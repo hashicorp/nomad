@@ -15,6 +15,7 @@
     "lint:js": "eslint .",
     "start": "./node_modules/ember-cli/bin/ember server",
     "build-storybook": "STORYBOOK=true ember build && build-storybook -s dist",
+    "extract-storybook": "sb extract",
     "storybook": "STORYBOOK=true start-storybook -p 6006 -s dist",
     "test": "npm-run-all lint:* test:*",
     "test:ember": "ember test"
