@@ -36,6 +36,8 @@ storage for authentication.
 - `-authenticate`: Exchange your Nomad ACL token for a one-time token in the
   web UI.
 
+- `-show-url`: Show the Nomad UI URL instead of opening with the default browser.
+
 ## Examples
 
 Open the UI homepage:
@@ -64,4 +66,11 @@ Open the UI and authenticate using your ACL token:
 ```shell-session
 $ NOMAD_ACL_TOKEN=e9674b26-763b-4637-a28f-0df95c53cdda nomad ui -authenticate
 Opening URL "http://127.0.0.1:4646" with token
+```
+
+Show the UI URL without opening the browser:
+
+```shell-session
+$ nomad ui -show-url
+URL for web UI: http://127.0.0.1:4646
 ```
