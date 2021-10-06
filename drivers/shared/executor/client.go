@@ -16,6 +16,8 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/grpcutils"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var _ Executor = (*grpcExecutorClient)(nil)
@@ -131,12 +133,14 @@ func (c *grpcExecutorClient) handleStats(ctx context.Context, stream proto.Execu
 			return
 		}
 
-		if err != nil {
-			if err != io.EOF {
-				c.logger.Error("error receiving stream from Stats executor RPC, closing stream", "error", err)
-			}
-
-			// End stream
+		if err == io.EOF ||
+			status.Code(err) == codes.Unavailable ||
+			status.Code(err) == codes.Canceled ||
+			err == context.Canceled {
+			c.logger.Trace("executor Stats stream closed", "msg", err)
+			return
+		} else if err != nil {
+			c.logger.Warn("failed to receive Stats executor RPC stream, closing stream", "error", err)
 			return
 		}
 
