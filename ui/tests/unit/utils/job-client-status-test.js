@@ -251,7 +251,7 @@ module('Unit | Util | JobClientStatus', function() {
       datacenters: ['dc1'],
       status: 'pending',
       allocations: [
-        { node, clientStatus: 'starting' }, // technically shouldn't be possible but testing the logic
+        { node, clientStatus: 'starting' },
         { node, clientStatus: 'starting' },
         { node, clientStatus: 'starting' },
       ],
