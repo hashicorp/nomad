@@ -382,15 +382,15 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Failed to retrieve server list; err: %v", err))
 		return 1
 	}
+
+	// Write complete list of server members to file
 	c.writeJSON("version", "members.json", members, err)
-	// We always write the error to the file, but don't range if no members found
-	if serverIDs == "all" && members != nil {
-		// Special case to capture from all servers
-		for _, member := range members.Members {
-			c.serverIDs = append(c.serverIDs, member.Name)
-		}
-	} else {
-		c.serverIDs = append(c.serverIDs, stringToSlice(serverIDs)...)
+
+	// Filter for servers matching criteria
+	c.serverIDs, err = parseMembers(members, serverIDs, c.region)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Failed to parse server list; err: %v", err))
+		return 1
 	}
 
 	serversFound := 0
@@ -1053,6 +1053,41 @@ func TarCZF(archive string, src, target string) error {
 
 		return nil
 	})
+}
+
+// parseMembers returns a slice of server member names matching the search criteria
+func parseMembers(serverMembers *api.ServerMembers, serverIDs string, region string) (membersFound []string, err error) {
+	prefixes := stringToSlice(serverIDs)
+
+	if serverMembers.Members == nil {
+		return nil, fmt.Errorf("Failed to parse server members, members==nil")
+	}
+
+	for _, member := range serverMembers.Members {
+		// If region is provided it must match exactly
+		if region != "" && member.Tags["region"] != region {
+			continue
+		}
+
+		// Always include "all"
+		if serverIDs == "all" {
+			membersFound = append(membersFound, member.Name)
+			continue
+		}
+
+		// Special case passthrough as literally "leader"
+		if serverIDs == "leader" {
+			membersFound = append(membersFound, "leader")
+			continue
+		}
+
+		// Include member if name matches any prefix
+		if helper.SliceStringContainsPrefix(prefixes, member.Name) {
+			membersFound = append(membersFound, member.Name)
+		}
+	}
+
+	return membersFound, nil
 }
 
 // stringToSlice splits CSV string into slice, trims whitespace, and prunes
