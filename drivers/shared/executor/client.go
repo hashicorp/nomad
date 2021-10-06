@@ -138,7 +138,7 @@ func (c *grpcExecutorClient) handleStats(ctx context.Context, stream proto.Execu
 			status.Code(err) == codes.Unavailable ||
 			status.Code(err) == codes.Canceled ||
 			err == context.Canceled {
-			c.logger.Trace("executor Stats stream closed", "error", err)
+			c.logger.Trace("executor Stats stream closed", "msg", err)
 			return
 		} else if err != nil {
 			c.logger.Warn("failed to receive Stats executor RPC stream, closing stream", "error", err)
