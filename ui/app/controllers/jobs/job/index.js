@@ -43,7 +43,10 @@ export default class IndexController extends Controller.extend(WithNamespaceRese
   @action
   gotoClients(statusFilter) {
     this.transitionToRoute('jobs.job.clients', this.job, {
-      queryParams: { status: JSON.stringify(statusFilter) },
+      queryParams: {
+        status: JSON.stringify(statusFilter),
+        namespace: this.job.get('namespace.name'),
+      },
     });
   }
 }

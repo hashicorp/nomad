@@ -136,7 +136,19 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
       clients.forEach(c => {
         server.create('allocation', { jobId: job.id, nodeId: c.id });
       });
-      await JobDetail.visit({ id: job.id });
+      if (!job.namespace || job.namespace === 'default') {
+        await JobDetail.visit({ id: job.id });
+      } else {
+        await JobDetail.visit({ id: job.id, namespace: job.namespace });
+      }
+    });
+
+    test('the subnav links to clients', async function(assert) {
+      await JobDetail.tabFor('clients').visit();
+      assert.equal(
+        currentURL(),
+        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}/clients`, job.namespace)
+      );
     });
 
     test('job status summary is shown in the overview', async function(assert) {
@@ -148,28 +160,33 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
 
     test('clicking legend item navigates to a pre-filtered clients table', async function(assert) {
       const legendItem = JobDetail.jobClientStatusSummary.legend.clickableItems[0];
-      const encodedStatus = encodeURIComponent(JSON.stringify([legendItem.label]));
+      const status = legendItem.label;
       await legendItem.click();
 
-      assert.equal(
-        currentURL(),
-        `/jobs/${job.name}/clients?status=${encodedStatus}`,
-        'Client Status Bar Chart legend links to client tab'
+      const encodedStatus = encodeURIComponent(JSON.stringify([status]));
+      const expectedURL = new URL(
+        urlWithNamespace(`/jobs/${job.name}/clients?status=${encodedStatus}`, job.namespace),
+        window.location
       );
+      const gotURL = new URL(currentURL(), window.location);
+      assert.deepEqual(gotURL.path, expectedURL.path);
+      assert.deepEqual(gotURL.searchParams, expectedURL.searchParams);
     });
 
-    // TODO: fix click event on slices during tests
-    // test('clicking in a slice takes you to a pre-filtered view of clients', async function(assert) {
-    //   const slice = JobDetail.jobClientStatusSummary.slices[0];
-    //   await slice.click();
-    //
-    //   const encodedStatus = encodeURIComponent(JSON.stringify([slice.label]));
-    //   assert.equal(
-    //     currentURL(),
-    //     `/jobs/${job.name}/clients?status=${encodedStatus}`,
-    //     'Client Status Bar Chart links to client tab'
-    //   );
-    // });
+    test('clicking in a slice takes you to a pre-filtered clients table', async function(assert) {
+      const slice = JobDetail.jobClientStatusSummary.slices[0];
+      const status = slice.label;
+      await slice.click();
+
+      const encodedStatus = encodeURIComponent(JSON.stringify([status]));
+      const expectedURL = new URL(
+        urlWithNamespace(`/jobs/${job.name}/clients?status=${encodedStatus}`, job.namespace),
+        window.location
+      );
+      const gotURL = new URL(currentURL(), window.location);
+      assert.deepEqual(gotURL.path, expectedURL.path);
+      assert.deepEqual(gotURL.searchParams, expectedURL.searchParams);
+    });
 
     for (var testName in additionalTests) {
       test(testName, async function(assert) {

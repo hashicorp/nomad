@@ -38,6 +38,20 @@ moduleForJobWithClientStatus('Acceptance | job detail with client status (sysbat
   })
 );
 
+moduleForJobWithClientStatus(
+  'Acceptance | job detail with client status (sysbatch with namespace)',
+  () => {
+    const namespace = server.create('namespace', { id: 'test' });
+    return server.create('job', {
+      status: 'running',
+      datacenters: ['dc1'],
+      type: 'sysbatch',
+      namespaceId: namespace.name,
+      createAllocations: false,
+    });
+  }
+);
+
 moduleForJob(
   'Acceptance | job detail (periodic)',
   'children',
