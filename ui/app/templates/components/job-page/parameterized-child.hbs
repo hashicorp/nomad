@@ -54,7 +54,7 @@
       @jobClientStatus={{this.jobClientStatus}}
     />
   {{/if}}
-  <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed={{this.isSysBatch}} />
+  <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed={{this.job.hasClientStatus}} />
   <JobPage::Parts::PlacementFailures @job={{this.job}} />
   <JobPage::Parts::TaskGroups
     @job={{this.job}}
