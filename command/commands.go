@@ -13,6 +13,9 @@ import (
 const (
 	// EnvNomadCLINoColor is an env var that toggles colored UI output.
 	EnvNomadCLINoColor = `NOMAD_CLI_NO_COLOR`
+
+	// EnvNomadCLIForceColor is an env var that forces colored UI output.
+	EnvNomadCLIForceColor = `NOMAD_CLI_FORCE_COLOR`
 )
 
 // DeprecatedCommand is a command that wraps an existing command and prints a

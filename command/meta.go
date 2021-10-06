@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	colorable "github.com/mattn/go-colorable"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 	"github.com/posener/complete"
@@ -39,6 +40,9 @@ type Meta struct {
 	// Whether to not-colorize output
 	noColor bool
 
+	// Whether to force colorized output
+	forceColor bool
+
 	// The region to send API requests
 	region string
 
@@ -70,6 +74,7 @@ func (m *Meta) FlagSet(n string, fs FlagSetFlags) *flag.FlagSet {
 		f.StringVar(&m.region, "region", "", "")
 		f.StringVar(&m.namespace, "namespace", "", "")
 		f.BoolVar(&m.noColor, "no-color", false, "")
+		f.BoolVar(&m.forceColor, "force-color", false, "")
 		f.StringVar(&m.caCert, "ca-cert", "", "")
 		f.StringVar(&m.caPath, "ca-path", "", "")
 		f.StringVar(&m.clientCert, "client-cert", "", "")
@@ -97,6 +102,7 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 		"-region":          complete.PredictAnything,
 		"-namespace":       NamespacePredictor(m.Client, nil),
 		"-no-color":        complete.PredictNothing,
+		"-force-color":     complete.PredictNothing,
 		"-ca-cert":         complete.PredictFiles("*"),
 		"-ca-path":         complete.PredictDirs("*"),
 		"-client-cert":     complete.PredictFiles("*"),
@@ -155,12 +161,44 @@ func (m *Meta) allNamespaces() bool {
 
 func (m *Meta) Colorize() *colorstring.Colorize {
 	_, coloredUi := m.Ui.(*cli.ColoredUi)
-	noColor := m.noColor || !coloredUi || !terminal.IsTerminal(int(os.Stdout.Fd()))
 
 	return &colorstring.Colorize{
 		Colors:  colorstring.DefaultColors,
-		Disable: noColor,
+		Disable: !coloredUi,
 		Reset:   true,
+	}
+}
+
+func (m *Meta) SetupUi(args []string) {
+	noColor := os.Getenv(EnvNomadCLINoColor) != ""
+	forceColor := os.Getenv(EnvNomadCLIForceColor) != ""
+
+	for _, arg := range args {
+		// Check if color is set
+		if arg == "-no-color" || arg == "--no-color" {
+			noColor = true
+		} else if arg == "-force-color" || arg == "--force-color" {
+			forceColor = true
+		}
+	}
+
+	m.Ui = &cli.BasicUi{
+		Reader:      os.Stdin,
+		Writer:      colorable.NewColorableStdout(),
+		ErrorWriter: colorable.NewColorableStderr(),
+	}
+
+	// Only use colored UI if not disabled and stdout is a tty or colors are
+	// forced.
+	isTerminal := terminal.IsTerminal(int(os.Stdout.Fd()))
+	useColor := !noColor && (isTerminal || forceColor)
+	if useColor {
+		m.Ui = &cli.ColoredUi{
+			ErrorColor: cli.UiColorRed,
+			WarnColor:  cli.UiColorYellow,
+			InfoColor:  cli.UiColorGreen,
+			Ui:         m.Ui,
+		}
 	}
 }
 
@@ -196,12 +234,17 @@ func generalOptionsUsage(usageOpts usageOptsFlags) string {
 `
 
 	// note: that although very few commands use color explicitly, all of them
-	// return red-colored text on error so we don't want to make this
-	// configurable
+	// return red-colored text on error so we want the color flags to always be
+	// present in the help messages.
 	remainingText := `
   -no-color
     Disables colored command output. Alternatively, NOMAD_CLI_NO_COLOR may be
-    set.
+    set. This option takes precedence over -force-color.
+
+  -force-color
+    Forces colored command output. This can be used in cases where the usual
+    terminal detection fails. Alternatively, NOMAD_CLI_FORCE_COLOR may be set.
+    This option has no effect if -no-color is also used.
 
   -ca-cert=<path>
     Path to a PEM encoded CA cert file to use to verify the
