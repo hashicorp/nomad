@@ -16,46 +16,50 @@ const STATUS = [
 //
 // ex. clientStaus: jobClientStatus('nodes', 'job'),
 export default function jobClientStatus(nodesKey, jobKey) {
-  return computed(nodesKey, `${jobKey}.{datacenters,status,allocations,taskGroups}`, function() {
-    const job = this.get(jobKey);
-    const nodes = this.get(nodesKey);
+  return computed(
+    nodesKey,
+    `${jobKey}.{datacenters,status,allocations.@each.clientStatus,taskGroups}`,
+    function() {
+      const job = this.get(jobKey);
+      const nodes = this.get(nodesKey);
 
-    // Filter nodes by the datacenters defined in the job.
-    const filteredNodes = nodes.filter(n => {
-      return job.datacenters.indexOf(n.datacenter) >= 0;
-    });
+      // Filter nodes by the datacenters defined in the job.
+      const filteredNodes = nodes.filter(n => {
+        return job.datacenters.indexOf(n.datacenter) >= 0;
+      });
 
-    if (job.status === 'pending') {
-      return allQueued(filteredNodes);
+      if (job.status === 'pending') {
+        return allQueued(filteredNodes);
+      }
+
+      // Group the job allocations by the ID of the client that is running them.
+      const allocsByNodeID = {};
+      job.allocations.forEach(a => {
+        const nodeId = a.node.get('id');
+        if (!allocsByNodeID[nodeId]) {
+          allocsByNodeID[nodeId] = [];
+        }
+        allocsByNodeID[nodeId].push(a);
+      });
+
+      const result = {
+        byNode: {},
+        byStatus: {},
+        totalNodes: filteredNodes.length,
+      };
+      filteredNodes.forEach(n => {
+        const status = jobStatus(allocsByNodeID[n.id], job.taskGroups.length);
+        result.byNode[n.id] = status;
+
+        if (!result.byStatus[status]) {
+          result.byStatus[status] = [];
+        }
+        result.byStatus[status].push(n.id);
+      });
+      result.byStatus = canonicalizeStatus(result.byStatus);
+      return result;
     }
-
-    // Group the job allocations by the ID of the client that is running them.
-    const allocsByNodeID = {};
-    job.allocations.forEach(a => {
-      const nodeId = a.node.get('id');
-      if (!allocsByNodeID[nodeId]) {
-        allocsByNodeID[nodeId] = [];
-      }
-      allocsByNodeID[nodeId].push(a);
-    });
-
-    const result = {
-      byNode: {},
-      byStatus: {},
-      totalNodes: filteredNodes.length,
-    };
-    filteredNodes.forEach(n => {
-      const status = jobStatus(allocsByNodeID[n.id], job.taskGroups.length);
-      result.byNode[n.id] = status;
-
-      if (!result.byStatus[status]) {
-        result.byStatus[status] = [];
-      }
-      result.byStatus[status].push(n.id);
-    });
-    result.byStatus = canonicalizeStatus(result.byStatus);
-    return result;
-  });
+  );
 }
 
 function allQueued(nodes) {
