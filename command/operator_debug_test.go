@@ -432,15 +432,26 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")   // Archive should be generated anyway
 }
 
-func TestDebug_Utils(t *testing.T) {
+func TestDebug_StringToSlice(t *testing.T) {
 	t.Parallel()
 
-	xs := argNodes("foo, bar")
-	require.Equal(t, []string{"foo", "bar"}, xs)
+	cases := []struct {
+		input    string
+		expected []string
+	}{
+		{input: ",,", expected: []string(nil)},
+		{input: "", expected: []string(nil)},
+		{input: "foo, bar", expected: []string{"foo", "bar"}},
+	}
+	for _, tc := range cases {
+		out := stringToSlice(tc.input)
+		require.Equal(t, tc.expected, out)
+		require.Equal(t, true, helper.CompareSliceSetString(tc.expected, out))
+	}
+}
 
-	xs = argNodes("")
-	require.Len(t, xs, 0)
-	require.Empty(t, xs)
+func TestDebug_External(t *testing.T) {
+	t.Parallel()
 
 	// address calculation honors CONSUL_HTTP_SSL
 	// ssl: true - Correct alignment
