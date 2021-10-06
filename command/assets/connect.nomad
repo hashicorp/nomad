@@ -258,7 +258,7 @@ job "countdash" {
       # The "dns" stanza allows operators to override the DNS configuration
       # inherited by the host client.
       # dns {
-      #   servers = ["1.1.1.1"] 
+      #   servers = ["1.1.1.1"]
       # }
     }
     # The "service" stanza enables Consul Connect.
@@ -314,6 +314,11 @@ job "countdash" {
       # documentation for more information.
       config {
         image = "hashicorpnomad/counter-api:v3"
+
+        # The "auth_soft_fail" configuration instructs Nomad to try public
+        # repositories if the task fails to authenticate when pulling images
+        # and the Docker driver has an "auth" configuration block.
+        auth_soft_fail = true
       }
 
       # The "artifact" stanza instructs Nomad to download an artifact from a
@@ -457,7 +462,8 @@ job "countdash" {
       }
 
       config {
-        image = "hashicorpnomad/counter-dashboard:v3"
+        image          = "hashicorpnomad/counter-dashboard:v3"
+        auth_soft_fail = true
       }
     }
   }
