@@ -1390,6 +1390,10 @@
             "path": "drivers/external/jail-task-driver"
           },
           {
+            "title": "Lightrun",
+            "path": "drivers/external/lightrun"
+          },
+          {
             "title": "LXC",
             "path": "drivers/external/lxc"
           },
