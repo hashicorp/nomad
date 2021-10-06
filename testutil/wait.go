@@ -112,12 +112,15 @@ func WaitForLeader(t testing.TB, rpc rpcFn) {
 }
 
 // WaitForClient blocks until the client can be found
-func WaitForClient(t testing.TB, rpc rpcFn, nodeID string) {
+func WaitForClient(t testing.TB, rpc rpcFn, nodeID string, region string) {
 	t.Helper()
+	if region == "" {
+		region = "global"
+	}
 	WaitForResult(func() (bool, error) {
 		req := structs.NodeSpecificRequest{
 			NodeID:       nodeID,
-			QueryOptions: structs.QueryOptions{Region: "global"},
+			QueryOptions: structs.QueryOptions{Region: region},
 		}
 		var out structs.SingleNodeResponse
 
