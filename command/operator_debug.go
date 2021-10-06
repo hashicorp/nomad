@@ -470,6 +470,13 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	self, err := client.Agent().Self()
 	c.writeJSON(dir, "agent-self.json", self, err)
 
+	var qo *api.QueryOptions
+	namespaces, _, err := client.Namespaces().List(qo)
+	c.writeJSON(dir, "namespaces.json", namespaces, err)
+
+	regions, err := client.Regions().List()
+	c.writeJSON(dir, "regions.json", regions, err)
+
 	// Fetch data directly from consul and vault. Ignore errors
 	var consul, vault string
 
