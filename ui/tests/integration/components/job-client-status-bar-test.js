@@ -45,7 +45,6 @@ module('Integration | Component | job-client-status-bar', function(hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
-  // TODO: fix tests for slice click
   test('it fires the onBarClick handler method when clicking a bar in the chart', async function(assert) {
     const props = commonProperties();
     this.setProperties(props);

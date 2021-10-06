@@ -17,7 +17,7 @@ const STATUS = [
 // ex. clientStaus: jobClientStatus('nodes', 'job'),
 export default function jobClientStatus(nodesKey, jobKey) {
   return computed(
-    nodesKey,
+    `${nodesKey}.[]`,
     `${jobKey}.{datacenters,status,allocations.@each.clientStatus,taskGroups}`,
     function() {
       const job = this.get(jobKey);
