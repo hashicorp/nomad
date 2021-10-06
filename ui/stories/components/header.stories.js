@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Header',
+  title: 'Components/Header',
 };
 
 export let Header = () => {

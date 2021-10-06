@@ -2,7 +2,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { withKnobs, text } from '@storybook/addon-knobs';
 
 export default {
-  title: 'Components|Copy Button',
+  title: 'Components/Copy Button',
   decorators: [withKnobs],
 };
 

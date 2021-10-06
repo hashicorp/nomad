@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Filter Facets',
+  title: 'Components/Filter Facets',
 };
 
 let options1 = [

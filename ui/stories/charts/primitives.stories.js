@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Charts|Primitives',
+  title: 'Charts/Primitives',
 };
 
 export let Tooltip = () => ({

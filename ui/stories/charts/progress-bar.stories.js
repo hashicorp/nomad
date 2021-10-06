@@ -4,7 +4,7 @@ import EmberObject, { computed } from '@ember/object';
 import { on } from '@ember/object/evented';
 
 export default {
-  title: 'Charts|Progress Bar',
+  title: 'Charts/Progress Bar',
 };
 
 export let Standard = () => {

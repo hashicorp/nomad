@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Page Tabs',
+  title: 'Components/Page Tabs',
 };
 
 export let Standard = () => {

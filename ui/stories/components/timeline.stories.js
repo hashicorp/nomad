@@ -2,7 +2,7 @@ import hbs from 'htmlbars-inline-precompile';
 import moment from 'moment';
 
 export default {
-  title: 'Components|Timeline',
+  title: 'Components/Timeline',
 };
 
 export let Standard = () => {

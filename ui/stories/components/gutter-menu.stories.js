@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Gutter Menu',
+  title: 'Components/Gutter Menu',
 };
 
 export let Standard = () => {

@@ -3,7 +3,7 @@ import hbs from 'htmlbars-inline-precompile';
 import DelayedTruth from '../utils/delayed-truth';
 
 export default {
-  title: 'Components|JSON Viewer',
+  title: 'Components/JSON Viewer',
 };
 
 export let Standard = () => {
