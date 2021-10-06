@@ -141,6 +141,11 @@ func TestAgent_ServerConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, float64(11.0), out.MaxHeartbeatsPerSecond)
 
+	conf.Server.FailoverHeartbeatTTL = 337 * time.Second
+	out, err = a.serverConfig()
+	require.NoError(t, err)
+	require.Equal(t, 337*time.Second, out.FailoverHeartbeatTTL)
+
 	// Defaults to the global bind addr
 	conf.Addresses.RPC = ""
 	conf.Addresses.Serf = ""

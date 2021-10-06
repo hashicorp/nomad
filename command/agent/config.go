@@ -441,6 +441,12 @@ type ServerConfig struct {
 	// to meet the target rate.
 	MaxHeartbeatsPerSecond float64 `hcl:"max_heartbeats_per_second"`
 
+	// FailoverHeartbeatTTL is the TTL applied to heartbeats after
+	// a new leader is elected, since we no longer know the status
+	// of all the heartbeats.
+	FailoverHeartbeatTTL    time.Duration
+	FailoverHeartbeatTTLHCL string `hcl:"failover_heartbeat_ttl" json:"-"`
+
 	// StartJoin is a list of addresses to attempt to join when the
 	// agent starts. If Serf is unable to communicate with any of these
 	// addresses, then the agent will error and exit.
@@ -1483,6 +1489,12 @@ func (a *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 	if b.MaxHeartbeatsPerSecond != 0.0 {
 		result.MaxHeartbeatsPerSecond = b.MaxHeartbeatsPerSecond
+	}
+	if b.FailoverHeartbeatTTL != 0 {
+		result.FailoverHeartbeatTTL = b.FailoverHeartbeatTTL
+	}
+	if b.FailoverHeartbeatTTLHCL != "" {
+		result.FailoverHeartbeatTTLHCL = b.FailoverHeartbeatTTLHCL
 	}
 	if b.RetryMaxAttempts != 0 {
 		result.RetryMaxAttempts = b.RetryMaxAttempts

@@ -131,6 +131,16 @@ server {
   a tradeoff as it lowers failure detection time of nodes at the tradeoff of
   false positives and increased load on the leader.
 
+- `failover_heartbeat_ttl` `(string: "5m")` - Specifies the TTL applied to
+	heartbeats after a new leader is elected, since we no longer know the status
+	of all the heartbeats. This is specified using a label suffix like "30s" or
+	"1h".
+
+  ~> Lowering the `failover_heartbeat_ttl` is a tradeoff as it lowers failure
+  detection time of nodes at the tradeoff of false positives. False positives
+  could cause all clients to stop their allocations if a leadership transition
+  lasts longer than `heartbeat_grace + failover_heartbeat_ttl`.
+
 - `max_heartbeats_per_second` `(float: 50.0)` - Specifies the maximum target
   rate of heartbeats being processed per second. This allows the TTL to be
   increased to meet the target rate. Increasing the maximum heartbeats per
