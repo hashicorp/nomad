@@ -39,7 +39,7 @@
     "@glimmer/component": "^1.0.1",
     "@glimmer/tracking": "^1.0.0",
     "@hashicorp/structure-icons": "^1.3.0",
-    "@storybook/ember-cli-storybook": "^0.4.0",
+    "@storybook/ember-cli-storybook": "https://github.com/DingoEatingFuzz/ember-cli-storybook#9ccfb4d",
     "anser": "^1.4.8",
     "babel-eslint": "^10.1.0",
     "base64-js": "^1.3.1",
