@@ -230,7 +230,7 @@ func NodeClassPredictor(factory ApiClientFactory) complete.Predictor {
 
 		// Iterate over node classes looking for match
 		filtered := make([]string, len(classes))
-		for class, _ := range classes {
+		for class := range classes {
 			if strings.HasPrefix(class, a.Last) {
 				filtered = append(filtered, class)
 			}
@@ -249,6 +249,9 @@ func ServerPredictor(factory ApiClientFactory) complete.Predictor {
 			return nil
 		}
 		members, err := client.Agent().Members()
+		if err != nil {
+			return []string{}
+		}
 
 		unfiltered := make([]string, len(members.Members))
 		filtered := unfiltered[:0]
