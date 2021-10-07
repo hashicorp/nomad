@@ -12,6 +12,9 @@
         <span class="badge {{if a.isOpen "is-white" "is-light"}}">
           {{this.jobClientStatus.totalNodes}}
         </span>
+        <span class="tooltip multiline" aria-label="Aggreate status of job's allocations in each client.">
+          {{x-icon "info-circle-outline" class="is-faded"}}
+        </span>
       </div>
       {{#unless a.isOpen}}
         <div class="column">
