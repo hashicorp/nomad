@@ -7,7 +7,7 @@ import moment from 'moment';
 import DelayedArray from '../utils/delayed-array';
 
 export default {
-  title: 'Charts|Line Chart',
+  title: 'Charts/Line Chart',
 };
 
 let data1 = [

@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Diff Viewer',
+  title: 'Components/Diff Viewer',
 };
 
 export let DiffViewerWithInsertions = () => {

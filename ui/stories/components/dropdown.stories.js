@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Dropdown',
+  title: 'Components/Dropdown',
 };
 
 let options = [

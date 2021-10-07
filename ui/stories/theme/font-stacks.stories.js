@@ -2,7 +2,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { htmlSafe } from '@ember/string';
 
 export default {
-  title: 'Theme|Font Stacks',
+  title: 'Theme/Font Stacks',
 };
 
 export let FontStacks = () => {

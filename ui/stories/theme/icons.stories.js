@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Theme|Icons',
+  title: 'Theme/Icons',
 };
 
 export let Icons = () => ({

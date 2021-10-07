@@ -2,7 +2,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { withKnobs, optionsKnob } from '@storybook/addon-knobs';
 
 export default {
-  title: 'Components|Boxed Section',
+  title: 'Components/Boxed Section',
   decorators: [withKnobs],
 };
 

@@ -8,7 +8,7 @@ import { on } from '@ember/object/evented';
 import Controller from '@ember/controller';
 
 export default {
-  title: 'Components|Table',
+  title: 'Components/Table',
 };
 
 /**

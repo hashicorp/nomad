@@ -3,7 +3,7 @@ import DelayedArray from '../utils/delayed-array';
 import DelayedTruth from '../utils/delayed-truth';
 
 export default {
-  title: 'Charts|Gauge Chart',
+  title: 'Charts/Gauge Chart',
 };
 
 let totalVariations = [

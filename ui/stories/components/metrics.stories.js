@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Metrics',
+  title: 'Components/Metrics',
 };
 
 export let Standard = () => {

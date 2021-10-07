@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Proxy Tag',
+  title: 'Components/Proxy Tag',
 };
 
 export let ProxyTag = () => {

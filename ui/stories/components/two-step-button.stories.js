@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Two-Step Button',
+  title: 'Components/Two-Step Button',
 };
 
 export let Standard = () => {
