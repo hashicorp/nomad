@@ -14,6 +14,11 @@ module('Integration | Component | job-client-status-bar', function(hooks) {
 
   const commonProperties = () => ({
     onSliceClick: sinon.spy(),
+    job: {
+      namespace: {
+        get: () => 'my-namespace',
+      },
+    },
     jobClientStatus: {
       byStatus: {
         queued: [],
@@ -32,6 +37,7 @@ module('Integration | Component | job-client-status-bar', function(hooks) {
   const commonTemplate = hbs`
     <JobClientStatusBar
       @onSliceClick={{onSliceClick}}
+      @job={{job}}
       @jobClientStatus={{jobClientStatus}}
       @isNarrow={{isNarrow}}
     />`;
