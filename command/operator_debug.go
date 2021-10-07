@@ -387,7 +387,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	c.writeJSON("version", "members.json", members, err)
 
 	// Filter for servers matching criteria
-	c.serverIDs, err = parseMembers(members, serverIDs, c.region)
+	c.serverIDs, err = filterServerMembers(members, serverIDs, c.region)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse server list; err: %v", err))
 		return 1
@@ -1064,10 +1064,8 @@ func TarCZF(archive string, src, target string) error {
 	})
 }
 
-// parseMembers returns a slice of server member names matching the search criteria
-func parseMembers(serverMembers *api.ServerMembers, serverIDs string, region string) (membersFound []string, err error) {
-	prefixes := stringToSlice(serverIDs)
-
+// filterServerMembers returns a slice of server member names matching the search criteria
+func filterServerMembers(serverMembers *api.ServerMembers, serverIDs string, region string) (membersFound []string, err error) {
 	if serverMembers.Members == nil {
 		return nil, fmt.Errorf("Failed to parse server members, members==nil")
 	}
