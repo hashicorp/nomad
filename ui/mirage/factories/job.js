@@ -6,7 +6,7 @@ import { DATACENTERS } from '../common';
 
 const REF_TIME = new Date();
 const JOB_PREFIXES = provide(5, faker.hacker.abbreviation);
-const JOB_TYPES = ['service', 'batch', 'system'];
+const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 const JOB_STATUSES = ['pending', 'running', 'dead'];
 
 export default Factory.extend({
@@ -67,8 +67,34 @@ export default Factory.extend({
     }),
   }),
 
+  periodicSysbatch: trait({
+    type: 'sysbatch',
+    periodic: true,
+    // periodic details object
+    // serializer update for bool vs details object
+    periodicDetails: () => ({
+      Enabled: true,
+      ProhibitOverlap: true,
+      Spec: '*/5 * * * * *',
+      SpecType: 'cron',
+      TimeZone: 'UTC',
+    }),
+  }),
+
   parameterized: trait({
     type: 'batch',
+    parameterized: true,
+    // parameterized job object
+    // serializer update for bool vs details object
+    parameterizedJob: () => ({
+      MetaOptional: generateMetaFields(faker.random.number(10), 'optional'),
+      MetaRequired: generateMetaFields(faker.random.number(10), 'required'),
+      Payload: faker.random.boolean() ? 'required' : null,
+    }),
+  }),
+
+  parameterizedSysbatch: trait({
+    type: 'sysbatch',
     parameterized: true,
     // parameterized job object
     // serializer update for bool vs details object
@@ -86,11 +112,28 @@ export default Factory.extend({
     type: 'batch',
   }),
 
+  periodicSysbatchChild: trait({
+    // Periodic children need a parent job,
+    // It is the Periodic job's responsibility to create
+    // periodicChild jobs and provide a parent job.
+    type: 'sysbatch',
+  }),
+
   parameterizedChild: trait({
     // Parameterized children need a parent job,
     // It is the Parameterized job's responsibility to create
     // parameterizedChild jobs and provide a parent job.
     type: 'batch',
+    parameterized: true,
+    dispatched: true,
+    payload: window.btoa(faker.lorem.sentence()),
+  }),
+
+  parameterizedSysbatchChild: trait({
+    // Parameterized children need a parent job,
+    // It is the Parameterized job's responsibility to create
+    // parameterizedChild jobs and provide a parent job.
+    type: 'sysbatch',
     parameterized: true,
     dispatched: true,
     payload: window.btoa(faker.lorem.sentence()),
@@ -248,22 +291,44 @@ export default Factory.extend({
     }
 
     if (job.periodic) {
-      // Create periodicChild jobs
-      server.createList('job', job.childrenCount, 'periodicChild', {
+      let childType;
+      switch (job.type) {
+        case 'batch':
+          childType = 'periodicChild';
+          break;
+        case 'sysbatch':
+          childType = 'periodicSysbatchChild';
+          break;
+      }
+
+      // Create child jobs
+      server.createList('job', job.childrenCount, childType, {
         parentId: job.id,
         namespaceId: job.namespaceId,
         namespace: job.namespace,
+        datacenters: job.datacenters,
         createAllocations: job.createAllocations,
         shallow: job.shallow,
       });
     }
 
     if (job.parameterized && !job.parentId) {
-      // Create parameterizedChild jobs
-      server.createList('job', job.childrenCount, 'parameterizedChild', {
+      let childType;
+      switch (job.type) {
+        case 'batch':
+          childType = 'parameterizedChild';
+          break;
+        case 'sysbatch':
+          childType = 'parameterizedSysbatchChild';
+          break;
+      }
+
+      // Create child jobs
+      server.createList('job', job.childrenCount, childType, {
         parentId: job.id,
         namespaceId: job.namespaceId,
         namespace: job.namespace,
+        datacenters: job.datacenters,
         createAllocations: job.createAllocations,
         shallow: job.shallow,
       });

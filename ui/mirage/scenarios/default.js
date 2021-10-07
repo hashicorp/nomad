@@ -1,5 +1,6 @@
 import config from 'nomad-ui/config/environment';
 import * as topoScenarios from './topo';
+import * as sysbatchScenarios from './sysbatch';
 import { pickOne } from '../utils';
 
 const withNamespaces = getConfigValue('mirageWithNamespaces', false);
@@ -16,6 +17,7 @@ const allScenarios = {
   everyFeature,
   emptyCluster,
   ...topoScenarios,
+  ...sysbatchScenarios,
 };
 
 const scenario = getScenarioQueryParameter() || getConfigValue('mirageScenario', 'emptyCluster');
@@ -85,6 +87,8 @@ function allJobTypes(server) {
   server.create('job', { type: 'system' });
   server.create('job', 'periodic');
   server.create('job', 'parameterized');
+  server.create('job', 'periodicSysbatch');
+  server.create('job', 'parameterizedSysbatch');
   server.create('job', { failedPlacements: true });
 }
 

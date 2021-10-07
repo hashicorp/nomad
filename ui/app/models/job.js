@@ -7,7 +7,7 @@ import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
 import classic from 'ember-classic-decorator';
 
-const JOB_TYPES = ['service', 'batch', 'system'];
+const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 
 @classic
 export default class Job extends Model {
@@ -37,6 +37,11 @@ export default class Job extends Model {
   @computed('periodic', 'parameterized', 'dispatched')
   get hasChildren() {
     return this.periodic || (this.parameterized && !this.dispatched);
+  }
+
+  @computed('type')
+  get hasClientStatus() {
+    return this.type === 'system' || this.type === 'sysbatch';
   }
 
   @belongsTo('job', { inverse: 'children' }) parent;

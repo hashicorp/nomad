@@ -217,7 +217,7 @@ module('Acceptance | jobs list', function(hooks) {
   testFacet('Type', {
     facet: JobsList.facets.type,
     paramName: 'type',
-    expectedOptions: ['Batch', 'Parameterized', 'Periodic', 'Service', 'System'],
+    expectedOptions: ['Batch', 'Parameterized', 'Periodic', 'Service', 'System', 'System Batch'],
     async beforeEach() {
       server.createList('job', 2, { createAllocations: false, type: 'batch' });
       server.createList('job', 2, {

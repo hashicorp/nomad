@@ -1,9 +1,20 @@
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
-import { watchRecord, watchRelationship, watchQuery } from 'nomad-ui/utils/properties/watch';
+import {
+  watchRecord,
+  watchRelationship,
+  watchAll,
+  watchQuery,
+} from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 
 export default class IndexRoute extends Route.extend(WithWatchers) {
+  async model() {
+    // Optimizing future node look ups by preemptively loading everything
+    await this.store.findAll('node');
+    return this.modelFor('jobs.job');
+  }
+
   startWatchers(controller, model) {
     if (!model) {
       return;
@@ -18,6 +29,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
       list:
         model.get('hasChildren') &&
         this.watchAllJobs.perform({ namespace: model.namespace.get('name') }),
+      nodes: model.get('hasClientStatus') && this.watchNodes.perform(),
     });
   }
 
@@ -35,6 +47,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
 
   @watchRecord('job') watch;
   @watchQuery('job') watchAllJobs;
+  @watchAll('node') watchNodes;
   @watchRecord('job-summary') watchSummary;
   @watchRelationship('allocations') watchAllocations;
   @watchRelationship('evaluations') watchEvaluations;
@@ -46,7 +59,8 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
     'watchSummary',
     'watchAllocations',
     'watchEvaluations',
-    'watchLatestDeployment'
+    'watchLatestDeployment',
+    'watchNodes'
   )
   watchers;
 }

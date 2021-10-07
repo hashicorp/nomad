@@ -13,6 +13,7 @@ import {
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
 import recommendationAccordion from 'nomad-ui/tests/pages/components/recommendation-accordion';
+import jobClientStatusBar from 'nomad-ui/tests/pages/components/job-client-status-bar';
 
 export default create({
   visit: visitable('/jobs/:id'),
@@ -59,6 +60,7 @@ export default create({
     return this.stats.toArray().findBy('id', id);
   },
 
+  jobClientStatusSummary: jobClientStatusBar('[data-test-job-client-status-bar]'),
   childrenSummary: isPresent('[data-test-job-summary] [data-test-children-status-bar]'),
   allocationsSummary: isPresent('[data-test-job-summary] [data-test-allocation-status-bar]'),
 

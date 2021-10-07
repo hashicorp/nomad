@@ -4,6 +4,8 @@ $running: $primary;
 $complete: $nomad-green-dark;
 $failed: $danger;
 $lost: $dark;
+$not-scheduled: $blue-200;
+$degraded: $warning;
 
 .chart {
   .queued {
@@ -36,6 +38,14 @@ $lost: $dark;
 
   .lost {
     fill: $lost;
+  }
+
+  .not-scheduled {
+    fill: $not-scheduled;
+  }
+
+  .degraded {
+    fill: $degraded;
   }
 }
 
@@ -100,6 +110,14 @@ $lost: $dark;
 
   &.lost {
     background: $lost;
+  }
+
+  &.not-scheduled {
+    background: $not-scheduled;
+  }
+
+  &.degraded {
+    background: $degraded;
   }
 
   @each $name, $pair in $colors {

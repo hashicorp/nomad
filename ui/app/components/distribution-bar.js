@@ -22,6 +22,7 @@ const sumAggregate = (total, val) => total + val;
 export default class DistributionBar extends Component.extend(WindowResizable) {
   chart = null;
   @overridable(() => null) data;
+  onSliceClick = null;
   activeDatum = null;
   isNarrow = false;
 
@@ -33,11 +34,13 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
     const data = copy(this.data, true);
     const sum = data.mapBy('value').reduce(sumAggregate, 0);
 
-    return data.map(({ label, value, className, layers }, index) => ({
+    return data.map(({ label, value, className, layers, legendLink, help }, index) => ({
       label,
       value,
       className,
       layers,
+      legendLink,
+      help,
       index,
       percent: value / sum,
       offset:
@@ -121,8 +124,14 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
       const activeDatum = this.activeDatum;
       const isActive = activeDatum && activeDatum.label === d.label;
       const isInactive = activeDatum && activeDatum.label !== d.label;
-      return [ className, isActive && 'active', isInactive && 'inactive' ].compact().join(' ');
-    });
+      const isClickable = !!this.onSliceClick;
+      return [
+        className,
+        isActive && 'active',
+        isInactive && 'inactive',
+        isClickable && 'clickable'
+      ].compact().join(' ');
+    }).attr('data-test-slice-label', d => d.className);
 
     this.set('slices', slices);
 
@@ -172,6 +181,10 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
           .attr('height', '6px')
           .attr('y', '50%');
       }
+
+    if (this.onSliceClick) {
+      slices.on('click', this.onSliceClick);
+    }
   }
   /* eslint-enable */
 

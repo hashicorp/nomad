@@ -1,0 +1,106 @@
+{{page-title "Job " this.job.name " clients"}}
+<JobSubnav @job={{this.job}} />
+<section class="section">
+  {{#if this.nodes.length}}
+    <div class="toolbar">
+      <div class="toolbar-item">
+        <SearchBox
+          data-test-clients-search
+          @searchTerm={{mut this.searchTerm}}
+          @onChange={{action this.resetPagination}}
+          @placeholder="Search clients..."
+        />
+      </div>
+      <div class="toolbar-item is-right-aligned">
+        <div class="button-bar">
+          <MultiSelectDropdown
+            data-test-job-status-facet
+            @label="Job Status"
+            @options={{this.optionsJobStatus}}
+            @selection={{this.selectionStatus}}
+            @onSelect={{action this.setFacetQueryParam "qpStatus"}}
+          />
+          <MultiSelectDropdown
+            data-test-datacenter-facet
+            @label="Datacenter"
+            @options={{this.optionsDatacenter}}
+            @selection={{this.selectionDatacenter}}
+            @onSelect={{action this.setFacetQueryParam "qpDatacenter"}}
+          />
+          <MultiSelectDropdown
+            data-test-client-class-facet
+            @label="Client Class"
+            @options={{this.optionsClientClass}}
+            @selection={{this.selectionClientClass}}
+            @onSelect={{action this.setFacetQueryParam "qpClientClass"}}
+          />
+        </div>
+      </div>
+    </div>
+    {{#if this.sortedClients}}
+      <ListPagination
+        @source={{this.sortedClients}}
+        @size={{this.pageSize}}
+        @page={{this.currentPage}}
+        @class="clients" as |p|
+      >
+        <ListTable
+          @source={{p.list}}
+          @sortProperty={{this.sortProperty}}
+          @sortDescending={{this.sortDescending}}
+          @class="with-foot" as |t|
+        >
+          <t.head>
+            <t.sort-by @prop="node.id">Client ID</t.sort-by>
+            <t.sort-by @prop="node.name" class="is-200px is-truncatable">Client Name</t.sort-by>
+            <t.sort-by @prop="createTime" @title="Create Time">Created</t.sort-by>
+            <t.sort-by @prop="modifyTime" @title="Modify Time">Modified</t.sort-by>
+            <t.sort-by @prop="jobStatus">Job Status</t.sort-by>
+            <th class="is-3">Allocation Summary</th>
+          </t.head>
+          <t.body as |row|>
+            <JobClientStatusRow
+              @row={{row}}
+              @onClick={{this.gotoClient}}
+            />
+          </t.body>
+        </ListTable>
+        <div class="table-foot">
+          <nav class="pagination">
+            <div class="pagination-numbers">
+              {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedClients.length}}
+            </div>
+            <p.prev @class="pagination-previous"> &lt; </p.prev>
+            <p.next @class="pagination-next"> &gt; </p.next>
+            <ul class="pagination-list"></ul>
+          </nav>
+        </div>
+      </ListPagination>
+    {{else}}
+      <div class="boxed-section-body">
+        <div class="empty-message" data-test-empty-clients-list>
+          <h3 class="empty-message-headline" data-test-empty-clients-list-headline>
+            No Matches
+          </h3>
+          <p class="empty-message-body">
+            No clients match the term
+            <strong>
+              {{this.searchTerm}}
+            </strong>
+          </p>
+        </div>
+      </div>
+    {{/if}}
+  {{else}}
+    <div class="boxed-section-body">
+      <div class="empty-message" data-test-empty-clients-list>
+        <h3 class="empty-message-headline" data-test-empty-clients-list-headline>
+          No Clients
+        </h3>
+        <p class="empty-message-body">
+          No clients available.
+        </p>
+      </div>
+    </div>
+  {{/if}}
+</section>

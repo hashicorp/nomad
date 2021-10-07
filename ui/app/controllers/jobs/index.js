@@ -83,6 +83,7 @@ export default class IndexController extends Controller.extend(Sortable, Searcha
       { key: 'periodic', label: 'Periodic' },
       { key: 'service', label: 'Service' },
       { key: 'system', label: 'System' },
+      { key: 'sysbatch', label: 'System Batch' },
     ];
   }
 

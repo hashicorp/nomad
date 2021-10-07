@@ -19,7 +19,15 @@
     </div>
   </div>
 
-  <JobPage::Parts::Summary @job={{this.job}} />
+  {{#if this.job.hasClientStatus}}
+    <JobPage::Parts::JobClientStatusSummary
+      @gotoClients={{this.gotoClients}}
+      @job={{this.job}}
+      @jobClientStatus={{this.jobClientStatus}}
+    />
+  {{/if}}
+
+  <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed={{this.job.hasClientStatus}} />
 
   <JobPage::Parts::PlacementFailures @job={{this.job}} />
 

@@ -1,0 +1,55 @@
+<ListAccordion
+  data-test-job-summary
+  @source={{array this.job}}
+  @key="id"
+  @startExpanded={{this.isExpanded}}
+  @onToggle={{action this.persist}} as |a|
+>
+  <a.head @buttonLabel={{if a.isOpen "collapse" "expand"}}>
+    <div class="columns">
+      <div class="column is-minimum nowrap">
+        Job Status in Client
+        <span class="badge {{if a.isOpen "is-white" "is-light"}}">
+          {{this.jobClientStatus.totalNodes}}
+        </span>
+        <span class="tooltip multiline" aria-label="Aggreate status of job's allocations in each client.">
+          {{x-icon "info-circle-outline" class="is-faded"}}
+        </span>
+      </div>
+      {{#unless a.isOpen}}
+        <div class="column">
+          <div class="inline-chart bumper-left">
+            <JobClientStatusBar
+              @onSliceClick={{action this.onSliceClick}}
+              @job={{this.job}}
+              @jobClientStatus={{this.jobClientStatus}}
+              @isNarrow={{true}}
+            />
+          </div>
+        </div>
+      {{/unless}}
+    </div>
+  </a.head>
+  <a.body>
+    <JobClientStatusBar
+      @onSliceClick={{action this.onSliceClick}}
+      @job={{this.job}}
+      @jobClientStatus={{this.jobClientStatus}}
+      class="split-view" as |chart|
+    >
+      <ol data-test-legend class="legend">
+        {{#each chart.data as |datum index|}}
+          <li data-test-legent-label="{{datum.className}}" class="{{datum.className}} {{if (eq datum.label chart.activeDatum.label) "is-active"}} {{if (eq datum.value 0) "is-empty" "is-clickable"}}">
+            {{#if (gt datum.value 0)}}
+              <LinkTo @route="jobs.job.clients" @model={{this.job}} @query={{datum.legendLink.queryParams}}>
+                <JobPage::Parts::SummaryLegendItem @datum={{datum}} @index={{index}} />
+              </LinkTo>
+            {{else}}
+              <JobPage::Parts::SummaryLegendItem @datum={{datum}} @index={{index}} />
+            {{/if}}
+          </li>
+        {{/each}}
+      </ol>
+    </JobClientStatusBar>
+  </a.body>
+</ListAccordion>
