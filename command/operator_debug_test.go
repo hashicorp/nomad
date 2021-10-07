@@ -75,13 +75,7 @@ func TestDebug_NodeClass(t *testing.T) {
 	// Start client 1
 	agent1 := agent.NewTestAgent(t, "client1", agentConfFunc1)
 	defer agent1.Shutdown()
-
-	// Wait for client1 to connect
-	client1 := agent1.Agent.Client()
-	client1NodeID := client1.NodeID()
-	client1Region := client1.Region()
-	testutil.WaitForClient(t, srv.Agent.RPC, client1NodeID, client1Region)
-	t.Logf("[TEST] Client1 ready, id: %s, region: %s", client1NodeID, client1Region)
+	testutil.WaitForClient(t, srv.Agent.RPC, agent1.Agent.Client())
 
 	// Setup client 2 (nodeclass = clientb)
 	agentConfFunc2 := func(c *agent.Config) {
@@ -95,13 +89,7 @@ func TestDebug_NodeClass(t *testing.T) {
 	// Start client 2
 	agent2 := agent.NewTestAgent(t, "client2", agentConfFunc2)
 	defer agent2.Shutdown()
-
-	// Wait for client2 to connect
-	client2 := agent2.Agent.Client()
-	client2NodeID := client2.NodeID()
-	client2Region := client2.Region()
-	testutil.WaitForClient(t, srv.Agent.RPC, client2NodeID, client2Region)
-	t.Logf("[TEST] Client2 ready, id: %s, region: %s", client2NodeID, client2Region)
+	testutil.WaitForClient(t, srv.Agent.RPC, agent2.Agent.Client())
 
 	// Setup client 3 (nodeclass = clienta)
 	agentConfFunc3 := func(c *agent.Config) {
@@ -113,13 +101,7 @@ func TestDebug_NodeClass(t *testing.T) {
 	// Start client 3
 	agent3 := agent.NewTestAgent(t, "client3", agentConfFunc3)
 	defer agent3.Shutdown()
-
-	// Wait for client3 to connect
-	client3 := agent3.Agent.Client()
-	client3NodeID := client3.NodeID()
-	client3Region := client3.Region()
-	testutil.WaitForClient(t, srv.Agent.RPC, client3NodeID, client3Region)
-	t.Logf("[TEST] Client3 ready, id: %s, region: %s", client3NodeID, client3Region)
+	testutil.WaitForClient(t, srv.Agent.RPC, agent3.Agent.Client())
 
 	// Setup test cases
 	cases := testCases{
@@ -177,13 +159,7 @@ func TestDebug_ClientToServer(t *testing.T) {
 	// Start client 1
 	agent1 := agent.NewTestAgent(t, "client1", agentConfFunc1)
 	defer agent1.Shutdown()
-
-	// Wait for client 1 to connect
-	client1 := agent1.Agent.Client()
-	client1NodeID := client1.NodeID()
-	client1Region := client1.Region()
-	testutil.WaitForClient(t, srv.Agent.RPC, client1NodeID, client1Region)
-	t.Logf("[TEST] Client1 ready, id: %s, region: %s", client1NodeID, client1Region)
+	testutil.WaitForClient(t, srv.Agent.RPC, agent1.Agent.Client())
 
 	// Get API addresses
 	addrServer := srv.HTTPAddr()
@@ -246,12 +222,7 @@ func TestDebug_ClientToServer_Region(t *testing.T) {
 	// Start client 1
 	agent1 := agent.NewTestAgent(t, "client1", agentConfFunc1)
 	defer agent1.Shutdown()
-
-	// Wait for client 1 to connect
-	client1NodeID := agent1.Agent.Client().NodeID()
-	client1Region := agent1.Agent.Client().Region()
-	testutil.WaitForClient(t, srv.Agent.RPC, client1NodeID, client1Region)
-	t.Logf("[TEST] Client1 ready, id: %s, region: %s", client1NodeID, client1Region)
+	testutil.WaitForClient(t, srv.Agent.RPC, agent1.Agent.Client())
 
 	// Get API addresses
 	addrServer := srv.HTTPAddr()

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
@@ -112,15 +113,15 @@ func WaitForLeader(t testing.TB, rpc rpcFn) {
 }
 
 // WaitForClient blocks until the client can be found
-func WaitForClient(t testing.TB, rpc rpcFn, nodeID string, region string) {
+func WaitForClient(t testing.TB, rpc rpcFn, client *client.Client) {
 	t.Helper()
 	if region == "" {
 		region = "global"
 	}
 	WaitForResult(func() (bool, error) {
 		req := structs.NodeSpecificRequest{
-			NodeID:       nodeID,
-			QueryOptions: structs.QueryOptions{Region: region},
+			NodeID:       client.NodeID(),
+			QueryOptions: structs.QueryOptions{Region: client.Region()},
 		}
 		var out structs.SingleNodeResponse
 
@@ -135,6 +136,8 @@ func WaitForClient(t testing.TB, rpc rpcFn, nodeID string, region string) {
 	}, func(err error) {
 		t.Fatalf("failed to find node: %v", err)
 	})
+
+	t.Logf("[TEST] Client %s ready, id: %s, region: %s", client.GetConfig().Node.Name, client.NodeID(), client.Region())
 }
 
 // WaitForVotingMembers blocks until autopilot promotes all server peers
