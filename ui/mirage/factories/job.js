@@ -306,6 +306,7 @@ export default Factory.extend({
         parentId: job.id,
         namespaceId: job.namespaceId,
         namespace: job.namespace,
+        datacenters: job.datacenters,
         createAllocations: job.createAllocations,
         shallow: job.shallow,
       });
@@ -327,6 +328,7 @@ export default Factory.extend({
         parentId: job.id,
         namespaceId: job.namespaceId,
         namespace: job.namespace,
+        datacenters: job.datacenters,
         createAllocations: job.createAllocations,
         shallow: job.shallow,
       });

@@ -52,6 +52,38 @@ moduleForJobWithClientStatus(
   }
 );
 
+moduleForJob('Acceptance | job detail (sysbatch child)', 'allocations', () => {
+  const parent = server.create('job', 'periodicSysbatch', {
+    childrenCount: 1,
+    shallow: true,
+    datacenters: ['dc1'],
+  });
+  return server.db.jobs.where({ parentId: parent.id })[0];
+});
+
+moduleForJobWithClientStatus('Acceptance | job detail with client status (sysbatch child)', () => {
+  const parent = server.create('job', 'periodicSysbatch', {
+    childrenCount: 1,
+    shallow: true,
+    datacenters: ['dc1'],
+  });
+  return server.db.jobs.where({ parentId: parent.id })[0];
+});
+
+moduleForJobWithClientStatus(
+  'Acceptance | job detail with client status (sysbatch child with namespace)',
+  () => {
+    const namespace = server.create('namespace', { id: 'test' });
+    const parent = server.create('job', 'periodicSysbatch', {
+      childrenCount: 1,
+      shallow: true,
+      namespaceId: namespace.name,
+      datacenters: ['dc1'],
+    });
+    return server.db.jobs.where({ parentId: parent.id })[0];
+  }
+);
+
 moduleForJob(
   'Acceptance | job detail (periodic)',
   'children',

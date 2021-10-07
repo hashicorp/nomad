@@ -184,8 +184,12 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
         window.location
       );
       const gotURL = new URL(currentURL(), window.location);
-      assert.deepEqual(gotURL.path, expectedURL.path);
-      assert.deepEqual(gotURL.searchParams, expectedURL.searchParams);
+      assert.deepEqual(gotURL.pathname, expectedURL.pathname);
+
+      // Sort and compare URL query params.
+      gotURL.searchParams.sort();
+      expectedURL.searchParams.sort();
+      assert.equal(gotURL.searchParams.toString(), expectedURL.searchParams.toString());
     });
 
     for (var testName in additionalTests) {
