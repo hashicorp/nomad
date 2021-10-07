@@ -1,0 +1,3 @@
+```release-note:feature
+cli: Allow saving the check-index to a file during `nomad plan`.
+```

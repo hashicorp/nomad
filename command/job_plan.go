@@ -2,7 +2,9 @@ package command
 
 import (
 	"fmt"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -88,6 +90,9 @@ Plan Options:
   -var-file=path
     Path to HCL2 file containing user variables.
 
+  -check-index-file=path
+    Path to write the check index to.
+
   -verbose
     Increase diff verbosity.
 `
@@ -101,12 +106,13 @@ func (c *JobPlanCommand) Synopsis() string {
 func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-diff":            complete.PredictNothing,
-			"-policy-override": complete.PredictNothing,
-			"-verbose":         complete.PredictNothing,
-			"-hcl1":            complete.PredictNothing,
-			"-var":             complete.PredictAnything,
-			"-var-file":        complete.PredictFiles("*.var"),
+			"-diff":             complete.PredictNothing,
+			"-policy-override":  complete.PredictNothing,
+			"-verbose":          complete.PredictNothing,
+			"-hcl1":             complete.PredictNothing,
+			"-var":              complete.PredictAnything,
+			"-var-file":         complete.PredictFiles("*.var"),
+			"-check-index-file": complete.PredictNothing,
 		})
 }
 
@@ -118,6 +124,7 @@ func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
 	var diff, policyOverride, verbose bool
 	var varArgs, varFiles flaghelper.StringFlag
+	var checkIndexFile string
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
@@ -127,6 +134,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
 	flagSet.Var(&varArgs, "var", "")
 	flagSet.Var(&varFiles, "var-file", "")
+	flagSet.StringVar(&checkIndexFile, "check-index-file", "", "")
 
 	if err := flagSet.Parse(args); err != nil {
 		return 255
@@ -186,7 +194,15 @@ func (c *JobPlanCommand) Run(args []string) int {
 	}
 
 	exitCode := c.outputPlannedJob(job, resp, diff, verbose)
-	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
+	if checkIndexFile != "" {
+		err := os.WriteFile(checkIndexFile, []byte(strconv.FormatUint(resp.JobModifyIndex, 10)), 0644)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error writing check-index file: %s", err))
+			return 255
+		}
+	} else {
+		c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, path)))
+	}
 	return exitCode
 }
 
