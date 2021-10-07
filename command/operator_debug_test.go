@@ -492,11 +492,12 @@ func TestDebug_StringToSlice(t *testing.T) {
 		{input: ",,", expected: []string(nil)},
 		{input: "", expected: []string(nil)},
 		{input: "foo, bar", expected: []string{"foo", "bar"}},
+		{input: "  foo, bar ", expected: []string{"foo", "bar"}},
+		{input: "foo,,bar", expected: []string{"foo", "bar"}},
 	}
 	for _, tc := range cases {
 		out := stringToSlice(tc.input)
 		require.Equal(t, tc.expected, out)
-		require.Equal(t, true, helper.CompareSliceSetString(tc.expected, out))
 	}
 }
 
