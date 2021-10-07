@@ -225,7 +225,7 @@ func TestDebug_ClientToServer_Region(t *testing.T) {
 	var cases = testCases{
 		// Good
 		{
-			name:         "testAgent api server",
+			name:         "region - testAgent api server",
 			args:         []string{"-address", url, "-region", "testregion", "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode: 0,
 			expectedOutputs: []string{
@@ -236,13 +236,13 @@ func TestDebug_ClientToServer_Region(t *testing.T) {
 			},
 		},
 		{
-			name:            "server address",
+			name:            "region - erver address",
 			args:            []string{"-address", addrServer, "-region", "testregion", "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode:    0,
 			expectedOutputs: []string{"Created debug archive"},
 		},
 		{
-			name:            "client1 address - verify no SIGSEGV panic",
+			name:            "region - client1 address - verify no SIGSEGV panic",
 			args:            []string{"-address", addrClient1, "-region", "testregion", "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode:    0,
 			expectedOutputs: []string{"Created debug archive"},
