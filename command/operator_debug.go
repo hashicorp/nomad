@@ -1101,8 +1101,8 @@ func filterServerMembers(serverMembers *api.ServerMembers, serverIDs string, reg
 	return membersFound, nil
 }
 
-// stringToSlice splits CSV string into slice, trims whitespace, and prunes
-// empty values
+// stringToSlice splits comma-separated input string into slice, trims
+// whitespace, and prunes empty values
 func stringToSlice(input string) []string {
 	ns := strings.Split(input, ",")
 	var out []string
