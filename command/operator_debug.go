@@ -1070,6 +1070,16 @@ func filterServerMembers(serverMembers *api.ServerMembers, serverIDs string, reg
 		return nil, fmt.Errorf("Failed to parse server members, members==nil")
 	}
 
+	prefixes := stringToSlice(serverIDs)
+
+	// "leader" is a special case which Nomad handles in the API.  If "leader"
+	// appears in serverIDs, add it to membersFound and remove it from the list
+	// so that it isn't processed by the range loop
+	if helper.SliceStringContains(prefixes, "leader") {
+		membersFound = append(membersFound, "leader")
+		helper.RemoveEqualFold(&prefixes, "leader")
+	}
+
 	for _, member := range serverMembers.Members {
 		// If region is provided it must match exactly
 		if region != "" && member.Tags["region"] != region {
@@ -1079,12 +1089,6 @@ func filterServerMembers(serverMembers *api.ServerMembers, serverIDs string, reg
 		// Always include "all"
 		if serverIDs == "all" {
 			membersFound = append(membersFound, member.Name)
-			continue
-		}
-
-		// Special case passthrough as literally "leader"
-		if serverIDs == "leader" {
-			membersFound = append(membersFound, "leader")
 			continue
 		}
 
