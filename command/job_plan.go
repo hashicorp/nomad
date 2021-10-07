@@ -88,6 +88,9 @@ Plan Options:
   -var-file=path
     Path to HCL2 file containing user variables.
 
+  -lenient
+	Do not error out if variables are provided which have not been defined.
+
   -verbose
     Increase diff verbosity.
 `
@@ -107,6 +110,7 @@ func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 			"-hcl1":            complete.PredictNothing,
 			"-var":             complete.PredictAnything,
 			"-var-file":        complete.PredictFiles("*.var"),
+			"-lenient":         complete.PredictNothing,
 		})
 }
 
@@ -116,7 +120,7 @@ func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
-	var diff, policyOverride, verbose bool
+	var diff, policyOverride, verbose, lenient bool
 	var varArgs, varFiles flaghelper.StringFlag
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -125,6 +129,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 	flagSet.BoolVar(&policyOverride, "policy-override", false, "")
 	flagSet.BoolVar(&verbose, "verbose", false, "")
 	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
+	flagSet.BoolVar(&lenient, "lenient", false, "")
 	flagSet.Var(&varArgs, "var", "")
 	flagSet.Var(&varFiles, "var-file", "")
 
@@ -142,7 +147,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 
 	path := args[0]
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.ApiJobWithArgs(args[0], varArgs, varFiles)
+	job, err := c.JobGetter.ApiJobWithArgs(args[0], varArgs, varFiles, !lenient)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 255
