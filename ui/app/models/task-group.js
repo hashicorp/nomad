@@ -24,10 +24,10 @@ export default class TaskGroup extends Fragment {
 
   @attr() meta;
 
-  @computed('job.meta', 'meta')
+  @computed('job.meta.raw', 'meta')
   get mergedMeta() {
     return {
-      ...this.job.meta,
+      ...this.job.get('meta.raw'),
       ...this.meta,
     };
   }

@@ -6,11 +6,11 @@ import flat from 'flat';
 const { unflatten } = flat;
 
 export default class StructuredAttributes extends Fragment {
-  @attr() structuredAttributes;
+  @attr() raw;
 
-  @computed('structuredAttributes')
+  @computed('raw')
   get structured() {
-    const original = this.structuredAttributes;
+    const original = this.raw;
 
     if (!original) {
       return undefined;
