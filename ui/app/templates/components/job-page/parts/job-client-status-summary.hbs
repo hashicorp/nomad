@@ -29,7 +29,7 @@
   </a.head>
   <a.body>
     <JobClientStatusBar
-      @onSliceClick={{this.onSliceClick}}
+      @onSliceClick={{action this.onSliceClick}}
       @job={{this.job}}
       @jobClientStatus={{this.jobClientStatus}}
       class="split-view" as |chart|
