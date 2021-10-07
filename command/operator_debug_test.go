@@ -66,9 +66,7 @@ func TestDebug_NodeClass(t *testing.T) {
 	// Setup client 1 (nodeclass = clienta)
 	agentConfFunc1 := func(c *agent.Config) {
 		c.Region = "global"
-		c.Server.Enabled = false
 		c.Client.NodeClass = "clienta"
-		c.Client.Enabled = true
 		c.Client.Servers = []string{srvRPCAddr}
 	}
 
@@ -80,9 +78,7 @@ func TestDebug_NodeClass(t *testing.T) {
 	// Setup client 2 (nodeclass = clientb)
 	agentConfFunc2 := func(c *agent.Config) {
 		c.Region = "global"
-		c.Server.Enabled = false
 		c.Client.NodeClass = "clientb"
-		c.Client.Enabled = true
 		c.Client.Servers = []string{srvRPCAddr}
 	}
 
@@ -93,7 +89,6 @@ func TestDebug_NodeClass(t *testing.T) {
 
 	// Setup client 3 (nodeclass = clienta)
 	agentConfFunc3 := func(c *agent.Config) {
-		c.Server.Enabled = false
 		c.Client.NodeClass = "clienta"
 		c.Client.Servers = []string{srvRPCAddr}
 	}
@@ -149,10 +144,7 @@ func TestDebug_ClientToServer(t *testing.T) {
 
 	// Setup client 1 (nodeclass = clienta)
 	agentConfFunc1 := func(c *agent.Config) {
-		c.Region = "global"
-		c.Server.Enabled = false
 		c.Client.NodeClass = "clienta"
-		c.Client.Enabled = true
 		c.Client.Servers = []string{srvRPCAddr}
 	}
 
@@ -195,12 +187,11 @@ func TestDebug_ClientToServer(t *testing.T) {
 }
 
 func TestDebug_ClientToServer_Region(t *testing.T) {
-	agentConfFunc := func(c *agent.Config) {
-		c.Region = "testregion"
-	}
-
 	// Start test server and API client
-	srv, _, url := testServer(t, false, agentConfFunc)
+	srv, _, url := testServer(t, false, func(c *agent.Config) {
+		c.Region = "testregion"
+	})
+
 	defer srv.Shutdown()
 
 	// Wait for leadership to establish
@@ -213,9 +204,7 @@ func TestDebug_ClientToServer_Region(t *testing.T) {
 	// Setup client 1 (nodeclass = clienta)
 	agentConfFunc1 := func(c *agent.Config) {
 		c.Region = "testregion"
-		c.Server.Enabled = false
 		c.Client.NodeClass = "clienta"
-		c.Client.Enabled = true
 		c.Client.Servers = []string{srvRPCAddr}
 	}
 
