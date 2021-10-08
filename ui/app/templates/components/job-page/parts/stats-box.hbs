@@ -23,18 +23,26 @@
     {{yield to="after-namespace"}}
   </div>
 
-  {{#if @job.meta.structured.pack}}
+  {{#if @job.meta.structured.pack.name}}
     <div class="boxed-section-body inline-definitions">
       <span class="label" style="width: 6.125rem;">Pack Details</span>
       <span class="pair" data-test-pack-stat="name">
         <span class="term">Name</span>
         {{@job.meta.structured.pack.name}}
       </span>
-      <span class="pair" data-test-pack-stat="version">
-        <span class="term">Version</span>
-        {{@job.meta.structured.pack.version}}
-      </span>
-      {{yield}}
+      {{#if @job.meta.structured.pack.registry}}
+        <span class="pair" data-test-pack-stat="registry">
+          <span class="term">Registry</span>
+          {{@job.meta.structured.pack.registry}}
+        </span>
+      {{/if}}
+      {{#if @job.meta.structured.pack.version}}
+        <span class="pair" data-test-pack-stat="version">
+          <span class="term">Version</span>
+          {{@job.meta.structured.pack.version}}
+        </span>
+      {{/if}}
+      {{yield to="pack"}}
     </div>
   {{/if}}
 </div>
