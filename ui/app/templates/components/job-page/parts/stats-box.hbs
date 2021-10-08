@@ -42,6 +42,12 @@
           {{@job.meta.structured.pack.version}}
         </span>
       {{/if}}
+      {{#if @job.meta.structured.pack.revision}}
+        <span class="pair" data-test-pack-stat="revision">
+          <span class="term">Revision</span>
+          {{@job.meta.structured.pack.revision}}
+        </span>
+      {{/if}}
       {{yield to="pack"}}
     </div>
   {{/if}}
