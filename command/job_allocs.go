@@ -17,7 +17,7 @@ func (c *JobAllocsCommand) Help() string {
 	helpText := `
 Usage: nomad job allocs [options] <job>
 
-  Allocs is used to display the allocations for a particular job.
+  Display allocations for a particular job.
 
   When ACLs are enabled, this command requires a token with the 'read-job' and
   'list-jobs' capabilities for the job's namespace.
@@ -27,6 +27,10 @@ General Options:
   ` + generalOptionsUsage(usageOptsDefault) + `
 
 Allocs Options:
+
+  -all
+    Display all allocations matching the job ID, even those from an older
+    instance of the job.
 
   -json
     Output the allocations in a JSON format.
@@ -88,7 +92,7 @@ func (c *JobAllocsCommand) Run(args []string) int {
 
 	// Check that we got exactly one job
 	args = flags.Args()
-	if l := len(args); l != 1 {
+	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <job>")
 		c.Ui.Error(commandErrorText(c))
 		return 1

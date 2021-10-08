@@ -26,23 +26,23 @@ When ACLs are enabled, this command requires a token with the `read-job` and
 
 @include 'general_options.mdx'
 
-## Deployment Options
-
-- `-json` : Output the allocations in JSON format.
-
-- `-t` : Format and display the allocations using a Go template.
-
-- `-verbose`: Show full information.
+## Allocs Options
 
 - `-all`: Display all allocations matching the job ID, even those from an
   older instance of the job.
+
+- `-json`: Output the allocations in JSON format.
+
+- `-t`: Format and display the allocations using a Go template.
+
+- `-verbose`: Show full information.
 
 ## Examples
 
 List the allocations for a particular job:
 
 ```shell-session
-$ nomad job allocs example 
+$ nomad job allocs example
 ID        Node ID   Task Group  Version  Desired  Status   Created   Modified
 c2b4606d  35085106  cache       2        run      running  21s ago   10s ago
 c413424b  35085106  cache       2        run      pending  1m8s ago  11s ago
@@ -51,7 +51,7 @@ c413424b  35085106  cache       2        run      pending  1m8s ago  11s ago
 Verbose listing of allocations for a particular job:
 
 ```shell-session
-$ nomad job allocs -verbose example 
+$ nomad job allocs -verbose example
 ID                                    Eval ID                               Node ID                               Node Name  Task Group  Version  Desired  Status   Created                    Modified
 c2b4606d-1b02-0d8d-5fdd-031167cd4c91  5e2badb6-b7cf-5177-8281-8fe14f7193d2  35085106-9480-b465-a348-deb745024394  ubuntu     cache       2        run      running  2021-09-23T14:45:09-04:00  2021-09-23T14:45:19-04:00
 c413424b-d80e-9bc6-ea92-a02b336eaaf5  5e2badb6-b7cf-5177-8281-8fe14f7193d2  35085106-9480-b465-a348-deb745024394  ubuntu     cache       2        run      pending  2021-09-23T14:44:22-04:00  2021-09-23T14:45:19-04:00
@@ -70,4 +70,7 @@ $ nomad job allocs -t '{{ range . }}{{ if eq .ClientStatus "running" }}{{ printl
 c2b4606d-1b02-0d8d-5fdd-031167cd4c91
 ```
 
-Refer to the [Format Nomad Command Output With Templates](https://learn.hashicorp.com/tutorials/nomad/format-output-with-templates)] tutorial for more examples of using Go templates to format Nomad CLI output.
+Refer to the [Format Nomad Command Output With Templates][format_tutorial]
+tutorial for more examples of using Go templates to format Nomad CLI output.
+
+[format_tutorial]: https://learn.hashicorp.com/tutorials/nomad/format-output-with-templates
