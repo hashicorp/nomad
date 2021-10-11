@@ -372,7 +372,7 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
-	if config.Client.MinDynamicPort > 0 && config.Client.MaxDynamicPort > 0 &&
+	if config.Client.MinDynamicPort < 0 || config.Client.MaxDynamicPort > 65535 ||
 		config.Client.MinDynamicPort >= config.Client.MaxDynamicPort {
 		c.Ui.Error("Invalid dynamic port range")
 		return false
