@@ -7,10 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,11 +22,13 @@ import (
 // NOTE: most of these tests cannot be run in parallel
 
 type testCase struct {
-	name            string
-	args            []string
-	expectedCode    int
-	expectedOutputs []string
-	expectedError   string
+	name              string
+	args              []string
+	expectedCode      int
+	expectedOutputs   []string
+	unexpectedOutputs []string
+	expectedErrors    []string
+	debug             bool
 }
 
 type testCases []testCase
@@ -36,17 +41,43 @@ func runTestCases(t *testing.T, cases testCases) {
 			ui := cli.NewMockUi()
 			cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
+			if c.debug {
+				fmt.Print("\n\nDebug breakpoint -- before test run\n\n")
+				pretty.Print(c)
+				fmt.Print("\n")
+			}
+
 			// Run test case
 			code := cmd.Run(c.args)
 			out := ui.OutputWriter.String()
 			outerr := ui.ErrorWriter.String()
+
+			if c.debug {
+				fmt.Print("\n\nDebug breakpoint -- after test run\n")
+				pretty.Print(c)
+				fmt.Print("\n\nui.OutputWriter.String() contents:\n")
+				pretty.Print(out)
+				fmt.Print("\n\nui.ErrorWriter.String() contents:\n")
+				pretty.Print(outerr)
+				fmt.Print("\n")
+			}
 
 			// Verify case expectations
 			require.Equalf(t, code, c.expectedCode, "expected exit code %d, got: %d: %s", c.expectedCode, code, outerr)
 			for _, expectedOutput := range c.expectedOutputs {
 				require.Contains(t, out, expectedOutput, "expected output %q, got %q", expectedOutput, out)
 			}
-			require.Containsf(t, outerr, c.expectedError, "expected error %q, got %q", c.expectedError, outerr)
+			for _, unexpectedOutput := range c.unexpectedOutputs {
+				require.NotContains(t, out, unexpectedOutput, "unexpected output %q, got %q", unexpectedOutput, out)
+			}
+			// Expect no errors unless specified
+			if len(c.expectedErrors) == 0 {
+				require.Empty(t, outerr, "expected no errors, got %q", outerr)
+			} else {
+				for _, expectedError := range c.expectedErrors {
+					require.Contains(t, outerr, expectedError, "expected error %q, got %q", expectedError, outerr)
+				}
+			}
 		})
 	}
 }
@@ -128,7 +159,6 @@ func TestDebug_NodeClass(t *testing.T) {
 				"Node Class: clienta",
 				"Created debug archive",
 			},
-			expectedError: "",
 		},
 		{
 			name:         "address=api, node-class=clientb, max-nodes=2",
@@ -140,7 +170,6 @@ func TestDebug_NodeClass(t *testing.T) {
 				"Node Class: clientb",
 				"Created debug archive",
 			},
-			expectedError: "",
 		},
 	}
 
@@ -225,7 +254,6 @@ func TestDebug_SingleServer(t *testing.T) {
 				"Clients: (0/0)",
 				"Created debug archive",
 			},
-			expectedError: "",
 		},
 		{
 			name:         "address=api, server-id=all",
@@ -236,7 +264,125 @@ func TestDebug_SingleServer(t *testing.T) {
 				"Clients: (0/0)",
 				"Created debug archive",
 			},
-			expectedError: "",
+		},
+	}
+
+	runTestCases(t, cases)
+}
+
+func TestDebug_DefaultTargets(t *testing.T) {
+	// targetDefaults should be the same as all targets except autopilot/license
+
+	t1 := targetDefaults()
+	t2 := getSupportedTargets()
+	t2["autopilot"] = false
+	t2["license"] = false
+
+	optsIgnore := cmpopts.IgnoreMapEntries(func(k string, v bool) bool {
+		// Ignore disabled targets
+		if v == false {
+			return true
+		}
+		return false
+	})
+
+	diff := cmp.Diff(t1, t2, optsIgnore)
+	require.Empty(t, diff)
+}
+
+func TestDebug_Targets(t *testing.T) {
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	var cases = testCases{
+		{
+			name:         "all targets",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-targets", "all"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Servers: (1/1)",
+				"Clients: (0/0)",
+				"Created debug archive",
+				"Targets: agenthost,agentself",
+			},
+			unexpectedOutputs: []string{
+				"Targets: all\n",
+			},
+		},
+		{
+			name:         "no targets",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-targets", "none"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Servers: (1/1)",
+				"Clients: (0/0)",
+				"Created debug archive",
+				"Targets: \n",
+				"Interval Targets: allocations,csiplugins",
+			},
+			unexpectedOutputs: []string{
+				"Targets: none\n",
+			},
+		},
+		{
+			name:         "no interval targets",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-interval-targets", "none"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Servers: (1/1)",
+				"Clients: (0/0)",
+				"Created debug archive",
+				"Targets: agenthost,agentself",
+				"Interval Targets: \n",
+			},
+			unexpectedOutputs: []string{
+				"Interval Targets: none\n",
+			},
+		},
+		{
+			name:         "enable targets",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-targets", "agentself"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Servers: (1/1)",
+				"Clients: (0/0)",
+				"Created debug archive",
+				"Targets: agenthost,agentself",
+			},
+		},
+		{
+			name:         "disable targets",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "leader", "-targets", "-agentself,-consul"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Servers: (1/1)",
+				"Clients: (0/0)",
+				"Created debug archive",
+				"Targets: agenthost,allocations",
+			},
+			unexpectedOutputs: []string{
+				"agentself",
+				"consul",
+			},
+		},
+		{
+			name:         "invalid targets",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-targets", "-foo,bar"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Servers: (1/1)",
+				"Clients: (0/0)",
+				"Created debug archive",
+			},
+			unexpectedOutputs: []string{
+				"foo",
+				"bar",
+			},
+			expectedErrors: []string{
+				"Invalid target foo",
+				"Invalid target bar",
+			},
 		},
 	}
 
@@ -250,40 +396,46 @@ func TestDebug_Failures(t *testing.T) {
 
 	var cases = testCases{
 		{
-			name:         "fails incorrect args",
-			args:         []string{"some", "bad", "args"},
-			expectedCode: 1,
+			name:           "fails incorrect args",
+			args:           []string{"some", "bad", "args"},
+			expectedCode:   1,
+			expectedErrors: []string{"This command takes no arguments"},
 		},
 		{
-			name:         "Fails illegal node ids",
-			args:         []string{"-node-id", "foo:bar"},
-			expectedCode: 1,
+			name:           "Fails illegal node ids",
+			args:           []string{"-node-id", "foo:bar"},
+			expectedCode:   1,
+			expectedErrors: []string{"Error querying node info", "connection refused"},
 		},
 		{
-			name:         "Fails missing node ids",
-			args:         []string{"-node-id", "abc,def", "-duration", "250ms", "-interval", "250ms"},
-			expectedCode: 1,
+			name:           "Fails missing node ids",
+			args:           []string{"-node-id", "abc,def", "-duration", "250ms", "-interval", "250ms"},
+			expectedCode:   1,
+			expectedErrors: []string{"Error querying node info", "connection refused"},
 		},
 		{
-			name:         "Fails bad durations",
-			args:         []string{"-duration", "foo"},
-			expectedCode: 1,
+			name:           "Fails bad durations",
+			args:           []string{"-duration", "foo"},
+			expectedCode:   1,
+			expectedErrors: []string{"invalid duration \"foo\""},
 		},
 		{
-			name:         "Fails bad intervals",
-			args:         []string{"-interval", "bar"},
-			expectedCode: 1,
+			name:           "Fails bad intervals",
+			args:           []string{"-interval", "bar"},
+			expectedCode:   1,
+			expectedErrors: []string{"invalid duration \"bar\""},
 		},
 		{
-			name:         "Fails intervals greater than duration",
-			args:         []string{"-duration", "5m", "-interval", "10m"},
-			expectedCode: 1,
+			name:           "Fails intervals greater than duration",
+			args:           []string{"-duration", "5m", "-interval", "10m"},
+			expectedCode:   1,
+			expectedErrors: []string{"Error parsing interval", "10m is greater than duration 5m"},
 		},
 		{
-			name:          "Fails bad address",
-			args:          []string{"-address", url + "bogus"},
-			expectedCode:  1,
-			expectedError: "invalid address",
+			name:           "Fails bad address",
+			args:           []string{"-address", url + "bogus"},
+			expectedCode:   1,
+			expectedErrors: []string{"invalid address", "invalid port"},
 		},
 	}
 
@@ -435,10 +587,10 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 func TestDebug_Utils(t *testing.T) {
 	t.Parallel()
 
-	xs := argNodes("foo, bar")
+	xs := splitArgumentList("foo, bar")
 	require.Equal(t, []string{"foo", "bar"}, xs)
 
-	xs = argNodes("")
+	xs = splitArgumentList("")
 	require.Len(t, xs, 0)
 	require.Empty(t, xs)
 

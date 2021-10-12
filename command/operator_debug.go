@@ -14,8 +14,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -29,22 +31,25 @@ import (
 type OperatorDebugCommand struct {
 	Meta
 
-	timestamp     string
-	collectDir    string
-	duration      time.Duration
-	interval      time.Duration
-	pprofDuration time.Duration
-	logLevel      string
-	stale         bool
-	maxNodes      int
-	nodeClass     string
-	nodeIDs       []string
-	serverIDs     []string
-	consul        *external
-	vault         *external
-	manifest      []string
-	ctx           context.Context
-	cancel        context.CancelFunc
+	timestamp       string
+	collectDir      string
+	duration        time.Duration
+	interval        time.Duration
+	pprofDuration   time.Duration
+	logLevel        string
+	stale           bool
+	maxNodes        int
+	nodeClass       string
+	nodeIDs         []string
+	serverIDs       []string
+	targets         targetMap
+	intervalTargets targetMap
+	targetLock      sync.Mutex
+	consul          *external
+	vault           *external
+	manifest        []string
+	ctx             context.Context
+	cancel          context.CancelFunc
 }
 
 const (
@@ -135,6 +140,16 @@ Debug Options:
     The interval between snapshots of the Nomad state. Set interval equal to 
     duration to capture a single snapshot. Defaults to 30s.
 
+  -targets=<metrics,-metrics,...,all,none>
+    Comma separated list of targets to capture. Defaults to "all". Note that
+    prefixing a target name with the '-' operator (e.g. "-metrics") disables
+    capture for that target.
+
+  -interval-targets=<metrics,-metrics,...,all,none>
+    Comma separated list of targets to capture during each interval. Defaults to
+    "all". Note that prefixing a target name with the '-' operator (e.g.
+    "-metrics") disables capture for that target.
+
   -log-level=<level>
     The log level to monitor. Defaults to DEBUG.
 
@@ -177,17 +192,20 @@ func (c *OperatorDebugCommand) Synopsis() string {
 func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-duration":       complete.PredictAnything,
-			"-interval":       complete.PredictAnything,
-			"-log-level":      complete.PredictAnything,
-			"-max-nodes":      complete.PredictAnything,
-			"-node-class":     complete.PredictAnything,
-			"-node-id":        complete.PredictAnything,
-			"-server-id":      complete.PredictAnything,
-			"-output":         complete.PredictAnything,
-			"-pprof-duration": complete.PredictAnything,
-			"-consul-token":   complete.PredictAnything,
-			"-vault-token":    complete.PredictAnything,
+			"-duration":         complete.PredictAnything,
+			"-interval":         complete.PredictAnything,
+			"-log-level":        complete.PredictAnything,
+			"-max-nodes":        complete.PredictAnything,
+			"-node-class":       complete.PredictAnything,
+			"-node-id":          complete.PredictAnything,
+			"-server-id":        complete.PredictAnything,
+			"-targets":          complete.PredictAnything,
+			"-interval-targets": complete.PredictAnything,
+			"-output":           complete.PredictAnything,
+			"-pprof-duration":   complete.PredictAnything,
+			"-consul-token":     complete.PredictAnything,
+			"-vault-token":      complete.PredictAnything,
+			"-event-topic":      complete.PredictAnything,
 		})
 }
 
@@ -201,7 +219,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	var duration, interval, output, pprofDuration string
+	var duration, interval, output, pprofDuration, targets, intervalTargets string
 	var nodeIDs, serverIDs string
 
 	flags.StringVar(&duration, "duration", "2m", "")
@@ -212,6 +230,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.StringVar(&nodeIDs, "node-id", "", "")
 	flags.StringVar(&serverIDs, "server-id", "all", "")
 	flags.BoolVar(&c.stale, "stale", false, "")
+	flags.StringVar(&targets, "targets", "all", "")
+	flags.StringVar(&intervalTargets, "interval-targets", "all", "")
 	flags.StringVar(&output, "output", "", "")
 	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
 
@@ -269,6 +289,10 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 	c.pprofDuration = pd
+
+	// Parse initial and interval capture targets
+	c.targets = c.parseTargets(targets)
+	c.intervalTargets = c.parseIntervalTargets(intervalTargets)
 
 	// Verify there are no extra arguments
 	args = flags.Args()
@@ -329,7 +353,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	nodeLookupFailCount := 0
 	nodeCaptureCount := 0
 
-	for _, id := range argNodes(nodeIDs) {
+	for _, id := range splitArgumentList(nodeIDs) {
 		if id == "all" {
 			// Capture from all nodes using empty prefix filter
 			id = ""
@@ -390,7 +414,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 			c.serverIDs = append(c.serverIDs, member.Name)
 		}
 	} else {
-		c.serverIDs = append(c.serverIDs, argNodes(serverIDs)...)
+		c.serverIDs = append(c.serverIDs, splitArgumentList(serverIDs)...)
 	}
 
 	serversFound := 0
@@ -428,6 +452,12 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	if c.pprofDuration.Seconds() != 1 {
 		c.Ui.Output(fmt.Sprintf("   pprof Duration: %s", c.pprofDuration))
 	}
+	if len(c.targets) > 0 {
+		c.Ui.Output(fmt.Sprintf("          Targets: %s", c.targets.String()))
+	}
+	if len(c.intervalTargets) > 0 {
+		c.Ui.Output(fmt.Sprintf(" Interval Targets: %s", c.intervalTargets.String()))
+	}
 	c.Ui.Output("")
 	c.Ui.Output("Capturing cluster data...")
 
@@ -460,51 +490,298 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	return 0
 }
 
+// targetMap generic map for targets
+type targetMap map[string]bool
+
+// String returns a CSV of valid enabled targets
+func (t targetMap) String() string {
+	var targets []string
+	var targetString string
+
+	for target, enabled := range t {
+		if enabled && target != "all" {
+			targets = append(targets, target)
+		}
+	}
+	sort.Strings(targets)
+	targetString = strings.Join(targets, ",")
+
+	return targetString
+}
+
+// IsValid checks whether the key exists in the map
+func (m targetMap) IsValid(value string) bool {
+	if value == "all" {
+		return true
+	}
+	_, ok := m[value]
+	return ok
+}
+
+// parseTargets parses a comma delimited target string into a targetMap
+func (c *OperatorDebugCommand) parseTargets(targets string) targetMap {
+	ret := make(targetMap)
+
+	// Build starting target map
+	switch {
+	case targets == "":
+		return ret
+	case strings.Contains(targets, "none"):
+		ret = targetDefaultsNone()
+	default:
+		ret = targetDefaults()
+	}
+
+	// Enable or disable targets in map based on user input CSV
+	var enabled bool
+	ts := splitArgumentList(targets)
+	for _, t := range ts {
+		// These meta-targets should not appear in the map
+		if t == "all" || t == "none" {
+			continue
+		}
+
+		enabled = true
+		if strings.HasPrefix(t, "-") {
+			t = strings.TrimPrefix(t, "-")
+			enabled = false
+		}
+		if !ret.IsValid(t) {
+			c.Ui.Error(fmt.Sprintf("Invalid target %s", t))
+			continue
+		}
+		ret[t] = enabled
+	}
+	return ret
+}
+
+// parseTargets parses a comma delimited target string into a targetMap
+func (c *OperatorDebugCommand) parseIntervalTargets(intervalTargets string) targetMap {
+	ret := make(targetMap)
+
+	// Build starting interval target map
+	switch {
+	case intervalTargets == "":
+		return ret
+	case strings.Contains(intervalTargets, "none"):
+		ret = targetDefaultsNone()
+	default:
+		ret = intervalTargetDefaults()
+	}
+
+	// Enable or disable interval targets in map
+	var enabled bool
+	ts := splitArgumentList(intervalTargets)
+	for _, t := range ts {
+		// These meta-targets should not appear in the map
+		if t == "all" || t == "none" {
+			continue
+		}
+
+		enabled = true
+		if strings.HasPrefix(t, "-") {
+			t = strings.TrimPrefix(t, "-")
+			enabled = false
+		}
+		if !ret.IsValid(t) {
+			c.Ui.Error(fmt.Sprintf("Invalid target %s", t))
+			continue
+		}
+		ret[t] = enabled
+	}
+	return ret
+}
+
+// getSupportedTargets returns map of all possible targets
+func getSupportedTargets() targetMap {
+	return targetMap{
+		// Cluster
+		"agenthost": true,
+		"agentself": true,
+		"consul":    true,
+		"monitor":   true,
+		"pprof":     true,
+		"vault":     true,
+
+		// collectOperator
+		"autopilot":       true,
+		"license":         true,
+		"raftconfig":      true,
+		"schedulerconfig": true,
+
+		// collectNomad
+		"allocations": true,
+		"csiplugins":  true,
+		"csivolumes":  true,
+		"deployments": true,
+		"evaluations": true,
+		"jobs":        true,
+		"metrics":     true,
+		"nodes":       true,
+	}
+}
+
+// targetDefaults enables the default set of targets
+func targetDefaults() targetMap {
+	ts := make(targetMap)
+	// cluster
+	ts["agenthost"] = true
+	ts["agentself"] = true
+	ts["consul"] = true
+	ts["monitor"] = true
+	ts["pprof"] = true
+	ts["vault"] = true
+
+	// collectOperator
+	ts["autopilot"] = true
+	ts["license"] = true
+	ts["raftconfig"] = true
+	ts["schedulerconfig"] = true
+
+	// collectNomad
+	ts["allocations"] = true
+	ts["csiplugins"] = true
+	ts["csivolumes"] = true
+	ts["deployments"] = true
+	ts["evaluations"] = true
+	ts["jobs"] = true
+	ts["metrics"] = true
+	ts["nodes"] = true
+
+	return ts
+}
+
+// targetDefaultsNone sets all valid targets to false
+func targetDefaultsNone() targetMap {
+	ts := getSupportedTargets()
+	for k := range ts {
+		ts[k] = false
+	}
+	return ts
+}
+
+// intervalTargetDefaults enables the default set of periodic interval targets
+func intervalTargetDefaults() targetMap {
+	its := make(targetMap)
+
+	its["allocations"] = true
+	its["csiplugins"] = true
+	its["csivolumes"] = true
+	its["deployments"] = true
+	its["evaluations"] = true
+	its["jobs"] = true
+	its["metrics"] = true
+	its["nodes"] = true
+
+	return its
+}
+
+func (c *OperatorDebugCommand) targetEnabled(target string) bool {
+	c.targetLock.Lock()
+	defer c.targetLock.Unlock()
+
+	if c.targets.IsValid(target) {
+		return c.targets[target]
+	} else {
+		c.Ui.Error(fmt.Sprintf("Invalid target %s", target))
+	}
+	return false
+}
+
+func (c *OperatorDebugCommand) intervalTargetEnabled(target string) bool {
+	c.targetLock.Lock()
+	defer c.targetLock.Unlock()
+
+	if c.intervalTargets.IsValid(target) {
+		return c.intervalTargets[target]
+	} else {
+		c.Ui.Error(fmt.Sprintf("Invalid interval target %s", target))
+	}
+	return false
+}
+
+func getConsulAddrFromSelf(self *api.AgentSelf) string {
+	if self == nil {
+		return ""
+	}
+
+	var consul string
+	r, ok := self.Config["Consul"]
+	if ok {
+		m, ok := r.(map[string]interface{})
+		if ok {
+
+			raw := m["Addr"]
+			consul, _ = raw.(string)
+			raw = m["EnableSSL"]
+			ssl, _ := raw.(bool)
+			if ssl {
+				consul = "https://" + consul
+			} else {
+				consul = "http://" + consul
+			}
+		}
+	}
+	return consul
+}
+
+func getVaultAddrFromSelf(self *api.AgentSelf) string {
+	if self == nil {
+		return ""
+	}
+
+	var vaultAddr string
+	r, ok := self.Config["Vault"]
+	if ok {
+		m, ok := r.(map[string]interface{})
+		if ok {
+			raw := m["Addr"]
+			vaultAddr, _ = raw.(string)
+		}
+	}
+
+	return vaultAddr
+}
+
 // collect collects data from our endpoints and writes the archive bundle
 func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	// Version contains cluster meta information
 	dir := "version"
 
+	// Configuration info from Agent.Self is required for other commands
+	// Query the information always, but only write when reqeusted.
 	self, err := client.Agent().Self()
-	c.writeJSON(dir, "agent-self.json", self, err)
-
-	// Fetch data directly from consul and vault. Ignore errors
-	var consul, vault string
-
-	if self != nil {
-		r, ok := self.Config["Consul"]
-		if ok {
-			m, ok := r.(map[string]interface{})
-			if ok {
-
-				raw := m["Addr"]
-				consul, _ = raw.(string)
-				raw = m["EnableSSL"]
-				ssl, _ := raw.(bool)
-				if ssl {
-					consul = "https://" + consul
-				} else {
-					consul = "http://" + consul
-				}
-			}
-		}
-
-		r, ok = self.Config["Vault"]
-		if ok {
-			m, ok := r.(map[string]interface{})
-			if ok {
-				raw := m["Addr"]
-				vault, _ = raw.(string)
-			}
-		}
+	if c.targetEnabled("agentself") {
+		c.writeJSON(dir, "agent-self.json", self, err)
 	}
 
-	c.collectConsul(dir, consul)
-	c.collectVault(dir, vault)
-	c.collectAgentHosts(client)
-	c.collectPprofs(client)
+	// Fetch data from consul
+	if c.targetEnabled("consul") {
+		consulAddr := c.consul.addrVal
+		if consulAddr == "" {
+			consulAddr = getConsulAddrFromSelf(self)
+		}
+		c.collectConsul(dir, consulAddr)
+	}
 
-	c.startMonitors(client)
+	// Fetch data from vault
+	if c.targetEnabled("vault") {
+		vaultAddr := getVaultAddrFromSelf(self)
+		c.collectVault(dir, vaultAddr)
+	}
+
+	if c.targetEnabled("agenthost") {
+		c.collectAgentHosts(client)
+	}
+
+	if c.targetEnabled("pprof") {
+		c.collectPprofs(client)
+	}
+
+	if c.targetEnabled("monitor") {
+		c.startMonitors(client)
+	}
+
 	c.collectPeriodic(client)
 
 	return nil
@@ -742,62 +1019,86 @@ func (c *OperatorDebugCommand) collectPeriodic(client *api.Client) {
 
 // collectOperator captures some cluster meta information
 func (c *OperatorDebugCommand) collectOperator(dir string, client *api.Client) {
-	rc, err := client.Operator().RaftGetConfiguration(nil)
-	c.writeJSON(dir, "operator-raft.json", rc, err)
+	if c.targetEnabled("raftconfig") {
+		rc, err := client.Operator().RaftGetConfiguration(nil)
+		c.writeJSON(dir, "operator-raft.json", rc, err)
+	}
 
-	sc, _, err := client.Operator().SchedulerGetConfiguration(nil)
-	c.writeJSON(dir, "operator-scheduler.json", sc, err)
+	if c.targetEnabled("schedulerconfig") {
+		sc, _, err := client.Operator().SchedulerGetConfiguration(nil)
+		c.writeJSON(dir, "operator-scheduler.json", sc, err)
+	}
 
-	ah, _, err := client.Operator().AutopilotServerHealth(nil)
-	c.writeJSON(dir, "operator-autopilot-health.json", ah, err)
+	if c.targetEnabled("autopilot") {
+		ah, _, err := client.Operator().AutopilotServerHealth(nil)
+		c.writeJSON(dir, "operator-autopilot-health.json", ah, err)
+	}
 
-	lic, _, err := client.Operator().LicenseGet(nil)
-	c.writeJSON(dir, "license.json", lic, err)
+	if c.targetEnabled("license") {
+		lic, _, err := client.Operator().LicenseGet(nil)
+		c.writeJSON(dir, "license.json", lic, err)
+	}
 }
 
 // collectNomad captures the nomad cluster state
 func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) error {
 	var qo *api.QueryOptions
 
-	js, _, err := client.Jobs().List(qo)
-	c.writeJSON(dir, "jobs.json", js, err)
-
-	ds, _, err := client.Deployments().List(qo)
-	c.writeJSON(dir, "deployments.json", ds, err)
-
-	es, _, err := client.Evaluations().List(qo)
-	c.writeJSON(dir, "evaluations.json", es, err)
-
-	as, _, err := client.Allocations().List(qo)
-	c.writeJSON(dir, "allocations.json", as, err)
-
-	ns, _, err := client.Nodes().List(qo)
-	c.writeJSON(dir, "nodes.json", ns, err)
-
-	// CSI Plugins - /v1/plugins?type=csi
-	ps, _, err := client.CSIPlugins().List(qo)
-	c.writeJSON(dir, "plugins.json", ps, err)
-
-	// CSI Plugin details - /v1/plugin/csi/:plugin_id
-	for _, p := range ps {
-		csiPlugin, _, err := client.CSIPlugins().Info(p.ID, qo)
-		csiPluginFileName := fmt.Sprintf("csi-plugin-id-%s.json", p.ID)
-		c.writeJSON(dir, csiPluginFileName, csiPlugin, err)
+	if c.targetEnabled("jobs") {
+		js, _, err := client.Jobs().List(qo)
+		c.writeJSON(dir, "jobs.json", js, err)
 	}
 
-	// CSI Volumes - /v1/volumes?type=csi
-	csiVolumes, _, err := client.CSIVolumes().List(qo)
-	c.writeJSON(dir, "csi-volumes.json", csiVolumes, err)
-
-	// CSI Volume details - /v1/volumes/csi/:volume-id
-	for _, v := range csiVolumes {
-		csiVolume, _, err := client.CSIVolumes().Info(v.ID, qo)
-		csiFileName := fmt.Sprintf("csi-volume-id-%s.json", v.ID)
-		c.writeJSON(dir, csiFileName, csiVolume, err)
+	if c.targetEnabled("deployments") {
+		ds, _, err := client.Deployments().List(qo)
+		c.writeJSON(dir, "deployments.json", ds, err)
 	}
 
-	metrics, _, err := client.Operator().MetricsSummary(qo)
-	c.writeJSON(dir, "metrics.json", metrics, err)
+	if c.targetEnabled("evaluations") {
+		es, _, err := client.Evaluations().List(qo)
+		c.writeJSON(dir, "evaluations.json", es, err)
+	}
+
+	if c.targetEnabled("allocations") {
+		as, _, err := client.Allocations().List(qo)
+		c.writeJSON(dir, "allocations.json", as, err)
+	}
+
+	if c.targetEnabled("nodes") {
+		ns, _, err := client.Nodes().List(qo)
+		c.writeJSON(dir, "nodes.json", ns, err)
+	}
+
+	if c.targetEnabled("csiplugins") {
+		// CSI Plugins - /v1/plugins?type=csi
+		ps, _, err := client.CSIPlugins().List(qo)
+		c.writeJSON(dir, "plugins.json", ps, err) // TODO: rename file to csi-plugins.json
+
+		// CSI Plugin details - /v1/plugin/csi/:plugin_id
+		for _, p := range ps {
+			csiPlugin, _, err := client.CSIPlugins().Info(p.ID, qo)
+			csiPluginFileName := fmt.Sprintf("csi-plugin-id-%s.json", p.ID)
+			c.writeJSON(dir, csiPluginFileName, csiPlugin, err)
+		}
+	}
+
+	if c.targetEnabled("csivolumes") {
+		// CSI Volumes - /v1/volumes?type=csi
+		csiVolumes, _, err := client.CSIVolumes().List(qo)
+		c.writeJSON(dir, "csi-volumes.json", csiVolumes, err)
+
+		// CSI Volume details - /v1/volumes/csi/:volume-id
+		for _, v := range csiVolumes {
+			csiVolume, _, err := client.CSIVolumes().Info(v.ID, qo)
+			csiFileName := fmt.Sprintf("csi-volume-id-%s.json", v.ID)
+			c.writeJSON(dir, csiFileName, csiVolume, err)
+		}
+	}
+
+	if c.targetEnabled("metrics") {
+		metrics, _, err := client.Operator().MetricsSummary(qo)
+		c.writeJSON(dir, "metrics.json", metrics, err)
+	}
 
 	return nil
 }
@@ -1055,8 +1356,8 @@ func TarCZF(archive string, src, target string) error {
 	})
 }
 
-// argNodes splits node ids from the command line by ","
-func argNodes(input string) []string {
+// splitArgumentList splits comma delimited string into slice
+func splitArgumentList(input string) []string {
 	ns := strings.Split(input, ",")
 	var out []string
 	for _, n := range ns {
