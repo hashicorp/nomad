@@ -197,6 +197,26 @@ func SliceStringContains(list []string, item string) bool {
 	return false
 }
 
+// SliceStringHasPrefix returns true if any string in list starts with prefix
+func SliceStringHasPrefix(list []string, prefix string) bool {
+	for _, s := range list {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// StringHasPrefixInSlice returns true if string starts with any prefix in list
+func StringHasPrefixInSlice(s string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func SliceSetDisjoint(first, second []string) (bool, []string) {
 	contained := make(map[string]struct{}, len(first))
 	for _, k := range first {
