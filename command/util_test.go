@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
-	// "github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.TestAgent, *api.Client, string) {
@@ -36,8 +36,8 @@ func testClient(t *testing.T, name string, cb func(*agent.Config)) (*agent.TestA
 	t.Cleanup(func() { a.Shutdown() })
 
 	c := a.Client()
-	// t.Logf("[TEST] Waiting for client %s to join server(s) %s", name, a.GetConfig().Client.Servers)
-	// testutil.WaitForClient(t, a.Agent.RPC, a.Agent.Client())
+	t.Logf("[TEST] Waiting for client %s to join server(s) %s", name, a.GetConfig().Client.Servers)
+	testutil.WaitForClient(t, a.Agent.RPC, a.Agent.Client().NodeID(), a.Agent.Client().Region())
 
 	return a, c, a.HTTPAddr()
 }
