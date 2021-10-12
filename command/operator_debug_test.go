@@ -67,7 +67,6 @@ func newClientAgentConfigFunc(region string, nodeClass string, srvRPCAddr string
 func TestDebug_NodeClass(t *testing.T) {
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
 
 	// Wait for leadership to establish
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -116,7 +115,6 @@ func TestDebug_NodeClass(t *testing.T) {
 func TestDebug_ClientToServer(t *testing.T) {
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
 
 	// Wait for leadership to establish
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -168,8 +166,6 @@ func TestDebug_ClientToServer_Region(t *testing.T) {
 	srv, _, url := testServer(t, false, func(c *agent.Config) {
 		c.Region = region
 	})
-
-	defer srv.Shutdown()
 
 	// Wait for leadership to establish
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -230,7 +226,6 @@ func TestDebug_ClientToServer_Region(t *testing.T) {
 
 func TestDebug_SingleServer(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
 	var cases = testCases{
@@ -263,7 +258,6 @@ func TestDebug_SingleServer(t *testing.T) {
 
 func TestDebug_Failures(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
 	var cases = testCases{
@@ -311,7 +305,6 @@ func TestDebug_Failures(t *testing.T) {
 func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
 
 	// Wait for leadership to establish
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -352,7 +345,6 @@ func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
 
 func TestDebug_CapturedFiles(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
 	ui := cli.NewMockUi()
@@ -431,7 +423,6 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 
 	// Start test server and API client
 	srv, _, url := testServer(t, false, agentConfFunc)
-	defer srv.Shutdown()
 
 	// Wait for leadership to establish
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -440,7 +431,7 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
-	// Debug on client - node class = "clienta"
+	// Debug on server with endpoints disabled
 	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all"})
 
 	assert.Equal(t, 0, code) // Pprof failure isn't fatal
