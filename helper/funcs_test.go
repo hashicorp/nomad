@@ -34,6 +34,16 @@ func TestSliceStringContains(t *testing.T) {
 	require.False(t, SliceStringContains(list, "d"))
 }
 
+func TestSliceStringContainsPrefix(t *testing.T) {
+	list := []string{"abc", "def", "abcdef", "definitely", "most definitely"}
+	require.True(t, SliceStringContainsPrefix(list, "a"))
+	require.False(t, SliceStringContainsPrefix(list, "b"))
+	require.False(t, SliceStringContainsPrefix(list, "c"))
+	require.True(t, SliceStringContainsPrefix(list, "d"))
+	require.True(t, SliceStringContainsPrefix(list, "mos"))
+	require.True(t, SliceStringContainsPrefix(list, "def"))
+}
+
 func TestCompareTimePtrs(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
 		a := (*time.Duration)(nil)
