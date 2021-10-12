@@ -470,7 +470,6 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 	}
 
 	logOutput := io.MultiWriter(writers...)
-	log.SetOutput(logOutput)
 	return logFilter, logGate, logOutput
 }
 
@@ -648,6 +647,12 @@ func (c *Command) Run(args []string) int {
 		Output:     logOutput,
 		JSONFormat: config.LogJson,
 	})
+
+	// Wrap log messages emitted with the 'log' package.
+	// These usually come from external dependencies.
+	log.SetOutput(logger.StandardWriter(&hclog.StandardLoggerOptions{InferLevels: true}))
+	log.SetPrefix("")
+	log.SetFlags(0)
 
 	// Swap out UI implementation if json logging is enabled
 	if config.LogJson {
