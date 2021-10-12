@@ -1092,8 +1092,8 @@ func filterServerMembers(serverMembers *api.ServerMembers, serverIDs string, reg
 			continue
 		}
 
-		// Include member if name matches any prefix
-		if helper.SliceStringContainsPrefix(prefixes, member.Name) {
+		// Include member if name matches any prefix from serverIDs
+		if helper.StringHasPrefixInSlice(member.Name, prefixes) {
 			membersFound = append(membersFound, member.Name)
 		}
 	}

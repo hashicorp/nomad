@@ -34,14 +34,25 @@ func TestSliceStringContains(t *testing.T) {
 	require.False(t, SliceStringContains(list, "d"))
 }
 
-func TestSliceStringContainsPrefix(t *testing.T) {
+func TestSliceStringHasPrefix(t *testing.T) {
 	list := []string{"abc", "def", "abcdef", "definitely", "most definitely"}
-	require.True(t, SliceStringContainsPrefix(list, "a"))
-	require.False(t, SliceStringContainsPrefix(list, "b"))
-	require.False(t, SliceStringContainsPrefix(list, "c"))
-	require.True(t, SliceStringContainsPrefix(list, "d"))
-	require.True(t, SliceStringContainsPrefix(list, "mos"))
-	require.True(t, SliceStringContainsPrefix(list, "def"))
+	require.True(t, SliceStringHasPrefix(list, "a"))
+	require.False(t, SliceStringHasPrefix(list, "b"))
+	require.False(t, SliceStringHasPrefix(list, "c"))
+	require.True(t, SliceStringHasPrefix(list, "d"))
+	require.True(t, SliceStringHasPrefix(list, "mos"))
+	require.True(t, SliceStringHasPrefix(list, "def"))
+}
+
+func TestStringHasPrefixInSlice(t *testing.T) {
+	prefixes := []string{"a", "b", "c", "definitely", "most definitely"}
+	require.True(t, StringHasPrefixInSlice("alpha", prefixes))
+	require.True(t, StringHasPrefixInSlice("bravo", prefixes))
+	require.True(t, StringHasPrefixInSlice("charlie", prefixes))
+	require.False(t, StringHasPrefixInSlice("delta", prefixes))
+	require.True(t, StringHasPrefixInSlice("definitely", prefixes))
+	require.False(t, StringHasPrefixInSlice("most", prefixes))
+	require.True(t, StringHasPrefixInSlice("most definitely", prefixes))
 }
 
 func TestCompareTimePtrs(t *testing.T) {
