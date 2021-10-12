@@ -141,11 +141,18 @@ func (a TerminalByNodeByName) Get(nodeID, name string) (*Allocation, bool) {
 }
 
 // AllocsFit checks if a given set of allocations will fit on a node.
-// The netIdx can optionally be provided if its already been computed.
-// If the netIdx is provided, it is assumed that the client has already
-// ensured there are no collisions. If checkDevices is set to true, we check if
-// there is a device oversubscription.
-func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevices bool) (bool, string, *ComparableResources, error) {
+//
+// This func is shared between the binpack iterator and plan applier. During
+// binpack iteration network and device collisions are detected prior to
+// calling this func. During plan applying this func must check devices and
+// networks again to ensure there are still no collisions, but these checks may
+// be skipped if no allocs use devices or networks.
+//
+// If the netIdx is nil, it is assumed that the client has already
+// ensured there are no collisions.
+// If checkDevices is set to true, we check if there is a device
+// oversubscription.
+func AllocsFit(node *Node, allocs []*Allocation, checkDev, checkNet bool) (bool, string, *ComparableResources, error) {
 	// Compute the allocs' utilization from zero
 	used := new(ComparableResources)
 
@@ -184,25 +191,20 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 		return false, dimension, used, nil
 	}
 
-	// Create the network index if missing
-	if netIdx == nil {
-		netIdx = NewNetworkIndex()
-		defer netIdx.Release()
-		if netIdx.SetNode(node) || netIdx.AddAllocs(allocs) {
-			return false, "reserved port collision", used, nil
-		}
-	}
-
-	// Check if the network is overcommitted
-	if netIdx.Overcommitted() {
-		return false, "bandwidth exceeded", used, nil
-	}
-
 	// Check devices
-	if checkDevices {
+	if checkDev {
 		accounter := NewDeviceAccounter(node)
 		if accounter.AddAllocs(allocs) {
 			return false, "device oversubscribed", used, nil
+		}
+	}
+
+	// Create the network index if missing and needs checking
+	if checkNet {
+		netIdx := NewNetworkIndex()
+		defer netIdx.Release()
+		if netIdx.SetNode(node) || netIdx.AddAllocs(allocs) {
+			return false, "reserved port collision", used, nil
 		}
 	}
 

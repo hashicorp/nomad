@@ -676,9 +676,49 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	proposed := structs.RemoveAllocs(existingAlloc, remove)
 	proposed = append(proposed, plan.NodeAllocation[nodeID]...)
 
+	// Only check devices and networks if the job being planned uses them
+	// since simply removing allocs can never cause invalid device or port
+	// allocations.
+	checkDev, checkNet := containsDeviceNet(plan.Job)
+
 	// Check if these allocations fit
-	fit, reason, _, err := structs.AllocsFit(node, proposed, nil, true)
+	fit, reason, _, err := structs.AllocsFit(node, proposed, checkDev, checkNet)
 	return fit, reason, err
+}
+
+// containsDeviceNet requires true if a job contains any devices or networks.
+func containsDeviceNet(job *structs.Job) (containsDev, containsNet bool) {
+	for _, tg := range job.TaskGroups {
+		if len(tg.Networks) > 0 {
+			for _, net := range tg.Networks {
+				if net.Mode != "none" {
+					containsNet = true
+					break
+				}
+			}
+		}
+
+		for _, task := range tg.Tasks {
+			if containsDev && containsNet {
+				// Found both, return early
+				return containsDev, containsNet
+			}
+
+			if task.Resources == nil {
+				continue
+			}
+
+			if len(task.Resources.Devices) > 0 {
+				containsDev = true
+			}
+
+			if len(task.Resources.Networks) > 0 {
+				containsNet = true
+			}
+		}
+	}
+
+	return containsDev, containsNet
 }
 
 func max(a, b uint64) uint64 {
