@@ -50,6 +50,19 @@ func runTestCases(t *testing.T, cases testCases) {
 		})
 	}
 }
+func newClientAgentConfigFunc(region string, nodeClass string, srvRPCAddr string) func(*agent.Config) {
+	if region == "" {
+		region = "global"
+	}
+
+	return func(c *agent.Config) {
+		c.Region = region
+		c.Client.NodeClass = nodeClass
+		c.Client.Servers = []string{srvRPCAddr}
+		c.Client.Enabled = true
+		c.Server.Enabled = false
+	}
+}
 
 func TestDebug_NodeClass(t *testing.T) {
 	// Start test server and API client
@@ -63,64 +76,34 @@ func TestDebug_NodeClass(t *testing.T) {
 	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
 	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
 
-	// Setup client 1 (nodeclass = clienta)
-	agentConfFunc1 := func(c *agent.Config) {
-		c.Region = "global"
-		c.Client.NodeClass = "clienta"
-		c.Client.Servers = []string{srvRPCAddr}
-	}
-
-	// Start client 1
-	agent1 := agent.NewTestAgent(t, "client1", agentConfFunc1)
-	defer agent1.Shutdown()
-	testutil.WaitForClient(t, srv.Agent.RPC, agent1.Agent.Client())
-
-	// Setup client 2 (nodeclass = clientb)
-	agentConfFunc2 := func(c *agent.Config) {
-		c.Region = "global"
-		c.Client.NodeClass = "clientb"
-		c.Client.Servers = []string{srvRPCAddr}
-	}
-
-	// Start client 2
-	agent2 := agent.NewTestAgent(t, "client2", agentConfFunc2)
-	defer agent2.Shutdown()
-	testutil.WaitForClient(t, srv.Agent.RPC, agent2.Agent.Client())
-
-	// Setup client 3 (nodeclass = clienta)
-	agentConfFunc3 := func(c *agent.Config) {
-		c.Client.NodeClass = "clienta"
-		c.Client.Servers = []string{srvRPCAddr}
-	}
-
-	// Start client 3
-	agent3 := agent.NewTestAgent(t, "client3", agentConfFunc3)
-	defer agent3.Shutdown()
-	testutil.WaitForClient(t, srv.Agent.RPC, agent3.Agent.Client())
+	// Start test clients
+	testClient(t, "client1", newClientAgentConfigFunc("global", "classA", srvRPCAddr))
+	testClient(t, "client2", newClientAgentConfigFunc("global", "classB", srvRPCAddr))
+	testClient(t, "client3", newClientAgentConfigFunc("global", "classA", srvRPCAddr))
 
 	// Setup test cases
 	cases := testCases{
 		{
-			name:         "address=api, node-class=clienta, max-nodes=2",
-			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clienta", "-max-nodes", "2"},
+			name:         "address=api, node-class=classA, max-nodes=2",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "classA", "-max-nodes", "2"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Servers: (1/1)",
 				"Clients: (2/3)",
 				"Max node count reached (2)",
-				"Node Class: clienta",
+				"Node Class: classA",
 				"Created debug archive",
 			},
 			expectedError: "",
 		},
 		{
-			name:         "address=api, node-class=clientb, max-nodes=2",
-			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clientb", "-max-nodes", "2"},
+			name:         "address=api, node-class=classB, max-nodes=2",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "classB", "-max-nodes", "2"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Servers: (1/1)",
 				"Clients: (1/3)",
-				"Node Class: clientb",
+				"Node Class: classB",
 				"Created debug archive",
 			},
 			expectedError: "",
@@ -142,16 +125,8 @@ func TestDebug_ClientToServer(t *testing.T) {
 	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
 	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
 
-	// Setup client 1 (nodeclass = clienta)
-	agentConfFunc1 := func(c *agent.Config) {
-		c.Client.NodeClass = "clienta"
-		c.Client.Servers = []string{srvRPCAddr}
-	}
-
-	// Start client 1
-	agent1 := agent.NewTestAgent(t, "client1", agentConfFunc1)
-	defer agent1.Shutdown()
-	testutil.WaitForClient(t, srv.Agent.RPC, agent1.Agent.Client())
+	// Start client
+	agent1, _, _ := testClient(t, "client1", newClientAgentConfigFunc("", "", srvRPCAddr))
 
 	// Get API addresses
 	addrServer := srv.HTTPAddr()
@@ -187,9 +162,11 @@ func TestDebug_ClientToServer(t *testing.T) {
 }
 
 func TestDebug_ClientToServer_Region(t *testing.T) {
+	region := "testregion"
+
 	// Start test server and API client
 	srv, _, url := testServer(t, false, func(c *agent.Config) {
-		c.Region = "testregion"
+		c.Region = region
 	})
 
 	defer srv.Shutdown()
@@ -201,17 +178,8 @@ func TestDebug_ClientToServer_Region(t *testing.T) {
 	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
 	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
 
-	// Setup client 1 (nodeclass = clienta)
-	agentConfFunc1 := func(c *agent.Config) {
-		c.Region = "testregion"
-		c.Client.NodeClass = "clienta"
-		c.Client.Servers = []string{srvRPCAddr}
-	}
-
-	// Start client 1
-	agent1 := agent.NewTestAgent(t, "client1", agentConfFunc1)
-	defer agent1.Shutdown()
-	testutil.WaitForClient(t, srv.Agent.RPC, agent1.Agent.Client())
+	// Start client
+	agent1, _, _ := testClient(t, "client1", newClientAgentConfigFunc(region, "", srvRPCAddr))
 
 	// Get API addresses
 	addrServer := srv.HTTPAddr()
@@ -226,7 +194,7 @@ func TestDebug_ClientToServer_Region(t *testing.T) {
 		// Good
 		{
 			name:         "region - testAgent api server",
-			args:         []string{"-address", url, "-region", "testregion", "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			args:         []string{"-address", url, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Region: testregion\n",
@@ -236,14 +204,14 @@ func TestDebug_ClientToServer_Region(t *testing.T) {
 			},
 		},
 		{
-			name:            "region - erver address",
-			args:            []string{"-address", addrServer, "-region", "testregion", "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			name:            "region - server address",
+			args:            []string{"-address", addrServer, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode:    0,
 			expectedOutputs: []string{"Created debug archive"},
 		},
 		{
 			name:            "region - client1 address - verify no SIGSEGV panic",
-			args:            []string{"-address", addrClient1, "-region", "testregion", "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			args:            []string{"-address", addrClient1, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode:    0,
 			expectedOutputs: []string{"Created debug archive"},
 		},
