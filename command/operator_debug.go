@@ -329,7 +329,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	nodeLookupFailCount := 0
 	nodeCaptureCount := 0
 
-	for _, id := range argNodes(nodeIDs) {
+	for _, id := range stringToSlice(nodeIDs) {
 		if id == "all" {
 			// Capture from all nodes using empty prefix filter
 			id = ""
@@ -382,15 +382,15 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Failed to retrieve server list; err: %v", err))
 		return 1
 	}
+
+	// Write complete list of server members to file
 	c.writeJSON("version", "members.json", members, err)
-	// We always write the error to the file, but don't range if no members found
-	if serverIDs == "all" && members != nil {
-		// Special case to capture from all servers
-		for _, member := range members.Members {
-			c.serverIDs = append(c.serverIDs, member.Name)
-		}
-	} else {
-		c.serverIDs = append(c.serverIDs, argNodes(serverIDs)...)
+
+	// Filter for servers matching criteria
+	c.serverIDs, err = filterServerMembers(members, serverIDs, c.region)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Failed to parse server list; err: %v", err))
+		return 1
 	}
 
 	serversFound := 0
@@ -412,6 +412,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	// Display general info about the capture
 	c.Ui.Output("Starting debugger...")
 	c.Ui.Output("")
+	c.Ui.Output(fmt.Sprintf("           Region: %s", c.region))
+	c.Ui.Output(fmt.Sprintf("        Namespace: %s", c.namespace))
 	c.Ui.Output(fmt.Sprintf("          Servers: (%d/%d) %v", serverCaptureCount, serversFound, c.serverIDs))
 	c.Ui.Output(fmt.Sprintf("          Clients: (%d/%d) %v", nodeCaptureCount, nodesFound, c.nodeIDs))
 	if nodeCaptureCount > 0 && nodeCaptureCount == c.maxNodes {
@@ -467,6 +469,13 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 
 	self, err := client.Agent().Self()
 	c.writeJSON(dir, "agent-self.json", self, err)
+
+	var qo *api.QueryOptions
+	namespaces, _, err := client.Namespaces().List(qo)
+	c.writeJSON(dir, "namespaces.json", namespaces, err)
+
+	regions, err := client.Regions().List()
+	c.writeJSON(dir, "regions.json", regions, err)
 
 	// Fetch data directly from consul and vault. Ignore errors
 	var consul, vault string
@@ -1054,8 +1063,46 @@ func TarCZF(archive string, src, target string) error {
 	})
 }
 
-// argNodes splits node ids from the command line by ","
-func argNodes(input string) []string {
+// filterServerMembers returns a slice of server member names matching the search criteria
+func filterServerMembers(serverMembers *api.ServerMembers, serverIDs string, region string) (membersFound []string, err error) {
+	if serverMembers.Members == nil {
+		return nil, fmt.Errorf("Failed to parse server members, members==nil")
+	}
+
+	prefixes := stringToSlice(serverIDs)
+
+	// "leader" is a special case which Nomad handles in the API.  If "leader"
+	// appears in serverIDs, add it to membersFound and remove it from the list
+	// so that it isn't processed by the range loop
+	if helper.SliceStringContains(prefixes, "leader") {
+		membersFound = append(membersFound, "leader")
+		helper.RemoveEqualFold(&prefixes, "leader")
+	}
+
+	for _, member := range serverMembers.Members {
+		// If region is provided it must match exactly
+		if region != "" && member.Tags["region"] != region {
+			continue
+		}
+
+		// Always include "all"
+		if serverIDs == "all" {
+			membersFound = append(membersFound, member.Name)
+			continue
+		}
+
+		// Include member if name matches any prefix from serverIDs
+		if helper.StringHasPrefixInSlice(member.Name, prefixes) {
+			membersFound = append(membersFound, member.Name)
+		}
+	}
+
+	return membersFound, nil
+}
+
+// stringToSlice splits comma-separated input string into slice, trims
+// whitespace, and prunes empty values
+func stringToSlice(input string) []string {
 	ns := strings.Split(input, ",")
 	var out []string
 	for _, n := range ns {

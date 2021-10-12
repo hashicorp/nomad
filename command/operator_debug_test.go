@@ -50,11 +50,23 @@ func runTestCases(t *testing.T, cases testCases) {
 		})
 	}
 }
+func newClientAgentConfigFunc(region string, nodeClass string, srvRPCAddr string) func(*agent.Config) {
+	if region == "" {
+		region = "global"
+	}
+
+	return func(c *agent.Config) {
+		c.Region = region
+		c.Client.NodeClass = nodeClass
+		c.Client.Servers = []string{srvRPCAddr}
+		c.Client.Enabled = true
+		c.Server.Enabled = false
+	}
+}
 
 func TestDebug_NodeClass(t *testing.T) {
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
 
 	// Wait for leadership to establish
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -63,81 +75,34 @@ func TestDebug_NodeClass(t *testing.T) {
 	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
 	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
 
-	// Setup client 1 (nodeclass = clienta)
-	agentConfFunc1 := func(c *agent.Config) {
-		c.Region = "global"
-		c.Server.Enabled = false
-		c.Client.NodeClass = "clienta"
-		c.Client.Enabled = true
-		c.Client.Servers = []string{srvRPCAddr}
-	}
-
-	// Start client 1
-	client1 := agent.NewTestAgent(t, "client1", agentConfFunc1)
-	defer client1.Shutdown()
-
-	// Wait for client1 to connect
-	client1NodeID := client1.Agent.Client().NodeID()
-	testutil.WaitForClient(t, srv.Agent.RPC, client1NodeID)
-	t.Logf("[TEST] Client1 ready, id: %s", client1NodeID)
-
-	// Setup client 2 (nodeclass = clientb)
-	agentConfFunc2 := func(c *agent.Config) {
-		c.Region = "global"
-		c.Server.Enabled = false
-		c.Client.NodeClass = "clientb"
-		c.Client.Enabled = true
-		c.Client.Servers = []string{srvRPCAddr}
-	}
-
-	// Start client 2
-	client2 := agent.NewTestAgent(t, "client2", agentConfFunc2)
-	defer client2.Shutdown()
-
-	// Wait for client2 to connect
-	client2NodeID := client2.Agent.Client().NodeID()
-	testutil.WaitForClient(t, srv.Agent.RPC, client2NodeID)
-	t.Logf("[TEST] Client2 ready, id: %s", client2NodeID)
-
-	// Setup client 3 (nodeclass = clienta)
-	agentConfFunc3 := func(c *agent.Config) {
-		c.Server.Enabled = false
-		c.Client.NodeClass = "clienta"
-		c.Client.Servers = []string{srvRPCAddr}
-	}
-
-	// Start client 3
-	client3 := agent.NewTestAgent(t, "client3", agentConfFunc3)
-	defer client3.Shutdown()
-
-	// Wait for client3 to connect
-	client3NodeID := client3.Agent.Client().NodeID()
-	testutil.WaitForClient(t, srv.Agent.RPC, client3NodeID)
-	t.Logf("[TEST] Client3 ready, id: %s", client3NodeID)
+	// Start test clients
+	testClient(t, "client1", newClientAgentConfigFunc("global", "classA", srvRPCAddr))
+	testClient(t, "client2", newClientAgentConfigFunc("global", "classB", srvRPCAddr))
+	testClient(t, "client3", newClientAgentConfigFunc("global", "classA", srvRPCAddr))
 
 	// Setup test cases
 	cases := testCases{
 		{
-			name:         "address=api, node-class=clienta, max-nodes=2",
-			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clienta", "-max-nodes", "2"},
+			name:         "address=api, node-class=classA, max-nodes=2",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "classA", "-max-nodes", "2"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Servers: (1/1)",
 				"Clients: (2/3)",
 				"Max node count reached (2)",
-				"Node Class: clienta",
+				"Node Class: classA",
 				"Created debug archive",
 			},
 			expectedError: "",
 		},
 		{
-			name:         "address=api, node-class=clientb, max-nodes=2",
-			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "clientb", "-max-nodes", "2"},
+			name:         "address=api, node-class=classB, max-nodes=2",
+			args:         []string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-node-class", "classB", "-max-nodes", "2"},
 			expectedCode: 0,
 			expectedOutputs: []string{
 				"Servers: (1/1)",
 				"Clients: (1/3)",
-				"Node Class: clientb",
+				"Node Class: classB",
 				"Created debug archive",
 			},
 			expectedError: "",
@@ -150,7 +115,6 @@ func TestDebug_NodeClass(t *testing.T) {
 func TestDebug_ClientToServer(t *testing.T) {
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
 
 	// Wait for leadership to establish
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -159,27 +123,12 @@ func TestDebug_ClientToServer(t *testing.T) {
 	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
 	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
 
-	// Setup client 1 (nodeclass = clienta)
-	agentConfFunc1 := func(c *agent.Config) {
-		c.Region = "global"
-		c.Server.Enabled = false
-		c.Client.NodeClass = "clienta"
-		c.Client.Enabled = true
-		c.Client.Servers = []string{srvRPCAddr}
-	}
-
-	// Start client 1
-	client1 := agent.NewTestAgent(t, "client1", agentConfFunc1)
-	defer client1.Shutdown()
-
-	// Wait for client 1 to connect
-	client1NodeID := client1.Agent.Client().NodeID()
-	testutil.WaitForClient(t, srv.Agent.RPC, client1NodeID)
-	t.Logf("[TEST] Client1 ready, id: %s", client1NodeID)
+	// Start client
+	agent1, _, _ := testClient(t, "client1", newClientAgentConfigFunc("", "", srvRPCAddr))
 
 	// Get API addresses
 	addrServer := srv.HTTPAddr()
-	addrClient1 := client1.HTTPAddr()
+	addrClient1 := agent1.HTTPAddr()
 
 	t.Logf("[TEST] testAgent api address: %s", url)
 	t.Logf("[TEST] Server    api address: %s", addrServer)
@@ -210,9 +159,83 @@ func TestDebug_ClientToServer(t *testing.T) {
 	runTestCases(t, cases)
 }
 
+func TestDebug_ClientToServer_Region(t *testing.T) {
+	region := "testregion"
+
+	// Start test server and API client
+	srv, _, url := testServer(t, false, func(c *agent.Config) {
+		c.Region = region
+	})
+
+	// Wait for leadership to establish
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	// Retrieve server RPC address to join client
+	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
+	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
+
+	// Start client
+	agent1, _, _ := testClient(t, "client1", newClientAgentConfigFunc(region, "", srvRPCAddr))
+
+	// Get API addresses
+	addrServer := srv.HTTPAddr()
+	addrClient1 := agent1.HTTPAddr()
+
+	t.Logf("[TEST] testAgent api address: %s", url)
+	t.Logf("[TEST] Server    api address: %s", addrServer)
+	t.Logf("[TEST] Client1   api address: %s", addrClient1)
+
+	// Setup test cases
+	var cases = testCases{
+		// Good
+		{
+			name:         "region - testAgent api server",
+			args:         []string{"-address", url, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Region: " + region + "\n",
+				"Servers: (1/1)",
+				"Clients: (1/1)",
+				"Created debug archive",
+			},
+		},
+		{
+			name:         "region - server address",
+			args:         []string{"-address", addrServer, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Region: " + region + "\n",
+				"Servers: (1/1)",
+				"Clients: (1/1)",
+				"Created debug archive",
+			},
+		},
+		{
+			name:         "region - client1 address - verify no SIGSEGV panic",
+			args:         []string{"-address", addrClient1, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Region: " + region + "\n",
+				"Servers: (1/1)",
+				"Clients: (1/1)",
+				"Created debug archive",
+			},
+		},
+
+		// Bad
+		{
+			name:          "invalid region - all servers, all clients",
+			args:          []string{"-address", url, "-region", "never", "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode:  1,
+			expectedError: "500 (No path to region)",
+		},
+	}
+
+	runTestCases(t, cases)
+}
+
 func TestDebug_SingleServer(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
 	var cases = testCases{
@@ -245,7 +268,6 @@ func TestDebug_SingleServer(t *testing.T) {
 
 func TestDebug_Failures(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
 	var cases = testCases{
@@ -293,7 +315,6 @@ func TestDebug_Failures(t *testing.T) {
 func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
 	// Start test server and API client
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
 
 	// Wait for leadership to establish
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -334,7 +355,6 @@ func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
 
 func TestDebug_CapturedFiles(t *testing.T) {
 	srv, _, url := testServer(t, false, nil)
-	defer srv.Shutdown()
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 
 	ui := cli.NewMockUi()
@@ -413,7 +433,6 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 
 	// Start test server and API client
 	srv, _, url := testServer(t, false, agentConfFunc)
-	defer srv.Shutdown()
 
 	// Wait for leadership to establish
 	testutil.WaitForLeader(t, srv.Agent.RPC)
@@ -422,7 +441,7 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
-	// Debug on client - node class = "clienta"
+	// Debug on server with endpoints disabled
 	code := cmd.Run([]string{"-address", url, "-duration", "250ms", "-interval", "250ms", "-server-id", "all"})
 
 	assert.Equal(t, 0, code) // Pprof failure isn't fatal
@@ -432,15 +451,27 @@ func TestDebug_Fail_Pprof(t *testing.T) {
 	require.Contains(t, ui.OutputWriter.String(), "Created debug archive")   // Archive should be generated anyway
 }
 
-func TestDebug_Utils(t *testing.T) {
+func TestDebug_StringToSlice(t *testing.T) {
 	t.Parallel()
 
-	xs := argNodes("foo, bar")
-	require.Equal(t, []string{"foo", "bar"}, xs)
+	cases := []struct {
+		input    string
+		expected []string
+	}{
+		{input: ",,", expected: []string(nil)},
+		{input: "", expected: []string(nil)},
+		{input: "foo, bar", expected: []string{"foo", "bar"}},
+		{input: "  foo, bar ", expected: []string{"foo", "bar"}},
+		{input: "foo,,bar", expected: []string{"foo", "bar"}},
+	}
+	for _, tc := range cases {
+		out := stringToSlice(tc.input)
+		require.Equal(t, tc.expected, out)
+	}
+}
 
-	xs = argNodes("")
-	require.Len(t, xs, 0)
-	require.Empty(t, xs)
+func TestDebug_External(t *testing.T) {
+	t.Parallel()
 
 	// address calculation honors CONSUL_HTTP_SSL
 	// ssl: true - Correct alignment
