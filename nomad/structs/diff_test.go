@@ -7187,3 +7187,411 @@ func TestTaskDiff(t *testing.T) {
 		})
 	}
 }
+
+func TestServicesDiff(t *testing.T) {
+	cases := []struct {
+		Name       string
+		Old, New   []*Service
+		Expected   []*ObjectDiff
+		Contextual bool
+	}{
+		{
+			Name:       "No changes - empty",
+			Contextual: true,
+			Old:        []*Service{},
+			New:        []*Service{},
+			Expected:   nil,
+		},
+		{
+			Name:       "No changes",
+			Contextual: true,
+			Old: []*Service{
+				{
+					Name:      "webapp",
+					PortLabel: "http",
+				},
+			},
+			New: []*Service{
+				{
+					Name:      "webapp",
+					PortLabel: "http",
+				},
+			},
+			Expected: nil,
+		},
+		{
+			Name:       "Detect changes",
+			Contextual: true,
+			Old: []*Service{
+				{
+					Name:              "webapp",
+					PortLabel:         "http",
+					AddressMode:       "host",
+					EnableTagOverride: true,
+					Tags:              []string{"prod"},
+					CanaryTags:        []string{"canary"},
+				},
+			},
+			New: []*Service{
+				{
+					Name:              "webapp-2",
+					PortLabel:         "https",
+					AddressMode:       "alloc",
+					EnableTagOverride: false,
+					Tags:              []string{"prod", "dev"},
+					CanaryTags:        []string{"qa"},
+				},
+			},
+			Expected: []*ObjectDiff{
+				{
+					Type: DiffTypeEdited,
+					Name: "Service",
+					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeEdited,
+							Name: "AddressMode",
+							Old:  "host",
+							New:  "alloc",
+						},
+						{
+							Type: DiffTypeEdited,
+							Name: "EnableTagOverride",
+							Old:  "true",
+							New:  "false",
+						},
+						{
+							Type: DiffTypeEdited,
+							Name: "Name",
+							Old:  "webapp",
+							New:  "webapp-2",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Namespace",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "OnUpdate",
+						},
+						{
+							Type: DiffTypeEdited,
+							Name: "PortLabel",
+							Old:  "http",
+							New:  "https",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "TaskName",
+						},
+					},
+					Objects: []*ObjectDiff{
+						{
+							Type: DiffTypeEdited,
+							Name: "CanaryTags",
+							Fields: []*FieldDiff{
+								{
+									Type: DiffTypeAdded,
+									Name: "CanaryTags",
+									New:  "qa",
+								},
+								{
+									Type: DiffTypeDeleted,
+									Name: "CanaryTags",
+									Old:  "canary",
+								},
+							},
+						},
+						{
+							Type: DiffTypeAdded,
+							Name: "Tags",
+							Fields: []*FieldDiff{
+								{
+									Type: DiffTypeAdded,
+									Name: "Tags",
+									New:  "dev",
+								},
+								{
+									Type: DiffTypeNone,
+									Name: "Tags",
+									Old:  "prod",
+									New:  "prod",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:       "Service added",
+			Contextual: true,
+			Old:        []*Service{},
+			New: []*Service{
+				{
+					Name:      "webapp",
+					PortLabel: "http",
+				},
+			},
+			Expected: []*ObjectDiff{
+				{
+					Type: DiffTypeAdded,
+					Name: "Service",
+					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "AddressMode",
+						},
+						{
+							Type: DiffTypeAdded,
+							Name: "EnableTagOverride",
+							New:  "false",
+						},
+						{
+							Type: DiffTypeAdded,
+							Name: "Name",
+							New:  "webapp",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Namespace",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "OnUpdate",
+						},
+						{
+							Type: DiffTypeAdded,
+							Name: "PortLabel",
+							New:  "http",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "TaskName",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:       "Service added with same name",
+			Contextual: true,
+			Old: []*Service{
+				{
+					Name:      "webapp",
+					PortLabel: "http",
+				},
+			},
+			New: []*Service{
+				{
+					Name:      "webapp",
+					PortLabel: "https",
+				},
+				{
+					Name:      "webapp",
+					PortLabel: "http",
+				},
+			},
+			Expected: []*ObjectDiff{
+				{
+					Type: DiffTypeAdded,
+					Name: "Service",
+					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "AddressMode",
+						},
+						{
+							Type: DiffTypeAdded,
+							Name: "EnableTagOverride",
+							New:  "false",
+						},
+						{
+							Type: DiffTypeAdded,
+							Name: "Name",
+							New:  "webapp",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Namespace",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "OnUpdate",
+						},
+						{
+							Type: DiffTypeAdded,
+							Name: "PortLabel",
+							New:  "https",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "TaskName",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:       "Modify port label of service with same name",
+			Contextual: true,
+			Old: []*Service{
+				{
+					Name:      "webapp",
+					PortLabel: "http",
+				},
+				{
+					Name:      "webapp",
+					PortLabel: "https",
+				},
+			},
+			New: []*Service{
+				{
+					Name:      "webapp",
+					PortLabel: "https-redirect",
+				},
+				{
+					Name:      "webapp",
+					PortLabel: "https",
+				},
+			},
+			Expected: []*ObjectDiff{
+				{
+					Type: DiffTypeEdited,
+					Name: "Service",
+					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "AddressMode",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "EnableTagOverride",
+							Old:  "false",
+							New:  "false",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Name",
+							Old:  "webapp",
+							New:  "webapp",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Namespace",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "OnUpdate",
+						},
+						{
+							Type: DiffTypeEdited,
+							Name: "PortLabel",
+							Old:  "http",
+							New:  "https-redirect",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "TaskName",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:       "Modify similar services",
+			Contextual: true,
+			Old: []*Service{
+				{
+					Name:      "webapp",
+					PortLabel: "http",
+					Tags:      []string{"prod"},
+				},
+				{
+					Name:      "webapp",
+					PortLabel: "http",
+					Tags:      []string{"dev"},
+				},
+			},
+			New: []*Service{
+				{
+					Name:      "webapp",
+					PortLabel: "http",
+					Tags:      []string{"prod", "qa"},
+				},
+				{
+					Name:      "webapp",
+					PortLabel: "http",
+					Tags:      []string{"dev"},
+				},
+			},
+			Expected: []*ObjectDiff{
+				{
+					Type: DiffTypeEdited,
+					Name: "Service",
+					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "AddressMode",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "EnableTagOverride",
+							Old:  "false",
+							New:  "false",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Name",
+							Old:  "webapp",
+							New:  "webapp",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Namespace",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "OnUpdate",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "PortLabel",
+							Old:  "http",
+							New:  "http",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "TaskName",
+						},
+					},
+					Objects: []*ObjectDiff{
+						{
+							Type: DiffTypeAdded,
+							Name: "Tags",
+							Fields: []*FieldDiff{
+								{
+									Type: DiffTypeAdded,
+									Name: "Tags",
+									New:  "qa",
+								},
+								{
+									Type: DiffTypeNone,
+									Name: "Tags",
+									Old:  "prod",
+									New:  "prod",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			actual := serviceDiffs(c.Old, c.New, c.Contextual)
+			require.Equal(t, c.Expected, actual)
+		})
+	}
+}
