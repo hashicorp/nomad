@@ -360,6 +360,10 @@
             "path": "commands/job"
           },
           {
+            "title": "allocs",
+            "path": "commands/job/allocs"
+          },
+          {
             "title": "deployments",
             "path": "commands/job/deployments"
           },
