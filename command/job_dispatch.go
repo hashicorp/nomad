@@ -76,7 +76,7 @@ func (c *JobDispatchCommand) AutocompleteArgs() complete.Predictor {
 
 		resp, _, err := client.Jobs().PrefixList(a.Last)
 		if err != nil {
-			return nil
+			return []string{}
 		}
 
 		// filter by parameterized jobs

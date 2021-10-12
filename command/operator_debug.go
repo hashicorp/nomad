@@ -220,7 +220,11 @@ func NodeClassPredictor(factory ApiClientFactory) complete.Predictor {
 		if err != nil {
 			return nil
 		}
-		nodes, _, _ := client.Nodes().List(nil) // TODO: should be *api.QueryOptions that matches region, namespace
+
+		nodes, _, err := client.Nodes().List(nil) // TODO: should be *api.QueryOptions that matches region
+		if err != nil {
+			return []string{}
+		}
 
 		// Build map of unique node classes across all nodes
 		classes := make(map[string]bool)
@@ -241,7 +245,7 @@ func NodeClassPredictor(factory ApiClientFactory) complete.Predictor {
 }
 
 // ServerPredictor returns a server member predictor
-// TODO: Consider API options for node class filtering
+// TODO: Consider API options for server member filtering
 func ServerPredictor(factory ApiClientFactory) complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, err := factory()
@@ -253,13 +257,14 @@ func ServerPredictor(factory ApiClientFactory) complete.Predictor {
 			return []string{}
 		}
 
+		// Iterate over server members looking for match
 		filtered := []string{}
-
 		for _, member := range members.Members {
 			if strings.HasPrefix(member.Name, a.Last) {
 				filtered = append(filtered, member.Name)
 			}
 		}
+
 		return filtered
 	})
 }
