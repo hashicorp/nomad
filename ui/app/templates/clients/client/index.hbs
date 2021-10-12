@@ -441,7 +441,7 @@
             <div class="boxed-section-head">
                {{capitalize a.item.name}} Attributes
             </div>
-            {{#if a.item.attributes.attributesStructured}}
+            {{#if a.item.attributes.structured}}
               <div class="boxed-section-body is-full-bleed">
                 <AttributesTable
                   @attributePairs={{a.item.attributesShort}}
@@ -467,17 +467,17 @@
     <div class="boxed-section-body is-full-bleed">
       <AttributesTable
         data-test-attributes
-        @attributePairs={{this.model.attributes.attributesStructured}}
+        @attributePairs={{this.model.attributes.structured}}
         @class="attributes-table" />
     </div>
     <div class="boxed-section-head">
       Meta
     </div>
-    {{#if this.model.meta.attributesStructured}}
+    {{#if this.model.meta.structured}}
       <div class="boxed-section-body is-full-bleed">
         <AttributesTable
           data-test-meta
-          @attributePairs={{this.model.meta.attributesStructured}}
+          @attributePairs={{this.model.meta.structured}}
           @class="attributes-table" />
       </div>
     {{else}}

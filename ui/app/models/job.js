@@ -2,7 +2,7 @@ import { alias, equal, or, and, mapBy } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import Model from '@ember-data/model';
 import { attr, belongsTo, hasMany } from '@ember-data/model';
-import { fragmentArray } from 'ember-data-model-fragments/attributes';
+import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
 import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
 import classic from 'ember-classic-decorator';
@@ -23,7 +23,8 @@ export default class Job extends Model {
   @attr('number') createIndex;
   @attr('number') modifyIndex;
   @attr('date') submitTime;
-  @attr() meta;
+
+  @fragment('structured-attributes') meta;
 
   // True when the job is the parent periodic or parameterized jobs
   // Instances of periodic or parameterized jobs are false for both properties

@@ -5,12 +5,12 @@ import flat from 'flat';
 
 const { unflatten } = flat;
 
-export default class NodeAttributes extends Fragment {
-  @attr() nodeAttributes;
+export default class StructuredAttributes extends Fragment {
+  @attr() raw;
 
-  @computed('nodeAttributes')
-  get attributesStructured() {
-    const original = this.nodeAttributes;
+  @computed('raw')
+  get structured() {
+    const original = this.raw;
 
     if (!original) {
       return undefined;
@@ -31,8 +31,8 @@ export default class NodeAttributes extends Fragment {
     //
     // ex: nodeAttrs.get('driver.docker')
     // [ "1", { version: "17.05.0-ce", volumes: { enabled: "1" } } ]
-    if (this.attributesStructured) {
-      return get(this.attributesStructured, key);
+    if (this.structured) {
+      return get(this.structured, key);
     }
   }
 }

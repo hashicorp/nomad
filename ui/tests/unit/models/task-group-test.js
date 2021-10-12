@@ -64,10 +64,12 @@ module('Unit | Model | task-group', function(hooks) {
   });
 
   test("should expose mergedMeta as merged with the job's meta", function(assert) {
+    const store = this.owner.lookup('service:store');
+
     const jobWithMeta = run(() =>
-      this.owner.lookup('service:store').createRecord('job', {
+      store.createRecord('job', {
         name: 'example-with-meta',
-        meta: { a: 'b' },
+        meta: store.createFragment('structured-attributes', { raw: { a: 'b' } }),
         taskGroups: [
           {
             name: 'one',

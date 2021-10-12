@@ -3,15 +3,7 @@
 
   <JobPage::Parts::Title @job={{this.job}} @handleError={{action "handleError"}} />
 
-  <div class="boxed-section job-stats">
-    <div class="boxed-section-body">
-      <span data-test-job-stat="type"><strong>Type:</strong> {{this.job.type}} | </span>
-      <span data-test-job-stat="priority"><strong>Priority:</strong> {{this.job.priority}} </span>
-      {{#if (and this.job.namespace this.system.shouldShowNamespaces)}}
-        <span data-test-job-stat="namespace"> | <strong>Namespace:</strong> {{this.job.namespace.name}}</span>
-      {{/if}}
-    </div>
-  </div>
+  <JobPage::Parts::StatsBox @job={{this.job}} />
 
   {{#if (can "accept recommendations")}}
     {{#each this.job.recommendationSummaries as |summary|}}
@@ -32,4 +24,6 @@
     @gotoTaskGroup={{this.gotoTaskGroup}} />
 
   <JobPage::Parts::RecentAllocations @job={{this.job}} />
+
+  <JobPage::Parts::Meta @job={{this.job}} />
 </JobPage::Parts::Body>

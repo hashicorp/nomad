@@ -27,6 +27,8 @@ function sysbatchScenario(server, clientCount) {
     createAllocations: true,
   });
 
+  server.create('job', 'pack');
+
   ['system', 'sysbatch'].forEach(type => {
     // Job with 1 task group.
     const job1 = server.create('job', {
