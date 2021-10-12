@@ -115,13 +115,15 @@ func WaitForLeader(t testing.TB, rpc rpcFn) {
 // WaitForClient blocks until the client can be found
 func WaitForClient(t testing.TB, rpc rpcFn, client *client.Client) {
 	t.Helper()
+
+	region := client.Region()
 	if region == "" {
 		region = "global"
 	}
 	WaitForResult(func() (bool, error) {
 		req := structs.NodeSpecificRequest{
 			NodeID:       client.NodeID(),
-			QueryOptions: structs.QueryOptions{Region: client.Region()},
+			QueryOptions: structs.QueryOptions{Region: region},
 		}
 		var out structs.SingleNodeResponse
 
@@ -137,7 +139,7 @@ func WaitForClient(t testing.TB, rpc rpcFn, client *client.Client) {
 		t.Fatalf("failed to find node: %v", err)
 	})
 
-	t.Logf("[TEST] Client %s ready, id: %s, region: %s", client.GetConfig().Node.Name, client.NodeID(), client.Region())
+	t.Logf("[TEST] Client %s ready, id: %s, region: %s", client.GetConfig().Node.Name, client.NodeID(), region)
 }
 
 // WaitForVotingMembers blocks until autopilot promotes all server peers
