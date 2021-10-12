@@ -193,23 +193,33 @@ func TestDebug_ClientToServer_Region(t *testing.T) {
 			args:         []string{"-address", url, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
 			expectedCode: 0,
 			expectedOutputs: []string{
-				"Region: testregion\n",
+				"Region: " + region + "\n",
 				"Servers: (1/1)",
 				"Clients: (1/1)",
 				"Created debug archive",
 			},
 		},
 		{
-			name:            "region - server address",
-			args:            []string{"-address", addrServer, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
-			expectedCode:    0,
-			expectedOutputs: []string{"Created debug archive"},
+			name:         "region - server address",
+			args:         []string{"-address", addrServer, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Region: " + region + "\n",
+				"Servers: (1/1)",
+				"Clients: (1/1)",
+				"Created debug archive",
+			},
 		},
 		{
-			name:            "region - client1 address - verify no SIGSEGV panic",
-			args:            []string{"-address", addrClient1, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
-			expectedCode:    0,
-			expectedOutputs: []string{"Created debug archive"},
+			name:         "region - client1 address - verify no SIGSEGV panic",
+			args:         []string{"-address", addrClient1, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Region: " + region + "\n",
+				"Servers: (1/1)",
+				"Clients: (1/1)",
+				"Created debug archive",
+			},
 		},
 
 		// Bad
