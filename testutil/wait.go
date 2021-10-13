@@ -241,7 +241,7 @@ func WaitForRunning(t testing.TB, rpc rpcFn, job *structs.Job) []*structs.AllocL
 // WaitForFiles blocks until all the files in the slice are present
 func WaitForFiles(t testing.TB, files []string) {
 	WaitForResult(func() (bool, error) {
-		return FilesExist(files), nil
+		return FilesExist(files)
 	}, func(err error) {
 		t.Fatalf("missing expected files: %v", err)
 	})
@@ -250,18 +250,18 @@ func WaitForFiles(t testing.TB, files []string) {
 // WaitForFilesUntil blocks until duration or all the files in the slice are present
 func WaitForFilesUntil(t testing.TB, files []string, until time.Duration) {
 	WaitForResultUntil(until, func() (bool, error) {
-		return FilesExist(files), nil
+		return FilesExist(files)
 	}, func(err error) {
 		t.Fatalf("missing expected files: %v", err)
 	})
 }
 
 // FilesExist verifies all files in the slice are present
-func FilesExist(files []string) bool {
+func FilesExist(files []string) (bool, error) {
 	for _, f := range files {
 		if _, err := os.Stat(f); os.IsNotExist(err) {
-			return false
+			return false, fmt.Errorf("expected file not found: %v", f)
 		}
 	}
-	return true
+	return true, nil
 }

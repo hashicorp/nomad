@@ -346,16 +346,80 @@ func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
 	var pluginFiles []string
 	for _, pluginName := range cases {
 		pluginFile := fmt.Sprintf("csi-plugin-id-%s.json", helper.CleanFilename(pluginName, "_"))
-		pluginFile = filepath.Join(path, "nomad", "0000", pluginFile)
+		pluginFile = filepath.Join(path, intervalDir, "0000", pluginFile)
 		pluginFiles = append(pluginFiles, pluginFile)
 	}
 
 	testutil.WaitForFiles(t, pluginFiles)
 }
 
+func buildPathSlice(path string, files []string) []string {
+	paths := []string{}
+	for _, file := range files {
+		paths = append(paths, filepath.Join(path, file))
+	}
+	return paths
+}
+
 func TestDebug_CapturedFiles(t *testing.T) {
-	srv, _, url := testServer(t, false, nil)
+	srv, _, url := testServer(t, true, nil)
 	testutil.WaitForLeader(t, srv.Agent.RPC)
+
+	serverNodeName := srv.Config.NodeName
+	region := srv.Config.Region
+	serverName := fmt.Sprintf("%s.%s", serverNodeName, region)
+	clientID := srv.Agent.Client().NodeID()
+
+	t.Logf("serverName: %s, clientID, %s", serverName, clientID)
+
+	// Setup file slices
+	clusterFiles := []string{
+		"agent-self.json",
+		"consul-agent-members.json",
+		"consul-agent-self.json",
+		"members.json",
+		"namespaces.json",
+		"regions.json",
+		"vault-sys-health.json",
+	}
+
+	pprofFiles := []string{
+		"allocs.prof",
+		"goroutine-debug1.txt",
+		"goroutine-debug2.txt",
+		"goroutine.prof",
+		"heap.prof",
+		"profile.prof",
+		"threadcreate.prof",
+		"trace.prof",
+	}
+
+	clientFiles := []string{
+		"agent-host.json",
+		"monitor.log",
+	}
+	clientFiles = append(clientFiles, pprofFiles...)
+
+	serverFiles := []string{
+		"agent-host.json",
+		"monitor.log",
+	}
+	serverFiles = append(serverFiles, pprofFiles...)
+
+	intervalFiles := []string{
+		"allocations.json",
+		"csi-plugins.json",
+		"csi-volumes.json",
+		"deployments.json",
+		"evaluations.json",
+		"jobs.json",
+		"license.json",
+		"metrics.json",
+		"nodes.json",
+		"operator-autopilot-health.json",
+		"operator-raft.json",
+		"operator-scheduler.json",
+	}
 
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
@@ -363,51 +427,45 @@ func TestDebug_CapturedFiles(t *testing.T) {
 	code := cmd.Run([]string{
 		"-address", url,
 		"-output", os.TempDir(),
-		"-server-id", "leader",
+		"-server-id", serverName,
+		"-node-id", clientID,
 		"-duration", "1300ms",
 		"-interval", "600ms",
 	})
 
+	// Get capture directory
 	path := cmd.collectDir
 	defer os.Remove(path)
 
+	// There should be no errors
 	require.Empty(t, ui.ErrorWriter.String())
 	require.Equal(t, 0, code)
 	ui.ErrorWriter.Reset()
 
-	serverFiles := []string{
-		// Version is always captured
-		filepath.Join(path, "version", "agent-self.json"),
+	// Verify cluster files
+	clusterPaths := buildPathSlice(cmd.path(clusterDir), clusterFiles)
+	t.Logf("Waiting for cluster files in path: %s", clusterDir)
+	testutil.WaitForFilesUntil(t, clusterPaths, 2*time.Minute)
 
-		// Consul and Vault contain results or errors
-		filepath.Join(path, "version", "consul-agent-self.json"),
-		filepath.Join(path, "version", "vault-sys-health.json"),
+	// Verify client files
+	clientPaths := buildPathSlice(cmd.path(clientDir, clientID), clientFiles)
+	t.Logf("Waiting for client files in path: %s", clientDir)
+	testutil.WaitForFilesUntil(t, clientPaths, 2*time.Minute)
 
-		// Monitor files are only created when selected
-		filepath.Join(path, "server", "leader", "monitor.log"),
+	// Verify server files
+	serverPaths := buildPathSlice(cmd.path(serverDir, serverName), serverFiles)
+	t.Logf("Waiting for server files in path: %s", serverDir)
+	testutil.WaitForFilesUntil(t, serverPaths, 2*time.Minute)
 
-		// Pprof profiles
-		filepath.Join(path, "server", "leader", "profile.prof"),
-		filepath.Join(path, "server", "leader", "trace.prof"),
-		filepath.Join(path, "server", "leader", "goroutine.prof"),
-		filepath.Join(path, "server", "leader", "goroutine-debug1.txt"),
-		filepath.Join(path, "server", "leader", "goroutine-debug2.txt"),
-		filepath.Join(path, "server", "leader", "heap.prof"),
-		filepath.Join(path, "server", "leader", "allocs.prof"),
-		filepath.Join(path, "server", "leader", "threadcreate.prof"),
+	// Verify interval 0000 files
+	intervalPaths0 := buildPathSlice(cmd.path(intervalDir, "0000"), intervalFiles)
+	t.Logf("Waiting for interval 0000 files in path: %s", intervalDir)
+	testutil.WaitForFilesUntil(t, intervalPaths0, 2*time.Minute)
 
-		// Multiple snapshots are collected, 00 is always created
-		filepath.Join(path, "nomad", "0000", "jobs.json"),
-		filepath.Join(path, "nomad", "0000", "nodes.json"),
-		filepath.Join(path, "nomad", "0000", "metrics.json"),
-
-		// Multiple snapshots are collected, 01 requires two intervals
-		filepath.Join(path, "nomad", "0001", "jobs.json"),
-		filepath.Join(path, "nomad", "0001", "nodes.json"),
-		filepath.Join(path, "nomad", "0001", "metrics.json"),
-	}
-
-	testutil.WaitForFilesUntil(t, serverFiles, 2*time.Minute)
+	// Verify interval 0001 files
+	intervalPaths1 := buildPathSlice(cmd.path(intervalDir, "0001"), intervalFiles)
+	t.Logf("Waiting for interval 0001 files in path: %s", intervalDir)
+	testutil.WaitForFilesUntil(t, intervalPaths1, 2*time.Minute)
 }
 
 func TestDebug_ExistingOutput(t *testing.T) {

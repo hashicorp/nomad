@@ -49,7 +49,11 @@ type OperatorDebugCommand struct {
 }
 
 const (
-	userAgent = "nomad operator debug"
+	userAgent   = "nomad operator debug"
+	clusterDir  = "cluster"
+	clientDir   = "client"
+	serverDir   = "server"
+	intervalDir = "interval"
 )
 
 func (c *OperatorDebugCommand) Help() string {
@@ -458,7 +462,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 
 	// Write complete list of server members to file
-	c.writeJSON("version", "members.json", members, err)
+	c.writeJSON(clusterDir, "members.json", members, err)
 
 	// Filter for servers matching criteria
 	c.serverIDs, err = filterServerMembers(members, serverIDs, c.region)
@@ -538,18 +542,17 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 // collect collects data from our endpoints and writes the archive bundle
 func (c *OperatorDebugCommand) collect(client *api.Client) error {
-	// Version contains cluster meta information
-	dir := "version"
+	// Collect cluster data
 
 	self, err := client.Agent().Self()
-	c.writeJSON(dir, "agent-self.json", self, err)
+	c.writeJSON(clusterDir, "agent-self.json", self, err)
 
 	var qo *api.QueryOptions
 	namespaces, _, err := client.Namespaces().List(qo)
-	c.writeJSON(dir, "namespaces.json", namespaces, err)
+	c.writeJSON(clusterDir, "namespaces.json", namespaces, err)
 
 	regions, err := client.Regions().List()
-	c.writeJSON(dir, "regions.json", regions, err)
+	c.writeJSON(clusterDir, "regions.json", regions, err)
 
 	// Fetch data directly from consul and vault. Ignore errors
 	var consul, vault string
@@ -582,8 +585,8 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 		}
 	}
 
-	c.collectConsul(dir, consul)
-	c.collectVault(dir, vault)
+	c.collectConsul(clusterDir, consul)
+	c.collectVault(clusterDir, vault)
 	c.collectAgentHosts(client)
 	c.collectPprofs(client)
 
@@ -616,11 +619,11 @@ func (c *OperatorDebugCommand) mkdir(paths ...string) error {
 // startMonitors starts go routines for each node and client
 func (c *OperatorDebugCommand) startMonitors(client *api.Client) {
 	for _, id := range c.nodeIDs {
-		go c.startMonitor("client", "node_id", id, client)
+		go c.startMonitor(clientDir, "node_id", id, client)
 	}
 
 	for _, id := range c.serverIDs {
-		go c.startMonitor("server", "server_id", id, client)
+		go c.startMonitor(serverDir, "server_id", id, client)
 	}
 }
 
@@ -664,11 +667,11 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 // collectAgentHosts calls collectAgentHost for each selected node
 func (c *OperatorDebugCommand) collectAgentHosts(client *api.Client) {
 	for _, n := range c.nodeIDs {
-		c.collectAgentHost("client", n, client)
+		c.collectAgentHost(clientDir, n, client)
 	}
 
 	for _, n := range c.serverIDs {
-		c.collectAgentHost("server", n, client)
+		c.collectAgentHost(serverDir, n, client)
 	}
 }
 
@@ -676,7 +679,7 @@ func (c *OperatorDebugCommand) collectAgentHosts(client *api.Client) {
 func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Client) {
 	var host *api.HostDataResponse
 	var err error
-	if path == "server" {
+	if path == serverDir {
 		host, err = client.Agent().Host(id, "", nil)
 	} else {
 		host, err = client.Agent().Host("", id, nil)
@@ -699,11 +702,11 @@ func (c *OperatorDebugCommand) collectAgentHost(path, id string, client *api.Cli
 // collectPprofs captures the /agent/pprof for each listed node
 func (c *OperatorDebugCommand) collectPprofs(client *api.Client) {
 	for _, n := range c.nodeIDs {
-		c.collectPprof("client", n, client)
+		c.collectPprof(clientDir, n, client)
 	}
 
 	for _, n := range c.serverIDs {
-		c.collectPprof("server", n, client)
+		c.collectPprof(serverDir, n, client)
 	}
 }
 
@@ -711,7 +714,7 @@ func (c *OperatorDebugCommand) collectPprofs(client *api.Client) {
 func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client) {
 	pprofDurationSeconds := int(c.pprofDuration.Seconds())
 	opts := api.PprofOptions{Seconds: pprofDurationSeconds}
-	if path == "server" {
+	if path == serverDir {
 		opts.ServerID = id
 	} else {
 		opts.NodeID = id
@@ -810,7 +813,7 @@ func (c *OperatorDebugCommand) collectPeriodic(client *api.Client) {
 
 		case <-interval:
 			name = fmt.Sprintf("%04d", intervalCount)
-			dir = filepath.Join("nomad", name)
+			dir = filepath.Join(intervalDir, name)
 			c.Ui.Output(fmt.Sprintf("    Capture interval %s", name))
 			c.collectNomad(dir, client)
 			c.collectOperator(dir, client)
@@ -859,7 +862,7 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 
 	// CSI Plugins - /v1/plugins?type=csi
 	ps, _, err := client.CSIPlugins().List(qo)
-	c.writeJSON(dir, "plugins.json", ps, err)
+	c.writeJSON(dir, "csi-plugins.json", ps, err)
 
 	// CSI Plugin details - /v1/plugin/csi/:plugin_id
 	for _, p := range ps {
