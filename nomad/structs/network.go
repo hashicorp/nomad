@@ -20,8 +20,8 @@ const (
 	// to assign a random port
 	maxRandPortAttempts = 20
 
-	// maxValidPort is the max valid port number
-	maxValidPort = 65536
+	// MaxValidPort is the max valid port number
+	MaxValidPort = 65536
 )
 
 var (
@@ -67,7 +67,7 @@ func (idx *NetworkIndex) getUsedPortsFor(ip string) Bitmap {
 			used = raw.(Bitmap)
 			used.Clear()
 		} else {
-			used, _ = NewBitmap(maxValidPort)
+			used, _ = NewBitmap(MaxValidPort)
 		}
 		idx.UsedPorts[ip] = used
 	}
@@ -215,7 +215,7 @@ func (idx *NetworkIndex) AddReserved(n *NetworkResource) (collide bool) {
 	for _, ports := range [][]Port{n.ReservedPorts, n.DynamicPorts} {
 		for _, port := range ports {
 			// Guard against invalid port
-			if port.Value < 0 || port.Value >= maxValidPort {
+			if port.Value < 0 || port.Value >= MaxValidPort {
 				return true
 			}
 			if used.Check(uint(port.Value)) {
@@ -234,7 +234,7 @@ func (idx *NetworkIndex) AddReserved(n *NetworkResource) (collide bool) {
 func (idx *NetworkIndex) AddReservedPorts(ports AllocatedPorts) (collide bool) {
 	for _, port := range ports {
 		used := idx.getUsedPortsFor(port.HostIP)
-		if port.Value < 0 || port.Value >= maxValidPort {
+		if port.Value < 0 || port.Value >= MaxValidPort {
 			return true
 		}
 		if used.Check(uint(port.Value)) {
@@ -265,7 +265,7 @@ func (idx *NetworkIndex) AddReservedPortRange(ports string) (collide bool) {
 	for _, used := range idx.UsedPorts {
 		for _, port := range resPorts {
 			// Guard against invalid port
-			if port >= maxValidPort {
+			if port >= MaxValidPort {
 				return true
 			}
 			if used.Check(uint(port)) {
@@ -291,7 +291,7 @@ func (idx *NetworkIndex) AddReservedPortsForIP(ports string, ip string) (collide
 	used := idx.getUsedPortsFor(ip)
 	for _, port := range resPorts {
 		// Guard against invalid port
-		if port >= maxValidPort {
+		if port >= MaxValidPort {
 			return true
 		}
 		if used.Check(uint(port)) {
@@ -345,7 +345,7 @@ func (idx *NetworkIndex) AssignPorts(ask *NetworkResource) (AllocatedPorts, erro
 		for _, addr := range idx.AvailAddresses[port.HostNetwork] {
 			used := idx.getUsedPortsFor(addr.Address)
 			// Guard against invalid port
-			if port.Value < 0 || port.Value >= maxValidPort {
+			if port.Value < 0 || port.Value >= MaxValidPort {
 				return nil, fmt.Errorf("invalid port %d (out of range)", port.Value)
 			}
 
@@ -438,7 +438,7 @@ func (idx *NetworkIndex) AssignNetwork(ask *NetworkResource) (out *NetworkResour
 		// Check if any of the reserved ports are in use
 		for _, port := range ask.ReservedPorts {
 			// Guard against invalid port
-			if port.Value < 0 || port.Value >= maxValidPort {
+			if port.Value < 0 || port.Value >= MaxValidPort {
 				err = fmt.Errorf("invalid port %d (out of range)", port.Value)
 				return
 			}
@@ -510,7 +510,7 @@ func getDynamicPortsPrecise(nodeUsed Bitmap, minDynamicPort, maxDynamicPort int,
 			return nil, err
 		}
 	} else {
-		usedSet, err = NewBitmap(maxValidPort)
+		usedSet, err = NewBitmap(MaxValidPort)
 		if err != nil {
 			return nil, err
 		}
