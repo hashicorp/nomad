@@ -282,7 +282,7 @@ func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 
 		// Only system jobs can preempt other jobs by default.
 		require.True(out.PreemptionConfig.SystemSchedulerEnabled)
-		require.True(out.PreemptionConfig.SysBatchSchedulerEnabled)
+		require.False(out.PreemptionConfig.SysBatchSchedulerEnabled)
 		require.False(out.PreemptionConfig.BatchSchedulerEnabled)
 		require.False(out.PreemptionConfig.ServiceSchedulerEnabled)
 		require.False(out.MemoryOversubscriptionEnabled)

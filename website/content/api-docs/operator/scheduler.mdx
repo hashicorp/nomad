@@ -43,6 +43,7 @@ $ curl \
   "PreemptionConfig": {
     "BatchSchedulerEnabled": false,
     "ServiceSchedulerEnabled": false,
+    "SysBatchSchedulerEnabled": false,
     "SystemSchedulerEnabled": true
   },
   "SchedulerAlgorithm": "binpack"
@@ -65,6 +66,10 @@ $ curl \
 
   - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for
     system jobs is enabled. Note that this defaults to true.
+
+  - `SysBatchSchedulerEnabled` `(bool: false)` - Specifies whether preemption
+    for sysbatch jobs is enabled. Note that this defaults to false and must be
+    explicitly enabled.
 
   - `BatchSchedulerEnabled` `(bool: false)` - Specifies whether preemption for
     batch jobs is enabled. Note that this defaults to false and must be explicitly
