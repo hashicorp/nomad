@@ -1,0 +1,1520 @@
+package command
+
+import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
+	neturl "net/url"
+	"regexp"
+	"sort"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/testutil"
+	"github.com/mitchellh/cli"
+
+	"github.com/shoenig/test/must"
+)
+
+// nonAlphaNum is used to create a valid ACL policy name based on the test
+// case name.
+var nonAlphaNum = regexp.MustCompile(`[^a-zA-Z0-9]+`)
+
+func TestJobRestartCommand_Implements(t *testing.T) {
+	ci.Parallel(t)
+	var _ cli.Command = &JobRestartCommand{}
+}
+
+func TestJobRestartCommand_parseAndValidate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name        string
+		args        []string
+		expectedErr string
+		expectedCmd *JobRestartCommand
+	}{
+		{
+			name:        "missing job",
+			args:        []string{},
+			expectedErr: "This command takes one argument",
+		},
+		{
+			name:        "too many args",
+			args:        []string{"one", "two", "three"},
+			expectedErr: "This command takes one argument",
+		},
+		{
+			name: "tasks and groups",
+			args: []string{
+				"-task", "my-task-1", "-task", "my-task-2",
+				"-group", "my-group-1", "-group", "my-group-2",
+				"my-job",
+			},
+			expectedCmd: &JobRestartCommand{
+				jobID:     "my-job",
+				groups:    set.From([]string{"my-group-1", "my-group-2"}),
+				tasks:     set.From([]string{"my-task-1", "my-task-2"}),
+				batchSize: 1,
+			},
+		},
+		{
+			name: "all tasks",
+			args: []string{"-all-tasks", "my-job"},
+			expectedCmd: &JobRestartCommand{
+				jobID:     "my-job",
+				allTasks:  true,
+				batchSize: 1,
+			},
+		},
+		{
+			name:        "all tasks conflicts with task",
+			args:        []string{"-all-tasks", "-task", "my-task", "my-job"},
+			expectedErr: "The -all-tasks option cannot be used with -task",
+		},
+		{
+			name: "batch size as number",
+			args: []string{"-batch-size", "10", "my-job"},
+			expectedCmd: &JobRestartCommand{
+				jobID:     "my-job",
+				batchSize: 10,
+			},
+		},
+		{
+			name: "batch size as percentage",
+			args: []string{"-batch-size", "10%", "my-job"},
+			expectedCmd: &JobRestartCommand{
+				jobID:            "my-job",
+				batchSize:        10,
+				batchSizePercent: true,
+			},
+		},
+		{
+			name:        "batch size not valid",
+			args:        []string{"-batch-size", "not-valid", "my-job"},
+			expectedErr: "Invalid -batch-size value",
+		},
+		{
+			name:        "batch size decimal not valid",
+			args:        []string{"-batch-size", "1.5", "my-job"},
+			expectedErr: "Invalid -batch-size value",
+		},
+		{
+			name:        "batch size zero",
+			args:        []string{"-batch-size", "0", "my-job"},
+			expectedErr: "Invalid -batch-size value",
+		},
+		{
+			name:        "batch size decimal percent not valid",
+			args:        []string{"-batch-size", "1.5%", "my-job"},
+			expectedErr: "Invalid -batch-size value",
+		},
+		{
+			name:        "batch size zero percentage",
+			args:        []string{"-batch-size", "0%", "my-job"},
+			expectedErr: "Invalid -batch-size value",
+		},
+		{
+			name:        "batch size with multiple numbers and percentages",
+			args:        []string{"-batch-size", "15%10%", "my-job"},
+			expectedErr: "Invalid -batch-size value",
+		},
+		{
+			name:        "batch wait ask",
+			args:        []string{"-batch-wait", "ask", "my-job"},
+			expectedErr: "terminal is not interactive", // Can't test non-interactive.
+		},
+		{
+			name: "batch wait duration",
+			args: []string{"-batch-wait", "10s", "my-job"},
+			expectedCmd: &JobRestartCommand{
+				jobID:     "my-job",
+				batchSize: 1,
+				batchWait: 10 * time.Second,
+			},
+		},
+		{
+			name:        "batch wait invalid",
+			args:        []string{"-batch-wait", "10", "my-job"},
+			expectedErr: "Invalid -batch-wait value",
+		},
+		{
+			name: "fail on error",
+			args: []string{"-fail-on-error", "my-job"},
+			expectedCmd: &JobRestartCommand{
+				jobID:       "my-job",
+				batchSize:   1,
+				failOnError: true,
+			},
+		},
+		{
+			name: "no shutdown delay",
+			args: []string{"-no-shutdown-delay", "my-job"},
+			expectedCmd: &JobRestartCommand{
+				jobID:           "my-job",
+				batchSize:       1,
+				noShutdownDelay: true,
+			},
+		},
+		{
+			name: "reschedule",
+			args: []string{"-reschedule", "my-job"},
+			expectedCmd: &JobRestartCommand{
+				jobID:      "my-job",
+				batchSize:  1,
+				reschedule: true,
+			},
+		},
+		{
+			name:        "reschedule conflicts with task",
+			args:        []string{"-reschedule", "-task", "my-task", "my-job"},
+			expectedErr: "The -reschedule option cannot be used with -task",
+		},
+		{
+			name: "verbose",
+			args: []string{"-verbose", "my-job"},
+			expectedCmd: &JobRestartCommand{
+				jobID:     "my-job",
+				batchSize: 1,
+				verbose:   true,
+				length:    fullId,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := &cli.ConcurrentUi{Ui: cli.NewMockUi()}
+			meta := Meta{Ui: ui}
+
+			// Set some default values if not defined in test case.
+			if tc.expectedCmd != nil {
+				tc.expectedCmd.Meta = meta
+				tc.expectedCmd.ui = ui
+
+				if tc.expectedCmd.length == 0 {
+					tc.expectedCmd.length = shortId
+				}
+				if tc.expectedCmd.groups == nil {
+					tc.expectedCmd.groups = set.New[string](0)
+				}
+				if tc.expectedCmd.tasks == nil {
+					tc.expectedCmd.tasks = set.New[string](0)
+				}
+			}
+
+			cmd := &JobRestartCommand{Meta: meta, ui: ui}
+			err, code := cmd.parseAndValidate(tc.args)
+
+			if tc.expectedErr != "" {
+				must.NonZero(t, code)
+				must.ErrorContains(t, err, tc.expectedErr)
+			} else {
+				must.Zero(t, code)
+				must.NoError(t, err)
+				must.Eq(t, tc.expectedCmd, cmd, must.Cmp(cmpopts.IgnoreFields(JobRestartCommand{}, "Meta", "Meta.Ui")))
+			}
+		})
+	}
+}
+
+func TestJobRestartCommand_validateGroupsAndTasks(t *testing.T) {
+	ci.Parallel(t)
+
+	ui := cli.NewMockUi()
+	cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
+
+	// Test job with several tasks, groups, and allocations.
+	prestartTask := api.NewTask("prestart", "mock_driver").
+		SetConfig("run_for", "100ms").
+		SetConfig("exit_code", 0).
+		SetLifecycle(&api.TaskLifecycle{
+			Hook:    api.TaskLifecycleHookPrestart,
+			Sidecar: false,
+		})
+	sidecarTask := api.NewTask("sidecar", "mock_driver").
+		SetConfig("run_for", "1m").
+		SetConfig("exit_code", 0).
+		SetLifecycle(&api.TaskLifecycle{
+			Hook:    api.TaskLifecycleHookPoststart,
+			Sidecar: true,
+		})
+	mainTask := api.NewTask("main", "mock_driver").
+		SetConfig("run_for", "1m").
+		SetConfig("exit_code", 0)
+
+	jobID := "test_job_restart"
+	job := api.NewServiceJob(jobID, jobID, "global", 1).
+		AddDatacenter("dc1").
+		AddTaskGroup(
+			api.NewTaskGroup("single_task", 3).
+				AddTask(mainTask),
+		).
+		AddTaskGroup(
+			api.NewTaskGroup("multiple_tasks", 2).
+				AddTask(prestartTask).
+				AddTask(sidecarTask).
+				AddTask(mainTask),
+		)
+
+	testCases := []struct {
+		name        string
+		args        []string
+		expectedErr string
+	}{
+		{
+			name: "group valid",
+			args: []string{
+				"-group", "single_task",
+				jobID,
+			},
+		},
+		{
+			name: "group invalid",
+			args: []string{
+				"-group", "not-valid",
+				jobID,
+			},
+			expectedErr: `Group "not-valid" not found`,
+		},
+		{
+			name: "groups valid",
+			args: []string{
+				"-group", "single_task",
+				"-group", "multiple_tasks",
+				jobID,
+			},
+		},
+		{
+			name: "groups invalid",
+			args: []string{
+				"-group", "not-valid",
+				"-group", "invalid",
+				jobID,
+			},
+			expectedErr: `Groups "invalid", "not-valid" not found`,
+		},
+		{
+			name: "groups valid and invalid",
+			args: []string{
+				"-group", "not-valid", "-group", "invalid",
+				"-group", "single_task",
+				jobID,
+			},
+			expectedErr: `Groups "invalid", "not-valid" not found`,
+		},
+		{
+			name: "task valid",
+			args: []string{
+				"-task", "main",
+				jobID,
+			},
+		},
+		{
+			name: "task valid for group",
+			args: []string{
+				"-task", "main",
+				"-group", "single_task",
+				jobID,
+			},
+		},
+		{
+			name: "task valid for both groups",
+			args: []string{
+				"-task", "main",
+				"-group", "multiple_tasks", "-group", "single_task",
+				jobID,
+			},
+		},
+		{
+			name: "task valid for at least one group",
+			args: []string{
+				"-task", "sidecar",
+				"-group", "multiple_tasks", "-group", "single_task",
+				jobID,
+			},
+		},
+		{
+			name: "task invalid",
+			args: []string{
+				"-task", "not-valid",
+				jobID,
+			},
+			expectedErr: `Task "not-valid" not found`,
+		},
+		{
+			name: "task invalid for group",
+			args: []string{
+				"-task", "not-valid",
+				"-group", "multiple_tasks",
+				jobID,
+			},
+			expectedErr: `Task "not-valid" not found in group "multiple_tasks"`,
+		},
+		{
+			name: "task invalid for groups",
+			args: []string{
+				"-task", "not-valid",
+				"-group", "multiple_tasks", "-group", "single_task",
+				jobID,
+			},
+			expectedErr: `Task "not-valid" not found in groups "multiple_tasks", "single_task"`,
+		},
+		{
+			name: "tasks valid",
+			args: []string{
+				"-task", "main",
+				"-task", "sidecar",
+				jobID,
+			},
+		},
+		{
+			name: "tasks valid for group",
+			args: []string{
+				"-task", "main", "-task", "sidecar",
+				"-group", "multiple_tasks",
+				jobID,
+			},
+		},
+		{
+			name: "tasks valid for groups",
+			args: []string{
+				"-task", "main", "-task", "sidecar",
+				"-group", "multiple_tasks", "-group", "single_task",
+				jobID,
+			},
+		},
+		{
+			name: "tasks invalid",
+			args: []string{
+				"-task", "not-valid",
+				"-task", "invalid",
+				jobID,
+			},
+			expectedErr: `Tasks "invalid", "not-valid" not found`,
+		},
+		{
+			name: "tasks valid and invalid",
+			args: []string{
+				"-task", "not-valid", "-task", "invalid",
+				"-task", "sidecar", "-task", "main",
+				jobID,
+			},
+			expectedErr: `Tasks "invalid", "not-valid" not found`,
+		},
+		{
+			name: "tasks invalid for group",
+			args: []string{
+				"-task", "not-valid", "-task", "invalid",
+				"-group", "multiple_tasks",
+				jobID,
+			},
+			expectedErr: `Tasks "invalid", "not-valid" not found in group "multiple_tasks"`,
+		},
+		{
+			name: "tasks invalid for groups",
+			args: []string{
+				"-task", "not-valid", "-task", "invalid",
+				"-group", "multiple_tasks", "-group", "single_task",
+				jobID,
+			},
+			expectedErr: `Tasks "invalid", "not-valid" not found in groups "multiple_tasks", "single_task"`,
+		},
+		{
+			name: "tasks valid and invalid for groups",
+			args: []string{
+				"-task", "not-valid",
+				"-task", "main",
+				"-group", "multiple_tasks", "-group", "single_task",
+				jobID,
+			},
+			expectedErr: `Task "not-valid" not found in groups "multiple_tasks", "single_task"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer ui.ErrorWriter.Reset()
+
+			err, code := cmd.parseAndValidate(tc.args)
+			must.NoError(t, err)
+			must.Zero(t, code)
+
+			err = cmd.validateGroupsAndTasks(job)
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+			} else {
+				must.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestJobRestartCommand_Run(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a job with multiple tasks, groups, and allocations.
+	prestartTask := api.NewTask("prestart", "mock_driver").
+		SetConfig("run_for", "100ms").
+		SetConfig("exit_code", 0).
+		SetLifecycle(&api.TaskLifecycle{
+			Hook:    api.TaskLifecycleHookPrestart,
+			Sidecar: false,
+		})
+	sidecarTask := api.NewTask("sidecar", "mock_driver").
+		SetConfig("run_for", "1m").
+		SetConfig("exit_code", 0).
+		SetLifecycle(&api.TaskLifecycle{
+			Hook:    api.TaskLifecycleHookPoststart,
+			Sidecar: true,
+		})
+	mainTask := api.NewTask("main", "mock_driver").
+		SetConfig("run_for", "1m").
+		SetConfig("exit_code", 0)
+
+	jobID := "test_job_restart_cmd"
+	job := api.NewServiceJob(jobID, jobID, "global", 1).
+		AddDatacenter("dc1").
+		AddTaskGroup(
+			api.NewTaskGroup("single_task", 3).
+				AddTask(mainTask),
+		).
+		AddTaskGroup(
+			api.NewTaskGroup("multiple_tasks", 2).
+				AddTask(prestartTask).
+				AddTask(sidecarTask).
+				AddTask(mainTask),
+		)
+
+	testCases := []struct {
+		name         string
+		args         []string // Job arg is added automatically.
+		expectedCode int
+		validateFn   func(*testing.T, *api.Client, []*api.AllocationListStub, string, string)
+	}{
+		{
+			name: "restart only running tasks in all groups by default",
+			args: []string{"-batch-size", "100%"},
+			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
+				restarted := waitTasksRestarted(t, client, allocs, map[string]map[string]bool{
+					"single_task": {
+						"main": true,
+					},
+					"multiple_tasks": {
+						"prestart": false,
+						"sidecar":  true,
+						"main":     true,
+					},
+				})
+
+				// Check that allocations restarted in a single batch.
+				batches := getRestartBatches(restarted, []string{"single_task", "multiple_tasks"}, "main")
+				must.Len(t, 5, batches[0])
+				must.StrContains(t, stdout, "Restarting 1st batch")
+				must.StrNotContains(t, stdout, "restarting the next batch")
+
+			},
+		},
+		{
+			name: "restart specific task in all groups",
+			args: []string{"-batch-size", "100%", "-task", "main"},
+			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
+				restarted := waitTasksRestarted(t, client, allocs, map[string]map[string]bool{
+					"single_task": {
+						"main": true,
+					},
+					"multiple_tasks": {
+						"prestart": false,
+						"sidecar":  false,
+						"main":     true,
+					},
+				})
+
+				// Check that allocations restarted in a single batch.
+				batches := getRestartBatches(restarted, []string{"single_task", "multiple_tasks"}, "main")
+				must.Len(t, 5, batches[0])
+				must.StrContains(t, stdout, "Restarting 1st batch")
+				must.StrNotContains(t, stdout, "restarting the next batch")
+			},
+		},
+		{
+			name: "restart multiple tasks in all groups",
+			args: []string{"-batch-size", "100%", "-task", "main", "-task", "sidecar"},
+			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
+				restarted := waitTasksRestarted(t, client, allocs, map[string]map[string]bool{
+					"single_task": {
+						"main": true,
+					},
+					"multiple_tasks": {
+						"prestart": false,
+						"sidecar":  true,
+						"main":     true,
+					},
+				})
+
+				// Check that allocations restarted in a single batch.
+				batches := getRestartBatches(restarted, []string{"single_task", "multiple_tasks"}, "main")
+				must.Len(t, 5, batches[0])
+				must.StrContains(t, stdout, "Restarting 1st batch")
+				must.StrNotContains(t, stdout, "restarting the next batch")
+			},
+		},
+		{
+			name: "restart all tasks in all groups",
+			args: []string{"-batch-size", "100%", "-all-tasks"},
+			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
+				restarted := waitTasksRestarted(t, client, allocs, map[string]map[string]bool{
+					"single_task": {
+						"main": true,
+					},
+					"multiple_tasks": {
+						"prestart": true,
+						"sidecar":  true,
+						"main":     true,
+					},
+				})
+
+				// Check that allocations restarted in a single batch.
+				batches := getRestartBatches(restarted, []string{"single_task", "multiple_tasks"}, "main")
+				must.Len(t, 5, batches[0])
+				must.StrContains(t, stdout, "Restarting 1st batch")
+				must.StrNotContains(t, stdout, "restarting the next batch")
+			},
+		},
+		{
+			name: "restart running tasks in specific group",
+			args: []string{"-batch-size", "100%", "-group", "single_task"},
+			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
+				restarted := waitTasksRestarted(t, client, allocs, map[string]map[string]bool{
+					"single_task": {
+						"main": true,
+					},
+					"multiple_tasks": {
+						"prestart": false,
+						"sidecar":  false,
+						"main":     false,
+					},
+				})
+
+				// Check that allocations restarted in a single batch.
+				batches := getRestartBatches(restarted, []string{"single_task"}, "main")
+				must.Len(t, 3, batches[0])
+				must.StrContains(t, stdout, "Restarting 1st batch")
+				must.StrNotContains(t, stdout, "restarting the next batch")
+
+			},
+		},
+		{
+			name: "restart specific task that is not running",
+			args: []string{"-batch-size", "100%", "-task", "prestart"},
+			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
+				restarted := waitTasksRestarted(t, client, allocs, map[string]map[string]bool{
+					"single_task": {
+						"main": false,
+					},
+					"multiple_tasks": {
+						"prestart": false,
+						"sidecar":  false,
+						"main":     false,
+					},
+				})
+
+				// Check that allocations restarted in a single batch.
+				batches := getRestartBatches(restarted, []string{"single_task"}, "main")
+				must.Len(t, 3, batches[0])
+				must.StrContains(t, stdout, "Restarting 1st batch")
+				must.StrNotContains(t, stdout, "restarting the next batch")
+
+				// Check that we have an error message.
+				must.StrContains(t, stderr, "Task not running")
+			},
+			expectedCode: 1,
+		},
+		{
+			name: "restart specific task in specific group",
+			args: []string{"-batch-size", "100%", "-task", "main", "-group", "single_task"},
+			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
+				restarted := waitTasksRestarted(t, client, allocs, map[string]map[string]bool{
+					"single_task": {
+						"main": true,
+					},
+					"multiple_tasks": {
+						"prestart": false,
+						"sidecar":  false,
+						"main":     false,
+					},
+				})
+
+				// Check that allocations restarted in a single batch.
+				batches := getRestartBatches(restarted, []string{"single_task"}, "main")
+				must.Len(t, 3, batches[0])
+				must.StrContains(t, stdout, "Restarting 1st batch")
+				must.StrNotContains(t, stdout, "restarting the next batch")
+			},
+		},
+		{
+			name: "restart multiple tasks in specific group",
+			args: []string{"-batch-size", "100%", "-task", "main", "-task", "sidecar", "-group", "multiple_tasks"},
+			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
+				restarted := waitTasksRestarted(t, client, allocs, map[string]map[string]bool{
+					"single_task": {
+						"main": false,
+					},
+					"multiple_tasks": {
+						"prestart": false,
+						"sidecar":  true,
+						"main":     true,
+					},
+				})
+
+				// Check that allocations restarted in a single batch.
+				batches := getRestartBatches(restarted, []string{"multiple_tasks"}, "main")
+				must.Len(t, 2, batches[0])
+				must.StrContains(t, stdout, "Restarting 1st batch")
+				must.StrNotContains(t, stdout, "restarting the next batch")
+			},
+		},
+		{
+			name: "restart all tasks in specific group",
+			args: []string{"-batch-size", "100%", "-all-tasks", "-group", "multiple_tasks"},
+			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
+				restarted := waitTasksRestarted(t, client, allocs, map[string]map[string]bool{
+					"single_task": {
+						"main": false,
+					},
+					"multiple_tasks": {
+						"prestart": true,
+						"sidecar":  true,
+						"main":     true,
+					},
+				})
+
+				// Check that allocations restarted in a single batch.
+				batches := getRestartBatches(restarted, []string{"multiple_tasks"}, "main")
+				must.Len(t, 2, batches[0])
+				must.StrContains(t, stdout, "Restarting 1st batch")
+				must.StrNotContains(t, stdout, "restarting the next batch")
+			},
+		},
+		{
+			name: "restart in batches",
+			args: []string{"-batch-size", "3", "-batch-wait", "3s", "-task", "main"},
+			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
+				restarted := waitTasksRestarted(t, client, allocs, map[string]map[string]bool{
+					"single_task": {
+						"main": true,
+					},
+					"multiple_tasks": {
+						"prestart": false,
+						"sidecar":  false,
+						"main":     true,
+					},
+				})
+
+				// Check that allocations were properly batched.
+				batches := getRestartBatches(restarted, []string{"multiple_tasks", "single_task"}, "main")
+
+				must.Len(t, 3, batches[0])
+				must.StrContains(t, stdout, "Restarting 1st batch of 3 allocations")
+
+				must.Len(t, 2, batches[1])
+				must.StrContains(t, stdout, "Restarting 2nd batch of 2 allocations")
+
+				// Check that we only waited between batches.
+				waitMsgCount := strings.Count(stdout, "Waiting 3s before restarting the next batch")
+				must.Eq(t, 1, waitMsgCount)
+
+				// Check that batches waited the expected time.
+				batch1Restart := batches[0][0].TaskStates["main"].LastRestart
+				batch2Restart := batches[1][0].TaskStates["main"].LastRestart
+				diff := batch2Restart.Sub(batch1Restart)
+				must.Between(t, 3*time.Second, diff, 4*time.Second)
+			},
+		},
+		{
+			name: "restart in percent batch",
+			args: []string{"-batch-size", "50%", "-batch-wait", "3s", "-task", "main"},
+			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
+				restarted := waitTasksRestarted(t, client, allocs, map[string]map[string]bool{
+					"single_task": {
+						"main": true,
+					},
+					"multiple_tasks": {
+						"prestart": false,
+						"sidecar":  false,
+						"main":     true,
+					},
+				})
+
+				// Check that allocations were properly batched.
+				batches := getRestartBatches(restarted, []string{"multiple_tasks", "single_task"}, "main")
+
+				must.Len(t, 3, batches[0])
+				must.StrContains(t, stdout, "Restarting 1st batch of 3 allocations")
+
+				must.Len(t, 2, batches[1])
+				must.StrContains(t, stdout, "Restarting 2nd batch of 2 allocations")
+
+				// Check that we only waited between batches.
+				waitMsgCount := strings.Count(stdout, "Waiting 3s before restarting the next batch")
+				must.Eq(t, 1, waitMsgCount)
+
+				// Check that batches waited the expected time.
+				batch1Restart := batches[0][0].TaskStates["main"].LastRestart
+				batch2Restart := batches[1][0].TaskStates["main"].LastRestart
+				diff := batch2Restart.Sub(batch1Restart)
+				must.Between(t, 3*time.Second, diff, 4*time.Second)
+			},
+		},
+		{
+			name: "reschedule in batches",
+			args: []string{"-reschedule", "-batch-size", "3"},
+			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
+				// Expect all allocations were rescheduled.
+				reschedules := map[string]bool{}
+				for _, alloc := range allocs {
+					reschedules[alloc.ID] = true
+				}
+				waitAllocsRescheduled(t, client, reschedules)
+
+				// Check that allocations were properly batched.
+				must.StrContains(t, stdout, "Restarting 1st batch of 3 allocations")
+				must.StrContains(t, stdout, "Restarting 2nd batch of 2 allocations")
+				must.StrNotContains(t, stdout, "Waiting")
+			},
+		},
+		{
+			name: "reschedule specific group",
+			args: []string{"-reschedule", "-batch-size", "100%", "-group", "single_task"},
+			validateFn: func(t *testing.T, client *api.Client, allocs []*api.AllocationListStub, stdout string, stderr string) {
+				// Expect that only allocs for the single_task group were
+				// rescheduled.
+				reschedules := map[string]bool{}
+				for _, alloc := range allocs {
+					if alloc.TaskGroup == "single_task" {
+						reschedules[alloc.ID] = true
+					}
+				}
+				waitAllocsRescheduled(t, client, reschedules)
+
+				// Check that allocations restarted in a single batch.
+				must.StrContains(t, stdout, "Restarting 1st batch")
+				must.StrNotContains(t, stdout, "restarting the next batch")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			// Run each test case in parallel because they are fairly slow.
+			ci.Parallel(t)
+
+			// Initialize UI and command.
+			ui := cli.NewMockUi()
+			cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
+
+			// Start client and server and wait for node to be ready.
+			// User separate cluster for each test case so they can run in
+			// parallel without affecting each other.
+			srv, client, url := testServer(t, true, nil)
+			defer srv.Shutdown()
+
+			waitForNodes(t, client)
+
+			// Register test job and wait for its allocs to be running.
+			resp, _, err := client.Jobs().Register(job, nil)
+			must.NoError(t, err)
+
+			code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+			must.Zero(t, code)
+
+			allocStubs, _, err := client.Jobs().Allocations(jobID, true, nil)
+			must.NoError(t, err)
+			for _, alloc := range allocStubs {
+				waitForAllocRunning(t, client, alloc.ID)
+			}
+
+			// Fetch allocations before the restart so we know which ones are
+			// supposed to be affected in case the test reschedules allocs.
+			allocStubs, _, err = client.Jobs().Allocations(jobID, true, nil)
+			must.NoError(t, err)
+
+			// Prepend server URL and append job ID to the test case command.
+			args := []string{"-address", url}
+			args = append(args, tc.args...)
+			args = append(args, jobID)
+
+			// Run job restart command.
+			code = cmd.Run(args)
+			must.Eq(t, code, tc.expectedCode)
+
+			// Run test case validation function.
+			if tc.validateFn != nil {
+				tc.validateFn(t, client, allocStubs, ui.OutputWriter.String(), ui.ErrorWriter.String())
+			}
+		})
+	}
+}
+
+func TestJobRestartCommand_noAllocs(t *testing.T) {
+	ci.Parallel(t)
+
+	ui := cli.NewMockUi()
+	cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
+
+	// Start client and server and wait for node to be ready.
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	waitForNodes(t, client)
+
+	// Register test job with impossible constraint so it doesn't get allocs.
+	jobID := "test_job_restart_no_allocs"
+	job := testJob(jobID)
+	job.Datacenters = []string{"invalid"}
+
+	resp, _, err := client.Jobs().Register(job, nil)
+	must.NoError(t, err)
+
+	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+	must.Eq(t, 2, code) // Placement is expected to fail so exit code is not 0.
+	ui.OutputWriter.Reset()
+
+	// Run job restart command and expect it to exit without restarts.
+	code = cmd.Run([]string{
+		"-address", url,
+		jobID,
+	})
+	must.Zero(t, code)
+	must.StrContains(t, ui.OutputWriter.String(), "No allocations to restart")
+}
+
+func TestJobRestartCommand_rescheduleFail(t *testing.T) {
+	ci.Parallel(t)
+
+	ui := cli.NewMockUi()
+	cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
+
+	// Start client and server and wait for node to be ready.
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	waitForNodes(t, client)
+
+	// Register test job with 3 allocs.
+	jobID := "test_job_restart_reschedule_fail"
+	job := testJob(jobID)
+	job.TaskGroups[0].Count = pointer.Of(3)
+
+	resp, _, err := client.Jobs().Register(job, nil)
+	must.NoError(t, err)
+
+	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+	must.Zero(t, code)
+	ui.OutputWriter.Reset()
+
+	// Wait for allocs to be running.
+	allocs, _, err := client.Jobs().Allocations(jobID, true, nil)
+	must.NoError(t, err)
+	for _, alloc := range allocs {
+		waitForAllocRunning(t, client, alloc.ID)
+	}
+
+	// Mark node as ineligible to prevent allocs from being replaced.
+	nodeID := srv.Agent.Client().NodeID()
+	client.Nodes().ToggleEligibility(nodeID, false, nil)
+
+	// Run job restart command and expect it to fail.
+	code = cmd.Run([]string{
+		"-address", url,
+		"-batch-size", "2",
+		"-reschedule",
+		jobID,
+	})
+	must.One(t, code)
+	must.StrContains(t, ui.ErrorWriter.String(), "No nodes were eligible for evaluation")
+}
+
+func TestJobRestartCommand_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start server with ACL enabled.
+	srv, client, url := testServer(t, true, func(c *agent.Config) {
+		c.ACL.Enabled = true
+	})
+	defer srv.Shutdown()
+
+	rootTokenOpts := &api.WriteOptions{
+		AuthToken: srv.RootToken.SecretID,
+	}
+
+	// Register test job.
+	jobID := "test_job_restart_acl"
+	job := testJob(jobID)
+	_, _, err := client.Jobs().Register(job, rootTokenOpts)
+	must.NoError(t, err)
+
+	// Wait for allocs to be running.
+	waitForJobAllocsStatus(t, client, jobID, api.AllocClientStatusRunning, srv.RootToken.SecretID)
+
+	testCases := []struct {
+		name      string
+		aclPolicy string
+		allowed   bool
+	}{
+		{
+			name:      "no token",
+			aclPolicy: "",
+			allowed:   false,
+		},
+		{
+			name: "alloc-lifecycle not enough",
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["alloc-lifecycle"]
+}
+`,
+			allowed: false,
+		},
+		{
+			name: "read-job not enough",
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["read-job"]
+}
+`,
+			allowed: false,
+		},
+		{
+			name: "alloc-lifecycle and read-job allowed",
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["alloc-lifecycle", "read-job"]
+}
+`,
+			allowed: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
+			args := []string{
+				"-address", url,
+			}
+
+			if tc.aclPolicy != "" {
+				// Create ACL token with test case policy.
+				policy := &api.ACLPolicy{
+					Name:  nonAlphaNum.ReplaceAllString(tc.name, "-"),
+					Rules: tc.aclPolicy,
+				}
+				_, err := client.ACLPolicies().Upsert(policy, rootTokenOpts)
+				must.NoError(t, err)
+
+				token := &api.ACLToken{
+					Type:     "client",
+					Policies: []string{policy.Name},
+				}
+				token, _, err = client.ACLTokens().Create(token, rootTokenOpts)
+				must.NoError(t, err)
+
+				// Set token in command args.
+				args = append(args, "-token", token.SecretID)
+			}
+
+			// Run command to restart job.
+			args = append(args, jobID)
+			code := cmd.Run(args)
+
+			if tc.allowed {
+				must.Zero(t, code)
+			} else {
+				must.One(t, code)
+				must.StrContains(t, ui.ErrorWriter.String(), api.PermissionDeniedErrorContent)
+			}
+		})
+	}
+}
+
+// TODO(luiz): update once alloc restart supports -no-shutdown-delay.
+func TestJobRestartCommand_shutdownDelay_reschedule(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start client and server and wait for node to be ready.
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	waitForNodes(t, client)
+
+	testCases := []struct {
+		name          string
+		args          []string
+		shutdownDelay bool
+	}{
+		{
+			name:          "job reschedule with shutdown delay by default",
+			args:          []string{"-reschedule"},
+			shutdownDelay: true,
+		},
+		{
+			name:          "job reschedule no shutdown delay",
+			args:          []string{"-reschedule", "-no-shutdown-delay"},
+			shutdownDelay: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
+
+			// Register job with 2 allocations and shutdown_delay.
+			shutdownDelay := 3 * time.Second
+			jobID := nonAlphaNum.ReplaceAllString(tc.name, "-")
+
+			job := testJob(jobID)
+			job.TaskGroups[0].Count = pointer.Of(2)
+			job.TaskGroups[0].Tasks[0].Config["run_for"] = "10m"
+			job.TaskGroups[0].Tasks[0].ShutdownDelay = shutdownDelay
+			job.TaskGroups[0].Tasks[0].Services = []*api.Service{{
+				Name:     "service",
+				Provider: "nomad",
+			}}
+
+			resp, _, err := client.Jobs().Register(job, nil)
+			must.NoError(t, err)
+
+			code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+			must.Zero(t, code)
+			ui.OutputWriter.Reset()
+
+			// Wait for alloc to be running.
+			allocStubs, _, err := client.Jobs().Allocations(jobID, true, nil)
+			must.NoError(t, err)
+			for _, alloc := range allocStubs {
+				waitForAllocRunning(t, client, alloc.ID)
+			}
+
+			// Add address and job ID to the command and run.
+			args := []string{
+				"-address", url,
+				"-batch-size", "1",
+				"-batch-wait", "0",
+			}
+			args = append(args, tc.args...)
+			args = append(args, jobID)
+
+			code = cmd.Run(args)
+			must.Zero(t, code)
+
+			// Wait for all allocs to restart.
+			reschedules := map[string]bool{}
+			for _, alloc := range allocStubs {
+				reschedules[alloc.ID] = true
+			}
+			allocs := waitAllocsRescheduled(t, client, reschedules)
+
+			// Check that allocs have shutdown delay event.
+			for _, alloc := range allocs {
+				for _, s := range alloc.TaskStates {
+					var killedEv *api.TaskEvent
+					var killingEv *api.TaskEvent
+					for _, ev := range s.Events {
+						if strings.Contains(ev.Type, "Killed") {
+							killedEv = ev
+						}
+						if strings.Contains(ev.Type, "Killing") {
+							killingEv = ev
+						}
+					}
+
+					diff := killedEv.Time - killingEv.Time
+					if tc.shutdownDelay {
+						must.GreaterEq(t, shutdownDelay, time.Duration(diff))
+					} else {
+						must.Less(t, shutdownDelay, time.Duration(diff))
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestJobRestartCommand_skipAllocs(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name             string
+		args             []string
+		expectedRestarts map[string]map[string]bool
+		validateOutputFn func(*testing.T, []*api.AllocationListStub, string)
+	}{
+		{
+			name: "skip by group",
+			args: []string{"-group", "group_1"},
+			expectedRestarts: map[string]map[string]bool{
+				"group_1": {
+					"task_1": true,
+				},
+				"group_2": {
+					"task_2": false,
+				},
+			},
+			validateOutputFn: func(t *testing.T, allocs []*api.AllocationListStub, stdout string) {
+				for _, alloc := range allocs {
+					skipMsg := fmt.Sprintf("Skipping allocation %s", alloc.ID)
+					if alloc.TaskGroup != "group_1" {
+						must.StrContains(t, stdout, skipMsg)
+					} else {
+						must.StrNotContains(t, stdout, skipMsg)
+					}
+				}
+			},
+		},
+		{
+			name: "skip by task",
+			args: []string{"-task", "task_1"},
+			expectedRestarts: map[string]map[string]bool{
+				"group_1": {
+					"task_1": true,
+				},
+				"group_2": {
+					"task_2": false,
+				},
+			},
+			validateOutputFn: func(t *testing.T, allocs []*api.AllocationListStub, stdout string) {
+				for _, alloc := range allocs {
+					skipMsg := fmt.Sprintf("Skipping allocation %s", alloc.ID)
+					if alloc.TaskGroup != "group_1" {
+						must.StrContains(t, stdout, skipMsg)
+					} else {
+						must.StrNotContains(t, stdout, skipMsg)
+					}
+				}
+			},
+		},
+		{
+			name: "skip by non-running status",
+			args: []string{"-group", "group_2"},
+			expectedRestarts: map[string]map[string]bool{
+				"group_1": {
+					"task_1": false,
+				},
+				"group_2": {
+					"task_2": true,
+				},
+			},
+			validateOutputFn: func(t *testing.T, allocs []*api.AllocationListStub, stdout string) {
+				for _, alloc := range allocs {
+					skipMsg := fmt.Sprintf("Skipping allocation %s", alloc.ID)
+					if alloc.DesiredStatus == api.AllocDesiredStatusStop {
+						must.StrContains(t, stdout, skipMsg)
+					}
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			ci.Parallel(t)
+
+			ui := cli.NewMockUi()
+			cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
+
+			// Start client and server and wait for node to be ready.
+			srv, client, url := testServer(t, true, nil)
+			defer srv.Shutdown()
+
+			waitForNodes(t, client)
+
+			// Register test job and wait for its allocs to be running.
+			task1 := api.NewTask("task_1", "mock_driver").
+				SetConfig("run_for", "10m").
+				SetConfig("exit_code", 0)
+			task2 := api.NewTask("task_2", "mock_driver").
+				SetConfig("run_for", "10m").
+				SetConfig("exit_code", 0)
+
+			jobID := nonAlphaNum.ReplaceAllString(tc.name, "-")
+			job := api.NewServiceJob(jobID, jobID, "global", 1).
+				AddDatacenter("dc1").
+				AddTaskGroup(
+					api.NewTaskGroup("group_1", 1).
+						AddTask(task1),
+				).
+				AddTaskGroup(
+					api.NewTaskGroup("group_2", 1).
+						AddTask(task2),
+				)
+
+			resp, _, err := client.Jobs().Register(job, nil)
+			must.NoError(t, err)
+
+			code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+			must.Zero(t, code)
+
+			// Update group_2 so it has non-running allocations.
+			job.TaskGroups[1].Tasks[0].Config["run_for"] = "15m"
+
+			resp, _, err = client.Jobs().Register(job, nil)
+			must.NoError(t, err)
+
+			code = waitForSuccess(ui, client, fullId, t, resp.EvalID)
+			must.Zero(t, code)
+
+			// Wait for allocations to have the expected ClientStatus.
+			allocStubs, _, err := client.Jobs().Allocations(jobID, true, nil)
+			must.NoError(t, err)
+			for _, alloc := range allocStubs {
+				switch alloc.DesiredStatus {
+				case api.AllocDesiredStatusRun:
+					waitForAllocRunning(t, client, alloc.ID)
+				case api.AllocDesiredStatusStop:
+					waitForAllocStatus(t, client, alloc.ID, api.AllocClientStatusComplete)
+				}
+			}
+			ui.OutputWriter.Reset()
+
+			// Run command.
+			args := []string{
+				"-address", url,
+				"-verbose",
+			}
+			args = append(args, tc.args...)
+			args = append(args, jobID)
+
+			code = cmd.Run(args)
+			must.Zero(t, code)
+
+			waitTasksRestarted(t, client, allocStubs, tc.expectedRestarts)
+
+			if tc.validateOutputFn != nil {
+				tc.validateOutputFn(t, allocStubs, ui.OutputWriter.String())
+			}
+		})
+	}
+}
+
+func TestJobRestartCommand_failOnError(t *testing.T) {
+	ci.Parallel(t)
+
+	ui := cli.NewMockUi()
+	cmd := &JobRestartCommand{Meta: Meta{Ui: ui}}
+
+	// Start client and server and wait for node to be ready.
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	parsedURL, err := neturl.Parse(url)
+	must.NoError(t, err)
+
+	waitForNodes(t, client)
+
+	// Register a job with 3 allocations.
+	jobID := "test_job_restart_command_fail_on_error"
+	job := testJob(jobID)
+	job.TaskGroups[0].Count = pointer.Of(3)
+
+	resp, _, err := client.Jobs().Register(job, nil)
+	must.NoError(t, err)
+
+	code := waitForSuccess(ui, client, fullId, t, resp.EvalID)
+	must.Zero(t, code)
+	ui.OutputWriter.Reset()
+
+	// Create a proxy to inject an error after 2 allocation restarts.
+	// Also counts how many restart requests are made so we can check that the
+	// command stops after the error happens.
+	var allocRestarts int32
+	proxy := httptest.NewServer(&httputil.ReverseProxy{
+		ModifyResponse: func(resp *http.Response) error {
+			t.Log(resp.Request.URL)
+			if strings.HasSuffix(resp.Request.URL.Path, "/restart") {
+				count := atomic.AddInt32(&allocRestarts, 1)
+				if count == 2 {
+					return fmt.Errorf("fail")
+				}
+			}
+			return nil
+		},
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.SetURL(parsedURL)
+		},
+	})
+	defer proxy.Close()
+
+	// Run command with -fail-on-error.
+	// Expect only 2 restarts requests even though there are 3 allocations.
+	code = cmd.Run([]string{
+		"-address", proxy.URL,
+		"-fail-on-error",
+		jobID,
+	})
+	must.One(t, code)
+	must.Eq(t, 2, allocRestarts)
+}
+
+// waitTasksRestarted blocks until the given allocations have restarted or not.
+// Returns a list with updated state of the allocations.
+//
+// To determine if a restart happened the function looks for a "Restart
+// Signaled" event in the list of task events. Allocations that are reused
+// between tests may contain a restart event from a past test case, leading to
+// false positives.
+//
+// The restarts map contains values structured as group:task:<expect restart?>.
+func waitTasksRestarted(
+	t *testing.T,
+	client *api.Client,
+	allocs []*api.AllocationListStub,
+	restarts map[string]map[string]bool,
+) []*api.Allocation {
+	t.Helper()
+
+	var newAllocs []*api.Allocation
+	testutil.WaitForResult(func() (bool, error) {
+		newAllocs = make([]*api.Allocation, 0, len(allocs))
+
+		for _, alloc := range allocs {
+			if _, ok := restarts[alloc.TaskGroup]; !ok {
+				t.Fatalf("Missing group %q in restarts map", alloc.TaskGroup)
+			}
+
+			// Skip allocations that are not supposed to be running.
+			if alloc.DesiredStatus != api.AllocDesiredStatusRun {
+				continue
+			}
+
+			updated, _, err := client.Allocations().Info(alloc.ID, nil)
+			if err != nil {
+				return false, err
+			}
+			newAllocs = append(newAllocs, updated)
+
+			for task, state := range updated.TaskStates {
+				restarted := false
+				for _, ev := range state.Events {
+					if ev.Type == api.TaskRestartSignal {
+						restarted = true
+						break
+					}
+				}
+
+				if restarted && !restarts[updated.TaskGroup][task] {
+					return false, fmt.Errorf(
+						"task %q in alloc %s for group %q not expected to restart",
+						task, updated.ID, updated.TaskGroup,
+					)
+				}
+				if !restarted && restarts[updated.TaskGroup][task] {
+					return false, fmt.Errorf(
+						"task %q in alloc %s for group %q expected to restart but didn't",
+						task, updated.ID, updated.TaskGroup,
+					)
+				}
+			}
+		}
+		return true, nil
+	}, func(err error) {
+		must.NoError(t, err)
+	})
+
+	return newAllocs
+}
+
+// waitAllocsRescheduled blocks until the given allocations have been
+// rescueduled or not. Returns a list with updated state of the allocations.
+//
+// To determined if an allocation has been rescheduled the function looks for
+// a non-empty NextAllocation field.
+//
+// The reschedules map maps allocation IDs to a boolean indicating if a
+// reschedule is expected for that allocation.
+func waitAllocsRescheduled(t *testing.T, client *api.Client, reschedules map[string]bool) []*api.Allocation {
+	t.Helper()
+
+	var newAllocs []*api.Allocation
+	testutil.WaitForResult(func() (bool, error) {
+		newAllocs = make([]*api.Allocation, 0, len(reschedules))
+
+		for allocID, reschedule := range reschedules {
+			alloc, _, err := client.Allocations().Info(allocID, nil)
+			if err != nil {
+				return false, err
+			}
+			newAllocs = append(newAllocs, alloc)
+
+			wasRescheduled := alloc.NextAllocation != ""
+			if wasRescheduled && !reschedule {
+				return false, fmt.Errorf("alloc %s not expected to be rescheduled", alloc.ID)
+			}
+			if !wasRescheduled && reschedule {
+				return false, fmt.Errorf("alloc %s expected to be rescheduled but wasn't", alloc.ID)
+			}
+		}
+		return true, nil
+	}, func(err error) {
+		must.NoError(t, err)
+	})
+
+	return newAllocs
+}
+
+// getRestartBatches returns a list of allocations per batch of restarts.
+//
+// Since restarts are issued concurrently, it's expected that allocations in
+// the same batch have fairly close LastRestart times, so a 1s delay between
+// restarts may be enough to indicate a new batch.
+func getRestartBatches(allocs []*api.Allocation, groups []string, task string) [][]*api.Allocation {
+	groupsSet := set.From(groups)
+	batches := [][]*api.Allocation{}
+
+	type allocRestart struct {
+		alloc   *api.Allocation
+		restart time.Time
+	}
+
+	restarts := make([]allocRestart, 0, len(allocs))
+	for _, alloc := range allocs {
+		if !groupsSet.Contains(alloc.TaskGroup) {
+			continue
+		}
+
+		restarts = append(restarts, allocRestart{
+			alloc:   alloc,
+			restart: alloc.TaskStates[task].LastRestart,
+		})
+	}
+
+	sort.Slice(restarts, func(i, j int) bool {
+		return restarts[i].restart.Before(restarts[j].restart)
+	})
+
+	prev := restarts[0].restart
+	batch := []*api.Allocation{}
+	for _, r := range restarts {
+		if r.restart.Sub(prev) >= time.Second {
+			prev = r.restart
+			batches = append(batches, batch)
+			batch = []*api.Allocation{}
+		}
+		batch = append(batch, r.alloc)
+	}
+	batches = append(batches, batch)
+
+	return batches
+}
