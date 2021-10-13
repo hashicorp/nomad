@@ -5,12 +5,11 @@ import (
 	"os"
 	"reflect"
 	"sort"
-	"strings"
 	"testing"
 
 	"github.com/kr/pty"
 	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMeta_FlagSet(t *testing.T) {
@@ -90,7 +89,7 @@ func TestMeta_Colorize(t *testing.T) {
 		{
 			Name: "disable colors via env var",
 			SetupFn: func(t *testing.T, m *Meta) {
-				os.Setenv(EnvNomadCLINoColor, "1")
+				setEnv(t, EnvNomadCLINoColor, "1")
 				m.SetupUi([]string{})
 			},
 			ExpectColor: false,
@@ -105,7 +104,7 @@ func TestMeta_Colorize(t *testing.T) {
 		{
 			Name: "force colors via env var",
 			SetupFn: func(t *testing.T, m *Meta) {
-				os.Setenv(EnvNomadCLIForceColor, "1")
+				setEnv(t, EnvNomadCLIForceColor, "1")
 				m.SetupUi([]string{})
 			},
 			ExpectColor: true,
@@ -120,7 +119,7 @@ func TestMeta_Colorize(t *testing.T) {
 		{
 			Name: "no color take predecence over force color via env var",
 			SetupFn: func(t *testing.T, m *Meta) {
-				os.Setenv(EnvNomadCLINoColor, "1")
+				setEnv(t, EnvNomadCLINoColor, "1")
 				m.SetupUi([]string{"-force-color"})
 			},
 			ExpectColor: false,
@@ -131,22 +130,16 @@ func TestMeta_Colorize(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			// Create fake test terminal.
 			_, tty, err := pty.Open()
-			if err != nil {
-				t.Fatalf("%v", err)
-			}
+			require.NoError(t, err)
 			defer tty.Close()
 
 			oldStdout := os.Stdout
 			defer func() { os.Stdout = oldStdout }()
 			os.Stdout = tty
 
-			// Make sure Nomad environment variables are clean.
-			for _, envVar := range os.Environ() {
-				if strings.HasPrefix(envVar, "NOMAD") {
-					k := strings.SplitN(envVar, "=", 2)[0]
-					os.Unsetenv(k)
-				}
-			}
+			// Make sure color related environment variables are clean.
+			setEnv(t, EnvNomadCLIForceColor, "")
+			setEnv(t, EnvNomadCLINoColor, "")
 
 			// Run test case.
 			m := &Meta{}
@@ -154,11 +147,7 @@ func TestMeta_Colorize(t *testing.T) {
 				tc.SetupFn(t, m)
 			}
 
-			if tc.ExpectColor {
-				assert.False(t, m.Colorize().Disable)
-			} else {
-				assert.True(t, m.Colorize().Disable)
-			}
+			require.Equal(t, !tc.ExpectColor, m.Colorize().Disable)
 		})
 	}
 }

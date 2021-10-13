@@ -1,6 +1,7 @@
 package command
 
 import (
+	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
@@ -105,4 +106,18 @@ func testMultiRegionJob(jobID, region, datacenter string) *api.Job {
 	}
 
 	return job
+}
+
+// setEnv wraps os.Setenv(key, value) and restores the environment variable to initial value in test cleanup
+func setEnv(t *testing.T, key, value string) {
+	initial, ok := os.LookupEnv(key)
+	os.Setenv(key, value)
+
+	t.Cleanup(func() {
+		if ok {
+			os.Setenv(key, initial)
+		} else {
+			os.Unsetenv(key)
+		}
+	})
 }

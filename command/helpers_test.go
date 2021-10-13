@@ -346,8 +346,7 @@ job "example" {
 }
 `
 
-	os.Setenv("NOMAD_VAR_var4", "from-envvar")
-	defer os.Unsetenv("NOMAD_VAR_var4")
+	setEnv(t, "NOMAD_VAR_var4", "from-envvar")
 
 	cliArgs := []string{`var2=from-cli`}
 	fileVars := `var3 = "from-varfile"`
