@@ -346,7 +346,7 @@ func TestDebug_Bad_CSIPlugin_Names(t *testing.T) {
 	var pluginFiles []string
 	for _, pluginName := range cases {
 		pluginFile := fmt.Sprintf("csi-plugin-id-%s.json", helper.CleanFilename(pluginName, "_"))
-		pluginFile = filepath.Join(path, "nomad", "0000", pluginFile)
+		pluginFile = filepath.Join(path, intervalDir, "0000", pluginFile)
 		pluginFiles = append(pluginFiles, pluginFile)
 	}
 
@@ -377,34 +377,34 @@ func TestDebug_CapturedFiles(t *testing.T) {
 
 	serverFiles := []string{
 		// Version is always captured
-		filepath.Join(path, "version", "agent-self.json"),
+		filepath.Join(path, clusterDir, "agent-self.json"),
 
 		// Consul and Vault contain results or errors
-		filepath.Join(path, "version", "consul-agent-self.json"),
-		filepath.Join(path, "version", "vault-sys-health.json"),
+		filepath.Join(path, clusterDir, "consul-agent-self.json"),
+		filepath.Join(path, clusterDir, "vault-sys-health.json"),
 
 		// Monitor files are only created when selected
-		filepath.Join(path, "server", "leader", "monitor.log"),
+		filepath.Join(path, serverDir, "leader", "monitor.log"),
 
 		// Pprof profiles
-		filepath.Join(path, "server", "leader", "profile.prof"),
-		filepath.Join(path, "server", "leader", "trace.prof"),
-		filepath.Join(path, "server", "leader", "goroutine.prof"),
-		filepath.Join(path, "server", "leader", "goroutine-debug1.txt"),
-		filepath.Join(path, "server", "leader", "goroutine-debug2.txt"),
-		filepath.Join(path, "server", "leader", "heap.prof"),
-		filepath.Join(path, "server", "leader", "allocs.prof"),
-		filepath.Join(path, "server", "leader", "threadcreate.prof"),
+		filepath.Join(path, serverDir, "leader", "profile.prof"),
+		filepath.Join(path, serverDir, "leader", "trace.prof"),
+		filepath.Join(path, serverDir, "leader", "goroutine.prof"),
+		filepath.Join(path, serverDir, "leader", "goroutine-debug1.txt"),
+		filepath.Join(path, serverDir, "leader", "goroutine-debug2.txt"),
+		filepath.Join(path, serverDir, "leader", "heap.prof"),
+		filepath.Join(path, serverDir, "leader", "allocs.prof"),
+		filepath.Join(path, serverDir, "leader", "threadcreate.prof"),
 
 		// Multiple snapshots are collected, 00 is always created
-		filepath.Join(path, "nomad", "0000", "jobs.json"),
-		filepath.Join(path, "nomad", "0000", "nodes.json"),
-		filepath.Join(path, "nomad", "0000", "metrics.json"),
+		filepath.Join(path, intervalDir, "0000", "jobs.json"),
+		filepath.Join(path, intervalDir, "0000", "nodes.json"),
+		filepath.Join(path, intervalDir, "0000", "metrics.json"),
 
 		// Multiple snapshots are collected, 01 requires two intervals
-		filepath.Join(path, "nomad", "0001", "jobs.json"),
-		filepath.Join(path, "nomad", "0001", "nodes.json"),
-		filepath.Join(path, "nomad", "0001", "metrics.json"),
+		filepath.Join(path, intervalDir, "0001", "jobs.json"),
+		filepath.Join(path, intervalDir, "0001", "nodes.json"),
+		filepath.Join(path, intervalDir, "0001", "metrics.json"),
 	}
 
 	testutil.WaitForFilesUntil(t, serverFiles, 2*time.Minute)
