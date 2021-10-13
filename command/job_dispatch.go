@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hashicorp/nomad/api/contexts"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
 )
@@ -75,11 +74,20 @@ func (c *JobDispatchCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
+		resp, _, err := client.Jobs().PrefixList(a.Last)
 		if err != nil {
 			return []string{}
 		}
-		return resp.Matches[contexts.Jobs]
+
+		// filter by parameterized jobs
+		matches := make([]string, 0, len(resp))
+		for _, job := range resp {
+			if job.ParameterizedJob {
+				matches = append(matches, job.ID)
+			}
+		}
+		return matches
+
 	})
 }
 

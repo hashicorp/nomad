@@ -21,6 +21,7 @@ import (
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
@@ -179,12 +180,12 @@ func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-duration":       complete.PredictAnything,
 			"-interval":       complete.PredictAnything,
-			"-log-level":      complete.PredictAnything,
+			"-log-level":      complete.PredictSet("TRACE", "DEBUG", "INFO", "WARN", "ERROR"),
 			"-max-nodes":      complete.PredictAnything,
-			"-node-class":     complete.PredictAnything,
-			"-node-id":        complete.PredictAnything,
-			"-server-id":      complete.PredictAnything,
-			"-output":         complete.PredictAnything,
+			"-node-class":     NodeClassPredictor(c.Client),
+			"-node-id":        NodePredictor(c.Client),
+			"-server-id":      ServerPredictor(c.Client),
+			"-output":         complete.PredictDirs("*"),
 			"-pprof-duration": complete.PredictAnything,
 			"-consul-token":   complete.PredictAnything,
 			"-vault-token":    complete.PredictAnything,
@@ -193,6 +194,79 @@ func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 
 func (c *OperatorDebugCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictNothing
+}
+
+// NodePredictor returns a client node predictor
+func NodePredictor(factory ApiClientFactory) complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := factory()
+		if err != nil {
+			return nil
+		}
+
+		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Nodes, nil)
+		if err != nil {
+			return []string{}
+		}
+		return resp.Matches[contexts.Nodes]
+	})
+}
+
+// NodeClassPredictor returns a client node class predictor
+// TODO: Consider API options for node class filtering
+func NodeClassPredictor(factory ApiClientFactory) complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := factory()
+		if err != nil {
+			return nil
+		}
+
+		nodes, _, err := client.Nodes().List(nil) // TODO: should be *api.QueryOptions that matches region
+		if err != nil {
+			return []string{}
+		}
+
+		// Build map of unique node classes across all nodes
+		classes := make(map[string]bool)
+		for _, node := range nodes {
+			classes[node.NodeClass] = true
+		}
+
+		// Iterate over node classes looking for match
+		filtered := []string{}
+		for class := range classes {
+			if strings.HasPrefix(class, a.Last) {
+				filtered = append(filtered, class)
+			}
+		}
+
+		return filtered
+	})
+}
+
+// ServerPredictor returns a server member predictor
+// TODO: Consider API options for server member filtering
+func ServerPredictor(factory ApiClientFactory) complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := factory()
+		if err != nil {
+			return nil
+		}
+		members, err := client.Agent().Members()
+		if err != nil {
+			return []string{}
+		}
+
+		// Iterate over server members looking for match
+		filtered := []string{}
+		for _, member := range members.Members {
+			if strings.HasPrefix(member.Name, a.Last) {
+				filtered = append(filtered, member.Name)
+			}
+		}
+
+		return filtered
+	})
 }
 
 func (c *OperatorDebugCommand) Name() string { return "debug" }
