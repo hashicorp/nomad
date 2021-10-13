@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -93,6 +95,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/services"):
 		jobName := strings.TrimSuffix(path, "/services")
 		return s.jobServiceRegistrations(resp, req, jobName)
+	case strings.HasSuffix(path, "/restart"):
+		jobName := strings.TrimSuffix(path, "/restart")
+		return s.jobRestart(resp, req, jobName)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
@@ -489,6 +494,41 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request,
 	if err := s.agent.RPC("Job.Deregister", &args, &out); err != nil {
 		return nil, err
 	}
+	setIndex(resp, out.Index)
+	return out, nil
+}
+
+func (s *HTTPServer) jobRestart(resp http.ResponseWriter, req *http.Request, jobName string) (interface{}, error) {
+	if req.Method != "PUT" && req.Method != "POST" {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	var restartRequest api.JobRestartRequest
+	if err := decodeBody(req, &restartRequest); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+
+	fmt.Println(restartRequest.BatchSize)
+	fmt.Println(restartRequest.BatchWait)
+
+	args := structs.JobRestartRequest{
+		ID:              uuid.Generate(),
+		JobID:           jobName,
+		BatchSize:       restartRequest.BatchSize,
+		BatchWait:       restartRequest.BatchWait,
+		Status:          "running",
+		RestartedAllocs: []string{},
+		StartedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.JobRestartResponse
+	if err := s.agent.RPC("Job.Restart", &args, &out); err != nil {
+		return nil, err
+	}
+
 	setIndex(resp, out.Index)
 	return out, nil
 }

@@ -171,6 +171,24 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	return &resp, qm, nil
 }
 
+type JobRestartRequest struct {
+	BatchSize string
+	BatchWait int
+}
+
+// Batch restart a job
+func (j *Jobs) Restart(jobID string, q *WriteOptions, batchSize string, batchWait int) error {
+	req := &JobRestartRequest{
+		BatchSize: batchSize,
+		BatchWait: batchWait,
+	}
+	_, err := j.client.write(fmt.Sprintf("/v1/job/%s/restart", url.PathEscape(jobID)), req, nil, q)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Scale is used to retrieve information about a particular
 // job given its unique ID.
 func (j *Jobs) Scale(jobID, group string, count *int, message string, error bool, meta map[string]interface{},

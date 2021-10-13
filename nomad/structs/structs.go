@@ -543,6 +543,33 @@ type DrainUpdate struct {
 	MarkEligible bool
 }
 
+// JobRestart is used for tracking the state of job restart.
+type JobRestartRequest struct {
+	ID    string // uuid of restart
+	JobID string // job being restarted
+
+	BatchSize string // number of allocations to restart at once
+	BatchWait int    // amount of time to wait between restarting each batch
+
+	Status string // running, paused, cancelled, complete
+
+	RestartedAllocs []string // Allocation IDs which have been restarted
+
+	StartedAt time.Time // time restart was started
+	UpdatedAt time.Time // time restart was last modified
+
+	CreateIndex uint64 // raft index when restart was started
+	ModifyIndex uint64 // raft index when restart was last modified
+
+	WriteRequest
+}
+
+type JobRestartResponse struct {
+	ID string
+
+	WriteMeta
+}
+
 // NodeUpdateEligibilityRequest is used for updating the scheduling	eligibility
 type NodeUpdateEligibilityRequest struct {
 	NodeID      string

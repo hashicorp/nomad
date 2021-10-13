@@ -1462,6 +1462,14 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 	return j.srv.blockingRPC(&opts)
 }
 
+func (j *Job) Restart(args *structs.JobRestartRequest,
+	reply *structs.JobRestartResponse) error {
+
+	fmt.Printf("Hello nomad/job_endpoint.go JobRestartRequest: %+v\n", args)
+
+	return nil
+}
+
 // Evaluations is used to list the evaluations for a job
 func (j *Job) Evaluations(args *structs.JobSpecificRequest,
 	reply *structs.JobEvaluationsResponse) error {
