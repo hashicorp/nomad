@@ -41,11 +41,10 @@ func (tc *OversubscriptionTest) enableMemoryOversubscription(f *framework.F) {
 	resp, _, err := tc.Nomad().Operator().SchedulerGetConfiguration(nil)
 	f.NoError(err)
 
-	tc.initialSchedulerConfig = resp.SchedulerConfig
+	tc.initialSchedulerConfig = resp
 
-	conf := *resp.SchedulerConfig
-	conf.MemoryOversubscriptionEnabled = true
-	_, _, err = tc.Nomad().Operator().SchedulerSetConfiguration(&conf, nil)
+	resp.MemoryOversubscriptionEnabled = true
+	_, _, err = tc.Nomad().Operator().SchedulerSetConfiguration(resp, nil)
 	f.NoError(err)
 }
 
