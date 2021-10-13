@@ -233,6 +233,14 @@ type ClientConfig struct {
 	// communicating with plugin subsystems
 	ClientMinPort int `hcl:"client_min_port"`
 
+	// MaxDynamicPort is the upper range of the dynamic ports that the client
+	// uses for allocations
+	MaxDynamicPort int `hcl:"max_dynamic_port"`
+
+	// MinDynamicPort is the lower range of the dynamic ports that the client
+	// uses for allocations
+	MinDynamicPort int `hcl:"min_dynamic_port"`
+
 	// Reserved is used to reserve resources from being used by Nomad. This can
 	// be used to target a certain utilization or to prevent Nomad from using a
 	// particular set of ports.
@@ -923,6 +931,8 @@ func DefaultConfig() *Config {
 			MaxKillTimeout:        "30s",
 			ClientMinPort:         14000,
 			ClientMaxPort:         14512,
+			MinDynamicPort:        20000,
+			MaxDynamicPort:        32000,
 			Reserved:              &Resources{},
 			GCInterval:            1 * time.Minute,
 			GCParallelDestroys:    2,
@@ -1609,6 +1619,12 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.ClientMinPort != 0 {
 		result.ClientMinPort = b.ClientMinPort
+	}
+	if b.MaxDynamicPort != 0 {
+		result.MaxDynamicPort = b.MaxDynamicPort
+	}
+	if b.MinDynamicPort != 0 {
+		result.MinDynamicPort = b.MinDynamicPort
 	}
 	if result.Reserved == nil && b.Reserved != nil {
 		reserved := *b.Reserved

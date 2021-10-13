@@ -323,7 +323,7 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
 		},
 		ReservedResources: &NodeReservedResources{
 			Networks: NodeReservedNetworkResources{
-				ReservedHostPorts: fmt.Sprintf("%d-%d", MinDynamicPort, MaxDynamicPort-1),
+				ReservedHostPorts: fmt.Sprintf("%d-%d", idx.MinDynamicPort, idx.MaxDynamicPort-1),
 			},
 		},
 	}
@@ -346,8 +346,8 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention(t *testing.T) {
 	if len(offer.DynamicPorts) != 1 {
 		t.Fatalf("There should be one dynamic ports")
 	}
-	if p := offer.DynamicPorts[0].Value; p != MaxDynamicPort {
-		t.Fatalf("Dynamic Port: should have been assigned %d; got %d", p, MaxDynamicPort)
+	if p := offer.DynamicPorts[0].Value; p != idx.MaxDynamicPort {
+		t.Fatalf("Dynamic Port: should have been assigned %d; got %d", p, idx.MaxDynamicPort)
 	}
 }
 
@@ -646,7 +646,7 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention_Old(t *testing.T) {
 			},
 		},
 	}
-	for i := MinDynamicPort; i < MaxDynamicPort; i++ {
+	for i := idx.MinDynamicPort; i < idx.MaxDynamicPort; i++ {
 		n.Reserved.Networks[0].ReservedPorts = append(n.Reserved.Networks[0].ReservedPorts, Port{Value: i})
 	}
 
@@ -669,8 +669,8 @@ func TestNetworkIndex_AssignNetwork_Dynamic_Contention_Old(t *testing.T) {
 	if len(offer.DynamicPorts) != 1 {
 		t.Fatalf("There should be three dynamic ports")
 	}
-	if p := offer.DynamicPorts[0].Value; p != MaxDynamicPort {
-		t.Fatalf("Dynamic Port: should have been assigned %d; got %d", p, MaxDynamicPort)
+	if p := offer.DynamicPorts[0].Value; p != idx.MaxDynamicPort {
+		t.Fatalf("Dynamic Port: should have been assigned %d; got %d", p, idx.MaxDynamicPort)
 	}
 }
 

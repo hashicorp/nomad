@@ -131,6 +131,12 @@ type Config struct {
 	// communicating with plugin subsystems over loopback
 	ClientMinPort uint
 
+	// MaxDynamicPort is the largest dynamic port generated
+	MaxDynamicPort int
+
+	// MinDynamicPort is the smallest dynamic port generated
+	MinDynamicPort int
+
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
 	ChrootEnv map[string]string
@@ -331,6 +337,8 @@ func DefaultConfig() *Config {
 		CNIInterfacePrefix: "eth",
 		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
 		CgroupParent:       cgutil.DefaultCgroupParent,
+		MaxDynamicPort:     structs.DefaultMinDynamicPort,
+		MinDynamicPort:     structs.DefaultMaxDynamicPort,
 	}
 }
 

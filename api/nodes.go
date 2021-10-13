@@ -554,6 +554,9 @@ type NodeResources struct {
 	Disk     NodeDiskResources
 	Networks []*NetworkResource
 	Devices  []*NodeDeviceResource
+
+	MinDynamicPort int
+	MaxDynamicPort int
 }
 
 type NodeCpuResources struct {

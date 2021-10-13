@@ -643,6 +643,18 @@ func (c *Client) init() error {
 
 	c.logger.Info("using alloc directory", "alloc_dir", c.config.AllocDir)
 
+	reserved := "<none>"
+	if c.config.Node != nil && c.config.Node.ReservedResources != nil {
+		// Node should always be non-nil due to initialization in the
+		// agent package, but don't risk a panic just for a long line.
+		reserved = c.config.Node.ReservedResources.Networks.ReservedHostPorts
+	}
+	c.logger.Info("using dynamic ports",
+		"min", c.config.MinDynamicPort,
+		"max", c.config.MaxDynamicPort,
+		"reserved", reserved,
+	)
+
 	// Ensure cgroups are created on linux platform
 	if runtime.GOOS == "linux" && c.cpusetManager != nil {
 		err := c.cpusetManager.Init()
@@ -1385,6 +1397,8 @@ func (c *Client) setupNode() error {
 	}
 	if node.NodeResources == nil {
 		node.NodeResources = &structs.NodeResources{}
+		node.NodeResources.MinDynamicPort = c.config.MinDynamicPort
+		node.NodeResources.MaxDynamicPort = c.config.MaxDynamicPort
 	}
 	if node.ReservedResources == nil {
 		node.ReservedResources = &structs.NodeReservedResources{}
@@ -1496,6 +1510,14 @@ func (c *Client) updateNodeFromFingerprint(response *fingerprint.FingerprintResp
 			c.config.Node.NodeResources.Merge(response.NodeResources)
 			nodeHasChanged = true
 		}
+
+		response.NodeResources.MinDynamicPort = c.config.MinDynamicPort
+		response.NodeResources.MaxDynamicPort = c.config.MaxDynamicPort
+		if c.config.Node.NodeResources.MinDynamicPort != response.NodeResources.MinDynamicPort ||
+			c.config.Node.NodeResources.MaxDynamicPort != response.NodeResources.MaxDynamicPort {
+			nodeHasChanged = true
+		}
+
 	}
 
 	if nodeHasChanged {

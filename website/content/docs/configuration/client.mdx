@@ -65,6 +65,14 @@ client {
 - `memory_total_mb` `(int:0)` - Specifies an override for the total memory. If set,
   this value overrides any detected memory.
 
+- `min_dynamic_port` `(int:20000)` - Specifies the minimum dynamic port to be
+  assigned. Individual ports and ranges of ports may be excluded from dynamic
+  port assignment via [`reserved`](#reserved-parameters) parameters.
+
+- `max_dynamic_port` `(int:32000)` - Specifies the maximum dynamic port to be
+  assigned. Individual ports and ranges of ports may be excluded from dynamic
+  port assignment via [`reserved`](#reserved-parameters) parameters.
+
 - `node_class` `(string: "")` - Specifies an arbitrary string used to logically
   group client nodes by user-defined class. This can be used during job
   placement as a filter.
