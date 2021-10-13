@@ -862,7 +862,7 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 
 	// CSI Plugins - /v1/plugins?type=csi
 	ps, _, err := client.CSIPlugins().List(qo)
-	c.writeJSON(dir, "plugins.json", ps, err)
+	c.writeJSON(dir, "csi-plugins.json", ps, err)
 
 	// CSI Plugin details - /v1/plugin/csi/:plugin_id
 	for _, p := range ps {
