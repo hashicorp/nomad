@@ -1,12 +1,12 @@
 import './style.css'
 import '@hashicorp/platform-util/nprogress/style.css'
 
-import Router, { useRouter } from 'next/router'
+import Router from 'next/router'
 import Head from 'next/head'
-import * as Fathom from 'fathom-client'
 import NProgress from '@hashicorp/platform-util/nprogress'
 import { ErrorBoundary } from '@hashicorp/platform-runtime-error-monitoring'
 import createConsentManager from '@hashicorp/react-consent-manager/loader'
+import useFathomAnalytics from '@hashicorp/platform-analytics'
 import useAnchorLinkAnalytics from '@hashicorp/platform-util/anchor-link-analytics'
 import HashiStackMenu from '@hashicorp/react-hashi-stack-menu'
 import AlertBanner from '@hashicorp/react-alert-banner'
@@ -15,7 +15,6 @@ import Footer from 'components/footer'
 import ProductSubnav from 'components/subnav'
 import Error from './_error'
 import alertBannerData, { ALERT_BANNER_ACTIVE } from 'data/alert-banner'
-import { useEffect } from 'react'
 
 NProgress({ Router })
 const { ConsentManager, openConsentManager } = createConsentManager({
@@ -23,27 +22,7 @@ const { ConsentManager, openConsentManager } = createConsentManager({
 })
 
 export default function App({ Component, pageProps }) {
-  const router = useRouter()
-
-  useEffect(() => {
-    // Load Fathom analytics
-    Fathom.load('NBXIZVLF', {
-      includedDomains: ['nomadproject.io', 'www.nomadproject.io'],
-    })
-
-    function onRouteChangeComplete() {
-      Fathom.trackPageview()
-    }
-
-    // Record a pageview when route changes
-    router.events.on('routeChangeComplete', onRouteChangeComplete)
-
-    // Unassign event listener
-    return () => {
-      router.events.off('routeChangeComplete', onRouteChangeComplete)
-    }
-  }, [])
-
+  useFathomAnalytics()
   useAnchorLinkAnalytics()
 
   return (
