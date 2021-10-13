@@ -408,6 +408,7 @@ func TestDebug_CapturedFiles(t *testing.T) {
 
 	intervalFiles := []string{
 		"allocations.json",
+		"csi-plugins.json",
 		"csi-volumes.json",
 		"deployments.json",
 		"evaluations.json",
@@ -418,7 +419,6 @@ func TestDebug_CapturedFiles(t *testing.T) {
 		"operator-autopilot-health.json",
 		"operator-raft.json",
 		"operator-scheduler.json",
-		"plugins.json",
 	}
 
 	ui := cli.NewMockUi()
