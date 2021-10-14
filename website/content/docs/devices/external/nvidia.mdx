@@ -8,8 +8,13 @@ description: The Nvidia Device Plugin detects and makes Nvidia devices available
 
 Name: `nvidia-gpu`
 
-The Nvidia device plugin is used to expose Nvidia GPUs to Nomad. The Nvidia
-plugin is built into Nomad and does not need to be downloaded separately.
+The Nvidia device plugin is used to expose Nvidia GPUs to Nomad.
+
+~> **Note**: The Nvidia device plugin setup has changed in Nomad 1.2. You must
+   add a [`plugin`] block to your clients configuration and install the
+   [external Nvidia device plugin][nvidia_plugin_download] into their
+   [`plugin_dir`] prior to upgrading. See plugin options below for an example.
+   Note the job specification remains the same.
 
 ## Fingerprinted Attributes
 
@@ -333,3 +338,6 @@ Wed Jan 23 18:25:32 2019
 [exec-driver]: /docs/drivers/exec 'Nomad exec Driver'
 [java-driver]: /docs/drivers/java 'Nomad java Driver'
 [lxc-driver]: /docs/drivers/external/lxc 'Nomad lxc Driver'
+[`plugin`]: /docs/configuration/plugin
+[`plugin_dir`]: /docs/configuration#plugin_dir
+[nvidia_plugin_download]: https://releases.hashicorp.com/nomad-device-nvidia/

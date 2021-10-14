@@ -456,6 +456,11 @@ module.exports = [
     permanent: true,
   },
   {
+    source: '/docs/devices/nvidia',
+    destination: '/docs/devices/external/nvidia',
+    permanent: true,
+  },
+  {
     source: '/docs/jobops',
     destination: 'https://learn.hashicorp.com/collections/nomad/manage-jobs',
     permanent: true,
