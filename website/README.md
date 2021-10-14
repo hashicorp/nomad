@@ -371,40 +371,36 @@ To change the version displayed for download on the website, head over to `data/
 
 ### Displaying a Prerelease
 
-If there is a prerelease of any type that should be displayed on the downloads page, this can be done by editing `pages/downloads/index.jsx`. By default, the download component might look something like this:
+If there is a prerelease of any type that should be displayed on the downloads page, this can be done by editing `pages/downloads/index.jsx` to add a `merchandisingSlot` attribute to the `ProductDownloadsPage` component:
 
-```jsx
-<ProductDownloader
-  product="<Product>"
-  version={VERSION}
-  downloads={downloadData}
-  community="/resources"
-/>
+```diff
+export default function DownloadsPage(staticProps) {
+  return (
+    <ProductDownloadsPage
+      // ...
+      tutorialLink={{
+        href: 'https://learn.hashicorp.com/nomad',
+        label: 'View Tutorials at HashiCorp Learn',
+      }}
++     merchandisingSlot={
++       <>
++       <div className={s.releaseCandidate}>
++         <p>
++           A beta for Nomad v1.2.0 is available! The release can be{' '}
++           <a href="https://releases.hashicorp.com/nomad/1.2.0-beta1/">
++           downloaded here.
++           </a>
++         </p>
++       </div>
++       </>
++     }
+      {...staticProps}
+    />
+  )
+}
 ```
 
-To add a prerelease, an extra `prerelease` property can be added to the component as such:
-
-```jsx
-<ProductDownloader
-  product="<Product>"
-  version={VERSION}
-  downloads={downloadData}
-  community="/resources"
-  prerelease={{
-    type: 'release candidate', // the type of prerelease: beta, release candidate, etc.
-    name: 'v1.0.0', // the name displayed in text on the website
-    version: '1.0.0-rc1', // the actual version tag that was pushed to releases.hashicorp.com
-  }}
-/>
-```
-
-This configuration would display something like the following text on the website, emphasis added to the configurable parameters:
-
-```
-A {{ release candidate }} for <Product> {{ v1.0.0 }} is available! The release can be <a href='https://releases.hashicorp.com/<product>/{{ 1.0.0-rc1 }}'>downloaded here</a>.
-```
-
-You may customize the parameters in any way you'd like. To remove a prerelease from the website, simply delete the `prerelease` paremeter from the above component.
+You may customize the attribute content in any way you'd like. To remove a prerelease from the website, simply delete the `merchandisingSlot` attribute from the above component.
 
 <!-- END: releases -->
 
