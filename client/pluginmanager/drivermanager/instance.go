@@ -481,5 +481,6 @@ func (i *instanceManager) handleEvent(ev *drivers.TaskEvent) {
 		return
 	}
 
-	i.logger.Warn("no handler registered for event", "event", ev)
+	i.logger.Warn("no handler registered for event", "event", ev, "error", ev.Err)
+
 }
