@@ -13,6 +13,13 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.2.0
+
+#### Nvidia device plugin
+
+The Nvidia device is now an external plugin and must be installed separately.
+Refer to [the Nvidia device plugin's documentation][nvidia] for details.
+
 ## Nomad 1.0.11 and 1.1.5 Enterprise
 
 #### Audit log file names
@@ -1168,6 +1175,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [limits]: /docs/configuration#limits
 [lxc]: /docs/drivers/external/lxc
 [migrate]: /docs/job-specification/migrate
+[nvidia]: /docs/devices/external/nvidia
 [plugin-stanza]: /docs/configuration/plugin
 [plugins]: /docs/drivers/external
 [preemption-api]: /api-docs/operator#update-scheduler-configuration
