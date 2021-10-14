@@ -241,6 +241,7 @@ dev: hclfmt ## Build for the current development platform
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad
 	@rm -f $(GOPATH)/bin/nomad
+	@if [ -d vendor ]; then echo -e "==> WARNING: Found vendor directory.  This may cause build errors, consider running 'rm -r vendor' or 'make clean' to remove.\n"; fi
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
 		GO_TAGS="$(GO_TAGS) $(NOMAD_UI_TAG)"
@@ -326,6 +327,7 @@ clean: ## Remove build artifacts
 	@echo "==> Cleaning build artifacts..."
 	@rm -rf "$(PROJECT_ROOT)/bin/"
 	@rm -rf "$(PROJECT_ROOT)/pkg/"
+	@rm -rf "$(PROJECT_ROOT)/vendor/"
 	@rm -f "$(GOPATH)/bin/nomad"
 
 .PHONY: testcluster
