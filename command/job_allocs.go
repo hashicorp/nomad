@@ -73,7 +73,7 @@ func (c *JobAllocsCommand) AutocompleteArgs() complete.Predictor {
 	})
 }
 
-func (c *JobAllocsCommand) Name() string { return "job allocations" }
+func (c *JobAllocsCommand) Name() string { return "job allocs" }
 
 func (c *JobAllocsCommand) Run(args []string) int {
 	var json, verbose, all bool
