@@ -326,6 +326,7 @@ clean: ## Remove build artifacts
 	@echo "==> Cleaning build artifacts..."
 	@rm -rf "$(PROJECT_ROOT)/bin/"
 	@rm -rf "$(PROJECT_ROOT)/pkg/"
+	@rm -rf "$(PROJECT_ROOT)/vendor/"
 	@rm -f "$(GOPATH)/bin/nomad"
 
 .PHONY: testcluster
