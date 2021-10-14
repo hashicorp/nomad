@@ -1,0 +1,3 @@
+```release-note:breaking-change
+api: Return scheduler configuration as top-level result in the `/v1/operator/scheduler/configuration`
+```
