@@ -1,0 +1,4 @@
+
+```release-note:bug
+driver/exec: Set CPU resource limits when cgroup-v2 is enabled
+```
