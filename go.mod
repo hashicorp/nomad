@@ -52,7 +52,7 @@ require (
 	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.1-0.20200228141219-3ce3d519df39
 	github.com/hashicorp/consul v1.7.8
-	github.com/hashicorp/consul-template v0.25.2
+	github.com/hashicorp/consul-template v0.27.1
 	github.com/hashicorp/consul/api v1.9.1
 	github.com/hashicorp/consul/sdk v0.8.0
 	github.com/hashicorp/cronexpr v1.1.1
@@ -129,7 +129,7 @@ require (
 	github.com/zclconf/go-cty-yaml v1.0.2
 	go.opencensus.io v0.22.1-0.20190713072201-b4a14686f0a9 // indirect
 	go.uber.org/goleak v1.1.12
-	golang.org/x/crypto v0.0.0-20201002170205-7f63de1d35b0
+	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20210818153620-00dd8d7831e7
