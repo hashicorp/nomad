@@ -1,3 +1,44 @@
+## 1.2.0 (Unreleased)
+
+FEATURES:
+
+* **System Batch scheduler**: Run batch jobs cluster-wide with the new 'sysbatch' scheduler. [[GH-9160](https://github.com/hashicorp/nomad/issues/9160)]
+
+BREAKING CHANGES:
+
+* api: Return scheduler configuration as top-level result in the `/v1/operator/scheduler/configuration` [[GH-10799](https://github.com/hashicorp/nomad/issues/10799)]
+* cli: Renamed folders in `nomad operator debug` bundle for clarity [[GH-11307](https://github.com/hashicorp/nomad/issues/11307)]
+* device/nvidia: The Nvidia device plugin is no longer packaged with Nomad and is instead distributed separately. Further, the Nvidia device plugin codebase is now in a separate [repository](https://github.com/hashicorp/nomad-device-nvidia). If you are using Nvidia devices, please follow the 1.2.0 upgrade guide as you will have to install the Nvidia device plugin before conducting an in-place upgrade to Nomad 1.2.0 [[GH-10796](https://github.com/hashicorp/nomad/issues/10796)]
+
+IMPROVEMENTS:
+
+* build: Updated to Go 1.17.1 [[GH-11251](https://github.com/hashicorp/nomad/issues/11251)]
+* cli: Add `-show-url` option for the `nomad ui` command. [[GH-11213](https://github.com/hashicorp/nomad/issues/11213)]
+* cli: Add `nomad job allocs` command [[GH-11242](https://github.com/hashicorp/nomad/issues/11242)]
+* cli: Added support for `-force-color` to the CLI to force colored output. [[GH-10975](https://github.com/hashicorp/nomad/issues/10975)]
+* cli: Improve debug namespace and region support [[GH-11269](https://github.com/hashicorp/nomad/issues/11269)]
+* cli: Improved autocomplete support for job dispatch and operator debug [[GH-11270](https://github.com/hashicorp/nomad/issues/11270)]
+* client/plugins/drivermanager: log if there is an error in a driver event [[GH-11280](https://github.com/hashicorp/nomad/issues/11280)]
+* client: Add network interface name to log output during fingerprint [[GH-11184](https://github.com/hashicorp/nomad/issues/11184)]
+* client: Allow configuring minimum and maximum host ports used for dynamic ports [[GH-11167.md](https://github.com/hashicorp/nomad/issues/11167.md)]
+* consul/connect: Allow `http2` and `grpc` protocols in ingress gateways [[GH-11187](https://github.com/hashicorp/nomad/issues/11187)]
+* deps: Update `hashicorp/go-discover` to `20210818145131-c573d69da192` [[GH-11249](https://github.com/hashicorp/nomad/issues/11249)]
+* deps: Update `hashicorp/go-hclog` to `v1.0.0` [[GH-11283](https://github.com/hashicorp/nomad/issues/11283)]
+* scheduler: Warn users when system and sysbatch evaluations fail to place an allocation [[GH-11111](https://github.com/hashicorp/nomad/issues/11111)]
+* server: Allow tuning of node failover heartbeat TTL [[GH-11127](https://github.com/hashicorp/nomad/issues/11127)]
+* ui: Add new chart for `system` and `sysbatch` job status per client [[GH-11078](https://github.com/hashicorp/nomad/issues/11078)]
+
+BUG FIXES:
+
+* agent: Fixed an issue that caused some non-JSON log output when `log_json` was enabled [[GH-11291](https://github.com/hashicorp/nomad/issues/11291)]
+* client: Added `NOMAD_LICENSE` to default environment variable deny list. [[GH-11215](https://github.com/hashicorp/nomad/issues/11215)]
+* client: Fixed a bug where network speed fingerprint could fail on Windows [[GH-11183](https://github.com/hashicorp/nomad/issues/11183)]
+* client: Removed spurious error log messages when tasks complete [[GH-11273](https://github.com/hashicorp/nomad/issues/11273)]
+* core: Fixed an issue that created incorrect plan output for jobs with services with the same name. [[GH-10965](https://github.com/hashicorp/nomad/issues/10965)]
+* csi: Fixed a bug where the client would incorrectly set an empty capacity range for CSI volume creation requests. [[GH-11238](https://github.com/hashicorp/nomad/issues/11238)]
+* deps: Updated `hashicorp/go-plugin` to v1.4.3 to fix handles leakage on Windows platforms [[GH-11143](https://github.com/hashicorp/nomad/issues/11143)]
+* driver/exec: Set CPU resource limits when cgroup-v2 is enabled [[GH-11287](https://github.com/hashicorp/nomad/issues/11287)]
+
 ## 1.1.6 (October 5, 2021)
 
 SECURITY:
