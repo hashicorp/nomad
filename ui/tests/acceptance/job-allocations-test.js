@@ -82,6 +82,63 @@ module('Acceptance | job allocations', function(hooks) {
     });
   });
 
+  test('sorting the allocations tables does not clear namespace query parameter', async function(assert) {
+    /*
+    We rely on the router bug reported in https://github.com/emberjs/ember.js/issues/18683
+    Nomad passes job namespaces to sibling routes using LinkTo and transitions
+    These only trigger partial transitions which do not map the query parameters of the previous
+    state, the workaround to trigger a full transition is calling refreshModel. We depend on this
+    API to preserve namespaces. If this test breaks, its likely associated to an Ember update and
+    a change to that API.
+    */
+    server.createList('allocation', Allocations.pageSize - 1);
+    server.create('namespace', { id: 'afc-richmond' });
+    job.update({
+      namespaceId: 'afc-richmond',
+    });
+    allocations = server.schema.allocations.where({
+      jobId: job.id,
+    }).models;
+
+    await Allocations.visit({ id: job.id, namespace: 'afc-richmond' });
+    await Allocations.sortBy('taskGroupName');
+
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}/allocations?namespace=afc-richmond&sort=taskGroupName`,
+      'the URL persists the namespace parameter'
+    );
+  });
+
+  test('searching the allocations tables does not clear namespace query parameter', async function(assert) {
+    /*
+    We rely on the router bug reported in https://github.com/emberjs/ember.js/issues/18683
+    Nomad passes job namespaces to sibling routes using LinkTo and transitions
+    These only trigger partial transitions which do not map the query parameters of the previous
+    state, the workaround to trigger a full transition is calling refreshModel. We depend on this
+    API to preserve namespaces. If this test breaks, its likely associated to an Ember update and
+    a change to that API.
+    */
+    server.create('namespace', { id: 'afc-richmond' });
+    job.update({
+      namespace: 'afc-richmond',
+      namespaceId: 'afc-richmond',
+    });
+
+    makeSearchAllocations(server);
+
+    allocations = server.schema.allocations.where({ jobId: job.id }).models;
+
+    await Allocations.visit({ id: job.id, namespace: 'afc-richmond' });
+    await Allocations.search('ffffff');
+
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}/allocations?namespace=afc-richmond&search=ffffff`,
+      'the URL persists the namespace parameter'
+    );
+  });
+
   test('allocations table is searchable', async function(assert) {
     makeSearchAllocations(server);
 
