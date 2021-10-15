@@ -124,6 +124,16 @@ config {
   launching more than one of a task (using `count`) with this option set, every
   container the task starts will have the same hostname.
 
+- `init` - (Optional) `true` or `false` (default). Enable init (tini) system when
+   launching your container. When enabled, an init process will be used as the PID1
+   in the container. Specifying an init process ensures the usual responsibilities
+   of an init system, such as reaping zombie processes, are performed inside the
+   created container.
+
+   The default init process used is the first `docker-init` executable found in the
+   system path of the Docker daemon process. This `docker-init` binary, included in
+   the default installation, is backed by [tini][tini].
+
 - `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
 
@@ -1152,6 +1162,7 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [cap_drop]: /docs/drivers/docker#cap_drop
 [no_net_raw]: /docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
 [upgrade_guide_extra_hosts]: /docs/upgrade/upgrade-specific#docker-driver
+[tini]: https://github.com/krallin/tini
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
 [allow_caps]: /docs/drivers/docker#allow_caps
 [Connect]: /docs/job-specification/connect

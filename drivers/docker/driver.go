@@ -853,6 +853,11 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.CPUSetCPUs = driverConfig.CPUSetCPUs
 	}
 
+	// Enable tini (docker-init) init system.
+	if driverConfig.Init {
+		hostConfig.Init = driverConfig.Init
+	}
+
 	// Calculate CPU Quota
 	// cfs_quota_us is the time per core, so we must
 	// multiply the time by the number of cores available
