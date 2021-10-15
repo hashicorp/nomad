@@ -329,7 +329,7 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap")
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap", alloc.ID)
 	defer cleanup()
 
 	// Register Group Services
@@ -430,7 +430,7 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap")
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap", alloc.ID)
 	defer cleanup()
 
 	// Register Group Services
@@ -495,7 +495,7 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 
 	// Setup an Allocation
 	alloc := mock.ConnectIngressGatewayAlloc("bridge")
-	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyBootstrapIngressGateway")
+	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyBootstrapIngressGateway", alloc.ID)
 	defer cleanupDir()
 
 	// Get a Consul client
@@ -573,11 +573,10 @@ func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
 	t.Parallel()
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap")
-	defer cleanup()
-
 	alloc := mock.Alloc()
 	task := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks[0]
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap", alloc.ID)
+	defer cleanup()
 
 	// Run Envoy bootstrap Hook. Use invalid Consul address as it should
 	// not get hit.
@@ -646,7 +645,7 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap")
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap", alloc.ID)
 	defer cleanup()
 
 	// Unlike the successful test above, do NOT register the group services
@@ -724,7 +723,7 @@ func TestTaskRunner_EnvoyBootstrapHook_retryTimeout(t *testing.T) {
 		Kind: structs.NewTaskKind(structs.ConnectProxyPrefix, "foo"),
 	}
 	tg.Tasks = append(tg.Tasks, sidecarTask)
-	allocDir, cleanupAlloc := allocdir.TestAllocDir(t, logger, "EnvoyBootstrapRetryTimeout")
+	allocDir, cleanupAlloc := allocdir.TestAllocDir(t, logger, "EnvoyBootstrapRetryTimeout", alloc.ID)
 	defer cleanupAlloc()
 
 	// Get a Consul client

@@ -28,7 +28,7 @@ func TestConsulSocketHook_PrerunPostrun_Ok(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "ConnectNativeTask")
+	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "ConnectNativeTask", alloc.ID)
 	defer cleanupDir()
 
 	// start unix socket proxy
@@ -93,7 +93,7 @@ func TestConsulHTTPSocketHook_Prerun_Error(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "ConnectNativeTask")
+	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "ConnectNativeTask", alloc.ID)
 	defer cleanupDir()
 
 	consulConfig := new(config.ConsulConfig)

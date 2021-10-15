@@ -3,7 +3,6 @@ package allocrunner
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -227,7 +226,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 	ar.allocBroadcaster = cstructs.NewAllocBroadcaster(ar.logger)
 
 	// Create alloc dir
-	ar.allocDir = allocdir.NewAllocDir(ar.logger, filepath.Join(config.ClientConfig.AllocDir, alloc.ID))
+	ar.allocDir = allocdir.NewAllocDir(ar.logger, config.ClientConfig.AllocDir, alloc.ID)
 
 	ar.taskHookCoordinator = newTaskHookCoordinator(ar.logger, tg.Tasks)
 

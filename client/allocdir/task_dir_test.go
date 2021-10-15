@@ -17,7 +17,7 @@ func TestTaskDir_EmbedNonexistent(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.HCLogger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
 	td := d.NewTaskDir(t1.Name)
 	if err := d.Build(); err != nil {
@@ -39,7 +39,7 @@ func TestTaskDir_EmbedDirs(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.HCLogger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
 	td := d.NewTaskDir(t1.Name)
 	if err := d.Build(); err != nil {
@@ -96,7 +96,7 @@ func TestTaskDir_NonRoot_Image(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.HCLogger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
 	td := d.NewTaskDir(t1.Name)
 	if err := d.Build(); err != nil {
@@ -119,7 +119,7 @@ func TestTaskDir_NonRoot(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	d := NewAllocDir(testlog.HCLogger(t), tmp)
+	d := NewAllocDir(testlog.HCLogger(t), tmp, "test")
 	defer d.Destroy()
 	td := d.NewTaskDir(t1.Name)
 	if err := d.Build(); err != nil {

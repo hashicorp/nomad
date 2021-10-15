@@ -85,7 +85,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 	require.NoError(h.t, err)
 	t.AllocDir = dir
 
-	allocDir := allocdir.NewAllocDir(h.logger, dir)
+	allocDir := allocdir.NewAllocDir(h.logger, dir, t.AllocID)
 	require.NoError(h.t, allocDir.Build())
 	taskDir := allocDir.NewTaskDir(t.Name)
 
