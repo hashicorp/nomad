@@ -65,6 +65,8 @@ endif
 
 SUPPORTED_OSES = Darwin Linux FreeBSD Windows MSYS_NT
 
+CGO_ENABLED = 1
+
 # include per-user customization after all variables are defined
 -include GNUMakefile.local
 
@@ -75,7 +77,7 @@ ifeq (,$(findstring $(THIS_OS),$(SUPPORTED_OSES)))
 	$(warning WARNING: Building Nomad is only supported on $(SUPPORTED_OSES); not $(THIS_OS))
 endif
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 \
+	@CGO_ENABLED=$(CGO_ENABLED) \
 		GOOS=$(firstword $(subst _, ,$*)) \
 		GOARCH=$(lastword $(subst _, ,$*)) \
 		CC=$(CC) \
@@ -87,6 +89,10 @@ endif
 
 ifneq (aarch64,$(THIS_ARCH))
 pkg/linux_arm64/nomad: CC = aarch64-linux-gnu-gcc
+endif
+
+ifeq (Darwin,$(THIS_OS))
+pkg/linux_%/nomad: CGO_ENABLED = 0
 endif
 
 pkg/windows_%/nomad: GO_OUT = $@.exe
