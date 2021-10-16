@@ -464,6 +464,8 @@ func buildDisplayMessage(event *api.TaskEvent) string {
 		}
 	case api.TaskDownloadingArtifacts:
 		desc = "Client is downloading artifacts"
+	case api.TaskReDownloadingArtifacts:
+		desc = "Client is re-downloading artifacts"
 	case api.TaskArtifactDownloadFailed:
 		if event.DownloadError != "" {
 			desc = event.DownloadError

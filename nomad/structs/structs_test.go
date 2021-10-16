@@ -5420,6 +5420,7 @@ func TestTaskEventPopulate(t *testing.T) {
 		{NewTaskEvent(TaskSetupFailure).SetSetupError(fmt.Errorf("task failed setup")), "task failed setup"},
 		{NewTaskEvent(TaskDriverFailure), "Failed to start task"},
 		{NewTaskEvent(TaskDownloadingArtifacts), "Client is downloading artifacts"},
+		{NewTaskEvent(TaskReDownloadingArtifacts), "Client is re-downloading artifacts since `always_fetch` is true"},
 		{NewTaskEvent(TaskArtifactDownloadFailed), "Failed to download artifacts"},
 		{NewTaskEvent(TaskArtifactDownloadFailed).SetDownloadError(fmt.Errorf("connection reset by peer")), "connection reset by peer"},
 		{NewTaskEvent(TaskRestarting).SetRestartDelay(2 * time.Second).SetRestartReason(ReasonWithinPolicy), "Task restarting in 2s"},

@@ -741,6 +741,7 @@ type TaskArtifact struct {
 	GetterHeaders map[string]string `mapstructure:"headers" hcl:"headers,block"`
 	GetterMode    *string           `mapstructure:"mode" hcl:"mode,optional"`
 	RelativeDest  *string           `mapstructure:"destination" hcl:"destination,optional"`
+	AlwaysFetch   *bool             `mapstructure:"always_fetch" hcl:"always_fetch,optional"`
 }
 
 func (a *TaskArtifact) Canonicalize() {
@@ -769,6 +770,9 @@ func (a *TaskArtifact) Canonicalize() {
 			// Default to a directory
 			a.RelativeDest = stringToPtr("local/")
 		}
+	}
+	if a.AlwaysFetch == nil {
+		a.AlwaysFetch = boolToPtr(false)
 	}
 }
 
@@ -942,6 +946,7 @@ const (
 	TaskRestarting             = "Restarting"
 	TaskNotRestarting          = "Not Restarting"
 	TaskDownloadingArtifacts   = "Downloading Artifacts"
+	TaskReDownloadingArtifacts = "Re-downloading Artifacts"
 	TaskArtifactDownloadFailed = "Failed Artifact Download"
 	TaskSiblingFailed          = "Sibling Task Failed"
 	TaskSignaling              = "Signaling"

@@ -1721,12 +1721,13 @@ func TestTaskRunner_Download_List(t *testing.T) {
 	require.Equal(t, structs.TaskStateDead, state.State)
 	require.False(t, state.Failed)
 
-	require.Len(t, state.Events, 5)
+	require.Len(t, state.Events, 6)
+
 	assert.Equal(t, structs.TaskReceived, state.Events[0].Type)
 	assert.Equal(t, structs.TaskSetup, state.Events[1].Type)
 	assert.Equal(t, structs.TaskDownloadingArtifacts, state.Events[2].Type)
-	assert.Equal(t, structs.TaskStarted, state.Events[3].Type)
-	assert.Equal(t, structs.TaskTerminated, state.Events[4].Type)
+	assert.Equal(t, structs.TaskStarted, state.Events[4].Type)
+	assert.Equal(t, structs.TaskTerminated, state.Events[5].Type)
 
 	// Check that both files exist.
 	_, err := os.Stat(filepath.Join(conf.TaskDir.Dir, f1))

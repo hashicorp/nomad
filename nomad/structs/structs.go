@@ -7652,6 +7652,10 @@ const (
 	// specified in the task.
 	TaskDownloadingArtifacts = "Downloading Artifacts"
 
+	// TaskReDownloadingArtifacts means the task is re-downloading the artifacts
+	// specified in the task if the flag `always_fetch` is set to true.
+	TaskReDownloadingArtifacts = "Re-downloading Artifacts"
+
 	// TaskArtifactDownloadFailed indicates that downloading the artifacts
 	// failed.
 	TaskArtifactDownloadFailed = "Failed Artifact Download"
@@ -7829,6 +7833,8 @@ func (event *TaskEvent) PopulateEventDisplayMessage() {
 		}
 	case TaskDownloadingArtifacts:
 		desc = "Client is downloading artifacts"
+	case TaskReDownloadingArtifacts:
+		desc = "Client is re-downloading artifacts since `always_fetch` is true"
 	case TaskArtifactDownloadFailed:
 		if event.DownloadError != "" {
 			desc = event.DownloadError
@@ -8106,6 +8112,10 @@ type TaskArtifact struct {
 	// RelativeDest is the download destination given relative to the task's
 	// directory.
 	RelativeDest string
+
+	// AlwaysFetch is a boolean flag to specify if the artifact
+	// has to be downloaded even if it exists in case of allocation restarts.
+	AlwaysFetch bool
 }
 
 func (ta *TaskArtifact) Copy() *TaskArtifact {
@@ -8118,6 +8128,7 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 		GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
 		GetterMode:    ta.GetterMode,
 		RelativeDest:  ta.RelativeDest,
+		AlwaysFetch:   ta.AlwaysFetch,
 	}
 }
 

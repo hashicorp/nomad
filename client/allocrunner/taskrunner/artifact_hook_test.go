@@ -120,7 +120,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	require.True(t, structs.IsRecoverable(err))
 	require.Len(t, resp.State, 1)
 	require.False(t, resp.Done)
-	require.Len(t, me.events, 1)
+	require.Len(t, me.events, 2)
 	require.Equal(t, structs.TaskDownloadingArtifacts, me.events[0].Type)
 
 	// Remove file1 from the server so it errors if its downloaded again.
@@ -157,4 +157,78 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, resp.Done)
 	require.Len(t, resp.State, 2)
+}
+
+// TestTaskRunnerArtifactHook_AlwaysFetch asserts that the artifact hook
+// re-downloads an existing artifact if the `always_fetch` is true.
+func TestTaskRunner_ArtifactHook_AlwaysFetch(t *testing.T) {
+	t.Parallel()
+
+	me := &mockEmitter{}
+	artifactHook := newArtifactHook(me, testlog.HCLogger(t))
+
+	// Create a source directory for the artifacts.
+	srcdir, err := ioutil.TempDir("", "nomadtest-src")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(srcdir))
+	}()
+
+	// Create a dummy file.
+	file1 := filepath.Join(srcdir, "foo.txt")
+	require.NoError(t, ioutil.WriteFile(file1, []byte("helloworld"), 0644))
+
+	// Test server to serve the artifacts.
+	ts := httptest.NewServer(http.FileServer(http.Dir(srcdir)))
+	defer ts.Close()
+
+	// Create the target directory.
+	destdir, err := ioutil.TempDir("", "nomadtest-dest")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.RemoveAll(destdir))
+	}()
+
+	req := &interfaces.TaskPrestartRequest{
+		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, ""),
+		TaskDir: &allocdir.TaskDir{Dir: destdir},
+		Task: &structs.Task{
+			Artifacts: []*structs.TaskArtifact{
+				{
+					AlwaysFetch:  true,
+					GetterSource: ts.URL + "/foo.txt",
+					GetterMode:   structs.GetterModeAny,
+				},
+			},
+		},
+	}
+
+	resp := interfaces.TaskPrestartResponse{}
+
+	// On first run file1 (foo) should download.
+	err = artifactHook.Prestart(context.Background(), req, &resp)
+
+	require.NoError(t, err)
+	require.Len(t, resp.State, 1)
+	require.Len(t, me.events, 1)
+	require.Equal(t, structs.TaskDownloadingArtifacts, me.events[0].Type)
+
+	// Mock TaskRunner by copying state from resp to req and reset resp.
+	req.PreviousState = helper.CopyMapStringString(resp.State)
+
+	resp = interfaces.TaskPrestartResponse{}
+
+	// Run the prestart hook again and assert the artifact is fetched again.
+	err = artifactHook.Prestart(context.Background(), req, &resp)
+
+	require.NoError(t, err)
+	require.Len(t, resp.State, 1)
+	require.Len(t, me.events, 2)
+	require.Equal(t, structs.TaskReDownloadingArtifacts, me.events[1].Type)
+
+	// Assert file is downloaded.
+	files, err := filepath.Glob(filepath.Join(destdir, "*.txt"))
+	require.NoError(t, err)
+	sort.Strings(files)
+	require.Contains(t, files[0], "foo.txt")
 }

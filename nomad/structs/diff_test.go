@@ -4500,6 +4500,12 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeAdded,
+								Name: "AlwaysFetch",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "GetterHeaders[User-Agent]",
 								Old:  "",
 								New:  "nomad",
@@ -4540,6 +4546,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeDeleted,
 						Name: "Artifact",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "AlwaysFetch",
+								Old:  "false",
+								New:  "",
+							},
 							{
 								Type: DiffTypeDeleted,
 								Name: "GetterHeaders[User]",
