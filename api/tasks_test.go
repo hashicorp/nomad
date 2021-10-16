@@ -360,12 +360,14 @@ func TestTask_Artifact(t *testing.T) {
 		GetterMode:    stringToPtr("file"),
 		GetterHeaders: make(map[string]string),
 		GetterOptions: make(map[string]string),
+		ForceDownload: boolToPtr(false),
 	}
 	a.Canonicalize()
 	require.Equal(t, "file", *a.GetterMode)
 	require.Equal(t, "local/foo.txt", filepath.ToSlash(*a.RelativeDest))
 	require.Nil(t, a.GetterOptions)
 	require.Nil(t, a.GetterHeaders)
+	require.Equal(t, boolToPtr(false), a.ForceDownload)
 }
 
 func TestTask_VolumeMount(t *testing.T) {

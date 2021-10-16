@@ -44,7 +44,7 @@ func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 
 	for _, artifact := range req.Task.Artifacts {
 		aid := artifact.Hash()
-		if req.PreviousState[aid] != "" {
+		if req.PreviousState[aid] != "" && !artifact.ForceDownload {
 			h.logger.Trace("skipping already downloaded artifact", "artifact", artifact.GetterSource)
 			resp.State[aid] = req.PreviousState[aid]
 			continue

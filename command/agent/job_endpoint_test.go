@@ -2268,8 +2268,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								GetterOptions: map[string]string{
 									"a": "b",
 								},
-								GetterMode:   helper.StringToPtr("dir"),
-								RelativeDest: helper.StringToPtr("dest"),
+								GetterMode:    helper.StringToPtr("dir"),
+								RelativeDest:  helper.StringToPtr("dest"),
+								ForceDownload: helper.BoolToPtr(false),
 							},
 						},
 						Vault: &api.Vault{

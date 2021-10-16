@@ -8098,6 +8098,10 @@ type TaskArtifact struct {
 	// RelativeDest is the download destination given relative to the task's
 	// directory.
 	RelativeDest string
+
+	// ForceDownload is a boolean flag to specify if the artifact
+	// has to be downloaded even if it exists in case of allocation restarts.
+	ForceDownload bool
 }
 
 func (ta *TaskArtifact) Copy() *TaskArtifact {
@@ -8110,6 +8114,7 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 		GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
 		GetterMode:    ta.GetterMode,
 		RelativeDest:  ta.RelativeDest,
+		ForceDownload: ta.ForceDownload,
 	}
 }
 

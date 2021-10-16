@@ -741,6 +741,7 @@ type TaskArtifact struct {
 	GetterHeaders map[string]string `mapstructure:"headers" hcl:"headers,block"`
 	GetterMode    *string           `mapstructure:"mode" hcl:"mode,optional"`
 	RelativeDest  *string           `mapstructure:"destination" hcl:"destination,optional"`
+	ForceDownload *bool             `mapstructure:"force_download" hcl:"force_download,optional"`
 }
 
 func (a *TaskArtifact) Canonicalize() {
@@ -769,6 +770,9 @@ func (a *TaskArtifact) Canonicalize() {
 			// Default to a directory
 			a.RelativeDest = stringToPtr("local/")
 		}
+	}
+	if a.ForceDownload == nil {
+		a.ForceDownload = boolToPtr(false)
 	}
 }
 

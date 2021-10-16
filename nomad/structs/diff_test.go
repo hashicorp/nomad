@@ -4488,6 +4488,12 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeAdded,
+								Name: "ForceDownload",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "GetterHeaders[User-Agent]",
 								Old:  "",
 								New:  "nomad",
