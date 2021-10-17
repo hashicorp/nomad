@@ -41,3 +41,13 @@ func (s *Status) Peers() ([]string, error) {
 	}
 	return resp, nil
 }
+
+// Version is used to query the version of the Nomad server
+func (s *Status) Version() (*string, error) {
+	var resp string
+	_, err := s.client.query("/v1/status/version", &resp, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
