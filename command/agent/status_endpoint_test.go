@@ -72,10 +72,10 @@ func TestHTTP_StatusVersion(t *testing.T) {
 		}
 
 		// Check the version
-		serverVersion := obj.(*string)
+		serverVersion := obj.(string)
 		clientVersion := version.GetVersion().FullVersionNumber(true)
-		if *serverVersion != clientVersion {
-			t.Fatalf("bad: version mismatch %s vs %s", *serverVersion, clientVersion)
+		if serverVersion != clientVersion {
+			t.Fatalf("bad: version mismatch %s vs %s", serverVersion, clientVersion)
 		}
 	})
 }
