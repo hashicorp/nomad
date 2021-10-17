@@ -17,9 +17,7 @@ func Flatten(obj interface{}, filter []string, primitiveOnly bool) map[string]st
 
 	flatten("", v, primitiveOnly, false, flat)
 	for _, f := range filter {
-		if _, ok := flat[f]; ok {
-			delete(flat, f)
-		}
+		delete(flat, f)
 	}
 	return flat
 }
@@ -116,7 +114,7 @@ func getSubPrefix(curPrefix, subField string) string {
 	if curPrefix != "" {
 		return fmt.Sprintf("%s.%s", curPrefix, subField)
 	}
-	return fmt.Sprintf("%s", subField)
+	return subField
 }
 
 // getSubKeyPrefix takes the current prefix and the next subfield and returns an
@@ -125,5 +123,5 @@ func getSubKeyPrefix(curPrefix, subField string) string {
 	if curPrefix != "" {
 		return fmt.Sprintf("%s[%s]", curPrefix, subField)
 	}
-	return fmt.Sprintf("%s", subField)
+	return subField
 }

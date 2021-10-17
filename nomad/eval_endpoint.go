@@ -115,12 +115,12 @@ func (e *Eval) Dequeue(args *structs.EvalDequeueRequest,
 		waitIndex, err := e.getWaitIndex(eval.Namespace, eval.JobID, eval.ModifyIndex)
 		if err != nil {
 			var mErr multierror.Error
-			multierror.Append(&mErr, err)
+			_ = multierror.Append(&mErr, err)
 
 			// We have dequeued the evaluation but won't be returning it to the
 			// worker so Nack the eval.
 			if err := e.srv.evalBroker.Nack(eval.ID, token); err != nil {
-				multierror.Append(&mErr, err)
+				_ = multierror.Append(&mErr, err)
 			}
 
 			return &mErr
@@ -179,7 +179,7 @@ func (e *Eval) Ack(args *structs.EvalAckRequest,
 	return nil
 }
 
-// NAck is used to negative acknowledge completion of a dequeued evaluation
+// Nack is used to negative acknowledge completion of a dequeued evaluation.
 func (e *Eval) Nack(args *structs.EvalAckRequest,
 	reply *structs.GenericResponse) error {
 	if done, err := e.srv.forward("Eval.Nack", args, args, reply); done {

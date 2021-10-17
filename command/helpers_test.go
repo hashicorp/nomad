@@ -280,6 +280,101 @@ func TestJobGetter_LocalFile(t *testing.T) {
 	}
 }
 
+// TestJobGetter_LocalFile_InvalidHCL2 asserts that a custom message is emited
+// if the file is a valid HCL1 but not HCL2
+func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name              string
+		hcl               string
+		expectHCL1Message bool
+	}{
+		{
+			"invalid HCL",
+			"nothing",
+			false,
+		},
+		{
+			"invalid HCL2",
+			`job "example" {
+  meta { "key.with.dot" = "b" }
+}`,
+			true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			fh, err := ioutil.TempFile("", "nomad")
+			require.NoError(t, err)
+			defer os.Remove(fh.Name())
+			defer fh.Close()
+
+			_, err = fh.WriteString(c.hcl)
+			require.NoError(t, err)
+
+			j := &JobGetter{}
+			_, err = j.ApiJob(fh.Name())
+			require.Error(t, err)
+
+			exptMessage := "Failed to parse using HCL 2. Use the HCL 1"
+			if c.expectHCL1Message {
+				require.Contains(t, err.Error(), exptMessage)
+			} else {
+				require.NotContains(t, err.Error(), exptMessage)
+			}
+		})
+	}
+}
+
+// TestJobGetter_HCL2_Variables asserts variable arguments from CLI
+// and varfiles are both honored
+func TestJobGetter_HCL2_Variables(t *testing.T) {
+	t.Parallel()
+
+	hcl := `
+variables {
+  var1 = "default-val"
+  var2 = "default-val"
+  var3 = "default-val"
+  var4 = "default-val"
+}
+
+job "example" {
+  datacenters = ["${var.var1}", "${var.var2}", "${var.var3}", "${var.var4}"]
+}
+`
+
+	setEnv(t, "NOMAD_VAR_var4", "from-envvar")
+
+	cliArgs := []string{`var2=from-cli`}
+	fileVars := `var3 = "from-varfile"`
+	expected := []string{"default-val", "from-cli", "from-varfile", "from-envvar"}
+
+	hclf, err := ioutil.TempFile("", "hcl")
+	require.NoError(t, err)
+	defer os.Remove(hclf.Name())
+	defer hclf.Close()
+
+	_, err = hclf.WriteString(hcl)
+	require.NoError(t, err)
+
+	vf, err := ioutil.TempFile("", "var.hcl")
+	require.NoError(t, err)
+	defer os.Remove(vf.Name())
+	defer vf.Close()
+
+	_, err = vf.WriteString(fileVars + "\n")
+	require.NoError(t, err)
+
+	j, err := (&JobGetter{}).ApiJobWithArgs(hclf.Name(), cliArgs, []string{vf.Name()})
+	require.NoError(t, err)
+
+	require.NotNil(t, j)
+	require.Equal(t, expected, j.Datacenters)
+}
+
 // Test StructJob with jobfile from HTTP Server
 func TestJobGetter_HTTPServer(t *testing.T) {
 	t.Parallel()
@@ -391,15 +486,4 @@ func TestUiErrorWriter(t *testing.T) {
 
 	expectedErr += "and thensome more\n"
 	require.Equal(t, expectedErr, errBuf.String())
-}
-
-func TestParseVars(t *testing.T) {
-	input := []string{"key1=val1", "HOME", "key2=321"}
-	expected := map[string]string{
-		"key1": "val1",
-		"HOME": os.Getenv("HOME"),
-		"key2": "321",
-	}
-
-	require.Equal(t, expected, parseVars(input))
 }

@@ -196,8 +196,6 @@ func handleStdin(logger hclog.Logger, stdin io.WriteCloser, stream drivers.ExecT
 				errCh <- fmt.Errorf("failed to resize tty: %v", err)
 				return
 			}
-		} else {
-			// ignore heartbeats
 		}
 	}
 }

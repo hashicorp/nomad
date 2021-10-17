@@ -81,7 +81,7 @@ type VaultConfig struct {
 	TLSServerName string `hcl:"tls_server_name"`
 }
 
-// DefaultVaultConfig() returns the canonical defaults for the Nomad
+// DefaultVaultConfig returns the canonical defaults for the Nomad
 // `vault` configuration.
 func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
@@ -152,7 +152,7 @@ func (a *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	return &result
 }
 
-// ApiConfig() returns a usable Vault config that can be passed directly to
+// ApiConfig returns a usable Vault config that can be passed directly to
 // hashicorp/vault/api.
 func (c *VaultConfig) ApiConfig() (*vault.Config, error) {
 	conf := vault.DefaultConfig()

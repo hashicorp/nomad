@@ -22,19 +22,22 @@ module('Unit | Util | AllocationStatsTracker', function() {
           reservedMemory: 512,
           tasks: [
             {
-              name: 'service',
-              reservedCPU: 100,
-              reservedMemory: 256,
-            },
-            {
               name: 'log-shipper',
               reservedCPU: 50,
               reservedMemory: 128,
+              lifecycleName: 'poststop',
+            },
+            {
+              name: 'service',
+              reservedCPU: 100,
+              reservedMemory: 256,
+              lifecycleName: 'main',
             },
             {
               name: 'sidecar',
               reservedCPU: 50,
               reservedMemory: 128,
+              lifecycleName: 'prestart-sidecar',
             },
           ],
         },
@@ -190,8 +193,8 @@ module('Unit | Util | AllocationStatsTracker', function() {
       tracker.get('tasks'),
       [
         { task: 'service', reservedCPU: 100, reservedMemory: 256, cpu: [], memory: [] },
-        { task: 'log-shipper', reservedCPU: 50, reservedMemory: 128, cpu: [], memory: [] },
         { task: 'sidecar', reservedCPU: 50, reservedMemory: 128, cpu: [], memory: [] },
+        { task: 'log-shipper', reservedCPU: 50, reservedMemory: 128, cpu: [], memory: [] },
       ],
       'tasks represents the tasks for the allocation with no stats yet'
     );
@@ -222,25 +225,22 @@ module('Unit | Util | AllocationStatsTracker', function() {
           task: 'service',
           reservedCPU: 100,
           reservedMemory: 256,
-          cpu: [{ timestamp: makeDate(refDate + 1), used: 51, percent: 51 / 100 }],
+          cpu: [
+            {
+              timestamp: makeDate(refDate + 1),
+              used: 51,
+              percent: 51 / 100,
+              percentStack: 51 / (100 + 50 + 50),
+              percentTotal: 51 / (100 + 50 + 50),
+            },
+          ],
           memory: [
             {
               timestamp: makeDate(refDate + 1),
               used: 101 * 1024 * 1024,
               percent: 101 / 256,
-            },
-          ],
-        },
-        {
-          task: 'log-shipper',
-          reservedCPU: 50,
-          reservedMemory: 128,
-          cpu: [{ timestamp: makeDate(refDate + 10), used: 26, percent: 26 / 50 }],
-          memory: [
-            {
-              timestamp: makeDate(refDate + 10),
-              used: 51 * 1024 * 1024,
-              percent: 51 / 128,
+              percentStack: 101 / (256 + 128 + 128),
+              percentTotal: 101 / (256 + 128 + 128),
             },
           ],
         },
@@ -248,12 +248,45 @@ module('Unit | Util | AllocationStatsTracker', function() {
           task: 'sidecar',
           reservedCPU: 50,
           reservedMemory: 128,
-          cpu: [{ timestamp: makeDate(refDate + 100), used: 27, percent: 27 / 50 }],
+          cpu: [
+            {
+              timestamp: makeDate(refDate + 100),
+              used: 27,
+              percent: 27 / 50,
+              percentStack: (27 + 51) / (100 + 50 + 50),
+              percentTotal: 27 / (100 + 50 + 50),
+            },
+          ],
           memory: [
             {
               timestamp: makeDate(refDate + 100),
               used: 52 * 1024 * 1024,
               percent: 52 / 128,
+              percentStack: (52 + 101) / (256 + 128 + 128),
+              percentTotal: 52 / (256 + 128 + 128),
+            },
+          ],
+        },
+        {
+          task: 'log-shipper',
+          reservedCPU: 50,
+          reservedMemory: 128,
+          cpu: [
+            {
+              timestamp: makeDate(refDate + 10),
+              used: 26,
+              percent: 26 / 50,
+              percentStack: (26 + 27 + 51) / (100 + 50 + 50),
+              percentTotal: 26 / (100 + 50 + 50),
+            },
+          ],
+          memory: [
+            {
+              timestamp: makeDate(refDate + 10),
+              used: 51 * 1024 * 1024,
+              percent: 51 / 128,
+              percentStack: (51 + 52 + 101) / (256 + 128 + 128),
+              percentTotal: 51 / (256 + 128 + 128),
             },
           ],
         },
@@ -288,25 +321,36 @@ module('Unit | Util | AllocationStatsTracker', function() {
           reservedCPU: 100,
           reservedMemory: 256,
           cpu: [
-            { timestamp: makeDate(refDate + 1), used: 51, percent: 51 / 100 },
-            { timestamp: makeDate(refDate + 2), used: 52, percent: 52 / 100 },
+            {
+              timestamp: makeDate(refDate + 1),
+              used: 51,
+              percent: 51 / 100,
+              percentStack: 51 / (100 + 50 + 50),
+              percentTotal: 51 / (100 + 50 + 50),
+            },
+            {
+              timestamp: makeDate(refDate + 2),
+              used: 52,
+              percent: 52 / 100,
+              percentStack: 52 / (100 + 50 + 50),
+              percentTotal: 52 / (100 + 50 + 50),
+            },
           ],
           memory: [
-            { timestamp: makeDate(refDate + 1), used: 101 * 1024 * 1024, percent: 101 / 256 },
-            { timestamp: makeDate(refDate + 2), used: 102 * 1024 * 1024, percent: 102 / 256 },
-          ],
-        },
-        {
-          task: 'log-shipper',
-          reservedCPU: 50,
-          reservedMemory: 128,
-          cpu: [
-            { timestamp: makeDate(refDate + 10), used: 26, percent: 26 / 50 },
-            { timestamp: makeDate(refDate + 20), used: 27, percent: 27 / 50 },
-          ],
-          memory: [
-            { timestamp: makeDate(refDate + 10), used: 51 * 1024 * 1024, percent: 51 / 128 },
-            { timestamp: makeDate(refDate + 20), used: 52 * 1024 * 1024, percent: 52 / 128 },
+            {
+              timestamp: makeDate(refDate + 1),
+              used: 101 * 1024 * 1024,
+              percent: 101 / 256,
+              percentStack: 101 / (256 + 128 + 128),
+              percentTotal: 101 / (256 + 128 + 128),
+            },
+            {
+              timestamp: makeDate(refDate + 2),
+              used: 102 * 1024 * 1024,
+              percent: 102 / 256,
+              percentStack: 102 / (256 + 128 + 128),
+              percentTotal: 102 / (256 + 128 + 128),
+            },
           ],
         },
         {
@@ -314,12 +358,73 @@ module('Unit | Util | AllocationStatsTracker', function() {
           reservedCPU: 50,
           reservedMemory: 128,
           cpu: [
-            { timestamp: makeDate(refDate + 100), used: 27, percent: 27 / 50 },
-            { timestamp: makeDate(refDate + 200), used: 28, percent: 28 / 50 },
+            {
+              timestamp: makeDate(refDate + 100),
+              used: 27,
+              percent: 27 / 50,
+              percentStack: (27 + 51) / (100 + 50 + 50),
+              percentTotal: 27 / (100 + 50 + 50),
+            },
+            {
+              timestamp: makeDate(refDate + 200),
+              used: 28,
+              percent: 28 / 50,
+              percentStack: (28 + 52) / (100 + 50 + 50),
+              percentTotal: 28 / (100 + 50 + 50),
+            },
           ],
           memory: [
-            { timestamp: makeDate(refDate + 100), used: 52 * 1024 * 1024, percent: 52 / 128 },
-            { timestamp: makeDate(refDate + 200), used: 53 * 1024 * 1024, percent: 53 / 128 },
+            {
+              timestamp: makeDate(refDate + 100),
+              used: 52 * 1024 * 1024,
+              percent: 52 / 128,
+              percentStack: (52 + 101) / (256 + 128 + 128),
+              percentTotal: 52 / (256 + 128 + 128),
+            },
+            {
+              timestamp: makeDate(refDate + 200),
+              used: 53 * 1024 * 1024,
+              percent: 53 / 128,
+              percentStack: (53 + 102) / (256 + 128 + 128),
+              percentTotal: 53 / (256 + 128 + 128),
+            },
+          ],
+        },
+        {
+          task: 'log-shipper',
+          reservedCPU: 50,
+          reservedMemory: 128,
+          cpu: [
+            {
+              timestamp: makeDate(refDate + 10),
+              used: 26,
+              percent: 26 / 50,
+              percentStack: (26 + 27 + 51) / (100 + 50 + 50),
+              percentTotal: 26 / (100 + 50 + 50),
+            },
+            {
+              timestamp: makeDate(refDate + 20),
+              used: 27,
+              percent: 27 / 50,
+              percentStack: (27 + 28 + 52) / (100 + 50 + 50),
+              percentTotal: 27 / (100 + 50 + 50),
+            },
+          ],
+          memory: [
+            {
+              timestamp: makeDate(refDate + 10),
+              used: 51 * 1024 * 1024,
+              percent: 51 / 128,
+              percentStack: (51 + 52 + 101) / (256 + 128 + 128),
+              percentTotal: 51 / (256 + 128 + 128),
+            },
+            {
+              timestamp: makeDate(refDate + 20),
+              used: 52 * 1024 * 1024,
+              percent: 52 / 128,
+              percentStack: (52 + 53 + 102) / (256 + 128 + 128),
+              percentTotal: 52 / (256 + 128 + 128),
+            },
           ],
         },
       ],

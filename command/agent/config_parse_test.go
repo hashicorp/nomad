@@ -112,6 +112,8 @@ var basicConfig = &Config{
 		MinHeartbeatTTL:           33 * time.Second,
 		MinHeartbeatTTLHCL:        "33s",
 		MaxHeartbeatsPerSecond:    11.0,
+		FailoverHeartbeatTTL:      330 * time.Second,
+		FailoverHeartbeatTTLHCL:   "330s",
 		RetryJoin:                 []string{"1.1.1.1", "2.2.2.2"},
 		StartJoin:                 []string{"1.1.1.1", "2.2.2.2"},
 		RetryInterval:             15 * time.Second,
@@ -138,6 +140,7 @@ var basicConfig = &Config{
 				ServiceSchedulerEnabled: true,
 			},
 		},
+		LicensePath: "/tmp/nomad.hclic",
 	},
 	ACL: &ACLConfig{
 		Enabled:          true,

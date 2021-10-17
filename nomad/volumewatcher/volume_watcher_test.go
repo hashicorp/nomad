@@ -44,7 +44,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 	vol.PastClaims = map[string]*structs.CSIVolumeClaim{
 		alloc.ID: {
 			NodeID: node.ID,
-			Mode:   structs.CSIVolumeClaimRelease,
+			Mode:   structs.CSIVolumeClaimRead,
 			State:  structs.CSIVolumeClaimStateNodeDetached,
 		},
 	}
@@ -56,7 +56,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 	vol.PastClaims = map[string]*structs.CSIVolumeClaim{
 		"": {
 			NodeID: node.ID,
-			Mode:   structs.CSIVolumeClaimRelease,
+			Mode:   structs.CSIVolumeClaimGC,
 		},
 	}
 	err = w.volumeReapImpl(vol)
@@ -68,7 +68,7 @@ func TestVolumeWatch_Reap(t *testing.T) {
 	vol.PastClaims = map[string]*structs.CSIVolumeClaim{
 		"": {
 			NodeID: node.ID,
-			Mode:   structs.CSIVolumeClaimRelease,
+			Mode:   structs.CSIVolumeClaimRead,
 		},
 	}
 	err = w.volumeReapImpl(vol)

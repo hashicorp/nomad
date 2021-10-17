@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	cflags "github.com/hashicorp/consul/command/flags"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/posener/complete"
 )
@@ -29,10 +29,20 @@ Alias: nomad validate
   it is read from the file at the supplied path or downloaded and
   read from URL specified.
 
+  When ACLs are enabled, this command requires a token with the 'read-job'
+  capability for the job's namespace.
+
 Validate Options:
 
   -hcl1
     Parses the job file as HCLv1.
+
+  -var 'key=value'
+    Variable for template, can be used multiple times.
+
+  -var-file=path
+    Path to HCL2 file containing user variables.
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -43,8 +53,9 @@ func (c *JobValidateCommand) Synopsis() string {
 
 func (c *JobValidateCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-hcl1": complete.PredictNothing,
-		"-var":  complete.PredictAnything,
+		"-hcl1":     complete.PredictNothing,
+		"-var":      complete.PredictAnything,
+		"-var-file": complete.PredictFiles("*.var"),
 	}
 }
 
@@ -55,19 +66,20 @@ func (c *JobValidateCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobValidateCommand) Name() string { return "job validate" }
 
 func (c *JobValidateCommand) Run(args []string) int {
-	var varArgs cflags.AppendSliceValue
+	var varArgs, varFiles flaghelper.StringFlag
 
-	flags := c.Meta.FlagSet(c.Name(), FlagSetNone)
-	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
-	flags.Var(&varArgs, "var", "")
+	flagSet := c.Meta.FlagSet(c.Name(), FlagSetNone)
+	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
+	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
+	flagSet.Var(&varArgs, "var", "")
+	flagSet.Var(&varFiles, "var-file", "")
 
-	if err := flags.Parse(args); err != nil {
+	if err := flagSet.Parse(args); err != nil {
 		return 1
 	}
 
 	// Check that we got exactly one node
-	args = flags.Args()
+	args = flagSet.Args()
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <path>")
 		c.Ui.Error(commandErrorText(c))
@@ -75,7 +87,7 @@ func (c *JobValidateCommand) Run(args []string) int {
 	}
 
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.ApiJobWithArgs(args[0], parseVars(varArgs))
+	job, err := c.JobGetter.ApiJobWithArgs(args[0], varArgs, varFiles)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1
@@ -135,7 +147,7 @@ func (c *JobValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateRespons
 	var out api.JobValidateResponse
 
 	job := agent.ApiJobToStructJob(aj)
-	canonicalizeWarnings := job.Canonicalize()
+	job.Canonicalize()
 
 	if vErr := job.Validate(); vErr != nil {
 		if merr, ok := vErr.(*multierror.Error); ok {
@@ -149,7 +161,6 @@ func (c *JobValidateCommand) validateLocal(aj *api.Job) (*api.JobValidateRespons
 		}
 	}
 
-	warnings := job.Warnings()
-	out.Warnings = structs.MergeMultierrorWarnings(warnings, canonicalizeWarnings)
+	out.Warnings = structs.MergeMultierrorWarnings(job.Warnings())
 	return &out, nil
 }

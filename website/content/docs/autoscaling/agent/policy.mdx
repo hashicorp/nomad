@@ -1,0 +1,30 @@
+---
+layout: docs
+page_title: policy Stanza - Nomad Autoscaler Agent Configuration
+description: >-
+  The "policy" block configures the Nomad Autoscaler's policy handling.
+---
+
+# `policy` Block
+
+<Placement groups={['policy']} />
+
+The `policy` block configures the Nomad Autoscaler's policy handling.
+
+```hcl
+policy {
+  dir              = "/opt/nomad-autoscaler/policies"
+  default_cooldown = "2m"
+}
+```
+
+### `policy` Parameters
+
+- `default_cooldown` `(string: "5m")` - The default cooldown that will be applied
+  to all scaling policies which do not specify a cooldown period.
+
+- `default_evaluation_interval` `(string: "10s")` - The default evaluation interval
+  that will be applied to all scaling policies which do not specify an evaluation
+  interval.
+
+- `dir` `(string: "")` - The path to a directory used to load scaling policies.

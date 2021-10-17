@@ -7,12 +7,15 @@ import (
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/stretchr/testify/require"
+)
+
+const (
+	consulNamespace = "default"
 )
 
 type ConnectClientStateE2ETest struct {
 	framework.TC
-	jobIds []string
+	jobIDs []string
 }
 
 func (tc *ConnectClientStateE2ETest) BeforeAll(f *framework.F) {
@@ -25,38 +28,35 @@ func (tc *ConnectClientStateE2ETest) AfterEach(f *framework.F) {
 		return
 	}
 
-	for _, id := range tc.jobIds {
+	for _, id := range tc.jobIDs {
 		tc.Nomad().Jobs().Deregister(id, true, nil)
 	}
-	tc.jobIds = []string{}
+	tc.jobIDs = []string{}
 	tc.Nomad().System().GarbageCollect()
 }
 
 func (tc *ConnectClientStateE2ETest) TestClientRestart(f *framework.F) {
 	t := f.T()
-	require := require.New(t)
 
 	jobID := "connect" + uuid.Generate()[0:8]
-	tc.jobIds = append(tc.jobIds, jobID)
+	tc.jobIDs = append(tc.jobIDs, jobID)
 	client := tc.Nomad()
 	consulClient := tc.Consul()
 
 	allocs := e2eutil.RegisterAndWaitForAllocs(t, client,
 		"connect/input/demo.nomad", jobID, "")
-	require.Equal(2, len(allocs))
+	f.Equal(2, len(allocs))
 
-	e2eutil.RequireConsulStatus(require, consulClient,
-		"count-api-sidecar-proxy", capi.HealthPassing)
+	e2eutil.RequireConsulStatus(f.Assertions, consulClient, consulNamespace, "count-api-sidecar-proxy", capi.HealthPassing)
 	nodeID := allocs[0].NodeID
 
 	restartID, err := e2eutil.AgentRestart(client, nodeID)
 	if restartID != "" {
-		tc.jobIds = append(tc.jobIds, restartID)
+		tc.jobIDs = append(tc.jobIDs, restartID)
 	}
 	if err != nil {
 		t.Skip("node cannot be restarted", err)
 	}
 
-	e2eutil.RequireConsulStatus(require, consulClient,
-		"count-api-sidecar-proxy", capi.HealthPassing)
+	e2eutil.RequireConsulStatus(f.Assertions, consulClient, consulNamespace, "count-api-sidecar-proxy", capi.HealthPassing)
 }

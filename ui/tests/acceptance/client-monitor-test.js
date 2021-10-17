@@ -5,6 +5,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import ClientMonitor from 'nomad-ui/tests/pages/clients/monitor';
+import Layout from 'nomad-ui/tests/pages/layout';
 
 let node;
 let managementToken;
@@ -34,10 +35,10 @@ module('Acceptance | client monitor', function(hooks) {
   test('/clients/:id/monitor should have a breadcrumb trail linking back to clients', async function(assert) {
     await ClientMonitor.visit({ id: node.id });
 
-    assert.equal(ClientMonitor.breadcrumbFor('clients.index').text, 'Clients');
-    assert.equal(ClientMonitor.breadcrumbFor('clients.client').text, node.id.split('-')[0]);
+    assert.equal(Layout.breadcrumbFor('clients.index').text, 'Clients');
+    assert.equal(Layout.breadcrumbFor('clients.client').text, node.id.split('-')[0]);
 
-    await ClientMonitor.breadcrumbFor('clients.index').visit();
+    await Layout.breadcrumbFor('clients.index').visit();
     assert.equal(currentURL(), '/clients');
   });
 

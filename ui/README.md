@@ -30,6 +30,8 @@ You may need to reference the direct path to `ember`, typically in `./node_modul
 
 The fake data in development is generated from a stable seed of 1. To generate different data, you can include a query parameter of `?faker-seed=2` or any other number in the URL. To turn off the seed and get different data with every load, use `?faker=seed=0`.
 
+When running with Mirage, the default scenario is set in `config/environment.js` but can be overridden with a query parameter to any of the scenarios named in `mirage/scenarios/default.js` with something like `?mirage-scenario=emptyCluster`.
+
 ## Running / Development with Vagrant
 
 All necessary tools for UI development are installed as part of the Vagrantfile. This is primarily to make it easy to build the UI from source while working on Nomad. Due to the filesystem requirements of [Broccoli](http://broccolijs.com/) (which powers Ember CLI), it is strongly discouraged to use Vagrant for developing changes to the UI.
@@ -81,7 +83,7 @@ Nomad UI releases are in lockstep with Nomad releases and are integrated into th
 
 ### Storybook UI Library
 
-The Storybook project provides a browser to see what components and patterns are present in the application and how to use them. You can run it locally with `yarn storybook` after you have `ember serve` running. The latest version from the `master` branch is at [`nomad-storybook.netlify.com`](https://nomad-storybook.netlify.com/).
+The Storybook project provides a browser to see what components and patterns are present in the application and how to use them. You can run it locally with `yarn storybook` after you have `ember serve` running. The latest version from the `main` branch is at [`nomad-storybook-and-ui.vercel.app/storybook/`](https://nomad-storybook-and-ui.vercel.app/storybook/).
 
 To generate a new story for a component, run `ember generate story component-name`. You can use the existing stories as a guide.
 

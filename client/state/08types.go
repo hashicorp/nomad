@@ -108,10 +108,7 @@ func (t *taskRunnerState08) Upgrade(allocID, taskName string) (*state.LocalState
 
 	// The docker driver prefixed the handle with 'DOCKER:'
 	// Strip so that it can be unmarshalled
-	data := t.HandleID
-	if strings.HasPrefix(data, "DOCKER:") {
-		data = data[7:]
-	}
+	data := strings.TrimPrefix(t.HandleID, "DOCKER:")
 
 	// The pre09 driver handle ID is given to the driver. It is unmarshalled
 	// here to check for errors

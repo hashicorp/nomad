@@ -44,7 +44,7 @@ func IsErrProfileNotFound(err error) bool {
 // command line, with arguments separated by NUL bytes.
 func Cmdline() ([]byte, map[string]string, error) {
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, strings.Join(os.Args, "\x00"))
+	fmt.Fprint(&buf, strings.Join(os.Args, "\x00"))
 
 	return buf.Bytes(),
 		map[string]string{

@@ -21,9 +21,11 @@ Usage: nomad acl policy apply [options] <name> <path>
   Apply is used to create or update an ACL policy. The policy is
   sourced from <path> or from stdin if path is "-".
 
+  This command requires a management ACL token.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Apply Options:
 

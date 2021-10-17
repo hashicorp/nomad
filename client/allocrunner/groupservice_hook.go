@@ -10,7 +10,10 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
+)
+
+const (
+	groupServiceHookName = "group_services"
 )
 
 type networkStatusGetter interface {
@@ -24,6 +27,7 @@ type groupServiceHook struct {
 	group               string
 	restarter           agentconsul.WorkloadRestarter
 	consulClient        consul.ConsulServiceAPI
+	consulNamespace     string
 	prerun              bool
 	delay               time.Duration
 	deregistered        bool
@@ -46,6 +50,7 @@ type groupServiceHook struct {
 type groupServiceHookConfig struct {
 	alloc               *structs.Allocation
 	consul              consul.ConsulServiceAPI
+	consulNamespace     string
 	restarter           agentconsul.WorkloadRestarter
 	taskEnvBuilder      *taskenv.Builder
 	networkStatusGetter networkStatusGetter
@@ -65,12 +70,13 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 		group:               cfg.alloc.TaskGroup,
 		restarter:           cfg.restarter,
 		consulClient:        cfg.consul,
+		consulNamespace:     cfg.consulNamespace,
 		taskEnvBuilder:      cfg.taskEnvBuilder,
 		delay:               shutdownDelay,
 		networkStatusGetter: cfg.networkStatusGetter,
+		logger:              cfg.logger.Named(groupServiceHookName),
+		services:            cfg.alloc.Job.LookupTaskGroup(cfg.alloc.TaskGroup).Services,
 	}
-	h.logger = cfg.logger.Named(h.Name())
-	h.services = cfg.alloc.Job.LookupTaskGroup(h.group).Services
 
 	if cfg.alloc.AllocatedResources != nil {
 		h.networks = cfg.alloc.AllocatedResources.Shared.Networks
@@ -80,11 +86,12 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 	if cfg.alloc.DeploymentStatus != nil {
 		h.canary = cfg.alloc.DeploymentStatus.Canary
 	}
+
 	return h
 }
 
 func (*groupServiceHook) Name() string {
-	return "group_services"
+	return groupServiceHookName
 }
 
 func (h *groupServiceHook) Prerun() error {
@@ -94,7 +101,10 @@ func (h *groupServiceHook) Prerun() error {
 		h.prerun = true
 		h.mu.Unlock()
 	}()
+	return h.prerunLocked()
+}
 
+func (h *groupServiceHook) prerunLocked() error {
 	if len(h.services) == 0 {
 		return nil
 	}
@@ -146,13 +156,28 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	return h.consulClient.UpdateWorkload(oldWorkloadServices, newWorkloadServices)
 }
 
+func (h *groupServiceHook) PreTaskRestart() error {
+	h.mu.Lock()
+	defer func() {
+		// Mark prerun as true to unblock Updates
+		h.prerun = true
+		h.mu.Unlock()
+	}()
+
+	h.preKillLocked()
+	return h.prerunLocked()
+}
+
 func (h *groupServiceHook) PreKill() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.preKillLocked()
+}
 
-	// If we have a shutdown delay deregister
-	// group services and then wait
-	// before continuing to kill tasks
+// implements the PreKill hook but requires the caller hold the lock
+func (h *groupServiceHook) preKillLocked() {
+	// If we have a shutdown delay deregister group services and then wait
+	// before continuing to kill tasks.
 	h.deregister()
 	h.deregistered = true
 
@@ -160,10 +185,10 @@ func (h *groupServiceHook) PreKill() {
 		return
 	}
 
-	h.logger.Debug("waiting before removing group service", "shutdown_delay", h.delay)
+	h.logger.Debug("delay before killing tasks", "group", h.group, "shutdown_delay", h.delay)
 
 	// Wait for specified shutdown_delay
-	// this will block an agent from shutting down
+	// This will block an agent from shutting down.
 	<-time.After(h.delay)
 }
 
@@ -177,31 +202,10 @@ func (h *groupServiceHook) Postrun() error {
 	return nil
 }
 
-func (h *groupServiceHook) driverNet() *drivers.DriverNetwork {
-	if len(h.networks) == 0 {
-		return nil
-	}
-
-	//TODO(schmichael) only support one network for now
-	net := h.networks[0]
-	//TODO(schmichael) there's probably a better way than hacking driver network
-	return &drivers.DriverNetwork{
-		AutoAdvertise: true,
-		IP:            net.IP,
-		// Copy PortLabels from group network
-		PortMap: net.PortLabels(),
-	}
-}
-
 // deregister services from Consul.
 func (h *groupServiceHook) deregister() {
 	if len(h.services) > 0 {
 		workloadServices := h.getWorkloadServices()
-		h.consulClient.RemoveWorkload(workloadServices)
-
-		// Canary flag may be getting flipped when the alloc is being
-		// destroyed, so remove both variations of the service
-		workloadServices.Canary = !workloadServices.Canary
 		h.consulClient.RemoveWorkload(workloadServices)
 	}
 }
@@ -217,14 +221,14 @@ func (h *groupServiceHook) getWorkloadServices() *agentconsul.WorkloadServices {
 
 	// Create task services struct with request's driver metadata
 	return &agentconsul.WorkloadServices{
-		AllocID:       h.allocID,
-		Group:         h.group,
-		Restarter:     h.restarter,
-		Services:      interpolatedServices,
-		DriverNetwork: h.driverNet(),
-		Networks:      h.networks,
-		NetworkStatus: netStatus,
-		Ports:         h.ports,
-		Canary:        h.canary,
+		AllocID:         h.allocID,
+		Group:           h.group,
+		ConsulNamespace: h.consulNamespace,
+		Restarter:       h.restarter,
+		Services:        interpolatedServices,
+		Networks:        h.networks,
+		NetworkStatus:   netStatus,
+		Ports:           h.ports,
+		Canary:          h.canary,
 	}
 }

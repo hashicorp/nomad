@@ -53,7 +53,7 @@ func testJobWithScalingPolicy() *Job {
 	job.TaskGroups[0].Scaling = &ScalingPolicy{
 		Policy:  map[string]interface{}{},
 		Min:     int64ToPtr(1),
-		Max:     int64ToPtr(1),
+		Max:     int64ToPtr(5),
 		Enabled: boolToPtr(true),
 	}
 	return job

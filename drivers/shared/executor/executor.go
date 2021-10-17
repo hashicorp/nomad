@@ -23,6 +23,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/kr/pty"
+	"github.com/syndtr/gocapability/capability"
 
 	shelpers "github.com/hashicorp/nomad/helper/stats"
 )
@@ -34,6 +35,12 @@ const (
 	// ExecutorVersionPre0_9 is the version of executor use prior to the release
 	// of 0.9.x
 	ExecutorVersionPre0_9 = "1.1.0"
+
+	// IsolationModePrivate represents the private isolation mode for a namespace
+	IsolationModePrivate = "private"
+
+	// IsolationModeHost represents the host isolation mode for a namespace
+	IsolationModeHost = "host"
 )
 
 var (
@@ -85,6 +92,10 @@ type Executor interface {
 
 // ExecCommand holds the user command, args, and other isolation related
 // settings.
+//
+// Important (!): when adding fields, make sure to update the RPC methods in
+// grpcExecutorClient.Launch and grpcExecutorServer.Launch. Number of hours
+// spent tracking this down: too many.
 type ExecCommand struct {
 	// Cmd is the command that the user wants to run.
 	Cmd string
@@ -132,7 +143,17 @@ type ExecCommand struct {
 	// Devices are the the device nodes to be created in isolation environment
 	Devices []*drivers.DeviceConfig
 
+	// NetworkIsolation is the network isolation configuration.
 	NetworkIsolation *drivers.NetworkIsolationSpec
+
+	// ModePID is the PID isolation mode (private or host).
+	ModePID string
+
+	// ModeIPC is the IPC isolation mode (private or host).
+	ModeIPC string
+
+	// Capabilities are the linux capabilities to be enabled by the task driver.
+	Capabilities []string
 }
 
 // SetWriters sets the writer for the process stdout and stderr. This should
@@ -266,7 +287,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	// setting the user of the process
 	if command.User != "" {
 		e.logger.Debug("running command as user", "user", command.User)
-		if err := e.runAs(command.User); err != nil {
+		if err := setCmdUser(&e.childCmd, command.User); err != nil {
 			return nil, err
 		}
 	}
@@ -280,8 +301,10 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	}
 
 	// Setup cgroups on linux
-	if err := e.configureResourceContainer(os.Getpid()); err != nil {
-		return nil, err
+	if e.commandCfg.ResourceLimits || e.commandCfg.BasicProcessCgroup {
+		if err := e.configureResourceContainer(os.Getpid()); err != nil {
+			return nil, err
+		}
 	}
 
 	stdout, err := e.commandCfg.Stdout()
@@ -406,6 +429,12 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 			return nil
 		},
 		processStart: func() error {
+			if u := e.commandCfg.User; u != "" {
+				if err := setCmdUser(cmd, u); err != nil {
+					return err
+				}
+			}
+
 			return withNetworkIsolation(cmd.Start, e.commandCfg.NetworkIsolation)
 		},
 		processWait: func() (*os.ProcessState, error) {
@@ -476,8 +505,8 @@ var (
 	noSuchProcessErr = "no such process"
 )
 
-// Exit cleans up the alloc directory, destroys resource container and kills the
-// user process
+// Shutdown cleans up the alloc directory, destroys resource container and
+// kills the user process.
 func (e *UniversalExecutor) Shutdown(signal string, grace time.Duration) error {
 	e.logger.Debug("shutdown requested", "signal", signal, "grace_period_ms", grace.Round(time.Millisecond))
 	var merr multierror.Error
@@ -662,4 +691,24 @@ func makeExecutable(binPath string) error {
 		}
 	}
 	return nil
+}
+
+// SupportedCaps returns a list of all supported capabilities in kernel.
+func SupportedCaps(allowNetRaw bool) []string {
+	var allCaps []string
+	last := capability.CAP_LAST_CAP
+	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
+	if last == capability.Cap(63) {
+		last = capability.CAP_BLOCK_SUSPEND
+	}
+	for _, cap := range capability.List() {
+		if cap > last {
+			continue
+		}
+		if !allowNetRaw && cap == capability.CAP_NET_RAW {
+			continue
+		}
+		allCaps = append(allCaps, fmt.Sprintf("CAP_%s", strings.ToUpper(cap.String())))
+	}
+	return allCaps
 }

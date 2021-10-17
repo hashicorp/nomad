@@ -8,24 +8,25 @@
   {{#if this.taskGroup.scaling}}
   <div
     data-test-scale-controls
-    class="button-bar is-shadowless is-text bumper-left {{if (or this.runningDeployment (cannot "scale job")) "tooltip multiline"}}"
+    class="button-bar is-shadowless is-text bumper-left {{if (or this.runningDeployment (cannot "scale job" namespace=this.namespace)) "tooltip multiline"}}"
     aria-label={{this.tooltipText}}>
       <button
         data-test-scale="decrement"
         role="button"
         aria-label="decrement"
         class="button is-xsmall is-light"
-        disabled={{or this.isMinimum this.runningDeployment (cannot "scale job")}}
+        disabled={{or this.isMinimum this.runningDeployment (cannot "scale job" namespace=this.namespace)}}
         onclick={{action "countDown"}}
         type="button">
         {{x-icon "minus-plain" class="is-text"}}
       </button>
       <button
+        data-test-scale-controls-increment
         data-test-scale="increment"
         role="button"
         aria-label="increment"
         class="button is-xsmall is-light"
-        disabled={{or this.isMaximum this.runningDeployment (cannot "scale job")}}
+        disabled={{or this.isMaximum this.runningDeployment (cannot "scale job" namespace=this.namespace)}}
         onclick={{action "countUp"}}
         type="button">
         {{x-icon "plus-plain" class="is-text"}}
@@ -37,6 +38,6 @@
   <div class="inline-chart"><AllocationStatusBar @allocationContainer={{this.taskGroup.summary}} @isNarrow={{true}} /></div>
 </td>
 <td data-test-task-group-volume>{{if this.taskGroup.volumes.length "Yes"}}</td>
-<td data-test-task-group-cpu>{{this.taskGroup.reservedCPU}} MHz</td>
-<td data-test-task-group-mem>{{this.taskGroup.reservedMemory}} MiB</td>
-<td data-test-task-group-disk>{{this.taskGroup.reservedEphemeralDisk}} MiB</td>
+<td data-test-task-group-cpu>{{format-scheduled-hertz this.taskGroup.reservedCPU}}</td>
+<td data-test-task-group-mem>{{format-scheduled-bytes this.taskGroup.reservedMemory start="MiB"}}</td>
+<td data-test-task-group-disk>{{format-scheduled-bytes this.taskGroup.reservedEphemeralDisk start="MiB"}}</td>

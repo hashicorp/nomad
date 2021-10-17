@@ -6,13 +6,14 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
+	"github.com/mitchellh/mapstructure"
+	"github.com/stretchr/testify/require"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
-	"github.com/mitchellh/mapstructure"
-	"github.com/stretchr/testify/require"
-	"github.com/zclconf/go-cty/cty"
 )
 
 type HCLParser struct {
@@ -71,7 +72,14 @@ func (b *HCLParser) parse(t *testing.T, config, out interface{}) {
 	require.Empty(t, diags)
 
 	ctyValue, diag, errs := ParseHclInterface(config, decSpec, b.vars)
-	require.Nil(t, errs)
+	if len(errs) > 1 {
+		t.Error("unexpected errors parsing file")
+		for _, err := range errs {
+			t.Errorf(" * %v", err)
+
+		}
+		t.FailNow()
+	}
 	require.Empty(t, diag)
 
 	// encode

@@ -50,6 +50,17 @@ module('Unit | Service | Token', function(hooks) {
     );
   });
 
+  test('authorizedRequest does not include the region param when the region param is already in the URL', function(assert) {
+    const token = this.subject();
+
+    token.authorizedRequest('/path?query=param&region=already-here');
+    assert.equal(
+      this.server.handledRequests.pop().url,
+      '/path?query=param&region=already-here',
+      'The region param that is already in the URL takes precedence over the region in the service'
+    );
+  });
+
   test('authorizedRawRequest bypasses adding the region param', function(assert) {
     const token = this.subject();
 

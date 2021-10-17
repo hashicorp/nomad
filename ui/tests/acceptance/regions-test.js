@@ -6,7 +6,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
-import PageLayout from 'nomad-ui/tests/pages/layout';
+import Layout from 'nomad-ui/tests/pages/layout';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 
 module('Acceptance | regions (only one)', function(hooks) {
@@ -29,7 +29,7 @@ module('Acceptance | regions (only one)', function(hooks) {
 
     await JobsList.visit();
 
-    assert.notOk(PageLayout.navbar.regionSwitcher.isPresent, 'No region switcher');
+    assert.notOk(Layout.navbar.regionSwitcher.isPresent, 'No region switcher');
     assert.equal(document.title, 'Jobs - Nomad');
   });
 
@@ -38,7 +38,7 @@ module('Acceptance | regions (only one)', function(hooks) {
 
     await JobsList.visit();
 
-    assert.notOk(PageLayout.navbar.regionSwitcher.isPresent, 'No region switcher');
+    assert.notOk(Layout.navbar.regionSwitcher.isPresent, 'No region switcher');
   });
 
   test('pages do not include the region query param', async function(assert) {
@@ -60,8 +60,8 @@ module('Acceptance | regions (only one)', function(hooks) {
 
     await JobsList.visit();
     await JobsList.jobs.objectAt(0).clickRow();
-    await PageLayout.gutter.visitClients();
-    await PageLayout.gutter.visitServers();
+    await Layout.gutter.visitClients();
+    await Layout.gutter.visitServers();
     server.pretender.handledRequests.forEach(req => {
       assert.notOk(req.url.includes('region='), req.url);
     });
@@ -84,7 +84,7 @@ module('Acceptance | regions (many)', function(hooks) {
   test('the region switcher is rendered in the nav bar and the region is in the page title', async function(assert) {
     await JobsList.visit();
 
-    assert.ok(PageLayout.navbar.regionSwitcher.isPresent, 'Region switcher is shown');
+    assert.ok(Layout.navbar.regionSwitcher.isPresent, 'Region switcher is shown');
     assert.equal(document.title, 'Jobs - global - Nomad');
   });
 
@@ -100,7 +100,7 @@ module('Acceptance | regions (many)', function(hooks) {
 
     await JobsList.visit();
 
-    await selectChoose('[data-test-region-switcher]', newRegion);
+    await selectChoose('[data-test-region-switcher-parent]', newRegion);
 
     assert.ok(
       currentURL().includes(`region=${newRegion}`),
@@ -115,7 +115,7 @@ module('Acceptance | regions (many)', function(hooks) {
 
     await JobsList.visit({ region: startingRegion });
 
-    await selectChoose('[data-test-region-switcher]', defaultRegion);
+    await selectChoose('[data-test-region-switcher-parent]', defaultRegion);
 
     assert.notOk(currentURL().includes('region='), 'No region query param for the default region');
     assert.equal(
@@ -130,7 +130,7 @@ module('Acceptance | regions (many)', function(hooks) {
 
     await Allocation.visit({ id: server.db.allocations[0].id });
 
-    await selectChoose('[data-test-region-switcher]', newRegion);
+    await selectChoose('[data-test-region-switcher-parent]', newRegion);
 
     assert.ok(currentURL().includes('/jobs?'), 'Back at the jobs page');
   });
@@ -159,10 +159,15 @@ module('Acceptance | regions (many)', function(hooks) {
     await JobsList.visit({ region });
 
     await JobsList.jobs.objectAt(0).clickRow();
-    await PageLayout.gutter.visitClients();
-    await PageLayout.gutter.visitServers();
+    await Layout.gutter.visitClients();
+    await Layout.gutter.visitServers();
     const [
       ,
+      ,
+      ,
+      // License request
+      // Token/policies request
+      // Search feature detection
       regionsRequest,
       defaultRegionRequest,
       ...appRequests

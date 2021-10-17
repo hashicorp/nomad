@@ -2,7 +2,10 @@ package allocrunner
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"strings"
+	"syscall"
 
 	hclog "github.com/hashicorp/go-hclog"
 	clientconfig "github.com/hashicorp/nomad/client/config"
@@ -23,8 +26,18 @@ func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Ma
 		tgNetMode = tg.Networks[0].Mode
 	}
 
+	groupIsolationMode := netModeToIsolationMode(tgNetMode)
+
+	// Setting the hostname is only possible where the task groups networking
+	// mode is group; meaning bridge or none.
+	if len(tg.Networks) > 0 &&
+		(groupIsolationMode != drivers.NetIsolationModeGroup && tg.Networks[0].Hostname != "") {
+		return nil, fmt.Errorf("hostname cannot be set on task group using %q networking mode",
+			groupIsolationMode)
+	}
+
 	// networkInitiator tracks the task driver which needs to create the network
-	// to check for multiple drivers needing the create the network
+	// to check for multiple drivers needing to create the network.
 	var networkInitiator string
 
 	// driverCaps tracks which drivers we've checked capabilities for so as not
@@ -77,6 +90,14 @@ func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Ma
 
 			nm = netManager
 			networkInitiator = task.Name
+		} else if tg.Networks[0].Hostname != "" {
+			// TODO jrasell: remove once the default linux network manager
+			//  supports setting the hostname in bridged mode. This currently
+			//  indicates only Docker supports this, which is true unless a
+			//  custom driver can which means this check still holds as true as
+			//  we can tell.
+			//  Please see: https://github.com/hashicorp/nomad/issues/11180
+			return nil, fmt.Errorf("hostname is not currently supported on driver %s", task.Driver)
 		}
 
 		// mark this driver's capabilities as checked
@@ -89,9 +110,21 @@ func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Ma
 // defaultNetworkManager creates a network namespace for the alloc
 type defaultNetworkManager struct{}
 
-func (*defaultNetworkManager) CreateNetwork(allocID string) (*drivers.NetworkIsolationSpec, bool, error) {
+// CreateNetwork is the CreateNetwork implementation of the
+// drivers.DriverNetworkManager interface function. It does not currently
+// support setting the hostname of the network namespace.
+func (*defaultNetworkManager) CreateNetwork(allocID string, _ *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
 	netns, err := nsutil.NewNS(allocID)
 	if err != nil {
+		// when a client restarts, the namespace will already exist and
+		// there will be a namespace file in use by the task process
+		if e, ok := err.(*os.PathError); ok && e.Err == syscall.EPERM {
+			nsPath := path.Join(nsutil.NetNSRunDir, allocID)
+			_, err := os.Stat(nsPath)
+			if err == nil {
+				return nil, false, nil
+			}
+		}
 		return nil, false, err
 	}
 
@@ -140,9 +173,17 @@ func newNetworkConfigurator(log hclog.Logger, alloc *structs.Allocation, config 
 
 	switch {
 	case netMode == "bridge":
-		return newBridgeNetworkConfigurator(log, config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath, ignorePortMappingHostIP)
+		c, err := newBridgeNetworkConfigurator(log, config.BridgeNetworkName, config.BridgeNetworkAllocSubnet, config.CNIPath, ignorePortMappingHostIP)
+		if err != nil {
+			return nil, err
+		}
+		return &synchronizedNetworkConfigurator{c}, nil
 	case strings.HasPrefix(netMode, "cni/"):
-		return newCNINetworkConfigurator(log, config.CNIPath, config.CNIInterfacePrefix, config.CNIConfigDir, netMode[4:], ignorePortMappingHostIP)
+		c, err := newCNINetworkConfigurator(log, config.CNIPath, config.CNIInterfacePrefix, config.CNIConfigDir, netMode[4:], ignorePortMappingHostIP)
+		if err != nil {
+			return nil, err
+		}
+		return &synchronizedNetworkConfigurator{c}, nil
 	default:
 		return &hostNetworkConfigurator{}, nil
 	}

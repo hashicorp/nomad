@@ -97,12 +97,12 @@ func (m *MockConsulServiceClient) AllocRegistrations(allocID string) (*consul.Al
 	return nil, nil
 }
 
-func (m *MockConsulServiceClient) UpdateTTL(checkID, output, status string) error {
+func (m *MockConsulServiceClient) UpdateTTL(checkID, namespace, output, status string) error {
 	// TODO(tgross): this method is here so we can implement the
 	// interface but the locking we need for testing creates a lot
 	// of opportunities for deadlocks in testing that will never
 	// appear in live code.
-	m.logger.Trace("UpdateTTL", "check_id", checkID, "status", status)
+	m.logger.Trace("UpdateTTL", "check_id", checkID, "namespace", namespace, "status", status)
 	return nil
 }
 

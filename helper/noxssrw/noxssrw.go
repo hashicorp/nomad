@@ -131,7 +131,7 @@ func (w *NoXSSResponseWriter) Write(p []byte) (int, error) {
 	}
 
 	// >= 512 bytes available, set the Content-Type and flush.
-	all := append(w.buf, p...)
+	all := append(w.buf, p...) //nolint:gocritic
 	contentType := http.DetectContentType(all)
 
 	// Prefix match to exclude the character set which may be user
@@ -160,7 +160,6 @@ func (w *NoXSSResponseWriter) Write(p []byte) (int, error) {
 	// Headers and buffer were written, this writer has been
 	// flushed and can be a passthrough
 	w.flushed = true
-	w.buf = w.buf[:]
 
 	// Write p
 	return w.orig.Write(p)

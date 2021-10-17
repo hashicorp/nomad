@@ -23,9 +23,12 @@ Usage: nomad server members [options]
   Display a list of the known servers and their status. Only Nomad servers are
   able to service this command.
 
+  If ACLs are enabled, this option requires a token with the 'node:read'
+  capability.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Server Members Options:
 
@@ -194,7 +197,7 @@ func regionLeaders(client *api.Client, mem []*api.AgentMember) (map[string]strin
 	for reg := range regions {
 		l, err := status.RegionLeader(reg)
 		if err != nil {
-			multierror.Append(&mErr, fmt.Errorf("Region %q: %v", reg, err))
+			_ = multierror.Append(&mErr, fmt.Errorf("Region %q: %v", reg, err))
 			continue
 		}
 

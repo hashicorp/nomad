@@ -9,9 +9,11 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
+
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
@@ -63,7 +65,20 @@ var (
 	}
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
-	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{})
+	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
+		"default_pid_mode": hclspec.NewDefault(
+			hclspec.NewAttr("default_pid_mode", "string", false),
+			hclspec.NewLiteral(`"private"`),
+		),
+		"default_ipc_mode": hclspec.NewDefault(
+			hclspec.NewAttr("default_ipc_mode", "string", false),
+			hclspec.NewLiteral(`"private"`),
+		),
+		"allow_caps": hclspec.NewDefault(
+			hclspec.NewAttr("allow_caps", "list(string)", false),
+			hclspec.NewLiteral(capabilities.HCLSpecLiteral),
+		),
+	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a taskConfig within a job. It is returned in the TaskConfigSchema RPC
@@ -76,11 +91,15 @@ var (
 		"jar_path":    hclspec.NewAttr("jar_path", "string", false),
 		"jvm_options": hclspec.NewAttr("jvm_options", "list(string)", false),
 		"args":        hclspec.NewAttr("args", "list(string)", false),
+		"pid_mode":    hclspec.NewAttr("pid_mode", "string", false),
+		"ipc_mode":    hclspec.NewAttr("ipc_mode", "string", false),
+		"cap_add":     hclspec.NewAttr("cap_add", "list(string)", false),
+		"cap_drop":    hclspec.NewAttr("cap_drop", "list(string)", false),
 	})
 
-	// capabilities is returned by the Capabilities RPC and indicates what
+	// driverCapabilities is returned by the Capabilities RPC and indicates what
 	// optional features this driver supports
-	capabilities = &drivers.Capabilities{
+	driverCapabilities = &drivers.Capabilities{
 		SendSignals: false,
 		Exec:        false,
 		FSIsolation: drivers.FSIsolationNone,
@@ -96,18 +115,104 @@ var (
 
 func init() {
 	if runtime.GOOS == "linux" {
-		capabilities.FSIsolation = drivers.FSIsolationChroot
-		capabilities.MountConfigs = drivers.MountConfigSupportAll
+		driverCapabilities.FSIsolation = drivers.FSIsolationChroot
+		driverCapabilities.MountConfigs = drivers.MountConfigSupportAll
 	}
+}
+
+// Config is the driver configuration set by the SetConfig RPC call
+type Config struct {
+	// DefaultModePID is the default PID isolation set for all tasks using
+	// exec-based task drivers.
+	DefaultModePID string `codec:"default_pid_mode"`
+
+	// DefaultModeIPC is the default IPC isolation set for all tasks using
+	// exec-based task drivers.
+	DefaultModeIPC string `codec:"default_ipc_mode"`
+
+	// AllowCaps configures which Linux Capabilities are enabled for tasks
+	// running on this node.
+	AllowCaps []string `codec:"allow_caps"`
+}
+
+func (c *Config) validate() error {
+	switch c.DefaultModePID {
+	case executor.IsolationModePrivate, executor.IsolationModeHost:
+	default:
+		return fmt.Errorf("default_pid_mode must be %q or %q, got %q", executor.IsolationModePrivate, executor.IsolationModeHost, c.DefaultModePID)
+	}
+
+	switch c.DefaultModeIPC {
+	case executor.IsolationModePrivate, executor.IsolationModeHost:
+	default:
+		return fmt.Errorf("default_ipc_mode must be %q or %q, got %q", executor.IsolationModePrivate, executor.IsolationModeHost, c.DefaultModeIPC)
+	}
+
+	badCaps := capabilities.Supported().Difference(capabilities.New(c.AllowCaps))
+	if !badCaps.Empty() {
+		return fmt.Errorf("allow_caps configured with capabilities not supported by system: %s", badCaps)
+	}
+
+	return nil
 }
 
 // TaskConfig is the driver configuration of a taskConfig within a job
 type TaskConfig struct {
-	Class     string   `codec:"class"`
-	ClassPath string   `codec:"class_path"`
-	JarPath   string   `codec:"jar_path"`
-	JvmOpts   []string `codec:"jvm_options"`
-	Args      []string `codec:"args"` // extra arguments to java executable
+	// Class indicates which class contains the java entry point.
+	Class string `codec:"class"`
+
+	// ClassPath indicates where class files are found.
+	ClassPath string `codec:"class_path"`
+
+	// JarPath indicates where a jar  file is found.
+	JarPath string `codec:"jar_path"`
+
+	// JvmOpts are arguments to pass to the JVM
+	JvmOpts []string `codec:"jvm_options"`
+
+	// Args are extra arguments to java executable
+	Args []string `codec:"args"`
+
+	// ModePID indicates whether PID namespace isolation is enabled for the task.
+	// Must be "private" or "host" if set.
+	ModePID string `codec:"pid_mode"`
+
+	// ModeIPC indicates whether IPC namespace isolation is enabled for the task.
+	// Must be "private" or "host" if set.
+	ModeIPC string `codec:"ipc_mode"`
+
+	// CapAdd is a set of linux capabilities to enable.
+	CapAdd []string `codec:"cap_add"`
+
+	// CapDrop is a set of linux capabilities to disable.
+	CapDrop []string `codec:"cap_drop"`
+}
+
+func (tc *TaskConfig) validate() error {
+	switch tc.ModePID {
+	case "", executor.IsolationModePrivate, executor.IsolationModeHost:
+	default:
+		return fmt.Errorf("pid_mode must be %q or %q, got %q", executor.IsolationModePrivate, executor.IsolationModeHost, tc.ModePID)
+
+	}
+
+	switch tc.ModeIPC {
+	case "", executor.IsolationModePrivate, executor.IsolationModeHost:
+	default:
+		return fmt.Errorf("ipc_mode must be %q or %q, got %q", executor.IsolationModePrivate, executor.IsolationModeHost, tc.ModeIPC)
+	}
+
+	supported := capabilities.Supported()
+	badAdds := supported.Difference(capabilities.New(tc.CapAdd))
+	if !badAdds.Empty() {
+		return fmt.Errorf("cap_add configured with capabilities not supported by system: %s", badAdds)
+	}
+	badDrops := supported.Difference(capabilities.New(tc.CapDrop))
+	if !badDrops.Empty() {
+		return fmt.Errorf("cap_drop configured with capabilities not supported by system: %s", badDrops)
+	}
+
+	return nil
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -125,6 +230,9 @@ type Driver struct {
 	// eventer is used to handle multiplexing of TaskEvents calls such that an
 	// event can be broadcast to all callers
 	eventer *eventer.Eventer
+
+	// config is the driver configuration set by the SetConfig RPC
+	config Config
 
 	// tasks is the in memory datastore mapping taskIDs to taskHandle
 	tasks *taskStore
@@ -159,6 +267,18 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 }
 
 func (d *Driver) SetConfig(cfg *base.Config) error {
+	// unpack, validate, and set agent plugin config
+	var config Config
+	if len(cfg.PluginConfig) != 0 {
+		if err := base.MsgPackDecode(cfg.PluginConfig, &config); err != nil {
+			return err
+		}
+	}
+	if err := config.validate(); err != nil {
+		return err
+	}
+	d.config = config
+
 	if cfg != nil && cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
 	}
@@ -170,7 +290,7 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 }
 
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
-	return capabilities, nil
+	return driverCapabilities, nil
 }
 
 func (d *Driver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
@@ -209,7 +329,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 			return fp
 		}
 
-		mount, err := fingerprint.FindCgroupMountpointDir()
+		mount, err := cgutil.FindCgroupMountpointDir()
 		if err != nil {
 			fp.Health = drivers.HealthStateUnhealthy
 			fp.HealthDescription = drivers.NoCgroupMountMessage
@@ -236,7 +356,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		}
 	}
 
-	version, runtime, vm, err := javaVersionInfo()
+	version, jdkJRE, vm, err := javaVersionInfo()
 	if err != nil {
 		// return no error, as it isn't an error to not find java, it just means we
 		// can't use it.
@@ -247,7 +367,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 
 	fp.Attributes[driverAttr] = pstructs.NewBoolAttribute(true)
 	fp.Attributes[driverVersionAttr] = pstructs.NewStringAttribute(version)
-	fp.Attributes["driver.java.runtime"] = pstructs.NewStringAttribute(runtime)
+	fp.Attributes["driver.java.runtime"] = pstructs.NewStringAttribute(jdkJRE)
 	fp.Attributes["driver.java.vm"] = pstructs.NewStringAttribute(vm)
 
 	return fp
@@ -318,6 +438,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
+	if err := driverConfig.validate(); err != nil {
+		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
+	}
+
 	if driverConfig.Class == "" && driverConfig.JarPath == "" {
 		return nil, nil, fmt.Errorf("jar_path or class must be specified")
 	}
@@ -338,7 +462,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	executorConfig := &executor.ExecutorConfig{
 		LogFile:     pluginLogFile,
 		LogLevel:    "debug",
-		FSIsolation: capabilities.FSIsolation == drivers.FSIsolationChroot,
+		FSIsolation: driverCapabilities.FSIsolation == drivers.FSIsolationChroot,
 	}
 
 	exec, pluginClient, err := executor.CreateExecutor(
@@ -361,6 +485,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		cfg.Mounts = append(cfg.Mounts, dnsMount)
 	}
 
+	caps, err := capabilities.Calculate(
+		capabilities.NomadDefaults(), d.config.AllowCaps, driverConfig.CapAdd, driverConfig.CapDrop,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	d.logger.Debug("task capabilities", "capabilities", caps)
+
 	execCmd := &executor.ExecCommand{
 		Cmd:              absPath,
 		Args:             args,
@@ -374,6 +506,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		Mounts:           cfg.Mounts,
 		Devices:          cfg.Devices,
 		NetworkIsolation: cfg.NetworkIsolation,
+		ModePID:          executor.IsolationMode(d.config.DefaultModePID, driverConfig.ModePID),
+		ModeIPC:          executor.IsolationMode(d.config.DefaultModeIPC, driverConfig.ModeIPC),
+		Capabilities:     caps,
 	}
 
 	ps, err := exec.Launch(execCmd)
@@ -412,7 +547,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 }
 
 func javaCmdArgs(driverConfig TaskConfig) []string {
-	args := []string{}
+	var args []string
+
 	// Look for jvm options
 	if len(driverConfig.JvmOpts) != 0 {
 		args = append(args, driverConfig.JvmOpts...)

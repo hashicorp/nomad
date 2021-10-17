@@ -49,6 +49,9 @@ type AuditSink struct {
 
 	// RotateMaxFiles is the max number of log files to keep
 	RotateMaxFiles int `hcl:"rotate_max_files"`
+
+	// Mode is the octal formatted permissions for the audit log files.
+	Mode string `hcl:"mode"`
 }
 
 // AuditFilter is the configuration for a Audit Log Filter

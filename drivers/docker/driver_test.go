@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"runtime"
 	"runtime/debug"
+	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -333,7 +334,7 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		imageID, err = d.Impl().(*Driver).loadImage(task, &taskCfg, client)
 	} else {
-		image, lErr := client.InspectImage("hashicorpnomad/busybox-windows:server2016-0.1")
+		image, lErr := client.InspectImage(taskCfg.Image)
 		err = lErr
 		if image != nil {
 			imageID = image.ID
@@ -798,11 +799,77 @@ func TestDockerDriver_Labels(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	// expect to see 1 additional standard labels
+	// expect to see 1 additional standard labels (allocID)
 	require.Equal(t, len(cfg.Labels)+1, len(container.Config.Labels))
 	for k, v := range cfg.Labels {
 		require.Equal(t, v, container.Config.Labels[k])
 	}
+}
+
+func TestDockerDriver_ExtraLabels(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dockerClientConfig := make(map[string]interface{})
+
+	dockerClientConfig["extra_labels"] = []string{"task*", "job_name"}
+	client, d, handle, cleanup := dockerSetup(t, task, dockerClientConfig)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	expectedLabels := map[string]string{
+		"com.hashicorp.nomad.alloc_id":        task.AllocID,
+		"com.hashicorp.nomad.task_name":       task.Name,
+		"com.hashicorp.nomad.task_group_name": task.TaskGroupName,
+		"com.hashicorp.nomad.job_name":        task.JobName,
+	}
+
+	// expect to see 4 labels (allocID by default, task_name and task_group_name due to task*, and job_name)
+	require.Equal(t, 4, len(container.Config.Labels))
+	for k, v := range expectedLabels {
+		require.Equal(t, v, container.Config.Labels[k])
+	}
+}
+
+func TestDockerDriver_LoggingConfiguration(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dockerClientConfig := make(map[string]interface{})
+	loggerConfig := map[string]string{"gelf-address": "udp://1.2.3.4:12201", "tag": "gelf"}
+
+	dockerClientConfig["logging"] = LoggingConfig{
+		Type:   "gelf",
+		Config: loggerConfig,
+	}
+	client, d, handle, cleanup := dockerSetup(t, task, dockerClientConfig)
+	defer cleanup()
+	require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+	container, err := client.InspectContainer(handle.containerID)
+	require.NoError(t, err)
+
+	require.Equal(t, "gelf", container.HostConfig.LogConfig.Type)
+	require.Equal(t, loggerConfig, container.HostConfig.LogConfig.Config)
 }
 
 func TestDockerDriver_ForcePull(t *testing.T) {
@@ -1064,7 +1131,7 @@ func TestDockerDriver_CreateContainerConfig_Labels(t *testing.T) {
 	expectedLabels := map[string]string{
 		// user provided labels
 		"user_label": "user_value",
-		// default labels
+		// default label
 		"com.hashicorp.nomad.alloc_id": task.AllocID,
 	}
 
@@ -1148,6 +1215,84 @@ func TestDockerDriver_CreateContainerConfig_Logging(t *testing.T) {
 			require.Equal(t, c.expectedConfig.Config["max-size"], cc.HostConfig.LogConfig.Config["max-size"])
 		})
 	}
+}
+
+func TestDockerDriver_CreateContainerConfig_Mounts(t *testing.T) {
+	t.Parallel()
+
+	task, cfg, ports := dockerTask(t)
+	defer freeport.Return(ports)
+
+	cfg.Mounts = []DockerMount{
+		{
+			Type:   "bind",
+			Target: "/map-bind-target",
+			Source: "/map-source",
+		},
+		{
+			Type:   "tmpfs",
+			Target: "/map-tmpfs-target",
+		},
+	}
+	cfg.MountsList = []DockerMount{
+		{
+			Type:   "bind",
+			Target: "/list-bind-target",
+			Source: "/list-source",
+		},
+		{
+			Type:   "tmpfs",
+			Target: "/list-tmpfs-target",
+		},
+	}
+
+	expectedSrcPrefix := "/"
+	if runtime.GOOS == "windows" {
+		expectedSrcPrefix = "redis-demo\\"
+	}
+	expected := []docker.HostMount{
+		// from mount map
+		{
+			Type:        "bind",
+			Target:      "/map-bind-target",
+			Source:      expectedSrcPrefix + "map-source",
+			BindOptions: &docker.BindOptions{},
+		},
+		{
+			Type:          "tmpfs",
+			Target:        "/map-tmpfs-target",
+			TempfsOptions: &docker.TempfsOptions{},
+		},
+		// from mount list
+		{
+			Type:        "bind",
+			Target:      "/list-bind-target",
+			Source:      expectedSrcPrefix + "list-source",
+			BindOptions: &docker.BindOptions{},
+		},
+		{
+			Type:          "tmpfs",
+			Target:        "/list-tmpfs-target",
+			TempfsOptions: &docker.TempfsOptions{},
+		},
+	}
+
+	require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+	driver.config.Volumes.Enabled = true
+
+	cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	require.NoError(t, err)
+
+	found := cc.HostConfig.Mounts
+	sort.Slice(found, func(i, j int) bool { return strings.Compare(found[i].Target, found[j].Target) < 0 })
+	sort.Slice(expected, func(i, j int) bool {
+		return strings.Compare(expected[i].Target, expected[j].Target) < 0
+	})
+
+	require.Equal(t, expected, found)
 }
 
 func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
@@ -1250,7 +1395,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 		},
 		{
 			Name:    "default-allowlist-drop-existing",
-			CapDrop: []string{"fowner", "mknod"},
+			CapDrop: []string{"fowner", "mknod", "net_raw"},
 		},
 		{
 			Name:      "restrictive-allowlist-drop-all",
@@ -1261,7 +1406,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 			Name:      "restrictive-allowlist-add-allowed",
 			CapAdd:    []string{"fowner", "mknod"},
 			CapDrop:   []string{"all"},
-			Allowlist: "fowner,mknod",
+			Allowlist: "mknod,fowner",
 		},
 		{
 			Name:       "restrictive-allowlist-add-forbidden",
@@ -1272,7 +1417,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 		},
 		{
 			Name:      "permissive-allowlist",
-			CapAdd:    []string{"net_admin", "mknod"},
+			CapAdd:    []string{"mknod", "net_admin"},
 			Allowlist: "all",
 		},
 		{
@@ -1379,6 +1524,53 @@ func TestDockerDriver_DNS(t *testing.T) {
 		dtestutil.TestTaskDNSConfig(t, d, task.ID, c.cfg)
 	}
 
+}
+
+func TestDockerDriver_CPUSetCPUs(t *testing.T) {
+	if !tu.IsCI() {
+		t.Parallel()
+	}
+	testutil.DockerCompatible(t)
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support CPUSetCPUs.")
+	}
+
+	testCases := []struct {
+		Name       string
+		CPUSetCPUs string
+	}{
+		{
+			Name:       "Single CPU",
+			CPUSetCPUs: "0",
+		},
+		{
+			Name:       "Comma separated list of CPUs",
+			CPUSetCPUs: "0,1",
+		},
+		{
+			Name:       "Range of CPUs",
+			CPUSetCPUs: "0-1",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			task, cfg, ports := dockerTask(t)
+			defer freeport.Return(ports)
+
+			cfg.CPUSetCPUs = testCase.CPUSetCPUs
+			require.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+			client, d, handle, cleanup := dockerSetup(t, task, nil)
+			defer cleanup()
+			require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+			container, err := client.InspectContainer(handle.containerID)
+			require.NoError(t, err)
+
+			require.Equal(t, cfg.CPUSetCPUs, container.HostConfig.CPUSetCPUs)
+		})
+	}
 }
 
 func TestDockerDriver_MemoryHardLimit(t *testing.T) {
@@ -2022,6 +2214,15 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	}
 	testutil.DockerCompatible(t)
 
+	cfg := map[string]interface{}{
+		"volumes": map[string]interface{}{
+			"enabled": true,
+		},
+		"gc": map[string]interface{}{
+			"image": false,
+		},
+	}
+
 	tmpvol, err := ioutil.TempDir("", "nomadtest_docker_volumesenabled")
 	require.NoError(t, err)
 
@@ -2029,7 +2230,7 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	tmpvol, err = filepath.EvalSymlinks(tmpvol)
 	require.NoError(t, err)
 
-	task, driver, _, hostpath, cleanup := setupDockerVolumes(t, nil, tmpvol)
+	task, driver, _, hostpath, cleanup := setupDockerVolumes(t, cfg, tmpvol)
 	defer cleanup()
 
 	_, _, err = driver.StartTask(task)
@@ -2094,6 +2295,9 @@ func TestDockerDriver_Mounts(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			d := dockerDriverHarness(t, nil)
+			driver := d.Impl().(*Driver)
+			driver.config.Volumes.Enabled = true
+
 			// Build the task
 			task, cfg, ports := dockerTask(t)
 			defer freeport.Return(ports)
@@ -2651,44 +2855,211 @@ func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
 func TestDockerDriver_memoryLimits(t *testing.T) {
 	t.Parallel()
 
-	t.Run("driver hard limit not set", func(t *testing.T) {
-		memory, memoryReservation := new(Driver).memoryLimits(0, 256*1024*1024)
-		require.Equal(t, int64(256*1024*1024), memory)
-		require.Equal(t, int64(0), memoryReservation)
-	})
+	cases := []struct {
+		name           string
+		driverMemoryMB int64
+		taskResources  drivers.MemoryResources
+		expectedHard   int64
+		expectedSoft   int64
+	}{
+		{
+			"plain request",
+			0,
+			drivers.MemoryResources{MemoryMB: 10},
+			10 * 1024 * 1024,
+			0,
+		},
+		{
+			"with driver max",
+			20,
+			drivers.MemoryResources{MemoryMB: 10},
+			20 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+		{
+			"with resources max",
+			20,
+			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 20},
+			20 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+		{
+			"with driver and resources max: higher driver",
+			30,
+			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 20},
+			30 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+		{
+			"with driver and resources max: higher resources",
+			20,
+			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 30},
+			30 * 1024 * 1024,
+			10 * 1024 * 1024,
+		},
+	}
 
-	t.Run("driver hard limit is set", func(t *testing.T) {
-		memory, memoryReservation := new(Driver).memoryLimits(512, 256*1024*1024)
-		require.Equal(t, int64(512*1024*1024), memory)
-		require.Equal(t, int64(256*1024*1024), memoryReservation)
-	})
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			hard, soft := memoryLimits(c.driverMemoryMB, c.taskResources)
+			require.Equal(t, c.expectedHard, hard)
+			require.Equal(t, c.expectedSoft, soft)
+		})
+	}
 }
 
 func TestDockerDriver_parseSignal(t *testing.T) {
 	t.Parallel()
 
-	d := new(Driver)
+	tests := []struct {
+		name            string
+		runtime         string
+		specifiedSignal string
+		expectedSignal  string
+	}{
+		{
+			name:            "default",
+			runtime:         runtime.GOOS,
+			specifiedSignal: "",
+			expectedSignal:  "SIGTERM",
+		},
+		{
+			name:            "set",
+			runtime:         runtime.GOOS,
+			specifiedSignal: "SIGHUP",
+			expectedSignal:  "SIGHUP",
+		},
+		{
+			name:            "windows conversion",
+			runtime:         "windows",
+			specifiedSignal: "SIGINT",
+			expectedSignal:  "SIGTERM",
+		},
+		{
+			name:            "not signal",
+			runtime:         runtime.GOOS,
+			specifiedSignal: "SIGDOESNOTEXIST",
+			expectedSignal:  "", // throws error
+		},
+	}
 
-	t.Run("default", func(t *testing.T) {
-		s, err := d.parseSignal(runtime.GOOS, "")
-		require.NoError(t, err)
-		require.Equal(t, syscall.SIGTERM, s)
-	})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s, err := parseSignal(tc.runtime, tc.specifiedSignal)
+			if tc.expectedSignal == "" {
+				require.Error(t, err, "invalid signal")
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, s.(syscall.Signal), s)
+			}
+		})
+	}
+}
 
-	t.Run("set", func(t *testing.T) {
-		s, err := d.parseSignal(runtime.GOOS, "SIGHUP")
-		require.NoError(t, err)
-		require.Equal(t, syscall.SIGHUP, s)
-	})
+// This test asserts that Nomad isn't overriding the STOPSIGNAL in a Dockerfile
+func TestDockerDriver_StopSignal(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipped on windows, we don't have image variants available")
+	}
 
-	t.Run("windows conversion", func(t *testing.T) {
-		s, err := d.parseSignal("windows", "SIGINT")
-		require.NoError(t, err)
-		require.Equal(t, syscall.SIGTERM, s)
-	})
+	testutil.DockerCompatible(t)
+	cases := []struct {
+		name            string
+		variant         string
+		jobKillSignal   string
+		expectedSignals []string
+	}{
+		{
+			name:            "stopsignal-only",
+			variant:         "stopsignal",
+			jobKillSignal:   "",
+			expectedSignals: []string{"19", "9"},
+		},
+		{
+			name:            "stopsignal-killsignal",
+			variant:         "stopsignal",
+			jobKillSignal:   "SIGTERM",
+			expectedSignals: []string{"15", "19", "9"},
+		},
+		{
+			name:            "killsignal-only",
+			variant:         "",
+			jobKillSignal:   "SIGTERM",
+			expectedSignals: []string{"15", "15", "9"},
+		},
+		{
+			name:            "nosignals-default",
+			variant:         "",
+			jobKillSignal:   "",
+			expectedSignals: []string{"15", "9"},
+		},
+	}
 
-	t.Run("not a signal", func(t *testing.T) {
-		_, err := d.parseSignal(runtime.GOOS, "SIGDOESNOTEXIST")
-		require.Error(t, err)
-	})
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			taskCfg := newTaskConfig(c.variant, []string{"sleep", "9901"})
+
+			task := &drivers.TaskConfig{
+				ID:        uuid.Generate(),
+				Name:      c.name,
+				AllocID:   uuid.Generate(),
+				Resources: basicResources,
+			}
+			require.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
+
+			d := dockerDriverHarness(t, nil)
+			cleanup := d.MkAllocDir(task, true)
+			defer cleanup()
+
+			if c.variant == "stopsignal" {
+				copyImage(t, task.TaskDir(), "busybox_stopsignal.tar") // Default busybox image with STOPSIGNAL 19 added
+			} else {
+				copyImage(t, task.TaskDir(), "busybox.tar")
+			}
+
+			client := newTestDockerClient(t)
+
+			listener := make(chan *docker.APIEvents)
+			err := client.AddEventListener(listener)
+			require.NoError(t, err)
+
+			defer func() {
+				err := client.RemoveEventListener(listener)
+				require.NoError(t, err)
+			}()
+
+			_, _, err = d.StartTask(task)
+			require.NoError(t, err)
+			require.NoError(t, d.WaitUntilStarted(task.ID, 5*time.Second))
+
+			stopErr := make(chan error, 1)
+			go func() {
+				err := d.StopTask(task.ID, 1*time.Second, c.jobKillSignal)
+				stopErr <- err
+			}()
+
+			timeout := time.After(10 * time.Second)
+			var receivedSignals []string
+		WAIT:
+			for {
+				select {
+				case msg := <-listener:
+					// Only add kill signals
+					if msg.Action == "kill" {
+						sig := msg.Actor.Attributes["signal"]
+						receivedSignals = append(receivedSignals, sig)
+
+						if reflect.DeepEqual(receivedSignals, c.expectedSignals) {
+							break WAIT
+						}
+					}
+				case err := <-stopErr:
+					require.NoError(t, err, "stop task failed")
+				case <-timeout:
+					// timeout waiting for signals
+					require.Equal(t, c.expectedSignals, receivedSignals, "timed out waiting for expected signals")
+				}
+			}
+		})
+	}
 }

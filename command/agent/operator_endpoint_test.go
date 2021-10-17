@@ -277,13 +277,15 @@ func TestOperator_SchedulerGetConfiguration(t *testing.T) {
 		obj, err := s.Server.OperatorSchedulerConfiguration(resp, req)
 		require.Nil(err)
 		require.Equal(200, resp.Code)
-		out, ok := obj.(structs.SchedulerConfigurationResponse)
+		out, ok := obj.(*structs.SchedulerConfiguration)
 		require.True(ok)
 
 		// Only system jobs can preempt other jobs by default.
-		require.True(out.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
-		require.False(out.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
-		require.False(out.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
+		require.True(out.PreemptionConfig.SystemSchedulerEnabled)
+		require.False(out.PreemptionConfig.SysBatchSchedulerEnabled)
+		require.False(out.PreemptionConfig.BatchSchedulerEnabled)
+		require.False(out.PreemptionConfig.ServiceSchedulerEnabled)
+		require.False(out.MemoryOversubscriptionEnabled)
 	})
 }
 
@@ -291,10 +293,14 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	t.Parallel()
 	httpTest(t, nil, func(s *TestAgent) {
 		require := require.New(t)
-		body := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
-                     "SystemSchedulerEnabled": true,
-                     "ServiceSchedulerEnabled": true
-        }}`))
+		body := bytes.NewBuffer([]byte(`
+{
+  "MemoryOversubscriptionEnabled": true,
+  "PreemptionConfig": {
+    "SystemSchedulerEnabled": true,
+    "ServiceSchedulerEnabled": true
+  }
+}`))
 		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/configuration", body)
 		resp := httptest.NewRecorder()
 		setResp, err := s.Server.OperatorSchedulerConfiguration(resp, req)
@@ -314,7 +320,10 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 		err = s.RPC("Operator.SchedulerGetConfiguration", &args, &reply)
 		require.Nil(err)
 		require.True(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+		require.False(reply.SchedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
+		require.False(reply.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
 		require.True(reply.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
+		require.True(reply.SchedulerConfig.MemoryOversubscriptionEnabled)
 	})
 }
 
@@ -324,6 +333,7 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 		require := require.New(t)
 		body := bytes.NewBuffer([]byte(`{"PreemptionConfig": {
                      "SystemSchedulerEnabled": true,
+                     "SysBatchSchedulerEnabled":true,
                      "BatchSchedulerEnabled":true
         }}`))
 		req, _ := http.NewRequest("PUT", "/v1/operator/scheduler/configuration", body)
@@ -346,7 +356,9 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		require.True(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+		require.True(reply.SchedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
 		require.True(reply.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
+		require.False(reply.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
 
 		// Create a CAS request, bad index
 		{
@@ -387,7 +399,9 @@ func TestOperator_SchedulerCASConfiguration(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 		require.False(reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
+		require.False(reply.SchedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
 		require.False(reply.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
+		require.False(reply.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
 	})
 }
 

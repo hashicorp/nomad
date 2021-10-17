@@ -9,8 +9,11 @@ job "use-ebs-volume" {
 
   group "group" {
     volume "test" {
-      type   = "csi"
-      source = "ebs-vol0"
+      type            = "csi"
+      source          = "ebs-vol"
+      attachment_mode = "file-system"
+      access_mode     = "single-node-writer"
+      per_alloc       = true
     }
 
     task "task" {
@@ -19,7 +22,7 @@ job "use-ebs-volume" {
       config {
         image   = "busybox:1"
         command = "/bin/sh"
-        args    = ["-c", "touch /local/test/${NOMAD_ALLOC_ID}; sleep 3600"]
+        args    = ["-c", "echo 'ok' > ${NOMAD_TASK_DIR}/test/${NOMAD_ALLOC_ID}; sleep 3600"]
       }
 
       volume_mount {

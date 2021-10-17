@@ -1,11 +1,13 @@
 package command
 
 import (
+	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/testutil"
 )
 
 func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.TestAgent, *api.Client, string) {
@@ -20,6 +22,24 @@ func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.Te
 	t.Cleanup(func() { a.Shutdown() })
 
 	c := a.Client()
+	return a, c, a.HTTPAddr()
+}
+
+// testClient starts a new test client, blocks until it joins, and performs
+// cleanup after the test is complete.
+func testClient(t *testing.T, name string, cb func(*agent.Config)) (*agent.TestAgent, *api.Client, string) {
+	t.Logf("[TEST] Starting client agent %s", name)
+	a := agent.NewTestAgent(t, name, func(config *agent.Config) {
+		if cb != nil {
+			cb(config)
+		}
+	})
+	t.Cleanup(func() { a.Shutdown() })
+
+	c := a.Client()
+	t.Logf("[TEST] Waiting for client %s to join server(s) %s", name, a.GetConfig().Client.Servers)
+	testutil.WaitForClient(t, a.Agent.RPC, a.Agent.Client().NodeID(), a.Agent.Client().Region())
+
 	return a, c, a.HTTPAddr()
 }
 
@@ -86,4 +106,18 @@ func testMultiRegionJob(jobID, region, datacenter string) *api.Job {
 	}
 
 	return job
+}
+
+// setEnv wraps os.Setenv(key, value) and restores the environment variable to initial value in test cleanup
+func setEnv(t *testing.T, key, value string) {
+	initial, ok := os.LookupEnv(key)
+	os.Setenv(key, value)
+
+	t.Cleanup(func() {
+		if ok {
+			os.Setenv(key, initial)
+		} else {
+			os.Unsetenv(key)
+		}
+	})
 }

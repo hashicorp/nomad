@@ -1,7 +1,17 @@
-import { attribute, collection, clickable, hasClass, isPresent, text } from 'ember-cli-page-object';
+import {
+  attribute,
+  collection,
+  clickable,
+  hasClass,
+  isPresent,
+  text,
+  triggerable,
+} from 'ember-cli-page-object';
 
 const allocationRect = {
   select: clickable(),
+  hover: triggerable('mouseenter'),
+  mouseleave: triggerable('mouseleave'),
   width: attribute('width', '> rect'),
   height: attribute('height', '> rect'),
   isActive: hasClass('is-active'),
@@ -31,6 +41,8 @@ export default scope => ({
     ...allocationRect,
     id: attribute('data-test-cpu-rect'),
   }),
+
+  mouseout: triggerable('mouseout', '[data-test-topo-node-svg]'),
 
   emptyMessage: text('[data-test-empty-message]'),
   isEmpty: hasClass('is-empty'),

@@ -1,7 +1,18 @@
 import { get } from '@ember/object';
 
 export default function generateExecUrl(router, { job, taskGroup, task, allocation }) {
-  const queryParams = router.currentRoute.queryParams;
+  const queryParams = {};
+
+  const namespace = get(job, 'namespace.name');
+  const region = get(job, 'region');
+
+  if (namespace) {
+    queryParams.namespace = namespace;
+  }
+
+  if (region) {
+    queryParams.region = region;
+  }
 
   if (task) {
     const queryParamsOptions = {

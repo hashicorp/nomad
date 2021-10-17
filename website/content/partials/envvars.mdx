@@ -1,0 +1,368 @@
+<table>
+  <thead>
+    <tr>
+      <th>Variable</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <code>NOMAD_ALLOC_DIR</code>
+      </td>
+      <td>
+        The path to the shared <code>alloc/</code> directory. See
+        <a href="/docs/runtime/environment#task-directories">
+          here for more
+        </a> information.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_TASK_DIR</code>
+      </td>
+      <td>
+        The path to the task <code>local/</code> directory. See
+        <a href="/docs/runtime/environment#task-directories">here</a> for more information.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_SECRETS_DIR</code>
+      </td>
+      <td>
+        Path to the task's secrets directory. See
+        <a href="/docs/runtime/environment#task-directories">here</a> for more information.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_MEMORY_LIMIT</code>
+      </td>
+      <td>Memory limit in MB for the task</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_MEMORY_MAX_LIMIT</code>
+      </td>
+      <td>
+        The maximum memory limit the task may use if client has excess memory
+        capacity, in MB. Omitted if task isn't configured with memory oversubscription.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_CPU_LIMIT</code>
+      </td>
+      <td>CPU limit in MHz for the task</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_ALLOC_ID</code>
+      </td>
+      <td>Allocation ID of the task</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_ALLOC_NAME</code>
+      </td>
+      <td>Allocation name of the task</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_ALLOC_INDEX</code>
+      </td>
+      <td>
+        Allocation index; useful to distinguish instances of task groups. From 0
+        to (count - 1). The index is unique within a given version of a job, but
+        canaries or failed tasks in a deployment may reuse the index.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_TASK_NAME</code>
+      </td>
+      <td>Task's name</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_GROUP_NAME</code>
+      </td>
+      <td>Group's name</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_JOB_ID</code>
+      </td>
+      <td>
+        Job's ID, which is equal to the Job name when submitted through
+        CLI but can be different when using the API
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_JOB_NAME</code>
+      </td>
+      <td>Job's name</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_JOB_PARENT_ID</code>
+      </td>
+      <td>ID of the Job's parent if it has one</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_DC</code>
+      </td>
+      <td>Datacenter in which the allocation is running</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_NAMESPACE</code>
+      </td>
+      <td>Namespace in which the allocation is running</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_REGION</code>
+      </td>
+      <td>Region in which the allocation is running</td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_META_&lt;key&gt;</code>
+      </td>
+      <td>
+        The metadata value given by <code>key</code> on the task's
+        metadata. Note that this is different from
+        <a href="/docs/runtime/interpolation#node-variables-">
+          <code>$&#123;meta.&lt;key&gt;&#125;</code>
+        </a>
+        which are keys in the node's metadata.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>VAULT_TOKEN</code>
+      </td>
+      <td>
+        The task's Vault token. See
+        <a href="/docs/vault-integration">Vault Integration</a>
+        for more details
+      </td>
+    </tr>
+    <tr>
+      <th colspan="2">Network-related Variables</th>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_IP_&lt;label&gt;</code>
+      </td>
+      <td>
+        Host IP for the given port <code>label</code>. See
+        <a href="/docs/job-specification/network">here for more</a> information.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_PORT_&lt;label&gt;</code>
+      </td>
+      <td>
+        Port for the given port <code>label</code>. Driver-specified port when a
+        port map is used, otherwise the host's static or dynamic port
+        allocation. Services should bind to this port. See
+        <a href="/docs/job-specification/network">here for more</a> information.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_ADDR_&lt;label&gt;</code>
+      </td>
+      <td>
+        Host <code>IP:Port</code> pair for the given port <code>label</code>.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_HOST_PORT_&lt;label&gt;</code>
+      </td>
+      <td>
+        Port on the host for the port <code>label</code>. See
+        <a href="/docs/job-specification/network#mapped-ports">here</a> for more
+        information.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_IP_&lt;task&gt;_&lt;label&gt;</code>
+      </td>
+      <td>
+        Host IP for the given port <code>label</code> and <code>task</code> for
+        tasks in the same task group.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_PORT_&lt;task&gt;_&lt;label&gt;</code>
+      </td>
+      <td>
+        Port for the given port <code>label</code> and <code>task</code> for
+        tasks in the same task group. Driver-specified port when a port map is
+        used, otherwise the host's static or dynamic port allocation.
+        Services should bind to this port.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_ADDR_&lt;task&gt;_&lt;label&gt;</code>
+      </td>
+      <td>
+        Host <code>IP:Port</code> pair for the given port <code>label</code> and
+        <code>task</code> for tasks in the same task group.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_HOST_PORT_&lt;task&gt;_&lt;label&gt;</code>
+      </td>
+      <td>
+        Port on the host for the port <code>label</code> and <code>task</code>
+        for tasks in the same task group.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_UPSTREAM_IP_&lt;service&gt;</code>
+      </td>
+      <td>
+        IP for the given <code>service</code> when defined as a Consul Connect
+        <a href="/docs/job-specification/upstreams">upstream</a>.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_UPSTREAM_PORT_&lt;service&gt;</code>
+      </td>
+      <td>
+        Port for the given <code>service</code> when defined as a Consul Connect
+        <a href="/docs/job-specification/upstreams">upstream</a>.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_UPSTREAM_ADDR_&lt;service&gt;</code>
+      </td>
+      <td>
+        Host <code>IP:Port</code> for the given <code>service</code> when
+        defined as a Consul Connect
+        <a href="/docs/job-specification/upstreams">upstream</a>.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>NOMAD_ENVOY_ADMIN_ADDR_&lt;service&gt;</code>
+      </td>
+      <td>
+        Local address <code>127.0.0.2:Port</code> for the admin port of the
+        envoy sidecar for the given <code>service</code> when defined as a
+        Consul Connect enabled service. Envoy runs inside the group network
+        namespace unless configured for host networking.
+      </td>
+    </tr>
+      <tr>
+        <td>
+          <code>NOMAD_ENVOY_READY_ADDR_&lt;service&gt;</code>
+        </td>
+        <td>
+          Local address <code>127.0.0.1:Port</code> for the ready port of the
+          envoy sidecar for the given <code>service</code> when defined as a
+          Consul Connect enabled service. Envoy runs inside the group network
+          namespace unless configured for host networking.
+        </td>
+      </tr>
+    <tr>
+      <th colspan="2">Consul-related Variables (only set for connect native tasks)</th>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_HTTP_ADDR</code>
+      </td>
+      <td>
+        Specifies the address to the local Consul agent. Will be automatically
+        set to a unix domain socket in bridge networking mode, or a tcp address in
+        host networking mode.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_HTTP_TOKEN</code>
+      </td>
+      <td>
+        Specifies the Consul ACL token used to authorize with Consul. Will be
+        automatically set to a generated Connect service identity token specific
+        to the service instance if Consul ACLs are enabled.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_HTTP_SSL</code>
+      </td>
+      <td>
+        Specifies whether HTTPS should be used when communicating with consul. Will
+        be automatically set to true if Nomad is configured to communicate with
+        Consul using TLS.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_HTTP_SSL_VERIFY</code>
+      </td>
+      <td>
+        Specifies whether the HTTPS connection with Consul should be mutually
+        verified. Will be automatically set to true if Nomad is configured to
+        verify TLS certificates.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_CACERT</code>
+      </td>
+      <td>
+        Specifies the path to the CA certificate used for Consul communication.
+        Will be automatically set if Nomad is configured with the <code>consul.share_ssl</code>
+        option.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_CLIENT_CERT</code>
+      </td>
+      <td>
+        Specifies the path to the Client certificate used for Consul communication.
+        Will be automatically set if Nomad is configured with the <code>consul.share_ssl</code>
+        option.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_CLIENT_KEY</code>
+      </td>
+      <td>
+        Specifies the path to the CLient Key certificate used for Consul communication.
+        Will be automatically set if Nomad is configured with the <code>consul.share_ssl</code>
+        option.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <code>CONSUL_TLS_SERVER_NAME</code>
+      </td>
+      <td>
+        Specifies the server name to use as the SNI host for Consul communication.
+        Will be automatically set if Consul is configured to use TLS and the task
+        is in a group using bridge networking mode.
+      </td>
+    </tr>
+  </tbody>
+</table>

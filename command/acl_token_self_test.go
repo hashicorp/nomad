@@ -37,7 +37,7 @@ func TestACLTokenSelfCommand_ViaEnvVar(t *testing.T) {
 	mockToken := mock.ACLToken()
 	mockToken.Policies = []string{acl.PolicyWrite}
 	mockToken.SetHash()
-	assert.Nil(state.UpsertACLTokens(1000, []*structs.ACLToken{mockToken}))
+	assert.Nil(state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{mockToken}))
 
 	// Attempt to fetch info on a token without providing a valid management
 	// token

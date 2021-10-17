@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Alerts',
+  title: 'Components/Alerts',
 };
 
 export let Standard = () => {

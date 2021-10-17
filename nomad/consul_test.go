@@ -20,36 +20,57 @@ var _ ConsulACLsAPI = (*consulACLsAPI)(nil)
 var _ ConsulACLsAPI = (*mockConsulACLsAPI)(nil)
 var _ ConsulConfigsAPI = (*consulConfigsAPI)(nil)
 
-func TestConsulConfigsAPI_SetIngressGatewayConfigEntry(t *testing.T) {
+func TestConsulConfigsAPI_SetCE(t *testing.T) {
 	t.Parallel()
 
-	try := func(t *testing.T, expErr error) {
+	try := func(t *testing.T, expect error, f func(ConsulConfigsAPI) error) {
 		logger := testlog.HCLogger(t)
-		configsAPI := consul.NewMockConfigsAPI(logger) // agent
-		configsAPI.SetError(expErr)
+		configsAPI := consul.NewMockConfigsAPI(logger)
+		configsAPI.SetError(expect)
 
 		c := NewConsulConfigsAPI(configsAPI, logger)
+		err := f(c) // set the config entry
 
-		ctx := context.Background()
-		err := c.SetIngressGatewayConfigEntry(ctx, "service1", &structs.ConsulIngressConfigEntry{
-			TLS:       nil,
-			Listeners: nil,
-		})
-
-		if expErr != nil {
-			require.Equal(t, expErr, err)
-		} else {
+		switch expect {
+		case nil:
 			require.NoError(t, err)
+		default:
+			require.Equal(t, expect, err)
 		}
 	}
 
-	t.Run("set ingress CE success", func(t *testing.T) {
-		try(t, nil)
+	ctx := context.Background()
+
+	// existing behavior is no set namespace
+	consulNamespace := ""
+
+	ingressCE := new(structs.ConsulIngressConfigEntry)
+	t.Run("ingress ok", func(t *testing.T) {
+		try(t, nil, func(c ConsulConfigsAPI) error {
+			return c.SetIngressCE(ctx, consulNamespace, "ig", ingressCE)
+		})
 	})
 
-	t.Run("set ingress CE failure", func(t *testing.T) {
-		try(t, errors.New("consul broke"))
+	t.Run("ingress fail", func(t *testing.T) {
+		try(t, errors.New("consul broke"), func(c ConsulConfigsAPI) error {
+			return c.SetIngressCE(ctx, consulNamespace, "ig", ingressCE)
+		})
 	})
+
+	terminatingCE := new(structs.ConsulTerminatingConfigEntry)
+	t.Run("terminating ok", func(t *testing.T) {
+		try(t, nil, func(c ConsulConfigsAPI) error {
+			return c.SetTerminatingCE(ctx, consulNamespace, "tg", terminatingCE)
+		})
+	})
+
+	t.Run("terminating fail", func(t *testing.T) {
+		try(t, errors.New("consul broke"), func(c ConsulConfigsAPI) error {
+			return c.SetTerminatingCE(ctx, consulNamespace, "tg", terminatingCE)
+		})
+	})
+
+	// also mesh
 }
 
 type revokeRequest struct {
@@ -63,11 +84,11 @@ type mockConsulACLsAPI struct {
 	stopped        bool
 }
 
-func (m *mockConsulACLsAPI) CheckSIPolicy(_ context.Context, _, _ string) error {
+func (m *mockConsulACLsAPI) CheckPermissions(context.Context, string, *structs.ConsulUsage, string) error {
 	panic("not implemented yet")
 }
 
-func (m *mockConsulACLsAPI) CreateToken(_ context.Context, _ ServiceIdentityRequest) (*structs.SIToken, error) {
+func (m *mockConsulACLsAPI) CreateToken(context.Context, ServiceIdentityRequest) (*structs.SIToken, error) {
 	panic("not implemented yet")
 }
 
@@ -130,10 +151,11 @@ func TestConsulACLsAPI_CreateToken(t *testing.T) {
 
 		ctx := context.Background()
 		sii := ServiceIdentityRequest{
-			AllocID:   uuid.Generate(),
-			ClusterID: uuid.Generate(),
-			TaskName:  "my-task1-sidecar-proxy",
-			TaskKind:  structs.NewTaskKind(structs.ConnectProxyPrefix, "my-service"),
+			ConsulNamespace: "foo-namespace",
+			AllocID:         uuid.Generate(),
+			ClusterID:       uuid.Generate(),
+			TaskName:        "my-task1-sidecar-proxy",
+			TaskKind:        structs.NewTaskKind(structs.ConnectProxyPrefix, "my-service"),
 		}
 
 		token, err := c.CreateToken(ctx, sii)
@@ -143,6 +165,7 @@ func TestConsulACLsAPI_CreateToken(t *testing.T) {
 			require.Nil(t, token)
 		} else {
 			require.NoError(t, err)
+			require.Equal(t, "foo-namespace", token.ConsulNamespace)
 			require.Equal(t, "my-task1-sidecar-proxy", token.TaskName)
 			require.True(t, helper.IsUUID(token.AccessorID))
 			require.True(t, helper.IsUUID(token.SecretID))
@@ -169,10 +192,11 @@ func TestConsulACLsAPI_RevokeTokens(t *testing.T) {
 
 		ctx := context.Background()
 		generated, err := c.CreateToken(ctx, ServiceIdentityRequest{
-			ClusterID: uuid.Generate(),
-			AllocID:   uuid.Generate(),
-			TaskName:  "task1-sidecar-proxy",
-			TaskKind:  structs.NewTaskKind(structs.ConnectProxyPrefix, "service1"),
+			ConsulNamespace: "foo-namespace",
+			ClusterID:       uuid.Generate(),
+			AllocID:         uuid.Generate(),
+			TaskName:        "task1-sidecar-proxy",
+			TaskKind:        structs.NewTaskKind(structs.ConnectProxyPrefix, "service1"),
 		})
 		require.NoError(t, err)
 
@@ -184,7 +208,10 @@ func TestConsulACLsAPI_RevokeTokens(t *testing.T) {
 
 	accessors := func(ids ...string) (result []*structs.SITokenAccessor) {
 		for _, id := range ids {
-			result = append(result, &structs.SITokenAccessor{AccessorID: id})
+			result = append(result, &structs.SITokenAccessor{
+				AccessorID:      id,
+				ConsulNamespace: "foo-namespace",
+			})
 		}
 		return
 	}
@@ -218,17 +245,21 @@ func TestConsulACLsAPI_MarkForRevocation(t *testing.T) {
 	c := NewConsulACLsAPI(aclAPI, logger, nil)
 
 	generated, err := c.CreateToken(context.Background(), ServiceIdentityRequest{
-		ClusterID: uuid.Generate(),
-		AllocID:   uuid.Generate(),
-		TaskName:  "task1-sidecar-proxy",
-		TaskKind:  structs.NewTaskKind(structs.ConnectProxyPrefix, "service1"),
+		ConsulNamespace: "foo-namespace",
+		ClusterID:       uuid.Generate(),
+		AllocID:         uuid.Generate(),
+		TaskName:        "task1-sidecar-proxy",
+		TaskKind:        structs.NewTaskKind(structs.ConnectProxyPrefix, "service1"),
 	})
 	require.NoError(t, err)
 
 	// set the mock error after calling CreateToken for setting up
 	aclAPI.SetError(nil)
 
-	accessors := []*structs.SITokenAccessor{{AccessorID: generated.AccessorID}}
+	accessors := []*structs.SITokenAccessor{{
+		ConsulNamespace: "foo-namespace",
+		AccessorID:      generated.AccessorID,
+	}}
 	c.MarkForRevocation(accessors)
 	require.Len(t, c.bgRetryRevocation, 1)
 	require.Contains(t, c.bgRetryRevocation, accessors[0])
@@ -264,10 +295,11 @@ func TestConsulACLsAPI_bgRetryRevoke(t *testing.T) {
 		c, server := setup(t)
 		accessorID := uuid.Generate()
 		c.bgRetryRevocation = append(c.bgRetryRevocation, &structs.SITokenAccessor{
-			NodeID:     uuid.Generate(),
-			AllocID:    uuid.Generate(),
-			AccessorID: accessorID,
-			TaskName:   "task1",
+			ConsulNamespace: "foo-namespace",
+			NodeID:          uuid.Generate(),
+			AllocID:         uuid.Generate(),
+			AccessorID:      accessorID,
+			TaskName:        "task1",
 		})
 		require.Empty(t, server.purgedAccessorIDs)
 		c.bgRetryRevoke()
@@ -281,10 +313,11 @@ func TestConsulACLsAPI_bgRetryRevoke(t *testing.T) {
 		server.failure = errors.New("revocation fail")
 		accessorID := uuid.Generate()
 		c.bgRetryRevocation = append(c.bgRetryRevocation, &structs.SITokenAccessor{
-			NodeID:     uuid.Generate(),
-			AllocID:    uuid.Generate(),
-			AccessorID: accessorID,
-			TaskName:   "task1",
+			ConsulNamespace: "foo-namespace",
+			NodeID:          uuid.Generate(),
+			AllocID:         uuid.Generate(),
+			AccessorID:      accessorID,
+			TaskName:        "task1",
 		})
 		require.Empty(t, server.purgedAccessorIDs)
 		c.bgRetryRevoke()
@@ -309,45 +342,4 @@ func TestConsulACLsAPI_Stop(t *testing.T) {
 		TaskName:  "",
 	})
 	require.Error(t, err)
-}
-
-func TestConsulACLsAPI_CheckSIPolicy(t *testing.T) {
-	t.Parallel()
-
-	try := func(t *testing.T, service, token string, expErr string) {
-		logger := testlog.HCLogger(t)
-		aclAPI := consul.NewMockACLsAPI(logger)
-		cAPI := NewConsulACLsAPI(aclAPI, logger, nil)
-
-		err := cAPI.CheckSIPolicy(context.Background(), service, token)
-		if expErr != "" {
-			require.EqualError(t, err, expErr)
-		} else {
-			require.NoError(t, err)
-		}
-	}
-
-	t.Run("operator has service write", func(t *testing.T) {
-		try(t, "service1", consul.ExampleOperatorTokenID1, "")
-	})
-
-	t.Run("operator has service_prefix write", func(t *testing.T) {
-		try(t, "foo-service1", consul.ExampleOperatorTokenID2, "")
-	})
-
-	t.Run("operator permissions insufficient", func(t *testing.T) {
-		try(t, "service1", consul.ExampleOperatorTokenID3,
-			"permission denied for \"service1\"",
-		)
-	})
-
-	t.Run("no token provided", func(t *testing.T) {
-		try(t, "service1", "", "missing consul token")
-	})
-
-	t.Run("nonsense token provided", func(t *testing.T) {
-		try(t, "service1", "f1682bde-1e71-90b1-9204-85d35467ba61",
-			"unable to validate operator consul token: no such token",
-		)
-	})
 }

@@ -33,7 +33,7 @@ func TestACLPolicyListCommand(t *testing.T) {
 		Rules: acl.PolicyWrite,
 	}
 	policy.SetHash()
-	assert.Nil(state.UpsertACLPolicies(1000, []*structs.ACLPolicy{policy}))
+	assert.Nil(state.UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy}))
 
 	ui := cli.NewMockUi()
 	cmd := &ACLPolicyListCommand{Meta: Meta{Ui: ui, flagAddress: url}}

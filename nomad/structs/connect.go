@@ -1,17 +1,39 @@
 package structs
 
-const (
-	// envoyImageFormat is the default format string used for official envoy Docker
-	// images with the tag being the semver of the version of envoy. Nomad fakes
-	// interpolation of ${NOMAD_envoy_version} by replacing it with the version
-	// string for envoy that Consul reports as preferred.
-	//
-	// Folks wanting to build and use custom images while still having Nomad refer
-	// to specific versions as preferred by Consul would set meta.connect.sidecar_image
-	// to something like: "custom/envoy:${NOMAD_envoy_version}".
-	EnvoyImageFormat = "envoyproxy/envoy:v" + EnvoyVersionVar
+// ConsulConfigEntries represents Consul ConfigEntry definitions from a job for
+// a single Consul namespace.
+type ConsulConfigEntries struct {
+	Ingress     map[string]*ConsulIngressConfigEntry
+	Terminating map[string]*ConsulTerminatingConfigEntry
+}
 
-	// envoyVersionVar will be replaced with the Envoy version string when
-	// used in the meta.connect.sidecar_image variable.
-	EnvoyVersionVar = "${NOMAD_envoy_version}"
-)
+// ConfigEntries accumulates the Consul Configuration Entries defined in task groups
+// of j, organized by Consul namespace.
+func (j *Job) ConfigEntries() map[string]*ConsulConfigEntries {
+	collection := make(map[string]*ConsulConfigEntries)
+
+	for _, tg := range j.TaskGroups {
+
+		// accumulate config entries by namespace
+		ns := tg.Consul.GetNamespace()
+		if _, exists := collection[ns]; !exists {
+			collection[ns] = &ConsulConfigEntries{
+				Ingress:     make(map[string]*ConsulIngressConfigEntry),
+				Terminating: make(map[string]*ConsulTerminatingConfigEntry),
+			}
+		}
+
+		for _, service := range tg.Services {
+			if service.Connect.IsGateway() {
+				gateway := service.Connect.Gateway
+				if ig := gateway.Ingress; ig != nil {
+					collection[ns].Ingress[service.Name] = ig
+				} else if term := gateway.Terminating; term != nil {
+					collection[ns].Terminating[service.Name] = term
+				}
+			}
+		}
+	}
+
+	return collection
+}

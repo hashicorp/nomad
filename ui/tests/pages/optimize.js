@@ -4,22 +4,28 @@ import {
   collection,
   create,
   hasClass,
+  isPresent,
   text,
   visitable,
 } from 'ember-cli-page-object';
 
 import recommendationCard from 'nomad-ui/tests/pages/components/recommendation-card';
+import { multiFacet, singleFacet } from 'nomad-ui/tests/pages/components/facet';
 
 export default create({
   visit: visitable('/optimize'),
 
-  breadcrumbs: collection('[data-test-breadcrumb]', {
-    id: attribute('data-test-breadcrumb'),
-    text: text(),
-  }),
+  search: {
+    scope: '[data-test-recommendation-summaries-search] input',
+    placeholder: attribute('placeholder'),
+  },
 
-  breadcrumbFor(id) {
-    return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
+  facets: {
+    namespace: singleFacet('[data-test-namespace-facet]'),
+    type: multiFacet('[data-test-type-facet]'),
+    status: multiFacet('[data-test-status-facet]'),
+    datacenter: multiFacet('[data-test-datacenter-facet]'),
+    prefix: multiFacet('[data-test-prefix-facet]'),
   },
 
   card: recommendationCard,
@@ -48,5 +54,10 @@ export default create({
     headline: text('[data-test-headline]'),
     errors: text('[data-test-errors]'),
     dismiss: clickable('[data-test-dismiss]'),
+  },
+
+  applicationError: {
+    isPresent: isPresent('[data-test-error]'),
+    title: text('[data-test-error-title]'),
   },
 });

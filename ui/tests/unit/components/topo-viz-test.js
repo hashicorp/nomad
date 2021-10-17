@@ -174,6 +174,24 @@ module('Unit | Component | TopoViz', function(hooks) {
     assert.equal(topoViz.topology.datacenters[0].nodes[0].allocations[0].cpuPercent, 0.5);
     assert.equal(topoViz.topology.datacenters[0].nodes[0].allocations[0].memoryPercent, 0.1);
   });
+
+  test('allocations that reference nonexistent nodes are ignored', async function(assert) {
+    const nodes = [{ datacenter: 'dc1', id: 'node0', resources: {} }];
+
+    const allocations = [
+      alloc({ nodeId: 'node0', jobId: 'job0', taskGroupName: 'group' }),
+      alloc({ nodeId: 'node404', jobId: 'job1', taskGroupName: 'group' }),
+    ];
+
+    const topoViz = this.createComponent({ nodes, allocations });
+
+    topoViz.buildTopology();
+
+    assert.deepEqual(topoViz.topology.datacenters[0].nodes.mapBy('node'), [nodes[0]]);
+    assert.deepEqual(topoViz.topology.datacenters[0].nodes[0].allocations.mapBy('allocation'), [
+      allocations[0],
+    ]);
+  });
 });
 
 function alloc(props) {

@@ -66,9 +66,9 @@ type Tracker struct {
 	// not needed
 	allocStopped chan struct{}
 
-	// lifecycleTasks is a set of tasks with lifecycle hook set and may
-	// terminate without affecting alloc health
-	lifecycleTasks map[string]bool
+	// lifecycleTasks is a map of ephemeral tasks and their lifecycle hooks.
+	// These tasks may terminate without affecting alloc health
+	lifecycleTasks map[string]string
 
 	// l is used to lock shared fields listed below
 	l sync.Mutex
@@ -110,7 +110,7 @@ func NewTracker(parentCtx context.Context, logger hclog.Logger, alloc *structs.A
 		consulClient:        consulClient,
 		checkLookupInterval: consulCheckLookupInterval,
 		logger:              logger,
-		lifecycleTasks:      map[string]bool{},
+		lifecycleTasks:      map[string]string{},
 	}
 
 	t.taskHealth = make(map[string]*taskHealthState, len(t.tg.Tasks))
@@ -118,7 +118,7 @@ func NewTracker(parentCtx context.Context, logger hclog.Logger, alloc *structs.A
 		t.taskHealth[task.Name] = &taskHealthState{task: task}
 
 		if task.Lifecycle != nil && !task.Lifecycle.Sidecar {
-			t.lifecycleTasks[task.Name] = true
+			t.lifecycleTasks[task.Name] = task.Lifecycle.Hook
 		}
 
 		for _, s := range task.Services {
@@ -277,8 +277,15 @@ func (t *Tracker) watchTaskEvents() {
 		// Detect if the alloc is unhealthy or if all tasks have started yet
 		latestStartTime := time.Time{}
 		for taskName, state := range alloc.TaskStates {
+			// If the task is a poststop task we do not want to evaluate it
+			// since it will remain pending until the main task has finished
+			// or exited.
+			if t.lifecycleTasks[taskName] == structs.TaskLifecycleHookPoststop {
+				continue
+			}
+
 			// One of the tasks has failed so we can exit watching
-			if state.Failed || (!state.FinishedAt.IsZero() && !t.lifecycleTasks[taskName]) {
+			if state.Failed || (!state.FinishedAt.IsZero() && t.lifecycleTasks[taskName] != structs.TaskLifecycleHookPrestart) {
 				t.setTaskHealth(false, true)
 				return
 			}
@@ -299,6 +306,7 @@ func (t *Tracker) watchTaskEvents() {
 			t.l.Lock()
 			t.allocFailed = true
 			t.l.Unlock()
+
 			t.setTaskHealth(false, true)
 			return
 		}
@@ -336,8 +344,10 @@ func (t *Tracker) watchTaskEvents() {
 	}
 }
 
-// watchConsulEvents is a long lived watcher for the health of the allocation's
-// Consul checks.
+// watchConsulEvents is a  watcher for the health of the allocation's Consul
+// checks. If all checks report healthy the watcher will exit after the
+// MinHealthyTime has been reached, Otherwise the watcher will continue to
+// check unhealthy checks until the ctx is cancelled
 func (t *Tracker) watchConsulEvents() {
 	// checkTicker is the ticker that triggers us to look at the checks in
 	// Consul
@@ -412,8 +422,19 @@ OUTER:
 		for _, treg := range allocReg.Tasks {
 			for _, sreg := range treg.Services {
 				for _, check := range sreg.Checks {
-					if check.Status == api.HealthPassing {
+					onupdate := sreg.CheckOnUpdate[check.CheckID]
+					switch check.Status {
+					case api.HealthPassing:
 						continue
+					case api.HealthWarning:
+						if onupdate == structs.OnUpdateIgnoreWarn || onupdate == structs.OnUpdateIgnore {
+							continue
+						}
+					case api.HealthCritical:
+						if onupdate == structs.OnUpdateIgnore {
+							continue
+						}
+					default:
 					}
 
 					passed = false

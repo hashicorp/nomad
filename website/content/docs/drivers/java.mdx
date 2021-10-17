@@ -1,0 +1,253 @@
+---
+layout: docs
+page_title: 'Drivers: Java'
+description: The Java task driver is used to run Jars using the JVM.
+---
+
+# Java Driver
+
+Name: `java`
+
+The `java` driver is used to execute Java applications packaged into a Java Jar
+file. The driver requires the Jar file to be accessible from the Nomad
+client via the [`artifact` downloader](/docs/job-specification/artifact).
+
+## Task Configuration
+
+```hcl
+task "webservice" {
+  driver = "java"
+
+  config {
+    jar_path    = "local/example.jar"
+    jvm_options = ["-Xmx2048m", "-Xms256m"]
+  }
+}
+```
+
+The `java` driver supports the following configuration in the job spec:
+
+- `class` - (Optional) The name of the class to run. If `jar_path` is specified
+  and the manifest specifies a main class, this is optional. If shipping classes
+  rather than a Jar, please specify the class to run and the `class_path`.
+
+- `class_path` - (Optional) The `class_path` specifies the class path used by
+  Java to lookup classes and Jars.
+
+- `jar_path` - (Optional) The path to the downloaded Jar. In most cases this will just be
+  the name of the Jar. However, if the supplied artifact is an archive that
+  contains the Jar in a subfolder, the path will need to be the relative path
+  (`subdir/from_archive/my.jar`).
+
+- `args` - (Optional) A list of arguments to the Jar's main method. References
+  to environment variables or any [interpretable Nomad
+  variables](/docs/runtime/interpolation) will be interpreted before
+  launching the task.
+
+- `jvm_options` - (Optional) A list of JVM options to be passed while invoking
+  java. These options are passed without being validated in any way by Nomad.
+
+- `pid_mode` - (Optional) Set to `"private"` to enable PID namespace isolation for
+  this task, or `"host"` to disable isolation. If left unset, the behavior is
+  determined from the [`default_pid_mode`][default_pid_mode] in plugin configuration.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will
+be able to access sensitive process information like environment variables.
+
+- `ipc_mode` - (Optional) Set to `"private"` to enable IPC namespace isolation for
+  this task, or `"host"` to disable isolation. If left unset, the behavior is
+  determined from the [`default_ipc_mode`][default_ipc_mode] in plugin configuration.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will be
+able to make use of IPC features, like sending unexpected POSIX signals.
+
+- `cap_add` - (Optional) A list of Linux capabilities to enable for the task.
+  Effective capabilities (computed from `cap_add` and `cap_drop`) must be a subset
+  of the allowed capabilities configured with [`allow_caps`][allow_caps].
+
+```hcl
+config {
+  cap_add = ["net_raw", "sys_time"]
+}
+```
+
+- `cap_drop` - (Optional) A list of Linux capabilities to disable for the task.
+  Effective capabilities (computed from `cap_add` and `cap_drop`) must be a subset
+  of the allowed capabilities configured with [`allow_caps`][allow_caps].
+
+```hcl
+config {
+  cap_drop = ["all"]
+  cap_add  = ["chown", "sys_chroot", "mknod"]
+}
+```
+
+## Examples
+
+A simple config block to run a Java Jar:
+
+```hcl
+task "web" {
+  driver = "java"
+
+  config {
+    jar_path    = "local/hello.jar"
+    jvm_options = ["-Xmx2048m", "-Xms256m"]
+  }
+
+  # Specifying an artifact is required with the "java" driver. This is the
+  # mechanism to ship the Jar to be run.
+  artifact {
+    source = "https://internal.file.server/hello.jar"
+
+    options {
+      checksum = "md5:123445555555555"
+    }
+  }
+}
+```
+
+A simple config block to run a Java class:
+
+```hcl
+task "web" {
+  driver = "java"
+
+  config {
+    class       = "Hello"
+    class_path  = "${NOMAD_TASK_DIR}"
+    jvm_options = ["-Xmx2048m", "-Xms256m"]
+  }
+
+  # Specifying an artifact is required with the "java" driver. This is the
+  # mechanism to ship the Jar to be run.
+  artifact {
+    source = "https://internal.file.server/Hello.class"
+
+    options {
+      checksum = "md5:123445555555555"
+    }
+  }
+}
+```
+
+## Capabilities
+
+The `java` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
+
+| Feature              | Implementation                |
+| -------------------- | ----------------------------- |
+| `nomad alloc signal` | false                         |
+| `nomad alloc exec`   | false                         |
+| filesystem isolation | none, chroot (only for linux) |
+| network isolation    | host, group                   |
+| volume mounting      | none, all (only for linux)    |
+
+## Plugin Options
+
+- `default_pid_mode` `(string: optional)` - Defaults to `"private"`. Set to
+  `"private"` to enable PID namespace isolation for tasks by default, or `"host"` to
+  disable isolation.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will
+be able to access sensitive process information like environment variables.
+
+- `default_ipc_mode` `(string: optional)` - Defaults to `"private"`. Set to
+  `"private"` to enable IPC namespace isolation for tasks by default,
+  or `"host"` to disable isolation.
+
+!> **Warning:** If set to `"host"`, other processes running as the same user will be
+able to make use of IPC features, like sending unexpected POSIX signals.
+
+- `allow_caps` - A list of allowed Linux capabilities. Defaults to
+
+```hcl
+["audit_write", "chown", "dac_override", "fowner", "fsetid", "kill", "mknod",
+ "net_bind_service", "setfcap", "setgid", "setpcap", "setuid", "sys_chroot"]
+```
+
+  which is modeled after the capabilities allowed by [docker by default][docker_caps]
+  (without [`NET_RAW`][no_net_raw]). Allows the operator to control which capabilities
+  can be obtained by tasks using [`cap_add`][cap_add] and [`cap_drop`][cap_drop] options.
+  Supports the value `"all"` as a shortcut for allow-listing all capabilities supported
+  by the operating system.
+
+!> **Warning:** Allowing more capabilities beyond the default may lead to
+undesirable consequences, including untrusted tasks being able to compromise the
+host system.
+
+## Client Requirements
+
+The `java` driver requires Java to be installed and in your system's `$PATH`. On
+Linux, Nomad must run as root since it will use `chroot` and `cgroups` which
+require root privileges. The task must also specify at least one artifact to
+download, as this is the only way to retrieve the Jar being run.
+
+## Client Attributes
+
+The `java` driver will set the following client attributes:
+
+- `driver.java` - Set to `1` if Java is found on the host node. Nomad determines
+  this by executing `java -version` on the host and parsing the output
+- `driver.java.version` - Version of Java, ex: `1.6.0_65`
+- `driver.java.runtime` - Runtime version, ex: `Java(TM) SE Runtime Environment (build 1.6.0_65-b14-466.1-11M4716)`
+- `driver.java.vm` - Virtual Machine information, ex: `Java HotSpot(TM) 64-Bit Server VM (build 20.65-b04-466.1, mixed mode)`
+
+Here is an example of using these properties in a job file:
+
+```hcl
+job "docs" {
+  # Only run this job where the JVM is higher than version 1.6.0.
+  constraint {
+    attribute = "${driver.java.version}"
+    operator  = ">"
+    value     = "1.6.0"
+  }
+}
+```
+
+## Resource Isolation
+
+The resource isolation provided varies by the operating system of
+the client and the configuration.
+
+On Linux, Nomad will attempt to use cgroups, namespaces, and chroot
+to isolate the resources of a process. If the Nomad agent is not
+running as root, many of these mechanisms cannot be used.
+
+As a baseline, the Java jars will be run inside a Java Virtual Machine,
+providing a minimum amount of isolation.
+
+### Chroot
+
+The chroot created on Linux is populated with data in the following
+directories from the host machine:
+
+```
+[
+  "/bin",
+  "/etc",
+  "/lib",
+  "/lib32",
+  "/lib64",
+  "/run/resolvconf",
+  "/sbin",
+  "/usr",
+]
+```
+
+The task's chroot is populated by linking or copying the data from the host into
+the chroot. Note that this can take considerable disk space. Since Nomad v0.5.3,
+the client manages garbage collection locally which mitigates any issue this may
+create.
+
+This list is configurable through the agent client
+[configuration file](/docs/configuration/client#chroot_env).
+
+[default_pid_mode]: /docs/drivers/java#default_pid_mode
+[default_ipc_mode]: /docs/drivers/java#default_ipc_mode
+[cap_add]: /docs/drivers/java#cap_add
+[cap_drop]: /docs/drivers/java#cap_drop
+[no_net_raw]: /docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+[allow_caps]: /docs/drivers/java#allow_caps
+[docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities

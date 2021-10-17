@@ -18,15 +18,18 @@ func (c *JobStopCommand) Help() string {
 Usage: nomad job stop [options] <job>
 Alias: nomad stop
 
-  Stop an existing job. This command is used to signal allocations
-  to shut down for the given job ID. Upon successful deregistration,
-  an interactive monitor session will start to display log lines as
-  the job unwinds its allocations and completes shutting down. It
-  is safe to exit the monitor early using ctrl+c.
+  Stop an existing job. This command is used to signal allocations to shut
+  down for the given job ID. Upon successful deregistration, an interactive
+  monitor session will start to display log lines as the job unwinds its
+  allocations and completes shutting down. It is safe to exit the monitor
+  early using ctrl+c.
+
+  When ACLs are enabled, this command requires a token with the 'submit-job',
+  'read-job', and 'list-jobs' capabilities for the job's namespace.
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Stop Options:
 
@@ -113,7 +116,7 @@ func (c *JobStopCommand) Run(args []string) int {
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-	jobID := args[0]
+	jobID := strings.TrimSpace(args[0])
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()
@@ -132,10 +135,17 @@ func (c *JobStopCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
 		return 1
 	}
-	if len(jobs) > 1 && (c.allNamespaces() || strings.TrimSpace(jobID) != jobs[0].ID) {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
-		return 1
+	if len(jobs) > 1 {
+		if jobID != jobs[0].ID {
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
+			return 1
+		}
+		if c.allNamespaces() && jobs[0].ID == jobs[1].ID {
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
+			return 1
+		}
 	}
+
 	// Prefix lookup matched a single job
 	q := &api.QueryOptions{Namespace: jobs[0].JobSummary.Namespace}
 	job, _, err := client.Jobs().Info(jobs[0].ID, q)
@@ -206,5 +216,5 @@ func (c *JobStopCommand) Run(args []string) int {
 
 	// Start monitoring the stop eval
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(evalID, false)
+	return mon.monitor(evalID)
 }

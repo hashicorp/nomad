@@ -20,11 +20,12 @@ import (
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/rs/cors"
+
 	"github.com/hashicorp/nomad/helper/noxssrw"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/version"
-	"github.com/rs/cors"
 )
 
 const (
@@ -174,14 +175,12 @@ func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int) fu
 				MaxConnsPerClientIP: connLimit,
 			}).HTTPConnStateFunc()
 		}
-
 		return nil
 	}
 
 	if connLimit > 0 {
 		// Return conn state callback with connection limiting and a
 		// handshake timeout.
-
 		connLimiter := connlimit.NewLimiter(connlimit.Config{
 			MaxConnsPerClientIP: connLimit,
 		}).HTTPConnStateFunc()
@@ -268,6 +267,8 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/deployment/", s.wrap(s.DeploymentSpecificRequest))
 
 	s.mux.HandleFunc("/v1/volumes", s.wrap(s.CSIVolumesRequest))
+	s.mux.HandleFunc("/v1/volumes/external", s.wrap(s.CSIExternalVolumesRequest))
+	s.mux.HandleFunc("/v1/volumes/snapshot", s.wrap(s.CSISnapshotsRequest))
 	s.mux.HandleFunc("/v1/volume/csi/", s.wrap(s.CSIVolumeSpecificRequest))
 	s.mux.HandleFunc("/v1/plugins", s.wrap(s.CSIPluginsRequest))
 	s.mux.HandleFunc("/v1/plugin/csi/", s.wrap(s.CSIPluginSpecificRequest))
@@ -275,6 +276,8 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/acl/policies", s.wrap(s.ACLPoliciesRequest))
 	s.mux.HandleFunc("/v1/acl/policy/", s.wrap(s.ACLPolicySpecificRequest))
 
+	s.mux.HandleFunc("/v1/acl/token/onetime", s.wrap(s.UpsertOneTimeToken))
+	s.mux.HandleFunc("/v1/acl/token/onetime/exchange", s.wrap(s.ExchangeOneTimeToken))
 	s.mux.HandleFunc("/v1/acl/bootstrap", s.wrap(s.ACLTokenBootstrap))
 	s.mux.HandleFunc("/v1/acl/tokens", s.wrap(s.ACLTokensRequest))
 	s.mux.HandleFunc("/v1/acl/token", s.wrap(s.ACLTokenSpecificRequest))
@@ -315,8 +318,10 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/status/leader", s.wrap(s.StatusLeaderRequest))
 	s.mux.HandleFunc("/v1/status/peers", s.wrap(s.StatusPeersRequest))
 
+	s.mux.HandleFunc("/v1/search/fuzzy", s.wrap(s.FuzzySearchRequest))
 	s.mux.HandleFunc("/v1/search", s.wrap(s.SearchRequest))
 
+	s.mux.HandleFunc("/v1/operator/license", s.wrap(s.LicenseRequest))
 	s.mux.HandleFunc("/v1/operator/raft/", s.wrap(s.OperatorRequest))
 	s.mux.HandleFunc("/v1/operator/autopilot/configuration", s.wrap(s.OperatorAutopilotConfiguration))
 	s.mux.HandleFunc("/v1/operator/autopilot/health", s.wrap(s.OperatorServerHealth))
@@ -328,9 +333,6 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/operator/scheduler/configuration", s.wrap(s.OperatorSchedulerConfiguration))
 
 	s.mux.HandleFunc("/v1/event/stream", s.wrap(s.EventStream))
-	s.mux.HandleFunc("/v1/event/sinks", s.wrap(s.EventSinksRequest))
-	s.mux.HandleFunc("/v1/event/sink/", s.wrap(s.EventSinkSpecificRequest))
-
 	s.mux.HandleFunc("/v1/namespaces", s.wrap(s.NamespacesRequest))
 	s.mux.HandleFunc("/v1/namespace", s.wrap(s.NamespaceCreateRequest))
 	s.mux.HandleFunc("/v1/namespace/", s.wrap(s.NamespaceSpecificRequest))
@@ -404,14 +406,17 @@ func (s *HTTPServer) handleUI(h http.Handler) http.Handler {
 		header := w.Header()
 		header.Add("Content-Security-Policy", "default-src 'none'; connect-src *; img-src 'self' data:; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'")
 		h.ServeHTTP(w, req)
-		return
 	})
 }
 
 func (s *HTTPServer) handleRootFallthrough() http.Handler {
 	return s.auditHTTPHandler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Path == "/" {
-			http.Redirect(w, req, "/ui/", 307)
+			url := "/ui/"
+			if req.URL.RawQuery != "" {
+				url = url + "?" + req.URL.RawQuery
+			}
+			http.Redirect(w, req, url, 307)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -453,7 +458,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		reqURL := req.URL.String()
 		start := time.Now()
 		defer func() {
-			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Now().Sub(start))
+			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Since(start))
 		}()
 		obj, err := s.auditHandler(handler)(resp, req)
 
@@ -505,7 +510,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 					buf.Write([]byte("\n"))
 				}
 			} else {
-				enc := codec.NewEncoder(&buf, structs.JsonHandle)
+				enc := codec.NewEncoder(&buf, structs.JsonHandleWithExtensions)
 				err = enc.Encode(obj)
 			}
 			if err != nil {
@@ -530,7 +535,7 @@ func (s *HTTPServer) wrapNonJSON(handler func(resp http.ResponseWriter, req *htt
 		reqURL := req.URL.String()
 		start := time.Now()
 		defer func() {
-			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Now().Sub(start))
+			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Since(start))
 		}()
 		obj, err := s.auditNonJSONHandler(handler)(resp, req)
 
@@ -607,7 +612,7 @@ func setMeta(resp http.ResponseWriter, m *structs.QueryMeta) {
 // setHeaders is used to set canonical response header fields
 func setHeaders(resp http.ResponseWriter, headers map[string]string) {
 	for field, value := range headers {
-		resp.Header().Set(http.CanonicalHeaderKey(field), value)
+		resp.Header().Set(field, value)
 	}
 }
 
@@ -670,6 +675,13 @@ func parseNamespace(req *http.Request, n *string) {
 	}
 }
 
+// parseIdempotencyToken is used to parse the ?idempotency_token parameter
+func parseIdempotencyToken(req *http.Request, n *string) {
+	if idempotencyToken := req.URL.Query().Get("idempotency_token"); idempotencyToken != "" {
+		*n = idempotencyToken
+	}
+}
+
 // parseBool parses a query parameter to a boolean or returns (nil, nil) if the
 // parameter is not present.
 func parseBool(req *http.Request, field string) (*bool, error) {
@@ -700,7 +712,23 @@ func (s *HTTPServer) parse(resp http.ResponseWriter, req *http.Request, r *strin
 	parseConsistency(req, b)
 	parsePrefix(req, b)
 	parseNamespace(req, &b.Namespace)
+	parsePagination(req, b)
 	return parseWait(resp, req, b)
+}
+
+// parsePagination parses the pagination fields for QueryOptions
+func parsePagination(req *http.Request, b *structs.QueryOptions) {
+	query := req.URL.Query()
+	rawPerPage := query.Get("per_page")
+	if rawPerPage != "" {
+		perPage, err := strconv.Atoi(rawPerPage)
+		if err == nil {
+			b.PerPage = int32(perPage)
+		}
+	}
+
+	nextToken := query.Get("next_token")
+	b.NextToken = nextToken
 }
 
 // parseWriteRequest is a convenience method for endpoints that need to parse a
@@ -709,6 +737,7 @@ func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteReques
 	parseNamespace(req, &w.Namespace)
 	s.parseToken(req, &w.AuthToken)
 	s.parseRegion(req, &w.Region)
+	parseIdempotencyToken(req, &w.IdempotencyToken)
 }
 
 // wrapUntrustedContent wraps handlers in a http.ResponseWriter that prevents

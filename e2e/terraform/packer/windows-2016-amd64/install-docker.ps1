@@ -12,19 +12,24 @@ if (!$RunningAsAdmin) {
 
 Try {
     Write-Output "Installing containers feature."
-    Install-WindowsFeature -Name Containers
+    Install-WindowsFeature -Name Containers -ErrorAction Stop
 
     Write-Output "Creating user for Docker."
     net localgroup docker /add
     net localgroup docker $env:USERNAME /add
 
     Write-Output "Installing Docker."
-    Set-PSRepository -InstallationPolicy Trusted -Name PSGallery
-    Install-Module -Name DockerMsftProvider -Repository PSGallery -Force
-    Install-Package -Name docker -ProviderName DockerMsftProvider -Force
+
+    # Getting an error at this step? Check for their "status page" at:
+    # https://github.com/PowerShell/PowerShellGallery/blob/master/psgallery_status.md
+    Set-PSRepository -InstallationPolicy Trusted -Name PSGallery -ErrorAction Stop
+
+    Install-Module -Name DockerMsftProvider -Repository PSGallery -Force -ErrorAction Stop
+    Install-Package -Name docker -ProviderName DockerMsftProvider -Force -ErrorAction Stop
 
 } Catch {
-    Write-Error "Failed to install Docker."
+    Write-Output "Failed to install Docker."
+    Write-Output $_
     $host.SetShouldExit(-1)
     throw
 } Finally {

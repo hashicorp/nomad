@@ -56,7 +56,7 @@ REPO_PATH="${TMP_WORKSPACE}/gopath/src/github.com/hashicorp/nomad"
 mkdir -p "${TMP_WORKSPACE}/tmp"
 
 install_go() {
-  local go_version="1.15.1"
+  local go_version="1.17.1"
   local download=
 
   download="https://storage.googleapis.com/golang/go${go_version}.darwin-amd64.tar.gz"
@@ -90,4 +90,5 @@ EOF
 echo '=======>>>> Retrieving mac compiled binaries'
 rsync -avz --ignore-existing ${remote_macos_host}:"${REPO_REMOTE_PATH}/pkg/" "${REPO}/pkg"
 
-ssh ${remote_macos_host} rm -rf "${TMP_WORKSPACE}"
+ssh ${remote_macos_host} chmod -R +w "${TMP_WORKSPACE}" || true
+ssh ${remote_macos_host} rm -rf "${TMP_WORKSPACE}" || true

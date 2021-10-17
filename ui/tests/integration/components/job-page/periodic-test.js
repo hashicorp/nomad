@@ -75,7 +75,7 @@ module('Integration | Component | job-page/periodic', function(hooks) {
     const currentJobCount = server.db.jobs.length;
 
     assert.equal(
-      findAll('[data-test-job-name]').length,
+      findAll('[data-test-job-row] [data-test-job-name]').length,
       childrenCount,
       'The new periodic job launch is in the children list'
     );

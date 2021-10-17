@@ -1,6 +1,8 @@
 package api
 
 import (
+	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"strconv"
@@ -124,6 +126,9 @@ type SchedulerConfiguration struct {
 	// priority jobs to place higher priority jobs.
 	PreemptionConfig PreemptionConfig
 
+	// MemoryOversubscriptionEnabled specifies whether memory oversubscription is enabled
+	MemoryOversubscriptionEnabled bool
+
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
 	ModifyIndex uint64
@@ -159,14 +164,15 @@ const (
 
 // PreemptionConfig specifies whether preemption is enabled based on scheduler type
 type PreemptionConfig struct {
-	SystemSchedulerEnabled  bool
-	BatchSchedulerEnabled   bool
-	ServiceSchedulerEnabled bool
+	SystemSchedulerEnabled   bool
+	SysBatchSchedulerEnabled bool
+	BatchSchedulerEnabled    bool
+	ServiceSchedulerEnabled  bool
 }
 
 // SchedulerGetConfiguration is used to query the current Scheduler configuration.
-func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfigurationResponse, *QueryMeta, error) {
-	var resp SchedulerConfigurationResponse
+func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfiguration, *QueryMeta, error) {
+	var resp SchedulerConfiguration
 	qm, err := op.c.query("/v1/operator/scheduler/configuration", &resp, q)
 	if err != nil {
 		return nil, nil, err
@@ -272,15 +278,29 @@ type License struct {
 }
 
 type LicenseReply struct {
-	License *License
+	License        *License
+	ConfigOutdated bool
 	QueryMeta
 }
 
+type ApplyLicenseOptions struct {
+	Force bool
+}
+
 func (op *Operator) LicensePut(license string, q *WriteOptions) (*WriteMeta, error) {
+	return op.ApplyLicense(license, nil, q)
+}
+
+func (op *Operator) ApplyLicense(license string, opts *ApplyLicenseOptions, q *WriteOptions) (*WriteMeta, error) {
 	r, err := op.c.newRequest("PUT", "/v1/operator/license")
 	if err != nil {
 		return nil, err
 	}
+
+	if opts != nil && opts.Force {
+		r.params.Add("force", "true")
+	}
+
 	r.setWriteOptions(q)
 	r.body = strings.NewReader(license)
 
@@ -297,10 +317,31 @@ func (op *Operator) LicensePut(license string, q *WriteOptions) (*WriteMeta, err
 }
 
 func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, error) {
-	var reply LicenseReply
-	qm, err := op.c.query("/v1/operator/license", &reply, q)
+	req, err := op.c.newRequest("GET", "/v1/operator/license")
 	if err != nil {
 		return nil, nil, err
 	}
+	req.setQueryOptions(q)
+
+	var reply LicenseReply
+	rtt, resp, err := op.c.doRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 204 {
+		return nil, nil, errors.New("Nomad Enterprise only endpoint")
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&reply)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	qm := &QueryMeta{}
+	parseQueryMeta(resp, qm)
+	qm.RequestTime = rtt
+
 	return &reply, qm, nil
 }

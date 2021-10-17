@@ -35,7 +35,7 @@ func StreamClientInterceptor(logger hclog.Logger, opts ...Option) grpc.StreamCli
 func emitClientLog(logger hclog.Logger, o *options, fullMethodString string, startTime time.Time, err error, msg string) {
 	code := status.Code(err)
 	logLevel := o.levelFunc(code)
-	reqDuration := time.Now().Sub(startTime)
+	reqDuration := time.Since(startTime)
 	service := path.Dir(fullMethodString)[1:]
 	method := path.Base(fullMethodString)
 	logger.Log(logLevel, msg, "grpc.code", code, "duration", reqDuration, "grpc.service", service, "grpc.method", method)

@@ -54,7 +54,7 @@ func (p *Scaling) ListPolicies(args *structs.ScalingPolicyListRequest, reply *st
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = state.ScalingPoliciesByIDPrefix(ws, args.RequestNamespace(), prefix)
 			} else if job := args.Job; job != "" {
-				iter, err = state.ScalingPoliciesByJob(ws, args.RequestNamespace(), job)
+				iter, err = state.ScalingPoliciesByJob(ws, args.RequestNamespace(), job, args.Type)
 			} else {
 				iter, err = state.ScalingPoliciesByNamespace(ws, args.Namespace, args.Type)
 			}

@@ -17,9 +17,11 @@ func (c *OperatorRaftInfoCommand) Help() string {
 Usage: nomad operator raft _info <path to nomad data dir>
 
   Displays info about the raft logs in the data directory.
-  
+
   This is a low-level debugging tool and not subject to Nomad's usual backward
   compatibility guarantees.
+
+  If ACLs are enabled, this command requires a management token.
 `
 	return strings.TrimSpace(helpText)
 }

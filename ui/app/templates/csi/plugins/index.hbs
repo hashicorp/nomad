@@ -1,4 +1,4 @@
-{{title "CSI Plugins"}}
+{{page-title "CSI Plugins"}}
 <div class="tabs is-subnav">
   <ul>
     <li data-test-tab="volumes"><LinkTo @route="csi.volumes.index" @activeClass="is-active">Volumes</LinkTo></li>
@@ -46,7 +46,12 @@
                   {{if (gt row.model.controllersHealthy 0) "Healthy" "Unhealthy"}}
                   ({{row.model.controllersHealthy}}/{{row.model.controllersExpected}})
                 {{else}}
-                  <em class="is-faded">Node Only</em>
+                  {{#if (gt row.model.controllersExpected 0)}}
+                    {{if (gt row.model.controllersHealthy 0) "Healthy" "Unhealthy"}}
+                    ({{row.model.controllersHealthy}}/{{row.model.controllersExpected}})
+                  {{else}}
+                    <em class="is-faded">Node Only</em>
+                  {{/if}}
                 {{/if}}
               </td>
               <td data-test-plugin-node-health>

@@ -18,9 +18,12 @@ Usage: nomad deployment list [options]
 
   List is used to list the set of deployments tracked by Nomad.
 
+  When ACLs are enabled, this command requires a token with the 'read-job'
+  capability for the deployment's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 List Options:
 

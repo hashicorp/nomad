@@ -7,11 +7,13 @@ import (
 // Resources encapsulates the required resources of
 // a given task or task group.
 type Resources struct {
-	CPU      *int               `hcl:"cpu,optional"`
-	MemoryMB *int               `mapstructure:"memory" hcl:"memory,optional"`
-	DiskMB   *int               `mapstructure:"disk" hcl:"disk,optional"`
-	Networks []*NetworkResource `hcl:"network,block"`
-	Devices  []*RequestedDevice `hcl:"device,block"`
+	CPU         *int               `hcl:"cpu,optional"`
+	Cores       *int               `hcl:"cores,optional"`
+	MemoryMB    *int               `mapstructure:"memory" hcl:"memory,optional"`
+	MemoryMaxMB *int               `mapstructure:"memory_max" hcl:"memory_max,optional"`
+	DiskMB      *int               `mapstructure:"disk" hcl:"disk,optional"`
+	Networks    []*NetworkResource `hcl:"network,block"`
+	Devices     []*RequestedDevice `hcl:"device,block"`
 
 	// COMPAT(0.10)
 	// XXX Deprecated. Please do not use. The field will be removed in Nomad
@@ -24,14 +26,23 @@ type Resources struct {
 // where they are not provided.
 func (r *Resources) Canonicalize() {
 	defaultResources := DefaultResources()
-	if r.CPU == nil {
-		r.CPU = defaultResources.CPU
+	if r.Cores == nil {
+		r.Cores = defaultResources.Cores
+
+		// only set cpu to the default value if it and cores is not defined
+		if r.CPU == nil {
+			r.CPU = defaultResources.CPU
+		}
 	}
+
+	// CPU will be set to the default if cores is nil above.
+	// If cpu is nil here then cores has been set and cpu should be 0
+	if r.CPU == nil {
+		r.CPU = intToPtr(0)
+	}
+
 	if r.MemoryMB == nil {
 		r.MemoryMB = defaultResources.MemoryMB
-	}
-	for _, n := range r.Networks {
-		n.Canonicalize()
 	}
 	for _, d := range r.Devices {
 		d.Canonicalize()
@@ -45,6 +56,7 @@ func (r *Resources) Canonicalize() {
 func DefaultResources() *Resources {
 	return &Resources{
 		CPU:      intToPtr(100),
+		Cores:    intToPtr(0),
 		MemoryMB: intToPtr(300),
 	}
 }
@@ -57,6 +69,7 @@ func DefaultResources() *Resources {
 func MinResources() *Resources {
 	return &Resources{
 		CPU:      intToPtr(1),
+		Cores:    intToPtr(0),
 		MemoryMB: intToPtr(10),
 	}
 }
@@ -103,19 +116,32 @@ type NetworkResource struct {
 	Device        string     `hcl:"device,optional"`
 	CIDR          string     `hcl:"cidr,optional"`
 	IP            string     `hcl:"ip,optional"`
-	MBits         *int       `hcl:"mbits,optional"`
 	DNS           *DNSConfig `hcl:"dns,block"`
 	ReservedPorts []Port     `hcl:"reserved_ports,block"`
 	DynamicPorts  []Port     `hcl:"port,block"`
+	Hostname      string     `hcl:"hostname,optional"`
+
+	// COMPAT(0.13)
+	// XXX Deprecated. Please do not use. The field will be removed in Nomad
+	// 0.13 and is only being kept to allow any references to be removed before
+	// then.
+	MBits *int `hcl:"mbits,optional"`
+}
+
+// COMPAT(0.13)
+// XXX Deprecated. Please do not use. The method will be removed in Nomad
+// 0.13 and is only being kept to allow any references to be removed before
+// then.
+func (n *NetworkResource) Megabits() int {
+	if n == nil || n.MBits == nil {
+		return 0
+	}
+	return *n.MBits
 }
 
 func (n *NetworkResource) Canonicalize() {
-	// COMPAT(0.12) MBits is deprecated but this should not be removed
-	// until MBits is fully removed. Removing this *without* fully removing
-	// MBits would cause unnecessary job diffs and destructive updates.
-	if n.MBits == nil {
-		n.MBits = intToPtr(10)
-	}
+	// COMPAT(0.13)
+	// Noop to maintain backwards compatibility
 }
 
 func (n *NetworkResource) HasPorts() bool {

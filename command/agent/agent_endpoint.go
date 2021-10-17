@@ -716,16 +716,18 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 	var reply structs.HostDataResponse
 	var rpcErr error
 
-	// serverID is set, so forward to that server
+	// If serverID is specified, use that to lookup the RPC interface
+	lookupNodeID := nodeID
 	if serverID != "" {
-		rpcErr = s.agent.Server().RPC("Agent.Host", &args, &reply)
-		return reply, rpcErr
+		lookupNodeID = serverID
 	}
 
-	// Make the RPC. The RPC endpoint actually forwards the request to the correct
+	// The RPC endpoint actually forwards the request to the correct
 	// agent, but we need to use the correct RPC interface.
-	localClient, remoteClient, localServer := s.rpcHandlerForNode(nodeID)
+	localClient, remoteClient, localServer := s.rpcHandlerForNode(lookupNodeID)
+	s.agent.logger.Debug("s.rpcHandlerForNode()", "lookupNodeID", lookupNodeID, "serverID", serverID, "nodeID", nodeID, "localClient", localClient, "remoteClient", remoteClient, "localServer", localServer)
 
+	// Make the RPC call
 	if localClient {
 		rpcErr = s.agent.Client().ClientRPC("Agent.Host", &args, &reply)
 	} else if remoteClient {

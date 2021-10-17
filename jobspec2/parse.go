@@ -3,86 +3,101 @@ package jobspec2
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcljson "github.com/hashicorp/hcl/v2/json"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/jobspec2/hclutil"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func Parse(path string, r io.Reader) (*api.Job, error) {
-	return ParseWithArgs(path, r, nil, false)
-}
-
-func toVars(vars map[string]string) cty.Value {
-	attrs := make(map[string]cty.Value, len(vars))
-	for k, v := range vars {
-		attrs[k] = cty.StringVal(v)
-	}
-
-	return cty.ObjectVal(attrs)
-}
-
-func ParseWithArgs(path string, r io.Reader, vars map[string]string, allowFS bool) (*api.Job, error) {
 	if path == "" {
 		if f, ok := r.(*os.File); ok {
 			path = f.Name()
 		}
 	}
-	basedir := filepath.Dir(path)
 
-	// Copy the reader into an in-memory buffer first since HCL requires it.
 	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, r); err != nil {
-		return nil, err
-	}
-
-	evalContext := &hcl.EvalContext{
-		Functions: Functions(basedir, allowFS),
-		Variables: map[string]cty.Value{
-			"vars": toVars(vars),
-		},
-		UnknownVariable: func(expr string) (cty.Value, error) {
-			v := "${" + expr + "}"
-			return cty.StringVal(v), nil
-		},
-	}
-	var result struct {
-		Job jobWrapper `hcl:"job,block"`
-	}
-	err := decode(path, buf.Bytes(), evalContext, &result)
+	_, err := io.Copy(&buf, r)
 	if err != nil {
 		return nil, err
 	}
 
-	normalizeJob(&result.Job)
-	return result.Job.Job, nil
+	return ParseWithConfig(&ParseConfig{
+		Path:    path,
+		Body:    buf.Bytes(),
+		AllowFS: false,
+		Strict:  true,
+	})
 }
 
-func decode(filename string, src []byte, ctx *hcl.EvalContext, target interface{}) error {
-	var file *hcl.File
-	var diags hcl.Diagnostics
+func ParseWithConfig(args *ParseConfig) (*api.Job, error) {
+	args.normalize()
 
-	if !isJSON(src) {
-		file, diags = hclsyntax.ParseConfig(src, filename, hcl.Pos{Line: 1, Column: 1})
-	} else {
-		file, diags = hcljson.Parse(src, filename)
-
-	}
-	if diags.HasErrors() {
-		return diags
+	c := newJobConfig(args)
+	err := decode(c)
+	if err != nil {
+		return nil, err
 	}
 
-	body := hclutil.BlocksAsAttrs(file.Body)
-	body = dynblock.Expand(body, ctx)
-	diags = hclDecoder.DecodeBody(body, ctx, target)
+	normalizeJob(c)
+	return c.Job, nil
+}
+
+type ParseConfig struct {
+	Path    string
+	BaseDir string
+
+	// Body is the HCL body
+	Body []byte
+
+	// AllowFS enables HCL functions that require file system accecss
+	AllowFS bool
+
+	// ArgVars is the CLI -var arguments
+	ArgVars []string
+
+	// VarFiles is the paths of variable data files
+	VarFiles []string
+
+	// Envs represent process environment variable
+	Envs []string
+
+	Strict bool
+
+	// parsedVarFiles represent parsed HCL AST of the passed EnvVars
+	parsedVarFiles []*hcl.File
+}
+
+func (c *ParseConfig) normalize() {
+	if c.BaseDir == "" {
+		c.BaseDir = filepath.Dir(c.Path)
+	}
+}
+
+func decode(c *jobConfig) error {
+	config := c.ParseConfig
+
+	file, diags := parseHCLOrJSON(config.Body, config.Path)
+
+	for _, varFile := range config.VarFiles {
+		parsedVarFile, ds := parseFile(varFile)
+		if parsedVarFile == nil || ds.HasErrors() {
+			return fmt.Errorf("unable to parse var file: %v", ds.Error())
+		}
+
+		config.parsedVarFiles = append(config.parsedVarFiles, parsedVarFile)
+		diags = append(diags, ds...)
+	}
+
+	diags = append(diags, c.decodeBody(file.Body)...)
+
 	if diags.HasErrors() {
 		var str strings.Builder
 		for i, diag := range diags {
@@ -93,8 +108,39 @@ func decode(filename string, src []byte, ctx *hcl.EvalContext, target interface{
 		}
 		return errors.New(str.String())
 	}
-	diags = append(diags, decodeMapInterfaceType(target, ctx)...)
+
+	diags = append(diags, decodeMapInterfaceType(&c.Job, c.EvalContext())...)
+	diags = append(diags, decodeMapInterfaceType(&c.Tasks, c.EvalContext())...)
+	diags = append(diags, decodeMapInterfaceType(&c.Vault, c.EvalContext())...)
+
+	if diags.HasErrors() {
+		return diags
+	}
+
 	return nil
+}
+
+func parseFile(path string) (*hcl.File, hcl.Diagnostics) {
+	body, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, hcl.Diagnostics{
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Failed to read file",
+				Detail:   fmt.Sprintf("failed to read %q: %v", path, err),
+			},
+		}
+	}
+
+	return parseHCLOrJSON(body, path)
+}
+
+func parseHCLOrJSON(src []byte, filename string) (*hcl.File, hcl.Diagnostics) {
+	if isJSON(src) {
+		return hcljson.Parse(src, filename)
+	}
+
+	return hclsyntax.ParseConfig(src, filename, hcl.Pos{Line: 1, Column: 1})
 }
 
 func isJSON(src []byte) bool {

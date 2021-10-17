@@ -60,6 +60,7 @@ message Spec {
   oneof block {
     Object object = 1;
     Array array = 2;
+    // buf:lint:ignore FIELD_LOWER_SNAKE_CASE
     Attr Attr = 3;
     Block block_value = 4;
     BlockAttrs block_attrs = 5;

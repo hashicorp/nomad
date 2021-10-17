@@ -19,9 +19,12 @@ Usage: nomad job deployments [options] <job>
 
   Deployments is used to display the deployments for a particular job.
 
+  When ACLs are enabled, this command requires a token with the 'read-job' and
+  'list-jobs' capabilities for the job's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Deployments Options:
 
@@ -38,7 +41,7 @@ Deployments Options:
     Display full information.
 
   -all
-    Display all deployments matching the job ID, including those 
+    Display all deployments matching the job ID, including those
     from an older instance of the job.
 `
 	return strings.TrimSpace(helpText)
@@ -107,7 +110,7 @@ func (c *JobDeploymentsCommand) Run(args []string) int {
 		return 1
 	}
 
-	jobID := args[0]
+	jobID := strings.TrimSpace(args[0])
 
 	// Check if the job exists
 	jobs, _, err := client.Jobs().PrefixList(jobID)
@@ -119,10 +122,17 @@ func (c *JobDeploymentsCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
 		return 1
 	}
-	if len(jobs) > 1 && (c.allNamespaces() || strings.TrimSpace(jobID) != jobs[0].ID) {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
-		return 1
+	if len(jobs) > 1 {
+		if jobID != jobs[0].ID {
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
+			return 1
+		}
+		if c.allNamespaces() && jobs[0].ID == jobs[1].ID {
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
+			return 1
+		}
 	}
+
 	jobID = jobs[0].ID
 	q := &api.QueryOptions{Namespace: jobs[0].JobSummary.Namespace}
 

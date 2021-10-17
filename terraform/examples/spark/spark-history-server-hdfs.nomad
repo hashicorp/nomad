@@ -1,17 +1,17 @@
 job "spark-history-server" {
   datacenters = ["dc1"]
-  type = "service"
+  type        = "service"
 
   group "server" {
     count = 1
 
     task "history-server" {
       driver = "docker"
-      
+
       config {
-        image = "barnardb/spark"
+        image   = "barnardb/spark"
         command = "/spark/spark-2.1.0-bin-nomad/bin/spark-class"
-        args = [ "org.apache.spark.deploy.history.HistoryServer" ]
+        args    = ["org.apache.spark.deploy.history.HistoryServer"]
         port_map {
           ui = 18080
         }

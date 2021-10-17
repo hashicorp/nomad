@@ -46,7 +46,7 @@ type AutopilotConfig struct {
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
 
-// DefaultAutopilotConfig() returns the canonical defaults for the Nomad
+// DefaultAutopilotConfig returns the canonical defaults for the Nomad
 // `autopilot` configuration.
 func DefaultAutopilotConfig() *AutopilotConfig {
 	return &AutopilotConfig{

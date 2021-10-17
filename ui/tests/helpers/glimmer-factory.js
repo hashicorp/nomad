@@ -24,7 +24,7 @@ export default function setupGlimmerComponentFactory(hooks, componentKey) {
 // Look up the component class in the glimmer component manager and return a
 // function to construct components as if they were functions.
 function glimmerComponentInstantiator(owner, componentKey) {
-  return args => {
+  return (args = {}) => {
     const componentManager = owner.lookup('component-manager:glimmer');
     const componentClass = owner.factoryFor(`component:${componentKey}`).class;
     return componentManager.createComponent(componentClass, { named: args });

@@ -9,7 +9,9 @@ import (
 	hcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	hjson "github.com/hashicorp/hcl/v2/json"
+
 	"github.com/hashicorp/nomad/nomad/structs"
+
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
@@ -85,7 +87,7 @@ func formattedDiagnosticErrors(diag hcl.Diagnostics) []error {
 		if d.Summary == "Extraneous JSON object property" {
 			d.Summary = "Invalid label"
 		}
-		err := errors.New(fmt.Sprintf("%s: %s", d.Summary, d.Detail))
+		err := fmt.Errorf("%s: %s", d.Summary, d.Detail)
 		errs = append(errs, err)
 	}
 	return errs

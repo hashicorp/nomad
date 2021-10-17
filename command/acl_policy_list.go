@@ -18,9 +18,12 @@ Usage: nomad acl policy list
 
   List is used to list available ACL policies.
 
+  This command requires a management ACL token to view all policies. A
+  non-management token can query its own policies.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 List Options:
 
@@ -108,7 +111,7 @@ func formatPolicies(policies []*api.ACLPolicyListStub) string {
 	}
 
 	output := make([]string, 0, len(policies)+1)
-	output = append(output, fmt.Sprintf("Name|Description"))
+	output = append(output, "Name|Description")
 	for _, p := range policies {
 		output = append(output, fmt.Sprintf("%s|%s", p.Name, p.Description))
 	}

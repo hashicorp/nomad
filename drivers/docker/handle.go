@@ -3,6 +3,7 @@ package docker
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/armon/circbuf"
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
@@ -103,7 +105,7 @@ func (h *taskHandle) Exec(ctx context.Context, cmd string, args []string) (*driv
 	return execResult, nil
 }
 
-func (h *taskHandle) Signal(s os.Signal) error {
+func (h *taskHandle) Signal(ctx context.Context, s os.Signal) error {
 	// Convert types
 	sysSig, ok := s.(syscall.Signal)
 	if !ok {
@@ -116,18 +118,54 @@ func (h *taskHandle) Signal(s os.Signal) error {
 
 	dockerSignal := docker.Signal(sysSig)
 	opts := docker.KillContainerOptions{
-		ID:     h.containerID,
-		Signal: dockerSignal,
+		ID:      h.containerID,
+		Signal:  dockerSignal,
+		Context: ctx,
 	}
 	return h.client.KillContainer(opts)
+}
 
+// parseSignal interprets the signal name into an os.Signal. If no name is
+// provided, the docker driver defaults to SIGTERM. If the OS is Windows and
+// SIGINT is provided, the signal is converted to SIGTERM.
+func parseSignal(os, signal string) (os.Signal, error) {
+	// Unlike other drivers, docker defaults to SIGTERM, aiming for consistency
+	// with the 'docker stop' command.
+	// https://docs.docker.com/engine/reference/commandline/stop/#extended-description
+	if signal == "" {
+		signal = "SIGTERM"
+	}
+
+	// Windows Docker daemon does not support SIGINT, SIGTERM is the semantic equivalent that
+	// allows for graceful shutdown before being followed up by a SIGKILL.
+	// Supported signals:
+	//   https://github.com/moby/moby/blob/0111ee70874a4947d93f64b672f66a2a35071ee2/pkg/signal/signal_windows.go#L17-L26
+	if os == "windows" && signal == "SIGINT" {
+		signal = "SIGTERM"
+	}
+
+	return signals.Parse(signal)
 }
 
 // Kill is used to terminate the task.
-func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
-	// Only send signal if killTimeout is set, otherwise stop container
-	if killTimeout > 0 {
-		if err := h.Signal(signal); err != nil {
+func (h *taskHandle) Kill(killTimeout time.Duration, signal string) error {
+	var err error
+	// Calling StopContainer lets docker handle the stop signal (specified
+	// in the Dockerfile or defaulting to SIGTERM). If kill_signal is specified,
+	// Signal is used to kill the container with the desired signal before
+	// calling StopContainer
+	if signal == "" {
+		err = h.client.StopContainer(h.containerID, uint(killTimeout.Seconds()))
+	} else {
+		ctx, cancel := context.WithTimeout(context.Background(), killTimeout)
+		defer cancel()
+
+		sig, parseErr := parseSignal(runtime.GOOS, signal)
+		if parseErr != nil {
+			return fmt.Errorf("failed to parse signal: %v", parseErr)
+		}
+
+		if err := h.Signal(ctx, sig); err != nil {
 			// Container has already been removed.
 			if strings.Contains(err.Error(), NoSuchContainerError) {
 				h.logger.Debug("attempted to signal nonexistent container")
@@ -146,14 +184,14 @@ func (h *taskHandle) Kill(killTimeout time.Duration, signal os.Signal) error {
 		select {
 		case <-h.waitCh:
 			return nil
-		case <-time.After(killTimeout):
+		case <-ctx.Done():
 		}
+
+		// Stop the container
+		err = h.client.StopContainer(h.containerID, 0)
 	}
 
-	// Stop the container
-	err := h.client.StopContainer(h.containerID, 0)
 	if err != nil {
-
 		// Container has already been removed.
 		if strings.Contains(err.Error(), NoSuchContainerError) {
 			h.logger.Debug("attempted to stop nonexistent container")
@@ -197,7 +235,9 @@ func (h *taskHandle) run() {
 		werr = fmt.Errorf("Docker container exited with non-zero exit code: %d", exitCode)
 	}
 
-	container, ierr := h.waitClient.InspectContainer(h.containerID)
+	container, ierr := h.waitClient.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: h.containerID,
+	})
 	oom := false
 	if ierr != nil {
 		h.logger.Error("failed to inspect container", "error", ierr)

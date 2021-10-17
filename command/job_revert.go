@@ -21,9 +21,12 @@ Usage: nomad job revert [options] <job> <version>
   Revert is used to revert a job to a prior version of the job. The available
   versions to revert to can be found using "nomad job history" command.
 
+  When ACLs are enabled, this command requires a token with the 'submit-job'
+  and 'list-jobs' capabilities for the job's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Revert Options:
 
@@ -36,8 +39,8 @@ Revert Options:
    The Consul token used to verify that the caller has access to the Service
    Identity policies associated in the targeted version of the job.
 
-  -vault-token 
-   The Vault token used to verify that the caller has access to the Vault 
+  -vault-token
+   The Vault token used to verify that the caller has access to the Vault
    policies in the targeted version of the job.
 
   -verbose
@@ -123,7 +126,7 @@ func (c *JobRevertCommand) Run(args []string) int {
 		vaultToken = os.Getenv("VAULT_TOKEN")
 	}
 
-	jobID := args[0]
+	jobID := strings.TrimSpace(args[0])
 	revertVersion, ok, err := parseVersion(args[1])
 	if !ok {
 		c.Ui.Error("The job version to revert to must be specified using the -job-version flag")
@@ -144,9 +147,15 @@ func (c *JobRevertCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("No job(s) with prefix or id %q found", jobID))
 		return 1
 	}
-	if len(jobs) > 1 && (c.allNamespaces() || strings.TrimSpace(jobID) != jobs[0].ID) {
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
-		return 1
+	if len(jobs) > 1 {
+		if jobID != jobs[0].ID {
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
+			return 1
+		}
+		if c.allNamespaces() && jobs[0].ID == jobs[1].ID {
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, c.allNamespaces())))
+			return 1
+		}
 	}
 
 	// Prefix lookup matched a single job
@@ -164,5 +173,5 @@ func (c *JobRevertCommand) Run(args []string) int {
 	}
 
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(resp.EvalID, false)
+	return mon.monitor(resp.EvalID)
 }

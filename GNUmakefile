@@ -1,12 +1,23 @@
 SHELL = bash
 PROJECT_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 THIS_OS := $(shell uname | cut -d- -f1)
+THIS_ARCH := $(shell uname -m)
 
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
-GO_TAGS ?= codegen_generated
+
+GO_TAGS ?=
+
+ifeq ($(CI),true)
+GO_TAGS := codegen_generated $(GO_TAGS)
+endif
+
+# Don't embed the Nomad UI when the NOMAD_NO_UI env var is set.
+ifndef NOMAD_NO_UI
+GO_TAGS := ui $(GO_TAGS)
+endif
 
 GO_TEST_CMD = $(if $(shell command -v gotestsum 2>/dev/null),gotestsum --,go test)
 
@@ -16,14 +27,14 @@ else
 GOTEST_PKGS=$(shell go list ./... | sed 's/github.com\/hashicorp\/nomad/./' | egrep -v "^($(GOTEST_PKGS_EXCLUDE))(/.*)?$$")
 endif
 
+# tag corresponding to latest release we maintain backward compatibility with
+PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
+
+# LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
+# published release, but backport branches should point to the parent tag (e.g. 1.0.8 in release-1.0.9 after 1.1.0 is cut).
+LAST_RELEASE ?= v1.1.6
+
 default: help
-
-ifeq (,$(findstring $(THIS_OS),Darwin Linux FreeBSD Windows MSYS_NT))
-$(error Building Nomad is currently only supported on Darwin and Linux; not $(THIS_OS))
-endif
-
-# On Linux we build for Linux and Windows
-ifeq (Linux,$(THIS_OS))
 
 ifeq ($(CI),true)
 	$(info Running in a CI environment, verbose mode is disabled)
@@ -31,124 +42,60 @@ else
 	VERBOSE="true"
 endif
 
-
-ALL_TARGETS += linux_386 \
+ifeq (Linux,$(THIS_OS))
+ALL_TARGETS = linux_386 \
 	linux_amd64 \
 	linux_arm \
 	linux_arm64 \
 	windows_386 \
 	windows_amd64
-
 endif
 
-# On MacOS, we only build for MacOS
+ifeq (s390x,$(THIS_ARCH))
+ALL_TARGETS = linux_s390x
+endif
+
 ifeq (Darwin,$(THIS_OS))
-ALL_TARGETS += darwin_amd64
-# Copy CGO files for darwin into place
+ALL_TARGETS = darwin_amd64
 endif
 
-# On FreeBSD, we only build for FreeBSD
 ifeq (FreeBSD,$(THIS_OS))
-ALL_TARGETS += freebsd_amd64
+ALL_TARGETS = freebsd_amd64
 endif
+
+SUPPORTED_OSES = Darwin Linux FreeBSD Windows MSYS_NT
+
+CGO_ENABLED = 1
 
 # include per-user customization after all variables are defined
 -include GNUMakefile.local
 
-pkg/darwin_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for darwin/amd64
+pkg/%/nomad: GO_OUT ?= $@
+pkg/%/nomad: CC ?= $(shell go env CC)
+pkg/%/nomad: ## Build Nomad for GOOS_GOARCH, e.g. pkg/linux_amd64/nomad
+ifeq (,$(findstring $(THIS_OS),$(SUPPORTED_OSES)))
+	$(warning WARNING: Building Nomad is only supported on $(SUPPORTED_OSES); not $(THIS_OS))
+endif
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
+	@CGO_ENABLED=$(CGO_ENABLED) \
+		GOOS=$(firstword $(subst _, ,$*)) \
+		GOARCH=$(lastword $(subst _, ,$*)) \
+		CC=$(CC) \
+		go build -trimpath -ldflags $(GO_LDFLAGS) -tags "$(GO_TAGS)" -o $(GO_OUT)
 
-pkg/freebsd_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for freebsd/amd64
-	@echo "==> Building $@..."
-	@CGO_ENABLED=1 GOOS=freebsd GOARCH=amd64 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
+ifneq (armv7l,$(THIS_ARCH))
+pkg/linux_arm/nomad: CC = arm-linux-gnueabihf-gcc
+endif
 
-pkg/linux_386/nomad: $(SOURCE_FILES) ## Build Nomad for linux/386
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=386 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
+ifneq (aarch64,$(THIS_ARCH))
+pkg/linux_arm64/nomad: CC = aarch64-linux-gnu-gcc
+endif
 
-pkg/linux_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/amd64
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
+ifeq (Darwin,$(THIS_OS))
+pkg/linux_%/nomad: CGO_ENABLED = 0
+endif
 
-pkg/linux_arm/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=arm CC=arm-linux-gnueabihf-gcc-5 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
-
-pkg/linux_arm64/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-5 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
-
-# If CGO support for Windows is ever required, set the following variables
-# in the environment for `go build` for both the windows/amd64 and the
-# windows/386 targets:
-#	CC=i686-w64-mingw32-gcc
-#	CXX=i686-w64-mingw32-g++
-pkg/windows_386/nomad: $(SOURCE_FILES) ## Build Nomad for windows/386
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=windows GOARCH=386 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@.exe"
-
-pkg/windows_amd64/nomad: $(SOURCE_FILES) ## Build Nomad for windows/amd64
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=windows GOARCH=amd64 \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@.exe"
-
-pkg/linux_ppc64le/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=ppc64le \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
-
-pkg/linux_s390x/nomad: $(SOURCE_FILES) ## Build Nomad for linux/arm64
-	@echo "==> Building $@ with tags $(GO_TAGS)..."
-	@CGO_ENABLED=1 GOOS=linux GOARCH=s390x \
-		go build \
-		-trimpath \
-		-ldflags $(GO_LDFLAGS) \
-		-tags "$(GO_TAGS)" \
-		-o "$@"
+pkg/windows_%/nomad: GO_OUT = $@.exe
 
 # Define package targets for each of the build targets we actually have on this system
 define makePackageTarget
@@ -167,23 +114,24 @@ bootstrap: deps lint-deps git-hooks # Install all dependencies
 
 .PHONY: deps
 deps:  ## Install build and development dependencies
-## Keep versions in sync with tools/go.mod for now (see https://github.com/golang/go/issues/30515)
 	@echo "==> Updating build dependencies..."
-	GO111MODULE=on cd tools && go get github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
-	GO111MODULE=on cd tools && go get github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
-	GO111MODULE=on cd tools && go get github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
-	GO111MODULE=on cd tools && go get gotest.tools/gotestsum@v0.4.2
-	GO111MODULE=on cd tools && go get github.com/hashicorp/hcl/v2/cmd/hclfmt@v2.5.1
-	GO111MODULE=on cd tools && go get github.com/golang/protobuf/protoc-gen-go@v1.3.4
-	GO111MODULE=on cd tools && go get github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+	go install github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
+	go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
+	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
+	go install gotest.tools/gotestsum@v0.4.2
+	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@v2.5.1
+	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 ## Keep versions in sync with tools/go.mod (see https://github.com/golang/go/issues/30515)
 	@echo "==> Updating linter dependencies..."
-	GO111MODULE=on cd tools && go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.24.0
-	GO111MODULE=on cd tools && go get github.com/client9/misspell/cmd/misspell@v0.3.4
-	GO111MODULE=on cd tools && go get github.com/hashicorp/go-hclog/hclogvet@v0.1.3
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.0
+	go install github.com/client9/misspell/cmd/misspell@v0.3.4
+	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.3
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
@@ -203,19 +151,22 @@ check: ## Lint the source code
 	@echo "==> Spell checking website..."
 	@misspell -error -source=text website/pages/
 
+	@echo "==> Checking for breaking changes in protos..."
+	@buf breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
+
 	@echo "==> Check proto files are in-sync..."
 	@$(MAKE) proto
 	@if (git status -s | grep -q .pb.go); then echo the following proto files are out of sync; git status -s | grep .pb.go; exit 1; fi
 
 	@echo "==> Check format of jobspecs and HCL files..."
 	@$(MAKE) hclfmt
-	@if (git status -s | grep -q -e '\.hcl$$' -e '\.nomad$$'); then echo the following HCL files are out of sync; git status -s | grep -e '\.hcl$$' -e '\.nomad$$'; exit 1; fi
+	@if (git status -s | grep -q -e '\.hcl$$' -e '\.nomad$$' -e '\.tf$$'); then echo the following HCL files are out of sync; git status -s | grep -e '\.hcl$$' -e '\.nomad$$' -e '\.tf$$'; exit 1; fi
 
 	@echo "==> Check API package is isolated from rest"
-	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /vendor/ -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
+	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
 
 	@echo "==> Checking Go mod.."
-	@GO111MODULE=on go mod tidy
+	@GO111MODULE=on $(MAKE) tidy
 	@if (git status --porcelain | grep -Eq "go\.(mod|sum)"); then \
 		echo go.mod or go.sum needs updating; \
 		git --no-pager diff go.mod; \
@@ -231,11 +182,19 @@ checkscripts: ## Lint shell scripts
 	@echo "==> Linting scripts..."
 	@find scripts -type f -name '*.sh' | xargs shellcheck
 
+.PHONY: checkproto
+checkproto: ## Lint protobuf files
+	@echo "==> Lint proto files..."
+	@buf check lint --config tools/buf/buf.yaml
+
+	@echo "==> Checking for breaking changes in protos..."
+	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
+
 .PHONY: generate-all
 generate-all: generate-structs proto generate-examples
 
 .PHONY: generate-structs
-generate-structs: LOCAL_PACKAGES = $(shell go list ./... | grep -v '/vendor/')
+generate-structs: LOCAL_PACKAGES = $(shell go list ./...)
 generate-structs: ## Update generated code
 	@echo "--> Running go generate..."
 	@go generate $(LOCAL_PACKAGES)
@@ -243,9 +202,7 @@ generate-structs: ## Update generated code
 .PHONY: proto
 proto:
 	@echo "--> Generating proto bindings..."
-	@for file in $$(git ls-files "*.proto" | grep -E -v -- "vendor\/.*.proto|demo\/.*.proto"); do \
-		protoc -I . -I $(shell go env GOPATH)/src --go_out=plugins=grpc:. $$file; \
-	done
+	@buf --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml generate
 
 .PHONY: generate-examples
 generate-examples: command/job_init.bindata_assetfs.go
@@ -253,18 +210,24 @@ generate-examples: command/job_init.bindata_assetfs.go
 command/job_init.bindata_assetfs.go: command/assets/*
 	go-bindata-assetfs -pkg command -o command/job_init.bindata_assetfs.go ./command/assets/...
 
-.PHONY: changelogfmt
-changelogfmt:
-	@echo "--> Making [GH-xxxx] references clickable..."
-	@sed -E 's|([^\[])\[GH-([0-9]+)\]|\1[[GH-\2](https://github.com/hashicorp/nomad/issues/\2)]|g' CHANGELOG.md > changelog.tmp && mv changelog.tmp CHANGELOG.md
+changelog:
+	@changelog-build -last-release $(LAST_RELEASE) -this-release HEAD \
+		-entries-dir .changelog/ -changelog-template ./.changelog/changelog.tmpl -note-template ./.changelog/note.tmpl
 
 ## We skip the terraform directory as there are templated hcl configurations
 ## that do not successfully compile without rendering
 .PHONY: hclfmt
 hclfmt:
 	@echo "--> Formatting HCL"
-	@find . -path ./terraform -prune -o -name 'upstart.nomad' -prune -o \( -name '*.nomad' -o -name '*.hcl' \) -exec \
-sh -c 'hclfmt -w {} || echo in path {}' ';'
+	@find . -name '.terraform' -prune \
+	        -o -name 'upstart.nomad' -prune \
+	        -o -name '.git' -prune \
+	        -o -name 'node_modules' -prune \
+	        -o -name '.next' -prune \
+	        -o -path './ui/dist' -prune \
+	        -o -path './website/out' -prune \
+	        -o \( -name '*.nomad' -o -name '*.hcl' -o -name '*.tf' \) \
+	      -print0 | xargs -0 hclfmt -w
 
 .PHONY: tidy
 tidy:
@@ -274,21 +237,17 @@ tidy:
 	@echo "--> Tidy nomad module"
 	@go mod tidy
 
-.PHONY: sync
-sync: tidy
-	@echo "--> Sync vendor directory"
-	@go mod vendor
-
 .PHONY: dev
 dev: GOOS=$(shell go env GOOS)
 dev: GOARCH=$(shell go env GOARCH)
 dev: GOPATH=$(shell go env GOPATH)
 dev: DEV_TARGET=pkg/$(GOOS)_$(GOARCH)/nomad
-dev: changelogfmt hclfmt ## Build for the current development platform
+dev: hclfmt ## Build for the current development platform
 	@echo "==> Removing old development build..."
 	@rm -f $(PROJECT_ROOT)/$(DEV_TARGET)
 	@rm -f $(PROJECT_ROOT)/bin/nomad
 	@rm -f $(GOPATH)/bin/nomad
+	@if [ -d vendor ]; then echo -e "==> WARNING: Found vendor directory.  This may cause build errors, consider running 'rm -r vendor' or 'make clean' to remove.\n"; fi
 	@$(MAKE) --no-print-directory \
 		$(DEV_TARGET) \
 		GO_TAGS="$(GO_TAGS) $(NOMAD_UI_TAG)"
@@ -374,6 +333,7 @@ clean: ## Remove build artifacts
 	@echo "==> Cleaning build artifacts..."
 	@rm -rf "$(PROJECT_ROOT)/bin/"
 	@rm -rf "$(PROJECT_ROOT)/pkg/"
+	@rm -rf "$(PROJECT_ROOT)/vendor/"
 	@rm -f "$(GOPATH)/bin/nomad"
 
 .PHONY: testcluster

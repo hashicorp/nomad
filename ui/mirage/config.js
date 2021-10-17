@@ -5,10 +5,11 @@ import { logFrames, logEncode } from './data/logs';
 import { generateDiff } from './factories/job-version';
 import { generateTaskGroupFailures } from './factories/evaluation';
 import { copy } from 'ember-copy';
+import formatHost from 'nomad-ui/utils/format-host';
 
 export function findLeader(schema) {
   const agent = schema.agents.first();
-  return `${agent.address}:${agent.tags.port}`;
+  return formatHost(agent.member.Address, agent.member.Tags.port);
 }
 
 export function filesForPath(allocFiles, filterPath) {
@@ -57,11 +58,12 @@ export default function() {
       const json = this.serialize(jobs.all());
       const namespace = queryParams.namespace || 'default';
       return json
-        .filter(job =>
-          namespace === 'default'
+        .filter(job => {
+          if (namespace === '*') return true;
+          return namespace === 'default'
             ? !job.NamespaceID || job.NamespaceID === namespace
-            : job.NamespaceID === namespace
-        )
+            : job.NamespaceID === namespace;
+        })
         .map(job => filterKeys(job, 'TaskGroups', 'NamespaceID'));
     })
   );
@@ -180,6 +182,36 @@ export default function() {
     return okEmpty();
   });
 
+  this.post('/job/:id/dispatch', function(schema, { params }) {
+    // Create the child job
+    const parent = schema.jobs.find(params.id);
+
+    // Use the server instead of the schema to leverage the job factory
+    let dispatched = server.create('job', 'parameterizedChild', {
+      parentId: parent.id,
+      namespaceId: parent.namespaceId,
+      namespace: parent.namespace,
+      createAllocations: parent.createAllocations,
+    });
+
+    return new Response(
+      200,
+      {},
+      JSON.stringify({
+        DispatchedJobID: dispatched.id,
+      })
+    );
+  });
+
+  this.post('/job/:id/revert', function({ jobs }, { requestBody }) {
+    const { JobID, JobVersion } = JSON.parse(requestBody);
+    const job = jobs.find(JobID);
+    job.version = JobVersion;
+    job.save();
+
+    return okEmpty();
+  });
+
   this.post('/job/:id/scale', function({ jobs }, { params }) {
     return this.serialize(jobs.find(params.id));
   });
@@ -191,6 +223,11 @@ export default function() {
   });
 
   this.get('/deployment/:id');
+
+  this.post('/deployment/fail/:id', function() {
+    return new Response(204, {}, '');
+  });
+
   this.post('/deployment/promote/:id', function() {
     return new Response(204, {}, '');
   });
@@ -248,29 +285,33 @@ export default function() {
 
       const json = this.serialize(csiVolumes.all());
       const namespace = queryParams.namespace || 'default';
-      return json.filter(volume =>
-        namespace === 'default'
+      return json.filter(volume => {
+        if (namespace === '*') return true;
+        return namespace === 'default'
           ? !volume.NamespaceID || volume.NamespaceID === namespace
-          : volume.NamespaceID === namespace
-      );
+          : volume.NamespaceID === namespace;
+      });
     })
   );
 
   this.get(
     '/volume/:id',
-    withBlockingSupport(function({ csiVolumes }, { params }) {
+    withBlockingSupport(function({ csiVolumes }, { params, queryParams }) {
       if (!params.id.startsWith('csi/')) {
         return new Response(404, {}, null);
       }
 
       const id = params.id.replace(/^csi\//, '');
-      const volume = csiVolumes.find(id);
+      const volume = csiVolumes.all().models.find(volume => {
+        const volumeIsDefault = !volume.namespaceId || volume.namespaceId === 'default';
+        const qpIsDefault = !queryParams.namespace || queryParams.namespace === 'default';
+        return (
+          volume.id === id &&
+          (volume.namespaceId === queryParams.namespace || (volumeIsDefault && qpIsDefault))
+        );
+      });
 
-      if (!volume) {
-        return new Response(404, {}, null);
-      }
-
-      return this.serialize(volume);
+      return volume ? this.serialize(volume) : new Response(404, {}, null);
     })
   );
 
@@ -304,29 +345,23 @@ export default function() {
       return this.serialize(records);
     }
 
-    return new Response(501, {}, null);
+    return this.serialize([{ Name: 'default' }]);
   });
 
   this.get('/namespace/:id', function({ namespaces }, { params }) {
-    if (namespaces.all().length) {
-      return this.serialize(namespaces.find(params.id));
-    }
-
-    return new Response(501, {}, null);
+    return this.serialize(namespaces.find(params.id));
   });
 
   this.get('/agent/members', function({ agents, regions }) {
     const firstRegion = regions.first();
     return {
       ServerRegion: firstRegion ? firstRegion.id : null,
-      Members: this.serialize(agents.all()),
+      Members: this.serialize(agents.all()).map(({ member }) => ({ ...member })),
     };
   });
 
   this.get('/agent/self', function({ agents }) {
-    return {
-      member: this.serialize(agents.first()),
-    };
+    return agents.first();
   });
 
   this.get('/agent/monitor', function({ agents, nodes }, { queryParams }) {
@@ -352,7 +387,7 @@ export default function() {
   });
 
   this.get('/acl/token/self', function({ tokens }, req) {
-    const secret = req.requestHeaders['x-nomad-token'];
+    const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
 
     // Return the token if it exists
@@ -366,7 +401,7 @@ export default function() {
 
   this.get('/acl/token/:id', function({ tokens }, req) {
     const token = tokens.find(req.params.id);
-    const secret = req.requestHeaders['x-nomad-token'];
+    const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
 
     // Return the token only if the request header matches the token
@@ -379,9 +414,25 @@ export default function() {
     return new Response(403, {}, null);
   });
 
+  this.post('/acl/token/onetime/exchange', function({ tokens }, { requestBody }) {
+    const { OneTimeSecretID } = JSON.parse(requestBody);
+
+    const tokenForSecret = tokens.findBy({ oneTimeSecret: OneTimeSecretID });
+
+    // Return the token if it exists
+    if (tokenForSecret) {
+      return {
+        Token: this.serialize(tokenForSecret),
+      };
+    }
+
+    // Forbidden error if it doesn't
+    return new Response(403, {}, null);
+  });
+
   this.get('/acl/policy/:id', function({ policies, tokens }, req) {
     const policy = policies.find(req.params.id);
-    const secret = req.requestHeaders['x-nomad-token'];
+    const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
 
     if (req.params.id === 'anonymous') {
@@ -408,6 +459,20 @@ export default function() {
 
   this.get('/regions', function({ regions }) {
     return this.serialize(regions.all());
+  });
+
+  this.get('/operator/license', function({ features }) {
+    const records = features.all();
+
+    if (records.length) {
+      return {
+        License: {
+          Features: records.models.mapBy('name'),
+        },
+      };
+    }
+
+    return new Response(501, {}, null);
   });
 
   const clientAllocationStatsHandler = function({ clientAllocationStats }, { params }) {
@@ -531,6 +596,66 @@ export default function() {
     this.get(`http://${host}/v1/client/stats`, function({ clientStats }) {
       return this.serialize(clientStats.find(host));
     });
+  });
+
+  this.post('/search/fuzzy', function(
+    { allocations, jobs, nodes, taskGroups, csiPlugins },
+    { requestBody }
+  ) {
+    const { Text } = JSON.parse(requestBody);
+
+    const matchedAllocs = allocations.where(allocation => allocation.name.includes(Text));
+    const matchedGroups = taskGroups.where(taskGroup => taskGroup.name.includes(Text));
+    const matchedJobs = jobs.where(job => job.name.includes(Text));
+    const matchedNodes = nodes.where(node => node.name.includes(Text));
+    const matchedPlugins = csiPlugins.where(plugin => plugin.id.includes(Text));
+
+    const transformedAllocs = matchedAllocs.models.map(alloc => ({
+      ID: alloc.name,
+      Scope: [alloc.namespace || 'default', alloc.id],
+    }));
+
+    const transformedGroups = matchedGroups.models.map(group => ({
+      ID: group.name,
+      Scope: [group.job.namespace, group.job.id],
+    }));
+
+    const transformedJobs = matchedJobs.models.map(job => ({
+      ID: job.name,
+      Scope: [job.namespace || 'default', job.id],
+    }));
+
+    const transformedNodes = matchedNodes.models.map(node => ({
+      ID: node.name,
+      Scope: [node.id],
+    }));
+
+    const transformedPlugins = matchedPlugins.models.map(plugin => ({
+      ID: plugin.id,
+    }));
+
+    const truncatedAllocs = transformedAllocs.slice(0, 20);
+    const truncatedGroups = transformedGroups.slice(0, 20);
+    const truncatedJobs = transformedJobs.slice(0, 20);
+    const truncatedNodes = transformedNodes.slice(0, 20);
+    const truncatedPlugins = transformedPlugins.slice(0, 20);
+
+    return {
+      Matches: {
+        allocs: truncatedAllocs,
+        groups: truncatedGroups,
+        jobs: truncatedJobs,
+        nodes: truncatedNodes,
+        plugins: truncatedPlugins,
+      },
+      Truncations: {
+        allocs: truncatedAllocs.length < truncatedAllocs.length,
+        groups: truncatedGroups.length < transformedGroups.length,
+        jobs: truncatedJobs.length < transformedJobs.length,
+        nodes: truncatedNodes.length < transformedNodes.length,
+        plugins: truncatedPlugins.length < transformedPlugins.length,
+      },
+    };
   });
 
   this.get('/recommendations', function(

@@ -29,9 +29,9 @@ func TestResolveACLToken(t *testing.T) {
 	token2 := mock.ACLToken()
 	token2.Type = structs.ACLManagementToken
 	token2.Policies = nil
-	err = state.UpsertACLPolicies(100, []*structs.ACLPolicy{policy, policy2})
+	err = state.UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{policy, policy2})
 	assert.Nil(t, err)
-	err = state.UpsertACLTokens(110, []*structs.ACLToken{token, token2})
+	err = state.UpsertACLTokens(structs.MsgTypeTestSetup, 110, []*structs.ACLToken{token, token2})
 	assert.Nil(t, err)
 
 	snap, err := state.Snapshot()
@@ -78,7 +78,7 @@ func TestResolveACLToken(t *testing.T) {
 	}
 
 	// Bust the cache by upserting the policy
-	err = state.UpsertACLPolicies(120, []*structs.ACLPolicy{policy})
+	err = state.UpsertACLPolicies(structs.MsgTypeTestSetup, 120, []*structs.ACLPolicy{policy})
 	assert.Nil(t, err)
 	snap, err = state.Snapshot()
 	assert.Nil(t, err)
@@ -121,7 +121,7 @@ func TestResolveSecretToken(t *testing.T) {
 
 	token := mock.ACLToken()
 
-	err := state.UpsertACLTokens(110, []*structs.ACLToken{token})
+	err := state.UpsertACLTokens(structs.MsgTypeTestSetup, 110, []*structs.ACLToken{token})
 	assert.Nil(t, err)
 
 	respToken, err := s1.ResolveSecretToken(token.SecretID)

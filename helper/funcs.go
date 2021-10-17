@@ -21,6 +21,16 @@ var validUUID = regexp.MustCompile(`(?i)^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f
 // by sequences containing a dot followed by a one or more non-dot characters.
 var validInterpVarKey = regexp.MustCompile(`^[^.]+(\.[^.]+)*$`)
 
+// invalidFilename is the minimum set of characters which must be removed or
+// replaced to produce a valid filename
+var invalidFilename = regexp.MustCompile(`[/\\<>:"|?*]`)
+
+// invalidFilenameNonASCII = invalidFilename plus all non-ASCII characters
+var invalidFilenameNonASCII = regexp.MustCompile(`[[:^ascii:]/\\<>:"|?*]`)
+
+// invalidFilenameStrict = invalidFilename plus additional punctuation
+var invalidFilenameStrict = regexp.MustCompile(`[/\\<>:"|?*$()+=[\];#@~,&']`)
+
 // IsUUID returns true if the given string is a valid UUID.
 func IsUUID(str string) bool {
 	const uuidLen = 36
@@ -58,7 +68,7 @@ func HashUUID(input string) (output string, hashed bool) {
 	return output, true
 }
 
-// boolToPtr returns the pointer to a boolean
+// BoolToPtr returns the pointer to a boolean.
 func BoolToPtr(b bool) *bool {
 	return &b
 }
@@ -187,6 +197,26 @@ func SliceStringContains(list []string, item string) bool {
 	return false
 }
 
+// SliceStringHasPrefix returns true if any string in list starts with prefix
+func SliceStringHasPrefix(list []string, prefix string) bool {
+	for _, s := range list {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// StringHasPrefixInSlice returns true if string starts with any prefix in list
+func StringHasPrefixInSlice(s string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func SliceSetDisjoint(first, second []string) (bool, []string) {
 	contained := make(map[string]struct{}, len(first))
 	for _, k := range first {
@@ -268,7 +298,8 @@ func CompareMapStringString(a, b map[string]string) bool {
 	return true
 }
 
-// Helpers for copying generic structures.
+// Below is helpers for copying generic structures.
+
 func CopyMapStringString(m map[string]string) map[string]string {
 	l := len(m)
 	if l == 0 {
@@ -356,9 +387,7 @@ func CopySliceString(s []string) []string {
 	}
 
 	c := make([]string, l)
-	for i, v := range s {
-		c[i] = v
-	}
+	copy(c, s)
 	return c
 }
 
@@ -369,9 +398,7 @@ func CopySliceInt(s []int) []int {
 	}
 
 	c := make([]int, l)
-	for i, v := range s {
-		c[i] = v
-	}
+	copy(c, s)
 	return c
 }
 
@@ -392,6 +419,24 @@ func CleanEnvVar(s string, r byte) string {
 		}
 	}
 	return string(b)
+}
+
+// CleanFilename replaces invalid characters in filename
+func CleanFilename(filename string, replace string) string {
+	clean := invalidFilename.ReplaceAllLiteralString(filename, replace)
+	return clean
+}
+
+// CleanFilenameASCIIOnly replaces invalid and non-ASCII characters in filename
+func CleanFilenameASCIIOnly(filename string, replace string) string {
+	clean := invalidFilenameNonASCII.ReplaceAllLiteralString(filename, replace)
+	return clean
+}
+
+// CleanFilenameStrict replaces invalid and punctuation characters in filename
+func CleanFilenameStrict(filename string, replace string) string {
+	clean := invalidFilenameStrict.ReplaceAllLiteralString(filename, replace)
+	return clean
 }
 
 func CheckHCLKeys(node ast.Node, valid []string) error {

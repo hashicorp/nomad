@@ -2,7 +2,7 @@ import hbs from 'htmlbars-inline-precompile';
 import productMetadata from '../../app/utils/styleguide/product-metadata';
 
 export default {
-  title: 'Components|Accordion',
+  title: 'Components/Accordion',
 };
 
 export let Standard = () => {

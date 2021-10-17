@@ -1,5 +1,4 @@
 import {
-  attribute,
   clickable,
   create,
   collection,
@@ -23,21 +22,12 @@ export default create({
   search: fillable('.search-box input'),
 
   countStepper: stepperInput('[data-test-task-group-count-stepper]'),
+  incrementButton: { scope: '[data-test-stepper-increment]' },
 
   tasksCount: text('[data-test-task-group-tasks]'),
   cpu: text('[data-test-task-group-cpu]'),
   mem: text('[data-test-task-group-mem]'),
   disk: text('[data-test-task-group-disk]'),
-
-  breadcrumbs: collection('[data-test-breadcrumb]', {
-    id: attribute('data-test-breadcrumb'),
-    text: text(),
-    visit: clickable(),
-  }),
-
-  breadcrumbFor(id) {
-    return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
-  },
 
   ...allocations(),
 

@@ -12,7 +12,7 @@ client {
   }
 
   host_volume "shared_data" {
-    path = "/tmp/data"
+    path = "/srv/data"
   }
 }
 
@@ -22,6 +22,14 @@ plugin "nomad-driver-podman" {
     volumes {
       enabled = true
     }
+  }
+}
+
+plugin "nomad-driver-ecs" {
+  config {
+    enabled = true
+    cluster = "nomad-rtd-e2e"
+    region  = "us-east-1"
   }
 }
 

@@ -89,28 +89,32 @@ func (tr *TaskRunner) initHooks() {
 		}))
 	}
 
+	// Get the consul namespace for the TG of the allocation
+	consulNamespace := tr.alloc.ConsulNamespace()
+
 	// If there are templates is enabled, add the hook
 	if len(task.Templates) != 0 {
 		tr.runnerHooks = append(tr.runnerHooks, newTemplateHook(&templateHookConfig{
-			logger:       hookLogger,
-			lifecycle:    tr,
-			events:       tr,
-			templates:    task.Templates,
-			clientConfig: tr.clientConfig,
-			envBuilder:   tr.envBuilder,
+			logger:          hookLogger,
+			lifecycle:       tr,
+			events:          tr,
+			templates:       task.Templates,
+			clientConfig:    tr.clientConfig,
+			envBuilder:      tr.envBuilder,
+			consulNamespace: consulNamespace,
 		}))
 	}
 
-	// If there are any services, add the service hook
-	if len(task.Services) != 0 {
-		tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
-			alloc:     tr.Alloc(),
-			task:      tr.Task(),
-			consul:    tr.consulServiceClient,
-			restarter: tr,
-			logger:    hookLogger,
-		}))
-	}
+	// Always add the service hook. A task with no services on initial registration
+	// may be updated to include services, which must be handled with this hook.
+	tr.runnerHooks = append(tr.runnerHooks, newServiceHook(serviceHookConfig{
+		alloc:           tr.Alloc(),
+		task:            tr.Task(),
+		consulServices:  tr.consulServiceClient,
+		consulNamespace: consulNamespace,
+		restarter:       tr,
+		logger:          hookLogger,
+	}))
 
 	// If this is a Connect sidecar proxy (or a Connect Native) service,
 	// add the sidsHook for requesting a Service Identity token (if ACLs).
@@ -130,7 +134,7 @@ func (tr *TaskRunner) initHooks() {
 		if task.UsesConnectSidecar() {
 			tr.runnerHooks = append(tr.runnerHooks,
 				newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, tr.consulProxiesClient, hookLogger)),
-				newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, tr.clientConfig.ConsulConfig, hookLogger)),
+				newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, tr.clientConfig.ConsulConfig, consulNamespace, hookLogger)),
 			)
 		} else if task.Kind.IsConnectNative() {
 			tr.runnerHooks = append(tr.runnerHooks, newConnectNativeHook(
@@ -139,14 +143,21 @@ func (tr *TaskRunner) initHooks() {
 		}
 	}
 
-	// If there are any script checks, add the hook
-	scriptCheckHook := newScriptCheckHook(scriptCheckHookConfig{
+	// Always add the script checks hook. A task with no script check hook on
+	// initial registration may be updated to include script checks, which must
+	// be handled with this hook.
+	tr.runnerHooks = append(tr.runnerHooks, newScriptCheckHook(scriptCheckHookConfig{
 		alloc:  tr.Alloc(),
 		task:   tr.Task(),
 		consul: tr.consulServiceClient,
 		logger: hookLogger,
-	})
-	tr.runnerHooks = append(tr.runnerHooks, scriptCheckHook)
+	}))
+
+	// If this task driver has remote capabilities, add the remote task
+	// hook.
+	if tr.driverCapabilities.RemoteTasks {
+		tr.runnerHooks = append(tr.runnerHooks, newRemoteTaskHook(tr, hookLogger))
+	}
 }
 
 func (tr *TaskRunner) emitHookError(err error, hookName string) {
@@ -165,8 +176,7 @@ func (tr *TaskRunner) emitHookError(err error, hookName string) {
 func (tr *TaskRunner) prestart() error {
 	// Determine if the allocation is terminal and we should avoid running
 	// prestart hooks.
-	alloc := tr.Alloc()
-	if alloc.TerminalStatus() {
+	if tr.shouldShutdown() {
 		tr.logger.Trace("skipping prestart hooks since allocation is terminal")
 		return nil
 	}

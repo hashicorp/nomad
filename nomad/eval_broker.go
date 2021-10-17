@@ -325,7 +325,11 @@ func (b *EvalBroker) enqueueLocked(eval *structs.Evaluation, queue string) {
 	}
 }
 
-// Dequeue is used to perform a blocking dequeue
+// Dequeue is used to perform a blocking dequeue. The next available evalution
+// is returned as well as a unique token identifier for this dequeue. The token
+// changes on leadership election to ensure a Dequeue prior to a leadership
+// election cannot conflict with a Dequeue of the same evaluation after a
+// leadership election.
 func (b *EvalBroker) Dequeue(schedulers []string, timeout time.Duration) (*structs.Evaluation, string, error) {
 	var timeoutTimer *time.Timer
 	var timeoutCh <-chan time.Time

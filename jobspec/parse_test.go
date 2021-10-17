@@ -2,14 +2,13 @@ package jobspec
 
 import (
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/api"
-	"github.com/kr/pretty"
+	"github.com/stretchr/testify/require"
 )
 
 // consts copied from nomad/structs package to keep jobspec isolated from rest of nomad
@@ -135,10 +134,12 @@ func TestParse(t *testing.T) {
 								ExtraKeysHCL: nil,
 							},
 							"bar": {
-								Name:     "bar",
-								Type:     "csi",
-								Source:   "bar-vol",
-								ReadOnly: true,
+								Name:           "bar",
+								Type:           "csi",
+								Source:         "bar-vol",
+								ReadOnly:       true,
+								AccessMode:     "single-mode-writer",
+								AttachmentMode: "file-system",
 								MountOptions: &api.CSIMountOptions{
 									FSType: "ext4",
 								},
@@ -153,6 +154,7 @@ func TestParse(t *testing.T) {
 										"ro",
 									},
 								},
+								PerAlloc:     true,
 								ExtraKeysHCL: nil,
 							},
 						},
@@ -285,8 +287,9 @@ func TestParse(t *testing.T) {
 									"LOREM": "ipsum",
 								},
 								Resources: &api.Resources{
-									CPU:      intToPtr(500),
-									MemoryMB: intToPtr(128),
+									CPU:         intToPtr(500),
+									MemoryMB:    intToPtr(128),
+									MemoryMaxMB: intToPtr(256),
 									Networks: []*api.NetworkResource{
 										{
 											MBits:         intToPtr(100),
@@ -1112,8 +1115,14 @@ func TestParse(t *testing.T) {
 											LocalServicePort: 8080,
 											Upstreams: []*api.ConsulUpstream{
 												{
-													DestinationName: "other-service",
-													LocalBindPort:   4567,
+													DestinationName:  "other-service",
+													LocalBindPort:    4567,
+													LocalBindAddress: "0.0.0.0",
+													Datacenter:       "dc1",
+
+													MeshGateway: &api.ConsulMeshGateway{
+														Mode: "local",
+													},
 												},
 											},
 										},
@@ -1178,6 +1187,7 @@ func TestParse(t *testing.T) {
 							{
 								Name:      "foo-service",
 								PortLabel: "http",
+								OnUpdate:  "ignore",
 								Checks: []api.ServiceCheck{
 									{
 										Name:          "check-name",
@@ -1187,6 +1197,8 @@ func TestParse(t *testing.T) {
 										Timeout:       time.Duration(2 * time.Second),
 										InitialStatus: "passing",
 										TaskName:      "foo",
+										OnUpdate:      "ignore",
+										Body:          "post body",
 									},
 								},
 							},
@@ -1245,6 +1257,27 @@ func TestParse(t *testing.T) {
 							SidecarService: &api.ConsulSidecarService{},
 							SidecarTask: &api.SidecarTask{
 								Name: "my-sidecar",
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
+			"tg-service-connect-sidecar_disablecheck.hcl",
+			&api.Job{
+				ID:   stringToPtr("sidecar_disablecheck"),
+				Name: stringToPtr("sidecar_disablecheck"),
+				Type: stringToPtr("service"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: stringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "example",
+						Connect: &api.ConsulConnect{
+							Native: false,
+							SidecarService: &api.ConsulSidecarService{
+								DisableDefaultTCPCheck: true,
 							},
 						},
 					}},
@@ -1512,6 +1545,68 @@ func TestParse(t *testing.T) {
 			false,
 		},
 		{
+			"tg-service-connect-gateway-terminating.hcl",
+			&api.Job{
+				ID:   stringToPtr("connect_gateway_terminating"),
+				Name: stringToPtr("connect_gateway_terminating"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: stringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "terminating-gateway-service",
+						Connect: &api.ConsulConnect{
+							Gateway: &api.ConsulGateway{
+								Proxy: &api.ConsulGatewayProxy{
+									ConnectTimeout:                  timeToPtr(3 * time.Second),
+									EnvoyGatewayBindTaggedAddresses: true,
+									EnvoyGatewayBindAddresses: map[string]*api.ConsulGatewayBindAddress{
+										"listener1": {Name: "listener1", Address: "10.0.0.1", Port: 8888},
+										"listener2": {Name: "listener2", Address: "10.0.0.2", Port: 8889},
+									},
+									EnvoyGatewayNoDefaultBind: true,
+									EnvoyDNSDiscoveryType:     "LOGICAL_DNS",
+									Config:                    map[string]interface{}{"foo": "bar"},
+								},
+								Terminating: &api.ConsulTerminatingConfigEntry{
+									Services: []*api.ConsulLinkedService{{
+										Name:     "service1",
+										CAFile:   "ca.pem",
+										CertFile: "cert.pem",
+										KeyFile:  "key.pem",
+									}, {
+										Name: "service2",
+										SNI:  "myhost",
+									}},
+								},
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
+			"tg-service-connect-gateway-mesh.hcl",
+			&api.Job{
+				ID:   stringToPtr("connect_gateway_mesh"),
+				Name: stringToPtr("connect_gateway_mesh"),
+				TaskGroups: []*api.TaskGroup{{
+					Name: stringToPtr("group"),
+					Services: []*api.Service{{
+						Name: "mesh-gateway-service",
+						Connect: &api.ConsulConnect{
+							Gateway: &api.ConsulGateway{
+								Proxy: &api.ConsulGatewayProxy{
+									Config: map[string]interface{}{"foo": "bar"},
+								},
+								Mesh: &api.ConsulMeshConfigEntry{},
+							},
+						},
+					}},
+				}},
+			},
+			false,
+		},
+		{
 			"tg-scaling-policy-minimal.hcl",
 			&api.Job{
 				ID:   stringToPtr("elastic"),
@@ -1604,29 +1699,47 @@ func TestParse(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"resources-cores.hcl",
+			&api.Job{
+				ID:   stringToPtr("cores-test"),
+				Name: stringToPtr("cores-test"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Count: intToPtr(5),
+						Name:  stringToPtr("group"),
+						Tasks: []*api.Task{
+							{
+								Name:   "task",
+								Driver: "docker",
+								Resources: &api.Resources{
+									Cores:    intToPtr(4),
+									MemoryMB: intToPtr(128),
+								},
+							},
+						},
+					},
+				},
+			},
+			false,
+		},
 	}
 
 	for _, tc := range cases {
-		t.Logf("Testing parse: %s", tc.File)
+		t.Run(tc.File, func(t *testing.T) {
+			t.Logf("Testing parse: %s", tc.File)
 
-		path, err := filepath.Abs(filepath.Join("./test-fixtures", tc.File))
-		if err != nil {
-			t.Fatalf("file: %s\n\n%s", tc.File, err)
-			continue
-		}
+			path, err := filepath.Abs(filepath.Join("./test-fixtures", tc.File))
+			require.NoError(t, err)
 
-		actual, err := ParseFile(path)
-		if (err != nil) != tc.Err {
-			t.Fatalf("file: %s\n\n%s", tc.File, err)
-			continue
-		}
-
-		if !reflect.DeepEqual(actual, tc.Result) {
-			for _, d := range pretty.Diff(actual, tc.Result) {
-				t.Logf(d)
+			actual, err := ParseFile(path)
+			if tc.Err {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.Result, actual)
 			}
-			t.Fatalf("file: %s", tc.File)
-		}
+		})
 	}
 }
 

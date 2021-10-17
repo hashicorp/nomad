@@ -548,6 +548,7 @@ func TestAgentProfile_RemoteClient(t *testing.T) {
 	})
 	defer cleanupC()
 
+	testutil.WaitForClient(t, s2.RPC, c.NodeID(), c.Region())
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s2.connectedNodes()
 		return len(nodes) == 1, nil

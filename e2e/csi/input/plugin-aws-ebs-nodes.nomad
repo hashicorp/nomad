@@ -19,7 +19,7 @@ job "plugin-aws-ebs-nodes" {
       driver = "docker"
 
       config {
-        image = "amazon/aws-ebs-csi-driver:v0.6.0"
+        image = "amazon/aws-ebs-csi-driver:v0.9.0"
 
         args = [
           "node",

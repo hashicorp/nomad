@@ -9,6 +9,10 @@ job "helloworld" {
   group "hello" {
     count = 3
 
+    network {
+      port "web" {}
+    }
+
     task "hello" {
       driver = "raw_exec"
 
@@ -25,11 +29,6 @@ job "helloworld" {
       resources {
         cpu    = 500
         memory = 256
-
-        network {
-          mbits = 10
-          port "web" {}
-        }
       }
 
       service {

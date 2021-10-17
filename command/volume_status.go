@@ -24,9 +24,13 @@ Usage: nomad volume status [options] <id>
   Display status information about a CSI volume. If no volume id is given, a
   list of all volumes will be displayed.
 
+  When ACLs are enabled, this command requires a token with the
+  'csi-read-volume' and 'csi-list-volumes' capability for the volume's
+  namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Status Options:
 
@@ -105,11 +109,7 @@ func (c *VolumeStatusCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Truncate the id unless full length is requested
-	c.length = shortId
-	if c.verbose {
-		c.length = fullId
-	}
+	c.length = fullId
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()

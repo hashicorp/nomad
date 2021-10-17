@@ -17,9 +17,11 @@ Usage: nomad system reconcile summaries [options]
 
   Reconciles the summaries of all registered jobs.
 
+  If ACLs are enabled, this option requires a management token.
+
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 	return strings.TrimSpace(helpText)
 }
 
@@ -38,6 +40,17 @@ func (c *SystemReconcileSummariesCommand) AutocompleteArgs() complete.Predictor 
 func (c *SystemReconcileSummariesCommand) Name() string { return "system reconcile summaries" }
 
 func (c *SystemReconcileSummariesCommand) Run(args []string) int {
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flags.Usage = func() { c.Ui.Output(c.Help()) }
+
+	if err := flags.Parse(args); err != nil {
+		return 1
+	}
+
+	if args = flags.Args(); len(args) > 0 {
+		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(commandErrorText(c))
+	}
 
 	// Get the HTTP client
 	client, err := c.Meta.Client()

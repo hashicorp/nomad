@@ -87,20 +87,25 @@ func environment() map[string]string {
 	return env
 }
 
+// DefaultEnvDenyList is the default set of environment variables that are
+// filtered when passing the environment variables of the host to the task.
+//
+// Update https://www.nomadproject.io/docs/configuration/client#env-denylist
+// whenever this is changed.
+var DefaultEnvDenyList = []string{
+	"CONSUL_TOKEN",
+	"CONSUL_HTTP_TOKEN",
+	"VAULT_TOKEN",
+	"NOMAD_LICENSE",
+	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+	"GOOGLE_APPLICATION_CREDENTIALS",
+}
+
 // makeEnvRedactSet creates a set of well known environment variables that should be
 // redacted in the output
 func makeEnvRedactSet() map[string]struct{} {
-	// Duplicated from config.DefaultEnvBlacklist in order to avoid an import cycle
-	configDefault := []string{
-		"CONSUL_TOKEN",
-		"CONSUL_HTTP_TOKEN",
-		"VAULT_TOKEN",
-		"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
-		"GOOGLE_APPLICATION_CREDENTIALS",
-	}
-
 	set := make(map[string]struct{})
-	for _, e := range configDefault {
+	for _, e := range DefaultEnvDenyList {
 		set[e] = struct{}{}
 	}
 

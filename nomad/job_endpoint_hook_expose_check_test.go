@@ -13,34 +13,6 @@ func TestJobExposeCheckHook_Name(t *testing.T) {
 	require.Equal(t, "expose-check", new(jobExposeCheckHook).Name())
 }
 
-func TestJobExposeCheckHook_serviceUsesConnectEnvoy(t *testing.T) {
-	t.Parallel()
-
-	t.Run("connect is nil", func(t *testing.T) {
-		require.False(t, serviceUsesConnectEnvoy(&structs.Service{
-			Connect: nil,
-		}))
-	})
-
-	t.Run("sidecar-task is overridden", func(t *testing.T) {
-		require.False(t, serviceUsesConnectEnvoy(&structs.Service{
-			Connect: &structs.ConsulConnect{
-				SidecarTask: &structs.SidecarTask{
-					Name: "my-sidecar",
-				},
-			},
-		}))
-	})
-
-	t.Run("sidecar-task is nil", func(t *testing.T) {
-		require.True(t, serviceUsesConnectEnvoy(&structs.Service{
-			Connect: &structs.ConsulConnect{
-				SidecarTask: nil,
-			},
-		}))
-	})
-}
-
 func TestJobExposeCheckHook_tgUsesExposeCheck(t *testing.T) {
 	t.Parallel()
 
@@ -135,7 +107,7 @@ func TestJobExposeCheckHook_tgValidateUseOfCheckExpose(t *testing.T) {
 		require.EqualError(t, tgValidateUseOfCheckExpose(&structs.TaskGroup{
 			Name:     "g1",
 			Services: []*structs.Service{withCustomProxyTask},
-		}), `exposed service check g1->s1->s1-check1 requires use of Nomad's builtin Connect proxy`)
+		}), `exposed service check g1->s1->s1-check1 requires use of sidecar_proxy`)
 	})
 
 	t.Run("group-service uses custom proxy but no expose", func(t *testing.T) {
@@ -223,8 +195,10 @@ func TestJobExposeCheckHook_Validate(t *testing.T) {
 					Mode: "bridge",
 				}},
 				Services: []*structs.Service{{
-					Name:    "s1",
-					Connect: &structs.ConsulConnect{},
+					Name: "s1",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{},
+					},
 					Checks: []*structs.ServiceCheck{{
 						Name:   "check1",
 						Type:   "http",
@@ -252,6 +226,8 @@ func TestJobExposeCheckHook_Validate(t *testing.T) {
 func TestJobExposeCheckHook_exposePathForCheck(t *testing.T) {
 	t.Parallel()
 
+	const checkIdx = 0
+
 	t.Run("not expose compatible", func(t *testing.T) {
 		c := &structs.ServiceCheck{
 			Type: "tcp", // not expose compatible
@@ -261,7 +237,7 @@ func TestJobExposeCheckHook_exposePathForCheck(t *testing.T) {
 		}
 		ePath, err := exposePathForCheck(&structs.TaskGroup{
 			Services: []*structs.Service{s},
-		}, s, c)
+		}, s, c, checkIdx)
 		require.NoError(t, err)
 		require.Nil(t, ePath)
 	})
@@ -281,7 +257,7 @@ func TestJobExposeCheckHook_exposePathForCheck(t *testing.T) {
 		ePath, err := exposePathForCheck(&structs.TaskGroup{
 			Name:     "group1",
 			Services: []*structs.Service{s},
-		}, s, c)
+		}, s, c, checkIdx)
 		require.NoError(t, err)
 		require.Equal(t, &structs.ConsulExposePath{
 			Path:          "/health",
@@ -312,7 +288,7 @@ func TestJobExposeCheckHook_exposePathForCheck(t *testing.T) {
 					{Label: "sPort", Value: 4000},
 				},
 			}},
-		}, s, c)
+		}, s, c, checkIdx)
 		require.NoError(t, err)
 		require.Equal(t, &structs.ConsulExposePath{
 			Path:          "/health",
@@ -343,38 +319,59 @@ func TestJobExposeCheckHook_exposePathForCheck(t *testing.T) {
 					// service declares "sPort", but does not exist
 				},
 			}},
-		}, s, c)
+		}, s, c, checkIdx)
 		require.EqualError(t, err, `unable to determine local service port for service check group1->service1->check1`)
 	})
 
 	t.Run("empty check port", func(t *testing.T) {
-		c := &structs.ServiceCheck{
-			Name: "check1",
-			Type: "http",
-			Path: "/health",
+		setup := func() (*structs.TaskGroup, *structs.Service, *structs.ServiceCheck) {
+			c := &structs.ServiceCheck{
+				Name: "check1",
+				Type: "http",
+				Path: "/health",
+			}
+			s := &structs.Service{
+				Name:      "service1",
+				PortLabel: "9999",
+				Checks:    []*structs.ServiceCheck{c},
+			}
+			tg := &structs.TaskGroup{
+				Name:     "group1",
+				Services: []*structs.Service{s},
+				Networks: structs.Networks{{
+					Mode:         "bridge",
+					DynamicPorts: []structs.Port{},
+				}},
+			}
+			return tg, s, c
 		}
-		s := &structs.Service{
-			Name:      "service1",
-			PortLabel: "9999",
-			Checks:    []*structs.ServiceCheck{c},
-		}
-		tg := &structs.TaskGroup{
-			Name:     "group1",
-			Services: []*structs.Service{s},
-			Networks: structs.Networks{{
-				Mode:         "bridge",
-				DynamicPorts: []structs.Port{},
-			}},
-		}
-		ePath, err := exposePathForCheck(tg, s, c)
+
+		tg, s, c := setup()
+		ePath, err := exposePathForCheck(tg, s, c, checkIdx)
 		require.NoError(t, err)
 		require.Len(t, tg.Networks[0].DynamicPorts, 1)
+		require.Equal(t, "default", tg.Networks[0].DynamicPorts[0].HostNetwork)
+		require.Equal(t, "svc_", tg.Networks[0].DynamicPorts[0].Label[0:4])
 		require.Equal(t, &structs.ConsulExposePath{
 			Path:          "/health",
 			Protocol:      "",
 			LocalPathPort: 9999,
 			ListenerPort:  tg.Networks[0].DynamicPorts[0].Label,
 		}, ePath)
+
+		t.Run("deterministic generated port label", func(t *testing.T) {
+			tg2, s2, c2 := setup()
+			ePath2, err2 := exposePathForCheck(tg2, s2, c2, checkIdx)
+			require.NoError(t, err2)
+			require.Equal(t, ePath, ePath2)
+		})
+
+		t.Run("unique on check index", func(t *testing.T) {
+			tg3, s3, c3 := setup()
+			ePath3, err3 := exposePathForCheck(tg3, s3, c3, checkIdx+1)
+			require.NoError(t, err3)
+			require.NotEqual(t, ePath.ListenerPort, ePath3.ListenerPort)
+		})
 	})
 
 	t.Run("missing network with no service check port label", func(t *testing.T) {
@@ -396,7 +393,7 @@ func TestJobExposeCheckHook_exposePathForCheck(t *testing.T) {
 			Services: []*structs.Service{s},
 			Networks: nil, // not set, should cause validation error
 		}
-		ePath, err := exposePathForCheck(tg, s, c)
+		ePath, err := exposePathForCheck(tg, s, c, checkIdx)
 		require.EqualError(t, err, `group "group1" must specify one bridge network for exposing service check(s)`)
 		require.Nil(t, ePath)
 	})

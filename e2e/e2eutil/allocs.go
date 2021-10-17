@@ -7,19 +7,40 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/api"
+	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/kr/pretty"
 )
+
+// AllocsByName sorts allocs by Name
+type AllocsByName []*api.AllocationListStub
+
+func (a AllocsByName) Len() int {
+	return len(a)
+}
+
+func (a AllocsByName) Less(i, j int) bool {
+	return a[i].Name < a[j].Name
+}
+
+func (a AllocsByName) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
 
 // WaitForAllocStatusExpected polls 'nomad job status' and exactly compares
 // the status of all allocations (including any previous versions) against the
 // expected list.
 func WaitForAllocStatusExpected(jobID, ns string, expected []string) error {
-	return WaitForAllocStatusComparison(
+	err := WaitForAllocStatusComparison(
 		func() ([]string, error) { return AllocStatuses(jobID, ns) },
 		func(got []string) bool { return reflect.DeepEqual(got, expected) },
 		nil,
 	)
+	if err != nil {
+		allocs, _ := AllocsForJob(jobID, ns)
+		err = fmt.Errorf("%v\nallocs: %v", err, pretty.Sprint(allocs))
+	}
+	return err
 }
 
 // WaitForAllocStatusComparison is a convenience wrapper that polls the query
@@ -71,6 +92,39 @@ func AllocsForJob(jobID, ns string) ([]map[string]string, error) {
 		return nil, fmt.Errorf("could not parse Allocations section: %w", err)
 	}
 	return allocs, nil
+}
+
+// AllocTaskEventsForJob returns a map of allocation IDs containing a map of
+// Task Event key value pairs
+func AllocTaskEventsForJob(jobID, ns string) (map[string][]map[string]string, error) {
+	allocs, err := AllocsForJob(jobID, ns)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make(map[string][]map[string]string)
+	for _, alloc := range allocs {
+		results[alloc["ID"]] = make([]map[string]string, 0)
+
+		cmd := []string{"nomad", "alloc", "status", alloc["ID"]}
+		out, err := Command(cmd[0], cmd[1:]...)
+		if err != nil {
+			return nil, fmt.Errorf("querying alloc status: %w", err)
+		}
+
+		section, err := GetSection(out, "Recent Events:")
+		if err != nil {
+			return nil, fmt.Errorf("could not find Recent Events section: %w", err)
+		}
+
+		events, err := ParseColumns(section)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse recent events section: %w", err)
+		}
+		results[alloc["ID"]] = events
+	}
+
+	return results, nil
 }
 
 // AllocsForNode returns a slice of key->value maps, each describing the values
@@ -170,6 +224,31 @@ func AllocStatusesRescheduled(jobID, ns string) ([]string, error) {
 	return statuses, nil
 }
 
+type LogStream int
+
+const (
+	LogsStdErr LogStream = iota
+	LogsStdOut
+)
+
+func AllocLogs(allocID string, logStream LogStream) (string, error) {
+	cmd := []string{"nomad", "alloc", "logs"}
+	if logStream == LogsStdErr {
+		cmd = append(cmd, "-stderr")
+	}
+	cmd = append(cmd, allocID)
+	return Command(cmd[0], cmd[1:]...)
+}
+
+func AllocTaskLogs(allocID, task string, logStream LogStream) (string, error) {
+	cmd := []string{"nomad", "alloc", "logs"}
+	if logStream == LogsStdErr {
+		cmd = append(cmd, "-stderr")
+	}
+	cmd = append(cmd, allocID, task)
+	return Command(cmd[0], cmd[1:]...)
+}
+
 // AllocExec is a convenience wrapper that runs 'nomad alloc exec' with the
 // passed execCmd via '/bin/sh -c', retrying if the task isn't ready
 func AllocExec(allocID, taskID, execCmd, ns string, wc *WaitConfig) (string, error) {
@@ -192,7 +271,7 @@ func AllocExec(allocID, taskID, execCmd, ns string, wc *WaitConfig) (string, err
 		got, err = Command(cmd[0], cmd[1:]...)
 		return err == nil, err
 	}, func(e error) {
-		err = fmt.Errorf("exec failed: '%s'", strings.Join(cmd, " "))
+		err = fmt.Errorf("exec failed: '%s': %v\nGot: %v", strings.Join(cmd, " "), e, got)
 	})
 	return got, err
 }

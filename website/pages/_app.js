@@ -1,12 +1,12 @@
 import './style.css'
-import '@hashicorp/nextjs-scripts/lib/nprogress/style.css'
+import '@hashicorp/platform-util/nprogress/style.css'
 
 import Router from 'next/router'
 import Head from 'next/head'
-import NProgress from '@hashicorp/nextjs-scripts/lib/nprogress'
-import { ErrorBoundary } from '@hashicorp/nextjs-scripts/lib/bugsnag'
-import createConsentManager from '@hashicorp/nextjs-scripts/lib/consent-manager'
-import useAnchorLinkAnalytics from '@hashicorp/nextjs-scripts/lib/anchor-link-analytics'
+import NProgress from '@hashicorp/platform-util/nprogress'
+import { ErrorBoundary } from '@hashicorp/platform-runtime-error-monitoring'
+import createConsentManager from '@hashicorp/react-consent-manager/loader'
+import useAnchorLinkAnalytics from '@hashicorp/platform-util/anchor-link-analytics'
 import HashiStackMenu from '@hashicorp/react-hashi-stack-menu'
 import AlertBanner from '@hashicorp/react-alert-banner'
 import HashiHead from '@hashicorp/react-head'
@@ -20,7 +20,7 @@ const { ConsentManager, openConsentManager } = createConsentManager({
   preset: 'oss',
 })
 
-function App({ Component, pageProps }) {
+export default function App({ Component, pageProps }) {
   useAnchorLinkAnalytics()
 
   return (
@@ -31,22 +31,10 @@ function App({ Component, pageProps }) {
         siteName="Nomad by HashiCorp"
         description="Nomad is a highly available, distributed, data-center aware cluster and application scheduler designed to support the modern datacenter with support for long-running services, batch jobs, and much more."
         image="https://www.nomadproject.io/img/og-image.png"
-        icon={[{ href: '/favicon.ico' }]}
-        preload={[
-          { href: '/fonts/klavika/medium.woff2', as: 'font' },
-          { href: '/fonts/gilmer/light.woff2', as: 'font' },
-          { href: '/fonts/gilmer/regular.woff2', as: 'font' },
-          { href: '/fonts/gilmer/medium.woff2', as: 'font' },
-          { href: '/fonts/gilmer/bold.woff2', as: 'font' },
-          { href: '/fonts/metro-sans/book.woff2', as: 'font' },
-          { href: '/fonts/metro-sans/regular.woff2', as: 'font' },
-          { href: '/fonts/metro-sans/semi-bold.woff2', as: 'font' },
-          { href: '/fonts/metro-sans/bold.woff2', as: 'font' },
-          { href: '/fonts/dejavu/mono.woff2', as: 'font' },
-        ]}
+        icon={[{ href: '/_favicon.ico' }]}
       />
       {ALERT_BANNER_ACTIVE && (
-        <AlertBanner {...alertBannerData} theme="nomad" />
+        <AlertBanner {...alertBannerData} product="nomad" hideOnMobile />
       )}
       <HashiStackMenu />
       <ProductSubnav />
@@ -58,21 +46,3 @@ function App({ Component, pageProps }) {
     </ErrorBoundary>
   )
 }
-
-App.getInitialProps = async ({ Component, ctx }) => {
-  let pageProps = {}
-
-  if (Component.getInitialProps) {
-    pageProps = await Component.getInitialProps(ctx)
-  } else if (Component.isMDXComponent) {
-    // fix for https://github.com/mdx-js/mdx/issues/382
-    const mdxLayoutComponent = Component({}).props.originalType
-    if (mdxLayoutComponent.getInitialProps) {
-      pageProps = await mdxLayoutComponent.getInitialProps(ctx)
-    }
-  }
-
-  return { pageProps }
-}
-
-export default App

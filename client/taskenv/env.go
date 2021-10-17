@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,6 +33,9 @@ const (
 
 	// MemLimit is the environment variable with the tasks memory limit in MBs.
 	MemLimit = "NOMAD_MEMORY_LIMIT"
+
+	// MemMaxLimit is the environment variable with the tasks maximum memory limit in MBs.
+	MemMaxLimit = "NOMAD_MEMORY_MAX_LIMIT"
 
 	// CpuLimit is the environment variable with the tasks CPU limit in MHz.
 	CpuLimit = "NOMAD_CPU_LIMIT"
@@ -135,15 +139,31 @@ type TaskEnv struct {
 
 	// envList is a memoized list created by List()
 	envList []string
+
+	// EnvMap is the map of environment variables with client-specific
+	// task directories
+	// See https://github.com/hashicorp/nomad/pull/9671
+	EnvMapClient map[string]string
+
+	// clientTaskDir is the absolute path to the task root directory on the host
+	// <alloc_dir>/<task>
+	clientTaskDir string
+
+	// clientSharedAllocDir is the path to shared alloc directory on the host
+	// <alloc_dir>/alloc/
+	clientSharedAllocDir string
 }
 
 // NewTaskEnv creates a new task environment with the given environment, device
 // environment and node attribute maps.
-func NewTaskEnv(env, deviceEnv, node map[string]string) *TaskEnv {
+func NewTaskEnv(env, envClient, deviceEnv, node map[string]string, clientTaskDir, clientAllocDir string) *TaskEnv {
 	return &TaskEnv{
-		NodeAttrs: node,
-		deviceEnv: deviceEnv,
-		EnvMap:    env,
+		NodeAttrs:            node,
+		deviceEnv:            deviceEnv,
+		EnvMap:               env,
+		EnvMapClient:         envClient,
+		clientTaskDir:        clientTaskDir,
+		clientSharedAllocDir: clientAllocDir,
 	}
 }
 
@@ -290,6 +310,52 @@ func (t *TaskEnv) ReplaceEnv(arg string) string {
 	return hargs.ReplaceEnv(arg, t.EnvMap, t.NodeAttrs)
 }
 
+// replaceEnvClient takes an arg and replaces all occurrences of client-specific
+// environment variables and Nomad variables.  If the variable is found in the
+// passed map it is replaced, otherwise the original string is returned.
+// The difference from ReplaceEnv client is potentially different values for
+// the following variables:
+// * NOMAD_ALLOC_DIR
+// * NOMAD_TASK_DIR
+// * NOMAD_SECRETS_DIR
+// and anything that was interpolated using them.
+//
+// See https://github.com/hashicorp/nomad/pull/9671
+func (t *TaskEnv) replaceEnvClient(arg string) string {
+	return hargs.ReplaceEnv(arg, t.EnvMapClient, t.NodeAttrs)
+}
+
+// checkEscape returns true if the absolute path testPath escapes both the
+// task directory and shared allocation directory specified in the
+// directory path fields of this TaskEnv
+func (t *TaskEnv) checkEscape(testPath string) bool {
+	for _, p := range []string{t.clientTaskDir, t.clientSharedAllocDir} {
+		if p != "" && !helper.PathEscapesSandbox(p, testPath) {
+			return false
+		}
+	}
+	return true
+}
+
+// ClientPath interpolates the argument as a path, using the
+// environment variables with client-relative directories. The
+// result is an absolute path on the client filesystem.
+//
+// If the interpolated result is a relative path, it is made absolute
+// If joinEscape, an interpolated path that escapes will be joined with the
+// task dir.
+// The result is checked to see whether it (still) escapes both the task working
+// directory and the shared allocation directory.
+func (t *TaskEnv) ClientPath(rawPath string, joinEscape bool) (string, bool) {
+	path := t.replaceEnvClient(rawPath)
+	if !filepath.IsAbs(path) || (t.checkEscape(path) && joinEscape) {
+		path = filepath.Join(t.clientTaskDir, path)
+	}
+	path = filepath.Clean(path)
+	escapes := t.checkEscape(path)
+	return path, escapes
+}
+
 // Builder is used to build task environment's and is safe for concurrent use.
 type Builder struct {
 	// envvars are custom set environment variables
@@ -316,8 +382,21 @@ type Builder struct {
 	// secretsDir from task's perspective; eg /secrets
 	secretsDir string
 
+	// clientSharedAllocDir is the shared alloc dir from the client's perspective; eg, <alloc_dir>/<alloc_id>/alloc
+	clientSharedAllocDir string
+
+	// clientTaskRoot is the task working directory from the client's perspective; eg <alloc_dir>/<alloc_id>/<task>
+	clientTaskRoot string
+
+	// clientTaskLocalDir is the local dir from the client's perspective; eg <client_task_root>/local
+	clientTaskLocalDir string
+
+	// clientTaskSecretsDir is the secrets dir from the client's perspective; eg <client_task_root>/secrets
+	clientTaskSecretsDir string
+
 	cpuLimit         int64
 	memLimit         int64
+	memMaxLimit      int64
 	taskName         string
 	allocIndex       int
 	datacenter       string
@@ -381,29 +460,31 @@ func NewEmptyBuilder() *Builder {
 	}
 }
 
-// Build must be called after all the tasks environment values have been set.
-func (b *Builder) Build() *TaskEnv {
-	nodeAttrs := make(map[string]string)
+// buildEnv returns the environment variables and device environment
+// variables with respect to the task directories passed in the arguments.
+func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
+	nodeAttrs map[string]string) (map[string]string, map[string]string) {
+
 	envMap := make(map[string]string)
 	var deviceEnvs map[string]string
 
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-
 	// Add the directories
-	if b.allocDir != "" {
-		envMap[AllocDir] = b.allocDir
+	if allocDir != "" {
+		envMap[AllocDir] = allocDir
 	}
-	if b.localDir != "" {
-		envMap[TaskLocalDir] = b.localDir
+	if localDir != "" {
+		envMap[TaskLocalDir] = localDir
 	}
-	if b.secretsDir != "" {
-		envMap[SecretsDir] = b.secretsDir
+	if secretsDir != "" {
+		envMap[SecretsDir] = secretsDir
 	}
 
 	// Add the resource limits
 	if b.memLimit != 0 {
 		envMap[MemLimit] = strconv.FormatInt(b.memLimit, 10)
+	}
+	if b.memMaxLimit != 0 {
+		envMap[MemMaxLimit] = strconv.FormatInt(b.memMaxLimit, 10)
 	}
 	if b.cpuLimit != 0 {
 		envMap[CpuLimit] = strconv.FormatInt(b.cpuLimit, 10)
@@ -442,9 +523,6 @@ func (b *Builder) Build() *TaskEnv {
 	}
 	if b.region != "" {
 		envMap[Region] = b.region
-
-		// Copy region over to node attrs
-		nodeAttrs[nodeRegionKey] = b.region
 	}
 
 	// Build the network related env vars
@@ -468,19 +546,19 @@ func (b *Builder) Build() *TaskEnv {
 		envMap[VaultNamespace] = b.vaultNamespace
 	}
 
-	// Copy task meta
+	// Copy and interpolate task meta
 	for k, v := range b.taskMeta {
-		envMap[k] = v
+		envMap[hargs.ReplaceEnv(k, nodeAttrs, envMap)] = hargs.ReplaceEnv(v, nodeAttrs, envMap)
 	}
 
-	// Copy node attributes
-	for k, v := range b.nodeAttrs {
-		nodeAttrs[k] = v
-	}
-
-	// Interpolate and add environment variables
+	// Interpolate and add environment variables from the host. Only do this if
+	// the variable is not present in the map; we do not want to override task
+	// variables in favour of the same variable found within the host OS env
+	// vars.
 	for k, v := range b.hostEnv {
-		envMap[k] = hargs.ReplaceEnv(v, nodeAttrs, envMap)
+		if _, ok := envMap[k]; !ok {
+			envMap[k] = hargs.ReplaceEnv(v, nodeAttrs, envMap)
+		}
 	}
 
 	// Copy interpolated task env vars second as they override host env vars
@@ -522,10 +600,32 @@ func (b *Builder) Build() *TaskEnv {
 		cleanedEnv[cleanedK] = v
 	}
 
-	return NewTaskEnv(cleanedEnv, deviceEnvs, nodeAttrs)
+	return cleanedEnv, deviceEnvs
 }
 
-// Update task updates the environment based on a new alloc and task.
+// Build must be called after all the tasks environment values have been set.
+func (b *Builder) Build() *TaskEnv {
+	nodeAttrs := make(map[string]string)
+
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	if b.region != "" {
+		// Copy region over to node attrs
+		nodeAttrs[nodeRegionKey] = b.region
+	}
+	// Copy node attributes
+	for k, v := range b.nodeAttrs {
+		nodeAttrs[k] = v
+	}
+
+	envMap, deviceEnvs := b.buildEnv(b.allocDir, b.localDir, b.secretsDir, nodeAttrs)
+	envMapClient, _ := b.buildEnv(b.clientSharedAllocDir, b.clientTaskLocalDir, b.clientTaskSecretsDir, nodeAttrs)
+
+	return NewTaskEnv(envMap, envMapClient, deviceEnvs, nodeAttrs, b.clientTaskRoot, b.clientSharedAllocDir)
+}
+
+// UpdateTask updates the environment based on a new alloc and task.
 func (b *Builder) UpdateTask(alloc *structs.Allocation, task *structs.Task) *Builder {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -579,9 +679,11 @@ func (b *Builder) setTask(task *structs.Task) *Builder {
 	// COMPAT(0.11): Remove in 0.11
 	if task.Resources == nil {
 		b.memLimit = 0
+		b.memMaxLimit = 0
 		b.cpuLimit = 0
 	} else {
 		b.memLimit = int64(task.Resources.MemoryMB)
+		b.memMaxLimit = int64(task.Resources.MemoryMaxMB)
 		b.cpuLimit = int64(task.Resources.CPU)
 	}
 	return b
@@ -634,6 +736,7 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		if tr, ok := alloc.AllocatedResources.Tasks[b.taskName]; ok {
 			b.cpuLimit = tr.Cpu.CpuShares
 			b.memLimit = tr.Memory.MemoryMB
+			b.memMaxLimit = tr.Memory.MemoryMaxMB
 
 			// Copy networks to prevent sharing
 			b.networks = make([]*structs.NetworkResource, len(tr.Networks))
@@ -722,6 +825,34 @@ func (b *Builder) SetAllocDir(dir string) *Builder {
 func (b *Builder) SetTaskLocalDir(dir string) *Builder {
 	b.mu.Lock()
 	b.localDir = dir
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetClientSharedAllocDir(dir string) *Builder {
+	b.mu.Lock()
+	b.clientSharedAllocDir = dir
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetClientTaskRoot(dir string) *Builder {
+	b.mu.Lock()
+	b.clientTaskRoot = dir
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetClientTaskLocalDir(dir string) *Builder {
+	b.mu.Lock()
+	b.clientTaskLocalDir = dir
+	b.mu.Unlock()
+	return b
+}
+
+func (b *Builder) SetClientTaskSecretsDir(dir string) *Builder {
+	b.mu.Lock()
+	b.clientTaskSecretsDir = dir
 	b.mu.Unlock()
 	return b
 }

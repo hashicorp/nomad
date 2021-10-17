@@ -24,7 +24,10 @@ export default class LifecycleChart extends Component {
 
     tasksOrStates.forEach(taskOrState => {
       const task = taskOrState.task || taskOrState;
-      lifecycles[`${task.lifecycleName}s`].push(taskOrState);
+
+      if (task.lifecycleName) {
+        lifecycles[`${task.lifecycleName}s`].push(taskOrState);
+      }
     });
 
     const phases = [];
@@ -46,6 +49,11 @@ export default class LifecycleChart extends Component {
       // Poststart is rendered as a subphase of main and therefore has no independent active state
       phases.push({
         name: 'Poststart',
+      });
+
+      phases.push({
+        name: 'Poststop',
+        isActive: lifecycles.poststops.some(stateActiveIterator),
       });
     }
 

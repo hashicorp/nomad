@@ -13,6 +13,11 @@ export default {
 
   namespace: text('[data-test-namespace]'),
 
+  copyButton: {
+    scope: '[data-test-copy-button]',
+    clipboardText: attribute('data-clipboard-text', 'button'),
+  },
+
   totalsTable: totalsTableComponent('[data-test-group-totals]'),
 
   narrative: text('[data-test-narrative]'),

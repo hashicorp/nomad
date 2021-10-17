@@ -16,26 +16,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	// envConsulToken is the consul http token environment variable
-	envConsulToken = "CONSUL_HTTP_TOKEN"
-
-	// demoConnectJob is the example connect enabled job useful for testing
-	demoConnectJob = "connect/input/demo.nomad"
-
-	// demoConnectNativeJob is the example connect native enabled job useful for testing
-	demoConnectNativeJob = "connect/input/native-demo.nomad"
-)
-
 type ConnectACLsE2ETest struct {
 	framework.TC
 
 	// manageConsulACLs is used to 'enable' and 'disable' Consul ACLs in the
 	// Consul Cluster that has been setup for e2e testing.
 	manageConsulACLs consulacls.Manager
-	// consulMasterToken is set to the generated Consul ACL token after using
+
+	// consulManagementToken is set to the generated Consul ACL token after using
 	// the consul-acls-manage.sh script to enable ACLs.
-	consulMasterToken string
+	consulManagementToken string
 
 	// things to cleanup after each test case
 	jobIDs          []string
@@ -55,12 +45,12 @@ func (tc *ConnectACLsE2ETest) BeforeAll(f *framework.F) {
 	require.NoError(f.T(), err)
 	tc.enableConsulACLs(f)
 
-	// Sanity check the consul master token exists, otherwise tests are just
+	// Validate the consul master token exists, otherwise tests are just
 	// going to be a train wreck.
-	tokenLength := len(tc.consulMasterToken)
+	tokenLength := len(tc.consulManagementToken)
 	require.Equal(f.T(), 36, tokenLength, "consul master token wrong length")
 
-	// Sanity check the CONSUL_HTTP_TOKEN is NOT set, because that will cause
+	// Validate the CONSUL_HTTP_TOKEN is NOT set, because that will cause
 	// the agent checks to fail (which do not allow having a token set (!)).
 	consulTokenEnv := os.Getenv(envConsulToken)
 	require.Empty(f.T(), consulTokenEnv)
@@ -74,7 +64,7 @@ func (tc *ConnectACLsE2ETest) BeforeAll(f *framework.F) {
 // enableConsulACLs effectively executes `consul-acls-manage.sh enable`, which
 // will activate Consul ACLs, going through the bootstrap process if necessary.
 func (tc *ConnectACLsE2ETest) enableConsulACLs(f *framework.F) {
-	tc.consulMasterToken = tc.manageConsulACLs.Enable(f.T())
+	tc.consulManagementToken = tc.manageConsulACLs.Enable(f.T())
 }
 
 // AfterAll runs after all tests are complete.
@@ -100,36 +90,35 @@ func (tc *ConnectACLsE2ETest) AfterEach(f *framework.F) {
 	}
 
 	t := f.T()
-	r := require.New(t)
 
 	// cleanup jobs
 	for _, id := range tc.jobIDs {
 		t.Log("cleanup: deregister nomad job id:", id)
 		_, _, err := tc.Nomad().Jobs().Deregister(id, true, nil)
-		r.NoError(err)
+		f.NoError(err)
 	}
 
 	// cleanup consul tokens
 	for _, id := range tc.consulTokenIDs {
 		t.Log("cleanup: delete consul token id:", id)
-		_, err := tc.Consul().ACL().TokenDelete(id, &consulapi.WriteOptions{Token: tc.consulMasterToken})
-		r.NoError(err)
+		_, err := tc.Consul().ACL().TokenDelete(id, &consulapi.WriteOptions{Token: tc.consulManagementToken})
+		f.NoError(err)
 	}
 
 	// cleanup consul policies
 	for _, id := range tc.consulPolicyIDs {
 		t.Log("cleanup: delete consul policy id:", id)
-		_, err := tc.Consul().ACL().PolicyDelete(id, &consulapi.WriteOptions{Token: tc.consulMasterToken})
-		r.NoError(err)
+		_, err := tc.Consul().ACL().PolicyDelete(id, &consulapi.WriteOptions{Token: tc.consulManagementToken})
+		f.NoError(err)
 	}
 
 	// do garbage collection
 	err := tc.Nomad().System().GarbageCollect()
-	r.NoError(err)
+	f.NoError(err)
 
 	// assert there are no leftover SI tokens, which may take a minute to be
 	// cleaned up
-	r.Eventually(func() bool {
+	f.Eventually(func() bool {
 		siTokens := tc.countSITokens(t)
 		t.Log("cleanup: checking for remaining SI tokens:", siTokens)
 		return len(siTokens) == 0
@@ -140,37 +129,37 @@ func (tc *ConnectACLsE2ETest) AfterEach(f *framework.F) {
 	tc.consulPolicyIDs = []string{}
 }
 
+// todo(shoenig): follow up refactor with e2eutil.ConsulPolicy
 type consulPolicy struct {
 	Name  string // e.g. nomad-operator
 	Rules string // e.g. service "" { policy="write" }
 }
 
+// todo(shoenig): follow up refactor with e2eutil.ConsulPolicy
 func (tc *ConnectACLsE2ETest) createConsulPolicy(p consulPolicy, f *framework.F) string {
-	r := require.New(f.T())
 	result, _, err := tc.Consul().ACL().PolicyCreate(&consulapi.ACLPolicy{
 		Name:        p.Name,
 		Description: "test policy " + p.Name,
 		Rules:       p.Rules,
-	}, &consulapi.WriteOptions{Token: tc.consulMasterToken})
-	r.NoError(err, "failed to create consul policy")
+	}, &consulapi.WriteOptions{Token: tc.consulManagementToken})
+	f.NoError(err, "failed to create consul policy")
 	tc.consulPolicyIDs = append(tc.consulPolicyIDs, result.ID)
 	return result.ID
 }
 
+// todo(shoenig): follow up refactor with e2eutil.ConsulPolicy
 func (tc *ConnectACLsE2ETest) createOperatorToken(policyID string, f *framework.F) string {
-	r := require.New(f.T())
 	token, _, err := tc.Consul().ACL().TokenCreate(&consulapi.ACLToken{
 		Description: "operator token",
 		Policies:    []*consulapi.ACLTokenPolicyLink{{ID: policyID}},
-	}, &consulapi.WriteOptions{Token: tc.consulMasterToken})
-	r.NoError(err, "failed to create operator token")
+	}, &consulapi.WriteOptions{Token: tc.consulManagementToken})
+	f.NoError(err, "failed to create operator token")
 	tc.consulTokenIDs = append(tc.consulTokenIDs, token.AccessorID)
 	return token.SecretID
 }
 
 func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterMasterToken(f *framework.F) {
 	t := f.T()
-	r := require.New(t)
 
 	t.Log("test register Connect job w/ ACLs enabled w/ master token")
 
@@ -180,30 +169,29 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterMasterToken(f *framework.F)
 	jobAPI := tc.Nomad().Jobs()
 
 	job, err := jobspec.ParseFile(demoConnectJob)
-	r.NoError(err)
+	f.NoError(err)
 
 	// Set the job file to use the consul master token.
 	// One should never do this in practice, but, it should work.
 	// https://www.consul.io/docs/acl/acl-system.html#builtin-tokens
-	job.ConsulToken = &tc.consulMasterToken
+	job.ConsulToken = &tc.consulManagementToken
 
 	// Avoid using Register here, because that would actually create and run the
 	// Job which runs the task, creates the SI token, which all needs to be
 	// given time to settle and cleaned up. That is all covered in the big slow
 	// test at the bottom.
 	resp, _, err := jobAPI.Plan(job, false, nil)
-	r.NoError(err)
-	r.NotNil(resp)
+	f.NoError(err)
+	f.NotNil(resp)
 }
 
 func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterMissingOperatorToken(f *framework.F) {
 	t := f.T()
-	r := require.New(t)
 
 	t.Log("test register Connect job w/ ACLs enabled w/o operator token")
 
 	job, err := jobspec.ParseFile(demoConnectJob)
-	r.NoError(err)
+	f.NoError(err)
 
 	jobAPI := tc.Nomad().Jobs()
 
@@ -211,14 +199,13 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterMissingOperatorToken(f *fra
 	job.ConsulToken = nil
 
 	_, _, err = jobAPI.Register(job, nil)
-	r.Error(err)
+	f.Error(err)
 
 	t.Log("job correctly rejected, with error:", err)
 }
 
 func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterFakeOperatorToken(f *framework.F) {
 	t := f.T()
-	r := require.New(t)
 
 	t.Log("test register Connect job w/ ACLs enabled w/ operator token")
 
@@ -239,13 +226,12 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsRegisterFakeOperatorToken(f *framew
 
 	// should fail, because the token is fake
 	_, _, err := jobAPI.Register(job, nil)
-	r.Error(err)
+	f.Error(err)
 	t.Log("job correctly rejected, with error:", err)
 }
 
 func (tc *ConnectACLsE2ETest) TestConnectACLsConnectDemo(f *framework.F) {
 	t := f.T()
-	r := require.New(t)
 
 	t.Log("test register Connect job w/ ACLs enabled w/ operator token")
 
@@ -266,23 +252,22 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsConnectDemo(f *framework.F) {
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), demoConnectJob, jobID, operatorToken)
-	r.Equal(2, len(allocs), "expected 2 allocs for connect demo", allocs)
+	f.Equal(2, len(allocs), "expected 2 allocs for connect demo", allocs)
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
-	r.Equal(2, len(allocIDs), "expected 2 allocIDs for connect demo", allocIDs)
+	f.Equal(2, len(allocIDs), "expected 2 allocIDs for connect demo", allocIDs)
 	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
 
 	// === Check Consul SI tokens were generated for sidecars ===
 	foundSITokens := tc.countSITokens(t)
-	r.Equal(2, len(foundSITokens), "expected 2 SI tokens total: %v", foundSITokens)
-	r.Equal(1, foundSITokens["connect-proxy-count-api"], "expected 1 SI token for connect-proxy-count-api: %v", foundSITokens)
-	r.Equal(1, foundSITokens["connect-proxy-count-dashboard"], "expected 1 SI token for connect-proxy-count-dashboard: %v", foundSITokens)
+	f.Equal(2, len(foundSITokens), "expected 2 SI tokens total: %v", foundSITokens)
+	f.Equal(1, foundSITokens["connect-proxy-count-api"], "expected 1 SI token for connect-proxy-count-api: %v", foundSITokens)
+	f.Equal(1, foundSITokens["connect-proxy-count-dashboard"], "expected 1 SI token for connect-proxy-count-dashboard: %v", foundSITokens)
 
 	t.Log("connect legacy job with ACLs enable finished")
 }
 
 func (tc *ConnectACLsE2ETest) TestConnectACLsConnectNativeDemo(f *framework.F) {
 	t := f.T()
-	r := require.New(t)
 
 	t.Log("test register Connect job w/ ACLs enabled w/ operator token")
 
@@ -308,11 +293,69 @@ func (tc *ConnectACLsE2ETest) TestConnectACLsConnectNativeDemo(f *framework.F) {
 
 	// === Check Consul SI tokens were generated for native tasks ===
 	foundSITokens := tc.countSITokens(t)
-	r.Equal(2, len(foundSITokens), "expected 2 SI tokens total: %v", foundSITokens)
-	r.Equal(1, foundSITokens["frontend"], "expected 1 SI token for frontend: %v", foundSITokens)
-	r.Equal(1, foundSITokens["generate"], "expected 1 SI token for generate: %v", foundSITokens)
+	f.Equal(2, len(foundSITokens), "expected 2 SI tokens total: %v", foundSITokens)
+	f.Equal(1, foundSITokens["frontend"], "expected 1 SI token for frontend: %v", foundSITokens)
+	f.Equal(1, foundSITokens["generate"], "expected 1 SI token for generate: %v", foundSITokens)
 
-	t.Log("connect native job with ACLs enable finished")
+	t.Log("connect native job with ACLs enabled finished")
+}
+
+func (tc *ConnectACLsE2ETest) TestConnectACLsConnectIngressGatewayDemo(f *framework.F) {
+	t := f.T()
+
+	t.Log("test register Connect Ingress Gateway job w/ ACLs enabled")
+
+	// setup ACL policy and mint operator token
+
+	policyID := tc.createConsulPolicy(consulPolicy{
+		Name:  "nomad-operator-policy",
+		Rules: `service "my-ingress-service" { policy = "write" } service "uuid-api" { policy = "write" }`,
+	}, f)
+	operatorToken := tc.createOperatorToken(policyID, f)
+	t.Log("created operator token:", operatorToken)
+
+	jobID := connectJobID()
+	tc.jobIDs = append(tc.jobIDs, jobID)
+
+	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), demoConnectIngressGateway, jobID, operatorToken)
+	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
+	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
+
+	foundSITokens := tc.countSITokens(t)
+	f.Equal(2, len(foundSITokens), "expected 2 SI tokens total: %v", foundSITokens)
+	f.Equal(1, foundSITokens["connect-ingress-my-ingress-service"], "expected 1 SI token for connect-ingress-my-ingress-service: %v", foundSITokens)
+	f.Equal(1, foundSITokens["generate"], "expected 1 SI token for generate: %v", foundSITokens)
+
+	t.Log("connect ingress gateway job with ACLs enabled finished")
+}
+
+func (tc *ConnectACLsE2ETest) TestConnectACLsConnectTerminatingGatewayDemo(f *framework.F) {
+	t := f.T()
+
+	t.Log("test register Connect Terminating Gateway job w/ ACLs enabled")
+
+	// setup ACL policy and mint operator token
+
+	policyID := tc.createConsulPolicy(consulPolicy{
+		Name:  "nomad-operator-policy",
+		Rules: `service "api-gateway" { policy = "write" } service "count-dashboard" { policy = "write" }`,
+	}, f)
+	operatorToken := tc.createOperatorToken(policyID, f)
+	t.Log("created operator token:", operatorToken)
+
+	jobID := connectJobID()
+	tc.jobIDs = append(tc.jobIDs, jobID)
+
+	allocs := e2eutil.RegisterAndWaitForAllocs(t, tc.Nomad(), demoConnectTerminatingGateway, jobID, operatorToken)
+	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
+	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
+
+	foundSITokens := tc.countSITokens(t)
+	f.Equal(2, len(foundSITokens), "expected 2 SI tokens total: %v", foundSITokens)
+	f.Equal(1, foundSITokens["connect-terminating-api-gateway"], "expected 1 SI token for connect-terminating-api-gateway: %v", foundSITokens)
+	f.Equal(1, foundSITokens["connect-proxy-count-dashboard"], "expected 1 SI token for count-dashboard: %v", foundSITokens)
+
+	t.Log("connect terminating gateway job with ACLs enabled finished")
 }
 
 var (
@@ -329,7 +372,7 @@ func (tc *ConnectACLsE2ETest) serviceofSIToken(description string) string {
 func (tc *ConnectACLsE2ETest) countSITokens(t *testing.T) map[string]int {
 	aclAPI := tc.Consul().ACL()
 	tokens, _, err := aclAPI.TokenList(&consulapi.QueryOptions{
-		Token: tc.consulMasterToken,
+		Token: tc.consulManagementToken,
 	})
 	require.NoError(t, err)
 

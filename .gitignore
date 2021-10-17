@@ -55,7 +55,11 @@ ui/dist/
 website/.bundle
 website/vendor
 
+# init outputs
 example.nomad
+spec.hcl
+volume.hcl
+
 nomad_linux_amd64
 nomad_darwin_amd64
 TODO.md
@@ -105,3 +109,15 @@ azure-hashistack.pem
 
 # generated keys for e2e tests
 e2e/terraform/keys/
+
+# debug bundles
+nomad-debug-*
+
+# locally compiled ecs driver for e2e testing
+e2e/terraform/packer/ubuntu-bionic-amd64/nomad-driver-ecs
+
+# generated variables for e2e tests
+e2e/remotetasks/input/ecs.vars
+
+# local terraform overrides
+*.auto.tfvars

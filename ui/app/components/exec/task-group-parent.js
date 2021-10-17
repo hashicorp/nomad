@@ -12,7 +12,7 @@ export default class TaskGroupParent extends Component {
 
   @or('clickedOpen', 'currentRouteIsThisTaskGroup') isOpen;
 
-  @computed('router.currentRoute')
+  @computed('router.currentRoute', 'taskGroup.{job.name,name}')
   get currentRouteIsThisTaskGroup() {
     const route = this.router.currentRoute;
 
@@ -48,10 +48,10 @@ export default class TaskGroupParent extends Component {
   @mapBy('activeTasks', 'taskGroup') activeTaskGroups;
 
   @computed(
-    'taskGroup.name',
+    'activeTaskGroups.@each.name',
     'activeTaskStates.@each.name',
     'activeTasks.@each.name',
-    'activeTaskGroups.@each.name'
+    'taskGroup.{name,tasks}'
   )
   get tasksWithRunningStates() {
     const activeTaskStateNames = this.activeTaskStates

@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Table, Configuration',
+  title: 'Components/Table, Configuration',
 };
 
 export let TableConfiguration = () => {

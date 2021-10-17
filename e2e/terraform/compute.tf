@@ -1,3 +1,7 @@
+locals {
+  ami_prefix = "nomad-e2e-v2"
+}
+
 resource "aws_instance" "server" {
   ami                    = data.aws_ami.ubuntu_bionic_amd64.image_id
   instance_type          = var.instance_type
@@ -7,12 +11,10 @@ resource "aws_instance" "server" {
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
-  user_data = file("${path.root}/userdata/ubuntu-bionic.sh")
-
   # Instance tags
   tags = {
     Name           = "${local.random_name}-server-${count.index}"
-    ConsulAutoJoin = "auto-join"
+    ConsulAutoJoin = "auto-join-${local.random_name}"
     SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
   }
@@ -27,12 +29,10 @@ resource "aws_instance" "client_ubuntu_bionic_amd64" {
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
-  user_data = file("${path.root}/userdata/ubuntu-bionic.sh")
-
   # Instance tags
   tags = {
     Name           = "${local.random_name}-client-ubuntu-bionic-amd64-${count.index}"
-    ConsulAutoJoin = "auto-join"
+    ConsulAutoJoin = "auto-join-${local.random_name}"
     SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
   }
@@ -52,10 +52,19 @@ resource "aws_instance" "client_windows_2016_amd64" {
   # Instance tags
   tags = {
     Name           = "${local.random_name}-client-windows-2016-${count.index}"
-    ConsulAutoJoin = "auto-join"
+    ConsulAutoJoin = "auto-join-${local.random_name}"
     SHA            = var.nomad_sha
     User           = data.aws_caller_identity.current.arn
   }
+}
+
+data "external" "packer_sha" {
+  program = ["/bin/sh", "-c", <<EOT
+sha=$(git log -n 1 --pretty=format:%H packer)
+echo "{\"sha\":\"$${sha}\"}"
+EOT
+  ]
+
 }
 
 data "aws_ami" "ubuntu_bionic_amd64" {
@@ -64,12 +73,17 @@ data "aws_ami" "ubuntu_bionic_amd64" {
 
   filter {
     name   = "name"
-    values = ["nomad-e2e-ubuntu-bionic-amd64-*"]
+    values = ["${local.ami_prefix}-ubuntu-bionic-amd64-*"]
   }
 
   filter {
     name   = "tag:OS"
     values = ["Ubuntu"]
+  }
+
+  filter {
+    name   = "tag:BuilderSha"
+    values = [data.external.packer_sha.result["sha"]]
   }
 }
 
@@ -79,11 +93,16 @@ data "aws_ami" "windows_2016_amd64" {
 
   filter {
     name   = "name"
-    values = ["nomad-e2e-windows-2016-amd64-*"]
+    values = ["${local.ami_prefix}-windows-2016-amd64-*"]
   }
 
   filter {
     name   = "tag:OS"
     values = ["Windows2016"]
+  }
+
+  filter {
+    name   = "tag:BuilderSha"
+    values = [data.external.packer_sha.result["sha"]]
   }
 }

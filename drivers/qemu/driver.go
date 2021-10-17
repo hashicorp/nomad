@@ -100,9 +100,13 @@ var (
 	// capabilities is returned by the Capabilities RPC and indicates what
 	// optional features this driver supports
 	capabilities = &drivers.Capabilities{
-		SendSignals:  false,
-		Exec:         false,
-		FSIsolation:  drivers.FSIsolationImage,
+		SendSignals: false,
+		Exec:        false,
+		FSIsolation: drivers.FSIsolationImage,
+		NetIsolationModes: []drivers.NetIsolationMode{
+			drivers.NetIsolationModeHost,
+			drivers.NetIsolationModeGroup,
+		},
 		MountConfigs: drivers.MountConfigSupportNone,
 	}
 
@@ -467,9 +471,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		args = append(args,
 			"-enable-kvm",
 			"-cpu", "host",
-			// Do we have cores information available to the Driver?
-			// "-smp", fmt.Sprintf("%d", cores),
 		)
+
+		if cfg.Resources.LinuxResources != nil && cfg.Resources.LinuxResources.CpusetCpus != "" {
+			cores := strings.Split(cfg.Resources.LinuxResources.CpusetCpus, ",")
+			args = append(args,
+				"-smp", fmt.Sprintf("%d", len(cores)),
+			)
+		}
 	}
 	d.logger.Debug("starting QemuVM command ", "args", strings.Join(args, " "))
 
@@ -487,13 +496,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	execCmd := &executor.ExecCommand{
-		Cmd:        args[0],
-		Args:       args[1:],
-		Env:        cfg.EnvList(),
-		User:       cfg.User,
-		TaskDir:    cfg.TaskDir().Dir,
-		StdoutPath: cfg.StdoutPath,
-		StderrPath: cfg.StderrPath,
+		Cmd:              args[0],
+		Args:             args[1:],
+		Env:              cfg.EnvList(),
+		User:             cfg.User,
+		TaskDir:          cfg.TaskDir().Dir,
+		StdoutPath:       cfg.StdoutPath,
+		StderrPath:       cfg.StderrPath,
+		NetworkIsolation: cfg.NetworkIsolation,
 	}
 	ps, err := execImpl.Launch(execCmd)
 	if err != nil {
@@ -680,7 +690,7 @@ func (d *Driver) getMonitorPath(dir string, fingerPrint *drivers.Fingerprint) (s
 		d.logger.Debug("long socket paths available in this version of QEMU", "version", currentQemuVer)
 	}
 	fullSocketPath := fmt.Sprintf("%s/%s", dir, qemuMonitorSocketName)
-	if len(fullSocketPath) > qemuLegacyMaxMonitorPathLen && longPathSupport == false {
+	if len(fullSocketPath) > qemuLegacyMaxMonitorPathLen && !longPathSupport {
 		return "", fmt.Errorf("monitor path is too long for this version of qemu")
 	}
 	return fullSocketPath, nil

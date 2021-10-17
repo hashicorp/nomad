@@ -35,6 +35,7 @@ type SelectOptions struct {
 	PenaltyNodeIDs map[string]struct{}
 	PreferredNodes []*structs.Node
 	Preempt        bool
+	AllocName      string
 }
 
 // GenericStack is the Stack used for the Generic scheduler. It is
@@ -143,7 +144,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
 	s.taskGroupHostVolumes.SetVolumes(tg.Volumes)
-	s.taskGroupCSIVolumes.SetVolumes(tg.Volumes)
+	s.taskGroupCSIVolumes.SetVolumes(options.AllocName, tg.Volumes)
 	if len(tg.Networks) > 0 {
 		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
 	}
@@ -198,18 +199,18 @@ type SystemStack struct {
 	scoreNorm                  *ScoreNormalizationIterator
 }
 
-// NewSystemStack constructs a stack used for selecting system job placements.
-func NewSystemStack(ctx Context) *SystemStack {
+// NewSystemStack constructs a stack used for selecting system and sysbatch
+// job placements.
+//
+// sysbatch is used to determine which scheduler config option is used to
+// control the use of preemption.
+func NewSystemStack(sysbatch bool, ctx Context) *SystemStack {
 	// Create a new stack
 	s := &SystemStack{ctx: ctx}
 
 	// Create the source iterator. We visit nodes in a linear order because we
 	// have to evaluate on all nodes.
 	s.source = NewStaticIterator(ctx, nil)
-
-	// Create the quota iterator to determine if placements would result in the
-	// quota attached to the namespace of the job to go over.
-	s.quota = NewQuotaIterator(ctx, s.source)
 
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintChecker(ctx, nil)
@@ -237,30 +238,44 @@ func NewSystemStack(ctx Context) *SystemStack {
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
-	tgs := []FeasibilityChecker{s.taskGroupDrivers, s.taskGroupConstraint,
+	tgs := []FeasibilityChecker{
+		s.taskGroupDrivers,
+		s.taskGroupConstraint,
 		s.taskGroupHostVolumes,
 		s.taskGroupDevices,
-		s.taskGroupNetwork}
+		s.taskGroupNetwork,
+	}
 	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
-	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs, avail)
+	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs, avail)
 
 	// Filter on distinct property constraints.
 	s.distinctPropertyConstraint = NewDistinctPropertyIterator(ctx, s.wrappedChecks)
 
+	// Create the quota iterator to determine if placements would result in
+	// the quota attached to the namespace of the job to go over.
+	// Note: the quota iterator must be the last feasibility iterator before
+	// we upgrade to ranking, or our quota usage will include ineligible
+	// nodes!
+	s.quota = NewQuotaIterator(ctx, s.distinctPropertyConstraint)
+
 	// Upgrade from feasible to rank iterator
-	rankSource := NewFeasibleRankIterator(ctx, s.distinctPropertyConstraint)
+	rankSource := NewFeasibleRankIterator(ctx, s.quota)
 
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group. Enable eviction as system jobs are high
 	// priority.
 	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
-	schedulerAlgorithm := schedConfig.EffectiveSchedulerAlgorithm()
 	enablePreemption := true
 	if schedConfig != nil {
-		enablePreemption = schedConfig.PreemptionConfig.SystemSchedulerEnabled
+		if sysbatch {
+			enablePreemption = schedConfig.PreemptionConfig.SysBatchSchedulerEnabled
+		} else {
+			enablePreemption = schedConfig.PreemptionConfig.SystemSchedulerEnabled
+		}
 	}
 
-	s.binPack = NewBinPackIterator(ctx, rankSource, enablePreemption, 0, schedulerAlgorithm)
+	// Create binpack iterator
+	s.binPack = NewBinPackIterator(ctx, rankSource, enablePreemption, 0, schedConfig)
 
 	// Apply score normalization
 	s.scoreNorm = NewScoreNormalizationIterator(ctx, s.binPack)
@@ -297,7 +312,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ran
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
 	s.taskGroupHostVolumes.SetVolumes(tg.Volumes)
-	s.taskGroupCSIVolumes.SetVolumes(tg.Volumes)
+	s.taskGroupCSIVolumes.SetVolumes(options.AllocName, tg.Volumes)
 	if len(tg.Networks) > 0 {
 		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
 	}
@@ -330,10 +345,6 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// balancing across eligible nodes.
 	s.source = NewRandomIterator(ctx, nil)
 
-	// Create the quota iterator to determine if placements would result in the
-	// quota attached to the namespace of the job to go over.
-	s.quota = NewQuotaIterator(ctx, s.source)
-
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintChecker(ctx, nil)
 
@@ -360,13 +371,15 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
 	jobs := []FeasibilityChecker{s.jobConstraint}
-	tgs := []FeasibilityChecker{s.taskGroupDrivers,
+	tgs := []FeasibilityChecker{
+		s.taskGroupDrivers,
 		s.taskGroupConstraint,
 		s.taskGroupHostVolumes,
 		s.taskGroupDevices,
-		s.taskGroupNetwork}
+		s.taskGroupNetwork,
+	}
 	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
-	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.quota, jobs, tgs, avail)
+	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs, avail)
 
 	// Filter on distinct host constraints.
 	s.distinctHostsConstraint = NewDistinctHostsIterator(ctx, s.wrappedChecks)
@@ -374,13 +387,20 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Filter on distinct property constraints.
 	s.distinctPropertyConstraint = NewDistinctPropertyIterator(ctx, s.distinctHostsConstraint)
 
+	// Create the quota iterator to determine if placements would result in
+	// the quota attached to the namespace of the job to go over.
+	// Note: the quota iterator must be the last feasibility iterator before
+	// we upgrade to ranking, or our quota usage will include ineligible
+	// nodes!
+	s.quota = NewQuotaIterator(ctx, s.distinctPropertyConstraint)
+
 	// Upgrade from feasible to rank iterator
-	rankSource := NewFeasibleRankIterator(ctx, s.distinctPropertyConstraint)
+	rankSource := NewFeasibleRankIterator(ctx, s.quota)
 
 	// Apply the bin packing, this depends on the resources needed
 	// by a particular task group.
 	_, schedConfig, _ := ctx.State().SchedulerConfig()
-	s.binPack = NewBinPackIterator(ctx, rankSource, false, 0, schedConfig.EffectiveSchedulerAlgorithm())
+	s.binPack = NewBinPackIterator(ctx, rankSource, false, 0, schedConfig)
 
 	// Apply the job anti-affinity iterator. This is to avoid placing
 	// multiple allocations on the same node for this job.

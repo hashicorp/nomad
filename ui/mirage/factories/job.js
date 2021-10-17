@@ -6,14 +6,21 @@ import { DATACENTERS } from '../common';
 
 const REF_TIME = new Date();
 const JOB_PREFIXES = provide(5, faker.hacker.abbreviation);
-const JOB_TYPES = ['service', 'batch', 'system'];
+const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 const JOB_STATUSES = ['pending', 'running', 'dead'];
 
 export default Factory.extend({
-  id: i =>
-    `${faker.helpers.randomize(
+  id(i) {
+    if (this.parameterized && this.parentId) {
+      const shortUUID = faker.random.uuid().split('-')[0];
+      const dispatchId = `dispatch-${this.submitTime / 1000}-${shortUUID}`;
+      return `${this.parentId}/${dispatchId}`;
+    }
+
+    return `${faker.helpers.randomize(
       JOB_PREFIXES
-    )}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase(),
+    )}-${faker.hacker.noun().dasherize()}-${i}`.toLowerCase();
+  },
 
   name() {
     return this.id;
@@ -25,7 +32,7 @@ export default Factory.extend({
   // When provided, the resourceSpec will inform how many task groups to create
   // and how much of each resource that task group reserves.
   //
-  // One task group, 256 MiB memory and 500 Mhz cpu
+  // One task group, 256 MiB memory and 500 MHz cpu
   // resourceSpec: ['M: 256, C: 500']
   //
   // Two task groups
@@ -46,8 +53,24 @@ export default Factory.extend({
 
   childrenCount: () => faker.random.number({ min: 1, max: 2 }),
 
+  meta: null,
+
   periodic: trait({
     type: 'batch',
+    periodic: true,
+    // periodic details object
+    // serializer update for bool vs details object
+    periodicDetails: () => ({
+      Enabled: true,
+      ProhibitOverlap: true,
+      Spec: '*/5 * * * * *',
+      SpecType: 'cron',
+      TimeZone: 'UTC',
+    }),
+  }),
+
+  periodicSysbatch: trait({
+    type: 'sysbatch',
     periodic: true,
     // periodic details object
     // serializer update for bool vs details object
@@ -63,11 +86,23 @@ export default Factory.extend({
   parameterized: trait({
     type: 'batch',
     parameterized: true,
-    // parameterized details object
+    // parameterized job object
     // serializer update for bool vs details object
-    parameterizedDetails: () => ({
-      MetaOptional: null,
-      MetaRequired: null,
+    parameterizedJob: () => ({
+      MetaOptional: generateMetaFields(faker.random.number(10), 'optional'),
+      MetaRequired: generateMetaFields(faker.random.number(10), 'required'),
+      Payload: faker.random.boolean() ? 'required' : null,
+    }),
+  }),
+
+  parameterizedSysbatch: trait({
+    type: 'sysbatch',
+    parameterized: true,
+    // parameterized job object
+    // serializer update for bool vs details object
+    parameterizedJob: () => ({
+      MetaOptional: generateMetaFields(faker.random.number(10), 'optional'),
+      MetaRequired: generateMetaFields(faker.random.number(10), 'required'),
       Payload: faker.random.boolean() ? 'required' : null,
     }),
   }),
@@ -79,6 +114,13 @@ export default Factory.extend({
     type: 'batch',
   }),
 
+  periodicSysbatchChild: trait({
+    // Periodic children need a parent job,
+    // It is the Periodic job's responsibility to create
+    // periodicChild jobs and provide a parent job.
+    type: 'sysbatch',
+  }),
+
   parameterizedChild: trait({
     // Parameterized children need a parent job,
     // It is the Parameterized job's responsibility to create
@@ -87,6 +129,23 @@ export default Factory.extend({
     parameterized: true,
     dispatched: true,
     payload: window.btoa(faker.lorem.sentence()),
+  }),
+
+  parameterizedSysbatchChild: trait({
+    // Parameterized children need a parent job,
+    // It is the Parameterized job's responsibility to create
+    // parameterizedChild jobs and provide a parent job.
+    type: 'sysbatch',
+    parameterized: true,
+    dispatched: true,
+    payload: window.btoa(faker.lorem.sentence()),
+  }),
+
+  pack: trait({
+    meta: () => ({
+      'pack.name': faker.hacker.noun(),
+      'pack.version': faker.system.semver(),
+    }),
   }),
 
   createIndex: i => i,
@@ -241,25 +300,58 @@ export default Factory.extend({
     }
 
     if (job.periodic) {
-      // Create periodicChild jobs
-      server.createList('job', job.childrenCount, 'periodicChild', {
+      let childType;
+      switch (job.type) {
+        case 'batch':
+          childType = 'periodicChild';
+          break;
+        case 'sysbatch':
+          childType = 'periodicSysbatchChild';
+          break;
+      }
+
+      // Create child jobs
+      server.createList('job', job.childrenCount, childType, {
         parentId: job.id,
         namespaceId: job.namespaceId,
         namespace: job.namespace,
+        datacenters: job.datacenters,
         createAllocations: job.createAllocations,
         shallow: job.shallow,
       });
     }
 
     if (job.parameterized && !job.parentId) {
-      // Create parameterizedChild jobs
-      server.createList('job', job.childrenCount, 'parameterizedChild', {
+      let childType;
+      switch (job.type) {
+        case 'batch':
+          childType = 'parameterizedChild';
+          break;
+        case 'sysbatch':
+          childType = 'parameterizedSysbatchChild';
+          break;
+      }
+
+      // Create child jobs
+      server.createList('job', job.childrenCount, childType, {
         parentId: job.id,
         namespaceId: job.namespaceId,
         namespace: job.namespace,
+        datacenters: job.datacenters,
         createAllocations: job.createAllocations,
         shallow: job.shallow,
       });
     }
   },
 });
+
+function generateMetaFields(num, prefix = '') {
+  // Use an object to avoid duplicate meta fields.
+  // The prefix param helps to avoid duplicate entries across function calls.
+  let meta = {};
+  for (let i = 0; i < num; i++) {
+    const field = `${prefix}-${faker.hacker.noun()}`;
+    meta[field] = true;
+  }
+  return Object.keys(meta);
+}

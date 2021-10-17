@@ -9,7 +9,7 @@ cluster along with configuration files for Nomad, Consul, and Vault.
 
 ## Setup
 
-You'll need Terraform 0.13+, as well as AWS credentials to create the Nomad
+You'll need Terraform 0.14.7+, as well as AWS credentials to create the Nomad
 cluster. This Terraform stack assumes that an appropriate instance role has
 been configured elsewhere and that you have the ability to `AssumeRole` into
 the AWS account.
@@ -49,19 +49,14 @@ You'll need to pass one of the following variables in either your
 
 * `nomad_local_binary`: provision this specific local binary of Nomad. This is
   a path to a Nomad binary on your own host. Ex. `nomad_local_binary =
-  "/home/me/nomad"`. This setting overrides `nomad_sha` or `nomad_version`.
-* `nomad_sha`: provision this specific sha from S3. This is a Nomad binary
-  identified by its full commit SHA that's stored in a shared s3 bucket that
-  Nomad team developers can access. That commit SHA can be from any branch
-  that's pushed to remote. Ex. `nomad_sha =
-  "0b6b475e7da77fed25727ea9f01f155a58481b6c"`. This setting overrides
-  `nomad_version`.
+  "/home/me/nomad"`. This setting overrides `nomad_version`.
+* `nomad_url`: provision this version from a remote archived binary, e.g. `build-binaries` CircleCI artifacts zip file urls.
 * `nomad_version`: provision this version from
   [releases.hashicorp.com](https://releases.hashicorp.com/nomad). Ex. `nomad_version
   = "0.10.2+ent"`
 
-If you want to deploy the Enterprise build of a specific SHA, include
-`-var 'nomad_enterprise=true'`.
+If you want to deploy the Enterprise build, include `-var
+'nomad_enterprise=true'`.
 
 If you want to bootstrap Nomad ACLs, include `-var 'nomad_acls=true'`.
 
@@ -73,7 +68,7 @@ If you want to bootstrap Nomad ACLs, include `-var 'nomad_acls=true'`.
 
 The `profile` field selects from a set of configuration files for Nomad,
 Consul, and Vault by uploading the files found in `./config/<profile>`. The
-profiles are as follows:
+standard profiles are as follows:
 
 * `full-cluster`: This profile is used for nightly E2E testing. It assumes at
   least 3 servers and includes a unique config for each Nomad client.
@@ -81,10 +76,10 @@ profiles are as follows:
   set of clients. It assumes at least 3 servers but uses the one config for
   all the Linux Nomad clients and one config for all the Windows Nomad
   clients.
-* `custom`: This profile is used for one-off developer testing of more complex
-  interactions between features. You can build your own custom profile by
-  writing config files to the `./config/custom` directory, which are protected
-  by `.gitignore`
+
+You may create additional profiles for testing more complex interactions between features.
+You can build your own custom profile by writing config files to the
+`./config/<custom name>` directory.
 
 For each profile, application (Nomad, Consul, Vault), and agent type
 (`server`, `client_linux`, or `client_windows`), the agent gets the following
@@ -111,9 +106,9 @@ so that's safely skipped.
 After deploying the infrastructure, you can get connection information
 about the cluster:
 
-- `$(terraform output environment)` will set your current shell's
-  `NOMAD_ADDR` and `CONSUL_HTTP_ADDR` to point to one of the cluster's
-  server nodes, and set the `NOMAD_E2E` variable.
+- `$(terraform output --raw environment)` will set your current shell's
+  `NOMAD_ADDR` and `CONSUL_HTTP_ADDR` to point to one of the cluster's server
+  nodes, and set the `NOMAD_E2E` variable.
 - `terraform output servers` will output the list of server node IPs.
 - `terraform output linux_clients` will output the list of Linux
   client node IPs.
@@ -143,3 +138,34 @@ The terraform state file stores all the info.
 cd e2e/terraform/
 terraform destroy
 ```
+
+## FAQ
+
+#### E2E Provisioning Goals
+
+1. The provisioning process should be able to run a nightly build against a
+  variety of OS targets.
+2. The provisioning process should be able to support update-in-place
+  tests. (See [#7063](https://github.com/hashicorp/nomad/issues/7063))
+3. A developer should be able to quickly stand up a small E2E cluster and
+  provision it with a version of Nomad they've built on their laptop. The
+  developer should be able to send updated builds to that cluster with a short
+  iteration time, rather than having to rebuild the cluster.
+
+#### Why not just drop all the provisioning into the AMI?
+
+While that's the "correct" production approach for cloud infrastructure, it
+creates a few pain points for testing:
+
+* Creating a Linux AMI takes >10min, and creating a Windows AMI can take
+  15-20min. This interferes with goal (3) above.
+* We won't be able to do in-place upgrade testing without having an in-place
+  provisioning process anyways. This interferes with goals (2) above.
+
+#### Why not just drop all the provisioning into the user data?
+
+* Userdata is executed on boot, which prevents using them for in-place upgrade
+  testing.
+* Userdata scripts are not very observable and it's painful to determine
+  whether they've failed or simply haven't finished yet before trying to run
+  tests.

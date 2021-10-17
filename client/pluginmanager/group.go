@@ -45,8 +45,8 @@ func (m *PluginGroup) RegisterAndRun(manager PluginManager) error {
 	return nil
 }
 
-// Ready returns a channel which will be closed once all plugin managers are ready.
-// A timeout for waiting on each manager is given
+// WaitForFirstFingerprint returns a channel which will be closed once all
+// plugin managers are ready. A timeout for waiting on each manager is given
 func (m *PluginGroup) WaitForFirstFingerprint(ctx context.Context) (<-chan struct{}, error) {
 	m.mLock.Lock()
 	defer m.mLock.Unlock()
@@ -65,14 +65,12 @@ func (m *PluginGroup) WaitForFirstFingerprint(ctx context.Context) (<-chan struc
 		go func() {
 			defer wg.Done()
 			logger.Debug("waiting on plugin manager initial fingerprint")
+
 			select {
 			case <-manager.WaitForFirstFingerprint(ctx):
-				select {
-				case <-ctx.Done():
-					logger.Warn("timeout waiting for plugin manager to be ready")
-				default:
-					logger.Debug("finished plugin manager initial fingerprint")
-				}
+				logger.Debug("finished plugin manager initial fingerprint")
+			case <-ctx.Done():
+				logger.Warn("timeout waiting for plugin manager to be ready")
 			}
 		}()
 	}

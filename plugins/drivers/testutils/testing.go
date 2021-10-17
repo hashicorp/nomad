@@ -199,12 +199,12 @@ type MockDriver struct {
 }
 
 type MockNetworkManager struct {
-	CreateNetworkF  func(string) (*drivers.NetworkIsolationSpec, bool, error)
+	CreateNetworkF  func(string, *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error)
 	DestroyNetworkF func(string, *drivers.NetworkIsolationSpec) error
 }
 
-func (m *MockNetworkManager) CreateNetwork(id string) (*drivers.NetworkIsolationSpec, bool, error) {
-	return m.CreateNetworkF(id)
+func (m *MockNetworkManager) CreateNetwork(allocID string, req *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
+	return m.CreateNetworkF(allocID, req)
 }
 func (m *MockNetworkManager) DestroyNetwork(id string, spec *drivers.NetworkIsolationSpec) error {
 	return m.DestroyNetworkF(id, spec)
@@ -232,13 +232,13 @@ func (d *MockDriver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 	return d.InspectTaskF(taskID)
 }
 func (d *MockDriver) TaskStats(ctx context.Context, taskID string, i time.Duration) (<-chan *drivers.TaskResourceUsage, error) {
-	return d.TaskStats(ctx, taskID, i)
+	return d.TaskStatsF(ctx, taskID, i)
 }
 func (d *MockDriver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
 	return d.TaskEventsF(ctx)
 }
 func (d *MockDriver) SignalTask(taskID string, signal string) error {
-	return d.SignalTask(taskID, signal)
+	return d.SignalTaskF(taskID, signal)
 }
 func (d *MockDriver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
 	return d.ExecTaskF(taskID, cmd, timeout)
@@ -250,6 +250,12 @@ func (d *MockDriver) ExecTaskStreaming(ctx context.Context, taskID string, execO
 
 // SetEnvvars sets path and host env vars depending on the FS isolation used.
 func SetEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *allocdir.TaskDir, conf *config.Config) {
+
+	envBuilder.SetClientTaskRoot(taskDir.Dir)
+	envBuilder.SetClientSharedAllocDir(taskDir.SharedAllocDir)
+	envBuilder.SetClientTaskLocalDir(taskDir.LocalDir)
+	envBuilder.SetClientTaskSecretsDir(taskDir.SecretsDir)
+
 	// Set driver-specific environment variables
 	switch fsi {
 	case drivers.FSIsolationNone:

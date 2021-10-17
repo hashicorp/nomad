@@ -135,7 +135,7 @@ func execute() {
 				os.Exit(1)
 			}
 
-			if err := ioutil.WriteFile(pidFile, []byte(fmt.Sprintf("%d", cmd.Process.Pid)), 777); err != nil {
+			if err := ioutil.WriteFile(pidFile, []byte(fmt.Sprintf("%d", cmd.Process.Pid)), 0777); err != nil {
 				fmt.Fprintf(os.Stderr, "failed to write pid file: %v\n", err)
 				os.Exit(1)
 			}

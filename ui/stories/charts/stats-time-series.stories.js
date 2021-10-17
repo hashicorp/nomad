@@ -7,7 +7,7 @@ import moment from 'moment';
 import DelayedArray from '../utils/delayed-array';
 
 export default {
-  title: 'Charts|Stats Time Series',
+  title: 'Charts/Stats Time Series',
 };
 
 let ts = offset =>

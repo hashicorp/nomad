@@ -1,4 +1,4 @@
-import Document, { Head, Main, NextScript } from 'next/document'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 import HashiHead from '@hashicorp/react-head'
 
 export default class MyDocument extends Document {
@@ -9,8 +9,10 @@ export default class MyDocument extends Document {
 
   render() {
     return (
-      <html>
-        <HashiHead is={Head} />
+      <Html>
+        <Head>
+          <HashiHead />
+        </Head>
         <body>
           <Main />
           <NextScript />
@@ -21,7 +23,7 @@ export default class MyDocument extends Document {
             }}
           />
         </body>
-      </html>
+      </Html>
     )
   }
 }

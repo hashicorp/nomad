@@ -78,18 +78,21 @@ func (f *NetworkFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 		return nil
 	}
 
+	// Create a sub-logger with common values to help with debugging
+	logger := f.logger.With("interface", intf.Name)
+
 	// Record the throughput of the interface
 	var mbits int
 	throughput := f.linkSpeed(intf.Name)
 	if cfg.NetworkSpeed != 0 {
 		mbits = cfg.NetworkSpeed
-		f.logger.Debug("setting link speed to user configured speed", "mbits", mbits)
+		logger.Debug("setting link speed to user configured speed", "mbits", mbits)
 	} else if throughput != 0 {
 		mbits = throughput
-		f.logger.Debug("link speed detected", "interface", intf.Name, "mbits", mbits)
+		logger.Debug("link speed detected", "mbits", mbits)
 	} else {
 		mbits = defaultNetworkSpeed
-		f.logger.Debug("link speed could not be detected and no speed specified by user, falling back to default speed", "mbits", defaultNetworkSpeed)
+		logger.Debug("link speed could not be detected and no speed specified by user, falling back to default speed", "mbits", defaultNetworkSpeed)
 	}
 
 	// Create the network resources from the interface
@@ -109,7 +112,7 @@ func (f *NetworkFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 	}
 
 	for _, nwResource := range nwResources {
-		f.logger.Debug("detected interface IP", "interface", intf.Name, "IP", nwResource.IP)
+		logger.Debug("detected interface IP", "IP", nwResource.IP)
 	}
 
 	// Deprecated, setting the first IP as unique IP for the node
@@ -138,7 +141,7 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 		speed := f.linkSpeed(iface.Name)
 		if speed == 0 {
 			speed = defaultNetworkSpeed
-			f.logger.Debug("link speed could not be detected, falling back to default speed", "mbits", defaultNetworkSpeed)
+			f.logger.Debug("link speed could not be detected, falling back to default speed", "interface", iface.Name, "mbits", defaultNetworkSpeed)
 		}
 
 		newNetwork := &structs.NodeNetworkResource{
@@ -168,17 +171,19 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 			} else {
 				family = structs.NodeNetworkAF_IPv6
 			}
-			newAddr := structs.NodeNetworkAddress{
-				Address: ip.String(),
-				Family:  family,
-				Alias:   deriveAddressAlias(iface, ip, conf),
-			}
+			for _, alias := range deriveAddressAliases(iface, ip, conf) {
+				newAddr := structs.NodeNetworkAddress{
+					Address: ip.String(),
+					Family:  family,
+					Alias:   alias,
+				}
 
-			if newAddr.Alias != "" {
-				if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-					linkLocalAddrs = append(linkLocalAddrs, newAddr)
-				} else {
-					networkAddrs = append(networkAddrs, newAddr)
+				if newAddr.Alias != "" {
+					if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+						linkLocalAddrs = append(linkLocalAddrs, newAddr)
+					} else {
+						networkAddrs = append(networkAddrs, newAddr)
+					}
 				}
 			}
 		}
@@ -200,7 +205,7 @@ func (f *NetworkFingerprint) createNodeNetworkResources(ifaces []net.Interface, 
 	return nets, nil
 }
 
-func deriveAddressAlias(iface net.Interface, addr net.IP, config *config.Config) string {
+func deriveAddressAliases(iface net.Interface, addr net.IP, config *config.Config) (aliases []string) {
 	for name, conf := range config.HostNetworks {
 		var cidrMatch, ifaceMatch bool
 		if conf.CIDR != "" {
@@ -231,22 +236,26 @@ func deriveAddressAlias(iface net.Interface, addr net.IP, config *config.Config)
 			ifaceMatch = true
 		}
 		if cidrMatch && ifaceMatch {
-			return name
+			aliases = append(aliases, name)
 		}
+	}
+
+	if len(aliases) > 0 {
+		return
 	}
 
 	if config.NetworkInterface != "" {
 		if config.NetworkInterface == iface.Name {
-			return "default"
+			return []string{"default"}
 		}
 	} else if ri, err := sockaddr.NewRouteInfo(); err == nil {
 		defaultIface, err := ri.GetDefaultInterfaceName()
 		if err == nil && iface.Name == defaultIface {
-			return "default"
+			return []string{"default"}
 		}
 	}
 
-	return ""
+	return
 }
 
 // createNetworkResources creates network resources for every IP

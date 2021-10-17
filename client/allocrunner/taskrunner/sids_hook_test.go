@@ -1,4 +1,6 @@
+//go:build !windows
 // +build !windows
+
 // todo(shoenig): Once Connect is supported on Windows, we'll need to make this
 //  set of tests work there too.
 
@@ -13,7 +15,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/consul"
 	consulapi "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -186,7 +187,7 @@ func TestSIDSHook_deriveSIToken(t *testing.T) {
 			Kind: taskKind,
 		},
 		logger:     testlog.HCLogger(t),
-		sidsClient: consul.NewMockServiceIdentitiesClient(),
+		sidsClient: consulapi.NewMockServiceIdentitiesClient(),
 	})
 
 	ctx := context.Background()
@@ -199,7 +200,7 @@ func TestSIDSHook_deriveSIToken_timeout(t *testing.T) {
 	t.Parallel()
 	r := require.New(t)
 
-	siClient := consul.NewMockServiceIdentitiesClient()
+	siClient := consulapi.NewMockServiceIdentitiesClient()
 	siClient.DeriveTokenFn = func(allocation *structs.Allocation, strings []string) (m map[string]string, err error) {
 		select {
 		// block forever, hopefully triggering a timeout in the caller

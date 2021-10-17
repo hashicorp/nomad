@@ -11,9 +11,10 @@ if (!$RunningAsAdmin) {
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 Try {
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -ErrorAction Stop
 } Catch {
-    Write-Error "Failed to install NuGet package manager."
+    Write-Output "Failed to install NuGet package manager."
+    Write-Output $_
     $host.SetShouldExit(-1)
     throw
 }

@@ -13,12 +13,12 @@ if [ "$2" != "$ent" -a -f version/version_ent.go ]; then
     fail "found enterprise version file version/version_ent.go while pushing to oss remote"
 fi
 
-# don't push to master, stable-*
+# don't push to main, stable-*
 # ====================
 while read local_ref local_sha remote_ref remote_sha
 do
-    if [ "$remote_ref" = "refs/heads/master" ]; then
-	fail "refusing to push directly to master"
+    if [ "$remote_ref" = "refs/heads/main" ]; then
+	fail "refusing to push directly to main"
     fi
 
     if echo "$remote_ref"|grep -q 'refs/heads/stable-.*'; then

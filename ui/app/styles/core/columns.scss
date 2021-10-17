@@ -9,6 +9,11 @@
     &.is-minimum {
       flex-grow: 0;
     }
+
+    &.is-400 {
+      width: 400px;
+      max-width: 400px;
+    }
   }
 
   &.is-bottom-aligned {

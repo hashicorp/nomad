@@ -9,11 +9,13 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
+	"github.com/posener/complete"
+
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/restarts"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/posener/complete"
 )
 
 type AllocStatusCommand struct {
@@ -29,9 +31,12 @@ Usage: nomad alloc status [options] <allocation>
   status, metadata, and verbose failure messages reported by internal
   subsystems.
 
+  When ACLs are enabled, this command requires a token with the 'read-job' and
+  'list-jobs' capabilities for the allocation's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Alloc Status Options:
 
@@ -112,7 +117,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	}
 
 	// If args not specified but output format is specified, format and output the allocations data list
-	if len(args) == 0 && json || len(tmpl) > 0 {
+	if len(args) == 0 && (json || len(tmpl) > 0) {
 		allocs, _, err := client.Allocations().List(nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying allocations: %v", err))
@@ -146,7 +151,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 
 	// Query the allocation info
 	if len(allocID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
+		c.Ui.Error("Identifier must contain at least two characters.")
 		return 1
 	}
 
@@ -551,22 +556,34 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 	c.Ui.Output("Task Resources")
 	var addr []string
 	for _, nw := range resource.Networks {
-		ports := append(nw.DynamicPorts, nw.ReservedPorts...)
+		ports := append(nw.DynamicPorts, nw.ReservedPorts...) //nolint:gocritic
 		for _, port := range ports {
 			addr = append(addr, fmt.Sprintf("%v: %v:%v\n", port.Label, nw.IP, port.Value))
 		}
 	}
 
 	var resourcesOutput []string
-	resourcesOutput = append(resourcesOutput, "CPU|Memory|Disk|Addresses")
+	cpuHeader := "CPU"
+	if resource.Cores != nil && *resource.Cores > 0 {
+		cpuHeader = fmt.Sprintf("CPU (%v cores)", *resource.Cores)
+	}
+	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%s|Memory|Disk|Addresses", cpuHeader))
 	firstAddr := ""
+	secondAddr := ""
 	if len(addr) > 0 {
 		firstAddr = addr[0]
+	}
+	if len(addr) > 1 {
+		secondAddr = addr[1]
 	}
 
 	// Display the rolled up stats. If possible prefer the live statistics
 	cpuUsage := strconv.Itoa(*resource.CPU)
 	memUsage := humanize.IBytes(uint64(*resource.MemoryMB * bytesPerMegabyte))
+	memMax := ""
+	if max := resource.MemoryMaxMB; max != nil && *max != 0 && *max != *resource.MemoryMB {
+		memMax = "Max: " + humanize.IBytes(uint64(*resource.MemoryMaxMB*bytesPerMegabyte))
+	}
 	var deviceStats []*api.DeviceGroupStats
 
 	if stats != nil {
@@ -575,7 +592,13 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 				cpuUsage = fmt.Sprintf("%v/%v", math.Floor(cs.TotalTicks), cpuUsage)
 			}
 			if ms := ru.ResourceUsage.MemoryStats; ms != nil {
-				memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(ms.RSS), memUsage)
+				// Nomad uses RSS as the top-level metric to report, for historical reasons,
+				// but it's not always measured (e.g. with cgroup-v2)
+				usage := ms.RSS
+				if usage == 0 && !helper.SliceStringContains(ms.Measured, "RSS") {
+					usage = ms.Usage
+				}
+				memUsage = fmt.Sprintf("%v/%v", humanize.IBytes(usage), memUsage)
 			}
 			deviceStats = ru.ResourceUsage.DeviceStats
 		}
@@ -585,7 +608,10 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 		memUsage,
 		humanize.IBytes(uint64(*alloc.Resources.DiskMB*bytesPerMegabyte)),
 		firstAddr))
-	for i := 1; i < len(addr); i++ {
+	if memMax != "" || secondAddr != "" {
+		resourcesOutput = append(resourcesOutput, fmt.Sprintf("|%v||%v", memMax, secondAddr))
+	}
+	for i := 2; i < len(addr); i++ {
 		resourcesOutput = append(resourcesOutput, fmt.Sprintf("|||%v", addr[i]))
 	}
 	c.Ui.Output(formatListWithSpaces(resourcesOutput))
@@ -785,7 +811,7 @@ FOUND:
 	hostVolumesOutput = append(hostVolumesOutput, "ID|Read Only")
 	if verbose {
 		csiVolumesOutput = append(csiVolumesOutput,
-			"ID|Plugin|Provider|Schedulable|Read Only|Mount Options")
+			"Name|ID|Plugin|Provider|Schedulable|Read Only|Mount Options")
 	} else {
 		csiVolumesOutput = append(csiVolumesOutput, "ID|Read Only")
 	}
@@ -800,15 +826,16 @@ FOUND:
 			if verbose {
 				// there's an extra API call per volume here so we toggle it
 				// off with the -verbose flag
-				vol, _, err := client.CSIVolumes().Info(volReq.Name, nil)
+				vol, _, err := client.CSIVolumes().Info(volReq.Source, nil)
 				if err != nil {
 					c.Ui.Error(fmt.Sprintf("Error retrieving volume info for %q: %s",
 						volReq.Name, err))
 					continue
 				}
 				csiVolumesOutput = append(csiVolumesOutput,
-					fmt.Sprintf("%s|%s|%s|%v|%v|%s",
+					fmt.Sprintf("%s|%s|%s|%s|%v|%v|%s",
 						volReq.Name,
+						vol.ID,
 						vol.PluginID,
 						vol.Provider,
 						vol.Schedulable,

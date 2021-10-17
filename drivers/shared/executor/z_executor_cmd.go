@@ -5,7 +5,6 @@ import (
 	"os"
 
 	hclog "github.com/hashicorp/go-hclog"
-	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 
 	"github.com/hashicorp/nomad/plugins/base"
@@ -36,7 +35,7 @@ func init() {
 		}
 
 		// Create the logger
-		logger := log.New(&log.LoggerOptions{
+		logger := hclog.New(&hclog.LoggerOptions{
 			Level:      hclog.LevelFromString(executorConfig.LogLevel),
 			JSONFormat: true,
 			Output:     f,

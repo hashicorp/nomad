@@ -387,12 +387,12 @@ type JobGetter struct {
 	testStdin io.Reader
 }
 
-// StructJob returns the Job struct from jobfile.
+// ApiJob returns the Job struct from jobfile.
 func (j *JobGetter) ApiJob(jpath string) (*api.Job, error) {
-	return j.ApiJobWithArgs(jpath, nil)
+	return j.ApiJobWithArgs(jpath, nil, nil)
 }
 
-func (j *JobGetter) ApiJobWithArgs(jpath string, vars map[string]string) (*api.Job, error) {
+func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []string) (*api.Job, error) {
 	var jobfile io.Reader
 	pathName := filepath.Base(jpath)
 	switch jpath {
@@ -448,8 +448,27 @@ func (j *JobGetter) ApiJobWithArgs(jpath string, vars map[string]string) (*api.J
 	if j.hcl1 {
 		jobStruct, err = jobspec.Parse(jobfile)
 	} else {
-		jobStruct, err = jobspec2.ParseWithArgs(pathName, jobfile, vars, true)
+		var buf bytes.Buffer
+		_, err = io.Copy(&buf, jobfile)
+		if err != nil {
+			return nil, fmt.Errorf("Error reading job file from %s: %v", jpath, err)
+		}
+		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
+			Path:     pathName,
+			Body:     buf.Bytes(),
+			ArgVars:  vars,
+			AllowFS:  true,
+			VarFiles: varfiles,
+			Envs:     os.Environ(),
+		})
+
+		if err != nil {
+			if _, merr := jobspec.Parse(&buf); merr == nil {
+				return nil, fmt.Errorf("Failed to parse using HCL 2. Use the HCL 1 parser with `nomad run -hcl1`, or address the following issues:\n%v", err)
+			}
+		}
 	}
+
 	if err != nil {
 		return nil, fmt.Errorf("Error parsing job file from %s:\n%v", jpath, err)
 	}

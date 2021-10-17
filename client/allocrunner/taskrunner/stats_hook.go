@@ -44,7 +44,7 @@ func (*statsHook) Name() string {
 	return "stats_hook"
 }
 
-func (h *statsHook) Poststart(ctx context.Context, req *interfaces.TaskPoststartRequest, _ *interfaces.TaskPoststartResponse) error {
+func (h *statsHook) Poststart(_ context.Context, req *interfaces.TaskPoststartRequest, _ *interfaces.TaskPoststartResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -99,7 +99,15 @@ MAIN:
 		case ru, ok := <-ch:
 			// if channel closes, re-establish a new one
 			if !ok {
-				goto MAIN
+				// backoff if driver closes channel, potentially
+				// because task shutdown or because driver
+				// doesn't implement channel interval checking
+				select {
+				case <-time.After(h.interval):
+					goto MAIN
+				case <-ctx.Done():
+					return
+				}
 			}
 
 			// Update stats on TaskRunner and emit them

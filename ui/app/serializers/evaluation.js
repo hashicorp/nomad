@@ -12,11 +12,7 @@ export default class Evaluation extends ApplicationSerializer {
 
   normalize(typeHash, hash) {
     hash.PlainJobId = hash.JobID;
-    hash.Namespace =
-      hash.Namespace ||
-      get(hash, 'Job.Namespace') ||
-      this.get('system.activeNamespace.id') ||
-      'default';
+    hash.Namespace = hash.Namespace || get(hash, 'Job.Namespace') || 'default';
     hash.JobID = JSON.stringify([hash.JobID, hash.Namespace]);
 
     return super.normalize(typeHash, hash);

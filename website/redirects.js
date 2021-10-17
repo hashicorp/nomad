@@ -3,9 +3,15 @@ module.exports = [
   // Vercel's redirect documentation: https://vercel.com/docs/configuration#project/redirects
   // Playground for testing url pattern matching: https://npm.runkit.com/path-to-regexp
 
+  // Friendly URL for trial form redirection
   {
-    source: '/docs/telemetry/overview',
-    destination: '/docs/telemetry',
+    source: '/trial',
+    destination: 'https://www.hashicorp.com/products/nomad/trial',
+    permanent: true,
+  },
+  {
+    source: '/docs/operations/overview',
+    destination: '/docs/operations',
     permanent: true,
   },
 
@@ -18,6 +24,11 @@ module.exports = [
   },
 
   // Nomad Learn Redirects
+  {
+    source: '/intro/getting-started',
+    destination: 'https://learn.hashicorp.com/collections/nomad/get-started',
+    permanent: true,
+  },
   {
     source: '/intro/getting-started/install',
     destination:
@@ -51,7 +62,17 @@ module.exports = [
       'https://learn.hashicorp.com/tutorials/nomad/get-started-learn-more',
     permanent: true,
   },
-
+  {
+    source: '/intro/vs/kubernetes',
+    destination: '/docs/nomad-vs-kubernetes',
+    permanent: true,
+  },
+  {
+    source: '/intro/who-uses-nomad',
+    destination: '/docs/who-uses/noamd',
+    permanent: true,
+  },
+  // Guides
   {
     source: '/guides/load-balancing',
     destination: 'https://learn.hashicorp.com/collections/nomad/load-balancing',
@@ -413,12 +434,6 @@ module.exports = [
   },
 
   // Website
-  {
-    source: '/community',
-    destination: '/resources',
-    permanent: true,
-  },
-
   // Docs
   {
     source: '/docs/index',
@@ -438,6 +453,11 @@ module.exports = [
   {
     source: '/docs/agent/config',
     destination: '/docs/configuration',
+    permanent: true,
+  },
+  {
+    source: '/docs/devices/nvidia',
+    destination: '/docs/devices/external/nvidia',
     permanent: true,
   },
   {
@@ -646,11 +666,6 @@ module.exports = [
     destination: '/docs/schedulers',
     permanent: true,
   },
-  {
-    source: '/docs/internals/scheduling',
-    destination: '/docs/internals/scheduling/scheduling',
-    permanent: true,
-  },
 
   // Sometimes code names are too good not to mention
   {
@@ -802,6 +817,24 @@ module.exports = [
   {
     source: '/docs/agent/configuration/vault',
     destination: '/docs/configuration/vault',
+    permanent: true,
+  },
+  // Moved telemetry under operations
+  {
+    source: '/docs/telemetry',
+    destination: '/docs/operations/telemetry',
+    permanent: true,
+  },
+  {
+    source: '/docs/telemetry/metrics',
+    destination: '/docs/operations/metrics',
+    permanent: true,
+  },
+
+  // Moved installing agent under operations as ope
+  {
+    source: '/docs/install/production/nomad-agent',
+    destination: '/docs/operations/nomad-agent',
     permanent: true,
   },
 
@@ -1193,7 +1226,12 @@ module.exports = [
     destination: '/docs/integrations/vault-integration',
     permanent: true,
   },
-
+  // Old resources -> Community
+  {
+    source: '/resources',
+    destination: '/community',
+    permanent: true,
+  },
   // `/<path>/index.html` to /<path>
   {
     source: '/:splat*/index.html',

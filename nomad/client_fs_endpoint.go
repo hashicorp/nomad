@@ -318,7 +318,6 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	}
 
 	structs.Bridge(conn, clientConn)
-	return
 }
 
 // logs is used to access an task's logs for a given allocation
@@ -440,5 +439,4 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	}
 
 	structs.Bridge(conn, clientConn)
-	return
 }

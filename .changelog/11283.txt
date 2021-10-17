@@ -1,0 +1,3 @@
+```release-note:improvement
+deps: Update `hashicorp/go-hclog` to `v1.0.0`
+```

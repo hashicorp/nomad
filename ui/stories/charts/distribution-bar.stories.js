@@ -6,7 +6,7 @@ import { on } from '@ember/object/evented';
 import DelayedTruth from '../utils/delayed-truth';
 
 export default {
-  title: 'Charts|Distribution Bar',
+  title: 'Charts/Distribution Bar',
 };
 
 export let Standard = () => {

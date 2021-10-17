@@ -54,8 +54,8 @@ func (c *csiHook) Prerun() error {
 
 		usageOpts := &csimanager.UsageOptions{
 			ReadOnly:       pair.request.ReadOnly,
-			AttachmentMode: string(pair.volume.AttachmentMode),
-			AccessMode:     string(pair.volume.AccessMode),
+			AttachmentMode: pair.request.AttachmentMode,
+			AccessMode:     pair.request.AccessMode,
 			MountOptions:   pair.request.MountOptions,
 		}
 
@@ -86,12 +86,25 @@ func (c *csiHook) Postrun() error {
 	var mErr *multierror.Error
 
 	for _, pair := range c.volumeRequests {
+
+		mode := structs.CSIVolumeClaimRead
+		if !pair.request.ReadOnly {
+			mode = structs.CSIVolumeClaimWrite
+		}
+
+		source := pair.request.Source
+		if pair.request.PerAlloc {
+			// NOTE: PerAlloc can't be set if we have canaries
+			source = source + structs.AllocSuffix(c.alloc.Name)
+		}
+
 		req := &structs.CSIVolumeUnpublishRequest{
-			VolumeID: pair.request.Source,
+			VolumeID: source,
 			Claim: &structs.CSIVolumeClaim{
 				AllocationID: c.alloc.ID,
 				NodeID:       c.alloc.NodeID,
-				Mode:         structs.CSIVolumeClaimRelease,
+				Mode:         mode,
+				State:        structs.CSIVolumeClaimStateUnpublishing,
 			},
 			WriteRequest: structs.WriteRequest{
 				Region:    c.alloc.Job.Region,
@@ -152,11 +165,18 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 			claimType = structs.CSIVolumeClaimRead
 		}
 
+		source := pair.request.Source
+		if pair.request.PerAlloc {
+			source = source + structs.AllocSuffix(c.alloc.Name)
+		}
+
 		req := &structs.CSIVolumeClaimRequest{
-			VolumeID:     pair.request.Source,
-			AllocationID: c.alloc.ID,
-			NodeID:       c.alloc.NodeID,
-			Claim:        claimType,
+			VolumeID:       source,
+			AllocationID:   c.alloc.ID,
+			NodeID:         c.alloc.NodeID,
+			Claim:          claimType,
+			AccessMode:     pair.request.AccessMode,
+			AttachmentMode: pair.request.AttachmentMode,
 			WriteRequest: structs.WriteRequest{
 				Region:    c.alloc.Job.Region,
 				Namespace: c.alloc.Job.Namespace,
@@ -173,6 +193,7 @@ func (c *csiHook) claimVolumesFromAlloc() (map[string]*volumeAndRequest, error) 
 			return nil, fmt.Errorf("Unexpected nil volume returned for ID: %v", pair.request.Source)
 		}
 
+		result[alias].request = pair.request
 		result[alias].volume = resp.Volume
 		result[alias].publishContext = resp.PublishContext
 	}

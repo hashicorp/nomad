@@ -1,10 +1,13 @@
 import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
+import { tracked } from '@glimmer/tracking';
+import { alias } from '@ember/object/computed';
 import PromiseObject from '../utils/classes/promise-object';
 import PromiseArray from '../utils/classes/promise-array';
 import { namespace } from '../adapters/application';
 import jsonWithDefault from '../utils/json-with-default';
 import classic from 'ember-classic-decorator';
+import { task } from 'ember-concurrency';
 
 @classic
 export default class SystemService extends Service {
@@ -36,7 +39,12 @@ export default class SystemService extends Service {
         .authorizedRawRequest(`/${namespace}/agent/self`)
         .then(jsonWithDefault({}))
         .then(agent => {
-          agent.version = agent.member?.Tags?.build || 'Unknown';
+          if (agent?.config?.Version) {
+            const { Version, VersionPrerelease, VersionMetadata } = agent.config.Version;
+            agent.version = Version;
+            if (VersionPrerelease) agent.version = `${agent.version}-${VersionPrerelease}`;
+            if (VersionMetadata) agent.version = `${agent.version}+${VersionMetadata}`;
+          }
           return agent;
         }),
     });
@@ -85,7 +93,6 @@ export default class SystemService extends Service {
       // the return value is consistent with what is persisted.
       const strValue = value + '';
       window.localStorage.nomadActiveRegion = strValue;
-      return strValue;
     }
   }
 
@@ -112,36 +119,47 @@ export default class SystemService extends Service {
     return namespaces.length && namespaces.some(namespace => namespace.get('id') !== 'default');
   }
 
-  @computed('namespaces.[]')
-  get activeNamespace() {
-    const namespaceId = window.localStorage.nomadActiveNamespace || 'default';
-    const namespace = this.namespaces.findBy('id', namespaceId);
+  // The cachedNamespace is set on pages that have a namespaces filter.
+  // It is set so other pages that have a namespaces filter can default to
+  // what the previous namespaces filter page used rather than defaulting
+  // to 'default' or '*'.
+  @tracked cachedNamespace = null;
 
-    if (namespace) {
-      return namespace;
+  @task(function*() {
+    const emptyLicense = { License: { Features: [] } };
+
+    try {
+      return yield this.token
+        .authorizedRawRequest(`/${namespace}/operator/license`)
+        .then(jsonWithDefault(emptyLicense));
+    } catch (e) {
+      return emptyLicense;
     }
+  })
+  fetchLicense;
 
-    // If the namespace in localStorage is no longer in the cluster, it needs to
-    // be cleared from localStorage
-    window.localStorage.removeItem('nomadActiveNamespace');
-    return this.namespaces.findBy('id', 'default');
-  }
+  @task(function*() {
+    try {
+      const request = yield this.token.authorizedRequest('/v1/search/fuzzy', {
+        method: 'POST',
+        body: JSON.stringify({
+          Text: 'feature-detection-query',
+          Context: 'namespaces',
+        }),
+      });
 
-  set activeNamespace(value) {
-    if (value == null) {
-      window.localStorage.removeItem('nomadActiveNamespace');
-      return;
-    } else if (typeof value === 'string') {
-      window.localStorage.nomadActiveNamespace = value;
-      return this.namespaces.findBy('id', value);
-    } else {
-      window.localStorage.nomadActiveNamespace = value.get('name');
-      return value;
+      return request.ok;
+    } catch (e) {
+      return false;
     }
-  }
+  })
+  checkFuzzySearchPresence;
 
-  reset() {
-    this.set('activeNamespace', null);
-    this.notifyPropertyChange('namespaces');
+  @alias('fetchLicense.lastSuccessful.value') license;
+  @alias('checkFuzzySearchPresence.last.value') fuzzySearchEnabled;
+
+  @computed('license.License.Features.[]')
+  get features() {
+    return this.get('license.License.Features') || [];
   }
 }

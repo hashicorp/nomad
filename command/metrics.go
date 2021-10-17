@@ -17,9 +17,10 @@ func (c *OperatorMetricsCommand) Help() string {
 Usage: nomad operator metrics [options]
 
 Get Nomad metrics
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Metrics Specific Options
 
@@ -121,7 +122,7 @@ func (c *OperatorMetricsCommand) Run(args []string) int {
 			return 1
 		}
 
-		resp := string(bs[:])
+		resp := string(bs)
 		c.Ui.Output(resp)
 	}
 

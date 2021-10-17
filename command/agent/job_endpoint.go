@@ -7,8 +7,7 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
-
-	"github.com/hashicorp/nomad/api"
+	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
@@ -495,7 +494,6 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 		return nil, CodedError(400, err.Error())
 	}
 
-	namespace := args.Target[structs.ScalingTargetNamespace]
 	targetJob := args.Target[structs.ScalingTargetJob]
 	if targetJob != "" && targetJob != jobName {
 		return nil, CodedError(400, "job ID in payload did not match URL")
@@ -503,7 +501,6 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 
 	scaleReq := structs.JobScaleRequest{
 		JobID:          jobName,
-		Namespace:      namespace,
 		Target:         args.Target,
 		Count:          args.Count,
 		PolicyOverride: args.PolicyOverride,
@@ -675,14 +672,16 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(400, "Job spec is empty")
 	}
 
-	jobfile := strings.NewReader(args.JobHCL)
-
 	var jobStruct *api.Job
 	var err error
 	if args.HCLv1 {
-		jobStruct, err = jobspec.Parse(jobfile)
+		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
 	} else {
-		jobStruct, err = jobspec2.ParseWithArgs("input.hcl", jobfile, nil, false)
+		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(args.JobHCL),
+			AllowFS: false,
+		})
 	}
 	if err != nil {
 		return nil, CodedError(400, err.Error())
@@ -707,10 +706,9 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 		AuthToken: apiReq.SecretID,
 	}
 
-	queryRegion := req.URL.Query().Get("region")
 	s.parseToken(req, &writeReq.AuthToken)
-	parseNamespace(req, &writeReq.Namespace)
 
+	queryRegion := req.URL.Query().Get("region")
 	requestRegion, jobRegion := regionForJob(
 		job, queryRegion, writeReq.Region, s.agent.config.Region,
 	)
@@ -718,7 +716,11 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 	sJob := ApiJobToStructJob(job)
 	sJob.Region = jobRegion
 	writeReq.Region = requestRegion
-	writeReq.Namespace = sJob.Namespace
+
+	queryNamespace := req.URL.Query().Get("namespace")
+	namespace := namespaceForJob(job.Namespace, queryNamespace, writeReq.Namespace)
+	sJob.Namespace = namespace
+	writeReq.Namespace = namespace
 
 	return sJob, writeReq
 }
@@ -775,6 +777,25 @@ func regionForJob(job *api.Job, queryRegion, apiRegion, agentRegion string) (str
 	return requestRegion, jobRegion
 }
 
+func namespaceForJob(jobNamespace *string, queryNamespace, apiNamespace string) string {
+
+	// Namespace in query param (-namespace flag) takes precedence.
+	if queryNamespace != "" {
+		return queryNamespace
+	}
+
+	// Next the request body...
+	if apiNamespace != "" {
+		return apiNamespace
+	}
+
+	if jobNamespace != nil && *jobNamespace != "" {
+		return *jobNamespace
+	}
+
+	return structs.DefaultNamespace
+}
+
 func ApiJobToStructJob(job *api.Job) *structs.Job {
 	job.Canonicalize()
 
@@ -783,7 +804,6 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Region:         *job.Region,
 		Namespace:      *job.Namespace,
 		ID:             *job.ID,
-		ParentID:       *job.ParentID,
 		Name:           *job.Name,
 		Type:           *job.Type,
 		Priority:       *job.Priority,
@@ -812,10 +832,10 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 	}
 
-	if l := len(job.Spreads); l != 0 {
-		j.Spreads = make([]*structs.Spread, l)
-		for i, apiSpread := range job.Spreads {
-			j.Spreads[i] = ApiSpreadToStructs(apiSpread)
+	if len(job.Spreads) > 0 {
+		j.Spreads = []*structs.Spread{}
+		for _, apiSpread := range job.Spreads {
+			j.Spreads = append(j.Spreads, ApiSpreadToStructs(apiSpread))
 		}
 	}
 
@@ -857,12 +877,12 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 	}
 
-	if l := len(job.TaskGroups); l != 0 {
-		j.TaskGroups = make([]*structs.TaskGroup, l)
-		for i, taskGroup := range job.TaskGroups {
+	if len(job.TaskGroups) > 0 {
+		j.TaskGroups = []*structs.TaskGroup{}
+		for _, taskGroup := range job.TaskGroups {
 			tg := &structs.TaskGroup{}
 			ApiTgToStructsTG(j, taskGroup, tg)
-			j.TaskGroups[i] = tg
+			j.TaskGroups = append(j.TaskGroups, tg)
 		}
 	}
 
@@ -876,7 +896,8 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 	tg.Constraints = ApiConstraintsToStructs(taskGroup.Constraints)
 	tg.Affinities = ApiAffinitiesToStructs(taskGroup.Affinities)
 	tg.Networks = ApiNetworkResourceToStructs(taskGroup.Networks)
-	tg.Services = ApiServicesToStructs(taskGroup.Services)
+	tg.Services = ApiServicesToStructs(taskGroup.Services, true)
+	tg.Consul = apiConsulToStructs(taskGroup.Consul)
 
 	tg.RestartPolicy = &structs.RestartPolicy{
 		Attempts: *taskGroup.RestartPolicy.Attempts,
@@ -923,27 +944,30 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		Migrate: *taskGroup.EphemeralDisk.Migrate,
 	}
 
-	if l := len(taskGroup.Spreads); l != 0 {
-		tg.Spreads = make([]*structs.Spread, l)
-		for k, spread := range taskGroup.Spreads {
-			tg.Spreads[k] = ApiSpreadToStructs(spread)
+	if len(taskGroup.Spreads) > 0 {
+		tg.Spreads = []*structs.Spread{}
+		for _, spread := range taskGroup.Spreads {
+			tg.Spreads = append(tg.Spreads, ApiSpreadToStructs(spread))
 		}
 	}
 
-	if l := len(taskGroup.Volumes); l != 0 {
-		tg.Volumes = make(map[string]*structs.VolumeRequest, l)
+	if len(taskGroup.Volumes) > 0 {
+		tg.Volumes = map[string]*structs.VolumeRequest{}
 		for k, v := range taskGroup.Volumes {
-			if v.Type != structs.VolumeTypeHost && v.Type != structs.VolumeTypeCSI {
+			if v == nil || (v.Type != structs.VolumeTypeHost && v.Type != structs.VolumeTypeCSI) {
 				// Ignore volumes we don't understand in this iteration currently.
 				// - This is because we don't currently have a way to return errors here.
 				continue
 			}
 
 			vol := &structs.VolumeRequest{
-				Name:     v.Name,
-				Type:     v.Type,
-				ReadOnly: v.ReadOnly,
-				Source:   v.Source,
+				Name:           v.Name,
+				Type:           v.Type,
+				ReadOnly:       v.ReadOnly,
+				Source:         v.Source,
+				AttachmentMode: structs.CSIVolumeAttachmentMode(v.AttachmentMode),
+				AccessMode:     structs.CSIVolumeAccessMode(v.AccessMode),
+				PerAlloc:       v.PerAlloc,
 			}
 
 			if v.MountOptions != nil {
@@ -978,9 +1002,9 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		}
 	}
 
-	if l := len(taskGroup.Tasks); l != 0 {
-		tg.Tasks = make([]*structs.Task, l)
-		for l, task := range taskGroup.Tasks {
+	if len(taskGroup.Tasks) > 0 {
+		tg.Tasks = []*structs.Task{}
+		for _, task := range taskGroup.Tasks {
 			t := &structs.Task{}
 			ApiTaskToStructsTask(job, tg, task, t)
 
@@ -989,7 +1013,7 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 			if t.Vault != nil && t.Vault.Namespace == "" && job.VaultNamespace != "" {
 				t.Vault.Namespace = job.VaultNamespace
 			}
-			tg.Tasks[l] = t
+			tg.Tasks = append(tg.Tasks, t)
 		}
 	}
 }
@@ -1023,73 +1047,31 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		}
 	}
 
-	if l := len(apiTask.VolumeMounts); l != 0 {
-		structsTask.VolumeMounts = make([]*structs.VolumeMount, l)
-		for i, mount := range apiTask.VolumeMounts {
-			structsTask.VolumeMounts[i] = &structs.VolumeMount{
-				Volume:          *mount.Volume,
-				Destination:     *mount.Destination,
-				ReadOnly:        *mount.ReadOnly,
-				PropagationMode: *mount.PropagationMode,
+	if len(apiTask.VolumeMounts) > 0 {
+		structsTask.VolumeMounts = []*structs.VolumeMount{}
+		for _, mount := range apiTask.VolumeMounts {
+			if mount != nil && mount.Volume != nil {
+				structsTask.VolumeMounts = append(structsTask.VolumeMounts,
+					&structs.VolumeMount{
+						Volume:          *mount.Volume,
+						Destination:     *mount.Destination,
+						ReadOnly:        *mount.ReadOnly,
+						PropagationMode: *mount.PropagationMode,
+					})
 			}
 		}
 	}
 
-	if l := len(apiTask.ScalingPolicies); l != 0 {
-		structsTask.ScalingPolicies = make([]*structs.ScalingPolicy, l)
-		for i, policy := range apiTask.ScalingPolicies {
-			structsTask.ScalingPolicies[i] = ApiScalingPolicyToStructs(0, policy).TargetTask(job, group, structsTask)
+	if len(apiTask.ScalingPolicies) > 0 {
+		structsTask.ScalingPolicies = []*structs.ScalingPolicy{}
+		for _, policy := range apiTask.ScalingPolicies {
+			structsTask.ScalingPolicies = append(
+				structsTask.ScalingPolicies,
+				ApiScalingPolicyToStructs(0, policy).TargetTask(job, group, structsTask))
 		}
 	}
 
-	if l := len(apiTask.Services); l != 0 {
-		structsTask.Services = make([]*structs.Service, l)
-		for i, service := range apiTask.Services {
-			structsTask.Services[i] = &structs.Service{
-				Name:              service.Name,
-				PortLabel:         service.PortLabel,
-				Tags:              service.Tags,
-				CanaryTags:        service.CanaryTags,
-				EnableTagOverride: service.EnableTagOverride,
-				AddressMode:       service.AddressMode,
-				Meta:              helper.CopyMapStringString(service.Meta),
-				CanaryMeta:        helper.CopyMapStringString(service.CanaryMeta),
-			}
-
-			if l := len(service.Checks); l != 0 {
-				structsTask.Services[i].Checks = make([]*structs.ServiceCheck, l)
-				for j, check := range service.Checks {
-					structsTask.Services[i].Checks[j] = &structs.ServiceCheck{
-						Name:                   check.Name,
-						Type:                   check.Type,
-						Command:                check.Command,
-						Args:                   check.Args,
-						Path:                   check.Path,
-						Protocol:               check.Protocol,
-						PortLabel:              check.PortLabel,
-						AddressMode:            check.AddressMode,
-						Interval:               check.Interval,
-						Timeout:                check.Timeout,
-						InitialStatus:          check.InitialStatus,
-						TLSSkipVerify:          check.TLSSkipVerify,
-						Header:                 check.Header,
-						Method:                 check.Method,
-						GRPCService:            check.GRPCService,
-						GRPCUseTLS:             check.GRPCUseTLS,
-						SuccessBeforePassing:   check.SuccessBeforePassing,
-						FailuresBeforeCritical: check.FailuresBeforeCritical,
-					}
-					if check.CheckRestart != nil {
-						structsTask.Services[i].Checks[j].CheckRestart = &structs.CheckRestart{
-							Limit:          check.CheckRestart.Limit,
-							Grace:          *check.CheckRestart.Grace,
-							IgnoreWarnings: check.CheckRestart.IgnoreWarnings,
-						}
-					}
-				}
-			}
-		}
-	}
+	structsTask.Services = ApiServicesToStructs(apiTask.Services, false)
 
 	structsTask.Resources = ApiResourcesToStructs(apiTask.Resources)
 
@@ -1098,15 +1080,17 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		MaxFileSizeMB: *apiTask.LogConfig.MaxFileSizeMB,
 	}
 
-	if l := len(apiTask.Artifacts); l != 0 {
-		structsTask.Artifacts = make([]*structs.TaskArtifact, l)
-		for k, ta := range apiTask.Artifacts {
-			structsTask.Artifacts[k] = &structs.TaskArtifact{
-				GetterSource:  *ta.GetterSource,
-				GetterOptions: ta.GetterOptions,
-				GetterMode:    *ta.GetterMode,
-				RelativeDest:  *ta.RelativeDest,
-			}
+	if len(apiTask.Artifacts) > 0 {
+		structsTask.Artifacts = []*structs.TaskArtifact{}
+		for _, ta := range apiTask.Artifacts {
+			structsTask.Artifacts = append(structsTask.Artifacts,
+				&structs.TaskArtifact{
+					GetterSource:  *ta.GetterSource,
+					GetterOptions: helper.CopyMapStringString(ta.GetterOptions),
+					GetterHeaders: helper.CopyMapStringString(ta.GetterHeaders),
+					GetterMode:    *ta.GetterMode,
+					RelativeDest:  *ta.RelativeDest,
+				})
 		}
 	}
 
@@ -1120,22 +1104,23 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		}
 	}
 
-	if l := len(apiTask.Templates); l != 0 {
-		structsTask.Templates = make([]*structs.Template, l)
-		for i, template := range apiTask.Templates {
-			structsTask.Templates[i] = &structs.Template{
-				SourcePath:   *template.SourcePath,
-				DestPath:     *template.DestPath,
-				EmbeddedTmpl: *template.EmbeddedTmpl,
-				ChangeMode:   *template.ChangeMode,
-				ChangeSignal: *template.ChangeSignal,
-				Splay:        *template.Splay,
-				Perms:        *template.Perms,
-				LeftDelim:    *template.LeftDelim,
-				RightDelim:   *template.RightDelim,
-				Envvars:      *template.Envvars,
-				VaultGrace:   *template.VaultGrace,
-			}
+	if len(apiTask.Templates) > 0 {
+		structsTask.Templates = []*structs.Template{}
+		for _, template := range apiTask.Templates {
+			structsTask.Templates = append(structsTask.Templates,
+				&structs.Template{
+					SourcePath:   *template.SourcePath,
+					DestPath:     *template.DestPath,
+					EmbeddedTmpl: *template.EmbeddedTmpl,
+					ChangeMode:   *template.ChangeMode,
+					ChangeSignal: *template.ChangeSignal,
+					Splay:        *template.Splay,
+					Perms:        *template.Perms,
+					LeftDelim:    *template.LeftDelim,
+					RightDelim:   *template.RightDelim,
+					Envvars:      *template.Envvars,
+					VaultGrace:   *template.VaultGrace,
+				})
 		}
 	}
 
@@ -1175,6 +1160,14 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		MemoryMB: *in.MemoryMB,
 	}
 
+	if in.Cores != nil {
+		out.Cores = *in.Cores
+	}
+
+	if in.MemoryMaxMB != nil {
+		out.MemoryMaxMB = *in.MemoryMaxMB
+	}
+
 	// COMPAT(0.10): Only being used to issue warnings
 	if in.IOPS != nil {
 		out.IOPS = *in.IOPS
@@ -1184,15 +1177,15 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		out.Networks = ApiNetworkResourceToStructs(in.Networks)
 	}
 
-	if l := len(in.Devices); l != 0 {
-		out.Devices = make([]*structs.RequestedDevice, l)
-		for i, d := range in.Devices {
-			out.Devices[i] = &structs.RequestedDevice{
+	if len(in.Devices) > 0 {
+		out.Devices = []*structs.RequestedDevice{}
+		for _, d := range in.Devices {
+			out.Devices = append(out.Devices, &structs.RequestedDevice{
 				Name:        d.Name,
 				Count:       *d.Count,
 				Constraints: ApiConstraintsToStructs(d.Constraints),
 				Affinities:  ApiAffinitiesToStructs(d.Affinities),
-			}
+			})
 		}
 	}
 
@@ -1207,10 +1200,11 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 	out = make([]*structs.NetworkResource, len(in))
 	for i, nw := range in {
 		out[i] = &structs.NetworkResource{
-			Mode:  nw.Mode,
-			CIDR:  nw.CIDR,
-			IP:    nw.IP,
-			MBits: *nw.MBits,
+			Mode:     nw.Mode,
+			CIDR:     nw.CIDR,
+			IP:       nw.IP,
+			Hostname: nw.Hostname,
+			MBits:    nw.Megabits(),
 		}
 
 		if nw.DNS != nil {
@@ -1248,8 +1242,7 @@ func ApiPortToStructs(in api.Port) structs.Port {
 	}
 }
 
-//TODO(schmichael) refactor and reuse in service parsing above
-func ApiServicesToStructs(in []*api.Service) []*structs.Service {
+func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 	if len(in) == 0 {
 		return nil
 	}
@@ -1266,31 +1259,45 @@ func ApiServicesToStructs(in []*api.Service) []*structs.Service {
 			AddressMode:       s.AddressMode,
 			Meta:              helper.CopyMapStringString(s.Meta),
 			CanaryMeta:        helper.CopyMapStringString(s.CanaryMeta),
+			OnUpdate:          s.OnUpdate,
 		}
 
 		if l := len(s.Checks); l != 0 {
 			out[i].Checks = make([]*structs.ServiceCheck, l)
 			for j, check := range s.Checks {
-				out[i].Checks[j] = &structs.ServiceCheck{
-					Name:          check.Name,
-					Type:          check.Type,
-					Command:       check.Command,
-					Args:          check.Args,
-					Path:          check.Path,
-					Protocol:      check.Protocol,
-					PortLabel:     check.PortLabel,
-					Expose:        check.Expose,
-					AddressMode:   check.AddressMode,
-					Interval:      check.Interval,
-					Timeout:       check.Timeout,
-					InitialStatus: check.InitialStatus,
-					TLSSkipVerify: check.TLSSkipVerify,
-					Header:        check.Header,
-					Method:        check.Method,
-					GRPCService:   check.GRPCService,
-					GRPCUseTLS:    check.GRPCUseTLS,
-					TaskName:      check.TaskName,
+				onUpdate := s.OnUpdate // Inherit from service as default
+				if check.OnUpdate != "" {
+					onUpdate = check.OnUpdate
 				}
+				out[i].Checks[j] = &structs.ServiceCheck{
+					Name:                   check.Name,
+					Type:                   check.Type,
+					Command:                check.Command,
+					Args:                   check.Args,
+					Path:                   check.Path,
+					Protocol:               check.Protocol,
+					PortLabel:              check.PortLabel,
+					Expose:                 check.Expose,
+					AddressMode:            check.AddressMode,
+					Interval:               check.Interval,
+					Timeout:                check.Timeout,
+					InitialStatus:          check.InitialStatus,
+					TLSSkipVerify:          check.TLSSkipVerify,
+					Header:                 check.Header,
+					Method:                 check.Method,
+					Body:                   check.Body,
+					GRPCService:            check.GRPCService,
+					GRPCUseTLS:             check.GRPCUseTLS,
+					SuccessBeforePassing:   check.SuccessBeforePassing,
+					FailuresBeforeCritical: check.FailuresBeforeCritical,
+					OnUpdate:               onUpdate,
+				}
+
+				if group {
+					// only copy over task name for group level checks
+					out[i].Checks[j].TaskName = check.TaskName
+				}
+
 				if check.CheckRestart != nil {
 					out[i].Checks[j].CheckRestart = &structs.CheckRestart{
 						Limit:          check.CheckRestart.Limit,
@@ -1328,8 +1335,10 @@ func apiConnectGatewayToStructs(in *api.ConsulGateway) *structs.ConsulGateway {
 	}
 
 	return &structs.ConsulGateway{
-		Proxy:   apiConnectGatewayProxyToStructs(in.Proxy),
-		Ingress: apiConnectIngressGatewayToStructs(in.Ingress),
+		Proxy:       apiConnectGatewayProxyToStructs(in.Proxy),
+		Ingress:     apiConnectIngressGatewayToStructs(in.Ingress),
+		Terminating: apiConnectTerminatingGatewayToStructs(in.Terminating),
+		Mesh:        apiConnectMeshGatewayToStructs(in.Mesh),
 	}
 }
 
@@ -1338,9 +1347,8 @@ func apiConnectGatewayProxyToStructs(in *api.ConsulGatewayProxy) *structs.Consul
 		return nil
 	}
 
-	var bindAddresses map[string]*structs.ConsulGatewayBindAddress
+	bindAddresses := make(map[string]*structs.ConsulGatewayBindAddress)
 	if in.EnvoyGatewayBindAddresses != nil {
-		bindAddresses = make(map[string]*structs.ConsulGatewayBindAddress)
 		for k, v := range in.EnvoyGatewayBindAddresses {
 			bindAddresses[k] = &structs.ConsulGatewayBindAddress{
 				Address: v.Address,
@@ -1354,6 +1362,7 @@ func apiConnectGatewayProxyToStructs(in *api.ConsulGatewayProxy) *structs.Consul
 		EnvoyGatewayBindTaggedAddresses: in.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       bindAddresses,
 		EnvoyGatewayNoDefaultBind:       in.EnvoyGatewayNoDefaultBind,
+		EnvoyDNSDiscoveryType:           in.EnvoyDNSDiscoveryType,
 		Config:                          helper.CopyMapStringInterface(in.Config),
 	}
 }
@@ -1426,14 +1435,58 @@ func apiConnectIngressServiceToStructs(in *api.ConsulIngressService) *structs.Co
 	}
 }
 
+func apiConnectTerminatingGatewayToStructs(in *api.ConsulTerminatingConfigEntry) *structs.ConsulTerminatingConfigEntry {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulTerminatingConfigEntry{
+		Services: apiConnectTerminatingServicesToStructs(in.Services),
+	}
+}
+
+func apiConnectTerminatingServicesToStructs(in []*api.ConsulLinkedService) []*structs.ConsulLinkedService {
+	if len(in) == 0 {
+		return nil
+	}
+
+	services := make([]*structs.ConsulLinkedService, len(in))
+	for i, service := range in {
+		services[i] = apiConnectTerminatingServiceToStructs(service)
+	}
+	return services
+}
+
+func apiConnectTerminatingServiceToStructs(in *api.ConsulLinkedService) *structs.ConsulLinkedService {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulLinkedService{
+		Name:     in.Name,
+		CAFile:   in.CAFile,
+		CertFile: in.CertFile,
+		KeyFile:  in.KeyFile,
+		SNI:      in.SNI,
+	}
+}
+
+func apiConnectMeshGatewayToStructs(in *api.ConsulMeshConfigEntry) *structs.ConsulMeshConfigEntry {
+	if in == nil {
+		return nil
+	}
+	return new(structs.ConsulMeshConfigEntry)
+}
+
 func apiConnectSidecarServiceToStructs(in *api.ConsulSidecarService) *structs.ConsulSidecarService {
 	if in == nil {
 		return nil
 	}
 	return &structs.ConsulSidecarService{
-		Port:  in.Port,
-		Tags:  helper.CopySliceString(in.Tags),
-		Proxy: apiConnectSidecarServiceProxyToStructs(in.Proxy),
+		Port:                   in.Port,
+		Tags:                   helper.CopySliceString(in.Tags),
+		Proxy:                  apiConnectSidecarServiceProxyToStructs(in.Proxy),
+		DisableDefaultTCPCheck: in.DisableDefaultTCPCheck,
 	}
 }
 
@@ -1457,11 +1510,23 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 	upstreams := make([]structs.ConsulUpstream, len(in))
 	for i, upstream := range in {
 		upstreams[i] = structs.ConsulUpstream{
-			DestinationName: upstream.DestinationName,
-			LocalBindPort:   upstream.LocalBindPort,
+			DestinationName:  upstream.DestinationName,
+			LocalBindPort:    upstream.LocalBindPort,
+			Datacenter:       upstream.Datacenter,
+			LocalBindAddress: upstream.LocalBindAddress,
+			MeshGateway:      apiMeshGatewayToStructs(upstream.MeshGateway),
 		}
 	}
 	return upstreams
+}
+
+func apiMeshGatewayToStructs(in *api.ConsulMeshGateway) *structs.ConsulMeshGateway {
+	if in == nil {
+		return nil
+	}
+	return &structs.ConsulMeshGateway{
+		Mode: in.Mode,
+	}
 }
 
 func apiConsulExposeConfigToStructs(in *api.ConsulExposeConfig) *structs.ConsulExposeConfig {
@@ -1505,6 +1570,15 @@ func apiConnectSidecarTaskToStructs(in *api.SidecarTask) *structs.SidecarTask {
 		KillSignal:    in.KillSignal,
 		KillTimeout:   in.KillTimeout,
 		LogConfig:     apiLogConfigToStructs(in.LogConfig),
+	}
+}
+
+func apiConsulToStructs(in *api.Consul) *structs.Consul {
+	if in == nil {
+		return nil
+	}
+	return &structs.Consul{
+		Namespace: in.Namespace,
 	}
 }
 

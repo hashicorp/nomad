@@ -24,9 +24,9 @@ func (s *Scaling) ListPolicies(q *QueryOptions) ([]*ScalingPolicyListStub, *Quer
 	return resp, qm, nil
 }
 
-func (s *Scaling) GetPolicy(ID string, q *QueryOptions) (*ScalingPolicy, *QueryMeta, error) {
+func (s *Scaling) GetPolicy(id string, q *QueryOptions) (*ScalingPolicy, *QueryMeta, error) {
 	var policy ScalingPolicy
-	qm, err := s.client.query("/v1/scaling/policy/"+ID, &policy, q)
+	qm, err := s.client.query("/v1/scaling/policy/"+id, &policy, q)
 	if err != nil {
 		return nil, nil, err
 	}

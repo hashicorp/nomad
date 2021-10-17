@@ -9,6 +9,10 @@ job "consul_canary_test" {
   group "consul_canary_test" {
     count = 2
 
+    network {
+      port "db" {}
+    }
+
     task "consul_canary_test" {
       driver = "docker"
 
@@ -25,10 +29,6 @@ job "consul_canary_test" {
       resources {
         cpu    = 100
         memory = 100
-
-        network {
-          port "db" {}
-        }
       }
 
       service {

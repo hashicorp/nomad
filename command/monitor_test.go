@@ -5,8 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMonitor_Update_Eval(t *testing.T) {
@@ -191,7 +193,7 @@ func TestMonitor_Monitor(t *testing.T) {
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		code = mon.monitor(resp.EvalID, false)
+		code = mon.monitor(resp.EvalID)
 	}()
 
 	// Wait for completion
@@ -217,71 +219,55 @@ func TestMonitor_Monitor(t *testing.T) {
 	}
 }
 
-func TestMonitor_MonitorWithPrefix(t *testing.T) {
-	t.Parallel()
-	srv, client, _ := testServer(t, false, nil)
-	defer srv.Shutdown()
-
-	// Create the monitor
-	ui := cli.NewMockUi()
-	mon := newMonitor(ui, client, shortId)
-
-	// Submit a job - this creates a new evaluation we can monitor
-	job := testJob("job1")
-	resp, _, err := client.Jobs().Register(job, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
+func TestMonitor_formatAllocMetric(t *testing.T) {
+	tests := []struct {
+		Name     string
+		Metrics  *api.AllocationMetric
+		Expected string
+	}{
+		{
+			Name: "display all possible scores",
+			Metrics: &api.AllocationMetric{
+				NodesEvaluated: 3,
+				ScoreMetaData: []*api.NodeScoreMeta{
+					{
+						NodeID: "node-1",
+						Scores: map[string]float64{
+							"score-1": 1,
+							"score-2": 2,
+						},
+						NormScore: 1,
+					},
+					{
+						NodeID: "node-2",
+						Scores: map[string]float64{
+							"score-1": 1,
+							"score-3": 3,
+						},
+						NormScore: 2,
+					},
+					{
+						NodeID: "node-3",
+						Scores: map[string]float64{
+							"score-4": 4,
+						},
+						NormScore: 3,
+					},
+				},
+			},
+			Expected: `
+Node    score-1  score-2  score-3  score-4  final score
+node-1  1        2        0        0        1
+node-2  1        0        3        0        2
+node-3  0        0        0        4        3
+`,
+		},
 	}
 
-	// Start monitoring the eval
-	var code int
-	doneCh := make(chan struct{})
-	go func() {
-		defer close(doneCh)
-		code = mon.monitor(resp.EvalID[:13], true)
-	}()
-
-	// Wait for completion
-	select {
-	case <-doneCh:
-	case <-time.After(5 * time.Second):
-		t.Fatalf("eval monitor took too long")
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			got := formatAllocMetrics(tc.Metrics, true, "")
+			require.Equal(t, strings.TrimSpace(tc.Expected), got)
+		})
 	}
-
-	// Check the return code. We should get exit code 2 as there
-	// would be a scheduling problem on the test server (no clients).
-	if code != 2 {
-		t.Fatalf("expect exit 2, got: %d", code)
-	}
-
-	// Check the output
-	out := ui.OutputWriter.String()
-	if !strings.Contains(out, resp.EvalID[:8]) {
-		t.Fatalf("missing eval\n\n%s", out)
-	}
-	if strings.Contains(out, resp.EvalID) {
-		t.Fatalf("expected truncated eval id, got: %s", out)
-	}
-	if !strings.Contains(out, "finished with status") {
-		t.Fatalf("missing final status\n\n%s", out)
-	}
-
-	// Fail on identifier with too few characters
-	code = mon.monitor(resp.EvalID[:1], true)
-	if code != 1 {
-		t.Fatalf("expect exit 1, got: %d", code)
-	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "must contain at least two characters.") {
-		t.Fatalf("expected too few characters error, got: %s", out)
-	}
-	ui.ErrorWriter.Reset()
-
-	code = mon.monitor(resp.EvalID[:3], true)
-	if code != 2 {
-		t.Fatalf("expect exit 2, got: %d", code)
-	}
-	if out := ui.OutputWriter.String(); !strings.Contains(out, "Monitoring evaluation") {
-		t.Fatalf("expected evaluation monitoring output, got: %s", out)
-	}
-
 }

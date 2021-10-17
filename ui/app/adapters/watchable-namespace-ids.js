@@ -7,10 +7,18 @@ export default class WatchableNamespaceIDs extends Watchable {
   @service system;
 
   findAll() {
-    const namespace = this.get('system.activeNamespace');
     return super.findAll(...arguments).then(data => {
       data.forEach(record => {
-        record.Namespace = namespace ? namespace.get('id') : 'default';
+        record.Namespace = 'default';
+      });
+      return data;
+    });
+  }
+
+  query(store, type, { namespace }) {
+    return super.query(...arguments).then(data => {
+      data.forEach(record => {
+        if (!record.Namespace) record.Namespace = namespace;
       });
       return data;
     });
@@ -25,14 +33,12 @@ export default class WatchableNamespaceIDs extends Watchable {
 
   urlForFindAll() {
     const url = super.urlForFindAll(...arguments);
-    const namespace = this.get('system.activeNamespace.id');
-    return associateNamespace(url, namespace);
+    return associateNamespace(url);
   }
 
   urlForQuery() {
     const url = super.urlForQuery(...arguments);
-    const namespace = this.get('system.activeNamespace.id');
-    return associateNamespace(url, namespace);
+    return associateNamespace(url);
   }
 
   urlForFindRecord(id, type, hash, pathSuffix) {

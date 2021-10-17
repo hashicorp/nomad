@@ -39,8 +39,8 @@ export default [
     type: 'inbound',
   },
   {
-    text: 'Resources',
-    url: '/resources',
+    text: 'Community',
+    url: '/community',
     type: 'inbound',
   },
 ]

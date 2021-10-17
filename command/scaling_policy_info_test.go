@@ -38,7 +38,15 @@ func TestScalingPolicyInfoCommand_Run(t *testing.T) {
 	if code := cmd.Run([]string{"-address=" + url}); code != 1 {
 		t.Fatalf("expected cmd run exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "This command takes one argument: <policy_id>") {
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "This command takes one of the following argument conditions") {
+		t.Fatalf("expected argument error within output: %v", out)
+	}
+
+	// Calling with more than one argument should result in an error.
+	if code := cmd.Run([]string{"-address=" + url, "first", "second"}); code != 1 {
+		t.Fatalf("expected cmd run exit code 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "This command takes one of the following argument conditions") {
 		t.Fatalf("expected argument error within output: %v", out)
 	}
 
@@ -46,8 +54,8 @@ func TestScalingPolicyInfoCommand_Run(t *testing.T) {
 	if code := cmd.Run([]string{"-address=" + url, "scaling_policy_info"}); code != 1 {
 		t.Fatalf("expected cmd run exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, "404 (policy not found)") {
-		t.Fatalf("expected 404 not found within output: %v", out)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, `No scaling policies with prefix or id "scaling_policy_inf" found`) {
+		t.Fatalf("expected 'no policies found' within output: %v", out)
 	}
 
 	// Generate a test job.
@@ -80,6 +88,14 @@ func TestScalingPolicyInfoCommand_Run(t *testing.T) {
 	}
 
 	if code := cmd.Run([]string{"-address=" + url, policies[0].ID}); code != 0 {
+		t.Fatalf("expected cmd run exit code 0, got: %d", code)
+	}
+	if out := ui.OutputWriter.String(); !strings.Contains(out, "Policy:") {
+		t.Fatalf("expected policy ID within output: %v", out)
+	}
+
+	prefix := policies[0].ID[:2]
+	if code := cmd.Run([]string{"-address=" + url, prefix}); code != 0 {
 		t.Fatalf("expected cmd run exit code 0, got: %d", code)
 	}
 	if out := ui.OutputWriter.String(); !strings.Contains(out, "Policy:") {

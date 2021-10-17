@@ -28,4 +28,17 @@ export default class TopologyRoute extends Route.extend(WithForbiddenState) {
       nodes: this.store.query('node', { resources: true }),
     }).catch(notifyForbidden(this));
   }
+
+  setupController(controller, model) {
+    // When the model throws, make sure the interface expected by the controller is consistent.
+    if (!model) {
+      controller.model = {
+        jobs: [],
+        allocations: [],
+        nodes: [],
+      };
+    }
+
+    return super.setupController(...arguments);
+  }
 }

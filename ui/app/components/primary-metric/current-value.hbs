@@ -1,0 +1,16 @@
+<div class="columns secondary-graphic">
+  <div class="column">
+    <div class="inline-chart" data-test-percentage-bar>
+      <progress
+        data-test-current-value
+        class="progress {{@chartClass}} is-small"
+        value="{{@percent}}"
+        max="1">
+        {{@percent}}
+      </progress>
+    </div>
+  </div>
+  <div class="column is-minimum">
+    <span class="nowrap" data-test-percentage>{{format-percentage @percent total=1}}</span>
+  </div>
+</div>

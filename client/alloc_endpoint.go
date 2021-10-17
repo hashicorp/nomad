@@ -10,11 +10,11 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-msgpack/codec"
+
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/structs"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -62,8 +62,7 @@ func (a *Allocations) GarbageCollect(args *nstructs.AllocSpecificRequest, reply 
 	}
 
 	if !a.c.CollectAllocation(args.AllocID) {
-		// Could not find alloc
-		return nstructs.NewErrUnknownAllocation(args.AllocID)
+		return fmt.Errorf("No such allocation on client, or allocation not eligible for GC")
 	}
 
 	return nil
@@ -144,8 +143,8 @@ func (a *Allocations) exec(conn io.ReadWriteCloser) {
 	defer conn.Close()
 
 	execID := uuid.Generate()
-	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
-	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+	decoder := codec.NewDecoder(conn, nstructs.MsgpackHandle)
+	encoder := codec.NewEncoder(conn, nstructs.MsgpackHandle)
 
 	code, err := a.execImpl(encoder, decoder, execID)
 	if err != nil {
@@ -166,7 +165,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	}
 
 	if a.c.GetConfig().DisableRemoteExec {
-		return nil, structs.ErrPermissionDenied
+		return nil, nstructs.ErrPermissionDenied
 	}
 
 	if req.AllocID == "" {
@@ -175,7 +174,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	ar, err := a.c.getAllocRunner(req.AllocID)
 	if err != nil {
 		code := helper.Int64ToPtr(500)
-		if structs.IsErrUnknownAllocation(err) {
+		if nstructs.IsErrUnknownAllocation(err) {
 			code = helper.Int64ToPtr(404)
 		}
 
@@ -206,7 +205,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	if err != nil {
 		return nil, err
 	} else if aclObj != nil && !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocExec) {
-		return nil, structs.ErrPermissionDenied
+		return nil, nstructs.ErrPermissionDenied
 	}
 
 	// Validate the arguments
@@ -220,7 +219,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	capabilities, err := ar.GetTaskDriverCapabilities(req.Task)
 	if err != nil {
 		code := helper.Int64ToPtr(500)
-		if structs.IsErrUnknownAllocation(err) {
+		if nstructs.IsErrUnknownAllocation(err) {
 			code = helper.Int64ToPtr(404)
 		}
 
@@ -231,14 +230,14 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	if aclObj != nil && capabilities.FSIsolation == drivers.FSIsolationNone {
 		exec := aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocNodeExec)
 		if !exec {
-			return nil, structs.ErrPermissionDenied
+			return nil, nstructs.ErrPermissionDenied
 		}
 	}
 
 	allocState, err := a.c.GetAllocState(req.AllocID)
 	if err != nil {
 		code := helper.Int64ToPtr(500)
-		if structs.IsErrUnknownAllocation(err) {
+		if nstructs.IsErrUnknownAllocation(err) {
 			code = helper.Int64ToPtr(404)
 		}
 
@@ -280,7 +279,7 @@ func newExecStream(decoder *codec.Decoder, encoder *codec.Encoder) drivers.ExecT
 
 		buf:        buf,
 		encoder:    encoder,
-		frameCodec: codec.NewEncoder(buf, structs.JsonHandle),
+		frameCodec: codec.NewEncoder(buf, nstructs.JsonHandle),
 	}
 }
 

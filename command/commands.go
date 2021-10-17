@@ -13,6 +13,9 @@ import (
 const (
 	// EnvNomadCLINoColor is an env var that toggles colored UI output.
 	EnvNomadCLINoColor = `NOMAD_CLI_NO_COLOR`
+
+	// EnvNomadCLIForceColor is an env var that forces colored UI output.
+	EnvNomadCLIForceColor = `NOMAD_CLI_FORCE_COLOR`
 )
 
 // DeprecatedCommand is a command that wraps an existing command and prints a
@@ -297,6 +300,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"job allocs": func() (cli.Command, error) {
+			return &JobAllocsCommand{
+				Meta: meta,
+			}, nil
+		},
 		"job deployments": func() (cli.Command, error) {
 			return &JobDeploymentsCommand{
 				Meta: meta,
@@ -389,11 +397,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"license get": func() (cli.Command, error) {
 			return &LicenseGetCommand{
-				Meta: meta,
-			}, nil
-		},
-		"license put": func() (cli.Command, error) {
-			return &LicensePutCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -628,6 +631,38 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 			}, nil
 		},
 
+		"recommendation": func() (cli.Command, error) {
+			return &RecommendationCommand{
+				Meta: meta,
+			}, nil
+		},
+		"recommendation apply": func() (cli.Command, error) {
+			return &RecommendationApplyCommand{
+				RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+					Meta: meta,
+				},
+			}, nil
+		},
+		"recommendation dismiss": func() (cli.Command, error) {
+			return &RecommendationDismissCommand{
+				RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+					Meta: meta,
+				},
+			}, nil
+		},
+		"recommendation info": func() (cli.Command, error) {
+			return &RecommendationInfoCommand{
+				RecommendationAutocompleteCommand: RecommendationAutocompleteCommand{
+					Meta: meta,
+				},
+			}, nil
+		},
+		"recommendation list": func() (cli.Command, error) {
+			return &RecommendationListCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"run": func() (cli.Command, error) {
 			return &JobRunCommand{
 				Meta: meta,
@@ -764,6 +799,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"volume init": func() (cli.Command, error) {
+			return &VolumeInitCommand{
+				Meta: meta,
+			}, nil
+		},
 		"volume status": func() (cli.Command, error) {
 			return &VolumeStatusCommand{
 				Meta: meta,
@@ -781,6 +821,31 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"volume detach": func() (cli.Command, error) {
 			return &VolumeDetachCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume create": func() (cli.Command, error) {
+			return &VolumeCreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume delete": func() (cli.Command, error) {
+			return &VolumeDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume snapshot create": func() (cli.Command, error) {
+			return &VolumeSnapshotCreateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume snapshot delete": func() (cli.Command, error) {
+			return &VolumeSnapshotDeleteCommand{
+				Meta: meta,
+			}, nil
+		},
+		"volume snapshot list": func() (cli.Command, error) {
+			return &VolumeSnapshotListCommand{
 				Meta: meta,
 			}, nil
 		},

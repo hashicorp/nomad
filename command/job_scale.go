@@ -32,9 +32,12 @@ Usage: nomad job scale [options] <job> [<group>] <count>
   onto nodes. The monitor will end once job placement is done. It
   is safe to exit the monitor early using ctrl+c.
 
+  When ACLs are enabled, this command requires a token with the 'scale-job'
+  capability for the job's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Scale Options:
 
@@ -150,7 +153,7 @@ func (j *JobScaleCommand) Run(args []string) int {
 
 	// Create and monitor the evaluation.
 	mon := newMonitor(j.Ui, client, length)
-	return mon.monitor(resp.EvalID, false)
+	return mon.monitor(resp.EvalID)
 }
 
 // performGroupCheck performs logic to ensure the user specified the correct

@@ -1,0 +1,77 @@
+{{#if this.errors}}
+  <div data-test-dispatch-error class="notification is-danger">
+    <h3 class="title is-4" data-test-parse-error-title>Dispatch Error</h3>
+    <ul>
+      {{#each this.errors as |error|}}
+        <li>{{error}}</li>
+      {{/each}}
+    </ul>
+  </div>
+{{/if}}
+
+<form action="#" onsubmit="return false">
+  <h1 class="title">Dispatch an instance of '{{@job.name}}'</h1>
+
+  {{#each this.metaFields as |meta|}}
+    <div class="columns">
+        <div class="column is-6">
+          <div data-test-meta-field="{{ if meta.required "required" "optional" }}" class="field">
+            <label data-test-meta-field-label class="label {{if meta.error "has-text-danger"}}" for="{{meta.name}}">
+              {{meta.title}} {{#if meta.required}}*{{/if}}
+            </label>
+            <div class="control">
+              <input
+                data-test-meta-field-input
+                id="{{meta.name}}"
+                class="input {{if meta.error "is-danger"}}"
+                type="text"
+                value={{meta.value}}
+                oninput={{action (mut meta.value) value="target.value"}}
+                required={{meta.required}} >
+
+              <p class="help {{if meta.error "has-text-danger"}}">
+                {{#if meta.required}}Required{{else}}Optional{{/if}}
+                Meta Param
+                <span class="badge is-light is-faded">
+                  <code>{{ meta.name }}</code>
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+    </div>
+  {{/each}}
+
+  <div class="boxed-section {{if this.payloadHasError "is-danger"}}">
+    <div data-test-payload-head class="boxed-section-head">
+      Payload {{#if this.payloadRequired}}*{{/if}}
+    </div>
+    {{#if this.hasPayload}}
+      <div class="boxed-section-body is-full-bleed">
+        <IvyCodemirror
+          data-test-payload-editor
+          aria-label="Payload definition"
+          @valueUpdated={{action (mut this.payload)}}
+          @options={{hash
+            mode="javascript"
+            theme="hashi"
+            screenReaderLabel="Payload definition editor"
+            tabSize=2
+            lineNumbers=true
+          }} />
+      </div>
+    {{else}}
+      <div class="boxed-section-body">
+        <div data-test-empty-payload-message class="empty-message">
+          <h3 class="empty-message-headline">Payload Disabled</h3>
+          <p class="empty-message-body">Payload is disabled for this job.</p>
+        </div>
+      </div>
+    {{/if}}
+  </div>
+
+  <div>
+    <button data-test-dispatch-button class="button is-primary" type="button" onclick={{action "dispatch"}}>Dispatch</button>
+    <button data-test-cancel-button class="button is-white" type="button" onclick={{action "cancel"}}>Cancel</button>
+  </div>
+</form>

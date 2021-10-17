@@ -2,11 +2,13 @@ import { find } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
+import { setupMirage } from 'ember-cli-mirage/test-support';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
 import sinon from 'sinon';
 import faker from 'nomad-ui/mirage/faker';
 import topoVizDatacenterPageObject from 'nomad-ui/tests/pages/components/topo-viz/datacenter';
+import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
 
 const TopoVizDatacenter = create(topoVizDatacenterPageObject());
 
@@ -32,6 +34,7 @@ const sumBy = prop => (sum, obj) => (sum += obj[prop]);
 
 module('Integration | Component | TopoViz::Datacenter', function(hooks) {
   setupRenderingTest(hooks);
+  setupMirage(hooks);
 
   const commonProps = props => ({
     isSingleColumn: true,
@@ -105,8 +108,16 @@ module('Integration | Component | TopoViz::Datacenter', function(hooks) {
     assert.ok(TopoVizDatacenter.label.includes(this.datacenter.name));
     assert.ok(TopoVizDatacenter.label.includes(`${this.datacenter.nodes.length} Nodes`));
     assert.ok(TopoVizDatacenter.label.includes(`${allocs.length} Allocs`));
-    assert.ok(TopoVizDatacenter.label.includes(`${memoryReserved}/${memoryTotal} MiB`));
-    assert.ok(TopoVizDatacenter.label.includes(`${cpuReserved}/${cpuTotal} Mhz`));
+    assert.ok(
+      TopoVizDatacenter.label.includes(
+        `${formatBytes(memoryReserved, 'MiB')}/${formatBytes(memoryTotal, 'MiB')}`
+      )
+    );
+    assert.ok(
+      TopoVizDatacenter.label.includes(
+        `${formatHertz(cpuReserved, 'MHz')}/${formatHertz(cpuTotal, 'MHz')}`
+      )
+    );
   });
 
   test('when @isSingleColumn is true, the FlexMasonry layout gets one column, otherwise it gets two', async function(assert) {

@@ -238,6 +238,11 @@ func (r *rpcHandler) handleConn(ctx context.Context, conn net.Conn, rpcCtx *RPCC
 
 	case pool.RpcRaft:
 		metrics.IncrCounter([]string{"nomad", "rpc", "raft_handoff"}, 1)
+		// Ensure that when TLS is configured, only certificates from `server.<region>.nomad` are accepted for Raft connections.
+		if err := r.validateRaftTLS(rpcCtx); err != nil {
+			conn.Close()
+			return
+		}
 		r.raftLayer.Handoff(ctx, conn)
 
 	case pool.RpcMultiplex:
@@ -559,7 +564,7 @@ CHECK_LEADER:
 	if firstCheck.IsZero() {
 		firstCheck = time.Now()
 	}
-	if time.Now().Sub(firstCheck) < r.config.RPCHoldTimeout {
+	if time.Since(firstCheck) < r.config.RPCHoldTimeout {
 		jitter := lib.RandomStagger(r.config.RPCHoldTimeout / structs.JitterFraction)
 		select {
 		case <-time.After(jitter):
@@ -749,7 +754,7 @@ func (r *rpcHandler) setQueryMeta(m *structs.QueryMeta) {
 		m.LastContact = 0
 		m.KnownLeader = true
 	} else {
-		m.LastContact = time.Now().Sub(r.raft.LastContact())
+		m.LastContact = time.Since(r.raft.LastContact())
 		m.KnownLeader = (r.raft.Leader() != "")
 	}
 }
@@ -780,12 +785,7 @@ func (r *rpcHandler) blockingRPC(opts *blockingOptions) error {
 		goto RUN_QUERY
 	}
 
-	// Restrict the max query time, and ensure there is always one
-	if opts.queryOpts.MaxQueryTime > structs.MaxBlockingRPCQueryTime {
-		opts.queryOpts.MaxQueryTime = structs.MaxBlockingRPCQueryTime
-	} else if opts.queryOpts.MaxQueryTime <= 0 {
-		opts.queryOpts.MaxQueryTime = structs.DefaultBlockingRPCQueryTime
-	}
+	opts.queryOpts.MaxQueryTime = opts.queryOpts.TimeToBlock()
 
 	// Apply a small amount of jitter to the request
 	opts.queryOpts.MaxQueryTime += lib.RandomStagger(opts.queryOpts.MaxQueryTime / structs.JitterFraction)
@@ -829,4 +829,39 @@ RUN_QUERY:
 		}
 	}
 	return err
+}
+
+func (r *rpcHandler) validateRaftTLS(rpcCtx *RPCContext) error {
+	// TLS is not configured or not to be enforced
+	tlsConf := r.config.TLSConfig
+	if !tlsConf.EnableRPC || !tlsConf.VerifyServerHostname || tlsConf.RPCUpgradeMode {
+		return nil
+	}
+
+	// defensive conditions: these should have already been enforced by handleConn
+	if rpcCtx == nil || !rpcCtx.TLS {
+		return errors.New("non-TLS connection attempted")
+	}
+	if len(rpcCtx.VerifiedChains) == 0 || len(rpcCtx.VerifiedChains[0]) == 0 {
+		// this should never happen, as rpcNameAndRegionValidate should have enforced it
+		return errors.New("missing cert info")
+	}
+
+	// check that `server.<region>.nomad` is present in cert
+	expected := "server." + r.Region() + ".nomad"
+
+	cert := rpcCtx.VerifiedChains[0][0]
+	for _, dnsName := range cert.DNSNames {
+		if dnsName == expected {
+			// Certificate is valid for the expected name
+			return nil
+		}
+	}
+	if cert.Subject.CommonName == expected {
+		// Certificate is valid for the expected name
+		return nil
+	}
+
+	r.logger.Warn("unauthorized raft connection", "remote_addr", rpcCtx.Conn.RemoteAddr(), "required_hostname", expected, "found", cert.DNSNames)
+	return fmt.Errorf("certificate is invalid for expected role or region: %q", expected)
 }

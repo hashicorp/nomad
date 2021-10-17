@@ -2,7 +2,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { withKnobs, text } from '@storybook/addon-knobs';
 
 export default {
-  title: 'Components|Copy Button',
+  title: 'Components/Copy Button',
   decorators: [withKnobs],
 };
 
@@ -13,6 +13,10 @@ export let CopyButton = () => {
       <span class="tag is-hollow is-small no-text-transform">
         {{clipboardText}}
         <CopyButton @clipboardText={{clipboardText}} />
+      </span>
+      <h5 class="title is-5">Copy Button with content</h5>
+      <span class="tag is-hollow is-small no-text-transform">
+        <CopyButton @clipboardText={{clipboardText}}>{{clipboardText}}</CopyButton>
       </span>
       `,
     context: {

@@ -1,6 +1,8 @@
 package nomad
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,7 +14,6 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -96,7 +97,7 @@ OUTER:
 			}
 
 			// ignore heartbeat
-			if msg.Event == stream.JsonHeartbeat {
+			if bytes.Equal(msg.Event.Data, stream.JsonHeartbeat.Data) {
 				continue
 			}
 
@@ -283,7 +284,7 @@ OUTER:
 				t.Fatalf("Got error: %v", msg.Error.Error())
 			}
 
-			if msg.Event == stream.JsonHeartbeat {
+			if bytes.Equal(msg.Event.Data, stream.JsonHeartbeat.Data) {
 				continue
 			}
 
@@ -310,7 +311,7 @@ func TestEventStream_ACL(t *testing.T) {
 	require := require.New(t)
 
 	// start server
-	s, root, cleanupS := TestACLServer(t, nil)
+	s, _, cleanupS := TestACLServer(t, nil)
 	defer cleanupS()
 	testutil.WaitForLeader(t, s.RPC)
 
@@ -336,7 +337,7 @@ func TestEventStream_ACL(t *testing.T) {
 			Name:  "no token",
 			Token: "",
 			Topics: map[structs.Topic][]string{
-				"*": {"*"},
+				structs.TopicAll: {"*"},
 			},
 			ExpectedErr: structs.ErrPermissionDenied.Error(),
 		},
@@ -344,26 +345,18 @@ func TestEventStream_ACL(t *testing.T) {
 			Name:  "bad token",
 			Token: tokenBad.SecretID,
 			Topics: map[structs.Topic][]string{
-				"*": {"*"},
+				structs.TopicAll: {"*"},
 			},
 			ExpectedErr: structs.ErrPermissionDenied.Error(),
-		},
-		{
-			Name:  "root token",
-			Token: root.SecretID,
-			Topics: map[structs.Topic][]string{
-				"*": {"*"},
-			},
-			ExpectedErr: "subscription closed by server",
 		},
 		{
 			Name:  "job namespace token - correct ns",
 			Token: tokenNsFoo.SecretID,
 			Topics: map[structs.Topic][]string{
-				"Job":        {"*"},
-				"Eval":       {"*"},
-				"Alloc":      {"*"},
-				"Deployment": {"*"},
+				structs.TopicJob:        {"*"},
+				structs.TopicEvaluation: {"*"},
+				structs.TopicAllocation: {"*"},
+				structs.TopicDeployment: {"*"},
 			},
 			Namespace:   "foo",
 			ExpectedErr: "subscription closed by server",
@@ -375,7 +368,7 @@ func TestEventStream_ACL(t *testing.T) {
 			Name:  "job namespace token - incorrect ns",
 			Token: tokenNsFoo.SecretID,
 			Topics: map[structs.Topic][]string{
-				"Job": {"*"}, // good
+				structs.TopicJob: {"*"}, // good
 			},
 			Namespace:   "bar", // bad
 			ExpectedErr: structs.ErrPermissionDenied.Error(),
@@ -387,7 +380,7 @@ func TestEventStream_ACL(t *testing.T) {
 			Name:  "job namespace token - request management topic",
 			Token: tokenNsFoo.SecretID,
 			Topics: map[structs.Topic][]string{
-				"*": {"*"}, // bad
+				structs.TopicAll: {"*"}, // bad
 			},
 			Namespace:   "foo",
 			ExpectedErr: structs.ErrPermissionDenied.Error(),
@@ -399,8 +392,8 @@ func TestEventStream_ACL(t *testing.T) {
 			Name:  "job namespace token - request invalid node topic",
 			Token: tokenNsFoo.SecretID,
 			Topics: map[structs.Topic][]string{
-				"Eval": {"*"}, // good
-				"Node": {"*"}, // bad
+				structs.TopicEvaluation: {"*"}, // good
+				structs.TopicNode:       {"*"}, // bad
 			},
 			Namespace:   "foo",
 			ExpectedErr: structs.ErrPermissionDenied.Error(),
@@ -412,8 +405,8 @@ func TestEventStream_ACL(t *testing.T) {
 			Name:  "job+node namespace token, valid",
 			Token: tokenNsNode.SecretID,
 			Topics: map[structs.Topic][]string{
-				"Eval": {"*"}, // good
-				"Node": {"*"}, // good
+				structs.TopicEvaluation: {"*"}, // good
+				structs.TopicNode:       {"*"}, // good
 			},
 			Namespace:   "foo",
 			ExpectedErr: "subscription closed by server",
@@ -511,187 +504,123 @@ func TestEventStream_ACL(t *testing.T) {
 	}
 }
 
-func TestEvent_UpdateSinks(t *testing.T) {
+// TestEventStream_ACL_Update_Close_Stream asserts that an active subscription
+// is closed after the token is no longer valid
+func TestEventStream_ACL_Update_Close_Stream(t *testing.T) {
 	t.Parallel()
 
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-
-	codec := rpcClient(t, s1)
+	// start server
+	s1, root, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	sink := mock.EventSink()
+	policyNsGood := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})
+	tokenNsFoo := mock.CreatePolicyAndToken(t, s1.State(), 1006, "valid", policyNsGood)
 
-	require.NoError(t, s1.fsm.State().UpsertEventSink(1000, sink))
-
-	// request sink doesn't need to be pointer
-	s := &structs.EventSink{
-		ID:          sink.ID,
-		LatestIndex: uint64(300),
-	}
-
-	req := &structs.EventSinkProgressRequest{
-		Sinks:        []*structs.EventSink{s},
-		WriteRequest: structs.WriteRequest{Region: "global"},
-	}
-
-	var resp structs.GenericResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Event.UpdateSinks", req, &resp))
-	require.NotEqual(t, 0, resp.Index)
-
-	// Check for the sink in the FSM
-
-	state := s1.fsm.State()
-	out, err := state.EventSinkByID(nil, sink.ID)
-	require.NoError(t, err)
-
-	require.Equal(t, s.LatestIndex, out.LatestIndex)
-}
-
-func TestEvent_UpsertSink(t *testing.T) {
-	t.Parallel()
-
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	sink := mock.EventSink()
-
-	req := &structs.EventSinkUpsertRequest{
-		Sink:         sink,
-		WriteRequest: structs.WriteRequest{Region: "global"},
-	}
-
-	var resp structs.GenericResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Event.UpsertSink", req, &resp))
-	require.NotEqual(t, 0, resp.Index)
-
-	// Check for the sink in the FSM
-	state := s1.fsm.State()
-	out, err := state.EventSinkByID(nil, sink.ID)
-	require.NoError(t, err)
-
-	// set the index so we can compare values
-	sink.CreateIndex = resp.Index
-	sink.ModifyIndex = resp.Index
-
-	require.EqualValues(t, sink, out)
-}
-
-func TestEvent_UpsertSink_Invalid(t *testing.T) {
-	t.Parallel()
-
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	sink := &structs.EventSink{
-		Type: structs.SinkWebhook,
-	}
-
-	req := &structs.EventSinkUpsertRequest{
-		Sink:         sink,
-		WriteRequest: structs.WriteRequest{Region: "global"},
-	}
-
-	var resp structs.GenericResponse
-	err := msgpackrpc.CallWithCodec(codec, "Event.UpsertSink", req, &resp)
-	require.Error(t, err)
-
-	require.Contains(t, err.Error(), "Missing sink ID")
-	require.Contains(t, err.Error(), "Webhook sink requires a valid Address")
-}
-
-func TestEvent_GetSink(t *testing.T) {
-	t.Parallel()
-
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
-
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	sink := mock.EventSink()
-
-	require.NoError(t, s1.fsm.State().UpsertEventSink(1000, sink))
-
-	get := &structs.EventSinkSpecificRequest{
-		ID: sink.ID,
+	req := structs.EventStreamRequest{
+		Topics: map[structs.Topic][]string{"Job": {"*"}},
 		QueryOptions: structs.QueryOptions{
-			Region: "global",
+			Region:    s1.Region(),
+			Namespace: structs.DefaultNamespace,
+			AuthToken: tokenNsFoo.SecretID,
 		},
 	}
 
-	var resp structs.EventSinkResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Event.GetSink", get, &resp))
-	require.EqualValues(t, 1000, resp.Index)
-	require.Equal(t, sink.ID, resp.Sink.ID)
+	handler, err := s1.StreamingRpcHandler("Event.Stream")
+	require.Nil(t, err)
 
-	// Query for a non-existent sink
-	get.ID = uuid.Generate()
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Event.GetSink", get, &resp))
+	p1, p2 := net.Pipe()
+	defer p1.Close()
+	defer p2.Close()
 
-	require.EqualValues(t, 1000, resp.Index)
-	require.Nil(t, resp.Sink)
-}
+	errCh := make(chan error)
+	streamMsg := make(chan *structs.EventStreamWrapper)
 
-func TestEvent_DeleteSink(t *testing.T) {
-	t.Parallel()
+	go handler(p2)
 
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
+	go func() {
+		decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
+		for {
+			var msg structs.EventStreamWrapper
+			if err := decoder.Decode(&msg); err != nil {
+				if err == io.EOF || strings.Contains(err.Error(), "closed") {
+					return
+				}
+				errCh <- fmt.Errorf("error decoding: %w", err)
+			}
 
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
+			streamMsg <- &msg
+		}
+	}()
 
-	sink := mock.EventSink()
+	publisher, err := s1.State().EventBroker()
+	require.NoError(t, err)
 
-	require.NoError(t, s1.fsm.State().UpsertEventSink(1000, sink))
+	job := mock.Job()
+	jobEvent := structs.JobEvent{
+		Job: job,
+	}
 
-	get := &structs.EventSinkDeleteRequest{
-		IDs: []string{sink.ID},
+	// send req
+	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
+	require.Nil(t, encoder.Encode(req))
+
+	// publish some events
+	publisher.Publish(&structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: structs.TopicJob, Payload: jobEvent}}})
+	publisher.Publish(&structs.Events{Index: uint64(2), Events: []structs.Event{{Topic: structs.TopicJob, Payload: jobEvent}}})
+
+	// RPC to delete token
+	aclDelReq := &structs.ACLTokenDeleteRequest{
+		AccessorIDs: []string{tokenNsFoo.AccessorID},
 		WriteRequest: structs.WriteRequest{
-			Region: "global",
+			Region:    s1.Region(),
+			Namespace: structs.DefaultNamespace,
+			AuthToken: root.SecretID,
 		},
 	}
+	var aclResp structs.GenericResponse
 
-	var resp structs.GenericResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Event.DeleteSink", get, &resp))
-	require.NotEqual(t, uint64(0), resp.Index)
-
-	state := s1.fsm.State()
-	out, err := state.EventSinkByID(nil, sink.ID)
-	require.NoError(t, err)
-	require.Nil(t, out)
-}
-
-func TestEvent_ListSinks(t *testing.T) {
-	t.Parallel()
-
-	s1, cleanupS1 := TestServer(t, nil)
-	defer cleanupS1()
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
+	defer cancel()
 
 	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
+	errChStream := make(chan error, 1)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				errChStream <- ctx.Err()
+				return
+			case err := <-errCh:
+				errChStream <- err
+				return
+			case msg := <-streamMsg:
+				if msg.Error == nil {
+					// received a valid event, make RPC to delete token
+					// continue trying for error
+					continue
+				}
 
-	sink := mock.EventSink()
-	sink2 := mock.EventSink()
+				errChStream <- msg.Error
+				return
+			}
+		}
+	}()
 
-	require.NoError(t, s1.fsm.State().UpsertEventSink(1000, sink))
-	require.NoError(t, s1.fsm.State().UpsertEventSink(1001, sink2))
-
-	get := &structs.EventSinkListRequest{
-		QueryOptions: structs.QueryOptions{
-			Region: "global",
-		},
+	// Delete the token used to create the stream
+	require.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.DeleteTokens", aclDelReq, &aclResp))
+	timeout := time.After(5 * time.Second)
+OUTER:
+	for {
+		select {
+		case <-timeout:
+			t.Fatal("timeout waiting for event stream")
+		case err := <-errCh:
+			t.Fatal(err)
+		case err := <-errChStream:
+			// Success
+			require.Contains(t, err.Error(), stream.ErrSubscriptionClosed.Error())
+			break OUTER
+		}
 	}
-
-	var resp structs.EventSinkListResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Event.ListSinks", get, &resp))
-	require.Len(t, resp.Sinks, 2)
-
 }

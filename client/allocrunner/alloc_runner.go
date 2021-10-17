@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/cgutil"
+
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -152,6 +154,9 @@ type allocRunner struct {
 	// runner to manage their mounting
 	csiManager csimanager.Manager
 
+	// cpusetManager is responsible for configuring task cgroups if supported by the platform
+	cpusetManager cgutil.CpusetManager
+
 	// devicemanager is used to mount devices as well as lookup device
 	// statistics
 	devicemanager devicemanager.Manager
@@ -208,6 +213,7 @@ func NewAllocRunner(config *Config) (*allocRunner, error) {
 		prevAllocMigrator:        config.PrevAllocMigrator,
 		dynamicRegistry:          config.DynamicRegistry,
 		csiManager:               config.CSIManager,
+		cpusetManager:            config.CpusetManager,
 		devicemanager:            config.DeviceManager,
 		driverManager:            config.DriverManager,
 		serversContactedCh:       config.ServersContactedCh,
@@ -260,6 +266,10 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			DriverManager:        ar.driverManager,
 			ServersContactedCh:   ar.serversContactedCh,
 			StartConditionMetCtx: ar.taskHookCoordinator.startConditionForTask(task),
+		}
+
+		if ar.cpusetManager != nil {
+			trConfig.CpusetCgroupPathGetter = ar.cpusetManager.CgroupPathFor(ar.id, task.Name)
 		}
 
 		// Create, but do not Run, the task runner
@@ -353,12 +363,26 @@ func (ar *allocRunner) shouldRun() bool {
 
 // runTasks is used to run the task runners and block until they exit.
 func (ar *allocRunner) runTasks() {
+	// Start all tasks
 	for _, task := range ar.tasks {
 		go task.Run()
 	}
 
+	// Block on all tasks except poststop tasks
 	for _, task := range ar.tasks {
-		<-task.WaitCh()
+		if !task.IsPoststopTask() {
+			<-task.WaitCh()
+		}
+	}
+
+	// Signal poststop tasks to proceed to main runtime
+	ar.taskHookCoordinator.StartPoststopTasks()
+
+	// Wait for poststop tasks to finish before proceeding
+	for _, task := range ar.tasks {
+		if task.IsPoststopTask() {
+			<-task.WaitCh()
+		}
 	}
 }
 
@@ -485,6 +509,10 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 			state := tr.TaskState()
 			states[name] = state
 
+			if tr.IsPoststopTask() {
+				continue
+			}
+
 			// Capture live task runners in case we need to kill them
 			if state.State != structs.TaskStateDead {
 				liveRunners = append(liveRunners, tr)
@@ -535,6 +563,7 @@ func (ar *allocRunner) handleTaskStateUpdates() {
 			// prevent looping before TaskRunners have transitioned
 			// to Dead.
 			for _, tr := range liveRunners {
+				ar.logger.Info("killing task", "task", tr.Task().Name)
 				select {
 				case <-tr.WaitCh():
 				case <-ar.waitCh:
@@ -586,7 +615,8 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 	// Kill the rest concurrently
 	wg := sync.WaitGroup{}
 	for name, tr := range ar.tasks {
-		if tr.IsLeader() {
+		// Filter out poststop tasks so they run after all the other tasks are killed
+		if tr.IsLeader() || tr.IsPoststopTask() {
 			continue
 		}
 
@@ -1118,6 +1148,9 @@ func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, fa
 	var err *multierror.Error
 	var errMutex sync.Mutex
 
+	// run alloc task restart hooks
+	ar.taskRestartHooks()
+
 	go func() {
 		var wg sync.WaitGroup
 		defer close(waitCh)
@@ -1149,6 +1182,9 @@ func (ar *allocRunner) Restart(ctx context.Context, event *structs.TaskEvent, fa
 // Returns any errors in a concatenated form.
 func (ar *allocRunner) RestartAll(taskEvent *structs.TaskEvent) error {
 	var err *multierror.Error
+
+	// run alloc task restart hooks
+	ar.taskRestartHooks()
 
 	for tn := range ar.tasks {
 		rerr := ar.RestartTask(tn, taskEvent.Copy())

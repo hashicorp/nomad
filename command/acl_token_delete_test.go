@@ -35,7 +35,7 @@ func TestACLTokenDeleteCommand_ViaEnvVariable(t *testing.T) {
 	mockToken := mock.ACLToken()
 	mockToken.Policies = []string{acl.PolicyWrite}
 	mockToken.SetHash()
-	assert.Nil(state.UpsertACLTokens(1000, []*structs.ACLToken{mockToken}))
+	assert.Nil(state.UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{mockToken}))
 
 	// Attempt to delete a token without providing a valid token with delete
 	// permissions

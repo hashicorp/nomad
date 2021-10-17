@@ -3,6 +3,7 @@ package api
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,7 +32,9 @@ func TestOperator_MetricsSummary(t *testing.T) {
 
 func TestOperator_Metrics_Prometheus(t *testing.T) {
 	t.Parallel()
-	c, s := makeClient(t, nil, nil)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.Telemetry = &testutil.Telemetry{PrometheusMetrics: true}
+	})
 	defer s.Stop()
 
 	operator := c.Operator()

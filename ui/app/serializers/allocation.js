@@ -52,11 +52,7 @@ export default class AllocationSerializer extends ApplicationSerializer {
     hash.JobVersion = hash.JobVersion != null ? hash.JobVersion : get(hash, 'Job.Version');
 
     hash.PlainJobId = hash.JobID;
-    hash.Namespace =
-      hash.Namespace ||
-      get(hash, 'Job.Namespace') ||
-      this.get('system.activeNamespace.id') ||
-      'default';
+    hash.Namespace = hash.Namespace || get(hash, 'Job.Namespace') || 'default';
     hash.JobID = JSON.stringify([hash.JobID, hash.Namespace]);
 
     hash.RescheduleEvents = (hash.RescheduleTracker || {}).Events;

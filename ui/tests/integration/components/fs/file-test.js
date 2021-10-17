@@ -1,6 +1,6 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { find, render, settled } from '@ember/test-helpers';
+import { find, click, render, settled } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import Pretender from 'pretender';
 import { logEncode } from '../../../../mirage/data/logs';
@@ -33,7 +33,7 @@ module('Integration | Component | fs/file', function(hooks) {
   });
 
   const commonTemplate = hbs`
-    <Fs::File @allocation={{allocation}} @taskState={{taskState}} @file={{file}} @stat={{stat}} />
+    <Fs::File @allocation={{this.allocation}} @taskState={{this.taskState}} @file={{this.file}} @stat={{this.stat}} />
   `;
 
   const fileStat = (type, size = 0) => ({
@@ -140,21 +140,17 @@ module('Integration | Component | fs/file', function(hooks) {
     this.setProperties(props);
 
     await render(commonTemplate);
-
-    const rawLink = find('[data-test-log-action="raw"]');
-    assert.equal(
-      rawLink.getAttribute('href'),
-      `/v1/client/fs/cat/${props.allocation.id}?path=${encodeURIComponent(
-        `${props.taskState.name}/${props.file}`
-      )}`,
-      'Raw link href is correct'
-    );
-
-    assert.equal(rawLink.getAttribute('target'), '_blank', 'Raw link opens in a new tab');
-    assert.equal(
-      rawLink.getAttribute('rel'),
-      'noopener noreferrer',
-      'Raw link rel correctly bars openers and referrers'
+    click('[data-test-log-action="raw"]');
+    await settled();
+    assert.ok(
+      this.server.handledRequests.find(
+        ({ url: url }) =>
+          url ===
+          `/v1/client/fs/cat/${props.allocation.id}?path=${encodeURIComponent(
+            `${props.taskState.name}/${props.file}`
+          )}`
+      ),
+      'Request to file is made'
     );
   });
 
@@ -168,13 +164,17 @@ module('Integration | Component | fs/file', function(hooks) {
     await this.system.get('regions');
     await render(commonTemplate);
 
-    const rawLink = find('[data-test-log-action="raw"]');
-    assert.equal(
-      rawLink.getAttribute('href'),
-      `/v1/client/fs/cat/${props.allocation.id}?path=${encodeURIComponent(
-        `${props.taskState.name}/${props.file}`
-      )}&region=${region}`,
-      'Raw link href includes the active region from local storage'
+    click('[data-test-log-action="raw"]');
+    await settled();
+    assert.ok(
+      this.server.handledRequests.find(
+        ({ url: url }) =>
+          url ===
+          `/v1/client/fs/cat/${props.allocation.id}?path=${encodeURIComponent(
+            `${props.taskState.name}/${props.file}`
+          )}&region=${region}`
+      ),
+      'Request to file is made with region'
     );
   });
 
@@ -217,7 +217,7 @@ module('Integration | Component | fs/file', function(hooks) {
     this.setProperties(props);
 
     await render(hbs`
-      <Fs::File @allocation={{allocation}} @taskState={{taskState}} @file={{file}} @stat={{stat}}>
+      <Fs::File @allocation={{this.allocation}} @taskState={{this.taskState}} @file={{this.file}} @stat={{this.stat}}>
         <div data-test-yield-spy>Yielded content</div>
       </Fs::File>
     `);

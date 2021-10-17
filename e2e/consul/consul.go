@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hashicorp/nomad/api"
+	api "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper"
@@ -17,6 +17,14 @@ import (
 const (
 	consulJobBasic      = "consul/input/consul_example.nomad"
 	consulJobCanaryTags = "consul/input/canary_tags.nomad"
+
+	consulJobRegisterOnUpdatePart1 = "consul/input/services_empty.nomad"
+	consulJobRegisterOnUpdatePart2 = "consul/input/services_present.nomad"
+)
+
+const (
+	// unless otherwise set, tests should just use the default consul namespace
+	consulNamespace = "default"
 )
 
 type ConsulE2ETest struct {
@@ -32,6 +40,9 @@ func init() {
 		Cases: []framework.TestCase{
 			new(ConsulE2ETest),
 			new(ScriptChecksE2ETest),
+			new(CheckRestartE2ETest),
+			new(OnUpdateChecksTest),
+			new(ConsulNamespacesE2ETest),
 		},
 	})
 }
@@ -47,24 +58,25 @@ func (tc *ConsulE2ETest) AfterEach(f *framework.F) {
 	}
 
 	for _, id := range tc.jobIds {
-		tc.Nomad().Jobs().Deregister(id, true, nil)
+		_, _, err := tc.Nomad().Jobs().Deregister(id, true, nil)
+		require.NoError(f.T(), err)
 	}
 	tc.jobIds = []string{}
-	tc.Nomad().System().GarbageCollect()
+	require.NoError(f.T(), tc.Nomad().System().GarbageCollect())
 }
 
 // TestConsulRegistration asserts that a job registers services with tags in Consul.
 func (tc *ConsulE2ETest) TestConsulRegistration(f *framework.F) {
 	t := f.T()
+	r := require.New(t)
 
 	nomadClient := tc.Nomad()
-	catalog := tc.Consul().Catalog()
-	jobId := "consul" + uuid.Generate()[0:8]
+	jobId := "consul" + uuid.Short()
 	tc.jobIds = append(tc.jobIds, jobId)
 
-	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, consulJobBasic, jobId, "")
-	require.Equal(t, 3, len(allocs))
-	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
+	allocations := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, consulJobBasic, jobId, "")
+	require.Equal(t, 3, len(allocations))
+	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocations)
 	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
 
 	expectedTags := []string{
@@ -73,42 +85,58 @@ func (tc *ConsulE2ETest) TestConsulRegistration(f *framework.F) {
 	}
 
 	// Assert services get registered
-	testutil.WaitForResult(func() (bool, error) {
-		services, _, err := catalog.Service("consul-example", "", nil)
-		if err != nil {
-			return false, fmt.Errorf("error contacting Consul: %v", err)
-		}
-		if expected := 3; len(services) != expected {
-			return false, fmt.Errorf("expected %d services but found %d", expected, len(services))
-		}
-		for _, s := range services {
-			// If we've made it this far the tags should *always* match
-			require.True(t, helper.CompareSliceSetString(expectedTags, s.ServiceTags))
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("error waiting for services to be registered: %v", err)
-	})
+	e2eutil.RequireConsulRegistered(r, tc.Consul(), consulNamespace, "consul-example", 3)
+	services, _, err := tc.Consul().Catalog().Service("consul-example", "", nil)
+	require.NoError(t, err)
+	for _, s := range services {
+		// If we've made it this far the tags should *always* match
+		require.ElementsMatch(t, expectedTags, s.ServiceTags)
+	}
 
 	// Stop the job
 	e2eutil.WaitForJobStopped(t, nomadClient, jobId)
 
-	// Verify that services were deregistered in Consul
-	testutil.WaitForResult(func() (bool, error) {
-		s, _, err := catalog.Service("consul-example", "", nil)
-		if err != nil {
-			return false, err
-		}
+	// Verify that services were de-registered in Consul
+	e2eutil.RequireConsulDeregistered(r, tc.Consul(), consulNamespace, "consul-example")
+}
 
-		return len(s) == 0, fmt.Errorf("expected 0 services but found: %v", s)
-	}, func(err error) {
-		t.Fatalf("error waiting for services to be deregistered: %v", err)
-	})
+func (tc *ConsulE2ETest) TestConsulRegisterOnUpdate(f *framework.F) {
+	t := f.T()
+	r := require.New(t)
+
+	nomadClient := tc.Nomad()
+	catalog := tc.Consul().Catalog()
+	jobID := "consul" + uuid.Short()
+	tc.jobIds = append(tc.jobIds, jobID)
+
+	// Initial job has no services for task.
+	allocations := e2eutil.RegisterAndWaitForAllocs(t, nomadClient, consulJobRegisterOnUpdatePart1, jobID, "")
+	require.Equal(t, 1, len(allocations))
+	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocations)
+	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
+
+	// Assert service not yet registered.
+	results, _, err := catalog.Service("nc-service", "", nil)
+	require.NoError(t, err)
+	require.Empty(t, results)
+
+	// On update, add services for task.
+	allocations = e2eutil.RegisterAndWaitForAllocs(t, nomadClient, consulJobRegisterOnUpdatePart2, jobID, "")
+	require.Equal(t, 1, len(allocations))
+	allocIDs = e2eutil.AllocIDsFromAllocationListStubs(allocations)
+	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), allocIDs)
+
+	// Assert service is now registered.
+	e2eutil.RequireConsulRegistered(r, tc.Consul(), consulNamespace, "nc-service", 1)
 }
 
 // TestCanaryInplaceUpgrades verifies setting and unsetting canary tags
 func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 	t := f.T()
+
+	// TODO(shoenig) https://github.com/hashicorp/nomad/issues/9627
+	t.Skip("THIS TEST IS BROKEN (#9627)")
+
 	nomadClient := tc.Nomad()
 	consulClient := tc.Consul()
 	jobId := "consul" + uuid.Generate()[0:8]
@@ -155,7 +183,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("error while waiting for deploys: %v", err)
+		f.NoError(err, "error while waiting for deploys")
 	})
 
 	allocID := activeDeploy.TaskGroups["consul_canary_test"].PlacedCanaries[0]
@@ -175,7 +203,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 		return *alloc.DeploymentStatus.Healthy, fmt.Errorf("expected healthy canary but found: %#v",
 			alloc.DeploymentStatus)
 	}, func(err error) {
-		t.Fatalf("error waiting for canary to be healthy: %v", err)
+		f.NoError(err, "error waiting for canary to be healthy")
 	})
 
 	// Check Consul for canary tags
@@ -191,7 +219,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 		}
 		return false, fmt.Errorf(`could not find service tags {"canary", "foo"}: %#v`, consulServices)
 	}, func(err error) {
-		t.Fatalf("error waiting for canary tags: %v", err)
+		f.NoError(err, "error waiting for canary tags")
 	})
 
 	// Promote canary
@@ -209,7 +237,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 		}
 		return !alloc.DeploymentStatus.Canary, fmt.Errorf("still a canary")
 	}, func(err error) {
-		t.Fatalf("error waiting for canary to be promoted: %v", err)
+		require.NoError(t, err, "error waiting for canary to be promoted")
 	})
 
 	// Verify that no instances have canary tags
@@ -227,7 +255,7 @@ func (tc *ConsulE2ETest) TestCanaryInplaceUpgrades(f *framework.F) {
 		}
 		return true, nil
 	}, func(err error) {
-		t.Fatalf("error waiting for non-canary tags: %v", err)
+		require.NoError(t, err, "error waiting for non-canary tags")
 	})
 
 }

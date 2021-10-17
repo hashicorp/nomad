@@ -11,7 +11,7 @@ import {
   visitable,
 } from 'ember-cli-page-object';
 
-import facet from 'nomad-ui/tests/pages/components/facet';
+import { multiFacet } from 'nomad-ui/tests/pages/components/facet';
 import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 
 export default create({
@@ -72,9 +72,9 @@ export default create({
   },
 
   facets: {
-    class: facet('[data-test-class-facet]'),
-    state: facet('[data-test-state-facet]'),
-    datacenter: facet('[data-test-datacenter-facet]'),
-    volume: facet('[data-test-volume-facet]'),
+    class: multiFacet('[data-test-class-facet]'),
+    state: multiFacet('[data-test-state-facet]'),
+    datacenter: multiFacet('[data-test-datacenter-facet]'),
+    volume: multiFacet('[data-test-volume-facet]'),
   },
 });

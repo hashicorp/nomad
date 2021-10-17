@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Theme|Text Sizing',
+  title: 'Theme/Text Sizing',
 };
 
 export let TextSizing = () => {

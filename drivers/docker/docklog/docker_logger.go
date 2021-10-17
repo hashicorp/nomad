@@ -123,7 +123,9 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 
 			sinceTime = time.Now()
 
-			container, err := client.InspectContainer(opts.ContainerID)
+			container, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+				ID: opts.ContainerID,
+			})
 			if err != nil {
 				_, notFoundOk := err.(*docker.NoSuchContainer)
 				if !notFoundOk {

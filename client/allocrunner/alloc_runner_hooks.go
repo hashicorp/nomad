@@ -133,20 +133,30 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		return fmt.Errorf("failed to initialize network configurator: %v", err)
 	}
 
+	// Create a new taskenv.Builder which is used and mutated by networkHook.
+	envBuilder := taskenv.NewBuilder(
+		config.Node, ar.Alloc(), nil, config.Region).SetAllocDir(ar.allocDir.AllocDir)
+
+	// Create a taskenv.TaskEnv which is used for read only purposes by the
+	// newNetworkHook.
+	builtTaskEnv := envBuilder.Build()
+
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
 	alloc := ar.Alloc()
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newAllocDirHook(hookLogger, ar.allocDir),
+		newCgroupHook(ar.Alloc(), ar.cpusetManager),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newAllocHealthWatcherHook(hookLogger, alloc, hs, ar.Listener(), ar.consulClient),
-		newNetworkHook(hookLogger, ns, alloc, nm, nc, ar),
+		newNetworkHook(hookLogger, ns, alloc, nm, nc, ar, builtTaskEnv),
 		newGroupServiceHook(groupServiceHookConfig{
 			alloc:               alloc,
 			consul:              ar.consulClient,
+			consulNamespace:     alloc.ConsulNamespace(),
 			restarter:           ar,
-			taskEnvBuilder:      taskenv.NewBuilder(config.Node, ar.Alloc(), nil, config.Region).SetAllocDir(ar.allocDir.AllocDir),
+			taskEnvBuilder:      envBuilder,
 			networkStatusGetter: ar,
 			logger:              hookLogger,
 		}),
@@ -357,6 +367,31 @@ func (ar *allocRunner) shutdownHooks() {
 		if ar.logger.IsTrace() {
 			end := time.Now()
 			ar.logger.Trace("finished shutdown hooks", "name", name, "end", end, "duration", end.Sub(start))
+		}
+	}
+}
+
+func (ar *allocRunner) taskRestartHooks() {
+	for _, hook := range ar.runnerHooks {
+		re, ok := hook.(interfaces.RunnerTaskRestartHook)
+		if !ok {
+			continue
+		}
+
+		name := re.Name()
+		var start time.Time
+		if ar.logger.IsTrace() {
+			start = time.Now()
+			ar.logger.Trace("running alloc task restart hook",
+				"name", name, "start", start)
+		}
+
+		re.PreTaskRestart()
+
+		if ar.logger.IsTrace() {
+			end := time.Now()
+			ar.logger.Trace("finished alloc task restart hook",
+				"name", name, "end", end, "duration", end.Sub(start))
 		}
 	}
 }

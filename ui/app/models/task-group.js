@@ -1,6 +1,6 @@
 import { computed } from '@ember/object';
 import Fragment from 'ember-data-model-fragments/fragment';
-import attr from 'ember-data/attr';
+import { attr } from '@ember-data/model';
 import { fragmentOwner, fragmentArray, fragment } from 'ember-data-model-fragments/attributes';
 import sumAggregation from '../utils/properties/sum-aggregation';
 import classic from 'ember-classic-decorator';
@@ -22,12 +22,22 @@ export default class TaskGroup extends Fragment {
 
   @fragment('group-scaling') scaling;
 
+  @attr() meta;
+
+  @computed('job.meta.raw', 'meta')
+  get mergedMeta() {
+    return {
+      ...this.job.get('meta.raw'),
+      ...this.meta,
+    };
+  }
+
   @computed('tasks.@each.driver')
   get drivers() {
     return this.tasks.mapBy('driver').uniq();
   }
 
-  @computed('job.allocations.@each.taskGroup')
+  @computed('job.allocations.@each.taskGroup', 'name')
   get allocations() {
     return maybe(this.get('job.allocations')).filterBy('taskGroupName', this.name);
   }
@@ -36,9 +46,16 @@ export default class TaskGroup extends Fragment {
   @sumAggregation('tasks', 'reservedMemory') reservedMemory;
   @sumAggregation('tasks', 'reservedDisk') reservedDisk;
 
+  @computed('tasks.@each.{reservedMemory,reservedMemoryMax}')
+  get reservedMemoryMax() {
+    return this.get('tasks')
+      .map(t => t.get('reservedMemoryMax') || t.get('reservedMemory'))
+      .reduce((sum, count) => sum + count, 0);
+  }
+
   @attr('number') reservedEphemeralDisk;
 
-  @computed('job.latestFailureEvaluation.failedTGAllocs.[]')
+  @computed('job.latestFailureEvaluation.failedTGAllocs.[]', 'name')
   get placementFailures() {
     const placementFailures = this.get('job.latestFailureEvaluation.failedTGAllocs');
     return placementFailures && placementFailures.findBy('name', this.name);
@@ -49,12 +66,12 @@ export default class TaskGroup extends Fragment {
     return this.get('summary.queuedAllocs') + this.get('summary.startingAllocs');
   }
 
-  @computed('job.taskGroupSummaries.[]')
+  @computed('job.taskGroupSummaries.[]', 'name')
   get summary() {
     return maybe(this.get('job.taskGroupSummaries')).findBy('name', this.name);
   }
 
-  @computed('job.scaleState.taskGroupScales.[]')
+  @computed('job.scaleState.taskGroupScales.[]', 'name')
   get scaleState() {
     return maybe(this.get('job.scaleState.taskGroupScales')).findBy('name', this.name);
   }

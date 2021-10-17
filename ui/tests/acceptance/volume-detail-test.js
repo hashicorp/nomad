@@ -4,16 +4,19 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moment from 'moment';
-import { formatBytes } from 'nomad-ui/helpers/format-bytes';
+import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
 import VolumeDetail from 'nomad-ui/tests/pages/storage/volumes/detail';
+import Layout from 'nomad-ui/tests/pages/layout';
 
 const assignWriteAlloc = (volume, alloc) => {
   volume.writeAllocs.add(alloc);
+  volume.allocations.add(alloc);
   volume.save();
 };
 
 const assignReadAlloc = (volume, alloc) => {
   volume.readAllocs.add(alloc);
+  volume.allocations.add(alloc);
   volume.save();
 };
 
@@ -37,9 +40,9 @@ module('Acceptance | volume detail', function(hooks) {
   test('/csi/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function(assert) {
     await VolumeDetail.visit({ id: volume.id });
 
-    assert.equal(VolumeDetail.breadcrumbFor('csi.index').text, 'Storage');
-    assert.equal(VolumeDetail.breadcrumbFor('csi.volumes').text, 'Volumes');
-    assert.equal(VolumeDetail.breadcrumbFor('csi.volumes.volume').text, volume.name);
+    assert.equal(Layout.breadcrumbFor('csi.index').text, 'Storage');
+    assert.equal(Layout.breadcrumbFor('csi.volumes').text, 'Volumes');
+    assert.equal(Layout.breadcrumbFor('csi.volumes.volume').text, volume.name);
   });
 
   test('/csi/volumes/:id should show the volume name in the title', async function(assert) {
@@ -137,9 +140,10 @@ module('Acceptance | volume detail', function(hooks) {
         Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
         'CPU %'
       );
+      const roundedTicks = Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks);
       assert.equal(
         allocationRow.cpuTooltip,
-        `${Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks)} / ${cpuUsed} MHz`,
+        `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
         'Detailed CPU information is in a tooltip'
       );
       assert.equal(
@@ -149,7 +153,10 @@ module('Acceptance | volume detail', function(hooks) {
       );
       assert.equal(
         allocationRow.memTooltip,
-        `${formatBytes([allocStats.resourceUsage.MemoryStats.RSS])} / ${memoryUsed} MiB`,
+        `${formatBytes(allocStats.resourceUsage.MemoryStats.RSS)} / ${formatBytes(
+          memoryUsed,
+          'MiB'
+        )}`,
         'Detailed memory information is in a tooltip'
       );
     });
@@ -202,7 +209,7 @@ module('Acceptance | volume detail (with namespaces)', function(hooks) {
   });
 
   test('/csi/volumes/:id detail ribbon includes the namespace of the volume', async function(assert) {
-    await VolumeDetail.visit({ id: volume.id });
+    await VolumeDetail.visit({ id: volume.id, namespace: volume.namespaceId });
 
     assert.ok(VolumeDetail.hasNamespace);
     assert.ok(VolumeDetail.namespace.includes(volume.namespaceId || 'default'));

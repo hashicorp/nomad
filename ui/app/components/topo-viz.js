@@ -1,12 +1,16 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { action, set } from '@ember/object';
+import { inject as service } from '@ember/service';
 import { run } from '@ember/runloop';
 import { scaleLinear } from 'd3-scale';
 import { extent, deviation, mean } from 'd3-array';
 import { line, curveBasis } from 'd3-shape';
+import styleStringProperty from '../utils/properties/style-string';
 
 export default class TopoViz extends Component {
+  @service system;
+
   @tracked element = null;
   @tracked topology = { datacenters: [] };
 
@@ -15,6 +19,11 @@ export default class TopoViz extends Component {
   @tracked activeEdges = [];
   @tracked edgeOffset = { x: 0, y: 0 };
   @tracked viewportColumns = 2;
+
+  @tracked highlightAllocation = null;
+  @tracked tooltipProps = {};
+
+  @styleStringProperty('tooltipProps') tooltipStyle;
 
   get isSingleColumn() {
     if (this.topology.datacenters.length <= 1 || this.viewportColumns === 1) return true;
@@ -74,10 +83,18 @@ export default class TopoViz extends Component {
     const nodes = this.args.nodes;
     const allocations = this.args.allocations;
 
+    // Nodes may not have a resources property due to having an old Nomad agent version.
+    const badNodes = [];
+
     // Wrap nodes in a topo viz specific data structure and build an index to speed up allocation assignment
     const nodeContainers = [];
     const nodeIndex = {};
     nodes.forEach(node => {
+      if (!node.resources) {
+        badNodes.push(node);
+        return;
+      }
+
       const container = this.dataForNode(node);
       nodeContainers.push(container);
       nodeIndex[node.id] = container;
@@ -89,8 +106,9 @@ export default class TopoViz extends Component {
     allocations.forEach(allocation => {
       const nodeId = allocation.belongsTo('node').id();
       const nodeContainer = nodeIndex[nodeId];
-      if (!nodeContainer)
-        throw new Error(`Node ${nodeId} for alloc ${allocation.id} not in index.`);
+
+      // Ignore orphaned allocations and allocations on nodes with an old Nomad agent version.
+      if (!nodeContainer) return;
 
       const allocationContainer = this.dataForAllocation(allocation, nodeContainer);
       nodeContainer.allocations.push(allocationContainer);
@@ -121,6 +139,15 @@ export default class TopoViz extends Component {
         .domain(extent(nodeContainers.mapBy('memory'))),
     };
     this.topology = topology;
+
+    if (badNodes.length && this.args.onDataError) {
+      this.args.onDataError([
+        {
+          type: 'filtered-nodes',
+          context: badNodes,
+        },
+      ]);
+    }
   }
 
   @action
@@ -142,6 +169,19 @@ export default class TopoViz extends Component {
     }
 
     if (this.args.onNodeSelect) this.args.onNodeSelect(this.activeNode);
+  }
+
+  @action showTooltip(allocation, element) {
+    const bbox = element.getBoundingClientRect();
+    this.highlightAllocation = allocation;
+    this.tooltipProps = {
+      left: window.scrollX + bbox.left + bbox.width / 2,
+      top: window.scrollY + bbox.top,
+    };
+  }
+
+  @action hideTooltip() {
+    this.highlightAllocation = null;
   }
 
   @action
@@ -180,8 +220,8 @@ export default class TopoViz extends Component {
         });
       }
 
-      // Only show the lines if the selected allocations are sparse (low count relative to the client count).
-      if (newAllocations.length < this.args.nodes.length * 0.75) {
+      // Only show the lines if the selected allocations are sparse (low count relative to the client count or low count generally).
+      if (newAllocations.length < 10 || newAllocations.length < this.args.nodes.length * 0.75) {
         this.computedActiveEdges();
       } else {
         this.activeEdges = [];
@@ -195,6 +235,13 @@ export default class TopoViz extends Component {
   @action
   determineViewportColumns() {
     this.viewportColumns = this.element.clientWidth < 900 ? 1 : 2;
+  }
+
+  @action
+  resizeEdges() {
+    if (this.activeEdges.length > 0) {
+      this.computedActiveEdges();
+    }
   }
 
   @action
@@ -242,7 +289,7 @@ export default class TopoViz extends Component {
       });
 
       this.activeEdges = curves.map(curve => path(curve));
-      this.edgeOffset = { x: window.visualViewport.pageLeft, y: window.visualViewport.pageTop };
+      this.edgeOffset = { x: window.scrollX, y: window.scrollY };
     });
   }
 }

@@ -29,9 +29,12 @@ Usage: nomad quota apply [options] <input>
   will be read from stdin by specifying "-", otherwise a path to the file is
   expected.
 
+  If ACLs are enabled, this command requires a token with the 'quota:write'
+  capability.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Apply Options:
 
@@ -261,6 +264,7 @@ func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
 	valid := []string{
 		"cpu",
 		"memory",
+		"memory_max",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "resources ->")

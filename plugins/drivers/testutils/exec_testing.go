@@ -70,15 +70,6 @@ var ExecTaskStreamingBasicCases = []struct {
 		Stdout:   "hello from command\nhello from stdin\n",
 		ExitCode: 0,
 	},
-	{
-		Name:    "notty: children processes",
-		Command: "(( sleep 3; echo from background ) & ); echo from main; exec sleep 1",
-		Tty:     false,
-		// when not using tty; wait for all processes to exit matching behavior of `docker exec`
-		Stdout:   "from main\nfrom background\n",
-		ExitCode: 0,
-	},
-
 	// TTY cases - difference is new lines add `\r` and child process waiting is different
 	{
 		Name:     "tty: basic",
@@ -197,7 +188,7 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 
 		// we always run in a cgroup - testing freezer cgroup
 		r = execTask(t, driver, taskID,
-			fmt.Sprintf("cat /proc/self/cgroup"),
+			"cat /proc/self/cgroup",
 			false, "")
 		require.Zero(t, r.exitCode)
 
@@ -206,6 +197,11 @@ func TestExecFSIsolation(t *testing.T, driver *DriverHarness, taskID string) {
 
 		}
 	})
+}
+
+func ExecTask(t *testing.T, driver *DriverHarness, taskID string, cmd string, tty bool, stdin string) (exitCode int, stdout, stderr string) {
+	r := execTask(t, driver, taskID, cmd, tty, stdin)
+	return r.exitCode, r.stdout, r.stderr
 }
 
 func execTask(t *testing.T, driver *DriverHarness, taskID string, cmd string, tty bool, stdin string) execResult {

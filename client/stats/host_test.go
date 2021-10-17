@@ -3,7 +3,7 @@ package stats
 import (
 	"testing"
 
-	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/v3/cpu"
 )
 
 func TestHostCpuStatsCalculator_Nan(t *testing.T) {

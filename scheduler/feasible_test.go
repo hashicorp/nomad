@@ -309,6 +309,13 @@ func TestCSIVolumeChecker(t *testing.T) {
 	require.NoError(t, err)
 	index++
 
+	vid3 := "volume-id[0]"
+	vol3 := vol.Copy()
+	vol3.ID = vid3
+	err = state.CSIVolumeRegister(index, []*structs.CSIVolume{vol3})
+	require.NoError(t, err)
+	index++
+
 	alloc := mock.Alloc()
 	alloc.NodeID = nodes[4].ID
 	alloc.Job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
@@ -332,10 +339,16 @@ func TestCSIVolumeChecker(t *testing.T) {
 	noVolumes := map[string]*structs.VolumeRequest{}
 
 	volumes := map[string]*structs.VolumeRequest{
-		"baz": {
+		"shared": {
 			Type:   "csi",
 			Name:   "baz",
 			Source: "volume-id",
+		},
+		"unique": {
+			Type:     "csi",
+			Name:     "baz",
+			Source:   "volume-id[0]",
+			PerAlloc: true,
 		},
 		"nonsense": {
 			Type:   "host",
@@ -390,23 +403,61 @@ func TestCSIVolumeChecker(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		checker.SetVolumes(c.RequestedVolumes)
+		checker.SetVolumes(alloc.Name, c.RequestedVolumes)
 		if act := checker.Feasible(c.Node); act != c.Result {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}
 	}
+
+	// add a missing volume
+	volumes["missing"] = &structs.VolumeRequest{
+		Type:   "csi",
+		Name:   "bar",
+		Source: "does-not-exist",
+	}
+
+	checker = NewCSIVolumeChecker(ctx)
+	checker.SetNamespace(structs.DefaultNamespace)
+
+	for _, node := range nodes {
+		checker.SetVolumes(alloc.Name, volumes)
+		act := checker.Feasible(node)
+		require.False(t, act, "request with missing volume should never be feasible")
+	}
+
 }
 
 func TestNetworkChecker(t *testing.T) {
 	_, ctx := testContext(t)
-	nodes := []*structs.Node{
-		mock.Node(),
-		mock.Node(),
-		mock.Node(),
+
+	node := func(mode string) *structs.Node {
+		n := mock.Node()
+		n.NodeResources.Networks = append(n.NodeResources.Networks, &structs.NetworkResource{Mode: mode})
+		if mode == "bridge" {
+			n.NodeResources.NodeNetworks = []*structs.NodeNetworkResource{
+				{
+					Addresses: []structs.NodeNetworkAddress{
+						{
+							Alias: "public",
+						}, {
+							Alias: "private",
+						},
+					},
+				},
+			}
+		}
+		n.Attributes["nomad.version"] = "0.12.0" // mock version is 0.5.0
+		n.Meta["public_network"] = "public"
+		n.Meta["private_network"] = "private"
+		n.Meta["wrong_network"] = "empty"
+		return n
 	}
-	nodes[0].NodeResources.Networks = append(nodes[0].NodeResources.Networks, &structs.NetworkResource{Mode: "bridge"})
-	nodes[1].NodeResources.Networks = append(nodes[1].NodeResources.Networks, &structs.NetworkResource{Mode: "bridge"})
-	nodes[2].NodeResources.Networks = append(nodes[2].NodeResources.Networks, &structs.NetworkResource{Mode: "cni/mynet"})
+
+	nodes := []*structs.Node{
+		node("bridge"),
+		node("bridge"),
+		node("cni/mynet"),
+	}
 
 	checker := NewNetworkChecker(ctx)
 	cases := []struct {
@@ -420,6 +471,87 @@ func TestNetworkChecker(t *testing.T) {
 		{
 			network: &structs.NetworkResource{Mode: "bridge"},
 			results: []bool{true, true, false},
+		},
+		{
+			network: &structs.NetworkResource{
+				Mode:          "bridge",
+				ReservedPorts: []structs.Port{},
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "http",
+						Value:       8080,
+						To:          8080,
+						HostNetwork: "${meta.public_network}",
+					},
+					{
+						Label:       "metrics",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "${meta.private_network}",
+					},
+				},
+			},
+			results: []bool{true, true, false},
+		},
+		{
+			network: &structs.NetworkResource{
+				Mode:          "bridge",
+				ReservedPorts: []structs.Port{},
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "metrics",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "${meta.wrong_network}",
+					},
+				},
+			},
+			results: []bool{false, false, false},
+		},
+		{
+			network: &structs.NetworkResource{
+				Mode:          "bridge",
+				ReservedPorts: []structs.Port{},
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "metrics",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "${meta.nonetwork}",
+					},
+				},
+			},
+			results: []bool{false, false, false},
+		},
+		{
+			network: &structs.NetworkResource{
+				Mode:          "bridge",
+				ReservedPorts: []structs.Port{},
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "metrics",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "public",
+					},
+				},
+			},
+			results: []bool{true, true, false},
+		},
+		{
+			network: &structs.NetworkResource{
+				Mode:          "bridge",
+				ReservedPorts: []structs.Port{},
+				DynamicPorts: []structs.Port{
+					{
+						Label:       "metrics",
+						Value:       9090,
+						To:          9090,
+						HostNetwork: "${meta.private_network}-nonexisting",
+					},
+				},
+			},
+			results: []bool{false, false, false},
 		},
 		{
 			network: &structs.NetworkResource{Mode: "cni/mynet"},
@@ -437,6 +569,36 @@ func TestNetworkChecker(t *testing.T) {
 			require.Equal(t, c.results[i], checker.Feasible(node), "mode=%q, idx=%d", c.network.Mode, i)
 		}
 	}
+}
+
+func TestNetworkChecker_bridge_upgrade_path(t *testing.T) {
+	_, ctx := testContext(t)
+
+	t.Run("older client", func(t *testing.T) {
+		// Create a client that is still on v0.11, which does not have the bridge
+		// network finger-printer (and thus no bridge network resource)
+		oldClient := mock.Node()
+		oldClient.Attributes["nomad.version"] = "0.11.0"
+
+		checker := NewNetworkChecker(ctx)
+		checker.SetNetwork(&structs.NetworkResource{Mode: "bridge"})
+
+		ok := checker.Feasible(oldClient)
+		require.True(t, ok)
+	})
+
+	t.Run("updated client", func(t *testing.T) {
+		// Create a client that is updated to 0.12, but did not detect a bridge
+		// network resource.
+		oldClient := mock.Node()
+		oldClient.Attributes["nomad.version"] = "0.12.0"
+
+		checker := NewNetworkChecker(ctx)
+		checker.SetNetwork(&structs.NetworkResource{Mode: "bridge"})
+
+		ok := checker.Feasible(oldClient)
+		require.False(t, ok)
+	})
 }
 
 func TestDriverChecker_DriverInfo(t *testing.T) {

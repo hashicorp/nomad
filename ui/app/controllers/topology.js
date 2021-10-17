@@ -1,12 +1,24 @@
 import Controller from '@ember/controller';
 import { computed, action } from '@ember/object';
+import { alias } from '@ember/object/computed';
+import { inject as service } from '@ember/service';
+import { tracked } from '@glimmer/tracking';
 import classic from 'ember-classic-decorator';
-import { reduceToLargestUnit } from 'nomad-ui/helpers/format-bytes';
+import { reduceBytes, reduceHertz } from 'nomad-ui/utils/units';
 
 const sumAggregator = (sum, value) => sum + (value || 0);
+const formatter = new Intl.NumberFormat(window.navigator.locale || 'en', {
+  maximumFractionDigits: 2,
+});
 
 @classic
 export default class TopologyControllers extends Controller {
+  @service userSettings;
+
+  @alias('userSettings.showTopoVizPollingNotice') showPollingNotice;
+
+  @tracked filteredNodes = null;
+
   @computed('model.nodes.@each.datacenter')
   get datacenters() {
     return Array.from(new Set(this.model.nodes.mapBy('datacenter'))).compact();
@@ -30,23 +42,35 @@ export default class TopologyControllers extends Controller {
 
   @computed('totalMemory')
   get totalMemoryFormatted() {
-    return reduceToLargestUnit(this.totalMemory)[0].toFixed(2);
+    return formatter.format(reduceBytes(this.totalMemory)[0]);
+  }
+
+  @computed('totalMemory')
+  get totalMemoryUnits() {
+    return reduceBytes(this.totalMemory)[1];
   }
 
   @computed('totalCPU')
-  get totalMemoryUnits() {
-    return reduceToLargestUnit(this.totalMemory)[1];
+  get totalCPUFormatted() {
+    return formatter.format(reduceHertz(this.totalCPU, null, 'MHz')[0]);
   }
 
-  @computed('model.allocations.@each.allocatedResources')
+  @computed('totalCPU')
+  get totalCPUUnits() {
+    return reduceHertz(this.totalCPU, null, 'MHz')[1];
+  }
+
+  @computed('scheduledAllocations.@each.allocatedResources')
   get totalReservedMemory() {
-    const mibs = this.model.allocations.mapBy('allocatedResources.memory').reduce(sumAggregator, 0);
+    const mibs = this.scheduledAllocations
+      .mapBy('allocatedResources.memory')
+      .reduce(sumAggregator, 0);
     return mibs * 1024 * 1024;
   }
 
-  @computed('model.allocations.@each.allocatedResources')
+  @computed('scheduledAllocations.@each.allocatedResources')
   get totalReservedCPU() {
-    return this.model.allocations.mapBy('allocatedResources.cpu').reduce(sumAggregator, 0);
+    return this.scheduledAllocations.mapBy('allocatedResources.cpu').reduce(sumAggregator, 0);
   }
 
   @computed('totalMemory', 'totalReservedMemory')
@@ -61,13 +85,13 @@ export default class TopologyControllers extends Controller {
     return this.totalReservedCPU / this.totalCPU;
   }
 
-  @computed('activeAllocation', 'model.allocations.@each.{taskGroupName,job}')
+  @computed('activeAllocation.taskGroupName', 'scheduledAllocations.@each.{job,taskGroupName}')
   get siblingAllocations() {
     if (!this.activeAllocation) return [];
     const taskGroup = this.activeAllocation.taskGroupName;
     const jobId = this.activeAllocation.belongsTo('job').id();
 
-    return this.model.allocations.filter(allocation => {
+    return this.scheduledAllocations.filter(allocation => {
       return allocation.taskGroupName === taskGroup && allocation.belongsTo('job').id() === jobId;
     });
   }
@@ -75,7 +99,7 @@ export default class TopologyControllers extends Controller {
   @computed('activeNode')
   get nodeUtilization() {
     const node = this.activeNode;
-    const [formattedMemory, memoryUnits] = reduceToLargestUnit(node.memory * 1024 * 1024);
+    const [formattedMemory, memoryUnits] = reduceBytes(node.memory * 1024 * 1024);
     const totalReservedMemory = node.allocations.mapBy('memory').reduce(sumAggregator, 0);
     const totalReservedCPU = node.allocations.mapBy('cpu').reduce(sumAggregator, 0);
 
@@ -95,7 +119,7 @@ export default class TopologyControllers extends Controller {
 
   @computed('siblingAllocations.@each.node')
   get uniqueActiveAllocationNodes() {
-    return this.siblingAllocations.mapBy('node').uniq();
+    return this.siblingAllocations.mapBy('node.id').uniq();
   }
 
   @action
@@ -110,5 +134,13 @@ export default class TopologyControllers extends Controller {
   @action
   setNode(node) {
     this.set('activeNode', node);
+  }
+
+  @action
+  handleTopoVizDataError(errors) {
+    const filteredNodesError = errors.findBy('type', 'filtered-nodes');
+    if (filteredNodesError) {
+      this.filteredNodes = filteredNodesError.context;
+    }
   }
 }

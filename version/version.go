@@ -11,7 +11,7 @@ var (
 	GitDescribe string
 
 	// The main version number that is being run at the moment.
-	Version = "1.0.0"
+	Version = "1.2.0"
 
 	// A pre-release marker for the version. If this is "" (empty string)
 	// then it means that it is a final release. Otherwise, this is a pre-release
@@ -50,7 +50,7 @@ func GetVersion() *VersionInfo {
 }
 
 func (c *VersionInfo) VersionNumber() string {
-	version := fmt.Sprintf("%s", c.Version)
+	version := c.Version
 
 	if c.VersionPrerelease != "" {
 		version = fmt.Sprintf("%s-%s", version, c.VersionPrerelease)

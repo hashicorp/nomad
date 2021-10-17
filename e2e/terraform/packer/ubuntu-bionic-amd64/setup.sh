@@ -6,7 +6,7 @@ set -e
 
 # Will be overwritten at test time with the version specified
 NOMADVERSION=0.12.7
-CONSULVERSION=1.8.3
+CONSULVERSION=1.9.4+ent
 VAULTVERSION=1.5.4
 
 NOMAD_PLUGIN_DIR=/opt/nomad/plugins/
@@ -24,9 +24,11 @@ sudo mkdir -p /ops/shared
 sudo chown -R ubuntu:ubuntu /ops/shared
 
 mkdir_for_root /opt
+mkdir_for_root /srv/data # for host volumes
 
 # Dependencies
 sudo apt-get update
+sudo apt-get upgrade -y
 sudo apt-get install -y \
      software-properties-common \
      dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common \
@@ -75,7 +77,6 @@ mkdir_for_root $NOMAD_PLUGIN_DIR
 sudo mv /tmp/linux/nomad.service /etc/systemd/system/nomad.service
 
 echo "Install Nomad"
-sudo mv /tmp/config /opt/
 sudo mv /tmp/linux/provision.sh /opt/provision.sh
 sudo chmod +x /opt/provision.sh
 /opt/provision.sh --nomad_version $NOMADVERSION --nostart
@@ -101,12 +102,12 @@ echo "Installing Docker"
 sudo apt-get install -y docker-ce
 
 echo "Installing Java"
-sudo apt-get install -y openjdk-8-jdk
+sudo apt-get install -y openjdk-14-jdk-headless
 
 echo "Installing CNI plugins"
 sudo mkdir -p /opt/cni/bin
 wget -q -O - \
-     https://github.com/containernetworking/plugins/releases/download/v0.8.6/cni-plugins-linux-amd64-v0.8.6.tgz \
+     https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-amd64-v1.0.0.tgz \
     | sudo tar -C /opt/cni/bin -xz
 
 echo "Installing Podman"
@@ -130,6 +131,13 @@ sudo chmod +x "${NOMAD_PLUGIN_DIR}/nomad-driver-podman"
 sudo mv /tmp/linux/io.podman.service /etc/systemd/system/io.podman.service
 sudo mv /tmp/linux/io.podman.socket /etc/systemd/system/io.podman.socket
 
+if [ -a "/tmp/linux/nomad-driver-ecs" ]; then
+    echo "Installing nomad-driver-ecs"
+    sudo install --mode=0755 --owner=ubuntu /tmp/linux/nomad-driver-ecs "$NOMAD_PLUGIN_DIR"
+else
+    echo "nomad-driver-ecs not found: skipping install"
+fi
+
 echo "Configuring dnsmasq"
 
 # disable systemd-resolved and configure dnsmasq to forward local requests to
@@ -144,7 +152,10 @@ sudo chown root:root /etc/dnsmasq.d/default
 echo 'nameserver 8.8.8.8' > /tmp/resolv.conf
 sudo mv /tmp/resolv.conf /etc/resolv.conf
 
-sudo systemctl restart dnsmasq
+sudo mv /tmp/linux/dnsmasq.service /etc/systemd/system/dnsmasq.service
+sudo mv /tmp/linux/dnsconfig.sh /usr/local/bin/dnsconfig.sh
+sudo chmod +x /usr/local/bin/dnsconfig.sh
+sudo systemctl daemon-reload
 
 echo "Updating boot parameters"
 
@@ -159,6 +170,6 @@ export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
 export CONSUL_HTTP_ADDR=$IP_ADDRESS:8500
 export VAULT_ADDR=http://$IP_ADDRESS:8200
 export NOMAD_ADDR=http://$IP_ADDRESS:4646
-export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre
+export JAVA_HOME=/usr/lib/jvm/java-14-openjdk-amd64/bin
 
 EOF

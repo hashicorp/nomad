@@ -48,6 +48,8 @@ var minClusterIDVersion = version.Must(version.NewVersion("0.10.4"))
 
 var minJobRegisterAtomicEvalVersion = version.Must(version.NewVersion("0.12.1"))
 
+var minOneTimeAuthenticationTokenVersion = version.Must(version.NewVersion("1.1.0"))
+
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
@@ -305,9 +307,6 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Periodically publish job status metrics
 	go s.publishJobStatusMetrics(stopCh)
-
-	// Send events to configured network sinks
-	go s.publishEventsForSinks()
 
 	// Setup the heartbeat timers. This is done both when starting up or when
 	// a leader fail over happens. Since the timers are maintained by the leader
@@ -699,6 +698,8 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 	defer csiPluginGC.Stop()
 	csiVolumeClaimGC := time.NewTicker(s.config.CSIVolumeClaimGCInterval)
 	defer csiVolumeClaimGC.Stop()
+	oneTimeTokenGC := time.NewTicker(s.config.OneTimeTokenGCInterval)
+	defer oneTimeTokenGC.Stop()
 
 	// getLatest grabs the latest index from the state store. It returns true if
 	// the index was retrieved successfully.
@@ -739,7 +740,14 @@ func (s *Server) schedulePeriodic(stopCh chan struct{}) {
 			if index, ok := getLatest(); ok {
 				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobCSIVolumeClaimGC, index))
 			}
+		case <-oneTimeTokenGC.C:
+			if !ServersMeetMinimumVersion(s.Members(), minOneTimeAuthenticationTokenVersion, false) {
+				continue
+			}
 
+			if index, ok := getLatest(); ok {
+				s.evalBroker.Enqueue(s.coreJobEval(structs.CoreJobOneTimeTokenGC, index))
+			}
 		case <-stopCh:
 			return
 		}
@@ -782,7 +790,8 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			updateEval := eval.Copy()
 			updateEval.Status = structs.EvalStatusFailed
 			updateEval.StatusDescription = fmt.Sprintf("evaluation reached delivery limit (%d)", s.config.EvalDeliveryLimit)
-			s.logger.Warn("eval reached delivery limit, marking as failed", "eval", updateEval.GoString())
+			s.logger.Warn("eval reached delivery limit, marking as failed",
+				"eval", log.Fmt("%#v", updateEval))
 
 			// Core job evals that fail or span leader elections will never
 			// succeed because the follow-up doesn't have the leader ACL. We
@@ -805,7 +814,8 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 					Evals: []*structs.Evaluation{updateEval, followupEval},
 				}
 				if _, _, err := s.raftApply(structs.EvalUpdateRequestType, &req); err != nil {
-					s.logger.Error("failed to update failed eval and create a follow-up", "eval", updateEval.GoString(), "error", err)
+					s.logger.Error("failed to update failed eval and create a follow-up",
+						"eval", log.Fmt("%#v", updateEval), "error", err)
 					continue
 				}
 			}
@@ -993,23 +1003,6 @@ func (s *Server) publishJobStatusMetrics(stopCh chan struct{}) {
 	}
 }
 
-func (s *Server) publishEventsForSinks() {
-	if !s.config.EnableEventBroker {
-		s.logger.Debug("event broker disabled, event sink manager will not run")
-		return
-	}
-	if err := s.eventSinkManager.EstablishManagedSinks(); err != nil {
-		s.logger.Error("unable to establish event sink manager", "error", err)
-		return
-	}
-
-	// Start the manager
-	if err := s.eventSinkManager.Run(); err != nil {
-		s.logger.Warn("event sink manager stopped", "error", err)
-	}
-
-}
-
 func (s *Server) iterateJobStatusMetrics(jobs *memdb.ResultIterator) {
 	var pending int64 // Sum of all jobs in 'pending' state
 	var running int64 // Sum of all jobs in 'running' state
@@ -1074,9 +1067,6 @@ func (s *Server) revokeLeadership() error {
 
 	// Disable the volume watcher
 	s.volumeWatcher.SetEnabled(false, nil)
-
-	// Disable the event sink manager
-	s.eventSinkManager.Stop()
 
 	// Disable any enterprise systems required.
 	if err := s.revokeEnterpriseLeadership(); err != nil {

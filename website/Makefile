@@ -38,8 +38,6 @@ build-image:
 # Use this if you have run `build-image` to use the locally built image
 # rather than our CI-generated image to test dependency changes.
 website-local:
-	@echo "==> Downloading latest Docker image..."
-	@docker pull hashicorp/nomad-website
 	@echo "==> Starting website in Docker..."
 	@docker run \
 		--interactive \

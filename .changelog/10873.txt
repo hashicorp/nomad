@@ -1,0 +1,3 @@
+```release-note:bug
+consul/connect: Fixed a bug where service deregistered before connect sidecar
+```

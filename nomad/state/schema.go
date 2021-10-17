@@ -49,6 +49,7 @@ func init() {
 		siTokenAccessorTableSchema,
 		aclPolicyTableSchema,
 		aclTokenTableSchema,
+		oneTimeTokenTableSchema,
 		autopilotConfigTableSchema,
 		schedulerConfigTableSchema,
 		clusterMetaTableSchema,
@@ -57,7 +58,6 @@ func init() {
 		scalingPolicyTableSchema,
 		scalingEventTableSchema,
 		namespaceTableSchema,
-		eventSinkTableSchema,
 	}...)
 }
 
@@ -271,13 +271,16 @@ func jobIsGCable(obj interface{}) (bool, error) {
 		return true, nil
 	}
 
-	// Otherwise, only batch jobs are eligible because they complete on their
-	// own without a user stopping them.
-	if j.Type != structs.JobTypeBatch {
+	switch j.Type {
+	// Otherwise, batch and sysbatch jobs are eligible because they complete on
+	// their own without a user stopping them.
+	case structs.JobTypeBatch, structs.JobTypeSysBatch:
+		return true, nil
+
+	default:
+		// other job types may not be GC until stopped
 		return false, nil
 	}
-
-	return true, nil
 }
 
 // jobIsPeriodic satisfies the ConditionalIndexFunc interface and creates an index
@@ -288,7 +291,7 @@ func jobIsPeriodic(obj interface{}) (bool, error) {
 		return false, fmt.Errorf("Unexpected type: %v", obj)
 	}
 
-	if j.Periodic != nil && j.Periodic.Enabled == true {
+	if j.Periodic != nil && j.Periodic.Enabled {
 		return true, nil
 	}
 
@@ -652,6 +655,32 @@ func aclTokenTableSchema() *memdb.TableSchema {
 	}
 }
 
+// oneTimeTokenTableSchema returns the MemDB schema for the tokens table.
+// This table is used to store one-time tokens for ACL tokens
+func oneTimeTokenTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "one_time_token",
+		Indexes: map[string]*memdb.IndexSchema{
+			"secret": {
+				Name:         "secret",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "OneTimeSecretID",
+				},
+			},
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "AccessorID",
+				},
+			},
+		},
+	}
+}
+
 // singletonRecord can be used to describe tables which should contain only 1 entry.
 // Example uses include storing node config or cluster metadata blobs.
 var singletonRecord = &memdb.ConditionalIndex{
@@ -926,26 +955,6 @@ func namespaceTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "Quota",
-				},
-			},
-		},
-	}
-}
-
-func eventSinkTableSchema() *memdb.TableSchema {
-	return &memdb.TableSchema{
-		Name: "event_sink",
-		Indexes: map[string]*memdb.IndexSchema{
-			// Primary index is used for event sink management and simple
-			// direct lookup. ID is required to be unique.
-			"id": {
-				Name:         "id",
-				AllowMissing: false,
-				Unique:       true,
-
-				// Sink ID is uniquely identifying
-				Indexer: &memdb.StringFieldIndex{
-					Field: "ID",
 				},
 			},
 		},

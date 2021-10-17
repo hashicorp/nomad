@@ -3,8 +3,14 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
-import { formatBytes } from 'nomad-ui/helpers/format-bytes';
+import {
+  formatBytes,
+  formatHertz,
+  formatScheduledBytes,
+  formatScheduledHertz,
+} from 'nomad-ui/utils/units';
 import TaskGroup from 'nomad-ui/tests/pages/jobs/job/task-group';
+import Layout from 'nomad-ui/tests/pages/layout';
 import pageSizeSelect from './behaviors/page-size-select';
 import moment from 'moment';
 
@@ -76,6 +82,9 @@ module('Acceptance | task group detail', function(hooks) {
   test('/jobs/:id/:task-group should list high-level metrics for the allocation', async function(assert) {
     const totalCPU = tasks.mapBy('resources.CPU').reduce(sum, 0);
     const totalMemory = tasks.mapBy('resources.MemoryMB').reduce(sum, 0);
+    const totalMemoryMax = tasks
+      .map(t => t.resources.MemoryMaxMB || t.resources.MemoryMB)
+      .reduce(sum, 0);
     const totalDisk = taskGroup.ephemeralDisk.SizeMB;
 
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
@@ -83,17 +92,24 @@ module('Acceptance | task group detail', function(hooks) {
     assert.equal(TaskGroup.tasksCount, `# Tasks ${tasks.length}`, '# Tasks');
     assert.equal(
       TaskGroup.cpu,
-      `Reserved CPU ${totalCPU} MHz`,
+      `Reserved CPU ${formatScheduledHertz(totalCPU, 'MHz')}`,
       'Aggregated CPU reservation for all tasks'
     );
+
+    let totalMemoryMaxAddendum = '';
+
+    if (totalMemoryMax > totalMemory) {
+      totalMemoryMaxAddendum = ` (${formatScheduledBytes(totalMemoryMax, 'MiB')} Max)`;
+    }
+
     assert.equal(
       TaskGroup.mem,
-      `Reserved Memory ${totalMemory} MiB`,
+      `Reserved Memory ${formatScheduledBytes(totalMemory, 'MiB')}${totalMemoryMaxAddendum}`,
       'Aggregated Memory reservation for all tasks'
     );
     assert.equal(
       TaskGroup.disk,
-      `Reserved Disk ${totalDisk} MiB`,
+      `Reserved Disk ${formatScheduledBytes(totalDisk, 'MiB')}`,
       'Aggregated Disk reservation for all tasks'
     );
 
@@ -103,14 +119,14 @@ module('Acceptance | task group detail', function(hooks) {
   test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
-    assert.equal(TaskGroup.breadcrumbFor('jobs.index').text, 'Jobs', 'First breadcrumb says jobs');
+    assert.equal(Layout.breadcrumbFor('jobs.index').text, 'Jobs', 'First breadcrumb says jobs');
     assert.equal(
-      TaskGroup.breadcrumbFor('jobs.job.index').text,
+      Layout.breadcrumbFor('jobs.job.index').text,
       job.name,
       'Second breadcrumb says the job name'
     );
     assert.equal(
-      TaskGroup.breadcrumbFor('jobs.job.task-group').text,
+      Layout.breadcrumbFor('jobs.job.task-group').text,
       taskGroup.name,
       'Third breadcrumb says the job name'
     );
@@ -119,19 +135,101 @@ module('Acceptance | task group detail', function(hooks) {
   test('/jobs/:id/:task-group first breadcrumb should link to jobs', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
-    await TaskGroup.breadcrumbFor('jobs.index').visit();
+    await Layout.breadcrumbFor('jobs.index').visit();
     assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
   });
 
   test('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
-    await TaskGroup.breadcrumbFor('jobs.job.index').visit();
+    await Layout.breadcrumbFor('jobs.job.index').visit();
     assert.equal(
       currentURL(),
       `/jobs/${job.id}`,
       'Second breadcrumb links back to the job for the task group'
     );
+  });
+
+  test('when the user has a client token that has a namespace with a policy to run and scale a job the autoscaler options should be available', async function(assert) {
+    window.localStorage.clear();
+
+    const SCALE_AND_WRITE_NAMESPACE = 'scale-and-write-namespace';
+    const READ_ONLY_NAMESPACE = 'read-only-namespace';
+    const clientToken = server.create('token');
+
+    server.create('namespace', { id: SCALE_AND_WRITE_NAMESPACE });
+    const secondNamespace = server.create('namespace', { id: READ_ONLY_NAMESPACE });
+
+    job = server.create('job', {
+      groupCount: 0,
+      createAllocations: false,
+      shallow: true,
+      noActiveDeployment: true,
+      namespaceId: SCALE_AND_WRITE_NAMESPACE,
+    });
+    const scalingGroup = server.create('task-group', {
+      job,
+      name: 'scaling',
+      count: 1,
+      shallow: true,
+      withScaling: true,
+    });
+    job.update({ taskGroupIds: [scalingGroup.id] });
+
+    const job2 = server.create('job', {
+      groupCount: 0,
+      createAllocations: false,
+      shallow: true,
+      noActiveDeployment: true,
+      namespaceId: READ_ONLY_NAMESPACE,
+    });
+    const scalingGroup2 = server.create('task-group', {
+      job: job2,
+      name: 'scaling',
+      count: 1,
+      shallow: true,
+      withScaling: true,
+    });
+    job2.update({ taskGroupIds: [scalingGroup2.id] });
+
+    const policy = server.create('policy', {
+      id: 'something',
+      name: 'something',
+      rulesJSON: {
+        Namespaces: [
+          {
+            Name: SCALE_AND_WRITE_NAMESPACE,
+            Capabilities: ['scale-job', 'submit-job', 'read-job', 'list-jobs'],
+          },
+          {
+            Name: READ_ONLY_NAMESPACE,
+            Capabilities: ['list-jobs', 'read-job'],
+          },
+        ],
+      },
+    });
+
+    clientToken.policyIds = [policy.id];
+    clientToken.save();
+
+    window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+    await TaskGroup.visit({
+      id: job.id,
+      name: scalingGroup.name,
+      namespace: SCALE_AND_WRITE_NAMESPACE,
+    });
+
+    assert.equal(currentURL(), `/jobs/${job.id}/scaling?namespace=${SCALE_AND_WRITE_NAMESPACE}`);
+    assert.notOk(TaskGroup.countStepper.increment.isDisabled);
+
+    await TaskGroup.visit({
+      id: job2.id,
+      name: scalingGroup2.name,
+      namespace: secondNamespace.name,
+    });
+    assert.equal(currentURL(), `/jobs/${job2.id}/scaling?namespace=${READ_ONLY_NAMESPACE}`);
+    assert.ok(TaskGroup.countStepper.increment.isDisabled);
   });
 
   test('/jobs/:id/:task-group should list one page of allocations for the task group', async function(assert) {
@@ -208,9 +306,10 @@ module('Acceptance | task group detail', function(hooks) {
       'CPU %'
     );
 
+    const roundedTicks = Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks);
     assert.equal(
       allocationRow.cpuTooltip,
-      `${Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks)} / ${cpuUsed} MHz`,
+      `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
       'Detailed CPU information is in a tooltip'
     );
 
@@ -222,7 +321,10 @@ module('Acceptance | task group detail', function(hooks) {
 
     assert.equal(
       allocationRow.memTooltip,
-      `${formatBytes([allocStats.resourceUsage.MemoryStats.RSS])} / ${memoryUsed} MiB`,
+      `${formatBytes(allocStats.resourceUsage.MemoryStats.RSS)} / ${formatBytes(
+        memoryUsed,
+        'MiB'
+      )}`,
       'Detailed memory information is in a tooltip'
     );
   });

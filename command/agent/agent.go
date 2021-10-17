@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/nomad/lib/cpuset"
+
 	metrics "github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
@@ -27,6 +29,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
+	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
@@ -377,6 +380,9 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	if maxHPS := agentConfig.Server.MaxHeartbeatsPerSecond; maxHPS != 0 {
 		conf.MaxHeartbeatsPerSecond = maxHPS
 	}
+	if failoverTTL := agentConfig.Server.FailoverHeartbeatTTL; failoverTTL != 0 {
+		conf.FailoverHeartbeatTTL = failoverTTL
+	}
 
 	if *agentConfig.Consul.AutoAdvertise && agentConfig.Consul.ServerServiceName == "" {
 		return nil, fmt.Errorf("server_service_name must be set when auto_advertise is enabled")
@@ -416,6 +422,30 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		return nil, fmt.Errorf("rpc_max_conns_per_client must be > %d; found: %d", minLimit, limit)
 	} else {
 		conf.RPCMaxConnsPerClient = limit
+	}
+
+	// Set deployment rate limit
+	if rate := agentConfig.Server.DeploymentQueryRateLimit; rate == 0 {
+		conf.DeploymentQueryRateLimit = deploymentwatcher.LimitStateQueriesPerSecond
+	} else if rate > 0 {
+		conf.DeploymentQueryRateLimit = rate
+	} else {
+		return nil, fmt.Errorf("deploy_query_rate_limit must be greater than 0")
+	}
+
+	// Add Enterprise license configs
+	conf.LicenseEnv = agentConfig.Server.LicenseEnv
+	conf.LicensePath = agentConfig.Server.LicensePath
+	conf.LicenseConfig.AdditionalPubKeys = agentConfig.Server.licenseAdditionalPublicKeys
+
+	// Add the search configuration
+	if search := agentConfig.Server.Search; search != nil {
+		conf.SearchConfig = &structs.SearchConfig{
+			FuzzyEnabled:  search.FuzzyEnabled,
+			LimitQuery:    search.LimitQuery,
+			LimitResults:  search.LimitResults,
+			MinTermLength: search.MinTermLength,
+		}
 	}
 
 	return conf, nil
@@ -562,6 +592,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 	conf.ClientMaxPort = uint(agentConfig.Client.ClientMaxPort)
 	conf.ClientMinPort = uint(agentConfig.Client.ClientMinPort)
+	conf.MaxDynamicPort = agentConfig.Client.MaxDynamicPort
+	conf.MinDynamicPort = agentConfig.Client.MinDynamicPort
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
 	if agentConfig.Client.TemplateConfig.FunctionBlacklist != nil {
 		conf.TemplateConfig.FunctionDenylist = agentConfig.Client.TemplateConfig.FunctionBlacklist
@@ -609,6 +641,13 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	res.Memory.MemoryMB = int64(agentConfig.Client.Reserved.MemoryMB)
 	res.Disk.DiskMB = int64(agentConfig.Client.Reserved.DiskMB)
 	res.Networks.ReservedHostPorts = agentConfig.Client.Reserved.ReservedPorts
+	if agentConfig.Client.Reserved.Cores != "" {
+		cores, err := cpuset.Parse(agentConfig.Client.Reserved.Cores)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse client > reserved > cores value %q: %v", agentConfig.Client.Reserved.Cores, err)
+		}
+		res.Cpu.ReservedCpuCores = cores.ToSlice()
+	}
 
 	conf.Version = agentConfig.Version
 
@@ -656,6 +695,15 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		conf.HostNetworks[hn.Name] = hn
 	}
 	conf.BindWildcardDefaultHostNetwork = agentConfig.Client.BindWildcardDefaultHostNetwork
+
+	conf.CgroupParent = agentConfig.Client.CgroupParent
+	if agentConfig.Client.ReserveableCores != "" {
+		cores, err := cpuset.Parse(agentConfig.Client.ReserveableCores)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse 'reservable_cores': %v", err)
+		}
+		conf.ReservableCores = cores.ToSlice()
+	}
 
 	return conf, nil
 }
@@ -857,7 +905,8 @@ func (a *Agent) setupClient() error {
 		conf.StateDBFactory = state.GetStateDBFactory(conf.DevMode)
 	}
 
-	nomadClient, err := client.NewClient(conf, a.consulCatalog, a.consulProxies, a.consulService)
+	nomadClient, err := client.NewClient(
+		conf, a.consulCatalog, a.consulProxies, a.consulService, nil)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}
@@ -1153,7 +1202,8 @@ func (a *Agent) setupConsul(consulConfig *config.ConsulConfig) error {
 	}
 	// Create Consul Agent client for looking info about the agent.
 	consulAgentClient := consulClient.Agent()
-	a.consulService = consul.NewServiceClient(consulAgentClient, a.logger, isClient)
+	namespacesClient := consul.NewNamespacesClient(consulClient.Namespaces(), consulAgentClient)
+	a.consulService = consul.NewServiceClient(consulAgentClient, namespacesClient, a.logger, isClient)
 	a.consulProxies = consul.NewConnectProxiesClient(consulAgentClient)
 
 	// Run the Consul service client's sync'ing main loop

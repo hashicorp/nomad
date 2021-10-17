@@ -1,40 +1,95 @@
 <PageLayout>
   <section class="section">
-    {{#if @model}}
-      {{#if this.activeRecommendationSummary}}
-        <Das::RecommendationCard
-          @summary={{this.activeRecommendationSummary}}
-          @proceed={{this.proceed}}
-        />
-      {{/if}}
-
-      <ListTable
-        @source={{this.sortedSummaries}} as |t|>
-        <t.head>
-          <th>Job</th>
-          <th>Recommended At</th>
-          <th># Allocs</th>
-          <th>CPU</th>
-          <th>Mem</th>
-          <th>Agg. CPU</th>
-          <th>Agg. Mem</th>
-        </t.head>
-        <t.body as |row index|>
-          {{#if row.model.isProcessed}}
-            <Das::RecommendationRow
-              class="is-disabled"
-              @summary={{row.model}}
-            />
-          {{else}}
-            <Das::RecommendationRow
-              class="is-interactive {{if (eq row.model this.activeRecommendationSummary) 'is-active'}}"
-              @summary={{row.model}}
-              {{on "click" (action (mut this.recommendationSummaryIndex) index)}}
-            />
+    {{#if this.summaries}}
+      <div class="toolbar collapse">
+        <div class="toolbar-item">
+          {{#if this.summaries}}
+            <SearchBox
+              data-test-recommendation-summaries-search
+              @onChange={{this.syncActiveSummary}}
+              @searchTerm={{mut this.searchTerm}}
+              @placeholder="Search {{this.summaries.length}} {{pluralize "recommendation" this.summaries.length}}..." />
           {{/if}}
+        </div>
+        <div class="toolbar-item is-right-aligned is-mobile-full-width">
+          <div class="button-bar">
+            {{#if this.system.shouldShowNamespaces}}
+              <SingleSelectDropdown
+                data-test-namespace-facet
+                @label="Namespace"
+                @options={{this.optionsNamespaces}}
+                @selection={{this.qpNamespace}}
+                @onSelect={{action (queue
+                  (action this.cacheNamespace)
+                  (action this.setFacetQueryParam "qpNamespace")
+                )}} />
+            {{/if}}
+            <MultiSelectDropdown
+              data-test-type-facet
+              @label="Type"
+              @options={{this.optionsType}}
+              @selection={{this.selectionType}}
+              @onSelect={{action this.setFacetQueryParam "qpType"}} />
+            <MultiSelectDropdown
+              data-test-status-facet
+              @label="Status"
+              @options={{this.optionsStatus}}
+              @selection={{this.selectionStatus}}
+              @onSelect={{action this.setFacetQueryParam "qpStatus"}} />
+            <MultiSelectDropdown
+              data-test-datacenter-facet
+              @label="Datacenter"
+              @options={{this.optionsDatacenter}}
+              @selection={{this.selectionDatacenter}}
+              @onSelect={{action this.setFacetQueryParam "qpDatacenter"}} />
+            <MultiSelectDropdown
+              data-test-prefix-facet
+              @label="Prefix"
+              @options={{this.optionsPrefix}}
+              @selection={{this.selectionPrefix}}
+              @onSelect={{action this.setFacetQueryParam "qpPrefix"}} />
+          </div>
+        </div>
+      </div>
 
-        </t.body>
-      </ListTable>
+      {{#if this.filteredSummaries}}
+        {{outlet}}
+
+        <ListTable
+          @source={{this.filteredSummaries}} as |t|>
+          <t.head>
+            <th>Job</th>
+            <th>Recommended At</th>
+            <th># Allocs</th>
+            <th>CPU</th>
+            <th>Mem</th>
+            <th>Agg. CPU</th>
+            <th>Agg. Mem</th>
+          </t.head>
+          <t.body as |row|>
+            {{#if row.model.isProcessed}}
+              <Das::RecommendationRow
+                class="is-disabled"
+                @summary={{row.model}}
+              />
+            {{else}}
+              <Das::RecommendationRow
+                class="is-interactive {{if (eq row.model this.activeRecommendationSummary) 'is-active'}}"
+                @summary={{row.model}}
+                {{on "click" (fn this.transitionToSummary row.model)}}
+              />
+            {{/if}}
+
+          </t.body>
+        </ListTable>
+      {{else}}
+        <div class="empty-message" data-test-empty-recommendations>
+          <h3 class="empty-message-headline" data-test-empty-recommendations-headline>No Matches</h3>
+          <p class="empty-message-body">
+            No recommendations match your current filter selection.
+          </p>
+        </div>
+      {{/if}}
     {{else}}
       <div class="empty-message" data-test-empty-recommendations>
         <h3 class="empty-message-headline" data-test-empty-recommendations-headline>No Recommendations</h3>

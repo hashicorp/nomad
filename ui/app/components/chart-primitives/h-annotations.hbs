@@ -1,0 +1,14 @@
+<div data-test-annotations class="line-chart-annotations" style={{this.chartAnnotationsStyle}} ...attributes>
+  {{#each this.processed key=@key as |annotation|}}
+    <div data-test-annotation class="chart-horizontal-annotation" style={{annotation.style}}>
+      <button
+        type="button"
+        title={{annotation.a11yLabel}}
+        class="indicator {{if annotation.isActive "is-active"}}"
+        {{on "click" (fn this.selectAnnotation annotation.annotation)}}>
+        {{annotation.label}}
+      </button>
+      <div class="line" />
+    </div>
+  {{/each}}
+</div>

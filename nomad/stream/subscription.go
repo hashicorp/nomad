@@ -22,6 +22,7 @@ const (
 // ErrSubscriptionClosed is a error signalling the subscription has been
 // closed. The client should Unsubscribe, then re-Subscribe.
 var ErrSubscriptionClosed = errors.New("subscription closed by server, client should resubscribe")
+var ErrACLInvalid = errors.New("Provided ACL token is invalid for requested topics")
 
 type Subscription struct {
 	// state must be accessed atomically 0 means open, 1 means closed with reload
@@ -110,13 +111,6 @@ func (s *Subscription) NextNoBlock() ([]structs.Event, error) {
 	}
 }
 
-func (s *Subscription) forceClose() {
-	swapped := atomic.CompareAndSwapUint32(&s.state, subscriptionStateOpen, subscriptionStateClosed)
-	if swapped {
-		close(s.forceClosed)
-	}
-}
-
 func (s *Subscription) Unsubscribe() {
 	s.unsub()
 }
@@ -129,14 +123,15 @@ func filter(req *SubscribeRequest, events []structs.Event) []structs.Event {
 
 	allTopicKeys := req.Topics[structs.TopicAll]
 
-	if req.Namespace == "" && len(allTopicKeys) == 1 && allTopicKeys[0] == string(structs.TopicAll) {
+	// Return all events if subscribed to all namespaces and all topics
+	if req.Namespace == "*" && len(allTopicKeys) == 1 && allTopicKeys[0] == string(structs.TopicAll) {
 		return events
 	}
 
 	var result []structs.Event
 
 	for _, event := range events {
-		if req.Namespace != "" && event.Namespace != "" && event.Namespace != req.Namespace {
+		if req.Namespace != "*" && event.Namespace != "" && event.Namespace != req.Namespace {
 			continue
 		}
 

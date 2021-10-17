@@ -11,6 +11,11 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	vapi "github.com/hashicorp/vault/api"
+	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
@@ -19,10 +24,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	vapi "github.com/hashicorp/vault/api"
-	"github.com/kr/pretty"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestClientEndpoint_Register(t *testing.T) {
@@ -869,6 +870,10 @@ func TestClientEndpoint_UpdateStatus_HeartbeatOnly_Advertise(t *testing.T) {
 	require.Equal(resp.Servers[0].RPCAdvertiseAddr, advAddr)
 }
 
+// TestClientEndpoint_UpdateDrain asserts the ability to initiate drain
+// against a node and cancel that drain. It also asserts:
+// * an evaluation is created when the node becomes eligible
+// * drain metadata is properly persisted in Node.LastDrain
 func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -903,6 +908,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	dereg := &structs.NodeUpdateDrainRequest{
 		NodeID:        node.ID,
 		DrainStrategy: strategy,
+		Meta:          map[string]string{"message": "this node is not needed"},
 		WriteRequest:  structs.WriteRequest{Region: "global"},
 	}
 	var resp2 structs.NodeDrainUpdateResponse
@@ -914,10 +920,17 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
-	require.True(out.Drain)
+	require.NotNil(out.DrainStrategy)
 	require.Equal(strategy.Deadline, out.DrainStrategy.Deadline)
 	require.Len(out.Events, 2)
 	require.Equal(NodeDrainEventDrainSet, out.Events[1].Message)
+	require.NotNil(out.LastDrain)
+	require.Equal(structs.DrainMetadata{
+		StartedAt: out.LastDrain.UpdatedAt,
+		UpdatedAt: out.LastDrain.StartedAt,
+		Status:    structs.DrainStatusDraining,
+		Meta:      map[string]string{"message": "this node is not needed"},
+	}, *out.LastDrain)
 
 	// before+deadline should be before the forced deadline
 	require.True(beforeUpdate.Add(strategy.Deadline).Before(out.DrainStrategy.ForceDeadline))
@@ -943,6 +956,7 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	// Update the eligibility and expect evals
 	dereg.DrainStrategy = nil
 	dereg.MarkEligible = true
+	dereg.Meta = map[string]string{"cancelled": "yes"}
 	var resp3 structs.NodeDrainUpdateResponse
 	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp3))
 	require.NotZero(resp3.Index)
@@ -955,6 +969,15 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.NoError(err)
 	require.Len(out.Events, 4)
 	require.Equal(NodeDrainEventDrainDisabled, out.Events[3].Message)
+	require.NotNil(out.LastDrain)
+	require.NotNil(out.LastDrain)
+	require.False(out.LastDrain.UpdatedAt.Before(out.LastDrain.StartedAt))
+	require.Equal(structs.DrainMetadata{
+		StartedAt: out.LastDrain.StartedAt,
+		UpdatedAt: out.LastDrain.UpdatedAt,
+		Status:    structs.DrainStatusCanceled,
+		Meta:      map[string]string{"cancelled": "yes"},
+	}, *out.LastDrain)
 
 	// Check that calling UpdateDrain with the same DrainStrategy does not emit
 	// a node event.
@@ -965,6 +988,191 @@ func TestClientEndpoint_UpdateDrain(t *testing.T) {
 	require.Len(out.Events, 4)
 }
 
+// TestClientEndpoint_UpdatedDrainAndCompleted asserts that drain metadata
+// is properly persisted in Node.LastDrain as the node drain is updated and
+// completes.
+func TestClientEndpoint_UpdatedDrainAndCompleted(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Disable drainer for now
+	s1.nodeDrainer.SetEnabled(false, nil)
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+
+	strategy := &structs.DrainStrategy{
+		DrainSpec: structs.DrainSpec{
+			Deadline: 10 * time.Second,
+		},
+	}
+
+	// Update the status
+	dereg := &structs.NodeUpdateDrainRequest{
+		NodeID:        node.ID,
+		DrainStrategy: strategy,
+		Meta: map[string]string{
+			"message": "first drain",
+		},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var resp2 structs.NodeDrainUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2))
+	require.NotZero(resp2.Index)
+
+	// Check for the node in the FSM
+	out, err := state.NodeByID(nil, node.ID)
+	require.Nil(err)
+	require.NotNil(out.DrainStrategy)
+	require.NotNil(out.LastDrain)
+	firstDrainUpdate := out.LastDrain.UpdatedAt
+	require.Equal(structs.DrainMetadata{
+		StartedAt: firstDrainUpdate,
+		UpdatedAt: firstDrainUpdate,
+		Status:    structs.DrainStatusDraining,
+		Meta:      map[string]string{"message": "first drain"},
+	}, *out.LastDrain)
+
+	time.Sleep(1 * time.Second)
+
+	// Update the drain
+	dereg.DrainStrategy.DrainSpec.Deadline *= 2
+	dereg.Meta["message"] = "second drain"
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp2))
+	require.NotZero(resp2.Index)
+
+	out, err = state.NodeByID(nil, node.ID)
+	require.Nil(err)
+	require.NotNil(out.DrainStrategy)
+	require.NotNil(out.LastDrain)
+	secondDrainUpdate := out.LastDrain.UpdatedAt
+	require.True(secondDrainUpdate.After(firstDrainUpdate))
+	require.Equal(structs.DrainMetadata{
+		StartedAt: firstDrainUpdate,
+		UpdatedAt: secondDrainUpdate,
+		Status:    structs.DrainStatusDraining,
+		Meta:      map[string]string{"message": "second drain"},
+	}, *out.LastDrain)
+
+	time.Sleep(1 * time.Second)
+
+	// Enable the drainer, wait for completion
+	s1.nodeDrainer.SetEnabled(true, state)
+
+	testutil.WaitForResult(func() (bool, error) {
+		out, err = state.NodeByID(nil, node.ID)
+		if err != nil {
+			return false, err
+		}
+		if out == nil {
+			return false, fmt.Errorf("could not find node")
+		}
+		return out.DrainStrategy == nil, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	require.True(out.LastDrain.UpdatedAt.After(secondDrainUpdate))
+	require.Equal(structs.DrainMetadata{
+		StartedAt: firstDrainUpdate,
+		UpdatedAt: out.LastDrain.UpdatedAt,
+		Status:    structs.DrainStatusComplete,
+		Meta:      map[string]string{"message": "second drain"},
+	}, *out.LastDrain)
+}
+
+// TestClientEndpoint_UpdatedDrainNoop asserts that drain metadata is properly
+// persisted in Node.LastDrain when calls to Node.UpdateDrain() don't affect
+// the drain status.
+func TestClientEndpoint_UpdatedDrainNoop(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// Create the register request
+	node := mock.Node()
+	reg := &structs.NodeRegisterRequest{
+		Node:         node,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+
+	// Fetch the response
+	var resp structs.NodeUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
+
+	// Update the status
+	dereg := &structs.NodeUpdateDrainRequest{
+		NodeID: node.ID,
+		DrainStrategy: &structs.DrainStrategy{
+			DrainSpec: structs.DrainSpec{
+				Deadline: 10 * time.Second,
+			},
+		},
+		Meta: map[string]string{
+			"message": "drain",
+		},
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var drainResp structs.NodeDrainUpdateResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &drainResp))
+	require.NotZero(drainResp.Index)
+
+	var out *structs.Node
+	testutil.WaitForResult(func() (bool, error) {
+		var err error
+		out, err = state.NodeByID(nil, node.ID)
+		if err != nil {
+			return false, err
+		}
+		if out == nil {
+			return false, fmt.Errorf("could not find node")
+		}
+		return out.DrainStrategy == nil && out.SchedulingEligibility == structs.NodeSchedulingIneligible, nil
+	}, func(err error) {
+		t.Fatalf("err: %v", err)
+	})
+
+	require.Equal(structs.DrainStatusComplete, out.LastDrain.Status)
+	require.Equal(map[string]string{"message": "drain"}, out.LastDrain.Meta)
+	prevDrain := out.LastDrain
+
+	// call again with Drain Strategy nil; should be a no-op because drain is already complete
+	dereg.DrainStrategy = nil
+	dereg.Meta = map[string]string{
+		"new_message": "is new",
+	}
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &drainResp))
+	require.NotZero(drainResp.Index)
+
+	out, err := state.NodeByID(nil, node.ID)
+	require.Nil(err)
+	require.Nil(out.DrainStrategy)
+	require.NotNil(out.LastDrain)
+	require.Equal(prevDrain, out.LastDrain)
+}
+
+// TestClientEndpoint_UpdateDrain_ACL asserts that Node.UpdateDrain() enforces
+// node.write ACLs, and that token accessor ID is properly persisted in
+// Node.LastDrain.AccessorID
 func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	t.Parallel()
 
@@ -1006,6 +1214,9 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	{
 		var resp structs.NodeDrainUpdateResponse
 		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
+		out, err := state.NodeByID(nil, node.ID)
+		require.NoError(err)
+		require.Equal(validToken.AccessorID, out.LastDrain.AccessorID)
 	}
 
 	// Try with a invalid token
@@ -1018,10 +1229,14 @@ func TestClientEndpoint_UpdateDrain_ACL(t *testing.T) {
 	}
 
 	// Try with a root token
+	dereg.DrainStrategy.DrainSpec.Deadline = 20 * time.Second
 	dereg.AuthToken = root.SecretID
 	{
 		var resp structs.NodeDrainUpdateResponse
 		require.Nil(msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", dereg, &resp), "RPC")
+		out, err := state.NodeByID(nil, node.ID)
+		require.NoError(err)
+		require.Equal(root.AccessorID, out.LastDrain.AccessorID)
 	}
 }
 
@@ -2492,6 +2707,67 @@ func TestClientEndpoint_CreateNodeEvals(t *testing.T) {
 	}
 }
 
+// TestClientEndpoint_CreateNodeEvals_MultipleNSes asserts that evals are made
+// for all jobs across namespaces
+func TestClientEndpoint_CreateNodeEvals_MultipleNSes(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	state := s1.fsm.State()
+
+	idx := uint64(3)
+	ns1 := mock.Namespace()
+	err := state.UpsertNamespaces(idx, []*structs.Namespace{ns1})
+	require.NoError(t, err)
+	idx++
+
+	node := mock.Node()
+	err = state.UpsertNode(structs.MsgTypeTestSetup, idx, node)
+	require.NoError(t, err)
+	idx++
+
+	// Inject a fake system job.
+	defaultJob := mock.SystemJob()
+	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, defaultJob)
+	require.NoError(t, err)
+	idx++
+
+	nsJob := mock.SystemJob()
+	nsJob.ID = defaultJob.ID
+	nsJob.Namespace = ns1.Name
+	err = state.UpsertJob(structs.MsgTypeTestSetup, idx, nsJob)
+	require.NoError(t, err)
+	idx++
+
+	// Create some evaluations
+	evalIDs, index, err := s1.staticEndpoints.Node.createNodeEvals(node.ID, 1)
+	require.NoError(t, err)
+	require.NotZero(t, index)
+	require.Len(t, evalIDs, 2)
+
+	byNS := map[string]*structs.Evaluation{}
+	for _, evalID := range evalIDs {
+		eval, err := state.EvalByID(nil, evalID)
+		require.NoError(t, err)
+		byNS[eval.Namespace] = eval
+	}
+
+	require.Len(t, byNS, 2)
+
+	defaultNSEval := byNS[defaultJob.Namespace]
+	require.NotNil(t, defaultNSEval)
+	require.Equal(t, defaultJob.ID, defaultNSEval.JobID)
+	require.Equal(t, defaultJob.Namespace, defaultNSEval.Namespace)
+
+	otherNSEval := byNS[nsJob.Namespace]
+	require.NotNil(t, otherNSEval)
+	require.Equal(t, nsJob.ID, otherNSEval.JobID)
+	require.Equal(t, nsJob.Namespace, otherNSEval.Namespace)
+}
+
 func TestClientEndpoint_Evaluate(t *testing.T) {
 	t.Parallel()
 
@@ -2858,7 +3134,7 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 				Deadline: 10 * time.Second,
 			},
 		}
-		errCh <- state.UpdateNodeDrain(structs.MsgTypeTestSetup, 3, node.ID, s, false, 0, nil)
+		errCh <- state.UpdateNodeDrain(structs.MsgTypeTestSetup, 3, node.ID, s, false, 0, nil, nil, "")
 	})
 
 	req.MinQueryIndex = 2
@@ -3178,7 +3454,7 @@ func TestClientEndpoint_taskUsesConnect(t *testing.T) {
 
 	t.Run("task uses connect", func(t *testing.T) {
 		try(t, &structs.Task{
-			// see nomad.newConnectTask for how this works
+			// see nomad.newConnectSidecarTask for how this works
 			Name: "connect-proxy-myservice",
 			Kind: "connect-proxy:myservice",
 		}, true)
@@ -3386,4 +3662,57 @@ func TestClientEndpoint_EmitEvents(t *testing.T) {
 	out, err := state.NodeByID(ws, node.ID)
 	require.Nil(err)
 	require.False(len(out.Events) < 2)
+}
+
+func TestClientEndpoint_ShouldCreateNodeEval(t *testing.T) {
+	t.Run("spurious changes don't require eval", func(t *testing.T) {
+		n1 := mock.Node()
+		n2 := n1.Copy()
+		n2.SecretID = uuid.Generate()
+		n2.Links["vault"] = "links don't get interpolated"
+		n2.ModifyIndex++
+
+		require.False(t, shouldCreateNodeEval(n1, n2))
+	})
+
+	positiveCases := []struct {
+		name     string
+		updateFn func(n *structs.Node)
+	}{
+		{
+			"data center changes",
+			func(n *structs.Node) { n.Datacenter += "u" },
+		},
+		{
+			"attribute change",
+			func(n *structs.Node) { n.Attributes["test.attribute"] = "something" },
+		},
+		{
+			"meta change",
+			func(n *structs.Node) { n.Meta["test.meta"] = "something" },
+		},
+		{
+			"drivers health changed",
+			func(n *structs.Node) { n.Drivers["exec"].Detected = false },
+		},
+		{
+			"new drivers",
+			func(n *structs.Node) {
+				n.Drivers["newdriver"] = &structs.DriverInfo{
+					Detected: true,
+					Healthy:  true,
+				}
+			},
+		},
+	}
+
+	for _, c := range positiveCases {
+		t.Run(c.name, func(t *testing.T) {
+			n1 := mock.Node()
+			n2 := n1.Copy()
+			c.updateFn(n2)
+
+			require.Truef(t, shouldCreateNodeEval(n1, n2), "node changed but without node eval: %v", pretty.Diff(n1, n2))
+		})
+	}
 }

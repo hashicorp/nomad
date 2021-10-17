@@ -22,9 +22,12 @@ Usage: nomad sentinel apply [options] <name> <file>
   The name of the policy and file must be specified. The file will be read
   from stdin by specifying "-".
 
+  Sentinel commands are only available when ACLs are enabled. This command
+  requires a management token.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Apply Options:
 

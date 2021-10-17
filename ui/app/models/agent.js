@@ -1,8 +1,9 @@
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import Model from 'ember-data/model';
-import attr from 'ember-data/attr';
+import Model from '@ember-data/model';
+import { attr } from '@ember-data/model';
 import classic from 'ember-classic-decorator';
+import formatHost from 'nomad-ui/utils/format-host';
 
 @classic
 export default class Agent extends Model {
@@ -20,10 +21,10 @@ export default class Agent extends Model {
   @computed('address', 'port')
   get rpcAddr() {
     const { address, rpcPort } = this;
-    return address && rpcPort && `${address}:${rpcPort}`;
+    return formatHost(address, rpcPort);
   }
 
-  @computed('system.leader.rpcAddr')
+  @computed('rpcAddr', 'system.leader.rpcAddr')
   get isLeader() {
     return this.get('system.leader.rpcAddr') === this.rpcAddr;
   }

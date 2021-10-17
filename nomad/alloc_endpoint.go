@@ -29,16 +29,16 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "list"}, time.Now())
 
+	if args.RequestNamespace() == structs.AllNamespacesSentinel {
+		return a.listAllNamespaces(args, reply)
+	}
+
 	// Check namespace read-job permissions
 	aclObj, err := a.srv.ResolveToken(args.AuthToken)
 	if err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
 		return structs.ErrPermissionDenied
-	}
-
-	allow := func(ns string) bool {
-		return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListJobs)
 	}
 
 	// Setup the blocking query
@@ -51,16 +51,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 			var iter memdb.ResultIterator
 
 			prefix := args.QueryOptions.Prefix
-			if args.RequestNamespace() == structs.AllNamespacesSentinel {
-				allowedNSes, err := allowedNSes(aclObj, state, allow)
-				if err != nil {
-					return err
-				}
-				iter, err = state.AllocsByIDPrefixInNSes(ws, allowedNSes, prefix)
-				if err != nil {
-					return err
-				}
-			} else if prefix != "" {
+			if prefix != "" {
 				iter, err = state.AllocsByIDPrefix(ws, args.RequestNamespace(), prefix)
 			} else {
 				iter, err = state.AllocsByNamespace(ws, args.RequestNamespace())
@@ -79,6 +70,68 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 				allocs = append(allocs, alloc.Stub(args.Fields))
 			}
 			reply.Allocations = allocs
+
+			// Use the last index that affected the jobs table
+			index, err := state.Index("allocs")
+			if err != nil {
+				return err
+			}
+			reply.Index = index
+
+			// Set the query response
+			a.srv.setQueryMeta(&reply.QueryMeta)
+			return nil
+		}}
+	return a.srv.blockingRPC(&opts)
+}
+
+// listAllNamespaces lists all allocations across all namespaces
+func (a *Alloc) listAllNamespaces(args *structs.AllocListRequest, reply *structs.AllocListResponse) error {
+	// Check for read-job permissions
+	aclObj, err := a.srv.ResolveToken(args.AuthToken)
+	if err != nil {
+		return err
+	}
+	prefix := args.QueryOptions.Prefix
+	allow := func(ns string) bool {
+		return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
+	}
+
+	// Setup the blocking query
+	opts := blockingOptions{
+		queryOpts: &args.QueryOptions,
+		queryMeta: &reply.QueryMeta,
+		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+			// get list of accessible namespaces
+			allowedNSes, err := allowedNSes(aclObj, state, allow)
+			if err == structs.ErrPermissionDenied {
+				// return empty allocations if token isn't authorized for any
+				// namespace, matching other endpoints
+				reply.Allocations = []*structs.AllocListStub{}
+			} else if err != nil {
+				return err
+			} else {
+				var iter memdb.ResultIterator
+				var err error
+				if prefix != "" {
+					iter, err = state.AllocsByIDPrefixAllNSs(ws, prefix)
+				} else {
+					iter, err = state.Allocs(ws)
+				}
+				if err != nil {
+					return err
+				}
+
+				var allocs []*structs.AllocListStub
+				for raw := iter.Next(); raw != nil; raw = iter.Next() {
+					alloc := raw.(*structs.Allocation)
+					if allowedNSes != nil && !allowedNSes[alloc.Namespace] {
+						continue
+					}
+					allocs = append(allocs, alloc.Stub(args.Fields))
+				}
+				reply.Allocations = allocs
+			}
 
 			// Use the last index that affected the jobs table
 			index, err := state.Index("allocs")

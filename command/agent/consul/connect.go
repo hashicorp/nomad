@@ -2,6 +2,8 @@ package consul
 
 import (
 	"fmt"
+	"net"
+	"strconv"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/helper"
@@ -11,7 +13,7 @@ import (
 // newConnect creates a new Consul AgentServiceConnect struct based on a Nomad
 // Connect struct. If the nomad Connect struct is nil, nil will be returned to
 // disable Connect for this service.
-func newConnect(serviceName string, nc *structs.ConsulConnect, networks structs.Networks) (*api.AgentServiceConnect, error) {
+func newConnect(serviceId string, serviceName string, nc *structs.ConsulConnect, networks structs.Networks, ports structs.AllocatedPorts) (*api.AgentServiceConnect, error) {
 	switch {
 	case nc == nil:
 		// no connect stanza means there is no connect service to register
@@ -26,13 +28,18 @@ func newConnect(serviceName string, nc *structs.ConsulConnect, networks structs.
 		return &api.AgentServiceConnect{Native: true}, nil
 
 	case nc.HasSidecar():
-		sidecarReg, err := connectSidecarRegistration(serviceName, nc.SidecarService, networks)
+		// must register the sidecar for this service
+		if nc.SidecarService.Port == "" {
+			nc.SidecarService.Port = fmt.Sprintf("%s-%s", structs.ConnectProxyPrefix, serviceName)
+		}
+		sidecarReg, err := connectSidecarRegistration(serviceId, nc.SidecarService, networks, ports)
 		if err != nil {
 			return nil, err
 		}
 		return &api.AgentServiceConnect{SidecarService: sidecarReg}, nil
 
 	default:
+		// a non-nil but empty connect block makes no sense
 		return nil, fmt.Errorf("Connect configuration empty for service %s", serviceName)
 	}
 }
@@ -45,60 +52,84 @@ func newConnectGateway(serviceName string, connect *structs.ConsulConnect) *api.
 		return nil
 	}
 
-	proxy := connect.Gateway.Proxy
+	var envoyConfig map[string]interface{}
 
-	envoyConfig := make(map[string]interface{})
+	// Populate the envoy configuration from the gateway.proxy stanza, if
+	// such configuration is provided.
+	if proxy := connect.Gateway.Proxy; proxy != nil {
+		envoyConfig = make(map[string]interface{})
 
-	if len(proxy.EnvoyGatewayBindAddresses) > 0 {
-		envoyConfig["envoy_gateway_bind_addresses"] = proxy.EnvoyGatewayBindAddresses
-	}
+		if len(proxy.EnvoyGatewayBindAddresses) > 0 {
+			envoyConfig["envoy_gateway_bind_addresses"] = proxy.EnvoyGatewayBindAddresses
+		}
 
-	if proxy.EnvoyGatewayNoDefaultBind {
-		envoyConfig["envoy_gateway_no_default_bind"] = true
-	}
+		if proxy.EnvoyGatewayNoDefaultBind {
+			envoyConfig["envoy_gateway_no_default_bind"] = true
+		}
 
-	if proxy.EnvoyGatewayBindTaggedAddresses {
-		envoyConfig["envoy_gateway_bind_tagged_addresses"] = true
-	}
+		if proxy.EnvoyGatewayBindTaggedAddresses {
+			envoyConfig["envoy_gateway_bind_tagged_addresses"] = true
+		}
 
-	if proxy.ConnectTimeout != nil {
-		envoyConfig["connect_timeout_ms"] = proxy.ConnectTimeout.Milliseconds()
-	}
+		if proxy.EnvoyDNSDiscoveryType != "" {
+			envoyConfig["envoy_dns_discovery_type"] = proxy.EnvoyDNSDiscoveryType
+		}
 
-	if len(proxy.Config) > 0 {
-		for k, v := range proxy.Config {
-			envoyConfig[k] = v
+		if proxy.ConnectTimeout != nil {
+			envoyConfig["connect_timeout_ms"] = proxy.ConnectTimeout.Milliseconds()
+		}
+
+		if len(proxy.Config) > 0 {
+			for k, v := range proxy.Config {
+				envoyConfig[k] = v
+			}
 		}
 	}
 
 	return &api.AgentServiceConnectProxyConfig{Config: envoyConfig}
 }
 
-func connectSidecarRegistration(serviceName string, css *structs.ConsulSidecarService, networks structs.Networks) (*api.AgentServiceRegistration, error) {
+func connectSidecarRegistration(serviceId string, css *structs.ConsulSidecarService, networks structs.Networks, ports structs.AllocatedPorts) (*api.AgentServiceRegistration, error) {
 	if css == nil {
 		// no sidecar stanza means there is no sidecar service to register
 		return nil, nil
 	}
 
-	cNet, cPort, err := connectPort(serviceName, networks)
+	cMapping, err := connectPort(css.Port, networks, ports)
 	if err != nil {
 		return nil, err
 	}
 
-	proxy, err := connectProxy(css.Proxy, cPort.To, networks)
+	proxy, err := connectSidecarProxy(css.Proxy, cMapping.To, networks)
 	if err != nil {
 		return nil, err
+	}
+
+	// if the service has a TCP check that's failing, we need an alias to
+	// ensure service discovery excludes this sidecar from queries
+	// (ex. in the case of Connect upstreams)
+	checks := api.AgentServiceChecks{{
+		Name:         "Connect Sidecar Aliasing " + serviceId,
+		AliasService: serviceId,
+	}}
+	if !css.DisableDefaultTCPCheck {
+		checks = append(checks, &api.AgentServiceCheck{
+			Name:     "Connect Sidecar Listening",
+			TCP:      net.JoinHostPort(cMapping.HostIP, strconv.Itoa(cMapping.Value)),
+			Interval: "10s",
+		})
 	}
 
 	return &api.AgentServiceRegistration{
 		Tags:    helper.CopySliceString(css.Tags),
-		Port:    cPort.Value,
-		Address: cNet.IP,
+		Port:    cMapping.Value,
+		Address: cMapping.HostIP,
 		Proxy:   proxy,
+		Checks:  checks,
 	}, nil
 }
 
-func connectProxy(proxy *structs.ConsulProxy, cPort int, networks structs.Networks) (*api.AgentServiceConnectProxyConfig, error) {
+func connectSidecarProxy(proxy *structs.ConsulProxy, cPort int, networks structs.Networks) (*api.AgentServiceConnectProxyConfig, error) {
 	if proxy == nil {
 		proxy = new(structs.ConsulProxy)
 	}
@@ -163,11 +194,38 @@ func connectUpstreams(in []structs.ConsulUpstream) []api.Upstream {
 	upstreams := make([]api.Upstream, len(in))
 	for i, upstream := range in {
 		upstreams[i] = api.Upstream{
-			DestinationName: upstream.DestinationName,
-			LocalBindPort:   upstream.LocalBindPort,
+			DestinationName:  upstream.DestinationName,
+			LocalBindPort:    upstream.LocalBindPort,
+			Datacenter:       upstream.Datacenter,
+			LocalBindAddress: upstream.LocalBindAddress,
+			MeshGateway:      connectMeshGateway(upstream.MeshGateway),
 		}
 	}
 	return upstreams
+}
+
+// connectMeshGateway creates an api.MeshGatewayConfig from the nomad upstream
+// block. A non-existent config or unsupported gateway mode will default to the
+// Consul default mode.
+func connectMeshGateway(in *structs.ConsulMeshGateway) api.MeshGatewayConfig {
+	gw := api.MeshGatewayConfig{
+		Mode: api.MeshGatewayModeDefault,
+	}
+
+	if in == nil {
+		return gw
+	}
+
+	switch in.Mode {
+	case "local":
+		gw.Mode = api.MeshGatewayModeLocal
+	case "remote":
+		gw.Mode = api.MeshGatewayModeRemote
+	case "none":
+		gw.Mode = api.MeshGatewayModeNone
+	}
+
+	return gw
 }
 
 func connectProxyConfig(cfg map[string]interface{}, port int) map[string]interface{} {
@@ -189,17 +247,19 @@ func connectNetworkInvariants(networks structs.Networks) error {
 // connectPort returns the network and port for the Connect proxy sidecar
 // defined for this service. An error is returned if the network and port
 // cannot be determined.
-func connectPort(serviceName string, networks structs.Networks) (*structs.NetworkResource, structs.Port, error) {
+func connectPort(portLabel string, networks structs.Networks, ports structs.AllocatedPorts) (structs.AllocatedPortMapping, error) {
 	if err := connectNetworkInvariants(networks); err != nil {
-		return nil, structs.Port{}, err
+		return structs.AllocatedPortMapping{}, err
 	}
-
-	port, ok := networks[0].PortForService(serviceName)
+	mapping, ok := ports.Get(portLabel)
 	if !ok {
-		return nil, structs.Port{}, fmt.Errorf("No Connect port defined for service %q", serviceName)
+		mapping = networks.Port(portLabel)
+		if mapping.Value > 0 {
+			return mapping, nil
+		}
+		return structs.AllocatedPortMapping{}, fmt.Errorf("No port of label %q defined", portLabel)
 	}
-
-	return networks[0], port, nil
+	return mapping, nil
 }
 
 // connectExposePathPort returns the port for the exposed path for the exposed
@@ -209,10 +269,10 @@ func connectExposePathPort(portLabel string, networks structs.Networks) (string,
 		return "", 0, err
 	}
 
-	ip, port := networks.Port(portLabel)
-	if port == 0 {
+	mapping := networks.Port(portLabel)
+	if mapping.Value == 0 {
 		return "", 0, fmt.Errorf("No port of label %q defined", portLabel)
 	}
 
-	return ip, port, nil
+	return mapping.HostIP, mapping.Value, nil
 }

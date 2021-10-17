@@ -185,13 +185,13 @@ func (t *TLSConfig) IsEmpty() bool {
 		return true
 	}
 
-	return t.EnableHTTP == false &&
-		t.EnableRPC == false &&
-		t.VerifyServerHostname == false &&
+	return !t.EnableHTTP &&
+		!t.EnableRPC &&
+		!t.VerifyServerHostname &&
 		t.CAFile == "" &&
 		t.CertFile == "" &&
 		t.KeyFile == "" &&
-		t.VerifyHTTPSClient == false
+		!t.VerifyHTTPSClient
 }
 
 // Merge is used to merge two TLS configs together

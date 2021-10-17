@@ -5,6 +5,8 @@ import { setupTest } from 'ember-qunit';
 import { module, test } from 'qunit';
 import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 import { AbortController } from 'fetch';
+import { TextEncoderLite } from 'text-encoder-lite';
+import base64js from 'base64-js';
 
 module('Unit | Adapter | Job', function(hooks) {
   setupTest(hooks);
@@ -133,7 +135,7 @@ module('Unit | Adapter | Job', function(hooks) {
     );
   });
 
-  test('When there is no token set in the token service, no x-nomad-token header is set', async function(assert) {
+  test('When there is no token set in the token service, no X-Nomad-Token header is set', async function(assert) {
     await this.initializeUI();
 
     const { pretender } = this.server;
@@ -143,12 +145,12 @@ module('Unit | Adapter | Job', function(hooks) {
     await settled();
 
     assert.notOk(
-      pretender.handledRequests.mapBy('requestHeaders').some(headers => headers['x-nomad-token']),
+      pretender.handledRequests.mapBy('requestHeaders').some(headers => headers['X-Nomad-Token']),
       'No token header present on either job request'
     );
   });
 
-  test('When a token is set in the token service, then x-nomad-token header is set', async function(assert) {
+  test('When a token is set in the token service, then X-Nomad-Token header is set', async function(assert) {
     await this.initializeUI();
 
     const { pretender } = this.server;
@@ -162,7 +164,7 @@ module('Unit | Adapter | Job', function(hooks) {
     assert.ok(
       pretender.handledRequests
         .mapBy('requestHeaders')
-        .every(headers => headers['x-nomad-token'] === secret),
+        .every(headers => headers['X-Nomad-Token'] === secret),
       'The token header is present on both job requests'
     );
   });
@@ -387,6 +389,27 @@ module('Unit | Adapter | Job', function(hooks) {
     assert.notOk(xhr2.aborted, 'Request two was not aborted');
   });
 
+  test('dispatch job encodes payload as base64', async function(assert) {
+    const job = await this.initializeWithJob();
+    job.set('parameterized', true);
+
+    const payload = "I'm a payload 🙂";
+
+    // Base64 encode payload.
+    const Encoder = new TextEncoderLite('utf-8');
+    const encodedPayload = base64js.fromByteArray(Encoder.encode(payload));
+
+    await this.subject().dispatch(job, {}, payload);
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}/dispatch`);
+    assert.equal(request.method, 'POST');
+    assert.deepEqual(JSON.parse(request.requestBody), {
+      Payload: encodedPayload,
+      Meta: {},
+    });
+  });
+
   test('when there is no region set, requests are made without the region query param', async function(assert) {
     await this.initializeUI();
 
@@ -542,6 +565,18 @@ module('Unit | Adapter | Job', function(hooks) {
 
     const request = this.server.pretender.handledRequests[0];
     assert.equal(request.url, `/v1/job/${job.plainId}/scale?region=${region}`);
+    assert.equal(request.method, 'POST');
+  });
+
+  test('dispatch requests include the activeRegion', async function(assert) {
+    const region = 'region-2';
+    const job = await this.initializeWithJob({ region });
+    job.set('parameterized', true);
+
+    await this.subject().dispatch(job, {}, '');
+
+    const request = this.server.pretender.handledRequests[0];
+    assert.equal(request.url, `/v1/job/${job.plainId}/dispatch?region=${region}`);
     assert.equal(request.method, 'POST');
   });
 });

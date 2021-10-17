@@ -22,13 +22,15 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
+	"github.com/hashicorp/nomad/drivers/shared/hostnames"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/shared/structs"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/ryanuber/go-glob"
 )
 
 var (
@@ -71,7 +73,14 @@ var (
 )
 
 const (
-	dockerLabelAllocID = "com.hashicorp.nomad.alloc_id"
+	dockerLabelAllocID       = "com.hashicorp.nomad.alloc_id"
+	dockerLabelJobName       = "com.hashicorp.nomad.job_name"
+	dockerLabelJobID         = "com.hashicorp.nomad.job_id"
+	dockerLabelTaskGroupName = "com.hashicorp.nomad.task_group_name"
+	dockerLabelTaskName      = "com.hashicorp.nomad.task_name"
+	dockerLabelNamespace     = "com.hashicorp.nomad.namespace"
+	dockerLabelNodeName      = "com.hashicorp.nomad.node_name"
+	dockerLabelNodeID        = "com.hashicorp.nomad.node_id"
 )
 
 type Driver struct {
@@ -128,7 +137,7 @@ func NewDockerDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlu
 	}
 }
 
-func (d *Driver) reattachToDockerLogger(reattachConfig *structs.ReattachConfig) (docklog.DockerLogger, *plugin.Client, error) {
+func (d *Driver) reattachToDockerLogger(reattachConfig *pstructs.ReattachConfig) (docklog.DockerLogger, *plugin.Client, error) {
 	reattach, err := pstructs.ReattachConfigToGoPlugin(reattachConfig)
 	if err != nil {
 		return nil, nil, err
@@ -189,7 +198,9 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 		return fmt.Errorf("failed to get docker client: %v", err)
 	}
 
-	container, err := client.InspectContainer(handleState.ContainerID)
+	container, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: handleState.ContainerID,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to inspect container for id %q: %v", handleState.ContainerID, err)
 	}
@@ -250,10 +261,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("image name required for docker driver")
 	}
 
-	// Remove any http
-	if strings.HasPrefix(driverConfig.Image, "https://") {
-		driverConfig.Image = strings.Replace(driverConfig.Image, "https://", "", 1)
-	}
+	driverConfig.Image = strings.TrimPrefix(driverConfig.Image, "https://")
 
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
@@ -317,10 +325,11 @@ CREATE:
 			return nil, nil, nstructs.WrapRecoverable(fmt.Sprintf("Failed to start container %s: %s", container.ID, err), err)
 		}
 
-		// InspectContainer to get all of the container metadata as
-		// much of the metadata (eg networking) isn't populated until
-		// the container is started
-		runningContainer, err := client.InspectContainer(container.ID)
+		// Inspect container to get all of the container metadata as much of the
+		// metadata (eg networking) isn't populated until the container is started
+		runningContainer, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+			ID: container.ID,
+		})
 		if err != nil {
 			client.RemoveContainer(docker.RemoveContainerOptions{
 				ID:    container.ID,
@@ -339,6 +348,12 @@ CREATE:
 	} else {
 		d.logger.Debug("re-attaching to container", "container_id",
 			container.ID, "container_state", container.State.String())
+	}
+
+	if containerCfg.HostConfig.CPUSet == "" && cfg.Resources.LinuxResources.CpusetCgroupPath != "" {
+		if err := setCPUSetCgroup(cfg.Resources.LinuxResources.CpusetCgroupPath, container.State.Pid); err != nil {
+			return nil, nil, fmt.Errorf("failed to set the cpuset cgroup for container: %v", err)
+		}
 	}
 
 	collectingLogs := !d.config.DisableLogCollection
@@ -731,8 +746,8 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 }
 
 // memoryLimits computes the memory and memory_reservation values passed along to
-// the docker host config. These fields represent hard and soft memory limits from
-// docker's perspective, respectively.
+// the docker host config. These fields represent hard and soft/reserved memory
+// limits from docker's perspective, respectively.
 //
 // The memory field on the task configuration can be interpreted as a hard or soft
 // limit. Before Nomad v0.11.3, it was always a hard limit. Now, it is interpreted
@@ -747,11 +762,18 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 // unset.
 //
 // Returns (memory (hard), memory_reservation (soft)) values in bytes.
-func (_ *Driver) memoryLimits(driverHardLimitMB, taskMemoryLimitBytes int64) (int64, int64) {
-	if driverHardLimitMB <= 0 {
-		return taskMemoryLimitBytes, 0
+func memoryLimits(driverHardLimitMB int64, taskMemory drivers.MemoryResources) (memory, reserve int64) {
+	softBytes := taskMemory.MemoryMB * 1024 * 1024
+
+	hard := driverHardLimitMB
+	if taskMemory.MemoryMaxMB > hard {
+		hard = taskMemory.MemoryMaxMB
 	}
-	return driverHardLimitMB * 1024 * 1024, taskMemoryLimitBytes
+
+	if hard <= 0 {
+		return softBytes, 0
+	}
+	return hard * 1024 * 1024, softBytes
 }
 
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
@@ -802,7 +824,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		return c, fmt.Errorf("requested runtime %q is not allowed", containerRuntime)
 	}
 
-	memory, memoryReservation := d.memoryLimits(driverConfig.MemoryHardLimit, task.Resources.LinuxResources.MemoryLimitBytes)
+	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
 
 	hostConfig := &docker.HostConfig{
 		Memory:            memory,            // hard limit
@@ -821,6 +843,14 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		PidsLimit: &driverConfig.PidsLimit,
 
 		Runtime: containerRuntime,
+	}
+
+	// This translates to docker create/run --cpuset-cpus option.
+	// --cpuset-cpus limit the specific CPUs or cores a container can use.
+	// Nomad natively manages cpusets, setting this option will override
+	// Nomad managed cpusets.
+	if driverConfig.CPUSetCPUs != "" {
+		hostConfig.CPUSetCPUs = driverConfig.CPUSetCPUs
 	}
 
 	// Calculate CPU Quota
@@ -863,12 +893,9 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	if hostConfig.LogConfig.Type == "" && hostConfig.LogConfig.Config == nil {
-		logger.Trace("no docker log driver provided, defaulting to json-file")
-		hostConfig.LogConfig.Type = "json-file"
-		hostConfig.LogConfig.Config = map[string]string{
-			"max-file": "2",
-			"max-size": "2m",
-		}
+		logger.Trace("no docker log driver provided, defaulting to plugin config")
+		hostConfig.LogConfig.Type = d.config.Logging.Type
+		hostConfig.LogConfig.Config = d.config.Logging.Config
 	}
 
 	logger.Debug("configured resources",
@@ -884,37 +911,12 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 	hostConfig.Privileged = driverConfig.Privileged
 
-	// set capabilities
-	hostCapsWhitelistConfig := d.config.AllowCaps
-	hostCapsWhitelist := make(map[string]struct{})
-	for _, cap := range hostCapsWhitelistConfig {
-		cap = strings.ToLower(strings.TrimSpace(cap))
-		hostCapsWhitelist[cap] = struct{}{}
+	// set add/drop capabilities
+	if hostConfig.CapAdd, hostConfig.CapDrop, err = capabilities.Delta(
+		capabilities.DockerDefaults(), d.config.AllowCaps, driverConfig.CapAdd, driverConfig.CapDrop,
+	); err != nil {
+		return c, err
 	}
-
-	if _, ok := hostCapsWhitelist["all"]; !ok {
-		effectiveCaps, err := tweakCapabilities(
-			strings.Split(dockerBasicCaps, ","),
-			driverConfig.CapAdd,
-			driverConfig.CapDrop,
-		)
-		if err != nil {
-			return c, err
-		}
-		var missingCaps []string
-		for _, cap := range effectiveCaps {
-			cap = strings.ToLower(cap)
-			if _, ok := hostCapsWhitelist[cap]; !ok {
-				missingCaps = append(missingCaps, cap)
-			}
-		}
-		if len(missingCaps) > 0 {
-			return c, fmt.Errorf("Docker driver doesn't have the following caps allowlisted on this Nomad agent: %s", missingCaps)
-		}
-	}
-
-	hostConfig.CapAdd = driverConfig.CapAdd
-	hostConfig.CapDrop = driverConfig.CapDrop
 
 	// set SHM size
 	if driverConfig.ShmSize != 0 {
@@ -939,21 +941,45 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	// Setup mounts
 	for _, m := range driverConfig.Mounts {
-		hm, err := m.toDockerHostMount()
+		hm, err := d.toDockerMount(&m, task)
 		if err != nil {
 			return c, err
 		}
-
-		if hm.Type == "bind" {
-			hm.Source = expandPath(task.TaskDir().Dir, hm.Source)
-
-			// paths inside alloc dir are always allowed as they mount within a container, and treated as relative to task dir
-			if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, hm.Source) {
-				return c, fmt.Errorf("volumes are not enabled; cannot mount host path: %q %q", hm.Source, task.AllocDir)
-			}
+		hostConfig.Mounts = append(hostConfig.Mounts, *hm)
+	}
+	for _, m := range driverConfig.MountsList {
+		hm, err := d.toDockerMount(&m, task)
+		if err != nil {
+			return c, err
 		}
+		hostConfig.Mounts = append(hostConfig.Mounts, *hm)
+	}
 
-		hostConfig.Mounts = append(hostConfig.Mounts, hm)
+	// Setup /etc/hosts
+	// If the task's network_mode is unset our hostname and IP will come from
+	// the Nomad-owned network (if in use), so we need to generate an
+	// /etc/hosts file that matches the network rather than the default one
+	// that comes from the pause container
+	if task.NetworkIsolation != nil && driverConfig.NetworkMode == "" {
+		etcHostMount, err := hostnames.GenerateEtcHostsMount(
+			task.AllocDir, task.NetworkIsolation, driverConfig.ExtraHosts)
+		if err != nil {
+			return c, fmt.Errorf("failed to build mount for /etc/hosts: %v", err)
+		}
+		if etcHostMount != nil {
+			// erase the extra_hosts field if we have a mount so we don't get
+			// conflicting options error from dockerd
+			driverConfig.ExtraHosts = nil
+			hostConfig.Mounts = append(hostConfig.Mounts, docker.HostMount{
+				Target:   etcHostMount.TaskPath,
+				Source:   etcHostMount.HostPath,
+				Type:     "bind",
+				ReadOnly: etcHostMount.Readonly,
+				BindOptions: &docker.BindOptions{
+					Propagation: etcHostMount.PropagationMode,
+				},
+			})
+		}
 	}
 
 	// Setup DNS
@@ -1078,6 +1104,9 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	default:
 		if len(driverConfig.PortMap) > 0 {
+			if task.Resources.Ports != nil {
+				return c, fmt.Errorf("'port_map' cannot map group network ports, use 'ports' instead")
+			}
 			return c, fmt.Errorf("Trying to map ports but no network interface is available")
 		}
 	}
@@ -1109,13 +1138,40 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	for k, v := range driverConfig.Labels {
 		labels[k] = v
 	}
+	// main mandatory label
 	labels[dockerLabelAllocID] = task.AllocID
+
+	//optional labels, as configured in plugin configuration
+	for _, configurationExtraLabel := range d.config.ExtraLabels {
+		if glob.Glob(configurationExtraLabel, "job_name") {
+			labels[dockerLabelJobName] = task.JobName
+		}
+		if glob.Glob(configurationExtraLabel, "job_id") {
+			labels[dockerLabelJobID] = task.JobID
+		}
+		if glob.Glob(configurationExtraLabel, "task_group_name") {
+			labels[dockerLabelTaskGroupName] = task.TaskGroupName
+		}
+		if glob.Glob(configurationExtraLabel, "task_name") {
+			labels[dockerLabelTaskName] = task.Name
+		}
+		if glob.Glob(configurationExtraLabel, "namespace") {
+			labels[dockerLabelNamespace] = task.Namespace
+		}
+		if glob.Glob(configurationExtraLabel, "node_name") {
+			labels[dockerLabelNodeName] = task.NodeName
+		}
+		if glob.Glob(configurationExtraLabel, "node_id") {
+			labels[dockerLabelNodeID] = task.NodeID
+		}
+	}
+
 	config.Labels = labels
 	logger.Debug("applied labels on the container", "labels", config.Labels)
 
 	config.Env = task.EnvList()
 
-	containerName := fmt.Sprintf("%s-%s", strings.Replace(task.Name, "/", "_", -1), task.AllocID)
+	containerName := fmt.Sprintf("%s-%s", strings.ReplaceAll(task.Name, "/", "_"), task.AllocID)
 	logger.Debug("setting container name", "container_name", containerName)
 
 	var networkingConfig *docker.NetworkingConfig
@@ -1153,6 +1209,35 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		HostConfig:       hostConfig,
 		NetworkingConfig: networkingConfig,
 	}, nil
+}
+
+func (d *Driver) toDockerMount(m *DockerMount, task *drivers.TaskConfig) (*docker.HostMount, error) {
+	hm, err := m.toDockerHostMount()
+	if err != nil {
+		return nil, err
+	}
+
+	switch hm.Type {
+	case "bind":
+		hm.Source = expandPath(task.TaskDir().Dir, hm.Source)
+
+		// paths inside alloc dir are always allowed as they mount within
+		// a container, and treated as relative to task dir
+		if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, hm.Source) {
+			return nil, fmt.Errorf(
+				"volumes are not enabled; cannot mount host path: %q %q",
+				hm.Source, task.AllocDir)
+		}
+	case "tmpfs":
+		// no source, so no sandbox check required
+	default: // "volume", but also any new thing that comes along
+		if !d.config.Volumes.Enabled {
+			return nil, fmt.Errorf(
+				"volumes are not enabled; cannot mount volume: %q", hm.Source)
+		}
+	}
+
+	return &hm, nil
 }
 
 // detectIP of Docker container. Returns the first IP found as well as true if
@@ -1241,7 +1326,9 @@ OUTER:
 		return nil, nil
 	}
 
-	container, err := client.InspectContainer(shimContainer.ID)
+	container, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: shimContainer.ID,
+	})
 	if err != nil {
 		err = fmt.Errorf("Failed to inspect container %s: %s", shimContainer.ID, err)
 
@@ -1292,40 +1379,13 @@ func (d *Driver) handleWait(ctx context.Context, ch chan *drivers.ExitResult, h 
 	}
 }
 
-// parseSignal interprets the signal name into an os.Signal. If no name is
-// provided, the docker driver defaults to SIGTERM. If the OS is Windows and
-// SIGINT is provided, the signal is converted to SIGTERM.
-func (d *Driver) parseSignal(os, signal string) (os.Signal, error) {
-	// Unlike other drivers, docker defaults to SIGTERM, aiming for consistency
-	// with the 'docker stop' command.
-	// https://docs.docker.com/engine/reference/commandline/stop/#extended-description
-	if signal == "" {
-		signal = "SIGTERM"
-	}
-
-	// Windows Docker daemon does not support SIGINT, SIGTERM is the semantic equivalent that
-	// allows for graceful shutdown before being followed up by a SIGKILL.
-	// Supported signals:
-	//   https://github.com/moby/moby/blob/0111ee70874a4947d93f64b672f66a2a35071ee2/pkg/signal/signal_windows.go#L17-L26
-	if os == "windows" && signal == "SIGINT" {
-		signal = "SIGTERM"
-	}
-
-	return signals.Parse(signal)
-}
-
 func (d *Driver) StopTask(taskID string, timeout time.Duration, signal string) error {
 	h, ok := d.tasks.Get(taskID)
 	if !ok {
 		return drivers.ErrTaskNotFound
 	}
 
-	sig, err := d.parseSignal(runtime.GOOS, signal)
-	if err != nil {
-		return fmt.Errorf("failed to parse signal: %v", err)
-	}
-
-	return h.Kill(timeout, sig)
+	return h.Kill(timeout, signal)
 }
 
 func (d *Driver) DestroyTask(taskID string, force bool) error {
@@ -1334,7 +1394,9 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 		return drivers.ErrTaskNotFound
 	}
 
-	c, err := h.client.InspectContainer(h.containerID)
+	c, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: h.containerID,
+	})
 	if err != nil {
 		switch err.(type) {
 		case *docker.NoSuchContainer:
@@ -1390,7 +1452,9 @@ func (d *Driver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
 		return nil, drivers.ErrTaskNotFound
 	}
 
-	container, err := client.InspectContainer(h.containerID)
+	container, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
+		ID: h.containerID,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect container %q: %v", h.containerID, err)
 	}
@@ -1441,7 +1505,10 @@ func (d *Driver) SignalTask(taskID string, signal string) error {
 		return fmt.Errorf("failed to parse signal: %v", err)
 	}
 
-	return h.Signal(sig)
+	// TODO: review whether we can timeout in this and other Docker API
+	// calls without breaking the expected client behavior.
+	// see https://github.com/hashicorp/nomad/issues/9503
+	return h.Signal(context.Background(), sig)
 }
 
 func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
@@ -1634,7 +1701,7 @@ func sliceMergeUlimit(ulimitsRaw map[string]string) ([]docker.ULimit, error) {
 			return []docker.ULimit{}, fmt.Errorf("Malformed ulimit specification %v: %q, cannot be empty", name, ulimitRaw)
 		}
 		// hard limit is optional
-		if strings.Contains(ulimitRaw, ":") == false {
+		if !strings.Contains(ulimitRaw, ":") {
 			ulimitRaw = ulimitRaw + ":" + ulimitRaw
 		}
 

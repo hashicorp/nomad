@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/codec"
+
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
@@ -16,6 +17,7 @@ import (
 
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
+
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
@@ -135,10 +137,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 			cancel()
 			return
 		}
-		select {
-		case <-ctx.Done():
-			return
-		}
+		<-ctx.Done()
 	}()
 
 	logCh := monitor.Start()

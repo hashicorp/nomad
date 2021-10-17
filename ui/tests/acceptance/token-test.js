@@ -1,4 +1,4 @@
-import { find } from '@ember/test-helpers';
+import { currentURL, find, visit } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -7,6 +7,7 @@ import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import Jobs from 'nomad-ui/tests/pages/jobs/list';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
+import Layout from 'nomad-ui/tests/pages/layout';
 
 let job;
 let node;
@@ -147,21 +148,24 @@ module('Acceptance | tokens', function(hooks) {
     assert.notOk(find('[data-test-job-row]'), 'No jobs found');
   });
 
-  test('when namespaces are enabled, setting or clearing a token refetches namespaces available with new permissions', async function(assert) {
-    const { secretId } = clientToken;
+  test('when the ott query parameter is present upon application load it’s exchanged for a token', async function(assert) {
+    const { oneTimeSecret, secretId } = managementToken;
 
-    server.createList('namespace', 2);
+    await JobDetail.visit({ id: job.id, ott: oneTimeSecret });
+
+    assert.notOk(currentURL().includes(oneTimeSecret), 'OTT is cleared from the URL after loading');
+
     await Tokens.visit();
 
-    const requests = server.pretender.handledRequests;
+    assert.equal(window.localStorage.nomadTokenSecret, secretId, 'Token secret was set');
+  });
 
-    assert.equal(requests.filter(req => req.url === '/v1/namespaces').length, 1);
+  test('when the ott exchange fails an error is shown', async function(assert) {
+    await visit('/?ott=fake');
 
-    await Tokens.secret(secretId).submit();
-    assert.equal(requests.filter(req => req.url === '/v1/namespaces').length, 2);
-
-    await Tokens.clear();
-    assert.equal(requests.filter(req => req.url === '/v1/namespaces').length, 3);
+    assert.ok(Layout.error.isPresent);
+    assert.equal(Layout.error.title, 'Token Exchange Error');
+    assert.equal(Layout.error.message, 'Failed to exchange the one-time token.');
   });
 
   function getHeader({ requestHeaders }, name) {

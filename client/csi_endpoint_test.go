@@ -41,7 +41,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 					PluginID: "some-garbage",
 				},
 			},
-			ExpectedErr: errors.New("CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+			ExpectedErr: errors.New("CSI.ControllerAttachVolume: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
 		},
 		{
 			Name: "validates volumeid is not empty",
@@ -50,7 +50,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 					PluginID: fakePlugin.Name,
 				},
 			},
-			ExpectedErr: errors.New("VolumeID is required"),
+			ExpectedErr: errors.New("CSI.ControllerAttachVolume: VolumeID is required"),
 		},
 		{
 			Name: "validates nodeid is not empty",
@@ -60,7 +60,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 				},
 				VolumeID: "1234-4321-1234-4321",
 			},
-			ExpectedErr: errors.New("ClientCSINodeID is required"),
+			ExpectedErr: errors.New("CSI.ControllerAttachVolume: ClientCSINodeID is required"),
 		},
 		{
 			Name: "validates AccessMode",
@@ -73,7 +73,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 				AttachmentMode:  nstructs.CSIVolumeAttachmentModeFilesystem,
 				AccessMode:      nstructs.CSIVolumeAccessMode("foo"),
 			},
-			ExpectedErr: errors.New("Unknown volume access mode: foo"),
+			ExpectedErr: errors.New("CSI.ControllerAttachVolume: unknown volume access mode: foo"),
 		},
 		{
 			Name: "validates attachmentmode is not empty",
@@ -86,7 +86,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 				AccessMode:      nstructs.CSIVolumeAccessModeMultiNodeReader,
 				AttachmentMode:  nstructs.CSIVolumeAttachmentMode("bar"),
 			},
-			ExpectedErr: errors.New("Unknown volume attachment mode: bar"),
+			ExpectedErr: errors.New("CSI.ControllerAttachVolume: unknown volume attachment mode: bar"),
 		},
 		{
 			Name: "returns transitive errors",
@@ -102,7 +102,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 				AccessMode:      nstructs.CSIVolumeAccessModeSingleNodeWriter,
 				AttachmentMode:  nstructs.CSIVolumeAttachmentModeFilesystem,
 			},
-			ExpectedErr: errors.New("hello"),
+			ExpectedErr: errors.New("CSI.ControllerAttachVolume: hello"),
 		},
 		{
 			Name: "handles nil PublishContext",
@@ -188,7 +188,7 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 					PluginID: fakePlugin.Name,
 				},
 			},
-			ExpectedErr: errors.New("VolumeID is required"),
+			ExpectedErr: errors.New("CSI.ControllerValidateVolume: VolumeID is required"),
 		},
 		{
 			Name: "returns plugin not found errors",
@@ -198,7 +198,7 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 				},
 				VolumeID: "foo",
 			},
-			ExpectedErr: errors.New("CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+			ExpectedErr: errors.New("CSI.ControllerValidateVolume: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
 		},
 		{
 			Name: "validates attachmentmode",
@@ -206,11 +206,13 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 				CSIControllerQuery: structs.CSIControllerQuery{
 					PluginID: fakePlugin.Name,
 				},
-				VolumeID:       "1234-4321-1234-4321",
-				AttachmentMode: nstructs.CSIVolumeAttachmentMode("bar"),
-				AccessMode:     nstructs.CSIVolumeAccessModeMultiNodeReader,
+				VolumeID: "1234-4321-1234-4321",
+				VolumeCapabilities: []*nstructs.CSIVolumeCapability{{
+					AttachmentMode: nstructs.CSIVolumeAttachmentMode("bar"),
+					AccessMode:     nstructs.CSIVolumeAccessModeMultiNodeReader,
+				}},
 			},
-			ExpectedErr: errors.New("Unknown volume attachment mode: bar"),
+			ExpectedErr: errors.New("CSI.ControllerValidateVolume: unknown volume attachment mode: bar"),
 		},
 		{
 			Name: "validates AccessMode",
@@ -218,11 +220,13 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 				CSIControllerQuery: structs.CSIControllerQuery{
 					PluginID: fakePlugin.Name,
 				},
-				VolumeID:       "1234-4321-1234-4321",
-				AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
-				AccessMode:     nstructs.CSIVolumeAccessMode("foo"),
+				VolumeID: "1234-4321-1234-4321",
+				VolumeCapabilities: []*nstructs.CSIVolumeCapability{{
+					AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
+					AccessMode:     nstructs.CSIVolumeAccessMode("foo"),
+				}},
 			},
-			ExpectedErr: errors.New("Unknown volume access mode: foo"),
+			ExpectedErr: errors.New("CSI.ControllerValidateVolume: unknown volume access mode: foo"),
 		},
 		{
 			Name: "returns transitive errors",
@@ -237,7 +241,7 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 				AccessMode:     nstructs.CSIVolumeAccessModeSingleNodeWriter,
 				AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
 			},
-			ExpectedErr: errors.New("hello"),
+			ExpectedErr: errors.New("CSI.ControllerValidateVolume: hello"),
 		},
 	}
 
@@ -287,7 +291,7 @@ func TestCSIController_DetachVolume(t *testing.T) {
 					PluginID: "some-garbage",
 				},
 			},
-			ExpectedErr: errors.New("CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+			ExpectedErr: errors.New("CSI.ControllerDetachVolume: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
 		},
 		{
 			Name: "validates volumeid is not empty",
@@ -296,7 +300,7 @@ func TestCSIController_DetachVolume(t *testing.T) {
 					PluginID: fakePlugin.Name,
 				},
 			},
-			ExpectedErr: errors.New("VolumeID is required"),
+			ExpectedErr: errors.New("CSI.ControllerDetachVolume: VolumeID is required"),
 		},
 		{
 			Name: "validates nodeid is not empty",
@@ -306,7 +310,7 @@ func TestCSIController_DetachVolume(t *testing.T) {
 				},
 				VolumeID: "1234-4321-1234-4321",
 			},
-			ExpectedErr: errors.New("ClientCSINodeID is required"),
+			ExpectedErr: errors.New("CSI.ControllerDetachVolume: ClientCSINodeID is required"),
 		},
 		{
 			Name: "returns transitive errors",
@@ -320,7 +324,7 @@ func TestCSIController_DetachVolume(t *testing.T) {
 				VolumeID:        "1234-4321-1234-4321",
 				ClientCSINodeID: "abcde",
 			},
-			ExpectedErr: errors.New("hello"),
+			ExpectedErr: errors.New("CSI.ControllerDetachVolume: hello"),
 		},
 	}
 
@@ -353,6 +357,541 @@ func TestCSIController_DetachVolume(t *testing.T) {
 	}
 }
 
+func TestCSIController_CreateVolume(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Name             string
+		ClientSetupFunc  func(*fake.Client)
+		Request          *structs.ClientCSIControllerCreateVolumeRequest
+		ExpectedErr      error
+		ExpectedResponse *structs.ClientCSIControllerCreateVolumeResponse
+	}{
+		{
+			Name: "returns plugin not found errors",
+			Request: &structs.ClientCSIControllerCreateVolumeRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: "some-garbage",
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerCreateVolume: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+		},
+		{
+			Name: "validates AccessMode",
+			Request: &structs.ClientCSIControllerCreateVolumeRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				Name: "1234-4321-1234-4321",
+				VolumeCapabilities: []*nstructs.CSIVolumeCapability{
+					{
+						AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
+						AccessMode:     nstructs.CSIVolumeAccessMode("foo"),
+					},
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerCreateVolume: unknown volume access mode: foo"),
+		},
+		{
+			Name: "validates attachmentmode is not empty",
+			Request: &structs.ClientCSIControllerCreateVolumeRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				Name: "1234-4321-1234-4321",
+				VolumeCapabilities: []*nstructs.CSIVolumeCapability{
+					{
+						AccessMode:     nstructs.CSIVolumeAccessModeMultiNodeReader,
+						AttachmentMode: nstructs.CSIVolumeAttachmentMode("bar"),
+					},
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerCreateVolume: unknown volume attachment mode: bar"),
+		},
+		{
+			Name: "returns transitive errors",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerCreateVolumeErr = errors.New("internal plugin error")
+			},
+			Request: &structs.ClientCSIControllerCreateVolumeRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				Name: "1234-4321-1234-4321",
+				VolumeCapabilities: []*nstructs.CSIVolumeCapability{
+					{
+						AccessMode:     nstructs.CSIVolumeAccessModeSingleNodeWriter,
+						AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
+					},
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerCreateVolume: internal plugin error"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			require := require.New(t)
+			client, cleanup := TestClient(t, nil)
+			defer cleanup()
+
+			fakeClient := &fake.Client{}
+			if tc.ClientSetupFunc != nil {
+				tc.ClientSetupFunc(fakeClient)
+			}
+
+			dispenserFunc := func(*dynamicplugins.PluginInfo) (interface{}, error) {
+				return fakeClient, nil
+			}
+			client.dynamicRegistry.StubDispenserForType(
+				dynamicplugins.PluginTypeCSIController, dispenserFunc)
+
+			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
+			require.Nil(err)
+
+			var resp structs.ClientCSIControllerCreateVolumeResponse
+			err = client.ClientRPC("CSI.ControllerCreateVolume", tc.Request, &resp)
+			require.Equal(tc.ExpectedErr, err)
+			if tc.ExpectedResponse != nil {
+				require.Equal(tc.ExpectedResponse, &resp)
+			}
+		})
+	}
+}
+
+func TestCSIController_DeleteVolume(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Name             string
+		ClientSetupFunc  func(*fake.Client)
+		Request          *structs.ClientCSIControllerDeleteVolumeRequest
+		ExpectedErr      error
+		ExpectedResponse *structs.ClientCSIControllerDeleteVolumeResponse
+	}{
+		{
+			Name: "returns plugin not found errors",
+			Request: &structs.ClientCSIControllerDeleteVolumeRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: "some-garbage",
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerDeleteVolume: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+		},
+		{
+			Name: "returns transitive errors",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerDeleteVolumeErr = errors.New("internal plugin error")
+			},
+			Request: &structs.ClientCSIControllerDeleteVolumeRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				ExternalVolumeID: "1234-4321-1234-4321",
+			},
+			ExpectedErr: errors.New("CSI.ControllerDeleteVolume: internal plugin error"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			require := require.New(t)
+			client, cleanup := TestClient(t, nil)
+			defer cleanup()
+
+			fakeClient := &fake.Client{}
+			if tc.ClientSetupFunc != nil {
+				tc.ClientSetupFunc(fakeClient)
+			}
+
+			dispenserFunc := func(*dynamicplugins.PluginInfo) (interface{}, error) {
+				return fakeClient, nil
+			}
+			client.dynamicRegistry.StubDispenserForType(
+				dynamicplugins.PluginTypeCSIController, dispenserFunc)
+
+			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
+			require.Nil(err)
+
+			var resp structs.ClientCSIControllerDeleteVolumeResponse
+			err = client.ClientRPC("CSI.ControllerDeleteVolume", tc.Request, &resp)
+			require.Equal(tc.ExpectedErr, err)
+			if tc.ExpectedResponse != nil {
+				require.Equal(tc.ExpectedResponse, &resp)
+			}
+		})
+	}
+}
+
+func TestCSIController_ListVolumes(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Name             string
+		ClientSetupFunc  func(*fake.Client)
+		Request          *structs.ClientCSIControllerListVolumesRequest
+		ExpectedErr      error
+		ExpectedResponse *structs.ClientCSIControllerListVolumesResponse
+	}{
+		{
+			Name: "returns plugin not found errors",
+			Request: &structs.ClientCSIControllerListVolumesRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: "some-garbage",
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerListVolumes: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+		},
+		{
+			Name: "returns transitive errors",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerListVolumesErr = errors.New("internal plugin error")
+			},
+			Request: &structs.ClientCSIControllerListVolumesRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerListVolumes: internal plugin error"),
+		},
+		{
+			Name: "returns volumes",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerListVolumesResponse = &csi.ControllerListVolumesResponse{
+					Entries: []*csi.ListVolumesResponse_Entry{
+						{
+							Volume: &csi.Volume{
+								CapacityBytes:    1000000,
+								ExternalVolumeID: "vol-1",
+								VolumeContext:    map[string]string{"foo": "bar"},
+								ContentSource: &csi.VolumeContentSource{
+									SnapshotID: "snap-1",
+								},
+							},
+							Status: &csi.ListVolumesResponse_VolumeStatus{
+								PublishedNodeIds: []string{"i-1234", "i-5678"},
+								VolumeCondition: &csi.VolumeCondition{
+									Message: "ok",
+								},
+							},
+						},
+					},
+					NextToken: "2",
+				}
+			},
+			Request: &structs.ClientCSIControllerListVolumesRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				StartingToken: "1",
+				MaxEntries:    100,
+			},
+			ExpectedResponse: &structs.ClientCSIControllerListVolumesResponse{
+				Entries: []*nstructs.CSIVolumeExternalStub{
+					{
+						ExternalID:               "vol-1",
+						CapacityBytes:            1000000,
+						VolumeContext:            map[string]string{"foo": "bar"},
+						SnapshotID:               "snap-1",
+						PublishedExternalNodeIDs: []string{"i-1234", "i-5678"},
+						Status:                   "ok",
+					},
+				},
+				NextToken: "2",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			require := require.New(t)
+			client, cleanup := TestClient(t, nil)
+			defer cleanup()
+
+			fakeClient := &fake.Client{}
+			if tc.ClientSetupFunc != nil {
+				tc.ClientSetupFunc(fakeClient)
+			}
+
+			dispenserFunc := func(*dynamicplugins.PluginInfo) (interface{}, error) {
+				return fakeClient, nil
+			}
+			client.dynamicRegistry.StubDispenserForType(
+				dynamicplugins.PluginTypeCSIController, dispenserFunc)
+
+			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
+			require.Nil(err)
+
+			var resp structs.ClientCSIControllerListVolumesResponse
+			err = client.ClientRPC("CSI.ControllerListVolumes", tc.Request, &resp)
+			require.Equal(tc.ExpectedErr, err)
+			if tc.ExpectedResponse != nil {
+				require.Equal(tc.ExpectedResponse, &resp)
+			}
+		})
+	}
+}
+func TestCSIController_CreateSnapshot(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Name             string
+		ClientSetupFunc  func(*fake.Client)
+		Request          *structs.ClientCSIControllerCreateSnapshotRequest
+		ExpectedErr      error
+		ExpectedResponse *structs.ClientCSIControllerCreateSnapshotResponse
+	}{
+		{
+			Name: "returns plugin not found errors",
+			Request: &structs.ClientCSIControllerCreateSnapshotRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: "some-garbage",
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerCreateSnapshot: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+		},
+		{
+			Name: "returns transitive errors",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerCreateSnapshotErr = errors.New("internal plugin error")
+			},
+			Request: &structs.ClientCSIControllerCreateSnapshotRequest{
+				ExternalSourceVolumeID: "vol-1",
+				Name:                   "1234-4321-1234-4321",
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerCreateSnapshot: internal plugin error"),
+		},
+		{
+			Name: "returns snapshot on success",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerCreateSnapshotResponse = &csi.ControllerCreateSnapshotResponse{
+					Snapshot: &csi.Snapshot{
+						ID:             "snap-12345",
+						SourceVolumeID: "vol-1",
+						SizeBytes:      10000000,
+						IsReady:        true,
+					},
+				}
+			},
+			Request: &structs.ClientCSIControllerCreateSnapshotRequest{
+				ExternalSourceVolumeID: "vol-1",
+				Name:                   "1234-4321-1234-4321",
+				Secrets:                nstructs.CSISecrets{"password": "xyzzy"},
+				Parameters:             map[string]string{"foo": "bar"},
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+			},
+			ExpectedResponse: &structs.ClientCSIControllerCreateSnapshotResponse{
+				ID:                     "snap-12345",
+				ExternalSourceVolumeID: "vol-1",
+				SizeBytes:              10000000,
+				IsReady:                true,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			require := require.New(t)
+			client, cleanup := TestClient(t, nil)
+			defer cleanup()
+
+			fakeClient := &fake.Client{}
+			if tc.ClientSetupFunc != nil {
+				tc.ClientSetupFunc(fakeClient)
+			}
+
+			dispenserFunc := func(*dynamicplugins.PluginInfo) (interface{}, error) {
+				return fakeClient, nil
+			}
+			client.dynamicRegistry.StubDispenserForType(
+				dynamicplugins.PluginTypeCSIController, dispenserFunc)
+
+			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
+			require.Nil(err)
+
+			var resp structs.ClientCSIControllerCreateSnapshotResponse
+			err = client.ClientRPC("CSI.ControllerCreateSnapshot", tc.Request, &resp)
+			require.Equal(tc.ExpectedErr, err)
+			if tc.ExpectedResponse != nil {
+				require.Equal(tc.ExpectedResponse, &resp)
+			}
+		})
+	}
+}
+
+func TestCSIController_DeleteSnapshot(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Name             string
+		ClientSetupFunc  func(*fake.Client)
+		Request          *structs.ClientCSIControllerDeleteSnapshotRequest
+		ExpectedErr      error
+		ExpectedResponse *structs.ClientCSIControllerDeleteSnapshotResponse
+	}{
+		{
+			Name: "returns plugin not found errors",
+			Request: &structs.ClientCSIControllerDeleteSnapshotRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: "some-garbage",
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerDeleteSnapshot: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+		},
+		{
+			Name: "returns transitive errors",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerDeleteSnapshotErr = errors.New("internal plugin error")
+			},
+			Request: &structs.ClientCSIControllerDeleteSnapshotRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				ID: "1234-4321-1234-4321",
+			},
+			ExpectedErr: errors.New("CSI.ControllerDeleteSnapshot: internal plugin error"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			require := require.New(t)
+			client, cleanup := TestClient(t, nil)
+			defer cleanup()
+
+			fakeClient := &fake.Client{}
+			if tc.ClientSetupFunc != nil {
+				tc.ClientSetupFunc(fakeClient)
+			}
+
+			dispenserFunc := func(*dynamicplugins.PluginInfo) (interface{}, error) {
+				return fakeClient, nil
+			}
+			client.dynamicRegistry.StubDispenserForType(
+				dynamicplugins.PluginTypeCSIController, dispenserFunc)
+
+			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
+			require.Nil(err)
+
+			var resp structs.ClientCSIControllerDeleteSnapshotResponse
+			err = client.ClientRPC("CSI.ControllerDeleteSnapshot", tc.Request, &resp)
+			require.Equal(tc.ExpectedErr, err)
+			if tc.ExpectedResponse != nil {
+				require.Equal(tc.ExpectedResponse, &resp)
+			}
+		})
+	}
+}
+
+func TestCSIController_ListSnapshots(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Name             string
+		ClientSetupFunc  func(*fake.Client)
+		Request          *structs.ClientCSIControllerListSnapshotsRequest
+		ExpectedErr      error
+		ExpectedResponse *structs.ClientCSIControllerListSnapshotsResponse
+	}{
+		{
+			Name: "returns plugin not found errors",
+			Request: &structs.ClientCSIControllerListSnapshotsRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: "some-garbage",
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerListSnapshots: CSI client error (retryable): plugin some-garbage for type csi-controller not found"),
+		},
+		{
+			Name: "returns transitive errors",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerListSnapshotsErr = errors.New("internal plugin error")
+			},
+			Request: &structs.ClientCSIControllerListSnapshotsRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+			},
+			ExpectedErr: errors.New("CSI.ControllerListSnapshots: internal plugin error"),
+		},
+		{
+			Name: "returns volumes",
+			ClientSetupFunc: func(fc *fake.Client) {
+				fc.NextControllerListSnapshotsResponse = &csi.ControllerListSnapshotsResponse{
+					Entries: []*csi.ListSnapshotsResponse_Entry{
+						{
+							Snapshot: &csi.Snapshot{
+								ID:             "snap-1",
+								SourceVolumeID: "vol-1",
+								SizeBytes:      1000000,
+								IsReady:        true,
+							},
+						},
+					},
+					NextToken: "2",
+				}
+			},
+			Request: &structs.ClientCSIControllerListSnapshotsRequest{
+				CSIControllerQuery: structs.CSIControllerQuery{
+					PluginID: fakePlugin.Name,
+				},
+				Secrets: map[string]string{
+					"secret-key-1": "secret-val-1",
+					"secret-key-2": "secret-val-2",
+				},
+				StartingToken: "1",
+				MaxEntries:    100,
+			},
+			ExpectedResponse: &structs.ClientCSIControllerListSnapshotsResponse{
+				Entries: []*nstructs.CSISnapshot{
+					{
+						ID:                     "snap-1",
+						ExternalSourceVolumeID: "vol-1",
+						SizeBytes:              1000000,
+						IsReady:                true,
+						PluginID:               fakePlugin.Name,
+					},
+				},
+				NextToken: "2",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			require := require.New(t)
+			client, cleanup := TestClient(t, nil)
+			defer cleanup()
+
+			fakeClient := &fake.Client{}
+			if tc.ClientSetupFunc != nil {
+				tc.ClientSetupFunc(fakeClient)
+			}
+
+			dispenserFunc := func(*dynamicplugins.PluginInfo) (interface{}, error) {
+				return fakeClient, nil
+			}
+			client.dynamicRegistry.StubDispenserForType(
+				dynamicplugins.PluginTypeCSIController, dispenserFunc)
+
+			err := client.dynamicRegistry.RegisterPlugin(fakePlugin)
+			require.Nil(err)
+
+			var resp structs.ClientCSIControllerListSnapshotsResponse
+			err = client.ClientRPC("CSI.ControllerListSnapshots", tc.Request, &resp)
+			require.Equal(tc.ExpectedErr, err)
+			if tc.ExpectedResponse != nil {
+				require.Equal(tc.ExpectedResponse, &resp)
+			}
+		})
+	}
+}
+
 func TestCSINode_DetachVolume(t *testing.T) {
 	t.Parallel()
 
@@ -374,14 +913,14 @@ func TestCSINode_DetachVolume(t *testing.T) {
 				AccessMode:     nstructs.CSIVolumeAccessModeMultiNodeReader,
 				ReadOnly:       true,
 			},
-			ExpectedErr: errors.New("plugin some-garbage for type csi-node not found"),
+			ExpectedErr: errors.New("CSI.NodeDetachVolume: plugin some-garbage for type csi-node not found"),
 		},
 		{
 			Name: "validates volumeid is not empty",
 			Request: &structs.ClientCSINodeDetachVolumeRequest{
 				PluginID: fakeNodePlugin.Name,
 			},
-			ExpectedErr: errors.New("VolumeID is required"),
+			ExpectedErr: errors.New("CSI.NodeDetachVolume: VolumeID is required"),
 		},
 		{
 			Name: "validates nodeid is not empty",
@@ -389,7 +928,7 @@ func TestCSINode_DetachVolume(t *testing.T) {
 				PluginID: fakeNodePlugin.Name,
 				VolumeID: "1234-4321-1234-4321",
 			},
-			ExpectedErr: errors.New("AllocID is required"),
+			ExpectedErr: errors.New("CSI.NodeDetachVolume: AllocID is required"),
 		},
 		{
 			Name: "returns transitive errors",
@@ -402,7 +941,7 @@ func TestCSINode_DetachVolume(t *testing.T) {
 				AllocID:  "4321-1234-4321-1234",
 			},
 			// we don't have a csimanager in this context
-			ExpectedErr: errors.New("plugin test-plugin for type csi-node not found"),
+			ExpectedErr: errors.New("CSI.NodeDetachVolume: plugin test-plugin for type csi-node not found"),
 		},
 	}
 

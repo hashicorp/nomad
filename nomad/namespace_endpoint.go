@@ -94,9 +94,9 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 	for _, ns := range args.Namespaces {
 		nonTerminal, err := n.nonTerminalNamespaces(args.AuthToken, ns)
 		if err != nil {
-			multierror.Append(&mErr, err)
+			_ = multierror.Append(&mErr, err)
 		} else if len(nonTerminal) != 0 {
-			multierror.Append(&mErr, fmt.Errorf("namespace %q has non-terminal jobs in regions: %v", ns, nonTerminal))
+			_ = multierror.Append(&mErr, fmt.Errorf("namespace %q has non-terminal jobs in regions: %v", ns, nonTerminal))
 		}
 	}
 

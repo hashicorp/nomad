@@ -25,7 +25,7 @@ Usage: nomad eval status [options] <evaluation>
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Eval Status Options:
 
@@ -106,7 +106,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	}
 
 	// If args not specified but output format is specified, format and output the evaluations data list
-	if len(args) == 0 && json || len(tmpl) > 0 {
+	if len(args) == 0 && (json || len(tmpl) > 0) {
 		evals, _, err := client.Evaluations().List(nil)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error querying evaluations: %v", err))
@@ -139,7 +139,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 
 	// Query the allocation info
 	if len(evalID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
+		c.Ui.Error("Identifier must contain at least two characters.")
 		return 1
 	}
 
@@ -175,7 +175,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	// If we are in monitor mode, monitor and exit
 	if monitor {
 		mon := newMonitor(c.Ui, client, length)
-		return mon.monitor(evals[0].ID, true)
+		return mon.monitor(evals[0].ID)
 	}
 
 	// Prefix lookup matched a single evaluation

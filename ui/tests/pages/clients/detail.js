@@ -17,16 +17,6 @@ import toggle from 'nomad-ui/tests/pages/components/toggle';
 export default create({
   visit: visitable('/clients/:id'),
 
-  breadcrumbs: collection('[data-test-breadcrumb]', {
-    id: attribute('data-test-breadcrumb'),
-    text: text(),
-    visit: clickable(),
-  }),
-
-  breadcrumbFor(id) {
-    return this.breadcrumbs.toArray().find(crumb => crumb.id === id);
-  },
-
   title: text('[data-test-title]'),
   clientId: text('[data-test-node-id]'),
 
@@ -128,7 +118,7 @@ export default create({
 
     deadlineToggle: toggle('[data-test-drain-deadline-toggle]'),
     deadlineOptions: {
-      open: clickable('[data-test-drain-deadline-option-select] .ember-power-select-trigger'),
+      open: clickable('[data-test-drain-deadline-option-select-parent] .ember-power-select-trigger'),
       options: collection('.ember-power-select-option', {
         label: text(),
         choose: clickable(),

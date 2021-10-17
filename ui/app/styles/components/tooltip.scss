@@ -4,6 +4,7 @@
 }
 
 .tooltip::after {
+  text-transform: none;
   content: attr(aria-label);
   background: $black;
   border-radius: $radius;
@@ -66,4 +67,8 @@
 .tooltip.multiline::after {
   width: 200px;
   white-space: normal;
+}
+
+.tooltip.pad-left {
+  margin-left: 0.3em;
 }

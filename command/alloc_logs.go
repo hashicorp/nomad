@@ -26,9 +26,12 @@ Alias: nomad logs
 
   Streams the stdout/stderr of the given allocation and task.
 
+  When ACLs are enabled, this command requires a token with the 'read-logs',
+  'read-job', and 'list-jobs' capabilities for the allocation's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Logs Specific Options:
 
@@ -37,6 +40,10 @@ Logs Specific Options:
 
   -verbose
     Show full information.
+
+  -task <task-name>
+    Sets the task to view the logs. If task name is given with both an argument 
+	and the '-task' option, preference is given to the '-task' option.
 
   -job <job-id>
     Use a random allocation from the specified job ID.
@@ -55,7 +62,12 @@ Logs Specific Options:
 
   -c
     Sets the tail location in number of bytes relative to the end of the logs.
-  `
+
+  Note that the -no-color option applies to Nomad's own output. If the task's
+  logs include terminal escape sequences for color codes, Nomad will not
+  remove them.
+`
+
 	return strings.TrimSpace(helpText)
 }
 
@@ -68,6 +80,7 @@ func (c *AllocLogsCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-stderr":  complete.PredictNothing,
 			"-verbose": complete.PredictNothing,
+			"-task":    complete.PredictAnything,
 			"-job":     complete.PredictAnything,
 			"-f":       complete.PredictNothing,
 			"-tail":    complete.PredictAnything,
@@ -96,6 +109,7 @@ func (l *AllocLogsCommand) Name() string { return "alloc logs" }
 func (l *AllocLogsCommand) Run(args []string) int {
 	var verbose, job, tail, stderr, follow bool
 	var numLines, numBytes int64
+	var task string
 
 	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
@@ -106,6 +120,7 @@ func (l *AllocLogsCommand) Run(args []string) int {
 	flags.BoolVar(&stderr, "stderr", false, "")
 	flags.Int64Var(&numLines, "n", -1, "")
 	flags.Int64Var(&numBytes, "c", -1, "")
+	flags.StringVar(&task, "task", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -136,7 +151,7 @@ func (l *AllocLogsCommand) Run(args []string) int {
 	// If -job is specified, use random allocation, otherwise use provided allocation
 	allocID := args[0]
 	if job {
-		allocID, err = getRandomJobAlloc(client, args[0])
+		allocID, err = getRandomJobAllocID(client, args[0])
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
@@ -150,7 +165,7 @@ func (l *AllocLogsCommand) Run(args []string) int {
 	}
 	// Query the allocation info
 	if len(allocID) == 1 {
-		l.Ui.Error(fmt.Sprintf("Alloc ID must contain at least two characters."))
+		l.Ui.Error("Alloc ID must contain at least two characters.")
 		return 1
 	}
 
@@ -178,21 +193,24 @@ func (l *AllocLogsCommand) Run(args []string) int {
 		return 1
 	}
 
-	var task string
-	if len(args) >= 2 {
-		task = args[1]
-		if task == "" {
-			l.Ui.Error("Task name required")
-			return 1
-		}
-
+	// If -task isn't provided fallback to reading the task name
+	// from args.
+	if task != "" {
+		err = validateTaskExistsInAllocation(task, alloc)
 	} else {
-		task, err = lookupAllocTask(alloc)
-
-		if err != nil {
-			l.Ui.Error(err.Error())
-			return 1
+		if len(args) >= 2 {
+			task = args[1]
+			if task == "" {
+				l.Ui.Error("Task name required")
+				return 1
+			}
+		} else {
+			task, err = lookupAllocTask(alloc)
 		}
+	}
+	if err != nil {
+		l.Ui.Error(fmt.Sprintf("Failed to validate task: %s", err))
+		return 1
 	}
 
 	logType := "stdout"

@@ -319,7 +319,7 @@ type networkStatusEntry struct {
 	NetworkStatus *structs.AllocNetworkStatus
 }
 
-// PutDeploymentStatus stores an allocation's DeploymentStatus or returns an
+// PutNetworkStatus stores an allocation's DeploymentStatus or returns an
 // error.
 func (s *BoltStateDB) PutNetworkStatus(allocID string, ds *structs.AllocNetworkStatus, opts ...WriteOption) error {
 	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {

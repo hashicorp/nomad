@@ -1,8 +1,6 @@
 package state
 
 import (
-	"fmt"
-
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -31,7 +29,7 @@ type Changes struct {
 type changeTrackerDB struct {
 	memdb          *memdb.MemDB
 	publisher      *stream.EventBroker
-	processChanges func(ReadTxn, Changes) (*structs.Events, error)
+	processChanges changeProcessor
 }
 
 func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventBroker, changesFn changeProcessor) *changeTrackerDB {
@@ -42,9 +40,9 @@ func NewChangeTrackerDB(db *memdb.MemDB, publisher *stream.EventBroker, changesF
 	}
 }
 
-type changeProcessor func(ReadTxn, Changes) (*structs.Events, error)
+type changeProcessor func(ReadTxn, Changes) *structs.Events
 
-func noOpProcessChanges(ReadTxn, Changes) (*structs.Events, error) { return nil, nil }
+func noOpProcessChanges(ReadTxn, Changes) *structs.Events { return nil }
 
 // ReadTxn returns a read-only transaction which behaves exactly the same as
 // memdb.Txn
@@ -91,14 +89,11 @@ func (c *changeTrackerDB) publish(changes Changes) (*structs.Events, error) {
 	readOnlyTx := c.memdb.Txn(false)
 	defer readOnlyTx.Abort()
 
-	events, err := c.processChanges(readOnlyTx, changes)
-	if err != nil {
-		return nil, fmt.Errorf("failed generating events from changes: %v", err)
-	}
-
+	events := c.processChanges(readOnlyTx, changes)
 	if events != nil {
 		c.publisher.Publish(events)
 	}
+
 	return events, nil
 }
 
@@ -165,16 +160,4 @@ func (tx *txn) Commit() error {
 // be returned to signal that the MsgType is unknown.
 func (tx *txn) MsgType() structs.MessageType {
 	return tx.msgType
-}
-
-func processDBChanges(tx ReadTxn, changes Changes) (*structs.Events, error) {
-	switch changes.MsgType {
-	case structs.IgnoreUnknownTypeFlag:
-		// unknown event type
-		return nil, nil
-	case structs.NodeDeregisterRequestType:
-		return NodeDeregisterEventFromChanges(tx, changes)
-	default:
-		return GenericEventsFromChanges(tx, changes)
-	}
 }

@@ -94,7 +94,7 @@ func TestTaskRunner_ArtifactHook_PartialDone(t *testing.T) {
 	}()
 
 	req := &interfaces.TaskPrestartRequest{
-		TaskEnv: taskenv.NewEmptyTaskEnv(),
+		TaskEnv: taskenv.NewTaskEnv(nil, nil, nil, nil, destdir, ""),
 		TaskDir: &allocdir.TaskDir{Dir: destdir},
 		Task: &structs.Task{
 			Artifacts: []*structs.TaskArtifact{

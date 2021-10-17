@@ -58,13 +58,22 @@ const (
 	//   service "web" { policy = "write" }
 	//   service_prefix "" { policy = "write" }
 	ConsulPolicyWrite = "write"
+
+	// ConsulPolicyRead is the literal text of the policy field of a Consul Policy
+	// Rule that we check when validating a job-submitter Consul token against the
+	// necessary permissions for reading the key-value store.
+	//
+	// The only acceptable rule is
+	//  - service_prefix "" { policy = "read|write" }
+	ConsulPolicyRead = "read"
 )
 
 type ServiceIdentityRequest struct {
-	TaskKind  structs.TaskKind
-	TaskName  string
-	ClusterID string
-	AllocID   string
+	ConsulNamespace string
+	TaskKind        structs.TaskKind
+	TaskName        string
+	ClusterID       string
+	AllocID         string
 }
 
 func (sir ServiceIdentityRequest) Validate() error {
@@ -92,10 +101,10 @@ func (sir ServiceIdentityRequest) Description() string {
 // ACL requirements
 // - acl:write (transitive through ACLsAPI)
 type ConsulACLsAPI interface {
-
-	// CheckSIPolicy checks that the given operator token has the equivalent ACL
-	// permissiveness that a Service Identity token policy for task would have.
-	CheckSIPolicy(ctx context.Context, task, secretID string) error
+	// CheckPermissions checks that the given Consul token has the necessary ACL
+	// permissions for each way that Consul is used as indicated by usage,
+	// returning an error if not.
+	CheckPermissions(ctx context.Context, namespace string, usage *structs.ConsulUsage, secretID string) error
 
 	// Create instructs Consul to create a Service Identity token.
 	CreateToken(context.Context, ServiceIdentityRequest) (*structs.SIToken, error)
@@ -109,10 +118,6 @@ type ConsulACLsAPI interface {
 	// Stop is used to stop background token revocations. Intended to be used
 	// on Nomad Server shutdown.
 	Stop()
-
-	// todo(shoenig): use list endpoint for finding orphaned tokens
-	// ListTokens lists every token in Consul.
-	// ListTokens() ([]string, error)
 }
 
 // PurgeSITokenAccessorFunc is called to remove SI Token accessors from the
@@ -181,32 +186,81 @@ func (c *consulACLsAPI) Stop() {
 	c.bgRevokeStopped = true
 }
 
-func (c *consulACLsAPI) CheckSIPolicy(ctx context.Context, task, secretID string) error {
-	defer metrics.MeasureSince([]string{"nomad", "consul", "check_si_policy"}, time.Now())
+func (c *consulACLsAPI) readToken(ctx context.Context, secretID string) (*api.ACLToken, error) {
+	defer metrics.MeasureSince([]string{"nomad", "consul", "read_token"}, time.Now())
 
-	if id := strings.TrimSpace(secretID); id == "" {
-		return errors.New("missing consul token")
+	if id := strings.TrimSpace(secretID); !helper.IsUUID(id) {
+		return nil, errors.New("missing consul token")
 	}
 
 	// Ensure we are under our rate limit.
 	if err := c.limiter.Wait(ctx); err != nil {
-		return err
+		return nil, errors.Wrap(err, "unable to read consul token")
 	}
 
-	opToken, _, err := c.aclClient.TokenReadSelf(&api.QueryOptions{
+	consulToken, _, err := c.aclClient.TokenReadSelf(&api.QueryOptions{
 		AllowStale: false,
 		Token:      secretID,
 	})
 	if err != nil {
-		return errors.Wrap(err, "unable to validate operator consul token")
+		return nil, errors.Wrap(err, "unable to read consul token")
 	}
 
-	allowable, err := c.hasSufficientPolicy(task, opToken)
-	if err != nil {
-		return errors.Wrap(err, "unable to validate operator consul token")
+	return consulToken, nil
+}
+
+func (c *consulACLsAPI) CheckPermissions(ctx context.Context, namespace string, usage *structs.ConsulUsage, secretID string) error {
+	// consul not used, nothing to check
+	if !usage.Used() {
+		return nil
 	}
-	if !allowable {
-		return errors.Errorf("permission denied for %q", task)
+
+	// lookup the token from consul
+	token, readErr := c.readToken(ctx, secretID)
+	if readErr != nil {
+		return readErr
+	}
+
+	// if the token is a global-management token, it has unrestricted privileges
+	if c.isManagementToken(token) {
+		return nil
+	}
+
+	// if the token cannot possibly be used to act on objects in the desired
+	// namespace, reject it immediately
+	if err := namespaceCheck(namespace, token); err != nil {
+		return err
+	}
+
+	// verify token has keystore read permission, if using template
+	if usage.KV {
+		allowable, err := c.canReadKeystore(namespace, token)
+		if err != nil {
+			return err
+		} else if !allowable {
+			return errors.New("insufficient Consul ACL permissions to use template")
+		}
+	}
+
+	// verify token has service write permission for group+task services
+	for _, service := range usage.Services {
+		allowable, err := c.canWriteService(namespace, service, token)
+		if err != nil {
+			return err
+		} else if !allowable {
+			return errors.Errorf("insufficient Consul ACL permissions to write service %q", service)
+		}
+	}
+
+	// verify token has service identity permission for connect services
+	for _, kind := range usage.Kinds {
+		service := kind.Value()
+		allowable, err := c.canWriteService(namespace, service, token)
+		if err != nil {
+			return err
+		} else if !allowable {
+			return errors.Errorf("insufficient Consul ACL permissions to write Connect service %q", service)
+		}
 	}
 
 	return nil
@@ -224,7 +278,7 @@ func (c *consulACLsAPI) CreateToken(ctx context.Context, sir ServiceIdentityRequ
 		return nil, errors.New("client stopped and may no longer create tokens")
 	}
 
-	// sanity check the metadata for the token we want
+	// Check the metadata for the token we want
 	if err := sir.Validate(); err != nil {
 		return nil, err
 	}
@@ -235,6 +289,7 @@ func (c *consulACLsAPI) CreateToken(ctx context.Context, sir ServiceIdentityRequ
 	partial := &api.ACLToken{
 		Description:       sir.Description(),
 		ServiceIdentities: []*api.ACLServiceIdentity{{ServiceName: service}},
+		Namespace:         sir.ConsulNamespace,
 	}
 
 	// Ensure we are under our rate limit.
@@ -248,9 +303,10 @@ func (c *consulACLsAPI) CreateToken(ctx context.Context, sir ServiceIdentityRequ
 	}
 
 	return &structs.SIToken{
-		TaskName:   sir.TaskName,
-		AccessorID: token.AccessorID,
-		SecretID:   token.SecretID,
+		ConsulNamespace: token.Namespace,
+		AccessorID:      token.AccessorID,
+		SecretID:        token.SecretID,
+		TaskName:        sir.TaskName,
 	}, nil
 }
 
@@ -370,7 +426,7 @@ func (c *consulACLsAPI) singleRevoke(ctx context.Context, accessor *structs.SITo
 	}
 
 	// Consul will no-op the deletion of a non-existent token (no error)
-	_, err := c.aclClient.TokenDelete(accessor.AccessorID, nil)
+	_, err := c.aclClient.TokenDelete(accessor.AccessorID, &api.WriteOptions{Namespace: accessor.ConsulNamespace})
 	return err
 }
 
@@ -447,13 +503,21 @@ func (s *Server) purgeSITokenAccessors(accessors []*structs.SITokenAccessor) err
 // ConsulConfigsAPI is an abstraction over the consul/api.ConfigEntries API used by
 // Nomad Server.
 //
-// Nomad will only perform write operations on Consul Ingress Gateway Configuration Entries.
-// Removing the entries is not particularly safe, given that multiple Nomad clusters
-// may be writing to the same config entries, which are global in the Consul scope.
+// Nomad will only perform write operations on Consul Ingress/Terminating Gateway
+// Configuration Entries. Removing the entries is not yet safe, given that multiple
+// Nomad clusters may be writing to the same config entries, which are global in
+// the Consul scope. There was a Meta field introduced which Nomad can leverage
+// in the future, when Consul no longer supports versions that do not contain the
+// field. The Meta field would be used to track which Nomad "owns" the CE.
+// https://github.com/hashicorp/nomad/issues/8971
 type ConsulConfigsAPI interface {
-	// SetIngressGatewayConfigEntry adds the given ConfigEntry to Consul, overwriting
+	// SetIngressCE adds the given ConfigEntry to Consul, overwriting
 	// the previous entry if set.
-	SetIngressGatewayConfigEntry(ctx context.Context, service string, entry *structs.ConsulIngressConfigEntry) error
+	SetIngressCE(ctx context.Context, namespace, service string, entry *structs.ConsulIngressConfigEntry) error
+
+	// SetTerminatingCE adds the given ConfigEntry to Consul, overwriting
+	// the previous entry if set.
+	SetTerminatingCE(ctx context.Context, namespace, service string, entry *structs.ConsulTerminatingConfigEntry) error
 
 	// Stop is used to stop additional creations of Configuration Entries. Intended to
 	// be used on Nomad Server shutdown.
@@ -491,13 +555,16 @@ func (c *consulConfigsAPI) Stop() {
 	c.stopped = true
 }
 
-func (c *consulConfigsAPI) SetIngressGatewayConfigEntry(ctx context.Context, service string, entry *structs.ConsulIngressConfigEntry) error {
-	configEntry := convertIngressGatewayConfig(service, entry)
-	return c.setConfigEntry(ctx, configEntry)
+func (c *consulConfigsAPI) SetIngressCE(ctx context.Context, namespace, service string, entry *structs.ConsulIngressConfigEntry) error {
+	return c.setCE(ctx, convertIngressCE(namespace, service, entry))
 }
 
-// setConfigEntry will set the Configuration Entry of any type Consul supports.
-func (c *consulConfigsAPI) setConfigEntry(ctx context.Context, entry api.ConfigEntry) error {
+func (c *consulConfigsAPI) SetTerminatingCE(ctx context.Context, namespace, service string, entry *structs.ConsulTerminatingConfigEntry) error {
+	return c.setCE(ctx, convertTerminatingCE(namespace, service, entry))
+}
+
+// setCE will set the Configuration Entry of any type Consul supports.
+func (c *consulConfigsAPI) setCE(ctx context.Context, entry api.ConfigEntry) error {
 	defer metrics.MeasureSince([]string{"nomad", "consul", "create_config_entry"}, time.Now())
 
 	// make sure the background deletion goroutine has not been stopped
@@ -514,18 +581,18 @@ func (c *consulConfigsAPI) setConfigEntry(ctx context.Context, entry api.ConfigE
 		return err
 	}
 
-	_, _, err := c.configsClient.Set(entry, nil)
+	_, _, err := c.configsClient.Set(entry, &api.WriteOptions{Namespace: entry.GetNamespace()})
 	return err
 }
 
-func convertIngressGatewayConfig(service string, entry *structs.ConsulIngressConfigEntry) api.ConfigEntry {
+func convertIngressCE(namespace, service string, entry *structs.ConsulIngressConfigEntry) api.ConfigEntry {
 	var listeners []api.IngressListener = nil
 	for _, listener := range entry.Listeners {
 		var services []api.IngressService = nil
-		for _, service := range listener.Services {
+		for _, s := range listener.Services {
 			services = append(services, api.IngressService{
-				Name:  service.Name,
-				Hosts: helper.CopySliceString(service.Hosts),
+				Name:  s.Name,
+				Hosts: helper.CopySliceString(s.Hosts),
 			})
 		}
 		listeners = append(listeners, api.IngressListener{
@@ -541,9 +608,29 @@ func convertIngressGatewayConfig(service string, entry *structs.ConsulIngressCon
 	}
 
 	return &api.IngressGatewayConfigEntry{
+		Namespace: namespace,
 		Kind:      api.IngressGateway,
 		Name:      service,
 		TLS:       api.GatewayTLSConfig{Enabled: tlsEnabled},
 		Listeners: listeners,
+	}
+}
+
+func convertTerminatingCE(namespace, service string, entry *structs.ConsulTerminatingConfigEntry) api.ConfigEntry {
+	var linked []api.LinkedService = nil
+	for _, s := range entry.Services {
+		linked = append(linked, api.LinkedService{
+			Name:     s.Name,
+			CAFile:   s.CAFile,
+			CertFile: s.CertFile,
+			KeyFile:  s.KeyFile,
+			SNI:      s.SNI,
+		})
+	}
+	return &api.TerminatingGatewayConfigEntry{
+		Namespace: namespace,
+		Kind:      api.TerminatingGateway,
+		Name:      service,
+		Services:  linked,
 	}
 }

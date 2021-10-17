@@ -121,7 +121,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		}
 
 		// assume we want blank entries
-		key := "platform.aws." + strings.Replace(k, "/", ".", -1)
+		key := "platform.aws." + strings.ReplaceAll(k, "/", ".")
 		if unique {
 			key = structs.UniqueNamespace(key)
 		}
@@ -187,6 +187,8 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 				nodeResources = new(structs.NodeResources)
 			}
 			nodeResources.Cpu = structs.NodeCpuResources{CpuShares: int64(ticks)}
+		} else {
+			response.AddAttribute("cpu.totalcompute", fmt.Sprintf("%d", request.Config.CpuCompute))
 		}
 	} else {
 		f.logger.Warn("failed to find the cpu specification for this instance type")

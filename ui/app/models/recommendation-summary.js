@@ -1,6 +1,5 @@
-import Model from 'ember-data/model';
-import { attr } from '@ember-data/model';
-import { belongsTo, hasMany } from 'ember-data/relationships';
+import Model from '@ember-data/model';
+import { attr, belongsTo, hasMany } from '@ember-data/model';
 import { get } from '@ember/object';
 import { action } from '@ember/object';
 
@@ -9,6 +8,8 @@ export default class RecommendationSummary extends Model {
   @hasMany('recommendation', { defaultValue: () => [] }) excludedRecommendations;
 
   @belongsTo('job') job;
+  @attr('string') jobId;
+  @attr('string') jobNamespace;
 
   @attr('date') submitTime;
   @attr('string') taskGroupName;
@@ -42,5 +43,9 @@ export default class RecommendationSummary extends Model {
     } else {
       this.excludedRecommendations.pushObjects(this.recommendations.filterBy('resource', resource));
     }
+  }
+
+  get slug() {
+    return `${get(this, 'job.name')}/${this.taskGroupName}`;
   }
 }

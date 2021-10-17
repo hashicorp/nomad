@@ -1,0 +1,26 @@
+---
+layout: docs
+page_title: http Stanza - Nomad Autoscaler Agent Configuration
+description: >-
+  The "http" block configures the Nomad Autoscaler's HTTP endpoint.
+---
+
+# `http` Block
+
+<Placement groups={['http']} />
+
+The `http` block configures the Nomad Autoscaler's HTTP endpoint.
+
+```hcl
+http {
+  bind_address = "10.0.0.10"
+  bind_port    = 9999
+}
+```
+
+### `http` Parameters
+
+- `bind_address` `(string: "127.0.0.1")` - The HTTP address that the server will
+  bind to.
+
+- `bind_port` `(int: 8080)` - The port that the server will bind to.

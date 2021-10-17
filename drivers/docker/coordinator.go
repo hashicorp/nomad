@@ -154,9 +154,7 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *docker.AuthConf
 	// Delete the future since we don't need it and we don't want to cache an
 	// image being there if it has possibly been manually deleted (outside of
 	// Nomad).
-	if _, ok := d.pullFutures[image]; ok {
-		delete(d.pullFutures, image)
-	}
+	delete(d.pullFutures, image)
 
 	// If we are cleaning up, we increment the reference count on the image
 	if err == nil && d.cleanup {
@@ -220,7 +218,6 @@ func (d *dockerCoordinator) pullImageImpl(image string, authOptions *docker.Auth
 	}
 
 	future.set(dockerImage.ID, nil)
-	return
 }
 
 // IncrementImageReference is used to increment an image reference count

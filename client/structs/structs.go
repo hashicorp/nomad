@@ -331,7 +331,7 @@ type HealthCheckIntervalResponse struct {
 func (h *HealthCheckResponse) AddDriverInfo(name string, driverInfo *structs.DriverInfo) {
 	// initialize Drivers if it has not been already
 	if h.Drivers == nil {
-		h.Drivers = make(map[string]*structs.DriverInfo, 0)
+		h.Drivers = make(map[string]*structs.DriverInfo)
 	}
 
 	h.Drivers[name] = driverInfo

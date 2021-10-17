@@ -27,9 +27,12 @@ Usage: nomad monitor [options]
   example your agent may only be logging at INFO level, but with the monitor
   command you can set -log-level DEBUG
 
+  When ACLs are enabled, this command requires a token with the 'agent:read'
+  capability.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 Monitor Specific Options:
 
@@ -94,7 +97,7 @@ func (c *MonitorCommand) Run(args []string) int {
 
 	// Query the node info and lookup prefix
 	if len(nodeID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Node identifier must contain at least two characters."))
+		c.Ui.Error("Node identifier must contain at least two characters.")
 		return 1
 	}
 

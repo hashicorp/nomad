@@ -389,5 +389,4 @@ func (a *ClientAllocations) exec(conn io.ReadWriteCloser) {
 	}
 
 	structs.Bridge(conn, clientConn)
-	return
 }

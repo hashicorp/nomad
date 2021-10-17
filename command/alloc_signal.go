@@ -15,20 +15,29 @@ type AllocSignalCommand struct {
 
 func (a *AllocSignalCommand) Help() string {
 	helpText := `
-Usage: nomad alloc signal [options] <signal> <allocation> <task>
+Usage: nomad alloc signal [options] <allocation> <task>
 
-  signal an existing allocation. This command is used to signal a specific alloc
+  Signal an existing allocation. This command is used to signal a specific alloc
   and its subtasks. If no task is provided then all of the allocations subtasks
   will receive the signal.
 
+  When ACLs are enabled, this command requires a token with the
+  'alloc-lifecycle', 'read-job', and 'list-jobs' capabilities for the
+  allocation's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Signal Specific Options:
 
   -s
-    Specify the signal that the selected tasks should receive.
+    Specify the signal that the selected tasks should receive. Defaults to SIGKILL.
+
+  -task <task-name>
+	Specify the individual task that will receive the signal. If task name is given
+	with both an argument and the '-task' option, preference is given to the '-task'
+	option.
 
   -verbose
     Show full information.
@@ -40,12 +49,13 @@ func (c *AllocSignalCommand) Name() string { return "alloc signal" }
 
 func (c *AllocSignalCommand) Run(args []string) int {
 	var verbose bool
-	var signal string
+	var signal, task string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.StringVar(&signal, "s", "SIGKILL", "")
+	flags.StringVar(&task, "task", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -69,7 +79,7 @@ func (c *AllocSignalCommand) Run(args []string) int {
 
 	// Query the allocation info
 	if len(allocID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Alloc ID must contain at least two characters."))
+		c.Ui.Error("Alloc ID must contain at least two characters.")
 		return 1
 	}
 
@@ -108,18 +118,21 @@ func (c *AllocSignalCommand) Run(args []string) int {
 		return 1
 	}
 
-	var taskName string
-	if len(args) == 2 {
-		// Validate Task
-		taskName = args[1]
-		err := validateTaskExistsInAllocation(taskName, alloc)
+	// If -task isn't provided fallback to reading the task name
+	// from args.
+	if task == "" && len(args) >= 2 {
+		task = args[1]
+	}
+
+	if task != "" {
+		err := validateTaskExistsInAllocation(task, alloc)
 		if err != nil {
 			c.Ui.Error(err.Error())
 			return 1
 		}
 	}
 
-	err = client.Allocations().Signal(alloc, nil, taskName, signal)
+	err = client.Allocations().Signal(alloc, nil, task, signal)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error signalling allocation: %s", err))
 		return 1

@@ -113,16 +113,8 @@ func TestLeader_LeftLeader(t *testing.T) {
 	}
 
 	// Kill the leader!
-	var leader *Server
-	for _, s := range servers {
-		if s.IsLeader() {
-			leader = s
-			break
-		}
-	}
-	if leader == nil {
-		t.Fatalf("Should have a leader")
-	}
+	leader := waitForStableLeadership(t, servers)
+
 	leader.Leave()
 	leader.Shutdown()
 
@@ -886,7 +878,7 @@ func TestLeader_ReplicateACLPolicies(t *testing.T) {
 
 	// Write a policy to the authoritative region
 	p1 := mock.ACLPolicy()
-	if err := s1.State().UpsertACLPolicies(100, []*structs.ACLPolicy{p1}); err != nil {
+	if err := s1.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{p1}); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -909,7 +901,7 @@ func TestLeader_DiffACLPolicies(t *testing.T) {
 	p1 := mock.ACLPolicy()
 	p2 := mock.ACLPolicy()
 	p3 := mock.ACLPolicy()
-	assert.Nil(t, state.UpsertACLPolicies(100, []*structs.ACLPolicy{p1, p2, p3}))
+	assert.Nil(t, state.UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{p1, p2, p3}))
 
 	// Simulate a remote list
 	p2Stub := p2.Stub()
@@ -956,7 +948,7 @@ func TestLeader_ReplicateACLTokens(t *testing.T) {
 	// Write a token to the authoritative region
 	p1 := mock.ACLToken()
 	p1.Global = true
-	if err := s1.State().UpsertACLTokens(100, []*structs.ACLToken{p1}); err != nil {
+	if err := s1.State().UpsertACLTokens(structs.MsgTypeTestSetup, 100, []*structs.ACLToken{p1}); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -983,7 +975,7 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 	p2.Global = true
 	p3 := mock.ACLToken()
 	p3.Global = true
-	assert.Nil(t, state.UpsertACLTokens(100, []*structs.ACLToken{p0, p1, p2, p3}))
+	assert.Nil(t, state.UpsertACLTokens(structs.MsgTypeTestSetup, 100, []*structs.ACLToken{p0, p1, p2, p3}))
 
 	// Simulate a remote list
 	p2Stub := p2.Stub()
@@ -1547,7 +1539,11 @@ func waitForStableLeadership(t *testing.T, servers []*Server) *Server {
 	for _, s := range servers {
 		testutil.WaitForResult(func() (bool, error) {
 			peers, _ := s.numPeers()
-			return peers == 3, fmt.Errorf("should find %d peers but found %d", nPeers, peers)
+			if peers != nPeers {
+				return false, fmt.Errorf("should find %d peers but found %d", nPeers, peers)
+			}
+
+			return true, nil
 		}, func(err error) {
 			require.NoError(t, err)
 		})

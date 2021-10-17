@@ -73,6 +73,7 @@ func (d *driverPluginClient) Capabilities() (*Capabilities, error) {
 		}
 
 		caps.MountConfigs = MountConfigSupport(resp.Capabilities.MountConfigs)
+		caps.RemoteTasks = resp.Capabilities.RemoteTasks
 	}
 
 	return caps, nil

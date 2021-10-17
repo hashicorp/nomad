@@ -7,7 +7,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
 import moment from 'moment';
-import isIp from 'is-ip';
+import formatHost from 'nomad-ui/utils/format-host';
 
 let job;
 let node;
@@ -96,7 +96,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
     assert.ok(Allocation.lifecycleChart.isPresent);
     assert.equal(Allocation.lifecycleChart.title, 'Task Lifecycle Status');
-    assert.equal(Allocation.lifecycleChart.phases.length, 3);
+    assert.equal(Allocation.lifecycleChart.phases.length, 4);
     assert.equal(Allocation.lifecycleChart.tasks.length, 6);
 
     await Allocation.lifecycleChart.tasks[0].visit();
@@ -223,10 +223,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
       assert.equal(renderedPort.name, serverPort.Label);
       assert.equal(renderedPort.to, serverPort.To);
-      const expectedAddr = isIp.v6(serverPort.HostIP)
-        ? `[${serverPort.HostIP}]:${serverPort.Value}`
-        : `${serverPort.HostIP}:${serverPort.Value}`;
-      assert.equal(renderedPort.address, expectedAddr);
+      assert.equal(renderedPort.address, formatHost(serverPort.HostIP, serverPort.Value));
     });
   });
 
@@ -240,6 +237,7 @@ module('Acceptance | allocation detail', function(hooks) {
 
       assert.equal(renderedService.name, serverService.name);
       assert.equal(renderedService.port, serverService.portLabel);
+      assert.equal(renderedService.onUpdate, serverService.onUpdate);
       assert.equal(renderedService.tags, (serverService.tags || []).join(', '));
 
       assert.equal(renderedService.connect, serverService.Connect ? 'Yes' : 'No');
@@ -273,7 +271,7 @@ module('Acceptance | allocation detail', function(hooks) {
     await Allocation.stop.confirm();
 
     assert.equal(
-      server.pretender.handledRequests.findBy('method', 'POST').url,
+      server.pretender.handledRequests.reject(request => request.url.includes('fuzzy')).findBy('method', 'POST').url,
       `/v1/allocation/${allocation.id}/stop`,
       'Stop request is made for the allocation'
     );

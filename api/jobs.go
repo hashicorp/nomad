@@ -691,9 +691,7 @@ func (m *Multiregion) Copy() *Multiregion {
 		copyRegion := new(MultiregionRegion)
 		copyRegion.Name = region.Name
 		copyRegion.Count = intToPtr(*region.Count)
-		for _, dc := range region.Datacenters {
-			copyRegion.Datacenters = append(copyRegion.Datacenters, dc)
-		}
+		copyRegion.Datacenters = append(copyRegion.Datacenters, region.Datacenters...)
 		for k, v := range region.Meta {
 			copyRegion.Meta[k] = v
 		}
@@ -819,6 +817,7 @@ type Job struct {
 	ParentID          *string
 	Dispatched        bool
 	Payload           []byte
+	ConsulNamespace   *string `mapstructure:"consul_namespace"`
 	VaultNamespace    *string `mapstructure:"vault_namespace"`
 	NomadTokenID      *string `mapstructure:"nomad_token_id"`
 	Status            *string
@@ -879,6 +878,9 @@ func (j *Job) Canonicalize() {
 	}
 	if j.ConsulToken == nil {
 		j.ConsulToken = stringToPtr("")
+	}
+	if j.ConsulNamespace == nil {
+		j.ConsulNamespace = stringToPtr("")
 	}
 	if j.VaultToken == nil {
 		j.VaultToken = stringToPtr("")
@@ -1031,6 +1033,13 @@ func NewServiceJob(id, name, region string, pri int) *Job {
 // with the relative job priority.
 func NewBatchJob(id, name, region string, pri int) *Job {
 	return newJob(id, name, region, JobTypeBatch, pri)
+}
+
+// NewSystemJob creates and returns a new system-style job for processes
+// designed to run on all clients, using the provided name and ID along with
+// the relative job priority.
+func NewSystemJob(id, name, region string, pri int) *Job {
+	return newJob(id, name, region, JobTypeSystem, pri)
 }
 
 // newJob is used to create a new Job struct.

@@ -20,31 +20,16 @@ import (
 func TestJob_Validate(t *testing.T) {
 	j := &Job{}
 	err := j.Validate()
-	mErr := err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "job region") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[1].Error(), "job ID") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[2].Error(), "job name") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[3].Error(), "namespace") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[4].Error(), "job type") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[5].Error(), "priority") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[6].Error(), "datacenters") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[7].Error(), "task groups") {
-		t.Fatalf("err: %s", err)
-	}
+	requireErrors(t, err,
+		"datacenters",
+		"job ID",
+		"job name",
+		"job region",
+		"job type",
+		"namespace",
+		"priority",
+		"task groups",
+	)
 
 	j = &Job{
 		Type: "invalid-job-type",
@@ -61,10 +46,7 @@ func TestJob_Validate(t *testing.T) {
 		},
 	}
 	err = j.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Error(), "Periodic") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "Periodic")
 
 	j = &Job{
 		Region:      "global",
@@ -101,26 +83,17 @@ func TestJob_Validate(t *testing.T) {
 		},
 	}
 	err = j.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "2 redefines 'web' from group 1") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[1].Error(), "group 3 missing name") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Task group web validation failed") {
-		t.Fatalf("err: %s", err)
-	}
-
+	requireErrors(t, err,
+		"2 redefines 'web' from group 1",
+		"group 3 missing name",
+		"Task group web validation failed",
+	)
 	// test for empty datacenters
 	j = &Job{
 		Datacenters: []string{""},
 	}
 	err = j.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Error(), "datacenter must be non-empty string") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "datacenter must be non-empty string")
 }
 
 func TestJob_ValidateScaling(t *testing.T) {
@@ -143,31 +116,28 @@ func TestJob_ValidateScaling(t *testing.T) {
 	p.Max = 0
 	p.Min = 10
 	err := job.Validate()
-	require.Error(err)
-	mErr := err.(*multierror.Error)
-	require.Len(mErr.Errors, 1)
-	require.Contains(mErr.Errors[0].Error(), "task group count must not be less than minimum count in scaling policy")
-	require.Contains(mErr.Errors[0].Error(), "task group count must not be greater than maximum count in scaling policy")
+	requireErrors(t, err,
+		"task group count must not be less than minimum count in scaling policy",
+		"task group count must not be greater than maximum count in scaling policy",
+	)
 
 	// count <= max
 	p.Max = 0
 	p.Min = 5
 	job.TaskGroups[0].Count = 5
 	err = job.Validate()
-	require.Error(err)
-	mErr = err.(*multierror.Error)
-	require.Len(mErr.Errors, 1)
-	require.Contains(mErr.Errors[0].Error(), "task group count must not be greater than maximum count in scaling policy")
+	require.Error(err,
+		"task group count must not be greater than maximum count in scaling policy",
+	)
 
 	// min <= count
 	job.TaskGroups[0].Count = 0
 	p.Min = 5
 	p.Max = 5
 	err = job.Validate()
-	require.Error(err)
-	mErr = err.(*multierror.Error)
-	require.Len(mErr.Errors, 1)
-	require.Contains(mErr.Errors[0].Error(), "task group count must not be less than minimum count in scaling policy")
+	require.Error(err,
+		"task group count must not be less than minimum count in scaling policy",
+	)
 }
 
 func TestJob_ValidateNullChar(t *testing.T) {
@@ -230,6 +200,27 @@ func TestJob_Warnings(t *testing.T) {
 					{
 						Update: &UpdateStrategy{
 							AutoPromote: false,
+							Canary:      1,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "no error for mixed but implied AutoPromote",
+			Expected: []string{},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Update: &UpdateStrategy{
+							AutoPromote: true,
+						},
+					},
+					{
+						Update: &UpdateStrategy{
+							AutoPromote: false,
+							Canary:      0,
 						},
 					},
 				},
@@ -263,9 +254,8 @@ func TestJob_Warnings(t *testing.T) {
 			if warnings == nil {
 				if len(c.Expected) == 0 {
 					return
-				} else {
-					t.Fatal("Got no warnings when they were expected")
 				}
+				t.Fatal("Got no warnings when they were expected")
 			}
 
 			a := warnings.Error()
@@ -308,6 +298,18 @@ func TestJob_SpecChanged(t *testing.T) {
 			Changed:  true,
 			Original: base,
 			New:      change,
+		},
+		{
+			Name:     "With Constraints",
+			Changed:  false,
+			Original: &Job{Constraints: []*Constraint{{"A", "B", "="}}},
+			New:      &Job{Constraints: []*Constraint{{"A", "B", "="}}},
+		},
+		{
+			Name:     "With Affinities",
+			Changed:  false,
+			Original: &Job{Affinities: []*Affinity{{"A", "B", "=", 1}}},
+			New:      &Job{Affinities: []*Affinity{{"A", "B", "=", 1}}},
 		},
 	}
 
@@ -357,6 +359,19 @@ func testJob() *Job {
 					Delay:         5 * time.Second,
 					DelayFunction: "constant",
 				},
+				Networks: []*NetworkResource{
+					{
+						DynamicPorts: []Port{
+							{Label: "http"},
+						},
+					},
+				},
+				Services: []*Service{
+					{
+						Name:      "${TASK}-frontend",
+						PortLabel: "http",
+					},
+				},
 				Tasks: []*Task{
 					{
 						Name:   "web",
@@ -372,21 +387,9 @@ func testJob() *Job {
 								GetterSource: "http://foo.com",
 							},
 						},
-						Services: []*Service{
-							{
-								Name:      "${TASK}-frontend",
-								PortLabel: "http",
-							},
-						},
 						Resources: &Resources{
 							CPU:      500,
 							MemoryMB: 256,
-							Networks: []*NetworkResource{
-								{
-									MBits:        50,
-									DynamicPorts: []Port{{Label: "http"}},
-								},
-							},
 						},
 						LogConfig: &LogConfig{
 							MaxFiles:      10,
@@ -668,6 +671,12 @@ func TestJob_ConnectTasks(t *testing.T) {
 				Name: "generator",
 				Kind: "connect-native:uuid-api",
 			}},
+		}, {
+			Name: "tg5",
+			Tasks: []*Task{{
+				Name: "t1000",
+				Kind: "connect-terminating:t1000",
+			}},
 		}},
 	}
 
@@ -680,6 +689,7 @@ func TestJob_ConnectTasks(t *testing.T) {
 		NewTaskKind(ConnectIngressPrefix, "ingress"),
 		NewTaskKind(ConnectNativePrefix, "uuid-fe"),
 		NewTaskKind(ConnectNativePrefix, "uuid-api"),
+		NewTaskKind(ConnectTerminatingPrefix, "t1000"),
 	}
 
 	r.Equal(exp, connectTasks)
@@ -820,25 +830,25 @@ func TestJob_PartEqual(t *testing.T) {
 	}))
 
 	cs := &Constraints{
-		&Constraint{"left0", "right0", "=", ""},
-		&Constraint{"left1", "right1", "=", ""},
-		&Constraint{"left2", "right2", "=", ""},
+		&Constraint{"left0", "right0", "="},
+		&Constraint{"left1", "right1", "="},
+		&Constraint{"left2", "right2", "="},
 	}
 	require.True(t, cs.Equals(&Constraints{
-		&Constraint{"left0", "right0", "=", ""},
-		&Constraint{"left2", "right2", "=", ""},
-		&Constraint{"left1", "right1", "=", ""},
+		&Constraint{"left0", "right0", "="},
+		&Constraint{"left2", "right2", "="},
+		&Constraint{"left1", "right1", "="},
 	}))
 
 	as := &Affinities{
-		&Affinity{"left0", "right0", "=", 0, ""},
-		&Affinity{"left1", "right1", "=", 0, ""},
-		&Affinity{"left2", "right2", "=", 0, ""},
+		&Affinity{"left0", "right0", "=", 0},
+		&Affinity{"left1", "right1", "=", 0},
+		&Affinity{"left2", "right2", "=", 0},
 	}
 	require.True(t, as.Equals(&Affinities{
-		&Affinity{"left0", "right0", "=", 0, ""},
-		&Affinity{"left2", "right2", "=", 0, ""},
-		&Affinity{"left1", "right1", "=", 0, ""},
+		&Affinity{"left0", "right0", "=", 0},
+		&Affinity{"left2", "right2", "=", 0},
+		&Affinity{"left1", "right1", "=", 0},
 	}))
 }
 
@@ -873,6 +883,15 @@ func TestTask_UsesConnect(t *testing.T) {
 		task := &Task{
 			Name: "task1",
 			Kind: NewTaskKind(ConnectIngressPrefix, "task1"),
+		}
+		usesConnect := task.UsesConnect()
+		require.True(t, usesConnect)
+	})
+
+	t.Run("terminating gateway", func(t *testing.T) {
+		task := &Task{
+			Name: "task1",
+			Kind: NewTaskKind(ConnectTerminatingPrefix, "task1"),
 		}
 		usesConnect := task.UsesConnect()
 		require.True(t, usesConnect)
@@ -944,16 +963,11 @@ func TestTaskGroup_Validate(t *testing.T) {
 		},
 	}
 	err := tg.Validate(j)
-	mErr := err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "group name") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[1].Error(), "count can't be negative") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Missing tasks") {
-		t.Fatalf("err: %s", err)
-	}
+	requireErrors(t, err,
+		"group name",
+		"count can't be negative",
+		"Missing tasks",
+	)
 
 	tg = &TaskGroup{
 		Tasks: []*Task{
@@ -1031,22 +1045,13 @@ func TestTaskGroup_Validate(t *testing.T) {
 	}
 
 	err = tg.Validate(j)
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "should have an ephemeral disk object") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[1].Error(), "2 redefines 'web' from task 1") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Task 3 missing name") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[3].Error(), "Only one task may be marked as leader") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[4].Error(), "Task web validation failed") {
-		t.Fatalf("err: %s", err)
-	}
+	requireErrors(t, err,
+		"should have an ephemeral disk object",
+		"2 redefines 'web' from task 1",
+		"Task 3 missing name",
+		"Only one task may be marked as leader",
+		"Task web validation failed",
+	)
 
 	tg = &TaskGroup{
 		Name:  "web",
@@ -1058,9 +1063,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 	}
 	j.Type = JobTypeBatch
 	err = tg.Validate(j)
-	if !strings.Contains(err.Error(), "does not allow update block") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "does not allow update block")
 
 	tg = &TaskGroup{
 		Count: -1,
@@ -1118,7 +1121,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 		},
 	}
 	err = tg.Validate(&Job{})
-	require.Contains(t, err.Error(), `Volume foo has unrecognised type nothost`)
+	require.Contains(t, err.Error(), `volume has unrecognized type nothost`)
 
 	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{
@@ -1134,7 +1137,31 @@ func TestTaskGroup_Validate(t *testing.T) {
 		},
 	}
 	err = tg.Validate(&Job{})
-	require.Contains(t, err.Error(), `Volume foo has an empty source`)
+	require.Contains(t, err.Error(), `volume has an empty source`)
+
+	tg = &TaskGroup{
+		Name: "group-a",
+		Update: &UpdateStrategy{
+			Canary: 1,
+		},
+		Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Type:     "csi",
+				PerAlloc: true,
+			},
+		},
+		Tasks: []*Task{
+			{
+				Name:      "task-a",
+				Resources: &Resources{},
+			},
+		},
+	}
+	err = tg.Validate(&Job{})
+	require.Contains(t, err.Error(), `volume has an empty source`)
+	require.Contains(t, err.Error(), `volume cannot be per_alloc when canaries are in use`)
+	require.Contains(t, err.Error(), `CSI volumes must have an attachment mode`)
+	require.Contains(t, err.Error(), `CSI volumes must have an access mode`)
 
 	tg = &TaskGroup{
 		Volumes: map[string]*VolumeRequest{
@@ -1328,6 +1355,120 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 			},
 			ErrContains: "greater than",
 		},
+		{
+			TG: &TaskGroup{
+				Name: "group-same-static-port-different-host_network",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label:       "net1_http",
+								Value:       80,
+								HostNetwork: "net1",
+							},
+							{
+								Label:       "net2_http",
+								Value:       80,
+								HostNetwork: "net2",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "mixing-group-task-ports",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label: "group_http",
+								Value: 80,
+							},
+						},
+					},
+				},
+				Tasks: []*Task{
+					{
+						Name: "task1",
+						Resources: &Resources{
+							Networks: Networks{
+								&NetworkResource{
+									ReservedPorts: []Port{
+										{
+											Label: "task_http",
+											Value: 80,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			ErrContains: "already reserved by",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "mixing-group-task-ports-with-host_network",
+				Networks: Networks{
+					&NetworkResource{
+						ReservedPorts: []Port{
+							{
+								Label:       "group_http",
+								Value:       80,
+								HostNetwork: "net1",
+							},
+						},
+					},
+				},
+				Tasks: []*Task{
+					{
+						Name: "task1",
+						Resources: &Resources{
+							Networks: Networks{
+								&NetworkResource{
+									ReservedPorts: []Port{
+										{
+											Label: "task_http",
+											Value: 80,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Tasks: []*Task{
+					{Driver: "docker"},
+				},
+				Networks: []*NetworkResource{
+					{
+						Mode:     "bridge",
+						Hostname: "foobar",
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Tasks: []*Task{
+					{Name: "hostname-invalid-dns-name"},
+				},
+				Networks: []*NetworkResource{
+					{
+						Mode:     "bridge",
+						Hostname: "............",
+					},
+				},
+			},
+			ErrContains: "Hostname is not a valid DNS name",
+		},
 	}
 
 	for i := range cases {
@@ -1349,24 +1490,16 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 func TestTask_Validate(t *testing.T) {
 	task := &Task{}
 	ephemeralDisk := DefaultEphemeralDisk()
-	err := task.Validate(ephemeralDisk, JobTypeBatch, nil)
-	mErr := err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "task name") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[1].Error(), "task driver") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[2].Error(), "task resources") {
-		t.Fatalf("err: %s", err)
-	}
+	err := task.Validate(ephemeralDisk, JobTypeBatch, nil, nil)
+	requireErrors(t, err,
+		"task name",
+		"task driver",
+		"task resources",
+	)
 
 	task = &Task{Name: "web/foo"}
-	err = task.Validate(ephemeralDisk, JobTypeBatch, nil)
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "slashes") {
-		t.Fatalf("err: %s", err)
-	}
+	err = task.Validate(ephemeralDisk, JobTypeBatch, nil, nil)
+	require.Error(t, err, "slashes")
 
 	task = &Task{
 		Name:   "web",
@@ -1378,7 +1511,7 @@ func TestTask_Validate(t *testing.T) {
 		LogConfig: DefaultLogConfig(),
 	}
 	ephemeralDisk.SizeMB = 200
-	err = task.Validate(ephemeralDisk, JobTypeBatch, nil)
+	err = task.Validate(ephemeralDisk, JobTypeBatch, nil, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -1392,20 +1525,18 @@ func TestTask_Validate(t *testing.T) {
 			LTarget: "${meta.rack}",
 		})
 
-	err = task.Validate(ephemeralDisk, JobTypeBatch, nil)
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "task level: distinct_hosts") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[1].Error(), "task level: distinct_property") {
-		t.Fatalf("err: %s", err)
-	}
+	err = task.Validate(ephemeralDisk, JobTypeBatch, nil, nil)
+	requireErrors(t, err,
+		"task level: distinct_hosts",
+		"task level: distinct_property",
+	)
 }
 
 func TestTask_Validate_Resources(t *testing.T) {
 	cases := []struct {
 		name string
 		res  *Resources
+		err  string
 	}{
 		{
 			name: "Minimum",
@@ -1418,9 +1549,10 @@ func TestTask_Validate_Resources(t *testing.T) {
 		{
 			name: "Full",
 			res: &Resources{
-				CPU:      1000,
-				MemoryMB: 1000,
-				IOPS:     1000,
+				CPU:         1000,
+				MemoryMB:    1000,
+				MemoryMaxMB: 2000,
+				IOPS:        1000,
 				Networks: []*NetworkResource{
 					{
 						Mode:   "host",
@@ -1453,12 +1585,93 @@ func TestTask_Validate_Resources(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "too little cpu",
+			res: &Resources{
+				CPU:      0,
+				MemoryMB: 200,
+			},
+			err: "minimum CPU value is 1",
+		},
+		{
+			name: "too little memory",
+			res: &Resources{
+				CPU:      100,
+				MemoryMB: 1,
+			},
+			err: "minimum MemoryMB value is 10; got 1",
+		},
+		{
+			name: "too little memory max",
+			res: &Resources{
+				CPU:         100,
+				MemoryMB:    200,
+				MemoryMaxMB: 10,
+			},
+			err: "MemoryMaxMB value (10) should be larger than MemoryMB value (200",
+		},
 	}
 
 	for i := range cases {
 		tc := cases[i]
 		t.Run(tc.name, func(t *testing.T) {
-			require.NoError(t, tc.res.Validate())
+			err := tc.res.Validate()
+			if tc.err == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.err)
+			}
+		})
+	}
+}
+
+func TestNetworkResource_Copy(t *testing.T) {
+	testCases := []struct {
+		inputNetworkResource *NetworkResource
+		name                 string
+	}{
+		{
+			inputNetworkResource: nil,
+			name:                 "nil input check",
+		},
+		{
+			inputNetworkResource: &NetworkResource{
+				Mode:     "bridge",
+				Device:   "eth0",
+				CIDR:     "10.0.0.1/8",
+				IP:       "10.1.1.13",
+				Hostname: "foobar",
+				MBits:    1000,
+				DNS: &DNSConfig{
+					Servers:  []string{"8.8.8.8", "8.8.4.4"},
+					Searches: []string{"example.com"},
+					Options:  []string{"ndot:2"},
+				},
+				ReservedPorts: []Port{
+					{
+						Label:       "foo",
+						Value:       1313,
+						To:          1313,
+						HostNetwork: "private",
+					},
+				},
+				DynamicPorts: []Port{
+					{
+						Label:       "bar",
+						To:          1414,
+						HostNetwork: "public",
+					},
+				},
+			},
+			name: "fully populated input check",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			output := tc.inputNetworkResource.Copy()
+			assert.Equal(t, tc.inputNetworkResource, output, tc.name)
 		})
 	}
 }
@@ -1519,7 +1732,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		Services:  []*Service{s3, s4},
 		LogConfig: DefaultLogConfig(),
 	}
-	task1.Resources.Networks = []*NetworkResource{
+	tgNetworks := []*NetworkResource{
 		{
 			MBits: 10,
 			DynamicPorts: []Port{
@@ -1535,7 +1748,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		},
 	}
 
-	err := task.Validate(ephemeralDisk, JobTypeService, nil)
+	err := task.Validate(ephemeralDisk, JobTypeService, nil, tgNetworks)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -1556,7 +1769,7 @@ func TestTask_Validate_Services(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	if err = task1.Validate(ephemeralDisk, JobTypeService, nil); err != nil {
+	if err = task1.Validate(ephemeralDisk, JobTypeService, nil, tgNetworks); err != nil {
 		t.Fatalf("err : %v", err)
 	}
 }
@@ -1571,18 +1784,18 @@ func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
 			Services:  []*Service{s},
 			LogConfig: DefaultLogConfig(),
 		}
-		task.Resources.Networks = []*NetworkResource{
-			{
-				MBits: 10,
-				DynamicPorts: []Port{
-					{
-						Label: "http",
-						Value: 80,
-					},
+
+		return task
+	}
+	tgNetworks := []*NetworkResource{
+		{
+			DynamicPorts: []Port{
+				{
+					Label: "http",
+					Value: 80,
 				},
 			},
-		}
-		return task
+		},
 	}
 
 	cases := []*Service{
@@ -1615,7 +1828,7 @@ func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
 	for _, service := range cases {
 		task := getTask(service)
 		t.Run(service.Name, func(t *testing.T) {
-			if err := task.Validate(ephemeralDisk, JobTypeService, nil); err != nil {
+			if err := task.Validate(ephemeralDisk, JobTypeService, nil, tgNetworks); err != nil {
 				t.Fatalf("unexpected err: %v", err)
 			}
 		})
@@ -1625,25 +1838,23 @@ func TestTask_Validate_Service_AddressMode_Ok(t *testing.T) {
 func TestTask_Validate_Service_AddressMode_Bad(t *testing.T) {
 	ephemeralDisk := DefaultEphemeralDisk()
 	getTask := func(s *Service) *Task {
-		task := &Task{
+		return &Task{
 			Name:      "web",
 			Driver:    "docker",
 			Resources: DefaultResources(),
 			Services:  []*Service{s},
 			LogConfig: DefaultLogConfig(),
 		}
-		task.Resources.Networks = []*NetworkResource{
-			{
-				MBits: 10,
-				DynamicPorts: []Port{
-					{
-						Label: "http",
-						Value: 80,
-					},
+	}
+	tgNetworks := []*NetworkResource{
+		{
+			DynamicPorts: []Port{
+				{
+					Label: "http",
+					Value: 80,
 				},
 			},
-		}
-		return task
+		},
 	}
 
 	cases := []*Service{
@@ -1668,7 +1879,7 @@ func TestTask_Validate_Service_AddressMode_Bad(t *testing.T) {
 	for _, service := range cases {
 		task := getTask(service)
 		t.Run(service.Name, func(t *testing.T) {
-			err := task.Validate(ephemeralDisk, JobTypeService, nil)
+			err := task.Validate(ephemeralDisk, JobTypeService, nil, tgNetworks)
 			if err == nil {
 				t.Fatalf("expected an error")
 			}
@@ -1785,9 +1996,10 @@ func TestTask_Validate_Service_Check(t *testing.T) {
 // TestTask_Validate_Service_Check_AddressMode asserts that checks do not
 // inherit address mode but do inherit ports.
 func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
-	getTask := func(s *Service) *Task {
+	getTask := func(s *Service) (*Task, *TaskGroup) {
 		return &Task{
-			Resources: &Resources{
+				Services: []*Service{s},
+			}, &TaskGroup{
 				Networks: []*NetworkResource{
 					{
 						DynamicPorts: []Port{
@@ -1798,9 +2010,7 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 						},
 					},
 				},
-			},
-			Services: []*Service{s},
-		}
+			}
 	}
 
 	cases := []struct {
@@ -1935,13 +2145,20 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 			},
 			ErrContains: `invalid: check requires a port but neither check nor service`,
 		},
+		{
+			Service: &Service{
+				Name:    "conect-block-on-task-level",
+				Connect: &ConsulConnect{SidecarService: &ConsulSidecarService{}},
+			},
+			ErrContains: `cannot have "connect" block`,
+		},
 	}
 
 	for _, tc := range cases {
 		tc := tc
-		task := getTask(tc.Service)
+		task, tg := getTask(tc.Service)
 		t.Run(tc.Service.Name, func(t *testing.T) {
-			err := validateServices(task)
+			err := validateServices(task, tg.Networks)
 			if err == nil && tc.ErrContains == "" {
 				// Ok!
 				return
@@ -2097,7 +2314,7 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 			task.Services = []*Service{tc.Service}
 		}
 		t.Run(tc.Desc, func(t *testing.T) {
-			err := task.Validate(ephemeralDisk, "service", tc.TgService)
+			err := task.Validate(ephemeralDisk, "service", tc.TgService, nil)
 			if err == nil && tc.ErrContains == "" {
 				// Ok!
 				return
@@ -2116,11 +2333,8 @@ func TestTask_Validate_LogConfig(t *testing.T) {
 		SizeMB: 1,
 	}
 
-	err := task.Validate(ephemeralDisk, JobTypeService, nil)
-	mErr := err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[3].Error(), "log storage") {
-		t.Fatalf("err: %s", err)
-	}
+	err := task.Validate(ephemeralDisk, JobTypeService, nil, nil)
+	require.Error(t, err, "log storage")
 }
 
 func TestLogConfig_Equals(t *testing.T) {
@@ -2157,13 +2371,15 @@ func TestLogConfig_Equals(t *testing.T) {
 
 func TestTask_Validate_CSIPluginConfig(t *testing.T) {
 	table := []struct {
-		name        string
-		pc          *TaskCSIPluginConfig
-		expectedErr string
+		name          string
+		pc            *TaskCSIPluginConfig
+		expectedErr   string
+		unexpectedErr string
 	}{
 		{
-			name: "no errors when not specified",
-			pc:   nil,
+			name:          "no errors when not specified",
+			pc:            nil,
+			unexpectedErr: "CSIPluginConfig",
 		},
 		{
 			name:        "requires non-empty plugin id",
@@ -2182,23 +2398,18 @@ func TestTask_Validate_CSIPluginConfig(t *testing.T) {
 
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
-			task := &Task{
-				CSIPluginConfig: tt.pc,
-			}
+			task := testJob().TaskGroups[0].Tasks[0]
+			task.CSIPluginConfig = tt.pc
 			ephemeralDisk := &EphemeralDisk{
-				SizeMB: 1,
+				SizeMB: 100,
 			}
 
-			err := task.Validate(ephemeralDisk, JobTypeService, nil)
-			mErr := err.(*multierror.Error)
+			err := task.Validate(ephemeralDisk, JobTypeService, nil, nil)
 			if tt.expectedErr != "" {
-				if !strings.Contains(mErr.Errors[4].Error(), tt.expectedErr) {
-					t.Fatalf("err: %s", err)
-				}
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.expectedErr)
 			} else {
-				if len(mErr.Errors) != 4 {
-					t.Fatalf("unexpected err: %s", mErr.Errors[4])
-				}
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -2214,7 +2425,7 @@ func TestTask_Validate_Template(t *testing.T) {
 		SizeMB: 1,
 	}
 
-	err := task.Validate(ephemeralDisk, JobTypeService, nil)
+	err := task.Validate(ephemeralDisk, JobTypeService, nil, nil)
 	if !strings.Contains(err.Error(), "Template 1 validation failed") {
 		t.Fatalf("err: %s", err)
 	}
@@ -2227,7 +2438,7 @@ func TestTask_Validate_Template(t *testing.T) {
 	}
 
 	task.Templates = []*Template{good, good}
-	err = task.Validate(ephemeralDisk, JobTypeService, nil)
+	err = task.Validate(ephemeralDisk, JobTypeService, nil, nil)
 	if !strings.Contains(err.Error(), "same destination as") {
 		t.Fatalf("err: %s", err)
 	}
@@ -2240,7 +2451,7 @@ func TestTask_Validate_Template(t *testing.T) {
 		},
 	}
 
-	err = task.Validate(ephemeralDisk, JobTypeService, nil)
+	err = task.Validate(ephemeralDisk, JobTypeService, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error from Template.Validate")
 	}
@@ -2355,10 +2566,7 @@ func TestTemplate_Validate(t *testing.T) {
 func TestConstraint_Validate(t *testing.T) {
 	c := &Constraint{}
 	err := c.Validate()
-	mErr := err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "Missing constraint operand") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "Missing constraint operand")
 
 	c = &Constraint{
 		LTarget: "$attr.kernel.name",
@@ -2372,25 +2580,18 @@ func TestConstraint_Validate(t *testing.T) {
 	c.Operand = ConstraintRegex
 	c.RTarget = "(foo"
 	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "missing closing") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "missing closing")
 
 	// Perform version validation
 	c.Operand = ConstraintVersion
 	c.RTarget = "~> foo"
 	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "Malformed constraint") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "Malformed constraint")
 
 	// Perform semver validation
 	c.Operand = ConstraintSemver
 	err = c.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Malformed constraint")
+	require.Error(t, err, "Malformed constraint")
 
 	c.RTarget = ">= 0.6.1"
 	require.NoError(t, c.Validate())
@@ -2399,17 +2600,11 @@ func TestConstraint_Validate(t *testing.T) {
 	c.Operand = ConstraintDistinctProperty
 	c.RTarget = "0"
 	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "count of 1 or greater") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "count of 1 or greater")
 
 	c.RTarget = "-1"
 	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "to uint64") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "to uint64")
 
 	// Perform distinct_hosts validation
 	c.Operand = ConstraintDistinctHosts
@@ -2424,10 +2619,7 @@ func TestConstraint_Validate(t *testing.T) {
 	for _, o := range []string{ConstraintSetContains, ConstraintSetContainsAll, ConstraintSetContainsAny} {
 		c.Operand = o
 		err = c.Validate()
-		mErr = err.(*multierror.Error)
-		if !strings.Contains(mErr.Errors[0].Error(), "requires an RTarget") {
-			t.Fatalf("err: %s", err)
-		}
+		require.Error(t, err, "requires an RTarget")
 	}
 
 	// Perform LTarget validation
@@ -2435,28 +2627,20 @@ func TestConstraint_Validate(t *testing.T) {
 	c.RTarget = "foo"
 	c.LTarget = ""
 	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "No LTarget") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "No LTarget")
 
 	// Perform constraint type validation
 	c.Operand = "foo"
 	err = c.Validate()
-	mErr = err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "Unknown constraint type") {
-		t.Fatalf("err: %s", err)
-	}
+	require.Error(t, err, "Unknown constraint type")
 }
 
 func TestAffinity_Validate(t *testing.T) {
-
 	type tc struct {
 		affinity *Affinity
 		err      error
 		name     string
 	}
-
 	testCases := []tc{
 		{
 			affinity: &Affinity{},
@@ -2549,31 +2733,16 @@ func TestUpdateStrategy_Validate(t *testing.T) {
 	}
 
 	err := u.Validate()
-	mErr := err.(*multierror.Error)
-	if !strings.Contains(mErr.Errors[0].Error(), "Invalid health check given") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[1].Error(), "Max parallel can not be less than zero") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[2].Error(), "Canary count can not be less than zero") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[3].Error(), "Minimum healthy time may not be less than zero") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[4].Error(), "Healthy deadline must be greater than zero") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[5].Error(), "Progress deadline must be zero or greater") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[6].Error(), "Minimum healthy time must be less than healthy deadline") {
-		t.Fatalf("err: %s", err)
-	}
-	if !strings.Contains(mErr.Errors[7].Error(), "Healthy deadline must be less than progress deadline") {
-		t.Fatalf("err: %s", err)
-	}
+	requireErrors(t, err,
+		"Invalid health check given",
+		"Max parallel can not be less than zero",
+		"Canary count can not be less than zero",
+		"Minimum healthy time may not be less than zero",
+		"Healthy deadline must be greater than zero",
+		"Progress deadline must be zero or greater",
+		"Minimum healthy time must be less than healthy deadline",
+		"Healthy deadline must be less than progress deadline",
+	)
 }
 
 func TestResource_NetIndex(t *testing.T) {
@@ -2592,32 +2761,6 @@ func TestResource_NetIndex(t *testing.T) {
 	}
 	if idx := r.NetIndex(&NetworkResource{Device: "eth1"}); idx != -1 {
 		t.Fatalf("Bad: %d", idx)
-	}
-}
-
-func TestResource_Superset(t *testing.T) {
-	r1 := &Resources{
-		CPU:      2000,
-		MemoryMB: 2048,
-		DiskMB:   10000,
-	}
-	r2 := &Resources{
-		CPU:      2000,
-		MemoryMB: 1024,
-		DiskMB:   5000,
-	}
-
-	if s, _ := r1.Superset(r1); !s {
-		t.Fatalf("bad")
-	}
-	if s, _ := r1.Superset(r2); !s {
-		t.Fatalf("bad")
-	}
-	if s, _ := r2.Superset(r1); s {
-		t.Fatalf("bad")
-	}
-	if s, _ := r2.Superset(r2); !s {
-		t.Fatalf("bad")
 	}
 }
 
@@ -2647,10 +2790,7 @@ func TestResource_Add(t *testing.T) {
 		},
 	}
 
-	err := r1.Add(r2)
-	if err != nil {
-		t.Fatalf("Err: %v", err)
-	}
+	r1.Add(r2)
 
 	expect := &Resources{
 		CPU:      3000,
@@ -2689,14 +2829,8 @@ func TestResource_Add_Network(t *testing.T) {
 		},
 	}
 
-	err := r1.Add(r2)
-	if err != nil {
-		t.Fatalf("Err: %v", err)
-	}
-	err = r1.Add(r3)
-	if err != nil {
-		t.Fatalf("Err: %v", err)
-	}
+	r1.Add(r2)
+	r1.Add(r3)
 
 	expect := &Resources{
 		Networks: []*NetworkResource{
@@ -2716,10 +2850,12 @@ func TestComparableResources_Subtract(t *testing.T) {
 	r1 := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: 2000,
+				CpuShares:     2000,
+				ReservedCores: []uint16{0, 1},
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: 2048,
+				MemoryMB:    2048,
+				MemoryMaxMB: 3048,
 			},
 			Networks: []*NetworkResource{
 				{
@@ -2737,10 +2873,12 @@ func TestComparableResources_Subtract(t *testing.T) {
 	r2 := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: 1000,
+				CpuShares:     1000,
+				ReservedCores: []uint16{0},
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: 1024,
+				MemoryMB:    1024,
+				MemoryMaxMB: 1524,
 			},
 			Networks: []*NetworkResource{
 				{
@@ -2759,10 +2897,12 @@ func TestComparableResources_Subtract(t *testing.T) {
 	expect := &ComparableResources{
 		Flattened: AllocatedTaskResources{
 			Cpu: AllocatedCpuResources{
-				CpuShares: 1000,
+				CpuShares:     1000,
+				ReservedCores: []uint16{1},
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: 1024,
+				MemoryMB:    1024,
+				MemoryMaxMB: 1524,
 			},
 			Networks: []*NetworkResource{
 				{
@@ -2779,6 +2919,29 @@ func TestComparableResources_Subtract(t *testing.T) {
 
 	require := require.New(t)
 	require.Equal(expect, r1)
+}
+
+func TestMemoryResources_Add(t *testing.T) {
+	r := &AllocatedMemoryResources{}
+
+	// adding plain no max
+	r.Add(&AllocatedMemoryResources{
+		MemoryMB: 100,
+	})
+	require.Equal(t, &AllocatedMemoryResources{
+		MemoryMB:    100,
+		MemoryMaxMB: 100,
+	}, r)
+
+	// adding with max
+	r.Add(&AllocatedMemoryResources{
+		MemoryMB:    100,
+		MemoryMaxMB: 200,
+	})
+	require.Equal(t, &AllocatedMemoryResources{
+		MemoryMB:    200,
+		MemoryMaxMB: 300,
+	}, r)
 }
 
 func TestEncodeDecode(t *testing.T) {
@@ -3396,7 +3559,6 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 		ReschedulePolicy *ReschedulePolicy
 		errors           []error
 	}
-
 	testCases := []testCase{
 		{
 			desc: "Nil",
@@ -3973,7 +4135,6 @@ func TestAllocation_Terminated(t *testing.T) {
 		DesiredStatus string
 		Terminated    bool
 	}
-
 	harness := []desiredState{
 		{
 			ClientStatus:  AllocClientStatusPending,
@@ -4017,7 +4178,6 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 		RescheduleTrackers []*RescheduleEvent
 		ShouldReschedule   bool
 	}
-
 	fail := time.Now()
 
 	harness := []testCase{
@@ -4150,7 +4310,6 @@ func TestAllocation_LastEventTime(t *testing.T) {
 		taskState             map[string]*TaskState
 		expectedLastEventTime time.Time
 	}
-
 	t1 := time.Now().UTC()
 
 	testCases := []testCase{
@@ -4815,7 +4974,6 @@ func TestRescheduleTracker_Copy(t *testing.T) {
 		original *RescheduleTracker
 		expected *RescheduleTracker
 	}
-
 	cases := []testCase{
 		{nil, nil},
 		{&RescheduleTracker{Events: []*RescheduleEvent{
@@ -4986,7 +5144,6 @@ func TestScalingPolicy_Validate(t *testing.T) {
 		input       *ScalingPolicy
 		expectedErr string
 	}
-
 	cases := []testCase{
 		{
 			name: "full horizontal policy",
@@ -5110,10 +5267,7 @@ func TestScalingPolicy_Validate(t *testing.T) {
 			err := c.input.Validate()
 
 			if len(c.expectedErr) > 0 {
-				require.Error(err)
-				mErr := err.(*multierror.Error)
-				require.Len(mErr.Errors, 1)
-				require.Contains(mErr.Errors[0].Error(), c.expectedErr)
+				require.Error(err, c.expectedErr)
 			} else {
 				require.NoError(err)
 			}
@@ -5469,7 +5623,11 @@ func TestNode_Canonicalize(t *testing.T) {
 	require.Equal(NodeSchedulingEligible, node.SchedulingEligibility)
 
 	node = &Node{
-		Drain: true,
+		DrainStrategy: &DrainStrategy{
+			DrainSpec: DrainSpec{
+				Deadline: 30000,
+			},
+		},
 	}
 	node.Canonicalize()
 	require.Equal(NodeSchedulingIneligible, node.SchedulingEligibility)
@@ -5518,7 +5676,9 @@ func TestNode_Copy(t *testing.T) {
 		},
 		NodeResources: &NodeResources{
 			Cpu: NodeCpuResources{
-				CpuShares: 4000,
+				CpuShares:          4000,
+				TotalCpuCores:      4,
+				ReservableCpuCores: []uint16{0, 1, 2, 3},
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 8192,
@@ -5536,7 +5696,8 @@ func TestNode_Copy(t *testing.T) {
 		},
 		ReservedResources: &NodeReservedResources{
 			Cpu: NodeReservedCpuResources{
-				CpuShares: 100,
+				CpuShares:        100,
+				ReservedCpuCores: []uint16{0},
 			},
 			Memory: NodeReservedMemoryResources{
 				MemoryMB: 256,
@@ -5583,13 +5744,37 @@ func TestNode_Copy(t *testing.T) {
 	require.Equal(node.Drivers, node2.Drivers)
 }
 
+func TestNode_Sanitize(t *testing.T) {
+	require := require.New(t)
+
+	testCases := []*Node{
+		nil,
+		{
+			ID:       uuid.Generate(),
+			SecretID: "",
+		},
+		{
+			ID:       uuid.Generate(),
+			SecretID: uuid.Generate(),
+		},
+	}
+	for _, tc := range testCases {
+		sanitized := tc.Sanitize()
+		if tc == nil {
+			require.Nil(sanitized)
+		} else {
+			require.NotNil(sanitized)
+			require.Empty(sanitized.SecretID)
+		}
+	}
+}
+
 func TestSpread_Validate(t *testing.T) {
 	type tc struct {
 		spread *Spread
 		err    error
 		name   string
 	}
-
 	testCases := []tc{
 		{
 			spread: &Spread{},
@@ -5789,7 +5974,8 @@ func TestMultiregion_CopyCanonicalize(t *testing.T) {
 func TestNodeResources_Merge(t *testing.T) {
 	res := &NodeResources{
 		Cpu: NodeCpuResources{
-			CpuShares: int64(32000),
+			CpuShares:     int64(32000),
+			TotalCpuCores: 32,
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(64000),
@@ -5802,6 +5988,7 @@ func TestNodeResources_Merge(t *testing.T) {
 	}
 
 	res.Merge(&NodeResources{
+		Cpu: NodeCpuResources{ReservableCpuCores: []uint16{0, 1, 2, 3}},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(100000),
 		},
@@ -5814,7 +6001,9 @@ func TestNodeResources_Merge(t *testing.T) {
 
 	require.Exactly(t, &NodeResources{
 		Cpu: NodeCpuResources{
-			CpuShares: int64(32000),
+			CpuShares:          int64(32000),
+			TotalCpuCores:      32,
+			ReservableCpuCores: []uint16{0, 1, 2, 3},
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(100000),
@@ -5828,6 +6017,106 @@ func TestNodeResources_Merge(t *testing.T) {
 			},
 		},
 	}, res)
+}
+
+func TestAllocatedResources_Canonicalize(t *testing.T) {
+	cases := map[string]struct {
+		input    *AllocatedResources
+		expected *AllocatedResources
+	}{
+		"base": {
+			input: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"task": {
+						Networks: Networks{
+							{
+								IP:           "127.0.0.1",
+								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+							},
+						},
+					},
+				},
+			},
+			expected: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"task": {
+						Networks: Networks{
+							{
+								IP:           "127.0.0.1",
+								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+							},
+						},
+					},
+				},
+				Shared: AllocatedSharedResources{
+					Ports: AllocatedPorts{
+						{
+							Label:  "admin",
+							Value:  8080,
+							To:     0,
+							HostIP: "127.0.0.1",
+						},
+					},
+				},
+			},
+		},
+		"base with existing": {
+			input: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"task": {
+						Networks: Networks{
+							{
+								IP:           "127.0.0.1",
+								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+							},
+						},
+					},
+				},
+				Shared: AllocatedSharedResources{
+					Ports: AllocatedPorts{
+						{
+							Label:  "http",
+							Value:  80,
+							To:     8080,
+							HostIP: "127.0.0.1",
+						},
+					},
+				},
+			},
+			expected: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"task": {
+						Networks: Networks{
+							{
+								IP:           "127.0.0.1",
+								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+							},
+						},
+					},
+				},
+				Shared: AllocatedSharedResources{
+					Ports: AllocatedPorts{
+						{
+							Label:  "http",
+							Value:  80,
+							To:     8080,
+							HostIP: "127.0.0.1",
+						},
+						{
+							Label:  "admin",
+							Value:  8080,
+							To:     0,
+							HostIP: "127.0.0.1",
+						},
+					},
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		tc.input.Canonicalize()
+		require.Exactly(t, tc.expected, tc.input, "case %s did not match", name)
+	}
 }
 
 func TestAllocatedSharedResources_Canonicalize(t *testing.T) {
@@ -5934,4 +6223,86 @@ func TestTaskGroup_validateScriptChecksInGroupServices(t *testing.T) {
 		mErrOK := tgOK.validateScriptChecksInGroupServices()
 		require.Nil(t, mErrOK)
 	})
+}
+
+func TestComparableResources_Superset(t *testing.T) {
+	base := &ComparableResources{
+		Flattened: AllocatedTaskResources{
+			Cpu: AllocatedCpuResources{
+				CpuShares:     4000,
+				ReservedCores: []uint16{0, 1, 2, 3},
+			},
+			Memory: AllocatedMemoryResources{MemoryMB: 4096},
+		},
+		Shared: AllocatedSharedResources{DiskMB: 10000},
+	}
+	cases := []struct {
+		a         *ComparableResources
+		b         *ComparableResources
+		dimension string
+	}{
+		{
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 1000, ReservedCores: []uint16{0}},
+				},
+			},
+		},
+		{
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 4000, ReservedCores: []uint16{0, 1, 2, 3}},
+				},
+			},
+		},
+		{
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 5000},
+				},
+			},
+			dimension: "cpu",
+		},
+		{
+			a: base,
+			b: &ComparableResources{
+				Flattened: AllocatedTaskResources{
+					Cpu: AllocatedCpuResources{CpuShares: 1000, ReservedCores: []uint16{3, 4}},
+				},
+			},
+			dimension: "cores",
+		},
+	}
+
+	for _, c := range cases {
+		fit, dim := c.a.Superset(c.b)
+		if c.dimension == "" {
+			require.True(t, fit)
+		} else {
+			require.False(t, fit)
+			require.Equal(t, c.dimension, dim)
+		}
+	}
+}
+
+func requireErrors(t *testing.T, err error, expected ...string) {
+	t.Helper()
+	require.Error(t, err)
+	mErr, ok := err.(*multierror.Error)
+	require.True(t, ok)
+
+	var found []string
+	for _, e := range expected {
+		for _, actual := range mErr.Errors {
+			if strings.Contains(actual.Error(), e) {
+				found = append(found, e)
+				break
+			}
+		}
+	}
+
+	require.Equal(t, expected, found)
 }

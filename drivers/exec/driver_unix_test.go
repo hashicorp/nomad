@@ -1,3 +1,4 @@
+//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 // +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package exec
@@ -5,8 +6,15 @@ package exec
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/nomad/drivers/shared/capabilities"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
+	basePlug "github.com/hashicorp/nomad/plugins/base"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -14,8 +22,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/unix"
 )
 
 func TestExecDriver_StartWaitStop(t *testing.T) {
@@ -44,6 +50,7 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	defer cleanup()
 
 	handle, _, err := harness.StartTask(task)
+	defer harness.DestroyTask(task.ID, true)
 	require.NoError(err)
 
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
@@ -52,12 +59,12 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	require.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 
 	go func() {
-		harness.StopTask(task.ID, 2*time.Second, "SIGINT")
+		harness.StopTask(task.ID, 2*time.Second, "SIGKILL")
 	}()
 
 	select {
 	case result := <-ch:
-		require.Equal(int(unix.SIGINT), result.Signal)
+		require.Equal(int(unix.SIGKILL), result.Signal)
 	case <-time.After(10 * time.Second):
 		require.Fail("timeout waiting for task to shutdown")
 	}
@@ -77,8 +84,6 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	}, func(err error) {
 		require.NoError(err)
 	})
-
-	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
 func TestExec_ExecTaskStreaming(t *testing.T) {
@@ -173,5 +178,128 @@ func TestExec_dnsConfig(t *testing.T) {
 
 		dtestutil.TestTaskDNSConfig(t, harness, task.ID, c.cfg)
 	}
+}
 
+func TestExecDriver_Capabilities(t *testing.T) {
+	ctestutils.ExecCompatible(t)
+
+	task := &drivers.TaskConfig{
+		ID:   uuid.Generate(),
+		Name: "sleep",
+	}
+
+	for _, tc := range []struct {
+		Name       string
+		CapAdd     []string
+		CapDrop    []string
+		AllowList  string
+		StartError string
+	}{
+		{
+			Name:    "default-allowlist-add-allowed",
+			CapAdd:  []string{"fowner", "mknod"},
+			CapDrop: []string{"ALL"},
+		},
+		{
+			Name:       "default-allowlist-add-forbidden",
+			CapAdd:     []string{"net_admin"},
+			StartError: "net_admin",
+		},
+		{
+			Name:    "default-allowlist-drop-existing",
+			CapDrop: []string{"FOWNER", "MKNOD", "NET_RAW"},
+		},
+		{
+			Name:      "restrictive-allowlist-drop-all",
+			CapDrop:   []string{"ALL"},
+			AllowList: "FOWNER,MKNOD",
+		},
+		{
+			Name:      "restrictive-allowlist-add-allowed",
+			CapAdd:    []string{"fowner", "mknod"},
+			CapDrop:   []string{"ALL"},
+			AllowList: "fowner,mknod",
+		},
+		{
+			Name:       "restrictive-allowlist-add-forbidden",
+			CapAdd:     []string{"net_admin", "mknod"},
+			CapDrop:    []string{"ALL"},
+			AllowList:  "fowner,mknod",
+			StartError: "net_admin",
+		},
+		{
+			Name:       "restrictive-allowlist-add-multiple-forbidden",
+			CapAdd:     []string{"net_admin", "mknod", "CAP_SYS_TIME"},
+			CapDrop:    []string{"ALL"},
+			AllowList:  "fowner,mknod",
+			StartError: "net_admin, sys_time",
+		},
+		{
+			Name:      "permissive-allowlist",
+			CapAdd:    []string{"net_admin", "mknod"},
+			AllowList: "ALL",
+		},
+		{
+			Name:      "permissive-allowlist-add-all",
+			CapAdd:    []string{"all"},
+			AllowList: "ALL",
+		},
+	} {
+		t.Run(tc.Name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			d := NewExecDriver(ctx, testlog.HCLogger(t))
+			harness := dtestutil.NewDriverHarness(t, d)
+			defer harness.Kill()
+
+			config := &Config{
+				NoPivotRoot:    true,
+				DefaultModePID: executor.IsolationModePrivate,
+				DefaultModeIPC: executor.IsolationModePrivate,
+			}
+
+			if tc.AllowList != "" {
+				config.AllowCaps = strings.Split(tc.AllowList, ",")
+			} else {
+				// inherit HCL defaults if not set
+				config.AllowCaps = capabilities.NomadDefaults().Slice(true)
+			}
+
+			var data []byte
+			require.NoError(t, basePlug.MsgPackEncode(&data, config))
+			baseConfig := &basePlug.Config{PluginConfig: data}
+			require.NoError(t, harness.SetConfig(baseConfig))
+
+			cleanup := harness.MkAllocDir(task, false)
+			defer cleanup()
+
+			tCfg := &TaskConfig{
+				Command: "/bin/sleep",
+				Args:    []string{"9000"},
+			}
+			if len(tc.CapAdd) > 0 {
+				tCfg.CapAdd = tc.CapAdd
+			}
+			if len(tc.CapDrop) > 0 {
+				tCfg.CapDrop = tc.CapDrop
+			}
+			require.NoError(t, task.EncodeConcreteDriverConfig(&tCfg))
+
+			// check the start error against expectations
+			_, _, err := harness.StartTask(task)
+			if err == nil && tc.StartError != "" {
+				t.Fatalf("Expected error in start: %v", tc.StartError)
+			} else if err != nil {
+				if tc.StartError == "" {
+					require.NoError(t, err)
+				} else {
+					require.Contains(t, err.Error(), tc.StartError)
+				}
+				return
+			}
+
+			_ = d.DestroyTask(task.ID, true)
+		})
+	}
 }

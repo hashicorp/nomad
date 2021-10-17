@@ -8,7 +8,6 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/hashicorp/nomad/client/structs"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/util"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
@@ -28,13 +27,13 @@ const (
 // sending and closing, and backpressures by dropping events if necessary.
 type usageSender struct {
 	closed bool
-	destCh chan<- *structs.TaskResourceUsage
+	destCh chan<- *cstructs.TaskResourceUsage
 	mu     sync.Mutex
 }
 
 // newStatsChanPipe returns a chan wrapped in a struct that supports concurrent
 // sending and closing, and the receiver end of the chan.
-func newStatsChanPipe() (*usageSender, <-chan *structs.TaskResourceUsage) {
+func newStatsChanPipe() (*usageSender, <-chan *cstructs.TaskResourceUsage) {
 	destCh := make(chan *cstructs.TaskResourceUsage, 1)
 	return &usageSender{
 		destCh: destCh,

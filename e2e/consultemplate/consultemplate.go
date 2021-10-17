@@ -7,10 +7,12 @@ import (
 	"time"
 
 	capi "github.com/hashicorp/consul/api"
-	e2e "github.com/hashicorp/nomad/e2e/e2eutil"
+	api "github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/jobspec"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -34,8 +36,8 @@ func init() {
 }
 
 func (tc *ConsulTemplateTest) BeforeAll(f *framework.F) {
-	e2e.WaitForLeader(f.T(), tc.Nomad())
-	e2e.WaitForNodesReady(f.T(), tc.Nomad(), 1)
+	e2eutil.WaitForLeader(f.T(), tc.Nomad())
+	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 1)
 }
 
 func (tc *ConsulTemplateTest) AfterEach(f *framework.F) {
@@ -44,7 +46,7 @@ func (tc *ConsulTemplateTest) AfterEach(f *framework.F) {
 	}
 
 	for _, id := range tc.jobIDs {
-		_, err := e2e.Command("nomad", "job", "stop", "-purge", id)
+		_, err := e2eutil.Command("nomad", "job", "stop", "-purge", id)
 		f.Assert().NoError(err, "could not clean up job", id)
 	}
 	tc.jobIDs = []string{}
@@ -55,7 +57,7 @@ func (tc *ConsulTemplateTest) AfterEach(f *framework.F) {
 	}
 	tc.consulKeys = []string{}
 
-	_, err := e2e.Command("nomad", "system", "gc")
+	_, err := e2eutil.Command("nomad", "system", "gc")
 	f.NoError(err)
 }
 
@@ -66,7 +68,7 @@ func (tc *ConsulTemplateTest) AfterEach(f *framework.F) {
 // - 'noop' vs ''restart' configuration
 func (tc *ConsulTemplateTest) TestTemplateUpdateTriggers(f *framework.F) {
 
-	wc := &e2e.WaitConfig{}
+	wc := &e2eutil.WaitConfig{}
 	interval, retries := wc.OrDefault()
 
 	key := "consultemplate-" + uuid.Generate()[:8]
@@ -102,7 +104,7 @@ job: {{ env "NOMAD_JOB_NAME" }}
 
 	// We won't reschedule any of these allocs, so we can cache these IDs for later
 	downstreams := map[string]string{} // alloc ID -> group name
-	allocs, err := e2e.AllocsForJob(jobID, ns)
+	allocs, err := e2eutil.AllocsForJob(jobID, ns)
 	f.NoError(err)
 	for _, alloc := range allocs {
 		group := alloc["Task Group"]
@@ -117,7 +119,7 @@ job: {{ env "NOMAD_JOB_NAME" }}
 		var checkErr error
 		testutil.WaitForResultRetries(retries, func() (bool, error) {
 			time.Sleep(interval)
-			out, err := e2e.Command("nomad", "alloc", "status", allocID)
+			out, err := e2eutil.Command("nomad", "alloc", "status", allocID)
 			f.NoError(err, "could not get allocation status")
 			return strings.Contains(out, "Missing: kv.block"),
 				fmt.Errorf("expected %q to be blocked on Consul key", group)
@@ -168,13 +170,13 @@ job: {{ env "NOMAD_JOB_NAME" }}
 		var checkErr error
 		testutil.WaitForResultRetries(retries, func() (bool, error) {
 			time.Sleep(interval)
-			out, err := e2e.Command("nomad", "alloc", "status", allocID)
+			out, err := e2eutil.Command("nomad", "alloc", "status", allocID)
 			f.NoError(err, "could not get allocation status")
 
-			section, err := e2e.GetSection(out, "Task Events:")
+			section, err := e2eutil.GetSection(out, "Task Events:")
 			f.NoError(err, out)
 
-			restarts, err := e2e.GetField(section, "Total Restarts")
+			restarts, err := e2eutil.GetField(section, "Total Restarts")
 			f.NoError(err)
 			return restarts == "1",
 				fmt.Errorf("expected 1 restart for %q but found %s", group, restarts)
@@ -211,28 +213,161 @@ job: {{ env "NOMAD_JOB_NAME" }}
 			}, nil), "expected 3 upstream servers")
 
 		// verify noop was honored: no additional restarts
-		out, err := e2e.Command("nomad", "alloc", "status", allocID)
+		out, err := e2eutil.Command("nomad", "alloc", "status", allocID)
 		f.NoError(err, "could not get allocation status")
 
-		section, err := e2e.GetSection(out, "Task Events:")
+		section, err := e2eutil.GetSection(out, "Task Events:")
 		f.NoError(err, out)
 
-		restarts, err := e2e.GetField(section, "Total Restarts")
+		restarts, err := e2eutil.GetField(section, "Total Restarts")
 		f.NoError(err)
 		f.Equal("1", restarts, "expected no new restarts for group")
 	}
 }
 
-// waitForTemplateRender is a helper that grabs a file via alloc fs
-// and tests it for
-func waitForTemplateRender(allocID, path string, test func(string) bool, wc *e2e.WaitConfig) error {
+// TestTemplatePathInterpolation_Ok asserts that NOMAD_*_DIR variables are
+// properly interpolated into template source and destination paths without
+// being treated as escaping.
+func (tc *ConsulTemplateTest) TestTemplatePathInterpolation_Ok(f *framework.F) {
+	jobID := "template-paths-" + uuid.Generate()[:8]
+	tc.jobIDs = append(tc.jobIDs, jobID)
+
+	allocStubs := e2eutil.RegisterAndWaitForAllocs(
+		f.T(), tc.Nomad(), "consultemplate/input/template_paths.nomad", jobID, "")
+	f.Len(allocStubs, 1)
+	allocID := allocStubs[0].ID
+
+	e2eutil.WaitForAllocRunning(f.T(), tc.Nomad(), allocID)
+
+	f.NoError(waitForTemplateRender(allocID, "task/secrets/foo/dst",
+		func(out string) bool {
+			return len(out) > 0
+		}, nil), "expected file to have contents")
+
+	f.NoError(waitForTemplateRender(allocID, "alloc/shared.txt",
+		func(out string) bool {
+			return len(out) > 0
+		}, nil), "expected shared-alloc-dir file to have contents")
+}
+
+// TestTemplatePathInterpolation_Bad asserts that template.source paths are not
+// allowed to escape the sandbox directory tree by default.
+func (tc *ConsulTemplateTest) TestTemplatePathInterpolation_Bad(f *framework.F) {
+	wc := &e2eutil.WaitConfig{}
+	interval, retries := wc.OrDefault()
+
+	jobID := "bad-template-paths-" + uuid.Generate()[:8]
+	tc.jobIDs = append(tc.jobIDs, jobID)
+
+	allocStubs := e2eutil.RegisterAndWaitForAllocs(
+		f.T(), tc.Nomad(), "consultemplate/input/bad_template_paths.nomad", jobID, "")
+	f.Len(allocStubs, 1)
+	allocID := allocStubs[0].ID
+
+	// Wait for alloc to fail
+	var err error
+	var alloc *api.Allocation
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		time.Sleep(interval)
+		alloc, _, err = tc.Nomad().Allocations().Info(allocID, nil)
+		if err != nil {
+			return false, err
+		}
+
+		return alloc.ClientStatus == structs.AllocClientStatusFailed, fmt.Errorf("expected status failed, but was: %s", alloc.ClientStatus)
+	}, func(err error) {
+		f.NoError(err, "failed to wait on alloc")
+	})
+
+	// Assert the "source escapes" error occurred to prevent false
+	// positives.
+	found := false
+	for _, event := range alloc.TaskStates["task"].Events {
+		if strings.Contains(event.DisplayMessage, "template source path escapes alloc directory") {
+			found = true
+			break
+		}
+	}
+	f.True(found, "alloc failed but NOT due to expected source path escape error")
+}
+
+// TestTemplatePathInterpolation_SharedAllocDir asserts that NOMAD_ALLOC_DIR
+// is supported as a destination for artifact and template blocks, and
+// that it is properly interpolated for task drivers with varying
+// filesystem isolation
+func (tc *ConsulTemplateTest) TestTemplatePathInterpolation_SharedAllocDir(f *framework.F) {
+	jobID := "template-shared-alloc-" + uuid.Generate()[:8]
+	tc.jobIDs = append(tc.jobIDs, jobID)
+
+	allocStubs := e2eutil.RegisterAndWaitForAllocs(
+		f.T(), tc.Nomad(), "consultemplate/input/template_shared_alloc.nomad", jobID, "")
+	f.Len(allocStubs, 1)
+	allocID := allocStubs[0].ID
+
+	e2eutil.WaitForAllocRunning(f.T(), tc.Nomad(), allocID)
+
+	for _, task := range []string{"docker", "exec", "raw_exec"} {
+
+		// tests that we can render templates into the shared alloc directory
+		f.NoError(waitForTaskFile(allocID, task, "${NOMAD_ALLOC_DIR}/raw_exec.env",
+			func(out string) bool {
+				return len(out) > 0 && strings.TrimSpace(out) != "/alloc"
+			}, nil), "expected raw_exec.env to not be '/alloc'")
+
+		f.NoError(waitForTaskFile(allocID, task, "${NOMAD_ALLOC_DIR}/exec.env",
+			func(out string) bool {
+				return strings.TrimSpace(out) == "/alloc"
+			}, nil), "expected shared exec.env to contain '/alloc'")
+
+		f.NoError(waitForTaskFile(allocID, task, "${NOMAD_ALLOC_DIR}/docker.env",
+			func(out string) bool {
+				return strings.TrimSpace(out) == "/alloc"
+			}, nil), "expected shared docker.env to contain '/alloc'")
+
+		// test that we can fetch artifacts into the shared alloc directory
+		for _, a := range []string{"google1.html", "google2.html", "google3.html"} {
+			f.NoError(waitForTaskFile(allocID, task, "${NOMAD_ALLOC_DIR}/"+a,
+				func(out string) bool {
+					return len(out) > 0
+				}, nil), "expected artifact in alloc dir")
+		}
+
+		// test that we can load environment variables rendered with templates using interpolated paths
+		out, err := e2eutil.Command("nomad", "alloc", "exec", "-task", task, allocID, "sh", "-c", "env")
+		f.NoError(err)
+		f.Contains(out, "HELLO_FROM=raw_exec")
+	}
+}
+
+func waitForTaskFile(allocID, task, path string, test func(out string) bool, wc *e2eutil.WaitConfig) error {
 	var err error
 	var out string
 	interval, retries := wc.OrDefault()
 
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
 		time.Sleep(interval)
-		out, err = e2e.Command("nomad", "alloc", "fs", allocID, path)
+		out, err = e2eutil.Command("nomad", "alloc", "exec", "-task", task, allocID, "sh", "-c", "cat "+path)
+		if err != nil {
+			return false, fmt.Errorf("could not cat file %q from task %q in allocation %q: %v",
+				path, task, allocID, err)
+		}
+		return test(out), nil
+	}, func(e error) {
+		err = fmt.Errorf("test for file content failed: got %#v\nerror: %v", out, e)
+	})
+	return err
+}
+
+// waitForTemplateRender is a helper that grabs a file via alloc fs
+// and tests it for
+func waitForTemplateRender(allocID, path string, test func(string) bool, wc *e2eutil.WaitConfig) error {
+	var err error
+	var out string
+	interval, retries := wc.OrDefault()
+
+	testutil.WaitForResultRetries(retries, func() (bool, error) {
+		time.Sleep(interval)
+		out, err = e2eutil.Command("nomad", "alloc", "fs", allocID, path)
 		if err != nil {
 			return false, fmt.Errorf("could not get file %q from allocation %q: %v",
 				path, allocID, err)
@@ -246,13 +381,13 @@ func waitForTemplateRender(allocID, path string, test func(string) bool, wc *e2e
 
 // waitForAllocStatusByGroup is similar to WaitForAllocStatus but maps
 // specific task group names to statuses without having to deal with specific counts
-func waitForAllocStatusByGroup(jobID, ns string, expected map[string]string, wc *e2e.WaitConfig) error {
+func waitForAllocStatusByGroup(jobID, ns string, expected map[string]string, wc *e2eutil.WaitConfig) error {
 	var got []map[string]string
 	var err error
 	interval, retries := wc.OrDefault()
 	testutil.WaitForResultRetries(retries, func() (bool, error) {
 		time.Sleep(interval)
-		got, err = e2e.AllocsForJob(jobID, ns)
+		got, err = e2eutil.AllocsForJob(jobID, ns)
 		if err != nil {
 			return false, err
 		}

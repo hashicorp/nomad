@@ -1,0 +1,79 @@
+---
+layout: docs
+page_title: 'Drivers: Lightrun'
+description: The Lightrun driver is used to run your Java application with Lightrun.
+---
+
+# Lightrun Driver
+
+Name: `lightrun-java`
+
+The Lightrun Nomad driver is used to execute Java applications packaged into a
+Java Jar file and automatically add the Lightrun agent to them.
+
+[Lightrun][lightrun_website] is a developer-native observability platform. With
+Lightrun you can add logs, snapshots (virtual breakpoints), and metrics to
+production applications without the need for redeployments or restarts. You can
+use Lightrun directly from your IDE or CLI to observe, understand and debug
+your application at runtime.
+
+Refer to the [Lightrun documentation][lightrun_docs] for more information about
+Lightrun.
+
+## Prerequisites
+
+1. Download or clone the [Lightrun driver repository][repo].
+1. Find the `lightrun-java-driver` driver in the repository's root folder.
+1. Copy the driver to your Nomad plugins directory (or create one if it doesn't
+  exist).
+1. Grant executable permissions to the driver file:
+
+    ```shell-session
+    $ chmod +x ./plugins/lightrun-java-driver
+    ```
+
+1. When running the Nomad agent, make sure to specify the path to your plugins
+  directory:
+
+    ```shell-session
+    $ sudo nomad agent -dev -bind 0.0.0.0 -log-level DEBUG -plugin-dir=<path_to_plugins_directory>
+    ```
+
+## Task Configuration
+
+```hcl
+task "run-with-lightrun" {
+  driver = "lightrun-java"
+
+  config {
+    lightrun_server = "https://app.lightrun.com/company/<COMPANY-NAME>"
+    lightrun_secret = "<COMPANY-SECRET>"
+    lightrun_certificate = "ee80811b38e7e6c2dc4cc372cbea86bd86b446b012e427f2e19bf094afba5d12"
+  }
+}
+```
+
+The `lightrun-java` driver accepts all configuration options of the Nomad
+[`java`] driver.
+
+Additionaly, the `lightrun-java` driver requires the following configuration in
+the job spec. To find these configurations, log into the
+[Lightrun Management Portal][lightrun_portal] and refer to the **Download the
+Agent** section:
+
+- `lightrun_server` - The Lightrun server you are working against, including
+  your company name.
+
+- `lightrun_secret` - Lightrun secret is used for authorization against the
+  Lightrun server.
+
+- `lightrun_certificate` - Used for certificate pinning.
+
+A full job file example can be found in the repo at [`example/example.driver.nomad`][example-config].
+
+[lightrun_docs]: https://docs.lightrun.com
+[lightrun_website]: https://www.lightrun.com
+[lightrun_portal]: https://app.lightrun.com
+[repo]: https://github.com/lightrun-platform/lightrun-n-nomad
+[example-config]: https://github.com/lightrun-platform/lightrun-n-nomad/blob/main/example/example.driver.nomad
+[`java`]: /docs/drivers/java

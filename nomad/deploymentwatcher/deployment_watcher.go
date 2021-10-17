@@ -412,10 +412,11 @@ func (w *deploymentWatcher) watch() {
 			<-deadlineTimer.C
 		}
 	} else {
-		deadlineTimer = time.NewTimer(currentDeadline.Sub(time.Now()))
+		deadlineTimer = time.NewTimer(time.Until(currentDeadline))
 	}
 
 	allocIndex := uint64(1)
+	allocsCh := w.getAllocsCh(allocIndex)
 	var updates *allocUpdates
 
 	rollback, deadlineHit := false, false
@@ -427,10 +428,13 @@ FAIL:
 			// This is the successful case, and we stop the loop
 			return
 		case <-deadlineTimer.C:
-			// We have hit the progress deadline so fail the deployment. We need
-			// to determine whether we should roll back the job by inspecting
-			// which allocs as part of the deployment are healthy and which
-			// aren't.
+			// We have hit the progress deadline, so fail the deployment
+			// unless we're waiting for manual promotion. We need to determine
+			// whether we should roll back the job by inspecting which allocs
+			// as part of the deployment are healthy and which aren't. The
+			// deadlineHit flag is never reset, so even in the case of a
+			// manual promotion, we'll describe any failure as a progress
+			// deadline failure at this point.
 			deadlineHit = true
 			fail, rback, err := w.shouldFail()
 			if err != nil {
@@ -474,7 +478,8 @@ FAIL:
 				// rollout, the next progress deadline becomes zero, so we want
 				// to avoid resetting, causing a deployment failure.
 				if !next.IsZero() {
-					deadlineTimer.Reset(next.Sub(time.Now()))
+					deadlineTimer.Reset(time.Until(next))
+					w.logger.Trace("resetting deadline")
 				}
 			}
 
@@ -483,7 +488,7 @@ FAIL:
 				break FAIL
 			}
 
-		case updates = <-w.getAllocsCh(allocIndex):
+		case updates = <-allocsCh:
 			if err := updates.err; err != nil {
 				if err == context.Canceled || w.ctx.Err() == context.Canceled {
 					return
@@ -527,6 +532,9 @@ FAIL:
 			if res.createEval || len(res.allowReplacements) != 0 {
 				w.createBatchedUpdate(res.allowReplacements, allocIndex)
 			}
+
+			// only start a new blocking query if we haven't returned early
+			allocsCh = w.getAllocsCh(allocIndex)
 		}
 	}
 
@@ -674,7 +682,7 @@ func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
 		}
 
 		// Unhealthy allocs and we need to autorevert
-		return true, true, nil
+		return fail, true, nil
 	}
 
 	return fail, false, nil

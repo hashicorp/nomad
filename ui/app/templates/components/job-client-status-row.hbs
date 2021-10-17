@@ -1,0 +1,41 @@
+<tr data-test-client={{this.row.node.id}} class="job-client-status-row is-interactive" {{on "click" (fn @onClick this.row.node)}}>
+  <td data-test-short-id>
+    <LinkTo @route="allocations.allocation" @model={{this.allocation}} class="is-primary">
+      {{this.row.node.shortId}}
+    </LinkTo>
+  </td>
+  <td data-test-name class="is-200px is-truncatable">
+    {{this.row.node.name}}
+  </td>
+  <td data-test-create-time>
+    {{#if this.row.createTime}}
+      <span class="tooltip" role="tooltip" aria-label="{{format-month-ts this.row.createTime}}">
+        {{moment-from-now this.row.createTime}}
+      </span>
+    {{else}}
+      -
+    {{/if}}
+  </td>
+  <td data-test-modify-time>
+    {{#if this.row.modifyTime}}
+      <span class="tooltip" role="tooltip" aria-label="{{format-month-ts this.row.modifyTime}}">
+        {{moment-from-now this.row.modifyTime}}
+      </span>
+    {{else}}
+      -
+    {{/if}}
+  </td>
+  <td data-test-job-status class="is-one-line">
+    <span class="color-swatch {{this.jobStatusClass}}"></span>
+    {{this.humanizedJobStatus}}
+  </td>
+  <td data-test-job-alloc-summary class="allocation-summary is-one-line">
+    {{#if this.shouldDisplayAllocationSummary}}
+      <div class="inline-chart">
+        <AllocationStatusBar @allocationContainer={{this.allocationContainer}} @isNarrow={{true}} />
+      </div>
+    {{else}}
+      <div class="is-faded">{{this.allocationSummaryPlaceholder}}</div>
+    {{/if}}
+  </td>
+</tr>

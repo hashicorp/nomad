@@ -108,18 +108,20 @@ func (m *monitor) update(update *evalState) {
 
 	// Check if the evaluation was triggered by a node
 	if existing.node == "" && update.node != "" {
-		m.ui.Output(fmt.Sprintf("Evaluation triggered by node %q",
-			limit(update.node, m.length)))
+		m.ui.Output(fmt.Sprintf("%s: Evaluation triggered by node %q",
+			formatTime(time.Now()), limit(update.node, m.length)))
 	}
 
 	// Check if the evaluation was triggered by a job
 	if existing.job == "" && update.job != "" {
-		m.ui.Output(fmt.Sprintf("Evaluation triggered by job %q", update.job))
+		m.ui.Output(fmt.Sprintf("%s: Evaluation triggered by job %q",
+			formatTime(time.Now()), update.job))
 	}
 
 	// Check if the evaluation was triggered by a deployment
 	if existing.deployment == "" && update.deployment != "" {
-		m.ui.Output(fmt.Sprintf("Evaluation within deployment: %q", limit(update.deployment, m.length)))
+		m.ui.Output(fmt.Sprintf("%s: Evaluation within deployment: %q",
+			formatTime(time.Now()), limit(update.deployment, m.length)))
 	}
 
 	// Check the allocations
@@ -130,14 +132,16 @@ func (m *monitor) update(update *evalState) {
 				// New alloc with create index lower than the eval
 				// create index indicates modification
 				m.ui.Output(fmt.Sprintf(
-					"Allocation %q modified: node %q, group %q",
-					limit(alloc.id, m.length), limit(alloc.node, m.length), alloc.group))
+					"%s: Allocation %q modified: node %q, group %q",
+					formatTime(time.Now()), limit(alloc.id, m.length),
+					limit(alloc.node, m.length), alloc.group))
 
 			case alloc.desired == structs.AllocDesiredStatusRun:
 				// New allocation with desired status running
 				m.ui.Output(fmt.Sprintf(
-					"Allocation %q created: node %q, group %q",
-					limit(alloc.id, m.length), limit(alloc.node, m.length), alloc.group))
+					"%s: Allocation %q created: node %q, group %q",
+					formatTime(time.Now()), limit(alloc.id, m.length),
+					limit(alloc.node, m.length), alloc.group))
 			}
 		} else {
 			switch {
@@ -148,8 +152,9 @@ func (m *monitor) update(update *evalState) {
 				}
 				// Allocation status has changed
 				m.ui.Output(fmt.Sprintf(
-					"Allocation %q status changed: %q -> %q%s",
-					limit(alloc.id, m.length), existing.client, alloc.client, description))
+					"%s: Allocation %q status changed: %q -> %q%s",
+					formatTime(time.Now()), limit(alloc.id, m.length),
+					existing.client, alloc.client, description))
 			}
 		}
 	}
@@ -158,31 +163,25 @@ func (m *monitor) update(update *evalState) {
 	if existing.status != "" &&
 		update.status != structs.AllocClientStatusPending &&
 		existing.status != update.status {
-		m.ui.Output(fmt.Sprintf("Evaluation status changed: %q -> %q",
-			existing.status, update.status))
+		m.ui.Output(fmt.Sprintf("%s: Evaluation status changed: %q -> %q",
+			formatTime(time.Now()), existing.status, update.status))
 	}
 }
 
 // monitor is used to start monitoring the given evaluation ID. It
 // writes output directly to the monitor's ui, and returns the
-// exit code for the command. If allowPrefix is false, monitor will only accept
-// exact matching evalIDs.
+// exit code for the command.
 //
 // The return code will be 0 on successful evaluation. If there are
 // problems scheduling the job (impossible constraints, resources
 // exhausted, etc), then the return code will be 2. For any other
 // failures (API connectivity, internal errors, etc), the return code
 // will be 1.
-func (m *monitor) monitor(evalID string, allowPrefix bool) int {
+func (m *monitor) monitor(evalID string) int {
 	// Track if we encounter a scheduling failure. This can only be
 	// detected while querying allocations, so we use this bool to
 	// carry that status into the return code.
 	var schedFailure bool
-
-	// The user may have specified a prefix as eval id. We need to lookup the
-	// full id from the database first. Since we do this in a loop we need a
-	// variable to keep track if we've already written the header message.
-	var headerWritten bool
 
 	// Add the initial pending state
 	m.update(newEvalState())
@@ -191,51 +190,12 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 		// Query the evaluation
 		eval, _, err := m.client.Evaluations().Info(evalID, nil)
 		if err != nil {
-			if !allowPrefix {
-				m.ui.Error(fmt.Sprintf("No evaluation with id %q found", evalID))
-				return 1
-			}
-			if len(evalID) == 1 {
-				m.ui.Error(fmt.Sprintf("Identifier must contain at least two characters."))
-				return 1
-			}
-
-			evalID = sanitizeUUIDPrefix(evalID)
-			evals, _, err := m.client.Evaluations().PrefixList(evalID)
-			if err != nil {
-				m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))
-				return 1
-			}
-			if len(evals) == 0 {
-				m.ui.Error(fmt.Sprintf("No evaluation(s) with prefix or id %q found", evalID))
-				return 1
-			}
-			if len(evals) > 1 {
-				// Format the evaluations
-				out := make([]string, len(evals)+1)
-				out[0] = "ID|Priority|Type|Triggered By|Status"
-				for i, eval := range evals {
-					out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s",
-						limit(eval.ID, m.length),
-						eval.Priority,
-						eval.Type,
-						eval.TriggeredBy,
-						eval.Status)
-				}
-				m.ui.Output(fmt.Sprintf("Prefix matched multiple evaluations\n\n%s", formatList(out)))
-				return 0
-			}
-			// Prefix lookup matched a single evaluation
-			eval, _, err = m.client.Evaluations().Info(evals[0].ID, nil)
-			if err != nil {
-				m.ui.Error(fmt.Sprintf("Error reading evaluation: %s", err))
-			}
+			m.ui.Error(fmt.Sprintf("No evaluation with id %q found", evalID))
+			return 1
 		}
 
-		if !headerWritten {
-			m.ui.Info(fmt.Sprintf("Monitoring evaluation %q", limit(eval.ID, m.length)))
-			headerWritten = true
-		}
+		m.ui.Info(fmt.Sprintf("%s: Monitoring evaluation %q",
+			formatTime(time.Now()), limit(eval.ID, m.length)))
 
 		// Create the new eval state.
 		state := newEvalState()
@@ -250,7 +210,7 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 		// Query the allocations associated with the evaluation
 		allocs, _, err := m.client.Evaluations().Allocations(eval.ID, nil)
 		if err != nil {
-			m.ui.Error(fmt.Sprintf("Error reading allocations: %s", err))
+			m.ui.Error(fmt.Sprintf("%s: Error reading allocations: %s", formatTime(time.Now()), err))
 			return 1
 		}
 
@@ -274,13 +234,13 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 		switch eval.Status {
 		case structs.EvalStatusComplete, structs.EvalStatusFailed, structs.EvalStatusCancelled:
 			if len(eval.FailedTGAllocs) == 0 {
-				m.ui.Info(fmt.Sprintf("Evaluation %q finished with status %q",
-					limit(eval.ID, m.length), eval.Status))
+				m.ui.Info(fmt.Sprintf("%s: Evaluation %q finished with status %q",
+					formatTime(time.Now()), limit(eval.ID, m.length), eval.Status))
 			} else {
 				// There were failures making the allocations
 				schedFailure = true
-				m.ui.Info(fmt.Sprintf("Evaluation %q finished with status %q but failed to place all allocations:",
-					limit(eval.ID, m.length), eval.Status))
+				m.ui.Info(fmt.Sprintf("%s: Evaluation %q finished with status %q but failed to place all allocations:",
+					formatTime(time.Now()), limit(eval.ID, m.length), eval.Status))
 
 				// Print the failures per task group
 				for tg, metrics := range eval.FailedTGAllocs {
@@ -288,7 +248,8 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 					if metrics.CoalescedFailures > 0 {
 						noun += "s"
 					}
-					m.ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):", tg, metrics.CoalescedFailures+1, noun))
+					m.ui.Output(fmt.Sprintf("%s: Task Group %q (failed to place %d %s):",
+						formatTime(time.Now()), tg, metrics.CoalescedFailures+1, noun))
 					metrics := formatAllocMetrics(metrics, false, "  ")
 					for _, line := range strings.Split(metrics, "\n") {
 						m.ui.Output(line)
@@ -296,8 +257,8 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 				}
 
 				if eval.BlockedEval != "" {
-					m.ui.Output(fmt.Sprintf("Evaluation %q waiting for additional capacity to place remainder",
-						limit(eval.BlockedEval, m.length)))
+					m.ui.Output(fmt.Sprintf("%s: Evaluation %q waiting for additional capacity to place remainder",
+						formatTime(time.Now()), limit(eval.BlockedEval, m.length)))
 				}
 			}
 		default:
@@ -310,8 +271,8 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 		if eval.NextEval != "" {
 			if eval.Wait.Nanoseconds() != 0 {
 				m.ui.Info(fmt.Sprintf(
-					"Monitoring next evaluation %q in %s",
-					limit(eval.NextEval, m.length), eval.Wait))
+					"%s: Monitoring next evaluation %q in %s",
+					formatTime(time.Now()), limit(eval.NextEval, m.length), eval.Wait))
 
 				// Skip some unnecessary polling
 				time.Sleep(eval.Wait)
@@ -319,9 +280,27 @@ func (m *monitor) monitor(evalID string, allowPrefix bool) int {
 
 			// Reset the state and monitor the new eval
 			m.state = newEvalState()
-			return m.monitor(eval.NextEval, allowPrefix)
+			return m.monitor(eval.NextEval)
 		}
 		break
+	}
+
+	// Monitor the deployment if it exists
+	dID := m.state.deployment
+	if dID != "" {
+		m.ui.Info(fmt.Sprintf("%s: Monitoring deployment %q", formatTime(time.Now()), limit(dID, m.length)))
+
+		var verbose bool
+		if m.length == fullId {
+			verbose = true
+		} else {
+			verbose = false
+		}
+
+		meta := new(Meta)
+		meta.Ui = m.ui
+		cmd := &DeploymentStatusCommand{Meta: *meta}
+		cmd.monitor(m.client, dID, 0, verbose)
 	}
 
 	// Treat scheduling failures specially using a dedicated exit code.
@@ -376,33 +355,32 @@ func formatAllocMetrics(metrics *api.AllocationMetric, scores bool, prefix strin
 	if scores {
 		if len(metrics.ScoreMetaData) > 0 {
 			scoreOutput := make([]string, len(metrics.ScoreMetaData)+1)
-			var scorerNames []string
-			for i, scoreMeta := range metrics.ScoreMetaData {
-				// Add header as first row
-				if i == 0 {
-					scoreOutput[0] = "Node|"
 
-					// sort scores alphabetically
-					scores := make([]string, 0, len(scoreMeta.Scores))
-					for score := range scoreMeta.Scores {
-						scores = append(scores, score)
-					}
-					sort.Strings(scores)
-
-					// build score header output
-					for _, scorerName := range scores {
-						scoreOutput[0] += fmt.Sprintf("%v|", scorerName)
-						scorerNames = append(scorerNames, scorerName)
-					}
-					scoreOutput[0] += "final score"
+			// Find all possible scores and build header row.
+			allScores := make(map[string]struct{})
+			for _, scoreMeta := range metrics.ScoreMetaData {
+				for score := range scoreMeta.Scores {
+					allScores[score] = struct{}{}
 				}
+			}
+			// Sort scores alphabetically.
+			scores := make([]string, 0, len(allScores))
+			for score := range allScores {
+				scores = append(scores, score)
+			}
+			sort.Strings(scores)
+			scoreOutput[0] = fmt.Sprintf("Node|%s|final score", strings.Join(scores, "|"))
+
+			// Build row for each score.
+			for i, scoreMeta := range metrics.ScoreMetaData {
 				scoreOutput[i+1] = fmt.Sprintf("%v|", scoreMeta.NodeID)
-				for _, scorerName := range scorerNames {
+				for _, scorerName := range scores {
 					scoreVal := scoreMeta.Scores[scorerName]
 					scoreOutput[i+1] += fmt.Sprintf("%.3g|", scoreVal)
 				}
 				scoreOutput[i+1] += fmt.Sprintf("%.3g", scoreMeta.NormScore)
 			}
+
 			out += formatList(scoreOutput)
 		} else {
 			// Backwards compatibility for old allocs

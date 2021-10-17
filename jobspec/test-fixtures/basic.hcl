@@ -76,9 +76,11 @@ job "binstore-storagelocker" {
     }
 
     volume "bar" {
-      type      = "csi"
-      source    = "bar-vol"
-      read_only = true
+      type            = "csi"
+      source          = "bar-vol"
+      read_only       = true
+      attachment_mode = "file-system"
+      access_mode     = "single-mode-writer"
 
       mount_options {
         fs_type = "ext4"
@@ -92,6 +94,8 @@ job "binstore-storagelocker" {
       mount_options {
         mount_flags = ["ro"]
       }
+
+      per_alloc = true
     }
 
     restart {
@@ -200,6 +204,7 @@ job "binstore-storagelocker" {
           abc = "123"
         }
 
+
         canary_meta {
           canary = "boom"
         }
@@ -226,8 +231,9 @@ job "binstore-storagelocker" {
       }
 
       resources {
-        cpu    = 500
-        memory = 128
+        cpu        = 500
+        memory     = 128
+        memory_max = 256
 
         network {
           mbits = "100"

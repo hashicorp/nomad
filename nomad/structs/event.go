@@ -1,13 +1,5 @@
 package structs
 
-import (
-	"fmt"
-	"net/url"
-	"strings"
-
-	multierror "github.com/hashicorp/go-multierror"
-)
-
 // EventStreamRequest is used to stream events from a servers EventBroker
 type EventStreamRequest struct {
 	Topics map[Topic][]string
@@ -25,16 +17,39 @@ type Topic string
 
 const (
 	TopicDeployment Topic = "Deployment"
-	TopicEval       Topic = "Eval"
-	TopicAlloc      Topic = "Alloc"
+	TopicEvaluation Topic = "Evaluation"
+	TopicAllocation Topic = "Allocation"
 	TopicJob        Topic = "Job"
 	TopicNode       Topic = "Node"
+	TopicACLPolicy  Topic = "ACLPolicy"
+	TopicACLToken   Topic = "ACLToken"
 	TopicAll        Topic = "*"
+
+	TypeNodeRegistration              = "NodeRegistration"
+	TypeNodeDeregistration            = "NodeDeregistration"
+	TypeNodeEligibilityUpdate         = "NodeEligibility"
+	TypeNodeDrain                     = "NodeDrain"
+	TypeNodeEvent                     = "NodeStreamEvent"
+	TypeDeploymentUpdate              = "DeploymentStatusUpdate"
+	TypeDeploymentPromotion           = "DeploymentPromotion"
+	TypeDeploymentAllocHealth         = "DeploymentAllocHealth"
+	TypeAllocationCreated             = "AllocationCreated"
+	TypeAllocationUpdated             = "AllocationUpdated"
+	TypeAllocationUpdateDesiredStatus = "AllocationUpdateDesiredStatus"
+	TypeEvalUpdated                   = "EvaluationUpdated"
+	TypeJobRegistered                 = "JobRegistered"
+	TypeJobDeregistered               = "JobDeregistered"
+	TypeJobBatchDeregistered          = "JobBatchDeregistered"
+	TypePlanResult                    = "PlanResult"
+	TypeACLTokenDeleted               = "ACLTokenDeleted"
+	TypeACLTokenUpserted              = "ACLTokenUpserted"
+	TypeACLPolicyDeleted              = "ACLPolicyDeleted"
+	TypeACLPolicyUpserted             = "ACLPolicyUpserted"
 )
 
 // Event represents a change in Nomads state.
 type Event struct {
-	// Topic represeents the primary object for the event
+	// Topic represents the primary object for the event
 	Topic Topic
 
 	// Type is a short string representing the reason for the event
@@ -77,84 +92,53 @@ func (j *EventJson) Copy() *EventJson {
 	return n
 }
 
-type EventSinkProgressRequest struct {
-	Sinks []*EventSink
-	WriteRequest
+// JobEvent holds a newly updated Job.
+type JobEvent struct {
+	Job *Job
 }
 
-type EventSinkUpsertRequest struct {
-	Sink *EventSink
-	WriteRequest
+// EvaluationEvent holds a newly updated Eval.
+type EvaluationEvent struct {
+	Evaluation *Evaluation
 }
 
-type EventSinkSpecificRequest struct {
-	ID string
-	QueryOptions
+// AllocationEvent holds a newly updated Allocation. The
+// Allocs embedded Job has been removed to reduce size.
+type AllocationEvent struct {
+	Allocation *Allocation
 }
 
-type EventSinkResponse struct {
-	Sink *EventSink
-	QueryMeta
+// DeploymentEvent holds a newly updated Deployment.
+type DeploymentEvent struct {
+	Deployment *Deployment
 }
 
-type EventSinkDeleteRequest struct {
-	IDs []string
-	WriteRequest
+// NodeStreamEvent holds a newly updated Node
+type NodeStreamEvent struct {
+	Node *Node
 }
 
-type EventSinkListRequest struct {
-	QueryOptions
+type ACLTokenEvent struct {
+	ACLToken *ACLToken
+	secretID string
 }
 
-type EventSinkListResponse struct {
-	Sinks []*EventSink
-	QueryMeta
-}
+// NewACLTokenEvent takes a token and creates a new ACLTokenEvent.  It creates
+// a copy of the passed in ACLToken and empties out the copied tokens SecretID
+func NewACLTokenEvent(token *ACLToken) *ACLTokenEvent {
+	c := token.Copy()
+	c.SecretID = ""
 
-type SinkType string
-
-const (
-	SinkWebhook SinkType = "webhook"
-)
-
-type EventSink struct {
-	ID   string
-	Type SinkType
-
-	Topics map[Topic][]string
-
-	Address string
-
-	// LatestIndex is the latest reported index that was successfully sent.
-	// MangedSinks periodically check in to update the LatestIndex so that a
-	// minimal amount of events are resent when reestablishing an event sink
-	LatestIndex uint64
-
-	CreateIndex uint64
-	ModifyIndex uint64
-}
-
-func (e *EventSink) Validate() error {
-	var mErr multierror.Error
-
-	if e.ID == "" {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Missing sink ID"))
-	} else if strings.Contains(e.ID, " ") {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Sink ID contains a space"))
-	} else if strings.Contains(e.ID, "\000") {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Sink ID contains a null character"))
+	return &ACLTokenEvent{
+		ACLToken: c,
+		secretID: token.SecretID,
 	}
+}
 
-	switch e.Type {
-	case SinkWebhook:
-		if e.Address == "" {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Webhook sink requires a valid Address"))
-		} else if _, err := url.Parse(e.Address); err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("Webhook sink Address must be a valid url: %w", err))
-		}
-	default:
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("Sink type invalid"))
-	}
+func (a *ACLTokenEvent) SecretID() string {
+	return a.secretID
+}
 
-	return mErr.ErrorOrNil()
+type ACLPolicyEvent struct {
+	ACLPolicy *ACLPolicy
 }

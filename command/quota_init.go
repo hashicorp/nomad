@@ -27,10 +27,11 @@ type QuotaInitCommand struct {
 
 func (c *QuotaInitCommand) Help() string {
 	helpText := `
-Usage: nomad quota init
+Usage: nomad quota init <filename>
 
   Creates an example quota specification file that can be used as a starting
-  point to customize further.
+  point to customize further. If no filename is given, the default of "spec.hcl"
+  or "spec.json" will be used.
 
 Init Options:
 
@@ -68,8 +69,8 @@ func (c *QuotaInitCommand) Run(args []string) int {
 
 	// Check that we get no arguments
 	args = flags.Args()
-	if l := len(args); l != 0 {
-		c.Ui.Error("This command takes no arguments")
+	if l := len(args); l > 1 {
+		c.Ui.Error("This command takes no arguments or one: <filename>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -79,6 +80,9 @@ func (c *QuotaInitCommand) Run(args []string) int {
 	if jsonOutput {
 		fileName = DefaultJsonQuotaInitName
 		fileContent = defaultJsonQuotaSpec
+	}
+	if len(args) == 1 {
+		fileName = args[0]
 	}
 
 	// Check if the file already exists
@@ -105,17 +109,18 @@ func (c *QuotaInitCommand) Run(args []string) int {
 }
 
 var defaultHclQuotaSpec = strings.TrimSpace(`
-name = "default-quota"
+name        = "default-quota"
 description = "Limit the shared default namespace"
 
 # Create a limit for the global region. Additional limits may
 # be specified in-order to limit other regions.
 limit {
-    region = "global"
-    region_limit {
-        cpu = 2500
-        memory = 1000
-    }
+  region = "global"
+  region_limit {
+    cpu        = 2500
+    memory     = 1000
+    memory_max = 1000
+  }
 }
 `)
 
@@ -128,7 +133,8 @@ var defaultJsonQuotaSpec = strings.TrimSpace(`
 			"Region": "global",
 			"RegionLimit": {
 				"CPU": 2500,
-				"MemoryMB": 1000
+				"MemoryMB": 1000,
+				"MemoryMaxMB": 1000
 			}
 		}
 	]

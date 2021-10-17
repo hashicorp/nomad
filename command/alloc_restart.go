@@ -17,15 +17,23 @@ func (a *AllocRestartCommand) Help() string {
 	helpText := `
 Usage: nomad alloc restart [options] <allocation> <task>
 
-  restart an existing allocation. This command is used to restart a specific alloc
+  Restart an existing allocation. This command is used to restart a specific alloc
   and its tasks. If no task is provided then all of the allocation's tasks will
   be restarted.
 
+  When ACLs are enabled, this command requires a token with the
+  'alloc-lifecycle', 'read-job', and 'list-jobs' capabilities for the
+  allocation's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Restart Specific Options:
+
+  -task <task-name>
+	Specify the individual task to restart. If task name is given with both an 
+	argument and the '-task' option, preference is given to the '-task' option.
 
   -verbose
     Show full information.
@@ -37,10 +45,12 @@ func (c *AllocRestartCommand) Name() string { return "alloc restart" }
 
 func (c *AllocRestartCommand) Run(args []string) int {
 	var verbose bool
+	var task string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.StringVar(&task, "task", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -64,7 +74,7 @@ func (c *AllocRestartCommand) Run(args []string) int {
 
 	// Query the allocation info
 	if len(allocID) == 1 {
-		c.Ui.Error(fmt.Sprintf("Alloc ID must contain at least two characters."))
+		c.Ui.Error("Alloc ID must contain at least two characters.")
 		return 1
 	}
 
@@ -103,18 +113,21 @@ func (c *AllocRestartCommand) Run(args []string) int {
 		return 1
 	}
 
-	var taskName string
-	if len(args) == 2 {
-		// Validate Task
-		taskName = args[1]
-		err := validateTaskExistsInAllocation(taskName, alloc)
+	// If -task isn't provided fallback to reading the task name
+	// from args.
+	if task == "" && len(args) >= 2 {
+		task = args[1]
+	}
+
+	if task != "" {
+		err := validateTaskExistsInAllocation(task, alloc)
 		if err != nil {
 			c.Ui.Error(err.Error())
 			return 1
 		}
 	}
 
-	err = client.Allocations().Restart(alloc, taskName, nil)
+	err = client.Allocations().Restart(alloc, task, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to restart allocation:\n\n%s", err.Error()))
 		return 1

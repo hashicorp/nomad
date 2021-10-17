@@ -10,6 +10,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/host"
@@ -198,10 +199,7 @@ func (a *Agent) monitor(conn io.ReadWriteCloser) {
 			cancel()
 			return
 		}
-		select {
-		case <-ctx.Done():
-			return
-		}
+		<-ctx.Done()
 	}()
 
 	logCh := monitor.Start()
@@ -351,7 +349,6 @@ func (a *Agent) forwardMonitorClient(conn io.ReadWriteCloser, args cstructs.Moni
 	}
 
 	structs.Bridge(conn, clientConn)
-	return
 }
 
 func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, server *serverParts, args cstructs.MonitorRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
@@ -373,8 +370,8 @@ func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, server *serverPart
 	}
 
 	structs.Bridge(conn, serverConn)
-	return
 }
+
 func (a *Agent) forwardProfileClient(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
 	state, srv, err := a.findClientConn(args.NodeID)
 

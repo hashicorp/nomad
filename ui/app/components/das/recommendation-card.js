@@ -1,4 +1,5 @@
 import Component from '@glimmer/component';
+import { inject as service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
 import ResourcesDiffs from 'nomad-ui/utils/resources-diffs';
@@ -7,10 +8,14 @@ import { didCancel, task, timeout } from 'ember-concurrency';
 import Ember from 'ember';
 
 export default class DasRecommendationCardComponent extends Component {
+  @service router;
+
   @tracked allCpuToggleActive = true;
   @tracked allMemoryToggleActive = true;
 
   @tracked activeTaskToggleRowIndex = 0;
+
+  element = null;
 
   @tracked cardHeight;
   @tracked interstitialComponent;
@@ -137,6 +142,15 @@ export default class DasRecommendationCardComponent extends Component {
     );
   }
 
+  get copyButtonLink() {
+    const path = this.router.urlFor('optimize.summary', this.args.summary.slug, {
+      queryParams: { namespace: this.args.summary.jobNamespace },
+    });
+    const { origin } = window.location;
+
+    return `${origin}${path}`;
+  }
+
   @action
   toggleAllRecommendationsForResource(resource) {
     let enabled;
@@ -154,9 +168,13 @@ export default class DasRecommendationCardComponent extends Component {
 
   @action
   accept() {
+    this.storeCardHeight();
     this.args.summary
       .save()
-      .then(() => this.onApplied.perform(), e => this.onError.perform(e))
+      .then(
+        () => this.onApplied.perform(),
+        e => this.onError.perform(e)
+      )
       .catch(e => {
         if (!didCancel(e)) {
           throw e;
@@ -166,10 +184,14 @@ export default class DasRecommendationCardComponent extends Component {
 
   @action
   dismiss() {
+    this.storeCardHeight();
     this.args.summary.excludedRecommendations.pushObjects(this.args.summary.recommendations);
     this.args.summary
       .save()
-      .then(() => this.onDismissed.perform(), e => this.onError.perform(e))
+      .then(
+        () => this.onDismissed.perform(),
+        e => this.onError.perform(e)
+      )
       .catch(e => {
         if (!didCancel(e)) {
           throw e;
@@ -225,8 +247,12 @@ export default class DasRecommendationCardComponent extends Component {
   }
 
   @action
-  recommendationCardDestroying(element) {
-    this.cardHeight = element.clientHeight;
+  cardInserted(element) {
+    this.element = element;
+  }
+
+  storeCardHeight() {
+    this.cardHeight = this.element.clientHeight;
   }
 }
 

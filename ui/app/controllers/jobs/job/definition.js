@@ -19,9 +19,9 @@ export default class DefinitionController extends Controller.extend(WithNamespac
     this.set('isEditing', false);
   }
 
-  onSubmit(id, namespace) {
+  onSubmit(id, jobNamespace) {
     this.transitionToRoute('jobs.job', id, {
-      queryParams: { jobNamespace: namespace },
+      queryParams: { jobNamespace },
     });
   }
 }

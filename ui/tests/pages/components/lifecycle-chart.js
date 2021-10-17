@@ -23,6 +23,7 @@ export default {
     isPrestartSidecar: hasClass('prestart-sidecar'),
     isPoststartEphemeral: hasClass('poststart-ephemeral'),
     isPoststartSidecar: hasClass('poststart-sidecar'),
+    isPoststop: hasClass('poststop'),
 
     visit: clickable('a'),
   }),

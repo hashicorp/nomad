@@ -26,10 +26,11 @@ import (
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper"
-	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
 	"github.com/hashicorp/nomad/helper/logging"
 	"github.com/hashicorp/nomad/helper/winsvc"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/mitchellh/cli"
@@ -285,6 +286,12 @@ func (c *Command) readConfig() *Config {
 		config.PluginDir = filepath.Join(config.DataDir, "plugins")
 	}
 
+	// License configuration options
+	config.Server.LicenseEnv = os.Getenv("NOMAD_LICENSE")
+	if config.Server.LicensePath == "" {
+		config.Server.LicensePath = os.Getenv("NOMAD_LICENSE_PATH")
+	}
+
 	config.Server.DefaultSchedulerConfig.Canonicalize()
 
 	if !c.isValidConfig(config, cmdConfig) {
@@ -366,6 +373,19 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
+	if config.Client.MinDynamicPort < 0 || config.Client.MinDynamicPort > structs.MaxValidPort {
+		c.Ui.Error(fmt.Sprintf("Invalid dynamic port range: min_dynamic_port=%d", config.Client.MinDynamicPort))
+		return false
+	}
+	if config.Client.MaxDynamicPort < 0 || config.Client.MaxDynamicPort > structs.MaxValidPort {
+		c.Ui.Error(fmt.Sprintf("Invalid dynamic port range: max_dynamic_port=%d", config.Client.MaxDynamicPort))
+		return false
+	}
+	if config.Client.MinDynamicPort > config.Client.MaxDynamicPort {
+		c.Ui.Error(fmt.Sprintf("Invalid dynamic port range: min_dynamic_port=%d and max_dynamic_port=%d", config.Client.MinDynamicPort, config.Client.MaxDynamicPort))
+		return false
+	}
+
 	if !config.DevMode {
 		// Ensure that we have the directories we need to run.
 		if config.Server.Enabled && config.DataDir == "" {
@@ -396,7 +416,7 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 	return true
 }
 
-// setupLoggers is used to setup the logGate, and our logOutput
+// SetupLoggers is used to set up the logGate, and our logOutput
 func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwriter.Writer, io.Writer) {
 	// Setup logging. First create the gated log writer, which will
 	// store logs until we're ready to show them. Then create the level
@@ -464,7 +484,6 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 	}
 
 	logOutput := io.MultiWriter(writers...)
-	log.SetOutput(logOutput)
 	return logFilter, logGate, logOutput
 }
 
@@ -618,6 +637,15 @@ func (c *Command) Run(args []string) int {
 		return 1
 	}
 
+	// reset UI to prevent prefixed json output
+	if config.LogJson {
+		c.Ui = &cli.BasicUi{
+			Reader:      os.Stdin,
+			Writer:      os.Stdout,
+			ErrorWriter: os.Stderr,
+		}
+	}
+
 	// Setup the log outputs
 	logFilter, logGate, logOutput := SetupLoggers(c.Ui, config)
 	c.logFilter = logFilter
@@ -633,6 +661,12 @@ func (c *Command) Run(args []string) int {
 		Output:     logOutput,
 		JSONFormat: config.LogJson,
 	})
+
+	// Wrap log messages emitted with the 'log' package.
+	// These usually come from external dependencies.
+	log.SetOutput(logger.StandardWriter(&hclog.StandardLoggerOptions{InferLevels: true}))
+	log.SetPrefix("")
+	log.SetFlags(0)
 
 	// Swap out UI implementation if json logging is enabled
 	if config.LogJson {
@@ -882,7 +916,7 @@ func (c *Command) handleReload() {
 	c.Ui.Output("Reloading configuration...")
 	newConf := c.readConfig()
 	if newConf == nil {
-		c.Ui.Error(fmt.Sprintf("Failed to reload configs"))
+		c.Ui.Error("Failed to reload configs")
 		return
 	}
 

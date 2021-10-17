@@ -19,7 +19,7 @@ Usage: nomad acl token self
 
 General Options:
 
-  ` + generalOptionsUsage()
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
 
 	return strings.TrimSpace(helpText)
 }

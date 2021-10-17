@@ -3,11 +3,11 @@ package exec
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -17,6 +17,7 @@ import (
 	"time"
 
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/testtask"
@@ -270,11 +271,11 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
-// TestExecDriver_DestroyKillsAll asserts that when TaskDestroy is called all
-// task processes are cleaned up.
-func TestExecDriver_DestroyKillsAll(t *testing.T) {
+// TestExecDriver_NoOrphans asserts that when the main
+// task dies, the orphans in the PID namespaces are killed by the kernel
+func TestExecDriver_NoOrphans(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
+	r := require.New(t)
 	ctestutils.ExecCompatible(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -283,6 +284,17 @@ func TestExecDriver_DestroyKillsAll(t *testing.T) {
 	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
+
+	config := &Config{
+		NoPivotRoot:    false,
+		DefaultModePID: executor.IsolationModePrivate,
+		DefaultModeIPC: executor.IsolationModePrivate,
+	}
+
+	var data []byte
+	r.NoError(basePlug.MsgPackEncode(&data, config))
+	baseConfig := &basePlug.Config{PluginConfig: data}
+	r.NoError(harness.SetConfig(baseConfig))
 
 	task := &drivers.TaskConfig{
 		ID:   uuid.Generate(),
@@ -294,49 +306,53 @@ func TestExecDriver_DestroyKillsAll(t *testing.T) {
 
 	taskConfig := map[string]interface{}{}
 	taskConfig["command"] = "/bin/sh"
-	taskConfig["args"] = []string{"-c", fmt.Sprintf(`sleep 3600 & echo "SLEEP_PID=$!"`)}
-
-	require.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
+	// print the child PID in the task PID namespace, then sleep for 5 seconds to give us a chance to examine processes
+	taskConfig["args"] = []string{"-c", fmt.Sprintf(`sleep 3600 & sleep 20`)}
+	r.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
 
 	handle, _, err := harness.StartTask(task)
-	require.NoError(err)
+	r.NoError(err)
 	defer harness.DestroyTask(task.ID, true)
 
-	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
-	require.NoError(err)
+	waitCh, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	r.NoError(err)
 
-	select {
-	case result := <-ch:
-		require.True(result.Successful(), "command failed: %#v", result)
-	case <-time.After(10 * time.Second):
-		require.Fail("timeout waiting for task to shutdown")
-	}
+	r.NoError(harness.WaitUntilStarted(task.ID, 1*time.Second))
 
-	sleepPid := 0
-
-	// Ensure that the task is marked as dead, but account
-	// for WaitTask() closing channel before internal state is updated
+	var childPids []int
+	taskState := TaskState{}
 	testutil.WaitForResult(func() (bool, error) {
-		stdout, err := ioutil.ReadFile(filepath.Join(task.TaskDir().LogDir, "test.stdout.0"))
+		r.NoError(handle.GetDriverState(&taskState))
+		if taskState.Pid == 0 {
+			return false, fmt.Errorf("task PID is zero")
+		}
+
+		children, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/task/%d/children", taskState.Pid, taskState.Pid))
 		if err != nil {
-			return false, fmt.Errorf("failed to output pid file: %v", err)
+			return false, fmt.Errorf("error reading /proc for children: %v", err)
 		}
-
-		pidMatch := regexp.MustCompile(`SLEEP_PID=(\d+)`).FindStringSubmatch(string(stdout))
-		if len(pidMatch) != 2 {
-			return false, fmt.Errorf("failed to find pid in %s", string(stdout))
+		pids := strings.Fields(string(children))
+		if len(pids) < 2 {
+			return false, fmt.Errorf("error waiting for two children, currently %d", len(pids))
 		}
-
-		pid, err := strconv.Atoi(pidMatch[1])
-		if err != nil {
-			return false, fmt.Errorf("pid parts aren't int: %s", pidMatch[1])
+		for _, cpid := range pids {
+			p, err := strconv.Atoi(cpid)
+			if err != nil {
+				return false, fmt.Errorf("error parsing child pids from /proc: %s", cpid)
+			}
+			childPids = append(childPids, p)
 		}
-
-		sleepPid = pid
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		r.NoError(err)
 	})
+
+	select {
+	case result := <-waitCh:
+		r.True(result.Successful(), "command failed: %#v", result)
+	case <-time.After(30 * time.Second):
+		r.Fail("timeout waiting for task to shutdown")
+	}
 
 	// isProcessRunning returns an error if process is not running
 	isProcessRunning := func(pid int) error {
@@ -353,23 +369,23 @@ func TestExecDriver_DestroyKillsAll(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(isProcessRunning(sleepPid))
+	// task should be dead
+	r.Error(isProcessRunning(taskState.Pid))
 
-	require.NoError(harness.DestroyTask(task.ID, true))
-
+	// all children should eventually be killed by OS
 	testutil.WaitForResult(func() (bool, error) {
-		err := isProcessRunning(sleepPid)
-		if err == nil {
-			return false, fmt.Errorf("child process is still running")
+		for _, cpid := range childPids {
+			err := isProcessRunning(cpid)
+			if err == nil {
+				return false, fmt.Errorf("child process %d is still running", cpid)
+			}
+			if !strings.Contains(err.Error(), "failed to signal process") {
+				return false, fmt.Errorf("unexpected error: %v", err)
+			}
 		}
-
-		if !strings.Contains(err.Error(), "failed to signal process") {
-			return false, fmt.Errorf("unexpected error: %v", err)
-		}
-
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		r.NoError(err)
 	})
 }
 
@@ -708,7 +724,7 @@ config {
 
 func TestExecDriver_NoPivotRoot(t *testing.T) {
 	t.Parallel()
-	require := require.New(t)
+	r := require.New(t)
 	ctestutils.ExecCompatible(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -717,11 +733,16 @@ func TestExecDriver_NoPivotRoot(t *testing.T) {
 	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	harness := dtestutil.NewDriverHarness(t, d)
 
-	config := &Config{NoPivotRoot: true}
+	config := &Config{
+		NoPivotRoot:    true,
+		DefaultModePID: executor.IsolationModePrivate,
+		DefaultModeIPC: executor.IsolationModePrivate,
+	}
+
 	var data []byte
-	require.NoError(basePlug.MsgPackEncode(&data, config))
+	r.NoError(basePlug.MsgPackEncode(&data, config))
 	bconfig := &basePlug.Config{PluginConfig: data}
-	require.NoError(harness.SetConfig(bconfig))
+	r.NoError(harness.SetConfig(bconfig))
 
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
@@ -735,9 +756,107 @@ func TestExecDriver_NoPivotRoot(t *testing.T) {
 		Command: "/bin/sleep",
 		Args:    []string{"100"},
 	}
-	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+	r.NoError(task.EncodeConcreteDriverConfig(&tc))
 
 	handle, _, err := harness.StartTask(task)
-	require.NoError(err)
-	require.NotNil(handle)
+	r.NoError(err)
+	r.NotNil(handle)
+}
+
+func TestDriver_Config_validate(t *testing.T) {
+	t.Run("pid/ipc", func(t *testing.T) {
+		for _, tc := range []struct {
+			pidMode, ipcMode string
+			exp              error
+		}{
+			{pidMode: "host", ipcMode: "host", exp: nil},
+			{pidMode: "private", ipcMode: "host", exp: nil},
+			{pidMode: "host", ipcMode: "private", exp: nil},
+			{pidMode: "private", ipcMode: "private", exp: nil},
+			{pidMode: "other", ipcMode: "private", exp: errors.New(`default_pid_mode must be "private" or "host", got "other"`)},
+			{pidMode: "private", ipcMode: "other", exp: errors.New(`default_ipc_mode must be "private" or "host", got "other"`)},
+		} {
+			require.Equal(t, tc.exp, (&Config{
+				DefaultModePID: tc.pidMode,
+				DefaultModeIPC: tc.ipcMode,
+			}).validate())
+		}
+	})
+
+	t.Run("allow_caps", func(t *testing.T) {
+		for _, tc := range []struct {
+			ac  []string
+			exp error
+		}{
+			{ac: []string{}, exp: nil},
+			{ac: []string{"all"}, exp: nil},
+			{ac: []string{"chown", "sys_time"}, exp: nil},
+			{ac: []string{"CAP_CHOWN", "cap_sys_time"}, exp: nil},
+			{ac: []string{"chown", "not_valid", "sys_time"}, exp: errors.New("allow_caps configured with capabilities not supported by system: not_valid")},
+		} {
+			require.Equal(t, tc.exp, (&Config{
+				DefaultModePID: "private",
+				DefaultModeIPC: "private",
+				AllowCaps:      tc.ac,
+			}).validate())
+		}
+	})
+}
+
+func TestDriver_TaskConfig_validate(t *testing.T) {
+	t.Run("pid/ipc", func(t *testing.T) {
+		for _, tc := range []struct {
+			pidMode, ipcMode string
+			exp              error
+		}{
+			{pidMode: "host", ipcMode: "host", exp: nil},
+			{pidMode: "host", ipcMode: "private", exp: nil},
+			{pidMode: "host", ipcMode: "", exp: nil},
+			{pidMode: "host", ipcMode: "other", exp: errors.New(`ipc_mode must be "private" or "host", got "other"`)},
+
+			{pidMode: "host", ipcMode: "host", exp: nil},
+			{pidMode: "private", ipcMode: "host", exp: nil},
+			{pidMode: "", ipcMode: "host", exp: nil},
+			{pidMode: "other", ipcMode: "host", exp: errors.New(`pid_mode must be "private" or "host", got "other"`)},
+		} {
+			require.Equal(t, tc.exp, (&TaskConfig{
+				ModePID: tc.pidMode,
+				ModeIPC: tc.ipcMode,
+			}).validate())
+		}
+	})
+
+	t.Run("cap_add", func(t *testing.T) {
+		for _, tc := range []struct {
+			adds []string
+			exp  error
+		}{
+			{adds: nil, exp: nil},
+			{adds: []string{"chown"}, exp: nil},
+			{adds: []string{"CAP_CHOWN"}, exp: nil},
+			{adds: []string{"chown", "sys_time"}, exp: nil},
+			{adds: []string{"chown", "not_valid", "sys_time"}, exp: errors.New("cap_add configured with capabilities not supported by system: not_valid")},
+		} {
+			require.Equal(t, tc.exp, (&TaskConfig{
+				CapAdd: tc.adds,
+			}).validate())
+		}
+	})
+
+	t.Run("cap_drop", func(t *testing.T) {
+		for _, tc := range []struct {
+			drops []string
+			exp   error
+		}{
+			{drops: nil, exp: nil},
+			{drops: []string{"chown"}, exp: nil},
+			{drops: []string{"CAP_CHOWN"}, exp: nil},
+			{drops: []string{"chown", "sys_time"}, exp: nil},
+			{drops: []string{"chown", "not_valid", "sys_time"}, exp: errors.New("cap_drop configured with capabilities not supported by system: not_valid")},
+		} {
+			require.Equal(t, tc.exp, (&TaskConfig{
+				CapDrop: tc.drops,
+			}).validate())
+		}
+	})
 }

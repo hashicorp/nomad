@@ -8,6 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/cgutil"
+	"github.com/hashicorp/nomad/command/agent/host"
+
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/helper"
@@ -21,14 +24,7 @@ import (
 var (
 	// DefaultEnvDenylist is the default set of environment variables that are
 	// filtered when passing the environment variables of the host to a task.
-	// duplicated in command/agent/host, update that if this changes.
-	DefaultEnvDenylist = strings.Join([]string{
-		"CONSUL_TOKEN",
-		"CONSUL_HTTP_TOKEN",
-		"VAULT_TOKEN",
-		"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
-		"GOOGLE_APPLICATION_CREDENTIALS",
-	}, ",")
+	DefaultEnvDenylist = strings.Join(host.DefaultEnvDenyList, ",")
 
 	// DefaultUserDenylist is the default set of users that tasks are not
 	// allowed to run as when using a driver in "user.checked_drivers"
@@ -134,6 +130,12 @@ type Config struct {
 	// ClientMinPort is the lower range of the ports that the client uses for
 	// communicating with plugin subsystems over loopback
 	ClientMinPort uint
+
+	// MaxDynamicPort is the largest dynamic port generated
+	MaxDynamicPort int
+
+	// MinDynamicPort is the smallest dynamic port generated
+	MinDynamicPort int
 
 	// A mapping of directories on the host OS to attempt to embed inside each
 	// task's chroot.
@@ -265,6 +267,13 @@ type Config struct {
 	//
 	// This configuration is only considered if no host networks are defined.
 	BindWildcardDefaultHostNetwork bool
+
+	// CgroupParent is the parent cgroup Nomad should use when managing any cgroup subsystems.
+	// Currently this only includes the 'cpuset' cgroup subsystem.
+	CgroupParent string
+
+	// ReservableCores if set overrides the set of reservable cores reported in fingerprinting.
+	ReservableCores []uint16
 }
 
 type ClientTemplateConfig struct {
@@ -293,6 +302,10 @@ func (c *Config) Copy() *Config {
 	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.VaultConfig = c.VaultConfig.Copy()
 	nc.TemplateConfig = c.TemplateConfig.Copy()
+	if c.ReservableCores != nil {
+		nc.ReservableCores = make([]uint16, len(c.ReservableCores))
+		copy(nc.ReservableCores, c.ReservableCores)
+	}
 	return nc
 }
 
@@ -323,6 +336,9 @@ func DefaultConfig() *Config {
 		CNIConfigDir:       "/opt/cni/config",
 		CNIInterfacePrefix: "eth",
 		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
+		CgroupParent:       cgutil.DefaultCgroupParent,
+		MaxDynamicPort:     structs.DefaultMinDynamicPort,
+		MinDynamicPort:     structs.DefaultMaxDynamicPort,
 	}
 }
 
@@ -427,8 +443,8 @@ func (c *Config) ReadStringListToMap(keys ...string) map[string]struct{} {
 	return splitValue(val)
 }
 
-// ReadStringListToMap tries to parse the specified option as a comma separated list.
-// If there is an error in parsing, an empty list is returned.
+// ReadStringListToMapDefault tries to parse the specified option as a comma
+// separated list. If there is an error in parsing, an empty list is returned.
 func (c *Config) ReadStringListToMapDefault(key, defaultValue string) map[string]struct{} {
 	return c.ReadStringListAlternativeToMapDefault([]string{key}, defaultValue)
 }

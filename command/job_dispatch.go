@@ -6,8 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hashicorp/nomad/api/contexts"
-	flaghelper "github.com/hashicorp/nomad/helper/flag-helpers"
+	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
 )
 
@@ -28,9 +27,12 @@ Usage: nomad job dispatch [options] <parameterized job> [input source]
   triggered evaluation will be monitored. This can be disabled by supplying the
   detach flag.
 
+  When ACLs are enabled, this command requires a token with the 'dispatch-job'
+  capability for the job's namespace.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault) + `
 
 Dispatch Options:
 
@@ -72,11 +74,20 @@ func (c *JobDispatchCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
+		resp, _, err := client.Jobs().PrefixList(a.Last)
 		if err != nil {
 			return []string{}
 		}
-		return resp.Matches[contexts.Jobs]
+
+		// filter by parameterized jobs
+		matches := make([]string, 0, len(resp))
+		for _, job := range resp {
+			if job.ParameterizedJob {
+				matches = append(matches, job.ID)
+			}
+		}
+		return matches
+
 	})
 }
 
@@ -173,5 +184,5 @@ func (c *JobDispatchCommand) Run(args []string) int {
 
 	c.Ui.Output("")
 	mon := newMonitor(c.Ui, client, length)
-	return mon.monitor(resp.EvalID, false)
+	return mon.monitor(resp.EvalID)
 }

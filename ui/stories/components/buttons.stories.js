@@ -1,7 +1,7 @@
 import hbs from 'htmlbars-inline-precompile';
 
 export default {
-  title: 'Components|Buttons',
+  title: 'Components/Buttons',
 };
 
 export let Standard = () => {

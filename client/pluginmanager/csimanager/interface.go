@@ -15,8 +15,8 @@ type MountInfo struct {
 
 type UsageOptions struct {
 	ReadOnly       bool
-	AttachmentMode string
-	AccessMode     string
+	AttachmentMode structs.CSIVolumeAttachmentMode
+	AccessMode     structs.CSIVolumeAccessMode
 	MountOptions   *structs.CSIMountOptions
 }
 
@@ -33,9 +33,9 @@ func (u *UsageOptions) ToFS() string {
 		sb.WriteString("rw-")
 	}
 
-	sb.WriteString(u.AttachmentMode)
+	sb.WriteString(string(u.AttachmentMode))
 	sb.WriteString("-")
-	sb.WriteString(u.AccessMode)
+	sb.WriteString(string(u.AccessMode))
 
 	return sb.String()
 }

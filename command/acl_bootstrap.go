@@ -20,7 +20,7 @@ Usage: nomad acl bootstrap [options]
 
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 `
 	return strings.TrimSpace(helpText)

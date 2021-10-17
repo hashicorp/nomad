@@ -240,7 +240,7 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 
 	// Create a volume in the state store
 	index := uint64(999)
-	v := structs.NewCSIVolume("foo", index)
+	v := structs.NewCSIVolume("foo[0]", index)
 	v.Namespace = structs.DefaultNamespace
 	v.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	v.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
@@ -284,16 +284,19 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 	stack.SetNodes(nodes)
 
 	job := mock.Job()
+	job.TaskGroups[0].Count = 2
 	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"foo": {
 		Name:     "bar",
 		Type:     structs.VolumeTypeCSI,
 		Source:   "foo",
 		ReadOnly: true,
+		PerAlloc: true,
 	}}
 
 	stack.SetJob(job)
 
-	selectOptions := &SelectOptions{}
+	selectOptions := &SelectOptions{
+		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 0)}
 	node := stack.Select(job.TaskGroups[0], selectOptions)
 	if node == nil {
 		t.Fatalf("missing node %#v", ctx.Metrics())
@@ -389,7 +392,7 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 
 func TestSystemStack_SetNodes(t *testing.T) {
 	_, ctx := testContext(t)
-	stack := NewSystemStack(ctx)
+	stack := NewSystemStack(false, ctx)
 
 	nodes := []*structs.Node{
 		mock.Node(),
@@ -411,7 +414,7 @@ func TestSystemStack_SetNodes(t *testing.T) {
 
 func TestSystemStack_SetJob(t *testing.T) {
 	_, ctx := testContext(t)
-	stack := NewSystemStack(ctx)
+	stack := NewSystemStack(false, ctx)
 
 	job := mock.Job()
 	stack.SetJob(job)
@@ -427,7 +430,7 @@ func TestSystemStack_SetJob(t *testing.T) {
 func TestSystemStack_Select_Size(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*structs.Node{mock.Node()}
-	stack := NewSystemStack(ctx)
+	stack := NewSystemStack(false, ctx)
 	stack.SetNodes(nodes)
 
 	job := mock.Job()
@@ -455,7 +458,7 @@ func TestSystemStack_Select_MetricsReset(t *testing.T) {
 		mock.Node(),
 		mock.Node(),
 	}
-	stack := NewSystemStack(ctx)
+	stack := NewSystemStack(false, ctx)
 	stack.SetNodes(nodes)
 
 	job := mock.Job()
@@ -491,7 +494,7 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 	zero := nodes[0]
 	zero.Attributes["driver.foo"] = "1"
 
-	stack := NewSystemStack(ctx)
+	stack := NewSystemStack(false, ctx)
 	stack.SetNodes(nodes)
 
 	job := mock.Job()
@@ -513,7 +516,7 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 		t.Fatalf("ComputedClass() failed: %v", err)
 	}
 
-	stack = NewSystemStack(ctx)
+	stack = NewSystemStack(false, ctx)
 	stack.SetNodes(nodes)
 	stack.SetJob(job)
 	node = stack.Select(job.TaskGroups[0], selectOptions)
@@ -534,7 +537,7 @@ func TestSystemStack_Select_ConstraintFilter(t *testing.T) {
 		t.Fatalf("ComputedClass() failed: %v", err)
 	}
 
-	stack := NewSystemStack(ctx)
+	stack := NewSystemStack(false, ctx)
 	stack.SetNodes(nodes)
 
 	job := mock.Job()
@@ -577,7 +580,7 @@ func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
 	}
 	one := nodes[1]
 
-	stack := NewSystemStack(ctx)
+	stack := NewSystemStack(false, ctx)
 	stack.SetNodes(nodes)
 
 	job := mock.Job()

@@ -13,7 +13,7 @@ The `NOMAD_E2E=1` environment variable must be set for these tests to run.
 The `terraform/` folder has provisioning code to spin up a Nomad cluster on
 AWS. You'll need both Terraform and AWS credentials to setup AWS instances on
 which e2e tests will run. See the
-[README](https://github.com/hashicorp/nomad/blob/master/e2e/terraform/README.md)
+[README](https://github.com/hashicorp/nomad/blob/main/e2e/terraform/README.md)
 for details. The number of servers and clients is configurable, as is the
 specific build of Nomad to deploy and the configuration file for each client
 and server.
@@ -80,8 +80,8 @@ Run `terraform output` for IP addresses and details.
 
 ### ...Deploy a Cluster of Mixed Nomad Versions
 
-The `variables.tf` file describes the `nomad_sha`, `nomad_version`, and
-`nomad_local_binary` variable that can be used for most circumstances. But if
+The `variables.tf` file describes the `nomad_version`, and
+`nomad_local_binary` variables that can be used for most circumstances. But if
 you want to deploy mixed Nomad versions, you can provide a list of versions in
 your `terraform.tfvars` file.
 
@@ -103,7 +103,7 @@ nomad_version_client_linux = [
 
 Set the `profile` field to `"custom"` and put the configuration files in
 `./terraform/config/custom/` as described in the
-[README](https://github.com/hashicorp/nomad/blob/master/e2e/terraform/README.md#Profiles).
+[README](https://github.com/hashicorp/nomad/blob/main/e2e/terraform/README.md#Profiles).
 
 ### ...Deploy More Than 4 Linux Clients
 
@@ -111,7 +111,7 @@ Use the `"custom"` profile as described above.
 
 ### ...Change the Nomad Version After Provisioning
 
-You can update the `nomad_sha` or `nomad_version` variables, or simply rebuild
-the binary you have at the `nomad_local_binary` path so that Terraform picks
-up the changes. Then run `terraform plan`/`terraform apply` again. This will
-update Nomad in place, making the minimum amount of changes necessary.
+You can update the `nomad_version` variable, or simply rebuild the binary you
+have at the `nomad_local_binary` path so that Terraform picks up the
+changes. Then run `terraform plan`/`terraform apply` again. This will update
+Nomad in place, making the minimum amount of changes necessary.

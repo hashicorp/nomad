@@ -17,9 +17,12 @@ Usage: nomad sentinel delete [options] <name>
 
   Delete is used to delete an existing Sentinel policy.
 
+  Sentinel commands are only available when ACLs are enabled. This command
+  requires a management token.
+
 General Options:
 
-  ` + generalOptionsUsage() + `
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
 `
 	return strings.TrimSpace(helpText)

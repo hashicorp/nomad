@@ -3,9 +3,11 @@ import { setupTest } from 'ember-qunit';
 import moment from 'moment';
 import d3Format from 'd3-format';
 import d3TimeFormat from 'd3-time-format';
+import setupGlimmerComponentFactory from 'nomad-ui/tests/helpers/glimmer-factory';
 
 module('Unit | Component | stats-time-series', function(hooks) {
   setupTest(hooks);
+  setupGlimmerComponentFactory(hooks, 'stats-time-series');
 
   const ts = (offset, resolution = 'm') =>
     moment()
@@ -46,35 +48,29 @@ module('Unit | Component | stats-time-series', function(hooks) {
   ];
 
   test('xFormat is time-formatted for hours, minutes, and seconds', function(assert) {
-    const chart = this.owner.factoryFor('component:stats-time-series').create();
-
-    chart.set('data', wideData);
+    const chart = this.createComponent({ data: wideData });
 
     wideData.forEach(datum => {
       assert.equal(
-        chart.xFormat()(datum.timestamp),
+        chart.xFormat(datum.timestamp),
         d3TimeFormat.timeFormat('%H:%M:%S')(datum.timestamp)
       );
     });
   });
 
   test('yFormat is percent-formatted', function(assert) {
-    const chart = this.owner.factoryFor('component:stats-time-series').create();
-
-    chart.set('data', wideData);
+    const chart = this.createComponent({ data: wideData });
 
     wideData.forEach(datum => {
-      assert.equal(chart.yFormat()(datum.percent), d3Format.format('.1~%')(datum.percent));
+      assert.equal(chart.yFormat(datum.percent), d3Format.format('.1~%')(datum.percent));
     });
   });
 
   test('x scale domain is at least five minutes', function(assert) {
-    const chart = this.owner.factoryFor('component:stats-time-series').create();
-
-    chart.set('data', narrowData);
+    const chart = this.createComponent({ data: narrowData });
 
     assert.equal(
-      +chart.get('xScale').domain()[0],
+      +chart.xScale(narrowData, 0).domain()[0],
       +moment(Math.max(...narrowData.mapBy('timestamp')))
         .subtract(5, 'm')
         .toDate(),
@@ -83,21 +79,17 @@ module('Unit | Component | stats-time-series', function(hooks) {
   });
 
   test('x scale domain is greater than five minutes when the domain of the data is larger than five minutes', function(assert) {
-    const chart = this.owner.factoryFor('component:stats-time-series').create();
-
-    chart.set('data', wideData);
+    const chart = this.createComponent({ data: wideData });
 
     assert.equal(
-      +chart.get('xScale').domain()[0],
+      +chart.xScale(wideData, 0).domain()[0],
       Math.min(...wideData.mapBy('timestamp')),
       'The lower bound of the xScale is the oldest timestamp in the dataset'
     );
   });
 
   test('y scale domain is typically 0 to 1 (0 to 100%)', function(assert) {
-    const chart = this.owner.factoryFor('component:stats-time-series').create();
-
-    chart.set('data', wideData);
+    const chart = this.createComponent({ data: wideData });
 
     assert.deepEqual(
       [Math.min(...wideData.mapBy('percent')), Math.max(...wideData.mapBy('percent'))],
@@ -106,45 +98,41 @@ module('Unit | Component | stats-time-series', function(hooks) {
     );
 
     assert.deepEqual(
-      chart.get('yScale').domain(),
+      chart.yScale(wideData, 0).domain(),
       [0, 1],
       'The bounds of the yScale are still 0 and 1'
     );
   });
 
   test('the extent of the y domain overrides the default 0 to 1 domain when there are values beyond these bounds', function(assert) {
-    const chart = this.owner.factoryFor('component:stats-time-series').create();
-
-    chart.set('data', unboundedData);
+    const chart = this.createComponent({ data: unboundedData });
 
     assert.deepEqual(
-      chart.get('yScale').domain(),
+      chart.yScale(unboundedData, 0).domain(),
       [-0.5, 1.5],
       'The bounds of the yScale match the bounds of the unbounded data'
     );
 
-    chart.set('data', [unboundedData[0]]);
+    chart.args.data = [unboundedData[0]];
 
     assert.deepEqual(
-      chart.get('yScale').domain(),
+      chart.yScale(chart.args.data, 0).domain(),
       [-0.5, 1],
       'The upper bound is still the default 1, but the lower bound is overridden due to the unbounded low value'
     );
 
-    chart.set('data', [unboundedData[1]]);
+    chart.args.data = [unboundedData[1]];
 
     assert.deepEqual(
-      chart.get('yScale').domain(),
+      chart.yScale(chart.args.data, 0).domain(),
       [0, 1.5],
       'The lower bound is still the default 0, but the upper bound is overridden due to the unbounded high value'
     );
   });
 
   test('when there are only empty frames in the data array, the default y domain is used', function(assert) {
-    const chart = this.owner.factoryFor('component:stats-time-series').create();
+    const chart = this.createComponent({ data: nullData });
 
-    chart.set('data', nullData);
-
-    assert.deepEqual(chart.get('yScale').domain(), [0, 1], 'The bounds are 0 and 1');
+    assert.deepEqual(chart.yScale(nullData, 0).domain(), [0, 1], 'The bounds are 0 and 1');
   });
 });

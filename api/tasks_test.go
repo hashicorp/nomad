@@ -356,16 +356,16 @@ func TestTask_AddAffinity(t *testing.T) {
 func TestTask_Artifact(t *testing.T) {
 	t.Parallel()
 	a := TaskArtifact{
-		GetterSource: stringToPtr("http://localhost/foo.txt"),
-		GetterMode:   stringToPtr("file"),
+		GetterSource:  stringToPtr("http://localhost/foo.txt"),
+		GetterMode:    stringToPtr("file"),
+		GetterHeaders: make(map[string]string),
+		GetterOptions: make(map[string]string),
 	}
 	a.Canonicalize()
-	if *a.GetterMode != "file" {
-		t.Errorf("expected file but found %q", *a.GetterMode)
-	}
-	if filepath.ToSlash(*a.RelativeDest) != "local/foo.txt" {
-		t.Errorf("expected local/foo.txt but found %q", *a.RelativeDest)
-	}
+	require.Equal(t, "file", *a.GetterMode)
+	require.Equal(t, "local/foo.txt", filepath.ToSlash(*a.RelativeDest))
+	require.Nil(t, a.GetterOptions)
+	require.Nil(t, a.GetterHeaders)
 }
 
 func TestTask_VolumeMount(t *testing.T) {
@@ -715,11 +715,10 @@ func TestSpread_Canonicalize(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			require := require.New(t)
 			tg.Spreads = []*Spread{tc.spread}
 			tg.Canonicalize(job)
 			for _, spr := range tg.Spreads {
-				require.Equal(tc.expectedWeight, *spr.Weight)
+				require.Equal(t, tc.expectedWeight, *spr.Weight)
 			}
 		})
 	}
@@ -787,4 +786,57 @@ func Test_NewDefaultReschedulePolicy(t *testing.T) {
 			assert.Equal(t, tc.expected, actual)
 		})
 	}
+}
+
+func TestTaskGroup_Canonicalize_Consul(t *testing.T) {
+	t.Run("override job consul in group", func(t *testing.T) {
+		job := &Job{
+			ID:              stringToPtr("job"),
+			ConsulNamespace: stringToPtr("ns1"),
+		}
+		job.Canonicalize()
+
+		tg := &TaskGroup{
+			Name:   stringToPtr("group"),
+			Consul: &Consul{Namespace: "ns2"},
+		}
+		tg.Canonicalize(job)
+
+		require.Equal(t, "ns1", *job.ConsulNamespace)
+		require.Equal(t, "ns2", tg.Consul.Namespace)
+	})
+
+	t.Run("inherit job consul in group", func(t *testing.T) {
+		job := &Job{
+			ID:              stringToPtr("job"),
+			ConsulNamespace: stringToPtr("ns1"),
+		}
+		job.Canonicalize()
+
+		tg := &TaskGroup{
+			Name:   stringToPtr("group"),
+			Consul: nil, // not set, inherit from job
+		}
+		tg.Canonicalize(job)
+
+		require.Equal(t, "ns1", *job.ConsulNamespace)
+		require.Equal(t, "ns1", tg.Consul.Namespace)
+	})
+
+	t.Run("set in group only", func(t *testing.T) {
+		job := &Job{
+			ID:              stringToPtr("job"),
+			ConsulNamespace: nil,
+		}
+		job.Canonicalize()
+
+		tg := &TaskGroup{
+			Name:   stringToPtr("group"),
+			Consul: &Consul{Namespace: "ns2"},
+		}
+		tg.Canonicalize(job)
+
+		require.Empty(t, job.ConsulNamespace)
+		require.Equal(t, "ns2", tg.Consul.Namespace)
+	})
 }

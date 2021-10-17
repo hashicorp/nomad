@@ -143,6 +143,7 @@ func (f *EnvAzureFingerprint) Fingerprint(request *FingerprintRequest, response 
 		"resource-group": {unique: false, path: "compute/resourceGroupName"},
 		"scale-set":      {unique: false, path: "compute/vmScaleSetName"},
 		"vm-size":        {unique: false, path: "compute/vmSize"},
+		"zone":           {unique: false, path: "compute/zone"},
 		"local-ipv4":     {unique: true, path: "network/interface/0/ipv4/ipAddress/0/privateIpAddress"},
 		"public-ipv4":    {unique: true, path: "network/interface/0/ipv4/ipAddress/0/publicIpAddress"},
 		"local-ipv6":     {unique: true, path: "network/interface/0/ipv6/ipAddress/0/privateIpAddress"},
@@ -161,7 +162,7 @@ func (f *EnvAzureFingerprint) Fingerprint(request *FingerprintRequest, response 
 		}
 
 		// assume we want blank entries
-		key := "platform.azure." + strings.Replace(k, "/", ".", -1)
+		key := "platform.azure." + strings.ReplaceAll(k, "/", ".")
 		if attr.unique {
 			key = structs.UniqueNamespace(key)
 		}

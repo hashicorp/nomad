@@ -127,7 +127,8 @@ func (s *HTTPServer) allocGet(allocID string, resp http.ResponseWriter, req *htt
 	alloc.SetEventDisplayMessages()
 
 	// Handle 0.12 ports upgrade path
-	alloc.AllocatedResources.Shared.Canonicalize()
+	alloc = alloc.Copy()
+	alloc.AllocatedResources.Canonicalize()
 
 	return alloc, nil
 }
@@ -514,13 +515,6 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 		go forwardExecInput(encoder, ws, errCh)
 
 		for {
-			select {
-			case <-ctx.Done():
-				errCh <- nil
-				return
-			default:
-			}
-
 			var res cstructs.StreamErrWrapper
 			err := decoder.Decode(&res)
 			if isClosedError(err) {
@@ -555,9 +549,13 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 	handler(handlerPipe)
 	// stop streaming background goroutines for streaming - but not websocket activity
 	cancel()
-	// retreieve any error and/or wait until goroutine stop and close errCh connection before
+	// retrieve any error and/or wait until goroutine stop and close errCh connection before
 	// closing websocket connection
 	codedErr := <-errCh
+
+	// we won't return an error on ws close, but at least make it available in
+	// the logs so we can trace spurious disconnects
+	s.logger.Debug("alloc exec channel closed with error", "error", codedErr)
 
 	if isClosedError(codedErr) {
 		codedErr = nil

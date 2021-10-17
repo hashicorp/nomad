@@ -13,9 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/nomad/api/internal/testutil"
 )
 
 type configCallback func(c *Config)
@@ -254,9 +255,10 @@ func TestSetWriteOptions(t *testing.T) {
 
 	r, _ := c.newRequest("GET", "/v1/jobs")
 	q := &WriteOptions{
-		Region:    "foo",
-		Namespace: "bar",
-		AuthToken: "foobar",
+		Region:           "foo",
+		Namespace:        "bar",
+		AuthToken:        "foobar",
+		IdempotencyToken: "idempotent",
 	}
 	r.setWriteOptions(q)
 
@@ -264,6 +266,9 @@ func TestSetWriteOptions(t *testing.T) {
 		t.Fatalf("bad: %v", r.params)
 	}
 	if r.params.Get("namespace") != "bar" {
+		t.Fatalf("bad: %v", r.params)
+	}
+	if r.params.Get("idempotency_token") != "idempotent" {
 		t.Fatalf("bad: %v", r.params)
 	}
 	if r.token != "foobar" {
@@ -338,6 +343,22 @@ func TestParseWriteMeta(t *testing.T) {
 
 	if wm.LastIndex != 12345 {
 		t.Fatalf("Bad: %v", wm)
+	}
+}
+
+func TestClientHeader(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, func(c *Config) {
+		c.Headers = http.Header{
+			"Hello": []string{"World"},
+		}
+	}, nil)
+	defer s.Stop()
+
+	r, _ := c.newRequest("GET", "/v1/jobs")
+
+	if r.header.Get("Hello") != "World" {
+		t.Fatalf("bad: %v", r.header)
 	}
 }
 
@@ -521,4 +542,29 @@ func TestCloneHttpClient(t *testing.T) {
 		require.Equal(t, client, clone)
 	})
 
+}
+
+func TestClient_HeaderRaceCondition(t *testing.T) {
+	require := require.New(t)
+
+	conf := DefaultConfig()
+	conf.Headers = map[string][]string{
+		"test-header": {"a"},
+	}
+	client, err := NewClient(conf)
+	require.NoError(err)
+
+	c := make(chan int)
+
+	go func() {
+		req, _ := client.newRequest("GET", "/any/path/will/do")
+		r, _ := req.toHTTP()
+		c <- len(r.Header)
+	}()
+	req, _ := client.newRequest("GET", "/any/path/will/do")
+	r, _ := req.toHTTP()
+
+	require.Len(r.Header, 2, "local request should have two headers")
+	require.Equal(2, <-c, "goroutine  request should have two headers")
+	require.Len(conf.Headers, 1, "config headers should not mutate")
 }

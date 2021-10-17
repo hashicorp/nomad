@@ -1,0 +1,4 @@
+```release-note:bug
+client: Fixed a bug where a restarted client may start an already completed tasks in rare conditions
+```
+
