@@ -113,10 +113,6 @@ type QueryMeta struct {
 
 	// How long did the request take
 	RequestTime time.Duration
-
-	// ServerVersion represents the version reported in the header
-	// X-Nomad-Version
-	ServerVersion string
 }
 
 // WriteMeta is used to return meta data about a write
@@ -127,10 +123,6 @@ type WriteMeta struct {
 
 	// How long did the request take
 	RequestTime time.Duration
-
-	// ServerVersion represents the version reported in the header
-	// X-Nomad-Version
-	ServerVersion string
 }
 
 // HttpBasicAuth is used to authenticate http client with HTTP Basic Authentication
@@ -953,9 +945,6 @@ func (c *Client) delete(endpoint string, out interface{}, q *WriteOptions) (*Wri
 func parseQueryMeta(resp *http.Response, q *QueryMeta) error {
 	header := resp.Header
 
-	// Parse the X-Nomad-Version reported by the server
-	q.ServerVersion = header.Get("X-Nomad-Version")
-
 	// Parse the X-Nomad-Index
 	index, err := strconv.ParseUint(header.Get("X-Nomad-Index"), 10, 64)
 	if err != nil {
@@ -983,9 +972,6 @@ func parseQueryMeta(resp *http.Response, q *QueryMeta) error {
 // parseWriteMeta is used to help parse write meta-data
 func parseWriteMeta(resp *http.Response, q *WriteMeta) error {
 	header := resp.Header
-
-	// Parse the X-Nomad-Version reported by the server
-	q.ServerVersion = header.Get("X-Nomad-Version")
 
 	// Parse the X-Nomad-Index
 	index, err := strconv.ParseUint(header.Get("X-Nomad-Index"), 10, 64)
