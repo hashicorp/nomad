@@ -201,7 +201,9 @@ func WaitForRunningWithToken(t testing.TB, rpc rpcFn, job *structs.Job, token st
 
 	var resp structs.JobAllocationsResponse
 
-	WaitForResult(func() (bool, error) {
+	// This can be quite slow if the job has expensive setup such as
+	// downloading large artifacts or creating a chroot.
+	WaitForResultRetries(2000*TestMultiplier(), func() (bool, error) {
 		args := &structs.JobSpecificRequest{}
 		args.JobID = job.ID
 		args.QueryOptions.Region = job.Region

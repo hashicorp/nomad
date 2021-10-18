@@ -228,7 +228,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_standard(t *testing.T) {
 	// Setup an Allocation
 	alloc := mock.ConnectAlloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = mock.ConnectSidecarTask()
-	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook")
+	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook", alloc.ID)
 	defer cleanupDir()
 
 	// Setup a mock for Consul API

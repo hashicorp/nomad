@@ -469,7 +469,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 
 		logger := testlog.HCLogger(t)
 
-		allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative")
+		allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
 		defer cleanup()
 
 		// register group services

@@ -80,8 +80,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	}
 
 	// Create the alloc dir + task dir
-	allocPath := filepath.Join(clientConf.AllocDir, alloc.ID)
-	allocDir := allocdir.NewAllocDir(logger, allocPath)
+	allocDir := allocdir.NewAllocDir(logger, clientConf.AllocDir, alloc.ID)
 	if err := allocDir.Build(); err != nil {
 		cleanup()
 		t.Fatalf("error building alloc dir: %v", err)
