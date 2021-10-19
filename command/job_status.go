@@ -158,11 +158,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 		return 1
 	}
 	if len(jobs) > 1 {
-		if jobID != jobs[0].ID {
-			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, allNamespaces)))
-			return 1
-		}
-		if allNamespaces && jobs[0].ID == jobs[1].ID {
+		if (jobID != jobs[0].ID) || (allNamespaces && jobs[0].ID == jobs[1].ID) {
 			c.Ui.Error(fmt.Sprintf("Prefix matched multiple jobs\n\n%s", createStatusListOutput(jobs, allNamespaces)))
 			return 1
 		}
