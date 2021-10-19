@@ -29,7 +29,7 @@ export default class TaskPrimaryMetric extends Component {
   }
 
   get reservedAmount() {
-    const { cpu, memory } = this.args.taskState.allocation.allocatedResources;
+    const { cpu, memory } = this.args.taskState.resources;
     if (this.metric === 'cpu') return cpu;
     if (this.metric === 'memory') return memory;
     return null;
