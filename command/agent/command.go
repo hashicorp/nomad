@@ -492,6 +492,8 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 	c.Ui.Output("Starting Nomad agent...")
 	agent, err := NewAgent(config, logger, logOutput, inmem)
 	if err != nil {
+		// log the error as well, so it appears at the end
+		logger.Error("error starting agent", "error", err)
 		c.Ui.Error(fmt.Sprintf("Error starting agent: %s", err))
 		return err
 	}
@@ -672,6 +674,14 @@ func (c *Command) Run(args []string) int {
 	if config.LogJson {
 		c.Ui = &logging.HcLogUI{Log: logger}
 	}
+
+	// route standard logger to hc-log, so stray log.Printf get tagged with
+	// timestamps and potentially jsonified
+	log.SetOutput(logger.StandardWriter(&hclog.StandardLoggerOptions{
+		InferLevels: true,
+	}))
+	log.SetPrefix("")
+	log.SetFlags(0)
 
 	// Log config files
 	if len(config.Files) > 0 {
