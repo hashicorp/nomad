@@ -354,6 +354,7 @@ var (
 		"extra_hosts":        hclspec.NewAttr("extra_hosts", "list(string)", false),
 		"force_pull":         hclspec.NewAttr("force_pull", "bool", false),
 		"hostname":           hclspec.NewAttr("hostname", "string", false),
+		"init":               hclspec.NewAttr("init", "bool", false),
 		"interactive":        hclspec.NewAttr("interactive", "bool", false),
 		"ipc_mode":           hclspec.NewAttr("ipc_mode", "string", false),
 		"ipv4_address":       hclspec.NewAttr("ipv4_address", "string", false),
@@ -434,6 +435,7 @@ type TaskConfig struct {
 	ExtraHosts        []string           `codec:"extra_hosts"`
 	ForcePull         bool               `codec:"force_pull"`
 	Hostname          string             `codec:"hostname"`
+	Init              bool               `codec:"init"`
 	Interactive       bool               `codec:"interactive"`
 	IPCMode           string             `codec:"ipc_mode"`
 	IPv4Address       string             `codec:"ipv4_address"`
