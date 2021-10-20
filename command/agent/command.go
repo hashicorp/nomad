@@ -675,14 +675,6 @@ func (c *Command) Run(args []string) int {
 		c.Ui = &logging.HcLogUI{Log: logger}
 	}
 
-	// route standard logger to hc-log, so stray log.Printf get tagged with
-	// timestamps and potentially jsonified
-	log.SetOutput(logger.StandardWriter(&hclog.StandardLoggerOptions{
-		InferLevels: true,
-	}))
-	log.SetPrefix("")
-	log.SetFlags(0)
-
 	// Log config files
 	if len(config.Files) > 0 {
 		c.Ui.Output(fmt.Sprintf("Loaded configuration from %s", strings.Join(config.Files, ", ")))
