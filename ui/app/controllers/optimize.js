@@ -84,7 +84,7 @@ export default class OptimizeController extends Controller {
     if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
       scheduleOnce('actions', () => {
         // eslint-disable-next-line ember/no-side-effects
-        this.qpNamespace = this.system.cachedNamespace || 'default';
+        this.qpNamespace = this.system.cachedNamespace || '*';
       });
     }
 

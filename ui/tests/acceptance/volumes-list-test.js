@@ -156,7 +156,10 @@ module('Acceptance | volumes list', function(hooks) {
     const volume2 = server.create('csi-volume', { namespaceId: server.db.namespaces[1].id });
 
     await VolumesList.visit();
+    assert.equal(VolumesList.volumes.length, 2);
 
+    const firstNamespace = server.db.namespaces[0];
+    await VolumesList.visit({ namespace: firstNamespace.id });
     assert.equal(VolumesList.volumes.length, 1);
     assert.equal(VolumesList.volumes.objectAt(0).name, volume1.id);
 
