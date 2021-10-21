@@ -29,7 +29,7 @@ export default class Agent extends Model {
     return this.get('system.leader.rpcAddr') === this.rpcAddr;
   }
 
-  @computed('tags.[]')
+  @computed('tags.build')
   get version() {
     return this.tags?.build || '';
   }
