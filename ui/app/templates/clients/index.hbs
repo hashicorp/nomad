@@ -33,6 +33,12 @@
             @selection={{this.selectionDatacenter}}
             @onSelect={{action this.setFacetQueryParam "qpDatacenter"}} />
           <MultiSelectDropdown
+            data-test-version-facet
+            @label="Version"
+            @options={{this.optionsVersion}}
+            @selection={{this.selectionVersion}}
+            @onSelect={{action this.setFacetQueryParam "qpVersion"}} />
+          <MultiSelectDropdown
             data-test-volume-facet
             @label="Volume"
             @options={{this.optionsVolume}}
@@ -56,8 +62,9 @@
             <t.sort-by @prop="id">ID</t.sort-by>
             <t.sort-by @class="is-200px is-truncatable" @prop="name">Name</t.sort-by>
             <t.sort-by @prop="compositeStatus">State</t.sort-by>
-            <th>Address</th>
+            <th class="is-200px is-truncatable">Address</th>
             <t.sort-by @prop="datacenter">Datacenter</t.sort-by>
+            <t.sort-by @prop="version">Version</t.sort-by>
             <th># Volumes</th>
             <th># Allocs</th>
           </t.head>
