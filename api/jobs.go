@@ -988,24 +988,23 @@ type TaskGroupSummary struct {
 // JobListStub is used to return a subset of information about
 // jobs during list operations.
 type JobListStub struct {
-	ID                       string
-	ParentID                 string
-	Name                     string
-	Namespace                string `json:",omitempty"`
-	Datacenters              []string
-	Type                     string
-	Priority                 int
-	Periodic                 bool
-	ParameterizedJob         bool
-	DispatchIdempotencyToken string
-	Stop                     bool
-	Status                   string
-	StatusDescription        string
-	JobSummary               *JobSummary
-	CreateIndex              uint64
-	ModifyIndex              uint64
-	JobModifyIndex           uint64
-	SubmitTime               int64
+	ID                string
+	ParentID          string
+	Name              string
+	Namespace         string `json:",omitempty"`
+	Datacenters       []string
+	Type              string
+	Priority          int
+	Periodic          bool
+	ParameterizedJob  bool
+	Stop              bool
+	Status            string
+	StatusDescription string
+	JobSummary        *JobSummary
+	CreateIndex       uint64
+	ModifyIndex       uint64
+	JobModifyIndex    uint64
+	SubmitTime        int64
 }
 
 // JobIDSort is used to sort jobs by their job ID's.
