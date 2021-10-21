@@ -16,9 +16,10 @@
           <t.sort-by @prop="name">Name</t.sort-by>
           <t.sort-by @prop="status">Status</t.sort-by>
           <t.sort-by @prop="isLeader">Leader</t.sort-by>
-          <t.sort-by @prop="address">Address</t.sort-by>
+          <t.sort-by @class="is-200px is-truncatable" @prop="address">Address</t.sort-by>
           <t.sort-by @prop="serfPort">port</t.sort-by>
           <t.sort-by @prop="datacenter">Datacenter</t.sort-by>
+          <t.sort-by @prop="version">Version</t.sort-by>
         </t.head>
         <t.body as |row|>
           <ServerAgentRow data-test-server-agent-row @agent={{row.model}} />

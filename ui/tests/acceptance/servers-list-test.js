@@ -63,6 +63,7 @@ module('Acceptance | servers list', function(hooks) {
     assert.equal(agentRow.address, agent.member.Address, 'Address');
     assert.equal(agentRow.serfPort, agent.member.Port, 'Serf Port');
     assert.equal(agentRow.datacenter, agent.member.Tags.dc, 'Datacenter');
+    assert.equal(agentRow.version, agent.version, 'Version');
   });
 
   test('each server should link to the server detail page', async function(assert) {
