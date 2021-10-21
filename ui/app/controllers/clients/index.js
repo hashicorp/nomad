@@ -12,9 +12,9 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class IndexController extends Controller.extend(
-  SortableFactory(['id', 'name', 'compositeStatus', 'datacenter', 'version']),
-  Searchable
-) {
+    SortableFactory(['id', 'name', 'compositeStatus', 'datacenter', 'version']),
+    Searchable
+  ) {
   @service userSettings;
   @controller('clients') clientsController;
 
