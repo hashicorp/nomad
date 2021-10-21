@@ -102,7 +102,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   }
 
   // Static figures, denominators for stats
-  @alias('allocation.taskGroup.reservedCPU') reservedCPU;
+  @alias('allocation.allocatedResources.cpu') reservedCPU;
   @alias('allocation.taskGroup.reservedMemory') reservedMemory;
 
   // Dynamic figures, collected over time
