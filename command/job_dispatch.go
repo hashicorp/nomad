@@ -184,12 +184,6 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	// eval.
 	evalCreated := resp.EvalID != ""
 
-	// See if dispatched job was skipped due to idempotency.
-	if !evalCreated && idempotencyToken != "" {
-		c.Ui.Output(fmt.Sprintf("Job %q already dispatched with idempotency token %q.", resp.DispatchedJobID, idempotencyToken))
-		return 0
-	}
-
 	basic := []string{
 		fmt.Sprintf("Dispatched Job ID|%s", resp.DispatchedJobID),
 	}
