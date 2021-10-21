@@ -117,6 +117,11 @@ module('Acceptance | plugin detail', function(hooks) {
         server.db.nodes.find(allocation.nodeId).id.split('-')[0],
         'Node ID'
       );
+      assert.equal(
+        allocationRow.clientTooltip.substr(0, 15),
+        server.db.nodes.find(allocation.nodeId).name.substr(0, 15),
+        'Node Name'
+      );
       assert.equal(allocationRow.job, server.db.jobs.find(allocation.jobId).name, 'Job name');
       assert.ok(allocationRow.taskGroup, 'Task group name');
       assert.ok(allocationRow.jobVersion, 'Job Version');

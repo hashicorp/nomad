@@ -45,11 +45,11 @@
   </td>
 
   <td data-test-client>
-    <span class="tooltip multiline" aria-label="{{this.allocation.node.name}}">
+    <Tooltip @text={{this.allocation.node.name}}>
       <LinkTo @route="clients.client" @model={{this.allocation.node}}>
         {{this.allocation.node.shortId}}
       </LinkTo>
-    </span>
+    </Tooltip>
   </td>
   <td>
     {{#if (or this.allocation.job.isPending this.allocation.job.isReloading)}}
