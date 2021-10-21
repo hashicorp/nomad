@@ -38,21 +38,21 @@
 </td>
 {{#if (eq this.context "volume")}}
   <td data-test-client>
-    <span class="tooltip multiline" aria-label="{{this.allocation.node.name}}">
+    <Tooltip @text={{this.allocation.node.name}}>
       <LinkTo @route="clients.client" @model={{this.allocation.node}}>
         {{this.allocation.node.shortId}}
       </LinkTo>
-    </span>
+    </Tooltip>
   </td>
 {{/if}}
 {{#if (or (eq this.context "taskGroup") (eq this.context "job"))}}
   <td data-test-job-version>{{this.allocation.jobVersion}}</td>
   <td data-test-client>
-    <span class="tooltip multiline" aria-label="{{this.allocation.node.name}}">
+    <Tooltip @text={{this.allocation.node.name}}>
       <LinkTo @route="clients.client" @model={{this.allocation.node}}>
         {{this.allocation.node.shortId}}
       </LinkTo>
-    </span>
+    </Tooltip>
   </td>
 {{else if (or (eq this.context "node") (eq this.context "volume"))}}
   <td>

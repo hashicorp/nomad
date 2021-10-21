@@ -136,6 +136,11 @@ module('Acceptance | volume detail', function(hooks) {
         'Node ID'
       );
       assert.equal(
+        allocationRow.clientTooltip.substr(0, 15),
+        server.db.nodes.find(allocation.nodeId).name.substr(0, 15),
+        'Node Name'
+      );
+      assert.equal(
         allocationRow.cpu,
         Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
         'CPU %'
