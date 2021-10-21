@@ -80,7 +80,7 @@ export default class IndexController extends Controller.extend(
       // eslint-disable-next-line ember/no-incorrect-calls-with-inline-anonymous-functions
       scheduleOnce('actions', () => {
         // eslint-disable-next-line ember/no-side-effects
-        this.set('qpNamespace', this.system.cachedNamespace || 'default');
+        this.set('qpNamespace', this.system.cachedNamespace || '*');
       });
     }
 
