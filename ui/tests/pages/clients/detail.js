@@ -6,6 +6,7 @@ import {
   fillable,
   text,
   isPresent,
+  value,
   visitable,
 } from 'ember-cli-page-object';
 
@@ -118,7 +119,9 @@ export default create({
 
     deadlineToggle: toggle('[data-test-drain-deadline-toggle]'),
     deadlineOptions: {
-      open: clickable('[data-test-drain-deadline-option-select-parent] .ember-power-select-trigger'),
+      open: clickable(
+        '[data-test-drain-deadline-option-select-parent] .ember-power-select-trigger'
+      ),
       options: collection('.ember-power-select-option', {
         label: text(),
         choose: clickable(),
@@ -126,7 +129,7 @@ export default create({
     },
 
     setCustomDeadline: fillable('[data-test-drain-custom-deadline]'),
-    customDeadline: attribute('value', '[data-test-drain-custom-deadline]'),
+    customDeadline: value('[data-test-drain-custom-deadline]'),
     forceDrainToggle: toggle('[data-test-force-drain-toggle]'),
     systemJobsToggle: toggle('[data-test-system-jobs-toggle]'),
 

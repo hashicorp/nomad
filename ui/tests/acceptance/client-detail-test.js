@@ -18,7 +18,9 @@ let clientToken;
 const wasPreemptedFilter = allocation => !!allocation.preemptedByAllocation;
 
 function nonSearchPOSTS() {
-  return server.pretender.handledRequests.reject(request => request.url.includes('fuzzy')).filterBy('method', 'POST');
+  return server.pretender.handledRequests
+    .reject(request => request.url.includes('fuzzy'))
+    .filterBy('method', 'POST');
 }
 
 module('Acceptance | client detail', function(hooks) {
@@ -26,6 +28,8 @@ module('Acceptance | client detail', function(hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(function() {
+    window.localStorage.clear();
+
     server.create('node', 'forceIPv4', { schedulingEligibility: 'eligible' });
     node = server.db.nodes[0];
 
@@ -732,6 +736,45 @@ module('Acceptance | client detail', function(hooks) {
       },
       'Drain system jobs unset'
     );
+  });
+
+  test('starting a drain persists options to localstorage', async function(assert) {
+    const nodes = server.createList('node', 2, {
+      drain: false,
+      schedulingEligibility: 'eligible',
+    });
+
+    await ClientDetail.visit({ id: nodes[0].id });
+    await ClientDetail.drainPopover.toggle();
+
+    // Change all options to non-default values.
+    await ClientDetail.drainPopover.deadlineToggle.toggle();
+    await ClientDetail.drainPopover.deadlineOptions.open();
+    const optionsCount = ClientDetail.drainPopover.deadlineOptions.options.length;
+    await ClientDetail.drainPopover.deadlineOptions.options.objectAt(optionsCount - 1).choose();
+    await ClientDetail.drainPopover.setCustomDeadline('1h40m20s');
+    await ClientDetail.drainPopover.forceDrainToggle.toggle();
+    await ClientDetail.drainPopover.systemJobsToggle.toggle();
+
+    await ClientDetail.drainPopover.submit();
+
+    const got = JSON.parse(window.localStorage.nomadDrainOptions);
+    const want = {
+      deadlineEnabled: true,
+      customDuration: '1h40m20s',
+      selectedDurationQuickOption: { label: 'Custom', value: 'custom' },
+      drainSystemJobs: false,
+      forceDrain: true,
+    };
+    assert.deepEqual(got, want);
+
+    // Visit another node and check that drain config is persisted.
+    await ClientDetail.visit({ id: nodes[1].id });
+    await ClientDetail.drainPopover.toggle();
+    assert.true(ClientDetail.drainPopover.deadlineToggle.isActive);
+    assert.equal(ClientDetail.drainPopover.customDeadline, '1h40m20s');
+    assert.true(ClientDetail.drainPopover.forceDrainToggle.isActive);
+    assert.false(ClientDetail.drainPopover.systemJobsToggle.isActive);
   });
 
   test('the drain popover cancel button closes the popover', async function(assert) {
