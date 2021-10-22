@@ -47,14 +47,14 @@ func TestCommand_Ui(t *testing.T) {
 			ExpectedURL: "http://127.0.0.1:4646?namespace=dev",
 		},
 		{
-			Name: "set region via flag",
+			Name: "set region via env var",
 			SetupFn: func(t *testing.T) {
 				setEnv(t, "NOMAD_REGION", "earth")
 			},
 			ExpectedURL: "http://127.0.0.1:4646?region=earth",
 		},
 		{
-			Name: "set region and namespace via flag",
+			Name: "set region and namespace via env var",
 			SetupFn: func(t *testing.T) {
 				setEnv(t, "NOMAD_REGION", "earth")
 				setEnv(t, "NOMAD_NAMESPACE", "dev")
@@ -62,7 +62,7 @@ func TestCommand_Ui(t *testing.T) {
 			ExpectedURL: "http://127.0.0.1:4646?namespace=dev&region=earth",
 		},
 		{
-			Name: "set region and namespace via flag",
+			Name: "set region and namespace via env var",
 			SetupFn: func(t *testing.T) {
 				setEnv(t, "NOMAD_REGION", "earth")
 				setEnv(t, "NOMAD_NAMESPACE", "dev")
