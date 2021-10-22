@@ -117,7 +117,7 @@ export default class IndexController extends Controller.extend(
   get optionsVersion() {
     const versions = Array.from(new Set(this.nodes.mapBy('version'))).compact();
 
-    // Remove any invalid datacenters from the query param/selection
+    // Remove any invalid versions from the query param/selection
     scheduleOnce('actions', () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set('qpVersion', serialize(intersection(versions, this.selectionVersion)));
