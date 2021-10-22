@@ -813,21 +813,22 @@ type Job struct {
 
 	/* Fields set by server, not sourced from job config file */
 
-	Stop              *bool
-	ParentID          *string
-	Dispatched        bool
-	Payload           []byte
-	ConsulNamespace   *string `mapstructure:"consul_namespace"`
-	VaultNamespace    *string `mapstructure:"vault_namespace"`
-	NomadTokenID      *string `mapstructure:"nomad_token_id"`
-	Status            *string
-	StatusDescription *string
-	Stable            *bool
-	Version           *uint64
-	SubmitTime        *int64
-	CreateIndex       *uint64
-	ModifyIndex       *uint64
-	JobModifyIndex    *uint64
+	Stop                     *bool
+	ParentID                 *string
+	Dispatched               bool
+	DispatchIdempotencyToken *string
+	Payload                  []byte
+	ConsulNamespace          *string `mapstructure:"consul_namespace"`
+	VaultNamespace           *string `mapstructure:"vault_namespace"`
+	NomadTokenID             *string `mapstructure:"nomad_token_id"`
+	Status                   *string
+	StatusDescription        *string
+	Stable                   *bool
+	Version                  *uint64
+	SubmitTime               *int64
+	CreateIndex              *uint64
+	ModifyIndex              *uint64
+	JobModifyIndex           *uint64
 }
 
 // IsPeriodic returns whether a job is periodic.

@@ -1617,6 +1617,10 @@ The table below shows this endpoint's support for
 - `:job_id` `(string: <required>)` - Specifies the ID of the job (as specified
   in the job file during submission). This is specified as part of the path.
 
+- `idempotency_token` `(string: "")` - Optional identifier used to prevent more
+  than one instance of the job from being dispatched. This is specified as a
+  URL query parameter.
+
 - `Payload` `(string: "")` - Specifies a base64 encoded string containing the
   payload. This is limited to 16384 bytes (16KiB).
 

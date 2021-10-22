@@ -189,6 +189,10 @@ func (c *JobStatusCommand) Run(args []string) int {
 		fmt.Sprintf("Parameterized|%v", parameterized),
 	}
 
+	if job.DispatchIdempotencyToken != nil && *job.DispatchIdempotencyToken != "" {
+		basic = append(basic, fmt.Sprintf("Idempotency Token|%v", *job.DispatchIdempotencyToken))
+	}
+
 	if periodic && !parameterized {
 		if *job.Stop {
 			basic = append(basic, "Next Periodic Launch|none (job stopped)")
