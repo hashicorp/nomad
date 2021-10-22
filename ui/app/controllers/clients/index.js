@@ -12,7 +12,7 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class IndexController extends Controller.extend(
-    SortableFactory(['id', 'name', 'compositeStatus', 'datacenter']),
+    SortableFactory(['id', 'name', 'compositeStatus', 'datacenter', 'version']),
     Searchable
   ) {
   @service userSettings;
@@ -44,6 +44,9 @@ export default class IndexController extends Controller.extend(
       qpDatacenter: 'dc',
     },
     {
+      qpVersion: 'version',
+    },
+    {
       qpVolume: 'volume',
     },
   ];
@@ -62,11 +65,13 @@ export default class IndexController extends Controller.extend(
   qpClass = '';
   qpState = '';
   qpDatacenter = '';
+  qpVersion = '';
   qpVolume = '';
 
   @selection('qpClass') selectionClass;
   @selection('qpState') selectionState;
   @selection('qpDatacenter') selectionDatacenter;
+  @selection('qpVersion') selectionVersion;
   @selection('qpVolume') selectionVolume;
 
   @computed('nodes.[]', 'selectionClass')
@@ -108,6 +113,19 @@ export default class IndexController extends Controller.extend(
     return datacenters.sort().map(dc => ({ key: dc, label: dc }));
   }
 
+  @computed('nodes.[]', 'selectionVersion')
+  get optionsVersion() {
+    const versions = Array.from(new Set(this.nodes.mapBy('version'))).compact();
+
+    // Remove any invalid versions from the query param/selection
+    scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
+      this.set('qpVersion', serialize(intersection(versions, this.selectionVersion)));
+    });
+
+    return versions.sort().map(v => ({ key: v, label: v }));
+  }
+
   @computed('nodes.[]', 'selectionVolume')
   get optionsVolume() {
     const flatten = (acc, val) => acc.concat(val.toArray());
@@ -128,6 +146,7 @@ export default class IndexController extends Controller.extend(
     'selectionClass',
     'selectionState',
     'selectionDatacenter',
+    'selectionVersion',
     'selectionVolume'
   )
   get filteredNodes() {
@@ -135,6 +154,7 @@ export default class IndexController extends Controller.extend(
       selectionClass: classes,
       selectionState: states,
       selectionDatacenter: datacenters,
+      selectionVersion: versions,
       selectionVolume: volumes,
     } = this;
 
@@ -148,6 +168,7 @@ export default class IndexController extends Controller.extend(
       if (classes.length && !classes.includes(node.get('nodeClass'))) return false;
       if (statuses.length && !statuses.includes(node.get('status'))) return false;
       if (datacenters.length && !datacenters.includes(node.get('datacenter'))) return false;
+      if (versions.length && !versions.includes(node.get('version'))) return false;
       if (volumes.length && !node.hostVolumes.find(volume => volumes.includes(volume.name)))
         return false;
 

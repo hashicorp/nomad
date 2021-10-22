@@ -28,4 +28,9 @@ export default class Agent extends Model {
   get isLeader() {
     return this.get('system.leader.rpcAddr') === this.rpcAddr;
   }
+
+  @computed('tags.build')
+  get version() {
+    return this.tags?.build || '';
+  }
 }

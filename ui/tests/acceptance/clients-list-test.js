@@ -66,6 +66,7 @@ module('Acceptance | clients list', function(hooks) {
     );
     assert.equal(nodeRow.address, node.httpAddr);
     assert.equal(nodeRow.datacenter, node.datacenter, 'Datacenter');
+    assert.equal(nodeRow.version, node.version, 'Version');
     assert.equal(nodeRow.allocations, allocations.length, '# Allocations');
   });
 
@@ -146,7 +147,11 @@ module('Acceptance | clients list', function(hooks) {
 
     assert.equal(ClientsList.nodes[1].compositeStatus.text, 'initializing');
     assert.equal(ClientsList.nodes[2].compositeStatus.text, 'down');
-    assert.equal(ClientsList.nodes[2].compositeStatus.text, 'down', 'down takes priority over ineligible');
+    assert.equal(
+      ClientsList.nodes[2].compositeStatus.text,
+      'down',
+      'down takes priority over ineligible'
+    );
 
     assert.equal(ClientsList.nodes[4].compositeStatus.text, 'ineligible');
     assert.ok(ClientsList.nodes[4].compositeStatus.isWarning, 'expected warning class');
@@ -297,6 +302,22 @@ module('Acceptance | clients list', function(hooks) {
       await ClientsList.visit();
     },
     filter: (node, selection) => selection.includes(node.datacenter),
+  });
+
+  testFacet('Versions', {
+    facet: ClientsList.facets.version,
+    paramName: 'version',
+    expectedOptions(nodes) {
+      return Array.from(new Set(nodes.mapBy('version'))).sort();
+    },
+    async beforeEach() {
+      server.create('agent');
+      server.createList('node', 2, { version: '0.12.0' });
+      server.createList('node', 2, { version: '1.1.0-beta1' });
+      server.createList('node', 2, { version: '1.2.0+ent' });
+      await ClientsList.visit();
+    },
+    filter: (node, selection) => selection.includes(node.version),
   });
 
   testFacet('Volumes', {

@@ -11,6 +11,7 @@ export default create({
     address: text('[data-test-server-address]'),
     serfPort: text('[data-test-server-port]'),
     datacenter: text('[data-test-server-datacenter]'),
+    version: text('[data-test-server-version]'),
 
     clickRow: clickable(),
     clickName: clickable('[data-test-server-name] a'),

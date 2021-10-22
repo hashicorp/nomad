@@ -12,8 +12,9 @@
     <span class="{{this.compositeStatusClass}}">{{this.node.compositeStatus}}</span>
   </span>
 </td>
-<td data-test-client-address>{{this.node.httpAddr}}</td>
+<td data-test-client-address class="is-200px is-truncatable">{{this.node.httpAddr}}</td>
 <td data-test-client-datacenter>{{this.node.datacenter}}</td>
+<td data-test-client-version>{{this.node.version}}</td>
 <td data-test-client-volumes>{{if this.node.hostVolumes.length this.node.hostVolumes.length}}</td>
 <td data-test-client-allocations>
   {{#if this.node.allocations.isPending}}
