@@ -516,14 +516,8 @@ func (t *Task) Diff(other *Task, contextual bool) (*TaskDiff, error) {
 		diff.Objects = append(diff.Objects, vDiff)
 	}
 
-	// Template diff
-	tmplDiffs := primitiveObjectSetDiff(
-		interfaceSlice(t.Templates),
-		interfaceSlice(other.Templates),
-		nil,
-		"Template",
-		contextual)
-	if tmplDiffs != nil {
+	// Templates diff
+	if tmplDiffs := templateDiffs(t.Templates, other.Templates, contextual); tmplDiffs != nil {
 		diff.Objects = append(diff.Objects, tmplDiffs...)
 	}
 
@@ -767,6 +761,73 @@ func findServiceMatch(service *Service, serviceIndex int, services []*Service, m
 	}
 
 	return indexMatch
+}
+
+// templateDiff returns the diff of two template objects. If contextual diff is
+// enabled, all fields will be returned, even if no diff occurred.
+func templateDiff(old, new *Template, contextual bool) *ObjectDiff {
+	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Template"}
+	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
+
+	if reflect.DeepEqual(old, new) {
+		return nil
+	} else if old == nil {
+		diff.Type = DiffTypeAdded
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	} else if new == nil {
+		diff.Type = DiffTypeDeleted
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+	} else {
+		diff.Type = DiffTypeEdited
+		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
+		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
+	}
+
+	// Diff the primitive fields.
+	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
+
+	return diff
+}
+
+// templateDiffs diffs a set of templates. If contextual diff is enabled, unchanged
+// fields within objects nested in the tasks will be returned.
+func templateDiffs(old, new []*Template, contextual bool) []*ObjectDiff {
+	// Handle trivial case.
+	if len(old) == 1 && len(new) == 1 {
+		if diff := templateDiff(old[0], new[0], contextual); diff != nil {
+			return []*ObjectDiff{diff}
+		}
+		return nil
+	}
+
+	oldMap := make(map[string]*Template, len(old))
+	newMap := make(map[string]*Template, len(new))
+	for _, o := range old {
+		oldMap[o.DestPath] = o
+	}
+	for _, n := range new {
+		newMap[n.DestPath] = n
+	}
+
+	var diffs []*ObjectDiff
+	for path, oldTemplate := range oldMap {
+		// Diff the same, deleted and edited
+		if diff := templateDiff(oldTemplate, newMap[path], contextual); diff != nil {
+			diffs = append(diffs, diff)
+		}
+	}
+
+	for path, newTemplate := range newMap {
+		// Diff the added
+		if old, ok := oldMap[path]; !ok {
+			if diff := templateDiff(old, newTemplate, contextual); diff != nil {
+				diffs = append(diffs, diff)
+			}
+		}
+	}
+
+	sort.Sort(ObjectDiffs(diffs))
+	return diffs
 }
 
 // serviceCheckDiff returns the diff of two service check objects. If contextual

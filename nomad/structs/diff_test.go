@@ -6914,7 +6914,7 @@ func TestTaskDiff(t *testing.T) {
 					{
 						SourcePath:   "foo",
 						DestPath:     "bar",
-						EmbeddedTmpl: "baz",
+						EmbeddedTmpl: "baz new",
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
 						Splay:        1,
@@ -6934,6 +6934,18 @@ func TestTaskDiff(t *testing.T) {
 			Expected: &TaskDiff{
 				Type: DiffTypeEdited,
 				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Template",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "EmbeddedTmpl",
+								Old:  "baz",
+								New:  "baz new",
+							},
+						},
+					},
 					{
 						Type: DiffTypeAdded,
 						Name: "Template",
