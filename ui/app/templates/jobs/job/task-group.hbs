@@ -59,11 +59,7 @@
         <ol class="legend">
           {{#each chart.data as |datum index|}}
             <li class="{{datum.className}} {{if (eq datum.label chart.activeDatum.label) "is-active"}} {{if (eq datum.value 0) "is-empty"}}">
-              <span class="color-swatch {{if datum.className datum.className (concat "swatch-" index)}}" />
-              <span class="value">{{datum.value}}</span>
-              <span class="label">
-                {{datum.label}}
-              </span>
+              <JobPage::Parts::SummaryLegendItem @datum={{datum}} @index={{index}} />
             </li>
           {{/each}}
         </ol>
