@@ -62,18 +62,23 @@ func (l *logFile) fileNamePattern() string {
 }
 
 func (l *logFile) openNew() error {
-	createTime := now()
 	newfilePath := filepath.Join(l.logPath, l.fileName)
-	// Try creating a file. We truncate the file because we are the only authority to write the logs
-	filePointer, err := os.OpenFile(newfilePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0640)
+
+	// Try creating or opening the active log file. Since the active log file
+	// always has the same name, append log entries to prevent overwriting
+	// previous log data.
+	filePointer, err := os.OpenFile(newfilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0640)
+	if err != nil {
+		return err
+	}
+	stat, err := filePointer.Stat()
 	if err != nil {
 		return err
 	}
 
 	l.FileInfo = filePointer
-	// New file, new bytes tracker, new creation time :)
-	l.LastCreated = createTime
-	l.BytesWritten = 0
+	l.BytesWritten = stat.Size()
+	l.LastCreated = l.createTime(stat)
 	return nil
 }
 
