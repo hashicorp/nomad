@@ -7479,6 +7479,11 @@ func (t *Template) Warnings() error {
 	return mErr.ErrorOrNil()
 }
 
+// DiffID fulfills the DiffableWithID interface.
+func (t *Template) DiffID() string {
+	return t.DestPath
+}
+
 // AllocState records a single event that changes the state of the whole allocation
 type AllocStateField uint8
 
@@ -8118,6 +8123,11 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 
 func (ta *TaskArtifact) GoString() string {
 	return fmt.Sprintf("%+v", ta)
+}
+
+// DiffID fulfills the DiffableWithID interface.
+func (ta *TaskArtifact) DiffID() string {
+	return ta.RelativeDest
 }
 
 // hashStringMap appends a deterministic hash of m onto h.
