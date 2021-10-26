@@ -62,7 +62,7 @@
         "path": "integrations/consul-integration"
       },
       {
-        "title": "Consul Connect",
+        "title": "Consul Service Mesh",
         "path": "integrations/consul-connect"
       },
       {
