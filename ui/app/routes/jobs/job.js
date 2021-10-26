@@ -13,6 +13,12 @@ export default class JobRoute extends Route {
 
   breadcrumbs = jobCrumbs;
 
+  /*
+    We rely on the router bug reported in https://github.com/emberjs/ember.js/issues/18683
+    Nomad passes job namespaces to sibling routes using LinkTo and transitions
+    These only trigger partial transitions which do not map the query parameters of the previous
+    state, the workaround to trigger a full transition is calling refreshModel.
+  */
   queryParams = {
     jobNamespace: {
       as: 'namespace',
