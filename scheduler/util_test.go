@@ -89,7 +89,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 
 		diff := diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal)
 		require.Empty(t, diff.place)
-		require.Equal(t, 1, len(diff.update))
+		require.Len(t, diff.update, 1)
 		require.Empty(t, diff.stop)
 		require.Empty(t, diff.migrate)
 		require.Empty(t, diff.lost)
@@ -192,30 +192,29 @@ func TestDiffSystemAllocsForNode(t *testing.T) {
 	}
 
 	diff := diffSystemAllocsForNode(job, "zip", eligible, nil, tainted, required, allocs, terminal)
-	place := diff.place
-	update := diff.update
-	migrate := diff.migrate
-	stop := diff.stop
-	ignore := diff.ignore
-	lost := diff.lost
 
 	// We should update the first alloc
-	require.True(t, len(update) == 1 && update[0].Alloc == allocs[0])
+	require.Len(t, diff.update, 1)
+	require.Equal(t, allocs[0], diff.update[0].Alloc)
 
 	// We should ignore the second alloc
-	require.True(t, len(ignore) == 1 && ignore[0].Alloc == allocs[1])
+	require.Len(t, diff.ignore, 1)
+	require.Equal(t, allocs[1], diff.ignore[0].Alloc)
 
 	// We should stop the 3rd alloc
-	require.True(t, len(stop) == 1 && stop[0].Alloc == allocs[2])
+	require.Len(t, diff.stop, 1)
+	require.Equal(t, allocs[2], diff.stop[0].Alloc)
 
 	// We should migrate the 4rd alloc
-	require.True(t, len(migrate) == 1 && migrate[0].Alloc == allocs[3])
+	require.Len(t, diff.migrate, 1)
+	require.Equal(t, allocs[3], diff.migrate[0].Alloc)
 
 	// We should mark the 5th alloc as lost
-	require.True(t, len(lost) == 1 && lost[0].Alloc == allocs[4])
+	require.Len(t, diff.lost, 1)
+	require.Equal(t, allocs[4], diff.lost[0].Alloc)
 
 	// We should place 6
-	require.Equal(t, 6, len(place))
+	require.Len(t, diff.place, 6)
 
 	// Ensure that the allocations which are replacements of terminal allocs are
 	// annotated.
@@ -223,8 +222,7 @@ func TestDiffSystemAllocsForNode(t *testing.T) {
 		for _, alloc := range m {
 			for _, tuple := range diff.place {
 				if alloc.Name == tuple.Name {
-					require.True(t, reflect.DeepEqual(alloc, tuple.Alloc),
-						"expected: %#v, actual: %#v", alloc, tuple.Alloc)
+					require.Equal(t, alloc, tuple.Alloc)
 				}
 			}
 		}
@@ -275,19 +273,13 @@ func TestDiffSystemAllocsForNode_ExistingAllocIneligibleNode(t *testing.T) {
 	terminal := make(structs.TerminalByNodeByName)
 
 	diff := diffSystemAllocsForNode(job, eligibleNode.ID, eligible, nil, tainted, required, allocs, terminal)
-	place := diff.place
-	update := diff.update
-	migrate := diff.migrate
-	stop := diff.stop
-	ignore := diff.ignore
-	lost := diff.lost
 
-	require.Len(t, place, 0)
-	require.Len(t, update, 1)
-	require.Len(t, migrate, 0)
-	require.Len(t, stop, 0)
-	require.Len(t, ignore, 1)
-	require.Len(t, lost, 0)
+	require.Len(t, diff.place, 0)
+	require.Len(t, diff.update, 1)
+	require.Len(t, diff.migrate, 0)
+	require.Len(t, diff.stop, 0)
+	require.Len(t, diff.ignore, 1)
+	require.Len(t, diff.lost, 0)
 }
 
 func TestDiffSystemAllocs(t *testing.T) {
@@ -361,30 +353,28 @@ func TestDiffSystemAllocs(t *testing.T) {
 	}
 
 	diff := diffSystemAllocs(job, nodes, nil, tainted, allocs, terminal)
-	place := diff.place
-	update := diff.update
-	migrate := diff.migrate
-	stop := diff.stop
-	ignore := diff.ignore
-	lost := diff.lost
 
 	// We should update the first alloc
-	require.True(t, len(update) == 1 && update[0].Alloc == allocs[0])
+	require.Len(t, diff.update, 1)
+	require.Equal(t, allocs[0], diff.update[0].Alloc)
 
 	// We should ignore the second alloc
-	require.True(t, len(ignore) == 1 && ignore[0].Alloc == allocs[1])
+	require.Len(t, diff.ignore, 1)
+	require.Equal(t, allocs[1], diff.ignore[0].Alloc)
 
 	// We should stop the third alloc
-	require.Empty(t, stop)
+	require.Empty(t, diff.stop)
 
 	// There should be no migrates.
-	require.True(t, len(migrate) == 1 && migrate[0].Alloc == allocs[2])
+	require.Len(t, diff.migrate, 1)
+	require.Equal(t, allocs[2], diff.migrate[0].Alloc)
 
 	// We should mark the 5th alloc as lost
-	require.True(t, len(lost) == 1 && lost[0].Alloc == allocs[3])
+	require.Len(t, diff.lost, 1)
+	require.Equal(t, allocs[3], diff.lost[0].Alloc)
 
-	// We should place 1
-	require.Equal(t, 2, len(place))
+	// We should place 2
+	require.Len(t, diff.place, 2)
 
 	// Ensure that the allocations which are replacements of terminal allocs are
 	// annotated.
@@ -392,8 +382,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 		for _, alloc := range m {
 			for _, tuple := range diff.place {
 				if alloc.NodeID == tuple.Alloc.NodeID {
-					require.True(t, reflect.DeepEqual(alloc, tuple.Alloc),
-						"expected: %#v, actual: %#v", alloc, tuple.Alloc)
+					require.Equal(t, alloc, tuple.Alloc)
 				}
 			}
 		}
@@ -418,7 +407,8 @@ func TestReadyNodesInDCs(t *testing.T) {
 	nodes, notReady, dc, err := readyNodesInDCs(state, []string{"dc1", "dc2"})
 	require.NoError(t, err)
 	require.Equal(t, 2, len(nodes))
-	require.True(t, nodes[0].ID != node3.ID && nodes[1].ID != node3.ID)
+	require.NotEqual(t, node3.ID, nodes[0].ID)
+	require.NotEqual(t, node3.ID, nodes[1].ID)
 
 	require.Contains(t, dc, "dc1")
 	require.Equal(t, 1, dc["dc1"])
