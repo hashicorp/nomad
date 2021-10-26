@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/rand"
-	"path/filepath"
 	"reflect"
 	"time"
 
@@ -385,11 +384,7 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]str
 			continue
 		}
 
-		match, err := matchDcs(dcs, node)
-
-		if err != nil {
-			return nil, nil, err
-		}
+		match := matchDcs(dcs, node)
 
 		if !match {
 			continue
@@ -401,18 +396,60 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]str
 	return out, notReady, dcMap, nil
 }
 
-func matchDcs(dcs []string, node *structs.Node) (bool, error) {
+func matchDcs(dcs []string, node *structs.Node) bool {
 	for _, dc := range dcs {
-		match, err := filepath.Match(dc, node.Datacenter)
-		if err != nil {
-			return false, err
-		}
+		match := globMatch(dc, node.Datacenter)
+
 		if match {
-			return true, nil
+			return true
 		}
 	}
 
-	return false, nil
+	return false
+}
+
+// globMatch is used to match names against simple glob patterns
+func globMatch(pattern, name string) bool {
+	px := 0
+	nx := 0
+	nextPx := 0
+	nextNx := 0
+	for px < len(pattern) || nx < len(name) {
+		if px < len(pattern) {
+			c := pattern[px]
+			switch c {
+			default: // ordinary character
+				if nx < len(name) && name[nx] == c {
+					px++
+					nx++
+					continue
+				}
+			case '?': // single-character wildcard
+				if nx < len(name) {
+					px++
+					nx++
+					continue
+				}
+			case '*': // zero-or-more-character wildcard
+				// Try to match at nx.
+				// If that doesn't work out,
+				// restart at nx+1 next.
+				nextPx = px
+				nextNx = nx + 1
+				px++
+				continue
+			}
+		}
+		// Mismatch. Maybe restart.
+		if 0 < nextNx && nextNx <= len(name) {
+			px = nextPx
+			nx = nextNx
+			continue
+		}
+		return false
+	}
+	// Matched all of pattern to all of name. Success.
+	return true
 }
 
 // retryMax is used to retry a callback until it returns success or
