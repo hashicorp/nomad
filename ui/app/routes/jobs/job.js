@@ -13,6 +13,13 @@ export default class JobRoute extends Route {
 
   breadcrumbs = jobCrumbs;
 
+  queryParams = {
+    jobNamespace: {
+      as: 'namespace',
+      refreshModel: true,
+    },
+  };
+
   serialize(model) {
     return { job_name: model.get('plainId') };
   }
