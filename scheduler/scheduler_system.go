@@ -37,8 +37,9 @@ type SystemScheduler struct {
 	ctx        *EvalContext
 	stack      *SystemStack
 
-	nodes     []*structs.Node
-	nodesByDC map[string]int
+	nodes         []*structs.Node
+	notReadyNodes map[string]struct{}
+	nodesByDC     map[string]int
 
 	limitReached bool
 	nextEval     *structs.Evaluation
@@ -122,7 +123,7 @@ func (s *SystemScheduler) process() (bool, error) {
 
 	// Get the ready nodes in the required datacenters
 	if !s.job.Stopped() {
-		s.nodes, s.nodesByDC, err = readyNodesInDCs(s.state, s.job.Datacenters)
+		s.nodes, s.notReadyNodes, s.nodesByDC, err = readyNodesInDCs(s.state, s.job.Datacenters)
 		if err != nil {
 			return false, fmt.Errorf("failed to get ready nodes: %v", err)
 		}
@@ -219,7 +220,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	live, term := structs.SplitTerminalAllocs(allocs)
 
 	// Diff the required and existing allocations
-	diff := diffSystemAllocs(s.job, s.nodes, tainted, live, term)
+	diff := diffSystemAllocs(s.job, s.nodes, s.notReadyNodes, tainted, live, term)
 	s.logger.Debug("reconciled current state with desired state",
 		"place", len(diff.place), "update", len(diff.update),
 		"migrate", len(diff.migrate), "stop", len(diff.stop),

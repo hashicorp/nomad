@@ -61,7 +61,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 			},
 		}
 
-		diff := diffSystemAllocsForNode(job, "node1", eligible, tainted, required, live, terminal)
+		diff := diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal)
 		require.Empty(t, diff.place)
 		require.Empty(t, diff.update)
 		require.Empty(t, diff.stop)
@@ -87,7 +87,7 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 		expAlloc := terminal["node1"]["my-sysbatch.pinger[0]"]
 		expAlloc.NodeID = "node1"
 
-		diff := diffSystemAllocsForNode(job, "node1", eligible, tainted, required, live, terminal)
+		diff := diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal)
 		require.Empty(t, diff.place)
 		require.Equal(t, 1, len(diff.update))
 		require.Empty(t, diff.stop)
@@ -191,7 +191,7 @@ func TestDiffSystemAllocsForNode(t *testing.T) {
 		},
 	}
 
-	diff := diffSystemAllocsForNode(job, "zip", eligible, tainted, required, allocs, terminal)
+	diff := diffSystemAllocsForNode(job, "zip", eligible, nil, tainted, required, allocs, terminal)
 	place := diff.place
 	update := diff.update
 	migrate := diff.migrate
@@ -274,7 +274,7 @@ func TestDiffSystemAllocsForNode_ExistingAllocIneligibleNode(t *testing.T) {
 	// No terminal allocs
 	terminal := make(structs.TerminalByNodeByName)
 
-	diff := diffSystemAllocsForNode(job, eligibleNode.ID, eligible, tainted, required, allocs, terminal)
+	diff := diffSystemAllocsForNode(job, eligibleNode.ID, eligible, nil, tainted, required, allocs, terminal)
 	place := diff.place
 	update := diff.update
 	migrate := diff.migrate
@@ -360,7 +360,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 		},
 	}
 
-	diff := diffSystemAllocs(job, nodes, tainted, allocs, terminal)
+	diff := diffSystemAllocs(job, nodes, nil, tainted, allocs, terminal)
 	place := diff.place
 	update := diff.update
 	migrate := diff.migrate
@@ -415,7 +415,7 @@ func TestReadyNodesInDCs(t *testing.T) {
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1002, node3))
 	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1003, node4))
 
-	nodes, dc, err := readyNodesInDCs(state, []string{"dc1", "dc2"})
+	nodes, notReady, dc, err := readyNodesInDCs(state, []string{"dc1", "dc2"})
 	require.NoError(t, err)
 	require.Equal(t, 2, len(nodes))
 	require.True(t, nodes[0].ID != node3.ID && nodes[1].ID != node3.ID)
@@ -424,6 +424,9 @@ func TestReadyNodesInDCs(t *testing.T) {
 	require.Equal(t, 1, dc["dc1"])
 	require.Contains(t, dc, "dc2")
 	require.Equal(t, 1, dc["dc2"])
+
+	require.Contains(t, notReady, node3.ID)
+	require.Contains(t, notReady, node4.ID)
 }
 
 func TestRetryMax(t *testing.T) {
