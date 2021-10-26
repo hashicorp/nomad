@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -21,6 +22,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
@@ -42,12 +44,14 @@ type OperatorDebugCommand struct {
 	nodeClass     string
 	nodeIDs       []string
 	serverIDs     []string
+	topics        map[api.Topic][]string
 	consul        *external
 	vault         *external
 	manifest      []string
 	ctx           context.Context
 	cancel        context.CancelFunc
 	opts          *api.QueryOptions
+	verbose       bool
 }
 
 const (
@@ -72,6 +76,11 @@ Usage: nomad operator debug [options]
   'list-jobs' capability for all namespaces. To collect pprof profiles the
   token will also require 'agent:write', or enable_debug configuration set to
   true.
+  
+  If event stream capture is enabled, the Job, Allocation, Deployment, 
+  and Evaluation topics require 'namespace:read-job' capabilities, the Node 
+  topic requires 'node:read'.  A 'management' token is required to capture 
+  ACLToken, ACLPolicy, or all all events.
 
 General Options:
 
@@ -137,7 +146,7 @@ Debug Options:
 
   -duration=<duration>
     Set the duration of the debug capture. Logs will be captured from specified servers and
-	nodes at "log-level". Defaults to 2m.
+    nodes at "log-level". Defaults to 2m.
 
   -interval=<interval>
     The interval between snapshots of the Nomad state. Set interval equal to
@@ -172,8 +181,15 @@ Debug Options:
     necessary to get the configuration from a non-leader server.
 
   -output=<path>
-    Path to the parent directory of the output directory. If specified, no
-	archive is built. Defaults to the current directory.
+    Path to the parent directory of the output directory. If specified, no 
+    archive is built. Defaults to the current directory.
+
+  -event-topic=<allocation,evaluation,job,node,*>:<filter>
+    Enable event stream capture. Filter by comma delimited list of topic filters
+    or "all".  Defaults to "none" (disabled).
+
+  -verbose
+    Enable verbose output
 `
 	return strings.TrimSpace(helpText)
 }
@@ -196,6 +212,8 @@ func (c *OperatorDebugCommand) AutocompleteFlags() complete.Flags {
 			"-pprof-duration": complete.PredictAnything,
 			"-consul-token":   complete.PredictAnything,
 			"-vault-token":    complete.PredictAnything,
+			"-event-topic":    complete.PredictAnything,
+			"-verbose":        complete.PredictAnything,
 		})
 }
 
@@ -305,7 +323,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	var duration, interval, output, pprofDuration string
+	var duration, interval, output, pprofDuration, eventTopic string
 	var nodeIDs, serverIDs string
 	var allowStale bool
 
@@ -319,6 +337,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.BoolVar(&allowStale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
 	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
+	flags.StringVar(&eventTopic, "event-topic", "none", "")
+	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	c.consul = &external{tls: &api.TLSConfig{}}
 	flags.StringVar(&c.consul.addrVal, "consul-http-addr", os.Getenv("CONSUL_HTTP_ADDR"), "")
@@ -374,6 +394,14 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		return 1
 	}
 	c.pprofDuration = pd
+
+	// Parse event stream topic filter
+	t, err := topicsFromString(eventTopic)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error parsing event topics: %v", err))
+		return 1
+	}
+	c.topics = t
 
 	// Verify there are no extra arguments
 	args = flags.Args()
@@ -550,6 +578,9 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	if c.pprofDuration.Seconds() != 1 {
 		c.Ui.Output(fmt.Sprintf("   pprof Duration: %s", c.pprofDuration))
 	}
+	if c.topics != nil {
+		c.Ui.Output(fmt.Sprintf("     Event topics: %+v", c.topics))
+	}
 	c.Ui.Output("")
 	c.Ui.Output("Capturing cluster data...")
 
@@ -584,8 +615,11 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 // collect collects data from our endpoints and writes the archive bundle
 func (c *OperatorDebugCommand) collect(client *api.Client) error {
-	// Collect cluster data
+	// Start background captures
+	c.startMonitors(client)
+	c.startEventStream(clusterDir, c.topics, 0, client) // TODO: allow index as cmdline arg
 
+	// Collect cluster data
 	self, err := client.Agent().Self()
 	c.writeJSON(clusterDir, "agent-self.json", self, err)
 
@@ -611,7 +645,6 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	c.collectAgentHosts(client)
 	c.collectPprofs(client)
 
-	c.startMonitors(client)
 	c.collectPeriodic(client)
 
 	return nil
@@ -682,6 +715,102 @@ func (c *OperatorDebugCommand) startMonitor(path, idKey, nodeID string, client *
 
 		case <-c.ctx.Done():
 			return
+		}
+	}
+}
+
+// captureEventStream wraps the event stream capture process.
+func (c *OperatorDebugCommand) startEventStream(path string, topics map[api.Topic][]string, index uint64, client *api.Client) {
+	c.verboseOut("Launching eventstream goroutine...")
+
+	go func() {
+		if err := c.captureEventStream(path, topics, index, client); err != nil {
+			var es string
+			if mErr, ok := err.(*multierror.Error); ok {
+				es = multierror.ListFormatFunc(mErr.Errors)
+			} else {
+				es = err.Error()
+			}
+
+			c.Ui.Error(fmt.Sprintf("Error capturing event stream: %s", es))
+		}
+	}()
+}
+
+func (c *OperatorDebugCommand) captureEventStream(path string, topicMap map[api.Topic][]string, index uint64, client *api.Client) error {
+	// Ensure output directory is present
+	if err := c.mkdir(c.path(path)); err != nil {
+		return err
+	}
+
+	// Create the output file
+	fh, err := os.Create(c.path(path, "eventstream.json"))
+	if err != nil {
+		return err
+	}
+	defer fh.Close()
+
+	// Get handle to events endpoint
+	events := client.EventStream()
+
+	// Start streaming events
+	eventCh, err := events.Stream(c.ctx, topicMap, index, c.queryOpts())
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			c.verboseOut("Event stream canceled: No events captured")
+			return nil
+		}
+		return fmt.Errorf("failed to stream events: %w", err)
+	}
+
+	eventCount := 0
+	errCount := 0
+	heartbeatCount := 0
+	channelEventCount := 0
+
+	var mErrs *multierror.Error
+
+	for {
+		select {
+		case event := <-eventCh:
+			channelEventCount++
+			if event.Err != nil {
+				errCount++
+				c.verboseOutf("error from event stream: index; %d err: %v", event.Index, event.Err)
+				mErrs = multierror.Append(mErrs, fmt.Errorf("error at index: %d, Err: %w", event.Index, event.Err))
+				break
+			}
+
+			if event.IsHeartbeat() {
+				heartbeatCount++
+				continue
+			}
+
+			for _, e := range event.Events {
+				eventCount++
+				c.verboseOutf("Event: %4d, Index: %d, Topic: %-10s, Type: %s, FilterKeys: %s", eventCount, e.Index, e.Topic, e.Type, e.FilterKeys)
+
+				bytes, err := json.Marshal(e)
+				if err != nil {
+					errCount++
+					mErrs = multierror.Append(mErrs, fmt.Errorf("failed to marshal json from Topic: %s, Type: %s, Err: %w", e.Topic, e.Type, err))
+				}
+
+				n, err := fh.Write(bytes)
+				if err != nil {
+					errCount++
+					mErrs = multierror.Append(mErrs, fmt.Errorf("failed to write bytes to eventstream.json; bytes written: %d, Err: %w", n, err))
+					break
+				}
+				n, err = fh.WriteString("\n")
+				if err != nil {
+					errCount++
+					mErrs = multierror.Append(mErrs, fmt.Errorf("failed to write string to eventstream.json; chars written: %d, Err: %w", n, err))
+				}
+			}
+		case <-c.ctx.Done():
+			c.verboseOutf("Event stream captured %d events, %d frames, %d heartbeats, %d errors", eventCount, channelEventCount, heartbeatCount, errCount)
+			return mErrs.ErrorOrNil()
 		}
 	}
 }
@@ -1192,6 +1321,16 @@ func (c *OperatorDebugCommand) trap() {
 	}()
 }
 
+func (c *OperatorDebugCommand) verboseOut(out string) {
+	if c.verbose {
+		c.Ui.Output(out)
+	}
+}
+
+func (c *OperatorDebugCommand) verboseOutf(format string, a ...interface{}) {
+	c.verboseOut(fmt.Sprintf(format, a...))
+}
+
 // TarCZF like the tar command, recursively builds a gzip compressed tar
 // archive from a directory. If not empty, all files in the bundle are prefixed
 // with the target path.
@@ -1310,6 +1449,53 @@ func stringToSlice(input string) []string {
 		out = append(out, s)
 	}
 	return out
+}
+
+func parseEventTopics(topicList []string) (map[api.Topic][]string, error) {
+	topics := make(map[api.Topic][]string)
+
+	for _, topic := range topicList {
+		k, v, err := parseTopic(topic)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing topics: %w", err)
+		}
+
+		topics[api.Topic(k)] = append(topics[api.Topic(k)], v)
+	}
+
+	return topics, nil
+}
+
+func parseTopic(topic string) (string, string, error) {
+	parts := strings.Split(topic, ":")
+	// infer wildcard if only given a topic
+	if len(parts) == 1 {
+		return topic, "*", nil
+	} else if len(parts) != 2 {
+		return "", "", fmt.Errorf("Invalid key value pair for topic, topic: %s", topic)
+	}
+	return parts[0], parts[1], nil
+}
+
+func allTopics() map[api.Topic][]string {
+	return map[api.Topic][]string{"*": {"*"}}
+}
+
+// topicsFromString parses a comma separated list into a topicMap
+func topicsFromString(topicList string) (map[api.Topic][]string, error) {
+	if topicList == "none" {
+		return nil, nil
+	}
+	if topicList == "all" {
+		return allTopics(), nil
+	}
+
+	topics := stringToSlice(topicList)
+	topicMap, err := parseEventTopics(topics)
+	if err != nil {
+		return nil, err
+	}
+	return topicMap, nil
 }
 
 // external holds address configuration for Consul and Vault APIs
