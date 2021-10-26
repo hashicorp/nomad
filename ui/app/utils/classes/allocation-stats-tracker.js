@@ -103,7 +103,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
 
   // Static figures, denominators for stats
   @alias('allocation.allocatedResources.cpu') reservedCPU;
-  @alias('allocation.taskGroup.reservedMemory') reservedMemory;
+  @alias('allocation.allocatedResources.memory') reservedMemory;
 
   // Dynamic figures, collected over time
   // []{ timestamp: Date, used: Number, percent: Number }
@@ -120,22 +120,29 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   @computed('allocation.taskGroup.tasks', 'bufferSize')
   get tasks() {
     const bufferSize = this.bufferSize;
+    const taskStates = this.get('allocation.states');
     const tasks = this.get('allocation.taskGroup.tasks') || [];
     return tasks
       .slice()
       .sort(taskPrioritySort)
-      .map(task => ({
-        task: get(task, 'name'),
+      .map(task => {
+        const [resources] = taskStates
+          .filterBy('name', task.name)
+          .getEach('resources')
+          .toArray();
+        return {
+          task: get(task, 'name'),
 
-        // Static figures, denominators for stats
-        reservedCPU: get(task, 'reservedCPU'),
-        reservedMemory: get(task, 'reservedMemory'),
+          // Static figures, denominators for stats
+          reservedCPU: resources.get('cpu'),
+          reservedMemory: resources.get('memory'),
 
-        // Dynamic figures, collected over time
-        // []{ timestamp: Date, used: Number, percent: Number }
-        cpu: RollingArray(bufferSize),
-        memory: RollingArray(bufferSize),
-      }));
+          // Dynamic figures, collected over time
+          // []{ timestamp: Date, used: Number, percent: Number }
+          cpu: RollingArray(bufferSize),
+          memory: RollingArray(bufferSize),
+        };
+      });
   }
 }
 
