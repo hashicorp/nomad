@@ -65,10 +65,11 @@ func diffSystemAllocsForNode(
 	job *structs.Job, // job whose allocs are going to be diff-ed
 	nodeID string,
 	eligibleNodes map[string]*structs.Node,
-	taintedNodes map[string]*structs.Node, // nodes which are down or in drain (by node name)
+	notReadyNodes map[string]struct{}, // nodes that are not ready, e.g. draining
+	taintedNodes map[string]*structs.Node, // nodes which are down (by node id)
 	required map[string]*structs.TaskGroup, // set of allocations that must exist
 	allocs []*structs.Allocation, // non-terminal allocations that exist
-	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, name)
+	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
 ) *diffResult {
 	result := new(diffResult)
 
@@ -139,8 +140,19 @@ func diffSystemAllocsForNode(
 
 		// For an existing allocation, if the nodeID is no longer
 		// eligible, the diff should be ignored
-		if _, ok := eligibleNodes[nodeID]; !ok {
+		if _, ok := notReadyNodes[nodeID]; ok {
 			goto IGNORE
+		}
+
+		// Existing allocations on nodes that are no longer targeted
+		// should be stopped
+		if _, ok := eligibleNodes[nodeID]; !ok {
+			result.stop = append(result.stop, allocTuple{
+				Name:      name,
+				TaskGroup: tg,
+				Alloc:     exist,
+			})
+			continue
 		}
 
 		// If the definition is updated we need to update
@@ -229,21 +241,21 @@ func diffSystemAllocsForNode(
 // diffResult contain the specific nodeID they should be allocated on.
 func diffSystemAllocs(
 	job *structs.Job, // jobs whose allocations are going to be diff-ed
-	nodes []*structs.Node, // list of nodes in the ready state
-	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by name)
+	readyNodes []*structs.Node, // list of nodes in the ready state
+	notReadyNodes map[string]struct{}, // list of nodes in DC but not ready, e.g. draining
+	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by node id)
 	allocs []*structs.Allocation, // non-terminal allocations
-	terminal structs.TerminalByNodeByName, // latest terminal allocations (by name)
+	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node id)
 ) *diffResult {
 
 	// Build a mapping of nodes to all their allocs.
 	nodeAllocs := make(map[string][]*structs.Allocation, len(allocs))
 	for _, alloc := range allocs {
-		nallocs := append(nodeAllocs[alloc.NodeID], alloc) //nolint:gocritic
-		nodeAllocs[alloc.NodeID] = nallocs
+		nodeAllocs[alloc.NodeID] = append(nodeAllocs[alloc.NodeID], alloc)
 	}
 
 	eligibleNodes := make(map[string]*structs.Node)
-	for _, node := range nodes {
+	for _, node := range readyNodes {
 		if _, ok := nodeAllocs[node.ID]; !ok {
 			nodeAllocs[node.ID] = nil
 		}
@@ -255,7 +267,7 @@ func diffSystemAllocs(
 
 	result := new(diffResult)
 	for nodeID, allocs := range nodeAllocs {
-		diff := diffSystemAllocsForNode(job, nodeID, eligibleNodes, taintedNodes, required, allocs, terminal)
+		diff := diffSystemAllocsForNode(job, nodeID, eligibleNodes, notReadyNodes, taintedNodes, required, allocs, terminal)
 		result.Append(diff)
 	}
 
@@ -264,7 +276,7 @@ func diffSystemAllocs(
 
 // readyNodesInDCs returns all the ready nodes in the given datacenters and a
 // mapping of each data center to the count of ready nodes.
-func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]int, error) {
+func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]struct{}, map[string]int, error) {
 	// Index the DCs
 	dcMap := make(map[string]int, len(dcs))
 	for _, dc := range dcs {
@@ -274,9 +286,10 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]int
 	// Scan the nodes
 	ws := memdb.NewWatchSet()
 	var out []*structs.Node
+	notReady := map[string]struct{}{}
 	iter, err := state.Nodes(ws)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	for {
 		raw := iter.Next()
@@ -287,6 +300,7 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]int
 		// Filter on datacenter and status
 		node := raw.(*structs.Node)
 		if !node.Ready() {
+			notReady[node.ID] = struct{}{}
 			continue
 		}
 		if _, ok := dcMap[node.Datacenter]; !ok {
@@ -295,7 +309,7 @@ func readyNodesInDCs(state State, dcs []string) ([]*structs.Node, map[string]int
 		out = append(out, node)
 		dcMap[node.Datacenter]++
 	}
-	return out, dcMap, nil
+	return out, notReady, dcMap, nil
 }
 
 // retryMax is used to retry a callback until it returns success or

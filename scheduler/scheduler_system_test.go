@@ -766,6 +766,91 @@ func TestSystemSched_JobModify_InPlace(t *testing.T) {
 	}
 }
 
+func TestSystemSched_JobModify_RemoveDC(t *testing.T) {
+	h := NewHarness(t)
+
+	// Create some nodes
+	node1 := mock.Node()
+	node1.Datacenter = "dc1"
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node1))
+
+	node2 := mock.Node()
+	node2.Datacenter = "dc2"
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node2))
+
+	fmt.Println("DC1 node: ", node1.ID)
+	fmt.Println("DC2 node: ", node2.ID)
+	nodes := []*structs.Node{node1, node2}
+
+	// Generate a fake job with allocations
+	job := mock.SystemJob()
+	job.Datacenters = []string{"dc1", "dc2"}
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job))
+
+	var allocs []*structs.Allocation
+	for _, node := range nodes {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = node.ID
+		alloc.Name = "my-job.web[0]"
+		allocs = append(allocs, alloc)
+	}
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+
+	// Update the job
+	job2 := job.Copy()
+	job2.Datacenters = []string{"dc1"}
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), job2))
+
+	// Create a mock evaluation to deal with update
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewSystemScheduler, eval)
+	require.NoError(t, err)
+
+	// Ensure a single plan
+	require.Len(t, h.Plans, 1)
+	plan := h.Plans[0]
+
+	// Ensure the plan did not evict any allocs
+	var update []*structs.Allocation
+	for _, updateList := range plan.NodeUpdate {
+		update = append(update, updateList...)
+	}
+	require.Len(t, update, 1)
+
+	// Ensure the plan updated the existing allocs
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	require.Len(t, planned, 1)
+
+	for _, p := range planned {
+		require.Equal(t, job2, p.Job, "should update job")
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	require.NoError(t, err)
+
+	// Ensure all allocations placed
+	require.Len(t, out, 2)
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+
+}
+
 func TestSystemSched_JobDeregister_Purged(t *testing.T) {
 	h := NewHarness(t)
 
