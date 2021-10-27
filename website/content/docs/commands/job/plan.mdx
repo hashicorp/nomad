@@ -203,7 +203,29 @@ changed, another user has modified the job and the plan's results are
 potentially invalid.
 ```
 
+When using the `nomad job plan` command in automated environments, such as
+in CI/CD pipelines, it is useful to output the plan result for manual
+validation and also store the check index on disk so it can be used later to
+guarantee that a job deployment will match the expected changes described in
+the plan result.
+
+This can be done by parsing the command output and redirecting the index to a
+file. For example, in Linux environments the [`tee`] command can be used for
+this purpose:
+
+```console
+$ nomad job plan -no-color example.nomad | tee /dev/stderr | grep 'Job Modify Index:' | awk -F': ' '{ print $2 }' > check-index || true
+```
+
+The [`-no-color`](#no-color) flag prevents style characters from impacting
+parsing. Colored output may be helpful when analyzing the plan result, so the
+[`-force-color`](#force-color) flag can be used. This will affect how parsing
+is done to avoid hidden control characters. Adding `|| true` at the end
+prevents undesired failures since `nomad job plan` returns a non-zero exit code
+if a change is detected.
+
 [job specification]: /docs/job-specification
 [hcl job specification]: /docs/job-specification
 [`go-getter`]: https://github.com/hashicorp/go-getter
 [`nomad job run -check-index`]: /docs/commands/job/run#check-index
+[`tee`]: https://man7.org/linux/man-pages/man1/tee.1.html
