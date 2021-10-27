@@ -66,10 +66,10 @@ func diffSystemAllocsForNode(
 	nodeID string,
 	eligibleNodes map[string]*structs.Node,
 	notReadyNodes map[string]struct{}, // nodes that are not ready, e.g. draining
-	taintedNodes map[string]*structs.Node, // nodes which are down (by node name)
+	taintedNodes map[string]*structs.Node, // nodes which are down (by node id)
 	required map[string]*structs.TaskGroup, // set of allocations that must exist
 	allocs []*structs.Allocation, // non-terminal allocations that exist
-	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, name)
+	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node, id)
 ) *diffResult {
 	result := new(diffResult)
 
@@ -243,9 +243,9 @@ func diffSystemAllocs(
 	job *structs.Job, // jobs whose allocations are going to be diff-ed
 	readyNodes []*structs.Node, // list of nodes in the ready state
 	notReadyNodes map[string]struct{}, // list of nodes in DC but not ready, e.g. draining
-	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by name)
+	taintedNodes map[string]*structs.Node, // nodes which are down or drain mode (by node id)
 	allocs []*structs.Allocation, // non-terminal allocations
-	terminal structs.TerminalByNodeByName, // latest terminal allocations (by name)
+	terminal structs.TerminalByNodeByName, // latest terminal allocations (by node id)
 ) *diffResult {
 
 	// Build a mapping of nodes to all their allocs.
