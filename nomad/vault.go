@@ -998,6 +998,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		Metadata: map[string]string{
 			"AllocationID": a.ID,
 			"JobID":        a.JobID,
+			"TaskGroup":    a.TaskGroup,
 			"Task":         task,
 			"NodeID":       a.NodeID,
 			"Namespace":    namespaceForTask,
