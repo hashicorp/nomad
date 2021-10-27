@@ -170,7 +170,7 @@ Debug Options:
     necessary to get the configuration from a non-leader server.
 
   -output=<path>
-    Path to the parent directory of the output directory. If specified no 
+    Path to the parent directory of the output directory. If specified, no 
 	archive is built. Defaults to the current directory.
 `
 	return strings.TrimSpace(helpText)
