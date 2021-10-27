@@ -218,8 +218,11 @@ $ nomad job plan -no-color example.nomad | tee /dev/stderr | grep 'Job Modify In
 ```
 
 The [`-no-color`](#no-color) flag prevents style characters from impacting
-parsing. Adding `|| true` at the end prevents undesired failures since
-`nomad job plan` returns a non-zero exit code if a change is detected.
+parsing. Colored output may be helpful when analyzing the plan result, so the
+[`-force-color`](#force-color) flag can be used. This will affect how parsing
+is done to avoid hidden control characters. Adding `|| true` at the end
+prevents undesired failures since `nomad job plan` returns a non-zero exit code
+if a change is detected.
 
 [job specification]: /docs/job-specification
 [hcl job specification]: /docs/job-specification
