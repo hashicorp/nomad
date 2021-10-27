@@ -147,7 +147,7 @@ Debug Options:
     Cap the maximum number of client nodes included in the capture. Defaults
     to 10, set to 0 for unlimited.
 
-  -node-id=<node>,<node>
+  -node-id=<node1>,<node2>
     Comma separated list of Nomad client node ids to monitor for logs, API
     outputs, and pprof profiles. Accepts id prefixes, and "all" to select all
     nodes (up to count = max-nodes). Defaults to "all".
@@ -287,7 +287,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
 	flags.StringVar(&c.nodeClass, "node-class", "", "")
-	flags.StringVar(&nodeIDs, "node-id", "", "")
+	flags.StringVar(&nodeIDs, "node-id", "all", "")
 	flags.StringVar(&serverIDs, "server-id", "all", "")
 	flags.BoolVar(&c.stale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
@@ -450,8 +450,13 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 	// Return error if nodes were specified but none were found
 	if len(nodeIDs) > 0 && nodeCaptureCount == 0 {
-		c.Ui.Error(fmt.Sprintf("Failed to retrieve clients, 0 nodes found in list: %s", nodeIDs))
-		return 1
+		if nodeIDs == "all" {
+			// It's okay to have zero clients for default "all"
+			c.Ui.Info("Note: \"-node-id=all\" specified but no clients found")
+		} else {
+			c.Ui.Error(fmt.Sprintf("Failed to retrieve clients, 0 nodes found in list: %s", nodeIDs))
+			return 1
+		}
 	}
 
 	// Resolve servers

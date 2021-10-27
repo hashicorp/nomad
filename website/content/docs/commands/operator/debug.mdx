@@ -61,9 +61,9 @@ true.
 
 - `-node-class=<node-class>`: Filter client nodes based on node class.
 
-- `-node-id=<node1>,<node2>`: Comma separated list of Nomad client node ids,
-  to monitor for logs and include pprof profiles. Accepts id prefixes, and
-  "all" to select all nodes (up to count = max-nodes).
+- `-node-id=<node1>,<node2>`: Comma separated list of Nomad client node ids
+  to monitor for logs, API outputs, and pprof profiles. Accepts id prefixes, and
+  "all" to select all nodes (up to count = max-nodes). Defaults to `all`.
 
 - `-pprof-duration=<duration>`: Duration for pprof collection. Defaults to 1s.
 
