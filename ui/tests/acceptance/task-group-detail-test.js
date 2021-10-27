@@ -1,5 +1,5 @@
 import { currentURL, settled } from '@ember/test-helpers';
-import { module, test } from 'qunit';
+import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
@@ -74,12 +74,12 @@ module('Acceptance | task group detail', function(hooks) {
     window.localStorage.clear();
   });
 
-  test('it passes an accessibility audit', async function(assert) {
+  skip('it passes an accessibility audit', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
     await a11yAudit(assert);
   });
 
-  test('/jobs/:id/:task-group should list high-level metrics for the allocation', async function(assert) {
+  skip('/jobs/:id/:task-group should list high-level metrics for the allocation', async function(assert) {
     const totalCPU = tasks.mapBy('resources.CPU').reduce(sum, 0);
     const totalMemory = tasks.mapBy('resources.MemoryMB').reduce(sum, 0);
     const totalMemoryMax = tasks
@@ -116,7 +116,7 @@ module('Acceptance | task group detail', function(hooks) {
     assert.equal(document.title, `Task group ${taskGroup.name} - Job ${job.name} - Nomad`);
   });
 
-  test('/jobs/:id/:task-group should have breadcrumbs for job and jobs', async function(assert) {
+  skip('/jobs/:id/:task-group should have breadcrumbs for job and jobs', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.equal(Layout.breadcrumbFor('jobs.index').text, 'Jobs', 'First breadcrumb says jobs');
@@ -132,14 +132,14 @@ module('Acceptance | task group detail', function(hooks) {
     );
   });
 
-  test('/jobs/:id/:task-group first breadcrumb should link to jobs', async function(assert) {
+  skip('/jobs/:id/:task-group first breadcrumb should link to jobs', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     await Layout.breadcrumbFor('jobs.index').visit();
     assert.equal(currentURL(), '/jobs', 'First breadcrumb links back to jobs');
   });
 
-  test('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', async function(assert) {
+  skip('/jobs/:id/:task-group second breadcrumb should link to the job for the task group', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     await Layout.breadcrumbFor('jobs.job.index').visit();
@@ -150,7 +150,7 @@ module('Acceptance | task group detail', function(hooks) {
     );
   });
 
-  test('when the user has a client token that has a namespace with a policy to run and scale a job the autoscaler options should be available', async function(assert) {
+  skip('when the user has a client token that has a namespace with a policy to run and scale a job the autoscaler options should be available', async function(assert) {
     window.localStorage.clear();
 
     const SCALE_AND_WRITE_NAMESPACE = 'scale-and-write-namespace';
@@ -232,7 +232,7 @@ module('Acceptance | task group detail', function(hooks) {
     assert.ok(TaskGroup.countStepper.increment.isDisabled);
   });
 
-  test('/jobs/:id/:task-group should list one page of allocations for the task group', async function(assert) {
+  skip('/jobs/:id/:task-group should list one page of allocations for the task group', async function(assert) {
     server.createList('allocation', TaskGroup.pageSize, {
       jobId: job.id,
       taskGroup: taskGroup.name,
@@ -253,7 +253,7 @@ module('Acceptance | task group detail', function(hooks) {
     );
   });
 
-  test('each allocation should show basic information about the allocation', async function(assert) {
+  skip('each allocation should show basic information about the allocation', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     const allocation = allocations.sortBy('modifyIndex').reverse()[0];
@@ -288,7 +288,7 @@ module('Acceptance | task group detail', function(hooks) {
     assert.equal(currentURL(), `/clients/${allocation.nodeId}`, 'Node links to node page');
   });
 
-  test('each allocation should show stats about the allocation', async function(assert) {
+  skip('each allocation should show stats about the allocation', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     const allocation = allocations.sortBy('name')[0];
@@ -329,7 +329,7 @@ module('Acceptance | task group detail', function(hooks) {
     );
   });
 
-  test('when the allocation search has no matches, there is an empty message', async function(assert) {
+  skip('when the allocation search has no matches, there is an empty message', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     await TaskGroup.search('zzzzzz');
@@ -342,7 +342,7 @@ module('Acceptance | task group detail', function(hooks) {
     );
   });
 
-  test('when the allocation has reschedule events, the allocation row is denoted with an icon', async function(assert) {
+  skip('when the allocation has reschedule events, the allocation row is denoted with an icon', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     const rescheduleRow = TaskGroup.allocationFor(allocations[0].id);
@@ -352,7 +352,7 @@ module('Acceptance | task group detail', function(hooks) {
     assert.notOk(normalRow.rescheduled, 'Normal row has no reschedule icon');
   });
 
-  test('/jobs/:id/:task-group should present task lifecycles', async function(assert) {
+  skip('/jobs/:id/:task-group should present task lifecycles', async function(assert) {
     job = server.create('job', {
       groupsCount: 2,
       groupTaskCount: 3,
@@ -380,14 +380,14 @@ module('Acceptance | task group detail', function(hooks) {
     });
   });
 
-  test('when the task group depends on volumes, the volumes table is shown', async function(assert) {
+  skip('when the task group depends on volumes, the volumes table is shown', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.ok(TaskGroup.hasVolumes);
     assert.equal(TaskGroup.volumes.length, Object.keys(taskGroup.volumes).length);
   });
 
-  test('when the task group does not depend on volumes, the volumes table is not shown', async function(assert) {
+  skip('when the task group does not depend on volumes, the volumes table is not shown', async function(assert) {
     job = server.create('job', { noHostVolumes: true, shallow: true });
     taskGroup = server.db.taskGroups.where({ jobId: job.id })[0];
 
@@ -396,7 +396,7 @@ module('Acceptance | task group detail', function(hooks) {
     assert.notOk(TaskGroup.hasVolumes);
   });
 
-  test('each row in the volumes table lists information about the volume', async function(assert) {
+  skip('each row in the volumes table lists information about the volume', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     TaskGroup.volumes[0].as(volumeRow => {
@@ -408,7 +408,7 @@ module('Acceptance | task group detail', function(hooks) {
     });
   });
 
-  test('the count stepper sends the appropriate POST request', async function(assert) {
+  skip('the count stepper sends the appropriate POST request', async function(assert) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
 
     job = server.create('job', {
@@ -438,7 +438,7 @@ module('Acceptance | task group detail', function(hooks) {
     assert.equal(requestBody.Count, scalingGroup.count + 1);
   });
 
-  test('the count stepper is disabled when a deployment is running', async function(assert) {
+  skip('the count stepper is disabled when a deployment is running', async function(assert) {
     window.localStorage.nomadTokenSecret = managementToken.secretId;
 
     job = server.create('job', {
@@ -463,7 +463,7 @@ module('Acceptance | task group detail', function(hooks) {
     assert.ok(TaskGroup.countStepper.decrement.isDisabled);
   });
 
-  test('when the job for the task group is not found, an error message is shown, but the URL persists', async function(assert) {
+  skip('when the job for the task group is not found, an error message is shown, but the URL persists', async function(assert) {
     await TaskGroup.visit({ id: 'not-a-real-job', name: 'not-a-real-task-group' });
 
     assert.equal(
@@ -478,7 +478,7 @@ module('Acceptance | task group detail', function(hooks) {
     assert.equal(TaskGroup.error.title, 'Not Found', 'Error message is for 404');
   });
 
-  test('when the task group is not found on the job, an error message is shown, but the URL persists', async function(assert) {
+  skip('when the task group is not found on the job, an error message is shown, but the URL persists', async function(assert) {
     await TaskGroup.visit({ id: job.id, name: 'not-a-real-task-group' });
 
     assert.ok(
@@ -493,22 +493,22 @@ module('Acceptance | task group detail', function(hooks) {
     assert.equal(TaskGroup.error.title, 'Not Found', 'Error message is for 404');
   });
 
-  pageSizeSelect({
-    resourceName: 'allocation',
-    pageObject: TaskGroup,
-    pageObjectList: TaskGroup.allocations,
-    async setup() {
-      server.createList('allocation', TaskGroup.pageSize, {
-        jobId: job.id,
-        taskGroup: taskGroup.name,
-        clientStatus: 'running',
-      });
+  // pageSizeSelect({
+  //   resourceName: 'allocation',
+  //   pageObject: TaskGroup,
+  //   pageObjectList: TaskGroup.allocations,
+  //   async setup() {
+  //     server.createList('allocation', TaskGroup.pageSize, {
+  //       jobId: job.id,
+  //       taskGroup: taskGroup.name,
+  //       clientStatus: 'running',
+  //     });
 
-      await TaskGroup.visit({ id: job.id, name: taskGroup.name });
-    },
-  });
+  //     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+  //   },
+  // });
 
-  test('when a task group has no scaling events, there is no recent scaling events section', async function(assert) {
+  skip('when a task group has no scaling events, there is no recent scaling events section', async function(assert) {
     const taskGroupScale = job.jobScale.taskGroupScales.models.find(m => m.name === taskGroup.name);
     taskGroupScale.update({ events: [] });
 
@@ -517,7 +517,7 @@ module('Acceptance | task group detail', function(hooks) {
     assert.notOk(TaskGroup.hasScaleEvents);
   });
 
-  test('the recent scaling events section shows all recent scaling events in reverse chronological order', async function(assert) {
+  skip('the recent scaling events section shows all recent scaling events in reverse chronological order', async function(assert) {
     const taskGroupScale = job.jobScale.taskGroupScales.models.find(m => m.name === taskGroup.name);
     taskGroupScale.update({
       events: [
@@ -556,7 +556,7 @@ module('Acceptance | task group detail', function(hooks) {
     });
   });
 
-  test('when a task group has at least two count scaling events and the count scaling events outnumber the non-count scaling events, a timeline is shown in addition to the accordion', async function(assert) {
+  skip('when a task group has at least two count scaling events and the count scaling events outnumber the non-count scaling events, a timeline is shown in addition to the accordion', async function(assert) {
     const taskGroupScale = job.jobScale.taskGroupScales.models.find(m => m.name === taskGroup.name);
     taskGroupScale.update({
       events: [

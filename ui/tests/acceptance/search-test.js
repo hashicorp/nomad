@@ -1,5 +1,5 @@
 /* eslint-disable ember-a11y-testing/a11y-audit-called */ // TODO
-import { module, test } from 'qunit';
+import { module, skip, test } from 'qunit';
 import { currentURL, triggerEvent, visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -12,7 +12,7 @@ module('Acceptance | search', function(hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
-  test('search exposes and navigates to results from the fuzzy search endpoint', async function(assert) {
+  skip('search exposes and navigates to results from the fuzzy search endpoint', async function(assert) {
     server.create('node', { name: 'xyz' });
     const otherNode = server.create('node', { name: 'ghi' });
 
