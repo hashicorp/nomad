@@ -42,12 +42,19 @@ func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 
 	h.eventEmitter.EmitEvent(structs.NewTaskEvent(structs.TaskDownloadingArtifacts))
 
+	isDone := true
 	for _, artifact := range req.Task.Artifacts {
 		aid := artifact.Hash()
 		if req.PreviousState[aid] != "" && !artifact.ForceDownload {
 			h.logger.Trace("skipping already downloaded artifact", "artifact", artifact.GetterSource)
 			resp.State[aid] = req.PreviousState[aid]
 			continue
+		}
+
+		if artifact.ForceDownload {
+			// If there are any artifacts that are forced to be downloaded
+			// this hook must rerun on restarts, so it can't be marked as done.
+			isDone = false
 		}
 
 		h.logger.Debug("downloading artifact", "artifact", artifact.GetterSource)
@@ -69,6 +76,6 @@ func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		resp.State[aid] = "1"
 	}
 
-	resp.Done = true
+	resp.Done = isDone
 	return nil
 }
