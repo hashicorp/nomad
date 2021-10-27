@@ -134,7 +134,8 @@ Vault Options:
 Debug Options:
 
   -duration=<duration>
-    The duration of the log monitor command. Defaults to 2m.
+    Set the duration of the debug capture. Logs will be captured from specified servers and
+	nodes at "log-level". Defaults to 2m.
 
   -interval=<interval>
     The interval between snapshots of the Nomad state. Set interval equal to 
@@ -158,7 +159,7 @@ Debug Options:
   -pprof-duration=<duration>
     Duration for pprof collection. Defaults to 1s.
 
-  -server-id=<server>,<server>
+  -server-id=<server1>,<server2>
     Comma separated list of Nomad server names to monitor for logs, API
     outputs, and pprof profiles. Accepts server names, "leader", or "all".
     Defaults to "all".
@@ -169,8 +170,8 @@ Debug Options:
     necessary to get the configuration from a non-leader server.
 
   -output=<path>
-    Path to the parent directory of the output directory. If not specified, an
-    archive is built in the current directory.
+    Path to the parent directory of the output directory. If specified no 
+	archive is built. Defaults to the current directory.
 `
 	return strings.TrimSpace(helpText)
 }
