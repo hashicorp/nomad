@@ -10,8 +10,8 @@ import (
 	"github.com/mitchellh/hashstructure"
 )
 
-// DiffableWithID defines an object that have an unique and stable field that
-// can be used as an identifier when generating a diff.
+// DiffableWithID defines an object that has a unique and stable value that can
+// be used as an identifier when generating a diff.
 type DiffableWithID interface {
 	// DiffID returns the value to use to match entities between the old and
 	// the new input.
