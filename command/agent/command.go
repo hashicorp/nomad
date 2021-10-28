@@ -389,7 +389,7 @@ func (c *Command) isValidConfig(config, cmdConfig *Config) bool {
 	if !config.DevMode {
 		// Ensure that we have the directories we need to run.
 		if config.Server.Enabled && config.DataDir == "" {
-			c.Ui.Error("Must specify data directory")
+			c.Ui.Error(`Must specify "data_dir" config option or "data-dir" CLI flag`)
 			return false
 		}
 
