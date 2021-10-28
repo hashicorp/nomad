@@ -37,6 +37,7 @@ export async function getStaticPaths() {
 export async function getStaticProps({ params }) {
   try {
     return {
+      revalidate: 10,
       props: await generateStaticProps({
         params,
         navDataFile: NAV_DATA_FILE,
