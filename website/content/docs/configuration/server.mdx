@@ -40,11 +40,11 @@ server {
   `1` does not provide any fault tolerance and is not recommended for production
   use cases.
 
-- `data_dir` `(string: "[data_dir]/server")` - Specifies the directory to use -
-  for server-specific data, including the replicated log. By default, this is -
-  the top-level [data_dir](/docs/configuration#data_dir)
-  suffixed with "server", like `"/opt/nomad/server"`. This must be an absolute
-  path.
+- `data_dir` `(string: "[data_dir]/server")` - Specifies the directory to use
+  for server-specific data, including the replicated log. By default, this is
+  the top-level [data_dir](/docs/configuration#data_dir) suffixed with "server",
+  like `"/opt/nomad/server"`. The top-level option must be set, even when
+  setting this value. This must be an absolute path.
 
 - `enabled` `(bool: false)` - Specifies if this agent should run in server mode.
   All other server options depend on this value being set.
