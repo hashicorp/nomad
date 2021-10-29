@@ -1007,13 +1007,7 @@ func (v *vaultClient) CreateToken(ctx context.Context, a *structs.Allocation, ta
 		DisplayName: fmt.Sprintf("%s-%s", a.ID, task),
 	}
 
-	// If set in the server config, use an entity_alias
-	if v.config.EntityAlias != "" {
-		req.EntityAlias = v.config.EntityAlias
-	}
-
-	// If set at the task level, use the task-specific alias
-	// even if the server config has an entity_alias as well
+	// If set, use the task-specific alias
 	if taskVault.EntityAlias != "" {
 		req.EntityAlias = taskVault.EntityAlias
 	}

@@ -2278,6 +2278,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							Env:          helper.BoolToPtr(true),
 							ChangeMode:   helper.StringToPtr("c"),
 							ChangeSignal: helper.StringToPtr("sighup"),
+							EntityAlias:  helper.StringToPtr("valid-alias"),
 						},
 						Templates: []*api.Template{
 							{
@@ -2671,6 +2672,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							Env:          true,
 							ChangeMode:   "c",
 							ChangeSignal: "sighup",
+							EntityAlias:  "valid-alias",
 						},
 						Templates: []*structs.Template{
 							{

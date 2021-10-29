@@ -1445,20 +1445,10 @@ func TestVaultClient_CreateToken_EntityAlias(t *testing.T) {
 	v := testutil.NewTestVault(t)
 	defer v.Stop()
 
-	var entityAliasTestValues = []struct {
-		agentConfigEntityAlias string
-		taskConfigEntityAlias  string
-	}{
-		{"valid-entity-alias", ""}, // agent config alias works
-		{"", "valid-entity-alias"}, // task config alias works
-		{"invalid-entity-alias-but-its-overwritten-so-nbd", "valid-entity-alias"}, // task config overwrites agent
-	}
+	var entityAliasTestValues = []string{"", "valid-entity-alias"}
 
-	for _, testVals := range entityAliasTestValues {
+	for _, taskEntityAlias := range entityAliasTestValues {
 		v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
-		if testVals.agentConfigEntityAlias != "" {
-			v.Config.EntityAlias = testVals.agentConfigEntityAlias
-		}
 
 		client, err := NewVaultClient(v.Config, logger, nil, nil)
 		if err != nil {
@@ -1474,12 +1464,12 @@ func TestVaultClient_CreateToken_EntityAlias(t *testing.T) {
 		a := mock.Alloc()
 		task := a.Job.TaskGroups[0].Tasks[0]
 
-		if testVals.taskConfigEntityAlias != "" {
+		if taskEntityAlias != "" {
 			task.Vault = &structs.Vault{Policies: []string{"default"}}
 		} else {
 			task.Vault = &structs.Vault{
 				Policies:    []string{"default"},
-				EntityAlias: testVals.taskConfigEntityAlias,
+				EntityAlias: taskEntityAlias,
 			}
 		}
 
@@ -1494,9 +1484,9 @@ func TestVaultClient_CreateToken_EntityAliasFailures(t *testing.T) {
 	defer v.Stop()
 
 	var entityAliasTestValues = []struct {
-		agentConfigEntityAlias string
-		errorSubstring         string
-		useRole                bool
+		taskEntityAlias string
+		errorSubstring  string
+		useRole         bool
 	}{
 		{"valid-entity-alias", "Entity Alias must be used with a Vault token that has a role", false}, // using entity-alias without a role errors
 		{"invalid-entity-alias-not-overwritten", "invalid 'entity_alias' value", true},                // invalid alias errors
@@ -1507,8 +1497,6 @@ func TestVaultClient_CreateToken_EntityAliasFailures(t *testing.T) {
 		if testVals.useRole {
 			v.Config.Token = defaultTestVaultAllowlistRoleAndToken(v, t, 5)
 		}
-
-		v.Config.EntityAlias = testVals.agentConfigEntityAlias
 
 		client, err := NewVaultClient(v.Config, logger, nil, nil)
 		if err != nil {
@@ -1524,7 +1512,10 @@ func TestVaultClient_CreateToken_EntityAliasFailures(t *testing.T) {
 		a := mock.Alloc()
 		task := a.Job.TaskGroups[0].Tasks[0]
 
-		task.Vault = &structs.Vault{Policies: []string{"default"}}
+		task.Vault = &structs.Vault{
+			Policies:    []string{"default"},
+			EntityAlias: testVals.taskEntityAlias,
+		}
 
 		_, err = client.CreateToken(context.Background(), a, task.Name)
 

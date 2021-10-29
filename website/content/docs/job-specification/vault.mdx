@@ -76,8 +76,7 @@ with Vault as well.
 
 - `entity_alias` `(string: "")` - Specifies the entity alias to use when creating
   Vault tokens in the task. This allows multiple tokens to be created as a single
-  Vault client. If given, this value overrides the "entity_alias" value found in the
-  [Nomad server vault configuration](/docs/configuration/vault#nomad-server).
+  Vault client.
 
 - `policies` `(array<string>: [])` - Specifies the set of Vault policies that
   the task requires. The Nomad client will retrieve a Vault token that is
