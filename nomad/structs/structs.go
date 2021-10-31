@@ -6611,6 +6611,7 @@ const (
 
 // LogConfig provides configuration for log rotation
 type LogConfig struct {
+	Enabled       bool
 	MaxFiles      int
 	MaxFileSizeMB int
 }
@@ -6618,6 +6619,10 @@ type LogConfig struct {
 func (l *LogConfig) Equals(o *LogConfig) bool {
 	if l == nil || o == nil {
 		return l == o
+	}
+
+	if l.Enabled != o.Enabled {
+		return false
 	}
 
 	if l.MaxFiles != o.MaxFiles {
@@ -6636,6 +6641,7 @@ func (l *LogConfig) Copy() *LogConfig {
 		return nil
 	}
 	return &LogConfig{
+		Enabled:       l.Enabled,
 		MaxFiles:      l.MaxFiles,
 		MaxFileSizeMB: l.MaxFileSizeMB,
 	}
@@ -6644,6 +6650,7 @@ func (l *LogConfig) Copy() *LogConfig {
 // DefaultLogConfig returns the default LogConfig values.
 func DefaultLogConfig() *LogConfig {
 	return &LogConfig{
+		Enabled:       true,
 		MaxFiles:      10,
 		MaxFileSizeMB: 10,
 	}

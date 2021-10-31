@@ -1076,6 +1076,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	structsTask.Resources = ApiResourcesToStructs(apiTask.Resources)
 
 	structsTask.LogConfig = &structs.LogConfig{
+		Enabled:       *apiTask.LogConfig.Enabled,
 		MaxFiles:      *apiTask.LogConfig.MaxFiles,
 		MaxFileSizeMB: *apiTask.LogConfig.MaxFileSizeMB,
 	}

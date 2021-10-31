@@ -103,6 +103,10 @@ func reattachConfigFromHookData(data map[string]string) (*plugin.ReattachConfig,
 func (h *logmonHook) Prestart(ctx context.Context,
 	req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 
+	if !req.Task.LogConfig.Enabled {
+		h.logger.Debug("logging is disabled by task configuration")
+		return nil
+	}
 	if h.isLoggingDisabled() {
 		h.logger.Debug("logging is disabled by driver")
 		return nil
