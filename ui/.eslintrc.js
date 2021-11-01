@@ -9,10 +9,7 @@ module.exports = {
     browser: true,
     es6: true,
   },
-  extends: [
-    'eslint:recommended',
-    'plugin:ember/recommended',
-  ],
+  extends: ['eslint:recommended', 'plugin:ember/recommended'],
   parser: 'babel-eslint',
   parserOptions: {
     ecmaVersion: 2018,
@@ -21,11 +18,9 @@ module.exports = {
       legacyDecorators: true,
     },
   },
-  plugins: [
-    'ember'
-  ],
+  plugins: ['ember'],
   rules: {
-    indent: ['error', 2, { SwitchCase: 1 }],
+    indent: ['error', 2, { SwitchCase: 1, ignoredNodes: ['TemplateLiteral'] }],
     'linebreak-style': ['error', 'unix'],
     quotes: ['error', 'single', 'avoid-escape'],
     semi: ['error', 'always'],
@@ -62,13 +57,11 @@ module.exports = {
       },
       plugins: ['node'],
       rules: {
-        'node/no-unpublished-require': 'off'
+        'node/no-unpublished-require': 'off',
       },
     },
     {
-      files: [
-        'stories/**/*.js'
-      ],
+      files: ['stories/**/*.js'],
       parserOptions: {
         sourceType: 'module',
       },
