@@ -4459,7 +4459,7 @@ func TestTaskDiff(t *testing.T) {
 			New: &Task{
 				Artifacts: []*TaskArtifact{
 					{
-						GetterSource: "foo",
+						GetterSource: "foo/bar",
 						GetterOptions: map[string]string{
 							"foo": "bar",
 						},
@@ -4482,6 +4482,18 @@ func TestTaskDiff(t *testing.T) {
 			Expected: &TaskDiff{
 				Type: DiffTypeEdited,
 				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Artifact",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "GetterSource",
+								Old:  "foo",
+								New:  "foo/bar",
+							},
+						},
+					},
 					{
 						Type: DiffTypeAdded,
 						Name: "Artifact",
@@ -6914,7 +6926,7 @@ func TestTaskDiff(t *testing.T) {
 					{
 						SourcePath:   "foo",
 						DestPath:     "bar",
-						EmbeddedTmpl: "baz",
+						EmbeddedTmpl: "baz new",
 						ChangeMode:   "bam",
 						ChangeSignal: "SIGHUP",
 						Splay:        1,
@@ -6934,6 +6946,18 @@ func TestTaskDiff(t *testing.T) {
 			Expected: &TaskDiff{
 				Type: DiffTypeEdited,
 				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Template",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "EmbeddedTmpl",
+								Old:  "baz",
+								New:  "baz new",
+							},
+						},
+					},
 					{
 						Type: DiffTypeAdded,
 						Name: "Template",
