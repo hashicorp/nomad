@@ -40,6 +40,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		valid := []string{
 			"count",
 			"constraint",
+			"consul",
 			"affinity",
 			"restart",
 			"meta",
@@ -67,6 +68,7 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		}
 
 		delete(m, "constraint")
+		delete(m, "consul")
 		delete(m, "affinity")
 		delete(m, "meta")
 		delete(m, "task")
@@ -101,6 +103,13 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 		if o := listVal.Filter("constraint"); len(o.Items) > 0 {
 			if err := parseConstraints(&g.Constraints, o); err != nil {
 				return multierror.Prefix(err, fmt.Sprintf("'%s', constraint ->", n))
+			}
+		}
+
+		// Parse consul
+		if o := listVal.Filter("consul"); len(o.Items) > 0 {
+			if err := parseConsul(&g.Consul, o); err != nil {
+				return multierror.Prefix(err, fmt.Sprintf("'%s', consul ->", n))
 			}
 		}
 
@@ -225,6 +234,37 @@ func parseGroups(result *api.Job, list *ast.ObjectList) error {
 	}
 
 	result.TaskGroups = append(result.TaskGroups, collection...)
+	return nil
+}
+
+func parseConsul(result **api.Consul, list *ast.ObjectList) error {
+	list = list.Elem()
+	if len(list.Items) > 1 {
+		return fmt.Errorf("only one 'consul' block allowed")
+	}
+
+	// Get our consul object
+	obj := list.Items[0]
+
+	// Check for invalid keys
+	valid := []string{
+		"namespace",
+	}
+	if err := checkHCLKeys(obj.Val, valid); err != nil {
+		return err
+	}
+
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&m, obj.Val); err != nil {
+		return err
+	}
+
+	var consul api.Consul
+	if err := mapstructure.WeakDecode(m, &consul); err != nil {
+		return err
+	}
+	*result = &consul
+
 	return nil
 }
 

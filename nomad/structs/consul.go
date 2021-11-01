@@ -24,12 +24,6 @@ func (c *Consul) Equals(o *Consul) bool {
 	return c.Namespace == o.Namespace
 }
 
-// Validate returns whether c is valid.
-func (c *Consul) Validate() error {
-	// nothing to do here
-	return nil
-}
-
 // ConsulUsage is provides meta information about how Consul is used by a job,
 // noting which connect services and normal services will be registered, and
 // whether the keystore will be read via template.

@@ -50,6 +50,6 @@ func TestConsul_Validate(t *testing.T) {
 
 	t.Run("with ns", func(t *testing.T) {
 		result := (&Consul{Namespace: "one"}).Validate()
-		require.Nil(t, result)
+		require.Error(t, result)
 	})
 }
