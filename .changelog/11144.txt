@@ -1,0 +1,3 @@
+```release-note:improvement
+agent: Added `tls -> rpc_upgrade_mode` to be reloaded on SIGHUP
+```

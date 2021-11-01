@@ -1296,6 +1296,27 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 	}
 }
 
+func TestServer_ShouldReload_ReturnTrueForRPCUpgradeModeChanges(t *testing.T) {
+	t.Parallel()
+
+	sameAgentConfig := &Config{
+		TLSConfig: &config.TLSConfig{
+			RPCUpgradeMode: true,
+		},
+	}
+
+	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.TLSConfig = &config.TLSConfig{
+			RPCUpgradeMode: false,
+		}
+	})
+	defer agent.Shutdown()
+
+	shouldReloadAgent, shouldReloadHTTP := agent.ShouldReload(sameAgentConfig)
+	require.True(t, shouldReloadAgent)
+	require.False(t, shouldReloadHTTP)
+}
+
 func TestAgent_ProxyRPC_Dev(t *testing.T) {
 	t.Parallel()
 	agent := NewTestAgent(t, t.Name(), nil)

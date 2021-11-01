@@ -1098,6 +1098,10 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 		agent = true
 	}
 
+	if a.config.TLSConfig.RPCUpgradeMode != newConfig.TLSConfig.RPCUpgradeMode {
+		agent = true
+	}
+
 	return agent, http
 }
 
