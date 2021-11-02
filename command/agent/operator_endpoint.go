@@ -246,7 +246,7 @@ func (s *HTTPServer) schedulerGetConfig(resp http.ResponseWriter, req *http.Requ
 	}
 	setMeta(resp, &reply.QueryMeta)
 
-	return reply.SchedulerConfig, nil
+	return reply, nil
 }
 
 func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
