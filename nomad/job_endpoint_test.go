@@ -6985,6 +6985,56 @@ func TestJobEndpoint_Scale_NoEval(t *testing.T) {
 	require.Equal(int64(originalCount), events[groupName][0].PreviousCount)
 }
 
+func TestJobEndpoint_Scale_Priority(t *testing.T) {
+	t.Parallel()
+	requireAssertion := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	fsmState := s1.fsm.State()
+
+	// Create a job and alter the priority.
+	job := mock.Job()
+	job.Priority = 90
+	originalCount := job.TaskGroups[0].Count
+	err := fsmState.UpsertJob(structs.MsgTypeTestSetup, 1000, job)
+	requireAssertion.Nil(err)
+
+	groupName := job.TaskGroups[0].Name
+	scale := &structs.JobScaleRequest{
+		JobID: job.ID,
+		Target: map[string]string{
+			structs.ScalingTargetGroup: groupName,
+		},
+		Count:          helper.Int64ToPtr(int64(originalCount + 1)),
+		Message:        "scotty, we need more power",
+		PolicyOverride: false,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp structs.JobRegisterResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scale, &resp)
+	requireAssertion.NoError(err)
+	requireAssertion.NotEmpty(resp.EvalID)
+	requireAssertion.Greater(resp.EvalCreateIndex, resp.JobModifyIndex)
+
+	// Check the evaluation priority matches the job priority.
+	eval, err := fsmState.EvalByID(nil, resp.EvalID)
+	requireAssertion.Nil(err)
+	requireAssertion.NotNil(eval)
+	requireAssertion.EqualValues(resp.EvalCreateIndex, eval.CreateIndex)
+	requireAssertion.Equal(job.Priority, eval.Priority)
+	requireAssertion.Equal(job.Type, eval.Type)
+	requireAssertion.Equal(structs.EvalTriggerScaling, eval.TriggeredBy)
+	requireAssertion.Equal(job.ID, eval.JobID)
+	requireAssertion.NotZero(eval.CreateTime)
+	requireAssertion.NotZero(eval.ModifyTime)
+}
+
 func TestJobEndpoint_InvalidCount(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
