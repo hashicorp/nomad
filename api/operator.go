@@ -171,8 +171,8 @@ type PreemptionConfig struct {
 }
 
 // SchedulerGetConfiguration is used to query the current Scheduler configuration.
-func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfiguration, *QueryMeta, error) {
-	var resp SchedulerConfiguration
+func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfigurationResponse, *QueryMeta, error) {
+	var resp SchedulerConfigurationResponse
 	qm, err := op.c.query("/v1/operator/scheduler/configuration", &resp, q)
 	if err != nil {
 		return nil, nil, err

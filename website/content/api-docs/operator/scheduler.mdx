@@ -37,51 +37,48 @@ $ curl \
 
 ```json
 {
-  "CreateIndex": 5,
-  "MemoryOversubscriptionEnabled": false,
-  "ModifyIndex": 5,
-  "PreemptionConfig": {
-    "BatchSchedulerEnabled": false,
-    "ServiceSchedulerEnabled": false,
-    "SysBatchSchedulerEnabled": false,
-    "SystemSchedulerEnabled": true
-  },
-  "SchedulerAlgorithm": "binpack"
+  "Index": 5,
+  "KnownLeader": true,
+  "LastContact": 0,
+  "SchedulerConfig": {
+    "CreateIndex": 5,
+    "ModifyIndex": 5,
+    "SchedulerAlgorithm": "spread",
+    "MemoryOversubscriptionEnabled": true,
+    "PreemptionConfig": {
+      "SystemSchedulerEnabled": true,
+      "BatchSchedulerEnabled": false,
+      "ServiceSchedulerEnabled": false
+    }
+  }
 }
 ```
 
 #### Field Reference
 
-- `SchedulerAlgorithm` `(string: "binpack")` - Specifies whether scheduler
-  binpacks or spreads allocations on available nodes.
+- `Index` `(int)` - The `Index` value is the Raft index corresponding to this
+  configuration.
 
-- `MemoryOversubscriptionEnabled` `(bool: false)` <sup>1.1 or later</sup> - When
-  `true`, tasks may exceed their reserved memory limit, if the client has excess
-  memory capacity. Tasks must specify
-  [`memory_max`](/docs/job-specification/resources#memory_max) to take advantage
-  of memory oversubscription.
+- `SchedulerConfig` `(SchedulerConfig)` - The returned `SchedulerConfig` object has configuration
+  settings mentioned below.
 
-- `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for
-  various schedulers.
+  - `SchedulerAlgorithm` `(string: "binpack")` - Specifies whether scheduler binpacks or spreads allocations on available nodes.
 
-  - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for
-    system jobs is enabled. Note that this defaults to true.
+  - `MemoryOversubscriptionEnabled` `(bool: false)` <sup>1.1 Beta</sup> - When `true`, tasks may exceed their reserved memory limit, if the client has excess memory capacity. Tasks must specify [`memory_max`](/docs/job-specification/resources#memory_max) to take advantage of memory oversubscription.
 
-  - `SysBatchSchedulerEnabled` `(bool: false)` - Specifies whether preemption
-    for sysbatch jobs is enabled. Note that this defaults to false and must be
-    explicitly enabled.
+  - `PreemptionConfig` `(PreemptionConfig)` - Options to enable preemption for various schedulers.
 
-  - `BatchSchedulerEnabled` `(bool: false)` - Specifies whether preemption for
-    batch jobs is enabled. Note that this defaults to false and must be explicitly
-    enabled.
+    - `SystemSchedulerEnabled` `(bool: true)` - Specifies whether preemption for system jobs is enabled. Note that
+      this defaults to true.
 
-  - `ServiceSchedulerEnabled` `(bool: false)` - Specifies whether preemption for
-    service jobs is enabled. Note that this defaults to false and must be
-    explicitly enabled.
+    - `BatchSchedulerEnabled` `(bool: false)` - Specifies whether preemption for batch jobs is enabled. Note that
+      this defaults to false and must be explicitly enabled.
 
-- `CreateIndex` - The Raft index at which the configuration was created.
+    - `ServiceSchedulerEnabled` `(bool: false)` - Specifies whether preemption for service jobs is enabled. Note that
+      this defaults to false and must be explicitly enabled.
 
-- `ModifyIndex` - The Raft index at which the configuration was modified.
+  - `CreateIndex` - The Raft index at which the config was created.
+  - `ModifyIndex` - The Raft index at which the config was modified.
 
 ## Update Scheduler Configuration
 
