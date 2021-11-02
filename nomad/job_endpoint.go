@@ -829,12 +829,26 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// priority even if the job was.
 	now := time.Now().UnixNano()
 
+	// Set our default priority initially, but update this to that configured
+	// within the job if possible. It is reasonable from a user perspective
+	// that jobs with a higher priority have their deregister evaluated before
+	// those of a lower priority.
+	//
+	// Alternatively, the previous behaviour was to set the eval priority to
+	// the default value. Jobs with a lower than default register priority
+	// would therefore have their deregister eval priorities higher than
+	// expected.
+	priority := structs.JobDefaultPriority
+	if job != nil {
+		priority = job.Priority
+	}
+
 	// If the job is periodic or parameterized, we don't create an eval.
 	if job == nil || !(job.IsPeriodic() || job.IsParameterized()) {
 		eval = &structs.Evaluation{
 			ID:          uuid.Generate(),
 			Namespace:   args.RequestNamespace(),
-			Priority:    structs.JobDefaultPriority,
+			Priority:    priority,
 			Type:        structs.JobTypeService,
 			TriggeredBy: structs.EvalTriggerJobDeregister,
 			JobID:       args.JobID,
