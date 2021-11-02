@@ -125,6 +125,9 @@ configuring Nomad to talk to Consul via DNS such as consul.service.consul
 - `tags` `(array<string>: [])` - Specifies optional Consul tags to be
   registered with the Nomad server and agent services.
 
+- `timeout` `(string: "5s")` - Specifies a time limit for requests made against
+  Consul. This is specified using a label suffix like "10s".
+
 - `token` `(string: "")` - Specifies the token used to provide a per-request ACL
   token. This option overrides the Consul Agent's default token. If the token is
   not set here or on the Consul agent, it will default to Consul's anonymous policy,
