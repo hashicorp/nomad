@@ -65,7 +65,6 @@ func (tr *TaskRunner) initHooks() {
 		newLogMonHook(tr, hookLogger),
 		newDispatchHook(alloc, hookLogger),
 		newVolumeHook(tr, hookLogger),
-		newArtifactHook(tr, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
 	}
@@ -79,6 +78,7 @@ func (tr *TaskRunner) initHooks() {
 	if task.Vault != nil {
 		tr.runnerHooks = append(tr.runnerHooks, newVaultHook(&vaultHookConfig{
 			vaultStanza: task.Vault,
+			envBuilder:  tr.envBuilder,
 			client:      tr.vaultClient,
 			events:      tr,
 			lifecycle:   tr,
@@ -88,6 +88,8 @@ func (tr *TaskRunner) initHooks() {
 			task:        tr.taskName,
 		}))
 	}
+
+	tr.runnerHooks = append(tr.runnerHooks, newArtifactHook(tr, hookLogger))
 
 	// Get the consul namespace for the TG of the allocation
 	consulNamespace := tr.alloc.ConsulNamespace()

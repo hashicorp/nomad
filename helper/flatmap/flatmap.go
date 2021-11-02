@@ -3,6 +3,7 @@ package flatmap
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 )
 
 // Flatten takes an object and returns a flat map of the object. The keys of the
@@ -15,18 +16,51 @@ func Flatten(obj interface{}, filter []string, primitiveOnly bool) map[string]st
 		return nil
 	}
 
-	flatten("", v, primitiveOnly, false, flat)
+	flatten("", v, primitiveOnly, false, flat, PrefixMakers{})
 	for _, f := range filter {
 		delete(flat, f)
 	}
 	return flat
 }
 
+// FlattenDotPrefix does the same as Flatten, but generates struct-style
+// dot access prefixes even for maps
+func FlattenDotPrefix(obj interface{}, filter []string, primitiveOnly bool) map[string]string {
+	flat := make(map[string]string)
+	v := reflect.ValueOf(obj)
+	if !v.IsValid() {
+		return nil
+	}
+
+	flatten("", v, primitiveOnly, false, flat, PrefixMakers{
+		forMap: getSubPrefixStruct,
+	})
+	for _, f := range filter {
+		delete(flat, f)
+	}
+	return flat
+}
+
+type PrefixMakers struct {
+	forStruct, forMap func(string, string) string
+	forArray          func(string, int) string
+}
+
 // flatten recursively calls itself to create a flatmap representation of the
 // passed value. The results are stored into the output map and the keys are
 // the fields prepended with the passed prefix.
 // XXX: A current restriction is that maps only support string keys.
-func flatten(prefix string, v reflect.Value, primitiveOnly, enteredStruct bool, output map[string]string) {
+func flatten(prefix string, v reflect.Value, primitiveOnly, enteredStruct bool, output map[string]string, prefixMakers PrefixMakers) {
+	if prefixMakers.forMap == nil {
+		prefixMakers.forMap = getSubPrefixMap
+	}
+	if prefixMakers.forStruct == nil {
+		prefixMakers.forStruct = getSubPrefixStruct
+	}
+	if prefixMakers.forArray == nil {
+		prefixMakers.forArray = getSubPrefixArray
+	}
+
 	switch v.Kind() {
 	case reflect.Bool:
 		output[prefix] = fmt.Sprintf("%v", v.Bool())
@@ -51,7 +85,7 @@ func flatten(prefix string, v reflect.Value, primitiveOnly, enteredStruct bool, 
 		if !e.IsValid() {
 			output[prefix] = "nil"
 		}
-		flatten(prefix, e, primitiveOnly, enteredStruct, output)
+		flatten(prefix, e, primitiveOnly, enteredStruct, output, prefixMakers)
 	case reflect.Map:
 		for _, k := range v.MapKeys() {
 			if k.Kind() == reflect.Interface {
@@ -62,7 +96,7 @@ func flatten(prefix string, v reflect.Value, primitiveOnly, enteredStruct bool, 
 				panic(fmt.Sprintf("%q: map key is not string: %s", prefix, k))
 			}
 
-			flatten(getSubKeyPrefix(prefix, k.String()), v.MapIndex(k), primitiveOnly, enteredStruct, output)
+			flatten(prefixMakers.forMap(prefix, k.String()), v.MapIndex(k), primitiveOnly, enteredStruct, output, prefixMakers)
 		}
 	case reflect.Struct:
 		if primitiveOnly && enteredStruct {
@@ -78,7 +112,7 @@ func flatten(prefix string, v reflect.Value, primitiveOnly, enteredStruct bool, 
 				val = val.Elem()
 			}
 
-			flatten(getSubPrefix(prefix, name), val, primitiveOnly, enteredStruct, output)
+			flatten(prefixMakers.forStruct(prefix, name), val, primitiveOnly, enteredStruct, output, prefixMakers)
 		}
 	case reflect.Interface:
 		if primitiveOnly {
@@ -90,7 +124,7 @@ func flatten(prefix string, v reflect.Value, primitiveOnly, enteredStruct bool, 
 			output[prefix] = "nil"
 			return
 		}
-		flatten(prefix, e, primitiveOnly, enteredStruct, output)
+		flatten(prefix, e, primitiveOnly, enteredStruct, output, prefixMakers)
 	case reflect.Array, reflect.Slice:
 		if primitiveOnly {
 			return
@@ -101,27 +135,33 @@ func flatten(prefix string, v reflect.Value, primitiveOnly, enteredStruct bool, 
 			return
 		}
 		for i := 0; i < v.Len(); i++ {
-			flatten(fmt.Sprintf("%s[%d]", prefix, i), v.Index(i), primitiveOnly, enteredStruct, output)
+			flatten(prefixMakers.forArray(prefix, i), v.Index(i), primitiveOnly, enteredStruct, output, prefixMakers)
 		}
 	default:
 		panic(fmt.Sprintf("prefix %q; unsupported type %v", prefix, v.Kind()))
 	}
 }
 
-// getSubPrefix takes the current prefix and the next subfield and returns an
-// appropriate prefix.
-func getSubPrefix(curPrefix, subField string) string {
+// getSubPrefixStruct takes the current prefix and the next subfield and returns an
+// appropriate prefix for a struct member.
+func getSubPrefixStruct(curPrefix, subField string) string {
 	if curPrefix != "" {
 		return fmt.Sprintf("%s.%s", curPrefix, subField)
 	}
 	return subField
 }
 
-// getSubKeyPrefix takes the current prefix and the next subfield and returns an
+// getSubPrefixMap takes the current prefix and the next subfield and returns an
 // appropriate prefix for a map field.
-func getSubKeyPrefix(curPrefix, subField string) string {
+func getSubPrefixMap(curPrefix, subField string) string {
 	if curPrefix != "" {
 		return fmt.Sprintf("%s[%s]", curPrefix, subField)
 	}
 	return subField
+}
+
+// getSubPrefixArray takes the current prefix and the next subfield and
+// returns an appropriate prefix for an array element.
+func getSubPrefixArray(curPrefix string, index int) string {
+	return getSubPrefixMap(curPrefix, strconv.Itoa(index))
 }

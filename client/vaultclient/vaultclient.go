@@ -45,6 +45,9 @@ type VaultClient interface {
 	// StopRenewToken removes the token from the min-heap, stopping its
 	// renewal.
 	StopRenewToken(string) error
+
+	// GetSecret fetches a secret
+	GetSecret(string, string) (*vaultapi.Secret, error)
 }
 
 // Implementation of VaultClient interface to interact with vault and perform
@@ -257,24 +260,10 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 // GetConsulACL creates a vault API client and reads from vault a consul ACL
 // token used by the task.
 func (c *vaultClient) GetConsulACL(token, path string) (*vaultapi.Secret, error) {
-	if !c.config.IsEnabled() {
-		return nil, fmt.Errorf("vault client not enabled")
-	}
-	if token == "" {
-		return nil, fmt.Errorf("missing token")
-	}
 	if path == "" {
 		return nil, fmt.Errorf("missing consul ACL token vault path")
 	}
-
-	c.lock.Lock()
-	defer c.unlockAndUnset()
-
-	// Use the token supplied to interact with vault
-	c.client.SetToken(token)
-
-	// Read the consul ACL token and return the secret directly
-	return c.client.Logical().Read(path)
+	return c.GetSecret(token, path)
 }
 
 // RenewToken renews the supplied token for a given duration (in seconds) and
@@ -457,6 +446,27 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	}
 
 	return nil
+}
+
+func (c *vaultClient) GetSecret(token, path string) (*vaultapi.Secret, error) {
+	if !c.config.IsEnabled() {
+		return nil, fmt.Errorf("vault client not enabled")
+	}
+	if token == "" {
+		return nil, fmt.Errorf("missing token")
+	}
+	if path == "" {
+		return nil, fmt.Errorf("missing vault secret path")
+	}
+
+	c.lock.Lock()
+	defer c.unlockAndUnset()
+
+	// Use the token supplied to interact with vault
+	c.client.SetToken(token)
+
+	// Read the consul ACL token and return the secret directly
+	return c.client.Logical().Read(path)
 }
 
 // run is the renewal loop which performs the periodic renewals of both the

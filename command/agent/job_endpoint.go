@@ -1102,6 +1102,15 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			ChangeMode:   *apiTask.Vault.ChangeMode,
 			ChangeSignal: *apiTask.Vault.ChangeSignal,
 		}
+		for _, secret := range apiTask.Vault.Secrets {
+			structsTask.Vault.Secrets = append(structsTask.Vault.Secrets,
+				&structs.VaultSecret{
+					Name: secret.Name,
+					Path: secret.Path,
+				},
+			)
+		}
+
 	}
 
 	if len(apiTask.Templates) > 0 {

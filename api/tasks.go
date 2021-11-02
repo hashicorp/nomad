@@ -832,11 +832,12 @@ func (tmpl *Template) Canonicalize() {
 }
 
 type Vault struct {
-	Policies     []string `hcl:"policies,optional"`
-	Namespace    *string  `mapstructure:"namespace" hcl:"namespace,optional"`
-	Env          *bool    `hcl:"env,optional"`
-	ChangeMode   *string  `mapstructure:"change_mode" hcl:"change_mode,optional"`
-	ChangeSignal *string  `mapstructure:"change_signal" hcl:"change_signal,optional"`
+	Policies     []string       `hcl:"policies,optional"`
+	Namespace    *string        `mapstructure:"namespace" hcl:"namespace,optional"`
+	Env          *bool          `hcl:"env,optional"`
+	ChangeMode   *string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
+	ChangeSignal *string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
+	Secrets      []*VaultSecret `hcl:"secret,block"`
 }
 
 func (v *Vault) Canonicalize() {
@@ -852,6 +853,11 @@ func (v *Vault) Canonicalize() {
 	if v.ChangeSignal == nil {
 		v.ChangeSignal = stringToPtr("SIGHUP")
 	}
+}
+
+type VaultSecret struct {
+	Name string `hcl:"name,label"`
+	Path string `hcl:"path"`
 }
 
 // NewTask creates and initializes a new Task.
