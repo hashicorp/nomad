@@ -22,13 +22,24 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
+Bootstrap Options:
+
+  -json
+    Output the bootstrap response in JSON format.
+
+  -t
+    Format and display the bootstrap response using a Go template.
+
 `
 	return strings.TrimSpace(helpText)
 }
 
 func (c *ACLBootstrapCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{})
+		complete.Flags{
+			"-json": complete.PredictNothing,
+			"-t":    complete.PredictAnything,
+		})
 }
 
 func (c *ACLBootstrapCommand) AutocompleteArgs() complete.Predictor {
@@ -42,8 +53,16 @@ func (c *ACLBootstrapCommand) Synopsis() string {
 func (c *ACLBootstrapCommand) Name() string { return "acl bootstrap" }
 
 func (c *ACLBootstrapCommand) Run(args []string) int {
+
+	var (
+		json bool
+		tmpl string
+	)
+
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -68,6 +87,17 @@ func (c *ACLBootstrapCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error bootstrapping: %s", err))
 		return 1
+	}
+
+	if json || len(tmpl) > 0 {
+		out, err := Format(json, tmpl, token)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		c.Ui.Output(out)
+		return 0
 	}
 
 	// Format the output
