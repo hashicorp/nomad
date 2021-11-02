@@ -1908,6 +1908,9 @@ type Node struct {
 	// HostVolumes is a map of host volume names to their configuration
 	HostVolumes map[string]*ClientHostVolumeConfig
 
+	// HostNetworks is a map of host host_network names to their configuration
+	HostNetworks map[string]*ClientHostNetworkConfig
+
 	// LastDrain contains metadata about the most recent drain operation
 	LastDrain *DrainMetadata
 
@@ -1993,6 +1996,7 @@ func (n *Node) Copy() *Node {
 	nn.CSINodePlugins = copyNodeCSI(nn.CSINodePlugins)
 	nn.Drivers = copyNodeDrivers(n.Drivers)
 	nn.HostVolumes = copyNodeHostVolumes(n.HostVolumes)
+	nn.HostNetworks = copyNodeHostNetworks(n.HostNetworks)
 	return nn
 }
 
@@ -2049,6 +2053,21 @@ func copyNodeHostVolumes(volumes map[string]*ClientHostVolumeConfig) map[string]
 	c := make(map[string]*ClientHostVolumeConfig, l)
 	for volume, v := range volumes {
 		c[volume] = v.Copy()
+	}
+
+	return c
+}
+
+// copyNodeHostVolumes is a helper to copy a map of string to HostNetwork
+func copyNodeHostNetworks(networks map[string]*ClientHostNetworkConfig) map[string]*ClientHostNetworkConfig {
+	l := len(networks)
+	if l == 0 {
+		return nil
+	}
+
+	c := make(map[string]*ClientHostNetworkConfig, l)
+	for network, v := range networks {
+		c[network] = v.Copy()
 	}
 
 	return c

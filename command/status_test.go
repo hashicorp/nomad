@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/nomad/command/agent"
@@ -11,6 +12,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStatusCommand_Run_JobStatus(t *testing.T) {
@@ -232,4 +234,86 @@ func TestStatusCommand_AutocompleteArgs(t *testing.T) {
 
 	res := predictor.Predict(args)
 	assert.Contains(res, job.ID)
+}
+
+func TestStatusCommand_Run_HostNetwork(t *testing.T) {
+	t.Parallel()
+
+	// Start in dev mode so we get a node registration
+	srv, client, url := testServer(t, true, func(c *agent.Config) {
+		c.Client.HostNetworks = []*structs.ClientHostNetworkConfig{{
+			Name:      "internal",
+			CIDR:      "127.0.0.1/8",
+			Interface: "lo",
+		}}
+	})
+
+	defer srv.Shutdown()
+	ui := cli.NewMockUi()
+
+	testCases := []struct {
+		name       string
+		verbose    bool
+		assertions func(string)
+	}{
+		{
+			name:    "short",
+			verbose: false,
+			assertions: func(out string) {
+				hostNetworksRegexpStr := `Host Networks\s+=\s+internal\n`
+				require.Regexp(t, regexp.MustCompile(hostNetworksRegexpStr), out)
+			},
+		},
+		{
+			name:    "verbose",
+			verbose: true,
+			assertions: func(out string) {
+				verboseHostNetworksHeadRegexpStr := `Name\s+CIDR\s+Interface\n`
+				require.Regexp(t, regexp.MustCompile(verboseHostNetworksHeadRegexpStr), out)
+
+				verboseHostNetworksBodyRegexpStr := `internal\s+127\.0\.0\.1/8\s+lo\n`
+				require.Regexp(t, regexp.MustCompile(verboseHostNetworksBodyRegexpStr), out)
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+			// Wait for a node to appear
+			var nodeID string
+			testutil.WaitForResult(func() (bool, error) {
+				nodes, _, err := client.Nodes().List(nil)
+				if err != nil {
+					return false, err
+				}
+				if len(nodes) == 0 {
+					return false, fmt.Errorf("missing node")
+				}
+				nodeID = nodes[0].ID
+				return true, nil
+			}, func(err error) {
+				t.Fatalf("err: %s", err)
+			})
+
+			// Query to check the node status
+			args := []string{"-address=" + url}
+			if tt.verbose {
+				args = append(args, "-verbose")
+			}
+			args = append(args, nodeID)
+
+			if code := cmd.Run(args); code != 0 {
+				t.Fatalf("expected exit 0, got: %d", code)
+			}
+
+			out := ui.OutputWriter.String()
+
+			tt.assertions(out)
+
+			ui.OutputWriter.Reset()
+		})
+	}
+
 }

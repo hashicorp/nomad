@@ -506,6 +506,13 @@ type HostVolumeInfo struct {
 	ReadOnly bool
 }
 
+//HostVolumeInfo is used to return metadata about a given HostNetwork
+type HostNetworkInfo struct {
+	Name      string
+	CIDR      string
+	Interface string
+}
+
 type DrainStatus string
 
 // DrainMetadata contains information about the most recent drain operation for a given Node.
@@ -541,6 +548,7 @@ type Node struct {
 	Events                []*NodeEvent
 	Drivers               map[string]*DriverInfo
 	HostVolumes           map[string]*HostVolumeInfo
+	HostNetworks          map[string]*HostNetworkInfo
 	CSIControllerPlugins  map[string]*CSIInfo
 	CSINodePlugins        map[string]*CSIInfo
 	LastDrain             *DrainMetadata
