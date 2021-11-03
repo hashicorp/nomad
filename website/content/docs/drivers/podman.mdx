@@ -17,35 +17,8 @@ daemonless container runtime for executing Nomad tasks. Podman supports OCI
 containers and its command line tool is meant to be [a drop-in replacement for
 Docker's][podman-cli].
 
-See the project's [homepage][homepage] for details.
-
-## Client Requirements
-
-The Podman task driver is not builtin to Nomad. It must be [downloaded][downloaded] onto the client host
-in the configured plugin directory.
-
-- Linux host with [`podman`][podman] installed.
-- [`nomad-driver-podman`][releases] binary in Nomad's [`plugin_dir`][plugin_dir].
-
-## Capabilities
-
-The `podman` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
-
-| Feature              | Implementation          |
-| -------------------- | ----------------------- |
-| `nomad alloc signal` | true                    |
-| `nomad alloc exec`   | false                   |
-| filesystem isolation | image                   |
-| network isolation    | host, group, task, none |
-| volume mounting      | none                    |
-
-## Known Limitations
-
-The Podman task driver is under active development. It currently does not support [stderr logging][stderr-logging] and [devices][devices].
-
-## Task Configuration
-
-Due to Podman's similarity to Docker, the example job created by [`nomad init -short`][nomad-init] is easily adapted to use Podman instead:
+Due to Podman's similarity to Docker, the example job created by
+[`nomad init -short`][nomad-init] is easily adapted to use Podman instead:
 
 ```hcl
 job "redis" {
@@ -69,136 +42,439 @@ job "redis" {
 }
 ```
 
-- `image` - The image to run.
+Refer to the project's [homepage][homepage] for details.
 
-```hcl
-config {
-  image = "docker://redis"
-}
-```
+## Client Requirements
+
+The Podman task driver is not builtin to Nomad. It must be
+[downloaded][downloaded] onto the client host in the configured plugin
+directory.
+
+- [Nomad][nomad_download] 0.12.9+
+- Linux host with [`podman`][podman] installed
+- For rootless containers you need a system supporting cgroup V2 and a few
+  other things, follow [this tutorial][rootless_tutorial].
+
+You need a 3.0.x podman binary and a system socket activation unit, refer to
+[https://www.redhat.com/sysadmin/podmans-new-rest-api](https://www.redhat.com/sysadmin/podmans-new-rest-api).
+
+Nomad agent, `nomad-driver-podman` and `podman` will reside on the same client,
+so you do not have to worry about the `ssh` aspects of the Podman api.
+
+Ensure that Nomad can find the plugin, refer to [`plugin_dir`][plugin_dir].
+
+## Capabilities
+
+The `podman` driver implements the following [capabilities](/docs/internals/plugins/task-drivers#capabilities-capabilities-error).
+
+| Feature              | Implementation          |
+| -------------------- | ----------------------- |
+| `nomad alloc signal` | true                    |
+| `nomad alloc exec`   | false                   |
+| filesystem isolation | image                   |
+| network isolation    | host, group, task, none |
+| volume mounting      | none                    |
+
+## Task Configuration
+
+- `args` - (Optional) A list of arguments to the optional command. If no
+  [`command`] is specified, the arguments are passed directly to the container.
+
+  ```hcl
+  config {
+    args = [
+      "arg1",
+      "arg2",
+    ]
+  }
+  ```
+
+- `auth` - (Optional) Authenticate to the image registry using a static
+  credential.
+
+  ```hcl
+  config {
+    image = "your.registry.tld/some/image"
+    auth {
+      username = "someuser"
+      password = "sup3rs3creT"
+    }
+  }
+  ```
+
+- `cap_add` - (Optional) A list of Linux capabilities as strings to pass to
+  `--cap-add`.
+
+  ```hcl
+  config {
+    cap_add = [
+      "SYS_TIME"
+    ]
+  }
+  ```
+
+- `cap_drop` - (Optional) A list of Linux capabilities as strings to pass to
+  `--cap-drop`.
+
+  ```hcl
+  config {
+    cap_drop = [
+      "MKNOD"
+    ]
+  }
+  ```
 
 - `command` - (Optional) The command to run when starting the container.
 
-```hcl
-config {
-  command = "some-command"
-}
-```
+  ```hcl
+  config {
+    command = "some-command"
+  }
+  ```
 
-- `args` - (Optional) A list of arguments to the optional command. If no
-  _command_ is specified, the arguments are passed directly to the container.
+- `devices` - (Optional) A list of `host-device[:container-device][:permissions]`
+  definitions. Each entry adds a host device to the container. Optional
+  permissions can be used to specify device permissions, it is a combination of
+  `r` for read, `w` for write, and `m` for `mknod(2)`. Refer to Podman's
+  documentation for more details.
 
-```hcl
-config {
-  args = [
-    "arg1",
-    "arg2",
-  ]
-}
-```
+  ```hcl
+  config {
+    devices = [
+      "/dev/net/tun"
+    ]
+  }
+  ```
 
-- `volumes` - (Optional) A list of `host_path:container_path` strings to bind
-  host paths to container paths.
+- `entrypoint` - (Optional) The entrypoint for the container. Defaults to the
+  `entrypoint` set in the image.
 
-```hcl
-config {
-  volumes = [
-    "/some/host/data:/container/data"
-  ]
-}
-```
+  ```hcl
+  config {
+    entrypoint = "/entrypoint.sh"
+  }
+  ```
 
-- `tmpfs` - (Optional) A list of `/container_path` strings for tmpfs mount
-  points. See `podman run --tmpfs` options for details.
+- `force_pull` - (Optional) `true` or `false` (default). Always pull the latest
+  image on container start.
 
-```hcl
-config {
-  tmpfs = [
-    "/var"
-  ]
-}
-```
+  ```hcl
+  config {
+    force_pull = true
+  }
+  ```
 
 - `hostname` - (Optional) The hostname to assign to the container. When
-  launching more than one of a task (using count) with this option set, every
-  container the task starts will have the same hostname.
+  launching more than one of a task (using [`count`]) with this option set,
+  every container the task starts will have the same hostname.
 
-- `init` - Run an init inside the container that forwards signals and reaps processes.
+- `image` - The image to run. Accepted transports are `docker` (default if
+  missing), `oci-archive` and `docker-archive`. Images referenced as
+  [short-names] will be treated according to user-configured preferences.
 
-```hcl
-config {
-  init = true
-}
-```
+  ```hcl
+  config {
+    image = "docker://redis"
+  }
+  ```
 
-- `init_path` - Path to the container-init binary.
+- `init` - (Optional) Run an `init` inside the container that forwards signals
+  and reaps processes.
 
-```hcl
-config {
-  init = true
-  init_path = "/usr/libexec/podman/catatonit"
-}
-```
+  ```hcl
+  config {
+    init = true
+  }
+  ```
 
-- `user` - Run the command as a specific user/uid within the container. See
-  [task configuration][task].
+- `init_path` - (Optional) Path to the `container-init` binary.
 
-- `memory_reservation` - Memory soft limit (unit = b (bytes), k (kilobytes), m
-  (megabytes), or g (gigabytes))
+  ```hcl
+  config {
+    init = true
+    init_path = "/usr/libexec/podman/catatonit"
+  }
+  ```
 
-After setting memory reservation, when the system detects memory contention or
-low memory, containers are forced to restrict their consumption to their
-reservation. So you should always set the value below --memory, otherwise the
-hard limit will take precedence. By default, memory reservation will be the
-same as memory limit.
+- `labels` - (Optional) Set labels on the container.
 
-```hcl
-config {
-  memory_reservation = "100m"
-}
-```
+  ```hcl
+  config {
+    labels = {
+      "nomad" = "job"
+    }
+  }
+  ```
 
-- `memory_swap` - A limit value equal to memory plus swap. The swap limit
-  should always be larger than the [memory value][memory-value].
+- `logging` - (Optional) Configure logging. Also refer to the plugin option
+  [`disable_log_collection`].
 
-Unit can be b (bytes), k (kilobytes), m (megabytes), or g (gigabytes). If you
-don't specify a unit, b is used. Set LIMIT to -1 to enable unlimited swap.
+    - `driver = "nomad"` - (Default) Podman redirects its combined
+    `stdout/stderr` logstream directly to a Nomad `fifo`. Benefits of this
+    mode are: zero overhead, don't have to worry about log rotation at system
+    or Podman level. Downside: you cannot easily ship the logstream to a log
+    aggregator plus `stdout/stderr` is multiplexed into a single stream.
 
-```hcl
-config {
-  memory_swap = "180m"
-}
-```
+    ```hcl
+    config {
+      logging = {
+        driver = "nomad"
+      }
+    }
+    ```
+
+    - `driver = "journald"` - The container log is forwarded from Podman to the
+    `journald` on your host. Next, it's pulled by the Podman API back from the
+    journal into the Nomad `fifo` (controllable by [`disable_log_collection`]).
+    Benefits: all containers can log into the host journal, you can ship a
+    structured stream including metadata to your log aggregator. No log
+    rotation at Podman level. You can add additional tags to the journal.
+    Drawbacks: a bit more overhead, depends on Journal (will not work on WSL2).
+    You should configure some rotation policy for your Journal. Ensure you're
+    running Podman 3.1.0 or higher because of bugs in older versions.
+
+    ```hcl
+    config {
+      logging = {
+        driver = "journald"
+        options = [
+          {
+            "tag" = "redis"
+          }
+        ]
+      }
+    }
+    ```
+
+- `memory_reservation` - (Optional) Memory soft limit (units = `b` (bytes), `k`
+  (kilobytes), `m` (megabytes), or `g` (gigabytes)).
+
+  After setting memory reservation, when the system detects memory contention
+  or low memory, containers are forced to restrict their consumption to their
+  reservation. So you should always set the value below `--memory`, otherwise
+  the hard limit will take precedence. By default, memory reservation will be
+  the same as memory limit.
+
+  ```hcl
+  config {
+    memory_reservation = "100m"
+  }
+  ```
+
+- `memory_swap` - (Optional) A limit value equal to memory plus swap. The swap
+  limit should always be larger than the [memory value][memory-value]. Unit can
+  be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you
+  don't specify a unit, `b` is used. Set `LIMIT` to `-1` to enable unlimited
+  swap.
+
+  ```hcl
+  config {
+    memory_swap = "180m"
+  }
+  ```
 
 - `memory_swappiness` - Tune a container's memory swappiness behavior. Accepts
-  an integer between 0 and 100.
+  an integer between `0` and `100`.
 
-```hcl
-config {
-  memory_swappiness = 60
-}
+  ```hcl
+  config {
+    memory_swappiness = 60
+  }
+  ```
+
+- `network_mode` - (Optional) Set the [network mode][network-mode] for the
+  container. By default the task uses the network stack defined in the task
+  group [`network`][nomad_group_network] stanza. If the groups network behavior
+  is also undefined, it will fallback to `bridge` in rootful mode or
+  `slirp4netns` for rootless containers.
+
+  - `bridge` - (Default for rootful) Create a network stack on the default
+  Podman bridge.
+  - `container:id` - Reuse another container's network stack.
+  - `host` - Use the Podman host network stack. Note: the host mode gives the
+  container full access to local system services such as D-bus and is therefore
+  considered insecure.
+  - `none` - No networking.
+  - `slirp4netns` - (Default for rootless) Use `slirp4netns` to create a user
+  network stack. Podman currently does not support this option for rootful
+  containers ([issue][slirp-issue]).
+  - `task:name-of-other-task`: Join the network of another task in the same
+  allocation.
+
+  ```hcl
+  config {
+    network_mode = "bridge"
+  }
+  ```
+
+- `ports` - (Optional) Forward and expose ports. Refer to
+  [Docker driver configuration][nomad_driver_ports] for details.
+
+- `sysctl` - (Optional) A key-value map of `sysctl` configurations to set to
+  the containers on start.
+
+  ```hcl
+  config {
+    sysctl = {
+      "net.core.somaxconn" = "16384"
+    }
+  }
+  ```
+
+- `tmpfs` - (Optional) A list of `/container_path` strings for `tmpfs` mount
+  points. Refer to `podman run --tmpfs` options for details.
+
+  ```hcl
+  config {
+    tmpfs = [
+      "/var"
+    ]
+  }
+  ```
+
+- `tty` - (Optional) `true` or `false` (default). Allocate a pseudo-TTY for the
+  container.
+
+- `user` - (Optional) Run the command as a specific user/uid within the
+  container. Refer to [task configuration][task].
+
+  ```hcl
+  config {
+    user = "nobody"
+  }
+  ```
+
+- `volumes` - (Optional) A list of `host_path:container_path` strings to bind
+  host paths to container paths. Named volumes are not supported.
+
+  ```hcl
+  config {
+    volumes = [
+      "/some/host/data:/container/data:ro,noexec"
+    ]
+  }
+  ```
+
+- `working_dir` - (Optional) The working directory for the container. Defaults
+  to the default set in the image.
+
+  ```hcl
+  config {
+    working_dir = "/data"
+  }
+  ```
+
+## Network Configuration
+
+Nomad [lifecycle hooks][nomad_lifecycle_hooks] combined with the drivers
+[`network_mode`] allows very flexible network namespace definitions. This
+feature does not build upon the native Podman pod structure but simply reuses
+the networking namespace of one container for other tasks in the same group.
+
+A typical example is a network server and a metric exporter or log shipping
+sidecar. The metric exporter needs access to a private monitoring port which
+should not be exposed the the network and thus is usually bound to `localhost`.
+
+The [`nomad-driver-podman` repository][homepage] includes three different
+examples jobs for such a setup. All of them will start a
+[nats](https://nats.io/) server and a
+[prometheus-nats-exporter](https://github.com/nats-io/prometheus-nats-exporter)
+using different approaches.
+
+You can use `curl` to prove that the job is working correctly and that you can
+get Prometheus metrics:
+
+```shell-session
+$ curl http://your-machine:7777/metrics
 ```
 
-- `network_mode` - Set the [network mode][network-mode] for the container. This will be
-  overridden by nomad if a group network is created and passed in by Nomad.
+### 2 Task setup, server defines the network
 
-  - `bridge` - (default for rootful) create a network stack on the default bridge
-  - `none` - no networking
-  - `container:id` - reuse another container's network stack
-  - `host` - use the Podman host network stack. Note: the host mode gives the container
-    full access to local system services such as D-bus and is therefore considered insecure.
-  - `slirp4netns` - use `slirp4netns` to create a user network stack. This is the default for
-    rootless containers. Podman currently does not support this option for rootful containers ([issue][slirp-issue])
+Reference [`examples/jobs/nats_simple_pod.nomad`].
 
-## Networking
+Here, the `server` task is started as main workload and the `exporter` runs as
+a `poststart` sidecar. Because of that, Nomad guarantees that the server is
+started first and thus the exporter can easily join the servers network
+namespace via `network_mode = "task:server"`.
 
-Podman supports forwarding and exposing ports like Docker. See [Docker Driver
-configuration][docker-ports] for details.
+Note, that the `server` configuration file binds the `http_port` to
+`localhost`.
+
+Be aware that ports must be defined in the parent network namespace, here
+`server`.
+
+### 3 Task setup, a pause container defines the network
+
+Reference [`examples/jobs/nats_pod.nomad`].
+
+A slightly different setup is demonstrated in this job. It reassembles more
+closesly the idea of a `pod` by starting a `pause` task, named `pod` via a
+[`prestart`] sidecar hook.
+
+Next, the main workload, `server` is started and joins the network namespace by
+using the `network_mode = "task:pod"` stanza. Finally, Nomad starts the
+`poststart` sidecar `exporter` which also joins the network.
+
+Note that all ports must be defined on the `pod` level.
+
+### 2 Task setup, shared Nomad network namespace
+
+Reference [`examples/jobs/nats_group.nomad`].
+
+This example is very different. Both `server` and `exporter` join a network
+namespace which is created and managed by Nomad itself. Refer to Nomad's
+[`network`] stanza to get started with this generic approach.
 
 ## Plugin Options
 
 The Podman plugin has options which may be customized in the agent's
 configuration file.
+
+- `disable_log_collection` `(bool: false)` - Setting this to `true` will
+  disable Nomad logs collection of Podman tasks. If you don't rely on Nomad log
+  capabilities and exclusively use host based log aggregation, you may consider
+  this option to disable Nomad log collection overhead. Beware that you also
+  lose automatic log rotation.
+
+  ```hcl
+  plugin "nomad-driver-podman" {
+    config {
+      disable_log_collection = false
+    }
+  }
+  ```
+
+- `gc` stanza:
+
+  - `container` - Defaults to `true`. This option can be used to disable Nomad
+    from removing a container when the task exits.
+
+  ```hcl
+  plugin "nomad-driver-podman" {
+    config {
+      gc {
+        container = false
+      }
+    }
+  }
+  ```
+
+- `recover_stopped` - Defaults to `true`. Allows the driver to start and reuse
+  a previously stopped container after a Nomad client restart. Consider a
+  simple single node system and a complete reboot. All previously managed
+  containers will be reused instead of disposed and recreated.
+
+  ```hcl
+  plugin "nomad-driver-podman" {
+    config {
+      recover_stopped = false
+    }
+  }
+  ```
+
+- `socket_path` `(string)` - Defaults to `unix://run/podman/io.podman` when
+  running as `root` or a cgroup V1 system, and
+  `unix://run/user/<USER_ID>/podman/io.podman` for rootless cgroup V2 systems.
 
 - `volumes` stanza:
 
@@ -209,56 +485,41 @@ configuration file.
     `volumes.enabled` set to false, the labels will still be applied to the
     standard binds in the container.
 
-```hcl
-plugin "nomad-driver-podman" {
-  config {
-    volumes {
-      enabled      = true
-      selinuxlabel = "z"
+  ```hcl
+  plugin "nomad-driver-podman" {
+    config {
+      volumes {
+        enabled      = true
+        selinuxlabel = "z"
+      }
     }
   }
-}
-```
+  ```
 
-- `gc` stanza:
-
-  - `container` - Defaults to `true`. This option can be used to disable
-    Nomad from removing a container when the task exits.
-
-```hcl
-plugin "nomad-driver-podman" {
-  config {
-    gc {
-      container = false
-    }
-  }
-}
-```
-
-- `recover_stopped` - Defaults to `true`. Allows the driver to start and reuse
-  a previously stopped container after a Nomad client restart.
-  Consider a simple single node system and a complete reboot. All previously managed containers
-  will be reused instead of disposed and recreated.
-
-```hcl
-plugin "nomad-driver-podman" {
-  config {
-    recover_stopped = false
-  }
-}
-```
-
+[`count`]: /docs/job-specification/group#count
+[`disable_log_collection`]: #disable_log_collection
 [docker-ports]: /docs/drivers/docker#forwarding-and-exposing-ports
+[`examples/jobs/nats_group.nomad`]: https://github.com/hashicorp/nomad-driver-podman/blob/main/examples/jobs/nats_group.nomad
+[`examples/jobs/nats_simple_pod.nomad`]: https://github.com/hashicorp/nomad-driver-podman/blob/main/examples/jobs/nats_simple_pod.nomad
+[`examples/jobs/nats_pod.nomad`]: https://github.com/hashicorp/nomad-driver-podman/blob/main/examples/jobs/nats_pod.nomad
 [homepage]: https://github.com/hashicorp/nomad-driver-podman
 [memory-value]: /docs/job-specification/resources#memory
+[`network`]: /docs/job-specification/network
 [nomad-init]: /docs/commands/job/init
+[nomad_download]: /downloads.html
+[nomad_driver_ports]: /docs/drivers/docker.html#forwarding-and-exposing-ports
+[nomad_group_network]: /docs/job-specification/group#network
+[nomad_lifecycle_hooks]: /docs/job-specification/lifecycle
 [plugin_dir]: /docs/configuration#plugin_dir
 [podman]: https://podman.io/
 [podman-cli]: https://podman.io/whatis.html
+[`prestart`]: /docs/job-specification/lifecycle#prestart
 [releases]: https://releases.hashicorp.com/nomad-driver-podman
+[rootless_tutorial]: https://github.com/containers/libpod/blob/master/docs/tutorials/rootless_tutorial.md
 [task]: /docs/job-specification/task#user
+[`network_mode`]: #network_mode
 [network-mode]: http://docs.podman.io/en/latest/markdown/podman-run.1.html#options
 [slirp-issue]: https://github.com/containers/libpod/issues/6097
-[stderr-logging]: https://github.com/hashicorp/nomad-driver-podman/issues/4
-[devices]: https://github.com/hashicorp/nomad-driver-podman/issues/41
 [downloaded]: https://releases.hashicorp.com/nomad-driver-podman
+[short-names]: https://github.com/containers/image/blob/master/docs/containers-registries.conf.5.md#short-name-aliasing
+[`command`]: #command
