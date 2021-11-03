@@ -39,7 +39,7 @@ func TestConsulGRPCSocketHook_PrerunPostrun_Ok(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap")
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap", alloc.ID)
 	defer cleanup()
 
 	// Start the unix socket proxy
@@ -105,14 +105,14 @@ func TestConsulGRPCSocketHook_Prerun_Error(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap")
-	defer cleanup()
-
 	// A config without an Addr or GRPCAddr is invalid.
 	consulConfig := &config.ConsulConfig{}
 
 	alloc := mock.Alloc()
 	connectAlloc := mock.ConnectAlloc()
+
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap", alloc.ID)
+	defer cleanup()
 
 	{
 		// An alloc without a Connect proxy sidecar should not return

@@ -272,11 +272,10 @@ func TestTaskRunner_ConnectNativeHook_Noop(t *testing.T) {
 	t.Parallel()
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative")
-	defer cleanup()
-
 	alloc := mock.Alloc()
 	task := alloc.Job.LookupTaskGroup(alloc.TaskGroup).Tasks[0]
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
+	defer cleanup()
 
 	// run the connect native hook. use invalid consul address as it should not get hit
 	h := newConnectNativeHook(newConnectNativeHookConfig(alloc, &config.ConsulConfig{
@@ -328,7 +327,7 @@ func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative")
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
 	defer cleanup()
 
 	// register group services
@@ -393,7 +392,7 @@ func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative")
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
 	defer cleanup()
 
 	// register group services
@@ -470,7 +469,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 
 		logger := testlog.HCLogger(t)
 
-		allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative")
+		allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
 		defer cleanup()
 
 		// register group services
@@ -590,7 +589,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 
-	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative")
+	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "ConnectNative", alloc.ID)
 	defer cleanup()
 
 	// register group services

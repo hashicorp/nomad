@@ -39,6 +39,10 @@ type TaskDir struct {
 	// <task_dir>/secrets/
 	SecretsDir string
 
+	// skip embedding these paths in chroots. Used for avoiding embedding
+	// client.alloc_dir recursively.
+	skip map[string]struct{}
+
 	logger hclog.Logger
 }
 
@@ -46,10 +50,13 @@ type TaskDir struct {
 // create paths on disk.
 //
 // Call AllocDir.NewTaskDir to create new TaskDirs
-func newTaskDir(logger hclog.Logger, allocDir, taskName string) *TaskDir {
+func newTaskDir(logger hclog.Logger, clientAllocDir, allocDir, taskName string) *TaskDir {
 	taskDir := filepath.Join(allocDir, taskName)
 
 	logger = logger.Named("task_dir").With("task_name", taskName)
+
+	// skip embedding client.alloc_dir in chroots
+	skip := map[string]struct{}{clientAllocDir: {}}
 
 	return &TaskDir{
 		AllocDir:       allocDir,
@@ -59,21 +66,14 @@ func newTaskDir(logger hclog.Logger, allocDir, taskName string) *TaskDir {
 		SharedTaskDir:  filepath.Join(taskDir, SharedAllocName),
 		LocalDir:       filepath.Join(taskDir, TaskLocal),
 		SecretsDir:     filepath.Join(taskDir, TaskSecrets),
+		skip:           skip,
 		logger:         logger,
 	}
 }
 
-// Copy a TaskDir. Panics if TaskDir is nil as TaskDirs should never be nil.
-func (t *TaskDir) Copy() *TaskDir {
-	// No nested structures other than the logger which is safe to share,
-	// so just copy the struct
-	tcopy := *t
-	return &tcopy
-}
-
 // Build default directories and permissions in a task directory. chrootCreated
 // allows skipping chroot creation if the caller knows it has already been
-// done.
+// done. client.alloc_dir will be skipped.
 func (t *TaskDir) Build(createChroot bool, chroot map[string]string) error {
 	if err := os.MkdirAll(t.Dir, 0777); err != nil {
 		return err
@@ -149,6 +149,11 @@ func (t *TaskDir) buildChroot(entries map[string]string) error {
 func (t *TaskDir) embedDirs(entries map[string]string) error {
 	subdirs := make(map[string]string)
 	for source, dest := range entries {
+		if _, ok := t.skip[source]; ok {
+			// source in skip list
+			continue
+		}
+
 		// Check to see if directory exists on host.
 		s, err := os.Stat(source)
 		if os.IsNotExist(err) {

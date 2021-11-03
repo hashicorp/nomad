@@ -765,15 +765,15 @@ func copyImage(t *testing.T, taskDir *allocdir.TaskDir, image string) {
 
 // copyFile moves an existing file to the destination
 func copyFile(src, dst string, t *testing.T) {
+	t.Helper()
 	in, err := os.Open(src)
 	if err != nil {
 		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
 	}
 	defer in.Close()
 	out, err := os.Create(dst)
-	if err != nil {
-		t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
-	}
+	require.NoError(t, err, "copying %v -> %v failed: %v", src, dst, err)
+
 	defer func() {
 		if err := out.Close(); err != nil {
 			t.Fatalf("copying %v -> %v failed: %v", src, dst, err)
