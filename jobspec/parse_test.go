@@ -1672,6 +1672,22 @@ func TestParse(t *testing.T) {
 			true,
 		},
 		{
+			"consul-namespace.hcl",
+			&api.Job{
+				ID:   stringToPtr("consul-namespace"),
+				Name: stringToPtr("consul-namespace"),
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: stringToPtr("group"),
+						Consul: &api.Consul{
+							Namespace: "foo",
+						},
+					},
+				},
+			},
+			false,
+		},
+		{
 			"multiregion.hcl",
 			&api.Job{
 				ID:   stringToPtr("multiregion_job"),
