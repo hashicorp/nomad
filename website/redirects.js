@@ -189,6 +189,14 @@ module.exports = [
     permanent: true,
   },
 
+  // /s/* redirects for useful links that need a stable URL but we may need to
+  // change its destination in the future.
+  {
+    source: '/s/port-plan-failure',
+    destination: 'https://github.com/hashicorp/nomad/issues/9506',
+    permanent: false,
+  },
+
   // Spark guide links are all repointed to deprecated nomad-spark repo
   {
     source: '/guides/spark',
