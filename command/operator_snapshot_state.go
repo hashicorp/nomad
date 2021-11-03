@@ -16,11 +16,12 @@ type OperatorSnapshotStateCommand struct {
 
 func (c *OperatorSnapshotStateCommand) Help() string {
 	helpText := `
-Usage: nomad operator snapshot _state [options] <file>
+Usage: nomad operator snapshot _state <file>
 
-  Displays a json representation of state in the snapshot
+  Displays a JSON representation of state in the snapshot.
 
   To inspect the file "backup.snap":
+
     $ nomad operator snapshot _state backup.snap
 `
 	return strings.TrimSpace(helpText)
@@ -43,7 +44,7 @@ func (c *OperatorSnapshotStateCommand) Name() string { return "operator snapshot
 func (c *OperatorSnapshotStateCommand) Run(args []string) int {
 	// Check that we either got no filename or exactly one.
 	if len(args) != 1 {
-		c.Ui.Error("This command takes one argument: <filename>")
+		c.Ui.Error("This command takes one argument: <file>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -68,7 +69,7 @@ func (c *OperatorSnapshotStateCommand) Run(args []string) int {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(sm); err != nil {
-		c.Ui.Error(fmt.Sprintf("failed to encode output: %v", err))
+		c.Ui.Error(fmt.Sprintf("Failed to encode output: %v", err))
 		return 1
 	}
 
