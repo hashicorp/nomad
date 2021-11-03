@@ -453,3 +453,32 @@ func TestIsAllowedImagePath(t *testing.T) {
 		require.Falsef(t, isAllowedImagePath(allowedPaths, allocDir, p), "path should be not allowed: %v", p)
 	}
 }
+
+func TestArgsAllowList(t *testing.T) {
+
+	pluginConfigAllowList := []string{"-drive", "-net", "-snapshot"}
+
+	validArgs := [][]string{
+		{"-drive", "/path/to/wherever", "-snapshot"},
+		{"-net", "tap,vlan=0,ifname=tap0"},
+	}
+
+	invalidArgs := [][]string{
+		{"-usbdevice", "mouse"},
+		{"-singlestep"},
+		{"--singlestep"},
+		{" -singlestep"},
+		{"\t-singlestep"},
+	}
+
+	for _, args := range validArgs {
+		require.NoError(t, validateArgs(pluginConfigAllowList, args))
+		require.NoError(t, validateArgs([]string{}, args))
+
+	}
+	for _, args := range invalidArgs {
+		require.Error(t, validateArgs(pluginConfigAllowList, args))
+		require.NoError(t, validateArgs([]string{}, args))
+	}
+
+}
