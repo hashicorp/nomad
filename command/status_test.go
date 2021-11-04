@@ -239,25 +239,21 @@ func TestStatusCommand_AutocompleteArgs(t *testing.T) {
 func TestStatusCommand_Run_HostNetwork(t *testing.T) {
 	t.Parallel()
 
-	// Start in dev mode so we get a node registration
-	srv, client, url := testServer(t, true, func(c *agent.Config) {
-		c.Client.HostNetworks = []*structs.ClientHostNetworkConfig{{
-			Name:      "internal",
-			CIDR:      "127.0.0.1/8",
-			Interface: "lo",
-		}}
-	})
-
-	defer srv.Shutdown()
 	ui := cli.NewMockUi()
 
 	testCases := []struct {
-		name       string
-		verbose    bool
-		assertions func(string)
+		name               string
+		clientHostNetworks []*structs.ClientHostNetworkConfig
+		verbose            bool
+		assertions         func(string)
 	}{
 		{
-			name:    "short",
+			name: "short",
+			clientHostNetworks: []*structs.ClientHostNetworkConfig{{
+				Name:      "internal",
+				CIDR:      "127.0.0.1/8",
+				Interface: "lo",
+			}},
 			verbose: false,
 			assertions: func(out string) {
 				hostNetworksRegexpStr := `Host Networks\s+=\s+internal\n`
@@ -265,13 +261,49 @@ func TestStatusCommand_Run_HostNetwork(t *testing.T) {
 			},
 		},
 		{
-			name:    "verbose",
+			name: "verbose",
+			clientHostNetworks: []*structs.ClientHostNetworkConfig{{
+				Name:      "internal",
+				CIDR:      "127.0.0.1/8",
+				Interface: "lo",
+			}},
 			verbose: true,
 			assertions: func(out string) {
-				verboseHostNetworksHeadRegexpStr := `Name\s+CIDR\s+Interface\n`
+				verboseHostNetworksHeadRegexpStr := `Name\s+CIDR\s+Interface\s+ReservedPorts\n`
 				require.Regexp(t, regexp.MustCompile(verboseHostNetworksHeadRegexpStr), out)
 
-				verboseHostNetworksBodyRegexpStr := `internal\s+127\.0\.0\.1/8\s+lo\n`
+				verboseHostNetworksBodyRegexpStr := `internal\s+127\.0\.0\.1/8\s+lo\s+<none>\n`
+				require.Regexp(t, regexp.MustCompile(verboseHostNetworksBodyRegexpStr), out)
+			},
+		},
+		{
+			name: "verbose_nointerface",
+			clientHostNetworks: []*structs.ClientHostNetworkConfig{{
+				Name: "public",
+				CIDR: "10.199.0.200/24",
+			}},
+			verbose: true,
+			assertions: func(out string) {
+				verboseHostNetworksHeadRegexpStr := `Name\s+CIDR\s+Interface\s+ReservedPorts\n`
+				require.Regexp(t, regexp.MustCompile(verboseHostNetworksHeadRegexpStr), out)
+
+				verboseHostNetworksBodyRegexpStr := `public\s+10\.199\.0\.200/24\s+<none>\s+<none>\n`
+				require.Regexp(t, regexp.MustCompile(verboseHostNetworksBodyRegexpStr), out)
+			},
+		},
+		{
+			name: "verbose_nointerface_with_reservedports",
+			clientHostNetworks: []*structs.ClientHostNetworkConfig{{
+				Name:          "public",
+				CIDR:          "10.199.0.200/24",
+				ReservedPorts: "8080,8081",
+			}},
+			verbose: true,
+			assertions: func(out string) {
+				verboseHostNetworksHeadRegexpStr := `Name\s+CIDR\s+Interface\s+ReservedPorts\n`
+				require.Regexp(t, regexp.MustCompile(verboseHostNetworksHeadRegexpStr), out)
+
+				verboseHostNetworksBodyRegexpStr := `public\s+10\.199\.0\.200/24\s+<none>\s+8080,8081\n`
 				require.Regexp(t, regexp.MustCompile(verboseHostNetworksBodyRegexpStr), out)
 			},
 		},
@@ -279,6 +311,13 @@ func TestStatusCommand_Run_HostNetwork(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
+
+			// Start in dev mode so we get a node registration
+			srv, client, url := testServer(t, true, func(c *agent.Config) {
+				c.Client.HostNetworks = tt.clientHostNetworks
+			})
+			defer srv.Shutdown()
+
 			cmd := &StatusCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 
 			// Wait for a node to appear

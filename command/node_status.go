@@ -566,13 +566,13 @@ func (c *NodeStatusCommand) outputNodeNetworkInfo(node *api.Node) {
 	sort.Strings(names)
 
 	output := make([]string, 0, len(names)+1)
-	output = append(output, "Name|CIDR|Interface")
+	output = append(output, "Name|CIDR|Interface|ReservedPorts")
 
 	if len(names) > 0 {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Host Networks"))
 		for _, hostNetworkName := range names {
 			info := node.HostNetworks[hostNetworkName]
-			output = append(output, fmt.Sprintf("%s|%v|%s", hostNetworkName, info.CIDR, info.Interface))
+			output = append(output, fmt.Sprintf("%s|%v|%s|%s", hostNetworkName, info.CIDR, info.Interface, info.ReservedPorts))
 		}
 		c.Ui.Output(formatList(output))
 	}

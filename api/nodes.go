@@ -506,11 +506,12 @@ type HostVolumeInfo struct {
 	ReadOnly bool
 }
 
-//HostVolumeInfo is used to return metadata about a given HostNetwork
+//HostNetworkInfo is used to return metadata about a given HostNetwork
 type HostNetworkInfo struct {
-	Name      string
-	CIDR      string
-	Interface string
+	Name          string
+	CIDR          string
+	Interface     string
+	ReservedPorts string
 }
 
 type DrainStatus string
