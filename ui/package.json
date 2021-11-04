@@ -153,6 +153,7 @@
     ]
   },
   "dependencies": {
+    "codemirror": "^5.56.0",
     "lru_map": "^0.3.3",
     "no-case": "^3.0.4",
     "title-case": "^3.0.3"
