@@ -37,12 +37,16 @@ Validate Options:
   -hcl1
     Parses the job file as HCLv1.
 
+  -hcl2-strict
+    Whether an error should be produced from the HCL2 parser where a variable
+    has been supplied which is not defined within the root variables. Defaults
+    to true.
+
   -var 'key=value'
     Variable for template, can be used multiple times.
 
   -var-file=path
     Path to HCL2 file containing user variables.
-
 `
 	return strings.TrimSpace(helpText)
 }
@@ -53,9 +57,10 @@ func (c *JobValidateCommand) Synopsis() string {
 
 func (c *JobValidateCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
-		"-hcl1":     complete.PredictNothing,
-		"-var":      complete.PredictAnything,
-		"-var-file": complete.PredictFiles("*.var"),
+		"-hcl1":        complete.PredictNothing,
+		"-hcl2-strict": complete.PredictNothing,
+		"-var":         complete.PredictAnything,
+		"-var-file":    complete.PredictFiles("*.var"),
 	}
 }
 
@@ -67,10 +72,12 @@ func (c *JobValidateCommand) Name() string { return "job validate" }
 
 func (c *JobValidateCommand) Run(args []string) int {
 	var varArgs, varFiles flaghelper.StringFlag
+	var hcl2Strict bool
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetNone)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
 	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
+	flagSet.BoolVar(&hcl2Strict, "hcl2-strict", true, "")
 	flagSet.Var(&varArgs, "var", "")
 	flagSet.Var(&varFiles, "var-file", "")
 
@@ -87,7 +94,7 @@ func (c *JobValidateCommand) Run(args []string) int {
 	}
 
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.ApiJobWithArgs(args[0], varArgs, varFiles)
+	job, err := c.JobGetter.ApiJobWithArgs(args[0], varArgs, varFiles, hcl2Strict)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 1

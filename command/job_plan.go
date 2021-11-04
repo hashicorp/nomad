@@ -79,6 +79,11 @@ Plan Options:
   -hcl1
     Parses the job file as HCLv1.
 
+  -hcl2-strict
+    Whether an error should be produced from the HCL2 parser where a variable
+    has been supplied which is not defined within the root variables. Defaults
+    to true.
+
   -policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
 
@@ -105,6 +110,7 @@ func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 			"-policy-override": complete.PredictNothing,
 			"-verbose":         complete.PredictNothing,
 			"-hcl1":            complete.PredictNothing,
+			"-hcl2-strict":     complete.PredictNothing,
 			"-var":             complete.PredictAnything,
 			"-var-file":        complete.PredictFiles("*.var"),
 		})
@@ -116,7 +122,7 @@ func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
-	var diff, policyOverride, verbose bool
+	var diff, policyOverride, verbose, hcl2Strict bool
 	var varArgs, varFiles flaghelper.StringFlag
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -125,6 +131,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 	flagSet.BoolVar(&policyOverride, "policy-override", false, "")
 	flagSet.BoolVar(&verbose, "verbose", false, "")
 	flagSet.BoolVar(&c.JobGetter.hcl1, "hcl1", false, "")
+	flagSet.BoolVar(&hcl2Strict, "hcl2-strict", true, "")
 	flagSet.Var(&varArgs, "var", "")
 	flagSet.Var(&varFiles, "var-file", "")
 
@@ -142,7 +149,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 
 	path := args[0]
 	// Get Job struct from Jobfile
-	job, err := c.JobGetter.ApiJobWithArgs(args[0], varArgs, varFiles)
+	job, err := c.JobGetter.ApiJobWithArgs(args[0], varArgs, varFiles, hcl2Strict)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error getting job struct: %s", err))
 		return 255
