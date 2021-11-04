@@ -113,9 +113,10 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
       assert.ok(RecommendedMemory.isIncrease);
     });
 
-    assert.equal(RecommendationCard.totalsTable.unitDiff.cpu, '−75 MHz');
+    assert.equal(RecommendationCard.totalsTable.unitDiff.cpu, '-75 MHz');
     assert.equal(RecommendationCard.totalsTable.unitDiff.memory, '+128 MiB');
 
+    // Expected signal has a minus character, not a hyphen.
     assert.equal(RecommendationCard.totalsTable.percentDiff.cpu, '−27%');
     assert.equal(RecommendationCard.totalsTable.percentDiff.memory, '+33%');
 
