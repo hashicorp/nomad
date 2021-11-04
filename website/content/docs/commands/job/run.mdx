@@ -72,6 +72,10 @@ that volume.
 
 - `-hcl1`: If set, HCL1 parser is used for parsing the job spec.
 
+- `-hcl2-strict`: Whether an error should be produced from the HCL2 parser where
+  a variable has been supplied which is not defined within the root variables.
+  Defaults to true.
+
 - `-output`: Output the JSON that would be submitted to the HTTP API without
   submitting the job.
 
@@ -104,8 +108,6 @@ that volume.
 - `-var=<key=value>`: Variable for template, can be used multiple times.
 
 - `-var-file=<path>`: Path to HCL2 file containing user variables.
-
-- `-lenient`: Do not error out if variables are provided which have not been defined.
 
 - `-verbose`: Show full information.
 

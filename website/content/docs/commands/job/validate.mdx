@@ -32,6 +32,18 @@ of 1 indicates an error.
 When ACLs are enabled, this command requires a token with the `read-job`
 capability for the job's namespace.
 
+## Validate Options
+
+- `-hcl1`: If set, HCL1 parser is used for parsing the job spec.
+
+- `-hcl2-strict`: Whether an error should be produced from the HCL2 parser where
+a variable has been supplied which is not defined within the root variables.
+Defaults to true.
+
+- `-var=<key=value>`: Variable for template, can be used multiple times.
+
+- `-var-file=<path>`: Path to HCL2 file containing user variables.
+
 ## Examples
 
 Validate a job with invalid syntax:
