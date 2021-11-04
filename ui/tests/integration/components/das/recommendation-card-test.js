@@ -113,10 +113,10 @@ module('Integration | Component | das/recommendation-card', function(hooks) {
       assert.ok(RecommendedMemory.isIncrease);
     });
 
-    assert.equal(RecommendationCard.totalsTable.unitDiff.cpu, '-75 MHz');
+    assert.equal(RecommendationCard.totalsTable.unitDiff.cpu, '−75 MHz');
     assert.equal(RecommendationCard.totalsTable.unitDiff.memory, '+128 MiB');
 
-    assert.equal(RecommendationCard.totalsTable.percentDiff.cpu, '-27%');
+    assert.equal(RecommendationCard.totalsTable.percentDiff.cpu, '−27%');
     assert.equal(RecommendationCard.totalsTable.percentDiff.memory, '+33%');
 
     assert.equal(RecommendationCard.copyButton.text, 'job-name / group-name');

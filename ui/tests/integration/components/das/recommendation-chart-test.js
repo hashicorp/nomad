@@ -47,7 +47,7 @@ module('Integration | Component | das/recommendation-chart', function(hooks) {
     assert.dom('.recommendation-chart.decrease').exists();
     assert.dom('.recommendation-chart .resource').hasText('Mem');
     assert.dom('.recommendation-chart .icon-is-arrow-down').exists();
-    assert.dom('text.percent').hasText('-32%');
+    assert.dom('text.percent').hasText('−32%');
     await componentA11yAudit(this.element, assert);
   });
 
