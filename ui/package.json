@@ -52,7 +52,7 @@
     "d3-scale": "^4.0.2",
     "d3-selection": "^1.1.0",
     "d3-shape": "^3.0.1",
-    "d3-time-format": "^2.1.0",
+    "d3-time-format": "^4.0.0",
     "d3-transition": "^1.1.0",
     "duration-js": "^4.0.0",
     "ember-a11y-testing": "^4.0.0",
