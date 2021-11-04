@@ -536,6 +536,12 @@ func (c *jobConfig) collectInputVariableValues(env []string, files []*hcl.File, 
 		})
 	}
 
+	// Define the severity of variable passed that are undefined.
+	undefSev := hcl.DiagWarning
+	if c.ParseConfig.Strict {
+		undefSev = hcl.DiagError
+	}
+
 	// files will contain files found in the folder then files passed as
 	// arguments.
 	for _, file := range files {
@@ -583,12 +589,8 @@ func (c *jobConfig) collectInputVariableValues(env []string, files []*hcl.File, 
 		for name, attr := range attrs {
 			variable, found := variables[name]
 			if !found {
-				sev := hcl.DiagWarning
-				if c.ParseConfig.Strict {
-					sev = hcl.DiagError
-				}
 				diags = append(diags, &hcl.Diagnostic{
-					Severity: sev,
+					Severity: undefSev,
 					Summary:  "Undefined variable",
 					Detail: fmt.Sprintf("A %q variable was set but was "+
 						"not found in known variables. To declare "+
@@ -630,7 +632,7 @@ func (c *jobConfig) collectInputVariableValues(env []string, files []*hcl.File, 
 		variable, found := variables[name]
 		if !found {
 			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
+				Severity: undefSev,
 				Summary:  "Undefined -var variable",
 				Detail: fmt.Sprintf("A %q variable was passed in the command "+
 					"line but was not found in known variables. "+

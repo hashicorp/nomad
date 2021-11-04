@@ -459,6 +459,7 @@ func (j *JobGetter) ApiJobWithArgs(jpath string, vars []string, varfiles []strin
 			AllowFS:  true,
 			VarFiles: varfiles,
 			Envs:     os.Environ(),
+			Strict:   true,
 		})
 
 		if err != nil {
