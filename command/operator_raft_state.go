@@ -76,12 +76,20 @@ func (c *OperatorRaftStateCommand) Run(args []string) int {
 		return 1
 	}
 
-	state, err := raftutil.FSMState(raftPath, fLastIdx)
+	fsm, err := raftutil.NewFSM(raftPath)
+	if err != nil {
+		c.Ui.Error(err.Error())
+		return 1
+	}
+	defer fsm.Close()
+
+	_, _, err = fsm.ApplyAll()
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
 	}
 
+	state := fsm.StateAsMap()
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(state); err != nil {

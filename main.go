@@ -48,6 +48,7 @@ var (
 		"operator raft _info",
 		"operator raft _logs",
 		"operator raft _state",
+		"operator snapshot _state",
 	}
 
 	// aliases is the list of aliases we want users to be aware of. We hide
