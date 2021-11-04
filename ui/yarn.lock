@@ -2836,9 +2836,9 @@
   integrity sha512-rR7tJoSwJ2eooOpYGxGGW95sLq6GXUaS1UtWvN7pei6n2/okYvCGld9vsUTvkl2migxbkszsycwtMf/GEc1k1A==
 
 "@hashicorp/structure-icons@^1.3.0":
-  version "1.8.1"
-  resolved "https://registry.yarnpkg.com/@hashicorp/structure-icons/-/structure-icons-1.8.1.tgz#d29945df2b41dcb317b141e51a26bd4be796a164"
-  integrity sha512-XFYdCIshmaR3Igc8eWpOZ2Gr3IR/0TogXZ4PQ9bz1E9cLzF3njBcs3tCpJUOwRwe/wMI5YTlL/sOGvcZ77AB/Q==
+  version "1.9.2"
+  resolved "https://registry.yarnpkg.com/@hashicorp/structure-icons/-/structure-icons-1.9.2.tgz#c75f955b2eec414ecb92f3926c79b4ca01731d3c"
+  integrity sha512-AffJv0V9npr1EWlM1XrpaKPG9PzddV48OE+jspqy7aRoFZB5++oNnPx4MZQKmFInOljnzNwfktVRkJiQHy7haw==
 
 "@mdx-js/mdx@^1.6.22":
   version "1.6.22"
