@@ -1426,6 +1426,14 @@ func (c *Client) setupNode() error {
 			}
 		}
 	}
+	if node.HostNetworks == nil {
+		if l := len(c.config.HostNetworks); l != 0 {
+			node.HostNetworks = make(map[string]*structs.ClientHostNetworkConfig, l)
+			for k, v := range c.config.HostNetworks {
+				node.HostNetworks[k] = v.Copy()
+			}
+		}
+	}
 
 	if node.Name == "" {
 		node.Name = node.ID

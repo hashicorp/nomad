@@ -349,6 +349,16 @@ func nodeVolumeNames(n *api.Node) []string {
 	return volumes
 }
 
+func nodeNetworkNames(n *api.Node) []string {
+	var networks []string
+	for name := range n.HostNetworks {
+		networks = append(networks, name)
+	}
+
+	sort.Strings(networks)
+	return networks
+}
+
 func formatDrain(n *api.Node) string {
 	if n.DrainStrategy != nil {
 		b := new(strings.Builder)
@@ -400,6 +410,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 
 	if c.short {
 		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
+		basic = append(basic, fmt.Sprintf("Host Networks|%s", strings.Join(nodeNetworkNames(node), ",")))
 		basic = append(basic, fmt.Sprintf("CSI Volumes|%s", strings.Join(nodeCSIVolumeNames(node, runningAllocs), ",")))
 		basic = append(basic, fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")))
 		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
@@ -428,6 +439,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	// driver info in the basic output
 	if !c.verbose {
 		basic = append(basic, fmt.Sprintf("Host Volumes|%s", strings.Join(nodeVolumeNames(node), ",")))
+		basic = append(basic, fmt.Sprintf("Host Networks|%s", strings.Join(nodeNetworkNames(node), ",")))
 		basic = append(basic, fmt.Sprintf("CSI Volumes|%s", strings.Join(nodeCSIVolumeNames(node, runningAllocs), ",")))
 		driverStatus := fmt.Sprintf("Driver Status| %s", c.outputTruncatedNodeDriverInfo(node))
 		basic = append(basic, driverStatus)
@@ -439,6 +451,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	// If we're running in verbose mode, include full host volume and driver info
 	if c.verbose {
 		c.outputNodeVolumeInfo(node)
+		c.outputNodeNetworkInfo(node)
 		c.outputNodeCSIVolumeInfo(client, node, runningAllocs)
 		c.outputNodeDriverInfo(node)
 	}
@@ -539,6 +552,27 @@ func (c *NodeStatusCommand) outputNodeVolumeInfo(node *api.Node) {
 		for _, volName := range names {
 			info := node.HostVolumes[volName]
 			output = append(output, fmt.Sprintf("%s|%v|%s", volName, info.ReadOnly, info.Path))
+		}
+		c.Ui.Output(formatList(output))
+	}
+}
+
+func (c *NodeStatusCommand) outputNodeNetworkInfo(node *api.Node) {
+
+	names := make([]string, 0, len(node.HostNetworks))
+	for name := range node.HostNetworks {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	output := make([]string, 0, len(names)+1)
+	output = append(output, "Name|CIDR|Interface|ReservedPorts")
+
+	if len(names) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Host Networks"))
+		for _, hostNetworkName := range names {
+			info := node.HostNetworks[hostNetworkName]
+			output = append(output, fmt.Sprintf("%s|%v|%s|%s", hostNetworkName, info.CIDR, info.Interface, info.ReservedPorts))
 		}
 		c.Ui.Output(formatList(output))
 	}
