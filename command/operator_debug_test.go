@@ -383,7 +383,6 @@ func TestDebug_CapturedFiles(t *testing.T) {
 		"members.json",
 		"namespaces.json",
 		"regions.json",
-		"vault-sys-health.json",
 	}
 
 	pprofFiles := []string{
@@ -674,3 +673,44 @@ func TestDebug_CollectConsul(t *testing.T) {
 	require.FileExists(t, filepath.Join(testDir, "test", "consul-leader.json"))
 }
 
+func TestDebug_CollectVault(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("-short set; skipping")
+	}
+
+	// Skip test if Consul binary cannot be found
+	clienttest.RequireVault(t)
+
+	// Create a Vault server
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	// Setup mock UI
+	ui := cli.NewMockUi()
+	c := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// Setup Vault *external
+	ve := &external{}
+	ve.tokenVal = v.RootToken
+	ve.setAddr(v.HTTPAddr)
+	if ve.ssl {
+		ve.tls = &api.TLSConfig{}
+	}
+
+	// Set global client
+	c.vault = ve
+
+	// Set capture directory
+	testDir := os.TempDir()
+	defer os.Remove(testDir)
+	c.collectDir = testDir
+
+	// Collect data from Vault
+	err := c.collectVault("test", "")
+
+	require.NoError(t, err)
+	require.Empty(t, ui.ErrorWriter.String())
+
+	require.FileExists(t, filepath.Join(testDir, "test", "vault-sys-health.json"))
+}

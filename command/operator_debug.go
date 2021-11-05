@@ -566,15 +566,12 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	}
 	c.collectConsul(clusterDir)
 
-		r, ok = self.Config["Vault"]
-		if ok {
-			m, ok := r.(map[string]interface{})
-			if ok {
-				raw := m["Addr"]
-				vault, _ = raw.(string)
-			}
-		}
+	// Collect data from Vault
+	vaultAddr := c.vault.addrVal
+	if vaultAddr == "" {
+		vaultAddr = c.getVaultAddrFromSelf(self)
 	}
+	c.collectVault(clusterDir, vaultAddr)
 
 	c.collectAgentHosts(client)
 	c.collectPprofs(client)
@@ -946,15 +943,25 @@ func (c *OperatorDebugCommand) collectConsulAPIRequest(client *http.Client, urlP
 
 // collectVault calls the Vault API directly to collect data
 func (c *OperatorDebugCommand) collectVault(dir, vault string) error {
-	addr := c.vault.addr(vault)
-	if addr == "" {
+	vaultAddr := c.vault.addr(vault)
+	if vaultAddr == "" {
 		return nil
 	}
 
+	c.Ui.Info(fmt.Sprintf("Vault - Collecting Vault API data from: %s", vaultAddr))
 	client := defaultHttpClient()
-	api.ConfigureTLS(client, c.vault.tls)
+	if c.vault.ssl {
+		err := api.ConfigureTLS(client, c.vault.tls)
+		if err != nil {
+			return fmt.Errorf("failed to configure TLS: %w", err)
+		}
+	}
 
-	req, _ := http.NewRequest("GET", addr+"/sys/health", nil)
+	req, err := http.NewRequest("GET", vaultAddr+"/v1/sys/health", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request for Vault API URL=%q: %w", vaultAddr, err)
+	}
+
 	req.Header.Add("X-Vault-Token", c.vault.token())
 	req.Header.Add("User-Agent", userAgent)
 	resp, err := client.Do(req)
@@ -1307,6 +1314,31 @@ func (c *OperatorDebugCommand) getConsulAddrFromSelf(self *api.AgentSelf) string
 		}
 	}
 	return consulAddr
+}
+
+func (c *OperatorDebugCommand) getVaultAddrFromSelf(self *api.AgentSelf) string {
+	if self == nil {
+		return ""
+	}
+
+	var vaultAddr string
+	r, ok := self.Config["Vault"]
+	if ok {
+		m, ok := r.(map[string]interface{})
+		if ok {
+			raw := m["EnableSSL"]
+			c.vault.ssl, _ = raw.(bool)
+			raw = m["Addr"]
+			c.vault.setAddr(raw.(string))
+			raw = m["Auth"]
+			c.vault.auth, _ = raw.(string)
+			raw = m["Token"]
+			c.vault.tokenVal = raw.(string)
+
+			vaultAddr = c.vault.addr("")
+		}
+	}
+	return vaultAddr
 }
 
 // defaultHttpClient configures a basic httpClient

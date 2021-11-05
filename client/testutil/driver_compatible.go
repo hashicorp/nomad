@@ -24,6 +24,14 @@ func RequireConsul(t *testing.T) {
 	}
 }
 
+// RequireVault skips tests unless a Vault binary is available on $PATH.
+func RequireVault(t *testing.T) {
+	_, err := exec.Command("vault", "version").CombinedOutput()
+	if err != nil {
+		t.Skipf("Test requires Vault: %v", err)
+	}
+}
+
 func ExecCompatible(t *testing.T) {
 	if runtime.GOOS != "linux" || syscall.Geteuid() != 0 {
 		t.Skip("Test only available running as root on linux")
