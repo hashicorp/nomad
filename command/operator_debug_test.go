@@ -2,11 +2,16 @@ package command
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	consulapi "github.com/hashicorp/consul/api"
+	consultest "github.com/hashicorp/consul/sdk/testutil"
+	"github.com/hashicorp/nomad/api"
+	clienttest "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -159,65 +164,86 @@ func TestDebug_ClientToServer(t *testing.T) {
 	runTestCases(t, cases)
 }
 
-func TestDebug_ClientToServer_Region(t *testing.T) {
-	region := "testregion"
+func TestDebug_MultiRegion(t *testing.T) {
+	region1 := "region1"
+	region2 := "region2"
 
-	// Start test server and API client
-	srv, _, url := testServer(t, false, func(c *agent.Config) {
-		c.Region = region
-	})
+	// Start region1 server
+	server1, _, addrServer1 := testServer(t, false, func(c *agent.Config) { c.Region = region1 })
+	testutil.WaitForLeader(t, server1.Agent.RPC)
+	rpcAddrServer1 := server1.GetConfig().AdvertiseAddrs.RPC
+	t.Logf("[TEST] %s: Leader started, HTTPAddr: %s, RPC: %s", region1, addrServer1, rpcAddrServer1)
 
-	// Wait for leadership to establish
-	testutil.WaitForLeader(t, srv.Agent.RPC)
+	// Start region1 client
+	agent1, _, addrClient1 := testClient(t, "client1", newClientAgentConfigFunc(region1, "", rpcAddrServer1))
+	nodeIdClient1 := agent1.Agent.Client().NodeID()
+	t.Logf("[TEST] %s: Client1 started, ID: %s, HTTPAddr: %s", region1, nodeIdClient1, addrClient1)
 
-	// Retrieve server RPC address to join client
-	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
-	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
+	// Start region2 server
+	server2, _, addrServer2 := testServer(t, false, func(c *agent.Config) { c.Region = region2 })
+	testutil.WaitForLeader(t, server2.Agent.RPC)
+	rpcAddrServer2 := server2.GetConfig().AdvertiseAddrs.RPC
+	t.Logf("[TEST] %s: Leader started, HTTPAddr: %s, RPC: %s", region2, addrServer2, rpcAddrServer2)
 
-	// Start client
-	agent1, _, _ := testClient(t, "client1", newClientAgentConfigFunc(region, "", srvRPCAddr))
+	// Start client2
+	agent2, _, addrClient2 := testClient(t, "client2", newClientAgentConfigFunc(region2, "", rpcAddrServer2))
+	nodeIdClient2 := agent2.Agent.Client().NodeID()
+	t.Logf("[TEST] %s: Client1 started, ID: %s, HTTPAddr: %s", region2, nodeIdClient2, addrClient2)
 
-	// Get API addresses
-	addrServer := srv.HTTPAddr()
-	addrClient1 := agent1.HTTPAddr()
-
-	t.Logf("[TEST] testAgent api address: %s", url)
-	t.Logf("[TEST] Server    api address: %s", addrServer)
-	t.Logf("[TEST] Client1   api address: %s", addrClient1)
+	t.Logf("[TEST] Region: %s, Server1   api address: %s", region1, addrServer1)
+	t.Logf("[TEST] Region: %s, Client1   api address: %s", region1, addrClient1)
+	t.Logf("[TEST] Region: %s, Server2   api address: %s", region2, addrServer2)
+	t.Logf("[TEST] Region: %s, Client2   api address: %s", region2, addrClient2)
 
 	// Setup test cases
 	var cases = testCases{
 		// Good
 		{
-			name:         "region - testAgent api server",
-			args:         []string{"-address", url, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			name:         "no region - all servers, all clients",
+			args:         []string{"-address", addrServer1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			expectedCode: 0,
+		},
+		{
+			name:         "region1 - server1 address",
+			args:         []string{"-address", addrServer1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
 			expectedCode: 0,
 			expectedOutputs: []string{
-				"Region: " + region + "\n",
-				"Servers: (1/1)",
-				"Clients: (1/1)",
+				"Region: " + region1 + "\n",
+				"Servers: (1/1) [TestDebug_MultiRegion.region1]",
+				"Clients: (1/1) [" + nodeIdClient1 + "]",
 				"Created debug archive",
 			},
 		},
 		{
-			name:         "region - server address",
-			args:         []string{"-address", addrServer, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			name:         "region1 - client1 address",
+			args:         []string{"-address", addrClient1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
 			expectedCode: 0,
 			expectedOutputs: []string{
-				"Region: " + region + "\n",
-				"Servers: (1/1)",
-				"Clients: (1/1)",
+				"Region: " + region1 + "\n",
+				"Servers: (1/1) [TestDebug_MultiRegion.region1]",
+				"Clients: (1/1) [" + nodeIdClient1 + "]",
 				"Created debug archive",
 			},
 		},
 		{
-			name:         "region - client1 address - verify no SIGSEGV panic",
-			args:         []string{"-address", addrClient1, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			name:         "region2 - server2 address",
+			args:         []string{"-address", addrServer2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
 			expectedCode: 0,
 			expectedOutputs: []string{
-				"Region: " + region + "\n",
-				"Servers: (1/1)",
-				"Clients: (1/1)",
+				"Region: " + region2 + "\n",
+				"Servers: (1/1) [TestDebug_MultiRegion.region2]",
+				"Clients: (1/1) [" + nodeIdClient2 + "]",
+				"Created debug archive",
+			},
+		},
+		{
+			name:         "region2 - client2 address",
+			args:         []string{"-address", addrClient2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Region: " + region2 + "\n",
+				"Servers: (1/1) [TestDebug_MultiRegion.region2]",
+				"Clients: (1/1) [" + nodeIdClient2 + "]",
 				"Created debug archive",
 			},
 		},
@@ -225,7 +251,7 @@ func TestDebug_ClientToServer_Region(t *testing.T) {
 		// Bad
 		{
 			name:          "invalid region - all servers, all clients",
-			args:          []string{"-address", url, "-region", "never", "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			args:          []string{"-address", addrServer1, "-region", "never", "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
 			expectedCode:  1,
 			expectedError: "500 (No path to region)",
 		},
@@ -375,12 +401,9 @@ func TestDebug_CapturedFiles(t *testing.T) {
 	// Setup file slices
 	clusterFiles := []string{
 		"agent-self.json",
-		"consul-agent-members.json",
-		"consul-agent-self.json",
 		"members.json",
 		"namespaces.json",
 		"regions.json",
-		"vault-sys-health.json",
 	}
 
 	pprofFiles := []string{
@@ -424,13 +447,18 @@ func TestDebug_CapturedFiles(t *testing.T) {
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
+	duration := 2 * time.Second
+	interval := 750 * time.Millisecond
+	waitTime := 2 * duration
+
 	code := cmd.Run([]string{
 		"-address", url,
 		"-output", os.TempDir(),
 		"-server-id", serverName,
 		"-node-id", clientID,
-		"-duration", "1300ms",
-		"-interval", "600ms",
+		"-duration", duration.String(),
+		"-interval", interval.String(),
+		"-pprof-duration", "0",
 	})
 
 	// Get capture directory
@@ -445,27 +473,27 @@ func TestDebug_CapturedFiles(t *testing.T) {
 	// Verify cluster files
 	clusterPaths := buildPathSlice(cmd.path(clusterDir), clusterFiles)
 	t.Logf("Waiting for cluster files in path: %s", clusterDir)
-	testutil.WaitForFilesUntil(t, clusterPaths, 2*time.Minute)
+	testutil.WaitForFilesUntil(t, clusterPaths, waitTime)
 
 	// Verify client files
 	clientPaths := buildPathSlice(cmd.path(clientDir, clientID), clientFiles)
 	t.Logf("Waiting for client files in path: %s", clientDir)
-	testutil.WaitForFilesUntil(t, clientPaths, 2*time.Minute)
+	testutil.WaitForFilesUntil(t, clientPaths, waitTime)
 
 	// Verify server files
 	serverPaths := buildPathSlice(cmd.path(serverDir, serverName), serverFiles)
 	t.Logf("Waiting for server files in path: %s", serverDir)
-	testutil.WaitForFilesUntil(t, serverPaths, 2*time.Minute)
+	testutil.WaitForFilesUntil(t, serverPaths, waitTime)
 
 	// Verify interval 0000 files
 	intervalPaths0 := buildPathSlice(cmd.path(intervalDir, "0000"), intervalFiles)
 	t.Logf("Waiting for interval 0000 files in path: %s", intervalDir)
-	testutil.WaitForFilesUntil(t, intervalPaths0, 2*time.Minute)
+	testutil.WaitForFilesUntil(t, intervalPaths0, waitTime)
 
 	// Verify interval 0001 files
 	intervalPaths1 := buildPathSlice(cmd.path(intervalDir, "0001"), intervalFiles)
 	t.Logf("Waiting for interval 0001 files in path: %s", intervalDir)
-	testutil.WaitForFilesUntil(t, intervalPaths1, 2*time.Minute)
+	testutil.WaitForFilesUntil(t, intervalPaths1, waitTime)
 }
 
 func TestDebug_ExistingOutput(t *testing.T) {
@@ -538,9 +566,10 @@ func TestDebug_External(t *testing.T) {
 	require.Equal(t, "https://127.0.0.1:8500", addr)
 
 	// ssl: true - protocol incorrect
+	// NOTE: Address with protocol now overrides ssl flag
 	e = &external{addrVal: "http://127.0.0.1:8500", ssl: true}
 	addr = e.addr("foo")
-	require.Equal(t, "https://127.0.0.1:8500", addr)
+	require.Equal(t, "http://127.0.0.1:8500", addr)
 
 	// ssl: true - protocol missing
 	e = &external{addrVal: "127.0.0.1:8500", ssl: true}
@@ -553,14 +582,20 @@ func TestDebug_External(t *testing.T) {
 	require.Equal(t, "http://127.0.0.1:8500", addr)
 
 	// ssl: false - protocol incorrect
+	// NOTE: Address with protocol now overrides ssl flag
 	e = &external{addrVal: "https://127.0.0.1:8500", ssl: false}
 	addr = e.addr("foo")
-	require.Equal(t, "http://127.0.0.1:8500", addr)
+	require.Equal(t, "https://127.0.0.1:8500", addr)
 
 	// ssl: false - protocol missing
 	e = &external{addrVal: "127.0.0.1:8500", ssl: false}
 	addr = e.addr("foo")
 	require.Equal(t, "http://127.0.0.1:8500", addr)
+
+	// Address through proxy might not have a port
+	e = &external{addrVal: "https://127.0.0.1", ssl: true}
+	addr = e.addr("foo")
+	require.Equal(t, "https://127.0.0.1", addr)
 }
 
 func TestDebug_WriteBytes_Nil(t *testing.T) {
@@ -607,4 +642,101 @@ func TestDebug_WriteBytes_PathEscapesSandbox(t *testing.T) {
 	cmd.collectDir = ""
 	err := cmd.writeBytes(testDir, testFile, testBytes)
 	require.Error(t, err)
+}
+
+func TestDebug_CollectConsul(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("-short set; skipping")
+	}
+
+	// Skip test if Consul binary cannot be found
+	clienttest.RequireConsul(t)
+
+	// Create an embedded Consul server
+	testconsul, err := consultest.NewTestServerConfigT(t, func(c *consultest.TestServerConfig) {
+		// If -v wasn't specified squelch consul logging
+		if !testing.Verbose() {
+			c.Stdout = ioutil.Discard
+			c.Stderr = ioutil.Discard
+		}
+	})
+	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("error starting test consul server: %v", err)
+	}
+	defer testconsul.Stop()
+
+	consulConfig := consulapi.DefaultConfig()
+	consulConfig.Address = testconsul.HTTPAddr
+
+	// Setup mock UI
+	ui := cli.NewMockUi()
+	c := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// Setup Consul *external
+	ce := &external{}
+	ce.setAddr(consulConfig.Address)
+	if ce.ssl {
+		ce.tls = &api.TLSConfig{}
+	}
+
+	// Set global client
+	c.consul = ce
+
+	// Setup capture directory
+	testDir := os.TempDir()
+	defer os.Remove(testDir)
+	c.collectDir = testDir
+
+	// Collect data from Consul into folder "test"
+	c.collectConsul("test")
+
+	require.Empty(t, ui.ErrorWriter.String())
+	require.FileExists(t, filepath.Join(testDir, "test", "consul-agent-host.json"))
+	require.FileExists(t, filepath.Join(testDir, "test", "consul-agent-members.json"))
+	require.FileExists(t, filepath.Join(testDir, "test", "consul-agent-metrics.json"))
+	require.FileExists(t, filepath.Join(testDir, "test", "consul-leader.json"))
+}
+
+func TestDebug_CollectVault(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("-short set; skipping")
+	}
+
+	// Skip test if Consul binary cannot be found
+	clienttest.RequireVault(t)
+
+	// Create a Vault server
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	// Setup mock UI
+	ui := cli.NewMockUi()
+	c := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// Setup Vault *external
+	ve := &external{}
+	ve.tokenVal = v.RootToken
+	ve.setAddr(v.HTTPAddr)
+	if ve.ssl {
+		ve.tls = &api.TLSConfig{}
+	}
+
+	// Set global client
+	c.vault = ve
+
+	// Set capture directory
+	testDir := os.TempDir()
+	defer os.Remove(testDir)
+	c.collectDir = testDir
+
+	// Collect data from Vault
+	err := c.collectVault("test", "")
+
+	require.NoError(t, err)
+	require.Empty(t, ui.ErrorWriter.String())
+
+	require.FileExists(t, filepath.Join(testDir, "test", "vault-sys-health.json"))
 }

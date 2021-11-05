@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"io"
@@ -24,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/version"
 	"github.com/posener/complete"
 )
 
@@ -391,6 +393,9 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 
 	c.collectDir = tmp
 
+	// Write CLI flags to JSON file
+	c.writeFlags(flags)
+
 	// Create an instance of the API client
 	client, err := c.Meta.Client()
 	if err != nil {
@@ -496,6 +501,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	// Display general info about the capture
 	c.Ui.Output("Starting debugger...")
 	c.Ui.Output("")
+	c.Ui.Output(fmt.Sprintf("Nomad CLI Version: %s", version.GetVersion().FullVersionNumber(true)))
 	c.Ui.Output(fmt.Sprintf("           Region: %s", c.region))
 	c.Ui.Output(fmt.Sprintf("        Namespace: %s", c.namespace))
 	c.Ui.Output(fmt.Sprintf("          Servers: (%d/%d) %v", serverCaptureCount, serversFound, c.serverIDs))
@@ -560,39 +566,19 @@ func (c *OperatorDebugCommand) collect(client *api.Client) error {
 	regions, err := client.Regions().List()
 	c.writeJSON(clusterDir, "regions.json", regions, err)
 
-	// Fetch data directly from consul and vault. Ignore errors
-	var consul, vault string
-
-	if self != nil {
-		r, ok := self.Config["Consul"]
-		if ok {
-			m, ok := r.(map[string]interface{})
-			if ok {
-
-				raw := m["Addr"]
-				consul, _ = raw.(string)
-				raw = m["EnableSSL"]
-				ssl, _ := raw.(bool)
-				if ssl {
-					consul = "https://" + consul
-				} else {
-					consul = "http://" + consul
-				}
-			}
-		}
-
-		r, ok = self.Config["Vault"]
-		if ok {
-			m, ok := r.(map[string]interface{})
-			if ok {
-				raw := m["Addr"]
-				vault, _ = raw.(string)
-			}
-		}
+	// Collect data from Consul
+	if c.consul.addrVal == "" {
+		c.getConsulAddrFromSelf(self)
 	}
+	c.collectConsul(clusterDir)
 
-	c.collectConsul(clusterDir, consul)
-	c.collectVault(clusterDir, vault)
+	// Collect data from Vault
+	vaultAddr := c.vault.addrVal
+	if vaultAddr == "" {
+		vaultAddr = c.getVaultAddrFromSelf(self)
+	}
+	c.collectVault(clusterDir, vaultAddr)
+
 	c.collectAgentHosts(client)
 	c.collectPprofs(client)
 
@@ -894,42 +880,94 @@ func (c *OperatorDebugCommand) collectNomad(dir string, client *api.Client) erro
 	return nil
 }
 
-// collectConsul calls the Consul API directly to collect data
-func (c *OperatorDebugCommand) collectConsul(dir, consul string) error {
-	addr := c.consul.addr(consul)
-	if addr == "" {
-		return nil
+// collectConsul calls the Consul API to collect data
+func (c *OperatorDebugCommand) collectConsul(dir string) {
+	if c.consul.addrVal == "" {
+		c.Ui.Output("Consul - Skipping, no API address found")
+		return
 	}
 
-	client := defaultHttpClient()
-	api.ConfigureTLS(client, c.consul.tls)
+	c.Ui.Info(fmt.Sprintf("Consul - Collecting Consul API data from: %s", c.consul.addrVal))
 
-	req, _ := http.NewRequest("GET", addr+"/v1/agent/self", nil)
+	client, err := c.consulAPIClient()
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("failed to create Consul API client: %s", err))
+		return
+	}
+
+	// Exit if we are unable to retrieve the leader
+	err = c.collectConsulAPIRequest(client, "/v1/status/leader", dir, "consul-leader.json")
+	if err != nil {
+		c.Ui.Output(fmt.Sprintf("Unable to contact Consul leader, skipping: %s", err))
+		return
+	}
+
+	c.collectConsulAPI(client, "/v1/agent/host", dir, "consul-agent-host.json")
+	c.collectConsulAPI(client, "/v1/agent/members", dir, "consul-agent-members.json")
+	c.collectConsulAPI(client, "/v1/agent/metrics", dir, "consul-agent-metrics.json")
+	c.collectConsulAPI(client, "/v1/agent/self", dir, "consul-agent-self.json")
+}
+
+func (c *OperatorDebugCommand) consulAPIClient() (*http.Client, error) {
+	httpClient := defaultHttpClient()
+
+	err := api.ConfigureTLS(httpClient, c.consul.tls)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure TLS: %w", err)
+	}
+
+	return httpClient, nil
+}
+
+func (c *OperatorDebugCommand) collectConsulAPI(client *http.Client, urlPath string, dir string, file string) {
+	err := c.collectConsulAPIRequest(client, urlPath, dir, file)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error collecting from Consul API: %s", err.Error()))
+	}
+}
+
+func (c *OperatorDebugCommand) collectConsulAPIRequest(client *http.Client, urlPath string, dir string, file string) error {
+	url := c.consul.addrVal + urlPath
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request for Consul API URL=%q: %w", url, err)
+	}
+
 	req.Header.Add("X-Consul-Token", c.consul.token())
 	req.Header.Add("User-Agent", userAgent)
+
 	resp, err := client.Do(req)
-	c.writeBody(dir, "consul-agent-self.json", resp, err)
+	if err != nil {
+		return err
+	}
 
-	req, _ = http.NewRequest("GET", addr+"/v1/agent/members", nil)
-	req.Header.Add("X-Consul-Token", c.consul.token())
-	req.Header.Add("User-Agent", userAgent)
-	resp, err = client.Do(req)
-	c.writeBody(dir, "consul-agent-members.json", resp, err)
+	c.writeBody(dir, file, resp, err)
 
 	return nil
 }
 
 // collectVault calls the Vault API directly to collect data
 func (c *OperatorDebugCommand) collectVault(dir, vault string) error {
-	addr := c.vault.addr(vault)
-	if addr == "" {
+	vaultAddr := c.vault.addr(vault)
+	if vaultAddr == "" {
 		return nil
 	}
 
+	c.Ui.Info(fmt.Sprintf("Vault - Collecting Vault API data from: %s", vaultAddr))
 	client := defaultHttpClient()
-	api.ConfigureTLS(client, c.vault.tls)
+	if c.vault.ssl {
+		err := api.ConfigureTLS(client, c.vault.tls)
+		if err != nil {
+			return fmt.Errorf("failed to configure TLS: %w", err)
+		}
+	}
 
-	req, _ := http.NewRequest("GET", addr+"/sys/health", nil)
+	req, err := http.NewRequest("GET", vaultAddr+"/v1/sys/health", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request for Vault API URL=%q: %w", vaultAddr, err)
+	}
+
 	req.Header.Add("X-Vault-Token", c.vault.token())
 	req.Header.Add("User-Agent", userAgent)
 	resp, err := client.Do(req)
@@ -1026,6 +1064,46 @@ func (c *OperatorDebugCommand) writeBody(dir, file string, resp *http.Response, 
 	if err := c.writeBytes(dir, file, body); err != nil {
 		c.Ui.Error(err.Error())
 	}
+}
+
+type flagExport struct {
+	Name      string
+	Parsed    bool
+	Actual    map[string]*flag.Flag
+	Formal    map[string]*flag.Flag
+	Effective map[string]*flag.Flag // All flags with non-empty value
+	Args      []string              // arguments after flags
+	OsArgs    []string
+}
+
+// writeFlags exports the CLI flags to JSON file
+func (c *OperatorDebugCommand) writeFlags(flags *flag.FlagSet) {
+	// c.writeJSON(clusterDir, "cli-flags-complete.json", flags, nil)
+
+	var f flagExport
+	f.Name = flags.Name()
+	f.Parsed = flags.Parsed()
+	f.Formal = make(map[string]*flag.Flag)
+	f.Actual = make(map[string]*flag.Flag)
+	f.Effective = make(map[string]*flag.Flag)
+	f.Args = flags.Args()
+	f.OsArgs = os.Args
+
+	// Formal flags (all flags)
+	flags.VisitAll(func(flagA *flag.Flag) {
+		f.Formal[flagA.Name] = flagA
+
+		// Determine which of thees are "effective" flags by comparing to empty string
+		if flagA.Value.String() != "" {
+			f.Effective[flagA.Name] = flagA
+		}
+	})
+	// Actual flags (everything passed on cmdline)
+	flags.Visit(func(flag *flag.Flag) {
+		f.Actual[flag.Name] = flag
+	})
+
+	c.writeJSON(clusterDir, "cli-flags.json", f, nil)
 }
 
 // writeManifest creates the index files
@@ -1214,27 +1292,34 @@ func (e *external) addr(defaultAddr string) string {
 		return defaultAddr
 	}
 
-	if !e.ssl {
-		if strings.HasPrefix(e.addrVal, "http:") {
-			return e.addrVal
-		}
-		if strings.HasPrefix(e.addrVal, "https:") {
-			// Mismatch: e.ssl=false but addrVal is https
-			return strings.ReplaceAll(e.addrVal, "https://", "http://")
-		}
-		return "http://" + e.addrVal
-	}
-
-	if strings.HasPrefix(e.addrVal, "https:") {
+	// Return address as-is if it contains a protocol
+	if strings.Contains(e.addrVal, "://") {
 		return e.addrVal
 	}
 
-	if strings.HasPrefix(e.addrVal, "http:") {
-		// Mismatch: e.ssl=true but addrVal is http
-		return strings.ReplaceAll(e.addrVal, "http://", "https://")
+	if e.ssl {
+		return "https://" + e.addrVal
 	}
 
-	return "https://" + e.addrVal
+	return "http://" + e.addrVal
+}
+
+func (e *external) setAddr(addr string) {
+	// Handle no protocol scenario first
+	if !strings.Contains(addr, "://") {
+		e.addrVal = "http://" + addr
+		if e.ssl {
+			e.addrVal = "https://" + addr
+		}
+		return
+	}
+
+	// Set SSL boolean based on protocol
+	e.ssl = false
+	if strings.Contains(addr, "https") {
+		e.ssl = true
+	}
+	e.addrVal = addr
 }
 
 func (e *external) token() string {
@@ -1250,6 +1335,56 @@ func (e *external) token() string {
 	}
 
 	return ""
+}
+
+func (c *OperatorDebugCommand) getConsulAddrFromSelf(self *api.AgentSelf) string {
+	if self == nil {
+		return ""
+	}
+
+	var consulAddr string
+	r, ok := self.Config["Consul"]
+	if ok {
+		m, ok := r.(map[string]interface{})
+		if ok {
+			raw := m["EnableSSL"]
+			c.consul.ssl, _ = raw.(bool)
+			raw = m["Addr"]
+			c.consul.setAddr(raw.(string))
+			raw = m["Auth"]
+			c.consul.auth, _ = raw.(string)
+			raw = m["Token"]
+			c.consul.tokenVal = raw.(string)
+
+			consulAddr = c.consul.addr("")
+		}
+	}
+	return consulAddr
+}
+
+func (c *OperatorDebugCommand) getVaultAddrFromSelf(self *api.AgentSelf) string {
+	if self == nil {
+		return ""
+	}
+
+	var vaultAddr string
+	r, ok := self.Config["Vault"]
+	if ok {
+		m, ok := r.(map[string]interface{})
+		if ok {
+			raw := m["EnableSSL"]
+			c.vault.ssl, _ = raw.(bool)
+			raw = m["Addr"]
+			c.vault.setAddr(raw.(string))
+			raw = m["Auth"]
+			c.vault.auth, _ = raw.(string)
+			raw = m["Token"]
+			c.vault.tokenVal = raw.(string)
+
+			vaultAddr = c.vault.addr("")
+		}
+	}
+	return vaultAddr
 }
 
 // defaultHttpClient configures a basic httpClient
