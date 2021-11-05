@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"io"
@@ -390,6 +391,9 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 
 	c.collectDir = tmp
+
+	// Write CLI flags to JSON file
+	c.writeFlags(flags)
 
 	// Create an instance of the API client
 	client, err := c.Meta.Client()
@@ -1058,6 +1062,46 @@ func (c *OperatorDebugCommand) writeBody(dir, file string, resp *http.Response, 
 	if err := c.writeBytes(dir, file, body); err != nil {
 		c.Ui.Error(err.Error())
 	}
+}
+
+type flagExport struct {
+	Name      string
+	Parsed    bool
+	Actual    map[string]*flag.Flag
+	Formal    map[string]*flag.Flag
+	Effective map[string]*flag.Flag // All flags with non-empty value
+	Args      []string              // arguments after flags
+	OsArgs    []string
+}
+
+// writeFlags exports the CLI flags to JSON file
+func (c *OperatorDebugCommand) writeFlags(flags *flag.FlagSet) {
+	// c.writeJSON(clusterDir, "cli-flags-complete.json", flags, nil)
+
+	var f flagExport
+	f.Name = flags.Name()
+	f.Parsed = flags.Parsed()
+	f.Formal = make(map[string]*flag.Flag)
+	f.Actual = make(map[string]*flag.Flag)
+	f.Effective = make(map[string]*flag.Flag)
+	f.Args = flags.Args()
+	f.OsArgs = os.Args
+
+	// Formal flags (all flags)
+	flags.VisitAll(func(flagA *flag.Flag) {
+		f.Formal[flagA.Name] = flagA
+
+		// Determine which of thees are "effective" flags by comparing to empty string
+		if flagA.Value.String() != "" {
+			f.Effective[flagA.Name] = flagA
+		}
+	})
+	// Actual flags (everything passed on cmdline)
+	flags.Visit(func(flag *flag.Flag) {
+		f.Actual[flag.Name] = flag
+	})
+
+	c.writeJSON(clusterDir, "cli-flags.json", f, nil)
 }
 
 // writeManifest creates the index files
