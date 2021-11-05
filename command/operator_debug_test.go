@@ -2,11 +2,16 @@ package command
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	consulapi "github.com/hashicorp/consul/api"
+	consultest "github.com/hashicorp/consul/sdk/testutil"
+	"github.com/hashicorp/nomad/api"
+	clienttest "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -375,8 +380,6 @@ func TestDebug_CapturedFiles(t *testing.T) {
 	// Setup file slices
 	clusterFiles := []string{
 		"agent-self.json",
-		"consul-agent-members.json",
-		"consul-agent-self.json",
 		"members.json",
 		"namespaces.json",
 		"regions.json",
@@ -538,9 +541,10 @@ func TestDebug_External(t *testing.T) {
 	require.Equal(t, "https://127.0.0.1:8500", addr)
 
 	// ssl: true - protocol incorrect
+	// NOTE: Address with protocol now overrides ssl flag
 	e = &external{addrVal: "http://127.0.0.1:8500", ssl: true}
 	addr = e.addr("foo")
-	require.Equal(t, "https://127.0.0.1:8500", addr)
+	require.Equal(t, "http://127.0.0.1:8500", addr)
 
 	// ssl: true - protocol missing
 	e = &external{addrVal: "127.0.0.1:8500", ssl: true}
@@ -553,14 +557,20 @@ func TestDebug_External(t *testing.T) {
 	require.Equal(t, "http://127.0.0.1:8500", addr)
 
 	// ssl: false - protocol incorrect
+	// NOTE: Address with protocol now overrides ssl flag
 	e = &external{addrVal: "https://127.0.0.1:8500", ssl: false}
 	addr = e.addr("foo")
-	require.Equal(t, "http://127.0.0.1:8500", addr)
+	require.Equal(t, "https://127.0.0.1:8500", addr)
 
 	// ssl: false - protocol missing
 	e = &external{addrVal: "127.0.0.1:8500", ssl: false}
 	addr = e.addr("foo")
 	require.Equal(t, "http://127.0.0.1:8500", addr)
+
+	// Address through proxy might not have a port
+	e = &external{addrVal: "https://127.0.0.1", ssl: true}
+	addr = e.addr("foo")
+	require.Equal(t, "https://127.0.0.1", addr)
 }
 
 func TestDebug_WriteBytes_Nil(t *testing.T) {
@@ -608,3 +618,59 @@ func TestDebug_WriteBytes_PathEscapesSandbox(t *testing.T) {
 	err := cmd.writeBytes(testDir, testFile, testBytes)
 	require.Error(t, err)
 }
+
+func TestDebug_CollectConsul(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("-short set; skipping")
+	}
+
+	// Skip test if Consul binary cannot be found
+	clienttest.RequireConsul(t)
+
+	// Create an embedded Consul server
+	testconsul, err := consultest.NewTestServerConfigT(t, func(c *consultest.TestServerConfig) {
+		// If -v wasn't specified squelch consul logging
+		if !testing.Verbose() {
+			c.Stdout = ioutil.Discard
+			c.Stderr = ioutil.Discard
+		}
+	})
+	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("error starting test consul server: %v", err)
+	}
+	defer testconsul.Stop()
+
+	consulConfig := consulapi.DefaultConfig()
+	consulConfig.Address = testconsul.HTTPAddr
+
+	// Setup mock UI
+	ui := cli.NewMockUi()
+	c := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+	// Setup Consul *external
+	ce := &external{}
+	ce.setAddr(consulConfig.Address)
+	if ce.ssl {
+		ce.tls = &api.TLSConfig{}
+	}
+
+	// Set global client
+	c.consul = ce
+
+	// Setup capture directory
+	testDir := os.TempDir()
+	defer os.Remove(testDir)
+	c.collectDir = testDir
+
+	// Collect data from Consul into folder "test"
+	c.collectConsul("test")
+
+	require.Empty(t, ui.ErrorWriter.String())
+	require.FileExists(t, filepath.Join(testDir, "test", "consul-agent-host.json"))
+	require.FileExists(t, filepath.Join(testDir, "test", "consul-agent-members.json"))
+	require.FileExists(t, filepath.Join(testDir, "test", "consul-agent-metrics.json"))
+	require.FileExists(t, filepath.Join(testDir, "test", "consul-leader.json"))
+}
+
