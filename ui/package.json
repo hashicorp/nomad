@@ -121,7 +121,7 @@
     "pretender": "^3.0.1",
     "prettier": "^1.4.4",
     "query-string": "^7.0.1",
-    "qunit-dom": "^1.2.0",
+    "qunit-dom": "^2.0.0",
     "sass": "^1.17.3",
     "testem": "^3.0.3",
     "testem-multi-reporter": "^1.2.0",
