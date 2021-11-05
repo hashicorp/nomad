@@ -101,7 +101,7 @@
     "ember-template-lint": "^2.9.1",
     "ember-test-selectors": "^5.0.0",
     "ember-truth-helpers": "^2.0.0",
-    "eslint": "^7.5.0",
+    "eslint": "^8.1.0",
     "eslint-plugin-ember": "^8.9.1",
     "eslint-plugin-ember-a11y-testing": "a11y-tool-sandbox/eslint-plugin-ember-a11y-testing#ca31c9698c7cb105f1c9761d98fcaca7d6874459",
     "eslint-plugin-node": "^11.1.0",
