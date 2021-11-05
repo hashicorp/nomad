@@ -3868,6 +3868,56 @@ func TestJobEndpoint_BatchDeregister_ACL(t *testing.T) {
 	require.NotEqual(validResp2.Index, 0)
 }
 
+func TestJobEndpoint_Deregister_Priority(t *testing.T) {
+	t.Parallel()
+	requireAssertion := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	fsmState := s1.fsm.State()
+
+	// Create a job which a custom priority and register this.
+	job := mock.Job()
+	job.Priority = 90
+	err := fsmState.UpsertJob(structs.MsgTypeTestSetup, 100, job)
+	requireAssertion.Nil(err)
+
+	// Deregister.
+	dereg := &structs.JobDeregisterRequest{
+		JobID: job.ID,
+		Purge: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp structs.JobDeregisterResponse
+	requireAssertion.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg, &resp))
+	requireAssertion.NotZero(resp.Index)
+
+	// Check for the job in the FSM which should not be there as it was purged.
+	out, err := fsmState.JobByID(nil, job.Namespace, job.ID)
+	requireAssertion.Nil(err)
+	requireAssertion.Nil(out)
+
+	// Lookup the evaluation
+	eval, err := fsmState.EvalByID(nil, resp.EvalID)
+	requireAssertion.Nil(err)
+	requireAssertion.NotNil(eval)
+	requireAssertion.EqualValues(resp.EvalCreateIndex, eval.CreateIndex)
+	requireAssertion.Equal(job.Priority, eval.Priority)
+	requireAssertion.Equal(job.Type, eval.Type)
+	requireAssertion.Equal(structs.EvalTriggerJobDeregister, eval.TriggeredBy)
+	requireAssertion.Equal(job.ID, eval.JobID)
+	requireAssertion.Equal(structs.EvalStatusPending, eval.Status)
+	requireAssertion.NotZero(eval.CreateTime)
+	requireAssertion.NotZero(eval.ModifyTime)
+}
+
 func TestJobEndpoint_GetJob(t *testing.T) {
 	t.Parallel()
 
