@@ -1125,7 +1125,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 			eval := &structs.Evaluation{
 				ID:             uuid.Generate(),
 				Namespace:      namespace,
-				Priority:       structs.JobDefaultPriority,
+				Priority:       job.Priority, // Safe as nil check performed above.
 				Type:           structs.JobTypeService,
 				TriggeredBy:    structs.EvalTriggerScaling,
 				JobID:          args.JobID,
