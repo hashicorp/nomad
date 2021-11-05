@@ -114,7 +114,7 @@ module('Acceptance | job versions', function(hooks) {
 
     if (versionRowToRevertTo) {
       // The default Mirage implementation updates the job version as passed in, this does nothing
-      server.pretender.post('/v1/job/:id/revert', () => [200, {}, '']);
+      server.pretender.post('/v1/job/:id/revert', () => [200, {}, '{}']);
 
       await versionRowToRevertTo.revertToButton.idle();
       await versionRowToRevertTo.revertToButton.confirm();
