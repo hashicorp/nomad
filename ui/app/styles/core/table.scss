@@ -1,3 +1,5 @@
+@use "sass:math";
+
 .table {
   color: $text;
   border-radius: $radius;
@@ -110,8 +112,8 @@
 
     @for $i from 1 through 11 {
       &.is-#{$i} {
-        width: 100% / 12 * $i;
-        max-width: 100% / 12 * $i;
+        width: math.div(100%, 12) * $i;
+        max-width: math.div(100%, 12) * $i;
       }
     }
 
