@@ -426,13 +426,18 @@ func TestDebug_CapturedFiles(t *testing.T) {
 	ui := cli.NewMockUi()
 	cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
 
+	duration := 2 * time.Second
+	interval := 750 * time.Millisecond
+	waitTime := 2 * duration
+
 	code := cmd.Run([]string{
 		"-address", url,
 		"-output", os.TempDir(),
 		"-server-id", serverName,
 		"-node-id", clientID,
-		"-duration", "1300ms",
-		"-interval", "600ms",
+		"-duration", duration.String(),
+		"-interval", interval.String(),
+		"-pprof-duration", "0",
 	})
 
 	// Get capture directory
@@ -447,27 +452,27 @@ func TestDebug_CapturedFiles(t *testing.T) {
 	// Verify cluster files
 	clusterPaths := buildPathSlice(cmd.path(clusterDir), clusterFiles)
 	t.Logf("Waiting for cluster files in path: %s", clusterDir)
-	testutil.WaitForFilesUntil(t, clusterPaths, 2*time.Minute)
+	testutil.WaitForFilesUntil(t, clusterPaths, waitTime)
 
 	// Verify client files
 	clientPaths := buildPathSlice(cmd.path(clientDir, clientID), clientFiles)
 	t.Logf("Waiting for client files in path: %s", clientDir)
-	testutil.WaitForFilesUntil(t, clientPaths, 2*time.Minute)
+	testutil.WaitForFilesUntil(t, clientPaths, waitTime)
 
 	// Verify server files
 	serverPaths := buildPathSlice(cmd.path(serverDir, serverName), serverFiles)
 	t.Logf("Waiting for server files in path: %s", serverDir)
-	testutil.WaitForFilesUntil(t, serverPaths, 2*time.Minute)
+	testutil.WaitForFilesUntil(t, serverPaths, waitTime)
 
 	// Verify interval 0000 files
 	intervalPaths0 := buildPathSlice(cmd.path(intervalDir, "0000"), intervalFiles)
 	t.Logf("Waiting for interval 0000 files in path: %s", intervalDir)
-	testutil.WaitForFilesUntil(t, intervalPaths0, 2*time.Minute)
+	testutil.WaitForFilesUntil(t, intervalPaths0, waitTime)
 
 	// Verify interval 0001 files
 	intervalPaths1 := buildPathSlice(cmd.path(intervalDir, "0001"), intervalFiles)
 	t.Logf("Waiting for interval 0001 files in path: %s", intervalDir)
-	testutil.WaitForFilesUntil(t, intervalPaths1, 2*time.Minute)
+	testutil.WaitForFilesUntil(t, intervalPaths1, waitTime)
 }
 
 func TestDebug_ExistingOutput(t *testing.T) {
