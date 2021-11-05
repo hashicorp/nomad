@@ -164,65 +164,86 @@ func TestDebug_ClientToServer(t *testing.T) {
 	runTestCases(t, cases)
 }
 
-func TestDebug_ClientToServer_Region(t *testing.T) {
-	region := "testregion"
+func TestDebug_MultiRegion(t *testing.T) {
+	region1 := "region1"
+	region2 := "region2"
 
-	// Start test server and API client
-	srv, _, url := testServer(t, false, func(c *agent.Config) {
-		c.Region = region
-	})
+	// Start region1 server
+	server1, _, addrServer1 := testServer(t, false, func(c *agent.Config) { c.Region = region1 })
+	testutil.WaitForLeader(t, server1.Agent.RPC)
+	rpcAddrServer1 := server1.GetConfig().AdvertiseAddrs.RPC
+	t.Logf("[TEST] %s: Leader started, HTTPAddr: %s, RPC: %s", region1, addrServer1, rpcAddrServer1)
 
-	// Wait for leadership to establish
-	testutil.WaitForLeader(t, srv.Agent.RPC)
+	// Start region1 client
+	agent1, _, addrClient1 := testClient(t, "client1", newClientAgentConfigFunc(region1, "", rpcAddrServer1))
+	nodeIdClient1 := agent1.Agent.Client().NodeID()
+	t.Logf("[TEST] %s: Client1 started, ID: %s, HTTPAddr: %s", region1, nodeIdClient1, addrClient1)
 
-	// Retrieve server RPC address to join client
-	srvRPCAddr := srv.GetConfig().AdvertiseAddrs.RPC
-	t.Logf("[TEST] Leader started, srv.GetConfig().AdvertiseAddrs.RPC: %s", srvRPCAddr)
+	// Start region2 server
+	server2, _, addrServer2 := testServer(t, false, func(c *agent.Config) { c.Region = region2 })
+	testutil.WaitForLeader(t, server2.Agent.RPC)
+	rpcAddrServer2 := server2.GetConfig().AdvertiseAddrs.RPC
+	t.Logf("[TEST] %s: Leader started, HTTPAddr: %s, RPC: %s", region2, addrServer2, rpcAddrServer2)
 
-	// Start client
-	agent1, _, _ := testClient(t, "client1", newClientAgentConfigFunc(region, "", srvRPCAddr))
+	// Start client2
+	agent2, _, addrClient2 := testClient(t, "client2", newClientAgentConfigFunc(region2, "", rpcAddrServer2))
+	nodeIdClient2 := agent2.Agent.Client().NodeID()
+	t.Logf("[TEST] %s: Client1 started, ID: %s, HTTPAddr: %s", region2, nodeIdClient2, addrClient2)
 
-	// Get API addresses
-	addrServer := srv.HTTPAddr()
-	addrClient1 := agent1.HTTPAddr()
-
-	t.Logf("[TEST] testAgent api address: %s", url)
-	t.Logf("[TEST] Server    api address: %s", addrServer)
-	t.Logf("[TEST] Client1   api address: %s", addrClient1)
+	t.Logf("[TEST] Region: %s, Server1   api address: %s", region1, addrServer1)
+	t.Logf("[TEST] Region: %s, Client1   api address: %s", region1, addrClient1)
+	t.Logf("[TEST] Region: %s, Server2   api address: %s", region2, addrServer2)
+	t.Logf("[TEST] Region: %s, Client2   api address: %s", region2, addrClient2)
 
 	// Setup test cases
 	var cases = testCases{
 		// Good
 		{
-			name:         "region - testAgent api server",
-			args:         []string{"-address", url, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			name:         "no region - all servers, all clients",
+			args:         []string{"-address", addrServer1, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			expectedCode: 0,
+		},
+		{
+			name:         "region1 - server1 address",
+			args:         []string{"-address", addrServer1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
 			expectedCode: 0,
 			expectedOutputs: []string{
-				"Region: " + region + "\n",
-				"Servers: (1/1)",
-				"Clients: (1/1)",
+				"Region: " + region1 + "\n",
+				"Servers: (1/1) [TestDebug_MultiRegion.region1]",
+				"Clients: (1/1) [" + nodeIdClient1 + "]",
 				"Created debug archive",
 			},
 		},
 		{
-			name:         "region - server address",
-			args:         []string{"-address", addrServer, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			name:         "region1 - client1 address",
+			args:         []string{"-address", addrClient1, "-region", region1, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
 			expectedCode: 0,
 			expectedOutputs: []string{
-				"Region: " + region + "\n",
-				"Servers: (1/1)",
-				"Clients: (1/1)",
+				"Region: " + region1 + "\n",
+				"Servers: (1/1) [TestDebug_MultiRegion.region1]",
+				"Clients: (1/1) [" + nodeIdClient1 + "]",
 				"Created debug archive",
 			},
 		},
 		{
-			name:         "region - client1 address - verify no SIGSEGV panic",
-			args:         []string{"-address", addrClient1, "-region", region, "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			name:         "region2 - server2 address",
+			args:         []string{"-address", addrServer2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
 			expectedCode: 0,
 			expectedOutputs: []string{
-				"Region: " + region + "\n",
-				"Servers: (1/1)",
-				"Clients: (1/1)",
+				"Region: " + region2 + "\n",
+				"Servers: (1/1) [TestDebug_MultiRegion.region2]",
+				"Clients: (1/1) [" + nodeIdClient2 + "]",
+				"Created debug archive",
+			},
+		},
+		{
+			name:         "region2 - client2 address",
+			args:         []string{"-address", addrClient2, "-region", region2, "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
+			expectedCode: 0,
+			expectedOutputs: []string{
+				"Region: " + region2 + "\n",
+				"Servers: (1/1) [TestDebug_MultiRegion.region2]",
+				"Clients: (1/1) [" + nodeIdClient2 + "]",
 				"Created debug archive",
 			},
 		},
@@ -230,7 +251,7 @@ func TestDebug_ClientToServer_Region(t *testing.T) {
 		// Bad
 		{
 			name:          "invalid region - all servers, all clients",
-			args:          []string{"-address", url, "-region", "never", "-duration", "250ms", "-interval", "250ms", "-server-id", "all", "-node-id", "all"},
+			args:          []string{"-address", addrServer1, "-region", "never", "-duration", "50ms", "-interval", "50ms", "-server-id", "all", "-node-id", "all", "-pprof-duration", "0"},
 			expectedCode:  1,
 			expectedError: "500 (No path to region)",
 		},
