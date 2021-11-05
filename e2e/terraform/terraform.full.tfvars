@@ -8,7 +8,7 @@ nomad_enterprise                 = true
 nomad_acls                       = true
 vault                            = true
 volumes                          = true
-tls                              = false
+tls                              = true
 
 # required to avoid picking up defaults from terraform.tfvars file
 nomad_version      = "" # default version for deployment
