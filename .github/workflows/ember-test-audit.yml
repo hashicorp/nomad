@@ -10,7 +10,6 @@ defaults:
 
 # There’s currently no way to share steps between jobs so there’s a lot of duplication
 # for running the audit for the base and PR.
-  
 jobs:
   time-base:
     runs-on: ubuntu-latest
@@ -20,9 +19,9 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
       - uses: nanasess/setup-chromedriver@master
       - name: Use Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2
         with:
-          node-version: '10.x'
+          node-version: '12'
       - run: yarn --frozen-lockfile
       - run: mkdir -p /tmp/test-reports
       - run: npx ember-test-audit 3 --json --output ../base-audit.json
@@ -37,9 +36,9 @@ jobs:
       - uses: actions/checkout@v2
       - uses: nanasess/setup-chromedriver@master
       - name: Use Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2
         with:
-          node-version: '10.x'
+          node-version: '12'
       - run: yarn --frozen-lockfile
       - run: mkdir -p /tmp/test-reports
       - run: npx ember-test-audit 3 --json --output ../pr-audit.json
