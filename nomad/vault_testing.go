@@ -46,6 +46,10 @@ func (v *TestVaultClient) LookupToken(ctx context.Context, token string) (*vapi.
 	return secret, err
 }
 
+func (v *TestVaultClient) LookupEntity(entityId string) (*VaultEntity, error) {
+	return nil, nil
+}
+
 // SetLookupTokenError sets the error that will be returned by the token
 // lookup
 func (v *TestVaultClient) SetLookupTokenError(token string, err error) {
@@ -71,7 +75,8 @@ func (v *TestVaultClient) SetLookupTokenSecret(token string, secret *vapi.Secret
 func (v *TestVaultClient) SetLookupTokenAllowedPolicies(token string, policies []string) {
 	s := &vapi.Secret{
 		Data: map[string]interface{}{
-			"policies": policies,
+			"policies":  policies,
+			"entity_id": "TEST",
 		},
 	}
 

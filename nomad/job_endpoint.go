@@ -11,6 +11,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/vault/api"
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/consul/lib"
@@ -78,6 +79,8 @@ func NewJobEndpoints(s *Server) *Job {
 
 // Register is used to upsert a job for scheduling
 func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegisterResponse) error {
+	fmt.Println("REGISTER JOB!")
+
 	if done, err := j.srv.forward("Job.Register", args, args, reply); done {
 		return err
 	}
@@ -211,6 +214,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
+	// TODO: COME BACK HERE
 	// Ensure that the job has permissions for the requested Vault tokens
 	policies := args.Job.VaultPolicies()
 	if len(policies) != 0 {
@@ -240,6 +244,52 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			namespaceErr := j.multiVaultNamespaceValidation(policies, s)
 			if namespaceErr != nil {
 				return namespaceErr
+			}
+
+			// For each task
+			// Get the entity ID of the job's token
+			var entityID string
+			var entity *VaultEntity
+
+			if hasEntityID(s) {
+				// spew.Dump(s.Data)
+				entityID = s.Data["entity_id"].(string)
+				// Get the entity information from Vault
+				entity, err = vault.LookupEntity(entityID)
+				if err != nil {
+					return err
+				}
+			}
+
+			fmt.Println("======================")
+			fmt.Println("entityID")
+			fmt.Println(entityID)
+			fmt.Println("entity")
+			fmt.Println(entity)
+			fmt.Println("======================")
+
+			var aliasNames []string
+			for _, alias := range entity.Data.Aliases {
+				if alias.MountType == "token" {
+					aliasNames = append(aliasNames, alias.Name)
+				}
+			}
+
+			for _, tg := range args.Job.TaskGroups {
+				for _, t := range tg.Tasks {
+					// If the given job is configured to use an entity-alias
+					if t.Vault.EntityAlias != "" {
+						aliasFromJob := t.Vault.EntityAlias
+
+						if entity == nil {
+							return errors.New("Must have entity associated with job token.")
+						}
+
+						if !containsString(aliasNames, aliasFromJob) {
+							return errors.New("Aliases for job token do not contain alis in job spec.")
+						}
+					}
+				}
 			}
 
 			// If we are given a root token it can access all policies
@@ -2183,4 +2233,20 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 			return nil
 		}}
 	return j.srv.blockingRPC(&opts)
+}
+
+func containsString(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
+func hasEntityID(s *api.Secret) bool {
+	if s.Data["entity_id"] == nil && s.Data["entity_id"] == "" {
+		return false
+	}
+	return true
 }

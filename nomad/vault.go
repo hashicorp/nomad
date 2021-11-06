@@ -1,9 +1,11 @@
 package nomad
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -19,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
+	"github.com/hashicorp/vault/sdk/helper/jsonutil"
 	"github.com/mitchellh/mapstructure"
 
 	"golang.org/x/sync/errgroup"
@@ -117,6 +120,9 @@ type VaultClient interface {
 
 	// LookupToken takes a token string and returns its capabilities.
 	LookupToken(ctx context.Context, token string) (*vapi.Secret, error)
+
+	// LookupEntity takes an entity ID string and returns an entity
+	LookupEntity(entityId string) (*VaultEntity, error)
 
 	// RevokeTokens takes a set of tokens accessor and revokes the tokens
 	RevokeTokens(ctx context.Context, accessors []*structs.VaultAccessor, committed bool) error
@@ -251,6 +257,54 @@ type vaultClient struct {
 
 type taskClientHandler interface {
 	clientForTask(v *vaultClient, namespace string) (*vapi.Client, error)
+}
+
+// TODO: GET THIS FOR REALZ
+type VaultEntityAlias struct {
+	CanonicalID   string `json:"canonical_id"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	MountAccessor string `json:"mount_accessor"`
+	MountPath     string `json:"mount_path"`
+	MountType     string `json:"mount_type"`
+}
+
+// "canonical_id": "07b8d5e7-b7b5-c2b5-145c-52671801de3c",
+// "creation_time": "2021-11-06T00:17:23.731580726Z",
+// "id": "1dcd10ff-85e8-4bf5-b37a-80dbe338ee8f",
+// "last_update_time": "2021-11-06T00:17:23.731580726Z",
+// "merged_from_canonical_ids": null,
+// "metadata": null,
+// "mount_accessor": "auth_token_d4fa147f",
+// "mount_path": "auth/token/",
+// "mount_type": "token",
+// "name": "bob-nomad"
+
+// TODO: Reuse the actual code if possible
+type VaultEntityData struct {
+	ID      string             `json:"id"`
+	Aliases []VaultEntityAlias `json:"aliases"`
+}
+
+// {
+//   "data": {
+//     "bucket_key_hash": "177553e4c58987f4cc5d7e530136c642",
+//     "creation_time": "2017-07-25T20:29:22.614756844Z",
+//     "disabled": false,
+//     "id": "8d6a45e5-572f-8f13-d226-cd0d1ec57297",
+//     "last_update_time": "2017-07-25T20:29:22.614756844Z",
+//     "metadata": {
+//       "organization": "hashicorp",
+//       "team": "vault"
+//     },
+//     "name": "entity-c323de27-2ad2-5ded-dbf3-0c7ef98bc613",
+//     "aliases": [],
+//     "policies": ["eng-dev", "infra-dev"]
+//   }
+// }
+
+type VaultEntity struct {
+	Data VaultEntityData `json:"data"`
 }
 
 // NewVaultClient returns a Vault client from the given config. If the client
@@ -950,6 +1004,46 @@ func (v *vaultClient) Enabled() bool {
 // Active returns whether the client is active
 func (v *vaultClient) Active() bool {
 	return atomic.LoadInt32(&v.active) == 1
+}
+
+func (v *vaultClient) LookupEntity(entityID string) (*VaultEntity, error) {
+	path := fmt.Sprintf("/v1/identity/entity-alias/id/%s", entityID)
+	req := v.client.NewRequest("GET", path)
+	// TODO: come back and figure out which func to use
+	resp, err := v.client.RawRequest(req)
+	defer resp.Body.Close()
+
+	if err != nil {
+		return nil, err
+	}
+
+	ea, err2 := parseEntity(resp.Body)
+	if err2 != nil {
+		return nil, err
+	}
+
+	return ea, nil
+}
+
+func parseEntity(r io.Reader) (*VaultEntity, error) {
+	// First read the data into a buffer. Not super efficient but we want to
+	// know if we actually have a body or not.
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(r)
+	if err != nil {
+		return nil, err
+	}
+	if buf.Len() == 0 {
+		return nil, nil
+	}
+
+	// First decode the JSON into a map[string]interface{}
+	var entity VaultEntity
+	if err := jsonutil.DecodeJSONFromReader(&buf, &entity); err != nil {
+		return nil, err
+	}
+
+	return &entity, nil
 }
 
 // CreateToken takes the allocation and task and returns an appropriate Vault
