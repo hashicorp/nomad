@@ -29,4 +29,14 @@ export default class SortBy extends Component {
   get shouldSortDescending() {
     return !this.isActive || !this.sortDescending;
   }
+
+  @computed('addToQuery', 'prop', 'shouldSortDescending')
+  get query() {
+    const addToQuery = this.addToQuery || {};
+    return {
+      sortProperty: this.prop,
+      sortDescending: this.shouldSortDescending,
+      ...addToQuery,
+    };
+  }
 }
