@@ -36,5 +36,5 @@ export default class SearchBox extends Component {
 function updateSearch() {
   const newTerm = this._searchTerm;
   this.onChange(newTerm);
-  this.set('searchTerm', newTerm);
+  this.setProperties({ searchTerm: newTerm, namespace: this._target.job.namespace.get('id') });
 }
