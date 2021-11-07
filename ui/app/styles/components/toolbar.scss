@@ -1,21 +1,23 @@
+@use "sass:math";
+
 $spacing: 1.5em;
 
 .toolbar {
   display: flex;
-  margin-bottom: $spacing / 2;
+  margin-bottom: math.div($spacing, 2);
   justify-content: space-between;
   flex-wrap: wrap;
-  margin-left: -$spacing / 4;
-  margin-right: -$spacing / 4;
+  margin-left: math.div(-$spacing, 4);
+  margin-right: math.div(-$spacing, 4);
 
   &.collapse + .toolbar {
-    margin-top: -$spacing / 2;
+    margin-top: math.div(-$spacing, 2);
   }
 
   .toolbar-item {
-    margin-bottom: $spacing / 2;
-    padding-left: $spacing / 4;
-    padding-right: $spacing / 4;
+    margin-bottom: math.div($spacing, 2);
+    padding-left: math.div($spacing, 4);
+    padding-right: math.div($spacing, 4);
     align-self: center;
     flex-grow: 1;
 

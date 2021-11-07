@@ -17,7 +17,7 @@ export default class JobClientStatusSummary extends Component {
   }
 
   @action
-  onSliceClick(slice) {
+  onSliceClick(ev, slice) {
     this.gotoClients([slice.className.camelize()]);
   }
 

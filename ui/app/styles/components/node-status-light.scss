@@ -1,10 +1,12 @@
+@use "sass:math";
+
 $size: 1.6rem;
 
 .node-status-light {
   display: inline-flex;
   height: $size;
   width: $size;
-  border-radius: $size / 2;
+  border-radius: math.div($size, 2);
   vertical-align: middle;
   align-items: center;
   justify-content: center;

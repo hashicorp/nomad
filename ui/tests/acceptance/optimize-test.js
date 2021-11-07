@@ -5,7 +5,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Response from 'ember-cli-mirage/response';
 import moment from 'moment';
-import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
+import { formatBytes, formatHertz, replaceMinus } from 'nomad-ui/utils/units';
 
 import Optimize from 'nomad-ui/tests/pages/optimize';
 import Layout from 'nomad-ui/tests/pages/layout';
@@ -153,23 +153,23 @@ module('Acceptance | optimize', function(hooks) {
       const memDiffPercent = Math.round((100 * memDiff) / currMem);
 
       assert.equal(
-        summary.cpu,
+        replaceMinus(summary.cpu),
         cpuDiff ? `${cpuSign}${formatHertz(cpuDiff, 'MHz')} ${cpuSign}${cpuDiffPercent}%` : ''
       );
       assert.equal(
-        summary.memory,
+        replaceMinus(summary.memory),
         memDiff ? `${memSign}${formattedMemDiff(memDiff)} ${memSign}${memDiffPercent}%` : ''
       );
 
       assert.equal(
-        summary.aggregateCpu,
+        replaceMinus(summary.aggregateCpu),
         cpuDiff
           ? `${cpuSign}${formatHertz(cpuDiff * currentTaskGroupAllocations.length, 'MHz')}`
           : ''
       );
 
       assert.equal(
-        summary.aggregateMemory,
+        replaceMinus(summary.aggregateMemory),
         memDiff ? `${memSign}${formattedMemDiff(memDiff * currentTaskGroupAllocations.length)}` : ''
       );
     });

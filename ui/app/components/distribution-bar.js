@@ -99,7 +99,7 @@ export default class DistributionBar extends Component.extend(WindowResizable) {
 
     let slicesEnter = slices.enter()
       .append('g')
-      .on('mouseenter', d => {
+      .on('mouseenter', (ev, d) => {
         run(() => {
           const slices = this.slices;
           const slice = slices.filter(datum => datum.label === d.label);
