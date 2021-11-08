@@ -199,7 +199,7 @@ export default Factory.extend({
       });
 
       allocation.update({
-        taskStateIds: allocation.clientStatus === 'pending' ? [] : states.mapBy('id'),
+        taskStateIds: states.mapBy('id'),
         taskResourceIds: resources.mapBy('id'),
       });
 
