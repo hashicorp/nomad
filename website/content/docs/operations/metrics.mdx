@@ -173,7 +173,7 @@ Nomad will emit [tagged metrics][tagged-metrics], in the below format:
 | `nomad.client.host.memory.used`         | Amount of memory used by processes                                                  | Bytes      | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.unallocated.cpu`          | Total amount of CPU shares free for the scheduler to allocate to tasks              | Mhz        | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.unallocated.disk`         | Total amount of disk space free for the scheduler to allocate to tasks              | Megabytes  | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
-| `nomad.client.unallocated_memory`       | Total amount of memory free for the scheduler to allocate to tasks                  | Bytes      | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
+| `nomad.client.unallocated.memory`       | Total amount of memory free for the scheduler to allocate to tasks                  | Megabytes  | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 | `nomad.client.uptime`                   | Uptime of the host running the Nomad client                                         | Seconds    | Gauge | datacenter, host, node_class, node_id, node_scheduling_eligibility, node_status       |
 
 ## Allocation Metrics
