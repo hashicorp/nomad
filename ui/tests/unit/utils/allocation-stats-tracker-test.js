@@ -6,8 +6,13 @@ import Pretender from 'pretender';
 import AllocationStatsTracker, { stats } from 'nomad-ui/utils/classes/allocation-stats-tracker';
 import fetch from 'nomad-ui/utils/fetch';
 import statsTrackerFrameMissingBehavior from './behaviors/stats-tracker-frame-missing';
+import { A } from '@ember/array';
 
 import { settled } from '@ember/test-helpers';
+import classic from 'ember-classic-decorator';
+
+@classic
+class MockTask extends EmberObject {}
 
 module('Unit | Util | AllocationStatsTracker', function() {
   const refDate = Date.now() * 1000000;
@@ -17,9 +22,47 @@ module('Unit | Util | AllocationStatsTracker', function() {
     assign(
       {
         id: 'some-identifier',
+        states: A([
+          MockTask.create({
+            name: 'log-shipper',
+
+            resources: MockTask.create({
+              name: 'log-shipper',
+              cpu: 50,
+              memory: 128,
+              lifecycleName: 'poststop',
+            }),
+          }),
+          MockTask.create({
+            name: 'service',
+
+            resources: MockTask.create({
+              name: 'service',
+              cpu: 100,
+              memory: 256,
+              lifecycleName: 'main',
+            }),
+          }),
+          MockTask.create({
+            name: 'sidecar',
+
+            resources: MockTask.create({
+              name: 'sidecar',
+              cpu: 50,
+              memory: 128,
+              lifecycleName: 'prestart-sidecar',
+            }),
+          }),
+        ]),
+
+        allocatedResources: {
+          cpu: 200,
+          memory: 512,
+        },
         taskGroup: {
           reservedCPU: 200,
           reservedMemory: 512,
+
           tasks: [
             {
               name: 'log-shipper',
@@ -117,15 +160,14 @@ module('Unit | Util | AllocationStatsTracker', function() {
   test('reservedCPU and reservedMemory properties come from the allocation', async function(assert) {
     const allocation = MockAllocation();
     const tracker = AllocationStatsTracker.create({ fetch, allocation });
-
     assert.equal(
       tracker.get('reservedCPU'),
-      allocation.taskGroup.reservedCPU,
+      allocation.allocatedResources.cpu,
       'reservedCPU comes from the allocation task group'
     );
     assert.equal(
       tracker.get('reservedMemory'),
-      allocation.taskGroup.reservedMemory,
+      allocation.allocatedResources.memory,
       'reservedMemory comes from the allocation task group'
     );
   });
