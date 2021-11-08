@@ -127,15 +127,15 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
       .sort(taskPrioritySort)
       .map(task => {
         const [resources] = taskStates
-          .filterBy('name', task.name)
-          .getEach('resources')
-          .toArray();
+          ?.filterBy('name', task.name)
+          ?.getEach('resources')
+          ?.toArray();
         return {
           task: get(task, 'name'),
 
           // Static figures, denominators for stats
-          reservedCPU: resources.get('cpu'),
-          reservedMemory: resources.get('memory'),
+          reservedCPU: resources?.get('cpu') || 0,
+          reservedMemory: resources?.get('memory') || 0,
 
           // Dynamic figures, collected over time
           // []{ timestamp: Date, used: Number, percent: Number }
