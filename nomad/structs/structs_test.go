@@ -5022,6 +5022,20 @@ func TestVault_Validate(t *testing.T) {
 	}
 }
 
+func TestVaultSecret_Validate(t *testing.T) {
+	s := &VaultSecret{}
+	err := s.Validate()
+	if err == nil {
+		t.Fatalf("Expeceted validation errors")
+	}
+	if ! strings.Contains(err.Error(), "name") {
+		t.Fatalf("Expected missing name error")
+	}
+	if ! strings.Contains(err.Error(), "path") {
+		t.Fatalf("Expected missing path error")
+	}
+}
+
 func TestParameterizedJobConfig_Validate(t *testing.T) {
 	d := &ParameterizedJobConfig{
 		Payload: "foo",
