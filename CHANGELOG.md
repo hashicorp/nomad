@@ -6,38 +6,65 @@ FEATURES:
 
 BREAKING CHANGES:
 
-* api: Return scheduler configuration as top-level result in the `/v1/operator/scheduler/configuration` [[GH-10799](https://github.com/hashicorp/nomad/issues/10799)]
 * cli: Renamed folders in `nomad operator debug` bundle for clarity [[GH-11307](https://github.com/hashicorp/nomad/issues/11307)]
 * device/nvidia: The Nvidia device plugin is no longer packaged with Nomad and is instead distributed separately. Further, the Nvidia device plugin codebase is now in a separate [repository](https://github.com/hashicorp/nomad-device-nvidia). If you are using Nvidia devices, please follow the 1.2.0 upgrade guide as you will have to install the Nvidia device plugin before conducting an in-place upgrade to Nomad 1.2.0 [[GH-10796](https://github.com/hashicorp/nomad/issues/10796)]
 
 IMPROVEMENTS:
 
+* agent: Added `tls -> rpc_upgrade_mode` to be reloaded on SIGHUP [[GH-11144](https://github.com/hashicorp/nomad/issues/11144)]
+* agent: Log the cause of failure if agent failed to start [[GH-11353](https://github.com/hashicorp/nomad/issues/11353)]
 * build: Updated to Go 1.17.1 [[GH-11251](https://github.com/hashicorp/nomad/issues/11251)]
+* cli: Add `-idempotency-token` option for the `nomad job dispatch` command [[GH-10930](https://github.com/hashicorp/nomad/issues/10930)]
 * cli: Add `-show-url` option for the `nomad ui` command. [[GH-11213](https://github.com/hashicorp/nomad/issues/11213)]
 * cli: Add `nomad job allocs` command [[GH-11242](https://github.com/hashicorp/nomad/issues/11242)]
 * cli: Added support for `-force-color` to the CLI to force colored output. [[GH-10975](https://github.com/hashicorp/nomad/issues/10975)]
+* cli: Allow specifying namesapce and region in the `nomad ui` command [[GH-11364](https://github.com/hashicorp/nomad/issues/11364)]
+* cli: Improve `nomad job plan` output for `artifact` and `template` changes [[GH-11400](https://github.com/hashicorp/nomad/issues/11400)]
+* cli: Improve debug capture for Consul/Vault [[GH-11466](https://github.com/hashicorp/nomad/issues/11466)]
 * cli: Improve debug namespace and region support [[GH-11269](https://github.com/hashicorp/nomad/issues/11269)]
 * cli: Improved autocomplete support for job dispatch and operator debug [[GH-11270](https://github.com/hashicorp/nomad/issues/11270)]
+* cli: Update `nomad operator debug` bundle to include sample of clients by default [[GH-11398](https://github.com/hashicorp/nomad/issues/11398)]
+* cli: added `hcl2-strict` flag to control HCL2 parsing errors where variable passed without root [[GH-11284](https://github.com/hashicorp/nomad/issues/11284)]
+* cli: added json and template flag opts to the acl bootstrap command [[GH-11411](https://github.com/hashicorp/nomad/issues/11411)]
+* cli: the command `node status` now returns `host_network` information as well [[GH-11432](https://github.com/hashicorp/nomad/issues/11432)]
 * client/plugins/drivermanager: log if there is an error in a driver event [[GH-11280](https://github.com/hashicorp/nomad/issues/11280)]
 * client: Add network interface name to log output during fingerprint [[GH-11184](https://github.com/hashicorp/nomad/issues/11184)]
-* client: Allow configuring minimum and maximum host ports used for dynamic ports [[GH-11167.md](https://github.com/hashicorp/nomad/issues/11167.md)]
+* client: Allow configuring minimum and maximum host ports used for dynamic ports [[GH-11167](https://github.com/hashicorp/nomad/issues/11167)]
+* client: Never embed client.alloc_dir in chroots to prevent infinite recursion from misconfiguration. [[GH-11334](https://github.com/hashicorp/nomad/issues/11334)]
 * consul/connect: Allow `http2` and `grpc` protocols in ingress gateways [[GH-11187](https://github.com/hashicorp/nomad/issues/11187)]
+* core: Elevated rejected node plan log lines to help diagnose #9506 [[GH-11416](https://github.com/hashicorp/nomad/issues/11416)]
 * deps: Update `hashicorp/go-discover` to `20210818145131-c573d69da192` [[GH-11249](https://github.com/hashicorp/nomad/issues/11249)]
 * deps: Update `hashicorp/go-hclog` to `v1.0.0` [[GH-11283](https://github.com/hashicorp/nomad/issues/11283)]
+* driver/docker: Added support for Docker's `--init` parameter [[GH-11331](https://github.com/hashicorp/nomad/issues/11331)]
 * scheduler: Warn users when system and sysbatch evaluations fail to place an allocation [[GH-11111](https://github.com/hashicorp/nomad/issues/11111)]
 * server: Allow tuning of node failover heartbeat TTL [[GH-11127](https://github.com/hashicorp/nomad/issues/11127)]
 * ui: Add new chart for `system` and `sysbatch` job status per client [[GH-11078](https://github.com/hashicorp/nomad/issues/11078)]
+* ui: Display client name as a tooltip where the client ID is used [[GH-11358](https://github.com/hashicorp/nomad/issues/11358)]
+* ui: Display jobs from all namespaces by default [[GH-11357](https://github.com/hashicorp/nomad/issues/11357)]
+* ui: Display the Nomad version in the Servers and Clients tables and allow filtering and sorting [[GH-11366](https://github.com/hashicorp/nomad/issues/11366)]
+* ui: Persist node drain settings in the browser [[GH-11368](https://github.com/hashicorp/nomad/issues/11368)]
+* ui: Update Nomad UI favicon [[GH-11371](https://github.com/hashicorp/nomad/issues/11371)]
+* vault: Add JobID and TaskGroup to Vault Token metadata [[GH-11397](https://github.com/hashicorp/nomad/issues/11397)]
 
 BUG FIXES:
 
 * agent: Fixed an issue that caused some non-JSON log output when `log_json` was enabled [[GH-11291](https://github.com/hashicorp/nomad/issues/11291)]
+* agent: Fixed an issue that could cause previous log lines to be overwritten [[GH-11386](https://github.com/hashicorp/nomad/issues/11386)]
+* build: Update go toolchain to 1.17.3 [[GH-11461](https://github.com/hashicorp/nomad/issues/11461)]
+* cli: Fix support for `group.consul` field in the HCLv1 parser [[GH-11423](https://github.com/hashicorp/nomad/issues/11423)]
 * client: Added `NOMAD_LICENSE` to default environment variable deny list. [[GH-11215](https://github.com/hashicorp/nomad/issues/11215)]
 * client: Fixed a bug where network speed fingerprint could fail on Windows [[GH-11183](https://github.com/hashicorp/nomad/issues/11183)]
 * client: Removed spurious error log messages when tasks complete [[GH-11273](https://github.com/hashicorp/nomad/issues/11273)]
+* core: Fix a bug to stop running system job allocations once their datacenters are removed from the job [[GH-11391](https://github.com/hashicorp/nomad/issues/11391)]
 * core: Fixed an issue that created incorrect plan output for jobs with services with the same name. [[GH-10965](https://github.com/hashicorp/nomad/issues/10965)]
 * csi: Fixed a bug where the client would incorrectly set an empty capacity range for CSI volume creation requests. [[GH-11238](https://github.com/hashicorp/nomad/issues/11238)]
 * deps: Updated `hashicorp/go-plugin` to v1.4.3 to fix handles leakage on Windows platforms [[GH-11143](https://github.com/hashicorp/nomad/issues/11143)]
 * driver/exec: Set CPU resource limits when cgroup-v2 is enabled [[GH-11287](https://github.com/hashicorp/nomad/issues/11287)]
+* jobspec: ensure consistent error handling between var-file & cli vars [[GH-11165](https://github.com/hashicorp/nomad/issues/11165)]
+* rpc: Set the job deregistration eval priority to the job priority [[GH-11426](https://github.com/hashicorp/nomad/issues/11426)]
+* rpc: Set the job scale eval priority to the job priority [[GH-11429](https://github.com/hashicorp/nomad/issues/11429)]
+* server: Fixed a panic on arm64 platform when dispatching a job with a payload [[GH-11396](https://github.com/hashicorp/nomad/issues/11396)]
+* server: Fixed a panic that may occur when preempting multiple allocations on the same node [[GH-11346](https://github.com/hashicorp/nomad/issues/11346)]
 
 ## 1.1.6 (October 5, 2021)
 
