@@ -37,6 +37,18 @@ export default function DownloadsPage(staticProps) {
         href: 'https://learn.hashicorp.com/nomad',
         label: 'View Tutorials at HashiCorp Learn',
       }}
+      merchandisingSlot={
+        <>
+        <div className={s.releaseCandidate}>
+          <p>
+            A release candidate for Nomad v1.2.0 is available! The release can be{' '}
+            <a href="https://releases.hashicorp.com/nomad/1.2.0-rc1/">
+            downloaded here.
+            </a>
+          </p>
+        </div>
+        </>
+      }
       {...staticProps}
     />
   )
