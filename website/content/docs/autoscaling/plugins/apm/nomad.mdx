@@ -11,6 +11,10 @@ an immediate starting point without addition applications but comes at the price
 of efficiency. When using this APM, it is advised to monitor Nomad carefully
 ensuring it is not put under excessive load pressure.
 
+~> The Nomad APM plugin should only be used when scaling based on CPU and
+memory usage only. For more advanced scenarios, such as scaling a cluster to
+zero clients, you should use a different APM plugin.
+
 ## Agent Configuration Options
 
 ```hcl
