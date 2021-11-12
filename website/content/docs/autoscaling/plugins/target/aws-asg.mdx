@@ -98,12 +98,10 @@ check "hashistack-allocated-cpu" {
   interact with when performing scaling actions.
 
 - `datacenter` `(string: "")` - The Nomad client [datacenter][nomad_datacenter]
-  identifier used to group nodes into a pool of resource. Conflicts with
-  `node_class`.
+  identifier used to group nodes into a pool of resource.
 
 - `node_class` `(string: "")` - The Nomad [client node class][nomad_node_class]
-  identifier used to group nodes into a pool of resource. Conflicts with
-  `datacenter`.
+  identifier used to group nodes into a pool of resource.
 
 - `node_drain_deadline` `(duration: "15m")` The Nomad [drain
   deadline][nomad_node_drain_deadline] to use when performing node draining
