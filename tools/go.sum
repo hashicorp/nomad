@@ -164,6 +164,8 @@ github.com/hashicorp/go-bindata v3.0.8-0.20180209072458-bf7910af8997+incompatibl
 github.com/hashicorp/go-bindata v3.0.8-0.20180209072458-bf7910af8997+incompatible/go.mod h1:+IrDq36jUYG0q6TsDY9uO2p77C8f8S5y+RbYHr2UI+U=
 github.com/hashicorp/go-changelog v0.0.0-20210524171758-89e3f9b77949 h1:3LW3g5KEHhoFVIdAZ/ZmoWwh4Swxtma8f82MO3KE00I=
 github.com/hashicorp/go-changelog v0.0.0-20210524171758-89e3f9b77949/go.mod h1:3cN0yNLxr97LobXDDmNQBh8tgBssK7ftuGC5y1sc17M=
+github.com/hashicorp/go-changelog v0.0.0-20211005220746-de58f3600ffd h1:akO4lx8ayBlUBJ2jiGVaxEXky8ZPDRBEJfMbuTM4mXI=
+github.com/hashicorp/go-changelog v0.0.0-20211005220746-de58f3600ffd/go.mod h1:3cN0yNLxr97LobXDDmNQBh8tgBssK7ftuGC5y1sc17M=
 github.com/hashicorp/go-hclog/hclogvet v0.1.3 h1:3m9Fxgh3Gct7cyAKPo3rIGR4n4anAZT7knHTZjYwKEo=
 github.com/hashicorp/go-hclog/hclogvet v0.1.3/go.mod h1:f0uAs1kAopX4JXFgR4kMixWftM8qLha6edaFVawdNtg=
 github.com/hashicorp/go-msgpack v1.1.5 h1:9byZdVjKTe5mce63pRVNP1L7UAmdHOTEMGehn6KvJWs=

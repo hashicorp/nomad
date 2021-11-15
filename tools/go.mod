@@ -11,7 +11,7 @@ require (
 	github.com/golangci/golangci-lint v1.24.0
 	github.com/google/go-cmp v0.4.0 // indirect
 	github.com/hashicorp/go-bindata v3.0.8-0.20180209072458-bf7910af8997+incompatible
-	github.com/hashicorp/go-changelog v0.0.0-20210524171758-89e3f9b77949 // indirect
+	github.com/hashicorp/go-changelog v0.0.0-20211005220746-de58f3600ffd // indirect
 	github.com/hashicorp/go-hclog/hclogvet v0.1.3
 	github.com/hashicorp/go-msgpack v1.1.5
 	github.com/hashicorp/hcl/v2 v2.5.1
