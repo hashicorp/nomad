@@ -1,3 +1,26 @@
+## 1.1.7 (November 15, 2021)
+
+IMPROVEMENTS:
+
+* cli: Improve debug namespace and region support [[GH-11269](https://github.com/hashicorp/nomad/issues/11269)]
+* client/plugins/drivermanager: log if there is an error in a driver event [[GH-11280](https://github.com/hashicorp/nomad/issues/11280)]
+* core: Elevated rejected node plan log lines to help diagnose #9506 [[GH-11416](https://github.com/hashicorp/nomad/issues/11416)]
+
+BUG FIXES:
+
+* agent: Fixed an issue that caused some non-JSON log output when `log_json` was enabled [[GH-11291](https://github.com/hashicorp/nomad/issues/11291)]
+* agent: Fixed an issue that could cause previous log lines to be overwritten [[GH-11386](https://github.com/hashicorp/nomad/issues/11386)]
+* cli: Fix support for `group.consul` field in the HCLv1 parser [[GH-11423](https://github.com/hashicorp/nomad/issues/11423)]
+* client: Added `NOMAD_LICENSE` to default environment variable deny list. [[GH-11215](https://github.com/hashicorp/nomad/issues/11215)]
+* client: Fixed a bug where network speed fingerprint could fail on Windows [[GH-11183](https://github.com/hashicorp/nomad/issues/11183)]
+* client: Removed spurious error log messages when tasks complete [[GH-11273](https://github.com/hashicorp/nomad/issues/11273)]
+* csi: Fixed a bug where the client would incorrectly set an empty capacity range for CSI volume creation requests. [[GH-11238](https://github.com/hashicorp/nomad/issues/11238)]
+* driver/exec: Set CPU resource limits when cgroup-v2 is enabled [[GH-11287](https://github.com/hashicorp/nomad/issues/11287)]
+* rpc: Set the job deregistration eval priority to the job priority [[GH-11426](https://github.com/hashicorp/nomad/issues/11426)]
+* rpc: Set the job scale eval priority to the job priority [[GH-11429](https://github.com/hashicorp/nomad/issues/11429)]
+* server: Fixed a panic on arm64 platform when dispatching a job with a payload [[GH-11396](https://github.com/hashicorp/nomad/issues/11396)]
+* server: Fixed a panic that may occur when preempting multiple allocations on the same node [[GH-11346](https://github.com/hashicorp/nomad/issues/11346)]
+
 ## 1.1.6 (October 5, 2021)
 
 SECURITY:
