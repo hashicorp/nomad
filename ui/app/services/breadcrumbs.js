@@ -5,20 +5,28 @@ import Service, { inject as service } from '@ember/service';
 export default class BreadcrumbsService extends Service {
   @service router;
 
-  // currentURL is only used to listen to all transitions.
-  // currentRouteName has all information necessary to compute breadcrumbs,
-  // but it doesn't change when a transition to the same route with a different
-  // model occurs.
-  @computed('router.{currentURL,currentRouteName}')
-  get breadcrumbs() {
-    const owner = getOwner(this);
-    const allRoutes = (this.router.currentRouteName || '')
+  generatePathHierarchy = (routeName = '') =>
+    routeName
       .split('.')
       .without('')
-      .map((segment, index, allSegments) => allSegments.slice(0, index + 1).join('.'));
+      .map((_, index, allSegments) => allSegments.slice(0, index + 1).join('.'));
 
-    let crumbs = [];
-    allRoutes.forEach(routeName => {
+  generateCrumb = route => {
+    if (route.breadcrumbs) {
+      const areBreadcrumbsAFunction = typeof route.breadcrumbs === 'function';
+
+      if (areBreadcrumbsAFunction) {
+        return route.breadcrumbs(route.get('controller.model')) ?? [];
+      } else {
+        return route.breadcrumbs;
+      }
+    } else {
+      return [];
+    }
+  };
+
+  generateBreadcrumbs = (fullRouteNamesOfPathHierarchy, owner) =>
+    fullRouteNamesOfPathHierarchy.reduce((crumbs, routeName) => {
       const route = owner.lookup(`route:${routeName}`);
 
       // Routes can reset the breadcrumb trail to start anew even
@@ -30,14 +38,20 @@ export default class BreadcrumbsService extends Service {
       // Breadcrumbs are either an array of static crumbs
       // or a function that returns breadcrumbs given the current
       // model for the route's controller.
-      let breadcrumbs = route.breadcrumbs || [];
-      if (typeof breadcrumbs === 'function') {
-        breadcrumbs = breadcrumbs(route.get('controller.model')) || [];
-      }
+      let crumb = this.generateCrumb(route);
+      crumbs.push(...crumb);
 
-      crumbs.push(...breadcrumbs);
-    });
+      return crumbs;
+    }, []);
 
-    return crumbs;
+  // currentURL is only used to listen to all transitions.
+  // currentRouteName has all information necessary to compute breadcrumbs,
+  // but it doesn't change when a transition to the same route with a different
+  // model occurs.
+  @computed('router.{currentURL,currentRouteName}')
+  get breadcrumbs() {
+    const owner = getOwner(this);
+    const allRoutes = this.generatePathHierarchy(this.router.currentRouteName);
+    return this.generateBreadcrumbs(allRoutes, owner);
   }
 }
