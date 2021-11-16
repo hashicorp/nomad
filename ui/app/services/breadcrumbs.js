@@ -1,9 +1,7 @@
 import { getOwner } from '@ember/application';
-import Service, { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
-import classic from 'ember-classic-decorator';
+import Service, { inject as service } from '@ember/service';
 
-@classic
 export default class BreadcrumbsService extends Service {
   @service router;
 
@@ -14,7 +12,7 @@ export default class BreadcrumbsService extends Service {
   @computed('router.{currentURL,currentRouteName}')
   get breadcrumbs() {
     const owner = getOwner(this);
-    const allRoutes = (this.get('router.currentRouteName') || '')
+    const allRoutes = (this.router.currentRouteName || '')
       .split('.')
       .without('')
       .map((segment, index, allSegments) => allSegments.slice(0, index + 1).join('.'));
