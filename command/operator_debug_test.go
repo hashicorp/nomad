@@ -3,8 +3,11 @@ package command
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -739,6 +742,35 @@ func TestDebug_CollectVault(t *testing.T) {
 	require.Empty(t, ui.ErrorWriter.String())
 
 	require.FileExists(t, filepath.Join(testDir, "test", "vault-sys-health.json"))
+}
+
+// TestDebug_RedirectError asserts that redirect errors are detected so they
+// can be translated into more understandable output.
+func TestDebug_RedirectError(t *testing.T) {
+	// Create a test server that always returns the error many versions of
+	// Nomad return instead of a 404 for unknown paths.
+	// 1st request redirects to /ui/
+	// 2nd request returns UI's HTML
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.String(), "/ui/") {
+			fmt.Fprintln(w, `<html>Fake UI HTML</html>`)
+			return
+		}
+
+		w.Header().Set("Location", "/ui/")
+		w.WriteHeader(307)
+		fmt.Fprintln(w, `<a href="/ui/">Temporary Redirect</a>.`)
+	}))
+	defer ts.Close()
+
+	config := api.DefaultConfig()
+	config.Address = ts.URL
+	client, err := api.NewClient(config)
+	require.NoError(t, err)
+
+	resp, err := client.Agent().Host("abc", "", nil)
+	assert.Nil(t, resp)
+	assert.True(t, isRedirectError(err), err.Error())
 }
 
 // TestDebug_StaleLeadership verifies that APIs that are required to
