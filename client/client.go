@@ -2911,6 +2911,7 @@ func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.
 
 	// Emit allocated
 	metrics.SetGaugeWithLabels([]string{"client", "allocated", "memory"}, float32(allocated.Flattened.Memory.MemoryMB), baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocated", "max_memory"}, float32(allocated.Flattened.Memory.MemoryMaxMB), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "allocated", "disk"}, float32(allocated.Shared.DiskMB), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "allocated", "cpu"}, float32(allocated.Flattened.Cpu.CpuShares), baseLabels)
 
