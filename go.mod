@@ -18,7 +18,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.15-0.20200113171025-3fe6c5262873
 	github.com/NYTimes/gziphandler v1.0.1
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
-	github.com/armon/go-metrics v0.3.4
+	github.com/armon/go-metrics v0.3.10
 	github.com/aws/aws-sdk-go v1.38.20
 	github.com/boltdb/bolt v1.3.1
 	github.com/container-storage-interface/spec v1.4.0
