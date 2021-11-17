@@ -1464,8 +1464,43 @@ func (j *Job) Allocations(args *structs.JobSpecificRequest,
 
 func (j *Job) Restart(args *structs.JobRestartRequest,
 	reply *structs.JobRestartResponse) error {
+	fmt.Printf("HELLO HELLO: nomad/job_endpoint.go JobRestartRequest: %+v\n", args)
 
-	fmt.Printf("Hello nomad/job_endpoint.go JobRestartRequest: %+v\n", args)
+	if done, err := j.srv.forward("Job.Restart", args, args, reply); done {
+		return err
+	}
+
+	// Check for alloc-lifecycle, read-job and list-jobs permissions
+	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+		return err
+	} else if aclObj != nil && (!aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) || !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListJobs) || !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityAllocLifecycle)) {
+		return structs.ErrPermissionDenied
+	}
+
+	snap, err := j.srv.fsm.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	ws := memdb.NewWatchSet()
+	allocs, err := snap.AllocsByJob(ws, args.RequestNamespace(), args.JobID, false)
+	if err != nil {
+		return err
+	}
+
+	for _, alloc := range allocs {
+		fmt.Printf("Hello alloc: %+v\n", alloc)
+	}
+
+	// Commit this update via Raft
+	_, index, err := j.srv.raftApply(structs.JobRestartRequestType, args)
+	if err != nil {
+		j.logger.Error("job restart failed", "error", err)
+		return err
+	}
+
+	reply.RestartModifyIndex = index
+	reply.Index = index
 
 	return nil
 }

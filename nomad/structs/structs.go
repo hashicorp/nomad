@@ -108,6 +108,7 @@ const (
 	ServiceRegistrationUpsertRequestType         MessageType = 47
 	ServiceRegistrationDeleteByIDRequestType     MessageType = 48
 	ServiceRegistrationDeleteByNodeIDRequestType MessageType = 49
+	JobRestartRequestType                        MessageType = 50
 
 	// Namespace types were moved from enterprise and therefore start at 64
 	NamespaceUpsertRequestType MessageType = 64
@@ -565,7 +566,8 @@ type JobRestartRequest struct {
 }
 
 type JobRestartResponse struct {
-	ID string
+	ID                 string
+	RestartModifyIndex uint64
 
 	WriteMeta
 }

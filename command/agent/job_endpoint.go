@@ -508,9 +508,6 @@ func (s *HTTPServer) jobRestart(resp http.ResponseWriter, req *http.Request, job
 		return nil, CodedError(400, err.Error())
 	}
 
-	fmt.Println(restartRequest.BatchSize)
-	fmt.Println(restartRequest.BatchWait)
-
 	args := structs.JobRestartRequest{
 		ID:              uuid.Generate(),
 		JobID:           jobName,

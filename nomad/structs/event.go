@@ -40,6 +40,7 @@ const (
 	TypeEvalUpdated                   = "EvaluationUpdated"
 	TypeJobRegistered                 = "JobRegistered"
 	TypeJobDeregistered               = "JobDeregistered"
+	TypeJobRestart                    = "JobRestart"
 	TypeJobBatchDeregistered          = "JobBatchDeregistered"
 	TypePlanResult                    = "PlanResult"
 	TypeACLTokenDeleted               = "ACLTokenDeleted"

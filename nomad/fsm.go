@@ -220,6 +220,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyUpsertJob(msgType, buf[1:], log.Index)
 	case structs.JobDeregisterRequestType:
 		return n.applyDeregisterJob(msgType, buf[1:], log.Index)
+	case structs.JobRestartRequestType:
+		return n.applyRestartJob(msgType, buf[1:], log.Index)
 	case structs.EvalUpdateRequestType:
 		return n.applyUpdateEval(msgType, buf[1:], log.Index)
 	case structs.EvalDeleteRequestType:
@@ -426,6 +428,19 @@ func (n *nomadFSM) applyStatusUpdate(msgType structs.MessageType, buf []byte, in
 		n.blockedEvals.UnblockNode(req.NodeID, index)
 	}
 
+	return nil
+}
+
+func (n *nomadFSM) applyRestartJob(reqType structs.MessageType, buf []byte, index uint64) interface{} {
+
+	fmt.Println("HELLO HELLO: applyRestartJob")
+	var req structs.JobRestartRequest
+
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	fmt.Printf("Hello JobRestartRequest object: %+v\n", req)
 	return nil
 }
 

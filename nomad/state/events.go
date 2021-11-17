@@ -31,6 +31,7 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.ServiceRegistrationUpsertRequestType:         structs.TypeServiceRegistration,
 	structs.ServiceRegistrationDeleteByIDRequestType:     structs.TypeServiceDeregistration,
 	structs.ServiceRegistrationDeleteByNodeIDRequestType: structs.TypeServiceDeregistration,
+	structs.JobRestartRequestType:                        structs.TypeJobRestart,
 }
 
 func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
