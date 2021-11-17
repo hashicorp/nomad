@@ -5,12 +5,12 @@ import Service, { inject as service } from '@ember/service';
 export default class BreadcrumbsService extends Service {
   @service router;
 
-  generatePathHierarchy = (routeName = '') =>
-    routeName
+  generatePathHierarchy = (routeName = '') => {
+    return routeName
       .split('.')
       .without('')
       .map((_, index, allSegments) => allSegments.slice(0, index + 1).join('.'));
-
+  };
   generateCrumb = route => {
     if (route.breadcrumbs) {
       const areBreadcrumbsAFunction = typeof route.breadcrumbs === 'function';
@@ -51,7 +51,11 @@ export default class BreadcrumbsService extends Service {
   @computed('router.{currentURL,currentRouteName}')
   get breadcrumbs() {
     const owner = getOwner(this);
-    const allRoutes = this.generatePathHierarchy(this.router.currentRouteName);
-    return this.generateBreadcrumbs(allRoutes, owner);
+
+    if (this.router.currentRouteName) {
+      const allRoutes = this.generatePathHierarchy(this.router.currentRouteName);
+      return this.generateBreadcrumbs(allRoutes, owner);
+    }
+    return [];
   }
 }
