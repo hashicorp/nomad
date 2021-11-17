@@ -177,6 +177,10 @@ func IsErrNodeLacksRpc(err error) bool {
 	return err != nil && strings.Contains(err.Error(), errNodeLacksRpc)
 }
 
+func IsErrNoSuchFileOrDirectory(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "no such file or directory")
+}
+
 // NewErrRPCCoded wraps an RPC error with a code to be converted to HTTP status
 // code
 func NewErrRPCCoded(code int, msg string) error {
