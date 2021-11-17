@@ -836,6 +836,12 @@ plugin "docker" {
   from the Docker engine during an image pull within this timeframe, Nomad will
   timeout the request that initiated the pull command. (Minimum of `1m`)
 
+- `pids_limit` - An integer value (Defaults to unlimited) that specifies the pids
+   limit for all the docker containers running on that nomad client node. You can
+   override this limit by setting `pids_limit` in your job spec, however you can only
+   set `pids_limit` in your job spec which is less than or equal to `pids_limit`
+   defined in nomad client plugin config.
+
 - `allow_caps` - A list of allowed Linux capabilities. Defaults to
 
 ```hcl
