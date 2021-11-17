@@ -81,7 +81,7 @@ require (
 	github.com/hashicorp/vault/sdk v0.2.0
 	github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d
 	github.com/hpcloud/tail v1.0.1-0.20170814160653-37f427138745
-	github.com/kr/pretty v0.2.0
+	github.com/kr/pretty v0.3.0
 	github.com/kr/pty v1.1.5
 	github.com/kr/text v0.2.0
 	github.com/mattn/go-colorable v0.1.9
@@ -215,6 +215,7 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/procfs v0.0.8 // indirect
 	github.com/renier/xmlrpc v0.0.0-20170708154548-ce4a1a486c03 // indirect
+	github.com/rogpeppe/go-internal v1.6.1 // indirect
 	github.com/seccomp/libseccomp-golang v0.9.2-0.20200314001724-bdab42bd5128 // indirect
 	github.com/sirupsen/logrus v1.7.0 // indirect
 	github.com/softlayer/softlayer-go v0.0.0-20180806151055-260589d94c7d // indirect

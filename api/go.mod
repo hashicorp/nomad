@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/cronexpr v1.1.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/go-rootcerts v1.0.2
-	github.com/kr/pretty v0.1.0
+	github.com/kr/pretty v0.3.0
 	github.com/mitchellh/go-testing-interface v1.14.1
 	github.com/mitchellh/mapstructure v1.4.2
 	github.com/stretchr/testify v1.5.1
