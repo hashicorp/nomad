@@ -34,7 +34,7 @@ require (
 	github.com/docker/libnetwork v0.8.0-dev.2.0.20200612180813-9e99af28df21
 	github.com/dustin/go-humanize v1.0.0
 	github.com/elazarl/go-bindata-assetfs v1.0.1-0.20200509193318-234c15e7648f
-	github.com/fatih/color v1.9.0
+	github.com/fatih/color v1.13.0
 	github.com/fsouza/go-dockerclient v1.6.5
 	github.com/golang/protobuf v1.5.0
 	github.com/golang/snappy v0.0.4
@@ -84,7 +84,7 @@ require (
 	github.com/kr/pretty v0.2.0
 	github.com/kr/pty v1.1.5
 	github.com/kr/text v0.2.0
-	github.com/mattn/go-colorable v0.1.7
+	github.com/mattn/go-colorable v0.1.9
 	github.com/miekg/dns v1.1.26
 	github.com/mitchellh/cli v1.1.0
 	github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286
@@ -193,7 +193,7 @@ require (
 	github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024 // indirect
 	github.com/klauspost/compress v1.11.2 // indirect
 	github.com/linode/linodego v0.7.1 // indirect
-	github.com/mattn/go-isatty v0.0.12 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.7 // indirect
 	github.com/mattn/go-shellwords v1.0.10 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
