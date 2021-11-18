@@ -1,7 +1,8 @@
 import PromiseObject from 'nomad-ui/utils/classes/promise-object';
 import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 
-export const jobCrumb = job => ({
+export const jobCrumb = (job, isParameterizedOrPeriodic) => ({
+  title: isParameterizedOrPeriodic ?? 'Job',
   label: job.get('trimmedName'),
   args: [
     'jobs.job.index',
@@ -12,6 +13,9 @@ export const jobCrumb = job => ({
   ],
 });
 
+const isParameterizedOrPeriodic = job =>
+  job.periodic ? 'Periodic Job' : job.parameterized ? 'Dispatched Job' : '';
+
 export const jobCrumbs = job => {
   if (!job) return [];
 
@@ -20,7 +24,7 @@ export const jobCrumbs = job => {
       PromiseObject.create({
         promise: job.get('parent').then(parent => jobCrumb(parent)),
       }),
-      jobCrumb(job),
+      jobCrumb(job, isParameterizedOrPeriodic(job)),
     ];
   } else {
     return [jobCrumb(job)];

@@ -24,6 +24,7 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
       { label: 'Jobs', args: ['jobs.index', jobQueryParams] },
       ...jobCrumbs(model.get('job')),
       {
+        title: 'Task Group',
         label: model.get('taskGroupName'),
         args: [
           'jobs.job.task-group',
@@ -33,6 +34,7 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
         ],
       },
       {
+        title: 'Allocation',
         label: model.get('shortId'),
         args: ['allocations.allocation', model],
       },

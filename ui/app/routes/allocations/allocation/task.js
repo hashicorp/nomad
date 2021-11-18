@@ -9,6 +9,7 @@ export default class TaskRoute extends Route {
     if (!model) return [];
     return [
       {
+        title: 'Task',
         label: model.get('name'),
         args: ['allocations.allocation.task', model.get('allocation'), model],
       },

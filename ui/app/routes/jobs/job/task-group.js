@@ -12,6 +12,7 @@ export default class TaskGroupRoute extends Route.extend(WithWatchers) {
     if (!model) return [];
     return [
       {
+        title: 'Task Group',
         label: model.get('name'),
         args: [
           'jobs.job.task-group',
