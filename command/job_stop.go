@@ -39,6 +39,10 @@ Stop Options:
     screen, which can be used to examine the evaluation using the eval-status
     command.
 
+  -eval-priority
+    Override the priority of the evaluations produced as a result of this job
+    deregistration. By default, this is set to the priority of the job.
+
   -purge
     Purge is used to stop the job and purge it from the system. If not set, the
     job will still be queryable and will be purged by the garbage collector.
@@ -63,11 +67,12 @@ func (c *JobStopCommand) Synopsis() string {
 func (c *JobStopCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-detach":  complete.PredictNothing,
-			"-purge":   complete.PredictNothing,
-			"-global":  complete.PredictNothing,
-			"-yes":     complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
+			"-detach":        complete.PredictNothing,
+			"-eval-priority": complete.PredictNothing,
+			"-purge":         complete.PredictNothing,
+			"-global":        complete.PredictNothing,
+			"-yes":           complete.PredictNothing,
+			"-verbose":       complete.PredictNothing,
 		})
 }
 
@@ -90,6 +95,7 @@ func (c *JobStopCommand) Name() string { return "job stop" }
 
 func (c *JobStopCommand) Run(args []string) int {
 	var detach, purge, verbose, global, autoYes bool
+	var evalPriority int
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -98,6 +104,7 @@ func (c *JobStopCommand) Run(args []string) int {
 	flags.BoolVar(&global, "global", false, "")
 	flags.BoolVar(&autoYes, "yes", false, "")
 	flags.BoolVar(&purge, "purge", false, "")
+	flags.IntVar(&evalPriority, "eval-priority", 0, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -192,7 +199,7 @@ func (c *JobStopCommand) Run(args []string) int {
 	}
 
 	// Invoke the stop
-	opts := &api.DeregisterOptions{Purge: purge, Global: global}
+	opts := &api.DeregisterOptions{Purge: purge, Global: global, EvalPriority: evalPriority}
 	wq := &api.WriteOptions{Namespace: jobs[0].JobSummary.Namespace}
 	evalID, _, err := client.Jobs().DeregisterOpts(*job.ID, opts, wq)
 	if err != nil {
