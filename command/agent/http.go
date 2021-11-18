@@ -687,6 +687,19 @@ func parseBool(req *http.Request, field string) (*bool, error) {
 	return nil, nil
 }
 
+// parseInt parses a query parameter to a int or returns (nil, nil) if the
+// parameter is not present.
+func parseInt(req *http.Request, field string) (*int, error) {
+	if str := req.URL.Query().Get(field); str != "" {
+		param, err := strconv.Atoi(str)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a int: %v", field, str, err)
+		}
+		return &param, nil
+	}
+	return nil, nil
+}
+
 // parseToken is used to parse the X-Nomad-Token param
 func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 	if other := req.Header.Get("X-Nomad-Token"); other != "" {
