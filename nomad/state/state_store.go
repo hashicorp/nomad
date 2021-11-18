@@ -1027,6 +1027,28 @@ func (s *StateStore) BatchUpdateNodeDrain(msgType structs.MessageType, index uin
 	return txn.Commit()
 }
 
+// UpdateJobRestart updates jobRestart object into memdb.
+func (s *StateStore) UpdateJobRestart(msgType structs.MessageType, index uint64, req *structs.JobRestartRequest) error {
+	fmt.Println("HELLO state/state_store.go: UpdateJobRestart")
+	txn := s.db.WriteTxnMsgT(msgType, index)
+	defer txn.Abort()
+
+	if err := s.updateJobRestartImpl(txn, index, req); err != nil {
+		return err
+	}
+	return txn.Commit()
+}
+
+func (s *StateStore) updateJobRestartImpl(txn *txn, index uint64, req *structs.JobRestartRequest) error {
+	fmt.Println("HELLO: state/state_store.go: updateJobRestartImpl")
+	req.ModifyIndex = index
+	// Insert the job restart object
+	if err := txn.Insert("restart", req); err != nil {
+		return fmt.Errorf("job restart update failed: %v", err)
+	}
+	return nil
+}
+
 // UpdateNodeDrain is used to update the drain of a node
 func (s *StateStore) UpdateNodeDrain(msgType structs.MessageType, index uint64, nodeID string,
 	drain *structs.DrainStrategy, markEligible bool, updatedAt int64,

@@ -49,6 +49,7 @@ func init() {
 	RegisterSchemaFactories([]SchemaFactory{
 		indexTableSchema,
 		nodeTableSchema,
+		jobRestartSchema,
 		jobTableSchema,
 		jobSummarySchema,
 		jobVersionSchema,
@@ -103,6 +104,27 @@ func indexTableSchema() *memdb.TableSchema {
 				Indexer: &memdb.StringFieldIndex{
 					Field:     "Key",
 					Lowercase: true,
+				},
+			},
+		},
+	}
+}
+
+// jobRestartSchema returns the MemDB schema for the job restart table.
+// This table is used to store uuid and job restart state object.
+func jobRestartSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: "restart",
+		Indexes: map[string]*memdb.IndexSchema{
+			// Primary index is used for job restart management
+			// and simple direct lookup. ID (UUID) is required to be
+			// unique.
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UUIDFieldIndex{
+					Field: "ID",
 				},
 			},
 		},

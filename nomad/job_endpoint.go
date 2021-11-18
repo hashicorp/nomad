@@ -1489,7 +1489,7 @@ func (j *Job) Restart(args *structs.JobRestartRequest,
 	}
 
 	for _, alloc := range allocs {
-		fmt.Printf("Hello alloc: %+v\n", alloc)
+		fmt.Printf("Hello alloc ID: %+s\n", alloc.ID)
 	}
 
 	// Commit this update via Raft

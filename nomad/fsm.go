@@ -432,8 +432,7 @@ func (n *nomadFSM) applyStatusUpdate(msgType structs.MessageType, buf []byte, in
 }
 
 func (n *nomadFSM) applyRestartJob(reqType structs.MessageType, buf []byte, index uint64) interface{} {
-
-	fmt.Println("HELLO HELLO: applyRestartJob")
+	fmt.Println("HELLO nomad/fsm.go: applyRestartJob")
 	var req structs.JobRestartRequest
 
 	if err := structs.Decode(buf, &req); err != nil {
@@ -441,6 +440,12 @@ func (n *nomadFSM) applyRestartJob(reqType structs.MessageType, buf []byte, inde
 	}
 
 	fmt.Printf("Hello JobRestartRequest object: %+v\n", req)
+
+	if err := n.state.UpdateJobRestart(reqType, index, &req); err != nil {
+		n.logger.Error("UpdateJobRestart failed", "error", err)
+		return err
+	}
+
 	return nil
 }
 
