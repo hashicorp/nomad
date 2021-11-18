@@ -827,7 +827,7 @@ func (w *deploymentWatcher) getEval() *structs.Evaluation {
 	return &structs.Evaluation{
 		ID:           uuid.Generate(),
 		Namespace:    w.j.Namespace,
-		Priority:     w.j.Priority,
+		Priority:     w.d.EvalPriority,
 		Type:         w.j.Type,
 		TriggeredBy:  structs.EvalTriggerDeploymentWatcher,
 		JobID:        w.j.ID,

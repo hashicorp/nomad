@@ -6781,7 +6781,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Successful(t *testing.T) {
 	}
 
 	// Insert a deployment
-	d := structs.NewDeployment(job)
+	d := structs.NewDeployment(job, 50)
 	if err := state.UpsertDeployment(2, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
