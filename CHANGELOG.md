@@ -1,3 +1,9 @@
+## 1.0.14 (November 19, 2021)
+
+SECURITY:
+
+* Allow limiting QEMU arguments to reduce access to host resources. [CVE-2021-43415](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-43415) [[GH-11542](https://github.com/hashicorp/nomad/issues/11542)]
+
 ## 1.0.13 (November 15, 2021)
 
 IMPROVEMENTS:
