@@ -81,6 +81,8 @@ endif
 		GOOS=$(firstword $(subst _, ,$*)) \
 		GOARCH=$(lastword $(subst _, ,$*)) \
 		CC=$(CC) \
+		CGO_CFLAGS=$(CGO_CFLAGS) \
+		SDKROOT=$(SDKROOT) \
 		go build -trimpath -ldflags $(GO_LDFLAGS) -tags "$(GO_TAGS)" -o $(GO_OUT)
 
 ifneq (armv7l,$(THIS_ARCH))
@@ -92,7 +94,10 @@ pkg/linux_arm64/nomad: CC = aarch64-linux-gnu-gcc
 endif
 
 ifeq (Darwin,$(THIS_OS))
-pkg/linux_%/nomad: CGO_ENABLED = 0
+pkg/linux_%/nomad:
+CGO_ENABLED = 0
+CGO_CFLAGS=-Wno-undef-prefix
+SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
 endif
 
 pkg/windows_%/nomad: GO_OUT = $@.exe
