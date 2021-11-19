@@ -97,7 +97,7 @@ ifeq (Darwin,$(THIS_OS))
 pkg/linux_%/nomad:
 CGO_ENABLED = 0
 CGO_CFLAGS=-Wno-undef-prefix
-SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 endif
 
 pkg/windows_%/nomad: GO_OUT = $@.exe
