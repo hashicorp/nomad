@@ -8,12 +8,12 @@
       <LinkTo @params={{breadcrumb.args}} data-test-breadcrumb={{breadcrumb.args.firstObject}}>
         {{#if breadcrumb.title}}
           <dl>
-            <dd>
-              {{breadcrumb.title}}
-            </dd>
             <dt>
-              {{breadcrumb.label}}
+              {{breadcrumb.title}}
             </dt>
+            <dd>
+              {{breadcrumb.label}}
+            </dd>
           </dl>
         {{else}}
           {{breadcrumb.label}}
