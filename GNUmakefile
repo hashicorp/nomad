@@ -7,6 +7,9 @@ GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
+CGO_ENABLED = 1
+CGO_CFLAGS ?=
+SDKROOT ?=
 
 GO_TAGS ?=
 
@@ -78,10 +81,10 @@ ifeq (,$(findstring $(THIS_OS),$(SUPPORTED_OSES)))
 endif
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=$(CGO_ENABLED) \
+		CGO_CFLAGS=$(CGO_CFLAGS) \
 		GOOS=$(firstword $(subst _, ,$*)) \
 		GOARCH=$(lastword $(subst _, ,$*)) \
 		CC=$(CC) \
-		CGO_CFLAGS=$(CGO_CFLAGS) \
 		SDKROOT=$(SDKROOT) \
 		go build -trimpath -ldflags $(GO_LDFLAGS) -tags "$(GO_TAGS)" -o $(GO_OUT)
 
@@ -94,11 +97,12 @@ pkg/linux_arm64/nomad: CC = aarch64-linux-gnu-gcc
 endif
 
 ifeq (Darwin,$(THIS_OS))
-pkg/linux_%/nomad:
-CGO_ENABLED = 0
+pkg/linux_%/nomad: CGO_ENABLED = 0
+endif
+
+pkg/darwin_%/nomad:
 CGO_CFLAGS=-Wno-undef-prefix
 SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
-endif
 
 pkg/windows_%/nomad: GO_OUT = $@.exe
 
