@@ -3,12 +3,13 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"sync"
 )
 
 // artifactHook downloads artifacts for a task.
