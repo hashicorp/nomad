@@ -67,8 +67,11 @@ codecgen-*.generated.go
 **/structs.generated.go
 GNUMakefile.local
 
+# Terraform state and locking files.
 .terraform
 *.tfstate*
+.terraform.lock.hcl
+
 rkt-*
 
 ./idea
