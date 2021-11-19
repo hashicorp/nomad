@@ -361,7 +361,8 @@ export default function browseFilesystem({
       ...visitSegments({ allocation: this.allocation, task: this.task }),
       path: '/what-is-this',
     });
-    assert.equal(FS.error.title, 'Not Found', '500 is interpreted as 404');
+    assert.notEqual(FS.error.title, 'Not Found', '500 is not interpreted as 404');
+    assert.equal(FS.error.title, 'Server Error', '500 is not interpreted as 500');
 
     await visit('/');
 
@@ -385,7 +386,8 @@ export default function browseFilesystem({
       ...visitSegments({ allocation: this.allocation, task: this.task }),
       path: this.directory.name,
     });
-    assert.equal(FS.error.title, 'Not Found', '500 is interpreted as 404');
+    assert.notEqual(FS.error.title, 'Not Found', '500 is not interpreted as 404');
+    assert.equal(FS.error.title, 'Server Error', '500 is not interpreted as 404');
 
     await visit('/');
 

@@ -113,7 +113,7 @@ func (w *Worker) run() {
 		// Check for a shutdown
 		if w.srv.IsShutdown() {
 			w.logger.Error("nacking eval because the server is shutting down", "eval", log.Fmt("%#v", eval))
-			w.sendAck(eval.ID, token, false)
+			w.sendNack(eval.ID, token)
 			return
 		}
 
@@ -121,19 +121,19 @@ func (w *Worker) run() {
 		snap, err := w.snapshotMinIndex(waitIndex, raftSyncLimit)
 		if err != nil {
 			w.logger.Error("error waiting for Raft index", "error", err, "index", waitIndex)
-			w.sendAck(eval.ID, token, false)
+			w.sendNack(eval.ID, token)
 			continue
 		}
 
 		// Invoke the scheduler to determine placements
 		if err := w.invokeScheduler(snap, eval, token); err != nil {
 			w.logger.Error("error invoking scheduler", "error", err)
-			w.sendAck(eval.ID, token, false)
+			w.sendNack(eval.ID, token)
 			continue
 		}
 
 		// Complete the evaluation
-		w.sendAck(eval.ID, token, true)
+		w.sendAck(eval.ID, token)
 	}
 }
 
@@ -193,9 +193,10 @@ REQ:
 	goto REQ
 }
 
-// sendAck makes a best effort to ack or nack the evaluation.
+// sendAcknowledgement should not be called directly. Call `sendAck` or `sendNack` instead.
+// This function implements `ack`ing or `nack`ing the evaluation generally.
 // Any errors are logged but swallowed.
-func (w *Worker) sendAck(evalID, token string, ack bool) {
+func (w *Worker) sendAcknowledgement(evalID, token string, ack bool) {
 	defer metrics.MeasureSince([]string{"nomad", "worker", "send_ack"}, time.Now())
 	// Setup the request
 	req := structs.EvalAckRequest{
@@ -222,6 +223,18 @@ func (w *Worker) sendAck(evalID, token string, ack bool) {
 	} else {
 		w.logger.Debug(fmt.Sprintf("%s evaluation", verb), "eval_id", evalID)
 	}
+}
+
+// sendNack makes a best effort to nack the evaluation.
+// Any errors are logged but swallowed.
+func (w *Worker) sendNack(evalID, token string) {
+	w.sendAcknowledgement(evalID, token, false)
+}
+
+// sendAck makes a best effort to ack the evaluation.
+// Any errors are logged but swallowed.
+func (w *Worker) sendAck(evalID, token string) {
+	w.sendAcknowledgement(evalID, token, true)
 }
 
 // snapshotMinIndex times calls to StateStore.SnapshotAfter which may block.

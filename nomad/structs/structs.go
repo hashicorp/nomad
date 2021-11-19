@@ -9719,7 +9719,7 @@ func (a *Allocation) SetEventDisplayMessages() {
 //
 // COMPAT(0.11): Remove in 0.11
 func (a *Allocation) ComparableResources() *ComparableResources {
-	// ALloc already has 0.9+ behavior
+	// Alloc already has 0.9+ behavior
 	if a.AllocatedResources != nil {
 		return a.AllocatedResources.Comparable()
 	}
@@ -9742,7 +9742,8 @@ func (a *Allocation) ComparableResources() *ComparableResources {
 				CpuShares: int64(resources.CPU),
 			},
 			Memory: AllocatedMemoryResources{
-				MemoryMB: int64(resources.MemoryMB),
+				MemoryMB:    int64(resources.MemoryMB),
+				MemoryMaxMB: int64(resources.MemoryMaxMB),
 			},
 			Networks: resources.Networks,
 		},

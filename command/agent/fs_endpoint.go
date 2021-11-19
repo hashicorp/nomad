@@ -80,7 +80,7 @@ func (s *HTTPServer) DirectoryListRequest(resp http.ResponseWriter, req *http.Re
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrNoSuchFileOrDirectory(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 
@@ -120,7 +120,7 @@ func (s *HTTPServer) FileStatRequest(resp http.ResponseWriter, req *http.Request
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrNoSuchFileOrDirectory(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 
