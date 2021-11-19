@@ -14,7 +14,7 @@ export const jobCrumb = (job, isParameterizedOrPeriodic) => ({
 });
 
 const isParameterizedOrPeriodic = job =>
-  job.periodic ? 'Periodic Job' : job.parameterized ? 'Dispatched Job' : '';
+  job.get('periodic') ? 'Periodic Job' : job.get('parameterized') ? 'Dispatched Job' : '';
 
 export const jobCrumbs = job => {
   if (!job) return [];
