@@ -1,8 +1,6 @@
 package eval_priority
 
 import (
-	"fmt"
-
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
@@ -40,15 +38,16 @@ func (tc *EvalPriorityTest) AfterEach(f *framework.F) {
 	f.NoError(err)
 }
 
-// TestJobRegisterWithoutEvalPriority makes sure that when not specifying an
-// eval priority on job register, the job priority is used.
-func (tc *EvalPriorityTest) TestJobRegisterWithoutEvalPriority(f *framework.F) {
+// TestEvalPrioritySet performs a test which registers, updates, and
+// deregsiters a job setting the eval priority on every call.
+func (tc *EvalPriorityTest) TestEvalPrioritySet(f *framework.F) {
 
 	// Generate a jobID and attempt to register the job using the eval
 	// priority. In case there is a problem found here and the job registers,
 	// we need to ensure it gets cleaned up.
 	jobID := "test-eval-priority-" + uuid.Generate()[0:8]
-	f.NoError(e2eutil.Register(jobID, "eval_priority/inputs/default_job_priority.nomad"))
+	f.NoError(e2eutil.RegisterWithArgs(jobID, "eval_priority/inputs/thirteen_job_priority.nomad",
+		"-eval-priority=80"))
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	// Wait for the deployment to finish.
@@ -59,30 +58,71 @@ func (tc *EvalPriorityTest) TestJobRegisterWithoutEvalPriority(f *framework.F) {
 	//
 	// Eval 1: the job registration eval.
 	// Eval 2: the deployment watcher eval.
-	evals, _, err := tc.Nomad().Jobs().Evaluations(jobID, nil)
+	registerEvals, _, err := tc.Nomad().Jobs().Evaluations(jobID, nil)
 	f.NoError(err)
-	f.Len(evals, 2, "job expected to have one eval")
+	f.Len(registerEvals, 2, "job expected to have two evals")
 
-	// All evaluations should have the higher priority as they are as a result
-	// of an operator request.
-	for _, eval := range evals {
-		f.Equal(50, eval.Priority)
+	// seenEvals tracks the evaluations we have tested for priority quality
+	// against our expected value. This allows us to easily perform multiple
+	// checks with confidence.
+	seenEvals := map[string]bool{}
+
+	// All evaluations should have the priority set to the overridden priority.
+	for _, eval := range registerEvals {
+		f.Equal(80, eval.Priority)
+		seenEvals[eval.ID] = true
+	}
+
+	// Update the job image and set an eval priority higher than the job
+	// priority.
+	f.NoError(e2eutil.RegisterWithArgs(jobID, "eval_priority/inputs/thirteen_job_priority.nomad",
+		"-eval-priority=7", "-var", "image=busybox:1.34"))
+	f.NoError(e2eutil.WaitForLastDeploymentStatus(jobID, "default", "successful",
+		&e2eutil.WaitConfig{Retries: 200}))
+
+	// Pull the latest list of evaluations for the job which will include those
+	// as a result of the job update.
+	updateEvals, _, err := tc.Nomad().Jobs().Evaluations(jobID, nil)
+	f.NoError(err)
+	f.NotNil(updateEvals, "expected non-nil evaluation list response")
+	f.NotEmpty(updateEvals, "expected non-empty evaluation list response")
+
+	// Iterate the evals, ignoring those we have already seen and check their
+	// priority is as expected.
+	for _, eval := range updateEvals {
+		if ok := seenEvals[eval.ID]; ok {
+			continue
+		}
+		f.Equal(7, eval.Priority)
+		seenEvals[eval.ID] = true
+	}
+
+	// Deregister the job using an increased priority.
+	deregOpts := api.DeregisterOptions{EvalPriority: 100, Purge: true}
+	deregEvalID, _, err := tc.Nomad().Jobs().DeregisterOpts(jobID, &deregOpts, nil)
+	f.NoError(err)
+	f.NotEmpty(deregEvalID, "expected non-empty evaluation ID")
+
+	// Detail the deregistration evaluation and check its priority.
+	evalInfo, _, err := tc.Nomad().Evaluations().Info(deregEvalID, nil)
+	f.NoError(err)
+	f.Equal(100, evalInfo.Priority)
+
+	// If the job was successfully purged, clear the test suite state.
+	if err == nil {
+		tc.jobIDs = []string{}
 	}
 }
 
-// TestJobRegisterWithEvalPriority tests registering a job with a specified
-// evaluation priority. It checks whether the created evaluation has a priority
-// that matches our supplied value.
-func (tc *EvalPriorityTest) TestJobRegisterWithEvalPriority(f *framework.F) {
+// TestEvalPriorityNotSet performs a test which registers, updates, and
+// deregsiters a job never setting the eval priority.
+func (tc *EvalPriorityTest) TestEvalPriorityNotSet(f *framework.F) {
 
-	// Pick an eval priority.
-	evalPriority := 93
-
-	// Generate a jobID and register the job using the eval priority.
+	// Generate a jobID and attempt to register the job using the eval
+	// priority. In case there is a problem found here and the job registers,
+	// we need to ensure it gets cleaned up.
 	jobID := "test-eval-priority-" + uuid.Generate()[0:8]
-	f.NoError(e2eutil.RegisterWithArgs(jobID,
-		"eval_priority/inputs/default_job_priority.nomad",
-		fmt.Sprintf("-eval-priority=%v", evalPriority)))
+	f.NoError(e2eutil.Register(jobID, "eval_priority/inputs/thirteen_job_priority.nomad"))
 	tc.jobIDs = append(tc.jobIDs, jobID)
 
 	// Wait for the deployment to finish.
@@ -93,122 +133,57 @@ func (tc *EvalPriorityTest) TestJobRegisterWithEvalPriority(f *framework.F) {
 	//
 	// Eval 1: the job registration eval.
 	// Eval 2: the deployment watcher eval.
-	evals, _, err := tc.Nomad().Jobs().Evaluations(jobID, nil)
+	registerEvals, _, err := tc.Nomad().Jobs().Evaluations(jobID, nil)
 	f.NoError(err)
-	f.Len(evals, 2, "job expected to have one eval")
+	f.Len(registerEvals, 2, "job expected to have two evals")
 
-	// All evaluations should have the higher priority as they are as a result
-	// of an operator request.
-	for _, eval := range evals {
-		f.Equal(evalPriority, eval.Priority)
+	// seenEvals tracks the evaluations we have tested for priority quality
+	// against our expected value. This allows us to easily perform multiple
+	// checks with confidence.
+	seenEvals := map[string]bool{}
+
+	// All evaluations should have the priority set to the job priority.
+	for _, eval := range registerEvals {
+		f.Equal(13, eval.Priority)
+		seenEvals[eval.ID] = true
 	}
-}
 
-// TestJobRegisterWithInvalidEvalPriority tests registering a job with a
-// specified evaluation priority that is not valid.
-func (tc *EvalPriorityTest) TestJobRegisterWithInvalidEvalPriority(f *framework.F) {
+	// Update the job image without setting an eval priority.
+	f.NoError(e2eutil.RegisterWithArgs(jobID, "eval_priority/inputs/thirteen_job_priority.nomad",
+		"-var", "image=busybox:1.34"))
+	f.NoError(e2eutil.WaitForLastDeploymentStatus(jobID, "default", "successful",
+		&e2eutil.WaitConfig{Retries: 200}))
 
-	// Pick an eval priority that is outside the supported bounds of 1-100.
-	evalPriority := 999
-
-	// Generate a jobID and attempt to register the job using the eval
-	// priority. In case there is a problem found here and the job registers,
-	// we need to ensure it gets cleaned up.
-	jobID := "test-eval-priority-" + uuid.Generate()[0:8]
-	f.Error(e2eutil.RegisterWithArgs(jobID,
-		"eval_priority/inputs/default_job_priority.nomad",
-		fmt.Sprintf("-eval-priority=%v", evalPriority)))
-}
-
-// TestJobDeregisterWithoutEvalPriority makes sure that when not specifying an
-// eval priority on job deregister, the job priority is used.
-func (tc *EvalPriorityTest) TestJobDeregisterWithoutEvalPriority(f *framework.F) {
-
-	// Generate a jobID and attempt to register the job using the eval
-	// priority. In case there is a problem found here and the job registers,
-	// we need to ensure it gets cleaned up.
-	jobID := "test-eval-priority-" + uuid.Generate()[0:8]
-	f.NoError(e2eutil.Register(jobID, "eval_priority/inputs/default_job_priority.nomad"))
-	tc.jobIDs = append(tc.jobIDs, jobID)
-
-	// Wait for the deployment to finish.
-	f.NoError(e2eutil.WaitForLastDeploymentStatus(jobID, "default", "successful", nil))
-
-	// Deregister the job.
-	_, _, err := tc.Nomad().Jobs().Deregister(jobID, true, nil)
+	// Pull the latest list of evaluations for the job which will include those
+	// as a result of the job update.
+	updateEvals, _, err := tc.Nomad().Jobs().Evaluations(jobID, nil)
 	f.NoError(err)
+	f.NotNil(updateEvals, "expected non-nil evaluation list response")
+	f.NotEmpty(updateEvals, "expected non-empty evaluation list response")
 
-	// Grab the evals from the server and ensure we actually got some.
-	evals, _, err := tc.Nomad().Jobs().Evaluations(jobID, nil)
-	f.NoError(err)
-	f.NotZero(len(evals))
-
-	// Identify the evaluation which was a result of the deregsiter and check
-	// the priority.
-	var deregEval *api.Evaluation
-	for _, eval := range evals {
-		if eval.TriggeredBy == "job-deregister" {
-			deregEval = eval
-			break
+	// Iterate the evals, ignoring those we have already seen and check their
+	// priority is as expected.
+	for _, eval := range updateEvals {
+		if ok := seenEvals[eval.ID]; ok {
+			continue
 		}
+		f.Equal(13, eval.Priority)
+		seenEvals[eval.ID] = true
 	}
-	f.NotNil(deregEval)
-	f.Equal(50, deregEval.Priority)
-	tc.jobIDs = []string{}
-}
 
-// TestJobDeregisterWithEvalPriority tests deregistering a job with a specified
-// evaluation priority. It checks whether the created evaluation has a priority
-// that matches our supplied value.
-func (tc *EvalPriorityTest) TestJobDeregisterWithEvalPriority(f *framework.F) {
-
-	// Generate a jobID and register the job using the eval priority.
-	jobID := "test-eval-priority-" + uuid.Generate()[0:8]
-	f.NoError(e2eutil.Register(jobID, "eval_priority/inputs/default_job_priority.nomad"))
-	tc.jobIDs = append(tc.jobIDs, jobID)
-
-	// Wait for the deployment to finish.
-	f.NoError(e2eutil.WaitForLastDeploymentStatus(jobID, "default", "successful", nil))
-
-	// Pick an eval priority.
-	evalPriority := 91
-
-	// Deregister the job.
-	_, _, err := tc.Nomad().Jobs().DeregisterOpts(jobID, &api.DeregisterOptions{EvalPriority: evalPriority}, nil)
+	// Deregister the job without setting an eval priority.
+	deregOpts := api.DeregisterOptions{Purge: true}
+	deregEvalID, _, err := tc.Nomad().Jobs().DeregisterOpts(jobID, &deregOpts, nil)
 	f.NoError(err)
+	f.NotEmpty(deregEvalID, "expected non-empty evaluation ID")
 
-	// Grab the evals from the server and ensure we actually got some.
-	evals, _, err := tc.Nomad().Jobs().Evaluations(jobID, nil)
+	// Detail the deregistration evaluation and check its priority.
+	evalInfo, _, err := tc.Nomad().Evaluations().Info(deregEvalID, nil)
 	f.NoError(err)
-	f.NotZero(len(evals))
+	f.Equal(13, evalInfo.Priority)
 
-	// Identify the evaluation which was a result of the deregsiter and check
-	// the priority.
-	var deregEval *api.Evaluation
-	for _, eval := range evals {
-		if eval.TriggeredBy == "job-deregister" {
-			deregEval = eval
-			break
-		}
+	// If the job was successfully purged, clear the test suite state.
+	if err == nil {
+		tc.jobIDs = []string{}
 	}
-	f.NotNil(deregEval)
-	f.Equal(evalPriority, deregEval.Priority)
-	tc.jobIDs = []string{}
-}
-
-// TestJobDeregisterWithInvalidEvalPriority tests deregistering a job with a
-// specified evaluation priority that is not valid. There is no need to
-// register a job first as the validation is done within the agent HTTP handler
-// before sending a server RPC request.
-func (tc *EvalPriorityTest) TestJobDeregisterWithInvalidEvalPriority(f *framework.F) {
-
-	// Pick an eval priority that is outside the supported bounds of 1-100.
-	evalPriority := 999
-
-	// Generate a jobID and attempt to register the job using the eval
-	// priority. In case there is a problem found here and the job registers,
-	// we need to ensure it gets cleaned up.
-	jobID := "test-eval-priority-" + uuid.Generate()[0:8]
-	_, _, err := tc.Nomad().Jobs().DeregisterOpts(jobID, &api.DeregisterOptions{EvalPriority: evalPriority}, nil)
-	f.Error(err, "an error was expected due to invalid eval priority")
 }

@@ -309,7 +309,8 @@ func (j *Jobs) DeregisterOpts(jobID string, opts *DeregisterOptions, q *WriteOpt
 	// The base endpoint to add query params to.
 	endpoint := "/v1/job/" + url.PathEscape(jobID)
 
-	// Protect against nil opts.
+	// Protect against nil opts. url.Values expects a string, and so using
+	// fmt.Sprintf is the best way to do this.
 	if opts != nil {
 		endpoint += fmt.Sprintf("?purge=%t&global=%t&eval_priority=%v",
 			opts.Purge, opts.Global, opts.EvalPriority)

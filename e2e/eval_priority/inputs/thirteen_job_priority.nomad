@@ -1,5 +1,8 @@
+variable "image" { default = "busybox:1" }
+
 job "networking" {
   datacenters = ["dc1", "dc2"]
+  priority    = 13
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
@@ -8,7 +11,7 @@ job "networking" {
     task "sleep" {
       driver = "docker"
       config {
-        image   = "busybox:1"
+        image   = var.image
         command = "/bin/sleep"
         args    = ["300"]
       }
