@@ -294,27 +294,29 @@
           </button>
         {{/if}}
       </div>
-      <SearchBox
-        @searchTerm={{mut this.searchTerm}}
-        @onChange={{action this.resetPagination}}
-        @placeholder="Search allocations..."
-        @class="is-inline pull-right"
-        @inputClass="is-compact"
-      />
-      <MultiSelectDropdown
-        data-test-allocation-status-facet
-        @label="Status"
-        @options={{this.optionsAllocationStatus}}
-        @selection={{this.selectionStatus}}
-        @onSelect={{action "setFacetQueryParam" "qpStatus"}}
-      />
-      <MultiSelectDropdown
-        data-test-allocation-task-group-facet
-        @label="Task Group"
-        @options={{this.optionsTaskGroups}}
-        @selection={{this.selectionTaskGroup}}
-        @onSelect={{action "setFacetQueryParam" "qpTaskGroup"}}
-      />
+      <div class="pull-right is-subsection">
+        <MultiSelectDropdown
+          data-test-allocation-status-facet
+          @label="Status"
+          @options={{this.optionsAllocationStatus}}
+          @selection={{this.selectionStatus}}
+          @onSelect={{action "setFacetQueryParam" "qpStatus"}}
+        />
+        <MultiSelectDropdown
+          data-test-allocation-task-group-facet
+          @label="Task Group"
+          @options={{this.optionsTaskGroups}}
+          @selection={{this.selectionTaskGroup}}
+          @onSelect={{action "setFacetQueryParam" "qpTaskGroup"}}
+        />
+        <SearchBox
+          @searchTerm={{mut this.searchTerm}}
+          @onChange={{action this.resetPagination}}
+          @placeholder="Search allocations..."
+          @inputClass="is-compact"
+          @class="is-padded"
+        />
+      </div>
     </div>
     <div class="boxed-section-body is-full-bleed">
       <ListPagination
