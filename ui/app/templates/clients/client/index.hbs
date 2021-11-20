@@ -308,6 +308,13 @@
         @selection={{this.selectionStatus}}
         @onSelect={{action "setFacetQueryParam" "qpStatus"}}
       />
+      <MultiSelectDropdown
+        data-test-allocation-task-group-facet
+        @label="Task Group"
+        @options={{this.optionsTaskGroups}}
+        @selection={{this.selectionTaskGroup}}
+        @onSelect={{action "setFacetQueryParam" "qpTaskGroup"}}
+      />
     </div>
     <div class="boxed-section-body is-full-bleed">
       <ListPagination

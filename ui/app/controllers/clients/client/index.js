@@ -1,9 +1,12 @@
 /* eslint-disable ember/no-observers */
+/* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { observes } from '@ember-decorators/object';
+import { scheduleOnce } from '@ember/runloop';
 import { task } from 'ember-concurrency';
+import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
@@ -31,12 +34,16 @@ export default class ClientController extends Controller.extend(Sortable, Search
     {
       qpStatus: 'status',
     },
+    {
+      qpTaskGroup: 'taskGroup',
+    },
   ];
 
   // Set in the route
   flagAsDraining = false;
 
   qpStatus = '';
+  qpTaskGroup = '';
   currentPage = 1;
   pageSize = 8;
 
@@ -50,13 +57,22 @@ export default class ClientController extends Controller.extend(Sortable, Search
 
   onlyPreemptions = false;
 
-  @computed('model.allocations.[]', 'preemptions.[]', 'onlyPreemptions', 'selectionStatus')
+  @computed(
+    'model.allocations.[]',
+    'preemptions.[]',
+    'onlyPreemptions',
+    'selectionStatus',
+    'selectionTaskGroup'
+  )
   get visibleAllocations() {
     const allocations = this.onlyPreemptions ? this.preemptions : this.model.allocations;
-    const { selectionStatus } = this;
+    const { selectionStatus, selectionTaskGroup } = this;
 
     return allocations.filter(alloc => {
       if (selectionStatus.length && !selectionStatus.includes(alloc.clientStatus)) {
+        return false;
+      }
+      if (selectionTaskGroup.length && !selectionTaskGroup.includes(alloc.taskGroupName)) {
         return false;
       }
       return true;
@@ -68,6 +84,7 @@ export default class ClientController extends Controller.extend(Sortable, Search
   @alias('listSearched') sortedAllocations;
 
   @selection('qpStatus') selectionStatus;
+  @selection('qpTaskGroup') selectionTaskGroup;
 
   eligibilityError = null;
   stopDrainError = null;
@@ -172,6 +189,19 @@ export default class ClientController extends Controller.extend(Sortable, Search
       { key: 'failed', label: 'Failed' },
       { key: 'lost', label: 'Lost' },
     ];
+  }
+
+  @computed('model.allocations.[]', 'selectionTaskGroup')
+  get optionsTaskGroups() {
+    const taskGroups = Array.from(new Set(this.model.allocations.mapBy('taskGroupName'))).compact();
+
+    // Update query param when the list of clients changes.
+    scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
+      this.set('qpTaskGroup', serialize(intersection(taskGroups, this.selectionTaskGroup)));
+    });
+
+    return taskGroups.sort().map(dc => ({ key: dc, label: dc }));
   }
 
   @action
