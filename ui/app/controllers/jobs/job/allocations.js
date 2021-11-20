@@ -12,6 +12,7 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class AllocationsController extends Controller.extend(
+  /*eslint-disable  indent */
   Sortable,
   Searchable,
   WithNamespaceResetting
