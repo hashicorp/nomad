@@ -20,6 +20,13 @@
             @selection={{this.selectionStatus}}
             @onSelect={{action this.setFacetQueryParam "qpStatus"}}
           />
+          <MultiSelectDropdown
+            data-test-allocation-client-facet
+            @label="Client"
+            @options={{this.optionsClients}}
+            @selection={{this.selectionClient}}
+            @onSelect={{action this.setFacetQueryParam "qpClient"}}
+          />
         </div>
       </div>
     </div>

@@ -1,6 +1,9 @@
+/* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
 import { alias } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
+import { scheduleOnce } from '@ember/runloop';
+import intersection from 'lodash.intersection';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
@@ -29,9 +32,13 @@ export default class AllocationsController extends Controller.extend(
     {
       qpStatus: 'status',
     },
+    {
+      qpClient: 'client',
+    },
   ];
 
   qpStatus = '';
+  qpClient = '';
   currentPage = 1;
   pageSize = 25;
 
@@ -45,15 +52,18 @@ export default class AllocationsController extends Controller.extend(
     return ['shortId', 'name', 'taskGroupName'];
   }
 
-  @computed('model.allocations.[]', 'selectionStatus')
+  @computed('model.allocations.[]', 'selectionStatus', 'selectionClient')
   get allocations() {
     const allocations = this.get('model.allocations') || [];
-    const { selectionStatus } = this;
+    const { selectionStatus, selectionClient } = this;
 
     if (!allocations.length) return allocations;
 
     return allocations.filter(alloc => {
       if (selectionStatus.length && !selectionStatus.includes(alloc.status)) {
+        return false;
+      }
+      if (selectionClient.length && !selectionClient.includes(alloc.get('node.shortId'))) {
         return false;
       }
 
@@ -62,6 +72,7 @@ export default class AllocationsController extends Controller.extend(
   }
 
   @selection('qpStatus') selectionStatus;
+  @selection('qpClient') selectionClient;
 
   @alias('allocations') listToSort;
   @alias('listSorted') listToSearch;
@@ -81,6 +92,19 @@ export default class AllocationsController extends Controller.extend(
       { key: 'failed', label: 'Failed' },
       { key: 'lost', label: 'Lost' },
     ];
+  }
+
+  @computed('model.allocations.[]', 'selectionClient')
+  get optionsClients() {
+    const clients = Array.from(new Set(this.model.allocations.mapBy('node.shortId'))).compact();
+
+    // Update query param when the list of clients changes.
+    scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
+      this.set('qpClient', serialize(intersection(clients, this.selectionClient)));
+    });
+
+    return clients.sort().map(dc => ({ key: dc, label: dc }));
   }
 
   setFacetQueryParam(queryParam, selection) {
