@@ -133,7 +133,7 @@ func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
 	}
 
 	// Send the Ack
-	w.sendAck(eval1.ID, token)
+	w.sendAck(eval1, token)
 
 	// Attempt second dequeue
 	eval, token, waitIndex, shutdown = w.dequeueEvaluation(10 * time.Millisecond)
@@ -258,7 +258,7 @@ func TestWorker_sendAck(t *testing.T) {
 	}
 
 	// Send the Nack
-	w.sendNack(eval.ID, token)
+	w.sendNack(eval, token)
 
 	// Check the depth is 1, nothing unacked
 	stats = s1.evalBroker.Stats()
@@ -270,7 +270,7 @@ func TestWorker_sendAck(t *testing.T) {
 	eval, token, _, _ = w.dequeueEvaluation(10 * time.Millisecond)
 
 	// Send the Ack
-	w.sendAck(eval.ID, token)
+	w.sendAck(eval, token)
 
 	// Check the depth is 0
 	stats = s1.evalBroker.Stats()
@@ -674,7 +674,7 @@ func TestWorker_ReblockEval(t *testing.T) {
 	}
 
 	// Ack the eval
-	w.sendAck(evalOut.ID, token)
+	w.sendAck(evalOut, token)
 
 	// Check that it is blocked
 	bStats := s1.blockedEvals.Stats()

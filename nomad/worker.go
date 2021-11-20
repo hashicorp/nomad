@@ -10,6 +10,7 @@ import (
 	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -52,11 +53,14 @@ const (
 // lifecycle around making task allocations. They bridge the business logic
 // of the scheduler with the plumbing required to make it all work.
 type Worker struct {
-	srv    *Server
-	logger log.Logger
-	start  time.Time
+	srv     *Server
+	logger  log.Logger
+	start   time.Time
+	id      string
+	paused  bool
+	stop    bool // Signals that the worker should stop
+	stopped bool // Indicates that the worker is in a terminal state; read with Stopped()
 
-	paused    bool
 	pauseLock sync.Mutex
 	pauseCond *sync.Cond
 
@@ -73,10 +77,11 @@ type Worker struct {
 // NewWorker starts a new worker associated with the given server
 func NewWorker(srv *Server) (*Worker, error) {
 	w := &Worker{
-		srv:    srv,
-		logger: srv.logger.ResetNamed("worker"),
-		start:  time.Now(),
+		srv:   srv,
+		start: time.Now(),
+		id:    uuid.Generate(),
 	}
+	w.logger = srv.logger.ResetNamed("worker").With("worker_id", w.id)
 	w.pauseCond = sync.NewCond(&w.pauseLock)
 	go w.run()
 	return w, nil
@@ -101,8 +106,52 @@ func (w *Worker) checkPaused() {
 	w.pauseLock.Unlock()
 }
 
+// Shutdown is used to signal that the worker should shutdown.
+func (w *Worker) Shutdown() {
+	w.pauseLock.Lock()
+	w.paused = false
+	w.stop = true
+	w.pauseLock.Unlock()
+	w.pauseCond.Broadcast()
+}
+
+// Stopped returns a boolean indicating if this worker has been stopped.
+func (w *Worker) Stopped() bool {
+	w.pauseLock.Lock()
+	defer w.pauseLock.Unlock()
+	return w.stopped
+}
+
+// ID returns a string ID for the worker.
+func (w *Worker) ID() string {
+	return w.id
+}
+
+// shouldStop is used to check the worker state to see if conditions indicate
+// that it should shutdown.
+func (w *Worker) shouldStop() bool {
+	var localStop, shouldStop bool
+	w.pauseLock.Lock()
+	localStop = w.stop
+	w.pauseLock.Unlock()
+
+	shouldStop = localStop || w.srv.IsShutdown()
+	return shouldStop
+}
+
+// markStopped is used to mark the worker as stopped and should be called in a
+// defer immediately upon entering the run() function.
+func (w *Worker) markStopped() {
+	w.pauseLock.Lock()
+	w.stopped = true
+	w.pauseLock.Unlock()
+	w.logger.Trace("stopped")
+}
+
 // run is the long-lived goroutine which is used to run the worker
 func (w *Worker) run() {
+	defer w.markStopped()
+	w.logger.Trace("running")
 	for {
 		// Dequeue a pending evaluation
 		eval, token, waitIndex, shutdown := w.dequeueEvaluation(dequeueTimeout)
@@ -111,9 +160,9 @@ func (w *Worker) run() {
 		}
 
 		// Check for a shutdown
-		if w.srv.IsShutdown() {
+		if w.shouldStop() {
 			w.logger.Error("nacking eval because the server is shutting down", "eval", log.Fmt("%#v", eval))
-			w.sendNack(eval.ID, token)
+			w.sendNack(eval, token)
 			return
 		}
 
@@ -121,19 +170,19 @@ func (w *Worker) run() {
 		snap, err := w.snapshotMinIndex(waitIndex, raftSyncLimit)
 		if err != nil {
 			w.logger.Error("error waiting for Raft index", "error", err, "index", waitIndex)
-			w.sendNack(eval.ID, token)
+			w.sendNack(eval, token)
 			continue
 		}
 
 		// Invoke the scheduler to determine placements
 		if err := w.invokeScheduler(snap, eval, token); err != nil {
 			w.logger.Error("error invoking scheduler", "error", err)
-			w.sendNack(eval.ID, token)
+			w.sendNack(eval, token)
 			continue
 		}
 
 		// Complete the evaluation
-		w.sendAck(eval.ID, token)
+		w.sendAck(eval, token)
 	}
 }
 
@@ -155,13 +204,17 @@ func (w *Worker) dequeueEvaluation(timeout time.Duration) (
 REQ:
 	// Check if we are paused
 	w.checkPaused()
+	// Immediately check to see if the worker has been shutdown
+	if w.shouldStop() {
+		return nil, "", 0, true
+	}
 
 	// Make a blocking RPC
 	start := time.Now()
 	err := w.srv.RPC("Eval.Dequeue", &req, &resp)
 	metrics.MeasureSince([]string{"nomad", "worker", "dequeue_eval"}, start)
 	if err != nil {
-		if time.Since(w.start) > dequeueErrGrace && !w.srv.IsShutdown() {
+		if time.Since(w.start) > dequeueErrGrace && !w.shouldStop() {
 			w.logger.Error("failed to dequeue evaluation", "error", err)
 		}
 
@@ -182,25 +235,21 @@ REQ:
 
 	// Check if we got a response
 	if resp.Eval != nil {
-		w.logger.Debug("dequeued evaluation", "eval_id", resp.Eval.ID)
+		w.logger.Debug("dequeued evaluation", "eval_id", resp.Eval.ID, "type", resp.Eval.Type, "namespace", resp.Eval.Namespace, "job_id", resp.Eval.JobID, "node_id", resp.Eval.NodeID, "triggered_by", resp.Eval.TriggeredBy)
 		return resp.Eval, resp.Token, resp.GetWaitIndex(), false
 	}
 
-	// Check for potential shutdown
-	if w.srv.IsShutdown() {
-		return nil, "", 0, true
-	}
 	goto REQ
 }
 
 // sendAcknowledgement should not be called directly. Call `sendAck` or `sendNack` instead.
 // This function implements `ack`ing or `nack`ing the evaluation generally.
 // Any errors are logged but swallowed.
-func (w *Worker) sendAcknowledgement(evalID, token string, ack bool) {
+func (w *Worker) sendAcknowledgement(eval *structs.Evaluation, token string, ack bool) {
 	defer metrics.MeasureSince([]string{"nomad", "worker", "send_ack"}, time.Now())
 	// Setup the request
 	req := structs.EvalAckRequest{
-		EvalID: evalID,
+		EvalID: eval.ID,
 		Token:  token,
 		WriteRequest: structs.WriteRequest{
 			Region: w.srv.config.Region,
@@ -219,22 +268,22 @@ func (w *Worker) sendAcknowledgement(evalID, token string, ack bool) {
 	// Make the RPC call
 	err := w.srv.RPC(endpoint, &req, &resp)
 	if err != nil {
-		w.logger.Error(fmt.Sprintf("failed to %s evaluation", verb), "eval_id", evalID, "error", err)
+		w.logger.Error(fmt.Sprintf("failed to %s evaluation", verb), "eval_id", eval.ID, "error", err)
 	} else {
-		w.logger.Debug(fmt.Sprintf("%s evaluation", verb), "eval_id", evalID)
+		w.logger.Debug(fmt.Sprintf("%s evaluation", verb), "eval_id", eval.ID, "type", eval.Type, "namespace", eval.Namespace, "job_id", eval.JobID, "node_id", eval.NodeID, "triggered_by", eval.TriggeredBy)
 	}
 }
 
 // sendNack makes a best effort to nack the evaluation.
 // Any errors are logged but swallowed.
-func (w *Worker) sendNack(evalID, token string) {
-	w.sendAcknowledgement(evalID, token, false)
+func (w *Worker) sendNack(eval *structs.Evaluation, token string) {
+	w.sendAcknowledgement(eval, token, false)
 }
 
 // sendAck makes a best effort to ack the evaluation.
 // Any errors are logged but swallowed.
-func (w *Worker) sendAck(evalID, token string) {
-	w.sendAcknowledgement(evalID, token, true)
+func (w *Worker) sendAck(eval *structs.Evaluation, token string) {
+	w.sendAcknowledgement(eval, token, true)
 }
 
 // snapshotMinIndex times calls to StateStore.SnapshotAfter which may block.

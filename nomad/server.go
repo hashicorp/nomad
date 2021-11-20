@@ -809,6 +809,15 @@ func (s *Server) Reload(newConfig *Config) error {
 		s.EnterpriseState.ReloadLicense(newConfig)
 	}
 
+	if newConfig.NumSchedulers != s.config.NumSchedulers {
+		s.logger.Debug("changing number of schedulers", "from", s.config.NumSchedulers, "to", newConfig.NumSchedulers)
+		s.config.NumSchedulers = newConfig.NumSchedulers
+		if err := s.SetupNewWorkers(); err != nil {
+			s.logger.Error("error creating new workers", "error", err)
+			_ = multierror.Append(&mErr, err)
+		}
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -1453,17 +1462,47 @@ func (s *Server) setupWorkers() error {
 	if !foundCore {
 		return fmt.Errorf("invalid configuration: %q scheduler not enabled", structs.JobTypeCore)
 	}
-
+	s.logger.Info("starting scheduling worker(s)", "num_workers", s.config.NumSchedulers, "schedulers", s.config.EnabledSchedulers)
 	// Start the workers
 	for i := 0; i < s.config.NumSchedulers; i++ {
 		if w, err := NewWorker(s); err != nil {
 			return err
 		} else {
+			s.logger.Debug("started scheduling worker", "id", w.ID(), "index", i+1, "of", s.config.NumSchedulers)
+
 			s.workers = append(s.workers, w)
 		}
 	}
-	s.logger.Info("starting scheduling worker(s)", "num_workers", s.config.NumSchedulers, "schedulers", s.config.EnabledSchedulers)
+	s.logger.Info("started scheduling worker(s)", "num_workers", s.config.NumSchedulers, "schedulers", s.config.EnabledSchedulers)
 	return nil
+}
+
+// SetupNewWorkers() is used to start a new set of workers after a configuration
+// change and a hot reload.
+func (s *Server) SetupNewWorkers() error {
+	// make a copy of the s.workers array so we can safely stop those goroutines
+	oldWorkers := make([]*Worker, len(s.workers))
+	defer s.stopOldWorkers(oldWorkers)
+	for i, w := range s.workers {
+		oldWorkers[i] = w
+	}
+	s.logger.Info(fmt.Sprintf("marking %v current schedulers for shutdown", len(oldWorkers)))
+	s.workers = make([]*Worker, 0, s.config.NumSchedulers)
+	err := s.setupWorkers()
+	if err != nil {
+		return err
+	}
+	s.handlePausableWorkers(s.IsLeader())
+
+	return nil
+}
+
+func (s *Server) stopOldWorkers(oldWorkers []*Worker) {
+	workerCount := len(oldWorkers)
+	for i, w := range oldWorkers {
+		s.logger.Debug("stopping old scheduling worker", "id", w.ID(), "index", i+1, "of", workerCount)
+		go w.Shutdown()
+	}
 }
 
 // numPeers is used to check on the number of known peers, including the local
