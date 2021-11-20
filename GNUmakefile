@@ -9,7 +9,6 @@ GIT_DIRTY := $(if $(shell git status --porcelain),+CHANGES)
 GO_LDFLAGS := "-X github.com/hashicorp/nomad/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)"
 CGO_ENABLED = 1
 CGO_CFLAGS ?=
-SDKROOT ?=
 
 GO_TAGS ?=
 
@@ -85,7 +84,6 @@ endif
 		GOOS=$(firstword $(subst _, ,$*)) \
 		GOARCH=$(lastword $(subst _, ,$*)) \
 		CC=$(CC) \
-		SDKROOT=$(SDKROOT) \
 		go build -trimpath -ldflags $(GO_LDFLAGS) -tags "$(GO_TAGS)" -o $(GO_OUT)
 
 ifneq (armv7l,$(THIS_ARCH))
@@ -100,9 +98,7 @@ ifeq (Darwin,$(THIS_OS))
 pkg/linux_%/nomad: CGO_ENABLED = 0
 endif
 
-pkg/darwin_%/nomad:
-CGO_CFLAGS=-Wno-undef-prefix
-SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+pkg/darwin_%/nomad: CGO_CFLAGS=-Wno-undef-prefix
 
 pkg/windows_%/nomad: GO_OUT = $@.exe
 
