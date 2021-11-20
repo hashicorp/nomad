@@ -299,7 +299,15 @@
         @onChange={{action this.resetPagination}}
         @placeholder="Search allocations..."
         @class="is-inline pull-right"
-        @inputClass="is-compact" />
+        @inputClass="is-compact"
+      />
+      <MultiSelectDropdown
+        data-test-allocation-status-facet
+        @label="Status"
+        @options={{this.optionsAllocationStatus}}
+        @selection={{this.selectionStatus}}
+        @onSelect={{action "setFacetQueryParam" "qpStatus"}}
+      />
     </div>
     <div class="boxed-section-body is-full-bleed">
       <ListPagination

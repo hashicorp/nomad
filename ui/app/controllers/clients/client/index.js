@@ -7,6 +7,7 @@ import { task } from 'ember-concurrency';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
+import { serialize, deserializedQueryParam as selection } from 'nomad-ui/utils/qp-serialize';
 import classic from 'ember-classic-decorator';
 
 @classic
@@ -27,11 +28,15 @@ export default class ClientController extends Controller.extend(Sortable, Search
     {
       onlyPreemptions: 'preemptions',
     },
+    {
+      qpStatus: 'status',
+    },
   ];
 
   // Set in the route
   flagAsDraining = false;
 
+  qpStatus = '';
   currentPage = 1;
   pageSize = 8;
 
@@ -45,14 +50,24 @@ export default class ClientController extends Controller.extend(Sortable, Search
 
   onlyPreemptions = false;
 
-  @computed('model.allocations.[]', 'preemptions.[]', 'onlyPreemptions')
+  @computed('model.allocations.[]', 'preemptions.[]', 'onlyPreemptions', 'selectionStatus')
   get visibleAllocations() {
-    return this.onlyPreemptions ? this.preemptions : this.model.allocations;
+    const allocations = this.onlyPreemptions ? this.preemptions : this.model.allocations;
+    const { selectionStatus } = this;
+
+    return allocations.filter(alloc => {
+      if (selectionStatus.length && !selectionStatus.includes(alloc.clientStatus)) {
+        return false;
+      }
+      return true;
+    });
   }
 
   @alias('visibleAllocations') listToSort;
   @alias('listSorted') listToSearch;
   @alias('listSearched') sortedAllocations;
+
+  @selection('qpStatus') selectionStatus;
 
   eligibilityError = null;
   stopDrainError = null;
@@ -146,5 +161,21 @@ export default class ClientController extends Controller.extend(Sortable, Search
   setDrainError(err) {
     const error = messageFromAdapterError(err) || 'Could not run drain';
     this.set('drainError', error);
+  }
+
+  get optionsAllocationStatus() {
+    return [
+      { key: 'queued', label: 'Queued' },
+      { key: 'starting', label: 'Starting' },
+      { key: 'running', label: 'Running' },
+      { key: 'complete', label: 'Complete' },
+      { key: 'failed', label: 'Failed' },
+      { key: 'lost', label: 'Lost' },
+    ];
+  }
+
+  @action
+  setFacetQueryParam(queryParam, selection) {
+    this.set(queryParam, serialize(selection));
   }
 }
