@@ -35,10 +35,14 @@ export default class AllocationsController extends Controller.extend(
     {
       qpClient: 'client',
     },
+    {
+      qpTaskGroup: 'taskGroup',
+    },
   ];
 
   qpStatus = '';
   qpClient = '';
+  qpTaskGroup = '';
   currentPage = 1;
   pageSize = 25;
 
@@ -52,10 +56,10 @@ export default class AllocationsController extends Controller.extend(
     return ['shortId', 'name', 'taskGroupName'];
   }
 
-  @computed('model.allocations.[]', 'selectionStatus', 'selectionClient')
+  @computed('model.allocations.[]', 'selectionStatus', 'selectionClient', 'selectionTaskGroup')
   get allocations() {
     const allocations = this.get('model.allocations') || [];
-    const { selectionStatus, selectionClient } = this;
+    const { selectionStatus, selectionClient, selectionTaskGroup } = this;
 
     if (!allocations.length) return allocations;
 
@@ -66,6 +70,9 @@ export default class AllocationsController extends Controller.extend(
       if (selectionClient.length && !selectionClient.includes(alloc.get('node.shortId'))) {
         return false;
       }
+      if (selectionTaskGroup.length && !selectionTaskGroup.includes(alloc.taskGroupName)) {
+        return false;
+      }
 
       return true;
     });
@@ -73,6 +80,7 @@ export default class AllocationsController extends Controller.extend(
 
   @selection('qpStatus') selectionStatus;
   @selection('qpClient') selectionClient;
+  @selection('qpTaskGroup') selectionTaskGroup;
 
   @alias('allocations') listToSort;
   @alias('listSorted') listToSearch;
@@ -105,6 +113,19 @@ export default class AllocationsController extends Controller.extend(
     });
 
     return clients.sort().map(dc => ({ key: dc, label: dc }));
+  }
+
+  @computed('model.allocations.[]', 'selectionTaskGroup')
+  get optionsTaskGroups() {
+    const taskGroups = Array.from(new Set(this.model.allocations.mapBy('taskGroupName'))).compact();
+
+    // Update query param when the list of clients changes.
+    scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
+      this.set('qpTaskGroup', serialize(intersection(taskGroups, this.selectionTaskGroup)));
+    });
+
+    return taskGroups.sort().map(dc => ({ key: dc, label: dc }));
   }
 
   setFacetQueryParam(queryParam, selection) {

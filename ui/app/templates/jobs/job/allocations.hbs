@@ -27,6 +27,13 @@
             @selection={{this.selectionClient}}
             @onSelect={{action this.setFacetQueryParam "qpClient"}}
           />
+          <MultiSelectDropdown
+            data-test-task-group-facet
+            @label="Task Group"
+            @options={{this.optionsTaskGroups}}
+            @selection={{this.selectionTaskGroup}}
+            @onSelect={{action this.setFacetQueryParam "qpTaskGroup"}}
+          />
         </div>
       </div>
     </div>
