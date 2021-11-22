@@ -1,3 +1,9 @@
+## 1.2.1 (November 19, 2021)
+
+SECURITY:
+
+* Allow limiting QEMU arguments to reduce access to host resources. [CVE-2021-43415](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-43415) [[GH-11542](https://github.com/hashicorp/nomad/issues/11542)]
+
 ## 1.2.0 (November 15, 2021)
 
 FEATURES:
@@ -65,6 +71,12 @@ BUG FIXES:
 * rpc: Set the job scale eval priority to the job priority [[GH-11429](https://github.com/hashicorp/nomad/issues/11429)]
 * server: Fixed a panic on arm64 platform when dispatching a job with a payload [[GH-11396](https://github.com/hashicorp/nomad/issues/11396)]
 * server: Fixed a panic that may occur when preempting multiple allocations on the same node [[GH-11346](https://github.com/hashicorp/nomad/issues/11346)]
+
+## 1.1.8 (November 19, 2021)
+
+SECURITY:
+
+* Allow limiting QEMU arguments to reduce access to host resources. [CVE-2021-43415](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-43415) [[GH-11542](https://github.com/hashicorp/nomad/issues/11542)]
 
 ## 1.1.7 (November 15, 2021)
 
@@ -318,6 +330,12 @@ BUG FIXES:
  * server: Fixed a bug where jobs may not run if submitted with ParentID field set [[GH-10424](https://github.com/hashicorp/nomad/issues/10424)]
  * server: Fixed a panic that may arise on submission of jobs containing invalid service checks [[GH-10154](https://github.com/hashicorp/nomad/issues/10154)]
  * ui: Fixed the rendering of interstitial components shown after processing a dynamic application sizing recommendation. [[GH-10094](https://github.com/hashicorp/nomad/pull/10094)]
+
+## 1.0.14 (November 19, 2021)
+
+SECURITY:
+
+* Allow limiting QEMU arguments to reduce access to host resources. [CVE-2021-43415](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-43415) [[GH-11542](https://github.com/hashicorp/nomad/issues/11542)]
 
 ## 1.0.13 (November 15, 2021)
 

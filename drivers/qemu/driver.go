@@ -84,7 +84,8 @@ var (
 
 	// configSpec is the hcl specification returned by the ConfigSchema RPC
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"image_paths": hclspec.NewAttr("image_paths", "list(string)", false),
+		"image_paths":    hclspec.NewAttr("image_paths", "list(string)", false),
+		"args_allowlist": hclspec.NewAttr("args_allowlist", "list(string)", false),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -136,6 +137,11 @@ type TaskState struct {
 type Config struct {
 	// ImagePaths is an allow-list of paths qemu is allowed to load an image from
 	ImagePaths []string `codec:"image_paths"`
+
+	// ArgsAllowList is an allow-list of arguments the jobspec can
+	// include in arguments to qemu, so that cluster operators can can
+	// prevent access to devices
+	ArgsAllowList []string `codec:"args_allowlist"`
 }
 
 // Driver is a driver for running images via Qemu
@@ -338,6 +344,26 @@ func isAllowedImagePath(allowedPaths []string, allocDir, imagePath string) bool 
 	return false
 }
 
+// validateArgs ensures that all QEMU command line params are in the
+// allowlist. This function must be called after all interpolation has
+// taken place.
+func validateArgs(pluginConfigAllowList, args []string) error {
+	if len(pluginConfigAllowList) > 0 {
+		allowed := map[string]struct{}{}
+		for _, arg := range pluginConfigAllowList {
+			allowed[arg] = struct{}{}
+		}
+		for _, arg := range args {
+			if strings.HasPrefix(strings.TrimSpace(arg), "-") {
+				if _, ok := allowed[arg]; !ok {
+					return fmt.Errorf("%q is not in args_allowlist", arg)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("taskConfig with ID '%s' already started", cfg.ID)
@@ -354,6 +380,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
+
+	if err := validateArgs(d.config.ArgsAllowList, driverConfig.Args); err != nil {
+		return nil, nil, err
+	}
 
 	// Get the image source
 	vmPath := driverConfig.ImagePath
