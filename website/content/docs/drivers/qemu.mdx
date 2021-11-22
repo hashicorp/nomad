@@ -54,7 +54,7 @@ The `qemu` driver supports the following configuration in the job spec:
   forcefully terminated. (Note that
   [prior to qemu 2.10.1](https://github.com/qemu/qemu/commit/ad9579aaa16d5b385922d49edac2c96c79bcfb6),
   the monitor socket path is limited to 108 characters. Graceful shutdown will
-  be disabled if qemu is < 2.10.1 and the generated monitor path exceeds this
+  be disabled if QEMU is < 2.10.1 and the generated monitor path exceeds this
   length. You may encounter this issue if you set long
   [data_dir](/docs/configuration#data_dir)
   or
@@ -72,7 +72,7 @@ The `qemu` driver supports the following configuration in the job spec:
   }
   ```
 
-- `args` - (Optional) A list of strings that is passed to qemu as command line
+- `args` - (Optional) A list of strings that is passed to QEMU as command line
   options.
 
 ## Examples
@@ -145,12 +145,19 @@ job "docs" {
 plugin "qemu" {
   config {
     image_paths = ["/mnt/image/paths"]
+    args_allowlist = ["-drive", "-usbdevice"]
   }
 }
 ```
 
-- `image_paths` (`[]string`: `[]`) - Specifies the host paths the QEMU driver is
-  allowed to load images from.
+- `image_paths` (`[]string`: `[]`) - Specifies the host paths the QEMU
+  driver is allowed to load images from.
+- `args_allowlist` (`[]string`: `[]`) - Specifies the command line
+  flags that the [`args`] option is permitted to pass to QEMU. If
+  unset, a job submitter can pass any command line flag into QEMU,
+  including flags that provide the VM with access to host devices such
+  as USB drives. Refer to the [QEMU documentation] for the available
+  flags.
 
 ## Resource Isolation
 
@@ -162,3 +169,11 @@ Virtualization provides the highest level of isolation for workloads that
 require additional security, and resource use is constrained by the QEMU
 hypervisor rather than the host kernel. VM network traffic still flows through
 the host's interface(s).
+
+Note that the strong isolation provided by virtualization only applies
+to the workload once the VM is started. Operators should use the
+`args_allowlist` option to prevent job submitters from accessing
+devices and resources they are not allowed to access.
+
+[`args`]: /docs/drivers/qemu#args
+[QEMU documentation]: https://www.qemu.org/docs/master/system/invocation.html
