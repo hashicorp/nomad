@@ -6695,22 +6695,6 @@ func TestJobEndpoint_Scale_DeploymentBlocking(t *testing.T) {
 			require.NotEmpty(resp.EvalID)
 			require.Greater(resp.EvalCreateIndex, resp.JobModifyIndex)
 		}
-
-		events, _, _ := state.ScalingEventsByJob(nil, job.Namespace, job.ID)
-		require.Equal(1, len(events[groupName]))
-		latestEvent := events[groupName][0]
-		if dLatest.Active() {
-			require.True(latestEvent.Error)
-			require.Nil(latestEvent.Count)
-			require.Contains(latestEvent.Message, "blocked due to active deployment")
-			require.Equal(latestEvent.Meta["OriginalCount"], newCount)
-			require.Equal(latestEvent.Meta["OriginalMessage"], scalingMessage)
-			require.Equal(latestEvent.Meta["OriginalMeta"], scalingMetadata)
-		} else {
-			require.False(latestEvent.Error)
-			require.NotNil(latestEvent.Count)
-			require.Equal(newCount, *latestEvent.Count)
-		}
 	}
 }
 

@@ -1094,31 +1094,7 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		}
 
 		if deployment != nil && deployment.Active() && deployment.JobCreateIndex == job.CreateIndex {
-			msg := "job scaling blocked due to active deployment"
-			_, _, err := j.srv.raftApply(
-				structs.ScalingEventRegisterRequestType,
-				&structs.ScalingEventRequest{
-					Namespace: job.Namespace,
-					JobID:     job.ID,
-					TaskGroup: groupName,
-					ScalingEvent: &structs.ScalingEvent{
-						Time:          now,
-						PreviousCount: prevCount,
-						Message:       msg,
-						Error:         true,
-						Meta: map[string]interface{}{
-							"OriginalMessage": args.Message,
-							"OriginalCount":   *args.Count,
-							"OriginalMeta":    args.Meta,
-						},
-					},
-				},
-			)
-			if err != nil {
-				// just log the error, this was a best-effort attempt
-				j.logger.Error("scaling event create failed during block scaling action", "error", err)
-			}
-			return structs.NewErrRPCCoded(400, msg)
+			return structs.NewErrRPCCoded(400, "job scaling blocked due to active deployment")
 		}
 
 		// Commit the job update
