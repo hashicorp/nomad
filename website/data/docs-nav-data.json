@@ -203,6 +203,10 @@
       {
         "title": "vault",
         "path": "configuration/vault"
+      },
+      {
+        "title": "ui",
+        "path": "configuration/ui"
       }
     ]
   },

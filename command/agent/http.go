@@ -336,13 +336,21 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/namespace", s.wrap(s.NamespaceCreateRequest))
 	s.mux.HandleFunc("/v1/namespace/", s.wrap(s.NamespaceSpecificRequest))
 
-	if uiEnabled {
+	uiConfigEnabled := s.agent.config.UI != nil && s.agent.config.UI.Enabled
+
+	if uiEnabled && uiConfigEnabled {
 		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
+		s.logger.Debug("UI is enabled")
 	} else {
 		// Write the stubHTML
 		s.mux.HandleFunc("/ui/", func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(stubHTML))
 		})
+		if uiEnabled && !uiConfigEnabled {
+			s.logger.Warn("UI is disabled")
+		} else {
+			s.logger.Debug("UI is disabled in this build")
+		}
 	}
 	s.mux.Handle("/", s.handleRootFallthrough())
 
