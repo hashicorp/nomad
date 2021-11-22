@@ -342,7 +342,7 @@ UPDATE:
 				glint.Text(fmt.Sprintf("✓ Deployment %q %s", limit(deployID, length), status)),
 			).Row().MarginLeft(2)
 			break UPDATE
-		case structs.DeploymentStatusCancelled, structs.DeploymentStatusDescriptionBlocked:
+		case structs.DeploymentStatusCancelled, structs.DeploymentStatusBlocked:
 			endSpinner = glint.Layout(
 				glint.Text(fmt.Sprintf("! Deployment %q %s", limit(deployID, length), status)),
 			).Row().MarginLeft(2)
@@ -436,7 +436,7 @@ func (c *DeploymentStatusCommand) defaultMonitor(client *api.Client, deployID st
 			}
 			return
 
-		case structs.DeploymentStatusSuccessful, structs.DeploymentStatusCancelled, structs.DeploymentStatusDescriptionBlocked:
+		case structs.DeploymentStatusSuccessful, structs.DeploymentStatusCancelled, structs.DeploymentStatusBlocked:
 			return
 		default:
 			q.WaitIndex = meta.LastIndex
