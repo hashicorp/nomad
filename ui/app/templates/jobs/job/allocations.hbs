@@ -34,6 +34,13 @@
             @selection={{this.selectionTaskGroup}}
             @onSelect={{action this.setFacetQueryParam "qpTaskGroup"}}
           />
+          <MultiSelectDropdown
+            data-test-job-version-facet
+            @label="Job Version"
+            @options={{this.optionsJobVersions}}
+            @selection={{this.selectionJobVersion}}
+            @onSelect={{action this.setFacetQueryParam "qpJobVersion"}}
+          />
         </div>
       </div>
     </div>

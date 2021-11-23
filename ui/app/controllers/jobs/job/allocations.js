@@ -39,11 +39,15 @@ export default class AllocationsController extends Controller.extend(
     {
       qpTaskGroup: 'taskGroup',
     },
+    {
+      qpJobVersion: 'jobVersion',
+    },
   ];
 
   qpStatus = '';
   qpClient = '';
   qpTaskGroup = '';
+  qpJobVersion = '';
   currentPage = 1;
   pageSize = 25;
 
@@ -57,10 +61,16 @@ export default class AllocationsController extends Controller.extend(
     return ['shortId', 'name', 'taskGroupName'];
   }
 
-  @computed('model.allocations.[]', 'selectionStatus', 'selectionClient', 'selectionTaskGroup')
+  @computed(
+    'model.allocations.[]',
+    'selectionStatus',
+    'selectionClient',
+    'selectionTaskGroup',
+    'selectionJobVersion'
+  )
   get allocations() {
     const allocations = this.get('model.allocations') || [];
-    const { selectionStatus, selectionClient, selectionTaskGroup } = this;
+    const { selectionStatus, selectionClient, selectionTaskGroup, selectionJobVersion } = this;
 
     if (!allocations.length) return allocations;
 
@@ -74,7 +84,9 @@ export default class AllocationsController extends Controller.extend(
       if (selectionTaskGroup.length && !selectionTaskGroup.includes(alloc.taskGroupName)) {
         return false;
       }
-
+      if (selectionJobVersion.length && !selectionJobVersion.includes(alloc.jobVersion)) {
+        return false;
+      }
       return true;
     });
   }
@@ -82,6 +94,7 @@ export default class AllocationsController extends Controller.extend(
   @selection('qpStatus') selectionStatus;
   @selection('qpClient') selectionClient;
   @selection('qpTaskGroup') selectionTaskGroup;
+  @selection('qpJobVersion') selectionJobVersion;
 
   @alias('allocations') listToSort;
   @alias('listSorted') listToSearch;
@@ -127,6 +140,19 @@ export default class AllocationsController extends Controller.extend(
     });
 
     return taskGroups.sort().map(tg => ({ key: tg, label: tg }));
+  }
+
+  @computed('model.allocations.[]', 'selectionJobVersion')
+  get optionsJobVersions() {
+    const jobVersions = Array.from(new Set(this.model.allocations.mapBy('jobVersion'))).compact();
+
+    // Update query param when the list of clients changes.
+    scheduleOnce('actions', () => {
+      // eslint-disable-next-line ember/no-side-effects
+      this.set('qpJobVersion', serialize(intersection(jobVersions, this.selectionJobVersion)));
+    });
+
+    return jobVersions.sort().map(jv => ({ key: jv, label: jv }));
   }
 
   setFacetQueryParam(queryParam, selection) {
