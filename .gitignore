@@ -125,3 +125,5 @@ e2e/remotetasks/input/ecs.vars
 awscreds.sh 
 myip.txt 
 support_eng_dev-access-key-mikael.pem
+support_nomad_dev-access-key-mikael.pem
+.terraform.lock.hcl
