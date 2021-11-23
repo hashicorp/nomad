@@ -574,6 +574,53 @@ func TestParseBool(t *testing.T) {
 	}
 }
 
+func Test_parseInt(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		Input    string
+		Expected *int
+		Err      bool
+	}{
+		{
+			Input:    "",
+			Expected: nil,
+		},
+		{
+			Input:    "13",
+			Expected: helper.IntToPtr(13),
+		},
+		{
+			Input:    "99",
+			Expected: helper.IntToPtr(99),
+		},
+		{
+			Input: "ten",
+			Err:   true,
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run("Input-"+tc.Input, func(t *testing.T) {
+			testURL, err := url.Parse("http://localhost/foo?eval_priority=" + tc.Input)
+			require.NoError(t, err)
+			req := &http.Request{
+				URL: testURL,
+			}
+
+			result, err := parseInt(req, "eval_priority")
+			if tc.Err {
+				require.Error(t, err)
+				require.Nil(t, result)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.Expected, result)
+			}
+		})
+	}
+}
+
 func TestParsePagination(t *testing.T) {
 	t.Parallel()
 	s := makeHTTPServer(t, nil)

@@ -586,6 +586,14 @@ type JobRegisterRequest struct {
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
 
+	// EvalPriority is an optional priority to use on any evaluation created as
+	// a result on this job registration. This value must be between 1-100
+	// inclusively, where a larger value corresponds to a higher priority. This
+	// is useful when an operator wishes to push through a job registration in
+	// busy clusters with a large evaluation backlog. This avoids needing to
+	// change the job priority which also impacts preemption.
+	EvalPriority int
+
 	// Eval is the evaluation that is associated with the job registration
 	Eval *Evaluation
 
@@ -605,6 +613,13 @@ type JobDeregisterRequest struct {
 	// Global controls whether all regions of a multi-region job are
 	// deregistered. It is ignored for single-region jobs.
 	Global bool
+
+	// EvalPriority is an optional priority to use on any evaluation created as
+	// a result on this job deregistration. This value must be between 1-100
+	// inclusively, where a larger value corresponds to a higher priority. This
+	// is useful when an operator wishes to push through a job deregistration
+	// in busy clusters with a large evaluation backlog.
+	EvalPriority int
 
 	// Eval is the evaluation to create that's associated with job deregister
 	Eval *Evaluation
@@ -8847,12 +8862,18 @@ type Deployment struct {
 	// status.
 	StatusDescription string
 
+	// EvalPriority tracks the priority of the evaluation which lead to the
+	// creation of this Deployment object. Any additional evaluations created
+	// as a result of this deployment can therefore inherit this value, which
+	// is not guaranteed to be that of the job priority parameter.
+	EvalPriority int
+
 	CreateIndex uint64
 	ModifyIndex uint64
 }
 
 // NewDeployment creates a new deployment given the job.
-func NewDeployment(job *Job) *Deployment {
+func NewDeployment(job *Job, evalPriority int) *Deployment {
 	return &Deployment{
 		ID:                 uuid.Generate(),
 		Namespace:          job.Namespace,
@@ -8865,6 +8886,7 @@ func NewDeployment(job *Job) *Deployment {
 		Status:             DeploymentStatusRunning,
 		StatusDescription:  DeploymentStatusDescriptionRunning,
 		TaskGroups:         make(map[string]*DeploymentState, len(job.TaskGroups)),
+		EvalPriority:       evalPriority,
 	}
 }
 
