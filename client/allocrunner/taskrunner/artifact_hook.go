@@ -37,6 +37,7 @@ func (h *artifactHook) createWorkers(req *interfaces.TaskPrestartRequest, resp *
 }
 
 func (h *artifactHook) doWork(req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse, jobs chan *structs.TaskArtifact, errorChannel chan error, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for artifact := range jobs {
 		aid := artifact.Hash()
 		if req.PreviousState[aid] != "" {
@@ -64,7 +65,6 @@ func (h *artifactHook) doWork(req *interfaces.TaskPrestartRequest, resp *interfa
 		// non-empty value works.
 		resp.State[aid] = "1"
 	}
-	wg.Done()
 }
 
 func (*artifactHook) Name() string {
