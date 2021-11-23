@@ -812,7 +812,7 @@ func (s *Server) Reload(newConfig *Config) error {
 	if newConfig.NumSchedulers != s.config.NumSchedulers {
 		s.logger.Debug("changing number of schedulers", "from", s.config.NumSchedulers, "to", newConfig.NumSchedulers)
 		s.config.NumSchedulers = newConfig.NumSchedulers
-		if err := s.SetupNewWorkers(); err != nil {
+		if err := s.setupNewWorkers(); err != nil {
 			s.logger.Error("error creating new workers", "error", err)
 			_ = multierror.Append(&mErr, err)
 		}
@@ -1477,26 +1477,32 @@ func (s *Server) setupWorkers() error {
 	return nil
 }
 
-// SetupNewWorkers() is used to start a new set of workers after a configuration
+// setupNewWorkers() is used to start a new set of workers after a configuration
 // change and a hot reload.
-func (s *Server) SetupNewWorkers() error {
-	// make a copy of the s.workers array so we can safely stop those goroutines
+func (s *Server) setupNewWorkers() error {
+	// make a copy of the s.workers array so we can safely stop those goroutines asynchronously
 	oldWorkers := make([]*Worker, len(s.workers))
 	defer s.stopOldWorkers(oldWorkers)
 	for i, w := range s.workers {
 		oldWorkers[i] = w
 	}
 	s.logger.Info(fmt.Sprintf("marking %v current schedulers for shutdown", len(oldWorkers)))
+
+	// build a clean backing array and call setupWorkers like in the normal startup path
 	s.workers = make([]*Worker, 0, s.config.NumSchedulers)
 	err := s.setupWorkers()
 	if err != nil {
 		return err
 	}
+
+	// if we're the leader, we need to pause all of the pausable workers.
 	s.handlePausableWorkers(s.IsLeader())
 
 	return nil
 }
 
+// stopOldWorkers is called once setupNewWorkers has created the new worker
+// array to asynchronously stop each of the old workers individually.
 func (s *Server) stopOldWorkers(oldWorkers []*Worker) {
 	workerCount := len(oldWorkers)
 	for i, w := range oldWorkers {
