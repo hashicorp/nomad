@@ -7,13 +7,15 @@ description: >-
 
 # `source` Block
 
-<Placement groups={['source']} />
+<Placement groups={['policy', 'source']} />
 
 The `source` block is used to configure scaling target sources.
 
 ```hcl
-source "nomad" {
-  enabled = false
+policy {
+  source "nomad" {
+    enabled = false
+  }
 }
 ```
 
