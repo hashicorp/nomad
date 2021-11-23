@@ -65,7 +65,7 @@ export default class AllocationsController extends Controller.extend(
     if (!allocations.length) return allocations;
 
     return allocations.filter(alloc => {
-      if (selectionStatus.length && !selectionStatus.includes(alloc.status)) {
+      if (selectionStatus.length && !selectionStatus.includes(alloc.clientStatus)) {
         return false;
       }
       if (selectionClient.length && !selectionClient.includes(alloc.get('node.shortId'))) {
@@ -113,7 +113,7 @@ export default class AllocationsController extends Controller.extend(
       this.set('qpClient', serialize(intersection(clients, this.selectionClient)));
     });
 
-    return clients.sort().map(dc => ({ key: dc, label: dc }));
+    return clients.sort().map(c => ({ key: c, label: c }));
   }
 
   @computed('model.allocations.[]', 'selectionTaskGroup')
@@ -126,7 +126,7 @@ export default class AllocationsController extends Controller.extend(
       this.set('qpTaskGroup', serialize(intersection(taskGroups, this.selectionTaskGroup)));
     });
 
-    return taskGroups.sort().map(dc => ({ key: dc, label: dc }));
+    return taskGroups.sort().map(tg => ({ key: tg, label: tg }));
   }
 
   setFacetQueryParam(queryParam, selection) {
