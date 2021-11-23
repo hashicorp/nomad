@@ -2,13 +2,13 @@
 # the stack.  This allows for more than one environment per account.
 #  - This name can only contain alphanumeric characters.  If it is not provided 
 #    here, it will be requested interactively.
-name = "nomad-mws"
+name = "nomad-mikael"
 
 # `key_name` (required) -  The name of the AWS SSH keys to be loaded on the
 # instance at provisioning.  
 
 # If it is not provided here, it will be requested interactively.
-key_name = "nomad"
+key_name = "support_eng_dev-access-key-mikael"
 
 # `nomad_binary` (optional, null) - URL of a zip file containing a nomad
 # executable with which to replace the Nomad binaries in the AMI.
