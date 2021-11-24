@@ -5,7 +5,7 @@
 LINUX_BASE_BOX = "bento/ubuntu-18.04"
 FREEBSD_BASE_BOX = "freebsd/FreeBSD-11.3-STABLE"
 
-LINUX_IP_ADDRESS = "10.199.0.200"
+LINUX_IP_ADDRESS = "192.168.56.200"
 
 Vagrant.configure(2) do |config|
 	# Compilation and development boxes
@@ -82,8 +82,8 @@ Vagrant.configure(2) do |config|
 	1.upto(3) do |n|
 		serverName = "nomad-server%02d" % [n]
 		clientName = "nomad-client%02d" % [n]
-		serverIP = "10.199.0.%d" % [10 + n]
-		clientIP = "10.199.0.%d" % [20 + n]
+		serverIP = "192.168.56.%d" % [10 + n]
+		clientIP = "192.168.56.%d" % [20 + n]
 
 		config.vm.define serverName, autostart: false, primary: false do |vmCfg|
 			vmCfg.vm.box = LINUX_BASE_BOX
