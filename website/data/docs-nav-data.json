@@ -201,12 +201,12 @@
         "path": "configuration/tls"
       },
       {
-        "title": "vault",
-        "path": "configuration/vault"
-      },
-      {
         "title": "ui",
         "path": "configuration/ui"
+      },
+      {
+        "title": "vault",
+        "path": "configuration/vault"
       }
     ]
   },
