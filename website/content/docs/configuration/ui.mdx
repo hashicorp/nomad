@@ -10,7 +10,7 @@ description: |-
 
 <Placement groups={['ui']} />
 
-The `ui` stanza configures the Nomad agent's [web UI]..
+The `ui` stanza configures the Nomad agent's [web UI].
 
 ```hcl
 ui {
@@ -29,7 +29,7 @@ ui {
 A default `ui` stanza is automatically merged with all Nomad agent
 configurations. Note that the UI can be served from any Nomad agent,
 and the configuration is individual to each agent.
-
+## `ui` Parameters
 - `enabled` `(bool: true)` - Specifies whether the web UI is
   enabled. If disabled, the `/ui/` path will return an empty web page.
 
