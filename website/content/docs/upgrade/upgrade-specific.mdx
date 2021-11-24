@@ -13,6 +13,14 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.2.2
+
+### Panic on node class filtering for system and sysbatch jobs fixed
+
+Nomad 1.2.2 fixes a [server crashing bug][gh-11563] present in the scheduler
+node class filtering since 1.2.0. Users should upgrade to Nomad 1.2.2 to avoid
+this problem.
+
 ## Nomad 1.2.0
 
 #### Nvidia device plugin
@@ -1170,6 +1178,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [gh-8457]: https://github.com/hashicorp/nomad/issues/8457
 [gh-9148]: https://github.com/hashicorp/nomad/issues/9148
 [gh-10875]: https://github.com/hashicorp/nomad/pull/10875
+[gh-11563]: https://github.com/hashicorp/nomad/issues/11563
 [go-client]: https://pkg.go.dev/github.com/hashicorp/nomad/api#Client
 [hcl2]: https://github.com/hashicorp/hcl2
 [limits]: /docs/configuration#limits
