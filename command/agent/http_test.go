@@ -944,11 +944,6 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			// Use a fake agent since the HTTP server should never start
-			agent := &Agent{
-				logger: testlog.HCLogger(t),
-			}
-
 			conf := &Config{
 				normalizedAddrs: &Addresses{
 					HTTP: "localhost:0", // port is never used
@@ -960,6 +955,13 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 					HTTPSHandshakeTimeout: tc.timeout,
 					HTTPMaxConnsPerClient: tc.limit,
 				},
+			}
+
+			// Use a fake agent since the HTTP server should never start
+			agent := &Agent{
+				logger:     testlog.HCLogger(t),
+				httpLogger: testlog.HCLogger(t),
+				config:     conf,
 			}
 
 			srv, err := NewHTTPServer(agent, conf)
