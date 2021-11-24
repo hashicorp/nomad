@@ -22,6 +22,7 @@ region = "us-east-1"
 # the requested region for this environment to build properly.
 #  - If it is not provided here, it will be requested interactively.
 ami = "ami-0ce4637fe61082643"
+# ami = "ami-037ef28cd73241dea"
 
 # `server_instance_type` ("t2.medium"), `client_instance_type` ("t2.medium"),
 # `server_count` (3),`client_count` (4) - These options control instance size
@@ -38,4 +39,4 @@ client_count         = "2"
 # `whitelist_ip` (required) - IP to whitelist for the security groups (set
 # to 0.0.0.0/0 for world).  
 #  - If it is not provided here, it will be requested interactively.
-whitelist_ip = "97.113.136.214/32"
+whitelist_ip = "73.109.72.170/32"
