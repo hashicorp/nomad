@@ -47,8 +47,9 @@ var (
 	// Set to false by stub_asset if the ui build tag isn't enabled
 	uiEnabled = true
 
-	// Overridden if the ui build tag isn't enabled
-	stubHTML = ""
+	// Displayed when ui is disabled, but overridden if the ui build
+	// tag isn't enabled
+	stubHTML = "<html><p>Nomad UI is disabled</p></html>"
 
 	// allowCORS sets permissive CORS headers for a handler
 	allowCORS = cors.New(cors.Options{
