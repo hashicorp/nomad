@@ -127,3 +127,4 @@ myip.txt
 support_eng_dev-access-key-mikael.pem
 support_nomad_dev-access-key-mikael.pem
 .terraform.lock.hcl
+awscreds.sh
