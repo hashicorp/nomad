@@ -1,3 +1,9 @@
+## 1.2.2 (November 24, 2021)
+
+BUG FIXES:
+
+* scheduler: Fix panic when system jobs are filtered by node class [[GH-11565](https://github.com/hashicorp/nomad/issues/11565)]
+
 ## 1.2.1 (November 19, 2021)
 
 SECURITY:
