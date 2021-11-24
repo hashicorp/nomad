@@ -287,8 +287,15 @@ func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
 
 	acc.NodesEvaluated += curr.NodesEvaluated
 	acc.NodesFiltered += curr.NodesFiltered
+
+	if acc.ClassFiltered == nil {
+		acc.ClassFiltered = make(map[string]int)
+	}
 	for k, v := range curr.ClassFiltered {
 		acc.ClassFiltered[k] += v
+	}
+	if acc.ConstraintFiltered == nil {
+		acc.ConstraintFiltered = make(map[string]int)
 	}
 	for k, v := range curr.ConstraintFiltered {
 		acc.ConstraintFiltered[k] += v
