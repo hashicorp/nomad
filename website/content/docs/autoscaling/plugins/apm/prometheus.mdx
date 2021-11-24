@@ -16,9 +16,13 @@ apm "prometheus" {
   driver = "prometheus"
 
   config = {
-    address                = "http://prometheus.my.endpoint.io:9090"
-    basic_auth_user        = "user"
-    basic_auth_password    = "secret"
+    address = "http://prometheus.my.endpoint.io:9090"
+
+    ca_cert = "/path/to/ca.crt"
+
+    basic_auth_user     = "user"
+    basic_auth_password = "secret"
+
     header_X-Scope-OrgID   = "my-org"
     header_X-Custom-Header = "custom-header"
   }
@@ -34,9 +38,15 @@ apm "prometheus" {
 - `basic_auth_password` `(string: "")` - The HTTP basic auth password to use
   when making requests to Prometheus.
 
+- `ca_cert` `(string: "")` - Path to a PEM encoded CA cert file to use to
+  connect to the Prometheus server.
+
 - `header_*` `(string: "")` - Additional HTTP headers to set when making
   requests to Prometheus. Several headers may be specified and the final header
   name will be set as the key with the `header_` prefix removed.
+
+- `skip_verify` `(bool: false)` - Do not verify TLS certificates when
+  connecting to the Prometheus server. This is strongly discouraged.
 
 ## Policy Configuration Options
 

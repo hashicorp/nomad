@@ -18,6 +18,8 @@ apm "datadog" {
   config = {
     dd_api_key = "<api key>"
     dd_app_key = "<app key>"
+
+    site = "app.datadoghq.eu"
   }
 }
 ```
@@ -27,6 +29,8 @@ apm "datadog" {
 
 - `dd_app_key` `(string: <required>)` - The Datadog application key to use for
   authentication.
+
+- `site` `(string: "")` - The [Datadog site][datadog_sites] to connect to.
 
 The Datadog plugin can also read its configuration options via environment
 variables. The accepted keys are `DD_API_KEY` and `DD_APP_KEY`. The agent
@@ -43,4 +47,5 @@ check {
 ```
 
 [datadog_homepage]: https://www.datadoghq.com/
+[datadog_sites]: https://docs.datadoghq.com/getting_started/site/
 [datadog_timeseries]: https://docs.datadoghq.com/api/v1/metrics/#query-timeseries-points
