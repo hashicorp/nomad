@@ -747,7 +747,7 @@ func TestConfig_normalizeAddrs_DevMode(t *testing.T) {
 		t.Fatalf("expected BindAddr 127.0.0.1, got %s", c.BindAddr)
 	}
 
-	if c.normalizedAddrs.HTTP != "127.0.0.1:4646" {
+	if c.normalizedAddrs.HTTP[0] != "127.0.0.1:4646" {
 		t.Fatalf("expected HTTP address 127.0.0.1:4646, got %s", c.normalizedAddrs.HTTP)
 	}
 
@@ -880,6 +880,56 @@ func TestConfig_normalizeAddrs_IPv6Loopback(t *testing.T) {
 	}
 }
 
+// TestConfig_normalizeAddrs_MultipleInterface asserts that normalizeAddrs will
+// handle normalizing multiple interfaces in a single protocol.
+func TestConfig_normalizeAddrs_MultipleInterfaces(t *testing.T) {
+    // TODO: add test with go-sockaddr templates
+	testCases := []struct {
+		name                    string
+		addressConfig           *Addresses
+		expectedNormalizedAddrs *NormalizedAddrs
+		expectErr               bool
+	}{
+		{
+			name: "multiple http addresses",
+			addressConfig: &Addresses{
+				HTTP: "127.0.0.1 127.0.0.2",
+			},
+			expectedNormalizedAddrs: &NormalizedAddrs{
+				HTTP: []string{"127.0.0.1:4646", "127.0.0.2:4646"},
+				RPC:  "127.0.0.1:4647",
+				Serf: "127.0.0.1:4648",
+			},
+			expectErr: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &Config{
+				BindAddr: "127.0.0.1",
+				Ports: &Ports{
+					HTTP: 4646,
+					RPC:  4647,
+					Serf: 4648,
+				},
+				Addresses: tc.addressConfig,
+				AdvertiseAddrs: &AdvertiseAddrs{
+					HTTP: "127.0.0.1",
+					RPC:  "127.0.0.1",
+					Serf: "127.0.0.1",
+				},
+			}
+			err := c.normalizeAddrs()
+			if tc.expectErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedNormalizedAddrs, c.normalizedAddrs)
+		})
+	}
+}
+
 func TestConfig_normalizeAddrs(t *testing.T) {
 	c := &Config{
 		BindAddr: "169.254.1.5",
@@ -907,8 +957,9 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 		t.Fatalf("expected BindAddr 169.254.1.5, got %s", c.BindAddr)
 	}
 
-	if c.AdvertiseAddrs.HTTP != "169.254.1.10:4646" {
-		t.Fatalf("expected HTTP advertise address 169.254.1.10:4646, got %s", c.AdvertiseAddrs.HTTP)
+    // was this test case incorrect? should default to bind addr if not specified (https://www.nomadproject.io/docs/configuration#advertise)
+	if c.AdvertiseAddrs.HTTP != "169.254.1.5:4646" {
+		t.Fatalf("expected HTTP advertise address 169.254.1.5:4646, got %s", c.AdvertiseAddrs.HTTP)
 	}
 
 	if c.AdvertiseAddrs.RPC != "169.254.1.40:4647" {

@@ -255,12 +255,12 @@ func (a *TestAgent) start() (*Agent, error) {
 	}
 
 	// Setup the HTTP server
-	http, err := NewHTTPServer(agent, a.Config)
+	httpServers, err := NewHTTPServers(agent, a.Config)
 	if err != nil {
 		return agent, err
 	}
-
-	a.Server = http
+    // TODO: change type or handle better
+	a.Server = &httpServers[0]
 	return agent, nil
 }
 

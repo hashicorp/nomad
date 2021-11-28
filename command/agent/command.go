@@ -500,13 +500,14 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 	c.agent = agent
 
 	// Setup the HTTP server
-	http, err := NewHTTPServer(agent, config)
+	httpServers, err := NewHTTPServers(agent, config)
 	if err != nil {
 		agent.Shutdown()
 		c.Ui.Error(fmt.Sprintf("Error starting http server: %s", err))
 		return err
 	}
-	c.httpServer = http
+    // TODO: update for multiple or change the type of NewHTTPServer
+	c.httpServer = &httpServers[0]
 
 	// If DisableUpdateCheck is not enabled, set up update checking
 	// (DisableUpdateCheck is false by default)
@@ -904,11 +905,12 @@ func (c *Command) reloadHTTPServer() error {
 
 	c.httpServer.Shutdown()
 
-	http, err := NewHTTPServer(c.agent, c.agent.config)
+	httpServers, err := NewHTTPServers(c.agent, c.agent.config)
 	if err != nil {
 		return err
 	}
-	c.httpServer = http
+    // TODO: change type or handle with list
+	c.httpServer = &httpServers[0]
 
 	return nil
 }
