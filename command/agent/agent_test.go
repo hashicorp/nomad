@@ -166,7 +166,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	require.Equal(t, "127.0.0.3", conf.Addresses.HTTP)
 	require.Equal(t, "127.0.0.3", conf.Addresses.RPC)
 	require.Equal(t, "127.0.0.3", conf.Addresses.Serf)
-	require.Equal(t, "127.0.0.3:4646", conf.normalizedAddrs.HTTP)
+	require.Equal(t, []string{"127.0.0.3:4646"}, conf.normalizedAddrs.HTTP)
 	require.Equal(t, "127.0.0.3:4647", conf.normalizedAddrs.RPC)
 	require.Equal(t, "127.0.0.3:4648", conf.normalizedAddrs.Serf)
 
