@@ -36,6 +36,7 @@ export async function getStaticProps({ params }) {
       localContentDir: CONTENT_DIR,
       product: { name: productName, slug: productSlug },
       params,
+      basePath: basePath,
     }),
   }
 }
