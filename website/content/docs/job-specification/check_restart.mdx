@@ -9,10 +9,10 @@ description: |-
 # `check_restart` Stanza
 
 <Placement
-  groups={[
-    ['job', 'group', 'task', 'service', 'check_restart'],
-    ['job', 'group', 'task', 'service', 'check', 'check_restart'],
-  ]}
+groups={[
+['job', 'group', 'task', 'service', 'check_restart'],
+['job', 'group', 'task', 'service', 'check', 'check_restart'],
+]}
 />
 
 As of Nomad 0.7 the `check_restart` stanza instructs Nomad when to restart
@@ -135,7 +135,10 @@ times within an `interval`. If the `restart` attempts are reached within the
 and not be restarted again. See the [`restart` stanza][restart_stanza] for
 details.
 
-[check_stanza]: /docs/job-specification/service#check-parameters 'check stanza'
+[check_stanza]: /docs/job-specification/service#check-parameters "check stanza"
+
 [gh-9176]: https://github.com/hashicorp/nomad/issues/9176
-[restart_stanza]: /docs/job-specification/restart 'restart stanza'
-[service_stanza]: /docs/job-specification/service 'service stanza'
+
+[restart_stanza]: /docs/job-specification/restart "restart stanza"
+
+[service_stanza]: /docs/job-specification/service "service stanza"

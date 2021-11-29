@@ -57,11 +57,11 @@ occur:
 
 1. Create a "nomad-server" policy used by Nomad to create and manage tokens.
 
-2. Create a Vault token role with the configuration described below.
+1. Create a Vault token role with the configuration described below.
 
-3. Configure Nomad to use the created token role.
+1. Configure Nomad to use the created token role.
 
-4. Give Nomad servers a periodic token with the "nomad-server" policy created
+1. Give Nomad servers a periodic token with the "nomad-server" policy created
    above.
 
 #### Required Vault Policies
@@ -460,13 +460,22 @@ The token can then be submitted with our job
 $ VAULT_TOKEN=s.H39hfS7eHSbb1GpkdzOQLTmz.fvuLy nomad job run vault.nomad
 ```
 
-[auth]: https://www.vaultproject.io/docs/auth/token 'Vault Authentication Backend'
-[config]: /docs/configuration/vault 'Nomad Vault Configuration Block'
-[createfromrole]: /docs/configuration/vault#create_from_role 'Nomad vault create_from_role Configuration Flag'
-[template]: /docs/job-specification/template 'Nomad template Job Specification'
-[vault]: https://www.vaultproject.io/ 'Vault by HashiCorp'
-[vault-spec]: /docs/job-specification/vault 'Nomad Vault Job Specification'
-[tokenhierarchy]: https://www.vaultproject.io/docs/concepts/tokens#token-hierarchies-and-orphan-tokens 'Vault Tokens - Token Hierarchies and Orphan Tokens'
-[vault-secrets-version]: https://www.vaultproject.io/docs/secrets/kv 'KV Secrets Engine'
-[vault-kv-templates]: /docs/job-specification/template#vault-kv-api-v1 'Vault KV API v1'
+[auth]: https://www.vaultproject.io/docs/auth/token "Vault Authentication Backend"
+
+[config]: /docs/configuration/vault "Nomad Vault Configuration Block"
+
+[createfromrole]: /docs/configuration/vault#create_from_role "Nomad vault create_from_role Configuration Flag"
+
+[template]: /docs/job-specification/template "Nomad template Job Specification"
+
+[vault]: https://www.vaultproject.io/ "Vault by HashiCorp"
+
+[vault-spec]: /docs/job-specification/vault "Nomad Vault Job Specification"
+
+[tokenhierarchy]: https://www.vaultproject.io/docs/concepts/tokens#token-hierarchies-and-orphan-tokens "Vault Tokens - Token Hierarchies and Orphan Tokens"
+
+[vault-secrets-version]: https://www.vaultproject.io/docs/secrets/kv "KV Secrets Engine"
+
+[vault-kv-templates]: /docs/job-specification/template#vault-kv-api-v1 "Vault KV API v1"
+
 [ent]: /docs/integrations/vault-integration#enterprise-configuration

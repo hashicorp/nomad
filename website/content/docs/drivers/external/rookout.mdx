@@ -21,11 +21,11 @@ Using this driver requires you to have a Rookout token which you can get by [sig
 This driver is based on the Nomad [Java driver](https://www.nomadproject.io/docs/drivers/java).
 
 1. Clone the driver's repo: `git clone https://github.com/rookout/rookout-nomad-driver`
-2. Change to the cloned dir: `cd rookout-nomad-driver`
-3. Create a plugin dir (unless you already have one for your Nomad installation): `mkdir plugins`
-4. Copy the corresponding binary from the `bin` folder, for example: `cp ./bin/java-rookout-linux-x64 plugins/java-rookout`
-5. Make sure that the driver has execution permission: `chmod +x ./plugins/java-rookout`
-6. When running the Nomad agent, be sure to set the plugins dir accordingly, for example: `sudo nomad agent -dev -plugin-dir=/home/user/rookout-nomad-driver/plugins`
+1. Change to the cloned dir: `cd rookout-nomad-driver`
+1. Create a plugin dir (unless you already have one for your Nomad installation): `mkdir plugins`
+1. Copy the corresponding binary from the `bin` folder, for example: `cp ./bin/java-rookout-linux-x64 plugins/java-rookout`
+1. Make sure that the driver has execution permission: `chmod +x ./plugins/java-rookout`
+1. When running the Nomad agent, be sure to set the plugins dir accordingly, for example: `sudo nomad agent -dev -plugin-dir=/home/user/rookout-nomad-driver/plugins`
 
 ## Task Configuration
 
@@ -34,6 +34,7 @@ The `java-rookout` driver accepts all configuration options of the [`java`](http
 Set the `rookout_token` config key to your Rookout token, or define it as a variable and pass it as a parameter.
 
 For example:
+
 ```hcl
 task "run-with-rookout" {
   driver = "java-rookout"
@@ -45,6 +46,7 @@ task "run-with-rookout" {
 ```
 
 Additional Rookout configuration can be passed as environment variables like so:
+
 ```hcl
 env {
     ROOKOUT_REMOTE_ORIGIN="https://github.com/Rookout/tutorial-java"

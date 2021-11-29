@@ -79,7 +79,7 @@ job "docs" {
 - `datacenters` `(array<string>: <required>)` - A list of datacenters in the region which are eligible
   for task placement. This must be provided, and does not have a default.
 
-- `group` <code>([Group][group]: &lt;required&gt;)</code> - Specifies the start of a
+- `group` <code>([Group][group]: \<required>)</code> - Specifies the start of a
   group of tasks. This can be provided multiple times to define additional
   groups. Group names must be unique within the job file.
 
@@ -238,18 +238,32 @@ When submitting this job, you would run:
 $ VAULT_TOKEN="..." nomad job run example.nomad
 ```
 
-[affinity]: /docs/job-specification/affinity 'Nomad affinity Job Specification'
-[constraint]: /docs/job-specification/constraint 'Nomad constraint Job Specification'
-[group]: /docs/job-specification/group 'Nomad group Job Specification'
-[meta]: /docs/job-specification/meta 'Nomad meta Job Specification'
-[migrate]: /docs/job-specification/migrate 'Nomad migrate Job Specification'
+[affinity]: /docs/job-specification/affinity "Nomad affinity Job Specification"
+
+[constraint]: /docs/job-specification/constraint "Nomad constraint Job Specification"
+
+[group]: /docs/job-specification/group "Nomad group Job Specification"
+
+[meta]: /docs/job-specification/meta "Nomad meta Job Specification"
+
+[migrate]: /docs/job-specification/migrate "Nomad migrate Job Specification"
+
 [namespace]: https://learn.hashicorp.com/tutorials/nomad/namespaces
-[parameterized]: /docs/job-specification/parameterized 'Nomad parameterized Job Specification'
-[periodic]: /docs/job-specification/periodic 'Nomad periodic Job Specification'
+
+[parameterized]: /docs/job-specification/parameterized "Nomad parameterized Job Specification"
+
+[periodic]: /docs/job-specification/periodic "Nomad periodic Job Specification"
+
 [region]: https://learn.hashicorp.com/tutorials/nomad/federation
-[reschedule]: /docs/job-specification/reschedule 'Nomad reschedule Job Specification'
-[scheduler]: /docs/schedulers 'Nomad Scheduler Types'
-[spread]: /docs/job-specification/spread 'Nomad spread Job Specification'
-[task]: /docs/job-specification/task 'Nomad task Job Specification'
-[update]: /docs/job-specification/update 'Nomad update Job Specification'
-[vault]: /docs/job-specification/vault 'Nomad vault Job Specification'
+
+[reschedule]: /docs/job-specification/reschedule "Nomad reschedule Job Specification"
+
+[scheduler]: /docs/schedulers "Nomad Scheduler Types"
+
+[spread]: /docs/job-specification/spread "Nomad spread Job Specification"
+
+[task]: /docs/job-specification/task "Nomad task Job Specification"
+
+[update]: /docs/job-specification/update "Nomad update Job Specification"
+
+[vault]: /docs/job-specification/vault "Nomad vault Job Specification"

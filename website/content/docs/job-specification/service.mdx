@@ -9,10 +9,10 @@ description: |-
 # `service` Stanza
 
 <Placement
-  groups={[
-    ['job', 'group', 'service'],
-    ['job', 'group', 'task', 'service'],
-  ]}
+groups={[
+['job', 'group', 'service'],
+['job', 'group', 'task', 'service'],
+]}
 />
 
 The `service` stanza instructs Nomad to register a service with Consul. This
@@ -365,7 +365,7 @@ Nomad needs to kill a running task, the task is killed in the following order:
 
 1. Immediately remove the services and checks from Consul. This stops new
    traffic from being routed to the task that is being killed.
-2. If [`shutdown_delay`][shutdowndelay] is set, wait the configured duration
+1. If [`shutdown_delay`][shutdowndelay] is set, wait the configured duration
    before proceeding to step 3. Setting a [`shutdown_delay`][shutdowndelay] can
    be useful if the application itself doesn't handle graceful shutdowns based
    on the [`kill_signal`][killsignal]. The configured delay will provide a
@@ -373,10 +373,10 @@ Nomad needs to kill a running task, the task is killed in the following order:
    thus is not receiving additional requests, but hasn't been signalled to
    shutdown. This allows the application time to complete the requests and
    become idle.
-3. Send the [`kill_signal`][killsignal] to the task and wait for the task to
+1. Send the [`kill_signal`][killsignal] to the task and wait for the task to
    exit. The task should use this time to gracefully drain and finish any
    existing requests.
-4. If the task has not exited after the [`kill_timeout`][killtimeout], Nomad
+1. If the task has not exited after the [`kill_timeout`][killtimeout], Nomad
    will force kill the application.
 
 ## `service` Examples
@@ -789,18 +789,33 @@ advertise and check directly since Nomad isn't managing any port assignments.
 </small>
 
 [check_restart_stanza]: /docs/job-specification/check_restart
+
 [consul_grpc]: https://www.consul.io/api/agent/check#grpc
+
 [consul_passfail]: https://www.consul.io/docs/agent/checks#success-failures-before-passing-critical
-[service-discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
-[interpolation]: /docs/runtime/interpolation 'Nomad Runtime Interpolation'
-[network]: /docs/job-specification/network 'Nomad network Job Specification'
-[qemu]: /docs/drivers/qemu 'Nomad QEMU Driver'
-[restart_stanza]: /docs/job-specification/restart 'restart stanza'
-[connect]: /docs/job-specification/connect 'Nomad Consul Connect Integration'
+
+[service-discovery]: /docs/integrations/consul-integration#service-discovery "Nomad Service Discovery"
+
+[interpolation]: /docs/runtime/interpolation "Nomad Runtime Interpolation"
+
+[network]: /docs/job-specification/network "Nomad network Job Specification"
+
+[qemu]: /docs/drivers/qemu "Nomad QEMU Driver"
+
+[restart_stanza]: /docs/job-specification/restart "restart stanza"
+
+[connect]: /docs/job-specification/connect "Nomad Consul Connect Integration"
+
 [type]: /docs/job-specification/service#type
+
 [shutdowndelay]: /docs/job-specification/task#shutdown_delay
+
 [killsignal]: /docs/job-specification/task#kill_signal
+
 [killtimeout]: /docs/job-specification/task#kill_timeout
+
 [service_task]: /docs/job-specification/service#task-1
+
 [network_mode]: /docs/job-specification/network#mode
+
 [on_update]: /docs/job-specification/service#on_update

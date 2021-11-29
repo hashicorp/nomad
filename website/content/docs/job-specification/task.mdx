@@ -77,7 +77,7 @@ job "docs" {
 - `meta` <code>([Meta][]: nil)</code> - Specifies a key-value map that annotates
   with user-defined metadata.
 
-- `resources` <code>([Resources][]: &lt;required&gt;)</code> - Specifies the minimum
+- `resources` <code>([Resources][]: \<required>)</code> - Specifies the minimum
   resource requirements such as RAM, CPU and devices.
 
 - `service` <code>([Service][]: nil)</code> - Specifies integrations with
@@ -194,26 +194,48 @@ task "server" {
 }
 ```
 
-[artifact]: /docs/job-specification/artifact 'Nomad artifact Job Specification'
-[consul]: https://www.consul.io/ 'Consul by HashiCorp'
-[constraint]: /docs/job-specification/constraint 'Nomad constraint Job Specification'
-[affinity]: /docs/job-specification/affinity 'Nomad affinity Job Specification'
-[dispatchpayload]: /docs/job-specification/dispatch_payload 'Nomad dispatch_payload Job Specification'
-[env]: /docs/job-specification/env 'Nomad env Job Specification'
-[meta]: /docs/job-specification/meta 'Nomad meta Job Specification'
-[resources]: /docs/job-specification/resources 'Nomad resources Job Specification'
-[lifecycle]: /docs/job-specification/lifecycle 'Nomad lifecycle Job Specification'
-[logs]: /docs/job-specification/logs 'Nomad logs Job Specification'
-[service]: /docs/job-specification/service 'Nomad service Job Specification'
-[vault]: /docs/job-specification/vault 'Nomad vault Job Specification'
-[volumemount]: /docs/job-specification/volume_mount 'Nomad volume_mount Job Specification'
-[exec]: /docs/drivers/exec 'Nomad exec Driver'
-[java]: /docs/drivers/java 'Nomad Java Driver'
-[docker]: /docs/drivers/docker 'Nomad Docker Driver'
-[rkt]: /docs/drivers/rkt 'Nomad rkt Driver'
-[service_discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
-[template]: /docs/job-specification/template 'Nomad template Job Specification'
+[artifact]: /docs/job-specification/artifact "Nomad artifact Job Specification"
+
+[consul]: https://www.consul.io/ "Consul by HashiCorp"
+
+[constraint]: /docs/job-specification/constraint "Nomad constraint Job Specification"
+
+[affinity]: /docs/job-specification/affinity "Nomad affinity Job Specification"
+
+[dispatchpayload]: /docs/job-specification/dispatch_payload "Nomad dispatch_payload Job Specification"
+
+[env]: /docs/job-specification/env "Nomad env Job Specification"
+
+[meta]: /docs/job-specification/meta "Nomad meta Job Specification"
+
+[resources]: /docs/job-specification/resources "Nomad resources Job Specification"
+
+[lifecycle]: /docs/job-specification/lifecycle "Nomad lifecycle Job Specification"
+
+[logs]: /docs/job-specification/logs "Nomad logs Job Specification"
+
+[service]: /docs/job-specification/service "Nomad service Job Specification"
+
+[vault]: /docs/job-specification/vault "Nomad vault Job Specification"
+
+[volumemount]: /docs/job-specification/volume_mount "Nomad volume_mount Job Specification"
+
+[exec]: /docs/drivers/exec "Nomad exec Driver"
+
+[java]: /docs/drivers/java "Nomad Java Driver"
+
+[docker]: /docs/drivers/docker "Nomad Docker Driver"
+
+[rkt]: /docs/drivers/rkt "Nomad rkt Driver"
+
+[service_discovery]: /docs/integrations/consul-integration#service-discovery "Nomad Service Discovery"
+
+[template]: /docs/job-specification/template "Nomad template Job Specification"
+
 [user_drivers]: /docs/configuration/client#user-checked_drivers
+
 [user_denylist]: /docs/configuration/client#user-denylist
+
 [max_kill]: /docs/configuration/client#max_kill_timeout
+
 [kill_signal]: /docs/job-specification/task#kill_signal

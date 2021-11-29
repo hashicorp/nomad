@@ -58,6 +58,7 @@ c413424b-d80e-9bc6-ea92-a02b336eaaf5  5e2badb6-b7cf-5177-8281-8fe14f7193d2  3508
 ```
 
 Format job allocations using a Go template:
+
 ```shell-session
 $ nomad job allocs -t '{{ range . }}{{ println .ID }}{{ end }}' example
 c2b4606d-1b02-0d8d-5fdd-031167cd4c91
@@ -65,6 +66,7 @@ c413424b-d80e-9bc6-ea92-a02b336eaaf5
 ```
 
 Use a Go template to filter only allocations which are running
+
 ```shell-session
 $ nomad job allocs -t '{{ range . }}{{ if eq .ClientStatus "running" }}{{ println .ID }}{{ end }}{{ end }}' example
 c2b4606d-1b02-0d8d-5fdd-031167cd4c91

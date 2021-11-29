@@ -42,11 +42,11 @@ allocation directory like the one below.
   log shipper. This is the directory that's provided to the task as the
   `NOMAD_ALLOC_DIR`. Note that this `alloc/` directory is not the same as the
   "allocation working directory", which is the top-level directory. All tasks
-  in a task group can read and write to the `alloc/` directory. But the full host 
+  in a task group can read and write to the `alloc/` directory. But the full host
   path may differ depending on the task driver's [filesystem isolation mode], so
   tasks should always used the `NOMAD_ALLOC_DIR` environment variable
-  to find this path rather than relying on the specific implementation of the 
-  [`none`](#none-isolation), [`chroot`](#chroot-isolation), or [`image`](#image-isolation) 
+  to find this path rather than relying on the specific implementation of the
+  [`none`](#none-isolation), [`chroot`](#chroot-isolation), or [`image`](#image-isolation)
   modes. Within the `alloc/` directory are three standard directories:
 
   - **alloc/data/**: This directory is the location used by the
@@ -455,15 +455,27 @@ the volume, it is not possible to have `artifact`, `template`, or
 `dispatch_payload` blocks write to a volume.
 
 [artifacts]: /docs/job-specification/artifact
+
 [csi volumes]: /docs/internals/plugins/csi
+
 [dispatch payloads]: /docs/job-specification/dispatch_payload
+
 [templates]: /docs/job-specification/template
+
 [`data_dir`]: /docs/configuration#data_dir
+
 [`ephemeral_disk`]: /docs/job-specification/ephemeral_disk
+
 [artifact]: /docs/job-specification/artifact
+
 [chroot contents]: /docs/drivers/exec#chroot
+
 [filesystem isolation capability]: /docs/internals/plugins/task-drivers#capabilities-capabilities-error
+
 [filesystem isolation mode]: #task-drivers-and-filesystem-isolation-modes
+
 [migrated]: /docs/job-specification/ephemeral_disk#migrate
+
 [template]: /docs/job-specification/template
+
 [volume mounts]: /docs/job-specification/volume_mount

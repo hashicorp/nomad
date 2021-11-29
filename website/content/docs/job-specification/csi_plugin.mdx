@@ -2,8 +2,8 @@
 layout: docs
 page_title: csi_plugin Stanza - Job Specification
 description: >-
-  The "csi_plugin" stanza allows the task to specify it provides a
-  Container Storage Interface plugin to the cluster.
+  The "csi_plugin" stanza allows the task to specify it provides a Container
+  Storage Interface plugin to the cluster.
 ---
 
 # `csi_plugin` Stanza
@@ -58,17 +58,17 @@ the CSI plugin. But when an allocation that mounts a volume stops, Nomad will
 need to communicate with the plugin on that allocation's node to unmount the
 volume. This has implications on how to deploy CSI plugins:
 
-* During node drains, jobs that claim volumes must be moved before the `node`
+- During node drains, jobs that claim volumes must be moved before the `node`
   or `monolith` plugin for those volumes. You should run `node` or `monolith`
   plugins as [`system`][system] jobs and use the `-ignore-system` flag on
   `nomad node drain` to ensure that the plugins are running while the node is
   being drained.
 
-* Only one plugin instance of a given plugin ID and type (controller or node)
+- Only one plugin instance of a given plugin ID and type (controller or node)
   should be deployed on any given client node. Use a constraint as shown
   below.
 
-* Some plugins will create volumes only in the same location as the
+- Some plugins will create volumes only in the same location as the
   plugin. For example, the AWS EBS plugin will create and mount volumes only
   within the same Availability Zone. You should deploy these plugins with a
   unique-per-AZ `plugin_id` to allow Nomad to place allocations in the correct
@@ -122,5 +122,7 @@ job "plugin-efs" {
 ```
 
 [csi]: https://github.com/container-storage-interface/spec
+
 [csi_volumes]: /docs/job-specification/volume
+
 [system]: /docs/schedulers#system

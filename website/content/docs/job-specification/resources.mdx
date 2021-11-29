@@ -34,14 +34,14 @@ job "docs" {
 
 - `cpu` `(int: 100)` - Specifies the CPU required to run this task in MHz.
 
-- `cores` <code>(`int`: &lt;optional&gt;)</code> <sup>1.1 Beta</sup> - Specifies the number of CPU cores to reserve
+- `cores` <code>(`int`: \<optional>)</code> <sup>1.1 Beta</sup> - Specifies the number of CPU cores to reserve
   for the task. This may not be used with `cpu`.
 
 - `memory` `(int: 300)` - Specifies the memory required in MB.
 
-- `memory_max` <code>(`int`: &lt;optional&gt;)</code> <sup>1.1 Beta</sup> - Optionally, specifies the maximum memory the task may use, if the client has excess memory capacity, in MB. See [Memory Oversubscription](#memory-oversubscription) for more details.
+- `memory_max` <code>(`int`: \<optional>)</code> <sup>1.1 Beta</sup> - Optionally, specifies the maximum memory the task may use, if the client has excess memory capacity, in MB. See [Memory Oversubscription](#memory-oversubscription) for more details.
 
-- `device` <code>([Device][]: &lt;optional&gt;)</code> - Specifies the device
+- `device` <code>([Device][]: \<optional>)</code> - Specifies the device
   requirements. This may be repeated to request multiple device types.
 
 ## `resources` Examples
@@ -86,6 +86,7 @@ resources {
   }
 }
 ```
+
 ## Memory Oversubscription
 
 Setting task memory limits requires balancing the risk of interrupting tasks
@@ -97,10 +98,10 @@ To help maximize cluster memory utilization while allowing a safety margin for
 unexpected load spikes, Nomad 1.1. lets job authors set two separate memory
 limits:
 
-* `memory`: the reserve limit to represent the task’s typical memory usage —
+- `memory`: the reserve limit to represent the task’s typical memory usage —
   this number is used by the Nomad scheduler to reserve and place the task
 
-* `memory_max`: the maximum memory the task may use, if the client has excess
+- `memory_max`: the maximum memory the task may use, if the client has excess
   available memory, and may be terminated if it exceeds
 
 If a client's memory becomes contended or low, the operating system will
@@ -121,16 +122,16 @@ oversubscription.
 To avoid degrading the cluster experience, we recommend examining and monitoring
 resource utilization and considering the following suggestions:
 
-* Set `oom_score_adj` for Linux host services that aren't managed by Nomad, e.g.
+- Set `oom_score_adj` for Linux host services that aren't managed by Nomad, e.g.
   Docker, logging services, and the Nomad agent itself. For Systemd services, you can use the [`OOMScoreAdj` field](https://github.com/hashicorp/nomad/blob/v1.0.0/dist/systemd/nomad.service#L25).
 
-* Monitor hosts for memory utilization and set alerts on Out-Of-Memory errors
+- Monitor hosts for memory utilization and set alerts on Out-Of-Memory errors
 
-* Set the [client `reserved`](/docs/configuration/client#reserved) with enough
+- Set the [client `reserved`](/docs/configuration/client#reserved) with enough
   memory for host services that aren't managed by Nomad as well as a buffer
   for the memory excess. For example, if the client reserved memory is 1GB,
   the allocations on the host may exceed their soft memory limit by almost
   1GB in aggregate before the memory becomes contended and allocations get
   killed.
 
-[device]: /docs/job-specification/device 'Nomad device Job Specification'
+[device]: /docs/job-specification/device "Nomad device Job Specification"

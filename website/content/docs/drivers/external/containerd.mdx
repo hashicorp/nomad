@@ -1,9 +1,7 @@
 ---
 layout: docs
 page_title: 'Drivers: nomad-driver-containerd'
-description: >-
-  The containerd driver is used
-  for launching containers using containerd.
+description: The containerd driver is used for launching containers using containerd.
 ---
 
 # containerd Task Driver
@@ -269,7 +267,7 @@ them should be used at a time.
    config of the job spec (see [host_network][host-network] under Task
    Configuration).
 
-2. **Bridge** network can be enabled by setting the `network` stanza in the task
+1. **Bridge** network can be enabled by setting the `network` stanza in the task
    group section of the job spec.
 
 ```hcl
@@ -409,16 +407,29 @@ Please note the plugin name should match whatever name you have specified for
 the external driver in the [plugin_dir][plugin_dir] directory.
 
 [nomad-driver-containerd]: https://github.com/Roblox/nomad-driver-containerd
+
 [nomad-init]: /docs/commands/job/init
+
 [plugin]: /docs/configuration/plugin
+
 [plugin_dir]: /docs/configuration#plugin_dir
+
 [plugin-options]: #plugin_options
+
 [authentication]: #authentication
+
 [host-network]: #host_network
+
 [`mount options`]: https://github.com/containerd/containerd/blob/9561d9389d3dd87ff6030bf1da4e705bbc024130/mount/mount_linux.go#L198-L222
+
 [moby repository]: https://github.com/moby/moby/blob/master/profiles/seccomp/default.json
+
 [docker's behavior]: https://docs.docker.com/config/containers/container-networking/#dns-services
+
 [allowed syscalls]: https://github.com/containerd/containerd/blob/master/contrib/seccomp/seccomp_default.go#L51-L390
+
 [`network`]: /docs/job-specification/network
+
 [`service`]: /docs/job-specification/service
+
 [releases]: https://github.com/Roblox/nomad-driver-containerd/releases/

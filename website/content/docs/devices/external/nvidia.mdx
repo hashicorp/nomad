@@ -11,10 +11,10 @@ Name: `nvidia-gpu`
 The Nvidia device plugin is used to expose Nvidia GPUs to Nomad.
 
 ~> **Note**: The Nvidia device plugin setup has changed in Nomad 1.2. You must
-   add a [`plugin`] block to your clients configuration and install the
-   [external Nvidia device plugin][nvidia_plugin_download] into their
-   [`plugin_dir`] prior to upgrading. See plugin options below for an example.
-   Note the job specification remains the same.
+add a [`plugin`] block to your clients configuration and install the
+[external Nvidia device plugin][nvidia_plugin_download] into their
+[`plugin_dir`] prior to upgrading. See plugin options below for an example.
+Note the job specification remains the same.
 
 ## Fingerprinted Attributes
 
@@ -100,8 +100,8 @@ documentation](https://github.com/NVIDIA/nvidia-container-runtime#environment-va
 In order to use the `nvidia-gpu` the following prerequisites must be met:
 
 1. GNU/Linux x86_64 with kernel version > 3.10
-2. NVIDIA GPU with Architecture > Fermi (2.1)
-3. NVIDIA drivers >= 340.29 with binary `nvidia-smi`
+1. NVIDIA GPU with Architecture > Fermi (2.1)
+1. NVIDIA drivers >= 340.29 with binary `nvidia-smi`
 
 ### Docker Driver Requirements
 
@@ -334,10 +334,16 @@ Wed Jan 23 18:25:32 2019
 +-----------------------------------------------------------------------------+
 ```
 
-[docker-driver]: /docs/drivers/docker 'Nomad docker Driver'
-[exec-driver]: /docs/drivers/exec 'Nomad exec Driver'
-[java-driver]: /docs/drivers/java 'Nomad java Driver'
-[lxc-driver]: /docs/drivers/external/lxc 'Nomad lxc Driver'
+[docker-driver]: /docs/drivers/docker "Nomad docker Driver"
+
+[exec-driver]: /docs/drivers/exec "Nomad exec Driver"
+
+[java-driver]: /docs/drivers/java "Nomad java Driver"
+
+[lxc-driver]: /docs/drivers/external/lxc "Nomad lxc Driver"
+
 [`plugin`]: /docs/configuration/plugin
+
 [`plugin_dir`]: /docs/configuration#plugin_dir
+
 [nvidia_plugin_download]: https://releases.hashicorp.com/nomad-device-nvidia/

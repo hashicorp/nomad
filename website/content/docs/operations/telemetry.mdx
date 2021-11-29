@@ -97,7 +97,7 @@ various points in the scheduling process (evaluation, scheduling/planning, and
 placement):
 
 - **nomad.broker.total_blocked** - The number of blocked evaluations.
-- **nomad.worker.invoke_scheduler.\<type\>** - The time to run the scheduler of
+- **nomad.worker.invoke_scheduler.\<type>** - The time to run the scheduler of
   the given type.
 - **nomad.plan.evaluate** - The time to evaluate a scheduler Plan.
 - **nomad.plan.submit** - The time to submit a scheduler Plan.
@@ -149,17 +149,31 @@ It is recommended to alert on upticks in any of the above, server memory usage
 in particular.
 
 [alerting-rules]: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+
 [alertmanager]: https://prometheus.io/docs/alerting/alertmanager/
+
 [allocation-metrics]: /docs/telemetry/metrics#allocation-metrics
+
 [circonus-telem]: /docs/configuration/telemetry#circonus
+
 [collection-interval]: /docs/configuration/telemetry#collection_interval
+
 [datadog-alerting]: https://www.datadoghq.com/blog/monitoring-101-alerting/
+
 [datadog-telem]: /docs/configuration/telemetry#datadog
+
 [prometheus-telem]: /docs/configuration/telemetry#prometheus
+
 [metrics-api-endpoint]: /api-docs/metrics
+
 [metric-types]: /docs/telemetry/metrics#metric-types
+
 [statsd-exporter]: https://github.com/prometheus/statsd_exporter
+
 [statsd-telem]: /docs/configuration/telemetry#statsd
+
 [statsite-telem]: /docs/configuration/telemetry#statsite
+
 [tagged-metrics]: /docs/telemetry/metrics#tagged-metrics
+
 [telemetry-stanza]: /docs/configuration/telemetry

@@ -125,14 +125,14 @@ config {
   container the task starts will have the same hostname.
 
 - `init` - (Optional) `true` or `false` (default). Enable init (tini) system when
-   launching your container. When enabled, an init process will be used as the PID1
-   in the container. Specifying an init process ensures the usual responsibilities
-   of an init system, such as reaping zombie processes, are performed inside the
-   created container.
+  launching your container. When enabled, an init process will be used as the PID1
+  in the container. Specifying an init process ensures the usual responsibilities
+  of an init system, such as reaping zombie processes, are performed inside the
+  created container.
 
-   The default init process used is the first `docker-init` executable found in the
-   system path of the Docker daemon process. This `docker-init` binary, included in
-   the default installation, is backed by [tini][tini].
+  The default init process used is the first `docker-init` executable found in the
+  system path of the Docker daemon process. This `docker-init` binary, included in
+  the default installation, is backed by [tini][tini].
 
 - `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
@@ -843,11 +843,11 @@ plugin "docker" {
  "net_bind_service", "setfcap", "setgid", "setpcap", "setuid", "sys_chroot"]
 ```
 
-  which is the same list of capabilities allowed by [docker by default][docker_caps]
-  (without [`NET_RAW`][no_net_raw]). Allows the operator to control which capabilities can be obtained
-  by tasks using [`cap_add`][cap_add] and [`cap_drop`][cap_drop] options. Supports
-  the value `"all"` as a shortcut for allow-listing all capabilities supported by
-  the operating system.
+which is the same list of capabilities allowed by [docker by default][docker_caps]
+(without [`NET_RAW`][no_net_raw]). Allows the operator to control which capabilities can be obtained
+by tasks using [`cap_add`][cap_add] and [`cap_drop`][cap_drop] options. Supports
+the value `"all"` as a shortcut for allow-listing all capabilities supported by
+the operating system.
 
 !> **Warning:** Allowing more capabilities beyond the default may lead to
 undesirable consequences, including untrusted tasks being able to compromise the
@@ -984,7 +984,7 @@ options](/docs/configuration/client#options):
 
 - `docker.auth.helper` <a id="auth_helper"></a>- Allows an operator to specify a
   [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
-  -like script on \$PATH to lookup authentication information from external
+  \-like script on $PATH to lookup authentication information from external
   sources. The script's name must begin with `docker-credential-` and this
   option should include only the basename of the script, not the path.
 
@@ -1153,17 +1153,31 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [list of relevant issues on GitHub][winissues].
 
 [faq-win-mac]: /docs/faq#q-how-to-connect-to-my-host-network-when-using-docker-desktop-windows-and-macos
+
 [winissues]: https://github.com/hashicorp/nomad/issues?q=is%3Aopen+is%3Aissue+label%3Atheme%2Fdriver%2Fdocker+label%3Atheme%2Fplatform-windows
+
 [plugin-options]: #plugin-options
+
 [plugin-stanza]: /docs/configuration/plugin
-[allocation working directory]: /docs/runtime/environment#task-directories 'Task Directories'
+
+[allocation working directory]: /docs/runtime/environment#task-directories "Task Directories"
+
 [`auth_soft_fail=true`]: #auth_soft_fail
+
 [cap_add]: /docs/drivers/docker#cap_add
+
 [cap_drop]: /docs/drivers/docker#cap_drop
+
 [no_net_raw]: /docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+
 [upgrade_guide_extra_hosts]: /docs/upgrade/upgrade-specific#docker-driver
+
 [tini]: https://github.com/krallin/tini
+
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+
 [allow_caps]: /docs/drivers/docker#allow_caps
+
 [Connect]: /docs/job-specification/connect
+
 [`bridge`]: docs/job-specification/network#bridge

@@ -16,15 +16,14 @@ changes to the result would be disruptive. To get a consistent string
 representation of a value use [`jsonencode`](/docs/job-specification/hcl2/functions/encoding/jsonencode) instead; its
 results are also valid YAML because YAML is a JSON superset.
 
-<!--
-    The condition for removing the above warning is that the underlying
-    go-cty-yaml folder makes a stable release with a commitment to guarantee
-    that the representation of particular input will not change without a
-    major release. It is not making that commitment at the time of writing to
-    allow for responding to user feedback about its output format, since YAML
-    is a very flexible format and its initial decisions may prove to be
-    sub-optimal when generating YAML intended for specific external consumers.
--->
+\{/* The condition for removing the above warning is that the underlying
+go-cty-yaml folder makes a stable release with a commitment to guarantee
+that the representation of particular input will not change without a
+major release. It is not making that commitment at the time of writing to
+allow for responding to user feedback about its output format, since YAML
+is a very flexible format and its initial decisions may prove to be
+sub-optimal when generating YAML intended for specific external consumers.
+*/}
 
 This function maps
 [Nomad language values](/docs/job-specification/hcl2/expressions#types-and-values)

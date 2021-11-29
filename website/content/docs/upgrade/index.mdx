@@ -1,9 +1,8 @@
 ---
 layout: docs
-page_title: 'Upgrading'
-sidebar_current: 'guides-upgrade'
-description: |-
-  Learn how to upgrade Nomad.
+page_title: Upgrading
+sidebar_current: guides-upgrade
+description: Learn how to upgrade Nomad.
 ---
 
 # Upgrading
@@ -114,9 +113,9 @@ If you are doing an upgrade by adding new servers and removing old servers
 from the fleet you need to ensure that the server has left the fleet safely.
 
 1. Stop the service on the existing host
-2. On another server issue a `nomad server members` and check the status, if
+1. On another server issue a `nomad server members` and check the status, if
    the server is now in a left state you are safe to continue.
-3. If the server is not in a left state, issue a `nomad server force-leave <server id>`
+1. If the server is not in a left state, issue a `nomad server force-leave <server id>`
    to remove the server from the cluster.
 
 Monitor the logs of the other hosts in the Nomad cluster over this period.
@@ -148,8 +147,13 @@ version details](/docs/upgrade/upgrade-specific) page as some version
 differences may require specific steps.
 
 [data_dir]: /docs/configuration#data_dir
+
 [heartbeat_grace]: /docs/configuration/server#heartbeat_grace
+
 [monitor]: /docs/commands/monitor
+
 [node-status]: /docs/commands/node/status
+
 [server-members]: /docs/commands/server/members
+
 [upgrade-specific]: /docs/upgrade/upgrade-specific

@@ -23,21 +23,24 @@ Lightrun.
 ## Prerequisites
 
 1. Download or clone the [Lightrun driver repository][repo].
+
 1. Find the `lightrun-java-driver` driver in the repository's root folder.
+
 1. Copy the driver to your Nomad plugins directory (or create one if it doesn't
-  exist).
+   exist).
+
 1. Grant executable permissions to the driver file:
 
-    ```shell-session
-    $ chmod +x ./plugins/lightrun-java-driver
-    ```
+   ```shell-session
+   $ chmod +x ./plugins/lightrun-java-driver
+   ```
 
 1. When running the Nomad agent, make sure to specify the path to your plugins
-  directory:
+   directory:
 
-    ```shell-session
-    $ sudo nomad agent -dev -bind 0.0.0.0 -log-level DEBUG -plugin-dir=<path_to_plugins_directory>
-    ```
+   ```shell-session
+   $ sudo nomad agent -dev -bind 0.0.0.0 -log-level DEBUG -plugin-dir=<path_to_plugins_directory>
+   ```
 
 ## Task Configuration
 
@@ -72,8 +75,13 @@ Agent** section:
 A full job file example can be found in the repo at [`example/example.driver.nomad`][example-config].
 
 [lightrun_docs]: https://docs.lightrun.com
+
 [lightrun_website]: https://www.lightrun.com
+
 [lightrun_portal]: https://app.lightrun.com
+
 [repo]: https://github.com/lightrun-platform/lightrun-n-nomad
+
 [example-config]: https://github.com/lightrun-platform/lightrun-n-nomad/blob/main/example/example.driver.nomad
+
 [`java`]: /docs/drivers/java

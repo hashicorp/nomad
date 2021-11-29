@@ -581,12 +581,14 @@ The Device object supports the following keys:
     given device type will be selected, constraining on the provided vendor, and
     model name. Examples include "nvidia/gpu/1080ti" or "nvidia/gpu/2080ti".
 
-* `Count` - The count of devices being requested per task. Defaults to 1.
+{/**/}
 
-* `Constraints` - A list to define constraints on which device can satisfy the
+- `Count` - The count of devices being requested per task. Defaults to 1.
+
+- `Constraints` - A list to define constraints on which device can satisfy the
   request. See the constraint reference for more details.
 
-* `Affinities` - A list to define preferences for which device should be
+- `Affinities` - A list to define preferences for which device should be
   chosen. See the affinity reference for more details.
 
 <a id="ephemeral_disk"></a>
@@ -978,7 +980,7 @@ README][ct].
   variables for the task.
 
 - `LeftDelim` - Specifies the left delimiter to use in the template. The default
-  is "{{" for some templates, it may be easier to use a different delimiter that
+  is "\{\{" for some templates, it may be easier to use a different delimiter that
   does not conflict with the output file itself.
 
 - `Perms` - Specifies the rendered template's permissions. File permissions are
@@ -1060,6 +1062,8 @@ The `Scaling` object supports the following keys:
 - `Policy` - An optional JSON block. This is opaque to Nomad; see the documentation for the external
   autoscaler (e.g., [nomad-autoscaler](https://github.com/hashicorp/nomad-autoscaler)).
 
-[ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
+[ct]: https://github.com/hashicorp/consul-template "Consul Template by HashiCorp"
+
 [drain]: /docs/commands/node/drain
-[env]: /docs/runtime/environment 'Nomad Runtime Environment'
+
+[env]: /docs/runtime/environment "Nomad Runtime Environment"

@@ -55,7 +55,7 @@ in order for HTTP requests to successfully complete.
 - `sink` <code>([sink](#sink-stanza): default)</code> - Configures a sink
   for audit logs to be sent to.
 
-- `filter` <code>(array<[filter](#filter-stanza)>: [])</code> - Configures a filter
+- `filter` <code>(array\<[filter](#filter-stanza)>: [])</code> - Configures a filter
   to exclude matching events from being sent to audit logging sinks.
 
 ### `sink` Stanza
@@ -99,7 +99,7 @@ audit {
   sent to a sink. Currently only `"json"` format is supported.
 
 - `mode` `(string: "0600")` - Specifies the permissions mode for the audit log
-   files using octal notation.
+  files using octal notation.
 
 - `path` `(string: "[data_dir]/audit/audit.log")` - Specifies the path and file
   name to use for the audit log. By default Nomad will use its configured

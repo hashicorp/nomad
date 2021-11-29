@@ -54,7 +54,7 @@ job "docs" {
   migrating off of draining nodes. Only service jobs with a count greater than
   1 support migrate stanzas.
 
-- `network` <code>([Network][]: &lt;optional&gt;)</code> - Specifies the network
+- `network` <code>([Network][]: \<optional>)</code> - Specifies the network
   requirements and configuration, including static and dynamic port allocations,
   for the group.
 
@@ -95,7 +95,7 @@ job "docs" {
   specified, the Nomad client will stop them after this duration. The
   Nomad client process must be running for this to occur.
 
-- `task` <code>([Task][]: &lt;required&gt;)</code> - Specifies one or more tasks to run
+- `task` <code>([Task][]: \<required>)</code> - Specifies one or more tasks to run
   within this group. This can be specified multiple times, to add a task as part
   of the group.
 
@@ -255,22 +255,40 @@ group "second" {
 }
 ```
 
-[task]: /docs/job-specification/task 'Nomad task Job Specification'
-[job]: /docs/job-specification/job 'Nomad job Job Specification'
-[constraint]: /docs/job-specification/constraint 'Nomad constraint Job Specification'
+[task]: /docs/job-specification/task "Nomad task Job Specification"
+
+[job]: /docs/job-specification/job "Nomad job Job Specification"
+
+[constraint]: /docs/job-specification/constraint "Nomad constraint Job Specification"
+
 [consul]: /docs/job-specification/group#consul-parameters
+
 [consul_namespace]: /docs/commands/job/run#consul-namespace
-[spread]: /docs/job-specification/spread 'Nomad spread Job Specification'
-[affinity]: /docs/job-specification/affinity 'Nomad affinity Job Specification'
-[ephemeraldisk]: /docs/job-specification/ephemeral_disk 'Nomad ephemeral_disk Job Specification'
+
+[spread]: /docs/job-specification/spread "Nomad spread Job Specification"
+
+[affinity]: /docs/job-specification/affinity "Nomad affinity Job Specification"
+
+[ephemeraldisk]: /docs/job-specification/ephemeral_disk "Nomad ephemeral_disk Job Specification"
+
 [`heartbeat_grace`]: /docs/configuration/server#heartbeat_grace
-[meta]: /docs/job-specification/meta 'Nomad meta Job Specification'
-[migrate]: /docs/job-specification/migrate 'Nomad migrate Job Specification'
-[network]: /docs/job-specification/network 'Nomad network Job Specification'
-[reschedule]: /docs/job-specification/reschedule 'Nomad reschedule Job Specification'
-[restart]: /docs/job-specification/restart 'Nomad restart Job Specification'
-[service]: /docs/job-specification/service 'Nomad service Job Specification'
-[service_discovery]: /docs/integrations/consul-integration#service-discovery 'Nomad Service Discovery'
-[update]: /docs/job-specification/update 'Nomad update Job Specification'
-[vault]: /docs/job-specification/vault 'Nomad vault Job Specification'
-[volume]: /docs/job-specification/volume 'Nomad volume Job Specification'
+
+[meta]: /docs/job-specification/meta "Nomad meta Job Specification"
+
+[migrate]: /docs/job-specification/migrate "Nomad migrate Job Specification"
+
+[network]: /docs/job-specification/network "Nomad network Job Specification"
+
+[reschedule]: /docs/job-specification/reschedule "Nomad reschedule Job Specification"
+
+[restart]: /docs/job-specification/restart "Nomad restart Job Specification"
+
+[service]: /docs/job-specification/service "Nomad service Job Specification"
+
+[service_discovery]: /docs/integrations/consul-integration#service-discovery "Nomad Service Discovery"
+
+[update]: /docs/job-specification/update "Nomad update Job Specification"
+
+[vault]: /docs/job-specification/vault "Nomad vault Job Specification"
+
+[volume]: /docs/job-specification/volume "Nomad volume Job Specification"

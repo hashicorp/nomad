@@ -7,10 +7,10 @@ description: The "scaling" stanza allows specifying scaling policy for a task gr
 # `scaling` Stanza
 
 <Placement
-  groups={[
-    ['job', 'group'],
-    ['job', 'group', 'task'],
-  ]}
+groups={[
+['job', 'group'],
+['job', 'group', 'task'],
+]}
 />
 
 The `scaling` block allows configuring scaling options for a `task` or a
@@ -95,7 +95,7 @@ job "example" {
   This should be honored by the external autoscaler. It will also be honored by Nomad
   during job updates and scaling operations. Defaults to the specified task group [`count`][].
 
-- `max` - <code>(int: &lt;required&gt;)</code> - The maximum acceptable count for the task group.
+- `max` - <code>(int: \<required>)</code> - The maximum acceptable count for the task group.
   This should be honored by the external autoscaler. It will also be honored by Nomad
   during job updates and scaling operations.
 
@@ -103,13 +103,17 @@ job "example" {
   This is intended to allow temporarily disabling an autoscaling policy, and should be
   honored by the external autoscaler.
 
-- `policy` - <code>(map<string|...>: nil)</code> - The autoscaling policy. This is
+- `policy` - <code>(map\<string|...>: nil)</code> - The autoscaling policy. This is
   opaque to Nomad, consumed and parsed only by the external autoscaler. Therefore,
   its contents are specific to the autoscaler; consult the
   [Nomad Autoscaler documentation][autoscaling_policy] for more details.
 
 [autoscaling_policy]: /docs/autoscaling/policy
-[`count`]: /docs/job-specification/group#count 'Nomad Task Group specification'
-[`resources`]: /docs/job-specification/task#resources 'Nomad Task specification'
+
+[`count`]: /docs/job-specification/group#count "Nomad Task Group specification"
+
+[`resources`]: /docs/job-specification/task#resources "Nomad Task specification"
+
 [das]: /docs/autoscaling#dynamic-application-sizing
+
 [horizontal_app_scaling]: /docs/autoscaling#horizontal-application-autoscaling

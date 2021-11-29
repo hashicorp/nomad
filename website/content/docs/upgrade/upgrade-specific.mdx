@@ -144,7 +144,6 @@ Tasks using the `exec` or `java` task drivers can add or remove desired linux
 capabilities using the [`cap_add`][cap_add_exec] and [`cap_drop`][cap_drop_exec]
 task configuration options.
 
-
 #### iptables
 
 Nomad now appends its iptables rules to the `NOMAD-ADMIN` chain instead of
@@ -326,8 +325,8 @@ Nomad 1.0's Consul Connect integration works best with Consul 1.9 or later. The
 ideal upgrade path is:
 
 1. Create a new Nomad client image with Nomad 1.0 and Consul 1.9 or later.
-2. Add new hosts based on the image.
-3. [Drain][drain-cli] and shutdown old Nomad client nodes.
+1. Add new hosts based on the image.
+1. [Drain][drain-cli] and shutdown old Nomad client nodes.
 
 While inplace upgrades and older versions of Consul are supported by Nomad 1.0,
 Envoy proxies will drop and stop accepting connections while the Nomad agent is
@@ -617,7 +616,7 @@ you are running a more recent version of Vault, you can safely remove
 
 The `rkt` task driver has been deprecated and removed from Nomad. While the code
 is available in an external repository,
-<https://github.com/hashicorp/nomad-driver-rkt>, it will not be maintained as
+[https://github.com/hashicorp/nomad-driver-rkt](https://github.com/hashicorp/nomad-driver-rkt), it will not be maintained as
 `rkt` is [no longer being developed upstream](https://github.com/rkt/rkt). We
 encourage all `rkt` users to find a new task driver as soon as possible.
 
@@ -1170,48 +1169,93 @@ state. Once that is done the client can be killed, the `data_dir` should be
 deleted and then Nomad 0.3.0 can be launched.
 
 [dangling-containers]: /docs/drivers/docker#dangling-containers
+
 [drain-api]: /api-docs/nodes#drain-node
+
 [drain-cli]: /docs/commands/node/drain
+
 [dst]: /docs/job-specification/periodic#daylight-saving-time
+
 [envoy_concurrency]: https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
+
 [gh-6787]: https://github.com/hashicorp/nomad/issues/6787
+
 [gh-8457]: https://github.com/hashicorp/nomad/issues/8457
+
 [gh-9148]: https://github.com/hashicorp/nomad/issues/9148
+
 [gh-10875]: https://github.com/hashicorp/nomad/pull/10875
+
 [gh-11563]: https://github.com/hashicorp/nomad/issues/11563
+
 [go-client]: https://pkg.go.dev/github.com/hashicorp/nomad/api#Client
+
 [hcl2]: https://github.com/hashicorp/hcl2
+
 [limits]: /docs/configuration#limits
+
 [lxc]: /docs/drivers/external/lxc
+
 [migrate]: /docs/job-specification/migrate
+
 [nvidia]: /docs/devices/external/nvidia
+
 [plugin-stanza]: /docs/configuration/plugin
+
 [plugins]: /docs/drivers/external
+
 [preemption-api]: /api-docs/operator#update-scheduler-configuration
+
 [preemption]: /docs/internals/scheduling/preemption
+
 [proxy_concurrency]: /docs/job-specification/sidecar_task#proxy_concurrency
+
 [`sidecar_task.config`]: /docs/job-specification/sidecar_task#config
+
 [reserved]: /docs/configuration/client#reserved-parameters
+
 [task-config]: /docs/job-specification/task#config
+
 [tls-guide]: https://learn.hashicorp.com/tutorials/nomad/security-enable-tls
+
 [tls-vault-guide]: https://learn.hashicorp.com/tutorials/nomad/vault-pki-nomad
+
 [update]: /docs/job-specification/update
+
 [validate]: /docs/commands/job/validate
+
 [vault_grace]: /docs/job-specification/template
+
 [node drain]: https://www.nomadproject.io/docs/upgrade#5-upgrade-clients
+
 [`template.disable_file_sandbox`]: /docs/configuration/client#template-parameters
+
 [pki]: https://www.vaultproject.io/docs/secrets/pki
+
 [`volume create`]: /docs/commands/volume/create
+
 [`volume register`]: /docs/commands/volume/register
+
 [`volume`]: /docs/job-specification/volume
+
 [Enterprise licensing]: /docs/enterprise/license
+
 [`CAP_NET_RAW`]: https://security.stackexchange.com/a/128988
+
 [`linux capabilities`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+
 [`allow_caps`]: /docs/drivers/docker#allow_caps
+
 [`extra_hosts`]: /docs/drivers/docker#extra_hosts
+
 [no_net_raw]: /docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
+
 [allow_caps_exec]: /docs/drivers/exec#allow_caps
+
 [allow_caps_java]: /docs/drivers/java#allow_caps
+
 [cap_add_exec]: /docs/drivers/exec#cap_add
+
 [cap_drop_exec]: /docs/drivers/exec#cap_drop
+
 [`log_file`]: /docs/configuration#log_file

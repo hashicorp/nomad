@@ -209,21 +209,21 @@ The `podman` driver implements the following [capabilities](/docs/internals/plug
 - `logging` - (Optional) Configure logging. Also refer to the plugin option
   [`disable_log_collection`].
 
-    - `driver = "nomad"` - (Default) Podman redirects its combined
+  - `driver = "nomad"` - (Default) Podman redirects its combined
     `stdout/stderr` logstream directly to a Nomad `fifo`. Benefits of this
     mode are: zero overhead, don't have to worry about log rotation at system
     or Podman level. Downside: you cannot easily ship the logstream to a log
     aggregator plus `stdout/stderr` is multiplexed into a single stream.
 
-    ```hcl
-    config {
-      logging = {
-        driver = "nomad"
-      }
+  ```hcl
+  config {
+    logging = {
+      driver = "nomad"
     }
-    ```
+  }
+  ```
 
-    - `driver = "journald"` - The container log is forwarded from Podman to the
+  - `driver = "journald"` - The container log is forwarded from Podman to the
     `journald` on your host. Next, it's pulled by the Podman API back from the
     journal into the Nomad `fifo` (controllable by [`disable_log_collection`]).
     Benefits: all containers can log into the host journal, you can ship a
@@ -233,18 +233,18 @@ The `podman` driver implements the following [capabilities](/docs/internals/plug
     You should configure some rotation policy for your Journal. Ensure you're
     running Podman 3.1.0 or higher because of bugs in older versions.
 
-    ```hcl
-    config {
-      logging = {
-        driver = "journald"
-        options = [
-          {
-            "tag" = "redis"
-          }
-        ]
-      }
+  ```hcl
+  config {
+    logging = {
+      driver = "journald"
+      options = [
+        {
+          "tag" = "redis"
+        }
+      ]
     }
-    ```
+  }
+  ```
 
 - `memory_reservation` - (Optional) Memory soft limit (units = `b` (bytes), `k`
   (kilobytes), `m` (megabytes), or `g` (gigabytes)).
@@ -289,17 +289,17 @@ The `podman` driver implements the following [capabilities](/docs/internals/plug
   `slirp4netns` for rootless containers.
 
   - `bridge` - (Default for rootful) Create a network stack on the default
-  Podman bridge.
+    Podman bridge.
   - `container:id` - Reuse another container's network stack.
   - `host` - Use the Podman host network stack. Note: the host mode gives the
-  container full access to local system services such as D-bus and is therefore
-  considered insecure.
+    container full access to local system services such as D-bus and is therefore
+    considered insecure.
   - `none` - No networking.
   - `slirp4netns` - (Default for rootless) Use `slirp4netns` to create a user
-  network stack. Podman currently does not support this option for rootful
-  containers ([issue][slirp-issue]).
+    network stack. Podman currently does not support this option for rootful
+    containers ([issue][slirp-issue]).
   - `task:name-of-other-task`: Join the network of another task in the same
-  allocation.
+    allocation.
 
   ```hcl
   config {
@@ -497,29 +497,55 @@ configuration file.
   ```
 
 [`count`]: /docs/job-specification/group#count
+
 [`disable_log_collection`]: #disable_log_collection
+
 [docker-ports]: /docs/drivers/docker#forwarding-and-exposing-ports
+
 [`examples/jobs/nats_group.nomad`]: https://github.com/hashicorp/nomad-driver-podman/blob/main/examples/jobs/nats_group.nomad
+
 [`examples/jobs/nats_simple_pod.nomad`]: https://github.com/hashicorp/nomad-driver-podman/blob/main/examples/jobs/nats_simple_pod.nomad
+
 [`examples/jobs/nats_pod.nomad`]: https://github.com/hashicorp/nomad-driver-podman/blob/main/examples/jobs/nats_pod.nomad
+
 [homepage]: https://github.com/hashicorp/nomad-driver-podman
+
 [memory-value]: /docs/job-specification/resources#memory
+
 [`network`]: /docs/job-specification/network
+
 [nomad-init]: /docs/commands/job/init
+
 [nomad_download]: /downloads.html
+
 [nomad_driver_ports]: /docs/drivers/docker.html#forwarding-and-exposing-ports
+
 [nomad_group_network]: /docs/job-specification/group#network
+
 [nomad_lifecycle_hooks]: /docs/job-specification/lifecycle
+
 [plugin_dir]: /docs/configuration#plugin_dir
+
 [podman]: https://podman.io/
+
 [podman-cli]: https://podman.io/whatis.html
+
 [`prestart`]: /docs/job-specification/lifecycle#prestart
+
 [releases]: https://releases.hashicorp.com/nomad-driver-podman
+
 [rootless_tutorial]: https://github.com/containers/libpod/blob/master/docs/tutorials/rootless_tutorial.md
+
 [task]: /docs/job-specification/task#user
+
 [`network_mode`]: #network_mode
+
 [network-mode]: http://docs.podman.io/en/latest/markdown/podman-run.1.html#options
+
 [slirp-issue]: https://github.com/containers/libpod/issues/6097
+
 [downloaded]: https://releases.hashicorp.com/nomad-driver-podman
+
 [short-names]: https://github.com/containers/image/blob/master/docs/containers-registries.conf.5.md#short-name-aliasing
+
 [`command`]: #command

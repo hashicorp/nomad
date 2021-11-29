@@ -27,7 +27,7 @@ to manage remote tasks would run into the following problems:
 1. When [draining][drain] a node, Nomad stops all allocations on that node
    before rescheduling them.
 
-2. When a node is `down`, Nomad reschedules all allocations onto other nodes.
+1. When a node is `down`, Nomad reschedules all allocations onto other nodes.
 
 These 2 behaviors are optimal for traditional task drivers where the task
 process is colocated with the Nomad agent. If the Nomad node is down or
@@ -49,7 +49,7 @@ which Remote Task Drivers do not support by default.
 
 ### Resources
 
-~> See [*Remote Task Drivers and Resources* #10549][gh-10549] on Github for
+~> See [_Remote Task Drivers and Resources_ #10549][gh-10549] on Github for
 details.  Comments, ideas, and use cases welcome!
 
 The [`resources`][resources] stanza has not been altered for remote task
@@ -96,18 +96,32 @@ behavior of the following features is completely driver dependent:
 - [`connect`][connect] - since group networks and sidecars are local to the
   Nomad node, Consul Connect sidecars will not work as expected.
 
-[artifact]:  /docs/job-specification/artifact
+[artifact]: /docs/job-specification/artifact
+
 [connect]: /docs/job-specification/connect
+
 [dispatch-payload]: /docs/job-specification/dispatch_payload
+
 [drain]: /docs/commands/node/drain
+
 [ephemeral-disk]: /docs/job-specification/ephemeral_disk
+
 [gh-10549]: https://github.com/hashicorp/nomad/issues/10549
+
 [gh-10592]: https://github.com/hashicorp/nomad/issues/10592
+
 [network]: /docs/job-specification/network
+
 [remote-cap]: /docs/internals/plugins/task-drivers#capabilities-capabilities-error
+
 [resources]: /docs/job-specification/resources
+
 [task-config]: /docs/job-specification/task#config
+
 [template]: /docs/job-specification/template
+
 [upgrade]: /docs/upgrade/upgrade-specific
+
 [vault]: /docs/job-specification/vault
+
 [volume]: /docs/job-specification/volume

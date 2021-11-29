@@ -107,9 +107,9 @@ For task driver plugin authors there are 2 important new behaviors when
    `RecoverTask` instead of `StartTask` for remote tasks in replacement
    allocations when a `TaskHandle` has been propagated from the previous
    allocation.
-2. If the Nomad client managing a remote task is drained or if the allocation
+1. If the Nomad client managing a remote task is drained or if the allocation
    was `lost`, the remote task is sent a special `DETACH` kill signal. This
-   indicates the plugin should stop managing the remote task, but *not* stop
+   indicates the plugin should stop managing the remote task, but _not_ stop
    it.
 
 These behaviors are meant to keep remote tasks running even when the Nomad
@@ -247,10 +247,17 @@ the task execution context. For example, the Docker driver executes commands
 inside the running container. `ExecTask` is called for Consul script checks.
 
 [lxcdriver]: https://github.com/hashicorp/nomad-driver-lxc
+
 [driverplugin]: https://github.com/hashicorp/nomad/blob/v0.9.0/plugins/drivers/driver.go#L39-L57
+
 [skeletonproject]: https://github.com/hashicorp/nomad-skeleton-driver-plugin
+
 [baseplugin]: /docs/internals/plugins/base
+
 [taskconfig]: https://godoc.org/github.com/hashicorp/nomad/plugins/drivers#TaskConfig
+
 [taskhandle]: https://godoc.org/github.com/hashicorp/nomad/plugins/drivers#TaskHandle
+
 [fifopackage]: https://godoc.org/github.com/hashicorp/nomad/client/lib/fifo
+
 [rtd]: /docs/drivers/remote

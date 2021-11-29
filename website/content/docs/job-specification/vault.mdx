@@ -10,11 +10,11 @@ description: |-
 # `vault` Stanza
 
 <Placement
-  groups={[
-    ['job', 'vault'],
-    ['job', 'group', 'vault'],
-    ['job', 'group', 'task', 'vault'],
-  ]}
+groups={[
+['job', 'vault'],
+['job', 'group', 'vault'],
+['job', 'group', 'task', 'vault'],
+]}
 />
 
 The `vault` stanza allows a task to specify that it requires a token from a
@@ -125,6 +125,8 @@ vault {
 }
 ```
 
-[restart]: /docs/job-specification/restart 'Nomad restart Job Specification'
-[template]: /docs/job-specification/template 'Nomad template Job Specification'
-[vault]: https://www.vaultproject.io/ 'Vault by HashiCorp'
+[restart]: /docs/job-specification/restart "Nomad restart Job Specification"
+
+[template]: /docs/job-specification/template "Nomad template Job Specification"
+
+[vault]: https://www.vaultproject.io/ "Vault by HashiCorp"

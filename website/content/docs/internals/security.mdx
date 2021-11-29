@@ -102,12 +102,14 @@ recommendations accordingly.
     authentication](https://en.wikipedia.org/wiki/Mutual_authentication) with
     security properties to prevent the following problems:
 
-  * Unauthorized access because both server and clients must provide valid TLS
+  {/**/}
+
+  - Unauthorized access because both server and clients must provide valid TLS
     [X.509](https://en.wikipedia.org/wiki/X.509) certificates signed by the same
     valid [CA](https://en.wikipedia.org/wiki/Certificate_authority) in order to
     communicate within the cluster.
 
-  * Observing or tampering communication between nodes is thwarted due to the
+  - Observing or tampering communication between nodes is thwarted due to the
     traffic being encrypted using the well known network security protocol
     [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) version 1.2,
     with a [configurable minimal
@@ -119,13 +121,13 @@ recommendations accordingly.
     [Vault](https://learn.hashicorp.com/tutorials/nomad/vault-pki-nomad)
     to securely manage the certificate creation and rotation for nodes.
 
-  * Agent role misconfiguration is prevented using the X.509
+  - Agent role misconfiguration is prevented using the X.509
     [SAN](https://en.wikipedia.org/wiki/Subject_Alternative_Name) extension.
     This is essentially a domain name that is used to identify and verify a
     node's region and role name are configured as expected (e.g.
     `client.us-east.nomad`).
 
-  * Using the previously mentioned role name prevents maliciously masquerading
+  - Using the previously mentioned role name prevents maliciously masquerading
     as a server or client node, and allows other services to be signed easily by
     the same CA. This also avoids any potential pitfalls with certificates using
     the IP or Hostname of nodes within a cluster.

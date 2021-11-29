@@ -94,10 +94,14 @@ types described above:
     sequences and the heredoc syntax.
   - See [String Templates](#string-templates) below for information about
     interpolation and template directives.
+
 - Numbers are represented by unquoted sequences of digits with or without a
   decimal point, like `15` or `6.283185`.
+
 - Bools are represented by the unquoted symbols `true` and `false`.
+
 - The null value is represented by the unquoted symbol `null`.
+
 - Lists/tuples are represented by a pair of square brackets containing a
   comma-separated sequence of values, like `["a", 15, true]`.
 
@@ -181,7 +185,8 @@ together results that have a common key:
 {for s in var.list : substr(s, 0, 1) => s... if s != ""}
 ```
 
-<!---
+\{/* -
+
 ## TODO: revamp this section
 
 ## Splat Expressions
@@ -240,7 +245,7 @@ set or not, avoiding the need to revise various other expressions in the
 configuration when a particular resource switches to and from having `count`
 set.
 
---->
+- */}
 
 ## `dynamic` blocks
 

@@ -105,12 +105,14 @@ The `rkt` driver supports the following configuration in the job spec:
   }
   ```
 
-* `debug` - (Optional) Enable rkt command debug option.
+{/**/}
 
-* `no_overlay` - (Optional) When enabled, will use `--no-overlay=true` flag for 'rkt run'.
+- `debug` - (Optional) Enable rkt command debug option.
+
+- `no_overlay` - (Optional) When enabled, will use `--no-overlay=true` flag for 'rkt run'.
   Useful when running jobs on older systems affected by https://github.com/rkt/rkt/issues/1922
 
-* `volumes` - (Optional) A list of `host_path:container_path[:readOnly]` strings to bind
+- `volumes` - (Optional) A list of `host_path:container_path[:readOnly]` strings to bind
   host paths to container paths.
   Mount is done read-write by default; an optional third parameter `readOnly` can be provided
   to make it read-only.
@@ -121,7 +123,7 @@ The `rkt` driver supports the following configuration in the job spec:
   }
   ```
 
-* `group` - (Optional) Specifies the group that will run the task. Sets the
+- `group` - (Optional) Specifies the group that will run the task. Sets the
   `--group` flag and overrides the group specified by the image. The
   [`user`][user] may be specified at the task level.
 
@@ -223,5 +225,7 @@ This driver supports CPU and memory isolation by delegating to `rkt`. Network
 isolation is not supported as of now.
 
 [user]: /docs/job-specification/task#user
+
 [plugin-options]: #plugin-options
+
 [plugin-stanza]: /docs/configuration/plugin

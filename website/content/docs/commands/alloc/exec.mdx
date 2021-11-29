@@ -49,7 +49,7 @@ capabilities for the allocation's namespace.
 - `-t`: Allocate a pseudo-tty, defaults to true if stdin is detected to be a tty
   session. Pass `-t=false` to disable explicitly.
 
-- `-e` <escape_char>: Sets the escape character for sessions with a pty
+- `-e` \<escape_char>: Sets the escape character for sessions with a pty
   (default: '~'). The escape character is only recognized at the beginning of a
   line. The escape character followed by a dot ('.') closes the connection.
   Setting the character to 'none' disables any escapes and makes the session
@@ -138,4 +138,5 @@ a1827f93$
 ```
 
 [heredoc]: http://tldp.org/LDP/abs/html/here-docs.html
+
 [disable_remote_exec_flag]: /docs/configuration/client#disable_remote_exec

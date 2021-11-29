@@ -20,8 +20,8 @@ nomad deployment status [options] <deployment id>
 The `deployment status` command requires a single argument, a deployment ID or
 prefix.
 
-A `-monitor` flag can be used to update the current deployment status until completion. 
-When combined with `-verbose`, it will also display the allocations for the given 
+A `-monitor` flag can be used to update the current deployment status until completion.
+When combined with `-verbose`, it will also display the allocations for the given
 deployment. If the deployment fails and [`auto_revert`] is set to `true`, it will monitor
 the entire process, showing the failure and then monitoring the deployment of the rollback.
 
@@ -133,8 +133,8 @@ $ nomad deployment status -monitor e45
     web         false        1        1       1        0          2021-06-09T15:59:58-07:00
 ```
 
-**Please note**: The library used for updating terminal output in place currently isn't fully 
-Windows compatible so there may be some formatting differences (different margins, no spinner 
+**Please note**: The library used for updating terminal output in place currently isn't fully
+Windows compatible so there may be some formatting differences (different margins, no spinner
 indicating deployment is in progress).
 
 [`auto_revert`]: /docs/job-specification/update#auto_revert

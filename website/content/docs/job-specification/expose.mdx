@@ -9,15 +9,15 @@ description: |-
 # `expose` Stanza
 
 <Placement
-  groups={[
-    'job',
-    'group',
-    'service',
-    'connect',
-    'sidecar_service',
-    'proxy',
-    'expose',
-  ]}
+groups={[
+'job',
+'group',
+'service',
+'connect',
+'sidecar_service',
+'proxy',
+'expose',
+]}
 />
 
 The `expose` stanza allows configuration of additional listeners for the default
@@ -229,11 +229,19 @@ check {
 ```
 
 [network-to]: /docs/job-specification/network#to
+
 [consul-expose-path-config]: https://www.consul.io/docs/connect/registration/service-registration#expose-paths-configuration-reference
+
 [expose-path]: /docs/job-specification/expose#path-1
+
 [expose]: /docs/job-specification/service#expose
-[path]: /docs/job-specification/expose#path-parameters 'Nomad Expose Path Parameters'
-[port]: /docs/job-specification/network#port-parameters 'Nomad Port Parameters'
+
+[path]: /docs/job-specification/expose#path-parameters "Nomad Expose Path Parameters"
+
+[port]: /docs/job-specification/network#port-parameters "Nomad Port Parameters"
+
 [network_interface]: /docs/configuration/client#network_interface
+
 [learn-consul-connect]: https://learn.hashicorp.com/tutorials/nomad/consul-service-mesh
+
 [check]: /docs/job-specification/service#check-parameters

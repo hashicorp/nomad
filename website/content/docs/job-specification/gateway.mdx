@@ -55,7 +55,7 @@ Exactly one of `ingress`, `terminating`, or `mesh` must be configured.
 - `envoy_gateway_bind_tagged_addresses` `(bool: false)` - Indicates that the gateway
   services tagged addresses should be bound to listeners in addition to the default
   listener address.
-- `envoy_gateway_bind_addresses` <code>(map<string|[address]>: nil)</code> - A map of additional addresses to be bound.
+- `envoy_gateway_bind_addresses` <code>(map\<string|[address]>: nil)</code> - A map of additional addresses to be bound.
   The keys to this map are the same of the listeners to be created and the values are
   a map with two keys - address and port, that combined make the address to bind the
   listener to. These are bound in addition to the default address.
@@ -89,7 +89,7 @@ envoy_gateway_bind_addresses "<service>" {
 ### `ingress` Parameters
 
 - `tls` <code>([tls]: nil)</code> - TLS configuration for this gateway.
-- `listener` <code>(array<[listener]> : required)</code> - One or more listeners that the
+- `listener` <code>(array\<[listener]> : required)</code> - One or more listeners that the
   ingress gateway should setup, uniquely identified by their port number.
 
 #### `tls` Parameters
@@ -101,6 +101,7 @@ envoy_gateway_bind_addresses "<service>" {
 #### `listener` Parameters
 
 - `port` `(int: required)` - The port that the listener should receive traffic on.
+
 - `protocol` `(string: "tcp")` - The protocol associated with the listener. Either
   `tcp` or `http`.
 
@@ -108,7 +109,7 @@ envoy_gateway_bind_addresses "<service>" {
   set the [Protocol](https://www.consul.io/docs/agent/config-entries/service-defaults#protocol)
   of the service to `http` is recommended.
 
-- `service` <code>(array<[service]>: required)</code> - One or more services to be
+- `service` <code>(array\<[service]>: required)</code> - One or more services to be
   exposed via this listener. For `tcp` listeners, only a single service is allowed.
 
 #### `service` Parameters
@@ -134,7 +135,7 @@ envoy_gateway_bind_addresses "<service>" {
 
 ### `terminating` Parameters
 
-- `service` <code>(array<[linked-service]>: required)</code> - One or more services to be
+- `service` <code>(array\<[linked-service]>: required)</code> - One or more services to be
   linked with the gateway. The gateway will proxy traffic to these services. These
   linked services must be registered with Consul for the gateway to discover their
   addresses. They must also be registered in the same Consul datacenter as the
@@ -152,18 +153,21 @@ envoy_gateway_bind_addresses "<service>" {
   can be provided along with a `cert_file` and `key_file` for mutual TLS
   authentication, or on its own for one-way TLS authentication. If none is provided
   the gateway **will not** encrypt traffic to the destination.
+
 - `cert_file` `(string: <optional>)` - A file path to a PEM-encoded certificate.
   The file must be accessible by the gateway task. The certificate is provided to servers
   to verify the gateway's authenticity. It must be provided if a `key_file` is provided.
+
 - `key_file` `(string: <optional>)` - A file path to a PEM-encoded private key.
   The file must be accessible by the gateway task. The key is used with the certificate
   to verify the gateway's authenticity. It must be provided if a `cert_file` is provided.
+
 - `sni` `(string: <optional>)` - An optional hostname or domain name to specify during
   the TLS handshake.
 
 ### `mesh` Parameters
 
-  The `mesh` block currently does not have any configurable parameters.
+The `mesh` block currently does not have any configurable parameters.
 
 ### Gateway with host networking
 
@@ -626,18 +630,30 @@ job "countdash-mesh-two" {
 }
 ```
 
-
 [address]: /docs/job-specification/gateway#address-parameters
+
 [advanced configuration]: https://www.consul.io/docs/connect/proxies/envoy#advanced-configuration
+
 [connect_timeout_ms]: https://www.consul.io/docs/agent/config-entries/service-resolver#connecttimeout
+
 [envoy docker]: https://hub.docker.com/r/envoyproxy/envoy/tags
+
 [ingress]: /docs/job-specification/gateway#ingress-parameters
+
 [proxy]: /docs/job-specification/gateway#proxy-parameters
+
 [linked-service]: /docs/job-specification/gateway#service-parameters-1
+
 [listener]: /docs/job-specification/gateway#listener-parameters
+
 [service]: /docs/job-specification/gateway#service-parameters
+
 [service-default]: https://www.consul.io/docs/agent/config-entries/service-defaults
+
 [sidecar_task]: /docs/job-specification/sidecar_task
+
 [terminating]: /docs/job-specification/gateway#terminating-parameters
+
 [tls]: /docs/job-specification/gateway#tls-parameters
+
 [mesh]: /docs/job-specification/gateway#mesh-parameters

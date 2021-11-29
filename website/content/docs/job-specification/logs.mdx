@@ -64,14 +64,13 @@ Nomad automatically enables logging with sane defaults as described in the
 parameters section above.
 
 ```hcl
-
 ```
 
 ### Customization
 
 This example asks Nomad to retain 3 rotated files for each of `stderr` and
 `stdout`, each a maximum size of 5 MB per file. The minimum disk space this
-would require is 30 MB (3 `stderr` &plus; 3 `stdout` &times; 5 MB &equals; 30 MB).
+would require is 30 MB (3 `stderr` + 3 `stdout` × 5 MB = 30 MB).
 
 ```hcl
 logs {
@@ -80,4 +79,4 @@ logs {
 }
 ```
 
-[logs-command]: /docs/commands/alloc/logs 'Nomad logs command'
+[logs-command]: /docs/commands/alloc/logs "Nomad logs command"

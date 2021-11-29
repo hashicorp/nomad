@@ -10,10 +10,10 @@ description: |-
 # `migrate` Stanza
 
 <Placement
-  groups={[
-    ['job', 'migrate'],
-    ['job', 'group', 'migrate'],
-  ]}
+groups={[
+['job', 'migrate'],
+['job', 'group', 'migrate'],
+]}
 />
 
 The `migrate` stanza specifies the group's strategy for migrating allocations from
@@ -75,6 +75,9 @@ on node draining.
   suffix like "2m" or "1h".
 
 [checks]: /docs/job-specification/service#check-parameters
+
 [count]: /docs/job-specification/group#count
+
 [drain]: /docs/commands/node/drain
+
 [deadline]: /docs/commands/node/drain#deadline

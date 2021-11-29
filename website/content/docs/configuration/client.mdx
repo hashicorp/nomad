@@ -58,7 +58,7 @@ client {
 
 - `cpu_total_compute` `(int: 0)` - Specifies an override for the total CPU
   compute. This value should be set to `# Cores * Core MHz`. For example, a
-  quad-core running at 2 GHz would have a total compute of 8000 (4 \* 2000). Most
+  quad-core running at 2 GHz would have a total compute of 8000 (4 * 2000). Most
   clients can determine their total CPU compute automatically, and thus in most
   cases this should be left unset.
 
@@ -468,8 +468,13 @@ client {
 ```
 
 [plugin-options]: #plugin-options
+
 [plugin-stanza]: /docs/configuration/plugin
-[server-join]: /docs/configuration/server_join 'Server Join'
-[metadata_constraint]: /docs/job-specification/constraint#user-specified-metadata 'Nomad User-Specified Metadata Constraint Example'
-[task working directory]: /docs/runtime/environment#task-directories 'Task directories'
+
+[server-join]: /docs/configuration/server_join "Server Join"
+
+[metadata_constraint]: /docs/job-specification/constraint#user-specified-metadata "Nomad User-Specified Metadata Constraint Example"
+
+[task working directory]: /docs/runtime/environment#task-directories "Task directories"
+
 [go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template

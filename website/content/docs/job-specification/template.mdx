@@ -73,7 +73,7 @@ README][ct]. Since Nomad v0.6.0, templates can be read as environment variables.
   permitted but will not update the environment variables in the task.
 
 - `left_delimiter` `(string: "{{")` - Specifies the left delimiter to use in the
-  template. The default is "{{" for some templates, it may be easier to use a
+  template. The default is "\{\{" for some templates, it may be easier to use a
   different delimiter that does not conflict with the output file itself.
 
 - `perms` `(string: "644")` - Specifies the rendered template's permissions.
@@ -403,10 +403,16 @@ options](/docs/configuration/client#options):
   files on the client host via the `file` function. By default templates can
   access files only within the [task working directory].
 
-[ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
-[artifact]: /docs/job-specification/artifact 'Nomad artifact Job Specification'
-[env]: /docs/runtime/environment 'Nomad Runtime Environment'
-[nodevars]: /docs/runtime/interpolation#interpreted_node_vars 'Nomad Node Variables'
-[go-envparse]: https://github.com/hashicorp/go-envparse#readme 'The go-envparse Readme'
-[task working directory]: /docs/runtime/environment#task-directories 'Task Directories'
+[ct]: https://github.com/hashicorp/consul-template "Consul Template by HashiCorp"
+
+[artifact]: /docs/job-specification/artifact "Nomad artifact Job Specification"
+
+[env]: /docs/runtime/environment "Nomad Runtime Environment"
+
+[nodevars]: /docs/runtime/interpolation#interpreted_node_vars "Nomad Node Variables"
+
+[go-envparse]: https://github.com/hashicorp/go-envparse#readme "The go-envparse Readme"
+
+[task working directory]: /docs/runtime/environment#task-directories "Task Directories"
+
 [filesystem internals]: /docs/internals/filesystem#templates-artifacts-and-dispatch-payloads
