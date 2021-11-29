@@ -1,4 +1,4 @@
-export default [
+const subnavData = [
   { text: 'Overview', url: '/', type: 'inbound' },
   {
     text: 'Use Cases',
@@ -39,8 +39,15 @@ export default [
     type: 'inbound',
   },
   {
+    text: 'Plugins',
+    url: '/plugins',
+    type: 'inbound',
+  },
+  {
     text: 'Community',
     url: '/community',
     type: 'inbound',
   },
 ]
+
+export default subnavData
