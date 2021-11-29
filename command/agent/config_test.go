@@ -957,8 +957,7 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 		t.Fatalf("expected BindAddr 169.254.1.5, got %s", c.BindAddr)
 	}
 
-	// was this test case incorrect? should default to bind addr if not specified (https://www.nomadproject.io/docs/configuration#advertise)
-	if c.AdvertiseAddrs.HTTP != "169.254.1.5:4646" {
+	if c.AdvertiseAddrs.HTTP != "169.254.1.10:4646" {
 		t.Fatalf("expected HTTP advertise address 169.254.1.5:4646, got %s", c.AdvertiseAddrs.HTTP)
 	}
 

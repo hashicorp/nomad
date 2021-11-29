@@ -1261,7 +1261,7 @@ func (c *Config) normalizeAddrs() error {
 		Serf: net.JoinHostPort(c.Addresses.Serf, strconv.Itoa(c.Ports.Serf)),
 	}
 
-	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.BindAddr, c.Ports.HTTP, c.DevMode)
+	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, httpAddrs[0], c.Ports.HTTP, c.DevMode)
 	if err != nil {
 		return fmt.Errorf("Failed to parse HTTP advertise address (%v, %v, %v, %v): %v", c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode, err)
 	}
@@ -2034,7 +2034,7 @@ func LoadConfigDir(dir string) (*Config, error) {
 
 // joinHostPorts joins every addr in addrs with the specified port
 func joinHostPorts(addrs []string, port string) []string {
-	localAddrs := addrs
+	localAddrs := make([]string, len(addrs))
 	for i, k := range addrs {
 		localAddrs[i] = net.JoinHostPort(k, port)
 

@@ -945,8 +945,8 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 			t.Parallel()
 
 			conf := &Config{
-				normalizedAddrs: &Addresses{
-					HTTP: "localhost:0", // port is never used
+				normalizedAddrs: &NormalizedAddrs{
+					HTTP: []string{"localhost:0"}, // port is never used
 				},
 				TLSConfig: &config.TLSConfig{
 					EnableHTTP: tc.tls,
@@ -964,7 +964,7 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 				config:     conf,
 			}
 
-			srv, err := NewHTTPServer(agent, conf)
+			srv, err := NewHTTPServers(agent, conf)
 			require.Error(t, err)
 			require.Nil(t, srv)
 			require.Contains(t, err.Error(), tc.expectedErr)
