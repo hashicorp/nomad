@@ -883,7 +883,7 @@ func TestConfig_normalizeAddrs_IPv6Loopback(t *testing.T) {
 // TestConfig_normalizeAddrs_MultipleInterface asserts that normalizeAddrs will
 // handle normalizing multiple interfaces in a single protocol.
 func TestConfig_normalizeAddrs_MultipleInterfaces(t *testing.T) {
-    // TODO: add test with go-sockaddr templates
+	// TODO: add test with go-sockaddr templates
 	testCases := []struct {
 		name                    string
 		addressConfig           *Addresses
@@ -957,7 +957,7 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 		t.Fatalf("expected BindAddr 169.254.1.5, got %s", c.BindAddr)
 	}
 
-    // was this test case incorrect? should default to bind addr if not specified (https://www.nomadproject.io/docs/configuration#advertise)
+	// was this test case incorrect? should default to bind addr if not specified (https://www.nomadproject.io/docs/configuration#advertise)
 	if c.AdvertiseAddrs.HTTP != "169.254.1.5:4646" {
 		t.Fatalf("expected HTTP advertise address 169.254.1.5:4646, got %s", c.AdvertiseAddrs.HTTP)
 	}

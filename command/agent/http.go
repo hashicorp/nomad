@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/codec"
+	multierror "github.com/hashicorp/go-multierror"
 	"github.com/rs/cors"
 
 	"github.com/hashicorp/nomad/helper/noxssrw"
@@ -75,95 +76,111 @@ type HTTPServer struct {
 	wsUpgrader *websocket.Upgrader
 }
 
-// NewHTTPServer starts new HTTP server over the agent
+// NewHTTPServers starts an HTTP server for every address.http configured in
+// the agent.
 func NewHTTPServers(agent *Agent, config *Config) ([]HTTPServer, error) {
-    var srvs []HTTPServer
+	var srvs []HTTPServer
+	var error error
 
 	// Start the listener
-    for _, addr := range config.normalizedAddrs.HTTP {
-        lnAddr, err := net.ResolveTCPAddr("tcp", addr)
-        if err != nil {
-            return nil, err
-        }
-        ln, err := config.Listener("tcp", lnAddr.IP.String(), lnAddr.Port)
-        if err != nil {
-            return nil, fmt.Errorf("failed to start HTTP listener: %v", err)
-        }
+	for _, addr := range config.normalizedAddrs.HTTP {
+		lnAddr, err := net.ResolveTCPAddr("tcp", addr)
+		if err != nil {
+			multierror.Append(error, err)
+			continue
+		}
+		ln, err := config.Listener("tcp", lnAddr.IP.String(), lnAddr.Port)
+		if err != nil {
+			error = multierror.Append(error, fmt.Errorf("failed to start HTTP listener: %v", err))
+			continue
+		}
 
-        // If TLS is enabled, wrap the listener with a TLS listener
-        if config.TLSConfig.EnableHTTP {
-            tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, config.TLSConfig.VerifyHTTPSClient, true)
-            if err != nil {
-                return nil, err
-            }
+		// If TLS is enabled, wrap the listener with a TLS listener
+		if config.TLSConfig.EnableHTTP {
+			tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, config.TLSConfig.VerifyHTTPSClient, true)
+			if err != nil {
+				error = multierror.Append(error, err)
+				continue
+			}
 
-            tlsConfig, err := tlsConf.IncomingTLSConfig()
-            if err != nil {
-                return nil, err
-            }
-            ln = tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, tlsConfig)
-        }
+			tlsConfig, err := tlsConf.IncomingTLSConfig()
+			if err != nil {
+				error = multierror.Append(error, err)
+				continue
+			}
+			ln = tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, tlsConfig)
+		}
 
-        // Create the mux
-        mux := http.NewServeMux()
+		// Create the mux
+		mux := http.NewServeMux()
 
-        wsUpgrader := &websocket.Upgrader{
-            ReadBufferSize:  2048,
-            WriteBufferSize: 2048,
-        }
+		wsUpgrader := &websocket.Upgrader{
+			ReadBufferSize:  2048,
+			WriteBufferSize: 2048,
+		}
 
-        // Create the server
-        srv := &HTTPServer{
-            agent:      agent,
-            mux:        mux,
-            listener:   ln,
-            listenerCh: make(chan struct{}),
-            logger:     agent.httpLogger,
-            Addr:       ln.Addr().String(),
-            wsUpgrader: wsUpgrader,
-        }
-        srv.registerHandlers(config.EnableDebug)
+		// Create the server
+		srv := &HTTPServer{
+			agent:      agent,
+			mux:        mux,
+			listener:   ln,
+			listenerCh: make(chan struct{}),
+			logger:     agent.httpLogger,
+			Addr:       ln.Addr().String(),
+			wsUpgrader: wsUpgrader,
+		}
+		srv.registerHandlers(config.EnableDebug)
 
-        // Handle requests with gzip compression
-        gzip, err := gziphandler.GzipHandlerWithOpts(gziphandler.MinSize(0))
-        if err != nil {
-            return nil, err
-        }
+		// Handle requests with gzip compression
+		gzip, err := gziphandler.GzipHandlerWithOpts(gziphandler.MinSize(0))
+		if err != nil {
+			error = multierror.Append(error, err)
+			continue
+		}
 
-        // Get connection handshake timeout limit
-        handshakeTimeout, err := time.ParseDuration(config.Limits.HTTPSHandshakeTimeout)
-        if err != nil {
-            return nil, fmt.Errorf("error parsing https_handshake_timeout: %v", err)
-        } else if handshakeTimeout < 0 {
-            return nil, fmt.Errorf("https_handshake_timeout must be >= 0")
-        }
+		// Get connection handshake timeout limit
+		handshakeTimeout, err := time.ParseDuration(config.Limits.HTTPSHandshakeTimeout)
+		if err != nil {
+			error = multierror.Append(error, fmt.Errorf("error parsing https_handshake_timeout: %v", err))
+			continue
+		} else if handshakeTimeout < 0 {
+			error = multierror.Append(error, fmt.Errorf("https_handshake_timeout must be >= 0"))
+			continue
+		}
 
-        // Get max connection limit
-        maxConns := 0
-        if mc := config.Limits.HTTPMaxConnsPerClient; mc != nil {
-            maxConns = *mc
-        }
-        if maxConns < 0 {
-            return nil, fmt.Errorf("http_max_conns_per_client must be >= 0")
-        }
+		// Get max connection limit
+		maxConns := 0
+		if mc := config.Limits.HTTPMaxConnsPerClient; mc != nil {
+			maxConns = *mc
+		}
+		if maxConns < 0 {
+			error = multierror.Append(error, fmt.Errorf("http_max_conns_per_client must be >= 0"))
+			continue
+		}
 
-        // Create HTTP server with timeouts
-        httpServer := http.Server{
-            Addr:      srv.Addr,
-            Handler:   gzip(mux),
-            ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
-            ErrorLog:  newHTTPServerLogger(srv.logger),
-        }
+		// Create HTTP server with timeouts
+		httpServer := http.Server{
+			Addr:      srv.Addr,
+			Handler:   gzip(mux),
+			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns),
+			ErrorLog:  newHTTPServerLogger(srv.logger),
+		}
 
-        go func() {
-            defer close(srv.listenerCh)
-            httpServer.Serve(ln)
-        }()
+		go func() {
+			defer close(srv.listenerCh)
+			httpServer.Serve(ln)
+		}()
 
-        srvs = append(srvs, *srv)
-    }
+		srvs = append(srvs, *srv)
+	}
 
-    return srvs, nil
+	if error != nil {
+		for _, srv := range srvs {
+			srv.Shutdown()
+		}
+	}
+
+	return srvs, error
 }
 
 // makeConnState returns a ConnState func for use in an http.Server. If

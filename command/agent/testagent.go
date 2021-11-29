@@ -259,7 +259,7 @@ func (a *TestAgent) start() (*Agent, error) {
 	if err != nil {
 		return agent, err
 	}
-    // TODO: change type or handle better
+	// TODO: change type or handle better
 	a.Server = &httpServers[0]
 	return agent, nil
 }

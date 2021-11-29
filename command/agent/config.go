@@ -1261,13 +1261,6 @@ func (c *Config) normalizeAddrs() error {
 		Serf: net.JoinHostPort(c.Addresses.Serf, strconv.Itoa(c.Ports.Serf)),
 	}
 
-    // defaultHTTPAdvertiseAddr := c.BindAddr
-    // // Preserving the old behavior to defaulting to address.http field if only
-    // // 1 ip is specified
-    // if len(httpAddrs) == 1 {
-    //     defaultHTTPAdvertiseAddr = httpAddrs[0]
-    // }
-
 	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, c.BindAddr, c.Ports.HTTP, c.DevMode)
 	if err != nil {
 		return fmt.Errorf("Failed to parse HTTP advertise address (%v, %v, %v, %v): %v", c.AdvertiseAddrs.HTTP, c.Addresses.HTTP, c.Ports.HTTP, c.DevMode, err)
@@ -1406,9 +1399,7 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 		return "", fmt.Errorf("Error parsing advertise address template: %v", err)
 	}
 
-    fmt.Println("addr", addr)
 	if addr != "" {
-        fmt.Println("test1")
 		// Default to using manually configured address
 		_, _, err = net.SplitHostPort(addr)
 		if err != nil {
@@ -1423,8 +1414,6 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 		return addr, nil
 	}
 
-    fmt.Println("bind", bind)
-    fmt.Println("test2")
 	// Fallback to bind address first, and then try resolving the local hostname
 	ips, err := net.LookupIP(bind)
 	if err != nil {
