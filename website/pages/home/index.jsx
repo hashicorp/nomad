@@ -185,23 +185,6 @@ export default function Homepage() {
           },
           {
             quote:
-              'We have people who are first-time system administrators deploying applications. There is a guy on our team who worked in IT help desk for 8 years - just today he upgraded an entire cluster himself.',
-            caseStudyURL: 'https://www.hashicorp.com/case-studies/roblox/',
-            person: {
-              firstName: 'Rob',
-              lastName: 'Cameron',
-              photo:
-                'https://www.datocms-assets.com/2885/1582180216-rob-cameron.jpeg',
-              title: 'Technical Director of Infrastructure',
-            },
-            company: {
-              name: 'Roblox',
-              logo:
-                'https://www.datocms-assets.com/2885/1582180369-roblox-color.svg',
-            },
-          },
-          {
-            quote:
               'Our customers’ jobs are changing constantly. It’s challenging to dynamically predict demand, what types of jobs, and the resource requirements. We found that Nomad excelled in this area.',
             caseStudyURL:
               'https://www.hashicorp.com/resources/nomad-vault-circleci-security-scheduling',
@@ -277,11 +260,6 @@ export default function Homepage() {
             companyName: 'Trivago',
             url:
               'https://www.datocms-assets.com/2885/1582162317-trivago-monochromatic.svg',
-          },
-          {
-            companyName: 'Roblox',
-            url:
-              'https://www.datocms-assets.com/2885/1582180373-roblox-monochrome.svg',
           },
           {
             companyName: 'CircleCI',

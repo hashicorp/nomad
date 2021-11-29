@@ -201,26 +201,6 @@ export default function SimpleContainerOrchestrationPage({ codeBlocks }) {
           {
             logo: {
               url:
-                'https://www.datocms-assets.com/2885/1582097215-roblox-white.svg',
-              alt: 'Roblox',
-            },
-            image: {
-              url:
-                'https://www.datocms-assets.com/2885/1582096961-roblox-case-study.jpg',
-              alt: 'Roblox Nomad Case Study',
-            },
-            heading: 'Roblox',
-            content:
-              'Scale a global gaming platform easily and reliably with Nomad to serve 100 million monthly active users',
-            link: {
-              text: 'Read Case Study',
-              url: 'https://www.hashicorp.com/case-studies/roblox',
-              type: 'outbound',
-            },
-          },
-          {
-            logo: {
-              url:
                 'https://www.datocms-assets.com/2885/1529339316-logocitadelwhite-knockout.svg',
               alt: 'Citadel',
             },
