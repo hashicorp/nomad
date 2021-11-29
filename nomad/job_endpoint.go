@@ -1466,9 +1466,9 @@ func (j *Job) Restart(args *structs.JobRestartRequest,
 	reply *structs.JobRestartResponse) error {
 	fmt.Printf("HELLO HELLO: nomad/job_endpoint.go JobRestartRequest: %+v\n", args)
 
-	if done, err := j.srv.forward("Job.Restart", args, args, reply); done {
-		return err
-	}
+	//if done, err := j.srv.forward("Job.Restart", args, args, reply); done {
+	//	return err
+	//}
 
 	// Check for alloc-lifecycle, read-job and list-jobs permissions
 	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
@@ -1490,6 +1490,23 @@ func (j *Job) Restart(args *structs.JobRestartRequest,
 
 	for _, alloc := range allocs {
 		fmt.Printf("Hello alloc ID: %+s\n", alloc.ID)
+		queryOptions := structs.QueryOptions{}
+		queryOptions.Region = args.Region
+		queryOptions.Namespace = args.Namespace
+
+		allocRestartRequest := &structs.AllocRestartRequest{
+			AllocID: alloc.ID,
+			// Hardcoding this right now to test it out. Figure out how to get the task names for the allocation?
+			TaskName: "count-task",
+			//Region:    args.RequestRegion(),
+			//Namespace: args.Namespace,
+			QueryOptions: queryOptions,
+		}
+
+		var allocRestartResponse *structs.GenericResponse
+		if done, err := j.srv.forward("Allocations.Restart", allocRestartRequest, allocRestartRequest, allocRestartResponse); done {
+			return err
+		}
 	}
 
 	// Commit this update via Raft

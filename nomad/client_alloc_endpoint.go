@@ -180,6 +180,7 @@ func (a *ClientAllocations) GarbageCollect(args *structs.AllocSpecificRequest, r
 
 // Restart is used to trigger a restart of an allocation or a subtask on a client.
 func (a *ClientAllocations) Restart(args *structs.AllocRestartRequest, reply *structs.GenericResponse) error {
+	fmt.Println("HELLO nomad/client_alloc_endpoint.go")
 	// We only allow stale reads since the only potentially stale information is
 	// the Node registration and the cost is fairly high for adding another hop
 	// in the forwarding chain.

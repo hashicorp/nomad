@@ -270,6 +270,7 @@ func (s *HTTPServer) ClientGCRequest(resp http.ResponseWriter, req *http.Request
 
 func (s *HTTPServer) allocRestart(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Build the request and parse the ACL token
+	fmt.Println("HELLO: command/agent/alloc_endpoint.go: allocRestart")
 	args := structs.AllocRestartRequest{
 		AllocID:  allocID,
 		TaskName: "",
@@ -295,10 +296,13 @@ func (s *HTTPServer) allocRestart(allocID string, resp http.ResponseWriter, req 
 	var reply structs.GenericResponse
 	var rpcErr error
 	if useLocalClient {
+		fmt.Println("HELLO: useLocalClient")
 		rpcErr = s.agent.Client().ClientRPC("Allocations.Restart", &args, &reply)
 	} else if useClientRPC {
+		fmt.Println("HELLO: useClientRPC")
 		rpcErr = s.agent.Client().RPC("ClientAllocations.Restart", &args, &reply)
 	} else if useServerRPC {
+		fmt.Println("HELLO: useServerRPC")
 		rpcErr = s.agent.Server().RPC("ClientAllocations.Restart", &args, &reply)
 	} else {
 		rpcErr = CodedError(400, "No local Node and node_id not provided")
