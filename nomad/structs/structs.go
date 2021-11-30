@@ -621,6 +621,11 @@ type JobDeregisterRequest struct {
 	// in busy clusters with a large evaluation backlog.
 	EvalPriority int
 
+	// NoShutdownDelay, if set to true, will override the group and
+	// task shutdown_delay configuration and ignore the delay for any
+	// allocations stopped as a result of this Deregister call.
+	NoShutdownDelay bool
+
 	// Eval is the evaluation to create that's associated with job deregister
 	Eval *Evaluation
 
@@ -934,7 +939,8 @@ type AllocUpdateDesiredTransitionRequest struct {
 
 // AllocStopRequest is used to stop and reschedule a running Allocation.
 type AllocStopRequest struct {
-	AllocID string
+	AllocID         string
+	NoShutdownDelay bool
 
 	WriteRequest
 }
@@ -9119,6 +9125,11 @@ type DesiredTransition struct {
 	// This field is only used when operators want to force a placement even if
 	// a failed allocation is not eligible to be rescheduled
 	ForceReschedule *bool
+
+	// NoShutdownDelay, if set to true, will override the group and
+	// task shutdown_delay configuration and ignore the delay for any
+	// allocations stopped as a result of this Deregister call.
+	NoShutdownDelay *bool
 }
 
 // Merge merges the two desired transitions, preferring the values from the
@@ -9134,6 +9145,10 @@ func (d *DesiredTransition) Merge(o *DesiredTransition) {
 
 	if o.ForceReschedule != nil {
 		d.ForceReschedule = o.ForceReschedule
+	}
+
+	if o.NoShutdownDelay != nil {
+		d.NoShutdownDelay = o.NoShutdownDelay
 	}
 }
 
@@ -9155,6 +9170,15 @@ func (d *DesiredTransition) ShouldForceReschedule() bool {
 		return false
 	}
 	return d.ForceReschedule != nil && *d.ForceReschedule
+}
+
+// ShouldIgnoreShutdownDelay returns whether the transition object dictates
+// that shutdown skip any shutdown delays.
+func (d *DesiredTransition) ShouldIgnoreShutdownDelay() bool {
+	if d == nil {
+		return false
+	}
+	return d.NoShutdownDelay != nil && *d.NoShutdownDelay
 }
 
 const (

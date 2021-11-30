@@ -3737,6 +3737,97 @@ func TestJobEndpoint_Deregister_EvalCreation_Legacy(t *testing.T) {
 	})
 }
 
+func TestJobEndpoint_Deregister_NoShutdownDelay(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register requests
+	job := mock.Job()
+	reg := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+
+	// Fetch the response
+	var resp0 structs.JobRegisterResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Register", reg, &resp0))
+
+	// Deregister but don't purge
+	dereg1 := &structs.JobDeregisterRequest{
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp1 structs.JobDeregisterResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg1, &resp1))
+	require.NotZero(resp1.Index)
+
+	// Check for the job in the FSM
+	state := s1.fsm.State()
+	out, err := state.JobByID(nil, job.Namespace, job.ID)
+	require.NoError(err)
+	require.NotNil(out)
+	require.True(out.Stop)
+
+	// Lookup the evaluation
+	eval, err := state.EvalByID(nil, resp1.EvalID)
+	require.NoError(err)
+	require.NotNil(eval)
+	require.EqualValues(resp1.EvalCreateIndex, eval.CreateIndex)
+	require.Equal(structs.EvalTriggerJobDeregister, eval.TriggeredBy)
+
+	// Lookup allocation transitions
+	var ws memdb.WatchSet
+	allocs, err := state.AllocsByJob(ws, job.Namespace, job.ID, true)
+	require.NoError(err)
+
+	for _, alloc := range allocs {
+		require.Nil(alloc.DesiredTransition)
+	}
+
+	// Deregister with no shutdown delay
+	dereg2 := &structs.JobDeregisterRequest{
+		JobID:           job.ID,
+		NoShutdownDelay: true,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp2 structs.JobDeregisterResponse
+	require.Nil(msgpackrpc.CallWithCodec(codec, "Job.Deregister", dereg2, &resp2))
+	require.NotZero(resp2.Index)
+
+	// Lookup the evaluation
+	eval, err = state.EvalByID(nil, resp2.EvalID)
+	require.NoError(err)
+	require.NotNil(eval)
+	require.EqualValues(resp2.EvalCreateIndex, eval.CreateIndex)
+	require.Equal(structs.EvalTriggerJobDeregister, eval.TriggeredBy)
+
+	// Lookup allocation transitions
+	allocs, err = state.AllocsByJob(ws, job.Namespace, job.ID, true)
+	require.NoError(err)
+
+	for _, alloc := range allocs {
+		require.NotNil(alloc.DesiredTransition)
+		require.True(*(alloc.DesiredTransition.NoShutdownDelay))
+	}
+
+}
+
 func TestJobEndpoint_BatchDeregister(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)

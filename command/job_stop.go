@@ -43,13 +43,19 @@ Stop Options:
     Override the priority of the evaluations produced as a result of this job
     deregistration. By default, this is set to the priority of the job.
 
-  -purge
-    Purge is used to stop the job and purge it from the system. If not set, the
-    job will still be queryable and will be purged by the garbage collector.
-
   -global
     Stop a multi-region job in all its regions. By default job stop will stop
     only a single region at a time. Ignored for single-region jobs.
+
+  -no-shutdown-delay
+	Ignore the the group and task shutdown_delay configuration so there is no
+    delay between service deregistration and task shutdown. Note that using
+    this flag will result in failed network connections to the allocations
+    being stopped.
+
+  -purge
+    Purge is used to stop the job and purge it from the system. If not set, the
+    job will still be queryable and will be purged by the garbage collector.
 
   -yes
     Automatic yes to prompts.
@@ -67,12 +73,13 @@ func (c *JobStopCommand) Synopsis() string {
 func (c *JobStopCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-detach":        complete.PredictNothing,
-			"-eval-priority": complete.PredictNothing,
-			"-purge":         complete.PredictNothing,
-			"-global":        complete.PredictNothing,
-			"-yes":           complete.PredictNothing,
-			"-verbose":       complete.PredictNothing,
+			"-detach":            complete.PredictNothing,
+			"-eval-priority":     complete.PredictNothing,
+			"-purge":             complete.PredictNothing,
+			"-global":            complete.PredictNothing,
+			"-no-shutdown-delay": complete.PredictNothing,
+			"-yes":               complete.PredictNothing,
+			"-verbose":           complete.PredictNothing,
 		})
 }
 
@@ -94,7 +101,7 @@ func (c *JobStopCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobStopCommand) Name() string { return "job stop" }
 
 func (c *JobStopCommand) Run(args []string) int {
-	var detach, purge, verbose, global, autoYes bool
+	var detach, purge, verbose, global, autoYes, noShutdownDelay bool
 	var evalPriority int
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -102,6 +109,7 @@ func (c *JobStopCommand) Run(args []string) int {
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&global, "global", false, "")
+	flags.BoolVar(&noShutdownDelay, "no-shutdown-delay", false, "")
 	flags.BoolVar(&autoYes, "yes", false, "")
 	flags.BoolVar(&purge, "purge", false, "")
 	flags.IntVar(&evalPriority, "eval-priority", 0, "")
@@ -199,7 +207,7 @@ func (c *JobStopCommand) Run(args []string) int {
 	}
 
 	// Invoke the stop
-	opts := &api.DeregisterOptions{Purge: purge, Global: global, EvalPriority: evalPriority}
+	opts := &api.DeregisterOptions{Purge: purge, Global: global, EvalPriority: evalPriority, NoShutdownDelay: noShutdownDelay}
 	wq := &api.WriteOptions{Namespace: jobs[0].JobSummary.Namespace}
 	evalID, _, err := client.Jobs().DeregisterOpts(*job.ID, opts, wq)
 	if err != nil {

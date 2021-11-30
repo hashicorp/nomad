@@ -55,6 +55,12 @@ When ACLs are enabled, this command requires a token with the `submit-job`,
   Stop a [multi-region] job in all its regions. By default, `job stop` will
   stop only a single region at a time. Ignored for single-region jobs.
 
+- `-no-shutdown-delay`
+  Ignore the the group and task [`shutdown_delay`] configuration so
+  there is no delay between service deregistration and task
+  shutdown. Note that using this flag will result in failed network
+  connections to the allocations being stopped.
+
 ## Examples
 
 Stop the job with ID "job1":
@@ -75,3 +81,4 @@ $ nomad job stop -detach job1
 
 [eval status]: /docs/commands/eval-status
 [multi-region]: /docs/job-specification/multiregion
+[`shutdown_delay`]: /docs/job-specification/group#shutdown_delay
