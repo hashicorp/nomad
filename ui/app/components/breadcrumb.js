@@ -3,14 +3,14 @@ import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
 
 export default class Breadcrumb extends Component {
-  @service bucket;
+  @service breadcrumbs;
 
   @action register() {
-    this.bucket.registerBreadcrumb(this);
+    this.breadcrumbs.registerBreadcrumb(this);
   }
 
   @action deregister() {
-    this.bucket.deregisterBreadcrumb(this);
+    this.breadcrumbs.deregisterBreadcrumb(this);
   }
 
   constructor() {
