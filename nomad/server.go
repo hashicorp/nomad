@@ -399,7 +399,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigEntr
 	}
 
 	// Initialize the scheduling workers
-	if err := s.setupWorkers(); err != nil {
+	if err := s.setupWorkers(s.shutdownCtx); err != nil {
 		s.Shutdown()
 		s.logger.Error("failed to start workers", "error", err)
 		return nil, fmt.Errorf("Failed to start workers: %v", err)
@@ -558,7 +558,7 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 
 	// Check if we can reload the RPC listener
 	if s.rpcListener == nil || s.rpcCancel == nil {
-		s.logger.Warn("unable to reload configuration due to uninitialized rpc listner")
+		s.logger.Warn("unable to reload configuration due to uninitialized rpc listener")
 		return fmt.Errorf("can't reload uninitialized RPC listener")
 	}
 
@@ -1440,7 +1440,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 }
 
 // setupWorkers is used to start the scheduling workers
-func (s *Server) setupWorkers() error {
+func (s *Server) setupWorkers(ctx context.Context) error {
 	// Check if all the schedulers are disabled
 	if len(s.config.EnabledSchedulers) == 0 || s.config.NumSchedulers == 0 {
 		s.logger.Warn("no enabled schedulers")
@@ -1465,7 +1465,7 @@ func (s *Server) setupWorkers() error {
 	s.logger.Info("starting scheduling worker(s)", "num_workers", s.config.NumSchedulers, "schedulers", s.config.EnabledSchedulers)
 	// Start the workers
 	for i := 0; i < s.config.NumSchedulers; i++ {
-		if w, err := NewWorker(s); err != nil {
+		if w, err := NewWorker(ctx, s); err != nil {
 			return err
 		} else {
 			s.logger.Debug("started scheduling worker", "id", w.ID(), "index", i+1, "of", s.config.NumSchedulers)
@@ -1490,7 +1490,7 @@ func (s *Server) setupNewWorkers() error {
 
 	// build a clean backing array and call setupWorkers like in the normal startup path
 	s.workers = make([]*Worker, 0, s.config.NumSchedulers)
-	err := s.setupWorkers()
+	err := s.setupWorkers(s.shutdownCtx)
 	if err != nil {
 		return err
 	}

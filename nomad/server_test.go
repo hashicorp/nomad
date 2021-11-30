@@ -540,13 +540,13 @@ func TestServer_InvalidSchedulers(t *testing.T) {
 	}
 
 	config.EnabledSchedulers = []string{"batch"}
-	err := s.setupWorkers()
+	err := s.setupWorkers(s.shutdownCtx)
 	require.NotNil(err)
 	require.Contains(err.Error(), "scheduler not enabled")
 
 	// Set the config to have an unknown scheduler
 	config.EnabledSchedulers = []string{"batch", structs.JobTypeCore, "foo"}
-	err = s.setupWorkers()
+	err = s.setupWorkers(s.shutdownCtx)
 	require.NotNil(err)
 	require.Contains(err.Error(), "foo")
 }
@@ -576,4 +576,23 @@ func TestServer_RPCNameAndRegionValidation(t *testing.T) {
 			"expected %q in region %q to validate as %v",
 			tc.name, tc.region, tc.expected)
 	}
+}
+
+func TestServer_Reload_NumSchedulers(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 8
+		c.Region = "global"
+	})
+	defer cleanupS1()
+
+	require.Equal(t, s1.config.NumSchedulers, len(s1.workers))
+
+	config := DefaultConfig()
+	config.NumSchedulers = 4
+	require.NoError(t, s1.Reload(config))
+
+	time.Sleep(1 * time.Second)
+	require.Equal(t, config.NumSchedulers, len(s1.workers))
 }

@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sync"
@@ -47,6 +48,19 @@ func init() {
 	}
 }
 
+// NewTestWorker returns the worker without calling it's run method.
+func NewTestWorker(shutdownCtx context.Context, srv *Server) *Worker {
+	w := &Worker{
+		srv:   srv,
+		start: time.Now(),
+		id:    uuid.Generate(),
+	}
+	w.logger = srv.logger.ResetNamed("worker").With("worker_id", w.id)
+	w.pauseCond = sync.NewCond(&w.pauseLock)
+	w.ctx, w.cancelFn = context.WithCancel(shutdownCtx)
+	return w
+}
+
 func TestWorker_dequeueEvaluation(t *testing.T) {
 	t.Parallel()
 
@@ -62,7 +76,7 @@ func TestWorker_dequeueEvaluation(t *testing.T) {
 	s1.evalBroker.Enqueue(eval1)
 
 	// Create a worker
-	w := &Worker{srv: s1, logger: s1.logger}
+	w := NewTestWorker(s1.shutdownCtx, s1)
 
 	// Attempt dequeue
 	eval, token, waitIndex, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
@@ -108,7 +122,7 @@ func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
 	s1.evalBroker.Enqueue(eval2)
 
 	// Create a worker
-	w := &Worker{srv: s1, logger: s1.logger}
+	w := NewTestWorker(s1.shutdownCtx, s1)
 
 	// Attempt dequeue
 	eval, token, waitIndex, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
@@ -168,7 +182,7 @@ func TestWorker_dequeueEvaluation_paused(t *testing.T) {
 	s1.evalBroker.Enqueue(eval1)
 
 	// Create a worker
-	w := &Worker{srv: s1, logger: s1.logger}
+	w := NewTestWorker(s1.shutdownCtx, s1)
 	w.pauseCond = sync.NewCond(&w.pauseLock)
 
 	// PAUSE the worker
@@ -212,7 +226,7 @@ func TestWorker_dequeueEvaluation_shutdown(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create a worker
-	w := &Worker{srv: s1, logger: s1.logger}
+	w := NewTestWorker(s1.shutdownCtx, s1)
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)
@@ -231,6 +245,53 @@ func TestWorker_dequeueEvaluation_shutdown(t *testing.T) {
 	}
 }
 
+func TestWorker_Shutdown(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EnabledSchedulers = []string{structs.JobTypeService}
+	})
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create a worker; since this tests the shutdown, you need the cancelFn too.
+	w := NewTestWorker(s1.shutdownCtx, s1)
+
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		w.Shutdown()
+	}()
+
+	// Attempt dequeue
+	eval, _, _, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
+	require.True(t, shutdown)
+	require.Nil(t, eval)
+}
+
+func TestWorker_Shutdown_paused(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EnabledSchedulers = []string{structs.JobTypeService}
+	})
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	w, _ := NewWorker(s1.shutdownCtx, s1)
+	w.SetPause(true)
+
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		w.Shutdown()
+	}()
+
+	time.Sleep(511 * time.Millisecond)
+	// Verify that the worker is stopped.
+	require.True(t, w.Stopped())
+}
+
 func TestWorker_sendAck(t *testing.T) {
 	t.Parallel()
 
@@ -246,7 +307,7 @@ func TestWorker_sendAck(t *testing.T) {
 	s1.evalBroker.Enqueue(eval1)
 
 	// Create a worker
-	w := &Worker{srv: s1, logger: s1.logger}
+	w := NewTestWorker(s1.shutdownCtx, s1)
 
 	// Attempt dequeue
 	eval, token, _, _ := w.dequeueEvaluation(10 * time.Millisecond)
@@ -301,7 +362,7 @@ func TestWorker_waitForIndex(t *testing.T) {
 	}()
 
 	// Wait for a future index
-	w := &Worker{srv: s1, logger: s1.logger}
+	w := NewTestWorker(s1.shutdownCtx, s1)
 	snap, err := w.snapshotMinIndex(index+1, time.Second)
 	require.NoError(t, err)
 	require.NotNil(t, snap)
@@ -327,7 +388,7 @@ func TestWorker_invokeScheduler(t *testing.T) {
 	})
 	defer cleanupS1()
 
-	w := &Worker{srv: s1, logger: s1.logger}
+	w := NewTestWorker(s1.shutdownCtx, s1)
 	eval := mock.Eval()
 	eval.Type = "noop"
 
@@ -380,7 +441,9 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	}
 
 	// Attempt to submit a plan
-	w := &Worker{srv: s1, logger: s1.logger, evalToken: token}
+	w := NewTestWorker(s1.shutdownCtx, s1)
+	w.evalToken = token
+
 	result, state, err := w.SubmitPlan(plan)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -442,7 +505,7 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 	plan.AppendPreemptedAlloc(preemptedAlloc, preemptingAllocID)
 
 	// Attempt to submit a plan
-	w := &Worker{srv: s1, logger: s1.logger}
+	w := NewTestWorker(s1.shutdownCtx, s1)
 	w.SubmitPlan(plan)
 
 	assert.Equal(t, &structs.Allocation{
@@ -499,7 +562,9 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	}
 
 	// Attempt to submit a plan
-	w := &Worker{srv: s1, logger: s1.logger, evalToken: token}
+	w := NewTestWorker(s1.shutdownCtx, s1)
+	w.evalToken = token
+
 	result, state, err := w.SubmitPlan(plan)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -556,7 +621,9 @@ func TestWorker_UpdateEval(t *testing.T) {
 	eval2.Status = structs.EvalStatusComplete
 
 	// Attempt to update eval
-	w := &Worker{srv: s1, logger: s1.logger, evalToken: token}
+	w := NewTestWorker(s1.shutdownCtx, s1)
+	w.evalToken = token
+
 	err = w.UpdateEval(eval2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -605,7 +672,9 @@ func TestWorker_CreateEval(t *testing.T) {
 	eval2.PreviousEval = eval1.ID
 
 	// Attempt to create eval
-	w := &Worker{srv: s1, logger: s1.logger, evalToken: token}
+	w := NewTestWorker(s1.shutdownCtx, s1)
+	w.evalToken = token
+
 	err = w.CreateEval(eval2)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -667,7 +736,9 @@ func TestWorker_ReblockEval(t *testing.T) {
 	eval2.QueuedAllocations = map[string]int{"web": 50}
 
 	// Attempt to reblock eval
-	w := &Worker{srv: s1, logger: s1.logger, evalToken: token}
+	w := NewTestWorker(s1.shutdownCtx, s1)
+	w.evalToken = token
+
 	err = w.ReblockEval(eval2)
 	if err != nil {
 		t.Fatalf("err: %v", err)

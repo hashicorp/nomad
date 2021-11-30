@@ -58,8 +58,10 @@ type Worker struct {
 	start   time.Time
 	id      string
 	paused  bool
-	stop    bool // Signals that the worker should stop
 	stopped bool // Indicates that the worker is in a terminal state; read with Stopped()
+
+	ctx      context.Context
+	cancelFn context.CancelFunc
 
 	pauseLock sync.Mutex
 	pauseCond *sync.Cond
@@ -75,7 +77,7 @@ type Worker struct {
 }
 
 // NewWorker starts a new worker associated with the given server
-func NewWorker(srv *Server) (*Worker, error) {
+func NewWorker(ctx context.Context, srv *Server) (*Worker, error) {
 	w := &Worker{
 		srv:   srv,
 		start: time.Now(),
@@ -83,6 +85,9 @@ func NewWorker(srv *Server) (*Worker, error) {
 	}
 	w.logger = srv.logger.ResetNamed("worker").With("worker_id", w.id)
 	w.pauseCond = sync.NewCond(&w.pauseLock)
+
+	w.ctx, w.cancelFn = context.WithCancel(ctx)
+
 	go w.run()
 	return w, nil
 }
@@ -109,10 +114,15 @@ func (w *Worker) checkPaused() {
 // Shutdown is used to signal that the worker should shutdown.
 func (w *Worker) Shutdown() {
 	w.pauseLock.Lock()
+	wasPaused := w.paused
 	w.paused = false
-	w.stop = true
 	w.pauseLock.Unlock()
-	w.pauseCond.Broadcast()
+
+	w.logger.Trace("shutdown request received")
+	w.cancelFn()
+	if wasPaused {
+		w.pauseCond.Broadcast()
+	}
 }
 
 // Stopped returns a boolean indicating if this worker has been stopped.
@@ -127,40 +137,44 @@ func (w *Worker) ID() string {
 	return w.id
 }
 
-// shouldStop is used to check the worker state to see if conditions indicate
-// that it should shutdown.
-func (w *Worker) shouldStop() bool {
-	var localStop, shouldStop bool
-	w.pauseLock.Lock()
-	localStop = w.stop
-	w.pauseLock.Unlock()
-
-	shouldStop = localStop || w.srv.IsShutdown()
-	return shouldStop
-}
-
 // markStopped is used to mark the worker as stopped and should be called in a
 // defer immediately upon entering the run() function.
 func (w *Worker) markStopped() {
 	w.pauseLock.Lock()
 	w.stopped = true
 	w.pauseLock.Unlock()
-	w.logger.Trace("stopped")
+	w.logger.Debug("stopped")
+}
+
+func (w *Worker) isDone() bool {
+	select {
+	case <-w.ctx.Done():
+		return true
+	default:
+		return false
+	}
 }
 
 // run is the long-lived goroutine which is used to run the worker
 func (w *Worker) run() {
 	defer w.markStopped()
-	w.logger.Trace("running")
+	w.logger.Debug("running")
 	for {
+		// Check to see if the context has been cancelled. Server shutdown and Shutdown()
+		// should do this.
+		if w.isDone() {
+			return
+		}
 		// Dequeue a pending evaluation
 		eval, token, waitIndex, shutdown := w.dequeueEvaluation(dequeueTimeout)
 		if shutdown {
 			return
 		}
 
-		// Check for a shutdown
-		if w.shouldStop() {
+		// since dequeue takes time, we could have shutdown the server after getting an eval that
+		// needs to be nacked before we exit. Explicitly checking the server to allow this eval
+		// to be processed on worker shutdown.
+		if w.srv.IsShutdown() {
 			w.logger.Error("nacking eval because the server is shutting down", "eval", log.Fmt("%#v", eval))
 			w.sendNack(eval, token)
 			return
@@ -205,7 +219,7 @@ REQ:
 	// Check if we are paused
 	w.checkPaused()
 	// Immediately check to see if the worker has been shutdown
-	if w.shouldStop() {
+	if w.isDone() {
 		return nil, "", 0, true
 	}
 
@@ -214,7 +228,7 @@ REQ:
 	err := w.srv.RPC("Eval.Dequeue", &req, &resp)
 	metrics.MeasureSince([]string{"nomad", "worker", "dequeue_eval"}, start)
 	if err != nil {
-		if time.Since(w.start) > dequeueErrGrace && !w.shouldStop() {
+		if time.Since(w.start) > dequeueErrGrace && !w.isDone() {
 			w.logger.Error("failed to dequeue evaluation", "error", err)
 		}
 
@@ -289,7 +303,7 @@ func (w *Worker) sendAck(eval *structs.Evaluation, token string) {
 // snapshotMinIndex times calls to StateStore.SnapshotAfter which may block.
 func (w *Worker) snapshotMinIndex(waitIndex uint64, timeout time.Duration) (*state.StateSnapshot, error) {
 	start := time.Now()
-	ctx, cancel := context.WithTimeout(w.srv.shutdownCtx, timeout)
+	ctx, cancel := context.WithTimeout(w.ctx, timeout)
 	snap, err := w.srv.fsm.State().SnapshotMinIndex(ctx, waitIndex)
 	cancel()
 	metrics.MeasureSince([]string{"nomad", "worker", "wait_for_index"}, start)
@@ -337,7 +351,8 @@ func (w *Worker) invokeScheduler(snap *state.StateSnapshot, eval *structs.Evalua
 // SubmitPlan is used to submit a plan for consideration. This allows
 // the worker to act as the planner for the scheduler.
 func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.State, error) {
-	// Check for a shutdown before plan submission
+	// Check for a shutdown before plan submission. Checking server state rathen than
+	// worker state to allow work in flight to complete before stopping.
 	if w.srv.IsShutdown() {
 		return nil, nil, fmt.Errorf("shutdown while planning")
 	}
@@ -407,7 +422,8 @@ SUBMIT:
 // UpdateEval is used to submit an updated evaluation. This allows
 // the worker to act as the planner for the scheduler.
 func (w *Worker) UpdateEval(eval *structs.Evaluation) error {
-	// Check for a shutdown before plan submission
+	// Check for a shutdown before plan submission. Checking server state rathen than
+	// worker state to allow a workers work in flight to complete before stopping.
 	if w.srv.IsShutdown() {
 		return fmt.Errorf("shutdown while planning")
 	}
@@ -445,7 +461,8 @@ SUBMIT:
 // CreateEval is used to create a new evaluation. This allows
 // the worker to act as the planner for the scheduler.
 func (w *Worker) CreateEval(eval *structs.Evaluation) error {
-	// Check for a shutdown before plan submission
+	// Check for a shutdown before plan submission. This consults the server Shutdown state
+	// instead of the worker's to prevent aborting work in flight.
 	if w.srv.IsShutdown() {
 		return fmt.Errorf("shutdown while planning")
 	}
@@ -486,7 +503,8 @@ SUBMIT:
 // ReblockEval is used to reinsert a blocked evaluation into the blocked eval
 // tracker. This allows the worker to act as the planner for the scheduler.
 func (w *Worker) ReblockEval(eval *structs.Evaluation) error {
-	// Check for a shutdown before plan submission
+	// Check for a shutdown before plan submission. This checks the server state rather than
+	// the worker's to prevent erroring on work in flight that would complete otherwise.
 	if w.srv.IsShutdown() {
 		return fmt.Errorf("shutdown while planning")
 	}
@@ -573,7 +591,7 @@ func (w *Worker) backoffErr(base, limit time.Duration) bool {
 	select {
 	case <-time.After(backoff):
 		return false
-	case <-w.srv.shutdownCh:
+	case <-w.ctx.Done():
 		return true
 	}
 }
