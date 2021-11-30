@@ -13,6 +13,7 @@ export const jobCrumb = job => ({
 });
 
 export const jobCrumbs = job => {
+  console.log('job\n\n', job);
   if (!job) return [];
 
   if (job.get('parent.content')) {

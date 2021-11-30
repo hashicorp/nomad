@@ -44,7 +44,10 @@
       (if a.item.hasChildren "children-status-bar" "allocation-status-bar")
       allocationContainer=a.item.summary
       job=a.item.summary
+<<<<<<< HEAD
       onSliceClick=this.onSliceClick
+=======
+>>>>>>> bf9ae2b52 (fix:  delete state from routes and move to controllers and add renderless component to templates)
       class="split-view" as |chart|
     }}
       <ol data-test-legend class="legend">
@@ -63,3 +66,4 @@
     {{/component}}
   </a.body>
 </ListAccordion>
+<Breadcrumb @bucket="navigation" @crumb={{this.breadcrumbs}} />
