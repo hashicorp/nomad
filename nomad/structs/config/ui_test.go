@@ -11,10 +11,10 @@ func TestUIConfig_Merge(t *testing.T) {
 	fullConfig := &UIConfig{
 		Enabled: true,
 		Consul: &ConsulUIConfig{
-			BaseURL: "http://consul.example.com:8500",
+			BaseUIURL: "http://consul.example.com:8500",
 		},
 		Vault: &VaultUIConfig{
-			BaseURL: "http://vault.example.com:8200",
+			BaseUIURL: "http://vault.example.com:8200",
 		},
 	}
 
@@ -41,7 +41,7 @@ func TestUIConfig_Merge(t *testing.T) {
 			left: &UIConfig{
 				Enabled: false,
 				Consul: &ConsulUIConfig{
-					BaseURL: "http://consul-other.example.com:8500",
+					BaseUIURL: "http://consul-other.example.com:8500",
 				},
 			},
 			right:  fullConfig,
@@ -52,14 +52,14 @@ func TestUIConfig_Merge(t *testing.T) {
 			left: &UIConfig{
 				Enabled: true,
 				Consul: &ConsulUIConfig{
-					BaseURL: "http://consul-other.example.com:8500",
+					BaseUIURL: "http://consul-other.example.com:8500",
 				},
 			},
 			right: &UIConfig{},
 			expect: &UIConfig{
 				Enabled: false,
 				Consul: &ConsulUIConfig{
-					BaseURL: "http://consul-other.example.com:8500",
+					BaseUIURL: "http://consul-other.example.com:8500",
 				},
 				Vault: &VaultUIConfig{},
 			},

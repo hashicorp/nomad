@@ -23,13 +23,13 @@
         Storybook
       </a>
     {{/if}}
-    {{#if this.agent.config.UI.Consul.BaseUrl}}
-      <a href={{this.agent.config.UI.Consul.BaseUrl}} class="navbar-item">
+    {{#if this.system.agent.config.UI.Consul.BaseUIURL}}
+      <a href={{this.system.agent.config.UI.Consul.BaseUIURL}} class="navbar-item">
         Consul
       </a>
     {{/if}}
-    {{#if this.agent.config.UI.Vault.BaseUrl}}
-      <a href={{this.agent.config.UI.Vault.BaseUrl}} class="navbar-item">
+    {{#if this.system.agent.config.UI.Vault.BaseUIURL}}
+      <a href={{this.system.agent.config.UI.Vault.BaseUIURL}} class="navbar-item">
         Vault
       </a>
     {{/if}}
