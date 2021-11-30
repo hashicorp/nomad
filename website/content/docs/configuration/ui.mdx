@@ -17,11 +17,11 @@ ui {
   enabled =  true
 
   consul {
-    base_url = "https://consul.example.com:8500/ui"
+    ui_url = "https://consul.example.com:8500/ui"
   }
 
   vault {
-    base_url = "https://vault.example.com:8200/ui"
+    ui_url = "https://vault.example.com:8200/ui"
   }
 }
 ```
@@ -41,24 +41,24 @@ and the configuration is individual to each agent.
 
 ## `consul` Parameters
 
-- `base_url` `(string: "")` - Specifies the full base URL to a Consul
+- `ui_url` `(string: "")` - Specifies the full base URL to a Consul
   web UI (for example: `https://consul.example.com:8500/ui`. This URL
   is used to build links from the Nomad web UI to a Consul web
   UI. Note that this URL will not typically be the same one used for
   the agent's [`consul.address`]; the `consul.address` is the URL used
   by the Nomad to communicate with Consul, whereas the
-  `ui.consul.base_url` is the URL you'll visit in your browser. If
+  `ui.consul.ui_url` is the URL you'll visit in your browser. If
   this field is omitted, this integration will be disabled.
 
 ## `vault` Parameters
 
-- `base_url` `(string: "")` - Specifies the full base URL to a Vault
+- `ui_url` `(string: "")` - Specifies the full base URL to a Vault
   web UI (for example: `https://vault.example.com:8200/ui`. This URL
   is used to build links from the Nomad web UI to a Vault web
   UI. Note that this URL will not typically be the same one used for
   the agent's [`vault.address`]; the `vault.address` is the URL used
   by the Nomad to communicate with Vault, whereas the
-  `ui.vault.base_url` is the URL you'll visit in your browser. If
+  `ui.vault.ui_url` is the URL you'll visit in your browser. If
   this field is omitted, this integration will be disabled.
 
 
