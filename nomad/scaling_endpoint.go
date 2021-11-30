@@ -120,18 +120,18 @@ func (p *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
 
 			reply.Policy = p
 
-			// Use the last index that affected the policy table
-			index, err := state.Index("scaling_policy")
-			if err != nil {
-				return err
+			// If the state lookup returned a policy object, use the modify
+			// index for the response. Otherwise, use the index table to supply
+			// this, ensuring a non-zero value.
+			if p != nil {
+				reply.Index = p.ModifyIndex
+			} else {
+				index, err := state.Index("scaling_policy")
+				if err != nil {
+					return err
+				}
+				reply.Index = helper.Uint64Max(1, index)
 			}
-
-			// Ensure we never set the index to zero, otherwise a blocking query cannot be used.
-			// We floor the index at one, since realistically the first write must have a higher index.
-			if index == 0 {
-				index = 1
-			}
-			reply.Index = index
 			return nil
 		}}
 	return p.srv.blockingRPC(&opts)
