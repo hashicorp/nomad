@@ -10,6 +10,7 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class TaskGroupController extends Controller.extend(
+  /* eslint-disable indent */
   Sortable,
   Searchable,
   WithNamespaceResetting
