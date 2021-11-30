@@ -102,6 +102,13 @@ export default class OptimizeController extends Controller {
     { key: 'dead', label: 'Dead' },
   ];
 
+  breadcrumbs = [
+    {
+      label: 'Recommendations',
+      args: ['optimize'],
+    },
+  ];
+
   get optionsDatacenter() {
     const flatten = (acc, val) => acc.concat(val);
     const allDatacenters = new Set(this.summaries.mapBy('job.datacenters').reduce(flatten, []));

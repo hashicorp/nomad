@@ -2,6 +2,7 @@ import { inject as service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { action, computed, get } from '@ember/object';
+import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 import Sortable from 'nomad-ui/mixins/sortable';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
@@ -9,10 +10,10 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class TaskGroupController extends Controller.extend(
-    Sortable,
-    Searchable,
-    WithNamespaceResetting
-  ) {
+  Sortable,
+  Searchable,
+  WithNamespaceResetting
+) {
   @service userSettings;
   @service can;
 
@@ -82,5 +83,21 @@ export default class TaskGroupController extends Controller.extend(
   @action
   scaleTaskGroup(count) {
     return this.model.scale(count);
+  }
+
+  get breadcrumbs() {
+    const model = this.model;
+    if (!model) return [];
+    return [
+      {
+        label: model.get('name'),
+        args: [
+          'jobs.job.task-group',
+          model.get('job'),
+          model.get('name'),
+          qpBuilder({ jobNamespace: model.get('job.namespace.name') || 'default' }),
+        ],
+      },
+    ];
   }
 }

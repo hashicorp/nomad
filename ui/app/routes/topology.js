@@ -10,13 +10,6 @@ export default class TopologyRoute extends Route.extend(WithForbiddenState) {
   @service store;
   @service system;
 
-  breadcrumbs = [
-    {
-      label: 'Topology',
-      args: ['topology'],
-    },
-  ];
-
   model() {
     return RSVP.hash({
       jobs: this.store.findAll('job'),

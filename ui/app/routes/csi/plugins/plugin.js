@@ -6,17 +6,6 @@ export default class PluginRoute extends Route {
   @service store;
   @service system;
 
-  breadcrumbs = plugin => [
-    {
-      label: 'Plugins',
-      args: ['csi.plugins'],
-    },
-    {
-      label: plugin.plainId,
-      args: ['csi.plugins.plugin', plugin.plainId],
-    },
-  ];
-
   serialize(model) {
     return { plugin_name: model.get('plainId') };
   }
