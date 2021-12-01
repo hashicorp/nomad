@@ -95,7 +95,6 @@ var basicConfig = &Config{
 		AuthoritativeRegion:       "foobar",
 		BootstrapExpect:           5,
 		DataDir:                   "/tmp/data",
-		ProtocolVersion:           3,
 		RaftProtocol:              3,
 		RaftMultiplier:            helper.IntToPtr(4),
 		NumSchedulers:             helper.IntToPtr(2),
@@ -494,7 +493,6 @@ func TestConfig_Parse(t *testing.T) {
 			}
 			actual = oldDefault.Merge(actual)
 
-			//panic(fmt.Sprintf("first: %+v \n second: %+v", actual.TLSConfig, tc.Result.TLSConfig))
 			require.EqualValues(tc.Result, removeHelperAttributes(actual))
 		})
 	}

@@ -106,7 +106,6 @@ server {
   authoritative_region          = "foobar"
   bootstrap_expect              = 5
   data_dir                      = "/tmp/data"
-  protocol_version              = 3
   raft_protocol                 = 3
   num_schedulers                = 2
   enabled_schedulers            = ["test"]

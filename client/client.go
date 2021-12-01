@@ -749,18 +749,6 @@ func (c *Client) secretNodeID() string {
 	return c.config.Node.SecretID
 }
 
-// RPCMajorVersion returns the structs.ApiMajorVersion supported by the
-// client.
-func (c *Client) RPCMajorVersion() int {
-	return structs.ApiMajorVersion
-}
-
-// RPCMinorVersion returns the structs.ApiMinorVersion supported by the
-// client.
-func (c *Client) RPCMinorVersion() int {
-	return structs.ApiMinorVersion
-}
-
 // Shutdown is used to tear down the client
 func (c *Client) Shutdown() error {
 	c.shutdownLock.Lock()
@@ -2773,7 +2761,7 @@ DISCOLOOP:
 				continue
 			}
 			var peers []string
-			if err := c.connPool.RPC(region, addr, c.RPCMajorVersion(), "Status.Peers", rpcargs, &peers); err != nil {
+			if err := c.connPool.RPC(region, addr, "Status.Peers", rpcargs, &peers); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 				continue
 			}

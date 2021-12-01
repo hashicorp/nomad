@@ -156,11 +156,6 @@ server {
   disallow this server from making any scheduling decisions. This defaults to
   the number of CPU cores.
 
-- `protocol_version` `(int: 1)` - Specifies the Nomad protocol version to use
-  when communicating with other Nomad servers. This value is typically not
-  required as the agent internally knows the latest version, but may be useful
-  in some upgrade scenarios.
-
 - `raft_protocol` `(int: 3)` - Specifies the Raft protocol version to use when
   communicating with other Nomad servers. This affects available Autopilot
   features and is typically not required as the agent internally knows the

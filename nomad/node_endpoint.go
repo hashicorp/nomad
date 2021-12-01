@@ -267,8 +267,6 @@ func (n *Node) constructNodeServerInfoResponse(snap *state.StateSnapshot, reply 
 		reply.Servers = append(reply.Servers,
 			&structs.NodeServerInfo{
 				RPCAdvertiseAddr: v.RPCAddr.String(),
-				RPCMajorVersion:  int32(v.MajorVersion),
-				RPCMinorVersion:  int32(v.MinorVersion),
 				Datacenter:       v.Datacenter,
 			})
 	}
