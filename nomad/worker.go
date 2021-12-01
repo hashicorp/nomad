@@ -351,7 +351,7 @@ func (w *Worker) invokeScheduler(snap *state.StateSnapshot, eval *structs.Evalua
 // SubmitPlan is used to submit a plan for consideration. This allows
 // the worker to act as the planner for the scheduler.
 func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.State, error) {
-	// Check for a shutdown before plan submission. Checking server state rathen than
+	// Check for a shutdown before plan submission. Checking server state rather than
 	// worker state to allow work in flight to complete before stopping.
 	if w.srv.IsShutdown() {
 		return nil, nil, fmt.Errorf("shutdown while planning")
@@ -422,7 +422,7 @@ SUBMIT:
 // UpdateEval is used to submit an updated evaluation. This allows
 // the worker to act as the planner for the scheduler.
 func (w *Worker) UpdateEval(eval *structs.Evaluation) error {
-	// Check for a shutdown before plan submission. Checking server state rathen than
+	// Check for a shutdown before plan submission. Checking server state rather than
 	// worker state to allow a workers work in flight to complete before stopping.
 	if w.srv.IsShutdown() {
 		return fmt.Errorf("shutdown while planning")
