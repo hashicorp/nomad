@@ -136,8 +136,8 @@ func (m *Meta) clientConfig() *api.Config {
 		config.SecretID = m.token
 	}
 
-	// If the user has passed custom TLS configuration, override with that.
-	// Refactored to address issue #11539
+	// Override TLS configuration fields we may have received from env vars with
+	// flag arguments from the user only if they're provided.
 	if m.caCert != "" {
 		config.TLSConfig.CACert = m.caCert
 	}
