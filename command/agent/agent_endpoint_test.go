@@ -1463,3 +1463,283 @@ func TestHTTP_XSS_Monitor(t *testing.T) {
 		})
 	}
 }
+
+/*
+   SchedulerWorkerAPI tests
+*/
+type scheduleWorkerTest_workerRequestTest struct {
+	name              string // test case name
+	requiresACL       bool   // prevents test cases that require ACLs from running in the non-ACL version
+	serverConfig      AgentSchedulerWorkerConfig
+	request           schedulerWorkerTest_testRequest
+	whenACLNotEnabled schedulerWorkerTest_testExpect
+	whenACLEnabled    schedulerWorkerTest_testExpect
+}
+type schedulerWorkerTest_testRequest struct {
+	verb        string
+	aclToken    string
+	requestBody string
+}
+type schedulerWorkerTest_testExpect struct {
+	expectedResponseCode int
+	expectedResponse     interface{}
+}
+
+// schedulerWorkerTest_serverConfig creates a test function that can merge
+// in an existing Config. Passing nil as the parameter will not override any
+// thing.
+func schedulerWorkerTest_serverConfig(inConfig *Config) func(*Config) {
+	if inConfig != nil {
+		return func(c *Config) {
+			inConfig.Merge(c)
+		}
+	} else {
+		return func(c *Config) {}
+	}
+}
+
+// These test cases are run for both the ACL and Non-ACL enabled servers. When
+// ACLS are not enabled, the request.aclTokens are ignored.
+func schedulerWorkerTest_testCases() []scheduleWorkerTest_workerRequestTest {
+	forbidden := schedulerWorkerTest_testExpect{
+		expectedResponseCode: http.StatusForbidden,
+		expectedResponse:     structs.ErrPermissionDenied.Error(),
+	}
+	invalidMethod := schedulerWorkerTest_testExpect{
+		expectedResponseCode: http.StatusMethodNotAllowed,
+		expectedResponse:     ErrInvalidMethod,
+	}
+	success1 := schedulerWorkerTest_testExpect{
+		expectedResponseCode: http.StatusOK,
+		expectedResponse:     &AgentSchedulerWorkerConfig{EnabledSchedulers: []string{"_core", "system"}, NumSchedulers: 8},
+	}
+
+	return []scheduleWorkerTest_workerRequestTest{
+		{
+			name: "bad verb",
+			request: schedulerWorkerTest_testRequest{
+				verb:        "FOO",
+				aclToken:    "",
+				requestBody: "",
+			},
+			whenACLNotEnabled: invalidMethod,
+			whenACLEnabled:    invalidMethod,
+		},
+		{
+			name: "get without token",
+			request: schedulerWorkerTest_testRequest{
+				verb:        "GET",
+				aclToken:    "",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    forbidden,
+		},
+		{
+			name: "get with management token",
+			request: schedulerWorkerTest_testRequest{
+				verb:        "GET",
+				aclToken:    "management",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    success1,
+		},
+		{
+			name:        "get with read token",
+			requiresACL: true,
+			request: schedulerWorkerTest_testRequest{
+				verb:        "GET",
+				aclToken:    "agent_read",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    success1,
+		},
+		{
+			name:        "get with write token",
+			requiresACL: true,
+			request: schedulerWorkerTest_testRequest{
+				verb:        "GET",
+				aclToken:    "agent_write",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    success1,
+		},
+		{
+			name: "post with no token",
+			request: schedulerWorkerTest_testRequest{
+				verb:        "POST",
+				aclToken:    "",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    forbidden,
+		},
+		{
+			name: "put with no token",
+			request: schedulerWorkerTest_testRequest{
+				verb:        "PUT",
+				aclToken:    "",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    forbidden,
+		},
+		{
+			name: "post with invalid token",
+			request: schedulerWorkerTest_testRequest{
+				verb:        "POST",
+				aclToken:    "node_write",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    forbidden,
+		},
+		{
+			name: "put with invalid token",
+			request: schedulerWorkerTest_testRequest{
+				verb:        "PUT",
+				aclToken:    "node_write",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    forbidden,
+		},
+		{
+			name: "post with valid token",
+			request: schedulerWorkerTest_testRequest{
+				verb:        "POST",
+				aclToken:    "agent_write",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    success1,
+		},
+		{
+			name: "put with valid token",
+			request: schedulerWorkerTest_testRequest{
+				verb:        "PUT",
+				aclToken:    "agent_write",
+				requestBody: "",
+			},
+			whenACLNotEnabled: success1,
+			whenACLEnabled:    success1,
+		},
+	}
+}
+
+func TestHTTP_AgentSchedulerWorkerRequest_NoACL(t *testing.T) {
+	configFn := func(c *Config) {
+		var numSchedulers = 8
+		c.Server.NumSchedulers = &numSchedulers
+		c.Server.EnabledSchedulers = []string{"_core", "system"}
+		c.Client.Enabled = false
+	}
+	testFn := func(s *TestAgent) {
+		for _, tc := range schedulerWorkerTest_testCases() {
+			t.Run(tc.name, func(t *testing.T) {
+
+				req, err := http.NewRequest(tc.request.verb, "/v1/agent/workers", nil)
+				require.Nil(t, err)
+				respW := httptest.NewRecorder()
+				workersI, err := s.Server.AgentSchedulerWorkerRequest(respW, req)
+
+				switch tc.whenACLNotEnabled.expectedResponseCode {
+				case http.StatusBadRequest, http.StatusForbidden, http.StatusMethodNotAllowed:
+					schedulerWorkerTest_parseError(t, false, tc, workersI, err)
+				case http.StatusOK:
+					schedulerWorkerTest_parseSuccess(t, false, tc, workersI, err)
+				default:
+					require.Failf(t, "unexpected status code", "code: %v", tc.whenACLNotEnabled.expectedResponseCode)
+				}
+			})
+		}
+	}
+
+	httpTest(t, configFn, testFn)
+}
+
+func TestHTTP_AgentSchedulerWorkerRequest_ACL(t *testing.T) {
+	configFn := func(c *Config) {
+		var numSchedulers = 8
+		c.Server.NumSchedulers = &numSchedulers
+		c.Server.EnabledSchedulers = []string{"_core", "system"}
+		c.Client.Enabled = false
+	}
+
+	tests := func(s *TestAgent) {
+		state := s.Agent.server.State()
+		var tokens map[string]*structs.ACLToken = make(map[string]*structs.ACLToken)
+
+		tokens["management"] = s.RootToken
+		tokens["agent_read"] = mock.CreatePolicyAndToken(t, state, 1005, "agent_read", mock.AgentPolicy(acl.PolicyRead))
+		tokens["agent_write"] = mock.CreatePolicyAndToken(t, state, 1007, "agent_write", mock.AgentPolicy(acl.PolicyWrite))
+		tokens["node_write"] = mock.CreatePolicyAndToken(t, state, 1009, "node_write", mock.NodePolicy(acl.PolicyWrite))
+
+		for _, tc := range schedulerWorkerTest_testCases() {
+			t.Run(tc.name, func(t *testing.T) {
+
+				req, err := http.NewRequest(tc.request.verb, "/v1/agent/workers", nil)
+				if tc.request.aclToken != "" {
+					setToken(req, tokens[tc.request.aclToken])
+				}
+				require.Nil(t, err)
+
+				respW := httptest.NewRecorder()
+				workersI, err := s.Server.AgentSchedulerWorkerRequest(respW, req)
+
+				switch tc.whenACLEnabled.expectedResponseCode {
+				case http.StatusOK:
+					schedulerWorkerTest_parseSuccess(t, true, tc, workersI, err)
+				case http.StatusBadRequest, http.StatusForbidden, http.StatusMethodNotAllowed:
+					schedulerWorkerTest_parseError(t, true, tc, workersI, err)
+				default:
+					require.Failf(t, "unexpected status code", "code: %v", tc.whenACLEnabled.expectedResponseCode)
+				}
+			})
+		}
+	}
+
+	httpACLTest(t, configFn, tests)
+}
+
+func schedulerWorkerTest_parseSuccess(t *testing.T, isACLEnabled bool, tc scheduleWorkerTest_workerRequestTest, workersI interface{}, err error) {
+	require.NoError(t, err)
+	require.NotNil(t, workersI)
+
+	testExpect := tc.whenACLNotEnabled
+	if isACLEnabled {
+		testExpect = tc.whenACLNotEnabled
+	}
+
+	// test into the response when we expect an okay
+	tcConfig, ok := testExpect.expectedResponse.(*AgentSchedulerWorkerConfig)
+	require.True(t, ok, "expected response malformed - this is an issue with a test case.")
+
+	workersConfig, ok := workersI.(*AgentSchedulerWorkerConfig)
+	require.True(t, ok, "response can not cast to an AgentSchedulerWorkerConfig")
+	require.NotNil(t, workersConfig)
+
+	require.Equal(t, tcConfig.NumSchedulers, workersConfig.NumSchedulers)
+	require.ElementsMatch(t, tcConfig.EnabledSchedulers, workersConfig.EnabledSchedulers)
+}
+
+// schedulerWorkerTest_parseError parses the error response given
+// from the
+func schedulerWorkerTest_parseError(t *testing.T, isACLEnabled bool, tc scheduleWorkerTest_workerRequestTest, workersI interface{}, err error) {
+	require.Error(t, err)
+	require.Nil(t, workersI)
+
+	codedError, ok := err.(HTTPCodedError)
+	require.True(t, ok, "expected an HTTPCodedError")
+	testExpect := tc.whenACLNotEnabled
+
+	if isACLEnabled {
+		testExpect = tc.whenACLNotEnabled
+	}
+
+	require.Equal(t, testExpect.expectedResponseCode, codedError.Code())
+	require.Equal(t, testExpect.expectedResponse, codedError.Error())
+}

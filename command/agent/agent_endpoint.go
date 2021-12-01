@@ -362,7 +362,7 @@ func (s *HTTPServer) agentPprof(reqType pprof.ReqType, resp http.ResponseWriter,
 
 	// Parse query param int values
 	// Errors are dropped here and default to their zero values.
-	// This is to mimick the functionality that net/pprof implements.
+	// This is to mimic the functionality that net/pprof implements.
 	seconds, _ := strconv.Atoi(req.URL.Query().Get("seconds"))
 	debug, _ := strconv.Atoi(req.URL.Query().Get("debug"))
 	gc, _ := strconv.Atoi(req.URL.Query().Get("gc"))
@@ -739,4 +739,81 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 	}
 
 	return reply, rpcErr
+}
+
+// AgentSchedulerWorkerConfig
+type AgentSchedulerWorkerConfig struct {
+	NumSchedulers     uint     `json:"num_schedulers"`
+	EnabledSchedulers []string `json:"enabled_schedulers"`
+}
+
+// AgentSchedulerWorkerRequest is used to query the count (and state eventually)
+// of the scheduler workers running in a Nomad server agent.
+// This endpoint can also be used to update the count of running workers for a
+// given agent.
+func (s *HTTPServer) AgentSchedulerWorkerRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if s.agent.Server() == nil {
+		return nil, CodedError(http.StatusBadRequest, "server only endpoint")
+	}
+	switch req.Method {
+	case "PUT", "POST":
+		return s.updateScheduleWorkers(resp, req)
+	case "GET":
+		return s.getScheduleWorkersInfo(resp, req)
+	default:
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) getScheduleWorkersInfo(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	var secret string
+	s.parseToken(req, &secret)
+
+	// Check agent read permissions
+	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
+		return nil, CodedError(http.StatusInternalServerError, err.Error())
+	} else if aclObj != nil && !aclObj.AllowAgentRead() {
+		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
+	}
+
+	config := s.agent.server.GetConfig()
+	response := &AgentSchedulerWorkerConfig{
+		NumSchedulers:     uint(config.NumSchedulers),
+		EnabledSchedulers: config.EnabledSchedulers,
+	}
+
+	return response, nil
+}
+
+func (s *HTTPServer) updateScheduleWorkers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	server := s.agent.Server()
+	if server == nil {
+		return nil, CodedError(400, "server only endpoint")
+	}
+
+	// // Get the servers from the request
+	// qsNumSchedulers := req.URL.Query()["num_schedulers"]
+	// if len(qsNumSchedulers) != 1
+	// if newNumSchedulers == 0 {
+	// 	return nil, CodedError(400, "missing server address")
+	// }
+
+	// var secret string
+	// s.parseToken(req, &secret)
+
+	// // Check agent write permissions
+	// if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
+	// 	return nil, err
+	// } else if aclObj != nil && !aclObj.AllowAgentWrite() {
+	// 	return nil, structs.ErrPermissionDenied
+	// }
+
+	// // Set the servers list into the client
+	// s.agent.logger.Trace("adding servers to the client's primary server list", "servers", servers, "path", "/v1/agent/servers", "method", "PUT")
+	// if _, err := client.SetServers(servers); err != nil {
+	// 	s.agent.logger.Error("failed adding servers to client's server list", "servers", servers, "error", err, "path", "/v1/agent/servers", "method", "PUT")
+	// 	//TODO is this the right error to return?
+	// 	return nil, CodedError(400, err.Error())
+	// }
+	return nil, nil
 }
