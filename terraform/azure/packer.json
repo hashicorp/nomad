@@ -13,6 +13,7 @@
     "subscription_id": "{{ user `azure_subscription_id` }}",
     "managed_image_resource_group_name": "{{ user `azure_resource_group` }}",
     "location": "East US",
+    "vm_size": "Standard_DS1_v2",
     "image_publisher": "Canonical",
     "image_offer": "UbuntuServer",
     "image_sku": "16.04-LTS",
