@@ -36,6 +36,6 @@ plugin "nomad-driver-ecs" {
 }
 
 vault {
-  enabled   = true
-  address   = "http://active.vault.service.consul:8200"
+  enabled = true
+  address = "http://active.vault.service.consul:8200"
 }
