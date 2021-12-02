@@ -129,6 +129,10 @@ type SchedulerConfiguration struct {
 	// MemoryOversubscriptionEnabled specifies whether memory oversubscription is enabled
 	MemoryOversubscriptionEnabled bool
 
+	// RejectJobRegistration disables new job registrations except with a
+	// management ACL token
+	RejectJobRegistration bool
+
 	// CreateIndex/ModifyIndex store the create/modify indexes of this configuration.
 	CreateIndex uint64
 	ModifyIndex uint64

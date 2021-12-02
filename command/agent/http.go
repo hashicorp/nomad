@@ -451,6 +451,9 @@ func errCodeFromHandler(err error) (int, string) {
 		} else if strings.HasSuffix(errMsg, structs.ErrTokenNotFound.Error()) {
 			errMsg = structs.ErrTokenNotFound.Error()
 			code = 403
+		} else if strings.HasSuffix(errMsg, structs.ErrJobRegistrationDisabled.Error()) {
+			errMsg = structs.ErrJobRegistrationDisabled.Error()
+			code = 403
 		}
 	}
 
@@ -486,6 +489,9 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 					code = 403
 				} else if strings.HasSuffix(errMsg, structs.ErrTokenNotFound.Error()) {
 					errMsg = structs.ErrTokenNotFound.Error()
+					code = 403
+				} else if strings.HasSuffix(errMsg, structs.ErrJobRegistrationDisabled.Error()) {
+					errMsg = structs.ErrJobRegistrationDisabled.Error()
 					code = 403
 				}
 			}
