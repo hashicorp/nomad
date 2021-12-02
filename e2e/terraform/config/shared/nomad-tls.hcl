@@ -20,8 +20,8 @@ consul {
 }
 
 vault {
-  enabled   = true
-  address   = "https://active.vault.service.consul:8200"
+  enabled = true
+  address = "https://active.vault.service.consul:8200"
 
   ca_file   = "/etc/nomad.d/tls/ca.crt"
   cert_file = "/etc/nomad.d/tls/agent.crt"
