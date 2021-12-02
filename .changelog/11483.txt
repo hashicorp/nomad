@@ -1,0 +1,3 @@
+```release-note:bug
+tests: Update Vault tls configuration artifacts for e2e test environment. 
+```
