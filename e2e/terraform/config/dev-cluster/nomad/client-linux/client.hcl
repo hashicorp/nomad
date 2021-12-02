@@ -37,8 +37,5 @@ plugin "nomad-driver-ecs" {
 
 vault {
   enabled   = true
-  address   = "https://active.vault.service.consul:8200"
-  ca_file   = "/etc/vault.d/tls/ca.crt"
-  cert_file = "/etc/vault.d/tls/agent.crt"
-  key_file  = "/etc/vault.d/tls/agent.key"
+  address   = "http://active.vault.service.consul:8200"
 }
