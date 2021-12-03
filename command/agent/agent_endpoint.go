@@ -19,6 +19,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
 	"github.com/mitchellh/copystructure"
@@ -741,31 +742,30 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 	return reply, rpcErr
 }
 
-// AgentSchedulerWorkerConfig
-type AgentSchedulerWorkerConfig struct {
-	NumSchedulers     uint     `json:"num_schedulers"`
-	EnabledSchedulers []string `json:"enabled_schedulers"`
-}
-
-// AgentSchedulerWorkerRequest is used to query the count (and state eventually)
+// AgentSchedulerWorkerConfigRequest is used to query the count (and state eventually)
 // of the scheduler workers running in a Nomad server agent.
 // This endpoint can also be used to update the count of running workers for a
 // given agent.
-func (s *HTTPServer) AgentSchedulerWorkerRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) AgentSchedulerWorkerConfigRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if s.agent.Server() == nil {
 		return nil, CodedError(http.StatusBadRequest, "server only endpoint")
 	}
 	switch req.Method {
 	case "PUT", "POST":
-		return s.updateScheduleWorkers(resp, req)
+		return s.updateScheduleWorkersConfig(resp, req)
 	case "GET":
-		return s.getScheduleWorkersInfo(resp, req)
+		return s.getScheduleWorkersConfig(resp, req)
 	default:
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 }
 
-func (s *HTTPServer) getScheduleWorkersInfo(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) getScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	srv := s.agent.Server()
+	if srv == nil {
+		return nil, CodedError(http.StatusBadRequest, "server only endpoint")
+	}
+
 	var secret string
 	s.parseToken(req, &secret)
 
@@ -776,44 +776,61 @@ func (s *HTTPServer) getScheduleWorkersInfo(resp http.ResponseWriter, req *http.
 		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
 	}
 
-	config := s.agent.server.GetConfig()
-	response := &AgentSchedulerWorkerConfig{
-		NumSchedulers:     uint(config.NumSchedulers),
+	config := srv.GetSchedulerWorkerConfig()
+	response := &agentSchedulerWorkerConfig{
+		NumSchedulers:     config.NumSchedulers,
 		EnabledSchedulers: config.EnabledSchedulers,
+	}
+	return response, nil
+}
+
+func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	srv := s.agent.Server()
+	if srv == nil {
+		return nil, CodedError(400, "server only endpoint")
+	}
+
+	var secret string
+	s.parseToken(req, &secret)
+
+	// Check agent write permissions
+	if aclObj, err := srv.ResolveToken(secret); err != nil {
+		return nil, CodedError(http.StatusInternalServerError, err.Error())
+	} else if aclObj != nil && !aclObj.AllowAgentWrite() {
+		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
+	}
+
+	var args agentSchedulerWorkerConfig
+
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(http.StatusBadRequest, err.Error())
+	}
+	newArgs := nomad.SchedulerWorkerPoolArgs{
+		NumSchedulers:     args.NumSchedulers,
+		EnabledSchedulers: args.EnabledSchedulers,
+	}
+	if newArgs.IsInvalid() {
+		return nil, CodedError(http.StatusBadRequest, "invalid arguments")
+	}
+	reply := srv.SetSchedulerWorkerConfig(newArgs)
+
+	response := &agentSchedulerWorkerConfig{
+		NumSchedulers:     reply.NumSchedulers,
+		EnabledSchedulers: reply.EnabledSchedulers,
 	}
 
 	return response, nil
 }
 
-func (s *HTTPServer) updateScheduleWorkers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	server := s.agent.Server()
-	if server == nil {
-		return nil, CodedError(400, "server only endpoint")
-	}
+type agentSchedulerWorkerConfig struct {
+	NumSchedulers     int      `json:"num_schedulers"`
+	EnabledSchedulers []string `json:"enabled_schedulers"`
+}
+type agentSchedulerWorkerConfigRequest struct {
+	agentSchedulerWorkerConfig
+}
 
-	// // Get the servers from the request
-	// qsNumSchedulers := req.URL.Query()["num_schedulers"]
-	// if len(qsNumSchedulers) != 1
-	// if newNumSchedulers == 0 {
-	// 	return nil, CodedError(400, "missing server address")
-	// }
-
-	// var secret string
-	// s.parseToken(req, &secret)
-
-	// // Check agent write permissions
-	// if aclObj, err := s.agent.Client().ResolveToken(secret); err != nil {
-	// 	return nil, err
-	// } else if aclObj != nil && !aclObj.AllowAgentWrite() {
-	// 	return nil, structs.ErrPermissionDenied
-	// }
-
-	// // Set the servers list into the client
-	// s.agent.logger.Trace("adding servers to the client's primary server list", "servers", servers, "path", "/v1/agent/servers", "method", "PUT")
-	// if _, err := client.SetServers(servers); err != nil {
-	// 	s.agent.logger.Error("failed adding servers to client's server list", "servers", servers, "error", err, "path", "/v1/agent/servers", "method", "PUT")
-	// 	//TODO is this the right error to return?
-	// 	return nil, CodedError(400, err.Error())
-	// }
-	return nil, nil
+type agentSchedulerWorkerConfigResponse struct {
+	NumSchedulers     int      `json:"num_schedulers"`
+	EnabledSchedulers []string `json:"enabled_schedulers"`
 }

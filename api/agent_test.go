@@ -456,3 +456,18 @@ func TestAgentProfile(t *testing.T) {
 		require.Nil(t, resp)
 	}
 }
+
+func TestAgent_SchedulerWorkerConfig(t *testing.T) {
+	t.Parallel()
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	config, err := a.GetSchedulerWorkerConfig()
+	require.Nil(t, err)
+	newConfig := SchedulerWorkerPoolArgs{NumSchedulers: 0, EnabledSchedulers: []string{"_core", "system"}}
+	resp, err := a.SetSchedulerWorkerConfig(newConfig)
+	require.NoError(t, err)
+	assert.NotEqual(t, config, resp)
+}

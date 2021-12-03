@@ -483,3 +483,46 @@ type HostDataResponse struct {
 	AgentID  string
 	HostData *HostData `json:",omitempty"`
 }
+
+// GetSchedulerWorkerConfig returns the targeted agent's worker pool configuration
+func (a *Agent) GetSchedulerWorkerConfig() (*SchedulerWorkerPoolArgs, error) {
+	var resp AgentSchedulerWorkerConfigResponse
+	_, err := a.client.query("/v1/agent/workers", &resp, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SchedulerWorkerPoolArgs{NumSchedulers: resp.NumSchedulers, EnabledSchedulers: resp.EnabledSchedulers}, nil
+}
+
+// SetSchedulerWorkerConfig attempts to update the targeted agent's worker pool configuration
+func (a *Agent) SetSchedulerWorkerConfig(args SchedulerWorkerPoolArgs) (*SchedulerWorkerPoolArgs, error) {
+	req := AgentSchedulerWorkerConfigRequest{
+		NumSchedulers:     args.NumSchedulers,
+		EnabledSchedulers: args.EnabledSchedulers,
+	}
+
+	var resp AgentSchedulerWorkerConfigResponse
+	_, err := a.client.write("/v1/agent/workers", &req, &resp, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SchedulerWorkerPoolArgs{NumSchedulers: resp.NumSchedulers, EnabledSchedulers: resp.EnabledSchedulers}, nil
+}
+
+type SchedulerWorkerPoolArgs struct {
+	NumSchedulers     int
+	EnabledSchedulers []string
+}
+
+// AgentSchedulerWorkerConfig
+type AgentSchedulerWorkerConfigRequest struct {
+	NumSchedulers     int      `json:"num_schedulers"`
+	EnabledSchedulers []string `json:"enabled_schedulers"`
+}
+
+type AgentSchedulerWorkerConfigResponse struct {
+	NumSchedulers     int      `json:"num_schedulers"`
+	EnabledSchedulers []string `json:"enabled_schedulers"`
+}

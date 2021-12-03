@@ -226,7 +226,10 @@ type Server struct {
 	vault VaultClient
 
 	// Worker used for processing
-	workers []*Worker
+	workers                  []*Worker
+	currentNumSchedulers     int
+	currentEnabledSchedulers []string
+	workerLock               sync.RWMutex
 
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *lru.TwoQueueCache
@@ -809,13 +812,12 @@ func (s *Server) Reload(newConfig *Config) error {
 		s.EnterpriseState.ReloadLicense(newConfig)
 	}
 
-	if newConfig.NumSchedulers != s.config.NumSchedulers {
-		s.logger.Debug("changing number of schedulers", "from", s.config.NumSchedulers, "to", newConfig.NumSchedulers)
-		s.config.NumSchedulers = newConfig.NumSchedulers
-		if err := s.setupNewWorkers(); err != nil {
-			s.logger.Error("error creating new workers", "error", err)
-			_ = multierror.Append(&mErr, err)
+	workerPoolArgs := unsafeGetSchedulerWorkerPoolArgsFromConfig(newConfig)
+	if reload, newVals := shouldReloadSchedulers(s, workerPoolArgs); reload {
+		if newVals.IsValid() {
+			reloadSchedulers(s, newVals)
 		}
+		reloadSchedulers(s, newVals)
 	}
 
 	return mErr.ErrorOrNil()
@@ -1439,8 +1441,119 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	return serf.Create(conf)
 }
 
+// shouldReloadSchedulers checks the new config to determine if the scheduler worker pool
+// needs to be updated. If so, returns true and a pointer to a populated SchedulerWorkerPoolArgs
+func shouldReloadSchedulers(s *Server, newPoolArgs *SchedulerWorkerPoolArgs) (bool, *SchedulerWorkerPoolArgs) {
+	s.workerLock.RLock()
+	defer s.workerLock.RUnlock()
+
+	newSchedulers := make([]string, len(newPoolArgs.EnabledSchedulers))
+	copy(newSchedulers, newPoolArgs.EnabledSchedulers)
+	sort.Strings(newSchedulers)
+
+	if s.config.NumSchedulers != newPoolArgs.NumSchedulers {
+		return true, newPoolArgs
+	}
+
+	oldSchedulers := make([]string, len(s.config.EnabledSchedulers))
+	copy(oldSchedulers, s.config.EnabledSchedulers)
+	sort.Strings(oldSchedulers)
+
+	for i, v := range newSchedulers {
+		if oldSchedulers[i] != v {
+			return true, newPoolArgs
+		}
+	}
+
+	return false, nil
+}
+
+// SchedulerWorkerPoolArgs are the two key configuration options for a Nomad server's
+// scheduler worker pool. Before using, you should always verify that they are rational
+// using IsValid() or IsInvalid()
+type SchedulerWorkerPoolArgs struct {
+	NumSchedulers     int
+	EnabledSchedulers []string
+}
+
+// IsInvalid returns true when the SchedulerWorkerPoolArgs.IsValid is false
+func (swpa SchedulerWorkerPoolArgs) IsInvalid() bool {
+	return !swpa.IsValid()
+}
+
+// IsValid verifies that the pool arguments are valid. That is, they have a non-negative
+// numSchedulers value and the enabledSchedulers list has _core and only refers to known
+// schedulers.
+func (swpa SchedulerWorkerPoolArgs) IsValid() bool {
+	if swpa.NumSchedulers < 0 {
+		// the pool has to be non-negative
+		return false
+	}
+
+	// validate the scheduler list against the builtin types and _core
+	foundCore := false
+	for _, sched := range swpa.EnabledSchedulers {
+		if sched == structs.JobTypeCore {
+			foundCore = true
+			continue // core is not in the BuiltinSchedulers map, so we need to skip that check
+		}
+
+		if _, ok := scheduler.BuiltinSchedulers[sched]; !ok {
+			return false // found an unknown scheduler in the list; bailing out
+		}
+	}
+
+	return foundCore
+}
+
+func unsafeGetSchedulerWorkerPoolArgsFromConfig(c *Config) *SchedulerWorkerPoolArgs {
+	return &SchedulerWorkerPoolArgs{
+		NumSchedulers:     c.NumSchedulers,
+		EnabledSchedulers: c.EnabledSchedulers,
+	}
+}
+
+func (s *Server) GetSchedulerWorkerConfig() SchedulerWorkerPoolArgs {
+	s.workerLock.RLock()
+	defer s.workerLock.RUnlock()
+	return *unsafeGetSchedulerWorkerPoolArgsFromConfig(s.config)
+}
+
+func (s *Server) SetSchedulerWorkerConfig(newArgs SchedulerWorkerPoolArgs) SchedulerWorkerPoolArgs {
+	if reload, newVals := shouldReloadSchedulers(s, &newArgs); reload {
+		if newVals.IsValid() {
+			reloadSchedulers(s, newVals)
+		}
+		reloadSchedulers(s, newVals)
+	}
+	return s.GetSchedulerWorkerConfig()
+}
+
+// reloadSchedulers validates the passed scheduler worker pool arguments, locks the
+// workerLock, applies the new values to the s.config, and restarts the pool
+func reloadSchedulers(s *Server, newArgs *SchedulerWorkerPoolArgs) {
+	if newArgs == nil || newArgs.IsInvalid() {
+		s.logger.Info("received invalid arguments for scheduler pool reload; ignoring")
+		return
+	}
+	s.workerLock.Lock()
+	defer s.workerLock.Unlock()
+	// TODO: If EnabledSchedulers didn't change, we can scale rather than drain and rebuild
+	s.config.NumSchedulers = newArgs.NumSchedulers
+	s.config.EnabledSchedulers = newArgs.EnabledSchedulers
+	s.unsafeSetupNewWorkers()
+}
+
 // setupWorkers is used to start the scheduling workers
 func (s *Server) setupWorkers(ctx context.Context) error {
+	s.workerLock.Lock()
+	defer s.workerLock.Unlock()
+	return s.unsafeSetupWorkers(ctx)
+}
+
+// unsafeSetupWorkers directly manipulates the server.config, so it is not safe to
+// call concurrently. Use setupWorkers() or call this with server.workerLock set.
+func (s *Server) unsafeSetupWorkers(ctx context.Context) error {
 	// Check if all the schedulers are disabled
 	if len(s.config.EnabledSchedulers) == 0 || s.config.NumSchedulers == 0 {
 		s.logger.Warn("no enabled schedulers")
@@ -1462,6 +1575,7 @@ func (s *Server) setupWorkers(ctx context.Context) error {
 	if !foundCore {
 		return fmt.Errorf("invalid configuration: %q scheduler not enabled", structs.JobTypeCore)
 	}
+
 	s.logger.Info("starting scheduling worker(s)", "num_workers", s.config.NumSchedulers, "schedulers", s.config.EnabledSchedulers)
 	// Start the workers
 	for i := 0; i < s.config.NumSchedulers; i++ {
@@ -1477,9 +1591,9 @@ func (s *Server) setupWorkers(ctx context.Context) error {
 	return nil
 }
 
-// setupNewWorkers() is used to start a new set of workers after a configuration
-// change and a hot reload.
-func (s *Server) setupNewWorkers() error {
+// unsafeSetupNewWorkers directly manipulates the server.config, so it is not safe to
+// call concurrently. Use reloadWorkers() or call this with server.workerLock set.
+func (s *Server) unsafeSetupNewWorkers() error {
 	// make a copy of the s.workers array so we can safely stop those goroutines asynchronously
 	oldWorkers := make([]*Worker, len(s.workers))
 	defer s.stopOldWorkers(oldWorkers)
@@ -1488,9 +1602,10 @@ func (s *Server) setupNewWorkers() error {
 	}
 	s.logger.Info(fmt.Sprintf("marking %v current schedulers for shutdown", len(oldWorkers)))
 
-	// build a clean backing array and call setupWorkers like in the normal startup path
+	// build a clean backing array and call unsafeSetupWorkers like setupWorkers does in the normal startup path
+
 	s.workers = make([]*Worker, 0, s.config.NumSchedulers)
-	err := s.setupWorkers(s.shutdownCtx)
+	err := s.unsafeSetupWorkers(s.shutdownCtx)
 	if err != nil {
 		return err
 	}
