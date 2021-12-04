@@ -70,21 +70,21 @@ func BenchmarkHTTPRequests(b *testing.B) {
 }
 
 func TestMultipleInterfaces(t *testing.T) {
-  httpIps := []string{ "127.0.0.1", "127.0.0.2"}
+	httpIps := []string{"127.0.0.1", "127.0.0.2"}
 
-  s := makeHTTPServer(t, func(c *Config) {
-    c.Addresses.HTTP = strings.Join(httpIps, " ")
+	s := makeHTTPServer(t, func(c *Config) {
+		c.Addresses.HTTP = strings.Join(httpIps, " ")
 		c.ACL.Enabled = true
 	})
 	defer s.Shutdown()
 
-  httpPort := s.ports[0]
-  for _, ip := range httpIps {
-    resp, err := http.Get(fmt.Sprintf("http://%s:%d/", ip, httpPort))
+	httpPort := s.ports[0]
+	for _, ip := range httpIps {
+		resp, err := http.Get(fmt.Sprintf("http://%s:%d/", ip, httpPort))
 
-    assert.Nil(t, err)
-    assert.Equal(t, resp.StatusCode, 200)
-  }
+		assert.Nil(t, err)
+		assert.Equal(t, resp.StatusCode, 200)
+	}
 }
 
 // TestRootFallthrough tests rootFallthrough handler to

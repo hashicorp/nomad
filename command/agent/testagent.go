@@ -66,7 +66,11 @@ type TestAgent struct {
 	// Key is the optional encryption key for the keyring.
 	Key string
 
-	// Server is a reference to the started HTTP endpoint.
+	// All HTTP servers started. Used to prevent server leaks and preserve
+	// backwards compability.
+	Servers []HTTPServer
+
+	// Server is a reference to the primary, started HTTP endpoint.
 	// It is valid after Start().
 	Server *HTTPServer
 
@@ -260,6 +264,7 @@ func (a *TestAgent) start() (*Agent, error) {
 		return agent, err
 	}
 	// TODO: change type or handle better
+	a.Servers = httpServers
 	a.Server = &httpServers[0]
 	return agent, nil
 }
@@ -284,7 +289,10 @@ func (a *TestAgent) Shutdown() error {
 	ch := make(chan error, 1)
 	go func() {
 		defer close(ch)
-		a.Server.Shutdown()
+		for _, srv := range a.Servers {
+			srv.Shutdown()
+		}
+
 		ch <- a.Agent.Shutdown()
 	}()
 
