@@ -1143,6 +1143,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		Meta:              meta,
 		Connect:           connect, // will be nil if no Connect stanza
 		Proxy:             gateway, // will be nil if no Connect Gateway stanza
+		Checks:            make([]*api.AgentServiceCheck, 0, len(service.Checks)),
 	}
 	ops.regServices = append(ops.regServices, serviceReg)
 
@@ -1153,7 +1154,34 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	}
 	for _, registration := range checkRegs {
 		sreg.checkIDs[registration.ID] = struct{}{}
+		// TODO: Can we delete this opts.regsChecks?
 		ops.regChecks = append(ops.regChecks, registration)
+		serviceReg.Checks = append(serviceReg.Checks, &api.AgentServiceCheck{
+			CheckID:                        registration.CheckID,
+			Name:                           registration.Name,
+			Args:                           registration.Args,
+			DockerContainerID:              registration.DockerContainerID,
+			Shell:                          registration.Shell,
+			Interval:                       registration.Interval,
+			Timeout:                        registration.Timeout,
+			TTL:                            registration.TTL,
+			HTTP:                           registration.HTTP,
+			Header:                         registration.Header,
+			Method:                         registration.Method,
+			Body:                           registration.Body,
+			TCP:                            registration.TCP,
+			Status:                         registration.Status,
+			Notes:                          registration.Notes,
+			TLSServerName:                  registration.TLSServerName,
+			TLSSkipVerify:                  registration.TLSSkipVerify,
+			GRPC:                           registration.GRPC,
+			GRPCUseTLS:                     registration.GRPCUseTLS,
+			AliasNode:                      registration.AliasNode,
+			AliasService:                   registration.AliasService,
+			SuccessBeforePassing:           registration.SuccessBeforePassing,
+			FailuresBeforeCritical:         registration.FailuresBeforeCritical,
+			DeregisterCriticalServiceAfter: registration.DeregisterCriticalServiceAfter,
+		})
 	}
 
 	return sreg, nil
