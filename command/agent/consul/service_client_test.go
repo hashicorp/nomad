@@ -618,7 +618,6 @@ func TestSyncOps_empty(t *testing.T) {
 	}
 
 	try(&operations{regServices: make([]*api.AgentServiceRegistration, 1)}, false)
-	try(&operations{regChecks: make([]*api.AgentCheckRegistration, 1)}, false)
 	try(&operations{deregServices: make([]string, 1)}, false)
 	try(&operations{deregChecks: make([]string, 1)}, false)
 	try(&operations{}, true)

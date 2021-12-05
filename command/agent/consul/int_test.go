@@ -192,7 +192,7 @@ func TestConsul_Integration(t *testing.T) {
 	r.Len(res, 1)
 
 	// Truncate results
-	res = res[:]
+	res = nil
 
 	// Assert the service with the checks exists
 	for i := 0; len(res) == 0 && i < 10; i++ {

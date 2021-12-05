@@ -341,10 +341,13 @@ func connectSidecarDifferent(wanted *api.AgentServiceRegistration, sidecar *api.
 }
 
 // operations are submitted to the main loop via commit() for synchronizing
-// with Consul.
+// with Consul. Each of its fields are essentially a queue of operations that
+// need to be performed. The dereg fields are weak references that depend on
+// a consistently formatted service/check id that can be used to resolve the
+// relative ServiceRegistration or checkWatcher entries respectively.
 type operations struct {
-	regServices   []*api.AgentServiceRegistration
-	regChecks     []*api.AgentCheckRegistration
+	regServices []*api.AgentServiceRegistration
+	// regChecks     []*api.AgentCheckRegistration
 	deregServices []string
 	deregChecks   []string
 }
@@ -354,8 +357,6 @@ func (o *operations) empty() bool {
 	case o == nil:
 		return true
 	case len(o.regServices) > 0:
-		return false
-	case len(o.regChecks) > 0:
 		return false
 	case len(o.deregServices) > 0:
 		return false
@@ -367,7 +368,7 @@ func (o *operations) empty() bool {
 }
 
 func (o operations) String() string {
-	return fmt.Sprintf("<%d, %d, %d, %d>", len(o.regServices), len(o.regChecks), len(o.deregServices), len(o.deregChecks))
+	return fmt.Sprintf("<%d, %d, %d>", len(o.regServices), len(o.deregServices), len(o.deregChecks))
 }
 
 // AllocRegistration holds the status of services registered for a particular
@@ -749,9 +750,6 @@ func (c *ServiceClient) merge(ops *operations) {
 	for _, s := range ops.regServices {
 		c.services[s.ID] = s
 	}
-	for _, check := range ops.regChecks {
-		c.checks[check.ID] = check
-	}
 	for _, sid := range ops.deregServices {
 		delete(c.services, sid)
 		c.explicitlyDeregisteredServices[sid] = true
@@ -968,44 +966,45 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 		if err != nil {
 			return fmt.Errorf("error parsing port %q from service %q: %v", rawport, service.Name, err)
 		}
-		serviceReg := &api.AgentServiceRegistration{
-			ID:      id,
-			Name:    service.Name,
-			Tags:    service.Tags,
-			Address: host,
-			Port:    port,
-			// This enables the consul UI to show that Nomad registered this service
-			Meta: map[string]string{
-				"external-source": "nomad",
-			},
+
+		meta := map[string]string{
+			"external-source": "nomad",
 		}
+
+		// TODO: Make sure Host rather than IP works here.
+		serviceReg, err := c.buildConsulServiceRegistration(api.ServiceKindTypical, id, service, nil, service.Tags, host, port, meta, nil, nil, nil)
+		if err != nil {
+			return fmt.Errorf("error building consul service registration for agent service %q: %v", service.Name, err)
+		}
+
 		ops.regServices = append(ops.regServices, serviceReg)
 
-		for _, check := range service.Checks {
-			checkID := MakeCheckID(id, check)
-			if check.Type == structs.ServiceCheckScript {
-				return fmt.Errorf("service %q contains invalid check: agent checks do not support scripts", service.Name)
-			}
-			checkHost, checkPort := serviceReg.Address, serviceReg.Port
-			if check.PortLabel != "" {
-				// Unlike tasks, agents don't use port labels. Agent ports are
-				// stored directly in the PortLabel.
-				host, rawport, err := net.SplitHostPort(check.PortLabel)
-				if err != nil {
-					return fmt.Errorf("error parsing port label %q from check %q: %v", service.PortLabel, check.Name, err)
-				}
-				port, err := strconv.Atoi(rawport)
-				if err != nil {
-					return fmt.Errorf("error parsing port %q from check %q: %v", rawport, check.Name, err)
-				}
-				checkHost, checkPort = host, port
-			}
-			checkReg, err := createCheckReg(id, checkID, check, checkHost, checkPort, "")
-			if err != nil {
-				return fmt.Errorf("failed to add check %q: %v", check.Name, err)
-			}
-			ops.regChecks = append(ops.regChecks, checkReg)
-		}
+		// TODO: Delete after validating helper function doesn't need logic from here.
+		//for _, check := range service.Checks {
+		//	checkID := MakeCheckID(id, check)
+		//	if check.Type == structs.ServiceCheckScript {
+		//		return fmt.Errorf("service %q contains invalid check: agent checks do not support scripts", service.Name)
+		//	}
+		//	checkHost, checkPort := serviceReg.Address, serviceReg.Port
+		//	if check.PortLabel != "" {
+		//		// Unlike tasks, agents don't use port labels. Agent ports are
+		//		// stored directly in the PortLabel.
+		//		host, rawport, err := net.SplitHostPort(check.PortLabel)
+		//		if err != nil {
+		//			return fmt.Errorf("error parsing port label %q from check %q: %v", service.PortLabel, check.Name, err)
+		//		}
+		//		port, err := strconv.Atoi(rawport)
+		//		if err != nil {
+		//			return fmt.Errorf("error parsing port %q from check %q: %v", rawport, check.Name, err)
+		//		}
+		//		checkHost, checkPort = host, port
+		//	}
+		//	checkReg, err := createCheckReg(id, checkID, check, checkHost, checkPort, "")
+		//	if err != nil {
+		//		return fmt.Errorf("failed to add check %q: %v", check.Name, err)
+		//	}
+		//	ops.regChecks = append(ops.regChecks, checkReg)
+		//}
 	}
 
 	// Don't bother committing agent checks if we're already shutting down
@@ -1021,12 +1020,21 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 	c.commit(&ops)
 
 	// Record IDs for deregistering on shutdown
-	for _, id := range ops.regServices {
-		c.agentServices[id.ID] = struct{}{}
+	for _, serviceRegistration := range ops.regServices {
+		c.agentServices[serviceRegistration.ID] = struct{}{}
 	}
-	for _, id := range ops.regChecks {
-		c.agentChecks[id.ID] = struct{}{}
-	}
+
+	// TODO: Consul appears to internally remove health checks associated
+	// with services during de-registration. Need to check at which version
+	// that was introduced, and make sure we can remove this manual management
+	// of Agent Service check de-registration. NOTE: This is different from
+	// how workload services have to be managed, because they might have their
+	// check configuration updated without the service itself changing. Once
+	// this is tested, we can delete the following block.
+	//for _, id := range ops.regChecks {
+	//	c.agentChecks[id.ID] = struct{}{}
+	//}
+
 	return nil
 }
 
@@ -1131,6 +1139,17 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 	}
 
 	// Build the Consul Service registration request
+	serviceReg, err := c.buildConsulServiceRegistration(kind, id, service, workload, tags, ip, port, meta, connect, gateway, sreg)
+	if err != nil {
+		return nil, err
+	}
+
+	ops.regServices = append(ops.regServices, serviceReg)
+
+	return sreg, nil
+}
+
+func (c *ServiceClient) buildConsulServiceRegistration(kind api.ServiceKind, id string, service *structs.Service, workload *WorkloadServices, tags []string, ip string, port int, meta map[string]string, connect *api.AgentServiceConnect, gateway *api.AgentServiceConnectProxyConfig, sreg *ServiceRegistration) (*api.AgentServiceRegistration, error) {
 	serviceReg := &api.AgentServiceRegistration{
 		Kind:              kind,
 		ID:                id,
@@ -1145,17 +1164,15 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 		Proxy:             gateway, // will be nil if no Connect Gateway stanza
 		Checks:            make([]*api.AgentServiceCheck, 0, len(service.Checks)),
 	}
-	ops.regServices = append(ops.regServices, serviceReg)
 
 	// Build the check registrations
 	checkRegs, err := c.checkRegs(id, service, workload, sreg)
 	if err != nil {
 		return nil, err
 	}
+
 	for _, registration := range checkRegs {
 		sreg.checkIDs[registration.ID] = struct{}{}
-		// TODO: Can we delete this opts.regsChecks?
-		ops.regChecks = append(ops.regChecks, registration)
 		serviceReg.Checks = append(serviceReg.Checks, &api.AgentServiceCheck{
 			CheckID:                        registration.CheckID,
 			Name:                           registration.Name,
@@ -1183,8 +1200,7 @@ func (c *ServiceClient) serviceRegs(ops *operations, service *structs.Service, w
 			DeregisterCriticalServiceAfter: registration.DeregisterCriticalServiceAfter,
 		})
 	}
-
-	return sreg, nil
+	return serviceReg, nil
 }
 
 // checkRegs creates check registrations for the given service
@@ -1346,7 +1362,8 @@ func (c *ServiceClient) UpdateWorkload(old, newWorkload *WorkloadServices) error
 			for _, registration := range checkRegs {
 				sreg.checkIDs[registration.ID] = struct{}{}
 				sreg.CheckOnUpdate[registration.ID] = check.OnUpdate
-				ops.regChecks = append(ops.regChecks, registration)
+				// TODO: Test that regServices is enough.
+				// ops.regChecks = append(ops.regChecks, registration)
 			}
 
 			// Update all watched checks as CheckRestart fields aren't part of ID
