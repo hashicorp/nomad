@@ -176,8 +176,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		}
 	}
 
-	if ok, err := allowedRegistration(aclObj, j.srv.State()); !ok || err != nil {
-		j.logger.Warn("job registration for non-management ACL rejected")
+	if ok, err := registrationsAreAllowed(aclObj, j.srv.State()); !ok || err != nil {
+		j.logger.Warn("job registration is currently disabled for non-management ACL")
 		return structs.ErrJobRegistrationDisabled
 	}
 
@@ -186,7 +186,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	if err != nil {
 		return err
 	}
-
 	ws := memdb.NewWatchSet()
 	existingJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
 	if err != nil {
@@ -1029,8 +1028,8 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		}
 	}
 
-	if ok, err := allowedRegistration(aclObj, j.srv.State()); !ok || err != nil {
-		j.logger.Warn("job scaling for non-management ACL rejected")
+	if ok, err := registrationsAreAllowed(aclObj, j.srv.State()); !ok || err != nil {
+		j.logger.Warn("job scaling is currently disabled for non-management ACL")
 		return structs.ErrJobRegistrationDisabled
 	}
 
@@ -1316,9 +1315,9 @@ func allowedNSes(aclObj *acl.ACL, state *state.StateStore, allow func(ns string)
 	return r, nil
 }
 
-// allowedRegistration checks that the scheduler is not in
+// registrationsAreAllowed checks that the scheduler is not in
 // RejectJobRegistration mode for load-shedding.
-func allowedRegistration(aclObj *acl.ACL, state *state.StateStore) (bool, error) {
+func registrationsAreAllowed(aclObj *acl.ACL, state *state.StateStore) (bool, error) {
 	_, cfg, err := state.SchedulerConfig()
 	if err != nil {
 		return false, err
@@ -1888,8 +1887,8 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		return structs.ErrPermissionDenied
 	}
 
-	if ok, err := allowedRegistration(aclObj, j.srv.State()); !ok || err != nil {
-		j.logger.Warn("job dispatch for non-management ACL rejected")
+	if ok, err := registrationsAreAllowed(aclObj, j.srv.State()); !ok || err != nil {
+		j.logger.Warn("job dispatch is currently disabled for non-management ACL")
 		return structs.ErrJobRegistrationDisabled
 	}
 
