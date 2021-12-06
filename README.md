@@ -51,5 +51,3 @@ Guides are available on [HashiCorp Learn](https://learn.hashicorp.com/nomad).
 Contributing
 --------------------
 See the [`contributing`](contributing/) directory for more developer documentation.
-
-<!-- labeling & merging a PR w/ `backport/1.2.2` should automerge this comment to release-1.2.2 -->
