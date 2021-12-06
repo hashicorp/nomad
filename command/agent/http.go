@@ -47,8 +47,9 @@ var (
 	// Set to false by stub_asset if the ui build tag isn't enabled
 	uiEnabled = true
 
-	// Overridden if the ui build tag isn't enabled
-	stubHTML = ""
+	// Displayed when ui is disabled, but overridden if the ui build
+	// tag isn't enabled
+	stubHTML = "<html><p>Nomad UI is disabled</p></html>"
 
 	// allowCORS sets permissive CORS headers for a handler
 	allowCORS = cors.New(cors.Options{
@@ -337,13 +338,21 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/namespace", s.wrap(s.NamespaceCreateRequest))
 	s.mux.HandleFunc("/v1/namespace/", s.wrap(s.NamespaceSpecificRequest))
 
-	if uiEnabled {
+	uiConfigEnabled := s.agent.config.UI != nil && s.agent.config.UI.Enabled
+
+	if uiEnabled && uiConfigEnabled {
 		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
+		s.logger.Debug("UI is enabled")
 	} else {
 		// Write the stubHTML
 		s.mux.HandleFunc("/ui/", func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(stubHTML))
 		})
+		if uiEnabled && !uiConfigEnabled {
+			s.logger.Warn("UI is disabled")
+		} else {
+			s.logger.Debug("UI is disabled in this build")
+		}
 	}
 	s.mux.Handle("/", s.handleRootFallthrough())
 
@@ -685,6 +694,19 @@ func parseBool(req *http.Request, field string) (*bool, error) {
 		return &param, nil
 	}
 
+	return nil, nil
+}
+
+// parseInt parses a query parameter to a int or returns (nil, nil) if the
+// parameter is not present.
+func parseInt(req *http.Request, field string) (*int, error) {
+	if str := req.URL.Query().Get(field); str != "" {
+		param, err := strconv.Atoi(str)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a int: %v", field, str, err)
+		}
+		return &param, nil
+	}
 	return nil, nil
 }
 

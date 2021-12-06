@@ -86,6 +86,10 @@ Run Options:
     the evaluation ID will be printed to the screen, which can be used to
     examine the evaluation using the eval-status command.
 
+  -eval-priority
+    Override the priority of the evaluations produced as a result of this job
+    submission. By default, this is set to the priority of the job.
+
   -hcl1
     Parses the job file as HCLv1.
 
@@ -152,6 +156,7 @@ func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 			"-hcl2-strict":     complete.PredictNothing,
 			"-var":             complete.PredictAnything,
 			"-var-file":        complete.PredictFiles("*.var"),
+			"-eval-priority":   complete.PredictNothing,
 		})
 }
 
@@ -165,6 +170,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	var detach, verbose, output, override, preserveCounts, hcl2Strict bool
 	var checkIndexStr, consulToken, consulNamespace, vaultToken, vaultNamespace string
 	var varArgs, varFiles flaghelper.StringFlag
+	var evalPriority int
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
@@ -182,6 +188,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	flagSet.StringVar(&vaultNamespace, "vault-namespace", "", "")
 	flagSet.Var(&varArgs, "var", "")
 	flagSet.Var(&varFiles, "var-file", "")
+	flagSet.IntVar(&evalPriority, "eval-priority", 0, "")
 
 	if err := flagSet.Parse(args); err != nil {
 		return 1
@@ -282,13 +289,15 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	// Set the register options
-	opts := &api.RegisterOptions{}
+	opts := &api.RegisterOptions{
+		PolicyOverride: override,
+		PreserveCounts: preserveCounts,
+		EvalPriority:   evalPriority,
+	}
 	if enforce {
 		opts.EnforceIndex = true
 		opts.ModifyIndex = checkIndex
 	}
-	opts.PolicyOverride = override
-	opts.PreserveCounts = preserveCounts
 
 	// Submit the job
 	resp, _, err := client.Jobs().RegisterOpts(job, opts, nil)

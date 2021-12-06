@@ -91,6 +91,11 @@ passed in via CLI arguments. The `agent` command accepts the following arguments
   `cluster` and `horizontal` queues. Nomad Autoscaler Enterprise supports additional
   `vertical_mem` and `vertical_cpu` queues.
 
+- `-policy-source-disable-file`: Disable the sourcing of policies from disk.
+
+- `-policy-source-disable-nomad`: Disable the sourcing of policies from the
+  Nomad API.
+
 - `-telemetry-disable-hostname`: Specifies whether gauge values should be prefixed
   with the local hostname.
 

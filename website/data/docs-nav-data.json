@@ -201,6 +201,10 @@
         "path": "configuration/tls"
       },
       {
+        "title": "ui",
+        "path": "configuration/ui"
+      },
+      {
         "title": "vault",
         "path": "configuration/vault"
       }
@@ -1526,6 +1530,10 @@
           {
             "title": "policy_eval",
             "path": "autoscaling/agent/policy_eval"
+          },
+          {
+            "title": "source",
+            "path": "autoscaling/agent/source"
           },
           {
             "title": "strategy",

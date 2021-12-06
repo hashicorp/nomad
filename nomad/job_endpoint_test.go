@@ -169,6 +169,38 @@ func TestJobEndpoint_Register_PreserveCounts(t *testing.T) {
 	require.Equal(2, out.TaskGroups[1].Count)  // should be as in job spec
 }
 
+func TestJobEndpoint_Register_EvalPriority(t *testing.T) {
+	t.Parallel()
+	requireAssert := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.TaskGroups[0].Name = "group1"
+	job.Canonicalize()
+
+	// Register the job.
+	requireAssert.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+		EvalPriority: 99,
+	}, &structs.JobRegisterResponse{}))
+
+	// Grab the eval from the state, and check its priority is as expected.
+	state := s1.fsm.State()
+	out, err := state.EvalsByJob(nil, job.Namespace, job.ID)
+	requireAssert.NoError(err)
+	requireAssert.Len(out, 1)
+	requireAssert.Equal(99, out[0].Priority)
+}
+
 func TestJobEndpoint_Register_Connect(t *testing.T) {
 	t.Parallel()
 	require := require.New(t)
@@ -3363,6 +3395,48 @@ func TestJobEndpoint_Deregister_Nonexistent(t *testing.T) {
 	if eval.ModifyTime == 0 {
 		t.Fatalf("eval ModifyTime is unset: %#v", eval)
 	}
+}
+
+func TestJobEndpoint_Deregister_EvalPriority(t *testing.T) {
+	t.Parallel()
+	requireAssert := require.New(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0 // Prevent automatic dequeue
+	})
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	job := mock.Job()
+	job.Canonicalize()
+
+	// Register the job.
+	requireAssert.NoError(msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}, &structs.JobRegisterResponse{}))
+
+	// Create the deregister request.
+	deregReq := &structs.JobDeregisterRequest{
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+		EvalPriority: 99,
+	}
+	var deregResp structs.JobDeregisterResponse
+	requireAssert.NoError(msgpackrpc.CallWithCodec(codec, "Job.Deregister", deregReq, &deregResp))
+
+	// Grab the eval from the state, and check its priority is as expected.
+	out, err := s1.fsm.State().EvalByID(nil, deregResp.EvalID)
+	requireAssert.NoError(err)
+	requireAssert.Equal(99, out.Priority)
 }
 
 func TestJobEndpoint_Deregister_Periodic(t *testing.T) {
@@ -6694,22 +6768,6 @@ func TestJobEndpoint_Scale_DeploymentBlocking(t *testing.T) {
 			require.NoError(err, "test case %q", tc)
 			require.NotEmpty(resp.EvalID)
 			require.Greater(resp.EvalCreateIndex, resp.JobModifyIndex)
-		}
-
-		events, _, _ := state.ScalingEventsByJob(nil, job.Namespace, job.ID)
-		require.Equal(1, len(events[groupName]))
-		latestEvent := events[groupName][0]
-		if dLatest.Active() {
-			require.True(latestEvent.Error)
-			require.Nil(latestEvent.Count)
-			require.Contains(latestEvent.Message, "blocked due to active deployment")
-			require.Equal(latestEvent.Meta["OriginalCount"], newCount)
-			require.Equal(latestEvent.Meta["OriginalMessage"], scalingMessage)
-			require.Equal(latestEvent.Meta["OriginalMeta"], scalingMetadata)
-		} else {
-			require.False(latestEvent.Error)
-			require.NotNil(latestEvent.Count)
-			require.Equal(newCount, *latestEvent.Count)
 		}
 	}
 }

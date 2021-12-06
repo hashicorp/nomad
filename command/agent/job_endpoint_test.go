@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -596,6 +597,101 @@ func TestHTTP_JobUpdate(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobUpdate_EvalPriority(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		inputEvalPriority int
+		expectedError     bool
+		name              string
+	}{
+		{
+			inputEvalPriority: 95,
+			expectedError:     false,
+			name:              "valid input eval priority",
+		},
+		{
+			inputEvalPriority: 99999999999,
+			expectedError:     true,
+			name:              "invalid input eval priority",
+		},
+		{
+			inputEvalPriority: 0,
+			expectedError:     false,
+			name:              "no input eval priority",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			httpTest(t, nil, func(s *TestAgent) {
+				// Create the job
+				job := MockJob()
+				args := api.JobRegisterRequest{
+					Job: job,
+					WriteRequest: api.WriteRequest{
+						Region:    "global",
+						Namespace: api.DefaultNamespace,
+					},
+				}
+
+				// Add our eval priority query param if set.
+				if tc.inputEvalPriority > 0 {
+					args.EvalPriority = tc.inputEvalPriority
+				}
+				buf := encodeReq(args)
+
+				// Make the HTTP request
+				req, err := http.NewRequest("PUT", "/v1/job/"+*job.ID, buf)
+				assert.Nil(t, err)
+				respW := httptest.NewRecorder()
+
+				// Make the request
+				obj, err := s.Server.JobSpecificRequest(respW, req)
+				if tc.expectedError {
+					assert.NotNil(t, err)
+					return
+				} else {
+					assert.Nil(t, err)
+				}
+
+				// Check the response
+				regResp := obj.(structs.JobRegisterResponse)
+				assert.NotEmpty(t, regResp.EvalID)
+				assert.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"))
+
+				// Check the job is registered
+				getReq := structs.JobSpecificRequest{
+					JobID: *job.ID,
+					QueryOptions: structs.QueryOptions{
+						Region:    "global",
+						Namespace: structs.DefaultNamespace,
+					},
+				}
+				var getResp structs.SingleJobResponse
+				assert.Nil(t, s.Agent.RPC("Job.GetJob", &getReq, &getResp))
+				assert.NotNil(t, getResp.Job)
+
+				// Check the evaluation that resulted from the job register.
+				evalInfoReq, err := http.NewRequest("GET", "/v1/evaluation/"+regResp.EvalID, nil)
+				assert.Nil(t, err)
+				respW.Flush()
+
+				evalRaw, err := s.Server.EvalSpecificRequest(respW, evalInfoReq)
+				assert.Nil(t, err)
+				evalRespObj := evalRaw.(*structs.Evaluation)
+
+				if tc.inputEvalPriority > 0 {
+					assert.Equal(t, tc.inputEvalPriority, evalRespObj.Priority)
+				} else {
+					assert.Equal(t, *job.Priority, evalRespObj.Priority)
+				}
+			})
+		})
+	}
+}
+
 func TestHTTP_JobUpdateRegion(t *testing.T) {
 	t.Parallel()
 
@@ -795,6 +891,117 @@ func TestHTTP_JobDelete(t *testing.T) {
 			t.Fatalf("job still exists")
 		}
 	})
+}
+
+func TestHTTP_JobDelete_EvalPriority(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		inputEvalPriority int
+		expectedError     bool
+		name              string
+	}{
+		{
+			inputEvalPriority: 95,
+			expectedError:     false,
+			name:              "valid input eval priority",
+		},
+		{
+			inputEvalPriority: 99999999999,
+			expectedError:     true,
+			name:              "invalid input eval priority",
+		},
+		{
+			inputEvalPriority: 0,
+			expectedError:     false,
+			name:              "no input eval priority",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			httpTest(t, nil, func(s *TestAgent) {
+				// Create the job
+				job := MockJob()
+				args := api.JobRegisterRequest{
+					Job: job,
+					WriteRequest: api.WriteRequest{
+						Region:    "global",
+						Namespace: api.DefaultNamespace,
+					},
+				}
+				buf := encodeReq(args)
+
+				// Make the HTTP request
+				regReq, err := http.NewRequest("PUT", "/v1/job/"+*job.ID, buf)
+				assert.Nil(t, err)
+				respW := httptest.NewRecorder()
+
+				// Make the request
+				obj, err := s.Server.JobSpecificRequest(respW, regReq)
+				assert.Nil(t, err)
+
+				// Check the response
+				regResp := obj.(structs.JobRegisterResponse)
+				assert.NotEmpty(t, regResp.EvalID)
+				assert.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"))
+
+				// Check the job is registered
+				getReq := structs.JobSpecificRequest{
+					JobID: *job.ID,
+					QueryOptions: structs.QueryOptions{
+						Region:    "global",
+						Namespace: structs.DefaultNamespace,
+					},
+				}
+				var getResp structs.SingleJobResponse
+				assert.Nil(t, s.Agent.RPC("Job.GetJob", &getReq, &getResp))
+				assert.NotNil(t, getResp.Job)
+
+				// Delete the job.
+				deleteReq, err := http.NewRequest("DELETE", "/v1/job/"+*job.ID+"?purge=true", nil)
+				assert.Nil(t, err)
+				respW.Flush()
+
+				// Add our eval priority query param if set.
+				if tc.inputEvalPriority > 0 {
+					q := deleteReq.URL.Query()
+					q.Add("eval_priority", strconv.Itoa(tc.inputEvalPriority))
+					deleteReq.URL.RawQuery = q.Encode()
+				}
+
+				// Make the request
+				obj, err = s.Server.JobSpecificRequest(respW, deleteReq)
+				if tc.expectedError {
+					assert.NotNil(t, err)
+					return
+				} else {
+					assert.Nil(t, err)
+				}
+
+				// Check the response
+				dereg := obj.(structs.JobDeregisterResponse)
+				assert.NotEmpty(t, dereg.EvalID)
+				assert.NotEmpty(t, respW.Result().Header.Get("X-Nomad-Index"))
+
+				// Check the evaluation that resulted from the job register.
+				evalInfoReq, err := http.NewRequest("GET", "/v1/evaluation/"+dereg.EvalID, nil)
+				assert.Nil(t, err)
+				respW.Flush()
+
+				evalRaw, err := s.Server.EvalSpecificRequest(respW, evalInfoReq)
+				assert.Nil(t, err)
+				evalRespObj := evalRaw.(*structs.Evaluation)
+
+				if tc.inputEvalPriority > 0 {
+					assert.Equal(t, tc.inputEvalPriority, evalRespObj.Priority)
+				} else {
+					assert.Equal(t, *job.Priority, evalRespObj.Priority)
+				}
+			})
+		})
+	}
 }
 
 func TestHTTP_Job_ScaleTaskGroup(t *testing.T) {

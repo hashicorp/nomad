@@ -132,6 +132,9 @@ type Config struct {
 	// parameters necessary to derive tokens.
 	Vault *config.VaultConfig `hcl:"vault"`
 
+	// UI is used to configure the web UI
+	UI *config.UIConfig `hcl:"ui"`
+
 	// NomadConfig is used to override the default config.
 	// This is largely used for testing purposes.
 	NomadConfig *nomad.Config `hcl:"-" json:"-"`
@@ -926,6 +929,7 @@ func DefaultConfig() *Config {
 		AdvertiseAddrs: &AdvertiseAddrs{},
 		Consul:         config.DefaultConsulConfig(),
 		Vault:          config.DefaultVaultConfig(),
+		UI:             config.DefaultUIConfig(),
 		Client: &ClientConfig{
 			Enabled:               false,
 			MaxKillTimeout:        "30s",
@@ -1162,6 +1166,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Vault = &vaultConfig
 	} else if b.Vault != nil {
 		result.Vault = result.Vault.Merge(b.Vault)
+	}
+
+	// Apply the UI Configuration
+	if result.UI == nil && b.UI != nil {
+		uiConfig := *b.UI
+		result.UI = &uiConfig
+	} else if b.UI != nil {
+		result.UI = result.UI.Merge(b.UI)
 	}
 
 	// Apply the sentinel config

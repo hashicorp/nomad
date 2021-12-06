@@ -824,10 +824,20 @@ func (w *deploymentWatcher) createBatchedUpdate(allowReplacements []string, forI
 // getEval returns an evaluation suitable for the deployment
 func (w *deploymentWatcher) getEval() *structs.Evaluation {
 	now := time.Now().UTC().UnixNano()
+
+	// During a server upgrade it's possible we end up with deployments created
+	// on the previous version that are then "watched" on a leader that's on
+	// the new version. This would result in an eval with its priority set to
+	// zero which would be bad. This therefore protects against that.
+	priority := w.d.EvalPriority
+	if priority == 0 {
+		priority = w.j.Priority
+	}
+
 	return &structs.Evaluation{
 		ID:           uuid.Generate(),
 		Namespace:    w.j.Namespace,
-		Priority:     w.j.Priority,
+		Priority:     priority,
 		Type:         w.j.Type,
 		TriggeredBy:  structs.EvalTriggerDeploymentWatcher,
 		JobID:        w.j.ID,
