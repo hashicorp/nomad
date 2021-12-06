@@ -39,7 +39,7 @@ const subnavData = [
     type: 'inbound',
   },
   {
-    text: 'Plugins',
+    text: 'Plugins and Tools',
     url: '/plugins',
     type: 'inbound',
   },

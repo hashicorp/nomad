@@ -1,34 +1,14 @@
 [
   {
-    "title": "Task Drivers",
+    "title": "External Task Drivers",
     "routes": [
       {
         "title": "Overview",
         "path": "drivers"
       },
       {
-        "title": "Docker",
-        "path": "drivers/docker"
-      },
-      {
-        "title": "Isolated Fork/Exec",
-        "path": "drivers/exec"
-      },
-      {
-        "title": "Java",
-        "path": "drivers/java"
-      },
-      {
         "title": "Podman",
         "path": "drivers/podman"
-      },
-      {
-        "title": "QEMU",
-        "path": "drivers/qemu"
-      },
-      {
-        "title": "Raw Fork/Exec",
-        "path": "drivers/raw_exec"
       },
       {
         "title": "Community",
@@ -99,26 +79,26 @@
     ]
   },
   {
-    "title": "Device Plugins",
+    "title": "External Device Plugins",
     "routes": [
       {
         "title": "Overview",
         "path": "devices"
       },
       {
-        "title": "External",
+        "title": "Nvidia",
+        "path": "devices/nvidia"
+      },
+      {
+        "title": "Community",
         "routes": [
           {
             "title": "Overview",
-            "path": "devices/external"
-          },
-          {
-            "title": "Nvidia",
-            "path": "devices/external/nvidia"
+            "path": "devices/community"
           },
           {
             "title": "USB <sup>Beta</sup>",
-            "path": "devices/external/usb"
+            "path": "devices/community/usb"
           }
         ]
       }
