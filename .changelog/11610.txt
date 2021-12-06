@@ -1,0 +1,3 @@
+```release-note:improvement
+scheduler: Added a `RejectJobRegistration` field to the scheduler configuration API that enabled a setting to reject job register, dispatch, and scale requests without a management ACL token
+```

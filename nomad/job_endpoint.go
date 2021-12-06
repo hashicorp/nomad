@@ -114,7 +114,8 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	reply.Warnings = structs.MergeMultierrorWarnings(warnings...)
 
 	// Check job submission permissions
-	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+	var aclObj *acl.ACL
+	if aclObj, err = j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil {
 		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
@@ -173,6 +174,11 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			}
 			j.logger.Warn("policy override set for job", "job", args.Job.ID)
 		}
+	}
+
+	if ok, err := registrationsAreAllowed(aclObj, j.srv.State()); !ok || err != nil {
+		j.logger.Warn("job registration is currently disabled for non-management ACL")
+		return structs.ErrJobRegistrationDisabled
 	}
 
 	// Lookup the job
@@ -1022,6 +1028,11 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 		}
 	}
 
+	if ok, err := registrationsAreAllowed(aclObj, j.srv.State()); !ok || err != nil {
+		j.logger.Warn("job scaling is currently disabled for non-management ACL")
+		return structs.ErrJobRegistrationDisabled
+	}
+
 	// Validate args
 	err = args.Validate()
 	if err != nil {
@@ -1302,6 +1313,22 @@ func allowedNSes(aclObj *acl.ACL, state *state.StateStore, allow func(ns string)
 	}
 
 	return r, nil
+}
+
+// registrationsAreAllowed checks that the scheduler is not in
+// RejectJobRegistration mode for load-shedding.
+func registrationsAreAllowed(aclObj *acl.ACL, state *state.StateStore) (bool, error) {
+	_, cfg, err := state.SchedulerConfig()
+	if err != nil {
+		return false, err
+	}
+	if cfg != nil && !cfg.RejectJobRegistration {
+		return true, nil
+	}
+	if aclObj != nil && aclObj.IsManagement() {
+		return true, nil
+	}
+	return false, nil
 }
 
 // List is used to list the jobs registered in the system
@@ -1852,10 +1879,17 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	defer metrics.MeasureSince([]string{"nomad", "job", "dispatch"}, time.Now())
 
 	// Check for submit-job permissions
-	if aclObj, err := j.srv.ResolveToken(args.AuthToken); err != nil {
+	var aclObj *acl.ACL
+	var err error
+	if aclObj, err = j.srv.ResolveToken(args.AuthToken); err != nil {
 		return err
 	} else if aclObj != nil && !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityDispatchJob) {
 		return structs.ErrPermissionDenied
+	}
+
+	if ok, err := registrationsAreAllowed(aclObj, j.srv.State()); !ok || err != nil {
+		j.logger.Warn("job dispatch is currently disabled for non-management ACL")
+		return structs.ErrJobRegistrationDisabled
 	}
 
 	// Lookup the parameterized job
