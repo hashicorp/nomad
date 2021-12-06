@@ -60,6 +60,10 @@ type Worker struct {
 	paused  bool
 	stopped bool // Indicates that the worker is in a terminal state; read with Stopped()
 
+	// the Server.Config.EnabledSchedulers value is not safe for concurrent access, so
+	// the worker needs a cached copy of it. Workers are stopped if this value changes.
+	enabledSchedulers []string
+
 	ctx      context.Context
 	cancelFn context.CancelFunc
 
@@ -79,9 +83,10 @@ type Worker struct {
 // NewWorker starts a new worker associated with the given server
 func NewWorker(ctx context.Context, srv *Server) (*Worker, error) {
 	w := &Worker{
-		srv:   srv,
-		start: time.Now(),
-		id:    uuid.Generate(),
+		srv:               srv,
+		start:             time.Now(),
+		id:                uuid.Generate(),
+		enabledSchedulers: srv.GetSchedulerWorkerConfig().EnabledSchedulers,
 	}
 	w.logger = srv.logger.ResetNamed("worker").With("worker_id", w.id)
 	w.pauseCond = sync.NewCond(&w.pauseLock)
@@ -206,7 +211,7 @@ func (w *Worker) dequeueEvaluation(timeout time.Duration) (
 	eval *structs.Evaluation, token string, waitIndex uint64, shutdown bool) {
 	// Setup the request
 	req := structs.EvalDequeueRequest{
-		Schedulers:       w.srv.config.EnabledSchedulers,
+		Schedulers:       w.enabledSchedulers,
 		Timeout:          timeout,
 		SchedulerVersion: scheduler.SchedulerVersion,
 		WriteRequest: structs.WriteRequest{
