@@ -826,11 +826,3 @@ type agentSchedulerWorkerConfig struct {
 	NumSchedulers     int      `json:"num_schedulers"`
 	EnabledSchedulers []string `json:"enabled_schedulers"`
 }
-type agentSchedulerWorkerConfigRequest struct {
-	agentSchedulerWorkerConfig
-}
-
-type agentSchedulerWorkerConfigResponse struct {
-	NumSchedulers     int      `json:"num_schedulers"`
-	EnabledSchedulers []string `json:"enabled_schedulers"`
-}

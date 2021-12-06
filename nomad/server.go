@@ -226,10 +226,8 @@ type Server struct {
 	vault VaultClient
 
 	// Worker used for processing
-	workers                  []*Worker
-	currentNumSchedulers     int
-	currentEnabledSchedulers []string
-	workerLock               sync.RWMutex
+	workers    []*Worker
+	workerLock sync.RWMutex
 
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *lru.TwoQueueCache
