@@ -5040,18 +5040,6 @@ func TestParameterizedJobConfig_Validate(t *testing.T) {
 	}
 }
 
-func TestParameterizedJobConfig_Validate_NonBatch(t *testing.T) {
-	job := testJob()
-	job.ParameterizedJob = &ParameterizedJobConfig{
-		Payload: DispatchPayloadOptional,
-	}
-	job.Type = JobTypeSystem
-
-	if err := job.Validate(); err == nil || !strings.Contains(err.Error(), "only be used with") {
-		t.Fatalf("Expected bad scheduler tpye: %v", err)
-	}
-}
-
 func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
 	// Setup a system Job with stop_after_client_disconnect set, which is invalid
 	job := testJob()

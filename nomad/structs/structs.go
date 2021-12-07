@@ -4326,12 +4326,6 @@ func (j *Job) Validate() error {
 	}
 
 	if j.IsParameterized() {
-		if j.Type != JobTypeBatch && j.Type != JobTypeSysBatch {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf(
-				"Parameterized job can only be used with %q or %q scheduler", JobTypeBatch, JobTypeSysBatch,
-			))
-		}
-
 		if err := j.ParameterizedJob.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
