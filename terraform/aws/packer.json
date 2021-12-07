@@ -15,7 +15,9 @@
     },
     "instance_type": "t2.medium",
     "ssh_username": "ubuntu",
-    "ami_name": "hashistack {{timestamp}}"
+    "ami_name": "hashistack {{timestamp}}",
+    "tag:Name": "Ubuntu 21.10",
+    "tag:Author": "Mikael Sikora"
   }],
   "provisioners":  [
   {
