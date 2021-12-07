@@ -76,7 +76,7 @@
     "ember-cli-terser": "^4.0.1",
     "ember-composable-helpers": "^4.4.1",
     "ember-concurrency": "^1.0.0",
-    "ember-copy": "^1.0.0",
+    "ember-copy": "^2.0.1",
     "ember-data": "~3.24",
     "ember-data-model-fragments": "5.0.0-beta.2",
     "ember-decorators": "^6.1.1",
