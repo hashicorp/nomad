@@ -30,8 +30,10 @@ There are three ways to obtain metrics from Nomad:
 - Query the [/metrics API endpoint][metrics-api-endpoint] to return metrics for
   the current Nomad process (as of Nomad 0.7). This endpoint supports Prometheus
   formatted metrics.
+
 - Send the USR1 signal to the Nomad process. This will dump the current
   telemetry information to STDERR (on Linux).
+
 - Configure Nomad to automatically forward metrics to a third-party provider.
 
 Nomad 0.7 added support for [tagged metrics][tagged-metrics], improving the
@@ -45,7 +47,7 @@ The recommended practice for alerting is to leverage the alerting capabilities
 of your monitoring provider. Nomad’s intention is to surface metrics that enable
 users to configure the necessary alerts using their existing monitoring systems
 as a scaffold, rather than to natively support alerting. Here are a few common
-patterns:
+patterns.
 
 - Export metrics from Nomad to Prometheus using the [StatsD
   exporter][statsd-exporter], define [alerting rules][alerting-rules] in
@@ -94,12 +96,15 @@ followers and network latency between the leader and the followers.
 
 The details for how to examine CPU, IO operations, and networking are
 specific to your platform and environment. On Linux, the `sysstat`
-package contains a number of useful tools. Some example to look for:
+package contains a number of useful tools. Here are examples to
+consider.
 
-* CPU: `vmstat 1`, cloud provider metrics for "CPU %"
-* IO: `iostat`, `sar -d`, cloud provider metrics for "volume
+- **CPU** - `vmstat 1`, cloud provider metrics for "CPU %"
+
+- **IO** - `iostat`, `sar -d`, cloud provider metrics for "volume
   write/read ops" and "burst balance"
-* Network: `sar -n`, `netstat -s`, cloud provider metrics for
+
+- **Network** - `sar -n`, `netstat -s`, cloud provider metrics for
   interface "allowance"
 
 The `nomad.raft.fsm.apply` metric is an indicator of the time it takes
@@ -119,7 +124,7 @@ deployment. An uptick in `member.flap` and/or `msg.suspect` is a reliable indica
 that membership is unstable.
 
 If these metrics increase, look at CPU load on the servers and network
-latency and packet loss for the [serf] address.
+latency and packet loss for the [Serf] address.
 
 ## Scheduling
 
@@ -127,7 +132,7 @@ The [Scheduling] documentation describes the workflow of how
 evaluations become scheduled plans and placed allocations. The
 following metrics, listed in the order they are emitted, allow an
 operator to observe changes in throughput at the various points in the
-scheduling process:
+scheduling process.
 
 - **nomad.worker.invoke_scheduler.<type\>** - The time to run the
   scheduler of the given type. Each scheduler worker handles one
@@ -191,7 +196,7 @@ be at or near capacity, with queued jobs running as soon as adequate resources
 become available. Clusters that are primarily responsible for long running
 services with an uptime requirement may want to maintain headroom at 20% or
 more. The following metrics can be used to assess capacity across the cluster on
-a per client basis:
+a per client basis.
 
 - **nomad.client.allocated.cpu**
 - **nomad.client.unallocated.cpu**
@@ -216,7 +221,7 @@ we will consider adding metrics where it makes sense.
 ## Runtime Metrics
 
 Runtime metrics apply to all clients and servers. The following metrics are
-general indicators of load and memory pressure:
+general indicators of load and memory pressure.
 
 - **nomad.runtime.num_goroutines**
 - **nomad.runtime.heap_objects**
