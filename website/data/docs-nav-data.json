@@ -1721,12 +1721,12 @@
         "path": "operations/nomad-agent"
       },
       {
-        "title": "Telemetry",
-        "path": "operations/telemetry"
+        "title": "Monitoring Nomad",
+        "path": "operations/monitoring-nomad"
       },
       {
-        "title": "Metrics",
-        "path": "operations/metrics"
+        "title": "Metrics Reference",
+        "path": "operations/metrics-reference"
       },
       {
         "title": "Cluster Management",
