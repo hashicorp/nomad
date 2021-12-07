@@ -576,6 +576,7 @@ workflows:
               ignore:
                 - /^.-ui\b.*/
                 - /^docs-.*/
+                - /^backport/docs-.*/
                 - stable-website
 
         # Note: comment-out this job in ENT
@@ -591,6 +592,7 @@ workflows:
               ignore:
                 - stable-website
                 - /^docs-.*/
+                - /^backport/docs-.*/
                 - /^e2e-.*/
 
         # Note: comment-out this job in ENT
@@ -600,6 +602,7 @@ workflows:
               ignore:
                 - /^.-ui\b.*/
                 - /^docs-.*/
+                - /^backport/docs-.*/
                 - /^e2e-.*/
                 - stable-website
 
@@ -612,6 +615,7 @@ workflows:
               ignore:
                 - /^.-ui\b.*/
                 - /^docs-.*/
+                - /^backport/docs-.*/
                 - /^e2e-.*/
                 - stable-website
       - test-machine:
