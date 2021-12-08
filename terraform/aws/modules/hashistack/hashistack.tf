@@ -210,7 +210,6 @@ resource "aws_instance" "server" {
     volume_type           = "gp2"
     volume_size           = var.root_block_device_size
     delete_on_termination = "true"
-    encrypted             = "true"
   }
 
   user_data            = data.template_file.user_data_server.rendered
