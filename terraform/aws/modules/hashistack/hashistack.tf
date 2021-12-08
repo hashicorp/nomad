@@ -240,6 +240,7 @@ resource "aws_instance" "client" {
     volume_type           = "gp2"
     volume_size           = var.root_block_device_size
     delete_on_termination = "true"
+    encrypted             = "true"
   }
 
   ebs_block_device {
