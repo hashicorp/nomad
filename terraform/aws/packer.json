@@ -6,7 +6,7 @@
       "filters": {
         "virtualization-type": "hvm",
         "architecture": "x86_64",
-        "name": "ubuntu/images/hvm-ssd/ubuntu-impish-21.10-amd64-server-*",
+        "name": "ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*",
         "block-device-mapping.volume-type": "gp2",
         "root-device-type": "ebs"
       },
@@ -17,8 +17,8 @@
     "ssh_username": "ubuntu",
     "ami_name": "hashistack {{timestamp}}",
     "tags": {
-        "Name": "Ubuntu 21.10",
-        "tag:Author": "Mikael Sikora"
+        "Name": "Ubuntu 20.04",
+        "Author": "Mikael Sikora"
       }
   }],
   "provisioners":  [
@@ -43,7 +43,7 @@
     "type": "shell",
     "script": "../shared/scripts/setup.sh",
     "environment_vars": [
-      "INSTALL_NVIDIA_DOCKER=false"
+      "INSTALL_NVIDIA_DOCKER=true"
     ]
   }]
 }
