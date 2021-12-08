@@ -810,7 +810,7 @@ func (s *Server) Reload(newConfig *Config) error {
 		s.EnterpriseState.ReloadLicense(newConfig)
 	}
 
-	workerPoolArgs := unsafeGetSchedulerWorkerPoolArgsFromConfig(newConfig)
+	workerPoolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(newConfig)
 	if reload, newVals := shouldReloadSchedulers(s, workerPoolArgs); reload {
 		if newVals.IsValid() {
 			reloadSchedulers(s, newVals)
@@ -1504,7 +1504,7 @@ func (swpa SchedulerWorkerPoolArgs) IsValid() bool {
 	return foundCore
 }
 
-func unsafeGetSchedulerWorkerPoolArgsFromConfig(c *Config) *SchedulerWorkerPoolArgs {
+func getSchedulerWorkerPoolArgsFromConfigLocked(c *Config) *SchedulerWorkerPoolArgs {
 	return &SchedulerWorkerPoolArgs{
 		NumSchedulers:     c.NumSchedulers,
 		EnabledSchedulers: c.EnabledSchedulers,
@@ -1514,7 +1514,7 @@ func unsafeGetSchedulerWorkerPoolArgsFromConfig(c *Config) *SchedulerWorkerPoolA
 func (s *Server) GetSchedulerWorkerConfig() SchedulerWorkerPoolArgs {
 	s.workerLock.RLock()
 	defer s.workerLock.RUnlock()
-	return *unsafeGetSchedulerWorkerPoolArgsFromConfig(s.config)
+	return *getSchedulerWorkerPoolArgsFromConfigLocked(s.config)
 }
 
 func (s *Server) SetSchedulerWorkerConfig(newArgs SchedulerWorkerPoolArgs) SchedulerWorkerPoolArgs {
@@ -1539,19 +1539,19 @@ func reloadSchedulers(s *Server, newArgs *SchedulerWorkerPoolArgs) {
 	// TODO: If EnabledSchedulers didn't change, we can scale rather than drain and rebuild
 	s.config.NumSchedulers = newArgs.NumSchedulers
 	s.config.EnabledSchedulers = newArgs.EnabledSchedulers
-	s.unsafeSetupNewWorkers()
+	s.setupNewWorkersLocked()
 }
 
 // setupWorkers is used to start the scheduling workers
 func (s *Server) setupWorkers(ctx context.Context) error {
 	s.workerLock.Lock()
 	defer s.workerLock.Unlock()
-	return s.unsafeSetupWorkers(ctx)
+	return s.setupWorkersLocked(ctx)
 }
 
-// unsafeSetupWorkers directly manipulates the server.config, so it is not safe to
+// setupWorkersLocked directly manipulates the server.config, so it is not safe to
 // call concurrently. Use setupWorkers() or call this with server.workerLock set.
-func (s *Server) unsafeSetupWorkers(ctx context.Context) error {
+func (s *Server) setupWorkersLocked(ctx context.Context) error {
 	// Check if all the schedulers are disabled
 	if len(s.config.EnabledSchedulers) == 0 || s.config.NumSchedulers == 0 {
 		s.logger.Warn("no enabled schedulers")
@@ -1589,9 +1589,9 @@ func (s *Server) unsafeSetupWorkers(ctx context.Context) error {
 	return nil
 }
 
-// unsafeSetupNewWorkers directly manipulates the server.config, so it is not safe to
+// setupNewWorkersLocked directly manipulates the server.config, so it is not safe to
 // call concurrently. Use reloadWorkers() or call this with server.workerLock set.
-func (s *Server) unsafeSetupNewWorkers() error {
+func (s *Server) setupNewWorkersLocked() error {
 	// make a copy of the s.workers array so we can safely stop those goroutines asynchronously
 	oldWorkers := make([]*Worker, len(s.workers))
 	defer s.stopOldWorkers(oldWorkers)
@@ -1600,10 +1600,10 @@ func (s *Server) unsafeSetupNewWorkers() error {
 	}
 	s.logger.Info(fmt.Sprintf("marking %v current schedulers for shutdown", len(oldWorkers)))
 
-	// build a clean backing array and call unsafeSetupWorkers like setupWorkers does in the normal startup path
-
+	// build a clean backing array and call setupWorkersLocked like setupWorkers
+	// does in the normal startup path
 	s.workers = make([]*Worker, 0, s.config.NumSchedulers)
-	err := s.unsafeSetupWorkers(s.shutdownCtx)
+	err := s.setupWorkersLocked(s.shutdownCtx)
 	if err != nil {
 		return err
 	}
