@@ -1,7 +1,7 @@
 import Controller from '@ember/controller';
 
 export default class ClientsClientController extends Controller {
-  breadcrumbs() {
+  get breadcrumbs() {
     const model = this.model;
     if (!model) return [];
     return [

@@ -1,0 +1,19 @@
+<Trigger @do={{this.fetchParent}} as |trigger|>
+  {{did-insert trigger.fns.do}}
+  {{#if trigger.data.result}}
+    <li>
+      <LinkTo @params={{trigger.data.result.args}} data-test-breadcrumb={{@crumb.args.firstObject}}>
+        {{trigger.data.result.label}}
+      </LinkTo>
+    </li>
+  {{/if}}
+  <li>
+    <LinkTo
+      @route={{@crumbs.args}}
+      data-test-breadcrumb={{@crumb.args.firstObject}}
+      {{!-- @model={{trigger.data.result}} FIX THIS PARAMETER --}}
+    >
+      {{this.crumb.label}}
+    </LinkTo>
+  </li>
+</Trigger>

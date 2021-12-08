@@ -1,6 +1,5 @@
 import Controller from '@ember/controller';
 import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
-import { jobCrumbs } from 'nomad-ui/utils/breadcrumb-utils';
 
 export default class AllocationsAllocationController extends Controller {
   // Allocation breadcrumbs extend from job / task group breadcrumbs
@@ -13,7 +12,7 @@ export default class AllocationsAllocationController extends Controller {
 
     return [
       { label: 'Jobs', args: ['jobs.index', jobQueryParams] },
-      ...jobCrumbs(model.get('job')),
+      { type: 'job', job: model.get('job') },
       {
         label: model.get('taskGroupName'),
         args: [
