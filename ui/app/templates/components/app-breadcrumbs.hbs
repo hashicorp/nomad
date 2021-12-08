@@ -1,17 +1,15 @@
 <Breadcrumbs as |bb|>
   {{#each bb as |breadcrumb index|}}
     {{#each breadcrumb.args.crumb as |b|}}
-      <li class="{{if (eq (inc index) this.b.length) "is-active"}}">
-        {{#if b.isPending}}
+      {{#if b.isPending}}
+        <li class="{{if (eq (inc index) this.b.length) "is-active"}}">
           <a href="#" aria-label="loading" data-test-breadcrumb="loading">
             …
           </a>
-        {{else}}
-          <LinkTo @params={{b.args}} data-test-breadcrumb={{b.args.firstObject}}>
-            {{b.label}}
-          </LinkTo>
-        {{/if}}
-      </li>
+        </li>
+      {{else}}
+        {{component (concat "breadcrumbs/" (or b.type "default")) crumb=b}}
+      {{/if}}
     {{/each}}
   {{/each}}
 </Breadcrumbs>
