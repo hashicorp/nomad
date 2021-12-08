@@ -1262,4 +1262,51 @@ module.exports = [
     destination: '/:splat',
     permanent: true,
   },
+  // Extracted content into `/plugins` & `/tools`
+  {
+    source: '/docs/drivers',
+    destination: '/plugins/drivers',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/:splat*',
+    destination: '/plugins/drivers/:splat*',
+    permanent: true,
+  },
+  {
+    source: '/docs/autoscaling',
+    destination: '/tools/autoscaling',
+    permanent: true,
+  },
+  {
+    source: '/docs/autoscaling/:splat*',
+    destination: '/tools/autoscaling/:splat*',
+    permanent: true,
+  },
+  // Extracted content into `/plugins` & `/tools`; One-off redirects
+  {
+    source: '/docs/operations/metrics-reference',
+    destination: '/docs/operations/metrics',
+    permanent: true,
+  },
+  {
+    source: '/docs/operations/monitoring-nomad',
+    destination: '/docs/operations/telemetry',
+    permanent: true,
+  },
+  {
+    source: '/docs/devices/external',
+    destination: '/plugins/devices/community',
+    permanent: true,
+  },
+  {
+    source: '/docs/devices/external/usb',
+    destination: '/plugins/devices/community/usb',
+    permanent: true,
+  },
+  {
+    source: '/docs/devices/external/nvidia',
+    destination: '/plugins/devices/nvidia',
+    permanent: true,
+  },
 ]
