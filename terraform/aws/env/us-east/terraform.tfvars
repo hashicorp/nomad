@@ -34,7 +34,7 @@ ami = "ami-0ce4637fe61082643"
 server_instance_type = "t3.medium"
 server_count         = "3"
 client_instance_type = "t3.medium"
-client_count         = "3"
+client_count         = "2"
 
 # `whitelist_ip` (required) - IP to whitelist for the security groups (set
 # to 0.0.0.0/0 for world).  
