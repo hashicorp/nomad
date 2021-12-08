@@ -1352,19 +1352,19 @@
     "routes": [
       {
         "title": "Overview",
-        "href": "/plugins/drivers"
+        "path": "drivers"
       },
       {
         "title": "Docker",
-        "href": "/plugins/drivers/docker"
+        "path": "drivers/docker"
       },
       {
         "title": "Isolated Fork/Exec",
-        "href": "/plugins/drivers/exec"
+        "path": "drivers/exec"
       },
       {
         "title": "Java",
-        "href": "/plugins/drivers/java"
+        "path": "drivers/java"
       },
       {
         "title": "Podman",
@@ -1372,11 +1372,11 @@
       },
       {
         "title": "QEMU",
-        "href": "/plugins/drivers/qemu"
+        "path": "drivers/qemu"
       },
       {
         "title": "Raw Fork/Exec",
-        "href": "/plugins/drivers/raw_exec"
+        "path": "drivers/raw_exec"
       },
       {
         "title": "Community",
@@ -1451,22 +1451,22 @@
     "routes": [
       {
         "title": "Overview",
-        "href": "/plugins/devices"
+        "path": "devices"
       },
       {
         "title": "External",
         "routes": [
           {
             "title": "Overview",
-            "href": "/plugins/devices/external"
+            "href": "/plugins/devices"
           },
           {
             "title": "Nvidia",
-            "href": "/plugins/devices/external/nvidia"
+            "href": "/plugins/devices/nvidia"
           },
           {
             "title": "USB <sup>Beta</sup>",
-            "href": "/plugins/devices/external/usb"
+            "href": "/plugins/devices/community/usb"
           }
         ]
       }

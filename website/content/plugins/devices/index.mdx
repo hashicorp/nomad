@@ -1,18 +1,17 @@
 ---
 layout: docs
-page_title: Device Plugins
-description: Device Plugins are used to expose devices to tasks in Nomad.
+page_title: 'Device Plugins: External'
+description: 'A list of external Device Plugins.'
 ---
 
-# Device Plugins
+# External Device Plugins
 
-Device plugins are used to detect and make devices available to tasks in
-Nomad. Devices are physical hardware that exists on a client node such as a
-GPU or an FPGA. By having extensible device plugins, Nomad has the flexibility
-to support a broad set of devices and allows the community to build additional
-device plugins as needed.
+Nomad has a plugin system for defining task drivers. External device driver
+plugins will have the same user experience as built in devices.
 
-The list of supported device plugins is provided on the left of this page.
-Each device plugin documents its configuration and installation requirements,
-the attributes it fingerprints, and the environment variables it exposes to
-tasks.
+Below is a list of official external task drivers you can use with Nomad:
+
+- [Nvidia][nvidia]
+
+[plugin_guide]: /docs/internals/plugins
+[nvidia]: /docs/devices/external/nvidia
