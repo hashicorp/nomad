@@ -277,13 +277,10 @@ type QueryOptions struct {
 	// paginated lists.
 	PerPage int32
 
-	// LastToken is the token used indicate where to start paging for
-	// queries that support paginated lists. This token should be the
-	// ID of the last object seen in the previous response
-	LastToken string
-
-	// (DEPRECATED) NextToken is the token used indicate where to
-	// start paging for queries that support paginated lists.
+	// NextToken is the token used to indicate where to start paging
+	// for queries that support paginated lists. This token should be
+	// the ID of the next object after the last one seen in the
+	// previous response.
 	NextToken string
 
 	InternalRpcInfo
@@ -442,10 +439,10 @@ type QueryMeta struct {
 	// Used to indicate if there is a known leader node
 	KnownLeader bool
 
-	// LastToken is the token returned with queries that support
+	// NextToken is the token returned with queries that support
 	// paginated lists. To resume paging from this point, pass
 	// this token in the next request's QueryOptions.
-	LastToken string
+	NextToken string
 }
 
 // WriteMeta allows a write response to include potentially
@@ -854,7 +851,21 @@ type EvalDequeueRequest struct {
 
 // EvalListRequest is used to list the evaluations
 type EvalListRequest struct {
+	FilterJobID      string
+	FilterEvalStatus string
 	QueryOptions
+}
+
+// ShouldBeFiltered indicates that the eval should be filtered (that
+// is, removed) from the results
+func (req *EvalListRequest) ShouldBeFiltered(e *Evaluation) bool {
+	if req.FilterJobID != "" && req.FilterJobID != e.JobID {
+		return true
+	}
+	if req.FilterEvalStatus != "" && req.FilterEvalStatus != e.Status {
+		return true
+	}
+	return false
 }
 
 // PlanRequest is used to submit an allocation plan to the leader
@@ -10399,6 +10410,14 @@ type Evaluation struct {
 
 	CreateTime int64
 	ModifyTime int64
+}
+
+// GetID implements the IDGetter interface, required for pagination
+func (e *Evaluation) GetID() string {
+	if e == nil {
+		return ""
+	}
+	return e.ID
 }
 
 // TerminalStatus returns if the current status is terminal and

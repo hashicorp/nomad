@@ -362,16 +362,33 @@ func (e *Eval) List(args *structs.EvalListRequest,
 				return err
 			}
 
-			var evals []*structs.Evaluation
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
+			iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+				if eval := raw.(*structs.Evaluation); eval != nil {
+					return args.ShouldBeFiltered(eval)
 				}
-				eval := raw.(*structs.Evaluation)
-				evals = append(evals, eval)
+				return false
+			})
+
+			var evals []*structs.Evaluation
+			paginator := newPaginator(iter, args.QueryOptions)
+
+		DONE:
+			for {
+				raw, andThen := paginator.Next()
+
+				switch andThen {
+				case PaginatorInclude:
+					eval := raw.(*structs.Evaluation)
+					evals = append(evals, eval)
+				case PaginatorSkip:
+					continue
+				case PaginatorComplete:
+					break DONE
+				}
 			}
+
 			reply.Evaluations = evals
+			reply.QueryMeta.NextToken = paginator.NextToken()
 
 			// Use the last index that affected the jobs table
 			index, err := state.Index("evals")
