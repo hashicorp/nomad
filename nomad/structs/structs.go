@@ -277,8 +277,13 @@ type QueryOptions struct {
 	// paginated lists.
 	PerPage int32
 
-	// NextToken is the token used indicate where to start paging for queries
-	// that support paginated lists.
+	// LastToken is the token used indicate where to start paging for
+	// queries that support paginated lists. This token should be the
+	// ID of the last object seen in the previous response
+	LastToken string
+
+	// (DEPRECATED) NextToken is the token used indicate where to
+	// start paging for queries that support paginated lists.
 	NextToken string
 
 	InternalRpcInfo
@@ -436,6 +441,11 @@ type QueryMeta struct {
 
 	// Used to indicate if there is a known leader node
 	KnownLeader bool
+
+	// LastToken is the token returned with queries that support
+	// paginated lists. To resume paging from this point, pass
+	// this token in the next request's QueryOptions.
+	LastToken string
 }
 
 // WriteMeta allows a write response to include potentially
