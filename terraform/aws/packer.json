@@ -16,12 +16,8 @@
     "instance_type": "t2.medium",
     "ssh_username": "ubuntu",
     "ami_name": "hashistack {{timestamp}}",
-    "subnet_filter": {
-      "filters": {
-        "tag:Name": "Ubuntu 21.10",
-        "tag:Author": "Mikael Sikora"
-      }
-    }
+    "tag:Name": "Ubuntu 21.10",
+    "tag:Author": "Mikael Sikora"
   }],
   "provisioners":  [
   {
