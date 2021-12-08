@@ -685,7 +685,7 @@ module.exports = [
   // Moved /docs/drivers/external/podman -> /docs/drivers/podman
   {
     source: '/docs/drivers/external/podman',
-    destination: '/docs/drivers/podman',
+    destination: '/plugins/drivers/podman',
     permanent: true,
   },
 
@@ -888,12 +888,12 @@ module.exports = [
   // Redirect old LXC driver doc to new one in /docs/external
   {
     source: '/docs/drivers/lxc',
-    destination: '/docs/drivers/external/lxc',
+    destination: '/plugins/drivers/external/lxc',
     permanent: true,
   },
   {
     source: '/docs/drivers/rkt',
-    destination: '/docs/drivers/external/rkt',
+    destination: '/plugins/drivers/external/rkt',
     permanent: true,
   },
 

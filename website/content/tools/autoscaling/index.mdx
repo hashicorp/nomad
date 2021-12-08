@@ -34,7 +34,7 @@ from a cluster to ensure there is an appropriate amount of cluster resource for
 the scheduled applications. This is achieved by interacting with remote providers
 to start or terminate new Nomad clients based on metrics such as the remaining
 free schedulable CPU or memory. Cluster scaling is enabled by configuring the
-[autoscaler agent](/docs/autoscaling/agent#dir) with policies targeting the Nomad
+[autoscaler agent](/tools/autoscaling/agent#dir) with policies targeting the Nomad
 cluster.
 
 ## Dynamic Application Sizing
@@ -56,7 +56,7 @@ Dynamic Application Sizing can be enabled on an individual task by configuring
 specification [`scaling` block][scaling_block].
 
 [scaling_block]: /docs/job-specification/scaling#scaling-stanza
-[autoscaling_policy]: /docs/autoscaling/policy
+[autoscaling_policy]: /tools/autoscaling/policy
 [autoscaler_github]: https://github.com/hashicorp/nomad-autoscaler
 [autoscaler_releases]: https://releases.hashicorp.com/nomad-autoscaler/
 [autoscaler_dockerhub]: https://hub.docker.com/r/hashicorp/nomad-autoscaler
