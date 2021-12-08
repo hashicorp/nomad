@@ -128,42 +128,6 @@ if [[ ! -z ${INSTALL_NVIDIA_DOCKER+x} ]]; then
   sudo apt-get install -y nvidia-docker2
 fi
 
-# rkt
-# Note: rkt has been ended and archived. This should likely be removed. 
-# See https://github.com/rkt/rkt/issues/4024
-VERSION=1.30.0
-DOWNLOAD=https://github.com/rkt/rkt/releases/download/v${VERSION}/rkt-v${VERSION}.tar.gz
-
-function install_rkt() {
-	wget -q -O /tmp/rkt.tar.gz "${DOWNLOAD}"
-	tar -C /tmp -xvf /tmp/rkt.tar.gz
-	sudo mv /tmp/rkt-v${VERSION}/rkt /usr/local/bin
-	sudo mv /tmp/rkt-v${VERSION}/*.aci /usr/local/bin
-}
-
-function configure_rkt_networking() {
-	sudo mkdir -p /etc/rkt/net.d
-    sudo bash -c 'cat << EOT > /etc/rkt/net.d/99-network.conf
-{
-  "name": "default",
-  "type": "ptp",
-  "ipMasq": false,
-  "ipam": {
-    "type": "host-local",
-    "subnet": "172.16.28.0/24",
-    "routes": [
-      {
-        "dst": "0.0.0.0/0"
-      }
-    ]
-  }
-}
-EOT'
-}
-
-install_rkt
-configure_rkt_networking
-
 # Java
 sudo add-apt-repository -y ppa:openjdk-r/ppa
 sudo apt-get update 
