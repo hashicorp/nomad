@@ -10,7 +10,7 @@ const genResources = (CPU, Memory) => ({
 });
 
 export function topoSmall(server) {
-  server.createList('agent', 3);
+  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node', 12, {
     datacenter: 'dc1',
     status: 'ready',
@@ -46,7 +46,7 @@ export function topoSmall(server) {
 }
 
 export function topoMedium(server) {
-  server.createList('agent', 3);
+  server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
   server.createList('node', 10, {
     datacenter: 'us-west-1',
     status: 'ready',
