@@ -39,4 +39,4 @@ client_count         = "3"
 # `whitelist_ip` (required) - IP to whitelist for the security groups (set
 # to 0.0.0.0/0 for world).  
 #  - If it is not provided here, it will be requested interactively.
-whitelist_ip = "97.113.155.50/32"
+whitelist_ip = "73.109.72.170/32"
