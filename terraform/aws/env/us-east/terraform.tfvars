@@ -31,9 +31,9 @@ ami = "ami-0ce4637fe61082643"
 # * For the GPU demos, we used p3.2xlarge client instances.
 # * For the Spark demos, you will need at least 4 t2.medium client
 #   instances.
-server_instance_type = "t2.medium"
+server_instance_type = "t3.medium"
 server_count         = "3"
-client_instance_type = "t2.medium"
+client_instance_type = "t3.medium"
 client_count         = "3"
 
 # `whitelist_ip` (required) - IP to whitelist for the security groups (set
