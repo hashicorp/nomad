@@ -17,8 +17,8 @@
     "ssh_username": "ubuntu",
     "ami_name": "hashistack {{timestamp}}",
     "tags": {
-        "OS": "Ubuntu 21.10",
-        "Author": "Mikael Sikora"
+        "Name": "Ubuntu 21.10",
+        "tag:Author": "Mikael Sikora"
       }
   }],
   "provisioners":  [
@@ -41,6 +41,6 @@
   },
   {
     "type": "shell",
-    "script": "../shared/scripts/setup.sh"
+    "script": "../shared/scripts/setup.sh",
   }]
 }
