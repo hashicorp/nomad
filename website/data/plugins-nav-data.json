@@ -26,7 +26,7 @@
             "path": "drivers/external/firecracker-task-driver"
           },
           {
-            "title": "Jailtask driver",
+            "title": "Jail task driver",
             "path": "drivers/external/jail-task-driver"
           },
           {
