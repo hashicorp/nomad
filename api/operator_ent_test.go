@@ -16,11 +16,11 @@ func TestOperator_LicenseGet(t *testing.T) {
 
 	operator := c.Operator()
 
-	// Make atuhenticated request.
+	// Make authenticated request.
 	_, _, err := operator.LicenseGet(nil)
 	require.NoError(t, err)
 
-	// Make unatuhenticated request.
+	// Make unauthenticated request.
 	c.SetSecretID("")
 	_, _, err = operator.LicenseGet(nil)
 	require.Error(t, err)
