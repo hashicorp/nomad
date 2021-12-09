@@ -1498,38 +1498,38 @@
     "routes": [
       {
         "title": "Overview",
-        "href": "/plugins/autoscaling"
+        "href": "/tools/autoscaling"
       },
       {
         "title": "Agent",
         "routes": [
           {
             "title": "Overview",
-            "href": "/plugins/autoscaling/agent"
+            "href": "/tools/autoscaling/agent"
           },
           {
             "title": "apm",
-            "href": "/plugins/autoscaling/agent/apm"
+            "href": "/tools/autoscaling/agent/apm"
           },
           {
             "title": "dynamic_application_sizing",
-            "href": "/plugins/autoscaling/agent/dynamic_application_sizing"
+            "href": "/tools/autoscaling/agent/dynamic_application_sizing"
           },
           {
             "title": "http",
-            "href": "/plugins/autoscaling/agent/http"
+            "href": "/tools/autoscaling/agent/http"
           },
           {
             "title": "nomad",
-            "href": "/plugins/autoscaling/agent/nomad"
+            "href": "/tools/autoscaling/agent/nomad"
           },
           {
             "title": "policy",
-            "href": "/plugins/autoscaling/agent/policy"
+            "href": "/tools/autoscaling/agent/policy"
           },
           {
             "title": "policy_eval",
-            "href": "/plugins/autoscaling/agent/policy_eval"
+            "href": "/tools/autoscaling/agent/policy_eval"
           },
           {
             "title": "source",
@@ -1537,59 +1537,59 @@
           },
           {
             "title": "strategy",
-            "href": "/plugins/autoscaling/agent/strategy"
+            "href": "/tools/autoscaling/agent/strategy"
           },
           {
             "title": "target",
-            "href": "/plugins/autoscaling/agent/target"
+            "href": "/tools/autoscaling/agent/target"
           },
           {
             "title": "telemetry",
-            "href": "/plugins/autoscaling/agent/telemetry"
+            "href": "/tools/autoscaling/agent/telemetry"
           }
         ]
       },
       {
         "title": "API",
-        "href": "/plugins/autoscaling/api"
+        "href": "/tools/autoscaling/api"
       },
       {
         "title": "CLI",
-        "href": "/plugins/autoscaling/cli"
+        "href": "/tools/autoscaling/cli"
       },
       {
         "title": "Policy",
-        "href": "/plugins/autoscaling/policy"
+        "href": "/tools/autoscaling/policy"
       },
       {
         "title": "Telemetry",
-        "href": "/plugins/autoscaling/telemetry"
+        "href": "/tools/autoscaling/telemetry"
       },
       {
         "title": "Plugins",
         "routes": [
           {
             "title": "Overview",
-            "href": "/plugins/autoscaling/plugins"
+            "href": "/tools/autoscaling/plugins"
           },
           {
             "title": "APM",
             "routes": [
               {
                 "title": "Overview",
-                "href": "/plugins/autoscaling/plugins/apm"
+                "href": "/tools/autoscaling/plugins/apm"
               },
               {
                 "title": "Datadog",
-                "href": "/plugins/autoscaling/plugins/apm/datadog"
+                "href": "/tools/autoscaling/plugins/apm/datadog"
               },
               {
                 "title": "Nomad API",
-                "href": "/plugins/autoscaling/plugins/apm/nomad"
+                "href": "/tools/autoscaling/plugins/apm/nomad"
               },
               {
                 "title": "Prometheus",
-                "href": "/plugins/autoscaling/plugins/apm/prometheus"
+                "href": "/tools/autoscaling/plugins/apm/prometheus"
               }
             ]
           },
@@ -1598,35 +1598,35 @@
             "routes": [
               {
                 "title": "Overview",
-                "href": "/plugins/autoscaling/plugins/strategy"
+                "href": "/tools/autoscaling/plugins/strategy"
               },
               {
                 "title": "Dynamic Application Sizing Average",
-                "href": "/plugins/autoscaling/plugins/strategy/app-sizing-avg"
+                "href": "/tools/autoscaling/plugins/strategy/app-sizing-avg"
               },
               {
                 "title": "Dynamic Application Sizing Max",
-                "href": "/plugins/autoscaling/plugins/strategy/app-sizing-max"
+                "href": "/tools/autoscaling/plugins/strategy/app-sizing-max"
               },
               {
                 "title": "Dynamic Application Sizing Percentile",
-                "href": "/plugins/autoscaling/plugins/strategy/app-sizing-percentile"
+                "href": "/tools/autoscaling/plugins/strategy/app-sizing-percentile"
               },
               {
                 "title": "Fixed Value",
-                "href": "/plugins/autoscaling/plugins/strategy/fixed-value"
+                "href": "/tools/autoscaling/plugins/strategy/fixed-value"
               },
               {
                 "title": "Pass-Through",
-                "href": "/plugins/autoscaling/plugins/strategy/pass-through"
+                "href": "/tools/autoscaling/plugins/strategy/pass-through"
               },
               {
                 "title": "Target Value",
-                "href": "/plugins/autoscaling/plugins/strategy/target-value"
+                "href": "/tools/autoscaling/plugins/strategy/target-value"
               },
               {
                 "title": "Threshold",
-                "href": "/plugins/autoscaling/plugins/strategy/threshold"
+                "href": "/tools/autoscaling/plugins/strategy/threshold"
               }
             ]
           },
@@ -1635,33 +1635,33 @@
             "routes": [
               {
                 "title": "Overview",
-                "href": "/plugins/autoscaling/plugins/target"
+                "href": "/tools/autoscaling/plugins/target"
               },
               {
                 "title": "Amazon Web Services Autoscaling Group",
-                "href": "/plugins/autoscaling/plugins/target/aws-asg"
+                "href": "/tools/autoscaling/plugins/target/aws-asg"
               },
               {
                 "title": "Azure Virtual Machine Scale Set",
-                "href": "/plugins/autoscaling/plugins/target/azure-vmss"
+                "href": "/tools/autoscaling/plugins/target/azure-vmss"
               },
               {
                 "title": "Dynamic Application Sizing",
-                "href": "/plugins/autoscaling/plugins/target/app-sizing-nomad"
+                "href": "/tools/autoscaling/plugins/target/app-sizing-nomad"
               },
               {
                 "title": "Google Cloud Engine Managed Instance Group",
-                "href": "/plugins/autoscaling/plugins/target/gce-mig"
+                "href": "/tools/autoscaling/plugins/target/gce-mig"
               },
               {
                 "title": "Nomad Task Group",
-                "href": "/plugins/autoscaling/plugins/target/nomad"
+                "href": "/tools/autoscaling/plugins/target/nomad"
               }
             ]
           },
           {
             "title": "Community",
-            "href": "/plugins/autoscaling/plugins/external"
+            "href": "/tools/autoscaling/plugins/external"
           }
         ]
       },
@@ -1670,38 +1670,38 @@
         "routes": [
           {
             "title": "Overview",
-            "href": "/plugins/autoscaling/internals"
+            "href": "/tools/autoscaling/internals"
           },
           {
             "title": "Checks",
-            "href": "/plugins/autoscaling/internals/checks"
+            "href": "/tools/autoscaling/internals/checks"
           },
           {
             "title": "Node Selector Strategy",
-            "href": "/plugins/autoscaling/internals/node-selector-strategy"
+            "href": "/tools/autoscaling/internals/node-selector-strategy"
           },
           {
             "title": "Plugins",
             "routes": [
               {
                 "title": "Overview",
-                "href": "/plugins/autoscaling/internals/plugins"
+                "href": "/tools/autoscaling/internals/plugins"
               },
               {
                 "title": "Base",
-                "href": "/plugins/autoscaling/internals/plugins/base"
+                "href": "/tools/autoscaling/internals/plugins/base"
               },
               {
                 "title": "APM",
-                "href": "/plugins/autoscaling/internals/plugins/apm"
+                "href": "/tools/autoscaling/internals/plugins/apm"
               },
               {
                 "title": "Strategy",
-                "href": "/plugins/autoscaling/internals/plugins/strategy"
+                "href": "/tools/autoscaling/internals/plugins/strategy"
               },
               {
                 "title": "Target",
-                "href": "/plugins/autoscaling/internals/plugins/target"
+                "href": "/tools/autoscaling/internals/plugins/target"
               }
             ]
           }
