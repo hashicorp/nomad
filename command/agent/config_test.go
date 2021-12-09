@@ -958,7 +958,7 @@ func TestConfig_normalizeAddrs(t *testing.T) {
 	}
 
 	if c.AdvertiseAddrs.HTTP != "169.254.1.10:4646" {
-		t.Fatalf("expected HTTP advertise address 169.254.1.5:4646, got %s", c.AdvertiseAddrs.HTTP)
+		t.Fatalf("expected HTTP advertise address 169.254.1.10:4646, got %s", c.AdvertiseAddrs.HTTP)
 	}
 
 	if c.AdvertiseAddrs.RPC != "169.254.1.40:4647" {

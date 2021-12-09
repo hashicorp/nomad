@@ -80,43 +80,65 @@ type HTTPServer struct {
 // the agent.
 func NewHTTPServers(agent *Agent, config *Config) ([]HTTPServer, error) {
 	var srvs []HTTPServer
-	var error error
+	var serverInitializationErrors error
 
+	// Handle requests with gzip compression
+	gzip, err := gziphandler.GzipHandlerWithOpts(gziphandler.MinSize(0))
+	if err != nil {
+		return srvs, err
+	}
+
+	// Get connection handshake timeout limit
+	handshakeTimeout, err := time.ParseDuration(config.Limits.HTTPSHandshakeTimeout)
+	if err != nil {
+		return srvs, fmt.Errorf("error parsing https_handshake_timeout: %v", err)
+	} else if handshakeTimeout < 0 {
+		return srvs, fmt.Errorf("https_handshake_timeout must be >= 0")
+	}
+
+	// Get max connection limit
+	maxConns := 0
+	if mc := config.Limits.HTTPMaxConnsPerClient; mc != nil {
+		maxConns = *mc
+	}
+	if maxConns < 0 {
+		return srvs, fmt.Errorf("http_max_conns_per_client must be >= 0")
+	}
+
+	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, config.TLSConfig.VerifyHTTPSClient, true)
+	if err != nil && config.TLSConfig.EnableHTTP {
+		return srvs, fmt.Errorf("failed to initialize HTTP server TLS configuration: %s", err)
+	}
+
+	wsUpgrader := &websocket.Upgrader{
+		ReadBufferSize:  2048,
+		WriteBufferSize: 2048,
+	}
+
+	// Create the mux
+	mux := http.NewServeMux()
 	// Start the listener
 	for _, addr := range config.normalizedAddrs.HTTP {
+
 		lnAddr, err := net.ResolveTCPAddr("tcp", addr)
 		if err != nil {
-			multierror.Append(error, err)
+			serverInitializationErrors = multierror.Append(serverInitializationErrors, err)
 			continue
 		}
 		ln, err := config.Listener("tcp", lnAddr.IP.String(), lnAddr.Port)
 		if err != nil {
-			error = multierror.Append(error, fmt.Errorf("failed to start HTTP listener: %v", err))
+			serverInitializationErrors = multierror.Append(serverInitializationErrors, fmt.Errorf("failed to start HTTP listener: %v", err))
 			continue
 		}
 
 		// If TLS is enabled, wrap the listener with a TLS listener
 		if config.TLSConfig.EnableHTTP {
-			tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, config.TLSConfig.VerifyHTTPSClient, true)
-			if err != nil {
-				error = multierror.Append(error, err)
-				continue
-			}
-
 			tlsConfig, err := tlsConf.IncomingTLSConfig()
 			if err != nil {
-				error = multierror.Append(error, err)
+				serverInitializationErrors = multierror.Append(serverInitializationErrors, err)
 				continue
 			}
 			ln = tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, tlsConfig)
-		}
-
-		// Create the mux
-		mux := http.NewServeMux()
-
-		wsUpgrader := &websocket.Upgrader{
-			ReadBufferSize:  2048,
-			WriteBufferSize: 2048,
 		}
 
 		// Create the server
@@ -130,33 +152,6 @@ func NewHTTPServers(agent *Agent, config *Config) ([]HTTPServer, error) {
 			wsUpgrader: wsUpgrader,
 		}
 		srv.registerHandlers(config.EnableDebug)
-
-		// Handle requests with gzip compression
-		gzip, err := gziphandler.GzipHandlerWithOpts(gziphandler.MinSize(0))
-		if err != nil {
-			error = multierror.Append(error, err)
-			continue
-		}
-
-		// Get connection handshake timeout limit
-		handshakeTimeout, err := time.ParseDuration(config.Limits.HTTPSHandshakeTimeout)
-		if err != nil {
-			error = multierror.Append(error, fmt.Errorf("error parsing https_handshake_timeout: %v", err))
-			continue
-		} else if handshakeTimeout < 0 {
-			error = multierror.Append(error, fmt.Errorf("https_handshake_timeout must be >= 0"))
-			continue
-		}
-
-		// Get max connection limit
-		maxConns := 0
-		if mc := config.Limits.HTTPMaxConnsPerClient; mc != nil {
-			maxConns = *mc
-		}
-		if maxConns < 0 {
-			error = multierror.Append(error, fmt.Errorf("http_max_conns_per_client must be >= 0"))
-			continue
-		}
 
 		// Create HTTP server with timeouts
 		httpServer := http.Server{
@@ -174,13 +169,13 @@ func NewHTTPServers(agent *Agent, config *Config) ([]HTTPServer, error) {
 		srvs = append(srvs, *srv)
 	}
 
-	if error != nil {
+	if serverInitializationErrors != nil {
 		for _, srv := range srvs {
 			srv.Shutdown()
 		}
 	}
 
-	return srvs, error
+	return srvs, serverInitializationErrors
 }
 
 // makeConnState returns a ConnState func for use in an http.Server. If
@@ -272,7 +267,7 @@ func (s *HTTPServer) Shutdown() {
 }
 
 // registerHandlers is used to attach our handlers to the mux
-func (s *HTTPServer) registerHandlers(enableDebug bool) {
+func (s HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/jobs", s.wrap(s.JobsRequest))
 	s.mux.HandleFunc("/v1/jobs/parse", s.wrap(s.JobsParseRequest))
 	s.mux.HandleFunc("/v1/job/", s.wrap(s.JobSpecificRequest))
