@@ -1,19 +1,34 @@
 <Trigger @do={{this.fetchParent}} as |trigger|>
   {{did-insert trigger.fns.do}}
-  {{#if trigger.data.result}}
+  {{#if trigger.data.isBusy}}
     <li>
-      <LinkTo @params={{trigger.data.result.args}} data-test-breadcrumb={{@crumb.args.firstObject}}>
-        {{trigger.data.result.label}}
+      <a href="#" aria-label="loading" data-test-breadcrumb="loading">
+        …
+      </a>
+    </li>
+  {{/if}}
+  {{#if trigger.data.isSuccess}}
+    {{#if trigger.data.result}}
+      <li>
+        <LinkTo
+          @route="jobs.job.index"
+          @model={{trigger.data.result.plainId}}
+          @query={{hash namespace=(or trigger.data.result.namespace.name "default")}}
+          data-test-breadcrumb={{@crumb.args.firstObject}}
+        >
+          {{trigger.data.result.trimmedName}}
+        </LinkTo>
+      </li>
+    {{/if}}
+    <li>
+      <LinkTo
+        @route="jobs.job.index"
+        @model={{this.job.plainId}}
+        @query={{hash namespace=(or this.job.namespace.name "default")}}
+        data-test-breadcrumb={{@crumb.args.firstObject}}
+      >
+        {{this.job.trimmedName}}
       </LinkTo>
     </li>
   {{/if}}
-  <li>
-    <LinkTo
-      @route={{@crumbs.args}}
-      data-test-breadcrumb={{@crumb.args.firstObject}}
-      {{!-- @model={{trigger.data.result}} FIX THIS PARAMETER --}}
-    >
-      {{this.crumb.label}}
-    </LinkTo>
-  </li>
 </Trigger>
