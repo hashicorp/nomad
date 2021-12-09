@@ -1264,16 +1264,6 @@ module.exports = [
   },
   // Extracted content into `/plugins` & `/tools`
   {
-    source: '/docs/drivers',
-    destination: '/plugins/drivers',
-    permanent: true,
-  },
-  {
-    source: '/docs/drivers/:splat*',
-    destination: '/plugins/drivers/:splat*',
-    permanent: true,
-  },
-  {
     source: '/docs/autoscaling',
     destination: '/tools/autoscaling',
     permanent: true,
@@ -1283,7 +1273,9 @@ module.exports = [
     destination: '/tools/autoscaling/:splat*',
     permanent: true,
   },
-  // Extracted content into `/plugins` & `/tools`; One-off redirects
+  // Extracted content into `/plugins` & `/tools`;
+  // - Redirect individual pages so we don't conflict with
+  //   "built-in plugins" pages
   {
     source: '/docs/devices/external',
     destination: '/plugins/devices/community',
@@ -1297,6 +1289,81 @@ module.exports = [
   {
     source: '/docs/devices/external/nvidia',
     destination: '/plugins/devices/nvidia',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/external/containerd',
+    destination: '/plugins/drivers/external/containerd',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/external/firecracker-task-driver',
+    destination: '/plugins/drivers/external/firecracker-task-driver',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/external/iis',
+    destination: '/plugins/drivers/external/iis',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/external',
+    destination: '/plugins/drivers/external',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/external/jail-task-driver',
+    destination: '/plugins/drivers/external/jail-task-driver',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/external/lightrun',
+    destination: '/plugins/drivers/external/lightrun',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/external/lxc',
+    destination: '/plugins/drivers/external/lxc',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/external/nspawn',
+    destination: '/plugins/drivers/external/nspawn',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/external/pot',
+    destination: '/plugins/drivers/external/pot',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/external/rkt',
+    destination: '/plugins/drivers/external/rkt',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/external/rookout',
+    destination: '/plugins/drivers/external/rookout',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/external/singularity',
+    destination: '/plugins/drivers/external/singularity',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/podman',
+    destination: '/plugins/drivers/podman',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/remote/ecs',
+    destination: '/plugins/drivers/remote/ecs',
+    permanent: true,
+  },
+  {
+    source: '/docs/drivers/remote',
+    destination: '/plugins/drivers/remote',
     permanent: true,
   },
 ]
