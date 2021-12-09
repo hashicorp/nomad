@@ -1285,16 +1285,6 @@ module.exports = [
   },
   // Extracted content into `/plugins` & `/tools`; One-off redirects
   {
-    source: '/docs/operations/metrics-reference',
-    destination: '/docs/operations/metrics',
-    permanent: true,
-  },
-  {
-    source: '/docs/operations/monitoring-nomad',
-    destination: '/docs/operations/telemetry',
-    permanent: true,
-  },
-  {
     source: '/docs/devices/external',
     destination: '/plugins/devices/community',
     permanent: true,
