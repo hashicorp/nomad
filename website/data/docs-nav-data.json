@@ -1383,51 +1383,51 @@
         "routes": [
           {
             "title": "Overview",
-            "href": "/plugins/drivers/external"
+            "href": "/plugins/drivers/community"
           },
           {
             "title": "containerd",
-            "href": "/plugins/drivers/external/containerd"
+            "href": "/plugins/drivers/community/containerd"
           },
           {
             "title": "Firecracker driver",
-            "href": "/plugins/drivers/external/firecracker-task-driver"
+            "href": "/plugins/drivers/community/firecracker-task-driver"
           },
           {
             "title": "Jailtask driver",
-            "href": "/plugins/drivers/external/jail-task-driver"
+            "href": "/plugins/drivers/community/jail-task-driver"
           },
           {
             "title": "Lightrun",
-            "href": "/plugins/drivers/external/lightrun"
+            "href": "/plugins/drivers/community/lightrun"
           },
           {
             "title": "LXC",
-            "href": "/plugins/drivers/external/lxc"
+            "href": "/plugins/drivers/community/lxc"
           },
           {
             "title": "Pot",
-            "href": "/plugins/drivers/external/pot"
+            "href": "/plugins/drivers/community/pot"
           },
           {
             "title": "Rkt <sup>Deprecated</sup> ",
-            "href": "/plugins/drivers/external/rkt"
+            "href": "/plugins/drivers/community/rkt"
           },
           {
             "title": "Rookout",
-            "href": "/plugins/drivers/external/rookout"
+            "href": "/plugins/drivers/community/rookout"
           },
           {
             "title": "Singularity",
-            "href": "/plugins/drivers/external/singularity"
+            "href": "/plugins/drivers/community/singularity"
           },
           {
             "title": "systemd-nspawn",
-            "href": "/plugins/drivers/external/nspawn"
+            "href": "/plugins/drivers/community/nspawn"
           },
           {
             "title": "Windows IIS",
-            "href": "/plugins/drivers/external/iis"
+            "href": "/plugins/drivers/community/iis"
           }
         ]
       },

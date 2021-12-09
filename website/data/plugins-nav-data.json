@@ -15,51 +15,51 @@
         "routes": [
           {
             "title": "Overview",
-            "path": "drivers/external"
+            "path": "drivers/community"
           },
           {
             "title": "containerd",
-            "path": "drivers/external/containerd"
+            "path": "drivers/community/containerd"
           },
           {
             "title": "Firecracker driver",
-            "path": "drivers/external/firecracker-task-driver"
+            "path": "drivers/community/firecracker-task-driver"
           },
           {
             "title": "Jail task driver",
-            "path": "drivers/external/jail-task-driver"
+            "path": "drivers/community/jail-task-driver"
           },
           {
             "title": "Lightrun",
-            "path": "drivers/external/lightrun"
+            "path": "drivers/community/lightrun"
           },
           {
             "title": "LXC",
-            "path": "drivers/external/lxc"
+            "path": "drivers/community/lxc"
           },
           {
             "title": "Pot",
-            "path": "drivers/external/pot"
+            "path": "drivers/community/pot"
           },
           {
             "title": "Rkt <sup>Deprecated</sup> ",
-            "path": "drivers/external/rkt"
+            "path": "drivers/community/rkt"
           },
           {
             "title": "Rookout",
-            "path": "drivers/external/rookout"
+            "path": "drivers/community/rookout"
           },
           {
             "title": "Singularity",
-            "path": "drivers/external/singularity"
+            "path": "drivers/community/singularity"
           },
           {
             "title": "systemd-nspawn",
-            "path": "drivers/external/nspawn"
+            "path": "drivers/community/nspawn"
           },
           {
             "title": "Windows IIS",
-            "path": "drivers/external/iis"
+            "path": "drivers/community/iis"
           }
         ]
       },

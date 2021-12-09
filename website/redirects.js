@@ -465,7 +465,7 @@ module.exports = [
   },
   {
     source: '/docs/devices/nvidia',
-    destination: '/docs/devices/external/nvidia',
+    destination: '/plugins/devices/nvidia',
     permanent: true,
   },
   {
@@ -888,12 +888,12 @@ module.exports = [
   // Redirect old LXC driver doc to new one in /docs/external
   {
     source: '/docs/drivers/lxc',
-    destination: '/plugins/drivers/external/lxc',
+    destination: '/plugins/drivers/community/lxc',
     permanent: true,
   },
   {
     source: '/docs/drivers/rkt',
-    destination: '/plugins/drivers/external/rkt',
+    destination: '/plugins/drivers/community/rkt',
     permanent: true,
   },
 
@@ -1293,62 +1293,62 @@ module.exports = [
   },
   {
     source: '/docs/drivers/external/containerd',
-    destination: '/plugins/drivers/external/containerd',
+    destination: '/plugins/drivers/community/containerd',
     permanent: true,
   },
   {
     source: '/docs/drivers/external/firecracker-task-driver',
-    destination: '/plugins/drivers/external/firecracker-task-driver',
+    destination: '/plugins/drivers/community/firecracker-task-driver',
     permanent: true,
   },
   {
     source: '/docs/drivers/external/iis',
-    destination: '/plugins/drivers/external/iis',
+    destination: '/plugins/drivers/community/iis',
     permanent: true,
   },
   {
     source: '/docs/drivers/external',
-    destination: '/plugins/drivers/external',
+    destination: '/plugins/drivers/community',
     permanent: true,
   },
   {
     source: '/docs/drivers/external/jail-task-driver',
-    destination: '/plugins/drivers/external/jail-task-driver',
+    destination: '/plugins/drivers/community/jail-task-driver',
     permanent: true,
   },
   {
     source: '/docs/drivers/external/lightrun',
-    destination: '/plugins/drivers/external/lightrun',
+    destination: '/plugins/drivers/community/lightrun',
     permanent: true,
   },
   {
     source: '/docs/drivers/external/lxc',
-    destination: '/plugins/drivers/external/lxc',
+    destination: '/plugins/drivers/community/lxc',
     permanent: true,
   },
   {
     source: '/docs/drivers/external/nspawn',
-    destination: '/plugins/drivers/external/nspawn',
+    destination: '/plugins/drivers/community/nspawn',
     permanent: true,
   },
   {
     source: '/docs/drivers/external/pot',
-    destination: '/plugins/drivers/external/pot',
+    destination: '/plugins/drivers/community/pot',
     permanent: true,
   },
   {
     source: '/docs/drivers/external/rkt',
-    destination: '/plugins/drivers/external/rkt',
+    destination: '/plugins/drivers/community/rkt',
     permanent: true,
   },
   {
     source: '/docs/drivers/external/rookout',
-    destination: '/plugins/drivers/external/rookout',
+    destination: '/plugins/drivers/community/rookout',
     permanent: true,
   },
   {
     source: '/docs/drivers/external/singularity',
-    destination: '/plugins/drivers/external/singularity',
+    destination: '/plugins/drivers/community/singularity',
     permanent: true,
   },
   {
