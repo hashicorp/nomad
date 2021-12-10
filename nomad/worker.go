@@ -251,6 +251,8 @@ REQ:
 			limit = backoffSchedulerVersionMismatch
 		}
 
+		// !: while I don't know _what_ to do here, shutting down the worker seems like it
+		// could end with a server with no running scheduler workers.
 		if w.backoffErr(base, limit) {
 			return nil, "", 0, true
 		}
