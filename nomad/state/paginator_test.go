@@ -53,26 +53,21 @@ func TestPaginator(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			iter := newTestIterator(ids)
-
-			paginator := NewPaginator(iter, structs.QueryOptions{
-				PerPage: tc.perPage, NextToken: tc.nextToken})
 			results := []string{}
 
-		DONE:
-			for {
-				raw, andThen := paginator.Next()
-				switch andThen {
-				case PaginatorInclude:
+			paginator := NewPaginator(iter,
+				structs.QueryOptions{
+					PerPage: tc.perPage, NextToken: tc.nextToken,
+				},
+				func(raw interface{}) {
 					result := raw.(*mockObject)
 					results = append(results, result.GetID())
-				case PaginatorSkip:
-					continue
-				case PaginatorComplete:
-					break DONE
-				}
-			}
+				},
+			)
+
+			nextToken := paginator.Page()
 			require.Equal(t, tc.expected, results)
-			require.Equal(t, tc.expectedNextToken, paginator.NextToken())
+			require.Equal(t, tc.expectedNextToken, nextToken)
 		})
 	}
 

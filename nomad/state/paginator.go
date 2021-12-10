@@ -14,43 +14,63 @@ type Paginator struct {
 	seekingToken   string
 	nextToken      string
 	nextTokenFound bool
+
+	// appendFunc is the function the caller should use to append raw
+	// entries to the results set. The object is guaranteed to be
+	// non-nil.
+	appendFunc func(interface{})
 }
 
-func NewPaginator(iter memdb.ResultIterator, opts structs.QueryOptions) *Paginator {
+func NewPaginator(iter memdb.ResultIterator, opts structs.QueryOptions, appendFunc func(interface{})) *Paginator {
 	return &Paginator{
 		iter:           iter,
 		perPage:        opts.PerPage,
 		seekingToken:   opts.NextToken,
 		nextTokenFound: opts.NextToken == "",
+		appendFunc:     appendFunc,
 	}
 }
 
-func (p *Paginator) Next() (interface{}, PaginatorState) {
+// Page populates a page by running the append function
+// over all results. Returns the next token
+func (p *Paginator) Page() string {
+DONE:
+	for {
+		raw, andThen := p.next()
+		switch andThen {
+		case paginatorInclude:
+			p.appendFunc(raw)
+		case paginatorSkip:
+			continue
+		case paginatorComplete:
+			break DONE
+		}
+	}
+	return p.nextToken
+}
+
+func (p *Paginator) next() (interface{}, paginatorState) {
 	raw := p.iter.Next()
 	if raw == nil {
 		p.nextToken = ""
-		return nil, PaginatorComplete
+		return nil, paginatorComplete
 	}
 
 	// have we found the token we're seeking (if any)?
 	id := raw.(IDGetter).GetID()
 	p.nextToken = id
 	if !p.nextTokenFound && id < p.seekingToken {
-		return nil, PaginatorSkip
+		return nil, paginatorSkip
 	}
 	p.nextTokenFound = true
 
 	// have we produced enough results for this page?
 	p.itemCount++
 	if p.perPage != 0 && p.itemCount > p.perPage {
-		return raw, PaginatorComplete
+		return raw, paginatorComplete
 	}
 
-	return raw, PaginatorInclude
-}
-
-func (p *Paginator) NextToken() string {
-	return p.nextToken
+	return raw, paginatorInclude
 }
 
 // IDGetter must be implemented for the results of any iterator we
@@ -59,10 +79,10 @@ type IDGetter interface {
 	GetID() string
 }
 
-type PaginatorState int
+type paginatorState int
 
 const (
-	PaginatorInclude PaginatorState = iota
-	PaginatorSkip
-	PaginatorComplete
+	paginatorInclude paginatorState = iota
+	paginatorSkip
+	paginatorComplete
 )

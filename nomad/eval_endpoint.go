@@ -370,25 +370,15 @@ func (e *Eval) List(args *structs.EvalListRequest,
 			})
 
 			var evals []*structs.Evaluation
-			paginator := state.NewPaginator(iter, args.QueryOptions)
-
-		DONE:
-			for {
-				raw, andThen := paginator.Next()
-
-				switch andThen {
-				case state.PaginatorInclude:
+			paginator := state.NewPaginator(iter, args.QueryOptions,
+				func(raw interface{}) {
 					eval := raw.(*structs.Evaluation)
 					evals = append(evals, eval)
-				case state.PaginatorSkip:
-					continue
-				case state.PaginatorComplete:
-					break DONE
-				}
-			}
+				})
 
+			nextToken := paginator.Page()
+			reply.QueryMeta.NextToken = nextToken
 			reply.Evaluations = evals
-			reply.QueryMeta.NextToken = paginator.NextToken()
 
 			// Use the last index that affected the jobs table
 			index, err := store.Index("evals")
