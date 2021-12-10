@@ -14,6 +14,7 @@ This subdirectory contains the entire source for the [Nomad Website](https://nom
 ## Table of Contents
 
 - [Contributions](#contributions-welcome)
+- [Backport Labels](#backport-labels)
 - [Running the Site Locally](#running-the-site-locally)
 - [Editing Markdown Content](#editing-markdown-content)
 - [Editing Navigation Sidebars](#editing-navigation-sidebars)
@@ -30,6 +31,43 @@ This subdirectory contains the entire source for the [Nomad Website](https://nom
 If you find a typo or you feel like you can improve the HTML, CSS, or JavaScript, we welcome contributions. Feel free to open issues or pull requests like any normal GitHub project, and we'll merge it in 🚀
 
 <!-- END: contributions -->
+
+## Backport labels
+
+The following backport labels exist to help facilitate backporting
+changes to `stable-website` and or `release-#.#.#` branches.
+
+### `backport/website`
+
+Merging a PR with this label will trigger two[^backport-strategy] workflow jobs:
+
+1. Attempt to backport changes into `stable-website`
+2. Attempt to backport changes into the "latest" release branch,
+   ex: `release-#.#.#`[^latest-release-branch]
+
+[^latest-release-branch]:
+    The _latest_ release branch is currently determined by the
+    greatest semver out of issue labels that match `backport/*`. See
+    [backport.yaml](../.github/workflows/backport.yaml) for implementation
+    details.
+
+[^backport-strategy]:
+    This is in support of versioned-documentation. When updating
+    docs content for `stable-website` it's assumed that the content changes
+    are intended for the current/latest version, and it makes sense to also
+    backport the same changes to the associated release branch. This ensures
+    that content doesn't get lost in the event that `stable-website` is
+    forced-pushed over.
+
+### `backport/#.#.#`
+
+Merging a PR with this will trigger a workflow job that
+attempts to backport changes to `release-#.#.#`.
+
+### On release...
+
+When a new version is released, an associated `release-#.#.#` branch
+and `backport/#.#.#` label should both be created.
 
 <!-- BEGIN: local-development -->
 <!-- Generated text, do not edit directly -->
