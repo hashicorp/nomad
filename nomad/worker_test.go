@@ -189,11 +189,11 @@ func TestWorker_dequeueEvaluation_paused(t *testing.T) {
 	w.pauseCond = sync.NewCond(&w.pauseLock)
 
 	// PAUSE the worker
-	w.SetPause(true)
+	w.Pause()
 
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		w.SetPause(false)
+		w.Resume()
 	}()
 
 	// Attempt dequeue
@@ -265,7 +265,7 @@ func TestWorker_Shutdown(t *testing.T) {
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		w.Shutdown()
+		w.Stop()
 	}()
 
 	// Attempt dequeue
@@ -286,16 +286,18 @@ func TestWorker_Shutdown_paused(t *testing.T) {
 
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
 	w, _ := NewWorker(s1.shutdownCtx, s1, poolArgs)
-	w.SetPause(true)
+	w.Pause()
+
+	// pausing can take up to 500ms because of the blocking query timeout in dequeueEvaluation.
+	require.Eventually(t, w.IsPaused, 550*time.Millisecond, 10*time.Millisecond, "should paused")
 
 	go func() {
-		time.Sleep(10 * time.Millisecond)
-		w.Shutdown()
+		w.Stop()
 	}()
 
-	time.Sleep(511 * time.Millisecond)
-	// Verify that the worker is stopped.
-	require.True(t, w.Stopped())
+	// transitioning to stopped from paused should be very quick,
+	// but might not be immediate.
+	require.Eventually(t, w.IsStopped, 100*time.Millisecond, 10*time.Millisecond, "should stop when paused")
 }
 
 func TestWorker_sendAck(t *testing.T) {

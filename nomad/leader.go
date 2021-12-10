@@ -442,7 +442,11 @@ ERR_WAIT:
 
 func (s *Server) handlePausableWorkers(isLeader bool) {
 	for _, w := range s.pausableWorkers() {
-		w.SetPause(isLeader)
+		if isLeader {
+			w.Pause()
+		} else {
+			w.Resume()
+		}
 	}
 }
 

@@ -1443,8 +1443,8 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 // shouldReloadSchedulers checks the new config to determine if the scheduler worker pool
 // needs to be updated. If so, returns true and a pointer to a populated SchedulerWorkerPoolArgs
 func shouldReloadSchedulers(s *Server, newPoolArgs *SchedulerWorkerPoolArgs) (bool, *SchedulerWorkerPoolArgs) {
-	s.workerLock.RLock()
-	defer s.workerLock.RUnlock()
+	s.workerConfigLock.RLock()
+	defer s.workerConfigLock.RUnlock()
 
 	newSchedulers := make([]string, len(newPoolArgs.EnabledSchedulers))
 	copy(newSchedulers, newPoolArgs.EnabledSchedulers)
@@ -1527,8 +1527,8 @@ func getSchedulerWorkerPoolArgsFromConfigLocked(c *Config) *SchedulerWorkerPoolA
 // GetSchedulerWorkerConfig returns a clean copy of the server's current scheduler
 // worker config.
 func (s *Server) GetSchedulerWorkerConfig() SchedulerWorkerPoolArgs {
-	s.workerLock.RLock()
-	defer s.workerLock.RUnlock()
+	s.workerConfigLock.RLock()
+	defer s.workerConfigLock.RUnlock()
 	return getSchedulerWorkerPoolArgsFromConfigLocked(s.config).Copy()
 }
 
@@ -1549,8 +1549,15 @@ func reloadSchedulers(s *Server, newArgs *SchedulerWorkerPoolArgs) {
 		s.logger.Info("received invalid arguments for scheduler pool reload; ignoring")
 		return
 	}
+
+	// reload will modify the server.config so it needs a write lock
+	s.workerConfigLock.Lock()
+	defer s.workerConfigLock.Unlock()
+
+	// reload modifies the worker slice so it needs a write lock
 	s.workerLock.Lock()
 	defer s.workerLock.Unlock()
+
 	// TODO: If EnabledSchedulers didn't change, we can scale rather than drain and rebuild
 	s.config.NumSchedulers = newArgs.NumSchedulers
 	s.config.EnabledSchedulers = newArgs.EnabledSchedulers
@@ -1559,23 +1566,27 @@ func reloadSchedulers(s *Server, newArgs *SchedulerWorkerPoolArgs) {
 
 // setupWorkers is used to start the scheduling workers
 func (s *Server) setupWorkers(ctx context.Context) error {
+	poolArgs := s.GetSchedulerWorkerConfig()
+
+	// we will be writing to the worker slice
 	s.workerLock.Lock()
 	defer s.workerLock.Unlock()
-	return s.setupWorkersLocked(ctx)
+
+	return s.setupWorkersLocked(ctx, poolArgs)
 }
 
 // setupWorkersLocked directly manipulates the server.config, so it is not safe to
 // call concurrently. Use setupWorkers() or call this with server.workerLock set.
-func (s *Server) setupWorkersLocked(ctx context.Context) error {
+func (s *Server) setupWorkersLocked(ctx context.Context, poolArgs SchedulerWorkerPoolArgs) error {
 	// Check if all the schedulers are disabled
-	if len(s.config.EnabledSchedulers) == 0 || s.config.NumSchedulers == 0 {
+	if len(poolArgs.EnabledSchedulers) == 0 || poolArgs.NumSchedulers == 0 {
 		s.logger.Warn("no enabled schedulers")
 		return nil
 	}
 
 	// Check if the core scheduler is not enabled
 	foundCore := false
-	for _, sched := range s.config.EnabledSchedulers {
+	for _, sched := range poolArgs.EnabledSchedulers {
 		if sched == structs.JobTypeCore {
 			foundCore = true
 			continue
@@ -1589,10 +1600,8 @@ func (s *Server) setupWorkersLocked(ctx context.Context) error {
 		return fmt.Errorf("invalid configuration: %q scheduler not enabled", structs.JobTypeCore)
 	}
 
-	s.logger.Info("starting scheduling worker(s)", "num_workers", s.config.NumSchedulers, "schedulers", s.config.EnabledSchedulers)
+	s.logger.Info("starting scheduling worker(s)", "num_workers", poolArgs.NumSchedulers, "schedulers", poolArgs.EnabledSchedulers)
 	// Start the workers
-
-	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s.config).Copy()
 
 	for i := 0; i < s.config.NumSchedulers; i++ {
 		if w, err := NewWorker(ctx, s, poolArgs); err != nil {
@@ -1621,7 +1630,8 @@ func (s *Server) setupNewWorkersLocked() error {
 	// build a clean backing array and call setupWorkersLocked like setupWorkers
 	// does in the normal startup path
 	s.workers = make([]*Worker, 0, s.config.NumSchedulers)
-	err := s.setupWorkersLocked(s.shutdownCtx)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s.config).Copy()
+	err := s.setupWorkersLocked(s.shutdownCtx, poolArgs)
 	if err != nil {
 		return err
 	}
@@ -1638,7 +1648,7 @@ func (s *Server) stopOldWorkers(oldWorkers []*Worker) {
 	workerCount := len(oldWorkers)
 	for i, w := range oldWorkers {
 		s.logger.Debug("stopping old scheduling worker", "id", w.ID(), "index", i+1, "of", workerCount)
-		go w.Shutdown()
+		go w.Stop()
 	}
 }
 

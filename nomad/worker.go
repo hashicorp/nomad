@@ -83,7 +83,7 @@ type Worker struct {
 // NewWorker starts a new worker associated with the given server
 func NewWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) (*Worker, error) {
 	w, _ := newWorker(ctx, srv, args)
-	go w.run()
+	w.Start()
 	return w, nil
 }
 
@@ -98,13 +98,63 @@ func newWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) (
 
 	w.logger = srv.logger.ResetNamed("worker").With("worker_id", w.id)
 	w.pauseCond = sync.NewCond(&w.pauseLock)
-
 	w.ctx, w.cancelFn = context.WithCancel(ctx)
+
 	return w, nil
 }
 
-// SetPause is used to pause or unpause a worker
-func (w *Worker) SetPause(p bool) {
+// ID returns a string ID for the worker.
+func (w *Worker) ID() string {
+	return w.id
+}
+
+// Start transitions a worker to the starting state. Check
+// to see if it paused using IsStarted()
+func (w *Worker) Start() {
+	go w.run()
+}
+
+// Pause transitions a worker to the pausing state. Check
+// to see if it paused using IsPaused()
+func (w *Worker) Pause() {
+	w.setPause(true)
+}
+
+// Resume transitions a worker to the resuming state. Check
+// to see if the worker restarted by checking IsStarted()
+func (w *Worker) Resume() {
+	w.setPause(false)
+}
+
+// Resume transitions a worker to the stopping state. Check
+// to see if the worker stopped by checking IsStopped()
+func (w *Worker) Stop() {
+	w.shutdown()
+}
+
+// IsStarted returns a boolean indicating if this worker has been started.
+func (w *Worker) IsStarted() bool {
+	w.pauseLock.Lock()
+	defer w.pauseLock.Unlock()
+	return !w.paused && !w.stopped
+}
+
+// IsPaused returns a boolean indicating if this worker has been paused.
+func (w *Worker) IsPaused() bool {
+	w.pauseLock.Lock()
+	defer w.pauseLock.Unlock()
+	return w.paused
+}
+
+// IsStopped returns a boolean indicating if this worker has been stopped.
+func (w *Worker) IsStopped() bool {
+	w.pauseLock.Lock()
+	defer w.pauseLock.Unlock()
+	return w.stopped
+}
+
+// setPause is internally used to pause or unpause a worker
+func (w *Worker) setPause(p bool) {
 	w.pauseLock.Lock()
 	w.paused = p
 	w.pauseLock.Unlock()
@@ -123,7 +173,7 @@ func (w *Worker) checkPaused() {
 }
 
 // Shutdown is used to signal that the worker should shutdown.
-func (w *Worker) Shutdown() {
+func (w *Worker) shutdown() {
 	w.pauseLock.Lock()
 	wasPaused := w.paused
 	w.paused = false
@@ -134,18 +184,6 @@ func (w *Worker) Shutdown() {
 	if wasPaused {
 		w.pauseCond.Broadcast()
 	}
-}
-
-// Stopped returns a boolean indicating if this worker has been stopped.
-func (w *Worker) Stopped() bool {
-	w.pauseLock.Lock()
-	defer w.pauseLock.Unlock()
-	return w.stopped
-}
-
-// ID returns a string ID for the worker.
-func (w *Worker) ID() string {
-	return w.id
 }
 
 // markStopped is used to mark the worker as stopped and should be called in a
@@ -165,6 +203,10 @@ func (w *Worker) isDone() bool {
 		return false
 	}
 }
+
+/*-----------------
+  Behavior code
+-----------------*/
 
 // run is the long-lived goroutine which is used to run the worker
 func (w *Worker) run() {
