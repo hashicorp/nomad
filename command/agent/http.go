@@ -115,10 +115,10 @@ func NewHTTPServers(agent *Agent, config *Config) ([]HTTPServer, error) {
 		WriteBufferSize: 2048,
 	}
 
-	// Create the mux
-	mux := http.NewServeMux()
 	// Start the listener
 	for _, addr := range config.normalizedAddrs.HTTP {
+    // Create the mux
+    mux := http.NewServeMux()
 
 		lnAddr, err := net.ResolveTCPAddr("tcp", addr)
 		if err != nil {
