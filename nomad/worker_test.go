@@ -286,10 +286,11 @@ func TestWorker_Shutdown_paused(t *testing.T) {
 
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
 	w, _ := NewWorker(s1.shutdownCtx, s1, poolArgs)
+
 	w.Pause()
 
 	// pausing can take up to 500ms because of the blocking query timeout in dequeueEvaluation.
-	require.Eventually(t, w.IsPaused, 550*time.Millisecond, 10*time.Millisecond, "should paused")
+	require.Eventually(t, w.IsPaused, 550*time.Millisecond, 10*time.Millisecond, "should pause")
 
 	go func() {
 		w.Stop()

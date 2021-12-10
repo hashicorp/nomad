@@ -1331,22 +1331,29 @@ func TestLeader_PausingWorkers(t *testing.T) {
 	pausedWorkers := func() int {
 		c := 0
 		for _, w := range s1.workers {
-			w.pauseLock.Lock()
-			if w.paused {
+			if w.IsPaused() {
 				c++
 			}
-			w.pauseLock.Unlock()
 		}
 		return c
 	}
 
-	// pause 3/4 of the workers
-	require.Equal(t, 9, pausedWorkers())
+	// this satisfies the require.Eventually test interface
+	checkPaused := func(count int) func() bool {
+		return func() bool {
+			workers := pausedWorkers()
+			return workers == count
+		}
+	}
+
+	// acquiring leadership should have paused 3/4 of the workers
+	require.Eventually(t, checkPaused(9), 1*time.Second, 10*time.Millisecond, "scheduler workers did not pause within a second at leadership change")
 
 	err := s1.revokeLeadership()
 	require.NoError(t, err)
 
-	require.Zero(t, pausedWorkers())
+	// unpausing is a relatively quick activity
+	require.Eventually(t, checkPaused(0), 50*time.Millisecond, 10*time.Millisecond, "scheduler workers should have unpaused after losing leadership")
 }
 
 // Test doing an inplace upgrade on a server from raft protocol 2 to 3

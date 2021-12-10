@@ -47,31 +47,62 @@ const (
 	dequeueErrGrace = 10 * time.Second
 )
 
+type WorkerStatus int
+
+//go:generate stringer -trimprefix=Worker -output worker_string_workerstatus.go -linecomment -type=WorkerStatus
+const (
+	WorkerUnknownStatus WorkerStatus = iota // Unknown
+	WorkerStarting
+	WorkerStarted
+	WorkerPausing
+	WorkerPaused
+	WorkerResuming
+	WorkerStopping
+	WorkerStopped
+)
+
+type SchedulerWorkerStatus int
+
+//go:generate stringer -trimprefix=Workload -output worker_string_schedulerworkerstatus.go -linecomment -type=SchedulerWorkerStatus
+const (
+	WorkloadUnknownStatus SchedulerWorkerStatus = iota
+	WorkloadRunning
+	WorkloadWaiting
+	WorkloadScheduling
+	WorkloadSubmitting
+	WorkloadBackoff
+	WorkloadStopped
+	WorkloadPaused
+)
+
 // Worker is a single threaded scheduling worker. There may be multiple
 // running per server (leader or follower). They are responsible for dequeuing
 // pending evaluations, invoking schedulers, plan submission and the
 // lifecycle around making task allocations. They bridge the business logic
 // of the scheduler with the plumbing required to make it all work.
 type Worker struct {
-	srv     *Server
-	logger  log.Logger
-	start   time.Time
-	id      string
-	paused  bool
-	stopped bool // Indicates that the worker is in a terminal state; read with Stopped()
+	srv    *Server
+	logger log.Logger
+	start  time.Time
+	id     string
+
+	status         WorkerStatus
+	workloadStatus SchedulerWorkerStatus
+	statusLock     sync.RWMutex
+
+	pauseFlag bool
+	pauseLock sync.Mutex
+	pauseCond *sync.Cond
+	ctx       context.Context
+	cancelFn  context.CancelFunc
 
 	// the Server.Config.EnabledSchedulers value is not safe for concurrent access, so
 	// the worker needs a cached copy of it. Workers are stopped if this value changes.
 	enabledSchedulers []string
 
-	ctx      context.Context
-	cancelFn context.CancelFunc
-
-	pauseLock sync.Mutex
-	pauseCond *sync.Cond
-
-	failures uint
-
+	// failures is the count of errors encountered while dequeueing evaluations
+	// and is used to calculate backoff.
+	failures  uint
 	evalToken string
 
 	// snapshotIndex is the index of the snapshot in which the scheduler was
@@ -89,9 +120,10 @@ func NewWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) (
 
 func newWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) (*Worker, error) {
 	w := &Worker{
+		id:                uuid.Generate(),
 		srv:               srv,
 		start:             time.Now(),
-		id:                uuid.Generate(),
+		status:            WorkerStarting,
 		enabledSchedulers: make([]string, len(args.EnabledSchedulers)),
 	}
 	copy(w.enabledSchedulers, args.EnabledSchedulers)
@@ -111,72 +143,114 @@ func (w *Worker) ID() string {
 // Start transitions a worker to the starting state. Check
 // to see if it paused using IsStarted()
 func (w *Worker) Start() {
+	w.setStatus(WorkerStarting)
 	go w.run()
 }
 
 // Pause transitions a worker to the pausing state. Check
 // to see if it paused using IsPaused()
 func (w *Worker) Pause() {
-	w.setPause(true)
+	w.setStatus(WorkerPausing)
+	w.pauseLock.Lock()
+	w.pauseFlag = true
+	w.pauseLock.Unlock()
 }
 
 // Resume transitions a worker to the resuming state. Check
 // to see if the worker restarted by checking IsStarted()
 func (w *Worker) Resume() {
-	w.setPause(false)
+	if w.IsPaused() {
+		w.setStatus(WorkerResuming)
+		w.pauseCond.Broadcast()
+	}
 }
 
 // Resume transitions a worker to the stopping state. Check
 // to see if the worker stopped by checking IsStopped()
 func (w *Worker) Stop() {
+	w.setStatus(WorkerStopping)
 	w.shutdown()
 }
 
 // IsStarted returns a boolean indicating if this worker has been started.
 func (w *Worker) IsStarted() bool {
-	w.pauseLock.Lock()
-	defer w.pauseLock.Unlock()
-	return !w.paused && !w.stopped
+	return w.GetStatus() == WorkerStarted
 }
 
 // IsPaused returns a boolean indicating if this worker has been paused.
 func (w *Worker) IsPaused() bool {
-	w.pauseLock.Lock()
-	defer w.pauseLock.Unlock()
-	return w.paused
+	return w.GetStatus() == WorkerPaused
 }
 
 // IsStopped returns a boolean indicating if this worker has been stopped.
 func (w *Worker) IsStopped() bool {
-	w.pauseLock.Lock()
-	defer w.pauseLock.Unlock()
-	return w.stopped
+	return w.GetStatus() == WorkerStopped
 }
 
-// setPause is internally used to pause or unpause a worker
-func (w *Worker) setPause(p bool) {
+// GetStatus returns the status of the Worker
+func (w *Worker) GetStatus() WorkerStatus {
+	w.statusLock.RLock()
+	defer w.statusLock.RUnlock()
+	return w.status
+}
+
+// setStatus is used internally to the worker to update the
+// status of the worker based on calls to the Worker API.
+func (w *Worker) setStatus(newStatus WorkerStatus) {
+	w.statusLock.Lock()
+	defer w.statusLock.Unlock()
+	w.status = newStatus
+}
+
+// GetStatus returns the status of the Worker's Workload.
+func (w *Worker) GetWorkloadStatus() SchedulerWorkerStatus {
+	w.statusLock.RLock()
+	defer w.statusLock.RUnlock()
+	return w.workloadStatus
+}
+
+// setWorkloadStatus is used internally to the worker to update the
+// status of the worker based updates from the workload.
+func (w *Worker) setWorkloadStatus(newStatus SchedulerWorkerStatus) {
+	w.statusLock.Lock()
+	defer w.statusLock.Unlock()
+	w.workloadStatus = newStatus
+}
+
+// maybeWait is responsible for making the transition from `pausing`
+// to `paused`, waiting, and then transitioning back to the running
+// values.
+func (w *Worker) maybeWait() {
 	w.pauseLock.Lock()
-	w.paused = p
-	w.pauseLock.Unlock()
-	if !p {
-		w.pauseCond.Broadcast()
+	if !w.pauseFlag {
+		w.pauseLock.Unlock()
+		return
 	}
-}
 
-// checkPaused is used to park the worker when paused
-func (w *Worker) checkPaused() {
-	w.pauseLock.Lock()
-	for w.paused {
+	w.statusLock.Lock()
+	w.status = WorkerPaused
+	w.workloadStatus = WorkloadPaused
+	w.statusLock.Unlock()
+
+	for w.pauseFlag {
 		w.pauseCond.Wait()
 	}
+	w.pauseFlag = false
 	w.pauseLock.Unlock()
+
+	w.statusLock.Lock()
+	w.status = WorkerStarted
+	w.workloadStatus = WorkloadRunning
+	w.statusLock.Unlock()
+	w.logger.Debug("resumed")
+
 }
 
 // Shutdown is used to signal that the worker should shutdown.
 func (w *Worker) shutdown() {
 	w.pauseLock.Lock()
-	wasPaused := w.paused
-	w.paused = false
+	wasPaused := w.pauseFlag
+	w.pauseFlag = false
 	w.pauseLock.Unlock()
 
 	w.logger.Trace("shutdown request received")
@@ -189,13 +263,11 @@ func (w *Worker) shutdown() {
 // markStopped is used to mark the worker as stopped and should be called in a
 // defer immediately upon entering the run() function.
 func (w *Worker) markStopped() {
-	w.pauseLock.Lock()
-	w.stopped = true
-	w.pauseLock.Unlock()
 	w.logger.Debug("stopped")
+	w.setStatus(WorkerStopped)
 }
 
-func (w *Worker) isDone() bool {
+func (w *Worker) workerShuttingDown() bool {
 	select {
 	case <-w.ctx.Done():
 		return true
@@ -210,12 +282,16 @@ func (w *Worker) isDone() bool {
 
 // run is the long-lived goroutine which is used to run the worker
 func (w *Worker) run() {
-	defer w.markStopped()
+	defer func() {
+		w.setWorkloadStatus(WorkloadStopped)
+		w.markStopped()
+	}()
+	w.setWorkloadStatus(WorkloadRunning)
 	w.logger.Debug("running")
 	for {
 		// Check to see if the context has been cancelled. Server shutdown and Shutdown()
 		// should do this.
-		if w.isDone() {
+		if w.workerShuttingDown() {
 			return
 		}
 		// Dequeue a pending evaluation
@@ -269,10 +345,10 @@ func (w *Worker) dequeueEvaluation(timeout time.Duration) (
 	var resp structs.EvalDequeueResponse
 
 REQ:
-	// Check if we are paused
-	w.checkPaused()
-	// Immediately check to see if the worker has been shutdown
-	if w.isDone() {
+	// Wait inside this function if the worker is paused.
+	w.maybeWait()
+	// Immediately check to see if the worker has been shutdown.
+	if w.workerShuttingDown() {
 		return nil, "", 0, true
 	}
 
@@ -281,7 +357,7 @@ REQ:
 	err := w.srv.RPC("Eval.Dequeue", &req, &resp)
 	metrics.MeasureSince([]string{"nomad", "worker", "dequeue_eval"}, start)
 	if err != nil {
-		if time.Since(w.start) > dequeueErrGrace && !w.isDone() {
+		if time.Since(w.start) > dequeueErrGrace && !w.workerShuttingDown() {
 			w.logger.Error("failed to dequeue evaluation", "error", err)
 		}
 
@@ -636,6 +712,8 @@ func (w *Worker) shouldResubmit(err error) bool {
 // backoffErr is used to do an exponential back off on error. This is
 // maintained statefully for the worker. Returns if attempts should be
 // abandoned due to shutdown.
+// This uses the worker's context in order to immediately stop the
+// backoff if the server or the worker is shutdown.
 func (w *Worker) backoffErr(base, limit time.Duration) bool {
 	backoff := (1 << (2 * w.failures)) * base
 	if backoff > limit {
