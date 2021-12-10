@@ -1,4 +1,4 @@
-package nomad
+package state
 
 import (
 	memdb "github.com/hashicorp/go-memdb"
@@ -16,7 +16,7 @@ type Paginator struct {
 	nextTokenFound bool
 }
 
-func newPaginator(iter memdb.ResultIterator, opts structs.QueryOptions) *Paginator {
+func NewPaginator(iter memdb.ResultIterator, opts structs.QueryOptions) *Paginator {
 	return &Paginator{
 		iter:           iter,
 		perPage:        opts.PerPage,
@@ -25,7 +25,7 @@ func newPaginator(iter memdb.ResultIterator, opts structs.QueryOptions) *Paginat
 	}
 }
 
-func (p *Paginator) Next() (interface{}, paginatorState) {
+func (p *Paginator) Next() (interface{}, PaginatorState) {
 	raw := p.iter.Next()
 	if raw == nil {
 		p.nextToken = ""
@@ -59,10 +59,10 @@ type IDGetter interface {
 	GetID() string
 }
 
-type paginatorState int
+type PaginatorState int
 
 const (
-	PaginatorInclude paginatorState = iota
+	PaginatorInclude PaginatorState = iota
 	PaginatorSkip
 	PaginatorComplete
 )

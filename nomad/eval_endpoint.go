@@ -349,14 +349,14 @@ func (e *Eval) List(args *structs.EvalListRequest,
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// Scan all the evaluations
 			var err error
 			var iter memdb.ResultIterator
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.EvalsByIDPrefix(ws, args.RequestNamespace(), prefix)
+				iter, err = store.EvalsByIDPrefix(ws, args.RequestNamespace(), prefix)
 			} else {
-				iter, err = state.EvalsByNamespace(ws, args.RequestNamespace())
+				iter, err = store.EvalsByNamespace(ws, args.RequestNamespace())
 			}
 			if err != nil {
 				return err
@@ -370,19 +370,19 @@ func (e *Eval) List(args *structs.EvalListRequest,
 			})
 
 			var evals []*structs.Evaluation
-			paginator := newPaginator(iter, args.QueryOptions)
+			paginator := state.NewPaginator(iter, args.QueryOptions)
 
 		DONE:
 			for {
 				raw, andThen := paginator.Next()
 
 				switch andThen {
-				case PaginatorInclude:
+				case state.PaginatorInclude:
 					eval := raw.(*structs.Evaluation)
 					evals = append(evals, eval)
-				case PaginatorSkip:
+				case state.PaginatorSkip:
 					continue
-				case PaginatorComplete:
+				case state.PaginatorComplete:
 					break DONE
 				}
 			}
@@ -391,7 +391,7 @@ func (e *Eval) List(args *structs.EvalListRequest,
 			reply.QueryMeta.NextToken = paginator.NextToken()
 
 			// Use the last index that affected the jobs table
-			index, err := state.Index("evals")
+			index, err := store.Index("evals")
 			if err != nil {
 				return err
 			}

@@ -1,4 +1,4 @@
-package nomad
+package state
 
 import (
 	"testing"
@@ -54,7 +54,7 @@ func TestPaginator(t *testing.T) {
 
 			iter := newTestIterator(ids)
 
-			paginator := newPaginator(iter, structs.QueryOptions{
+			paginator := NewPaginator(iter, structs.QueryOptions{
 				PerPage: tc.perPage, NextToken: tc.nextToken})
 			results := []string{}
 
