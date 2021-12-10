@@ -1,6 +1,6 @@
 module github.com/hashicorp/nomad
 
-go 1.15
+go 1.16
 
 replace (
 	github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
@@ -116,7 +116,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.21.2
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/stretchr/objx v0.2.0 // indirect
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/zclconf/go-cty v1.8.0
