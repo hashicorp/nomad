@@ -226,8 +226,9 @@ type Server struct {
 	vault VaultClient
 
 	// Worker used for processing
-	workers    []*Worker
-	workerLock sync.RWMutex
+	workers          []*Worker
+	workerLock       sync.RWMutex
+	workerConfigLock sync.RWMutex
 
 	// aclCache is used to maintain the parsed ACL objects
 	aclCache *lru.TwoQueueCache
@@ -1504,6 +1505,18 @@ func (swpa SchedulerWorkerPoolArgs) IsValid() bool {
 	return foundCore
 }
 
+// Copy returns a clone of a SchedulerWorkerPoolArgs struct. Concurrent access
+// concerns should be managed by the caller.
+func (swpa SchedulerWorkerPoolArgs) Copy() SchedulerWorkerPoolArgs {
+	out := SchedulerWorkerPoolArgs{
+		NumSchedulers:     swpa.NumSchedulers,
+		EnabledSchedulers: make([]string, len(swpa.EnabledSchedulers)),
+	}
+	copy(out.EnabledSchedulers, swpa.EnabledSchedulers)
+
+	return out
+}
+
 func getSchedulerWorkerPoolArgsFromConfigLocked(c *Config) *SchedulerWorkerPoolArgs {
 	return &SchedulerWorkerPoolArgs{
 		NumSchedulers:     c.NumSchedulers,
@@ -1511,10 +1524,12 @@ func getSchedulerWorkerPoolArgsFromConfigLocked(c *Config) *SchedulerWorkerPoolA
 	}
 }
 
+// GetSchedulerWorkerConfig returns a clean copy of the server's current scheduler
+// worker config.
 func (s *Server) GetSchedulerWorkerConfig() SchedulerWorkerPoolArgs {
 	s.workerLock.RLock()
 	defer s.workerLock.RUnlock()
-	return *getSchedulerWorkerPoolArgsFromConfigLocked(s.config)
+	return getSchedulerWorkerPoolArgsFromConfigLocked(s.config).Copy()
 }
 
 func (s *Server) SetSchedulerWorkerConfig(newArgs SchedulerWorkerPoolArgs) SchedulerWorkerPoolArgs {
@@ -1576,8 +1591,11 @@ func (s *Server) setupWorkersLocked(ctx context.Context) error {
 
 	s.logger.Info("starting scheduling worker(s)", "num_workers", s.config.NumSchedulers, "schedulers", s.config.EnabledSchedulers)
 	// Start the workers
+
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s.config).Copy()
+
 	for i := 0; i < s.config.NumSchedulers; i++ {
-		if w, err := NewWorker(ctx, s); err != nil {
+		if w, err := NewWorker(ctx, s, poolArgs); err != nil {
 			return err
 		} else {
 			s.logger.Debug("started scheduling worker", "id", w.ID(), "index", i+1, "of", s.config.NumSchedulers)

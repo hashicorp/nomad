@@ -76,7 +76,8 @@ func TestWorker_dequeueEvaluation(t *testing.T) {
 	s1.evalBroker.Enqueue(eval1)
 
 	// Create a worker
-	w := NewTestWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := NewWorker(s1.shutdownCtx, s1, poolArgs)
 
 	// Attempt dequeue
 	eval, token, waitIndex, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
@@ -122,7 +123,8 @@ func TestWorker_dequeueEvaluation_SerialJobs(t *testing.T) {
 	s1.evalBroker.Enqueue(eval2)
 
 	// Create a worker
-	w := NewTestWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
 
 	// Attempt dequeue
 	eval, token, waitIndex, shutdown := w.dequeueEvaluation(10 * time.Millisecond)
@@ -182,7 +184,8 @@ func TestWorker_dequeueEvaluation_paused(t *testing.T) {
 	s1.evalBroker.Enqueue(eval1)
 
 	// Create a worker
-	w := NewTestWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
 	w.pauseCond = sync.NewCond(&w.pauseLock)
 
 	// PAUSE the worker
@@ -226,7 +229,8 @@ func TestWorker_dequeueEvaluation_shutdown(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create a worker
-	w := NewTestWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)
@@ -256,7 +260,8 @@ func TestWorker_Shutdown(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	// Create a worker; since this tests the shutdown, you need the cancelFn too.
-	w := NewTestWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)
@@ -279,7 +284,8 @@ func TestWorker_Shutdown_paused(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	w, _ := NewWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := NewWorker(s1.shutdownCtx, s1, poolArgs)
 	w.SetPause(true)
 
 	go func() {
@@ -307,7 +313,8 @@ func TestWorker_sendAck(t *testing.T) {
 	s1.evalBroker.Enqueue(eval1)
 
 	// Create a worker
-	w := NewTestWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
 
 	// Attempt dequeue
 	eval, token, _, _ := w.dequeueEvaluation(10 * time.Millisecond)
@@ -362,7 +369,8 @@ func TestWorker_waitForIndex(t *testing.T) {
 	}()
 
 	// Wait for a future index
-	w := NewTestWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
 	snap, err := w.snapshotMinIndex(index+1, time.Second)
 	require.NoError(t, err)
 	require.NotNil(t, snap)
@@ -388,7 +396,8 @@ func TestWorker_invokeScheduler(t *testing.T) {
 	})
 	defer cleanupS1()
 
-	w := NewTestWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
 	eval := mock.Eval()
 	eval.Type = "noop"
 
@@ -441,7 +450,8 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	}
 
 	// Attempt to submit a plan
-	w := NewTestWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
 	w.evalToken = token
 
 	result, state, err := w.SubmitPlan(plan)
@@ -505,7 +515,8 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 	plan.AppendPreemptedAlloc(preemptedAlloc, preemptingAllocID)
 
 	// Attempt to submit a plan
-	w := NewTestWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
 	w.SubmitPlan(plan)
 
 	assert.Equal(t, &structs.Allocation{
@@ -562,7 +573,8 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	}
 
 	// Attempt to submit a plan
-	w := NewTestWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
 	w.evalToken = token
 
 	result, state, err := w.SubmitPlan(plan)
@@ -621,7 +633,8 @@ func TestWorker_UpdateEval(t *testing.T) {
 	eval2.Status = structs.EvalStatusComplete
 
 	// Attempt to update eval
-	w := NewTestWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
 	w.evalToken = token
 
 	err = w.UpdateEval(eval2)
@@ -672,7 +685,8 @@ func TestWorker_CreateEval(t *testing.T) {
 	eval2.PreviousEval = eval1.ID
 
 	// Attempt to create eval
-	w := NewTestWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
 	w.evalToken = token
 
 	err = w.CreateEval(eval2)
@@ -736,7 +750,8 @@ func TestWorker_ReblockEval(t *testing.T) {
 	eval2.QueuedAllocations = map[string]int{"web": 50}
 
 	// Attempt to reblock eval
-	w := NewTestWorker(s1.shutdownCtx, s1)
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+	w, _ := newWorker(s1.shutdownCtx, s1, poolArgs)
 	w.evalToken = token
 
 	err = w.ReblockEval(eval2)

@@ -81,19 +81,25 @@ type Worker struct {
 }
 
 // NewWorker starts a new worker associated with the given server
-func NewWorker(ctx context.Context, srv *Server) (*Worker, error) {
+func NewWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) (*Worker, error) {
+	w, _ := newWorker(ctx, srv, args)
+	go w.run()
+	return w, nil
+}
+
+func newWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) (*Worker, error) {
 	w := &Worker{
 		srv:               srv,
 		start:             time.Now(),
 		id:                uuid.Generate(),
-		enabledSchedulers: srv.GetSchedulerWorkerConfig().EnabledSchedulers,
+		enabledSchedulers: make([]string, len(args.EnabledSchedulers)),
 	}
+	copy(w.enabledSchedulers, args.EnabledSchedulers)
+
 	w.logger = srv.logger.ResetNamed("worker").With("worker_id", w.id)
 	w.pauseCond = sync.NewCond(&w.pauseLock)
 
 	w.ctx, w.cancelFn = context.WithCancel(ctx)
-
-	go w.run()
 	return w, nil
 }
 
