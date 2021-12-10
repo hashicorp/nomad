@@ -1365,3 +1365,26 @@ func TestEventBroker_Parse(t *testing.T) {
 		require.Equal(20000, *result.EventBufferSize)
 	}
 }
+
+func TestParseMultipleIPTemplates(t *testing.T) {
+  testCases := []struct {
+		name                    string
+		tmpl string
+		expectedOut []string
+		expectErr               bool
+	}{
+		{
+			name: "deduplicates same ip",
+      tmpl: "127.0.0.1 127.0.0.1",
+			expectedOut: []string{"127.0.0.1"},
+			expectErr: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+      out, err := parseMultipleIPTemplate(tc.tmpl)
+      require.NoError(t, err)
+      require.Equal(t, tc.expectedOut, out)
+		})
+	}
+}

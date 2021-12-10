@@ -1358,7 +1358,7 @@ func parseMultipleIPTemplate(ipTmpl string) ([]string, error) {
 		return []string{}, errors.New("No addresses found, please configure one.")
 	}
 
-	return ips, nil
+	return deduplicateAddrs(ips), nil
 }
 
 // normalizeBind returns a normalized bind address.
@@ -2050,4 +2050,17 @@ func isTemporaryFile(name string) bool {
 	return strings.HasSuffix(name, "~") || // vim
 		strings.HasPrefix(name, ".#") || // emacs
 		(strings.HasPrefix(name, "#") && strings.HasSuffix(name, "#")) // emacs
+}
+
+func deduplicateAddrs(addrs []string) []string {
+  keys := make(map[string]bool)
+  list := []string{}
+
+  for _, entry := range addrs {
+      if _, value := keys[entry]; !value {
+          keys[entry] = true
+          list = append(list, entry)
+      }
+  }
+  return list
 }
