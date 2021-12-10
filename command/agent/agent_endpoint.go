@@ -752,15 +752,15 @@ func (s *HTTPServer) AgentSchedulerWorkerConfigRequest(resp http.ResponseWriter,
 	}
 	switch req.Method {
 	case "PUT", "POST":
-		return s.updateScheduleWorkersConfig(resp, req)
+		return s.UpdateScheduleWorkersConfig(resp, req)
 	case "GET":
-		return s.getScheduleWorkersConfig(resp, req)
+		return s.GetScheduleWorkersConfig(resp, req)
 	default:
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 }
 
-func (s *HTTPServer) getScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) GetScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	srv := s.agent.Server()
 	if srv == nil {
 		return nil, CodedError(http.StatusBadRequest, "server only endpoint")
@@ -784,7 +784,7 @@ func (s *HTTPServer) getScheduleWorkersConfig(resp http.ResponseWriter, req *htt
 	return response, nil
 }
 
-func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) UpdateScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	srv := s.agent.Server()
 	if srv == nil {
 		return nil, CodedError(400, "server only endpoint")

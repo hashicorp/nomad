@@ -1469,7 +1469,6 @@ func TestHTTP_XSS_Monitor(t *testing.T) {
 */
 type scheduleWorkerTest_workerRequestTest struct {
 	name              string // test case name
-	requiresACL       bool   // prevents test cases that require ACLs from running in the non-ACL version
 	request           schedulerWorkerTest_testRequest
 	whenACLNotEnabled schedulerWorkerTest_testExpect
 	whenACLEnabled    schedulerWorkerTest_testExpect
@@ -1537,8 +1536,7 @@ func schedulerWorkerTest_testCases() []scheduleWorkerTest_workerRequestTest {
 			whenACLEnabled:    success1,
 		},
 		{
-			name:        "get with read token",
-			requiresACL: true,
+			name: "get with read token",
 			request: schedulerWorkerTest_testRequest{
 				verb:        "GET",
 				aclToken:    "agent_read",
@@ -1548,8 +1546,7 @@ func schedulerWorkerTest_testCases() []scheduleWorkerTest_workerRequestTest {
 			whenACLEnabled:    success1,
 		},
 		{
-			name:        "get with write token",
-			requiresACL: true,
+			name: "get with write token",
 			request: schedulerWorkerTest_testRequest{
 				verb:        "GET",
 				aclToken:    "agent_write",
