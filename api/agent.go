@@ -487,7 +487,7 @@ type HostDataResponse struct {
 // GetSchedulerWorkerConfig returns the targeted agent's worker pool configuration
 func (a *Agent) GetSchedulerWorkerConfig() (*SchedulerWorkerPoolArgs, error) {
 	var resp AgentSchedulerWorkerConfigResponse
-	_, err := a.client.query("/v1/agent/workers", &resp, nil)
+	_, err := a.client.query("/v1/agent/workers/config", &resp, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -497,13 +497,10 @@ func (a *Agent) GetSchedulerWorkerConfig() (*SchedulerWorkerPoolArgs, error) {
 
 // SetSchedulerWorkerConfig attempts to update the targeted agent's worker pool configuration
 func (a *Agent) SetSchedulerWorkerConfig(args SchedulerWorkerPoolArgs) (*SchedulerWorkerPoolArgs, error) {
-	req := AgentSchedulerWorkerConfigRequest{
-		NumSchedulers:     args.NumSchedulers,
-		EnabledSchedulers: args.EnabledSchedulers,
-	}
-
+	req := AgentSchedulerWorkerConfigRequest(args)
 	var resp AgentSchedulerWorkerConfigResponse
-	_, err := a.client.write("/v1/agent/workers", &req, &resp, nil)
+
+	_, err := a.client.write("/v1/agent/workers/config", &req, &resp, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -525,4 +522,28 @@ type AgentSchedulerWorkerConfigRequest struct {
 type AgentSchedulerWorkerConfigResponse struct {
 	NumSchedulers     int      `json:"num_schedulers"`
 	EnabledSchedulers []string `json:"enabled_schedulers"`
+}
+
+func (a *Agent) GetSchedulerWorkersInfo() (*AgentSchedulerWorkersInfo, error) {
+	var out *AgentSchedulerWorkersInfo
+
+	// Query the self endpoint on the agent
+	_, err := a.client.query("/v1/agent/workers", &out, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+type AgentSchedulerWorkersInfo struct {
+	Workers []AgentSchedulerWorkerInfo `json:"workers"`
+}
+
+type AgentSchedulerWorkerInfo struct {
+	ID                string   `json:"id"`
+	EnabledSchedulers []string `json:"enabled_schedulers"`
+	Started           string   `json:"started"`
+	Status            string   `json:"status"`
+	WorkloadStatus    string   `json:"workload_status"`
 }

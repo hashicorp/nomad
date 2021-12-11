@@ -466,8 +466,24 @@ func TestAgent_SchedulerWorkerConfig(t *testing.T) {
 
 	config, err := a.GetSchedulerWorkerConfig()
 	require.Nil(t, err)
+	require.NotNil(t, config)
 	newConfig := SchedulerWorkerPoolArgs{NumSchedulers: 0, EnabledSchedulers: []string{"_core", "system"}}
 	resp, err := a.SetSchedulerWorkerConfig(newConfig)
 	require.NoError(t, err)
 	assert.NotEqual(t, config, resp)
+}
+
+func TestAgent_SchedulerWorkersInfo(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	a := c.Agent()
+
+	info, err := a.GetSchedulerWorkersInfo()
+	require.Nil(t, err)
+	require.NotNil(t, info)
+	defaultSchedulers := []string{"batch", "system", "sysbatch", "service", "_core"}
+	for _, worker := range info.Workers {
+		require.ElementsMatch(t, defaultSchedulers, worker.EnabledSchedulers)
+	}
 }
