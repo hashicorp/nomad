@@ -1524,6 +1524,19 @@ func getSchedulerWorkerPoolArgsFromConfigLocked(c *Config) *SchedulerWorkerPoolA
 	}
 }
 
+// GetSchedulerWorkerInfo returns a slice of WorkerInfos from all of
+// the running scheduler workers.
+func (s *Server) GetSchedulerWorkersInfo() []WorkerInfo {
+	s.workerLock.RLock()
+	defer s.workerLock.RUnlock()
+	out := make([]WorkerInfo, len(s.workers))
+	for i := 0; i < len(s.workers); i = i + 1 {
+		workerInfo := s.workers[i].Info()
+		out[i] = workerInfo.Copy()
+	}
+	return out
+}
+
 // GetSchedulerWorkerConfig returns a clean copy of the server's current scheduler
 // worker config.
 func (s *Server) GetSchedulerWorkerConfig() SchedulerWorkerPoolArgs {

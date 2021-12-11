@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -224,6 +225,46 @@ func (w *Worker) setWorkloadStatus(newStatus SchedulerWorkerStatus) {
 	}
 	w.logger.Trace("changed workload status", "from", w.workloadStatus, "to", newStatus)
 	w.workloadStatus = newStatus
+}
+
+type WorkerInfo struct {
+	ID                string    `json:"id"`
+	EnabledSchedulers []string  `json:"enabled_schedulers"`
+	Started           time.Time `json:"started"`
+	Status            string    `json:"status"`
+	WorkloadStatus    string    `json:"workload_status"`
+}
+
+func (w WorkerInfo) Copy() WorkerInfo {
+	out := WorkerInfo{
+		ID:                w.ID,
+		EnabledSchedulers: make([]string, len(w.EnabledSchedulers)),
+		Started:           w.Started,
+		Status:            w.Status,
+		WorkloadStatus:    w.WorkloadStatus,
+	}
+	copy(out.EnabledSchedulers, w.EnabledSchedulers)
+	return out
+}
+
+func (w WorkerInfo) String() string {
+	// lazy implementation of WorkerInfo to string
+	out, _ := json.Marshal(w)
+	return string(out)
+}
+
+func (w *Worker) Info() WorkerInfo {
+	w.pauseLock.Lock()
+	defer w.pauseLock.Unlock()
+	out := WorkerInfo{
+		ID:                w.id,
+		Status:            w.status.String(),
+		WorkloadStatus:    w.workloadStatus.String(),
+		EnabledSchedulers: make([]string, len(w.enabledSchedulers)),
+	}
+	out.Started = w.start
+	copy(out.EnabledSchedulers, w.enabledSchedulers)
+	return out
 }
 
 // ----------------------------------

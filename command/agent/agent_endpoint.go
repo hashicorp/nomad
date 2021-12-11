@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/pkg/ioutils"
 	log "github.com/hashicorp/go-hclog"
@@ -746,6 +747,48 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 // of the scheduler workers running in a Nomad server agent.
 // This endpoint can also be used to update the count of running workers for a
 // given agent.
+func (s *HTTPServer) AgentSchedulerWorkerInfoRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	srv := s.agent.Server()
+	if srv == nil {
+		return nil, CodedError(http.StatusBadRequest, "server only endpoint")
+	}
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	var secret string
+	s.parseToken(req, &secret)
+
+	// Check agent read permissions
+	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
+		return nil, CodedError(http.StatusInternalServerError, err.Error())
+	} else if aclObj != nil && !aclObj.AllowAgentRead() {
+		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
+	}
+
+	schedulersInfo := srv.GetSchedulerWorkersInfo()
+	response := &agentSchedulerWorkersInfo{
+		Workers: make([]agentSchedulerWorkerInfo, len(schedulersInfo)),
+	}
+
+	for i, workerInfo := range schedulersInfo {
+		response.Workers[i] = agentSchedulerWorkerInfo{
+			ID:                workerInfo.ID,
+			EnabledSchedulers: make([]string, len(workerInfo.EnabledSchedulers)),
+			Started:           workerInfo.Started.UTC().Format(time.RFC3339Nano),
+			Status:            workerInfo.Status,
+			WorkloadStatus:    workerInfo.WorkloadStatus,
+		}
+		copy(response.Workers[i].EnabledSchedulers, workerInfo.EnabledSchedulers)
+	}
+
+	return response, nil
+}
+
+// AgentSchedulerWorkerConfigRequest is used to query the count (and state eventually)
+// of the scheduler workers running in a Nomad server agent.
+// This endpoint can also be used to update the count of running workers for a
+// given agent.
 func (s *HTTPServer) AgentSchedulerWorkerConfigRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if s.agent.Server() == nil {
 		return nil, CodedError(http.StatusBadRequest, "server only endpoint")
@@ -781,6 +824,7 @@ func (s *HTTPServer) GetScheduleWorkersConfig(resp http.ResponseWriter, req *htt
 		NumSchedulers:     config.NumSchedulers,
 		EnabledSchedulers: config.EnabledSchedulers,
 	}
+
 	return response, nil
 }
 
@@ -825,4 +869,16 @@ func (s *HTTPServer) UpdateScheduleWorkersConfig(resp http.ResponseWriter, req *
 type agentSchedulerWorkerConfig struct {
 	NumSchedulers     int      `json:"num_schedulers"`
 	EnabledSchedulers []string `json:"enabled_schedulers"`
+}
+
+type agentSchedulerWorkersInfo struct {
+	Workers []agentSchedulerWorkerInfo `json:"workers"`
+}
+
+type agentSchedulerWorkerInfo struct {
+	ID                string   `json:"id"`
+	EnabledSchedulers []string `json:"enabled_schedulers"`
+	Started           string   `json:"started"`
+	Status            string   `json:"status"`
+	WorkloadStatus    string   `json:"workload_status"`
 }

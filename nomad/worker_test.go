@@ -2,6 +2,7 @@ package nomad
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"sync"
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/stretchr/testify/require"
 
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -800,5 +802,99 @@ func TestWorker_ReblockEval(t *testing.T) {
 	if reblockedEval.SnapshotIndex != w.snapshotIndex {
 		t.Fatalf("incorrect snapshot index; got %d; want %d",
 			reblockedEval.SnapshotIndex, w.snapshotIndex)
+	}
+}
+
+func TestWorker_Info(t *testing.T) {
+	t.Parallel()
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EnabledSchedulers = []string{structs.JobTypeService}
+	})
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
+
+	// Create a worker
+	w, err := newWorker(s1.shutdownCtx, s1, poolArgs)
+	require.NoError(t, err)
+
+	require.Equal(t, WorkerStarting, w.GetStatus())
+	workerInfo := w.Info()
+	require.Equal(t, WorkerStarting.String(), workerInfo.Status)
+}
+
+func TestWorker_WorkerInfo_String(t *testing.T) {
+	t.Parallel()
+	startTime := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+	w := &Worker{
+		id:                "uuid",
+		start:             startTime,
+		status:            WorkerStarted,
+		workloadStatus:    WorkloadBackoff,
+		enabledSchedulers: []string{structs.JobTypeCore, structs.JobTypeBatch, structs.JobTypeSystem},
+	}
+	_, err := json.Marshal(w)
+	require.NoError(t, err)
+
+	require.Equal(t, `{"id":"uuid","enabled_schedulers":["_core","batch","system"],"started":"2009-11-10T23:00:00Z","status":"Started","workload_status":"Backoff"}`, fmt.Sprint(w.Info()))
+}
+
+const (
+	longWait = 100 * time.Millisecond
+	tinyWait = 10 * time.Millisecond
+)
+
+func TestWorker_SetPause(t *testing.T) {
+	t.Parallel()
+	logger := testlog.HCLogger(t)
+	srv := &Server{
+		logger:      logger,
+		shutdownCtx: context.Background(),
+	}
+	args := SchedulerWorkerPoolArgs{
+		EnabledSchedulers: []string{structs.JobTypeCore, structs.JobTypeBatch, structs.JobTypeSystem},
+	}
+	w, err := newWorker(context.Background(), srv, args)
+	require.NoError(t, err)
+
+	w._start(testWorkload)
+	require.Eventually(t, w.IsStarted, longWait, tinyWait, "should have started")
+
+	go func() {
+		time.Sleep(tinyWait)
+		w.Pause()
+	}()
+	require.Eventually(t, w.IsPaused, longWait, tinyWait, "should have paused")
+
+	go func() {
+		time.Sleep(tinyWait)
+		w.Resume()
+	}()
+	require.Eventually(t, w.IsStarted, longWait, tinyWait, "should have restarted from pause")
+
+	go func() {
+		time.Sleep(tinyWait)
+		w.Stop()
+	}()
+	require.Eventually(t, w.IsStopped, longWait, tinyWait, "should have shutdown")
+}
+
+func testWorkload(w *Worker) {
+	defer w.markStopped()
+	w.setStatus(WorkerStarted)
+	w.setWorkloadStatus(WorkloadRunning)
+	w.logger.Debug("testWorkload running")
+	for {
+		// ensure state variables are happy after resuming.
+		w.maybeWait()
+		if w.workerShuttingDown() {
+			w.logger.Debug("testWorkload stopped")
+			return
+		}
+		// do some fake work
+		time.Sleep(10 * time.Millisecond)
 	}
 }
