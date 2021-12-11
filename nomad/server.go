@@ -1550,7 +1550,6 @@ func (s *Server) SetSchedulerWorkerConfig(newArgs SchedulerWorkerPoolArgs) Sched
 		if newVals.IsValid() {
 			reloadSchedulers(s, newVals)
 		}
-		reloadSchedulers(s, newVals)
 	}
 	return s.GetSchedulerWorkerConfig()
 }

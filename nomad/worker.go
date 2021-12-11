@@ -350,6 +350,7 @@ func (w *Worker) run() {
 		w.setWorkloadStatus(WorkloadStopped)
 		w.markStopped()
 	}()
+	w.setStatus(WorkerStarted)
 	w.setWorkloadStatus(WorkloadRunning)
 	w.logger.Debug("running")
 	for {
