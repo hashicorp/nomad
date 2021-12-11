@@ -10,17 +10,18 @@ func _() {
 	var x [1]struct{}
 	_ = x[WorkloadUnknownStatus-0]
 	_ = x[WorkloadRunning-1]
-	_ = x[WorkloadWaiting-2]
-	_ = x[WorkloadScheduling-3]
-	_ = x[WorkloadSubmitting-4]
-	_ = x[WorkloadBackoff-5]
-	_ = x[WorkloadStopped-6]
-	_ = x[WorkloadPaused-7]
+	_ = x[WorkloadWaitingToDequeue-2]
+	_ = x[WorkloadWaitingForRaft-3]
+	_ = x[WorkloadScheduling-4]
+	_ = x[WorkloadSubmitting-5]
+	_ = x[WorkloadBackoff-6]
+	_ = x[WorkloadStopped-7]
+	_ = x[WorkloadPaused-8]
 }
 
-const _SchedulerWorkerStatus_name = "UnknownStatusRunningWaitingSchedulingSubmittingBackoffStoppedPaused"
+const _SchedulerWorkerStatus_name = "UnknownStatusRunningWaitingToDequeueWaitingForRaftSchedulingSubmittingBackoffStoppedPaused"
 
-var _SchedulerWorkerStatus_index = [...]uint8{0, 13, 20, 27, 37, 47, 54, 61, 67}
+var _SchedulerWorkerStatus_index = [...]uint8{0, 13, 20, 36, 50, 60, 70, 77, 84, 90}
 
 func (i SchedulerWorkerStatus) String() string {
 	if i < 0 || i >= SchedulerWorkerStatus(len(_SchedulerWorkerStatus_index)-1) {

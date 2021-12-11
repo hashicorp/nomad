@@ -67,7 +67,8 @@ type SchedulerWorkerStatus int
 const (
 	WorkloadUnknownStatus SchedulerWorkerStatus = iota
 	WorkloadRunning
-	WorkloadWaiting
+	WorkloadWaitingToDequeue
+	WorkloadWaitingForRaft
 	WorkloadScheduling
 	WorkloadSubmitting
 	WorkloadBackoff
@@ -111,13 +112,14 @@ type Worker struct {
 	snapshotIndex uint64
 }
 
-// NewWorker starts a new worker associated with the given server
+// NewWorker starts a new scheduler worker associated with the given server
 func NewWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) (*Worker, error) {
 	w, _ := newWorker(ctx, srv, args)
 	w.Start()
 	return w, nil
 }
 
+// _newWorker creates a worker without calling its Start func. This is useful for testing.
 func newWorker(ctx context.Context, srv *Server, args SchedulerWorkerPoolArgs) (*Worker, error) {
 	w := &Worker{
 		id:                uuid.Generate(),
@@ -151,22 +153,21 @@ func (w *Worker) Start() {
 // to see if it paused using IsPaused()
 func (w *Worker) Pause() {
 	w.setStatus(WorkerPausing)
-	w.pauseLock.Lock()
-	w.pauseFlag = true
-	w.pauseLock.Unlock()
+	w.setPauseFlag(true)
 }
 
 // Resume transitions a worker to the resuming state. Check
-// to see if the worker restarted by checking IsStarted()
+// to see if the worker restarted by calling IsStarted()
 func (w *Worker) Resume() {
 	if w.IsPaused() {
 		w.setStatus(WorkerResuming)
+		w.setPauseFlag(false)
 		w.pauseCond.Broadcast()
 	}
 }
 
 // Resume transitions a worker to the stopping state. Check
-// to see if the worker stopped by checking IsStopped()
+// to see if the worker stopped by calling IsStopped()
 func (w *Worker) Stop() {
 	w.setStatus(WorkerStopping)
 	w.shutdown()
@@ -199,6 +200,10 @@ func (w *Worker) GetStatus() WorkerStatus {
 func (w *Worker) setStatus(newStatus WorkerStatus) {
 	w.statusLock.Lock()
 	defer w.statusLock.Unlock()
+	if newStatus == w.status {
+		return
+	}
+	w.logger.Trace("changed worker status", "from", w.status, "to", newStatus)
 	w.status = newStatus
 }
 
@@ -214,7 +219,22 @@ func (w *Worker) GetWorkloadStatus() SchedulerWorkerStatus {
 func (w *Worker) setWorkloadStatus(newStatus SchedulerWorkerStatus) {
 	w.statusLock.Lock()
 	defer w.statusLock.Unlock()
+	if newStatus == w.workloadStatus {
+		return
+	}
+	w.logger.Trace("changed workload status", "from", w.workloadStatus, "to", newStatus)
 	w.workloadStatus = newStatus
+}
+
+// ----------------------------------
+//  Pause Implementation
+//    These functions are used to support the worker's pause behaviors.
+// ----------------------------------
+
+func (w *Worker) setPauseFlag(pause bool) {
+	w.pauseLock.Lock()
+	defer w.pauseLock.Unlock()
+	w.pauseFlag = pause
 }
 
 // maybeWait is responsible for making the transition from `pausing`
@@ -229,21 +249,24 @@ func (w *Worker) maybeWait() {
 
 	w.statusLock.Lock()
 	w.status = WorkerPaused
+	originalWorkloadStatus := w.workloadStatus
 	w.workloadStatus = WorkloadPaused
+	w.logger.Trace("changed workload status", "from", originalWorkloadStatus, "to", w.workloadStatus)
+
 	w.statusLock.Unlock()
 
 	for w.pauseFlag {
 		w.pauseCond.Wait()
 	}
-	w.pauseFlag = false
+
 	w.pauseLock.Unlock()
 
 	w.statusLock.Lock()
 	w.status = WorkerStarted
-	w.workloadStatus = WorkloadRunning
+	w.workloadStatus = originalWorkloadStatus
+	w.logger.Trace("changed workload status", "from", w.workloadStatus, "to", originalWorkloadStatus)
+	w.logger.Trace("changed worker status", "from", WorkerPaused, "to", WorkerStarted)
 	w.statusLock.Unlock()
-	w.logger.Debug("resumed")
-
 }
 
 // Shutdown is used to signal that the worker should shutdown.
@@ -276,9 +299,9 @@ func (w *Worker) workerShuttingDown() bool {
 	}
 }
 
-/*-----------------
-  Behavior code
------------------*/
+// ----------------------------------
+//  Workload behavior code
+// ----------------------------------
 
 // run is the long-lived goroutine which is used to run the worker
 func (w *Worker) run() {
@@ -310,6 +333,7 @@ func (w *Worker) run() {
 		}
 
 		// Wait for the raft log to catchup to the evaluation
+		w.setWorkloadStatus(WorkloadWaitingForRaft)
 		snap, err := w.snapshotMinIndex(waitIndex, raftSyncLimit)
 		if err != nil {
 			w.logger.Error("error waiting for Raft index", "error", err, "index", waitIndex)
@@ -318,6 +342,7 @@ func (w *Worker) run() {
 		}
 
 		// Invoke the scheduler to determine placements
+		w.setWorkloadStatus(WorkloadScheduling)
 		if err := w.invokeScheduler(snap, eval, token); err != nil {
 			w.logger.Error("error invoking scheduler", "error", err)
 			w.sendNack(eval, token)
@@ -354,6 +379,7 @@ REQ:
 
 	// Make a blocking RPC
 	start := time.Now()
+	w.setWorkloadStatus(WorkloadWaitingToDequeue)
 	err := w.srv.RPC("Eval.Dequeue", &req, &resp)
 	metrics.MeasureSince([]string{"nomad", "worker", "dequeue_eval"}, start)
 	if err != nil {
@@ -715,6 +741,7 @@ func (w *Worker) shouldResubmit(err error) bool {
 // This uses the worker's context in order to immediately stop the
 // backoff if the server or the worker is shutdown.
 func (w *Worker) backoffErr(base, limit time.Duration) bool {
+	w.setWorkloadStatus(WorkloadBackoff)
 	backoff := (1 << (2 * w.failures)) * base
 	if backoff > limit {
 		backoff = limit
@@ -733,4 +760,11 @@ func (w *Worker) backoffErr(base, limit time.Duration) bool {
 // exponential backoff
 func (w *Worker) backoffReset() {
 	w.failures = 0
+}
+
+// Test helpers
+//
+func (w *Worker) _start(inFunc func(w *Worker)) {
+	w.setStatus(WorkerStarting)
+	go inFunc(w)
 }
