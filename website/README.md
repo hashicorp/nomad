@@ -42,6 +42,7 @@ changes to `stable-website` and or `release-#.#.#` branches.
 Merging a PR with this label will trigger two[^backport-strategy] workflow jobs:
 
 1. Attempt to backport changes into `stable-website`
+  - > **Note:** `stable-website` will represent the same version of the docs as `release-#.#.#`, not `main`.
 2. Attempt to backport changes into the "latest" release branch,
    ex: `release-#.#.#`[^latest-release-branch]
 
