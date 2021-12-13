@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "author": "HashiCorp",
   "engines": {
-    "node": "12.x - 14.x",
+    "node": "14.x - 16.x",
     "npm": ">=7.0.0"
   },
   "dependencies": {
@@ -20,7 +20,7 @@
     "@hashicorp/react-code-block": "^4.1.5",
     "@hashicorp/react-consent-manager": "^7.1.0",
     "@hashicorp/react-content": "^8.0.2",
-    "@hashicorp/react-docs-page": "^14.4.2",
+    "@hashicorp/react-docs-page": "^14.11.0",
     "@hashicorp/react-featured-slider": "^5.0.1",
     "@hashicorp/react-hashi-stack-menu": "^2.1.2",
     "@hashicorp/react-head": "^3.1.2",
