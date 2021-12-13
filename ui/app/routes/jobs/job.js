@@ -18,11 +18,7 @@ export default class JobRoute extends Route {
     const namespace = transition.to.queryParams.namespace || 'default';
     const name = params.job_name;
     const fullId = JSON.stringify([name, namespace]);
-    console.log(
-      this.store
-        .findRecord('job', fullId, { reload: true })
-        .then(job => console.log('model\n\n', job))
-    );
+
     return this.store
       .findRecord('job', fullId, { reload: true })
       .then(job => {
