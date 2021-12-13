@@ -124,6 +124,7 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
+	go install golang.org/x/tools/cmd/stringer@v0.1.8
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
