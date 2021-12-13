@@ -14,7 +14,7 @@
     </:before-namespace>
   </JobPage::Parts::StatsBox>
 
-  {{#if this.job.hasClientStatus}}
+  {{#if this.shouldDisplayClientInformation}}
     <JobPage::Parts::JobClientStatusSummary
       @gotoClients={{this.gotoClients}}
       @job={{this.job}}
@@ -22,7 +22,7 @@
     />
   {{/if}}
 
-  <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed={{this.job.hasClientStatus}} />
+  <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed={{this.shouldDisplayClientInformation}} />
 
   <JobPage::Parts::PlacementFailures @job={{this.job}} />
 

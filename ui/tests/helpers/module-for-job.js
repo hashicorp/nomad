@@ -192,6 +192,31 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
       assert.equal(gotURL.searchParams.toString(), expectedURL.searchParams.toString());
     });
 
+    test('clients tab and client status summary bar are not displayed if not allowed', async function(assert) {
+      const policy = server.create('policy', {
+        id: 'job-read',
+        name: 'job-read',
+        rulesJSON: {
+          Namespaces: [
+            {
+              Name: 'default',
+              Capabilities: ['list-jobs', 'read-job'],
+            },
+          ],
+        },
+      });
+
+      const clientToken = server.create('token');
+      clientToken.policyIds = [policy.id];
+      clientToken.save();
+      window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+      await JobDetail.visit({ id: job.id, namespace: job.namespace });
+
+      assert.false(JobDetail.jobClientStatusSummary.isPresent);
+      assert.notOk(JobDetail.tabFor('clients'));
+    });
+
     for (var testName in additionalTests) {
       test(testName, async function(assert) {
         await additionalTests[testName].call(this, job, assert);
