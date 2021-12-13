@@ -2,6 +2,11 @@ module.exports = [
   // Define your custom redirects within this file.
   // Vercel's redirect documentation: https://vercel.com/docs/configuration#project/redirects
   // Playground for testing url pattern matching: https://npm.runkit.com/path-to-regexp
+  {
+    source: '/home',
+    destination: '/',
+    permanent: true,
+  },
 
   // Friendly URL for trial form redirection
   {
