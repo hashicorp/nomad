@@ -1,4 +1,4 @@
-<Trigger @do={{this.fetchParent}} as |trigger|>
+<Trigger @onError={{action this.onError}} @do={{this.fetchParent}} as |trigger|>
   {{did-insert trigger.fns.do}}
   {{#if trigger.data.isBusy}}
     <li>
