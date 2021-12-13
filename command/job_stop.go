@@ -48,7 +48,7 @@ Stop Options:
     only a single region at a time. Ignored for single-region jobs.
 
   -no-shutdown-delay
-	Ignore the the group and task shutdown_delay configuration so there is no
+	Ignore the the group and task shutdown_delay configuration so that there is no
     delay between service deregistration and task shutdown. Note that using
     this flag will result in failed network connections to the allocations
     being stopped.
