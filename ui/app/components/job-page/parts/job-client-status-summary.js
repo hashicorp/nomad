@@ -8,10 +8,13 @@ import classic from 'ember-classic-decorator';
 export default class JobClientStatusSummary extends Component {
   job = null;
   jobClientStatus = null;
+  forceCollapsed = false;
   gotoClients() {}
 
-  @computed
+  @computed('forceCollapsed')
   get isExpanded() {
+    if (this.forceCollapsed) return false;
+
     const storageValue = window.localStorage.nomadExpandJobClientStatusSummary;
     return storageValue != null ? JSON.parse(storageValue) : true;
   }

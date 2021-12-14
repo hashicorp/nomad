@@ -20,6 +20,8 @@
       @job={{this.job}}
       @jobClientStatus={{this.jobClientStatus}}
     />
+  {{else}}
+    <JobPage::Parts::JobClientStatusSummary @job={{this.job}} @forceCollapsed="true" />
   {{/if}}
 
   <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed={{this.shouldDisplayClientInformation}} />

@@ -153,13 +153,13 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
 
     test('job status summary is shown in the overview', async function(assert) {
       assert.ok(
-        JobDetail.jobClientStatusSummary.isPresent,
+        JobDetail.jobClientStatusSummary.statusBar.isPresent,
         'Summary bar is displayed in the Job Status in Client summary section'
       );
     });
 
     test('clicking legend item navigates to a pre-filtered clients table', async function(assert) {
-      const legendItem = JobDetail.jobClientStatusSummary.legend.clickableItems[0];
+      const legendItem = JobDetail.jobClientStatusSummary.statusBar.legend.clickableItems[0];
       const status = legendItem.label;
       await legendItem.click();
 
@@ -174,7 +174,7 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
     });
 
     test('clicking in a slice takes you to a pre-filtered clients table', async function(assert) {
-      const slice = JobDetail.jobClientStatusSummary.slices[0];
+      const slice = JobDetail.jobClientStatusSummary.statusBar.slices[0];
       const status = slice.label;
       await slice.click();
 
@@ -212,8 +212,10 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
       window.localStorage.nomadTokenSecret = clientToken.secretId;
 
       await JobDetail.visit({ id: job.id, namespace: job.namespace });
+      await JobDetail.jobClientStatusSummary.toggle();
 
-      assert.false(JobDetail.jobClientStatusSummary.isPresent);
+      assert.false(JobDetail.jobClientStatusSummary.statusBar.isPresent);
+      assert.true(JobDetail.jobClientStatusSummary.notAuthorized);
       assert.notOk(JobDetail.tabFor('clients'));
     });
 
