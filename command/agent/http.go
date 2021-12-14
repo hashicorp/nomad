@@ -117,8 +117,8 @@ func NewHTTPServers(agent *Agent, config *Config) ([]HTTPServer, error) {
 
 	// Start the listener
 	for _, addr := range config.normalizedAddrs.HTTP {
-    // Create the mux
-    mux := http.NewServeMux()
+		// Create the mux
+		mux := http.NewServeMux()
 
 		lnAddr, err := net.ResolveTCPAddr("tcp", addr)
 		if err != nil {

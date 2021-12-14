@@ -2053,14 +2053,14 @@ func isTemporaryFile(name string) bool {
 }
 
 func deduplicateAddrs(addrs []string) []string {
-  keys := make(map[string]bool)
-  list := []string{}
+	keys := make(map[string]bool)
+	list := []string{}
 
-  for _, entry := range addrs {
-      if _, value := keys[entry]; !value {
-          keys[entry] = true
-          list = append(list, entry)
-      }
-  }
-  return list
+	for _, entry := range addrs {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }
