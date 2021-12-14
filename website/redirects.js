@@ -590,6 +590,11 @@ module.exports = [
     permanent: true,
   },
   {
+    source: '/docs/commands/eval-status',
+    destination: '/docs/commands/eval/status',
+    permanent: true,
+  },
+  {
     source: '/docs/commands/fs',
     destination: '/docs/commands/alloc/fs',
     permanent: true,
