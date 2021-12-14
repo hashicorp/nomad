@@ -14,14 +14,12 @@
     </:before-namespace>
   </JobPage::Parts::StatsBox>
 
-  {{#if this.shouldDisplayClientInformation}}
+  {{#if this.job.hasClientStatus}}
     <JobPage::Parts::JobClientStatusSummary
-      @gotoClients={{this.gotoClients}}
       @job={{this.job}}
-      @jobClientStatus={{this.jobClientStatus}}
-    />
-  {{else}}
-    <JobPage::Parts::JobClientStatusSummary @job={{this.job}} @forceCollapsed="true" />
+      @jobClientStatus={{if this.shouldDisplayClientInformation this.jobClientStatus}}
+      @forceCollapsed={{not this.shouldDisplayClientInformation}}
+      @gotoClients={{this.gotoClients}} />
   {{/if}}
 
   <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed={{this.shouldDisplayClientInformation}} />

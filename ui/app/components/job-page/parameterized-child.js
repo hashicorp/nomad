@@ -8,7 +8,6 @@ import jobClientStatus from 'nomad-ui/utils/properties/job-client-status';
 @classic
 export default class ParameterizedChild extends PeriodicChildJobPage {
   @alias('job.decodedPayload') payload;
-  @service can;
   @service store;
 
   @computed('payload')
@@ -26,9 +25,5 @@ export default class ParameterizedChild extends PeriodicChildJobPage {
 
   get nodes() {
     return this.store.peekAll('node');
-  }
-
-  get shouldDisplayClientInformation() {
-    return this.can.can('read client') && this.job.hasClientStatus;
   }
 }

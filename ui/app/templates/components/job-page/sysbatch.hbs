@@ -5,16 +5,13 @@
 
   <JobPage::Parts::StatsBox @job={{this.job}} />
 
-  {{#if (can "read client")}}
-    <JobPage::Parts::JobClientStatusSummary
-      @job={{this.job}}
-      @jobClientStatus={{this.jobClientStatus}}
-      @gotoClients={{this.gotoClients}} />
-  {{else}}
-    <JobPage::Parts::JobClientStatusSummary @job={{this.job}} @forceCollapsed="true" />
-  {{/if}}
+  <JobPage::Parts::JobClientStatusSummary
+    @job={{this.job}}
+    @jobClientStatus={{if this.shouldDisplayClientInformation this.jobClientStatus}}
+    @forceCollapsed={{not this.shouldDisplayClientInformation}}
+    @gotoClients={{this.gotoClients}} />
 
-  <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed={{if (can "read client") true false}} />
+  <JobPage::Parts::Summary @job={{this.job}} @forceCollapsed={{this.shouldDisplayClientInformation}} />
 
   <JobPage::Parts::PlacementFailures @job={{this.job}} />
 

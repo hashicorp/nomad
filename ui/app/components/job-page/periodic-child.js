@@ -6,7 +6,6 @@ import jobClientStatus from 'nomad-ui/utils/properties/job-client-status';
 
 @classic
 export default class PeriodicChild extends AbstractJobPage {
-  @service can;
   @service store;
 
   @computed('job.{name,id}', 'job.parent.{name,id}')
@@ -31,9 +30,5 @@ export default class PeriodicChild extends AbstractJobPage {
 
   get nodes() {
     return this.store.peekAll('node');
-  }
-
-  get shouldDisplayClientInformation() {
-    return this.can.can('read client') && this.job.hasClientStatus;
   }
 }
