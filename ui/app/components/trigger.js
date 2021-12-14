@@ -18,11 +18,11 @@ export default class Trigger extends Component {
   }
 
   get isSuccess() {
-    return this.triggerTask.last.isSuccessful;
+    return this.triggerTask.last?.isSuccessful;
   }
 
   get isError() {
-    return this.triggerTask.lastErrored;
+    return !!this.error;
   }
 
   get fns() {
@@ -44,12 +44,18 @@ export default class Trigger extends Component {
     return { isBusy, isIdle, isSuccess, isError, result };
   }
 
+  _reset() {
+    this.result = null;
+    this.error = null;
+  }
+
   @task(function*() {
+    this._reset();
     try {
       this.result = yield this.args.do();
       this.onSuccess(this.result);
     } catch (e) {
-      this.error = e;
+      this.error = { Error: e };
       this.onError(this.error);
     }
   })
