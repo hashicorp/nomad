@@ -19,7 +19,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
   async afterModel(model) {
     // Optimizing future node look ups by preemptively loading all nodes if
     // necessary and allowed.
-    if (model.get('hasClientStatus') && this.can.can('read client')) {
+    if (model && model.get('hasClientStatus') && this.can.can('read client')) {
       await this.store.findAll('node');
     }
   }
