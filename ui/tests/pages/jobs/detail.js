@@ -75,8 +75,12 @@ export default create({
   jobClientStatusSummary: {
     scope: '[data-test-job-client-summary]',
     statusBar: jobClientStatusBar('[data-test-job-client-status-bar]'),
-    notAuthorized: isPresent('[data-test-not-authorized-message]'),
-    toggle: clickable('[data-test-accordion-head] [data-test-accordion-toggle]'),
+    toggle: {
+      scope: '[data-test-accordion-head] [data-test-accordion-toggle]',
+      click: clickable(),
+      isDisabled: attribute('disabled'),
+      tooltip: attribute('aria-label'),
+    },
   },
 
   childrenSummary: isPresent('[data-test-job-summary] [data-test-children-status-bar]'),

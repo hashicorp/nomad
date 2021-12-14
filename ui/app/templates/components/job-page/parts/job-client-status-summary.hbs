@@ -5,7 +5,11 @@
   @startExpanded={{this.isExpanded}}
   @onToggle={{action this.persist}} as |a|
 >
-  <a.head @buttonLabel={{if a.isOpen "collapse" "expand"}}>
+  <a.head
+    @buttonLabel={{if a.isOpen "collapse" "expand"}}
+    @tooltip={{if (cannot "read client") "You don’t have permission to read clients"}}
+    @isDisabled={{cannot "read client"}}
+  >
     <div class="columns">
       <div class="column is-minimum nowrap">
         Job Status in Client
@@ -54,13 +58,6 @@
           {{/each}}
         </ol>
       </JobClientStatusBar>
-    {{else if (cannot "read clients") }}
-      <div data-test-not-authorized-message class="empty-message">
-        <h3 class="empty-message-headline">Not Authorized</h3>
-        <p class="empty-message-body">
-          Your <LinkTo @route="settings.tokens">ACL token</LinkTo> does not provide <code>node:read</code> permission.
-        </p>
-      </div>
     {{/if}}
   </a.body>
 </ListAccordion>

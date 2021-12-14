@@ -3,6 +3,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
+import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 
 // eslint-disable-next-line ember/no-test-module-for
 export default function moduleForJob(title, context, jobFactory, additionalTests) {
@@ -167,6 +168,23 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
       } else {
         await JobDetail.visit({ id: job.id, namespace: job.namespace });
       }
+    });
+
+    test('job status summary is collapsed when not authorized', async function(assert) {
+      const clientToken = server.create('token', { type: 'client' });
+      await Tokens.visit();
+      await Tokens.secret(clientToken.secretId).submit();
+
+      await JobDetail.visit({ id: job.id, namespace: job.namespace });
+
+      assert.ok(
+        JobDetail.jobClientStatusSummary.toggle.isDisabled,
+        'Job client status summar is disabled'
+      );
+      assert.equal(
+        JobDetail.jobClientStatusSummary.toggle.tooltip,
+        'You don’t have permission to read clients'
+      );
     });
 
     test('the subnav links to clients', async function(assert) {
