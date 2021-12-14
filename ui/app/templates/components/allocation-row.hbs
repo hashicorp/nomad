@@ -40,25 +40,29 @@
 </td>
 {{#if (eq this.context "volume")}}
   <td data-test-client>
-    {{#if (can "read client")}}
-      <Tooltip @text={{this.allocation.node.name}}>
+    <Tooltip @text={{this.allocation.nodeName}}>
+      {{#if (can "read client")}}
         <LinkTo @route="clients.client" @model={{this.allocation.node}}>
-          {{this.allocation.node.shortId}}
+          {{this.allocation.shortNodeId}}
         </LinkTo>
-      </Tooltip>
-    {{/if}}
+      {{else}}
+        {{this.allocation.shortNodeId}}
+      {{/if}}
+    </Tooltip>
   </td>
 {{/if}}
 {{#if (or (eq this.context "taskGroup") (eq this.context "job"))}}
   <td data-test-job-version>{{this.allocation.jobVersion}}</td>
   <td data-test-client>
-    {{#if (can "read client")}}
-      <Tooltip @text={{this.allocation.node.name}}>
+    <Tooltip @text={{this.allocation.nodeName}}>
+      {{#if (can "read client")}}
         <LinkTo @route="clients.client" @model={{this.allocation.node}}>
-          {{this.allocation.node.shortId}}
+          {{this.allocation.shortNodeId}}
         </LinkTo>
-      </Tooltip>
-    {{/if}}
+      {{else}}
+        {{this.allocation.shortNodeId}}
+      {{/if}}
+    </Tooltip>
   </td>
 {{else if (or (eq this.context "node") (eq this.context "volume"))}}
   <td>
