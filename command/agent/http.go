@@ -47,9 +47,8 @@ var (
 	// Set to false by stub_asset if the ui build tag isn't enabled
 	uiEnabled = true
 
-	// Displayed when ui is disabled, but overridden if the ui build
-	// tag isn't enabled
-	stubHTML = "<html><p>Nomad UI is disabled</p></html>"
+	// Overridden if the ui build tag isn't enabled
+	stubHTML = ""
 
 	// allowCORS sets permissive CORS headers for a handler
 	allowCORS = cors.New(cors.Options{
@@ -337,21 +336,13 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/namespace", s.wrap(s.NamespaceCreateRequest))
 	s.mux.HandleFunc("/v1/namespace/", s.wrap(s.NamespaceSpecificRequest))
 
-	uiConfigEnabled := s.agent.config.UI != nil && s.agent.config.UI.Enabled
-
-	if uiEnabled && uiConfigEnabled {
+	if uiEnabled {
 		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
-		s.logger.Debug("UI is enabled")
 	} else {
 		// Write the stubHTML
 		s.mux.HandleFunc("/ui/", func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(stubHTML))
 		})
-		if uiEnabled && !uiConfigEnabled {
-			s.logger.Warn("UI is disabled")
-		} else {
-			s.logger.Debug("UI is disabled in this build")
-		}
 	}
 	s.mux.Handle("/", s.handleRootFallthrough())
 
