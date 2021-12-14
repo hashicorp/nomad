@@ -1,3 +1,6 @@
+{{#each this.breadcrumbs as |crumb|}}
+  <Breadcrumb @crumb={{crumb}} />
+{{/each}}
 <PageLayout>
   <section class="section">
     {{#if this.summaries}}
@@ -12,7 +15,7 @@
                 {{this.summaries.length}}
 
                 {{pluralize "recommendation" this.summaries.length}}
-                ..."
+                 ..."
             />
           {{/if}}
         </div>
@@ -123,4 +126,3 @@
     {{/if}}
   </section>
 </PageLayout>
-<Breadcrumb @bucket="navigation" @crumb={{this.breadcrumbs}} />

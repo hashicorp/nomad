@@ -1,5 +1,7 @@
+{{#each this.breadcrumbs as |crumb|}}
+  <Breadcrumb @crumb={{crumb}} />
+{{/each}}
 {{page-title "Run a job"}}
 <section class="section">
   <JobEditor @job={{this.model}} @context="new" @onSubmit={{action this.onSubmit}} />
 </section>
-<Breadcrumb @bucket="navigation" @crumb={{this.breadcrumbs}} />

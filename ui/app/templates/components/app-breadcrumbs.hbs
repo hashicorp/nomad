@@ -1,7 +1,7 @@
-<Breadcrumbs as |bb|>
-  {{#each bb as |breadcrumb|}}
-    {{#each breadcrumb.args.crumb as |b|}}
-      {{component (concat "breadcrumbs/" (or b.type "default")) crumb=b}}
-    {{/each}}
+<Breadcrumbs as |breadcrumbs|>
+  {{#each breadcrumbs as |crumb|}}
+    {{#let crumb.args.crumb as |c|}}
+      {{component (concat "breadcrumbs/" (or c.type "default")) crumb=c}}
+    {{/let}}
   {{/each}}
 </Breadcrumbs>
