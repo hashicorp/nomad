@@ -29,9 +29,6 @@ module.exports = {
     {
       files: ['integration/components/**/*-test.js'],
       plugins: ['ember-a11y-testing'],
-      rules: {
-        'ember-a11y-testing/a11y-audit-called': 'error',
-      },
       settings: {
         'ember-a11y-testing': {
           auditModule: {
