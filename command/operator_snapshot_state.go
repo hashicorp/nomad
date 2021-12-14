@@ -16,13 +16,13 @@ type OperatorSnapshotStateCommand struct {
 
 func (c *OperatorSnapshotStateCommand) Help() string {
 	helpText := `
-Usage: nomad operator snapshot _state <file>
+Usage: nomad operator snapshot state <file>
 
   Displays a JSON representation of state in the snapshot.
 
   To inspect the file "backup.snap":
 
-    $ nomad operator snapshot _state backup.snap
+    $ nomad operator snapshot state backup.snap
 `
 	return strings.TrimSpace(helpText)
 }
@@ -39,7 +39,7 @@ func (c *OperatorSnapshotStateCommand) Synopsis() string {
 	return "Displays information about a Nomad snapshot file"
 }
 
-func (c *OperatorSnapshotStateCommand) Name() string { return "operator snapshot _state" }
+func (c *OperatorSnapshotStateCommand) Name() string { return "operator snapshot state" }
 
 func (c *OperatorSnapshotStateCommand) Run(args []string) int {
 	// Check that we either got no filename or exactly one.
