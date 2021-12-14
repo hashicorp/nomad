@@ -16,7 +16,7 @@ export default function Homepage() {
     <div id="p-home">
       <HomepageHero
         title="Workload Orchestration Made Easy"
-        description="A simple and flexible workload orchestrator to deploy and manage containers and non-containerized applications across on-prem and clouds at scale."
+        description="A simple and flexible scheduler and workload orchestrator to deploy and manage containers and non-containerized applications across on-prem and clouds at scale."
         links={[
           {
             text: 'Download',
@@ -227,7 +227,8 @@ export default function Homepage() {
             person: {
               firstName: 'Dhasharath',
               lastName: 'Shrivathsa',
-              photo: 'https://www.datocms-assets.com/2885/1623450501-dhasharath-shrivathsa.jpg',
+              photo:
+                'https://www.datocms-assets.com/2885/1623450501-dhasharath-shrivathsa.jpg',
               title: 'CEO',
             },
             company: {
