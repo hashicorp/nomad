@@ -1,3 +1,6 @@
+{{#each this.breadcrumbs as |crumb|}}
+  <Breadcrumb @crumb={{crumb}} />
+{{/each}}
 {{page-title "Cluster Topology"}}
 <PageLayout>
   <section class="section is-full-width">
@@ -16,7 +19,7 @@
                 {{if (eq this.filteredNodes.length 1) "client was" "clients were"}}
                 filtered from the topology visualization. This is most likely due to the
                 {{pluralize "client" this.filteredNodes.length}}
-                running a version of Nomad <0.9.0.
+                running a version of Nomad
               </p>
             </div>
             <div class="column is-centered is-minimum">
@@ -474,4 +477,3 @@
     {{/if}}
   </section>
 </PageLayout>
-<Breadcrumb @bucket="navigation" @crumb={{this.breadcrumbs}} />

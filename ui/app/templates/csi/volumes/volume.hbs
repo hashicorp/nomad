@@ -1,3 +1,6 @@
+{{#each this.breadcrumbs as |crumb|}}
+  <Breadcrumb @crumb={{crumb}} />
+{{/each}}
 {{page-title "CSI Volume " this.model.name}}
 <section class="section with-headspace">
   <h1 class="title" data-test-title>
@@ -188,4 +191,3 @@
     </div>
   </div>
 </section>
-<Breadcrumb @bucket="navigation" @crumb={{this.breadcrumbs}} />

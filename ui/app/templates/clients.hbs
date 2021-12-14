@@ -1,4 +1,6 @@
+{{#each this.breadcrumbs as |crumb|}}
+  <Breadcrumb @crumb={{crumb}} />
+{{/each}}
 <PageLayout>
   {{outlet}}
 </PageLayout>
-<Breadcrumb @bucket="navigation" @crumb={{this.breadcrumbs}} />

@@ -1,6 +1,8 @@
+{{#each this.breadcrumbs as |crumb|}}
+  <Breadcrumb @crumb={{crumb}} />
+{{/each}}
 {{page-title "Dispatch new " this.model.name}}
 <JobSubnav @job={{this.model}} />
 <section class="section">
   <JobDispatch @job={{this.model}} />
 </section>
-<Breadcrumb @bucket="navigation" @crumb={{this.breadcrumbs}} />
