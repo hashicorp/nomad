@@ -30,19 +30,28 @@ export default function moduleForJob(title, context, jobFactory, additionalTests
     });
 
     test('visiting /jobs/:job_id', async function(assert) {
-      assert.equal(
-        currentURL(),
-        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}`, job.namespace)
+      const expectedURL = new URL(
+        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}`, job.namespace),
+        window.location
       );
+      const gotURL = new URL(currentURL(), window.location);
+
+      assert.deepEqual(gotURL.path, expectedURL.path);
+      assert.deepEqual(gotURL.searchParams, expectedURL.searchParams);
       assert.equal(document.title, `Job ${job.name} - Nomad`);
     });
 
     test('the subnav links to overview', async function(assert) {
       await JobDetail.tabFor('overview').visit();
-      assert.equal(
-        currentURL(),
-        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}`, job.namespace)
+
+      const expectedURL = new URL(
+        urlWithNamespace(`/jobs/${encodeURIComponent(job.id)}`, job.namespace),
+        window.location
       );
+      const gotURL = new URL(currentURL(), window.location);
+
+      assert.deepEqual(gotURL.path, expectedURL.path);
+      assert.deepEqual(gotURL.searchParams, expectedURL.searchParams);
     });
 
     test('the subnav links to definition', async function(assert) {
@@ -128,6 +137,23 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
     setupMirage(hooks);
 
     hooks.beforeEach(async function() {
+      // Displaying the job status in client requires node:read permission.
+      const policy = server.create('policy', {
+        id: 'node-read',
+        name: 'node-read',
+        rulesJSON: {
+          Node: {
+            Policy: 'read',
+          },
+        },
+      });
+      const clientToken = server.create('token', { type: 'client' });
+      clientToken.policyIds = [policy.id];
+      clientToken.save();
+
+      window.localStorage.clear();
+      window.localStorage.nomadTokenSecret = clientToken.secretId;
+
       const clients = server.createList('node', 3, {
         datacenter: 'dc1',
         status: 'ready',
@@ -190,33 +216,6 @@ export function moduleForJobWithClientStatus(title, jobFactory, additionalTests)
       gotURL.searchParams.sort();
       expectedURL.searchParams.sort();
       assert.equal(gotURL.searchParams.toString(), expectedURL.searchParams.toString());
-    });
-
-    test('clients tab and client status summary bar are not displayed if not allowed', async function(assert) {
-      const policy = server.create('policy', {
-        id: 'job-read',
-        name: 'job-read',
-        rulesJSON: {
-          Namespaces: [
-            {
-              Name: 'default',
-              Capabilities: ['list-jobs', 'read-job'],
-            },
-          ],
-        },
-      });
-
-      const clientToken = server.create('token');
-      clientToken.policyIds = [policy.id];
-      clientToken.save();
-      window.localStorage.nomadTokenSecret = clientToken.secretId;
-
-      await JobDetail.visit({ id: job.id, namespace: job.namespace });
-      await JobDetail.jobClientStatusSummary.toggle();
-
-      assert.false(JobDetail.jobClientStatusSummary.statusBar.isPresent);
-      assert.true(JobDetail.jobClientStatusSummary.notAuthorized);
-      assert.notOk(JobDetail.tabFor('clients'));
     });
 
     for (var testName in additionalTests) {
