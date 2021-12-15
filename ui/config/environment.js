@@ -25,12 +25,7 @@ module.exports = function(environment) {
 
     APP: {
       blockingQueries: true,
-<<<<<<< HEAD
       mirageScenario: 'topoMedium',
-=======
-      // TODO: revert before merging to main.
-      mirageScenario: 'allJobTypes', // convert to 'sysbatchSmall' when working on feature
->>>>>>> 5a1df0423 (feat:  create trigger component)
       mirageWithNamespaces: false,
       mirageWithTokens: true,
       mirageWithRegions: true,
