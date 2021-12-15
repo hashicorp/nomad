@@ -1,4 +1,4 @@
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, waitFor } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -57,8 +57,9 @@ module('Acceptance | task detail', function(hooks) {
     const job = server.db.jobs.find(jobId);
 
     const shortId = allocation.id.split('-')[0];
-
     assert.equal(Layout.breadcrumbFor('jobs.index').text, 'Jobs', 'Jobs is the first breadcrumb');
+
+    await waitFor('[data-test-job-breadcrumb]');
     assert.equal(
       Layout.breadcrumbFor('jobs.job.index').text,
       job.name,

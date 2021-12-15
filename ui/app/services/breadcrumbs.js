@@ -8,7 +8,6 @@ export default class BucketService extends Service {
 
   @action registerBreadcrumb(crumb) {
     schedule('actions', this, () => {
-      console.log('register crumb:  ', crumb);
       this.crumbs = [...this.crumbs, crumb];
     });
   }

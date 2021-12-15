@@ -14,7 +14,7 @@
           @route="jobs.job.index"
           @model={{trigger.data.result.plainId}}
           @query={{hash namespace=(or trigger.data.result.namespace.name "default")}}
-          data-test-breadcrumb={{@crumb.args.firstObject}}
+          data-test-breadcrumb={{"jobs.job.index"}}
         >
           {{trigger.data.result.trimmedName}}
         </LinkTo>
@@ -25,7 +25,8 @@
         @route="jobs.job.index"
         @model={{this.job.plainId}}
         @query={{hash namespace=(or this.job.namespace.name "default")}}
-        data-test-breadcrumb={{@crumb.args.firstObject}}
+        data-test-breadcrumb={{"jobs.job.index"}}
+        data-test-job-breadcrumb
       >
         {{this.job.trimmedName}}
       </LinkTo>
